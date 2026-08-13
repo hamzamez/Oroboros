@@ -144,9 +144,15 @@ also produced a counterexample to ADR 0002's governing rule (see §8 there). Pro
 boxing but forced the largest open question: `(slice T)` for a struct `T` cannot share one
 representation across targets, so an emitted signature's *arity* varies.
 
-All defects found so far are one family — naive rewriting loses sharing, capture-freedom, or
-simultaneity — each with a textbook fix predating the project. See
-[g2 §7](derivations/g2-structs.md).
+Program 5 found the first *correctness* defect — effects. Rules can change how many times an
+effect happens and in what order, where all earlier defects were performance defects. Bindings
+themselves cost nothing: an extern is a vocabulary entry, so rewriting halts on it.
+
+All defects found so far are one family — naive rewriting loses sharing, capture-freedom,
+simultaneity, or effect ordering — each with a textbook fix predating the project. Four
+independent routes to the same question, *when may a term be copied, moved, or deleted?*, which
+is substructural and may deserve a single answer in the core's type discipline rather than four
+analyses. See [g5 §9](derivations/g5-bindings.md).
 
 **Untested: escaping closures.** Every derivation had function arguments literal at the call
 site, so no closure ever formed.

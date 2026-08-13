@@ -127,25 +127,28 @@ stops, emitting Go's `map`. The same source on C keeps rewriting into a real has
 - Macros, lowering, targeting, optimization, and pattern matching are one mechanism.
 - "Emit at the highest layer the target natively provides" is not a rule the compiler enforces;
   it is what rewriting-to-a-vocabulary *is*.
-- The implementation is small. A pattern matcher and a rule engine are a few hundred lines.
+- ~~The implementation is small. A pattern matcher and a rule engine are a few hundred lines.~~
+  **Withdrawn** after the g1 derivation — see the second bullet under "Against."
 - Rules are `pattern => replacement` — extremely uniform, very legible to models, and
   mechanically checkable.
 - Lowering decisions are inspectable: dump the derivation and see exactly why the output looks
   the way it does.
 
-**Status:** survived a hand-derivation of gauntlet program 4 —
-[docs/derivations/g4-word-count.md](derivations/g4-word-count.md). Four defects found, all
-fixable; three new required disciplines (auto let-binding of repeated metavariables, layer
-stratification, linearity analysis). Program 1 not yet derived, and it is the harder case.
+**Status:** survived hand-derivations of gauntlet programs
+[4](derivations/g4-word-count.md) and [1](derivations/g1-dot-product.md), the latter being the
+case most likely to break it. Program 3 (generics) is the remaining structural risk.
 
 **Against, and these are real:**
 
-- **Termination and confluence.** Rule sets can loop or be order-dependent.
-  *Partly resolved by the g4 derivation §10:* lowering rules that move strictly down a layer
-  DAG terminate by construction, and that is structurally checkable. The risk is confined to
-  same-layer **optimization** rules, which are not required for correctness — so a
-  non-terminating optimization set can be bounded, leaving output correct but slower. Still
-  needs an answer for fusion specifically: a measure, a budget, or e-graphs.
+- **Termination and confluence.** *Largely resolved by the two derivations.* Rules fall in
+  three classes: layer-decreasing (free, structurally checkable), measure-decreasing
+  (deforestation — count collection-producing nodes; also checkable), and permutative
+  (commutativity, reassociation — diverges). Only the third is dangerous, and it can be
+  excluded outright, because hosts already do algebra and the only optimization they *cannot*
+  do is undoing a materialized intermediate. See [g1 §5](derivations/g1-dot-product.md).
+- **The implementation is not small.** The claim below that a rule engine is "a few hundred
+  lines" is false. Required so far: auto let-binding, layer stratification, linearity analysis,
+  hygiene, range analysis with `require` facts, and a deforestation measure check.
 - **The runtime model is still undecided.** Rewriting is a compile-time model; the residual
   vocabulary is a separate question — which is what Candidate A supplies.
 - **Compiler performance.** Rewriting is search, and naive search is slow.

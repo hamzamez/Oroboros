@@ -39,3 +39,5 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0005](0005-implementation-language.md) | The compiler is written in Go |
 | [0006](0006-ir-file-format.md) | The backend interface is a file format |
 | [0007](0007-exploration-over-specification.md) | Explore candidates against a fixed test, don't specify the core first |
+| [0008](0008-measurement-over-principle.md) | Parasite decisions are per-target measurements, not principles |
+| [0009](0009-staging-preserves-results.md) | Staging must not change results |

@@ -91,6 +91,16 @@ This is simultaneously the performance answer (the target's own idiom is what ha
 code would use), the binary size answer (nothing shipped that the host already has), and the
 ecosystem answer (requirement 2 as reframed).
 
+**But "the highest layer" is a measurement, not a derivation.** The first baseline run refuted
+four inferences of this rule at once: JS's `Map` is 3.25× *slower* than a null-prototype
+`Object` for string keys; Java's fused `merge` is 2.6× slower than unfused `getOrDefault` +
+`put`; Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and all three hosts
+inline a literal callback that we assumed only we would specialize.
+
+The rule remains the right prior — it was correct about Go's `map`, `strings.Fields`, and
+escaping closures. It is not a substitute for running the benchmark. See
+[ADR 0008](decisions/0008-measurement-over-principle.md).
+
 ### Both directions fall out for free
 
 - **Feature missing on a target** — floating point on an integer-only machine — is a shim:
@@ -179,6 +189,21 @@ for locals from initializers and uses; explicit types are required at function b
 Floats: IEEE-754 binary32 and binary64, because that is what hardware implements everywhere.
 Strict IEEE semantics by default, with fast-math as an opt-in capability — float determinism
 across hosts is a real hazard (x87 excess precision, FMA contraction, JS number semantics).
+
+Two float commitments now have measured consequences:
+
+- **Reduction order.** `sum` is left-to-right; `sum-unordered` is a separate capability that
+  permits reassociation. Measured price of the strict form: **5.2–7.2× on Go**, 2.3× on Java,
+  1.6× on JS. The decision stands — determinism is worth paying for — but `sum-unordered` is
+  the form most numeric code will actually want, not a footnote.
+- **Staging.** Compile-time float arithmetic must be IEEE-754 binary64 *exactly*, identical to
+  runtime. Go folds `0.1+0.2` to `0.3` at compile time and `0.30000000000000004` at runtime
+  because its untyped constants are arbitrary-precision. Inheriting that would make the
+  binding-time decision observable in program output, and partial evaluation unsound. See
+  [ADR 0009](decisions/0009-staging-preserves-results.md).
+
+Both are the same commitment: **the answer does not depend on how the compiler chose to get
+there.**
 
 Exact decimals for money are a separate library type. Unbounded integers remain available as
 a Tier 1 capability in a package — not as the default.
@@ -284,7 +309,8 @@ achievable — the output *is* what hand-written code would contain.
 
 1. **Memory model.** No GC in core; manual plus arena/region allocators passed explicitly. On
    GC'd hosts (Go, JS, JVM) `free` lowers to a no-op, preserving target parity. Needs
-   confirming against the capability model — allocation may itself be a capability.
+   confirming against the capability model — allocation may itself be a capability. **Note:**
+   no target in the initial set has manual memory, so this stays untested until C arrives.
 2. **Error model.** No exceptions; result values and error enums. But Go, JS, and Java all
    have native error idioms, and Tier 2 bindings will surface them. Interop story needed.
 3. **Concurrency.** Deferred. Note that Go's goroutines are a major reason to target Go at
@@ -295,9 +321,22 @@ achievable — the output *is* what hand-written code would contain.
 5. **Module and package format.** Required before Tier 2 bindings can be written.
 6. **Naming translation.** Whether `fmt.Println` is called as-is or mapped to a house
    convention, and whether that mapping is per-binding or per-target.
+7. **Substructural discipline.** Four derivations arrived independently at *when may a term be
+   copied, moved, or deleted?* — sharing, capture-freedom, simultaneity, effect ordering, plus
+   linearity for accumulators. Four routes to one question suggests it belongs in the core's
+   type discipline rather than in four separate analyses. **This may be the actual core**, and
+   is the most valuable open thread.
+8. **Sequence-of-struct representation.** `(slice T)` for a struct `T` cannot share one
+   representation across targets — but the problem is smaller than
+   [g2](derivations/g2-structs.md) assumed: measurement puts the array-of-objects penalty at
+   2.86× on **JS only**, and 1.05× on Java. Leading option is target-chosen representation with
+   explicit layouts available for interop.
+9. **Specialization versus binary size.** Requirements 5 and 6 pull opposite ways, and nothing
+   so far resolves it. Binding-time analysis makes the tradeoff *visible* per abstraction
+   ([g6 §9](derivations/g6-escaping-closures.md)) without deciding it.
 
 Items 2 and 4 are where the Parasite model exerts the most pressure on the "small core"
-requirement, and are worth deciding early.
+requirement. Item 7 is where the most interesting unexplored structure is.
 
 ---
 
@@ -321,22 +360,35 @@ requirement, and are worth deciding early.
 
 ---
 
-## 10. First milestones
+## 10. Milestones
 
-1. Freeze the core on paper: primitives, type set, control-flow forms, and the capability
-   declaration format. Write the porting contract before writing the compiler.
-2. Specify the **IR file format**. This is the backend interface and the most consequential
-   artifact in the project.
-3. Reader, printer, and canonical formatter for s-expressions.
-4. Front end: functions, locals, structs, range-typed scalars, structured control flow.
-5. **Go backend.** One non-trivial program compiling and running.
-6. **JS backend, before adding any front-end features.** Every core flaw surfaces here, and
+Revised by [ADR 0007](decisions/0007-exploration-over-specification.md) — the core is not
+frozen up front — and by what the first baseline run actually taught.
+
+**Done**
+
+1. ~~Five hand-derivations against the rewriting core~~ — all five gauntlet programs plus
+   escaping closures, in [docs/derivations/](derivations/).
+2. ~~Gauntlet baselines in Go, JS, and Java~~ — [gauntlet/](../gauntlet/). Refuted five
+   beliefs the derivations had reasoned their way into.
+
+**Next**
+
+3. **Explore the substructural thread** (open decision 7). Cheapest remaining experiment with
+   the highest information: four analyses may collapse into one type discipline.
+4. **Output-size measurement and CI wiring** for the gauntlet. Both are unchecked boxes, and
+   size is half of requirement 6 with no numbers against it at all.
+5. **A staging-soundness test** — fold at compile time, compute at runtime, assert bit equality
+   ([ADR 0009](decisions/0009-staging-preserves-results.md)).
+6. Reader, printer, and canonical formatter for s-expressions.
+7. Front end: functions, locals, structs, range-typed scalars, structured control flow.
+8. **Go backend**, one non-trivial program compiling and running.
+9. **JS backend, before adding any front-end features.** Every core flaw surfaces there, and
    fixing them later is expensive.
-7. Tier 2 binding format plus per-target import recipes. Bind something real on both targets
-   — `fmt` on Go, `console`/DOM on JS — to validate requirement 4.
-8. Benchmark harness against hand-written Go and JS, wired into CI as a gate.
-9. Java/Android target.
-10. Only then: macros and compile-time evaluation.
+10. Tier 2 binding format plus per-target import recipes, validated on `fmt` and `console`.
+11. Java/Android target.
+12. The IR file format, once a candidate core has survived — it cannot be designed before it is
+    known what flows through it.
 
-Steps 6 and 8 are the ones most likely to be skipped, and the two that determine whether the
-architecture holds.
+Step 9 remains the one most likely to be skipped and among the most load-bearing. Step 4 is now
+its equal: the performance half of the gauntlet exists and the size half does not.

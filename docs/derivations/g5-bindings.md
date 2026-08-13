@@ -146,14 +146,24 @@ property of the rule, verified once when the rule is written, not an analysis of
 
 ## 6. `print-line` is not portable, and that is the honest answer
 
-Float formatting diverges across all three targets:
+Float formatting diverges across all three targets. Measured, not predicted:
 
 | Value | Go `fmt.Println` | JS `console.log` | Java `System.out.println` |
 |---|---|---|---|
 | `1.0` | `1` | `1` | `1.0` |
 | `1e8` | `1e+08` | `100000000` | `1.0E8` |
+| `1e21` | `1e+21` | `1e+21` | `1.0E21` |
+| `-0.0` (runtime) | `-0` | `-0` | `-0.0` |
+| `1.0/3.0` | `0.3333333333333333` | same | same |
 
 Three targets, three answers, on the program whose entire purpose is producing output.
+
+The same check turned up something larger that has nothing to do with formatting: Go prints
+`0.3` for the *constant* `0.1+0.2` and `0.30000000000000004` for the same sum computed at
+runtime. That is arbitrary-precision constant folding, and it lands on the core's identity
+rather than on `print-line`. See
+[ADR 0009](../decisions/0009-staging-preserves-results.md) and
+[g6 §2](g6-escaping-closures.md).
 
 This is [g4's](g4-word-count.md) `split-words` conformance problem again, but worse, because
 the divergence *is* the observable behaviour. Two resolutions:

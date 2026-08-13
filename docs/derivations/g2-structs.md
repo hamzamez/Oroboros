@@ -72,13 +72,27 @@ says *n* allocations, the reference does zero.
 
 ## 3. The representation problem
 
-`(slice point)` has no single answer:
+`(slice point)` has no single answer — but the problem is **smaller than this derivation
+assumed**. Measured, n=65536, array-of-structs against parallel arrays:
 
-| Target | Array of structs | What fast code uses |
-|---|---|---|
-| Go | `[]Point`, 16B/elem, contiguous | array of structs |
-| JS | array of object pointers, *n* heap objects | `Float64Array` per field |
-| Java | `Point[]`, array of references, *n* heap objects | `double[]` per field |
+| Target | AoS | SoA | Penalty |
+|---|---|---|---|
+| Go | `[]Point`, contiguous | — | none; AoS is correct |
+| JS | array of object pointers | `Float64Array` per field | **2.86×** |
+| Java | `Point[]`, array of references | `double[]` per field | **1.05×** |
+
+**Java does not fail the way this derivation predicted.** HotSpot's bump allocator lays freshly
+built objects out contiguously, so iterating `Point[]` is near-sequential despite the
+indirection. Only JS actually pays.
+
+That halves the scope of the problem: one target of three needs a different representation, not
+two.
+
+A further caveat on the JS answer — `Float64Array` is not obviously right either. At n=65536 a
+plain `Array` of doubles measured 1.6× *faster* (33,281 ns vs 53,522 ns), while at n=1024 the
+two were equal. Unexplained; V8's `PACKED_DOUBLE_ELEMENTS` may get better locality than an
+`ArrayBuffer`. **The representation choice needs measuring per target and per size**, which is
+[ADR 0008](../decisions/0008-measurement-over-principle.md).
 
 Three options, none free:
 
@@ -211,8 +225,10 @@ their Tier 1 specification**, or the same program gives different answers per ta
 
 ## 9. Findings
 
-1. **`(slice T)` for struct `T` cannot have one representation across targets.** Go does AoS;
-   JS and Java must do SoA. The largest open decision the derivations have produced.
+1. **`(slice T)` for struct `T` cannot have one representation across targets** — but the
+   penalty is **JS-only** (2.86×). Java's `Point[]` costs 1.05×, so only one target of three
+   needs a different representation. Still the largest open decision the derivations produced,
+   at two-thirds the size originally stated.
 2. **A Tier 1 capability can change a function's arity across targets.** ADR 0001's binding
    story assumed signatures map. They do not.
 3. **Value semantics with no interior pointers makes SROA unconditional** — the alias analysis
@@ -229,10 +245,16 @@ their Tier 1 specification**, or the same program gives different answers per ta
 Boxing did not hide here. The loop that reads as *n* allocations compiles to two float
 accumulators, and the mechanism is ordinary layer-decreasing rules rather than a new pass.
 
-But program 2 is the first derivation where **the three targets need structurally different
-source programs**, and that is a real crack in the model — not fatal, since option (a) covers
-it, but it means "one program, many targets" holds at the level of *what is written* and not at
-the level of *what the emitted signature looks like*.
+**Measurement added a wrinkle worth keeping:** Go performs this scalarization *itself*.
+`CentroidStructAcc` — written exactly as the Oroboros source reads before SROA, constructing a
+`Point` every iteration — matches the hand-scalarized version at zero allocations. So §4's SROA
+rules are needed for JS and Java, and are redundant on Go. That is the Parasite model applying
+to our own passes: **do not implement what the host already does.**
+
+Program 2 is still the first derivation where the three targets want structurally different
+source programs. That crack is real but narrower than it first looked — JS alone pays the AoS
+penalty — and [g5 §1](g5-bindings.md) narrows it further: differing *interior* code is fine,
+and only the boundary is a semantic contract.
 
 **Machinery list, now complete across four derivations:**
 

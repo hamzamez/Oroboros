@@ -221,12 +221,17 @@ the failure gets an ADR and the next candidate gets written.
 
 ## 7. What would prove this wrong
 
-Stated in advance, so the recommendation is falsifiable on the same terms as the candidates:
+Stated in advance, so the recommendation is falsifiable on the same terms as the candidates.
+Status after five derivations and one baseline run:
 
-- If rule sets for the five gauntlet programs turn out to be non-confluent in ways that need
-  manual phase ordering everywhere, the "one mechanism" claim is false and B is just a
-  compiler pass framework with extra steps.
-- If the residual after rewriting is measurably worse than hand-written target code on
-  gauntlet 1 or 4, the model does not deliver the performance it promises.
-- If writing rules turns out to be harder to reason about than writing passes — for a person or
-  a model — the legibility claim is false, and that is a fatal objection given requirement 8.
+| Falsifier | Status |
+|---|---|
+| Rule sets for the five programs turn out non-confluent, needing manual phase ordering everywhere — making B a pass framework with extra steps | **Did not fire.** Termination split into three classes; lowering rules terminate structurally, and the dangerous permutative class can be excluded outright. See [g1 §5](derivations/g1-dot-product.md). |
+| The residual is measurably worse than hand-written target code on program 1 or 4 | **Untested — needs a compiler.** The derivations show the intended residual *is* the hand-written code, but nothing has generated it yet. |
+| Writing rules is harder to reason about than writing passes, for a person or a model | **Untested**, and the hardest to measure. Fatal to requirement 8 if true. |
+
+A fourth falsifier was added by measurement rather than foresight:
+
+| Falsifier | Status |
+|---|---|
+| Compile-time evaluation gives different answers than runtime, making binding-time analysis semantically observable | **Fired, and was fixable.** Go's arbitrary-precision constant folding does exactly this. Closed by [ADR 0009](decisions/0009-staging-preserves-results.md), which forbids it — but it was found by running a program, not by reasoning, which is the point of [ADR 0007](decisions/0007-exploration-over-specification.md). |

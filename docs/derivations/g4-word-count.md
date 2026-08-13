@@ -186,6 +186,12 @@ not be checked. Expected parity — **to be confirmed by the gauntlet baseline, 
 
 The pass condition holds: the output contains `map[string]int`, not a hash table.
 
+**On JS, the analogous condition was wrong.** This derivation assumed the JS output must contain
+`Map`, as the host's native dictionary. Measured at n=65536: `new Map()` costs 20,546,287 ns
+against a null-prototype `Object` at 6,320,347 ns — **`Map` is 3.25× slower** for string keys.
+The correct emission for `dicts` on JS is `Object.create(null)`, and the pass condition is
+"uses the host's own dictionary," with *which* one being a measurement.
+
 ## 7. Defect 2 — capability granularity decides parity
 
 `acc[xs[i]]++` is emitted only if the backend produces that form. If `dict-update` lowers the
@@ -195,22 +201,43 @@ obvious way — get, then set — the output is:
 acc[xs[i]] = acc[xs[i]] + 1        // two hash lookups
 ```
 
-Go compiles `m[k]++` and `m[k] += x` through a single `mapassign` that returns a pointer to the
-value slot, so the reference does **one** lookup and the naive lowering does **two**. That is a
-parity failure of roughly 2× on the hot loop. (The single-lookup claim is the first thing the
-gauntlet baseline should verify.)
+Go compiles `m[k]++` through a single `mapassign` returning a pointer to the value slot, so the
+reference does **one** lookup and the naive lowering does **two**.
 
-The finding generalizes past this program:
+**Measured, n=65536:**
 
-> **Capability granularity determines whether parity is reachable.** Split a capability finer
-> than the target's fused idiom and the fusion is unrecoverable.
+| Go | ns/op |
+|---|---|
+| `m[w]++` | 1,959,729 |
+| `m[w] = m[w] + 1` | 2,412,086 |
+| explicit get-or / set | 2,404,768 |
 
-So `dict-update` — not `dict-get` plus `dict-set` — is the Tier 1 capability, and the Go
-backend carries an emission rule recognising `(dict-update ?d ?k 0 inc)` → `?d[?k]++`.
+**1.23×, not the "roughly 2×" claimed here.** The loop also pays for `strings.Fields` and string
+hashing, so the extra lookup is not the whole cost. Still past any reasonable threshold, so the
+conclusion holds — `dict-update`, not `dict-get` plus `dict-set`, is the Tier 1 capability, and
+the Go backend carries an emission rule recognising `(dict-update ?d ?k 0 inc)` → `?d[?k]++`.
 
-On JavaScript the same `dict-update` lowers to `get` then `set`, two lookups — because
-hand-written JS also does two. `Map` has no fused increment. Parity is against the target's own
-ceiling, which is [ADR 0004](../decisions/0004-first-targets.md) working as intended.
+The **generalization**, however, does not survive:
+
+> ~~Capability granularity determines whether parity is reachable. Split a capability finer than
+> the target's fused idiom and the fusion is unrecoverable.~~
+
+| Java, n=65536 | ns/op |
+|---|---|
+| `merge(w, 1, Integer::sum)` — fused | 9,259,530 |
+| `put(w, getOrDefault(w,0)+1)` — unfused | 3,577,103 |
+
+On Java the **unfused form wins by 2.6×**; `merge` pays for boxing and a per-entry functional
+call. Go's fused idiom wins, Java's fused idiom loses. Restated:
+
+> **Capability granularity determines whether parity is reachable, and which granularity wins
+> is a per-target measurement — not a principle.** The fused idiom is not reliably the fast one.
+
+See [ADR 0008](../decisions/0008-measurement-over-principle.md).
+
+On JavaScript the same `dict-update` lowers to `get` then `set`, two lookups, because
+hand-written JS also does two. Parity is against the target's own ceiling, which is
+[ADR 0004](../decisions/0004-first-targets.md) working as intended.
 
 ## 8. Defect 3 — this is idiom recognition, and that is fine here
 
@@ -310,11 +337,13 @@ not in the design before:
    the confluence risk to optimization rules.
 3. **Linearity analysis**, needed for both substitution and in-place accumulator update.
 
-And one capability-design law:
+And one capability-design law, in its corrected form:
 
-> Capability granularity determines whether parity is reachable. Never split a capability
-> finer than the target's fused idiom.
+> Capability granularity determines whether parity is reachable — and **which granularity wins
+> is a per-target measurement, not a principle.** Go's fused `m[k]++` wins by 1.23×; Java's
+> fused `merge` *loses* by 2.6×.
 
-**Not yet tested:** program 1 (dot product), where the fusion rules are same-layer and the
-termination guarantee from §10 does not apply. That is the harder case and should be derived
-next.
+The uncorrected version of that law, and the assumption that JS should emit `Map`, were both
+plausible readings of how the hosts are documented to work. Both were wrong, and neither would
+have been caught by argument. That is [ADR 0008](../decisions/0008-measurement-over-principle.md)
+in one program.

@@ -225,14 +225,34 @@ func dot(xs []float64, ys []float64) float64 {
 ```
 
 `ys = ys[:len(xs)]` comes from the `require` fact, and is the form that lets Go's bounds-check
-elimination clear `ys[i]`. Both indexed accesses should end up unchecked, matching *optimized*
-hand-written Go and beating the naive version.
+elimination clear `ys[i]`.
 
-The exact form that triggers BCE is a Go-compiler-version detail. That yields a small finding
-in its own right: **BCE idioms are target- and version-specific, so they belong in backend
-emission rules, not in the core** — and the gauntlet is what keeps them honest as Go changes.
+**Measured: the elimination happens, and it is worth nothing.**
 
-Allocations: zero. No intermediate array survives fusion, and no closure is ever formed.
+```
+gauntlet.go:27  Found IsInBounds        DotNaive     — ys[i] checked in the loop
+gauntlet.go:34  Found IsSliceInBounds   DotHoisted   — one check, outside the loop
+```
+
+| n=1024, L1-resident | ns/op |
+|---|---|
+| `DotNaive` (checked) | 1,383 |
+| `DotHoisted` (hoisted) | 1,389 |
+
+Identical, in L1, with the check verifiably present in one and absent in the other. The loop is
+bottlenecked on the **serial dependency of `acc +=`** — 1.35ns/element is roughly 4–5 cycles,
+the latency of a chained float64 add. The bounds check is free because it is not on the
+critical path and the branch predicts perfectly.
+
+**So the claim of beating naive hand-written Go is withdrawn.** `require` remains justified — it
+is what stops a legitimate program being rejected, and what makes the index provably in range —
+but by correctness, not by speed.
+
+Two findings survive intact:
+
+- **BCE idioms are target- and version-specific**, so they belong in backend emission rules, not
+  in the core, and the gauntlet is what keeps them honest as Go changes.
+- Allocations: zero. No intermediate array survives fusion, and no closure is ever formed.
 
 ## 8. The specification decision that cannot be deferred
 
@@ -248,6 +268,30 @@ There is no third option; this is the `-ffast-math` tension and it cannot be pap
 
 **Decision: `sum` is specified left-to-right. `sum-unordered` is a separate capability that
 permits reassociation.**
+
+**Measured price of that decision:**
+
+| n=1024 | strict L-to-R | 4 accumulators | ratio |
+|---|---|---|---|
+| Go dot | 1,389 ns | 267 ns | **5.2×** |
+| Go sum | 1,360 ns | 189 ns | **7.2×** |
+| Java dot | 458 ns | 198 ns | 2.3× |
+| JS dot | 473 ns | 301 ns | 1.6× |
+
+The decision was made on principle with no number attached. **The number is 5–7× on the primary
+target**, and it is the whole reason §7's bounds-check work was invisible: the serial dependency
+chain dominates everything else in the loop.
+
+This does not reverse the decision — determinism is worth paying for, and
+[ADR 0009](../decisions/0009-staging-preserves-results.md) makes the same commitment for
+staging. But **`sum-unordered` stops being a footnote and becomes the form most numeric code
+will actually want.**
+
+One complication: Java's `dot` runs at 458ns against Go's 1,389ns for the same source, which is
+*below* the serial float-add latency floor. C2's SuperWord reductions are the likely cause —
+meaning **hand-written Java may already be non-deterministic under reassociation**, and "parity
+with hand-written Java" could conflict with strict IEEE ordering on that target. Worth
+confirming with `-XX:-SuperWordReductions`.
 
 Consequence, and it ties back to §6: a target with a native `dot` can only be used from
 `sum-unordered`, because a BLAS call makes no ordering promise. The strict version halts one
@@ -267,10 +311,14 @@ program having asked for it.
    risk.
 5. **Auto let-binding refined:** bind only non-trivial matched terms.
 6. **Hygiene is a live defect.** Rule-introduced binders must be fresh by construction.
-7. **`require` is a new core form**, forced by bounds elimination. Preconditions as facts beat
-   both dependent types (too large) and per-access checks (loses parity).
-8. **`sum` must be specified left-to-right**, with `sum-unordered` separate. Not deferrable.
+7. **`require` is a new core form.** Justified by correctness — it stops a legitimate program
+   being rejected — **not** by performance. The bounds-check win it was introduced for does not
+   exist (§7).
+8. **`sum` must be specified left-to-right**, with `sum-unordered` separate. Not deferrable, and
+   now priced: **5.2–7.2× on Go**.
 9. **BCE idioms belong in backend emission rules**, being target- and version-specific.
+10. **The serial reduction dependency chain dominates this loop**, at 4–5 cycles per element. It
+    is why the bounds check was invisible, and it is the thing to optimize if anything here is.
 
 ## 10. Verdict
 

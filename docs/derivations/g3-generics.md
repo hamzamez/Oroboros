@@ -181,26 +181,46 @@ func fold[T any, A any](xs []T, init A, step func(A, T) A) A {
 }
 ```
 
-This is **slower**, by an indirect call through `step` on every element. Go will not remove it:
-the callee is a parameter, and the enclosing function contains a loop, which Go's inliner
-generally declines. (Worth confirming in the baseline rather than assuming, alongside the
-`mapassign` and BCE claims from g4 and g1.)
+The reasoning at the time was that this is **slower**, by an indirect call through `step` on
+every element, because the callee is a parameter and the enclosing function contains a loop.
 
-So the rule as written is false. The refinement:
+**Measurement says otherwise.** Go's own diagnostics:
 
-> **Parasitize the host's data structures and runtime services. Never parasitize its
-> abstraction mechanisms.**
+```
+gauntlet.go:133:13: inlining call to Fold[go.shape.float64,go.shape.float64]
+gauntlet.go:133:13: inlining call to SumF64Generic.func1
+```
 
-The asymmetry has a cause, which is what makes it trustworthy rather than a patch:
+Both the generic function and the callback were inlined. Timings at L1-resident size:
+
+| n=1024 | monomorphic | generic + func value |
+|---|---|---|
+| Go sum | 1,339 ns | 1,324 ns |
+| JS sum | 456 ns | 453 ns |
+| Java sum | 1,362 ns | 1,440 ns |
+
+All three hosts specialize a literal callback. **The counterexample as originally stated is
+false.** What survives:
+
+> **All three hosts perform the same specialization we do, under the same condition — the
+> callee must be literal at the call site. We win only above the host's inlining budget, or
+> where the callee is not statically known.**
+
+Go's budget is visible and low: `Bounds` at cost 83 and `WordCountReadWrite` at cost 82 were
+both rejected against a budget of 80. Above that line the host stops and we do not — that is a
+real but much narrower advantage than claimed.
+
+The asymmetry that motivated the original refinement is still real, and still has a cause:
 
 | | Host's version | Ours | Winner |
 |---|---|---|---|
 | Data structures (`map`, `string`) | Native code, tuned, part of the runtime | A reimplementation | **Host** |
-| Abstraction (generics, closures) | Must work at **runtime** — dictionaries, indirect calls | Works at **compile time** — specialization | **Ours** |
+| Abstraction, callee **not** statically known | Runtime dispatch — the only option | Same, we must also emit runtime dispatch | **Tie** ([g6](g6-escaping-closures.md)) |
+| Abstraction, callee literal, **under** host budget | Specialized at compile time | Specialized at compile time | **Tie** |
+| Abstraction, callee literal, **over** host budget | Gives up, emits the call | Specializes anyway | **Ours** |
 
-A host's abstraction mechanism has to survive separate compilation and dynamic linking, so it
-pays at runtime. Ours resolves before emission and pays nothing. Compile time is free, so we
-always win that column — and we can never win the first one.
+Three of four rows are a tie or a loss. That is the honest shape of the advantage, and it is
+the first thing measurement corrected about this project's reasoning.
 
 ## 9. What is not free
 
@@ -234,9 +254,11 @@ or an explicit environment struct. Program 3 does not exercise it, and something
    instantiation is a side effect of matching.
 2. **Monomorphization and higher-order specialization are the same operation**, and it is one
    the core already performs. The strongest support yet for candidate B's identity claim.
-3. **ADR 0002's rule is false as stated.** Parasitize data structures and runtime services;
-   never abstraction mechanisms. The host's abstractions pay at runtime; ours resolve at
-   compile time.
+3. ~~**ADR 0002's rule is false as stated.** Parasitize data structures and runtime services;
+   never abstraction mechanisms.~~ **Refuted by measurement.** All three hosts specialize a
+   literal callback exactly as we would. The advantage narrows to: above the host's inlining
+   budget, or where the callee is not statically known. See §8 and
+   [ADR 0008](../decisions/0008-measurement-over-principle.md).
 4. **Hygiene demonstrated, not predicted** — a real binder collision, not g1's near-miss.
 5. **Statement/expression normalization (ANF) is required** by every source-language backend.
 6. **Recursive generics need real monomorphization**, with polymorphic recursion banned or
@@ -248,11 +270,17 @@ or an explicit environment struct. Program 3 does not exercise it, and something
 
 ## 11. Verdict
 
-Program 3 was flagged as the remaining structural risk. It is not one — it is the best result
-of the three derivations, because the mechanism it was supposed to require turns out not to
-exist.
+Program 3 was flagged as the remaining structural risk. It is not one — the mechanism it was
+supposed to require turns out not to exist, and that result survived measurement: a
+non-recursive definition is a rewrite rule, instantiation is a side effect of matching, and
+`fold` has no runtime existence in the output.
 
-The cost is that ADR 0002 needs revising, and the machinery list grows again:
+What did **not** survive is the claim built on top of it. The measured picture is that hosts do
+most of this for us already, and our advantage is confined to what exceeds their budget. That
+is a smaller win than the derivation claimed, and finding it out cost one afternoon of
+benchmarking rather than one year of building.
+
+The machinery list grows again:
 
 > auto let-binding · layer stratification · linearity analysis · hygiene · range analysis with
 > `require` facts · deforestation measure check · ANF normalization · monomorphization for

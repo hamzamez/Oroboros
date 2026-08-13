@@ -42,6 +42,20 @@ Which raises the real question: if this is lambda calculus, why is it not Shen's
 > **Lambda calculus as a runtime model allocates. The same substitution at compile time costs
 > nothing, because it is gone before the program runs.**
 
+**That last clause carries a hidden requirement, and measurement found it.** "The same
+substitution" must genuinely be *the same* — compile-time evaluation must give the same answer
+as runtime evaluation, bit for bit. Go violates this: `0.1+0.2` folds to `0.3` at compile time
+and evaluates to `0.30000000000000004` at runtime, because untyped constants are
+arbitrary-precision.
+
+If the core inherited that, **binding-time analysis would be semantically observable** — whether
+an abstraction was eliminated would change the program's output — and the whole staging argument
+collapses. Closed by [ADR 0009](../decisions/0009-staging-preserves-results.md): compile-time
+float arithmetic is IEEE-754 binary64, exactly.
+
+This was found by running a program, not by reasoning about one, and it is the closest anything
+has come to killing the candidate.
+
 In KLambda, beta happens at runtime. A closure must be a heap object because the environment has
 to survive until application, and application time is unknown. That is the allocation, and it is
 unavoidable *in that stage*.
@@ -154,11 +168,21 @@ lexical-scoping half of the objection, and it is right. Computing free variables
 the environment its layout, so closure conversion needs nothing that rewriting does not already
 compute.
 
-**Cost, honestly:** one allocation, one indirect call, no inlining across it.
+**Cost, measured:**
 
-**Parity, honestly:** hand-written Go for a runtime-selected handler allocates the same closure
-and makes the same indirect call. We match it. The gauntlet standard is parity with hand-written
-target code, and this passes.
+| Go | ns/op | B/op | allocs/op |
+|---|---|---|---|
+| `BuildOps` — three non-capturing closures | 18–27 | 24 | 1 |
+| `MakeScaler` — captures `f` | 14–15 | 16 | 1 |
+| `RunOp` — indirect call | 1.55 | 0 | 0 |
+
+`BuildOps`'s single 24-byte allocation is the *slice* of three function pointers; the closures
+themselves cost nothing, confirming that non-capturing closures are statically allocated. The
+capturing closure allocates exactly its 16-byte environment. Indirect dispatch is 1.55ns.
+
+**Parity:** hand-written Go for a runtime-selected handler allocates the same closure and makes
+the same indirect call. We match it, and the cost model above is what a binding-time report
+would quote to the programmer (§9).
 
 > **The Shen wall was universality, not the mechanism.** In KLambda *every* function is a
 > closure, so every call pays. Here payment is confined to genuine runtime dispatch, and equals
@@ -226,7 +250,12 @@ problem becomes a number the programmer can see, per abstraction.
 9. **This is a two-level language and the compile-time level is a partial evaluator.** There is
    a literature; use it.
 10. **Binding-time analysis should be surfaced to the programmer** as a per-abstraction
-    guarantee of elimination or a stated runtime cost.
+    guarantee of elimination or a stated runtime cost. Measured numbers to quote: 0 bytes for a
+    non-capturing closure, 16 for a capturing one, 1.55ns per indirect call.
+11. **Staging must preserve results, and this is not free.** Go's arbitrary-precision constant
+    folding would make binding-time decisions semantically observable. See
+    [ADR 0009](../decisions/0009-staging-preserves-results.md). Found by measurement, not
+    reasoning.
 
 ## 11. Verdict
 

@@ -41,20 +41,55 @@ Parasite thesis is either true or false.
 
 ## Thresholds
 
-- **Wall time:** within 5% of the hand-written reference. Faster is a legitimate result —
-  program 1 should beat naive Go, since range-typed indices remove the bounds check.
+- **Wall time:** within 5% of the hand-written reference — **but only on hardware that can
+  resolve 5%.** The first run was taken on a hybrid P/E-core laptop that produced ~3× outliers
+  across unrelated benchmarks; on that machine nothing under ~15% is a real difference. Report
+  medians, state the noise floor, and do not let a decision rest on a margin smaller than it.
 - **Allocations:** must not exceed the reference. For program 1, the correct number is zero.
-- **Output size:** within 20% of the reference, excluding toolchain-fixed overhead.
+- **Output size:** within 20% of the reference, excluding toolchain-fixed overhead. **Not yet
+  measured at all** — this is half of requirement 6 with no numbers against it.
 
-Program 4 has an additional pass condition that is not a number: **the generated Go must
-contain `map[string]int`.** If it contains a hash table implementation, the candidate has
-failed the Parasite model regardless of its timing.
+Program 4 has an additional pass condition that is not a number: **the generated code must use
+the host's own dictionary, not one of ours.** Which dictionary that is, is a measurement — the
+first run found a null-prototype `Object` beats `Map` by 3.25× on JS, so the earlier form of
+this condition ("must contain `Map`") was itself an unmeasured assumption. See
+[ADR 0008](decisions/0008-measurement-over-principle.md).
+
+**Faster than the reference is a legitimate result, but do not assume where it will come from.**
+Program 1 was expected to beat hand-written Go via bounds-check elimination. The check is
+verifiably removed and the gain is zero — the loop is bottlenecked on the serial `acc +=`
+dependency chain.
+
+## Carry both forms
+
+Whenever a design argument claims a host compiler does or does not do something, the gauntlet
+must contain **both** forms — the one expected to win and the one expected to lose.
+
+This is not thoroughness for its own sake. The first run refuted five beliefs, and it could only
+do that because the losing form was present to measure. A benchmark containing only what you
+expect to win teaches nothing and quietly confirms whatever you already thought.
+
+Timings alone are also not enough. Go will state its own decisions directly:
+
+```bash
+go build -gcflags="-d=ssa/check_bce/debug=1" ./...
+```
+
+```bash
+go build -gcflags="-m -m" ./...
+```
+
+The inlining output refuted a claim that the timings alone left ambiguous.
 
 ## Recording results
 
 Every candidate that dies gets an ADR naming what killed it. That is the mechanism that makes
 dropping a direction an accumulating result rather than a loss — the point is to never
 re-explore the same dead end after picking the project back up.
+
+The same applies to *beliefs* that die. Results are dated and version-stamped in
+[`gauntlet/results/`](../gauntlet/results/), because a parasite decision can be invalidated by
+someone else's compiler release ([ADR 0008](decisions/0008-measurement-over-principle.md)).
 
 ## Status
 

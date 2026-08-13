@@ -36,6 +36,8 @@ recording alternatives that were considered and rejected.
 | Compiler written in Go | [0005](docs/decisions/0005-implementation-language.md) |
 | Backend interface is a file format, not a Go interface | [0006](docs/decisions/0006-ir-file-format.md) |
 | Explore candidates against a fixed test; do not specify the core first | [0007](docs/decisions/0007-exploration-over-specification.md) |
+| Parasite decisions are per-target measurements, not principles | [0008](docs/decisions/0008-measurement-over-principle.md) |
+| Staging must not change results | [0009](docs/decisions/0009-staging-preserves-results.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -53,6 +55,14 @@ targets, parity with hand-written code. Candidates are killed by measurement, no
 argument — arguments only select what is worth measuring. When a candidate dies, write an ADR
 naming what killed it.
 
+The baselines exist and have been run: [gauntlet/](gauntlet/), results in
+[gauntlet/results/](gauntlet/results/). The leading candidate — a rewriting core, which turns
+out to be **lambda calculus staged so it terminates at compile time** — has survived
+hand-derivation of all five programs plus escaping closures, in
+[docs/derivations/](docs/derivations/). Read those before proposing anything about lowering,
+generics, closures, or capability granularity; each records what was believed, what measurement
+said, and which of the two won.
+
 **Beware the minimality trap.** The instinct toward a tiny elegant core — lambda calculus,
 objects and messages — minimizes *constructs needed to express all computation*, which is not
 the property this project needs and is often opposed to it. Lambda calculus is minimal because
@@ -68,6 +78,21 @@ the project.
 **Never lower further than the target requires.** Emitting a hand-rolled hash table into Go
 when Go has `map` is wrong on performance, binary size, and ecosystem access simultaneously.
 This is the single most common way to get the architecture wrong.
+
+**But never assert which host construct is fastest — measure it.** That rule is a prior, not a
+derivation. The first baseline run refuted four inferences from it at once: JS's `Map` is 3.25×
+*slower* than a null-prototype `Object`; Java's fused `merge` loses 2.6× to unfused
+`getOrDefault`+`put`; Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and
+all three hosts inline a literal callback we assumed only we would specialize. Every one was a
+plausible reading of how the host is documented to work. Treat host compilers as black boxes
+with measured behaviour. See [ADR 0008](docs/decisions/0008-measurement-over-principle.md).
+
+**Staging must never change an answer.** Compile-time arithmetic must be bit-identical to
+runtime — IEEE-754 binary64 for floats, exactly. Go folds `0.1+0.2` to `0.3` at compile time and
+`0.30000000000000004` at runtime because its untyped constants are arbitrary-precision. Writing
+the compiler's constant folder the natural way in Go reproduces that bug and makes partial
+evaluation unsound. Force every compile-time float operation through explicit `float64`. See
+[ADR 0009](docs/decisions/0009-staging-preserves-results.md).
 
 **Never make the core a superset of one host.** The core must be expressible on Go,
 JavaScript, and the JVM at once. JavaScript has no integers, no structs, and no int64; the JVM
@@ -89,6 +114,15 @@ require heap allocation.
 **Performance claims must be measured, not asserted.** The standard is parity with
 hand-written code in the target language, checked by benchmark against a hand-written
 equivalent. "Should be fast" is not a result.
+
+When adding to the gauntlet, **carry both forms** — the one expected to win and the one expected
+to lose. Five beliefs were refuted in the first run only because the losing form was there to
+measure. And check the compiler's own decisions, not just the clock:
+`go build -gcflags="-m -m"` and `-gcflags="-d=ssa/check_bce/debug=1"` were each decisive where
+timings were ambiguous.
+
+Benchmarks in [gauntlet/results/](gauntlet/results/) were taken on a hybrid P/E-core laptop with
+a ~15% noise floor. Do not rest a decision on a smaller margin than that.
 
 ## Working conventions
 

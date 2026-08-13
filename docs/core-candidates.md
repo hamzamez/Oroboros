@@ -154,8 +154,16 @@ independent routes to the same question, *when may a term be copied, moved, or d
 is substructural and may deserve a single answer in the core's type discipline rather than four
 analyses. See [g5 §9](derivations/g5-bindings.md).
 
-**Untested: escaping closures.** Every derivation had function arguments literal at the call
-site, so no closure ever formed.
+**Escaping closures now tested** — [g6](derivations/g6-escaping-closures.md). They cost exactly
+what hand-written costs, because hand-written uses the same construct; Shen's wall was
+universality, not the mechanism. That derivation also settles what this candidate *is*:
+rewriting is lambda calculus generalized, staged so it terminates at compile time. The residual
+is where it could not, and that is the only place it costs anything.
+
+Identity, restated:
+
+> **Everything is a function, evaluated at compile time. What survives is what the target must
+> do at runtime, and the compiler will tell you exactly what that is.**
 
 **Against, and these are real:**
 

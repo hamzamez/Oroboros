@@ -135,17 +135,18 @@ things that could still kill it are all cheap to test before writing a compiler.
 
 Exploration is done. Every falsifier named in the
 [assessment](docs/assessment-2026-08-13.md) has been tested and none fired — so the
-recommendation is now to **build the vertical slice**, and the reasoning for where it starts is
-in [docs/first-implementation.md](docs/first-implementation.md).
+recommendation is now to **build the vertical slice**, starting from the atom
+([docs/the-atom.md](docs/the-atom.md)).
 
-1. **Core vocabulary + Go emitter.** No parser, no rewriter, no type system. Hand-write the
-   residual that [g1](docs/derivations/g1-dot-product.md) already specifies, emit it, and check
-   for 1,389 ns at n=1024 with zero allocations. **This is the smallest artifact that measures
-   *our* output rather than the bar** — which nothing so far has done.
-2. Reader, printer, canonical formatter.
-3. **β-reduction — the rewriter.** Third rather than first: it is testable only once a residual
-   can be emitted and measured.
-4. One rule layer, then the **JS backend before any front-end features**.
+1. **A β/δ reducer parameterized by a primitive set.** Roughly 200 lines. Confluence,
+   termination, and stage soundness are all checkable on terms, with no backend.
+2. **Go emitter over the normal form.** Hand-write the residual that
+   [g1](docs/derivations/g1-dot-product.md) already specifies, emit it, and check for 1,389 ns at
+   n=1024 with zero allocations. **This is the first artifact that measures *our* output rather
+   than the bar** — and it is not deferrable, because a verified calculus proves the core is
+   coherent and proves nothing about the thesis.
+3. Reader, printer, canonical formatter.
+4. One layer of definitions, then the **JS backend before any front-end features**.
 
 The IR file format gets specified once a candidate has survived the gauntlet. It cannot be
 designed before it is known what flows through it.

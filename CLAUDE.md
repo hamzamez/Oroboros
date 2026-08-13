@@ -63,10 +63,18 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing and what would still kill the candidate** is in
-[docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md). Note that it is deliberately
-*not* an ADR — writing "candidate B is the core" as a decision would recreate the predecessor's
-failure. The next three experiments are named there, and none of them is "start the compiler."
+**Current standing** is in [docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md).
+Deliberately *not* an ADR — writing "candidate B is the core" as a decision would recreate the
+predecessor's failure. Every falsifier it named has since been tested and none fired, so its
+**Revised verdict** section calls for building the vertical slice.
+
+**The atom** — the irreducible unit, what lambda calculus is to a Lisp — is in
+[docs/the-atom.md](docs/the-atom.md): **lambda calculus in which the normal form is a
+parameter.** A target supplies a partition of names into primitive and defined; reduction runs
+until only primitives remain. Layers, both directions of ADR 0002, and staging all collapse into
+that, and grading turns out to be an *observation on the normal form* rather than a primitive.
+Do not describe the core as "a vocabulary" — that was an earlier and worse answer, and the
+vocabulary survives only as the parameter to a reduction relation.
 
 **Beware the minimality trap.** The instinct toward a tiny elegant core — lambda calculus,
 objects and messages — minimizes *constructs needed to express all computation*, which is not

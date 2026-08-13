@@ -1,5 +1,23 @@
 # What to implement first
 
+> **⚠ Superseded in part by [the-atom.md](the-atom.md).** This document answered *"what should be
+> typed first"* and gave **"a vocabulary"** as the core. That is not an answer to the question
+> "what is the irreducible unit" — a vocabulary is a list, and lists have no algebra.
+>
+> The atom is **lambda calculus in which the normal form is a parameter**: a target supplies a
+> partition of names into primitive and defined, and reduction runs until only primitives remain.
+> The vocabulary survives inside that, but as the *parameter to a reduction relation* rather than
+> as the core itself.
+>
+> The consequence for ordering is real: §"What to build first" below argues the emitter must come
+> first because the calculus cannot be tested without a backend. **That is false.** A β/δ reducer
+> parameterized by a primitive set is checkable for confluence, termination, and stage soundness
+> with no backend at all. The revised order is in [the-atom.md](the-atom.md).
+>
+> What survives here unchanged: the argument against building lambda calculus *and testing it
+> with Church numerals*, and the insistence that parity be measured immediately rather than
+> deferred.
+
 Follows the [revised verdict](assessment-2026-08-13.md): build the vertical slice. This says
 where the slice starts and why, and it is a response to a specific proposal — the one that would
 normally be right.

@@ -65,10 +65,20 @@ abstraction. The same substitution at compile time costs nothing, because it is 
 program runs. Escaping closures are exactly where that fails — and there they cost what the host
 charges for the same program, which is the standard.
 
-That makes this a two-level language whose compile-time level is a partial evaluator, and it
-brings a feature the pitch needs: **binding-time analysis can tell you, statically, whether an
-abstraction was eliminated or survived** — "this fold is inlined, no call" versus "this handler
-survives: 1 allocation, 8-byte environment." A checkable answer instead of a hope.
+Following the defects those derivations turned up led to the other half. Every one was naive
+rewriting losing something the term held implicitly — sharing, capture-freedom, simultaneity,
+effect ordering — and four of them are **structural rules**: when may a term be copied, moved,
+or deleted? Grading each term by multiplicity answers all four. And grade 0 — *erased before
+runtime* — turns out to be the staging annotation itself. So:
+
+> **Terms, rewritten by rules. Every term graded by how many times it may be used and at which
+> stage. Grade 0 means it is gone before the program runs — and the compiler will tell you the
+> grade of anything you wrote.**
+
+That last clause is the feature the pitch needs: **statically, whether an abstraction was
+eliminated or survived** — "this fold is inlined, no call" versus "this handler survives: 1
+allocation, 16-byte environment, 1.55ns indirect call." A checkable answer instead of a hope,
+and it falls out of the machinery already required for soundness.
 
 ## Design goals
 

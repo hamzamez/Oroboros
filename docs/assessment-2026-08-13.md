@@ -199,13 +199,20 @@ alternative in hand, not just dissatisfaction.
 
 ## Next three experiments, in order
 
-1. **The substructural thread.** Can sharing, capture-freedom, simultaneity, effect ordering,
-   and linearity be one discipline in the type system rather than five analyses? Highest
-   information per hour of anything remaining: it directly changes the answer to §2, and it may
-   turn out to be the actual core in the sense the original question was asking about.
-2. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
+1. ~~**The substructural thread.**~~ **Done** — [s1](derivations/s1-substructural.md). Four of
+   five disciplines collapse onto structural rules over two axes; capture is not structural and
+   exits into a representation choice. **Machinery drops from eleven items to eight**, and grade
+   0 turns out to *be* the staging annotation, so g6's per-abstraction cost report comes out of
+   the soundness machinery rather than beside it. §2's answer improves. New risk taken on: the
+   usability record of substructural systems is poor, and the mitigation — infer and report
+   rather than declare and check — is untested.
+2. **Multiplicity inference.** Now the highest-value test, and it is cheap: write the five
+   gauntlet programs with no multiplicity annotations and check by hand whether every grade is
+   inferable from use. If inference is too weak, annotations become common and requirement 8 is
+   in danger. Perceus (Koka, Lean) is the closest prior art.
+3. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
    and it tests the falsifier that would be fatal.
-3. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+4. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

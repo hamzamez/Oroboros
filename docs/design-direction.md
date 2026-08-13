@@ -321,11 +321,14 @@ achievable — the output *is* what hand-written code would contain.
 5. **Module and package format.** Required before Tier 2 bindings can be written.
 6. **Naming translation.** Whether `fmt.Println` is called as-is or mapped to a house
    convention, and whether that mapping is per-binding or per-target.
-7. **Substructural discipline.** Four derivations arrived independently at *when may a term be
-   copied, moved, or deleted?* — sharing, capture-freedom, simultaneity, effect ordering, plus
-   linearity for accumulators. Four routes to one question suggests it belongs in the core's
-   type discipline rather than in four separate analyses. **This may be the actual core**, and
-   is the most valuable open thread.
+7. ~~**Substructural discipline.**~~ **Largely resolved** by
+   [s1](derivations/s1-substructural.md). Two axes: **multiplicity** (0/1/ω) for copy and
+   delete, **ordering** (pure/stateful) for reorder. Capture is not structural and is handled
+   by a locally-nameless term representation instead. Grade 0 is the staging annotation, so the
+   substructural discipline and binding-time analysis are one column. What remains open is
+   whether **multiplicity inference** is strong enough to keep annotations rare — untested, and
+   the design's largest assumed risk given the usability record of Rust, Linear Haskell, and
+   Idris 2.
 8. **Sequence-of-struct representation.** `(slice T)` for a struct `T` cannot share one
    representation across targets — but the problem is smaller than
    [g2](derivations/g2-structs.md) assumed: measurement puts the array-of-objects penalty at

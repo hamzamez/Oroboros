@@ -15,6 +15,7 @@ history and are never edited.
 | [g2](g2-structs.md) | Centroid and bounds over structs | Survives, no boxing. Forced value semantics with no interior pointers. **AoS penalty is JS-only; Go does SROA itself.** |
 | [g5](g5-bindings.md) | Formatted output, Tier 2 bindings | Survives; bindings cost nothing. **First correctness defect: rules can change effect count and order.** |
 | [g6](g6-escaping-closures.md) | Escaping closures | Survives at hand-written cost. Establishes what the core *is*: staged lambda calculus. **Constrained by staging soundness.** |
+| [s1](s1-substructural.md) | Do the five disciplines collapse? | **Four of five do.** Machinery drops 11 → 8, and grade 0 turns out to *be* the staging annotation. |
 
 ## What came out of them
 
@@ -24,18 +25,28 @@ separates it from the predecessor project is stage, not mechanism:
 > Everything is a function, evaluated at compile time. What survives is what the target must do
 > at runtime, and the compiler will tell you exactly what that is.
 
-**One defect family.** Every defect found is naive rewriting losing a property the term held
-implicitly — sharing (g4), capture-freedom (g1, g3), simultaneity (g2), effect count and order
-(g5). Four independent routes to *when may a term be copied, moved, or deleted?*, which is
-substructural and probably wants one answer in the type discipline rather than four analyses.
-This is the most valuable unexplored thread.
+**One defect family, and it resolved.** Every defect found is naive rewriting losing a property
+the term held implicitly — sharing (g4), capture-freedom (g1, g3), simultaneity (g2), effect
+count and order (g5). [s1](s1-substructural.md) took the thread and found four of the five are
+structural rules (contraction, weakening, exchange) over two axes, while capture is not
+structural at all and is better solved by term representation than by any check.
 
-**The machinery it actually needs**, which is more than "a pattern matcher and a rule engine":
+**The machinery it actually needs**, after s1:
 
-> auto let-binding · layer stratification · linearity analysis · hygiene · range analysis with
-> `require` facts · deforestation measure check · ANF normalization · monomorphization for
-> recursive generics · polymorphic type checking · SROA with parallel-assignment temporaries ·
-> effect-context checking on rules
+| # | Item |
+|---|---|
+| 1 | **Graded type system** — multiplicity 0/1/ω × pure/stateful. Absorbs auto let-binding, linearity, effect checking, parallel-assignment temporaries, escape analysis, and binding-time analysis. |
+| 2 | Locally-nameless term representation — hygiene by construction |
+| 3 | ANF normalization — the ordering axis's normal form |
+| 4 | Layer stratification — termination |
+| 5 | Deforestation measure check — termination |
+| 6 | Range analysis with `require` facts |
+| 7 | Monomorphization for recursive generics |
+| 8 | SROA, splitting only |
+
+**Grade 0 is the staging annotation.** Multiplicity and binding time are the same column, so the
+per-abstraction cost report g6 wanted to show programmers is produced by the machinery already
+required for soundness.
 
 ## The correction record
 

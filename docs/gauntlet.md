@@ -26,9 +26,15 @@ Each one exists to kill a specific class of core.
 | 3 | The same generic operation instantiated at two element types | Abstraction that is not actually free — tests monomorphization |
 | 4 | Word frequency count over a text | **The parasite test.** Must emit Go's `map` and JS's `Map`, not a hand-rolled hash table |
 | 5 | Formatted output to stdout | The Tier 2 binding story — `fmt` on Go, `console` on JS, `System.out` on Java |
+| 6 | Stencil over a slice that may alias itself, plus dict update | Uniqueness. Where in-place mutation is unsound, and what failing to prove it costs |
 
 Programs 1 and 4 are the important ones. 1 is where elegant cores die. 4 is where the whole
 Parasite thesis is either true or false.
+
+Program 6 was added after [s2](derivations/s2-multiplicity-inference.md) found that the first
+five never mutate a shared structure, leaving uniqueness untested. It is the only program where
+a **correctness** hazard is the point: the same optimization gives different answers depending on
+whether two slices alias, and no target language can express that they do not.
 
 ## Method
 

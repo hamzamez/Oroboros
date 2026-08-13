@@ -2,6 +2,13 @@
 
 Exploration only. No commitments, no ADR.
 
+> **⚠ Hole filled, risk repriced — [g7](g7-aliasing.md).** §7's mechanism survives: liveness does
+> decide reuse correctly. What this document got wrong was the *risk*, recording liveness as
+> "textbook, beyond counting" without pricing a failure. **A uniqueness false negative on a heap
+> structure costs 40× at eight entries and 1,540× at five hundred — unbounded in structure
+> size.** Separately, the slice half of the hole turned out benign: aliasing-conservative codegen
+> costs ~0%, so forbidding mutable slice parameters closes it for free.
+
 [s1](s1-substructural.md) took on the design's largest assumed risk: substructural systems have
 a poor usability record, and the proposed mitigation — **infer and report, do not declare and
 check** — was untested.

@@ -212,13 +212,20 @@ alternative in hand, not just dissatisfaction.
    unavoidable declaration — extern purity — which lives in binding files, defaults safely to
    stateful, and application programmers never see. The usability risk s1 flagged is materially
    reduced. It also refuted s1's accumulator row: that is uniqueness, not multiplicity.
-3. **Mutation through an aliased slice.** The specific hole s2 named. No gauntlet program
-   mutates a shared structure, and `dot(v, v)` shows slices *can* alias — so this is exactly
-   where uniqueness stops being free and where Rust's difficulty actually begins. Should be a
-   **sixth gauntlet program**, not a thought experiment.
-4. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
+3. ~~**Mutation through an aliased slice.**~~ **Done** — built as gauntlet program 6,
+   [g7](derivations/g7-aliasing.md). Split cleanly in two. **For slices the hazard is
+   correctness, not performance**: conservative codegen costs 0% on Go, and in-place is 4.6–6.2×
+   *slower*, so forbidding mutable slice parameters closes it for free and beats what a
+   programmer would hand-write. **For heap structures the news is worse**: a uniqueness false
+   negative costs 40× at eight entries and 1,540× at five hundred, unbounded in structure size —
+   a different severity class from anything else measured here.
+4. **Liveness-based reuse across function boundaries.** Everything derived so far is
+   intraprocedural. A dict threaded through several calls, or stored in a struct, is where
+   Perceus-style reuse gets hard — and by g7 it is the one place where getting it wrong is
+   unbounded rather than a constant factor. Now the highest risk in the design.
+5. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
    and it tests the falsifier that would be fatal.
-5. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+6. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

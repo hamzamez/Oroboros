@@ -135,12 +135,21 @@ stops, emitting Go's `map`. The same source on C keeps rewriting into a real has
   the way it does.
 
 **Status:** survived hand-derivations of gauntlet programs
-[4](derivations/g4-word-count.md), [1](derivations/g1-dot-product.md), and
-[3](derivations/g3-generics.md). Program 3 was expected to be the remaining structural risk and
-instead gave the strongest positive result: generics need no mechanism, because a non-recursive
-definition *is* a rewrite rule and instantiation is a side effect of matching. It also produced
-a counterexample to ADR 0002's governing rule — see §8 there. Untested: escaping closures, and
-program 2 (struct layout), the last place boxing could hide.
+[4](derivations/g4-word-count.md), [1](derivations/g1-dot-product.md),
+[3](derivations/g3-generics.md), and [2](derivations/g2-structs.md).
+
+Program 3 gave the strongest positive result — generics need no mechanism, because a
+non-recursive definition *is* a rewrite rule and instantiation is a side effect of matching. It
+also produced a counterexample to ADR 0002's governing rule (see §8 there). Program 2 found no
+boxing but forced the largest open question: `(slice T)` for a struct `T` cannot share one
+representation across targets, so an emitted signature's *arity* varies.
+
+All defects found so far are one family — naive rewriting loses sharing, capture-freedom, or
+simultaneity — each with a textbook fix predating the project. See
+[g2 §7](derivations/g2-structs.md).
+
+**Untested: escaping closures.** Every derivation had function arguments literal at the call
+site, so no closure ever formed.
 
 **Against, and these are real:**
 

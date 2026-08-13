@@ -2,6 +2,14 @@
 
 Exploration only. No commitments, no ADR.
 
+> **⚠ One row corrected by [s2](s2-multiplicity-inference.md).** §1 maps "accumulator must not
+> be aliased" onto *contraction forbidden*. That is wrong: an accumulator in a loop is used *n*
+> times, so it is ω by counting. What it needs is **uniqueness** — no other reference exists —
+> which is a different property, dual to linearity. Value-typed accumulators get it free from
+> [g2](g2-structs.md)'s value semantics; heap-typed ones need liveness, not counting. The
+> collapse survives one row smaller: **multiplicity answers how many times, uniqueness answers
+> how many references, and only the first is a grading.**
+
 Six derivations produced defects that all looked like the same shape. The
 [assessment](../assessment-2026-08-13.md) named the question they kept arriving at — *when may a
 term be copied, moved, or deleted?* — and flagged it as the highest-information thread
@@ -26,7 +34,7 @@ Mapping each defect:
 | Derivation | Defect | Structural rule | Verdict |
 |---|---|---|---|
 | [g4](g4-word-count.md) | Substitution duplicates *work* | Contraction **costs** | fits |
-| [g4](g4-word-count.md), [g1](g1-dot-product.md), [g2](g2-structs.md) | Accumulator must not be aliased | Contraction **forbidden** | fits |
+| [g4](g4-word-count.md), [g1](g1-dot-product.md), [g2](g2-structs.md) | Accumulator must not be aliased | ~~Contraction forbidden~~ | **does not fit** — see [s2 §4](s2-multiplicity-inference.md); this is uniqueness, not multiplicity |
 | [g5](g5-bindings.md) | Effect duplicated | Contraction **forbidden** | fits |
 | [g5](g5-bindings.md) | Effect moved into a dead branch | Weakening **forbidden** | fits |
 | [g5](g5-bindings.md) | Effects reordered | Exchange **forbidden** | fits |

@@ -321,14 +321,15 @@ achievable — the output *is* what hand-written code would contain.
 5. **Module and package format.** Required before Tier 2 bindings can be written.
 6. **Naming translation.** Whether `fmt.Println` is called as-is or mapped to a house
    convention, and whether that mapping is per-binding or per-target.
-7. ~~**Substructural discipline.**~~ **Largely resolved** by
-   [s1](derivations/s1-substructural.md). Two axes: **multiplicity** (0/1/ω) for copy and
-   delete, **ordering** (pure/stateful) for reorder. Capture is not structural and is handled
-   by a locally-nameless term representation instead. Grade 0 is the staging annotation, so the
-   substructural discipline and binding-time analysis are one column. What remains open is
-   whether **multiplicity inference** is strong enough to keep annotations rare — untested, and
-   the design's largest assumed risk given the usability record of Rust, Linear Haskell, and
-   Idris 2.
+7. ~~**Substructural discipline.**~~ **Resolved** by [s1](derivations/s1-substructural.md) and
+   [s2](derivations/s2-multiplicity-inference.md). Two axes: **multiplicity** (0/1/ω) for copy
+   and delete, **ordering** (pure/stateful) for reorder. Capture is not structural — handled by
+   a locally-nameless term representation. Uniqueness is not multiplicity either — value-typed
+   accumulators get it free from value semantics, heap-typed ones need liveness. Grade 0 is the
+   staging annotation, and it is *observed* in the residual rather than inferred. **Zero
+   annotations are required in application code**; the one unavoidable declaration is extern
+   purity, in binding files, defaulting safely to stateful.
+   **Still open:** mutation through an aliased slice, where uniqueness stops being free.
 8. **Sequence-of-struct representation.** `(slice T)` for a struct `T` cannot share one
    representation across targets — but the problem is smaller than
    [g2](derivations/g2-structs.md) assumed: measurement puts the array-of-objects penalty at

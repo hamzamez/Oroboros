@@ -206,13 +206,19 @@ alternative in hand, not just dissatisfaction.
    the soundness machinery rather than beside it. §2's answer improves. New risk taken on: the
    usability record of substructural systems is poor, and the mitigation — infer and report
    rather than declare and check — is untested.
-2. **Multiplicity inference.** Now the highest-value test, and it is cheap: write the five
-   gauntlet programs with no multiplicity annotations and check by hand whether every grade is
-   inferable from use. If inference is too weak, annotations become common and requirement 8 is
-   in danger. Perceus (Koka, Lean) is the closest prior art.
-3. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
+2. ~~**Multiplicity inference.**~~ **Done** — [s2](s2-multiplicity-inference.md). **Zero
+   annotations needed in application code** across all five programs. Grade 0 is *observed* in
+   the residual rather than inferred, so it costs nothing and never has to hedge. One
+   unavoidable declaration — extern purity — which lives in binding files, defaults safely to
+   stateful, and application programmers never see. The usability risk s1 flagged is materially
+   reduced. It also refuted s1's accumulator row: that is uniqueness, not multiplicity.
+3. **Mutation through an aliased slice.** The specific hole s2 named. No gauntlet program
+   mutates a shared structure, and `dot(v, v)` shows slices *can* alias — so this is exactly
+   where uniqueness stops being free and where Rust's difficulty actually begins. Should be a
+   **sixth gauntlet program**, not a thought experiment.
+4. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
    and it tests the falsifier that would be fatal.
-4. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+5. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

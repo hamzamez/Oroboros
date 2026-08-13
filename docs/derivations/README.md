@@ -15,7 +15,8 @@ history and are never edited.
 | [g2](g2-structs.md) | Centroid and bounds over structs | Survives, no boxing. Forced value semantics with no interior pointers. **AoS penalty is JS-only; Go does SROA itself.** |
 | [g5](g5-bindings.md) | Formatted output, Tier 2 bindings | Survives; bindings cost nothing. **First correctness defect: rules can change effect count and order.** |
 | [g6](g6-escaping-closures.md) | Escaping closures | Survives at hand-written cost. Establishes what the core *is*: staged lambda calculus. **Constrained by staging soundness.** |
-| [s1](s1-substructural.md) | Do the five disciplines collapse? | **Four of five do.** Machinery drops 11 → 8, and grade 0 turns out to *be* the staging annotation. |
+| [s1](s1-substructural.md) | Do the five disciplines collapse? | **Four of five do.** Machinery drops 11 → 8, and grade 0 turns out to *be* the staging annotation. **One row later corrected.** |
+| [s2](s2-multiplicity-inference.md) | Is multiplicity inferable without annotation? | **Zero annotations in application code.** Grade 0 is observed, not inferred. One unavoidable declaration: extern purity. **Refutes s1's accumulator row.** |
 
 ## What came out of them
 
@@ -46,7 +47,12 @@ structural at all and is better solved by term representation than by any check.
 
 **Grade 0 is the staging annotation.** Multiplicity and binding time are the same column, so the
 per-abstraction cost report g6 wanted to show programmers is produced by the machinery already
-required for soundness.
+required for soundness — and [s2](s2-multiplicity-inference.md) found it is *observed* in the
+residual rather than predicted, so it costs nothing and never has to hedge.
+
+**Multiplicity answers how many times; uniqueness answers how many references.** Only the first
+is a grading. Value-typed accumulators get uniqueness free from g2's value semantics; heap-typed
+ones need liveness. Mutation through an aliased slice is the one case not yet derived.
 
 ## The correction record
 

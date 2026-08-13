@@ -1,0 +1,30 @@
+# Build output
+/bin/
+/dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Go
+*.test
+*.out
+/vendor/
+
+# Generated target output
+/build/
+/out/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local agent state
+.claude/settings.local.json

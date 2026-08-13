@@ -133,15 +133,19 @@ things that could still kill it are all cheap to test before writing a compiler.
 
 ## Next steps
 
-1. **Explore the substructural thread.** Four derivations arrived independently at *when may a
-   term be copied, moved, or deleted?* — sharing, capture-freedom, simultaneity, effect
-   ordering. Four routes to one question suggests one answer belongs in the core's type
-   discipline. Cheapest experiment, highest information.
-2. **Output-size measurement and CI wiring** for the gauntlet. Size is half of requirement 6
-   and currently has no numbers at all.
-3. A staging-soundness test: fold at compile time, compute at runtime, assert bit equality.
-4. Reader, printer, and canonical formatter for s-expressions.
-5. Front end, then the Go backend, then the JS backend **before** any front-end features.
+Exploration is done. Every falsifier named in the
+[assessment](docs/assessment-2026-08-13.md) has been tested and none fired — so the
+recommendation is now to **build the vertical slice**, and the reasoning for where it starts is
+in [docs/first-implementation.md](docs/first-implementation.md).
+
+1. **Core vocabulary + Go emitter.** No parser, no rewriter, no type system. Hand-write the
+   residual that [g1](docs/derivations/g1-dot-product.md) already specifies, emit it, and check
+   for 1,389 ns at n=1024 with zero allocations. **This is the smallest artifact that measures
+   *our* output rather than the bar** — which nothing so far has done.
+2. Reader, printer, canonical formatter.
+3. **β-reduction — the rewriter.** Third rather than first: it is testable only once a residual
+   can be emitted and measured.
+4. One rule layer, then the **JS backend before any front-end features**.
 
 The IR file format gets specified once a candidate has survived the gauntlet. It cannot be
 designed before it is known what flows through it.

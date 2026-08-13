@@ -329,12 +329,18 @@ slice.
 
 ## The slice
 
-1. Reader, printer, canonical formatter for s-expressions.
-2. Front end: functions, locals, structs, range-typed scalars, structured control flow.
-3. **Go backend.** One non-trivial gauntlet program compiling, running, and benchmarked against
-   the existing baseline.
-4. **JS backend before any front-end features** — the discipline that has been in this document
-   since the first draft and is still the one most likely to be skipped.
+Detailed in [first-implementation.md](first-implementation.md), which argues the starting point
+against the obvious alternative of building lambda calculus first.
+
+1. **Core vocabulary + Go emitter**, validated by hand-written IR against the existing baseline.
+   No parser, no rewriter, no type system — this is the smallest artifact that measures *our*
+   output rather than the bar.
+2. Reader, printer, canonical formatter.
+3. **β-reduction — the rewriter.** Third, not first: it is testable only once a residual can be
+   emitted and measured.
+4. One rule layer, then the **JS backend before any front-end features** — the discipline that
+   has been in this document since the first draft and is still the one most likely to be
+   skipped.
 
 If the first non-trivial program lands at parity, that is worth more than every derivation in
 `docs/`. If it does not, that is known within weeks instead of years, which was the entire point

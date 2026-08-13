@@ -219,13 +219,21 @@ alternative in hand, not just dissatisfaction.
    programmer would hand-write. **For heap structures the news is worse**: a uniqueness false
    negative costs 40× at eight entries and 1,540× at five hundred, unbounded in structure size —
    a different severity class from anything else measured here.
-4. **Liveness-based reuse across function boundaries.** Everything derived so far is
-   intraprocedural. A dict threaded through several calls, or stored in a struct, is where
-   Perceus-style reuse gets hard — and by g7 it is the one place where getting it wrong is
-   unbounded rather than a constant factor. Now the highest risk in the design.
-5. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
+4. ~~**Liveness-based reuse across function boundaries.**~~ **Done** —
+   [s3](derivations/s3-cross-boundary-reuse.md). The risk comes down substantially. **Most
+   boundaries do not survive rewriting**, since non-recursive functions are rules and inline;
+   only recursive, outlined, extern, and indirect calls remain. For those, **parameter
+   multiplicity in the signature is the ownership annotation** — modular, no whole-program
+   analysis. Where it cannot decide, an RC check costs **2–4%**. The negative result worth
+   keeping: **naive RC costs 14×**, so reference counting depends on the static analysis rather
+   than replacing it.
+5. **A structure stored inside another structure.** Everything derived threads values through
+   calls; a dict held in a struct field is reachability rather than liveness, which is genuinely
+   harder — and is the case Perceus solves with RC rather than statically. Now the last known
+   gap in the uniqueness story.
+6. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
    and it tests the falsifier that would be fatal.
-6. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+7. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

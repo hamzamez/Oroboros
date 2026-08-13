@@ -235,12 +235,19 @@ alternative in hand, not just dissatisfaction.
    separation logic or borrow checker needed. Cost recorded: the gauntlet's parity standard
    gains the qualifier **"at equal semantics"**, since hand-written Go would not write the
    program that costs us 281×.
-6. **Cycles.** A structure reachable from itself defeats reference counting outright — the
-   standard RC failure, and why Koka and Lean restrict what can be cyclic. Nothing in the
-   gauntlet builds a graph, and the design now leans on an RC fallback exactly where static
-   analysis cannot reach. **The next thing that could genuinely hurt.**
-7. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
-   and it tests the falsifier that would be fatal.
+6. ~~**Cycles.**~~ **Done** — [s5](derivations/s5-cycles.md). They are **unrepresentable by
+   construction**: reuse requires the old value dead, and a value stored inside the new one is
+   live, so the liveness check that exists for performance forbids the aliasing that would close
+   a cycle. That makes the RC fallback **sound**, not merely cheap — its one fatal weakness
+   cannot occur, where Koka and Lean have to impose acyclicity as a deliberate rule. The forced
+   workaround, arena plus indices, measured **1.88× faster** than pointers for scattered access
+   and 1.21× slower for near-local. Real costs are ergonomic and safety-related, not
+   performance.
+7. **Rule legibility — now the last outstanding falsifier.** Write one layer both ways, as rules
+   and as passes, and compare. s5 folded a second question into this one: whether
+   arena-and-index code is readable in practice. Both are the same question wearing two hats —
+   *can a person or a model read code written this way?* — and it is the one remaining item that
+   could still be fatal to requirement 8.
 8. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.

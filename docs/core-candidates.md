@@ -133,11 +133,19 @@ stops, emitting Go's `map`. The same source on C keeps rewriting into a real has
 - Lowering decisions are inspectable: dump the derivation and see exactly why the output looks
   the way it does.
 
+**Status:** survived a hand-derivation of gauntlet program 4 —
+[docs/derivations/g4-word-count.md](derivations/g4-word-count.md). Four defects found, all
+fixable; three new required disciplines (auto let-binding of repeated metavariables, layer
+stratification, linearity analysis). Program 1 not yet derived, and it is the harder case.
+
 **Against, and these are real:**
 
-- **Termination and confluence.** Rule sets can loop or be order-dependent. This is the
-  central risk and needs an answer: phase ordering, measure-decreasing rules, or e-graphs and
-  equality saturation. Do not hand-wave it.
+- **Termination and confluence.** Rule sets can loop or be order-dependent.
+  *Partly resolved by the g4 derivation §10:* lowering rules that move strictly down a layer
+  DAG terminate by construction, and that is structurally checkable. The risk is confined to
+  same-layer **optimization** rules, which are not required for correctness — so a
+  non-terminating optimization set can be bounded, leaving output correct but slower. Still
+  needs an answer for fusion specifically: a measure, a budget, or e-graphs.
 - **The runtime model is still undecided.** Rewriting is a compile-time model; the residual
   vocabulary is a separate question — which is what Candidate A supplies.
 - **Compiler performance.** Rewriting is search, and naive search is slow.

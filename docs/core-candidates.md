@@ -135,8 +135,12 @@ stops, emitting Go's `map`. The same source on C keeps rewriting into a real has
   the way it does.
 
 **Status:** survived hand-derivations of gauntlet programs
-[4](derivations/g4-word-count.md) and [1](derivations/g1-dot-product.md), the latter being the
-case most likely to break it. Program 3 (generics) is the remaining structural risk.
+[4](derivations/g4-word-count.md), [1](derivations/g1-dot-product.md), and
+[3](derivations/g3-generics.md). Program 3 was expected to be the remaining structural risk and
+instead gave the strongest positive result: generics need no mechanism, because a non-recursive
+definition *is* a rewrite rule and instantiation is a side effect of matching. It also produced
+a counterexample to ADR 0002's governing rule — see §8 there. Untested: escaping closures, and
+program 2 (struct layout), the last place boxing could hide.
 
 **Against, and these are real:**
 

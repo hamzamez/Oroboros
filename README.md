@@ -116,6 +116,11 @@ in [docs/derivations/](docs/derivations/), and the measured baselines are in
 The first baseline run **refuted five beliefs** the derivations had reasoned their way into.
 That is the process working, and it is why nothing is frozen.
 
+**Where this stands** — after six derivations and one baseline run — is assessed in
+[docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md): the candidate survived both
+tests designed to kill it, its costs are known and bounded rather than open-ended, and the three
+things that could still kill it are all cheap to test before writing a compiler.
+
 ## Next steps
 
 1. **Explore the substructural thread.** Four derivations arrived independently at *when may a

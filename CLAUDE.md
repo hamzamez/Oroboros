@@ -63,6 +63,11 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
+**Current standing and what would still kill the candidate** is in
+[docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md). Note that it is deliberately
+*not* an ADR — writing "candidate B is the core" as a decision would recreate the predecessor's
+failure. The next three experiments are named there, and none of them is "start the compiler."
+
 **Beware the minimality trap.** The instinct toward a tiny elegant core — lambda calculus,
 objects and messages — minimizes *constructs needed to express all computation*, which is not
 the property this project needs and is often opposed to it. Lambda calculus is minimal because

@@ -19,6 +19,7 @@ history and are never edited.
 | [s2](s2-multiplicity-inference.md) | Is multiplicity inferable without annotation? | **Zero annotations in application code.** Grade 0 is observed, not inferred. One unavoidable declaration: extern purity. **Refutes s1's accumulator row.** |
 | [g7](g7-aliasing.md) | Program 6 — mutation through an aliased slice | Aliasing is a **correctness** problem, not a performance one — being conservative costs 0%. In-place is **4.6–6.2× slower**. A uniqueness false negative on a dict costs **40–1,540×, unbounded.** |
 | [s3](s3-cross-boundary-reuse.md) | Does reuse survive function boundaries? | **Most boundaries do not survive rewriting.** Grade in the signature is the ownership annotation. RC fallback costs **3%** — but **naive RC costs 14×**, so it depends on the static analysis rather than replacing it. |
+| [s4](s4-nesting.md) | A heap structure inside another structure | **Value semantics narrows to scalars** — deep copy costs 281–16,300×. The dynamic-index case defeats static analysis and costs **nothing** to check. Parity standard gains "at equal semantics". |
 
 ## What came out of them
 
@@ -63,8 +64,16 @@ most reliable move:
 | Hazard | Made unrepresentable by |
 |---|---|
 | Variable capture | Locally-nameless term representation ([s1](s1-substructural.md)) |
-| Aliasing a value local | Value semantics, no interior pointers ([g2](g2-structs.md)) |
+| Aliasing a **scalar** field or local | Value semantics, no interior pointers ([g2](g2-structs.md), narrowed by [s4](s4-nesting.md)) |
 | Aliasing a slice parameter | No mutable parameters; reuse chosen by liveness ([g7](g7-aliasing.md)) |
+
+**The uniqueness story, closed end to end** across [s2](s2-multiplicity-inference.md) (within a
+function), [s3](s3-cross-boundary-reuse.md) (across boundaries), and [s4](s4-nesting.md)
+(through nesting):
+
+> Static grades decide the statically-nameable cases. A runtime check decides the rest, and
+> costs 0–4%. Neither replaces the other — the check is cheap, but only the analysis keeps its
+> answer *unshared*, and a wrong answer costs 40×–16,300×.
 
 ## The correction record
 

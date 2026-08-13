@@ -1,5 +1,12 @@
 # Derivation: gauntlet program 2 — centroid and bounding box over structs
 
+> **⚠ Narrowed again by [s4](s4-nesting.md).** §4's alias-freedom guarantee holds for **scalar
+> fields only**. Once a field is a heap reference, two struct copies share the referenced
+> structure, and deep-copying instead costs 281×–16,300×. SROA survives intact; the *free*
+> uniqueness that [s2](s2-multiplicity-inference.md) leaned on does not extend past scalars.
+> This derivation's core result keeps holding while its generalizations keep proving too broad —
+> three times now.
+
 > **⚠ Corrected by measurement, 2026-08-13.** The AoS penalty is real on **JS only** (2.86×).
 > On Java, `Point[]` costs just 1.05× over parallel `double[]` — HotSpot's bump allocator lays
 > the objects out contiguously. That shrinks §3's representation problem from two targets to

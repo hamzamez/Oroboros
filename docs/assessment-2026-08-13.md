@@ -227,13 +227,21 @@ alternative in hand, not just dissatisfaction.
    analysis. Where it cannot decide, an RC check costs **2–4%**. The negative result worth
    keeping: **naive RC costs 14×**, so reference counting depends on the static analysis rather
    than replacing it.
-5. **A structure stored inside another structure.** Everything derived threads values through
-   calls; a dict held in a struct field is reachability rather than liveness, which is genuinely
-   harder — and is the case Perceus solves with RC rather than statically. Now the last known
-   gap in the uniqueness story.
-6. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
+5. ~~**A structure stored inside another structure.**~~ **Done** — [s4](s4-nesting.md). The
+   uniqueness story is now closed end to end. **Value semantics narrows to scalar fields**:
+   deep-copying a struct with a heap field costs 281×–16,300×, so struct copy is shallow and the
+   grading tracks the field. The case predicted to be hardest — a dynamic index, where `cs[i]`
+   is not a variable and liveness cannot reach it — costs **nothing** to check at runtime. No
+   separation logic or borrow checker needed. Cost recorded: the gauntlet's parity standard
+   gains the qualifier **"at equal semantics"**, since hand-written Go would not write the
+   program that costs us 281×.
+6. **Cycles.** A structure reachable from itself defeats reference counting outright — the
+   standard RC failure, and why Koka and Lean restrict what can be cyclic. Nothing in the
+   gauntlet builds a graph, and the design now leans on an RC fallback exactly where static
+   analysis cannot reach. **The next thing that could genuinely hurt.**
+7. **Rule legibility.** Write one layer both ways — as rules and as passes — and compare. Cheap,
    and it tests the falsifier that would be fatal.
-7. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+8. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

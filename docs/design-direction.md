@@ -335,9 +335,14 @@ achievable — the output *is* what hand-written code would contain.
    [g2](derivations/g2-structs.md) assumed: measurement puts the array-of-objects penalty at
    2.86× on **JS only**, and 1.05× on Java. Leading option is target-chosen representation with
    explicit layouts available for interop.
-9. **Specialization versus binary size.** Requirements 5 and 6 pull opposite ways, and nothing
-   so far resolves it. Binding-time analysis makes the tradeoff *visible* per abstraction
-   ([g6 §9](derivations/g6-escaping-closures.md)) without deciding it.
+9. ~~**Specialization versus binary size.**~~ **Resolved by measurement** —
+   [size baseline](../gauntlet/results/size-2026-08-13.md). **Outline above the host's inlining
+   budget; specialize below it.** Below the budget the host inlines anyway, so specialization is
+   26% *cheaper* than an outlined copy; above it, specialization costs up to 14.4× for a win the
+   host was declining to take. The crossover is a sharp discontinuity at Go's cost budget of 80 —
+   the same number that appeared in the performance baseline. Also: Go's binary floor is 1.43 MB,
+   so on GC'd hosts requirement 6 is dominated by a runtime we do not control, and on JS gzip
+   erases ~95% of the difference.
 
 Items 2 and 4 are where the Parasite model exerts the most pressure on the "small core"
 requirement. Item 7 is where the most interesting unexplored structure is.

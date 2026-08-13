@@ -37,3 +37,7 @@ gauntlet/fmt/f.exe
 
 # Experiment build output
 experiments/**/out/
+
+# Size measurement scratch
+gauntlet/size/work/
+gauntlet/size/fatwork/

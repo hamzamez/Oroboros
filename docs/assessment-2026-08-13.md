@@ -253,8 +253,13 @@ alternative in hand, not just dissatisfaction.
 8. **Explicit context dependencies in rule declarations**, so the engine can check ordering
    rather than the traversal accidentally providing it. Small, concrete, and the difference
    between a rule set that scales to forty rules and one that does not. Follows directly from s6.
-9. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all — the
-   oldest unchecked box in the project.
+9. ~~**Output size.**~~ **Done** — [size baseline](../gauntlet/results/size-2026-08-13.md). Go's
+   floor is **1.43 MB** and 200 specialized call sites add 1.0% of it, so on GC'd hosts
+   requirement 6 is about a runtime we do not control; it is really a C and embedded requirement,
+   deferred with that target. **g3's specialization-versus-size tension resolves**: below the
+   host's inlining budget specialization is 26% *cheaper*, above it up to 14.4× more expensive,
+   and the crossover is the host's own budget — the same number from the performance baseline.
+   On JS, gzip erases ~95% of the penalty.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

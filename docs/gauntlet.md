@@ -52,8 +52,11 @@ whether two slices alias, and no target language can express that they do not.
   across unrelated benchmarks; on that machine nothing under ~15% is a real difference. Report
   medians, state the noise floor, and do not let a decision rest on a margin smaller than it.
 - **Allocations:** must not exceed the reference. For program 1, the correct number is zero.
-- **Output size:** within 20% of the reference, excluding toolchain-fixed overhead. **Not yet
-  measured at all** — this is half of requirement 6 with no numbers against it.
+- **Output size:** within 20% of the reference, excluding toolchain-fixed overhead. **Measured**
+  — [size baseline](../gauntlet/results/size-2026-08-13.md). Note that "excluding toolchain-fixed
+  overhead" is doing nearly all the work on Go, whose floor is **1.43 MB** against which 200
+  specialized call sites add 1.0%. On JS, measure **gzipped** size for transfer and **raw** size
+  for parse time; they differ by 24× on specialized output.
 
 Program 4 has an additional pass condition that is not a number: **the generated code must use
 the host's own dictionary, not one of ours.** Which dictionary that is, is a measurement — the

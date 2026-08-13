@@ -240,9 +240,16 @@ requirement 8. So polymorphic checking of the *definition* is still required —
 style inference, or explicit parameters with a checking pass.
 
 **Code size is a live tension.** Two instantiations, two emitted loops. Fifty uses, fifty loops
-— the Rust/C++ binary bloat problem, against requirement 6. One idea worth exploring: dedupe
-identical residual bodies after rewriting, which recovers some sharing where instantiations
-coincide. Not a decision.
+— the Rust/C++ binary bloat problem, against requirement 6.
+
+> **⚠ Resolved by measurement** — [size baseline](../../gauntlet/results/size-2026-08-13.md).
+> The tension is much weaker than assumed and on Go it inverts. For bodies **below the host's
+> inlining budget**, specialization is 26% *cheaper* than sharing, because the host would have
+> inlined anyway and the outlined copy is pure overhead. **Above** the budget it costs up to
+> 14.4×. The crossover is a sharp discontinuity between 4 and 8 operations, and it is Go's cost
+> budget of 80 — the same number that rejected `Bounds` at cost 83 in the performance baseline.
+> The rule: **outline above the host's budget, specialize below it.** On JS, gzip erases ~95% of
+> the penalty (3.7× raw becomes 1.2× gzipped), though raw size still governs parse time.
 
 **Escaping closures are untested.** No closure formed here because every function argument was
 literal at the call site. A closure that is returned or stored still needs defunctionalization

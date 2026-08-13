@@ -43,6 +43,15 @@ absolutely. C is the same story with less taste.
 core must be natively expressible by every target and must accept every abstraction without
 cost.
 
+> **⚠ §2's framing corrected by [s6](derivations/s6-rule-legibility.md).** "Everything is a
+> rewrite" does not survive contact with an implementation. The compiler is a hybrid: pattern
+> matching for *dispatch*, imperative construction for *output*, and several ordinary
+> whole-function analyses that are not rewrites at all — five of the eight machinery items. The
+> honest version is **"lowering is pattern-directed; analysis is not."** The *semantic* identity
+> from [g6](derivations/g6-escaping-closures.md) and [s1](derivations/s1-substructural.md) —
+> staged, graded lambda calculus — is untouched, and is a claim about what the language means
+> rather than how the compiler is built.
+
 ## 2. Where identity can come from instead
 
 If the identity cannot live in the computation mechanism without paying for it, it can live in
@@ -228,7 +237,7 @@ Status after five derivations and one baseline run:
 |---|---|
 | Rule sets for the five programs turn out non-confluent, needing manual phase ordering everywhere — making B a pass framework with extra steps | **Did not fire.** Termination split into three classes; lowering rules terminate structurally, and the dangerous permutative class can be excluded outright. See [g1 §5](derivations/g1-dot-product.md). |
 | The residual is measurably worse than hand-written target code on program 1 or 4 | **Untested — needs a compiler.** The derivations show the intended residual *is* the hand-written code, but nothing has generated it yet. |
-| Writing rules is harder to reason about than writing passes, for a person or a model | **Untested**, and the hardest to measure. Fatal to requirement 8 if true. |
+| Writing rules is harder to reason about than writing passes, for a person or a model | **Did not fire** — [s6](derivations/s6-rule-legibility.md) wrote both and ran them against each other. Rules are half the lines per layer against a fixed 84-line engine, and one analysis leaves the layer entirely. **But the claim it defended came down:** every rule's right-hand side is imperative Go, and rules share ordering-dependent context that no rule states. "Everything is a rewrite" is false. |
 
 A fourth falsifier was added by measurement rather than foresight:
 

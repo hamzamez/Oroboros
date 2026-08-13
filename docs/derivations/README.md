@@ -21,14 +21,26 @@ history and are never edited.
 | [s3](s3-cross-boundary-reuse.md) | Does reuse survive function boundaries? | **Most boundaries do not survive rewriting.** Grade in the signature is the ownership annotation. RC fallback costs **3%** — but **naive RC costs 14×**, so it depends on the static analysis rather than replacing it. |
 | [s4](s4-nesting.md) | A heap structure inside another structure | **Value semantics narrows to scalars** — deep copy costs 281–16,300×. The dynamic-index case defeats static analysis and costs **nothing** to check. Parity standard gains "at equal semantics". |
 | [s5](s5-cycles.md) | Cycles — RC's fatal weakness | **Unrepresentable by construction**, which is what makes the RC fallback *sound*. The forced workaround (arena + indices) is **1.88× faster** for scattered access. |
+| [s6](s6-rule-legibility.md) | Rules versus passes — both written and run | Falsifier **did not fire**: rules are half the lines per layer. **But "everything is a rewrite" is false** — RHSs are imperative, and rules share invisible ordering-dependent context. |
 
 ## What came out of them
 
-**The identity.** Rewriting is lambda calculus generalized — one rule, beta, plus alpha. What
-separates it from the predecessor project is stage, not mechanism:
+**The identity, in two parts that were being conflated until [s6](s6-rule-legibility.md).**
 
-> Everything is a function, evaluated at compile time. What survives is what the target must do
-> at runtime, and the compiler will tell you exactly what that is.
+*Semantic* — what the language means. Rewriting is lambda calculus generalized, one rule plus
+alpha; what separates it from the predecessor project is stage, not mechanism:
+
+> Everything is a function, evaluated at compile time. Every term graded by how many times it may
+> be used and at which stage. Grade 0 means it is gone before the program runs, and the compiler
+> will tell you the grade of anything you wrote.
+
+*Implementation* — how the compiler is built. **Not** "everything is a rewrite," which does not
+survive contact with a running implementation:
+
+> Lowering is pattern-directed. Analysis is not.
+
+Five of the eight machinery items are ordinary whole-function analyses. MLIR reached the same
+shape, and it is probably the honest shape for anything of this kind.
 
 **One defect family, and it resolved.** Every defect found is naive rewriting losing a property
 the term held implicitly — sharing (g4), capture-freedom (g1, g3), simultaneity (g2), effect

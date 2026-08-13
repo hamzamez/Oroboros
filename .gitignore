@@ -34,3 +34,6 @@ gauntlet/java/out/
 gauntlet/fmt/*.class
 gauntlet/fmt/f
 gauntlet/fmt/f.exe
+
+# Experiment build output
+experiments/**/out/

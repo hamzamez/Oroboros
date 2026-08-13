@@ -243,12 +243,18 @@ alternative in hand, not just dissatisfaction.
    workaround, arena plus indices, measured **1.88× faster** than pointers for scattered access
    and 1.21× slower for near-local. Real costs are ergonomic and safety-related, not
    performance.
-7. **Rule legibility — now the last outstanding falsifier.** Write one layer both ways, as rules
-   and as passes, and compare. s5 folded a second question into this one: whether
-   arena-and-index code is readable in practice. Both are the same question wearing two hats —
-   *can a person or a model read code written this way?* — and it is the one remaining item that
-   could still be fatal to requirement 8.
-8. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all.
+7. ~~**Rule legibility.**~~ **Done** — [s6](derivations/s6-rule-legibility.md), by writing both
+   and running them against each other. **The falsifier did not fire**: rules are half the lines
+   per layer against a fixed 84-line engine, one analysis leaves the layer entirely, and sequence
+   patterns closed the arity gap for twelve lines. **But the claim came down.** Every rule's
+   right-hand side is imperative Go, and rules share ordering-dependent context that no rule
+   states — the confirmed version of the worry, caught only because the rule set is four rules
+   long. "Everything is a rewrite" is false; the *semantic* identity is untouched.
+8. **Explicit context dependencies in rule declarations**, so the engine can check ordering
+   rather than the traversal accidentally providing it. Small, concrete, and the difference
+   between a rule set that scales to forty rules and one that does not. Follows directly from s6.
+9. **Output size**, added to the gauntlet. Half of requirement 6 has no numbers at all — the
+   oldest unchecked box in the project.
 
 Then, and only then: reader, front end, Go backend, JS backend before any front-end features.
 

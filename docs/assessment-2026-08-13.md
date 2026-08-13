@@ -154,7 +154,12 @@ single strongest argument in the candidate's favour.
 
 ---
 
-## Verdict
+## Verdict — superseded, see §"Revised verdict" below
+
+The original call, made before the substructural thread and the size measurement, was
+**continue, explore no new candidate, do not build yet.** Every experiment it named has since
+been done and none of them fired. The verdict that follows from that is different, and it is
+recorded at the end of this document rather than by editing this section.
 
 **Continue. Do not explore another candidate yet — but do not start building the compiler
 either.**
@@ -268,3 +273,73 @@ Then, and only then: reader, front end, Go backend, JS backend before any front-
 *The candidate has survived everything aimed at it, the costs it does carry are known and
 bounded rather than open-ended, and the three things that could still kill it are all cheap to
 test before writing a compiler — so: continue, test those three, and keep the question open.*
+
+---
+
+# Revised verdict
+
+Added after every experiment above was completed. **The recommendation changes: build the
+vertical slice.**
+
+## What is established, and what is not
+
+**Established:** the approach has no known fatal flaw, and its costs are bounded and largely
+textbook. Six gauntlet derivations, six substructural explorations, no falsifier fired, and
+several results better than predicted — generics need no mechanism, cycles are unrepresentable,
+the size tension inverted.
+
+**Not established: that it works.** Nothing has been compiled. Every number in
+[gauntlet/results/](../gauntlet/results/) measures **hand-written host code** — the bar. Not one
+measures output this project produced. The parity claim the whole design rests on has never been
+tested.
+
+## Three reasons to discount the confidence
+
+1. **The error rate on unmeasured reasoning is high.** Five claims refuted in the first baseline
+   run, plus [s1](derivations/s1-substructural.md)'s accumulator row,
+   [s6](derivations/s6-rule-legibility.md)'s framing, the biased graph benchmark in
+   [s5](derivations/s5-cycles.md), and the degenerate test data in
+   [g7](derivations/g7-aliasing.md). Roughly half of what was reasoned and then checked was
+   wrong. The derivations that have *not* been checked deserve the same discount — and none has
+   produced actual output.
+2. **The strongest claim came down.** "Everything is a rewrite" is false. What survives is
+   pattern-directed lowering plus ordinary analyses: a good architecture, and an unremarkable
+   one.
+3. **The experiment queue regenerated every time.** This document originally named three next
+   steps; those produced s1 → s2 → s3 → s4 → s5, g7 came out of s2, s6 produced "explicit
+   context dependencies," and the size run produced "measure V8 and HotSpot budgets." The list
+   never got shorter — it changed contents.
+
+That third point is the important one. **[ADR 0007](decisions/0007-exploration-over-specification.md)
+protects against stalling on a specification. It has no stopping rule for stalling on
+exploration**, and exploration is the more comfortable of the two failure modes. That is the
+predecessor's failure wearing different clothes.
+
+## Why build now
+
+The remaining uncertainty has concentrated into questions only a working compiler can answer:
+
+- **Does the residual match hand-written code?** Never tested. This is the whole claim.
+- **Does compile time scale?** Never measured.
+- **Do rules compose across six layers?** Tested with four rules in one layer.
+- **Is multiplicity inference implementable?** Derived by hand, never run.
+
+None of these gets cheaper by deriving further, and all of them get answered by one vertical
+slice.
+
+## The slice
+
+1. Reader, printer, canonical formatter for s-expressions.
+2. Front end: functions, locals, structs, range-typed scalars, structured control flow.
+3. **Go backend.** One non-trivial gauntlet program compiling, running, and benchmarked against
+   the existing baseline.
+4. **JS backend before any front-end features** — the discipline that has been in this document
+   since the first draft and is still the one most likely to be skipped.
+
+If the first non-trivial program lands at parity, that is worth more than every derivation in
+`docs/`. If it does not, that is known within weeks instead of years, which was the entire point
+of building the gauntlet first.
+
+**What would send us back to exploration:** the residual missing parity on gauntlet 1 or 4 by
+more than the noise floor, or rule ordering proving unmanageable past roughly forty rules. Both
+are visible early in the slice, and neither is visible from here.

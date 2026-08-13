@@ -67,24 +67,35 @@ Two consequences fall out for free:
 - Go, JavaScript, Java/Android first; C deferred — [ADR 0004](docs/decisions/0004-first-targets.md)
 - The compiler is written in Go — [ADR 0005](docs/decisions/0005-implementation-language.md)
 - The backend interface is a file format — [ADR 0006](docs/decisions/0006-ir-file-format.md)
+- Explore candidates against a fixed test — [ADR 0007](docs/decisions/0007-exploration-over-specification.md)
 
 Full reasoning, including rejected designs and the diagnosis of why the predecessor project
 hit a performance wall, is in [docs/design-direction.md](docs/design-direction.md).
 
+## How this project is run
+
+The core is **not** specified up front. The predecessor stalled on a fixed language that work
+then went into making viable, and committing to a specification now would recreate that.
+
+Instead, one thing is fixed: **[the gauntlet](docs/gauntlet.md)** — five programs that must
+reach parity with hand-written code on Go, JavaScript, and Java. Candidate cores are
+disposable and expected to die. Every one that dies gets an ADR naming what killed it, so a
+dropped direction becomes an accumulating result rather than lost time.
+
+Candidates currently on the table are in [docs/core-candidates.md](docs/core-candidates.md),
+with actual syntax.
+
 ## Next steps
 
-1. Freeze the core on paper — primitives, types, control flow, capability declarations.
-2. Specify the IR file format. This is the backend interface and the hardest thing to change
-   later.
+1. Build the gauntlet: hand-written reference implementations in Go, JS, and Java, plus a
+   harness measuring time, allocations, and output size. Record the baseline numbers.
+2. Run the leading candidate core against it by hand — write the five programs in the
+   candidate notation and the target code they should produce, before any compiler exists.
 3. Reader, printer, and canonical formatter for s-expressions.
-4. Front end: functions, locals, structs, range-typed scalars, structured control flow.
-5. Go backend, running a non-trivial program.
-6. JS backend, **before** adding any front-end features.
-7. Binding format, validated against `fmt` on Go and the DOM on JS.
-8. Benchmark harness against hand-written Go and JS, wired into CI as a gate.
+4. Whatever the first two steps say to build next.
 
-Steps 6 and 8 are the ones most likely to be skipped, and the two that determine whether the
-architecture holds.
+The IR file format gets specified once a candidate has survived the gauntlet. It cannot be
+designed before it is known what flows through it.
 
 ## Name
 

@@ -38,3 +38,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0004](0004-first-targets.md) | Go, JavaScript, and Java/Android first; C deferred |
 | [0005](0005-implementation-language.md) | The compiler is written in Go |
 | [0006](0006-ir-file-format.md) | The backend interface is a file format |
+| [0007](0007-exploration-over-specification.md) | Explore candidates against a fixed test, don't specify the core first |

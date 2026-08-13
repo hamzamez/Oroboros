@@ -35,10 +35,30 @@ recording alternatives that were considered and rejected.
 | Go, JavaScript, Java/Android first; C deferred | [0004](docs/decisions/0004-first-targets.md) |
 | Compiler written in Go | [0005](docs/decisions/0005-implementation-language.md) |
 | Backend interface is a file format, not a Go interface | [0006](docs/decisions/0006-ir-file-format.md) |
+| Explore candidates against a fixed test; do not specify the core first | [0007](docs/decisions/0007-exploration-over-specification.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
 concurrency, strings, module format, naming translation.
+
+## How this project is run
+
+**The core is deliberately unspecified.** Do not propose freezing it, and do not treat
+[docs/core-candidates.md](docs/core-candidates.md) as settled — candidates there are
+disposable and expected to die. The predecessor project stalled on a fixed language that
+effort then went into making viable; recreating that is the primary process risk.
+
+**[The gauntlet](docs/gauntlet.md) is the one fixed commitment.** Five programs, three
+targets, parity with hand-written code. Candidates are killed by measurement, not by
+argument — arguments only select what is worth measuring. When a candidate dies, write an ADR
+naming what killed it.
+
+**Beware the minimality trap.** The instinct toward a tiny elegant core — lambda calculus,
+objects and messages — minimizes *constructs needed to express all computation*, which is not
+the property this project needs and is often opposed to it. Lambda calculus is minimal because
+everything is a function, which is exactly why it allocates. That is the Shen wall. The core
+should be minimal **subject to lowering natively to every target at zero cost**, the way
+WebAssembly is. See section 1 of [docs/core-candidates.md](docs/core-candidates.md).
 
 ## Constraints that override normal instincts
 

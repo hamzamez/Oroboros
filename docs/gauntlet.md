@@ -58,10 +58,23 @@ re-explore the same dead end after picking the project back up.
 
 ## Status
 
-Not yet built. This is the next artifact.
+**Built and measured, 2026-08-13.** Code in [`gauntlet/`](../gauntlet/), results in
+[`gauntlet/results/baseline-2026-08-13.md`](../gauntlet/results/baseline-2026-08-13.md).
 
-- [ ] Reference implementations in Go
-- [ ] Reference implementations in JavaScript
-- [ ] Reference implementations in Java
-- [ ] Harness: fixed inputs, timing, allocation counting, size measurement
-- [ ] Baseline numbers recorded
+- [x] Reference implementations in Go
+- [x] Reference implementations in JavaScript
+- [x] Reference implementations in Java
+- [x] Harness: fixed inputs, timing, allocation counting
+- [x] Baseline numbers recorded
+- [ ] Output-size measurement
+- [ ] CI wiring
+
+The first run checked six claims the derivations had made about host compilers. **Five were
+confirmed, five were refuted, and five findings nobody predicted appeared** — including one
+that constrains the core's identity: Go's arbitrary-precision constant folding means
+compile-time and runtime arithmetic can disagree, which would make partial evaluation unsound
+over floats.
+
+Corrections have been applied as notices at the top of the affected derivations rather than by
+editing their reasoning, so the record of what was believed and what measurement said stays
+readable.

@@ -1,5 +1,12 @@
 # Derivation: gauntlet program 3 — one generic operation, two instantiations
 
+> **⚠ Corrected by measurement, 2026-08-13.** §8's central claim is **false**. Go, JS, and Java
+> all inline a generic fold with a literal function argument, at identical speed to the
+> monomorphic version — Go's own diagnostics show `inlining call to Fold[go.shape.float64,...]`.
+> The counterexample to ADR 0002 survives only where the function exceeds the host's inlining
+> budget or the callee is not statically known. See
+> [baseline R1](../../gauntlet/results/baseline-2026-08-13.md).
+
 Exploration only. Nothing here is a commitment, and no ADR follows from it.
 
 The question: does one definition, used at two element types, produce output identical to two

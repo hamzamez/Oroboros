@@ -1,5 +1,14 @@
 # Derivation: escaping closures — and whether this is just lambda calculus again
 
+> **⚠ Constrained by measurement, 2026-08-13.** The cost model in §7 is confirmed: Go allocates
+> nothing for non-capturing closures and 16 bytes for a capturing one, with a 1.55ns indirect
+> call. But §2's identity gains a hard constraint. Go folds `0.1+0.2` to `0.3` at compile time
+> and to `0.30000000000000004` at runtime, because untyped constants are arbitrary-precision.
+> **If compile-time arithmetic differs from runtime arithmetic, binding-time analysis changes
+> the program's answers and partial evaluation is unsound.** Compile-time float arithmetic must
+> be exactly IEEE-754 binary64. See
+> [baseline C1, U3](../../gauntlet/results/baseline-2026-08-13.md).
+
 Exploration only. No commitments, no ADR.
 
 Not a gauntlet program. This is the one case all five derivations avoided: every function

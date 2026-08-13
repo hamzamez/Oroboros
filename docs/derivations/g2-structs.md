@@ -1,5 +1,11 @@
 # Derivation: gauntlet program 2 — centroid and bounding box over structs
 
+> **⚠ Corrected by measurement, 2026-08-13.** The AoS penalty is real on **JS only** (2.86×).
+> On Java, `Point[]` costs just 1.05× over parallel `double[]` — HotSpot's bump allocator lays
+> the objects out contiguously. That shrinks §3's representation problem from two targets to
+> one. Also: **Go performs SROA itself**, so §4's scalarization is needed for JS and Java, not
+> Go. See [baseline C4, R3](../../gauntlet/results/baseline-2026-08-13.md).
+
 Exploration only. No commitments, no ADR.
 
 The question: does an array of structs stay flat, and does a loop that *looks* like it builds

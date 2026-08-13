@@ -28,3 +28,9 @@ desktop.ini
 
 # Local agent state
 .claude/settings.local.json
+
+# Gauntlet build output
+gauntlet/java/out/
+gauntlet/fmt/*.class
+gauntlet/fmt/f
+gauntlet/fmt/f.exe

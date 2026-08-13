@@ -1,0 +1,69 @@
+package gauntlet
+
+import "testing"
+
+// The full-size benchmarks (65536 elements = 512KB per slice) are memory-bound,
+// which hides everything the compiler does. These run at 1024 elements (8KB per
+// slice, comfortably in L1) so that bounds checks and call overhead are visible.
+
+const NSmall = 1024
+
+var (
+	smallA = MakeVec(NSmall, 1)
+	smallB = MakeVec(NSmall, 2)
+	smallI = MakeInts(NSmall, 3)
+)
+
+func BenchmarkSmallDotNaive(b *testing.B) {
+	for b.Loop() {
+		sinkF = DotNaive(smallA, smallB)
+	}
+}
+
+func BenchmarkSmallDotHoisted(b *testing.B) {
+	for b.Loop() {
+		sinkF = DotHoisted(smallA, smallB)
+	}
+}
+
+func BenchmarkSmallDotRange(b *testing.B) {
+	for b.Loop() {
+		sinkF = DotRange(smallA, smallB)
+	}
+}
+
+func BenchmarkSmallSumF64(b *testing.B) {
+	for b.Loop() {
+		sinkF = SumF64(smallA)
+	}
+}
+
+func BenchmarkSmallSumF64Generic(b *testing.B) {
+	for b.Loop() {
+		sinkF = SumF64Generic(smallA)
+	}
+}
+
+func BenchmarkSmallCountPositive(b *testing.B) {
+	for b.Loop() {
+		sinkI = CountPositive(smallI)
+	}
+}
+
+func BenchmarkSmallCountPositiveGeneric(b *testing.B) {
+	for b.Loop() {
+		sinkI = CountPositiveGeneric(smallI)
+	}
+}
+
+func BenchmarkSmallDotUnordered4(b *testing.B) {
+	for b.Loop() {
+		sinkF = DotUnordered4(smallA, smallB)
+	}
+}
+
+func BenchmarkSmallSumF64Unordered4(b *testing.B) {
+	for b.Loop() {
+		sinkF = SumF64Unordered4(smallA)
+	}
+}

@@ -1,5 +1,12 @@
 # Derivation: gauntlet program 1 — dot product
 
+> **⚠ Corrected by measurement, 2026-08-13.** The bounds check *is* hoisted as §7 describes —
+> verified in Go's SSA output — but it buys **nothing measurable**, in L1 or out. The loop is
+> bottlenecked on the serial `acc +=` dependency chain. `require` remains justified by
+> correctness, not performance. Separately, §8's left-to-right `sum` decision has a measured
+> price: **5.2–7.2× on Go**. See
+> [baseline R2 and U1](../../gauntlet/results/baseline-2026-08-13.md).
+
 The hard case. Fusion rules are same-layer, so the termination guarantee from
 [g4 §10](g4-word-count.md) does not cover them. This is where the rewriting core was most
 likely to break.

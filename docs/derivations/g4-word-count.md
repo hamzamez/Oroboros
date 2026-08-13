@@ -1,5 +1,12 @@
 # Derivation: gauntlet program 4 — word frequency count
 
+> **⚠ Corrected by measurement, 2026-08-13.** Three corrections. §7's `m[k]++` advantage is
+> **1.23×, not "roughly 2×"**. The pass condition "JS output must contain `Map`" is **wrong** —
+> a null-prototype Object is 3.25× faster than `Map` for string keys. And the granularity law
+> is **target-dependent, not universal**: on Java the *unfused* `getOrDefault`+`put` beats the
+> fused `merge` by 2.6×. See
+> [baseline C3, R4, R5](../../gauntlet/results/baseline-2026-08-13.md).
+
 Hand-derivation, no compiler. The question: does a plausible rule set take the source to the
 hand-written Go, terminate in Go's vocabulary, and keep `map[string]int` in the output?
 

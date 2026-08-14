@@ -1,0 +1,277 @@
+# Modules
+
+Written before the code, per [state.md §6](state.md).
+
+The claim this document has to earn is that **modules add no mechanism to the reducer**. If it
+needs a new reduction rule, a new term kind, or a second parameter to normalisation, it is the
+wrong design and should be thrown away. What follows is an argument that a module system is
+already implied by the two rules we have, and that the work is naming, resolution and covering —
+not reduction.
+
+---
+
+## 1. Why now
+
+Three times, the absence of a library mechanism pushed something into the core that did not
+belong there:
+
+| | went into | should have gone into |
+|---|---|---|
+| `seq` | the **reader** ([effects.md §5](effects.md)) | `std/control` |
+| `print-line` | **every target file, separately** | `std/io`, once |
+| the string literal | the **language** ([strings.md §1](strings.md)) | nowhere; target files needed it |
+
+The pattern is mechanical, not accidental:
+
+> **Without a library mechanism, "put it in a library" is not an available answer, so every
+> pressure to grow lands on the language.**
+
+That is the argument for doing this before anything else. A small core is not a discipline that
+can be maintained by intention; it needs somewhere else for things to go.
+
+Two smaller reasons. `cmd/gen` names emitted functions **by position** — `GenGeneric0`,
+`GenGeneric1` — which is not a naming scheme. And the target files cannot hold ten thousand
+names in one flat map, which is what the parasite thesis eventually asks of them.
+
+## 2. The shape: signature and structure
+
+Taken from ML, because the problem is the same one and the algebra already exists.
+
+- A **signature** Σ names a set of exports and specifies each one's behaviour, independently of
+  any target. `std/words` says what `split-words` *means*.
+- A **structure** implements a signature. There may be many.
+- A **target** implements *part* of a signature natively — whatever the host already has.
+- A **library** supplies definitions for the rest, in terms of names further down.
+
+The reason this is the right import is that ML's signature/structure split exists to answer
+exactly the question this project keeps asking: **when may one implementation be substituted for
+another without changing what a program means?** §5 answers it.
+
+What we deliberately do **not** take is functors — parameterised modules. Our parameterisation is
+the target, and it is already the parameter to reduction ([the-atom](../the-atom.md)). A functor
+would be a second, competing parameterisation mechanism for the same job.
+
+## 3. Names
+
+`symbolChars` currently admits both `.` and `/` as identifier characters, and **neither appears in
+any name** in `targets/` or `examples/`. So one of them can be reserved at zero cost.
+
+- **`/` stays an ordinary identifier character.** A module path is one token: `std/words`,
+  `go/strings`, `android/view`.
+- **`.` becomes reserved** as the qualifier separator, and is no longer an identifier character.
+  `words.split-words` is three tokens.
+
+This closes [concerns.md §3.2](concerns.md), which predicted the collision and noted nothing
+depended on it yet. Something does now.
+
+```lisp
+(module std/words
+  (export split-words))
+
+(use go/strings)              ; bound to `strings`, the last path segment
+(use go/strings as s)         ; or explicitly
+
+(def split-words (fn (t) (strings.fields t)))
+```
+
+**Imports stay qualified.** Every name from another module is written with its qualifier. The
+alternative — flat import — makes a program's meaning depend on import order and on which names a
+target happens to provide, and both of those change under exactly the conditions this system is
+built to make cheap.
+
+## 4. What a target declares
+
+A target stops being one file and becomes a directory, in which each file says which names of one
+module the host provides **natively**.
+
+```lisp
+; targets/go/std-words.oro
+(provides go std/words
+  (prim split-words (string) vec-string expr "strings.Fields(%s)" pure (import "strings")))
+```
+
+A target may provide **any subset** of a module's exports, including none. Nothing obliges a
+target to implement a whole signature, and this is the mechanical form of the claim that porting
+is cheap to start: a porter implements what the residual check asks for, and nothing else.
+
+## 5. The algebra
+
+Write:
+
+- `N(M)` — the names exported by module `M`. Fully qualified: `std/words.split-words`.
+- `P_T` — the qualified names target `T` provides natively. This is
+  [ADR 0002](../decisions/0002-capability-graph.md)'s capability set, and the parameter to
+  reduction.
+- `D` — the qualified names defined by libraries in scope.
+- `⟶_T` — reduction, halting on `P_T`.
+- `⟦n⟧_T` — what `n` denotes on `T`. `⟦n⟧_Σ` — what its signature says it should denote.
+
+**Resolution happens before reduction.** `words.split-words` under `(use std/words)` becomes the
+qualified name `std/words.split-words`. So by the time the reducer runs, every name is fully
+qualified and the maps `P_T` and `D` are keyed the same way.
+
+That last sentence is the whole reason the design works, and it is worth stating as the rule it
+is:
+
+> **R1 — one namespace.** Targets and libraries name into the *same* qualified namespace. A
+> target provides `std/words.split-words`; a library defines `std/words.split-words`; a program
+> refers to `std/words.split-words`.
+
+Without R1 the conditional lowering of §6 silently stops working, because the intersection below
+would always be empty.
+
+### The four cells
+
+Every qualified name a program mentions falls into exactly one:
+
+| | meaning | mechanism |
+|---|---|---|
+| `n ∈ P_T \ D` | host binding | reduction halts on `n` |
+| `n ∈ D \ P_T` | portable definition | δ unfolds it |
+| **`n ∈ P_T ∩ D`** | **the conditional** | **δ is inhibited; native wins** |
+| `n ∉ P_T ∪ D` | not covered | the residual check reports it |
+
+**R2 — native wins.** This is one clause already in `unfoldable`:
+`if e.Prim[name] { return false }`. Nothing is added.
+
+### Covering
+
+A program `t` builds on `T` iff `Residual_T(nf_T(t)) = ∅`, where `Residual` reports free names
+that are neither primitive nor recursive definitions. This is unchanged from today; only the keys
+become qualified.
+
+The porter's obligation is therefore **computed, not estimated**, and it is demand-driven: it
+contains only names the program actually reaches.
+
+## 6. Conditional lowering is already complete
+
+An earlier draft of this argument claimed that N targets need N bodies and therefore a new form.
+That was wrong. The four cells give N natives plus one fallback with no new mechanism:
+
+```lisp
+; std/words — the portable definition, used by any target with no native
+(module std/words (export split-words))
+(def split-words (fn (t) (fold-ws t)))       ; in terms of something lower
+
+; targets/go/std-words.oro    — Go has it natively
+(provides go std/words
+  (prim split-words (string) vec-string expr "strings.Fields(%s)" pure (import "strings")))
+
+; targets/js/std-words.oro    — JS has a DIFFERENT native
+(provides js std/words
+  (prim split-words (string) vec-string expr "%s.split(/\\s+/)" pure))
+
+; targets/c/…                 — no native; δ unfolds the definition
+```
+
+Three targets, three outcomes, from `P_T ∩ D` and δ. This is the same mechanism as
+`examples/dot.oro`, which has emitted a BLAS call on one target and a fused loop on another since
+the first commit — read in the other direction.
+
+## 7. Theorems
+
+These are the reason to write the specification before the code: they say what may be assumed
+later, and each one is short enough to check.
+
+**T1 — reduction is target-independent except at the floor.**
+Neither β nor δ mentions `T`. `T` enters normalisation only through `unfoldable`, which consults
+`P_T`. Hence for any `t` and any `T₁, T₂`, the two normal forms differ only in *which subterms
+were left unreduced*; no reduction performed under one is unavailable under the other.
+
+*Proof.* Induction on the reduction sequence. Every step is β or δ. β's applicability depends only
+on the term. δ's depends on `P_T` and on `Rec`. ∎
+
+**T2 — substitution soundness.**
+If every primitive appearing in `nf_{T₁}(t)` and `nf_{T₂}(t)` conforms — `⟦n⟧_T = ⟦n⟧_Σ` — then
+`⟦nf_{T₁}(t)⟧ = ⟦nf_{T₂}(t)⟧`.
+
+*Proof.* By T1 the two normal forms are reducts of the same term, so they are βδ-convertible modulo
+the names each stopped at. Denotation is compositional over the six term kinds, so it is
+determined by the denotations at the leaves. Conformance makes those equal. ∎
+
+This is the theorem that says a standard library **is** portable rather than **is expected to
+be**, and note precisely what it is conditional on. Not on the hosts agreeing — hosts never agree
+— but on **our lowerings conforming to our own signature**. Nothing prevents `std/words` from
+choosing a behaviour and implementing it on a host whose native idiom disagrees; that is what §6's
+JS row does.
+
+**T3 — portability is decidable.**
+`t` is portable across a set of targets iff, for each `T`, every free name of `nf_T(t)` belongs to
+a module carrying a signature. Computable by `Residual` plus a per-module lookup, in time linear
+in the normal form.
+
+This is [ADR 0001](../decisions/0001-parasite-model.md)'s claim — *portability is a property a
+program may or may not have, computed by the compiler* — becoming an algorithm rather than a
+position.
+
+**T4 — native adoption is meaning-preserving.**
+If `T` moves a name from `D` to `P_T` — the host gained it, or someone wrote a binding — and the
+native conforms, then no program's meaning changes.
+
+*Proof.* The only change is that δ is inhibited at that name (R2). By T2, done. ∎
+
+T4 is the property that lets `P_T` grow to ten thousand names without re-auditing a single
+program, and it is what makes the parasite thesis safe to scale. Its one precondition is
+conformance. That is the whole argument for §8.
+
+## 8. Conformance, and what it is not
+
+A signature is a claim. Conformance is evidence for it.
+
+> A module with a signature ships a **test suite**. It tests **our lowerings**, not the host.
+
+A failure never means "this target cannot have this module" — it means our implementation for that
+target is wrong. `strings.Fields` and `.split(" ")` disagreeing is not JavaScript's problem; it is
+a bug in our JS lowering, and the fix is to write a different one, at a
+[measured](../../gauntlet/results/) cost.
+
+The reason the suite is not optional:
+
+> **The covering check proves a name is *provided*. It cannot prove the name is *right*.**
+
+A porter can satisfy `Residual = ∅` completely and still be wrong. We did: `split-words` is
+declared on all three targets, passes every check, and gives different answers on Go and JS for
+any text containing a tab, a newline, or a double space. Covering is a type-level property;
+conformance is a semantic one; T2 depends on the second.
+
+### What a signature costs
+
+Specifying `split-words` means answering *what is whitespace*, and the hosts disagree on U+00A0:
+
+| | NBSP | U+2028 |
+|---|---|---|
+| Go `unicode.IsSpace` | splits | splits |
+| JS `/\s+/` | splits | splits |
+| Java `\s+`, `(?U)\s+` | **does not** | **does not** |
+
+So adopting Go's answer obliges Java to carry a Unicode `White_Space` table. That is affordable —
+and it is the reason the standard library should grow slowly. Not because implementations are
+expensive: because
+
+> **a signature is the only object in this system that cannot be revised per target.**
+
+Every target file is data someone can rewrite. A signature is a promise to every program already
+written.
+
+## 9. Deliberately absent
+
+- **Functors.** §2. The target is our parameterisation and there should be only one.
+- **Separate compilation.** Reduction is whole-program by construction; fusion crosses every
+  boundary a module would draw. Whether that is a scaling problem is a *measurement*, not a
+  design question, and it has not been taken.
+- **Versioning, cyclic imports, visibility beyond export/not-export.** No program needs them yet
+  ([ADR 0007](../decisions/0007-exploration-over-specification.md)).
+- **Overload resolution.** `print-line` needed `any` because primitive names are unique keys
+  ([effects-2026-08-14 §6](../../gauntlet/results/effects-2026-08-14.md)). Qualification does not
+  fix this — `java/io.println` still has ten signatures. It is the first thing generated target
+  files will break on, and it is not solved here.
+
+## 10. Open questions this raises
+
+1. **Purity defaults for generated target files.** [effects.md §3](effects.md) chose *impure by
+   default* so that a human's omission costs speed rather than correctness. A machine-generated
+   ten-thousand-name target file is then entirely impure, and fusion dies everywhere. No host
+   publishes purity as metadata. Unresolved, and it does not bite until §9's last bullet does.
+2. **Does whole-program reduction scale?** See §9. Measure before deciding.
+3. **What is the first signature?** It should be `std/words`, because that is the name we already
+   got wrong, and specifying it will exercise every part of this document.

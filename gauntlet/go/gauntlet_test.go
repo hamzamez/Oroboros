@@ -217,3 +217,16 @@ func TestGeneratedCentroidAgreesWithHandWritten(t *testing.T) {
 		t.Errorf("generated=%v hand-written=%v", got, want)
 	}
 }
+
+func TestGeneratedWordCountAgreesWithHandWritten(t *testing.T) {
+	small := MakeText(200, 5)
+	g, h := GenWordCount(small), WordCountIncr(small)
+	if len(g) != len(h) {
+		t.Fatalf("sizes differ: %d vs %d", len(g), len(h))
+	}
+	for k, v := range h {
+		if g[k] != v {
+			t.Fatalf("disagree on %q: %d vs %d", k, g[k], v)
+		}
+	}
+}

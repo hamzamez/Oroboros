@@ -1,0 +1,18 @@
+; Gauntlet program 4 — word frequency count.
+;
+; This is the program that tests the Parasite thesis rather than the reducer.
+; The pass condition is not a number: the Go output must use Go's own
+; map[string]int, and the JS output must use a null-prototype object — which
+; baseline R4 measured at 3.25x faster than Map for string keys, refuting g4's
+; original assumption that Map was the right choice.
+;
+; Neither backend had a dictionary before this file.
+
+(target go (prim split-words slen sat dict-empty dict-inc fold-range))
+(target js (prim split-words slen sat dict-empty dict-inc fold-range))
+
+(def tally (fn (ws)
+  (fold-range (dict-empty) (slen ws)
+    (fn (acc i) (dict-inc acc (sat ws i))))))
+
+(fn (text) (tally (split-words text)))

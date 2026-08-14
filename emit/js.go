@@ -27,6 +27,7 @@ type jsPrim struct {
 	Loop   bool
 	Loop2  bool
 	Cond   bool
+	Stmt   bool // emitted as a statement; the value is argument 0
 }
 
 var jsPrims = map[string]jsPrim{
@@ -38,7 +39,16 @@ var jsPrims = map[string]jsPrim{
 	"alen":   {Format: "%s.length", Arity: 1},
 	"aindex": {Format: "%s[%s]", Arity: 2},
 
-	"if":         {Arity: 3, Cond: true},
+	// The Parasite thesis: JS's dictionary is a null-prototype object, not Map.
+	// Baseline R4 measured Map at 3.25x slower for string keys, which refuted
+	// g4's original pass condition.
+	"split-words": {Format: "%s.split(\" \")", Arity: 1},
+	"slen":        {Format: "%s.length", Arity: 1},
+	"sat":         {Format: "%s[%s]", Arity: 2},
+	"dict-empty":  {Format: "Object.create(null)", Arity: 0},
+	"dict-inc":    {Format: "%s[%s] = (%s[%s] ?? 0) + 1", Arity: 2, Stmt: true},
+
+	"if":          {Arity: 3, Cond: true},
 	"fold-range":  {Arity: 3, Loop: true},
 	"fold-range2": {Arity: 6, Loop2: true},
 }
@@ -112,6 +122,20 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		p, ok := jsPrims[op.Name]
 		if !ok {
 			return "", fmt.Errorf("no JavaScript form for primitive %q", op.Name)
+		}
+		if p.Stmt {
+			args := t.Args()
+			vals := make([]any, 0, 2*len(args))
+			for _, a := range args {
+				v, err := e.emit(a)
+				if err != nil {
+					return "", err
+				}
+				vals = append(vals, v)
+			}
+			// dict-inc names both operands twice; repeat them for the template.
+			e.line("%s;", fmt.Sprintf(p.Format, append(vals, vals...)...))
+			return vals[0].(string), nil
 		}
 		if p.Loop {
 			return e.emitFoldRange(t)
@@ -280,7 +304,9 @@ func (e *jsEmitter) emitFoldRange(t *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	e.line("%s = %s;", acc, body)
+	if body != acc { // a statement-primitive already updated it in place
+		e.line("%s = %s;", acc, body)
+	}
 	e.indent--
 	e.line("}")
 	return acc, nil

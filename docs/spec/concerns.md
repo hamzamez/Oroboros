@@ -35,6 +35,18 @@ effects it becomes a **correctness** bug.
 > Call-by-need is still worth having, for effects (g5) and for weaker hosts, but not for this.
 > And the noise floor is not 15%: alignment alone produced a stable, reproducible 45% gap between
 > identical code.
+>
+> **⚠⚠ Reinstated with a number, 2026-08-14** —
+> [wordcount-2026-08-14](../../gauntlet/results/wordcount-2026-08-14.md). Word count duplicates
+> `(split-words text)` *into the loop body*, and there the cost is **615× on Go, 1,089× on JS, and
+> quadratic**. The two results together give the criterion: **duplication is free exactly when
+> the duplicated term is pure, and unbounded when it is not** — a host's CSE hoists `a[i]` and
+> can never hoist an allocation.
+>
+> And the asymmetry gives a rule simpler than the grade-directed classification described below:
+> over-residualizing a pure term costs nothing, under-residualizing an allocating one costs 615×,
+> so **residualize every primitive application** and let the host clean up the rest. **This is now
+> the highest-priority gap in the implementation** — program 4 does not reach parity because of it.
 
 Why it matters anyway — this is visible in a passing test. `TestFilterFusesToOneLoop` produces:
 
@@ -48,8 +60,10 @@ correct residual binds it once. So the specification and the implementation disa
 encodes the *implementation's* answer, and **the test is currently wrong on purpose**. It should
 be changed when the discipline lands, not before.
 
-> ~~The first thing to fix~~ — **not the first thing to fix.** Still the first place the spec and
-> the code diverged, but the performance argument for closing it has been measured away.
+> ~~The first thing to fix~~ — ~~not the first thing to fix~~ — **the first thing to fix after
+> all.** The performance argument was measured away by the CSE finding and then measured back by
+> word count, at 615×. The rule to implement is "residualize every primitive application", which
+> needs no grades and no cost model.
 
 ### 1.2 NFC normalisation is specified and not checked
 

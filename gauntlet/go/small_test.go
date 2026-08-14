@@ -109,3 +109,20 @@ func BenchmarkSmallGenCentroid(b *testing.B) {
 		sinkF = GenCentroid(smallA, smallY)
 	}
 }
+
+// Word count at DELIBERATELY small n: the generated version calls
+// strings.Fields inside the loop, so it is O(n^2) and 65536 words would not
+// finish. See gauntlet/results/wordcount-2026-08-14.md.
+var wcText = MakeText(2000, 5)
+
+func BenchmarkWCHandWritten(b *testing.B) {
+	for b.Loop() {
+		sinkM = WordCountIncr(wcText)
+	}
+}
+
+func BenchmarkWCGenerated(b *testing.B) {
+	for b.Loop() {
+		sinkM = GenWordCount(wcText)
+	}
+}

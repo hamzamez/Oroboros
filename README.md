@@ -158,11 +158,24 @@ survives as a per-iteration closure when the loop *carries* it. So loop-carried 
 primitive-shaped — which is the same statement as the grading story, since state used *n* times
 is grade ω and grade ω is what survives.
 
+## The first gauntlet failure
+
+[Word count](gauntlet/results/wordcount-2026-08-14.md) passes the Parasite thesis — Go emits
+`map[string]int`, JS emits a null-prototype object, each the one that target is fastest with —
+but **it does not reach parity**, by 615× on Go and 1,089× on JS, because the residual duplicates
+`(split-words text)` into the loop body.
+
+Two measurements together give the criterion:
+
+> **Duplication is free exactly when the duplicated term is pure, and unbounded when it is not.**
+
+A host's CSE hoists a duplicated `a[i]` and can never hoist an allocation. And since
+over-residualizing costs nothing while under-residualizing costs 615×, the rule needs no cost
+model: **residualize every primitive application.**
+
 ## Next
 
-**Gauntlet programs 3 and 4** — generics, and word count. Word count is the one that tests the
-Parasite thesis directly: the Go output must contain `map[string]int` and the JS output a
-null-prototype object, and neither backend has a dictionary primitive yet.
+**Call-by-need**, which the above makes the highest-priority gap.
 
 Open, and deliberately not yet built: call-by-need — which lost its performance justification
 when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —

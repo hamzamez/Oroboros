@@ -197,18 +197,34 @@ had assumed was blocking it.
 
 ## The same capability, opposite idioms
 
-Word count's dictionary, from one source:
+Word count's dictionary, from one source — and each line below now lives in a
+[target file](targets/), not in the compiler:
 
 | | emitted | because |
 |---|---|---|
 | Go | `acc[k]++` — **fused** | one `mapassign_faststr` |
-| JS | null-prototype object | `Map` is 3.25× slower for string keys |
-| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6× slower; it boxes |
+| JS | null-prototype object | `Map` is 3.25x slower for string keys |
+| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6x slower; it boxes |
 
 Go's fused idiom wins and Java's loses, decided by measurements taken long before either backend
-existed, and living entirely in the primitive table. That is
-[ADR 0008](docs/decisions/0008-measurement-over-principle.md) — parasite decisions are per-target
-measurements, not principles — when it is real rather than stated.
+existed. That is [ADR 0008](docs/decisions/0008-measurement-over-principle.md) — parasite
+decisions are per-target measurements, not principles — when it is real rather than stated.
+
+## Targets are data
+
+Adding a host function means adding a line to a target file. No Go, no rebuild:
+
+```lisp
+(prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
+```
+
+Expression and statement primitives are **pure data** — a template, an arity, types, an optional
+import. Structural ones (`loop`, `cond`, `let`) are *named* in data and *implemented* in the
+backend, because a loop binds variables and emits a header and no template expresses that.
+
+What a declaration carries was not designed: it was read off what three backends turned out to
+need. `targets/js.oro` declares **zero types**, which is why types live in the backend rather
+than in the language.
 
 ## Next
 

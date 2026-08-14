@@ -120,6 +120,16 @@ practically noise — they are inputs. The example was changed to bind them. A r
 would distinguish "unbound" from "not lowered", and there is no module system
 ([design-direction open decision 5](../design-direction.md)).
 
+### 1.5 String escapes are Go's, not core-0's
+
+The reader scans a string literal to its closing quote and hands the whole thing to
+`strconv.Unquote`, so the accepted escape set is **Go's** — unicode escapes, hex, octal, and the
+rest — where [core-0](core-0.md) specifies only the four a target template needs.
+
+Narrowing it is a specification question rather than a reader one, and nothing depends on the
+difference yet. Strings exist at all because target declarations carry emission templates; the
+*operations* on them are still absent, per [def.md §5](def.md).
+
 ## 4. What is *not* a concern
 
 Worth recording, because it is where the design earned something:

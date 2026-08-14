@@ -171,10 +171,16 @@ go run ./cmd/oro -target=blas -steps examples/dot.oro
 ```
 
 ```bash
-# emit Go into the gauntlet, then benchmark generated against hand-written
-go run ./cmd/gen examples/dot.oro go gauntlet/go/generated_dot.go gen-dot
+# emit into the gauntlet, then benchmark generated against hand-written
+go run ./cmd/gen examples/dot.oro go   gauntlet/go/generated_dot.go
+go run ./cmd/gen examples/dot.oro js   gauntlet/js/generated_dot.mjs
+go run ./cmd/gen examples/dot.oro java gauntlet/java/gen/GenDot.java
 cd gauntlet/go && go test -bench='SmallDot|SmallGenDot' -benchtime=3s -count=5
 ```
+
+**Primitives are declared in `targets/*.oro`, not in Go.** If you find yourself adding a case to
+`emit/*.go` for a host function, that is the wrong place — only *structural* primitives (loops,
+conditionals, bindings) live in code.
 
 The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/legibility` are
 **separate modules** — `cd` into them before running their tests.
@@ -186,7 +192,8 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | | |
 |---|---|
 | `core/` | reader, terms, β/δ reducer. The atom of [core-0](docs/spec/core-0.md). |
-| `emit/` | Go backend. Types live here, **not** in the language. |
+| `emit/` | Go, JavaScript and Java backends. Types live here, **not** in the language. |
+| `targets/` | Target declarations — **data, not Go**. Adding a host function is a line here. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `examples/` | `dot.oro`, `filter.oro` |

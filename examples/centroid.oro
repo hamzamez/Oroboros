@@ -1,0 +1,34 @@
+; Gauntlet program 2 — centroid over a collection of points.
+;
+; Points are Church-encoded: a point is a function that hands its two fields to
+; a selector. There is NO struct primitive in the language.
+;
+;   (point x y) = (fn (sel) (sel x y))
+;
+; The collection is struct-of-arrays — two parallel arrays — because that is the
+; representation *both* targets can express with the primitives they already
+; have. g2 measured that JS needs SoA (array-of-objects loses 2.86x there) while
+; Go is happy either way. Getting idiomatic AoS on Go from this same source would
+; require the emitter to change the emitted function's arity per target, which is
+; g2's "a Tier 1 capability can change a function's arity" and is not built.
+
+(target go (prim add alen aindex fold-range2))
+(target js (prim add alen aindex fold-range2))
+
+(def point (fn (x y) (fn (sel) (sel x y))))
+(def px    (fn (p)   (p (fn (x y) x))))
+(def py    (fn (p)   (p (fn (x y) y))))
+
+; Read point i out of the two arrays, as a point.
+(def pat (fn (xs ys i) (point (aindex xs i) (aindex ys i))))
+
+; One pass, two accumulators. The pair must be two scalars because compile-time
+; reduction cannot cross a runtime loop boundary — see
+; gauntlet/results/structs-2026-08-14.md.
+(fn (xs ys)
+  (fold-range2 0.0 0.0 (alen xs)
+    (fn (ax ay i) (add ax (px (pat xs ys i))))
+    (fn (ax ay i) (add ay (py (pat xs ys i))))
+    ; The finisher consumes both accumulators, so compound loop state never
+    ; escapes the loop as a compound value.
+    (fn (ax ay) (add ax ay))))

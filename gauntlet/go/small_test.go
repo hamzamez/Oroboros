@@ -95,3 +95,17 @@ func BenchmarkSmallGenFilter(b *testing.B) {
 		sinkF = GenFilterSum(smallA)
 	}
 }
+
+var smallY = MakeVec(NSmall, 9)
+
+func BenchmarkSmallCentroidRef(b *testing.B) {
+	for b.Loop() {
+		sinkF = CentroidSumRef(smallA, smallY)
+	}
+}
+
+func BenchmarkSmallGenCentroid(b *testing.B) {
+	for b.Loop() {
+		sinkF = GenCentroid(smallA, smallY)
+	}
+}

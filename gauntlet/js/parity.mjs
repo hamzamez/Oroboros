@@ -2,6 +2,7 @@
 import { makeVec } from "./gauntlet.mjs";
 import { genDot } from "./generated.mjs";
 import { genFilterSum } from "./generated_filter.mjs";
+import { genCentroid } from "./generated_centroid.mjs";
 
 // Hand-written references.
 function dotRef(xs, ys) {
@@ -25,13 +26,20 @@ function filterSumTernary(a) {      // the shape the emitter produced
   return acc;
 }
 
+function centroidRef(xs, ys) {        // two accumulators, one pass
+  let ax = 0.0, ay = 0.0;
+  for (let i = 0; i < xs.length; i++) { ax += xs[i]; ay += ys[i]; }
+  return ax + ay;
+}
+
 const N = 1024;
-const A = makeVec(N, 1), B = makeVec(N, 2);
+const A = makeVec(N, 1), B = makeVec(N, 2), C = makeVec(N, 9);
 
 // Correctness first.
 const eq = (x, y, w) => { if (x !== y) throw new Error(`${w}: ${x} !== ${y}`); };
 eq(genDot(A, B), dotRef(A, B), "dot");
 eq(genFilterSum(A), filterSumRef(A), "filter");
+eq(genCentroid(A, C), centroidRef(A, C), "centroid");
 console.log("correctness: generated agrees with hand-written\n");
 
 function bench(name, fn, iters = 20000, runs = 9) {
@@ -53,3 +61,7 @@ bench("filter  hand-written (bind)", () => filterSumRef(A));
 bench("filter  hand-written (dup)", () => filterSumDup(A));
 bench("filter  hand-written (ternary)", () => filterSumTernary(A));
 bench("filter  GENERATED", () => genFilterSum(A));
+
+console.log();
+bench("centroid  hand-written", () => centroidRef(A, C));
+bench("centroid  GENERATED", () => genCentroid(A, C));

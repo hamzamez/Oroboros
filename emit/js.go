@@ -25,6 +25,7 @@ type jsPrim struct {
 	Format string
 	Arity  int
 	Loop   bool
+	Loop2  bool
 	Cond   bool
 }
 
@@ -38,7 +39,8 @@ var jsPrims = map[string]jsPrim{
 	"aindex": {Format: "%s[%s]", Arity: 2},
 
 	"if":         {Arity: 3, Cond: true},
-	"fold-range": {Arity: 3, Loop: true},
+	"fold-range":  {Arity: 3, Loop: true},
+	"fold-range2": {Arity: 6, Loop2: true},
 }
 
 type jsEmitter struct {
@@ -113,6 +115,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		}
 		if p.Loop {
 			return e.emitFoldRange(t)
+		}
+		if p.Loop2 {
+			return e.emitFoldRange2(t)
 		}
 		if p.Cond {
 			return e.emitIf(t)
@@ -192,6 +197,61 @@ func (e *jsEmitter) emitIf(t *core.Term) (string, error) {
 	e.indent--
 	e.line("}")
 	return tmp, nil
+}
+
+// emitFoldRange2 carries two accumulators. Go has tuple assignment so it can
+// write `ax, ay = …, …` directly; JS destructuring allocates an array, so the
+// simultaneous update needs temporaries. That is g2 §6's parallel-assignment
+// discipline, and the two targets need different code for it.
+func (e *jsEmitter) emitFoldRange2(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 6 {
+		return "", fmt.Errorf("fold-range2 takes x0, y0, count, stepX, stepY, finish")
+	}
+	sx, sy, fin := args[3], args[4], args[5]
+	if fin.Kind != core.KFn || len(fin.Params) != 2 {
+		return "", fmt.Errorf("fold-range2's finisher must be (fn (ax ay) …), got %s", fin)
+	}
+	for _, s := range []*core.Term{sx, sy} {
+		if s.Kind != core.KFn || len(s.Params) != 3 {
+			return "", fmt.Errorf("fold-range2 steps must be (fn (ax ay i) …), got %s", s)
+		}
+	}
+	x0, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	y0, err := e.emit(args[1])
+	if err != nil {
+		return "", err
+	}
+	count, err := e.emit(args[2])
+	if err != nil {
+		return "", err
+	}
+	ax, ay, idx := jsMangle(sx.Params[0]), jsMangle(sx.Params[1]), jsMangle(sx.Params[2])
+	n := e.fresh("n")
+
+	e.line("let %s = %s, %s = %s;", ax, x0, ay, y0)
+	e.line("const %s = %s;", n, count)
+	e.line("for (let %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
+	e.indent++
+	bx, err := e.emit(sx.Body())
+	if err != nil {
+		return "", err
+	}
+	by, err := e.emit(core.Rename(sy.Body(), map[string]string{
+		sy.Params[0]: sx.Params[0], sy.Params[1]: sx.Params[1], sy.Params[2]: sx.Params[2]}))
+	if err != nil {
+		return "", err
+	}
+	tx, ty := e.fresh("u"), e.fresh("u")
+	e.line("const %s = %s, %s = %s;", tx, bx, ty, by)
+	e.line("%s = %s; %s = %s;", ax, tx, ay, ty)
+	e.indent--
+	e.line("}")
+	return e.emit(core.Rename(fin.Body(), map[string]string{
+		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
 }
 
 func (e *jsEmitter) emitFoldRange(t *core.Term) (string, error) {

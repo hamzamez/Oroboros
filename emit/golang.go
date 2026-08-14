@@ -57,6 +57,7 @@ type prim struct {
 	Args   []Ty
 	Result Ty
 	Loop   bool // emitted as a loop statement
+	Loop2  bool // loop carrying two accumulators
 	Cond   bool // emitted as an if statement
 }
 
@@ -77,6 +78,12 @@ var prims = map[string]prim{
 	// statement rather than an expression. How this generalises is the main
 	// open question the emitter raises.
 	"fold-range": {Args: []Ty{TF64, TInt, TUnknown}, Result: TF64, Loop: true},
+
+	// fold-range2(x0, y0, n, stepX, stepY) — a loop carrying TWO accumulators.
+	// Needed because compile-time reduction cannot cross a runtime loop
+	// boundary, so loop-carried state must be primitive-shaped. See
+	// gauntlet/results/structs-2026-08-14.md.
+	"fold-range2": {Args: []Ty{TF64, TF64, TInt, TUnknown, TUnknown, TUnknown}, Result: TF64, Loop2: true},
 }
 
 // ---------------------------------------------------------------- emitter
@@ -216,6 +223,9 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		if p.Loop {
 			return e.emitFoldRange(t)
 		}
+		if p.Loop2 {
+			return e.emitFoldRange2(t)
+		}
 		if p.Cond {
 			return e.emitIf(t)
 		}
@@ -236,6 +246,66 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		return "(" + fmt.Sprintf(p.Format, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
+}
+
+// emitFoldRange2 emits a loop with two accumulators. The pair is updated
+// SIMULTANEOUSLY — g2 §6's parallel-assignment hazard, arriving in the emitter.
+// Go has tuple assignment; other targets need temporaries.
+func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 6 {
+		return "", fmt.Errorf("fold-range2 takes x0, y0, count, stepX, stepY, finish")
+	}
+	fin := args[5]
+	if fin.Kind != core.KFn || len(fin.Params) != 2 {
+		return "", fmt.Errorf("fold-range2's finisher must be (fn (ax ay) …), got %s", fin)
+	}
+	sx, sy := args[3], args[4]
+	for _, s := range []*core.Term{sx, sy} {
+		if s.Kind != core.KFn || len(s.Params) != 3 {
+			return "", fmt.Errorf("fold-range2 steps must be (fn (ax ay i) …), got %s", s)
+		}
+	}
+	x0, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	y0, err := e.emit(args[1])
+	if err != nil {
+		return "", err
+	}
+	count, err := e.emit(args[2])
+	if err != nil {
+		return "", err
+	}
+	ax, ay, idx := mangle(sx.Params[0]), mangle(sx.Params[1]), mangle(sx.Params[2])
+	e.types[sx.Params[0]], e.types[sx.Params[1]], e.types[sx.Params[2]] = TF64, TF64, TInt
+	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = TF64, TF64, TInt
+	n := e.fresh("n")
+
+	e.line("%s, %s := %s, %s", ax, ay, x0, y0)
+	e.line("%s := %s", n, count)
+	e.line("for %s := 0; %s < %s; %s++ {", idx, idx, n, idx)
+	e.indent++
+	bx, err := e.emit(sx.Body())
+	if err != nil {
+		return "", err
+	}
+	// The second step names its own parameters; rebind them to the first's.
+	by, err := e.emit(core.Rename(sy.Body(), map[string]string{
+		sy.Params[0]: sx.Params[0], sy.Params[1]: sx.Params[1], sy.Params[2]: sx.Params[2]}))
+	if err != nil {
+		return "", err
+	}
+	e.line("%s, %s = %s, %s", ax, ay, bx, by)
+	e.indent--
+	e.line("}")
+
+	// The finisher consumes both accumulators, so compound loop state never
+	// crosses the loop boundary as a compound value.
+	e.types[fin.Params[0]], e.types[fin.Params[1]] = TF64, TF64
+	return e.emit(core.Rename(fin.Body(), map[string]string{
+		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
 }
 
 // emitIf turns (if c then else) into a Go if statement assigning to a temporary,

@@ -122,3 +122,13 @@ func (t *Term) Equal(u *Term) bool {
 	}
 	return true
 }
+
+// Rename alpha-renames free occurrences. Backends need it when two abstractions
+// that must share variables were written with different parameter names.
+func Rename(t *Term, m map[string]string) *Term {
+	sub := make(map[string]*Term, len(m))
+	for from, to := range m {
+		sub[from] = Name(to)
+	}
+	return substPublic(t, sub)
+}

@@ -139,20 +139,30 @@ The atom is built and both emitted programs reach parity with hand-written Go.
 |---|---|
 | Reducer | `core/` — β and δ, normal form parameterised by the target's primitive set |
 | Backends | `emit/` — **Go and JavaScript**. Types live here, not in the language. |
-| Measured | Both programs at parity on **both targets** — [Go](gauntlet/results/parity-2026-08-14.md), [JS](gauntlet/results/js-2026-08-14.md) |
+| Measured | Three programs at parity on **both targets** — [dot & filter](gauntlet/results/parity-2026-08-14.md), [JS](gauntlet/results/js-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md). Two produce **byte-identical machine code** to hand-written Go. |
 
 ```bash
 go run ./cmd/oro -target=blas examples/dot.oro   # (fn (p q) (dot p q))
 go run ./cmd/oro -target=go   examples/dot.oro   # a loop
 ```
 
+## The one thing the atom cannot do
+
+Found by running [program 2](gauntlet/results/structs-2026-08-14.md), not by arguing:
+
+> **Compile-time reduction eliminates any abstraction that does not cross a runtime loop
+> boundary. Loop-carried state is exactly what survives.**
+
+A Church-encoded point vanishes completely when built and destructured inside a loop body, and
+survives as a per-iteration closure when the loop *carries* it. So loop-carried state must be
+primitive-shaped — which is the same statement as the grading story, since state used *n* times
+is grade ω and grade ω is what survives.
+
 ## Next
 
-**Gauntlet program 2 — structs.** Neither backend has a struct primitive, and
-[g2](docs/derivations/g2-structs.md) measured that JS needs a *different representation* from Go
-(array-of-objects loses 2.86× there and 1.05× on Java). It is the first program where the two
-targets must genuinely diverge, and the first real test of the capability graph rather than of
-the reducer.
+**Gauntlet programs 3 and 4** — generics, and word count. Word count is the one that tests the
+Parasite thesis directly: the Go output must contain `map[string]int` and the JS output a
+null-prototype object, and neither backend has a dictionary primitive yet.
 
 Open, and deliberately not yet built: call-by-need — which lost its performance justification
 when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —

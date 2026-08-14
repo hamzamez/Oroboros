@@ -341,3 +341,6 @@ func Residual(t *Term, e *Env) []string {
 	sort.Strings(out)
 	return out
 }
+
+// substPublic exposes capture-avoiding substitution for backends.
+func substPublic(t *Term, m map[string]*Term) *Term { return subst(t, m) }

@@ -210,3 +210,10 @@ func TestGeneratedFilterAgreesWithHandWritten(t *testing.T) {
 		t.Errorf("generated=%v ref=%v dup=%v", g, r, d)
 	}
 }
+
+func TestGeneratedCentroidAgreesWithHandWritten(t *testing.T) {
+	ys := MakeVec(NVec, 9)
+	if got, want := GenCentroid(vecA, ys), CentroidSumRef(vecA, ys); got != want {
+		t.Errorf("generated=%v hand-written=%v", got, want)
+	}
+}

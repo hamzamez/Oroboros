@@ -176,6 +176,28 @@ func (r *reader) list() (*Term, error) {
 	if len(kids) == 0 {
 		return nil, fmt.Errorf("line %d: empty list is not a term", line)
 	}
+	// A source-level `let` is SUGAR for an application, and desugars here.
+	//
+	//   (let e (fn (x) b))  ⟶  ((fn (x) b) e)
+	//
+	// This is the difference between the two designs we could have had. If `let`
+	// stayed a primitive in source, writing one would *prevent* substitution —
+	// a knob. It would also be a footgun: a `let` written for readability around
+	// a value that later reduces to a λ would silently kill fusion, because the
+	// bound name could no longer be substituted into.
+	//
+	// Instead the programmer's `let` states intent and is erased, and the
+	// compiler re-introduces sharing wherever β declines to substitute
+	// (gauntlet/results/callbyneed-2026-08-14.md). A `let` in a *residual* can
+	// therefore only have come from the reducer, which makes the two roles
+	// unambiguous despite sharing a name.
+	if kids[0].Kind == KName && kids[0].Name == "let" {
+		if len(kids) != 3 {
+			return nil, fmt.Errorf("line %d: let takes a value and a continuation", line)
+		}
+		return &Term{Kind: KApp, Kids: []*Term{kids[2], kids[1]}}, nil
+	}
+
 	// (fn (p...) body) is the only special form inside a term.
 	if kids[0].Kind == KName && (kids[0].Name == "fn" || kids[0].Name == "λ") {
 		if len(kids) != 3 {

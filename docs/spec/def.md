@@ -205,6 +205,30 @@ this is not a special case bolted on; it is the same mechanism seen from the red
 Note this is also ζ, the fourth letter of Coq's βδιζη. We now have β, δ, and a plan for ζ, and
 none of them is ours.
 
+### Implemented, with one correction — 2026-08-14
+
+`let` has **two roles and one spelling**, and conflating them was a real bug:
+
+| | |
+|---|---|
+| in **source** | sugar for an application — it reduces like anything else |
+| in a **residual** | the primitive β produced when it declined to substitute |
+
+The first implementation made `let` primitive everywhere, which silently gave the *knob* design
+we had rejected: a programmer writing `(let 5 (fn (x) (add x 1)))` got it back unreduced.
+
+Worse than useless — **dangerous**. A `let` written for readability around a value that later
+reduces to a λ would prevent that λ being substituted, and fusion would die. The programmer would
+have made their program allocate per element by adding a binding for clarity.
+
+The fix is one rule in the reader: `(let e k)` desugars to `(k e)`. The programmer's `let` states
+intent and is erased; the compiler re-introduces sharing wherever β declines
+([callbyneed](../../gauntlet/results/callbyneed-2026-08-14.md)). A `let` in a residual can only
+have come from the reducer, so the two roles never collide.
+
+Three tests pin it: a source `let` is erased when sharing is pointless, a source `let` **cannot**
+block fusion, and the compiler still introduces one where sharing pays.
+
 ## 7. Decisions
 
 1. **`def` is a context extension, not a term** — a definitional equality, unfolded by δ.

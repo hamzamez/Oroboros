@@ -287,3 +287,48 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 		t.Errorf("a recursive definition is a legitimate survivor, not a residual failure; got %v", left)
 	}
 }
+
+// ---------------------------------------------------------------- let
+//
+// `let` has two roles and one spelling, and the difference between them is the
+// whole of the option-1/option-2 question:
+//
+//   in SOURCE   it is sugar for an application, so it reduces like anything else
+//   in RESIDUAL it is the primitive β produced when it declined to substitute
+//
+// A `let` in a residual can only have come from the reducer, because the reader
+// desugars every source-level one — so the two roles never collide.
+
+// A programmer's let is erased when the compiler sees no reason to keep it.
+func TestSourceLetIsErasedWhenSharingIsPointless(t *testing.T) {
+	check(t, `
+		(prim add)
+		(let 5 (fn (x) (add x 1)))
+	`, "default", "(add 5 1)")
+}
+
+// ...and is *not honoured as a knob*: a let around a value that reduces to a λ
+// must still be substituted, or fusion would die. This is the case that makes
+// option 1 dangerous rather than merely useless.
+func TestSourceLetCannotBlockFusion(t *testing.T) {
+	check(t, `
+		(target go (prim add alen aindex fold-range))
+		(def vec      (fn (n f) (fn (sel) (sel n f))))
+		(def vlen     (fn (v)   (v (fn (n f) n))))
+		(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+		(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
+		; The let here is exactly what a programmer might write for clarity.
+		(def sum (fn (v) (let v (fn (w)
+		           (fold-range 0.0 (vlen w) (fn (acc i) (add acc (vindex w i))))))))
+		(fn (a) (sum (of-array a)))
+	`, "go", "(fn (a) (fold-range 0.0 (alen a) (fn (acc i) (add acc (aindex a i)))))")
+}
+
+// The compiler still introduces one where sharing genuinely pays, which is the
+// same shape arrived at by decision rather than by instruction.
+func TestCompilerIntroducesLetWhereItPays(t *testing.T) {
+	check(t, `
+		(target go (prim add aindex))
+		((fn (x) (add x x)) (aindex a 0))
+	`, "go", "(let (aindex a 0) (fn (x) (add x x)))")
+}

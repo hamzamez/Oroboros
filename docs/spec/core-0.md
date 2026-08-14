@@ -319,5 +319,13 @@ arriving here as the termination side-condition rather than as an observation.
    fusion is δ+β, so the measure check leaves the machinery list and termination reduces to "δ
    over a DAG, β without self-application."
 
-   **Still to check:** `filter`, which cannot be a pull array with a static length. If the
-   delayed representation cannot express it, fusion may need rules after all.
+   **`filter` checked** — [q5b-filter.md](q5b-filter.md). The concern was correct: pull arrays
+   genuinely cannot express it. It is handled by a second, dual representation — a collection as
+   its own fold — which is still pure δ+β, and hand-reduces to exactly the hand-written filtered
+   loop. Pull does `zip`, push does `filter`; pull→push is free and push→pull materialises, at
+   the same point hand-written code materialises. **Two representations are more library, not
+   more core, so the conclusion holds.**
+
+   Notable: stream fusion would unify the two and would need case-of-case — a shape-directed rule
+   load-bearing for the whole collection library. **The elegant unification costs strictly more
+   machinery than keeping two representations.**

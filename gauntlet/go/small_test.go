@@ -92,7 +92,7 @@ func BenchmarkSmallFilterDup(b *testing.B) {
 
 func BenchmarkSmallGenFilter(b *testing.B) {
 	for b.Loop() {
-		sinkF = GenFilterSum(smallA)
+		sinkF = GenFilter(smallA)
 	}
 }
 
@@ -123,6 +123,6 @@ func BenchmarkWCHandWritten(b *testing.B) {
 
 func BenchmarkWCGenerated(b *testing.B) {
 	for b.Loop() {
-		sinkM = GenWordCount(wcText)
+		sinkM = GenWordcount(wcText)
 	}
 }

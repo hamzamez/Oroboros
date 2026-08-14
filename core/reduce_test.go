@@ -111,6 +111,11 @@ func TestResidualLambda(t *testing.T) {
 // ---------------------------------------------------------------- q5b §3
 //
 // filter, via the push representation: a collection is its own fold.
+//
+// This test spent two days encoding the WRONG answer on purpose. β substituted
+// unconditionally, so (aindex a i) appeared twice, and concerns.md §1.1 recorded
+// that the spec and the implementation disagreed. Call-by-need closed it: the
+// element is now bound once, exactly as q5b §3 derived on paper.
 
 func TestFilterFusesToOneLoop(t *testing.T) {
 	check(t, `
@@ -122,7 +127,7 @@ func TestFilterFusesToOneLoop(t *testing.T) {
 
 		(push-sum (push-filter pos (push-of-array a)))
 	`, "go",
-		"(fold-range 0.0 (alen a) (fn (acc i) (if (pos (aindex a i)) (add acc (aindex a i)) acc)))")
+		"(fold-range 0.0 (alen a) (fn (acc i) (let (aindex a i) (fn (x) (if (pos x) (add acc x) acc)))))")
 }
 
 // ---------------------------------------------------------------- termination

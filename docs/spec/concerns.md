@@ -11,59 +11,27 @@ and the two-target demo produces two normal forms from one file. What follows is
 
 ## 1. Gaps that are known and deliberate
 
-### 1.1 β always substitutes — the let-binding discipline is absent
+### 1.1 ~~β always substitutes~~ — **CLOSED, 2026-08-14**
 
-[core-0 §3](core-0.md) requires a let-binding rather than a copy when a variable occurs more than
-once and the argument is non-trivial. **The implementation does not do this.** It substitutes
-unconditionally.
+[callbyneed-2026-08-14](../../gauntlet/results/callbyneed-2026-08-14.md). β is now call-by-need:
+at most one occurrence substitutes, more than one normalises the argument and binds it unless it
+is a literal, a variable, or a λ. The residual is `(let e (fn (x) b))`.
 
-Why it was left out: deciding when to bind requires knowing whether the duplicated term is
-compile-time (free to copy) or runtime (expensive). That is the *grade*, and the atom has no
-grades. A cost model would also work, and the atom has no cost model.
+The history is worth keeping, because the justification moved twice:
 
-Why it is currently harmless: the atom has no effects, so duplication costs compiler time and
-duplicated runtime work, not wrong answers. [g5](../derivations/g5-bindings.md) showed that with
-effects it becomes a **correctness** bug.
+1. Claimed as "a silent 2× on the hot loop" — an unmeasured prediction.
+2. **Withdrawn** when [Go's CSE](../../gauntlet/results/duplicate-read-2026-08-14.md) turned out
+   to erase it: three variants of the filter loop compiled to byte-identical machine code.
+3. **Reinstated** by [word count](../../gauntlet/results/wordcount-2026-08-14.md) at 615× on Go
+   and 1,089× on JS, because `strings.Fields` allocates and no host can hoist an allocation.
 
-> **⚠ Measured and withdrawn, 2026-08-14** —
-> [duplicate-read-2026-08-14](../../gauntlet/results/duplicate-read-2026-08-14.md). The claim
-> below that this is "a silent 2× on the hot loop" is **false**. Go's CSE eliminates the
-> duplicate read: the generated code, the naive two-read form, and the bind-once form all compile
-> to **byte-identical machine code** with a single `MOVSD`. The 1.45× that the clock showed was
-> **code alignment** — the two functions sharing a cache-line offset shared a runtime.
->
-> Call-by-need is still worth having, for effects (g5) and for weaker hosts, but not for this.
-> And the noise floor is not 15%: alignment alone produced a stable, reproducible 45% gap between
-> identical code.
->
-> **⚠⚠ Reinstated with a number, 2026-08-14** —
-> [wordcount-2026-08-14](../../gauntlet/results/wordcount-2026-08-14.md). Word count duplicates
-> `(split-words text)` *into the loop body*, and there the cost is **615× on Go, 1,089× on JS, and
-> quadratic**. The two results together give the criterion: **duplication is free exactly when
-> the duplicated term is pure, and unbounded when it is not** — a host's CSE hoists `a[i]` and
-> can never hoist an allocation.
->
-> And the asymmetry gives a rule simpler than the grade-directed classification described below:
-> over-residualizing a pure term costs nothing, under-residualizing an allocating one costs 615×,
-> so **residualize every primitive application** and let the host clean up the rest. **This is now
-> the highest-priority gap in the implementation** — program 4 does not reach parity because of it.
+The two together gave the criterion — *duplication is free exactly when the duplicated term is
+pure* — and the asymmetry between the costs meant the fix needed **no grades and no cost model**,
+which is what this section originally said was blocking it. Occurrence counting plus a four-case
+syntactic test.
 
-Why it matters anyway — this is visible in a passing test. `TestFilterFusesToOneLoop` produces:
-
-```lisp
-(fold-range 0.0 (alen a)
-  (fn (acc i) (if (pos (aindex a i)) (add acc (aindex a i)) acc)))
-```
-
-`(aindex a i)` appears **twice**. [q5b §3](q5b-filter.md) predicted exactly this and showed the
-correct residual binds it once. So the specification and the implementation disagree, the test
-encodes the *implementation's* answer, and **the test is currently wrong on purpose**. It should
-be changed when the discipline lands, not before.
-
-> ~~The first thing to fix~~ — ~~not the first thing to fix~~ — **the first thing to fix after
-> all.** The performance argument was measured away by the CSE finding and then measured back by
-> word count, at 615×. The rule to implement is "residualize every primitive application", which
-> needs no grades and no cost model.
+`TestFilterFusesToOneLoop` asserted the wrong answer on purpose for two days and now matches
+[q5b §3](q5b-filter.md). The spec and the code agree again.
 
 ### 1.2 NFC normalisation is specified and not checked
 

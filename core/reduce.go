@@ -10,19 +10,21 @@ import (
 // global definition, and a normal form parameterised by the target's primitive
 // set P.
 //
-// Two deliberate omissions, both documented in docs/spec/concerns.md:
+// β is call-by-need: it refuses to substitute where doing so would duplicate
+// runtime work, and binds instead. The criterion came from measurement, not
+// taste — see gauntlet/results/wordcount-2026-08-14.md:
 //
-//   - β always substitutes. core-0 requires a let-binding when a variable occurs
-//     more than once and the argument is non-trivial (g4's Defect 1). Deciding
-//     that needs a grade or a cost model, and the atom has neither. In a pure
-//     calculus with no effects the omission costs duplicated work, not wrong
-//     answers — but it is a real gap and the filter reduction in the spec
-//     depends on it being closed.
-//   - There is no notion of effect, so g5's ordering discipline is absent.
+//   - Duplicating a *pure* expression costs nothing; the host's CSE hoists it.
+//     A duplicated a[i] compiled to byte-identical machine code.
+//   - Duplicating an *allocating* expression costs 615x on Go and is quadratic,
+//     because no host can hoist an allocation.
+//
+// One omission remains: there is no notion of effect, so g5's ordering
+// discipline is absent.
 
 type Program struct {
 	Defs    map[string]*Term
-	Order   []string        // definition order, for stable diagnostics
+	Order   []string // definition order, for stable diagnostics
 	Targets map[string][]string
 }
 
@@ -80,6 +82,9 @@ func (p *Program) Env(target string) (*Env, error) {
 	for _, n := range prims {
 		e.Prim[n] = true
 	}
+	// Every target has local bindings, so `let` is not a capability question.
+	// It is the residual of a β that declined to substitute.
+	e.Prim["let"] = true
 	e.markRecursive()
 	return e, nil
 }
@@ -198,10 +203,41 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 					op, len(op.Params), len(args))
 			}
 			m := make(map[string]*Term, len(args))
-			for i, p := range op.Params {
-				m[p] = args[i]
+			var bound []struct {
+				name string
+				val  *Term
 			}
-			return normalize(subst(op.Body(), m), e, fuel)
+			for i, p := range op.Params {
+				// One occurrence or none: substituting cannot duplicate anything.
+				if occurrences(op.Body(), p) <= 1 {
+					m[p] = args[i]
+					continue
+				}
+				// More than one. Normalise the argument to find out what it is —
+				// this is the only place reduction is not lazy, and it is what
+				// makes the classification possible at all.
+				na, err := normalize(args[i], e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				if duplicable(na) {
+					m[p] = na
+					continue
+				}
+				bound = append(bound, struct {
+					name string
+					val  *Term
+				}{p, na})
+			}
+			body, err := normalize(subst(op.Body(), m), e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			// Wrap innermost-last so the bindings nest in source order.
+			for i := len(bound) - 1; i >= 0; i-- {
+				body = App(Name("let"), bound[i].val, Fn([]string{bound[i].name}, body))
+			}
+			return body, nil
 		}
 		out := make([]*Term, 0, len(t.Kids))
 		out = append(out, op)
@@ -215,6 +251,54 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		return &Term{Kind: KApp, Kids: out}, nil
 	}
 	return nil, fmt.Errorf("unknown term kind %d", t.Kind)
+}
+
+// duplicable reports whether a normalised term may be copied freely.
+//
+// Literals and variables are obviously free. Abstractions are the interesting
+// case: a duplicated λ MUST be substituted or fusion dies — in the dot product
+// the two copies of the zip term reduce to *different* small things, (alen p)
+// and a multiply, and that is the entire mechanism. Duplicating a λ that does
+// not reduce away costs code size, which is the measured specialize-versus-
+// outline tradeoff, not a correctness problem.
+//
+// Everything else is an application of a primitive, which may allocate, and
+// allocation is what no host can hoist.
+func duplicable(t *Term) bool {
+	switch t.Kind {
+	case KInt, KFloat, KName, KFn:
+		return true
+	}
+	return false
+}
+
+// occurrences counts free occurrences of name in t, saturating at 2 — the
+// decision only needs to distinguish "at most once" from "more than once".
+func occurrences(t *Term, name string) int {
+	switch t.Kind {
+	case KName:
+		if t.Name == name {
+			return 1
+		}
+		return 0
+	case KInt, KFloat:
+		return 0
+	case KFn:
+		for _, p := range t.Params {
+			if p == name {
+				return 0 // shadowed
+			}
+		}
+		return occurrences(t.Body(), name)
+	}
+	n := 0
+	for _, k := range t.Kids {
+		n += occurrences(k, name)
+		if n >= 2 {
+			return 2
+		}
+	}
+	return n
 }
 
 // subst is capture-avoiding. core-0 specifies a locally nameless representation,

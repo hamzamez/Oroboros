@@ -68,6 +68,7 @@ type prim struct {
 	Loop   bool // emitted as a loop statement
 	Loop2  bool // loop carrying two accumulators
 	Stmt   bool // emitted as a statement; the value is argument 0
+	Let    bool // (let e (fn (x) b)) — bind e to x, then b
 	Import string
 	Cond   bool // emitted as an if statement
 }
@@ -98,6 +99,11 @@ var prims = map[string]prim{
 	"dict-empty": {Format: "make(map[string]int)", Args: nil, Result: TDict},
 	"dict-inc":   {Format: "%s[%s]++", Args: []Ty{TDict, TString}, Result: TDict, Stmt: true},
 
+	// (let e (fn (x) b)) — the residual of a β that declined to substitute.
+	// def.md §6: a primitive taking a value and a continuation, so the binding
+	// structure is the λ's and the normal form needs no weakening.
+	"let": {Args: []Ty{TUnknown, TUnknown}, Result: TUnknown, Let: true},
+
 	"fold-range": {Args: []Ty{TF64, TInt, TUnknown}, Result: TF64, Loop: true},
 
 	// fold-range2(x0, y0, n, stepX, stepY) — a loop carrying TWO accumulators.
@@ -126,6 +132,8 @@ func Func(name string, t *core.Term) (string, error) {
 
 	// Parameter types come from how the body uses them. Local propagation from
 	// primitive signatures — not inference, just reading the table.
+	e.inferFrom(t.Body())
+	e.inferLet(t.Body())
 	e.inferFrom(t.Body())
 
 	params := make([]string, len(t.Params))
@@ -189,6 +197,22 @@ func (e *Emitter) inferFrom(t *core.Term) {
 	}
 }
 
+// inferLet seeds let-bound names, since their type comes from the bound value
+// rather than from a primitive they are passed to.
+func (e *Emitter) inferLet(t *core.Term) {
+	if t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "let" {
+		if k := t.Args()[1]; k.Kind == core.KFn && len(k.Params) == 1 {
+			e.types[k.Params[0]] = e.typeOf(t.Args()[0])
+		}
+	}
+	for _, k := range t.Kids {
+		e.inferLet(k)
+	}
+	if t.Kind == core.KFn {
+		e.inferLet(t.Body())
+	}
+}
+
 func (e *Emitter) typeOf(t *core.Term) Ty {
 	switch t.Kind {
 	case core.KInt:
@@ -200,9 +224,15 @@ func (e *Emitter) typeOf(t *core.Term) Ty {
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
 			if p, ok := prims[op.Name]; ok {
-				// A fold's type is its accumulator's type, not a fixed one.
+				// A fold's type is its accumulator's type, not a fixed one,
+				// and a let's is its body's.
 				if p.Loop {
 					return e.typeOf(t.Args()[0])
+				}
+				if p.Let {
+					if k := t.Args()[1]; k.Kind == core.KFn {
+						return e.typeOf(k.Body())
+					}
 				}
 				return p.Result
 			}
@@ -257,6 +287,9 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		if p.Import != "" {
 			e.imports[p.Import] = true
+		}
+		if p.Let {
+			return e.emitLet(t)
 		}
 		if p.Stmt {
 			args := t.Args()
@@ -357,6 +390,28 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 	e.types[fin.Params[0]], e.types[fin.Params[1]] = TF64, TF64
 	return e.emit(core.Rename(fin.Body(), map[string]string{
 		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
+}
+
+// emitLet binds a value to a name and continues with the body. The λ here is a
+// binder, not a closure — which refines g6's "a surviving λ is an escaping
+// closure" to "…unless it is let's continuation".
+func (e *Emitter) emitLet(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("let takes a value and a continuation")
+	}
+	k := args[1]
+	if k.Kind != core.KFn || len(k.Params) != 1 {
+		return "", fmt.Errorf("let's continuation must be (fn (x) …), got %s", k)
+	}
+	val, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	name := mangle(k.Params[0])
+	e.types[k.Params[0]] = e.typeOf(args[0])
+	e.line("%s := %s", name, val)
+	return e.emit(k.Body())
 }
 
 // emitIf turns (if c then else) into a Go if statement assigning to a temporary,

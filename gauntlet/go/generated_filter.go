@@ -2,13 +2,14 @@
 
 package gauntlet
 
-func GenFilterSum(a []float64) float64 {
+func GenFilter(a []float64) float64 {
 	acc := 0.0
 	n1 := (len(a))
 	for i := 0; i < n1; i++ {
+		x := (a[i])
 		var t2 float64
-		if ((a[i]) > 0.0) {
-			t2 = (acc + (a[i]))
+		if (x > 0.0) {
+			t2 = (acc + x)
 		} else {
 			t2 = acc
 		}

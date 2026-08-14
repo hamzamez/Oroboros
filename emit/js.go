@@ -28,6 +28,7 @@ type jsPrim struct {
 	Loop2  bool
 	Cond   bool
 	Stmt   bool // emitted as a statement; the value is argument 0
+	Let    bool
 }
 
 var jsPrims = map[string]jsPrim{
@@ -47,6 +48,9 @@ var jsPrims = map[string]jsPrim{
 	"sat":         {Format: "%s[%s]", Arity: 2},
 	"dict-empty":  {Format: "Object.create(null)", Arity: 0},
 	"dict-inc":    {Format: "%s[%s] = (%s[%s] ?? 0) + 1", Arity: 2, Stmt: true},
+
+	// (let e (fn (x) b)) — the residual of a β that declined to substitute.
+	"let": {Arity: 2, Let: true},
 
 	"if":          {Arity: 3, Cond: true},
 	"fold-range":  {Arity: 3, Loop: true},
@@ -122,6 +126,19 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		p, ok := jsPrims[op.Name]
 		if !ok {
 			return "", fmt.Errorf("no JavaScript form for primitive %q", op.Name)
+		}
+		if p.Let {
+			args := t.Args()
+			k := args[1]
+			if k.Kind != core.KFn || len(k.Params) != 1 {
+				return "", fmt.Errorf("let's continuation must be (fn (x) …), got %s", k)
+			}
+			val, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			e.line("const %s = %s;", jsMangle(k.Params[0]), val)
+			return e.emit(k.Body())
 		}
 		if p.Stmt {
 			args := t.Args()

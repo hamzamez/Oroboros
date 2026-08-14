@@ -4,11 +4,12 @@ package gauntlet
 
 import "strings"
 
-func GenWordCount(text string) map[string]int {
+func GenWordcount(text string) map[string]int {
+	ws := (strings.Fields(text))
 	acc := (make(map[string]int))
-	n1 := (len((strings.Fields(text))))
+	n1 := (len(ws))
 	for i := 0; i < n1; i++ {
-		acc[((strings.Fields(text))[i])]++
+		acc[(ws[i])]++
 	}
 	return acc
 }

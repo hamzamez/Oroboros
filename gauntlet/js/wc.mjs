@@ -1,5 +1,5 @@
 import { makeText } from "./gauntlet.mjs";
-import { genWordCount } from "./generated_wc.mjs";
+import { genWordcount } from "./generated_wordcount.mjs";
 
 function wcRef(text) {
   const counts = Object.create(null);
@@ -9,7 +9,7 @@ function wcRef(text) {
 }
 
 const text = makeText(2000, 5);
-const a = genWordCount(text), b = wcRef(text);
+const a = genWordcount(text), b = wcRef(text);
 if (Object.keys(a).length !== Object.keys(b).length) throw new Error("size mismatch");
 for (const k of Object.keys(b)) if (a[k] !== b[k]) throw new Error("mismatch " + k);
 console.log("correctness: generated agrees with hand-written\n");
@@ -26,4 +26,4 @@ function bench(name, fn, iters, runs = 5) {
   console.log(`${name.padEnd(24)} ${(ts[runs >> 1] / 1000).toFixed(1).padStart(12)} us/op`);
 }
 bench("hand-written", () => wcRef(text), 200);
-bench("GENERATED", () => genWordCount(text), 3);
+bench("GENERATED", () => genWordcount(text), 3);

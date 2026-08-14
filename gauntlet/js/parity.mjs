@@ -1,7 +1,7 @@
 // Generated versus hand-written, JavaScript.
 import { makeVec } from "./gauntlet.mjs";
-import { genDot } from "./generated.mjs";
-import { genFilterSum } from "./generated_filter.mjs";
+import { genDot } from "./generated_dot.mjs";
+import { genFilter } from "./generated_filter.mjs";
 import { genCentroid } from "./generated_centroid.mjs";
 
 // Hand-written references.
@@ -38,7 +38,7 @@ const A = makeVec(N, 1), B = makeVec(N, 2), C = makeVec(N, 9);
 // Correctness first.
 const eq = (x, y, w) => { if (x !== y) throw new Error(`${w}: ${x} !== ${y}`); };
 eq(genDot(A, B), dotRef(A, B), "dot");
-eq(genFilterSum(A), filterSumRef(A), "filter");
+eq(genFilter(A), filterSumRef(A), "filter");
 eq(genCentroid(A, C), centroidRef(A, C), "centroid");
 console.log("correctness: generated agrees with hand-written\n");
 
@@ -60,7 +60,7 @@ console.log();
 bench("filter  hand-written (bind)", () => filterSumRef(A));
 bench("filter  hand-written (dup)", () => filterSumDup(A));
 bench("filter  hand-written (ternary)", () => filterSumTernary(A));
-bench("filter  GENERATED", () => genFilterSum(A));
+bench("filter  GENERATED", () => genFilter(A));
 
 console.log();
 bench("centroid  hand-written", () => centroidRef(A, C));

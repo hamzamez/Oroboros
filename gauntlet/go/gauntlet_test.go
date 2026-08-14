@@ -205,7 +205,7 @@ func TestGeneratedDotAgreesWithHandWritten(t *testing.T) {
 }
 
 func TestGeneratedFilterAgreesWithHandWritten(t *testing.T) {
-	g, r, d := GenFilterSum(vecA), FilterSumRef(vecA), FilterSumDup(vecA)
+	g, r, d := GenFilter(vecA), FilterSumRef(vecA), FilterSumDup(vecA)
 	if g != r || g != d {
 		t.Errorf("generated=%v ref=%v dup=%v", g, r, d)
 	}
@@ -220,7 +220,7 @@ func TestGeneratedCentroidAgreesWithHandWritten(t *testing.T) {
 
 func TestGeneratedWordCountAgreesWithHandWritten(t *testing.T) {
 	small := MakeText(200, 5)
-	g, h := GenWordCount(small), WordCountIncr(small)
+	g, h := GenWordcount(small), WordCountIncr(small)
 	if len(g) != len(h) {
 		t.Fatalf("sizes differ: %d vs %d", len(g), len(h))
 	}

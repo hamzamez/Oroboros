@@ -158,24 +158,34 @@ survives as a per-iteration closure when the loop *carries* it. So loop-carried 
 primitive-shaped — which is the same statement as the grading story, since state used *n* times
 is grade ω and grade ω is what survives.
 
-## The first gauntlet failure
+## Four programs, two targets, all at parity
 
-[Word count](gauntlet/results/wordcount-2026-08-14.md) passes the Parasite thesis — Go emits
-`map[string]int`, JS emits a null-prototype object, each the one that target is fastest with —
-but **it does not reach parity**, by 615× on Go and 1,089× on JS, because the residual duplicates
-`(split-words text)` into the loop body.
+| | Go | JavaScript |
+|---|---|---|
+| dot product | parity | parity |
+| filter-sum | parity | parity |
+| centroid (structs) | **byte-identical machine code** | parity |
+| word count | parity, structurally confirmed | 1.2× |
 
-Two measurements together give the criterion:
+Word count also passes the Parasite thesis: Go emits `map[string]int`, JS emits a null-prototype
+object — [each the one that target is fastest with](gauntlet/results/wordcount-2026-08-14.md) —
+from one source, with the whole difference in the primitive table.
+
+Getting there needed [call-by-need](gauntlet/results/callbyneed-2026-08-14.md), whose
+justification moved twice under measurement: claimed at 2×, withdrawn when Go's CSE erased it,
+then reinstated at 615× when word count duplicated an *allocation* into a loop. The two results
+gave the criterion —
 
 > **Duplication is free exactly when the duplicated term is pure, and unbounded when it is not.**
 
-A host's CSE hoists a duplicated `a[i]` and can never hoist an allocation. And since
-over-residualizing costs nothing while under-residualizing costs 615×, the rule needs no cost
-model: **residualize every primitive application.**
+— and the asymmetry meant the fix needed no grades and no cost model, which is what the design
+had assumed was blocking it.
 
 ## Next
 
-**Call-by-need**, which the above makes the highest-priority gap.
+**Gauntlet programs 3 and 5** — generics, and formatted output. Program 5 is the one that has
+never been touched: it needs a real host binding, which is where
+[g5](docs/derivations/g5-bindings.md)'s Tier 2 format stops being on paper.
 
 Open, and deliberately not yet built: call-by-need — which lost its performance justification
 when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —

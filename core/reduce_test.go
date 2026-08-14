@@ -16,8 +16,21 @@ import (
 //	q5   §3      fusion by δ+β, the delayed vector representation
 //	q5b  §3      filter by δ+β, the push representation
 
+// testEnv builds a reduction environment from a bare list of primitive names.
+// Real programs get theirs from a target file; tests do not need one.
+func testEnv(p *Program, prims ...string) *Env {
+	e := &Env{Defs: p.Defs, Prim: map[string]bool{}, Rec: map[string]bool{}}
+	for _, n := range prims {
+		e.Prim[n] = true
+	}
+	e.Prim["let"] = true
+	e.MarkRecursive()
+	return e
+}
+
 func norm(t *testing.T, src, target string) string {
 	t.Helper()
+	src, prims := splitPrims(src, target)
 	forms, err := Read(src)
 	if err != nil {
 		t.Fatalf("read: %v", err)
@@ -29,16 +42,44 @@ func norm(t *testing.T, src, target string) string {
 	if len(terms) != 1 {
 		t.Fatalf("expected exactly one term to reduce, got %d", len(terms))
 	}
-	env, err := prog.Env(target)
-	if err != nil {
-		t.Fatalf("env: %v", err)
-	}
+	env := testEnv(prog, prims...)
 	out, err := Normalize(terms[0], env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
 	}
 	return out.String()
 }
+
+// splitPrims lifts (prim …) and (target …) lines out of a test program, since
+// programs may no longer declare either — primitives come from a target file.
+// Tests do not need a target file, only a set of names.
+func splitPrims(src, target string) (string, []string) {
+	var body, prims []string
+	for _, line := range strings.Split(src, "\n") {
+		tr := strings.TrimSpace(line)
+		isPrim := strings.HasPrefix(tr, "(prim ")
+		isTarget := strings.HasPrefix(tr, "(target ")
+		if !isPrim && !isTarget {
+			body = append(body, line)
+			continue
+		}
+		words := strings.FieldsFunc(tr, isPunct)
+		// A test may declare several targets; take only the one being reduced.
+		if isTarget && len(words) > 1 && words[1] != target {
+			continue
+		}
+		for _, w := range words {
+			switch w {
+			case "prim", "target", target:
+			default:
+				prims = append(prims, w)
+			}
+		}
+	}
+	return strings.Join(body, "\n"), prims
+}
+
+func isPunct(r rune) bool { return r == '(' || r == ')' || r == ' ' || r == '\t' }
 
 func check(t *testing.T, src, target, want string) {
 	t.Helper()
@@ -158,9 +199,9 @@ func TestMutualRecursionIsNotUnfolded(t *testing.T) {
 }
 
 func TestFuelStopsSelfApplication(t *testing.T) {
-	forms, _ := Read(`(prim x) ((fn (f) (f f)) (fn (f) (f f)))`)
+	forms, _ := Read(`((fn (f) (f f)) (fn (f) (f f)))`)
 	prog, terms, _ := Load(forms)
-	env, _ := prog.Env("default")
+	env := testEnv(prog, "x")
 	if _, err := Normalize(terms[0], env, 10_000); err == nil {
 		t.Fatal("expected the step limit to stop self-application")
 	} else if _, ok := err.(*FuelError); !ok {
@@ -183,12 +224,11 @@ func TestSubstitutionAvoidsCapture(t *testing.T) {
 
 func TestResidualNamesReported(t *testing.T) {
 	forms, _ := Read(`
-		(target go (prim add))
 		(def use-missing (fn (x) (add x (nowhere x))))
 		(use-missing 1)
 	`)
 	prog, terms, _ := Load(forms)
-	env, _ := prog.Env("go")
+	env := testEnv(prog, "add")
 	out, err := Normalize(terms[0], env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
@@ -267,7 +307,6 @@ func TestLambdaSpelledEitherWay(t *testing.T) {
 // must not report it as a failure. See docs/spec/pcf.md §4.
 func TestSelfCallIsBottomNotAnError(t *testing.T) {
 	forms, err := Read(`
-		(target go (prim))
 		(def f (f))
 		(f)
 	`)
@@ -275,7 +314,7 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 		t.Fatalf("read: %v", err)
 	}
 	prog, terms, _ := Load(forms)
-	env, _ := prog.Env("go")
+	env := testEnv(prog)
 	out, err := Normalize(terms[0], env, DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
@@ -331,4 +370,19 @@ func TestCompilerIntroducesLetWhereItPays(t *testing.T) {
 		(target go (prim add aindex))
 		((fn (x) (add x x)) (aindex a 0))
 	`, "go", "(let (aindex a 0) (fn (x) (add x x)))")
+}
+
+// A program may no longer declare its own primitives; that is a target file's
+// job. Accepting the form silently would let a program believe it had said
+// something.
+func TestProgramsCannotDeclarePrimitives(t *testing.T) {
+	for _, src := range []string{`(prim add)`, `(target go (prim add))`} {
+		forms, err := Read(src)
+		if err != nil {
+			t.Fatalf("read %s: %v", src, err)
+		}
+		if _, _, err := Load(forms); err == nil {
+			t.Errorf("%s should be rejected", src)
+		}
+	}
 }

@@ -27,10 +27,11 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
-	env, err := prog.Env(target)
+	tg, err := LoadTarget("../targets/" + target + ".oro")
 	if err != nil {
-		t.Fatalf("env: %v", err)
+		t.Fatalf("target: %v", err)
 	}
+	env := tg.Env(prog)
 	out, err := core.Normalize(terms[0], env, core.DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)
@@ -39,7 +40,6 @@ func reduce(t *testing.T, src, target string) *core.Term {
 }
 
 const dotSrc = `
-	(target go (prim add mul alen aindex fold-range))
 
 	(def vec      (fn (n f) (fn (sel) (sel n f))))
 	(def vlen     (fn (v)   (v (fn (n f) n))))
@@ -90,7 +90,6 @@ func TestMangle(t *testing.T) {
 // than producing Go that does not compile.
 func TestEscapingClosureIsARefusal(t *testing.T) {
 	src := `
-		(target go (prim mul))
 		(def make-scaler (fn (f) (fn (v) (mul v f))))
 		(fn (k) (make-scaler k))
 	`

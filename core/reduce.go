@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // Reduction per core-0 §3: β on application of an abstraction, δ on unfolding a
@@ -23,9 +22,8 @@ import (
 // discipline is absent.
 
 type Program struct {
-	Defs    map[string]*Term
-	Order   []string // definition order, for stable diagnostics
-	Targets map[string][]string
+	Defs  map[string]*Term
+	Order []string // definition order, for stable diagnostics
 }
 
 // Env is a program viewed through one target: which names reduce, and which are
@@ -37,13 +35,12 @@ type Env struct {
 }
 
 func NewProgram() *Program {
-	return &Program{Defs: map[string]*Term{}, Targets: map[string][]string{}}
+	return &Program{Defs: map[string]*Term{}}
 }
 
 func Load(forms []Form) (*Program, []*Term, error) {
 	p := NewProgram()
 	var terms []*Term
-	var globalPrim []string
 	for _, f := range forms {
 		switch f.Kind {
 		case "def":
@@ -52,41 +49,19 @@ func Load(forms []Form) (*Program, []*Term, error) {
 			}
 			p.Defs[f.Name] = f.Term
 			p.Order = append(p.Order, f.Name)
-		case "prim":
-			globalPrim = append(globalPrim, f.Names...)
-		case "target":
-			p.Targets[f.Name] = f.Names
+		case "prim", "target":
+			// Programs used to declare their own primitives. They do not any
+			// more: which names are primitive comes from a target file, which
+			// is ADR 0002's parameter and now literally a separate file.
+			// Accepting these silently would let a program believe it had said
+			// something.
+			return nil, nil, fmt.Errorf(
+				"a program cannot declare %s; primitives are declared in targets/NAME.oro", f.Kind)
 		case "term":
 			terms = append(terms, f.Term)
 		}
 	}
-	if len(globalPrim) > 0 {
-		p.Targets["default"] = append(p.Targets["default"], globalPrim...)
-	}
 	return p, terms, nil
-}
-
-// Env builds the reduction environment for one target. This is the parameter
-// that makes the normal form a parameter: nothing else differs between targets.
-func (p *Program) Env(target string) (*Env, error) {
-	prims, ok := p.Targets[target]
-	if !ok {
-		names := make([]string, 0, len(p.Targets))
-		for n := range p.Targets {
-			names = append(names, n)
-		}
-		sort.Strings(names)
-		return nil, fmt.Errorf("no target %q (have: %s)", target, strings.Join(names, ", "))
-	}
-	e := &Env{Defs: p.Defs, Prim: map[string]bool{}, Rec: map[string]bool{}}
-	for _, n := range prims {
-		e.Prim[n] = true
-	}
-	// Every target has local bindings, so `let` is not a capability question.
-	// It is the residual of a β that declined to substitute.
-	e.Prim["let"] = true
-	e.markRecursive()
-	return e, nil
 }
 
 // markRecursive finds definitions reachable from their own bodies. core-0 §6

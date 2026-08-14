@@ -140,6 +140,26 @@ timings were ambiguous.
 Benchmarks in [gauntlet/results/](gauntlet/results/) were taken on a hybrid P/E-core laptop with
 a ~15% noise floor. Do not rest a decision on a smaller margin than that.
 
+## Adding to the language
+
+**Nothing goes in without a specification saying how it behaves on every target.** String
+literals were added without one and [docs/spec/strings.md](docs/spec/strings.md) is the
+correction — write the spec first.
+
+The test for a proposed addition is not "is it useful":
+
+1. What does it mean, independently of any target?
+2. What does each target do with it, and do they agree?
+3. If they disagree, is the disagreement **observable**? If so it is Tier 2 and carries no
+   portability claim.
+
+`length` fails (3) — `"🙂"` is 4 on Go, 2 on JS and Java, 1 counting characters — which is why it
+is not in the core. Strings pass only by having almost no operations.
+
+**The current state of the language is [docs/spec/state.md](docs/spec/state.md)**, read off the
+code rather than from memory. Six term kinds, one top-level form, two reduction rules, one
+parameter.
+
 ## Working conventions
 
 **Every significant decision gets an ADR.** Numbered, in `docs/decisions/`, using the template

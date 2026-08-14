@@ -144,12 +144,15 @@ and correspondingly more fragile.
 
 ## 8. What this opens
 
-**How is the pull → push conversion chosen?** `(filter p (zip f a b))` needs it inserted. Either
-the two families are named differently and the programmer converts explicitly, or the type system
-coerces. That is a type-system question, not a reduction question, and it is now the most
-concrete unresolved thing in the collection story.
+~~**How is the pull → push conversion chosen?**~~ **Settled** —
+[q5c-representation-choice.md](q5c-representation-choice.md). One name per operation, with
+representation inferred over a two-point lattice. The asymmetry decides the design: **pull → push
+is free and coerced silently; push → pull allocates and is refused**, so the programmer writes
+`materialize` and the compiler names the cost at the exact site. Resolution happens in the type
+checker, before reduction, so the atom is untouched.
 
-And it connects to [g6 §9](../derivations/g6-escaping-closures.md): when a composition *does*
-force materialisation, that is exactly the kind of thing the cost report should say out loud —
-**"this filter materialises: 1 allocation, n elements"** — rather than leaving the programmer to
-discover it in a profile.
+The safety property that falls out: both representations are grade 0 and reduce away entirely, so
+**every allocation the collection library can cause is named in the source.**
+
+Which is [g6 §9](../derivations/g6-escaping-closures.md)'s cost report arriving as a type error
+instead of a profile.

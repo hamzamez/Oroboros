@@ -10,10 +10,6 @@
 ; language is untyped; the Go backend works out float64 versus map[string]int on
 ; its own, and the JS backend needs neither.
 
-(target go (prim add alen aindex slen sat split-words dict-empty dict-inc fold-range))
-(target java (prim add alen aindex slen sat split-words dict-empty dict-inc fold-range))
-(target js (prim add alen aindex slen sat split-words dict-empty dict-inc fold-range))
-
 ; The generic operation. n is a count, get reads element i, combine folds it in.
 (def reduce-over (fn (n get combine init)
   (fold-range init n (fn (acc i) (combine acc (get i))))))

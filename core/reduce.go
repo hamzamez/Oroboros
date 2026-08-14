@@ -94,6 +94,9 @@ func (p *Program) Env(target string) (*Env, error) {
 // not terminate, so recursive definitions stay in the residual as target
 // functions. This is g3's "recursive functions cannot be rules", arriving as a
 // proof obligation.
+// MarkRecursive is exported so a Target can build an Env.
+func (e *Env) MarkRecursive() { e.markRecursive() }
+
 func (e *Env) markRecursive() {
 	for name := range e.Defs {
 		seen := map[string]bool{}
@@ -120,7 +123,7 @@ func (e *Env) reaches(from, target string, seen map[string]bool) bool {
 			}
 			seen[t.Name] = true
 			return e.reaches(t.Name, target, seen)
-		case KInt, KFloat:
+		case KInt, KFloat, KStr:
 			return false
 		}
 		for _, k := range t.Kids {
@@ -175,7 +178,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 	*fuel--
 
 	switch t.Kind {
-	case KInt, KFloat:
+	case KInt, KFloat, KStr:
 		return t, nil
 
 	case KName:
@@ -266,7 +269,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 // allocation is what no host can hoist.
 func duplicable(t *Term) bool {
 	switch t.Kind {
-	case KInt, KFloat, KName, KFn:
+	case KInt, KFloat, KStr, KName, KFn:
 		return true
 	}
 	return false
@@ -281,7 +284,7 @@ func occurrences(t *Term, name string) int {
 			return 1
 		}
 		return 0
-	case KInt, KFloat:
+	case KInt, KFloat, KStr:
 		return 0
 	case KFn:
 		for _, p := range t.Params {
@@ -314,7 +317,7 @@ func subst(t *Term, m map[string]*Term) *Term {
 			return r
 		}
 		return t
-	case KInt, KFloat:
+	case KInt, KFloat, KStr:
 		return t
 	case KFn:
 		inner := make(map[string]*Term, len(m))
@@ -383,7 +386,7 @@ func freeVars(t *Term) map[string]bool {
 			if !bound[t.Name] {
 				out[t.Name] = true
 			}
-		case KInt, KFloat:
+		case KInt, KFloat, KStr:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {

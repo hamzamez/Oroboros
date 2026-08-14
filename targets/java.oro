@@ -1,0 +1,40 @@
+; The Java target.
+;
+; The dictionary goes the OPPOSITE way from Go's. Baseline R5 measured Java's
+; fused merge(k,1,Integer::sum) at 2.6x slower than getOrDefault+put, because it
+; boxes and makes a functional call per entry. Go's fused idiom wins; Java's
+; loses. Same capability, opposite idiom, one source — ADR 0008 made concrete.
+
+(target java
+  (type f64        "double")
+  (type int        "int")
+  (type bool       "boolean")
+  (type vec-f64    "double[]")
+  (type string     "String")
+  (type vec-string "String[]")
+  (type dict       "HashMap<String,Integer>")
+
+  (prim add    (f64 f64) f64  expr "%s + %s")
+  (prim sub    (f64 f64) f64  expr "%s - %s")
+  (prim mul    (f64 f64) f64  expr "%s * %s")
+  (prim lt     (f64 f64) bool expr "%s < %s")
+  (prim gt     (f64 f64) bool expr "%s > %s")
+
+  ; Java arrays carry .length, so alen and slen share a shape — unlike Go, where
+  ; len() is a function.
+  (prim alen   (vec-f64) int      expr "%s.length")
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+
+  (prim slen        (vec-string) int        expr "%s.length")
+  (prim sat         (vec-string int) string expr "%s[%s]")
+  (prim split-words (string) vec-string     expr "%s.split(\" \")")
+  (prim dict-empty  (none) dict             expr "new HashMap<String,Integer>()"
+                                                 (import "java.util.HashMap"))
+  (prim dict-inc    (dict string) dict      stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)")
+
+  (prim sqrt (f64) f64 expr "Math.sqrt(%s)")
+
+  (prim let         (any any) any               let)
+  (prim if          (bool any any) any          cond)
+  (prim fold-range  (f64 int any) f64           loop)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2))

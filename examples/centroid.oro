@@ -12,10 +12,6 @@
 ; require the emitter to change the emitted function's arity per target, which is
 ; g2's "a Tier 1 capability can change a function's arity" and is not built.
 
-(target go (prim add alen aindex fold-range2))
-(target java (prim add alen aindex fold-range2))
-(target js (prim add alen aindex fold-range2))
-
 (def point (fn (x y) (fn (sel) (sel x y))))
 (def px    (fn (p)   (p (fn (x y) x))))
 (def py    (fn (p)   (p (fn (x y) y))))

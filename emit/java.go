@@ -28,73 +28,11 @@ import (
 //     at 2.6x slower than getOrDefault+put, the opposite of Go's m[k]++. This is
 //     the Parasite thesis at its sharpest: the same capability, opposite idioms.
 
-func (t Ty) Java() string {
-	switch t {
-	case TF64:
-		return "double"
-	case TInt:
-		return "int"
-	case TBool:
-		return "boolean"
-	case TVecF64:
-		return "double[]"
-	case TString:
-		return "String"
-	case TVecString:
-		return "String[]"
-	case TDict:
-		return "HashMap<String,Integer>"
-	}
-	return "Object" // will not compile — deliberately loud
-}
-
-type javaPrim struct {
-	Format string
-	Args   []Ty
-	Result Ty
-	Loop   bool
-	Loop2  bool
-	Cond   bool
-	Stmt   bool
-	Let    bool
-	Import string
-}
-
-var javaPrims = map[string]javaPrim{
-	"add": {Format: "%s + %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"mul": {Format: "%s * %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"sub": {Format: "%s - %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"gt":  {Format: "%s > %s", Args: []Ty{TF64, TF64}, Result: TBool},
-	"lt":  {Format: "%s < %s", Args: []Ty{TF64, TF64}, Result: TBool},
-
-	// Java arrays carry .length, so alen and slen are the same shape — unlike
-	// Go, where len() is a function, and JS, where it is a property.
-	"alen":   {Format: "%s.length", Args: []Ty{TVecF64}, Result: TInt},
-	"aindex": {Format: "%s[%s]", Args: []Ty{TVecF64, TInt}, Result: TF64},
-	"slen":   {Format: "%s.length", Args: []Ty{TVecString}, Result: TInt},
-	"sat":    {Format: "%s[%s]", Args: []Ty{TVecString, TInt}, Result: TString},
-
-	"split-words": {Format: "%s.split(\" \")", Args: []Ty{TString}, Result: TVecString},
-	"dict-empty": {Format: "new HashMap<String,Integer>()", Args: nil, Result: TDict,
-		Import: "java.util.HashMap"},
-
-	// The UNFUSED form, deliberately. Baseline R5 measured Java's fused
-	// merge(k, 1, Integer::sum) at 2.6x SLOWER than this, because merge boxes
-	// and makes a functional call per entry. Go's fused m[k]++ wins; Java's
-	// fused merge loses. Same capability, opposite idiom, one source.
-	"dict-inc": {Format: "%s.put(%s, %s.getOrDefault(%s, 0) + 1)",
-		Args: []Ty{TDict, TString}, Result: TDict, Stmt: true},
-
-	"let":         {Args: []Ty{TUnknown, TUnknown}, Result: TUnknown, Let: true},
-	"if":          {Args: []Ty{TBool, TUnknown, TUnknown}, Result: TUnknown, Cond: true},
-	"fold-range":  {Args: []Ty{TF64, TInt, TUnknown}, Result: TF64, Loop: true},
-	"fold-range2": {Args: []Ty{TF64, TF64, TInt, TUnknown, TUnknown, TUnknown}, Result: TF64, Loop2: true},
-}
-
 type javaEmitter struct {
+	tgt     *Target
 	buf     strings.Builder
 	imports map[string]bool
-	types   map[string]Ty
+	types   map[string]string
 	tmp     int
 	indent  int
 }
@@ -103,11 +41,11 @@ type javaEmitter struct {
 var JavaImports = map[string]bool{}
 
 // JavaMethod emits a top-level abstraction as a static method.
-func JavaMethod(name string, t *core.Term) (string, error) {
+func JavaMethod(tgt *Target, name string, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &javaEmitter{types: map[string]Ty{}, imports: map[string]bool{}, indent: 2}
+	e := &javaEmitter{tgt: tgt, types: map[string]string{}, imports: map[string]bool{}, indent: 2}
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
 	e.inferFrom(t.Body())
@@ -115,10 +53,10 @@ func JavaMethod(name string, t *core.Term) (string, error) {
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
 		ty := e.types[p]
-		if ty == TUnknown {
+		if ty == "" {
 			return "", fmt.Errorf("cannot determine a Java type for parameter %q", p)
 		}
-		params[i] = ty.Java() + " " + javaMangle(p)
+		params[i] = e.tgt.ty(ty) + " " + javaMangle(p)
 	}
 
 	result, err := e.emit(t.Body())
@@ -130,7 +68,7 @@ func JavaMethod(name string, t *core.Term) (string, error) {
 	}
 
 	var out strings.Builder
-	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", e.typeOf(t.Body()).Java(),
+	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", e.tgt.ty(e.typeOf(t.Body())),
 		javaMangle(name), strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
 	fmt.Fprintf(&out, "\t\treturn %s;\n\t}\n", result)
@@ -141,9 +79,9 @@ func (e *javaEmitter) inferFrom(t *core.Term) {
 	switch t.Kind {
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
-			if p, ok := javaPrims[op.Name]; ok {
+			if p, ok := e.tgt.Prims[op.Name]; ok {
 				for i, a := range t.Args() {
-					if i < len(p.Args) && a.Kind == core.KName && e.types[a.Name] == TUnknown {
+					if i < len(p.Args) && a.Kind == core.KName && e.types[a.Name] == "" {
 						e.types[a.Name] = p.Args[i]
 					}
 				}
@@ -171,21 +109,21 @@ func (e *javaEmitter) inferLet(t *core.Term) {
 	}
 }
 
-func (e *javaEmitter) typeOf(t *core.Term) Ty {
+func (e *javaEmitter) typeOf(t *core.Term) string {
 	switch t.Kind {
 	case core.KInt:
-		return TInt
+		return "int"
 	case core.KFloat:
-		return TF64
+		return "f64"
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
-			if p, ok := javaPrims[op.Name]; ok {
-				if p.Loop {
+			if p, ok := e.tgt.Prims[op.Name]; ok {
+				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
 				}
-				if p.Let {
+				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
 					}
@@ -194,7 +132,7 @@ func (e *javaEmitter) typeOf(t *core.Term) Ty {
 			}
 		}
 	}
-	return TUnknown
+	return ""
 }
 
 func (e *javaEmitter) line(format string, args ...any) {
@@ -229,7 +167,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
-		p, ok := javaPrims[op.Name]
+		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
 			return "", fmt.Errorf("no Java form for primitive %q", op.Name)
 		}
@@ -237,15 +175,15 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			e.imports[p.Import] = true
 		}
 		switch {
-		case p.Let:
+		case p.Kind == "let":
 			return e.emitLet(t)
-		case p.Loop:
+		case p.Kind == "loop":
 			return e.emitFoldRange(t)
-		case p.Loop2:
+		case p.Kind == "loop2":
 			return e.emitFoldRange2(t)
-		case p.Cond:
+		case p.Kind == "cond":
 			return e.emitIf(t)
-		case p.Stmt:
+		case p.Kind == "stmt":
 			args := t.Args()
 			vals := make([]any, 0, 2*len(args))
 			for _, a := range args {
@@ -256,7 +194,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				vals = append(vals, v)
 			}
 			// dict-inc names both operands twice.
-			e.line("%s;", fmt.Sprintf(p.Format, append(vals, vals...)...))
+			e.line("%s;", fmt.Sprintf(p.Form, append(vals, vals...)...))
 			return vals[0].(string), nil
 		}
 		args := t.Args()
@@ -271,7 +209,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			}
 			vals[i] = v
 		}
-		return "(" + fmt.Sprintf(p.Format, vals...) + ")", nil
+		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
 }
@@ -288,7 +226,7 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 	}
 	ty := e.typeOf(args[0])
 	e.types[k.Params[0]] = ty
-	e.line("final %s %s = %s;", ty.Java(), javaMangle(k.Params[0]), val)
+	e.line("final %s %s = %s;", e.tgt.ty(ty), javaMangle(k.Params[0]), val)
 	return e.emit(k.Body())
 }
 
@@ -320,11 +258,11 @@ func (e *javaEmitter) emitIf(t *core.Term) (string, error) {
 		return fmt.Sprintf("(%s ? %s : %s)", cond, thenV, elseV), nil
 	}
 	ty := e.typeOf(args[1])
-	if ty == TUnknown {
+	if ty == "" {
 		ty = e.typeOf(args[2])
 	}
 	tmp := e.fresh("t")
-	e.line("%s %s;", ty.Java(), tmp)
+	e.line("%s %s;", e.tgt.ty(ty), tmp)
 	e.line("if (%s) {", cond)
 	e.indent++
 	tv, err := e.emit(args[1])
@@ -353,7 +291,7 @@ func (e *javaEmitter) emitFoldRange(t *core.Term) (string, error) {
 	}
 	accName, idxName := step.Params[0], step.Params[1]
 	e.types[accName] = e.typeOf(args[0])
-	e.types[idxName] = TInt
+	e.types[idxName] = "int"
 
 	init, err := e.emit(args[0])
 	if err != nil {
@@ -366,7 +304,7 @@ func (e *javaEmitter) emitFoldRange(t *core.Term) (string, error) {
 	acc, idx := javaMangle(accName), javaMangle(idxName)
 	n := e.fresh("n")
 
-	e.line("%s %s = %s;", e.types[accName].Java(), acc, init)
+	e.line("%s %s = %s;", e.tgt.ty(e.types[accName]), acc, init)
 	e.line("final int %s = %s;", n, count)
 	e.line("for (int %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
 	e.indent++
@@ -409,8 +347,8 @@ func (e *javaEmitter) emitFoldRange2(t *core.Term) (string, error) {
 		return "", err
 	}
 	ax, ay, idx := javaMangle(sx.Params[0]), javaMangle(sx.Params[1]), javaMangle(sx.Params[2])
-	e.types[sx.Params[0]], e.types[sx.Params[1]], e.types[sx.Params[2]] = TF64, TF64, TInt
-	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = TF64, TF64, TInt
+	e.types[sx.Params[0]], e.types[sx.Params[1]], e.types[sx.Params[2]] = "f64", "f64", "int"
+	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = "f64", "f64", "int"
 	n := e.fresh("n")
 
 	e.line("double %s = %s, %s = %s;", ax, x0, ay, y0)
@@ -431,7 +369,7 @@ func (e *javaEmitter) emitFoldRange2(t *core.Term) (string, error) {
 	e.line("%s = %s; %s = %s;", ax, tx, ay, ty2)
 	e.indent--
 	e.line("}")
-	e.types[fin.Params[0]], e.types[fin.Params[1]] = TF64, TF64
+	e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
 	return e.emit(core.Rename(fin.Body(), map[string]string{
 		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
 }

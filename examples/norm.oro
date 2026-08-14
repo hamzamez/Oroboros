@@ -1,0 +1,9 @@
+; Euclidean norm. Uses `sqrt`, a host function that was added to the three
+; target files and to nothing else — no Go source was touched.
+
+(def square (fn (x) (mul x x)))
+
+(def sum-squares (fn (a)
+  (fold-range 0.0 (alen a) (fn (acc i) (add acc (square (aindex a i)))))))
+
+(fn (a) (sqrt (sum-squares a)))

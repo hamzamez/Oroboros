@@ -11,13 +11,16 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"oroboros/core"
+	"oroboros/emit"
 )
 
 func main() {
-	target := flag.String("target", "default", "target whose primitive set defines the normal form")
+	target := flag.String("target", "go", "target whose primitive set defines the normal form")
+	dir := flag.String("targets", "targets", "directory holding target declarations")
 	steps := flag.Bool("steps", false, "print each top-level term before and after reduction")
 	fuel := flag.Int("fuel", core.DefaultFuel, "maximum reduction steps")
 	flag.Usage = func() {
@@ -30,13 +33,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(flag.Arg(0), *target, *fuel, *steps); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *fuel, *steps); err != nil {
 		fmt.Fprintf(os.Stderr, "oro: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(path, target string, fuel int, steps bool) error {
+func run(targetDir, path, target string, fuel int, steps bool) error {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -49,10 +52,11 @@ func run(path, target string, fuel int, steps bool) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
-	env, err := prog.Env(target)
+	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
 	}
+	env := tg.Env(prog)
 
 	for _, t := range terms {
 		if steps {

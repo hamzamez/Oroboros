@@ -21,43 +21,8 @@ import (
 // the point of building it second is to find out which parts of emit/golang.go
 // were general and which were Go-shaped assumptions.
 
-type jsPrim struct {
-	Format string
-	Arity  int
-	Loop   bool
-	Loop2  bool
-	Cond   bool
-	Stmt   bool // emitted as a statement; the value is argument 0
-	Let    bool
-}
-
-var jsPrims = map[string]jsPrim{
-	"add":    {Format: "%s + %s", Arity: 2},
-	"mul":    {Format: "%s * %s", Arity: 2},
-	"sub":    {Format: "%s - %s", Arity: 2},
-	"gt":     {Format: "%s > %s", Arity: 2},
-	"lt":     {Format: "%s < %s", Arity: 2},
-	"alen":   {Format: "%s.length", Arity: 1},
-	"aindex": {Format: "%s[%s]", Arity: 2},
-
-	// The Parasite thesis: JS's dictionary is a null-prototype object, not Map.
-	// Baseline R4 measured Map at 3.25x slower for string keys, which refuted
-	// g4's original pass condition.
-	"split-words": {Format: "%s.split(\" \")", Arity: 1},
-	"slen":        {Format: "%s.length", Arity: 1},
-	"sat":         {Format: "%s[%s]", Arity: 2},
-	"dict-empty":  {Format: "Object.create(null)", Arity: 0},
-	"dict-inc":    {Format: "%s[%s] = (%s[%s] ?? 0) + 1", Arity: 2, Stmt: true},
-
-	// (let e (fn (x) b)) — the residual of a β that declined to substitute.
-	"let": {Arity: 2, Let: true},
-
-	"if":          {Arity: 3, Cond: true},
-	"fold-range":  {Arity: 3, Loop: true},
-	"fold-range2": {Arity: 6, Loop2: true},
-}
-
 type jsEmitter struct {
+	tgt    *Target
 	buf    strings.Builder
 	tmp    int
 	indent int
@@ -68,11 +33,11 @@ type jsEmitter struct {
 // Note what is absent compared with Func: there is no type lattice, no
 // inference, and no way for a parameter to fail to have a type. Everything
 // emit/golang.go does with Ty exists to satisfy Go, not the language.
-func JSFunc(name string, t *core.Term) (string, error) {
+func JSFunc(tgt *Target, name string, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &jsEmitter{indent: 1}
+	e := &jsEmitter{tgt: tgt, indent: 1}
 	result, err := e.emit(t.Body())
 	if err != nil {
 		return "", err
@@ -123,11 +88,11 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
-		p, ok := jsPrims[op.Name]
+		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
 			return "", fmt.Errorf("no JavaScript form for primitive %q", op.Name)
 		}
-		if p.Let {
+		if p.Kind == "let" {
 			args := t.Args()
 			k := args[1]
 			if k.Kind != core.KFn || len(k.Params) != 1 {
@@ -140,7 +105,7 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			e.line("const %s = %s;", jsMangle(k.Params[0]), val)
 			return e.emit(k.Body())
 		}
-		if p.Stmt {
+		if p.Kind == "stmt" {
 			args := t.Args()
 			vals := make([]any, 0, 2*len(args))
 			for _, a := range args {
@@ -151,21 +116,21 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				vals = append(vals, v)
 			}
 			// dict-inc names both operands twice; repeat them for the template.
-			e.line("%s;", fmt.Sprintf(p.Format, append(vals, vals...)...))
+			e.line("%s;", fmt.Sprintf(p.Form, append(vals, vals...)...))
 			return vals[0].(string), nil
 		}
-		if p.Loop {
+		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
 		}
-		if p.Loop2 {
+		if p.Kind == "loop2" {
 			return e.emitFoldRange2(t)
 		}
-		if p.Cond {
+		if p.Kind == "cond" {
 			return e.emitIf(t)
 		}
 		args := t.Args()
-		if len(args) != p.Arity {
-			return "", fmt.Errorf("%s takes %d argument(s), given %d", op.Name, p.Arity, len(args))
+		if len(args) != len(p.Args) {
+			return "", fmt.Errorf("%s takes %d argument(s), given %d", op.Name, len(p.Args), len(args))
 		}
 		vals := make([]any, len(args))
 		for i, a := range args {
@@ -175,7 +140,7 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			}
 			vals[i] = v
 		}
-		return "(" + fmt.Sprintf(p.Format, vals...) + ")", nil
+		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
 }

@@ -1,0 +1,34 @@
+; The JavaScript target.
+;
+; Note what is ABSENT: no (type …) declarations at all. JS is untyped, so the
+; whole type layer that Go and Java need is simply missing here — which is the
+; evidence that types belong to the backend rather than to the language
+; (gauntlet/results/js-2026-08-14.md).
+;
+; Argument types are still written, because they document the primitive and a
+; future checker could use them regardless of target. They are never consulted.
+
+(target js
+  (prim add    (f64 f64) f64  expr "%s + %s")
+  (prim sub    (f64 f64) f64  expr "%s - %s")
+  (prim mul    (f64 f64) f64  expr "%s * %s")
+  (prim lt     (f64 f64) bool expr "%s < %s")
+  (prim gt     (f64 f64) bool expr "%s > %s")
+
+  (prim alen   (vec-f64) int      expr "%s.length")
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+
+  ; A null-prototype object, NOT Map. Baseline R4 measured Map at 3.25x slower
+  ; for string keys, which refuted g4's original pass condition.
+  (prim slen        (vec-string) int        expr "%s.length")
+  (prim sat         (vec-string int) string expr "%s[%s]")
+  (prim split-words (string) vec-string     expr "%s.split(\" \")")
+  (prim dict-empty  (none) dict             expr "Object.create(null)")
+  (prim dict-inc    (dict string) dict      stmt "%s[%s] = (%s[%s] ?? 0) + 1")
+
+  (prim sqrt (f64) f64 expr "Math.sqrt(%s)")
+
+  (prim let         (any any) any               let)
+  (prim if          (bool any any) any          cond)
+  (prim fold-range  (f64 int any) f64           loop)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2))

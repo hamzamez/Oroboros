@@ -27,108 +27,25 @@ import (
 // language, which is the point — the emitter must not push types up into the
 // core before we know we need them.
 
-type Ty uint8
-
-const (
-	TUnknown Ty = iota
-	TF64
-	TInt
-	TBool
-	TVecF64
-	TString
-	TVecString
-	TDict
-)
-
-func (t Ty) Go() string {
-	switch t {
-	case TF64:
-		return "float64"
-	case TInt:
-		return "int"
-	case TBool:
-		return "bool"
-	case TVecF64:
-		return "[]float64"
-	case TString:
-		return "string"
-	case TVecString:
-		return "[]string"
-	case TDict:
-		return "map[string]int"
-	}
-	return "interface{}" // will not compile — deliberately loud
-}
-
 // prim is a primitive's Go form. Format uses {0}, {1}, … for operands.
-type prim struct {
-	Format string
-	Args   []Ty
-	Result Ty
-	Loop   bool // emitted as a loop statement
-	Loop2  bool // loop carrying two accumulators
-	Stmt   bool // emitted as a statement; the value is argument 0
-	Let    bool // (let e (fn (x) b)) — bind e to x, then b
-	Import string
-	Cond   bool // emitted as an if statement
-}
-
-var prims = map[string]prim{
-	"add":    {Format: "%s + %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"mul":    {Format: "%s * %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"sub":    {Format: "%s - %s", Args: []Ty{TF64, TF64}, Result: TF64},
-	"alen":   {Format: "len(%s)", Args: []Ty{TVecF64}, Result: TInt},
-	"aindex": {Format: "%s[%s]", Args: []Ty{TVecF64, TInt}, Result: TF64},
-	"gt":     {Format: "%s > %s", Args: []Ty{TF64, TF64}, Result: TBool},
-	"lt":     {Format: "%s < %s", Args: []Ty{TF64, TF64}, Result: TBool},
-
-	// if(cond, then, else) — the SECOND statement-primitive. Go has no
-	// conditional expression, so this is ANF arriving for a fourth time.
-	"if": {Args: []Ty{TBool, TUnknown, TUnknown}, Result: TUnknown, Cond: true},
-
-	// fold-range(init, count, (fn (acc i) body)) — the one primitive that is a
-	// statement rather than an expression. How this generalises is the main
-	// open question the emitter raises.
-	// Word count — the Parasite thesis test. Go's dictionary is map[string]int
-	// and its increment is one hash lookup (baseline C3, verified structurally
-	// as a single mapassign_faststr).
-	"split-words": {Format: "strings.Fields(%s)", Args: []Ty{TString}, Result: TVecString,
-		Import: "strings"},
-	"slen":       {Format: "len(%s)", Args: []Ty{TVecString}, Result: TInt},
-	"sat":        {Format: "%s[%s]", Args: []Ty{TVecString, TInt}, Result: TString},
-	"dict-empty": {Format: "make(map[string]int)", Args: nil, Result: TDict},
-	"dict-inc":   {Format: "%s[%s]++", Args: []Ty{TDict, TString}, Result: TDict, Stmt: true},
-
-	// (let e (fn (x) b)) — the residual of a β that declined to substitute.
-	// def.md §6: a primitive taking a value and a continuation, so the binding
-	// structure is the λ's and the normal form needs no weakening.
-	"let": {Args: []Ty{TUnknown, TUnknown}, Result: TUnknown, Let: true},
-
-	"fold-range": {Args: []Ty{TF64, TInt, TUnknown}, Result: TF64, Loop: true},
-
-	// fold-range2(x0, y0, n, stepX, stepY) — a loop carrying TWO accumulators.
-	// Needed because compile-time reduction cannot cross a runtime loop
-	// boundary, so loop-carried state must be primitive-shaped. See
-	// gauntlet/results/structs-2026-08-14.md.
-	"fold-range2": {Args: []Ty{TF64, TF64, TInt, TUnknown, TUnknown, TUnknown}, Result: TF64, Loop2: true},
-}
 
 // ---------------------------------------------------------------- emitter
 
 type Emitter struct {
+	tgt     *Target
 	buf     strings.Builder
 	imports map[string]bool
-	types   map[string]Ty // variable -> inferred type
+	types   map[string]string // variable -> inferred type
 	tmp     int
 	indent  int
 }
 
 // Func emits a top-level abstraction as a Go function.
-func Func(name string, t *core.Term) (string, error) {
+func Func(tgt *Target, name string, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &Emitter{types: map[string]Ty{}, imports: map[string]bool{}}
+	e := &Emitter{tgt: tgt, types: map[string]string{}, imports: map[string]bool{}}
 
 	// Parameter types come from how the body uses them. Local propagation from
 	// primitive signatures — not inference, just reading the table.
@@ -139,11 +56,11 @@ func Func(name string, t *core.Term) (string, error) {
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
 		ty := e.types[p]
-		if ty == TUnknown {
+		if ty == "" {
 			return "", fmt.Errorf("cannot determine a Go type for parameter %q; "+
 				"it is never passed to a primitive whose signature would fix it", p)
 		}
-		params[i] = mangle(p) + " " + ty.Go()
+		params[i] = mangle(p) + " " + e.tgt.ty(ty)
 	}
 
 	var body strings.Builder
@@ -157,7 +74,7 @@ func Func(name string, t *core.Term) (string, error) {
 
 	var out strings.Builder
 	fmt.Fprintf(&out, "func %s(%s) %s {\n", export(name), strings.Join(params, ", "),
-		e.typeOf(t.Body()).Go())
+		e.tgt.ty(e.typeOf(t.Body())))
 	out.WriteString(inner)
 	fmt.Fprintf(&out, "\treturn %s\n}\n", result)
 	for imp := range e.imports {
@@ -179,10 +96,10 @@ func (e *Emitter) inferFrom(t *core.Term) {
 	case core.KApp:
 		op := t.Op()
 		if op.Kind == core.KName {
-			if p, ok := prims[op.Name]; ok {
+			if p, ok := e.tgt.Prims[op.Name]; ok {
 				for i, a := range t.Args() {
 					if i < len(p.Args) && a.Kind == core.KName {
-						if e.types[a.Name] == TUnknown {
+						if e.types[a.Name] == "" {
 							e.types[a.Name] = p.Args[i]
 						}
 					}
@@ -213,23 +130,23 @@ func (e *Emitter) inferLet(t *core.Term) {
 	}
 }
 
-func (e *Emitter) typeOf(t *core.Term) Ty {
+func (e *Emitter) typeOf(t *core.Term) string {
 	switch t.Kind {
 	case core.KInt:
-		return TInt
+		return "int"
 	case core.KFloat:
-		return TF64
+		return "f64"
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
-			if p, ok := prims[op.Name]; ok {
+			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// A fold's type is its accumulator's type, not a fixed one,
 				// and a let's is its body's.
-				if p.Loop {
+				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
 				}
-				if p.Let {
+				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
 					}
@@ -238,7 +155,7 @@ func (e *Emitter) typeOf(t *core.Term) Ty {
 			}
 		}
 	}
-	return TUnknown
+	return ""
 }
 
 func (e *Emitter) line(format string, args ...any) {
@@ -281,17 +198,17 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 			return "", fmt.Errorf("application of a non-name: %s\n"+
 				"  The operator must be a primitive or a recursive definition.", t)
 		}
-		p, ok := prims[op.Name]
+		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
 			return "", fmt.Errorf("no Go form for primitive %q", op.Name)
 		}
 		if p.Import != "" {
 			e.imports[p.Import] = true
 		}
-		if p.Let {
+		if p.Kind == "let" {
 			return e.emitLet(t)
 		}
-		if p.Stmt {
+		if p.Kind == "stmt" {
 			args := t.Args()
 			vals := make([]any, len(args))
 			for i, a := range args {
@@ -301,16 +218,16 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 				}
 				vals[i] = v
 			}
-			e.line("%s", fmt.Sprintf(p.Format, vals...))
+			e.line("%s", fmt.Sprintf(p.Form, vals...))
 			return vals[0].(string), nil
 		}
-		if p.Loop {
+		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
 		}
-		if p.Loop2 {
+		if p.Kind == "loop2" {
 			return e.emitFoldRange2(t)
 		}
-		if p.Cond {
+		if p.Kind == "cond" {
 			return e.emitIf(t)
 		}
 		args := t.Args()
@@ -327,7 +244,7 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		// Parenthesised throughout rather than tracking precedence. Go's parser
 		// does not care and neither does its optimiser; gofmt would strip them.
-		return "(" + fmt.Sprintf(p.Format, vals...) + ")", nil
+		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
 }
@@ -363,8 +280,8 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 		return "", err
 	}
 	ax, ay, idx := mangle(sx.Params[0]), mangle(sx.Params[1]), mangle(sx.Params[2])
-	e.types[sx.Params[0]], e.types[sx.Params[1]], e.types[sx.Params[2]] = TF64, TF64, TInt
-	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = TF64, TF64, TInt
+	e.types[sx.Params[0]], e.types[sx.Params[1]], e.types[sx.Params[2]] = "f64", "f64", "int"
+	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = "f64", "f64", "int"
 	n := e.fresh("n")
 
 	e.line("%s, %s := %s, %s", ax, ay, x0, y0)
@@ -387,7 +304,7 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 
 	// The finisher consumes both accumulators, so compound loop state never
 	// crosses the loop boundary as a compound value.
-	e.types[fin.Params[0]], e.types[fin.Params[1]] = TF64, TF64
+	e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
 	return e.emit(core.Rename(fin.Body(), map[string]string{
 		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
 }
@@ -427,11 +344,11 @@ func (e *Emitter) emitIf(t *core.Term) (string, error) {
 		return "", err
 	}
 	ty := e.typeOf(args[1])
-	if ty == TUnknown {
+	if ty == "" {
 		ty = e.typeOf(args[2])
 	}
 	tmp := e.fresh("t")
-	e.line("var %s %s", tmp, ty.Go())
+	e.line("var %s %s", tmp, e.tgt.ty(ty))
 	e.line("if %s {", cond)
 	e.indent++
 	thenV, err := e.emit(args[1])
@@ -464,7 +381,7 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 	}
 	accName, idxName := step.Params[0], step.Params[1]
 	e.types[accName] = e.typeOf(args[0])
-	e.types[idxName] = TInt
+	e.types[idxName] = "int"
 
 	init, err := e.emit(args[0])
 	if err != nil {

@@ -90,6 +90,24 @@ func Read(src string) ([]Form, error) {
 	}
 }
 
+// ReadAll reads raw terms without interpreting def/prim/target. Target files
+// are s-expressions but not programs, so they are parsed by their consumer.
+func ReadAll(src string) ([]*Term, error) {
+	r := &reader{src: src, line: 1}
+	var out []*Term
+	for {
+		r.skipSpace()
+		if r.done() {
+			return out, nil
+		}
+		t, err := r.term()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+}
+
 // ReadTerm reads exactly one term, for tests and the REPL.
 func ReadTerm(src string) (*Term, error) {
 	r := &reader{src: src, line: 1}
@@ -145,6 +163,9 @@ func (r *reader) term() (*Term, error) {
 	if r.done() {
 		return nil, fmt.Errorf("line %d: unexpected end of input", r.line)
 	}
+	if r.peek() == '"' {
+		return r.str()
+	}
 	if r.peek() == '(' {
 		return r.list()
 	}
@@ -152,6 +173,41 @@ func (r *reader) term() (*Term, error) {
 		return nil, fmt.Errorf("line %d: unexpected ')'", r.line)
 	}
 	return r.atom()
+}
+
+const backslash = rune(92)
+
+// str reads a double-quoted literal.
+//
+// Scanning only has to find the closing quote — strconv.Unquote does the escape
+// handling, so the set of escapes we accept is Go's, which is a larger set than
+// core-0 specifies. Narrowing it is a spec question, not a reader one, and is
+// noted in docs/spec/concerns.md.
+func (r *reader) str() (*Term, error) {
+	line := r.line
+	start := r.pos
+	r.next() // opening quote
+	for {
+		if r.done() {
+			return nil, fmt.Errorf("line %d: unterminated string literal", line)
+		}
+		c := r.next()
+		if c == backslash {
+			if r.done() {
+				return nil, fmt.Errorf("line %d: unterminated escape in string literal", line)
+			}
+			r.next()
+			continue
+		}
+		if c == '"' {
+			break
+		}
+	}
+	v, err := strconv.Unquote(r.src[start:r.pos])
+	if err != nil {
+		return nil, fmt.Errorf("line %d: bad string literal: %w", line, err)
+	}
+	return Str(v), nil
 }
 
 func (r *reader) list() (*Term, error) {
@@ -236,7 +292,7 @@ func (r *reader) atom() (*Term, error) {
 	start := r.pos
 	for !r.done() {
 		c := r.peek()
-		if c == '(' || c == ')' || c == ';' || unicode.IsSpace(c) {
+		if c == '(' || c == ')' || c == ';' || c == '"' || unicode.IsSpace(c) {
 			break
 		}
 		r.next()

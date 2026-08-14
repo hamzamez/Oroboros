@@ -8,6 +8,15 @@ import (
 )
 
 // reduce runs a source program to normal form and returns the single term.
+func goTarget(t *testing.T) *Target {
+	t.Helper()
+	tg, err := LoadTarget("../targets/go.oro")
+	if err != nil {
+		t.Fatalf("load target: %v", err)
+	}
+	return tg
+}
+
 func reduce(t *testing.T, src, target string) *core.Term {
 	t.Helper()
 	forms, err := core.Read(src)
@@ -45,7 +54,7 @@ const dotSrc = `
 `
 
 func TestEmitDot(t *testing.T) {
-	got, err := Func("dot", reduce(t, dotSrc, "go"))
+	got, err := Func(goTarget(t), "dot", reduce(t, dotSrc, "go"))
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -85,7 +94,7 @@ func TestEscapingClosureIsARefusal(t *testing.T) {
 		(def make-scaler (fn (f) (fn (v) (mul v f))))
 		(fn (k) (make-scaler k))
 	`
-	_, err := Func("ms", reduce(t, src, "go"))
+	_, err := Func(goTarget(t), "ms", reduce(t, src, "go"))
 	if err == nil {
 		t.Fatal("expected a refusal for an escaping closure")
 	}

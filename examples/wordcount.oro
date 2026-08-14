@@ -8,10 +8,6 @@
 ;
 ; Neither backend had a dictionary before this file.
 
-(target go (prim split-words slen sat dict-empty dict-inc fold-range))
-(target java (prim split-words slen sat dict-empty dict-inc fold-range))
-(target js (prim split-words slen sat dict-empty dict-inc fold-range))
-
 (def tally (fn (ws)
   (fold-range (dict-empty) (slen ws)
     (fn (acc i) (dict-inc acc (sat ws i))))))

@@ -1,0 +1,48 @@
+; The Go target, declared as data.
+;
+; Everything below used to be a hardcoded map in emit/golang.go. Adding a host
+; function now means adding a line here — requirement 4, "adding a target's APIs
+; is close to a file listing names".
+;
+; Kinds:
+;   expr   an expression; `form` is a template with %s holes
+;   stmt   a statement; the value of the term is argument 0
+;   let    binds a value to a name and continues       — implemented in code
+;   cond   a conditional                               — implemented in code
+;   loop   a fold with one accumulator                 — implemented in code
+;   loop2  a fold with two accumulators and a finisher — implemented in code
+;
+; Structural kinds are NAMED here and IMPLEMENTED in the backend: a loop binds
+; variables and emits a header, and no template expresses that.
+
+(target go
+  (type f64        "float64")
+  (type int        "int")
+  (type bool       "bool")
+  (type vec-f64    "[]float64")
+  (type string     "string")
+  (type vec-string "[]string")
+  (type dict       "map[string]int")
+
+  (prim add    (f64 f64) f64  expr "%s + %s")
+  (prim sub    (f64 f64) f64  expr "%s - %s")
+  (prim mul    (f64 f64) f64  expr "%s * %s")
+  (prim lt     (f64 f64) bool expr "%s < %s")
+  (prim gt     (f64 f64) bool expr "%s > %s")
+
+  (prim alen   (vec-f64) int      expr "len(%s)")
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+
+  ; Go's fused increment: one mapassign_faststr, verified in baseline C3.
+  (prim slen       (vec-string) int         expr "len(%s)")
+  (prim sat        (vec-string int) string  expr "%s[%s]")
+  (prim split-words (string) vec-string     expr "strings.Fields(%s)" (import "strings"))
+  (prim dict-empty (none) dict              expr "make(map[string]int)")
+  (prim dict-inc   (dict string) dict       stmt "%s[%s]++")
+
+  (prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
+
+  (prim let         (any any) any               let)
+  (prim if          (bool any any) any          cond)
+  (prim fold-range  (f64 int any) f64           loop)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2))

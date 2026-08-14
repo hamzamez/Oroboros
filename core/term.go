@@ -18,6 +18,7 @@ const (
 	KName  Kind = iota // a variable or a global reference
 	KInt               // integer literal
 	KFloat             // float literal, IEEE-754 binary64 exactly
+	KStr               // string literal
 	KFn                // (fn (p...) body)  — Params, Kids[0] = body
 	KApp               // (f a...)          — Kids[0] = operator, Kids[1:] = operands
 )
@@ -29,15 +30,17 @@ const (
 type Term struct {
 	Kind   Kind
 	Name   string
+	Str    string
 	Int    int64
 	Float  float64
 	Params []string
 	Kids   []*Term
 }
 
-func Name(s string) *Term  { return &Term{Kind: KName, Name: s} }
-func Int(v int64) *Term    { return &Term{Kind: KInt, Int: v} }
+func Name(s string) *Term   { return &Term{Kind: KName, Name: s} }
+func Int(v int64) *Term     { return &Term{Kind: KInt, Int: v} }
 func Float(v float64) *Term { return &Term{Kind: KFloat, Float: v} }
+func Str(v string) *Term    { return &Term{Kind: KStr, Str: v} }
 
 func Fn(params []string, body *Term) *Term {
 	return &Term{Kind: KFn, Params: params, Kids: []*Term{body}}
@@ -66,6 +69,8 @@ func (t *Term) write(sb *strings.Builder) {
 		sb.WriteString(t.Name)
 	case KInt:
 		sb.WriteString(strconv.FormatInt(t.Int, 10))
+	case KStr:
+		sb.WriteString(strconv.Quote(t.Str))
 	case KFloat:
 		s := strconv.FormatFloat(t.Float, 'g', -1, 64)
 		// A float literal must read back as a float, so 1 prints as 1.0.
@@ -106,6 +111,8 @@ func (t *Term) Equal(u *Term) bool {
 		return t.Int == u.Int
 	case KFloat:
 		return t.Float == u.Float
+	case KStr:
+		return t.Str == u.Str
 	}
 	if len(t.Params) != len(u.Params) || len(t.Kids) != len(u.Kids) {
 		return false

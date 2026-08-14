@@ -1,0 +1,20 @@
+; A target that provides `dot` natively — the "compiling up" half of ADR 0002.
+;
+; It differs from targets/go.oro by ONE line. That line is the entire distinction
+; between emitting a BLAS call and emitting a loop.
+
+(target blas
+  (type f64     "double")
+  (type int     "int")
+  (type vec-f64 "double*")
+
+  (prim add    (f64 f64) f64      expr "%s + %s")
+  (prim mul    (f64 f64) f64      expr "%s * %s")
+  (prim alen   (vec-f64) int      expr "%s.n")
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+
+  (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)")
+
+  (prim let         (any any) any               let)
+  (prim fold-range  (f64 int any) f64           loop)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2))

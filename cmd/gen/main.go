@@ -51,7 +51,10 @@ func run(targetDir, src, target, out, name string) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	env := tg.Env(prog)
+	env, err := tg.Env(prog)
+	if err != nil {
+		return fmt.Errorf("%s: %w", src, err)
+	}
 
 	if name == "" {
 		name = "gen-" + strings.TrimSuffix(filepath.Base(src), ".oro")

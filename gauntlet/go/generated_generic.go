@@ -15,7 +15,8 @@ func GenGeneric0(a []float64) float64 {
 
 func GenGeneric1(text string) map[string]int {
 	ws := (strings.Fields(text))
-	acc := (make(map[string]int))
+	init := (make(map[string]int))
+	acc := init
 	n1 := (len(ws))
 	for i := 0; i < n1; i++ {
 		acc[(ws[i])]++

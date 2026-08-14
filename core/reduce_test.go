@@ -18,12 +18,26 @@ import (
 
 // testEnv builds a reduction environment from a bare list of primitive names.
 // Real programs get theirs from a target file; tests do not need one.
+//
+// Primitives are PURE here, the opposite of the target-file default, because
+// almost every test primitive is arithmetic and the alternative is writing the
+// word forty times. A name prefixed with `!` is impure, which is how the
+// effect tests declare one.
 func testEnv(p *Program, prims ...string) *Env {
-	e := &Env{Defs: p.Defs, Prim: map[string]bool{}, Rec: map[string]bool{}}
+	e := &Env{
+		Defs: p.Defs,
+		Prim: map[string]bool{},
+		Pure: map[string]bool{},
+		Rec:  map[string]bool{},
+	}
 	for _, n := range prims {
+		pure := !strings.HasPrefix(n, "!")
+		n = strings.TrimPrefix(n, "!")
 		e.Prim[n] = true
+		e.Pure[n] = pure
 	}
 	e.Prim["let"] = true
+	e.Pure["let"] = true
 	e.MarkRecursive()
 	return e
 }
@@ -384,5 +398,113 @@ func TestProgramsCannotDeclarePrimitives(t *testing.T) {
 		if _, _, err := Load(forms); err == nil {
 			t.Errorf("%s should be rejected", src)
 		}
+	}
+}
+
+// ------------------------------------------------------- docs/spec/effects.md
+//
+// The three denials of §4, one test each, plus the two rules that make them
+// enough. `!name` declares an impure primitive; everything else is pure.
+
+// §4 — contraction. Two occurrences must not become two effects.
+func TestEffectIsNotDuplicated(t *testing.T) {
+	check(t, `
+		(prim add !read)
+		((fn (x) (add x x)) (read))
+	`, "default", "(let (read) (fn (x) (add x x)))")
+}
+
+// §4 — weakening, and the hazard g5 missed. Zero occurrences must not become
+// zero effects. This is the clause that makes seq work at all.
+func TestEffectIsNotDeleted(t *testing.T) {
+	check(t, `
+		(prim !read)
+		((fn (x) 1) (read))
+	`, "default", "(let (read) (fn (x) 1))")
+
+	// The pure case still deletes, which is the point of having the property.
+	check(t, `
+		(prim add)
+		((fn (x) 1) (add 2 3))
+	`, "default", "1")
+}
+
+// §4 — exchange, the hazard the reducer could not see. One occurrence, but it
+// is inside what becomes a loop body: substituting would turn one effect into n.
+func TestEffectIsNotMovedIntoALoop(t *testing.T) {
+	check(t, `
+		(prim add fold-range !read)
+		((fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))) (read))
+	`, "default",
+		"(let (read) (fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))))")
+
+	// The same shape with a pure argument still substitutes, so the discipline
+	// costs nothing where it is not needed.
+	check(t, `
+		(prim add mul fold-range)
+		((fn (x) (fold-range 0.0 10 (fn (acc i) (add acc x)))) (mul 2.0 3.0))
+	`, "default",
+		"(fold-range 0.0 10 (fn (acc i) (add acc (mul 2.0 3.0))))")
+}
+
+// §5 — seq is sugar, and order survives reduction.
+func TestSeqPreservesOrder(t *testing.T) {
+	check(t, `
+		(prim !print)
+		(seq (print 1) (print 2) (print 3))
+	`, "default",
+		"(let (print 1) (fn (_) (let (print 2) (fn (_) (print 3)))))")
+}
+
+// §3 — a λ is a value in argument position, so an effectful callback still
+// substitutes into the loop the programmer wrote it for. Judging it impure
+// would let-bind a bare λ, which reaches the emitter as an escaping closure.
+func TestEffectfulCallbackStillSubstitutes(t *testing.T) {
+	check(t, `
+		(prim fold-range !print)
+		((fn (f) (fold-range 0.0 10 f)) (fn (acc i) (print i)))
+	`, "default", "(fold-range 0.0 10 (fn (acc i) (print i)))")
+}
+
+// §3 — but a λ argument to a PRIMITIVE is transparent, or the whole loop would
+// be judged pure and could be moved into another loop.
+func TestALoopContainingAnEffectIsImpure(t *testing.T) {
+	check(t, `
+		(prim add fold-range !print)
+		((fn (x) (add x x)) (fold-range 0.0 10 (fn (acc i) (print i))))
+	`, "default",
+		"(let (fold-range 0.0 10 (fn (acc i) (print i))) (fn (x) (add x x)))")
+}
+
+// §4 — δ is safe because a definition's body must be a value. Without this,
+// two occurrences of `x` would print twice.
+func TestDefinitionBodyMustBeAValue(t *testing.T) {
+	src, prims := splitPrims(`
+		(prim !print)
+		(def x (print 1))
+		(add x x)
+	`, "default")
+	forms, err := Read(src)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	prog, _, err := Load(forms)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if err := testEnv(prog, prims...).CheckDefs(); err == nil {
+		t.Fatal("expected (def x (print 1)) to be rejected")
+	}
+
+	// Wrapping it in a λ makes it a value, and is accepted.
+	src, prims = splitPrims(`
+		(prim !print)
+		(def x (fn (n) (print n)))
+		(x 1)
+	`, "default")
+	forms, _ = Read(src)
+	prog, _, _ = Load(forms)
+	if err := testEnv(prog, prims...).CheckDefs(); err != nil {
+		t.Fatalf("a λ is a value and should be accepted: %v", err)
 	}
 }

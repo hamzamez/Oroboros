@@ -18,8 +18,11 @@ import (
 //   - Duplicating an *allocating* expression costs 615x on Go and is quadratic,
 //     because no host can hoist an allocation.
 //
-// One omission remains: there is no notion of effect, so g5's ordering
-// discipline is absent.
+// Effects are handled by a side condition on β, specified in docs/spec/effects.md:
+// an impure argument is never substituted, but normalised and let-bound at the
+// application site, in argument order, whatever its occurrence count. The three
+// clauses deny contraction, exchange and weakening respectively, which is what
+// g5 §5 called the ordering discipline.
 
 type Program struct {
 	Defs  map[string]*Term
@@ -31,6 +34,7 @@ type Program struct {
 type Env struct {
 	Defs map[string]*Term
 	Prim map[string]bool
+	Pure map[string]bool // names whose APPLICATION is pure; see pureName
 	Rec  map[string]bool // recursive definitions are never δ-reduced
 }
 
@@ -111,6 +115,96 @@ func (e *Env) reaches(from, target string, seen map[string]bool) bool {
 	return walk(body)
 }
 
+// CheckDefs enforces the one restriction that makes δ safe without a side
+// condition of its own (effects.md §4). Unfolding copies a definition's body to
+// every occurrence, which is contraction; it is sound exactly when the body is a
+// value. A λ is a value whatever its body does, so this rejects only a name
+// bound to a computation — `(def x (print-line "a"))`, whose two occurrences
+// would print twice. Every call-by-value language makes the same decision.
+func (e *Env) CheckDefs() error {
+	for _, name := range sortedKeys(e.Defs) {
+		if e.pureTerm(e.Defs[name], map[string]bool{}) {
+			continue
+		}
+		return fmt.Errorf("the body of %s is a computation, not a value, "+
+			"so unfolding it would repeat its effects\n"+
+			"  Wrap it in (fn () …) and apply it, or bind it with let at the point of use.", name)
+	}
+	return nil
+}
+
+func sortedKeys(m map[string]*Term) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// pureTerm is the judgement of effects.md §3: may this term be copied, dropped,
+// or moved without changing what the program does.
+//
+// The subtle case is the λ, and it is subtle in two directions at once.
+//
+// As an argument to a β-redex a λ is a VALUE — writing it does nothing, and its
+// body's effects fire at each application, which the body already contains. So
+// it stays opaque, and it must: `(fn (acc i) (print-line i))` judged impure
+// would be let-bound as a bare λ and reach the emitter as an escaping closure.
+//
+// As an argument to a PRIMITIVE it is transparent, because the structural
+// primitives — loop, loop2, cond, let — apply the λ they are given. Treating
+// `(fold-range z n (fn (acc i) (print-line i)))` as pure because its third
+// argument is a λ would license moving the whole loop into another loop.
+func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
+	switch t.Kind {
+	case KName, KInt, KFloat, KStr, KFn:
+		return true // values
+	case KApp:
+		op := t.Op()
+		for _, a := range t.Args() {
+			b := a
+			if op.Kind != KFn {
+				for b.Kind == KFn { // applied by the primitive; look through
+					b = b.Body()
+				}
+			}
+			if !e.pureTerm(b, seen) {
+				return false
+			}
+		}
+		switch op.Kind {
+		case KFn:
+			return e.pureTerm(op.Body(), seen) // applying a λ runs its body
+		case KName:
+			return e.pureName(op.Name, seen)
+		}
+		return e.pureTerm(op, seen)
+	}
+	return false
+}
+
+// pureName answers "does calling this thing do something", which is a different
+// question from "is this name safe to move" — a name is always a value. Keeping
+// the two apart is what makes the λ rule above sound.
+func (e *Env) pureName(n string, seen map[string]bool) bool {
+	if e.Prim[n] {
+		return e.Pure[n]
+	}
+	body, ok := e.Defs[n]
+	if !ok {
+		return true // a free variable is a value, not a call
+	}
+	if seen[n] {
+		return true // recursion contributes nothing new to a least fixed point
+	}
+	seen[n] = true
+	for body.Kind == KFn {
+		body = body.Body()
+	}
+	return e.pureTerm(body, seen)
+}
+
 // unfoldable reports whether δ applies to this name under this environment.
 func (e *Env) unfoldable(name string) bool {
 	if e.Prim[name] || e.Rec[name] {
@@ -186,6 +280,21 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				val  *Term
 			}
 			for i, p := range op.Params {
+				// Impure: never substituted. Bound here, at the application
+				// site, which is where the programmer wrote it — at its
+				// original loop depth and under its original guards. Binding
+				// at the USE site instead would be the bug. (effects.md §4)
+				if !e.pureTerm(args[i], map[string]bool{}) {
+					na, err := normalize(args[i], e, fuel)
+					if err != nil {
+						return nil, err
+					}
+					bound = append(bound, struct {
+						name string
+						val  *Term
+					}{p, na})
+					continue
+				}
 				// One occurrence or none: substituting cannot duplicate anything.
 				if occurrences(op.Body(), p) <= 1 {
 					m[p] = args[i]
@@ -278,6 +387,12 @@ func occurrences(t *Term, name string) int {
 	}
 	return n
 }
+
+// Occurs reports whether name is used in t. Backends need this to recognise a
+// residual `let` whose binder is used zero times: that is a sequencing point
+// (effects.md §5), the binding has no reader, and Go rejects the program if one
+// is emitted anyway.
+func Occurs(t *Term, name string) bool { return occurrences(t, name) > 0 }
 
 // subst is capture-avoiding. core-0 specifies a locally nameless representation,
 // which makes capture unrepresentable; this uses names with freshening, which

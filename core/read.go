@@ -254,6 +254,26 @@ func (r *reader) list() (*Term, error) {
 		return &Term{Kind: KApp, Kids: []*Term{kids[2], kids[1]}}, nil
 	}
 
+	// `seq` is the same trick with the binder thrown away, and it is the whole
+	// of our sequencing construct — no statement form, no unit type.
+	//
+	//   (seq a b c)  ⟶  ((fn (_) ((fn (_) c) b)) a)
+	//
+	// It works only because β denies weakening to impure terms (effects.md §5):
+	// `_` occurs zero times, so a pure `a` is correctly deleted and an impure
+	// `a` is correctly kept. The hazard g5 did not list is the one that makes
+	// sequencing expressible at all.
+	if kids[0].Kind == KName && kids[0].Name == "seq" {
+		if len(kids) < 3 {
+			return nil, fmt.Errorf("line %d: seq takes two or more terms", line)
+		}
+		t := kids[len(kids)-1]
+		for i := len(kids) - 2; i >= 1; i-- {
+			t = &Term{Kind: KApp, Kids: []*Term{Fn([]string{"_"}, t), kids[i]}}
+		}
+		return t, nil
+	}
+
 	// (fn (p...) body) is the only special form inside a term.
 	if kids[0].Kind == KName && (kids[0].Name == "fn" || kids[0].Name == "λ") {
 		if len(kids) != 3 {

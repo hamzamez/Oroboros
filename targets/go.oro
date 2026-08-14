@@ -14,6 +14,12 @@
 ;
 ; Structural kinds are NAMED here and IMPLEMENTED in the backend: a loop binds
 ; variables and emits a header, and no template expresses that.
+;
+; `pure` licenses the reducer to copy, drop and reorder an application of this
+; primitive. It DEFAULTS OFF: forgetting it costs speed, where forgetting the
+; opposite marker would cost correctness silently (docs/spec/effects.md §3).
+; Two primitives here are not pure, and both were already effectful before the
+; word existed — dict-inc mutates in place, and dict-empty has a fresh identity.
 
 (target go
   (type f64        "float64")
@@ -24,25 +30,34 @@
   (type vec-string "[]string")
   (type dict       "map[string]int")
 
-  (prim add    (f64 f64) f64  expr "%s + %s")
-  (prim sub    (f64 f64) f64  expr "%s - %s")
-  (prim mul    (f64 f64) f64  expr "%s * %s")
-  (prim lt     (f64 f64) bool expr "%s < %s")
-  (prim gt     (f64 f64) bool expr "%s > %s")
+  ; `any` is the host's own escape hatch, needed only at a boundary where the
+  ; host itself is polymorphic — fmt.Println takes ...any. Boxing here is the
+  ; host's, not ours (g5 §7).
+  (type any        "any")
 
-  (prim alen   (vec-f64) int      expr "len(%s)")
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+  (prim add    (f64 f64) f64  expr "%s + %s" pure)
+  (prim sub    (f64 f64) f64  expr "%s - %s" pure)
+  (prim mul    (f64 f64) f64  expr "%s * %s" pure)
+  (prim lt     (f64 f64) bool expr "%s < %s" pure)
+  (prim gt     (f64 f64) bool expr "%s > %s" pure)
+
+  (prim alen   (vec-f64) int      expr "len(%s)" pure)
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure)
 
   ; Go's fused increment: one mapassign_faststr, verified in baseline C3.
-  (prim slen       (vec-string) int         expr "len(%s)")
-  (prim sat        (vec-string int) string  expr "%s[%s]")
-  (prim split-words (string) vec-string     expr "strings.Fields(%s)" (import "strings"))
+  (prim slen       (vec-string) int         expr "len(%s)" pure)
+  (prim sat        (vec-string int) string  expr "%s[%s]"  pure)
+  (prim split-words (string) vec-string     expr "strings.Fields(%s)" pure (import "strings"))
   (prim dict-empty (none) dict              expr "make(map[string]int)")
   (prim dict-inc   (dict string) dict       stmt "%s[%s]++")
 
-  (prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
+  (prim sqrt (f64) f64 expr "math.Sqrt(%s)" pure (import "math"))
 
-  (prim let         (any any) any               let)
-  (prim if          (bool any any) any          cond)
-  (prim fold-range  (f64 int any) f64           loop)
-  (prim fold-range2 (f64 f64 int any any any) f64 loop2))
+  ; Tier 2. Go, JS and Java print the same float three different ways, so this
+  ; carries no portability claim — effects.md §6.
+  (prim print-line (any) any stmt "fmt.Println(%s)" (import "fmt"))
+
+  (prim let         (any any) any               let  pure)
+  (prim if          (bool any any) any          cond pure)
+  (prim fold-range  (f64 int any) f64           loop pure)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2 pure))

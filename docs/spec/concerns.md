@@ -33,6 +33,21 @@ syntactic test.
 `TestFilterFusesToOneLoop` asserted the wrong answer on purpose for two days and now matches
 [q5b §3](q5b-filter.md). The spec and the code agree again.
 
+### 1.6 ~~No notion of effect~~ — **CLOSED, 2026-08-14**
+
+[effects.md](effects.md), measured in
+[effects-2026-08-14](../../gauntlet/results/effects-2026-08-14.md). β carries a side condition:
+an impure argument is never substituted, but let-bound at the application site, whatever its
+occurrence count. The three clauses deny contraction, weakening and exchange.
+
+Two things are worth keeping from how it went. First, [g5](../derivations/g5-bindings.md) listed
+*two* hazards and there are three — the missing one, weakening, is the one that makes `seq`
+expressible. Second, g5 said effects would arrive with program 5, and they were already here:
+`dict-inc` has mutated in place since word count.
+
+**Still open:** the aliasing half. Ordering is preserved; destructive update is not checked. See
+§3.4.
+
 ### 1.2 NFC normalisation is specified and not checked
 
 [core-0 §1.1](core-0.md) requires NFC. The reader checks UTF-8 validity and rejects
@@ -112,6 +127,16 @@ not been made.
 
 Admitted so that `fold-range` and friends read naturally, but it also makes `a.b` a single name.
 If field access is ever written `a.b`, this collides. Nothing depends on it yet.
+
+### 3.4 Destructive update is unchecked
+
+`dict-inc` emits `m[k]++` — it mutates its argument and returns it. That is correct only while the
+pre-mutation dictionary is dead, which nothing verifies. Today no program can observe the
+difference because **no primitive reads a dictionary**, the same accident that made
+[strings](strings.md) cheap.
+
+[effects.md](effects.md) fixes ordering and deliberately does not fix this. It becomes real the
+moment a primitive reads a dictionary, and it is [g7](../derivations/g7-aliasing.md)'s question.
 
 ### 3.3 The residual check reports free variables
 

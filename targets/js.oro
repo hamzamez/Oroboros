@@ -7,28 +7,35 @@
 ;
 ; Argument types are still written, because they document the primitive and a
 ; future checker could use them regardless of target. They are never consulted.
+;
+; `pure` is consulted, on every target, because it is not a type — it decides
+; whether β may move the term (docs/spec/effects.md §3).
 
 (target js
-  (prim add    (f64 f64) f64  expr "%s + %s")
-  (prim sub    (f64 f64) f64  expr "%s - %s")
-  (prim mul    (f64 f64) f64  expr "%s * %s")
-  (prim lt     (f64 f64) bool expr "%s < %s")
-  (prim gt     (f64 f64) bool expr "%s > %s")
+  (prim add    (f64 f64) f64  expr "%s + %s" pure)
+  (prim sub    (f64 f64) f64  expr "%s - %s" pure)
+  (prim mul    (f64 f64) f64  expr "%s * %s" pure)
+  (prim lt     (f64 f64) bool expr "%s < %s" pure)
+  (prim gt     (f64 f64) bool expr "%s > %s" pure)
 
-  (prim alen   (vec-f64) int      expr "%s.length")
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+  (prim alen   (vec-f64) int      expr "%s.length" pure)
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]"    pure)
 
   ; A null-prototype object, NOT Map. Baseline R4 measured Map at 3.25x slower
   ; for string keys, which refuted g4's original pass condition.
-  (prim slen        (vec-string) int        expr "%s.length")
-  (prim sat         (vec-string int) string expr "%s[%s]")
-  (prim split-words (string) vec-string     expr "%s.split(\" \")")
+  (prim slen        (vec-string) int        expr "%s.length"    pure)
+  (prim sat         (vec-string int) string expr "%s[%s]"       pure)
+  (prim split-words (string) vec-string     expr "%s.split(\" \")" pure)
   (prim dict-empty  (none) dict             expr "Object.create(null)")
   (prim dict-inc    (dict string) dict      stmt "%s[%s] = (%s[%s] ?? 0) + 1")
 
-  (prim sqrt (f64) f64 expr "Math.sqrt(%s)")
+  (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
 
-  (prim let         (any any) any               let)
-  (prim if          (bool any any) any          cond)
-  (prim fold-range  (f64 int any) f64           loop)
-  (prim fold-range2 (f64 f64 int any any any) f64 loop2))
+  ; Tier 2 — effects.md §6. console.log prints 1 for 1.0 and 100000000 for 1e8,
+  ; agreeing with Go on the first and with neither on the second.
+  (prim print-line (any) any stmt "console.log(%s)")
+
+  (prim let         (any any) any               let  pure)
+  (prim if          (bool any any) any          cond pure)
+  (prim fold-range  (f64 int any) f64           loop pure)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2 pure))

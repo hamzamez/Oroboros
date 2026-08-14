@@ -13,28 +13,33 @@
   (type string     "String")
   (type vec-string "String[]")
   (type dict       "HashMap<String,Integer>")
+  (type any        "Object")
 
-  (prim add    (f64 f64) f64  expr "%s + %s")
-  (prim sub    (f64 f64) f64  expr "%s - %s")
-  (prim mul    (f64 f64) f64  expr "%s * %s")
-  (prim lt     (f64 f64) bool expr "%s < %s")
-  (prim gt     (f64 f64) bool expr "%s > %s")
+  (prim add    (f64 f64) f64  expr "%s + %s" pure)
+  (prim sub    (f64 f64) f64  expr "%s - %s" pure)
+  (prim mul    (f64 f64) f64  expr "%s * %s" pure)
+  (prim lt     (f64 f64) bool expr "%s < %s" pure)
+  (prim gt     (f64 f64) bool expr "%s > %s" pure)
 
   ; Java arrays carry .length, so alen and slen share a shape — unlike Go, where
   ; len() is a function.
-  (prim alen   (vec-f64) int      expr "%s.length")
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]")
+  (prim alen   (vec-f64) int      expr "%s.length" pure)
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]"    pure)
 
-  (prim slen        (vec-string) int        expr "%s.length")
-  (prim sat         (vec-string int) string expr "%s[%s]")
-  (prim split-words (string) vec-string     expr "%s.split(\" \")")
+  (prim slen        (vec-string) int        expr "%s.length" pure)
+  (prim sat         (vec-string int) string expr "%s[%s]"    pure)
+  (prim split-words (string) vec-string     expr "%s.split(\" \")" pure)
   (prim dict-empty  (none) dict             expr "new HashMap<String,Integer>()"
                                                  (import "java.util.HashMap"))
   (prim dict-inc    (dict string) dict      stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)")
 
-  (prim sqrt (f64) f64 expr "Math.sqrt(%s)")
+  (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
 
-  (prim let         (any any) any               let)
-  (prim if          (bool any any) any          cond)
-  (prim fold-range  (f64 int any) f64           loop)
-  (prim fold-range2 (f64 f64 int any any any) f64 loop2))
+  ; Tier 2 — effects.md §6. This is the target that disagrees most: println
+  ; prints 1.0 where Go and JS print 1, and 1.0E8 where JS prints 100000000.
+  (prim print-line (any) any stmt "System.out.println(%s)")
+
+  (prim let         (any any) any               let  pure)
+  (prim if          (bool any any) any          cond pure)
+  (prim fold-range  (f64 int any) f64           loop pure)
+  (prim fold-range2 (f64 f64 int any any any) f64 loop2 pure))

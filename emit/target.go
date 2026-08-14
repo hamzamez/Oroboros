@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"oroboros/core"
 )
@@ -30,6 +31,7 @@ type Prim struct {
 	Kind   string // expr | stmt | loop | loop2 | cond | let
 	Form   string // template with %s holes; empty for structural kinds
 	Import string
+	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 }
 
 type Target struct {
@@ -142,6 +144,8 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		switch {
 		case rest.Kind == core.KStr:
 			p.Form = rest.Str
+		case rest.Kind == core.KName && rest.Name == "pure":
+			p.Pure = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "import" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Import = rest.Kids[1].Str
@@ -157,14 +161,47 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 
 // Env builds the reduction environment. Which names are primitive is exactly
 // what the target file declares, so this is the whole of ADR 0002's parameter.
-func (tg *Target) Env(p *core.Program) *core.Env {
-	e := &core.Env{Defs: p.Defs, Prim: map[string]bool{}, Rec: map[string]bool{}}
+//
+// Purity travels with it, and its default is the point (effects.md §3): a target
+// author who forgets `pure` gets a slower program, where one who forgot an
+// `effect` marker under the opposite default would get a silent miscompilation.
+// The default must be the one whose failure mode is slow, not wrong.
+func (tg *Target) Env(p *core.Program) (*core.Env, error) {
+	e := &core.Env{
+		Defs: p.Defs,
+		Prim: map[string]bool{},
+		Pure: map[string]bool{},
+		Rec:  map[string]bool{},
+	}
 	for _, n := range tg.Names {
 		e.Prim[n] = true
+		e.Pure[n] = tg.Prims[n].Pure
 	}
+	// `let` reaches the reducer only in a residual it produced itself, so it is
+	// primitive here without being declared. Its own application does nothing —
+	// whether a let is pure is decided by its value and its body, which the
+	// judgement reads through.
 	e.Prim["let"] = true
+	e.Pure["let"] = true
 	e.MarkRecursive()
-	return e
+	return e, e.CheckDefs()
+}
+
+// fill applies a template to operands, cycling them to cover however many holes
+// the template has. `%s[%s]++` names two operands once each; JS's dictionary
+// increment names the same two twice; `fmt.Println(%s)` names its one operand
+// once. Repeating a fixed number of times worked only while every stmt
+// primitive was a dictionary update.
+func fill(form string, vals []any) string {
+	holes := strings.Count(form, "%s")
+	if len(vals) == 0 || holes <= len(vals) {
+		return fmt.Sprintf(form, vals[:min(holes, len(vals))]...)
+	}
+	out := make([]any, holes)
+	for i := range out {
+		out[i] = vals[i%len(vals)]
+	}
+	return fmt.Sprintf(form, out...)
 }
 
 // ty spells one of our type names in the target's own language. An untyped

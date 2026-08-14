@@ -18,17 +18,19 @@ term ::= name | integer | float | string | (fn (name…) term) | (term term…)
 (def name term)
 ```
 
-**Two special forms in the reader.** `fn` (also spelled `λ`), and `let`, which is sugar —
-`(let e k)` reads as `(k e)` and reduces like any other application
-([def.md](def.md)).
+**Three special forms in the reader**, two of which are sugar. `fn` (also spelled `λ`); `let`,
+where `(let e k)` reads as `(k e)` ([def.md](def.md)); and `seq`, where `(seq a b)` reads as
+`((fn (_) b) a)` ([effects.md §5](effects.md)). Neither sugar survives the reader.
 
-**Two reduction rules.** β with call-by-need, and δ over definitions.
+**Two reduction rules.** β with call-by-need, and δ over definitions. β carries one side
+condition: an impure argument is let-bound rather than substituted ([effects.md §4](effects.md)).
 
-**One parameter.** Which names are primitive, supplied by a target file. That is
-[ADR 0002](../decisions/0002-capability-graph.md)'s capability set, and it is now literally a
-separate file.
+**Two parameters.** Which names are primitive, and which of those are pure — both supplied by a
+target file. The first is [ADR 0002](../decisions/0002-capability-graph.md)'s capability set. The
+second decides whether β may move a term, and defaults to *impure*, so that a target author's
+omission costs speed rather than correctness.
 
-That is all of it. 987 lines in `core/`, 21 tests.
+That is all of it. 1,058 lines in `core/`, 28 tests.
 
 ## 2. What a program may *not* say
 
@@ -47,7 +49,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 | Arithmetic evaluation | `(add 1 2)` does not fold. No primitive is ever evaluated |
 | Pattern matching | none — ι of Coq's βδιζη |
 | Extensionality | none — η |
-| Effects | none, so [g5](../derivations/g5-bindings.md)'s ordering discipline has no implementation |
+| Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |
 | Modules | none. `cmd/gen` names emitted functions by position |
 | `rec` | not implemented; `markRecursive` decides silently ([def.md §3](def.md)) |
 | Escaping closures | all three backends refuse them |
@@ -72,6 +74,22 @@ Go, **2** on JS and Java, and **1** if you count characters.
 s-expression parse tree for target files. A target file is not a program and should not have to
 be one. If target files ever need something the language does not have, the split becomes forced.
 
+## 4b. Effects, which were specified before they were added
+
+The correct order, and the first time this project has used it. [effects.md](effects.md) was
+written before any code.
+
+The finding that reordered the whole question: **effects were already here.** `dict-inc` mutates a
+dictionary in place and `dict-empty` has a fresh identity, both since word count. Program 5 did not
+introduce effects, it made them observable.
+
+> **Purity is the licence to use the structural rules.** A pure term may be copied, dropped and
+> moved. An impure term is *ordered*: exactly once, where it was written.
+
+Denying contraction, weakening and exchange to impure terms is the whole discipline, and it needs
+no effect types, no monads, and no linear types on values. It cost the six existing programs
+nothing [measurable](../../gauntlet/results/effects-2026-08-14.md).
+
 ## 5. What the language has that is unusual
 
 Worth stating, because the absences above make it look smaller than it is.
@@ -84,6 +102,9 @@ Worth stating, because the absences above make it look smaller than it is.
   *fused on Go and unfused on Java* because that is what each measured faster.
 - **Call-by-need with no cost model.** Occurrence counting plus a four-case syntactic test, which
   the [measurements](../../gauntlet/results/callbyneed-2026-08-14.md) showed is enough.
+- **Sequencing with no sequencing construct.** `seq` is a β-redex whose binder is unused, and it
+  works because β refuses to drop an impure argument — the ordering discipline and the ability to
+  write a statement sequence are the same mechanism.
 
 ## 6. The rule this document exists to enforce
 

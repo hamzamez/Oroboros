@@ -5,9 +5,9 @@ repository.
 
 ## Project state
 
-**Working compiler.** A β/δ reducer with call-by-need, three backends (Go, JavaScript, Java),
-and six programs that all reach parity with hand-written code — two of them producing
-byte-identical machine code on Go.
+**Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
+(Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written
+code — two of them producing byte-identical machine code on Go.
 
 Start with [README.md](README.md), then [docs/design-direction.md](docs/design-direction.md),
 then the ADRs in [docs/decisions/](docs/decisions/). Measurements are in
@@ -157,8 +157,16 @@ The test for a proposed addition is not "is it useful":
 is not in the core. Strings pass only by having almost no operations.
 
 **The current state of the language is [docs/spec/state.md](docs/spec/state.md)**, read off the
-code rather than from memory. Six term kinds, one top-level form, two reduction rules, one
-parameter.
+code rather than from memory. Six term kinds, one top-level form, two reduction rules, two
+parameters.
+
+**Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
+Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission
+costs speed rather than correctness. An impure argument is never substituted; it is let-bound at
+the application site, whatever its occurrence count, which denies contraction, weakening and
+exchange in that order. There are no effect types, no monads, and no linear types on values, and
+adding any of them should be argued against this first. `seq` is sugar for a β-redex with an unused
+binder and works *only* because weakening is denied.
 
 ## Working conventions
 
@@ -219,7 +227,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `targets/` | Target declarations — **data, not Go**. Adding a host function is a line here. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
-| `examples/` | `dot.oro`, `filter.oro` |
+| `examples/` | seven programs, one per gauntlet entry |
 | `gauntlet/` | hand-written references and results — the bar |
 
 **Both emitted programs reach parity with hand-written Go.** See

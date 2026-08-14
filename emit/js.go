@@ -102,6 +102,14 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			// A binder used zero times is a sequencing point rather than a
+			// binding — see effects.md §5 and the Go backend's emitLet.
+			if !core.Occurs(k.Body(), k.Params[0]) {
+				if !emitsStatement(e.tgt, args[0]) {
+					e.line("%s;", val)
+				}
+				return e.emit(k.Body())
+			}
 			e.line("const %s = %s;", jsMangle(k.Params[0]), val)
 			return e.emit(k.Body())
 		}
@@ -115,8 +123,7 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				}
 				vals = append(vals, v)
 			}
-			// dict-inc names both operands twice; repeat them for the template.
-			e.line("%s;", fmt.Sprintf(p.Form, append(vals, vals...)...))
+			e.line("%s;", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}
 		if p.Kind == "loop" {

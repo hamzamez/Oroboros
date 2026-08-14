@@ -11,7 +11,8 @@ export function genGeneric0(a) {
 
 export function genGeneric1(text) {
 	const ws = (text.split(" "));
-	let acc = (Object.create(null));
+	const init = (Object.create(null));
+	let acc = init;
 	const n1 = (ws.length);
 	for (let i = 0; i < n1; i++) {
 		acc[(ws[i])] = (acc[(ws[i])] ?? 0) + 1;

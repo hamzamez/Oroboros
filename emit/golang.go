@@ -36,6 +36,7 @@ type Emitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
+	weak    map[string]string // variable -> `any`, used only if nothing else fits
 	tmp     int
 	indent  int
 }
@@ -45,7 +46,8 @@ func Func(tgt *Target, name string, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &Emitter{tgt: tgt, types: map[string]string{}, imports: map[string]bool{}}
+	e := &Emitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
+		imports: map[string]bool{}}
 
 	// Parameter types come from how the body uses them. Local propagation from
 	// primitive signatures — not inference, just reading the table.
@@ -56,6 +58,9 @@ func Func(tgt *Target, name string, t *core.Term) (string, error) {
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
 		ty := e.types[p]
+		if ty == "" {
+			ty = e.weak[p]
+		}
 		if ty == "" {
 			return "", fmt.Errorf("cannot determine a Go type for parameter %q; "+
 				"it is never passed to a primitive whose signature would fix it", p)
@@ -99,7 +104,13 @@ func (e *Emitter) inferFrom(t *core.Term) {
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				for i, a := range t.Args() {
 					if i < len(p.Args) && a.Kind == core.KName {
-						if e.types[a.Name] == "" {
+						// `any` is not a constraint, so it must not occupy the
+						// slot a real one would fill. It is remembered weakly
+						// instead: if nothing else ever constrains the name,
+						// the host's own polymorphism is the honest answer.
+						if p.Args[i] == "any" {
+							e.weak[a.Name] = "any"
+						} else if e.types[a.Name] == "" {
 							e.types[a.Name] = p.Args[i]
 						}
 					}
@@ -149,6 +160,15 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
+					}
+				}
+				// A statement's value IS argument 0, which is what every
+				// target file has said since dict-inc and what none of them
+				// implemented — dict-inc got away with declaring `dict` for
+				// both. print-line is the first primitive where they differ.
+				if p.Kind == "stmt" && len(t.Args()) > 0 {
+					if ty := e.typeOf(t.Args()[0]); ty != "" {
+						return ty
 					}
 				}
 				return p.Result
@@ -218,7 +238,7 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 				}
 				vals[i] = v
 			}
-			e.line("%s", fmt.Sprintf(p.Form, vals...))
+			e.line("%s", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}
 		if p.Kind == "loop" {
@@ -325,10 +345,31 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// A binder used zero times is a sequencing point, not a binding: β keeps an
+	// impure argument whatever its occurrence count (effects.md §5), and that is
+	// what `seq` desugars into. Emitting `x := v` here would be rejected by Go
+	// as an unused variable.
+	if !core.Occurs(k.Body(), k.Params[0]) {
+		if !emitsStatement(e.tgt, args[0]) {
+			e.line("_ = %s", val) // Go forbids a bare expression statement
+		}
+		return e.emit(k.Body())
+	}
 	name := mangle(k.Params[0])
 	e.types[k.Params[0]] = e.typeOf(args[0])
 	e.line("%s := %s", name, val)
 	return e.emit(k.Body())
+}
+
+// emitsStatement reports whether emitting this term already wrote a line for its
+// effect, in which case a sequencing let needs to add nothing. Shared by the
+// three backends, which agree here and differ only in how they spell a discarded
+// expression.
+func emitsStatement(tgt *Target, t *core.Term) bool {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return false
+	}
+	return tgt.Prims[t.Op().Name].Kind == "stmt"
 }
 
 // emitIf turns (if c then else) into a Go if statement assigning to a temporary,

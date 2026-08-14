@@ -33,6 +33,7 @@ type javaEmitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string
+	weak    map[string]string // `any`, used only if nothing else constrains the name
 	tmp     int
 	indent  int
 }
@@ -45,7 +46,8 @@ func JavaMethod(tgt *Target, name string, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &javaEmitter{tgt: tgt, types: map[string]string{}, imports: map[string]bool{}, indent: 2}
+	e := &javaEmitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
+		imports: map[string]bool{}, indent: 2}
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
 	e.inferFrom(t.Body())
@@ -53,6 +55,9 @@ func JavaMethod(tgt *Target, name string, t *core.Term) (string, error) {
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
 		ty := e.types[p]
+		if ty == "" {
+			ty = e.weak[p]
+		}
 		if ty == "" {
 			return "", fmt.Errorf("cannot determine a Java type for parameter %q", p)
 		}
@@ -81,7 +86,13 @@ func (e *javaEmitter) inferFrom(t *core.Term) {
 		if op := t.Op(); op.Kind == core.KName {
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				for i, a := range t.Args() {
-					if i < len(p.Args) && a.Kind == core.KName && e.types[a.Name] == "" {
+					if i >= len(p.Args) || a.Kind != core.KName {
+						continue
+					}
+					// `any` is the absence of a constraint — see the Go backend.
+					if p.Args[i] == "any" {
+						e.weak[a.Name] = "any"
+					} else if e.types[a.Name] == "" {
 						e.types[a.Name] = p.Args[i]
 					}
 				}
@@ -126,6 +137,12 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
+					}
+				}
+				// A statement's value is argument 0 — see the Go backend.
+				if p.Kind == "stmt" && len(t.Args()) > 0 {
+					if ty := e.typeOf(t.Args()[0]); ty != "" {
+						return ty
 					}
 				}
 				return p.Result
@@ -193,8 +210,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				}
 				vals = append(vals, v)
 			}
-			// dict-inc names both operands twice.
-			e.line("%s;", fmt.Sprintf(p.Form, append(vals, vals...)...))
+			e.line("%s;", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}
 		args := t.Args()
@@ -223,6 +239,15 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 	val, err := e.emit(args[0])
 	if err != nil {
 		return "", err
+	}
+	// A binder used zero times is a sequencing point rather than a binding — see
+	// effects.md §5 and the Go backend's emitLet. Java tolerates an unused local
+	// where Go does not, but emitting one would still be noise.
+	if !core.Occurs(k.Body(), k.Params[0]) {
+		if !emitsStatement(e.tgt, args[0]) {
+			e.line("final var %s = %s;", javaMangle(e.fresh("discard")), val)
+		}
+		return e.emit(k.Body())
 	}
 	ty := e.typeOf(args[0])
 	e.types[k.Params[0]] = ty

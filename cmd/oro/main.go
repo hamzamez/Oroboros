@@ -56,7 +56,10 @@ func run(targetDir, path, target string, fuel int, steps bool) error {
 	if err != nil {
 		return err
 	}
-	env := tg.Env(prog)
+	env, err := tg.Env(prog)
+	if err != nil {
+		return fmt.Errorf("%s: %w", path, err)
+	}
 
 	for _, t := range terms {
 		if steps {

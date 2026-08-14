@@ -2,6 +2,23 @@
 
 Exploration only. No commitments, no ADR.
 
+> **Correction, 2026-08-14 — implemented, and wrong in two places.**
+> The discipline of §5 is now specified in [docs/spec/effects.md](../spec/effects.md) and built,
+> measured in [effects-2026-08-14](../../gauntlet/results/effects-2026-08-14.md). Two claims below
+> did not survive:
+>
+> 1. **§5 says effects "arrive" with program 5. They were already here.** `dict-inc` mutates a
+>    dictionary in place and `dict-empty` has a fresh identity, both since word count. Program 5
+>    made them *observable*; it did not introduce them.
+> 2. **§5 lists two hazards and there are three.** Duplication and context change are contraction
+>    and exchange; the missing one is **weakening** — an argument used zero times is dropped, and
+>    dropping an effect deletes it. That is the hazard that makes `seq` expressible at all, so a
+>    discipline built from this derivation alone could not have written program 5.
+>
+> What did survive: §4's "a binding is a vocabulary entry plus an emission template" — `print-line`
+> is one line per target file and no Go — and §6's Tier 2 verdict, now confirmed by our own output
+> (Go `1`, JS `1`, Java `1.0` for the same value).
+
 The question: does calling into a host ecosystem cost any new machinery, and does the "file
 listing function names" of requirement 4 actually work?
 

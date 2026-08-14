@@ -31,7 +31,10 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	if err != nil {
 		t.Fatalf("target: %v", err)
 	}
-	env := tg.Env(prog)
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatalf("env: %v", err)
+	}
 	out, err := core.Normalize(terms[0], env, core.DefaultFuel)
 	if err != nil {
 		t.Fatalf("normalize: %v", err)

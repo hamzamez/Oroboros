@@ -158,15 +158,23 @@ survives as a per-iteration closure when the loop *carries* it. So loop-carried 
 primitive-shaped — which is the same statement as the grading story, since state used *n* times
 is grade ω and grade ω is what survives.
 
-## Five programs, two targets, all at parity
+## Five programs, three targets
 
-| | Go | JavaScript |
-|---|---|---|
-| dot product | parity | parity |
-| filter-sum | parity | parity |
-| centroid (structs) | **byte-identical machine code** | parity |
-| word count | parity, structurally confirmed | 1.2× |
-| [generics](gauntlet/results/generics-2026-08-14.md) | **byte-identical machine code** | parity |
+| | Go | JavaScript | [Java](gauntlet/results/java-2026-08-14.md) |
+|---|---|---|---|
+| dot product | parity | parity | parity¹ |
+| filter-sum | parity | parity | parity¹ |
+| centroid (structs) | **byte-identical machine code** | parity | parity¹ |
+| word count | parity, structurally confirmed | 1.2× | correct, unbenchmarked |
+| [generics](gauntlet/results/generics-2026-08-14.md) | **byte-identical machine code** | parity | correct |
+
+¹ Java parity rests on timings rather than on a compiled-output diff, because `javac` does not
+optimise — it transcribes source and leaves the work to HotSpot. It is the least-confirmed of the
+three.
+
+**The core has not changed since the atom was built.** Neither JavaScript nor Java required a
+single line of `core/`, which is the specific test [ADR 0004](docs/decisions/0004-first-targets.md)
+designed the second and third backends to perform.
 
 One generic definition, used at two element types and two accumulator types, with **no type
 annotations anywhere** — no monomorphization pass, no type parameters, no dictionary. The
@@ -187,15 +195,26 @@ gave the criterion —
 — and the asymmetry meant the fix needed no grades and no cost model, which is what the design
 had assumed was blocking it.
 
+## The same capability, opposite idioms
+
+Word count's dictionary, from one source:
+
+| | emitted | because |
+|---|---|---|
+| Go | `acc[k]++` — **fused** | one `mapassign_faststr` |
+| JS | null-prototype object | `Map` is 3.25× slower for string keys |
+| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6× slower; it boxes |
+
+Go's fused idiom wins and Java's loses, decided by measurements taken long before either backend
+existed, and living entirely in the primitive table. That is
+[ADR 0008](docs/decisions/0008-measurement-over-principle.md) — parasite decisions are per-target
+measurements, not principles — when it is real rather than stated.
+
 ## Next
 
-**Java** — the third target [ADR 0004](docs/decisions/0004-first-targets.md) named, and the one
-that settles [ADR 0006](docs/decisions/0006-ir-file-format.md)'s backend interface. The Go and JS
-emitters duplicate the whole term walk; that was left unfactored deliberately, because two points
-define a line and a third is what shows whether it is straight.
-
-Then **program 5**, formatted output — the only gauntlet program never touched, and the one that
-needs a real host binding.
+**Program 5**, formatted output — the only gauntlet program never touched, and the one that needs
+a real host binding, where [g5](docs/derivations/g5-bindings.md)'s Tier 2 format stops being on
+paper.
 
 Open, and deliberately not yet built: call-by-need — which lost its performance justification
 when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —

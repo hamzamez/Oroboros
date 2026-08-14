@@ -6,6 +6,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -34,18 +36,25 @@ func main() {
 			name = fmt.Sprintf("%s-%d", name, i)
 		}
 		var code string
-		if os.Args[2] == "js" {
+		switch os.Args[2] {
+		case "js":
 			code, err = emit.JSFunc(name, nf)
-		} else {
+		case "java":
+			code, err = emit.JavaMethod(name, nf)
+		default:
 			code, err = emit.Func(name, nf)
 		}
 		must(err)
 		funcs[name] = code
 	}
 	var text string
-	if os.Args[2] == "js" {
+	switch os.Args[2] {
+	case "js":
 		text = emit.JSFile(funcs)
-	} else {
+	case "java":
+		base := filepath.Base(os.Args[3])
+		text = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
+	default:
 		text = emit.File("gauntlet", funcs)
 	}
 	must(os.WriteFile(os.Args[3], []byte(text), 0o644))

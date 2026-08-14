@@ -6,6 +6,7 @@
 ; Nothing distinguishes the targets except which names they call primitive.
 
 (target go   (prim add mul alen aindex fold-range))
+(target java (prim add mul alen aindex fold-range))
 (target js   (prim add mul alen aindex fold-range))
 (target blas (prim add mul alen aindex fold-range dot))
 

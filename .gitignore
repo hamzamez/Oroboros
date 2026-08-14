@@ -44,3 +44,4 @@ gauntlet/size/fatwork/
 
 # Compiler binary
 /bin/
+gauntlet/java/*.class

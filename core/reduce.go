@@ -319,13 +319,18 @@ func freeVars(t *Term) map[string]bool {
 	return out
 }
 
-// Residual reports names in a normalised term that are neither primitive nor
-// bound — i.e. the ways in which it failed to reach normal form. An empty
-// result means the term is fully in the target's vocabulary.
+// Residual reports names in a normalised term that the target cannot express —
+// the ways in which it failed to reach normal form. An empty result means the
+// term is fully in the target's vocabulary.
+//
+// A recursive definition is NOT a failure. δ deliberately does not unfold it
+// (core-0 §6), so it survives as a target function, which is correct: `(def f
+// (f))` denotes ⊥ and compiles to a function that calls itself. Reporting it
+// here would flag the correct compilation of a well-defined term as an error.
 func Residual(t *Term, e *Env) []string {
 	found := map[string]bool{}
 	for n := range freeVars(t) {
-		if !e.Prim[n] {
+		if !e.Prim[n] && !e.Rec[n] {
 			found[n] = true
 		}
 	}

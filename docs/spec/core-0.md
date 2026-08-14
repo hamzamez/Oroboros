@@ -8,21 +8,33 @@ be written against a specification rather than discovered by writing it.
 
 ---
 
-## 0. What this is, and how it differs from λ-calculus
+## 0. What this is
 
-> **λ-calculus in which the normal form is a parameter.**
+> **PCF, reduced to normal form at compile time, with the constant set as a per-target
+> parameter.**
 
-Three departures from λ-calculus, each one a place where λ-calculus would have cost an
-allocation. They are not incidental; they are the project.
+An earlier draft of this section claimed three departures from λ-calculus — literals instead of
+Church numerals, multi-argument λ instead of currying, and δ instead of **Y**. **All three were
+wrong**, and the correction is in [pcf.md](pcf.md):
 
-| λ-calculus | Here | Why |
-|---|---|---|
-| Recursion via the **Y** combinator | **δ — a separate global binding form** | Y allocates. `let` is encodable as `((fn (x) b) e)`; recursion is not encodable for free. Two binding forms where λ needs one. |
-| Church numerals | **Literals are primitive terms** | Church numerals are λ-terms, so arithmetic would allocate. |
-| Currying | **Multi-argument λ** | Curried application builds intermediate closures unless the compiler uncurries. Cheaper to never build them. |
+- λ-calculus **with constants** is standard, and reducing `(add 2 3)` is what Barendregt already
+  calls δ-reduction.
+- Currying is an **isomorphism**; the uncurried presentation has no semantic content.
+- `(def f t)` with `t` mentioning `f` is a recursive equation whose meaning is the **least fixed
+  point** — that is `fix`, and **λ + constants + fix is PCF** (Plotkin, 1977).
 
-So this is not λ-calculus, and it should not be described as such. It is λ-calculus plus what is
-needed to avoid the heap.
+The stated reason for the third was wrong too. "Y allocates" is a performance claim; the real
+obstacle is that **`Y f` has no normal form**, so a calculus whose semantics is *reduce to normal
+form* must take `fix` as primitive and must not unfold it. That is the **unfolding strategy**
+problem in partial evaluation, and "do not unfold recursive calls" is its standard answer.
+
+**Nothing in the mathematics is new.** What is new is architectural: Σ is a *per-target*
+parameter, and the resulting normal form is the compilation output. A name that is a constant on
+one target and a defined function on another is not a different calculus — it is the same
+calculus instantiated twice.
+
+The benefit of saying it this way is not modesty. It means **PCF's results apply directly**
+rather than having to be redone.
 
 ---
 

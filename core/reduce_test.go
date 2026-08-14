@@ -254,3 +254,31 @@ func TestLambdaSpelledEitherWay(t *testing.T) {
 		t.Errorf("fn and λ disagree: %s vs %s", a, b)
 	}
 }
+
+// ---------------------------------------------------------------- fix
+
+// (def f (f)) denotes ⊥. δ must not unfold it, it survives as a target function
+// that calls itself, and that is the correct compilation — so the residual check
+// must not report it as a failure. See docs/spec/pcf.md §4.
+func TestSelfCallIsBottomNotAnError(t *testing.T) {
+	forms, err := Read(`
+		(target go (prim))
+		(def f (f))
+		(f)
+	`)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	prog, terms, _ := Load(forms)
+	env, _ := prog.Env("go")
+	out, err := Normalize(terms[0], env, DefaultFuel)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if got := out.String(); got != "(f)" {
+		t.Errorf("expected (f) to survive unreduced, got %s", got)
+	}
+	if left := Residual(out, env); len(left) != 0 {
+		t.Errorf("a recursive definition is a legitimate survivor, not a residual failure; got %v", left)
+	}
+}

@@ -197,3 +197,9 @@ func TestReferencesAgree(t *testing.T) {
 		}
 	}
 }
+
+func TestGeneratedDotAgreesWithHandWritten(t *testing.T) {
+	if got, want := GenDot(vecA, vecB), DotNaive(vecA, vecB); got != want {
+		t.Errorf("generated=%v hand-written=%v", got, want)
+	}
+}

@@ -288,10 +288,16 @@ textbook. Six gauntlet derivations, six substructural explorations, no falsifier
 several results better than predicted — generics need no mechanism, cycles are unrepresentable,
 the size tension inverted.
 
-**Not established: that it works.** Nothing has been compiled. Every number in
-[gauntlet/results/](../gauntlet/results/) measures **hand-written host code** — the bar. Not one
-measures output this project produced. The parity claim the whole design rests on has never been
-tested.
+~~**Not established: that it works.** Nothing has been compiled.~~
+
+**Partly established, 2026-08-14** — [parity-2026-08-14](../gauntlet/results/parity-2026-08-14.md).
+`examples/dot.oro` now reduces to a normal form, emits to Go, and benchmarks at **758 ns against
+772 ns for hand-written naive and 738 ns for hand-written hoisted** — parity, well inside the
+noise floor, with no fusion rules, no optimiser, and no type system.
+
+That is **one program of five, on one target of three.** It is not the gauntlet passed. It is the
+first evidence that the central mechanism produces competitive code rather than merely plausible
+terms — and the first number in this project measuring our own output rather than the bar.
 
 ## Three reasons to discount the confidence
 

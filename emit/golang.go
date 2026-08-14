@@ -33,6 +33,7 @@ const (
 	TUnknown Ty = iota
 	TF64
 	TInt
+	TBool
 	TVecF64
 )
 
@@ -42,6 +43,8 @@ func (t Ty) Go() string {
 		return "float64"
 	case TInt:
 		return "int"
+	case TBool:
+		return "bool"
 	case TVecF64:
 		return "[]float64"
 	}
@@ -53,7 +56,8 @@ type prim struct {
 	Format string
 	Args   []Ty
 	Result Ty
-	Loop   bool // emitted as a statement, not an expression
+	Loop   bool // emitted as a loop statement
+	Cond   bool // emitted as an if statement
 }
 
 var prims = map[string]prim{
@@ -62,6 +66,12 @@ var prims = map[string]prim{
 	"sub":    {Format: "%s - %s", Args: []Ty{TF64, TF64}, Result: TF64},
 	"alen":   {Format: "len(%s)", Args: []Ty{TVecF64}, Result: TInt},
 	"aindex": {Format: "%s[%s]", Args: []Ty{TVecF64, TInt}, Result: TF64},
+	"gt":     {Format: "%s > %s", Args: []Ty{TF64, TF64}, Result: TBool},
+	"lt":     {Format: "%s < %s", Args: []Ty{TF64, TF64}, Result: TBool},
+
+	// if(cond, then, else) — the SECOND statement-primitive. Go has no
+	// conditional expression, so this is ANF arriving for a fourth time.
+	"if": {Args: []Ty{TBool, TUnknown, TUnknown}, Result: TUnknown, Cond: true},
 
 	// fold-range(init, count, (fn (acc i) body)) — the one primitive that is a
 	// statement rather than an expression. How this generalises is the main
@@ -206,6 +216,9 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		if p.Loop {
 			return e.emitFoldRange(t)
 		}
+		if p.Cond {
+			return e.emitIf(t)
+		}
 		args := t.Args()
 		if len(args) != len(p.Args) {
 			return "", fmt.Errorf("%s takes %d argument(s), given %d", op.Name, len(p.Args), len(args))
@@ -223,6 +236,44 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		return "(" + fmt.Sprintf(p.Format, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
+}
+
+// emitIf turns (if c then else) into a Go if statement assigning to a temporary,
+// because Go has no conditional expression. The branches may themselves emit
+// statements, which is why this cannot be a format string.
+func (e *Emitter) emitIf(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 3 {
+		return "", fmt.Errorf("if takes a condition and two branches")
+	}
+	cond, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	ty := e.typeOf(args[1])
+	if ty == TUnknown {
+		ty = e.typeOf(args[2])
+	}
+	tmp := e.fresh("t")
+	e.line("var %s %s", tmp, ty.Go())
+	e.line("if %s {", cond)
+	e.indent++
+	thenV, err := e.emit(args[1])
+	if err != nil {
+		return "", err
+	}
+	e.line("%s = %s", tmp, thenV)
+	e.indent--
+	e.line("} else {")
+	e.indent++
+	elseV, err := e.emit(args[2])
+	if err != nil {
+		return "", err
+	}
+	e.line("%s = %s", tmp, elseV)
+	e.indent--
+	e.line("}")
+	return tmp, nil
 }
 
 // emitFoldRange turns (fold-range init count (fn (acc i) body)) into a loop.

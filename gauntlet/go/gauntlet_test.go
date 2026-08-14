@@ -203,3 +203,10 @@ func TestGeneratedDotAgreesWithHandWritten(t *testing.T) {
 		t.Errorf("generated=%v hand-written=%v", got, want)
 	}
 }
+
+func TestGeneratedFilterAgreesWithHandWritten(t *testing.T) {
+	g, r, d := GenFilterSum(vecA), FilterSumRef(vecA), FilterSumDup(vecA)
+	if g != r || g != d {
+		t.Errorf("generated=%v ref=%v dup=%v", g, r, d)
+	}
+}

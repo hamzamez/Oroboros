@@ -75,3 +75,23 @@ func BenchmarkSmallGenDot(b *testing.B) {
 		sinkF = GenDot(smallA, smallB)
 	}
 }
+
+// The duplicated-read question: generated (two reads) against hand-written with
+// one read and hand-written with two.
+func BenchmarkSmallFilterRef(b *testing.B) {
+	for b.Loop() {
+		sinkF = FilterSumRef(smallA)
+	}
+}
+
+func BenchmarkSmallFilterDup(b *testing.B) {
+	for b.Loop() {
+		sinkF = FilterSumDup(smallA)
+	}
+}
+
+func BenchmarkSmallGenFilter(b *testing.B) {
+	for b.Loop() {
+		sinkF = GenFilterSum(smallA)
+	}
+}

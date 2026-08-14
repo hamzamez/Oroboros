@@ -12,8 +12,8 @@ import (
 )
 
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "usage: gen SRC.oro TARGET OUT.go")
+	if len(os.Args) != 5 {
+		fmt.Fprintln(os.Stderr, "usage: gen SRC.oro TARGET OUT.go FUNCNAME")
 		os.Exit(2)
 	}
 	src, err := os.ReadFile(os.Args[1])
@@ -29,9 +29,9 @@ func main() {
 	for i, t := range terms {
 		nf, err := core.Normalize(t, env, core.DefaultFuel)
 		must(err)
-		name := fmt.Sprintf("gen-%d", i)
-		if i == 0 {
-			name = "gen-dot"
+		name := os.Args[4]
+		if len(terms) > 1 {
+			name = fmt.Sprintf("%s-%d", name, i)
 		}
 		code, err := emit.Func(name, nf)
 		must(err)

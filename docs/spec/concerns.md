@@ -25,6 +25,17 @@ Why it is currently harmless: the atom has no effects, so duplication costs comp
 duplicated runtime work, not wrong answers. [g5](../derivations/g5-bindings.md) showed that with
 effects it becomes a **correctness** bug.
 
+> **⚠ Measured and withdrawn, 2026-08-14** —
+> [duplicate-read-2026-08-14](../../gauntlet/results/duplicate-read-2026-08-14.md). The claim
+> below that this is "a silent 2× on the hot loop" is **false**. Go's CSE eliminates the
+> duplicate read: the generated code, the naive two-read form, and the bind-once form all compile
+> to **byte-identical machine code** with a single `MOVSD`. The 1.45× that the clock showed was
+> **code alignment** — the two functions sharing a cache-line offset shared a runtime.
+>
+> Call-by-need is still worth having, for effects (g5) and for weaker hosts, but not for this.
+> And the noise floor is not 15%: alignment alone produced a stable, reproducible 45% gap between
+> identical code.
+
 Why it matters anyway — this is visible in a passing test. `TestFilterFusesToOneLoop` produces:
 
 ```lisp
@@ -37,7 +48,8 @@ correct residual binds it once. So the specification and the implementation disa
 encodes the *implementation's* answer, and **the test is currently wrong on purpose**. It should
 be changed when the discipline lands, not before.
 
-> The first thing to fix, and the first place the spec and the code have diverged.
+> ~~The first thing to fix~~ — **not the first thing to fix.** Still the first place the spec and
+> the code diverged, but the performance argument for closing it has been measured away.
 
 ### 1.2 NFC normalisation is specified and not checked
 

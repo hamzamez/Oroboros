@@ -157,8 +157,40 @@ surfaces core flaws while they are still cheap to fix.
 
 ## Build commands
 
-None yet — there is no `go.mod` and no Go source. The module path is an open decision tied to
-where this is hosted; pick it when creating `go.mod`, while there are zero imports to update.
+Module path is `oroboros` (local). Change it when the repository gets a home.
 
-Once the compiler exists, this section should carry the actual build, test, and
-single-test-run commands.
+```bash
+go test ./core/ ./emit/          # the compiler
+go test ./core/ -run TestBeta    # one test
+go vet ./...
+```
+
+```bash
+go run ./cmd/oro -target=go examples/dot.oro     # reduce to normal form
+go run ./cmd/oro -target=blas -steps examples/dot.oro
+```
+
+```bash
+# emit Go into the gauntlet, then benchmark generated against hand-written
+go run ./cmd/gen examples/dot.oro go gauntlet/go/generated_dot.go gen-dot
+cd gauntlet/go && go test -bench='SmallDot|SmallGenDot' -benchtime=3s -count=5
+```
+
+The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/legibility` are
+**separate modules** — `cd` into them before running their tests.
+
+`gauntlet/fmt/*.go` carry `//go:build ignore`; they are standalone scripts run with `go run`.
+
+## What exists
+
+| | |
+|---|---|
+| `core/` | reader, terms, β/δ reducer. The atom of [core-0](docs/spec/core-0.md). |
+| `emit/` | Go backend. Types live here, **not** in the language. |
+| `cmd/oro` | reduce a file to normal form against a target |
+| `cmd/gen` | emit a file into the gauntlet's Go package |
+| `examples/` | `dot.oro`, `filter.oro` |
+| `gauntlet/` | hand-written references and results — the bar |
+
+**Both emitted programs reach parity with hand-written Go.** See
+[parity](gauntlet/results/parity-2026-08-14.md).

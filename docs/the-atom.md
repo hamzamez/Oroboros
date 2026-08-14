@@ -10,6 +10,12 @@ question rather than an answer to it.
 
 ---
 
+> **⚠ Corrected by [spec/pcf.md](spec/pcf.md).** This document says the atom is "as small as
+> lambda calculus" and lists departures from it. There are none — it is **PCF** (λ + constants +
+> `fix`), reduced to normal form at compile time. Nothing in the mathematics is new; the
+> contribution is that Σ is a *per-target* parameter. The framing below survives, the novelty
+> claim does not, and pcf.md explains why saying it smaller is worth more.
+
 ## The atom
 
 > **Lambda calculus in which the normal form is a parameter.**

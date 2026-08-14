@@ -131,25 +131,31 @@ That is the process working, and it is why nothing is frozen.
 tests designed to kill it, its costs are known and bounded rather than open-ended, and the three
 things that could still kill it are all cheap to test before writing a compiler.
 
-## Next steps
+## Where this is
 
-Exploration is done. Every falsifier named in the
-[assessment](docs/assessment-2026-08-13.md) has been tested and none fired — so the
-recommendation is now to **build the vertical slice**, starting from the atom
-([docs/the-atom.md](docs/the-atom.md)).
+The atom is built and both emitted programs reach parity with hand-written Go.
 
-1. **A β/δ reducer parameterized by a primitive set.** Roughly 200 lines. Confluence,
-   termination, and stage soundness are all checkable on terms, with no backend.
-2. **Go emitter over the normal form.** Hand-write the residual that
-   [g1](docs/derivations/g1-dot-product.md) already specifies, emit it, and check for 1,389 ns at
-   n=1024 with zero allocations. **This is the first artifact that measures *our* output rather
-   than the bar** — and it is not deferrable, because a verified calculus proves the core is
-   coherent and proves nothing about the thesis.
-3. Reader, printer, canonical formatter.
-4. One layer of definitions, then the **JS backend before any front-end features**.
+| | |
+|---|---|
+| Reducer | `core/` — β and δ, normal form parameterised by the target's primitive set |
+| Go backend | `emit/` — types live here, not in the language |
+| Measured | [dot](gauntlet/results/parity-2026-08-14.md) 758 ns vs 738–772 hand-written; [filter](gauntlet/results/duplicate-read-2026-08-14.md) byte-identical machine code to hand-written |
 
-The IR file format gets specified once a candidate has survived the gauntlet. It cannot be
-designed before it is known what flows through it.
+```bash
+go run ./cmd/oro -target=blas examples/dot.oro   # (fn (p q) (dot p q))
+go run ./cmd/oro -target=go   examples/dot.oro   # a loop
+```
+
+## Next
+
+**The JavaScript backend, before any front-end features.** That has been the stated discipline
+since the first draft of the design direction and is the commitment most often deferred: JS is
+the most hostile host in the set — no integers, no structs, no int64 — and it surfaces core flaws
+while they are still cheap to fix.
+
+Open, and deliberately not yet built: call-by-need, compile-time evaluation of primitives,
+splitting `def` from `rec` ([def.md](docs/spec/def.md)), and the remaining four gauntlet
+programs. Each is waiting on a measurement rather than on an argument.
 
 ## Name
 

@@ -5,11 +5,14 @@ repository.
 
 ## Project state
 
-Design phase. **There is no code yet.** The repository currently contains only design
-documents. Do not infer architecture from the file tree — read the documents.
+**Working compiler.** A β/δ reducer with call-by-need, three backends (Go, JavaScript, Java),
+and six programs that all reach parity with hand-written code — two of them producing
+byte-identical machine code on Go.
 
 Start with [README.md](README.md), then [docs/design-direction.md](docs/design-direction.md),
-then the ADRs in [docs/decisions/](docs/decisions/).
+then the ADRs in [docs/decisions/](docs/decisions/). Measurements are in
+[gauntlet/results/](gauntlet/results/), and they are the authority: **every design claim in this
+repository that was not measured has been wrong about half the time.**
 
 ## What this project is
 

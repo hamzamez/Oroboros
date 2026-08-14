@@ -158,7 +158,7 @@ survives as a per-iteration closure when the loop *carries* it. So loop-carried 
 primitive-shaped — which is the same statement as the grading story, since state used *n* times
 is grade ω and grade ω is what survives.
 
-## Four programs, two targets, all at parity
+## Five programs, two targets, all at parity
 
 | | Go | JavaScript |
 |---|---|---|
@@ -166,6 +166,12 @@ is grade ω and grade ω is what survives.
 | filter-sum | parity | parity |
 | centroid (structs) | **byte-identical machine code** | parity |
 | word count | parity, structurally confirmed | 1.2× |
+| [generics](gauntlet/results/generics-2026-08-14.md) | **byte-identical machine code** | parity |
+
+One generic definition, used at two element types and two accumulator types, with **no type
+annotations anywhere** — no monomorphization pass, no type parameters, no dictionary. The
+definition has no runtime existence, and Go's backend works out `float64` for one instantiation
+and `map[string]int` for the other on its own.
 
 Word count also passes the Parasite thesis: Go emits `map[string]int`, JS emits a null-prototype
 object — [each the one that target is fastest with](gauntlet/results/wordcount-2026-08-14.md) —
@@ -183,9 +189,13 @@ had assumed was blocking it.
 
 ## Next
 
-**Gauntlet programs 3 and 5** — generics, and formatted output. Program 5 is the one that has
-never been touched: it needs a real host binding, which is where
-[g5](docs/derivations/g5-bindings.md)'s Tier 2 format stops being on paper.
+**Java** — the third target [ADR 0004](docs/decisions/0004-first-targets.md) named, and the one
+that settles [ADR 0006](docs/decisions/0006-ir-file-format.md)'s backend interface. The Go and JS
+emitters duplicate the whole term walk; that was left unfactored deliberately, because two points
+define a line and a third is what shows whether it is straight.
+
+Then **program 5**, formatted output — the only gauntlet program never touched, and the one that
+needs a real host binding.
 
 Open, and deliberately not yet built: call-by-need — which lost its performance justification
 when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —

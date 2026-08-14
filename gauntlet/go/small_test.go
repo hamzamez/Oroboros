@@ -126,3 +126,10 @@ func BenchmarkWCGenerated(b *testing.B) {
 		sinkM = GenWordcount(wcText)
 	}
 }
+
+// The generic instantiation against the monomorphic hand-written reference.
+func BenchmarkSmallGenGeneric0(b *testing.B) {
+	for b.Loop() {
+		sinkF = GenGeneric0(smallA)
+	}
+}

@@ -1,0 +1,29 @@
+; Gauntlet program 3 — one generic operation, two instantiations.
+;
+; g3's central claim was that a non-recursive definition IS a rewrite rule, so
+; instantiation is a side effect of matching and there is no monomorphization
+; pass. Every program so far has used each definition exactly once, so the claim
+; has never been exercised. This file uses ONE definition at two element types
+; and two accumulator types.
+;
+; Note there are no type annotations and no constraints anywhere. The source
+; language is untyped; the Go backend works out float64 versus map[string]int on
+; its own, and the JS backend needs neither.
+
+(target go (prim add alen aindex slen sat split-words dict-empty dict-inc fold-range))
+(target js (prim add alen aindex slen sat split-words dict-empty dict-inc fold-range))
+
+; The generic operation. n is a count, get reads element i, combine folds it in.
+(def reduce-over (fn (n get combine init)
+  (fold-range init n (fn (acc i) (combine acc (get i))))))
+
+; Instantiation 1 — f64 elements, f64 accumulator.
+(def sum-floats (fn (a)
+  (reduce-over (alen a) (fn (i) (aindex a i)) add 0.0)))
+
+; Instantiation 2 — string elements, dictionary accumulator.
+(def tally-words (fn (ws)
+  (reduce-over (slen ws) (fn (i) (sat ws i)) dict-inc (dict-empty))))
+
+(fn (a)    (sum-floats a))
+(fn (text) (tally-words (split-words text)))

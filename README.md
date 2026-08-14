@@ -138,8 +138,8 @@ The atom is built and both emitted programs reach parity with hand-written Go.
 | | |
 |---|---|
 | Reducer | `core/` — β and δ, normal form parameterised by the target's primitive set |
-| Go backend | `emit/` — types live here, not in the language |
-| Measured | [dot](gauntlet/results/parity-2026-08-14.md) 758 ns vs 738–772 hand-written; [filter](gauntlet/results/duplicate-read-2026-08-14.md) byte-identical machine code to hand-written |
+| Backends | `emit/` — **Go and JavaScript**. Types live here, not in the language. |
+| Measured | Both programs at parity on **both targets** — [Go](gauntlet/results/parity-2026-08-14.md), [JS](gauntlet/results/js-2026-08-14.md) |
 
 ```bash
 go run ./cmd/oro -target=blas examples/dot.oro   # (fn (p q) (dot p q))
@@ -148,14 +148,16 @@ go run ./cmd/oro -target=go   examples/dot.oro   # a loop
 
 ## Next
 
-**The JavaScript backend, before any front-end features.** That has been the stated discipline
-since the first draft of the design direction and is the commitment most often deferred: JS is
-the most hostile host in the set — no integers, no structs, no int64 — and it surfaces core flaws
-while they are still cheap to fix.
+**Gauntlet program 2 — structs.** Neither backend has a struct primitive, and
+[g2](docs/derivations/g2-structs.md) measured that JS needs a *different representation* from Go
+(array-of-objects loses 2.86× there and 1.05× on Java). It is the first program where the two
+targets must genuinely diverge, and the first real test of the capability graph rather than of
+the reducer.
 
-Open, and deliberately not yet built: call-by-need, compile-time evaluation of primitives,
-splitting `def` from `rec` ([def.md](docs/spec/def.md)), and the remaining four gauntlet
-programs. Each is waiting on a measurement rather than on an argument.
+Open, and deliberately not yet built: call-by-need — which lost its performance justification
+when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —
+compile-time evaluation of primitives, splitting `def` from `rec` ([def.md](docs/spec/def.md)),
+Java, and the four unemitted gauntlet programs.
 
 ## Name
 

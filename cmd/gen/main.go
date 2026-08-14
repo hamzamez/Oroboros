@@ -33,11 +33,22 @@ func main() {
 		if len(terms) > 1 {
 			name = fmt.Sprintf("%s-%d", name, i)
 		}
-		code, err := emit.Func(name, nf)
+		var code string
+		if os.Args[2] == "js" {
+			code, err = emit.JSFunc(name, nf)
+		} else {
+			code, err = emit.Func(name, nf)
+		}
 		must(err)
 		funcs[name] = code
 	}
-	must(os.WriteFile(os.Args[3], []byte(emit.File("gauntlet", funcs)), 0o644))
+	var text string
+	if os.Args[2] == "js" {
+		text = emit.JSFile(funcs)
+	} else {
+		text = emit.File("gauntlet", funcs)
+	}
+	must(os.WriteFile(os.Args[3], []byte(text), 0o644))
 	fmt.Printf("wrote %s\n", os.Args[3])
 }
 

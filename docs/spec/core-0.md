@@ -301,10 +301,23 @@ arriving here as the termination side-condition rather than as an observation.
    [open decision 5](../design-direction.md).
 4. **Integer literal typing.** `1` has no range until it is used. Range inference from context is
    [ADR 0003](../decisions/0003-range-typed-integers.md)'s problem and is not specified here.
-5. **Rule syntax.** §1.3 introduces `?x` but this draft has no `rule` form — δ over `def` covers
-   the derivations' lowering rules, and it is not yet clear that a separate rule form is needed
-   at all. If δ suffices, `?x` may be unnecessary and should be removed.
+5. ~~**Rule syntax.**~~ **Settled on paper** — [q5-do-we-need-rules.md](q5-do-we-need-rules.md).
+   δ over `def` covers **all layer lowering and, unexpectedly, fusion** — the latter if vectors
+   are represented as a length paired with an index function, which makes foldr/build fusion fall
+   out of β alone. It is *stronger* here than in Haskell, where the same technique depends on the
+   inliner firing; here reduction to normal form is the definition of compilation.
 
-Question 5 is the interesting one: **if a definition is a rewrite rule, the language may not need
-rules as a separate construct.** That would remove a whole layer of machinery, and it should be
-settled before the reducer is written.
+   **One counterexample survives:** SROA on a loop-carried accumulator. `fold-range` is primitive,
+   so `acc` is a bound variable of a surviving abstraction rather than an application of `struct`,
+   and no β-redex exists. That transformation acts on the *residual* and dispatches on a type, not
+   a name.
+
+   So §1.3's `?x` stays, but **only for residual-to-residual transformation**. The capability
+   graph — the project's central mechanism — needs no pattern matching at all.
+
+   Side effect: [g1 §5](../derivations/g1-dot-product.md)'s deforestation rules do not exist if
+   fusion is δ+β, so the measure check leaves the machinery list and termination reduces to "δ
+   over a DAG, β without self-application."
+
+   **Still to check:** `filter`, which cannot be a pull array with a static length. If the
+   delayed representation cannot express it, fusion may need rules after all.

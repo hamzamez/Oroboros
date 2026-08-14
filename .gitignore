@@ -41,3 +41,6 @@ experiments/**/out/
 # Size measurement scratch
 gauntlet/size/work/
 gauntlet/size/fatwork/
+
+# Compiler binary
+/bin/

@@ -101,6 +101,15 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	if err := emit.Check(tg, entry, nf); err != nil {
 		return err
 	}
+	// Refinements: the bounds obligation primitives.md §2 recorded and
+	// nothing checked (docs/spec/refinements.md).
+	if notes, err := emit.Refine(tg, entry, prog.Sigs[entry], nf); err != nil {
+		return err
+	} else {
+		for _, n := range notes {
+			fmt.Fprintln(os.Stderr, "note:", n)
+		}
+	}
 	var code string
 	switch target {
 	case "js":

@@ -34,6 +34,13 @@ type Prim struct {
 	Import string
 	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
+
+	// Where is a refinement: a boolean term over the primitive's parameter
+	// names, discharged at every call site (docs/spec/refinements.md).
+	Where *core.Term
+	// Names are the parameter names, which a Where refers to. Empty unless the
+	// declaration used the named form.
+	Names []string
 }
 
 type Target struct {
@@ -192,11 +199,20 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 	// a nullary primitive writes `(none)`.
 	if k[1].Kind == core.KApp {
 		for _, a := range k[1].Kids {
-			if a.Kind != core.KName {
-				return Prim{}, fmt.Errorf("%s: %s has a non-name argument type", path, p.Name)
-			}
-			if a.Name != "none" {
-				p.Args = append(p.Args, a.Name)
+			switch {
+			case a.Kind == core.KName:
+				if a.Name != "none" {
+					p.Args = append(p.Args, a.Name)
+					p.Names = append(p.Names, "")
+				}
+			case a.Kind == core.KApp && len(a.Kids) == 2 &&
+				a.Kids[0].Kind == core.KName && a.Kids[1].Kind == core.KName:
+				// The named form, the same one `sig` uses — because a
+				// refinement attaches to a NAME (refinements.md §2).
+				p.Names = append(p.Names, a.Kids[0].Name)
+				p.Args = append(p.Args, a.Kids[1].Name)
+			default:
+				return Prim{}, fmt.Errorf("%s: %s has a bad argument: %s", path, p.Name, a)
 			}
 		}
 	} else if k[1].Kind == core.KName && k[1].Name != "none" {
@@ -227,6 +243,9 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 			p.Form = rest.Str
 		case rest.Kind == core.KName && rest.Name == "pure":
 			p.Pure = true
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
+			p.Where = rest.Kids[1]
 		case rest.Kind == core.KName && rest.Name == "index":
 			if len(p.Args) != 2 {
 				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+

@@ -59,6 +59,7 @@ func isIdentContinue(r rune) bool {
 type Sig struct {
 	Params []SigParam
 	Result string
+	Where  *Term // a boolean term over the parameter names, or nil
 }
 
 type SigParam struct{ Name, Type string }
@@ -437,10 +438,18 @@ func toForm(t *Term) (Form, error) {
 		return f, nil
 	case "sig":
 		// (sig NAME ((p TYPE)…) RESULT)
-		if len(t.Kids) != 4 || t.Kids[1].Kind != KName || t.Kids[3].Kind != KName {
+		if len(t.Kids) < 4 || t.Kids[1].Kind != KName || t.Kids[3].Kind != KName {
 			return Form{}, fmt.Errorf("sig takes a name, a parameter list and a result type: %s", t)
 		}
 		sig := &Sig{Result: t.Kids[3].Name}
+		for _, rest := range t.Kids[4:] {
+			if rest.Kind == KApp && rest.Kids[0].Kind == KName &&
+				rest.Kids[0].Name == "where" && len(rest.Kids) == 2 {
+				sig.Where = rest.Kids[1]
+				continue
+			}
+			return Form{}, fmt.Errorf("sig %s: unexpected %s", t.Kids[1].Name, rest)
+		}
 		if t.Kids[2].Kind == KApp {
 			for _, a := range t.Kids[2].Kids {
 				switch {

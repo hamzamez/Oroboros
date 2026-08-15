@@ -92,7 +92,11 @@
   ; bounds-check elimination a proof — worth 1.96x, see
   ; gauntlet/results/bce-2026-08-15.md.
   (prim alen   (vec-f64) int      expr "int64(len(%s))" pure)
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure index)
+  ; The bounds obligation, finally checkable. primitives.md 2 records that
+  ; aindex is Tier 1 only WITHIN BOUNDS -- outside them Go panics, Java
+  ; throws, and JavaScript silently returns undefined.
+  (prim aindex ((v vec-f64) (i int)) f64 expr "%s[%s]" pure index
+    (where (logic.and (int.le 0 i) (int.lt i (alen v)))))
 
   ; The one primitive that lets a program CONSTRUCT data (construction.md).
   ; Structural because it allocates and fills, which no template expresses --

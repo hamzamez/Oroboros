@@ -202,8 +202,15 @@ serves all three targets, including JavaScript, which previously compiled
 `(f64.add "hello" 1.0)` into a program that printed `hello1`. `(sig name ((p type)…) result)` on a module export is a **claim checked in two directions**:
 against the definition's residual, and against any target that provides the name *natively*. The
 second is the job no host compiler can do, because the two implementations live on different
-targets and no single compiler sees both. Parameters are **named** even though nothing reads the
-names yet, because a refinement attaches to a name and that is the part you cannot take back.
+targets and no single compiler sees both. Parameters are **named** because a refinement attaches to a name.
+
+**Refinements are built** — [docs/spec/refinements.md](docs/spec/refinements.md). `aindex` carries
+`(where (and (<= 0 i) (< i (alen v))))`, and the obligation is discharged at every call site from
+facts collected out of loop bounds. The fragment is linear integer arithmetic with a deliberately
+incomplete decision procedure; **an undischarged obligation is reported, never assumed**. This
+closed the first of the two holes shaped like a refinement, and **found a real latent bug in `dot`
+and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
+([arithmetic.md §4](docs/spec/arithmetic.md)).
 
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and

@@ -71,6 +71,7 @@ func run(targetDir, src, target, out, name, path string) error {
 	// named from the source stem, as before. That is the whole of the fallback.
 	type unit struct {
 		name string
+		qual string // the fully qualified export, so its signature can be found
 		term *core.Term
 	}
 	var units []unit
@@ -83,7 +84,7 @@ func run(targetDir, src, target, out, name, path string) error {
 		if i := strings.LastIndex(local, "."); i >= 0 {
 			local = local[i+1:]
 		}
-		units = append(units, unit{name: prefix + "-" + local, term: prog.Defs[q]})
+		units = append(units, unit{name: prefix + "-" + local, qual: q, term: prog.Defs[q]})
 	}
 	if len(units) == 0 {
 		stem := name
@@ -110,6 +111,15 @@ func run(targetDir, src, target, out, name, path string) error {
 		// Java the host would catch most of this; on JavaScript nothing would.
 		if err := emit.Check(tg, fname, nf); err != nil {
 			return err
+		}
+		// Refinements: the bounds obligation primitives.md §2 recorded and
+		// nothing checked (docs/spec/refinements.md).
+		if notes, err := emit.Refine(tg, fname, prog.Sigs[u.qual], nf); err != nil {
+			return err
+		} else {
+			for _, n := range notes {
+				fmt.Fprintln(os.Stderr, "note:", n)
+			}
 		}
 		var code string
 		switch target {

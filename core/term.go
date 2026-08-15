@@ -139,3 +139,29 @@ func Rename(t *Term, m map[string]string) *Term {
 	}
 	return substPublic(t, sub)
 }
+
+// Rename2 substitutes terms for names without capture concerns: it is used on a
+// refinement, which is a closed boolean term over parameter names and contains
+// no binders. Substituting a term rather than a name is what distinguishes it
+// from Rename.
+func Rename2(t *Term, m map[string]*Term) *Term {
+	if len(m) == 0 || t == nil {
+		return t
+	}
+	switch t.Kind {
+	case KName:
+		if r, ok := m[t.Name]; ok {
+			return r
+		}
+		return t
+	case KInt, KFloat, KStr:
+		return t
+	case KFn:
+		return Fn(t.Params, Rename2(t.Body(), m))
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = Rename2(k, m)
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}

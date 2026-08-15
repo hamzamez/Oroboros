@@ -13,6 +13,15 @@
 ; g2's "a Tier 1 capability can change a function's arity" and is not built.
 
 (use num/f64)
+(use num/int)
+
+(export centroid)
+
+; Two arrays, one loop bound. The checker reports (aindex ys i) unproven
+; without this — the same latent bug it found in dot.oro.
+(sig centroid ((xs vec-f64) (ys vec-f64)) f64
+  (where (int.eq (alen xs) (alen ys))))
+
 
 (def point (fn (x y) (fn (sel) (sel x y))))
 (def px    (fn (p)   (p (fn (x y) x))))
@@ -24,10 +33,10 @@
 ; One pass, two accumulators. The pair must be two scalars because compile-time
 ; reduction cannot cross a runtime loop boundary — see
 ; gauntlet/results/structs-2026-08-14.md.
-(fn (xs ys)
+(def centroid (fn (xs ys)
   (fold-range2 0.0 0.0 (alen xs)
     (fn (ax ay i) (f64.add ax (px (pat xs ys i))))
     (fn (ax ay i) (f64.add ay (py (pat xs ys i))))
     ; The finisher consumes both accumulators, so compound loop state never
     ; escapes the loop as a compound value.
-    (fn (ax ay) (f64.add ax ay))))
+    (fn (ax ay) (f64.add ax ay)))))

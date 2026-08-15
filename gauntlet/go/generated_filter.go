@@ -5,6 +5,7 @@ package gauntlet
 func GenFilter(a []float64) float64 {
 	acc := 0.0
 	n1 := (len(a))
+	a = a[:n1]
 	for i := 0; i < n1; i++ {
 		x := (a[i])
 		var t2 float64

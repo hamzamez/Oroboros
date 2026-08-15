@@ -35,6 +35,11 @@
   ; host's, not ours (g5 §7).
   (type any        "any")
 
+  ; Restricting a container to a known length. Go gains bounds-check
+  ; elimination from it; JS has no bounds checks and Java's arrays cannot be
+  ; narrowed, so neither declares one and neither gets the transformation.
+  (narrow "%s = %s[:%s]")
+
   ; ---------------------------------------------------------------- arithmetic
   ;
   ; Qualified, because `add` meaning float addition was never written down
@@ -71,12 +76,16 @@
   ; ---------------------------------------------------------------- the rest
   ; Not yet migrated into modules; arithmetic.md covered only the above.
 
+  ; `index` says argument 0 is a container indexed by argument 1. It is what
+  ; lets the backend narrow a slice to the loop count and hand Go's own
+  ; bounds-check elimination a proof — worth 1.96x, see
+  ; gauntlet/results/bce-2026-08-15.md.
   (prim alen   (vec-f64) int      expr "len(%s)" pure)
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure)
+  (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure index)
 
   ; Go's fused increment: one mapassign_faststr, verified in baseline C3.
   (prim slen       (vec-string) int         expr "len(%s)" pure)
-  (prim sat        (vec-string int) string  expr "%s[%s]"  pure)
+  (prim sat        (vec-string int) string  expr "%s[%s]"  pure index)
   (prim split-words (string) vec-string     expr "strings.Fields(%s)" pure (import "strings"))
   (prim dict-empty (none) dict              expr "make(map[string]int)")
   (prim dict-inc   (dict string) dict       stmt "%s[%s]++")

@@ -177,9 +177,10 @@ binder and works *only* because weakening is denied.
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and
 [docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement
-that constrains it: bounds-check elimination is worth **1.94×** on Go, and **our proofs do not
-transfer** — a proof buys nothing unless the emitted code is shaped so the host re-proves it.
-The cheapest form of that win is an emitter pattern needing no types at all.
+that constrains it: **our proofs do not transfer** — a proof buys nothing unless the emitted code is shaped so the
+host re-proves it. That win has been **collected as an emitter pattern**, needing no types at all
+([bce-2026-08-15](gauntlet/results/bce-2026-08-15.md)): 1.96× on compute-bound loops, and
+**nothing** on memory-bound ones, which is the condition the earlier "1.94×" left off.
 
 ## Working conventions
 

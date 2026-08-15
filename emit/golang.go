@@ -168,13 +168,13 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				// accumulator type was, and only correct by luck. Removing the
 				// declaration (target-files.md §4) exposed it.
 				if p.Kind == "loop2" && len(t.Args()) == 6 {
-				if fin := t.Args()[5]; fin.Kind == core.KFn && len(fin.Params) == 2 {
-				e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
-				if ty := e.typeOf(fin.Body()); ty != "" {
-				return ty
-				}
-				}
-				return e.typeOf(t.Args()[0])
+					if fin := t.Args()[5]; fin.Kind == core.KFn && len(fin.Params) == 2 {
+						e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
+						if ty := e.typeOf(fin.Body()); ty != "" {
+							return ty
+						}
+					}
+					return e.typeOf(t.Args()[0])
 				}
 				// A statement's value IS argument 0, which is what every
 				// target file has said since dict-inc and what none of them
@@ -318,8 +318,12 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 	e.types[sy.Params[0]], e.types[sy.Params[1]], e.types[sy.Params[2]] = "f64", "f64", "int"
 	n := e.fresh("n")
 
+	syBody := core.Rename(sy.Body(), map[string]string{
+		sy.Params[0]: sx.Params[0], sy.Params[1]: sx.Params[1], sy.Params[2]: sx.Params[2]})
+
 	e.line("%s, %s := %s, %s", ax, ay, x0, y0)
 	e.line("%s := %s", n, count)
+	e.emitNarrow(sx.Params[2], n, sx.Body(), syBody)
 	e.line("for %s := 0; %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	bx, err := e.emit(sx.Body())
@@ -327,8 +331,7 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 		return "", err
 	}
 	// The second step names its own parameters; rebind them to the first's.
-	by, err := e.emit(core.Rename(sy.Body(), map[string]string{
-		sy.Params[0]: sx.Params[0], sy.Params[1]: sx.Params[1], sy.Params[2]: sx.Params[2]}))
+	by, err := e.emit(syBody)
 	if err != nil {
 		return "", err
 	}
@@ -341,6 +344,67 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 	e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
 	return e.emit(core.Rename(fin.Body(), map[string]string{
 		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
+}
+
+// emitNarrow restricts every container the loop indexes by the BARE loop
+// variable to the loop's own count, before the loop.
+//
+// This is the whole of bounds-check elimination, and it is worth 1.96x on Go
+// (gauntlet/results/bce-2026-08-15.md). Our own proof buys nothing — Go's BCE
+// has never heard of us — so the only thing that works is emitting a shape the
+// host re-proves for itself. `q = q[:n]` turns one check per iteration into one
+// check before the loop.
+//
+// It is legal precisely because docs/spec/primitives.md §2 specifies `aindex`
+// as *unspecified out of bounds*: narrowing moves the panic earlier, and no
+// program with defined meaning can tell.
+//
+// Conservative on purpose. A container is narrowed only if EVERY occurrence of
+// it in the body is an index by the bare loop variable — the stencil indexes
+// `a` at `j`, `j+1` and `j+2`, so `a` is left alone and stays correct.
+func (e *Emitter) emitNarrow(idxName, n string, bodies ...*core.Term) {
+	if e.tgt.Narrow == "" {
+		return // this target has no such shape; JS and Java do not
+	}
+	good, bad := map[string]bool{}, map[string]bool{}
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Index {
+				a := t.Args()
+				if len(a) == 2 && a[0].Kind == core.KName &&
+					a[1].Kind == core.KName && a[1].Name == idxName {
+					good[a[0].Name] = true
+					return // accounted for; do not mark it used elsewhere
+				}
+			}
+		}
+		switch t.Kind {
+		case core.KName:
+			bad[t.Name] = true
+		case core.KFn:
+			walk(t.Body())
+		case core.KApp:
+			for _, k := range t.Kids {
+				walk(k)
+			}
+		}
+	}
+	for _, b := range bodies {
+		walk(b)
+	}
+
+	names := make([]string, 0, len(good))
+	for name := range good {
+		if !bad[name] {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		m := mangle(name)
+		e.line("%s", fmt.Sprintf(e.tgt.Narrow, m, m, n))
+	}
 }
 
 // emitLet binds a value to a name and continues with the body. The λ here is a
@@ -453,6 +517,7 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 
 	e.line("%s := %s", acc, init)
 	e.line("%s := %s", n, count)
+	e.emitNarrow(idxName, n, step.Body())
 	e.line("for %s := 0; %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	body, err := e.emit(step.Body())

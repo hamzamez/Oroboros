@@ -5,6 +5,8 @@ package gauntlet
 func GenDot(p []float64, q []float64) float64 {
 	acc := 0.0
 	n1 := (len(p))
+	p = p[:n1]
+	q = q[:n1]
 	for i := 0; i < n1; i++ {
 		acc = (acc + ((p[i]) * (q[i])))
 	}

@@ -9,6 +9,7 @@ func GenReport(label any, xs []float64) float64 {
 	fmt.Println((len(xs)))
 	acc := 0.0
 	n1 := (len(xs))
+	xs = xs[:n1]
 	for i := 0; i < n1; i++ {
 		acc = (acc + ((xs[i]) * (xs[i])))
 	}

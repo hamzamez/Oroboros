@@ -21,6 +21,12 @@ Bounds checking is the cleanest case, so it was measured. Go, 4096-element dot p
 | indexed loop — **what `cmd/gen` emits today** | 1,005 | `IsInBounds` on the second array |
 | same loop, reshaped so Go's own BCE fires | **525** | none; one `IsSliceInBounds` before the loop |
 
+> **Corrected 2026-08-15 by [bce-2026-08-15](../gauntlet/results/bce-2026-08-15.md).** The
+> transformation is now built as an emitter pattern and removes the per-iteration check from every
+> generated program. But the 1.96× it is worth in isolation **does not appear on the gauntlet's
+> large inputs**, where the loop is memory-bound and the removed instruction hides behind the cache
+> miss. The number below is real *for compute-bound loops* and was quoted without that condition.
+
 **1.94×.** Larger than every host-idiom difference this project has measured — larger than JS's
 `Map` vs null-prototype object (3.25× but on a slower path), larger than Java's fused vs unfused
 dictionary (2.6×), and it applies to the innermost loop of every array program in the gauntlet.
@@ -313,8 +319,9 @@ a specification.
 
 Nothing here is scheduled. If it were:
 
-1. **Collect the 1.94× with an emitter pattern first**, and measure it on the real gauntlet. It is
-   the cheapest large win available and it requires no design.
+1. ~~**Collect the 1.94× with an emitter pattern first**~~ — **done**, 2026-08-15. It required no
+   design and no types, exactly as §2.2 predicted, and measuring it on the real gauntlet is what
+   revealed the win is conditional on the loop being compute-bound.
 2. **Signature types** — argument and result types on module exports, checked across targets.
    Small, and it makes something we already built stronger.
 3. **Refinements on integers**, decidable fragment, discharging ADR 0003.

@@ -248,3 +248,26 @@ func TestGenericInstantiationsAgree(t *testing.T) {
 		}
 	}
 }
+
+// Generated against hand-written at full size, which is the comparison the
+// bounds-check work is about. Added 2026-08-15.
+func BenchmarkG1GenDot(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkF = GenDot(vecA, vecB)
+	}
+}
+
+func BenchmarkG2GenCentroid(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkF = GenCentroid(vecA, vecB)
+	}
+}
+
+func BenchmarkG1GenDotChecked(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		sinkF = GenDotChecked(vecA, vecB)
+	}
+}

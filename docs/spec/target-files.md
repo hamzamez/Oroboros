@@ -28,6 +28,7 @@ no template expresses that.
 file        ::= (target NAME decl…)
 
 decl        ::= (type NAME "spelling")
+              | (narrow "template")           ; how this host restricts a container
               | (module PATH prim…)          ; declares into a module namespace
               | prim
               | structural
@@ -39,7 +40,7 @@ template    ::= "…%s…"
 structural  ::= (structural NAME skind attr…)
 skind       ::= let | cond | loop | loop2
 
-attr        ::= pure | (import "…")
+attr        ::= pure | index | (import "…")
 argtype     ::= NAME | none                  ; `none` alone means arity zero
 ```
 
@@ -186,6 +187,16 @@ residual the *reducer* produced, since a source-level `let` is erased by the rea
 **If the binder is used zero times it is a sequencing point, not a binding**: the value is emitted
 for its effect and no variable is declared. That is what makes `seq` work, and Go would reject the
 alternative as an unused variable ([effects.md §5](effects.md)).
+
+### `index` and `narrow`
+
+`index` on a two-argument primitive says **argument 0 is a container indexed by argument 1**.
+`(narrow "…")` on the target says how that host restricts a container to a known length.
+
+Together they let the backend emit `q = q[:n]` before a loop, which hands the host's own
+bounds-check elimination a proof it will accept — worth 1.96× on compute-bound loops and nothing on
+memory-bound ones ([bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md)). A target that
+declares no `narrow` gets no transformation, which is correct for JavaScript and Java.
 
 ## 5. `pure`
 

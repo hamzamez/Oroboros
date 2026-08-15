@@ -32,6 +32,7 @@ type Prim struct {
 	Form   string // template with %s holes; empty for structural kinds
 	Import string
 	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
+	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
 }
 
 type Target struct {
@@ -39,6 +40,12 @@ type Target struct {
 	Types map[string]string // our type name -> the target's spelling
 	Prims map[string]Prim
 	Names []string // every primitive name, for core.Env
+
+	// Narrow is a template `dst = src[:n]` that restricts a container to a
+	// known length. A target that declares one gets bounds-check elimination
+	// in loops (bce-2026-08-15.md); one that does not simply gets none, which
+	// is right for JS (no bounds checks) and Java (fixed-length arrays).
+	Narrow string
 }
 
 // Kinds that the emitter implements in code rather than from a template.
@@ -84,6 +91,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err := tg.declare(f, "", path); err != nil {
 				return nil, err
 			}
+		case "narrow":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (narrow \"dst = src[:n]\"), got %s", path, f)
+			}
+			tg.Narrow = f.Kids[1].Str
 		case "structural":
 			// (structural NAME KIND [pure]) — the four the backend implements.
 			// They carry NO TYPES, because fold-range is
@@ -194,6 +206,12 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 			p.Form = rest.Str
 		case rest.Kind == core.KName && rest.Name == "pure":
 			p.Pure = true
+		case rest.Kind == core.KName && rest.Name == "index":
+			if len(p.Args) != 2 {
+				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+
+					"a container and an index", path, p.Name)
+			}
+			p.Index = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "import" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Import = rest.Kids[1].Str

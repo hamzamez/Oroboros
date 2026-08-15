@@ -75,6 +75,14 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		// unlike Go, where 1 and 1.0 are different tokens.
 		return strconv.FormatFloat(t.Float, 'g', -1, 64), nil
 
+	case core.KStr:
+		// A literal was added to the language for target templates and no
+		// backend could emit one, because no program had ever used one
+		// (strings.md 1). strconv.Quote escapes non-ASCII to \u, which is
+		// valid in all three hosts and sidesteps javac's platform-charset
+		// hazard entirely (strings.md 5).
+		return strconv.Quote(t.Str), nil
+
 	case core.KName:
 		return jsMangle(t.Name), nil
 

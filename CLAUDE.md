@@ -214,6 +214,7 @@ go vet ./...
 ```
 
 ```bash
+go run ./cmd/build -target=go -o hello examples/hello.oro   # a real binary
 go run ./cmd/oro -target=go examples/dot.oro     # reduce to normal form
 go run ./cmd/oro -target=blas -steps examples/dot.oro
 ```
@@ -248,6 +249,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `targets/` | Target declarations — **data, not Go**. Adding a host function is a line here. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
+| `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
 | `examples/` | nine programs; `stencil.oro` needed integer arithmetic to exist |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |

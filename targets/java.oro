@@ -66,8 +66,10 @@
 
   ; Tier 2 — effects.md §6. This is the target that disagrees most: println
   ; prints 1.0 where Go and JS print 1, and 1.0E8 where JS prints 100000000.
-  (prim print-line (any) any stmt "System.out.println(%s)")
 
+
+  (module io
+    (prim print-line (any) any stmt "System.out.println(%s)"))
 
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,

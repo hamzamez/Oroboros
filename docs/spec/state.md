@@ -12,6 +12,9 @@ Read off the code, not from memory. Everything here is checkable by grep.
 term ::= name | integer | float | string | (fn (name…) term) | (term term…)
 ```
 
+**A program's entry point is an export named `main` taking no arguments**
+([build.md §2](build.md)). `(fn () …)` is legal; `()` alone is still not a term.
+
 **Four top-level forms.** One introduces a definition; three are module bookkeeping and are
 erased before reduction ([modules.md](modules.md)).
 

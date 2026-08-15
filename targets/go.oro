@@ -92,8 +92,13 @@
 
   ; Tier 2. Go, JS and Java print the same float three different ways, so this
   ; carries no portability claim — effects.md §6.
-  (prim print-line (any) any stmt "fmt.Println(%s)" (import "fmt"))
 
+
+  (module io
+    (prim print-line (any) any stmt "fmt.Println(%s)" (import "fmt")))
+
+  ; The host toolchain, as data. %s is the artifact, %s the source directory.
+  (build "go build -o %s %s")
 
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,

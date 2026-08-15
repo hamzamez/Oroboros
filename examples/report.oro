@@ -14,11 +14,12 @@
 ; pure part, and a fused pure part must not move the effect.
 
 (use num/vec)
+(use io)
 
 ; `seq` is sugar for nested applications with an ignored binder, and it survives
 ; reduction only because β refuses to drop an impure argument that is used zero
 ; times — effects.md §5.
 (fn (label xs)
-  (seq (print-line label)
-       (print-line (alen xs))
-       (print-line (vec.dot xs xs))))
+  (seq (io.print-line label)
+       (io.print-line (alen xs))
+       (io.print-line (vec.dot xs xs))))

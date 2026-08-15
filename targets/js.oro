@@ -59,8 +59,10 @@
 
   ; Tier 2 — effects.md §6. console.log prints 1 for 1.0 and 100000000 for 1e8,
   ; agreeing with Go on the first and with neither on the second.
-  (prim print-line (any) any stmt "console.log(%s)")
 
+
+  (module io
+    (prim print-line (any) any stmt "console.log(%s)"))
 
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,

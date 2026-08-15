@@ -228,6 +228,20 @@ func (r *reader) list() (*Term, error) {
 			r.next()
 			break
 		}
+		// `()` is not a term, but it IS a legal parameter list: `(fn () b)` is
+		// a nullary abstraction, which is what a program's entry point has to
+		// be (build.md §2). Nothing else may be empty.
+		if len(kids) == 1 && isFnHead(kids[0]) && r.peek() == '(' {
+			save := r.pos
+			r.next()
+			r.skipSpace()
+			if !r.done() && r.peek() == ')' {
+				r.next()
+				kids = append(kids, &Term{Kind: KApp}) // the empty parameter list
+				continue
+			}
+			r.pos = save
+		}
 		k, err := r.term()
 		if err != nil {
 			return nil, err
@@ -295,6 +309,12 @@ func (r *reader) list() (*Term, error) {
 
 // paramList reads (a b c). The reader produced it as an application, so it is
 // unpacked here rather than parsed specially.
+// isFnHead reports whether this kid makes the enclosing list an abstraction,
+// which is the one place an empty list is admissible.
+func isFnHead(t *Term) bool {
+	return t.Kind == KName && (t.Name == "fn" || t.Name == "λ")
+}
+
 func paramList(t *Term, line int) ([]string, error) {
 	if t.Kind == KName {
 		return nil, fmt.Errorf("line %d: fn parameters must be a list, got %s", line, t.Name)

@@ -10,8 +10,13 @@ Written before the code, per [state.md §6](state.md).
 > `GenGeneric1` became `GenSumOf` and `GenWordTally`. A file with no `(export …)` keeps the old
 > stem-based naming, so nothing else moved.
 >
-> Not yet built: file-per-module is a convention rather than a rule — a module is currently a
-> *scope*, and one source may open several.
+> **Files, 2026-08-15.** `(use PATH)` now resolves against a search path — `PATH.oro` under the
+> entry file's directory, then `-path` (default `lib`). A path with no file is not an error: it is
+> a module the *target* provides. `lib/num/vec.oro` is the first library, and `examples/dot.oro`
+> and `examples/report.oro` share it instead of duplicating it, with byte-identical output.
+> Crucially, `P_T ∩ D` still decides **across the file boundary**.
+>
+> Not yet built: a target is still one file rather than a directory (§4).
 
 The claim this document has to earn is that **modules add no mechanism to the reducer**. If it
 needs a new reduction rule, a new term kind, or a second parameter to normalisation, it is the
@@ -20,6 +25,8 @@ already implied by the two rules we have, and that the work is naming, resolutio
 not reduction.
 
 ---
+
+**Decision recorded as [ADR 0011](../decisions/0011-modules-add-nothing-to-the-reducer.md).**
 
 ## 1. Why now
 

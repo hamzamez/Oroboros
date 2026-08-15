@@ -72,10 +72,92 @@ func qualify(path, name string) string {
 	return path + "." + name
 }
 
-func Load(forms []Form) (*Program, []*Term, error) {
+// A Resolver finds the source of a module by path. It returns found=false for a
+// path the target provides rather than a library — `go/strings` has no file.
+//
+// This is the whole of multi-file support: resolution already turns every name
+// into a fully qualified one, so loading more modules only means having more of
+// them in scope. Nothing downstream can tell whether a module came from the
+// entry file or from disk.
+type Resolver func(path string) (src string, found bool, err error)
+
+// Load reads one source with no file resolution — every module it uses must be
+// declared in the same text, or provided by the target.
+func Load(forms []Form) (*Program, []*Term, error) { return LoadWith(forms, nil) }
+
+// LoadWith reads an entry source and follows its imports, transitively.
+//
+// Only the ENTRY file contributes entry points: a library's bare terms and
+// exports are not the program's. That is what makes `(use …)` a dependency
+// rather than an inclusion.
+func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	mods, entries, err := partition(forms)
 	if err != nil {
 		return nil, nil, err
+	}
+	entryPaths := map[string]bool{}
+	for _, m := range mods {
+		entryPaths[m.Path] = true
+	}
+
+	// Fixpoint over imports. A module already in scope is never re-read, which
+	// is also what terminates on a cycle.
+	if resolve != nil {
+		seen := map[string]bool{}
+		for _, m := range mods {
+			seen[m.Path] = true
+		}
+		for {
+			var want string
+			for _, m := range mods {
+				for _, path := range m.Uses {
+					if !seen[path] {
+						want = path
+						break
+					}
+				}
+				if want != "" {
+					break
+				}
+			}
+			if want == "" {
+				break
+			}
+			seen[want] = true
+			src, found, err := resolve(want)
+			if err != nil {
+				return nil, nil, fmt.Errorf("use %s: %w", want, err)
+			}
+			if !found {
+				continue // provided by the target, not by a library
+			}
+			sub, err := Read(src)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", want, err)
+			}
+			subMods, _, err := partition(sub)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", want, err)
+			}
+			declared := false
+			for _, m := range subMods {
+				if m.Path == "" && len(m.Defs) == 0 {
+					continue // the empty anonymous scope every file starts with
+				}
+				if m.Path == "" {
+					return nil, nil, fmt.Errorf(
+						"%s: a library file must declare (module %s) before its definitions", want, want)
+				}
+				if m.Path == want {
+					declared = true
+				}
+				seen[m.Path] = true
+				mods = append(mods, m)
+			}
+			if !declared {
+				return nil, nil, fmt.Errorf("%s does not declare (module %s)", want, want)
+			}
+		}
 	}
 	p := NewProgram()
 	for _, m := range mods {
@@ -93,6 +175,9 @@ func Load(forms []Form) (*Program, []*Term, error) {
 		}
 	}
 	for _, m := range mods {
+		if !entryPaths[m.Path] {
+			continue // a library's exports are not the program's entry points
+		}
 		for _, n := range m.Order {
 			if m.Exports[n] {
 				p.Exports = append(p.Exports, qualify(m.Path, n))

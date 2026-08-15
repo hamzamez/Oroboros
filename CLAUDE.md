@@ -41,6 +41,9 @@ recording alternatives that were considered and rejected.
 | Explore candidates against a fixed test; do not specify the core first | [0007](docs/decisions/0007-exploration-over-specification.md) |
 | Parasite decisions are per-target measurements, not principles | [0008](docs/decisions/0008-measurement-over-principle.md) |
 | Staging must not change results | [0009](docs/decisions/0009-staging-preserves-results.md) |
+| Effects are a side condition on β, not a feature | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
+| Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
+| `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -246,6 +249,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `examples/` | nine programs; `stencil.oro` needed integer arithmetic to exist |
+| `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 
 **Both emitted programs reach parity with hand-written Go.** See

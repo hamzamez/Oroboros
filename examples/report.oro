@@ -1,33 +1,19 @@
 ; Gauntlet program 5 — formatted output.
 ;
-; The last of the five, and the only one with an effect. Everything before it
-; was pure, which is why the reducer got away with substituting freely for six
-; programs (docs/spec/effects.md §1).
-;
-; Three things are being tested at once:
+; The only gauntlet program with an effect. Three things are tested at once:
 ;
 ;   1. A host binding costs nothing. `print-line` is one line in targets/*.oro
 ;      and no Go — g5's claim that an extern is a vocabulary entry.
 ;   2. Order survives reduction. The three lines must print in the order
 ;      written, once each, however aggressively β rewrites around them.
-;   3. A pure computation feeds an effectful call. `dot` is reused verbatim from
-;      dot.oro and must still fuse into one loop with no intermediate vector,
-;      even though its result is now consumed by a statement.
+;   3. A pure computation feeds an effectful call. `dot` is now imported from
+;      num/vec rather than repeated here, and must still fuse into one loop
+;      with no intermediate vector.
 ;
-; The last one is the interesting case: an effect must not be allowed to block
-; fusion in the pure part of the program, and a fused pure part must not be
-; allowed to move the effect.
+; The last one is the interesting case: an effect must not block fusion in the
+; pure part, and a fused pure part must not move the effect.
 
-(use num/f64)
-
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
-
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
-(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
+(use num/vec)
 
 ; `seq` is sugar for nested applications with an ignored binder, and it survives
 ; reduction only because β refuses to drop an impure argument that is used zero
@@ -35,4 +21,4 @@
 (fn (label xs)
   (seq (print-line label)
        (print-line (alen xs))
-       (print-line (dot xs xs))))
+       (print-line (vec.dot xs xs))))

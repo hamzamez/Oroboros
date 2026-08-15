@@ -21,6 +21,7 @@ import (
 func main() {
 	target := flag.String("target", "go", "target whose primitive set defines the normal form")
 	dir := flag.String("targets", "targets", "directory holding target declarations")
+	path := flag.String("path", "lib", "search path for imported modules")
 	steps := flag.Bool("steps", false, "print each top-level term before and after reduction")
 	fuel := flag.Int("fuel", core.DefaultFuel, "maximum reduction steps")
 	flag.Usage = func() {
@@ -33,24 +34,24 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), *target, *fuel, *steps); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *fuel, *steps, *path); err != nil {
 		fmt.Fprintf(os.Stderr, "oro: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, path, target string, fuel int, steps bool) error {
-	src, err := os.ReadFile(path)
+func run(targetDir, src, target string, fuel int, steps bool, path string) error {
+	text, err := os.ReadFile(src)
 	if err != nil {
 		return err
 	}
-	forms, err := core.Read(string(src))
+	forms, err := core.Read(string(text))
 	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s: %w", src, err)
 	}
-	prog, terms, err := core.Load(forms)
+	prog, terms, err := core.LoadWith(forms, fileResolver(libDirs(src, path)))
 	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		return fmt.Errorf("%s: %w", src, err)
 	}
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
@@ -102,4 +103,35 @@ func plural(names []string) string {
 		return names[0]
 	}
 	return "each of these"
+}
+
+// fileResolver finds a module on a search path: `(use num/vec)` looks for
+// num/vec.oro under each directory in turn. A path with no file is not an
+// error — it is a module the TARGET provides, like go/strings.
+func fileResolver(dirs []string) core.Resolver {
+	return func(path string) (string, bool, error) {
+		for _, d := range dirs {
+			p := filepath.Join(d, filepath.FromSlash(path)+".oro")
+			b, err := os.ReadFile(p)
+			if err == nil {
+				return string(b), true, nil
+			}
+			if !os.IsNotExist(err) {
+				return "", false, err
+			}
+		}
+		return "", false, nil
+	}
+}
+
+// libDirs is the search path: the entry file's own directory first, so a
+// program can keep its modules beside it, then whatever -path adds.
+func libDirs(entry, extra string) []string {
+	dirs := []string{filepath.Dir(entry)}
+	for _, d := range filepath.SplitList(extra) {
+		if d != "" {
+			dirs = append(dirs, d)
+		}
+	}
+	return dirs
 }

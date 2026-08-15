@@ -624,3 +624,72 @@ func TestNativeShadowsLibraryAcrossModules(t *testing.T) {
 	check(t, moduleProgram, "go",
 		"(fold-range 0.0 (alen p) (fn (acc i) (add acc (mul (aindex p i) (aindex q i)))))")
 }
+
+// §5 — modules across files. The resolver is in memory, so this tests the
+// mechanism rather than the filesystem: `(use …)` pulls a module into scope,
+// and by the time reduction runs nothing can tell it came from elsewhere.
+func TestLoadAcrossFiles(t *testing.T) {
+	lib := map[string]string{
+		"num/vec": `
+			(module num/vec)
+			(export dot)
+			(def dot (fn (a b) (fold-range 0.0 (alen a)
+			           (fn (acc i) (add acc (mul (aindex a i) (aindex b i)))))))
+		`,
+	}
+	resolve := func(path string) (string, bool, error) {
+		src, ok := lib[path]
+		return src, ok, nil
+	}
+
+	src, prims := splitPrims(`
+		(target go (prim add mul alen aindex fold-range))
+		(use num/vec)
+		(vec.dot p q)
+	`, "go")
+	forms, err := Read(src)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	prog, terms, err := LoadWith(forms, resolve)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	got, err := Normalize(terms[0], testEnv(prog, prims...), DefaultFuel)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	want := "(fold-range 0.0 (alen p) (fn (acc i) (add acc (mul (aindex p i) (aindex q i)))))"
+	if got.String() != want {
+		t.Errorf("\n got: %s\nwant: %s", got, want)
+	}
+
+	// A library's exports are NOT the program's entry points.
+	if len(prog.Exports) != 0 {
+		t.Errorf("library exports leaked into the program: %v", prog.Exports)
+	}
+
+	// P ∩ D still decides, across the file boundary: a target that provides
+	// the name natively shadows the imported definition.
+	env := testEnv(prog, append(prims, "num/vec.dot")...)
+	got, err = Normalize(terms[0], env, DefaultFuel)
+	if err != nil {
+		t.Fatalf("normalize: %v", err)
+	}
+	if got.String() != "(num/vec.dot p q)" {
+		t.Errorf("native should shadow the imported definition; got %s", got)
+	}
+}
+
+// A module a program uses but no file provides is not an error — it is one the
+// target supplies, like go/strings.
+func TestUnresolvedModuleIsNotAnError(t *testing.T) {
+	none := func(string) (string, bool, error) { return "", false, nil }
+	forms, err := Read(`(use go/strings) (strings.fields t)`)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if _, _, err := LoadWith(forms, none); err != nil {
+		t.Fatalf("an unresolved module must be left to the target: %v", err)
+	}
+}

@@ -1,22 +1,12 @@
-; The thesis, runnable. Two targets, one program.
+; The thesis, runnable. Two targets, one program — now across two FILES.
 ;
 ;   oro -target=blas examples/dot.oro   ⟶  (dot p q)
 ;   oro -target=go   examples/dot.oro   ⟶  a loop
 ;
-; Nothing distinguishes the targets except which names they call primitive.
+; Nothing distinguishes the targets except which names they call primitive, and
+; nothing distinguishes an imported definition from a local one.
 
-; A vector is a length paired with an index function — the delayed
-; representation. It has no runtime existence; it reduces away entirely.
-(use num/f64)
-
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
-
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
-(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
+(use num/vec)
 
 ; Bound, so the term is closed and the residual check has nothing to report.
-(fn (p q) (dot p q))
+(fn (p q) (vec.dot p q))

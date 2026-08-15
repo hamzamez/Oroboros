@@ -1,6 +1,7 @@
 # Arithmetic, booleans, and comparison
 
-Written before the code, per [state.md §6](state.md).
+Written before the code, per [state.md §6](state.md). Decision recorded as
+[ADR 0012](../decisions/0012-portable-integer-range.md).
 
 > **Status, 2026-08-15. Built.** All of it is data — `core/` gained nothing, as predicted. The
 > four target files declare `num/f64`, `num/int` and `logic`; the seven existing examples were

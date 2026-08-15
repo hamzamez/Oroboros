@@ -4,7 +4,7 @@ import java.util.HashMap;
 
 public final class GenWordcount {
 	public static HashMap<String,Integer> genWordcount(String text) {
-		final String[] ws = (text.split(" "));
+		final String[] ws = (java.util.regex.Pattern.compile("[^\\p{IsWhite_Space}]+").matcher(text).results().map(java.util.regex.MatchResult::group).toArray(String[]::new));
 		HashMap<String,Integer> acc = (new HashMap<String,Integer>());
 		final int n1 = (ws.length);
 		for (int i = 0; i < n1; i++) {

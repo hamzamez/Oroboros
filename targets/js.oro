@@ -49,7 +49,10 @@
   ; for string keys, which refuted g4's original pass condition.
   (prim slen        (vec-string) int        expr "%s.length"    pure)
   (prim sat         (vec-string int) string expr "%s[%s]"       pure)
-  (prim split-words (string) vec-string     expr "%s.split(\" \")" pure)
+  ; Go's strings.Fields semantics: runs of non-whitespace, no empty fields.
+    ; .split(" ") was WRONG on tabs, newlines, repeated and leading spaces --
+    ; four of ten conformance cases. See docs/spec/primitives.md.
+    (prim split-words (string) vec-string     expr "(%s.match(/\\S+/g) ?? [])" pure)
   (prim dict-empty  (none) dict             expr "Object.create(null)")
   (prim dict-inc    (dict string) dict      stmt "%s[%s] = (%s[%s] ?? 0) + 1")
 

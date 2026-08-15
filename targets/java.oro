@@ -51,7 +51,14 @@
 
   (prim slen        (vec-string) int        expr "%s.length" pure)
   (prim sat         (vec-string int) string expr "%s[%s]"    pure)
-  (prim split-words (string) vec-string     expr "%s.split(\" \")" pure)
+  ; Go's strings.Fields semantics. split() cannot express it: even with (?U),
+  ; which DOES handle Unicode whitespace correctly, it still yields a leading
+  ; empty field for leading whitespace and one empty field for the empty
+  ; string. A matcher over runs of non-whitespace is exact on all ten
+  ; conformance cases — docs/spec/primitives.md.
+  (prim split-words (string) vec-string expr
+    "java.util.regex.Pattern.compile(\"[^\\\\p{IsWhite_Space}]+\").matcher(%s).results().map(java.util.regex.MatchResult::group).toArray(String[]::new)"
+    pure)
   (prim dict-empty  (none) dict             expr "new HashMap<String,Integer>()"
                                                  (import "java.util.HashMap"))
   (prim dict-inc    (dict string) dict      stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)")

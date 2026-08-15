@@ -1,0 +1,1 @@
+["a b", "a  b", "a\tb", " a b ", "a\nb", "", "   ", "a\u00a0b", "a\u2028b", "héllo wörld", "one", "  lead", "trail  "]

@@ -153,6 +153,12 @@ The test for a proposed addition is not "is it useful":
 3. If they disagree, is the disagreement **observable**? If so it is Tier 2 and carries no
    portability claim.
 
+Every primitive is classified in [docs/spec/primitives.md](docs/spec/primitives.md). Two are
+Tier 1 only *within bounds* — `aindex` and `sat`, because an out-of-range read panics on Go, throws
+on Java, and **silently returns `undefined`** on JS. A Tier 1 name without a conformance suite is
+decoration: `split-words` passed every check for two months while returning different answers on
+different targets. The suite is [gauntlet/conformance/](gauntlet/conformance/).
+
 `length` fails (3) — `"🙂"` is 4 on Go, 2 on JS and Java, 1 counting characters — which is why it
 is not in the core. Strings pass only by having almost no operations.
 

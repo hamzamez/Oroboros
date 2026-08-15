@@ -7,7 +7,9 @@ audit against it, taken mechanically from `targets/*.oro`, `examples/*.oro`, `co
 > **Status, 2026-08-15.** §1.1, §1.2 and §1.3 are **closed** — arithmetic by
 > [arithmetic.md](arithmetic.md), the false structural type and the whole target-file grammar by
 > [target-files.md](target-files.md). §1.4 (type ownership) is answered in §4a but not yet
-> enforced. The second and third tables of §2 are now specified.
+> enforced. The second and third tables of §2 are specified by
+> [target-files.md](target-files.md), and the last by [primitives.md](primitives.md) — which found
+> that `split-words` had been returning different answers on different targets, and fixed it.
 
 **Result: of 41 words, 16 are specified.** The rest are described in code comments, in measurement
 documents, or nowhere. Four are outright **wrong** — a declared type that no program obeys, and

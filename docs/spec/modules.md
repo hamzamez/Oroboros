@@ -237,9 +237,10 @@ The reason the suite is not optional:
 
 > **The covering check proves a name is *provided*. It cannot prove the name is *right*.**
 
-A porter can satisfy `Residual = ∅` completely and still be wrong. We did: `split-words` is
-declared on all three targets, passes every check, and gives different answers on Go and JS for
-any text containing a tab, a newline, or a double space. Covering is a type-level property;
+A porter can satisfy `Residual = ∅` completely and still be wrong. We did: `split-words` was
+declared on all three targets, passed every check, and gave different answers on Go and JS for any
+text containing a tab, a newline, or a double space — **four of ten cases**. Fixed 2026-08-15, and
+the suite now exists: [gauntlet/conformance/](../../gauntlet/conformance/). Covering is a type-level property;
 conformance is a semantic one; T2 depends on the second.
 
 ### What a signature costs
@@ -250,7 +251,14 @@ Specifying `split-words` means answering *what is whitespace*, and the hosts dis
 |---|---|---|
 | Go `unicode.IsSpace` | splits | splits |
 | JS `/\s+/` | splits | splits |
-| Java `\s+`, `(?U)\s+` | **does not** | **does not** |
+| Java `\s+` | **does not** | **does not** |
+| Java `(?U)\s+` | splits | splits |
+
+> **Correction, 2026-08-15.** An earlier version of this table said `(?U)\s+` also fails on these.
+> It does not — `(?U)` handles Unicode whitespace correctly, and the claim came from one careless
+> measurement. What `split` genuinely cannot do is suppress the empty field it produces for leading
+> whitespace and for the empty string, which is why the lowering is a matcher over runs of
+> non-whitespace rather than a split at all. See [primitives.md §3](primitives.md).
 
 So adopting Go's answer obliges Java to carry a Unicode `White_Space` table. That is affordable —
 and it is the reason the standard library should grow slowly. Not because implementations are

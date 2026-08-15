@@ -5,11 +5,16 @@ repository.
 
 ## Project state
 
-**One gauntlet program is not at parity.** g7's stencil, measured at
-[1.87×](gauntlet/results/stencil-2026-08-15.md) against a hand-written buffer-reusing form. The
-emitted code is at parity with hand-written *functional* code; the functional idiom itself is what
-costs. Three ways out are stated in that document and none is chosen — this is the project's first
-real failure and it should not be papered over.
+**One gauntlet program is not at parity, and that is an accepted, provisional decision** —
+[ADR 0013](docs/decisions/0013-accept-the-allocation-price.md). g7's stencil runs at **1.79× on Go
+and 2.01× on JS** against a hand-written buffer-reusing form
+([measurement](gauntlet/results/stencil-2026-08-15.md)). The emitted code is at parity with
+hand-written *functional* code; `materialize` is what costs, because it allocates fresh so nothing
+can alias.
+
+**This price is expected to be paid off, not kept.** The ADR names four triggers that should
+reopen it — the first being *a type system exists*, since uniqueness then becomes a refinement
+rather than a new mechanism. Do not treat 1.8× as the bar; the bar is still hand-written code.
 
 **Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
 (Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written
@@ -50,6 +55,7 @@ recording alternatives that were considered and rejected.
 | Effects are a side condition on β, not a feature | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
 | Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
 | `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
+| Accept the allocation price, provisionally | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,

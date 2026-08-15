@@ -16,6 +16,18 @@ func WindowSum(a []float64) float64 {
 	return acc
 }
 
+// WindowSumHoisted is the same loop with the bound lifted out by hand. Go does
+// NOT hoist `len(a)-2` out of the loop condition on its own, which is what the
+// generated form gets for free by binding the count before the loop.
+func WindowSumHoisted(a []float64) float64 {
+	acc := 0.0
+	n := len(a) - 2
+	for j := 0; j < n; j++ {
+		acc += a[j] + a[j+1] + a[j+2]
+	}
+	return acc
+}
+
 // WindowSumMaterialised is the form that builds the window sums first, carried
 // per the gauntlet rule that the expected loser is measured too.
 func WindowSumMaterialised(a []float64) float64 {

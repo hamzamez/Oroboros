@@ -26,6 +26,13 @@ func BenchmarkG8GenStencil(b *testing.B) {
 	}
 }
 
+func BenchmarkG8WindowSumHoisted(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_ = WindowSumHoisted(vecA)
+	}
+}
+
 func BenchmarkG8WindowSumMaterialised(b *testing.B) {
 	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {

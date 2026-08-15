@@ -7,10 +7,25 @@ Written before the code, per [state.md §6](state.md).
 > migrated to qualified names and **emit byte-identical source on every target**; three tests
 > named old unqualified primitives and were updated.
 >
-> `examples/stencil.oro` is the first program the language could not previously express. Measured
-> against hand-written Go: **7,946 ns/op generated versus 8,855 hand-written** — inside the noise
-> floor, so parity — while the materialised form the gauntlet carries as the expected loser costs
-> **103,509 ns/op and 512 KB**, a 13× gap that the reducer closes with no fusion rules.
+> `examples/stencil.oro` is the first program the language could not previously express.
+> Measured, and then corrected by reading the machine code:
+>
+> | | ns/op | |
+> |---|---|---|
+> | hand-written, idiomatic — `for j := 0; j < len(a)-2; j++` | 9,025 | |
+> | **generated** | **8,083** | |
+> | hand-written, bound hoisted by hand | 7,988 | the real baseline |
+> | materialised — the expected loser | 103,509 | 512 KB allocated |
+>
+> **The verdict is parity, and the 11 % over the idiomatic form is real rather than noise.**
+> `go build -gcflags=-S` shows the hand-written loop recomputing `LEAQ -2(BX), DX` **inside** the
+> loop body — Go declines a textbook loop-invariant hoist — while the generated loop computes the
+> bound once before it. One instruction of eight, and 1/8 is 12.5 %, which is what the clock said.
+>
+> That is a win over *one way of writing it*, not over a Go programmer: a human who hoists the
+> bound ties. What the emitter has is structural rather than clever — `fold-range` takes its count
+> as an *argument*, so the count is bound before the loop **by construction** and the shape cannot
+> be written the slow way.
 
 Closes three holes found by [inventory.md](inventory.md): there is no integer arithmetic, there is
 no boolean logic, and there is no equality. All three land in **slot 1 — the parameter `P`** —

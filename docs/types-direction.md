@@ -126,6 +126,101 @@ That is [modules.md T2](spec/modules.md)'s substitution soundness becoming machi
 of asserted, and it is the one job no backend can do for us — because the two implementations
 being compared live on *different targets* and no single host compiler ever sees both.
 
+## 3.2 Why not Hindley-Milner and algebraic data types
+
+Skipping past them was a gap in §3, because **refinement types are not an alternative to HM —
+they are a layer on top of it.** Liquid Types is HM *plus* refinements. So §3 named the upper
+storey and omitted the ground floor.
+
+The reason for skipping is still real: this architecture already has HM's two headline features
+by other means.
+
+**Parametric polymorphism, by specialisation.** `examples/generic.oro` uses one definition,
+`reduce-over`, at f64→f64 and at string→dictionary. The residual is two monomorphic loops — no
+type parameters, no dictionary, no monomorphisation pass, and
+[measured](../gauntlet/results/generics-2026-08-14.md) as byte-identical machine code to
+hand-written monomorphic Go. HM gives polymorphism and then has to *erase it again*, by
+dictionaries (which allocate) or by a monomorphisation pass (which we would be re-implementing).
+δ+β do it as a side effect, and the result is guaranteed monomorphic.
+
+**Algebraic data types, by encoding.** `(def vec (fn (n f) (fn (sel) (sel n f))))` is a product
+type and `vlen`/`vindex` are its projections — a Scott encoding that reduces away entirely. q5b's
+push representation is the same trick for another shape. We already have data types; what we lack
+is *checking* them, not representing them.
+
+A native sum type would be actively dangerous here: a tagged union allocates on the JVM and on JS,
+which is the boxing CLAUDE.md forbids in the core. Encoded-and-reduced is strictly better for this
+project than ADTs are for ML.
+
+## 3.3 The residual is monomorphic, which makes the checker smaller than HM
+
+Source is polymorphic. Reduction specialises it away. The residual is **monomorphic, first-order**
+(escaping closures are refused by all three backends) **and closed**. Checking *that* needs no type
+schemes, no generalisation, no unification beyond the trivial.
+
+Which suggests two checkers with different jobs rather than one:
+
+| | checks | for whom |
+|---|---|---|
+| **signature level** | module exports, before reduction | the programmer; what [modules.md](spec/modules.md) needs |
+| **residual level** | the specialised normal form, before emission | a soundness net |
+
+The second is cheap precisely because reduction has already done the hard part.
+
+## 3.4 The bigger performance case is representation, not check deletion
+
+§1 framed the argument as deleting bounds checks. That undersold it.
+
+Enumerate what our three hosts actually check at runtime: **bounds** (yes — §1, 1.94×); **null**
+(we have no nulls); **division by zero** (we have no division); **overflow** (both wrap, no check);
+**casts** (we already emit monomorphic code). On these targets, check *deletion* really is mostly
+bounds.
+
+But types drive a second mechanism that is not check deletion at all: **choosing the
+representation** — unboxed versus boxed, `i32` versus `i64`, struct-of-arrays versus
+array-of-structs. That is [ADR 0003](decisions/0003-range-typed-integers.md)'s entire subject and
+[g2](derivations/g2-structs.md)'s finding, it is plausibly larger than bounds checking, and **no
+emitter pattern can reach it** — it needs the range and kind of values, not their syntactic
+position.
+
+So the performance case for types is stronger than §2.2 allowed, for a reason §1 did not name.
+
+## 3.5 Two layers, because codegen needs types whose meaning is fixed
+
+Sequent calculus can certainly **express** refinements; it is a presentation of a logic, not a type
+system. Two objections survive that, and the second is decisive.
+
+**Expressible is not decidable.** Refinement checking gets its power from a *decision procedure*
+over arithmetic. `0 ≤ i < n ∧ n = len(a) ⊢ i < len(a)` is discharged by Presburger in
+microseconds; a search re-deriving arithmetic from user-written rules is where it becomes
+exponential. Shen bounds the search with a depth limit, which makes *"your program is ill-typed"*
+and *"the search gave up"* indistinguishable to the programmer.
+
+**A compiler cannot optimise against types it does not understand.** If the type system is
+user-defined, the compiler knows only that *a proof exists in somebody's rule set* — not what
+`{0..n-1}` **means**. It can delete no bounds check from that and choose no representation. Shen's
+type system is built for correctness and expressiveness, and it is structurally unable to drive
+codegen.
+
+That is a real tension between the two things wanted — maximum power, and performance — and the
+resolution is to stop asking one mechanism for both:
+
+> **Layer 1 — types the compiler exploits.** Small, fixed, decidable. Base types plus refinements
+> over ADR 0003's ranges, in linear integer arithmetic. Drives representation selection and bounds
+> elimination. The compiler knows what every one of these means.
+>
+> **Layer 2 — propositions the programmer proves.** Extensible, sequent-calculus-shaped if that is
+> the best notation, discharged by search. **Not load-bearing for codegen**, so undecidability
+> costs the programmer's patience and never a miscompilation or a lost optimisation.
+
+Layer 2 has no ceiling, which is what the ambition wants, and it is safe *because* the emitter
+never consults it. The precedent is broad: Rust's types drive codegen while trait obligations do
+not; Liquid Haskell and F\* erase refinements before emission; ATS separates the proof language
+from the value language for exactly this reason.
+
+Consequence for ordering: **layer 1 must be designed first**, and designing it well is mostly
+keeping it small enough that every construct has a meaning the emitter can act on.
+
 ## 4. Order, when the time comes
 
 Nothing here is scheduled. If it were:

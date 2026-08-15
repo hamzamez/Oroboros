@@ -8,8 +8,10 @@
   (type int     "int")
   (type vec-f64 "double*")
 
-  (prim add    (f64 f64) f64      expr "%s + %s" pure)
-  (prim mul    (f64 f64) f64      expr "%s * %s" pure)
+  (module num/f64
+    (prim add (f64 f64) f64 expr "%s + %s" pure)
+    (prim mul (f64 f64) f64 expr "%s * %s" pure))
+
   (prim alen   (vec-f64) int      expr "%s.n"    pure)
   (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure)
 

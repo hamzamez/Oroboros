@@ -32,13 +32,17 @@ func TestJSTargetIsUntyped(t *testing.T) {
 // The acceptance test for requirement 4: a host function is added by editing a
 // target file and nothing else. `sqrt` exists in all three targets and in no Go
 // source — if this fails, primitives have leaked back into the compiler.
+//
+// The name is qualified since arithmetic.md §5 moved it into num/f64, which is
+// itself part of what this test asserts: a primitive moving between modules is
+// a target-file edit and nothing more.
 func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
 	for _, name := range []string{"go", "js", "java"} {
 		tg, err := LoadTarget("../targets/" + name + ".oro")
 		if err != nil {
 			t.Fatal(err)
 		}
-		p, ok := tg.Prims["sqrt"]
+		p, ok := tg.Prims["num/f64.sqrt"]
 		if !ok {
 			t.Errorf("%s does not declare sqrt", name)
 			continue
@@ -49,7 +53,7 @@ func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
 	}
 	// Go's declaration carries the import; the others need none.
 	tg, _ := LoadTarget("../targets/go.oro")
-	if tg.Prims["sqrt"].Import != "math" {
-		t.Errorf("Go's sqrt should declare import math, got %q", tg.Prims["sqrt"].Import)
+	if tg.Prims["num/f64.sqrt"].Import != "math" {
+		t.Errorf("Go's sqrt should declare import math, got %q", tg.Prims["num/f64.sqrt"].Import)
 	}
 }

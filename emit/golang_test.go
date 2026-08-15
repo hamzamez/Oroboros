@@ -43,6 +43,7 @@ func reduce(t *testing.T, src, target string) *core.Term {
 }
 
 const dotSrc = `
+	(use num/f64)
 
 	(def vec      (fn (n f) (fn (sel) (sel n f))))
 	(def vlen     (fn (v)   (v (fn (n f) n))))
@@ -50,8 +51,8 @@ const dotSrc = `
 	(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
 
 	(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-	(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
-	(def dot (fn (a b)   (sum (zip mul (of-array a) (of-array b)))))
+	(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
+	(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
 
 	(fn (p q) (dot p q))
 `
@@ -93,7 +94,8 @@ func TestMangle(t *testing.T) {
 // than producing Go that does not compile.
 func TestEscapingClosureIsARefusal(t *testing.T) {
 	src := `
-		(def make-scaler (fn (f) (fn (v) (mul v f))))
+		(use num/f64)
+		(def make-scaler (fn (f) (fn (v) (f64.mul v f))))
 		(fn (k) (make-scaler k))
 	`
 	_, err := Func(goTarget(t), "ms", reduce(t, src, "go"))

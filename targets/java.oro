@@ -7,7 +7,7 @@
 
 (target java
   (type f64        "double")
-  (type int        "int")
+  (type int        "long")
   (type bool       "boolean")
   (type vec-f64    "double[]")
   (type string     "String")
@@ -15,14 +15,37 @@
   (type dict       "HashMap<String,Integer>")
   (type any        "Object")
 
-  (prim add    (f64 f64) f64  expr "%s + %s" pure)
-  (prim sub    (f64 f64) f64  expr "%s - %s" pure)
-  (prim mul    (f64 f64) f64  expr "%s * %s" pure)
-  (prim lt     (f64 f64) bool expr "%s < %s" pure)
-  (prim gt     (f64 f64) bool expr "%s > %s" pure)
 
   ; Java arrays carry .length, so alen and slen share a shape — unlike Go, where
   ; len() is a function.
+  (module num/f64
+    (prim add (f64 f64) f64  expr "%s + %s"  pure)
+    (prim sub (f64 f64) f64  expr "%s - %s"  pure)
+    (prim mul (f64 f64) f64  expr "%s * %s"  pure)
+    (prim lt  (f64 f64) bool expr "%s < %s"  pure)
+    (prim le  (f64 f64) bool expr "%s <= %s" pure)
+    (prim gt  (f64 f64) bool expr "%s > %s"  pure)
+    (prim ge  (f64 f64) bool expr "%s >= %s" pure)
+    (prim eq  (f64 f64) bool expr "%s == %s" pure)
+    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure))
+
+  ; long, never int: Java's int wraps at 2^31, INSIDE the portable range
+  ; (arithmetic.md §4). Declaring it would be a silent miscompilation.
+  (module num/int
+    (prim add (int int) int  expr "%s + %s"  pure)
+    (prim sub (int int) int  expr "%s - %s"  pure)
+    (prim mul (int int) int  expr "%s * %s"  pure)
+    (prim lt  (int int) bool expr "%s < %s"  pure)
+    (prim le  (int int) bool expr "%s <= %s" pure)
+    (prim gt  (int int) bool expr "%s > %s"  pure)
+    (prim ge  (int int) bool expr "%s >= %s" pure)
+    (prim eq  (int int) bool expr "%s == %s" pure))
+
+  (module logic
+    (prim and (bool bool) bool expr "%s && %s" pure)
+    (prim or  (bool bool) bool expr "%s || %s" pure)
+    (prim not (bool)      bool expr "!%s"      pure))
+
   (prim alen   (vec-f64) int      expr "%s.length" pure)
   (prim aindex (vec-f64 int) f64  expr "%s[%s]"    pure)
 
@@ -33,7 +56,6 @@
                                                  (import "java.util.HashMap"))
   (prim dict-inc    (dict string) dict      stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)")
 
-  (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
 
   ; Tier 2 — effects.md §6. This is the target that disagrees most: println
   ; prints 1.0 where Go and JS print 1, and 1.0E8 where JS prints 100000000.

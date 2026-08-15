@@ -18,14 +18,16 @@
 ; fusion in the pure part of the program, and a fused pure part must not be
 ; allowed to move the effect.
 
+(use num/f64)
+
 (def vec      (fn (n f) (fn (sel) (sel n f))))
 (def vlen     (fn (v)   (v (fn (n f) n))))
 (def vindex   (fn (v i) ((v (fn (n f) f)) i)))
 (def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
 
 (def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
-(def dot (fn (a b)   (sum (zip mul (of-array a) (of-array b)))))
+(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
+(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
 
 ; `seq` is sugar for nested applications with an ignored binder, and it survives
 ; reduction only because β refuses to drop an impure argument that is used zero

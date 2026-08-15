@@ -1,8 +1,7 @@
 ; The Go target, declared as data.
 ;
-; Everything below used to be a hardcoded map in emit/golang.go. Adding a host
-; function now means adding a line here — requirement 4, "adding a target's APIs
-; is close to a file listing names".
+; Adding a host function means adding a line here — requirement 4, "adding a
+; target's APIs is close to a file listing names".
 ;
 ; Kinds:
 ;   expr   an expression; `form` is a template with %s holes
@@ -18,12 +17,13 @@
 ; `pure` licenses the reducer to copy, drop and reorder an application of this
 ; primitive. It DEFAULTS OFF: forgetting it costs speed, where forgetting the
 ; opposite marker would cost correctness silently (docs/spec/effects.md §3).
-; Two primitives here are not pure, and both were already effectful before the
-; word existed — dict-inc mutates in place, and dict-empty has a fresh identity.
 
 (target go
   (type f64        "float64")
-  (type int        "int")
+  ; int64 rather than int: Go's `int` is 64-bit on our platforms but is not
+  ; guaranteed to be, and docs/spec/arithmetic.md §4 fixes the portable range
+  ; at 2^53 on the assumption of a 64-bit integer underneath.
+  (type int        "int64")
   (type bool       "bool")
   (type vec-f64    "[]float64")
   (type string     "string")
@@ -35,11 +35,41 @@
   ; host's, not ours (g5 §7).
   (type any        "any")
 
-  (prim add    (f64 f64) f64  expr "%s + %s" pure)
-  (prim sub    (f64 f64) f64  expr "%s - %s" pure)
-  (prim mul    (f64 f64) f64  expr "%s * %s" pure)
-  (prim lt     (f64 f64) bool expr "%s < %s" pure)
-  (prim gt     (f64 f64) bool expr "%s > %s" pure)
+  ; ---------------------------------------------------------------- arithmetic
+  ;
+  ; Qualified, because `add` meaning float addition was never written down
+  ; anywhere and does not survive two numeric types — primitive names are
+  ; unique keys (arithmetic.md §5).
+
+  (module num/f64
+    (prim add (f64 f64) f64  expr "%s + %s"  pure)
+    (prim sub (f64 f64) f64  expr "%s - %s"  pure)
+    (prim mul (f64 f64) f64  expr "%s * %s"  pure)
+    (prim lt  (f64 f64) bool expr "%s < %s"  pure)
+    (prim le  (f64 f64) bool expr "%s <= %s" pure)
+    (prim gt  (f64 f64) bool expr "%s > %s"  pure)
+    (prim ge  (f64 f64) bool expr "%s >= %s" pure)
+    ; IEEE-754, so this is NOT an equivalence relation — arithmetic.md §6.
+    (prim eq  (f64 f64) bool expr "%s == %s" pure)
+    (prim sqrt (f64) f64 expr "math.Sqrt(%s)" pure (import "math")))
+
+  (module num/int
+    (prim add (int int) int  expr "%s + %s"  pure)
+    (prim sub (int int) int  expr "%s - %s"  pure)
+    (prim mul (int int) int  expr "%s * %s"  pure)
+    (prim lt  (int int) bool expr "%s < %s"  pure)
+    (prim le  (int int) bool expr "%s <= %s" pure)
+    (prim gt  (int int) bool expr "%s > %s"  pure)
+    (prim ge  (int int) bool expr "%s >= %s" pure)
+    (prim eq  (int int) bool expr "%s == %s" pure))
+
+  (module logic
+    (prim and (bool bool) bool expr "%s && %s" pure)
+    (prim or  (bool bool) bool expr "%s || %s" pure)
+    (prim not (bool)      bool expr "!%s"      pure))
+
+  ; ---------------------------------------------------------------- the rest
+  ; Not yet migrated into modules; arithmetic.md covered only the above.
 
   (prim alen   (vec-f64) int      expr "len(%s)" pure)
   (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure)
@@ -50,8 +80,6 @@
   (prim split-words (string) vec-string     expr "strings.Fields(%s)" pure (import "strings"))
   (prim dict-empty (none) dict              expr "make(map[string]int)")
   (prim dict-inc   (dict string) dict       stmt "%s[%s]++")
-
-  (prim sqrt (f64) f64 expr "math.Sqrt(%s)" pure (import "math"))
 
   ; Tier 2. Go, JS and Java print the same float three different ways, so this
   ; carries no portability claim — effects.md §6.

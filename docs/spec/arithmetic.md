@@ -2,6 +2,16 @@
 
 Written before the code, per [state.md §6](state.md).
 
+> **Status, 2026-08-15. Built.** All of it is data — `core/` gained nothing, as predicted. The
+> four target files declare `num/f64`, `num/int` and `logic`; the seven existing examples were
+> migrated to qualified names and **emit byte-identical source on every target**; three tests
+> named old unqualified primitives and were updated.
+>
+> `examples/stencil.oro` is the first program the language could not previously express. Measured
+> against hand-written Go: **7,946 ns/op generated versus 8,855 hand-written** — inside the noise
+> floor, so parity — while the materialised form the gauntlet carries as the expected loser costs
+> **103,509 ns/op and 512 KB**, a 13× gap that the reducer closes with no fusion rules.
+
 Closes three holes found by [inventory.md](inventory.md): there is no integer arithmetic, there is
 no boolean logic, and there is no equality. All three land in **slot 1 — the parameter `P`** —
 so **nothing here changes the core.** Six term kinds, two reduction rules, unchanged.

@@ -12,6 +12,8 @@
 ; require the emitter to change the emitted function's arity per target, which is
 ; g2's "a Tier 1 capability can change a function's arity" and is not built.
 
+(use num/f64)
+
 (def point (fn (x y) (fn (sel) (sel x y))))
 (def px    (fn (p)   (p (fn (x y) x))))
 (def py    (fn (p)   (p (fn (x y) y))))
@@ -24,8 +26,8 @@
 ; gauntlet/results/structs-2026-08-14.md.
 (fn (xs ys)
   (fold-range2 0.0 0.0 (alen xs)
-    (fn (ax ay i) (add ax (px (pat xs ys i))))
-    (fn (ax ay i) (add ay (py (pat xs ys i))))
+    (fn (ax ay i) (f64.add ax (px (pat xs ys i))))
+    (fn (ax ay i) (f64.add ay (py (pat xs ys i))))
     ; The finisher consumes both accumulators, so compound loop state never
     ; escapes the loop as a compound value.
-    (fn (ax ay) (add ax ay))))
+    (fn (ax ay) (f64.add ax ay))))

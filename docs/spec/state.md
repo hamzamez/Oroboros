@@ -34,6 +34,11 @@ omission costs speed rather than correctness.
 
 That is all of it. 1,058 lines in `core/`, 28 tests.
 
+Arithmetic, booleans, comparison and equality live in the modules `num/f64`, `num/int` and
+`logic` ([arithmetic.md](arithmetic.md)) — **not** in the language. An `int` is a mathematical
+integer whose portable range is ±(2⁵³−1), which is JavaScript's limit and the only range on which
+all three targets agree exactly.
+
 ## 2. What a program may *not* say
 
 Removed 2026-08-14 after the addition of target files made it dead:
@@ -48,7 +53,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 |---|---|
 | Types | none in the language. Two of three backends need them; they live there ([js](../../gauntlet/results/js-2026-08-14.md)) |
 | Data structures | **none.** `string`, `vec-f64`, `dict` are opaque handles only primitives touch |
-| Arithmetic evaluation | `(add 1 2)` does not fold. No primitive is ever evaluated |
+| Arithmetic evaluation | `(num/int.add 1 2)` does not fold. No primitive is ever evaluated |
 | Pattern matching | none — ι of Coq's βδιζη |
 | Extensionality | none — η |
 | Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |

@@ -11,6 +11,7 @@
 ; one flat qualified namespace.
 
 (module num/vec)
+(use num/f64)
 (export dot)
 
 (def vec      (fn (n f) (fn (sel) (sel n f))))
@@ -18,10 +19,11 @@
 (def vindex   (fn (v i) ((v (fn (n f) f)) i)))
 (def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
 (def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum      (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
-(def dot      (fn (a b) (sum (zip mul (of-array a) (of-array b)))))
+(def sum      (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
+(def dot      (fn (a b) (sum (zip f64.mul (of-array a) (of-array b)))))
 
 (module main)
+(use num/f64)
 (use num/vec)
 
 (fn (p q) (vec.dot p q))

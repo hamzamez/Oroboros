@@ -6,10 +6,12 @@
 ; not implemented. docs/spec/concerns.md claims that costs "a silent 2x on the
 ; hot loop". This file exists to find out.
 
+(use num/f64)
+
 (def push-of-array (fn (a)   (fn (step z) (fold-range z (alen a) (fn (acc i) (step acc (aindex a i)))))))
 (def push-filter   (fn (p c) (fn (step z) (c (fn (acc x) (if (p x) (step acc x) acc)) z))))
-(def push-sum      (fn (c)   (c (fn (acc x) (add acc x)) 0.0)))
+(def push-sum      (fn (c)   (c (fn (acc x) (f64.add acc x)) 0.0)))
 
-(def positive (fn (x) (gt x 0.0)))
+(def positive (fn (x) (f64.gt x 0.0)))
 
 (fn (a) (push-sum (push-filter positive (push-of-array a))))

@@ -234,7 +234,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `targets/` | Target declarations — **data, not Go**. Adding a host function is a line here. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
-| `examples/` | seven programs, one per gauntlet entry |
+| `examples/` | nine programs; `stencil.oro` needed integer arithmetic to exist |
 | `gauntlet/` | hand-written references and results — the bar |
 
 **Both emitted programs reach parity with hand-written Go.** See

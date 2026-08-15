@@ -1,0 +1,24 @@
+; The three-point stencil — the first program integer arithmetic makes possible.
+;
+; g7's kernel is dst[i] = (src[i-1] + src[i] + src[i+1]) / 3, and until now it
+; could not be written at ALL: every arithmetic primitive was f64, so the index
+; bound by fold-range was a value nothing could compute with. `(aindex a (sub i 1))`
+; was inexpressible. See docs/spec/inventory.md §1.2.
+;
+; This is the reduction half of it, which needs the integer arithmetic and not
+; the two things still missing — division, and storing into an array.
+;
+; Note what the window costs: three reads per iteration at three different
+; offsets, which is exactly the shape a bounds-check refinement would have to
+; reason about, and exactly the shape a compiler cannot prove safe on its own.
+
+(use num/f64)
+(use num/int)
+
+(def window (fn (a j)
+  (f64.add (f64.add (aindex a j)
+                    (aindex a (int.add j 1)))
+           (aindex a (int.add j 2)))))
+
+(fn (a) (fold-range 0.0 (int.sub (alen a) 2)
+          (fn (acc j) (f64.add acc (window a j)))))

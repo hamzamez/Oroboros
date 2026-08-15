@@ -195,6 +195,14 @@ exchange in that order. There are no effect types, no monads, and no linear type
 adding any of them should be argued against this first. `seq` is sugar for a β-redex with an unused
 binder and works *only* because weakening is denied.
 
+**There is now a type checker, and it is not in the language** —
+[docs/spec/types.md](docs/spec/types.md). It runs on the **residual**, before emission, which is
+cheap because reduction has already made the term monomorphic, first-order and closed. One checker
+serves all three targets, including JavaScript, which previously compiled
+`(f64.add "hello" 1.0)` into a program that printed `hello1`. There are still **no annotations**:
+`sig` on module exports is the next increment and is the job no host compiler can do, because the
+two implementations being compared live on different targets.
+
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and
 [docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement

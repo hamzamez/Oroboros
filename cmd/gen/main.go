@@ -100,6 +100,11 @@ func run(targetDir, src, target, out, name, path string) error {
 			return err
 		}
 		fname := u.name
+		// Check the residual before emitting it (docs/spec/types.md). On Go and
+		// Java the host would catch most of this; on JavaScript nothing would.
+		if err := emit.Check(tg, fname, nf); err != nil {
+			return err
+		}
 		var code string
 		switch target {
 		case "js":

@@ -54,7 +54,8 @@ Removed 2026-08-14 after the addition of target files made it dead:
 
 | | Status |
 |---|---|
-| Types | none in the language. Two of three backends need them; they live there ([js](../../gauntlet/results/js-2026-08-14.md)) |
+| Types in the *language* | none — no annotations, no `sig` yet |
+| Type **checking** | **yes**, on the residual before emission ([types.md](types.md)). One checker, three targets, including the one with no type layer |
 | Data structures | **none.** `string`, `vec-f64`, `dict` are opaque handles only primitives touch |
 | Arithmetic evaluation | `(num/int.add 1 2)` does not fold. No primitive is ever evaluated |
 | Pattern matching | none — ι of Coq's βδιζη |

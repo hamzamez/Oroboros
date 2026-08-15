@@ -178,6 +178,136 @@ answers, because they are the argument, not its conclusion.
 6. **Does `=` on f64 mean IEEE equality?** It must, and then `(= NaN NaN)` is false and `=` is not
    an equivalence relation — which matters the moment it appears in a refinement.
 
+## 4a. Answers so far
+
+### Q1 — can we construct new types? **Yes, and we already do. `fn` is the type constructor.**
+
+Three needs were conflated in the question, and they have different answers.
+
+**Naming a target's type.** `(type dict "map[string]int")` is already "adding a type the way we add
+an API function" — a line of data, unlimited, and the language never looks inside. This scales to
+ten thousand types exactly as primitives do. **We do not *support* a target's types; we *name*
+them.**
+
+**Constructing a type in the language.** Already happening, and it costs nothing:
+
+```lisp
+(def vec (fn (n f) (fn (sel) (sel n f))))     ; a product type
+(def vlen   (fn (v) (v (fn (n f) n))))        ; its first projection
+(def vindex (fn (v i) ((v (fn (n f) f)) i)))  ; its second
+```
+
+That is a Scott encoding, and β/δ **erase it entirely** — `dot`'s residual contains no trace of
+`vec`. So the core needs no type-construction form: **λ is the data constructor and the type
+constructor at once**, and specialisation is what makes it free. What is missing is a *name* for
+such a type and a way to *check* it, which is the checker's job, not the core's.
+
+**A type that must exist at runtime and is not the host's.** This is the one we should refuse.
+An encoding is free exactly while reduction erases it; when it survives it becomes a closure, which
+all three backends reject and which would allocate. So:
+
+> **User-defined types are free precisely when they are erased, and impossible when they are not.**
+
+Which is [g5 §1](../derivations/g5-bindings.md) yet again — free in the interior, fixed at the
+boundary.
+
+And the apparent gap closes without new mechanism: a *portable record* is a **module** whose
+members each target provides natively. `(module data/point)` with `make-point`, `point-x`,
+`point-y` — Go supplies a struct, JS an object, Java a class, and any target without one gets a
+fallback. `P_T ∩ D`, again.
+
+### Q2 — should the principal type be a byte? **The insight is right; the conclusion inverts the project.**
+
+The insight — *what determines the type of data is the operations we perform on it* — is not only
+right, **it is already implemented**. `emit/golang.go`'s `inferFrom` "walks the term assigning
+types to variables from the signatures of the primitives they are passed to". A value is `vec-f64`
+because `alen` was applied to it. That is exactly the stated principle, and it is why
+`targets/js.oro` can declare no types at all.
+
+But *operations determine the type* does not entail *the representation is bytes*. Three reasons
+the second half fails here, and the first is fatal:
+
+1. **Two of three targets have no bytes.** JavaScript has no integer and no byte; a `Number` is a
+   float64, and `Uint8Array` is an object rather than a value. CLAUDE.md's rule — *never make the
+   core a superset of one host* — rules this out directly. A byte-oriented core is expressible on
+   Go and C and **not on JS**.
+2. **Bytes expose exactly what we survive by hiding.** [strings.md §3](strings.md)'s whole
+   strategy is that representation is never observable. Bytes make endianness, width and alignment
+   observable everywhere, on hosts that disagree about all three.
+3. **It is the Shen wall by another road.** If the substrate is bytes, `add` on floats means
+   *reinterpret eight bytes, add, write back*. On JS that requires a typed array — an allocation
+   and a memory model — which is a performance ceiling on every target at once, set in the
+   substrate where no host optimiser can undo it.
+
+The sharpest way to put it:
+
+> **A byte-oriented core picks the *lowest* representation every target shares.
+> [ADR 0002](../decisions/0002-capability-graph.md) says emit at the *highest* layer the target
+> natively provides.** They are exact opposites.
+
+So: keep the insight as the *inference rule* it already is, and let it choose the host's **best**
+representation rather than its lowest.
+
+### Q4 — restated, since the question was unclear
+
+There are two kinds of primitive. `expr` and `stmt` are pure data — a name, argument types, a
+result type, a template. `loop`, `loop2`, `cond` and `let` are **named in data but implemented in
+Go**, because a loop binds variables and emits a header and no template expresses that.
+
+The question is whether a structural primitive's **type** can be written in that table. It cannot:
+`fold-range` is `A × int × ((A, int) → A) → A`, which needs type variables and function types — a
+whole type language in a target file, for four primitives, none of which a target author may add
+anyway.
+
+**Proposal:** since these four are implemented in code, their *types* live in code too. The table
+keeps name, kind and purity. The checker knows `fold-range`'s typing rule the same way the emitter
+knows its emission rule. This changes nothing about who can do what — target authors already
+cannot add structural primitives — and removes a false statement from four lines in every target
+file.
+
+## 4b. What may appear in a `where` — classify, do not restrict
+
+"A syntactic restriction on which terms may appear" was the wrong framing, and too crude. The
+criterion is not syntax; it is **which theory the solver decides**, and the syntax is downstream of
+that.
+
+### The options, weighed
+
+| theory | adds | decidable | cost | buys |
+|---|---|---|---|---|
+| QF-LIA | `+ -`, `*` by a literal, `< =`, `and or not` | yes | microseconds | every bounds obligation |
+| **QF-UFLIA** | **+ uninterpreted functions and predicates** | **yes** | **microseconds** | **`alen`, and unlimited opaque vocabulary — `sorted?`, `ascii?`** |
+| QF-AUFLIA | + the theory of arrays | yes | more | facts about *elements*, not just indices |
+| + nonlinear | `x*y`, both variables | **no** over the integers (Hilbert's 10th) | — | little we need |
+| + quantifiers | `∀i. 0≤i<n ⇒ …` | incomplete in practice | unpredictable | whole-array properties |
+
+**QF-UFLIA** is the recommendation: decidable, fast, covers every bounds obligation, and its
+uninterpreted half is precisely the mechanism that lets the predicate vocabulary grow without
+limit ([types-sketch §3](../types-sketch.md)).
+
+### The rule that removes the restrictiveness
+
+The concern is right, and the answer is to stop restricting *what may be written* and instead
+classify *what can be decided*:
+
+> **Any boolean term may appear in a `where`. A term inside the decided fragment is **proven**. A
+> term outside it is treated as an **opaque atom** — propagated, matched by name, never decided.**
+
+Consequences, and they are all good:
+
+- **Nothing is rejected for being too expressive.** You may write anything of type `bool`.
+- **It is always sound.** An undecided term is not assumed true; it is an obligation that can only
+  be discharged by a matching `ensures`, or by a runtime check at a boundary.
+- **It degrades gracefully.** More solver power means more terms move from *propagated* to
+  *proven*, and **no program has to change**.
+- **The fragment can grow later.** Adding the array theory, or a proof layer, strictly increases
+  what is proven and invalidates nothing already written — the same migration property established
+  for the proof layer in [types-sketch §8](../types-sketch.md).
+
+The one thing this requires is a **diagnostic**, not a rule: the compiler must be able to say
+*"`(< i (alen q))` was propagated, not proven, so the checked form was selected"*. Without that,
+a refinement silently doing nothing is indistinguishable from one doing its job.
+
 ## 5. Order
 
 1. **Decide §4.** Nothing below is safe to write until §4.1–§4.4 are settled.

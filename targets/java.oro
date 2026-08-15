@@ -41,6 +41,13 @@
     (prim ge  (int int) bool expr "%s >= %s" pure)
     (prim eq  (int int) bool expr "%s == %s" pure))
 
+  ; int -> f64 is EXACTLY lossless inside the portable range, because that
+  ; range is 2^53 precisely so an f64 holds every integer in it
+  ; (arithmetic.md 4). The lossy direction, f64 -> int, is still absent:
+  ; it needs a rounding decision and no program has asked.
+  (module num/f64
+    (prim of-int (int) f64 expr "(double) %s" pure))
+
   (module logic
     (prim and (bool bool) bool expr "%s && %s" pure)
     (prim or  (bool bool) bool expr "%s || %s" pure)
@@ -82,6 +89,7 @@
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
   ; and writing one was a false statement (target-files.md §4).
+  (structural make-vec    build pure)
   (structural let         let   pure)
   (structural if          cond  pure)
   (structural fold-range  loop  pure)

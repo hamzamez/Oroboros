@@ -4,8 +4,8 @@ package gauntlet
 
 func GenStencil(a []float64) float64 {
 	acc := 0.0
-	n1 := ((len(a)) - 2)
-	for j := 0; j < n1; j++ {
+	var n1 int64 = ((int64(len(a))) - 2)
+	for j := int64(0); j < n1; j++ {
 		acc = (acc + (((a[j]) + (a[(j + 1)])) + (a[(j + 2)])))
 	}
 	return acc

@@ -122,6 +122,12 @@ arithmetic. If a proposed core feature only works in one of them, it is not a co
 predecessor project — see section 2 of the design direction. Boxing in the substrate sets a
 performance ceiling for every target at once, and no host optimizer can undo it.
 
+**A program could not construct data until 2026-08-15** — every gauntlet program took its arrays
+as parameters, and `main` takes none, so programs could only print constants. The fix is one
+primitive, `make-vec`, wrapped by `num/vec.materialize`: build with the delayed representation,
+which fuses, and **materialize only at a boundary**. Materializing in the interior costs the 13×
+the stencil benchmark measured, and [that cost is the point](docs/spec/construction.md).
+
 **Never add unstructured control flow.** Structured only: `if`, `loop`, `break n`, `return`.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
@@ -255,7 +261,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | nine programs; `stencil.oro` needed integer arithmetic to exist |
+| `examples/` | eleven programs; `build-vec.oro` is the first that CONSTRUCTS data |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 

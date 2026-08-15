@@ -61,7 +61,7 @@ type Target struct {
 
 // Kinds that the emitter implements in code rather than from a template.
 var structuralKinds = map[string]bool{
-	"loop": true, "loop2": true, "cond": true, "let": true,
+	"loop": true, "loop2": true, "cond": true, "let": true, "build": true,
 }
 
 func LoadTarget(path string) (*Target, error) {
@@ -257,7 +257,7 @@ func parseStructural(f *core.Term, path string) (Prim, error) {
 	p := Prim{Name: k[0].Name, Kind: k[1].Name}
 	if !structuralKinds[p.Kind] {
 		return Prim{}, fmt.Errorf("%s: %s has kind %q, which is not structural "+
-			"(let, cond, loop, loop2)", path, p.Name, p.Kind)
+			"(let, cond, loop, loop2, build)", path, p.Name, p.Kind)
 	}
 	for _, rest := range k[2:] {
 		if rest.Kind == core.KName && rest.Name == "pure" {

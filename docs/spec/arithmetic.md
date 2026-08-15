@@ -232,9 +232,11 @@ therefore **outside the decided fragment** and is propagated as an opaque atom
   silently contradicts §4's range. A trap, correctly avoided.
 - **`neg`, `abs`, `min`, `max`, `mod`.** Derivable, or absent until wanted.
 - **`ne`.** `(logic.not (int.eq a b))`.
-- **Mixed arithmetic and coercion.** There is no implicit conversion between `int` and `f64` and
-  no `int→f64` primitive yet. It will be wanted; it needs a rule about which direction is lossless
-  and what happens past 2⁵³, and that is a separate document.
+- **~~Mixed arithmetic and coercion~~ — half closed, 2026-08-15.** `num/f64.of-int` exists, and
+  needed no new decision: **int → f64 is exactly lossless inside the portable range**, because
+  §4 set that range at 2⁵³ *precisely so* an f64 holds every integer in it. The lossy direction,
+  f64 → int, is still absent — it needs a rounding rule and no program has asked. There is still
+  no *implicit* conversion, and there should not be.
 
 ## 8. What this does not change
 

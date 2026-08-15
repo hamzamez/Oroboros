@@ -1,0 +1,21 @@
+; Constructing data — the first program that makes an array rather than
+; receiving one (docs/spec/construction.md).
+;
+; `materialize` is the boundary: everything before it is a delayed vector that
+; reduces away, and the array exists only because something asked for a real
+; one. Here that something is `alen`, which is a host function.
+
+(use num/vec)
+(use num/f64)
+(use num/int)
+(use io)
+
+(export main)
+
+; squares of 0 .. n-1, as a real array
+(def squares (fn (n)
+  (vec.materialize (vec.vec n (fn (i) (f64.mul (f64.of-int i) (f64.of-int i)))))))
+
+(def main (fn ()
+  (seq (io.print-line "built an array of length")
+       (io.print-line (alen (squares 5))))))

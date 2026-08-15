@@ -66,7 +66,7 @@ func TestEmitDot(t *testing.T) {
 
 	for _, want := range []string{
 		"func Dot(p []float64, q []float64) float64",
-		"for i := 0; i < n1; i++ {",
+		"for i := int64(0); i < n1; i++ {",
 		"return acc",
 	} {
 		if !strings.Contains(got, want) {

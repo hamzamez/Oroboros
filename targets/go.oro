@@ -68,6 +68,13 @@
     (prim ge  (int int) bool expr "%s >= %s" pure)
     (prim eq  (int int) bool expr "%s == %s" pure))
 
+  ; int -> f64 is EXACTLY lossless inside the portable range, because that
+  ; range is 2^53 precisely so an f64 holds every integer in it
+  ; (arithmetic.md 4). The lossy direction, f64 -> int, is still absent:
+  ; it needs a rounding decision and no program has asked.
+  (module num/f64
+    (prim of-int (int) f64 expr "float64(%s)" pure))
+
   (module logic
     (prim and (bool bool) bool expr "%s && %s" pure)
     (prim or  (bool bool) bool expr "%s || %s" pure)
@@ -80,11 +87,17 @@
   ; lets the backend narrow a slice to the loop count and hand Go's own
   ; bounds-check elimination a proof — worth 1.96x, see
   ; gauntlet/results/bce-2026-08-15.md.
-  (prim alen   (vec-f64) int      expr "len(%s)" pure)
+  (prim alen   (vec-f64) int      expr "int64(len(%s))" pure)
   (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure index)
 
+  ; The one primitive that lets a program CONSTRUCT data (construction.md).
+  ; Structural because it allocates and fills, which no template expresses --
+  ; and the fifth structural kind, which corrected the claim that the set was
+  ; closed at four.
+  (structural make-vec build pure)
+
   ; Go's fused increment: one mapassign_faststr, verified in baseline C3.
-  (prim slen       (vec-string) int         expr "len(%s)" pure)
+  (prim slen       (vec-string) int         expr "int64(len(%s))" pure)
   (prim sat        (vec-string int) string  expr "%s[%s]"  pure index)
   (prim split-words (string) vec-string     expr "strings.Fields(%s)" pure (import "strings"))
   (prim dict-empty (none) dict              expr "make(map[string]int)")

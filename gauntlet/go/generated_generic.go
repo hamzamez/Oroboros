@@ -6,9 +6,9 @@ import "strings"
 
 func GenSumOf(a []float64) float64 {
 	acc := 0.0
-	n1 := (len(a))
+	var n1 int64 = (int64(len(a)))
 	a = a[:n1]
-	for i := 0; i < n1; i++ {
+	for i := int64(0); i < n1; i++ {
 		acc = (acc + (a[i]))
 	}
 	return acc
@@ -18,9 +18,9 @@ func GenWordTally(text string) map[string]int {
 	ws := (strings.Fields(text))
 	init := (make(map[string]int))
 	acc := init
-	n1 := (len(ws))
+	var n1 int64 = (int64(len(ws)))
 	ws = ws[:n1]
-	for i := 0; i < n1; i++ {
+	for i := int64(0); i < n1; i++ {
 		acc[(ws[i])]++
 	}
 	return acc

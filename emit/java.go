@@ -134,6 +134,9 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
 				}
+				if p.Kind == "build" {
+					return "vec-f64"
+				}
 				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
@@ -212,6 +215,8 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		switch {
 		case p.Kind == "let":
 			return e.emitLet(t)
+		case p.Kind == "build":
+			return e.emitMakeVec(t)
 		case p.Kind == "loop":
 			return e.emitFoldRange(t)
 		case p.Kind == "loop2":
@@ -498,4 +503,38 @@ func JavaFile(class string, funcs map[string]string) string {
 	}
 	out.WriteString("}\n")
 	return out.String()
+}
+
+func (e *javaEmitter) emitMakeVec(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("make-vec takes a length and an element function")
+	}
+	elem := args[1]
+	if elem.Kind != core.KFn || len(elem.Params) != 1 {
+		return "", fmt.Errorf("make-vec's element function must be (fn (i) ...), got %s", elem)
+	}
+	e.types[elem.Params[0]] = "int"
+	count, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	n := e.fresh("n")
+	dst := e.fresh("v")
+	idx := javaMangle(elem.Params[0])
+	// Java array indices are int, not long, because an array cannot exceed
+	// 2^31-1 elements -- so the host's own limit decides here, not our int.
+	e.line("final int %s = (int) (%s);", n, count)
+	e.line("final double[] %s = new double[%s];", dst, n)
+	e.line("for (int %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
+	e.indent++
+	body, err := e.emit(elem.Body())
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s;", dst, idx, body)
+	e.indent--
+	e.line("}")
+	e.types[dst] = "vec-f64"
+	return dst, nil
 }

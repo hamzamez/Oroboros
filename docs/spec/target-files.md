@@ -38,7 +38,7 @@ kind        ::= expr | stmt
 template    ::= "…%s…"
 
 structural  ::= (structural NAME skind attr…)
-skind       ::= let | cond | loop | loop2
+skind       ::= let | cond | loop | loop2 | build
 
 attr        ::= pure | index | (import "…")
 argtype     ::= NAME | none                  ; `none` alone means arity zero

@@ -131,6 +131,11 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 			return err
 		}
 	}
+	// Print this BEFORE running the toolchain: a failed build is exactly when
+	// you need to see the source, and printing it afterwards hid it.
+	if keep {
+		fmt.Println("source kept in", work)
+	}
 	if tg.Build != "" {
 		argv := strings.Fields(emit.Fill(tg.Build, out, work))
 		cmd := exec.Command(argv[0], argv[1:]...)

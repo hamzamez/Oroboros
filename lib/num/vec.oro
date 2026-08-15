@@ -11,7 +11,7 @@
 (module num/vec)
 (use num/f64)
 
-(export dot sum of-array zip vlen vindex)
+(export dot sum of-array zip vlen vindex vec materialize)
 
 (def vec      (fn (n f) (fn (sel) (sel n f))))
 (def vlen     (fn (v)   (v (fn (n f) n))))
@@ -21,3 +21,9 @@
 (def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
 (def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
 (def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
+
+; The one place a delayed vector becomes a real array. Materialize at a
+; BOUNDARY -- handing an array to a host function, or returning one. Doing it in
+; the interior costs the 13x the stencil benchmark measured, and that cost is
+; the point (construction.md 6).
+(def materialize (fn (v) (make-vec (vlen v) (fn (i) (vindex v i)))))

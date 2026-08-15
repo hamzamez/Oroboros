@@ -4,10 +4,10 @@ package gauntlet
 
 func GenCentroid(xs []float64, ys []float64) float64 {
 	ax, ay := 0.0, 0.0
-	n1 := (len(xs))
+	var n1 int64 = (int64(len(xs)))
 	xs = xs[:n1]
 	ys = ys[:n1]
-	for i := 0; i < n1; i++ {
+	for i := int64(0); i < n1; i++ {
 		ax, ay = (ax + (xs[i])), (ay + (ys[i]))
 	}
 	return (ax + ay)

@@ -7,9 +7,9 @@ import "strings"
 func GenWordcount(text string) map[string]int {
 	ws := (strings.Fields(text))
 	acc := (make(map[string]int))
-	n1 := (len(ws))
+	var n1 int64 = (int64(len(ws)))
 	ws = ws[:n1]
-	for i := 0; i < n1; i++ {
+	for i := int64(0); i < n1; i++ {
 		acc[(ws[i])]++
 	}
 	return acc

@@ -134,6 +134,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			e.line("%s;", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}
+		if p.Kind == "build" {
+			return e.emitMakeVec(t)
+		}
 		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
 		}
@@ -375,4 +378,34 @@ func JSFile(funcs map[string]string) string {
 		out.WriteString("\n")
 	}
 	return out.String()
+}
+
+func (e *jsEmitter) emitMakeVec(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("make-vec takes a length and an element function")
+	}
+	elem := args[1]
+	if elem.Kind != core.KFn || len(elem.Params) != 1 {
+		return "", fmt.Errorf("make-vec's element function must be (fn (i) ...), got %s", elem)
+	}
+	count, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	n := e.fresh("n")
+	dst := e.fresh("v")
+	idx := jsMangle(elem.Params[0])
+	e.line("const %s = %s;", n, count)
+	e.line("const %s = new Array(%s);", dst, n)
+	e.line("for (let %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
+	e.indent++
+	body, err := e.emit(elem.Body())
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s;", dst, idx, body)
+	e.indent--
+	e.line("}")
+	return dst, nil
 }

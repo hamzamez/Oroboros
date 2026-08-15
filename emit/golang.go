@@ -157,6 +157,9 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
 				}
+				if p.Kind == "build" {
+					return "vec-f64"
+				}
 				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
@@ -263,6 +266,9 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 			e.line("%s", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}
+		if p.Kind == "build" {
+			return e.emitMakeVec(t)
+		}
 		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
 		}
@@ -330,9 +336,12 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 		sy.Params[0]: sx.Params[0], sy.Params[1]: sx.Params[1], sy.Params[2]: sx.Params[2]})
 
 	e.line("%s, %s := %s, %s", ax, ay, x0, y0)
-	e.line("%s := %s", n, count)
+	// The loop count is the language's `int`, which spells int64. A bare
+	// `:=` would infer Go's `int` from a literal or from len(), and the
+	// two do not compare — the declaration has to be explicit.
+	e.line("var %s int64 = %s", n, count)
 	e.emitNarrow(sx.Params[2], n, sx.Body(), syBody)
-	e.line("for %s := 0; %s < %s; %s++ {", idx, idx, n, idx)
+	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	bx, err := e.emit(sx.Body())
 	if err != nil {
@@ -352,6 +361,52 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 	e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
 	return e.emit(core.Rename(fin.Body(), map[string]string{
 		fin.Params[0]: sx.Params[0], fin.Params[1]: sx.Params[1]}))
+}
+
+// emitMakeVec allocates an array and fills it. It is the one primitive that
+// lets a program CONSTRUCT data rather than only compute over data it was given
+// (construction.md).
+//
+// The destination is fresh and every element is written exactly once, so it is
+// unique by construction — which is why this lands without answering g7's
+// aliasing question — and Go already knows len(dst) == n from make, so no
+// narrowing is needed.
+func (e *Emitter) emitMakeVec(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("make-vec takes a length and an element function")
+	}
+	elem := args[1]
+	if elem.Kind != core.KFn || len(elem.Params) != 1 {
+		return "", fmt.Errorf("make-vec's element function must be (fn (i) …), got %s", elem)
+	}
+	idxName := elem.Params[0]
+	e.types[idxName] = "int"
+
+	count, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	n := e.fresh("n")
+	dst := e.fresh("v")
+	idx := mangle(idxName)
+
+	// The loop count is the language's `int`, which spells int64. A bare
+	// `:=` would infer Go's `int` from a literal or from len(), and the
+	// two do not compare — the declaration has to be explicit.
+	e.line("var %s int64 = %s", n, count)
+	e.line("%s := make(%s, %s)", dst, e.tgt.ty("vec-f64"), n)
+	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
+	e.indent++
+	body, err := e.emit(elem.Body())
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s", dst, idx, body)
+	e.indent--
+	e.line("}")
+	e.types[dst] = "vec-f64"
+	return dst, nil
 }
 
 // emitNarrow restricts every container the loop indexes by the BARE loop
@@ -524,9 +579,12 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 	n := e.fresh("n")
 
 	e.line("%s := %s", acc, init)
-	e.line("%s := %s", n, count)
+	// The loop count is the language's `int`, which spells int64. A bare
+	// `:=` would infer Go's `int` from a literal or from len(), and the
+	// two do not compare — the declaration has to be explicit.
+	e.line("var %s int64 = %s", n, count)
 	e.emitNarrow(idxName, n, step.Body())
-	e.line("for %s := 0; %s < %s; %s++ {", idx, idx, n, idx)
+	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	body, err := e.emit(step.Body())
 	if err != nil {

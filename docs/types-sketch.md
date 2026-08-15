@@ -220,7 +220,112 @@ Decidable, because provability is. Deterministic, because preconditions are orde
 And it is the *same rule* as `P_T ∩ D` selecting a native over a fallback — one selects by
 **availability**, this selects by **provability**. Two mechanisms collapse into one.
 
-## 6. Where this is ugly, honestly
+## 6. Three mechanisms, not one — a correction
+
+§4 said Coq's extraction throws the proofs away, and used it to suggest that verification does not
+make programs faster. That is a true fact supporting a false conclusion, and it missed the
+mechanism that matters most in practice.
+
+**Who deletes the check?**
+
+| mechanism | who acts | example | does the compiler need to understand the proof? |
+|---|---|---|---|
+| **A** the programmer deletes a defensive check | **the programmer** | dropping `if i < 0 then error` because the type forbids it | **no** |
+| **B** the programmer chooses a better algorithm | **the programmer** | binary search instead of a scan, because `sorted?` holds | **no** |
+| **C** the compiler deletes a host-inserted check | the compiler, by emitted shape | Go's `IsInBounds` | **yes** |
+
+§1–§5 argued only about **C**, which is why the argument came out narrow. **A** and **B** are the
+mechanisms behind "move everything statically checkable into the type checker", they are real, and
+they are how SPARK, HACL\* and seL4 actually get their performance: not by the compiler exploiting
+a proof, but by a human confidently writing code that would be reckless without one.
+
+The division is clean and it is worth stating, because the two need different things:
+
+> **A and B need the *programmer* to understand the predicate. C needs the *compiler* to.**
+
+So a proof system with unbounded, compiler-opaque expressiveness is not useless for performance —
+it is fully sufficient for A and B, and only useless for C. And C is the smaller half: on our three
+hosts, C reaches bounds checks and representation selection and essentially nothing else
+([types-direction §3.4](types-direction.md)).
+
+### The sketch already delivers A and B
+
+This was undersold. An **uninterpreted** predicate (§3) is exactly the tool:
+
+```lisp
+(module num/sorted)
+(export sorted? sort search)
+
+(pred sorted? (vec-f64))               ; opaque. The solver never reasons about it.
+
+(sig sort   ((v vec-f64)) vec-f64  (ensures (sorted? result)))
+(sig search ((v vec-f64) (x f64)) int (where (sorted? v)))
+
+(def search (fn (v x) …binary search, no fallback, no defensive scan…))
+```
+
+`search` is a *different algorithm* — O(log n) rather than O(n) — and it is safe to write only
+because the type forbids calling it on unsorted input. **The compiler has no idea what `sorted?`
+means and does not need one.** It only has to propagate an atom.
+
+That is mechanism B, delivered by the decidable layer, with no proof assistant.
+
+## 7. Where dependent types genuinely win
+
+Being honest about the ceiling, because it is a real one.
+
+The difference is **how a fact enters the world**:
+
+| | facts enter by | cost |
+|---|---|---|
+| refinements (this sketch) | a **runtime check at a boundary**, once — or an assumption | one pass over the data, at the door |
+| dependent types (Coq, Idris, Agda, F\*) | a **proof** | zero runtime cost, ever |
+
+Concretely: this sketch cannot prove that `merge` *preserves* sortedness. `sorted?` is opaque, so
+`(sig merge … (ensures (sorted? result)))` is an **assumption** — a conformance obligation exactly
+like a target declaring `pure`. Coq proves it, by induction, and then the door check disappears
+too.
+
+That is genuinely more powerful and it is what the ambition is reaching for. Two costs, both
+measured by other people rather than asserted here:
+
+- **Proof-to-code ratio.** seL4 is roughly 20 lines of proof per line of C. HACL\* is better but
+  still multiples. Induction is where SMT stops and a human starts.
+- **Staging.** Ours is a partial evaluator: the source is checked, the *residual* runs. Dependent
+  types over a staged language is an open research area, not an engineering choice —
+  [types-direction §3.6](types-direction.md) names the multi-stage typing literature, and its
+  results are for simply-typed and polymorphic staging, not dependent staging.
+
+## 8. The migration path, which is the actual argument for starting small
+
+The reason to begin with the decidable layer is not that it is the ceiling. It is that **it is the
+floor of the other one, and nothing written on it has to be rewritten.**
+
+An opaque predicate is precisely a proposition with its proof missing. Today:
+
+```lisp
+(pred sorted? (vec-f64))
+(sig merge ((a vec-f64) (b vec-f64)) vec-f64
+  (where (and (sorted? a) (sorted? b)))
+  (ensures (sorted? result)))          ; ASSUMED
+```
+
+Later, if a proof layer arrives, the same signature acquires a justification:
+
+```lisp
+(proof merge-preserves-sorted …)       ; discharges the `ensures`
+```
+
+**The signature does not change. Callers do not change. Emitted code does not change.** What
+changes is only whether the `ensures` is believed or proven — which is the difference between a
+conformance obligation and a theorem, and exactly the seam
+[types-direction §3.5](types-direction.md) drew between layer 1 and layer 2.
+
+So the choice is not "refinements *instead of* dependent types". It is "refinements *first*,
+because they are the part that is decidable, implementable now, and load-bearing for the compiler —
+and they are where the proofs would attach."
+
+## 9. Where this is ugly, honestly
 
 - **`(sig …)` is new surface**, and surface is the thing that cannot be taken back. It is confined
   to module exports and target declarations, which is the smallest place it can live, but it is not

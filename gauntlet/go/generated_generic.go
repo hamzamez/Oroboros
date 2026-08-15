@@ -4,7 +4,7 @@ package gauntlet
 
 import "strings"
 
-func GenGeneric0(a []float64) float64 {
+func GenSumOf(a []float64) float64 {
 	acc := 0.0
 	n1 := (len(a))
 	for i := 0; i < n1; i++ {
@@ -13,7 +13,7 @@ func GenGeneric0(a []float64) float64 {
 	return acc
 }
 
-func GenGeneric1(text string) map[string]int {
+func GenWordTally(text string) map[string]int {
 	ws := (strings.Fields(text))
 	init := (make(map[string]int))
 	acc := init

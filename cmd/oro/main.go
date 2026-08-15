@@ -61,7 +61,19 @@ func run(targetDir, path, target string, fuel int, steps bool) error {
 		return fmt.Errorf("%s: %w", path, err)
 	}
 
-	for _, t := range terms {
+	// A program's entry points are its exports; anonymous top-level terms are
+	// the unnamed alternative, kept because they are convenient to experiment
+	// with. Reduce whichever the file used.
+	labels := make([]string, len(terms))
+	for _, q := range prog.Exports {
+		labels = append(labels, q)
+		terms = append(terms, prog.Defs[q])
+	}
+
+	for i, t := range terms {
+		if labels[i] != "" {
+			fmt.Printf("%s =\n", labels[i])
+		}
 		if steps {
 			fmt.Printf("     %s\n", t)
 		}

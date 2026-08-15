@@ -38,10 +38,10 @@ public final class Parity {
         eq(GenDot.genDot(A, B), dotRef(A, B), "dot");
         eq(GenFilter.genFilter(A), filterRef(A), "filter");
         eq(GenCentroid.genCentroid(A, C), centroidRef(A, C), "centroid");
-        eq(GenGeneric.genGeneric0(A), sumRef(A), "generic f64");
+        eq(GenGeneric.genSumOf(A), sumRef(A), "generic f64");
         HashMap<String,Integer> g = GenWordcount.genWordcount(text), h = wcRef(text);
         if (!g.equals(h)) throw new AssertionError("wordcount");
-        if (!GenGeneric.genGeneric1(text).equals(h)) throw new AssertionError("generic dict");
+        if (!GenGeneric.genWordTally(text).equals(h)) throw new AssertionError("generic dict");
         System.out.println("correctness: all five generated programs agree with hand-written\n");
 
         bench("dot       hand-written", () -> dotRef(A, B));

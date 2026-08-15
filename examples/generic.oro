@@ -24,5 +24,10 @@
 (def tally-words (fn (ws)
   (reduce-over (slen ws) (fn (i) (sat ws i)) dict-inc (dict-empty))))
 
-(fn (a)    (sum-floats a))
-(fn (text) (tally-words (split-words text)))
+; The entry points are the EXPORTS, and each emitted function is named after
+; the export rather than by position — which is what GenGeneric0 and
+; GenGeneric1 used to be.
+(def sum-of      (fn (a)    (sum-floats a)))
+(def word-tally  (fn (text) (tally-words (split-words text))))
+
+(export sum-of word-tally)

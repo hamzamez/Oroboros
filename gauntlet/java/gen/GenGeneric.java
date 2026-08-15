@@ -3,7 +3,7 @@
 import java.util.HashMap;
 
 public final class GenGeneric {
-	public static double genGeneric0(double[] a) {
+	public static double genSumOf(double[] a) {
 		double acc = 0.0;
 		final int n1 = (a.length);
 		for (int i = 0; i < n1; i++) {
@@ -12,8 +12,8 @@ public final class GenGeneric {
 		return acc;
 	}
 
-	public static HashMap<String,Integer> genGeneric1(String text) {
-		final String[] ws = (text.split(" "));
+	public static HashMap<String,Integer> genWordTally(String text) {
+		final String[] ws = (java.util.regex.Pattern.compile("[^\\p{IsWhite_Space}]+").matcher(text).results().map(java.util.regex.MatchResult::group).toArray(String[]::new));
 		final HashMap<String,Integer> init = (new HashMap<String,Integer>());
 		HashMap<String,Integer> acc = init;
 		final int n1 = (ws.length);

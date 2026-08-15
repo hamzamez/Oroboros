@@ -234,11 +234,11 @@ func TestGeneratedWordCountAgreesWithHandWritten(t *testing.T) {
 // g3's claim: a non-recursive definition is a rewrite rule, so instantiation is
 // a side effect of matching. One `reduce-over` produced both of these.
 func TestGenericInstantiationsAgree(t *testing.T) {
-	if got, want := GenGeneric0(vecA), SumF64(vecA); got != want {
+	if got, want := GenSumOf(vecA), SumF64(vecA); got != want {
 		t.Errorf("f64 instantiation: %v vs %v", got, want)
 	}
 	small := MakeText(200, 5)
-	g, h := GenGeneric1(small), WordCountIncr(small)
+	g, h := GenWordTally(small), WordCountIncr(small)
 	if len(g) != len(h) {
 		t.Fatalf("dict instantiation: sizes %d vs %d", len(g), len(h))
 	}

@@ -28,6 +28,11 @@ import (
 type Program struct {
 	Defs  map[string]*Term
 	Order []string // definition order, for stable diagnostics
+
+	// Exports are the program's entry points, fully qualified, in declaration
+	// order. A backend emits one function per export, named after it — which is
+	// what replaced naming them by position (modules.md §1).
+	Exports []string
 }
 
 // Env is a program viewed through one target: which names reduce, and which are
@@ -85,6 +90,13 @@ func Load(forms []Form) (*Program, []*Term, error) {
 			}
 			p.Defs[q] = body
 			p.Order = append(p.Order, q)
+		}
+	}
+	for _, m := range mods {
+		for _, n := range m.Order {
+			if m.Exports[n] {
+				p.Exports = append(p.Exports, qualify(m.Path, n))
+			}
 		}
 	}
 	terms := make([]*Term, 0, len(entries))

@@ -128,8 +128,8 @@ func BenchmarkWCGenerated(b *testing.B) {
 }
 
 // The generic instantiation against the monomorphic hand-written reference.
-func BenchmarkSmallGenGeneric0(b *testing.B) {
+func BenchmarkSmallGenSumOf(b *testing.B) {
 	for b.Loop() {
-		sinkF = GenGeneric0(smallA)
+		sinkF = GenSumOf(smallA)
 	}
 }

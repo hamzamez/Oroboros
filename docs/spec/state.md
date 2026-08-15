@@ -57,7 +57,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 | Pattern matching | none — ι of Coq's βδιζη |
 | Extensionality | none — η |
 | Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |
-| Modules | **scopes, resolution, imports, exports** ([modules.md](modules.md)). Still by position: `cmd/gen`'s function names |
+| Modules | **scopes, resolution, imports, exports** ([modules.md](modules.md)); emitted functions are named after their export. Not yet: file-per-module |
 | `rec` | not implemented; `markRecursive` decides silently ([def.md §3](def.md)) |
 | Escaping closures | all three backends refuse them |
 | Symbols | **refused**, and that is a decision rather than a gap ([def.md §5](def.md)) |

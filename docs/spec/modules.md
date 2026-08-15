@@ -6,9 +6,12 @@ Written before the code, per [state.md §6](state.md).
 > the four cells, covering) are **built and tested**. The claim held: `core/reduce.go` gained
 > **no reduction rule** — resolution runs before normalisation and hands the reducer one flat
 > qualified namespace. All seven examples emit byte-identical output on all three targets.
-> Not yet built: `cmd/gen` still names emitted functions by position, and file-per-module is a
-> convention rather than a rule — a module is currently a *scope*, and one source may open
-> several.
+> `cmd/gen` now names emitted functions **after the export they came from** — `GenGeneric0` and
+> `GenGeneric1` became `GenSumOf` and `GenWordTally`. A file with no `(export …)` keeps the old
+> stem-based naming, so nothing else moved.
+>
+> Not yet built: file-per-module is a convention rather than a rule — a module is currently a
+> *scope*, and one source may open several.
 
 The claim this document has to earn is that **modules add no mechanism to the reducer**. If it
 needs a new reduction rule, a new term kind, or a second parameter to normalisation, it is the
@@ -37,8 +40,8 @@ The pattern is mechanical, not accidental:
 That is the argument for doing this before anything else. A small core is not a discipline that
 can be maintained by intention; it needs somewhere else for things to go.
 
-Two smaller reasons. `cmd/gen` names emitted functions **by position** — `GenGeneric0`,
-`GenGeneric1` — which is not a naming scheme. And the target files cannot hold ten thousand
+Two smaller reasons. `cmd/gen` named emitted functions **by position** — `GenGeneric0`,
+`GenGeneric1` — which is not a naming scheme; it now names them after their export. And the target files cannot hold ten thousand
 names in one flat map, which is what the parasite thesis eventually asks of them.
 
 ## 2. The shape: signature and structure

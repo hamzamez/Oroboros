@@ -56,19 +56,49 @@ func run(targetDir, src, target, out, name string) error {
 		return fmt.Errorf("%s: %w", src, err)
 	}
 
-	if name == "" {
-		name = "gen-" + strings.TrimSuffix(filepath.Base(src), ".oro")
+	// A program's entry points are its EXPORTS, and an emitted function is named
+	// after the export it came from. Naming by position — GenGeneric0,
+	// GenGeneric1 — was the last thing modules left unfinished (modules.md §1).
+	//
+	// A file with no `(export …)` still works: its anonymous top-level terms are
+	// named from the source stem, as before. That is the whole of the fallback.
+	type unit struct {
+		name string
+		term *core.Term
 	}
+	var units []unit
+	prefix := name
+	if prefix == "" {
+		prefix = "gen"
+	}
+	for _, q := range prog.Exports {
+		local := q
+		if i := strings.LastIndex(local, "."); i >= 0 {
+			local = local[i+1:]
+		}
+		units = append(units, unit{name: prefix + "-" + local, term: prog.Defs[q]})
+	}
+	if len(units) == 0 {
+		stem := name
+		if stem == "" {
+			stem = "gen-" + strings.TrimSuffix(filepath.Base(src), ".oro")
+		}
+		for i, t := range terms {
+			n := stem
+			if len(terms) > 1 {
+				n = fmt.Sprintf("%s-%d", stem, i)
+			}
+			units = append(units, unit{name: n, term: t})
+		}
+	}
+
 	funcs := map[string]string{}
-	for i, t := range terms {
-		nf, err := core.Normalize(t, env, core.DefaultFuel)
+	for _, u := range units {
+		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
 		if err != nil {
 			return err
 		}
-		fname := name
-		if len(terms) > 1 {
-			fname = fmt.Sprintf("%s-%d", name, i)
-		}
+		fname := u.name
 		var code string
 		switch target {
 		case "js":

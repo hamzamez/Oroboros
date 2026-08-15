@@ -15,7 +15,12 @@ Written before the code, per [state.md §6](state.md).
 > one since target templates needed it, specified in [strings.md](strings.md), and `hello.oro` is
 > the first program to use one.
 >
-> Not yet built: JS and Java program layouts, and the doctor.
+> **All three targets build and run** `examples/hello.oro`. JS needed a new idea: it has **no
+> compile step**, so the emitted module *is* the deliverable and the target declares
+> `(artifact "main.mjs")` rather than a build. Java produces a class **directory**, not a file.
+> Three hosts, three notions of what a deliverable is — §3.
+>
+> Not yet built: the doctor (§7).
 
 This project calls itself a *language and build system*, and the build system has never existed.
 `cmd/gen` emits **one function into a package that already exists** — the gauntlet's. Nothing
@@ -126,9 +131,16 @@ Same shape as `import`, `pure`, `index` and `narrow`: a line in the target file,
 A target that declares no `build` can still emit source — that is what `cmd/gen` does today, and
 it stays the fallback for a target whose toolchain we cannot invoke.
 
-**Deliberately not yet:** locating the toolchain, checking versions, and reporting what is missing.
-That is a *doctor*, it is worth having, and it needs the build to exist first before there is
-anything to diagnose.
+### `artifact`, for a host with no compile step
+
+```lisp
+(artifact "main.mjs")           ; the emitted file IS the deliverable
+```
+
+JavaScript has no build: `node main.mjs` runs the source. So the emitted module is copied to the
+output and `build`, if present, only checks it. **A target may declare either, or both.** This was
+not predicted — it fell out of trying the second target, which is the usual way this project learns
+what a declaration has to carry.
 
 ## 5. Out of scope, with reasons
 
@@ -142,7 +154,24 @@ anything to diagnose.
   packaging question and no program has one yet.
 - **Cross-compilation.** The host toolchain decides; we pass through.
 
-## 6. What this makes measurable for the first time
+## 6. The doctor — later, deliberately
+
+A build assumes `go`, `node` or `javac` is present, on the path, and new enough. When one is not,
+the failure today is whatever the shell prints.
+
+**A doctor is worth building and is not being built now.** It reports what a target needs, what is
+installed, what version, and what is missing — the property being that it *tells you what is wrong
+instead of giving you a headache*, which is the thing Flutter gets right and most toolchains do
+not.
+
+It is deferred for one reason: it can only diagnose requirements that exist, and the target files
+have carried a toolchain command for exactly one day. What a target must *declare* about its
+toolchain — the executable, a minimum version, how to ask for that version — should be read off
+what the builds turn out to need, not designed in advance. That is
+[ADR 0007](../decisions/0007-exploration-over-specification.md), and it is the same reason the
+target file format was read off three backends rather than specified up front.
+
+## 7. What this makes measurable for the first time
 
 Requirement 6. Once a build produces a binary, *our* binary size can be compared against the
 hand-written baseline in [size-2026-08-13](../../gauntlet/results/size-2026-08-13.md), which has

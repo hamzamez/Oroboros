@@ -45,9 +45,9 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	if err != nil {
 		return err
 	}
-	if tg.Build == "" {
-		return fmt.Errorf("target %q declares no (build …), so it can emit source but not "+
-			"produce an artifact; use cmd/gen instead", target)
+	if tg.Build == "" && tg.Artifact == "" {
+		return fmt.Errorf("target %q declares neither (build …) nor (artifact …), so it can "+
+			"emit source but not produce a deliverable; use cmd/gen instead", target)
 	}
 	text, err := os.ReadFile(src)
 	if err != nil {
@@ -90,7 +90,15 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 		return fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
 	}
 
-	code, err := emit.Func(tg, "oro-main", nf)
+	var code string
+	switch target {
+	case "js":
+		code, err = emit.JSFunc(tg, "oro-main", nf)
+	case "java":
+		code, err = emit.JavaMethod(tg, "oro-main", nf)
+	default:
+		code, err = emit.Func(tg, "oro-main", nf)
+	}
 	if err != nil {
 		return err
 	}
@@ -112,12 +120,25 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 		return err
 	}
 
-	argv := strings.Fields(fmt.Sprintf(tg.Build, out, work))
-	cmd := exec.Command(argv[0], argv[1:]...)
-	cmd.Dir = work
-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("%s: %w", strings.Join(argv, " "), err)
+	// A host with no compile step delivers the emitted source itself. Copy it
+	// first, so a `build` command that only checks has something to check.
+	if tg.Artifact != "" {
+		b, err := os.ReadFile(filepath.Join(work, tg.Artifact))
+		if err != nil {
+			return err
+		}
+		if err := os.WriteFile(out, b, 0o644); err != nil {
+			return err
+		}
+	}
+	if tg.Build != "" {
+		argv := strings.Fields(emit.Fill(tg.Build, out, work))
+		cmd := exec.Command(argv[0], argv[1:]...)
+		cmd.Dir = work
+		cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("%s: %w", strings.Join(argv, " "), err)
+		}
 	}
 	if keep {
 		fmt.Printf("source kept in %s\n", work)

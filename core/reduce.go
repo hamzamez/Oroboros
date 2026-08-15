@@ -264,9 +264,14 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 			alias, rest := t.Name[:i], t.Name[i+1:]
 			path, ok := m.Uses[alias]
 			if !ok {
-				// Already fully qualified, or a primitive the target names
-				// this way. Not every dotted name is an import.
-				return t, nil
+				// A qualified name in SOURCE always names an import. Letting
+				// this fall through silently made `(use …)` a no-op whenever
+				// the alias happened to equal the module path — `io.print-line`
+				// resolved to itself and worked with no import at all, which
+				// is precisely the "meaning depends on what is in scope"
+				// that qualified imports exist to prevent (modules.md §3).
+				return nil, fmt.Errorf("%s is not imported: add (use %s) or (use PATH as %s)",
+					alias, alias, alias)
 			}
 			if err := checkExported(mods, path, rest); err != nil {
 				return nil, err

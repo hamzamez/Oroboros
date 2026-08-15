@@ -231,6 +231,11 @@ The target file format is specified in [docs/spec/target-files.md](docs/spec/tar
 it is the file a third party writes, so it is the one that most needs to be a specification rather
 than a comment.
 
+A **doctor** — reporting which toolchains a target needs, which are installed, and what is
+missing — is wanted and deliberately not built yet
+([build.md §6](docs/spec/build.md)). It can only diagnose requirements that exist, and what a
+target must declare about its toolchain should be read off what builds turn out to need.
+
 **Primitives are declared in `targets/*.oro`, not in Go.** If you find yourself adding a case to
 `emit/*.go` for a host function, that is the wrong place — only *structural* primitives (loops,
 conditionals, bindings) live in code.

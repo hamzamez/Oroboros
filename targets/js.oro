@@ -64,6 +64,11 @@
   (module io
     (prim print-line (any) any stmt "console.log(%s)"))
 
+  ; JavaScript has no compile step: the emitted module IS the deliverable, so
+  ; there is an artifact and only a syntax check for a build.
+  (artifact "main.mjs")
+  (build "node --check %s")
+
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
   ; and writing one was a false statement (target-files.md §4).

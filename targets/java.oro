@@ -71,6 +71,14 @@
   (module io
     (prim print-line (any) any stmt "System.out.println(%s)"))
 
+  ; javac produces a class DIRECTORY, not a single file, so the artifact here
+  ; is a directory you run with `java -cp DIR Main`. Three hosts, three notions
+  ; of what a deliverable is -- build.md 3.
+  ;
+  ; -encoding UTF-8 is not optional: javac defaults to the platform charset.
+  ; See strings.md 5.
+  (build "javac -encoding UTF-8 -d %s Main.java")
+
   ; The four the BACKEND implements. No types: fold-range is
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
   ; and writing one was a false statement (target-files.md §4).

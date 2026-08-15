@@ -13,6 +13,13 @@
 
 (export dot sum of-array zip vlen vindex vec materialize)
 
+; A signature is a claim, checked against BOTH this definition and any target
+; that provides the name natively. blas provides num/vec.dot as cblas_ddot; that
+; declaration and this one are compared against the same statement, and no host
+; compiler ever sees both.
+(sig dot ((a vec-f64) (b vec-f64)) f64)
+(sig materialize ((v any)) vec-f64)
+
 (def vec      (fn (n f) (fn (sel) (sel n f))))
 (def vlen     (fn (v)   (v (fn (n f) n))))
 (def vindex   (fn (v i) ((v (fn (n f) f)) i)))

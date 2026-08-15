@@ -52,12 +52,24 @@ func isIdentContinue(r rune) bool {
 	return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r)
 }
 
+// A Sig is a declared signature on a module export: argument names and types,
+// and a result type. The names are carried even though nothing reads them yet,
+// because a refinement attaches to a NAME — `(where (= (alen a) (alen b)))` —
+// and adding them later would change the one thing that cannot be taken back.
+type Sig struct {
+	Params []SigParam
+	Result string
+}
+
+type SigParam struct{ Name, Type string }
+
 type Form struct {
-	Kind  string // "def", "module", "use", "export", "prim", "target", or "term"
+	Kind  string // "def", "sig", "module", "use", "export", "prim", "target", or "term"
 	Name  string // def name, target name, module path, imported path
 	Alias string // `use`: the name the import is bound to
 	Names []string
 	Term  *Term
+	Sig   *Sig
 }
 
 type reader struct {
@@ -423,6 +435,29 @@ func toForm(t *Term) (Form, error) {
 			return Form{}, fmt.Errorf("use takes (use PATH) or (use PATH as ALIAS): %s", t)
 		}
 		return f, nil
+	case "sig":
+		// (sig NAME ((p TYPE)…) RESULT)
+		if len(t.Kids) != 4 || t.Kids[1].Kind != KName || t.Kids[3].Kind != KName {
+			return Form{}, fmt.Errorf("sig takes a name, a parameter list and a result type: %s", t)
+		}
+		sig := &Sig{Result: t.Kids[3].Name}
+		if t.Kids[2].Kind == KApp {
+			for _, a := range t.Kids[2].Kids {
+				switch {
+				case a.Kind == KName:
+					// A bare type, positional — the same shape a target file's
+					// (prim …) uses today.
+					sig.Params = append(sig.Params, SigParam{Type: a.Name})
+				case a.Kind == KApp && len(a.Kids) == 2 &&
+					a.Kids[0].Kind == KName && a.Kids[1].Kind == KName:
+					sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, a.Kids[1].Name})
+				default:
+					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
+						t.Kids[1].Name, a)
+				}
+			}
+		}
+		return Form{Kind: "sig", Name: t.Kids[1].Name, Sig: sig}, nil
 	case "export":
 		names, err := nameList(t.Kids[1:])
 		if err != nil {

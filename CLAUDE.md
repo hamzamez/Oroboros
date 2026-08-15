@@ -199,9 +199,11 @@ binder and works *only* because weakening is denied.
 [docs/spec/types.md](docs/spec/types.md). It runs on the **residual**, before emission, which is
 cheap because reduction has already made the term monomorphic, first-order and closed. One checker
 serves all three targets, including JavaScript, which previously compiled
-`(f64.add "hello" 1.0)` into a program that printed `hello1`. There are still **no annotations**:
-`sig` on module exports is the next increment and is the job no host compiler can do, because the
-two implementations being compared live on different targets.
+`(f64.add "hello" 1.0)` into a program that printed `hello1`. `(sig name ((p type)…) result)` on a module export is a **claim checked in two directions**:
+against the definition's residual, and against any target that provides the name *natively*. The
+second is the job no host compiler can do, because the two implementations live on different
+targets and no single compiler sees both. Parameters are **named** even though nothing reads the
+names yet, because a refinement attaches to a name and that is the part you cannot take back.
 
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and

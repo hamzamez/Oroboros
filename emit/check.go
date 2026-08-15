@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"sort"
 
 	"oroboros/core"
 )
@@ -230,4 +231,96 @@ func (c *checker) build(args []*core.Term, want string) (string, error) {
 		}
 	}
 	return "vec-f64", c.agree("make-vec", "vec-f64", want)
+}
+
+// CheckSignatures compares every declared signature against the target's native
+// implementation of the same name.
+//
+// **This is the job no host compiler can do.** A library defines num/vec.dot and
+// a target may provide it natively; the two are compared against one statement,
+// and they live on different targets, so no single host compiler ever sees both.
+// It is modules.md T2's substitution soundness becoming machine-checked instead
+// of asserted — and until now the only evidence for it was a conformance suite
+// that runs the code.
+func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
+	names := make([]string, 0, len(prog.Sigs))
+	for n := range prog.Sigs {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+
+	for _, n := range names {
+		sig := prog.Sigs[n]
+		p, native := tgt.Prims[n]
+		if !native {
+			// This target derives the name, so the claim is about the
+			// DEFINITION. Normalising it is bounded by the number of
+			// signatures, which is small, and it is the only way to check a
+			// library export that the program never reaches directly.
+			body, ok := prog.Defs[n]
+			if !ok || env == nil {
+				continue
+			}
+			nf, err := core.Normalize(body, env, core.DefaultFuel)
+			if err != nil {
+				continue // reduction already reports this better
+			}
+			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
+				return err
+			}
+			continue
+		}
+		if len(p.Args) != len(sig.Params) {
+			return fmt.Errorf("%s: target %s provides it with %d argument(s), "+
+				"but its signature declares %d", n, tgt.Name, len(p.Args), len(sig.Params))
+		}
+		for i, want := range sig.Params {
+			if got := p.Args[i]; !compatible(got, want.Type) {
+				return fmt.Errorf("%s: argument %d is %s in target %s, but %s in its signature",
+					n, i+1, got, tgt.Name, want.Type)
+			}
+		}
+		if !compatible(p.Result, sig.Result) {
+			return fmt.Errorf("%s: target %s returns %s, but its signature declares %s",
+				n, tgt.Name, p.Result, sig.Result)
+		}
+	}
+	return nil
+}
+
+// compatible treats `any` and the unknown type as agreeing with anything, which
+// is the same rule the term checker uses.
+func compatible(a, b string) bool {
+	return a == "" || b == "" || a == "any" || b == "any" || a == b
+}
+
+// CheckAgainstSig checks a residual against its declared signature: the
+// parameters take their declared types and the body must produce the declared
+// result. This is what makes a signature a claim about the DEFINITION rather
+// than only about the target.
+func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) error {
+	if t.Kind != core.KFn {
+		return nil
+	}
+	if len(t.Params) != len(sig.Params) {
+		return fmt.Errorf("%s takes %d argument(s), but its signature declares %d",
+			name, len(t.Params), len(sig.Params))
+	}
+	c := &checker{tgt: tgt, types: map[string]string{}}
+	for i, p := range t.Params {
+		if ty := sig.Params[i].Type; ty != "" && ty != "any" {
+			c.types[p] = ty
+		}
+	}
+	for pass := 0; pass < 2; pass++ {
+		got, err := c.walk(t.Body(), sig.Result)
+		if err != nil {
+			return fmt.Errorf("%s: %w", name, err)
+		}
+		if pass == 1 && got != "" && sig.Result != "" && sig.Result != "any" && got != sig.Result {
+			return fmt.Errorf("%s returns %s, but its signature declares %s",
+				name, got, sig.Result)
+		}
+	}
+	return nil
 }

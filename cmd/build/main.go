@@ -65,6 +65,12 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
+	// A signature is checked against the TARGET's native implementation as
+	// well as against the definition — the one job no host compiler can do,
+	// since the two live on different targets (docs/spec/types.md).
+	if err := emit.CheckSignatures(tg, prog, env); err != nil {
+		return err
+	}
 
 	// The entry point is an export named `main` taking no arguments — build.md
 	// §2. Distinguished by name and arity, never by module.

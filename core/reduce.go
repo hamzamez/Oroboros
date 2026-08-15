@@ -33,6 +33,12 @@ type Program struct {
 	// order. A backend emits one function per export, named after it — which is
 	// what replaced naming them by position (modules.md §1).
 	Exports []string
+
+	// Sigs are declared signatures, by fully qualified name. A signature is a
+	// claim about a name that is checked against BOTH the library's definition
+	// and any target's native implementation — which is the one job no host
+	// compiler can do, since the two live on different targets.
+	Sigs map[string]*Sig
 }
 
 // Env is a program viewed through one target: which names reduce, and which are
@@ -45,7 +51,7 @@ type Env struct {
 }
 
 func NewProgram() *Program {
-	return &Program{Defs: map[string]*Term{}}
+	return &Program{Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
 }
 
 // A module is a scope: a path, what it imports, what it exports, and what it
@@ -61,6 +67,7 @@ type Module struct {
 	Exports map[string]bool   // empty means "everything", pending signatures
 	Defs    map[string]*Term  // unqualified name -> body, before resolution
 	Order   []string
+	Sigs    map[string]*Sig
 }
 
 // qualify joins a module path to a local name. The root module has no path, so
@@ -175,6 +182,11 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 		}
 	}
 	for _, m := range mods {
+		for n, sig := range m.Sigs {
+			p.Sigs[qualify(m.Path, n)] = sig
+		}
+	}
+	for _, m := range mods {
 		if !entryPaths[m.Path] {
 			continue // a library's exports are not the program's entry points
 		}
@@ -203,7 +215,8 @@ type entry struct {
 // partition splits a form list into module scopes. A file with no `(module …)`
 // is one anonymous root module, which is why every existing program still loads.
 func partition(forms []Form) ([]*Module, []entry, error) {
-	root := &Module{Uses: map[string]string{}, Exports: map[string]bool{}, Defs: map[string]*Term{}}
+	root := &Module{Uses: map[string]string{}, Exports: map[string]bool{},
+		Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
 	mods := []*Module{root}
 	byPath := map[string]*Module{"": root}
 	cur := root
@@ -215,7 +228,7 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 			m, ok := byPath[f.Name]
 			if !ok {
 				m = &Module{Path: f.Name, Uses: map[string]string{},
-					Exports: map[string]bool{}, Defs: map[string]*Term{}}
+					Exports: map[string]bool{}, Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
 				mods = append(mods, m)
 				byPath[f.Name] = m
 			}
@@ -226,6 +239,8 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 					cur.Path, f.Alias, prev, f.Name)
 			}
 			cur.Uses[f.Alias] = f.Name
+		case "sig":
+			cur.Sigs[f.Name] = f.Sig
 		case "export":
 			for _, n := range f.Names {
 				cur.Exports[n] = true

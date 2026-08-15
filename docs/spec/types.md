@@ -101,14 +101,46 @@ Their types live in the backend rather than the target file
 
 ## 5. What this deliberately does not do yet
 
-- **No `sig` on exports.** Declaring argument and result types on a module's exports, and checking
-  a *target's native implementation* against the *library's* signature, is the job no backend can
-  do — [types-direction §3.1](../types-direction.md) argued it is the strongest reason for types at
-  all. It is the next increment, not this one, because the measured bug in §1 does not need it.
+- **~~No `sig` on exports~~ — built, 2026-08-15.** See §7.
 - **No refinements.** `{int | 0 ≤ i < n}` is layer 1's other half and needs a solver.
 - **No proofs.** Layer 2 ([types-sketch §7](../types-sketch.md)).
 - **No polymorphism.** The residual has none left; the *source* does, and checking source would
   need it.
+
+## 7. `sig` — a claim, checked in two directions
+
+```lisp
+(module num/vec)
+(export dot)
+(sig dot ((a vec-f64) (b vec-f64)) f64)
+(def dot (fn (a b) …))
+```
+
+A signature is checked against **both** implementations of the name:
+
+| the target | what is checked |
+|---|---|
+| **provides it natively** — blas declares `num/vec.dot` as `cblas_ddot` | the target's declared argument and result types against the signature |
+| **derives it** — Go has no native `dot` | the *definition's* residual: parameters take their declared types, and the body must produce the declared result |
+
+The first is **the job no host compiler can do.** The library's definition and the target's native
+declaration are two implementations of one statement, and they live on *different targets*, so no
+single host compiler ever sees both. That is
+[modules.md T2](modules.md)'s substitution soundness becoming machine-checked instead of asserted
+— and until now the only evidence for it was a conformance suite that runs the code.
+
+Breaking blas's declaration on purpose:
+
+```
+num/vec.dot: argument 2 is int in target blas, but vec-f64 in its signature
+```
+
+### Parameters are named
+
+`((a vec-f64) (b vec-f64))`, not `(vec-f64 vec-f64)` — even though nothing reads the names yet.
+A refinement attaches to a **name**: `(where (= (alen a) (alen b)))`. Adding names later would
+change the one thing that cannot be taken back, so they are there now. A bare type is still
+accepted, which is the shape `prim` uses, so the two grammars have not diverged.
 
 ## 6. What must not happen
 

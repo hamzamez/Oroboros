@@ -3,6 +3,8 @@ package emit
 import (
 	"strings"
 	"testing"
+
+	"oroboros/core"
 )
 
 // docs/spec/types.md. The checker runs on the residual, before emission, and
@@ -93,5 +95,87 @@ func TestCheckerAcceptsTheGauntletShapes(t *testing.T) {
 		if err := checkSrc(t, "go", src); err != nil {
 			t.Errorf("%s should typecheck: %v", name, err)
 		}
+	}
+}
+
+// §5 → built. A signature is a claim checked against BOTH the definition and
+// any target's native implementation. The second is the job no host compiler
+// can do, since the two live on different targets.
+
+func loadWithSigs(t *testing.T, target, src string) (*Target, *core.Program, *core.Env) {
+	t.Helper()
+	tg, err := LoadTarget("../targets/" + target + ".oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tg, prog, env
+}
+
+func TestSignatureCheckedAgainstTargetNative(t *testing.T) {
+	// blas provides `dot` natively, taking two vectors.
+	src := `
+		(sig dot ((a vec-f64) (b int)) f64)
+		(def dot (fn (a b) (dot a b)))
+	`
+	tg, prog, env := loadWithSigs(t, "blas", src)
+	err := CheckSignatures(tg, prog, env)
+	if err == nil {
+		t.Fatal("a signature disagreeing with the target's native declaration must be caught")
+	}
+	if !strings.Contains(err.Error(), "blas") {
+		t.Errorf("the error should name the target, got %v", err)
+	}
+}
+
+func TestSignatureAcceptedWhenItAgrees(t *testing.T) {
+	src := `
+		(sig dot ((a vec-f64) (b vec-f64)) f64)
+		(def dot (fn (a b) (dot a b)))
+	`
+	tg, prog, env := loadWithSigs(t, "blas", src)
+	if err := CheckSignatures(tg, prog, env); err != nil {
+		t.Errorf("an agreeing signature must pass: %v", err)
+	}
+}
+
+func TestSignatureCheckedAgainstDefinition(t *testing.T) {
+	// go does NOT provide num/vec.dot natively, so the claim is about the
+	// definition — which here returns a vec-f64 rather than the declared f64.
+	src := `
+		(use num/f64)
+		(sig bad ((a vec-f64)) f64)
+		(def bad (fn (a) (make-vec (alen a) (fn (i) (aindex a i)))))
+	`
+	tg, prog, env := loadWithSigs(t, "go", src)
+	err := CheckSignatures(tg, prog, env)
+	if err == nil {
+		t.Fatal("a definition disagreeing with its own signature must be caught")
+	}
+	if !strings.Contains(err.Error(), "vec-f64") {
+		t.Errorf("the error should name the actual type, got %v", err)
+	}
+}
+
+func TestSignatureArityIsChecked(t *testing.T) {
+	src := `
+		(use num/f64)
+		(sig two ((a f64) (b f64)) f64)
+		(def two (fn (a) a))
+	`
+	tg, prog, env := loadWithSigs(t, "go", src)
+	if err := CheckSignatures(tg, prog, env); err == nil {
+		t.Fatal("an arity mismatch must be caught")
 	}
 }

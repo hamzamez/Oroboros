@@ -216,6 +216,10 @@ go run ./cmd/gen examples/dot.oro java gauntlet/java/gen/GenDot.java
 cd gauntlet/go && go test -bench='SmallDot|SmallGenDot' -benchtime=3s -count=5
 ```
 
+The target file format is specified in [docs/spec/target-files.md](docs/spec/target-files.md) —
+it is the file a third party writes, so it is the one that most needs to be a specification rather
+than a comment.
+
 **Primitives are declared in `targets/*.oro`, not in Go.** If you find yourself adding a case to
 `emit/*.go` for a host function, that is the wrong place — only *structural* primitives (loops,
 conditionals, bindings) live in code.

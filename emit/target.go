@@ -84,6 +84,21 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err := tg.declare(f, "", path); err != nil {
 				return nil, err
 			}
+		case "structural":
+			// (structural NAME KIND [pure]) — the four the backend implements.
+			// They carry NO TYPES, because fold-range is
+			// A x int x ((A,int) -> A) -> A and that cannot be written in a
+			// monomorphic table. Writing (f64 int any) f64 was a false
+			// statement in every target file (target-files.md §4).
+			p, err := parseStructural(f, path)
+			if err != nil {
+				return nil, err
+			}
+			if _, dup := tg.Prims[p.Name]; dup {
+				return nil, fmt.Errorf("%s: %s is declared twice", path, p.Name)
+			}
+			tg.Prims[p.Name] = p
+			tg.Names = append(tg.Names, p.Name)
 		case "module":
 			// (module PATH (prim …) …) — the names this target provides
 			// NATIVELY from that module. A target may provide any subset,
@@ -165,10 +180,12 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 	}
 	p.Kind = k[3].Name
 	switch p.Kind {
-	case "expr", "stmt", "loop", "loop2", "cond", "let":
+	case "expr", "stmt":
+	case "loop", "loop2", "cond", "let":
+		return Prim{}, fmt.Errorf("%s: %s is %s, which is structural and carries no types; "+
+			"write (structural %s %s [pure])", path, p.Name, p.Kind, p.Name, p.Kind)
 	default:
-		return Prim{}, fmt.Errorf("%s: %s has unknown kind %q "+
-			"(expr, stmt, loop, loop2, cond, let)", path, p.Name, p.Kind)
+		return Prim{}, fmt.Errorf("%s: %s has unknown kind %q (expr, stmt)", path, p.Name, p.Kind)
 	}
 
 	for _, rest := range k[4:] {
@@ -186,6 +203,29 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 	}
 	if !structuralKinds[p.Kind] && p.Form == "" {
 		return Prim{}, fmt.Errorf("%s: %s is %s and needs an emission template", path, p.Name, p.Kind)
+	}
+	return p, nil
+}
+
+// parseStructural reads (structural NAME KIND [pure]). No argument types, no
+// result type, no template — a structural primitive's types and its emission
+// both live in the backend, which is the only place either can be expressed.
+func parseStructural(f *core.Term, path string) (Prim, error) {
+	k := f.Kids[1:]
+	if len(k) < 2 || k[0].Kind != core.KName || k[1].Kind != core.KName {
+		return Prim{}, fmt.Errorf("%s: (structural NAME KIND [pure]), got %s", path, f)
+	}
+	p := Prim{Name: k[0].Name, Kind: k[1].Name}
+	if !structuralKinds[p.Kind] {
+		return Prim{}, fmt.Errorf("%s: %s has kind %q, which is not structural "+
+			"(let, cond, loop, loop2)", path, p.Name, p.Kind)
+	}
+	for _, rest := range k[2:] {
+		if rest.Kind == core.KName && rest.Name == "pure" {
+			p.Pure = true
+			continue
+		}
+		return Prim{}, fmt.Errorf("%s: %s has an unexpected trailing form %s", path, p.Name, rest)
 	}
 	return p, nil
 }

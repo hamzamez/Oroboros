@@ -61,7 +61,11 @@
   ; prints 1.0 where Go and JS print 1, and 1.0E8 where JS prints 100000000.
   (prim print-line (any) any stmt "System.out.println(%s)")
 
-  (prim let         (any any) any               let  pure)
-  (prim if          (bool any any) any          cond pure)
-  (prim fold-range  (f64 int any) f64           loop pure)
-  (prim fold-range2 (f64 f64 int any any any) f64 loop2 pure))
+
+  ; The four the BACKEND implements. No types: fold-range is
+  ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
+  ; and writing one was a false statement (target-files.md §4).
+  (structural let         let   pure)
+  (structural if          cond  pure)
+  (structural fold-range  loop  pure)
+  (structural fold-range2 loop2 pure))

@@ -4,9 +4,10 @@ The standard is *no word used in an `.oro` file should go unexplained or unspeci
 audit against it, taken mechanically from `targets/*.oro`, `examples/*.oro`, `core/read.go` and
 `emit/target.go` rather than from memory.
 
-> **Status, 2026-08-15.** §1.2 and §1.3 are **closed** by [arithmetic.md](arithmetic.md) —
-> integers, booleans, comparison and equality are specified and built. §1.1 (`fold-range`'s false
-> type), §1.4 (type ownership), and the target-file grammar remain open.
+> **Status, 2026-08-15.** §1.1, §1.2 and §1.3 are **closed** — arithmetic by
+> [arithmetic.md](arithmetic.md), the false structural type and the whole target-file grammar by
+> [target-files.md](target-files.md). §1.4 (type ownership) is answered in §4a but not yet
+> enforced. The second and third tables of §2 are now specified.
 
 **Result: of 41 words, 16 are specified.** The rest are described in code comments, in measurement
 documents, or nowhere. Four are outright **wrong** — a declared type that no program obeys, and

@@ -162,6 +162,20 @@ func (e *Emitter) typeOf(t *core.Term) string {
 						return e.typeOf(k.Body())
 					}
 				}
+				// loop2's result is its FINISHER's type. This was never
+				// implemented: it fell through to the declared result type,
+				// which happened to say f64 — as false as fold-range's
+				// accumulator type was, and only correct by luck. Removing the
+				// declaration (target-files.md §4) exposed it.
+				if p.Kind == "loop2" && len(t.Args()) == 6 {
+				if fin := t.Args()[5]; fin.Kind == core.KFn && len(fin.Params) == 2 {
+				e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
+				if ty := e.typeOf(fin.Body()); ty != "" {
+				return ty
+				}
+				}
+				return e.typeOf(t.Args()[0])
+				}
 				// A statement's value IS argument 0, which is what every
 				// target file has said since dict-inc and what none of them
 				// implemented — dict-inc got away with declaring `dict` for

@@ -139,6 +139,16 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 						return e.typeOf(k.Body())
 					}
 				}
+				// loop2's result is its FINISHER's type — see the Go backend.
+				if p.Kind == "loop2" && len(t.Args()) == 6 {
+					if fin := t.Args()[5]; fin.Kind == core.KFn && len(fin.Params) == 2 {
+						e.types[fin.Params[0]], e.types[fin.Params[1]] = "f64", "f64"
+						if ty := e.typeOf(fin.Body()); ty != "" {
+							return ty
+						}
+					}
+					return e.typeOf(t.Args()[0])
+				}
 				// A statement's value is argument 0 — see the Go backend.
 				if p.Kind == "stmt" && len(t.Args()) > 0 {
 					if ty := e.typeOf(t.Args()[0]); ty != "" {

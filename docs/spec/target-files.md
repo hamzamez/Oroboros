@@ -1,0 +1,243 @@
+# The target file format
+
+Read off `emit/target.go` and the three backends, not from memory.
+
+> **Status, 2026-08-15. Built.** The `structural` form exists, `prim` rejects a structural kind
+> with a message naming the replacement, and the four target files no longer state a type for
+> `let`, `if`, `fold-range` or `fold-range2`.
+>
+> Removing the false declaration found a real bug: `loop2`'s result type was being read from it.
+> `typeOf` never handled `loop2` at all — it fell through to the declared `f64`, which was correct
+> for centroid **by luck** and exactly as false as `fold-range`'s accumulator type. `GenCentroid`
+> returned `/*unknown*/` the moment the lie was removed. A `loop2`'s result is its **finisher's**
+> type, and now is.
+
+This is the file a **third party** writes to add a target — requirement 3 — and it is the format
+the whole parasite thesis depends on strangers getting right. Until now every word in it was
+described in a code comment or nowhere ([inventory.md §2](inventory.md)).
+
+**It is data, not code.** Adding a host function is a line here and no Go. What a target author
+*cannot* add is a new **structural kind**, because those bind variables and emit control flow, and
+no template expresses that.
+
+---
+
+## 1. Grammar
+
+```
+file        ::= (target NAME decl…)
+
+decl        ::= (type NAME "spelling")
+              | (module PATH prim…)          ; declares into a module namespace
+              | prim
+              | structural
+
+prim        ::= (prim NAME (argtype…) restype kind template attr…)
+kind        ::= expr | stmt
+template    ::= "…%s…"
+
+structural  ::= (structural NAME skind attr…)
+skind       ::= let | cond | loop | loop2
+
+attr        ::= pure | (import "…")
+argtype     ::= NAME | none                  ; `none` alone means arity zero
+```
+
+`NAME` is an identifier ([core-0 §1.1](core-0.md)). `PATH` is a module path — one identifier,
+`/` being an ordinary identifier character ([modules.md §3](modules.md)).
+
+A name declared inside `(module PATH …)` is recorded **fully qualified** as `PATH.NAME`, because
+resolution produces qualified names and R1 requires both to key one namespace.
+
+Duplicate names are an error. An unknown kind is an error. A `prim` without a template is an
+error.
+
+## 2. `type`
+
+```lisp
+(type f64 "float64")
+```
+
+Maps **our** name for a type to **the target's** spelling. The language owns the name; the target
+owns the spelling. `targets/js.oro` declares none at all, which is correct — JavaScript needs no
+type layer, and that is [measured](../../gauntlet/results/js-2026-08-14.md) rather than assumed.
+
+The spelling is emitted verbatim into function signatures and variable declarations. It is never
+parsed, so it may be anything the host accepts — `map[string]int`, `HashMap<String,Integer>`,
+`double*`.
+
+**`any` and `none` are not types.** `none` is the argument list of a nullary primitive. `any` is
+*the absence of a constraint*, used where the host itself is polymorphic; a target may give it a
+spelling (`any` on Go, `Object` on Java) and the emitter uses that only when nothing else ever
+constrains the name.
+
+## 3. `prim` — expression and statement primitives
+
+These are **pure data**: an arity, types, a template, and attributes.
+
+### `expr`
+
+```lisp
+(prim add (f64 f64) f64 expr "%s + %s" pure)
+```
+
+The template is filled with the emitted arguments and **wrapped in parentheses by the emitter**, so
+a template never needs to parenthesise itself. Arity is checked: the number of arguments applied
+must equal the number of declared argument types.
+
+### `stmt`
+
+```lisp
+(prim dict-inc (dict string) dict stmt "%s[%s]++")
+```
+
+The filled template is emitted as **its own line**, and
+
+> **the value of the term is argument 0.**
+
+That contract has been written in every target file since word count and **no backend implemented
+it** until `print-line` forced the issue — `dict-inc` concealed it by declaring `dict` for both its
+argument and its result, so the wrong answer and the right answer coincided
+([effects-2026-08-14 §5](../../gauntlet/results/effects-2026-08-14.md)). It is now honoured: a
+`stmt`'s type is argument 0's type, and its declared result type is a fallback.
+
+Arity is **not** checked for `stmt`.
+
+### Templates and `%s`
+
+The template is filled by cycling the operands to cover however many `%s` holes it has.
+
+| template | operands | result |
+|---|---|---|
+| `%s[%s]++` | `m`, `k` | `m[k]++` |
+| `%s[%s] = (%s[%s] ?? 0) + 1` | `m`, `k` | `m[k] = (m[k] ?? 0) + 1` |
+| `fmt.Println(%s)` | `x` | `fmt.Println(x)` |
+
+Cycling rather than a fixed repeat, because *"repeat the operands twice"* was a fact about
+`dict-inc` promoted to a rule about a kind, and it produced `console.log(label)%!(EXTRA
+string=label)` the first time a one-operand statement existed.
+
+## 4. `structural` — the four the backend implements
+
+```lisp
+(structural fold-range loop pure)
+```
+
+**A structural primitive declares no types.** It cannot: `fold-range` is
+`A × int × ((A, int) → A) → A`, which needs type variables and function types — a whole type
+language in a target file, for four primitives that a target author may not add anyway. Writing
+`(f64 int any) f64` was a **false statement in all four target files** since the loop existed, and
+word count has passed a *dictionary* as the accumulator the entire time
+([inventory.md §1.1](inventory.md)).
+
+Their types live in the backend beside their emission, which is where their behaviour already
+lives. The declaration carries the name, the kind, and purity — the three things the *reducer*
+needs.
+
+The contracts below are what the emitters guarantee. They are the same on all three backends
+except where noted.
+
+### `loop` — `(fold-range init count step)`
+
+`step` must be `(fn (acc i) …)`. Emits:
+
+```go
+acc := init
+n   := count          // evaluated ONCE, before the loop
+for i := 0; i < n; i++ {
+    acc = <body>
+}
+```
+
+- `i` has type `int`; `acc` has the type of `init`.
+- **The count is evaluated once, before the loop.** This is a guarantee, not an accident, and it
+  is why the emitted stencil beats idiomatic hand-written Go: Go does not hoist `len(a)-2` out of
+  a loop condition, and our residual cannot express the un-hoisted form
+  ([arithmetic.md](arithmetic.md) status).
+- If the body's value **is** the accumulator, no assignment is emitted — a `stmt` primitive has
+  already updated it in place. That is what makes `acc[k]++` legal as a fold step.
+
+### `loop2` — `(fold-range2 x0 y0 count stepX stepY finish)`
+
+Both steps must be `(fn (ax ay i) …)`; `finish` must be `(fn (ax ay) …)`. The two accumulators are
+updated **simultaneously**, which is [g2 §6](../derivations/g2-structs.md)'s parallel-assignment
+discipline: Go uses tuple assignment, JS and Java need temporaries because destructuring
+allocates. The second step's parameters are renamed to the first's before emission.
+
+Both accumulators are `f64`. That restriction is real and undocumented until now.
+
+### `cond` — `(if c then else)`
+
+Go has no conditional expression, so it always introduces a temporary. JS and Java use a ternary
+**when neither branch emits a statement**, and fall back to an if-statement otherwise. So the ANF
+that [g3 §6](../derivations/g3-generics.md) and [g5 §4](../derivations/g5-bindings.md) both derived
+as necessary is **required by exactly one target of three** — a target property, not a language
+one.
+
+Branches are emitted in place and are never hoisted, which is what preserves the guarding of an
+effect ([effects.md §4](effects.md)).
+
+### `let` — `(let value (fn (x) body))`
+
+The continuation must be a one-parameter abstraction. A `let` reaches the emitter only in a
+residual the *reducer* produced, since a source-level `let` is erased by the reader
+([def.md](def.md)).
+
+**If the binder is used zero times it is a sequencing point, not a binding**: the value is emitted
+for its effect and no variable is declared. That is what makes `seq` work, and Go would reject the
+alternative as an unused variable ([effects.md §5](effects.md)).
+
+## 5. `pure`
+
+```lisp
+(prim add (f64 f64) f64 expr "%s + %s" pure)
+```
+
+Licenses the reducer to copy, drop and reorder an application of this primitive
+([effects.md §3](effects.md)).
+
+**It defaults off.** A target author who forgets `pure` gets a slower program; under the opposite
+default they would get a silent miscompilation. **The default must be the one whose failure mode is
+slow, not wrong.**
+
+## 6. `import`
+
+```lisp
+(prim sqrt (f64) f64 expr "math.Sqrt(%s)" pure (import "math"))
+```
+
+An opaque string handed to the backend's import mechanism, collected across every primitive the
+emitted file actually uses. Go and Java emit it; JavaScript ignores it.
+
+## 7. What a target author is promising
+
+A declaration is believed. Nothing here is checked, so each line is an obligation:
+
+1. **The template is valid host syntax** in the position its kind implies.
+2. **The `%s` count matches**, or divides, the operand count (§3).
+3. **`pure` is true** — the call has no observable effect and no fresh identity. Getting this
+   wrong is a miscompilation, not a slowdown.
+4. **A `stmt`'s value really is argument 0.**
+5. **The declared types are the host's actual types**, since they drive the emitted signatures.
+6. **The import is what the template needs.**
+7. **If the name belongs to a module carrying a signature, the implementation conforms to it.**
+   This is the only obligation with a mechanism behind it — a conformance suite
+   ([modules.md §8](modules.md)) — and it exists because covering proves a name is *provided* and
+   can never prove it is *right*. `split-words` satisfies every check above and gives different
+   answers on Go and JS.
+
+## 8. What is deliberately not in the format
+
+- **New structural kinds.** They bind variables and emit control flow; adding one is a compiler
+  change. The set is closed for a reason: [arithmetic.md §2](arithmetic.md) shows the four are
+  exactly the eliminators whose scrutinee is dynamic.
+- **Overloading.** Names are unique keys, so `print-line` takes `any` rather than having ten
+  signatures. This is the first thing machine-generated target files will break on, and it is a
+  *type* problem ([types-sketch §5](../types-sketch.md)), not a format one.
+- **Type constructors.** `vec-f64` is an opaque name, not `(vec f64)`. Deferred until a program
+  needs `(vec int)`.
+- **Cost or priority annotations.** Which of two natives is better is a *measurement*
+  ([ADR 0008](../decisions/0008-measurement-over-principle.md)), and belongs in
+  `gauntlet/results/`, not in a declaration.
+- **Conditional declarations.** A target either provides a name or does not; the conditional lives
+  in `P_T ∩ D` ([modules.md §6](modules.md)) and needs no syntax.

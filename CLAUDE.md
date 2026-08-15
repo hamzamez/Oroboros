@@ -5,6 +5,12 @@ repository.
 
 ## Project state
 
+**One gauntlet program is not at parity.** g7's stencil, measured at
+[1.87×](gauntlet/results/stencil-2026-08-15.md) against a hand-written buffer-reusing form. The
+emitted code is at parity with hand-written *functional* code; the functional idiom itself is what
+costs. Three ways out are stated in that document and none is chosen — this is the project's first
+real failure and it should not be papered over.
+
 **Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
 (Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written
 code — two of them producing byte-identical machine code on Go.
@@ -261,7 +267,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | eleven programs; `build-vec.oro` is the first that CONSTRUCTS data |
+| `examples/` | twelve programs; `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 

@@ -1,0 +1,31 @@
+; Gauntlet program 7 — the three-point stencil, write half.
+;
+; g7's kernel is dst[i] = (src[i-1] + src[i] + src[i+1]) / 3. It has existed as
+; hand-written Go in gauntlet/go/aliasing.go since before the compiler worked,
+; and could not be written here at all: the read half needed integer arithmetic
+; (2026-08-15) and the write half needed a way to CONSTRUCT an array
+; (docs/spec/construction.md).
+;
+; Note what is NOT here: no destination parameter, no mutation, no aliasing
+; question. `materialize` allocates fresh and writes each element once, so the
+; destination is unique by construction — which is how g7's program lands
+; without g7's question being answered.
+;
+; The interior is a delayed vector and reduces away. The array exists only
+; because materialize asked for one.
+
+(use num/vec)
+(use num/f64)
+(use num/int)
+
+(export smooth)
+
+(def window (fn (a j)
+  (f64.add (f64.add (aindex a j)
+                    (aindex a (int.add j 1)))
+           (aindex a (int.add j 2)))))
+
+(def smooth (fn (a)
+  (vec.materialize
+    (vec.vec (int.sub (alen a) 2)
+             (fn (j) (f64.div (window a j) 3.0))))))

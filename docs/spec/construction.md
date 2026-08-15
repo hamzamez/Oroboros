@@ -144,6 +144,12 @@ written in the delayed representation, which is the representation the library e
   once, so the destination is **unique by construction**. g7's question — the oldest open one —
   does not have to be answered for its program to land.
 
+  > **Measured 2026-08-15, and the price is 1.87×**
+  > ([stencil](../../gauntlet/results/stencil-2026-08-15.md)). Generated code is at parity with
+  > hand-written *functional* code, and loses to a hand-written stencil that reuses buffers. By
+  > the gauntlet's standard that is a **fail**, and the first in the project. The compiler is not
+  > what loses — `materialize` is.
+
 ## 8. Deliberately absent
 
 - **Mutating an existing array.** `(set! a i x)` is where aliasing becomes real, and §7 is the

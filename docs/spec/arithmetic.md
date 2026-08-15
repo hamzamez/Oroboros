@@ -225,9 +225,12 @@ therefore **outside the decided fragment** and is propagated as an opaque atom
 
 ## 7. Deliberately absent
 
-- **Division.** Integer division disagrees on rounding toward zero versus negative infinity for
-  negative operands, and division by zero traps on Go and the JVM and yields `Infinity` on
-  JavaScript. It needs its own specification and no program needs it yet.
+- **~~Division~~ — corrected 2026-08-15.** This ruled division out on grounds that apply to
+  **integer** division only, and conflated the two. Measured, `f64` division agrees on all three
+  hosts on every case: `1/3`, negatives, `x/0` = ±Inf, `0/0` = NaN, overflow to Inf — **no trap
+  anywhere**. So `num/f64.div` is **Tier 1** and now exists. *Integer* division is still absent and
+  the original reasoning stands for it: rounding disagrees on negatives, and `1/0` traps on Go and
+  the JVM.
 - **Bitwise operations and shifts.** JavaScript's bitwise operators coerce to **32-bit**, which
   silently contradicts §4's range. A trap, correctly avoided.
 - **`neg`, `abs`, `min`, `max`, `mod`.** Derivable, or absent until wanted.

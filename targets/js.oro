@@ -17,6 +17,10 @@
     (prim add (f64 f64) f64  expr "%s + %s"  pure)
     (prim sub (f64 f64) f64  expr "%s - %s"  pure)
     (prim mul (f64 f64) f64  expr "%s * %s"  pure)
+    ; f64 division is Tier 1: all three hosts agree on every case measured,
+    ; including x/0 = +-Inf and 0/0 = NaN, with no trap anywhere. It is
+    ; INTEGER division that diverges, and arithmetic.md 7 conflated them.
+    (prim div (f64 f64) f64  expr "%s / %s"  pure)
     (prim lt  (f64 f64) bool expr "%s < %s"  pure)
     (prim le  (f64 f64) bool expr "%s <= %s" pure)
     (prim gt  (f64 f64) bool expr "%s > %s"  pure)

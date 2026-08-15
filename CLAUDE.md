@@ -168,6 +168,13 @@ exchange in that order. There are no effect types, no monads, and no linear type
 adding any of them should be argued against this first. `seq` is sugar for a β-redex with an unused
 binder and works *only* because weakening is denied.
 
+**Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
+zero types because JS needs none. A type system is *wanted eventually*, and
+[docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement
+that constrains it: bounds-check elimination is worth **1.94×** on Go, and **our proofs do not
+transfer** — a proof buys nothing unless the emitted code is shaped so the host re-proves it.
+The cheapest form of that win is an emitter pattern needing no types at all.
+
 ## Working conventions
 
 **Every significant decision gets an ADR.** Numbered, in `docs/decisions/`, using the template

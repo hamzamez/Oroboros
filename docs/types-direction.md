@@ -221,6 +221,88 @@ from the value language for exactly this reason.
 Consequence for ordering: **layer 1 must be designed first**, and designing it well is mostly
 keeping it small enough that every construct has a meaning the emitter can act on.
 
+## 3.6 The boundary is the whole job — declare there, infer everywhere else
+
+The framing that makes the rest fall into place: **the language's boundary is the core plus the
+exposed surface of the target API**, and the checker's job is to prove that what crosses that
+boundary is safe to hand over.
+
+That unifies two mechanisms we already have or want, which turn out to be the same shape:
+
+| selection | by | mechanism |
+|---|---|---|
+| native implementation vs portable fallback | **availability** | `P_T ∩ D` ([modules.md §5](spec/modules.md)) |
+| which native, among several | **provability** | types |
+
+Choosing `strings.Fields` over a hand loop because the argument is known ASCII, or an unchecked
+accessor because the index is known in range, is the same act as choosing BLAS over a loop because
+the target has BLAS. **Types select which host facility to parasitize.** That is the parasite
+thesis reaching the type system, and it is a better argument for types than either speed or
+correctness alone.
+
+### The push-back: the performance half needs no language surface
+
+Bounds and ranges can be recovered by **abstract interpretation over the residual** — interval
+analysis, which is what every optimising compiler already does — with *zero* new tokens in the
+language. The residual is monomorphic, first-order and closed (§3.3), which is the easiest
+possible input for it.
+
+So the honest division is not "types for speed, proofs for correctness". It is:
+
+> **Declare at boundaries. Infer in the interior.**
+
+Which is [g5 §1](derivations/g5-bindings.md) again, exactly: *representation is free in the
+interior and fixed at the boundary*. That was derived for data layout and it turns out to be the
+shape of the type system too — the second application of the same principle, which is the sort of
+coincidence worth trusting.
+
+The consequence is a much smaller language change than "add a type system": annotations exist at
+module signatures and at target API declarations, and **nowhere else**. The interior stays
+untyped, and stays inferred.
+
+### What is better than sequent calculus, in one line
+
+> **Let the programmer extend the *predicates*, not the *rules*.**
+
+Shen's power comes from user-written inference rules discharged by search: undecidable, and opaque
+to the compiler (§3.5). Refinement systems get comparable reach by fixing the rules and letting the
+*predicate language* grow over a decidable theory. The compiler keeps a meaning for every type, the
+checker keeps terminating, and the programmer keeps the expressiveness — because in practice what
+people want to say is `0 ≤ i < len(a)` and `s is ascii`, which are predicates, not rules.
+
+### The literature that actually applies
+
+Not proof search. **Multi-stage programming**: MetaML and MetaOCaml (Taha & Sheard), and the
+Davies–Pfenning modal account already cited in this project's staging work. Our compiler *is* a
+staged evaluator, and the theorem we want is precisely theirs:
+
+> A well-typed source program generates a well-typed residual.
+
+That is what makes checking the source worth anything, given that the thing which actually runs is
+the residual. It is also the type-level twin of
+[ADR 0009](decisions/0009-staging-preserves-results.md), which says staging must not change an
+*answer*; this says staging must not break a *proof*.
+
+### Two things this would buy that §1–§3 did not name
+
+**Termination as a theorem instead of a fuel limit.** [concerns.md §2.1](spec/concerns.md) records
+that our termination guard — `markRecursive` plus a step limit — is "a *mechanism*, not a proof,
+and the fuel limit is an admission that the mechanism is incomplete". Sized or structural types
+would discharge it. That is the one place the core currently cheats, and no other proposal on the
+table removes it.
+
+**Checking on the target that has no checker.** Go and Java reject an ill-typed residual for us.
+JavaScript accepts anything. So today the effective type safety of an emitted program depends on
+which target it was emitted for, which is the opposite of what this project claims.
+
+### Good news for the boundary, unlike purity
+
+Every one of ten thousand generated target names will need a type. That sounds like the purity
+problem from [effects.md §3](spec/effects.md), and it is the opposite: **no host publishes purity,
+and every host publishes types.** Go has `go/types`, Java has reflection and its class files,
+TypeScript ships `.d.ts` for the entire DOM. The layer that most needs machine generation is the
+one the hosts already machine-generate.
+
 ## 4. Order, when the time comes
 
 Nothing here is scheduled. If it were:

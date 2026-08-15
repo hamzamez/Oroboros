@@ -310,7 +310,9 @@ func jsMangle(s string) string {
 	upper := false
 	for _, r := range s {
 		switch {
-		case r == '-' || r == '.':
+		// `-` word break, `.` qualifier, `/` module path separator: all three
+		// become camel-case boundaries so a qualified name is one host identifier.
+		case r == '-' || r == '.' || r == '/':
 			upper = true
 		case r == '?':
 			b.WriteString("P")

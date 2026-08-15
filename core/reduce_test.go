@@ -508,3 +508,119 @@ func TestDefinitionBodyMustBeAValue(t *testing.T) {
 		t.Fatalf("a λ is a value and should be accepted: %v", err)
 	}
 }
+
+// ------------------------------------------------------- docs/spec/modules.md
+//
+// The claim these test is that modules add NOTHING to the reducer. Every case
+// below is checked on the normal form, which is what the reducer produced from
+// a fully qualified namespace it cannot tell was ever modular.
+
+// §5 — resolution happens before reduction. A qualified reference reduces
+// exactly as the same definition would unqualified.
+func TestQualifiedNameResolves(t *testing.T) {
+	check(t, `
+		(prim mul)
+		(module lib/scale)
+		(export twice)
+		(def twice (fn (x) (mul x 2)))
+
+		(module main)
+		(use lib/scale)
+		(scale.twice 3)
+	`, "default", "(mul 3 2)")
+}
+
+// §3 — the alias is the last path segment, and `as` overrides it.
+func TestImportAlias(t *testing.T) {
+	check(t, `
+		(prim mul)
+		(module lib/scale)
+		(def twice (fn (x) (mul x 2)))
+
+		(module main)
+		(use lib/scale as s)
+		(s.twice 3)
+	`, "default", "(mul 3 2)")
+}
+
+// §5 — a λ-bound variable is never qualified, however it is spelled. This is
+// the case that would silently capture module names into local scope.
+func TestLocalsAreNotQualified(t *testing.T) {
+	check(t, `
+		(prim mul)
+		(module lib/scale)
+		(def twice (fn (twice) (mul twice 2)))
+
+		(module main)
+		(use lib/scale)
+		(scale.twice 3)
+	`, "default", "(mul 3 2)")
+}
+
+// §5 — the export list is enforced for modules we can see.
+func TestUnexportedNameIsRejected(t *testing.T) {
+	src, _ := splitPrims(`
+		(module lib/scale)
+		(export twice)
+		(def twice  (fn (x) x))
+		(def secret (fn (x) x))
+
+		(module main)
+		(use lib/scale)
+		(scale.secret 3)
+	`, "default")
+	forms, err := Read(src)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if _, _, err := Load(forms); err == nil {
+		t.Fatal("expected scale.secret to be rejected")
+	}
+}
+
+// §3 — `.` is the qualifier separator and may not begin, end, or double.
+func TestDotIsReserved(t *testing.T) {
+	for _, bad := range []string{"(.x)", "(x.)", "(a..b)"} {
+		if _, err := Read(bad); err == nil {
+			t.Errorf("%s should not read as a name", bad)
+		}
+	}
+	// A float is still a float, and `/` is still an ordinary identifier
+	// character, so a module path is one segment.
+	if _, err := Read("(f 1.5 go/strings)"); err != nil {
+		t.Errorf("1.5 and go/strings must still read: %v", err)
+	}
+}
+
+// §5, §6 — the four cells, across a module boundary. This is the case
+// namespacing could have silently broken: `num/vec.dot` is both defined by the
+// library and provided natively by the target, so δ must be inhibited and the
+// native must win. If resolution and declaration keyed different namespaces the
+// intersection would be empty and the fallback would be emitted instead.
+const moduleProgram = `
+	(target go   (prim add mul alen aindex fold-range))
+	(target blas (prim add mul alen aindex fold-range num/vec.dot))
+
+	(module num/vec)
+	(export dot)
+	(def vec      (fn (n f) (fn (sel) (sel n f))))
+	(def vlen     (fn (v)   (v (fn (n f) n))))
+	(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+	(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
+	(def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+	(def sum      (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
+	(def dot      (fn (a b) (sum (zip mul (of-array a) (of-array b)))))
+
+	(module main)
+	(use num/vec)
+	(vec.dot p q)
+`
+
+func TestNativeShadowsLibraryAcrossModules(t *testing.T) {
+	// P_T ∩ D — the conditional. blas provides it, so δ is inhibited.
+	check(t, moduleProgram, "blas", "(num/vec.dot p q)")
+
+	// D \ P_T — go does not, so the definition unfolds and fuses.
+	check(t, moduleProgram, "go",
+		"(fold-range 0.0 (alen p) (fn (acc i) (add acc (mul (aindex p i) (aindex q i)))))")
+}

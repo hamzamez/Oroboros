@@ -123,7 +123,15 @@ for exactly this reason, and a language that accepts UTF-8 and then rejects `≤
 about it. UAX #31 provides for profiles; adopting one is a decision, not an accident, and it has
 not been made.
 
-### 3.2 `.` is currently an identifier character
+### 3.2 ~~`.` is currently an identifier character~~ — **CLOSED, 2026-08-15**
+
+Reserved as the qualifier separator ([modules.md §3](modules.md)). It was free: no name in
+`targets/` or `examples/` contained one. `/` stays an ordinary identifier character, so a module
+path like `go/strings` is a single segment. A name may not begin, end, or double the separator.
+
+The original text follows, because it predicted this exactly.
+
+### 3.2a `.` was an identifier character
 
 Admitted so that `fold-range` and friends read naturally, but it also makes `a.b` a single name.
 If field access is ever written `a.b`, this collides. Nothing depends on it yet.

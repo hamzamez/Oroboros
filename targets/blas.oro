@@ -15,6 +15,13 @@
 
   (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)" pure)
 
+  ; The same capability, declared as a member of a MODULE. A target provides
+  ; whatever subset of a module it happens to have natively (modules.md §4), and
+  ; the name it declares is the fully qualified one, so that P_T and the
+  ; library's definitions key the same namespace — R1.
+  (module num/vec
+    (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)" pure))
+
   (prim let         (any any) any               let  pure)
   (prim fold-range  (f64 int any) f64           loop pure)
   (prim fold-range2 (f64 f64 int any any any) f64 loop2 pure))

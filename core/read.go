@@ -31,7 +31,11 @@ func isBidiControl(r rune) bool {
 	return false
 }
 
-const symbolChars = "-+*/<>=!?_."
+// `.` is NOT here. It is the qualifier separator (modules.md §3), and it was
+// free to reserve because no name in targets/ or examples/ contained one.
+// `/` stays an ordinary identifier character, so a module path like `go/strings`
+// is a single segment rather than a compound.
+const symbolChars = "-+*/<>=!?_"
 
 func isIdentStart(r rune) bool {
 	if strings.ContainsRune(symbolChars, r) {
@@ -49,8 +53,9 @@ func isIdentContinue(r rune) bool {
 }
 
 type Form struct {
-	Kind  string // "def", "prim", "target", or "term"
-	Name  string // def name, target name
+	Kind  string // "def", "module", "use", "export", "prim", "target", or "term"
+	Name  string // def name, target name, module path, imported path
+	Alias string // `use`: the name the import is bound to
 	Names []string
 	Term  *Term
 }
@@ -326,17 +331,34 @@ func (r *reader) atom() (*Term, error) {
 	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
 		return Float(v), nil
 	}
-	first, _ := utf8.DecodeRuneInString(text)
-	if !isIdentStart(first) {
-		return nil, fmt.Errorf("line %d: %q is not a valid identifier or number", line, text)
-	}
-	for _, c := range text {
-		if !isIdentContinue(c) {
-			return nil, fmt.Errorf("line %d: %q contains %q, which is not an identifier character",
-				line, text, c)
-		}
+	if err := validName(text); err != nil {
+		return nil, fmt.Errorf("line %d: %w", line, err)
 	}
 	return Name(text), nil
+}
+
+// validName accepts a name, which is one or more identifier segments separated
+// by `.`. A qualified reference like `words.split-words` is ONE name whose text
+// carries the separator; splitting it is resolution's job, not the reader's, so
+// that reduction never sees an unresolved name (modules.md §5).
+func validName(text string) error {
+	for _, seg := range strings.Split(text, ".") {
+		if seg == "" {
+			return fmt.Errorf("%q has an empty segment; `.` separates qualifiers "+
+				"and cannot begin, end, or double", text)
+		}
+		first, _ := utf8.DecodeRuneInString(seg)
+		if !isIdentStart(first) {
+			return fmt.Errorf("%q is not a valid identifier or number", text)
+		}
+		for _, c := range seg {
+			if !isIdentContinue(c) {
+				return fmt.Errorf("%q contains %q, which is not an identifier character",
+					text, c)
+			}
+		}
+	}
+	return nil
 }
 
 // looksNumeric keeps ParseFloat from swallowing names like `-` or `inf`.
@@ -359,6 +381,34 @@ func toForm(t *Term) (Form, error) {
 			return Form{}, fmt.Errorf("def takes a name and one term: %s", t)
 		}
 		return Form{Kind: "def", Name: t.Kids[1].Name, Term: t.Kids[2]}, nil
+	case "module":
+		if len(t.Kids) != 2 || t.Kids[1].Kind != KName {
+			return Form{}, fmt.Errorf("module takes one path: %s", t)
+		}
+		return Form{Kind: "module", Name: t.Kids[1].Name}, nil
+	case "use":
+		// (use PATH) binds the last path segment; (use PATH as A) binds A.
+		if t.Kids[1].Kind != KName {
+			return Form{}, fmt.Errorf("use takes a module path: %s", t)
+		}
+		f := Form{Kind: "use", Name: t.Kids[1].Name, Alias: lastSegment(t.Kids[1].Name)}
+		switch len(t.Kids) {
+		case 2:
+		case 4:
+			if t.Kids[2].Kind != KName || t.Kids[2].Name != "as" || t.Kids[3].Kind != KName {
+				return Form{}, fmt.Errorf("use takes (use PATH) or (use PATH as ALIAS): %s", t)
+			}
+			f.Alias = t.Kids[3].Name
+		default:
+			return Form{}, fmt.Errorf("use takes (use PATH) or (use PATH as ALIAS): %s", t)
+		}
+		return f, nil
+	case "export":
+		names, err := nameList(t.Kids[1:])
+		if err != nil {
+			return Form{}, fmt.Errorf("export: %w", err)
+		}
+		return Form{Kind: "export", Names: names}, nil
 	case "prim":
 		names, err := nameList(t.Kids[1:])
 		if err != nil {
@@ -380,6 +430,15 @@ func toForm(t *Term) (Form, error) {
 		return Form{Kind: "target", Name: t.Kids[1].Name, Names: names}, nil
 	}
 	return Form{Kind: "term", Term: t}, nil
+}
+
+// lastSegment is the default alias for an import: `go/strings` binds `strings`.
+// Path separators are `/`; the qualifier separator is `.`.
+func lastSegment(path string) string {
+	if i := strings.LastIndex(path, "/"); i >= 0 {
+		return path[i+1:]
+	}
+	return path
 }
 
 func nameList(ts []*Term) ([]string, error) {

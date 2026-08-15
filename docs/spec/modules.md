@@ -2,6 +2,14 @@
 
 Written before the code, per [state.md §6](state.md).
 
+> **Status, 2026-08-15.** §3 (names), §4 (targets declaring into modules), and §5 (resolution,
+> the four cells, covering) are **built and tested**. The claim held: `core/reduce.go` gained
+> **no reduction rule** — resolution runs before normalisation and hands the reducer one flat
+> qualified namespace. All seven examples emit byte-identical output on all three targets.
+> Not yet built: `cmd/gen` still names emitted functions by position, and file-per-module is a
+> convention rather than a rule — a module is currently a *scope*, and one source may open
+> several.
+
 The claim this document has to earn is that **modules add no mechanism to the reducer**. If it
 needs a new reduction rule, a new term kind, or a second parameter to normalisation, it is the
 wrong design and should be thrown away. What follows is an argument that a module system is

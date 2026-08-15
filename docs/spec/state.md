@@ -12,10 +12,12 @@ Read off the code, not from memory. Everything here is checkable by grep.
 term ::= name | integer | float | string | (fn (name…) term) | (term term…)
 ```
 
-**One top-level form.**
+**Four top-level forms.** One introduces a definition; three are module bookkeeping and are
+erased before reduction ([modules.md](modules.md)).
 
 ```
 (def name term)
+(module path)  (use path [as alias])  (export name…)
 ```
 
 **Three special forms in the reader**, two of which are sugar. `fn` (also spelled `λ`); `let`,
@@ -50,7 +52,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 | Pattern matching | none — ι of Coq's βδιζη |
 | Extensionality | none — η |
 | Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |
-| Modules | none. `cmd/gen` names emitted functions by position |
+| Modules | **scopes, resolution, imports, exports** ([modules.md](modules.md)). Still by position: `cmd/gen`'s function names |
 | `rec` | not implemented; `markRecursive` decides silently ([def.md §3](def.md)) |
 | Escaping closures | all three backends refuse them |
 | Symbols | **refused**, and that is a decision rather than a gap ([def.md §5](def.md)) |

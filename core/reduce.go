@@ -3,6 +3,7 @@ package core
 import (
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Reduction per core-0 §3: β on application of an abstraction, δ on unfolding a
@@ -42,30 +43,187 @@ func NewProgram() *Program {
 	return &Program{Defs: map[string]*Term{}}
 }
 
+// A module is a scope: a path, what it imports, what it exports, and what it
+// defines. It is NOT a unit of compilation and NOT a unit of reduction — by the
+// time Load returns, every module has been flattened into one qualified
+// namespace and the reducer cannot tell modules existed (modules.md §5, R1).
+//
+// That flattening is the whole design. Resolution happens before reduction, so
+// `P_T` and `Defs` are keyed the same way and the four cells still work.
+type Module struct {
+	Path    string
+	Uses    map[string]string // alias -> module path
+	Exports map[string]bool   // empty means "everything", pending signatures
+	Defs    map[string]*Term  // unqualified name -> body, before resolution
+	Order   []string
+}
+
+// qualify joins a module path to a local name. The root module has no path, so
+// a program that never says `(module …)` behaves exactly as before.
+func qualify(path, name string) string {
+	if path == "" {
+		return name
+	}
+	return path + "." + name
+}
+
 func Load(forms []Form) (*Program, []*Term, error) {
+	mods, entries, err := partition(forms)
+	if err != nil {
+		return nil, nil, err
+	}
 	p := NewProgram()
-	var terms []*Term
+	for _, m := range mods {
+		for _, n := range m.Order {
+			body, err := m.resolve(m.Defs[n], map[string]bool{}, mods)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
+			}
+			q := qualify(m.Path, n)
+			if _, dup := p.Defs[q]; dup {
+				return nil, nil, fmt.Errorf("%s is defined twice", q)
+			}
+			p.Defs[q] = body
+			p.Order = append(p.Order, q)
+		}
+	}
+	terms := make([]*Term, 0, len(entries))
+	for _, e := range entries {
+		t, err := e.mod.resolve(e.term, map[string]bool{}, mods)
+		if err != nil {
+			return nil, nil, err
+		}
+		terms = append(terms, t)
+	}
+	return p, terms, nil
+}
+
+type entry struct {
+	mod  *Module
+	term *Term
+}
+
+// partition splits a form list into module scopes. A file with no `(module …)`
+// is one anonymous root module, which is why every existing program still loads.
+func partition(forms []Form) ([]*Module, []entry, error) {
+	root := &Module{Uses: map[string]string{}, Exports: map[string]bool{}, Defs: map[string]*Term{}}
+	mods := []*Module{root}
+	byPath := map[string]*Module{"": root}
+	cur := root
+	var entries []entry
+
 	for _, f := range forms {
 		switch f.Kind {
-		case "def":
-			if _, dup := p.Defs[f.Name]; dup {
-				return nil, nil, fmt.Errorf("%s is defined twice", f.Name)
+		case "module":
+			m, ok := byPath[f.Name]
+			if !ok {
+				m = &Module{Path: f.Name, Uses: map[string]string{},
+					Exports: map[string]bool{}, Defs: map[string]*Term{}}
+				mods = append(mods, m)
+				byPath[f.Name] = m
 			}
-			p.Defs[f.Name] = f.Term
-			p.Order = append(p.Order, f.Name)
+			cur = m
+		case "use":
+			if prev, ok := cur.Uses[f.Alias]; ok && prev != f.Name {
+				return nil, nil, fmt.Errorf("module %q binds %q to both %s and %s",
+					cur.Path, f.Alias, prev, f.Name)
+			}
+			cur.Uses[f.Alias] = f.Name
+		case "export":
+			for _, n := range f.Names {
+				cur.Exports[n] = true
+			}
+		case "def":
+			if _, dup := cur.Defs[f.Name]; dup {
+				return nil, nil, fmt.Errorf("%s is defined twice", qualify(cur.Path, f.Name))
+			}
+			cur.Defs[f.Name] = f.Term
+			cur.Order = append(cur.Order, f.Name)
 		case "prim", "target":
-			// Programs used to declare their own primitives. They do not any
-			// more: which names are primitive comes from a target file, which
-			// is ADR 0002's parameter and now literally a separate file.
-			// Accepting these silently would let a program believe it had said
-			// something.
 			return nil, nil, fmt.Errorf(
 				"a program cannot declare %s; primitives are declared in targets/NAME.oro", f.Kind)
 		case "term":
-			terms = append(terms, f.Term)
+			entries = append(entries, entry{mod: cur, term: f.Term})
 		}
 	}
-	return p, terms, nil
+	return mods, entries, nil
+}
+
+// resolve rewrites every name in a term to its fully qualified form.
+//
+// Three cases, and the third is the one that keeps λ-bound variables safe: a
+// name bound by an enclosing abstraction is never qualified, however it is
+// spelled.
+func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term, error) {
+	switch t.Kind {
+	case KInt, KFloat, KStr:
+		return t, nil
+
+	case KName:
+		if bound[t.Name] {
+			return t, nil
+		}
+		if i := strings.Index(t.Name, "."); i >= 0 {
+			alias, rest := t.Name[:i], t.Name[i+1:]
+			path, ok := m.Uses[alias]
+			if !ok {
+				// Already fully qualified, or a primitive the target names
+				// this way. Not every dotted name is an import.
+				return t, nil
+			}
+			if err := checkExported(mods, path, rest); err != nil {
+				return nil, err
+			}
+			return Name(qualify(path, rest)), nil
+		}
+		if _, ok := m.Defs[t.Name]; ok {
+			return Name(qualify(m.Path, t.Name)), nil
+		}
+		return t, nil // a primitive, or free
+
+	case KFn:
+		inner := make(map[string]bool, len(bound)+len(t.Params))
+		for k := range bound {
+			inner[k] = true
+		}
+		for _, p := range t.Params {
+			inner[p] = true
+		}
+		b, err := m.resolve(t.Body(), inner, mods)
+		if err != nil {
+			return nil, err
+		}
+		return Fn(t.Params, b), nil
+	}
+
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		r, err := m.resolve(k, bound, mods)
+		if err != nil {
+			return nil, err
+		}
+		kids[i] = r
+	}
+	return &Term{Kind: KApp, Kids: kids}, nil
+}
+
+// checkExported enforces the export list of a module we can see. A module we
+// cannot see is one the TARGET provides, and its surface is the target file's
+// business rather than ours.
+func checkExported(mods []*Module, path, name string) error {
+	for _, m := range mods {
+		if m.Path != path {
+			continue
+		}
+		if len(m.Exports) == 0 {
+			return nil // no signature yet; everything is visible
+		}
+		if !m.Exports[name] {
+			return fmt.Errorf("module %s does not export %s", path, name)
+		}
+		return nil
+	}
+	return nil
 }
 
 // markRecursive finds definitions reachable from their own bodies. core-0 §6

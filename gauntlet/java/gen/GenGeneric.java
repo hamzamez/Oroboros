@@ -14,7 +14,8 @@ public final class GenGeneric {
 
 	public static HashMap<String,Integer> genGeneric1(String text) {
 		final String[] ws = (text.split(" "));
-		HashMap<String,Integer> acc = (new HashMap<String,Integer>());
+		final HashMap<String,Integer> init = (new HashMap<String,Integer>());
+		HashMap<String,Integer> acc = init;
 		final int n1 = (ws.length);
 		for (int i = 0; i < n1; i++) {
 			acc.put((ws[i]), acc.getOrDefault((ws[i]), 0) + 1);

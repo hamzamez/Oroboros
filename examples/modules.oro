@@ -1,0 +1,27 @@
+; Modules, and the four cells of docs/spec/modules.md §5.
+;
+; `num/vec.dot` is DEFINED here and PROVIDED NATIVELY by the blas target. That
+; is the third cell — the conditional — and the whole point of the exercise is
+; that it still works once names are qualified:
+;
+;   oro -target=blas examples/modules.oro   ⟶  (num/vec.dot p q)     native wins
+;   oro -target=go   examples/modules.oro   ⟶  a fused loop          δ unfolds
+;
+; Nothing in the reducer knows modules exist. Resolution runs first and hands it
+; one flat qualified namespace.
+
+(module num/vec)
+(export dot)
+
+(def vec      (fn (n f) (fn (sel) (sel n f))))
+(def vlen     (fn (v)   (v (fn (n f) n))))
+(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
+(def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+(def sum      (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (add acc (vindex v i))))))
+(def dot      (fn (a b) (sum (zip mul (of-array a) (of-array b)))))
+
+(module main)
+(use num/vec)
+
+(fn (p q) (vec.dot p q))

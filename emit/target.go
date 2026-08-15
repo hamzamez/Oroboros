@@ -81,21 +81,52 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			}
 			tg.Types[f.Kids[1].Name] = f.Kids[2].Str
 		case "prim":
-			p, err := parsePrim(f, path)
-			if err != nil {
+			if err := tg.declare(f, "", path); err != nil {
 				return nil, err
 			}
-			if _, dup := tg.Prims[p.Name]; dup {
-				return nil, fmt.Errorf("%s: %s is declared twice", path, p.Name)
+		case "module":
+			// (module PATH (prim …) …) — the names this target provides
+			// NATIVELY from that module. A target may provide any subset,
+			// including none, which is what makes porting demand-driven
+			// (modules.md §4).
+			if len(f.Kids) < 2 || f.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("%s: (module PATH (prim …)…), got %s", path, f)
 			}
-			tg.Prims[p.Name] = p
-			tg.Names = append(tg.Names, p.Name)
+			for _, inner := range f.Kids[2:] {
+				if inner.Kind != core.KApp || inner.Kids[0].Kind != core.KName ||
+					inner.Kids[0].Name != "prim" {
+					return nil, fmt.Errorf("%s: module %s may only contain (prim …), got %s",
+						path, f.Kids[1].Name, inner)
+				}
+				if err := tg.declare(inner, f.Kids[1].Name, path); err != nil {
+					return nil, err
+				}
+			}
 		default:
 			return nil, fmt.Errorf("%s: unknown target form %q", path, f.Kids[0].Name)
 		}
 	}
 	sort.Strings(tg.Names)
 	return tg, nil
+}
+
+// declare records one primitive under a module path. The name stored is the
+// FULLY QUALIFIED one, because that is what resolution produces and R1 requires
+// targets and libraries to key the same namespace (modules.md §5).
+func (tg *Target) declare(f *core.Term, modPath, file string) error {
+	p, err := parsePrim(f, file)
+	if err != nil {
+		return err
+	}
+	if modPath != "" {
+		p.Name = modPath + "." + p.Name
+	}
+	if _, dup := tg.Prims[p.Name]; dup {
+		return fmt.Errorf("%s: %s is declared twice", file, p.Name)
+	}
+	tg.Prims[p.Name] = p
+	tg.Names = append(tg.Names, p.Name)
+	return nil
 }
 
 // (prim NAME (ARGTYPES…) RESULT KIND ["form"] [(import "x")])

@@ -303,6 +303,12 @@ and every host publishes types.** Go has `go/types`, Java has reflection and its
 TypeScript ships `.d.ts` for the entire DOM. The layer that most needs machine generation is the
 one the hosts already machine-generate.
 
+### A picture of it
+
+[types-sketch.md](types-sketch.md) works the whole thing through in concrete syntax — the `dot`
+example end to end, how a programmer extends the predicates, and a comparison table. A sketch, not
+a specification.
+
 ## 4. Order, when the time comes
 
 Nothing here is scheduled. If it were:

@@ -140,28 +140,19 @@ func Rename(t *Term, m map[string]string) *Term {
 	return substPublic(t, sub)
 }
 
-// Rename2 substitutes terms for names without capture concerns: it is used on a
-// refinement, which is a closed boolean term over parameter names and contains
-// no binders. Substituting a term rather than a name is what distinguishes it
-// from Rename.
+// Rename2 substitutes TERMS for names, capture-avoiding.
+//
+// It used to reimplement substitution, justified by a comment saying its input
+// "contains no binders". That comment was true and the code was still wrong:
+// it neither dropped shadowed names when descending under a λ nor freshened a
+// binder that would capture. It was a second substitution written two hours
+// after the first, which is exactly the fragility a locally nameless
+// representation removes (concerns.md §1.3).
+//
+// The fix is to have one substitution, not two.
 func Rename2(t *Term, m map[string]*Term) *Term {
-	if len(m) == 0 || t == nil {
-		return t
+	if t == nil {
+		return nil
 	}
-	switch t.Kind {
-	case KName:
-		if r, ok := m[t.Name]; ok {
-			return r
-		}
-		return t
-	case KInt, KFloat, KStr:
-		return t
-	case KFn:
-		return Fn(t.Params, Rename2(t.Body(), m))
-	}
-	kids := make([]*Term, len(t.Kids))
-	for i, k := range t.Kids {
-		kids[i] = Rename2(k, m)
-	}
-	return &Term{Kind: KApp, Kids: kids}
+	return substPublic(t, m)
 }

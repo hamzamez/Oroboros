@@ -166,6 +166,35 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			}
 		}
 	}
+	// An `export` or a `sig` naming nothing was silently dropped, because both
+	// were read off m.Order — the list of DEFINITIONS. A misspelled export left
+	// a program with no entry points, and build then reported the absence of a
+	// `main` it could see two lines above.
+	for _, m := range mods {
+		var noDef []string
+		for n := range m.Exports {
+			if _, ok := m.Defs[n]; !ok {
+				noDef = append(noDef, n)
+			}
+		}
+		if len(noDef) > 0 {
+			sort.Strings(noDef)
+			return nil, nil, fmt.Errorf("%s exports %s, which it does not define",
+				modLabel(m.Path), strings.Join(noDef, ", "))
+		}
+		noDef = nil
+		for n := range m.Sigs {
+			if _, ok := m.Defs[n]; !ok {
+				noDef = append(noDef, n)
+			}
+		}
+		if len(noDef) > 0 {
+			sort.Strings(noDef)
+			return nil, nil, fmt.Errorf("%s declares (sig %s …) but does not define %s",
+				modLabel(m.Path), noDef[0], strings.Join(noDef, ", "))
+		}
+	}
+
 	p := NewProgram()
 	for _, m := range mods {
 		for _, n := range m.Order {
@@ -498,6 +527,34 @@ func (f *FuelError) Error() string {
 		head(f.Term))
 }
 
+func (f *FuelError) reclose(params []string) error {
+	return &FuelError{Term: FnClosed(params, f.Term)}
+}
+
+// ArityError is application to the wrong number of arguments. It carries the
+// term rather than a formatted string so that reclose can put names back.
+type ArityError struct {
+	Fn          *Term
+	Want, Given int
+}
+
+func (a *ArityError) Error() string {
+	// The term is printed LAST and introduced as context, because reclose may
+	// have wrapped the offending function in its enclosing binders — which is
+	// what supplies the names. "%s expects N" would then name the wrong λ.
+	return fmt.Sprintf("arity: expects %d argument(s), given %d, in: %s", a.Want, a.Given, a.Fn)
+}
+
+func (a *ArityError) reclose(params []string) error {
+	return &ArityError{Fn: FnClosed(params, a.Fn), Want: a.Want, Given: a.Given}
+}
+
+// A recloser carries a term captured mid-reduction. Under a binder, that term's
+// bound variables have no name yet and print as `#1.0`; each enclosing binder
+// recloses as the stack unwinds, so the message that reaches the user is
+// spelled with the names the source used.
+type recloser interface{ reclose(params []string) error }
+
 func head(t *Term) string {
 	for t.Kind == KApp {
 		t = t.Op()
@@ -537,6 +594,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		// representation buy anything.
 		b, err := normalize(t.Closed(), e, fuel)
 		if err != nil {
+			if rc, ok := err.(recloser); ok {
+				return nil, rc.reclose(t.Params)
+			}
 			return nil, err
 		}
 		return FnClosed(t.Params, b), nil
@@ -549,8 +609,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		args := t.Args()
 		if op.Kind == KFn { // β
 			if len(op.Params) != len(args) {
-				return nil, fmt.Errorf("arity: %s expects %d argument(s), given %d",
-					op, len(op.Params), len(args))
+				return nil, &ArityError{Fn: op, Want: len(op.Params), Given: len(args)}
 			}
 			subs := make([]*Term, len(args))
 			var bound []struct {
@@ -909,4 +968,13 @@ func RecursiveNames(t *Term, e *Env) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// modLabel names a module in a diagnostic. The entry file's anonymous scope has
+// no path, and calling it "" reads as a bug.
+func modLabel(path string) string {
+	if path == "" {
+		return "the program"
+	}
+	return "module " + path
 }

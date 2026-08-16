@@ -452,6 +452,14 @@ func toForm(t *Term) (Form, error) {
 		if len(t.Kids) != 3 || t.Kids[1].Kind != KName {
 			return Form{}, fmt.Errorf("def takes a name and one term: %s", t)
 		}
+		// A definition names a member of THIS module, so `.` cannot appear: a
+		// qualified name in a term always means an import (modules.md §3), so
+		// `(def a.b …)` defined something no term could ever refer to. Silent,
+		// and dead. Same shape as the `fn` parameter rule.
+		if strings.Contains(t.Kids[1].Name, ".") {
+			return Form{}, fmt.Errorf("def %s: a definition names a member of this module, "+
+				"and `.` qualifies a member of an imported one", t.Kids[1].Name)
+		}
 		return Form{Kind: "def", Name: t.Kids[1].Name, Term: t.Kids[2]}, nil
 	case "module":
 		if len(t.Kids) != 2 || t.Kids[1].Kind != KName {

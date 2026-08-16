@@ -124,3 +124,81 @@ func TestQualifiedNameCannotBeAParameter(t *testing.T) {
 		t.Errorf("`/` is an ordinary identifier character: %v", err)
 	}
 }
+
+// A definition names a member of THIS module, so `.` cannot appear in it — a
+// qualified name in a term always resolves to an import. Before this rule,
+// `(def a.b …)` was accepted and no term could ever refer to it.
+func TestQualifiedNameCannotBeDefined(t *testing.T) {
+	if _, err := Read("(def a.b (fn (n) n))"); err == nil {
+		t.Fatal("(def a.b …) must be rejected")
+	}
+	if _, err := Read("(def a/b (fn (n) n))"); err != nil {
+		t.Errorf("`/` is an ordinary identifier character: %v", err)
+	}
+}
+
+// An `export` or a `sig` was read off the list of DEFINITIONS, so one naming
+// nothing was silently dropped: a misspelled export left a program with no
+// entry points and build then reported a missing `main`.
+func TestExportAndSigMustNameADefinition(t *testing.T) {
+	for _, tc := range []struct{ src, want string }{
+		{"(def area (fn (w h) (h w)))\n(export are)", "exports are"},
+		{"(def area (fn (w h) (h w)))\n(sig aera ((w num)) num)", "aera"},
+	} {
+		forms, err := Read(tc.src)
+		if err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		_, _, err = Load(forms)
+		if err == nil {
+			t.Errorf("%q should be rejected", tc.src)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%q: error %q does not mention %q", tc.src, err, tc.want)
+		}
+	}
+	// The same names, spelled right, must still load.
+	forms, err := Read("(def area (fn (w h) (h w)))\n(sig area ((w num)) num)\n(export area)")
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	if _, _, err := Load(forms); err != nil {
+		t.Fatalf("a correct export and sig must load: %v", err)
+	}
+}
+
+// Reduction never opens a binder, so a term captured mid-flight has bound
+// variables with no name and prints as `#1.0`. Both errors that carry a term
+// reclose it as the stack unwinds, so the message is spelled like the source.
+func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
+	forms, err := Read("(fn (n) ((fn (a b) (h a b)) n))")
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	prog, terms, err := Load(forms)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	_, err = Normalize(terms[0], testEnv(prog, "h"), DefaultFuel)
+	if err == nil {
+		t.Fatal("applying a 2-parameter fn to 1 argument must fail")
+	}
+	if strings.Contains(err.Error(), "#") {
+		t.Errorf("diagnostic leaks the internal representation: %v", err)
+	}
+	for _, want := range []string{"(fn (n)", "(fn (a b)", "given 1"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+
+	forms, _ = Read("(fn (n) ((fn (a) (a a)) (fn (a) (a a))))")
+	prog, terms, _ = Load(forms)
+	if _, err = Normalize(terms[0], testEnv(prog), DefaultFuel); err == nil {
+		t.Fatal("Ω under a binder must exhaust fuel")
+	}
+	if strings.Contains(err.Error(), "#") {
+		t.Errorf("fuel diagnostic leaks the internal representation: %v", err)
+	}
+}

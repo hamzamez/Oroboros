@@ -225,13 +225,22 @@ func TestFuelStopsSelfApplication(t *testing.T) {
 
 // ---------------------------------------------------------------- capture
 
-func TestSubstitutionAvoidsCapture(t *testing.T) {
+func TestSubstitutionCannotCapture(t *testing.T) {
 	// (fn (x) ((fn (y) (fn (x) (f y x))) x))  applied to a
-	// The inner binder x must be freshened, or the outer x is captured.
+	//
+	// Under the old NAMED representation this required freshening the inner
+	// binder — the answer was (fn (x') (f a x')) — because substituting the
+	// outer x into a body that binds x would otherwise capture it.
+	//
+	// Locally nameless removes the hazard rather than avoiding it: the binder
+	// holds an index and `a` is a free name, so there is nothing to collide.
+	// The rename is no longer needed, and the output is CLEANER than before.
+	// That is a better answer, not a regression — an acceptance test that
+	// demanded byte-identical output would have rejected an improvement.
 	check(t, `
 		(prim f a)
 		((fn (x) ((fn (y) (fn (x) (f y x))) x)) a)
-	`, "default", "(fn (x') (f a x'))")
+	`, "default", "(fn (x) (f a x))")
 }
 
 // ---------------------------------------------------------------- normal form
@@ -697,4 +706,28 @@ func TestUnresolvedModuleIsNotAnError(t *testing.T) {
 	if _, _, err := LoadWith(forms, none); err != nil {
 		t.Fatalf("an unresolved module must be left to the target: %v", err)
 	}
+}
+
+// The case that broke the first attempt at this conversion: a λ moved ACROSS
+// binder depths. `duplicable` deliberately admits abstractions, because a
+// duplicated λ must be substituted or fusion dies — so moving λs between depths
+// is the mechanism this project runs on, and every such move needs its bound
+// variables shifted.
+//
+// Here `f` is used twice, so the λ bound to it is duplicated into two positions
+// at different depths, and its reference to the OUTER binder must survive both.
+func TestAbstractionMovedAcrossBinderDepths(t *testing.T) {
+	check(t, `
+		(prim add mul fold-range alen aindex)
+		(def twice (fn (g x) (g (g x))))
+		(fn (k) (twice (fn (v) (mul v k)) 3.0))
+	`, "default", "(fn (k) (mul (mul 3.0 k) k))")
+
+	// The same thing under a loop, where the moved λ crosses a real binder.
+	check(t, `
+		(prim add mul fold-range alen aindex)
+		(def apply-each (fn (a g) (fold-range 0.0 (alen a) (fn (acc i) (add acc (g (aindex a i)))))))
+		(fn (arr s) (apply-each arr (fn (v) (mul v s))))
+	`, "default",
+		"(fn (arr s) (fold-range 0.0 (alen arr) (fn (acc i) (add acc (mul (aindex arr i) s)))))")
 }

@@ -70,7 +70,36 @@ and `golang.org/x/text` is a dependency the atom does not otherwise need.
 Consequence today: `é` as U+00E9 and as `e`+U+0301 are two distinct identifiers that display
 identically.
 
-### 1.3 Capture avoidance is by freshening, not by representation
+### 1.3 ~~Capture avoidance is by freshening, not by representation~~ — **CLOSED, 2026-08-15**
+
+Locally nameless, as [core-0](core-0.md) and [s1](../derivations/s1-substructural.md) specified
+from the start. A free variable is a name; a bound variable is an index. `Fn` closes its body,
+`Body` opens it, and **reduction never opens** — so it never re-closes, and a colliding hint can
+never merge two variables.
+
+β is now index substitution: no freshening, no free-variable computation, no capture avoidance.
+Capture is not prevented, it is **unrepresentable**.
+
+Three things worth keeping from doing it.
+
+**The first attempt was wrong, and reverted.** It omitted *shifting*: substituting a term
+containing bound variables into a position at a different binder depth needs its indices adjusted.
+That is not an edge case here — `duplicable` deliberately admits abstractions, because a duplicated
+λ must be substituted or fusion dies, so moving λs across depths is the mechanism this project runs
+on. `TestAbstractionMovedAcrossBinderDepths` pins it.
+
+**`Params` survives as a naming hint**, which is why the three backends, the checker and the
+refiner needed no changes at all — 180 call sites of `.Body()` and `.Params` kept working. A hint
+cannot cause a wrong answer: the meaning is in the indices.
+
+**The output got better, and a bad acceptance test would have rejected it.** The capture test used
+to demand `(fn (x') (f a x'))`; the answer is now `(fn (x) (f a x))`, because the rename existed
+only to dodge a hazard that no longer exists. "Byte-identical output" is a *regression* check and
+must never become a ceiling on *better* — the bar is correct and no slower.
+
+The original text follows.
+
+### 1.3a Capture avoidance was by freshening
 
 core-0 and [s1](../derivations/s1-substructural.md) specify a locally nameless representation,
 under which capture is *unrepresentable*. The implementation uses names and freshens on collision

@@ -180,10 +180,16 @@ Two rules.
 ((fn (x₁ … xₙ) b) a₁ … aₙ)  ⟶  b[x₁ := a₁, … , xₙ := aₙ]
 ```
 
-Arity must match exactly; a mismatch is an error, not a partial application. Substitution is
-capture-avoiding — by freshening, not by representation. [s1](../derivations/s1-substructural.md)
-specified locally nameless, under which capture is *unrepresentable*; the implementation makes it
-merely impossible ([concerns.md §1.3](concerns.md)).
+Arity must match exactly; a mismatch is an error, not a partial application.
+
+**The representation is locally nameless**, as [s1](../derivations/s1-substructural.md) specified:
+a free variable is a name, a bound variable is an index. β replaces indices with terms, so a
+substituted term **cannot** be captured — there is no check, because the collision cannot be
+written down. `Params` survives as a naming hint so emitted code keeps saying `acc` and `i`; a hint
+cannot change meaning.
+
+Reduction never *opens* an abstraction. Opening and re-closing with a colliding hint would
+re-introduce exactly the hazard, and not needing names is what makes never opening possible.
 
 β carries **two side conditions**, and both were found by measurement rather than derived:
 

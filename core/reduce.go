@@ -268,7 +268,7 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 // spelled.
 func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term, error) {
 	switch t.Kind {
-	case KInt, KFloat, KStr:
+	case KInt, KFloat, KStr, KBound:
 		return t, nil
 
 	case KName:
@@ -433,7 +433,7 @@ func sortedKeys(m map[string]*Term) []string {
 // argument is a λ would license moving the whole loop into another loop.
 func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 	switch t.Kind {
-	case KName, KInt, KFloat, KStr, KFn:
+	case KName, KInt, KFloat, KStr, KFn, KBound:
 		return true // values
 	case KApp:
 		op := t.Op()
@@ -522,7 +522,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 	*fuel--
 
 	switch t.Kind {
-	case KInt, KFloat, KStr:
+	case KInt, KFloat, KStr, KBound:
 		return t, nil
 
 	case KName:
@@ -532,11 +532,14 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		return t, nil
 
 	case KFn:
-		b, err := normalize(t.Body(), e, fuel)
+		// The CLOSED body. Reduction never opens, so it never re-closes, so a
+		// colliding hint can never merge two variables. That is what makes the
+		// representation buy anything.
+		b, err := normalize(t.Closed(), e, fuel)
 		if err != nil {
 			return nil, err
 		}
-		return Fn(t.Params, b), nil
+		return FnClosed(t.Params, b), nil
 
 	case KApp:
 		op, err := normalize(t.Op(), e, fuel)
@@ -549,7 +552,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				return nil, fmt.Errorf("arity: %s expects %d argument(s), given %d",
 					op, len(op.Params), len(args))
 			}
-			m := make(map[string]*Term, len(args))
+			subs := make([]*Term, len(args))
 			var bound []struct {
 				name string
 				val  *Term
@@ -568,11 +571,12 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 						name string
 						val  *Term
 					}{p, na})
+					subs[i] = Name(p)
 					continue
 				}
 				// One occurrence or none: substituting cannot duplicate anything.
-				if occurrences(op.Body(), p) <= 1 {
-					m[p] = args[i]
+				if boundOccurrences(op.Closed(), 0, i) <= 1 {
+					subs[i] = args[i]
 					continue
 				}
 				// More than one. Normalise the argument to find out what it is —
@@ -583,15 +587,16 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 					return nil, err
 				}
 				if duplicable(na) {
-					m[p] = na
+					subs[i] = na
 					continue
 				}
 				bound = append(bound, struct {
 					name string
 					val  *Term
 				}{p, na})
+				subs[i] = Name(p)
 			}
-			body, err := normalize(subst(op.Body(), m), e, fuel)
+			body, err := normalize(op.OpenWith(subs), e, fuel)
 			if err != nil {
 				return nil, err
 			}
@@ -628,10 +633,34 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 // allocation is what no host can hoist.
 func duplicable(t *Term) bool {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KName, KFn:
+	case KInt, KFloat, KStr, KName, KFn, KBound:
 		return true
 	}
 	return false
+}
+
+// boundOccurrences counts uses of ONE bound variable, saturating at 2. No
+// shadowing check: an inner binder simply sits at a different depth.
+func boundOccurrences(t *Term, depth, index int) int {
+	switch t.Kind {
+	case KBound:
+		if t.Depth == depth && t.Index == index {
+			return 1
+		}
+		return 0
+	case KName, KInt, KFloat, KStr:
+		return 0
+	case KFn:
+		return boundOccurrences(t.Kids[0], depth+1, index)
+	}
+	n := 0
+	for _, k := range t.Kids {
+		n += boundOccurrences(k, depth, index)
+		if n >= 2 {
+			return 2
+		}
+	}
+	return n
 }
 
 // occurrences counts free occurrences of name in t, saturating at 2 — the
@@ -643,7 +672,7 @@ func occurrences(t *Term, name string) int {
 			return 1
 		}
 		return 0
-	case KInt, KFloat, KStr:
+	case KInt, KFloat, KStr, KBound:
 		return 0
 	case KFn:
 		for _, p := range t.Params {
@@ -682,7 +711,7 @@ func subst(t *Term, m map[string]*Term) *Term {
 			return r
 		}
 		return t
-	case KInt, KFloat, KStr:
+	case KInt, KFloat, KStr, KBound:
 		return t
 	case KFn:
 		inner := make(map[string]*Term, len(m))
@@ -751,7 +780,7 @@ func freeVars(t *Term) map[string]bool {
 			if !bound[t.Name] {
 				out[t.Name] = true
 			}
-		case KInt, KFloat, KStr:
+		case KInt, KFloat, KStr, KBound:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {
@@ -829,7 +858,7 @@ func (e *Env) CheckScope(terms []*Term) error {
 
 func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	switch t.Kind {
-	case KInt, KFloat, KStr:
+	case KInt, KFloat, KStr, KBound:
 		return nil
 	case KName:
 		if bound[t.Name] || e.Prim[t.Name] {

@@ -21,6 +21,7 @@ const (
 	KStr               // string literal
 	KFn                // (fn (p...) body)  — Params, Kids[0] = body
 	KApp               // (f a...)          — Kids[0] = operator, Kids[1:] = operands
+	KBound             // a bound variable, by index — never written in source
 )
 
 // Term is a pointer tree rather than the flat index-based arena of ADR 0005.
@@ -33,7 +34,9 @@ type Term struct {
 	Str    string
 	Int    int64
 	Float  float64
-	Params []string
+	Params []string // KFn: naming HINTS. The body refers to them by index.
+	Index  int      // KBound: which parameter
+	Depth  int      // KBound: how many binders out (0 = nearest)
 	Kids   []*Term
 }
 
@@ -42,7 +45,17 @@ func Int(v int64) *Term     { return &Term{Kind: KInt, Int: v} }
 func Float(v float64) *Term { return &Term{Kind: KFloat, Float: v} }
 func Str(v string) *Term    { return &Term{Kind: KStr, Str: v} }
 
+// Fn builds an abstraction from an OPEN body, closing it. Adding a binder
+// shifts anything already pointing outward.
 func Fn(params []string, body *Term) *Term {
+	return &Term{Kind: KFn, Params: params,
+		Kids: []*Term{closeTerm(shift(body, 0, 1), params, 0)}}
+}
+
+// FnClosed builds one from an already-closed body. Reduction uses this: it never
+// holds an open body, which is what keeps open/close round-trips out of the
+// reducer entirely.
+func FnClosed(params []string, body *Term) *Term {
 	return &Term{Kind: KFn, Params: params, Kids: []*Term{body}}
 }
 
@@ -50,7 +63,12 @@ func App(op *Term, args ...*Term) *Term {
 	return &Term{Kind: KApp, Kids: append([]*Term{op}, args...)}
 }
 
-func (t *Term) Body() *Term   { return t.Kids[0] }
+// Body OPENS the abstraction. Every existing reader — three backends, the
+// checker, the refiner — keeps working unchanged.
+func (t *Term) Body() *Term { return openTerm(t.Kids[0], t.Params, 0) }
+
+// Closed is the body with indices intact.
+func (t *Term) Closed() *Term { return t.Kids[0] }
 func (t *Term) Op() *Term     { return t.Kids[0] }
 func (t *Term) Args() []*Term { return t.Kids[1:] }
 
@@ -84,6 +102,10 @@ func (t *Term) write(sb *strings.Builder) {
 		sb.WriteString(") ")
 		t.Body().write(sb)
 		sb.WriteString(")")
+	case KBound:
+		// Never reaches a printed residual: printing goes through Body, which
+		// opens. Rendered so a bug is visible rather than silent.
+		fmt.Fprintf(sb, "#%d.%d", t.Depth, t.Index)
 	case KApp:
 		sb.WriteString("(")
 		for i, k := range t.Kids {
@@ -155,4 +177,122 @@ func Rename2(t *Term, m map[string]*Term) *Term {
 		return nil
 	}
 	return substPublic(t, m)
+}
+
+// ---------------------------------------------------------------- locally nameless
+//
+// A FREE variable is a name; a BOUND variable is an index (concerns.md §1.3, s1).
+// `Fn` closes its body and `Body` opens it, so substitution replaces a name while
+// binders hold indices — capture is not avoided, it is unrepresentable.
+//
+// `Params` survives as a naming HINT, so the emitters keep producing `acc` and
+// `i` rather than gensyms. A hint cannot cause a wrong answer: meaning is in the
+// indices.
+//
+// Depth counts binders outward from the use; Index selects a parameter of that
+// binder. Two levels, because an abstraction here takes several parameters at
+// once.
+
+func Bound(depth, index int) *Term { return &Term{Kind: KBound, Depth: depth, Index: index} }
+
+// shift adds `by` to every bound variable pointing at or beyond `cutoff`.
+//
+// This is the part I omitted on the first attempt, and it is not an edge case:
+// `duplicable` deliberately admits abstractions, because a duplicated λ must be
+// substituted or fusion dies. Moving λs across binder depths is the mechanism
+// this project runs on, and every such move needs a shift.
+func shift(t *Term, cutoff, by int) *Term {
+	if by == 0 {
+		return t
+	}
+	switch t.Kind {
+	case KBound:
+		if t.Depth >= cutoff {
+			return Bound(t.Depth+by, t.Index)
+		}
+		return t
+	case KName, KInt, KFloat, KStr:
+		return t
+	case KFn:
+		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{shift(t.Kids[0], cutoff+1, by)}}
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = shift(k, cutoff, by)
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// closeTerm replaces free occurrences of `params` with bound indices.
+func closeTerm(t *Term, params []string, depth int) *Term {
+	switch t.Kind {
+	case KName:
+		for i, p := range params {
+			if t.Name == p {
+				return Bound(depth, i)
+			}
+		}
+		return t
+	case KInt, KFloat, KStr, KBound:
+		return t
+	case KFn:
+		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{closeTerm(t.Kids[0], params, depth+1)}}
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = closeTerm(k, params, depth)
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// openTerm replaces the bound variables of one binder level with names.
+func openTerm(t *Term, names []string, depth int) *Term {
+	switch t.Kind {
+	case KBound:
+		if t.Depth == depth && t.Index < len(names) {
+			return Name(names[t.Index])
+		}
+		return t
+	case KName, KInt, KFloat, KStr:
+		return t
+	case KFn:
+		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openTerm(t.Kids[0], names, depth+1)}}
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = openTerm(k, names, depth)
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// OpenWith is β: replace this abstraction's bound variables with terms and drop
+// the binder level. A substituted term is shifted to its new depth; anything
+// that pointed *through* the removed binder shifts down.
+//
+// No freshening, no free-variable computation, no capture avoidance.
+func (t *Term) OpenWith(args []*Term) *Term { return openWith(t.Kids[0], args, 0) }
+
+func openWith(t *Term, args []*Term, depth int) *Term {
+	switch t.Kind {
+	case KBound:
+		if t.Depth == depth {
+			if t.Index < len(args) {
+				return shift(args[t.Index], 0, depth)
+			}
+			return t
+		}
+		if t.Depth > depth {
+			return Bound(t.Depth-1, t.Index) // the binder it looked through is gone
+		}
+		return t
+	case KName, KInt, KFloat, KStr:
+		return t
+	case KFn:
+		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openWith(t.Kids[0], args, depth+1)}}
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = openWith(k, args, depth)
+	}
+	return &Term{Kind: KApp, Kids: kids}
 }

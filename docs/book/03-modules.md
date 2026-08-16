@@ -21,6 +21,95 @@ plus **one capability**. §3.10 is what that line does.
 
 ---
 
+## Two kinds of file
+
+The rest of this chapter keeps saying *entry file* and *library file*. They are not two syntaxes —
+any `.oro` file can be either — they are two **roles**, and which role a file is in is decided by
+one thing:
+
+> The **entry file** is the one you name on the command line. A **library file** is one reached by
+> following a `(use …)` from it.
+
+```bash
+go run ./cmd/oro -target=tutorial docs/book/code/box.oro
+#                                 ^ entry file. geometry.oro, reached by its
+#                                   (use geometry), is a library file.
+```
+
+Five things follow from that, and they are the whole distinction:
+
+| | entry file | library file |
+|---|---|---|
+| how it is found | you name it | by its path, `PATH.oro` on the search path |
+| `(module …)` | optional, and it may declare **several** | **exactly one**, and it must match the path (§3.4) |
+| bare top-level terms | reduced and printed | **discarded** |
+| `(export …)` | these are the program's entry points | visibility only — not the program's entry points |
+| `(export main)` | this is what `build` compiles | ignored; a library cannot supply a program's `main` |
+
+The last three are worth seeing rather than reading. A library with terms lying around at the top
+level:
+
+```lisp
+;; noisy-lib.oro
+(module noisy-lib)
+(export k)
+(def k (fn (n) (* n 3)))
+(+ 1 2)
+(* 9 9)
+```
+
+```lisp
+(use noisy-lib)
+(noisy-lib.k 2)
+```
+
+```lisp
+⟶   (* 2 3)
+```
+
+`(+ 1 2)` and `(* 9 9)` produced nothing, and neither did `noisy-lib`'s export of `k` — only the
+entry file's own term was reduced. Compare with the same import and no use of it at all:
+
+```lisp
+(use noisy-lib)
+(* 1 1)
+```
+
+```lisp
+⟶   (* 1 1)
+```
+
+That is what makes `(use …)` a **dependency** rather than a textual inclusion. `#include` pastes a
+file in and everything in it becomes yours; `(use …)` says *this program needs that module*, and
+nothing crosses but the names you ask for by path.
+
+The same rule decides where a program starts. A library that exports `main` does not give you one:
+
+```lisp
+;; libmain.oro
+(module libmain)
+(export main)
+(def main (fn () 1))
+```
+
+```lisp
+(use libmain)
+(* 1 1)
+```
+
+```
+build: has no entry point: a program needs `(export main)` where main is `(fn () …)`
+```
+
+A program has exactly one entry file, and the entry point is *its* export. Otherwise adding a
+dependency could change where your program starts, which is a fine way to lose an afternoon.
+
+> **A file does not know which it is.** [code/geometry.oro](code/geometry.oro) is a library here
+> because `box.oro` imports it; run `oro` on it directly and it is an entry file, and its `(export
+> area perimeter scale)` becomes the list of things to reduce. Role, not kind.
+
+---
+
 ## 3.1 A name with a dot in it
 
 Here is a library file, [code/geometry.oro](code/geometry.oro):
@@ -606,6 +695,9 @@ that a target can also write into**. That is §3.10, and it is the only reason t
 ## What to remember
 
 - **`.` separates module from member; `/` is an ordinary letter.** `shapes/circle` is one name.
+- **Entry file and library file are roles, not kinds.** The entry file is the one you name on the
+  command line; a library file is one a `(use …)` reached. Only the entry file's exports are the
+  program's, only its bare terms reduce, and only its `main` starts the program.
 - **`(use PATH)` binds the last segment**; `(use PATH as A)` binds `A`. Imports stay qualified.
 - **`(module PATH)` opens a scope.** A library file declares exactly one, and it is the one its path
   names. The entry file may declare many.

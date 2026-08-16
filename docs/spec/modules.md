@@ -34,6 +34,29 @@ Written before the code, per [state.md §6](state.md).
 >
 > Not yet built: a target is still one file rather than a directory (§4).
 
+## 0. Entry file and library file
+
+Two roles, not two kinds — the same `.oro` file can be either, and which one it is in is decided
+entirely by how it was reached.
+
+> The **entry file** is the one named on the command line. A **library file** is one reached by
+> following a `(use …)`, resolved as `PATH.oro` on the search path.
+
+| | entry | library |
+|---|---|---|
+| `(module …)` | optional; may declare several | exactly one, matching the path it was found at |
+| bare top-level terms | reduced | discarded |
+| `(export …)` | the program's entry points | visibility only |
+| `(export main)` | what `build` compiles | ignored |
+
+The last row is the one with teeth: a dependency cannot supply a program's `main`, so adding one
+cannot move where the program starts. The rest is what makes `(use …)` a dependency rather than an
+inclusion — nothing crosses the boundary except names asked for by path.
+
+Implemented as `entryPaths` in `LoadWith`, which is computed before imports are followed.
+
+---
+
 The claim this document has to earn is that **modules add no mechanism to the reducer**. If it
 needs a new reduction rule, a new term kind, or a second parameter to normalisation, it is the
 wrong design and should be thrown away. What follows is an argument that a module system is

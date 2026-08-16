@@ -48,7 +48,20 @@ expressible. Second, g5 said effects would arrive with program 5, and they were 
 **Still open:** the aliasing half. Ordering is preserved; destructive update is not checked. See
 §3.4.
 
-### 1.2 NFC normalisation is specified and not checked
+### 1.2 ~~NFC normalisation is specified and not checked~~ — **CLOSED, 2026-08-15**
+
+Implemented with `golang.org/x/text/unicode/norm`, the project's first dependency. The objection
+recorded below — *"a dependency the atom does not otherwise need"* — was weaker than it looked:
+this is a **compiler** dependency, and requirement 6 is about the size of **emitted binaries**,
+which are unaffected. `hello` is byte-for-byte the size it was.
+
+Non-NFC source is **rejected, not normalised**, for the same reason invalid UTF-8 is rejected
+rather than repaired: silently rewriting the input would mean the file on disk is not the file that
+was compiled.
+
+The original text follows.
+
+### 1.2a NFC normalisation was specified and not checked
 
 [core-0 §1.1](core-0.md) requires NFC. The reader checks UTF-8 validity and rejects
 bidirectional controls, but does not normalise, because Go's standard library has no normaliser

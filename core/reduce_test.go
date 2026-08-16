@@ -280,7 +280,12 @@ func TestReaderRejectsMathSymbolAsIdentifier(t *testing.T) {
 
 // Case must never be semantically significant (core-0 §1.1), so that the
 // language is writable in scripts that have no case at all.
-func TestCaseIsNotSignificant(t *testing.T) {
+// The name of this test used to be TestCaseIsNotSignificant, which asserted
+// the opposite of what it checks: `Double` and `double` are DIFFERENT
+// definitions here. What core-0 §1.1 forbids is case carrying MEANING — no
+// rule may say "capitalised means variable" (Shen) or "capitalised means
+// exported" (Go). Identifiers remain case-sensitive for identity.
+func TestCaseDoesNotAssignMeaning(t *testing.T) {
 	check(t, `
 		(prim add)
 		(def Double (fn (X) (add X X)))

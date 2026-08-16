@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	unicodenorm "golang.org/x/text/unicode/norm"
 )
 
 // Reader for the surface syntax of core-0 §1–2.
@@ -82,6 +84,26 @@ type reader struct {
 func Read(src string) ([]Form, error) {
 	if !utf8.ValidString(src) {
 		return nil, fmt.Errorf("source is not valid UTF-8")
+	}
+	// NFC, per core-0 §1.1. Rejected rather than normalised, for the same
+	// reason invalid UTF-8 is rejected rather than repaired: silently rewriting
+	// the input would mean the file on disk is not the file that was compiled.
+	//
+	// Without this, `é` as U+00E9 and as e+U+0301 are two DISTINCT identifiers
+	// that display identically — which is the same class of hazard as the
+	// bidirectional controls below, and was open from the first commit.
+	if !unicodenorm.NFC.IsNormalString(src) {
+		// Report the first prefix that is not normal, so the message points at
+		// the offending sequence rather than at the file.
+		at := len(src)
+		for j := range src {
+			if !unicodenorm.NFC.IsNormalString(src[:j]) {
+				at = j
+				break
+			}
+		}
+		return nil, fmt.Errorf("source is not NFC-normalised, at or before byte %d; "+
+			"two identifiers can look identical and not be equal. Save the file as NFC.", at)
 	}
 	for i, r := range src {
 		if isBidiControl(r) {

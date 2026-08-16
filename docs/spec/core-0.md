@@ -51,13 +51,21 @@ with U+FFFD.
 
 | Rule | Closes | Status |
 |---|---|---|
-| Source must be **NFC-normalised** | `é` as U+00E9 versus `e`+U+0301 display identically | ❌ **specified, not implemented** — [concerns.md §1.2](concerns.md) |
+| Source must be **NFC-normalised** | `é` as U+00E9 versus `e`+U+0301 display identically | ✅ rejected, not repaired — as with invalid UTF-8 |
 | **Bidirectional controls rejected** (U+202A–U+202E, U+2066–U+2069) | Trojan Source, CVE-2021-42574 | ✅ |
 | Identifiers follow **UAX #31** | uses the standard rather than inventing one | ✅ approximated with stdlib categories |
-| **Case is never semantically significant** | Shen makes capitals mean "variable", which is unimplementable in scripts with no case | ✅ |
+| **Case never assigns meaning** | Shen makes capitals mean "variable"; Go makes them mean "exported". Both are unimplementable in Arabic, Hebrew, Chinese, Japanese, Korean, Thai — scripts with no case at all | ✅ |
 
-That last one is a design constraint worth stating as a rule: **no syntactic distinction in this
-language may depend on letter case.**
+That last one needs stating precisely, because the short version is ambiguous:
+
+> **No syntactic category or visibility rule may be determined by letter case.**
+> Identifiers are still **case-sensitive for identity**: `Xr`, `xr` and `XR` are three different
+> names.
+
+The distinction matters. Case-*insensitive* identifiers would be a different and worse property:
+case folding is **locale-dependent** — in Turkish, `I` lowercases to `ı` and not to `i` — so
+case-insensitive matching cannot be specified portably at all. It would fail the three-question
+test on the same grounds as `length` ([strings.md §2](strings.md)).
 
 Permitted in identifiers beyond UAX #31: `- + * / < > = ! ? _`. So `dot-product`, `<`, `empty?`
 and the module path `go/strings` are each a single identifier.

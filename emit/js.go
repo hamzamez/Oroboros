@@ -33,7 +33,9 @@ type jsEmitter struct {
 // Note what is absent compared with Func: there is no type lattice, no
 // inference, and no way for a parameter to fail to have a type. Everything
 // emit/golang.go does with Ty exists to satisfy Go, not the language.
-func JSFunc(tgt *Target, name string, t *core.Term) (string, error) {
+// The signature is accepted and unused: JavaScript needs no parameter types,
+// which is the measurement targets/js.oro records by declaring none.
+func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}

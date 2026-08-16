@@ -42,12 +42,13 @@ type javaEmitter struct {
 var JavaImports = map[string]bool{}
 
 // JavaMethod emits a top-level abstraction as a static method.
-func JavaMethod(tgt *Target, name string, t *core.Term) (string, error) {
+func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &javaEmitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
 		imports: map[string]bool{}, indent: 2}
+	seedFromSig(e.types, t.Params, sig)
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
 	e.inferFrom(t.Body())

@@ -123,11 +123,11 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	var code string
 	switch target {
 	case "js":
-		code, err = emit.JSFunc(tg, "oro-main", nf)
+		code, err = emit.JSFunc(tg, "oro-main", prog.Sigs[entry], nf)
 	case "java":
-		code, err = emit.JavaMethod(tg, "oro-main", nf)
+		code, err = emit.JavaMethod(tg, "oro-main", prog.Sigs[entry], nf)
 	default:
-		code, err = emit.Func(tg, "oro-main", nf)
+		code, err = emit.Func(tg, "oro-main", prog.Sigs[entry], nf)
 	}
 	if err != nil {
 		return err

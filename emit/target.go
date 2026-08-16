@@ -458,3 +458,29 @@ func atomicValue(v string) bool {
 	}
 	return true
 }
+
+// seedFromSig gives the parameters the types their signature declares.
+//
+// The signature was already CHECKED against this residual (types.md §7) and
+// then thrown away, so `(sig f ((n int)) f64)` over
+// `(fn (n) (fold-range 0.0 n …))` still failed to emit: the emitter re-infers
+// from primitive argument types alone, and a loop bound is a structural
+// primitive with no table entry. The program was correct, the claim about it
+// was verified, and the compiler refused it anyway.
+//
+// Seeded by POSITION, not by name — the residual's parameter names are hints
+// (chapter 1 §1.6) and a signature's names exist for refinements to attach to.
+// Arity is already checked by CheckSignatures.
+func seedFromSig(types map[string]string, params []string, sig *core.Sig) {
+	if sig == nil {
+		return
+	}
+	for i, p := range params {
+		if i >= len(sig.Params) {
+			return
+		}
+		if ty := sig.Params[i].Type; ty != "" && ty != "any" {
+			types[p] = ty
+		}
+	}
+}

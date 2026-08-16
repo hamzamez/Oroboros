@@ -124,7 +124,8 @@ func run(targetDir, src, target, out, name, path string) error {
 		}
 		// Refinements: the bounds obligation primitives.md §2 recorded and
 		// nothing checked (docs/spec/refinements.md).
-		if notes, err := emit.Refine(tg, fname, prog.Sigs[u.qual], nf); err != nil {
+		sig := prog.Sigs[u.qual]
+		if notes, err := emit.Refine(tg, fname, sig, nf); err != nil {
 			return err
 		} else {
 			for _, n := range notes {
@@ -134,11 +135,11 @@ func run(targetDir, src, target, out, name, path string) error {
 		var code string
 		switch target {
 		case "js":
-			code, err = emit.JSFunc(tg, fname, nf)
+			code, err = emit.JSFunc(tg, fname, sig, nf)
 		case "java":
-			code, err = emit.JavaMethod(tg, fname, nf)
+			code, err = emit.JavaMethod(tg, fname, sig, nf)
 		default:
-			code, err = emit.Func(tg, fname, nf)
+			code, err = emit.Func(tg, fname, sig, nf)
 		}
 		if err != nil {
 			return err

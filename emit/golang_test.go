@@ -58,7 +58,7 @@ const dotSrc = `
 `
 
 func TestEmitDot(t *testing.T) {
-	got, err := Func(goTarget(t), "dot", reduce(t, dotSrc, "go"))
+	got, err := Func(goTarget(t), "dot", nil, reduce(t, dotSrc, "go"))
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestEscapingClosureIsARefusal(t *testing.T) {
 		(def make-scaler (fn (f) (fn (v) (f64.mul v f))))
 		(fn (k) (make-scaler k))
 	`
-	_, err := Func(goTarget(t), "ms", reduce(t, src, "go"))
+	_, err := Func(goTarget(t), "ms", nil, reduce(t, src, "go"))
 	if err == nil {
 		t.Fatal("expected a refusal for an escaping closure")
 	}
@@ -118,7 +118,7 @@ func TestStatementValueIsNotRecomputed(t *testing.T) {
 		(use io)
 		(fn (s) (io.print-line (split-words s)))
 	`, "go")
-	code, err := Func(tg, "show", nf)
+	code, err := Func(tg, "show", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestStatementValueIsNotRecomputed(t *testing.T) {
 		(use num/f64)
 		(fn (a) (io.print-line (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a i))))))
 	`, "go")
-	code, err = Func(tg, "total", nf)
+	code, err = Func(tg, "total", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -170,11 +170,35 @@ func TestBoundStatementValueKeepsItsType(t *testing.T) {
 		(use num/int)
 		(fn () (io.print-line (int.add 21 21)))
 	`, "go")
-	code, err := Func(tg, "main", nf)
+	code, err := Func(tg, "main", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
 	if !strings.Contains(code, "var v1 int64 = ") {
 		t.Errorf("expected an explicitly typed temporary:\n%s", code)
+	}
+}
+
+// A signature was CHECKED against the residual and then thrown away, so a
+// program whose claim about it had been verified still failed to emit:
+// `(sig f ((n int)) f64)` over `(fn (n) (fold-range 0.0 n …))` types nothing,
+// because a loop bound is a structural primitive with no table entry.
+func TestSignatureTypesTheParameters(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use num/f64)
+		(fn (n) (fold-range 0.0 n (fn (acc i) (f64.add acc 1.0))))
+	`, "go")
+
+	if _, err := Func(tg, "total", nil, nf); err == nil {
+		t.Fatal("without a signature the parameter is untypeable, so this must fail")
+	}
+	sig := &core.Sig{Params: []core.SigParam{{Name: "n", Type: "int"}}, Result: "f64"}
+	code, err := Func(tg, "total", sig, nf)
+	if err != nil {
+		t.Fatalf("with a signature it must emit: %v", err)
+	}
+	if !strings.Contains(code, "func Total(n int64) float64") {
+		t.Errorf("signature types not used:\n%s", code)
 	}
 }

@@ -42,15 +42,17 @@ type Emitter struct {
 }
 
 // Func emits a top-level abstraction as a Go function.
-func Func(tgt *Target, name string, t *core.Term) (string, error) {
+func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &Emitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
 		imports: map[string]bool{}}
 
-	// Parameter types come from how the body uses them. Local propagation from
-	// primitive signatures — not inference, just reading the table.
+	// Parameter types come from the declared signature first, then from how the
+	// body uses them. Local propagation from primitive signatures — not
+	// inference, just reading the table.
+	seedFromSig(e.types, t.Params, sig)
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
 	e.inferFrom(t.Body())

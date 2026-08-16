@@ -266,7 +266,15 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 			}
 			if len(args) > 0 && !atomicValue(vals[0].(string)) && strings.Contains(p.Form, "%s") {
 				name := e.fresh("v")
-				e.line("%s := %s", name, vals[0])
+				// The type is explicit when we know it. `v1 := (21 + 21)` gives
+				// Go's default `int`, and a function declaring `int64` then
+				// fails to compile — the literals were an untyped constant
+				// before they were bound.
+				if ty := e.tgt.ty(e.typeOf(args[0])); ty != "" {
+					e.line("var %s %s = %s", name, ty, vals[0])
+				} else {
+					e.line("%s := %s", name, vals[0])
+				}
 				vals[0] = name
 			}
 			e.line("%s", fill(p.Form, vals))

@@ -241,6 +241,26 @@ From [state.md §6](state.md), applied to this addition:
 The addition splits: the *discipline* is portable, the *primitive* is not. That split is the
 reason this passes the test at all.
 
+## 7b. Contraction is easy to grant by accident
+
+**2026-08-16, found writing [chapter 4](../book/04-effects.md).** Everything in this document is
+about stopping *reduction* from duplicating an effect. The **emitter** was duplicating work one
+layer down, for a reason that rhymes: the value of a `stmt` primitive is its first argument, and
+the emitter returned that argument's *expression* rather than binding it.
+
+```go
+fmt.Println((strings.Fields(s)))
+return (strings.Fields(s))
+```
+
+Two allocations for one source call — the 615× class the call-by-need discipline exists to
+prevent. It is now bound to a local in all three backends, unless the emitted form is already an
+identifier or a literal, and Go's machine code is unchanged either way (91 instructions before and
+after, identical stream), so the fix cost nothing.
+
+The general lesson is worth keeping: **a discipline enforced at one layer is not enforced at the
+next.** β refuses to copy; δ refuses to copy; the emitter had never been asked.
+
 ## 8. What this does not do
 
 - **No effect types, no monads, no regions.** Purity is one declared bit per primitive and a

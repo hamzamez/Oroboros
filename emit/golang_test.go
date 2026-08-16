@@ -158,3 +158,23 @@ func TestAtomicValue(t *testing.T) {
 		}
 	}
 }
+
+// The bound statement value needs its DECLARED type, not Go's default. A
+// `v1 := (21 + 21)` is an `int`, and hello.oro's main returns `int64` — the
+// literals were an untyped constant until they were bound, and binding them
+// broke the build.
+func TestBoundStatementValueKeepsItsType(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use io)
+		(use num/int)
+		(fn () (io.print-line (int.add 21 21)))
+	`, "go")
+	code, err := Func(tg, "main", nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	if !strings.Contains(code, "var v1 int64 = ") {
+		t.Errorf("expected an explicitly typed temporary:\n%s", code)
+	}
+}

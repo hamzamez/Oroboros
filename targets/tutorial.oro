@@ -1,0 +1,40 @@
+; A target that exists to teach.
+;
+; The normal form is a parameter (ADR 0002), so a *teaching* target is just
+; another value of that parameter. This one is chosen so reduction stops
+; exactly where a lesson wants it to:
+;
+;   - arithmetic is spelled `+ - * /`, unqualified, because a chapter about
+;     `fn` should not also be a chapter about module paths;
+;   - `f`, `g` and `h` are primitives, so "some function we know nothing about"
+;     is a thing you can write and reduction will halt on it;
+;   - `x`, `y`, `z` are primitives too, standing for "some value from outside".
+;
+; It emits nothing. There is no (build …) and no templates worth trusting —
+; this target is for `oro`, which prints normal forms.
+
+(target tutorial
+  (type num  "num")
+  (type bool "bool")
+
+  (prim + (num num) num  expr "%s + %s" pure)
+  (prim - (num num) num  expr "%s - %s" pure)
+  (prim * (num num) num  expr "%s * %s" pure)
+  (prim / (num num) num  expr "%s / %s" pure)
+  (prim < (num num) bool expr "%s < %s" pure)
+
+  ; Opaque stand-ins. Reduction halts on these, which is the whole point:
+  ; they let an example show a shape without showing an implementation.
+  (prim f (num) num      expr "f(%s)" pure)
+  (prim g (num) num      expr "g(%s)" pure)
+  (prim h (num num) num  expr "h(%s, %s)" pure)
+  (prim x (none) num     expr "x" pure)
+  (prim y (none) num     expr "y" pure)
+  (prim z (none) num     expr "z" pure)
+
+  ; One impure primitive, so a lesson can show what β refuses to move.
+  (prim shout (num) num stmt "shout(%s)")
+
+  (structural let        let  pure)
+  (structural if         cond pure)
+  (structural fold-range loop pure))

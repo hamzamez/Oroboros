@@ -365,6 +365,15 @@ func paramList(t *Term, line int) ([]string, error) {
 		//
 		// Nested shadowing — (fn (x) (fn (x) …)) — is unaffected and still
 		// legal, because those are two abstractions.
+		// A binder must be a SIMPLE name. `.` is the qualifier separator, and a
+		// qualified name denotes a module member — a λ cannot bind into a
+		// module. Allowing it let ((fn (f64.add) (f64.add 1.0 2.0)) 9.0) reduce
+		// to (9.0 1.0 2.0): a parameter shadowed a module-qualified primitive
+		// and reduction happily applied a number to two arguments.
+		if strings.Contains(k.Name, ".") {
+			return nil, fmt.Errorf("line %d: %s cannot be a parameter; a binder is a simple "+
+				"name, and `.` qualifies a module member", line, k.Name)
+		}
 		if seen[k.Name] {
 			return nil, fmt.Errorf("line %d: fn binds %s twice; a parameter list may not repeat "+
 				"a name, because the second would silently shadow the first", line, k.Name)

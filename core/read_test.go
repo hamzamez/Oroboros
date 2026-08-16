@@ -108,3 +108,19 @@ func TestScopeCheck(t *testing.T) {
 		t.Errorf("a recursive definition is in its own scope: %v", err)
 	}
 }
+
+// A binder must be a SIMPLE name. Binding a qualified one is meaningless — a λ
+// cannot bind into a module — and it let a parameter shadow a module-qualified
+// primitive, after which reduction applied a number to two arguments.
+func TestQualifiedNameCannotBeAParameter(t *testing.T) {
+	if _, err := Read("(fn (a.b) a.b)"); err == nil {
+		t.Fatal("(fn (a.b) …) must be rejected")
+	}
+	if _, err := Read("(fn (num/f64.add) 1)"); err == nil {
+		t.Fatal("binding a module-qualified name must be rejected")
+	}
+	// A path segment separator is still fine inside a simple name.
+	if _, err := Read("(fn (a/b) a/b)"); err != nil {
+		t.Errorf("`/` is an ordinary identifier character: %v", err)
+	}
+}

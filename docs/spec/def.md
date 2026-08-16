@@ -91,7 +91,13 @@ means the syntax says less than the calculus does.
 The split is real and the systems closest to ours — Coq, which is the one that actually
 distinguishes δ-unfoldable from not — make it **syntactic**.
 
-### Decision
+### Decision — **and it is blocked on something bigger**
+
+> **Status, 2026-08-15.** The split below is still the right answer and is still **unimplemented**.
+> Implementing it now would be decorating, because of §9: **recursion cannot be emitted at all.**
+> A `rec` form that distinguishes "unfolded" from "survives as a target function" is only
+> meaningful once a target function is something a backend produces. Sequence: emission first,
+> then the syntax that talks about it.
 
 **Two forms.**
 
@@ -139,14 +145,10 @@ where Scheme's `define` earns part of its complexity.
 **Scheme's `(define (f x) body)` shorthand is sugar** for `(def f (fn (x) body))` and should be
 recognised as such if we adopt it — not as a second meaning for `def`.
 
-**Stuck terms need a well-formedness check, and we do not have one.** Today `("hamza")` would
-reach the emitter and become `"hamza"()` in Go, pushing our error into the target's compiler —
-the worst place for it. The cheap fix, well short of a type system:
-
-> The operator of an application in the residual must be a λ, a primitive, or a recursive
-> definition. Anything else is an error.
-
-That catches applying a literal, and it is a check on the normal form, not an analysis.
+**Stuck terms need a well-formedness check.** ~~and we do not have one~~ — the emitters now
+refuse: *"application of a non-name: the operator must be a primitive or a recursive definition."*
+So the error is ours rather than the host's, which was the point. A type checker
+([types.md](types.md)) sits in front of it and catches most of this earlier.
 
 ## 5. Literals: which ones, and one refusal
 
@@ -229,6 +231,77 @@ have come from the reducer, so the two roles never collide.
 Three tests pin it: a source `let` is erased when sharing is pointless, a source `let` **cannot**
 block fusion, and the compiler still introduces one where sharing pays.
 
+## 9. Recursion reduces correctly and cannot be compiled
+
+Found 2026-08-15, by trying it:
+
+```lisp
+(def countdown (fn (n) (if (int.le n 0) 0 (countdown (int.sub n 1)))))
+```
+
+```
+gen: gen-countdown mentions the recursive definition(s) countdown, and no
+     backend emits recursion yet — iteration is fold-range
+```
+
+Everything upstream is right. `markRecursive` finds the cycle, δ correctly declines to unfold it,
+and the residual keeps `countdown` as a free name. Then **nothing downstream knows what to do with
+it**: `cmd/gen` emits one function per export and has no notion of also emitting the recursive
+definitions a residual reaches.
+
+Two documents disagreed about this and neither was checked. [core-0 §6](core-0.md) says a recursive
+definition "stays in the residual as a target function", so `Residual` deliberately does *not*
+report it — while the emitter reported `no Go form for primitive "countdown"`, a message about a
+primitive nobody ever declared. The commands now say the true thing instead.
+
+**This is why no gauntlet program is recursive.** Iteration here is `fold-range`, which is a
+primitive and compiles to a `for`. Recursion is the fallback for shapes a fold cannot express, and
+that fallback does not exist yet.
+
+It also silently swallows a typo. `(def size (fn (x) (size x)))` — a self-reference written when a
+*different* `size` was meant — reduces to itself with no complaint. §3's `rec` split is what turns
+that into an error, which is a second reason the split is worth having *after* emission works.
+
+## 10. Tail calls
+
+**Decided: we do not guarantee tail-call optimisation, and the question is not currently live.**
+
+Not a preference — a fact about the targets:
+
+| | proper tail calls |
+|---|---|
+| Go | **no**, and not planned |
+| JVM | **no**; the JEP has never landed. Kotlin's `tailrec` and Scala's `@tailrec` rewrite to a loop at compile time rather than relying on the VM |
+| JavaScript | specified in ES6, implemented **only** by JavaScriptCore. V8 and SpiderMonkey do not |
+
+So guaranteeing TCO means *implementing* it ourselves, on every target, by rewriting tail recursion
+into a loop. That is what Kotlin and Scala do, and it is the only portable way.
+
+**And it would buy nothing today**, because §9: recursion is not emitted at all. You cannot
+optimise tail calls in a construct that does not compile.
+
+Worth correcting one belief while recording this: **Rust does not guarantee tail calls.** `become`
+is a reserved keyword and the feature is unstable; LLVM performs the optimisation opportunistically
+and nothing in the language promises it. Nobody in this neighbourhood guarantees TCO except
+languages that *must* — the ones where recursion is the only loop.
+
+### When it becomes live, the shape is known
+
+1. **Opt-in, not implicit.** A marker like Kotlin's `tailrec`, checked at compile time: if the call
+   is not in tail position, that is an **error**, not a silent fallback to a stack call. Silent is
+   what makes TCO a hazard — a program that works until a refactor moves the call.
+2. **Rewritten by us, to a loop.** Target-independent, because we emit the loop.
+3. **Blocked on a general loop primitive.** `fold-range` is *counted*; tail recursion needs
+   `while`-shaped iteration, and that is a new structural primitive
+   ([target-files.md §4](target-files.md)) — the real prerequisite, and a bigger decision than TCO
+   itself.
+
+The reason it can wait is the one stated at the start of this project: **we are not paying the
+price of a Lisp.** Iteration is a fold, not a recursion, so nothing depends on TCO. It is a feature
+to have, not a foundation to build on. Mojo's version is good because their *memory model* makes it
+good, which is a fact about ownership rather than about tail calls — and ownership is
+[ADR 0013](../decisions/0013-accept-the-allocation-price.md)'s open question, not this one.
+
 ## 7. Decisions
 
 1. **`def` is a context extension, not a term** — a definitional equality, unfolded by δ.
@@ -242,7 +315,9 @@ block fusion, and the compiler still introduces one where sharing pays.
 5. **Numbers yes, strings yes-with-caveats, symbols no.** Symbols exist to serve a runtime
    reader and `eval`; we have neither, and adding them means interning tables on every target for
    a motivation that does not apply.
-6. **`let` is a primitive taking a continuation, not a term former.** No new syntax, no weakening
+6. **Recursion is not emitted, and tail calls are not guaranteed** — §9, §10. Iteration is
+   `fold-range`. Neither `rec` nor TCO is worth building before recursion compiles at all.
+7. **`let` is a primitive taking a continuation, not a term former.** No new syntax, no weakening
    of the normal form, and the reducer's choice to emit it is the binding-time decision.
 
 ## 8. What is deliberately still missing

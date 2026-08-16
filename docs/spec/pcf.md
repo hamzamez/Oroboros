@@ -107,13 +107,19 @@ already priced in [g6](../derivations/g6-escaping-closures.md).
 **Mathematically** this is `f = f`, whose least fixed point is **⊥** — divergence. A
 well-defined denotation, not an error.
 
-**Operationally** `markRecursive` marks `f`, δ never fires, `(f)` survives into the residual, and
-the emitter produces a target function that calls itself. An infinite loop, which is the correct
-compilation of ⊥.
+**Operationally** `markRecursive` marks `f`, δ never fires, and `(f)` survives into the residual.
 
-**Bug found by asking this.** `Residual` reports any free name that is not primitive, so it flags
-`f` — but `f` legitimately survives as a target function. The check must accept *primitive **or**
-recursive definition*.
+~~and the emitter produces a target function that calls itself~~ — **it does not.** Written as a
+prediction and never run; when it was finally run (2026-08-15) it printed
+`no Go form for primitive "countdown"`. **No backend emits a recursive definition at all.**
+`Residual` was fixed to accept *primitive **or** recursive definition*, which was the right fix,
+and it made the residual look emittable when nothing downstream could emit it. The commands now
+say the true thing — [def.md §9](def.md#9-recursion-reduces-correctly-and-cannot-be-compiled).
+
+So the paragraph above is right about the *mathematics* and was wrong about the *compiler*, which
+is the fourth instance of the pattern §8 is about — this time not an inflated name but an
+unrun claim. The lesson generalises: **a sentence in a spec describing what the code does is a
+test that has not been run.**
 
 ## 5. Do we need a macro system?
 
@@ -139,7 +145,8 @@ where q5 put them.
 | [the-atom.md](../the-atom.md) | Framing survives — "normal form as a parameter" is still the contribution — but "three constructs and one parameter, as small as λ-calculus" should say **PCF with Σ as a parameter**. The novelty is architectural, not mathematical. |
 | [concerns.md §1.1](concerns.md) | Rename the concern: it is call-by-need, not a bespoke discipline. Add the outlining generalisation. |
 | [q5](q5-do-we-need-rules.md) | Unaffected. The δ / rules split holds, and §5 now also answers "is this a macro system" — no. |
-| `core/reduce.go` | `Residual` must accept recursive definitions as legitimate survivors. |
+| `core/reduce.go` | `Residual` must accept recursive definitions as legitimate survivors. **Done** — and it exposed §4's real problem: nothing *emits* them. `RecursiveNames` now reports that at the point of emission. |
+| [def.md §9, §10](def.md) | New: recursion reduces but does not compile, and therefore tail-call optimisation is not guaranteed and not currently live. |
 
 ## 7. What was right, and worth keeping
 

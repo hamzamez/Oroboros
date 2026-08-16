@@ -886,3 +886,27 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	}
 	return nil
 }
+
+// RecursiveNames reports recursive definitions a residual still mentions.
+//
+// core-0 §6 says a recursive definition "stays in the residual as a target
+// function", and `Residual` therefore does not report it as a failure. **No
+// backend emits one.** So the two disagree: the covering check says the term is
+// fine and the emitter says `no Go form for primitive "countdown"`.
+//
+// This makes the gap honest at the point it is reached, rather than surfacing as
+// a confusing message about a primitive nobody declared.
+func RecursiveNames(t *Term, e *Env) []string {
+	found := map[string]bool{}
+	for n := range freeVars(t) {
+		if e.Rec[n] {
+			found[n] = true
+		}
+	}
+	out := make([]string, 0, len(found))
+	for n := range found {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
+}

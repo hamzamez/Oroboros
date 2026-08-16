@@ -114,6 +114,14 @@ func run(targetDir, src, target, out, name, path string) error {
 		fname := u.name
 		// Check the residual before emitting it (docs/spec/types.md). On Go and
 		// Java the host would catch most of this; on JavaScript nothing would.
+		// core-0 §6 says a recursive definition survives "as a target function".
+		// No backend emits one, so say so here rather than letting the emitter
+		// report a primitive nobody declared.
+		if rec := core.RecursiveNames(nf, env); len(rec) > 0 {
+			return fmt.Errorf("%s mentions the recursive definition(s) %s, and no backend "+
+				"emits recursion yet — iteration is fold-range (docs/spec/def.md §9)",
+				fname, strings.Join(rec, ", "))
+		}
 		if err := emit.Check(tg, fname, nf); err != nil {
 			return err
 		}

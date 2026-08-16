@@ -113,6 +113,19 @@ rather than measured.
 
 ## 3. Design questions the implementation raised
 
+### 3.5 A syntax was reserved for a mechanism that was never needed
+
+[core-0 §1.3](core-0.md) specified `?x` as a distinct token class for metavariables in rewrite
+rules. **There are no metavariables and there never were** — `?` is an ordinary identifier
+character, so `?y` has always read as a plain name.
+
+q5 then found that δ+β cover layer lowering *and* fusion, so no rewrite-rule machinery was ever
+built. The section survived for two months describing a lexical class that did not exist.
+
+Worth recording as a class of error rather than a one-off: **a specification can go stale by
+describing something that was never built**, which is harder to notice than one describing
+something built differently.
+
 ### 3.1 Should mathematical symbols be identifiers?
 
 UAX #31 admits letters, not symbols, so `＋` (U+FF0B), `≤`, and `∘` are **not** identifiers. A

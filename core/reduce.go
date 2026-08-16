@@ -39,6 +39,12 @@ type Program struct {
 	// and any target's native implementation — which is the one job no host
 	// compiler can do, since the two live on different targets.
 	Sigs map[string]*Sig
+
+	// Unresolved are `use` paths that found no file on the search path. That is
+	// not an error — it is how a target-provided module looks (modules.md §4) —
+	// but it is also how a MISSPELLED path looks, and the two were
+	// indistinguishable until the name failed to resolve much later.
+	Unresolved []string
 }
 
 // Env is a program viewed through one target: which names reduce, and which are
@@ -48,6 +54,17 @@ type Env struct {
 	Prim map[string]bool
 	Pure map[string]bool // names whose APPLICATION is pure; see pureName
 	Rec  map[string]bool // recursive definitions are never δ-reduced
+
+	// unresolvedPaths carries Program.Unresolved through to diagnostics.
+	unresolvedPaths map[string]bool
+}
+
+// SetUnresolved records the imports that found no file, for importHint.
+func (e *Env) SetUnresolved(paths []string) {
+	e.unresolvedPaths = map[string]bool{}
+	for _, p := range paths {
+		e.unresolvedPaths[p] = true
+	}
 }
 
 func NewProgram() *Program {
@@ -106,6 +123,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	for _, m := range mods {
 		entryPaths[m.Path] = true
 	}
+	var unresolved []string
 
 	// Fixpoint over imports. A module already in scope is never re-read, which
 	// is also what terminates on a cycle.
@@ -136,6 +154,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 				return nil, nil, fmt.Errorf("use %s: %w", want, err)
 			}
 			if !found {
+				unresolved = append(unresolved, want)
 				continue // provided by the target, not by a library
 			}
 			sub, err := Read(src)
@@ -147,6 +166,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 				return nil, nil, fmt.Errorf("%s: %w", want, err)
 			}
 			declared := false
+			var extra []string
 			for _, m := range subMods {
 				if m.Path == "" && len(m.Defs) == 0 {
 					continue // the empty anonymous scope every file starts with
@@ -155,14 +175,31 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 					return nil, nil, fmt.Errorf(
 						"%s: a library file must declare (module %s) before its definitions", want, want)
 				}
-				if m.Path == want {
-					declared = true
+				// A library file declares exactly the module its path names.
+				// Adding the extras made their visibility depend on LOAD ORDER:
+				// `(use extra/helper)` failed on its own and succeeded after
+				// `(use extra/pair)` had pulled in the file that declared both.
+				// Meaning that depends on what else is in scope is the thing
+				// qualified imports exist to prevent (modules.md §3).
+				if m.Path != want {
+					extra = append(extra, m.Path)
+					continue
 				}
+				declared = true
 				seen[m.Path] = true
 				mods = append(mods, m)
 			}
-			if !declared {
+			switch {
+			case !declared && len(extra) == 1:
+				return nil, nil, fmt.Errorf("%s declares (module %s); a library file's module "+
+					"must be the path that imports it", want, extra[0])
+			case !declared:
 				return nil, nil, fmt.Errorf("%s does not declare (module %s)", want, want)
+			case len(extra) > 0:
+				return nil, nil, fmt.Errorf("%s also declares (module %s); a library file declares "+
+					"one module, and it is the one its path names — put %s in its own file, or its "+
+					"members are reachable only after something else has imported this one",
+					want, strings.Join(extra, ", "), extra[0])
 			}
 		}
 	}
@@ -196,6 +233,8 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	}
 
 	p := NewProgram()
+	sort.Strings(unresolved)
+	p.Unresolved = unresolved
 	for _, m := range mods {
 		for _, n := range m.Order {
 			body, err := m.resolve(m.Defs[n], map[string]bool{}, mods)
@@ -264,8 +303,9 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 			cur = m
 		case "use":
 			if prev, ok := cur.Uses[f.Alias]; ok && prev != f.Name {
-				return nil, nil, fmt.Errorf("module %q binds %q to both %s and %s",
-					cur.Path, f.Alias, prev, f.Name)
+				return nil, nil, fmt.Errorf("%s binds %s to both %s and %s — "+
+					"give one of them a different (use … as …) alias",
+					modLabel(cur.Path), f.Alias, prev, f.Name)
 			}
 			cur.Uses[f.Alias] = f.Name
 		case "sig":
@@ -365,7 +405,11 @@ func checkExported(mods []*Module, path, name string) error {
 			return nil // no signature yet; everything is visible
 		}
 		if !m.Exports[name] {
-			return fmt.Errorf("module %s does not export %s", path, name)
+			if _, defined := m.Defs[name]; defined {
+				return fmt.Errorf("module %s defines %s but does not export it; "+
+					"add it to that module's (export …)", path, name)
+			}
+			return fmt.Errorf("module %s has no member %s", path, name)
 		}
 		return nil
 	}
@@ -945,7 +989,7 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 			return nil
 		}
 		return fmt.Errorf("%s: %s is not bound — it is not a parameter, not a definition, "+
-			"and not a primitive on this target", where, t.Name)
+			"and not a primitive on this target%s", where, t.Name, e.importHint(t.Name))
 	case KFn:
 		inner := make(map[string]bool, len(bound)+len(t.Params))
 		for k := range bound {
@@ -1013,6 +1057,32 @@ func (e *Env) Shadowed() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// importHint explains an unresolved qualified name when the cause is an import
+// that matched nothing at all.
+//
+// `(use geometrie)` for a module spelled `geometry` is silent at the import —
+// a path with no file is how a TARGET-provided module looks — and then fails on
+// the first member with a message about the member. Which is the wrong half of
+// the name to look at.
+func (e *Env) importHint(name string) string {
+	i := strings.LastIndex(name, ".")
+	if i < 0 {
+		return ""
+	}
+	path := name[:i]
+	if !e.unresolvedPaths[path] {
+		return ""
+	}
+	for p := range e.Prim {
+		if strings.HasPrefix(p, path+".") {
+			return "" // the target does provide this module, just not this member
+		}
+	}
+	return fmt.Sprintf("\n  (use %s) matched no file on the search path and this target "+
+		"provides no module %s either, so every name from it is unbound. Check the path.",
+		path, path)
 }
 
 // modLabel names a module in a diagnostic. The entry file's anonymous scope has

@@ -1,0 +1,11 @@
+; Chapter 3's four-cells program. It names no target, and the target decides
+; whether `geometry.area` is a loop or a native call:
+;
+;   go run ./cmd/oro -target=tutorial        docs/book/code/box.oro
+;   go run ./cmd/oro -target=tutorial-native docs/book/code/box.oro
+
+(use geometry)
+
+(export box)
+
+(def box (fn (w h) (geometry.area w h)))

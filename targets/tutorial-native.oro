@@ -1,4 +1,5 @@
-; A target that exists to teach.
+; targets/tutorial.oro, plus one native capability. Chapter 3 uses the pair to
+; show the four cells: the same source, two targets, two normal forms.
 ;
 ; The normal form is a parameter (ADR 0002), so a *teaching* target is just
 ; another value of that parameter. This one is chosen so reduction stops
@@ -10,10 +11,10 @@
 ;     is a thing you can write and reduction will halt on it;
 ;   - `x`, `y`, `z` are primitives too, standing for "some value from outside".
 ;
-; It emits nothing. There is no (build …) and no templates worth trusting —
+; It emits nothing. There is no (build â€¦) and no templates worth trusting â€”
 ; this target is for `oro`, which prints normal forms.
 
-(target tutorial
+(target tutorial-native
   (type num  "num")
   (type bool "bool")
 
@@ -33,13 +34,18 @@
   (prim z (none) num     expr "z" pure)
 
   ; A module the TARGET provides. `(use math/trig)` finds no file on the search
-  ; path, and that is not an error — it is a module this target implements
+  ; path, and that is not an error â€” it is a module this target implements
   ; natively (chapter 3).
   (module math/trig
     (prim sin (num) num expr "sin(%s)" pure)
     (prim cos (num) num expr "cos(%s)" pure))
 
-  ; One impure primitive, so a lesson can show what β refuses to move.
+  ; The ONE line that differs from targets/tutorial.oro. This target provides
+  ; geometry.area itself, so the library definition of it is never unfolded.
+  (module geometry
+    (prim area (num num) num expr "area(%s, %s)" pure))
+
+  ; One impure primitive, so a lesson can show what Î² refuses to move.
   (prim shout (num) num stmt "shout(%s)")
 
   (structural let        let  pure)

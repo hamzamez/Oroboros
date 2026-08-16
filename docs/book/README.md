@@ -19,8 +19,13 @@ choosing where reduction stops is choosing a target.
 |---|---|
 | [1. `fn`](01-fn.md) | functions, parameters, binding, shadowing, capture, what survives |
 | [2. `def`](02-def.md) | naming a term, δ, why a definition duplicates, why a primitive wins, recursion, and what λ-calculus alone can do |
+| [3. modules](03-modules.md) | `module`, `use`, `export`, the four cells, one namespace for targets and libraries, and why a functor is just a function |
 
-Planned: modules, effects, the type system, targets.
+Planned: effects, the type system, targets.
+
+Chapter 3's library files are real and live in [code/](code/). Its examples run against two
+targets — `tutorial` and `tutorial-native`, which is the same file plus one capability — because
+the four cells cannot be shown with only one.
 
 ## For the writer
 
@@ -33,5 +38,11 @@ six bugs from two chapters. Reviewing the finished chapter then produced a seven
 ADR: recursion reduced but could not build, which is a promise the language does not keep, so it
 is now rejected outright (ADR 0014).
 
+Chapter 3 found four more: a library file's extra modules were visible only after something else
+imported it — load-order-dependent meaning, which is the one thing a module system exists to
+prevent — and three diagnostics named the wrong half of a qualified name. Ten bugs from three
+chapters.
+
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
-section is Church encodings, because the compiler's own vector type turns out to be one.
+section is Church encodings, because the compiler's own vector type turns out to be one; chapter
+3's is ML functors, because it turns out we already have them and did not notice.

@@ -285,3 +285,66 @@ func TestShadowedByTargetIsReported(t *testing.T) {
 		t.Errorf("the target's dot must win, got %s", s)
 	}
 }
+
+// Chapter 3. Four module diagnostics, each of which pointed at the wrong thing.
+func TestModuleDiagnostics(t *testing.T) {
+	load := func(files map[string]string, src string, prims ...string) error {
+		t.Helper()
+		forms, err := Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, terms, err := LoadWith(forms, func(p string) (string, bool, error) {
+			s, ok := files[p]
+			return s, ok, nil
+		})
+		if err != nil {
+			return err
+		}
+		e := testEnv(prog, prims...)
+		e.SetUnresolved(prog.Unresolved)
+		return e.CheckProgram(terms)
+	}
+	geo := "(module geo)\n(export area)\n(def area (fn (w h) (mul w h)))\n(def hidden 1)\n"
+	files := map[string]string{"geo": geo}
+
+	for _, tc := range []struct{ name, src, want string }{
+		// A member that exists but is private, versus one that does not exist.
+		{"private", "(use geo)\n(geo.hidden)", "defines hidden but does not export it"},
+		{"absent", "(use geo)\n(geo.volume)", "has no member volume"},
+		// The anonymous entry scope printed as `module ""`.
+		{"clash", "(use geo)\n(use geo/other as geo)\n(geo.area 1 2)", "the program binds geo to"},
+		// A misspelled path is silent at the import and fails on the member,
+		// which is the wrong half of the name to look at.
+		{"typo", "(use gee)\n(gee.area 1 2)", "matched no file on the search path"},
+	} {
+		err := load(files, tc.src, "mul")
+		if err == nil {
+			t.Errorf("%s: expected an error", tc.name)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: error %q does not contain %q", tc.name, err, tc.want)
+		}
+	}
+
+	// A module the TARGET provides must not get the misspelled-path hint.
+	if err := load(files, "(use math/trig)\n(trig.sin 1)", "math/trig.sin"); err != nil {
+		t.Errorf("a target-provided module must resolve: %v", err)
+	}
+
+	// One file, one module: extras were visible only after something else had
+	// imported the file that declared them, which is load-order-dependent.
+	two := map[string]string{"sub/one": "(module sub/one)\n(export k)\n(def k 1)\n" +
+		"(module sub/two)\n(export j)\n(def j 2)\n"}
+	err := load(two, "(use sub/one)\n(sub/one.k)")
+	if err == nil || !strings.Contains(err.Error(), "also declares (module sub/two)") {
+		t.Errorf("a second module in a library file must be rejected, got %v", err)
+	}
+	// And a file whose module simply does not match the path it was found at.
+	one := map[string]string{"mixup": "(module geo)\n(export a)\n(def a 1)\n"}
+	err = load(one, "(use mixup)\n(mixup.a)")
+	if err == nil || !strings.Contains(err.Error(), "must be the path that imports it") {
+		t.Errorf("a mismatched module path must be rejected, got %v", err)
+	}
+}

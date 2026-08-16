@@ -16,6 +16,22 @@ Written before the code, per [state.md §6](state.md).
 > and `examples/report.oro` share it instead of duplicating it, with byte-identical output.
 > Crucially, `P_T ∩ D` still decides **across the file boundary**.
 >
+> **One file, one module, 2026-08-16.** A library file declares exactly the module its path names.
+> Extras were being loaded along with it, which made their visibility depend on **load order** —
+> `(use sub/two)` failed on its own and succeeded once `(use sub/one)` had pulled in the file that
+> declared both. Meaning that depends on what else is in scope is precisely what §3's qualified
+> imports exist to prevent, so it was the same rule leaking through a different hole. The entry
+> file is unaffected: it is not found by a path, so it may declare as many modules as it likes.
+>
+> Three diagnostics were also pointing at the wrong half of a name, all found by writing
+> [chapter 3](../book/03-modules.md):
+>
+> - a member that is **private** and one that **does not exist** gave the same message;
+> - an alias collision in the entry file said `module "" binds …`;
+> - a **misspelled path** is indistinguishable from a target-provided module — both find no file —
+>   and failed later, on the member. `Program.Unresolved` now carries which imports matched nothing,
+>   so the error can say the path is the problem when the target provides no such module either.
+>
 > Not yet built: a target is still one file rather than a directory (§4).
 
 The claim this document has to earn is that **modules add no mechanism to the reducer**. If it

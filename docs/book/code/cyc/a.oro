@@ -1,0 +1,4 @@
+(module cyc/a)
+(use cyc/b)
+(export f)
+(def f (fn (n) (b.g n)))

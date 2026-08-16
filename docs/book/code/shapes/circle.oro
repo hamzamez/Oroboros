@@ -1,0 +1,12 @@
+; A module whose path has two segments. `/` is an ordinary identifier
+; character, so `shapes/circle` is ONE name, and the file is at
+; shapes/circle.oro relative to a search-path root.
+
+(module shapes/circle)
+
+(use math/trig)
+
+(export area point-at)
+
+(def area     (fn (r)     (* 3 (* r r))))
+(def point-at (fn (r ang) (* r (trig.cos ang))))

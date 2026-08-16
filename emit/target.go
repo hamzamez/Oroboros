@@ -302,6 +302,7 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		Pure: map[string]bool{},
 		Rec:  map[string]bool{},
 	}
+	e.SetUnresolved(p.Unresolved)
 	for _, n := range tg.Names {
 		e.Prim[n] = true
 		e.Pure[n] = tg.Prims[n].Pure

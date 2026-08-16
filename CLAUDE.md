@@ -143,6 +143,13 @@ primitive, `make-vec`, wrapped by `num/vec.materialize`: build with the delayed 
 which fuses, and **materialize only at a boundary**. Materializing in the interior costs the 13×
 the stencil benchmark measured, and [that cost is the point](docs/spec/construction.md).
 
+**Recursion reduces correctly and cannot be emitted** — [def.md §9](docs/spec/def.md). δ declines
+to unfold it, the residual keeps the name, and no backend knows what to do with one; `cmd/gen` and
+`cmd/build` now say so. That is why no gauntlet program is recursive: iteration is `fold-range`.
+It also makes **tail-call optimisation moot** (§10) — none of the three targets guarantees TCO, so
+guaranteeing it means implementing it as Kotlin's `tailrec` does, and that is blocked on a
+while-shaped loop primitive.
+
 **Never add unstructured control flow.** Structured only: `if`, `loop`, `break n`, `return`.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.

@@ -92,13 +92,42 @@ type facts struct {
 	le  []*linear
 	eq  map[string]*linear // name -> the linear expression it equals
 	log []string           // human-readable, for the diagnostic
+
+	// opaque are assumptions OUTSIDE the fragment, kept as printed terms and
+	// matched by syntactic identity — refinements.md §3's "propagated and
+	// matched by name, never decided". They were being dropped, so a `where`
+	// the solver could not read left the diagnostic saying `known: nothing`
+	// while the program declared something.
+	opaque []string
 }
 
 func newFacts() *facts { return &facts{eq: map[string]*linear{}} }
 
+// assumeOpaque records an assumption the fragment cannot decide.
+func (f *facts) assumeOpaque(printed string) {
+	for _, o := range f.opaque {
+		if o == printed {
+			return
+		}
+	}
+	f.opaque = append(f.opaque, printed)
+	f.log = append(f.log, "assumed "+printed)
+}
+
+// entailsOpaque discharges an obligation the fragment cannot decide, and only
+// by an assumption that is syntactically the same term.
+func (f *facts) entailsOpaque(printed string) bool {
+	for _, o := range f.opaque {
+		if o == printed {
+			return true
+		}
+	}
+	return false
+}
+
 func (f *facts) clone() *facts {
 	c := &facts{le: append([]*linear(nil), f.le...), eq: make(map[string]*linear, len(f.eq)),
-		log: append([]string(nil), f.log...)}
+		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...)}
 	for k, v := range f.eq {
 		c.eq[k] = v
 	}

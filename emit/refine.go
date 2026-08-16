@@ -79,7 +79,13 @@ func assume(f *facts, where *core.Term) {
 		for _, g := range goals {
 			f.assumeLE(g, "assumed "+g.String()+" <= 0")
 		}
+		return
 	}
+	// Outside the fragment. Kept, not dropped: refinements.md §3 says an opaque
+	// term is propagated and matched by name, and dropping it also made the
+	// diagnostic claim nothing was known when the program had declared a
+	// `where`.
+	f.assumeOpaque(where.String())
 }
 
 func (r *refiner) walk(t *core.Term, f *facts) error {
@@ -210,11 +216,15 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) er
 			sub[n] = args[i]
 		}
 	}
-	goals, ok := obligation(core.Rename2(p.Where, sub))
+	want := core.Rename2(p.Where, sub)
+	goals, ok := obligation(want)
 	if !ok {
-		// Outside the fragment: an opaque atom, propagated rather than decided
-		// (refinements.md §3). Sound — it is not assumed true; it simply cannot
-		// be discharged here, and the note says so.
+		// Outside the fragment: an opaque atom (refinements.md §3). It can be
+		// discharged only by an assumption that is the SAME term; otherwise it
+		// is propagated, never assumed, and the note says so.
+		if f.entailsOpaque(want.String()) {
+			return nil
+		}
 		r.notes = append(r.notes, fmt.Sprintf("%s: refinement propagated, not proven", name))
 		return nil
 	}

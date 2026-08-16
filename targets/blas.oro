@@ -31,4 +31,5 @@
   (structural let         let   pure)
   (structural if          cond  pure)
   (structural fold-range  loop  pure)
-  (structural fold-range2 loop2 pure))
+  (structural fold-range2 loop2 pure)
+  (structural make-vec     build pure))

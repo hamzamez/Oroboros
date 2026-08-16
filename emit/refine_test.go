@@ -106,3 +106,24 @@ func TestRefineAcceptsASecondArrayGivenAPrecondition(t *testing.T) {
 		t.Errorf("the precondition should discharge it: %v", err)
 	}
 }
+
+// §3 — an assumption OUTSIDE the fragment must be kept, not dropped. It cannot
+// decide a linear obligation, and the diagnostic must still say it was there:
+// `known: nothing` was a lie whenever a program declared a `where` the solver
+// could not read.
+func TestOpaqueAssumptionIsKept(t *testing.T) {
+	err := refineSrc(t, `
+		(use num/f64)
+		(use num/int)
+		(export f)
+		(sig f ((a vec-f64) (k int)) f64
+		  (where (ascii? k)))
+		(def f (fn (a k) (aindex a k)))
+	`)
+	if err == nil {
+		t.Fatal("an opaque assumption must not discharge a bounds obligation")
+	}
+	if !strings.Contains(err.Error(), "assumed (ascii? k)") {
+		t.Errorf("the diagnostic must report what was assumed; got %v", err)
+	}
+}

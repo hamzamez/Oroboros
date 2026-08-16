@@ -106,3 +106,55 @@ func TestEscapingClosureIsARefusal(t *testing.T) {
 		t.Errorf("error should name the problem; got %v", err)
 	}
 }
+
+// A `stmt` primitive's VALUE is its first argument, and returning that
+// argument's expression wrote it twice — `fmt.Println((strings.Fields(s)))`
+// followed by `return (strings.Fields(s))`. Two allocations for one source
+// call, in a compiler whose call-by-need discipline exists to prevent exactly
+// that. Found writing chapter 4.
+func TestStatementValueIsNotRecomputed(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use io)
+		(fn (s) (io.print-line (split-words s)))
+	`, "go")
+	code, err := Func(tg, "show", nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	if n := strings.Count(code, "strings.Fields"); n != 1 {
+		t.Errorf("split-words emitted %d times, want 1:\n%s", n, code)
+	}
+
+	// But an argument that is already a name or a literal must NOT gain a
+	// temporary — that would be noise in every print, and `report`'s
+	// `fmt.Println(acc); return acc` is the hand-written shape.
+	nf = reduce(t, `
+		(use io)
+		(use num/f64)
+		(fn (a) (io.print-line (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a i))))))
+	`, "go")
+	code, err = Func(tg, "total", nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	if strings.Contains(code, "v1 :=") {
+		t.Errorf("a name needs no temporary:\n%s", code)
+	}
+	if !strings.Contains(code, "fmt.Println(acc)") {
+		t.Errorf("expected fmt.Println(acc):\n%s", code)
+	}
+}
+
+func TestAtomicValue(t *testing.T) {
+	for _, s := range []string{"acc", "n1", "_x", "42", "-3", `"hi"`, "$v"} {
+		if !atomicValue(s) {
+			t.Errorf("%q should be atomic", s)
+		}
+	}
+	for _, s := range []string{"", "(n + n)", "strings.Fields(s)", "xs[i]", "a.b"} {
+		if atomicValue(s) {
+			t.Errorf("%q should not be atomic", s)
+		}
+	}
+}

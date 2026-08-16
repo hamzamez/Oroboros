@@ -1,4 +1,6 @@
-; A target that exists to teach.
+; targets/tutorial.oro with ONE word deleted: `*` is no longer marked `pure`.
+; Chapter 4 uses it to show what a forgotten purity marker costs — which is
+; speed, never correctness, and that asymmetry is why the default is impure.
 ;
 ; The normal form is a parameter (ADR 0002), so a *teaching* target is just
 ; another value of that parameter. This one is chosen so reduction stops
@@ -13,13 +15,13 @@
 ; It emits nothing. There is no (build …) and no templates worth trusting —
 ; this target is for `oro`, which prints normal forms.
 
-(target tutorial
+(target tutorial-sloppy
   (type num  "num")
   (type bool "bool")
 
   (prim + (num num) num  expr "%s + %s" pure)
   (prim - (num num) num  expr "%s - %s" pure)
-  (prim * (num num) num  expr "%s * %s" pure)
+  (prim * (num num) num  expr "%s * %s")
   (prim / (num num) num  expr "%s / %s" pure)
   (prim < (num num) bool expr "%s < %s" pure)
 

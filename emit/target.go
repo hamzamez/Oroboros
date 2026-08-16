@@ -424,3 +424,37 @@ func sortedSet(m map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// atomicValue reports whether an EMITTED expression is free to repeat: an
+// identifier or a literal. It is the emitter's half of core's `duplicable`,
+// and it exists for one reason — the VALUE of a `stmt` primitive is its first
+// argument, so returning that argument's expression writes it twice.
+//
+//	fmt.Println((strings.Fields(s)))
+//	return (strings.Fields(s))
+//
+// Two allocations where the source asked for one, in a compiler whose whole
+// call-by-need discipline exists to prevent exactly that. Found writing
+// chapter 4.
+//
+// The test is on the emitted STRING rather than the term, because a term that
+// is not atomic often emits to one that is: a fold-range emits its loop and
+// yields the accumulator's name.
+func atomicValue(v string) bool {
+	if v == "" {
+		return false
+	}
+	if v[0] == '"' || (v[0] >= '0' && v[0] <= '9') || v[0] == '-' {
+		return true // a literal
+	}
+	for i := 0; i < len(v); i++ {
+		c := v[i]
+		ok := c == '_' || c == '$' ||
+			(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+			(i > 0 && c >= '0' && c <= '9')
+		if !ok {
+			return false
+		}
+	}
+	return true
+}

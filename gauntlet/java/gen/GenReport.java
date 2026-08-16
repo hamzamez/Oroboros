@@ -3,10 +3,11 @@
 public final class GenReport {
 	public static double genReport(Object label, double[] xs) {
 		System.out.println(label);
-		System.out.println((xs.length));
+		final var v1 = (xs.length);
+		System.out.println(v1);
 		double acc = 0.0;
-		final int n1 = (xs.length);
-		for (int i = 0; i < n1; i++) {
+		final int n2 = (xs.length);
+		for (int i = 0; i < n2; i++) {
 			acc = (acc + ((xs[i]) * (xs[i])));
 		}
 		System.out.println(acc);

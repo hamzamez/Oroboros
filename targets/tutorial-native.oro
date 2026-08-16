@@ -46,7 +46,9 @@
     (prim area (num num) num expr "area(%s, %s)" pure))
 
   ; One impure primitive, so a lesson can show what Î² refuses to move.
-  (prim shout (num) num stmt "shout(%s)")
+  (prim shout   (num) num  stmt "shout(%s)")
+  (prim whisper (num) num  stmt "whisper(%s)")
+  (prim tick    (none) num stmt "tick()")
 
   (structural let        let  pure)
   (structural if         cond pure)

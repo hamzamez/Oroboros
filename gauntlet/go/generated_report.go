@@ -6,11 +6,12 @@ import "fmt"
 
 func GenReport(label any, xs []float64) float64 {
 	fmt.Println(label)
-	fmt.Println((int64(len(xs))))
+	v1 := (int64(len(xs)))
+	fmt.Println(v1)
 	acc := 0.0
-	var n1 int64 = (int64(len(xs)))
-	xs = xs[:n1]
-	for i := int64(0); i < n1; i++ {
+	var n2 int64 = (int64(len(xs)))
+	xs = xs[:n2]
+	for i := int64(0); i < n2; i++ {
 		acc = (acc + ((xs[i]) * (xs[i])))
 	}
 	fmt.Println(acc)

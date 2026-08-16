@@ -2,10 +2,11 @@
 
 export function genReport(label, xs) {
 	console.log(label);
-	console.log((xs.length));
+	const v1 = (xs.length);
+	console.log(v1);
 	let acc = 0;
-	const n1 = (xs.length);
-	for (let i = 0; i < n1; i++) {
+	const n2 = (xs.length);
+	for (let i = 0; i < n2; i++) {
 		acc = (acc + ((xs[i]) * (xs[i])));
 	}
 	console.log(acc);

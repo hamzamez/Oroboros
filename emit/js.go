@@ -131,6 +131,11 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				}
 				vals = append(vals, v)
 			}
+			if len(args) > 0 && !atomicValue(vals[0].(string)) && strings.Contains(p.Form, "%s") {
+				name := e.fresh("v")
+				e.line("const %s = %s;", name, vals[0])
+				vals[0] = name
+			}
 			e.line("%s;", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}

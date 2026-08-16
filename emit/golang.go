@@ -264,6 +264,11 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 				}
 				vals[i] = v
 			}
+			if len(args) > 0 && !atomicValue(vals[0].(string)) && strings.Contains(p.Form, "%s") {
+				name := e.fresh("v")
+				e.line("%s := %s", name, vals[0])
+				vals[0] = name
+			}
 			e.line("%s", fill(p.Form, vals))
 			return vals[0].(string), nil
 		}

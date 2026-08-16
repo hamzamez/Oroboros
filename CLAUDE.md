@@ -59,6 +59,7 @@ recording alternatives that were considered and rejected.
 | Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
 | `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
 | Accept the allocation price, provisionally | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
+| Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -143,12 +144,12 @@ primitive, `make-vec`, wrapped by `num/vec.materialize`: build with the delayed 
 which fuses, and **materialize only at a boundary**. Materializing in the interior costs the 13×
 the stencil benchmark measured, and [that cost is the point](docs/spec/construction.md).
 
-**Recursion reduces correctly and cannot be emitted** — [def.md §9](docs/spec/def.md). δ declines
-to unfold it, the residual keeps the name, and no backend knows what to do with one; `cmd/gen` and
-`cmd/build` now say so. That is why no gauntlet program is recursive: iteration is `fold-range`.
-It also makes **tail-call optimisation moot** (§10) — none of the three targets guarantees TCO, so
-guaranteeing it means implementing it as Kotlin's `tailrec` does, and that is blocked on a
-while-shaped loop primitive.
+**Recursion is not in the language** — [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md).
+It reduced correctly and no backend emitted it, so `oro` accepted programs `build` refused; it is
+now an error, checked per-target before reduction by `Env.CheckProgram`. Emitting it would ship the
+first construct that looks Tier 1 and is not — stack depth differs by orders of magnitude across
+Go, the JVM and JS, and none of them guarantees tail calls. Iteration is `fold-range`. **TCO is
+moot** until a while-shaped loop primitive exists, which is also recursion's own prerequisite.
 
 **Never add unstructured control flow.** Structured only: `if`, `loop`, `break n`, `return`.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot

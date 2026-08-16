@@ -231,7 +231,14 @@ have come from the reducer, so the two roles never collide.
 Three tests pin it: a source `let` is erased when sharing is pointless, a source `let` **cannot**
 block fusion, and the compiler still introduces one where sharing pays.
 
-## 9. Recursion reduces correctly and cannot be compiled
+## 9. Recursion reduces correctly, cannot be compiled, and is therefore rejected
+
+> **Settled 2026-08-16 by [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md).**
+> A recursive definition is now an **error**, reported before reduction by every command, because
+> a construct the reducer accepts and the compiler refuses is a promise the language does not
+> keep. The check is per-target: a target that provides the name natively never unfolds the
+> definition, so that case still builds. The section below is what led there and stands as the
+> record.
 
 Found 2026-08-15, by trying it:
 
@@ -256,11 +263,12 @@ primitive nobody ever declared. The commands now say the true thing instead.
 
 **This is why no gauntlet program is recursive.** Iteration here is `fold-range`, which is a
 primitive and compiles to a `for`. Recursion is the fallback for shapes a fold cannot express, and
-that fallback does not exist yet.
+that fallback does not exist yet — which is what made rejecting it affordable. Nothing was using
+it.
 
-It also silently swallows a typo. `(def size (fn (x) (size x)))` — a self-reference written when a
-*different* `size` was meant — reduces to itself with no complaint. §3's `rec` split is what turns
-that into an error, which is a second reason the split is worth having *after* emission works.
+It also silently swallowed a typo. `(def size (fn (x) (size x)))` — a self-reference written when
+a *different* `size` was meant — reduced to itself with no complaint. ADR 0014 makes it an error,
+and says so in the message, which was the cheaper way to get what §3's `rec` split was wanted for.
 
 ## 10. Tail calls
 
@@ -277,7 +285,7 @@ Not a preference — a fact about the targets:
 So guaranteeing TCO means *implementing* it ourselves, on every target, by rewriting tail recursion
 into a loop. That is what Kotlin and Scala do, and it is the only portable way.
 
-**And it would buy nothing today**, because §9: recursion is not emitted at all. You cannot
+**And it would buy nothing today**, because §9: recursion is not in the language. You cannot
 optimise tail calls in a construct that does not compile.
 
 Worth correcting one belief while recording this: **Rust does not guarantee tail calls.** `become`
@@ -302,6 +310,57 @@ to have, not a foundation to build on. Mojo's version is good because their *mem
 good, which is a fact about ownership rather than about tail calls — and ownership is
 [ADR 0013](../decisions/0013-accept-the-allocation-price.md)'s open question, not this one.
 
+## 11. What is reported, and what is deliberately not
+
+Two questions arrived together on 2026-08-16 and got opposite answers, which is the useful part.
+
+### Reported: a definition the target provides natively
+
+```
+note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
+```
+
+§2.7 of [chapter 2](../book/02-def.md) is the mechanism: δ declines to unfold a name in `P_T`, so
+the target's implementation wins and the definition is a fallback for targets that lack it. It is
+the most consequential decision the compiler makes about a program, it is made by a file the
+program does not name, and it was **silent**.
+
+A note rather than an error, because being overridden is the intended outcome — ADR 0002 exists
+for it. Precision is what makes it affordable: it fires exactly where a library definition and a
+target primitive collide, which today is one line on `blas` and none on `go`.
+
+### Not reported: a binder shadowing a name
+
+`(fn (double) …)` where `double` is also a definition, `(fn (+) …)` where `+` is primitive, and
+`(fn (n) (fn (n) …))` all change what a name means, silently. They are **not** reported.
+
+**The industry has run this experiment.** Haskell's `-Wname-shadowing` is not in `-Wall`; Go's
+shadow analysis is not in `go vet`'s default suite and ships documented as unreliable; Rust does
+not warn at all, because shadowing is idiomatic there. The consistent finding is that shadow
+warnings have a low true-positive rate, and a diagnostic people learn to skip past costs more than
+it saves — including for the diagnostics printed next to it.
+
+Three reasons specific to this language:
+
+1. **No meaning here is target-dependent.** A parameter always beats a definition, which always
+   beats a primitive, on every target. So a shadowing binder is a legibility problem, not a
+   portability one, and portability is what this project's diagnostics are for.
+2. **The consequences are already caught**, further along and by machinery that has to exist
+   anyway. `(fn (double) (double 5.0))` where `double` shadows a function fails in the emitter —
+   *cannot determine a Go type for parameter "double"* — because a parameter that is applied and
+   never reaches a primitive has no type. The checker catches the shape that actually breaks.
+3. **The unambiguous half is already an error.** Repeating a name *within one parameter list* is
+   rejected by the reader, because there the second binding is unreachable and there is no reading
+   under which it was meant.
+
+What is done instead: [chapter 2 §2.6 and §2.10](../book/02-def.md) name it, show it, and say to
+prefer distinct names. Teaching is the right instrument for a legibility rule.
+
+**What would reopen it** is a measurement rather than an argument: a real shadowing bug that
+survived both the type checker and the refinement checker. The report could then be written
+against the case that actually escaped, which is a better specification than "shadowing" in
+general.
+
 ## 7. Decisions
 
 1. **`def` is a context extension, not a term** — a definitional equality, unfolded by δ.
@@ -315,8 +374,10 @@ good, which is a fact about ownership rather than about tail calls — and owner
 5. **Numbers yes, strings yes-with-caveats, symbols no.** Symbols exist to serve a runtime
    reader and `eval`; we have neither, and adding them means interning tables on every target for
    a motivation that does not apply.
-6. **Recursion is not emitted, and tail calls are not guaranteed** — §9, §10. Iteration is
-   `fold-range`. Neither `rec` nor TCO is worth building before recursion compiles at all.
+6. **Recursion is rejected, and tail calls are not guaranteed** — §9, §10, ADR 0014. Iteration is
+   `fold-range`. Emitting recursion would ship a construct whose stack depth differs per target
+   with no specification, so it fails at the definition instead.
+6b. **A definition the target overrides is a note; a binder that shadows is not reported** — §11.
 7. **`let` is a primitive taking a continuation, not a term former.** No new syntax, no weakening
    of the normal form, and the reducer's choice to emit it is the binding-time decision.
 

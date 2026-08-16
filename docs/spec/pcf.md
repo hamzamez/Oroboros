@@ -113,8 +113,9 @@ well-defined denotation, not an error.
 prediction and never run; when it was finally run (2026-08-15) it printed
 `no Go form for primitive "countdown"`. **No backend emits a recursive definition at all.**
 `Residual` was fixed to accept *primitive **or** recursive definition*, which was the right fix,
-and it made the residual look emittable when nothing downstream could emit it. The commands now
-say the true thing — [def.md §9](def.md#9-recursion-reduces-correctly-and-cannot-be-compiled).
+and it made the residual look emittable when nothing downstream could emit it. Settled by
+[ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md): recursion is **rejected**, so
+the question `f = f` asks is now a question about the mathematics only.
 
 So the paragraph above is right about the *mathematics* and was wrong about the *compiler*, which
 is the fourth instance of the pattern §8 is about — this time not an inflated name but an

@@ -82,13 +82,13 @@ func TestScopeCheck(t *testing.T) {
 	}
 
 	e, terms := env("(fn (x) y)")
-	if err := e.CheckScope(terms); err == nil {
+	if err := e.CheckProgram(terms); err == nil {
 		t.Error("a free variable in a body must be reported")
 	}
 
 	// The classic one: a typo in a definition the program never reaches.
 	e, terms = env("(def unused (fn (x) nope))\n(add 1 2)")
-	err := e.CheckScope(terms)
+	err := e.CheckProgram(terms)
 	if err == nil {
 		t.Fatal("a typo in an unreached definition must be reported")
 	}
@@ -98,14 +98,67 @@ func TestScopeCheck(t *testing.T) {
 
 	// Parameters, definitions and primitives are all in scope.
 	e, terms = env("(def f (fn (a) (add a 1)))\n(fn (x) (f x))")
-	if err := e.CheckScope(terms); err != nil {
+	if err := e.CheckProgram(terms); err != nil {
 		t.Errorf("bound names must pass: %v", err)
 	}
 
-	// A recursive definition refers to itself, which is in scope.
+	// A recursive definition refers to itself, which IS in scope — the two
+	// questions are separate, and only the second one rejects it (ADR 0014).
 	e, terms = env("(def loop-forever (fn (n) (loop-forever n)))\n(loop-forever 1)")
-	if err := e.CheckScope(terms); err != nil {
+	if err := e.checkScope(terms); err != nil {
 		t.Errorf("a recursive definition is in its own scope: %v", err)
+	}
+	err = e.CheckProgram(terms)
+	if err == nil {
+		t.Fatal("recursion must be rejected")
+	}
+	for _, want := range []string{"loop-forever", "fold-range", "0014"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+}
+
+// ADR 0014. Recursion reduces correctly and no backend emits it, so it must
+// fail at the earliest honest point rather than at the emitter — `oro` used to
+// accept a program `build` refused.
+func TestRecursionIsRejected(t *testing.T) {
+	load := func(src string, prims ...string) error {
+		t.Helper()
+		forms, err := Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, terms, err := Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return testEnv(prog, prims...).CheckProgram(terms)
+	}
+
+	// Mutual recursion, named in full.
+	err := load("(def even? (fn (n) (odd? n)))\n(def odd? (fn (n) (even? n)))\n(even? 3)", "sub")
+	if err == nil {
+		t.Fatal("mutual recursion must be rejected")
+	}
+	for _, want := range []string{"even?", "odd?", "mutually recursive"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("error %q does not mention %q", err, want)
+		}
+	}
+
+	// An unused recursive definition is still rejected: every definition is
+	// checked, which is what turns a typo'd self-reference into an error.
+	if err := load("(def size (fn (v) (size v)))\n(add 1 2)", "add"); err == nil {
+		t.Error("an unused recursive definition must be rejected")
+	}
+
+	// But NOT when the target provides the name natively: δ never unfolds the
+	// definition, so the cycle is unreachable. This is ADR 0002's "compiling
+	// up", and rejecting it would break every program built against a target
+	// that happens to implement one of the library's functions.
+	if err := load("(def sort (fn (v) (sort v)))\n(sort 1)", "sort"); err != nil {
+		t.Errorf("a definition the target shadows must not be rejected: %v", err)
 	}
 }
 
@@ -200,5 +253,35 @@ func TestDiagnosticsUnderABinderKeepTheirNames(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "#") {
 		t.Errorf("fuel diagnostic leaks the internal representation: %v", err)
+	}
+}
+
+// def.md §11. A definition the target provides natively is the parasite model
+// working — the note exists because the file that decides it is one the program
+// never names. It must fire on exactly that collision and nothing else.
+func TestShadowedByTargetIsReported(t *testing.T) {
+	forms, err := Read("(def dot (fn (a b) (mul a b)))\n(def near (fn (a) (dot a a)))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testEnv(prog, "mul").Shadowed(); len(got) != 0 {
+		t.Errorf("no collision, but reported %v", got)
+	}
+	e := testEnv(prog, "mul", "dot")
+	got := e.Shadowed()
+	if len(got) != 1 || got[0] != "dot" {
+		t.Fatalf("expected [dot], got %v", got)
+	}
+	// And the definition really is the one that loses.
+	out, err := Normalize(prog.Defs["near"], e, DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s := out.String(); s != "(fn (a) (dot a a))" {
+		t.Errorf("the target's dot must win, got %s", s)
 	}
 }

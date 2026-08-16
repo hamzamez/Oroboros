@@ -241,7 +241,12 @@ A `fn` parameter wins over a definition:
 `double` inside is the parameter, so nothing unfolds. Legal, and almost never what you meant —
 chapter 1's advice about shadowing applies here too.
 
-The third rule is the interesting one, and it runs the other way.
+**Nothing warns you about this**, and that is a decision rather than an omission
+([def.md §11](../spec/def.md)): shadow warnings have a famously low true-positive rate, the meaning
+is the same on every target, and the shape that actually breaks is caught later by the type
+checker. Prefer distinct names; the compiler will not remind you.
+
+The third rule is the interesting one. It runs the other way, and it *is* reported.
 
 ## 2.7 A target primitive beats a definition — and that is the whole design
 
@@ -296,7 +301,16 @@ into a tuned library. **A definition is a fallback lowering for targets that lac
 there is one.
 
 So it is not a shadowing hazard, it is the point. It becomes a hazard only when the collision is
-accidental — which is a reason to read the target file for names you are about to define.
+accidental — and because the file that decides it is one your program never names, this is the one
+substitution the compiler tells you about:
+
+```
+note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
+```
+
+A note, not an error: being overridden is the intended outcome. It is printed by `oro`, `gen` and
+`build` alike, and it fires only where a definition and a target primitive actually collide — one
+line on `blas`, none on `go`.
 
 ## 2.8 A definition that mentions itself
 
@@ -305,14 +319,16 @@ accidental — which is a reason to read the target file for names you are about
 (countdown 3)
 ```
 
-```lisp
-⟶   (countdown 3)
+```
+countdown is recursive: it is defined in terms of itself, and recursion is not in
+the language — iteration is fold-range (ADR 0014).
+  If the self-reference was not deliberate, this definition is shadowing the
+  countdown you meant.
 ```
 
-Reduction **stops**. It does not unfold `countdown` into itself forever, and it does not compute
-the answer either. This is correct and deliberate: a recursive definition has no normal form in
-general, and a calculus whose whole job is "reduce to normal form" must decline to unfold one.
-Mutual recursion is detected the same way:
+**Recursion is not in the language.** Not "unsupported for now" in the sense of something that
+half-works — it is rejected, at the definition, before anything reduces. Mutual recursion is found
+the same way, however long the cycle:
 
 ```lisp
 (def even? (fn (n) (odd? n)))
@@ -320,20 +336,23 @@ Mutual recursion is detected the same way:
 (even? 3)
 ```
 
-```lisp
-⟶   (even? 3)
+```
+even?, odd? are mutually recursive, and recursion is not in the language —
+iteration is fold-range (ADR 0014)
 ```
 
-**But recursion cannot be compiled.** Reduction is only the first half; the residual then goes to a
-backend, and no backend emits a recursive definition:
+The reason is worth knowing, because it is not "recursion is bad".
 
-```
-gen: gen-countdown mentions the recursive definition(s) countdown, and no backend
-     emits recursion yet — iteration is fold-range (docs/spec/def.md §9)
-```
+Underneath, a recursive definition reduces *correctly*: δ declines to unfold a cycle, which is the
+right answer, since a recursive equation generally has no normal form and this calculus's whole job
+is to reach one. What it cannot do is **compile**. Emitting it means emitting a host function that
+calls itself, and how deep that can go before it fails differs by orders of magnitude across Go,
+the JVM and JavaScript — none of which guarantees tail calls. That would be one program, one
+input, terminating on one target and crashing on another, which is the single thing this language
+exists not to do. [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md) has the
+argument and what would reopen it.
 
-So a recursive definition is legal, reduces correctly, and will not build. The reason no program
-in this repository is recursive is that iteration here is a primitive:
+Iteration is a primitive instead:
 
 ```lisp
 (def total  (fn (n)   (fold-range 0 n (fn (acc i) (+ acc i)))))
@@ -345,21 +364,22 @@ in this repository is recursive is that iteration here is a primitive:
 ⟶   (fold-range 0 10 (fn (acc i) (+ acc (* 3 i))))
 ```
 
-`fold-range` is what the target turns into a `for`. See [def.md §9](../spec/def.md) for the state
-of recursion and [§10](../spec/def.md) for why tail-call optimisation is not promised.
+`fold-range` is what the target turns into a `for`.
 
-There is a second reason to care. A self-reference you did not intend also just stops:
+The error's second sentence is there for a case that has nothing to do with recursion:
 
 ```lisp
 (def size (fn (v) (size v)))
 (size 3)
 ```
 
-```lisp
-⟶   (size 3)
-```
+That is almost never a recursive `size`. It is a `size` meant to call some *other* `size` — one you
+forgot to import, or spelled differently — and the definition being written is shadowing it. The
+message says so, because until this rule existed the program reduced to `(size 3)` and told you
+nothing.
 
-That is a `size` meant to call some *other* `size`, and nothing complains until you try to build.
+**Every definition is checked**, so this fires even if nothing calls `size`, exactly as with the
+typos in §2.5.
 
 ## 2.9 `export` and `sig`
 

@@ -63,8 +63,13 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	}
 	// Name resolution, over EVERY definition rather than only what reduction
 	// reaches — a typo in unused code was previously invisible.
-	if err := env.CheckScope(terms); err != nil {
+	if err := env.CheckProgram(terms); err != nil {
 		return fmt.Errorf("%s: %w", src, err)
+	}
+
+	for _, n := range env.Shadowed() {
+		fmt.Fprintf(os.Stderr, "note: %s is defined here and provided natively by target %q; "+
+			"the target's is used\n", n, target)
 	}
 
 	// A program's entry points are its exports; anonymous top-level terms are

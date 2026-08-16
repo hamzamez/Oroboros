@@ -29,7 +29,9 @@ contradict one, and where a chapter simplifies it should say so. Writing chapter
 bugs — a parameter list could repeat a name, and could bind a qualified one. Chapter 2 found four
 more: `(def a.b …)` was accepted and unreachable, an `export` or a `sig` naming nothing was
 silently dropped, and two diagnostics printed `#1.0` instead of the names the source used. That is
-six bugs from two chapters, which is a reasonable argument for writing more of them.
+six bugs from two chapters. Reviewing the finished chapter then produced a seventh finding and an
+ADR: recursion reduced but could not build, which is a promise the language does not keep, so it
+is now rejected outright (ADR 0014).
 
 A chapter is also allowed to teach something that is not about this language. Chapter 2's last
 section is Church encodings, because the compiler's own vector type turns out to be one.

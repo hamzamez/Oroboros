@@ -382,6 +382,12 @@ func (e *Env) MarkRecursive() { e.markRecursive() }
 
 func (e *Env) markRecursive() {
 	for name := range e.Defs {
+		if e.Prim[name] {
+			// The target provides this name natively, so δ never unfolds the
+			// definition and its cycle is unreachable — ADR 0002's "compiling
+			// up". Marking it recursive would reject a program that builds.
+			continue
+		}
 		seen := map[string]bool{}
 		if e.reaches(name, name, seen) {
 			e.Rec[name] = true
@@ -901,7 +907,19 @@ func substPublic(t *Term, m map[string]*Term) *Term { return subst(t, m) }
 //
 // It runs before reduction, so the report names the definition the mistake is
 // in rather than wherever substitution later carried it.
-func (e *Env) CheckScope(terms []*Term) error {
+//
+// It also rejects recursion, for the reason in ADR 0014. The two live in one
+// method because they are the same question — can this target run this program
+// — and because the two-call-site version of the recursion check drifted from
+// the scope check within a day of being written.
+func (e *Env) CheckProgram(terms []*Term) error {
+	if err := e.checkScope(terms); err != nil {
+		return err
+	}
+	return e.checkRecursion()
+}
+
+func (e *Env) checkScope(terms []*Term) error {
 	for _, name := range sortedKeys(e.Defs) {
 		if err := e.scope(e.Defs[name], map[string]bool{}, "in "+name); err != nil {
 			return err
@@ -946,25 +964,52 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	return nil
 }
 
-// RecursiveNames reports recursive definitions a residual still mentions.
+// checkRecursion rejects a definition that is defined in terms of itself.
 //
-// core-0 §6 says a recursive definition "stays in the residual as a target
-// function", and `Residual` therefore does not report it as a failure. **No
-// backend emits one.** So the two disagree: the covering check says the term is
-// fine and the emitter says `no Go form for primitive "countdown"`.
+// Recursion REDUCES correctly — δ declines to unfold a cycle, which is the
+// standard partial-evaluation answer — and no backend emits one. That gap was
+// reported at the emitter for one day, which meant `oro` accepted a program
+// that `build` refused. ADR 0014 closes it the other way: recursion is not in
+// the language, so it must fail at the earliest honest point.
 //
-// This makes the gap honest at the point it is reached, rather than surfacing as
-// a confusing message about a primitive nobody declared.
-func RecursiveNames(t *Term, e *Env) []string {
-	found := map[string]bool{}
-	for n := range freeVars(t) {
-		if e.Rec[n] {
-			found[n] = true
-		}
+// That point is here rather than in the reader, because whether a name is
+// recursive depends on the TARGET: a target that provides the name natively
+// never unfolds the definition, and markRecursive already skips those.
+func (e *Env) checkRecursion() error {
+	names := make([]string, 0, len(e.Rec))
+	for n := range e.Rec {
+		names = append(names, n)
 	}
-	out := make([]string, 0, len(found))
-	for n := range found {
-		out = append(out, n)
+	if len(names) == 0 {
+		return nil
+	}
+	sort.Strings(names)
+	if len(names) == 1 {
+		return fmt.Errorf("%s is recursive: it is defined in terms of itself, and recursion "+
+			"is not in the language — iteration is fold-range (ADR 0014).\n"+
+			"  If the self-reference was not deliberate, this definition is shadowing "+
+			"the %s you meant.", names[0], names[0])
+	}
+	return fmt.Errorf("%s are mutually recursive, and recursion is not in the language — "+
+		"iteration is fold-range (ADR 0014)", strings.Join(names, ", "))
+}
+
+// Shadowed reports definitions the target provides natively.
+//
+// This is ADR 0002 working — δ declines to unfold a name in P_T, so the target's
+// own implementation is used and the definition is a fallback for targets that
+// lack it. It is the single most consequential thing the compiler decides about
+// a program, it is decided by a file the program does not name, and it was
+// silent. So it is reported as a note rather than left to be discovered.
+//
+// It is deliberately NOT an error and deliberately not extended to a general
+// shadowing report — see def.md §11 for what is not reported and why.
+func (e *Env) Shadowed() []string {
+	var out []string
+	for n := range e.Defs {
+		if e.Prim[n] {
+			out = append(out, n)
+		}
 	}
 	sort.Strings(out)
 	return out

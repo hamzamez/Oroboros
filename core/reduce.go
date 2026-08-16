@@ -796,3 +796,64 @@ func Residual(t *Term, e *Env) []string {
 
 // substPublic exposes capture-avoiding substitution for backends.
 func substPublic(t *Term, m map[string]*Term) *Term { return subst(t, m) }
+
+// CheckScope reports names that are bound nowhere.
+//
+// This is **name resolution**, and it is a separate question from the covering
+// check even though both look at free names:
+//
+//	scope    — is this name bound anywhere at all?   A PROGRAM error.
+//	covering — can THIS target provide it?           ADR 0001's portability property.
+//
+// Conflating them left three holes. `oro` printed a warning and exited 0; `gen`
+// never checked at all; and a name that appears only in a definition the program
+// never reaches was never looked at, so a typo in unused code was invisible.
+// That last one is the classic reason name resolution walks EVERYTHING rather
+// than only what reduction happens to visit.
+//
+// It runs before reduction, so the report names the definition the mistake is
+// in rather than wherever substitution later carried it.
+func (e *Env) CheckScope(terms []*Term) error {
+	for _, name := range sortedKeys(e.Defs) {
+		if err := e.scope(e.Defs[name], map[string]bool{}, "in "+name); err != nil {
+			return err
+		}
+	}
+	for _, t := range terms {
+		if err := e.scope(t, map[string]bool{}, "at the top level"); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
+	switch t.Kind {
+	case KInt, KFloat, KStr:
+		return nil
+	case KName:
+		if bound[t.Name] || e.Prim[t.Name] {
+			return nil
+		}
+		if _, ok := e.Defs[t.Name]; ok {
+			return nil
+		}
+		return fmt.Errorf("%s: %s is not bound — it is not a parameter, not a definition, "+
+			"and not a primitive on this target", where, t.Name)
+	case KFn:
+		inner := make(map[string]bool, len(bound)+len(t.Params))
+		for k := range bound {
+			inner[k] = true
+		}
+		for _, p := range t.Params {
+			inner[p] = true
+		}
+		return e.scope(t.Body(), inner, where)
+	}
+	for _, k := range t.Kids {
+		if err := e.scope(k, bound, where); err != nil {
+			return err
+		}
+	}
+	return nil
+}

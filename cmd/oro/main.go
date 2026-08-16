@@ -61,6 +61,11 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	if err != nil {
 		return fmt.Errorf("%s: %w", path, err)
 	}
+	// Name resolution, over EVERY definition rather than only what reduction
+	// reaches — a typo in unused code was previously invisible.
+	if err := env.CheckScope(terms); err != nil {
+		return fmt.Errorf("%s: %w", src, err)
+	}
 
 	// A program's entry points are its exports; anonymous top-level terms are
 	// the unnamed alternative, kept because they are convenient to experiment

@@ -65,6 +65,11 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
+	// Name resolution, over EVERY definition rather than only what reduction
+	// reaches — a typo in unused code was previously invisible.
+	if err := env.CheckScope(nil); err != nil {
+		return fmt.Errorf("%s: %w", src, err)
+	}
 	// A signature is checked against the TARGET's native implementation as
 	// well as against the definition — the one job no host compiler can do,
 	// since the two live on different targets (docs/spec/types.md).

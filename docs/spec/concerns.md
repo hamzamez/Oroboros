@@ -172,6 +172,22 @@ difference because **no primitive reads a dictionary**, the same accident that m
 [effects.md](effects.md) fixes ordering and deliberately does not fix this. It becomes real the
 moment a primitive reads a dictionary, and it is [g7](../derivations/g7-aliasing.md)'s question.
 
+### 3.6 Scope was checked only by accident — **CLOSED, 2026-08-15**
+
+There was no name-resolution pass. Free variables surfaced only through the *covering* check, which
+answers a different question, and only for code reduction happened to reach. A typo in an unused
+definition was invisible; `oro` exited 0 on an unbound name; `gen` never checked.
+
+`Env.CheckScope` now walks every definition and every entry term before reduction, so the report
+names the definition the mistake is in.
+
+This one is worth recording as a process failure rather than a bug. Binding and scope are the most
+thoroughly worked-out part of the literature there is, and this project **rediscovered the need for
+name resolution by tripping over it** — the same way it found duplicate parameter binders. Both
+would have come free from taking a standard treatment off the shelf. See §1.3, which is the same
+story: [s1](../derivations/s1-substructural.md) specified a locally nameless representation, the
+implementation used names with freshening, and capture-safety rests on a function being careful.
+
 ### 3.3 The residual check reports free variables
 
 `(dot p q)` at top level reports `p` and `q` as not-in-normal-form, which is technically true and

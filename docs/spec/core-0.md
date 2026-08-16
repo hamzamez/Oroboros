@@ -149,6 +149,21 @@ erased by the reader and never reach the reducer.
 `()` is **not a term**, and **is** a legal parameter list: `(fn () b)` is the nullary abstraction a
 program's entry point has to be ([build.md §2](build.md)).
 
+### Scope
+
+**Name resolution is a pass, and it is not the covering check.** The two look at the same thing —
+free names — and answer different questions:
+
+| | question | kind of answer |
+|---|---|---|
+| **scope** | is this name bound *anywhere*? | a **program** error |
+| **covering** | can *this target* provide it? | ADR 0001's portability property |
+
+Conflating them left three holes, all of which existed until 2026-08-15: `oro` printed a warning
+and exited 0, `gen` never checked at all, and a name appearing only in a definition the program
+never reaches was **never looked at**, so a typo in unused code was invisible. The last is the
+classic reason name resolution walks *everything* rather than only what reduction happens to visit.
+
 **A program may not declare primitives.** `(prim …)` and `(target …)` in a program are errors;
 which names are primitive comes from a target file ([target-files.md](target-files.md)), which is
 ADR 0002's parameter and is now literally a separate file.

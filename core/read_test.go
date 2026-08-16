@@ -1,6 +1,9 @@
 package core
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // core-0 §1.1 — NFC. Without it, `é` as U+00E9 and as e+U+0301 are two
 // distinct identifiers that display identically.
@@ -49,5 +52,59 @@ func TestDuplicateParameterIsRejected(t *testing.T) {
 	// Nested shadowing is two abstractions, and stays legal.
 	if _, err := Read("(fn (x) (fn (x) x))"); err != nil {
 		t.Errorf("nested shadowing must stay legal: %v", err)
+	}
+}
+
+// Name resolution — a separate question from the covering check, and one this
+// project had been answering only by accident.
+//
+//	scope    — is this name bound anywhere at all?  A PROGRAM error.
+//	covering — can THIS target provide it?          A portability property.
+//
+// Three holes came from conflating them: `oro` warned and exited 0, `gen` never
+// checked, and a name appearing only in an unreached definition was never
+// looked at.
+func TestScopeCheck(t *testing.T) {
+	env := func(src string) (*Env, []*Term) {
+		t.Helper()
+		forms, err := Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, terms, err := Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		e := &Env{Defs: prog.Defs, Prim: map[string]bool{"add": true},
+			Pure: map[string]bool{"add": true}, Rec: map[string]bool{}}
+		e.MarkRecursive()
+		return e, terms
+	}
+
+	e, terms := env("(fn (x) y)")
+	if err := e.CheckScope(terms); err == nil {
+		t.Error("a free variable in a body must be reported")
+	}
+
+	// The classic one: a typo in a definition the program never reaches.
+	e, terms = env("(def unused (fn (x) nope))\n(add 1 2)")
+	err := e.CheckScope(terms)
+	if err == nil {
+		t.Fatal("a typo in an unreached definition must be reported")
+	}
+	if !strings.Contains(err.Error(), "unused") {
+		t.Errorf("the report should name the definition, got %v", err)
+	}
+
+	// Parameters, definitions and primitives are all in scope.
+	e, terms = env("(def f (fn (a) (add a 1)))\n(fn (x) (f x))")
+	if err := e.CheckScope(terms); err != nil {
+		t.Errorf("bound names must pass: %v", err)
+	}
+
+	// A recursive definition refers to itself, which is in scope.
+	e, terms = env("(def loop-forever (fn (n) (loop-forever n)))\n(loop-forever 1)")
+	if err := e.CheckScope(terms); err != nil {
+		t.Errorf("a recursive definition is in its own scope: %v", err)
 	}
 }

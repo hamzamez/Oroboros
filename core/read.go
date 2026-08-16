@@ -12,15 +12,10 @@ import (
 
 // Reader for the surface syntax of core-0 §1–2.
 //
-// Implemented from the spec: UTF-8 required, bidirectional controls rejected,
-// identifiers per UAX #31 plus a fixed set of symbol characters, case never
-// significant.
-//
-// GAP: NFC normalisation is specified and NOT checked here — Go's standard
-// library has no normaliser, and golang.org/x/text is a dependency the atom
-// does not otherwise need. Until it is added, `é` written as U+00E9 and as
-// e+U+0301 are two distinct identifiers that display identically. Tracked in
-// docs/spec/concerns.md.
+// Implemented from the spec: UTF-8 required, NFC required, bidirectional
+// controls rejected, identifiers per UAX #31 plus a fixed set of symbol
+// characters, and case never assigning meaning — though names remain
+// case-SENSITIVE for identity, which is a different property.
 
 // Bidirectional overrides and isolates. Rejecting these closes Trojan Source
 // (CVE-2021-42574): source that displays differently than it parses.
@@ -358,10 +353,23 @@ func paramList(t *Term, line int) ([]string, error) {
 		return nil, fmt.Errorf("line %d: fn parameters must be a list", line)
 	}
 	params := make([]string, 0, len(t.Kids))
+	seen := make(map[string]bool, len(t.Kids))
 	for _, k := range t.Kids {
 		if k.Kind != KName {
 			return nil, fmt.Errorf("line %d: fn parameter must be a name, got %s", line, k)
 		}
+		// A repeated binder in ONE abstraction is ill-formed. β substitutes
+		// parameter by parameter, so the later argument silently won and the
+		// earlier one vanished: ((fn (x x) x) 1 2) reduced to 2, with no way to
+		// name the first x at all.
+		//
+		// Nested shadowing — (fn (x) (fn (x) …)) — is unaffected and still
+		// legal, because those are two abstractions.
+		if seen[k.Name] {
+			return nil, fmt.Errorf("line %d: fn binds %s twice; a parameter list may not repeat "+
+				"a name, because the second would silently shadow the first", line, k.Name)
+		}
+		seen[k.Name] = true
 		params = append(params, k.Name)
 	}
 	return params, nil

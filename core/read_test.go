@@ -35,3 +35,19 @@ func TestCaseIsSignificantForIdentity(t *testing.T) {
 		t.Errorf("Xr, xr and XR must be three distinct names, got %d: %v", len(seen), seen)
 	}
 }
+
+// A repeated binder in ONE abstraction is ill-formed: β substituted parameter
+// by parameter, so ((fn (x x) x) 1 2) reduced to 2 and the first argument
+// vanished with no way to name it.
+func TestDuplicateParameterIsRejected(t *testing.T) {
+	if _, err := Read("(fn (x x) x)"); err == nil {
+		t.Fatal("(fn (x x) x) must be rejected")
+	}
+	if _, err := Read("(fn (a b) a)"); err != nil {
+		t.Errorf("distinct parameters must pass: %v", err)
+	}
+	// Nested shadowing is two abstractions, and stays legal.
+	if _, err := Read("(fn (x) (fn (x) x))"); err != nil {
+		t.Errorf("nested shadowing must stay legal: %v", err)
+	}
+}

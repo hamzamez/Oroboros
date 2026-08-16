@@ -241,7 +241,8 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		op := t.Op()
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s\n"+
-				"  The operator must be a primitive or a recursive definition.", t)
+				"  The operator must be a primitive; recursive definitions were the other\n"+
+				"  case and are rejected before reduction (ADR 0014).", t)
 		}
 		p, ok := e.tgt.Prims[op.Name]
 		if !ok {

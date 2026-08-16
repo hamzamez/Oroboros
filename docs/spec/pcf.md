@@ -3,6 +3,11 @@
 This supersedes [core-0 §0](core-0.md), which claimed three departures from λ-calculus. **All
 three are wrong.** Recording the correction, and the algebra questions it answers.
 
+> **⚠ The title is now historical — see §9.** [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)
+> rejects recursive definitions, which removes `fix`, which is the one thing that made this PCF
+> rather than plain applied λ-calculus. §1–§8 are the record of how the identification was reached
+> and are still worth reading; §9 says where it leaves us and what is kept from the literature.
+
 ---
 
 ## 1. The three departures, refuted
@@ -172,3 +177,77 @@ for PCF's results. Calling call-by-need a discipline meant not reaching for Wads
 
 The corrective is cheap: before describing something as new, name the closest existing thing and
 say what the difference is. If the difference is empty, use the existing name.
+
+---
+
+## 9. It is no longer PCF, because `fix` is gone
+
+**2026-08-16.** [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md) rejects recursive
+definitions outright. That removes the pillar this whole document was built on, so the
+identification has to be redone rather than annotated.
+
+§1's third correction said: `(def f t)` with `t` mentioning `f` is a recursive equation, its
+meaning is the least fixed point, that is `fix`, and **λ + constants + fix is PCF**. Every step is
+still true *about the mathematics*. What changed is that the language no longer contains the first
+step. A recursive equation is not a term you can write; it is an error.
+
+### So what is it now
+
+> **Applied λ-calculus** — untyped λ with a constant set — plus **δ over a non-recursive definition
+> environment**, with the constant set a per-target parameter, reduced to normal form at compile
+> time.
+
+That is still entirely standard, and still not new: constants are Church's own applied λ-calculus,
+and δ-unfolding of non-recursive definitions is what every partial evaluator and every macro
+expander does. Only the *name* changes, and it changes to something smaller. The architectural
+contribution — Σ as a per-target parameter, normal form as output — is untouched, which is the
+point §2 was making and is the reason this correction costs nothing.
+
+### What we keep and what we lose from the literature
+
+| | |
+|---|---|
+| **Church–Rosser / confluence** | Keep. It is a theorem about β in untyped λ, independent of constants. δ over a definition environment with no duplicate names is non-overlapping, so the combined system should stay confluent — *should*, because that is an argument and not a proof, and [core-0 §6](core-0.md) still lists confluence as unproved. |
+| **The unfolding-strategy result** (Jones, Gomard & Sestoft: do not unfold recursive calls) | Keep as the *reduction* answer, which is what δ still does, and which is why the reducer stays correct on a term the front-end rejects. |
+| **PCF's denotational results** — adequacy, full abstraction, the Scott model of `fix` | Lose. They are all about `fix`. Nothing here was using them; the identification was worth having for the vocabulary, not for a theorem we had drawn on. |
+
+### The interesting consequence
+
+Removing recursion did **not** buy termination, and it is worth being exact about why.
+
+```lisp
+(def omega (fn (a) (a a)))
+(omega omega)
+```
+
+```
+reduction did not terminate within the step limit
+```
+
+Self-application still diverges. Untyped λ-calculus has no normalisation theorem, with or without
+`fix`, so the fuel limit is still doing real work rather than guarding an empty case.
+
+But the remaining divergence is now a *narrow and named* one. Simply typed λ-calculus with
+constants is **strongly normalising** (Tait, 1967), and `(a a)` is exactly the term simple types
+reject. So:
+
+> After ADR 0014, the only source of non-termination in this language is the one a type system
+> would remove.
+
+That is a real target and this document is not the place to decide it, because it points the
+opposite way from the measurement in [types-direction.md](../types-direction.md): the checker we
+have runs on the **residual**, after reduction, which is cheap precisely because reduction has
+already made the term monomorphic and first-order. Strong normalisation would need a check on the
+**source**, before reduction, which is a different and much larger checker. The trade is
+*guaranteed termination* against *a second type system*, and neither side of it has been measured.
+Recorded here so it is not rediscovered as a surprise.
+
+### What this changes in the documents
+
+| Document | Change |
+|---|---|
+| Title and §2 of this file | "PCF" is now a historical identification. The current one is above. |
+| [core-0 §0](core-0.md) | Third bullet carries the supersession. |
+| [core-0 §6](core-0.md) | "It stays in the residual as a target function" was false and is struck; the termination row now rests on fuel plus the absence of recursive definitions. |
+| [the-atom.md](../the-atom.md) | The `fix` in its banner is struck. |
+| [def.md §3](def.md) | The `def`/`rec` split is **withdrawn**, not deferred: there is nothing left for `rec` to opt into. |

@@ -124,8 +124,10 @@ format. Two representations will be needed, with a conversion.
 
 [core-0 §6](core-0.md) lists three theorems. **None is proved.** What exists:
 
-- **Termination** has a guard — recursive definitions are never δ-reduced, computed by reachability
-  in `markRecursive` — plus a fuel limit for everything else. Two tests cover recursion, one
+- **Termination**'s guard changed. Recursive definitions are now *rejected* rather than left
+  unreduced ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)), so the remaining
+  source of divergence is self-application — `Ω`, `Y` — caught only by the fuel limit. Two tests
+  cover recursion, one
   covers self-application. That is a *mechanism*, not a proof, and the fuel limit is an admission
   that the mechanism is incomplete.
 - **Confluence** is untested entirely. Normal-order reduction is deterministic here, so the

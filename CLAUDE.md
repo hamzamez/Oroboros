@@ -195,7 +195,7 @@ different targets. The suite is [gauntlet/conformance/](gauntlet/conformance/).
 is not in the core. Strings pass only by having almost no operations.
 
 **The current state of the language is [docs/spec/state.md](docs/spec/state.md)**, read off the
-code rather than from memory. Six term kinds, one top-level form, two reduction rules, two
+code rather than from memory. Six term kinds, five top-level forms, two reduction rules, two
 parameters.
 
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).

@@ -12,16 +12,29 @@ Read off the code, not from memory. Everything here is checkable by grep.
 term ::= name | integer | float | string | (fn (name…) term) | (term term…)
 ```
 
+
+`core.Term` has a **seventh** kind, `KBound`, which no program can write and which the grammar
+above therefore omits. A bound variable is stored as *"the parameter of the binder N levels out"*
+rather than as a name — the locally nameless representation — so two variables cannot be merged by
+sharing a spelling. The names in `Params` are hints kept only so emitted code reads well. This is
+noted because someone auditing `core/term.go` against this document will count seven and should
+know which one is not language.
+
 **A program's entry point is an export named `main` taking no arguments**
 ([build.md §2](build.md)). `(fn () …)` is legal; `()` alone is still not a term.
 
-**Four top-level forms.** One introduces a definition; three are module bookkeeping and are
-erased before reduction ([modules.md](modules.md)).
+**Five top-level forms.** One introduces a definition, one types it, and three are module
+bookkeeping; all but `def` are erased before reduction ([modules.md](modules.md)).
 
 ```
 (def name term)
+(sig name ((param type)…) result [(where pred)])
 (module path)  (use path [as alias])  (export name…)
 ```
+
+A `def` or `fn` name is a **simple** name: `.` qualifies a member of an imported module, so it
+cannot appear in a binder ([def.md §11](def.md), [chapter 2 §2.4](../book/02-def.md)). An `export`
+or a `sig` must name a definition in the same module; naming nothing is an error, not a no-op.
 
 **Three special forms in the reader**, two of which are sugar. `fn` (also spelled `λ`); `let`,
 where `(let e k)` reads as `(k e)` ([def.md](def.md)); and `seq`, where `(seq a b)` reads as
@@ -30,12 +43,18 @@ where `(let e k)` reads as `(k e)` ([def.md](def.md)); and `seq`, where `(seq a 
 **Two reduction rules.** β with call-by-need, and δ over definitions. β carries one side
 condition: an impure argument is let-bound rather than substituted ([effects.md §4](effects.md)).
 
+**No recursion.** A definition defined in terms of itself is an error, checked per-target before
+reduction ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). δ still declines to
+unfold a cycle, so the reducer stays correct on a term the front-end rejects. Iteration is
+`fold-range`. Removing recursion did not make the language terminating — self-application still
+diverges and is still guarded by fuel ([pcf.md §9](pcf.md)).
+
 **Two parameters.** Which names are primitive, and which of those are pure — both supplied by a
 target file. The first is [ADR 0002](../decisions/0002-capability-graph.md)'s capability set. The
 second decides whether β may move a term, and defaults to *impure*, so that a target author's
 omission costs speed rather than correctness.
 
-That is all of it. 1,058 lines in `core/`, 28 tests.
+That is all of it. 1,887 lines in `core/`, 47 tests there and 20 in `emit/`.
 
 Arithmetic, booleans, comparison and equality live in the modules `num/f64`, `num/int` and
 `logic` ([arithmetic.md](arithmetic.md)) — **not** in the language. An `int` is a mathematical
@@ -54,7 +73,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 
 | | Status |
 |---|---|
-| Types in the *language* | none — no annotations, no `sig` yet |
+| Types in the *language* | none — no annotations. `(sig …)` is a **claim about a definition**, checked against the residual and against any target providing the name natively ([types.md §7](types.md)); it is not a type on a term |
 | Type **checking** | **yes**, on the residual before emission ([types.md](types.md)). One checker, three targets, including the one with no type layer |
 | Data structures | **none.** `string`, `vec-f64`, `dict` are opaque handles only primitives touch |
 | Arithmetic evaluation | `(num/int.add 1 2)` does not fold. No primitive is ever evaluated |
@@ -62,7 +81,8 @@ Removed 2026-08-14 after the addition of target files made it dead:
 | Extensionality | none — η |
 | Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |
 | Modules | **scopes, resolution, imports, exports, and files** ([modules.md](modules.md)); emitted functions are named after their export. Not yet: a target as a directory |
-| `rec` | not implemented; `markRecursive` decides silently ([def.md §3](def.md)) |
+| Recursion | **rejected**, per-target, before reduction ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). The `def`/`rec` split is withdrawn with it — nothing is left to opt into ([def.md §3](def.md)) |
+| Tail-call optimisation | not guaranteed, and moot: no target provides it and there is no recursion to optimise ([def.md §10](def.md)) |
 | Escaping closures | all three backends refuse them |
 | Symbols | **refused**, and that is a decision rather than a gap ([def.md §5](def.md)) |
 

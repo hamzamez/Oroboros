@@ -1,6 +1,7 @@
 ; Gauntlet program 3 — one generic operation, two instantiations.
 ;
-; g3's central claim was that a non-recursive definition IS a rewrite rule, so
+; g3's central claim was that a non-recursive definition IS a rewrite rule — and
+; since ADR 0014 there is no other kind — so
 ; instantiation is a side effect of matching and there is no monomorphization
 ; pass. Every program so far has used each definition exactly once, so the claim
 ; has never been exercised. This file uses ONE definition at two element types

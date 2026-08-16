@@ -211,7 +211,7 @@ alternative in hand, not just dissatisfaction.
    the soundness machinery rather than beside it. §2's answer improves. New risk taken on: the
    usability record of substructural systems is poor, and the mitigation — infer and report
    rather than declare and check — is untested.
-2. ~~**Multiplicity inference.**~~ **Done** — [s2](s2-multiplicity-inference.md). **Zero
+2. ~~**Multiplicity inference.**~~ **Done** — [s2](derivations/s2-multiplicity-inference.md). **Zero
    annotations needed in application code** across all five programs. Grade 0 is *observed* in
    the residual rather than inferred, so it costs nothing and never has to hedge. One
    unavoidable declaration — extern purity — which lives in binding files, defaults safely to
@@ -232,7 +232,7 @@ alternative in hand, not just dissatisfaction.
    analysis. Where it cannot decide, an RC check costs **2–4%**. The negative result worth
    keeping: **naive RC costs 14×**, so reference counting depends on the static analysis rather
    than replacing it.
-5. ~~**A structure stored inside another structure.**~~ **Done** — [s4](s4-nesting.md). The
+5. ~~**A structure stored inside another structure.**~~ **Done** — [s4](derivations/s4-nesting.md). The
    uniqueness story is now closed end to end. **Value semantics narrows to scalar fields**:
    deep-copying a struct with a heap field costs 281×–16,300×, so struct copy is shallow and the
    grading tracks the field. The case predicted to be hardest — a dynamic index, where `cs[i]`

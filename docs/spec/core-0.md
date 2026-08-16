@@ -32,6 +32,14 @@ obstacle is that **`Y f` has no normal form**, so a calculus whose semantics is 
 form* must take `fix` as primitive and must not unfold it. That is the **unfolding strategy**
 problem in partial evaluation, and "do not unfold recursive calls" is its standard answer.
 
+> **And the third correction has itself been superseded**, 2026-08-16 by
+> [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md). Declining to unfold `fix` is
+> the right *reduction* answer and it is not a *compilation* answer: no backend emits a recursive
+> definition, and emitting one would ship a construct whose stack depth differs by orders of
+> magnitude across the three targets. A recursive definition is now **rejected** before reduction,
+> so `fix` is not in the calculus at all — see [pcf.md §9](pcf.md), which is where that leaves the
+> PCF identification.
+
 **Nothing in the mathematics is new.** What is new is architectural: `P` is a *per-target*
 parameter, and the resulting normal form is the compilation output. A name that is a constant on
 one target and a defined function on another is not a different calculus — it is the same calculus
@@ -143,7 +151,8 @@ term    ::= name                                 ; variable or global reference
 literal ::= integer | float | string
 ```
 
-**Six term kinds** — name, integer, float, string, abstraction, application. `let` and `seq` are
+**Six term kinds** — name, integer, float, string, abstraction, application. (The *representation*
+has a seventh, `KBound`, which no program can write; see [state.md §1](state.md).) `let` and `seq` are
 erased by the reader and never reach the reducer.
 
 `()` is **not a term**, and **is** a legal parameter list: `(fn () b)` is the nullary abstraction a
@@ -312,10 +321,21 @@ makes `seq` work at all ([effects.md §5](effects.md)).
 Termination needs a condition and it is not free: **δ on a recursive definition does not
 terminate.** So:
 
-> A recursive definition is **never** δ-reduced. It stays in the residual as a target function.
+> A recursive definition is **never** δ-reduced. ~~It stays in the residual as a target function.~~
 
-Which is [g3](../derivations/g3-generics.md)'s "recursive functions cannot be rules", arriving as
-the termination side condition rather than as an observation.
+The first sentence stands and is what δ does. The second was written as a prediction, never run,
+and is **false**: no backend emits a recursive definition, so nothing downstream could consume the
+survivor this sentence promised. `Residual` was built around it and therefore reported success on
+a term the emitter could not compile.
+
+[ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md) settles it — a recursive
+definition is rejected before reduction — so the guard is no longer what makes termination
+plausible. What remains is self-application: `Ω` and `Y` still have no normal form and are still
+caught only by fuel. That is the honest state of this row, and
+[pcf.md §9](pcf.md) names what would close it.
+
+The first sentence is [g3](../derivations/g3-generics.md)'s "recursive functions cannot be rules",
+arriving as the termination side condition rather than as an observation.
 
 ---
 

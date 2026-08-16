@@ -76,7 +76,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	}
 	p, ok := c.tgt.Prims[op.Name]
 	if !ok {
-		return "", nil // a recursive definition; its type is not declared
+		return "", nil // not a primitive, so no signature fixes the type
 	}
 	args := t.Args()
 

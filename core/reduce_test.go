@@ -330,9 +330,11 @@ func TestLambdaSpelledEitherWay(t *testing.T) {
 
 // ---------------------------------------------------------------- fix
 
-// (def f (f)) denotes ⊥. δ must not unfold it, it survives as a target function
-// that calls itself, and that is the correct compilation — so the residual check
-// must not report it as a failure. See docs/spec/pcf.md §4.
+// (def f (f)) denotes ⊥, and δ must not unfold it — that much is reduction and
+// is still true. What pcf.md §4 also claimed, that it "survives as a target
+// function", was never run and is false: no backend emits one. ADR 0014 rejects
+// such a definition at CheckProgram, one layer above this. Reduction must stay
+// correct on it anyway, which is what this test pins.
 func TestSelfCallIsBottomNotAnError(t *testing.T) {
 	forms, err := Read(`
 		(def f (f))
@@ -351,7 +353,7 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 		t.Errorf("expected (f) to survive unreduced, got %s", got)
 	}
 	if left := Residual(out, env); len(left) != 0 {
-		t.Errorf("a recursive definition is a legitimate survivor, not a residual failure; got %v", left)
+		t.Errorf("Residual must not report a recursive definition; the program check does; got %v", left)
 	}
 }
 

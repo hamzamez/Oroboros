@@ -155,7 +155,8 @@ Every qualified name a program mentions falls into exactly one:
 ### Covering
 
 A program `t` builds on `T` iff `Residual_T(nf_T(t)) = ∅`, where `Residual` reports free names
-that are neither primitive nor recursive definitions. This is unchanged from today; only the keys
+that are neither primitive nor recursive definitions — the second clause is now vestigial, since
+ADR 0014 rejects a recursive definition before reduction. This is unchanged from today; only the keys
 become qualified.
 
 The porter's obligation is therefore **computed, not estimated**, and it is demand-driven: it

@@ -257,11 +257,15 @@ The third rule is the interesting one. It runs the other way, and it *is* report
 (f 5)
 ```
 
+```
+note: f is defined here and provided natively by target "tutorial"; the target's is used
+```
 ```lisp
 ⟶   (f 5)
 ```
 
-The definition was **ignored**. δ does not unfold a name the target declares primitive.
+The definition was **ignored**. δ does not unfold a name the target declares primitive, and the
+note is the compiler saying so.
 
 That looks like a trap and is in fact the central mechanism of the language. Here it is doing real
 work. [examples/modules.oro](../../examples/modules.oro) defines a dot product out of small pieces,

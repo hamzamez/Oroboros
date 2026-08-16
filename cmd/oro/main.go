@@ -59,7 +59,9 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	}
 	env, err := tg.Env(prog)
 	if err != nil {
-		return fmt.Errorf("%s: %w", path, err)
+		// `src`, not `path` — this said "lib:" on every purity error, naming the
+		// module search path instead of the file the mistake is in.
+		return fmt.Errorf("%s: %w", src, err)
 	}
 	// Name resolution, over EVERY definition rather than only what reduction
 	// reaches — a typo in unused code was previously invisible.

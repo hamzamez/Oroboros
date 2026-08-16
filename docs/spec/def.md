@@ -93,11 +93,15 @@ distinguishes δ-unfoldable from not — make it **syntactic**.
 
 ### Decision — **and it is blocked on something bigger**
 
-> **Status, 2026-08-15.** The split below is still the right answer and is still **unimplemented**.
-> Implementing it now would be decorating, because of §9: **recursion cannot be emitted at all.**
-> A `rec` form that distinguishes "unfolded" from "survives as a target function" is only
-> meaningful once a target function is something a backend produces. Sequence: emission first,
-> then the syntax that talks about it.
+> **Status, 2026-08-16: withdrawn, not deferred.** The split below distinguishes *abbreviation*
+> from *recursion* so that a program declares which it meant. [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)
+> removed the second half: recursion is rejected, so `rec` would be a keyword for opting in to
+> something that does not exist, and `def` needs no qualifier to be distinguished from it.
+>
+> What the split was actually wanted for — turning a typo'd self-reference into an error rather
+> than a term that silently reduces to itself — arrived anyway, in the rejection's own message.
+> §9 has it. If recursion returns, this section is the starting point and a superseding ADR is the
+> instrument.
 
 **Two forms.**
 

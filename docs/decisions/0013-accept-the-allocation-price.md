@@ -3,6 +3,33 @@
 Date: 2026-08-15
 Status: Accepted — **provisional, and expected to be superseded**
 
+> ## Correction, 2026-08-15
+>
+> **Trigger 1 fired and its reasoning was wrong.** A type system now exists
+> ([types.md](../spec/types.md), [refinements.md](../spec/refinements.md)), and it does **not**
+> make option (a) cheap. This ADR claimed:
+>
+> > *"a uniqueness refinement is a short step from a range refinement"*
+>
+> That is false, and the distinction is not a detail. **A refinement constrains a value**;
+> `{i | 0 ≤ i < n}` says something about `i`. **Uniqueness constrains the context** — how many
+> other references exist — which no predicate on a value can express. `(set! a i x)` needs `a` to
+> be *consumed*, and a refinement system will happily let the program use `a` afterwards and
+> observe the mutation. That is why Rust uses ownership rather than predicates, and why ATS
+> stratifies linear types away from refinements.
+>
+> **The decision below is unaffected.** The price is still accepted and still provisional; only one
+> supporting claim was wrong.
+>
+> **Where the mechanism probably does live**, and this is a hypothesis rather than a finding:
+> uniqueness is *substructural*, and this project already has a substructural mechanism.
+> [ADR 0010](0010-effects-as-structural-rules.md) made the structural rules conditional on purity,
+> and the reducer already computes `occurrences`, which decides *used at most once*. That is much
+> closer to option (b) than to (a).
+>
+> It is written as a hypothesis on purpose. The original trigger asserted an enabling relationship
+> that had not been tested, and asserting a second one the same way would repeat the mistake.
+
 ## Context
 
 `examples/smooth.oro` completed the gauntlet and failed it
@@ -43,9 +70,10 @@ what needed the discipline was effects rather than values, and that the structur
 conditional on purity were enough. Adding it here would reverse that reasoning, and it would grow
 the *interface*: uniqueness is visible to the programmer in a way `pure` is not.
 
-It is also premature: it is far cheaper to express once a type system exists, because a uniqueness
-refinement is a short step from a range refinement, and it would be foolish to invent a second
-mechanism weeks before the first one arrives.
+~~It is also premature: it is far cheaper to express once a type system exists, because a
+uniqueness refinement is a short step from a range refinement, and it would be foolish to invent a
+second mechanism weeks before the first one arrives.~~ **Wrong — see the correction above.** The
+original text is kept because the rejected reasoning is the part an ADR exists to preserve.
 
 **(b) Liveness-based reuse.** `v = smooth(v)` with the old `v` dead afterwards could reuse its
 storage rather than allocating — Perceus-style, explored in
@@ -80,8 +108,12 @@ the top.
 Named now, because the reason to write a provisional decision down is so the trigger is not left
 to memory:
 
-1. **A type system exists.** Uniqueness becomes a refinement rather than a new mechanism, which
-   collapses most of (a)'s cost. This is the expected trigger.
+1. ~~**A type system exists.** Uniqueness becomes a refinement rather than a new mechanism.~~
+   **Fired 2026-08-15, and the reasoning was wrong** — see the correction. Replaced by:
+   **someone decides to spend a substructural analysis.** Uniqueness is not a refinement; the
+   nearest existing machinery is ADR 0010's purity-conditioned structural rules together with the
+   reducer's occurrence counting. Whether that suffices is **unmeasured**, and this trigger should
+   not be treated as fired until it is.
 2. **A second program shows a worse ratio.** 1.8–2.0× is measured on one kernel. A program
    dominated by allocation rather than arithmetic would be worse, and would move this from a
    tolerable tax to a wall.

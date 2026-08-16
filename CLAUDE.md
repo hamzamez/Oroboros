@@ -12,9 +12,12 @@ and 2.01× on JS** against a hand-written buffer-reusing form
 hand-written *functional* code; `materialize` is what costs, because it allocates fresh so nothing
 can alias.
 
-**This price is expected to be paid off, not kept.** The ADR names four triggers that should
-reopen it — the first being *a type system exists*, since uniqueness then becomes a refinement
-rather than a new mechanism. Do not treat 1.8× as the bar; the bar is still hand-written code.
+**This price is expected to be paid off, not kept.** The ADR names the triggers that should reopen
+it. Note the correction recorded there: the original first trigger, *a type system exists*, **fired
+and bought nothing** — uniqueness constrains the *context*, not the value, so it is not a
+refinement. The nearest machinery is ADR 0010's substructural discipline plus the reducer's
+occurrence counting, and that is a hypothesis rather than a finding. Do not treat 1.8× as the bar;
+the bar is still hand-written code.
 
 **Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
 (Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written

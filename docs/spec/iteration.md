@@ -239,6 +239,122 @@ designed.
 compute-bound loops, and it is the price of not knowing the count — which is precisely why
 `fold-range` stays.
 
+## 6b. Why "a sum or a product", concretely
+
+That phrase appears four times above and deserves to be shown rather than asserted. Everything in
+this section is real output.
+
+**A product** is a value carrying several values at once — "A *and* B". A tuple, a struct, a record.
+**A sum** is a value that is one of several alternatives, tagged so you can tell which — "A *or* B".
+An enum, a variant, `Option`, `Either`.
+
+The `step` function has type `(acc, i) → acc`. It returns **one** value, of the accumulator's type.
+For it to say *stop*, it must return something the loop primitive can tell apart from an ordinary
+accumulator:
+
+| | the step returns | the primitive reads |
+|---|---|---|
+| with a **sum** | `Done(acc)` or `More(acc)` | the tag — Clojure's `reduced`, Rust's `ControlFlow`, Haskell's `Either` |
+| with a **product** | `(acc, keep-going?)` | the second component |
+
+Either way the return type is strictly richer than `A`. That is the whole of the claim.
+
+### But we have encodings, and they are free — except here
+
+[Chapter 2 §2.11](../book/02-def.md) showed a Church pair costing nothing. It really does:
+
+```lisp
+(def pair (fn (a b) (fn (sel) (sel a b))))
+(def fst  (fn (p) (p (fn (a b) a))))
+(def snd  (fn (p) (p (fn (a b) b))))
+(def g (fn (x y) (f.add (fst (pair x y)) (snd (pair x y)))))
+```
+```go
+func GenG(x float64, y float64) float64 {
+	return (x + y)
+}
+```
+
+Now carry the *same pair* across a loop iteration — a two-accumulator fold, the obvious thing:
+
+```lisp
+(def g (fn (v)
+  (fst (fold-range (pair 0.0 0.0) (alen v) (fn (acc i)
+    (pair (f.add (fst acc) (aindex v i)) (snd acc)))))))
+```
+```
+gen: application of a non-name: ((fold-range (fn (sel) (sel 0.0 0.0)) (alen v) …) (fn (a b) a))
+```
+
+And a Church-encoded **sum** — `done`/`more`, the exact shape early exit wants — fails identically:
+
+```lisp
+(def done (fn (x) (fn (on-done on-more) (on-done x))))
+(def more (fn (x) (fn (on-done on-more) (on-more x))))
+```
+```
+gen: application of a non-name: ((fold-range (fn (on-done on-more) (on-more -1)) (alen v) …) …)
+```
+
+**An encoding erases only when reduction can see the eliminator.** Outside a loop it can: the
+constructor and the destructor are adjacent in the term, and β brings them together. Across a loop
+iteration it cannot — the value is *produced* in iteration k and *consumed* in iteration k+1, and
+those are the same code executed at different times. Reduction happens once, at compile time; the
+loop runs many times, at runtime. **Nothing reduces across the back-edge.**
+
+What survives is a λ that must exist while the program runs — an escaping closure — and every
+backend refuses one. This is [structs-2026-08-14](../../gauntlet/results/structs-2026-08-14.md)'s
+sentence with a demonstration attached: *compile-time reduction cannot cross a runtime loop
+boundary*.
+
+> The trick that makes products free everywhere else in this language fails at **exactly one
+> place**: a loop's carried state.
+
+And that is why `fold-range2` exists. It is the tupling law with the tuple **burned into the
+primitive**, so that no tuple value ever exists to escape.
+
+### What is available instead: a sentinel
+
+If the accumulator's type has a spare value, a sum can be encoded in its *range* rather than in a
+tag:
+
+```lisp
+(def g (fn (v k)
+  (fold-range -1 (alen v) (fn (found i)
+    (if (int.ge found 0) found
+      (if (f.gt (aindex v i) k) i found))))))
+```
+```go
+var found int64 = -1
+for i := int64(0); i < n1; i++ { … }
+return found
+```
+
+Free, and clean. But not general: it needs a value of the accumulator's own type that cannot
+otherwise occur. `int` has `-1`. `f64` has NaN, which is not equal to itself and so is awkward to
+test. A `vec-f64` accumulator has nothing spare at all.
+
+### The four options, and why the proposal takes none of them
+
+| | general | cost |
+|---|---|---|
+| sentinel | **no** — needs a spare value in the type | free |
+| Church encoding | yes | **fails across a loop** — escaping closure |
+| heap product or sum | yes | 6.4× on the JVM, 13.8× on JS; free on Go |
+| product + SROA | yes | free — but it is a real feature, and its own ADR |
+
+So: every *general* way for a step to say "stop" requires it to return something richer than the
+accumulator, and the one mechanism that would be free is precisely the one a loop boundary defeats.
+
+**Which is why `fold-while` uses a guard.** `cont?` is a **separate function returning `bool`**. The
+decision never has to be smuggled through the accumulator's type, so no sum and no product is
+needed. That is the whole trick of §2, and the reason it is one primitive rather than a feature:
+
+> Move the stopping decision out of the step's *return value* and into its own *predicate*.
+
+The price is the one §6 already states — one comparison per iteration, 1.66× against an ideal
+`break`. The alternative is the third row of that table.
+
 ## 7. What is deliberately not in this proposal
 
 - **A start and a step.** Expressible today, and an explicit step measured at **no benefit**

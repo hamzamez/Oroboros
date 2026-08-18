@@ -19,8 +19,9 @@
 > | **unbounded iteration** — `while` | not a speed question: the language is exactly primitive recursive, so this is the gap between a large class of programs and *all computation* |
 > | *start / step / reverse* | **expressible today**; a primitive would be **sugar**, argued on legibility, worth no measured speed |
 
-> **A design now exists: [iteration.md](iteration.md)** proposes one new primitive, `fold-while`,
-> and argues that it is the whole remaining gap. This document stays as the research record — the
+> **A design now exists: [iteration.md](iteration.md)** proposes `loop` with `again` — guarded
+> clauses over n loop variables — and argues it is the whole remaining gap. An earlier `fold-while`
+> proposal was withdrawn: it lost on capability *and* on speed. This document stays as the research record — the
 > literature, the candidate space, and the measurements — and iteration.md is the proposal.
 
 **Status: open question, not a decision.** Written in the mode

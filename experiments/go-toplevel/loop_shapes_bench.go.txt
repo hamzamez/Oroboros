@@ -1,0 +1,12 @@
+package main
+
+import "testing"
+
+var sink int64
+
+func BenchmarkAIdeal(b *testing.B)        { for i := 0; i < b.N; i++ { sink = aIdeal(arr, 5) } }
+func BenchmarkBGuard(b *testing.B)        { for i := 0; i < b.N; i++ { sink = bGuard(arr, 5) } }
+func BenchmarkCGuardHoisted(b *testing.B) { for i := 0; i < b.N; i++ { sink = cGuardHoisted(arr, 5) } }
+func BenchmarkDBreak(b *testing.B)        { for i := 0; i < b.N; i++ { sink = dBreak(arr, 5) } }
+func BenchmarkELoopAgain(b *testing.B)    { for i := 0; i < b.N; i++ { sink = eLoopAgain(arr, 5) } }
+func BenchmarkFToday(b *testing.B)        { for i := 0; i < b.N; i++ { sink = fToday(arr, 5) } }

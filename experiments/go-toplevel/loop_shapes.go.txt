@@ -1,0 +1,85 @@
+package main
+
+// Decomposing the 1.66x. There are no CALLS in any of these — the step and the
+// predicate are inlined by reduction before emission — so the question is what
+// the extra machinery actually is.
+var arr = func() []float64 {
+	a := make([]float64, 100000)
+	for i := range a {
+		a[i] = float64(i)
+	}
+	return a
+}()
+
+// (a) ideal: leave the loop the instant the answer is known.
+func aIdeal(a []float64, k float64) int64 {
+	for i := 0; i < len(a); i++ {
+		if a[i] > k {
+			return int64(i)
+		}
+	}
+	return -1
+}
+
+// (b) the fold-while shape: an extra conjunct in the loop condition.
+func bGuard(a []float64, k float64) int64 {
+	found := int64(-1)
+	for i := int64(0); i < int64(len(a)) && found < 0; i++ {
+		if a[i] > k {
+			found = i
+		}
+	}
+	return found
+}
+
+// (c) same guard, but hoisting len out — is (b) paying for len(a) per iteration?
+func cGuardHoisted(a []float64, k float64) int64 {
+	found := int64(-1)
+	n := int64(len(a))
+	for i := int64(0); i < n && found < 0; i++ {
+		if a[i] > k {
+			found = i
+		}
+	}
+	return found
+}
+
+// (d) guard expressed as a break in the body instead of the condition.
+func dBreak(a []float64, k float64) int64 {
+	found := int64(-1)
+	n := int64(len(a))
+	for i := int64(0); i < n; i++ {
+		if a[i] > k {
+			found = i
+			break
+		}
+	}
+	return found
+}
+
+// (e) what loop/again would emit: a bare for, guards as explicit returns.
+func eLoopAgain(a []float64, k float64) int64 {
+	i := int64(0)
+	n := int64(len(a))
+	for {
+		if !(i < n) {
+			return -1
+		}
+		if a[i] > k {
+			return i
+		}
+		i = i + 1
+	}
+}
+
+// (f) today: no exit at all.
+func fToday(a []float64, k float64) int64 {
+	found := int64(-1)
+	n := int64(len(a))
+	for i := int64(0); i < n; i++ {
+		if a[i] > k && found < 0 {
+			found = i
+		}
+	}
+	return found
+}

@@ -1,14 +1,21 @@
-# Iteration: one primitive short of everything
+# Iteration: `loop` and `again`
 
-**Status: proposed, not built.** Written before the code, per
-[state.md §6](state.md). The research record is [loops.md](loops.md); the retraction that shrank
-this question to its present size is
+**Status: proposed, not built.** Written before the code, per [state.md §6](state.md). The research
+record is [loops.md](loops.md); the retraction that shrank this question to its present size is
 [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md).
 
-> **The proposal is one new structural primitive, `fold-while`.** It is the smallest addition that
-> makes the language Turing-complete, and it is the host's own `for` with a condition on every
-> target. Everything else people ask for from loops — `find`, `any?`, `all?`, convergence,
-> bounded search — becomes a **library definition over it** that reduces away entirely.
+> **The proposal is one structural form:**
+>
+> ```lisp
+> (loop ((acc 0.0) (i 0))
+>   (int.lt i n)  (again (f.add acc (aindex a i)) (int.add i 1))
+>   true          acc)
+> ```
+>
+> It gives **n loop variables with no product**, **early exit at zero cost**, and **unbounded
+> iteration** — and it subsumes `fold-range`, `fold-range2` and the `fold-while` this document used
+> to propose. It is Clojure's `loop`/`recur`, Dijkstra's guarded `do`, and an SSA block with
+> arguments, which are all the same thing.
 
 ---
 
@@ -27,221 +34,119 @@ is a loop that stops because of something it *found*:
 | convergence — Newton, fixpoint, relaxation | the count depends on the data |
 | streaming — read until exhausted | the count is not knowable |
 
-These are the same shape. A loop that stops on a condition covers all of them.
-
-### And it is not only a speed question
-
-The language today computes **exactly the primitive recursive functions**
-([loops.md §3.1](loops.md)): `fold-range` is Gödel's System T recursor, and every loop terminates by
-construction. That is a real guarantee and it has a real price — Ackermann is not expressible, and
-neither is "keep going until you find it".
+And it is not only a speed question. The language today computes **exactly the primitive recursive
+functions** ([loops.md §3.1](loops.md)) — `fold-range` is Gödel's System T recursor.
 
 > A language that cannot loop without a bound cannot express all computation.
 
-So this addition is not an optimisation. It is the difference between a very large class of programs
-and all of them.
-
 ### What it is worth, measured
 
-A linear search over 100,000 elements that hits at index 6:
+A linear search over 100,000 elements hitting at index 6, five shapes of the same loop:
 
-| | ns/op |
-|---|---|
-| hand-written Go, `return` from inside the loop | **2.78** |
-| the proposed shape — a guard in the loop condition | 4.62 |
-| **what the language can express today** — scan everything, keep the first hit | **57,694** |
+| | ns/op | |
+|---|---|---|
+| **(a)** ideal — `return` from inside the loop | **2.80** | 1× |
+| **(b)** the guard in the loop **condition** | 4.50 | 1.61× |
+| **(c)** (b) with the bound hoisted out | 4.50 | identical |
+| **(d)** the guard as a **`break` in the body** | **2.62** | 0.94× |
+| **(e)** **what `loop`/`again` emits** | **2.89** | **1.03×** |
+| **(f)** what the language can express today | 54,800 | **19,600×** |
 
-**20,700×.** The Java tally measured this at 2× and said it was a floor
-([java-toplevel §3](../../gauntlet/results/java-toplevel-2026-08-18.md)); a 128-slot nearly-full
-table was the mildest possible case. A search that exits early is the normal case.
+Two things to read off it.
 
-## 2. The primitive
+**19,600×** for having no exit. The Java tally measured this at 2× and said it was a floor
+([java-toplevel §3](../../gauntlet/results/java-toplevel-2026-08-18.md)); a nearly-full 128-slot
+table was the mildest possible case, and a search that exits early is the normal one.
+
+**And the 1.61× in (b) is not what it looks like.** It is not a re-evaluated bound — (c) hoists that
+and changes nothing — and there is no *call* to a predicate, because reduction inlines both the test
+and the step before emission. It is that **a compound loop condition defeats the host's bounds-check
+elimination**: with `i < n && found < 0` the compiler can no longer prove `i < len(a)` cheaply. Move
+the identical test into the body as a `break` and the cost vanishes, (d). That is why this document
+no longer proposes a guard.
+
+## 2. The form
 
 ```lisp
-(fold-while z cont? step)
+(loop ((x₁ z₁) … (xₙ zₙ))
+  c₁  e₁
+  c₂  e₂
+  …
+  cₖ  eₖ)
 ```
 
-| | |
-|---|---|
-| `z` | the initial accumulator |
-| `cont?` | `(fn (acc i) …)` → `bool` — **keep going while this holds** |
-| `step` | `(fn (acc i) …)` → the next accumulator |
-| result | the accumulator when `cont?` first fails |
+- **`((xᵢ zᵢ) …)`** — the loop variables and their initial values. The same shape `sig` already uses
+  for named parameters, so it is not a new bracket convention.
+- **`cᵢ eᵢ`** — guarded clauses, tested in order. The first `cᵢ` that holds selects `eᵢ`.
+- **`eᵢ`** is either `(again a₁ … aₙ)` — go round again with these values — or **any other term**,
+  which is the loop's result.
 
-The index `i` counts from 0 and belongs to the **primitive**, exactly as in `fold-range`. That is
-the choice that keeps a single accumulator sufficient: without it, every bounded search would need
-its state to carry a counter, and the state would have to be a product.
+`again` is legal **only as the whole of a clause body**. Not nested inside an `if`, not an argument
+to anything. That is stricter than "tail position" and it buys two things: the check is a syntactic
+shape rather than an analysis, and the clause list becomes the *complete* control flow of the loop,
+flat and readable. `if` may appear freely inside `again`'s **arguments**.
 
-Semantics, and it is short:
+Semantics:
 
 ```
-acc := z
-i   := 0
-while cont?(acc, i):
-    acc := step(acc, i)
-    i   := i + 1
-yield acc
+x̄ := z̄
+repeat:
+    if c₁(x̄) then  (e₁ is `again ā` ?  x̄ := ā(x̄) ; repeat   :  yield e₁(x̄))
+    elif c₂(x̄) then …
 ```
 
-`cont?` is tested **before** each step, so zero iterations is normal and `(fold-while z (fn (a i) false) f)`
-is `z`.
+The assignment `x̄ := ā(x̄)` is **simultaneous** — every new value is computed from the old ones.
 
-### Every target spells it the same way
-
-Which is the test [primitives.md](primitives.md) requires — what does each target do, and do they
-agree?
+### What it emits
 
 ```go
-acc := z                                    // Go
-for i := int64(0); cont(acc, i); i++ { acc = step(acc, i) }
+acc, i := 0.0, 0                       // Go
+for {
+    if i < n {
+        acc, i = acc+a[i], i+1
+        continue
+    }
+    return acc
+}
 ```
 ```javascript
-let acc = z;                                // JavaScript
-for (let i = 0; cont(acc, i); i++) { acc = step(acc, i); }
+let acc = 0.0, i = 0;                  // JavaScript — no parallel assignment,
+for (;;) {                             // so simultaneity needs temporaries
+    if (i < n) { const t1 = acc+a[i], t2 = i+1; acc = t1; i = t2; continue; }
+    return acc;
+}
 ```
 ```java
-T acc = z;                                  // Java
-for (long i = 0; cont(acc, i); i++) { acc = step(acc, i); }
+double acc = 0.0; long i = 0;          // Java, same
+for (;;) {
+    if (i < n) { final double t1 = acc+a[i]; final long t2 = i+1; acc = t1; i = t2; continue; }
+    return acc;
+}
 ```
 
-No host needs a shim, nothing is emulated, and the loop is the one the host's own optimiser is built
-around. **Tier 1**, with one caveat in §6.
+The temporaries are the ones `fold-range2` already emits, and they were
+[measured free](../../gauntlet/results/loop-encoding-2026-08-18.md) — 581 vs 552 ns on JS typed
+arrays, 463 vs 464 on the JVM, both inside the noise floor. No host needs a shim.
 
-## 3. Why `fold-range` stays
+## 3. Why this is better than a guard, and better than `fold-range2`
 
-`fold-range z n f` is exactly `(fold-while z (fn (acc i) (int.lt i n)) f)`, so it is *derivable*.
-It stays a primitive anyway, for a reason that is not taste:
+**No product, for n variables.** `(again a b c)` is a multi-argument *application*, not a returned
+tuple. Nothing is ever constructed, so nothing can escape, so the problem
+§3b is about never arises. That is not a trick — it is the
+same reason SSA block arguments need no tuple.
 
-**Its bound is evaluated once.** That single evaluated `n` is what the bounds-check-elimination
-pattern narrows against — `p = p[:n1]`, worth
-[1.96× on compute-bound loops](../../gauntlet/results/bce-2026-08-15.md) — and what the refinement
-checker reads as `0 ≤ i < n` at every `aindex`. A condition re-evaluated per iteration offers
-neither without an analysis that recovers what the counted form states outright.
+**`fold-range2` dies.** It exists only because the tupling law needed a tuple and the language had
+none, so the tuple was burned into a primitive at n = 2. With n loop variables it is an ordinary
+`loop`, and `fold-range3` never has to be written.
 
-So the split is the one every fast language has, and the one Meyer & Ritchie drew in 1967:
+**Early exit is free**, (e) above, because the exit is a *clause* rather than a value the step has to
+smuggle out. 1.03× against an ideal hand-written `return`.
 
-| | analysable | expressive |
-|---|---|---|
-| `fold-range` | trip count, bounds facts, narrowing, guaranteed termination | bounded only |
-| `fold-while` | the guard, and nothing else | everything |
+**Unbounded iteration**, because nothing requires a clause to be `again`-free on any particular path.
 
-Two primitives, and each earns its place. Not a compromise — `LOOP` and `WHILE`.
+## 3b. Why "a sum or a product", and why this form needs neither
 
-## 4. The beauty is in the library, not the primitive
-
-`fold-while` on its own is honest and a little bare:
-
-```lisp
-(fold-while -1
-  (fn (found i) (logic.and (int.lt i (alen a)) (int.lt found 0)))
-  (fn (found i) (if (p (aindex a i)) i found)))
-```
-
-Nobody should write that twice. Write it once, in a library, and every use reads like the thing it
-means — and **reduces to exactly the loop above**, because δ+β consume the definition
-([chapter 2 §1.8](../book/02-def.md)):
-
-```lisp
-(module seq)
-(export find-first any? all? count-while iterate-until)
-
-; The index of the first element satisfying p, or -1.
-(def find-first (fn (a p)
-  (fold-while -1
-    (fn (found i) (logic.and (int.lt i (alen a)) (int.lt found 0)))
-    (fn (found i) (if (p (aindex a i)) i found)))))
-
-(def any? (fn (a p) (int.ge (find-first a p) 0)))
-(def all? (fn (a p) (int.lt (find-first a (fn (x) (logic.not (p x)))) 0)))
-
-; How many leading elements satisfy p.
-(def count-while (fn (a p)
-  (fold-while 0
-    (fn (n i) (logic.and (int.lt i (alen a)) (int.eq n i)))
-    (fn (n i) (if (p (aindex a i)) (int.add n 1) n)))))
-
-; Iterate until a fixpoint test passes. The index is unused, which is what an
-; unbounded loop looks like.
-(def iterate-until (fn (z done? step)
-  (fold-while z (fn (s i) (logic.not (done? s))) (fn (s i) (step s)))))
-```
-
-And then programs read like this:
-
-```lisp
-(use seq)
-(use num/f64 as f)
-
-(def first-big (fn (xs) (seq.find-first xs (fn (x) (f.gt x 10.0)))))
-
-(def sqrt-newton (fn (x)
-  (seq.iterate-until x
-    (fn (g) (f.lt (f.abs (f.sub (f.mul g g) x)) 1e-12))
-    (fn (g) (f.div (f.add g (f.div x g)) 2.0)))))
-```
-
-That is the answer to "beautiful syntax". **The core gets the smallest honest construct; the library
-gets the readable names; reduction makes the library free.** Adding `find-first` to the *language*
-would buy nothing that a `def` does not, and would cost a keyword — which is
-[chapter 3 §3.11](../book/03-modules.md)'s functor argument again, in a new place.
-
-## 5. Termination becomes a program property
-
-This is the interesting consequence, and it fits the project rather than fighting it.
-
-Today every loop terminates. After `fold-while`, a program that uses it might not. The instinct is
-to call that a loss. But the same instinct was already answered by
-[ADR 0001](../decisions/0001-parasite-model.md):
-
-> Portability is a property a program may or may not have, **computed by the compiler** — not a
-> global guarantee.
-
-Termination should be the same thing:
-
-> **A program that uses only `fold-range`, `fold-range2` and `make-vec` provably terminates.** One
-> that uses `fold-while` does not, and the compiler can say which — by exactly the walk that
-> `Env.CheckProgram` already does for recursion.
-
-That is a *better* state than today's blanket guarantee, because today the guarantee is bought by
-refusing to express half of computing. A computed property that a program can be checked against
-beats an unconditional promise that costs the language its completeness.
-
-It also composes with [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md). Recursion
-was rejected because its stack depth differs per target with no specification. `fold-while` has no
-stack at all — it is a loop on every host — so a non-terminating `fold-while` **hangs identically
-everywhere** rather than crashing at three different depths. Unbounded iteration is exactly the part
-of recursion that *is* portable.
-
-## 6. What it costs, honestly
-
-**One comparison per iteration.** The measured 4.62 ns against a hand-written 2.78 ns is the guard
-being re-tested where a `return` would have left immediately. A `break` from inside the body would
-avoid it, but the step would then have to *signal* stopping — `(done v)` versus `v` — which needs a
-sum type, or a second returned value, which needs a product. The language has neither.
-
-So the shape is: **1.66× against an ideal `break`, against 20,700× for having no exit at all.** Take
-the guard.
-
-**One value out.** `fold-while` yields the accumulator, not the index, so a program that needs *both*
-the result and the number of steps — Collatz stopping time is the honest example — cannot have both
-without a product accumulator. That is the **fourth** independent demand for products, after
-`v, ok := m[k]`, `fold-range2`, and JS's "was the key present". It is a separate question and this
-proposal does not need it answered.
-
-**No facts for the refinement checker**, unless the guard is read. Inside the body `cont?(acc,i)`
-holds, which is ordinary Hoare logic, so a guard written `(logic.and (int.lt i n) …)` could yield
-`i < n` by inspection. Worth doing and not required for a first version — the honest default is that
-`fold-while` gives `0 ≤ i` and nothing else, and an `aindex` inside one reports an undischarged
-obligation, which is [refinements.md §3](refinements.md)'s classify-don't-restrict working as
-designed.
-
-**No narrowing**, so no bounds-check elimination inside a `fold-while`. That is 1.96× on
-compute-bound loops, and it is the price of not knowing the count — which is precisely why
-`fold-range` stays.
-
-## 6b. Why "a sum or a product", concretely
-
-That phrase appears four times above and deserves to be shown rather than asserted. Everything in
+The phrase recurs throughout this project and deserves to be shown rather than asserted. Everything in
 this section is real output.
 
 **A product** is a value carrying several values at once — "A *and* B". A tuple, a struct, a record.
@@ -346,50 +251,197 @@ test. A `vec-f64` accumulator has nothing spare at all.
 So: every *general* way for a step to say "stop" requires it to return something richer than the
 accumulator, and the one mechanism that would be free is precisely the one a loop boundary defeats.
 
-**Which is why `fold-while` uses a guard.** `cont?` is a **separate function returning `bool`**. The
-decision never has to be smuggled through the accumulator's type, so no sum and no product is
-needed. That is the whole trick of §2, and the reason it is one primitive rather than a feature:
+**And this is why `loop`/`again` needs neither.** A step that returns the next accumulator has to
+smuggle the decision through its return type. `(again a b c)` does not *return* anything — it is a
+multi-argument application that becomes a jump with parallel assignment, so no value carrying "and
+also, stop" ever exists. The exit is a **clause**, not a value.
 
-> Move the stopping decision out of the step's *return value* and into its own *predicate*.
+That is the deep reason the withdrawn `fold-while` had to pay 1.61× and this form pays 1.03×: the
+guard version keeps the decision inside the loop's *condition*, where it defeats bounds-check
+elimination, because it had nowhere else to put it.
 
-The price is the one §6 already states — one comparison per iteration, 1.66× against an ideal
-`break`. The alternative is the third row of that table.
+## 4. What it is, mathematically
 
-## 7. What is deliberately not in this proposal
+`(loop ((x̄ z̄)) c₁ e₁ … cₖ eₖ)` denotes `(fix F)(z̄)` where
 
-- **A start and a step.** Expressible today, and an explicit step measured at **no benefit**
-  because Go's strength reduction already performs it. If they arrive it will be as *sugar over
-  `fold-range`*, argued on legibility, and it should be argued separately.
-- **Products and SROA.** Wanted from four directions now, worth 6.4× on the JVM and 13.8× on JS,
-  and big enough to need its own ADR against
-  [ADR 0013](../decisions/0013-accept-the-allocation-price.md).
-- **`scan`.** Needs products.
-- **`break n` out of nested loops.** `fold-while`'s guard exits one loop. Multi-level exit has no
-  program asking for it.
-- **Retiring `fold-range2`.** It dies when products arrive, not here.
+```
+F : (Sⁿ → R) → (Sⁿ → R)
+F(f)(x̄) = if c₁(x̄) then  (e₁ = `again ā`  ?  f(ā(x̄))  :  e₁(x̄))
+          elif c₂(x̄) then …
+```
 
-## 8. What would kill it
+Every recursive occurrence of `f` is in **tail position**, which is what makes `fix F` computable by
+iteration rather than by a stack: `fix F = ⨆ₙ Fⁿ(⊥)`, and the value at `x̄` is reached by iterating
+the state transition `x̄ ↦ ā(x̄)` until a clause exits. This is the classical statement that
 
-Per [ADR 0008](../decisions/0008-measurement-over-principle.md):
+> **a tail-recursive function of n arguments is a while-program with n variables** — Steele,
+> *Lambda: The Ultimate GOTO* (1977).
+
+Two consequences worth naming:
+
+**`again` is a jump, not a call.** No frame, no stack. This is the precise sense in which the form
+reintroduces the *useful* half of recursion while
+[ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md) stays intact: recursion was
+rejected because stack depth differs by orders of magnitude across Go, the JVM and JS with no
+specification. A `loop` has no stack on any of them, so a non-terminating one **hangs identically
+everywhere** instead of crashing at three different depths.
+
+**Simultaneity is φ.** `x̄ := ā(x̄)` all at once is exactly what an SSA φ-node means, and exactly what
+a branch with block arguments means. The temporaries JS and Java need are the φ made explicit.
+
+## 5. The literature
+
+The form is not new, which is the best thing about it.
+
+| | |
+|---|---|
+| **Clojure `loop`/`recur`** | this design, almost exactly, including that `recur` is legal only in tail position and is **checked** rather than optimised. Clojure's motivation is ours: the JVM has no tail calls, so `recur` must be a loop |
+| **Scheme's named `let`** | `(let go ((a 0)) … (go (+ a 1)))` — the same thing with a bound name instead of a keyword, and it relies on Scheme's guaranteed proper tail calls |
+| **Dijkstra, guarded commands (1975)** | `do G₁ → S₁ ▯ G₂ → S₂ od`. The clause list **is** guarded alternatives. Dijkstra's repeats while *any* guard holds and is nondeterministic between them; ours is ordered, and exits through a clause that is not `again` |
+| **SSA with block arguments** | MLIR, Swift SIL, Cranelift. `(again a b c)` is `br ^header(a, b, c)`; the loop variables are the header block's parameters. Block arguments were introduced precisely to replace φ-nodes, which is why they need no tuple — the same reason this form needs no product |
+| **Rust's `loop` + `break value`** | everything is a value; a non-`again` clause is `break value` |
+| **Kotlin `tailrec`, Scala `@tailrec`** | the checked-tail-position idea, attached to a named function instead of a loop form |
+| **Common Lisp `do`** | `(do ((var init step)…) (end result) …)` — the same binding list, but with a fixed per-variable step, so it cannot express a data-dependent transition |
+| **Böhm–Jacopini (1966)** | sequence, selection, iteration suffice. This is the iteration |
+
+Against the form this document used to propose:
+
+| | `fold-while` (withdrawn) | `loop` / `again` |
+|---|---|---|
+| loop variables | 1 | **n, with no product** |
+| early exit | 1.61× — the guard defeats BCE | **1.03×** |
+| retires `fold-range2` | no | **yes** |
+| unbounded iteration | yes | yes |
+| new syntax | none | a binding list, a clause list, `again` |
+| new check | none | `again` only as a clause body |
+
+`fold-while` loses on capability *and* on speed. It is withdrawn.
+
+## 6. How it fits the language
+
+**Binders reuse `fn`.** Represented internally as `(loop (z̄) (fn (x̄) c₁ e₁ …))`, the loop variables
+are an ordinary abstraction, so `core/term.go` needs no new binding machinery and the locally
+nameless representation, capture-avoidance, and the emitter's `openFresh` all work unchanged. That
+is the same move `let` already makes.
+
+**Reduction needs no new rule.** `loop` is a structural primitive, so δ does not unfold it and its
+arguments are normalised in place. `again` is an application of a name that nothing defines, which
+reduction already leaves alone — the same status `alen` has on a target that declares it.
+
+**Effects need no new rule.** A primitive application is not a β-redex, so an effect written inside
+a clause stays inside it, exactly as [chapter 4 §4.7](../book/04-effects.md) describes for `if` and
+`fold-range`. Nothing is hoisted out of a loop it was written in.
+
+**Types are a check, not an inference.** Every `xᵢ` has the type of `zᵢ`; every `again`'s i-th
+argument must have that same type; every non-`again` clause body must have one common type, which is
+the loop's. Every `cᵢ` is `bool`. All of it is the walk [types.md §3](types.md) already does.
+
+**Refinements gain, rather than lose.** A clause guarded by `(int.lt i n)` gives `i < n` inside that
+clause — ordinary Hoare logic, and *more* than `fold-range` currently offers, because the guard is
+explicit rather than implied.
+
+### The one real cost: the trip count
+
+`fold-range`'s bound is evaluated **once**, and that single `n` is what the bounds-check-elimination
+pattern narrows against — worth [1.96× on compute-bound loops](../../gauntlet/results/bce-2026-08-15.md).
+A `loop` states its bound as a guard, so the count is not handed over.
+
+Two ways out, and this document does not choose:
+
+1. **Keep `fold-range`.** Two loop forms: the counted one, declared and analysable; the general one,
+   expressive. That is Meyer & Ritchie's `LOOP` and `WHILE`, and each earns its place. Cost: the
+   language has two loops.
+2. **Recognise the counted shape.** A variable initialised to `0`, incremented by exactly `1` in
+   every `again`, guarded by `i < e` with `e` loop-invariant, is an induction variable with trip
+   count `e`. This is a small standard analysis, and the emitter already does one of the same class —
+   `narrow` fires only when *every* occurrence of a container is indexed by the bare loop variable.
+   Cost: an analysis, and the risk that it silently does not fire, which
+   [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) already warns about.
+
+**The measurement that decides it** is whether the recognised form emits the same code as
+`fold-range` on all three targets, for all seven gauntlet programs. If it does, `fold-range` retires
+and the language has exactly one loop.
+
+## 7. Worked examples
+
+**A fold.** What `fold-range` says today:
+
+```lisp
+(loop ((acc 0.0) (i 0))
+  (int.lt i (alen a))  (again (f.add acc (aindex a i)) (int.add i 1))
+  true                 acc)
+```
+
+**Two accumulators** — `centroid`, without `fold-range2`:
+
+```lisp
+(loop ((ax 0.0) (ay 0.0) (i 0))
+  (int.lt i (alen xs))  (again (f.add ax (aindex xs i)) (f.add ay (aindex ys i)) (int.add i 1))
+  true                  (f.add ax ay))
+```
+
+**Early exit** — the index of the first element over `k`, or −1:
+
+```lisp
+(loop ((i 0))
+  (int.ge i (alen a))        -1
+  (f.gt (aindex a i) k)      i
+  true                       (again (int.add i 1)))
+```
+
+Read the clause list top to bottom and it is the algorithm: *out of range, give up; found it, that's
+the answer; otherwise keep going.* That is the readability the guarded-command form buys.
+
+**Unbounded** — Newton's method, which has no trip count at all:
+
+```lisp
+(loop ((g x))
+  (f.lt (f.abs (f.sub (f.mul g g) x)) 1e-12)  g
+  true                                        (again (f.div (f.add g (f.div x g)) 2.0)))
+```
+
+**The sieve's inner loop**, which started all of this:
+
+```lisp
+(loop ((c composite) (j (int.mul i i)))
+  (int.lt j n)  (again (g.bset c j (g.true)) (int.add j i))
+  true          c)
+```
+
+A start, a step, and a mutation threaded through the state — with no arithmetic to reconstruct the
+index, which is what [loop-encoding §3](../../gauntlet/results/loop-encoding-2026-08-18.md) called
+the legibility cost of the counted encoding. It is paid here for free, as a side effect of having
+variables.
+
+## 8. What is still deliberately absent
+
+- **Products and SROA.** `loop` removes three of the four demands for a product — n accumulators,
+  early exit, and multi-value loop state. The fourth remains: `v, ok := m[k]` needs a *value* that
+  carries two things, and nothing here provides one.
+- **`scan`.** Now expressible: a `loop` carrying both an accumulator and an output array.
+- **Breaking out of nested loops.** `again` and the exit clauses belong to their own `loop`. No
+  program has asked for more.
+- **Labelled loops.** Same.
+
+## 9. What would kill it
 
 | | refuted by |
 |---|---|
-| the primitive | a host where `for i := 0; cond; i++` is not the fastest available loop — measure against `while` and against `break`-from-body on each target |
-| the guard, versus a `(done v)` marker | a program where one comparison per iteration is a material cost, which would make the sum type worth its price |
-| "the library makes it beautiful" | a `find-first` that does **not** reduce away — check the residual, not the source |
-| "termination as a program property" | a program that needs the guarantee and cannot get it from the check |
+| "early exit is free" | a host where the clause form does not match a hand-written `return`; (e) is Go only so far, and JS and Java must be measured |
+| "n variables need no product" | an emitted form that allocates on any target |
+| "`fold-range2` can retire" | `centroid` losing parity when written as a `loop` |
+| "the counted shape can be recognised" | any of the seven gauntlet programs emitting different code than today |
+| the whole form | a program that reads *worse* as a clause list than as a fold, which is a legibility judgement and should be made on real programs rather than on these examples |
 
-And the acceptance test, from [types.md §6](types.md)'s pattern: **every existing program must be
-unchanged.** `fold-while` adds a primitive and touches nothing else, so every generated file in the
-gauntlet must be byte-identical on all three targets afterwards.
+And the acceptance test, as always: **every existing program unchanged**, byte-for-byte, on all
+three targets.
 
-## 9. The order to build it in
+## 10. The order to build it in
 
-1. **A gauntlet program that searches.** None of the seven does, and a loop primitive chosen against
-   tests that never exit early would be chosen blind. `find-first` over a large array, plus a
-   convergence program, with hand-written references on all three hosts.
-2. **`fold-while` in the Go backend**, checked against those references.
-3. **JS and Java**, which should be the same three lines each.
-4. **The `seq` library**, and a check that it reduces away.
-5. **The termination property**, reported the way `Shadowed()` is.
-6. **An ADR**, recording what it cost and what it killed.
+1. **A gauntlet program that searches**, and one that converges. Neither exists, and a loop chosen
+   against seven programs that never exit early would be chosen blind.
+2. **`loop` in the Go backend**, checked against hand-written references for both.
+3. **JS and Java.**
+4. **Rewrite `centroid` as a `loop`** and check parity; if it holds, retire `fold-range2`.
+5. **Decide the trip-count question** by measuring §6's two ways out.
+6. **An ADR**, recording what it cost and what it retired.

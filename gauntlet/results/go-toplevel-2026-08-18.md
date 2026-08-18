@@ -104,9 +104,9 @@ write.** For comparison, everything else this project has weighed:
 
 It is the largest single number in the repository, and it is not close.
 
-**Replicated.** [js-toplevel-2026-08-18](js-toplevel-2026-08-18.md) ports the same sieve to
-JavaScript's top level and measures 445× for the loop shapes, with the emitter at 0.56×. Two hosts,
-two compilers, one cause — so this is a property of the language rather than of Go.
+**Replicated on both other hosts.** [js-toplevel](js-toplevel-2026-08-18.md) measures 445× with the
+emitter at 0.56×; [java-toplevel](java-toplevel-2026-08-18.md) measures 1083× at 0.44×. Three hosts,
+three compilers, one cause — so this is a property of the language rather than of Go.
 
 **It does not decide the design**, and should not be read as doing so. `fold-range` with a start and
 a step is one answer; a general `while` is another; a `loop`/`break` expression is a third. What the

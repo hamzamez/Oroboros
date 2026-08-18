@@ -1,0 +1,54 @@
+import java.util.HashMap;
+
+public final class BenchT {
+    // What a Java programmer writes — but HashMap needs `import java.util`,
+    // so it is NOT reachable from java.lang's top level.
+    static long hashTally(long n) {
+        HashMap<Long, Long> m = new HashMap<>();
+        for (long i = 0; i < n; i++) {
+            long k = i % 97 + 1;
+            m.merge(k, 1L, Long::sum);
+        }
+        return m.size();
+    }
+
+    // Parallel arrays with a linear scan that CAN stop early — java.lang only,
+    // but using a break the language cannot express.
+    static long scanTallyWithBreak(long n, int cap) {
+        long[] keys = new long[cap];
+        long distinct = 0;
+        for (long i = 0; i < n; i++) {
+            long k = i % 97 + 1;
+            int s = cap;
+            for (int j = 0; j < cap; j++) {
+                if (keys[j] == k || keys[j] == 0) { s = j; break; }
+            }
+            if (s < cap && keys[s] == 0) { keys[s] = k; distinct++; }
+        }
+        return distinct;
+    }
+
+    interface F { long run(); }
+
+    static double timeIt(String name, int reps, F f) {
+        for (int w = 0; w < 50; w++) f.run();
+        double best = Double.MAX_VALUE;
+        long got = 0;
+        for (int r = 0; r < 5; r++) {
+            long t0 = System.nanoTime();
+            for (int k = 0; k < reps; k++) got = f.run();
+            double d = (System.nanoTime() - t0) / (double) reps / 1000.0;
+            if (d < best) best = d;
+        }
+        System.out.printf("%-26s %10.1f us   distinct=%d%n", name, best, got);
+        return best;
+    }
+
+    public static void main(String[] a) {
+        double h = timeIt("HashMap (needs an import)", 200, () -> hashTally(20000));
+        double b = timeIt("scan + break (java.lang)", 50, () -> scanTallyWithBreak(20000, 128));
+        double g = timeIt("GENERATED (no break)", 5, JTally::genMain);
+        System.out.printf("%nno dictionary costs %.0fx; no early exit a further %.0fx%n", b / h, g / b);
+        System.out.printf("generated is %.0fx slower than the idiomatic answer%n", g / h);
+    }
+}

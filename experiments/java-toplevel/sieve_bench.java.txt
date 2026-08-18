@@ -1,0 +1,51 @@
+public final class Bench {
+    // Idiomatic: start at i*i, step by i, skip with continue.
+    static long handSieve(long n) {
+        boolean[] composite = new boolean[(int) n];
+        for (long i = 2; i * i < n; i++) {
+            if (composite[(int) i]) continue;
+            for (long j = i * i; j < n; j += i) composite[(int) j] = true;
+        }
+        long count = 0;
+        for (long k = 2; k < n; k++) if (!composite[(int) k]) count++;
+        return count;
+    }
+
+    // Hand-written, restricted to the loop shapes Oroboros can express.
+    static long shapedSieve(long n) {
+        boolean[] composite = new boolean[(int) n];
+        for (long i = 0; i < n; i++) {
+            if (i < 2) continue;
+            if (composite[(int) i]) continue;
+            for (long j = 0; j < n; j++)
+                if (j >= i * i && j % i == 0) composite[(int) j] = true;
+        }
+        long count = 0;
+        for (long k = 0; k < n; k++) if (k >= 2 && !composite[(int) k]) count++;
+        return count;
+    }
+
+    interface F { long run(); }
+
+    static double timeIt(String name, int reps, F f) {
+        for (int w = 0; w < 30; w++) f.run();
+        double best = Double.MAX_VALUE;
+        long got = 0;
+        for (int r = 0; r < 5; r++) {
+            long t0 = System.nanoTime();
+            for (int k = 0; k < reps; k++) got = f.run();
+            double d = (System.nanoTime() - t0) / (double) reps / 1000.0;
+            if (d < best) best = d;
+        }
+        System.out.printf("%-14s %12.1f us   primes=%d%n", name, best, got);
+        return best;
+    }
+
+    public static void main(String[] a) {
+        double h = timeIt("hand-written", 50, () -> handSieve(20000));
+        double s = timeIt("same shape", 3, () -> shapedSieve(20000));
+        double g = timeIt("GENERATED", 3, JSieve::genMain);
+        System.out.printf("%nloop shape costs %.0fx; emitter a further %.2fx%n", s / h, g / s);
+        System.out.printf("generated is %.0fx slower overall%n", g / h);
+    }
+}

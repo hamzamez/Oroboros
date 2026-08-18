@@ -1,0 +1,32 @@
+; The sieve again, on java.lang's top level, to complete the three-host set.
+;
+; Java arrays are language-level so they need no import — and fixed-length, so
+; there is nothing to append to. `bset` is a statement whose value is its
+; array, which threads through a fold like an accumulator.
+
+(use java/array as a)
+(use java/bool as b)
+(use java/int as ji)
+(use java/system as sys)
+(use num/int as int)
+
+(export main)
+
+(def cross-from (fn (composite i n)
+  (fold-range composite n (fn (arr j)
+    (if (int.ge j (int.mul i i))
+        (if (int.eq (ji.rem j i) 0) (a.bset arr j (b.true)) arr)
+        arr)))))
+
+(def sieve (fn (n)
+  (fold-range (a.make-bool n) n (fn (arr i)
+    (if (int.lt i 2) arr
+      (if (a.bat arr i) arr (cross-from arr i n)))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (composite)
+    (fold-range 0 n (fn (acc k)
+      (if (int.lt k 2) acc
+        (if (a.bat composite k) acc (int.add acc 1)))))))))
+
+(def main (fn () (sys.println (count-primes 20000))))

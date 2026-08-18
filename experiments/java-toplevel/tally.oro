@@ -1,0 +1,38 @@
+; Counting distinct values with NO dictionary.
+;
+; java.lang has no Map, no List, and nothing growable except StringBuilder —
+; every collection lives in java.util and needs an import. So a tally must be
+; written with two fixed-size parallel arrays and a linear scan, which is what
+; this program is: the shape Java's top level forces.
+;
+; It is also a second demonstration of the missing early exit. The scan cannot
+; stop when it finds the key, so every lookup costs the full capacity.
+
+(use java/array as a)
+(use java/int as ji)
+(use java/system as sys)
+(use num/int as int)
+
+(export main)
+
+; Slot for key k in a linear-probed table of capacity cap: the first index
+; whose key equals k, or the first empty one. Empty is 0; keys are 1-based.
+(def slot (fn (keys cap k)
+  (fold-range cap cap (fn (best i)
+    (if (int.lt best cap) best
+      (if (int.eq (a.iat keys i) k) i
+        (if (int.eq (a.iat keys i) 0) i best)))))))
+
+; Tally i mod 97 over n values and report how many distinct keys landed. The
+; scan cannot stop early, so every lookup costs the full capacity.
+(def tally (fn (n cap)
+  (let (a.make-int cap) (fn (keys)
+    (fold-range 0 n (fn (acc i)
+      (let (int.add (ji.rem i 97) 1) (fn (k)
+        (let (slot keys cap k) (fn (s)
+          (if (int.ge s cap) acc
+            (if (int.eq (a.iat keys s) 0)
+                (seq (a.iset keys s k) (int.add acc 1))
+                acc))))))))))))
+
+(def main (fn () (sys.println (tally 20000 128))))

@@ -9,11 +9,16 @@
 > and early exit — not in its accumulator. §6's order is updated; §5's candidates are not yet
 > changed, because the measurement sizes the prize without choosing the design.
 >
-> **Replicated on a second host.** The
-> [js/global experiment](../../gauntlet/results/js-toplevel-2026-08-18.md) ports the same sieve to
-> JavaScript: **445×** for the loop shapes, and our emitted code is **0.56×** of hand-written code
-> written under the same constraints — nearly twice as fast as a person so restricted. Two hosts,
-> two compilers, one cause. **This is the language, not a host.**
+> **Replicated on all three hosts.** The same sieve, against each host's top level:
+>
+> | host | loop shape costs | our emitter, vs hand-written under the same constraints |
+> |---|---|---|
+> | [Go](../../gauntlet/results/go-toplevel-2026-08-18.md) | **1117×** | 0.77× |
+> | [JavaScript](../../gauntlet/results/js-toplevel-2026-08-18.md) | **445×** | 0.56× |
+> | [Java](../../gauntlet/results/java-toplevel-2026-08-18.md) | **1083×** | **0.44×** |
+>
+> Three hosts, three compilers, one cause — and on every one of them our emitted code is *faster*
+> than a person writing under the same loop constraints. **This is the language, not a host.**
 
 **Status: open question, not a decision.** Written in the mode
 [ADR 0007](../decisions/0007-exploration-over-specification.md) asks for — candidates against a
@@ -59,7 +64,7 @@ deciding between them. §5 decides.
 | `filter` | **yes**, as a push collection ([q5b](q5b-filter.md)) | |
 | two accumulators | **yes** — `fold-range2` | does not generalise |
 | **three or more accumulators** | **no** | |
-| **a loop start** — `for j := i*i` | **no** | **1117×** on Go, **445×** on JS |
+| **a loop start** — `for j := i*i` | **no** | **1117×** Go, **445×** JS, **1083×** Java |
 | **a loop step** — `j += i` | **no** | same |
 | **early exit** — `find`, `any`, `all`, `takeWhile` | **no** | every search program |
 | **`while`** — trip count unknown at entry | **no** | convergence, streaming input |

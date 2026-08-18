@@ -76,7 +76,8 @@ returning 2262:
 | hand-written JS **restricted to our loop shapes** | 22,165 | **445×** |
 | **generated** | 12,415 | 249× |
 
-Compare Go: 17.4 µs → 19,437 → 14,974, a **1117×** loop penalty and 0.77× for the emitter.
+Compare Go — 17.4 → 19,437 → 14,974, a **1117×** loop penalty at 0.77× — and
+[Java](java-toplevel-2026-08-18.md), **1083×** at **0.44×**.
 
 Two conclusions:
 

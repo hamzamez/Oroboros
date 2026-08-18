@@ -15,6 +15,12 @@
   (type dict       "HashMap<String,Integer>")
   (type any        "Object")
 
+  ; ---- experiment: java.lang's top level. See experiments/java-toplevel/.
+  (type vec-int    "long[]")
+  (type vec-bool   "boolean[]")
+  (type strbuf     "StringBuilder")
+  (type char       "char")
+
 
   ; Java arrays carry .length, so alen and slen share a shape — unlike Go, where
   ; len() is a function.
@@ -78,6 +84,99 @@
   ; Tier 2 — effects.md §6. This is the target that disagrees most: println
   ; prints 1.0 where Go and JS print 1, and 1.0E8 where JS prints 100000000.
 
+
+
+  ; ------------------------------------------ java.lang's top level (EXPERIMENT)
+  ;
+  ; Java's top level is exactly `java.lang`, the one package auto-imported into
+  ; every compilation unit. What it contains is narrower than either Go's or
+  ; JavaScript's, and what it LACKS is the finding: java.util holds every
+  ; collection, so at the top level there is no map, no list, and nothing
+  ; growable except StringBuilder.
+  ;
+  ; Arrays are language-level rather than library, so they need no import — but
+  ; they are fixed-length, which is the same statement from the other side.
+
+  (module java/math
+    (prim floor (f64) f64      expr "Math.floor(%s)" pure)
+    (prim ceil  (f64) f64      expr "Math.ceil(%s)"  pure)
+    (prim round (f64) int      expr "Math.round(%s)" pure)
+    (prim abs   (f64) f64      expr "Math.abs(%s)"   pure)
+    (prim sqrt  (f64) f64      expr "Math.sqrt(%s)"  pure)
+    (prim pow   (f64 f64) f64  expr "Math.pow(%s, %s)" pure)
+    (prim min   (int int) int  expr "Math.min(%s, %s)" pure)
+    (prim max   (int int) int  expr "Math.max(%s, %s)" pure)
+    (prim log   (f64) f64      expr "Math.log(%s)"   pure)
+    (prim pi    (none) f64     expr "Math.PI"        pure)
+    ; Not pure: two calls, two answers. An `expr` that is not pure, which is
+    ; the case that kills the "expr means pure" heuristic (effects.md 3).
+    (prim random (none) f64    expr "Math.random()"))
+
+  ; Integer arithmetic Java's way. NOT in num/int: the hosts disagree on
+  ; truncation and on division by zero, which throws here and does not on JS.
+  (module java/int
+    (prim quo   (int int) int    expr "%s / %s"  pure)
+    (prim rem   (int int) int    expr "%s %% %s" pure)
+    (prim parse (string) int     expr "Long.parseLong(%s)" pure)
+    (prim to-string (int) string expr "Long.toString(%s)"  pure)
+    (prim to-binary (int) string expr "Long.toBinaryString(%s)" pure)
+    (prim bit-count (int) int    expr "Long.bitCount(%s)"  pure)
+    (prim max-value (none) int   expr "Long.MAX_VALUE"     pure))
+
+  ; java.lang.String. Immutable, so everything here is pure.
+  (module java/string
+    (prim len       (string) int            expr "%s.length()"        pure)
+    (prim char-at   (string int) char       expr "%s.charAt((int) %s)" pure)
+    (prim substring (string int int) string expr "%s.substring((int) %s, (int) %s)" pure)
+    (prim index-of  (string string) int     expr "%s.indexOf(%s)"     pure)
+    (prim contains? (string string) bool    expr "%s.contains(%s)"    pure)
+    (prim starts?   (string string) bool    expr "%s.startsWith(%s)"  pure)
+    (prim upper     (string) string         expr "%s.toUpperCase()"   pure)
+    (prim lower     (string) string         expr "%s.toLowerCase()"   pure)
+    (prim trim      (string) string         expr "%s.strip()"         pure)
+    (prim repeat    (string int) string     expr "%s.repeat((int) %s)" pure)
+    (prim concat    (string string) string  expr "(%s + %s)"          pure)
+    (prim eq        (string string) bool    expr "%s.equals(%s)"      pure)
+    (prim of-char   (char) string           expr "String.valueOf(%s)" pure))
+
+  (module java/char
+    (prim digit?  (char) bool expr "Character.isDigit(%s)"     pure)
+    (prim letter? (char) bool expr "Character.isLetter(%s)"    pure)
+    (prim space?  (char) bool expr "Character.isWhitespace(%s)" pure)
+    (prim lower   (char) char expr "Character.toLowerCase(%s)" pure)
+    (prim code    (char) int  expr "(long) %s"                 pure))
+
+  ; StringBuilder — the ONLY growable container in java.lang. A `stmt` whose
+  ; value is its receiver, so it threads through a fold like an accumulator.
+  (module java/strbuf
+    (prim empty     (none) strbuf          expr "new StringBuilder()")
+    (prim add       (strbuf string) strbuf stmt "%s.append(%s)")
+    (prim add-char  (strbuf char) strbuf   stmt "%s.append(%s)")
+    (prim len       (strbuf) int           expr "%s.length()"     pure)
+    (prim to-string (strbuf) string        expr "%s.toString()"   pure))
+
+  ; Arrays. Language-level, so no import — and fixed-length, so no append.
+  ; One declaration per element type, because the type language has no
+  ; constructors: long[] and boolean[] are unrelated atoms.
+  (module java/array
+    (prim make-int   (int) vec-int             expr "new long[(int) %s]")
+    (prim make-bool  (int) vec-bool            expr "new boolean[(int) %s]")
+    (prim len        (any) int                 expr "%s.length" pure)
+    (prim iat        (vec-int int) int         expr "%s[(int) %s]"  pure)
+    (prim bat        (vec-bool int) bool       expr "%s[(int) %s]"  pure)
+    (prim iset       (vec-int int int) vec-int stmt "%s[(int) %s] = %s")
+    (prim bset       (vec-bool int bool) vec-bool stmt "%s[(int) %s] = %s")
+    (prim copy       (vec-int vec-int int) vec-int
+                     stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)"))
+
+  (module java/system
+    (prim println (any) any  stmt "System.out.println(%s)")
+    (prim errorln (any) any  stmt "System.err.println(%s)")
+    (prim nanos   (none) int expr "System.nanoTime()"))
+
+  (module java/bool
+    (prim true  (none) bool expr "true"  pure)
+    (prim false (none) bool expr "false" pure))
 
   (module io
     (prim print-line (any) any stmt "System.out.println(%s)"))

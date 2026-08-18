@@ -1,9 +1,8 @@
 ; Sieve of Eratosthenes, using only Go's predeclared identifiers plus fmt.
 ;
-; The question this program exists to answer: can imperative array mutation be
-; written at all? `bset` is a statement whose VALUE is its container, so a
-; mutation threads through a fold the way an accumulator does, and the effect
-; discipline pins the order.
+; The question: can imperative array mutation be written at all? `bset` is a
+; statement whose VALUE is its container, so a mutation threads through a fold
+; the way an accumulator does, and the effect discipline pins the order.
 
 (use go/builtin as g)
 (use go/fmt as fmt)
@@ -11,23 +10,24 @@
 
 (export main)
 
-; composite[i] = true once i has been crossed out.
+; Cross out every multiple of i, from i*i upward.
 (def cross-from (fn (composite i n)
   (fold-range composite n (fn (c j)
     (if (int.ge j (int.mul i i))
-        (if (int.eq (g.rem j i) 0)
-            (g.bset c j (g.true))
-            c)
+        (if (int.eq (g.rem j i) 0) (g.bset c j (g.true)) c)
         c)))))
 
+; composite[k] is true once k has been crossed out.
 (def sieve (fn (n)
   (fold-range (g.make-bool n) n (fn (c i)
     (if (int.lt i 2) c
       (if (g.bat c i) c (cross-from c i n)))))))
 
+; Count the primes below n. The sieve is built ONCE, by `let`, and then read.
 (def count-primes (fn (n)
-  (fold-range 0 n (fn (acc i)
-    (if (int.lt i 2) acc
-      (if (g.bat (sieve n) i) acc (int.add acc 1)))))))
+  (let (sieve n) (fn (composite)
+    (fold-range 0 n (fn (acc k)
+      (if (int.lt k 2) acc
+        (if (g.bat composite k) acc (int.add acc 1)))))))))
 
 (def main (fn () (fmt.println (count-primes 100))))

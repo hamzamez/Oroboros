@@ -1,0 +1,79 @@
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+// What a Go programmer writes: start at i*i, step by i, and skip.
+func handSieve(n int64) int64 {
+	composite := make([]bool, n)
+	for i := int64(2); i*i < n; i++ {
+		if composite[i] {
+			continue
+		}
+		for j := i * i; j < n; j += i {
+			composite[j] = true
+		}
+	}
+	count := int64(0)
+	for k := int64(2); k < n; k++ {
+		if !composite[k] {
+			count++
+		}
+	}
+	return count
+}
+
+// Hand-written, but restricted to the loop shapes Oroboros can express:
+// every loop starts at 0, steps by 1, runs to the bound, and cannot exit
+// early. This separates "the loop primitive is too weak" from "the emitter
+// is bad".
+func shapedSieve(n int64) int64 {
+	composite := make([]bool, n)
+	for i := int64(0); i < n; i++ {
+		if i < 2 {
+			continue
+		}
+		if composite[i] {
+			continue
+		}
+		for j := int64(0); j < n; j++ {
+			if j >= i*i && j%i == 0 {
+				composite[j] = true
+			}
+		}
+	}
+	count := int64(0)
+	for k := int64(0); k < n; k++ {
+		if k >= 2 && !composite[k] {
+			count++
+		}
+	}
+	return count
+}
+
+func timeIt(name string, reps int, f func() int64) float64 {
+	f()
+	best := 1e18
+	var got int64
+	for r := 0; r < 5; r++ {
+		t0 := time.Now()
+		for k := 0; k < reps; k++ {
+			got = f()
+		}
+		if d := float64(time.Since(t0).Nanoseconds()) / float64(reps); d < best {
+			best = d
+		}
+	}
+	fmt.Printf("%-14s %12.1f us   primes=%d\n", name, best/1000, got)
+	return best
+}
+
+func main() {
+	h := timeIt("hand-written", 200, func() int64 { return handSieve(20000) })
+	s := timeIt("same shape", 5, func() int64 { return shapedSieve(20000) })
+	g := timeIt("GENERATED", 5, GenSieve)
+	fmt.Printf("loop shape costs %.0fx; emitter a further %.2fx\n", s/h, g/s)
+	fmt.Printf("generated is %.0fx slower overall\n", g/h)
+}

@@ -1,5 +1,14 @@
 # Loops: candidates
 
+> **Reordered 2026-08-18 by measurement.** The
+> [go/builtin experiment](../../gauntlet/results/go-toplevel-2026-08-18.md) put a number on the
+> gap this document only described: a sieve written against Go's top level is **860× slower** than
+> hand-written Go, and hand-written Go *restricted to the loop shapes `fold-range` can express* is
+> **1117×** slower. Our emitted code is 0.77× of that restricted form — so **none of the gap is the
+> emitter and all of it is the loop.** The prize is in the loop's ITERATION SPACE — a start, a step,
+> and early exit — not in its accumulator. §6's order is updated; §5's candidates are not yet
+> changed, because the measurement sizes the prize without choosing the design.
+
 **Status: open question, not a decision.** Written in the mode
 [ADR 0007](../decisions/0007-exploration-over-specification.md) asks for — candidates against a
 fixed test, arguments only to select what is worth measuring.
@@ -44,6 +53,8 @@ deciding between them. §5 decides.
 | `filter` | **yes**, as a push collection ([q5b](q5b-filter.md)) | |
 | two accumulators | **yes** — `fold-range2` | does not generalise |
 | **three or more accumulators** | **no** | |
+| **a loop start** — `for j := i*i` | **no** | **1117×** on the sieve |
+| **a loop step** — `j += i` | **no** | same |
 | **early exit** — `find`, `any`, `all`, `takeWhile` | **no** | every search program |
 | **`while`** — trip count unknown at entry | **no** | convergence, streaming input |
 | **`scan`** — prefix sums | **no** | Blelloch's primitive; compaction and sort need it |
@@ -272,12 +283,21 @@ its initial accumulator. No arithmetic crosses the boundary, and no code grows.
 
 In this order, because each step is cheap and informs the next:
 
-1. **C5's cheap half.** A provably-zero-trip loop reduces to its initial value. One rule, no risk,
+> **Updated 2026-08-18.** The iteration space moved to the front, because it is worth 1117× and
+> everything else on this list is worth between 1.8× and 14×.
+
+1. **The iteration space: a start, a step, and early exit.** Not listed as a candidate above,
+   because the document was written before the number existed. `fold-range` always begins at 0,
+   always steps by 1, and always runs to its bound; a sieve therefore does O(n²) work where Go does
+   O(n log log n). Whether that is a richer `fold-range`, a `loop`/`break` expression, or `while` is
+   exactly what §5 has to decide — but it is the thing to decide *first*.
+2. **C5's cheap half.** A provably-zero-trip loop reduces to its initial value. One rule, no risk,
    and it marks the staging question without answering it.
-2. **C3 — early exit.** The largest gain for no loss. Needs a specification of how the step says
-   *stop*, and a gauntlet program that searches.
 3. **C2 — one accumulator, product type, SROA.** §4 makes this necessary rather than optional. Its
-   own ADR, argued against ADR 0013; it retires `fold-range2` and unlocks `scan`.
+   own ADR, argued against ADR 0013; it retires `fold-range2` and unlocks `scan`. The
+   [go/builtin experiment](../../experiments/go-toplevel/README.md) wants the same product for a
+   different reason — `v, ok := m[k]` — and two independent demands for one feature is the
+   strongest evidence it is real.
 4. **C4 — `while`.** After the above, with a specification of what it means for the termination
    guarantee to be gone.
 
@@ -297,4 +317,6 @@ that would refute it:
 | C4 (`while`) | nothing yet: no program needs it, so there is nothing to measure |
 
 And the gauntlet needs an eighth program that **searches**, because none of the seven does, and a
-loop design chosen against tests that never exit early would be chosen blind.
+loop design chosen against tests that never exit early would be chosen blind. The sieve is a
+candidate: it is small, it is famous, its fast form needs all three missing pieces at once, and
+there is now a hand-written reference and a measured number for it.

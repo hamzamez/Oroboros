@@ -1,0 +1,33 @@
+; Maps, append and slicing, using only Go's predeclared identifiers plus fmt.
+;
+; No `strings`, no `sort`, no `strconv` — everything here is usable with no
+; import at all, which is what makes this a test of Go's *top level*.
+
+(use go/builtin as g)
+(use go/fmt as fmt)
+(use num/int as int)
+
+(export main)
+
+; Collatz stopping time, bounded: fold-range cannot loop until a condition, so
+; the bound is a budget and the fold carries the running value.
+(def collatz-steps (fn (start budget)
+  (fold-range start budget (fn (v step)
+    (if (int.le v 1) v
+      (if (int.eq (g.rem v 2) 0) (g.quo v 2) (int.add (int.mul 3 v) 1)))))))
+
+; Build a slice of the first n stopping values, by appending.
+(def firsts (fn (n)
+  (fold-range (g.make-int 0) n (fn (acc i)
+    (g.append-int acc (collatz-steps (int.add i 1) 200))))))
+
+; Count how many landed on each value, in a map keyed by a literal string.
+(def tally (fn (s)
+  (fold-range (g.make-map) (g.len s) (fn (m i)
+    (g.mset m "reached" (int.add (g.mat m "reached") (g.iat s i)))))))
+
+(def main (fn ()
+  (let (firsts 30) (fn (s)
+    (seq (fmt.println (g.len s))
+    (seq (fmt.println (g.iat (g.islice s 0 5) 4))
+         (fmt.println (g.mat (tally s) "reached"))))))))

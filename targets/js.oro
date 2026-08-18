@@ -6,7 +6,11 @@
 ; (gauntlet/results/js-2026-08-14.md).
 ;
 ; Argument types are still written, because they document the primitive and a
-; future checker could use them regardless of target. They are never consulted.
+; future checker could use them regardless of target. ~~They are never
+; consulted.~~ That future arrived: docs/spec/types.md's checker reads them on
+; EVERY target, so this file is type-checked with types it does not itself use.
+; The js-toplevel experiment had a fold accumulator start at 0 where it needed
+; "", and the checker caught it here — on the target with no type layer.
 ;
 ; `pure` is consulted, on every target, because it is not a type — it decides
 ; whether β may move the term (docs/spec/effects.md §3).
@@ -71,6 +75,118 @@
   ; Tier 2 — effects.md §6. console.log prints 1 for 1.0 and 100000000 for 1e8,
   ; agreeing with Go on the first and with neither on the second.
 
+
+
+  ; ------------------------------------ JavaScript's top level (EXPERIMENT)
+  ;
+  ; Everything reachable with no import and no require, in BOTH Node and the
+  ; browser. Where Go's top level is a list of predeclared FUNCTIONS, JS's is
+  ; mostly METHODS on values and STATICS on namespace objects — so the module
+  ; names mirror how JavaScript organises itself rather than how Go does.
+  ;
+  ; A template puts the receiver in the first hole, so `%s.map(%s)` needs no
+  ; new mechanism. See experiments/js-toplevel/.
+
+  ; Free functions on the global object.
+  (module js/global
+    (prim parse-int    (string) int     expr "parseInt(%s, 10)"   pure)
+    (prim parse-float  (string) f64     expr "parseFloat(%s)"     pure)
+    (prim nan?         (f64) bool       expr "Number.isNaN(%s)"   pure)
+    (prim finite?      (f64) bool       expr "Number.isFinite(%s)" pure)
+    (prim integer?     (f64) bool       expr "Number.isInteger(%s)" pure)
+    (prim to-number    (any) f64        expr "Number(%s)"         pure)
+    (prim to-string    (any) string     expr "String(%s)"         pure)
+    (prim truthy?      (any) bool       expr "Boolean(%s)"        pure)
+    (prim nan          (none) f64       expr "NaN"                pure)
+    (prim infinity     (none) f64       expr "Infinity"           pure)
+    (prim true         (none) bool      expr "true"               pure)
+    (prim false        (none) bool      expr "false"              pure))
+
+  ; Math — every method is a static, so every one is a one-line declaration.
+  (module js/math
+    (prim floor  (f64) f64      expr "Math.floor(%s)" pure)
+    (prim ceil   (f64) f64      expr "Math.ceil(%s)"  pure)
+    (prim round  (f64) f64      expr "Math.round(%s)" pure)
+    (prim trunc  (f64) f64      expr "Math.trunc(%s)" pure)
+    (prim abs    (f64) f64      expr "Math.abs(%s)"   pure)
+    (prim sqrt   (f64) f64      expr "Math.sqrt(%s)"  pure)
+    (prim pow    (f64 f64) f64  expr "(%s ** %s)"     pure)
+    (prim min    (f64 f64) f64  expr "Math.min(%s, %s)" pure)
+    (prim max    (f64 f64) f64  expr "Math.max(%s, %s)" pure)
+    (prim log    (f64) f64      expr "Math.log(%s)"   pure)
+    (prim sin    (f64) f64      expr "Math.sin(%s)"   pure)
+    (prim cos    (f64) f64      expr "Math.cos(%s)"   pure)
+    (prim pi     (none) f64     expr "Math.PI"        pure)
+    ; NOT pure: two calls give two answers, which is exactly what the effect
+    ; discipline is for. `expr` kind, so the tempting `expr means pure`
+    ; heuristic would have got this wrong (effects.md 3).
+    (prim random (none) f64     expr "Math.random()"))
+
+  ; Numbers are doubles, so integer division and remainder are Math.trunc and
+  ; `%`. Not portable, hence not in num/int.
+  (module js/int
+    (prim quo (int int) int expr "Math.trunc(%s / %s)" pure)
+    (prim rem (int int) int expr "(%s %% %s)"          pure))
+
+  ; Arrays. The receiver goes in the first hole.
+  (module js/array
+    (prim make       (int) vec-f64            expr "new Array(%s)")
+    (prim of-size    (int f64) vec-f64        expr "new Array(%s).fill(%s)")
+    (prim len        (vec-f64) int            expr "%s.length"       pure)
+    (prim at         (vec-f64 int) f64        expr "%s[%s]"          pure index)
+    (prim set        (vec-f64 int f64) vec-f64 stmt "%s[%s] = %s")
+    (prim push       (vec-f64 f64) vec-f64    stmt "%s.push(%s)")
+    (prim pop        (vec-f64) f64            expr "%s.pop()")
+    (prim slice      (vec-f64 int int) vec-f64 expr "%s.slice(%s, %s)" pure)
+    (prim concat     (vec-f64 vec-f64) vec-f64 expr "%s.concat(%s)"   pure)
+    (prim index-of   (vec-f64 f64) int        expr "%s.indexOf(%s)"   pure)
+    (prim includes?  (vec-f64 f64) bool       expr "%s.includes(%s)"  pure)
+    (prim reverse    (vec-f64) vec-f64        stmt "%s.reverse()")
+    (prim join       (vec-string string) string expr "%s.join(%s)"    pure)
+
+    ; The higher-order half of JS's array API. Every one of these takes a
+    ; FUNCTION, which is the experiment: can a lambda reach a host callback?
+    (prim map        (vec-f64 any) vec-f64    expr "%s.map(%s)"       pure)
+    (prim filter     (vec-f64 any) vec-f64    expr "%s.filter(%s)"    pure)
+    (prim reduce     (vec-f64 any f64) f64    expr "%s.reduce(%s, %s)" pure)
+    (prim some?      (vec-f64 any) bool       expr "%s.some(%s)"      pure)
+    (prim find-index (vec-f64 any) int        expr "%s.findIndex(%s)" pure)
+    (prim sort       (vec-f64 any) vec-f64    stmt "%s.sort(%s)"))
+
+  ; Strings are immutable, so every method here is pure.
+  (module js/string
+    (prim len        (string) int             expr "%s.length"        pure)
+    (prim char-at    (string int) string      expr "%s[%s]"           pure)
+    (prim slice      (string int int) string  expr "%s.slice(%s, %s)" pure)
+    (prim index-of   (string string) int      expr "%s.indexOf(%s)"   pure)
+    (prim includes?  (string string) bool     expr "%s.includes(%s)"  pure)
+    (prim starts?    (string string) bool     expr "%s.startsWith(%s)" pure)
+    (prim upper      (string) string          expr "%s.toUpperCase()" pure)
+    (prim lower      (string) string          expr "%s.toLowerCase()" pure)
+    (prim trim       (string) string          expr "%s.trim()"        pure)
+    (prim repeat     (string int) string      expr "%s.repeat(%s)"    pure)
+    (prim split      (string string) vec-string expr "%s.split(%s)"   pure)
+    (prim concat     (string string) string   expr "(%s + %s)"        pure)
+    (prim code-at    (string int) int         expr "%s.charCodeAt(%s)" pure)
+    (prim eq         (string string) bool     expr "%s === %s"        pure))
+
+  ; A dictionary is a null-prototype object, per baseline R4.
+  (module js/object
+    (prim empty      (none) dict              expr "Object.create(null)")
+    (prim get        (dict string) f64        expr "(%s[%s] ?? 0)"    pure)
+    (prim set        (dict string f64) dict   stmt "%s[%s] = %s")
+    (prim has?       (dict string) bool       expr "(%s in %s)"       pure)
+    (prim del        (dict string) dict       stmt "delete %s[%s]")
+    (prim keys       (dict) vec-string        expr "Object.keys(%s)"  pure))
+
+  (module js/json
+    (prim stringify  (any) string             expr "JSON.stringify(%s)" pure)
+    (prim parse      (string) any             expr "JSON.parse(%s)"     pure))
+
+  ; console exists in Node and in every browser, with no import.
+  (module js/console
+    (prim log   (any) any stmt "console.log(%s)")
+    (prim error (any) any stmt "console.error(%s)"))
 
   (module io
     (prim print-line (any) any stmt "console.log(%s)"))

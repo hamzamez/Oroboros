@@ -1,0 +1,28 @@
+// Is JavaScript's higher-order array API worth reaching? One variant per
+// process, one array kind, one monomorphic call site — the methodology the
+// loops.md measurement had to learn.
+const which = process.argv[2], kind = process.argv[3];
+const N = 1024, REPS = 20000;
+const mk = kind === 'typed' ? (n) => new Float64Array(n) : (n) => new Array(n);
+const xs = mk(N);
+for (let i = 0; i < N; i++) xs[i] = i * 0.5;
+
+const cases = {
+  loopSum:   (xs) => { let a = 0; for (let i = 0; i < xs.length; i++) a += xs[i]; return a; },
+  reduceSum: (xs) => xs.reduce((a, x) => a + x, 0),
+  loopMapSum: (xs) => { let a = 0; for (let i = 0; i < xs.length; i++) a += xs[i] * 2; return a; },
+  mapThenSum: (xs) => xs.map((x) => x * 2).reduce((a, x) => a + x, 0),
+  loopFilterSum: (xs) => { let a = 0; for (let i = 0; i < xs.length; i++) { const x = xs[i]; if (x > 100) a += x; } return a; },
+  filterThenSum: (xs) => xs.filter((x) => x > 100).reduce((a, x) => a + x, 0),
+};
+const f = cases[which];
+let sink = 0;
+for (let w = 0; w < 600; w++) sink += f(xs);
+const t = [];
+for (let r = 0; r < 11; r++) {
+  const t0 = process.hrtime.bigint();
+  for (let k = 0; k < REPS; k++) sink += f(xs);
+  t.push(Number(process.hrtime.bigint() - t0) / REPS);
+}
+t.sort((a, b) => a - b);
+console.log(`${kind.padEnd(6)} ${which.padEnd(15)} ${t[5].toFixed(1).padStart(9)} ns/op${sink === 1 ? '!' : ''}`);

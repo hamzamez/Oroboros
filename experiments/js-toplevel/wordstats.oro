@@ -1,0 +1,45 @@
+; Text statistics, using only what Node and the browser both provide with no
+; import: String methods, Array methods, a null-prototype object, Math, JSON
+; and console.
+;
+; Deliberately NON-PORTABLE. `(use js/string)` will not resolve on the Go or
+; Java targets, and the covering check says so.
+
+(use js/string as s)
+(use js/array as a)
+(use js/object as o)
+(use js/math as m)
+(use js/json as json)
+(use js/console as c)
+(use num/int as int)
+(use num/f64 as f)
+
+(export main)
+
+; The longest word. A max-scan, which is a fold — no early exit needed here.
+(def longest (fn (ws)
+  (fold-range "" (slen ws) (fn (best i)
+    (let (sat ws i) (fn (w)
+      (if (int.gt (s.len w) (s.len best)) w best)))))))
+
+; Total characters, as a fold over the word list.
+(def total-chars (fn (ws)
+  (fold-range 0 (slen ws) (fn (acc i) (int.add acc (s.len (sat ws i)))))))
+
+; A frequency table keyed by first letter, built by mutating a null-prototype
+; object — the representation baseline R4 measured as 3.25x faster than Map.
+(def by-initial (fn (ws)
+  (fold-range (o.empty) (slen ws) (fn (d i)
+    (let (s.lower (s.char-at (sat ws i) 0)) (fn (k)
+      (o.set d k (f.add (o.get d k) 1.0))))))))
+
+(def main (fn ()
+  (let (split-words "the quick brown fox jumps over the lazy dog") (fn (ws)
+    (seq (c.log (s.concat "words: " (js-num (slen ws))))
+    (seq (c.log (s.concat "longest: " (longest ws)))
+    (seq (c.log (s.concat "chars: " (js-num (total-chars ws))))
+         (c.log (json.stringify (by-initial ws))))))))))
+
+; Number to string, via the global String.
+(use js/global as g)
+(def js-num (fn (n) (g.to-string n)))

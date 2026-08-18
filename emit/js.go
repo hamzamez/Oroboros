@@ -26,6 +26,9 @@ type jsEmitter struct {
 	buf    strings.Builder
 	tmp    int
 	indent int
+
+	// bound is every name already emitted in this function — see openFresh.
+	bound map[string]bool
 }
 
 // JSFunc emits a top-level abstraction as a JavaScript function.
@@ -39,7 +42,7 @@ func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error)
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &jsEmitter{tgt: tgt, indent: 1}
+	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}}
 	result, err := e.emit(t.Body())
 	if err != nil {
 		return "", err
@@ -63,8 +66,14 @@ func (e *jsEmitter) line(format string, args ...any) {
 }
 
 func (e *jsEmitter) fresh(stem string) string {
-	e.tmp++
-	return fmt.Sprintf("%s%d", stem, e.tmp)
+	for {
+		e.tmp++
+		n := fmt.Sprintf("%s%d", stem, e.tmp)
+		if !e.bound[n] {
+			e.bound[n] = true
+			return n
+		}
+	}
 }
 
 func (e *jsEmitter) emit(t *core.Term) (string, error) {
@@ -120,8 +129,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				}
 				return e.emit(k.Body())
 			}
-			e.line("const %s = %s;", jsMangle(k.Params[0]), val)
-			return e.emit(k.Body())
+			kBody, _, kOut := openFresh(k, e.bound, jsMangle)
+			e.line("const %s = %s;", kOut[0], val)
+			return e.emit(kBody)
 		}
 		if p.Kind == "stmt" {
 			args := t.Args()
@@ -299,20 +309,20 @@ func (e *jsEmitter) emitFoldRange(t *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	acc := jsMangle(step.Params[0])
-	idx := jsMangle(step.Params[1])
+	body, _, out := openFresh(step, e.bound, jsMangle)
+	acc, idx := out[0], out[1]
 	n := e.fresh("n")
 
 	e.line("let %s = %s;", acc, init)
 	e.line("const %s = %s;", n, count)
 	e.line("for (let %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(step.Body())
+	got, err := e.emit(body)
 	if err != nil {
 		return "", err
 	}
-	if body != acc { // a statement-primitive already updated it in place
-		e.line("%s = %s;", acc, body)
+	if got != acc { // a statement-primitive already updated it in place
+		e.line("%s = %s;", acc, got)
 	}
 	e.indent--
 	e.line("}")
@@ -402,12 +412,13 @@ func (e *jsEmitter) emitMakeVec(t *core.Term) (string, error) {
 	}
 	n := e.fresh("n")
 	dst := e.fresh("v")
-	idx := jsMangle(elem.Params[0])
+	elemBody, _, eOut := openFresh(elem, e.bound, jsMangle)
+	idx := eOut[0]
 	e.line("const %s = %s;", n, count)
 	e.line("const %s = new Array(%s);", dst, n)
 	e.line("for (let %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(elem.Body())
+	body, err := e.emit(elemBody)
 	if err != nil {
 		return "", err
 	}

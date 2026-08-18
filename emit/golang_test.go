@@ -202,3 +202,37 @@ func TestSignatureTypesTheParameters(t *testing.T) {
 		t.Errorf("signature types not used:\n%s", code)
 	}
 }
+
+// Nested folds whose step functions share a name hint — `acc` and `i`, the
+// obvious names — emitted `for i := …` inside `for i := …` and `acc := acc`.
+// The outer accumulator was then never written and the function returned its
+// initial value: a SILENT WRONG ANSWER, found by the first program written
+// against go/builtin. Parameter names are hints (chapter 1 §1.6); the emitter
+// had assumed they were unique.
+func TestNestedBindersDoNotShadow(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use num/int as int)
+		(def inner (fn (base n) (fold-range base n (fn (acc i) (int.add acc i)))))
+		(fn (n) (fold-range 0 n (fn (acc i) (int.add (inner acc n) i))))
+	`, "go")
+	sig := &core.Sig{Params: []core.SigParam{{Name: "n", Type: "int"}}, Result: "int"}
+	code, err := Func(tg, "f", sig, nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	if strings.Contains(code, "acc := acc") {
+		t.Errorf("the inner accumulator shadows the outer one:\n%s", code)
+	}
+	if n := strings.Count(code, "for i := "); n > 1 {
+		t.Errorf("two loops both bind i:\n%s", code)
+	}
+	// The outer accumulator must be assigned from the inner result.
+	if !strings.Contains(code, "acc = (acc2 + i)") {
+		t.Errorf("outer accumulator is never written:\n%s", code)
+	}
+	// And an integer accumulator needs int64, not Go's default int.
+	if !strings.Contains(code, "var acc int64 = 0") {
+		t.Errorf("integer accumulator must be int64:\n%s", code)
+	}
+}

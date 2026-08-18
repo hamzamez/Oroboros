@@ -39,6 +39,10 @@ type Emitter struct {
 	weak    map[string]string // variable -> `any`, used only if nothing else fits
 	tmp     int
 	indent  int
+
+	// bound is every name already emitted in this function. A binder whose
+	// hint collides with one gets a fresh one — see openFresh.
+	bound map[string]bool
 }
 
 // Func emits a top-level abstraction as a Go function.
@@ -47,7 +51,10 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &Emitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
-		imports: map[string]bool{}}
+		imports: map[string]bool{}, bound: map[string]bool{}}
+	for _, p := range t.Params {
+		e.bound[mangle(p)] = true
+	}
 
 	// Parameter types come from the declared signature first, then from how the
 	// body uses them. Local propagation from primitive signatures — not
@@ -204,8 +211,14 @@ func (e *Emitter) line(format string, args ...any) {
 }
 
 func (e *Emitter) fresh(stem string) string {
-	e.tmp++
-	return fmt.Sprintf("%s%d", stem, e.tmp)
+	for {
+		e.tmp++
+		n := fmt.Sprintf("%s%d", stem, e.tmp)
+		if !e.bound[n] {
+			e.bound[n] = true
+			return n
+		}
+	}
 }
 
 // emit writes any statements the term needs and returns a Go expression for its
@@ -396,7 +409,8 @@ func (e *Emitter) emitMakeVec(t *core.Term) (string, error) {
 	if elem.Kind != core.KFn || len(elem.Params) != 1 {
 		return "", fmt.Errorf("make-vec's element function must be (fn (i) …), got %s", elem)
 	}
-	idxName := elem.Params[0]
+	elemBody, raw, out := openFresh(elem, e.bound, mangle)
+	idxName := raw[0]
 	e.types[idxName] = "int"
 
 	count, err := e.emit(args[0])
@@ -405,7 +419,7 @@ func (e *Emitter) emitMakeVec(t *core.Term) (string, error) {
 	}
 	n := e.fresh("n")
 	dst := e.fresh("v")
-	idx := mangle(idxName)
+	idx := out[0]
 
 	// The loop count is the language's `int`, which spells int64. A bare
 	// `:=` would infer Go's `int` from a literal or from len(), and the
@@ -414,7 +428,7 @@ func (e *Emitter) emitMakeVec(t *core.Term) (string, error) {
 	e.line("%s := make(%s, %s)", dst, e.tgt.ty("vec-f64"), n)
 	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(elem.Body())
+	body, err := e.emit(elemBody)
 	if err != nil {
 		return "", err
 	}
@@ -512,10 +526,15 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 		}
 		return e.emit(k.Body())
 	}
-	name := mangle(k.Params[0])
-	e.types[k.Params[0]] = e.typeOf(args[0])
-	e.line("%s := %s", name, val)
-	return e.emit(k.Body())
+	ty := e.typeOf(args[0])
+	body, raw, out := openFresh(k, e.bound, mangle)
+	e.types[raw[0]] = ty
+	if ty == "int" {
+		e.line("var %s %s = %s", out[0], e.tgt.ty(ty), val)
+	} else {
+		e.line("%s := %s", out[0], val)
+	}
+	return e.emit(body)
 }
 
 // emitsStatement reports whether emitting this term already wrote a line for its
@@ -577,10 +596,6 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 	if step.Kind != core.KFn || len(step.Params) != 2 {
 		return "", fmt.Errorf("fold-range's third argument must be (fn (acc i) …), got %s", step)
 	}
-	accName, idxName := step.Params[0], step.Params[1]
-	e.types[accName] = e.typeOf(args[0])
-	e.types[idxName] = "int"
-
 	init, err := e.emit(args[0])
 	if err != nil {
 		return "", err
@@ -590,24 +605,39 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 		return "", err
 	}
 
-	acc := mangle(accName)
-	idx := mangle(idxName)
+	// Fresh binders, opened on the CLOSED body — see openFresh. Using the
+	// hints emitted `for i := …` inside `for i := …` and `acc := acc`.
+	accTy := e.typeOf(args[0])
+	body, raw, out := openFresh(step, e.bound, mangle)
+	accName, idxName := raw[0], raw[1]
+	e.types[accName] = accTy
+	e.types[idxName] = "int"
+	acc, idx := out[0], out[1]
 	n := e.fresh("n")
 
-	e.line("%s := %s", acc, init)
+	// An integer accumulator declared with `:=` from a literal takes Go's
+	// default `int`, which does not assign to our `int64`. No gauntlet program
+	// folds over an integer, so this had never fired. Only `int` needs the
+	// explicit form — `acc := 0.0` already gives float64, and writing
+	// `var acc float64 = 0.0` would be noise a human would not write.
+	if accTy == "int" {
+		e.line("var %s %s = %s", acc, e.tgt.ty(accTy), init)
+	} else {
+		e.line("%s := %s", acc, init)
+	}
 	// The loop count is the language's `int`, which spells int64. A bare
 	// `:=` would infer Go's `int` from a literal or from len(), and the
 	// two do not compare — the declaration has to be explicit.
 	e.line("var %s int64 = %s", n, count)
-	e.emitNarrow(idxName, n, step.Body())
+	e.emitNarrow(idxName, n, body)
 	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(step.Body())
+	got, err := e.emit(body)
 	if err != nil {
 		return "", err
 	}
-	if body != acc { // a statement-primitive already updated it in place
-		e.line("%s = %s", acc, body)
+	if got != acc { // a statement-primitive already updated it in place
+		e.line("%s = %s", acc, got)
 	}
 	e.indent--
 	e.line("}")

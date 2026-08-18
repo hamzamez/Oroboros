@@ -484,3 +484,37 @@ func seedFromSig(types map[string]string, params []string, sig *core.Sig) {
 		}
 	}
 }
+
+// openFresh opens an abstraction with names that do not collide with anything
+// already emitted in the enclosing function, and reports both the raw names
+// (which key the type maps) and the mangled ones (which appear in the output).
+//
+// The emitters had been using each parameter's NAME HINT directly. Hints are
+// not unique — chapter 1 §1.6 — so two nested folds whose steps both say `acc`
+// and `i`, which are the obvious names, emitted `for i := …` inside
+// `for i := …` and `acc := acc`. The outer accumulator was then never written
+// and the function returned its initial value: a **silent wrong answer**, found
+// by the first program written against `go/builtin`.
+//
+// Opening through OpenWith rather than Body() is what makes the repair safe.
+// The substitution happens on the CLOSED representation, where the two binders
+// are genuinely distinct, so renaming one cannot capture the other. This is the
+// locally nameless representation earning its keep a second time, in a pass
+// that had quietly assumed names were unique.
+func openFresh(t *core.Term, taken map[string]bool, mangle func(string) string) (
+	body *core.Term, raw []string, out []string) {
+
+	raw = make([]string, len(t.Params))
+	out = make([]string, len(t.Params))
+	args := make([]*core.Term, len(t.Params))
+	for i, p := range t.Params {
+		cand := p
+		for k := 2; taken[mangle(cand)]; k++ {
+			cand = fmt.Sprintf("%s%d", p, k)
+		}
+		taken[mangle(cand)] = true
+		raw[i], out[i] = cand, mangle(cand)
+		args[i] = core.Name(cand)
+	}
+	return t.OpenWith(args), raw, out
+}

@@ -36,6 +36,9 @@ type javaEmitter struct {
 	weak    map[string]string // `any`, used only if nothing else constrains the name
 	tmp     int
 	indent  int
+
+	// bound is every name already emitted in this method — see openFresh.
+	bound map[string]bool
 }
 
 // JavaImports accumulates what emitted methods need, like the Go sink.
@@ -47,7 +50,10 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &javaEmitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
-		imports: map[string]bool{}, indent: 2}
+		imports: map[string]bool{}, indent: 2, bound: map[string]bool{}}
+	for _, p := range t.Params {
+		e.bound[javaMangle(p)] = true
+	}
 	seedFromSig(e.types, t.Params, sig)
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
@@ -173,8 +179,14 @@ func (e *javaEmitter) line(format string, args ...any) {
 }
 
 func (e *javaEmitter) fresh(stem string) string {
-	e.tmp++
-	return fmt.Sprintf("%s%d", stem, e.tmp)
+	for {
+		e.tmp++
+		n := fmt.Sprintf("%s%d", stem, e.tmp)
+		if !e.bound[n] {
+			e.bound[n] = true
+			return n
+		}
+	}
 }
 
 func (e *javaEmitter) emit(t *core.Term) (string, error) {
@@ -279,9 +291,10 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 		return e.emit(k.Body())
 	}
 	ty := e.typeOf(args[0])
-	e.types[k.Params[0]] = ty
-	e.line("final %s %s = %s;", e.tgt.ty(ty), javaMangle(k.Params[0]), val)
-	return e.emit(k.Body())
+	kBody, kRaw, kOut := openFresh(k, e.bound, javaMangle)
+	e.types[kRaw[0]] = ty
+	e.line("final %s %s = %s;", e.tgt.ty(ty), kOut[0], val)
+	return e.emit(kBody)
 }
 
 // emitIf uses Java's conditional expression when both branches are pure — like
@@ -343,9 +356,7 @@ func (e *javaEmitter) emitFoldRange(t *core.Term) (string, error) {
 	if step.Kind != core.KFn || len(step.Params) != 2 {
 		return "", fmt.Errorf("fold-range's third argument must be (fn (acc i) …), got %s", step)
 	}
-	accName, idxName := step.Params[0], step.Params[1]
-	e.types[accName] = e.typeOf(args[0])
-	e.types[idxName] = "int"
+	accTy := e.typeOf(args[0])
 
 	init, err := e.emit(args[0])
 	if err != nil {
@@ -355,19 +366,23 @@ func (e *javaEmitter) emitFoldRange(t *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	acc, idx := javaMangle(accName), javaMangle(idxName)
+	body, raw, out := openFresh(step, e.bound, javaMangle)
+	accName, idxName := raw[0], raw[1]
+	e.types[accName] = accTy
+	e.types[idxName] = "int"
+	acc, idx := out[0], out[1]
 	n := e.fresh("n")
 
-	e.line("%s %s = %s;", e.tgt.ty(e.types[accName]), acc, init)
+	e.line("%s %s = %s;", e.tgt.ty(accTy), acc, init)
 	e.line("final int %s = %s;", n, count)
 	e.line("for (int %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(step.Body())
+	got, err := e.emit(body)
 	if err != nil {
 		return "", err
 	}
-	if body != acc { // a statement-primitive already updated it in place
-		e.line("%s = %s;", acc, body)
+	if got != acc { // a statement-primitive already updated it in place
+		e.line("%s = %s;", acc, got)
 	}
 	e.indent--
 	e.line("}")
@@ -520,21 +535,22 @@ func (e *javaEmitter) emitMakeVec(t *core.Term) (string, error) {
 	if elem.Kind != core.KFn || len(elem.Params) != 1 {
 		return "", fmt.Errorf("make-vec's element function must be (fn (i) ...), got %s", elem)
 	}
-	e.types[elem.Params[0]] = "int"
+	elemBody, eRaw, eOut := openFresh(elem, e.bound, javaMangle)
+	e.types[eRaw[0]] = "int"
 	count, err := e.emit(args[0])
 	if err != nil {
 		return "", err
 	}
 	n := e.fresh("n")
 	dst := e.fresh("v")
-	idx := javaMangle(elem.Params[0])
+	idx := eOut[0]
 	// Java array indices are int, not long, because an array cannot exceed
 	// 2^31-1 elements -- so the host's own limit decides here, not our int.
 	e.line("final int %s = (int) (%s);", n, count)
 	e.line("final double[] %s = new double[%s];", dst, n)
 	e.line("for (int %s = 0; %s < %s; %s++) {", idx, idx, n, idx)
 	e.indent++
-	body, err := e.emit(elem.Body())
+	body, err := e.emit(elemBody)
 	if err != nil {
 		return "", err
 	}

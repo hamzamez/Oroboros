@@ -35,6 +35,14 @@
   ; host's, not ours (g5 §7).
   (type any        "any")
 
+  ; ---- experiment: docs/spec/loops.md's sibling question, the go/builtin probe.
+  ; Types Go's predeclared identifiers need. Each concrete instantiation needs
+  ; its own name: the type language has no constructors, so `[]int` and
+  ; `[]bool` are two unrelated atoms rather than one applied to two arguments.
+  (type slice-int    "[]int64")
+  (type slice-bool   "[]bool")
+  (type map-str-int  "map[string]int64")
+
   ; Restricting a container to a known length. Go gains bounds-check
   ; elimination from it; JS has no bounds checks and Java's arrays cannot be
   ; narrowed, so neither declares one and neither gets the transformation.
@@ -114,6 +122,79 @@
   ; Tier 2. Go, JS and Java print the same float three different ways, so this
   ; carries no portability claim — effects.md §6.
 
+
+
+  ; ------------------------------------------------- go/builtin (EXPERIMENT)
+  ;
+  ; Go's predeclared identifiers — the `builtin` pseudo-package, which is
+  ; exactly "everything usable with no import". A program that uses this module
+  ; is NON-PORTABLE by construction, and that is the point: ADR 0001 says
+  ; portability is a property a program may or may not have, and this is the
+  ; first module written to deliberately not have it.
+  ;
+  ; See experiments/go-toplevel/ for what this could and could not reach.
+
+  (module go/builtin
+    ; Predeclared functions that are polymorphic in Go. `any` demands nothing,
+    ; so one declaration serves every argument type — at the cost of the checker
+    ; learning nothing from them.
+    (prim len (any) int expr "int64(len(%s))" pure)
+    (prim cap (any) int expr "int64(cap(%s))" pure)
+
+    ; Go 1.21's min/max. Monomorphic here because the result type must be named.
+    (prim min-int (int int) int expr "min(%s, %s)" pure)
+    (prim max-int (int int) int expr "max(%s, %s)" pure)
+
+    ; NOT pure, and the reason is worth keeping: append may write into the
+    ; argument's backing array when capacity allows, so copying, dropping or
+    ; reordering it is observable. The effect discipline pins it for free.
+    (prim append-int (slice-int int) slice-int expr "append(%s, %s)")
+
+    ; make. One per element type, because the type is part of the syntax.
+    (prim make-int  (int) slice-int  expr "make([]int64, %s)")
+    (prim make-bool (int) slice-bool expr "make([]bool, %s)")
+    (prim make-map  (none) map-str-int expr "make(map[string]int64)")
+
+    ; Indexed read and write. The write is a `stmt` whose value is argument 0,
+    ; so it yields the container back and threads through a fold.
+    (prim iat  ((v slice-int) (i int)) int  expr "%s[%s]" pure index
+      (where (logic.and (int.le 0 i) (int.lt i (len v)))))
+    (prim bat  ((v slice-bool) (i int)) bool expr "%s[%s]" pure index
+      (where (logic.and (int.le 0 i) (int.lt i (len v)))))
+    (prim iset (slice-int int int)   slice-int  stmt "%s[%s] = %s")
+    (prim bset (slice-bool int bool) slice-bool stmt "%s[%s] = %s")
+
+    ; Maps. Reading a missing key yields the zero value, which is Go's rule and
+    ; is why no `ok` appears: the two-value form needs multi-value return.
+    (prim mat (map-str-int string) int expr "%s[%s]" pure)
+    (prim mset (map-str-int string int) map-str-int stmt "%s[%s] = %s")
+    (prim mdel (map-str-int string) map-str-int stmt "delete(%s, %s)")
+
+    ; Slicing.
+    (prim islice (slice-int int int) slice-int expr "%s[%s:%s]" pure)
+
+    ; Integer division and remainder. NOT in num/int, deliberately: the three
+    ; hosts disagree on truncation and on division by zero (arithmetic.md 7),
+    ; so this is Go's operator with Go's semantics and carries no portability
+    ; claim at all. That is what a target-specific module is for.
+    (prim quo (int int) int expr "%s / %s" pure)
+    (prim rem (int int) int expr "%s %% %s" pure)
+
+    ; Go's predeclared constants. The core has no boolean literal
+    ; (arithmetic.md 3), so without these the only way to write `true` was
+    ; `(logic.not (int.lt 1 2))`. Declaring them is the parasite answer: Go
+    ; provides them, so the target says so.
+    (prim true  (none) bool expr "true"  pure)
+    (prim false (none) bool expr "false" pure)
+
+    ; Panic, and the two predeclared printers that need no import.
+    (prim panic   (any) any stmt "panic(%s)")
+    (prim println (any) any stmt "println(%s)"))
+
+  ; go/fmt — the one import a program needs to say anything.
+  (module go/fmt
+    (prim println (any) any stmt "fmt.Println(%s)" (import "fmt"))
+    (prim print   (any) any stmt "fmt.Print(%s)"   (import "fmt")))
 
   (module io
     (prim print-line (any) any stmt "fmt.Println(%s)" (import "fmt")))

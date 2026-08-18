@@ -1,0 +1,36 @@
+; The counted encoding on JavaScript, to check the correction is not a Go
+; artifact. Trip counts are computed; no new primitive is used.
+
+(use js/array as a)
+(use js/console as c)
+(use js/int as ji)
+(use js/math as m)
+(use num/int as int)
+(use num/f64 as f)
+
+(export main)
+
+(def isqrt (fn (n) (ji.of-f64 (m.sqrt (f.of-int n)))))
+
+(def multiples (fn (i n)
+  (let (int.mul i i) (fn (start)
+    (if (int.ge start n) 0
+      (ji.quo (int.sub (int.add n i) (int.add start 1)) i))))))
+
+(def cross-from (fn (composite i n)
+  (let (int.mul i i) (fn (start)
+    (fold-range composite (multiples i n) (fn (arr k)
+      (a.set arr (int.add start (int.mul k i)) 1.0)))))))
+
+(def sieve (fn (n)
+  (fold-range (a.of-size n 0.0) (int.sub (isqrt n) 1) (fn (arr k)
+    (let (int.add k 2) (fn (i)
+      (if (f.gt (a.at arr i) 0.0) arr (cross-from arr i n))))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (composite)
+    (fold-range 0 n (fn (acc k)
+      (if (int.lt k 2) acc
+        (if (f.gt (a.at composite k) 0.0) acc (int.add acc 1)))))))))
+
+(def main (fn () (c.log (count-primes 20000))))

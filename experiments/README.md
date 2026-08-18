@@ -20,7 +20,12 @@ may or may not have.
 
 ### What they agreed on
 
-**The loop is the problem, and it is the language's.** The same sieve, three hosts:
+**The loop is the problem, and it is the language's.** ~~The same sieve, three hosts:~~
+**Retracted** — see [loop-encoding-2026-08-18](../gauntlet/results/loop-encoding-2026-08-18.md).
+The numbers below measure the *naive encoding*. `fold-range`'s bound is an arbitrary expression, so
+a computed trip count expresses the fast sieve with no new primitive, at **1.2× on Go** and **1.73×
+on JS**. What survives is that **early exit** and **unbounded iteration** have no trip count to
+compute and remain genuinely missing.
 
 | host | hand-written | restricted to our loop shapes | generated |
 |---|---|---|---|
@@ -28,12 +33,9 @@ may or may not have.
 | JavaScript | 49.9 µs | 22,165 µs — **445×** | 12,415 µs (0.56×) |
 | Java | 20.2 µs | 21,864 µs — **1083×** | 9,573 µs (0.44×) |
 
-`fold-range` has no start, no step and no early exit, so `for j := i*i; j < n; j += i` cannot be
-said and the algorithm degrades from O(n log log n) to O(n²). **On all three hosts our emitted code
-is faster than a human writing under the same constraints**, so none of the gap is the backend.
-
-This is the largest number in the repository. It reordered
-[docs/spec/loops.md](../docs/spec/loops.md).
+Written naively the algorithm degrades to O(n²); written with a computed trip count it does not.
+**On all three hosts our emitted code is faster than a human writing under the same constraints**,
+in both encodings — so none of the gap was ever the backend.
 
 **A product type is wanted, from three directions.** `v, ok := m[k]` on Go, "found?" alongside a
 value on JS, and `fold-range2`'s two accumulators. Three independent demands for one feature.

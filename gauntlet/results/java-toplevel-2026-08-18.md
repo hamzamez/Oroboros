@@ -1,5 +1,13 @@
 # Java's top level: no collections at all, and the loop finding holds at three hosts
 
+> **⚠ SUPERSEDED HEADLINE — see [loop-encoding-2026-08-18](loop-encoding-2026-08-18.md).**
+> The measurement below is accurate; the conclusion drawn from it is not. `fold-range`'s bound is an
+> arbitrary expression, so a loop with a start and a step needs only its **trip count**, which is
+> arithmetic. Written that way the same sieve runs **at parity with idiomatic hand-written code**,
+> with no new primitive. What the numbers below measure is the cost of the *naive encoding*, not of
+> the loop primitive.
+
+
 **Result: `java.lang` has no map, no list, and nothing growable except `StringBuilder`** — every
 collection is in `java.util` and needs an import, so Java's top level is the poorest of the three by
 a wide margin. The sieve replicates a third time: **1083×** for the loop shapes, with our emitter at

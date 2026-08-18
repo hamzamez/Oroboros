@@ -1,5 +1,13 @@
 # JavaScript's top level: the loop finding replicates, and the idioms lose
 
+> **⚠ SUPERSEDED HEADLINE — see [loop-encoding-2026-08-18](loop-encoding-2026-08-18.md).**
+> The measurement below is accurate; the conclusion drawn from it is not. `fold-range`'s bound is an
+> arbitrary expression, so a loop with a start and a step needs only its **trip count**, which is
+> arithmetic. Written that way the same sieve runs **at parity with idiomatic hand-written code**,
+> with no new primitive. What the numbers below measure is the cost of the *naive encoding*, not of
+> the loop primitive.
+
+
 **Result: three things.** The loop penalty is not a Go artifact — the same sieve is **445× slower**
 on JS, and our emitted code is **0.56×** of hand-written code written under the same constraints,
 i.e. nearly twice as fast as a human so restricted. **JavaScript's higher-order array API is 3.6× to

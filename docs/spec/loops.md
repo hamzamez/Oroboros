@@ -1,24 +1,23 @@
 # Loops: candidates
 
-> **Reordered 2026-08-18 by measurement.** The
-> [go/builtin experiment](../../gauntlet/results/go-toplevel-2026-08-18.md) put a number on the
-> gap this document only described: a sieve written against Go's top level is **860× slower** than
-> hand-written Go, and hand-written Go *restricted to the loop shapes `fold-range` can express* is
-> **1117×** slower. Our emitted code is 0.77× of that restricted form — so **none of the gap is the
-> emitter and all of it is the loop.** The prize is in the loop's ITERATION SPACE — a start, a step,
-> and early exit — not in its accumulator. §6's order is updated; §5's candidates are not yet
-> changed, because the measurement sizes the prize without choosing the design.
+> **Reordered 2026-08-18 by measurement, then corrected the same day.**
 >
-> **Replicated on all three hosts.** The same sieve, against each host's top level:
+> The three top-level experiments measured a sieve at 445×–1117× against hand-written code and this
+> document concluded the loop's iteration space was the problem.
+> [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md) **retracts that
+> conclusion**: `fold-range`'s bound is an arbitrary expression, so a start and a step need only a
+> computed **trip count**. Written that way the same sieve is **1.2× on Go and 1.73× on JS** — at or
+> near parity, with no new primitive. An explicit `step` was measured at **no benefit at all**,
+> because Go's strength reduction already does it.
 >
-> | host | loop shape costs | our emitter, vs hand-written under the same constraints |
-> |---|---|---|
-> | [Go](../../gauntlet/results/go-toplevel-2026-08-18.md) | **1117×** | 0.77× |
-> | [JavaScript](../../gauntlet/results/js-toplevel-2026-08-18.md) | **445×** | 0.56× |
-> | [Java](../../gauntlet/results/java-toplevel-2026-08-18.md) | **1083×** | **0.44×** |
+> So the design question is much smaller than §5 assumed. What is genuinely missing is what has **no
+> trip count by construction**:
 >
-> Three hosts, three compilers, one cause — and on every one of them our emitted code is *faster*
-> than a person writing under the same loop constraints. **This is the language, not a host.**
+> | | |
+> |---|---|
+> | **early exit** — data-dependent stopping | measured at **2×** on a linear probe, a floor |
+> | **unbounded iteration** — `while` | not a speed question: the language is exactly primitive recursive, so this is the gap between a large class of programs and *all computation* |
+> | *start / step / reverse* | **expressible today**; a primitive would be **sugar**, argued on legibility, worth no measured speed |
 
 **Status: open question, not a decision.** Written in the mode
 [ADR 0007](../decisions/0007-exploration-over-specification.md) asks for — candidates against a
@@ -64,8 +63,8 @@ deciding between them. §5 decides.
 | `filter` | **yes**, as a push collection ([q5b](q5b-filter.md)) | |
 | two accumulators | **yes** — `fold-range2` | does not generalise |
 | **three or more accumulators** | **no** | |
-| **a loop start** — `for j := i*i` | **no** | **1117×** Go, **445×** JS, **1083×** Java |
-| **a loop step** — `j += i` | **no** | same |
+| a loop start — `for j := i*i` | **expressible**, by computing the trip count | sugar only |
+| a loop step — `j += i` | **expressible**, same way | measured worth **nothing** |
 | **early exit** — `find`, `any`, `all`, `takeWhile` | **no** | every search program |
 | **`while`** — trip count unknown at entry | **no** | convergence, streaming input |
 | **`scan`** — prefix sums | **no** | Blelloch's primitive; compaction and sort need it |
@@ -294,14 +293,14 @@ its initial accumulator. No arithmetic crosses the boundary, and no code grows.
 
 In this order, because each step is cheap and informs the next:
 
-> **Updated 2026-08-18.** The iteration space moved to the front, because it is worth 1117× and
-> everything else on this list is worth between 1.8× and 14×.
+> **Updated 2026-08-18, twice.** The iteration space went to the front on a 1117× that turned out
+> to measure an encoding rather than the primitive, and comes back off it. What is left at the front
+> is the half of that entry which was never expressible: stopping.
 
-1. **The iteration space: a start, a step, and early exit.** Not listed as a candidate above,
-   because the document was written before the number existed. `fold-range` always begins at 0,
-   always steps by 1, and always runs to its bound; a sieve therefore does O(n²) work where Go does
-   O(n log log n). Whether that is a richer `fold-range`, a `loop`/`break` expression, or `while` is
-   exactly what §5 has to decide — but it is the thing to decide *first*.
+1. **Early exit.** The one thing in the retracted entry that survives, because it is the one with no
+   trip count to compute. Buys `find`, `any`, `all`, `takeWhile` and a probe that stops on a hit;
+   costs nothing in guarantees, since a bounded loop with a `break` is still bounded. Needs a
+   specification of how the step says *stop*, and a gauntlet program that searches.
 2. **C5's cheap half.** A provably-zero-trip loop reduces to its initial value. One rule, no risk,
    and it marks the staging question without answering it.
 3. **C2 — one accumulator, product type, SROA.** §4 makes this necessary rather than optional. Its

@@ -54,13 +54,14 @@ observable. Declaring it without `pure` is not a hedge; it is the truth.
 
 Ordered by how much they cost.
 
-### 1. The loop's iteration space — **1117×**
+### 1. ~~The loop's iteration space — 1117×~~ **Retracted**
 
-`for j := i*i; j < n; j += i` has three things `fold-range` cannot say: a **start**, a **step**, and
-**early exit**. The sieve therefore visits every index and tests, turning O(n log log n) into O(n²).
+See [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md). A start and a
+step need only a computed **trip count**, which `fold-range` has always accepted, so
+[sieve_counted.oro](sieve_counted.oro) runs at **1.2×** of hand-written Go with no new primitive.
+The 1117× measured the naive encoding.
 
-This is the experiment's whole result and it belongs to [loops.md](../../docs/spec/loops.md), not
-here.
+What survives: **early exit** has no trip count to compute and is genuinely missing.
 
 ### 2. No unbounded iteration
 

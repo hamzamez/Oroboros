@@ -57,10 +57,13 @@ rather than typical cases — the table is nearly full, so a `break` saves littl
 
 ## The walls
 
-### 1. The loop's iteration space — **1083×**
+### 1. ~~The loop's iteration space — 1083×~~ **Retracted**
 
-Third replication. Go 1117×, JavaScript 445×, Java 1083×. Same missing start, step and early exit;
-same collapse to O(n²).
+See [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md). All three
+numbers measured the naive encoding; a computed trip count reaches parity with no new primitive.
+The counted sieve was written for Go and JavaScript, not ported here.
+
+What survives: **early exit** — and [tally.oro](tally.oro)'s 2× is a measurement of exactly that.
 
 On all three hosts our emitted code is **faster** than hand-written code written under the same loop
 constraints — 0.77×, 0.56×, **0.44×** here, the best of the three.

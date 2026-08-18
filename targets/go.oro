@@ -180,6 +180,13 @@
     (prim quo (int int) int expr "%s / %s" pure)
     (prim rem (int int) int expr "%s %% %s" pure)
 
+    ; f64 -> int. Absent from num/f64 because it needs a rounding DECISION and
+    ; the three hosts differ; here it is simply Go's conversion, which truncates
+    ; toward zero, with no portability claim. The sieve is the first program to
+    ; ask (loops.md), and asking in a target module is how a non-portable need
+    ; gets met without pushing a decision into the core.
+    (prim trunc-int (f64) int expr "int64(%s)" pure)
+
     ; Go's predeclared constants. The core has no boolean literal
     ; (arithmetic.md 3), so without these the only way to write `true` was
     ; `(logic.not (int.lt 1 2))`. Declaring them is the parasite answer: Go

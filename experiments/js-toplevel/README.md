@@ -59,13 +59,13 @@ the case that kills the tempting "expr means pure" heuristic
 
 ## The walls
 
-### 1. The loop's iteration space — **445×**
+### 1. ~~The loop's iteration space — 445×~~ **Retracted**
 
-The same wall as Go, replicated: no start, no step, no early exit. The sieve degrades from
-O(n log log n) to O(n²) here too. Go measured 1117×; JS measures 445×, the difference being that
-idiomatic JS is slower to begin with.
+See [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md).
+[sieve_counted.oro](sieve_counted.oro) uses a computed trip count and runs at **1.73×** of
+hand-written JS with no new primitive. The 445× measured the naive encoding, on both hosts.
 
-Two hosts is the point. **This is the language, not a host.**
+What survives: **early exit**, which has no trip count.
 
 ### 2. The higher-order API is unreachable — and that is fine
 

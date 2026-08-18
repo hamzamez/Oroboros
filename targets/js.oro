@@ -126,7 +126,12 @@
   ; `%`. Not portable, hence not in num/int.
   (module js/int
     (prim quo (int int) int expr "Math.trunc(%s / %s)" pure)
-    (prim rem (int int) int expr "(%s %% %s)"          pure))
+    (prim rem (int int) int expr "(%s %% %s)"          pure)
+    ; f64 -> int. Absent from num/f64 because it needs a rounding DECISION the
+    ; hosts do not share; here it is simply truncation toward zero, with no
+    ; portability claim. A JS Number is already the representation, so this
+    ; costs nothing at runtime.
+    (prim of-f64 (f64) int expr "Math.trunc(%s)" pure))
 
   ; Arrays. The receiver goes in the first hole.
   (module js/array

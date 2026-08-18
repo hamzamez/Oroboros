@@ -1,5 +1,13 @@
 # Go's top level, and the 1117× the loop primitive costs
 
+> **⚠ SUPERSEDED HEADLINE — see [loop-encoding-2026-08-18](loop-encoding-2026-08-18.md).**
+> The measurement below is accurate; the conclusion drawn from it is not. `fold-range`'s bound is an
+> arbitrary expression, so a loop with a start and a step needs only its **trip count**, which is
+> arithmetic. Written that way the same sieve runs **at parity with idiomatic hand-written code**,
+> with no new primitive. What the numbers below measure is the cost of the *naive encoding*, not of
+> the loop primitive.
+
+
 **Result: the emitter is at parity and the *loop* is three orders of magnitude off.** A Sieve of
 Eratosthenes written against Go's predeclared identifiers produces a correct answer 860× slower than
 hand-written Go — and hand-written Go **restricted to the loop shapes Oroboros can express** is

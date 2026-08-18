@@ -1,0 +1,17 @@
+package main
+
+import "testing"
+
+var arr = func() []float64 {
+	a := make([]float64, 100000)
+	for i := range a {
+		a[i] = float64(i)
+	}
+	return a
+}()
+
+var sink int64
+
+func BenchmarkHand(b *testing.B)  { for i := 0; i < b.N; i++ { sink = handFindFirst(arr, 5) } }
+func BenchmarkGen(b *testing.B)   { for i := 0; i < b.N; i++ { sink = genFindFirst(arr, 5) } }
+func BenchmarkToday(b *testing.B) { for i := 0; i < b.N; i++ { sink = todayFindFirst(arr, 5) } }

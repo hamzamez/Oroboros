@@ -1,0 +1,60 @@
+package main
+
+import "fmt"
+
+// The shape a `fold-while` primitive would emit: the host's own `for` with a
+// condition. Nothing exotic — Go, JS and Java all spell this the same way.
+func genFindFirst(a []float64, k float64) int64 {
+	found := int64(-1)
+	for i := int64(0); i < int64(len(a)) && found < 0; i++ {
+		if a[i] > k {
+			found = i
+		}
+	}
+	return found
+}
+
+// Idiomatic Go, with break.
+func handFindFirst(a []float64, k float64) int64 {
+	for i := 0; i < len(a); i++ {
+		if a[i] > k {
+			return int64(i)
+		}
+	}
+	return -1
+}
+
+// And the shape available TODAY: no early exit, scan everything.
+func todayFindFirst(a []float64, k float64) int64 {
+	found := int64(-1)
+	for i := int64(0); i < int64(len(a)); i++ {
+		if a[i] > k && found < 0 {
+			found = i
+		}
+	}
+	return found
+}
+
+// Unbounded: convergence. No trip count exists.
+func genSqrtNewton(x float64) float64 {
+	g := x
+	for i := int64(0); abs(g*g-x) > 1e-12; i++ {
+		g = (g + x/g) / 2
+	}
+	return g
+}
+func abs(v float64) float64 {
+	if v < 0 {
+		return -v
+	}
+	return v
+}
+
+func main() {
+	a := make([]float64, 100000)
+	for i := range a {
+		a[i] = float64(i)
+	}
+	fmt.Println(genFindFirst(a, 5), handFindFirst(a, 5), todayFindFirst(a, 5))
+	fmt.Printf("%.6f\n", genSqrtNewton(2))
+}

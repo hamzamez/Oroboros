@@ -5,7 +5,7 @@ public final class GenDot {
 		double acc = 0.0;
 		final int n1 = (p.length);
 		for (int i = 0; i < n1; i++) {
-			acc = (acc + ((p[i]) * (q[i])));
+			acc = (acc + ((p[(int) i]) * (q[(int) i])));
 		}
 		return acc;
 	}

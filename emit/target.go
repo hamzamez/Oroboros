@@ -69,6 +69,10 @@ type Target struct {
 // Kinds that the emitter implements in code rather than from a template.
 var structuralKinds = map[string]bool{
 	"loop": true, "loop2": true, "cond": true, "let": true, "build": true,
+	// `iterate` is (loop (fn (x…) body) z…) — docs/spec/iteration.md. The kind
+	// name differs from the primitive name because `loop` was already taken as
+	// the kind of `fold-range`.
+	"iterate": true,
 }
 
 func LoadTarget(path string) (*Target, error) {
@@ -276,7 +280,7 @@ func parseStructural(f *core.Term, path string) (Prim, error) {
 	p := Prim{Name: k[0].Name, Kind: k[1].Name}
 	if !structuralKinds[p.Kind] {
 		return Prim{}, fmt.Errorf("%s: %s has kind %q, which is not structural "+
-			"(let, cond, loop, loop2, build)", path, p.Name, p.Kind)
+			"(let, cond, loop, loop2, build, iterate)", path, p.Name, p.Kind)
 	}
 	for _, rest := range k[2:] {
 		if rest.Kind == core.KName && rest.Name == "pure" {
@@ -517,4 +521,55 @@ func openFresh(t *core.Term, taken map[string]bool, mangle func(string) string) 
 		args[i] = core.Name(cand)
 	}
 	return t.OpenWith(args), raw, out
+}
+
+// changedArgs reports which `again` arguments are not the loop variable itself.
+//
+// hamza's optimisation: an unchanged variable needs no assignment at all, which
+// removes noise from the output AND shrinks the simultaneity problem, since an
+// unchanged variable cannot be clobbered by another.
+func changedArgs(as []*core.Term, raw []string) []int {
+	var out []int
+	for i, a := range as {
+		if a.Kind == core.KName && a.Name == raw[i] {
+			continue
+		}
+		out = append(out, i)
+	}
+	return out
+}
+
+// needTemps reports whether the simultaneous update needs temporaries: only if
+// some changed argument READS a variable that is itself being changed. Go has
+// parallel assignment and never asks; JS and Java do.
+func needTemps(as []*core.Term, raw []string, changed []int) bool {
+	if len(changed) < 2 {
+		return false
+	}
+	set := map[string]bool{}
+	for _, i := range changed {
+		set[raw[i]] = true
+	}
+	for _, i := range changed {
+		if readsAny(as[i], set) {
+			return true
+		}
+	}
+	return false
+}
+
+func readsAny(t *core.Term, names map[string]bool) bool {
+	switch t.Kind {
+	case core.KName:
+		return names[t.Name]
+	case core.KFn:
+		return readsAny(t.Body(), names)
+	case core.KApp:
+		for _, k := range t.Kids {
+			if readsAny(k, names) {
+				return true
+			}
+		}
+	}
+	return false
 }

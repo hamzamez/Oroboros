@@ -30,7 +30,8 @@
     (prim gt  (f64 f64) bool expr "%s > %s"  pure)
     (prim ge  (f64 f64) bool expr "%s >= %s" pure)
     (prim eq  (f64 f64) bool expr "%s === %s" pure)
-    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure))
+    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
+    (prim abs  (f64) f64 expr "Math.abs(%s)"  pure))
 
   ; A JS Number IS the representation: nothing is emulated and nothing coerced.
   ; The portable range stops at 2^53 because of this target, not despite it
@@ -207,5 +208,6 @@
   (structural make-vec    build pure)
   (structural let         let   pure)
   (structural if          cond  pure)
+  (structural loop        iterate pure)
   (structural fold-range  loop  pure)
   (structural fold-range2 loop2 pure))

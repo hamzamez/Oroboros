@@ -5,7 +5,7 @@ public final class GenNorm {
 		double acc = 0.0;
 		final int n1 = (a.length);
 		for (int i = 0; i < n1; i++) {
-			final double x = (a[i]);
+			final double x = (a[(int) i]);
 			acc = (acc + (x * x));
 		}
 		return (Math.sqrt(acc));

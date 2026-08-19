@@ -331,3 +331,13 @@ func obligation(t *core.Term) ([]*linear, bool) {
 	}
 	return nil, false
 }
+
+// constantValue reports the value of a linear expression with no variables.
+func (l *linear) constantValue() (int64, bool) {
+	for _, c := range l.coef {
+		if c != 0 {
+			return 0, false
+		}
+	}
+	return l.konst, true
+}

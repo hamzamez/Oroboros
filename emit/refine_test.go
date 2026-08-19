@@ -127,3 +127,36 @@ func TestOpaqueAssumptionIsKept(t *testing.T) {
 		t.Errorf("the diagnostic must report what was assumed; got %v", err)
 	}
 }
+
+// iteration.md §6: a loop's guard is written down, so the refinement checker
+// gets `0 <= i` and `i < alen a` from the clauses themselves — MORE than
+// fold-range offers, where the bound is implied by the primitive.
+func TestLoopGuardsDischargeBounds(t *testing.T) {
+	if err := refineSrc(t, `
+		(use num/f64 as f)
+		(use num/int as int)
+		(export find)
+		(sig find ((a vec-f64) (k f64)) int)
+		(def find (fn (a k)
+		  (loop ((i 0))
+		    (int.ge i (alen a))    -1
+		    (f.gt (aindex a i) k)  i
+		    else                   (again (int.add i 1)))))
+	`); err != nil {
+		t.Errorf("a loop's own guards should prove its index in bounds: %v", err)
+	}
+	// And without the range guard it must NOT be discharged.
+	err := refineSrc(t, `
+		(use num/f64 as f)
+		(use num/int as int)
+		(export find)
+		(sig find ((a vec-f64) (k f64)) int)
+		(def find (fn (a k)
+		  (loop ((i 0))
+		    (f.gt (aindex a i) k)  i
+		    else                   (again (int.add i 1)))))
+	`)
+	if err == nil {
+		t.Error("with no range guard the index is unproven and must be reported")
+	}
+}

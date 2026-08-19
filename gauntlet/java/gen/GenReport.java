@@ -8,7 +8,7 @@ public final class GenReport {
 		double acc = 0.0;
 		final int n2 = (xs.length);
 		for (int i = 0; i < n2; i++) {
-			acc = (acc + ((xs[i]) * (xs[i])));
+			acc = (acc + ((xs[(int) i]) * (xs[(int) i])));
 		}
 		System.out.println(acc);
 		return acc;

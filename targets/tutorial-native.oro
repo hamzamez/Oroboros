@@ -52,4 +52,5 @@
 
   (structural let        let  pure)
   (structural if         cond pure)
+  (structural loop        iterate pure)
   (structural fold-range loop pure))

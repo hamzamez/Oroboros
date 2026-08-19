@@ -5,7 +5,7 @@ public final class GenFilter {
 		double acc = 0.0;
 		final int n1 = (a.length);
 		for (int i = 0; i < n1; i++) {
-			final double x = (a[i]);
+			final double x = (a[(int) i]);
 			acc = ((x > 0.0) ? (acc + x) : acc);
 		}
 		return acc;

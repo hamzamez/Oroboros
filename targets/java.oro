@@ -37,7 +37,8 @@
     (prim gt  (f64 f64) bool expr "%s > %s"  pure)
     (prim ge  (f64 f64) bool expr "%s >= %s" pure)
     (prim eq  (f64 f64) bool expr "%s == %s" pure)
-    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure))
+    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
+    (prim abs  (f64) f64 expr "Math.abs(%s)"  pure))
 
   ; long, never int: Java's int wraps at 2^31, INSIDE the portable range
   ; (arithmetic.md §4). Declaring it would be a silent miscompilation.
@@ -64,7 +65,12 @@
     (prim not (bool)      bool expr "!%s"      pure))
 
   (prim alen   (vec-f64) int      expr "%s.length" pure)
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]"    pure)
+  ; Java array indices are int, not long. This template said `%s[%s]` and
+  ; compiled only because fold-range happens to declare its index variable
+  ; as int; a `loop` variable is our `int`, which is long, and the same
+  ; template then fails to compile. The cast is free at run time.
+  (prim aindex ((v vec-f64) (i int)) f64 expr "%s[(int) %s]" pure index
+    (where (logic.and (int.le 0 i) (int.lt i (alen v)))))
 
   (prim slen        (vec-string) int        expr "%s.length" pure)
   (prim sat         (vec-string int) string expr "%s[%s]"    pure)
@@ -195,5 +201,6 @@
   (structural make-vec    build pure)
   (structural let         let   pure)
   (structural if          cond  pure)
+  (structural loop        iterate pure)
   (structural fold-range  loop  pure)
   (structural fold-range2 loop2 pure))

@@ -60,6 +60,7 @@ recording alternatives that were considered and rejected.
 | `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
 | Accept the allocation price, provisionally | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
+| `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -150,6 +151,13 @@ now an error, checked per-target before reduction by `Env.CheckProgram`. Emittin
 first construct that looks Tier 1 and is not — stack depth differs by orders of magnitude across
 Go, the JVM and JS, and none of them guarantees tail calls. Iteration is `fold-range`. **TCO is
 moot** until a while-shaped loop primitive exists, which is also recursion's own prerequisite.
+
+**Iteration is `fold-range` and `loop`** — [ADR 0015](docs/decisions/0015-loop-and-again.md).
+`(loop ((x z)…) c e … else e)` with `(again a…)` gives n loop variables with **no product**, early
+exit at parity with hand-written code, and unbounded iteration. `again` may be a clause body or sit
+under a `let`, never under an `if` — *let binds, if branches* — so the clause list is the loop's
+whole control flow. `again` is a jump, not a call, so ADR 0014 stands. **Termination is now a
+program property**, computed like portability, not a language guarantee.
 
 **Never add unstructured control flow.** Structured only: `if`, `loop`, `break n`, `return`.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot

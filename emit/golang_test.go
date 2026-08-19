@@ -236,3 +236,62 @@ func TestNestedBindersDoNotShadow(t *testing.T) {
 		t.Errorf("integer accumulator must be int64:\n%s", code)
 	}
 }
+
+// docs/spec/iteration.md. `loop` with `again`: n variables, early exit, and
+// unbounded iteration, emitted as the host's own `for`.
+func TestLoopEmitsHostFor(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use num/f64 as f)
+		(use num/int as int)
+		(fn (a k)
+		  (loop ((i 0))
+		    (int.ge i (alen a))    -1
+		    (f.gt (aindex a i) k)  i
+		    else                   (again (int.add i 1))))
+	`, "go")
+	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "vec-f64"},
+		{Name: "k", Type: "f64"}}, Result: "int"}
+	code, err := Func(tg, "find", sig, nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	for _, want := range []string{"for {", "r1 = -1", "break", "i = (i + 1)", "continue"} {
+		if !strings.Contains(code, want) {
+			t.Errorf("missing %q:\n%s", want, code)
+		}
+	}
+	// The loop must not become a fold: no counted header.
+	if strings.Contains(code, "for i := int64(0);") {
+		t.Errorf("a loop is not a fold-range:\n%s", code)
+	}
+}
+
+// hamza's optimisation: an `again` argument that IS the loop variable needs no
+// assignment, and on Go the changed ones need no temporaries either.
+func TestLoopSkipsUnchangedArguments(t *testing.T) {
+	tg := goTarget(t)
+	nf := reduce(t, `
+		(use num/f64 as f)
+		(use num/int as int)
+		(fn (a)
+		  (loop ((best 0.0) (i 0))
+		    (int.ge i (alen a))         best
+		    (f.gt (aindex a i) best)    (again (aindex a i) (int.add i 1))
+		    else                        (again best (int.add i 1))))
+	`, "go")
+	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "vec-f64"}}, Result: "f64"}
+	code, err := Func(tg, "best", sig, nf)
+	if err != nil {
+		t.Fatalf("emit: %v", err)
+	}
+	if strings.Contains(code, "best, i = best,") {
+		t.Errorf("unchanged variable was reassigned:\n%s", code)
+	}
+	if !strings.Contains(code, "best, i = (a[i]), (i + 1)") {
+		t.Errorf("changed variables should use Go's parallel assignment:\n%s", code)
+	}
+	if !strings.Contains(code, "i = (i + 1)\n") {
+		t.Errorf("the skip path should assign only i:\n%s", code)
+	}
+}

@@ -81,7 +81,7 @@ Removed 2026-08-14 after the addition of target files made it dead:
 | Extensionality | none — η |
 | Effect *types* | none. Purity is one declared bit per primitive; g5's ordering discipline is a side condition on β ([effects.md](effects.md)) |
 | Modules | **scopes, resolution, imports, exports, and files** ([modules.md](modules.md)); emitted functions are named after their export. Not yet: a target as a directory |
-| Unbounded iteration | **absent** — the language is exactly primitive recursive. [iteration.md](iteration.md) proposes `loop`/`again` to close it, and to retire `fold-range2` with it |
+| Unbounded iteration | **built** — `loop`/`again` ([ADR 0015](../decisions/0015-loop-and-again.md)). The language is no longer primitive recursive, and termination is a computed program property |
 | Recursion | **rejected**, per-target, before reduction ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). The `def`/`rec` split is withdrawn with it — nothing is left to opt into ([def.md §3](def.md)) |
 | Tail-call optimisation | not guaranteed, and moot: no target provides it and there is no recursion to optimise ([def.md §10](def.md)) |
 | Escaping closures | all three backends refuse them |

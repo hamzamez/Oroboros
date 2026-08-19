@@ -1,0 +1,8 @@
+(use num/f64 as f)
+(export sqrt-newton)
+(sig sqrt-newton ((x f64)) f64)
+; No trip count exists: the number of steps depends on x.
+(def sqrt-newton (fn (x)
+  (loop ((g x))
+    (f.le (f.abs (f.sub (f.mul g g) x)) 1e-12)  g
+    else                                        (again (f.div (f.add g (f.div x g)) 2.0)))))

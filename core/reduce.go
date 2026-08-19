@@ -1000,6 +1000,31 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 		}
 		return e.scope(t.Body(), inner, where)
 	}
+	// `again` is bound by the enclosing loop, and only there. The reader has
+	// already checked its arity and position (iteration.md §2); this is the
+	// scope half, so an `again` outside any loop is reported like any other
+	// unbound name rather than reaching the emitter.
+	if t.Kind == KApp && t.Op().Kind == KName && t.Op().Name == "loop" && len(t.Args()) >= 1 {
+		if lam := t.Args()[0]; lam.Kind == KFn {
+			inner := make(map[string]bool, len(bound)+len(lam.Params)+1)
+			for k := range bound {
+				inner[k] = true
+			}
+			for _, p := range lam.Params {
+				inner[p] = true
+			}
+			inner["again"] = true
+			if err := e.scope(lam.Body(), inner, where); err != nil {
+				return err
+			}
+			for _, a := range t.Args()[1:] {
+				if err := e.scope(a, bound, where); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}
 	for _, k := range t.Kids {
 		if err := e.scope(k, bound, where); err != nil {
 			return err

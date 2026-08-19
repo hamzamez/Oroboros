@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 )
@@ -140,6 +141,8 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			}
 		case "let":
 			return r.let(args, f)
+		case "iterate":
+			return r.iterate(args, f)
 		}
 	}
 
@@ -235,4 +238,131 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) er
 		}
 	}
 	return nil
+}
+
+// iterate collects facts from a loop's guards — docs/spec/iteration.md §6.
+//
+// This is the half of the design that GAINS over fold-range. A fold's bound is
+// implied by the primitive, and the checker has to know the convention; a
+// loop's is written down as a guard, so inside a clause the guard simply holds.
+// Ordinary Hoare logic, and the loop variables are bound to their initial
+// values on entry, which is what makes `(int.lt i (alen a))` usable at all.
+func (r *refiner) iterate(args []*core.Term, f *facts) error {
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return nil
+	}
+	lam := args[0]
+	inits := args[1:]
+	for _, z := range inits {
+		if err := r.walk(z, f); err != nil {
+			return err
+		}
+	}
+	g := f.clone()
+	// On entry each variable equals its initial value. That is sound for the
+	// FIRST iteration only, so it is deliberately not assumed: what is assumed
+	// is only what every iteration guarantees — the guard of the clause being
+	// entered, below — plus 0 <= i for any variable whose every `again`
+	// argument is itself plus a non-negative literal.
+	for i, n := range lam.Params {
+		if i < len(inits) {
+			if e, ok := asLinear(inits[i]); ok {
+				if c, isConst := e.constantValue(); isConst && c >= 0 && nonDecreasing(lam.Body(), i, n) {
+					g.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n)
+				}
+			}
+		}
+	}
+	return r.clauses(lam.Body(), g)
+}
+
+// clauses walks the if-chain, assuming each guard inside its own branch.
+func (r *refiner) clauses(t *core.Term, f *facts) error {
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := r.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
+			args := t.Args()
+			if err := r.walk(args[0], f); err != nil {
+				return err
+			}
+			taken := f.clone()
+			assume(taken, args[0])
+			if err := r.clauses(args[1], taken); err != nil {
+				return err
+			}
+			// The other half of Hoare logic, and the half that matters here:
+			// reaching a later clause means every earlier guard was FALSE. That
+			// is where `i < alen a` comes from in a search whose first clause is
+			// `(int.ge i (alen a))`.
+			missed := f.clone()
+			if n := negate(args[0]); n != nil {
+				assume(missed, n)
+			}
+			return r.clauses(args[2], missed)
+		}
+	}
+	return r.walk(t, f)
+}
+
+// nonDecreasing reports whether loop variable i is only ever advanced by a
+// non-negative amount — `(again … (int.add i k) …)` with k >= 0, or unchanged.
+// That is what licenses `0 <= i` from a non-negative initial value.
+func nonDecreasing(t *core.Term, i int, name string) bool {
+	ok := true
+	var walk func(*core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || !ok {
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "again" {
+			as := t.Args()
+			if i >= len(as) {
+				ok = false
+				return
+			}
+			a := as[i]
+			if a.Kind == core.KName && a.Name == name {
+				return // unchanged
+			}
+			if a.Kind == core.KApp && a.Op().Kind == core.KName && isOp(a.Op().Name, "add") &&
+				len(a.Args()) == 2 && a.Args()[0].Kind == core.KName && a.Args()[0].Name == name {
+				if k, isLit := asLinear(a.Args()[1]); isLit {
+					if c, isConst := k.constantValue(); isConst && c >= 0 {
+						return
+					}
+				}
+			}
+			ok = false
+			return
+		}
+		switch t.Kind {
+		case core.KFn:
+			walk(t.Body())
+		case core.KApp:
+			for _, k := range t.Kids {
+				walk(k)
+			}
+		}
+	}
+	walk(t)
+	return ok
+}
+
+// negate turns a comparison into its opposite, or reports that it cannot.
+// Only the comparison atoms are negated: `not (and p q)` is a disjunction and
+// the fragment has none, so it is dropped rather than approximated.
+func negate(t *core.Term) *core.Term {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return nil
+	}
+	name := t.Op().Name
+	pre := ""
+	if i := strings.LastIndex(name, "."); i >= 0 {
+		pre, name = name[:i+1], name[i+1:]
+	}
+	opp := map[string]string{"lt": "ge", "ge": "lt", "le": "gt", "gt": "le"}[name]
+	if opp == "" {
+		return nil
+	}
+	return &core.Term{Kind: core.KApp, Kids: []*core.Term{
+		core.Name(pre + opp), t.Args()[0], t.Args()[1]}}
 }

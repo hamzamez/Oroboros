@@ -154,6 +154,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		if p.Kind == "build" {
 			return e.emitMakeVec(t)
 		}
+		if p.Kind == "iterate" {
+			return e.emitLoop(t)
+		}
 		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
 		}
@@ -426,4 +429,110 @@ func (e *jsEmitter) emitMakeVec(t *core.Term) (string, error) {
 	e.indent--
 	e.line("}")
 	return dst, nil
+}
+
+// ---------------------------------------------------------------- loop
+//
+// (loop (fn (x…) body) z…) — docs/spec/iteration.md. Identical in shape to the
+// Go emitter, minus the types, plus temporaries: JavaScript has no parallel
+// assignment, so a simultaneous update needs them — the same ones fold-range2
+// already emits, and measured free.
+
+func (e *jsEmitter) emitLoop(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
+	}
+	lam := args[0]
+	inits := args[1:]
+	if len(lam.Params) != len(inits) {
+		return "", fmt.Errorf("loop has %d variable(s) and %d initial value(s)",
+			len(lam.Params), len(inits))
+	}
+	vals := make([]string, len(inits))
+	for i, z := range inits {
+		v, err := e.emit(z)
+		if err != nil {
+			return "", err
+		}
+		vals[i] = v
+	}
+	body, raw, names := openFresh(lam, e.bound, jsMangle)
+	for i := range names {
+		e.line("let %s = %s;", names[i], vals[i])
+	}
+	result := e.fresh("r")
+	e.line("let %s;", result)
+	e.line("for (;;) {")
+	e.indent++
+	if err := e.emitLoopBody(body, raw, names, result); err != nil {
+		return "", err
+	}
+	e.indent--
+	e.line("}")
+	return result, nil
+}
+
+func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result string) error {
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
+			cond, err := e.emit(t.Args()[0])
+			if err != nil {
+				return err
+			}
+			e.line("if (%s) {", cond)
+			e.indent++
+			if err := e.emitLoopBody(t.Args()[1], raw, names, result); err != nil {
+				return err
+			}
+			e.indent--
+			e.line("}")
+			return e.emitLoopBody(t.Args()[2], raw, names, result)
+		}
+	}
+	if isAgain(t) {
+		return e.emitAgain(t, raw, names)
+	}
+	v, err := e.emit(t)
+	if err != nil {
+		return err
+	}
+	e.line("%s = %s;", result, v)
+	e.line("break;")
+	return nil
+}
+
+// emitAgain: skip unchanged variables, and use temporaries only when a changed
+// one is read by another changed one — otherwise sequential assignment is
+// already simultaneous.
+func (e *jsEmitter) emitAgain(t *core.Term, raw, names []string) error {
+	as := t.Args()
+	if len(as) != len(names) {
+		return fmt.Errorf("again takes %d argument(s), given %d", len(names), len(as))
+	}
+	changed := changedArgs(as, raw)
+	vals := make(map[int]string, len(changed))
+	for _, i := range changed {
+		v, err := e.emit(as[i])
+		if err != nil {
+			return err
+		}
+		vals[i] = v
+	}
+	if needTemps(as, raw, changed) {
+		tmp := make(map[int]string, len(changed))
+		for _, i := range changed {
+			tmp[i] = e.fresh("u")
+			e.line("const %s = %s;", tmp[i], vals[i])
+		}
+		for _, i := range changed {
+			e.line("%s = %s;", names[i], tmp[i])
+		}
+	} else {
+		for _, i := range changed {
+			e.line("%s = %s;", names[i], vals[i])
+		}
+	}
+	e.line("continue;")
+	return nil
 }

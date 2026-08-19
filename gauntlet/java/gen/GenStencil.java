@@ -5,7 +5,7 @@ public final class GenStencil {
 		double acc = 0.0;
 		final int n1 = ((a.length) - 2);
 		for (int j = 0; j < n1; j++) {
-			acc = (acc + (((a[j]) + (a[(j + 1)])) + (a[(j + 2)])));
+			acc = (acc + (((a[(int) j]) + (a[(int) (j + 1)])) + (a[(int) (j + 2)])));
 		}
 		return acc;
 	}

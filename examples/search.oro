@@ -1,0 +1,9 @@
+(use num/f64 as f)
+(use num/int as int)
+(export find-first)
+(sig find-first ((a vec-f64) (k f64)) int)
+(def find-first (fn (a k)
+  (loop ((i 0))
+    (int.ge i (alen a))    -1
+    (f.gt (aindex a i) k)  i
+    else                   (again (int.add i 1)))))

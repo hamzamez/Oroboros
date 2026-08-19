@@ -5,7 +5,7 @@ public final class GenCentroid {
 		double ax = 0.0, ay = 0.0;
 		final int n1 = (xs.length);
 		for (int i = 0; i < n1; i++) {
-			final double u2 = (ax + (xs[i])), u3 = (ay + (ys[i]));
+			final double u2 = (ax + (xs[(int) i])), u3 = (ay + (ys[(int) i]));
 			ax = u2; ay = u3;
 		}
 		return (ax + ay);

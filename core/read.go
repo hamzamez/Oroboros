@@ -323,6 +323,25 @@ func (r *reader) list() (*Term, error) {
 		return t, nil
 	}
 
+	// (loop ((x z)…) c e … else e) — docs/spec/iteration.md.
+	//
+	//   (loop ((acc 0.0) (i 0))
+	//     (int.lt i n)  (again (f.add acc (aindex a i)) (int.add i 1))
+	//     else          acc)
+	//
+	// desugars to
+	//
+	//   (loop (fn (acc i) (if (int.lt i n) (again …) acc)) 0.0 0)
+	//
+	// The binders are an ordinary `fn`, so the locally nameless representation,
+	// capture-avoidance and the emitter's openFresh all work unchanged — the
+	// same move `let` makes. The clause chain is ordinary `if`s, so reduction
+	// needs no new rule either. What is left needing new machinery is exactly
+	// one head, `loop`, and one marker, `again`.
+	if kids[0].Kind == KName && kids[0].Name == "loop" {
+		return readLoop(kids, line)
+	}
+
 	// (fn (p...) body) is the only special form inside a term.
 	if kids[0].Kind == KName && (kids[0].Name == "fn" || kids[0].Name == "λ") {
 		if len(kids) != 3 {
@@ -561,4 +580,129 @@ func nameList(ts []*Term) ([]string, error) {
 		out = append(out, t.Name)
 	}
 	return out, nil
+}
+
+// readLoop desugars the surface loop form. See iteration.md §2.
+//
+// The clause-body restriction is checked HERE, before desugaring, because
+// afterwards a clause body and an `if` branch are the same thing. That is what
+// keeps the clause list the loop's complete control flow: `again` may be a
+// clause body or sit under a `let`, but never under an `if`.
+func readLoop(kids []*Term, line int) (*Term, error) {
+	if len(kids) < 4 {
+		return nil, fmt.Errorf("line %d: loop takes a binding list and at least one "+
+			"clause ending in `else`", line)
+	}
+	names, inits, err := loopBindings(kids[1], line)
+	if err != nil {
+		return nil, err
+	}
+	clauses := kids[2:]
+	if len(clauses)%2 != 0 {
+		return nil, fmt.Errorf("line %d: loop clauses come in pairs — a condition and a "+
+			"result — and the last condition must be `else`", line)
+	}
+	last := clauses[len(clauses)-2]
+	if last.Kind != KName || last.Name != "else" {
+		return nil, fmt.Errorf("line %d: a loop's last clause must be `else`, so that every "+
+			"path out of the loop is written down; got %s", line, last)
+	}
+	for i := 0; i < len(clauses); i += 2 {
+		if i < len(clauses)-2 && clauses[i].Kind == KName && clauses[i].Name == "else" {
+			return nil, fmt.Errorf("line %d: `else` must be the last clause; the ones after "+
+				"it could never be reached", line)
+		}
+		if err := checkClauseBody(clauses[i+1], len(names), line); err != nil {
+			return nil, err
+		}
+	}
+
+	// Fold the clauses into an if-chain, right to left. The `else` body is the
+	// chain's tail, so no condition is emitted for it.
+	body := clauses[len(clauses)-1]
+	for i := len(clauses) - 4; i >= 0; i -= 2 {
+		body = &Term{Kind: KApp, Kids: []*Term{Name("if"), clauses[i], clauses[i+1], body}}
+	}
+	out := []*Term{Name("loop"), Fn(names, body)}
+	return &Term{Kind: KApp, Kids: append(out, inits...)}, nil
+}
+
+// loopBindings reads ((x z) (y w)) into names and initial values.
+func loopBindings(t *Term, line int) ([]string, []*Term, error) {
+	if t.Kind != KApp {
+		return nil, nil, fmt.Errorf("line %d: a loop's bindings are a list of (name init), "+
+			"got %s", line, t)
+	}
+	var names []string
+	var inits []*Term
+	seen := map[string]bool{}
+	for _, b := range t.Kids {
+		if b.Kind != KApp || len(b.Kids) != 2 || b.Kids[0].Kind != KName {
+			return nil, nil, fmt.Errorf("line %d: a loop binding is (name init), got %s", line, b)
+		}
+		n := b.Kids[0].Name
+		switch {
+		case n == "again" || n == "else":
+			return nil, nil, fmt.Errorf("line %d: %s is reserved by `loop` and cannot be a "+
+				"loop variable", line, n)
+		case strings.Contains(n, "."):
+			return nil, nil, fmt.Errorf("line %d: %s cannot be a loop variable; a binder is a "+
+				"simple name, and `.` qualifies a module member", line, n)
+		case seen[n]:
+			return nil, nil, fmt.Errorf("line %d: loop binds %s twice", line, n)
+		}
+		seen[n] = true
+		names = append(names, n)
+		inits = append(inits, b.Kids[1])
+	}
+	if len(names) == 0 {
+		return nil, nil, fmt.Errorf("line %d: a loop needs at least one variable", line)
+	}
+	return names, inits, nil
+}
+
+// checkClauseBody enforces iteration.md §2: `again` may be the whole of a clause
+// body, or sit under a `let`, but never under an `if` or as an argument.
+//
+//	let binds; if branches. Binding may wrap an `again`, branching may not.
+func checkClauseBody(t *Term, arity, line int) error {
+	if isAgain(t) {
+		if got := len(t.Kids) - 1; got != arity {
+			return fmt.Errorf("line %d: again takes %d argument(s), one per loop variable, "+
+				"given %d", line, arity, got)
+		}
+		return nil
+	}
+	// (let e (fn (x) k)) has already been desugared to ((fn (x) k) e).
+	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 {
+		if err := checkClauseBody(t.Kids[0].Body(), arity, line); err != nil {
+			return err
+		}
+		return noAgain(t.Kids[1], line)
+	}
+	return noAgain(t, line)
+}
+
+func isAgain(t *Term) bool {
+	return t.Kind == KApp && t.Kids[0].Kind == KName && t.Kids[0].Name == "again"
+}
+
+// noAgain rejects `again` anywhere inside a term that is not a tail position.
+func noAgain(t *Term, line int) error {
+	if isAgain(t) {
+		return fmt.Errorf("line %d: `again` may be a clause body, or sit under a `let`, but "+
+			"not under an `if` or inside an expression — write another clause instead, so "+
+			"the clause list stays the loop's whole control flow", line)
+	}
+	switch t.Kind {
+	case KFn:
+		return noAgain(t.Body(), line)
+	case KApp:
+		for _, k := range t.Kids {
+			if err := noAgain(k, line); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

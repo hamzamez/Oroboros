@@ -1,6 +1,13 @@
 # Iteration: `loop` and `again`
 
-**Status: proposed, not built.** Written before the code, per [state.md §6](state.md). The research
+> **BUILT, 2026-08-19 — [ADR 0015](../decisions/0015-loop-and-again.md).** All three backends,
+> the type checker, and the refinement checker. Measured at parity with the best hand-written
+> code on Go and JS; every existing generated file unchanged. §6's trip-count question was
+> settled by measurement rather than by choosing: `fold-range` stays, because it is 2.7% ahead on
+> compute-bound `dot` — far below the 1.96× predicted, because a loop's guard is itself a proof
+> the host can use.
+
+**Status: built.** Written before the code, per [state.md §6](state.md). The research
 record is [loops.md](loops.md); the retraction that shrank this question to its present size is
 [loop-encoding-2026-08-18](../../gauntlet/results/loop-encoding-2026-08-18.md).
 

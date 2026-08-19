@@ -169,6 +169,19 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				if p.Kind == "build" {
 					return "vec-f64"
 				}
+				// A loop's type is the type of an exit leaf. `again` leaves are
+				// not values, so they are skipped; a loop with none never
+				// yields, and its type is whatever the context wants.
+				if p.Kind == "iterate" && len(t.Args()) >= 1 {
+					if lam := t.Args()[0]; lam.Kind == core.KFn {
+						for i, n := range lam.Params {
+							e.types[n] = e.typeOf(t.Args()[1+i])
+						}
+						if ty := exitType(e, lam.Body()); ty != "" {
+							return ty
+						}
+					}
+				}
 				if p.Kind == "let" {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
@@ -297,6 +310,9 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		if p.Kind == "build" {
 			return e.emitMakeVec(t)
+		}
+		if p.Kind == "iterate" {
+			return e.emitLoop(t)
 		}
 		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
@@ -737,4 +753,153 @@ func File(pkg string, funcs map[string]string) string {
 		out.WriteString("\n")
 	}
 	return out.String()
+}
+
+// ---------------------------------------------------------------- loop
+//
+// (loop (fn (x…) body) z…) — docs/spec/iteration.md.
+//
+// Emitted as the host's own `for`, with the clause chain as a statement
+// if-chain: an `again` leaf assigns the loop variables and continues, any other
+// leaf assigns the result and breaks.
+
+func isAgain(t *core.Term) bool {
+	return t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "again"
+}
+
+// exitType finds the type of the first non-`again` leaf, which is the loop's.
+func exitType(e *Emitter, t *core.Term) string {
+	if isAgain(t) {
+		return ""
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
+			if ty := exitType(e, t.Args()[1]); ty != "" {
+				return ty
+			}
+			return exitType(e, t.Args()[2])
+		}
+	}
+	return e.typeOf(t)
+}
+
+func (e *Emitter) emitLoop(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
+	}
+	lam := args[0]
+	inits := args[1:]
+	if len(lam.Params) != len(inits) {
+		return "", fmt.Errorf("loop has %d variable(s) and %d initial value(s)",
+			len(lam.Params), len(inits))
+	}
+
+	// Types first: a loop variable's type is its initial value's.
+	tys := make([]string, len(inits))
+	for i := range inits {
+		tys[i] = e.typeOf(inits[i])
+	}
+	vals := make([]string, len(inits))
+	for i, z := range inits {
+		v, err := e.emit(z)
+		if err != nil {
+			return "", err
+		}
+		vals[i] = v
+	}
+
+	body, raw, names := openFresh(lam, e.bound, mangle)
+	for i, n := range raw {
+		e.types[n] = tys[i]
+	}
+	for i := range names {
+		if tys[i] == "int" || tys[i] == "" {
+			e.line("var %s %s = %s", names[i], e.tgt.ty(orAny(tys[i])), vals[i])
+		} else {
+			e.line("%s := %s", names[i], vals[i])
+		}
+	}
+
+	result := e.fresh("r")
+	rty := exitType(e, body)
+	e.line("var %s %s", result, e.tgt.ty(orAny(rty)))
+	e.line("for {")
+	e.indent++
+	if err := e.emitLoopBody(body, raw, names, result); err != nil {
+		return "", err
+	}
+	e.indent--
+	e.line("}")
+	e.types[result] = rty
+	return result, nil
+}
+
+func orAny(ty string) string {
+	if ty == "" {
+		return "any"
+	}
+	return ty
+}
+
+// emitLoopBody walks the clause chain, emitting statements rather than an
+// expression. Leaves are the only thing that differ from emitIf.
+func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string) error {
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
+			cond, err := e.emit(t.Args()[0])
+			if err != nil {
+				return err
+			}
+			e.line("if %s {", cond)
+			e.indent++
+			if err := e.emitLoopBody(t.Args()[1], raw, names, result); err != nil {
+				return err
+			}
+			e.indent--
+			e.line("}")
+			return e.emitLoopBody(t.Args()[2], raw, names, result)
+		}
+	}
+	if isAgain(t) {
+		return e.emitAgain(t, raw, names)
+	}
+	v, err := e.emit(t)
+	if err != nil {
+		return err
+	}
+	e.line("%s = %s", result, v)
+	e.line("break")
+	return nil
+}
+
+// emitAgain assigns the loop variables and continues.
+//
+// Two things it does not do. An argument that is syntactically the variable
+// itself is UNCHANGED, so no assignment is emitted for it — which is hamza's
+// optimisation, and it also shrinks the simultaneity problem, because an
+// unchanged variable cannot be clobbered. And Go has parallel assignment, so
+// the changed ones need no temporaries at all.
+func (e *Emitter) emitAgain(t *core.Term, raw, names []string) error {
+	as := t.Args()
+	if len(as) != len(names) {
+		return fmt.Errorf("again takes %d argument(s), given %d", len(names), len(as))
+	}
+	var lhs, rhs []string
+	for i, a := range as {
+		if a.Kind == core.KName && a.Name == raw[i] {
+			continue // unchanged: x := x is noise
+		}
+		v, err := e.emit(a)
+		if err != nil {
+			return err
+		}
+		lhs = append(lhs, names[i])
+		rhs = append(rhs, v)
+	}
+	if len(lhs) > 0 {
+		e.line("%s = %s", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+	}
+	e.line("continue")
+	return nil
 }

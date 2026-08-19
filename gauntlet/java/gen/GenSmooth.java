@@ -5,7 +5,7 @@ public final class GenSmooth {
 		final int n1 = (int) (((a.length) - 2));
 		final double[] v2 = new double[n1];
 		for (int i = 0; i < n1; i++) {
-			v2[i] = ((((a[i]) + (a[(i + 1)])) + (a[(i + 2)])) / 3.0);
+			v2[i] = ((((a[(int) i]) + (a[(int) (i + 1)])) + (a[(int) (i + 2)])) / 3.0);
 		}
 		return v2;
 	}

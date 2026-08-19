@@ -7,7 +7,7 @@ public final class GenGeneric {
 		double acc = 0.0;
 		final int n1 = (a.length);
 		for (int i = 0; i < n1; i++) {
-			acc = (acc + (a[i]));
+			acc = (acc + (a[(int) i]));
 		}
 		return acc;
 	}

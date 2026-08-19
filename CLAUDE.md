@@ -87,7 +87,10 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md).
+**Current standing** is in [docs/assessment-2026-08-19.md](docs/assessment-2026-08-19.md) — four
+targets in, what should go into the language next, and the one place the process has drifted (the
+gauntlet still runs on the retired portable layer). The previous one is
+[docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md).
 Deliberately *not* an ADR — writing "candidate B is the core" as a decision would recreate the
 predecessor's failure. Every falsifier it named has since been tested and none fired, so its
 **Revised verdict** section calls for building the vertical slice.

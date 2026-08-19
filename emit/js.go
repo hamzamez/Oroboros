@@ -86,6 +86,12 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		// unlike Go, where 1 and 1.0 are different tokens.
 		return strconv.FormatFloat(t.Float, 'g', -1, 64), nil
 
+	case core.KBool:
+		if t.IsTrue() {
+			return "true", nil
+		}
+		return "false", nil
+
 	case core.KStr:
 		// A literal was added to the language for target templates and no
 		// backend could emit one, because no program had ever used one
@@ -190,7 +196,30 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 // expression, so emit/golang.go must always introduce a temporary. JS does, so
 // the ANF that g3 §6 and g5 §4 both derived as necessary is **target-dependent**,
 // not a property of the language.
+// emitConnective emits the host's own operator for a conditional that is one
+// of the three boolean connectives (booleans.md §4.4).
+func (e *jsEmitter) emitConnective(c Connective) (string, error) {
+	vals := make([]string, len(c.Args))
+	for i, a := range c.Args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", err
+		}
+		vals[i] = v
+	}
+	switch c.Op {
+	case "not":
+		return "(!" + vals[0] + ")", nil
+	case "and":
+		return "(" + vals[0] + " && " + vals[1] + ")", nil
+	}
+	return "(" + vals[0] + " || " + vals[1] + ")", nil
+}
+
 func (e *jsEmitter) emitIf(t *core.Term) (string, error) {
+	if c, ok := connective(e.tgt, t); ok {
+		return e.emitConnective(c)
+	}
 	args := t.Args()
 	if len(args) != 3 {
 		return "", fmt.Errorf("if takes a condition and two branches")

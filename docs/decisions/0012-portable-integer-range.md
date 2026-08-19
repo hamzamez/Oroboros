@@ -58,12 +58,17 @@ puts a variable in operator position, no redex exists, and reduction sticks on a
 rejects — and Church booleans evaluate **both** branches, which is wrong for effects. Fixing that
 needs thunks, which are closures, which allocate.
 
-**Boolean literals, and a seventh term kind.** Not needed: `and`/`or`/`not` as expression
+**Boolean literals, and a seventh term kind.** *Overturned by
+[ADR 0017](0017-booleans-are-in-the-language.md) — a reader-level desugaring of `and` has to
+PRODUCE a false value and cannot name a target's.* Not needed: `and`/`or`/`not` as expression
 primitives need no literal, `if` takes its condition from a comparison, and no refinement needs a
 constant.
 
-**`(if a b false)` for `and`.** All three hosts have short-circuiting `&&` natively; lowering to a
-conditional emits an if-statement and a temporary where the host has an operator.
+**`(if a b false)` for `and`.** *Overturned by [ADR 0017](0017-booleans-are-in-the-language.md) —
+a fourth host has no `&&` at all, and the cost was measured at zero
+([and-form-2026-08-19](../../gauntlet/results/and-form-2026-08-19.md)).* All three hosts have
+short-circuiting `&&` natively; lowering to a conditional emits an if-statement and a temporary
+where the host has an operator.
 
 **Division, bitwise operations and shifts.** Division's rounding disagrees on negatives and its
 zero case traps on two hosts and yields `Infinity` on the third. JavaScript's bitwise operators

@@ -395,6 +395,15 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 		}
 		return p, nil
 
+	case core.KBool:
+		// 1 and 0. No branch is needed to MAKE a boolean here — a conditional
+		// that IS a connective never reaches this case, because emitIf lays it
+		// out as branches and this literal is what the branches assign.
+		if t.IsTrue() {
+			return place{text: "1", imm: true}, nil
+		}
+		return place{text: "0", imm: true}, nil
+
 	case core.KStr:
 		// A string is its address. There is no string type on this host and
 		// nothing to box: the value is a pointer to NUL-terminated bytes — the
@@ -646,29 +655,42 @@ func (e *asmEmitter) emitIf(t *core.Term) (place, error) {
 // a branch on its own. Go, JavaScript and Java all do it internally and none of
 // them had to be told.
 func (e *asmEmitter) branchUnless(c *core.Term, label string) error {
+	// A connective in guard position is the dragon book's jumping code: both
+	// failures leave for the SAME label, so the continuation the commuting
+	// conversion would duplicate is one label and costs nothing (booleans.md
+	// §2.7). This is where short-circuiting lives on this host, and it now comes
+	// from the SHAPE OF THE TERM rather than from a claim in a target file —
+	// which is what made `x64.andb` mean two different things.
+	if cn, ok := connective(e.tgt, c); ok {
+		switch cn.Op {
+		case "and":
+			if err := e.branchUnless(cn.Args[0], label); err != nil {
+				return err
+			}
+			return e.branchUnless(cn.Args[1], label)
+		case "or":
+			u := e.uniq()
+			taken := fmt.Sprintf("Lor%d", u)
+			if err := e.branchIf(cn.Args[0], taken); err != nil {
+				return err
+			}
+			if err := e.branchUnless(cn.Args[1], label); err != nil {
+				return err
+			}
+			e.label(taken)
+			return nil
+		case "not":
+			return e.branchIf(cn.Args[0], label)
+		}
+	}
+	if c.Kind == core.KBool {
+		if !c.IsTrue() {
+			e.line("jmp %s", label)
+		}
+		return nil
+	}
 	if c.Kind == core.KApp && c.Op().Kind == core.KName {
 		if p, ok := e.tgt.Prims[c.Op().Name]; ok && p.Jump != "" && len(c.Args()) == 2 {
-			switch p.Jump {
-			case "and":
-				// Short-circuit: leaving for `label` on either failure IS &&,
-				// and it is also the only way to get one — the value form of
-				// this primitive evaluates both operands.
-				if err := e.branchUnless(c.Args()[0], label); err != nil {
-					return err
-				}
-				return e.branchUnless(c.Args()[1], label)
-			case "or":
-				u := e.uniq()
-				taken := fmt.Sprintf("Lor%d", u)
-				if err := e.branchIf(c.Args()[0], taken); err != nil {
-					return err
-				}
-				if err := e.branchUnless(c.Args()[1], label); err != nil {
-					return err
-				}
-				e.label(taken)
-				return nil
-			}
 			return e.compare(c, p, asmNegate[p.Jump], label)
 		}
 	}
@@ -685,9 +707,36 @@ func (e *asmEmitter) branchUnless(c *core.Term, label string) error {
 
 // branchIf is branchUnless's dual, needed only by ||.
 func (e *asmEmitter) branchIf(c *core.Term, label string) error {
+	if cn, ok := connective(e.tgt, c); ok {
+		switch cn.Op {
+		case "and":
+			u := e.uniq()
+			no := fmt.Sprintf("Land%d", u)
+			if err := e.branchUnless(cn.Args[0], no); err != nil {
+				return err
+			}
+			if err := e.branchIf(cn.Args[1], label); err != nil {
+				return err
+			}
+			e.label(no)
+			return nil
+		case "or":
+			if err := e.branchIf(cn.Args[0], label); err != nil {
+				return err
+			}
+			return e.branchIf(cn.Args[1], label)
+		case "not":
+			return e.branchUnless(cn.Args[0], label)
+		}
+	}
+	if c.Kind == core.KBool {
+		if c.IsTrue() {
+			e.line("jmp %s", label)
+		}
+		return nil
+	}
 	if c.Kind == core.KApp && c.Op().Kind == core.KName {
-		if p, ok := e.tgt.Prims[c.Op().Name]; ok && p.Jump != "" &&
-			p.Jump != "and" && p.Jump != "or" && len(c.Args()) == 2 {
+		if p, ok := e.tgt.Prims[c.Op().Name]; ok && p.Jump != "" && len(c.Args()) == 2 {
 			return e.compare(c, p, p.Jump, label)
 		}
 	}

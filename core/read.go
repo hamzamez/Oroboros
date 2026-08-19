@@ -327,6 +327,48 @@ func (r *reader) list() (*Term, error) {
 		return t, nil
 	}
 
+	// ---- Booleans and control flow, all four definitional (booleans.md 4.2).
+	//
+	// McCarthy 1960: a conditional CANNOT be a function, because a function in
+	// a strict language receives every argument evaluated and a conditional
+	// must not evaluate the branch it does not take. `and` and `or` inherit
+	// that, which is why R7RS derives them and why the SML Definition makes
+	// them syntax. None of the four survives this function.
+	//
+	//   (and a b …)  ⟶  (if a (and b …) false)
+	//   (or  a b …)  ⟶  (if a true (or b …))
+	//   (not a)      ⟶  (if a false true)
+	//
+	// `or` needs no `let` — Scheme's does only because its `or` returns the
+	// VALUE of the first true operand, over arbitrary values. Over the
+	// two-element bool, `(if a true b)` evaluates `a` once and is exact.
+	if kids[0].Kind == KName {
+		switch kids[0].Name {
+		case "and", "or":
+			short := kids[0].Name == "or"
+			if len(kids) == 1 {
+				return Bool(!short), nil // (and) is true, (or) is false — the units
+			}
+			t := kids[len(kids)-1]
+			for i := len(kids) - 2; i >= 1; i-- {
+				if short {
+					t = &Term{Kind: KApp, Kids: []*Term{Name("if"), kids[i], Bool(true), t}}
+				} else {
+					t = &Term{Kind: KApp, Kids: []*Term{Name("if"), kids[i], t, Bool(false)}}
+				}
+			}
+			return t, nil
+		case "not":
+			if len(kids) != 2 {
+				return nil, fmt.Errorf("line %d: not takes one term", line)
+			}
+			return &Term{Kind: KApp,
+				Kids: []*Term{Name("if"), kids[1], Bool(false), Bool(true)}}, nil
+		case "cond":
+			return clauseChain(kids[1:], "cond", line, nil)
+		}
+	}
+
 	// (loop ((x z)…) c e … else e) — docs/spec/iteration.md.
 	//
 	//   (loop ((acc 0.0) (i 0))
@@ -425,6 +467,13 @@ func (r *reader) atom() (*Term, error) {
 	}
 	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
 		return Float(v), nil
+	}
+	// The two boolean literals. They are read here rather than declared by a
+	// target because the reader's own desugaring of `and` has to PRODUCE one,
+	// and the reader does not know which target it is reading for — it could
+	// not emit `go.false` or `x64.false` even if it wanted to (booleans.md 4.1).
+	if text == "true" || text == "false" {
+		return Bool(text == "true"), nil
 	}
 	if err := validName(text); err != nil {
 		return nil, fmt.Errorf("line %d: %w", line, err)
@@ -602,33 +651,56 @@ func readLoop(kids []*Term, line int) (*Term, error) {
 		return nil, err
 	}
 	clauses := kids[2:]
+	body, err := clauseChain(clauses, "loop", line, func(b *Term) error {
+		return checkClauseBody(b, len(names), line)
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := []*Term{Name("loop"), Fn(names, body)}
+	return &Term{Kind: KApp, Kids: append(out, inits...)}, nil
+}
+
+// clauseChain folds `c₁ e₁ … else e` into a right-nested chain of `if`.
+//
+// Shared by `loop` and by `cond`, which is the same syntax with `again`
+// removed — first match wins, `else` mandatory, so every way out is written
+// down (ADR 0015, and McCarthy 1960 for the rule that the first true clause is
+// the one taken).
+//
+// `check` is the only difference between the two callers: a loop restricts what
+// a clause body may be, a `cond` does not.
+func clauseChain(clauses []*Term, what string, line int, check func(*Term) error) (*Term, error) {
+	if len(clauses) < 2 {
+		return nil, fmt.Errorf("line %d: %s needs at least an `else` clause", line, what)
+	}
 	if len(clauses)%2 != 0 {
-		return nil, fmt.Errorf("line %d: loop clauses come in pairs — a condition and a "+
-			"result — and the last condition must be `else`", line)
+		return nil, fmt.Errorf("line %d: %s clauses come in pairs — a condition and a "+
+			"result — and the last condition must be `else`", line, what)
 	}
 	last := clauses[len(clauses)-2]
 	if last.Kind != KName || last.Name != "else" {
-		return nil, fmt.Errorf("line %d: a loop's last clause must be `else`, so that every "+
-			"path out of the loop is written down; got %s", line, last)
+		return nil, fmt.Errorf("line %d: the last clause of %s must be `else`, so that every "+
+			"path out is written down; got %s", line, what, last)
 	}
 	for i := 0; i < len(clauses); i += 2 {
 		if i < len(clauses)-2 && clauses[i].Kind == KName && clauses[i].Name == "else" {
 			return nil, fmt.Errorf("line %d: `else` must be the last clause; the ones after "+
 				"it could never be reached", line)
 		}
-		if err := checkClauseBody(clauses[i+1], len(names), line); err != nil {
-			return nil, err
+		if check != nil {
+			if err := check(clauses[i+1]); err != nil {
+				return nil, err
+			}
 		}
 	}
-
-	// Fold the clauses into an if-chain, right to left. The `else` body is the
-	// chain's tail, so no condition is emitted for it.
+	// Right to left. The `else` body is the chain's tail, so no condition is
+	// emitted for it.
 	body := clauses[len(clauses)-1]
 	for i := len(clauses) - 4; i >= 0; i -= 2 {
 		body = &Term{Kind: KApp, Kids: []*Term{Name("if"), clauses[i], clauses[i+1], body}}
 	}
-	out := []*Term{Name("loop"), Fn(names, body)}
-	return &Term{Kind: KApp, Kids: append(out, inits...)}, nil
+	return body, nil
 }
 
 // loopBindings reads ((x z) (y w)) into names and initial values.

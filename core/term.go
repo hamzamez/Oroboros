@@ -19,6 +19,7 @@ const (
 	KInt               // integer literal
 	KFloat             // float literal, IEEE-754 binary64 exactly
 	KStr               // string literal
+	KBool              // boolean literal, `true` or `false` (booleans.md)
 	KFn                // (fn (p...) body)  — Params, Kids[0] = body
 	KApp               // (f a...)          — Kids[0] = operator, Kids[1:] = operands
 	KBound             // a bound variable, by index — never written in source
@@ -44,6 +45,20 @@ func Name(s string) *Term   { return &Term{Kind: KName, Name: s} }
 func Int(v int64) *Term     { return &Term{Kind: KInt, Int: v} }
 func Float(v float64) *Term { return &Term{Kind: KFloat, Float: v} }
 func Str(v string) *Term    { return &Term{Kind: KStr, Str: v} }
+
+// Bool is the fourth literal kind. It carries its value in Int rather than in a
+// field of its own: Term is allocated on every substitution, and a bool field
+// would cost every term in the program a byte for the benefit of one kind.
+func Bool(v bool) *Term {
+	if v {
+		return &Term{Kind: KBool, Int: 1}
+	}
+	return &Term{Kind: KBool}
+}
+
+// IsTrue reports which of the two a boolean literal is. Meaningless on any
+// other kind, and callers check Kind first.
+func (t *Term) IsTrue() bool { return t.Int != 0 }
 
 // Fn builds an abstraction from an OPEN body, closing it. Adding a binder
 // shifts anything already pointing outward.
@@ -89,6 +104,12 @@ func (t *Term) write(sb *strings.Builder) {
 		sb.WriteString(strconv.FormatInt(t.Int, 10))
 	case KStr:
 		sb.WriteString(strconv.Quote(t.Str))
+	case KBool:
+		if t.IsTrue() {
+			sb.WriteString("true")
+		} else {
+			sb.WriteString("false")
+		}
 	case KFloat:
 		s := strconv.FormatFloat(t.Float, 'g', -1, 64)
 		// A float literal must read back as a float, so 1 prints as 1.0.
@@ -135,6 +156,8 @@ func (t *Term) Equal(u *Term) bool {
 		return t.Float == u.Float
 	case KStr:
 		return t.Str == u.Str
+	case KBool:
+		return t.Int == u.Int
 	}
 	if len(t.Params) != len(u.Params) || len(t.Kids) != len(u.Kids) {
 		return false
@@ -211,7 +234,7 @@ func shift(t *Term, cutoff, by int) *Term {
 			return Bound(t.Depth+by, t.Index)
 		}
 		return t
-	case KName, KInt, KFloat, KStr:
+	case KName, KInt, KFloat, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{shift(t.Kids[0], cutoff+1, by)}}
@@ -233,7 +256,7 @@ func closeTerm(t *Term, params []string, depth int) *Term {
 			}
 		}
 		return t
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{closeTerm(t.Kids[0], params, depth+1)}}
@@ -253,7 +276,7 @@ func openTerm(t *Term, names []string, depth int) *Term {
 			return Name(names[t.Index])
 		}
 		return t
-	case KName, KInt, KFloat, KStr:
+	case KName, KInt, KFloat, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openTerm(t.Kids[0], names, depth+1)}}
@@ -285,7 +308,7 @@ func openWith(t *Term, args []*Term, depth int) *Term {
 			return Bound(t.Depth-1, t.Index) // the binder it looked through is gone
 		}
 		return t
-	case KName, KInt, KFloat, KStr:
+	case KName, KInt, KFloat, KStr, KBool:
 		return t
 	case KFn:
 		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{openWith(t.Kids[0], args, depth+1)}}

@@ -46,5 +46,4 @@
 
   ; THE WHOLE STRUCTURAL SET IS THREE, as on the other two native targets.
   (structural let  let     pure)
-  (structural if   cond    pure)
   (structural loop iterate pure))

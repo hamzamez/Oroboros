@@ -100,9 +100,13 @@ It carries an optional second string, which is the flag-setting instruction when
 this is how a target says so. It is worth an instruction and a register in the sieve's counting
 loop, which is the difference between the emitted inner loop and the hand-written one.
 
-Two pseudo-codes, `"and"` and `"or"`, mark the short-circuiting connectives — because on this host
-the value form and the branch form of `&&` are **different programs**, and on a host with
-expressions they were one declaration.
+> **Corrected 2026-08-19 by [ADR 0017](../decisions/0017-booleans-are-in-the-language.md).** There
+> were two pseudo-codes here, `"and"` and `"or"`, and they were a mistake: they made ONE name mean
+> the strict instruction `x64.andb` in value position and a short-circuiting branch in a guard.
+> That is observable — an `idiv` by zero behind the guard raises #DE — and it is not something a
+> target file should be able to claim. Short-circuiting is now the language's `if`, the connectives
+> are reader sugar, and the windows backend recognises the shape. `x64.andb` remains, meaning only
+> the instruction.
 
 ## 3. `(data …)` — storage the target owns
 

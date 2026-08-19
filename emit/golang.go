@@ -156,6 +156,8 @@ func (e *Emitter) typeOf(t *core.Term) string {
 		return "int"
 	case core.KFloat:
 		return "f64"
+	case core.KBool:
+		return "bool"
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
@@ -186,6 +188,17 @@ func (e *Emitter) typeOf(t *core.Term) string {
 					if k := t.Args()[1]; k.Kind == core.KFn {
 						return e.typeOf(k.Body())
 					}
+				}
+				// A conditional's type is its branches'. There was no case for
+				// this at all: an emitted function whose body was an `if`
+				// returned `/*unknown*/`, and no program had one until `and`
+				// and `or` became conditionals (ADR 0017). emitIf already
+				// computed it for the temporary, one level down.
+				if p.Kind == "cond" && len(t.Args()) == 3 {
+					if ty := e.typeOf(t.Args()[1]); ty != "" {
+						return ty
+					}
+					return e.typeOf(t.Args()[2])
 				}
 				// loop2's result is its FINISHER's type. This was never
 				// implemented: it fell through to the declared result type,
@@ -248,6 +261,12 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 			s += ".0"
 		}
 		return s, nil
+
+	case core.KBool:
+		if t.IsTrue() {
+			return "true", nil
+		}
+		return "false", nil
 
 	case core.KStr:
 		// A literal was added to the language for target templates and no
@@ -567,7 +586,29 @@ func emitsStatement(tgt *Target, t *core.Term) bool {
 // emitIf turns (if c then else) into a Go if statement assigning to a temporary,
 // because Go has no conditional expression. The branches may themselves emit
 // statements, which is why this cannot be a format string.
+// emitConnective emits Go's own operator for a conditional that is one.
+func (e *Emitter) emitConnective(c Connective) (string, error) {
+	vals := make([]string, len(c.Args))
+	for i, a := range c.Args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", err
+		}
+		vals[i] = v
+	}
+	switch c.Op {
+	case "not":
+		return "(!" + vals[0] + ")", nil
+	case "and":
+		return "(" + vals[0] + " && " + vals[1] + ")", nil
+	}
+	return "(" + vals[0] + " || " + vals[1] + ")", nil
+}
+
 func (e *Emitter) emitIf(t *core.Term) (string, error) {
+	if c, ok := connective(e.tgt, t); ok {
+		return e.emitConnective(c)
+	}
 	args := t.Args()
 	if len(args) != 3 {
 		return "", fmt.Errorf("if takes a condition and two branches")

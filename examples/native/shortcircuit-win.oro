@@ -1,0 +1,26 @@
+; THE CONFORMANCE CASE FOR `and`, on the host where it was broken.
+;
+;   build -target=windows -o sc.exe examples/native/shortcircuit-win.oro
+;
+; Before ADR 0017 the windows target declared `x64.andb` with `(jump "and")`,
+; which made ONE name mean the strict branchless instruction in value position
+; and the short-circuiting branch in a guard. Here the second operand is an
+; `idiv` by a divisor that is zero on the first iteration, and an `idiv` by zero
+; raises #DE — a hardware trap that kills the process and that nothing catches.
+;
+; Short-circuiting is now the language's `if`, so the divide is not reached.
+; Prints 222 then 111, which is what shortcircuit-go.oro prints.
+
+(use x64)
+(use win/fmt)
+
+(export main)
+
+(def small-ratio? (fn (n d)
+  (and (x64.setne d 0) (x64.setl (x64.idiv n d) 20))))
+
+(def main (fn ()
+  (loop ((i 0))
+    (x64.setge i 2)  0
+    else             (seq (fmt.print-int (if (small-ratio? 10 i) 111 222))
+                          (again (x64.add i 1))))))

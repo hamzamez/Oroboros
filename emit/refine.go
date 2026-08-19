@@ -91,7 +91,7 @@ func assume(f *facts, where *core.Term) {
 
 func (r *refiner) walk(t *core.Term, f *facts) error {
 	switch t.Kind {
-	case core.KInt, core.KFloat, core.KStr, core.KName:
+	case core.KInt, core.KFloat, core.KStr, core.KBool, core.KName:
 		return nil
 	case core.KFn:
 		return r.walk(t.Body(), f)

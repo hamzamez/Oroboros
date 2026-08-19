@@ -1,0 +1,30 @@
+; THE CONFORMANCE CASE FOR `and`.
+;
+;   build -target=go -o sc examples/native/shortcircuit-go.oro
+;
+; `and` short-circuits, so the divide is never reached when the divisor is
+; zero. If it did not, this program would panic on the first iteration — which
+; is what makes the claim TESTABLE rather than decorative (CLAUDE.md: a Tier 1
+; name without a conformance suite is decoration).
+;
+; The divisor is a loop variable rather than a literal on purpose. Reduction
+; substitutes literals, and Go's compiler then REFUSES `10 / 0` outright — a
+; constant division by zero is a compile error, not a panic — so a literal
+; version tests the Go front end instead of the semantics.
+;
+; The same program for the host where this was actually broken is
+; shortcircuit-win.oro. Both print 222 then 111.
+
+(use go)
+(use go/fmt)
+
+(export main)
+
+(def small-ratio? (fn (n d)
+  (and (go.!= d 0) (go.< (go./ n d) 20))))
+
+(def main (fn ()
+  (loop ((i 0))
+    (go.>= i 2)  0
+    else         (seq (fmt.Println (if (small-ratio? 10 i) 111 222))
+                      (again (go.+ i 1))))))

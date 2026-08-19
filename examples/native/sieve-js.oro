@@ -7,11 +7,11 @@
 
 (def cross (fn (c i n)
   (loop ((j (js.* i i)))
-    (js.< j n)  (seq (js.set c j (js.true)) (again (js.+ j i)))
+    (js.< j n)  (seq (js.set c j true) (again (js.+ j i)))
     else        c)))
 
 (def sieve-count (fn (n)
-  (let (js.ArrayFill n (js.false)) (fn (c)
+  (let (js.ArrayFill n false) (fn (c)
     (let (loop ((i 2))
            (js.>= (js.* i i) n)  c
            (js.at c i)           (again (js.+ i 1))

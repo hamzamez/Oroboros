@@ -42,5 +42,4 @@
   ; `fold-range`, `fold-range2` and `make-vec` are all absent: `loop` subsumes
   ; the folds, and an array is built with `js.Array` plus a `loop`.
   (structural let  let     pure)
-  (structural if   cond    pure)
   (structural loop iterate pure))

@@ -13,7 +13,7 @@
 ; Cross out multiples of i, from i*i, stepping by i.
 (def cross (fn (c i n)
   (loop ((s c) (j (go.* i i)))
-    (go.< j n)  (again (go.set-bool s j (go.true)) (go.+ j i))
+    (go.< j n)  (again (go.set-bool s j true) (go.+ j i))
     else        s)))
 
 ; composite[k] is true once k has been crossed out.

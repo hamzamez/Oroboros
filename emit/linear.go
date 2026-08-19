@@ -315,7 +315,24 @@ func obligation(t *core.Term) ([]*linear, bool) {
 	op := t.Op().Name
 	args := t.Args()
 
-	if isOp(op, "and") && len(args) == 2 {
+	// Conjunction, in both spellings it can arrive in.
+	//
+	// A target that declares the host's own `&&` gives `(&& a b)`. The
+	// language's `and` is sugar for a conditional (ADR 0017), so it arrives as
+	// `(if a b false)` — and the fragment has to see through the desugaring or
+	// a refinement written with `and` silently degrades to an opaque atom.
+	//
+	// Only conjunction needs this. `(if a true b)` is a DISJUNCTION and
+	// `(if a false true)` a negation, and neither is in a fragment that is
+	// conjunctions of linear inequalities — which is the same wall `d ≠ 0`
+	// hits (assessment-2026-08-19 §3.2).
+	conj := isOp(op, "and") && len(args) == 2
+	if !conj && isOp(op, "if") && len(args) == 3 &&
+		args[2].Kind == core.KBool && !args[2].IsTrue() {
+		conj = true
+		args = args[:2]
+	}
+	if conj {
 		a, ok1 := obligation(args[0])
 		b, ok2 := obligation(args[1])
 		if ok1 && ok2 {

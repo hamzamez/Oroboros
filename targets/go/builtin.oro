@@ -54,8 +54,6 @@
     (prim !   (bool) bool      expr "!%s"      pure)
 
     ; ---- predeclared constants
-    (prim true  (none) bool expr "true"  pure)
-    (prim false (none) bool expr "false" pure)
 
     ; ---- predeclared functions
     (prim len (any) int expr "len(%s)" pure)

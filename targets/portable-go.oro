@@ -202,8 +202,6 @@
     ; (arithmetic.md 3), so without these the only way to write `true` was
     ; `(logic.not (int.lt 1 2))`. Declaring them is the parasite answer: Go
     ; provides them, so the target says so.
-    (prim true  (none) bool expr "true"  pure)
-    (prim false (none) bool expr "false" pure)
 
     ; Panic, and the two predeclared printers that need no import.
     (prim panic   (any) any stmt "panic(%s)")
@@ -224,7 +222,6 @@
   ; A x int x ((A,int) -> A) -> A, which a monomorphic table cannot express,
   ; and writing one was a false statement (target-files.md §4).
   (structural let         let   pure)
-  (structural if          cond  pure)
   (structural loop        iterate pure)
   (structural fold-range  loop  pure)
   (structural fold-range2 loop2 pure))

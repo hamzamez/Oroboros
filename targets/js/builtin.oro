@@ -56,8 +56,6 @@
     (prim ??  (any any) any     expr "%s ?? %s" pure)
 
     ; ---- literals JavaScript spells as keywords
-    (prim true      (none) bool expr "true"      pure)
-    (prim false     (none) bool expr "false"     pure)
     (prim null      (none) any     expr "null"      pure)
     (prim undefined (none) any     expr "undefined" pure)
     (prim NaN       (none) any  expr "NaN"       pure)

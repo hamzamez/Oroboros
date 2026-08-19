@@ -70,14 +70,24 @@
     (prim setg  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetg %br\nmovzx %er, %br"  pure (jump "g"))
     (prim setge (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetge %br\nmovzx %er, %br" pure (jump "ge"))
 
-    ; ---- boolean. The VALUE forms evaluate both operands; the (jump …) forms
-    ; short-circuit, because a branch can. Those are different programs, and on
-    ; a host with expressions they were the same declaration.
-    (prim andb (bool bool) bool expr "mov %r, %1\nand %r, %2" pure (jump "and"))
-    (prim orb  (bool bool) bool expr "mov %r, %1\nor %r, %2"  pure (jump "or"))
+    ; ---- boolean, STRICT AND BRANCHLESS, which is what the instruction is.
+    ;
+    ; These are NOT the language's `and`/`or`/`not`. Those short-circuit and are
+    ; sugar over `if` (ADR 0017); these evaluate both operands and cost one ALU
+    ; instruction with no branch. Ada spells the distinction `and` versus
+    ; `and then`, C spells it `&` versus `&&`, and every language that
+    ; distinguished them kept both — because when a predicate is unpredictable a
+    ; branch misprediction costs about fifteen cycles and this costs one.
+    ;
+    ; They carried `(jump "and")` until ADR 0017 and that was a mistake: it made
+    ; ONE name mean the strict operator in value position and the short-circuit
+    ; one in a guard. Short-circuiting is the language's `if`, not a claim a
+    ; target makes about an operator.
+    ;
+    ; No portability claim, and a program reaching for one should have measured.
+    (prim andb (bool bool) bool expr "mov %r, %1\nand %r, %2" pure)
+    (prim orb  (bool bool) bool expr "mov %r, %1\nor %r, %2"  pure)
     (prim notb (bool) bool      expr "mov %r, %1\nxor %r, 1"  pure)
-    (prim true  (none) bool expr "mov %r, 1" pure)
-    (prim false (none) bool expr "xor %er, %er" pure)
 
     ; ---- SSE2 scalar double. A separate register file, which is why the
     ; backend has to know one bit of type for every value it places.

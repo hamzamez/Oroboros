@@ -159,6 +159,15 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 						return e.typeOf(k.Body())
 					}
 				}
+				// A conditional's type is its branches'. Missing here for the
+				// same reason it was missing on Go: no program's body was an
+				// `if` until `and` and `or` became conditionals (ADR 0017).
+				if p.Kind == "cond" && len(t.Args()) == 3 {
+					if ty := e.typeOf(t.Args()[1]); ty != "" {
+						return ty
+					}
+					return e.typeOf(t.Args()[2])
+				}
 				// loop2's result is its FINISHER's type — see the Go backend.
 				if p.Kind == "loop2" && len(t.Args()) == 6 {
 					if fin := t.Args()[5]; fin.Kind == core.KFn && len(fin.Params) == 2 {
@@ -209,6 +218,12 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			s += ".0"
 		}
 		return s, nil
+	case core.KBool:
+		if t.IsTrue() {
+			return "true", nil
+		}
+		return "false", nil
+
 	case core.KStr:
 		// A literal was added to the language for target templates and no
 		// backend could emit one, because no program had ever used one
@@ -312,7 +327,30 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 // emitIf uses Java's conditional expression when both branches are pure — like
 // JS and unlike Go, which has none. So the ANF that g3 §6 derived is required by
 // exactly one of the three targets.
+// emitConnective emits the host's own operator for a conditional that is one
+// of the three boolean connectives (booleans.md §4.4).
+func (e *javaEmitter) emitConnective(c Connective) (string, error) {
+	vals := make([]string, len(c.Args))
+	for i, a := range c.Args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", err
+		}
+		vals[i] = v
+	}
+	switch c.Op {
+	case "not":
+		return "(!" + vals[0] + ")", nil
+	case "and":
+		return "(" + vals[0] + " && " + vals[1] + ")", nil
+	}
+	return "(" + vals[0] + " || " + vals[1] + ")", nil
+}
+
 func (e *javaEmitter) emitIf(t *core.Term) (string, error) {
+	if c, ok := connective(e.tgt, t); ok {
+		return e.emitConnective(c)
+	}
 	args := t.Args()
 	cond, err := e.emit(args[0])
 	if err != nil {

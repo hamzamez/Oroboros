@@ -54,5 +54,4 @@
   ;
   ; So a program here is: fn, def, module, literals, and let / if / loop.
   (structural let  let     pure)
-  (structural if   cond    pure)
   (structural loop iterate pure))

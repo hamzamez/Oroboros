@@ -183,9 +183,7 @@
     (prim errorln (any) any  stmt "System.err.println(%s)")
     (prim nanos   (none) int expr "System.nanoTime()"))
 
-  (module java/bool
-    (prim true  (none) bool expr "true"  pure)
-    (prim false (none) bool expr "false" pure))
+  (module java/bool)
 
   (module io
     (prim print-line (any) any stmt "System.out.println(%s)"))
@@ -203,7 +201,6 @@
   ; and writing one was a false statement (target-files.md §4).
   (structural make-vec    build pure)
   (structural let         let   pure)
-  (structural if          cond  pure)
   (structural loop        iterate pure)
   (structural fold-range  loop  pure)
   (structural fold-range2 loop2 pure))

@@ -14,7 +14,7 @@
 
 (def cross (fn (c i n)
   (loop ((j (go.* i i)))
-    (go.< j n)  (seq (go.set-bool c j (go.true)) (again (go.+ j i)))
+    (go.< j n)  (seq (go.set-bool c j true) (again (go.+ j i)))
     else        c)))
 
 (def sieve (fn (n)

@@ -83,6 +83,14 @@ imported. And it yields a characterisation of something that has looked arbitrar
 
 ## 3. Booleans
 
+> **Superseded, 2026-08-19, by [ADR 0017](../decisions/0017-booleans-are-in-the-language.md).**
+> Booleans are in the language: two literals, a seventh term kind, `if` as the eliminator, and
+> `and`/`or`/`not`/`cond` as reader sugar that erases. The premise this section rests on — *all
+> three hosts have short-circuiting `&&` natively* — was falsified by a fourth host that has no
+> `&&` at all. The section is kept because its reasoning was sound on the evidence available, and
+> because the concern it records at the end is the one that fired. See
+> [booleans.md](booleans.md).
+
 **No boolean literal, and therefore no seventh term kind.** Checked honestly: `and`/`or`/`not` as
 expression primitives need no literal, `if` takes its condition from a comparison, and no `where`
 clause needs a constant. [ADR 0007](../decisions/0007-exploration-over-specification.md) — add it

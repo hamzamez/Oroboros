@@ -62,6 +62,7 @@ recording alternatives that were considered and rejected.
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
 | `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
 | A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
+| Booleans and control flow are in the language | [0017](docs/decisions/0017-booleans-are-in-the-language.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -207,8 +208,20 @@ different targets. The suite is [gauntlet/conformance/](gauntlet/conformance/).
 is not in the core. Strings pass only by having almost no operations.
 
 **The current state of the language is [docs/spec/state.md](docs/spec/state.md)**, read off the
-code rather than from memory. Six term kinds, five top-level forms, two reduction rules, two
+code rather than from memory. Seven term kinds, five top-level forms, three reduction rules, two
 parameters.
+
+**Booleans are in the language and the connectives are sugar** —
+[ADR 0017](docs/decisions/0017-booleans-are-in-the-language.md),
+[booleans.md](docs/spec/booleans.md). `bool` is data, `if` is its eliminator, and
+`and`/`or`/`not`/`cond` erase in the reader — Scheme's answer, ML's answer, and McCarthy's reason
+from 1960: **a conditional cannot be a function**. Each backend puts the host's `&&` back, so
+nothing is lowered further than the target requires, and that was
+[measured](gauntlet/results/and-form-2026-08-19.md) rather than argued. A target declares zero
+boolean names now, and declaring one is an error. Two consequences to carry: `(if true a b) → a` is
+the **only** evaluation reduction performs, which gives conditional compilation with no
+preprocessor; and the strict branchless operators survive as host names — `x64.andb` — because Ada
+kept `and` beside `and then` for a measurable reason.
 
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
 Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission

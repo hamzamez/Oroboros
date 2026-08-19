@@ -153,8 +153,11 @@ guard** — the backend emits the comparison and the negated conditional jump an
 nothing. The optional second string is the flag-setting instruction when the host's default is not
 it.
 
-Two pseudo-codes, `"and"` and `"or"`, mark the short-circuiting connectives, which are branches
-rather than condition codes.
+There were two pseudo-codes here, `"and"` and `"or"`, and
+[ADR 0017](../decisions/0017-booleans-are-in-the-language.md) removed them. They made
+short-circuiting **a claim a target author makes**, unverifiable by the format and observable only
+through a trapping operand — and on the windows target they made one name mean the strict
+instruction in value position and the branch in a guard. Short-circuiting is the language's `if`.
 
 Go, JavaScript and Java fold a comparison into a branch inside their own compilers, so all three
 declare no `jump` at all. **A host that does not is the reason this exists**, and without it every
@@ -173,6 +176,15 @@ only when the label appears in the code, exactly as an import is.
 
 Every host before this one could allocate from inside an expression, so no target had ever needed
 to declare storage.
+
+### What a target may NOT declare
+
+`if`, `and`, `or`, `not` and `cond` belong to the language
+([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), and declaring one is an error.
+`if` is **injected into every target** as a structural `cond`, so the backends are unchanged; it is
+no longer a structural *declaration*. `true` and `false` are literals and not names at all.
+
+A module may still declare `and` — that is `logic.and`, a qualified name like any other.
 
 ## 4. `structural` — the four the backend implements
 

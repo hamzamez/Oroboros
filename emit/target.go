@@ -42,8 +42,10 @@ type Prim struct {
 	// assembly has no expressions: `cmp; setl; cmp; je` is two compares where
 	// hand-written code has one (docs/spec/windows-target.md §4).
 	//
-	// The pseudo-codes "and" and "or" mark the short-circuiting connectives,
-	// which are branches rather than condition codes.
+	// It once carried two pseudo-codes, "and" and "or", and ADR 0017 removed
+	// them: they made short-circuiting a claim a target author makes, and on
+	// the windows target they made ONE name mean the strict instruction as a
+	// value and a branch as a guard. The connectives are the language's.
 	Jump string
 	// JumpForm is the comparison that sets the flags for Jump, when the default
 	// — `cmp %1, %2` for integers, `comisd %1, %2` for floats — is not it.
@@ -121,7 +123,36 @@ func LoadTarget(path string) (*Target, error) {
 		}
 		return nil, err
 	}
-	return loadTargetFile(path)
+	tg, err := loadTargetFile(path)
+	if err != nil {
+		return nil, err
+	}
+	tg.addCore()
+	return tg, nil
+}
+
+// coreNames are the names the LANGUAGE owns. A target may not declare any of
+// them; three are reader sugar that never reaches a target at all, and `if` is
+// injected into every target by addCore.
+var coreNames = map[string]bool{
+	"if": true, "and": true, "or": true, "not": true, "cond": true,
+}
+
+// addCore gives every target the conditional.
+//
+// `if` was declared by each of eleven target files, identically, while
+// `core/read.go` already emitted the name when desugaring a loop — so a target
+// that spelled it anything else would have compiled straight-line code and
+// failed on every loop. It is the language's (ADR 0017), and the backends still
+// implement it: `cond` remains a structural KIND, it is just no longer a
+// structural DECLARATION.
+func (tg *Target) addCore() {
+	if _, have := tg.Prims["if"]; have {
+		return
+	}
+	tg.Prims["if"] = Prim{Name: "if", Kind: "cond", Pure: true}
+	tg.Names = append(tg.Names, "if")
+	sort.Strings(tg.Names)
 }
 
 func loadTargetFile(path string) (*Target, error) {
@@ -173,6 +204,7 @@ func loadTargetDir(dir string) (*Target, error) {
 		}
 	}
 	sort.Strings(out.Names)
+	out.addCore()
 	return out, nil
 }
 
@@ -304,6 +336,12 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	if err != nil {
 		return err
 	}
+	// A MODULE may declare `and` — that is `logic.and`, a qualified name like
+	// any other. Only an unqualified declaration collides with the language.
+	if modPath == "" && coreNames[p.Name] {
+		return fmt.Errorf("%s: %s belongs to the language and cannot be declared by a target "+
+			"(docs/spec/booleans.md)", file, p.Name)
+	}
 	if modPath != "" {
 		p.Name = modPath + "." + p.Name
 	}
@@ -320,6 +358,10 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 	k := f.Kids[1:]
 	if len(k) < 4 {
 		return Prim{}, fmt.Errorf("%s: (prim NAME (args) result kind [form] [(import x)]), got %s", path, f)
+	}
+	if k[0].Kind == core.KBool {
+		return Prim{}, fmt.Errorf("%s: `%s` is a literal of the language, not a name a target "+
+			"declares (docs/spec/booleans.md)", path, k[0])
 	}
 	if k[0].Kind != core.KName {
 		return Prim{}, fmt.Errorf("%s: prim needs a name, got %s", path, k[0])
@@ -414,6 +456,11 @@ func parseStructural(f *core.Term, path string) (Prim, error) {
 		return Prim{}, fmt.Errorf("%s: (structural NAME KIND [pure]), got %s", path, f)
 	}
 	p := Prim{Name: k[0].Name, Kind: k[1].Name}
+	if coreNames[p.Name] {
+		return Prim{}, fmt.Errorf("%s: %s belongs to the language and cannot be declared by a "+
+			"target (docs/spec/booleans.md). Delete the line; the conditional is injected into "+
+			"every target", path, p.Name)
+	}
 	if !structuralKinds[p.Kind] {
 		return Prim{}, fmt.Errorf("%s: %s has kind %q, which is not structural "+
 			"(let, cond, loop, loop2, build, iterate)", path, p.Name, p.Kind)

@@ -50,8 +50,6 @@
     (prim &&  (bool bool) bool expr "%s && %s" pure)
     (prim ||  (bool bool) bool expr "%s || %s" pure)
     (prim !   (bool) bool      expr "!%s"      pure)
-    (prim true  (none) bool expr "true"  pure)
-    (prim false (none) bool expr "false" pure)
     (prim null  (none) any  expr "null"  pure)
 
     (prim instanceof (any any) bool expr "%s instanceof %s" pure)

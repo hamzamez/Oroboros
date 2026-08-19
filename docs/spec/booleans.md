@@ -1,7 +1,9 @@
 # Booleans and control flow
 
-**Status, 2026-08-19. Specification and candidates. Nothing built.** Written before any code, which
-is the order [strings.md](strings.md) exists to enforce.
+**Status, 2026-08-19. Built** — [ADR 0017](../decisions/0017-booleans-are-in-the-language.md).
+Candidate C, as specified in §4, with the falsifier of §6 run first. Written before any code, which
+is the order [strings.md](strings.md) exists to enforce, and the specification is unchanged by the
+implementation except where §8 says otherwise.
 
 This **reopens** a decision. [arithmetic.md §3](arithmetic.md) records a position, and
 [ADR 0012](../decisions/0012-portable-integer-range.md)'s *Why not* rejected two of the candidates
@@ -464,3 +466,28 @@ Three falsifiers remain:
 
 The language gains one term kind and one reduction rule. Everything else is sugar that does not
 survive the reader, or work that moves *out* of the target files.
+
+---
+
+## 8. What building it changed
+
+Nothing in the design. Four things worth recording:
+
+**Two latent bugs.** Neither the Go nor the Java backend's `typeOf` had a case for `cond`, so an
+emitted function whose body was a conditional returned `/*unknown*/`. No program had one until
+`and` became a conditional.
+
+**The refinement fragment had to learn the desugaring.** `emit/linear.go` recognised `and`; a
+`where` written with the language's `and` now arrives as `(if a b false)`. Conjunction only — `or`
+and `not` desugar to a disjunction and a negation, and the fragment is conjunctions of linear
+inequalities.
+
+**`(jump …)` kept its single-predicate job and lost the pseudo-codes.** `"and"` and `"or"` are
+gone from the format; a target still declares a condition code for a comparison, which is what it
+was for.
+
+**Conformance is a program, not a claim.** `examples/native/shortcircuit-{go,win}.oro` put an
+`idiv`/`/` by a zero divisor behind the guard that must short-circuit. Both print `222` then `111`.
+The divisor is a loop variable rather than a literal on purpose: reduction substitutes literals and
+Go's compiler then rejects `10 / 0` outright, which would have tested the Go front end instead of
+the semantics.

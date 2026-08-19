@@ -26,6 +26,11 @@ record is [loops.md](loops.md); the retraction that shrank this question to its 
 
 ---
 
+> **2026-08-19.** The clause chain is now shared with `cond`, which is this syntax with `again`
+> removed and is ordinary reader sugar over `if`
+> ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)). First match wins and `else` is
+> mandatory in both, from one function — `clauseChain` in `core/read.go`.
+
 ## 1. What is actually missing
 
 After the retraction, exactly one thing: **a loop whose trip count does not exist**.

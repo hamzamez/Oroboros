@@ -6,11 +6,18 @@ Read off the code, not from memory. Everything here is checkable by grep.
 
 ## 1. The whole language
 
-**Six term kinds.** That is the entire grammar of what a program can say.
+**Seven term kinds.** That is the entire grammar of what a program can say.
 
 ```
-term ::= name | integer | float | string | (fn (name…) term) | (term term…)
+term ::= name | integer | float | string | true | false
+       | (fn (name…) term) | (term term…)
 ```
+
+The two boolean literals arrived last, in
+[ADR 0017](../decisions/0017-booleans-are-in-the-language.md), and they are the only literal kind
+whose value set is finite and on which all four targets agree exactly. They are FORCED rather than
+chosen: the reader's desugaring of `and` has to produce a false value, and the reader does not know
+which target it is reading for.
 
 
 `core.Term` has a **seventh** kind, `KBound`, which no program can write and which the grammar
@@ -36,12 +43,23 @@ A `def` or `fn` name is a **simple** name: `.` qualifies a member of an imported
 cannot appear in a binder ([def.md §11](def.md), [chapter 2 §2.4](../book/02-def.md)). An `export`
 or a `sig` must name a definition in the same module; naming nothing is an error, not a no-op.
 
-**Three special forms in the reader**, two of which are sugar. `fn` (also spelled `λ`); `let`,
-where `(let e k)` reads as `(k e)` ([def.md](def.md)); and `seq`, where `(seq a b)` reads as
-`((fn (_) b) a)` ([effects.md §5](effects.md)). Neither sugar survives the reader.
+**Special forms in the reader.** `fn` (also spelled `λ`) is the only one that is not sugar.
+`let`, where `(let e k)` reads as `(k e)` ([def.md](def.md)); `seq`, where `(seq a b)` reads as
+`((fn (_) b) a)` ([effects.md §5](effects.md)); `loop`, which desugars to `(loop (fn (x…) …) z…)`
+([iteration.md](iteration.md)); and `and`, `or`, `not` and `cond`, which desugar to `if`
+([booleans.md](booleans.md)). **None of the sugar survives the reader** — a residual contains `fn`,
+`let`, `if`, `loop` and nothing else structural.
 
-**Two reduction rules.** β with call-by-need, and δ over definitions. β carries one side
-condition: an impure argument is let-bound rather than substituted ([effects.md §4](effects.md)).
+**Three reduction rules.** β with call-by-need, δ over definitions, and a conditional on a boolean
+literal. β carries one side condition: an impure argument is let-bound rather than substituted
+([effects.md §4](effects.md)).
+
+`(if true a b) → a` is the only evaluation reduction performs, and it is what makes conditional
+compilation fall out of a definition — `(def debug? false)` erases the branch. It does not
+contradict "no primitive is ever evaluated" below: `if` is not a primitive and the literals are not
+primitive applications. Dropping the untaken branch is sound even when it is impure, for a
+different reason than β's — β may not drop an impure argument because the argument would have run,
+and here the branch does not.
 
 **No recursion.** A definition defined in terms of itself is an error, checked per-target before
 reduction ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). δ still declines to
@@ -56,8 +74,9 @@ omission costs speed rather than correctness.
 
 That is all of it. 1,887 lines in `core/`, 47 tests there and 20 in `emit/`.
 
-Arithmetic, booleans, comparison and equality live in the modules `num/f64`, `num/int` and
-`logic` ([arithmetic.md](arithmetic.md)) — **not** in the language. An `int` is a mathematical
+Arithmetic, comparison and equality live in target files — **not** in the language.
+Booleans DO ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), and are the only
+thing that has moved in from a target. An `int` is a mathematical
 integer whose portable range is ±(2⁵³−1), which is JavaScript's limit and the only range on which
 all three targets agree exactly.
 
@@ -75,7 +94,8 @@ Removed 2026-08-14 after the addition of target files made it dead:
 |---|---|
 | Types in the *language* | none — no annotations. `(sig …)` is a **claim about a definition**, checked against the residual and against any target providing the name natively ([types.md §7](types.md)); it is not a type on a term |
 | Type **checking** | **yes**, on the residual before emission ([types.md](types.md)). One checker, three targets, including the one with no type layer |
-| Data structures | **none.** `string`, `vec-f64`, `dict` are opaque handles only primitives touch |
+| Data structures | **none.** `string`, `vec-f64`, `dict` are opaque handles only primitives touch. `bool` is not one of these — it is a literal of the language |
+| Boolean connectives | **sugar**, erased by the reader; each backend puts the host's own operators back ([booleans.md](booleans.md)) |
 | Arithmetic evaluation | `(num/int.add 1 2)` does not fold. No primitive is ever evaluated |
 | Pattern matching | none — ι of Coq's βδιζη |
 | Extensionality | none — η |

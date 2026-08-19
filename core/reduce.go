@@ -337,7 +337,7 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 // spelled.
 func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term, error) {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return t, nil
 
 	case KName:
@@ -456,7 +456,7 @@ func (e *Env) reaches(from, target string, seen map[string]bool) bool {
 			}
 			seen[t.Name] = true
 			return e.reaches(t.Name, target, seen)
-		case KInt, KFloat, KStr:
+		case KInt, KFloat, KStr, KBool:
 			return false
 		}
 		for _, k := range t.Kids {
@@ -512,7 +512,7 @@ func sortedKeys(m map[string]*Term) []string {
 // argument is a λ would license moving the whole loop into another loop.
 func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 	switch t.Kind {
-	case KName, KInt, KFloat, KStr, KFn, KBound:
+	case KName, KInt, KFloat, KStr, KBool, KFn, KBound:
 		return true // values
 	case KApp:
 		op := t.Op()
@@ -629,7 +629,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 	*fuel--
 
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return t, nil
 
 	case KName:
@@ -715,9 +715,41 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			return body, nil
 		}
+		// The conditional on a known condition. This is the ONLY evaluation
+		// reduction performs, and it is worth being exact about why it is not a
+		// violation of "no primitive is ever evaluated" (state.md §3): `if` is
+		// not a primitive and `true`/`false` are not primitive applications.
+		// They are language forms, so nothing about the target is being decided
+		// here (booleans.md §4.3).
+		//
+		// Sound for an IMPURE untaken branch, and for a different reason than
+		// β's. β may not drop an impure argument because the argument would
+		// have run; here the branch genuinely does not run. The structural
+		// rules are not involved.
+		//
+		// ADR 0009 is satisfied trivially: boolean algebra is exact, so there
+		// is no compile-time/runtime discrepancy to preserve.
+		var cond *Term
+		if op.Kind == KName && op.Name == "if" && e.Prim["if"] && len(args) == 3 {
+			c, err := normalize(args[0], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if c.Kind == KBool {
+				if c.IsTrue() {
+					return normalize(args[1], e, fuel)
+				}
+				return normalize(args[2], e, fuel)
+			}
+			cond = c
+		}
 		out := make([]*Term, 0, len(t.Kids))
 		out = append(out, op)
-		for _, a := range args {
+		for i, a := range args {
+			if i == 0 && cond != nil { // already normalised above
+				out = append(out, cond)
+				continue
+			}
 			na, err := normalize(a, e, fuel)
 			if err != nil {
 				return nil, err
@@ -742,7 +774,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 // allocation is what no host can hoist.
 func duplicable(t *Term) bool {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KName, KFn, KBound:
+	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:
 		return true
 	}
 	return false
@@ -757,7 +789,7 @@ func boundOccurrences(t *Term, depth, index int) int {
 			return 1
 		}
 		return 0
-	case KName, KInt, KFloat, KStr:
+	case KName, KInt, KFloat, KStr, KBool:
 		return 0
 	case KFn:
 		return boundOccurrences(t.Kids[0], depth+1, index)
@@ -781,7 +813,7 @@ func occurrences(t *Term, name string) int {
 			return 1
 		}
 		return 0
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return 0
 	case KFn:
 		for _, p := range t.Params {
@@ -820,7 +852,7 @@ func subst(t *Term, m map[string]*Term) *Term {
 			return r
 		}
 		return t
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return t
 	case KFn:
 		inner := make(map[string]*Term, len(m))
@@ -889,7 +921,7 @@ func freeVars(t *Term) map[string]bool {
 			if !bound[t.Name] {
 				out[t.Name] = true
 			}
-		case KInt, KFloat, KStr, KBound:
+		case KInt, KFloat, KStr, KBool, KBound:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {
@@ -937,7 +969,7 @@ func Residual(t *Term, e *Env) []string {
 			if !e.Prim[t.Name] && !e.Rec[t.Name] {
 				found[t.Name] = true
 			}
-		case KInt, KFloat, KStr, KBound:
+		case KInt, KFloat, KStr, KBool, KBound:
 		case KFn:
 			inner := make(map[string]bool, len(bound)+len(t.Params))
 			for k := range bound {
@@ -1012,7 +1044,7 @@ func (e *Env) checkScope(terms []*Term) error {
 
 func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	switch t.Kind {
-	case KInt, KFloat, KStr, KBound:
+	case KInt, KFloat, KStr, KBool, KBound:
 		return nil
 	case KName:
 		if bound[t.Name] || e.Prim[t.Name] {

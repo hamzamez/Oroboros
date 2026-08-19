@@ -69,5 +69,4 @@
   ; are the only things the backend implements in code; every other name in
   ; this directory is a template.
   (structural let  let     pure)
-  (structural if   cond    pure)
   (structural loop iterate pure))

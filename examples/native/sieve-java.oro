@@ -7,7 +7,7 @@
 
 (def cross (fn (c i n)
   (loop ((j (java.* i i)))
-    (java.< j n)  (seq (java.set-bool c j (java.true)) (again (java.+ j i)))
+    (java.< j n)  (seq (java.set-bool c j true) (again (java.+ j i)))
     else          c)))
 
 (def sieve-count (fn (n)

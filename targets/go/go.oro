@@ -1,0 +1,53 @@
+; The Go target. NO PORTABILITY CLAIM.
+;
+; Every name here is Go's own name with Go's own semantics. `go.+` is Go's `+`,
+; on Go's types, with Go's overflow. `go./` on integers truncates toward zero
+; and panics on zero, because that is what Go does. Nothing is renamed to make
+; three hosts agree, because nothing here claims they do.
+;
+; This file is the target's HEADER: types, structural primitives, and the
+; toolchain. The rest of the surface is one file per Go package, merged by
+; LoadTarget — targets are directories (docs/spec/target-files.md).
+;
+; What the portable layer used to provide lives in targets/portable-go.oro,
+; kept for the gauntlet. See docs/spec/portability-layer.md for what it cost.
+
+(target go
+  ; Go's own type names, except where our type language cannot spell them.
+  ; It has NO CONSTRUCTORS: `[]T` is not a type applied to an argument, so each
+  ; instantiation needs a name of its own. That is the first thing this target
+  ; cannot say, and it is recorded rather than worked around.
+  (type int      "int")
+  (type int64    "int64")
+  (type float64  "float64")
+  (type string   "string")
+  (type bool     "bool")
+  (type byte     "byte")
+  (type rune     "rune")
+  (type error    "error")
+  (type any      "any")
+
+  (type slice-int     "[]int")
+  (type slice-int64   "[]int64")
+  (type slice-float64 "[]float64")
+  (type slice-string  "[]string")
+  (type slice-bool    "[]bool")
+  (type slice-byte    "[]byte")
+  (type slice-any     "[]any")
+  (type map-string-int    "map[string]int")
+  (type map-string-string "map[string]string")
+
+  ; Restricting a container to a known length, so Go's own bounds-check
+  ; elimination has a proof (bce-2026-08-15.md).
+  (narrow "%s = %s[:%s]")
+
+  (build "go build -o %s %s")
+
+  ; The structural set. `fold-range` and `fold-range2` are DELIBERATELY ABSENT:
+  ; `loop` subsumes both (ADR 0015), and a target offering two ways to write a
+  ; counted loop teaches neither. The price is recorded in
+  ; docs/spec/portability-layer.md and is 2.7% on compute-bound dot.
+  (structural let      let     pure)
+  (structural if       cond    pure)
+  (structural loop     iterate pure)
+  (structural make-vec build   pure))

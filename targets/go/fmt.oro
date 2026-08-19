@@ -1,0 +1,51 @@
+; The whole of Go's `fmt`, under Go's own names.
+;
+;   (use go/fmt)
+;   (fmt.Println x)   (fmt.Sprintf "%d items" n)   (fmt.Errorf …)
+;
+; Names are Go's exactly, capital letters included — the reader keeps case and
+; case never assigns meaning (core-0 §1.1), so `fmt.Println` is a name like any
+; other and needs no translation table.
+;
+; This is the first target module written to cover a whole host package rather
+; than the one function a program happened to need. What it could not express
+; is the finding, and it is recorded in docs/spec/target-native.md:
+;
+;   - VARIADICS. Every Print/Sprint/Errorf in Go is `(a ...any)`. Our arity is
+;     fixed, so each is declared at the arities programs use — 1, 2 and 3 — and
+;     `Printf` with four operands cannot be called at all.
+;   - MULTIPLE RETURNS. Fprintf returns (int, error) and Sscan returns
+;     (int, error); both are declared for their first result only, so the error
+;     is unreachable. That is the fourth demand for a product.
+;   - io.Writer. Fprint* take one, and there is no way to name an interface, so
+;     the whole F-family is absent.
+
+(target go
+  (module go/fmt
+    ; ---- printing to stdout. Impure, and `stmt` because the value is a count
+    ; nobody uses.
+    (prim Println  (any) any         stmt "fmt.Println(%s)"        (import "fmt"))
+    (prim Println2 (any any) any     stmt "fmt.Println(%s, %s)"    (import "fmt"))
+    (prim Println3 (any any any) any stmt "fmt.Println(%s, %s, %s)" (import "fmt"))
+    (prim Print    (any) any         stmt "fmt.Print(%s)"          (import "fmt"))
+    (prim Print2   (any any) any     stmt "fmt.Print(%s, %s)"      (import "fmt"))
+    (prim Printf   (string any) any  stmt "fmt.Printf(%s, %s)"     (import "fmt"))
+    (prim Printf2  (string any any) any     stmt "fmt.Printf(%s, %s, %s)"     (import "fmt"))
+    (prim Printf3  (string any any any) any stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt"))
+
+    ; ---- formatting to a string. Pure: same operands, same string, no effect.
+    (prim Sprint    (any) string             expr "fmt.Sprint(%s)"            pure (import "fmt"))
+    (prim Sprint2   (any any) string         expr "fmt.Sprint(%s, %s)"        pure (import "fmt"))
+    (prim Sprintln  (any) string             expr "fmt.Sprintln(%s)"          pure (import "fmt"))
+    (prim Sprintf   (string any) string      expr "fmt.Sprintf(%s, %s)"       pure (import "fmt"))
+    (prim Sprintf2  (string any any) string  expr "fmt.Sprintf(%s, %s, %s)"   pure (import "fmt"))
+    (prim Sprintf3  (string any any any) string
+                    expr "fmt.Sprintf(%s, %s, %s, %s)" pure (import "fmt"))
+
+    ; ---- errors
+    (prim Errorf   (string any) error      expr "fmt.Errorf(%s, %s)"     pure (import "fmt"))
+    (prim Errorf2  (string any any) error  expr "fmt.Errorf(%s, %s, %s)" pure (import "fmt"))
+
+    ; ---- scanning from stdin. Go returns (n, err); only n is reachable.
+    (prim Scanln (any) int expr "func() int { n, _ := fmt.Scanln(%s); return n }()"
+                 (import "fmt"))))

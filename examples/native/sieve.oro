@@ -1,0 +1,33 @@
+; Sieve of Eratosthenes, in nothing but Go's own names and `loop`.
+;
+; No portable layer: no num/int, no logic, no alen/aindex, no fold-range.
+; Everything is (use go) plus the four structural forms.
+
+(use go)
+(use go/fmt)
+
+(export count-primes main)
+
+(sig count-primes ((n int)) int)
+
+; Cross out multiples of i, from i*i, stepping by i.
+(def cross (fn (c i n)
+  (loop ((s c) (j (go.* i i)))
+    (go.< j n)  (again (go.set-bool s j (go.true)) (go.+ j i))
+    else        s)))
+
+; composite[k] is true once k has been crossed out.
+(def sieve (fn (n)
+  (loop ((c (go.make-bool n)) (i 2))
+    (go.>= (go.* i i) n)   c
+    (go.at-bool c i)       (again c (go.+ i 1))
+    else                   (again (cross c i n) (go.+ i 1)))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (c)
+    (loop ((acc 0) (k 2))
+      (go.>= k n)        acc
+      (go.at-bool c k)   (again acc (go.+ k 1))
+      else               (again (go.+ acc 1) (go.+ k 1)))))))
+
+(def main (fn () (fmt.Println (count-primes 20000))))

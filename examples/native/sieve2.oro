@@ -1,0 +1,34 @@
+; The same sieve, but the array is NOT a loop variable.
+;
+; `set-bool` mutates in place, so threading the slice through the loop state is
+; work the program does not need. `seq` sequences the write and then `again`s —
+; which is legal because `again` may sit under a `let`, and `seq` is a `let`
+; with an ignored binder (effects.md §5). This is that rule earning its keep.
+
+(use go)
+(use go/fmt)
+
+(export count-primes main)
+
+(sig count-primes ((n int)) int)
+
+(def cross (fn (c i n)
+  (loop ((j (go.* i i)))
+    (go.< j n)  (seq (go.set-bool c j (go.true)) (again (go.+ j i)))
+    else        c)))
+
+(def sieve (fn (n)
+  (let (go.make-bool n) (fn (c)
+    (loop ((i 2))
+      (go.>= (go.* i i) n)   c
+      (go.at-bool c i)       (again (go.+ i 1))
+      else                   (seq (cross c i n) (again (go.+ i 1))))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (c)
+    (loop ((acc 0) (k 2))
+      (go.>= k n)        acc
+      (go.at-bool c k)   (again acc (go.+ k 1))
+      else               (again (go.+ acc 1) (go.+ k 1)))))))
+
+(def main (fn () (fmt.Println (count-primes 20000))))

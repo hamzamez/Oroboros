@@ -32,7 +32,11 @@ func isBidiControl(r rune) bool {
 // free to reserve because no name in targets/ or examples/ contained one.
 // `/` stays an ordinary identifier character, so a module path like `go/strings`
 // is a single segment rather than a compound.
-const symbolChars = "-+*/<>=!?_"
+// `%&|^~` were added when targets began declaring their host's operators under
+// the host's own names — `go.%`, `go.&`, `go.|`. A target module that has to
+// rename `%` to `rem` is teaching the reader's limitations rather than the
+// host's, which is the opposite of what a parasite target file is for.
+const symbolChars = "-+*/<>=!?_%&|^~"
 
 func isIdentStart(r rune) bool {
 	if strings.ContainsRune(symbolChars, r) {

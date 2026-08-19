@@ -75,7 +75,33 @@ var structuralKinds = map[string]bool{
 	"iterate": true,
 }
 
+// LoadTarget reads a target from a FILE or a DIRECTORY.
+//
+// A directory holds one `(target NAME …)` form per file, merged — which is what
+// lets a target's surface be organised the way the host organises itself, one
+// file per package, instead of one file that grows without bound. build.md §4
+// and modules.md both recorded "a target is still one file rather than a
+// directory" as not-yet-built; this is it.
+//
+// Merging is a union with no precedence: two files declaring the same primitive
+// is an error, because silently taking one would make a target's meaning depend
+// on filename order.
 func LoadTarget(path string) (*Target, error) {
+	info, err := os.Stat(path)
+	if err == nil && info.IsDir() {
+		return loadTargetDir(path)
+	}
+	if err != nil {
+		// A directory target may be named without its extension.
+		if di, dErr := os.Stat(strings.TrimSuffix(path, ".oro")); dErr == nil && di.IsDir() {
+			return loadTargetDir(strings.TrimSuffix(path, ".oro"))
+		}
+		return nil, err
+	}
+	return loadTargetFile(path)
+}
+
+func loadTargetFile(path string) (*Target, error) {
 	src, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -88,6 +114,78 @@ func LoadTarget(path string) (*Target, error) {
 		return nil, fmt.Errorf("%s: expected one (target …) form, got %d", path, len(terms))
 	}
 	return parseTarget(terms[0], path)
+}
+
+func loadTargetDir(dir string) (*Target, error) {
+	ents, err := os.ReadDir(dir)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, e := range ents {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".oro") {
+			files = append(files, filepath.Join(dir, e.Name()))
+		}
+	}
+	sort.Strings(files) // deterministic diagnostics; merging is order-independent
+	if len(files) == 0 {
+		return nil, fmt.Errorf("%s: a target directory needs at least one .oro file", dir)
+	}
+	var out *Target
+	for _, f := range files {
+		part, err := loadTargetFile(f)
+		if err != nil {
+			return nil, err
+		}
+		if out == nil {
+			out = part
+			continue
+		}
+		if part.Name != out.Name {
+			return nil, fmt.Errorf("%s declares target %q, but %s declares %q — a directory is "+
+				"one target", f, part.Name, dir, out.Name)
+		}
+		if err := out.merge(part, f); err != nil {
+			return nil, err
+		}
+	}
+	sort.Strings(out.Names)
+	return out, nil
+}
+
+// merge folds one file's declarations into the target. Union, no precedence.
+func (tg *Target) merge(o *Target, from string) error {
+	for n, ty := range o.Types {
+		if have, dup := tg.Types[n]; dup && have != ty {
+			return fmt.Errorf("%s: type %s is declared as %q and as %q", from, n, have, ty)
+		}
+		tg.Types[n] = ty
+	}
+	for n, p := range o.Prims {
+		if _, dup := tg.Prims[n]; dup {
+			return fmt.Errorf("%s: %s is declared twice in this target", from, n)
+		}
+		tg.Prims[n] = p
+		tg.Names = append(tg.Names, n)
+	}
+	for _, pair := range []struct {
+		dst  *string
+		src  string
+		what string
+	}{
+		{&tg.Narrow, o.Narrow, "narrow"},
+		{&tg.Artifact, o.Artifact, "artifact"},
+		{&tg.Build, o.Build, "build"},
+	} {
+		if pair.src == "" {
+			continue
+		}
+		if *pair.dst != "" && *pair.dst != pair.src {
+			return fmt.Errorf("%s: %s is declared twice in this target", from, pair.what)
+		}
+		*pair.dst = pair.src
+	}
+	return nil
 }
 
 func parseTarget(t *core.Term, path string) (*Target, error) {

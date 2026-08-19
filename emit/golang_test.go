@@ -7,10 +7,12 @@ import (
 	"oroboros/core"
 )
 
-// reduce runs a source program to normal form and returns the single term.
+// These tests exercise the PORTABLE layer — num/f64, fold-range, io — which now
+// lives in targets/portable-go.oro. targets/go/ is the target-native one and
+// declares none of it (docs/spec/target-native.md).
 func goTarget(t *testing.T) *Target {
 	t.Helper()
-	tg, err := LoadTarget("../targets/go.oro")
+	tg, err := LoadTarget("../targets/portable-go.oro")
 	if err != nil {
 		t.Fatalf("load target: %v", err)
 	}
@@ -58,7 +60,7 @@ const dotSrc = `
 `
 
 func TestEmitDot(t *testing.T) {
-	got, err := Func(goTarget(t), "dot", nil, reduce(t, dotSrc, "go"))
+	got, err := Func(goTarget(t), "dot", nil, reduce(t, dotSrc, "portable-go"))
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
@@ -98,7 +100,7 @@ func TestEscapingClosureIsARefusal(t *testing.T) {
 		(def make-scaler (fn (f) (fn (v) (f64.mul v f))))
 		(fn (k) (make-scaler k))
 	`
-	_, err := Func(goTarget(t), "ms", nil, reduce(t, src, "go"))
+	_, err := Func(goTarget(t), "ms", nil, reduce(t, src, "portable-go"))
 	if err == nil {
 		t.Fatal("expected a refusal for an escaping closure")
 	}
@@ -117,7 +119,7 @@ func TestStatementValueIsNotRecomputed(t *testing.T) {
 	nf := reduce(t, `
 		(use io)
 		(fn (s) (io.print-line (split-words s)))
-	`, "go")
+	`, "portable-go")
 	code, err := Func(tg, "show", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
@@ -133,7 +135,7 @@ func TestStatementValueIsNotRecomputed(t *testing.T) {
 		(use io)
 		(use num/f64)
 		(fn (a) (io.print-line (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a i))))))
-	`, "go")
+	`, "portable-go")
 	code, err = Func(tg, "total", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
@@ -169,7 +171,7 @@ func TestBoundStatementValueKeepsItsType(t *testing.T) {
 		(use io)
 		(use num/int)
 		(fn () (io.print-line (int.add 21 21)))
-	`, "go")
+	`, "portable-go")
 	code, err := Func(tg, "main", nil, nf)
 	if err != nil {
 		t.Fatalf("emit: %v", err)
@@ -188,7 +190,7 @@ func TestSignatureTypesTheParameters(t *testing.T) {
 	nf := reduce(t, `
 		(use num/f64)
 		(fn (n) (fold-range 0.0 n (fn (acc i) (f64.add acc 1.0))))
-	`, "go")
+	`, "portable-go")
 
 	if _, err := Func(tg, "total", nil, nf); err == nil {
 		t.Fatal("without a signature the parameter is untypeable, so this must fail")
@@ -215,7 +217,7 @@ func TestNestedBindersDoNotShadow(t *testing.T) {
 		(use num/int as int)
 		(def inner (fn (base n) (fold-range base n (fn (acc i) (int.add acc i)))))
 		(fn (n) (fold-range 0 n (fn (acc i) (int.add (inner acc n) i))))
-	`, "go")
+	`, "portable-go")
 	sig := &core.Sig{Params: []core.SigParam{{Name: "n", Type: "int"}}, Result: "int"}
 	code, err := Func(tg, "f", sig, nf)
 	if err != nil {
@@ -249,7 +251,7 @@ func TestLoopEmitsHostFor(t *testing.T) {
 		    (int.ge i (alen a))    -1
 		    (f.gt (aindex a i) k)  i
 		    else                   (again (int.add i 1))))
-	`, "go")
+	`, "portable-go")
 	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "vec-f64"},
 		{Name: "k", Type: "f64"}}, Result: "int"}
 	code, err := Func(tg, "find", sig, nf)
@@ -279,7 +281,7 @@ func TestLoopSkipsUnchangedArguments(t *testing.T) {
 		    (int.ge i (alen a))         best
 		    (f.gt (aindex a i) best)    (again (aindex a i) (int.add i 1))
 		    else                        (again best (int.add i 1))))
-	`, "go")
+	`, "portable-go")
 	sig := &core.Sig{Params: []core.SigParam{{Name: "a", Type: "vec-f64"}}, Result: "f64"}
 	code, err := Func(tg, "best", sig, nf)
 	if err != nil {

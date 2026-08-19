@@ -268,14 +268,14 @@ go vet ./...
 ```
 
 ```bash
-go run ./cmd/build -target=go -o hello examples/hello.oro   # a real binary
-go run ./cmd/oro -target=go examples/dot.oro     # reduce to normal form
+go run ./cmd/build -target=portable-go -o hello examples/hello.oro   # a real binary
+go run ./cmd/oro -target=portable-go examples/dot.oro   # reduce to normal form
 go run ./cmd/oro -target=blas -steps examples/dot.oro
 ```
 
 ```bash
 # emit into the gauntlet, then benchmark generated against hand-written
-go run ./cmd/gen examples/dot.oro go   gauntlet/go/generated_dot.go
+go run ./cmd/gen examples/dot.oro portable-go gauntlet/go/generated_dot.go
 go run ./cmd/gen examples/dot.oro js   gauntlet/js/generated_dot.mjs
 go run ./cmd/gen examples/dot.oro java gauntlet/java/gen/GenDot.java
 cd gauntlet/go && go test -bench='SmallDot|SmallGenDot' -benchtime=3s -count=5
@@ -305,7 +305,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 |---|---|
 | `core/` | reader, terms, β/δ reducer. The atom of [core-0](docs/spec/core-0.md). |
 | `emit/` | Go, JavaScript and Java backends. Types live here, **not** in the language. |
-| `targets/` | Target declarations — **data, not Go**. Adding a host function is a line here. |
+| `targets/` | Target declarations — **data, not Go**. `go/` is a **directory**, host-native, no portability claim ([target-native.md](docs/spec/target-native.md)); `portable-go.oro` is the layer it replaced, kept for the gauntlet. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |

@@ -26,7 +26,7 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 		(use num/f64)
 		(fn (x) (f64.add "hello" 1.0))
 	`
-	for _, target := range []string{"go", "js", "java"} {
+	for _, target := range []string{"portable-go", "js", "java"} {
 		err := checkSrc(t, target, src)
 		if err == nil {
 			t.Errorf("%s: expected a type error", target)
@@ -41,7 +41,7 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 // §3 — a parameter demanded at two different types is the conflict case, and
 // it is what makes this checking rather than inference.
 func TestCheckerRejectsConflictingUse(t *testing.T) {
-	err := checkSrc(t, "go", `
+	err := checkSrc(t, "portable-go", `
 		(use num/f64)
 		(fn (a) (f64.add (aindex a 0) (slen a)))
 	`)
@@ -53,7 +53,7 @@ func TestCheckerRejectsConflictingUse(t *testing.T) {
 // §3 — `any` demands nothing, so it neither conflicts nor binds. print-line
 // takes `any` precisely because the host is polymorphic there.
 func TestCheckerAcceptsAny(t *testing.T) {
-	if err := checkSrc(t, "go", `
+	if err := checkSrc(t, "portable-go", `
 		(use io)
 		(fn (label) (io.print-line label))
 	`); err != nil {
@@ -63,7 +63,7 @@ func TestCheckerAcceptsAny(t *testing.T) {
 
 // §4 — the branches of a conditional must agree.
 func TestCheckerRejectsMismatchedBranches(t *testing.T) {
-	err := checkSrc(t, "go", `
+	err := checkSrc(t, "portable-go", `
 		(use num/f64)
 		(fn (a) (if (f64.lt (aindex a 0) 1.0) 2.0 "no"))
 	`)
@@ -92,7 +92,7 @@ func TestCheckerAcceptsTheGauntletShapes(t *testing.T) {
 			(fn (a) (if (f64.gt (aindex a 0) 0.0) 1.0 2.0))`,
 	}
 	for name, src := range cases {
-		if err := checkSrc(t, "go", src); err != nil {
+		if err := checkSrc(t, "portable-go", src); err != nil {
 			t.Errorf("%s should typecheck: %v", name, err)
 		}
 	}

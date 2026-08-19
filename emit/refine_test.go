@@ -12,7 +12,7 @@ import (
 
 func refineSrc(t *testing.T, src string) error {
 	t.Helper()
-	tg, err := LoadTarget("../targets/go.oro")
+	tg, err := LoadTarget("../targets/portable-go.oro")
 	if err != nil {
 		t.Fatal(err)
 	}

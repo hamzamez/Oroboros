@@ -37,7 +37,7 @@ func TestJSTargetIsUntyped(t *testing.T) {
 // itself part of what this test asserts: a primitive moving between modules is
 // a target-file edit and nothing more.
 func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
-	for _, name := range []string{"go", "js", "java"} {
+	for _, name := range []string{"portable-go", "js", "java"} {
 		tg, err := LoadTarget("../targets/" + name + ".oro")
 		if err != nil {
 			t.Fatal(err)
@@ -52,8 +52,35 @@ func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
 		}
 	}
 	// Go's declaration carries the import; the others need none.
-	tg, _ := LoadTarget("../targets/go.oro")
+	tg, _ := LoadTarget("../targets/portable-go.oro")
 	if tg.Prims["num/f64.sqrt"].Import != "math" {
 		t.Errorf("Go's sqrt should declare import math, got %q", tg.Prims["num/f64.sqrt"].Import)
+	}
+}
+
+// A target may be a DIRECTORY of files, merged — docs/spec/target-native.md.
+// targets/go/ is three files: the header, Go's builtins, and the whole of fmt.
+func TestTargetDirectoryMerges(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tg.Name != "go" {
+		t.Errorf("merged target is named %q", tg.Name)
+	}
+	for _, n := range []string{"go.+", "go.%", "go.&^", "go.len", "go.delete",
+		"go/fmt.Println", "go/fmt.Sprintf", "loop", "if", "let"} {
+		if _, ok := tg.Prims[n]; !ok {
+			t.Errorf("merged target is missing %s", n)
+		}
+	}
+	// The build command comes from the header file, the primitives from the
+	// others; merging is a union across all three.
+	if tg.Build == "" {
+		t.Error("the header's build command was lost in the merge")
+	}
+	// fold-range is deliberately absent: `loop` subsumes it (ADR 0015).
+	if _, ok := tg.Prims["fold-range"]; ok {
+		t.Error("the native target should not declare fold-range")
 	}
 }

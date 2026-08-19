@@ -580,6 +580,11 @@ func javaExitType(e *javaEmitter, t *core.Term) string {
 		return ""
 	}
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "let" && len(t.Args()) == 2 {
+			if k := t.Args()[1]; k.Kind == core.KFn && len(k.Params) == 1 {
+				return javaExitType(e, k.Body())
+			}
+		}
 		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
 			if ty := javaExitType(e, t.Args()[1]); ty != "" {
 				return ty
@@ -668,6 +673,29 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 			return e.emitLoopBody(t.Args()[2], raw, names, result)
 		}
 	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "let" && len(t.Args()) == 2 {
+			args := t.Args()
+			k := args[1]
+			if k.Kind == core.KFn && len(k.Params) == 1 {
+				val, err := e.emit(args[0])
+				if err != nil {
+					return err
+				}
+				if !core.Occurs(k.Body(), k.Params[0]) {
+					if !emitsStatement(e.tgt, args[0]) {
+						e.line("final var %s = %s;", javaMangle(e.fresh("discard")), val)
+					}
+					return e.emitLoopBody(k.Body(), raw, names, result)
+				}
+				ty := e.typeOf(args[0])
+				kb, kraw, kout := openFresh(k, e.bound, javaMangle)
+				e.types[kraw[0]] = ty
+				e.line("final %s %s = %s;", e.tgt.ty(ty), kout[0], val)
+				return e.emitLoopBody(kb, raw, names, result)
+			}
+		}
+	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names)
 	}
@@ -687,13 +715,19 @@ func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string) error {
 	}
 	changed := changedArgs(as, raw)
 	vals := make(map[int]string, len(changed))
+	var real []int
 	for _, i := range changed {
 		v, err := e.emit(as[i])
 		if err != nil {
 			return err
 		}
+		if v == names[i] {
+			continue // a statement primitive handed the variable back
+		}
 		vals[i] = v
+		real = append(real, i)
 	}
+	changed = real
 	if needTemps(as, raw, changed) {
 		tmp := make(map[int]string, len(changed))
 		for _, i := range changed {

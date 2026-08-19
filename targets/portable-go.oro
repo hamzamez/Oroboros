@@ -1,4 +1,13 @@
-; The Go target, declared as data.
+; The PORTABLE Go target — preserved, not current.
+;
+; Everything here that is not structural is a PORTABILITY LAYER: num/f64,
+; num/int, logic, io, alen/aindex, dict-*, split-words. Those names are ours,
+; not Go's, and each one is a claim that three hosts agree.
+;
+; targets/go/ is the current Go target and makes no such claim: it declares Go's
+; own names under Go's own semantics. This file is kept because the gauntlet's
+; seven programs are written against the portable layer and are the record of
+; what parity was measured on. See docs/spec/portability-layer.md.
 ;
 ; Adding a host function means adding a line here — requirement 4, "adding a
 ; target's APIs is close to a file listing names".
@@ -18,7 +27,7 @@
 ; primitive. It DEFAULTS OFF: forgetting it costs speed, where forgetting the
 ; opposite marker would cost correctness silently (docs/spec/effects.md §3).
 
-(target go
+(target portable-go
   (type f64        "float64")
   ; int64 rather than int: Go's `int` is 64-bit on our platforms but is not
   ; guaranteed to be, and docs/spec/arithmetic.md §4 fixes the portable range

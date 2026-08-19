@@ -284,9 +284,24 @@ func lengthVar(op string, arg *core.Term) string {
 
 // isOp matches a qualified primitive name by its last segment, so `num/int.add`
 // and a target that declares `add` unqualified are both recognised.
+// opAlias maps a host's own operator spelling to the fragment's name for it.
+//
+// The decidable fragment was keyed to the portable layer — `int.le`, `logic.and`
+// — so a target declaring Go's own `<=` and `&&` degraded every refinement to an
+// opaque atom. The fragment is about the OPERATION, not about who named it.
+var opAlias = map[string]string{
+	"+": "add", "-": "sub", "*": "mul",
+	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
+	"&&": "and", "||": "or", "!": "not",
+	"f<": "flt", "f<=": "fle", "f>": "fgt", "f>=": "fge",
+}
+
 func isOp(name, want string) bool {
 	if i := strings.LastIndex(name, "."); i >= 0 {
 		name = name[i+1:]
+	}
+	if a, ok := opAlias[name]; ok {
+		name = a
 	}
 	return name == want
 }

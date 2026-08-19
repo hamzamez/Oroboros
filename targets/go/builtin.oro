@@ -1,0 +1,112 @@
+; Go's predeclared identifiers and operators, under Go's own names.
+;
+;   (use go)
+;   (go.+ x y)   (go./ a b)   (go.len s)   (go.delete m k)
+;
+; Nothing here is portable and nothing here claims to be. `go./` on ints
+; truncates toward zero and panics on division by zero; `go.+` wraps at the
+; width of its type. That is Go, and a program using it is a Go program.
+;
+; Where a Go name is polymorphic and our type table is not, the name is
+; suffixed with the type it operates on — `go.at-float64`, `go.make-int`. Those
+; suffixes are the type language's limitation showing through, and they are the
+; main thing this experiment found. See docs/spec/target-native.md.
+
+(target go
+  (module go
+    ; ---- arithmetic. One declaration per Go type, because the type language
+    ; cannot say "any numeric T".
+    (prim +   (int int) int             expr "%s + %s"  pure)
+    (prim -   (int int) int             expr "%s - %s"  pure)
+    (prim *   (int int) int             expr "%s * %s"  pure)
+    (prim /   (int int) int             expr "%s / %s"  pure)
+    (prim %   (int int) int             expr "%s %% %s" pure)
+    (prim f+  (float64 float64) float64 expr "%s + %s"  pure)
+    (prim f-  (float64 float64) float64 expr "%s - %s"  pure)
+    (prim f*  (float64 float64) float64 expr "%s * %s"  pure)
+    (prim f/  (float64 float64) float64 expr "%s / %s"  pure)
+
+    ; ---- bitwise
+    (prim &   (int int) int expr "%s & %s"  pure)
+    (prim |   (int int) int expr "%s | %s"  pure)
+    (prim ^   (int int) int expr "%s ^ %s"  pure)
+    (prim &^  (int int) int expr "%s &^ %s" pure)
+    (prim <<  (int int) int expr "%s << %s" pure)
+    (prim >>  (int int) int expr "%s >> %s" pure)
+
+    ; ---- comparison. Go's == is defined on every comparable type, which a
+    ; monomorphic table cannot say, so `any` stands where Go is polymorphic.
+    (prim ==  (any any) bool expr "%s == %s" pure)
+    (prim !=  (any any) bool expr "%s != %s" pure)
+    (prim <   (int int) bool expr "%s < %s"  pure)
+    (prim <=  (int int) bool expr "%s <= %s" pure)
+    (prim >   (int int) bool expr "%s > %s"  pure)
+    (prim >=  (int int) bool expr "%s >= %s" pure)
+    (prim f<  (float64 float64) bool expr "%s < %s"  pure)
+    (prim f<= (float64 float64) bool expr "%s <= %s" pure)
+    (prim f>  (float64 float64) bool expr "%s > %s"  pure)
+    (prim f>= (float64 float64) bool expr "%s >= %s" pure)
+    (prim s<  (string string) bool   expr "%s < %s"  pure)
+
+    ; ---- boolean
+    (prim &&  (bool bool) bool expr "%s && %s" pure)
+    (prim ||  (bool bool) bool expr "%s || %s" pure)
+    (prim !   (bool) bool      expr "!%s"      pure)
+
+    ; ---- predeclared constants
+    (prim true  (none) bool expr "true"  pure)
+    (prim false (none) bool expr "false" pure)
+
+    ; ---- predeclared functions
+    (prim len (any) int expr "len(%s)" pure)
+    (prim cap (any) int expr "cap(%s)" pure)
+    (prim min (int int) int expr "min(%s, %s)" pure)
+    (prim max (int int) int expr "max(%s, %s)" pure)
+
+    ; append may write into the argument's backing array, so it is NOT pure.
+    (prim append-int     (slice-int int) slice-int             expr "append(%s, %s)")
+    (prim append-float64 (slice-float64 float64) slice-float64 expr "append(%s, %s)")
+    (prim append-string  (slice-string string) slice-string    expr "append(%s, %s)")
+
+    ; make: the element type is part of Go's syntax, so one name per type.
+    (prim make-int     (int) slice-int     expr "make([]int, %s)")
+    (prim make-int64   (int) slice-int64   expr "make([]int64, %s)")
+    (prim make-float64 (int) slice-float64 expr "make([]float64, %s)")
+    (prim make-string  (int) slice-string  expr "make([]string, %s)")
+    (prim make-bool    (int) slice-bool    expr "make([]bool, %s)")
+    (prim make-map     (none) map-string-int expr "make(map[string]int)")
+
+    (prim copy-float64 (slice-float64 slice-float64) int       expr "copy(%s, %s)")
+    (prim clear-map    (map-string-int) map-string-int         stmt "clear(%s)")
+    (prim delete       (map-string-int string) map-string-int  stmt "delete(%s, %s)")
+    (prim panic        (any) any stmt "panic(%s)")
+    (prim print        (any) any stmt "print(%s)")
+    (prim println      (any) any stmt "println(%s)")
+
+    ; ---- indexing and slicing. Go's own, with Go's own panic outside bounds,
+    ; which is why the refinement is carried rather than assumed.
+    (prim at-int     ((v slice-int) (i int)) int         expr "%s[%s]" pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
+    (prim at-float64 ((v slice-float64) (i int)) float64 expr "%s[%s]" pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
+    (prim at-string  ((v slice-string) (i int)) string   expr "%s[%s]" pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
+    (prim at-bool    ((v slice-bool) (i int)) bool       expr "%s[%s]" pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
+    (prim at-map     (map-string-int string) int         expr "%s[%s]" pure)
+
+    (prim set-int     (slice-int int int) slice-int              stmt "%s[%s] = %s")
+    (prim set-float64 (slice-float64 int float64) slice-float64  stmt "%s[%s] = %s")
+    (prim set-string  (slice-string int string) slice-string     stmt "%s[%s] = %s")
+    (prim set-bool    (slice-bool int bool) slice-bool           stmt "%s[%s] = %s")
+    (prim set-map     (map-string-int string int) map-string-int stmt "%s[%s] = %s")
+
+    (prim slice-float64 (slice-float64 int int) slice-float64 expr "%s[%s:%s]" pure)
+    (prim slice-string  (slice-string int int) slice-string   expr "%s[%s:%s]" pure)
+
+    ; ---- conversions. Go spells these T(x); each is its own name here.
+    (prim int-of-float64  (float64) int       expr "int(%s)"     pure)
+    (prim float64-of-int  (int) float64       expr "float64(%s)" pure)
+    (prim int64-of-int    (int) int64         expr "int64(%s)"   pure)
+    (prim string-of-bytes (slice-byte) string expr "string(%s)"  pure)
+    (prim bytes-of-string (string) slice-byte expr "[]byte(%s)"  pure)))

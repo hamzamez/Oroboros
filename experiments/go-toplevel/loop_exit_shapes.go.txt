@@ -1,0 +1,82 @@
+package main
+
+// HOLE: my (e) measured a loop in TAIL position of its function, so the exit
+// clause could be `return`. A loop used as a value — `(f.add 1.0 (loop …))` —
+// cannot return; it must assign a result and `break`. That is the honest
+// emission in general, and it was never measured.
+
+// (e) as measured: loop is the whole function body, exits with return.
+func eReturn(a []float64, k float64) int64 {
+	i := int64(0)
+	n := int64(len(a))
+	for {
+		if !(i < n) {
+			return -1
+		}
+		if a[i] > k {
+			return i
+		}
+		i = i + 1
+	}
+}
+
+// (g) the general emission: result temp + break, then the value is usable.
+func gBreak(a []float64, k float64) int64 {
+	var result int64
+	i := int64(0)
+	n := int64(len(a))
+	for {
+		if !(i < n) {
+			result = -1
+			break
+		}
+		if a[i] > k {
+			result = i
+			break
+		}
+		i = i + 1
+	}
+	return result
+}
+
+// (h) the same, but consumed as a value rather than returned directly.
+func hBreakConsumed(a []float64, k float64) int64 {
+	var result int64
+	i := int64(0)
+	n := int64(len(a))
+	for {
+		if !(i < n) {
+			result = -1
+			break
+		}
+		if a[i] > k {
+			result = i
+			break
+		}
+		i = i + 1
+	}
+	return result + 1
+}
+
+// (j) three clauses rather than two — does a longer guard chain degrade?
+func jThreeClauses(a []float64, k float64) int64 {
+	var result int64
+	i := int64(0)
+	n := int64(len(a))
+	for {
+		if !(i < n) {
+			result = -1
+			break
+		}
+		if a[i] > k {
+			result = i
+			break
+		}
+		if a[i] < 0 {
+			result = -2
+			break
+		}
+		i = i + 1
+	}
+	return result
+}

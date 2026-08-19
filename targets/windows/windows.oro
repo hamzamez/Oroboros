@@ -1,0 +1,73 @@
+; The Windows target. NO PORTABILITY CLAIM, and less of one than any target so
+; far: this emits x86-64 assembly and hands it to MASM.
+;
+; The surface is one file per "package", the same shape targets/go and
+; targets/java have:
+;
+;   (use x64)                → (x64.add a b)  (x64.imul a b)  (x64.sar x 3)
+;   (use windows/kernel32)   → (kernel32.WriteFile h p n)
+;   (use windows/msvcrt)     → (msvcrt.printf1 fmt n)
+;
+; THE NAMES ARE THE HOST'S. On this host the host's names for arithmetic are
+; INSTRUCTION MNEMONICS, so `+` is `x64.add` and `<` is `x64.setl`. That reads
+; strangely and it is not a mistake: the rule was "keep the names as in the
+; target", and assembly's name for adding is `add`.
+;
+; WHAT IS DIFFERENT ABOUT THIS TARGET. Every host before it was an expression
+; language, so `expr "%s + %s"` could hand the operands to the host's own parser
+; and let it rebuild the tree. Assembly has no tree. A template here is an
+; INSTRUCTION SEQUENCE, and it needs three things no other target file needs:
+;
+;   %r     where to put the result. There is no expression to be the result.
+;   %1..%9 operands by position, since instructions rarely use them in order.
+;   %u     a unique number, so a template may carry its own labels — and
+;          therefore its own loops. `x64.strlen` below is one.
+;
+; plus %b1/%br and %e1/%er, which spell an operand's register at 8 and 32 bits,
+; because x86 gives one register three names.
+;
+; WHICH REGISTERS A TEMPLATE MAY TOUCH. rax, rcx, rdx, r8, r9 and xmm0-xmm3 are
+; free. r10, r11, xmm4 and xmm5 are NOT: they carry spilled operands into the
+; template. Neither are rbx, rsi, rdi, r12-r15 or xmm6-xmm13, which hold live
+; values — and which is exactly why a Win32 call costs nothing here, since
+; kernel32 preserves all of them.
+
+(target windows
+  ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here: `int`
+  ; and `f64` are what integer and float LITERALS type as, and `bool` is what
+  ; `if` and a loop guard demand. The right-hand side is the machine
+  ; representation, which on this host is all a type can be.
+  (type int    "qword")
+  (type f64    "real8")
+  (type bool   "qword")
+  (type string "qword")   ; a pointer to NUL-terminated bytes
+  (type ptr    "qword")
+  (type any    "qword")
+
+  ; STORAGE THE TARGET OWNS. This is new, and Win32 forced it. `WriteFile` takes
+  ; a pointer to a cell it writes the byte count into, and our language has no
+  ; pointers, no addresses and no way to spell an out-parameter. There was
+  ; nowhere to put one — so the TARGET declares the cell and hides it inside the
+  ; template, and the language never learns that it exists.
+  ;
+  ; __buf is the same trick for a different reason: printing a number needs a
+  ; byte buffer, and the language cannot allocate one either.
+  ;
+  ; Each line is emitted ONLY IF its label appears in the code, the way an
+  ; import is. 4096 bytes here made hello-win.exe 6656 against a hand-written
+  ; 2560, for a buffer it never touches; with the check it is 2560 exactly.
+  (data "__written qword 0")
+  (data "__read    qword 0")
+  (data "__qpc     qword 0")
+  (data "__buf     db 256 dup(0)")
+
+  (build "cmd /c .\\build.bat")
+  (artifact "main.exe")
+
+  ; THE WHOLE STRUCTURAL SET IS THREE, as on the other three native targets —
+  ; and that is the result this target exists to test. `let`, `if` and `loop`
+  ; are the only things the backend implements in code; every other name in
+  ; this directory is a template.
+  (structural let  let     pure)
+  (structural if   cond    pure)
+  (structural loop iterate pure))

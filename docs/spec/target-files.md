@@ -118,6 +118,62 @@ Cycling rather than a fixed repeat, because *"repeat the operands twice"* was a 
 `dict-inc` promoted to a rule about a kind, and it produced `console.log(label)%!(EXTRA
 string=label)` the first time a one-operand statement existed.
 
+### Templates on a host with no expressions
+
+Everything above assumes the host has **nested expressions**: the hole is filled with the
+operand's emitted expression and the host's parser rebuilds the tree. `targets/windows/` emits
+x86-64 assembly, which has no tree, and it needed three more holes and one more declaration — and
+nothing removed ([ADR 0016](../decisions/0016-targets-need-not-have-expressions.md),
+[windows-target.md](windows-target.md)).
+
+| hole | means |
+|---|---|
+| `%r` | the destination the emitter allocated. There is no expression to *be* the result. |
+| `%u` | a unique number, so a template may carry its own labels and its own control flow. |
+| `%1`…`%9` | operands by position. An instruction sequence rarely uses them in order. |
+| `%b1`, `%br` | that operand's register at 8 bits. `%e1`, `%er` at 32. x86 gives one register three names. |
+| `%%` | a literal `%`. |
+
+A template may span lines. `%s` still takes the next operand in sequence, so a single-instruction
+template is written exactly as before.
+
+```lisp
+(prim add (int int) int expr "mov %r, %1\nadd %r, %2" pure)
+```
+
+### `jump` — a predicate in branch position
+
+```lisp
+(prim setl (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br" pure (jump "l"))
+(prim test-byte ((p ptr) (i int)) bool expr "…" pure (jump "ne" "cmp byte ptr [%1+%2], 0"))
+```
+
+The `expr` form is what the predicate costs **as a value**; `(jump …)` is what it costs **as a
+guard** — the backend emits the comparison and the negated conditional jump and materialises
+nothing. The optional second string is the flag-setting instruction when the host's default is not
+it.
+
+Two pseudo-codes, `"and"` and `"or"`, mark the short-circuiting connectives, which are branches
+rather than condition codes.
+
+Go, JavaScript and Java fold a comparison into a branch inside their own compilers, so all three
+declare no `jump` at all. **A host that does not is the reason this exists**, and without it every
+loop guard is two comparisons.
+
+### `data` — storage the target owns
+
+```lisp
+(data "__written qword 0")
+```
+
+Win32's `WriteFile` takes a pointer to a cell it writes the byte count into. The language has no
+pointers to locals, no addresses and no multiple returns, so there is **nowhere to put one** — and
+the target declares it and hides it inside the template. Emitted verbatim into the artifact, and
+only when the label appears in the code, exactly as an import is.
+
+Every host before this one could allocate from inside an expression, so no target had ever needed
+to declare storage.
+
 ## 4. `structural` — the four the backend implements
 
 ```lisp
@@ -239,6 +295,9 @@ A declaration is believed. Nothing here is checked, so each line is an obligatio
 
 ## 8. What is deliberately not in the format
 
+- **Register allocation, or anything else that binds a value to a machine location.** The windows
+  target allocates registers in `emit/asm.go` and a target file never names one that holds a
+  value; it may only clobber a declared volatile set. This is the same line as the one below.
 - **New structural kinds.** They bind variables and emit control flow; adding one is a compiler
   change. The set is closed for a reason: [arithmetic.md §2](arithmetic.md) shows the four are
   exactly the eliminators whose scrutinee is dynamic.

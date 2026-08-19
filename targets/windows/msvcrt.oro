@@ -1,0 +1,53 @@
+; msvcrt.dll — the C runtime, which every Windows install has and which the
+; linker resolves without any of it ending up in our artifact.
+;
+;   (use windows/msvcrt)
+;   (msvcrt.puts s)   (msvcrt.printf1 "%d\n" n)
+;
+; THE INTERESTING ONE IS printf, BECAUSE IT IS VARIADIC.
+;
+; targets/go/fmt.oro records that the Go Print family is `(a ...any)`, that our
+; arity is fixed, and that `Printf` with four operands "cannot be called at
+; all". Here the same function CAN be called, at every arity we care to declare,
+; because at this level a variadic call is not a different kind of call — it is
+; a call with n arguments, and the caller cleans up. The wall on Go was the Go
+; type system, not the concept.
+;
+; What we still cannot do is call it at an arity nobody declared, so the suffix
+; is back: printf1, printf2, printf3. That is the same limitation the other
+; three targets have, arriving from the same place — no variadics in the
+; language — and it is worth being exact that these are two different failures
+; wearing the same clothes.
+;
+; A FLOAT ARGUMENT TO A VARIADIC needs care the fixed-arity case does not: the
+; Win64 convention says a double passed to `...` goes in BOTH the xmm register
+; and the matching integer register. printf1f below does that, and forgetting it
+; prints garbage rather than failing.
+
+(target windows
+  (module windows/msvcrt
+    (prim puts    (string) int expr "mov rcx, %1\ncall puts\nmov %r, rax"    (import "puts"))
+    (prim putchar (int) int    expr "mov rcx, %1\ncall putchar\nmov %r, rax" (import "putchar"))
+
+    (prim printf  (string) int expr
+      "mov rcx, %1\ncall printf\nmov %r, rax" (import "printf"))
+    (prim printf1 (string int) int expr
+      "mov rcx, %1\nmov rdx, %2\ncall printf\nmov %r, rax" (import "printf"))
+    (prim printf2 (string int int) int expr
+      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall printf\nmov %r, rax" (import "printf"))
+    (prim printf3 (string int int int) int expr
+      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nmov r9, %4\ncall printf\nmov %r, rax"
+      (import "printf"))
+    ; The double goes in xmm1 AND rdx. Both. That is the convention.
+    (prim printf1f (string f64) int expr
+      "mov rcx, %1\nmovsd xmm1, %2\nmovq rdx, xmm1\ncall printf\nmov %r, rax" (import "printf"))
+
+    (prim malloc (int) ptr    expr "mov rcx, %1\ncall malloc\nmov %r, rax" (import "malloc"))
+    (prim free   (ptr) ptr    stmt "mov rcx, %1\ncall free"                (import "free"))
+    (prim memset (ptr int int) ptr stmt
+      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall memset" (import "memset"))
+    (prim atoi   (string) int  expr "mov rcx, %1\ncall atoi\nmov %r, rax"    (import "atoi"))
+    (prim atof   (string) f64  expr "mov rcx, %1\ncall atof\nmovsd %r, xmm0" (import "atof"))
+    (prim rand   (none) int    expr "call rand\nmov %r, rax"                 (import "rand"))
+    (prim srand  (int) int     stmt "mov rcx, %1\ncall srand"                (import "srand"))
+    (prim clock  (none) int    expr "call clock\nmov %r, rax"                (import "clock"))))

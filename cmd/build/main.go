@@ -126,6 +126,11 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 		code, err = emit.JSFunc(tg, "oro-main", prog.Sigs[entry], nf)
 	case "java":
 		code, err = emit.JavaMethod(tg, "oro-main", prog.Sigs[entry], nf)
+	case "windows":
+		code, err = emit.AsmProc(tg, "oro-main", prog.Sigs[entry], nf)
+		if err == nil {
+			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
+		}
 	default:
 		code, err = emit.Func(tg, "oro-main", prog.Sigs[entry], nf)
 	}
@@ -151,15 +156,25 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	}
 
 	// A host with no compile step delivers the emitted source itself. Copy it
-	// first, so a `build` command that only checks has something to check.
-	if tg.Artifact != "" {
+	// first, so a `build` command that only checks has something to check —
+	// and again afterwards, for a toolchain that PRODUCES the artifact rather
+	// than being handed a destination. `go build -o` takes one; ml64 and link
+	// do not, and neither does any toolchain driven through a script.
+	copyArtifact := func(must bool) error {
+		if tg.Artifact == "" {
+			return nil
+		}
 		b, err := os.ReadFile(filepath.Join(work, tg.Artifact))
 		if err != nil {
+			if !must && os.IsNotExist(err) {
+				return nil
+			}
 			return err
 		}
-		if err := os.WriteFile(out, b, 0o644); err != nil {
-			return err
-		}
+		return os.WriteFile(out, b, 0o644)
+	}
+	if err := copyArtifact(false); err != nil {
+		return err
 	}
 	// Print this BEFORE running the toolchain: a failed build is exactly when
 	// you need to see the source, and printing it afterwards hid it.
@@ -177,6 +192,9 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	}
 	if keep {
 		fmt.Printf("source kept in %s\n", work)
+	}
+	if err := copyArtifact(true); err != nil {
+		return err
 	}
 	fmt.Printf("wrote %s\n", out)
 	return nil

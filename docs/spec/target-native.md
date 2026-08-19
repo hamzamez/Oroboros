@@ -252,3 +252,27 @@ file all along.
   `vec-f64` and demanding `f64` elements, so on a target whose types are Go's it could not be called
   at all — `go.f* is float64, but f64 is required here`. A `loop` over `go.make-float64` and
   `go.set-float64` emits the same `make` plus fill loop. Whether it reaches parity is unmeasured.
+
+## 7. The fourth target: a host with no expressions
+
+`targets/windows/` emits x86-64 assembly. Everything in this document assumed a host with nested
+expressions, and it turned out that assumption cost three holes in the format and nothing else —
+[windows-target.md](windows-target.md),
+[ADR 0016](../decisions/0016-targets-need-not-have-expressions.md).
+
+Two rows belong in the comparison above.
+
+| | Go | JS | Java | windows |
+|---|---|---|---|---|
+| structural primitives | 3 | 3 | 3 | **3** |
+| variadic `printf`-family | undeclarable past arity 3 | native | undeclarable | **declarable at any arity** |
+
+The second is the reversal worth noting. §2.2 records that Go's `(a ...any)` cannot be called at
+four operands *at all*. On this host it can, because a variadic call is a call with n arguments
+and the caller cleans up. **The wall on Go was Go's type system, not the concept** — and our own
+wall, that an undeclared arity is uncallable, is still there, wearing the same clothes.
+
+§2.6's reserved four hold: `windows.oro` spells `int` as `qword`, `f64` as `real8`, `bool` as
+`qword`. And the type language's poverty shows a third way here — `string` and `ptr` are the same
+machine type, so declaring `WriteFile`'s buffer as `ptr` made a literal a type error the host does
+not have. On JS one host type had to serve two of ours; here two of ours name one host type.

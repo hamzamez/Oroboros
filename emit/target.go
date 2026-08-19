@@ -35,6 +35,22 @@ type Prim struct {
 	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
 
+	// Jump is a BRANCH form: the host's own condition code for this predicate,
+	// so a conditional can test it directly instead of materialising a boolean
+	// and comparing that against zero. Empty on every host with expressions —
+	// Go writes `if a < b` and its own compiler does this. It exists because
+	// assembly has no expressions: `cmp; setl; cmp; je` is two compares where
+	// hand-written code has one (docs/spec/windows-target.md §4).
+	//
+	// The pseudo-codes "and" and "or" mark the short-circuiting connectives,
+	// which are branches rather than condition codes.
+	Jump string
+	// JumpForm is the comparison that sets the flags for Jump, when the default
+	// — `cmp %1, %2` for integers, `comisd %1, %2` for floats — is not it.
+	// `(jump "ne" "cmp byte ptr [%1+%2], 0")` is a predicate over a container
+	// and an index, and it is the fused test x86 actually has.
+	JumpForm string
+
 	// Where is a refinement: a boolean term over the primitive's parameter
 	// names, discharged at every call site (docs/spec/refinements.md).
 	Where *core.Term
@@ -59,6 +75,13 @@ type Target struct {
 	// has no compile step. JavaScript is such a host: `node main.mjs` runs the
 	// source, so there is nothing to build and the artifact is a copy.
 	Artifact string
+
+	// Data is host storage the target itself owns — a scratch buffer, an
+	// out-parameter cell. Every host so far could allocate from within an
+	// expression, so no target had ever needed to declare storage; Win32
+	// `WriteFile` takes an out-pointer, and there is nowhere in the LANGUAGE to
+	// put one. Emitted verbatim into the artifact's data section.
+	Data []string
 
 	// Build is the host toolchain command: %s is the artifact path, %s the
 	// directory holding the emitted source. A target that declares none can
@@ -168,6 +191,7 @@ func (tg *Target) merge(o *Target, from string) error {
 		tg.Prims[n] = p
 		tg.Names = append(tg.Names, n)
 	}
+	tg.Data = append(tg.Data, o.Data...)
 	for _, pair := range []struct {
 		dst  *string
 		src  string
@@ -221,6 +245,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (build \"cmd %%s %%s\"), got %s", path, f)
 			}
 			tg.Build = f.Kids[1].Str
+		case "data":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (data \"label ...\"), got %s", path, f)
+			}
+			tg.Data = append(tg.Data, f.Kids[1].Str)
 		case "narrow":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (narrow \"dst = src[:n]\"), got %s", path, f)
@@ -348,6 +377,15 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
 			p.Where = rest.Kids[1]
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "jump" && len(rest.Kids) >= 2 && rest.Kids[1].Kind == core.KStr:
+			p.Jump = rest.Kids[1].Str
+			if len(rest.Kids) == 3 && rest.Kids[2].Kind == core.KStr {
+				p.JumpForm = rest.Kids[2].Str
+			} else if len(rest.Kids) != 2 {
+				return Prim{}, fmt.Errorf("%s: %s: (jump \"cc\" [\"compare form\"]), got %s",
+					path, p.Name, rest)
+			}
 		case rest.Kind == core.KName && rest.Name == "index":
 			if len(p.Args) != 2 {
 				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+
@@ -514,9 +552,45 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		fmt.Fprintf(&b, "\n\tpublic static void main(String[] args) {\n\t\t%s();\n\t}\n}\n",
 			javaMangle(entry))
 		return os.WriteFile(filepath.Join(dir, "Main.java"), []byte(b.String()), 0o644)
+
+	case "windows":
+		// One translation unit and one batch file. The batch file exists
+		// because of a limitation this target was the first to hit: Build is
+		// split on whitespace and run without a shell, and every Windows
+		// toolchain lives under `C:\Program Files\`. `go`, `node` and `javac`
+		// are all bare words on PATH, so no target had ever needed a path with
+		// a space in it. Discovery moves into the batch file, which is a
+		// workaround and is recorded as one (windows-target.md 6).
+		if err := os.WriteFile(filepath.Join(dir, "main.asm"), []byte(code), 0o644); err != nil {
+			return err
+		}
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(asmBuildBat), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
+
+// asmBuildBat finds MASM and the linker, then runs them.
+//
+// It exists because Build is split on whitespace and run without a shell, and
+// every Windows toolchain lives under a path with a space in it. `go`, `node`
+// and `javac` are bare words on PATH, so no target had ever needed more than
+// one command or a quoted path. Discovery therefore moves into a script the
+// target writes — which works, and is a workaround (windows-target.md 6).
+const asmBuildBat = `@echo off
+setlocal enabledelayedexpansion
+set "VCV="
+for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Microsoft Visual Studio") do (
+  for /d %%v in ("%%~p\*") do (
+    for /d %%e in ("%%~v\*") do (
+      if exist "%%~e\VC\Auxiliary\Build\vcvars64.bat" set "VCV=%%~e\VC\Auxiliary\Build\vcvars64.bat"
+    )
+  )
+)
+if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)
+call "!VCV!" >nul || exit /b 1
+ml64 -nologo -c -Fomain.obj main.asm || exit /b 1
+link -nologo -subsystem:console -entry:main main.obj kernel32.lib msvcrt.lib legacy_stdio_definitions.lib -out:main.exe || exit /b 1
+`
 
 func sortedSet(m map[string]bool) []string {
 	out := make([]string, 0, len(m))

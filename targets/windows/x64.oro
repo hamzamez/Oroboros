@@ -1,0 +1,135 @@
+; The x86-64 instruction set, under its own mnemonics.
+;
+;   (use x64)
+;   (x64.add a b)   (x64.imul a b)   (x64.sar x 3)   (x64.setl i n)
+;
+; Nothing here is portable and nothing here claims to be. `x64.idiv` truncates
+; toward zero and RAISES #DE on a zero divisor, which is a process-killing
+; hardware trap and not an exception anything can catch. `x64.add` wraps at 64
+; bits. That is the machine, and a program using it is a machine program.
+;
+; THREE THINGS THIS FILE COULD NOT SAY, and they are the findings:
+;
+;   1. `add` IS DESTRUCTIVE. x86 computes `a += b`; our language needs
+;      `d = a + b`. Every arithmetic template is therefore two instructions,
+;      `mov %r, %1` then the operation. The emitter allocates %r before it
+;      frees the operands, which is what makes that safe with no alias
+;      analysis — %r cannot be an operand still in use. The extra `mov` is
+;      real, and on a register-starved loop it is what separates this output
+;      from hand-written (docs/spec/windows-target.md §5).
+;
+;   2. `idiv` RETURNS TWO RESULTS — quotient in rax, remainder in rdx, from one
+;      instruction. Our language has no product, so it is declared twice and
+;      the divide runs twice. This is the FIFTH independent demand for a
+;      product type, and the first one that comes from the hardware rather than
+;      from a library.
+;
+;   3. `mov` IS BOTH DIRECTIONS. x86 spells load and store with one mnemonic
+;      and tells them apart by which operand is memory. Our language has no
+;      assignable place, so the direction has to be in the NAME: `mov` loads
+;      and `mov-store` stores. That is the one place the host's own naming
+;      could not be kept.
+
+(target windows
+  (module x64
+    ; ---- integer arithmetic. Two instructions each, for the reason above.
+    (prim add  (int int) int expr "mov %r, %1\nadd %r, %2"  pure)
+    (prim sub  (int int) int expr "mov %r, %1\nsub %r, %2"  pure)
+    (prim imul (int int) int expr "mov %r, %1\nimul %r, %2" pure)
+    (prim neg  (int) int     expr "mov %r, %1\nneg %r"      pure)
+    (prim inc  (int) int     expr "mov %r, %1\ninc %r"      pure)
+    (prim dec  (int) int     expr "mov %r, %1\ndec %r"      pure)
+
+    ; idiv wants the dividend sign-extended across rdx:rax, which is what cqo
+    ; is for. Declared twice because one instruction produces two results and
+    ; there is no way to say that.
+    (prim idiv (int int) int expr "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax" pure)
+    (prim irem (int int) int expr "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx" pure)
+
+    ; ---- bitwise and shifts. A variable shift count must be in cl; x86 has no
+    ; other form, which is why rcx appears in a template that never mentions it.
+    (prim and (int int) int expr "mov %r, %1\nand %r, %2" pure)
+    (prim or  (int int) int expr "mov %r, %1\nor %r, %2"  pure)
+    (prim xor (int int) int expr "mov %r, %1\nxor %r, %2" pure)
+    (prim not (int) int     expr "mov %r, %1\nnot %r"     pure)
+    (prim shl (int int) int expr "mov %r, %1\nmov rcx, %2\nshl %r, cl" pure)
+    (prim shr (int int) int expr "mov %r, %1\nmov rcx, %2\nshr %r, cl" pure)
+    (prim sar (int int) int expr "mov %r, %1\nmov rcx, %2\nsar %r, cl" pure)
+
+    ; ---- comparison. `setcc` is the mnemonic that MAKES a boolean; `(jump …)`
+    ; is the condition code that BRANCHES on one. Both are needed and they are
+    ; the same predicate: a comparison in value position costs the setcc, and a
+    ; comparison in a guard costs neither, because the backend emits the jump.
+    ;
+    ; Every other host folds a comparison into its branch by itself. This is the
+    ; first one that has to be told, and (jump …) is the whole of being told.
+    (prim sete  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsete %br\nmovzx %er, %br"  pure (jump "e"))
+    (prim setne (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetne %br\nmovzx %er, %br" pure (jump "ne"))
+    (prim setl  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br"  pure (jump "l"))
+    (prim setle (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetle %br\nmovzx %er, %br" pure (jump "le"))
+    (prim setg  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetg %br\nmovzx %er, %br"  pure (jump "g"))
+    (prim setge (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetge %br\nmovzx %er, %br" pure (jump "ge"))
+
+    ; ---- boolean. The VALUE forms evaluate both operands; the (jump …) forms
+    ; short-circuit, because a branch can. Those are different programs, and on
+    ; a host with expressions they were the same declaration.
+    (prim andb (bool bool) bool expr "mov %r, %1\nand %r, %2" pure (jump "and"))
+    (prim orb  (bool bool) bool expr "mov %r, %1\nor %r, %2"  pure (jump "or"))
+    (prim notb (bool) bool      expr "mov %r, %1\nxor %r, 1"  pure)
+    (prim true  (none) bool expr "mov %r, 1" pure)
+    (prim false (none) bool expr "xor %er, %er" pure)
+
+    ; ---- SSE2 scalar double. A separate register file, which is why the
+    ; backend has to know one bit of type for every value it places.
+    (prim addsd  (f64 f64) f64 expr "movsd %r, %1\naddsd %r, %2" pure)
+    (prim subsd  (f64 f64) f64 expr "movsd %r, %1\nsubsd %r, %2" pure)
+    (prim mulsd  (f64 f64) f64 expr "movsd %r, %1\nmulsd %r, %2" pure)
+    (prim divsd  (f64 f64) f64 expr "movsd %r, %1\ndivsd %r, %2" pure)
+    (prim sqrtsd (f64) f64     expr "sqrtsd %r, %1"              pure)
+    (prim minsd  (f64 f64) f64 expr "movsd %r, %1\nminsd %r, %2" pure)
+    (prim maxsd  (f64 f64) f64 expr "movsd %r, %1\nmaxsd %r, %2" pure)
+
+    ; comisd sets the CARRY flag, not the sign flag, so a float predicate takes
+    ; the UNSIGNED condition codes. Getting this wrong compares correctly for
+    ; positive numbers and silently wrongly for the rest.
+    (prim setb  (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetb %br"  pure (jump "b"))
+    (prim setbe (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetbe %br" pure (jump "be"))
+    (prim seta  (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nseta %br"  pure (jump "a"))
+    (prim setae (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetae %br" pure (jump "ae"))
+
+    (prim cvtsi2sd  (int) f64 expr "mov rax, %1\ncvtsi2sd %r, rax" pure)
+    (prim cvttsd2si (f64) int expr "cvttsd2si %r, %1"              pure)
+
+    ; ---- memory. `lea` is how x86 does pointer arithmetic, and it is also the
+    ; only way to get an address at all, since the language has no `&`.
+    (prim lea (ptr int) ptr expr "lea %r, [%1+%2]" pure)
+    (prim buf (none) ptr    expr "lea %r, __buf"   pure)
+
+    ; One mnemonic, two names: our language has no assignable place, so the
+    ; direction of the move has to be part of the name.
+    (prim mov       ((p ptr) (i int)) int expr "mov %r, qword ptr [%1+%2*8]" pure index)
+    (prim mov-store (ptr int int) ptr     stmt "mov qword ptr [%1+%2*8], %3")
+    (prim movzx     ((p ptr) (i int)) int expr "movzx %er, byte ptr [%1+%2]" pure index)
+    (prim movb      (ptr int int) ptr     stmt "mov byte ptr [%1+%2], %b3")
+
+    ; A PREDICATE THAT IS NOT A COMPARISON OF TWO VALUES.
+    ;
+    ; `(setne (movzx c i) 0)` is three instructions: load the byte, compare the
+    ; register, branch. x86 does it in one — `cmp byte ptr [c+i], 0` — and the
+    ; second string in (jump …) is how a target says so. Without it the sieve
+    ; counting loop carries an extra load and an extra compare per element, and
+    ; the value form below is what the same predicate still costs when it is
+    ; used as a value rather than as a guard.
+    (prim test-byte ((p ptr) (i int)) bool
+      expr "xor %er, %er\ncmp byte ptr [%1+%2], 0\nsetne %br" pure
+      (jump "ne" "cmp byte ptr [%1+%2], 0"))
+
+    ; ---- a template with its own control flow.
+    ;
+    ; %u is what makes this possible: each expansion gets its own labels, so a
+    ; template is not restricted to straight-line code. This is `strlen`, and it
+    ; is here to answer the obvious question about a target-file format made of
+    ; templates — no, they are not limited to single instructions, and a target
+    ; can put a whole loop behind one name when the host has no call for it.
+    (prim strlen (string) int expr
+      "mov rax, %1\nLstr%u:\ncmp byte ptr [rax], 0\nje Lstrend%u\ninc rax\njmp Lstr%u\nLstrend%u:\nsub rax, %1\nmov %r, rax" pure)))

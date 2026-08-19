@@ -45,3 +45,7 @@ gauntlet/size/fatwork/
 # Compiler binary
 /bin/
 gauntlet/java/*.class
+
+# hand-written assembly reference build outputs
+gauntlet/windows/*.obj
+gauntlet/windows/*.exe

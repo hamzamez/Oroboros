@@ -1,0 +1,69 @@
+; `fmt` for the windows target — WRITTEN IN THE LANGUAGE, because Win32 has no
+; such thing to parasitize.
+;
+;   (use win/fmt)
+;   (fmt.print-str "primes:")   (fmt.print-int 2262)
+;
+; THIS FILE IS THE POINT OF THE WINDOWS EXPERIMENT.
+;
+; On Go, `fmt.Println(n)` is one entry in targets/go/fmt.oro and the host does
+; everything. On Java it is `System.out.println`. On JavaScript it is
+; `console.log`. On Windows the platform's output primitive is
+;
+;   WriteFile(handle, buffer, count, &written, NULL)
+;
+; which takes BYTES. Nothing under it knows what a number is. So the conversion
+; from 2262 to the four bytes "2262" has to be written, and here it is: a loop,
+; a remainder, a byte store, and the target's scratch buffer.
+;
+; That is what a parasite gets from a rich host and does not get from a bare
+; one, priced exactly: on Go this file is zero lines and one native call; here
+; it is thirty lines and it still reduces away into the caller, because the
+; reducer does not care which of the two it is.
+;
+; NOT A LIBRARY THE OTHER TARGETS CAN USE. It names x64 and kernel32 directly
+; and carries no portability claim, exactly like examples/native/*.oro. That is
+; deliberate: the alternative is a portable `io` layer, and removing those is
+; what the last two milestones were for.
+;
+; LIMITS, STATED RATHER THAN FIXED:
+;   - print-int takes a NON-NEGATIVE integer. A sign is four more lines and
+;     would teach nothing this file does not already teach.
+;   - the digits go into the target's single __buf, so two of these cannot run
+;     at once. The same is true of the __written cell WriteFile writes through.
+
+(module win/fmt)
+(use x64)
+(use windows/kernel32)
+
+(export print-str print-int write-bytes)
+
+; -11 is STD_OUTPUT_HANDLE. There is no constant in the language to name it
+; with, so the number is the interface — see targets/windows/kernel32.oro.
+(def write-bytes (fn (p n)
+  (kernel32.WriteFile (kernel32.GetStdHandle -11) p n)))
+
+(def print-str (fn (s)
+  (seq (write-bytes s (x64.strlen s))
+       (write-bytes "\n" 1))))
+
+; Digits are produced least-significant first, so they are written BACKWARDS
+; from the end of the field and the loop returns where it stopped. The loop's
+; value is that index — an ordinary `loop` exit, not a special form — and the
+; caller writes from there to the end.
+;
+; 48 is '0'. 10 is '\n'. The language has no character literals, and adding some
+; would be the first thing here that is not already in it.
+(def print-int (fn (n)
+  (if (x64.sete n 0)
+      (print-str "0")
+      (let (x64.buf) (fn (b)
+        (seq (x64.movb b 24 10)
+             (let (loop ((m n) (i 24))
+                     (x64.setg m 0)
+                     (seq (x64.movb b (x64.sub i 1) (x64.add 48 (x64.irem m 10)))
+                          (again (x64.idiv m 10) (x64.sub i 1)))
+                     else i)
+                  (fn (start)
+                    (write-bytes (x64.lea b start)
+                                 (x64.add (x64.sub 24 start) 1))))))))))

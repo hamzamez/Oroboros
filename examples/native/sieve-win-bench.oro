@@ -1,0 +1,37 @@
+; The sieve, repeated, so it can be timed against hand-written assembly.
+;
+; 100 rounds of a 200000 sieve, summed so nothing is dead. The hand-written
+; reference is gauntlet/windows/sieve.asm and it is the same program written the
+; way a person writes it — including the one thing this version cannot do, which
+; is reuse i*i between the guard and the inner loop's start.
+
+(use x64)
+(use win/fmt)
+(use windows/kernel32)
+
+(export main)
+
+(def cross (fn (c i n)
+  (loop ((j (x64.imul i i)))
+    (x64.setl j n)  (seq (x64.movb c j 1) (again (x64.add j i)))
+    else            c)))
+
+(def sieve (fn (n)
+  (let (kernel32.VirtualAlloc n) (fn (c)
+    (loop ((i 2))
+      (x64.setge (x64.imul i i) n)  c
+      (x64.test-byte c i)           (again (x64.add i 1))
+      else                          (seq (cross c i n) (again (x64.add i 1))))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (c)
+    (loop ((acc 0) (k 2))
+      (x64.setge k n)      acc
+      (x64.test-byte c k)  (again acc (x64.add k 1))
+      else                 (again (x64.add acc 1) (x64.add k 1)))))))
+
+(def main (fn ()
+  (fmt.print-int
+    (loop ((r 0) (t 0))
+      (x64.setge t 100)  r
+      else              (again (x64.add r (count-primes 200000)) (x64.add t 1))))))

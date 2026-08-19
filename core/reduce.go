@@ -919,11 +919,44 @@ func freeVars(t *Term) map[string]bool {
 // here would flag the correct compilation of a well-defined term as an error.
 func Residual(t *Term, e *Env) []string {
 	found := map[string]bool{}
-	for n := range freeVars(t) {
-		if !e.Prim[n] && !e.Rec[n] {
-			found[n] = true
+	// `again` is bound by the enclosing loop and by nothing else, so it is not
+	// residual there — the same rule scope() applies, arriving here late.
+	//
+	// It arrived late because it was never reached: ADR 0015 was built and
+	// benchmarked entirely through `gen`, which emits a function, and this
+	// check lives in `build`, which makes a binary. Every loop program was
+	// therefore refused by the one command that produces an artifact, and no
+	// test noticed, because no test built one. Found writing the fourth target.
+	var walk func(t *Term, bound map[string]bool, inLoop bool)
+	walk = func(t *Term, bound map[string]bool, inLoop bool) {
+		switch t.Kind {
+		case KName:
+			if bound[t.Name] || (t.Name == "again" && inLoop) {
+				return
+			}
+			if !e.Prim[t.Name] && !e.Rec[t.Name] {
+				found[t.Name] = true
+			}
+		case KInt, KFloat, KStr, KBound:
+		case KFn:
+			inner := make(map[string]bool, len(bound)+len(t.Params))
+			for k := range bound {
+				inner[k] = true
+			}
+			for _, p := range t.Params {
+				inner[p] = true
+			}
+			walk(t.Body(), inner, inLoop)
+		default:
+			// (loop (fn (x…) body) z…): only the abstraction is under the
+			// binder. The initial values are evaluated outside it.
+			isLoop := t.Kind == KApp && t.Op().Kind == KName && t.Op().Name == "loop"
+			for i, k := range t.Kids {
+				walk(k, bound, inLoop || (isLoop && i == 1))
+			}
 		}
 	}
+	walk(t, map[string]bool{}, false)
 	out := make([]string, 0, len(found))
 	for n := range found {
 		out = append(out, n)

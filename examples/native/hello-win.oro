@@ -1,0 +1,20 @@
+; The first Oroboros program that becomes machine code without a compiler in
+; between. It emits x86-64 assembly; MASM and link turn that into an .exe.
+;
+;   build -target=windows -o hello.exe examples/native/hello-win.oro
+;
+; There is no `print` here and no `Println`, because Win32 has neither. It has
+; WriteFile over bytes, and `puts` below is the program that stands where
+; `fmt.Println` stands on Go — written in the language, out of one API call and
+; one template that happens to contain a loop.
+
+(use x64)
+(use windows/kernel32)
+
+(export main)
+
+(def puts (fn (s)
+  (let (kernel32.GetStdHandle -11) (fn (h)
+    (kernel32.WriteFile h s (x64.strlen s))))))
+
+(def main (fn () (puts "hello from oroboros\n")))

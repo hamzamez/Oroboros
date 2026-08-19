@@ -138,6 +138,8 @@ func run(targetDir, src, target, out, name, path string) error {
 			code, err = emit.JSFunc(tg, fname, sig, nf)
 		case "java":
 			code, err = emit.JavaMethod(tg, fname, sig, nf)
+		case "windows":
+			code, err = emit.AsmProc(tg, fname, sig, nf)
 		default:
 			code, err = emit.Func(tg, fname, sig, nf)
 		}
@@ -154,6 +156,8 @@ func run(targetDir, src, target, out, name, path string) error {
 	case "java":
 		base := filepath.Base(out)
 		text2 = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
+	case "windows":
+		text2 = emit.AsmFile(tg, funcs, "")
 	default:
 		text2 = emit.File("gauntlet", funcs)
 	}

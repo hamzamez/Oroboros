@@ -61,6 +61,7 @@ recording alternatives that were considered and rejected.
 | Accept the allocation price, provisionally | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
 | `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
+| A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -253,6 +254,14 @@ recoverable from the code.
 than no design document. `docs/design-direction.md` was rewritten, not appended to, when the
 Parasite reframing invalidated part of it.
 
+**A target need not have expressions** — [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md).
+`targets/windows/` emits x86-64 assembly under MASM and reaches **parity with hand-written
+assembly** ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)), with the structural set
+still three. The format gained `%r`, `%u`, `(jump …)` and `(data …)` and lost nothing. Two things
+to carry forward: a template may not touch r10, r11, xmm4 or xmm5, and **the optimisations you
+were parasitizing only become visible on a host that has none** — the first three hosts were doing
+common-subexpression elimination for us and nothing noticed until one did not.
+
 **Two backends before front-end features.** Once the Go backend works, build the JavaScript
 backend before adding anything to the language. JS is the most hostile host in the set and
 surfaces core flaws while they are still cheap to fix.
@@ -304,8 +313,8 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | | |
 |---|---|
 | `core/` | reader, terms, β/δ reducer. The atom of [core-0](docs/spec/core-0.md). |
-| `emit/` | Go, JavaScript and Java backends. Types live here, **not** in the language. |
-| `targets/` | Target declarations — **data, not Go**. `go/`, `js/` and `java/` are **directories**, host-native, no portability claim ([target-native.md](docs/spec/target-native.md)); the `portable-*.oro` files are the layer they replaced, kept for the gauntlet. |
+| `emit/` | Go, JavaScript, Java and x86-64 backends. Types live here, **not** in the language. |
+| `targets/` | Target declarations — **data, not Go**. `go/`, `js/`, `java/` and `windows/` are **directories**, host-native, no portability claim ([target-native.md](docs/spec/target-native.md), [windows-target.md](docs/spec/windows-target.md)); the `portable-*.oro` files are the layer they replaced, kept for the gauntlet. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |

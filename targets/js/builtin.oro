@@ -29,8 +29,24 @@
     ; String concatenation is the SAME operator; with `any` operands, `js.+`
     ; already covers it. Nothing to add.
 
-    ; ---- bitwise. These coerce to int32 in JS, which is a real semantic edge
-    ; and is exactly the sort of thing a portability claim would have to hide.
+    ; ---- bitwise. These coerce to int32, which is a real semantic edge and
+    ; exactly the sort of thing a portability claim would have to hide.
+    ;
+    ; MEASURED, and the numbers are worth having here rather than in a document
+    ; (gauntlet/results/bitwise-2026-08-19.md):
+    ;
+    ;   (1<<40) | 0      Go/Java/x86 1099511627776    JS 0
+    ;   3000000000 | 0   Go/Java/x86 3000000000       JS -1294967296
+    ;   1 << 32          Go/Java/x86 4294967296       JS 1     (count masked by 31)
+    ;
+    ; Inside [-2^31, 2^31-1] all four hosts agree EXACTLY, and that boundary was
+    ; measured rather than assumed. Outside it these silently return a different
+    ; answer from every other target — no error, no warning, and nothing in the
+    ; pipeline checks. A program using them has chosen JavaScript.
+    ;
+    ; `>>>` is worse than the others: it yields an UNSIGNED 32-bit result, so it
+    ; escapes the window upward as well. Java's `>>>` is 64-bit and is a
+    ; different function with the same spelling.
     (prim &    (any any) any expr "%s & %s"   pure)
     (prim |    (any any) any expr "%s | %s"   pure)
     (prim ^    (any any) any expr "%s ^ %s"   pure)

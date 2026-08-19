@@ -70,7 +70,9 @@ a fourth host has no `&&` at all, and the cost was measured at zero
 short-circuiting `&&` natively; lowering to a conditional emits an if-statement and a temporary
 where the host has an operator.
 
-**Division, bitwise operations and shifts.** Division's rounding disagrees on negatives and its
+**Division, bitwise operations and shifts.** *Still true, and now measured and costed —
+[bitwise.md](../spec/bitwise.md), [bitwise-2026-08-19](../../gauntlet/results/bitwise-2026-08-19.md).
+The portable window is exactly signed 32 bits, and shift counts disagree three ways at four hosts.* Division's rounding disagrees on negatives and its
 zero case traps on two hosts and yields `Infinity` on the third. JavaScript's bitwise operators
 coerce to **32 bits**, which would silently contradict the range.
 

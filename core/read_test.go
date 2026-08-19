@@ -348,3 +348,35 @@ func TestModuleDiagnostics(t *testing.T) {
 		t.Errorf("a mismatched module path must be rejected, got %v", err)
 	}
 }
+
+// An integer literal too large for int64 is an ERROR, not a float.
+//
+// It used to fall through to ParseFloat, so `9223372036854775808` silently
+// became a float and the program's type changed underneath it — at a threshold
+// ten bits past the portable window and named in no specification
+// (docs/spec/data-model.md §1.1).
+func TestOversizedIntegerLiteralIsRefused(t *testing.T) {
+	for _, ok := range []string{"0", "-7", "9007199254740991", "9223372036854775807",
+		"-9223372036854775808", "1e20", "1.5", "-0.25"} {
+		if _, err := ReadTerm(ok); err != nil {
+			t.Errorf("%s should read: %v", ok, err)
+		}
+	}
+	for _, bad := range []string{"9223372036854775808", "99999999999999999999",
+		"-99999999999999999999"} {
+		got, err := ReadTerm(bad)
+		if err == nil {
+			t.Errorf("%s should not read; got %s of kind %d", bad, got, got.Kind)
+		}
+	}
+	// And the ones that DO read are integers, not floats.
+	for _, n := range []string{"9007199254740991", "9223372036854775807"} {
+		got, err := ReadTerm(n)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got.Kind != KInt {
+			t.Errorf("%s read as kind %d, want KInt", n, got.Kind)
+		}
+	}
+}

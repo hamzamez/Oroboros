@@ -462,7 +462,20 @@ func (r *reader) atom() (*Term, error) {
 	text := r.src[start:r.pos]
 
 	// Integer before float, and both before name, so that -1 is a number.
-	if v, err := strconv.ParseInt(text, 10, 64); err == nil {
+	//
+	// A literal made only of digits IS an integer, and one too large for int64
+	// is an ERROR rather than a float. It used to fall through to ParseFloat,
+	// which succeeds — so `9223372036854775808` silently became
+	// `9.223372036854776e+18` and the program's type changed underneath it, at
+	// a threshold ten bits past the portable window and mentioned in no
+	// specification (data-model.md §1.1).
+	if looksInteger(text) {
+		v, err := strconv.ParseInt(text, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("line %d: %s does not fit in an integer; the portable range "+
+				"is ±(2^53−1) and the widest target is 64 bits (docs/spec/arithmetic.md §4)",
+				line, text)
+		}
 		return Int(v), nil
 	}
 	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
@@ -503,6 +516,27 @@ func validName(text string) error {
 		}
 	}
 	return nil
+}
+
+// looksInteger reports whether the text is integer SYNTAX — an optional sign
+// and then digits, nothing else. Being an integer literal is a property of how
+// it is written, not of whether it happens to fit.
+func looksInteger(s string) bool {
+	if s == "" {
+		return false
+	}
+	if s[0] == '+' || s[0] == '-' {
+		s = s[1:]
+	}
+	if s == "" {
+		return false
+	}
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 // looksNumeric keeps ParseFloat from swallowing names like `-` or `inf`.

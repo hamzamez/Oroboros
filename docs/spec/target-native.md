@@ -35,7 +35,7 @@ opposite of what a target file is for.
 
 **`fold-range` and `fold-range2` are not declared.** `loop` subsumes both
 ([ADR 0015](../decisions/0015-loop-and-again.md)), and a target offering two ways to write a counted
-loop teaches neither. The structural set on this target is four: `let`, `if`, `loop`, `make-vec`.
+loop teaches neither. Neither is `make-vec` — see §6. **The structural set on this target is three: `let`, `if`, `loop`.**
 
 ## 2. What the language could not express
 
@@ -165,6 +165,8 @@ file all along.
   [experiments/](../../experiments/README.md) predict that the walls will differ again.
 - **The gauntlet is not migrated.** Its seven programs still use the portable layer. Migrating them
   is what would let `portable-go` be deleted rather than shelved.
-- **`make-vec` survives** on the native target. Building an array could in principle be
-  `go.make-float64` plus a `loop` with `go.set-float64`, and whether that reaches parity with
-  `make-vec`'s fused emission is unmeasured.
+- **`make-vec` was removed**, which makes the native target's structural set exactly **three**:
+  `let`, `if`, `loop`. It had to go: it is hardcoded to the portable layer's type names, producing
+  `vec-f64` and demanding `f64` elements, so on a target whose types are Go's it could not be called
+  at all — `go.f* is float64, but f64 is required here`. A `loop` over `go.make-float64` and
+  `go.set-float64` emits the same `make` plus fill loop. Whether it reaches parity is unmeasured.

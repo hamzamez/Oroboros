@@ -158,7 +158,7 @@ func TestSignatureCheckedAgainstDefinition(t *testing.T) {
 		(sig bad ((a vec-f64)) f64)
 		(def bad (fn (a) (make-vec (alen a) (fn (i) (aindex a i)))))
 	`
-	tg, prog, env := loadWithSigs(t, "go", src)
+	tg, prog, env := loadWithSigs(t, "portable-go", src)
 	err := CheckSignatures(tg, prog, env)
 	if err == nil {
 		t.Fatal("a definition disagreeing with its own signature must be caught")
@@ -174,7 +174,7 @@ func TestSignatureArityIsChecked(t *testing.T) {
 		(sig two ((a f64) (b f64)) f64)
 		(def two (fn (a) a))
 	`
-	tg, prog, env := loadWithSigs(t, "go", src)
+	tg, prog, env := loadWithSigs(t, "portable-go", src)
 	if err := CheckSignatures(tg, prog, env); err == nil {
 		t.Fatal("an arity mismatch must be caught")
 	}

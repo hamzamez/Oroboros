@@ -43,11 +43,16 @@
 
   (build "go build -o %s %s")
 
-  ; The structural set. `fold-range` and `fold-range2` are DELIBERATELY ABSENT:
-  ; `loop` subsumes both (ADR 0015), and a target offering two ways to write a
-  ; counted loop teaches neither. The price is recorded in
-  ; docs/spec/portability-layer.md and is 2.7% on compute-bound dot.
-  (structural let      let     pure)
-  (structural if       cond    pure)
-  (structural loop     iterate pure)
-  (structural make-vec build   pure))
+  ; THE WHOLE STRUCTURAL SET IS THREE.
+  ;
+  ; `fold-range` and `fold-range2` are absent because `loop` subsumes both
+  ; (ADR 0015). `make-vec` is absent for two reasons: a `loop` over
+  ; `go.make-float64` and `go.set-float64` emits the same `make` plus fill loop,
+  ; and `make-vec` is hardcoded to the PORTABLE layer's type names — it produces
+  ; `vec-f64` and demands `f64` elements, so on a target whose types are Go's it
+  ; cannot be called at all.
+  ;
+  ; So a program here is: fn, def, module, literals, and let / if / loop.
+  (structural let  let     pure)
+  (structural if   cond    pure)
+  (structural loop iterate pure))

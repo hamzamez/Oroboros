@@ -1,0 +1,99 @@
+; JavaScript's operators and global functions, under their own names.
+;
+;   (use js)
+;   (js.+ x y)   (js.=== a b)   (js.?? a b)   (js.** x 2)   (js.typeof v)
+;
+; Note what is NOT here compared to Go's builtin.oro: no type suffixes. JS has
+; one number type and untyped containers, so `js.at` indexes anything and
+; `js.+` adds anything. The suffix explosion in the Go target was OUR type
+; table showing through; here there is nothing left for it to show.
+
+(target js
+  (module js
+    ; ---- arithmetic, declared on `any`.
+    ;
+    ; Not laziness. JavaScript has ONE number type; our language has two, `int`
+    ; and `f64`, because that is what an integer and a float LITERAL type as.
+    ; Declaring `js.+` on either would make `(js.+ i 1.5)` an error the host
+    ; does not have; declaring both would reintroduce Go's suffix split for a
+    ; reason belonging entirely to us. `any` demands nothing, so ONE name
+    ; serves — at the price of no numeric checking on this target at all.
+    (prim +   (any any) any expr "%s + %s"  pure)
+    (prim -   (any any) any expr "%s - %s"  pure)
+    (prim *   (any any) any expr "%s * %s"  pure)
+    (prim /   (any any) any expr "%s / %s"  pure)
+    (prim %   (any any) any expr "%s %% %s" pure)
+    (prim **  (any any) any expr "%s ** %s" pure)
+    (prim neg (any) any        expr "-%s"      pure)
+
+    ; String concatenation is the SAME operator; with `any` operands, `js.+`
+    ; already covers it. Nothing to add.
+
+    ; ---- bitwise. These coerce to int32 in JS, which is a real semantic edge
+    ; and is exactly the sort of thing a portability claim would have to hide.
+    (prim &    (any any) any expr "%s & %s"   pure)
+    (prim |    (any any) any expr "%s | %s"   pure)
+    (prim ^    (any any) any expr "%s ^ %s"   pure)
+    (prim ~    (any) any        expr "~%s"       pure)
+    (prim <<   (any any) any expr "%s << %s"  pure)
+    (prim >>   (any any) any expr "%s >> %s"  pure)
+    (prim >>>  (any any) any expr "%s >>> %s" pure)
+
+    ; ---- comparison. Both equalities, because JS has both and they differ.
+    (prim ===  (any any) bool expr "%s === %s" pure)
+    (prim !==  (any any) bool expr "%s !== %s" pure)
+    (prim ==   (any any) bool expr "%s == %s"  pure)
+    (prim !=   (any any) bool expr "%s != %s"  pure)
+    (prim <    (any any) bool expr "%s < %s"   pure)
+    (prim <=   (any any) bool expr "%s <= %s"  pure)
+    (prim >    (any any) bool expr "%s > %s"   pure)
+    (prim >=   (any any) bool expr "%s >= %s"  pure)
+
+    ; ---- logic and the nullish operators
+    (prim &&  (any any) any     expr "%s && %s" pure)
+    (prim ||  (any any) any     expr "%s || %s" pure)
+    (prim !   (any) bool     expr "!%s"      pure)
+    (prim ??  (any any) any     expr "%s ?? %s" pure)
+
+    ; ---- literals JavaScript spells as keywords
+    (prim true      (none) bool expr "true"      pure)
+    (prim false     (none) bool expr "false"     pure)
+    (prim null      (none) any     expr "null"      pure)
+    (prim undefined (none) any     expr "undefined" pure)
+    (prim NaN       (none) any  expr "NaN"       pure)
+    (prim Infinity  (none) any  expr "Infinity"  pure)
+
+    ; ---- operators that are keywords
+    (prim typeof     (any) string      expr "typeof %s"        pure)
+    (prim instanceof (any any) bool expr "%s instanceof %s" pure)
+    (prim in         (string any) bool expr "%s in %s"      pure)
+    (prim void       (any) any         expr "void %s"          pure)
+    ; `delete` mutates, so it is not pure; its value is the object.
+    (prim delete     (any string) any  stmt "delete %s[%s]")
+
+    ; ---- global functions
+    (prim parseInt   (string) any  expr "parseInt(%s, 10)" pure)
+    (prim parseFloat (string) any  expr "parseFloat(%s)"   pure)
+    (prim isNaN      (any) bool    expr "Number.isNaN(%s)" pure)
+    (prim isFinite   (any) bool    expr "Number.isFinite(%s)" pure)
+    (prim String     (any) string     expr "String(%s)"       pure)
+    (prim Number     (any) any     expr "Number(%s)"       pure)
+    (prim Boolean    (any) bool    expr "Boolean(%s)"      pure)
+    (prim structuredClone (any) any   expr "structuredClone(%s)")
+
+    ; ---- indexing and construction. ONE declaration each, covering every
+    ; element type there is, because JavaScript containers are untyped. This is
+    ; the clearest single contrast with targets/go/, which needs at-int,
+    ; at-float64, at-string, at-bool and a `make` per type.
+    (prim at     (any any) any     expr "%s[%s]"     pure index)
+    (prim set    (any any any) any stmt "%s[%s] = %s")
+    (prim get    (any string) any     expr "%s[%s]"     pure)
+    (prim put    (any string any) any stmt "%s[%s] = %s")
+    (prim len    (any) any         expr "%s.length"  pure)
+    (prim Array  (any) any         expr "new Array(%s)")
+    (prim ArrayFill (any any) any  expr "new Array(%s).fill(%s)")
+    (prim Float64Array (any) any   expr "new Float64Array(%s)")
+    (prim Int32Array   (any) any   expr "new Int32Array(%s)")
+    ; A null-prototype object as a dictionary — baseline R4 measured Map at
+    ; 3.25x slower for string keys.
+    (prim object (none) any           expr "Object.create(null)")))

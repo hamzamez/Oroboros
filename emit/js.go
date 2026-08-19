@@ -124,7 +124,7 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			// A binder used zero times is a sequencing point rather than a
 			// binding — see effects.md §5 and the Go backend's emitLet.
 			if !core.Occurs(k.Body(), k.Params[0]) {
-				if !emitsStatement(e.tgt, args[0]) {
+				if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 					e.line("%s;", val)
 				}
 				return e.emit(k.Body())
@@ -461,8 +461,11 @@ func (e *jsEmitter) emitLoop(t *core.Term) (string, error) {
 	for i := range names {
 		e.line("let %s = %s;", names[i], vals[i])
 	}
-	result := e.fresh("r")
-	e.line("let %s;", result)
+	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, jsMangle)
+	if result == "" {
+		result = e.fresh("r")
+		e.line("let %s;", result)
+	}
 	e.line("for (;;) {")
 	e.indent++
 	if err := e.emitLoopBody(body, raw, names, result); err != nil {
@@ -518,7 +521,9 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 	if err != nil {
 		return err
 	}
-	e.line("%s = %s;", result, v)
+	if v != result {
+		e.line("%s = %s;", result, v)
+	}
 	e.line("break;")
 	return nil
 }

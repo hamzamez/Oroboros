@@ -1,0 +1,49 @@
+; java.util — the collections. Not java.lang, so it needs an import, but as
+; much a part of the platform as anything else.
+;
+; This is where the type language hurts most on this host. Java's collections
+; are GENERIC: `List<T>`, `Map<K,V>`. Our type language has no constructors, so
+; each instantiation is an unrelated atom and needs its own name for every
+; operation. `List<Long>` and `List<String>` share not one declaration.
+;
+; Declared here: List<Long>, List<String>, Map<String,Long>. Every other
+; instantiation Java can express — and there are unboundedly many — is
+; unreachable. Go needed one name per slice element type; Java needs one per
+; (container, K, V) combination, which is the same limitation squared.
+
+(target java
+  (module java/List
+    (prim newLong    (none) list-long        expr "new java.util.ArrayList<Long>()")
+    (prim newString  (none) list-string      expr "new java.util.ArrayList<String>()")
+    (prim addLong    (list-long int) list-long     stmt "%s.add(%s)")
+    (prim addString  (list-string string) list-string stmt "%s.add(%s)")
+    (prim getLong    (list-long int) int     expr "%s.get((int) %s)"    pure)
+    (prim getString  (list-string int) string expr "%s.get((int) %s)"   pure)
+    (prim setLong    (list-long int int) list-long stmt "%s.set((int) %s, %s)")
+    (prim sizeLong   (list-long) int         expr "%s.size()"           pure)
+    (prim sizeString (list-string) int       expr "%s.size()"           pure)
+    (prim containsLong (list-long int) bool  expr "%s.contains(%s)"     pure)
+    (prim clearLong  (list-long) list-long   stmt "%s.clear()"))
+
+  (module java/Map
+    (prim new        (none) map-string-long  expr "new java.util.HashMap<String,Long>()")
+    ; Baseline R5: Java's fused merge(k,1,Integer::sum) is 2.6x SLOWER than
+    ; getOrDefault+put, the opposite of Go's m[k]++. Same capability, opposite
+    ; idiom, and the reason this is declared unfused.
+    (prim get        (map-string-long string) int expr "%s.getOrDefault(%s, 0L)" pure)
+    (prim put        (map-string-long string int) map-string-long stmt "%s.put(%s, %s)")
+    (prim containsKey (map-string-long string) bool expr "%s.containsKey(%s)" pure)
+    (prim remove     (map-string-long string) map-string-long stmt "%s.remove(%s)")
+    (prim size       (map-string-long) int   expr "%s.size()"            pure)
+    (prim clear      (map-string-long) map-string-long stmt "%s.clear()"))
+
+  (module java/Arrays
+    (prim sortLong    (long-array) long-array     stmt "java.util.Arrays.sort(%s)")
+    (prim sortDouble  (double-array) double-array stmt "java.util.Arrays.sort(%s)")
+    (prim fillLong    (long-array int) long-array stmt "java.util.Arrays.fill(%s, %s)")
+    (prim fillBool    (bool-array bool) bool-array stmt "java.util.Arrays.fill(%s, %s)")
+    (prim toStringLong (long-array) string expr "java.util.Arrays.toString(%s)" pure)
+    (prim copyOfDouble (double-array int) double-array
+                      expr "java.util.Arrays.copyOf(%s, (int) %s)" pure)
+    (prim binarySearchLong (long-array int) int
+                      expr "java.util.Arrays.binarySearch(%s, %s)" pure)))

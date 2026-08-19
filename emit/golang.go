@@ -537,7 +537,7 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 	// what `seq` desugars into. Emitting `x := v` here would be rejected by Go
 	// as an unused variable.
 	if !core.Occurs(k.Body(), k.Params[0]) {
-		if !emitsStatement(e.tgt, args[0]) {
+		if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 			e.line("_ = %s", val) // Go forbids a bare expression statement
 		}
 		return e.emit(k.Body())
@@ -832,7 +832,7 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	// stack-allocated slice into a heap allocation — 20,480 B/op against
 	// hand-written's zero.
 	rty := exitType(e, body)
-	result := soleExitName(e, body, raw, names)
+	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, mangle)
 	if result == "" {
 		result = e.fresh("r")
 		e.line("var %s %s", result, e.tgt.ty(orAny(rty)))
@@ -888,7 +888,7 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string)
 					return err
 				}
 				if !core.Occurs(k.Body(), k.Params[0]) {
-					if !emitsStatement(e.tgt, args[0]) {
+					if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 						e.line("_ = %s", val)
 					}
 					return e.emitLoopBody(k.Body(), raw, names, result)
@@ -954,61 +954,4 @@ func (e *Emitter) emitAgain(t *core.Term, raw, names []string) error {
 	}
 	e.line("continue")
 	return nil
-}
-
-// soleExitName reports the name every exit clause yields, when they all yield
-// the SAME name that is already in scope. "" means a result temporary is needed.
-//
-// Not only tidiness: the extra `var r1 []bool` defeated Go's escape analysis on
-// the sieve, turning a stack-allocated slice into a heap allocation — 20,480
-// B/op against hand-written's zero.
-//
-// Called BEFORE the body is emitted, so `e.bound` holds exactly the names of
-// the enclosing scope plus the loop's own variables. A name bound later, inside
-// the loop body, is not in scope after the `for` in Go and is correctly refused.
-func soleExitName(e *Emitter, t *core.Term, raw, names []string) string {
-	inScope := make(map[string]bool, len(e.bound))
-	for n := range e.bound {
-		inScope[n] = true
-	}
-	seen := map[string]bool{}
-	var walk func(*core.Term) bool
-	walk = func(t *core.Term) bool {
-		if isAgain(t) {
-			return true
-		}
-		if t.Kind == core.KApp && t.Op().Kind == core.KName {
-			if p, ok := e.tgt.Prims[t.Op().Name]; ok {
-				if p.Kind == "cond" && len(t.Args()) == 3 {
-					return walk(t.Args()[1]) && walk(t.Args()[2])
-				}
-				if p.Kind == "let" && len(t.Args()) == 2 {
-					if k := t.Args()[1]; k.Kind == core.KFn && len(k.Params) == 1 {
-						return walk(k.Body())
-					}
-				}
-			}
-		}
-		if t.Kind != core.KName {
-			return false
-		}
-		for i, r := range raw {
-			if r == t.Name {
-				seen[names[i]] = true
-				return true
-			}
-		}
-		if m := mangle(t.Name); inScope[m] {
-			seen[m] = true
-			return true
-		}
-		return false
-	}
-	if !walk(t) || len(seen) != 1 {
-		return ""
-	}
-	for n := range seen {
-		return n
-	}
-	return ""
 }

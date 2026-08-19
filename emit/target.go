@@ -644,12 +644,16 @@ func needTemps(as []*core.Term, raw []string, changed []int) bool {
 	if len(changed) < 2 {
 		return false
 	}
-	set := map[string]bool{}
 	for _, i := range changed {
-		set[raw[i]] = true
-	}
-	for _, i := range changed {
-		if readsAny(as[i], set) {
+		// Reading your OWN old value is safe: `i = i + 1` needs no temporary.
+		// Only reading a DIFFERENT variable that is also being changed does.
+		others := map[string]bool{}
+		for _, j := range changed {
+			if j != i {
+				others[raw[j]] = true
+			}
+		}
+		if readsAny(as[i], others) {
 			return true
 		}
 	}
@@ -670,4 +674,62 @@ func readsAny(t *core.Term, names map[string]bool) bool {
 		}
 	}
 	return false
+}
+
+// soleExit reports the name every exit clause of a loop yields, when they all
+// yield the SAME name already in scope. "" means a result temporary is needed.
+//
+// Not only tidiness: on Go the extra `var r1 []bool` defeated escape analysis,
+// and on JS it leaves a bare `r2;` expression statement in the output.
+//
+// Called BEFORE the body is emitted, so `bound` holds exactly the enclosing
+// scope plus the loop's own variables. A name bound later, inside the body, is
+// not in scope after the loop and is correctly refused.
+func soleExit(prims map[string]Prim, t *core.Term, raw, names []string,
+	bound map[string]bool, mangle func(string) string) string {
+
+	inScope := make(map[string]bool, len(bound))
+	for n := range bound {
+		inScope[n] = true
+	}
+	seen := map[string]bool{}
+	var walk func(*core.Term) bool
+	walk = func(t *core.Term) bool {
+		if isAgain(t) {
+			return true
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if p, ok := prims[t.Op().Name]; ok {
+				if p.Kind == "cond" && len(t.Args()) == 3 {
+					return walk(t.Args()[1]) && walk(t.Args()[2])
+				}
+				if p.Kind == "let" && len(t.Args()) == 2 {
+					if k := t.Args()[1]; k.Kind == core.KFn && len(k.Params) == 1 {
+						return walk(k.Body())
+					}
+				}
+			}
+		}
+		if t.Kind != core.KName {
+			return false
+		}
+		for i, r := range raw {
+			if r == t.Name {
+				seen[names[i]] = true
+				return true
+			}
+		}
+		if m := mangle(t.Name); inScope[m] {
+			seen[m] = true
+			return true
+		}
+		return false
+	}
+	if !walk(t) || len(seen) != 1 {
+		return ""
+	}
+	for n := range seen {
+		return n
+	}
+	return ""
 }

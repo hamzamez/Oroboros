@@ -1,3 +1,6 @@
+; The PORTABLE Java target - preserved, not current. targets/java/ is the
+; host-native one. See docs/spec/target-native.md.
+;
 ; The Java target.
 ;
 ; The dictionary goes the OPPOSITE way from Go's. Baseline R5 measured Java's
@@ -5,7 +8,7 @@
 ; boxes and makes a functional call per entry. Go's fused idiom wins; Java's
 ; loses. Same capability, opposite idiom, one source — ADR 0008 made concrete.
 
-(target java
+(target portable-java
   (type f64        "double")
   (type int        "long")
   (type bool       "boolean")

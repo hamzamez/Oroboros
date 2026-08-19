@@ -1,3 +1,6 @@
+; The PORTABLE JavaScript target - preserved, not current. targets/js/ is the
+; host-native one. See docs/spec/target-native.md.
+;
 ; The JavaScript target.
 ;
 ; Note what is ABSENT: no (type …) declarations at all. JS is untyped, so the
@@ -15,7 +18,7 @@
 ; `pure` is consulted, on every target, because it is not a type — it decides
 ; whether β may move the term (docs/spec/effects.md §3).
 
-(target js
+(target portable-js
 
   (module num/f64
     (prim add (f64 f64) f64  expr "%s + %s"  pure)

@@ -1,0 +1,23 @@
+(use java)
+(use java/Math)
+(use java/System)
+(use java/String)
+(export sieve-count)
+(sig sieve-count ((n int)) int)
+
+(def cross (fn (c i n)
+  (loop ((j (java.* i i)))
+    (java.< j n)  (seq (java.set-bool c j (java.true)) (again (java.+ j i)))
+    else          c)))
+
+(def sieve-count (fn (n)
+  (let (java.new-bool n) (fn (c)
+    (let (loop ((i 2))
+           (java.>= (java.* i i) n)  c
+           (java.at-bool c i)        (again (java.+ i 1))
+           else                      (seq (cross c i n) (again (java.+ i 1))))
+      (fn (done)
+        (loop ((acc 0) (k 2))
+          (java.>= k n)      acc
+          (java.at-bool c k) (again acc (java.+ k 1))
+          else               (again (java.+ acc 1) (java.+ k 1)))))))))

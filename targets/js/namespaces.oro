@@ -1,0 +1,70 @@
+; JavaScript's namespace objects, each as a module whose ALIAS is the namespace.
+;
+;   (use js/Math)   →  (Math.floor x)      emits  Math.floor(x)
+;   (use js/JSON)   →  (JSON.stringify v)  emits  JSON.stringify(v)
+;   (use js/console)→  (console.log x)     emits  console.log(x)
+;
+; This is the one place the source reads EXACTLY like the host, because a
+; namespace call and a qualified name have the same shape. Methods on values
+; do not — see array.oro.
+
+(target js
+  (module js/Math
+    (prim floor  (f64) f64         expr "Math.floor(%s)"    pure)
+    (prim ceil   (f64) f64         expr "Math.ceil(%s)"     pure)
+    (prim round  (f64) f64         expr "Math.round(%s)"    pure)
+    (prim trunc  (f64) f64         expr "Math.trunc(%s)"    pure)
+    (prim abs    (f64) f64         expr "Math.abs(%s)"      pure)
+    (prim sign   (f64) f64         expr "Math.sign(%s)"     pure)
+    (prim sqrt   (f64) f64         expr "Math.sqrt(%s)"     pure)
+    (prim cbrt   (f64) f64         expr "Math.cbrt(%s)"     pure)
+    (prim pow    (f64 f64) f64  expr "Math.pow(%s, %s)"  pure)
+    (prim exp    (f64) f64         expr "Math.exp(%s)"      pure)
+    (prim log    (f64) f64         expr "Math.log(%s)"      pure)
+    (prim log2   (f64) f64         expr "Math.log2(%s)"     pure)
+    (prim log10  (f64) f64         expr "Math.log10(%s)"    pure)
+    (prim sin    (f64) f64         expr "Math.sin(%s)"      pure)
+    (prim cos    (f64) f64         expr "Math.cos(%s)"      pure)
+    (prim tan    (f64) f64         expr "Math.tan(%s)"      pure)
+    (prim atan2  (f64 f64) f64  expr "Math.atan2(%s, %s)" pure)
+    (prim hypot  (f64 f64) f64  expr "Math.hypot(%s, %s)" pure)
+    (prim min    (f64 f64) f64  expr "Math.min(%s, %s)"  pure)
+    (prim max    (f64 f64) f64  expr "Math.max(%s, %s)"  pure)
+    (prim PI     (none) f64           expr "Math.PI"           pure)
+    (prim E      (none) f64           expr "Math.E"            pure)
+    ; Two calls, two answers. An `expr` that is NOT pure, which is the case
+    ; that kills the tempting "expr means pure" heuristic (effects.md §3).
+    (prim random (none) f64           expr "Math.random()"))
+
+  (module js/JSON
+    (prim stringify  (any) string        expr "JSON.stringify(%s)"        pure)
+    (prim stringify2 (any any any) string expr "JSON.stringify(%s, %s, %s)" pure)
+    (prim parse      (string) any        expr "JSON.parse(%s)"            pure))
+
+  (module js/Object
+    (prim keys     (any) any        expr "Object.keys(%s)"     pure)
+    (prim values   (any) any        expr "Object.values(%s)"   pure)
+    (prim entries  (any) any        expr "Object.entries(%s)"  pure)
+    (prim assign   (any any) any    stmt "Object.assign(%s, %s)")
+    (prim freeze   (any) any        stmt "Object.freeze(%s)")
+    (prim create   (any) any        expr "Object.create(%s)")
+    (prim hasOwn   (any string) bool expr "Object.hasOwn(%s, %s)" pure))
+
+  (module js/Number
+    (prim isInteger    (any) bool   expr "Number.isInteger(%s)"    pure)
+    (prim isSafeInteger (any) bool  expr "Number.isSafeInteger(%s)" pure)
+    (prim parseFloat   (string) f64 expr "Number.parseFloat(%s)"   pure)
+    (prim toFixed      (f64 f64) string expr "%s.toFixed(%s)"   pure)
+    (prim MAX_SAFE_INTEGER (none) f64 expr "Number.MAX_SAFE_INTEGER" pure)
+    (prim EPSILON      (none) f64   expr "Number.EPSILON"          pure))
+
+  (module js/console
+    (prim log    (any) any     stmt "console.log(%s)")
+    (prim log2   (any any) any stmt "console.log(%s, %s)")
+    (prim error  (any) any     stmt "console.error(%s)")
+    (prim warn   (any) any     stmt "console.warn(%s)")
+    (prim time   (string) any  stmt "console.time(%s)")
+    (prim timeEnd (string) any stmt "console.timeEnd(%s)"))
+
+  (module js/Date
+    (prim now (none) f64 expr "Date.now()")))

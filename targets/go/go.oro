@@ -19,7 +19,7 @@
   ; cannot say, and it is recorded rather than worked around.
   (type int      "int")
   (type int64    "int64")
-  (type float64  "float64")
+  (type f64  "float64")
   (type string   "string")
   (type bool     "bool")
   (type byte     "byte")

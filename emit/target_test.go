@@ -20,7 +20,7 @@ func TestLoadTargets(t *testing.T) {
 
 // JS declares no types at all, which is the point.
 func TestJSTargetIsUntyped(t *testing.T) {
-	tg, err := LoadTarget("../targets/js.oro")
+	tg, err := LoadTarget("../targets/portable-js.oro")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +37,7 @@ func TestJSTargetIsUntyped(t *testing.T) {
 // itself part of what this test asserts: a primitive moving between modules is
 // a target-file edit and nothing more.
 func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
-	for _, name := range []string{"portable-go", "js", "java"} {
+	for _, name := range []string{"portable-go", "portable-js", "portable-java"} {
 		tg, err := LoadTarget("../targets/" + name + ".oro")
 		if err != nil {
 			t.Fatal(err)
@@ -82,5 +82,41 @@ func TestTargetDirectoryMerges(t *testing.T) {
 	// fold-range is deliberately absent: `loop` subsumes it (ADR 0015).
 	if _, ok := tg.Prims["fold-range"]; ok {
 		t.Error("the native target should not declare fold-range")
+	}
+}
+
+// All three native targets are directories with the SAME structural set of
+// three — let, if, loop — and each declares its host's own names.
+func TestNativeTargetsAreThreeStructural(t *testing.T) {
+	for _, c := range []struct {
+		dir   string
+		names []string
+	}{
+		{"go", []string{"go.+", "go.%", "go/fmt.Println"}},
+		{"js", []string{"js.+", "js.===", "js.??", "js/Math.floor", "js/console.log"}},
+		{"java", []string{"java.+", "java.>>>", "java/Math.abs", "java/Map.get"}},
+	} {
+		tg, err := LoadTarget("../targets/" + c.dir)
+		if err != nil {
+			t.Errorf("%s: %v", c.dir, err)
+			continue
+		}
+		for _, n := range append(c.names, "let", "if", "loop") {
+			if _, ok := tg.Prims[n]; !ok {
+				t.Errorf("%s is missing %s", c.dir, n)
+			}
+		}
+		for _, gone := range []string{"fold-range", "fold-range2", "make-vec"} {
+			if _, ok := tg.Prims[gone]; ok {
+				t.Errorf("%s should not declare %s", c.dir, gone)
+			}
+		}
+		// The four reserved type names must be spelled by every target that
+		// uses integer or float literals and conditionals.
+		for _, ty := range []string{"int", "f64", "bool"} {
+			if _, ok := tg.Types[ty]; !ok {
+				t.Errorf("%s does not spell the reserved type %s", c.dir, ty)
+			}
+		}
 	}
 }

@@ -87,6 +87,8 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return c.loop2(args, want)
 	case "cond":
 		return c.cond(args, want)
+	case "iterate":
+		return c.iterate(args, want)
 	case "let":
 		return c.let(args, want)
 	case "build":
@@ -172,6 +174,74 @@ func (c *checker) loop2(args []*core.Term, want string) (string, error) {
 		return c.walk(fin.Body(), want)
 	}
 	return "", nil
+}
+
+// iterate checks (loop (fn (x…) body) z…) — docs/spec/iteration.md.
+//
+// Each loop variable takes its initial value's type; every `again` argument
+// must agree with the variable it feeds; every exit clause must agree with the
+// loop's own type. `loop` had NO case here at all until targets/js/ was written
+// and nothing complained about a mistyped one.
+func (c *checker) iterate(args []*core.Term, want string) (string, error) {
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return "", nil
+	}
+	lam := args[0]
+	inits := args[1:]
+	if len(lam.Params) != len(inits) {
+		return "", fmt.Errorf("loop has %d variable(s) and %d initial value(s)",
+			len(lam.Params), len(inits))
+	}
+	tys := make([]string, len(inits))
+	for i, z := range inits {
+		ty, err := c.walk(z, "")
+		if err != nil {
+			return "", fmt.Errorf("in a loop's initial value: %w", err)
+		}
+		tys[i] = ty
+		c.types[lam.Params[i]] = ty
+	}
+	return c.loopBody(lam.Body(), lam.Params, tys, want)
+}
+
+// loopBody walks the clause chain: `again` leaves check their arguments, other
+// leaves are the loop's value.
+func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (string, error) {
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if t.Op().Name == "again" {
+			as := t.Args()
+			if len(as) != len(params) {
+				return "", fmt.Errorf("again takes %d argument(s), given %d", len(params), len(as))
+			}
+			for i, a := range as {
+				if _, err := c.walk(a, tys[i]); err != nil {
+					return "", fmt.Errorf("in again's argument %d: %w", i+1, err)
+				}
+			}
+			return "", nil // not a value
+		}
+		if p, ok := c.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
+			if _, err := c.walk(t.Args()[0], "bool"); err != nil {
+				return "", fmt.Errorf("in a loop's guard: %w", err)
+			}
+			a, err := c.loopBody(t.Args()[1], params, tys, want)
+			if err != nil {
+				return "", err
+			}
+			b, err := c.loopBody(t.Args()[2], params, tys, want)
+			if err != nil {
+				return "", err
+			}
+			if a != "" && b != "" && a != b {
+				return "", fmt.Errorf("a loop's exits are %s and %s", a, b)
+			}
+			if a == "" {
+				return b, nil
+			}
+			return a, nil
+		}
+	}
+	return c.walk(t, want)
 }
 
 func (c *checker) cond(args []*core.Term, want string) (string, error) {

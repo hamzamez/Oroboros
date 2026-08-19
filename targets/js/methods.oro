@@ -1,0 +1,94 @@
+; Methods on values — Array, String, Map, Set.
+;
+; This is where the source STOPS reading like JavaScript, and the reason is
+; worth naming precisely. JS spells a method call `receiver.method(args)`. We
+; spell every call `(name args…)`, so the closest we get is
+;
+;   (Array.map a f)      emits   a.map(f)
+;   (String.toUpperCase s) emits s.toUpperCase()
+;
+; The EMITTED code is exactly right — a template's first hole is the receiver,
+; so nothing is lost at run time. What is lost is the reading order: the
+; receiver moves from before the dot to after the paren. That is the one thing
+; a Lisp surface cannot spell about a method-oriented host, and no amount of
+; target-file work changes it.
+;
+; The higher-order half — map, filter, reduce, sort — is declared and CANNOT BE
+; CALLED, because a bare abstraction is refused as an escaping closure. That is
+; deliberate and measured: js-toplevel-2026-08-18 puts those methods at 3.6x to
+; 133x SLOWER than a loop, so the one thing this language cannot reach on this
+; host is the one thing not worth reaching.
+
+(target js
+  (module js/Array
+    (prim isArray  (any) bool         expr "Array.isArray(%s)"    pure)
+    (prim from     (any) any             expr "Array.from(%s)"       pure)
+    (prim of       (any) any             expr "Array.of(%s)"         pure)
+    (prim slice    (any any any) any expr "%s.slice(%s, %s)"   pure)
+    (prim concat   (any any) any         expr "%s.concat(%s)"        pure)
+    (prim indexOf  (any any) any      expr "%s.indexOf(%s)"       pure)
+    (prim lastIndexOf (any any) any   expr "%s.lastIndexOf(%s)"   pure)
+    (prim includes (any any) bool     expr "%s.includes(%s)"      pure)
+    (prim join     (any string) string   expr "%s.join(%s)"          pure)
+    (prim push     (any any) any         stmt "%s.push(%s)")
+    (prim pop      (any) any             expr "%s.pop()")
+    (prim shift    (any) any             expr "%s.shift()")
+    (prim unshift  (any any) any         stmt "%s.unshift(%s)")
+    (prim reverse  (any) any             stmt "%s.reverse()")
+    (prim fill     (any any) any         stmt "%s.fill(%s)")
+    (prim flat     (any) any             expr "%s.flat()"            pure)
+
+    ; Higher-order. Declared so the target is honest about what JS has; every
+    ; one is unreachable, because passing a λ is an escaping closure.
+    (prim map      (any any) any    expr "%s.map(%s)"       pure)
+    (prim filter   (any any) any    expr "%s.filter(%s)"    pure)
+    (prim reduce   (any any any) any expr "%s.reduce(%s, %s)" pure)
+    (prim forEach  (any any) any    stmt "%s.forEach(%s)")
+    (prim some     (any any) bool expr "%s.some(%s)"     pure)
+    (prim every    (any any) bool expr "%s.every(%s)"    pure)
+    (prim find     (any any) any    expr "%s.find(%s)"      pure)
+    (prim findIndex (any any) any expr "%s.findIndex(%s)" pure)
+    (prim sort     (any any) any    stmt "%s.sort(%s)"))
+
+  (module js/String
+    (prim length      (string) any         expr "%s.length"         pure)
+    (prim charAt      (string any) string  expr "%s[%s]"            pure)
+    (prim charCodeAt  (string any) any  expr "%s.charCodeAt(%s)" pure)
+    (prim codePointAt (string any) any  expr "%s.codePointAt(%s)" pure)
+    (prim slice       (string any any) string expr "%s.slice(%s, %s)" pure)
+    (prim substring   (string any any) string expr "%s.substring(%s, %s)" pure)
+    (prim indexOf     (string string) any  expr "%s.indexOf(%s)"    pure)
+    (prim includes    (string string) bool expr "%s.includes(%s)"   pure)
+    (prim startsWith  (string string) bool expr "%s.startsWith(%s)" pure)
+    (prim endsWith    (string string) bool expr "%s.endsWith(%s)"   pure)
+    (prim toUpperCase (string) string         expr "%s.toUpperCase()"  pure)
+    (prim toLowerCase (string) string         expr "%s.toLowerCase()"  pure)
+    (prim trim        (string) string         expr "%s.trim()"         pure)
+    (prim trimStart   (string) string         expr "%s.trimStart()"    pure)
+    (prim trimEnd     (string) string         expr "%s.trimEnd()"      pure)
+    (prim repeat      (string any) string  expr "%s.repeat(%s)"     pure)
+    (prim padStart    (string any string) string expr "%s.padStart(%s, %s)" pure)
+    (prim split       (string string) any     expr "%s.split(%s)"      pure)
+    (prim replace     (string string string) string expr "%s.replace(%s, %s)" pure)
+    (prim replaceAll  (string string string) string expr "%s.replaceAll(%s, %s)" pure)
+    (prim concat      (string string) string  expr "%s.concat(%s)"     pure)
+    (prim at          (string any) string  expr "%s.at(%s)"         pure)
+    (prim fromCharCode (any) string        expr "String.fromCharCode(%s)" pure)
+    ; Runs of non-whitespace — Go's strings.Fields semantics, spelled in JS.
+    (prim fields      (string) any expr "(%s.match(/\\S+/g) ?? [])"    pure))
+
+  (module js/Map
+    (prim new    (none) any        expr "new Map()")
+    (prim get    (any any) any     expr "%s.get(%s)"      pure)
+    (prim set    (any any any) any stmt "%s.set(%s, %s)")
+    (prim has    (any any) bool expr "%s.has(%s)"      pure)
+    (prim delete (any any) bool stmt "%s.delete(%s)")
+    (prim size   (any) any      expr "%s.size"         pure)
+    (prim clear  (any) any         stmt "%s.clear()"))
+
+  (module js/Set
+    (prim new    (none) any        expr "new Set()")
+    (prim add    (any any) any     stmt "%s.add(%s)")
+    (prim has    (any any) bool expr "%s.has(%s)"      pure)
+    (prim delete (any any) bool stmt "%s.delete(%s)")
+    (prim size   (any) any      expr "%s.size"         pure)))

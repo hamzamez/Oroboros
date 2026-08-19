@@ -297,7 +297,7 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 	// effects.md §5 and the Go backend's emitLet. Java tolerates an unused local
 	// where Go does not, but emitting one would still be noise.
 	if !core.Occurs(k.Body(), k.Params[0]) {
-		if !emitsStatement(e.tgt, args[0]) {
+		if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 			e.line("final var %s = %s;", javaMangle(e.fresh("discard")), val)
 		}
 		return e.emit(k.Body())
@@ -623,12 +623,15 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	for i := range names {
 		e.line("%s %s = %s;", e.tgt.ty(tys[i]), names[i], vals[i])
 	}
-	result := javaMangle(e.fresh("r"))
 	rty := javaExitType(e, body)
 	if rty == "" {
 		rty = "any"
 	}
-	e.line("%s %s = %s;", e.tgt.ty(rty), result, zeroOf(e.tgt.ty(rty)))
+	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, javaMangle)
+	if result == "" {
+		result = javaMangle(e.fresh("r"))
+		e.line("%s %s = %s;", e.tgt.ty(rty), result, zeroOf(e.tgt.ty(rty)))
+	}
 	e.line("for (;;) {")
 	e.indent++
 	if err := e.emitLoopBody(body, raw, names, result); err != nil {
@@ -683,7 +686,10 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 					return err
 				}
 				if !core.Occurs(k.Body(), k.Params[0]) {
-					if !emitsStatement(e.tgt, args[0]) {
+					// A discarded binding of a NAME or a literal is pure noise;
+					// only a computation has to be kept, and only if it is not
+					// already a statement.
+					if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 						e.line("final var %s = %s;", javaMangle(e.fresh("discard")), val)
 					}
 					return e.emitLoopBody(k.Body(), raw, names, result)
@@ -703,7 +709,9 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 	if err != nil {
 		return err
 	}
-	e.line("%s = %s;", result, v)
+	if v != result {
+		e.line("%s = %s;", result, v)
+	}
 	e.line("break;")
 	return nil
 }

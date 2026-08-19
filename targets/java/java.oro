@@ -1,0 +1,50 @@
+; The Java target. NO PORTABILITY CLAIM.
+;
+; Every name here is Java's own. `java./` on ints truncates and throws on zero;
+; `java.+` wraps at the width of its type; `java.==` on two Strings compares
+; references, which is why `String.equals` exists separately. Nothing is
+; renamed so three hosts can agree.
+;
+; The surface is one file per Java package or class, merged by LoadTarget.
+; The portable layer it replaced is targets/portable-java.oro.
+
+(target java
+  ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here:
+  ; `int` and `f64` are what integer and float LITERALS type as, and `bool` is
+  ; what `if` and a loop guard demand. A target spells them however it likes on
+  ; the right; the names on the left are the language's.
+  ;
+  ; `int` is Java's **long**, deliberately: Java's `int` wraps at 2^31, which is
+  ; INSIDE the range our integer literals cover, so declaring it would be a
+  ; silent miscompilation (arithmetic.md §4). The consequence is that every
+  ; array index needs a cast, because Java array indices are `int`.
+  (type int     "long")
+  (type f64     "double")
+  (type bool    "boolean")
+  (type string  "String")
+  (type any     "Object")
+
+  (type jint    "int")
+  (type char    "char")
+  (type long-array   "long[]")
+  (type double-array "double[]")
+  (type bool-array   "boolean[]")
+  (type string-array "String[]")
+  (type strbuf       "StringBuilder")
+
+  ; java.util, which is not java.lang and needs an import — but is as much a
+  ; part of the platform as anything else. The generic parameters are baked in
+  ; because our type language has no constructors: List<Long> and List<String>
+  ; are two unrelated atoms, and every other instantiation is unreachable.
+  (type list-long    "java.util.List<Long>")
+  (type list-string  "java.util.List<String>")
+  (type map-string-long "java.util.Map<String,Long>")
+
+  ; No `narrow`: a Java array cannot be re-sliced.
+
+  (build "javac -d %s %s")
+
+  ; THE WHOLE STRUCTURAL SET IS THREE, as on the other two native targets.
+  (structural let  let     pure)
+  (structural if   cond    pure)
+  (structural loop iterate pure))

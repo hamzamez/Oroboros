@@ -1,0 +1,190 @@
+; java.lang — the package auto-imported into every compilation unit — plus the
+; operators, which belong to no package at all.
+;
+;   (use java)         →  (java.+ x y)   (java.% a b)   (java.instanceof v t)
+;   (use java/Math)    →  (Math.abs x)          emits  Math.abs(x)
+;   (use java/Integer) →  (Integer.parseInt s)  emits  Integer.parseInt(s)
+;
+; The static classes read EXACTLY as Java reads, because a static call and a
+; qualified name have the same shape. Instance methods do not — `(String.length
+; s)` emits `s.length()` — which is the same receiver-order loss JavaScript has.
+
+(target java
+  (module java
+    ; ---- arithmetic on long, which is our `int`
+    (prim +  (int int) int expr "%s + %s"  pure)
+    (prim -  (int int) int expr "%s - %s"  pure)
+    (prim *  (int int) int expr "%s * %s"  pure)
+    (prim /  (int int) int expr "%s / %s"  pure)
+    (prim %  (int int) int expr "%s %% %s" pure)
+    (prim neg (int) int    expr "-%s"      pure)
+
+    ; ---- arithmetic on double
+    (prim f+ (f64 f64) f64 expr "%s + %s" pure)
+    (prim f- (f64 f64) f64 expr "%s - %s" pure)
+    (prim f* (f64 f64) f64 expr "%s * %s" pure)
+    (prim f/ (f64 f64) f64 expr "%s / %s" pure)
+
+    ; ---- bitwise, including Java's unsigned shift
+    (prim &   (int int) int expr "%s & %s"   pure)
+    (prim |   (int int) int expr "%s | %s"   pure)
+    (prim ^   (int int) int expr "%s ^ %s"   pure)
+    (prim ~   (int) int     expr "~%s"       pure)
+    (prim <<  (int int) int expr "%s << %s"  pure)
+    (prim >>  (int int) int expr "%s >> %s"  pure)
+    (prim >>> (int int) int expr "%s >>> %s" pure)
+
+    ; ---- comparison
+    (prim <   (int int) bool expr "%s < %s"  pure)
+    (prim <=  (int int) bool expr "%s <= %s" pure)
+    (prim >   (int int) bool expr "%s > %s"  pure)
+    (prim >=  (int int) bool expr "%s >= %s" pure)
+    (prim ==  (int int) bool expr "%s == %s" pure)
+    (prim !=  (int int) bool expr "%s != %s" pure)
+    (prim f<  (f64 f64) bool expr "%s < %s"  pure)
+    (prim f<= (f64 f64) bool expr "%s <= %s" pure)
+    (prim f>  (f64 f64) bool expr "%s > %s"  pure)
+    (prim f>= (f64 f64) bool expr "%s >= %s" pure)
+
+    ; ---- boolean
+    (prim &&  (bool bool) bool expr "%s && %s" pure)
+    (prim ||  (bool bool) bool expr "%s || %s" pure)
+    (prim !   (bool) bool      expr "!%s"      pure)
+    (prim true  (none) bool expr "true"  pure)
+    (prim false (none) bool expr "false" pure)
+    (prim null  (none) any  expr "null"  pure)
+
+    (prim instanceof (any any) bool expr "%s instanceof %s" pure)
+
+    ; ---- arrays. Language-level, so no import — and fixed-length, so nothing
+    ; to append to. One declaration per element type, because `T[]` is an atom.
+    ;
+    ; Every index carries `(int)`: our `int` is Java's `long`, and a Java array
+    ; index must be `int`. Free at run time, and unavoidable.
+    (prim new-long   (int) long-array   expr "new long[(int) %s]")
+    (prim new-double (int) double-array expr "new double[(int) %s]")
+    (prim new-bool   (int) bool-array   expr "new boolean[(int) %s]")
+    (prim new-string (int) string-array expr "new String[(int) %s]")
+
+    (prim len (any) int expr "%s.length" pure)
+
+    (prim at-long   ((v long-array) (i int)) int      expr "%s[(int) %s]" pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
+    (prim at-double ((v double-array) (i int)) f64    expr "%s[(int) %s]" pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
+    (prim at-bool   ((v bool-array) (i int)) bool     expr "%s[(int) %s]" pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
+    (prim at-string ((v string-array) (i int)) string expr "%s[(int) %s]" pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
+
+    (prim set-long   (long-array int int) long-array      stmt "%s[(int) %s] = %s")
+    (prim set-double (double-array int f64) double-array  stmt "%s[(int) %s] = %s")
+    (prim set-bool   (bool-array int bool) bool-array     stmt "%s[(int) %s] = %s")
+    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s")
+
+    ; ---- conversions. Java spells these (T) x or T.valueOf.
+    (prim int-of-f64  (f64) int    expr "(long) %s"   pure)
+    (prim f64-of-int  (int) f64    expr "(double) %s" pure)
+    (prim jint-of-int (int) jint   expr "(int) %s"    pure))
+
+  (module java/Math
+    (prim abs   (f64) f64     expr "Math.abs(%s)"      pure)
+    (prim absl  (int) int     expr "Math.abs(%s)"      pure)
+    (prim sqrt  (f64) f64     expr "Math.sqrt(%s)"     pure)
+    (prim cbrt  (f64) f64     expr "Math.cbrt(%s)"     pure)
+    (prim pow   (f64 f64) f64 expr "Math.pow(%s, %s)"  pure)
+    (prim exp   (f64) f64     expr "Math.exp(%s)"      pure)
+    (prim log   (f64) f64     expr "Math.log(%s)"      pure)
+    (prim log10 (f64) f64     expr "Math.log10(%s)"    pure)
+    (prim sin   (f64) f64     expr "Math.sin(%s)"      pure)
+    (prim cos   (f64) f64     expr "Math.cos(%s)"      pure)
+    (prim tan   (f64) f64     expr "Math.tan(%s)"      pure)
+    (prim atan2 (f64 f64) f64 expr "Math.atan2(%s, %s)" pure)
+    (prim hypot (f64 f64) f64 expr "Math.hypot(%s, %s)" pure)
+    (prim floor (f64) f64     expr "Math.floor(%s)"    pure)
+    (prim ceil  (f64) f64     expr "Math.ceil(%s)"     pure)
+    (prim round (f64) int     expr "Math.round(%s)"    pure)
+    (prim min   (int int) int expr "Math.min(%s, %s)"  pure)
+    (prim max   (int int) int expr "Math.max(%s, %s)"  pure)
+    (prim PI    (none) f64    expr "Math.PI"           pure)
+    (prim E     (none) f64    expr "Math.E"            pure)
+    (prim random (none) f64   expr "Math.random()"))
+
+  (module java/Integer
+    (prim parseInt      (string) jint  expr "Integer.parseInt(%s)"   pure)
+    (prim toString      (jint) string  expr "Integer.toString(%s)"   pure)
+    (prim toBinaryString (jint) string expr "Integer.toBinaryString(%s)" pure)
+    (prim toHexString   (jint) string  expr "Integer.toHexString(%s)" pure)
+    (prim bitCount      (jint) jint    expr "Integer.bitCount(%s)"   pure)
+    (prim MAX_VALUE     (none) jint    expr "Integer.MAX_VALUE"      pure)
+    (prim MIN_VALUE     (none) jint    expr "Integer.MIN_VALUE"      pure))
+
+  (module java/Long
+    (prim parseLong (string) int expr "Long.parseLong(%s)" pure)
+    (prim toString  (int) string expr "Long.toString(%s)"  pure)
+    (prim bitCount  (int) jint   expr "Long.bitCount(%s)"  pure)
+    (prim MAX_VALUE (none) int   expr "Long.MAX_VALUE"     pure))
+
+  (module java/Double
+    (prim parseDouble (string) f64  expr "Double.parseDouble(%s)" pure)
+    (prim toString    (f64) string  expr "Double.toString(%s)"    pure)
+    (prim isNaN       (f64) bool    expr "Double.isNaN(%s)"       pure)
+    (prim NaN         (none) f64    expr "Double.NaN"             pure)
+    (prim POSITIVE_INFINITY (none) f64 expr "Double.POSITIVE_INFINITY" pure))
+
+  ; Instance methods on String. `(String.length s)` emits `s.length()`.
+  (module java/String
+    (prim length     (string) int         expr "%s.length()"        pure)
+    (prim charAt     (string int) char    expr "%s.charAt((int) %s)" pure)
+    (prim substring  (string int int) string expr "%s.substring((int) %s, (int) %s)" pure)
+    (prim indexOf    (string string) int  expr "%s.indexOf(%s)"     pure)
+    (prim contains   (string string) bool expr "%s.contains(%s)"    pure)
+    (prim startsWith (string string) bool expr "%s.startsWith(%s)"  pure)
+    (prim endsWith   (string string) bool expr "%s.endsWith(%s)"    pure)
+    (prim toUpperCase (string) string     expr "%s.toUpperCase()"   pure)
+    (prim toLowerCase (string) string     expr "%s.toLowerCase()"   pure)
+    (prim strip      (string) string      expr "%s.strip()"         pure)
+    (prim repeat     (string int) string  expr "%s.repeat((int) %s)" pure)
+    (prim replace    (string string string) string expr "%s.replace(%s, %s)" pure)
+    (prim split      (string string) string-array expr "%s.split(%s)" pure)
+    (prim isEmpty    (string) bool        expr "%s.isEmpty()"       pure)
+    ; `==` on Strings compares references, which is why this exists.
+    (prim equals     (string string) bool expr "%s.equals(%s)"      pure)
+    (prim compareTo  (string string) int  expr "%s.compareTo(%s)"   pure)
+    (prim concat     (string string) string expr "(%s + %s)"        pure)
+    (prim valueOf    (any) string         expr "String.valueOf(%s)" pure)
+    (prim join       (string string-array) string expr "String.join(%s, %s)" pure))
+
+  (module java/Character
+    (prim isDigit      (char) bool expr "Character.isDigit(%s)"      pure)
+    (prim isLetter     (char) bool expr "Character.isLetter(%s)"     pure)
+    (prim isWhitespace (char) bool expr "Character.isWhitespace(%s)" pure)
+    (prim isUpperCase  (char) bool expr "Character.isUpperCase(%s)"  pure)
+    (prim toLowerCase  (char) char expr "Character.toLowerCase(%s)"  pure)
+    (prim toUpperCase  (char) char expr "Character.toUpperCase(%s)"  pure)
+    (prim code         (char) int  expr "(long) %s"                  pure))
+
+  ; The ONLY growable container in java.lang, and it only holds text.
+  (module java/StringBuilder
+    (prim new       (none) strbuf          expr "new StringBuilder()")
+    (prim append    (strbuf string) strbuf stmt "%s.append(%s)")
+    (prim appendInt (strbuf int) strbuf    stmt "%s.append(%s)")
+    (prim appendChar (strbuf char) strbuf  stmt "%s.append(%s)")
+    (prim length    (strbuf) int           expr "%s.length()"   pure)
+    (prim toString  (strbuf) string        expr "%s.toString()" pure))
+
+  (module java/System
+    (prim out-println (any) any  stmt "System.out.println(%s)")
+    (prim out-print   (any) any  stmt "System.out.print(%s)")
+    (prim err-println (any) any  stmt "System.err.println(%s)")
+    (prim nanoTime    (none) int expr "System.nanoTime()")
+    (prim currentTimeMillis (none) int expr "System.currentTimeMillis()")
+    (prim arraycopy   (double-array double-array int) double-array
+                      stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)")
+    (prim exit        (int) any  stmt "System.exit((int) %s)")
+    (prim getenv      (string) string expr "System.getenv(%s)"))
+
+  (module java/Objects
+    (prim equals   (any any) bool expr "java.util.Objects.equals(%s, %s)" pure)
+    (prim hashCode (any) jint     expr "java.util.Objects.hashCode(%s)"   pure)
+    (prim toString (any) string   expr "java.util.Objects.toString(%s)"   pure)))

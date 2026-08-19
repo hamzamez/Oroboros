@@ -26,7 +26,7 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 		(use num/f64)
 		(fn (x) (f64.add "hello" 1.0))
 	`
-	for _, target := range []string{"portable-go", "js", "java"} {
+	for _, target := range []string{"portable-go", "portable-js", "portable-java"} {
 		err := checkSrc(t, target, src)
 		if err == nil {
 			t.Errorf("%s: expected a type error", target)

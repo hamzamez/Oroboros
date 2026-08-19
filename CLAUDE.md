@@ -305,7 +305,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 |---|---|
 | `core/` | reader, terms, β/δ reducer. The atom of [core-0](docs/spec/core-0.md). |
 | `emit/` | Go, JavaScript and Java backends. Types live here, **not** in the language. |
-| `targets/` | Target declarations — **data, not Go**. `go/` is a **directory**, host-native, no portability claim ([target-native.md](docs/spec/target-native.md)); `portable-go.oro` is the layer it replaced, kept for the gauntlet. |
+| `targets/` | Target declarations — **data, not Go**. `go/`, `js/` and `java/` are **directories**, host-native, no portability claim ([target-native.md](docs/spec/target-native.md)); the `portable-*.oro` files are the layer they replaced, kept for the gauntlet. |
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |

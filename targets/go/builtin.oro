@@ -21,10 +21,10 @@
     (prim *   (int int) int             expr "%s * %s"  pure)
     (prim /   (int int) int             expr "%s / %s"  pure)
     (prim %   (int int) int             expr "%s %% %s" pure)
-    (prim f+  (float64 float64) float64 expr "%s + %s"  pure)
-    (prim f-  (float64 float64) float64 expr "%s - %s"  pure)
-    (prim f*  (float64 float64) float64 expr "%s * %s"  pure)
-    (prim f/  (float64 float64) float64 expr "%s / %s"  pure)
+    (prim f+  (f64 f64) f64 expr "%s + %s"  pure)
+    (prim f-  (f64 f64) f64 expr "%s - %s"  pure)
+    (prim f*  (f64 f64) f64 expr "%s * %s"  pure)
+    (prim f/  (f64 f64) f64 expr "%s / %s"  pure)
 
     ; ---- bitwise
     (prim &   (int int) int expr "%s & %s"  pure)
@@ -42,10 +42,10 @@
     (prim <=  (int int) bool expr "%s <= %s" pure)
     (prim >   (int int) bool expr "%s > %s"  pure)
     (prim >=  (int int) bool expr "%s >= %s" pure)
-    (prim f<  (float64 float64) bool expr "%s < %s"  pure)
-    (prim f<= (float64 float64) bool expr "%s <= %s" pure)
-    (prim f>  (float64 float64) bool expr "%s > %s"  pure)
-    (prim f>= (float64 float64) bool expr "%s >= %s" pure)
+    (prim f<  (f64 f64) bool expr "%s < %s"  pure)
+    (prim f<= (f64 f64) bool expr "%s <= %s" pure)
+    (prim f>  (f64 f64) bool expr "%s > %s"  pure)
+    (prim f>= (f64 f64) bool expr "%s >= %s" pure)
     (prim s<  (string string) bool   expr "%s < %s"  pure)
 
     ; ---- boolean
@@ -65,7 +65,7 @@
 
     ; append may write into the argument's backing array, so it is NOT pure.
     (prim append-int     (slice-int int) slice-int             expr "append(%s, %s)")
-    (prim append-float64 (slice-float64 float64) slice-float64 expr "append(%s, %s)")
+    (prim append-float64 (slice-float64 f64) slice-float64 expr "append(%s, %s)")
     (prim append-string  (slice-string string) slice-string    expr "append(%s, %s)")
 
     ; make: the element type is part of Go's syntax, so one name per type.
@@ -87,7 +87,7 @@
     ; which is why the refinement is carried rather than assumed.
     (prim at-int     ((v slice-int) (i int)) int         expr "%s[%s]" pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
-    (prim at-float64 ((v slice-float64) (i int)) float64 expr "%s[%s]" pure index
+    (prim at-float64 ((v slice-float64) (i int)) f64 expr "%s[%s]" pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
     (prim at-string  ((v slice-string) (i int)) string   expr "%s[%s]" pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
@@ -96,7 +96,7 @@
     (prim at-map     (map-string-int string) int         expr "%s[%s]" pure)
 
     (prim set-int     (slice-int int int) slice-int              stmt "%s[%s] = %s")
-    (prim set-float64 (slice-float64 int float64) slice-float64  stmt "%s[%s] = %s")
+    (prim set-float64 (slice-float64 int f64) slice-float64  stmt "%s[%s] = %s")
     (prim set-string  (slice-string int string) slice-string     stmt "%s[%s] = %s")
     (prim set-bool    (slice-bool int bool) slice-bool           stmt "%s[%s] = %s")
     (prim set-map     (map-string-int string int) map-string-int stmt "%s[%s] = %s")
@@ -105,8 +105,8 @@
     (prim slice-string  (slice-string int int) slice-string   expr "%s[%s:%s]" pure)
 
     ; ---- conversions. Go spells these T(x); each is its own name here.
-    (prim int-of-float64  (float64) int       expr "int(%s)"     pure)
-    (prim float64-of-int  (int) float64       expr "float64(%s)" pure)
+    (prim int-of-float64  (f64) int       expr "int(%s)"     pure)
+    (prim float64-of-int  (int) f64       expr "float64(%s)" pure)
     (prim int64-of-int    (int) int64         expr "int64(%s)"   pure)
     (prim string-of-bytes (slice-byte) string expr "string(%s)"  pure)
     (prim bytes-of-string (string) slice-byte expr "[]byte(%s)"  pure)))

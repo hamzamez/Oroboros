@@ -1,14 +1,15 @@
 # Target-native modules, and the prices
 
-**What this is.** `targets/go/` declares Go's own names with Go's own semantics and **makes no
+**What this is.** `targets/go/`, `targets/js/` and `targets/java/` declare each host's own names with Go's own semantics and **makes no
 portability claim at all**. `go.+` is Go's `+`; `go./` truncates and panics on zero because that is
 what Go does. Nothing is renamed so that three hosts can agree, because nothing here claims they do.
 
 The point is to see the language with the portability layer taken away — to find out **which
 limitations are the language's and which were the layer's**.
 
-The layer it replaced is preserved as `targets/portable-go.oro`, because the gauntlet's seven
-programs are written against it and are the record of what parity was measured on.
+The layers they replaced are preserved as `targets/portable-go.oro`, `portable-js.oro` and
+`portable-java.oro`, because the gauntlet's seven programs are written against them and are the
+record of what parity was measured on.
 
 ---
 
@@ -97,6 +98,69 @@ opaque atom.
 not about who named it. `isOp` now maps operator spellings to the fragment's names, so
 `(where (go.&& (go.<= 0 i) (go.< i (go.len v))))` is decided.
 
+
+## 2.6 The language reserves four type names
+
+Found by writing the JavaScript target, which called its boolean `boolean`:
+
+```
+sieve-count: in a condition: js.>= is boolean, but bool is required here
+```
+
+The structural primitives carry a fixed type vocabulary into every target:
+
+| name | who demands it |
+|---|---|
+| `int` | what an **integer literal** types as; a loop bound and index |
+| `f64` | what a **float literal** types as |
+| `bool` | what `if` and a loop guard demand |
+| `vec-f64` | what `make-vec` produces — only if a target declares it |
+
+A target may spell them however it likes on the right — JS says `(type int "number")`, Java says
+`(type int "long")`, Go says `(type f64 "float64")` — but **the names on the left belong to the
+language**, not to the target. That is defensible, since the structural primitives are the
+language's and so are their types, but it was undocumented and it is the first thing a new target
+gets wrong. It also means a Go programmer writes `f64` in a `sig`, never `float64`: for these four,
+the language's name wins over the host's spelling.
+
+Found twice. JavaScript called its boolean `boolean` and every guard failed. The Go target called
+its float `float64` and passed only because no program had used a float literal yet.
+
+It has a sharper consequence on JavaScript. **JS has one number type and our language has two**,
+because that is what an integer and a float literal type as. Declaring `js.+` on `f64` would make
+`(js.+ i 1)` an error the host does not have; declaring both would reintroduce Go's suffix split for
+a reason belonging entirely to us. So `targets/js/` declares arithmetic on `any`, which demands
+nothing — **one `js.+`, at the price of no numeric checking on that target at all.**
+
+## 2.7 Method syntax cannot be spelled
+
+JavaScript and Java are method-oriented; we are not. `a.map(f)` becomes `(Array.map a f)`, and
+`s.length()` becomes `(String.length s)`.
+
+The **emitted** code is exactly right — a template's first hole is the receiver — so nothing is lost
+at run time. What is lost is reading order: the receiver moves from before the dot to after the
+paren. No target-file work changes that; it is what a Lisp surface costs on a method-oriented host.
+
+**Namespace statics are the exception, and they read perfectly**, because a static call and a
+qualified name have the same shape:
+
+```lisp
+(use js/Math)      (Math.floor x)        →  Math.floor(x)
+(use js/JSON)      (JSON.stringify v)    →  JSON.stringify(v)
+(use java/Integer) (Integer.parseInt s)  →  Integer.parseInt(s)
+```
+
+## 2.8 Java's generics are the suffix problem squared
+
+Go needed one declaration per slice element type. Java needs one per **(container, K, V)**
+combination: `List<Long>` and `List<String>` share not a single declaration, and `Map<K,V>` is
+quadratic. `targets/java/util.oro` declares three instantiations; every other one Java can
+express — and there are unboundedly many — is unreachable.
+
+Java also pays a tax the others do not: our `int` is Java's `long`, deliberately, because Java's
+`int` wraps at 2³¹ which is *inside* the range our literals cover. Every array index therefore
+emits `(int)`. Free at run time, unavoidable, and visible in every line.
+
 ## 3. The prices, measured
 
 The Go target no longer offers `fold-range`. What that costs, and what the native shape costs, on
@@ -129,6 +193,28 @@ If that reading is right the cost is **the inlining budget**, which
 discontinuity, and the fix is emitting less code rather than a different loop. It is written down
 here as an open price rather than a solved one.
 
+### 2.9 The three hosts, side by side
+
+The same sieve, written natively for each — `examples/native/sieve-go.oro`, `sieve-js.oro`,
+`sieve-java.oro` — all producing 2262 and checked against a hand-written reference on their own
+host.
+
+| | Go | JavaScript | Java |
+|---|---|---|---|
+| structural set | **3** | **3** | **3** |
+| `at` / `set` declarations | one per element type | **one, total** | one per element type |
+| arithmetic declarations | one per numeric type | **one, on `any`** | one per numeric type |
+| what forces the split | Go really is typed | *our* two number types | Java really is typed |
+| generics | none to model | none to model | **one per instantiation, squared** |
+| index casts | none | none | `(int)` on every index |
+| method syntax | n/a — Go's builtins are functions | receiver moves | receiver moves |
+| namespace statics | n/a | read perfectly | read perfectly |
+
+**The clearest result is the second row.** JavaScript needs *one* `js.at` for every element type
+there is, where Go needs four and Java needs four. The suffix explosion is not a fact about static
+typing; it is a fact about **our type language having no constructors**, and it disappears exactly
+where the host has no types for us to have to model.
+
 ## 4. What held
 
 Worth stating, because most of it did.
@@ -159,10 +245,6 @@ file all along.
 
 ## 6. What is not done
 
-- **JavaScript and Java have no native target yet.** Only `go/` exists as a directory; `js.oro` and
-  `java.oro` are still single files carrying the portable layer. The same experiment on those two
-  is the obvious next step, and the Go/JS/Java differences already recorded in
-  [experiments/](../../experiments/README.md) predict that the walls will differ again.
 - **The gauntlet is not migrated.** Its seven programs still use the portable layer. Migrating them
   is what would let `portable-go` be deleted rather than shelved.
 - **`make-vec` was removed**, which makes the native target's structural set exactly **three**:

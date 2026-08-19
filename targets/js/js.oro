@@ -1,0 +1,46 @@
+; The JavaScript target. NO PORTABILITY CLAIM.
+;
+; Every name here is JavaScript's own, with JavaScript's own semantics. `js.+`
+; on two strings concatenates; `js./` by zero is Infinity; `js.===` is not
+; `js.==`. Nothing is renamed so three hosts can agree.
+;
+; This file is the header: types, structural primitives, and the deliverable.
+; The surface is one file per JavaScript namespace, merged by LoadTarget.
+;
+; The portable layer it replaced is targets/portable-js.oro, kept because the
+; gauntlet is written against it. See docs/spec/target-native.md.
+
+(target js
+  ; JavaScript has no types at run time, and the emitter writes none. These
+  ; exist ONLY for the checker (docs/spec/types.md), which runs on every target
+  ; — and that is the whole difference from Go: because JS has one number type
+  ; and untyped containers, ONE declaration serves every element type. No
+  ; `at-float64` / `at-int` split, no `make` per element type.
+  ; FOUR OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here:
+  ; `int` and `f64` are what integer and float LITERALS type as, `bool` is what
+  ; `if` and a loop guard demand, and `vec-f64` is what `make-vec` produces.
+  ; A target may spell them however it likes on the right, but the names on the
+  ; left are the language's. See docs/spec/target-native.md §2.6.
+  ;
+  ; JavaScript has ONE number type, so `int` and `f64` are both `number` here —
+  ; and that mismatch is the whole reason js/builtin.oro declares arithmetic on
+  ; `any` rather than on a numeric type.
+  (type int     "number")
+  (type f64     "number")
+  (type bool    "boolean")
+  (type string  "string")
+  (type any     "any")
+
+  ; No `narrow`: JavaScript has no bounds checks to eliminate.
+
+  ; `node --check` is a syntax check, not a compile: the emitted module IS the
+  ; deliverable, so there is an artifact and nothing to build.
+  (artifact "main.mjs")
+  (build "node --check %s")
+
+  ; THE WHOLE STRUCTURAL SET IS THREE — the same three as Go's native target.
+  ; `fold-range`, `fold-range2` and `make-vec` are all absent: `loop` subsumes
+  ; the folds, and an array is built with `js.Array` plus a `loop`.
+  (structural let  let     pure)
+  (structural if   cond    pure)
+  (structural loop iterate pure))

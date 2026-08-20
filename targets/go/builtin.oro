@@ -16,9 +16,22 @@
   (module go
     ; ---- arithmetic. One declaration per Go type, because the type language
     ; cannot say "any numeric T".
-    (prim +   (int int) int             expr "%s + %s"  pure)
-    (prim -   (int int) int             expr "%s - %s"  pure)
-    (prim *   (int int) int             expr "%s * %s"  pure)
+    ; The plain operators, and the CHECKED forms a declared range selects when
+    ; the compiler cannot prove the result stays in the window (sct-2026-08-19).
+    ;
+    ; Go has NO overflow intrinsic — which is why overflow-2026-08-19 measured it
+    ; at 2.61x against Java's 1.31x. The check is written as a func literal
+    ; called immediately, so each operand appears ONCE and Go's inliner sees
+    ; straight-line code. No runtime, no prelude, no support library.
+    (prim +   (int int) int             expr "%s + %s"  pure (checked add-exact))
+    (prim -   (int int) int             expr "%s - %s"  pure (checked sub-exact))
+    (prim *   (int int) int             expr "%s * %s"  pure (checked mul-exact))
+    (prim add-exact (int int) int expr
+      "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)" pure)
+    (prim sub-exact (int int) int expr
+      "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)" pure)
+    (prim mul-exact (int int) int expr
+      "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)" pure)
     (prim /   (int int) int             expr "%s / %s"  pure)
     (prim %   (int int) int             expr "%s %% %s" pure)
     (prim f+  (f64 f64) f64 expr "%s + %s"  pure)

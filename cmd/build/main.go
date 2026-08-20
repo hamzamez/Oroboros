@@ -120,6 +120,14 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 			fmt.Fprintln(os.Stderr, "note:", n)
 		}
 	}
+	// REPRESENTATION SELECTION — see cmd/gen for the note.
+	rep, sel := emit.Intervals(tg, prog.Sigs[entry], nf, 0)
+	if rep.Selected > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations could not be bounded and "+
+			"use the checked form; %d loop(s) proven terminating of %d\n",
+			rep.Selected, rep.Ops, rep.Terminates, rep.Loops)
+	}
+	nf = sel
 	var code string
 	switch target {
 	case "js":

@@ -1,0 +1,17 @@
+; Euclid's algorithm — the textbook size-change case.
+;
+; Neither variable descends on its own: x' is y, and y' is x mod y. What
+; terminates the loop is that `x mod y < y`, which is an arc from y to y through
+; an expression y does not head. Lee, Jones & Ben-Amram use this shape to
+; motivate the principle.
+
+(use go)
+(export gcd)
+
+(sig gcd ((a int) (b int)) int
+  (where (and (and (<= 0 a) (< a 1000000)) (and (<= 0 b) (< b 1000000)))))
+
+(def gcd (fn (a b)
+  (loop ((x a) (y b))
+    (go.== y 0)  x
+    else         (again y (go.% x y)))))

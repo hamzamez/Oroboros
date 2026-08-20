@@ -291,6 +291,11 @@ func lengthVar(op string, arg *core.Term) string {
 // opaque atom. The fragment is about the OPERATION, not about who named it.
 var opAlias = map[string]string{
 	"+": "add", "-": "sub", "*": "mul",
+	// Division and remainder, in every spelling four hosts use. Their absence
+	// here meant `go./` was not recognised as division AT ALL — so the digit
+	// loop, exponentiation by squaring and every other geometric descent looked
+	// like an unknown operation. Found by growing the corpus.
+	"/": "div", "%": "rem", "idiv": "div", "irem": "rem",
 	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
 	"&&": "and", "||": "or", "!": "not",
 	// The strict branchless connectives a target may declare under its own

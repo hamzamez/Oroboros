@@ -1,0 +1,16 @@
+; Sum of decimal digits — geometric descent, and an accumulator bounded only by
+; the trip count.
+;
+; `m / 10` shrinks by a factor rather than by a constant, so the trip count is
+; logarithmic; `s` grows by at most 9 each time and is bounded by 9 × trip. Both
+; halves of what size change buys, in six lines.
+
+(use go)
+(export digit-sum)
+
+(sig digit-sum ((n int)) int (where (and (<= 0 n) (< n 1000000000))))
+
+(def digit-sum (fn (n)
+  (loop ((m n) (s 0))
+    (go.<= m 0)  s
+    else         (again (go./ m 10) (go.+ s (go.% m 10))))))

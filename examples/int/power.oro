@@ -1,0 +1,16 @@
+; Exponentiation by squaring — terminates geometrically, and overflows.
+;
+; `k` halves, so the loop runs log2(e) times and that is provable. `acc` and `x`
+; are multiplied, and a product of two unbounded values is unbounded — which is
+; correct, because b^e leaves any window you care to name.
+
+(use go)
+(export power)
+
+(sig power ((b int) (e int)) int (where (and (<= 0 e) (< e 64))))
+
+(def power (fn (b e)
+  (loop ((acc 1) (x b) (k e))
+    (go.== k 0)            acc
+    (go.== (go.% k 2) 1)   (again (go.* acc x) (go.* x x) (go./ k 2))
+    else                   (again acc (go.* x x) (go./ k 2)))))

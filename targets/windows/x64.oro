@@ -33,9 +33,21 @@
 (target windows
   (module x64
     ; ---- integer arithmetic. Two instructions each, for the reason above.
-    (prim add  (int int) int expr "mov %r, %1\nadd %r, %2"  pure)
-    (prim sub  (int int) int expr "mov %r, %1\nsub %r, %2"  pure)
-    (prim imul (int int) int expr "mov %r, %1\nimul %r, %2" pure)
+    (prim add  (int int) int expr "mov %r, %1\nadd %r, %2"  pure (checked add-checked))
+    (prim sub  (int int) int expr "mov %r, %1\nsub %r, %2"  pure (checked sub-checked))
+    (prim imul (int int) int expr "mov %r, %1\nimul %r, %2" pure (checked imul-checked))
+
+    ; THE CHECKED FORMS, selected when a declared range does not prove the
+    ; result stays in the window (sct-2026-08-19). The hardware has carried an
+    ; overflow flag since 1978, so this is ONE extra instruction and a
+    ; perfectly-predicted branch — and `ud2` raises #UD, which ends the process
+    ; the way an unrecoverable arithmetic fault should. No helper, no runtime.
+    (prim add-checked  (int int) int expr
+      "mov %r, %1\nadd %r, %2\njno Lok%u\nud2\nLok%u:" pure)
+    (prim sub-checked  (int int) int expr
+      "mov %r, %1\nsub %r, %2\njno Lok%u\nud2\nLok%u:" pure)
+    (prim imul-checked (int int) int expr
+      "mov %r, %1\nimul %r, %2\njno Lok%u\nud2\nLok%u:" pure)
     (prim neg  (int) int     expr "mov %r, %1\nneg %r"      pure)
     (prim inc  (int) int     expr "mov %r, %1\ninc %r"      pure)
     (prim dec  (int) int     expr "mov %r, %1\ndec %r"      pure)

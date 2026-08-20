@@ -12,9 +12,17 @@
 (target java
   (module java
     ; ---- arithmetic on long, which is our `int`
-    (prim +  (int int) int expr "%s + %s"  pure)
-    (prim -  (int int) int expr "%s - %s"  pure)
-    (prim *  (int int) int expr "%s * %s"  pure)
+    ; The plain operators, and the CHECKED forms a declared range selects when
+    ; the compiler cannot prove the result stays in the portable window
+    ; (sct-2026-08-19). The JVM has these as intrinsics — Math.addExact compiles
+    ; to an add and a jump-on-overflow — which is why overflow-2026-08-19
+    ; measured Java at 1.31x where Go pays 2.61x and JavaScript 3.74x.
+    (prim +  (int int) int expr "%s + %s"  pure (checked addExact))
+    (prim -  (int int) int expr "%s - %s"  pure (checked subtractExact))
+    (prim *  (int int) int expr "%s * %s"  pure (checked multiplyExact))
+    (prim addExact      (int int) int expr "Math.addExact(%s, %s)"      pure)
+    (prim subtractExact (int int) int expr "Math.subtractExact(%s, %s)" pure)
+    (prim multiplyExact (int int) int expr "Math.multiplyExact(%s, %s)" pure)
     (prim /  (int int) int expr "%s / %s"  pure)
     (prim %  (int int) int expr "%s %% %s" pure)
     (prim neg (int) int    expr "-%s"      pure)

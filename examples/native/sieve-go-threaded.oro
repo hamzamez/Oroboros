@@ -8,7 +8,11 @@
 
 (export count-primes main)
 
-(sig count-primes ((n int)) int)
+; The range, declared. Without it the compiler cannot bound a single one of the
+; ten integer operations below and every one of them emits a checked add or
+; multiply; with it, none of them do and all three loops are proven to
+; terminate. That is the whole trade (sct-2026-08-19).
+(sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
 ; Cross out multiples of i, from i*i, stepping by i.
 (def cross (fn (c i n)

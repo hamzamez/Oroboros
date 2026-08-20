@@ -169,6 +169,9 @@ func divI(a, b ival) ival {
 // remI is bounded by the divisor when the divisor is, and by the dividend
 // otherwise.
 func remI(a, b ival) ival {
+	if b.bounded() && !a.loInf && a.lo >= 0 && b.lo >= 1 {
+		return ival{lo: 0, hi: b.hi - 1}
+	}
 	if b.bounded() {
 		m := b.hi - 1
 		if -b.lo-1 > m {
@@ -257,6 +260,7 @@ type IntervalReport struct {
 	LoopVars  int
 	LoopBound int
 
+	Selected   int      // operations rewritten to a checked primitive
 	Loops      int      // loops seen
 	Terminates int      // …proven terminating by size change plus a floor
 	Trips      int      // …of those, the ones that also yield a trip count
@@ -299,11 +303,13 @@ type descent struct {
 // PARAMETER and every array length the range [0, assume], simulating a
 // programmer who declared ranges. Zero means declare nothing, which is what
 // every program in the repository does today.
-func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) *IntervalReport {
+func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
 	rep := &IntervalReport{ByOp: map[string][2]int{}}
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0}
 	env := map[string]ival{}
+	var head *core.Term
 	if t.Kind == core.KFn {
+		head = t
 		for _, n := range t.Params {
 			env[n] = p.paramIval(n, sig)
 		}
@@ -322,9 +328,12 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) *Interval
 	p.count = false
 	p.eval(t) // settle loop fixpoints
 	p.count = true
-	p.eval(t)
+	_, out := p.evalR(t)
 	sort.Strings(rep.Unproven)
-	return rep
+	if head != nil {
+		out = core.FnClosed(head.Params, out) // t.Body() was already closed
+	}
+	return rep, out
 }
 
 // assumeWhere narrows parameters from a signature's precondition. A conjunction
@@ -373,27 +382,38 @@ func (p *intervalPass) lookup(n string) ival {
 	return top
 }
 
-// eval returns the interval of a term, counting checkable operations as it goes.
-func (p *intervalPass) eval(t *core.Term) ival {
+// eval returns the interval of a term. Most callers — guard narrowing, size
+// change, step reading — want only that.
+func (p *intervalPass) eval(t *core.Term) ival { v, _ := p.evalR(t); return v }
+
+// evalR is the same walk, also rebuilding the term.
+//
+// The rebuild is what turns a proof into different EMITTED CODE: an operation
+// whose result is not provably inside the window is rewritten to the checked
+// primitive the target declares, and one that is provable keeps the host's own
+// operator. Everything else about the term is reconstructed unchanged, so a
+// target that declares no checked forms gets back exactly what it gave.
+func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 	switch t.Kind {
 	case core.KInt:
-		return exact(t.Int)
-	case core.KBool, core.KStr, core.KFloat:
-		return top
+		return exact(t.Int), t
+	case core.KBool, core.KStr, core.KFloat, core.KBound:
+		return top, t
 	case core.KName:
-		return p.lookup(t.Name)
+		return p.lookup(t.Name), t
 	case core.KFn:
-		return p.eval(t.Body())
+		v, b := p.evalR(t.Body())
+		return v, core.FnClosed(t.Params, b)
 	case core.KApp:
 		return p.app(t)
 	}
-	return top
+	return top, t
 }
 
-func (p *intervalPass) app(t *core.Term) ival {
+func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	op := t.Op()
 	if op.Kind != core.KName {
-		return top
+		return top, t
 	}
 	prim, known := p.tgt.Prims[op.Name]
 	args := t.Args()
@@ -401,39 +421,55 @@ func (p *intervalPass) app(t *core.Term) ival {
 	if known {
 		switch prim.Kind {
 		case "let":
-			return p.let(args)
+			return p.let(t)
 		case "cond":
-			return p.cond(args)
+			return p.cond(t)
 		case "iterate":
-			return p.iterate(args)
+			return p.iterate(t)
 		}
-	}
-	if op.Name == "again" {
-		for _, a := range args {
-			p.eval(a)
-		}
-		return bottom // a back edge produces no value
 	}
 
 	vals := make([]ival, len(args))
+	kids := make([]*core.Term, 0, len(t.Kids))
+	kids = append(kids, op)
 	for i, a := range args {
-		vals[i] = p.eval(a)
+		v, na := p.evalR(a)
+		vals[i] = v
+		kids = append(kids, na)
+	}
+	rebuilt := &core.Term{Kind: core.KApp, Kids: kids}
+
+	if op.Name == "again" {
+		return bottom, rebuilt // a back edge produces no value
 	}
 
 	// An array length is non-negative and otherwise unknown — unless the
 	// experiment is simulating a declaration.
 	if len(vals) == 1 && (isOp(op.Name, "alen") || isOp(op.Name, "len")) {
 		if p.assumed {
-			return ival{lo: 0, hi: p.assume}
+			return ival{lo: 0, hi: p.assume}, rebuilt
 		}
-		return ival{lo: 0, hiInf: true}
+		return ival{lo: 0, hiInf: true}, rebuilt
 	}
 
 	out, checkable := p.transfer(op.Name, prim, vals)
-	if checkable && p.count {
-		p.record(op.Name, out, t)
+	if checkable {
+		if p.count {
+			p.record(op.Name, out, t)
+		}
+		// THE SELECTION. Provable: keep the host's own operator, which is what
+		// every program emits today. Not provable: use the checked primitive
+		// the target declares — and if it declares none, that target cannot do
+		// exact arithmetic and covering says so, which is the capability model
+		// answering rather than a special case.
+		if !out.fits() && prim.Checked != "" {
+			kids[0] = core.Name(prim.Checked)
+			if p.count {
+				p.rep.Selected++
+			}
+		}
 	}
-	return out
+	return out, rebuilt
 }
 
 // transfer is the abstract semantics of one primitive, plus whether an
@@ -483,37 +519,40 @@ func (p *intervalPass) record(name string, out ival, t *core.Term) {
 	p.rep.ByOp[name] = e
 }
 
-func (p *intervalPass) let(args []*core.Term) ival {
+func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
+	args := t.Args()
 	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
-		return top
+		return top, t
 	}
-	v := p.eval(args[0])
+	v, nv := p.evalR(args[0])
 	k := args[1]
 	body, raw, _ := openFresh(k, map[string]bool{}, asmIdent)
 	old, had := p.env[raw[0]]
 	p.env[raw[0]] = v
-	out := p.eval(body)
+	out, nb := p.evalR(body)
 	if had {
 		p.env[raw[0]] = old
 	} else {
 		delete(p.env, raw[0])
 	}
-	return out
+	// core.Fn closes an OPEN body, which is exactly what openFresh handed us.
+	return out, core.App(t.Op(), nv, core.Fn(raw, nb))
 }
 
-func (p *intervalPass) cond(args []*core.Term) ival {
+func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
+	args := t.Args()
 	if len(args) != 3 {
-		return top
+		return top, t
 	}
-	p.eval(args[0])
+	_, nc := p.evalR(args[0])
 	saved := p.snapshot()
 	p.refine(args[0], true)
-	a := p.eval(args[1])
+	a, na := p.evalR(args[1])
 	p.restore(saved)
 	p.refine(args[0], false)
-	b := p.eval(args[2])
+	b, nb := p.evalR(args[2])
 	p.restore(saved)
-	return joinI(a, b)
+	return joinI(a, b), core.App(t.Op(), nc, na, nb)
 }
 
 func (p *intervalPass) snapshot() map[string]ival {
@@ -547,14 +586,55 @@ func (p *intervalPass) refine(c *core.Term, taken bool) {
 		rel = "gt"
 	case isOp(name, "ge") || name == ">=" || strings.HasSuffix(name, ".setge"):
 		rel = "ge"
+	case isOp(name, "eq") || name == "==" || strings.HasSuffix(name, ".sete"):
+		rel = "eq"
+	case isOp(name, "ne") || name == "!=" || strings.HasSuffix(name, ".setne"):
+		rel = "ne"
 	default:
 		return
 	}
 	if !taken {
-		rel = map[string]string{"lt": "ge", "ge": "lt", "le": "gt", "gt": "le"}[rel]
+		rel = map[string]string{
+			"lt": "ge", "ge": "lt", "le": "gt", "gt": "le", "eq": "ne", "ne": "eq",
+		}[rel]
+	}
+	// EQUALITY narrows to the intersection; DISEQUALITY can only move an
+	// endpoint, because `y ≠ 0` on [0, n] is [1, n] but `y ≠ 5` on [0, n] is a
+	// hole no interval represents.
+	//
+	// The endpoint case is the one that matters and it is everywhere: `(== y 0)`
+	// as a loop's exit guard means every other clause has y ≥ 1, which is what
+	// makes Euclid's remainder a strict descent and what makes `k / 2` shrink.
+	// Without it gcd and exponentiation-by-squaring were both unprovable.
+	if rel == "eq" || rel == "ne" {
+		p.narrowEq(a, rel, p.eval(b))
+		p.narrowEq(b, rel, p.eval(a))
+		return
 	}
 	p.narrow(a, rel, p.eval(b))
 	p.narrow(b, map[string]string{"lt": "gt", "gt": "lt", "le": "ge", "ge": "le"}[rel], p.eval(a))
+}
+
+func (p *intervalPass) narrowEq(t *core.Term, rel string, other ival) {
+	if t.Kind != core.KName {
+		return
+	}
+	v := p.lookup(t.Name)
+	if rel == "eq" {
+		p.env[t.Name] = intersect(v, other)
+		return
+	}
+	// A disequality against a KNOWN value, at an endpoint.
+	if !other.bounded() || other.lo != other.hi {
+		return
+	}
+	k := other.lo
+	if !v.loInf && v.lo == k {
+		v.lo = k + 1
+	} else if !v.hiInf && v.hi == k {
+		v.hi = k - 1
+	}
+	p.env[t.Name] = v
 }
 
 func (p *intervalPass) narrow(t *core.Term, rel string, other ival) {
@@ -636,14 +716,16 @@ func isqrt(n int64) int64 {
 
 // iterate is the fixpoint. Loop variables start at their initial values and are
 // re-joined with whatever `again` produces, widening after two rounds.
-func (p *intervalPass) iterate(args []*core.Term) ival {
+func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
+	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
-		return top
+		return top, t
 	}
 	lam, inits := args[0], args[1:]
 	initV := make([]ival, len(inits))
+	nInits := make([]*core.Term, len(inits))
 	for i, z := range inits {
-		initV[i] = p.eval(z)
+		initV[i], nInits[i] = p.evalR(z)
 	}
 	cur := make([]ival, len(initV))
 	copy(cur, initV)
@@ -807,11 +889,12 @@ func (p *intervalPass) iterate(args []*core.Term) ival {
 	// nothing was known about. It was the analysis lying about the program, in
 	// the direction that makes the headline number worse rather than better,
 	// which is the only reason it was not mistaken for a result.
-	out := p.eval(body)
+	out, nb := p.evalR(body)
 	for _, nm := range raw {
 		delete(p.env, nm)
 	}
-	return out
+	kids := append([]*core.Term{t.Op(), core.Fn(raw, nb)}, nInits...)
+	return out, &core.Term{Kind: core.KApp, Kids: kids}
 }
 
 // collectAgain walks the clause chain, refining by each guard, and joins the
@@ -959,6 +1042,22 @@ func (p *intervalPass) relate(arg *core.Term, src string, srcSign, dstSign int) 
 	}
 	name := arg.Op().Name
 	a, b := arg.Args()[0], arg.Args()[1]
+
+	// EUCLID. `x mod y` is strictly less than y when y ≥ 1, which is an arc
+	// from y to y through an expression y does not head — and it is the whole
+	// reason gcd terminates. Neither variable descends on its own there: x
+	// becomes y, and y becomes x mod y.
+	//
+	// This is the shape Lee, Jones & Ben-Amram use to motivate the principle,
+	// and the analysis could not see it until the corpus contained it.
+	if b.Kind == core.KName && b.Name == src && srcSign > 0 &&
+		(isOp(name, "rem") || name == "%") {
+		if v := p.lookup(src); !v.loInf && v.lo >= 1 {
+			if d := p.eval(a); !d.loInf && d.lo >= 0 {
+				return down, descent{kind: 1, delta: 1}
+			}
+		}
+	}
 	if a.Kind != core.KName || a.Name != src {
 		return noArc, descent{}
 	}

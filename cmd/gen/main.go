@@ -132,6 +132,20 @@ func run(targetDir, src, target, out, name, path string) error {
 				fmt.Fprintln(os.Stderr, "note:", n)
 			}
 		}
+		// REPRESENTATION SELECTION. Every integer operation whose result is
+		// not provably inside the portable window is rewritten to the checked
+		// primitive the target declares — and one that IS provable keeps the
+		// host's own operator, so a program the compiler can bound costs
+		// nothing (sct-2026-08-19, data-model.md §1.5).
+		//
+		// A target declaring no checked form gets its term back unchanged.
+		rep, sel := emit.Intervals(tg, sig, nf, 0)
+		if rep.Selected > 0 {
+			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations could not be "+
+				"bounded and use the checked form; %d loop(s) proven terminating of %d\n",
+				fname, rep.Selected, rep.Ops, rep.Terminates, rep.Loops)
+		}
+		nf = sel
 		var code string
 		switch target {
 		case "js":

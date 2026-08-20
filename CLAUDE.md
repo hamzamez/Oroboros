@@ -248,6 +248,20 @@ closed the first of the two holes shaped like a refinement, and **found a real l
 and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
 ([arithmetic.md §4](docs/spec/arithmetic.md)).
 
+**A declared range now selects the representation** —
+[selection-2026-08-19](gauntlet/results/selection-2026-08-19.md). An integer operation the compiler
+can bound keeps the host's own operator; one it cannot is rewritten to the `checked` primitive the
+target declares. On `examples/native/sieve-go.oro`, adding one `(where …)` to the existing `sig`
+takes it from **10 of 10 operations checked and 0 of 3 loops proven terminating** to **0 checked and
+3 of 3**. Nothing else in the program changes. Java uses `Math.addExact`, x86 uses `jno`/`ud2`, Go
+uses an immediately-called func literal, and **JavaScript declares none** — which is the price list
+of [overflow-2026-08-19](gauntlet/results/overflow-2026-08-19.md) showing up as a capability.
+
+**The corpus is `examples/int/`, and three of its six programs are meant to be REFUSED** — Collatz
+(the conjecture is open), Fibonacci past 2⁵³, and exponentiation whose accumulator genuinely
+overflows. A proof system is worth what it declines to prove. Growing it found four gaps invisible
+on the sieves, including that `go./` was not recognised as division at all.
+
 **Termination is computed now, not guarded by fuel** —
 [sct-2026-08-19](gauntlet/results/sct-2026-08-19.md). Size-change termination (Lee, Jones &
 Ben-Amram 2001) plus a trip count closed both open holes at once: **every integer operation in

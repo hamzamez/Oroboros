@@ -163,6 +163,23 @@ Go, JavaScript and Java fold a comparison into a branch inside their own compile
 declare no `jump` at all. **A host that does not is the reason this exists**, and without it every
 loop guard is two comparisons.
 
+### `checked` — the representation a declared range selects
+
+```lisp
+(prim + (int int) int expr "%s + %s" pure (checked add-exact))
+(prim add-exact (int int) int expr "Math.addExact(%s, %s)" pure)
+```
+
+An integer operation whose result the compiler proves stays inside the portable window keeps the
+host's own operator. One it cannot prove is rewritten to the `checked` primitive
+([selection-2026-08-19](../../gauntlet/results/selection-2026-08-19.md)). The name is resolved in
+the same module, so it is qualified like any other.
+
+**A target may declare none**, and three of the four do something different: the JVM has an
+intrinsic, x86 has a flag and one instruction, Go has neither and uses a func literal called
+immediately, and JavaScript declares nothing at all — so a program needing exact arithmetic is
+simply not portable there, and covering says so.
+
 ### `data` — storage the target owns
 
 ```lisp

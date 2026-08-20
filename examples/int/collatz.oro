@@ -1,0 +1,17 @@
+; The Collatz conjecture, which is open — so this program's termination is NOT
+; provable, by size change or by anything else anyone has managed.
+;
+; It is in the corpus as a TRUE NEGATIVE. An analysis that claims this loop
+; terminates has a bug, and one that claims `x` stays in range is claiming
+; something nobody knows.
+
+(use go)
+(export collatz)
+
+(sig collatz ((n int)) int (where (and (<= 1 n) (< n 1000000))))
+
+(def collatz (fn (n)
+  (loop ((x n) (steps 0))
+    (go.<= x 1)            steps
+    (go.== (go.% x 2) 0)   (again (go./ x 2) (go.+ steps 1))
+    else                   (again (go.+ (go.* 3 x) 1) (go.+ steps 1)))))

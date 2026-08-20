@@ -53,6 +53,15 @@ type Prim struct {
 	// and an index, and it is the fused test x86 actually has.
 	JumpForm string
 
+	// Checked is the primitive to use when the compiler CANNOT prove this
+	// operation's result stays inside the portable window — the representation
+	// a declared range selects (sct-2026-08-19, data-model.md §1.5).
+	//
+	// A target that declares none simply cannot do exact arithmetic for that
+	// operation, and the covering check says which targets those are. That is
+	// ADR 0002 answering, not a special case.
+	Checked string
+
 	// Where is a refinement: a boolean term over the primitive's parameter
 	// names, discharged at every call site (docs/spec/refinements.md).
 	Where *core.Term
@@ -344,6 +353,9 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	}
 	if modPath != "" {
 		p.Name = modPath + "." + p.Name
+		if p.Checked != "" {
+			p.Checked = modPath + "." + p.Checked
+		}
 	}
 	if _, dup := tg.Prims[p.Name]; dup {
 		return fmt.Errorf("%s: %s is declared twice", file, p.Name)
@@ -419,6 +431,10 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
 			p.Where = rest.Kids[1]
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "checked" && len(rest.Kids) == 2 &&
+			rest.Kids[1].Kind == core.KName:
+			p.Checked = rest.Kids[1].Name
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "jump" && len(rest.Kids) >= 2 && rest.Kids[1].Kind == core.KStr:
 			p.Jump = rest.Kids[1].Str

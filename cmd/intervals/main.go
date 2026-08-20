@@ -83,7 +83,7 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 		if err != nil {
 			return fmt.Errorf("%s: %w", u.name, err)
 		}
-		r := emit.Intervals(tg, u.sig, nf, assume)
+		r, _ := emit.Intervals(tg, u.sig, nf, assume)
 		total += r.Ops
 		proven += r.Proven
 		lv += r.LoopVars

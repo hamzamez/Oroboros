@@ -288,9 +288,12 @@ built before that number exists.
 
 So:
 
-1. **Measure interval provability** on the seven gauntlet programs and the four sieves, using the
-   fact-collection `emit/refine.go` already does for array bounds. Contained, decisive, and it
-   gates the largest open question in the language.
+1. ~~**Measure interval provability.**~~ **Done** —
+   [intervals-2026-08-19](../gauntlet/results/intervals-2026-08-19.md). **39% with nothing
+   declared, 81% with one range declared on a program's parameters**, and the whole residue is a
+   single class (a variable bounded by the trip count) that standard analysis handles and this one
+   does not. The gate is open: exact-by-default with ranges choosing the representation is viable,
+   and the burden on the programmer is one declaration per input.
 2. **Decide the product.** Six independent demands and now a price.
 3. **`bytes` and scalar bitwise** whenever convenient — blocked on nothing, no language change,
    and they are what make binaries, hashes and bit sets writable

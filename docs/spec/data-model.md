@@ -601,21 +601,26 @@ results, and a bignum's fast path. The measurement says it costs nothing where o
 makes things cost nothing. **It is ready to be decided.**
 
 **Interval analysis** is what hamza's preferred integer design turns on: exact by default, with
-declared ranges and inferred intervals choosing the representation. Its viability rests on one
-unknown that nobody has measured:
+declared ranges and inferred intervals choosing the representation. Its viability rested on one
+unknown — and the unknown has now been measured
+([intervals-2026-08-19](../../gauntlet/results/intervals-2026-08-19.md)):
 
 > **How often can the compiler actually prove an integer stays in a machine word?**
+>
+> **39% with nothing declared. 81% with one range declared on a program's parameters.** And the
+> entire residue at 81% is a single class — a loop variable bounded by the TRIP COUNT rather than
+> by a guard on itself — which is standard analysis and unimplemented, so 81% is a floor.
 
-If the answer is "nearly always", the design gives correctness and performance at once, which is
-the whole point. If it is "about half", then half the arithmetic in every program falls to a
-representation that costs 39× on multiplication, and the design is a trap.
+**The answer is closer to "nearly always" than to "about half", and the trade is exactly the one
+hamza proposed:** declaring a range on a program's *inputs* — not on its every variable — roughly
+doubles what the compiler can prove, and everything downstream follows from propagation and the
+loop guards a program already contains.
 
-**That number is measurable today, with machinery that already exists.** `emit/refine.go` already
-collects facts from loop guards and discharges conjunctions of linear inequalities for array
-bounds. Pointing it at every integer *operation* instead, over the seven gauntlet programs and the
-four sieves, and reporting the percentage it can bound, is a contained experiment — and it is
-exactly [ADR 0007](../decisions/0007-exploration-over-specification.md)'s method: explore against a
-fixed test, kill candidates by measurement.
+Two things the experiment found beyond the number. **Where a call site is concrete, everything is
+provable** — reduction substitutes the literal and the interval analysis inherits it for free,
+which is whole-program partial evaluation feeding a static analysis. And **the first run reported
+10–20%, which was the analysis missing its descending phase, not a property of the programs**: the
+same shape of error as the retracted loop encoding, and caught the same way.
 
 ### The recommendation
 

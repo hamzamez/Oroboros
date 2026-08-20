@@ -50,6 +50,14 @@ or a `sig` must name a definition in the same module; naming nothing is an error
 ([booleans.md](booleans.md)). **None of the sugar survives the reader** — a residual contains `fn`,
 `let`, `if`, `loop` and nothing else structural.
 
+**And those three are the LANGUAGE's, not a target's.** `if`, `let` and `loop` are injected into
+every target and **declaring one is an error**; the backend implements them. A target's structural
+set is normally empty, and the four native targets declare none. This is the general rule that
+[ADR 0017](../decisions/0017-booleans-are-in-the-language.md) set for `if` alone: a construct
+promoted to the language works on every target and the compiler finds the implementation. The
+capability graph is for *target-native* names, where "this target cannot do it" is a true answer a
+program can be told.
+
 **Three reduction rules.** β with call-by-need, δ over definitions, and a conditional on a boolean
 literal. β carries one side condition: an impure argument is let-bound rather than substituted
 ([effects.md §4](effects.md)).

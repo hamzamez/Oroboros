@@ -1,6 +1,11 @@
 package emit
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
 
 func TestLoadTargets(t *testing.T) {
 	for _, name := range []string{"go", "js", "java", "blas"} {
@@ -117,6 +122,56 @@ func TestNativeTargetsAreThreeStructural(t *testing.T) {
 			if _, ok := tg.Types[ty]; !ok {
 				t.Errorf("%s does not spell the reserved type %s", c.dir, ty)
 			}
+		}
+	}
+}
+
+// The language's own constructs are INJECTED into every target, and a target
+// may neither decline nor declare one.
+//
+// `if` was already like this (ADR 0017). `let` and `loop` were not: every one
+// of eleven target files declared them identically, so a third-party author
+// could forget one and make an ADR 0015 language construct silently
+// unavailable — a construct in the core that a target can decline, which is a
+// library with a portability claim rather than part of the language.
+func TestEveryTargetHasTheLanguagesConstructs(t *testing.T) {
+	for _, name := range []string{"go", "js", "java", "windows", "blas.oro",
+		"portable-go.oro", "portable-js.oro", "portable-java.oro",
+		"tutorial.oro", "tutorial-native.oro", "tutorial-sloppy.oro"} {
+		tg, err := LoadTarget("../targets/" + name)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		for _, want := range []struct{ n, k string }{
+			{"if", "cond"}, {"let", "let"}, {"loop", "iterate"},
+		} {
+			p, ok := tg.Prims[want.n]
+			if !ok {
+				t.Errorf("%s: %s is not available", name, want.n)
+			} else if p.Kind != want.k {
+				t.Errorf("%s: %s has kind %q, want %q", name, want.n, p.Kind, want.k)
+			}
+		}
+	}
+}
+
+// And declaring one is an error, not a redundancy. A target author who writes
+// the line has misunderstood where the boundary is, and the message says so.
+func TestDeclaringALanguageConstructIsAnError(t *testing.T) {
+	for _, line := range []string{
+		`(structural let  let     pure)`,
+		`(structural loop iterate pure)`,
+		`(structural if   cond    pure)`,
+	} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "t.oro")
+		src := "(target t\n  (type int \"int\")\n  " + line + ")\n"
+		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadTarget(path)
+		if err == nil || !strings.Contains(err.Error(), "belongs to the language") {
+			t.Errorf("%s must be refused, got %v", line, err)
 		}
 	}
 }

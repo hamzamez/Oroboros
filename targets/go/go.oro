@@ -5,7 +5,7 @@
 ; and panics on zero, because that is what Go does. Nothing is renamed to make
 ; three hosts agree, because nothing here claims they do.
 ;
-; This file is the target's HEADER: types, structural primitives, and the
+; This file is the target's HEADER: types and the
 ; toolchain. The rest of the surface is one file per Go package, merged by
 ; LoadTarget — targets are directories (docs/spec/target-files.md).
 ;
@@ -43,7 +43,10 @@
 
   (build "go build -o %s %s")
 
-  ; THE WHOLE STRUCTURAL SET IS THREE.
+  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+  ; injected into every target; declaring one is an error. The backend implements
+  ; them, which is where an implementation belongs — a construct promoted to the
+  ; language works on every target and the compiler finds the form.
   ;
   ; `fold-range` and `fold-range2` are absent because `loop` subsumes both
   ; (ADR 0015). `make-vec` is absent for two reasons: a `loop` over
@@ -53,5 +56,4 @@
   ; cannot be called at all.
   ;
   ; So a program here is: fn, def, module, literals, and let / if / loop.
-  (structural let  let     pure)
-  (structural loop iterate pure))
+)

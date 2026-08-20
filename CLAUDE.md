@@ -134,6 +134,14 @@ answer that a program can be told. It is **not** for language constructs, where 
 the construct is a library carrying a portability claim, which is the thing
 [ADR 0001](docs/decisions/0001-parasite-model.md) exists to refuse.
 
+**Applied 2026-08-20**: `let` and `loop` joined `if` as names the compiler injects into every
+target, and declaring one is now an **error**. The four native targets declare **no structural
+primitives at all**. Eleven target files had carried the same two lines, while `core/read.go`
+already desugars `let`, `seq` and `loop` into applications of those precise names — so a target
+spelling either differently broke every program, and forgetting one made an ADR 0015 language
+construct silently unavailable. What stays declarable is the retired portable layer —
+`fold-range`, `fold-range2`, `make-vec` — which is library, not language.
+
 The precedent is already written and was not generalised:
 [ADR 0017](docs/decisions/0017-booleans-are-in-the-language.md) put `if` in the language and made
 *declaring a boolean name an error* — the target may not even offer an opinion. Every language

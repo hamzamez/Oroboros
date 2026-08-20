@@ -4,7 +4,7 @@
 ; on two strings concatenates; `js./` by zero is Infinity; `js.===` is not
 ; `js.==`. Nothing is renamed so three hosts can agree.
 ;
-; This file is the header: types, structural primitives, and the deliverable.
+; This file is the header: types and the deliverable.
 ; The surface is one file per JavaScript namespace, merged by LoadTarget.
 ;
 ; The portable layer it replaced is targets/portable-js.oro, kept because the
@@ -38,8 +38,11 @@
   (artifact "main.mjs")
   (build "node --check %s")
 
-  ; THE WHOLE STRUCTURAL SET IS THREE — the same three as Go's native target.
+  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+  ; injected into every target; declaring one is an error. The backend implements
+  ; them, which is where an implementation belongs — a construct promoted to the
+  ; language works on every target and the compiler finds the form.
+  ;
   ; `fold-range`, `fold-range2` and `make-vec` are all absent: `loop` subsumes
   ; the folds, and an array is built with `js.Array` plus a `loop`.
-  (structural let  let     pure)
-  (structural loop iterate pure))
+)

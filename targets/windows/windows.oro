@@ -64,9 +64,12 @@
   (build "cmd /c .\\build.bat")
   (artifact "main.exe")
 
-  ; THE WHOLE STRUCTURAL SET IS THREE, as on the other three native targets —
+  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+  ; injected into every target; declaring one is an error. The backend implements
+  ; them, which is where an implementation belongs — a construct promoted to the
+  ; language works on every target and the compiler finds the form.
+  ;
   ; and that is the result this target exists to test. `let`, `if` and `loop`
   ; are the only things the backend implements in code; every other name in
   ; this directory is a template.
-  (structural let  let     pure)
-  (structural loop iterate pure))
+)

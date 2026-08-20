@@ -47,6 +47,4 @@
   (prim whisper (num) num  stmt "whisper(%s)")
   (prim tick    (none) num stmt "tick()")
 
-  (structural let        let  pure)
-  (structural loop        iterate pure)
   (structural fold-range loop pure))

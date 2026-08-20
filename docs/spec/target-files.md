@@ -203,6 +203,28 @@ no longer a structural *declaration*. `true` and `false` are literals and not na
 
 A module may still declare `and` — that is `logic.and`, a qualified name like any other.
 
+## 4. `structural` — and what a target may NOT declare
+
+> **Changed 2026-08-20.** `if`, `let` and `loop` are the **language's**, injected into every
+> target, and **declaring one is an error**. A target's structural set is now normally **empty** —
+> the four native targets declare none.
+>
+> `if` was already like this ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)). `let`
+> and `loop` were not: eleven target files declared them identically, while `core/read.go` already
+> desugars `let`, `seq` and `loop` into applications of those precise names — so a target spelling
+> either differently broke every program, and the declaration could only ever be written one way.
+> It was 22 lines a third-party author could forget, and forgetting one made an
+> [ADR 0015](../decisions/0015-loop-and-again.md) language construct silently unavailable.
+>
+> The rule it generalises: **a construct promoted to the language works on every target and the
+> compiler finds the implementation.** A target neither declines one nor declares one. The
+> capability graph is for *target-native* names, where "this target cannot do it" is a true and
+> useful answer a program can be told.
+>
+> What is still declarable here is the **retired portable layer** — `fold-range`, `fold-range2`,
+> `make-vec` — which is library, not language, and is kept only because the gauntlet's portable
+> targets still use it.
+
 ## 4. `structural` — the four the backend implements
 
 ```lisp

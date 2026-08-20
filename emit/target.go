@@ -170,6 +170,20 @@ func LoadTarget(path string) (*Target, error) {
 // injected into every target by addCore.
 var coreNames = map[string]bool{
 	"if": true, "and": true, "or": true, "not": true, "cond": true,
+	// `let` and `loop` for the same reason `if` is here, generalised late.
+	// A construct promoted to the LANGUAGE works on every target and the
+	// compiler finds the implementation; a target neither declines it nor
+	// declares it. The capability graph is for target-native names, where
+	// "this target cannot do it" is a true answer a program can be told.
+	"let": true, "loop": true,
+}
+
+// coreStructural is what addCore injects: the language's own constructs, with
+// the structural KIND each backend already implements.
+var coreStructural = []Prim{
+	{Name: "if", Kind: "cond", Pure: true},
+	{Name: "let", Kind: "let", Pure: true},
+	{Name: "loop", Kind: "iterate", Pure: true},
 }
 
 // addCore gives every target the conditional.
@@ -180,12 +194,25 @@ var coreNames = map[string]bool{
 // failed on every loop. It is the language's (ADR 0017), and the backends still
 // implement it: `cond` remains a structural KIND, it is just no longer a
 // structural DECLARATION.
+//
+// `let` and `loop` are here for exactly that argument, generalised late. The
+// reader desugars `let`, `seq` and `loop` into applications of those precise
+// names, so a target spelling either differently breaks every program — the
+// declaration could only ever be written one way and was a fiction. It was 22
+// identical lines across eleven files that a third-party author could forget,
+// and forgetting one made an ADR 0015 language construct silently unavailable.
+//
+// The general rule: a construct promoted to the language works on EVERY target
+// and the compiler finds the implementation. A target may not decline one, and
+// may not declare one either.
 func (tg *Target) addCore() {
-	if _, have := tg.Prims["if"]; have {
-		return
+	for _, p := range coreStructural {
+		if _, have := tg.Prims[p.Name]; have {
+			continue
+		}
+		tg.Prims[p.Name] = p
+		tg.Names = append(tg.Names, p.Name)
 	}
-	tg.Prims["if"] = Prim{Name: "if", Kind: "cond", Pure: true}
-	tg.Names = append(tg.Names, "if")
 	sort.Strings(tg.Names)
 }
 
@@ -512,8 +539,8 @@ func parseStructural(f *core.Term, path string) (Prim, error) {
 	p := Prim{Name: k[0].Name, Kind: k[1].Name}
 	if coreNames[p.Name] {
 		return Prim{}, fmt.Errorf("%s: %s belongs to the language and cannot be declared by a "+
-			"target (docs/spec/booleans.md). Delete the line; the conditional is injected into "+
-			"every target", path, p.Name)
+			"target. Delete the line; `if`, `let` and `loop` are injected into every target, "+
+			"and the backend implements them (docs/spec/core-0.md)", path, p.Name)
 	}
 	if !structuralKinds[p.Kind] {
 		return Prim{}, fmt.Errorf("%s: %s has kind %q, which is not structural "+

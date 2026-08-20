@@ -44,6 +44,9 @@
 
   (build "javac -d %s %s")
 
-  ; THE WHOLE STRUCTURAL SET IS THREE, as on the other two native targets.
-  (structural let  let     pure)
-  (structural loop iterate pure))
+  ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
+  ; injected into every target; declaring one is an error. The backend implements
+  ; them, which is where an implementation belongs — a construct promoted to the
+  ; language works on every target and the compiler finds the form.
+  ;
+)

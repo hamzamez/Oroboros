@@ -104,6 +104,10 @@ pays for the *possibility* of a bignum, when the value stays small and nothing a
 | Java | 1× | **1.31×** | 1.19× |
 | x86 | 1× | ~1× (`add` + `jo`) | — |
 
+> **Corrected: this priced the CHEAP operation.** hamza's objection — *the real price is
+> multiplication, not checking* — is right, and §1.2b has the numbers. Addition is where a bignum
+> representation looks affordable; multiplication is where it is actually paid for.
+
 **The cost is not one number; it is a 3× spread, and the spread has a mechanism.** The JVM has an
 intrinsic that compiles `Math.addExact` to the hardware's overflow flag. Go has no such intrinsic,
 so the check lands in the loop-carried dependency chain. JavaScript has no fixnum/bignum
@@ -112,6 +116,97 @@ unification at all to hook into.
 By §0's sharp edge, that settles one thing immediately: **a single portable name meaning "add,
 promoting to arbitrary precision if needed" is inadmissible.** It would mean something different on
 each of our four targets, and the difference is 3×.
+
+### 1.2b Multiplication, which is where it is actually paid for
+
+[product-2026-08-19 §1](../../gauntlet/results/product-2026-08-19.md). 4096 independent
+multiplies, Go:
+
+| | vs plain | allocations |
+|---|---|---|
+| checked with a **hardware high-multiply** (`bits.Mul64`) | **1.87×** | 0 |
+| checked **portably** (divide the product back) | **7.40×** | 0 |
+| `math/big`, one receiver reused | **38.9×** | 3 |
+| `math/big`, naive | **92.2×** | 4098 per call |
+
+Multiplication is worse than addition for two reasons that compound. **Detecting** overflow needs
+the full 128-bit product or a division — there is no single flag test that survives into a
+high-level language. And **performing** a big multiply is quadratic in the limb count where a big
+add is linear.
+
+The check is cheap only where the hardware is reachable. Go and the JVM expose a high-multiply and
+x86 has one in the instruction; **JavaScript has none**, so it is stuck at the 7.4× shape.
+
+### 1.2c Three questions, answered
+
+**Can precision numbers be implemented with bitwise operations?**
+
+Yes — that is how every bignum library works: limbs, schoolbook addition with carry, double-width
+products. But the two primitives it turns on are **add-with-carry** and **multiply-high**, and our
+hosts do not agree about either:
+
+| | add-with-carry | multiply-high | usable limb |
+|---|---|---|---|
+| Go | `bits.Add64` | `bits.Mul64` | 64 bits |
+| Java | manual, via `>>>` | `Math.multiplyHigh` | 64 bits |
+| JavaScript | neither | neither | **~26 bits**, so products stay exact in a double |
+| x86 | `adc` | `mul` gives 128 bits | 64 bits |
+
+So a bignum written in the language would need a **different limb size on JavaScript than
+everywhere else** — which means it is not one implementation, it is four. And if it is four, the
+hosts' own four are better: `math/big`, `BigInteger`, `BigInt`, and nothing.
+
+**Except on windows, where there is no host implementation at all.** That target would need one
+written, exactly as `lib/win/fmt.oro` is written. That is the honest asymmetry: three targets have
+a bignum to parasitize and one does not.
+
+**Is `math/big` the best way on Go?**
+
+No, and the number says why: **38.9× even used perfectly**, with one reused receiver and no
+allocation in the loop. The representation is the problem rather than the usage — every `big.Int`
+is a heap object holding a `[]Word`, and there is **no inline small-value fast path in the value
+itself**. Every fast bignum keeps the small case in the value: a tagged word, or a struct with an
+inline `int64` beside a pointer.
+
+That is a **product**. So the second question's answer points at §1.2d as well.
+
+**Do strings and binaries need a data structure decided first?**
+
+Less than it looks, and this corrects the framing in the earlier draft of this document.
+
+A `bytes` is **a container, not a product** — an opaque handle the target provides, exactly like
+`vec-f64` today. `make-bool` and `at-bool` work on the Go native target right now with no product
+anywhere. The `vec-f64` pattern is proven and `bytes` follows it.
+
+What genuinely needs a product is a shorter and different list: **error results**, **one `idiv`
+yielding two answers**, **`fold-range2`'s pair**, and **a bignum with an inline fast path**.
+
+### 1.2d The product is affordable — measured
+
+[product-2026-08-19 §2](../../gauntlet/results/product-2026-08-19.md), and it is the most
+consequential number in this document.
+
+| host | product returned from a hot call |
+|---|---|
+| Go | **1.01×, zero allocations** — including for an explicit `*struct`, which is the control |
+| Java | **0.96×** — C2 scalar-replaces the `record` completely |
+| JavaScript | object literal **1.11×**; two-element array **1.32×** |
+| x86 | two registers, free by construction |
+
+**One caveat and it is the important one.** This is a product **created and consumed without
+escaping**. One that escapes — stored in a container, or crossing a boundary the host declines to
+inline — allocates on all three managed hosts. So the result reads:
+
+> A product is free exactly where our reducer already makes things free: built and taken apart in
+> the same place. It costs an allocation exactly where `materialize` costs one
+> ([ADR 0013](../decisions/0013-accept-the-allocation-price.md)).
+
+That is the boundary the language already has, not a new one — which is why this is a gate opening
+rather than a new risk.
+
+And **use an object, not an array, on JavaScript**: 1.11× against 1.32×, which is the opposite of
+what the `[q, r]` intuition suggests, and exactly the kind of thing
+[ADR 0008](../decisions/0008-measurement-over-principle.md) exists for.
 
 ### 1.3 The literature
 
@@ -449,3 +544,90 @@ What §0 obliges. Everything here is either measured or explicitly marked unmeas
 | `utf8-encode` | ~0 | O(n) copy | O(n) copy | ~0 | **unmeasured** |
 | non-byte-aligned bitstrings | emulated | emulated | emulated | emulated | not proposed |
 | layout accessors (`u16be` …) | **0** | 0 | 0 | 0 | demonstrated (§3.4) |
+
+---
+
+## 7. What must be settled before an integer can be implemented
+
+hamza's point, and it is the reason nothing should be built yet: choosing "precision by default"
+is one decision that drags eleven more behind it. Each of these has hosts that disagree, and each
+is cheap to get wrong and expensive to change.
+
+| | the question | why it is not obvious |
+|---|---|---|
+| 1 | **representation** | machine word, word-with-fast-path, or host bignum — and the answer differs per target (§1.2c) |
+| 2 | **overflow** | wrap, trap, or promote. Three answers, and §1.2/§1.2b price them |
+| 3 | **division rounding** | toward zero (Go, Java, x86, C99) or floor (Python, Haskell `div`). Both are defensible and they disagree on negatives |
+| 4 | **remainder sign** | follows the rounding choice, and is the half everyone forgets |
+| 5 | **division by zero** | Go panics, Java throws, x86 raises #DE, JavaScript gives `Infinity`. Already recorded in ADR 0012 as unsolved |
+| 6 | **`int` vs `float` comparison** | is `(== 1 1.0)` true? On JavaScript they are the same value. On Go they are different types and it will not compile |
+| 7 | **`int` → `float`** | **lossy above 2⁵³** — and silently so. If integers become exact, this is the one place exactness is lost, and it must be a named conversion rather than a coercion |
+| 8 | **`float` → `int`** | rounding mode (truncate, nearest, even), and what NaN and out-of-range do. The hosts disagree on all three |
+| 9 | **equality** | structural on a bignum, bitwise on a word — and they must agree, or `==` means two things |
+| 10 | **ordering** | total on integers; but mixed int/float ordering inherits IEEE's NaN, which is not a total order |
+| 11 | **constant folding** | at what precision? If `int` is mathematical, folding at arbitrary precision **is** the runtime semantics and ADR 0009 is satisfied for free. If `int` stays machine, folding must reproduce the target's width — the ADR 0009 hazard exactly |
+
+Item 11 is worth pausing on, because it inverts. Today, compile-time integer folding would be an
+ADR 0009 hazard — arbitrary precision at compile time, fixed width at runtime, which is the `0.1 +
+0.2` bug in integer clothing. **If integers become exact by default, that hazard disappears**:
+folding at arbitrary precision is folding with the runtime semantics.
+
+So "precision by default" does not only cost. It buys back the one optimisation this document
+found missing in emitted code (§1.1, defect two), and it buys it *soundly*.
+
+## 8. The dependency graph, and the next move
+
+Corrected from the earlier draft — several things are less blocked than they looked.
+
+```
+   NOTHING BLOCKS THESE                     BLOCKED ON A PRODUCT
+   ────────────────────                     ────────────────────
+   bytes (the vec-f64 pattern)              error results  (value, error)
+   scalar bitwise (int32 window)            idiv's two answers
+   bit-syntax library (demonstrated)        fold-range2's pair
+   string → bytes bridge                    a bignum with an inline fast path
+   constant folding                             │
+   range CHECKING from a sig                    ▼
+        │                              BLOCKED ON INTERVALS
+        ▼                              ────────────────────
+   binaries, hashes, bitsets           "precision by default, ranges optimise"
+```
+
+**Two things are genuinely load-bearing and everything else waits on them or on neither.**
+
+**The product** is measured affordable (§1.2d) and has now been demanded six independent times —
+`fold-range2`, Go's `(int, error)`, Java's `Map.Entry`, JS destructuring, one `idiv` producing two
+results, and a bignum's fast path. The measurement says it costs nothing where our reducer already
+makes things cost nothing. **It is ready to be decided.**
+
+**Interval analysis** is what hamza's preferred integer design turns on: exact by default, with
+declared ranges and inferred intervals choosing the representation. Its viability rests on one
+unknown that nobody has measured:
+
+> **How often can the compiler actually prove an integer stays in a machine word?**
+
+If the answer is "nearly always", the design gives correctness and performance at once, which is
+the whole point. If it is "about half", then half the arithmetic in every program falls to a
+representation that costs 39× on multiplication, and the design is a trap.
+
+**That number is measurable today, with machinery that already exists.** `emit/refine.go` already
+collects facts from loop guards and discharges conjunctions of linear inequalities for array
+bounds. Pointing it at every integer *operation* instead, over the seven gauntlet programs and the
+four sieves, and reporting the percentage it can bound, is a contained experiment — and it is
+exactly [ADR 0007](../decisions/0007-exploration-over-specification.md)'s method: explore against a
+fixed test, kill candidates by measurement.
+
+### The recommendation
+
+1. **Measure interval provability.** The one unknown that decides the integer design, using
+   machinery we have. Nothing about integers should be built before this number exists.
+2. **Decide the product**, on the measurement in §1.2d. It is the most-demanded missing thing in
+   the language and it is now priced.
+3. **Then integers**, with §7's eleven questions answered in a specification before any code —
+   which is the order [strings.md](strings.md) exists to enforce and the order booleans followed.
+4. **`bytes` and scalar bitwise whenever convenient.** They are blocked on nothing, they cost no
+   language change, and they are what makes binaries and hashes writable.
+
+And two that are owed regardless, from §1.1: constant folding once §7's item 11 is settled, and the
+gauntlet's migration off the retired portable layer
+([assessment §3.4](../assessment-2026-08-19.md)).

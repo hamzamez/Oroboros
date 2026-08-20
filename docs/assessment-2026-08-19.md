@@ -270,6 +270,42 @@ Fix it when a second instance appears.
 
 ## 4. Recommendation
 
+**Revised 2026-08-19, after the integers/strings/binaries round.** The original list is kept below
+because it is still right about *what* matters; what changed is the ordering, and it changed
+because two things were measured.
+
+**The product is affordable** — [product-2026-08-19](../gauntlet/results/product-2026-08-19.md).
+Zero allocations on Go including for an explicit pointer, C2 scalar-replaces Java's record, V8's
+object literal costs 1.11×. §3.3's "measure, do not design" has been done, and the answer is yes —
+*for a product that does not escape*, which is the boundary the language already has.
+
+**And the integer question turns on one unmeasured number**: how often the compiler can prove an
+integer stays in a machine word. Exact-by-default costs 1.87× on a checked multiply where the
+hardware is reachable, 7.4× where it is not, and 38.9× when it falls to `math/big`
+([data-model.md §1.2b](spec/data-model.md)). If ranges are usually provable the design gives
+correctness and speed together; if they are not, it is a trap. Nothing about integers should be
+built before that number exists.
+
+So:
+
+1. **Measure interval provability** on the seven gauntlet programs and the four sieves, using the
+   fact-collection `emit/refine.go` already does for array bounds. Contained, decisive, and it
+   gates the largest open question in the language.
+2. **Decide the product.** Six independent demands and now a price.
+3. **`bytes` and scalar bitwise** whenever convenient — blocked on nothing, no language change,
+   and they are what make binaries, hashes and bit sets writable
+   ([bitwise.md](spec/bitwise.md), [data-model.md §8](spec/data-model.md)).
+4. **Then integers**, with the eleven questions of [data-model.md §7](spec/data-model.md) answered
+   in a specification first.
+5. **Move the gauntlet onto the native targets** — still the cheapest available surprise and still
+   the one piece of process debt.
+
+The `pure`-versus-total hole (§3.2) is unchanged and still owed a paragraph in effects.md.
+
+---
+
+## 4b. The original list, kept for the record
+
 In order:
 
 1. **Booleans and control flow into the language** (3.1). It closes a defect that exists today,

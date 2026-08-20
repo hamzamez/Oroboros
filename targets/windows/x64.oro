@@ -55,8 +55,12 @@
     ; idiv wants the dividend sign-extended across rdx:rax, which is what cqo
     ; is for. Declared twice because one instruction produces two results and
     ; there is no way to say that.
-    (prim idiv (int int) int expr "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax" pure)
-    (prim irem (int int) int expr "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx" pure)
+    ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5. Here
+    ; it is #DE, a hardware trap that ends the process and that nothing catches.
+    (prim idiv ((a int) (b int)) int expr
+      "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax" pure (where (!= b 0)))
+    (prim irem ((a int) (b int)) int expr
+      "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx" pure (where (!= b 0)))
 
     ; ---- bitwise and shifts. A variable shift count must be in cl; x86 has no
     ; other form, which is why rcx appears in a template that never mentions it.

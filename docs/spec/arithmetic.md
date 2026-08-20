@@ -119,6 +119,12 @@ than solved, because solving it means `(if a b false)` and that costs the native
 
 ## 4. Integers
 
+> **Extended 2026-08-20 by [integers.md](integers.md)**, which settles the eleven questions this
+> section left open — division rounding, remainder sign, division by zero, the two conversions,
+> equality, ordering, overflow and constant folding — each measured on all four targets. The
+> window below is unchanged and is what the rest is built on.
+
+
 ### The measurement
 
 `int` must mean the same thing on Go, JavaScript and the JVM. Measured, 2026-08-15:

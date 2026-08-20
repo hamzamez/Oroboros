@@ -176,6 +176,61 @@ func (f *facts) substitute(e *linear) *linear {
 // That decides every obligation the language currently generates, including the
 // stencil's `i + 2 < alen a` from `i < alen a - 2`, and it fails honestly on
 // anything needing two facts combined.
+// entailsDisjunction proves a goal of the form `A ∨ B` by proving either side.
+//
+// A DISEQUALITY is the only one we need and the only one that shows up:
+// `d ≠ 0` is `d < 0 ∨ d > 0`, and the fragment is conjunctions of linear
+// inequalities, so it cannot hold the goal at all. It can hold each DISJUNCT,
+// which is a case split — cheap, complete for this shape, and needing no new
+// decision procedure (integers.md §5, types-direction.md §6.7).
+func (f *facts) entailsEither(a, b *linear) bool { return f.entails(a) || f.entails(b) }
+
+// neKey is a canonical rendering of a disequality, so that a fact and an
+// obligation match whatever spelling each was written in.
+//
+// `(go.ne b 0)` — which is what `negate` produces from a guard — and `(!= b 0)`
+// — which is what a target file declares — are the same statement, and matching
+// them by printed term did not work. Both sides are normalised through the
+// linear form, and the two operands are sorted, because `a ≠ b` and `b ≠ a` are
+// one fact.
+func neKey(t *core.Term) (string, bool) {
+	l, r, ok := disequalityParts(t)
+	if !ok {
+		return "", false
+	}
+	a, b := l.String(), r.String()
+	if a > b {
+		a, b = b, a
+	}
+	return "ne(" + a + "," + b + ")", true
+}
+
+func disequalityParts(t *core.Term) (*linear, *linear, bool) {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return nil, nil, false
+	}
+	if !isOp(t.Op().Name, "ne") {
+		return nil, nil, false
+	}
+	l, ok1 := asLinear(t.Args()[0])
+	r, ok2 := asLinear(t.Args()[1])
+	if !ok1 || !ok2 {
+		return nil, nil, false
+	}
+	return l, r, true
+}
+
+// disequality turns `a != b` into the two goals whose disjunction it is.
+// Integers, so `a < b` is `a - b + 1 <= 0` and `a > b` is `b - a + 1 <= 0`.
+func disequality(t *core.Term) (lo, hi *linear, ok bool) {
+	l, r, ok := disequalityParts(t)
+	if !ok {
+		return nil, nil, false
+	}
+	return l.clone().addScaled(r, -1).addScaled(constant(-1), -1),
+		r.clone().addScaled(l, -1).addScaled(constant(-1), -1), true
+}
+
 func (f *facts) entails(goal *linear) bool {
 	g := f.substitute(goal)
 	if len(g.coef) == 0 {
@@ -298,6 +353,7 @@ var opAlias = map[string]string{
 	"/": "div", "%": "rem", "idiv": "div", "irem": "rem",
 	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
 	"&&": "and", "||": "or", "!": "not",
+	"!=": "ne", "ne": "ne", "setne": "ne", "!==": "ne",
 	// The strict branchless connectives a target may declare under its own
 	// name (ADR 0017 kept `x64.andb` for the Ada reason). As a PRECONDITION
 	// they are conjunction and disjunction like any other, and a `where`

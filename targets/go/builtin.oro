@@ -32,8 +32,13 @@
       "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)" pure)
     (prim mul-exact (int int) int expr
       "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)" pure)
-    (prim /   (int int) int             expr "%s / %s"  pure)
-    (prim %   (int int) int             expr "%s %% %s" pure)
+    ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR (integers.md §5). Go
+    ; panics, Java throws, x86 raises #DE — and JavaScript returns Infinity and
+    ; keeps going, which is why specifying a value would mean emulating one
+    ; everywhere. `d != 0` is a DISJUNCTION, discharged by case split against
+    ; the conjunctive fragment that already exists.
+    (prim /   ((a int) (b int)) int     expr "%s / %s"  pure (where (!= b 0)))
+    (prim %   ((a int) (b int)) int     expr "%s %% %s" pure (where (!= b 0)))
     (prim f+  (f64 f64) f64 expr "%s + %s"  pure)
     (prim f-  (f64 f64) f64 expr "%s - %s"  pure)
     (prim f*  (f64 f64) f64 expr "%s * %s"  pure)

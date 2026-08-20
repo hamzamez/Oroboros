@@ -21,8 +21,13 @@
     (prim +   (any any) any expr "%s + %s"  pure)
     (prim -   (any any) any expr "%s - %s"  pure)
     (prim *   (any any) any expr "%s * %s"  pure)
-    (prim /   (any any) any expr "%s / %s"  pure)
-    (prim %   (any any) any expr "%s %% %s" pure)
+    ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5 — and
+    ; THIS IS THE TARGET WHERE IT MATTERS MOST. Go panics, Java throws and x86
+    ; raises #DE; JavaScript returns Infinity for `1/0` and NaN for `1%0` and
+    ; keeps going, so the only thing standing between a program and a silently
+    ; wrong answer is this obligation.
+    (prim /   ((a any) (b any)) any expr "%s / %s"  pure (where (!= b 0)))
+    (prim %   ((a any) (b any)) any expr "%s %% %s" pure (where (!= b 0)))
     (prim **  (any any) any expr "%s ** %s" pure)
     (prim neg (any) any        expr "-%s"      pure)
 

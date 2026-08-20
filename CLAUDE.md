@@ -259,6 +259,16 @@ miss. **The isolated microbenchmark was wrong in BOTH directions** — the same 
 bce-2026-08-15, where a 1.96× win in isolation vanished on memory-bound loops. A cost behaves the
 way a saving does, and neither survives being quoted without its condition.
 
+**The eleven integer questions are settled** — [integers.md](docs/spec/integers.md), each measured
+on all four targets rather than read off four specifications. They **agree** on everything inside
+the window: division truncates toward zero, the remainder takes the dividend's sign, the identity
+`(a/b)*b + a%b == a` holds, and `int → f64` is exact — because the portable window IS the binary64
+exact-integer range, so the constraint that looked like a concession to JavaScript makes the one
+conversion everybody needs free. They **disagree** in exactly three places, and each is refused
+rather than emulated: outside the window (no claim), **division by zero** (a precondition — and on
+JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
+three answers). Not settled deliberately: a bignum, which needs the product first.
+
 **Representation selection is OPT-IN, behind `-checked`, and that is deliberate** — wiring it into
 the default path reversed [ADR 0012](docs/decisions/0012-portable-integer-range.md) without an ADR,
 breached requirement 5 by up to 4.54×, and made cross-target divergence *worse* (three targets trap,

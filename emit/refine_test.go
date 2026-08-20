@@ -160,3 +160,49 @@ func TestLoopGuardsDischargeBounds(t *testing.T) {
 		t.Error("with no range guard the index is unproven and must be reported")
 	}
 }
+
+// A ZERO DIVISOR IS A PRECONDITION (integers.md §5), and `d ≠ 0` is a
+// DISJUNCTION — `d < 0 ∨ d > 0` — where the fragment is conjunctions of linear
+// inequalities. It is discharged by case split: prove either side.
+func TestDisequalityDischargedByCaseSplit(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Guarded: the else-branch of `(== b 0)` says exactly what is needed.
+	ok := reduce(t, `(use go) (fn (a b) (if (go.== b 0) 0 (go./ a b)))`, "go")
+	if _, err := Refine(tg, "guarded", nil, ok); err != nil {
+		t.Errorf("a guarded divisor should discharge: %v", err)
+	}
+	// A positive lower bound is the other way to prove it.
+	pos := reduce(t, `(use go) (fn (a b) (if (go.> b 0) (go./ a b) 0))`, "go")
+	if _, err := Refine(tg, "positive", nil, pos); err != nil {
+		t.Errorf("a positive divisor should discharge: %v", err)
+	}
+	// And nothing at all must NOT discharge, or the check is decoration.
+	bad := reduce(t, `(use go) (fn (a b) (go./ a b))`, "go")
+	if _, err := Refine(tg, "bare", nil, bad); err == nil {
+		t.Error("an unbounded divisor must be refused")
+	}
+}
+
+// negate resolves the target's own spelling. Without that it worked on the
+// portable layer and silently did nothing on every native target, so the second
+// half of Hoare logic never fired where programs actually live.
+func TestNegateHandlesOperatorSpellings(t *testing.T) {
+	for _, c := range []struct{ src, want string }{
+		{`(go.< a b)`, `(go.ge a b)`},
+		{`(go.>= a b)`, `(go.lt a b)`},
+		{`(go.== a b)`, `(go.ne a b)`},
+		{`(num/int.lt a b)`, `(num/int.ge a b)`},
+	} {
+		in, err := core.ReadTerm(c.src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := negate(in)
+		if got == nil || got.String() != c.want {
+			t.Errorf("negate %s gave %v, want %s", c.src, got, c.want)
+		}
+	}
+}

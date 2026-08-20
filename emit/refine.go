@@ -76,6 +76,10 @@ func assume(f *facts, where *core.Term) {
 			}
 		}
 	}
+	if k, ok := neKey(where); ok {
+		f.assumeOpaque(k)
+		return
+	}
 	if goals, ok := obligation(where); ok {
 		for _, g := range goals {
 			f.assumeLE(g, "assumed "+g.String()+" <= 0")
@@ -143,6 +147,13 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			return r.let(args, f)
 		case "iterate":
 			return r.iterate(args, f)
+		case "cond":
+			// A PLAIN `if` assumes its guard too. There was no case for this at
+			// all: the other half of Hoare logic ran only inside a loop's
+			// clause chain, so `(if (== b 0) 0 (/ a b))` could not discharge
+			// the divisor's precondition even though the else-branch says
+			// exactly what is needed (integers.md §5).
+			return r.clauses(t, f)
 		}
 	}
 
@@ -220,6 +231,19 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) er
 		}
 	}
 	want := core.Rename2(p.Where, sub)
+	// A DISEQUALITY is a disjunction, so the conjunctive fragment cannot hold
+	// the goal — but it can hold each side. `d ≠ 0` is `d < 0 ∨ d > 0`, and
+	// proving either proves it (integers.md §5).
+	if lo, hi, isNe := disequality(want); isNe {
+		if f.entailsEither(lo, hi) {
+			return nil
+		}
+		if k, ok := neKey(want); ok && f.entailsOpaque(k) {
+			return nil
+		}
+		return fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
+			name, want, f.known())
+	}
 	goals, ok := obligation(want)
 	if !ok {
 		// Outside the fragment: an opaque atom (refinements.md §3). It can be
@@ -359,10 +383,22 @@ func negate(t *core.Term) *core.Term {
 	if i := strings.LastIndex(name, "."); i >= 0 {
 		pre, name = name[:i+1], name[i+1:]
 	}
-	opp := map[string]string{"lt": "ge", "ge": "lt", "le": "gt", "gt": "le"}[name]
+	// Resolve the target's own spelling first — `go.<` and `num/int.lt` are the
+	// same relation, and without this negation worked on the portable layer and
+	// silently did nothing on every native target.
+	if a, ok := opAlias[name]; ok {
+		name = a
+	}
+	opp := map[string]string{
+		"lt": "ge", "ge": "lt", "le": "gt", "gt": "le", "eq": "ne", "ne": "eq",
+	}[name]
 	if opp == "" {
 		return nil
 	}
+	// The CANONICAL spelling, not the target's. This term is only ever consumed
+	// by the analysis — `assume` and `obligation` resolve it through the same
+	// alias table — and it never reaches an emitter, so it does not matter that
+	// no target declares a primitive called `go.ge`.
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{
 		core.Name(pre + opp), t.Args()[0], t.Args()[1]}}
 }

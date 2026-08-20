@@ -677,6 +677,21 @@ compile-time materialisation into **static data**, which is free at run time whe
 
 ## 7. Recommendation
 
+> **Constraint added 2026-08-20, after a first attempt was built wrong and reverted.** Multiple
+> return values were implemented as reader sugar — putting them in the *language* — with a
+> `(multi-return …)` target declaration and a refusal on Java and windows. **A language construct
+> may not be declined by a target.** `fn`, `def`, `loop` and `if` work everywhere and the compiler
+> finds the implementation; the capability graph is for target-native names, not for the core.
+> [ADR 0017](decisions/0017-booleans-are-in-the-language.md) already set that bar by making the
+> declaration of a boolean name an *error*.
+>
+> So D-B is not done until all four targets do it. The two that were skipped are the design work:
+> **Java** needs a generated record type — who owns it, what it is called, whether C2 still
+> scalar-replaces it across a module boundary — and **windows** needs a return convention, because
+> Win64 returns one value in `rax` and a second register would be ours rather than the platform's.
+> Neither is hard; both were avoided, and avoiding them is what made the design wrong.
+
+
 **Add the negative product as multiple return values (D-B), with an explicit reifier (D-C), and
 carry array views into the reified form (D-I). Everything else waits.**
 

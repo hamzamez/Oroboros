@@ -107,21 +107,6 @@ type Target struct {
 	// is right for JS (no bounds checks) and Java (fixed-length arrays).
 	Narrow string
 
-	// MultiResult and MultiReturn are the target's native form for a function
-	// with SEVERAL results — the negative product reaching a boundary
-	// (data-structures.md section 4.5). Two templates, each taking the
-	// comma-joined list: the one that spells the result types, and the one
-	// that returns.
-	//
-	//   Go    "(%s)"  /  "return %s"        two values, in registers
-	//   JS    ""      /  "return [%s]"      no native form; an array literal
-	//
-	// A target that declares NEITHER refuses the program, and covering reports
-	// it — which is right for Java, whose only form is a generated record type
-	// and which therefore has a real capability gap rather than a syntax gap.
-	MultiResult string
-	MultiReturn string
-
 	// Artifact is the emitted filename that IS the deliverable when the host
 	// has no compile step. JavaScript is such a host: `node main.mjs` runs the
 	// source, so there is nothing to build and the artifact is a copy.
@@ -279,8 +264,6 @@ func (tg *Target) merge(o *Target, from string) error {
 		what string
 	}{
 		{&tg.Narrow, o.Narrow, "narrow"},
-		{&tg.MultiResult, o.MultiResult, "multi-return"},
-		{&tg.MultiReturn, o.MultiReturn, "multi-return"},
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
 	} {
@@ -333,13 +316,6 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (data \"label ...\"), got %s", path, f)
 			}
 			tg.Data = append(tg.Data, f.Kids[1].Str)
-		case "multi-return":
-			// (multi-return "RESULT-TYPES-FORM" "RETURN-FORM")
-			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KStr || f.Kids[2].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (multi-return \"(%%s)\" \"return %%s\"), got %s",
-					path, f)
-			}
-			tg.MultiResult, tg.MultiReturn = f.Kids[1].Str, f.Kids[2].Str
 		case "narrow":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (narrow \"dst = src[:n]\"), got %s", path, f)

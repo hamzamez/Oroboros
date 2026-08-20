@@ -125,6 +125,26 @@ WebAssembly is. See section 1 of [docs/core-candidates.md](docs/core-candidates.
 These are the non-obvious ones. Violating them produces code that looks fine and undermines
 the project.
 
+**Anything promoted to the LANGUAGE works on every target, and the compiler is responsible for
+finding the implementation.** `fn`, `def`, `loop`, `if` are the language's. A target does not get
+to decline one, and it does not get to *declare* one either — we pick the best way to do it on each
+host, and if a host has no native form we build one. The capability graph is for **target-native
+names** — `go.map`, `js.at`, `x64.andb` — where *this target cannot do it* is a true and useful
+answer that a program can be told. It is **not** for language constructs, where that answer means
+the construct is a library carrying a portability claim, which is the thing
+[ADR 0001](docs/decisions/0001-parasite-model.md) exists to refuse.
+
+The precedent is already written and was not generalised:
+[ADR 0017](docs/decisions/0017-booleans-are-in-the-language.md) put `if` in the language and made
+*declaring a boolean name an error* — the target may not even offer an opinion. Every language
+construct should be held to that.
+
+The instance that produced this rule: `values` — several results from one function — was built as
+reader sugar (so, the language) with a `(multi-return …)` target declaration and a refusal on Java
+and windows. That is a construct in the core that two of four targets decline, which is incoherent.
+Reverted. If several results go into the language, **Java gets a generated record and windows gets a
+register or stack convention**, and finding those is the compiler's job, not the target author's.
+
 **Never lower further than the target requires.** Emitting a hand-rolled hash table into Go
 when Go has `map` is wrong on performance, binary size, and ecosystem access simultaneously.
 This is the single most common way to get the architecture wrong.
@@ -231,18 +251,6 @@ boolean names now, and declaring one is an error. Two consequences to carry: `(i
 the **only** evaluation reduction performs, which gives conditional compilation with no
 preprocessor; and the strict branchless operators survive as host names — `x64.andb` — because Ada
 kept `and` beside `and then` for a measurable reason.
-
-**A function may return several values, and it is not a tuple** —
-[values.md](docs/spec/values.md). `(values a b)` is **reader sugar** for `(fn (#k) (#k a b))` — the
-negative product, linear logic's `&` — so its β law IS β and the reducer needed **nothing**: three
-rules before, three after, seven term kinds before, seven after. Consumed in the same reduction it
-vanishes (that always worked); surviving to a boundary it becomes the target's own form, and
-**`(sig f (…) (int int))` is what disambiguates a product from an escaping closure**, the way a
-declared range disambiguates an integer's representation. Measured at **parity with hand-written Go
-and zero allocations**. Go and JS declare `(multi-return …)`; **Java and windows refuse**, which is
-a capability answer — Java's only form is a generated record and Win64 returns one value in `rax`.
-Still undeclarable: a *primitive* returning several values (`strings.Cut`, `Fprintf`), which is the
-same feature's call half.
 
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
 Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission

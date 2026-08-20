@@ -60,14 +60,7 @@ func isIdentContinue(r rune) bool {
 type Sig struct {
 	Params []SigParam
 	Result string
-	// Results is populated ONLY when the signature declares more than one —
-	// `(sig divmod ((a int) (b int)) (int int))`. One result stays in Result,
-	// so every existing path is untouched and multi-result code asks for it
-	// explicitly. A function with several results is the NEGATIVE PRODUCT
-	// (data-structures.md section 4.5): three of our four targets have a
-	// native form and it is not a tuple.
-	Results []string
-	Where   *Term // a boolean term over the parameter names, or nil
+	Where  *Term // a boolean term over the parameter names, or nil
 }
 
 type SigParam struct{ Name, Type string }
@@ -373,28 +366,6 @@ func (r *reader) list() (*Term, error) {
 				Kids: []*Term{Name("if"), kids[1], Bool(false), Bool(true)}}, nil
 		case "cond":
 			return clauseChain(kids[1:], "cond", line, nil)
-		case "values":
-			// (values a b …)  ⟶  (fn (k) (k a b …))
-			//
-			// The NEGATIVE PRODUCT, and it is sugar because beta already is its
-			// algebra: a caller that consumes it in the same place reduces the
-			// whole thing away, which is why it measured 1.01x with zero
-			// allocations (product-2026-08-19). What survives reduction is a
-			// function whose value is a selector-taking lambda, and THAT is
-			// what a target with a native multiple-return emits.
-			//
-			// Scheme's `values` and Common Lisp's are deliberately not data
-			// structures, for the same reason: an implementation should return
-			// several results in registers rather than box them to unbox them.
-			if len(kids) < 3 {
-				return nil, fmt.Errorf("line %d: values takes two or more terms; "+
-					"one value is just the value", line)
-			}
-			// The binder's name starts with `#`, which is not isIdentStart, so
-			// no source term can contain a free occurrence of it and `Fn`
-			// cannot capture one. `seq` uses `_`, which a user COULD write.
-			app := append([]*Term{Name("#k")}, kids[1:]...)
-			return Fn([]string{"#k"}, &Term{Kind: KApp, Kids: app}), nil
 		}
 	}
 
@@ -619,33 +590,11 @@ func toForm(t *Term) (Form, error) {
 		}
 		return f, nil
 	case "sig":
-		// (sig NAME ((p TYPE)…) RESULT)  or  (sig NAME ((p TYPE)…) (R1 R2 …))
-		if len(t.Kids) < 4 || t.Kids[1].Kind != KName {
+		// (sig NAME ((p TYPE)…) RESULT)
+		if len(t.Kids) < 4 || t.Kids[1].Kind != KName || t.Kids[3].Kind != KName {
 			return Form{}, fmt.Errorf("sig takes a name, a parameter list and a result type: %s", t)
 		}
-		sig := &Sig{}
-		switch r := t.Kids[3]; {
-		case r.Kind == KName:
-			sig.Result = r.Name
-		case r.Kind == KApp:
-			// Several results. `(R)` with one entry is the same as a bare R,
-			// so there is one spelling for one result and no ambiguity.
-			for _, a := range r.Kids {
-				if a.Kind != KName {
-					return Form{}, fmt.Errorf("sig %s: a result is a type name, got %s",
-						t.Kids[1].Name, a)
-				}
-				sig.Results = append(sig.Results, a.Name)
-			}
-			if len(sig.Results) == 0 {
-				return Form{}, fmt.Errorf("sig %s: the result list is empty", t.Kids[1].Name)
-			}
-			if len(sig.Results) == 1 {
-				sig.Result, sig.Results = sig.Results[0], nil
-			}
-		default:
-			return Form{}, fmt.Errorf("sig takes a name, a parameter list and a result type: %s", t)
-		}
+		sig := &Sig{Result: t.Kids[3].Name}
 		for _, rest := range t.Kids[4:] {
 			if rest.Kind == KApp && rest.Kids[0].Kind == KName &&
 				rest.Kids[0].Name == "where" && len(rest.Kids) == 2 {

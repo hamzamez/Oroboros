@@ -1,0 +1,46 @@
+; Gauntlet program 5 — formatted output — on the NATIVE Go target.
+;
+; The only gauntlet program with an effect, and the only one whose pass
+; condition is not a number. Three things at once:
+;
+;   1. A host binding costs nothing. `fmt.Println` is one line in
+;      targets/go/fmt.oro and no Go at all.
+;   2. Order survives reduction. The three lines must print in the order
+;      written, once each, however aggressively beta rewrites around them.
+;   3. A pure computation feeds an effectful call, and neither moves the other:
+;      `dot` must still fuse into one loop with no intermediate vector, while
+;      sitting inside a `seq`.
+;
+; `seq` is sugar for a beta-redex with an unused binder and survives only
+; because weakening is denied for an impure argument (effects.md §5). That rule
+; is doing the work here: `fmt.Println` declares no `pure`, so its result — used
+; zero times — cannot be dropped.
+;
+; The portable form is examples/report.oro and takes its array as a parameter,
+; which `main` cannot do. Construction is why: a program could not build data at
+; all until 2026-08-15, and on a native target it is `go.make-float64` plus a
+; fill loop rather than `make-vec` (construction.md).
+
+(use go)
+(use go/fmt)
+
+(export main)
+
+(def fill (fn (n)
+  (let (go.make-float64 n) (fn (dst)
+    (loop ((d dst) (i 0))
+      (go.>= i n)  d
+      else         (again (go.set-float64 d i (go.float64-of-int i)) (go.+ i 1)))))))
+
+(def dot (fn (a b)
+  (loop ((acc 0.0) (i 0))
+    (go.>= i (go.len a))  acc
+    else                  (again (go.f+ acc (go.f* (go.at-float64 a i)
+                                                   (go.at-float64 b i)))
+                                 (go.+ i 1)))))
+
+(def main (fn ()
+  (let (fill 1000) (fn (xs)
+    (seq (fmt.Println "report")
+         (fmt.Println (go.len xs))
+         (fmt.Println (dot xs xs)))))))

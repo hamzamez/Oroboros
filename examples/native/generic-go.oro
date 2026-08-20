@@ -1,0 +1,47 @@
+; Gauntlet program 3 — one generic operation, two instantiations — on the
+; NATIVE Go target.
+;
+; g3's claim: a non-recursive definition IS a rewrite rule (and since ADR 0014
+; there is no other kind), so instantiation is a side effect of matching and
+; there is no monomorphization pass. `reduce-over` is used once at f64 elements
+; with an f64 accumulator and once at string elements with a map accumulator.
+;
+; The portable form is examples/generic.oro. Moving it asks a question that form
+; could not: on the portable layer `aindex` and `sat` are DIFFERENT NAMES for
+; the same shape, so matching could plausibly have been keying on the name. Here
+; the two instantiations reach `go.at-float64` and `go.at-string`, whose Go types
+; are `[]float64` and `[]string` and whose result types are `float64` and
+; `string` — genuinely different host functions, chosen by nothing but which
+; argument arrived.
+;
+; And `combine` is `go.f+` in one and a two-statement map update in the other,
+; so the two residuals do not even have the same SHAPE: one is an expression and
+; one is a statement. Still no pass.
+
+(use go)
+(use go/strings)
+
+(export sum-of word-tally)
+
+(sig sum-of     ((a slice-float64)) f64)
+(sig word-tally ((text string)) map-string-int)
+
+; The generic operation. n is a count, get reads element i, combine folds it in.
+; `loop` replaces `fold-range`, so the accumulator and the index are two loop
+; variables rather than a pair — the product `fold-range2` needed and `loop`
+; does not.
+(def reduce-over (fn (n get combine init)
+  (loop ((acc init) (i 0))
+    (go.>= i n)  acc
+    else         (again (combine acc (get i)) (go.+ i 1)))))
+
+; Instantiation 1 — f64 elements, f64 accumulator.
+(def sum-floats (fn (a)
+  (reduce-over (go.len a) (fn (i) (go.at-float64 a i)) go.f+ 0.0)))
+
+; Instantiation 2 — string elements, map accumulator.
+(def tally-words (fn (ws)
+  (reduce-over (go.len ws) (fn (i) (go.at-string ws i)) go.inc-map (go.make-map))))
+
+(def sum-of     (fn (a)    (sum-floats a)))
+(def word-tally (fn (text) (tally-words (strings.Fields text))))

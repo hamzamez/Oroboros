@@ -349,6 +349,17 @@ to carry forward: a template may not touch r10, r11, xmm4 or xmm5, and **the opt
 were parasitizing only become visible on a host that has none** — the first three hosts were doing
 common-subexpression elimination for us and nothing noticed until one did not.
 
+**The gauntlet runs on the native Go target now** —
+[native-gauntlet-2026-08-20](gauntlet/results/native-gauntlet-2026-08-20.md). All six programs
+moved off `num/vec`/`num/int`/`num/f64`/`io`, all at parity. Two things the move deleted and one it
+added: **`fold-range2` is gone** — it existed only because two accumulators had no product to pair
+them with, and `loop` has n variables and no product at all — and the native Go target **had no
+string surface at all** until `wordcount` asked for one (`targets/go/strings.oro`, 25 primitives,
+no compiler change). What it added is `(length N)`, a declared primitive attribute saying which
+argument decides the result's length; the sieve's `c[i]` is **proven** now rather than propagated.
+**The migration has only been done on Go.** No gauntlet program has moved to the JS or Java native
+targets, and JS is the most hostile host in the set.
+
 **Two backends before front-end features.** Once the Go backend works, build the JavaScript
 backend before adding anything to the language. JS is the most hostile host in the set and
 surfaces core flaws while they are still cheap to fix.

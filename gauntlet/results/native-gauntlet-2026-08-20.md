@@ -2,7 +2,7 @@
 
 The one piece of process debt named in every assessment since 2026-08-19: seven gauntlet programs
 running on `num/vec`, `num/int`, `num/f64` and `io` — the portable layer the native targets
-replaced and that nothing had moved off. Four programs have moved. This is what moving them found.
+replaced and that nothing had moved off. **All six have moved.** This is what moving them found.
 
 The library did not change. A delayed vector is three lines written *in the language*, not a
 primitive, so moving targets moves only the names it calls: `alen` becomes `go.len`, `aindex`
@@ -19,7 +19,7 @@ becomes `go.at-float64`, `fold-range` becomes a `loop`.
 | hand-written `DotRange` | 595 |
 | **emitted, native** | **485** |
 
-Parity. Pinned to one core — see §6.
+Parity. Pinned to one core — see §9.
 
 ## 2. `search` — early exit, on a target with no portable layer
 
@@ -182,7 +182,89 @@ That reasoning is right about Java and wrong about Go, and it violated the rule 
 rather than a principle. The program now carries both forms, which is what the rule for adding to
 the gauntlet says to do in the first place.
 
-## 5. Five gaps found, and the fifth cost the most
+## 5. `generic` — instantiation with no monomorphization pass
+
+`examples/native/generic-go.oro`. g3's claim is that a non-recursive definition **is** a rewrite
+rule (and since [ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md) there is
+no other kind), so instantiation is a side effect of matching and there is no monomorphization
+pass.
+
+The portable form could not fully test it: `aindex` and `sat` are different names for the same
+shape, so matching could have been keying on the name. Here the two instantiations reach
+`go.at-float64` and `go.at-string` — genuinely different host functions over `[]float64` and
+`[]string` — and the two `combine`s are not even the same **shape**: one is an expression
+(`acc + a[i]`) and one is a statement (`acc[ws[i]]++`).
+
+| | ns/op | |
+|---|---|---|
+| hand-written `SumF64` | 33,273 | |
+| **emitted `NativeSumOf`** | **32,678** | **0.98×** |
+| hand-written `WordCountIncr` | 2,555,386 | |
+| **emitted `NativeWordTally`** | **2,547,762** | **0.997×** |
+
+One definition, two instantiations, both at parity, no pass.
+
+## 6. `centroid` — and `fold-range2` disappears
+
+`examples/native/centroid-go.oro`. The Church-encoded point — a function handing its two fields to
+a selector — reduces away completely, and the residual is two scalar accumulators:
+
+```go
+ax, ay, i = (ax + (xs[i])), (ay + (ys[i])), (i + 1)
+```
+
+33,650 ns against hand-written `CentroidSumRef` at 33,316 — **1.01×**, inside the noise floor.
+Every form measured here lands between 32.2 and 34.4 µs.
+
+**What moving this program removed is `fold-range2`.** It existed for exactly one reason — two
+accumulators and no product to pair them with — and its *finisher* existed so that compound loop
+state never escaped the loop as a compound value. `loop` has n variables and no product at all
+([ADR 0015](../../docs/decisions/0015-loop-and-again.md)), so the finisher is just the last clause
+and the whole construct is gone. One fewer structural primitive a target author has to implement,
+and the clearest thing the migration has *removed* from the language surface.
+
+## 7. `report` — the only program whose pass condition is not a number
+
+`examples/native/report-go.oro`, built and run with `cmd/build`. Three claims at once, and all
+three hold:
+
+```go
+func main() {
+	dst := (make([]float64, 1000))
+	d := dst
+	var i int = 0
+	for { if (i >= 1000) { break }; d[i] = (float64(i)); i = (i + 1); continue }
+	xs := d
+	fmt.Println("report")
+	var v1 int = (len(xs))
+	fmt.Println(v1)
+	acc := 0.0
+	var i2 int = 0
+	for {
+		if (i2 >= (len(xs))) { break }
+		acc, i2 = (acc + ((xs[i2]) * (xs[i2]))), (i2 + 1)
+		continue
+	}
+	fmt.Println(acc)
+}
+```
+
+1. **A host binding costs nothing** — `fmt.Println` is one line in `targets/go/fmt.oro` and no Go.
+2. **Order survives reduction** — the three lines print in the order written, once each. `seq` is
+   sugar for a β-redex with an unused binder and survives only because weakening is denied for an
+   impure argument ([effects.md §5](../../docs/spec/effects.md)); `fmt.Println` declares no `pure`,
+   so its result — used zero times — cannot be dropped.
+3. **A pure computation feeds an effectful call and neither moves the other** — `dot` still fuses
+   into one loop with no intermediate vector, *inside* the `seq`.
+
+It prints `report`, `1000`, `3.328335e+08`, which is Σi² for i < 1000.
+
+The portable form takes its array as a parameter, and `main` takes none. Construction is why: a
+program could not build data at all until 2026-08-15, and on a native target it is
+`go.make-float64` plus a fill loop rather than `make-vec`
+([construction.md](../../docs/spec/construction.md)).
+
+## 8. Five gaps found, and the fifth cost the most
 
 Moving one program — `dot` — found five. None was visible from inside the portable layer.
 
@@ -221,7 +303,7 @@ emitted `var n1 int` even when nothing was narrowed, which is `declared and not 
 **compile error**. A `loop` over a single array narrows nothing, because the guard already bounds
 it. Collection is now separate from emission so the caller can ask first.
 
-## 6. Method note: this machine is bimodal
+## 9. Method note: this machine is bimodal
 
 Timings here differ by up to **3×** between consecutive passes unless the process is pinned. The
 same benchmark gave 462 ns and 1403 ns on successive runs. Every number above was taken with
@@ -230,11 +312,12 @@ directly: 91,751 / 273,155 / 338,606 / 97,366 / 101,602 for five runs of one ben
 
 Unpinned numbers on a hybrid P/E-core laptop are not measurements.
 
-## 7. Still on the portable layer
+## 10. What is left
 
-`report`, `generic`, `centroid`, `norm`, `converge`, `filter`, `build-vec`. `report` needs sorting
-and formatted output; `generic` is the one that tests whether a specialised call site survives the
-move.
+**None of the six.** `dot`, `centroid`, `generic`, `wordcount`, `report` and the stencil all run on
+the native Go target, all at parity with hand-written code.
 
-Four moved: `dot`, `search`, the stencil, `wordcount`. All at parity, and each found something the
-portable layer had hidden.
+Still portable-only, and none of them a gauntlet program: `norm`, `converge`, `filter`,
+`build-vec`, `modules`. And the migration has only been done on **Go** — `sieve-java.oro` and
+`sieve-js.oro` exist but no gauntlet program has moved to the JS or Java native targets, which is
+where the next surprise is, because JS is the most hostile host in the set.

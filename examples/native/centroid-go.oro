@@ -1,0 +1,42 @@
+; Gauntlet program 2 — centroid over a collection of points — on the NATIVE Go
+; target.
+;
+; Points are Church-encoded: a point is a function that hands its two fields to
+; a selector. There is still NO struct primitive in the language, and this file
+; is where that stops mattering — the encoding reduces away completely and the
+; residual has two scalar accumulators.
+;
+; The collection is struct-of-arrays because that is what BOTH targets can
+; express with primitives they already have: g2 measured JS losing 2.86x to
+; array-of-objects while Go is happy either way.
+;
+; What moving this program removes is `fold-range2`. It existed for exactly one
+; reason — two accumulators and no product to pair them with — and its finisher
+; existed so that compound loop state never escaped the loop as a compound
+; value. `loop` has n variables and no product at all (ADR 0015), so the
+; finisher is just the last clause and the whole construct is gone. That is one
+; fewer structural primitive a target author has to implement, and it is the
+; clearest thing the migration has cost the language surface.
+
+(use go)
+
+(export centroid)
+
+; Two arrays, one loop bound. Without the equality `(go.at-float64 ys i)` is
+; unproven — the same latent bug the checker found in dot.
+(sig centroid ((xs slice-float64) (ys slice-float64)) f64
+  (where (go.== (go.len xs) (go.len ys))))
+
+(def point (fn (x y) (fn (sel) (sel x y))))
+(def px    (fn (p)   (p (fn (x y) x))))
+(def py    (fn (p)   (p (fn (x y) y))))
+
+; Read point i out of the two arrays, as a point.
+(def pat (fn (xs ys i) (point (go.at-float64 xs i) (go.at-float64 ys i))))
+
+(def centroid (fn (xs ys)
+  (loop ((ax 0.0) (ay 0.0) (i 0))
+    (go.>= i (go.len xs))  (go.f+ ax ay)
+    else                   (again (go.f+ ax (px (pat xs ys i)))
+                                  (go.f+ ay (py (pat xs ys i)))
+                                  (go.+ i 1)))))

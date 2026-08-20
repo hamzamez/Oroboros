@@ -158,4 +158,14 @@ to memory:
    (1.79×), which is what GC pressure predicts. A host with a weaker allocator would be worse
    still.
 
+5. **An algebraic law we can state and are not allowed to apply.**
+   [data-structures.md §8.1](../data-structures.md) writes down the η law for tables —
+   `materialize (of-array a) = a` — confirms the compiler does not know it and emits an allocation
+   plus a full copy loop, and then shows the law is **unsound here**: `materialize` exists to
+   produce a *fresh* array, and applying the law would let a program mutate its own input through
+   `go.set-float64`. The law becomes applicable exactly when uniqueness becomes provable. That is a
+   different kind of evidence from the four above — not a cost, but a rewrite the compiler is
+   entitled to and cannot take — and it is the first one that names what the missing property
+   would *buy* rather than what its absence costs.
+
 Any one of those should produce an ADR superseding this.

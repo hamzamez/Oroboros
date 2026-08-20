@@ -334,6 +334,19 @@ were rediscovered independently before being read: the delayed vector is a **con
 (Abbott/Altenkirch/Ghani) and Repa's `Delayed`, and [q5b](docs/spec/q5b-filter.md)'s pull/push
 duality is Obsidian's.
 
+**§8 is the literal table, and it is the missing dual** — `(array 1 2 3)` with application as
+indexing. `tab`/`idx` are mutually inverse, which IS the Naperian isomorphism written at the term
+level, and β-tab is **the extensional counterpart of β**: a function given by its graph rather than
+by a rule. It costs no new term kind and no new reduction rule *if constant folding is built*,
+since `((array 1 2 3) 1) → 2` is one entry in the same table as `(go.+ 1 2) → 3`. A **dynamic index
+forces homogeneity and forces existence, and it is the same condition doing both** — so the
+dependent type is erased by staging and the checker only ever sees `Fin n → V`. The new memory edge
+is compile-time materialisation into **static data**, free where `materialize` costs an allocation
+and n stores — but T is only free on x86 and probably Go; Java's `<clinit>` and V8's module
+evaluation both build it, and that is unmeasured. And **η-tab is a law we can state and are not
+allowed to apply**: `materialize (of-array a) = a` is true of values and unsound with mutation,
+which is ADR 0013's fifth trigger.
+
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and
 [docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement

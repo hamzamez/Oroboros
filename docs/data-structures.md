@@ -1,6 +1,8 @@
 # Data structures: the research
 
-**Status: research, not a decision.** No ADR follows from this document by itself. It exists to
+**Status: research, not a decision.** No ADR follows from this document by itself.
+**§8 was added after §1–§7 and changes the recommendation** — the literal table is the missing dual
+of §7's proposal, and it answers §7's own falsifier. It exists to
 say what is known, what the literature settled long ago, what this project has already
 rediscovered without naming it, and which candidates are worth measuring.
 
@@ -660,6 +662,13 @@ better structure than an array" (§4.2).
 **D-J — shaped/nested arrays, Naperian style.** *Deferred, cheap when wanted.* Currying plus
 composition; no new mechanism.
 
+**D-K — the literal table `(array e₀ … eₙ₋₁)`, with application as indexing.** *Recommended
+alongside D-B — see §8.* The extensional presentation of a function against D-B's intensional one.
+No new term kind; no new reduction rule if constant folding is built; subsumes the tuple; its
+dependent type is erased by staging; and it adds the one memory transition the language lacks —
+compile-time materialisation into **static data**, which is free at run time where the ordinary
+`materialize` costs an allocation and n stores.
+
 ---
 
 ## 7. Recommendation
@@ -682,9 +691,9 @@ product type".
 
 ### What would falsify this
 
-- **A program that needs a product to be *stored*, not returned.** Every demand so far is
-  multiple-return. A container of pairs would make the positive product unavoidable and change the
-  ranking.
+- ~~**A program that needs a product to be *stored*, not returned.**~~ **Answered — see §8.** The
+  literal table is the stored form, it is the extensional dual of the negative product, and neither
+  subsumes the other. The recommendation now includes both.
 - **Reification turning out to be common rather than rare.** If most products escape, the negative
   form is a complication rather than a saving, and a plain struct is the better design.
 - **A measured case where JavaScript's 1.11× compounds.** It was measured on a non-escaping
@@ -718,3 +727,325 @@ no representation makes it one.
 **A dict in the language** (§4.4). **Inductive types** (§1.2). **Full dependent types for shapes** —
 the refinement system already provides `Fin n` where it is needed, and Low\*'s lesson is that the
 restriction is the mechanism.
+
+---
+
+## 8. The literal table — hamza's proposal, and the algebra of memory
+
+Proposed after §1–§7 were written, and it changes the recommendation. The shape:
+
+```lisp
+(array 1 2 3 4 5)
+((array 1 2 3 4 5) 1)      ;; 2
+(def a (array 1 2 3 4 5))
+(a 0)                      ;; 1
+(+ 1 (a 1)) → (+ 1 2) → 3  ;; folds at compile time
+```
+
+and: *if after all the reductions the array is still there and still being used, it stays in the
+runtime.*
+
+### 8.1 What it is, precisely
+
+An array becomes a function given **by its graph** rather than by a rule. Write `tab` for the
+constructor and `idx` for application:
+
+```
+tab : (Fin n → V) → Arr n V        (array e₀ … eₙ₋₁)
+idx : Arr n V → Fin n → V          (a i)
+```
+
+Two laws, and they are the whole algebra:
+
+```
+(β-tab)   idx (tab f) k  =  f k          concretely  ((array e₀ … eₙ₋₁) k) = e_k,  k literal
+(η-tab)   tab (idx a)    =  a            concretely  (array (a 0) … (a (n-1))) = a
+(len)     alen (array e₀ … eₙ₋₁) = n
+```
+
+β-tab and η-tab together say `tab` and `idx` are mutually inverse:
+
+> **`Arr n V ≅ (Fin n → V)`**
+
+That is not an analogy. It is the definition of a **representable — Naperian — functor** (§1.3),
+written out at the term level. Gibbons' `Log F → A`, Dex's `tabulate`/`index`, and TLA+'s "a tuple
+*is* a function with domain `1..n`" are all this isomorphism, and the proposal is to put it in the
+syntax.
+
+**β-tab is the extensional counterpart of β.** Ordinary β reduces a function given *intensionally*
+— by a rule — against an argument. β-tab reduces a function given *extensionally* — by a table —
+against an index. Same judgement, two presentations of a function, and the language would have
+both. That is the cleanest statement of what is being proposed.
+
+**η-tab is not decoration, and checking it found the sharpest thing in this section.** Read left
+to right it says *rebuilding an array you already have is the identity*:
+
+```lisp
+(materialize (of-array a)) = a
+```
+
+The compiler does not know this. `(fn (a) (vec.materialize (vec.of-array a)))` reduces to
+`(make-vec (alen a) (fn (i) (aindex a i)))` and emits an allocation and a full copy loop —
+**measured, not guessed**:
+
+```go
+func EtaRoundtrip(a []float64) []float64 {
+	var n1 int64 = (int64(len(a)))
+	v2 := make([]float64, n1)
+	for i := int64(0); i < n1; i++ { v2[i] = (a[i]) }
+	return v2
+}
+```
+
+**But applying the law would be unsound, and the reason is worth the whole detour.** η-tab is an
+equation between *values*. `materialize` does not exist to produce a value — it exists to produce a
+**fresh** one, so that nothing can alias it ([construction.md](spec/construction.md), and it is the
+entire content of [ADR 0013](decisions/0013-accept-the-allocation-price.md)). On a native target
+`go.set-float64` can mutate the result, and a program that materialises in order to get a buffer it
+owns would silently begin mutating its own input.
+
+> **η-tab holds in the pure fragment and is unsound the moment the result can be written. The law
+> is therefore a test case for ADR 0013's open question, not a free optimisation.** It becomes
+> applicable exactly when uniqueness becomes provable, and not before.
+
+That is the third direction the aliasing question has arrived from — after the stencil and after
+`materialize`'s own justification — and it is the first time it has arrived as an *algebraic law
+we can write down and are not allowed to use*. A law blocked by a missing property is a better
+argument for adding the property than any of the previous three.
+
+### 8.2 What it costs the core: less than it looks
+
+**No new term kind.** `(array 1 2 3)` is a `KApp` whose operator is a primitive no target reduces
+— which is exactly what the residual is already made of. The seven term kinds stay seven.
+
+**No new reduction rule, if constant folding is built.** β-tab is an instance of *a primitive
+applied to known arguments has a known result*:
+
+```
+(go.+ 1 2)            → 3
+((array 1 2 3) 1)     → 2
+(alen (array 1 2 3))  → 3
+```
+
+Constant folding is already on the list of unbuilt items
+([integers.md §13](spec/integers.md)). If it is built, β-tab is **one entry in its table**, not a
+fourth reduction rule. If it is not, β-tab is a fourth rule, and that should be counted honestly —
+the language is currently three rules and that number is load-bearing in how it is described.
+
+**And the Church encoding shows why the table is needed anyway.** One could define
+
+```lisp
+(array a b c)  ≡  (fn (i) (if (== i 0) a (if (== i 1) b c)))
+```
+
+with *no* new machinery: β and if-true already reduce `((array a b c) 1)` to `b`. But when the index
+is **dynamic**, reduction stops at the conditional nest and the backend emits an n-way branch
+chain — O(n) compares where the host has one load. So:
+
+> **The Church encoding is correct and free for the static case and catastrophic for the dynamic
+> case. That split is the whole design, and it recurs below.**
+
+### 8.3 The static/dynamic index dichotomy — one condition, two consequences
+
+Let `a` be a residual array and consider the indices at which it is applied.
+
+**If every application `(a k)` has a literal `k`:**
+
+- the elements need not have a common type — `(a 0)` may be an `int` and `(a 1)` a `string`, because
+  the checker knows *which* element it is looking at. The type is a telescope, `Π(i : Fin n). Tᵢ`;
+- and the array **need not exist at run time**: every use folds.
+
+**If any application has a dynamic index:**
+
+- the elements *must* share a type, because the checker cannot know which one is read. The type
+  collapses to `Fin n → V`;
+- and the array **must exist**, because you cannot select from a thing that is not there.
+
+> **A dynamic index forces homogeneity and forces existence, and it is the same condition doing
+> both.**
+
+Three things follow, and they are the reason this proposal is good.
+
+**It subsumes the tuple.** A statically-indexed heterogeneous `(array x y)` *is* a pair, and
+`(a 0)`/`(a 1)` are π₁/π₂. This is §4.5 and §2's "everything is a function from an index set"
+arriving at the term level with a reduction rule attached. SML defining `(a,b)` as `{1=a, 2=b}` is
+the same move.
+
+**The dependent type is erased by staging.** The telescope `Π(i : Fin n). Tᵢ` exists only while
+indices are static, and static indices are exactly what reduction eliminates. So **the checker,
+which runs on the residual, only ever sees the homogeneous `Fin n → V`.** No dependent types are
+needed to type this. That is the same trick §5 found for the negative product, and it is the second
+time staging deletes a hard typing problem here.
+
+**And it is the polarity classification again.** A statically-indexed table is `&` — an n-ary
+negative product whose projections are chosen at compile time, never built. A dynamically-indexed
+table is data, and must be built. Dex draws this line in its *types*, distinguishing `n => a`
+(a table, data) from `n -> a` (a function, code); the proposal draws it in the *reduction*, and the
+residual is where the line lands.
+
+### 8.4 The algebra of memory
+
+"Regardless of target, just math of memory." Here is the model.
+
+Three regions, distinguished by what creating a cell costs rather than by any host's names:
+
+| | region | creation cost | lifetime | note |
+|---|---|---|---|---|
+| **T** | static | **zero at run time** | the program | pays in artifact size — requirement 6 |
+| **S** | scalar / stack | zero | a lexical scope | n slots, no allocation |
+| **H** | heap | 1 allocation + n stores | unbounded | GC pressure |
+| **∅** | — | zero | none | the array does not survive |
+
+Five forms of an array and where each lands:
+
+| form | region | creation | selection |
+|---|---|---|---|
+| `(vec n f)`, fully reduced | ∅ | 0 | 0 — the index function is inlined |
+| `(array c₀ … cₙ₋₁)`, all elements literal, survives | **T** | **0** | 1 load |
+| `(array e₀ … eₙ₋₁)`, runtime elements, does not escape | S | 0 | register move |
+| `(array e₀ … eₙ₋₁)`, escapes | H | 1 alloc + n stores | 1 load |
+| `materialize (vec n f)` | H | 1 alloc + n stores | 1 load |
+
+And the transitions between them — this is the algebra:
+
+```
+                 unroll                 freeze
+   (vec n f) ─────────────▶ (array …) ──────────▶  T      elements all literal
+       │  ▲                     │                          n known at compile time
+ force │  │ delay               │ build
+       │  │  (free)             ▼
+       ▼  │                   S or H
+       H ─┘
+                    reduce
+   (vec n f) ─────────────────────────▶ ∅         every index static
+```
+
+- **delay** `array → vec` is free: `(vec n (fn (i) (a i)))`. Always available.
+- **force** `vec → H` is `materialize`. Costs an allocation and n stores. Already in the language.
+- **reduce** `vec → ∅` is what already happens when everything fuses.
+- **build** `array → S|H` is the ordinary case: a table of runtime values.
+- **unroll** `vec → array` requires `n` to be a literal and `f` to fold at every index.
+- **freeze** `array → T` requires every element to be a literal.
+
+**The edge that does not exist today is `unroll ∘ freeze`, and it is free at run time.**
+
+Concretely: a lookup table.
+
+```lisp
+(materialize (vec 256 (fn (i) (crc-step i))))
+```
+
+today emits an allocation and a 256-iteration loop that runs at startup. With a literal table and
+folding it reduces to `(array c₀ … c₂₅₅)` and lands in **T** — zero allocation, zero startup work,
+shared, immutable. That is what a C programmer writes as `static const uint32_t table[256] = {…}`
+and usually generates with a script. **This language could compute it**, and the result is a
+Futamura projection in miniature: the array literal is the residual *data* of a staged computation
+(Jones, Gomard, Sestoft, *Partial Evaluation and Automatic Program Generation*, 1993).
+
+**The erasure criterion is syntactic and decidable.** An array reaches ∅ exactly when every
+occurrence of it in the residual is an application at a literal index. That is computed by the
+occurrence counting the reducer already does for β — it is not an analysis pass, and it is the
+first time a *memory* decision in this language would be read off the term rather than measured.
+
+### 8.5 Where the model is honest about being a model
+
+**T is not free everywhere, and the difference is exactly ADR 0008's kind.**
+
+| target | static data | is it actually free? |
+|---|---|---|
+| **x86-64 / windows** | `.rodata`, and the target format already has `(data …)` | **yes** — mapped from the image, no code runs |
+| **Go** | a package-level array; the linker can place the initialised data | **probably** — needs checking; Go initialises some globals with generated code |
+| **Java** | `static final int[]` | **no** — `<clinit>` stores each element at class load |
+| **JavaScript** | a module-level `const [1,2,3]` | **no** — built on the heap at module evaluation |
+
+So "a constant array is free" is true on one target, likely on a second, and **false on the two
+managed hosts**, where it becomes "paid once at load instead of once per call". That is still a
+real win and it is a different win, and per [§0 of data-model.md](spec/data-model.md) the spread is
+part of the name's meaning. It is measurable in an afternoon and it should be measured before the
+free-static-data claim is made anywhere.
+
+**And T trades against requirement 6.** Unrolling a million-element table puts 8 MB in the
+artifact. Small binaries is a stated requirement, so `unroll` cannot be automatic without a budget
+— and a budget is a heuristic, which is the thing this project has avoided everywhere else. The
+consistent answer is that **`unroll` is something the programmer asks for**, the way `materialize`
+is, so the price stays in the source. Whether that is a separate name or `materialize` at a literal
+length is an open question, not a decision.
+
+### 8.6 Two hazards the proposal introduces
+
+**β must not duplicate a large value.** Substitution is currently governed by *purity* — an impure
+argument is let-bound whatever its occurrence count
+([effects.md](spec/effects.md)). A 1000-element array literal is perfectly pure and substituting it
+into five use sites multiplies the term by five. So a **size** criterion joins the purity criterion,
+and they are independent. GHC has exactly this and calls it an unfolding threshold. This is a real
+new obligation on the reducer and it is the strongest argument for `(array …)` being a value the
+reducer is careful with rather than "just another application".
+
+**Overloading application costs the JavaScript backend.** If `(a 0)` is application, the backend
+must decide between `a(0)` and `a[0]` — and on JS those are different operations with no type
+information to distinguish them, because `targets/js/` declares everything `any`. The distinction is
+recoverable syntactically (the operator is an array literal, or a name bound to one), but "bound to
+one" needs tracking through `let` and `loop` variables, and that is a small dataflow analysis in a
+backend that currently has none.
+
+The alternative is to keep the eliminator a primitive — `(at a i)` — which every target already
+declares (`go.at-float64`, `js.at`, `java.at-*`), costs nothing, and loses only the syntactic
+elegance. **The algebra of §8.1 is identical either way.** The syntax is a separate decision from
+the semantics, and it should be taken separately; §8.4's memory model does not depend on it.
+
+### 8.7 How it relates to the recommendation
+
+It is the **missing dual** of D-B, and it answers D-B's own falsifier.
+
+§7 listed as a falsifier: *"a program that needs a product to be stored, not returned"*. The literal
+table is precisely the stored form:
+
+| | `(fn (sel) (sel x y))` | `(array x y)` |
+|---|---|---|
+| presentation | intensional — a rule | extensional — a graph |
+| polarity | negative, `&` | data |
+| eliminated by | giving a selector | giving an index |
+| index may be dynamic | **no** | **yes** |
+| exists at run time | only if it escapes | only if dynamically indexed or escaping |
+| mediated by | `tab` / `idx` — the Naperian isomorphism | |
+
+Neither subsumes the other. The rule form cannot be indexed by a runtime value; the table form
+cannot avoid existing when it is. **This is the third dual pair this project has found where a
+unification was tempting** — pull/push arrays (q5b), negative/positive product (polarity), and now
+rule/table — and in all three cases keeping both costs less machinery than unifying them. That is
+becoming a pattern worth stating as one.
+
+Changes to the candidate list:
+
+**D-K — the literal table `(array e₀ … eₙ₋₁)` with β-tab folding.** *Recommended alongside D-B, not
+instead of it.* It costs no new term kind; it costs no new reduction rule if constant folding is
+built; it subsumes the tuple; its dependent type is erased by staging; and it adds the one memory
+transition the language does not have — compile-time materialisation into static data.
+
+**D-B is unchanged.** Multiple return values are still the answer for the *returned* case, and the
+table does not cover it: a table with a dynamic index must exist, and a returned pair should not.
+
+**D-C (the explicit reifier) gets more interesting.** Reification now has three destinations rather
+than one, and the free one is new. `materialize` today means "go to H". It should probably mean
+"leave the delayed form", with the destination decided by whether the elements are literal.
+
+**D-D (records) becomes cheaper.** A record is this construct with labels instead of `Fin n`, so
+doing positional first and labelled later is the right order — and the labelled version needs only a
+different index set, not a different mechanism.
+
+**D-G (inductive types) is untouched.** A table is finite and flat; §1.2 stands.
+
+### 8.8 What to measure, in order
+
+1. **Is static data actually free, per target?** §8.5's table has one *yes*, one *probably* and two
+   *no*s, and every one of them is a guess. Emit a 256-element constant table on all four and
+   measure startup and steady-state. This is the load-bearing claim of the whole proposal.
+2. ~~**Does `(materialize (of-array a))` copy today?**~~ **Measured — yes, it allocates and copies
+   (§8.1), and the law that would remove it is unsound without uniqueness.** Nothing to do here
+   until ADR 0013 moves; the value of the check was finding that out.
+3. **Term-size blowup.** Reduce a program that selects from a 1000-element literal at five sites and
+   look at the residual. If β duplicates it, the size criterion of §8.6 is required before anything
+   else here is safe.
+4. **The n-way branch.** Emit the Church-encoded form with a dynamic index and confirm it is as bad
+   as §8.2 predicts, because if a host turns a 5-way compare chain into a jump table the static case
+   may stretch further than expected.

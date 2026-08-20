@@ -1,0 +1,69 @@
+; Go's `strings`, under Go's own names.
+;
+;   (use go/strings)
+;   (strings.Fields text)   (strings.ToLower s)   (strings.Contains s sub)
+;
+; Written because gauntlet program 4 — word frequency — could not move to the
+; native target without it. The native Go target had NO string surface at all:
+; `builtin.oro` declares `s<` and `string-of-bytes` and nothing else, so a
+; program that wanted to split text had to stay on the portable layer.
+;
+; The pass condition for g4 was never a number. It is that the Go output uses
+; Go's own `map[string]int` and Go's own splitting, which is what this file is
+; for (docs/gauntlet.md).
+;
+; What this package could NOT express, recorded rather than worked around:
+;
+;   - `strings.Cut` returns (before, after, found) — three results. The fourth,
+;     fifth and sixth demand for a product; see target-native.md.
+;   - `strings.Builder` is a mutable struct with methods. There is no way to
+;     name a struct type or call a method, so the whole Builder API is absent
+;     and `Join` is what replaces it.
+;   - `SplitN`, `Replace` and friends taking a count are fine; the ones taking
+;     a `func(rune) bool` — `FieldsFunc`, `TrimFunc`, `IndexFunc` — are not,
+;     because a surviving lambda is an escaping closure (derivation s6) and the
+;     core does not have one.
+;
+; `Fields` splits on runs of white space as defined by `unicode.IsSpace`. That
+; is GO's definition, not a portable one, which is exactly the point of a
+; target-native module: `split-words` on the portable layer passed every check
+; for two months while returning different answers on different targets
+; (primitives.md). Here there is no claim to break.
+
+(target go
+  (module go/strings
+    ; ---- splitting and joining
+    (prim Fields   (string) slice-string          expr "strings.Fields(%s)"      pure (import "strings"))
+    (prim Split    (string string) slice-string   expr "strings.Split(%s, %s)"   pure (import "strings"))
+    (prim SplitN   (string string int) slice-string
+                   expr "strings.SplitN(%s, %s, %s)" pure (import "strings"))
+    (prim Join     (slice-string string) string   expr "strings.Join(%s, %s)"    pure (import "strings"))
+
+    ; ---- searching. Index returns -1 when absent, which is a total function
+    ; and needs no product.
+    (prim Contains  (string string) bool  expr "strings.Contains(%s, %s)"  pure (import "strings"))
+    (prim HasPrefix (string string) bool  expr "strings.HasPrefix(%s, %s)" pure (import "strings"))
+    (prim HasSuffix (string string) bool  expr "strings.HasSuffix(%s, %s)" pure (import "strings"))
+    (prim Index     (string string) int   expr "strings.Index(%s, %s)"     pure (import "strings"))
+    (prim LastIndex (string string) int   expr "strings.LastIndex(%s, %s)" pure (import "strings"))
+    (prim Count     (string string) int   expr "strings.Count(%s, %s)"     pure (import "strings"))
+    (prim EqualFold (string string) bool  expr "strings.EqualFold(%s, %s)" pure (import "strings"))
+
+    ; ---- transforming
+    (prim ToLower   (string) string         expr "strings.ToLower(%s)"        pure (import "strings"))
+    (prim ToUpper   (string) string         expr "strings.ToUpper(%s)"        pure (import "strings"))
+    (prim ToTitle   (string) string         expr "strings.ToTitle(%s)"        pure (import "strings"))
+    (prim TrimSpace (string) string         expr "strings.TrimSpace(%s)"      pure (import "strings"))
+    (prim Trim      (string string) string  expr "strings.Trim(%s, %s)"       pure (import "strings"))
+    (prim TrimLeft  (string string) string  expr "strings.TrimLeft(%s, %s)"   pure (import "strings"))
+    (prim TrimRight (string string) string  expr "strings.TrimRight(%s, %s)"  pure (import "strings"))
+    (prim TrimPrefix (string string) string expr "strings.TrimPrefix(%s, %s)" pure (import "strings"))
+    (prim TrimSuffix (string string) string expr "strings.TrimSuffix(%s, %s)" pure (import "strings"))
+    (prim Repeat    (string int) string     expr "strings.Repeat(%s, %s)"     pure (import "strings"))
+    (prim Replace   (string string string int) string
+                    expr "strings.Replace(%s, %s, %s, %s)"  pure (import "strings"))
+    (prim ReplaceAll (string string string) string
+                    expr "strings.ReplaceAll(%s, %s, %s)"   pure (import "strings"))
+
+    ; ---- comparison. Go's Compare is -1/0/+1 and total.
+    (prim Compare (string string) int expr "strings.Compare(%s, %s)" pure (import "strings"))))

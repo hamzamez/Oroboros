@@ -121,6 +121,17 @@
     ; The two read identically in Go and are opposite facts.
     (prim set-map (map-string-int string int) map-string-int stmt "%s[%s] = %s")
 
+    ; Go's fused increment. `m[k]++` is ONE mapassign returning a value pointer;
+    ; `m[k] = m[k] + 1` is a mapaccess AND a mapassign — the same key hashed
+    ; twice. The g4 derivation claimed that and never measured it; it is worth
+    ; 1.21x (native-gauntlet-2026-08-20 §4).
+    ;
+    ; Declaring it is the parasite rule, not a special case: emit at the highest
+    ; layer the target natively provides. And it is the OPPOSITE of Java, where
+    ; the fused `merge` loses 2.6x to unfused getOrDefault+put — which is why
+    ; this is a per-target declaration and not a principle (ADR 0008).
+    (prim inc-map (map-string-int string) map-string-int stmt "%s[%s]++")
+
     (prim slice-float64 (slice-float64 int int) slice-float64 expr "%s[%s:%s]" pure)
     (prim slice-string  (slice-string int int) slice-string   expr "%s[%s:%s]" pure)
 

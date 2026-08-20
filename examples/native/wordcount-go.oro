@@ -1,0 +1,45 @@
+; Gauntlet program 4 — word frequency — on the NATIVE Go target.
+;
+; The portable form is examples/wordcount.oro, and its pass condition was never
+; a number: the Go output must use Go's own map[string]int, and the JS output a
+; null-prototype object. On the portable layer that took `dict-empty`,
+; `dict-inc` and `split-words` — three names whose whole job was to hide which
+; host construct was chosen.
+;
+; Here there is nothing to hide. `go.make-map` IS `make(map[string]int)`,
+; `go.at-map` is `m[k]`, and `strings.Fields` is Go's own splitting. The
+; Parasite thesis is not being tested by the reducer any more; it is just true
+; by construction, and what the migration tested instead was whether the target
+; could SAY it — the native Go target had no string surface at all until this
+; program asked for one.
+;
+; Note what `dict-inc` becomes: `m[w] = m[w] + 1`. Go's map read returns the
+; zero value for an absent key, so no presence test is needed.
+;
+; TWO FORMS, which is the rule for adding to the gauntlet — and the first draft
+; of this file asserted the answer instead of carrying both. It reasoned that
+; reaching for the host's clever API would be slower, because the baseline
+; measured Java's fused `merge` LOSING 2.6x to unfused getOrDefault+put. That
+; reasoning is right about Java and WRONG about Go, where `m[w]++` is one
+; mapassign against a mapaccess plus a mapassign, and wins by 1.21x. Exactly the
+; rule it violated: never assert which host construct is fastest (ADR 0008).
+
+(use go)
+(use go/strings)
+
+(export tally tally-inc)
+
+(sig tally     ((text string)) map-string-int)
+(sig tally-inc ((text string)) map-string-int)
+
+(def bump     (fn (m w) (go.set-map m w (go.+ (go.at-map m w) 1))))
+(def bump-inc (fn (m w) (go.inc-map m w)))
+
+(def count-with (fn (step text)
+  (let (strings.Fields text) (fn (ws)
+    (loop ((m (go.make-map)) (i 0))
+      (go.>= i (go.len ws))  m
+      else                   (again (step m (go.at-string ws i)) (go.+ i 1)))))))
+
+(def tally     (fn (text) (count-with bump     text)))
+(def tally-inc (fn (text) (count-with bump-inc text)))

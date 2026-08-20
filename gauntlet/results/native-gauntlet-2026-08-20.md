@@ -2,7 +2,7 @@
 
 The one piece of process debt named in every assessment since 2026-08-19: seven gauntlet programs
 running on `num/vec`, `num/int`, `num/f64` and `io` — the portable layer the native targets
-replaced and that nothing had moved off. Three programs have moved. This is what moving them found.
+replaced and that nothing had moved off. Four programs have moved. This is what moving them found.
 
 The library did not change. A delayed vector is three lines written *in the language*, not a
 primitive, so moving targets moves only the names it calls: `alen` becomes `go.len`, `aindex`
@@ -19,7 +19,7 @@ becomes `go.at-float64`, `fold-range` becomes a `loop`.
 | hand-written `DotRange` | 595 |
 | **emitted, native** | **485** |
 
-Parity. Pinned to one core — see §5.
+Parity. Pinned to one core — see §6.
 
 ## 2. `search` — early exit, on a target with no portable layer
 
@@ -120,7 +120,69 @@ And `SmoothNoAlias`'s register-carrying trick — the thing you would write if y
 were disjoint — buys **nothing** here: 98,878 against the naive 98,046. Memory-bound, which is
 exactly the condition [bce-2026-08-15](bce-2026-08-15.md) attached to its own 1.96×.
 
-## 4. Five gaps found, and the fifth cost the most
+## 4. `wordcount` — the target could not SAY it, and then it could
+
+Gauntlet program 4's pass condition was never a number: the Go output must use
+Go's own `map[string]int` and Go's own splitting. On the portable layer that took three names —
+`dict-empty`, `dict-inc`, `split-words` — whose whole job was to hide which host construct was
+chosen.
+
+**The native Go target had no string surface at all.** `builtin.oro` declared `s<` and
+`string-of-bytes` and nothing else, so a program that wanted to split text could not move.
+`targets/go/strings.oro` is the fix — 25 primitives covering Go's `strings`, written as data with
+no compiler change. What it *cannot* express is the finding, and it is recorded in the file:
+`Cut` returns three results (the fourth demand for a product), `Builder` is a struct with methods,
+and every `…Func` variant takes a callback, which is an escaping closure.
+
+The emitted code is what you would write:
+
+```go
+func NativeTally(text string) map[string]int {
+	ws := (strings.Fields(text))
+	m := (make(map[string]int))
+	var i int = 0
+	for {
+		if (i >= (len(ws))) { break }
+		w := (ws[i])
+		m[w] = ((m[w]) + 1)
+		i = (i + 1)
+		continue
+	}
+	return m
+}
+```
+
+| | ns/op | |
+|---|---|---|
+| hand-written `counts[w]++` | 2,578,680 | |
+| hand-written `counts[w] = counts[w] + 1` | 3,135,585 | |
+| hand-written get-then-set | 3,149,581 | |
+| emitted, unfused | 3,079,156 | **1.19×** against `++` |
+| **emitted, fused** | **2,564,185** | **0.995×** |
+
+**Parity with the identical hand-written form, and a 1.19× gap to Go's fused `m[k]++` —
+closed by one declared primitive.**
+
+`m[k]++` is a single `mapassign` returning a value pointer; `m[k] = m[k] + 1` is a `mapaccess`
+*and* a `mapassign`, hashing the same key twice. The g4 derivation claimed exactly that and never
+measured it. Declaring `(prim inc-map (map-string-int string) map-string-int stmt "%s[%s]++")` is
+the governing rule doing its job — **emit at the highest layer the target natively provides** — and
+it needed no compiler change, because primitives are declared in `targets/*.oro`.
+
+### And the first draft of the program asserted the answer
+
+`examples/native/wordcount-go.oro` originally carried one form and a comment reasoning that the
+host's clever API would be *slower*, citing the baseline where Java's fused `merge` loses **2.6×**
+to unfused `getOrDefault`+`put`.
+
+That reasoning is right about Java and wrong about Go, and it violated the rule it cited:
+**never assert which host construct is fastest — measure it**
+([ADR 0008](../../docs/decisions/0008-measurement-over-principle.md)). The same fusion is worth
++1.19× on one host and −2.6× on another, which is precisely why this is a per-target declaration
+rather than a principle. The program now carries both forms, which is what the rule for adding to
+the gauntlet says to do in the first place.
+
+## 5. Five gaps found, and the fifth cost the most
 
 Moving one program — `dot` — found five. None was visible from inside the portable layer.
 
@@ -159,7 +221,7 @@ emitted `var n1 int` even when nothing was narrowed, which is `declared and not 
 **compile error**. A `loop` over a single array narrows nothing, because the guard already bounds
 it. Collection is now separate from emission so the caller can ask first.
 
-## 5. Method note: this machine is bimodal
+## 6. Method note: this machine is bimodal
 
 Timings here differ by up to **3×** between consecutive passes unless the process is pinned. The
 same benchmark gave 462 ns and 1403 ns on successive runs. Every number above was taken with
@@ -168,8 +230,11 @@ directly: 91,751 / 273,155 / 338,606 / 97,366 / 101,602 for five runs of one ben
 
 Unpinned numbers on a hybrid P/E-core laptop are not measurements.
 
-## 6. Still on the portable layer
+## 7. Still on the portable layer
 
-`wordcount`, `report`, `generic`, `centroid`, `norm`, `converge`, `filter`, `build-vec`. They need
-maps, strings and formatted output, which are where the native targets and the portable layer
-differ most — so they are the ones most likely to find something.
+`report`, `generic`, `centroid`, `norm`, `converge`, `filter`, `build-vec`. `report` needs sorting
+and formatted output; `generic` is the one that tests whether a specialised call site survives the
+move.
+
+Four moved: `dot`, `search`, the stencil, `wordcount`. All at parity, and each found something the
+portable layer had hidden.

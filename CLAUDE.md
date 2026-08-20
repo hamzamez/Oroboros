@@ -319,6 +319,21 @@ change. And on sequent calculus specifically: GHC built Sequent Core, measured i
 calculus does give us is **polarity**: a product eliminated by projection need never be built,
 which is exactly why the product measured free. Take the classification, not the core.
 
+**The data-structure question is researched and NOT decided** —
+[docs/data-structures.md](docs/data-structures.md). Three things to carry. The array is primary
+**because a list's algebra needs recursion**, not because a list is slow: `foldr` *is* the list's
+universal property, ADR 0014 removed recursion, so a cons chain here would be an array with worse
+constants and no compensating law — *a language's iteration construct selects its data structure*.
+The product is **not a new kind of thing**: `(vec n f)` and `(fn (sel) (sel x y))` are the same
+construct at different index sets, so `materialize` and reifying an escaped product are one
+operation, and TLA+, containers, Naperian functors, Dex and SML's `(a,b) = {1=a,2=b}` all say the
+same thing — *everything is a function from an index set*. And the recommendation is **multiple
+return values, not tuples**: all six measured demands are multiple-return, Scheme and CL made that
+exact distinction on purpose, and three of our four targets have a native form. Two results here
+were rediscovered independently before being read: the delayed vector is a **container**
+(Abbott/Altenkirch/Ghani) and Repa's `Delayed`, and [q5b](docs/spec/q5b-filter.md)'s pull/push
+duality is Obsidian's.
+
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and
 [docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement

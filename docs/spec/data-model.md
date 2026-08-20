@@ -595,6 +595,12 @@ Corrected from the earlier draft — several things are less blocked than they l
 
 **Two things are genuinely load-bearing and everything else waits on them or on neither.**
 
+> **Researched, 2026-08-20** — [data-structures.md](../data-structures.md). The product is not a
+> separate thing to add: it is the delayed vector at a different index set, with the same
+> delayed/reified split and the same boundary, so `materialize` and reifying an escaped product are
+> one operation. The recommendation is **multiple return values** rather than a tuple, because all
+> six demands below are multiple-return and three of four targets have a native form for it.
+
 **The product** is measured affordable (§1.2d) and has now been demanded six independent times —
 `fold-range2`, Go's `(int, error)`, Java's `Map.Entry`, JS destructuring, one `idiv` producing two
 results, and a bignum's fast path. The measurement says it costs nothing where our reducer already

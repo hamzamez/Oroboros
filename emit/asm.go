@@ -1136,6 +1136,11 @@ func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, err
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
+	// SEVERAL RESULTS — this target declares no multiple-return form, so the
+	// program does not cover here. A capability answer, not a syntax error.
+	if sig != nil && len(sig.Results) > 1 {
+		return "", multiResultErr(tgt, name, sig, t.Body())
+	}
 	e := newAsmEmitter(tgt)
 	body, raw, _ := openFresh(t, e.bound, asmIdent)
 	if len(raw) > len(asmArgGP) {

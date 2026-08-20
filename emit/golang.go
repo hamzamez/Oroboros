@@ -77,6 +77,13 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 		params[i] = mangle(p) + " " + e.tgt.ty(ty)
 	}
 
+	// SEVERAL RESULTS — the negative product reaching a boundary. The residual
+	// must be `(values e₁ … eₙ)`, which is `(fn (k) (k e₁ … eₙ))`, and Go
+	// returns them in registers.
+	if sig != nil && len(sig.Results) > 1 {
+		return e.multiFunc(name, sig, t, params)
+	}
+
 	var body strings.Builder
 	e.buf = body
 	e.indent = 1
@@ -91,6 +98,41 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 		e.tgt.ty(e.typeOf(t.Body())))
 	out.WriteString(inner)
 	fmt.Fprintf(&out, "\treturn %s\n}\n", result)
+	for imp := range e.imports {
+		Imports[imp] = true
+	}
+	return out.String(), nil
+}
+
+// multiFunc emits a function with several results. Go returns them in
+// registers, so there is no product to build and nothing to allocate — which
+// is the whole reason the negative product measured 1.01x
+// (product-2026-08-19) and the reason `values` is not a tuple.
+func (e *Emitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []string) (string, error) {
+	vs, ok := multiValue(t.Body(), len(sig.Results))
+	if !ok || e.tgt.MultiReturn == "" {
+		return "", multiResultErr(e.tgt, name, sig, t.Body())
+	}
+	var body strings.Builder
+	e.buf = body
+	e.indent = 1
+	outs := make([]string, len(vs))
+	for i, v := range vs {
+		s, err := e.emit(v)
+		if err != nil {
+			return "", err
+		}
+		outs[i] = s
+	}
+	tys := make([]string, len(sig.Results))
+	for i, r := range sig.Results {
+		tys[i] = e.tgt.ty(r)
+	}
+	var out strings.Builder
+	fmt.Fprintf(&out, "func %s(%s) %s {\n", export(name), strings.Join(params, ", "),
+		fmt.Sprintf(e.tgt.MultiResult, strings.Join(tys, ", ")))
+	out.WriteString(e.buf.String())
+	fmt.Fprintf(&out, "\t"+e.tgt.MultiReturn+"\n}\n", strings.Join(outs, ", "))
 	for imp := range e.imports {
 		Imports[imp] = true
 	}

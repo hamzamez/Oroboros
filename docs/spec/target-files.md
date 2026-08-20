@@ -314,6 +314,22 @@ does not declare it simply proves nothing.
 key. This is the same shape as `pure`: the safe direction is to omit it, and omitting it costs a
 proof rather than a correct program.
 
+### `multi-return` — several results
+
+```lisp
+(multi-return "(%s)" "return %s")     ; Go
+(multi-return "" "return [%s]")       ; JavaScript
+```
+
+Two templates, each taking the comma-joined list: the one that spells the result types and the one
+that returns. A function whose `sig` declares several results — `(sig divmod ((a int) (b int))
+(int int))` — emits through these ([values.md](values.md)).
+
+A target that declares **neither refuses** the program, and the error names the capability rather
+than the syntax. That is right for Java, whose only form is a generated record type, and for
+windows, where the Win64 ABI returns one value in `rax` so a two-register convention would be ours
+rather than the platform's. Both are real capability gaps and covering should say so.
+
 ## 5. `pure`
 
 ```lisp

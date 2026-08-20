@@ -41,5 +41,12 @@
   ; THE WHOLE STRUCTURAL SET IS THREE — the same three as Go's native target.
   ; `fold-range`, `fold-range2` and `make-vec` are all absent: `loop` subsumes
   ; the folds, and an array is built with `js.Array` plus a `loop`.
+  ; JavaScript has NO multiple return. An array literal is the idiom a caller
+  ; destructures, and it costs: product-2026-08-19 measured an array at 1.32x
+  ; against an object literal at 1.11x for a create-and-consume pair. The
+  ; object is faster and the array is what `const [a, b] = f()` reads; this
+  ; declaration picks the idiom and NAMES the price rather than hiding it.
+  (multi-return "" "return [%s]")
+
   (structural let  let     pure)
   (structural loop iterate pure))

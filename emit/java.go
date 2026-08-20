@@ -49,6 +49,11 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
+	// SEVERAL RESULTS — this target declares no multiple-return form, so the
+	// program does not cover here. A capability answer, not a syntax error.
+	if sig != nil && len(sig.Results) > 1 {
+		return "", multiResultErr(tgt, name, sig, t.Body())
+	}
 	e := &javaEmitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
 		imports: map[string]bool{}, indent: 2, bound: map[string]bool{}}
 	for _, p := range t.Params {

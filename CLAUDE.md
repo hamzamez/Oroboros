@@ -232,6 +232,18 @@ the **only** evaluation reduction performs, which gives conditional compilation 
 preprocessor; and the strict branchless operators survive as host names — `x64.andb` — because Ada
 kept `and` beside `and then` for a measurable reason.
 
+**A function may return several values, and it is not a tuple** —
+[values.md](docs/spec/values.md). `(values a b)` is **reader sugar** for `(fn (#k) (#k a b))` — the
+negative product, linear logic's `&` — so its β law IS β and the reducer needed **nothing**: three
+rules before, three after, seven term kinds before, seven after. Consumed in the same reduction it
+vanishes (that always worked); surviving to a boundary it becomes the target's own form, and
+**`(sig f (…) (int int))` is what disambiguates a product from an escaping closure**, the way a
+declared range disambiguates an integer's representation. Measured at **parity with hand-written Go
+and zero allocations**. Go and JS declare `(multi-return …)`; **Java and windows refuse**, which is
+a capability answer — Java's only form is a generated record and Win64 returns one value in `rax`.
+Still undeclarable: a *primitive* returning several values (`strings.Cut`, `Fprintf`), which is the
+same feature's call half.
+
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
 Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission
 costs speed rather than correctness. An impure argument is never substituted; it is let-bound at

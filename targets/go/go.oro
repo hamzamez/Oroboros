@@ -53,5 +53,9 @@
   ; cannot be called at all.
   ;
   ; So a program here is: fn, def, module, literals, and let / if / loop.
+  ; Two return values, in registers. The negative product at a boundary, and
+  ; the reason it is not a tuple: nothing is built (data-structures.md 4.5).
+  (multi-return "(%s)" "return %s")
+
   (structural let  let     pure)
   (structural loop iterate pure))

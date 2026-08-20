@@ -56,11 +56,21 @@ type jsEmitter struct {
 // emit/golang.go does with Ty exists to satisfy Go, not the language.
 // The signature is accepted and unused: JavaScript needs no parameter types,
 // which is the measurement targets/js.oro records by declaring none.
-func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error) {
+func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}}
+
+	// SEVERAL RESULTS. This is the ONE place JSFunc reads the signature, and
+	// the reason is that JavaScript has no multiple return: the target declares
+	// an array literal, so the shape has to come from somewhere and the host
+	// cannot supply it. Everywhere else JS needs no types, which is the
+	// measurement targets/js.oro records by declaring none.
+	if sig != nil && len(sig.Results) > 1 {
+		return e.multiFunc(name, sig, t)
+	}
+
 	e.tail = true
 	result, err := e.emit(t.Body())
 	if err != nil {
@@ -81,6 +91,37 @@ func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error)
 	} else {
 		fmt.Fprintf(&out, "\treturn %s;\n}\n", result)
 	}
+	return out.String(), nil
+}
+
+// multiFunc emits a function with several results. JavaScript has no native
+// form, so the target declares `return [%s]` and the caller destructures.
+//
+// It costs, and the cost is declared rather than hidden: product-2026-08-19
+// measured an array literal at 1.32x against an object literal at 1.11x for a
+// create-and-consume pair. The array is what `const [a, b] = f()` reads, and a
+// target author who would rather pay 1.11x for `{_0, _1}` changes one string.
+func (e *jsEmitter) multiFunc(name string, sig *core.Sig, t *core.Term) (string, error) {
+	vs, ok := multiValue(t.Body(), len(sig.Results))
+	if !ok || e.tgt.MultiReturn == "" {
+		return "", multiResultErr(e.tgt, name, sig, t.Body())
+	}
+	outs := make([]string, len(vs))
+	for i, v := range vs {
+		s, err := e.emit(v)
+		if err != nil {
+			return "", err
+		}
+		outs[i] = s
+	}
+	params := make([]string, len(t.Params))
+	for i, p := range t.Params {
+		params[i] = jsMangle(p)
+	}
+	var out strings.Builder
+	fmt.Fprintf(&out, "export function %s(%s) {\n", jsMangle(name), strings.Join(params, ", "))
+	out.WriteString(e.buf.String())
+	fmt.Fprintf(&out, "\t"+e.tgt.MultiReturn+";\n}\n", strings.Join(outs, ", "))
 	return out.String(), nil
 }
 

@@ -315,6 +315,12 @@ one the hosts already machine-generate.
 example end to end, how a programmer extends the predicates, and a comparison table. A sketch, not
 a specification.
 
+> **Reopened 2026-08-19 — see §6.** Items 2 and 3 below are no longer speculative: the annotation
+> they describe **already parses**, and reading it doubles what the compiler can prove
+> ([intervals-2026-08-19](../gauntlet/results/intervals-2026-08-19.md)). §6 also does what §3's
+> one-line dismissal of sequent calculus did not — takes it seriously, and finds that its main
+> practical payoff is something this language already has.
+
 ## 4. Order, when the time comes
 
 Nothing here is scheduled. If it were:
@@ -336,3 +342,240 @@ Nothing here is scheduled. If it were:
 - A gauntlet program whose correctness cannot be stated without dependent types.
 - Evidence that JavaScript engines can be addressed by emitted shape at all. Right now the entire
   performance argument is Go and JVM only, and JS is the target that most needs it.
+
+---
+
+# 6. Reopened, 2026-08-19: what the literature actually offers
+
+hamza reopened this naming three routes — *a better type system, sequent calculus, or a type system
+like Coq* — and asked that we reach for the literature rather than rediscover it. Three things have
+changed since §1–§5 were written, and they change what the answer should be.
+
+## 6.1 The justification moved, and this is the whole point
+
+§1–§2 killed the performance argument for types, and killed it correctly: **our proofs do not
+transfer**, the host re-proves them or does not, and the 1.94× was collected by an emitter pattern
+with no types at all.
+
+That argument does not apply to what is now on the table. If `int` becomes exact by default
+([data-model.md §1.5](spec/data-model.md)), the compiler must choose between a machine word and a
+bignum at every operation, and **only a range can decide it**. The host cannot make that choice for
+us — it never sees the exact-by-default semantics, only whatever we emitted. So:
+
+> **A range does not need to transfer. It changes what we emit.**
+
+That is categorically different from bounds checking, and it is the same argument that already
+justified the residual type checker: *the one job no host compiler can do*, because the two
+implementations live on different targets and no single compiler sees both
+([types.md](spec/types.md)). §3.4 anticipated this — *the bigger performance case is representation,
+not check deletion* — and it is now the case in front of us rather than a guess.
+
+## 6.2 The measurement arrived, and it says the boundary really is the whole job
+
+§3.6 guessed: **declare at the boundary, infer everywhere else.**
+[intervals-2026-08-19](../gauntlet/results/intervals-2026-08-19.md) measured it. **39% of integer
+operations provably stay in a machine word with nothing declared; 81% with one range declared on a
+program's parameters.**
+
+And the annotation needs **no new syntax**. This parses today, and `Refine` has always assumed it
+for array bounds:
+
+```lisp
+(sig count-primes ((n int)) int (where (go.&& (go.<= 0 n) (go.< n 1048576))))
+```
+
+Adding that one line to `examples/native/sieve-go.oro` and changing nothing else takes it from
+**45% to 90%**. The language already lets a programmer state a range; until this week nothing read
+it for anything but array bounds.
+
+That is a much smaller step than "a type system", and it is the step the measurement supports.
+
+## 6.3 Sequent calculus: what it buys, precisely
+
+§3 dismissed sequent calculus in one line, and that line was really about Shen's proof search. The
+question deserves better, because the answer is interesting and mostly good news.
+
+**First, a distinction that matters.** Sequent calculus is a *proof-theoretic presentation*, not a
+type system. Gentzen's LK and LJ (1935) prove exactly what natural deduction proves; the Hauptsatz
+is about **normalising proofs**, not about proving more. So sequent calculus **does not** solve the
+interval residue, the range problem, or `d ≠ 0`. It offers three other things, and two of them we
+already have.
+
+**λμμ̃ — evaluation order becomes structural.** Curien & Herbelin, *The duality of computation*
+(ICFP 2000), building on Herbelin's λ̄ (1994): terms meet **co-terms** (continuations) in a command
+`⟨t ∥ e⟩`, and call-by-value and call-by-name are literally dual — the same command reduced from
+opposite sides.
+
+For us that is a *reframing* of something already built. [effects.md](spec/effects.md)'s discipline
+— an impure argument is never substituted, denying contraction, weakening and exchange in that
+order — is a **substructural** statement, and substructural logic is native to the sequent calculus.
+So there is a real unification available: our effect side condition on β would become a structural
+rule rather than a condition. **Worth knowing if we ever need to prove the discipline sound. Not
+worth a core rewrite to restate what already works.**
+
+**Join points — and GHC already ran this experiment for us.** Downen, Maurer, Ariola & Peyton Jones,
+*Sequent Calculus as a Compiler Intermediate Language* (ICFP 2016), built **Sequent Core** as a
+drop-in alternative to GHC Core. The headline benefit is that a continuation becomes a first-class
+name, so **case-of-case names the continuation instead of duplicating it** — exactly the blow-up
+[booleans.md §2.7](spec/booleans.md) had to route around.
+
+And then GHC did not adopt it. Maurer, Downen, Ariola & Peyton Jones, *Compiling without
+Continuations* (PLDI 2017), added **join points to direct-style Core** instead, on the grounds that
+it was a far smaller change for most of the benefit. That is the strongest available precedent for
+our situation, and the conclusion is sharper still:
+
+> **We already have join points.** `(again a₁ … aₙ)` is a jump to a labelled continuation with
+> arguments — [ADR 0015](decisions/0015-loop-and-again.md) reached it from SSA block arguments
+> (MLIR, SIL, Cranelift), which is the same construct under a different name. The main practical
+> payoff of a sequent-calculus core is a thing this language got by accident two weeks ago.
+
+**Polarity — and this one we do NOT have, and should take.** Andreoli's focusing (1992),
+Zeilberger's *On the unity of duality* (2008), Munch-Maccagnoni, and Levy's **call-by-push-value**
+(1999) all classify types the same way:
+
+| | eliminated by | must the value exist? |
+|---|---|---|
+| **positive** — sums `⊕`, tensor `⊗`, inductive data | **pattern matching** | yes |
+| **negative** — functions `→`, `&`, records, coinductive | **projection** | **no** |
+
+Apply that to the product question and it stops being a guess:
+
+- `divmod` returning a quotient and a remainder that the caller **projects** is a **negative**
+  product. It need never be built — and
+  [product-2026-08-19](../gauntlet/results/product-2026-08-19.md) measured exactly that: 1.01× on
+  Go with **zero allocations**, and C2 scalar-replacing Java's record.
+- `(value, error)` that the caller **matches** on is **positive**. It must exist, and it allocates
+  unless the host removes it.
+
+> **The measurement said products are free when they do not escape. Polarity says which ones those
+> are, in advance, from the shape of the eliminator.** That is a rule we can state and check rather
+> than a benchmark we have to re-run per case — and it says which product to add first: the
+> negative one, which covers `idiv`, `fold-range2` and multiple returns, and is free on all four
+> hosts.
+
+That is the sequent calculus's real gift here: **not a core, a classification.**
+
+## 6.4 Coq-like dependent types, and the system that matters most
+
+**The extraction problem is the direct analogue of §2.1.** Coq's CIC lets types mention terms;
+checking is decidable, inference is not. Extraction (Letouzey, 2002) erases proofs faithfully — and
+the OCaml or Haskell that comes out is *correct and not fast*, because the functional data
+structures survive. A theorem removed the obligation; it did not change the representation. That is
+"our proofs do not transfer" in another language's mouth.
+
+**And then there is the counter-example, which is the most relevant system in this literature.**
+
+**Low\*** — Protzenko et al., *Verified Low-Level Programming Embedded in F\** (ICFP 2017) — is a
+**subset** of F\* with a C-like memory model, extracted to C by KaRaMeL. It is not a toy:
+**HACL\*** (Zinzindohoué et al., CCS 2017) is verified cryptography written in it and shipping in
+Firefox, the Linux kernel and WireGuard, **at parity with hand-written C**.
+
+The lesson is not "dependent types are fast". It is the opposite, and it is this project's own
+thesis in someone else's hands:
+
+> **Full dependence plus extraction gives correct-and-slow. A restricted subset with a predictable
+> memory model, and every proof erased, gives correct-and-fast.** The restriction is not a
+> concession — it is the mechanism.
+
+Two more in the same family are worth naming because they are closer to us than Coq is:
+
+- **ATS** (Xi) — DML-style dependent types *and* linear types, compiling to C with no runtime
+  overhead. The closest existing language to what this project appears to want.
+- **Cogent** (Amani et al., ASPLOS 2016) — linear types, compiles to C, emits Isabelle proofs;
+  used for verified file systems. And **Ivory** (Galois), an EDSL for embedded C.
+
+## 6.5 Our actual lineage, which the measurement confirmed
+
+**Dependent ML.** Xi & Pfenning, *Eliminating Array Bound Checking Through Dependent Types* (PLDI
+1998) and *Dependent Types in Practical Programming* (POPL 1999). Types indexed by terms from a
+**constraint domain** — linear integer arithmetic — with three properties we need and one we have:
+
+1. checking is **decidable**, because the index language is fixed;
+2. indices are **erased at runtime**, so the proof costs nothing;
+3. annotation is required **only at function boundaries**;
+4. and `emit/refine.go` is a baby version of it, built here without the pedigree.
+
+Point 3 is the one worth pausing on. **Our measurement independently rediscovered DML's design
+point**: declare the parameters, infer the rest, and the number roughly doubles. That is not a
+coincidence — it is the same fact about programs, found twice.
+
+**Liquid types are the lever on the annotation burden.** Rondon, Kawaguchi & Jhala (PLDI 2008)
+*infer* refinements by predicate abstraction over a fixed set of qualifiers, so most signatures need
+nothing written. LiquidHaskell (Vazou et al., 2014) and F\*'s SMT-backed refinements are the same
+idea at scale. If "the burden falls on the programmer" turns out to be too much burden, **this is
+the published answer**, and it does not change the language — only the inference.
+
+## 6.6 The residue is termination, and the literature has that too
+
+[intervals-2026-08-19](../gauntlet/results/intervals-2026-08-19.md) found the whole unproven residue
+is one class: **a loop variable bounded by the trip count rather than by a guard on itself.** An
+accumulator counting primes; a digit index whose guard is on the quotient.
+
+A trip count is a termination argument. And [concerns.md §2.1](spec/concerns.md) already records
+that our termination guard is "a *mechanism*, not a proof". **These are the same hole seen from two
+sides**, and closing it closes both:
+
+- **Well-founded recursion with an explicit measure** — Coq's `Program Fixpoint`, Isabelle's
+  `function` package. One optional annotation on `loop`, and it yields the trip count directly.
+- **Sized types** — Hughes, Pareto & Sabry (1996); Abel. Types carry a size index that must
+  decrease.
+- **Size-change termination** — Lee, Jones & Ben-Amram (POPL 2001). **Automatic**, no annotation,
+  and it handles exactly the shapes our loops have.
+
+The last is the cheapest and should be tried first: it needs no syntax at all.
+
+## 6.7 And `d ≠ 0` needs no new theory
+
+[assessment §3.2](assessment-2026-08-19.md) found that division's precondition falls outside our
+conjunctive linear fragment, because `d ≠ 0` is a disjunction. That framing made it look like a
+research problem. It is not:
+
+- **Case split.** `d < 0 ∨ d > 0` is two conjunctive queries against the fragment we already have.
+  Cheap, complete for this shape, and needs nothing new.
+- Or adopt full **Presburger arithmetic** (Presburger 1929), decidable with disjunction and
+  quantifiers — the Omega test (Pugh, 1991) or any QF_LIA solver. High worst-case complexity, fast
+  in practice, and a dependency we do not need yet.
+
+## 6.8 Candidates
+
+**T-A — analysis only, no types in the language.** What we have. 39% without annotation, which is
+not enough to select a representation. *Rejected as a destination, kept as the floor.*
+
+**T-B — DML-style ranges in `sig`, decidable and erased.** Read the `where` the language already
+parses; use it for representation selection as well as bounds. **45% → 90% on the sieve, measured,
+with no language change at all.** *Recommended, and it is available now.*
+
+**T-C — T-B plus liquid inference.** Infer refinements over a qualifier set so most signatures need
+nothing. *The answer if T-B's annotation burden proves too heavy — and it is a compiler change, not
+a language one.*
+
+**T-D — a termination measure on `loop`, or size-change termination.** Closes the interval residue
+and the fuel-limit cheat with one mechanism. *Recommended second; try the automatic version first.*
+
+**T-E — polarity, taken as a classification.** Add the **negative** product first, because
+projection-eliminated products need never be built and that is why they measured free. *Recommended
+third, and it costs no theory — only the discipline of asking which eliminator a product has.*
+
+**T-F — a sequent-calculus core.** *Rejected*, on GHC's own precedent: they built Sequent Core,
+measured it, and shipped join points in direct-style Core instead. And we already have join points.
+
+**T-G — full dependent types, Coq-style.** *Rejected as the default.* Low\* is the existence proof
+that verified code can reach parity with hand-written C, and it reaches it by being a **restricted
+subset with everything erased** — which is T-B plus T-D, not CIC.
+
+## 6.9 What this section changes
+
+The recommendation is no longer "types, someday". It is:
+
+1. **Read the range that is already writable** (T-B). One pass, no language change, measured at
+   45% → 90%.
+2. **Try size-change termination** (T-D, automatic form), which closes the residue *and* the one
+   place [concerns.md](spec/concerns.md) says the core cheats.
+3. **Classify products by polarity before adding one** (T-E) — negative first.
+4. Hold liquid inference (T-C) in reserve for the annotation burden, which is measurable rather
+   than arguable.
+
+And the honest summary of the three routes hamza named: **the better type system is DML, and we are
+already most of the way to it. Sequent calculus gives a classification we should take and a core we
+should not. Coq-like dependence gives an existence proof — Low\* — whose lesson is that the
+restriction is the mechanism.**

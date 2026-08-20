@@ -248,6 +248,17 @@ closed the first of the two holes shaped like a refinement, and **found a real l
 and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
 ([arithmetic.md §4](docs/spec/arithmetic.md)).
 
+**The type-system question is reopened, and the literature answers it** —
+[types-direction.md §6](docs/types-direction.md). Three findings to carry. The **justification
+moved**: a range does not need to transfer to the host, it changes what we *emit*, which is
+categorically unlike the bounds-check case §1–2 refuted. A range is **already writable** —
+`(sig f ((n int)) int (where …))` parses today — and reading it takes the sieve from **45% to 90%**
+provable ([intervals-2026-08-19](gauntlet/results/intervals-2026-08-19.md)) with no language
+change. And on sequent calculus specifically: GHC built Sequent Core, measured it, and shipped
+**join points in direct-style Core** instead — and `again` already *is* a join point. What sequent
+calculus does give us is **polarity**: a product eliminated by projection need never be built,
+which is exactly why the product measured free. Take the classification, not the core.
+
 **Types are not in the language and that is measured, not assumed** — `targets/js.oro` declares
 zero types because JS needs none. A type system is *wanted eventually*, and
 [docs/types-direction.md](docs/types-direction.md) records the direction and the one measurement

@@ -241,12 +241,43 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) *Interval
 		t = t.Body()
 	}
 	p.env = env
+	// A DECLARED range, read off the signature the language already has.
+	//
+	// `(sig f ((n int)) int (where (go.&& (go.<= 0 n) (go.< n 65536))))` parses
+	// today and `Refine` already assumes it for array bounds. Nothing new had to
+	// be added to the language for a programmer to state a range — only this
+	// pass had to read it (types-direction.md §6).
+	if sig != nil && sig.Where != nil {
+		p.assumeWhere(sig.Where)
+	}
 	p.count = false
 	p.eval(t) // settle loop fixpoints
 	p.count = true
 	p.eval(t)
 	sort.Strings(rep.Unproven)
 	return rep
+}
+
+// assumeWhere narrows parameters from a signature's precondition. A conjunction
+// is two assumptions; anything else is one relation, and `refine` already knows
+// how to read those.
+//
+// `and` is sugar for a conditional (ADR 0017), so a precondition written with it
+// arrives as `(if a b false)` — which `connective` recognises, and which is the
+// same seeing-through the refinement fragment had to learn.
+func (p *intervalPass) assumeWhere(w *core.Term) {
+	if c, ok := connective(p.tgt, w); ok && c.Op == "and" {
+		p.assumeWhere(c.Args[0])
+		p.assumeWhere(c.Args[1])
+		return
+	}
+	if w.Kind == core.KApp && w.Op().Kind == core.KName && isOp(w.Op().Name, "and") &&
+		len(w.Args()) == 2 {
+		p.assumeWhere(w.Args()[0])
+		p.assumeWhere(w.Args()[1])
+		return
+	}
+	p.refine(w, true)
 }
 
 func (p *intervalPass) paramIval(name string, sig *core.Sig) ival {

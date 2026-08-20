@@ -88,7 +88,9 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-08-19.md](docs/assessment-2026-08-19.md) — four
+**Current standing** is in [docs/assessment-2026-08-20.md](docs/assessment-2026-08-20.md) — the
+analysis round, the one place a demonstration became a decision by accident, and the five things
+next. The previous two are [2026-08-19](docs/assessment-2026-08-19.md) — four
 targets in, what should go into the language next, and the one place the process has drifted (the
 gauntlet still runs on the retired portable layer). The previous one is
 [docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md).
@@ -257,7 +259,14 @@ miss. **The isolated microbenchmark was wrong in BOTH directions** — the same 
 bce-2026-08-15, where a 1.96× win in isolation vanished on memory-bound loops. A cost behaves the
 way a saving does, and neither survives being quoted without its condition.
 
-**A declared range now selects the representation** —
+**Representation selection is OPT-IN, behind `-checked`, and that is deliberate** — wiring it into
+the default path reversed [ADR 0012](docs/decisions/0012-portable-integer-range.md) without an ADR,
+breached requirement 5 by up to 4.54×, and made cross-target divergence *worse* (three targets trap,
+JavaScript silently loses precision). Turning it on should be the consequence of deciding exact
+integers, not the cause — [assessment-2026-08-20 §2](docs/assessment-2026-08-20.md). **A
+demonstration wired into the default path is a decision, whether or not anyone made one.**
+
+**A declared range selects the representation** —
 [selection-2026-08-19](gauntlet/results/selection-2026-08-19.md). An integer operation the compiler
 can bound keeps the host's own operator; one it cannot is rewritten to the `checked` primitive the
 target declares. On `examples/native/sieve-go.oro`, adding one `(where …)` to the existing `sig`

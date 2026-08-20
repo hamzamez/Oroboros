@@ -24,6 +24,8 @@ func main() {
 	dir := flag.String("targets", "targets", "directory holding target declarations")
 	path := flag.String("path", "lib", "search path for imported modules")
 	out := flag.String("o", "", "artifact to write (default: the source's stem)")
+	checkedFlag := flag.Bool("checked", false,
+		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: build [-target=NAME] [-o ARTIFACT] SRC.oro\n\n")
@@ -34,13 +36,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep, *checkedFlag); err != nil {
 		fmt.Fprintln(os.Stderr, "build:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, path string, keep bool) error {
+func run(targetDir, src, target, out, path string, keep, checked bool) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
@@ -122,12 +124,14 @@ func run(targetDir, src, target, out, path string, keep bool) error {
 	}
 	// REPRESENTATION SELECTION — see cmd/gen for the note.
 	rep, sel := emit.Intervals(tg, prog.Sigs[entry], nf, 0)
-	if rep.Selected > 0 {
-		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations could not be bounded and "+
-			"use the checked form; %d loop(s) proven terminating of %d\n",
-			rep.Selected, rep.Ops, rep.Terminates, rep.Loops)
+	if rep.Ops > 0 || rep.Loops > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
+			"%d of %d loop(s) proven terminating\n",
+			rep.Proven, rep.Ops, rep.Terminates, rep.Loops)
 	}
-	nf = sel
+	if checked {
+		nf = sel
+	}
 	var code string
 	switch target {
 	case "js":

@@ -20,6 +20,8 @@ func main() {
 	dir := flag.String("targets", "targets", "directory holding target declarations")
 	name := flag.String("name", "", "name for the emitted function (defaults to the source's stem)")
 	path := flag.String("path", "lib", "search path for imported modules")
+	checked := flag.Bool("checked", false,
+		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: gen [-targets DIR] [-name N] SRC.oro TARGET OUT\n")
 		flag.PrintDefaults()
@@ -29,13 +31,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path); err != nil {
+	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, name, path string) error {
+func run(targetDir, src, target, out, name, path string, checked bool) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
@@ -140,12 +142,14 @@ func run(targetDir, src, target, out, name, path string) error {
 		//
 		// A target declaring no checked form gets its term back unchanged.
 		rep, sel := emit.Intervals(tg, sig, nf, 0)
-		if rep.Selected > 0 {
-			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations could not be "+
-				"bounded and use the checked form; %d loop(s) proven terminating of %d\n",
-				fname, rep.Selected, rep.Ops, rep.Terminates, rep.Loops)
+		if rep.Ops > 0 || rep.Loops > 0 {
+			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
+				"%d of %d loop(s) proven terminating\n",
+				fname, rep.Proven, rep.Ops, rep.Terminates, rep.Loops)
 		}
-		nf = sel
+		if checked {
+			nf = sel
+		}
 		var code string
 		switch target {
 		case "js":

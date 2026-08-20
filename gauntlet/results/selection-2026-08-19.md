@@ -120,6 +120,12 @@ polishing one program.
 Plus the soundness cases: the analysis must still fail to bound a product of two 2³⁰ values, an
 accumulator over an unbounded loop, and an undeclared parameter.
 
+> **Opt-in since 2026-08-20.** The rewrite is behind `-checked` and off by default. Wiring it into
+> the default path reversed ADR 0012 without an ADR, breached requirement 5 by up to 4.54×, and made
+> the same program trap on three targets and silently lose precision on the fourth
+> ([assessment-2026-08-20 §2](../../docs/assessment-2026-08-20.md)). The analysis still runs and
+> still reports what it proved.
+
 ## What this does not do
 
 **It does not make `int` exact.** The checked form *traps*; it does not promote to a bignum. This is

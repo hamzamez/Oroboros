@@ -340,10 +340,13 @@ level, and β-tab is **the extensional counterpart of β**: a function given by 
 by a rule. It costs no new term kind and no new reduction rule *if constant folding is built*,
 since `((array 1 2 3) 1) → 2` is one entry in the same table as `(go.+ 1 2) → 3`. A **dynamic index
 forces homogeneity and forces existence, and it is the same condition doing both** — so the
-dependent type is erased by staging and the checker only ever sees `Fin n → V`. The new memory edge
-is compile-time materialisation into **static data**, free where `materialize` costs an allocation
-and n stores — but T is only free on x86 and probably Go; Java's `<clinit>` and V8's module
-evaluation both build it, and that is unmeasured. And **η-tab is a law we can state and are not
+dependent type is erased by staging and the checker only ever sees `Fin n → V`. **The memory half is REFUTED** —
+[staticdata-2026-08-20](gauntlet/results/staticdata-2026-08-20.md). Compile-time materialisation
+into static data is free of *code* on x86 and Go, a **pure loss** on Java (256 `iastore` in
+`<clinit>`) and JavaScript (**3.5x slower to load, 2,600x larger source**), and never a measurable
+win — even on Go a 65,536-entry table saves 0.2 ms against 9 ms of process creation and costs
+exactly its own size in the binary. So `unroll` should not be built, D-K is demoted to a syntax
+question, and **the next build is multiple return values.** And **η-tab is a law we can state and are not
 allowed to apply**: `materialize (of-array a) = a` is true of values and unsound with mutation,
 which is ADR 0013's fifth trigger.
 

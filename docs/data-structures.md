@@ -1,8 +1,10 @@
 # Data structures: the research
 
 **Status: research, not a decision.** No ADR follows from this document by itself.
-**§8 was added after §1–§7 and changes the recommendation** — the literal table is the missing dual
-of §7's proposal, and it answers §7's own falsifier. It exists to
+**§8 was added after §1–§7, and then measurement took half of it back**
+([staticdata-2026-08-20](../gauntlet/results/staticdata-2026-08-20.md)): the literal table's
+compile-time half stands, its static-memory half does not, and **the next build is D-B —
+multiple return values**. This document exists to
 say what is known, what the literature settled long ago, what this project has already
 rediscovered without naming it, and which candidates are worth measuring.
 
@@ -662,8 +664,10 @@ better structure than an array" (§4.2).
 **D-J — shaped/nested arrays, Naperian style.** *Deferred, cheap when wanted.* Currying plus
 composition; no new mechanism.
 
-**D-K — the literal table `(array e₀ … eₙ₋₁)`, with application as indexing.** *Recommended
-alongside D-B — see §8.* The extensional presentation of a function against D-B's intensional one.
+**D-K — the literal table `(array e₀ … eₙ₋₁)`, with application as indexing.** *Demoted
+2026-08-20 to a syntax question, after its headline benefit was measured away —
+[staticdata](../gauntlet/results/staticdata-2026-08-20.md). The compile-time half stands; the
+memory half does not. Originally recommended alongside D-B — see §8.* The extensional presentation of a function against D-B's intensional one.
 No new term kind; no new reduction rule if constant folding is built; subsumes the tuple; its
 dependent type is erased by staging; and it adds the one memory transition the language lacks —
 compile-time materialisation into **static data**, which is free at run time where the ordinary
@@ -927,6 +931,14 @@ And the transitions between them — this is the algebra:
 - **unroll** `vec → array` requires `n` to be a literal and `f` to fold at every index.
 - **freeze** `array → T` requires every element to be a literal.
 
+> **REFUTED, 2026-08-20** — [staticdata-2026-08-20](../gauntlet/results/staticdata-2026-08-20.md).
+> The `unroll` and `freeze` edges below are free of *code* on x86 and Go, a **pure loss** on Java
+> (256 `iastore` in `<clinit>`) and on JavaScript (**3.5× slower to load and 2,600× larger in
+> source**), and **never a measurable win** on any of the four. Even on Go the startup saving for a
+> 65,536-entry table is 0.2 ms against 9 ms of process creation, and the table costs exactly its own
+> size in the artifact. The paragraph below is kept because the reasoning is what was wrong, and
+> what was wrong is the part worth preserving.
+
 **The edge that does not exist today is `unroll ∘ freeze`, and it is free at run time.**
 
 Concretely: a lookup table.
@@ -1037,9 +1049,11 @@ different index set, not a different mechanism.
 
 ### 8.8 What to measure, in order
 
-1. **Is static data actually free, per target?** §8.5's table has one *yes*, one *probably* and two
-   *no*s, and every one of them is a guess. Emit a 256-element constant table on all four and
-   measure startup and steady-state. This is the load-bearing claim of the whole proposal.
+1. ~~**Is static data actually free, per target?**~~ **Measured — no** —
+   [staticdata-2026-08-20](../gauntlet/results/staticdata-2026-08-20.md). Free of code on x86 and
+   Go, a pure loss on Java and JavaScript, never a measurable win. The load-bearing claim of the
+   proposal did not hold, `unroll` should not be built, and the ranking collapses: **D-B is the
+   next build and D-K reduces to a syntax question.**
 2. ~~**Does `(materialize (of-array a))` copy today?**~~ **Measured — yes, it allocates and copies
    (§8.1), and the law that would remove it is unsound without uniqueness.** Nothing to do here
    until ADR 0013 moves; the value of the check was finding that out.

@@ -60,6 +60,11 @@ difference between most arithmetic being checked and most of it not being.
 The unit of declaration is small: a program's *parameters*, not its every variable. Everything
 downstream follows from propagation and the loop guards the program already contains.
 
+> **Closed the same day by [sct-2026-08-19](sct-2026-08-19.md).** Size-change termination plus a
+> trip count took these numbers to **54% undeclared and 100% declared**, and the residue described
+> below is gone. Two of the three bugs found while building it had been making *these* numbers too
+> low as well.
+
 ### 2. The entire residue is ONE class
 
 Not a scatter. Every unproven operation left at 81% is a loop variable **whose bound comes from the

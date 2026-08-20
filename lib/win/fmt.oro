@@ -38,6 +38,12 @@
 
 (export print-str print-int write-bytes)
 
+; The precondition print-int has always had, now WRITTEN DOWN rather than left
+; in a comment. It is what makes the digit loop's termination provable: dividing
+; by ten from a bounded start reaches zero, and the trip count that falls out is
+; what bounds the buffer index (types-direction.md §6.6).
+(sig print-int ((n int)) any (where (and (<= 0 n) (< n 9007199254740991))))
+
 ; -11 is STD_OUTPUT_HANDLE. There is no constant in the language to name it
 ; with, so the number is the interface — see targets/windows/kernel32.oro.
 (def write-bytes (fn (p n)

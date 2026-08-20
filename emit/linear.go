@@ -293,6 +293,11 @@ var opAlias = map[string]string{
 	"+": "add", "-": "sub", "*": "mul",
 	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
 	"&&": "and", "||": "or", "!": "not",
+	// The strict branchless connectives a target may declare under its own
+	// name (ADR 0017 kept `x64.andb` for the Ada reason). As a PRECONDITION
+	// they are conjunction and disjunction like any other, and a `where`
+	// written with them should not degrade to an opaque atom.
+	"andb": "and", "orb": "or", "notb": "not",
 	"f<": "flt", "f<=": "fle", "f>": "fgt", "f>=": "fge",
 }
 

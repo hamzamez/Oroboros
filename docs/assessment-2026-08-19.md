@@ -292,8 +292,11 @@ So:
    [intervals-2026-08-19](../gauntlet/results/intervals-2026-08-19.md). **39% with nothing
    declared, 81% with one range declared on a program's parameters**, and the whole residue is a
    single class (a variable bounded by the trip count) that standard analysis handles and this one
-   does not. The gate is open: exact-by-default with ranges choosing the representation is viable,
-   and the burden on the programmer is one declaration per input.
+   did not. **That class is now closed too** —
+   [sct-2026-08-19](../gauntlet/results/sct-2026-08-19.md) brings it to **54% undeclared and 100%
+   declared**, with **96% of loops proven terminating**. The gate is open: exact-by-default with
+   ranges choosing the representation is viable, and the burden on the programmer is one
+   declaration per input.
 2. **Decide the product.** Six independent demands and now a price.
 3. **`bytes` and scalar bitwise** whenever convenient — blocked on nothing, no language change,
    and they are what make binaries, hashes and bit sets writable

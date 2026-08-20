@@ -76,6 +76,7 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 	}
 
 	total, proven, lv, lb := 0, 0, 0, 0
+	loops, term, trips := 0, 0, 0
 	byOp := map[string][2]int{}
 	for _, u := range units {
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
@@ -87,6 +88,14 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 		proven += r.Proven
 		lv += r.LoopVars
 		lb += r.LoopBound
+		loops += r.Loops
+		term += r.Terminates
+		trips += r.Trips
+		if verbose {
+			for _, d := range r.Diverging {
+				fmt.Printf("    %s: no descent on the cycle %s\n", u.name, d)
+			}
+		}
 		for k, v := range r.ByOp {
 			e := byOp[k]
 			byOp[k] = [2]int{e[0] + v[0], e[1] + v[1]}
@@ -114,8 +123,10 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 	for _, k := range ops {
 		parts = append(parts, fmt.Sprintf("%s %d/%d", k, byOp[k][0], byOp[k][1]))
 	}
-	fmt.Printf("%-34s %3d/%-3d ops proven (%5.1f%%)   loopvars %d/%d (%5.1f%%)   %s\n",
-		filepath.Base(src), proven, total, pct, lb, lv, lpct, strings.Join(parts, "  "))
+	_ = lpct
+	fmt.Printf("%-28s %3d/%-3d ops (%5.1f%%)  loopvar %d/%d  term %d/%d  trip %d/%d  %s\n",
+		filepath.Base(src), proven, total, pct, lb, lv, term, loops, trips, loops,
+		strings.Join(parts, "  "))
 	return nil
 }
 

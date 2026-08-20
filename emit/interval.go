@@ -41,13 +41,27 @@ type ival struct {
 
 var top = ival{loInf: true, hiInf: true}
 
+// bottom is the empty interval — no value at all. It exists for one reason: an
+// `again` branch of a clause chain is NOT an exit, and joining it into the
+// loop's value as ⊤ made every loop with a back edge return "anything".
+//
+// That was the whole residue. The decimal printer's `m` starts at the count of
+// primes, which the count loop bounds perfectly — and the bound was thrown away
+// on the way out because the loop's own value was joined with the branches that
+// do not produce one.
+var bottom = ival{lo: 1, hi: 0}
+
+func (v ival) isBottom() bool { return !v.loInf && !v.hiInf && v.lo > v.hi }
+
 func exact(v int64) ival { return ival{lo: v, hi: v} }
 
 func (v ival) bounded() bool { return !v.loInf && !v.hiInf }
 
 // fits reports whether every value in the interval is inside the portable
 // window, which is the condition under which no overflow check is needed.
-func (v ival) fits() bool { return v.bounded() && v.lo >= iMin && v.hi <= iMax }
+func (v ival) fits() bool {
+	return v.isBottom() || (v.bounded() && v.lo >= iMin && v.hi <= iMax)
+}
 
 func (v ival) String() string {
 	l, h := fmt.Sprint(v.lo), fmt.Sprint(v.hi)
@@ -131,6 +145,17 @@ func mulI(a, b ival) ival {
 // divI is conservative: truncating division never increases magnitude except
 // for the one degenerate case, and a divisor that may be zero says nothing.
 func divI(a, b ival) ival {
+	// A non-negative dividend and a positive divisor keep the sign, and keeping
+	// it matters: without this the decimal printer's `m / 10` lost m's floor,
+	// and with no floor there is no well-founded descent and the loop could not
+	// be shown to terminate.
+	if !a.loInf && a.lo >= 0 && !b.loInf && b.lo >= 1 {
+		out := ival{lo: 0, hiInf: a.hiInf}
+		if !a.hiInf {
+			out.hi = a.hi
+		}
+		return out
+	}
 	if !a.bounded() {
 		return top
 	}
@@ -158,6 +183,12 @@ func remI(a, b ival) ival {
 }
 
 func joinI(a, b ival) ival {
+	if a.isBottom() {
+		return b
+	}
+	if b.isBottom() {
+		return a
+	}
 	out := ival{lo: a.lo, hi: a.hi, loInf: a.loInf || b.loInf, hiInf: a.hiInf || b.hiInf}
 	if b.lo < out.lo {
 		out.lo = b.lo
@@ -198,6 +229,18 @@ func within(a, b ival) bool {
 	return true
 }
 
+// intersect keeps only what both intervals allow. Sound when both are.
+func intersect(a, b ival) ival {
+	out := a
+	if !b.loInf && (a.loInf || b.lo > a.lo) {
+		out.lo, out.loInf = b.lo, false
+	}
+	if !b.hiInf && (a.hiInf || b.hi < a.hi) {
+		out.hi, out.hiInf = b.hi, false
+	}
+	return out
+}
+
 func eqI(a, b ival) bool {
 	return a.loInf == b.loInf && a.hiInf == b.hiInf &&
 		(a.loInf || a.lo == b.lo) && (a.hiInf || a.hi == b.hi)
@@ -213,6 +256,11 @@ type IntervalReport struct {
 	ByOp      map[string][2]int // operation -> {proven, total}
 	LoopVars  int
 	LoopBound int
+
+	Loops      int      // loops seen
+	Terminates int      // …proven terminating by size change plus a floor
+	Trips      int      // …of those, the ones that also yield a trip count
+	Diverging  []string // the idempotent cycle nothing was shown to shrink
 }
 
 type intervalPass struct {
@@ -222,6 +270,27 @@ type intervalPass struct {
 	count   bool  // only the final pass counts
 	assume  int64 // simulated declared bound on parameters; 0 means none
 	assumed bool
+
+	// Size-change collection, filled while walking one loop's back edges.
+	scOn     bool
+	scRaw    []string
+	scOrient []int // +1 the variable descends, -1 it ascends, 0 unusable
+	scEdges  []scGraph
+	scSteps  []ival    // per-variable change per back edge, joined over edges
+	scKnown  []bool    // …and whether that change is known at all
+	scSeen   []bool    // …and whether any edge has reported it yet
+	scKind   []descent // how variable j descends, per the LAST edge examined
+}
+
+// descent is how a measure shrinks: by a fixed amount, or by a factor.
+//
+// A geometric descent is not exotic — it is what `m / 10` does in the decimal
+// printer, and that loop is one of the two residues intervals-2026-08-19
+// reported.
+type descent struct {
+	kind  int   // 0 none, 1 linear, 2 geometric
+	delta int64 // linear: the least decrease per step, ≥ 1
+	base  int64 // geometric: the divisor, ≥ 2
 }
 
 // Intervals runs the analysis over one residual and reports what it could prove.
@@ -343,7 +412,7 @@ func (p *intervalPass) app(t *core.Term) ival {
 		for _, a := range args {
 			p.eval(a)
 		}
-		return top
+		return bottom // a back edge produces no value
 	}
 
 	vals := make([]ival, len(args))
@@ -584,6 +653,17 @@ func (p *intervalPass) iterate(args []*core.Term) ival {
 	wasCounting := p.count
 	p.count = false
 
+	// The collector is per-loop state on a shared pass, so a NESTED loop must
+	// not append to its parent's edge list. Saving here rather than at the
+	// size-change block below is what makes that true: the fixpoint runs first,
+	// and a nested loop's back edge reached during the PARENT's fixpoint was
+	// being recorded against the parent's variables — every arc empty, and the
+	// parent reported as possibly non-terminating on a cycle nothing was known
+	// about. Five edges where the loop has two.
+	oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn :=
+		p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn
+	p.scOn = false
+
 	// ASCENDING with widening, to reach a post-fixpoint in bounded time.
 	//
 	// The transfer is `init ⊔ F(cur)`: a loop variable holds either its initial
@@ -638,11 +718,78 @@ func (p *intervalPass) iterate(args []*core.Term) ival {
 		}
 	}
 
+	// SIZE CHANGE, in two sweeps because orientation depends on the steps and
+	// the graphs depend on the orientation.
+	//
+	n := len(raw)
+	p.scRaw, p.scOn = raw, true
+	p.scOrient = make([]int, n)
+	p.scSteps, p.scKnown, p.scSeen = make([]ival, n), make([]bool, n), make([]bool, n)
+	p.scKind = make([]descent, n)
+	for i := range p.scKnown {
+		p.scKnown[i] = true
+	}
+	p.scEdges = nil
+	step(cur) // sweep one: steps only, orientation still zero
+	p.scOrient = orient(p.scSteps, p.scKnown)
+	p.scEdges = nil
+	step(cur) // sweep two: the graphs, now that measures point the right way
+	p.scOn = false
+
+	// Descent is only an argument over a WELL-FOUNDED order, and integers are
+	// not one without a floor. The floor comes from the interval fixpoint, and
+	// it is demanded of the WITNESS rather than of every variable: a loop that
+	// counts into an unbounded accumulator still terminates, because the
+	// accumulator is not what carries the argument.
+	wf := func(j int) bool {
+		switch {
+		case p.scOrient[j] > 0:
+			return !cur[j].loInf
+		case p.scOrient[j] < 0:
+			return !cur[j].hiInf
+		}
+		return false
+	}
+	ok, witness := SizeChangeTerminates(p.scEdges, wf)
+	trip, haveTrip := ival{}, false
+	if ok {
+		trip, haveTrip = p.tripCount(cur)
+	}
+	// THE POINT: a trip count bounds every variable the guards say nothing
+	// about. v ∈ v₀ + T·step, which is what finally bounds an accumulator.
+	if haveTrip {
+		for j := range raw {
+			if !p.scKnown[j] || !p.scSeen[j] {
+				continue
+			}
+			reach := addI(initV[j], mulI(trip, p.scSteps[j]))
+			if within(reach, cur[j]) {
+				cur[j] = reach
+			} else if !reach.loInf || !reach.hiInf {
+				cur[j] = intersect(cur[j], reach)
+			}
+		}
+	}
+	if wasCounting { // p.count is still false here; the fixpoint runs silently
+		p.rep.Loops++
+		if ok {
+			p.rep.Terminates++
+			if haveTrip {
+				p.rep.Trips++
+			}
+		} else {
+			p.rep.Diverging = append(p.rep.Diverging,
+				fmt.Sprintf("loop(%s): %s", strings.Join(raw, ","), witness.Render(raw)))
+		}
+	}
+	p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn =
+		oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn
+
 	p.count = wasCounting
 	p.restore(saved)
 
-	for i, n := range raw {
-		p.env[n] = cur[i]
+	for i, nm := range raw {
+		p.env[nm] = cur[i]
 		if p.count {
 			p.rep.LoopVars++
 			if cur[i].fits() {
@@ -650,9 +797,19 @@ func (p *intervalPass) iterate(args []*core.Term) ival {
 			}
 		}
 	}
+	// Collection OFF for the final walk.
+	//
+	// This pass exists to count and to place intervals, not to gather edges —
+	// and a NESTED loop's final walk happens inside its parent's sweeps, where
+	// leaving it on made the inner loop's `again` append a graph built from the
+	// inner arguments against the OUTER variable names. Every arc came out
+	// empty, and the parent was reported as possibly non-terminating on a cycle
+	// nothing was known about. It was the analysis lying about the program, in
+	// the direction that makes the headline number worse rather than better,
+	// which is the only reason it was not mistaken for a result.
 	out := p.eval(body)
-	for _, n := range raw {
-		delete(p.env, n)
+	for _, nm := range raw {
+		delete(p.env, nm)
 	}
 	return out
 }
@@ -688,13 +845,245 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 			}
 		}
 		if t.Op().Name == "again" {
-			for i, a := range t.Args() {
+			args := t.Args()
+			for i, a := range args {
 				if i < len(acc) {
 					acc[i] = joinI(acc[i], p.eval(a))
 				}
+			}
+			if p.scOn {
+				for j := range p.scRaw {
+					if j >= len(args) {
+						continue
+					}
+					st, ok := p.stepOf(args[j], p.scRaw[j])
+					switch {
+					case !ok:
+						p.scKnown[j] = false
+					case !p.scSeen[j]:
+						p.scSteps[j], p.scSeen[j] = st, true
+					default:
+						p.scSteps[j] = joinI(p.scSteps[j], st)
+					}
+				}
+				p.scEdges = append(p.scEdges, p.edgeGraph(args))
 			}
 			return
 		}
 	}
 	p.eval(t)
+}
+
+// ---------------------------------------------------------------- size change
+//
+// Building the graphs, and turning a proof of descent into a NUMBER.
+//
+// Classical size-change termination proves that a loop stops. What the interval
+// residue needs is stronger and comes from the same argument: if a measure
+// descends by at least δ from a bounded range, the loop runs at most
+// range/δ times — and then every other variable is bounded by its initial value
+// plus the trip count times its per-iteration step. That is what bounds an
+// accumulator, which no guard in the program mentions.
+
+// orient decides which direction each variable is measured in.
+//
+// SCT assumes descent toward a well-founded floor. A counter that ASCENDS
+// toward a ceiling is the same argument under the change of variable μ = −v,
+// which is exactly what a linear ranking function is. Doing it as an
+// orientation rather than a special case keeps one algorithm.
+func orient(steps []ival, known []bool) []int {
+	out := make([]int, len(steps))
+	for i := range steps {
+		switch {
+		case !known[i]:
+			// The step is not `v ± e` — `m / 10` is the case that matters, and
+			// it is one of the two residues intervals-2026-08-19 reported.
+			// Measuring v itself is the natural reading, and it costs nothing to
+			// guess: `relate` still has to PROVE the descent, and the floor is
+			// still demanded of the witness.
+			out[i] = +1
+		case !steps[i].hiInf && steps[i].hi <= 0:
+			out[i] = +1 // never increases: v itself is the measure
+		case !steps[i].loInf && steps[i].lo >= 0:
+			out[i] = -1 // never decreases: −v is the measure
+		}
+	}
+	return out
+}
+
+// stepOf reads the per-iteration change of variable `self` from the expression
+// that replaces it, when that expression is `self`, `self + e` or `self − e`.
+func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
+	if arg.Kind == core.KName && arg.Name == self {
+		return exact(0), true
+	}
+	if arg.Kind != core.KApp || arg.Op().Kind != core.KName || len(arg.Args()) != 2 {
+		return top, false
+	}
+	name := arg.Op().Name
+	a, b := arg.Args()[0], arg.Args()[1]
+	plus := isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add")
+	minus := isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub")
+	if !plus && !minus {
+		return top, false
+	}
+	if a.Kind == core.KName && a.Name == self {
+		e := p.eval(b)
+		if minus {
+			return negI(e), true
+		}
+		return e, true
+	}
+	// `k + x` is the same step as `x + k`; subtraction is not commutative.
+	if plus && b.Kind == core.KName && b.Name == self {
+		return p.eval(a), true
+	}
+	return top, false
+}
+
+// relate is the size-change abstraction: what is known about the value of
+// variable `dst` after this back edge, against variable `src` before it, in the
+// ORIENTED measure.
+func (p *intervalPass) relate(arg *core.Term, src string, srcSign, dstSign int) (arc, descent) {
+	if srcSign == 0 || dstSign == 0 || srcSign != dstSign {
+		// A cross-arc between measures pointing opposite ways says nothing that
+		// this analysis can use.
+		return noArc, descent{}
+	}
+	// μ' = μ, when the argument IS the source variable.
+	if arg.Kind == core.KName && arg.Name == src {
+		return downEq, descent{}
+	}
+	if arg.Kind != core.KApp || arg.Op().Kind != core.KName || len(arg.Args()) != 2 {
+		return noArc, descent{}
+	}
+	name := arg.Op().Name
+	a, b := arg.Args()[0], arg.Args()[1]
+	if a.Kind != core.KName || a.Name != src {
+		return noArc, descent{}
+	}
+	e := p.eval(b)
+
+	switch {
+	case isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add"):
+		// μ = +v: v+e descends when e < 0.  μ = −v: it descends when e > 0.
+		if srcSign > 0 {
+			if !e.hiInf && e.hi < 0 {
+				return down, descent{kind: 1, delta: -e.hi}
+			}
+			if !e.hiInf && e.hi <= 0 {
+				return downEq, descent{}
+			}
+		} else {
+			if !e.loInf && e.lo > 0 {
+				return down, descent{kind: 1, delta: e.lo}
+			}
+			if !e.loInf && e.lo >= 0 {
+				return downEq, descent{}
+			}
+		}
+	case isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub"):
+		if srcSign > 0 {
+			if !e.loInf && e.lo > 0 {
+				return down, descent{kind: 1, delta: e.lo}
+			}
+			if !e.loInf && e.lo >= 0 {
+				return downEq, descent{}
+			}
+		} else {
+			if !e.hiInf && e.hi < 0 {
+				return down, descent{kind: 1, delta: -e.hi}
+			}
+			if !e.hiInf && e.hi <= 0 {
+				return downEq, descent{}
+			}
+		}
+	case name == "/" || strings.HasSuffix(name, ".idiv") || isOp(name, "div"):
+		// v / k is strictly smaller than v when k ≥ 2 and v ≥ 1. The floor
+		// matters: 0/10 is 0, which does not descend, and a loop relying on it
+		// would not terminate.
+		if srcSign > 0 && !e.loInf && e.lo >= 2 {
+			if v := p.lookup(src); !v.loInf && v.lo >= 1 {
+				return down, descent{kind: 2, base: e.lo}
+			}
+		}
+	}
+	return noArc, descent{}
+}
+
+// edgeGraph builds one size-change graph for one `again`.
+func (p *intervalPass) edgeGraph(args []*core.Term) scGraph {
+	n := len(p.scRaw)
+	g := newGraph(n)
+	for j := 0; j < n && j < len(args); j++ {
+		for i := 0; i < n; i++ {
+			a, d := p.relate(args[j], p.scRaw[i], p.scOrient[i], p.scOrient[j])
+			g.set(i, j, a)
+			if i == j && d.kind != 0 {
+				p.scKind[j] = d
+			}
+		}
+	}
+	return g
+}
+
+// tripCount turns a proof of descent into a bound on the number of iterations.
+//
+// It needs MORE than the size-change criterion: a single measure that descends
+// on EVERY back edge, from a range bounded at both ends. SCT proves termination
+// in cases this cannot number — a loop that alternately shrinks x and shrinks y
+// terminates and has no single descending measure — and that gap is real and
+// recorded rather than papered over.
+func (p *intervalPass) tripCount(cur []ival) (ival, bool) {
+	best, found := top, false
+	for j := range p.scRaw {
+		if p.scOrient[j] == 0 || p.scKind[j].kind == 0 {
+			continue
+		}
+		universal := true
+		for _, g := range p.scEdges {
+			if g.at(j, j) != down {
+				universal = false
+				break
+			}
+		}
+		if !universal {
+			continue
+		}
+		v := cur[j]
+		if !v.bounded() {
+			continue
+		}
+		span := v.hi - v.lo
+		if span < 0 {
+			continue
+		}
+		var t int64
+		switch d := p.scKind[j]; d.kind {
+		case 1:
+			if d.delta < 1 {
+				continue
+			}
+			t = span/d.delta + 1
+		case 2:
+			m := v.hi
+			if -v.lo > m {
+				m = -v.lo
+			}
+			if m < 1 {
+				m = 1
+			}
+			t = 1
+			for m >= d.base {
+				m /= d.base
+				t++
+			}
+		default:
+			continue
+		}
+		if !found || t < best.hi {
+			best, found = ival{lo: 0, hi: t}, true
+		}
+	}
+	return best, found
 }

@@ -524,6 +524,18 @@ sides**, and closing it closes both:
 
 The last is the cheapest and should be tried first: it needs no syntax at all.
 
+> **BUILT, 2026-08-19 — [sct-2026-08-19](../gauntlet/results/sct-2026-08-19.md).** It closed both
+> holes. Integer operations provably inside the window went from 81% to **100%** with one range
+> declared, and **96% of loops are now proven to terminate** where before nothing computed the
+> property ADR 0015 declares. The single refusal is a true negative: Newton's method on a float,
+> whose termination is a numerical theorem rather than a size-change argument.
+>
+> Two additions were needed and neither is in the paper. Classical SCT assumes a well-founded
+> order; integers are not one, so the **floor comes from the interval analysis** and is demanded of
+> the *witness* rather than of every variable. And an ascending counter is handled by
+> **orientation** — μ = −v — which is a linear ranking function written as a change of variable
+> rather than a second algorithm.
+
 ## 6.7 And `d ≠ 0` needs no new theory
 
 [assessment §3.2](assessment-2026-08-19.md) found that division's precondition falls outside our
@@ -569,8 +581,9 @@ The recommendation is no longer "types, someday". It is:
 
 1. **Read the range that is already writable** (T-B). One pass, no language change, measured at
    45% → 90%.
-2. **Try size-change termination** (T-D, automatic form), which closes the residue *and* the one
-   place [concerns.md](spec/concerns.md) says the core cheats.
+2. ~~**Try size-change termination**~~ — **done**, and it closed both: the residue is gone and
+   termination is computed rather than guarded by fuel
+   ([sct-2026-08-19](../gauntlet/results/sct-2026-08-19.md)).
 3. **Classify products by polarity before adding one** (T-E) — negative first.
 4. Hold liquid inference (T-C) in reserve for the annotation burden, which is measurable rather
    than arguable.

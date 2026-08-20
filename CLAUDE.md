@@ -248,6 +248,17 @@ closed the first of the two holes shaped like a refinement, and **found a real l
 and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
 ([arithmetic.md §4](docs/spec/arithmetic.md)).
 
+**Termination is computed now, not guarded by fuel** —
+[sct-2026-08-19](gauntlet/results/sct-2026-08-19.md). Size-change termination (Lee, Jones &
+Ben-Amram 2001) plus a trip count closed both open holes at once: **every integer operation in
+every program is provably inside the portable window** once one range is declared, and **96% of
+loops are proven to terminate**. The single refusal is a true negative — Newton's method on a
+float. Two additions were needed that the paper does not have: integers are not well-founded, so
+the **floor comes from the interval analysis** and is demanded of the *witness*; and an ascending
+counter is handled by **orientation**, μ = −v, which is a ranking function as a change of variable.
+Three bugs found on the way all made the numbers *worse* than the truth, which is the only reason
+they were not mistaken for results.
+
 **The type-system question is reopened, and the literature answers it** —
 [types-direction.md §6](docs/types-direction.md). Three findings to carry. The **justification
 moved**: a range does not need to transfer to the host, it changes what we *emit*, which is

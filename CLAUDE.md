@@ -12,6 +12,13 @@ and 2.01× on JS** against a hand-written buffer-reusing form
 hand-written *functional* code; `materialize` is what costs, because it allocates fresh so nothing
 can alias.
 
+**The price is the SHAPE, not the compiler, and it is avoidable one layer down** —
+[native-gauntlet-2026-08-20](gauntlet/results/native-gauntlet-2026-08-20.md). The stencil moved to
+the native Go target carrying both forms: allocating measures **0.93x** hand-written and
+buffer-reusing measures **0.999x**. In each shape emitted matches hand-written, and *allocating*
+costs 2.71x for hand-written code too. So the portable layer has no way to express reuse and a
+native target does — `go.set-float64` is Go's own store, no portability claim, at parity.
+
 **This price is expected to be paid off, not kept.** The ADR names the triggers that should reopen
 it. Note the correction recorded there: the original first trigger, *a type system exists*, **fired
 and bought nothing** — uniqueness constrains the *context*, not the value, so it is not a

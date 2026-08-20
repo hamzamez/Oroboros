@@ -30,6 +30,40 @@ Status: Accepted — **provisional, and expected to be superseded**
 > It is written as a hypothesis on purpose. The original trigger asserted an enabling relationship
 > that had not been tested, and asserting a second one the same way would repeat the mistake.
 
+> ## Second note, 2026-08-20 — the price is the SHAPE, and it is avoidable one layer down
+>
+> [native-gauntlet-2026-08-20](../../gauntlet/results/native-gauntlet-2026-08-20.md) moved the
+> stencil to the native Go target and carried **both forms**: one that allocates its destination
+> and one that writes through a destination the caller supplies. Both reduce to the same loop.
+>
+> | shape | hand-written | emitted | |
+> |---|---|---|---|
+> | allocating | 266,169 ns | **246,900 ns** | **0.93x** |
+> | buffer-reusing | 98,046 ns | **97,939 ns** | **0.999x** |
+>
+> **In each shape, emitted matches hand-written.** Allocating costs 2.71x for hand-written code and
+> 2.52x for emitted code — so the ratio this ADR accepted is a property of the *shape*, and
+> hand-written code pays it too.
+>
+> **None of the four triggers below fired.** This is a fifth thing they did not name, and it does
+> not reverse the decision: `num/vec.materialize` still allocates and still costs what it costs.
+> It corrects one **consequence**. The sentence below —
+>
+> > *"Oroboros is, today, a language in which nothing can alias"*
+>
+> — is true of the **portable layer** and false of the **native targets**, where `go.set-float64`
+> is Go's own store and the program that uses it measures at parity. That is the parasite model
+> working as designed rather than a hole in it: the portable layer names its price, and a program
+> that cannot pay drops one layer and writes the store itself. What is still true is that the
+> portable layer has no way to express reuse, and options (a) and (b) are still what would give it
+> one.
+>
+> Also measured, and worth carrying: `SmoothNoAlias` — the register-carrying form you would write
+> if you knew the slices were disjoint — buys **nothing** here (98,878 against the naive 98,046).
+> The kernel is memory-bound, which is the condition
+> [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) already attached to its own 1.96x. The
+> thing `restrict` exists to buy was not worth buying on this machine, at this size.
+
 ## Context
 
 `examples/smooth.oro` completed the gauntlet and failed it

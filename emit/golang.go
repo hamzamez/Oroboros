@@ -543,8 +543,20 @@ func mentions(t *core.Term, names []string) bool {
 // it in the body is an index by the bare loop variable — the stencil indexes
 // `a` at `j`, `j+1` and `j+2`, so `a` is left alone and stays correct.
 func (e *Emitter) emitNarrow(idxName, n string, bodies ...*core.Term) {
+	for _, name := range e.narrowTargets(idxName, bodies...) {
+		m := mangle(name)
+		e.line("%s", fmt.Sprintf(e.tgt.Narrow, m, m, n))
+	}
+}
+
+// narrowTargets is the collection half, separated because a caller that has to
+// INTRODUCE the bound needs to know whether anything will use it first. A
+// `loop` over a single array narrows nothing — the guard already bounds it —
+// and emitting the bound anyway is `declared and not used`, which is a Go
+// compile error rather than a wasted line.
+func (e *Emitter) narrowTargets(idxName string, bodies ...*core.Term) []string {
 	if e.tgt.Narrow == "" {
-		return // this target has no such shape; JS and Java do not
+		return nil // this target has no such shape; JS and Java do not
 	}
 	good, bad := map[string]bool{}, map[string]bool{}
 	var walk func(t *core.Term)
@@ -581,10 +593,7 @@ func (e *Emitter) emitNarrow(idxName, n string, bodies ...*core.Term) {
 		}
 	}
 	sort.Strings(names)
-	for _, name := range names {
-		m := mangle(name)
-		e.line("%s", fmt.Sprintf(e.tgt.Narrow, m, m, n))
-	}
+	return names
 }
 
 // emitLet binds a value to a name and continues with the body. The λ here is a
@@ -933,7 +942,7 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	// than the bound panics on the slice expression instead of inside the loop,
 	// which is the same failure moved earlier.
 	if idx, bound, ok := countedGuard(e, body, raw); ok {
-		if bv, err := e.emit(bound); err == nil {
+		if bv, err := e.emit(bound); err == nil && len(e.narrowTargets(idx, body)) > 0 {
 			n := e.fresh("n")
 			// The target's spelling of `int`, not Go's literal `int`: on the
 			// portable layer that is `int64`, and `var n int = int64(len(a))`

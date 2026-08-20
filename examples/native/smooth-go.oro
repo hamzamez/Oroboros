@@ -1,0 +1,61 @@
+; The gauntlet's stencil, on the NATIVE Go target — and the experiment ADR 0013
+; is waiting for.
+;
+; ADR 0013 accepted a price: g7's stencil runs at 1.79x on Go against a
+; hand-written BUFFER-REUSING form, because `num/vec.materialize` allocates
+; fresh so nothing can alias. The emitted code is at parity with hand-written
+; FUNCTIONAL code; the allocation is the whole gap.
+;
+; Two forms are carried here, which is the rule for adding to the gauntlet: the
+; one expected to win and the one expected to lose.
+;
+;   smooth       allocates its own destination. Expected to match SmoothFresh
+;                and to lose to the reusing form by ADR 0013's factor.
+;
+;   smooth-into  takes the destination as a parameter and writes through it.
+;                Expected to match SmoothNoAlias.
+;
+; `smooth-into` carries NO portability claim and no aliasing guarantee — it is
+; the native target, and `go.set-float64` is Go's own store. That is the parasite
+; model doing its job: the portable layer names its price (construction.md), and
+; a program that cannot pay it drops to the target and writes the store itself.
+
+(use go)
+
+(export smooth smooth-into)
+
+(sig smooth      ((a slice-float64)) slice-float64)
+(sig smooth-into ((dst slice-float64) (a slice-float64)) slice-float64
+  (where (go.== (go.len dst) (go.len a))))
+
+; The delayed vector, unchanged from dot-go.oro. A library, not a primitive.
+(def vec    (fn (n f) (fn (sel) (sel n f))))
+(def vlen   (fn (v)   (v (fn (n f) n))))
+(def vindex (fn (v i) ((v (fn (n f) f)) i)))
+
+; `materialize`, written against the target instead of imported from num/vec:
+; allocate, then a `loop` that threads the destination and stores each element.
+; If reduction fuses the index function into the store, this IS the hand-written
+; loop, and the only thing left of the portable version's price is the `make`.
+(def materialize (fn (v)
+  (let (go.make-float64 (vlen v)) (fn (dst)
+    (loop ((d dst) (i 0))
+      (go.>= i (vlen v))  d
+      else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1)))))))
+
+; The same loop, over a destination the caller supplies. Nothing is allocated.
+(def fill-into (fn (dst v)
+  (loop ((d dst) (i 0))
+    (go.>= i (vlen v))  d
+    else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1)))))
+
+(def window (fn (a j)
+  (go.f+ (go.f+ (go.at-float64 a j)
+                (go.at-float64 a (go.+ j 1)))
+         (go.at-float64 a (go.+ j 2)))))
+
+(def kernel (fn (a)
+  (vec (go.- (go.len a) 2) (fn (j) (go.f/ (window a j) 3.0)))))
+
+(def smooth      (fn (a)     (materialize (kernel a))))
+(def smooth-into (fn (dst a) (fill-into dst (kernel a))))

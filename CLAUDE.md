@@ -357,8 +357,19 @@ them with, and `loop` has n variables and no product at all — and the native G
 string surface at all** until `wordcount` asked for one (`targets/go/strings.oro`, 25 primitives,
 no compiler change). What it added is `(length N)`, a declared primitive attribute saying which
 argument decides the result's length; the sieve's `c[i]` is **proven** now rather than propagated.
-**The migration has only been done on Go.** No gauntlet program has moved to the JS or Java native
-targets, and JS is the most hostile host in the set.
+It is **two** attributes — `(length N)` for a count and `(length-of N)` for a pass-through — because
+reading it off the argument's declared type broke on the first target that tried it: `targets/js/`
+declares everything `any`. And a **JavaScript array store is a map insert** — `a[10] = x` on a
+three-element array extends it — so `js.set` declares neither, which is `go.set-map`'s refusal
+arriving from the opposite direction.
+**JavaScript is done too** — [native-js-2026-08-20](gauntlet/results/native-js-2026-08-20.md).
+All six at parity there as well, and the hostile host earned its reputation: a `loop` in **tail
+position** was lowering to a result variable plus `break`, which costs **1.31x on V8** against an
+early `return` and **nothing on Go** — five months of Go measurements could not see it. It also
+found two benchmark-method errors that had been inflating every JS number here: reaching a function
+through a module namespace object (`g.dotTyped`) is **1.66x** slower than a named import, and the
+old harness did that on the hand-written side only; and V8 carries optimization state across
+benchmarks, so each comparison now gets its own process. **Java has not moved.**
 
 **Two backends before front-end features.** Once the Go backend works, build the JavaScript
 backend before adding anything to the language. JS is the most hostile host in the set and

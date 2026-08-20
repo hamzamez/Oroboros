@@ -111,10 +111,10 @@
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
     (prim at-map     (map-string-int string) int         expr "%s[%s]" pure)
 
-    (prim set-int (slice-int int int) slice-int stmt "%s[%s] = %s" (length 0))
-    (prim set-float64 (slice-float64 int f64) slice-float64 stmt "%s[%s] = %s" (length 0))
-    (prim set-string (slice-string int string) slice-string stmt "%s[%s] = %s" (length 0))
-    (prim set-bool (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length 0))
+    (prim set-int (slice-int int int) slice-int stmt "%s[%s] = %s" (length-of 0))
+    (prim set-float64 (slice-float64 int f64) slice-float64 stmt "%s[%s] = %s" (length-of 0))
+    (prim set-string (slice-string int string) slice-string stmt "%s[%s] = %s" (length-of 0))
+    (prim set-bool (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length-of 0))
     ; NO (length 0) here, and the omission is the point. An array store leaves
     ; the length alone, so `set-float64` passes its container's length through;
     ; a map INSERT can add a key, so `len(m)` after is not `len(m)` before.

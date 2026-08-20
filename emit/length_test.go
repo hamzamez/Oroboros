@@ -100,13 +100,34 @@ func TestAMapStoreClaimsNoLength(t *testing.T) {
 	tg := goNative(t)
 	if p, ok := tg.Prims["go.set-map"]; !ok {
 		t.Fatal("go target must declare set-map")
-	} else if p.Length != 0 {
-		t.Errorf("set-map must not claim a length: a map insert can add a key")
+	} else if p.Length != 0 || p.LengthOf != 0 {
+		t.Errorf("set-map must claim no length: a map insert can add a key")
 	}
 	if p, ok := tg.Prims["go.set-bool"]; !ok {
 		t.Fatal("go target must declare set-bool")
+	} else if p.LengthOf != 1 {
+		t.Errorf("set-bool must pass its container's length through, got %d", p.LengthOf)
+	}
+}
+
+// And JavaScript refuses the same claim for the OPPOSITE container. `a[10] = x`
+// on a three-element JS array extends it to length 11, so a JS array store is
+// a map insert. The two hosts spell the operation identically and disagree
+// about whether it preserves a length, which is why the reading is declared.
+func TestAJavaScriptArrayStoreClaimsNoLength(t *testing.T) {
+	tg, err := LoadTarget("../targets/js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if p, ok := tg.Prims["js.set"]; !ok {
+		t.Fatal("js target must declare set")
+	} else if p.Length != 0 || p.LengthOf != 0 {
+		t.Errorf("js.set must claim no length: a store past the end extends the array")
+	}
+	if p, ok := tg.Prims["js.Array"]; !ok {
+		t.Fatal("js target must declare Array")
 	} else if p.Length != 1 {
-		t.Errorf("set-bool must pass its container's length through, got %d", p.Length)
+		t.Errorf("new Array(n) must claim length from its count, got %d", p.Length)
 	}
 }
 

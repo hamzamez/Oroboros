@@ -1,0 +1,37 @@
+; Gauntlet program 3 — one generic operation, two instantiations — on the
+; NATIVE JavaScript target.
+;
+; The Go version of this file argued that the two instantiations reach genuinely
+; different host functions — go.at-float64 over []float64 and go.at-string over
+; []string. On JavaScript they reach THE SAME ONE. `js.at` indexes anything,
+; because JS containers are untyped, so the element type is not what
+; distinguishes the instantiations here.
+;
+; What still does is `combine`: `js.+` is an expression and the object update is
+; a statement, so the two residuals have different shapes and neither is a
+; specialisation of a shared body. The claim survives on the host that removes
+; the easy half of the evidence.
+
+(use js)
+(use js/String)
+
+(export sum-of word-tally)
+
+(sig sum-of     ((a any)) any)
+(sig word-tally ((text any)) any)
+
+(def reduce-over (fn (n get combine init)
+  (loop ((acc init) (i 0))
+    (js.>= i n)  acc
+    else         (again (combine acc (get i)) (js.+ i 1)))))
+
+(def bump (fn (o w) (js.put o w (js.+ (js.?? (js.get o w) 0) 1))))
+
+(def sum-floats (fn (a)
+  (reduce-over (js.len a) (fn (i) (js.at a i)) js.+ 0.0)))
+
+(def tally-words (fn (ws)
+  (reduce-over (js.len ws) (fn (i) (js.at ws i)) bump (js.object))))
+
+(def sum-of     (fn (a)    (sum-floats a)))
+(def word-tally (fn (text) (tally-words (String.fields text))))

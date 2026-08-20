@@ -1,0 +1,16 @@
+; The gauntlet's `search`, on the NATIVE JavaScript target.
+;
+; Three clauses, one early exit. The bound comes from the first clause being
+; false, not from a declaration.
+
+(use js)
+
+(export find-first)
+
+(sig find-first ((a any) (k any)) any)
+
+(def find-first (fn (a k)
+  (loop ((i 0))
+    (js.>= i (js.len a))   -1
+    (js.> (js.at a i) k)   i
+    else                   (again (js.+ i 1)))))

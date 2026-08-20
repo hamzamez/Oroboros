@@ -84,10 +84,10 @@
     (prim at-string ((v string-array) (i int)) string expr "%s[(int) %s]" pure index
       (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
 
-    (prim set-long (long-array int int) long-array stmt "%s[(int) %s] = %s" (length 0))
-    (prim set-double (double-array int f64) double-array stmt "%s[(int) %s] = %s" (length 0))
-    (prim set-bool (bool-array int bool) bool-array stmt "%s[(int) %s] = %s" (length 0))
-    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s" (length 0))
+    (prim set-long (long-array int int) long-array stmt "%s[(int) %s] = %s" (length-of 0))
+    (prim set-double (double-array int f64) double-array stmt "%s[(int) %s] = %s" (length-of 0))
+    (prim set-bool (bool-array int bool) bool-array stmt "%s[(int) %s] = %s" (length-of 0))
+    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s" (length-of 0))
 
     ; ---- conversions. Java spells these (T) x or T.valueOf.
     (prim int-of-f64  (f64) int    expr "(long) %s"   pure)

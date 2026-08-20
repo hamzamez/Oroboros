@@ -35,17 +35,30 @@ type Prim struct {
 	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
 
-	// Length is `(length N)`: the result is a container whose length is
-	// argument N. Declared, not inferred from the name, because it is a fact
-	// about the HOST call and only the target author knows it — `make([]bool,
-	// n)` has length n, and nothing about the string "make-bool" says so.
+	// Length is `(length N)`: the result is a container whose length is the
+	// VALUE of argument N — `make([]bool, n)` is n long. LengthOf is
+	// `(length-of N)`: the result is AS LONG AS argument N — `c[i] = true`
+	// returns something as long as c.
 	//
-	// Without it a program that allocates and then indexes cannot be proven:
-	// the sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))` has
-	// `len(c)` as an opaque variable unrelated to `n`, so the bounds goal
-	// `i < len(c)` has nothing to connect to. Zero means "not declared";
-	// argument positions are stored one-based for exactly that reason.
-	Length int
+	// Both are declared, never inferred, because each is a fact about the HOST
+	// call and only the target author knows it. Nothing about the string
+	// "make-bool" says the result is n long.
+	//
+	// They are two attributes rather than one read off the argument's declared
+	// type, and that is the second design: the first inferred `int` argument
+	// means count, anything else means pass-through. It broke on the first
+	// target that tried it. `targets/js/` declares EVERY argument as `any`,
+	// because JavaScript has one number type and untyped containers, so
+	// `new Array(n)` and a hypothetical pass-through are indistinguishable by
+	// type. A declaration that only works on targets with a rich type table is
+	// not a declaration.
+	//
+	// Without either, a program that allocates and then indexes cannot be
+	// proven: the sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))`
+	// has `len(c)` as an opaque variable unrelated to `n`. Zero means "not
+	// declared"; positions are stored one-based for exactly that reason.
+	Length   int
+	LengthOf int
 
 	// Jump is a BRANCH form: the host's own condition code for this predicate,
 	// so a conditional can test it directly instead of materialising a boolean
@@ -457,14 +470,18 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 					path, p.Name, rest)
 			}
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
-			rest.Kids[0].Name == "length" && len(rest.Kids) == 2 &&
-			rest.Kids[1].Kind == core.KInt:
+			(rest.Kids[0].Name == "length" || rest.Kids[0].Name == "length-of") &&
+			len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KInt:
 			n := int(rest.Kids[1].Int)
 			if n < 0 || n >= len(p.Args) {
-				return Prim{}, fmt.Errorf("%s: %s: (length %d) names argument %d, "+
-					"which it does not have", path, p.Name, n, n)
+				return Prim{}, fmt.Errorf("%s: %s: (%s %d) names argument %d, "+
+					"which it does not have", path, p.Name, rest.Kids[0].Name, n, n)
 			}
-			p.Length = n + 1
+			if rest.Kids[0].Name == "length" {
+				p.Length = n + 1
+			} else {
+				p.LengthOf = n + 1
+			}
 		case rest.Kind == core.KName && rest.Name == "index":
 			if len(p.Args) != 2 {
 				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+

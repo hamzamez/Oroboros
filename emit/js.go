@@ -29,6 +29,24 @@ type jsEmitter struct {
 
 	// bound is every name already emitted in this function — see openFresh.
 	bound map[string]bool
+
+	// tail is true while emitting a term whose value IS the function's value.
+	// A loop in that position returns directly instead of assigning a result
+	// variable and breaking, and `returned` records that it did so the wrapper
+	// omits its own `return`.
+	//
+	// A flag rather than the term itself: `Term.Body()` opens de Bruijn
+	// indices into names and ALLOCATES, so two calls to it are different
+	// pointers and identity cannot be used to recognise a position.
+	//
+	// Measured, not tidied. On V8 the same search loop written with an early
+	// `return` runs at 36,973 ns and written with a result variable and
+	// `break` at 48,383 — 1.31x for the shape alone. On Go the two are
+	// indistinguishable, which is why this lives here and not in the shared
+	// path: JS is the hostile host and this is the sort of thing it exists to
+	// surface (native-js-2026-08-20).
+	tail     bool
+	returned bool
 }
 
 // JSFunc emits a top-level abstraction as a JavaScript function.
@@ -43,6 +61,7 @@ func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error)
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}}
+	e.tail = true
 	result, err := e.emit(t.Body())
 	if err != nil {
 		return "", err
@@ -55,7 +74,13 @@ func JSFunc(tgt *Target, name string, _ *core.Sig, t *core.Term) (string, error)
 	var out strings.Builder
 	fmt.Fprintf(&out, "export function %s(%s) {\n", jsMangle(name), strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
-	fmt.Fprintf(&out, "\treturn %s;\n}\n", result)
+	if e.returned {
+		// A loop in tail position returned from every exit, so there is no
+		// value left to return and no reachable statement after the loop.
+		out.WriteString("}\n")
+	} else {
+		fmt.Fprintf(&out, "\treturn %s;\n}\n", result)
+	}
 	return out.String(), nil
 }
 
@@ -77,6 +102,11 @@ func (e *jsEmitter) fresh(stem string) string {
 }
 
 func (e *jsEmitter) emit(t *core.Term) (string, error) {
+	// Tail position is consumed here, so no nested emit inherits it by
+	// accident. The two constructs that genuinely preserve it — a `let`
+	// continuation and the loop itself — put it back explicitly.
+	tail := e.tail
+	e.tail = false
 	switch t.Kind {
 	case core.KInt:
 		return strconv.FormatInt(t.Int, 10), nil
@@ -133,10 +163,12 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 					e.line("%s;", val)
 				}
+				e.tail = tail
 				return e.emit(k.Body())
 			}
 			kBody, _, kOut := openFresh(k, e.bound, jsMangle)
 			e.line("const %s = %s;", kOut[0], val)
+			e.tail = tail
 			return e.emit(kBody)
 		}
 		if p.Kind == "stmt" {
@@ -161,7 +193,7 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			return e.emitMakeVec(t)
 		}
 		if p.Kind == "iterate" {
-			return e.emitLoop(t)
+			return e.emitLoop(t, tail)
 		}
 		if p.Kind == "loop" {
 			return e.emitFoldRange(t)
@@ -467,7 +499,7 @@ func (e *jsEmitter) emitMakeVec(t *core.Term) (string, error) {
 // assignment, so a simultaneous update needs them — the same ones fold-range2
 // already emits, and measured free.
 
-func (e *jsEmitter) emitLoop(t *core.Term) (string, error) {
+func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
@@ -490,10 +522,13 @@ func (e *jsEmitter) emitLoop(t *core.Term) (string, error) {
 	for i := range names {
 		e.line("let %s = %s;", names[i], vals[i])
 	}
-	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, jsMangle)
-	if result == "" {
-		result = e.fresh("r")
-		e.line("let %s;", result)
+	result := ""
+	if !tail {
+		result = soleExit(e.tgt.Prims, body, raw, names, e.bound, jsMangle)
+		if result == "" {
+			result = e.fresh("r")
+			e.line("let %s;", result)
+		}
 	}
 	e.line("for (;;) {")
 	e.indent++
@@ -502,6 +537,9 @@ func (e *jsEmitter) emitLoop(t *core.Term) (string, error) {
 	}
 	e.indent--
 	e.line("}")
+	if tail {
+		e.returned = true
+	}
 	return result, nil
 }
 
@@ -549,6 +587,13 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 	v, err := e.emit(t)
 	if err != nil {
 		return err
+	}
+	// An empty result means this loop is the function's value: return from the
+	// loop rather than assigning and breaking. Worth 1.31x on V8 for a loop
+	// with two exits, and nothing at all on Go.
+	if result == "" {
+		e.line("return %s;", v)
+		return nil
 	}
 	if v != result {
 		e.line("%s = %s;", result, v)

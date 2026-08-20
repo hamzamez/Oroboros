@@ -1,0 +1,31 @@
+; Gauntlet program 5 — formatted output — on the NATIVE JavaScript target.
+;
+; The Tier 2 binding story: `fmt` on Go, `console` on JS. Both are one line in
+; a target file and no compiler code, which is the claim.
+;
+; The effect discipline is the same on both hosts and for the same reason:
+; `console.log` declares no `pure`, so its result — used zero times — cannot be
+; dropped, and `seq` survives (effects.md §5).
+
+(use js)
+(use js/console)
+
+(export main)
+
+(def fill (fn (n)
+  (let (js.Float64Array n) (fn (dst)
+    (loop ((d dst) (i 0))
+      (js.>= i n)  d
+      else         (again (js.set d i i) (js.+ i 1)))))))
+
+(def dot (fn (a b)
+  (loop ((acc 0.0) (i 0))
+    (js.>= i (js.len a))  acc
+    else                  (again (js.+ acc (js.* (js.at a i) (js.at b i)))
+                                 (js.+ i 1)))))
+
+(def main (fn ()
+  (let (fill 1000) (fn (xs)
+    (seq (console.log "report")
+         (console.log (js.len xs))
+         (console.log (dot xs xs)))))))

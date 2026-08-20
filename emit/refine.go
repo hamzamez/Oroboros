@@ -568,21 +568,14 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 		return nil, false
 	}
 	switch {
+	// `(length N)`: argument N is a COUNT. `make([]bool, n)` is n long.
 	case p.Length > 0 && p.Length <= len(args):
-		// `(length N)` names the argument that DECIDES the result's length, and
-		// the argument's declared type says how. An `int` argument is a count —
-		// `make([]bool, n)` has length n. A CONTAINER argument passes its own
-		// length through — `c[i] = true` returns something as long as c, which
-		// is what makes an in-place setter usable as a loop variable.
-		//
-		// A target that declares no types (targets/js.oro declares zero) gets
-		// the count reading, which is the constructor case; the pass-through
-		// stays unproven there rather than being guessed.
-		a := args[p.Length-1]
-		if p.Length-1 < len(p.Args) && p.Args[p.Length-1] != "" && p.Args[p.Length-1] != "int" {
-			return r.valueLength(a, env, depth+1)
-		}
-		return asLinear(a)
+		return asLinear(args[p.Length-1])
+	// `(length-of N)`: the result is AS LONG AS argument N. `c[i] = true`
+	// returns something as long as c, which is what makes an in-place store
+	// usable as a loop variable.
+	case p.LengthOf > 0 && p.LengthOf <= len(args):
+		return r.valueLength(args[p.LengthOf-1], env, depth+1)
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1:
 		inner := map[string]*linear{}
 		for k, v := range env {

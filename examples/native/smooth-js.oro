@@ -1,0 +1,45 @@
+; Gauntlet program 7 — the three-point stencil — on the NATIVE JavaScript
+; target, carrying BOTH forms.
+;
+; ADR 0013 measured 2.01x on JavaScript against a hand-written buffer-reusing
+; form — WORSE than Go's 1.79x, which is what GC pressure predicts and which
+; the ADR named as its fourth reopening trigger. native-gauntlet-2026-08-20
+; showed on Go that the ratio belongs to the SHAPE rather than the compiler.
+; This is the same experiment on the host where the gap was largest.
+;
+; `js.Float64Array` is the allocation, and it is a typed array rather than
+; `new Array(n)` because g1 measured the difference. `js.set` claims no length
+; on this target — a store past the end EXTENDS a JS array — so the fill loop's
+; destination is a loop variable whose length nothing proves, which is a real
+; and correct difference from Go.
+
+(use js)
+
+(export smooth smooth-into)
+
+(sig smooth      ((a any)) any)
+(sig smooth-into ((dst any) (a any)) any
+  (where (js.=== (js.len dst) (js.len a))))
+
+(def vec    (fn (n f) (fn (sel) (sel n f))))
+(def vlen   (fn (v)   (v (fn (n f) n))))
+(def vindex (fn (v i) ((v (fn (n f) f)) i)))
+
+(def materialize (fn (v)
+  (let (js.Float64Array (vlen v)) (fn (dst)
+    (loop ((d dst) (i 0))
+      (js.>= i (vlen v))  d
+      else                (again (js.set d i (vindex v i)) (js.+ i 1)))))))
+
+(def fill-into (fn (dst v)
+  (loop ((d dst) (i 0))
+    (js.>= i (vlen v))  d
+    else                (again (js.set d i (vindex v i)) (js.+ i 1)))))
+
+(def window (fn (a j)
+  (js.+ (js.+ (js.at a j) (js.at a (js.+ j 1))) (js.at a (js.+ j 2)))))
+
+(def kernel (fn (a) (vec (js.- (js.len a) 2) (fn (j) (js./ (window a j) 3.0)))))
+
+(def smooth      (fn (a)     (materialize (kernel a))))
+(def smooth-into (fn (dst a) (fill-into dst (kernel a))))

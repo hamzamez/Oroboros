@@ -1,0 +1,36 @@
+; The gauntlet's `dot`, on the NATIVE JavaScript target.
+;
+; The same delayed vector as dot-go.oro, and the same three lines of library
+; written IN THE LANGUAGE. What changes is only the names it calls — and on
+; this host there are fewer of them: `go.at-float64` becomes `js.at`, which
+; indexes anything, because JavaScript containers are untyped. The suffix
+; explosion in the Go target was our type table showing through.
+;
+; JS is the most hostile host in the set and the reason ADR 0004 wanted it
+; second: no integers, no structs, no int64. This program has none of those, so
+; what it actually tests is whether the fusion survives a target whose
+; arithmetic is declared on `any` and which has no `narrow` at all.
+
+(use js)
+
+(export dot)
+
+; The equality is what makes `(js.at q i)` provable; the bound is what lets the
+; interval analysis prove the loop terminates.
+(sig dot ((p any) (q any)) any
+  (where (and (js.=== (js.len p) (js.len q))
+              (js.< (js.len p) 65536))))
+
+(def vec      (fn (n f) (fn (sel) (sel n f))))
+(def vlen     (fn (v)   (v (fn (n f) n))))
+(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+(def of-array (fn (a)   (vec (js.len a) (fn (i) (js.at a i)))))
+
+(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+
+(def sum (fn (v)
+  (loop ((acc 0.0) (i 0))
+    (js.>= i (vlen v))  acc
+    else                (again (js.+ acc (vindex v i)) (js.+ i 1)))))
+
+(def dot (fn (a b) (sum (zip js.* (of-array a) (of-array b)))))

@@ -105,14 +105,27 @@
     ; the clearest single contrast with targets/go/, which needs at-int,
     ; at-float64, at-string, at-bool and a `make` per type.
     (prim at     (any any) any     expr "%s[%s]"     pure index)
+    ; NO `(length-of 0)` on `set`, and JavaScript is the reason the attribute
+    ; had to be split in two. On Go, `c[i] = x` cannot change len(c) — an
+    ; out-of-range store panics. On JavaScript `a[10] = x` on a three-element
+    ; array EXTENDS IT to length 11, silently, and `a[10]` before that returns
+    ; `undefined` rather than throwing (primitives.md §2). So a JS array store
+    ; is a map insert, not an array store, and it claims no length.
+    ;
+    ; That is the same refusal `go.set-map` makes, arriving from the other
+    ; direction: the two hosts spell the operation identically and disagree
+    ; about whether it preserves a length.
     (prim set    (any any any) any stmt "%s[%s] = %s")
     (prim get    (any string) any     expr "%s[%s]"     pure)
     (prim put    (any string any) any stmt "%s[%s] = %s")
     (prim len    (any) any         expr "%s.length"  pure)
-    (prim Array  (any) any         expr "new Array(%s)")
-    (prim ArrayFill (any any) any  expr "new Array(%s).fill(%s)")
-    (prim Float64Array (any) any   expr "new Float64Array(%s)")
-    (prim Int32Array   (any) any   expr "new Int32Array(%s)")
+    ; `new Array(n)` and the typed arrays ARE n long. Declared `(length 0)`
+    ; even though every argument here is typed `any` — which is exactly why the
+    ; reading is declared rather than read off the argument's type.
+    (prim Array  (any) any         expr "new Array(%s)"            (length 0))
+    (prim ArrayFill (any any) any  expr "new Array(%s).fill(%s)"   (length 0))
+    (prim Float64Array (any) any   expr "new Float64Array(%s)"     (length 0))
+    (prim Int32Array   (any) any   expr "new Int32Array(%s)"       (length 0))
     ; A null-prototype object as a dictionary — baseline R4 measured Map at
     ; 3.25x slower for string keys.
     (prim object (none) any           expr "Object.create(null)")))

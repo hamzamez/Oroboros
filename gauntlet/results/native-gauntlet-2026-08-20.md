@@ -318,6 +318,8 @@ Unpinned numbers on a hybrid P/E-core laptop are not measurements.
 the native Go target, all at parity with hand-written code.
 
 Still portable-only, and none of them a gauntlet program: `norm`, `converge`, `filter`,
-`build-vec`, `modules`. And the migration has only been done on **Go** — `sieve-java.oro` and
-`sieve-js.oro` exist but no gauntlet program has moved to the JS or Java native targets, which is
-where the next surprise is, because JS is the most hostile host in the set.
+`build-vec`, `modules`.
+
+**JavaScript followed the same day** — [native-js-2026-08-20](native-js-2026-08-20.md). All six at
+parity there too, and it found what a hostile host is for: a `loop` in tail position was lowering to
+a result variable plus `break`, worth **1.31x on V8** and **nothing on Go**. **Java has not moved.**

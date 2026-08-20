@@ -1,0 +1,33 @@
+; Gauntlet program 4 — word frequency — on the NATIVE JavaScript target.
+;
+; This is the one where the whole Parasite thesis is either true or false, and
+; on JS the pass condition is specific: the output must use a NULL-PROTOTYPE
+; OBJECT, not a Map. Baseline R4 measured `Map` at 3.25x SLOWER than
+; `Object.create(null)` for string keys, refuting g4's original assumption that
+; Map was the right choice — one of the five inferences the first run killed.
+;
+; `js.object` is that object and `js.Map.new` is the losing one. The target
+; declares both; the program chooses. There is no portable `dict-empty` here to
+; make the choice on the programmer's behalf, which is the point: the portable
+; layer's job was to hide which host construct was chosen, and hiding it is how
+; you end up with the slow one.
+;
+; The increment is `(o[w] ?? 0) + 1`. Unlike Go's map, a JS object read of an
+; absent key gives `undefined`, not a zero, so the coalesce is not optional —
+; and there is no fused `++` to reach for, because `o[w]++` on `undefined` is
+; `NaN`. Go's 1.19x win has no counterpart here.
+
+(use js)
+(use js/String)
+
+(export tally)
+
+(sig tally ((text any)) any)
+
+(def bump (fn (o w) (js.put o w (js.+ (js.?? (js.get o w) 0) 1))))
+
+(def tally (fn (text)
+  (let (String.fields text) (fn (ws)
+    (loop ((o (js.object)) (i 0))
+      (js.>= i (js.len ws))  o
+      else                   (again (bump o (js.at ws i)) (js.+ i 1)))))))

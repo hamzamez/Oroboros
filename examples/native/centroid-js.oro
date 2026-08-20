@@ -1,0 +1,27 @@
+; Gauntlet program 2 — centroid — on the NATIVE JavaScript target.
+;
+; Struct-of-arrays, because g2 measured JS losing 2.86x to array-of-objects
+; while Go is happy either way. That measurement is the reason this file and
+; centroid-go.oro have the same shape rather than each being idiomatic: the
+; representation was chosen by the HOSTILE host.
+;
+; The Church-encoded point has no runtime existence on either.
+
+(use js)
+
+(export centroid)
+
+(sig centroid ((xs any) (ys any)) any
+  (where (js.=== (js.len xs) (js.len ys))))
+
+(def point (fn (x y) (fn (sel) (sel x y))))
+(def px    (fn (p)   (p (fn (x y) x))))
+(def py    (fn (p)   (p (fn (x y) y))))
+(def pat   (fn (xs ys i) (point (js.at xs i) (js.at ys i))))
+
+(def centroid (fn (xs ys)
+  (loop ((ax 0.0) (ay 0.0) (i 0))
+    (js.>= i (js.len xs))  (js.+ ax ay)
+    else                   (again (js.+ ax (px (pat xs ys i)))
+                                  (js.+ ay (py (pat xs ys i)))
+                                  (js.+ i 1)))))

@@ -248,6 +248,15 @@ closed the first of the two holes shaped like a refinement, and **found a real l
 and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
 ([arithmetic.md §4](docs/spec/arithmetic.md)).
 
+**What an unproven operation costs is 1.23× to 4.54×, and the shape decides** —
+[checkcost-2026-08-19](gauntlet/results/checkcost-2026-08-19.md), the same source compiled twice
+differing only in the declared range. Arithmetic-bound: **Go 4.54×, Java 1.52×** — the JVM has
+`Math.addExact` as an intrinsic and Go has nothing, which is the §0 spread rule biting at a factor
+of three. Memory-bound: **Go 1.23×, windows 1.46×**, because the branch hides behind the cache
+miss. **The isolated microbenchmark was wrong in BOTH directions** — the same lesson as
+bce-2026-08-15, where a 1.96× win in isolation vanished on memory-bound loops. A cost behaves the
+way a saving does, and neither survives being quoted without its condition.
+
 **A declared range now selects the representation** —
 [selection-2026-08-19](gauntlet/results/selection-2026-08-19.md). An integer operation the compiler
 can bound keeps the host's own operator; one it cannot is rewritten to the `checked` primitive the

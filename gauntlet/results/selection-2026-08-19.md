@@ -126,9 +126,11 @@ accumulator over an unbounded loop, and an undeclared parameter.
 the representation-selection machinery with two representations, and the third — arbitrary precision
 — is still [data-model.md §7](../../docs/spec/data-model.md)'s eleven unanswered questions.
 
-**It is not measured for speed.** The checked forms' cost was measured in isolation
-([overflow-2026-08-19](overflow-2026-08-19.md)); what an unproven operation costs *in a real
-program*, where the branch may be free, is still open.
+~~**It is not measured for speed.**~~ **Measured** —
+[checkcost-2026-08-19](checkcost-2026-08-19.md). Same source compiled twice, differing only in the
+declared range: **4.54× on Go and 1.52× on Java for an arithmetic-bound loop, 1.23× on Go and 1.46×
+on windows for a memory-bound one.** The isolated numbers were wrong in *both* directions, and the
+spread within one design is wider than the spread across hosts.
 
 **And the corpus is still small.** Six integer programs and four sieves. Better than one program,
 not yet a bar.

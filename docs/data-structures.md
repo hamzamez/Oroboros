@@ -675,6 +675,13 @@ compile-time materialisation into **static data**, which is free at run time whe
 
 ---
 
+> **Specified 2026-08-20 — [tables.md](spec/tables.md).** The array half of this document is now a
+> specification. Two things it changed on the way: indexing is **application**, `(a i)`, not a named
+> operation — the residual invariant makes it unambiguous, and it means materialising changes where
+> the memory is and nothing else; and §8's `(array …)` literal survives as a **source** form, since
+> only the automatic unrolling was refuted. `(array T)` lives in the signature language and is
+> erased by staging.
+
 ## 7. Recommendation
 
 > **Constraint added 2026-08-20, after a first attempt was built wrong and reverted.** Multiple

@@ -347,6 +347,22 @@ change. And on sequent calculus specifically: GHC built Sequent Core, measured i
 calculus does give us is **polarity**: a product eliminated by projection need never be built,
 which is exactly why the product measured free. Take the classification, not the core.
 
+**The primary data structure is SPECIFIED and not yet built** —
+[tables.md](docs/spec/tables.md). One concept: **a table is a function from a finite index set**,
+and the length is what makes it more than a function. Three constructors — `(array e…)` a graph,
+`(vec n f)` a rule with no memory, `(materialize t)` the one construct that allocates — plus
+`(len t)`, and **indexing is APPLICATION**: `(a i)`, not `(at a i)`. That is unambiguous by a
+checked invariant — in a residual the operator of an application is never a variable, because a
+surviving lambda is a refused closure — so the slot is empty and `(a i)` is an indexing before any
+type is consulted. `(array T)` exists only in the **signature** language and is erased by staging,
+because a dynamic index forces homogeneity and reduction removes every static one, so the checker
+only ever sees `Fin n → V` and **no dependent types are needed**. No target declares any of it:
+the backends implement it like `if`/`let`/`loop`. It **deletes** surface — Go's 7 array types and
+14 `at-`/`make-`/`set-` names, Java's set, and the portable layer's `alen`/`aindex`/`slen`/`sat`,
+which never covered int or bool because it *enumerated* element types instead of having a
+constructor. Bounds are a **precondition, not a behaviour** (JS returns `undefined` silently).
+Reuse is deliberately absent and stays ADR 0013's question.
+
 **The data-structure question is researched and NOT decided** —
 [docs/data-structures.md](docs/data-structures.md). Three things to carry. The array is primary
 **because a list's algebra needs recursion**, not because a list is slow: `foldr` *is* the list's

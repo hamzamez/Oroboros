@@ -26,3 +26,21 @@ func BenchmarkSmallDotLoop(b *testing.B) {
 		sinkD = GenlDot(smallA, smallB)
 	}
 }
+
+// The gauntlet's oldest program on the NATIVE Go target — go.len, go.at-float64
+// and a `loop`, with no portable layer underneath (examples/native/dot-go.oro).
+//
+// The delayed vector is the same three lines it always was, so the question is
+// only whether the fusion survives moving the names it calls. If this is not at
+// parity with the hand-written form, the native targets cannot carry the bar.
+func TestDotNativeAgrees(t *testing.T) {
+	if got, want := NativeDot(smallA, smallB), DotRange(smallA, smallB); got != want {
+		t.Errorf("native %v, hand-written %v", got, want)
+	}
+}
+
+func BenchmarkSmallDotNative(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkD = NativeDot(smallA, smallB)
+	}
+}

@@ -68,10 +68,10 @@
     ;
     ; Every index carries `(int)`: our `int` is Java's `long`, and a Java array
     ; index must be `int`. Free at run time, and unavoidable.
-    (prim new-long   (int) long-array   expr "new long[(int) %s]")
-    (prim new-double (int) double-array expr "new double[(int) %s]")
-    (prim new-bool   (int) bool-array   expr "new boolean[(int) %s]")
-    (prim new-string (int) string-array expr "new String[(int) %s]")
+    (prim new-long (int) long-array expr "new long[(int) %s]" (length 0))
+    (prim new-double (int) double-array expr "new double[(int) %s]" (length 0))
+    (prim new-bool (int) bool-array expr "new boolean[(int) %s]" (length 0))
+    (prim new-string (int) string-array expr "new String[(int) %s]" (length 0))
 
     (prim len (any) int expr "%s.length" pure)
 
@@ -84,10 +84,10 @@
     (prim at-string ((v string-array) (i int)) string expr "%s[(int) %s]" pure index
       (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
 
-    (prim set-long   (long-array int int) long-array      stmt "%s[(int) %s] = %s")
-    (prim set-double (double-array int f64) double-array  stmt "%s[(int) %s] = %s")
-    (prim set-bool   (bool-array int bool) bool-array     stmt "%s[(int) %s] = %s")
-    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s")
+    (prim set-long (long-array int int) long-array stmt "%s[(int) %s] = %s" (length 0))
+    (prim set-double (double-array int f64) double-array stmt "%s[(int) %s] = %s" (length 0))
+    (prim set-bool (bool-array int bool) bool-array stmt "%s[(int) %s] = %s" (length 0))
+    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s" (length 0))
 
     ; ---- conversions. Java spells these (T) x or T.valueOf.
     (prim int-of-f64  (f64) int    expr "(long) %s"   pure)

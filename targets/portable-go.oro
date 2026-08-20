@@ -162,8 +162,8 @@
     (prim append-int (slice-int int) slice-int expr "append(%s, %s)")
 
     ; make. One per element type, because the type is part of the syntax.
-    (prim make-int  (int) slice-int  expr "make([]int64, %s)")
-    (prim make-bool (int) slice-bool expr "make([]bool, %s)")
+    (prim make-int (int) slice-int expr "make([]int64, %s)" (length 0))
+    (prim make-bool (int) slice-bool expr "make([]bool, %s)" (length 0))
     (prim make-map  (none) map-str-int expr "make(map[string]int64)")
 
     ; Indexed read and write. The write is a `stmt` whose value is argument 0,

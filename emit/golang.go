@@ -474,6 +474,58 @@ func (e *Emitter) emitMakeVec(t *core.Term) (string, error) {
 	return dst, nil
 }
 
+// countedGuard finds the shape `(loop ((i z) …) (>= i BOUND) exit … )` — a
+// clause that leaves the loop when one variable reaches a bound.
+//
+// That is the only shape worth narrowing for, and it is the shape every counted
+// loop in the corpus has. The bound must not mention a loop variable, or
+// hoisting it out of the loop would change what it means.
+func countedGuard(e *Emitter, t *core.Term, raw []string) (string, *core.Term, bool) {
+	for t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName {
+		p, ok := e.tgt.Prims[t.Op().Name]
+		if !ok || p.Kind != "cond" || len(t.Args()) != 3 {
+			return "", nil, false
+		}
+		c := t.Args()[0]
+		if c.Kind == core.KApp && c.Op().Kind == core.KName && len(c.Args()) == 2 {
+			name := c.Op().Name
+			if isOp(name, "ge") || isOp(name, "gt") {
+				lhs, rhs := c.Args()[0], c.Args()[1]
+				if lhs.Kind == core.KName && contains(raw, lhs.Name) && !mentions(rhs, raw) {
+					return lhs.Name, rhs, true
+				}
+			}
+		}
+		t = t.Args()[2] // a later clause may carry the bound instead
+	}
+	return "", nil, false
+}
+
+func contains(xs []string, s string) bool {
+	for _, x := range xs {
+		if x == s {
+			return true
+		}
+	}
+	return false
+}
+
+func mentions(t *core.Term, names []string) bool {
+	switch t.Kind {
+	case core.KName:
+		return contains(names, t.Name)
+	case core.KFn:
+		return mentions(t.Body(), names)
+	case core.KApp:
+		for _, k := range t.Kids {
+			if mentions(k, names) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // emitNarrow restricts every container the loop indexes by the BARE loop
 // variable to the loop's own count, before the loop.
 //
@@ -864,6 +916,30 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 			e.line("var %s %s = %s", names[i], e.tgt.ty(orAny(tys[i])), vals[i])
 		} else {
 			e.line("%s := %s", names[i], vals[i])
+		}
+	}
+
+	// BOUNDS-CHECK ELIMINATION, which `fold-range` had and `loop` lost.
+	//
+	// ADR 0015 replaced `fold-range` with `loop`, and bce-2026-08-15's emitter
+	// pattern was wired into `emitFoldRange` only. So every program that moved
+	// to a `loop` quietly gave up the 1.96× that measurement bought — visible
+	// the moment the gauntlet's `dot` was written natively and came in at
+	// 1455 ns against a hand-written 680.
+	//
+	// The transformation is the same one: narrow every container the loop
+	// indexes to the loop's own bound, ONCE, before the loop. Go then knows
+	// `i < n == len(v)` and drops the per-iteration check. A container shorter
+	// than the bound panics on the slice expression instead of inside the loop,
+	// which is the same failure moved earlier.
+	if idx, bound, ok := countedGuard(e, body, raw); ok {
+		if bv, err := e.emit(bound); err == nil {
+			n := e.fresh("n")
+			// The target's spelling of `int`, not Go's literal `int`: on the
+			// portable layer that is `int64`, and `var n int = int64(len(a))`
+			// does not compile.
+			e.line("var %s %s = %s", n, e.tgt.ty("int"), bv)
+			e.emitNarrow(idx, n, body)
 		}
 	}
 

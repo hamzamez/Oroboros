@@ -85,11 +85,11 @@
     (prim append-string  (slice-string string) slice-string    expr "append(%s, %s)")
 
     ; make: the element type is part of Go's syntax, so one name per type.
-    (prim make-int     (int) slice-int     expr "make([]int, %s)")
-    (prim make-int64   (int) slice-int64   expr "make([]int64, %s)")
-    (prim make-float64 (int) slice-float64 expr "make([]float64, %s)")
-    (prim make-string  (int) slice-string  expr "make([]string, %s)")
-    (prim make-bool    (int) slice-bool    expr "make([]bool, %s)")
+    (prim make-int (int) slice-int expr "make([]int, %s)" (length 0))
+    (prim make-int64 (int) slice-int64 expr "make([]int64, %s)" (length 0))
+    (prim make-float64 (int) slice-float64 expr "make([]float64, %s)" (length 0))
+    (prim make-string (int) slice-string expr "make([]string, %s)" (length 0))
+    (prim make-bool    (int) slice-bool    expr "make([]bool, %s)" (length 0))
     (prim make-map     (none) map-string-int expr "make(map[string]int)")
 
     (prim copy-float64 (slice-float64 slice-float64) int       expr "copy(%s, %s)")
@@ -111,11 +111,11 @@
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
     (prim at-map     (map-string-int string) int         expr "%s[%s]" pure)
 
-    (prim set-int     (slice-int int int) slice-int              stmt "%s[%s] = %s")
-    (prim set-float64 (slice-float64 int f64) slice-float64  stmt "%s[%s] = %s")
-    (prim set-string  (slice-string int string) slice-string     stmt "%s[%s] = %s")
-    (prim set-bool    (slice-bool int bool) slice-bool           stmt "%s[%s] = %s")
-    (prim set-map     (map-string-int string int) map-string-int stmt "%s[%s] = %s")
+    (prim set-int (slice-int int int) slice-int stmt "%s[%s] = %s" (length 0))
+    (prim set-float64 (slice-float64 int f64) slice-float64 stmt "%s[%s] = %s" (length 0))
+    (prim set-string (slice-string int string) slice-string stmt "%s[%s] = %s" (length 0))
+    (prim set-bool (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length 0))
+    (prim set-map (map-string-int string int) map-string-int stmt "%s[%s] = %s" (length 0))
 
     (prim slice-float64 (slice-float64 int int) slice-float64 expr "%s[%s:%s]" pure)
     (prim slice-string  (slice-string int int) slice-string   expr "%s[%s:%s]" pure)

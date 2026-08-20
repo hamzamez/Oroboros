@@ -323,7 +323,19 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 	// be added to the language for a programmer to state a range — only this
 	// pass had to read it (types-direction.md §6).
 	if sig != nil && sig.Where != nil {
-		p.assumeWhere(sig.Where)
+		// Renamed into the DEFINITION's parameter names first, for the reason
+		// Refine needs the same thing: a length is keyed by the printed term,
+		// so `(go.len p)` and `(go.len a)` are different keys and a `where`
+		// written against the signature narrows nothing.
+		sub := map[string]*core.Term{}
+		if head != nil {
+			for i, name := range head.Params {
+				if i < len(sig.Params) && sig.Params[i].Name != "" && sig.Params[i].Name != name {
+					sub[sig.Params[i].Name] = core.Name(name)
+				}
+			}
+		}
+		p.assumeWhere(core.Rename2(sig.Where, sub))
 	}
 	p.count = false
 	p.eval(t) // settle loop fixpoints
@@ -370,6 +382,26 @@ func (p *intervalPass) paramIval(name string, sig *core.Sig) ival {
 		return ival{lo: 0, hi: p.assume}
 	}
 	return top
+}
+
+// envKey is what the interval environment is keyed by.
+//
+// Names, and ALSO array lengths. `(go.len a)` is not a name, so a `where`
+// bounding it could not narrow anything — and an array's length is the most
+// common thing a program has to say something about. The linear fragment has
+// always treated a length as an opaque variable spelled `go.len(a)`; this is
+// the interval domain learning the same trick.
+func envKey(t *core.Term) (string, bool) {
+	switch t.Kind {
+	case core.KName:
+		return t.Name, true
+	case core.KApp:
+		if op := t.Op(); op.Kind == core.KName && len(t.Args()) == 1 &&
+			(isOp(op.Name, "alen") || isOp(op.Name, "slen")) {
+			return op.Name + "(" + t.Args()[0].String() + ")", true
+		}
+	}
+	return "", false
 }
 
 func (p *intervalPass) lookup(n string) ival {
@@ -443,13 +475,19 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		return bottom, rebuilt // a back edge produces no value
 	}
 
-	// An array length is non-negative and otherwise unknown — unless the
-	// experiment is simulating a declaration.
-	if len(vals) == 1 && (isOp(op.Name, "alen") || isOp(op.Name, "len")) {
+	// An array length is non-negative, and whatever else has been declared or
+	// narrowed about it.
+	if len(vals) == 1 && (isOp(op.Name, "alen") || isOp(op.Name, "slen")) {
+		out := ival{lo: 0, hiInf: true}
 		if p.assumed {
-			return ival{lo: 0, hi: p.assume}, rebuilt
+			out = ival{lo: 0, hi: p.assume}
 		}
-		return ival{lo: 0, hiInf: true}, rebuilt
+		if k, ok := envKey(t); ok {
+			if v, have := p.env[k]; have {
+				out = intersect(out, v)
+			}
+		}
+		return out, rebuilt
 	}
 
 	out, checkable := p.transfer(op.Name, prim, vals)
@@ -616,12 +654,13 @@ func (p *intervalPass) refine(c *core.Term, taken bool) {
 }
 
 func (p *intervalPass) narrowEq(t *core.Term, rel string, other ival) {
-	if t.Kind != core.KName {
+	key, ok := envKey(t)
+	if !ok {
 		return
 	}
-	v := p.lookup(t.Name)
+	v := p.lookup(key)
 	if rel == "eq" {
-		p.env[t.Name] = intersect(v, other)
+		p.env[key] = intersect(v, other)
 		return
 	}
 	// A disequality against a KNOWN value, at an endpoint.
@@ -634,15 +673,16 @@ func (p *intervalPass) narrowEq(t *core.Term, rel string, other ival) {
 	} else if !v.hiInf && v.hi == k {
 		v.hi = k - 1
 	}
-	p.env[t.Name] = v
+	p.env[key] = v
 }
 
 func (p *intervalPass) narrow(t *core.Term, rel string, other ival) {
-	if t.Kind != core.KName {
+	key, ok := envKey(t)
+	if !ok {
 		p.narrowSquare(t, rel, other)
 		return
 	}
-	v := p.lookup(t.Name)
+	v := p.lookup(key)
 	switch rel {
 	case "lt":
 		if !other.hiInf && (v.hiInf || other.hi-1 < v.hi) {
@@ -661,7 +701,7 @@ func (p *intervalPass) narrow(t *core.Term, rel string, other ival) {
 			v.lo, v.loInf = other.lo, false
 		}
 	}
-	p.env[t.Name] = v
+	p.env[key] = v
 }
 
 // narrowSquare inverts `x*x REL e` into a bound on x.

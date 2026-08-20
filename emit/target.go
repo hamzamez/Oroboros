@@ -35,6 +35,18 @@ type Prim struct {
 	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
 
+	// Length is `(length N)`: the result is a container whose length is
+	// argument N. Declared, not inferred from the name, because it is a fact
+	// about the HOST call and only the target author knows it — `make([]bool,
+	// n)` has length n, and nothing about the string "make-bool" says so.
+	//
+	// Without it a program that allocates and then indexes cannot be proven:
+	// the sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))` has
+	// `len(c)` as an opaque variable unrelated to `n`, so the bounds goal
+	// `i < len(c)` has nothing to connect to. Zero means "not declared";
+	// argument positions are stored one-based for exactly that reason.
+	Length int
+
 	// Jump is a BRANCH form: the host's own condition code for this predicate,
 	// so a conditional can test it directly instead of materialising a boolean
 	// and comparing that against zero. Empty on every host with expressions —
@@ -444,6 +456,15 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 				return Prim{}, fmt.Errorf("%s: %s: (jump \"cc\" [\"compare form\"]), got %s",
 					path, p.Name, rest)
 			}
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "length" && len(rest.Kids) == 2 &&
+			rest.Kids[1].Kind == core.KInt:
+			n := int(rest.Kids[1].Int)
+			if n < 0 || n >= len(p.Args) {
+				return Prim{}, fmt.Errorf("%s: %s: (length %d) names argument %d, "+
+					"which it does not have", path, p.Name, n, n)
+			}
+			p.Length = n + 1
 		case rest.Kind == core.KName && rest.Name == "index":
 			if len(p.Args) != 2 {
 				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+

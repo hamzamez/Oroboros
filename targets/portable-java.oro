@@ -168,8 +168,8 @@
   ; One declaration per element type, because the type language has no
   ; constructors: long[] and boolean[] are unrelated atoms.
   (module java/array
-    (prim make-int   (int) vec-int             expr "new long[(int) %s]")
-    (prim make-bool  (int) vec-bool            expr "new boolean[(int) %s]")
+    (prim make-int (int) vec-int expr "new long[(int) %s]" (length 0))
+    (prim make-bool (int) vec-bool expr "new boolean[(int) %s]" (length 0))
     (prim len        (any) int                 expr "%s.length" pure)
     (prim iat        (vec-int int) int         expr "%s[(int) %s]"  pure)
     (prim bat        (vec-bool int) bool       expr "%s[(int) %s]"  pure)

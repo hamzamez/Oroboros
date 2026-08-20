@@ -1,0 +1,46 @@
+; The gauntlet's first program, on the NATIVE Go target.
+;
+; examples/dot.oro imports num/vec, num/int and io — the portable layer that
+; targets/go/ replaced and that ADR-era work declared retired. Nothing had moved
+; off it, so the gauntlet has been measuring a layer we no longer intend to
+; build (assessment-2026-08-20 §5).
+;
+; The delayed vector is the same three lines it always was. It is a LIBRARY
+; written in the language, not a primitive, so moving targets moves only the
+; names it calls: `alen` becomes `go.len`, `aindex` becomes `go.at-float64`, and
+; `fold-range` becomes a `loop`. Whether the fusion survives that is the whole
+; question, and it is what this file exists to answer.
+
+(use go)
+
+(export dot)
+
+; Two clauses, and they do different jobs. The EQUALITY is the one examples/dot.oro
+; already had: without it `(at-float64 q i)` is unproven, because the loop is
+; bounded by p's length and nothing relates the two. The BOUND is new here — it
+; is what lets the interval analysis bound `(+ i 1)` and prove the loop
+; terminates, and with it this program goes from 0 of 1 operations provable to
+; 1 of 1 (selection-2026-08-19).
+(sig dot ((p slice-float64) (q slice-float64)) f64
+  (where (and (go.== (go.len p) (go.len q))
+              (go.< (go.len p) 65536))))
+
+; A vector is a length paired with an index function. It has no runtime
+; existence and reduces away entirely (inventory §4a).
+(def vec      (fn (n f) (fn (sel) (sel n f))))
+(def vlen     (fn (v)   (v (fn (n f) n))))
+(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+(def of-array (fn (a)   (vec (go.len a) (fn (i) (go.at-float64 a i)))))
+
+(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+
+; `fold-range` was System T's recursor and is retired on the native targets;
+; `loop` is what replaced it (ADR 0015). The accumulator and the index are two
+; loop variables rather than a pair, which is the product `fold-range2` needed
+; and `loop` does not.
+(def sum (fn (v)
+  (loop ((acc 0.0) (i 0))
+    (go.>= i (vlen v))  acc
+    else                (again (go.f+ acc (vindex v i)) (go.+ i 1)))))
+
+(def dot (fn (a b) (sum (zip go.f* (of-array a) (of-array b)))))

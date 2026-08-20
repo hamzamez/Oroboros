@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -258,10 +259,17 @@ func TestLoopEmitsHostFor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
-	for _, want := range []string{"for {", "r1 = -1", "break", "i = (i + 1)", "continue"} {
+	for _, want := range []string{"for {", "break", "i = (i + 1)", "continue"} {
 		if !strings.Contains(code, want) {
 			t.Errorf("missing %q:\n%s", want, code)
 		}
+	}
+	// The result temporary is assigned the early-exit value. Matched by SHAPE,
+	// not by name: the counter that names it also names the hoisted loop bound
+	// (emitLoop's countedGuard), so pinning it to `r1` made a test of the
+	// escape clause fail whenever anything new was emitted ahead of it.
+	if !regexp.MustCompile(`r\d+ = -1`).MatchString(code) {
+		t.Errorf("early exit must assign -1:\\n%s", code)
 	}
 	// The loop must not become a fold: no counted header.
 	if strings.Contains(code, "for i := int64(0);") {

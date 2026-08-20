@@ -351,6 +351,12 @@ var opAlias = map[string]string{
 	// loop, exponentiation by squaring and every other geometric descent looked
 	// like an unknown operation. Found by growing the corpus.
 	"/": "div", "%": "rem", "idiv": "div", "irem": "rem",
+	// A LENGTH, in every spelling a target uses for one. Without this the
+	// fragment knew `alen` — the retired portable layer's name — and nothing
+	// else, so `(where (== (go.len p) (go.len q)))` became an opaque atom and
+	// the gauntlet's oldest refinement stopped discharging the moment `dot`
+	// moved to a native target. Found by moving it.
+	"len": "alen", "strlen": "slen",
 	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
 	"&&": "and", "||": "or", "!": "not",
 	"!=": "ne", "ne": "ne", "setne": "ne", "!==": "ne",

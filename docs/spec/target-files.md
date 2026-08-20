@@ -40,7 +40,7 @@ template    ::= "…%s…"
 structural  ::= (structural NAME skind attr…)
 skind       ::= let | cond | loop | loop2 | build
 
-attr        ::= pure | index | (import "…")
+attr        ::= pure | index | (length INT) | (import "…")
 argtype     ::= NAME | none                  ; `none` alone means arity zero
 ```
 
@@ -282,6 +282,37 @@ Together they let the backend emit `q = q[:n]` before a loop, which hands the ho
 bounds-check elimination a proof it will accept — worth 1.96× on compute-bound loops and nothing on
 memory-bound ones ([bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md)). A target that
 declares no `narrow` gets no transformation, which is correct for JavaScript and Java.
+
+### `length` — how long the result is
+
+```lisp
+(prim make-bool (int) slice-bool           expr "make([]bool, %s)"  (length 0))
+(prim set-bool  (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length 0))
+```
+
+`(length N)` says **argument N decides the result's length**, and the argument's declared *type*
+says how to read it:
+
+| argument N's type | reading | example |
+|---|---|---|
+| `int` | the length **is** that value | `make([]bool, n)` has length n |
+| anything else | the result is **as long as** that argument | `c[i] = true` returns something as long as `c` |
+
+It is what lets the compiler prove an index is in range for an array the program built itself. The
+sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))` has no other route: without the
+declaration `len(c)` is an opaque variable unrelated to `n`, and the bounds goal `i < len(c)` has
+nothing to resolve against. Lengths propagate through lets, loops and conditionals, and a threaded
+array's length is established as a **loop invariant** — taken from the initial value and verified
+against every back edge.
+
+**It is a claim about the host call, and only the target author can make it.** Nothing about the
+string `"make-bool"` says the result is `n` long; the compiler does not guess and a primitive that
+does not declare it simply proves nothing.
+
+**Do not declare it on a map.** `set-map` and `set-bool` are the same three characters of Go —
+`%s[%s] = %s` — and opposite facts: an array store leaves the length alone, a map insert can add a
+key. This is the same shape as `pure`: the safe direction is to omit it, and omitting it costs a
+proof rather than a correct program.
 
 ## 5. `pure`
 

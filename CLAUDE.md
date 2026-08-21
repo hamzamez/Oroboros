@@ -206,6 +206,27 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**This is a TWO-LEVEL language and had not said so** —
+[closures-direction.md](docs/closures-direction.md). We already have closures and they already
+work: a **Church-encoded list** — `(cons x xs) = (fn (c n) (c x (xs c n)))` — compiles today and
+reduces to `1 + (2 + (3 + (k + 0)))`, which is the free monoid with `foldr`, needing no recursion
+because `cons` nests closures at *construction*. So "closures are refused" is the wrong sentence;
+the true one is **"a closure may not survive staging"**, and the boundary is exactly a *dynamic*
+length: a list sized by a runtime value leaves a closure in the residual and is refused. The static
+level is unrestricted higher-order (Zig's `comptime`, Terra, MetaML, Nielson & Nielson 1992,
+binding-time analysis); the dynamic level is first-order tables and loops.
+
+**Letting closures survive is REFUSED, and the reasons are ranked**: on x86 a closure is a heap
+environment and an indirect call we would have to ship, which is a **runtime** against requirement
+6; environments are **hidden allocation**, the predecessor's cause of death; and **closures plus
+buffers give recursion via Landin's knot**, which kills size-change termination and ADR 0015's
+"termination is a computed property". Also `(a i)` stops being unambiguous, every analysis loses
+its call graph, and ADR 0018 would need rank-2 types. Against that, the real gain is a
+*manufactured* callback and dispatch tables. **With closures the design converges on an ML with
+four backends**, and the competition becomes MLton. Three cheap things follow: say the levels in
+the diagnostics, **relax ADR 0014 to refuse recursion that SURVIVES rather than recursion that is
+written**, and give the static level a real library — lists, maps, trees, all free.
+
 **Refusing closures costs FUNCTION VALUES, not host APIs** — [callbacks.md](docs/spec/callbacks.md).
 Three tiers, and only the third is a closure. **Tier 1** — a lambda written at the call site, where
 the HOST closes over it: `go func(){}`, `defer`, `sort.Slice`, `addEventListener`, `setTimeout`,

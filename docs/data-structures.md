@@ -98,6 +98,16 @@ This is the real answer to the question that opened this document, and it is str
 cost argument. A cons list in this language would not be a slow list. It would not be a list at
 all — it would be a linked structure with no fold, which is a data structure with no algebra.
 
+> **Corrected 2026-08-21 — [closures-direction.md §1](closures-direction.md).** The paragraph above
+> is wrong as stated, and a four-line program disproves it. A **Church-encoded** list needs no
+> recursion: `(cons x xs) = (fn (c n) (c x (xs c n)))` nests closures at *construction*, and
+> `foldr` is application. It compiles today and reduces to `1 + (2 + (3 + (k + 0)))`.
+>
+> What is impossible is **inductive data of dynamic length** — a list whose length is a runtime
+> value leaves a closure in the residual and is refused. So the correct statement is: *the static
+> level has the whole inductive design space and it costs nothing; the dynamic level is
+> first-order.* This language is a **two-level language** and had not said so.
+
 The same argument kills trees, ropes, finger trees, and every other inductive type, and it kills
 them for a reason that has nothing to do with allocation.
 

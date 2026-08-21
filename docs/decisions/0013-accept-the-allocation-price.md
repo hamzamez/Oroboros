@@ -158,7 +158,14 @@ to memory:
    (1.79×), which is what GC pressure predicts. A host with a weaker allocator would be worse
    still.
 
-5. **An algebraic law we can state and are not allowed to apply.**
+5. **FIRED 2026-08-21** — [ADR 0018](0018-immutable-values-linear-buffers.md) made values
+   immutable and put mutation inside a scoped linear buffer, so η-tab is sound on tables and the
+   compiler may take the rewrite. The price below is **bounded rather than accepted**: inside a
+   program reduction removes every boundary, so buffer reuse works; what remains is reuse across an
+   *exported* API, which is uniqueness on parameters and is deferred with its own trigger. The
+   original text follows.
+
+   **An algebraic law we can state and are not allowed to apply.**
    [data-structures.md §8.1](../data-structures.md) writes down the η law for tables —
    `materialize (of-array a) = a` — confirms the compiler does not know it and emits an allocation
    plus a full copy loop, and then shows the law is **unsound here**: `materialize` exists to

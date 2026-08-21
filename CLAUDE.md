@@ -70,6 +70,7 @@ recording alternatives that were considered and rejected.
 | `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
 | A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
 | Booleans and control flow are in the language | [0017](docs/decisions/0017-booleans-are-in-the-language.md) |
+| Immutable values, one scoped linear buffer | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -365,8 +366,25 @@ because APL arrays are data, ours are functions, so composing index maps is comp
 The leading-axis rule is currying, and MoA's DNF/ONF split is our residual/emission split. And
 **automatic unrolling is deferred, NOT refuted** — the measurement only covered cheap elements, the
 win scales as compile-cost over artifact-cost, and ADR 0009 bites exactly where the win would be
-because transcendentals are not bit-reproducible. **The memory model is deliberately undecided**
-(§9) and nothing in the spec assumes an answer.
+because transcendentals are not bit-reproducible. **The memory model is DECIDED** —
+[ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md), research in
+[memory-model.md](docs/memory-model.md). Values are immutable; mutation exists only inside
+`(build n (fn (b) …))`, whose buffer is **linear** and frozen on the way out; `(array V)` reads are
+pure and `(buffer V)` reads are impure; and **the linearity check is `occurrences` on the residual,
+not a type** — uniqueness never enters a signature. What decided it was **expressiveness, not the
+2.7x**: `(table n f)` is a *gather* and cannot express a *scatter*, so the sieve, sorting,
+histograms, union-find and general DP are inexpressible portably **at any speed** —
+`examples/native/sieve-go.oro` is in this repo and could not be written portably. It costs almost
+nothing because every mechanism exists already: the heap is acyclic (ADR 0014), a buffer cannot
+escape (closures are refused — the only thing Haskell's rank-2 `runST` prevents), it is lexically
+local in the residual (whole-program reduction), `occurrences` is in the reducer, and **ADR 0010
+already sequences stores** by never substituting an impure argument, denying contraction, weakening
+and exchange — the three properties a buffer needs, built for `print-line`. This **fires ADR 0013's
+fifth trigger**: η-tab is now sound. Uniqueness types on *parameters* (Futhark, Cogent — the two
+languages with our exact constraints, which both chose them) are **deferred with a named trigger**,
+because reduction removes every non-exported boundary so buffer reuse already works inside a
+program. Reclamation is a **target** decision: three hosts bring collectors, and windows gets a
+lexical arena or Perceus, which is available there precisely because we own that allocator.
 
 **The older framing, kept because the reasoning is what changed**: a table is a function from a
 finite index set,

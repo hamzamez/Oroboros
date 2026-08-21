@@ -76,13 +76,20 @@ why `DOMAIN` is primitive in TLA+.
 ```lisp
 (array e₀ e₁ … eₙ₋₁)      ; a graph. n is static.
 (table n (fn (i) e))      ; a rule. n may be dynamic. NO MEMORY.
-(alloc t)                 ; the same table, in memory. THE ONE CONSTRUCT THAT ALLOCATES.
+(alloc t)                 ; the same table, in memory. GATHER — pure, parallel by construction.
+(build n (fn (b) …))      ; a scoped mutable buffer. SCATTER — sequential. Returns a table.
+(set b i v)               ; a store. Consumes b, returns b.
 (len t)                   ; the domain bound
 (t i)                     ; the element at i — APPLICATION
 ```
 
-Five names. Everything else — `zip`, `sum`, `dot`, `reverse`, `take`, the stencil — is a library
+Seven names. Everything else — `zip`, `sum`, `dot`, `reverse`, `take`, the stencil — is a library
 written in the language, as it is today.
+
+`build` and `set` are [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) and §9. The
+pair is **gather and scatter**, which is the standard vector-programming distinction and is exactly
+the boundary: `(table n f)` says element `i` is a function of `i`, and no such rule can express a
+write at an index computed from the data.
 
 ### 2.1 `table`, not `vec` and not `vector`
 
@@ -136,8 +143,11 @@ Against `alloc`: it can suggest uninitialised storage. In a pure language there 
 `(alloc t)` obviously holds the elements of `t` — so the objection does not bite.
 
 Rejected on the way: `freeze` (means *make immutable* in JS and Clojure, and ours already are),
-`force` (a laziness term, opaque outside FP), `build` (collides with the target's `(build "go build
-…")`), `manifest` (Repa's word, and a noun).
+`force` (a laziness term, opaque outside FP), `manifest` (Repa's word, and a noun).
+
+**`build` is the scatter form** (§9), not a rejected name for this one. It reads as what it does —
+build a table by writing into it — and the target file's `(build "go build %s")` is a *target
+declaration* in a different grammar that no program can write, so the two never meet.
 
 ### 2.3 `len`
 
@@ -551,7 +561,30 @@ q5b stands, and it is the container-morphism theorem.
 
 ---
 
-## 9. The memory model — the decision not made
+## 9. The memory model — decided
+
+> **[ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), 2026-08-21.** Values are
+> immutable; mutation exists only inside `(build n (fn (b) …))`, whose buffer is **linear** and is
+> frozen on the way out. `(array V)` reads are pure; `(buffer V)` reads are impure. The linearity
+> check is `occurrences` on the residual, **not a type** — uniqueness never enters a signature.
+>
+> What decided it was **expressiveness, not the 2.7×**: `(table n f)` is a *gather* and cannot
+> express a *scatter*, so the sieve, in-place sorting, histograms, union-find and general dynamic
+> programming are inexpressible portably at any speed. `examples/native/sieve-go.oro` is in this
+> repository and could not be written portably.
+>
+> It costs almost nothing to build because every mechanism already exists: the heap is acyclic
+> (ADR 0014), a buffer cannot escape (closures are refused — the only thing Haskell's rank-2
+> `runST` prevents), it is lexically local in the residual (whole-program reduction),
+> `occurrences` is in the reducer, and **stores are already sequenced by ADR 0010** — an impure
+> argument is never substituted, denying contraction, weakening and exchange, which are exactly the
+> three properties a mutable buffer needs.
+>
+> The research, the candidates and the literature are in [memory-model.md](../memory-model.md).
+> The rest of this section is the framing that led there and is kept because the reasoning is what
+> changed.
+
+## 9b. The three positions, as they were weighed
 
 Whether tables are **immutable** is undecided, and it should stay undecided until it is decided
 deliberately. It is the question behind reuse, and reuse is worth **2.5×–2.7×**
@@ -586,8 +619,9 @@ Three things that should feed the decision when it is made, all already measured
   *values* for effects and got away with it because what needed the discipline was effects. (b)
   reverses that reasoning, which is why it needs its own ADR.
 
-**Nothing in this document assumes an answer.** `alloc` allocates under all three; the difference
-is only whether anything may later prove it need not.
+~~**Nothing in this document assumes an answer.**~~ **Answered above** — (a) with a scoped escape
+hatch, which is (c)'s power made portable and checked. `alloc` still allocates; what changed is
+that a *scatter* is now writable, and that η-tab became sound.
 
 ---
 

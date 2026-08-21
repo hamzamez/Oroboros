@@ -14,7 +14,10 @@
 ; target-file work changes it.
 ;
 ; The higher-order half — map, filter, reduce, sort — is declared and CANNOT BE
-; CALLED, because a bare abstraction is refused as an escaping closure. That is
+; CALLED, because a bare abstraction is refused as an escaping closure — though see
+; docs/spec/callbacks.md: a lambda written AT THE CALL SITE needs no function value
+; and the host does the capture, so this is a missing template hole rather than a
+; capability gap. That is
 ; deliberate and measured: js-toplevel-2026-08-18 puts those methods at 3.6x to
 ; 133x SLOWER than a loop, so the one thing this language cannot reach on this
 ; host is the one thing not worth reaching.

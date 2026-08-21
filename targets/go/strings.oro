@@ -21,7 +21,8 @@
 ;     and `Join` is what replaces it.
 ;   - `SplitN`, `Replace` and friends taking a count are fine; the ones taking
 ;     a `func(rune) bool` — `FieldsFunc`, `TrimFunc`, `IndexFunc` — are not,
-;     because a surviving lambda is an escaping closure (derivation s6) and the
+;     because a surviving lambda is an escaping closure (derivation s6, and
+;     docs/spec/callbacks.md for what that does and does not cost) and the
 ;     core does not have one.
 ;
 ; `Fields` splits on runs of white space as defined by `unicode.IsSpace`. That

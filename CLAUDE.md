@@ -206,6 +206,21 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**Refusing closures costs FUNCTION VALUES, not host APIs** — [callbacks.md](docs/spec/callbacks.md).
+Three tiers, and only the third is a closure. **Tier 1** — a lambda written at the call site, where
+the HOST closes over it: `go func(){}`, `defer`, `sort.Slice`, `addEventListener`, `setTimeout`,
+`Runnable`. The lambda never becomes a value in our residual; it sits in a structural position the
+backend already reads positionally, and Go's/V8's/the JVM's own closure does the capture, at parity
+by construction. **Tier 2** — a function pointer with no free variables, which all four hosts have
+and which we **refuse today with the wrong message**: `(def twice (fn (x) (go.* x 2)))` returned as
+a value says *"this is an escaping closure"* and it is not one. And **the Win32 API is designed for
+a language without closures** — `EnumWindows(fn, LPARAM)`, `CreateThread(…, lpParameter)`,
+`qsort_s(…, context)` pass the environment explicitly, so the OS API that looks most hostile is the
+one best suited. **Tier 3** — a manufactured closure that escapes — stays refused, and ADR 0018
+depends on it. What is genuinely lost: dispatch tables and partially-applied callbacks. One hazard
+to carry: **a callback body may not capture a buffer**, or two goroutines hold it and ADR 0018's
+linearity is gone.
+
 **Closures are not a core primitive.** They belong above the core, lowered by defunctionalization
 or explicit environment structs. First-class closures require captured environments, which
 require heap allocation.

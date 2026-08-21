@@ -780,6 +780,12 @@ and `combine` as parameters and it all reduces away. Higher-order *values* do no
 first-order residual, which is why the type checker is simple, why the interval analysis is
 tractable, and why `(a i)` is unambiguous (§3.2). And ADR 0018's escape argument.
 
+**And the refusal is currently BROADER than the design needs** —
+[callbacks.md](callbacks.md). A top-level function with no free variables is a *function pointer*,
+not a closure, and every one of the four targets can express one; it is refused today with the same
+message. Most host callback APIs need only that, or need a lambda written at the call site where
+the **host** does the capture. The refusal costs us function *values*, not host APIs.
+
 **How much rides on it: enough that it must be a cross-reference.** ADR 0018 is sound *because* a
 buffer cannot be captured. If closures are ever added, ADR 0018 must be revisited and the answer
 would be Haskell's rank-2 `runST` type, which exists for exactly this and nothing else. That is

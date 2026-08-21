@@ -206,6 +206,24 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**SUMS ARE RESEARCHED and not decided** — [sums-research.md](docs/sums-research.md). Three
+requirements converge: errors, Win32 contracts (`_Ret_maybenull_`, `_Success_`), and **dispatch,
+because a tagged union is what replaces the closure**. Four findings. **A sum is Σ over a finite
+index set — the exact dual of the table's Π** — which is why a Π can be given by a *rule* and store
+nothing while a Σ must carry *which*: **the tag is information the caller does not have, and it has
+to be transmitted.** And **there is no negative sum**: a product has `⊗` and `&` and we took the
+free one; a coproduct has only `⊕`. **The Church-encoded sum already works when the tag is STATIC**
+— `((inl x) f g)` reduces to `(f x)` — and the dynamic case is stuck at `((if c A B) F G)`, which
+**case-of-case** unsticks completely, no closure and no tag: Prawitz's commuting conversion, GHC's
+case-of-case, whose blow-up hazard is answered by join points and **`again` is one**. q5b named this
+rule and rejected it for collections; for sums it is load-bearing. And **the niche optimisation is
+what host APIs already do** — NULL, −1, HRESULT's sign bit are all sums encoded in the payload's own
+value space — so declaring `(option ptr)` *names* the representation the API already uses rather
+than adding one. Refinements need nothing new: `emit/refine.go`'s `clauses` already case-splits on
+`if`, and a `case` on a tag is the same operation. Recursive sums stay **rejected** — a JSON node is
+a *non-recursive* sum plus indices into a table. Go is the hardest host here, not x86, because Go
+has no sum type.
+
 **THE MAP OF DECIDABILITY IS DRAWN** — [decidability-map.md](docs/decidability-map.md), so future
 decisions can be LOCATED rather than argued from scratch. Four questions get conflated and have four
 answers: reduction terminating is **undecidable** (quarantined to the static level, bounded by fuel,

@@ -125,6 +125,17 @@ entire collection library rather than one corner.
 > **The unified representation is more elegant and needs strictly more machinery. Two
 > representations need none.**
 
+> **Revisited 2026-08-21 — [sums-research.md §0.1](../sums-research.md).** The rule this section
+> rejected is load-bearing somewhere else. For a **sum**, `((if c A B) F G)` is exactly what a
+> dynamically-tagged Church encoding gets stuck on, and case-of-case unsticks it **completely** —
+> no closure survives, no tag is built, nothing is allocated. So the same rule that was too much
+> machinery for the collection library is what would make a locally-consumed `Result` free, exactly
+> as β makes a locally-consumed product free.
+>
+> The rejection here still stands on its own terms — two representations remain cheaper than
+> unifying pull and push. What changes is that the rule may arrive anyway, for a different reason,
+> and if it does this section's cost/benefit should be re-run rather than assumed.
+
 That is the same shape as GHC's experience, where stream fusion is more general than foldr/build
 and correspondingly more fragile.
 

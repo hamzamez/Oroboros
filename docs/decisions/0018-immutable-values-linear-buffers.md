@@ -59,8 +59,19 @@ Every mechanism it needs already exists, for other reasons:
 
 - **The heap is acyclic** because [ADR 0014](0014-recursion-is-not-in-the-language.md) removed
   recursion and there are no recursive types. No cycle collector is ever needed.
-- **A buffer cannot escape** because closures are refused ([g6](../derivations/g6-escaping-closures.md)) —
-  which is the *only* thing Haskell's rank-2 `runST` type exists to prevent.
+- **A buffer cannot escape**, and this needs *two* halves, not one
+  ([tables.md §14.1](../spec/tables.md)). First, `build`'s continuation has type
+  `int → (buffer V → buffer V) → array V`, so a body whose value is a *table* is a type error —
+  which is what stops `(build n (fn (b) (table m (fn (i) (b i)))))`, a rule capturing the buffer
+  and outliving it. Second, a lambda that captured the buffer cannot be stored or returned
+  anywhere, because **closures are refused as values** — which is the *only* thing Haskell's
+  rank-2 `runST` type exists to prevent.
+
+  Note precisely what that refusal is: not a theorem that lambdas always reduce away, but a
+  **check**. A lambda is accepted in a position a backend structurally consumes — a `let`
+  continuation, a `loop` body, a `table` rule — and `emit/*.go` errors on one reaching the emitter
+  as a value. Reading the buffer *inside* the scope is fine and is what the sieve does; the read is
+  impure, so ADR 0010 sequences it against the stores.
 - **A buffer is lexically local in the residual** because reduction is whole-program and inlines
   every non-exported function.
 - **`occurrences(t, name)` is already in the reducer** (`core/reduce.go:809`), load-bearing for
@@ -143,6 +154,11 @@ twenty-five years of practice suggests is the right friction.
 3. **The diagnostic proves untranslatable.** A linearity error is found on the residual; if source
    positions cannot be carried back well enough for the message to be usable, the check belongs
    somewhere earlier and that is a different design.
-4. **A target appears whose allocator we own and whose footprint matters** — Android is
+4. **Closures are added to the language.** This ADR's escape argument depends on them being
+   refused as values. If they arrive, a buffer can be captured and outlive its scope, and the
+   answer becomes Haskell's rank-2 `runST` type — which exists for exactly this and nothing else.
+   Adding closures without revisiting this ADR would be unsound.
+
+5. **A target appears whose allocator we own and whose footprint matters** — Android is
    [ADR 0004](0004-first-targets.md)'s reason for the JVM, and requirement 6 is about size.
    Perceus becomes available exactly there.

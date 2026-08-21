@@ -727,3 +727,226 @@ visible in the residual and could be a diagnostic.
    the small-table case.
 4. **Whether `len` on a `table` ever survives to the residual.** It should always fold; if it does
    not, there is a case where the rule form is not free.
+
+---
+
+## 14. Five questions the design has to answer
+
+Asked by hamza after ADR 0018. Three of them expose things the earlier sections did not say, and
+one of them found a hole.
+
+### 14.1 What is a closure, why do we not have one, and how much rides on it?
+
+A **closure** is a function value that carries an environment: it has free variables from an
+enclosing scope and it outlives that scope, so the captured values must be kept somewhere — a
+heap-allocated environment record. `(fn (x) (+ x n))` is a closure exactly when it escapes the
+scope that bound `n`.
+
+**We do not have them by REFUSAL, not by theorem.** That distinction matters and the earlier
+sections blurred it.
+
+Reduction removes lambdas wherever it can: β substitutes, every non-exported function is inlined,
+and higher-order code disappears. What is left is checked, and `emit/golang.go:281` (and the other
+three backends) is the check:
+
+```
+case core.KFn:
+    return "", fmt.Errorf("a bare abstraction reached the emitter: %s\n"+
+        "  This is an escaping closure. …")
+```
+
+So the precise rule is:
+
+> **A lambda is fine in a position a backend structurally consumes** — a `let` continuation, a
+> `loop`'s body, a `table`'s rule, a `build`'s scope. **It is refused as a VALUE.**
+
+The backends only ever read a `KFn` positionally: `t.Args()[1]` of a `let`, `t.Args()[0]` of a
+`loop`. Anywhere else it is an error. Nothing is proven about programs in general; programs that
+would need a closure are rejected.
+
+**What it costs.** Higher-order *programming* works — `examples/native/generic-go.oro` passes `get`
+and `combine` as parameters and it all reduces away. Higher-order *values* do not:
+
+- an **exported** function cannot take or return a function, because its caller is hand-written
+  host code that reduction cannot see;
+- a function cannot be **stored** in a table, so there are no dispatch tables, no vtables, no
+  strategy-pattern-as-data;
+- a **host callback** cannot be passed, which is why `targets/js/methods.oro` declares `map`,
+  `filter` and `reduce` and records that they cannot be called. That was measured and is the
+  cheapest thing to lose: js-toplevel-2026-08-18 puts those methods at **3.6× to 133× slower** than
+  a loop.
+
+**What it buys.** No hidden heap allocation — the thing that killed the predecessor project. A
+first-order residual, which is why the type checker is simple, why the interval analysis is
+tractable, and why `(a i)` is unambiguous (§3.2). And ADR 0018's escape argument.
+
+**How much rides on it: enough that it must be a cross-reference.** ADR 0018 is sound *because* a
+buffer cannot be captured. If closures are ever added, ADR 0018 must be revisited and the answer
+would be Haskell's rank-2 `runST` type, which exists for exactly this and nothing else. That is
+written into the ADR's triggers.
+
+**And there is a second half to the argument that §6.1 did not state.** A lambda in a *structural*
+position is allowed, so what stops this?
+
+```lisp
+(build n (fn (b) (table m (fn (i) (b i)))))     ; a rule capturing the buffer
+```
+
+The rule is a lambda in a structural position, and the table it makes would outlive the buffer.
+Two things stop it, and both are needed:
+
+1. **`build`'s continuation must return the buffer** — its type is
+   `int → (buffer V → buffer V) → array V` — so a body whose value is a `table` is a type error.
+2. **A lambda capturing the buffer cannot be stored or returned anywhere else**, because closures
+   are refused as values.
+
+Reading the buffer inside the scope is fine and useful — `(alloc (table m (fn (i) (b i))))` forces
+the read *while `b` is alive*, and the read is impure so ADR 0010 sequences it against the stores.
+That is the sieve checking whether `i` is already crossed off.
+
+### 14.2 A function receives a table and returns one with a single element changed
+
+This is the aggregate update problem (Hudak & Bloss 1985), and the honest answer is that it is
+**O(n) in the language and O(1) only inside a `build`**.
+
+**As a rule — free, and it is not a copy:**
+
+```lisp
+(def with (fn (a i v) (table (len a) (fn (j) (if (== j i) v (a j))))))
+```
+
+No memory at all. Reading it costs one compare per access. If it is consumed by a loop, the compare
+fuses in and there is no table. **This is the right answer when the result is scanned once**, which
+is most of the time.
+
+**Forced — O(n):**
+
+```lisp
+(alloc (with a i v))     ; a full copy with one element different
+```
+
+**O(1), inside a scope:**
+
+```lisp
+(build (len a) (fn (b) (set (copy-from b a) i v)))
+```
+
+still O(n) because of the copy-in — but *repeated* updates batch:
+
+```lisp
+(build (len a) (fn (b)
+  (loop ((b (copy-from b a)) (k 0))
+    (>= k (len updates))  b
+    else                  (again (set b (index-of updates k) (value-of updates k)) (+ k 1)))))
+```
+
+one copy, m stores. That is exactly Haskell: `arr // [(i,v)]` on `Data.Array` is O(n), `writeArray`
+in `ST` is O(1), and you batch.
+
+**What is genuinely missing** is O(1) update of a table a *caller* owns, which is M-B — uniqueness
+on parameters — deferred in ADR 0018 with its trigger. Inside a program it is not missing, because
+reduction removes the boundary and the table becomes a local buffer.
+
+A compiler could also recover in-place when `a` is provably dead — that is M-A's analysis, still
+available as an *optimisation*. ADR 0018 declines to **rely** on it, because SISAL's lesson is that
+an optimisation with no source-level guarantee is a cliff you cannot see.
+
+### 14.3 Growing a table — `append`
+
+**There is no `append`, and a table does not grow.** `(len a)` is fixed, and `alloc` produces
+something with a length and no capacity (§2.1).
+
+`append` as a rule is free and O(1) to write:
+
+```lisp
+(def append (fn (a x) (table (+ (len a) 1) (fn (i) (if (< i (len a)) (a i) x)))))
+```
+
+but **repeated appends are O(n²)** if each is forced, and each nested `if` makes reads slower. That
+is not a growable array; it is a linked list wearing one.
+
+**The answer is the array-language answer: compute the size, then build.**
+
+```lisp
+;; filter, in two passes — count, then scatter. The parallel-array idiom.
+(def filter (fn (p a)
+  (let (count-matching p a) (fn (n)
+    (build n (fn (b)
+      (loop ((b b) (i 0) (k 0))
+        (>= i (len a))  b
+        (p (a i))       (again (set b k (a i)) (+ i 1) (+ k 1))
+        else            (again b (+ i 1) k))))))))
+```
+
+Two passes over the input, one allocation of the exact size, no growth. This is how Futhark, ISPC
+and every GPU library implement `filter` — count, prefix-sum, scatter — and it is the same shape
+[q5b](q5b-filter.md) reached from the push/pull duality.
+
+**What is not served: unbounded accumulation where the size cannot be computed** — reading input
+until EOF, for instance. Three answers, none adopted here:
+
+- **two passes**, when the source can be re-read;
+- **build to a bound and slice** — `(build max …)` then `(slice b 0 k)`, which is free (§14.5);
+- **a growable buffer**: `(push b x)` consuming and returning a possibly-larger buffer. This is
+  **fully compatible with ADR 0018** — the buffer stays linear and scoped, and amortised doubling
+  is exactly Go's `append`. All four targets can do it. It costs the buffer a *capacity* alongside
+  its length.
+
+The third is the natural extension and is deliberately not specified, because it should follow a
+real program that needs it rather than precede one.
+
+### 14.4 Copying a table without changing anything
+
+```lisp
+(table (len a) (fn (i) (a i)))
+```
+
+**That is η-tab, and it *is* `a`.** As a rule it is free and denotes the same function. Forced:
+
+```lisp
+(alloc (table (len a) (fn (i) (a i))))  =  a
+```
+
+is the η law of §3.1 — and **ADR 0018 is what made it sound**, because tables are immutable so
+nothing can observe the difference between the copy and the original. The compiler may elide it.
+Before ADR 0018 it emitted an allocation and a full copy loop, measured, and was right to.
+
+So question 4's answer is literally the law the memory model was chosen to license.
+
+**And the defensive copy does not exist here.** In Go or Java you copy a slice before handing it
+out because the receiver might write to it. Nobody can write to a table, so there is nothing to
+defend against — `DictCopy` in `gauntlet/go/aliasing.go`, which prices exactly that, has no
+counterpart in this language.
+
+### 14.5 Slicing
+
+**Free, as an index map:**
+
+```lisp
+(def slice (fn (a lo hi) (table (- hi lo) (fn (i) (a (+ i lo))))))
+```
+
+and slices **compose by β**: `(slice (slice a 2 20) 3 7)` reduces to one addition, which is
+Mullin's ψ-correspondence theorem doing its job (§8.1). Strides and reversal are the same shape:
+
+```lisp
+(def stride  (fn (a k) (table (/ (len a) k) (fn (i) (a (* i k))))))
+(def reverse (fn (a)   (table (len a) (fn (i) (a (- (- (len a) 1) i))))))
+```
+
+**And immutability makes an O(1) *forced* slice safe.** `(alloc (slice a lo hi))` is a copy by the
+general rule — but a slice of an already-allocated table can emit the host's own view:
+
+| target | view | |
+|---|---|---|
+| Go | `a[lo:hi]` | **O(1)**, shares the backing array |
+| JavaScript | `a.subarray(lo, hi)` on a typed array | **O(1)** |
+| windows | pointer plus length | **O(1)** |
+| Java | none for arrays | O(n) copy |
+
+Sharing is safe **only because tables are immutable** — a view and its parent can never disagree,
+and a buffer is never shared. That is a concrete performance property the memory model buys, and it
+is a per-target emission choice of exactly the kind §3.3 describes.
+
+A *strided* slice is not a view on any of the four, so it forces a copy. That is honest and it is
+the same distinction Go draws.

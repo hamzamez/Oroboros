@@ -455,6 +455,14 @@ Apply that to the product question and it stops being a guess:
 
 That is the sequent calculus's real gift here: **not a core, a classification.**
 
+> **Examined 2026-08-21 — [lowstar-lessons.md](lowstar-lessons.md).** Low\* is cited five times in
+> this repository and had never been read for what it teaches beyond "the restriction is the
+> mechanism". Two findings change things here: **F\*'s proof instability is the argument against an
+> SMT backend**, so our incomplete-but-terminating fragment is the right trade rather than a
+> compromise; and **HACL\* can write a fast implementation and prove it refines a clean
+> specification, which we cannot** — the seed of an answer being `sig`'s claim checked in two
+> directions.
+
 ## 6.4 Coq-like dependent types, and the system that matters most
 
 **The extraction problem is the direct analogue of §2.1.** Coq's CIC lets types mention terms;

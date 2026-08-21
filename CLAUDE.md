@@ -206,6 +206,26 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**F\*/Low\* has been cited five times as an authority and is now examined** —
+[lowstar-lessons.md](docs/lowstar-lessons.md). Nine lessons: five confirm decisions, three
+challenge them, one names something we get free. **The restriction IS the mechanism** — Low\* is
+the *subset* of F\* that has a C meaning and KaRaMeL **refuses** the rest, which is our emitter's
+refusal in a better register. **Erasure must be total AND checkable** — F\* can *tell* you
+something is ghost; we find out when the emitter fails. **Do not add SMT**: F\*'s best-known
+practical problem is proof instability, and our deliberately incomplete linear-arithmetic
+procedure that *reports* rather than assumes is the right side of that trade. **Ours is cheaper
+than theirs in one specific way**: HACL\* needs a *proof* that its implementation refines its
+spec, and we need none because reduction **produces** the implementation *from* the spec.
+**LINEARITY IS FRAMING done by the type system** — Low\*'s HyperStack needs a `modifies` clause per
+function and it is HACL\*'s largest proof burden; ADR 0018's buffer has a `modifies` set that is
+*syntactically* the buffer, which is ADR 0018's best argument and ADR 0018 does not make it.
+Challenged: Low\* keeps recursion and real data types and still hits hand-written C, so **our
+minimalism is stricter than speed requires and the reason is FOUR HOSTS, not performance**; and
+**we cannot write a fast implementation and prove it equivalent to a clean one**, which HACL\* does
+routinely — the seed of the answer is `sig`'s existing *claim checked in two directions*, and
+generalising it is the one genuinely new capability on the list. And Low\* targets **the systems
+layer** on purpose, which is the crossroad question restated: *are we trying to be general-purpose?*
+
 **This is a TWO-LEVEL language and had not said so** —
 [closures-direction.md](docs/closures-direction.md). We already have closures and they already
 work: a **Church-encoded list** — `(cons x xs) = (fn (c n) (c x (xs c n)))` — compiles today and

@@ -859,8 +859,31 @@ an optimisation with no source-level guarantee is a cliff you cannot see.
 
 ### 14.3 Growing a table — `append`
 
-**There is no `append`, and a table does not grow.** `(len a)` is fixed, and `alloc` produces
+**There is no *portable* `append`, and a table does not grow — but growth is already reachable
+target-natively, today.** That distinction matters and the first draft of this section blurred it:
+
+```lisp
+(prim append-int     (slice-int int) slice-int             expr "append(%s, %s)")   ; targets/go
+(prim append-float64 (slice-float64 f64) slice-float64     expr "append(%s, %s)")
+(prim push           (any any) any                         stmt "%s.push(%s)")      ; targets/js
+(prim newLong        (none) list-long   expr "new java.util.ArrayList<Long>()")     ; targets/java
+```
+
+Go's `append`, JavaScript's `push` and Java's `ArrayList` are **declared now**, and windows has
+`HeapReAlloc` available. So a program that needs a growable sequence has one on three of four
+targets and can have one on the fourth — it just names a target and gives up the portability claim,
+which is [ADR 0001](../decisions/0001-parasite-model.md) working exactly as designed.
+
+What follows is about the **portable** layer, where `(len a)` is fixed and `alloc` produces
 something with a length and no capacity (§2.1).
+
+**One hazard where the two meet.** `go.append` may return a slice **sharing** the caller's backing
+array, and `go.set-float64` may write through it. Target-native mutation is outside
+[ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) entirely — the language's
+guarantee is that *its own* constructs cannot alias, not that a program cannot reach around them.
+A program mixing `go.set-*` with `alloc`/`build` can produce aliasing the language's model says is
+impossible, and owns the consequences. That is the same bargain as every other target-native name,
+and it should be said out loud rather than discovered.
 
 `append` as a rule is free and O(1) to write:
 
@@ -895,11 +918,24 @@ until EOF, for instance. Three answers, none adopted here:
 - **build to a bound and slice** — `(build max …)` then `(slice b 0 k)`, which is free (§14.5);
 - **a growable buffer**: `(push b x)` consuming and returning a possibly-larger buffer. This is
   **fully compatible with ADR 0018** — the buffer stays linear and scoped, and amortised doubling
-  is exactly Go's `append`. All four targets can do it. It costs the buffer a *capacity* alongside
-  its length.
+  is exactly Go's `append`. All four targets can do it, and three already declare it. It costs the
+  buffer a *capacity* alongside its length.
 
-The third is the natural extension and is deliberately not specified, because it should follow a
-real program that needs it rather than precede one.
+The third is the natural extension. What it needs before being specified is a decision this
+document should not make on its own: **there are two buffer disciplines, not one.**
+
+| | `build` today | a growable form |
+|---|---|---|
+| created with | an exact length, zero-filled | a *capacity*, length 0 |
+| `set` at any `i < len` | yes — this is **scatter**, and the sieve needs it | no; nothing is written yet |
+| `push` extends | no | yes — this is **accumulation** |
+| final length | known at `build` | however many were pushed |
+
+Go draws the same line with `make([]T, n)` against `make([]T, 0, cap)`, and they are genuinely
+different: a sieve wants zero-filled scatter, a filter wants append-only accumulation. Conflating
+them into one `n` that sometimes means length and sometimes capacity is the mistake to avoid. So
+the growable form is a **second construct**, not a flag on this one, and it waits for a real
+program.
 
 ### 14.4 Copying a table without changing anything
 

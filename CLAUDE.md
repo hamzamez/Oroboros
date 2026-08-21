@@ -206,6 +206,29 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**THIS IS A GENERAL-PURPOSE LANGUAGE** — [general-purpose.md](docs/general-purpose.md). hamza,
+answering the question lowstar-lessons.md asked: *apps on Windows and Android, websites in the
+browser, backends in the cloud.* The four targets were application platforms all along, and the
+guess that this is "a systems and numeric language" was a read of the benchmarks rather than the
+intent. **The Low\* lesson inverts**: Low\* succeeded by picking a layer where its restrictions are
+advantages, so general purpose means **the restrictions must be PAID FOR rather than enjoyed**.
+What moves from *deferred* to *owed*: **recursion** — a JSON parser, a DOM walk and a
+recursive-descent parser all recurse to a depth the input decides, so ADR 0014 needs a superseding
+ADR and the shape of the answer is **ADR 0012's**, name the portable depth and say the rest is the
+target's; **sums** — every host API can fail and a refinement cannot discharge a network error;
+then **strings**, **growable collections** and **maps**.
+
+**And the type system must reason about the TARGET** — *"I should be able to express a windows api
+call so I can check my program in oroboros."* Today `(prim VirtualAlloc (int) ptr expr …)` says a
+name, argument types, a result type and a template, and does not say that the size must be
+positive, that the result may be NULL, that it points to `size` writable bytes, or that it must
+reach `VirtualFree`. **SAL is the field-tested answer** — Microsoft annotated Win32 for `/analyze`,
+and most of SAL is buffers and sizes, which our refinements already do decidably; the rest is
+nullability, success and acquire/release. **Five of the eight requirements already exist.** Missing:
+postconditions naming the result, a fallible result, and a surface for linear handles — and the
+third is ADR 0018's buffer generalised, which is the best evidence a mechanism is right. An effect
+system is NOT obviously needed and ADR 0010 holds.
+
 **F\*/Low\* has been cited five times as an authority and is now examined** —
 [lowstar-lessons.md](docs/lowstar-lessons.md). Nine lessons: five confirm decisions, three
 challenge them, one names something we get free. **The restriction IS the mechanism** — Low\* is

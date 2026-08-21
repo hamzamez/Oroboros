@@ -157,9 +157,20 @@ Protzenko et al. are explicit that Low\* targets **the systems layer** — crypt
 protocol state machines — and not general application programming. That is why HACL\* is a crypto
 library and not a web framework, and the restriction is why it succeeded.
 
-Our gauntlet is dot products, stencils, sieves, word counts. The honest read is that **this is a
-systems and numeric language**, and the crossroad question — closures, general data types, growable
-collections — is really the question *"are we trying to be a general-purpose language?"*
+Our gauntlet is dot products, stencils, sieves, word counts.
+
+> **Answered 2026-08-21, and it is not what this section guessed** —
+> [general-purpose.md](general-purpose.md). hamza: *"this is general purpose programming. I want
+> apps on windows and android, I want website in the browser and I want backend in the cloud."*
+>
+> The paragraph that stood here read the *benchmarks* and concluded "a systems and numeric
+> language". That was a read of what has been measured, not of what is intended, and the four
+> targets were application platforms all along.
+>
+> **The Low\* lesson does not disappear, it inverts.** Low\* succeeded by picking a layer where its
+> restrictions are advantages. Choosing general purpose means **the restrictions must be paid for
+> rather than enjoyed** — and general-purpose.md is the bill: recursion, sums, strings, growable
+> collections and maps all move from *deferred* to *owed*.
 
 [assessment-2026-08-20 §4](assessment-2026-08-20.md) already names the risk in its own words:
 *"nothing here is a program anyone would want to run."* Low\* answers that by picking a layer where
@@ -190,7 +201,8 @@ Ranked, and none of it is a language change today.
 
 **And decide, explicitly:**
 
-6. **What layer this is.** Low\*'s success is inseparable from having answered that. If the answer
-   is *systems and numerics*, the current restrictions are advantages and the gauntlet should grow
-   toward parsers, protocol handling and crypto-shaped code — which is precisely where
+6. ~~**What layer this is.**~~ **Answered: general purpose** — [general-purpose.md](general-purpose.md).
+   Which means the restrictions are now costs to be paid rather than advantages to be enjoyed, and
+   the gauntlet should grow toward the awkward application shapes — a parser, an event loop, a
+   request handler — which is precisely where
    [assessment-2026-08-20 §5](assessment-2026-08-20.md)'s *"write something awkward"* points.

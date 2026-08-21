@@ -206,6 +206,26 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**THE MAP OF DECIDABILITY IS DRAWN** — [decidability-map.md](docs/decidability-map.md), so future
+decisions can be LOCATED rather than argued from scratch. Four questions get conflated and have four
+answers: reduction terminating is **undecidable** (quarantined to the static level, bounded by fuel,
+where "I gave up" is an honest compile error); the residual type-checking is **trivially decidable**
+because staging made it monomorphic, first-order and closed — **we never pay Hindley-Milner's
+DEXPTIME or meet System F's undecidable inference, because there is nothing polymorphic left**;
+obligations are **QF-LIA, NP-complete**, solved by an incomplete but total procedure; termination is
+**size-change, PSPACE**. Two counterintuitive facts on the map: nonlinear arithmetic is
+**undecidable over ℤ** (Hilbert's 10th) and **decidable over ℝ** (Tarski), and adding quantifiers to
+linear integer arithmetic keeps it decidable and makes it useless (2-EXP lower bound) — **the
+frontier is feasibility, not decidability**. The algebra is **two lattices**: abstract
+interpretation for *inference* (intervals ⊑ zones ⊑ octagons ⊑ polyhedra, with widening/narrowing)
+and a logical theory for *proof*, and our one real mismatch is that **intervals are non-relational
+while every interesting obligation is relational** — `emit/refine.go` hand-rolls a weak relational
+layer, and **octagons are the principled version at O(n³)**, the highest-value move available. For
+nonlinearity: **declared sound axioms, never search** — and per Shen, those axioms should be
+DECLARED not hardcoded in Go, which is this project's own rule one level up. Four things given up,
+each a published limit: program equivalence, general sortedness, products of two unknowns, and
+termination measures that are not size-changes.
+
 **THIS IS A GENERAL-PURPOSE LANGUAGE** — [general-purpose.md](docs/general-purpose.md). hamza,
 answering the question lowstar-lessons.md asked: *apps on Windows and Android, websites in the
 browser, backends in the cloud.* The four targets were application platforms all along, and the

@@ -2,8 +2,8 @@
 
 hamza, answering [lowstar-lessons.md §9](lowstar-lessons.md)'s question:
 
-> *"this is general purpose programming. I want apps on windows and android, I want website in the
-> browser and I want backend in the cloud."*
+> *"this is general purpose programming. I want apps on windows and android, I want websites in the
+> browser and I want backends in the cloud."*
 
 and adding a requirement:
 
@@ -64,8 +64,27 @@ Portable, bounded, no host stack involved — and it needs the **growable buffer
 general-purpose language.
 
 **(a) is the one that fits the existing pattern**, and (b) is what the compiler could do underneath
-it. This should get its own ADR superseding 0014, and it is now the largest open question in the
-language.
+it.
+
+> **Downgraded 2026-08-21 — [decidability-map.md §7.1](decidability-map.md).** hamza: *"nothing
+> prevents me from expressing json, walk a dom, using a loop … the real impact maybe the choice of
+> the data structure."* Correct on both counts, and this section overstated the urgency.
+>
+> Recursion as **control flow** is optional and industry practice already avoids it — production
+> JSON parsers are iterative or depth-limited because recursion on adversarial input is a
+> stack-overflow vulnerability. What is not optional is recursive **data**, and the answer to that
+> is not recursion either: it is a **flat table of nodes with integer indices** — simdjson's tape,
+> Zig's own AST as a `MultiArrayList` of `u32` indices, an ECS world, a column store. **The
+> structure this language already chose is the one that makes recursive data unnecessary.**
+>
+> And it is now measured ([indexgraph-2026-08-21](../gauntlet/results/indexgraph-2026-08-21.md)):
+> on the realistic random-access shape the index form is **2.02× faster** than the pointer form,
+> though it is 1.43× *slower* when the allocator has already laid nodes out in traversal order —
+> both directions, and the condition is the access pattern.
+>
+> So ADR 0014 is not the largest open question. **The sum type is**, and §7.2 of the map shows why:
+> it is required for errors, required for a Win32 contract's `_Ret_maybenull_`, **and** it is what
+> replaces the closure for dispatch. Three requirements, one mechanism.
 
 ### 2.2 Errors — every API can fail, and we have no sum
 
@@ -304,8 +323,8 @@ Order:
    bearing for §2.2, C-B, and every host API that can fail.
 2. **`(ensures …)`** — postconditions naming the result. Same fragment, same procedure.
 3. **`(acquires …)` / `(releases …)`** — linear handles, reusing `occurrences`.
-4. **Then recursion** (§2.1), which deserves its own ADR and its own measurement, and is the
-   largest remaining question in the language.
+4. **Then recursion** (§2.1) — which is now a *style* question about control flow with a measured
+   answer for the data, not the largest remaining question. It still deserves its own ADR.
 
 And one thing to hold onto, because it is the strategic answer to §1: **choosing general purpose
 means the restrictions are no longer free.** Every one of them — no recursion, no sums, no growth,

@@ -206,6 +206,39 @@ program property**, computed like portability, not a language guarantee.
 Recovering structure from `goto` is a hard algorithm and three of the initial targets cannot
 express `goto` at all.
 
+**THE TYPE ALGEBRA IS ARGUED** — [type-algebra.md](docs/type-algebra.md), on hamza's *"this looks a
+lot like algebraic types, let's do it right"* and *"make `match` like `loop` and `cond`, with
+`again` being match again"*. **Take the semiring — `+`, `×`, `0`, `1` — and the exponential; refuse
+fixed points, subtyping and untagged unions.** What it would be, precisely: **a bicartesian closed
+category WITHOUT fixed points, plus one indexed family (tables) whose index set is sized at run
+time.** Three laws are load-bearing: associativity/commutativity hold **up to isomorphism** so flat
+n-ary products and sums are legitimate; **distributivity IS case-of-case**; and `A^(B+C) ≅ A^B × A^C`
+says a function from a sum is a list of clauses, so `match` falls out of the algebra.
+
+**And every operation is free at the STATIC level and priced at the DYNAMIC level** — product,
+table, sum, function, fourth time — which is the two-level language stated in the type system, and
+the reason "the whole machinery" is affordable: it is free where it is used to *think* and priced
+where it is used to *run*.
+
+**Three exclusions, argued.** **μ** — refused, and the alternative is *measured*: recursive data is
+a flat table plus indices, 2.02× faster on irregular access. **Subtyping** — refused because we
+already have the decidable half: `{i | 0 ≤ i < n} ⊆ int` is bounded subtyping decided in QF-LIA, and
+generalising it is Pierce's undecidable F<:. **Untagged unions** — `success | fail` is a coproduct
+and wanted; `float | int` as a *union* is idempotent, is not a coproduct, needs a runtime type test
+three of four hosts lack, and needs subtyping. **Tagged in the semantics, niche-encoded in the
+representation** is Rust's answer and costs nothing. Products anonymous, **sums named** — `(inl 3.0)`
+does not determine its type, which is why every language without runtime types went nominal.
+
+**`match` IS `loop`, and it is SUGAR.** `(match (e₁ … eₙ) pats body … else body)` desugars to
+`(loop ((v₁ e₁) …) guard body … else body)` with pattern bindings as `let`s — and **`again` under a
+`let` already works** (ADR 0015 permits exactly that, a rule written for another reason), verified
+today. **Zero reduction rules, zero term kinds**, joining `let`/`seq`/`and`/`cond` as sugar that
+erases; `if` stays primitive because it is what `match` desugars into. It is Erlang's clause-head
+shape with a jump instead of a tail call, it is the state machine a parser or event loop is, and it
+makes the refinement checker **stronger** — a clause gives the tag *and* narrows later clauses to a
+finite remaining set, where a boolean chain gives only a negated predicate. **Flat patterns, because
+our data is flat.**
+
 **SUMS ARE RESEARCHED and not decided** — [sums-research.md](docs/sums-research.md). Three
 requirements converge: errors, Win32 contracts (`_Ret_maybenull_`, `_Success_`), and **dispatch,
 because a tagged union is what replaces the closure**. Four findings. **A sum is Σ over a finite

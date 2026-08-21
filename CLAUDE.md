@@ -348,7 +348,28 @@ calculus does give us is **polarity**: a product eliminated by projection need n
 which is exactly why the product measured free. Take the classification, not the core.
 
 **The primary data structure is SPECIFIED and not yet built** —
-[tables.md](docs/spec/tables.md). One concept: **a table is a function from a finite index set**,
+[tables.md](docs/spec/tables.md). One concept: **a table is a function with a known finite domain**,
+and **types are functions; the domain is what varies**: `(fn (A) B)` is total on A, `(array V)` is
+`(fn (int) V)` on `[0, len)`, `(map K V)` is `(fn (K) V)` on the keys present. Three points on one
+scale. So **a bounds check is a domain condition** and Go's comma-ok is the same condition — and
+the dependency rides in the **refinement** layer that already exists, which is simple types plus a
+decidable constraint domain, which is **Dependent ML**, which types-direction §6.5 had already
+named as our lineage from a measurement. Surface: `(array e…)` a graph, `(table n f)` a rule with
+no memory, `(alloc t)` the one construct that allocates, `(len t)`, and **indexing is APPLICATION**.
+`vec`/`vector` were rejected — every mainstream `vector` is a growable mutable memory-owning
+container and ours is the opposite; `materialize` lost to `alloc`, which says where the money goes
+in a word everyone has. **β-tab is a second CLAUSE of β**, not a fourth rule — a rule is an
+intensional presentation of a function and a graph an extensional one — so it needs no constant
+folder and comes first. **Mullin's Psi Correspondence Theorem is β**: MoA needs an index calculus
+because APL arrays are data, ours are functions, so composing index maps is composing functions.
+The leading-axis rule is currying, and MoA's DNF/ONF split is our residual/emission split. And
+**automatic unrolling is deferred, NOT refuted** — the measurement only covered cheap elements, the
+win scales as compile-cost over artifact-cost, and ADR 0009 bites exactly where the win would be
+because transcendentals are not bit-reproducible. **The memory model is deliberately undecided**
+(§9) and nothing in the spec assumes an answer.
+
+**The older framing, kept because the reasoning is what changed**: a table is a function from a
+finite index set,
 and the length is what makes it more than a function. Three constructors — `(array e…)` a graph,
 `(vec n f)` a rule with no memory, `(materialize t)` the one construct that allocates — plus
 `(len t)`, and **indexing is APPLICATION**: `(a i)`, not `(at a i)`. That is unambiguous by a

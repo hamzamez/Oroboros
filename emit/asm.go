@@ -1140,6 +1140,61 @@ var asmRetX = []string{"xmm0", "xmm1", "xmm2", "xmm3"}
 
 // emitMulti places each result in its convention register.
 func (e *asmEmitter) emitMulti(name string, sig *core.Sig, body *core.Term) error {
+	end := fmt.Sprintf("Lret%d", e.uniq())
+	if err := e.multiTail(body, sig, name, end); err != nil {
+		return err
+	}
+	e.label(end)
+	return nil
+}
+
+// multiTail walks `if` and `let` to the leaves that actually produce a product,
+// placing the results and jumping to a shared exit from each one.
+//
+// Sums are what demanded it: a function returning a sum returns from several
+// places. It mirrors emitLoopBody, which walks the same two forms for the same
+// reason -- they are exactly what beta can leave between a function and its
+// value.
+func (e *asmEmitter) multiTail(body *core.Term, sig *core.Sig, name, end string) error {
+	if body.Kind == core.KApp && body.Op().Kind == core.KName {
+		if p, ok := e.tgt.Prims[body.Op().Name]; ok && len(body.Args()) == 3 && p.Kind == "cond" {
+			args := body.Args()
+			els := fmt.Sprintf("Lelse%d", e.uniq())
+			if err := e.branchUnless(args[0], els); err != nil {
+				return err
+			}
+			if err := e.multiTail(args[1], sig, name, end); err != nil {
+				return err
+			}
+			e.label(els)
+			return e.multiTail(args[2], sig, name, end)
+		}
+		if p, ok := e.tgt.Prims[body.Op().Name]; ok && p.Kind == "let" && len(body.Args()) == 2 {
+			args := body.Args()
+			k := args[1]
+			if k.Kind == core.KFn && len(k.Params) == 1 {
+				val, err := e.emit(args[0])
+				if err != nil {
+					return err
+				}
+				if !core.Occurs(k.Body(), k.Params[0]) {
+					e.release(val)
+					return e.multiTail(k.Body(), sig, name, end)
+				}
+				kbody, kraw, _ := openFresh(k, e.bound, asmIdent)
+				q := val
+				if !val.owned && !val.imm {
+					q = e.alloc(val.xmm)
+					e.move(q, val)
+				}
+				e.where[kraw[0]] = hold(q)
+				err = e.multiTail(kbody, sig, name, end)
+				delete(e.where, kraw[0])
+				e.release(q)
+				return err
+			}
+		}
+	}
 	vs, ok := multiValue(body, len(sig.Results))
 	if !ok {
 		return multiResultErr(name, sig, body)
@@ -1185,6 +1240,7 @@ func (e *asmEmitter) emitMulti(name string, sig *core.Sig, body *core.Term) erro
 		}
 		gp++
 	}
+	e.line("jmp %s", end)
 	return nil
 }
 

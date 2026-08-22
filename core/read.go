@@ -79,6 +79,32 @@ type Form struct {
 	Names []string
 	Term  *Term
 	Sig   *Sig
+	Sum   *Sum
+}
+
+// Sum is a closed, finite, NON-RECURSIVE sum type — Σ over a finite index set,
+// the exact dual of a table's Π (docs/sums-research.md §1.2).
+//
+// The difference from the table is the whole design: a Π can be given by a RULE
+// and store nothing, while a Σ must carry WHICH — the tag is information the
+// caller does not have, and it has to be transmitted. So a sum value is a tag
+// and a payload, which is a PRODUCT, and we already built the product on all
+// four targets (values.md). Go's own `(T, error)` idiom is this exact shape.
+//
+// Sums are NAMED, products anonymous, and that is forced rather than chosen:
+// `(ok 3)` does not determine its type, which is why every language without
+// runtime types went nominal here.
+type Sum struct {
+	Name     string
+	Variants []Variant
+}
+
+// Variant is one summand. Payload is "" for a variant that carries nothing —
+// the degenerate case, which makes an enum a sum with no payloads rather than a
+// separate concept.
+type Variant struct {
+	Name    string
+	Payload string
 }
 
 type reader struct {
@@ -674,6 +700,12 @@ func toForm(t *Term) (Form, error) {
 			}
 		}
 		return Form{Kind: "sig", Name: t.Kids[1].Name, Sig: sig}, nil
+	case "sum":
+		sum, err := readSum(t)
+		if err != nil {
+			return Form{}, err
+		}
+		return Form{Kind: "sum", Name: sum.Name, Sum: sum}, nil
 	case "export":
 		names, err := nameList(t.Kids[1:])
 		if err != nil {
@@ -1080,4 +1112,89 @@ func noAgain(t *Term, line int) error {
 		}
 	}
 	return nil
+}
+
+// readSum reads `(sum name (variant type) … )`.
+//
+//	(sum result (ok int) (err int))
+//	(sum shape circle square triangle)     ; no payloads — an enum
+//
+// Closed, finite and NON-RECURSIVE, all three deliberately
+// (docs/sums-research.md §4): a recursive sum is refused because a JSON node is
+// a non-recursive sum plus indices into a table, which measured 2.02x FASTER on
+// irregular access than the pointer-chasing form. So `μ` buys nothing here and
+// costs the size-change termination argument.
+//
+// A variant with no payload is the degenerate case rather than a separate
+// concept, which is why an enum needs nothing added.
+func readSum(t *Term) (*Sum, error) {
+	if len(t.Kids) < 3 || t.Kids[1].Kind != KName {
+		return nil, fmt.Errorf("sum takes a name and at least two variants: %s", t)
+	}
+	sum := &Sum{Name: t.Kids[1].Name}
+	seen := map[string]bool{}
+	for _, k := range t.Kids[2:] {
+		var v Variant
+		switch {
+		case k.Kind == KName:
+			v = Variant{Name: k.Name}
+		case k.Kind == KApp && len(k.Kids) == 2 &&
+			k.Kids[0].Kind == KName && k.Kids[1].Kind == KName:
+			v = Variant{Name: k.Kids[0].Name, Payload: k.Kids[1].Name}
+		default:
+			return nil, fmt.Errorf("sum %s: a variant is a name, or a name and one "+
+				"payload type — `(ok int)`; got %s", sum.Name, k)
+		}
+		if seen[v.Name] {
+			return nil, fmt.Errorf("sum %s: %s is declared twice", sum.Name, v.Name)
+		}
+		if v.Name == sum.Name {
+			return nil, fmt.Errorf("sum %s: a variant may not have the sum's own name, "+
+				"because the constructor and the type would be one name", sum.Name)
+		}
+		seen[v.Name] = true
+		sum.Variants = append(sum.Variants, v)
+	}
+	if len(sum.Variants) < 2 {
+		return nil, fmt.Errorf("sum %s: a sum has two or more variants; one variant is "+
+			"just the payload", sum.Name)
+	}
+	return sum, nil
+}
+
+// Defs are the definitions a sum declaration generates. There is no new term
+// kind and no new reduction rule: a constructor is an ordinary definition, so
+// module qualification, imports, δ and the occurrence counter all apply to it
+// without knowing sums exist.
+//
+//	(sum result (ok int) (err int))
+//
+//	ok      = (fn (x) (values 0 x))       ⟶  (fn (x) (fn (#k) (#k 0 x)))
+//	ok#tag  = 0
+//	err     = (fn (x) (values 1 x))
+//	err#tag = 1
+//
+// `#tag` is what lets `case` desugar in the READER, which cannot see a sum
+// declared in another module: the clause emits a NAME, δ resolves it wherever
+// the sum lives, and reduction folds it to the literal. So an imported error
+// type works with no cross-module machinery at all.
+//
+// A payload-less variant is the constant `(values i 0)` rather than a bare `i`,
+// so that every variant of a sum has ONE shape and `case` need not ask which.
+func (s *Sum) Defs() ([]string, map[string]*Term) {
+	order := make([]string, 0, 2*len(s.Variants))
+	defs := map[string]*Term{}
+	for i, v := range s.Variants {
+		tag := &Term{Kind: KInt, Int: int64(i)}
+		if v.Payload == "" {
+			defs[v.Name] = Fn([]string{"#x"},
+				&Term{Kind: KApp, Kids: []*Term{Name("#x"), tag, &Term{Kind: KInt}}})
+		} else {
+			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#x"},
+				&Term{Kind: KApp, Kids: []*Term{Name("#x"), tag, Name("#p")}}))
+		}
+		defs[v.Name+"#tag"] = tag
+		order = append(order, v.Name, v.Name+"#tag")
+	}
+	return order, defs
 }

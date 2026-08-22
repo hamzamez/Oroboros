@@ -258,7 +258,40 @@ makes the refinement checker **stronger** — a clause gives the tag *and* narro
 finite remaining set, where a boolean chain gives only a negated predicate. **Flat patterns, because
 our data is flat.**
 
-**SUMS ARE RESEARCHED and not decided** — [sums-research.md](docs/sums-research.md). Three
+**SUMS ARE BUILT** — [sums.md](docs/spec/sums.md), 2026-08-22, closed/finite/non-recursive, **zero
+new term kinds** and **no target declares any of it**. The design is one sentence: **a sum is Σ, so
+its value is a tag and a payload, which is a PRODUCT — and the product was already built on all four
+targets**. Go's own `(T, error)` idiom IS that shape, so the host with no sum type needed nothing.
+A declaration generates **definitions** (`ok = (fn (#p) (fn (#x) (#x 0 #p)))`, `ok#tag = 0`), so
+qualification, imports, δ and the occurrence counter all apply without learning sums exist; `case`
+expands in **`Load`** rather than the reader, because the reader sees one file and an error type is
+declared in another. **Both levels are free**: static `(case (ok n) …)` leaves nothing, and dynamic
+`(case (if c (ok n) (err 0)) …)` reduces to `(if c … …)` — no tag, no closure, no allocation, no
+dispatch the `if` was not already doing. Measured **1.00× against hand-written Go with 0 allocs**
+([sums-2026-08-22](gauntlet/results/sums-2026-08-22.md)).
+
+**Four things the build taught that the argument had not.** **The static sum needed `=` to fold** —
+the Church encoding reduced away exactly as predicted and then left `(if (= 0 0) …)` behind, a
+tautological test the two-level language says should not exist; the fix is the first entry in
+tables.md's constant-folding table, and it is **integers only** because ADR 0009 permits folding
+only where compile time and run time provably agree. **Case-of-case needs a `let` companion**, and
+only a *nested* test finds it: β itself puts a `let` between a constructor and its eliminator, so
+the rule is better stated as **push an eliminator through anything β can leave in operator
+position** — exactly `if` and `let`. **A function returning a sum returns from SEVERAL PLACES**, so
+each backend gained `multiTail` walking those same two forms to the leaves — which is also V8's
+1.31× tail-return finding arriving a second time from a different direction. And **exhaustiveness
+REMOVES a branch rather than adding one**: a sum is closed and finite, so the last clause needs no
+test — a better argument for checking it than the one that motivated it. Also: the refinement layer
+had to be taught the language's `=`, since `b != 0` in an ok-branch comes from negating it.
+
+**Case-of-case was measured before it shipped**, as the build order demanded: across **184
+residuals** — every example on all four targets — it changes **nothing**, because it fires only
+where a sum is eliminated. Still open and named rather than guessed: the **niche encoding**
+(`(option ptr)`, `none-is 0`), **`try` as bind**, and **`match` on a sum** — which is not free,
+because `(again (err 3))` must split a sum into two loop-variable updates and doing that for an
+opaque sum puts `again` under a lambda.
+
+**The research that produced it, kept**: **SUMS ARE RESEARCHED and not decided** — [sums-research.md](docs/sums-research.md). Three
 requirements converge: errors, Win32 contracts (`_Ret_maybenull_`, `_Success_`), and **dispatch,
 because a tagged union is what replaces the closure**. Four findings. **A sum is Σ over a finite
 index set — the exact dual of the table's Π** — which is why a Π can be given by a *rule* and store

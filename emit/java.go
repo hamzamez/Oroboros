@@ -36,6 +36,9 @@ type javaEmitter struct {
 	weak    map[string]string // `any`, used only if nothing else constrains the name
 	tmp     int
 	indent  int
+	// rec is the record a multi-result method returns, set by multiFunc and
+	// read at every leaf multiTail returns from.
+	rec string
 
 	// bound is every name already emitted in this method — see openFresh.
 	bound map[string]bool
@@ -110,10 +113,6 @@ var JavaRecords = map[string]string{}
 // still holds across a compilation-unit boundary is the open question this
 // build exists to answer.
 func (e *javaEmitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []string) (string, error) {
-	vs, ok := multiValue(t.Body(), len(sig.Results))
-	if !ok {
-		return "", multiResultErr(name, sig, t.Body())
-	}
 	tys := make([]string, len(sig.Results))
 	for i, r := range sig.Results {
 		tys[i] = e.tgt.ty(r)
@@ -127,27 +126,75 @@ func (e *javaEmitter) multiFunc(name string, sig *core.Sig, t *core.Term, params
 		JavaRecords[rec] = fmt.Sprintf("\tpublic record %s(%s) {}\n", rec, strings.Join(fields, ", "))
 	}
 
-	outs := make([]string, len(vs))
-	for i, v := range vs {
-		x, err := e.emit(v)
-		if err != nil {
-			return "", err
-		}
-		outs[i] = x
+	e.rec = rec
+	if err := e.multiTail(t.Body(), len(sig.Results), name, sig); err != nil {
+		return "", err
 	}
-	for imp := range e.imports {
-		JavaImports[imp] = true
-	}
-
 	var out strings.Builder
-	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", rec, javaMangle(name), strings.Join(params, ", "))
+	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", rec, javaMangle(name),
+		strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
-	fmt.Fprintf(&out, "\t\treturn new %s(%s);\n\t}\n", rec, strings.Join(outs, ", "))
+	out.WriteString("\t}\n")
 	return out.String(), nil
 }
 
 // javaRecordName builds a valid identifier from the component types, so the
 // name is a function of the SHAPE. `long[]` becomes `longArr`.
+// multiTail returns from every leaf rather than joining the branches first.
+// See the Go emitter for the argument.
+func (e *javaEmitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) error {
+	if vs, ok := multiValue(t, n); ok {
+		outs := make([]string, len(vs))
+		for i, v := range vs {
+			x, err := e.emit(v)
+			if err != nil {
+				return err
+			}
+			outs[i] = x
+		}
+		e.line("return new %s(%s);", e.rec, strings.Join(outs, ", "))
+		return nil
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		p, known := e.tgt.Prims[t.Op().Name]
+		_, isConn := connective(e.tgt, t)
+		if known && p.Kind == "cond" && len(t.Args()) == 3 && !isConn {
+			args := t.Args()
+			cond, err := e.emit(args[0])
+			if err != nil {
+				return err
+			}
+			e.line("if (%s) {", cond)
+			e.indent++
+			if err := e.multiTail(args[1], n, name, sig); err != nil {
+				return err
+			}
+			e.indent--
+			e.line("}")
+			return e.multiTail(args[2], n, name, sig)
+		}
+		if known && p.Kind == "let" && len(t.Args()) == 2 {
+			args := t.Args()
+			k := args[1]
+			if k.Kind == core.KFn && len(k.Params) == 1 {
+				val, err := e.emit(args[0])
+				if err != nil {
+					return err
+				}
+				if !core.Occurs(k.Body(), k.Params[0]) {
+					return e.multiTail(k.Body(), n, name, sig)
+				}
+				ty := e.typeOf(args[0])
+				body, raw, out := openFresh(k, e.bound, javaMangle)
+				e.types[raw[0]] = ty
+				e.line("%s %s = %s;", e.tgt.ty(ty), out[0], val)
+				return e.multiTail(body, n, name, sig)
+			}
+		}
+	}
+	return multiResultErr(name, sig, t)
+}
+
 func javaRecordName(tys []string) string {
 	var b strings.Builder
 	b.WriteString("Tup")

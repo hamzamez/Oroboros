@@ -358,6 +358,14 @@ var opAlias = map[string]string{
 	// moved to a native target. Found by moving it.
 	"len": "alen", "strlen": "slen",
 	"<": "lt", "<=": "le", ">": "gt", ">=": "ge", "==": "eq",
+	// `=` is the LANGUAGE's equality, which every target now has injected
+	// (docs/spec/match.md §6). Sums are what surfaced its absence here: an
+	// error check is `(if (= b 0) (err …) (ok …))`, so the fact the else-branch
+	// needs — `b != 0` — comes from negating the language's `=` and nothing
+	// else. Without this line the division inside the ok-branch could not be
+	// discharged even though the guard above it says exactly what is required.
+	"=":   "eq",
+	"===": "eq", "sete": "eq",
 	"&&": "and", "||": "or", "!": "not",
 	"!=": "ne", "ne": "ne", "setne": "ne", "!==": "ne",
 	// The strict branchless connectives a target may declare under its own

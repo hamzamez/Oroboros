@@ -63,6 +63,11 @@ promoted to the language works on every target and the compiler finds the implem
 capability graph is for *target-native* names, where "this target cannot do it" is a true answer a
 program can be told.
 
+**A `sum` declaration is DEFINITIONS.** `(sum result (ok int) (err int))` generates constructors
+and tag constants as ordinary defs, and `case` expands in `Load` — so the reducer, the module
+system and every backend are unchanged by sums ([sums.md](sums.md)). Seven term kinds before,
+seven after.
+
 **Three reduction rules.** β with call-by-need, δ over definitions, and a conditional on a boolean
 literal. β carries one side condition: an impure argument is let-bound rather than substituted
 ([effects.md §4](effects.md)).

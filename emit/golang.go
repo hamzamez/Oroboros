@@ -109,20 +109,11 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 // is the whole reason the negative product measured 1.01x
 // (product-2026-08-19) and the reason `values` is not a tuple.
 func (e *Emitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []string) (string, error) {
-	vs, ok := multiValue(t.Body(), len(sig.Results))
-	if !ok {
-		return "", multiResultErr(name, sig, t.Body())
-	}
 	var body strings.Builder
 	e.buf = body
 	e.indent = 1
-	outs := make([]string, len(vs))
-	for i, v := range vs {
-		s, err := e.emit(v)
-		if err != nil {
-			return "", err
-		}
-		outs[i] = s
+	if err := e.multiTail(t.Body(), len(sig.Results), name, sig); err != nil {
+		return "", err
 	}
 	tys := make([]string, len(sig.Results))
 	for i, r := range sig.Results {
@@ -133,11 +124,82 @@ func (e *Emitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []s
 	fmt.Fprintf(&out, "func %s(%s) (%s) {\n", export(name), strings.Join(params, ", "),
 		strings.Join(tys, ", "))
 	out.WriteString(e.buf.String())
-	fmt.Fprintf(&out, "\treturn %s\n}\n", strings.Join(outs, ", "))
+	out.WriteString("}\n")
 	for imp := range e.imports {
 		Imports[imp] = true
 	}
 	return out.String(), nil
+}
+
+// multiTail emits a function body whose value is several results, RETURNING
+// from every leaf rather than joining the branches first.
+//
+// Sums are what demanded it. A function returning a sum returns from several
+// places -- `(if (= b 0) (err 0) (ok (go./ a b)))` has a product in each branch
+// -- and the single-value path would have built a temporary, assigned it in
+// both branches and returned it at the end. Returning at the leaf is what a Go
+// programmer writes, and it is the same finding native-js-2026-08-20 measured
+// on V8, where a tail `return` beat a result variable by 1.31x.
+//
+// The forms walked are `if` and `let`, which is not a coincidence: they are
+// exactly what beta can leave between a function and its result, and exactly
+// what the commuting conversion in core/reduce.go pushes an eliminator through.
+func (e *Emitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) error {
+	if vs, ok := multiValue(t, n); ok {
+		outs := make([]string, len(vs))
+		for i, v := range vs {
+			s, err := e.emit(v)
+			if err != nil {
+				return err
+			}
+			outs[i] = s
+		}
+		e.line("return %s", strings.Join(outs, ", "))
+		return nil
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		p, known := e.tgt.Prims[t.Op().Name]
+		_, isConn := connective(e.tgt, t)
+		if known && p.Kind == "cond" && len(t.Args()) == 3 && !isConn {
+			args := t.Args()
+			cond, err := e.emit(args[0])
+			if err != nil {
+				return err
+			}
+			e.line("if %s {", cond)
+			e.indent++
+			if err := e.multiTail(args[1], n, name, sig); err != nil {
+				return err
+			}
+			e.indent--
+			e.line("}")
+			return e.multiTail(args[2], n, name, sig)
+		}
+		// (let v (fn (x) B)) -- bind, then keep walking to the leaves.
+		if known && p.Kind == "let" && len(t.Args()) == 2 {
+			args := t.Args()
+			k := args[1]
+			if k.Kind == core.KFn && len(k.Params) == 1 {
+				val, err := e.emit(args[0])
+				if err != nil {
+					return err
+				}
+				if !core.Occurs(k.Body(), k.Params[0]) {
+					return e.multiTail(k.Body(), n, name, sig)
+				}
+				ty := e.typeOf(args[0])
+				body, raw, out := openFresh(k, e.bound, mangle)
+				e.types[raw[0]] = ty
+				if ty == "int" {
+					e.line("var %s %s = %s", out[0], e.tgt.ty(ty), val)
+				} else {
+					e.line("%s := %s", out[0], val)
+				}
+				return e.multiTail(body, n, name, sig)
+			}
+		}
+	}
+	return multiResultErr(name, sig, t)
 }
 
 // Imports accumulates what emitted functions need. A package-level sink is

@@ -40,6 +40,12 @@ type Program struct {
 	// compiler can do, since the two live on different targets.
 	Sigs map[string]*Sig
 
+	// Sums are the declared sum types, by name. A sum is Σ over a finite index
+	// set, and its VALUES are ordinary products of a tag and a payload — so this
+	// table is consulted for exhaustiveness and for signatures, and by nothing
+	// in the reducer (sums-research.md, docs/spec/sums.md).
+	Sums map[string]*Sum
+
 	// Unresolved are `use` paths that found no file on the search path. That is
 	// not an error — it is how a target-provided module looks (modules.md §4) —
 	// but it is also how a MISSPELLED path looks, and the two were
@@ -68,7 +74,7 @@ func (e *Env) SetUnresolved(paths []string) {
 }
 
 func NewProgram() *Program {
-	return &Program{Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
+	return &Program{Defs: map[string]*Term{}, Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
 }
 
 // A module is a scope: a path, what it imports, what it exports, and what it
@@ -85,6 +91,7 @@ type Module struct {
 	Defs    map[string]*Term  // unqualified name -> body, before resolution
 	Order   []string
 	Sigs    map[string]*Sig
+	Sums    map[string]*Sum
 }
 
 // qualify joins a module path to a local name. The root module has no path, so
@@ -232,9 +239,60 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 		}
 	}
 
+	// `case` expands here, before name resolution, and with EVERY module's sums
+	// in scope. That is the reason it is not reader sugar like `match`: the
+	// reader sees one file, and an error type is declared in another.
+	sums := map[string]*Sum{}
+	byVariant := map[string]*Sum{}
+	for _, m := range mods {
+		for _, sum := range m.Sums {
+			sums[sum.Name] = sum
+			for _, v := range sum.Variants {
+				if other, dup := byVariant[v.Name]; dup && other != sum {
+					return nil, nil, fmt.Errorf("%s is a variant of both %s and %s; a "+
+						"constructor names one sum", v.Name, other.Name, sum.Name)
+				}
+				byVariant[v.Name] = sum
+			}
+		}
+	}
+	for _, m := range mods {
+		for n, body := range m.Defs {
+			x, err := expandCase(body, sums, byVariant)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
+			}
+			m.Defs[n] = x
+		}
+	}
+
+	// A SUM IN A SIGNATURE is the product of its tag and its payload, which is
+	// the whole representation story: `(sig f ((n int)) result)` becomes two
+	// results, and two results are already Go's multiple return, Java's record,
+	// JavaScript's object and x86's rax/rdx (values.md). Nothing new is emitted
+	// on any target, and Go's own `(T, error)` idiom IS this shape.
+	for _, m := range mods {
+		for n, sig := range m.Sigs {
+			sum, ok := sums[sig.Result]
+			if !ok || len(sig.Results) > 0 {
+				continue
+			}
+			payload, uniform := sum.uniformPayload()
+			if !uniform {
+				return nil, nil, fmt.Errorf("%s returns %s, whose variants carry different "+
+					"payload types. A sum CROSSING A BOUNDARY is transmitted as its tag and "+
+					"its payload, so the payload needs one type; inside a program a mixed sum "+
+					"is fine, because reduction removes it", qualify(m.Path, n), sum.Name)
+			}
+			sig.Result = ""
+			sig.Results = []string{"int", payload}
+		}
+	}
+
 	p := NewProgram()
 	sort.Strings(unresolved)
 	p.Unresolved = unresolved
+	p.Sums = sums
 	for _, m := range mods {
 		for _, n := range m.Order {
 			body, err := m.resolve(m.Defs[n], map[string]bool{}, mods)
@@ -284,7 +342,7 @@ type entry struct {
 // is one anonymous root module, which is why every existing program still loads.
 func partition(forms []Form) ([]*Module, []entry, error) {
 	root := &Module{Uses: map[string]string{}, Exports: map[string]bool{},
-		Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
+		Defs: map[string]*Term{}, Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
 	mods := []*Module{root}
 	byPath := map[string]*Module{"": root}
 	cur := root
@@ -296,7 +354,8 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 			m, ok := byPath[f.Name]
 			if !ok {
 				m = &Module{Path: f.Name, Uses: map[string]string{},
-					Exports: map[string]bool{}, Defs: map[string]*Term{}, Sigs: map[string]*Sig{}}
+					Exports: map[string]bool{}, Defs: map[string]*Term{},
+					Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
 				mods = append(mods, m)
 				byPath[f.Name] = m
 			}
@@ -320,6 +379,23 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 			}
 			cur.Defs[f.Name] = f.Term
 			cur.Order = append(cur.Order, f.Name)
+		case "sum":
+			// A sum declaration is DEFINITIONS. The constructors become ordinary
+			// defs, so qualification, imports, delta and the occurrence counter
+			// all apply without anything downstream learning that sums exist.
+			if _, dup := cur.Sums[f.Name]; dup {
+				return nil, nil, fmt.Errorf("sum %s is declared twice", qualify(cur.Path, f.Name))
+			}
+			cur.Sums[f.Name] = f.Sum
+			order, defs := f.Sum.Defs()
+			for _, n := range order {
+				if _, dup := cur.Defs[n]; dup {
+					return nil, nil, fmt.Errorf("%s is defined twice — sum %s declares a "+
+						"variant of that name", qualify(cur.Path, n), f.Name)
+				}
+				cur.Defs[n] = defs[n]
+				cur.Order = append(cur.Order, n)
+			}
 		case "prim", "target":
 			return nil, nil, fmt.Errorf(
 				"a program cannot declare %s; primitives are declared in targets/NAME.oro", f.Kind)
@@ -657,6 +733,63 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			return nil, err
 		}
 		args := t.Args()
+
+		// CASE-OF-CASE, and it is what makes a DYNAMIC sum cost nothing.
+		//
+		//	((if c A B) k…)  ⟶  (if c (A k…) (B k…))
+		//
+		// Prawitz's commuting conversion; GHC's case-of-case; and for us the
+		// rule sums-research.md §0.1 said was one step away from free. A sum
+		// whose tag is known reduces away by β alone, but one whose tag depends
+		// on runtime data gets STUCK as `((if c A B) F G)` — the constructor is
+		// under the branch and the eliminator is outside it, so neither can see
+		// the other. Pushing the eliminator INTO both branches reunites each
+		// constructor with it, and then β finishes the job: no tag, no closure,
+		// no allocation, and no runtime dispatch that the `if` was not already
+		// doing.
+		//
+		// Only when every argument is PURE. The rule duplicates the arguments
+		// into both branches, and ADR 0010 denies contraction for an impure
+		// term — duplicating one would run an effect twice. Left stuck, an
+		// impure eliminator is reported by the emitter rather than silently
+		// mis-ordered.
+		//
+		// The known hazard is code growth: `k` appears twice, so nested cases
+		// multiply. GHC's answer is join points, and `again` IS one
+		// (types-direction.md §6) — which is the direction if this ever bites.
+		// The LET companion, and the nested test is what demanded it:
+		//
+		//	((let v (fn (x) B)) k…)  ⟶  (let v (fn (x) (B k…)))
+		//
+		// The same commuting conversion, one constructor over. It is needed
+		// because β itself puts a `let` between a constructor and its
+		// eliminator: a shared subterm that is not duplicable gets let-bound
+		// (ADR 0010), and the eliminator then sits outside a binder rather than
+		// outside an `if`. Handling only `if` reduced two levels of a
+		// three-level nest and stopped.
+		//
+		// So the rule is not "case-of-case" so much as: PUSH AN ELIMINATOR
+		// THROUGH ANYTHING β CAN LEAVE IN OPERATOR POSITION, which in this
+		// language is exactly `if` and `let`.
+		if isLetApp(op, e) && allPure(args, e) {
+			lam := op.Kids[2]
+			inner := lam.OpenWith([]*Term{Name("#c")})
+			app := append([]*Term{inner}, args...)
+			out := &Term{Kind: KApp, Kids: []*Term{op.Kids[0], op.Kids[1],
+				Fn([]string{"#c"}, &Term{Kind: KApp, Kids: app})}}
+			return normalize(out, e, fuel)
+		}
+
+		if isIfApp(op, e) && allPure(args, e) {
+			br := func(b *Term) *Term {
+				kids := make([]*Term, 0, len(args)+1)
+				return normalizeLater(append(append(kids, b), args...))
+			}
+			out := &Term{Kind: KApp, Kids: []*Term{
+				op.Kids[0], op.Kids[1], br(op.Kids[2]), br(op.Kids[3])}}
+			return normalize(out, e, fuel)
+		}
+
 		if op.Kind == KFn { // β
 			if len(op.Params) != len(args) {
 				return nil, &ArityError{Fn: op, Want: len(op.Params), Given: len(args)}
@@ -729,6 +862,34 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		//
 		// ADR 0009 is satisfied trivially: boolean algebra is exact, so there
 		// is no compile-time/runtime discrepancy to preserve.
+		// `=` ON TWO INTEGER LITERALS folds, and this is the first entry in the
+		// constant-folding table tables.md predicted — where `((array 1 2 3) 1)
+		// → 2` and `(go.+ 1 2) → 3` are the same kind of step, not new rules.
+		//
+		// It is here because SUMS need it. A sum's tag is a literal after
+		// reduction, so `(case (ok n) …)` reduced to `(if (= 0 0) … …)` — the
+		// sum had vanished and left a tautological test behind, which is a
+		// static cost the two-level language says should not exist.
+		//
+		// Narrow deliberately: integers only, `=` only. ADR 0009 permits it
+		// because integer equality inside the portable window is bit-identical
+		// on every target — the thing that is NOT true of float arithmetic,
+		// which is why Go folds `0.1+0.2` two different ways and why nothing
+		// here folds a float.
+		if op.Kind == KName && op.Name == "=" && e.Prim["="] && len(args) == 2 {
+			a, err := normalize(args[0], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			b, err := normalize(args[1], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if a.Kind == KInt && b.Kind == KInt {
+				return Bool(a.Int == b.Int), nil
+			}
+			return &Term{Kind: KApp, Kids: []*Term{op, a, b}}, nil
+		}
 		var cond *Term
 		if op.Kind == KName && op.Name == "if" && e.Prim["if"] && len(args) == 3 {
 			c, err := normalize(args[0], e, fuel)
@@ -1183,3 +1344,35 @@ func modLabel(path string) string {
 	}
 	return "module " + path
 }
+
+// isIfApp reports whether t is a residual `if` — a conditional whose branches
+// survived because the condition is not known. That is the only shape
+// case-of-case applies to.
+func isIfApp(t *Term, e *Env) bool {
+	return t.Kind == KApp && len(t.Kids) == 4 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "if" && e.Prim["if"]
+}
+
+// isLetApp reports whether t is a residual `let` — a binding β introduced
+// because its value was shared and not duplicable.
+func isLetApp(t *Term, e *Env) bool {
+	return t.Kind == KApp && len(t.Kids) == 3 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "let" && e.Prim["let"] &&
+		t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
+}
+
+// allPure reports whether every term is safe to DUPLICATE. Case-of-case copies
+// its arguments into both branches, and ADR 0010 denies contraction for an
+// impure term, so an impure argument leaves the redex stuck rather than running
+// an effect twice.
+func allPure(ts []*Term, e *Env) bool {
+	for _, t := range ts {
+		if !e.pureTerm(t, map[string]bool{}) {
+			return false
+		}
+	}
+	return true
+}
+
+// normalizeLater builds the application case-of-case pushes into one branch.
+func normalizeLater(kids []*Term) *Term { return &Term{Kind: KApp, Kids: kids} }

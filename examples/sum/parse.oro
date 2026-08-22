@@ -1,0 +1,20 @@
+; A sum crossing a boundary, which is the case where the tag has to be
+; transmitted (docs/spec/sums.md). Inside a program a sum reduces away entirely;
+; here `step` is exported, so the caller has to be told WHICH.
+;
+; `(sum result (ok int) (err int))` is Go's own `(T, error)` shape, and that is
+; not a coincidence: a sum is Σ over a finite index set, so the value is a tag
+; and a payload.
+(use go)
+(export step)
+
+(sum result (ok int) (err int))
+
+(sig step ((a int) (b int)) result)
+
+(def step (fn (a b)
+  (if (= b 0)
+    (err 1)
+    (if (go.> (go.% a b) 0)
+      (err 2)
+      (ok (go./ a b))))))

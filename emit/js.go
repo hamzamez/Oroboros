@@ -124,31 +124,75 @@ func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, erro
 // object entirely and lands on the no-product number. Binding it and reading
 // fields keeps the allocation, at 5.4x.
 func (e *jsEmitter) multiFunc(name string, sig *core.Sig, t *core.Term) (string, error) {
-	vs, ok := multiValue(t.Body(), len(sig.Results))
-	if !ok {
-		return "", multiResultErr(name, sig, t.Body())
-	}
-	outs := make([]string, len(vs))
-	for i, v := range vs {
-		s, err := e.emit(v)
-		if err != nil {
-			return "", err
-		}
-		outs[i] = s
-	}
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
 		params[i] = jsMangle(p)
+		e.bound[params[i]] = true
+	}
+	if err := e.multiTail(t.Body(), len(sig.Results), name, sig); err != nil {
+		return "", err
 	}
 	var out strings.Builder
 	fmt.Fprintf(&out, "export function %s(%s) {\n", jsMangle(name), strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
-	fields := make([]string, len(outs))
-	for i, v := range outs {
-		fields[i] = fmt.Sprintf("f%d: %s", i, v)
-	}
-	fmt.Fprintf(&out, "\treturn {%s};\n}\n", strings.Join(fields, ", "))
+	out.WriteString("}\n")
 	return out.String(), nil
+}
+
+// multiTail returns from every leaf rather than joining the branches first.
+// See the Go emitter for the argument; on V8 it is also worth 1.31x over a
+// result variable (native-js-2026-08-20).
+func (e *jsEmitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) error {
+	if vs, ok := multiValue(t, n); ok {
+		fields := make([]string, len(vs))
+		for i, v := range vs {
+			x, err := e.emit(v)
+			if err != nil {
+				return err
+			}
+			fields[i] = fmt.Sprintf("f%d: %s", i, x)
+		}
+		// An OBJECT, not an array: 1.62x faster when the caller reads a
+		// property and identical when it destructures (multiresult-2026-08-22).
+		e.line("return {%s};", strings.Join(fields, ", "))
+		return nil
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		p, known := e.tgt.Prims[t.Op().Name]
+		_, isConn := connective(e.tgt, t)
+		if known && p.Kind == "cond" && len(t.Args()) == 3 && !isConn {
+			args := t.Args()
+			cond, err := e.emit(args[0])
+			if err != nil {
+				return err
+			}
+			e.line("if (%s) {", cond)
+			e.indent++
+			if err := e.multiTail(args[1], n, name, sig); err != nil {
+				return err
+			}
+			e.indent--
+			e.line("}")
+			return e.multiTail(args[2], n, name, sig)
+		}
+		if known && p.Kind == "let" && len(t.Args()) == 2 {
+			args := t.Args()
+			k := args[1]
+			if k.Kind == core.KFn && len(k.Params) == 1 {
+				val, err := e.emit(args[0])
+				if err != nil {
+					return err
+				}
+				if !core.Occurs(k.Body(), k.Params[0]) {
+					return e.multiTail(k.Body(), n, name, sig)
+				}
+				body, _, out := openFresh(k, e.bound, jsMangle)
+				e.line("let %s = %s;", out[0], val)
+				return e.multiTail(body, n, name, sig)
+			}
+		}
+	}
+	return multiResultErr(name, sig, t)
 }
 
 func (e *jsEmitter) line(format string, args ...any) {

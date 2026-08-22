@@ -267,3 +267,51 @@ func TestMatchReachesEveryBackend(t *testing.T) {
 		}
 	}
 }
+
+// A SUM crossing a boundary, on all four targets. It is the tag/payload product
+// (docs/spec/sums.md), so nothing new is emitted anywhere — but a function
+// returning a sum returns from SEVERAL PLACES, which the single-leaf multiFunc
+// could not express and multiTail now does.
+func TestSumCrossesEveryBoundary(t *testing.T) {
+	cases := []struct {
+		target, src string
+		want        []string
+	}{
+		{"go", `(use go)
+			(sum result (ok int) (err int))
+			(export d) (sig d ((a int) (b int)) result)
+			(def d (fn (a b) (if (= b 0) (err 0) (ok (go./ a b)))))`,
+			[]string{"(int, int)", "return 1, 0", "return 0, (a / b)"}},
+		{"js", `(use js)
+			(sum result (ok any) (err any))
+			(export d) (sig d ((a any) (b any)) result)
+			(def d (fn (a b) (if (= b 0) (err 0) (ok (js./ a b)))))`,
+			[]string{"return {f0: 1, f1: 0};", "return {f0: 0, f1: (a / b)};"}},
+		{"java", `(use java)
+			(sum result (ok int) (err int))
+			(export d) (sig d ((a int) (b int)) result)
+			(def d (fn (a b) (if (= b 0) (err 0) (ok (java./ a b)))))`,
+			[]string{"Tup_long_long", "return new Tup_long_long(1, 0);"}},
+		{"windows", `(use x64)
+			(sum result (ok int) (err int))
+			(export d) (sig d ((a int) (b int)) result)
+			(def d (fn (a b) (if (= b 0) (err 0) (ok (x64.idiv a b)))))`,
+			[]string{"mov rax, 1", "mov rdx,"}},
+	}
+	for _, c := range cases {
+		code, err := genOn(t, c.target, c.src, "d")
+		if err != nil {
+			t.Errorf("%s: %v", c.target, err)
+			continue
+		}
+		for _, w := range c.want {
+			if !strings.Contains(code, w) {
+				t.Errorf("%s: missing %q:\n%s", c.target, w, code)
+			}
+		}
+		// No product is BUILT: the tag and the payload are the two results.
+		if strings.Contains(code, "struct{") || strings.Contains(code, "interface{") {
+			t.Errorf("%s: a sum must not build anything:\n%s", c.target, code)
+		}
+	}
+}

@@ -98,10 +98,23 @@ func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, erro
 //
 // JavaScript has no native multiple return, so the language construct is built
 // out of what the host has — which is the compiler's job, not a target author's.
-// An array literal is what `const [a, b] = f()` destructures, and it costs:
-// product-2026-08-19 measured an array at 1.32x against an object literal at
-// 1.11x for a create-and-consume pair. The array is chosen for the idiom and
-// the price is recorded here rather than hidden.
+// An OBJECT LITERAL with a fixed shape, measured rather than chosen for how it
+// reads (mrshape-2026-08-22):
+//
+//	                     caller uses p.f0   caller destructures
+//	  return [a, b]           8,348 ns            955 ns
+//	  return {f0, f1}         5,164 ns            956 ns
+//	  no product at all            —              940 ns
+//
+// The object is 1.62x faster when the caller reads a property and identical
+// when it destructures, so it is better or equal in both. The first version
+// emitted an array because `const [a, b] = f()` reads well — clarity over
+// requirement 5, argued from a measurement of a different shape.
+//
+// And the larger finding, which belongs with the CALLER rather than here:
+// destructuring at the call site costs nothing, because V8 scalar-replaces the
+// object entirely and lands on the no-product number. Binding it and reading
+// fields keeps the allocation, at 5.4x.
 func (e *jsEmitter) multiFunc(name string, sig *core.Sig, t *core.Term) (string, error) {
 	vs, ok := multiValue(t.Body(), len(sig.Results))
 	if !ok {
@@ -122,7 +135,11 @@ func (e *jsEmitter) multiFunc(name string, sig *core.Sig, t *core.Term) (string,
 	var out strings.Builder
 	fmt.Fprintf(&out, "export function %s(%s) {\n", jsMangle(name), strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
-	fmt.Fprintf(&out, "\treturn [%s];\n}\n", strings.Join(outs, ", "))
+	fields := make([]string, len(outs))
+	for i, v := range outs {
+		fields[i] = fmt.Sprintf("f%d: %s", i, v)
+	}
+	fmt.Fprintf(&out, "\treturn {%s};\n}\n", strings.Join(fields, ", "))
 	return out.String(), nil
 }
 

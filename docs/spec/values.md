@@ -87,12 +87,16 @@ and none to forget.
 |---|---|---|
 | **Go** | `func f(…) (int, int)` — two values in registers | **0.99×**, 0 allocs |
 | **Java** | a generated `record`, shared by result *shape* | **0.97×**, and 1.01× against no product at all |
-| **JavaScript** | `return [a, b]` | an array **costs 1.32×** against an object's 1.11×; the array is chosen because it is what `const [a, b] = f()` destructures, and the price is recorded in the backend |
+| **JavaScript** | `return {f0, f1}` — an object literal | **1.62× faster than an array** when the caller reads a property, identical when it destructures |
 | **windows** | `rax`, `rdx` — our convention, mirroring Win64's argument convention | free by construction |
 
 [multiresult-2026-08-22](../../gauntlet/results/multiresult-2026-08-22.md) has the numbers and the
 one bug this build found: x86 needs **two passes**, because placing a result into `rax` as it is
 computed is clobbered by the next `idiv`.
+
+**On JavaScript, tell the caller to destructure.** `const {f0, f1} = f(x)` costs nothing — V8
+scalar-replaces the object and lands on the no-product number — while `const p = f(x); … p.f0 …`
+keeps the allocation, at **5.4×**. That is a property of the *call site*, not of what we emit.
 
 **The first version of this document described a `(multi-return "…" "…")` declaration and said Java
 and windows refuse.** That was reverted: a construct in the core that a target can decline is a

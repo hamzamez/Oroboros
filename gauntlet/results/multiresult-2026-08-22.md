@@ -16,7 +16,7 @@ assembly.
 | **Go** | `func f(…) (int, int)` — registers | 2.417 ns | **2.398 ns** | **0.99×**, 0 allocs |
 | **Go**, consumed in place | no product at all | 2.412 ns | 2.375 ns | 0.98×, 0 allocs |
 | **Java** | a generated `record` | 296.700 ns | **287.950 ns** | **0.97×** |
-| **JavaScript** | `return [a, b]` | — | — | 1.32× by construction (§4) |
+| **JavaScript** | `return {f0, f1}` | — | — | **1.62× better than an array** (§4) |
 | **windows** | `rax`, `rdx` | — | — | free by construction |
 
 ---
@@ -93,13 +93,40 @@ appears before the last computation.
 |---|---|
 | **Go** | multiple return, in registers. Nothing built. |
 | **Java** | a `record`, shared by result shape, scalar-replaced by C2 (§2) |
-| **JavaScript** | an array literal. It **costs**: product-2026-08-19 measured an array at **1.32×** against an object literal at 1.11× for a create-and-consume pair. The array is chosen because it is what `const [a, b] = f()` destructures, and the price is recorded in the backend rather than hidden. |
+| **JavaScript** | an **object literal** with a fixed shape — measured, §4b |
 | **windows** | `rax`/`rdx` by our own convention (§3) |
 
 **No target declares any of this.** The first attempt carried a `(multi-return "…" "…")` target
 declaration and refused on Java and windows, which makes a construct in the core declinable — a
 library with a portability claim rather than part of the language. It was reverted for exactly that,
 and `TestEveryTargetHasMultipleResults` is the test the reverted version could not have passed.
+
+### 4b. JavaScript: the first choice was wrong, and the caller matters more than the callee
+
+The first version of this emitted `return [a, b]`, argued from product-2026-08-19's *1.11× object
+against 1.32× array* — a measurement of a **create-and-consume pair inside one function**, which is
+not this shape. Here the value crosses an exported boundary and a hand-written caller takes it
+apart. Measured properly, one process per case, medians of three runs:
+
+| | caller writes `p.f0` | caller destructures |
+|---|---|---|
+| `return [a, b]` | **8,348 ns** | 955 ns |
+| `return {f0: a, f1: b}` | **5,164 ns** | 956 ns |
+| no product at all | — | 940 ns |
+
+**The object is 1.62× faster when the caller reads a property, and identical when it destructures** —
+better or equal in both, so the array had nothing to recommend it but how it reads. That is clarity
+chosen over requirement 5, and hamza caught it. Switched.
+
+**And the larger finding is about the caller, not the callee.** Destructuring at the call site lands
+on the *no-product* number — V8 scalar-replaces the object entirely — while binding it and reading
+fields keeps the allocation, at **5.4×**. So the advice that belongs in the documentation is not
+"we return an object" but:
+
+> `const {f0, f1} = f(x)` costs nothing. `const p = f(x); … p.f0 …` costs an allocation.
+
+Three of the four targets have nothing like this; it is JavaScript being the hostile host again,
+and it is the fourth time a JS number has turned on something other than the code we emit.
 
 ---
 

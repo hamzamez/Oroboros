@@ -85,7 +85,7 @@ func TestEveryTargetHasMultipleResults(t *testing.T) {
 		{"js", `(use js)
 			(export d) (sig d ((a any) (b any)) (any any))
 			(def d (fn (a b) (values (js.+ a b) (js.- a b))))`,
-			"return [(a + b), (a - b)];"},
+			"return {f0: (a + b), f1: (a - b)};"},
 		{"java", `(use java)
 			(export d) (sig d ((a int) (b int)) (int int) (where (java.!= b 0)))
 			(def d (fn (a b) (values (java./ a b) (java.% a b))))`,

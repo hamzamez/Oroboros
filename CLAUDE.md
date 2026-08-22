@@ -423,8 +423,14 @@ construct declinable. What that dodge was hiding turned out to be small: **Java 
 shared by result SHAPE**, and C2 scalar-replaces it **across a class boundary** — 1.01x against no
 product at all, which was the unknown this build existed to answer; **windows gets `rax`/`rdx`**,
 mirroring Win64's argument convention, ours because both sides of the call are ours. And the build
-found a bug argument had not: **x86 needs TWO PASSES**, because placing a result into `rax` as it is
-computed is clobbered by the next `idiv`.
+found two things argument had not. **x86 needs TWO PASSES**, because placing a result into `rax` as
+it is computed is clobbered by the next `idiv`. And **JavaScript returns an OBJECT, not an array** —
+the first version emitted an array because `const [a, b] = f()` reads well, which is clarity chosen
+over requirement 5 and was argued from a measurement of a *different shape*. Measured properly:
+object **5,164 ns** against array **8,348** when the caller reads a property, identical when it
+destructures — so the object is better or equal in both. And the larger finding is about the
+**caller**: `const {f0, f1} = f(x)` costs *nothing* because V8 scalar-replaces the object, while
+`const p = f(x); … p.f0 …` keeps the allocation at **5.4x**.
 
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
 Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission

@@ -1132,6 +1132,62 @@ func AsmMangle(s string) string {
 }
 
 // AsmProc emits a top-level abstraction as one Win64 procedure.
+// asmRetGP and asmRetX carry SEVERAL results. Win64 defines one return
+// register; these mirror its argument convention for the rest, and are ours
+// because both sides of the call are ours.
+var asmRetGP = []string{"rax", "rdx", "r8", "r9"}
+var asmRetX = []string{"xmm0", "xmm1", "xmm2", "xmm3"}
+
+// emitMulti places each result in its convention register.
+func (e *asmEmitter) emitMulti(name string, sig *core.Sig, body *core.Term) error {
+	vs, ok := multiValue(body, len(sig.Results))
+	if !ok {
+		return multiResultErr(name, sig, body)
+	}
+	// TWO PASSES, and the first draft had one. Placing each result into its
+	// return register as it is computed CLOBBERS the earlier ones: rax and rdx
+	// are `idiv`'s own operands, so computing the second result of a `divmod`
+	// overwrote the first. Emitted, read, and caught:
+	//
+	//	mov rdi, rax     ; quotient held
+	//	mov rax, rdi     ; result 0 placed
+	//	mov rax, rbx     ; ...and immediately destroyed
+	//
+	// So: compute everything into the places the allocator chose, then move
+	// into the convention registers once nothing else will run.
+	places := make([]place, len(vs))
+	for i, v := range vs {
+		r, err := e.emit(v)
+		if err != nil {
+			return err
+		}
+		places[i] = r
+	}
+	var gp, xm int
+	for i, r := range places {
+		if sig.Results[i] == "f64" {
+			if xm >= len(asmRetX) {
+				return fmt.Errorf("%s returns more float results than this convention "+
+					"carries (%d)", name, len(asmRetX))
+			}
+			if r.text != asmRetX[xm] {
+				e.line("movsd %s, %s", asmRetX[xm], r.text)
+			}
+			xm++
+			continue
+		}
+		if gp >= len(asmRetGP) {
+			return fmt.Errorf("%s returns more integer results than this convention "+
+				"carries (%d)", name, len(asmRetGP))
+		}
+		if r.text != asmRetGP[gp] {
+			e.line("mov %s, %s", asmRetGP[gp], r.text)
+		}
+		gp++
+	}
+	return nil
+}
+
 func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error) {
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
@@ -1152,16 +1208,35 @@ func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, err
 		}
 		e.where[p] = hold(d)
 	}
-	res, err := e.emit(body)
-	if err != nil {
-		return "", err
-	}
-	if res.xmm {
-		if res.text != "xmm0" {
-			e.line("movsd xmm0, %s", res.text)
+	if sig != nil && len(sig.Results) > 1 {
+		// SEVERAL RESULTS — the negative product reaching a boundary.
+		//
+		// Win64 returns ONE value, in rax or xmm0; a 16-byte struct goes back
+		// through a hidden pointer. So a second register is OUR convention
+		// rather than the platform's — legitimate because these procedures are
+		// ours on both sides and nothing outside the emitted program calls
+		// them. The first attempt at this feature let windows DECLINE multiple
+		// results and was reverted for it.
+		//
+		// The convention mirrors Win64's ARGUMENT convention, which is the
+		// least surprising choice available and costs no memory traffic:
+		// integer results in rax, rdx, r8, r9 and float results in xmm0..xmm3,
+		// each in declaration order within its class.
+		if err := e.emitMulti(name, sig, body); err != nil {
+			return "", err
 		}
-	} else if res.text != "rax" && res.text != "" {
-		e.line("mov rax, %s", res.text)
+	} else {
+		res, err := e.emit(body)
+		if err != nil {
+			return "", err
+		}
+		if res.xmm {
+			if res.text != "xmm0" {
+				e.line("movsd xmm0, %s", res.text)
+			}
+		} else if res.text != "rax" && res.text != "" {
+			e.line("mov rax, %s", res.text)
+		}
 	}
 
 	// The prologue is written last: only now is it known which callee-saved

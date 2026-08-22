@@ -71,6 +71,11 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 		params[i] = e.tgt.ty(ty) + " " + javaMangle(p)
 	}
 
+	// SEVERAL RESULTS — the negative product reaching a boundary.
+	if sig != nil && len(sig.Results) > 1 {
+		return e.multiFunc(name, sig, t, params)
+	}
+
 	result, err := e.emit(t.Body())
 	if err != nil {
 		return "", err
@@ -85,6 +90,79 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	out.WriteString(e.buf.String())
 	fmt.Fprintf(&out, "\t\treturn %s;\n\t}\n", result)
 	return out.String(), nil
+}
+
+// JavaRecords collects the record types generated for functions with several
+// results, keyed by name so two functions with the same result shape share one.
+var JavaRecords = map[string]string{}
+
+// multiFunc emits a function with several results.
+//
+// The JVM has no multiple return, so the compiler builds the construct out of
+// what the host has — which is the compiler's job and not a target author's.
+// The first attempt at this feature let Java DECLINE it and was reverted for
+// exactly that.
+//
+// A record, and shared by result SHAPE rather than generated per function, so
+// two functions returning (int int) use one type. product-2026-08-19 measured
+// C2 scalar-replacing a record returned from a hot call at 0.96x — inside the
+// noise — so this should cost nothing when it does not escape. Whether that
+// still holds across a compilation-unit boundary is the open question this
+// build exists to answer.
+func (e *javaEmitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []string) (string, error) {
+	vs, ok := multiValue(t.Body(), len(sig.Results))
+	if !ok {
+		return "", multiResultErr(name, sig, t.Body())
+	}
+	tys := make([]string, len(sig.Results))
+	for i, r := range sig.Results {
+		tys[i] = e.tgt.ty(r)
+	}
+	rec := javaRecordName(tys)
+	if _, have := JavaRecords[rec]; !have {
+		fields := make([]string, len(tys))
+		for i, ty := range tys {
+			fields[i] = fmt.Sprintf("%s f%d", ty, i)
+		}
+		JavaRecords[rec] = fmt.Sprintf("\tpublic record %s(%s) {}\n", rec, strings.Join(fields, ", "))
+	}
+
+	outs := make([]string, len(vs))
+	for i, v := range vs {
+		x, err := e.emit(v)
+		if err != nil {
+			return "", err
+		}
+		outs[i] = x
+	}
+	for imp := range e.imports {
+		JavaImports[imp] = true
+	}
+
+	var out strings.Builder
+	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", rec, javaMangle(name), strings.Join(params, ", "))
+	out.WriteString(e.buf.String())
+	fmt.Fprintf(&out, "\t\treturn new %s(%s);\n\t}\n", rec, strings.Join(outs, ", "))
+	return out.String(), nil
+}
+
+// javaRecordName builds a valid identifier from the component types, so the
+// name is a function of the SHAPE. `long[]` becomes `longArr`.
+func javaRecordName(tys []string) string {
+	var b strings.Builder
+	b.WriteString("Tup")
+	for _, ty := range tys {
+		b.WriteByte('_')
+		for _, r := range ty {
+			switch {
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9':
+				b.WriteRune(r)
+			case r == '[':
+				b.WriteString("Arr")
+			}
+		}
+	}
+	return b.String()
 }
 
 func (e *javaEmitter) inferFrom(t *core.Term) {
@@ -568,6 +646,17 @@ func JavaFile(class string, funcs map[string]string) string {
 		out.WriteString("\n")
 	}
 	fmt.Fprintf(&out, "public final class %s {\n", class)
+	if len(JavaRecords) > 0 {
+		recs := make([]string, 0, len(JavaRecords))
+		for r := range JavaRecords {
+			recs = append(recs, r)
+		}
+		sort.Strings(recs)
+		for _, r := range recs {
+			out.WriteString(JavaRecords[r])
+		}
+		out.WriteString("\n")
+	}
 	for _, n := range names {
 		out.WriteString(funcs[n])
 		out.WriteString("\n")

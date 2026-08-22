@@ -411,6 +411,21 @@ the **only** evaluation reduction performs, which gives conditional compilation 
 preprocessor; and the strict branchless operators survive as host names — `x64.andb` — because Ada
 kept `and` beside `and then` for a measurable reason.
 
+**A function may return SEVERAL VALUES, and it is not a tuple** —
+[values.md](docs/spec/values.md), [multiresult-2026-08-22](gauntlet/results/multiresult-2026-08-22.md).
+`(values a b)` is **reader sugar** for `(fn (#k) (#k a b))` — the negative product, linear logic's
+`&` — so its β law IS β and the reducer needed **nothing**: three rules before, three after. Consumed
+in the same reduction it vanishes; crossing a boundary it becomes the target's own form, and
+**`(sig f (…) (int int))` is what disambiguates a product from an escaping closure**. Measured:
+**Go 0.99x with 0 allocs, Java 0.97x**. **NO TARGET DECLARES IT** — the first attempt carried a
+`(multi-return …)` declaration and refused on Java and windows, and was reverted for making a core
+construct declinable. What that dodge was hiding turned out to be small: **Java gets a `record`
+shared by result SHAPE**, and C2 scalar-replaces it **across a class boundary** — 1.01x against no
+product at all, which was the unknown this build existed to answer; **windows gets `rax`/`rdx`**,
+mirroring Win64's argument convention, ours because both sides of the call are ours. And the build
+found a bug argument had not: **x86 needs TWO PASSES**, because placing a result into `rax` as it is
+computed is clobbered by the next `idiv`.
+
 **Effects are a side condition on β, not a feature** — [docs/spec/effects.md](docs/spec/effects.md).
 Purity is one declared bit per primitive, defaulting to *impure* so that a target author's omission
 costs speed rather than correctness. An impure argument is never substituted; it is let-bound at

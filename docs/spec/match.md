@@ -39,7 +39,7 @@ a call.
 | `_` | wildcard — matches, binds nothing |
 | *name* | binds the scrutinee under that name |
 | `true` / `false` | tests the scrutinee, which is already a `bool` |
-| an integer | tests it with `tag=` |
+| an integer | tests it with `=` |
 
 **A name pattern is a rename, not a `let`.** The pattern variable is another name for the loop
 variable, and renaming needs no binder. It is also what lets `(when …)` see the bound names — a
@@ -60,7 +60,7 @@ arrive with the sum, and the shape they will take is one more pattern kind, not 
 
 **Float and string patterns.** The language has no portable equality: `==` is target-native on
 all four hosts, `length` fails the agreement test for strings, and a float pattern would inherit
-IEEE's NaN — which is not the equivalence relation a pattern needs. `tag=` is integer equality
+IEEE's NaN — which is not the equivalence relation a pattern needs. `=` is integer equality
 and nothing else.
 
 **A repeated name in one clause.** `x x` would be an equality test written as a pattern. Erlang
@@ -126,8 +126,8 @@ A two-state machine counting 1-runs in an integer's bits:
 (def runs (fn (n)
   (match (0 n 0)
     _ 0 c                            c
-    0 v c (when (tag= (go.% v 2) 1)) (again 1 (go./ v 2) (go.+ c 1))
-    _ v c (when (tag= (go.% v 2) 1)) (again 1 (go./ v 2) c)
+    0 v c (when (= (go.% v 2) 1)) (again 1 (go./ v 2) (go.+ c 1))
+    _ v c (when (= (go.% v 2) 1)) (again 1 (go./ v 2) c)
     _ v c                            (again 0 (go./ v 2) c)
     else                             0)))
 ```
@@ -159,15 +159,40 @@ func RRuns(n int) int {
 Note what the emitter did without being asked: a clause that does not change `_m2` does not
 assign it.
 
-## 6. `tag=`
+## 6. `=`, and why it is not `==` and not `tag=`
 
-`tag=` is the language's name for integer equality, injected into every target like `if`, `let`
-and `loop`. It is **not declarable** — the same rule as booleans
+`=` is the language's equality, injected into every target like `if`, `let` and `loop`. It is
+**not declarable** — the same rule as booleans
 ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)).
 
-Each backend finds the host's own equality and reuses it: `==` on Go and Java, `===` on
-JavaScript, `sete` on x86. So nothing is lowered further than the target requires, and a target
-author cannot spell it differently or forget it.
+Each backend finds the host's own and reuses it: `==` on Go and Java, `===` on JavaScript,
+`sete` on x86. Nothing is lowered further than the target requires, and a target author cannot
+spell it differently or forget it.
+
+**It is integer equality only.** Floats are excluded because NaN is not an equivalence relation;
+strings because no two of the four targets agree on comparing them. For a host's own, name it —
+`go.==`, `js.===` — which is target-native and carries no portability claim.
+
+**Not `==`.** On JavaScript that name is already taken by a *different operation*: `js.==` is
+loose equality and the language needs strict. Sharing the name would either shadow a host
+operator — losing access the parasite model exists to keep — or emit the wrong one.
+
+**Not `tag=`, which is what it was first built as.** Two arguments killed it. A name should say
+what an operation **is**, not what it is for: `(when (= (go.% v 2) 1))` is not comparing a tag,
+and this project's own naming rule already says so — `values` not `multi-return`, and `alloc`
+beat `materialize` for saying it in a word everyone has. And the honesty a narrow name was
+buying is better bought by **the refusal**, which can explain itself where a name cannot:
+
+```
+in argument 1 of `=`: a is f64, but int is required here.
+`=` is the language's equality and it is integer equality only. Floats are excluded
+because NaN is not an equivalence relation, and strings because no two of the four
+targets agree on comparing them. For a host's own equality, name it: `go.==`,
+`js.===`, `java.==`, `x64.sete` — that is target-native and carries no portability claim
+```
+
+The one argument the other way — that a tag comparison and an integer comparison will look
+identical once sums land — is the type checker's job, and ours runs on the residual.
 
 ## 7. What it is not
 

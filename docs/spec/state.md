@@ -53,7 +53,7 @@ or a `sig` must name a definition in the same module; naming nothing is an error
 `let`, `if`, `loop` and nothing else structural.
 
 **And those three are the LANGUAGE's, not a target's.** `if`, `let` and `loop` are injected into
-every target and **declaring one is an error**; the backend implements them. `tag=` joined them on
+every target and **declaring one is an error**; the backend implements them. `=` joined them on
 2026-08-22 — integer equality, which each backend resolves to the host's own (`==`, `===`, `sete`)
 so nothing is lowered further than the target requires, and which `match` needs because a target
 cannot be allowed to spell it differently or forget it. A target's structural

@@ -219,11 +219,11 @@ func TestLoopMayShadowAParameter(t *testing.T) {
 			"let n2 = n;"},
 		{"go", `(use go)
 			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((n n)) (tag= n 0) 7 else (again (go.- n 1)))))`,
+			(def f (fn (n) (loop ((n n)) (= n 0) 7 else (again (go.- n 1)))))`,
 			"var n2 int = n"},
 		{"java", `(use java)
 			(export f) (sig f ((n int)) int)
-			(def f (fn (n) (loop ((n n)) (tag= n 0) 7 else (again (java.- n 1)))))`,
+			(def f (fn (n) (loop ((n n)) (= n 0) 7 else (again (java.- n 1)))))`,
 			"n2 = n"},
 	}
 	for _, c := range cases {

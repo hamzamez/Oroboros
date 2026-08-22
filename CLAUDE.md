@@ -241,8 +241,11 @@ the first reads a stale value and the program looks right. And a name pattern is
 shadowed occurrence is a `KBound`, not a `KName`. It found **a five-month-old JavaScript bug**:
 `(loop ((n n)) …)` inside `function f(n)` emitted `let n = n;`, a `SyntaxError` — Go and Java
 seeded their fresh-name set from the parameters and JS did not; x86 needed no fix because registers
-are positional. `tag=` is now injected like `if`/`let`/`loop` and resolves to each host's own
-equality. Float and string patterns are refused (no portable equality; NaN is not an equivalence
+are positional. `=` is now injected like `if`/`let`/`loop` and resolves to each host's own
+equality — **not `==`, because on JavaScript that name is already taken by a different operation**
+(`js.==` is loose, the language needs strict), and **not the `tag=` it was first built as**, because
+a name should say what an operation *is* rather than what it is for, and the honesty a narrow name
+buys is better bought by a refusal that can explain itself. Float and string patterns are refused (no portable equality; NaN is not an equivalence
 relation), and so is a repeated name in one clause.
 
 **The older framing, kept because it is the argument the build tested**: `match` IS `loop`, and it is SUGAR.** `(match (e₁ … eₙ) pats body … else body)` desugars to

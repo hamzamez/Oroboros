@@ -104,6 +104,19 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			d = p.Args[i]
 		}
 		if _, err := c.walk(a, d); err != nil {
+			// `=` is the LANGUAGE's equality and is deliberately narrow, so its
+			// refusal has to explain itself — that explanation is the reason it
+			// is called `=` rather than a narrow name like `tag=`. A name cannot
+			// say why; an error can.
+			if op.Name == "=" {
+				return "", fmt.Errorf("in argument %d of `=`: %w.\n"+
+					"`=` is the language's equality and it is integer equality only. "+
+					"Floats are excluded because NaN is not an equivalence relation, "+
+					"and strings because no two of the four targets agree on comparing "+
+					"them (docs/spec/strings.md). For a host's own equality, name it: "+
+					"`go.==`, `js.===`, `java.==`, `x64.sete` — that is target-native "+
+					"and carries no portability claim", i+1, err)
+			}
 			return "", fmt.Errorf("in argument %d of %s: %w", i+1, op.Name, err)
 		}
 	}

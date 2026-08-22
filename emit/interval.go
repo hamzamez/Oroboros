@@ -624,7 +624,7 @@ func (p *intervalPass) refine(c *core.Term, taken bool) {
 		rel = "gt"
 	case isOp(name, "ge") || name == ">=" || strings.HasSuffix(name, ".setge"):
 		rel = "ge"
-	case isOp(name, "eq") || name == "==" || strings.HasSuffix(name, ".sete"):
+	case isOp(name, "eq") || name == "=" || name == "==" || strings.HasSuffix(name, ".sete"):
 		rel = "eq"
 	case isOp(name, "ne") || name == "!=" || strings.HasSuffix(name, ".setne"):
 		rel = "ne"

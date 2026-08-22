@@ -778,7 +778,7 @@ func readLoop(kids []*Term, line int) (*Term, error) {
 //	_            wildcard — matches, binds nothing
 //	name         binds the scrutinee under that name
 //	true/false   tests the scrutinee, which is already a bool
-//	an integer   tests it with `tag=`
+//	an integer   tests it with `=`
 //
 // Float and string patterns are deliberately absent: the language has no
 // portable equality (`==` is target-native on all four), and a float pattern
@@ -913,7 +913,7 @@ func matchClause(pats []*Term, vars []string, line int) (*Term, map[string]strin
 			}
 
 		case p.Kind == KInt:
-			tests = append(tests, &Term{Kind: KApp, Kids: []*Term{Name("tag="), v, p}})
+			tests = append(tests, &Term{Kind: KApp, Kids: []*Term{Name("="), v, p}})
 
 		default:
 			return nil, nil, fmt.Errorf("line %d: %s is not a pattern. A pattern is `_`, a name "+

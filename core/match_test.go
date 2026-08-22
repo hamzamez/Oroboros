@@ -39,7 +39,7 @@ func mustFail(t *testing.T, src, want string) {
 	}
 }
 
-// The desugaring, whole. A tag pattern becomes `tag=`, a name pattern becomes a
+// The desugaring, whole. A tag pattern becomes `=`, a name pattern becomes a
 // RENAME (not a `let`), a wildcard becomes nothing at all, and the clause list
 // becomes the `loop`'s clause list unchanged.
 //
@@ -55,9 +55,9 @@ func TestMatchIsLoop(t *testing.T) {
 				1 k    k
 				else   (go.- 0 1))))`)
 	want := `(fn (s i) (loop (fn (s i) ` +
-		`(if (if (tag= s 0) (tag= i 0) false) (again 1 (go.+ i 1)) ` +
-		`(if (tag= s 0) (again 2 (go.+ i 1)) ` +
-		`(if (tag= s 1) i (go.- 0 1))))) s i))`
+		`(if (if (= s 0) (= i 0) false) (again 1 (go.+ i 1)) ` +
+		`(if (= s 0) (again 2 (go.+ i 1)) ` +
+		`(if (= s 1) i (go.- 0 1))))) s i))`
 	if got != want {
 		t.Errorf("desugaring changed:\n got %s\nwant %s", got, want)
 	}
@@ -78,7 +78,7 @@ func TestWhenGuardsAClause(t *testing.T) {
 	if !strings.Contains(got, "(if (go.>= #m1 n) #m1") {
 		t.Errorf("a `when` on an all-wildcard clause IS the guard:\n%s", got)
 	}
-	if !strings.Contains(got, "(if (tag= s 0) (again 1") {
+	if !strings.Contains(got, "(if (= s 0) (again 1") {
 		t.Errorf("later clauses must survive the guard:\n%s", got)
 	}
 }
@@ -92,7 +92,7 @@ func TestWhenConjoinsWithPatterns(t *testing.T) {
 			(match (s i)
 				1 k (when (go.> k 0))  k
 				else                   0)))`)
-	if !strings.Contains(got, "(if (tag= s 1) (go.> i 0) false)") {
+	if !strings.Contains(got, "(if (= s 1) (go.> i 0) false)") {
 		t.Errorf("pattern AND guard, spelled as `and` desugars:\n%s", got)
 	}
 }
@@ -126,7 +126,7 @@ func TestRenameDoesNotEnterAShadowingBinder(t *testing.T) {
 // the eliminator of `bool` (ADR 0017), so `true`/`false` patterns cost nothing.
 func TestBoolPatternIsTheScrutinee(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (b) (match (b) true 1 else 0)))`)
-	if strings.Contains(got, "tag=") {
+	if strings.Contains(got, "=") {
 		t.Errorf("a bool pattern needs no equality:\n%s", got)
 	}
 	if !strings.Contains(got, "(loop (fn (b) (if b 1 0)) b)") {
@@ -223,7 +223,7 @@ func TestScrutineeNameBecomesTheLoopVariable(t *testing.T) {
 // A scrutinee that is not a name has no name to reuse, so it gets a fresh one.
 func TestComputedScrutineeGetsAFreshName(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (a b) (match ((go.+ a b)) 0 1 else 2)))`)
-	if !strings.Contains(got, "(loop (fn (#m0) (if (tag= #m0 0) 1 2)) (go.+ a b))") {
+	if !strings.Contains(got, "(loop (fn (#m0) (if (= #m0 0) 1 2)) (go.+ a b))") {
 		t.Errorf("a computed scrutinee needs a fresh variable:\n%s", got)
 	}
 }
@@ -234,5 +234,18 @@ func TestRepeatedScrutineeNameIsNotAliased(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (a) (match (a a) 0 1 7 else 3)))`)
 	if !strings.Contains(got, "(loop (fn (a #m1)") {
 		t.Errorf("the second `a` cannot be the same loop variable:\n%s", got)
+	}
+}
+
+// `=` is the LANGUAGE's equality and it is integer equality only. The refusal
+// has to EXPLAIN, because that explanation is the reason it is called `=`
+// rather than a narrow name like `tag=`: a name cannot say why, an error can.
+// (Checked in emit, since types are not in the language — see emit/check.go.)
+func TestEqIsInjectedNotDeclared(t *testing.T) {
+	// `=` reaches the reader as an ordinary name; `match` produces it, and a
+	// program may write it. Nothing target-specific appears in the residual.
+	got := readOne(t, `(use go) (def f (fn (a) (match (a) 3 1 else 0)))`)
+	if !strings.Contains(got, "(= a 3)") {
+		t.Errorf("an integer pattern is the language's `=`:\n%s", got)
 	}
 }

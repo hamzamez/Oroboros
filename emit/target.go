@@ -176,11 +176,21 @@ var coreNames = map[string]bool{
 	// declares it. The capability graph is for target-native names, where
 	// "this target cannot do it" is a true answer a program can be told.
 	"let": true, "loop": true,
-	// `tag=` is integer equality, and it is here because `match` desugars to it
-	// (core/read.go). The language has no general equality — `==` is
-	// target-native on all four — but equality on a FINITE type is portable and
-	// total, and a match guard is exactly that: an integer against a literal.
-	"tag=": true,
+	// `=` is integer equality, and it is here because `match` desugars to it
+	// (core/read.go). The language has no GENERAL equality — floats have NaN,
+	// which is not an equivalence relation, and strings have no portable
+	// comparison — but equality on a FINITE type is portable and total, and a
+	// match guard is exactly that: an integer against a literal.
+	//
+	// It is `=` rather than `==`, and rather than the `tag=` it was first built
+	// as. Not `==`, because on JavaScript that name is ALREADY TAKEN by a
+	// different operation: `js.==` is loose equality and the language needs
+	// strict, so sharing the name would either shadow a host operator or emit
+	// the wrong one. Not `tag=`, because a name should say what an operation IS
+	// rather than what it is for — `(when (= (go.% v 2) 1))` is not comparing a
+	// tag — and because the honesty a narrow name was buying is better bought by
+	// the REFUSAL, which can explain itself where a name cannot.
+	"=": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -192,7 +202,7 @@ var coreStructural = []Prim{
 }
 
 // eqSpellings are how a target may spell integer equality, most preferred
-// first. `addCore` finds one and gives `tag=` its emission — so `tag=` is the
+// first. `addCore` finds one and gives `=` its emission — so `=` is the
 // LANGUAGE's name for the equality the target already has, rather than a second
 // implementation of it. JavaScript is why the list is ordered: it declares both
 // `===` and `==`, and a tag test wants the strict one.
@@ -225,21 +235,21 @@ func (tg *Target) addCore() {
 		tg.Prims[p.Name] = p
 		tg.Names = append(tg.Names, p.Name)
 	}
-	// `tag=` is integer equality, and it is injected because `match` desugars to
+	// `=` is integer equality, and it is injected because `match` desugars to
 	// it (core/read.go). The language has no GENERAL equality — `==` is
 	// target-native on all four and disagrees on floats and strings — but
 	// equality on a FINITE type is portable and total, and a match guard is
 	// exactly that: a tag against a literal.
 	//
 	// Its emission is the target's own, found rather than written twice.
-	if _, have := tg.Prims["tag="]; !have {
+	if _, have := tg.Prims["="]; !have {
 		if eq, ok := tg.findEq(); ok {
-			eq.Name = "tag="
+			eq.Name = "="
 			eq.Args = []string{"int", "int"}
 			eq.Result = "bool"
 			eq.Pure = true
-			tg.Prims["tag="] = eq
-			tg.Names = append(tg.Names, "tag=")
+			tg.Prims["="] = eq
+			tg.Names = append(tg.Names, "=")
 		}
 	}
 	sort.Strings(tg.Names)

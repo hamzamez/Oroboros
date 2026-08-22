@@ -1,9 +1,12 @@
 # Oroboros
 
-A small language and build system that **parasitizes** target ecosystems instead of
-abstracting over them.
+A small language and build system that **parasitizes** target ecosystems instead of abstracting
+over them.
 
-**Status: design. No code yet.**
+> **Status: 0.0 — work in progress, not a release.**
+> The compiler works and is measured, but the core is *deliberately unspecified* and candidates
+> are expected to die. Nothing here is frozen, nothing is versioned, and the surface syntax
+> changes when a measurement says it should. See [How this is run](#how-this-is-run).
 
 ---
 
@@ -13,72 +16,292 @@ Most portable languages define a core that is the *intersection* of every host, 
 anything platform-specific as an escape hatch. That guarantees portability and gives up the
 ecosystem — and, historically, gives up performance too.
 
-Oroboros inverts it. If the best way to build a Windows app is Win32, add a Win32 target and
-use Win32 fully. If it is .NET, add a .NET target and use .NET fully. Android might be best
-served by Kotlin, or the JVM, or the NDK — so have all three as separate targets and pick per
-program.
+Oroboros inverts it. If the best way to build a Windows app is Win32, add a Win32 target and use
+Win32 fully. If it is .NET, add a .NET target and use .NET fully. Android might be best served by
+Kotlin, or the JVM, or the NDK — so have all three as separate targets and pick per program.
 
-Portability is therefore a **property a program may or may not have**, computed and reported
-by the compiler, rather than a guarantee the language enforces globally. A program that uses
-only portable capabilities is portable. A program that uses Win32 is not, and that is a
-first-class thing to write.
+Portability is therefore a **property a program may or may not have**, computed and reported by the
+compiler, rather than a guarantee the language enforces globally. A program that uses only portable
+capabilities is portable. A program that uses Win32 is not, and that is a first-class thing to
+write.
+
+**This is meant to be general-purpose**: apps on Windows and Android, websites in the browser,
+backends in the cloud. The four targets were application platforms all along — see
+[general-purpose.md](docs/general-purpose.md).
+
+## Where this actually stands
+
+A working compiler: a β/δ reducer with call-by-need and an effect discipline, **four backends**,
+and **all seven gauntlet programs at parity with hand-written code on two native targets** — two
+of them producing byte-identical machine code on Go.
+
+| | |
+|---|---|
+| `core/` | reader, terms, β/δ reducer — [the atom](docs/the-atom.md) |
+| `emit/` | **Go, JavaScript, Java, x86-64**. Types, refinements and termination live here, *not* in the language |
+| `targets/` | target declarations — **data, not Go** |
+| `cmd/oro` | reduce a file to normal form against a target |
+| `cmd/gen` | emit a file into the gauntlet |
+| `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
+| `examples/` | 47 programs |
+| `gauntlet/` | hand-written references and 32 recorded measurements — **the bar** |
+
+```bash
+go run ./cmd/oro   -target=go examples/dot.oro          # reduce to normal form
+go run ./cmd/build -target=portable-go -o hello examples/hello.oro
+go test ./core/ ./emit/
+```
+
+### The whole language
+
+| | |
+|---|---|
+| term kinds | **7** |
+| reduction rules | **3** — β with call-by-need, δ over definitions, `(if true a b) → a` |
+| top-level forms | **5** |
+| parameters | **2** — which names are primitive, and which of those are pure |
+
+Everything else is sugar that erases in the reader: `let`, `seq`, `and`/`or`/`not`/`cond`, `loop`,
+`values`, `match`. Current state, read off the code rather than from memory:
+[state.md](docs/spec/state.md).
+
+### The gauntlet
+
+Seven programs that must reach parity with hand-written code. They are the one fixed commitment.
+
+Numbers are *emitted ÷ hand-written*, so **lower is better and ~1.00× is the bar**. The two
+current full runs are on the **native** targets — [Go](gauntlet/results/native-gauntlet-2026-08-20.md)
+and [JavaScript](gauntlet/results/native-js-2026-08-20.md):
+
+| | Go | JavaScript |
+|---|---|---|
+| dot product | 1.00× | 1.03× |
+| search | 0.97× early / 1.00× late | 1.21× early / 1.00× late |
+| centroid (structs) | 1.01× | 0.97× |
+| word count | 0.997× | 0.89× |
+| generics | 0.98× | 0.98× |
+| formatted output | correct — its pass condition is not a number | correct |
+| stencil (aliasing) | 0.93× allocating / 0.999× reusing | 0.94× / 0.97× |
+
+All but one are inside the ~15% noise floor, which is the claim: **at parity, not faster**. The
+exception is JavaScript's early-exit search — 7.5 ns against 6.2 ns on a single call returning at
+index 6, so the 1.3 ns gap is call overhead at the timer's resolution floor. It is recorded as a
+loss rather than argued away.
+Separately, on the *earlier portable layer*, centroid and generics compiled to **byte-identical
+machine code** against hand-written Go
+([structs](gauntlet/results/structs-2026-08-14.md), [generics](gauntlet/results/generics-2026-08-14.md)) —
+a stronger result than a timing, and the reason those two programs exist.
+
+Three caveats stated rather than buried:
+
+- **Java has not moved to the native target.** It is measured on the retired portable layer
+  ([2026-08-14](gauntlet/results/java-2026-08-14.md)) and is the host most likely to disagree with
+  the other two — it is where the fused `merge` *loses* 2.6× exactly where Go's fused `m[k]++`
+  wins 1.19×.
+- **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
+  median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
+  and the hand-written reference is written the way a person writes it, not in the emitter's shape.
+  That is what [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md) rests on.
+- **The stencil's allocating form is [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s
+  open price.** It reaches parity here because the *native* target can express buffer reuse
+  (`go.set-float64` is Go's own store); the retired portable layer could not, and paid 1.79×. The
+  price is the **shape**, not the compiler — and it is expected to be paid off, not kept.
+
+## What it looks like
+
+`examples/native/dot-go.oro`. A vector is a length paired with an index function — a **library
+written in the language**, not a primitive, and it has no runtime existence:
+
+```lisp
+(use go)
+(export dot)
+
+(sig dot ((p slice-float64) (q slice-float64)) f64
+  (where (and (go.== (go.len p) (go.len q))
+              (go.< (go.len p) 65536))))
+
+(def vec      (fn (n f) (fn (sel) (sel n f))))
+(def vlen     (fn (v)   (v (fn (n f) n))))
+(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
+(def of-array (fn (a)   (vec (go.len a) (fn (i) (go.at-float64 a i)))))
+(def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+
+(def sum (fn (v)
+  (loop ((acc 0.0) (i 0))
+    (go.>= i (vlen v))  acc
+    else                (again (go.f+ acc (vindex v i)) (go.+ i 1)))))
+
+(def dot (fn (a b) (sum (zip go.f* (of-array a) (of-array b)))))
+```
+
+```bash
+go run ./cmd/gen examples/native/dot-go.oro go dot.go
+```
+
+```go
+func GenDot(a []float64, b []float64) float64 {
+	acc := 0.0
+	var i int = 0
+	var n1 int = (len(a))
+	b = b[:n1]
+	for {
+		if (i >= (len(a))) {
+			break
+		}
+		acc, i = (acc + ((a[i]) * (b[i]))), (i + 1)
+		continue
+	}
+	return acc
+}
+```
+
+Every abstraction is gone: no closure, no intermediate vector, no allocation. The `b = b[:n1]` is
+the emitter *shaping* the output so Go's own compiler re-proves the bound and drops the second
+bounds check — because [our proofs do not transfer](gauntlet/results/bce-2026-08-15.md), so a proof
+is only worth what the emitted shape can cash in.
+
+The `(where …)` is not decoration. The equality is what makes indexing `q` under `p`'s length
+provable at all; the bound is what proves the loop terminates.
+
+### And the same idea, twice more
+
+`match` is `loop`, so a state machine is clauses plus a jump — [spec](docs/spec/match.md):
+
+```lisp
+(def runs (fn (n)
+  (match (0 n 0)
+    _ 0 c                            c
+    0 v c (when (= (go.% v 2) 1))    (again 1 (go./ v 2) (go.+ c 1))
+    _ v c (when (= (go.% v 2) 1))    (again 1 (go./ v 2) c)
+    _ v c                            (again 0 (go./ v 2) c)
+    else                             0)))
+```
+
+A sum is Σ, so its value is a tag and a payload — and Go's own `(T, error)` idiom is already that
+shape ([spec](docs/spec/sums.md)):
+
+```lisp
+(sum result (ok int) (err int))
+(sig div ((a int) (b int)) result)
+(def div (fn (a b) (if (= b 0) (err 0) (ok (go./ a b)))))
+```
+
+```go
+func GenDiv(a int, b int) (int, int) {
+	if (b == 0) {
+		return 1, 0
+	}
+	return 0, (a / b)
+}
+```
+
+Both are **reader sugar**: zero reduction rules, zero term kinds, no backend change, and no target
+declares any of it.
 
 ## How it works
 
 Everything runs on one mechanism: a **capability graph**.
 
-- A **capability** is a named, typed unit of functionality — `float64`, `map`, `threads`,
-  `matmul`.
+- A **capability** is a named, typed unit of functionality — `float64`, `map`, `threads`.
 - A **module** declares what it requires.
-- A **target** declares what it provides natively, plus **shims** implementing one capability
-  in terms of others.
+- A **target** declares what it provides natively, plus **shims** implementing one capability in
+  terms of others.
 
-Building covers the required set from what the target provides plus what its shims can reach.
-Anything uncovered is a build error naming the exact gap.
+Building covers the required set from what the target provides plus what its shims reach. Anything
+uncovered is a build error naming the exact gap.
 
-The rule that makes this fast: **emit at the highest layer the target natively provides.**
-Lower only as far as necessary. Go has `map`, so emission stops there and the output uses
-Go's `map`. C does not, so the same source keeps lowering into a real hash table.
+The rule that makes this fast: **emit at the highest layer the target natively provides.** Lower
+only as far as necessary. Go has `map`, so emission stops there. C does not, so the same source
+keeps lowering.
 
-Two consequences fall out for free:
+**But that rule is a prior, not a proof.** Which host construct is actually fastest is a
+measurement. The first baseline run refuted four inferences from it at once: JS's `Map` is 3.25×
+*slower* than a null-prototype object; Java's fused `merge` loses 2.6× to unfused
+`getOrDefault`+`put`; Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and all
+three hosts inline a literal callback. See
+[ADR 0008](docs/decisions/0008-measurement-over-principle.md).
 
-- A feature the target lacks — floating point on an integer-only machine — is just a shim.
-- A feature the target has *in hardware* is just the **absence** of a shim. "Compiling up"
-  is not a separate mechanism.
+### What the core turned out to be
 
-That rule is a prior, not a proof. Which host construct is actually fastest is a measurement —
-JS's `Map` turns out to be 3.25× slower than a plain object for string keys, and Java's fused
-`merge` loses to the unfused form. See [ADR 0008](docs/decisions/0008-measurement-over-principle.md).
+**Lambda calculus in which the normal form is a parameter.** A target supplies a partition of names
+into primitive and defined; reduction runs until only primitives remain.
 
-## What the core turned out to be
+> Everything is a function, evaluated at compile time. What survives is what the target must do at
+> runtime, and the compiler tells you exactly what that is.
 
-Hand-derivation of all five gauntlet programs against a candidate "everything is a rewrite" core
-produced a sharper answer than the question started with. Rewriting **is** lambda calculus —
-one rule, beta, plus alpha — generalized. What separates it from the predecessor project is not
-the mechanism but the **stage**:
+Lambda calculus *at runtime* allocates, because a closure's environment must outlive the
+abstraction. The same substitution *at compile time* costs nothing, because it is gone before the
+program runs. That makes this a **two-level language**: the static level is unrestricted
+higher-order; the dynamic level is first-order tables and loops. A closure may not survive staging
+— [closures-direction.md](docs/closures-direction.md),
+[callbacks.md](docs/spec/callbacks.md).
 
-> **Everything is a function, evaluated at compile time. What survives is what the target must
-> do at runtime, and the compiler will tell you exactly what that is.**
+Layers, both directions of the capability graph, and staging all collapse into that:
+[the-atom.md](docs/the-atom.md).
 
-Lambda calculus at runtime allocates, because a closure's environment must outlive the
-abstraction. The same substitution at compile time costs nothing, because it is gone before the
-program runs. Escaping closures are exactly where that fails — and there they cost what the host
-charges for the same program, which is the standard.
+### Targets are data
 
-Following the defects those derivations turned up led to the other half. Every one was naive
-rewriting losing something the term held implicitly — sharing, capture-freedom, simultaneity,
-effect ordering — and four of them are **structural rules**: when may a term be copied, moved,
-or deleted? Grading each term by multiplicity answers all four. And grade 0 — *erased before
-runtime* — turns out to be the staging annotation itself. So:
+Adding a host function means adding a line to a target file. No Go, no rebuild:
 
-> **Terms, rewritten by rules. Every term graded by how many times it may be used and at which
-> stage. Grade 0 means it is gone before the program runs — and the compiler will tell you the
-> grade of anything you wrote.**
+```lisp
+(prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
+```
 
-That last clause is the feature the pitch needs: **statically, whether an abstraction was
-eliminated or survived** — "this fold is inlined, no call" versus "this handler survives: 1
-allocation, 16-byte environment, 1.55ns indirect call." A checkable answer instead of a hope,
-and it falls out of the machinery already required for soundness.
+Expression and statement primitives are pure data — a template, an arity, types, an optional
+import. Structural constructs are **not** declarable at all: `if`, `let`, `loop` and `=` are
+injected into every target and declaring one is an error, because *a construct promoted to the
+language works on every target and the compiler finds the implementation.*
+
+What a declaration carries was not designed — it was read off what four backends turned out to
+need. Format: [target-files.md](docs/spec/target-files.md).
+
+### The same capability, opposite idioms
+
+Word count's dictionary, from one source:
+
+| | emitted | because |
+|---|---|---|
+| Go | `acc[k]++` — **fused** | one `mapassign_faststr` |
+| JavaScript | null-prototype object | `Map` is 3.25× slower for string keys |
+| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6× slower; it boxes |
+
+Go's fused idiom wins and Java's loses, decided by measurements taken before either backend
+existed. That is [ADR 0008](docs/decisions/0008-measurement-over-principle.md) when it is real
+rather than stated.
+
+## What is in the language
+
+| | |
+|---|---|
+| **Iteration** | `loop`/`again` — guarded clauses over n variables, no product, early exit at parity. **Recursion is not in the language**; termination is a *computed property* ([ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md), [ADR 0015](docs/decisions/0015-loop-and-again.md)) |
+| **Booleans** | `bool` is data, `if` is its eliminator, connectives erase in the reader ([ADR 0017](docs/decisions/0017-booleans-are-in-the-language.md)) |
+| **Several results** | `(values a b)` is the *negative product* — sugar for `(fn (#k) (#k a b))`, so β is its algebra and the reducer needed nothing ([values.md](docs/spec/values.md)) |
+| **Pattern matching** | `match` is `loop`: reader sugar, zero rules, zero term kinds, `again` in a clause body ([match.md](docs/spec/match.md)) |
+| **Sums** | closed, finite, non-recursive. A sum is Σ, so its value is a tag and a payload — which is the product, already built on four targets ([sums.md](docs/spec/sums.md)) |
+| **Memory** | immutable values, one scoped **linear** buffer; the linearity check is occurrence counting on the residual, not a type ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)) |
+| **Effects** | one declared bit per primitive, defaulting to impure. An impure argument is never substituted. No effect types, no monads ([ADR 0010](docs/decisions/0010-effects-as-structural-rules.md)) |
+
+### Types are not in the language, and they still check
+
+There is a type checker, and it runs on the **residual**, before emission — cheap, because
+reduction has already made the term monomorphic, first-order and closed. One checker serves all
+four targets. `(sig name ((p type)…) result)` is a claim checked in **two directions**: against the
+definition's residual, and against any target that provides the name natively — the job no host
+compiler can do, because the two implementations live on different targets.
+
+On top of that:
+
+- **Refinements** — `(where …)` in linear integer arithmetic, with a deliberately *incomplete*
+  decision procedure. An undischarged obligation is **reported, never assumed**. Found a real
+  latent bug in `dot` and `centroid` ([refinements.md](docs/spec/refinements.md)).
+- **Termination** — size-change termination plus a trip count proves **96% of loops**; the single
+  refusal is a true negative ([sct-2026-08-19](gauntlet/results/sct-2026-08-19.md)).
+- **Representation selection** — a declared range decides whether an integer operation keeps the
+  host's operator or is rewritten to a `checked` primitive. Opt-in behind `-checked`, deliberately
+  ([selection-2026-08-19](gauntlet/results/selection-2026-08-19.md)).
+
+The map of what is decidable, so future decisions can be *located* rather than argued from scratch,
+is [decidability-map.md](docs/decidability-map.md).
 
 ## Design goals
 
@@ -88,157 +311,119 @@ and it falls out of the machinery already required for soundness.
 | Parasitic | Take maximum advantage of each target ecosystem. |
 | Open | Adding a target should be low effort, for anyone, out of tree. |
 | Declarative bindings | Adding a target's APIs should be close to a file listing names. |
-| Fast | Parity with hand-written code in the target language. Enforced in CI. |
+| Fast | **Parity with hand-written code in the target language.** |
 | Small output | Small binaries and footprints. |
 | Abstractable | Express more in fewer tokens over time. |
 | Legible to models | Easy for LLMs to write and reason about. |
 
-## Decisions made so far
+## How this is run
 
-- Targets are ecosystems, not machines — [ADR 0001](docs/decisions/0001-parasite-model.md)
-- A capability graph, not a layer tower — [ADR 0002](docs/decisions/0002-capability-graph.md)
-- Range-typed integers, mathematical semantics — [ADR 0003](docs/decisions/0003-range-typed-integers.md)
-- Go, JavaScript, Java/Android first; C deferred — [ADR 0004](docs/decisions/0004-first-targets.md)
-- The compiler is written in Go — [ADR 0005](docs/decisions/0005-implementation-language.md)
-- The backend interface is a file format — [ADR 0006](docs/decisions/0006-ir-file-format.md)
-- Explore candidates against a fixed test — [ADR 0007](docs/decisions/0007-exploration-over-specification.md)
-- Parasite decisions are measurements, not principles — [ADR 0008](docs/decisions/0008-measurement-over-principle.md)
-- Staging must not change results — [ADR 0009](docs/decisions/0009-staging-preserves-results.md)
+The core is **not** specified up front. The predecessor project stalled on a fixed language that
+work then went into making viable, and committing to a specification now would recreate that.
 
-Full reasoning, including rejected designs and the diagnosis of why the predecessor project
-hit a performance wall, is in [docs/design-direction.md](docs/design-direction.md).
+Instead one thing is fixed: **[the gauntlet](docs/gauntlet.md)**. Candidates are killed by
+measurement, not by argument — arguments only select what is worth measuring. When a candidate
+dies it gets an ADR naming what killed it, so a dropped direction becomes an accumulating result
+rather than lost time.
 
-## How this project is run
+Three working rules that have earned their place:
 
-The core is **not** specified up front. The predecessor stalled on a fixed language that work
-then went into making viable, and committing to a specification now would recreate that.
+1. **Every design claim in this repository that was not measured has been wrong about half the
+   time.** The measurements in [gauntlet/results/](gauntlet/results/) are the authority.
+2. **Carry both forms** into a benchmark — the one expected to win and the one expected to lose.
+   Five beliefs were refuted in the first run only because the losing form was there to measure.
+3. **Check the compiler's decisions, not just the clock.** `-gcflags=-m -m` and
+   `-d=ssa/check_bce/debug=1` were each decisive where timings were ambiguous.
 
-Instead, one thing is fixed: **[the gauntlet](docs/gauntlet.md)** — five programs that must
-reach parity with hand-written code on Go, JavaScript, and Java. Candidate cores are
-disposable and expected to die. Every one that dies gets an ADR naming what killed it, so a
-dropped direction becomes an accumulating result rather than lost time.
+Benchmarks were taken on a hybrid P/E-core laptop with a **~15% noise floor**. No decision here
+rests on a smaller margin than that — and where a measurement failed to measure what it intended,
+that is recorded too rather than dropped.
 
-Candidates currently on the table are in [docs/core-candidates.md](docs/core-candidates.md),
-with actual syntax. Hand-derivations of each gauntlet program against the leading candidate are
-in [docs/derivations/](docs/derivations/), and the measured baselines are in
-[gauntlet/](gauntlet/).
-
-The first baseline run **refuted five beliefs** the derivations had reasoned their way into.
-That is the process working, and it is why nothing is frozen.
-
-**Where this stands** — after six derivations and one baseline run — is assessed in
-[docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md): the candidate survived both
-tests designed to kill it, its costs are known and bounded rather than open-ended, and the three
-things that could still kill it are all cheap to test before writing a compiler.
-
-## Where this is
-
-The atom is built and both emitted programs reach parity with hand-written Go.
+### Decisions so far
 
 | | |
 |---|---|
-| Reducer | `core/` — β and δ, normal form parameterised by the target's primitive set |
-| Backends | `emit/` — **Go and JavaScript**. Types live here, not in the language. |
-| Measured | Three programs at parity on **both targets** — [dot & filter](gauntlet/results/parity-2026-08-14.md), [JS](gauntlet/results/js-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md). Two produce **byte-identical machine code** to hand-written Go. |
+| [0001](docs/decisions/0001-parasite-model.md) | Targets are ecosystems; portability is a program property |
+| [0002](docs/decisions/0002-capability-graph.md) | Capability graph, not a fixed layer tower |
+| [0003](docs/decisions/0003-range-typed-integers.md) | Range-typed integers, mathematical semantics |
+| [0004](docs/decisions/0004-first-targets.md) | Go, JavaScript, Java/Android first; C deferred |
+| [0005](docs/decisions/0005-implementation-language.md) | Compiler written in Go |
+| [0006](docs/decisions/0006-ir-file-format.md) | Backend interface is a file format, not a Go interface |
+| [0007](docs/decisions/0007-exploration-over-specification.md) | Explore candidates against a fixed test |
+| [0008](docs/decisions/0008-measurement-over-principle.md) | Parasite decisions are measurements, not principles |
+| [0009](docs/decisions/0009-staging-preserves-results.md) | Staging must not change results |
+| [0010](docs/decisions/0010-effects-as-structural-rules.md) | Effects are a side condition on β, not a feature |
+| [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) | Modules are resolution, not reduction |
+| [0012](docs/decisions/0012-portable-integer-range.md) | `int` is exact within ±(2⁵³−1) |
+| [0013](docs/decisions/0013-accept-the-allocation-price.md) | Accept the allocation price — **provisional** |
+| [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) | Recursion is not in the language |
+| [0015](docs/decisions/0015-loop-and-again.md) | `loop`/`again` — guarded clauses over n variables |
+| [0016](docs/decisions/0016-targets-need-not-have-expressions.md) | A target need not be an expression language |
+| [0017](docs/decisions/0017-booleans-are-in-the-language.md) | Booleans and control flow are in the language |
+| [0018](docs/decisions/0018-immutable-values-linear-buffers.md) | Immutable values, one scoped linear buffer |
 
-```bash
-go run ./cmd/oro -target=blas examples/dot.oro   # (fn (p q) (dot p q))
-go run ./cmd/oro -target=go   examples/dot.oro   # a loop
-```
+Each has a "Why not" section recording the alternatives rejected — this project is deliberately put
+down at dead ends and picked up later, and the rejected alternatives are what will not be
+recoverable from the code.
 
-## The one thing the atom cannot do
+## Some things measurement decided
 
-Found by running [program 2](gauntlet/results/structs-2026-08-14.md), not by arguing:
+**A target need not have expressions.** `targets/windows/` emits x86-64 assembly under MASM and
+reaches parity with hand-written assembly, with the structural set still three
+([ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md)). It also showed that *the
+optimisations you were parasitizing only become visible on a host that has none* — the first three
+hosts were doing common-subexpression elimination for us and nothing noticed until one did not.
 
-> **Compile-time reduction eliminates any abstraction that does not cross a runtime loop
-> boundary. Loop-carried state is exactly what survives.**
+**Our proofs do not transfer.** A proof buys nothing unless the emitted code is *shaped* so the
+host re-proves it. That win was collected as an emitter pattern needing no types at all: 1.96× on
+compute-bound loops and **nothing** on memory-bound ones —
+[bce-2026-08-15](gauntlet/results/bce-2026-08-15.md).
 
-A Church-encoded point vanishes completely when built and destructured inside a loop body, and
-survives as a per-iteration closure when the loop *carries* it. So loop-carried state must be
-primitive-shaped — which is the same statement as the grading story, since state used *n* times
-is grade ω and grade ω is what survives.
+**A cost behaves the way a saving does.** An unproven integer operation costs 1.23× to 4.54×
+depending on shape, and the isolated microbenchmark was wrong in *both* directions —
+[checkcost-2026-08-19](gauntlet/results/checkcost-2026-08-19.md).
 
-## Five programs, three targets
+**The memory model was decided by expressiveness, not by speed.** A pure gather cannot express a
+*scatter*, so the sieve, sorting, histograms, union-find and general DP are inexpressible portably
+at any speed. It cost almost nothing, because every mechanism it needs already existed
+([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)).
 
-| | Go | JavaScript | [Java](gauntlet/results/java-2026-08-14.md) |
-|---|---|---|---|
-| dot product | parity | parity | parity¹ |
-| filter-sum | parity | parity | parity¹ |
-| centroid (structs) | **byte-identical machine code** | parity | parity¹ |
-| word count | parity, structurally confirmed | 1.2× | correct, unbenchmarked |
-| [generics](gauntlet/results/generics-2026-08-14.md) | **byte-identical machine code** | parity | correct |
+**Compile-time materialisation into static data is not a win.** Free on x86 and Go, a pure loss on
+Java and JavaScript (3.5× slower to load, 2,600× larger source) —
+[staticdata-2026-08-20](gauntlet/results/staticdata-2026-08-20.md).
 
-¹ Java parity rests on timings rather than on a compiled-output diff, because `javac` does not
-optimise — it transcribes source and leaves the work to HotSpot. It is the least-confirmed of the
-three.
+## What is open
 
-**The core has not changed since the atom was built.** Neither JavaScript nor Java required a
-single line of `core/`, which is the specific test [ADR 0004](docs/decisions/0004-first-targets.md)
-designed the second and third backends to perform.
+The honest list, with the reasoning written down rather than deferred to memory:
 
-One generic definition, used at two element types and two accumulator types, with **no type
-annotations anywhere** — no monomorphization pass, no type parameters, no dictionary. The
-definition has no runtime existence, and Go's backend works out `float64` for one instantiation
-and `map[string]int` for the other on its own.
+- **Recursion** moved from *deferred* to **owed** — a JSON parser, a DOM walk and a
+  recursive-descent parser all recurse to a depth the input decides, so
+  [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) needs a superseding ADR
+  ([general-purpose.md](docs/general-purpose.md))
+- **Tables** — specified, not built ([tables.md](docs/spec/tables.md))
+- **Strings**, **growable collections**, **maps** in the portable language
+- **The type system reasoning about the target** — expressing a Win32 contract so a program can be
+  checked in Oroboros; SAL is the field-tested answer and five of the eight requirements exist
+- **The niche encoding** for sums, `try` as bind, and `match` on a sum
+- **Octagons** instead of the hand-rolled relational layer in `emit/refine.go`
+- [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price, which is
+  expected to be paid off, not kept
 
-Word count also passes the Parasite thesis: Go emits `map[string]int`, JS emits a null-prototype
-object — [each the one that target is fastest with](gauntlet/results/wordcount-2026-08-14.md) —
-from one source, with the whole difference in the primitive table.
+Design questions still open are listed in §8 of
+[docs/design-direction.md](docs/design-direction.md). Current standing is
+[assessment-2026-08-20](docs/assessment-2026-08-20.md).
 
-Getting there needed [call-by-need](gauntlet/results/callbyneed-2026-08-14.md), whose
-justification moved twice under measurement: claimed at 2×, withdrawn when Go's CSE erased it,
-then reinstated at 615× when word count duplicated an *allocation* into a loop. The two results
-gave the criterion —
+## Reading order
 
-> **Duplication is free exactly when the duplicated term is pure, and unbounded when it is not.**
-
-— and the asymmetry meant the fix needed no grades and no cost model, which is what the design
-had assumed was blocking it.
-
-## The same capability, opposite idioms
-
-Word count's dictionary, from one source — and each line below now lives in a
-[target file](targets/), not in the compiler:
-
-| | emitted | because |
-|---|---|---|
-| Go | `acc[k]++` — **fused** | one `mapassign_faststr` |
-| JS | null-prototype object | `Map` is 3.25x slower for string keys |
-| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6x slower; it boxes |
-
-Go's fused idiom wins and Java's loses, decided by measurements taken long before either backend
-existed. That is [ADR 0008](docs/decisions/0008-measurement-over-principle.md) — parasite
-decisions are per-target measurements, not principles — when it is real rather than stated.
-
-## Targets are data
-
-Adding a host function means adding a line to a target file. No Go, no rebuild:
-
-```lisp
-(prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
-```
-
-Expression and statement primitives are **pure data** — a template, an arity, types, an optional
-import. Structural ones (`loop`, `cond`, `let`) are *named* in data and *implemented* in the
-backend, because a loop binds variables and emits a header and no template expresses that.
-
-What a declaration carries was not designed: it was read off what three backends turned out to
-need. `targets/js.oro` declares **zero types**, which is why types live in the backend rather
-than in the language.
-
-## Next
-
-**Program 5**, formatted output — the only gauntlet program never touched, and the one that needs
-a real host binding, where [g5](docs/derivations/g5-bindings.md)'s Tier 2 format stops being on
-paper.
-
-Open, and deliberately not yet built: call-by-need — which lost its performance justification
-when [Go's CSE turned out to do the work](gauntlet/results/duplicate-read-2026-08-14.md) —
-compile-time evaluation of primitives, splitting `def` from `rec` ([def.md](docs/spec/def.md)),
-Java, and the four unemitted gauntlet programs.
+1. This file
+2. [docs/design-direction.md](docs/design-direction.md) — the reasoning, including why the
+   predecessor hit a performance wall
+3. [docs/the-atom.md](docs/the-atom.md) — what the core turned out to be
+4. [docs/spec/state.md](docs/spec/state.md) — the language as it is today
+5. The ADRs in [docs/decisions/](docs/decisions/)
+6. [gauntlet/results/](gauntlet/results/) — the authority
 
 ## Name
 
-The predecessor was called **Parasite**, after the strategy. **Oroboros** — the serpent eating
-its own tail — for the intended endpoint: a language whose compiler is eventually written in
-itself.
+The predecessor was called **Parasite**, after the strategy. **Oroboros** — the serpent eating its
+own tail — for the intended endpoint: a language whose compiler is eventually written in itself.

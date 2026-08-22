@@ -416,6 +416,9 @@ func (r *reader) list() (*Term, error) {
 	if kids[0].Kind == KName && kids[0].Name == "loop" {
 		return readLoop(kids, line)
 	}
+	if kids[0].Kind == KName && kids[0].Name == "match" {
+		return readMatch(kids, line)
+	}
 
 	// (fn (p...) body) is the only special form inside a term.
 	if kids[0].Kind == KName && (kids[0].Name == "fn" || kids[0].Name == "λ") {
@@ -744,6 +747,217 @@ func readLoop(kids []*Term, line int) (*Term, error) {
 	}
 	out := []*Term{Name("loop"), Fn(names, body)}
 	return &Term{Kind: KApp, Kids: append(out, inits...)}, nil
+}
+
+// readMatch desugars `match` into `loop`, which is the whole implementation.
+//
+//	(match (e1 … en)
+//	  p11 … p1n            body1
+//	  p21 … p2n (when c)   body2
+//	  else                 bodyk)
+//
+// becomes
+//
+//	(loop ((#m0 e1) … (#mn-1 en))
+//	  guard1  body1
+//	  guard2  body2
+//	  else    bodyk)
+//
+// docs/type-algebra.md §5: `loop` already gives guarded clauses over n
+// variables and `match` gives pattern clauses over n scrutinees — a boolean
+// guard IS a pattern on a bool, so they were the same construct. Building it
+// this way costs ZERO reduction rules and ZERO term kinds; it joins `let`,
+// `seq`, `and`, `or`, `not`, `cond` and `loop` as sugar that erases.
+//
+// `again` works in a clause body because it is the LOOP's `again`, and that is
+// what makes a state machine writable: match on (state, input), transition with
+// `again` — the shape a parser, an event loop and a protocol handler all have.
+//
+// A pattern is one of:
+//
+//	_            wildcard — matches, binds nothing
+//	name         binds the scrutinee under that name
+//	true/false   tests the scrutinee, which is already a bool
+//	an integer   tests it with `tag=`
+//
+// Float and string patterns are deliberately absent: the language has no
+// portable equality (`==` is target-native on all four), and a float pattern
+// would inherit IEEE's NaN, which is not the equivalence relation a pattern
+// needs.
+//
+// **`when` is not decoration.** Without it `match` is strictly WEAKER than
+// `loop`, and building it is what showed that: ADR 0015 forbids `again` under
+// an `if`, so a condition that guards a transition cannot live in the body — it
+// has to be a clause. `(when c)` is how a clause says a condition that patterns
+// cannot express, and `c` sees the names the patterns bound.
+func readMatch(kids []*Term, line int) (*Term, error) {
+	if len(kids) < 3 {
+		return nil, fmt.Errorf("line %d: match takes a scrutinee list and at least one "+
+			"clause ending in `else`", line)
+	}
+	scrut := kids[1]
+	if scrut.Kind != KApp || len(scrut.Kids) == 0 {
+		return nil, fmt.Errorf("line %d: match takes a LIST of scrutinees — (match (a b) …) — "+
+			"so that clauses need no tuple built and taken apart; got %s", line, scrut)
+	}
+	n := len(scrut.Kids)
+
+	// A scrutinee that is a bare NAME becomes the loop variable under that same
+	// name, and this is not cosmetic. `(match (s i) …)` initialises the loop from
+	// `s` and `i`; if the loop variables were fresh, a clause body reading `i`
+	// would see the OUTER `i` — the value the loop started from — while `again`
+	// advanced a hidden one. Every iteration after the first would read a stale
+	// value, and the program would look right. Reusing the name shadows the outer
+	// binding, which is what the state-machine reading of `match` means: `s` and
+	// `i` are the state.
+	//
+	// Anything else — a literal, a call — gets a fresh `#m` name. `#` is not
+	// isIdentStart, so no source term can contain a free occurrence of one and
+	// `Fn` cannot capture it.
+	vars := make([]string, n)
+	seen := map[string]bool{}
+	for i, e := range scrut.Kids {
+		if e.Kind == KName && !seen[e.Name] && e.Name != "_" && e.Name != "else" {
+			vars[i] = e.Name
+			seen[e.Name] = true
+			continue
+		}
+		vars[i] = fmt.Sprintf("#m%d", i)
+	}
+
+	rest := kids[2:]
+	var pairs []*Term
+	for i := 0; i < len(rest); {
+		if rest[i].Kind == KName && rest[i].Name == "else" {
+			if i+2 != len(rest) {
+				return nil, fmt.Errorf("line %d: `else` must be the last clause of match; "+
+					"the ones after it could never be reached", line)
+			}
+			pairs = append(pairs, Name("else"), rest[i+1])
+			break
+		}
+		if i+n >= len(rest) {
+			return nil, fmt.Errorf("line %d: match has %d scrutinees, so every clause is %d "+
+				"pattern(s), an optional (when …), and a body; the last clause is short",
+				line, n, n)
+		}
+		guard, binds, err := matchClause(rest[i:i+n], vars, line)
+		if err != nil {
+			return nil, err
+		}
+		k := i + n
+		// An optional `(when c)` between the patterns and the body.
+		if k < len(rest) && rest[k].Kind == KApp && len(rest[k].Kids) == 2 &&
+			rest[k].Kids[0].Kind == KName && rest[k].Kids[0].Name == "when" {
+			c := renameFree(rest[k].Kids[1], binds)
+			if guard.Kind == KBool && guard.IsTrue() {
+				// Patterns that test nothing: the `when` IS the guard, rather
+				// than `(if true c false)`, which is the same thing spelled worse.
+				guard = c
+			} else {
+				guard = &Term{Kind: KApp, Kids: []*Term{Name("if"), guard, c, Bool(false)}}
+			}
+			k++
+		}
+		if k >= len(rest) {
+			return nil, fmt.Errorf("line %d: a match clause needs a body after its patterns", line)
+		}
+		pairs = append(pairs, guard, renameFree(rest[k], binds))
+		i = k + 1
+	}
+
+	body, err := clauseChain(pairs, "match", line, func(b *Term) error {
+		return checkClauseBody(b, n, line)
+	})
+	if err != nil {
+		return nil, err
+	}
+	out := []*Term{Name("loop"), Fn(vars, body)}
+	return &Term{Kind: KApp, Kids: append(out, scrut.Kids...)}, nil
+}
+
+// matchClause turns one clause's patterns into a guard and a renaming.
+//
+// A name pattern is a RENAME rather than a `let`: the pattern variable is just
+// another name for the loop variable, and renaming needs no binder. It is also
+// what lets a `(when …)` see the bound names, which a `let` wrapping only the
+// body could not.
+func matchClause(pats []*Term, vars []string, line int) (*Term, map[string]string, error) {
+	var tests []*Term
+	binds := map[string]string{}
+	for i, p := range pats {
+		v := Name(vars[i])
+		switch {
+		case p.Kind == KName && p.Name == "_":
+			// matches, binds nothing
+
+		case p.Kind == KName && p.Name == "else":
+			return nil, nil, fmt.Errorf("line %d: `else` is a clause of its own and takes no "+
+				"patterns; it cannot appear in position %d", line, i+1)
+
+		case p.Kind == KName:
+			if _, dup := binds[p.Name]; dup {
+				return nil, nil, fmt.Errorf("line %d: %s is bound twice in one match clause; "+
+					"a repeated name would be an equality test, which patterns do not do",
+					line, p.Name)
+			}
+			binds[p.Name] = vars[i]
+
+		case p.Kind == KBool:
+			// The scrutinee is already a bool, so the test IS the scrutinee.
+			if p.IsTrue() {
+				tests = append(tests, v)
+			} else {
+				tests = append(tests, &Term{Kind: KApp,
+					Kids: []*Term{Name("if"), v, Bool(false), Bool(true)}})
+			}
+
+		case p.Kind == KInt:
+			tests = append(tests, &Term{Kind: KApp, Kids: []*Term{Name("tag="), v, p}})
+
+		default:
+			return nil, nil, fmt.Errorf("line %d: %s is not a pattern. A pattern is `_`, a name "+
+				"that binds, `true`/`false`, or an integer; float and string patterns are absent "+
+				"because the language has no portable equality", line, p)
+		}
+	}
+	if len(tests) == 0 {
+		return Bool(true), binds, nil
+	}
+	guard := tests[len(tests)-1]
+	for i := len(tests) - 2; i >= 0; i-- {
+		// Conjunction, spelled the way `and` desugars: (if a b false).
+		guard = &Term{Kind: KApp, Kids: []*Term{Name("if"), tests[i], guard, Bool(false)}}
+	}
+	return guard, binds, nil
+}
+
+// renameFree replaces free names according to `binds`.
+//
+// Safe without capture analysis, and the reason is worth stating: by the time
+// readMatch runs, every inner `fn` has already been through `Fn`, which closes
+// its body — so an occurrence bound by a nested binder is a KBound, not a
+// KName. Only genuinely free names remain to rename.
+func renameFree(t *Term, binds map[string]string) *Term {
+	if t == nil || len(binds) == 0 {
+		return t
+	}
+	if t.Kind == KName {
+		if v, ok := binds[t.Name]; ok {
+			return Name(v)
+		}
+		return t
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	out := &Term{Kind: t.Kind, Name: t.Name, Int: t.Int, Float: t.Float, Str: t.Str,
+		Params: t.Params, Index: t.Index, Depth: t.Depth,
+		Kids: make([]*Term, len(t.Kids))}
+	for i, k := range t.Kids {
+		out.Kids[i] = renameFree(k, binds)
+	}
+	return out
 }
 
 // clauseChain folds `c₁ e₁ … else e` into a right-nested chain of `if`.

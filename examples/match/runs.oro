@@ -1,0 +1,21 @@
+; A two-state machine: count the 1-runs in an integer's binary representation.
+;
+; `match` is `loop` (docs/spec/match.md), so the state and the input are the
+; loop's variables and `again` is the transition. This is the shape a parser, an
+; event loop and a protocol handler all have.
+;
+; The `(when …)` guards are not decoration: ADR 0015 forbids `again` under an
+; `if`, so a condition that guards a transition has to be a clause.
+(use go)
+(export runs)
+
+(sig runs ((n int)) int
+  (where (and (<= 0 n) (< n 4294967296))))
+
+(def runs (fn (n)
+  (match (0 n 0)
+    _ 0 c                            c
+    0 v c (when (tag= (go.% v 2) 1)) (again 1 (go./ v 2) (go.+ c 1))
+    _ v c (when (tag= (go.% v 2) 1)) (again 1 (go./ v 2) c)
+    _ v c                            (again 0 (go./ v 2) c)
+    else                             0)))

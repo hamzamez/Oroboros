@@ -825,6 +825,12 @@ func mangle(s string) string {
 		// become camel-case boundaries so a qualified name is one host identifier.
 		case r == '-' || r == '.' || r == '/':
 			upper = true
+		// `#` starts a name the READER generates and a program cannot write —
+		// `match`'s loop variables, `values`' selector. It becomes `_` rather
+		// than an escape so the emitted code is readable; a collision with a
+		// user's `_m0` is resolved by openFresh like any other.
+		case r == '#':
+			b.WriteString("_")
 		case r == '?':
 			b.WriteString("P")
 		case r == '!':

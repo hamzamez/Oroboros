@@ -46,12 +46,17 @@ or a `sig` must name a definition in the same module; naming nothing is an error
 **Special forms in the reader.** `fn` (also spelled `λ`) is the only one that is not sugar.
 `let`, where `(let e k)` reads as `(k e)` ([def.md](def.md)); `seq`, where `(seq a b)` reads as
 `((fn (_) b) a)` ([effects.md §5](effects.md)); `loop`, which desugars to `(loop (fn (x…) …) z…)`
-([iteration.md](iteration.md)); and `and`, `or`, `not` and `cond`, which desugar to `if`
-([booleans.md](booleans.md)). **None of the sugar survives the reader** — a residual contains `fn`,
+([iteration.md](iteration.md)); `and`, `or`, `not` and `cond`, which desugar to `if`
+([booleans.md](booleans.md)); `values`, which desugars to `(fn (#k) (#k a b))`
+([values.md](values.md)); and `match`, which desugars to a `loop`
+([match.md](match.md)). **None of the sugar survives the reader** — a residual contains `fn`,
 `let`, `if`, `loop` and nothing else structural.
 
 **And those three are the LANGUAGE's, not a target's.** `if`, `let` and `loop` are injected into
-every target and **declaring one is an error**; the backend implements them. A target's structural
+every target and **declaring one is an error**; the backend implements them. `tag=` joined them on
+2026-08-22 — integer equality, which each backend resolves to the host's own (`==`, `===`, `sete`)
+so nothing is lowered further than the target requires, and which `match` needs because a target
+cannot be allowed to spell it differently or forget it. A target's structural
 set is normally empty, and the four native targets declare none. This is the general rule that
 [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) set for `if` alone: a construct
 promoted to the language works on every target and the compiler finds the implementation. The

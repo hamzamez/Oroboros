@@ -229,7 +229,23 @@ three of four hosts lack, and needs subtyping. **Tagged in the semantics, niche-
 representation** is Rust's answer and costs nothing. Products anonymous, **sums named** — `(inl 3.0)`
 does not determine its type, which is why every language without runtime types went nominal.
 
-**`match` IS `loop`, and it is SUGAR.** `(match (e₁ … eₙ) pats body … else body)` desugars to
+**`match` IS BUILT** — [match.md](docs/spec/match.md), 2026-08-22. Reader sugar over `loop`, about
+120 lines, **zero reduction rules and zero term kinds**, no change to any backend. Three things the
+build taught that the argument had not. **`when` guards are not optional**: ADR 0015 forbids `again`
+under an `if`, so a condition patterns cannot express has nowhere to go — not the guard, not the
+body — and without `(when c)`, `match` is *strictly weaker than the `loop` it desugars to*. **A
+bare-name scrutinee must BECOME the loop variable**: with fresh variables, a clause body reading `i`
+sees the value the loop *started from* while `again` advances a hidden one, so every iteration after
+the first reads a stale value and the program looks right. And a name pattern is a **rename, not a
+`let`** — safe without capture analysis because `Fn` has already closed every inner binder, so a
+shadowed occurrence is a `KBound`, not a `KName`. It found **a five-month-old JavaScript bug**:
+`(loop ((n n)) …)` inside `function f(n)` emitted `let n = n;`, a `SyntaxError` — Go and Java
+seeded their fresh-name set from the parameters and JS did not; x86 needed no fix because registers
+are positional. `tag=` is now injected like `if`/`let`/`loop` and resolves to each host's own
+equality. Float and string patterns are refused (no portable equality; NaN is not an equivalence
+relation), and so is a repeated name in one clause.
+
+**The older framing, kept because it is the argument the build tested**: `match` IS `loop`, and it is SUGAR.** `(match (e₁ … eₙ) pats body … else body)` desugars to
 `(loop ((v₁ e₁) …) guard body … else body)` with pattern bindings as `let`s — and **`again` under a
 `let` already works** (ADR 0015 permits exactly that, a rule written for another reason), verified
 today. **Zero reduction rules, zero term kinds**, joining `let`/`seq`/`and`/`cond` as sugar that

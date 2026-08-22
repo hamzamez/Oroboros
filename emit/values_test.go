@@ -204,3 +204,66 @@ func TestOneResultListIsABareType(t *testing.T) {
 		t.Errorf("(int) must normalise to the bare result, got %q / %v", s.Result, s.Results)
 	}
 }
+
+// A loop variable that REUSES a parameter's name emitted `let n = n;` inside
+// `function f(n)` on JavaScript — a SyntaxError, so the module did not parse at
+// all. Go and Java seeded their fresh-name set from the parameters from the
+// start; JS did not, and nothing noticed for five months because no program had
+// written `(loop ((n n)) …)`. `match` makes it the common case, because a
+// scrutinee that is a bare name becomes the loop variable under that name.
+func TestLoopMayShadowAParameter(t *testing.T) {
+	cases := []struct{ target, src, want string }{
+		{"js", `(use js)
+			(export f) (sig f ((n any)) any)
+			(def f (fn (n) (loop ((n n)) (js.=== n 0) 7 else (again (js.- n 1)))))`,
+			"let n2 = n;"},
+		{"go", `(use go)
+			(export f) (sig f ((n int)) int)
+			(def f (fn (n) (loop ((n n)) (tag= n 0) 7 else (again (go.- n 1)))))`,
+			"var n2 int = n"},
+		{"java", `(use java)
+			(export f) (sig f ((n int)) int)
+			(def f (fn (n) (loop ((n n)) (tag= n 0) 7 else (again (java.- n 1)))))`,
+			"n2 = n"},
+	}
+	for _, c := range cases {
+		code, err := genOn(t, c.target, c.src, "f")
+		if err != nil {
+			t.Errorf("%s: %v", c.target, err)
+			continue
+		}
+		if !strings.Contains(code, c.want) {
+			t.Errorf("%s: a loop variable must not redeclare a parameter; "+
+				"wanted %q in:\n%s", c.target, c.want, code)
+		}
+	}
+}
+
+// `match` reaches all four backends through `loop` and needs nothing from any
+// of them — the point of desugaring rather than adding a term kind.
+func TestMatchReachesEveryBackend(t *testing.T) {
+	cases := []struct{ target, src, want string }{
+		{"go", `(use go)
+			(export g) (sig g ((s int) (n int)) int)
+			(def g (fn (s n) (match (s n) 0 v (again 1 (go.- v 1)) else n)))`, "for {"},
+		{"js", `(use js)
+			(export g) (sig g ((s any) (n any)) any)
+			(def g (fn (s n) (match (s n) 0 v (again 1 (js.- v 1)) else n)))`, "for (;;)"},
+		{"java", `(use java)
+			(export g) (sig g ((s int) (n int)) int)
+			(def g (fn (s n) (match (s n) 0 v (again 1 (java.- v 1)) else n)))`, "for (;;)"},
+		{"windows", `(use x64)
+			(export g) (sig g ((s int) (n int)) int)
+			(def g (fn (s n) (match (s n) 0 v (again 1 (x64.sub v 1)) else n)))`, "Ltop"},
+	}
+	for _, c := range cases {
+		code, err := genOn(t, c.target, c.src, "g")
+		if err != nil {
+			t.Errorf("%s: %v", c.target, err)
+			continue
+		}
+		if !strings.Contains(code, c.want) {
+			t.Errorf("%s: match must reach the backend as a loop:\n%s", c.target, code)
+		}
+	}
+}

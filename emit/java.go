@@ -580,6 +580,12 @@ func javaMangle(s string) string {
 	upper := false
 	for _, r := range s {
 		switch {
+		// `#` starts a name the READER generates and a program cannot write —
+		// `match`'s loop variables, `values`' selector. It becomes `_` rather
+		// than an escape so the emitted code is readable; a collision with a
+		// user's `_m0` is resolved by openFresh like any other.
+		case r == '#':
+			b.WriteString("_")
 		// `-` word break, `.` qualifier, `/` module path separator: all three
 		// become camel-case boundaries so a qualified name is one host identifier.
 		case r == '-' || r == '.' || r == '/':

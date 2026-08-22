@@ -176,6 +176,11 @@ var coreNames = map[string]bool{
 	// declares it. The capability graph is for target-native names, where
 	// "this target cannot do it" is a true answer a program can be told.
 	"let": true, "loop": true,
+	// `tag=` is integer equality, and it is here because `match` desugars to it
+	// (core/read.go). The language has no general equality — `==` is
+	// target-native on all four — but equality on a FINITE type is portable and
+	// total, and a match guard is exactly that: an integer against a literal.
+	"tag=": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -185,6 +190,13 @@ var coreStructural = []Prim{
 	{Name: "let", Kind: "let", Pure: true},
 	{Name: "loop", Kind: "iterate", Pure: true},
 }
+
+// eqSpellings are how a target may spell integer equality, most preferred
+// first. `addCore` finds one and gives `tag=` its emission — so `tag=` is the
+// LANGUAGE's name for the equality the target already has, rather than a second
+// implementation of it. JavaScript is why the list is ordered: it declares both
+// `===` and `==`, and a tag test wants the strict one.
+var eqSpellings = []string{"===", "==", "sete"}
 
 // addCore gives every target the conditional.
 //
@@ -213,7 +225,40 @@ func (tg *Target) addCore() {
 		tg.Prims[p.Name] = p
 		tg.Names = append(tg.Names, p.Name)
 	}
+	// `tag=` is integer equality, and it is injected because `match` desugars to
+	// it (core/read.go). The language has no GENERAL equality — `==` is
+	// target-native on all four and disagrees on floats and strings — but
+	// equality on a FINITE type is portable and total, and a match guard is
+	// exactly that: a tag against a literal.
+	//
+	// Its emission is the target's own, found rather than written twice.
+	if _, have := tg.Prims["tag="]; !have {
+		if eq, ok := tg.findEq(); ok {
+			eq.Name = "tag="
+			eq.Args = []string{"int", "int"}
+			eq.Result = "bool"
+			eq.Pure = true
+			tg.Prims["tag="] = eq
+			tg.Names = append(tg.Names, "tag=")
+		}
+	}
 	sort.Strings(tg.Names)
+}
+
+// findEq returns the target's own integer equality, by spelling.
+func (tg *Target) findEq() (Prim, bool) {
+	for _, want := range eqSpellings {
+		for name, p := range tg.Prims {
+			seg := name
+			if i := strings.LastIndex(seg, "."); i >= 0 {
+				seg = seg[i+1:]
+			}
+			if seg == want && len(p.Args) == 2 && p.Kind == "expr" {
+				return p, true
+			}
+		}
+	}
+	return Prim{}, false
 }
 
 func loadTargetFile(path string) (*Target, error) {

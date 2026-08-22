@@ -61,6 +61,14 @@ func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, erro
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}}
+	// The PARAMETERS are already bound, and forgetting them is not a cosmetic
+	// bug on this host: `(loop ((n n)) …)` emitted `let n = n;` inside
+	// `function f(n)`, which is a SyntaxError — the module does not parse.
+	// Go and Java seeded this from the start; JavaScript did not, and nothing
+	// noticed until `match` made reusing a parameter name the common case.
+	for _, p := range t.Params {
+		e.bound[jsMangle(p)] = true
+	}
 
 	// SEVERAL RESULTS. This is the ONE place JSFunc reads the signature, and
 	// the reason is that JavaScript has no multiple return: the arity has to
@@ -461,6 +469,12 @@ func jsMangle(s string) string {
 	upper := false
 	for _, r := range s {
 		switch {
+		// `#` starts a name the READER generates and a program cannot write —
+		// `match`'s loop variables, `values`' selector. It becomes `_` rather
+		// than an escape so the emitted code is readable; a collision with a
+		// user's `_m0` is resolved by openFresh like any other.
+		case r == '#':
+			b.WriteString("_")
 		// `-` word break, `.` qualifier, `/` module path separator: all three
 		// become camel-case boundaries so a qualified name is one host identifier.
 		case r == '-' || r == '.' || r == '/':

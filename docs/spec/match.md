@@ -159,6 +159,35 @@ func RRuns(n int) int {
 Note what the emitter did without being asked: a clause that does not change `_m2` does not
 assign it.
 
+## 5b. A `loop` that never repeats is not a loop
+
+`match` desugars to `loop`, so a `match` used as a plain conditional was emitting a **loop that
+always breaks** — `for { … break }` plus a result variable, on every backend, where the
+hand-written form is an `if`:
+
+```go
+var r1 int
+for {
+	if (t2 == 0) { r1 = (p2 + 1); break }
+	r1 = 0
+	break
+}
+return r1
+```
+
+So `match` was charging for iteration it did not use. The fix is one observation: **when no clause
+body contains an `again`, the `loop` name is dropped and what is left is a β-redex** — which is
+exactly what `let` is, since `(let e k)` reads as `(k e)`. `(match (t) 0 1 else 2)` now reduces to
+`(if (= t 0) 1 2)`.
+
+It applies to a hand-written `loop` as well, because the rule is `loop`'s rather than `match`'s.
+Measured across **188 residuals** — every example on all four targets — it changes **nothing**,
+because no existing program had written a loop that never repeats.
+
+**This is what makes "is `case` needed, isn't `match` enough?" a surface question rather than a cost
+question**: for the same test the two now produce the *same* residual. What still separates them is
+[sums.md §7](sums.md).
+
 ## 6. `=`, and why it is not `==` and not `tag=`
 
 `=` is the language's equality, injected into every target like `if`, `let` and `loop`. It is

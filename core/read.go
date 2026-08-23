@@ -777,8 +777,43 @@ func readLoop(kids []*Term, line int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := []*Term{Name("loop"), Fn(names, body)}
-	return &Term{Kind: KApp, Kids: append(out, inits...)}, nil
+	return loopOrLet(names, body, inits), nil
+}
+
+// hasAgain reports whether a clause chain ever jumps back.
+//
+// A `loop` that never repeats is not a loop. It is a `let` of its variables
+// around a conditional, which is exactly what the application below IS —
+// `(let e k)` reads as `(k e)`, so dropping the `loop` name leaves a β-redex
+// and the reducer does the rest.
+//
+// This is what lets `match` be used as a plain conditional at NO cost. Without
+// it, `(match (t) 0 1 else 2)` emitted `for { … break }` with a result variable
+// on every backend, where a hand-written form is an `if` — so `match` was
+// paying for iteration it did not use, and any sum eliminator built on `match`
+// would have paid it on every error check.
+func hasAgain(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if isAgain(t) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if hasAgain(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// loopOrLet builds the `loop`, or drops it when nothing jumps back.
+func loopOrLet(names []string, body *Term, inits []*Term) *Term {
+	fn := Fn(names, body)
+	if !hasAgain(body) {
+		return &Term{Kind: KApp, Kids: append([]*Term{fn}, inits...)}
+	}
+	return &Term{Kind: KApp, Kids: append([]*Term{Name("loop"), fn}, inits...)}
 }
 
 // readMatch desugars `match` into `loop`, which is the whole implementation.
@@ -904,8 +939,7 @@ func readMatch(kids []*Term, line int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := []*Term{Name("loop"), Fn(vars, body)}
-	return &Term{Kind: KApp, Kids: append(out, scrut.Kids...)}, nil
+	return loopOrLet(vars, body, scrut.Kids), nil
 }
 
 // matchClause turns one clause's patterns into a guard and a renaming.

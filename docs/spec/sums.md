@@ -203,3 +203,59 @@ sum-typed scrutinee contribute *two* loop variables to a `match` would give stat
 sums — the parser shape — and it is not free: `(again (err 3))` has to split a sum into two loop
 variable updates, and doing that for an opaque sum puts `again` under a lambda, which
 [ADR 0015](../decisions/0015-loop-and-again.md) forbids. Named here rather than guessed at.
+
+---
+
+## 7. Is `case` needed, or is `match` enough?
+
+hamza asked, and the honest answer is that **`match` is not enough today, and the reason is smaller
+than it looks.**
+
+### Which reduces to which
+
+Neither. They are siblings that land on different primitives:
+
+```
+match  →  loop      (reader sugar)
+case   →  if        (expands in Load)
+```
+
+`case` reduces to `if` directly. `match` reduces to `loop`, and `loop` is a primitive every backend
+implements. So there is no path from one to the other.
+
+### What used to separate them, and no longer does
+
+The **cost**. `match` desugars to `loop`, so using it as a plain conditional emitted a loop that
+always breaks — where `case` emitted an `if` chain. That is gone: a `loop` with no `again` is now
+dropped to a β-redex ([match.md §5b](match.md)), so for the same test both produce the *same*
+residual.
+
+### What still separates them
+
+**Knowledge.** `match` runs in the **reader**, which sees one file. A variant pattern `(ok v)` needs
+the sum's tag numbers and its variant list, and an error type is declared in another module. `case`
+runs in **`Load`**, where every module's sums are visible — which is what buys two things `match`
+cannot have today:
+
+- **Exhaustiveness**, which is decidable by counting because a sum is closed and finite, and which
+  is what earns the last clause needing no test.
+- **A variant pattern at all.** `match`'s integer pattern must be a literal, because a bare name in
+  a pattern *binds*. `ok#tag` is a name, so it cannot be written as a `match` pattern without a new
+  pattern kind.
+
+### The unification, and its one real cost
+
+`match` could gain a variant pattern and `case` could disappear. The reader can even emit the tag
+as a **name** and let δ resolve it — that is the trick `case` already uses. What it cannot do in the
+reader is check exhaustiveness, so that check would have to move or be given up, and giving it up
+costs the branch it removes.
+
+The other cost is the one this document already named: `(again (err 3))` must split a sum into two
+loop-variable updates, and doing that for an *opaque* sum puts `again` under a lambda, which
+[ADR 0015](../decisions/0015-loop-and-again.md) forbids.
+
+**Recommendation: keep both for now, and treat it as owed rather than settled.** Two eliminators is
+a real smell and the argument for merging them is good. But the merge should be driven by a program
+that wants `again` over a sum — a parser whose state *is* a sum is the obvious one — because that is
+the case that decides whether the loop-variable split is worth building. Merging before that would
+be arguing rather than measuring.

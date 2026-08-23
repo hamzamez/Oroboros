@@ -56,6 +56,11 @@ or a `sig` must name a definition in the same module; naming nothing is an error
 ([match.md](match.md)). **None of the sugar survives the reader** — a residual contains `fn`,
 `let`, `if`, `loop` and nothing else structural.
 
+**And `loop` itself does not survive when nothing jumps back.** A `loop` whose clause bodies
+contain no `again` is not a loop; the name is dropped and what remains is a β-redex, which is what
+`let` already is. Without this a `match` used as a plain conditional emitted `for { … break }` plus
+a result variable on all four backends ([match.md §5b](match.md)).
+
 **`case` is the one exception, and the reason is worth stating.** It is sugar, but it expands in
 `Load` rather than in the reader, because the reader sees ONE FILE and a sum may be declared in
 another — an imported error type is the ordinary case. By the time `Load` returns, `case` is gone

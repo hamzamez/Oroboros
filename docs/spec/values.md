@@ -105,6 +105,40 @@ library carrying a portability claim, which is the thing
 windows' register convention are what avoiding that work was hiding, and both turned out to be
 small.
 
+## 4b. A function with several results returns from SEVERAL PLACES
+
+Added 2026-08-22 when sums arrived, and it is the one behavioural addition this document did not
+originally describe.
+
+The first version required the body to reduce to a product at the top: `multiValue` looked at
+`t.Body()` and refused anything else. A sum broke that immediately, because
+`(if (= b 0) (err 0) (ok (go./ a b)))` has a product in *each branch* and none at the top.
+
+So every backend gained a **`multiTail`** that walks to the leaves and returns at each one:
+
+```go
+func GenDiv(a int, b int) (int, int) {
+	if (b == 0) {
+		return 1, 0
+	}
+	return 0, (a / b)
+}
+```
+
+rather than building a temporary, assigning it in both branches and returning it at the end.
+
+The forms walked are **`if` and `let`**, and that is not a coincidence — they are exactly what β
+can leave between a function and its result, and exactly what the commuting conversion in
+`core/reduce.go` pushes an eliminator through ([state.md §1](state.md)). The same two forms, for
+the same reason, in the reducer and in four emitters.
+
+It is also [native-js-2026-08-20](../../gauntlet/results/native-js-2026-08-20.md)'s finding
+arriving a second time from a different direction: on V8 a tail `return` beat a result variable by
+**1.31×**, and this is that shape generalised from `loop` to the product.
+
+On x86 the two-pass discipline of §4 applies **per leaf**, since each leaf is a straight-line
+computation followed by placement into the convention registers and a jump to a shared exit.
+
 ## 5. What this does not do
 
 **It does not give the language a product type.** There is no way to *store* several values, put

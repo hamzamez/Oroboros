@@ -129,7 +129,7 @@ func TestBoolPatternIsTheScrutinee(t *testing.T) {
 	if strings.Contains(got, "=") {
 		t.Errorf("a bool pattern needs no equality:\n%s", got)
 	}
-	if !strings.Contains(got, "(loop (fn (b) (if b 1 0)) b)") {
+	if !strings.Contains(got, "((fn (b) (if b 1 0)) b)") {
 		t.Errorf("the scrutinee is the test:\n%s", got)
 	}
 }
@@ -223,7 +223,7 @@ func TestScrutineeNameBecomesTheLoopVariable(t *testing.T) {
 // A scrutinee that is not a name has no name to reuse, so it gets a fresh one.
 func TestComputedScrutineeGetsAFreshName(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (a b) (match ((go.+ a b)) 0 1 else 2)))`)
-	if !strings.Contains(got, "(loop (fn (#m0) (if (= #m0 0) 1 2)) (go.+ a b))") {
+	if !strings.Contains(got, "((fn (#m0) (if (= #m0 0) 1 2)) (go.+ a b))") {
 		t.Errorf("a computed scrutinee needs a fresh variable:\n%s", got)
 	}
 }
@@ -232,7 +232,7 @@ func TestComputedScrutineeGetsAFreshName(t *testing.T) {
 // the second occurrence gets a fresh one rather than silently aliasing.
 func TestRepeatedScrutineeNameIsNotAliased(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (a) (match (a a) 0 1 7 else 3)))`)
-	if !strings.Contains(got, "(loop (fn (a #m1)") {
+	if !strings.Contains(got, "((fn (a #m1)") {
 		t.Errorf("the second `a` cannot be the same loop variable:\n%s", got)
 	}
 }
@@ -247,5 +247,37 @@ func TestEqIsInjectedNotDeclared(t *testing.T) {
 	got := readOne(t, `(use go) (def f (fn (a) (match (a) 3 1 else 0)))`)
 	if !strings.Contains(got, "(= a 3)") {
 		t.Errorf("an integer pattern is the language's `=`:\n%s", got)
+	}
+}
+
+// A `loop` THAT NEVER REPEATS IS NOT A LOOP. When no clause body contains an
+// `again`, the `loop` name is dropped and what is left is a β-redex — which is
+// exactly what `let` is, since `(let e k)` reads as `(k e)`.
+//
+// This is what lets `match` be a plain conditional at NO cost. Before it,
+// `(match (t) 0 1 else 2)` emitted `for { … break }` plus a result variable on
+// every backend, where the hand-written form is an `if`. It matters most for
+// sums: `case` and `match` now produce the SAME residual for the same test, so
+// having two eliminators is a surface question rather than a cost question.
+func TestALoopThatNeverRepeatsIsNotALoop(t *testing.T) {
+	got := readOne(t, `(use go) (def f (fn (t) (match (t) 0 1 else 2)))`)
+	if strings.Contains(got, "loop") {
+		t.Errorf("no clause jumps back, so no loop may survive:\n%s", got)
+	}
+	if got != `(fn (t) ((fn (t) (if (= t 0) 1 2)) t))` {
+		t.Errorf("expected a plain β-redex, got:\n%s", got)
+	}
+	// And the same for a hand-written `loop`, since the rule is `loop`'s.
+	got = readOne(t, `(use go) (def g (fn (n) (loop ((x n)) (go.> x 0) 1 else 2)))`)
+	if strings.Contains(got, "loop") {
+		t.Errorf("a `loop` with no `again` is a `let`:\n%s", got)
+	}
+}
+
+// But a loop that DOES jump back is still a loop, or ADR 0015 would be gone.
+func TestALoopThatRepeatsSurvives(t *testing.T) {
+	got := readOne(t, `(use go) (def f (fn (n) (loop ((x n)) (go.> x 0) x else (again (go.- x 1)))))`)
+	if !strings.Contains(got, "(loop (fn (x)") {
+		t.Errorf("a loop with `again` must stay a loop:\n%s", got)
 	}
 }

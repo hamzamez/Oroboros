@@ -57,13 +57,20 @@ go test ./core/ ./emit/
 | | |
 |---|---|
 | term kinds | **7** |
-| reduction rules | **3** — β with call-by-need, δ over definitions, `(if true a b) → a` |
-| top-level forms | **5** |
+| top-level forms | **6** — `def`, `sig`, `sum`, and three for modules |
+| reduction rules | **4** — β with call-by-need, δ, evaluation on literals, one commuting conversion |
 | parameters | **2** — which names are primitive, and which of those are pure |
 
-Everything else is sugar that erases in the reader: `let`, `seq`, `and`/`or`/`not`/`cond`, `loop`,
-`values`, `match`. Current state, read off the code rather than from memory:
-[state.md](docs/spec/state.md).
+Everything else is sugar that erases before reduction: `let`, `seq`, `and`/`or`/`not`/`cond`,
+`loop`, `values`, `match` and `case`. A `sum` declaration is not even a concept downstream — it
+generates ordinary `def`s, so the reducer, the module system and every backend are unchanged by it.
+
+The rule count was **3** until sums landed on 2026-08-22 and it went up honestly rather than by
+relabelling: `=` now folds on two integer literals, and an eliminator is pushed through `if` and
+`let`. Both exist because a sum should cost nothing at *either* level, and the second was
+[measured across 184 residuals](docs/spec/sums.md) to change no existing program before it shipped.
+
+Read off the code rather than from memory: [state.md](docs/spec/state.md).
 
 ### The gauntlet
 

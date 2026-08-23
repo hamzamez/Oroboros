@@ -848,12 +848,14 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			return body, nil
 		}
-		// The conditional on a known condition. This is the ONLY evaluation
-		// reduction performs, and it is worth being exact about why it is not a
-		// violation of "no primitive is ever evaluated" (state.md §3): `if` is
-		// not a primitive and `true`/`false` are not primitive applications.
-		// They are language forms, so nothing about the target is being decided
-		// here (booleans.md §4.3).
+		// The conditional on a known condition. It was the ONLY evaluation
+		// reduction performed until `=` on two integer literals joined it above
+		// (2026-08-22, for sums) — so the pair of them is now the whole of it,
+		// and it is worth being exact about why neither violates "no primitive
+		// is ever evaluated" (state.md §3): `if` and `=` are the LANGUAGE's
+		// names, injected into every target, and `true`/`false` are not
+		// primitive applications. Nothing about the target is being decided
+		// here (booleans.md §4.3). `(go.+ 1 2)` still does not fold.
 		//
 		// Sound for an IMPURE untaken branch, and for a different reason than
 		// β's. β may not drop an impure argument because the argument would

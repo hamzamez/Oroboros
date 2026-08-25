@@ -111,9 +111,10 @@ Three caveats stated rather than buried:
   by a length is emitted as the host's own `int`, and every program is at parity with idiomatic
   hand-written Java.
 - **The language's table works on all four targets** —
-  [wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md) — and measured the price of the
-  uniform element on the one host with no types of its own: **3× on a boolean sieve**, eight bytes
-  per element against one. Not the compiler; the element size is not part of the type.
+  [wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md). On x86 the portable sieve
+  started at **3.7×** of hand-written assembly and ends at **0.88×**, faster than hand-written and
+  faster than the target-native form. Both costs were invisible on the other three hosts: element
+  size not being part of the type, and a threaded buffer costing a register.
 - **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
   median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
   and the hand-written reference is written the way a person writes it, not in the emitter's shape.

@@ -362,3 +362,80 @@ func TestATargetWithNoAllocatorIsTold(t *testing.T) {
 		t.Error("a target with no allocator must not appear to have one")
 	}
 }
+
+// ELEMENT SIZE IS PART OF THE TYPE on the one host with no types of its own.
+//
+// wintables-2026-08-25 measured eight bytes per element against one at **3x**
+// on a boolean sieve. Go never showed it because Go has a `bool` and `[]bool`
+// is one byte — three hosts were sizing our elements for us through their own
+// type systems, and x86 is where the choice became ours.
+func TestWindowsSizesABooleanTableByTheByte(t *testing.T) {
+	code, err := genOn(t, "windows", `
+		(use x64)
+		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
+		(def f (fn (n)
+			(let (build n (fn (c)
+				(loop ((c c) (i 0))
+					(x64.setge i n)  c
+					else             (again (set c i true) (x64.add i 1)))))
+				(fn (b) (if (b 0) 1 0)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A byte store, a byte-wide read, and a scale of ONE rather than eight.
+	if !strings.Contains(code, "mov byte ptr [") {
+		t.Errorf("a boolean table stores one byte:\n%s", code)
+	}
+	if !strings.Contains(code, "movzx") {
+		t.Errorf("and reads it zero-extended, so a bool comes back as 0 or 1:\n%s", code)
+	}
+	if strings.Contains(code, "*8+8]") {
+		t.Errorf("a byte table must not be indexed at a scale of eight:\n%s", code)
+	}
+}
+
+// An INT table keeps the wide form, because that is what an int needs.
+func TestWindowsKeepsEightBytesForInts(t *testing.T) {
+	code, err := genOn(t, "windows", `
+		(use x64)
+		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
+		(def f (fn (n)
+			(let (alloc (table n (fn (i) (x64.imul i i)))) (fn (v) (v 0)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(code, "*8+8]") {
+		t.Errorf("an int table is eight bytes an element:\n%s", code)
+	}
+}
+
+// The width must survive a BINDER. The sieve's buffer is created by `build`,
+// threaded through two loops and re-bound by a `let`, and losing the width at
+// any one of those reads a byte array as qwords — seven bytes of the following
+// elements per access, which is a wrong answer rather than a slow one.
+func TestTheElementWidthSurvivesABinder(t *testing.T) {
+	code, err := genOn(t, "windows", `
+		(use x64)
+		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 1000))))
+		(def f (fn (n)
+			(let (build n (fn (c)
+				(loop ((c c) (i 0))
+					(x64.setge i n)  c
+					else             (again (set c i true) (x64.add i 1)))))
+				(fn (b)
+					(loop ((acc 0) (k 0))
+						(x64.setge k (len b))  acc
+						(b k)                  (again (x64.add acc 1) (x64.add k 1))
+						else                   (again acc (x64.add k 1)))))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The COUNTING loop is behind a `let` whose value is a `build` term, not a
+	// name — which is the case the first version missed.
+	if strings.Contains(code, "*8+8]") {
+		t.Errorf("the width was lost crossing a binder:\n%s", code)
+	}
+}

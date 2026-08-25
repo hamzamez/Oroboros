@@ -30,10 +30,12 @@ a pointer whose first eight bytes hold the length, which the addressing mode mak
 The allocator is the **target's** and it had already declared one, so `targets/windows/` needed no
 new declaration.
 
-And it measured the cost of the uniform element: **3× on a boolean sieve**, because eight bytes per
-element against one. Not a compiler gap — the *native* windows sieve is 0.92× of hand-written — but
-**the element size not being part of the type**. Three hosts hid it because their own type systems
-were sizing our elements for us.
+It also measured what a uniform element costs and then removed it. The portable sieve started at
+**3.7×** of hand-written assembly and ends at **0.88×** — faster than the hand-written form and
+faster than the target-native one. Two things, both invisible on the other three hosts: **element
+size is part of the type** (one byte for a bool, eight otherwise, carried by name because a table
+crosses binders), and **a threaded buffer must not cost a register** — `(again (set c j v) …)`
+hands back what it was given, so the variable keeps the place it is already in.
 
 This is the language's data structure. There is one, and it is a **function with a known finite
 domain**. Everything below follows from taking that literally — including the type system, where

@@ -93,11 +93,20 @@ type asmEmitter struct {
 	spare  []int
 	bound  map[string]bool
 	where  map[string]place
+
+	// elem is how wide one element of the table a NAME holds is, in bytes.
+	//
+	// This host has no types, so it has to be carried. It is keyed by name
+	// rather than by place because a table crosses binders — a `build` buffer
+	// is threaded through loop variables and `let`s — and a name is what
+	// survives that. Absent means eight, which is what `int` and `f64` need.
+	elem map[string]int
 }
 
 func newAsmEmitter(tgt *Target) *asmEmitter {
 	e := &asmEmitter{
 		tgt:    tgt,
+		elem:   map[string]int{},
 		usedGP: map[string]bool{},
 		usedX:  map[string]bool{},
 		bound:  map[string]bool{},
@@ -651,6 +660,7 @@ func (e *asmEmitter) emitLet(t *core.Term) (place, error) {
 	}
 	prev, had := e.where[raw[0]]
 	e.where[raw[0]] = hold(p)
+	e.carryElem(raw[0], args[0])
 	res, err := e.emit(body)
 	if err != nil {
 		return place{}, err
@@ -715,6 +725,7 @@ func (e *asmEmitter) emitIf(t *core.Term) (place, error) {
 // zero — because assembly is the first host that cannot fold a comparison into
 // a branch on its own. Go, JavaScript and Java all do it internally and none of
 // them had to be told.
+
 func (e *asmEmitter) branchUnless(c *core.Term, label string) error {
 	// A connective in guard position is the dragon book's jumping code: both
 	// failures leave for the SAME label, so the continuation the commuting
@@ -755,6 +766,21 @@ func (e *asmEmitter) branchUnless(c *core.Term, label string) error {
 			return e.compare(c, p, asmNegate[p.Jump], label)
 		}
 	}
+	// A byte-table read used as a guard could fuse into the compare —
+	//
+	//	movzx r14d, byte ptr [c+i+8]     cmp byte ptr [c+i+8], 0
+	//	cmp   r14, 0                ->   je  L
+	//	je    L
+	//
+	// which is three instructions where x86 does one, and is exactly what
+	// `x64.test-byte` exists for. It was BUILT AND REVERTED: measured on the
+	// sieve, the only program with this shape, it is not distinguishable from
+	// the unfused form — 90/90 and 74/78 ms across repeats. The loop is
+	// memory-bound over 200,000 bytes and the extra instructions hide behind
+	// the cache traffic, which is bce-2026-08-15's finding arriving again:
+	// a saving on a compute-bound loop is nothing on a memory-bound one.
+	//
+	// Not kept, because nothing measured supports it (wintables-2026-08-25 §5).
 	v, err := e.emit(c)
 	if err != nil {
 		return err
@@ -945,14 +971,30 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 	vars := make([]place, len(inits))
 	saved := map[string]place{}
 	had := map[string]bool{}
+	// A variable that never actually changes keeps the place its initial value
+	// is already in — no register of its own, and no copy in or out. See
+	// LoopInvariant: a threaded buffer looks like it changes and does not,
+	// because `set` hands back what it was given, and on a host with a fixed
+	// register file that difference cost the inner loop's INDEX its register.
+	invariant := LoopInvariant(e.tgt, body, raw)
+	aliased := map[int]bool{}
 	for i := range inits {
-		// A loop variable is assigned every iteration, so it needs a place of
-		// its own even when the initial value already had one.
-		vars[i] = e.alloc(vals[i].xmm || e.isFloat(inits[i]))
-		e.move(vars[i], vals[i])
-		e.release(vals[i])
+		if invariant[i] {
+			// The place may belong to an ENCLOSING binder — a nested loop
+			// threading the same buffer is the common case — so it is aliased
+			// rather than taken, and not released below.
+			vars[i] = vals[i]
+			aliased[i] = !vals[i].owned
+		} else {
+			// Otherwise it is assigned every iteration and needs a place of its
+			// own, even when the initial value already had one.
+			vars[i] = e.alloc(vals[i].xmm || e.isFloat(inits[i]))
+			e.move(vars[i], vals[i])
+			e.release(vals[i])
+		}
 		saved[raw[i]], had[raw[i]] = e.where[raw[i]], hasPlace(e.where, raw[i])
 		e.where[raw[i]] = hold(vars[i])
+		e.carryElem(raw[i], inits[i])
 	}
 
 	// If every exit yields the same variable, that variable IS the loop's value
@@ -980,6 +1022,9 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 			e.where[raw[i]] = saved[raw[i]]
 		} else {
 			delete(e.where, raw[i])
+		}
+		if aliased[i] {
+			continue // borrowed from an enclosing binder; not ours to free
 		}
 		if vars[i].text != result.text {
 			e.release(vars[i])
@@ -1046,6 +1091,7 @@ func (e *asmEmitter) emitLoopBody(t *core.Term, raw []string, vars []place,
 					return e.emitLoopBody(k.Body(), raw, vars, result, top, end)
 				}
 				kbody, kraw, _ := openFresh(k, e.bound, asmIdent)
+				e.carryElem(kraw[0], args[0])
 				q := val
 				if !val.owned && !val.imm {
 					q = e.alloc(val.xmm)
@@ -1247,6 +1293,7 @@ func (e *asmEmitter) multiTail(body *core.Term, sig *core.Sig, name, end string)
 					return e.multiTail(k.Body(), sig, name, end)
 				}
 				kbody, kraw, _ := openFresh(k, e.bound, asmIdent)
+				e.carryElem(kraw[0], args[0])
 				q := val
 				if !val.owned && !val.imm {
 					q = e.alloc(val.xmm)
@@ -1666,7 +1713,17 @@ func (e *asmEmitter) asmIndex(tab, idx *core.Term) (place, error) {
 		return place{}, err
 	}
 	d := e.alloc(false)
-	e.line("mov %s, qword ptr [%s+%s*8+%d]", d.text, live[0].text, live[1].text, asmTableHeader)
+	// A BYTE table is read with movzx, which zero-extends — so a bool comes back
+	// as 0 or 1, which is what `if` wants. A qword load against a byte array
+	// would read seven bytes of the following elements, so getting the width
+	// wrong here is a wrong answer rather than a slow one.
+	if w := e.elemOf(tab); w == 1 {
+		e.line("movzx %s, byte ptr %s", asmDword(d.text),
+			asmElemAddr(live[0].text, live[1].text, 1))
+	} else {
+		e.line("mov %s, qword ptr %s", d.text,
+			asmElemAddr(live[0].text, live[1].text, 8))
+	}
 	e.release(a)
 	e.release(i)
 	return d, nil
@@ -1731,12 +1788,17 @@ func (e *asmEmitter) rawAlloc(bytes place) (place, error) {
 // tableOf allocates a table of `n` elements and writes the length header.
 // The returned place points at the header, which is what every other operation
 // expects.
-func (e *asmEmitter) tableOf(n place) (place, error) {
-	// (n + 1) * 8 — one slot for the length, then the elements.
+func (e *asmEmitter) tableOf(n place, width int) (place, error) {
+	// The header is eight bytes whatever the elements are, so the length is
+	// always one aligned load. After it, `width` bytes each.
 	bytes := e.alloc(false)
 	e.move(bytes, n)
-	e.line("add %s, 1", bytes.text)
-	e.line("shl %s, 3", bytes.text)
+	if width == 1 {
+		e.line("add %s, %d", bytes.text, asmTableHeader)
+	} else {
+		e.line("add %s, 1", bytes.text)
+		e.line("shl %s, 3", bytes.text)
+	}
 	ptr, err := e.rawAlloc(bytes)
 	if err != nil {
 		return place{}, err
@@ -1770,11 +1832,12 @@ func (e *asmEmitter) emitAlloc(t *core.Term) (place, error) {
 	nHold := e.alloc(false)
 	e.move(nHold, n)
 	e.release(n)
-	dst, err := e.tableOf(nHold)
+	body, raw, _ := openFresh(rule, e.bound, asmIdent)
+	width := ElemBytes(e.tgt, body)
+	dst, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
 	}
-	body, raw, _ := openFresh(rule, e.bound, asmIdent)
 	idx := e.alloc(false)
 	e.line("mov %s, 0", idx.text)
 	e.where[raw[0]] = hold(idx)
@@ -1795,8 +1858,13 @@ func (e *asmEmitter) emitAlloc(t *core.Term) (place, error) {
 	if err != nil {
 		return place{}, err
 	}
-	e.line("mov qword ptr [%s+%s*8+%d], %s",
-		fl[0].text, fl[1].text, asmTableHeader, fl[2].text)
+	if width == 1 {
+		e.line("mov byte ptr %s, %s",
+			asmElemAddr(fl[0].text, fl[1].text, 1), asmByte(fl[2].text))
+	} else {
+		e.line("mov qword ptr %s, %s",
+			asmElemAddr(fl[0].text, fl[1].text, 8), fl[2].text)
+	}
 	e.release(v)
 	e.line("add %s, 1", idx.text)
 	e.line("jmp %s", top)
@@ -1822,13 +1890,21 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	nHold := e.alloc(false)
 	e.move(nHold, n)
 	e.release(n)
-	buf, err := e.tableOf(nHold)
+	// The body is opened BEFORE the allocation, because what it stores is what
+	// decides how wide an element is — and that decides how many bytes to ask
+	// for. wintables-2026-08-25 measured 3x for getting this wrong on a
+	// boolean sieve.
+	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
+	width := BufferElemBytes(e.tgt, body, raw[0])
+	buf, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
 	}
 	e.release(nHold)
-	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
 	e.where[raw[0]] = hold(buf)
+	if width != 8 {
+		e.elem[raw[0]] = width
+	}
 	out, err := e.emit(body)
 	delete(e.where, raw[0])
 	return out, err
@@ -1857,8 +1933,13 @@ func (e *asmEmitter) emitSet(t *core.Term) (place, error) {
 	if err != nil {
 		return place{}, err
 	}
-	e.line("mov qword ptr [%s+%s*8+%d], %s",
-		live[0].text, live[1].text, asmTableHeader, live[2].text)
+	if w := e.elemOf(args[0]); w == 1 {
+		e.line("mov byte ptr %s, %s",
+			asmElemAddr(live[0].text, live[1].text, 1), asmByte(live[2].text))
+	} else {
+		e.line("mov qword ptr %s, %s",
+			asmElemAddr(live[0].text, live[1].text, 8), live[2].text)
+	}
 	e.release(i)
 	e.release(v)
 	return b, nil
@@ -1872,7 +1953,9 @@ func (e *asmEmitter) emitArrayLit(t *core.Term) (place, error) {
 	elems := t.Args()
 	n := e.alloc(false)
 	e.line("mov %s, %d", n.text, len(elems))
-	dst, err := e.tableOf(n)
+	// A literal's elements may differ in kind, so it takes the wide form. A
+	// homogeneous bool literal paying eight bytes is a case nobody has written.
+	dst, err := e.tableOf(n, 8)
 	if err != nil {
 		return place{}, err
 	}
@@ -1890,4 +1973,79 @@ func (e *asmEmitter) emitArrayLit(t *core.Term) (place, error) {
 		e.release(v)
 	}
 	return dst, nil
+}
+
+// elemOf is the element width of the table a term denotes, in bytes.
+func (e *asmEmitter) elemOf(t *core.Term) int {
+	if t == nil {
+		return 8
+	}
+	if t.Kind == core.KName {
+		if n, ok := e.elem[t.Name]; ok {
+			return n
+		}
+		return 8
+	}
+	// A width has to be readable off the TERM as well as off a name, because a
+	// table crosses a binder as an expression: `(let (build n …) (fn (c) …))`
+	// binds `c` to a build, not to a name. Missing this read the sieve's
+	// counting loop as qwords over a byte array — seven bytes of the following
+	// elements per access, so a wrong answer rather than a slow one.
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		p, ok := e.tgt.Prims[t.Kids[0].Name]
+		if !ok {
+			return 8
+		}
+		switch p.Kind {
+		case "table-build":
+			if len(t.Args()) == 2 && t.Args()[1].Kind == core.KFn &&
+				len(t.Args()[1].Params) == 1 {
+				lam := t.Args()[1]
+				return BufferElemBytes(e.tgt, lam.Closed(), lam.Params[0])
+			}
+		case "table-alloc":
+			if len(t.Args()) == 1 && isTableRule(e.tgt, t.Args()[0]) {
+				if rule := t.Args()[0].Args()[1]; rule.Kind == core.KFn {
+					return ElemBytes(e.tgt, rule.Closed())
+				}
+			}
+		case "table-set":
+			// A store hands the buffer back, so the width is unchanged.
+			if len(t.Args()) == 3 {
+				return e.elemOf(t.Args()[0])
+			}
+		case "iterate":
+			// A loop's value is one of its variables, and every one that can be
+			// the value was seeded from an initial value. Reading the first
+			// init is enough because a loop threading a buffer threads ONE.
+			if len(t.Args()) >= 2 {
+				for _, z := range t.Args()[1:] {
+					if w := e.elemOf(z); w != 8 {
+						return w
+					}
+				}
+			}
+		}
+	}
+	return 8
+}
+
+// carryElem propagates a table's element width across a binder. A `let` or a
+// loop variable bound to a table holds the same table, so it holds the same
+// element width — and losing it at one binder is enough to emit a qword load
+// against a byte array, which reads seven bytes of the next elements.
+func (e *asmEmitter) carryElem(name string, from *core.Term) {
+	if n := e.elemOf(from); n != 8 {
+		e.elem[name] = n
+	}
+}
+
+// asmElemAddr spells the addressing mode for element `idx` of a table, at this
+// element width. The eight-byte header is skipped in both, and the scale is
+// what changes.
+func asmElemAddr(base, idx string, width int) string {
+	if width == 1 {
+		return fmt.Sprintf("[%s+%s+%d]", base, idx, asmTableHeader)
+	}
+	return fmt.Sprintf("[%s+%s*8+%d]", base, idx, asmTableHeader)
 }

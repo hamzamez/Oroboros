@@ -699,10 +699,18 @@ free to skip because the displacement is part of x86's addressing mode. The **al
 target's**, found the way `findEq` finds equality, so `targets/windows/` needed no new declaration.
 Reclamation is neither of ADR 0018's suggestions — one `VirtualAlloc` per `alloc`, never freed —
 and changing that is a target-file edit, not a compiler one.
-**And it costs 3× on a boolean sieve**: eight bytes per element against one, because **the element
-size is not part of the type**. Not the compiler and not the loop shape — the native windows sieve
-is 0.92× of hand-written. Go hid it by having a `bool`. That is ADR 0016's lesson again: *the
-optimisations you were parasitizing only become visible on a host that has none.* It also found
+**It started at 3.7× of hand-written assembly and ends at 0.88×** — faster than hand-written and
+faster than the target-native form. Two costs, both invisible on the other three hosts. **Element
+size is part of the type**: one byte for a bool against eight, carried BY NAME because a table
+crosses binders, and losing it at one binder reads a byte array as qwords — a wrong answer, not a
+slow one. Then **a threaded buffer must not cost a register**: `(again (set c j v) …)` hands back
+what it was given — ADR 0018's linearity is what makes that reliable — so the variable keeps the
+place it already has, aliased rather than taken. Without it the inner loop's index was spilled and
+reloaded three times per element. That is ADR 0016's lesson twice over: *the optimisations you were
+parasitizing only become visible on a host that has none* — this host has neither a type system to
+size our elements nor a register allocator to spill for us. Also built and REVERTED: fusing a
+byte-table guard into the compare, which measured indistinguishable because the loop is
+memory-bound (bce-2026-08-15 again), with the measurement left in the comment. It also found
 three pre-existing holes, all unreachable until indexing became structural here: the refinement
 layer knew **none of x86's ordering comparisons**, `imul` was **not multiplication** (the `go./`
 bug on a third operator), and the table operations built an addressing mode without materialising a

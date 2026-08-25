@@ -7,6 +7,10 @@ construct promoted to the language works on every target — but
 
 Two decisions were owed and are made here. Both are the **target's**, not the language's.
 
+**And the portable sieve ends up at 0.88× of hand-written assembly** — after starting at 3.7×. What
+closed the gap was two things this host makes visible and the other three hide: the element size,
+and a threaded buffer costing a register (§4).
+
 ---
 
 ## 1. The representation: one pointer, length at offset 0
@@ -58,39 +62,102 @@ operations bounded, 5 of 5 loops proven terminating.**
 
 ---
 
-## 4. And it costs 3×, for a reason worth having in writing
+## 4. It cost 3×, and the 3× is gone
 
-| 100 rounds of a 200,000 sieve | min | median |
-|---|---|---|
-| hand-written assembly | 50 ms | 52 ms |
-| emitted, `examples/native/sieve-win.oro` — a **byte** array via `x64.movb` | 46 ms | 47 ms |
-| **emitted, `examples/table/sieve-win.oro` — the language's table** | **168 ms** | **188 ms** |
+The first version was **3× slower** than hand-written assembly. Two changes removed it, and the
+second was not the one that was predicted.
 
-**Eight bytes per element against one.** A 200,000-element boolean sieve is 1.6 MB here and
-200 KB there, so the marking loop moves eight times the memory and the cache does the rest.
+| 100 rounds of a 200,000 sieve | min | median | vs hand-written |
+|---|---|---|---|
+| hand-written assembly | 51 | 52 | — |
+| emitted, `examples/native/sieve-win.oro` — a byte array via `x64.movb` | 47 | 48 | 0.92× |
+| **table, eight bytes per element** | 187 | 194 | **3.7×** |
+| **table, one byte per element** | 84 | 89 | **1.71×** |
+| **table, + invariant loop variables** | **45** | **46** | **0.88×** |
 
-This is not a compiler gap and it is not the loop shape — the native windows sieve, same backend,
-same loops, is at **0.92×** of hand-written. It is that **the element size is not part of the
-type**, so this backend uses eight bytes for everything because that is what `int` and `f64` need.
+Three independent rounds of eleven runs each; the ordering held in all three.
 
-Go does not show it because Go has a `bool` and `[]bool` is one byte per element; the backend gets
-the right size from the host's own type. x86 has no types at all, so the choice is ours and we made
-the uniform one.
+### 4a. Element size is part of the type
 
-**Which is exactly what ADR 0016 said this host is for**: *the optimisations you were parasitizing
-only become visible on a host that has none.* Three targets hid this because their own type systems
-were sizing our elements for us.
+Eight bytes per element against one. A 200,000-element boolean sieve was 1.6 MB instead of 200 KB,
+so the marking loop moved eight times the memory.
 
-### What follows from it
+This host has no types, so the width has to be **carried**: one byte for a bool, eight for
+everything else, read off the value a `set` stores or the value a rule produces. It is keyed by
+NAME, because a table crosses binders — a `build` buffer is threaded through two loops and re-bound
+by a `let` — and losing it at any one of them reads a byte array as qwords, which is a wrong answer
+rather than a slow one. That is exactly what the first version did to the sieve's counting loop:
+`c` there is bound by a `let` whose value is a `build` **term**, not a name, so the width has to be
+readable off the term too.
 
-The fix is **element size in the type**, and it is named rather than guessed at: `(array bool)`
-should be one byte on x86, with `movzx` on the read side. That needs the asm backend to carry an
-element type per table, which it does not today — it has `isFloat` and nothing else.
+Go never showed any of this, because Go has a `bool` and `[]bool` is one byte per element. Three
+hosts were sizing our elements for us through their own type systems.
 
-Until then the honest statement is the one ADR 0001 already makes: portability is a property with a
-price, and here the price is 3× on booleans. `examples/native/sieve-win.oro` remains, uses
-`x64.movb`, and is at parity — which is the target-native escape hatch working as designed rather
-than a workaround.
+### 4b. And then a threaded buffer cost a register
+
+One byte per element left 1.71×, and the emitted code said why:
+
+```asm
+Ltop10:
+        mov r10, qword ptr [rsp+48]     ; reload j
+        cmp r10, 200000
+        jge Lnext11
+        mov r10, qword ptr [rsp+48]     ; reload j
+        mov byte ptr [r15+r10+8], 1
+        mov r10, qword ptr [rsp+48]     ; reload j
+        mov r14, r10
+        add r14, r12
+        mov qword ptr [rsp+48], r14     ; store j
+        jmp Ltop10
+```
+
+Five memory accesses per element, for a loop that needs none. The sieve threads its buffer through
+both loops, and giving it a place of its own cost a register plus a copy in and out — which pushed
+the **index** to a spill slot.
+
+**A threaded buffer looks like it changes and does not.** `(again (set c j v) …)` hands back what
+it was given, because `set` consumes its argument and returns it — and
+[ADR 0018](../../docs/decisions/0018-immutable-values-linear-buffers.md)'s linearity is what makes
+that reliable rather than merely usual: nothing else can be holding the buffer, so nothing else can
+have replaced it. So the variable keeps the place its initial value is already in, with no register
+of its own and no copy.
+
+The place is **aliased, not taken** — it usually belongs to an enclosing binder, since a nested loop
+threading the same buffer is the common case — so it is not released at the end.
+
+```asm
+Ltop10:
+        cmp r15, 200000
+        jge Lnext11
+        mov byte ptr [rdi+r15+8], 1
+        add r15, r12
+        jmp Ltop10
+```
+
+### 4c. What this says
+
+**The portable program is now faster than the hand-written assembly it was 3× behind**, and faster
+than the target-native version that reaches for `x64.movb` directly. 12% is at the edge of the
+noise floor, so the honest claim is *at parity, consistently slightly ahead* rather than a win —
+but the direction held in every one of 33 runs per program.
+
+The result that matters is not the 12%. It is that **both costs were in the same place**: this host
+has no type system to size our elements and no register allocator to spill for us, so both showed
+up as our problem. ADR 0016 said x86 was worth having for exactly this reason — *the optimisations
+you were parasitizing only become visible on a host that has none* — and both fixes are ours to
+keep on every target that ever needs them.
+
+### 4d. One thing built and reverted
+
+A byte-table read used as a **guard** can fuse into the compare — `cmp byte ptr [c+i+8], 0` instead
+of `movzx` + `cmp` — which is three instructions where x86 does one, and is what `x64.test-byte`
+exists for. It was built and measured: **90/90 and 74/78 ms** against the unfused form across
+repeats, indistinguishable. The loop is memory-bound and the extra instructions hide behind the
+cache traffic, which is [bce-2026-08-15](bce-2026-08-15.md)'s finding arriving again — a saving on
+a compute-bound loop is nothing on a memory-bound one.
+
+Reverted, because nothing measured supports it. The comment in `branchUnless` says so, so the next
+person to notice the pattern finds the measurement rather than repeating it.
 
 ---
 

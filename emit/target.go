@@ -1463,3 +1463,132 @@ func (tg *Target) findAlloc() (Prim, bool) {
 	}
 	return Prim{}, false
 }
+
+// ElemBytes is how wide one element of a table is on a target that has to
+// choose — which is x86, the only host with no types of its own.
+//
+// wintables-2026-08-25 measured the cost of NOT choosing: a boolean sieve with
+// eight bytes per element runs **3x** slower than the same program using one,
+// because the marking loop moves eight times the memory. Go never showed it
+// because Go has a `bool` and `[]bool` is one byte; three hosts were sizing our
+// elements for us through their own type systems.
+//
+// One byte for a bool, eight for everything else. `int` and `f64` are both
+// 64-bit here, so there is no third case to get wrong.
+func ElemBytes(tgt *Target, t *core.Term) int {
+	if IsBoolTerm(tgt, t) {
+		return 1
+	}
+	return 8
+}
+
+// IsBoolTerm reports whether a term's value is a boolean — a literal, an `if`
+// whose branches are, or an application of a primitive declared to return one.
+func IsBoolTerm(tgt *Target, t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	switch t.Kind {
+	case core.KBool:
+		return true
+	case core.KApp:
+		if t.Op().Kind != core.KName {
+			return false
+		}
+		p, ok := tgt.Prims[t.Op().Name]
+		if !ok {
+			return false
+		}
+		if p.Kind == "cond" && len(t.Args()) == 3 {
+			return IsBoolTerm(tgt, t.Args()[1]) || IsBoolTerm(tgt, t.Args()[2])
+		}
+		return p.Result == "bool"
+	}
+	return false
+}
+
+// BufferElemBytes reads a buffer's element width off the value a `set` stores
+// into it — the same trick bufferElem uses for Go and Java, without needing a
+// type environment, because a table is homogeneous.
+func BufferElemBytes(tgt *Target, body *core.Term, name string) int {
+	found := 0
+	var walk func(*core.Term)
+	walk = func(t *core.Term) {
+		if found != 0 || t == nil {
+			return
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName {
+			if p, ok := tgt.Prims[t.Kids[0].Name]; ok && p.Kind == "table-set" {
+				found = ElemBytes(tgt, t.Kids[3])
+				return
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	if found == 0 {
+		return 8
+	}
+	return found
+}
+
+// LoopInvariant reports which loop variables never actually change.
+//
+// A buffer threaded through a loop looks like it changes — `(again (set c j v) …)`
+// — but `set` CONSUMES ITS ARGUMENT AND RETURNS IT, so the value handed back is
+// the one that went in. ADR 0018's linearity is what makes that true rather
+// than merely usual: nothing else can be holding the buffer, so nothing else
+// can have replaced it.
+//
+// It matters on a host with a fixed register file. The sieve threads its buffer
+// through both loops, and giving it a place of its own cost a register plus a
+// copy in and out — which pushed the inner loop's INDEX to a spill slot, where
+// it was reloaded three times per iteration:
+//
+//	mov r10, qword ptr [rsp+48]
+//	cmp r10, 200000
+//	…
+//	mov r10, qword ptr [rsp+48]
+//	mov byte ptr [r15+r10+8], 1
+//
+// Five memory accesses per element for a loop that needs none.
+func LoopInvariant(tgt *Target, body *core.Term, raw []string) map[int]bool {
+	agains := collectAgains(body)
+	if len(agains) == 0 {
+		return nil
+	}
+	out := map[int]bool{}
+	for i, n := range raw {
+		ok := true
+		for _, a := range agains {
+			as := a.Args()
+			if i >= len(as) || !handsBack(tgt, as[i], n) {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			out[i] = true
+		}
+	}
+	return out
+}
+
+// handsBack reports whether a term evaluates to the variable it was given —
+// the variable itself, or any chain of stores into it.
+func handsBack(tgt *Target, t *core.Term, name string) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KName {
+		return t.Name == name
+	}
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		if p, ok := tgt.Prims[t.Kids[0].Name]; ok && p.Kind == "table-set" && len(t.Args()) == 3 {
+			return handsBack(tgt, t.Args()[0], name)
+		}
+	}
+	return false
+}

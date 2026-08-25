@@ -113,13 +113,95 @@ honest statement is that the number does not reproduce, not that a particular th
 
 ---
 
-## 3. What is covered, and what is not
+## 3. The remaining three: generic, report, stencil
 
-Built and measured: **dot, search, centroid, wordcount**. Written on the language's table, so this
-migration lands on the current architecture rather than on the interim surface.
+All three are at parity, and none needed a new idea.
 
-Not yet on the native Java target: **generic, report, stencil**. `sieve-java.oro` and
-`divmod-java.oro` predate this and already work.
+### generic — one definition, two element types
+
+`reduce-over` is instantiated at `double` with `java.f+` and at `Map<String,Long>` with a map
+update, from one definition, with no type annotations, no monomorphization pass, no type parameters
+and no dictionary. The backend works out `double` for one and `java.util.Map<String,Long>` for the
+other on its own.
+
+| | ns/op |
+|---|---|
+| `sum-of` hand-written | 30,699 |
+| **`sum-of` generated** | **30,749 — 1.00×** |
+
+No `long`-counter penalty here, and that is §1's finding behaving the way
+[checkcost-2026-08-19](checkcost-2026-08-19.md) said a cost behaves: this loop is memory-bound over
+65,536 doubles, so the cast hides behind the cache miss. The same reason centroid pays 1.04× and a
+tight scan pays 1.45×.
+
+### stencil — ADR 0013's program, on a third host
+
+Three forms carried, because the difference between them *is* the question:
+
+| | ns/op | |
+|---|---|---|
+| allocating, hand-written | 94,096 | |
+| **allocating, generated `(alloc (table …))`** | **92,762** | **0.99×** |
+| **allocating, generated `build`/`set`** | **93,688** | **1.00×** |
+| reusing, hand-written | 61,011 | |
+| **reusing, generated `java.set-double`** | **60,945** | **1.00×** |
+
+**And allocating costs 1.54× for HAND-WRITTEN Java too** (94,096 against 61,011). That is
+[ADR 0013](../../docs/decisions/0013-accept-the-allocation-price.md)'s price confirmed on a third
+host, and confirmed as *the shape rather than the compiler* — which is what
+[native-gauntlet-2026-08-20](native-gauntlet-2026-08-20.md) established on Go and what the ADR's
+correction says.
+
+The gather and the scatter measure the same here, which is worth noting: `(alloc (table …))` is
+pure and parallel by construction and `build`/`set` is sequential, and on this program the JVM does
+not care.
+
+The reusing form is deliberately **target-native**. ADR 0018 scopes a buffer to `build`, so writing
+into an array the *caller* owns is `java.set-double` — Java's own store, carrying no portability
+claim, exactly as `go.set-float64` does on Go.
+
+### report — the program whose pass condition is not a number
+
+Built and run. All three native targets agree on the value and differ only in how the host prints a
+float, which is target-native and carries no portability claim:
+
+| | output |
+|---|---|
+| Go | `report` / `1000` / `3.328335e+08` |
+| JavaScript | `report` / `1000` / `332833500` |
+| Java | `report` / `1000` / `3.328335E8` |
+
+`Σ i²` for i < 1000 is 332,833,500.
+
+---
+
+## 3b. One compiler gap the stencil found
+
+`(alloc (table n (fn (j) …)))` was **refused**: the rule indexes the array it is built from, and
+nothing told the refinement layer that `j` is in `[0, n)`.
+
+```
+(a j) is an indexing, and (<= 0 j) does not follow
+  known: assumed -len(a) + +3 <= 0
+```
+
+**A rule's parameter IS its domain.** `(table n (fn (j) …))` says element `j` is a function of `j`
+for `j` in `[0, n)`, so the body may assume exactly that. It is
+[tables.md §6](../../docs/spec/tables.md) once more — *bounds are the domain* — and it is the third
+time the same sentence has been the fix: the read side needed it for indexing, `build` needed it
+from the other side as `len(b) = n`, and a rule needs it for its own parameter.
+
+Without it, no stencil could be written as a rule at all, on any target. It was invisible until a
+program indexed an array *inside* a `table`.
+
+---
+
+## 3c. What is covered, and what is not
+
+Built and measured on the native Java target: **dot, search, centroid, wordcount, generic, report,
+stencil** — all seven. Written on the language's table, so this migration lands on the current
+architecture rather than on the interim surface. `sieve-java.oro` and `divmod-java.oro` predate
+this and already work.
 
 One thing the migration deleted on the way: `targets/java/lang.oro`'s `split` returned
 `string-array`, one of the enumerated legacy type names `(array V)` exists to replace. Prim

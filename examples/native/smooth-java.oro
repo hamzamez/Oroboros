@@ -1,0 +1,42 @@
+; THE STENCIL on the native Java target — ADR 0013's program, which is where
+; the allocation price was found and where it is still open.
+;
+; THREE forms are carried, because a form that is not measured is a belief:
+;
+;   smooth-alloc  the GATHER — `(alloc (table …))`, pure and parallel
+;   smooth-build  the SCATTER — `build`/`set`, sequential, still allocating
+;   smooth-into   target-native, writing into a buffer the CALLER owns
+;
+; The third is the one the portable language cannot express and does not try
+; to: ADR 0018 scopes a buffer to `build`, so reusing a caller's array is
+; `java.set-double` — Java's own store, no portability claim.
+(use java)
+(export smooth-alloc smooth-build smooth-into)
+
+(sig smooth-alloc ((a (array f64))) (array f64)
+  (where (java.> (len a) 2)))
+(sig smooth-build ((a (array f64))) (array f64)
+  (where (java.> (len a) 2)))
+(sig smooth-into  ((dst double-array) (a (array f64))) double-array
+  (where (and (java.> (len a) 2) (java.>= (len dst) (java.- (len a) 2)))))
+
+(def window (fn (a j)
+  (java.f+ (java.f+ (a j) (a (java.+ j 1))) (a (java.+ j 2)))))
+
+(def kernel (fn (a)
+  (table (java.- (len a) 2) (fn (j) (java.f/ (window a j) 3.0)))))
+
+(def smooth-alloc (fn (a) (alloc (kernel a))))
+
+(def smooth-build (fn (a)
+  (let (kernel a) (fn (k)
+    (build (len k) (fn (b)
+      (loop ((b b) (i 0))
+        (java.>= i (len k))  b
+        else                 (again (set b i (k i)) (java.+ i 1)))))))))
+
+(def smooth-into (fn (dst a)
+  (let (kernel a) (fn (k)
+    (loop ((d dst) (i 0))
+      (java.>= i (len k))  d
+      else                 (again (java.set-double d i (k i)) (java.+ i 1)))))))

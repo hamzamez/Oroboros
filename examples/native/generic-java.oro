@@ -1,0 +1,26 @@
+; GENERICS WITH NO GENERICS, on the native Java target.
+;
+; One definition, `reduce-over`, instantiated at two element types and two
+; accumulator types — f64 with `java.f+`, and a HashMap with a map update — with
+; NO type annotations, no monomorphization pass, no type parameters and no
+; dictionary. It has no runtime existence; the backend works out `double` for
+; one instantiation and `Map<String,Long>` for the other on its own.
+(use java)
+(use java/Map as Map)
+(use java/String as Str)
+(export sum-of word-tally)
+
+(sig sum-of     ((a (array f64))) f64)
+(sig word-tally ((text string)) map-string-long)
+
+(def reduce-over (fn (n get combine init)
+  (loop ((acc init) (i 0))
+    (java.>= i n)  acc
+    else           (again (combine acc (get i)) (java.+ i 1)))))
+
+(def sum-of (fn (a)
+  (reduce-over (len a) (fn (i) (a i)) java.f+ 0.0)))
+
+(def word-tally (fn (text)
+  (let (Str.split text " ") (fn (ws)
+    (reduce-over (len ws) (fn (i) (ws i)) Map.merge (Map.new))))))

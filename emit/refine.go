@@ -229,6 +229,31 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			}
 		case "let":
 			return r.let(args, f)
+		case "table":
+			// A RULE'S PARAMETER IS ITS DOMAIN. `(table n (fn (j) …))` says
+			// element j is a function of j for j in [0, n), so the body may
+			// assume exactly that — and without it a rule that indexes the
+			// array it is built from cannot prove its own index, which is what
+			// the stencil does on every element.
+			//
+			// This is tables.md §6 once more: bounds are the domain. `build`
+			// needed the same fact from the other side, as `len(b) = n`.
+			if len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 {
+				inner := f.clone()
+				j := args[1].Params[0]
+				r.markName(j)
+				inner.assumeLE(constant(0).addScaled(variable(j), -1), "0 <= "+j)
+				if e, ok := asLinear(args[0]); ok {
+					// j < n, i.e. j - n + 1 <= 0.
+					// j - n + 1 <= 0
+					inner.assumeLE(variable(j).addScaled(e, -1).addScaled(constant(1), 1),
+						j+" < "+args[0].String())
+				}
+				if err := r.walk(args[0], f); err != nil {
+					return err
+				}
+				return r.walk(args[1].Body(), inner)
+			}
 		case "table-build":
 			// `(build n (fn (b) …))` binds a buffer whose length IS n, and
 			// nothing else says so — the buffer is introduced by this form and

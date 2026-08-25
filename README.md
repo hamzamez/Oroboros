@@ -101,12 +101,13 @@ a stronger result than a timing, and the reason those two programs exist.
 
 Three caveats stated rather than buried:
 
-- **Java has not moved to the native target.** It is measured on the retired portable layer
-  ([2026-08-14](gauntlet/results/java-2026-08-14.md)) and is the host most likely to disagree with
-  the other two. **It has moved now** —
-  [native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md) — and the migration
-  immediately refuted the measurement that made Java the interesting case: the fused `merge` was
-  recorded 2.6× slower than unfused and is **1.19× faster** on JDK 17.
+- **Java has moved to the native target** —
+  [native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md). All seven programs, at
+  parity, on JDK 17. Two things came out of it: the migration **refuted** the measurement that made
+  Java the interesting case (the fused `merge` was recorded 2.6× slower than unfused and is
+  **1.19× faster**), and it put a price on ADR 0012 — our `int` maps to Java's `long`, so a loop
+  counter is 64-bit and every array access carries a cast, worth **1.04×–1.45×** depending on the
+  loop. The emitted code matches hand-written Java exactly once the counter type is held constant.
 - **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
   median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
   and the hand-written reference is written the way a person writes it, not in the emitter's shape.

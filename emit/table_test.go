@@ -325,3 +325,40 @@ func TestWindowsRefusesTheWriteSideWithAReason(t *testing.T) {
 		t.Errorf("windows must say it needs an allocator decision, got %v", err)
 	}
 }
+
+// A RULE'S PARAMETER IS ITS DOMAIN.
+//
+// `(table n (fn (j) …))` says element j is a function of j for j in [0, n), so
+// the body may assume exactly that. Found by the stencil: a rule that indexes
+// the array it is built from could not prove its own index, so
+// `(alloc (table n (fn (j) (a j))))` was refused on every target.
+//
+// It is tables.md §6 for the third time — bounds are the domain. Indexing
+// needed it, `build` needed it from the other side as len(b) = n, and a rule
+// needs it for its own parameter.
+func TestARuleMayAssumeItsOwnDomain(t *testing.T) {
+	if err := refineOn(t, "go", `
+		(use go)
+		(export f) (sig f ((a (array f64))) (array f64) (where (go.> (len a) 2)))
+		(def f (fn (a)
+			(alloc (table (go.- (len a) 2) (fn (j)
+				(go.f+ (a j) (a (go.+ j 2))))))))
+	`, "f"); err != nil {
+		t.Errorf("a rule's parameter is in [0, n) and the body may assume it: %v", err)
+	}
+}
+
+// But only within its own bound — a rule cannot reach past the table it builds.
+func TestARuleCannotReachPastItsDomain(t *testing.T) {
+	err := refineOn(t, "go", `
+		(use go)
+		(export f) (sig f ((a (array f64))) (array f64))
+		(def f (fn (a) (alloc (table (len a) (fn (j) (a (go.+ j 5)))))))
+	`, "f")
+	if err == nil {
+		t.Fatal("j + 5 is not provably inside a, and must be refused")
+	}
+	if !strings.Contains(err.Error(), "is an indexing") {
+		t.Errorf("expected the indexing diagnostic, got: %v", err)
+	}
+}

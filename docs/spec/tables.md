@@ -422,6 +422,15 @@ again.
 
 ## 6. Bounds are the domain
 
+> **Built, and it was needed in THREE places** — indexing
+> ([tables-read-2026-08-25](../../gauntlet/results/tables-read-2026-08-25.md)), `build` from the
+> other side as `len(b) = n`
+> ([tables-write](../../gauntlet/results/tables-write-2026-08-25.md)), and a **rule's own
+> parameter**: `(table n (fn (j) …))` says element j is a function of j for j in `[0, n)`, so the
+> body may assume it. The third was invisible until a program indexed an array *inside* a table —
+> the stencil — and without it no stencil could be written as a rule on any target
+> ([native-java-2026-08-25 §3b](../../gauntlet/results/native-java-2026-08-25.md)).
+
 Out of range: Go **panics**, Java **throws**, JavaScript **silently returns `undefined`**, and x86
 reads whatever is there. Four hosts, four answers, one of them silent.
 

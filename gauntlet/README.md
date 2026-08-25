@@ -22,6 +22,7 @@ cd gauntlet/java && javac -d out Gauntlet.java Bench.java && java -cp out Bench
 
 # the NATIVE Java target against hand-written Java (native-java-2026-08-25)
 cd gauntlet/java && javac -d out Gauntlet.java NativeBench.java gen/Nat*.java   && java -cp out NativeBench
+cd gauntlet/java && javac -d out Gauntlet.java NativeBench2.java gen/Nat*.java   && java -cp out NativeBench2
 
 # one JVM per form, which is how the wordcount idiom question has to be asked
 javac -d out Gauntlet.java MergeCheck.java MergeOne.java && java -cp out MergeOne fused

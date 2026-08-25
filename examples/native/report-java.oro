@@ -1,0 +1,22 @@
+; FORMATTED OUTPUT on the native Java target — the gauntlet program whose pass
+; condition is not a number.
+;
+; Three claims at once: a table is built and filled, its length survives to the
+; boundary, and the host's own printing is reached through a target-native name.
+(use java)
+(use java/System as Sys)
+(export main)
+
+(def fill (fn (n) (alloc (table n (fn (i) (java.f64-of-int i))))))
+
+(def dot (fn (a b)
+  (loop ((acc 0.0) (i 0))
+    (java.>= i (len a))  acc
+    else                 (again (java.f+ acc (java.f* (a i) (b i)))
+                                (java.+ i 1)))))
+
+(def main (fn ()
+  (let (fill 1000) (fn (xs)
+    (seq (Sys.out-println "report")
+         (seq (Sys.out-println (len xs))
+              (Sys.out-println (dot xs xs))))))))

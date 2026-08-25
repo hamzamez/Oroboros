@@ -183,13 +183,24 @@ var coreNames = map[string]bool{
 	// match guard is exactly that: an integer against a literal.
 	//
 	// It is `=` rather than `==`, and rather than the `tag=` it was first built
-	// as. Not `==`, because on JavaScript that name is ALREADY TAKEN by a
-	// different operation: `js.==` is loose equality and the language needs
-	// strict, so sharing the name would either shadow a host operator or emit
-	// the wrong one. Not `tag=`, because a name should say what an operation IS
-	// rather than what it is for — `(when (= (go.% v 2) 1))` is not comparing a
-	// tag — and because the honesty a narrow name was buying is better bought by
-	// the REFUSAL, which can explain itself where a name cannot.
+	// as.
+	//
+	// CORRECTION, 2026-08-25. The reason first recorded for rejecting `==` was
+	// that JavaScript had already taken the name. That is FALSE and was never
+	// checked: `tg.Prims` is keyed by the QUALIFIED name, so `js.==` and a bare
+	// `==` are different keys and would coexist exactly as `=` and `go.==` do
+	// today. There was no collision to avoid.
+	//
+	// What survives is a legibility argument, which is weaker and is stated as
+	// such: a program holding both `==` (strict, the language's) and `js.==`
+	// (loose, the host's) spells two different operations almost identically,
+	// and `=` cannot be misread that way. `=` is also what Scheme, Clojure, SQL
+	// and mathematics use for equality.
+	//
+	// Not `tag=`, and this reason is unaffected: a name should say what an
+	// operation IS rather than what it is for — `(when (= (go.% v 2) 1))` is not
+	// comparing a tag — and the honesty a narrow name was buying is better
+	// bought by the REFUSAL, which can explain itself where a name cannot.
 	"=": true,
 }
 

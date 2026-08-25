@@ -242,8 +242,9 @@ shadowed occurrence is a `KBound`, not a `KName`. It found **a five-month-old Ja
 `(loop ((n n)) …)` inside `function f(n)` emitted `let n = n;`, a `SyntaxError` — Go and Java
 seeded their fresh-name set from the parameters and JS did not; x86 needed no fix because registers
 are positional. `=` is now injected like `if`/`let`/`loop` and resolves to each host's own
-equality — **not `==`, because on JavaScript that name is already taken by a different operation**
-(`js.==` is loose, the language needs strict), and **not the `tag=` it was first built as**, because
+equality — **not `==`** (the first reason recorded for that was *false* and is corrected in
+match.md §6: `tg.Prims` is keyed by the qualified name, so `js.==` and a bare `==` never collided;
+what survives is a weaker legibility argument), and **not the `tag=` it was first built as**, because
 a name should say what an operation *is* rather than what it is for, and the honesty a narrow name
 buys is better bought by a refusal that can explain itself. Float and string patterns are refused (no portable equality; NaN is not an equivalence
 relation), and so is a repeated name in one clause.

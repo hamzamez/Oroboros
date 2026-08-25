@@ -202,9 +202,18 @@ spell it differently or forget it.
 strings because no two of the four targets agree on comparing them. For a host's own, name it —
 `go.==`, `js.===` — which is target-native and carries no portability claim.
 
-**Not `==`.** On JavaScript that name is already taken by a *different operation*: `js.==` is
-loose equality and the language needs strict. Sharing the name would either shadow a host
-operator — losing access the parasite model exists to keep — or emit the wrong one.
+**Not `==`** — and the reason first recorded here was wrong.
+
+> **Correction, 2026-08-25.** This section said `==` was rejected because *"on JavaScript that name
+> is already taken"*. It is not. `tg.Prims` is keyed by the **qualified** name, so `js.==` and a
+> bare `==` are different keys and coexist exactly as `=` and `go.==` do today. The claim was
+> asserted from the shape of the code rather than checked against it, which is the failure this
+> repository's measurements exist to catch. There was no collision.
+
+What survives is weaker, and is stated as weaker: **legibility**. A program holding both `==`
+(strict, the language's) and `js.==` (loose, the host's) spells two different operations almost
+identically, and `=` cannot be misread that way. `=` is also equality in Scheme, Clojure, SQL and
+mathematics.
 
 **Not `tag=`, which is what it was first built as.** Two arguments killed it. A name should say
 what an operation **is**, not what it is for: `(when (= (go.% v 2) 1))` is not comparing a tag,

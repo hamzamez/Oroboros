@@ -15,7 +15,7 @@
 (def runs (fn (n)
   (match (0 n 0)
     _ 0 c                            c
-    0 v c (when (= (go.% v 2) 1)) (again 1 (go./ v 2) (go.+ c 1))
-    _ v c (when (= (go.% v 2) 1)) (again 1 (go./ v 2) c)
+    0 v c (when (= (go.% v 2) 1))    (again 1 (go./ v 2) (go.+ c 1))
+    _ v c (when (= (go.% v 2) 1))    (again 1 (go./ v 2) c)
     _ v c                            (again 0 (go./ v 2) c)
     else                             0)))

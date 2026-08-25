@@ -132,59 +132,121 @@ Three things stated rather than buried:
 
 ## What it looks like
 
-`examples/native/dot-go.oro`. A vector is a length paired with an index function — a **library
-written in the language**, not a primitive, and it has no runtime existence:
+`examples/table/dot.oro`. A table is **a function with a known finite domain**, so `(table n f)` is
+a vector with no runtime existence and **indexing is application** — `(a i)`, with no word of its
+own:
 
 ```lisp
 (use go)
 (export dot)
 
-(sig dot ((p slice-float64) (q slice-float64)) f64
-  (where (and (go.== (go.len p) (go.len q))
-              (go.< (go.len p) 65536))))
+(sig dot ((p (array f64)) (q (array f64))) f64
+  (where (and (= (len p) (len q))
+              (go.< (len p) 65536))))
 
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (go.len a) (fn (i) (go.at-float64 a i)))))
-(def zip      (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+(def zip (fn (g a b) (table (len a) (fn (i) (g (a i) (b i))))))
 
 (def sum (fn (v)
   (loop ((acc 0.0) (i 0))
-    (go.>= i (vlen v))  acc
-    else                (again (go.f+ acc (vindex v i)) (go.+ i 1)))))
+    (go.>= i (len v))  acc
+    else               (again (go.f+ acc (v i)) (go.+ i 1)))))
 
-(def dot (fn (a b) (sum (zip go.f* (of-array a) (of-array b)))))
+(def dot (fn (a b) (sum (zip go.f* a b))))
 ```
 
 ```bash
-go run ./cmd/gen examples/native/dot-go.oro go dot.go
+go run ./cmd/gen examples/table/dot.oro go dot.go
 ```
 
 ```go
 func GenDot(a []float64, b []float64) float64 {
 	acc := 0.0
 	var i int = 0
-	var n1 int = (len(a))
+	var n1 int = len(a)
 	b = b[:n1]
-	for {
-		if (i >= (len(a))) {
+	for ; ; i = (i + 1) {
+		if (i >= len(a)) {
 			break
 		}
-		acc, i = (acc + ((a[i]) * (b[i]))), (i + 1)
+		acc = (acc + (a[i] * b[i]))
 		continue
 	}
 	return acc
 }
 ```
 
-Every abstraction is gone: no closure, no intermediate vector, no allocation. The `b = b[:n1]` is
-the emitter *shaping* the output so Go's own compiler re-proves the bound and drops the second
-bounds check — because [our proofs do not transfer](gauntlet/results/bce-2026-08-15.md), so a proof
-is only worth what the emitted shape can cash in.
+Every abstraction is gone: no closure, no intermediate table, no allocation. The
+[same program](examples/native/dot-go.oro) needed **six** definitions before tables existed —
+`vec`, `vlen`, `vindex` and `of-array` were a vector library hand-rolled out of closures, and they
+compile to the identical machine code either way.
 
-The `(where …)` is not decoration. The equality is what makes indexing `q` under `p`'s length
-provable at all; the bound is what proves the loop terminates.
+Two things in that output are the compiler *shaping* rather than translating. `b = b[:n1]` is what
+lets Go's own compiler re-prove the bound and drop the second bounds check — because
+[our proofs do not transfer](gauntlet/results/bce-2026-08-15.md), so a proof is worth only what the
+emitted shape can cash in. And `for ; ; i = (i + 1)` puts the update where a host compiler can see
+a counted loop; emitting it inside the body instead
+[cost 1.4× on the sieve](gauntlet/results/loopshape-2026-08-25.md).
+
+The `(where …)` is not decoration either. The equality is what makes indexing `q` under `p`'s
+length provable at all; the bound is what proves the loop terminates.
+
+### The sieve, which is the program the memory model was decided on
+
+Values are immutable and mutation exists only inside `(build n (fn (b) …))`, whose buffer is
+**linear** — `(set b i v)` consumes it and hands it back, so it is threaded like any other loop
+variable and frozen on the way out ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)):
+
+```lisp
+(def cross (fn (c i n)
+  (loop ((c c) (j (go.* i i)))
+    (go.< j n)  (again (set c j true) (go.+ j i))
+    else        c)))
+
+(def sieve (fn (n)
+  (build n (fn (c)
+    (loop ((c c) (i 2))
+      (go.>= (go.* i i) n)   c
+      (c i)                  (again c (go.+ i 1))
+      else                   (again (cross c i n) (go.+ i 1)))))))
+```
+
+```go
+func GenCountPrimes(n int) int {
+	c := make([]bool, n)
+	c2 := c
+	var i int = 2
+	for ; ; i = (i + 1) {
+		if ((i * i) >= n) {
+			break
+		}
+		if c2[i] {
+			continue
+		}
+		c3 := c2
+		var j int = (i * i)
+		for ; ; j = (j + i) {
+			if (j < n) {
+				c3[j] = true
+				continue
+			}
+			break
+		}
+		c2 = c3
+		continue
+	}
+	…
+}
+```
+
+```
+note: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+```
+
+**This program is why tables are the shape they are.** `(table n f)` is a *gather* and cannot
+express a *scatter*, so the sieve, in-place sorting, histograms, union-find and general dynamic
+programming were inexpressible portably **at any speed** — which is what decided ADR 0018, and it
+was expressiveness rather than the 2.7×. It runs on all four targets and on x86 it is
+[0.88× of hand-written assembly](gauntlet/results/wintables-2026-08-25.md).
 
 ### And the same idea, twice more
 
@@ -219,7 +281,8 @@ func GenDiv(a int, b int) (int, int) {
 ```
 
 Both are **reader sugar**: zero reduction rules, zero term kinds, no backend change, and no target
-declares any of it.
+declares any of it. A sum costs nothing at *either* level — a tag known at compile time reduces
+away by β, and one decided at runtime reduces to the `if` that decided it.
 
 ## How it works
 

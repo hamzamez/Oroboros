@@ -22,6 +22,13 @@ import (
 type refiner struct {
 	tgt   *Target
 	notes []string // refinements propagated rather than proven
+
+	// bound is every name introduced by a binder. It is what tells a TABLE
+	// from anything else in operator position: `(a i)` is an indexing when `a`
+	// is a local, and `(again …)` is a jump. Without it `again` looked like a
+	// table, because it is not a declared primitive either — found by the
+	// existing refinement tests the moment indexing became application.
+	bound map[string]bool
 }
 
 // Refine discharges every refinement obligation in a residual.
@@ -171,6 +178,9 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	case core.KInt, core.KFloat, core.KStr, core.KBool, core.KName:
 		return nil
 	case core.KFn:
+		for _, n := range t.Params {
+			r.markName(n)
+		}
 		return r.walk(t.Body(), f)
 	}
 
@@ -178,6 +188,7 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	if op.Kind != core.KName {
 		return nil
 	}
+	r.markBound(t)
 	args := t.Args()
 	p, known := r.tgt.Prims[op.Name]
 
@@ -228,6 +239,28 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			// exactly what is needed (integers.md §5).
 			return r.clauses(t, f)
 		}
+	}
+
+	// INDEXING IS APPLICATION, so its obligation cannot come from a
+	// declaration — there is no primitive to carry one.
+	//
+	// This was found by building it: `(a i)` with an unconstrained `i` was
+	// ACCEPTED, while `(go.at-float64 a i)` was correctly refused. The bounds
+	// check had lived in the primitive's `(where …)`, and making indexing
+	// application deleted the primitive and the obligation with it — a refactor
+	// that looks clean and silently removes a safety property.
+	//
+	// tables.md §6 already said the right thing and it reads differently now:
+	// **bounds are the domain**. A table is a function with a finite domain, so
+	// `0 <= i < len(a)` is not a check bolted onto an operation, it is the
+	// condition for the application to be defined at all. It is generated from
+	// the FORM, which means it cannot be forgotten by a target author and
+	// applies on all four targets at once.
+	if !known && len(args) == 1 && r.isTable(op.Name) {
+		if err := r.indexObligation(op, args[0], f); err != nil {
+			return err
+		}
+		return r.walk(args[0], f)
 	}
 
 	// Discharge this primitive's own refinement before descending.
@@ -687,4 +720,66 @@ func (r *refiner) againAgree(t *core.Term, lens []*linear, env map[string]*linea
 	}
 	walk(t)
 	return ok
+}
+
+// isTable reports whether a name in operator position is a table rather than an
+// unknown primitive. In a residual it can only be a table (tables.md §3.2), so
+// the test is that it is not a declared primitive and not a definition.
+func (r *refiner) isTable(name string) bool {
+	if _, isPrim := r.tgt.Prims[name]; isPrim {
+		return false
+	}
+	return r.bound[name]
+}
+
+// indexObligation demands `0 <= i` and `i < len(a)` at an indexing.
+//
+// The length term is built with the LANGUAGE's `len`, and then recorded under
+// every spelling the target declares as well — because a program may state its
+// precondition with either, and `lengthVar` keys on the name it finds.
+func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
+	lo := &core.Term{Kind: core.KApp, Kids: []*core.Term{
+		core.Name("<="), &core.Term{Kind: core.KInt}, idx}}
+	hi := &core.Term{Kind: core.KApp, Kids: []*core.Term{
+		core.Name("<"), idx,
+		&core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("len"), tab}}}}
+	for _, want := range []*core.Term{lo, hi} {
+		goals, ok := obligation(want)
+		if !ok {
+			r.notes = append(r.notes,
+				fmt.Sprintf("%s: index bound propagated, not proven", tab))
+			continue
+		}
+		for _, g := range goals {
+			if f.entails(g) {
+				continue
+			}
+			return fmt.Errorf("(%s %s) is an indexing, and %s does not follow\n"+
+				"  known: %s\n"+
+				"  A table is a function with a finite domain, so 0 <= i < len is the\n"+
+				"  condition for the application to be DEFINED — not a check bolted on\n"+
+				"  (docs/spec/tables.md §6).", tab, idx, want, f.known())
+		}
+	}
+	return nil
+}
+
+// markBound records the parameter names of any abstraction sitting directly
+// under an application, which is where `loop`, `let` and the fold forms put
+// their binders.
+func (r *refiner) markBound(t *core.Term) {
+	for _, k := range t.Kids {
+		if k.Kind == core.KFn {
+			for _, n := range k.Params {
+				r.markName(n)
+			}
+		}
+	}
+}
+
+func (r *refiner) markName(n string) {
+	if r.bound == nil {
+		r.bound = map[string]bool{}
+	}
+	r.bound[n] = true
 }

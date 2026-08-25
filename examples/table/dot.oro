@@ -1,0 +1,24 @@
+; The gauntlet's first program on the LANGUAGE'S OWN data structure.
+;
+; examples/native/dot-go.oro needed six definitions -- vec, vlen, vindex,
+; of-array, zip, sum -- because a table was not in the language and had to be
+; hand-rolled out of closures. Four of them are gone: `(table n f)` IS the
+; delayed vector, `len` is its domain bound, and indexing is APPLICATION.
+;
+; The bar is 485 ns (native-gauntlet-2026-08-20).
+(use go)
+(export dot)
+
+(sig dot ((p (array f64)) (q (array f64))) f64
+  (where (and (= (len p) (len q))
+              (go.< (len p) 65536))))
+
+; `vec`, `vlen`, `vindex` and `of-array` are GONE — the language has the table.
+(def zip (fn (g a b) (table (len a) (fn (i) (g (a i) (b i))))))
+
+(def sum (fn (v)
+  (loop ((acc 0.0) (i 0))
+    (go.>= i (len v))  acc
+    else               (again (go.f+ acc (v i)) (go.+ i 1)))))
+
+(def dot (fn (a b) (sum (zip go.f* a b))))

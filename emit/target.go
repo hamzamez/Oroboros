@@ -98,8 +98,13 @@ type Prim struct {
 type Target struct {
 	Name  string
 	Types map[string]string // our type name -> the target's spelling
-	Prims map[string]Prim
-	Names []string // every primitive name, for core.Env
+
+	// ArrayType is how this target spells an array of something — `[]%s` on Go,
+	// `%s[]` on Java. One declaration replaces an entry per element type.
+	// Empty means the target has no types to spell (JavaScript, windows).
+	ArrayType string
+	Prims     map[string]Prim
+	Names     []string // every primitive name, for core.Env
 
 	// Narrow is a template `dst = src[:n]` that restricts a container to a
 	// known length. A target that declares one gets bounds-check elimination
@@ -202,6 +207,19 @@ var coreNames = map[string]bool{
 	// comparing a tag — and the honesty a narrow name was buying is better
 	// bought by the REFUSAL, which can explain itself where a name cannot.
 	"=": true,
+	// TABLES. A table is a function with a known finite domain (tables.md), so
+	// `array` and `table` are its two presentations — a graph and a rule — and
+	// `len` is its domain bound. Indexing needs no name at all, because it is
+	// APPLICATION.
+	//
+	// These are the language's for the same reason `if` is: a construct promoted
+	// to the language works on every target and the compiler finds the
+	// implementation. A target may not decline one and may not declare one.
+	//
+	// There is no collision with a host's own `len`. `tg.Prims` is keyed by the
+	// QUALIFIED name, so `go.len` — which works on maps and channels too, and
+	// stays reachable — and a bare `len` are different keys.
+	"array": true, "table": true, "len": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -210,6 +228,13 @@ var coreStructural = []Prim{
 	{Name: "if", Kind: "cond", Pure: true},
 	{Name: "let", Kind: "let", Pure: true},
 	{Name: "loop", Kind: "iterate", Pure: true},
+	// A table's two presentations and its domain bound (tables.md §2). Pure:
+	// a table is a value, and reading one has no effect — which is what
+	// separates `(array V)` from ADR 0018's `(buffer V)`, whose reads are impure
+	// precisely so that stores stay ordered.
+	{Name: "array", Kind: "array", Pure: true},
+	{Name: "table", Kind: "table", Pure: true},
+	{Name: "len", Kind: "len", Pure: true},
 }
 
 // eqSpellings are how a target may spell integer equality, most preferred
@@ -343,6 +368,13 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.Types[n] = ty
 	}
+	if o.ArrayType != "" {
+		if tg.ArrayType != "" && tg.ArrayType != o.ArrayType {
+			return fmt.Errorf("%s: array-type is declared as %q and as %q",
+				from, tg.ArrayType, o.ArrayType)
+		}
+		tg.ArrayType = o.ArrayType
+	}
 	for n, p := range o.Prims {
 		if _, dup := tg.Prims[n]; dup {
 			return fmt.Errorf("%s: %s is declared twice in this target", from, n)
@@ -385,6 +417,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			return nil, fmt.Errorf("%s: expected (type …) or (prim …), got %s", path, f)
 		}
 		switch f.Kids[0].Name {
+		case "array-type":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
+			}
+			tg.ArrayType = f.Kids[1].Str
 		case "type":
 			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (type NAME \"spelling\"), got %s", path, f)
@@ -683,6 +720,22 @@ func fill(form string, vals []any) string {
 func (tg *Target) ty(name string) string {
 	if s, ok := tg.Types[name]; ok {
 		return s
+	}
+	// `(array V)` resolves through ONE declaration — `(array-type "[]%s")` on
+	// Go, `"%s[]"` on Java — instead of enumerating an entry per element type.
+	//
+	// That enumeration is what tables.md §10 called "the suffix explosion", and
+	// it is the surface this construct deletes: Go declared seven `slice-*`
+	// types and nineteen `at-*`/`make-*`/`set-*`/`len` primitives, and the four
+	// targets together declared 54. They existed because the type language had
+	// no constructor.
+	if elem := core.ArrayElem(name); elem != "" {
+		if tg.ArrayType != "" {
+			return Fill(tg.ArrayType, tg.ty(elem))
+		}
+		// A target with no types — JavaScript, windows — spells an array
+		// nothing at all, which is why neither declares one.
+		return ""
 	}
 	if name == "" {
 		return "/*unknown*/"
@@ -1000,4 +1053,45 @@ func soleExit(prims map[string]Prim, t *core.Term, raw, names []string,
 		return n
 	}
 	return ""
+}
+
+// IndexingErr is the diagnostic for `(x i)` where x is neither a primitive nor
+// a table.
+//
+// tables.md §3.4 asks for a message that says what the coder did, not "no form
+// for primitive x". The name is in operator position, so they indexed it; the
+// question is what it is.
+func IndexingErr(host, name string) error {
+	return fmt.Errorf("%s is applied to an argument, so it is being used as a table or a "+
+		"function — and it is neither.\n"+
+		"  Indexing IS application here: `(a i)` is the element of `a` at `i` (docs/spec/tables.md).\n"+
+		"  A table is `(array e…)`, `(table n f)`, or a parameter declared `(array V)`.\n"+
+		"  If %s was meant to be a function, it did not survive reduction — a function that\n"+
+		"  escapes is a closure, and closures are refused (docs/spec/callbacks.md).\n"+
+		"  [%s backend]", name, name, host)
+}
+
+// IsTableOperand reports whether the operator of an application is a LOCAL
+// NAME, which in a residual can only be a table.
+//
+// The invariant is tables.md §3.2 and it is what makes `(a i)` unambiguous
+// before any type is consulted: a function passed as an argument is substituted
+// and its application reduces; a function that survives is an escaping closure
+// and is refused. So the slot is empty, and a variable in operator position is
+// an indexing.
+func IsTableOperand(name string, bound map[string]bool) bool {
+	return bound[name]
+}
+
+// UnallocatedTableErr is the refusal for a `(table n f)` that reached a backend.
+//
+// A rule-table has NO MEMORY — it is a length and a function, and its whole
+// purpose is to fuse away. One that survives to emission is a table nobody
+// asked to exist at runtime, and the fix is to say where the memory goes.
+func UnallocatedTableErr() error {
+	return fmt.Errorf("a `(table n f)` reached the backend, and a rule-table has no memory.\n" +
+		"  It is a length and a function; its purpose is to FUSE, and this one did not.\n" +
+		"  Wrap it in `(alloc …)` to say that the elements should exist in memory —\n" +
+		"  and note that materialising in the interior of a computation is what costs\n" +
+		"  (docs/spec/construction.md); at a boundary it is what you want.")
 }

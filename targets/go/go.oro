@@ -17,6 +17,10 @@
   ; It has NO CONSTRUCTORS: `[]T` is not a type applied to an argument, so each
   ; instantiation needs a name of its own. That is the first thing this target
   ; cannot say, and it is recorded rather than worked around.
+  ; How this target spells an array of something. ONE declaration replaces an
+  ; entry per element type — see docs/spec/tables.md §10.
+  (array-type "[]%s")
+
   (type int      "int")
   (type int64    "int64")
   (type f64  "float64")

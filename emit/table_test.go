@@ -1,0 +1,172 @@
+package emit
+
+import (
+	"strings"
+	"testing"
+
+	"oroboros/core"
+)
+
+// refineOn runs the REFINEMENT pass, which is where a bounds obligation is
+// discharged. genOn only emits, and the hole below was invisible until this
+// existed — the emitter is perfectly happy to write `a[i]` for any i.
+func refineOn(t *testing.T, target, src, name string) error {
+	t.Helper()
+	tg, err := LoadTarget("../targets/" + target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := prog.Exports[0]
+	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = Refine(tg, name, prog.Sigs[q], nf)
+	return err
+}
+
+// docs/spec/tables.md, the emitters' half. INDEXING IS APPLICATION, so `(a i)`
+// lowers to each host's own indexing and no target declares any of it.
+
+// The construct reaches every backend that has arrays, and each one spells it
+// its own way.
+func TestIndexingIsApplicationOnEveryTarget(t *testing.T) {
+	cases := []struct{ target, src, want string }{
+		{"go", `(use go)
+			(export f) (sig f ((a (array f64)) (i int)) f64
+			  (where (and (<= 0 i) (< i (len a)))))
+			(def f (fn (a i) (a i)))`, "return a[i]"},
+		{"js", `(use js)
+			(export f) (sig f ((a (array any)) (i any)) any
+			  (where (and (<= 0 i) (< i (len a)))))
+			(def f (fn (a i) (a i)))`, "return a[i];"},
+		// The (int) CAST is Java's and it is not optional: our `int` maps to
+		// `long` and a Java array index must be an `int`. Without it javac
+		// refuses the file with "possible lossy conversion".
+		{"java", `(use java)
+			(export f) (sig f ((a (array f64)) (i int)) f64
+			  (where (and (<= 0 i) (< i (len a)))))
+			(def f (fn (a i) (a i)))`, "a[(int) i]"},
+	}
+	for _, c := range cases {
+		code, err := genOn(t, c.target, c.src, "f")
+		if err != nil {
+			t.Errorf("%s: %v", c.target, err)
+			continue
+		}
+		if !strings.Contains(code, c.want) {
+			t.Errorf("%s: wanted %q in:\n%s", c.target, c.want, code)
+		}
+	}
+}
+
+// THE HOLE THIS BUILD FOUND, and the reason it is the most important test here.
+//
+// The bounds obligation used to live in the primitive's `(where …)` —
+// `at-float64` declared `(and (<= 0 i) (< i (len v)))`. Making indexing
+// application DELETED the primitive, and the obligation went with it: `(a i)`
+// with a completely unconstrained `i` was accepted, while `(go.at-float64 a i)`
+// was correctly refused. A refactor that looks clean and silently removes a
+// safety property.
+//
+// The obligation is generated from the FORM now, which means a target author
+// cannot forget it and it applies on all four targets at once. tables.md §6
+// already said the right thing and it reads differently after this: bounds are
+// the DOMAIN — `0 <= i < len(a)` is the condition for the application to be
+// defined, not a check bolted onto an operation.
+func TestAnUnprovenIndexIsRefused(t *testing.T) {
+	err := refineOn(t, "go", `
+		(use go)
+		(export f) (sig f ((a (array f64)) (i int)) f64)
+		(def f (fn (a i) (a i)))
+	`, "f")
+	if err == nil {
+		t.Fatal("an unconstrained index must be refused")
+	}
+	if !strings.Contains(err.Error(), "is an indexing") {
+		t.Errorf("the message must say what the coder did, got: %v", err)
+	}
+}
+
+// And a loop's own bound proves it, which is where almost every real index
+// gets its facts.
+func TestALoopBoundProvesItsIndex(t *testing.T) {
+	src := `
+		(use go)
+		(export f) (sig f ((a (array f64))) f64)
+		(def f (fn (a)
+			(loop ((acc 0.0) (i 0))
+				(go.>= i (len a))  acc
+				else               (again (go.f+ acc (a i)) (go.+ i 1)))))
+	`
+	if err := refineOn(t, "go", src, "f"); err != nil {
+		t.Fatalf("a loop bounded by len must prove its own index: %v", err)
+	}
+	code, err := genOn(t, "go", src, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(code, "a[i]") {
+		t.Errorf("expected an indexing:\n%s", code)
+	}
+}
+
+// `(array V)` resolves through ONE declaration per target instead of an entry
+// per element type. That enumeration — 54 declarations across four targets —
+// is the surface this construct deletes.
+func TestArrayTypeIsOneDeclaration(t *testing.T) {
+	for _, c := range []struct{ target, want string }{
+		{"go", "[]float64"},
+		{"java", "double[]"},
+	} {
+		tg, err := LoadTarget("../targets/" + c.target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := tg.ty("array f64"); got != c.want {
+			t.Errorf("%s: (array f64) is %q, want %q", c.target, got, c.want)
+		}
+	}
+}
+
+// A rule-table that reaches a backend has no memory and nothing to emit. The
+// refusal is the construct doing its job: the rule form exists to FUSE, and one
+// that survives did not.
+func TestAnUnallocatedTableIsRefused(t *testing.T) {
+	_, err := genOn(t, "go", `
+		(use go)
+		(export f) (sig f ((n int)) any)
+		(def f (fn (n) (table n (fn (i) i))))
+	`, "f")
+	if err == nil || !strings.Contains(err.Error(), "no memory") {
+		t.Errorf("a surviving rule-table must be refused, got %v", err)
+	}
+}
+
+// The language's `len` and a host's own `len` are DIFFERENT KEYS, because
+// tg.Prims is keyed by the qualified name. `go.len` works on maps and channels
+// and stays reachable; the language's works on tables.
+func TestLanguageLenDoesNotShadowTheHosts(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := tg.Prims["len"]; !ok {
+		t.Error("the language's `len` must be injected")
+	}
+	if _, ok := tg.Prims["go.len"]; !ok {
+		t.Error("go.len must still be reachable")
+	}
+}

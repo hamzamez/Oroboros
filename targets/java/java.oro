@@ -18,6 +18,9 @@
   ; INSIDE the range our integer literals cover, so declaring it would be a
   ; silent miscompilation (arithmetic.md §4). The consequence is that every
   ; array index needs a cast, because Java array indices are `int`.
+  ; How this target spells an array of something (tables.md §10).
+  (array-type "%s[]")
+
   (type int     "long")
   (type f64     "double")
   (type bool    "boolean")

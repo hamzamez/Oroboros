@@ -256,7 +256,18 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		}
 		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
-			return "", fmt.Errorf("no JavaScript form for primitive %q", op.Name)
+			if IsTableOperand(jsMangle(op.Name), e.bound) && len(t.Args()) == 1 {
+				a, err := e.emit(op)
+				if err != nil {
+					return "", err
+				}
+				idx, err := e.emit(t.Args()[0])
+				if err != nil {
+					return "", err
+				}
+				return fmt.Sprintf("%s[%s]", a, idx), nil
+			}
+			return "", IndexingErr("JavaScript", op.Name)
 		}
 		if p.Kind == "let" {
 			args := t.Args()
@@ -311,6 +322,34 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		}
 		if p.Kind == "loop2" {
 			return e.emitFoldRange2(t)
+		}
+		// TABLES (docs/spec/tables.md). No target declares any of this; the
+		// backends implement it exactly like `if`, `let` and `loop`.
+		//
+		// A surviving `(table n f)` is a rule with NO MEMORY, so there is
+		// nothing to emit — it has to be `(alloc …)`ed first. That refusal is
+		// the construct doing its job: the rule form exists to FUSE, and one
+		// that reaches a backend did not.
+		switch p.Kind {
+		case "len":
+			a, err := e.emit(t.Args()[0])
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("%s.length", a), nil
+		case "array":
+			elems := t.Args()
+			out := make([]string, len(elems))
+			for i, x := range elems {
+				v, err := e.emit(x)
+				if err != nil {
+					return "", err
+				}
+				out[i] = v
+			}
+			return "[" + strings.Join(out, ", ") + "]", nil
+		case "table":
+			return "", UnallocatedTableErr()
 		}
 		if p.Kind == "cond" {
 			return e.emitIf(t)

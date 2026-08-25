@@ -1,6 +1,19 @@
 # Tables — the primary data structure
 
-**Status: specification, not yet built.**
+**Status: the READ SIDE is built** — 2026-08-25,
+[tables-read-2026-08-25](../../gauntlet/results/tables-read-2026-08-25.md).
+`(array e…)`, `(table n f)`, `(len t)` and indexing by application are in the reducer and on all
+four backends. Portable `dot` reaches **1.00×** with an **identical instruction sequence** to the
+hand-rolled version it replaces, and four of its six definitions are gone.
+
+Two things the build taught. **Indexing-as-application silently deleted the bounds obligation**,
+because the obligation lived in the primitive's `(where …)` and there is no primitive any more; it
+is generated from the form now, and §6 below reads differently as a result. And **a rule-table has
+to be duplicable or nothing fuses** — what looks like duplication is the step that erases the
+intermediate.
+
+**Not built: `(alloc t)`, `(build n f)` and `(set b i v)`** — the write side, §9. `len` on windows
+waits with them, because it needs an array representation and that decision belongs with `alloc`.
 
 This is the language's data structure. There is one, and it is a **function with a known finite
 domain**. Everything below follows from taking that literally — including the type system, where

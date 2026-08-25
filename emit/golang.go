@@ -202,6 +202,39 @@ func (e *Emitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) err
 	return multiResultErr(name, sig, t)
 }
 
+// index emits `a[i]` — the host's own indexing, which is what the language's
+// table lowers to when it survives to runtime.
+func (e *Emitter) index(tab, i *core.Term) (string, error) {
+	a, err := e.emit(tab)
+	if err != nil {
+		return "", err
+	}
+	idx, err := e.emit(i)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s[%s]", a, idx), nil
+}
+
+// arrayLit emits a table given by its GRAPH. Its element type comes from the
+// elements, because a graph is data and the checker can read it off.
+func (e *Emitter) arrayLit(t *core.Term) (string, error) {
+	elems := t.Args()
+	out := make([]string, len(elems))
+	ty := ""
+	for i, x := range elems {
+		v, err := e.emit(x)
+		if err != nil {
+			return "", err
+		}
+		out[i] = v
+		if ty == "" {
+			ty = e.typeOf(x)
+		}
+	}
+	return fmt.Sprintf("%s{%s}", e.tgt.ty("array "+ty), strings.Join(out, ", ")), nil
+}
+
 // Imports accumulates what emitted functions need. A package-level sink is
 // crude — the real answer is that each binding declares its import and the file
 // writer collects them, which is g5's Tier 2 binding format arriving in the
@@ -267,6 +300,14 @@ func (e *Emitter) typeOf(t *core.Term) string {
 		return e.types[t.Name]
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
+			// INDEXING IS APPLICATION, so the type of `(a i)` is a's ELEMENT
+			// type. This is the only place the checker needs to know tables
+			// exist, and it is why `(array V)` lives in the signature language
+			// only: a dynamic index forces homogeneity, so what the checker
+			// sees is `Fin n → V` and no dependent type is needed (tables.md §5).
+			if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
+				return elem
+			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// A fold's type is its accumulator's type, not a fixed one,
 				// and a let's is its body's.
@@ -398,7 +439,12 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
-			return "", fmt.Errorf("no Go form for primitive %q", op.Name)
+			// INDEXING IS APPLICATION (tables.md §3). A local name in operator
+			// position can only be a table; see IsTableOperand for why.
+			if IsTableOperand(mangle(op.Name), e.bound) && len(t.Args()) == 1 {
+				return e.index(op, t.Args()[0])
+			}
+			return "", IndexingErr("Go", op.Name)
 		}
 		if p.Import != "" {
 			e.imports[p.Import] = true
@@ -443,6 +489,25 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		if p.Kind == "loop2" {
 			return e.emitFoldRange2(t)
+		}
+		// TABLES (docs/spec/tables.md). No target declares any of this; the
+		// backends implement it exactly like `if`, `let` and `loop`.
+		//
+		// A surviving `(table n f)` is a rule with NO MEMORY, so there is
+		// nothing to emit — it has to be `(alloc …)`ed first. That refusal is
+		// the construct doing its job: the rule form exists to FUSE, and one
+		// that reaches a backend did not.
+		switch p.Kind {
+		case "len":
+			a, err := e.emit(t.Args()[0])
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("len(%s)", a), nil
+		case "array":
+			return e.arrayLit(t)
+		case "table":
+			return "", UnallocatedTableErr()
 		}
 		if p.Kind == "cond" {
 			return e.emitIf(t)
@@ -673,6 +738,17 @@ func (e *Emitter) narrowTargets(idxName string, bodies ...*core.Term) []string {
 					a[1].Kind == core.KName && a[1].Name == idxName {
 					good[a[0].Name] = true
 					return // accounted for; do not mark it used elsewhere
+				}
+			}
+			// INDEXING IS APPLICATION, so the shape this looks for changed.
+			// `(a i)` is what `(go.at-float64 a i)` used to be, and without
+			// this the bounds-check elimination pattern silently stopped
+			// firing — worth 1.96x on compute-bound loops
+			// (bce-2026-08-15) and nothing on memory-bound ones.
+			if _, isPrim := e.tgt.Prims[t.Op().Name]; !isPrim && len(t.Args()) == 1 {
+				if a := t.Args()[0]; a.Kind == core.KName && a.Name == idxName {
+					good[t.Op().Name] = true
+					return
 				}
 			}
 		}

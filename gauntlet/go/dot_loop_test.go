@@ -44,3 +44,21 @@ func BenchmarkSmallDotNative(b *testing.B) {
 		sinkD = NativeDot(smallA, smallB)
 	}
 }
+
+// The same program on the LANGUAGE'S OWN table (examples/table/dot.oro).
+//
+// `vec`, `vlen`, `vindex` and `of-array` are gone: `(table n f)` is the delayed
+// vector, `len` is its domain bound, and indexing is application. The question
+// is whether deleting the hand-rolled library costs anything, and the bar is
+// the 485 ns NativeDot already reaches.
+func TestDotTableAgrees(t *testing.T) {
+	if got, want := TableDot(smallA, smallB), DotRange(smallA, smallB); got != want {
+		t.Errorf("table %v, hand-written %v", got, want)
+	}
+}
+
+func BenchmarkSmallDotTable(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		sinkD = TableDot(smallA, smallB)
+	}
+}

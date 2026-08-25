@@ -691,8 +691,23 @@ func toForm(t *Term) (Form, error) {
 					// (prim …) uses today.
 					sig.Params = append(sig.Params, SigParam{Type: a.Name})
 				case a.Kind == KApp && len(a.Kids) == 2 &&
+					a.Kids[0].Kind == KName && a.Kids[0].Name == "array" &&
+					a.Kids[1].Kind == KName:
+					// `(array f64)` is a TYPE, positional. It is ambiguous with
+					// `(name TYPE)` by shape alone, so `array` wins — which is
+					// why a parameter may not be named `array`, checked below.
+					sig.Params = append(sig.Params, SigParam{Type: TypeName(a)})
+				case a.Kind == KApp && len(a.Kids) == 2 &&
 					a.Kids[0].Kind == KName && a.Kids[1].Kind == KName:
 					sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, a.Kids[1].Name})
+				case a.Kind == KApp && len(a.Kids) == 2 &&
+					a.Kids[0].Kind == KName && a.Kids[1].Kind == KApp:
+					// (name (array f64)) — named, with a compound type.
+					if ty := TypeName(a.Kids[1]); ty != "" {
+						sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, ty})
+						continue
+					}
+					return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, a.Kids[1])
 				default:
 					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
 						t.Kids[1].Name, a)
@@ -1231,4 +1246,38 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 		order = append(order, v.Name, v.Name+"#tag")
 	}
 	return order, defs
+}
+
+// TypeName is the canonical spelling of a type as it is written in a `sig`.
+//
+// A bare name is itself. `(array f64)` becomes "array f64" — one string, because
+// `SigParam.Type` is a string and the type language is small enough that it
+// does not need a tree. It returns "" for anything that is not a type.
+//
+// tables.md §5: `(array V)` exists only in the SIGNATURE language and is erased
+// by staging. A dynamic index forces homogeneity and reduction removes every
+// static one, so the checker only ever sees `Fin n → V` and no dependent type is
+// needed.
+func TypeName(t *Term) string {
+	if t == nil {
+		return ""
+	}
+	if t.Kind == KName {
+		return t.Name
+	}
+	if t.Kind == KApp && len(t.Kids) == 2 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
+		if elem := TypeName(t.Kids[1]); elem != "" {
+			return "array " + elem
+		}
+	}
+	return ""
+}
+
+// ArrayElem returns the element type of an `(array V)` type, or "".
+func ArrayElem(ty string) string {
+	if strings.HasPrefix(ty, "array ") {
+		return ty[len("array "):]
+	}
+	return ""
 }

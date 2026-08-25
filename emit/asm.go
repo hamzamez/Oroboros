@@ -436,7 +436,30 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 		}
 		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
-			return place{}, fmt.Errorf("no windows form for primitive %q", op.Name)
+			// INDEXING IS APPLICATION (tables.md §3), and x86 can do it: a
+			// table is an address and `(a i)` is a scaled load. What x86 cannot
+			// do yet is `len` — see the refusal below.
+			if e.isTableName(op.Name) && len(t.Args()) == 1 {
+				return e.asmIndex(op, t.Args()[0])
+			}
+			return place{}, IndexingErr("windows", op.Name)
+		}
+		// `len` needs an array REPRESENTATION and x86 has none yet.
+		if p.Kind == "len" {
+			return place{}, fmt.Errorf(
+				"`len` is not available on the windows target yet.\n" +
+					"  On the other three hosts an array carries its own length — `len(a)`,\n" +
+					"  `a.length` — and x86 has only an address. Whether a table here is a\n" +
+					"  fat pointer, a length at offset 0, or a separate argument is a\n" +
+					"  REPRESENTATION decision, and it belongs with `(alloc …)`, which is what\n" +
+					"  allocates. Deciding it here would settle it by implementation accident.\n" +
+					"  Indexing works: `(a i)` is a scaled load. Pass the length explicitly\n" +
+					"  until `alloc` lands (docs/spec/tables.md §10).")
+		}
+		if p.Kind == "array" || p.Kind == "table" {
+			return place{}, fmt.Errorf(
+				"`%s` is not available on the windows target yet — it needs the array\n"+
+					"  representation that `len` is waiting on, above.", op.Name)
 		}
 		if p.Import != "" {
 			AsmExterns[p.Import] = true
@@ -1557,4 +1580,31 @@ func asmCondJump(l string) (cc, target string, ok bool) {
 		return "", "", false
 	}
 	return cc, strings.TrimSpace(rest), true
+}
+
+// isTableName reports whether an unknown name in operator position is a local,
+// which in a residual can only be a table (tables.md §3.2).
+func (e *asmEmitter) isTableName(n string) bool {
+	_, ok := e.where[n]
+	return ok
+}
+
+// asmIndex emits a scaled load. Eight bytes, because that is what every element
+// type the language has on this target occupies — `int` and `f64` are both
+// 64-bit, and a byte table is `x64.movzx`, which stays target-native until the
+// element size is part of the type.
+func (e *asmEmitter) asmIndex(tab, idx *core.Term) (place, error) {
+	a, err := e.emit(tab)
+	if err != nil {
+		return place{}, err
+	}
+	i, err := e.emit(idx)
+	if err != nil {
+		return place{}, err
+	}
+	d := e.alloc(false)
+	e.line("mov %s, qword ptr [%s+%s*8]", d.text, a.text, i.text)
+	e.release(a)
+	e.release(i)
+	return d, nil
 }

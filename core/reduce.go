@@ -734,6 +734,27 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		}
 		args := t.Args()
 
+		// β-tab — THE SECOND CLAUSE OF β, not a fourth rule.
+		//
+		//	((array 10 20 30) 2)  ⟶  30      a function given by its GRAPH
+		//	((table n f) i)       ⟶  (f i)   a function given by a RULE
+		//
+		// A function can be written down two ways, so application has two cases.
+		// Ordinary β handles the intensional presentation — substitute into the
+		// body. β-tab handles the extensional one — look the argument up. Same
+		// judgement, *apply this function to this argument*, and calling it "the
+		// extensional counterpart of β" is not a flourish: extensionality is
+		// precisely that a function is determined by its input/output pairs
+		// (tables.md §4.1).
+		//
+		// It needs NO constant folder. Looking up element k of a literal table
+		// is not arithmetic and cannot disagree with anything at runtime, so
+		// ADR 0009 has nothing to say about it — which is why this is the easy
+		// path and folding waits for integers to need it (tables.md §4.3).
+		if idx, ok := e.betaTab(op, args, fuel); ok {
+			return normalize(idx, e, fuel)
+		}
+
 		// CASE-OF-CASE, and it is what makes a DYNAMIC sum cost nothing.
 		//
 		//	((if c A B) k…)  ⟶  (if c (A k…) (B k…))
@@ -828,7 +849,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				if err != nil {
 					return nil, err
 				}
-				if duplicable(na) {
+				if duplicable(na) || e.duplicableTable(na) {
 					subs[i] = na
 					continue
 				}
@@ -892,6 +913,21 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			return &Term{Kind: KApp, Kids: []*Term{op, a, b}}, nil
 		}
+		// `len` on a table whose length is known. See tableLen.
+		if op.Kind == KName && op.Name == "len" && e.Prim["len"] && len(args) == 1 {
+			// The ARGUMENT has to be normalised first: `(len a)` where `a` is a
+			// definition arrives as a name, and δ is what turns it into the
+			// `(array …)` whose length is visible.
+			na, err := normalize(args[0], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if n, ok := e.tableLen([]*Term{na}); ok {
+				return normalize(n, e, fuel)
+			}
+			return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
+		}
+
 		var cond *Term
 		if op.Kind == KName && op.Name == "if" && e.Prim["if"] && len(args) == 3 {
 			c, err := normalize(args[0], e, fuel)
@@ -1378,3 +1414,94 @@ func allPure(ts []*Term, e *Env) bool {
 
 // normalizeLater builds the application case-of-case pushes into one branch.
 func normalizeLater(kids []*Term) *Term { return &Term{Kind: KApp, Kids: kids} }
+
+// isTableForm reports whether t is `(array e…)` or `(table n f)` — the two ways
+// a table is written down.
+func isForm(t *Term, e *Env, name string) bool {
+	return t != nil && t.Kind == KApp && len(t.Kids) > 0 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == name && e.Prim[name]
+}
+
+// betaTab is β's second clause: application of a table to an index.
+//
+// The graph form needs the index to be a LITERAL, because looking up element k
+// of `(array a b c)` is only possible when k is known. A dynamic index leaves
+// the application alone and the backend emits the host's own indexing — which
+// is the whole point of indexing being application: `(a i)` is the same text
+// whether it reduces here or is emitted (tables.md §3.1).
+//
+// The rule form needs nothing: `((table n f) i)` is `(f i)` for any i, which is
+// what makes a table-of-a-rule FUSE. That is the mechanism `dot` runs on.
+func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
+	if len(args) != 1 {
+		return nil, false
+	}
+	if isForm(op, e, "table") && len(op.Kids) == 3 {
+		return &Term{Kind: KApp, Kids: []*Term{op.Kids[2], args[0]}}, true
+	}
+	if isForm(op, e, "array") {
+		i, err := normalize(args[0], e, fuel)
+		if err != nil || i == nil || i.Kind != KInt {
+			return nil, false
+		}
+		elems := op.Kids[1:]
+		if i.Int < 0 || i.Int >= int64(len(elems)) {
+			// Out of the domain. NOT an error here — the refinement layer is
+			// what reports it, with the bound and the call site. Reduction
+			// leaves it alone so the diagnostic comes from the place that can
+			// explain it (tables.md §6).
+			return nil, false
+		}
+		return elems[i.Int], true
+	}
+	return nil, false
+}
+
+// tableLen folds `len` when the table's length is known: `(len (array a b c))`
+// is 3 and `(len (table n f))` is n.
+//
+// This joins `if` on a boolean literal and `=` on two integers under the same
+// rule — a construct decided by a literal it can see. `if` was already exactly
+// that, so this is a widening of a rule that existed rather than a new one
+// (tables.md §4.2), and the granularity change is stated rather than hidden.
+func (e *Env) tableLen(args []*Term) (*Term, bool) {
+	if len(args) != 1 {
+		return nil, false
+	}
+	t := args[0]
+	if isForm(t, e, "array") {
+		return &Term{Kind: KInt, Int: int64(len(t.Kids) - 1)}, true
+	}
+	if isForm(t, e, "table") && len(t.Kids) == 3 {
+		return t.Kids[1], true
+	}
+	return nil, false
+}
+
+// duplicableTable reports whether a term is a table given by a RULE, which is
+// free to copy.
+//
+// `(table n f)` has no runtime existence: it is a length and a function, and
+// copying it copies a description rather than data. That is the whole reason
+// the rule form is free, and it is what makes fusion work — `sum` mentions its
+// argument twice, as `(len v)` and as `(v i)`, so without this β let-binds the
+// table and the intermediate survives to the residual instead of vanishing.
+//
+// It is exactly the argument that makes `KFn` duplicable, one constructor over:
+// a rule-table is a lambda with a length attached. `(array e…)` is deliberately
+// NOT included — a graph is data, and duplicating it duplicates the elements.
+// `(alloc t)` is where memory happens, and it is not duplicable either.
+//
+// The condition is PURITY, not duplicability, and the reason is that copying a
+// rule-table does not actually duplicate anything: substituting it puts
+// `(len (table n f))` where `(len v)` was — which folds to `n` — and
+// `((table n f) i)` where `(v i)` was — which is `(f i)`. The table is gone on
+// both sides, so `n` still appears once. What looked like duplication is the
+// step that ERASES the intermediate.
+//
+// Purity is still required, because β may not move an impure term at all
+// (ADR 0010).
+func (e *Env) duplicableTable(t *Term) bool {
+	return isForm(t, e, "table") && len(t.Kids) == 3 &&
+		e.pureTerm(t, map[string]bool{})
+}

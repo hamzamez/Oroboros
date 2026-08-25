@@ -262,6 +262,10 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 		return e.types[t.Name]
 	case core.KApp:
 		if op := t.Op(); op.Kind == core.KName {
+			// Indexing is application, so `(a i)` has a's ELEMENT type.
+			if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
+				return elem
+			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
@@ -370,12 +374,55 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		}
 		p, ok := e.tgt.Prims[op.Name]
 		if !ok {
-			return "", fmt.Errorf("no Java form for primitive %q", op.Name)
+			if IsTableOperand(javaMangle(op.Name), e.bound) && len(t.Args()) == 1 {
+				a, err := e.emit(op)
+				if err != nil {
+					return "", err
+				}
+				idx, err := e.emit(t.Args()[0])
+				if err != nil {
+					return "", err
+				}
+				// The (int) CAST is Java's, and it is not optional: our `int`
+				// maps to `long` and a Java array index must be an `int`, so
+				// without it javac rejects the file with "possible lossy
+				// conversion". The declaration `at-double` used to carry it as
+				// `%s[(int) %s]`; moving indexing into the backend moves the
+				// cast with it, which is the host detail a target author no
+				// longer has to know.
+				return fmt.Sprintf("%s[(int) %s]", a, idx), nil
+			}
+			return "", IndexingErr("Java", op.Name)
 		}
 		if p.Import != "" {
 			e.imports[p.Import] = true
 		}
 		switch {
+		// TABLES (docs/spec/tables.md). No target declares any of this.
+		case p.Kind == "len":
+			a, err := e.emit(t.Args()[0])
+			if err != nil {
+				return "", err
+			}
+			return fmt.Sprintf("%s.length", a), nil
+		case p.Kind == "array":
+			elems := t.Args()
+			out := make([]string, len(elems))
+			ty := ""
+			for i, x := range elems {
+				v, err := e.emit(x)
+				if err != nil {
+					return "", err
+				}
+				out[i] = v
+				if ty == "" {
+					ty = e.typeOf(x)
+				}
+			}
+			return fmt.Sprintf("new %s{%s}", e.tgt.ty("array "+ty),
+				strings.Join(out, ", ")), nil
+		case p.Kind == "table":
+			return "", UnallocatedTableErr()
 		case p.Kind == "let":
 			return e.emitLet(t)
 		case p.Kind == "build":

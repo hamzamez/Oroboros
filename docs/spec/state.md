@@ -66,6 +66,13 @@ a result variable on all four backends ([match.md §5b](match.md)).
 another — an imported error type is the ordinary case. By the time `Load` returns, `case` is gone
 and what is left is `if` over a tag comparison ([sums.md](sums.md)).
 
+**TABLES are the language's too**, since 2026-08-25. `array`, `table` and `len` are injected like
+`if`, declaring one is an error, and **indexing is APPLICATION** — `(a i)`, with no name at all.
+A table is a function with a known finite domain ([tables.md](tables.md)), so `(a i)` is genuinely
+an application and a named indexing operation would be a second spelling for something the language
+already has. The bounds obligation is generated from the form, which is what
+[tables-read-2026-08-25](../../gauntlet/results/tables-read-2026-08-25.md) found the hard way.
+
 **And those three are the LANGUAGE's, not a target's.** `if`, `let` and `loop` are injected into
 every target and **declaring one is an error**; the backend implements them. `=` joined them on
 2026-08-22 — integer equality, which each backend resolves to the host's own (`==`, `===`, `sete`)

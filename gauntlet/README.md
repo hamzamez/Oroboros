@@ -19,6 +19,12 @@ cd gauntlet/js && node bench.mjs
 
 ```bash
 cd gauntlet/java && javac -d out Gauntlet.java Bench.java && java -cp out Bench
+
+# the NATIVE Java target against hand-written Java (native-java-2026-08-25)
+cd gauntlet/java && javac -d out Gauntlet.java NativeBench.java gen/Nat*.java   && java -cp out NativeBench
+
+# one JVM per form, which is how the wordcount idiom question has to be asked
+javac -d out Gauntlet.java MergeCheck.java MergeOne.java && java -cp out MergeOne fused
 ```
 
 The L1-resident variants matter more than the full-size ones for anything compiler-related —

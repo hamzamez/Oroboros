@@ -1,0 +1,28 @@
+; THE PARASITE TEST, on the native Java target.
+;
+; Java is where this matters most: baseline R5 measured Java's fused
+; `merge(k, 1, Integer::sum)` at 2.6x SLOWER than `getOrDefault` + `put` — the
+; exact opposite of Go, where the fused `m[k]++` wins 1.19x. Same capability,
+; opposite idiom, and the target file already says so.
+;
+; Both forms are carried, because a losing form that is not measured is a
+; belief rather than a result.
+(use java)
+(use java/Map as Map)
+(use java/String as Str)
+(export tally tally-merge)
+
+(sig tally       ((text string)) map-string-long)
+(sig tally-merge ((text string)) map-string-long)
+
+(def bump       (fn (m w) (Map.put m w (java.+ (Map.get m w) 1))))
+(def bump-merge (fn (m w) (Map.merge m w)))
+
+(def count-with (fn (step text)
+  (let (Str.split text " ") (fn (ws)
+    (loop ((m (Map.new)) (i 0))
+      (java.>= i (len ws))  m
+      else                  (again (step m (ws i)) (java.+ i 1)))))))
+
+(def tally       (fn (text) (count-with bump       text)))
+(def tally-merge (fn (text) (count-with bump-merge text)))

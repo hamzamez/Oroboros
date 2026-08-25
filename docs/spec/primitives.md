@@ -113,7 +113,9 @@ is the only transcendental-looking function that can be, which is why no others 
 | Java | `new HashMap<String,Integer>()` | `m.put(k, m.getOrDefault(k, 0) + 1)` |
 
 Behaviourally identical. The **idioms are deliberately opposite** — Go's fused increment wins,
-Java's fused `merge` loses 2.6× to the unfused form, and JS's `Object` beats `Map` by 3.25×. One
+Java's fused `merge` loses 2.6× to the unfused form — a number that
+[did not reproduce](../../gauntlet/results/native-java-2026-08-25.md) and reversed on JDK 17 — and
+JS's `Object` beats `Map` by 3.25×. One
 source, three different best answers, all
 [measured](../../gauntlet/results/baseline-2026-08-13.md). This is
 [ADR 0008](../decisions/0008-measurement-over-principle.md) at its sharpest.

@@ -161,7 +161,9 @@ This is the single most common way to get the architecture wrong.
 **But never assert which host construct is fastest — measure it.** That rule is a prior, not a
 derivation. The first baseline run refuted four inferences from it at once: JS's `Map` is 3.25×
 *slower* than a null-prototype `Object`; Java's fused `merge` loses 2.6× to unfused
-`getOrDefault`+`put`; Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and
+`getOrDefault`+`put` — **and that one did not reproduce**: on JDK 17 the fused form is 1.19×
+*faster*, both are declared now, and the rule survives its own example
+([native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md)); Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and
 all three hosts inline a literal callback we assumed only we would specialize. Every one was a
 plausible reading of how the host is documented to work. Treat host compilers as black boxes
 with measured behaviour. See [ADR 0008](docs/decisions/0008-measurement-over-principle.md).

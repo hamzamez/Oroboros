@@ -153,7 +153,7 @@
     (prim strip      (string) string      expr "%s.strip()"         pure)
     (prim repeat     (string int) string  expr "%s.repeat((int) %s)" pure)
     (prim replace    (string string string) string expr "%s.replace(%s, %s)" pure)
-    (prim split      (string string) string-array expr "%s.split(%s)" pure)
+    (prim split      (string string) (array string) expr "%s.split(%s)" pure)
     (prim isEmpty    (string) bool        expr "%s.isEmpty()"       pure)
     ; `==` on Strings compares references, which is why this exists.
     (prim equals     (string string) bool expr "%s.equals(%s)"      pure)

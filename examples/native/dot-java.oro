@@ -1,0 +1,21 @@
+; The gauntlet's first program on the NATIVE Java target, using the LANGUAGE'S
+; table (docs/spec/tables.md) rather than a hand-rolled vector library.
+;
+; Java is the host that has not moved, and it is the one most likely to
+; disagree with Go and JavaScript: it is where the fused `merge` LOSES 2.6x
+; where Go's fused `m[k]++` wins 1.19x.
+(use java)
+(export dot)
+
+(sig dot ((p (array f64)) (q (array f64))) f64
+  (where (and (= (len p) (len q))
+              (java.< (len p) 65536))))
+
+(def zip (fn (g a b) (table (len a) (fn (i) (g (a i) (b i))))))
+
+(def sum (fn (v)
+  (loop ((acc 0.0) (i 0))
+    (java.>= i (len v))  acc
+    else                 (again (java.f+ acc (v i)) (java.+ i 1)))))
+
+(def dot (fn (a b) (sum (zip java.f* a b))))

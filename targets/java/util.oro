@@ -27,10 +27,26 @@
 
   (module java/Map
     (prim new        (none) map-string-long  expr "new java.util.HashMap<String,Long>()")
-    ; Baseline R5: Java's fused merge(k,1,Integer::sum) is 2.6x SLOWER than
-    ; getOrDefault+put, the opposite of Go's m[k]++. Same capability, opposite
-    ; idiom, and the reason this is declared unfused.
+    ; BOTH FORMS ARE DECLARED, because the measurement that chose between them
+    ; did not reproduce.
+    ;
+    ; Baseline R5 (2026-08-13) measured Java's fused `merge(k, 1, Integer::sum)`
+    ; at 9,259,530 ns against `getOrDefault`+`put` at 3,577,103 — the unfused
+    ; form winning by 2.6x, the opposite of Go's `m[k]++` — and this file
+    ; declared only the unfused pair because of it.
+    ;
+    ; Re-measured on JDK 17.0.12 with R5's own functions, unchanged
+    ; (native-java-2026-08-25): merge/getOr is **0.93x**, and with the `split`
+    ; hoisted out of the timed region **0.84x**, consistent across three
+    ; independent JVM processes. The fused form is 1.19x FASTER and the sign of
+    ; the finding is reversed.
+    ;
+    ; So both are declared and the program picks. ADR 0008's rule is unchanged
+    ; and in fact reinforced — which granularity wins is a per-target
+    ; MEASUREMENT — and this is what it looks like when the measurement moves.
     (prim get        (map-string-long string) int expr "%s.getOrDefault(%s, 0L)" pure)
+    (prim merge      (map-string-long string) map-string-long
+      stmt "%s.merge(%s, 1L, Long::sum)")
     (prim put        (map-string-long string int) map-string-long stmt "%s.put(%s, %s)")
     (prim containsKey (map-string-long string) bool expr "%s.containsKey(%s)" pure)
     (prim remove     (map-string-long string) map-string-long stmt "%s.remove(%s)")

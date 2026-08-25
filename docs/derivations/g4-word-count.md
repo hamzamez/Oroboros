@@ -4,7 +4,8 @@
 > **1.23×, not "roughly 2×"**. The pass condition "JS output must contain `Map`" is **wrong** —
 > a null-prototype Object is 3.25× faster than `Map` for string keys. And the granularity law
 > is **target-dependent, not universal**: on Java the *unfused* `getOrDefault`+`put` beats the
-> fused `merge` by 2.6×. See
+> fused `merge` by 2.6× — **which did not reproduce on JDK 17, where the fused form is 1.19×
+> faster** ([native-java-2026-08-25](../../gauntlet/results/native-java-2026-08-25.md)). See
 > [baseline C3, R4, R5](../../gauntlet/results/baseline-2026-08-13.md).
 
 Hand-derivation, no compiler. The question: does a plausible rule set take the source to the

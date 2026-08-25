@@ -574,12 +574,21 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 					p.Args = append(p.Args, a.Name)
 					p.Names = append(p.Names, "")
 				}
+			case a.Kind == core.KApp && core.TypeName(a) != "":
+				// A compound type, positional: `(array string)`.
+				p.Args = append(p.Args, core.TypeName(a))
+				p.Names = append(p.Names, "")
 			case a.Kind == core.KApp && len(a.Kids) == 2 &&
 				a.Kids[0].Kind == core.KName && a.Kids[1].Kind == core.KName:
 				// The named form, the same one `sig` uses — because a
 				// refinement attaches to a NAME (refinements.md §2).
 				p.Names = append(p.Names, a.Kids[0].Name)
 				p.Args = append(p.Args, a.Kids[1].Name)
+			case a.Kind == core.KApp && len(a.Kids) == 2 &&
+				a.Kids[0].Kind == core.KName && core.TypeName(a.Kids[1]) != "":
+				// Named, with a compound type: `(ws (array string))`.
+				p.Names = append(p.Names, a.Kids[0].Name)
+				p.Args = append(p.Args, core.TypeName(a.Kids[1]))
 			default:
 				return Prim{}, fmt.Errorf("%s: %s has a bad argument: %s", path, p.Name, a)
 			}
@@ -588,10 +597,18 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		p.Args = []string{k[1].Name}
 	}
 
-	if k[2].Kind != core.KName {
-		return Prim{}, fmt.Errorf("%s: %s has a non-name result type", path, p.Name)
+	// A result type may be COMPOUND: `(array string)`, the same spelling the
+	// signature language uses. Without it a target's array types have to be
+	// enumerated — `string-array`, `long-array`, `double-array` — which is the
+	// suffix explosion `(array V)` exists to delete (tables.md §10), and it
+	// showed up as `final /*unknown*/ w = ws[(int) i]` the first time a native
+	// Java program indexed the result of `split`.
+	if rt := core.TypeName(k[2]); rt != "" {
+		p.Result = rt
+	} else {
+		return Prim{}, fmt.Errorf("%s: %s has a result type that is neither a name nor "+
+			"`(array T)`: %s", path, p.Name, k[2])
 	}
-	p.Result = k[2].Name
 
 	if k[3].Kind != core.KName {
 		return Prim{}, fmt.Errorf("%s: %s has a non-name kind", path, p.Name)

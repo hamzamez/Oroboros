@@ -103,8 +103,10 @@ Three caveats stated rather than buried:
 
 - **Java has not moved to the native target.** It is measured on the retired portable layer
   ([2026-08-14](gauntlet/results/java-2026-08-14.md)) and is the host most likely to disagree with
-  the other two — it is where the fused `merge` *loses* 2.6× exactly where Go's fused `m[k]++`
-  wins 1.19×.
+  the other two. **It has moved now** —
+  [native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md) — and the migration
+  immediately refuted the measurement that made Java the interesting case: the fused `merge` was
+  recorded 2.6× slower than unfused and is **1.19× faster** on JDK 17.
 - **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
   median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
   and the hand-written reference is written the way a person writes it, not in the emitter's shape.
@@ -224,7 +226,8 @@ keeps lowering.
 **But that rule is a prior, not a proof.** Which host construct is actually fastest is a
 measurement. The first baseline run refuted four inferences from it at once: JS's `Map` is 3.25×
 *slower* than a null-prototype object; Java's fused `merge` loses 2.6× to unfused
-`getOrDefault`+`put`; Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and all
+`getOrDefault`+`put` (**re-measured 2026-08-25: it does not reproduce**, and the fused form is now
+1.19× faster); Java's `Point[]` costs 1.05× where JS's array-of-objects costs 2.86×; and all
 three hosts inline a literal callback. See
 [ADR 0008](docs/decisions/0008-measurement-over-principle.md).
 
@@ -270,7 +273,7 @@ Word count's dictionary, from one source:
 |---|---|---|
 | Go | `acc[k]++` — **fused** | one `mapassign_faststr` |
 | JavaScript | null-prototype object | `Map` is 3.25× slower for string keys |
-| Java | `getOrDefault` + `put` — **unfused** | fused `merge` is 2.6× slower; it boxes |
+| Java | **both, and the program picks** | fused `merge` was recorded 2.6× slower in 2026-08; on JDK 17 it is **1.19× faster** |
 
 Go's fused idiom wins and Java's loses, decided by measurements taken before either backend
 existed. That is [ADR 0008](docs/decisions/0008-measurement-over-principle.md) when it is real

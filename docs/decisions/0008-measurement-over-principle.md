@@ -15,7 +15,7 @@ The [first baseline run](../../gauntlet/results/baseline-2026-08-13.md) refuted 
 | Belief | Measured |
 |---|---|
 | Emit `Map` on JS, as the native dictionary | A null-prototype `Object` is **3.25× faster** for string keys |
-| Never split a capability finer than the host's fused idiom | On Java the *unfused* `getOrDefault`+`put` beats fused `merge` by **2.6×** |
+| Never split a capability finer than the host's fused idiom | On Java the *unfused* `getOrDefault`+`put` beat fused `merge` by **2.6×** — and on JDK 17 the fused form is **1.19× faster**, so the measurement itself moved ([native-java-2026-08-25](../../gauntlet/results/native-java-2026-08-25.md)). The rule this ADR states is what survives; its example is not |
 | Java's `Point[]` fails like JS's array-of-objects | Java **1.05×**, JS **2.86×** — HotSpot lays the objects out contiguously |
 | Go won't inline a generic fold through a func-value parameter | All three hosts inline it, at **identical** speed |
 | Range types beat hand-written Go by removing a bounds check | Check verifiably removed, **zero** measurable gain |

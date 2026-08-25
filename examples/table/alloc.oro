@@ -1,0 +1,8 @@
+; `alloc` is the GATHER: a rule, put in memory. Pure, and parallel by
+; construction — element i depends only on i, which is exactly what `build`
+; cannot promise and why the two are separate constructs (ADR 0018).
+(use go)
+(export squares)
+(sig squares ((n int)) (array int) (where (and (<= 0 n) (< n 1000))))
+; A rule, put in memory. GATHER — pure, parallel by construction.
+(def squares (fn (n) (alloc (table n (fn (i) (go.* i i))))))

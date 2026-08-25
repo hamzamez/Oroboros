@@ -127,6 +127,10 @@ func run(targetDir, src, target, out, name, path string, checked bool) error {
 		// Refinements: the bounds obligation primitives.md §2 recorded and
 		// nothing checked (docs/spec/refinements.md).
 		sig := prog.Sigs[u.qual]
+		// ADR 0018's linearity, checked on the residual rather than by a type.
+		if err := emit.CheckLinear(nf, tg); err != nil {
+			return fmt.Errorf("%s: %w", fname, err)
+		}
 		if notes, err := emit.Refine(tg, fname, sig, nf); err != nil {
 			return err
 		} else {

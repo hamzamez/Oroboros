@@ -229,6 +229,27 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			}
 		case "let":
 			return r.let(args, f)
+		case "table-build":
+			// `(build n (fn (b) …))` binds a buffer whose length IS n, and
+			// nothing else says so — the buffer is introduced by this form and
+			// has no other definition. Without the equation a program cannot
+			// prove its own index: the sieve knows `i < n` from its guard and
+			// needs `len(c) = n` to connect that to `(c i)`.
+			//
+			// It is the same job `let` does for `(let (make-bool n) …)`, one
+			// constructor over, and it is why `build` carries `(length 1)`.
+			if len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 {
+				inner := f.clone()
+				name := args[1].Params[0]
+				if e, ok := asLinear(args[0]); ok {
+					r.assumeLengthEq(inner, name, e)
+				}
+				r.markName(name)
+				if err := r.walk(args[0], inner); err != nil {
+					return err
+				}
+				return r.walk(args[1].Body(), inner)
+			}
 		case "iterate":
 			return r.iterate(args, f)
 		case "cond":

@@ -235,6 +235,103 @@ func (e *Emitter) arrayLit(t *core.Term) (string, error) {
 	return fmt.Sprintf("%s{%s}", e.tgt.ty("array "+ty), strings.Join(out, ", ")), nil
 }
 
+// emitBuild is ADR 0018's scoped mutable buffer.
+//
+//	(build n (fn (b) body))   ⟶   b := make([]T, n); <body>; b
+//
+// The buffer is LINEAR: `set` consumes it and returns it, so the body threads
+// one live name and the freeze on the way out copies nothing, because linearity
+// guarantees nothing else holds it.
+//
+// Every mechanism this needs already existed. The stores are sequenced because
+// `set` is impure and ADR 0010 never substitutes an impure argument; the buffer
+// cannot escape because closures are refused as values; and it is lexically
+// local in the residual because reduction is whole-program.
+func (e *Emitter) emitBuild(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+	}
+	lam := args[1]
+	if lam.Kind != core.KFn || len(lam.Params) != 1 {
+		return "", fmt.Errorf("build's body must be (fn (b) …), got %s", lam)
+	}
+	count, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	body, raw, out := openFresh(lam, e.bound, mangle)
+	elem := bufferElem(body, raw[0], e.typeOf)
+	e.types[raw[0]] = "array " + elem
+	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
+	return e.emit(body)
+}
+
+// emitSet is a store. It is a STATEMENT that returns the buffer, which is what
+// makes `(set b i v)` consume and return `b` — the linear threading, spelled in
+// the host's own assignment.
+func (e *Emitter) emitSet(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 3 {
+		return "", fmt.Errorf("set takes a buffer, an index and a value, got %s", t)
+	}
+	b, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	i, err := e.emit(args[1])
+	if err != nil {
+		return "", err
+	}
+	v, err := e.emit(args[2])
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s", b, i, v)
+	return b, nil
+}
+
+// emitAlloc puts a rule in memory — the GATHER, pure and parallel by
+// construction, as against `build`'s sequential scatter.
+func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 1 {
+		return "", fmt.Errorf("alloc takes one table, got %s", t)
+	}
+	tab := args[0]
+	if !isTableRule(e.tgt, tab) {
+		// Allocating a graph is already memory; allocating a parameter is a
+		// copy nobody asked for. Only a RULE has something to compute.
+		return e.emit(tab)
+	}
+	rule := tab.Args()[1]
+	if rule.Kind != core.KFn || len(rule.Params) != 1 {
+		return "", fmt.Errorf("alloc's table must have an (fn (i) …) rule, got %s", rule)
+	}
+	count, err := e.emit(tab.Args()[0])
+	if err != nil {
+		return "", err
+	}
+	body, raw, out := openFresh(rule, e.bound, mangle)
+	e.types[raw[0]] = "int"
+	n := e.fresh("n")
+	dst := e.fresh("t")
+	e.line("var %s %s = %s", n, e.tgt.ty("int"), count)
+	elem := e.typeOf(body)
+	e.types[dst] = "array " + elem
+	e.line("%s := make(%s, %s)", dst, e.tgt.ty("array "+elem), n)
+	e.line("for %s := 0; %s < %s; %s++ {", out[0], out[0], n, out[0])
+	e.indent++
+	v, err := e.emit(body)
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s", dst, out[0], v)
+	e.indent--
+	e.line("}")
+	return dst, nil
+}
+
 // Imports accumulates what emitted functions need. A package-level sink is
 // crude — the real answer is that each binding declares its import and the file
 // writer collects them, which is g5's Tier 2 binding format arriving in the
@@ -309,6 +406,28 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				return elem
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
+				// The write side's result types. A `build` yields the array
+				// its buffer became; `alloc` and `set` pass one through. Java
+				// needs this because a local needs a written type, and without
+				// it the frozen buffer bound by a `let` emitted
+				// `final /*unknown*/ c4 = c2;`.
+				if p.Kind == "table-build" && len(t.Args()) == 2 {
+					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
+						body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+						return "array " + bufferElem(body, raw[0], e.typeOf)
+					}
+				}
+				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {
+					return e.typeOf(t.Args()[0])
+				}
+				if p.Kind == "table" && len(t.Args()) == 2 {
+					if rule := t.Args()[1]; rule.Kind == core.KFn && len(rule.Params) == 1 {
+						return "array " + e.typeOf(rule.Body())
+					}
+				}
+				if p.Kind == "array" && len(t.Args()) > 0 {
+					return "array " + e.typeOf(t.Args()[0])
+				}
 				// A fold's type is its accumulator's type, not a fixed one,
 				// and a let's is its body's.
 				if p.Kind == "loop" {
@@ -498,6 +617,12 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		// the construct doing its job: the rule form exists to FUSE, and one
 		// that reaches a backend did not.
 		switch p.Kind {
+		case "table-build":
+			return e.emitBuild(t)
+		case "table-set":
+			return e.emitSet(t)
+		case "table-alloc":
+			return e.emitAlloc(t)
 		case "len":
 			a, err := e.emit(t.Args()[0])
 			if err != nil {

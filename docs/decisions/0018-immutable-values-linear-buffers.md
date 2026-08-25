@@ -1,7 +1,23 @@
 # 0018 — Immutable values, and one scoped linear buffer
 
 Date: 2026-08-21
-Status: Accepted
+Status: Accepted — **built 2026-08-25**,
+[tables-write-2026-08-25](../../gauntlet/results/tables-write-2026-08-25.md)
+
+> **Two corrections the build produced.**
+>
+> **"At most once at each point" understates it.** Linearity here is an ORDERING property, not a
+> counting one: reads do not consume, and the sieve tests a cell and then carries the same buffer
+> forward, so a checker that counted occurrences would refuse the one program this ADR exists for.
+> The check walks the residual in evaluation order.
+>
+> **`build` has to record `len(b) = n`**, which this ADR does not mention. Without it a program
+> cannot prove its own index — the sieve knows `i < n` from its guard and needs the equation to
+> connect that to `(c i)`.
+>
+> Everything the "costs almost nothing" section claims already existed did already exist. `windows`
+> is not built: it needs an array representation and an allocator, and the second is this ADR's own
+> "reclamation is a target decision" waiting to be made deliberately.
 
 Research: [memory-model.md](../memory-model.md). Specification it completes:
 [tables.md §9](../spec/tables.md).

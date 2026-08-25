@@ -1,0 +1,33 @@
+; THE PROGRAM THAT COULD NOT BE WRITTEN PORTABLY.
+;
+; ADR 0018 was decided on this: `(table n f)` is a GATHER and cannot express a
+; SCATTER, so the sieve, in-place sorting, histograms, union-find and general
+; dynamic programming were inexpressible portably at any speed.
+; examples/native/sieve-go.oro is the same program reaching for go.make-bool,
+; go.set-bool and go.at-bool; this one names none of them.
+;
+; The buffer is LINEAR: `set` consumes it and returns it, so it is threaded
+; through both loops as an ordinary loop variable and `build` freezes it on the
+; way out.
+(use go)
+(export count-primes)
+(sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
+
+(def cross (fn (c i n)
+  (loop ((c c) (j (go.* i i)))
+    (go.< j n)  (again (set c j true) (go.+ j i))
+    else        c)))
+
+(def sieve (fn (n)
+  (build n (fn (c)
+    (loop ((c c) (i 2))
+      (go.>= (go.* i i) n)   c
+      (c i)                  (again c (go.+ i 1))
+      else                   (again (cross c i n) (go.+ i 1)))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (c)
+    (loop ((acc 0) (k 2))
+      (go.>= k n)   acc
+      (c k)         (again acc (go.+ k 1))
+      else          (again (go.+ acc 1) (go.+ k 1)))))))

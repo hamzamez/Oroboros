@@ -7,6 +7,32 @@ import (
 	"oroboros/core"
 )
 
+// linearOn runs ADR 0018's linearity check on a residual.
+func linearOn(t *testing.T, src string) error {
+	t.Helper()
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs[prog.Exports[0]], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return CheckLinear(nf, tg)
+}
+
 // refineOn runs the REFINEMENT pass, which is where a bounds obligation is
 // discharged. genOn only emits, and the hole below was invisible until this
 // existed — the emitter is perfectly happy to write `a[i]` for any i.
@@ -168,5 +194,134 @@ func TestLanguageLenDoesNotShadowTheHosts(t *testing.T) {
 	}
 	if _, ok := tg.Prims["go.len"]; !ok {
 		t.Error("go.len must still be reachable")
+	}
+}
+
+// --- THE WRITE SIDE, ADR 0018 -----------------------------------------------
+
+// `build` reaches every target that has arrays, and each one spells the
+// allocation and the store its own way. No target declares any of it.
+func TestBuildAndSetOnEveryTarget(t *testing.T) {
+	src := func(u, ge, add string) string {
+		return `(use ` + u + `)
+			(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
+			(def f (fn (n)
+				(let (build n (fn (c)
+					(loop ((c c) (i 0)) (` + ge + ` i n) c
+						else (again (set c i true) (` + add + ` i 1)))))
+					(fn (b) (if (b 0) 1 0)))))`
+	}
+	cases := []struct{ target, src, want string }{
+		{"go", src("go", "go.>=", "go.+"), "c2[i] = true"},
+		{"js", src("js", "js.>=", "js.+"), "c2[i] = true;"},
+		// The array is FILLED rather than left sparse: a sparse array on V8 is
+		// a dictionary, so every store into one is a map insert.
+		{"js", src("js", "js.>=", "js.+"), ".fill(0)"},
+		{"java", src("java", "java.>=", "java.+"), "new boolean[(int) n]"},
+	}
+	for _, c := range cases {
+		code, err := genOn(t, c.target, c.src, "f")
+		if err != nil {
+			t.Errorf("%s: %v", c.target, err)
+			continue
+		}
+		if !strings.Contains(code, c.want) {
+			t.Errorf("%s: wanted %q in:\n%s", c.target, c.want, code)
+		}
+	}
+}
+
+// LINEARITY, which is what lets `build` freeze its buffer without copying.
+//
+// `(set b i v)` CONSUMES b and returns it, so after a store the old name is
+// dead. This is checked by walking the residual in EVALUATION ORDER — a `let`'s
+// value before its body — because it is an ordering property, not a counting
+// one: reads before the move are fine, anything after it is not.
+func TestUsingABufferAfterItIsConsumed(t *testing.T) {
+	err := linearOn(t, `
+		(use go)
+		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
+		(def f (fn (n)
+			(build n (fn (c)
+				(let (set c 0 1) (fn (c2)
+					(seq (set c 1 (c 0)) c2)))))))
+	`)
+	if err == nil {
+		t.Fatal("using a buffer after a store must be refused")
+	}
+	if !strings.Contains(err.Error(), "already been handed on") {
+		t.Errorf("the message must say the old name is dead, got: %v", err)
+	}
+}
+
+// READS DO NOT CONSUME, and the sieve is why that matters: it tests a cell and
+// then keeps going with the same buffer. A checker that counted occurrences
+// rather than ordering them would refuse the one program ADR 0018 exists for.
+func TestReadingABufferIsFine(t *testing.T) {
+	if err := linearOn(t, `
+		(use go)
+		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
+		(def f (fn (n)
+			(let (build n (fn (c)
+				(loop ((c c) (i 0))
+					(go.>= i n)  c
+					(c i)        (again c (go.+ i 1))
+					else         (again (set c i true) (go.+ i 1)))))
+				(fn (b) (if (b 0) 1 0)))))
+	`); err != nil {
+		t.Errorf("a read must not consume the buffer: %v", err)
+	}
+}
+
+// A buffer threaded through a nested loop that REUSES ITS NAME must not be
+// confused with the outer one. The first version walked `Body()`, which opens a
+// lambda using its parameter-name hints — so the sieve's inner `(fn (c i) …)`
+// turned its own occurrences into free `c`s and the check refused a correct
+// program. `Closed()` leaves inner binders as indices.
+func TestAShadowingLoopVariableIsNotTheOuterBuffer(t *testing.T) {
+	if err := linearOn(t, `
+		(use go)
+		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
+		(def inner (fn (c n)
+			(loop ((c c) (j 0)) (go.>= j n) c else (again (set c j true) (go.+ j 1)))))
+		(def f (fn (n)
+			(let (build n (fn (c)
+				(loop ((c c) (i 0))
+					(go.>= i n)  c
+					else         (again (inner c n) (go.+ i 1)))))
+				(fn (b) (if (b 0) 1 0)))))
+	`); err != nil {
+		t.Errorf("a shadowing loop variable is its own buffer: %v", err)
+	}
+}
+
+// `alloc` is the GATHER — a rule put in memory, pure and parallel by
+// construction, as against `build`'s sequential scatter.
+func TestAllocEmitsAFillLoop(t *testing.T) {
+	code, err := genOn(t, "go", `
+		(use go)
+		(export f) (sig f ((n int)) (array int) (where (and (<= 0 n) (< n 1000))))
+		(def f (fn (n) (alloc (table n (fn (i) (go.* i i))))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"make([]int,", "for i := 0;", "= (i * i)", ") []int {"} {
+		if !strings.Contains(code, want) {
+			t.Errorf("wanted %q in:\n%s", want, code)
+		}
+	}
+}
+
+// windows refuses the write side, and the refusal names what it is waiting for
+// rather than claiming the target cannot do it.
+func TestWindowsRefusesTheWriteSideWithAReason(t *testing.T) {
+	_, err := genOn(t, "windows", `
+		(use x64)
+		(export f) (sig f ((n int)) int)
+		(def f (fn (n) (let (build n (fn (c) c)) (fn (b) 0))))
+	`, "f")
+	if err == nil || !strings.Contains(err.Error(), "ALLOCATOR") {
+		t.Errorf("windows must say it needs an allocator decision, got %v", err)
 	}
 }

@@ -220,6 +220,18 @@ var coreNames = map[string]bool{
 	// QUALIFIED name, so `go.len` — which works on maps and channels too, and
 	// stays reachable — and a bare `len` are different keys.
 	"array": true, "table": true, "len": true,
+	// THE WRITE SIDE — ADR 0018. Values are immutable; mutation exists only
+	// inside `build`, whose buffer is linear and is frozen on the way out.
+	//
+	//	(alloc t)               a rule, in memory. GATHER — pure, parallel.
+	//	(build n (fn (b) …))    a scoped mutable buffer. SCATTER — sequential.
+	//	(set b i v)             a store; consumes b, returns b.
+	//
+	// `(table n f)` is a gather and cannot express a scatter, so the sieve,
+	// in-place sorting, histograms, union-find and general dynamic programming
+	// are inexpressible portably AT ANY SPEED without this. That is what
+	// decided ADR 0018 — expressiveness, not the 2.7x.
+	"alloc": true, "build": true, "set": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -235,6 +247,23 @@ var coreStructural = []Prim{
 	{Name: "array", Kind: "array", Pure: true},
 	{Name: "table", Kind: "table", Pure: true},
 	{Name: "len", Kind: "len", Pure: true},
+	// IMPURE, all three, and that is the sequencing mechanism rather than an
+	// omission. ADR 0010 never substitutes an impure argument, which denies
+	// contraction (no duplicated store), weakening (no dropped store) and
+	// exchange (no reordered store) — the three properties a mutable buffer
+	// needs, and they were built for `print-line`.
+	//
+	// `alloc` and `build` are impure because they ALLOCATE: duplicating one
+	// duplicates the allocation. ADR 0018 calls `alloc` pure in the
+	// referential-transparency sense, which is true and is not the property β
+	// needs here.
+	// The LENGTH attributes are 1-based, matching the reader. `build` makes a
+	// buffer as long as its count; `alloc` and `set` pass their argument's
+	// length through. Without them a program cannot prove its own index, because
+	// nothing relates the buffer to the number it was made from.
+	{Name: "alloc", Kind: "table-alloc", LengthOf: 1},
+	{Name: "build", Kind: "table-build", Length: 1},
+	{Name: "set", Kind: "table-set", LengthOf: 1},
 }
 
 // eqSpellings are how a target may spell integer equality, most preferred
@@ -1094,4 +1123,50 @@ func UnallocatedTableErr() error {
 		"  Wrap it in `(alloc …)` to say that the elements should exist in memory —\n" +
 		"  and note that materialising in the interior of a computation is what costs\n" +
 		"  (docs/spec/construction.md); at a boundary it is what you want.")
+}
+
+// isTableRule reports whether a term is `(table n f)`.
+func isTableRule(tgt *Target, t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp || len(t.Kids) != 3 {
+		return false
+	}
+	op := t.Kids[0]
+	if op.Kind != core.KName || op.Name != "table" {
+		return false
+	}
+	p, ok := tgt.Prims["table"]
+	return ok && p.Kind == "table"
+}
+
+// bufferElem works out what a `build` buffer holds, by finding a store into it.
+//
+// There is no element type written anywhere: `(build n (fn (b) …))` says a
+// length and a body, and what the buffer holds is whatever `set` puts there.
+// Reading it off the first store is exact, because a table is homogeneous — a
+// dynamic index forces that (tables.md §5).
+func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) string {
+	var found string
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if found != "" || t == nil {
+			return
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 &&
+			t.Kids[0].Kind == core.KName && t.Kids[0].Name == "set" {
+			if ty := typeOf(t.Kids[3]); ty != "" {
+				found = ty
+				return
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	if found == "" {
+		// A buffer nobody writes to. Its elements are whatever the host zeroes
+		// to; `int` is the one every target has.
+		return "int"
+	}
+	return found
 }

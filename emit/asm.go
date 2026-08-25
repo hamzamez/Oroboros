@@ -456,6 +456,16 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 					"  Indexing works: `(a i)` is a scaled load. Pass the length explicitly\n" +
 					"  until `alloc` lands (docs/spec/tables.md §10).")
 		}
+		if p.Kind == "table-build" || p.Kind == "table-alloc" || p.Kind == "table-set" {
+			return place{}, fmt.Errorf(
+				"`%s` is not available on the windows target yet. It needs the array\n"+
+					"  representation `len` is waiting on, above, and it needs an ALLOCATOR:\n"+
+					"  the other three hosts bring a collector and this one brings\n"+
+					"  VirtualAlloc and nothing. ADR 0018 says reclamation here is a lexical\n"+
+					"  arena or Perceus-style refcounting, and that is a decision to make\n"+
+					"  deliberately rather than by writing whichever is easiest first.\n"+
+					"  x64.buf and x64.mov-store are target-native and work today.", op.Name)
+		}
 		if p.Kind == "array" || p.Kind == "table" {
 			return place{}, fmt.Errorf(
 				"`%s` is not available on the windows target yet — it needs the array\n"+

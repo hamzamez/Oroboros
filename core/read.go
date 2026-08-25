@@ -656,6 +656,13 @@ func toForm(t *Term) (Form, error) {
 		switch r := t.Kids[3]; {
 		case r.Kind == KName:
 			sig.Result = r.Name
+		case r.Kind == KApp && TypeName(r) != "":
+			// A COMPOUND TYPE, not a result list. `(array f64)` is one result
+			// whose type happens to be written as a list, and reading it as two
+			// made a table-returning function look like a product — which is
+			// what `(sig squares ((n int)) (array int))` did until this case
+			// existed.
+			sig.Result = TypeName(r)
 		case r.Kind == KApp:
 			// Several results. `(R)` with one entry is the same as a bare R,
 			// so there is one spelling for one result and no ambiguity.

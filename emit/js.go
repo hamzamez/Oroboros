@@ -330,7 +330,80 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		// nothing to emit — it has to be `(alloc …)`ed first. That refusal is
 		// the construct doing its job: the rule form exists to FUSE, and one
 		// that reaches a backend did not.
+		// THE WRITE SIDE — ADR 0018. The buffer is linear and scoped, so the
+		// freeze on the way out copies nothing.
 		switch p.Kind {
+		case "table-build":
+			args := t.Args()
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+			}
+			count, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			body, _, out := openFresh(args[1], e.bound, jsMangle)
+			// `new Array(n).fill(…)` rather than a bare `new Array(n)`: a
+			// sparse array on V8 is a dictionary, and every store into one is a
+			// map insert — which is `js.set`'s refusal (native-gauntlet §…)
+			// arriving here. Filling makes it a packed elements array.
+			// JavaScript declares no types, so there is nothing to read an
+			// element type off — and nothing that needs one. Zero fills both
+			// numeric and boolean buffers usefully enough, and what matters is
+			// that the array is PACKED rather than sparse.
+			e.line("const %s = new Array(%s).fill(0);", out[0], count)
+			return e.emit(body)
+		case "table-set":
+			args := t.Args()
+			if len(args) != 3 {
+				return "", fmt.Errorf("set takes a buffer, an index and a value, got %s", t)
+			}
+			b, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			i, err := e.emit(args[1])
+			if err != nil {
+				return "", err
+			}
+			v, err := e.emit(args[2])
+			if err != nil {
+				return "", err
+			}
+			e.line("%s[%s] = %s;", b, i, v)
+			return b, nil
+		case "table-alloc":
+			args := t.Args()
+			if len(args) != 1 {
+				return "", fmt.Errorf("alloc takes one table, got %s", t)
+			}
+			tab := args[0]
+			if !isTableRule(e.tgt, tab) {
+				return e.emit(tab)
+			}
+			rule := tab.Args()[1]
+			if rule.Kind != core.KFn || len(rule.Params) != 1 {
+				return "", fmt.Errorf("alloc's table needs an (fn (i) …) rule, got %s", rule)
+			}
+			count, err := e.emit(tab.Args()[0])
+			if err != nil {
+				return "", err
+			}
+			body, _, out := openFresh(rule, e.bound, jsMangle)
+			n := e.fresh("n")
+			dst := e.fresh("t")
+			e.line("const %s = %s;", n, count)
+			e.line("const %s = new Array(%s).fill(0);", dst, n)
+			e.line("for (let %s = 0; %s < %s; %s++) {", out[0], out[0], n, out[0])
+			e.indent++
+			v, err := e.emit(body)
+			if err != nil {
+				return "", err
+			}
+			e.line("%s[%s] = %s;", dst, out[0], v)
+			e.indent--
+			e.line("}")
+			return dst, nil
 		case "len":
 			a, err := e.emit(t.Args()[0])
 			if err != nil {

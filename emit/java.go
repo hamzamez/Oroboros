@@ -258,6 +258,12 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 		return "int"
 	case core.KFloat:
 		return "f64"
+	case core.KBool:
+		// Missing until the write side needed it: `bufferElem` reads a
+		// buffer's element type off the value a `set` stores, and the sieve
+		// stores `true`, so an absent KBool case made every boolean buffer a
+		// long[] and javac refused the file.
+		return "bool"
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
@@ -267,6 +273,28 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				return elem
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
+				// The write side's result types. A `build` yields the array
+				// its buffer became; `alloc` and `set` pass one through. Java
+				// needs this because a local needs a written type, and without
+				// it the frozen buffer bound by a `let` emitted
+				// `final /*unknown*/ c4 = c2;`.
+				if p.Kind == "table-build" && len(t.Args()) == 2 {
+					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
+						body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+						return "array " + bufferElem(body, raw[0], e.typeOf)
+					}
+				}
+				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {
+					return e.typeOf(t.Args()[0])
+				}
+				if p.Kind == "table" && len(t.Args()) == 2 {
+					if rule := t.Args()[1]; rule.Kind == core.KFn && len(rule.Params) == 1 {
+						return "array " + e.typeOf(rule.Body())
+					}
+				}
+				if p.Kind == "array" && len(t.Args()) > 0 {
+					return "array " + e.typeOf(t.Args()[0])
+				}
 				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
 				}
@@ -398,6 +426,77 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			e.imports[p.Import] = true
 		}
 		switch {
+		// THE WRITE SIDE — ADR 0018.
+		case p.Kind == "table-build":
+			args := t.Args()
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+			}
+			count, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			body, raw, out := openFresh(args[1], e.bound, javaMangle)
+			elem := bufferElem(body, raw[0], e.typeOf)
+			e.types[raw[0]] = "array " + elem
+			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
+				e.tgt.ty(elem), count)
+			return e.emit(body)
+		case p.Kind == "table-set":
+			args := t.Args()
+			if len(args) != 3 {
+				return "", fmt.Errorf("set takes a buffer, an index and a value, got %s", t)
+			}
+			b, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			i, err := e.emit(args[1])
+			if err != nil {
+				return "", err
+			}
+			v, err := e.emit(args[2])
+			if err != nil {
+				return "", err
+			}
+			e.line("%s[(int) %s] = %s;", b, i, v)
+			return b, nil
+		case p.Kind == "table-alloc":
+			args := t.Args()
+			if len(args) != 1 {
+				return "", fmt.Errorf("alloc takes one table, got %s", t)
+			}
+			tab := args[0]
+			if !isTableRule(e.tgt, tab) {
+				return e.emit(tab)
+			}
+			rule := tab.Args()[1]
+			if rule.Kind != core.KFn || len(rule.Params) != 1 {
+				return "", fmt.Errorf("alloc's table needs an (fn (i) …) rule, got %s", rule)
+			}
+			count, err := e.emit(tab.Args()[0])
+			if err != nil {
+				return "", err
+			}
+			body, raw, out := openFresh(rule, e.bound, javaMangle)
+			e.types[raw[0]] = "int"
+			n := e.fresh("n")
+			dst := e.fresh("t")
+			e.line("final %s %s = %s;", e.tgt.ty("int"), n, count)
+			elem := e.typeOf(body)
+			e.types[dst] = "array " + elem
+			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), dst,
+				e.tgt.ty(elem), n)
+			e.line("for (%s %s = 0; %s < %s; %s++) {", e.tgt.ty("int"), out[0], out[0], n, out[0])
+			e.indent++
+			v, err := e.emit(body)
+			if err != nil {
+				return "", err
+			}
+			e.line("%s[(int) %s] = %s;", dst, out[0], v)
+			e.indent--
+			e.line("}")
+			return dst, nil
 		// TABLES (docs/spec/tables.md). No target declares any of this.
 		case p.Kind == "len":
 			a, err := e.emit(t.Args()[0])

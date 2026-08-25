@@ -12,8 +12,20 @@ is generated from the form now, and §6 below reads differently as a result. And
 to be duplicable or nothing fuses** — what looks like duplication is the step that erases the
 intermediate.
 
-**Not built: `(alloc t)`, `(build n f)` and `(set b i v)`** — the write side, §9. `len` on windows
-waits with them, because it needs an array representation and that decision belongs with `alloc`.
+**The WRITE SIDE is built too** — same day,
+[tables-write-2026-08-25](../../gauntlet/results/tables-write-2026-08-25.md). `(alloc t)`,
+`(build n f)` and `(set b i v)` on Go, JavaScript and Java, with ADR 0018's linearity checked on the
+residual. **The sieve is written portably** — the program that decided ADR 0018 because a gather
+cannot express a scatter — and it costs nothing against the version written with Go's own
+primitives.
+
+What it also measured: **the emitted sieve is ~1.4x hand-written Go, and the cause is our LOOP
+SHAPE, not tables.** Hand-written code in our shape measures the same as our output. That is a new
+open item and it belongs to `loop`, not here.
+
+**Not built: windows.** It needs an array representation *and* an allocator — the other three hosts
+bring a collector and it brings `VirtualAlloc` and nothing — and ADR 0018 says that reclamation
+decision is the target's, to be made deliberately.
 
 This is the language's data structure. There is one, and it is a **function with a known finite
 domain**. Everything below follows from taking that literally — including the type system, where

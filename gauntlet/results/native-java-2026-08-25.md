@@ -37,11 +37,15 @@ memory-bound centroid, 1.45× on a tight scan. It is
 host where `int` is not the natural index width, and it is the first time that decision has had a
 price attached on Java.
 
-**The fix is available and not built.** `emit/interval.go` already bounds loop variables, and a
-counter bounded by an array length provably fits in an `int` because a Java array holds at most
-2³¹−1 elements. `Intervals` is not wired into emission at all today — it is used by tests and by
-the `-checked` path — so this is a real build and it belongs with representation selection
-([selection-2026-08-19](selection-2026-08-19.md)), not with this migration.
+> **FIXED the same day** — [indextype-2026-08-25](indextype-2026-08-25.md). A loop variable the
+> target can prove small enough is emitted as the host's own `int`, and every row above is now at
+> parity with idiomatic hand-written Java: `search late` went from **1.54× to 1.01×**.
+>
+> Not via `emit/interval.go` in the end. That pass opens lambdas with different names than the
+> emitter does, so keying its results back would have been fragile; the emitter already had the
+> analysis it needed in `countedGuard`, built for bounds-check elimination. The justification is a
+> **platform** fact rather than an inferred range: a Java array holds at most 2³¹−1 elements, so a
+> length *is* an int by the host's own rule.
 
 ### What is NOT the cost
 

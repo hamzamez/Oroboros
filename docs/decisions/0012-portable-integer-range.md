@@ -3,6 +3,18 @@
 Date: 2026-08-15
 Status: Accepted
 
+> **A price, and its removal, 2026-08-25.** This decision met the one host where `int` is not the
+> natural index width. Java's array index is 32-bit and ours is 64, so an emitted loop counter was a
+> `long` and every access carried an `(int)` cast — **1.04× to 1.54×** against hand-written Java
+> ([native-java-2026-08-25](../../gauntlet/results/native-java-2026-08-25.md)).
+>
+> The decision stands unchanged: `int` is still exact within ±(2⁵³−1). What was added is a
+> **representation selection** — a counter the compiler can bound by a length is stored in the
+> host's own `int`, because a Java array holds at most 2³¹−1 elements, so the bound is the
+> platform's rather than ours
+> ([indextype-2026-08-25](../../gauntlet/results/indextype-2026-08-25.md)). What a program means
+> did not change; what is emitted did.
+
 ## Context
 
 [ADR 0003](0003-range-typed-integers.md) chose *mathematical semantics, machine representation*

@@ -1310,3 +1310,129 @@ func readsOtherLoopVar(t *core.Term, raw []string, self int) bool {
 	walk(t)
 	return found
 }
+
+// NarrowIndex reports which loop variables are provably small enough to hold in
+// a HOST INT rather than in the language's `int`.
+//
+// This exists because our `int` is 64-bit and Java's array index is not. An
+// emitted counter is a `long`, so every access carries an `(int)` cast, and
+// that measured **1.04x to 1.45x** against hand-written Java depending on how
+// much else the loop does (native-java-2026-08-25). It is the only place the
+// project currently misses its own bar with a number attached.
+//
+// The rule is deliberately narrow, and each clause is the reason the next one
+// is safe:
+//
+//  1. a clause guard is `(>= v B)` or `(> v B)` with B not mentioning any loop
+//     variable — so B is the loop's upper bound;
+//  2. B is a LENGTH, which on a host whose arrays are int-indexed is at most
+//     2³¹−1 by the platform's own rule;
+//  3. every `again` steps v by exactly +1;
+//  4. v starts at a non-negative integer literal.
+//
+// Together those give `v ∈ [init, B]`: the guard exits when `v >= B`, so with a
+// step of one v reaches B and stops. That is exactly the range Java's own
+// `for (int i = 0; i < a.length; i++)` occupies, and the reason the step must
+// be one is that a larger step could overshoot B — which only matters at
+// B near 2³¹, and is refused rather than reasoned about.
+//
+// It is a REPRESENTATION selection in the sense selection-2026-08-19
+// established: what is emitted changes, what the program means does not.
+func NarrowIndex(tgt *Target, body *core.Term, raw []string, inits []*core.Term) map[string]bool {
+	idx, bound, ok := countedBy(tgt, body, raw)
+	if !ok || !isIntBound(tgt, bound) {
+		return nil
+	}
+	pos := -1
+	for i, n := range raw {
+		if n == idx {
+			pos = i
+		}
+	}
+	if pos < 0 || inits[pos].Kind != core.KInt || inits[pos].Int < 0 {
+		return nil
+	}
+	// Every `again` must step it by exactly one.
+	agains := collectAgains(body)
+	if len(agains) == 0 {
+		return nil
+	}
+	for _, a := range agains {
+		as := a.Args()
+		if pos >= len(as) || !isPlusOne(tgt, as[pos], idx) {
+			return nil
+		}
+	}
+	return map[string]bool{idx: true}
+}
+
+// countedBy is countedGuard without the Emitter, so every backend can ask.
+func countedBy(tgt *Target, t *core.Term, raw []string) (string, *core.Term, bool) {
+	for t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName {
+		p, ok := tgt.Prims[t.Op().Name]
+		if !ok || p.Kind != "cond" || len(t.Args()) != 3 {
+			return "", nil, false
+		}
+		c := t.Args()[0]
+		if c.Kind == core.KApp && c.Op().Kind == core.KName && len(c.Args()) == 2 {
+			if n := c.Op().Name; isOp(n, "ge") || isOp(n, "gt") {
+				lhs, rhs := c.Args()[0], c.Args()[1]
+				if lhs.Kind == core.KName && contains(raw, lhs.Name) && !mentions(rhs, raw) {
+					return lhs.Name, rhs, true
+				}
+			}
+		}
+		t = t.Args()[2]
+	}
+	return "", nil, false
+}
+
+// isIntBound reports whether a bound is small enough for a host int.
+//
+// A LENGTH is, by the platform's own rule. So is a length MINUS a non-negative
+// literal, which is what a stencil's bound looks like — `(- (len a) 2)` — and
+// which cannot grow past the length it came from.
+//
+// Adding to a length is NOT accepted, because `len + k` at a length near 2³¹
+// is exactly the overflow this rule exists to avoid.
+func isIntBound(tgt *Target, t *core.Term) bool {
+	if isLength(tgt, t) {
+		return true
+	}
+	if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName && len(t.Args()) == 2 {
+		if isOp(t.Op().Name, "sub") {
+			a, b := t.Args()[0], t.Args()[1]
+			return isIntBound(tgt, a) && b.Kind == core.KInt && b.Int >= 0
+		}
+	}
+	return false
+}
+
+// isLength reports whether a term is a length — the language's `len` or any
+// spelling a target declares for one. A length is what carries the platform's
+// own guarantee that it fits in a host int.
+func isLength(tgt *Target, t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 1 {
+		return false
+	}
+	n := t.Op().Name
+	if n == "len" {
+		return true
+	}
+	if p, ok := tgt.Prims[n]; ok && p.Kind == "len" {
+		return true
+	}
+	return isOp(n, "alen") || isOp(n, "slen")
+}
+
+// isPlusOne reports whether a term is `(+ v 1)` for this variable.
+func isPlusOne(tgt *Target, t *core.Term, v string) bool {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return false
+	}
+	if !isOp(t.Op().Name, "add") {
+		return false
+	}
+	a, b := t.Args()[0], t.Args()[1]
+	return a.Kind == core.KName && a.Name == v && b.Kind == core.KInt && b.Int == 1
+}

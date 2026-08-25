@@ -24,7 +24,7 @@ public final class NativeBench2 {
         return acc;
     }
 
-    static double[] smoothAllocRef(double[] a) {
+    public static double[] smoothAllocRef(double[] a) {
         double[] out = new double[a.length - 2];
         for (int j = 0; j < out.length; j++) out[j] = (a[j] + a[j + 1] + a[j + 2]) / 3.0;
         return out;

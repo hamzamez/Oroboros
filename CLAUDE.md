@@ -538,6 +538,16 @@ JavaScript silently loses precision). Turning it on should be the consequence of
 integers, not the cause — [assessment-2026-08-20 §2](docs/assessment-2026-08-20.md). **A
 demonstration wired into the default path is a decision, whether or not anyone made one.**
 
+**The representation is selected for INDEXES too, and Java is where it mattered** —
+[indextype-2026-08-25](gauntlet/results/indextype-2026-08-25.md). Our `int` is 64-bit and a Java
+array index is not, so an emitted counter was a `long` and every access carried an `(int)` cast —
+**1.04× to 1.54×** against hand-written Java, the one place the project missed its own bar with a
+number attached. A counter bounded by a **length** and stepping by **+1** is emitted as the host's
+own `int`; both conditions are refusals of the same overflow, and the sieve narrows *neither* of its
+loops because its bound is `i*i >= n` and its step is `+i`. The justification is a PLATFORM fact —
+a Java array holds at most 2³¹−1 elements — not an inferred range, which is why it did not need
+`emit/interval.go`. Go, JavaScript and x86 are unchanged: the cost existed on exactly one host.
+
 **A declared range selects the representation** —
 [selection-2026-08-19](gauntlet/results/selection-2026-08-19.md). An integer operation the compiler
 can bound keeps the host's own operator; one it cannot is rewritten to the `checked` primitive the

@@ -3,12 +3,12 @@
 public final class NatGen {
 	public static double NatGenSumOf(double[] a) {
 		double acc = 0.0;
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= a.length)) {
 				break;
 			}
-			acc = (acc + a[(int) i]);
+			acc = (acc + a[i]);
 			continue;
 		}
 		return acc;
@@ -18,12 +18,12 @@ public final class NatGen {
 		final String[] ws = (text.split(" "));
 		final java.util.Map<String,Long> init = (new java.util.HashMap<String,Long>());
 		java.util.Map<String,Long> acc = init;
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= ws.length)) {
 				break;
 			}
-			acc.merge(ws[(int) i], 1L, Long::sum);
+			acc.merge(ws[i], 1L, Long::sum);
 			continue;
 		}
 		return acc;

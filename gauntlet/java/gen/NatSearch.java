@@ -2,14 +2,14 @@
 
 public final class NatSearch {
 	public static long NatSearchFindFirst(double[] a, double k) {
-		long i = 0;
+		int i = 0;
 		long r1 = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= a.length)) {
 				r1 = -1;
 				break;
 			}
-			if ((a[(int) i] > k)) {
+			if ((a[i] > k)) {
 				r1 = i;
 				break;
 			}

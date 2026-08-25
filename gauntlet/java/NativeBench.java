@@ -24,26 +24,26 @@ public final class NativeBench {
 
     // ---- hand-written references, in the shape a person writes -------------
 
-    static double dotRef(double[] xs, double[] ys) {
+    public static double dotRef(double[] xs, double[] ys) {
         double acc = 0.0;
         for (int i = 0; i < xs.length; i++) acc += xs[i] * ys[i];
         return acc;
     }
 
     /** The same, with a `long` counter — isolating the cast, not the shape. */
-    static double dotLongRef(double[] xs, double[] ys) {
+    public static double dotLongRef(double[] xs, double[] ys) {
         double acc = 0.0;
         for (long i = 0; i < xs.length; i++) acc += xs[(int) i] * ys[(int) i];
         return acc;
     }
 
-    static long findFirstRef(double[] a, double k) {
+    public static long findFirstRef(double[] a, double k) {
         for (int i = 0; i < a.length; i++) if (a[i] > k) return i;
         return -1;
     }
 
     /** long counter, direct return -- isolates the cast from the exit shape. */
-    static long findFirstLongRef(double[] a, double k) {
+    public static long findFirstLongRef(double[] a, double k) {
         for (long i = 0; i < a.length; i++) if (a[(int) i] > k) return i;
         return -1;
     }
@@ -64,7 +64,7 @@ public final class NativeBench {
         return r;
     }
 
-    static double centroidRef(double[] xs, double[] ys) {
+    public static double centroidRef(double[] xs, double[] ys) {
         double ax = 0.0, ay = 0.0;
         for (int i = 0; i < xs.length; i++) { ax += xs[i]; ay += ys[i]; }
         return ax + ay;

@@ -3,12 +3,12 @@
 public final class NatDot {
 	public static double NatDotDot(double[] a, double[] b) {
 		double acc = 0.0;
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= a.length)) {
 				break;
 			}
-			acc = (acc + (a[(int) i] * b[(int) i]));
+			acc = (acc + (a[i] * b[i]));
 			continue;
 		}
 		return acc;

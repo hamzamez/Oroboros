@@ -4,8 +4,8 @@ public final class NatSm {
 	public static double[] NatSmSmoothAlloc(double[] a) {
 		final long n1 = (a.length - 2);
 		final double[] t2 = new double[(int) n1];
-		for (long j = 0; j < n1; j++) {
-			t2[(int) j] = (((a[(int) j] + a[(int) (j + 1)]) + a[(int) (j + 2)]) / 3.0);
+		for (int j = 0; j < n1; j++) {
+			t2[j] = (((a[j] + a[(j + 1)]) + a[(j + 2)]) / 3.0);
 		}
 		return t2;
 	}
@@ -13,12 +13,12 @@ public final class NatSm {
 	public static double[] NatSmSmoothBuild(double[] a) {
 		final double[] b = new double[(int) (a.length - 2)];
 		double[] b2 = b;
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= (a.length - 2))) {
 				break;
 			}
-			b2[(int) i] = (((a[(int) i] + a[(int) (i + 1)]) + a[(int) (i + 2)]) / 3.0);
+			b2[i] = (((a[i] + a[(i + 1)]) + a[(i + 2)]) / 3.0);
 			continue;
 		}
 		return b2;
@@ -26,12 +26,12 @@ public final class NatSm {
 
 	public static double[] NatSmSmoothInto(double[] dst, double[] a) {
 		double[] d = dst;
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= (a.length - 2))) {
 				break;
 			}
-			d[(int) i] = (((a[(int) i] + a[(int) (i + 1)]) + a[(int) (i + 2)]) / 3.0);
+			d[(int) i] = (((a[i] + a[(i + 1)]) + a[(i + 2)]) / 3.0);
 			continue;
 		}
 		return d;

@@ -362,3 +362,94 @@ func TestARuleCannotReachPastItsDomain(t *testing.T) {
 		t.Errorf("expected the indexing diagnostic, got: %v", err)
 	}
 }
+
+// --- INDEX-TYPE SELECTION (native-java-2026-08-25 §1) ------------------------
+
+// Our `int` is 64-bit and a Java array index is not, so an emitted counter was
+// a `long` and every access carried an `(int)` cast — measured at 1.04x to
+// 1.45x against hand-written Java. A loop variable the target can prove small
+// enough is declared as the host's own `int` instead.
+func TestJavaNarrowsALengthBoundedCounter(t *testing.T) {
+	code, err := genOn(t, "java", `
+		(use java)
+		(export f) (sig f ((a (array f64))) f64)
+		(def f (fn (a)
+			(loop ((acc 0.0) (i 0))
+				(java.>= i (len a))  acc
+				else                 (again (java.f+ acc (a i)) (java.+ i 1)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(code, "int i = 0;") {
+		t.Errorf("a length-bounded +1 counter is a host int:\n%s", code)
+	}
+	if strings.Contains(code, "(int) i") {
+		t.Errorf("and then it needs no cast:\n%s", code)
+	}
+}
+
+// A bound of `len - k` still fits, because it cannot grow past the length it
+// came from. This is the stencil's shape.
+func TestJavaNarrowsALengthMinusLiteral(t *testing.T) {
+	code, err := genOn(t, "java", `
+		(use java)
+		(export f) (sig f ((a (array f64))) f64 (where (java.> (len a) 2)))
+		(def f (fn (a)
+			(loop ((acc 0.0) (i 0))
+				(java.>= i (java.- (len a) 2))  acc
+				else  (again (java.f+ acc (a (java.+ i 2))) (java.+ i 1)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(code, "int i = 0;") || strings.Contains(code, "(int) i") {
+		t.Errorf("len - k is still a host-int bound:\n%s", code)
+	}
+	// And `i + 2` is int arithmetic, so it needs no cast either.
+	if !strings.Contains(code, "a[(i + 2)]") {
+		t.Errorf("an index built from a narrow variable is narrow:\n%s", code)
+	}
+}
+
+// THE TWO REFUSALS, and the sieve is where both matter.
+//
+// A STEP THAT IS NOT +1 could overshoot the bound. `j` advances by `i` in the
+// sieve's crossing loop, so at a length near 2³¹ it would pass the end — the
+// one case where narrowing would be wrong, and it is refused rather than
+// reasoned about.
+func TestJavaWillNotNarrowANonUnitStep(t *testing.T) {
+	code, err := genOn(t, "java", `
+		(use java)
+		(export f) (sig f ((a (array f64)) (k int)) int)
+		(def f (fn (a k)
+			(loop ((j 0))
+				(java.>= j (len a))  j
+				else                 (again (java.+ j k)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(code, "int j = 0;") {
+		t.Errorf("a step that is not +1 may overshoot the bound:\n%s", code)
+	}
+}
+
+// A BOUND THAT IS NOT A LENGTH carries no platform guarantee. The sieve's outer
+// loop exits on `i*i >= n`, and nothing says n fits in a host int.
+func TestJavaWillNotNarrowANonLengthBound(t *testing.T) {
+	code, err := genOn(t, "java", `
+		(use java)
+		(export f) (sig f ((n int)) int)
+		(def f (fn (n)
+			(loop ((i 2))
+				(java.>= (java.* i i) n)  i
+				else                      (again (java.+ i 1)))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(code, "int i = 2;") {
+		t.Errorf("only a LENGTH carries the platform's own bound:\n%s", code)
+	}
+}

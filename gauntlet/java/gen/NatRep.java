@@ -4,20 +4,20 @@ public final class NatRep {
 	public static double NatRepMain() {
 		final long n1 = 1000;
 		final double[] t2 = new double[(int) n1];
-		for (long i = 0; i < n1; i++) {
-			t2[(int) i] = ((double) i);
+		for (int i = 0; i < n1; i++) {
+			t2[i] = ((double) i);
 		}
 		final double[] xs = t2;
 		System.out.println("report");
 		final var v3 = xs.length;
 		System.out.println(v3);
 		double acc = 0.0;
-		long i2 = 0;
+		int i2 = 0;
 		for (;; i2 = (i2 + 1)) {
 			if ((i2 >= xs.length)) {
 				break;
 			}
-			acc = (acc + (xs[(int) i2] * xs[(int) i2]));
+			acc = (acc + (xs[i2] * xs[i2]));
 			continue;
 		}
 		System.out.println(acc);

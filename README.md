@@ -106,8 +106,10 @@ Three caveats stated rather than buried:
   parity, on JDK 17. Two things came out of it: the migration **refuted** the measurement that made
   Java the interesting case (the fused `merge` was recorded 2.6× slower than unfused and is
   **1.19× faster**), and it put a price on ADR 0012 — our `int` maps to Java's `long`, so a loop
-  counter is 64-bit and every array access carries a cast, worth **1.04×–1.45×** depending on the
-  loop. The emitted code matches hand-written Java exactly once the counter type is held constant.
+  counter was 64-bit and every array access carried a cast, worth **1.04×–1.54×** depending on the
+  loop. That is [fixed](gauntlet/results/indextype-2026-08-25.md): a counter the compiler can bound
+  by a length is emitted as the host's own `int`, and every program is at parity with idiomatic
+  hand-written Java.
 - **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
   median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
   and the hand-written reference is written the way a person writes it, not in the emitter's shape.

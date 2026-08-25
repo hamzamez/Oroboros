@@ -4,12 +4,12 @@ public final class NatWc {
 	public static java.util.Map<String,Long> NatWcTally(String text) {
 		final String[] ws = (text.split(" "));
 		java.util.Map<String,Long> m = (new java.util.HashMap<String,Long>());
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= ws.length)) {
 				break;
 			}
-			final String w = ws[(int) i];
+			final String w = ws[i];
 			m.put(w, ((m.getOrDefault(w, 0L)) + 1));
 			continue;
 		}
@@ -19,12 +19,12 @@ public final class NatWc {
 	public static java.util.Map<String,Long> NatWcTallyMerge(String text) {
 		final String[] ws = (text.split(" "));
 		java.util.Map<String,Long> m = (new java.util.HashMap<String,Long>());
-		long i = 0;
+		int i = 0;
 		for (;; i = (i + 1)) {
 			if ((i >= ws.length)) {
 				break;
 			}
-			m.merge(ws[(int) i], 1L, Long::sum);
+			m.merge(ws[i], 1L, Long::sum);
 			continue;
 		}
 		return m;

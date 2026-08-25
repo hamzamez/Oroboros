@@ -42,6 +42,12 @@ type javaEmitter struct {
 
 	// bound is every name already emitted in this method — see openFresh.
 	bound map[string]bool
+
+	// narrow is the loop variables emitted as a host `int` rather than as the
+	// language's `int`, which is 64-bit here. See NarrowIndex: it is what
+	// removes the `(int)` cast from every array access, worth 1.04x to 1.45x
+	// against hand-written Java (native-java-2026-08-25).
+	narrow map[string]bool
 }
 
 // JavaImports accumulates what emitted methods need, like the Go sink.
@@ -418,6 +424,13 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				// `%s[(int) %s]`; moving indexing into the backend moves the
 				// cast with it, which is the host detail a target author no
 				// longer has to know.
+				//
+				// Unless the index is already a host `int` — see NarrowIndex.
+				// Then the cast is not merely redundant, it is the thing that
+				// cost 1.04x to 1.45x.
+				if e.narrowIdx(t.Args()[0]) {
+					return fmt.Sprintf("%s[%s]", a, idx), nil
+				}
 				return fmt.Sprintf("%s[(int) %s]", a, idx), nil
 			}
 			return "", IndexingErr("Java", op.Name)
@@ -459,7 +472,11 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			e.line("%s[(int) %s] = %s;", b, i, v)
+			if e.narrowIdx(args[1]) {
+				e.line("%s[%s] = %s;", b, i, v)
+			} else {
+				e.line("%s[(int) %s] = %s;", b, i, v)
+			}
 			return b, nil
 		case p.Kind == "table-alloc":
 			args := t.Args()
@@ -480,6 +497,14 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			}
 			body, raw, out := openFresh(rule, e.bound, javaMangle)
 			e.types[raw[0]] = "int"
+			// The fill index is narrow BY CONSTRUCTION. The destination is
+			// `new T[(int) n]`, so if n did not fit in a host int the
+			// allocation itself would have failed — which makes `j < n` a
+			// bound an int can hold, without any analysis.
+			if e.narrow == nil {
+				e.narrow = map[string]bool{}
+			}
+			e.narrow[raw[0]] = true
 			n := e.fresh("n")
 			dst := e.fresh("t")
 			e.line("final %s %s = %s;", e.tgt.ty("int"), n, count)
@@ -487,13 +512,13 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			e.types[dst] = "array " + elem
 			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), dst,
 				e.tgt.ty(elem), n)
-			e.line("for (%s %s = 0; %s < %s; %s++) {", e.tgt.ty("int"), out[0], out[0], n, out[0])
+			e.line("for (int %s = 0; %s < %s; %s++) {", out[0], out[0], n, out[0])
 			e.indent++
 			v, err := e.emit(body)
 			if err != nil {
 				return "", err
 			}
-			e.line("%s[(int) %s] = %s;", dst, out[0], v)
+			e.line("%s[%s] = %s;", dst, out[0], v)
 			e.indent--
 			e.line("}")
 			return dst, nil
@@ -946,8 +971,25 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	for i, n := range raw {
 		e.types[n] = tys[i]
 	}
+	// INDEX-TYPE SELECTION. A loop variable this target can prove small enough
+	// is declared as the host's own `int`, so the cast at every access goes
+	// away. Nothing about the program changes; only what is emitted does, which
+	// is what selection-2026-08-19 established a declared range may do.
+	if e.narrow == nil {
+		e.narrow = map[string]bool{}
+	}
+	nw := NarrowIndex(e.tgt, body, raw, inits)
+	for i, n := range raw {
+		if nw[n] && tys[i] == "int" {
+			e.narrow[n] = true
+		}
+	}
 	for i := range names {
-		e.line("%s %s = %s;", e.tgt.ty(tys[i]), names[i], vals[i])
+		ty := e.tgt.ty(tys[i])
+		if e.narrow[raw[i]] {
+			ty = "int"
+		}
+		e.line("%s %s = %s;", ty, names[i], vals[i])
 	}
 	rty := javaExitType(e, body)
 	if rty == "" {
@@ -1097,4 +1139,31 @@ func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]
 	}
 	e.line("continue;")
 	return nil
+}
+
+// narrowIdx reports whether an index expression is already a host `int`.
+//
+// A narrowed loop variable is one; so is that variable plus or minus a small
+// literal, which is what a stencil writes — `(a (+ j 1))` and `(a (+ j 2))`.
+// Java's own arithmetic on two ints is an int, so the whole expression needs no
+// cast, and the bound that made `j` narrow covers `j + 2` because the rule
+// requires the guard to exit at the length.
+func (e *javaEmitter) narrowIdx(t *core.Term) bool {
+	if t == nil || e.narrow == nil {
+		return false
+	}
+	switch t.Kind {
+	case core.KName:
+		return e.narrow[t.Name]
+	case core.KApp:
+		if t.Op().Kind != core.KName || len(t.Args()) != 2 {
+			return false
+		}
+		if !isOp(t.Op().Name, "add") && !isOp(t.Op().Name, "sub") {
+			return false
+		}
+		a, b := t.Args()[0], t.Args()[1]
+		return e.narrowIdx(a) && b.Kind == core.KInt
+	}
+	return false
 }

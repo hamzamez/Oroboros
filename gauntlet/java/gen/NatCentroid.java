@@ -4,15 +4,15 @@ public final class NatCentroid {
 	public static double NatCentroidCentroidX(double[] xs, double[] ys) {
 		double ax = 0.0;
 		double ay = 0.0;
-		long i = 0;
+		int i = 0;
 		double r1 = 0.0;
 		for (;; i = (i + 1)) {
 			if ((i >= xs.length)) {
 				r1 = (ax + ay);
 				break;
 			}
-			ax = (ax + xs[(int) i]);
-			ay = (ay + ys[(int) i]);
+			ax = (ax + xs[i]);
+			ay = (ay + ys[i]);
 			continue;
 		}
 		return r1;

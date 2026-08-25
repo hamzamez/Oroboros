@@ -1,0 +1,37 @@
+; The portable sieve on WINDOWS — the fourth target, and the one with no host
+; compiler, no collector and no arrays.
+;
+; A table here is a pointer whose first eight bytes hold the length. That is
+; eight bytes PER ELEMENT for a boolean sieve, against the one byte
+; examples/native/sieve-win.oro uses via x64.movb — so this measures what the
+; language's uniform representation costs where nothing hides it.
+(use x64)
+(use win/fmt)
+(export main)
+
+(sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
+
+(def cross (fn (c i n)
+  (loop ((c c) (j (x64.imul i i)))
+    (x64.setl j n)  (again (set c j true) (x64.add j i))
+    else            c)))
+
+(def sieve (fn (n)
+  (build n (fn (c)
+    (loop ((c c) (i 2))
+      (x64.setge (x64.imul i i) n)  c
+      (c i)                         (again c (x64.add i 1))
+      else                          (again (cross c i n) (x64.add i 1)))))))
+
+(def count-primes (fn (n)
+  (let (sieve n) (fn (c)
+    (loop ((acc 0) (k 2))
+      (x64.setge k n)  acc
+      (c k)            (again acc (x64.add k 1))
+      else             (again (x64.add acc 1) (x64.add k 1)))))))
+
+(def main (fn ()
+  (fmt.print-int
+    (loop ((r 0) (t 0))
+      (x64.setge t 100)  r
+      else               (again (x64.add r (count-primes 200000)) (x64.add t 1))))))

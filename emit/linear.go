@@ -351,6 +351,12 @@ var opAlias = map[string]string{
 	// loop, exponentiation by squaring and every other geometric descent looked
 	// like an unknown operation. Found by growing the corpus.
 	"/": "div", "%": "rem", "idiv": "div", "irem": "rem",
+	// x86 spells multiplication `imul`, and its absence here is the same bug
+	// the division line above records: the sieve's `(setl (imul i i) n)` guard
+	// was an OPAQUE ATOM, so the `x <= x*x` rule could not fire and a windows
+	// program could not prove the index its own guard bounds. Found the moment
+	// indexing became application on this target.
+	"imul": "mul",
 	// A LENGTH, in every spelling a target uses for one. Without this the
 	// fragment knew `alen` — the retired portable layer's name — and nothing
 	// else, so `(where (== (go.len p) (go.len q)))` became an opaque atom and
@@ -368,6 +374,17 @@ var opAlias = map[string]string{
 	"===": "eq", "sete": "eq",
 	"&&": "and", "||": "or", "!": "not",
 	"!=": "ne", "ne": "ne", "setne": "ne", "!==": "ne",
+	// x86's ORDERING comparisons, which were missing entirely. Only `sete` and
+	// `setne` were here, and nothing noticed because this target's own indexing
+	// — `x64.mov` — declares no bounds precondition, so no obligation had ever
+	// needed to read an x86 guard. Making indexing APPLICATION generates the
+	// obligation structurally, and then a windows program could not prove a
+	// single one of its own indices.
+	//
+	// The SIGNED forms only. `setb`, `setbe`, `seta` and `setae` are unsigned
+	// comparisons, which are a different relation on a signed value, and
+	// mapping them here would let the fragment prove something false.
+	"setl": "lt", "setle": "le", "setg": "gt", "setge": "ge",
 	// The strict branchless connectives a target may declare under its own
 	// name (ADR 0017 kept `x64.andb` for the Ada reason). As a PRECONDITION
 	// they are conjunction and disjunction like any other, and a `where`

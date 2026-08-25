@@ -691,6 +691,23 @@ recoverable from the code.
 than no design document. `docs/design-direction.md` was rewritten, not appended to, when the
 Parasite reframing invalidated part of it.
 
+**Tables are on ALL FOUR TARGETS** —
+[wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md). A table on windows is ONE
+REGISTER — a pointer whose first eight bytes hold the length — because a fat pointer needs two and
+this convention passes one value per register, so a table would stop being a *value*; the header is
+free to skip because the displacement is part of x86's addressing mode. The **allocator is the
+target's**, found the way `findEq` finds equality, so `targets/windows/` needed no new declaration.
+Reclamation is neither of ADR 0018's suggestions — one `VirtualAlloc` per `alloc`, never freed —
+and changing that is a target-file edit, not a compiler one.
+**And it costs 3× on a boolean sieve**: eight bytes per element against one, because **the element
+size is not part of the type**. Not the compiler and not the loop shape — the native windows sieve
+is 0.92× of hand-written. Go hid it by having a `bool`. That is ADR 0016's lesson again: *the
+optimisations you were parasitizing only become visible on a host that has none.* It also found
+three pre-existing holes, all unreachable until indexing became structural here: the refinement
+layer knew **none of x86's ordering comparisons**, `imul` was **not multiplication** (the `go./`
+bug on a third operator), and the table operations built an addressing mode without materialising a
+spilled operand.
+
 **A target need not have expressions** — [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md).
 `targets/windows/` emits x86-64 assembly under MASM and reaches **parity with hand-written
 assembly** ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)), with the structural set

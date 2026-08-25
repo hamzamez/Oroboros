@@ -1436,3 +1436,30 @@ func isPlusOne(tgt *Target, t *core.Term, v string) bool {
 	a, b := t.Args()[0], t.Args()[1]
 	return a.Kind == core.KName && a.Name == v && b.Kind == core.KInt && b.Int == 1
 }
+
+// allocSpellings are how a target may spell "give me n bytes", most preferred
+// first. Found the way findEq finds equality — by the LAST SEGMENT of a
+// declared name — so a target that already declares an allocator declares
+// nothing new to get tables.
+//
+// This is the shape of the answer ADR 0002 gives generally: `alloc` and `build`
+// are the LANGUAGE's, and where the memory comes from on this host is the
+// TARGET's. Go, JavaScript and Java have allocation as syntax and their
+// backends emit it directly; x86 has a call, and the target says which.
+var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc"}
+
+// findAlloc returns the target's own allocator.
+func (tg *Target) findAlloc() (Prim, bool) {
+	for _, want := range allocSpellings {
+		for name, p := range tg.Prims {
+			seg := name
+			if i := strings.LastIndex(seg, "."); i >= 0 {
+				seg = seg[i+1:]
+			}
+			if seg == want && len(p.Args) == 1 && p.Kind == "expr" {
+				return p, true
+			}
+		}
+	}
+	return Prim{}, false
+}

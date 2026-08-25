@@ -110,6 +110,10 @@ Three caveats stated rather than buried:
   loop. That is [fixed](gauntlet/results/indextype-2026-08-25.md): a counter the compiler can bound
   by a length is emitted as the host's own `int`, and every program is at parity with idiomatic
   hand-written Java.
+- **The language's table works on all four targets** —
+  [wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md) — and measured the price of the
+  uniform element on the one host with no types of its own: **3× on a boolean sieve**, eight bytes
+  per element against one. Not the compiler; the element size is not part of the type.
 - **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
   median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
   and the hand-written reference is written the way a person writes it, not in the emitter's shape.

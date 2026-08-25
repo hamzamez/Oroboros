@@ -24,9 +24,16 @@ SHAPE, not tables** — hand-written code in our shape measured the same as our 
 day ([loopshape-2026-08-25](../../gauntlet/results/loopshape-2026-08-25.md)); the sieve is at
 **1.02x**.
 
-**Not built: windows.** It needs an array representation *and* an allocator — the other three hosts
-bring a collector and it brings `VirtualAlloc` and nothing — and ADR 0018 says that reclamation
-decision is the target's, to be made deliberately.
+**Windows too, same day** — [wintables-2026-08-25](../../gauntlet/results/wintables-2026-08-25.md),
+so the language's data structure now works on **all four targets**. A table there is one register:
+a pointer whose first eight bytes hold the length, which the addressing mode makes free to skip.
+The allocator is the **target's** and it had already declared one, so `targets/windows/` needed no
+new declaration.
+
+And it measured the cost of the uniform element: **3× on a boolean sieve**, because eight bytes per
+element against one. Not a compiler gap — the *native* windows sieve is 0.92× of hand-written — but
+**the element size not being part of the type**. Three hosts hid it because their own type systems
+were sizing our elements for us.
 
 This is the language's data structure. There is one, and it is a **function with a known finite
 domain**. Everything below follows from taking that literally — including the type system, where

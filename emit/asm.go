@@ -444,8 +444,36 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 			}
 			return place{}, IndexingErr("windows", op.Name)
 		}
-		// `len` needs an array REPRESENTATION and x86 has none yet.
-		if p.Kind == "len" {
+		switch p.Kind {
+		case "len":
+			// The length is the header. One load, no analysis, no convention
+			// to agree with a caller about.
+			if len(t.Args()) == 1 {
+				a, err := e.emit(t.Args()[0])
+				if err != nil {
+					return place{}, err
+				}
+				ll, err := e.materialize([]place{a}, "len")
+				if err != nil {
+					return place{}, err
+				}
+				d := e.alloc(false)
+				e.line("mov %s, qword ptr [%s]", d.text, ll[0].text)
+				e.release(a)
+				return d, nil
+			}
+		case "table-alloc":
+			return e.emitAlloc(t)
+		case "table-build":
+			return e.emitBuild(t)
+		case "table-set":
+			return e.emitSet(t)
+		case "array":
+			return e.emitArrayLit(t)
+		case "table":
+			return place{}, UnallocatedTableErr()
+		}
+		if false {
 			return place{}, fmt.Errorf(
 				"`len` is not available on the windows target yet.\n" +
 					"  On the other three hosts an array carries its own length — `len(a)`,\n" +
@@ -1603,10 +1631,27 @@ func (e *asmEmitter) isTableName(n string) bool {
 	return ok
 }
 
-// asmIndex emits a scaled load. Eight bytes, because that is what every element
-// type the language has on this target occupies — `int` and `f64` are both
-// 64-bit, and a byte table is `x64.movzx`, which stays target-native until the
-// element size is part of the type.
+// asmIndex emits a scaled load, past the LENGTH HEADER.
+//
+// A table on this target is one register: a pointer whose first eight bytes
+// hold the length, with element 0 at offset 8. That representation was chosen
+// over a fat pointer because our calling convention passes one value per
+// register, and a two-register table would stop a table being a value at all.
+//
+// The header costs NOTHING to skip. `[rbx+rcx*8+8]` is the same instruction as
+// `[rbx+rcx*8]` — the displacement is part of x86's addressing mode — so the
+// only price of carrying a length is the eight bytes themselves.
+//
+// Eight bytes per element, because that is what every element type the language
+// has on this target occupies: `int` and `f64` are both 64-bit. A byte table is
+// `x64.movzx`, which stays target-native until the element size is part of the
+// type — and a `(array bool)` here therefore costs 8x what it does on Go.
+// MATERIALIZE first. A spilled operand lives in a stack slot, and x86 cannot
+// use memory as a base or an index register — emitting one directly
+// produced `mov qword ptr [r15+qword ptr [rsp+48]*8+8], 1`, which MASM
+// rejects with "constant expected". emitPrim has always done this for
+// templates; the table operations are the first code in this backend that
+// builds an addressing mode itself.
 func (e *asmEmitter) asmIndex(tab, idx *core.Term) (place, error) {
 	a, err := e.emit(tab)
 	if err != nil {
@@ -1616,9 +1661,233 @@ func (e *asmEmitter) asmIndex(tab, idx *core.Term) (place, error) {
 	if err != nil {
 		return place{}, err
 	}
+	live, err := e.materialize([]place{a, i}, "index")
+	if err != nil {
+		return place{}, err
+	}
 	d := e.alloc(false)
-	e.line("mov %s, qword ptr [%s+%s*8]", d.text, a.text, i.text)
+	e.line("mov %s, qword ptr [%s+%s*8+%d]", d.text, live[0].text, live[1].text, asmTableHeader)
 	e.release(a)
 	e.release(i)
 	return d, nil
+}
+
+// asmTableHeader is where a table's elements start. The first eight bytes hold
+// the length; see asmIndex for why the representation is a single pointer.
+const asmTableHeader = 8
+
+// rawAlloc asks the TARGET for n bytes.
+//
+// ADR 0002's division, made concrete: `alloc` and `build` are the language's,
+// and where memory comes from on this host is the target's. Go, JavaScript and
+// Java have allocation as syntax and their backends emit it; x86 has a call,
+// and the target says which — found by findAlloc, so `targets/windows/` needed
+// no new declaration to get tables. It already declared VirtualAlloc.
+//
+// ADR 0018 says reclamation here is a lexical arena or Perceus-style
+// refcounting. This is NEITHER: it is one allocation per `alloc`, never freed.
+// That is the crude answer, it is the target's to change without touching the
+// compiler, and its cost is recorded rather than hidden — a syscall per
+// allocation, which a program allocating in a loop will feel.
+func (e *asmEmitter) rawAlloc(bytes place) (place, error) {
+	p, ok := e.tgt.findAlloc()
+	if !ok {
+		return place{}, fmt.Errorf(
+			"this target declares no allocator, so `alloc` and `build` have no memory to " +
+				"use.\n  Declare one — VirtualAlloc, malloc or HeapAlloc — taking a byte " +
+				"count and\n  returning a pointer. `alloc` and `build` are the language's; " +
+				"where the bytes\n  come from is the target's (docs/spec/tables.md §10).")
+	}
+	if p.Import != "" {
+		AsmExterns[p.Import] = true
+	}
+	// The operand must be in a register: an allocator template moves it into
+	// rdx or rcx, and an instruction may name memory once.
+	live, err := e.materialize([]place{bytes}, "alloc")
+	if err != nil {
+		return place{}, err
+	}
+	d := e.alloc(false)
+	real := d
+	if d.slot > 0 {
+		real = place{text: "rax"}
+	}
+	body, err := fillAsm(p.Form, real, live, e.uniq())
+	if err != nil {
+		return place{}, fmt.Errorf("alloc: %w", err)
+	}
+	for _, l := range strings.Split(body, "\n") {
+		if x := strings.TrimSpace(l); x != "" {
+			e.line("%s", x)
+		}
+	}
+	if d.slot > 0 {
+		e.move(d, real)
+	}
+	e.release(bytes)
+	return d, nil
+}
+
+// tableOf allocates a table of `n` elements and writes the length header.
+// The returned place points at the header, which is what every other operation
+// expects.
+func (e *asmEmitter) tableOf(n place) (place, error) {
+	// (n + 1) * 8 — one slot for the length, then the elements.
+	bytes := e.alloc(false)
+	e.move(bytes, n)
+	e.line("add %s, 1", bytes.text)
+	e.line("shl %s, 3", bytes.text)
+	ptr, err := e.rawAlloc(bytes)
+	if err != nil {
+		return place{}, err
+	}
+	hl, err := e.materialize([]place{ptr, n}, "alloc")
+	if err != nil {
+		return place{}, err
+	}
+	e.line("mov qword ptr [%s], %s", hl[0].text, hl[1].text)
+	return ptr, nil
+}
+
+// emitAlloc puts a rule in memory — the gather.
+func (e *asmEmitter) emitAlloc(t *core.Term) (place, error) {
+	args := t.Args()
+	if len(args) != 1 {
+		return place{}, fmt.Errorf("alloc takes one table, got %s", t)
+	}
+	tab := args[0]
+	if !isTableRule(e.tgt, tab) {
+		return e.emit(tab) // a graph is already memory; a parameter is not ours to copy
+	}
+	rule := tab.Args()[1]
+	if rule.Kind != core.KFn || len(rule.Params) != 1 {
+		return place{}, fmt.Errorf("alloc's table needs an (fn (i) …) rule, got %s", rule)
+	}
+	n, err := e.emit(tab.Args()[0])
+	if err != nil {
+		return place{}, err
+	}
+	nHold := e.alloc(false)
+	e.move(nHold, n)
+	e.release(n)
+	dst, err := e.tableOf(nHold)
+	if err != nil {
+		return place{}, err
+	}
+	body, raw, _ := openFresh(rule, e.bound, asmIdent)
+	idx := e.alloc(false)
+	e.line("mov %s, 0", idx.text)
+	e.where[raw[0]] = hold(idx)
+	u := e.uniq()
+	top, done := fmt.Sprintf("Lfill%d", u), fmt.Sprintf("Lfilled%d", u)
+	e.label(top)
+	cl, err := e.materialize([]place{idx, nHold}, "alloc")
+	if err != nil {
+		return place{}, err
+	}
+	e.line("cmp %s, %s", cl[0].text, cl[1].text)
+	e.line("jge %s", done)
+	v, err := e.emit(body)
+	if err != nil {
+		return place{}, err
+	}
+	fl, err := e.materialize([]place{dst, idx, v}, "alloc")
+	if err != nil {
+		return place{}, err
+	}
+	e.line("mov qword ptr [%s+%s*8+%d], %s",
+		fl[0].text, fl[1].text, asmTableHeader, fl[2].text)
+	e.release(v)
+	e.line("add %s, 1", idx.text)
+	e.line("jmp %s", top)
+	e.label(done)
+	delete(e.where, raw[0])
+	e.release(idx)
+	e.release(nHold)
+	return dst, nil
+}
+
+// emitBuild is ADR 0018's scoped mutable buffer. The buffer IS a table — the
+// same pointer-with-a-header — because linearity is what makes the freeze on
+// the way out free, and nothing has to change representation.
+func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
+	args := t.Args()
+	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+		return place{}, fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+	}
+	n, err := e.emit(args[0])
+	if err != nil {
+		return place{}, err
+	}
+	nHold := e.alloc(false)
+	e.move(nHold, n)
+	e.release(n)
+	buf, err := e.tableOf(nHold)
+	if err != nil {
+		return place{}, err
+	}
+	e.release(nHold)
+	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
+	e.where[raw[0]] = hold(buf)
+	out, err := e.emit(body)
+	delete(e.where, raw[0])
+	return out, err
+}
+
+// emitSet is a store. It consumes the buffer and returns it, which is the
+// linear threading spelled in x86's own addressing mode.
+func (e *asmEmitter) emitSet(t *core.Term) (place, error) {
+	args := t.Args()
+	if len(args) != 3 {
+		return place{}, fmt.Errorf("set takes a buffer, an index and a value, got %s", t)
+	}
+	b, err := e.emit(args[0])
+	if err != nil {
+		return place{}, err
+	}
+	i, err := e.emit(args[1])
+	if err != nil {
+		return place{}, err
+	}
+	v, err := e.emit(args[2])
+	if err != nil {
+		return place{}, err
+	}
+	live, err := e.materialize([]place{b, i, v}, "set")
+	if err != nil {
+		return place{}, err
+	}
+	e.line("mov qword ptr [%s+%s*8+%d], %s",
+		live[0].text, live[1].text, asmTableHeader, live[2].text)
+	e.release(i)
+	e.release(v)
+	return b, nil
+}
+
+// emitArrayLit builds a graph in memory. There is no static-data form for one:
+// staticdata-2026-08-20 measured compile-time materialisation as free of code
+// on x86 and never a measurable win, so a literal table is built the same way
+// any other is.
+func (e *asmEmitter) emitArrayLit(t *core.Term) (place, error) {
+	elems := t.Args()
+	n := e.alloc(false)
+	e.line("mov %s, %d", n.text, len(elems))
+	dst, err := e.tableOf(n)
+	if err != nil {
+		return place{}, err
+	}
+	e.release(n)
+	for i, x := range elems {
+		v, err := e.emit(x)
+		if err != nil {
+			return place{}, err
+		}
+		al, err := e.materialize([]place{dst, v}, "array")
+		if err != nil {
+			return place{}, err
+		}
+		e.line("mov qword ptr [%s+%d], %s", al[0].text, asmTableHeader+8*i, al[1].text)
+		e.release(v)
+	}
+	return dst, nil
 }

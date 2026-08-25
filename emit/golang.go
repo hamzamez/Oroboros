@@ -1275,9 +1275,27 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 		result = e.fresh("r")
 		e.line("var %s %s", result, e.tgt.ty(orAny(rty)))
 	}
-	e.line("for {")
+	// A uniformly-updated loop variable moves into the `for` statement's post
+	// clause, which is what turns several back edges into one — see PostVars.
+	post := PostVars(body, raw)
+	if len(post) > 0 {
+		var lhs, rhs []string
+		for i := range names {
+			if u, ok := post[i]; ok {
+				v, err := e.emit(u)
+				if err != nil {
+					return "", err
+				}
+				lhs = append(lhs, names[i])
+				rhs = append(rhs, v)
+			}
+		}
+		e.line("for ; ; %s = %s {", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+	} else {
+		e.line("for {")
+	}
 	e.indent++
-	if err := e.emitLoopBody(body, raw, names, result); err != nil {
+	if err := e.emitLoopBody(body, raw, names, result, post); err != nil {
 		return "", err
 	}
 	e.indent--
@@ -1295,7 +1313,7 @@ func orAny(ty string) string {
 
 // emitLoopBody walks the clause chain, emitting statements rather than an
 // expression. Leaves are the only thing that differ from emitIf.
-func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string) error {
+func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string, post map[int]*core.Term) error {
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
 			cond, err := e.emit(t.Args()[0])
@@ -1304,12 +1322,12 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string)
 			}
 			e.line("if %s {", cond)
 			e.indent++
-			if err := e.emitLoopBody(t.Args()[1], raw, names, result); err != nil {
+			if err := e.emitLoopBody(t.Args()[1], raw, names, result, post); err != nil {
 				return err
 			}
 			e.indent--
 			e.line("}")
-			return e.emitLoopBody(t.Args()[2], raw, names, result)
+			return e.emitLoopBody(t.Args()[2], raw, names, result, post)
 		}
 	}
 	// `let binds; if branches` — the reader allows `again` under a `let`, so the
@@ -1329,7 +1347,7 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string)
 					if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 						e.line("_ = %s", val)
 					}
-					return e.emitLoopBody(k.Body(), raw, names, result)
+					return e.emitLoopBody(k.Body(), raw, names, result, post)
 				}
 				ty := e.typeOf(args[0])
 				kb, kraw, kout := openFresh(k, e.bound, mangle)
@@ -1339,12 +1357,12 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string)
 				} else {
 					e.line("%s := %s", kout[0], val)
 				}
-				return e.emitLoopBody(kb, raw, names, result)
+				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
 	}
 	if isAgain(t) {
-		return e.emitAgain(t, raw, names)
+		return e.emitAgain(t, raw, names, post)
 	}
 	v, err := e.emit(t)
 	if err != nil {
@@ -1364,7 +1382,7 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string)
 // optimisation, and it also shrinks the simultaneity problem, because an
 // unchanged variable cannot be clobbered. And Go has parallel assignment, so
 // the changed ones need no temporaries at all.
-func (e *Emitter) emitAgain(t *core.Term, raw, names []string) error {
+func (e *Emitter) emitAgain(t *core.Term, raw, names []string, post map[int]*core.Term) error {
 	as := t.Args()
 	if len(as) != len(names) {
 		return fmt.Errorf("again takes %d argument(s), given %d", len(names), len(as))
@@ -1373,6 +1391,9 @@ func (e *Emitter) emitAgain(t *core.Term, raw, names []string) error {
 	for i, a := range as {
 		if a.Kind == core.KName && a.Name == raw[i] {
 			continue // unchanged: x = x is noise
+		}
+		if _, hoisted := post[i]; hoisted {
+			continue // the `for` statement's post clause does this one
 		}
 		v, err := e.emit(a)
 		if err != nil {

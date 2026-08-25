@@ -6,25 +6,23 @@ func TableCountPrimes(n int) int {
 	c := make([]bool, n)
 	c2 := c
 	var i int = 2
-	for {
+	for ; ; i = (i + 1) {
 		if ((i * i) >= n) {
 			break
 		}
 		if c2[i] {
-			i = (i + 1)
 			continue
 		}
 		c3 := c2
 		var j int = (i * i)
-		for {
+		for ; ; j = (j + i) {
 			if (j < n) {
 				c3[j] = true
-				j = (j + i)
 				continue
 			}
 			break
 		}
-		c2, i = c3, (i + 1)
+		c2 = c3
 		continue
 	}
 	c4 := c2
@@ -32,15 +30,14 @@ func TableCountPrimes(n int) int {
 	var k int = 2
 	var n1 int = n
 	c4 = c4[:n1]
-	for {
+	for ; ; k = (k + 1) {
 		if (k >= n) {
 			break
 		}
 		if c4[k] {
-			k = (k + 1)
 			continue
 		}
-		acc, k = (acc + 1), (k + 1)
+		acc = (acc + 1)
 		continue
 	}
 	return acc

@@ -109,10 +109,10 @@ func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, erro
 // An OBJECT LITERAL with a fixed shape, measured rather than chosen for how it
 // reads (mrshape-2026-08-22):
 //
-//	                     caller uses p.f0   caller destructures
-//	  return [a, b]           8,348 ns            955 ns
-//	  return {f0, f1}         5,164 ns            956 ns
-//	  no product at all            —              940 ns
+//	                   caller uses p.f0   caller destructures
+//	return [a, b]           8,348 ns            955 ns
+//	return {f0, f1}         5,164 ns            956 ns
+//	no product at all            —              940 ns
 //
 // The object is 1.62x faster when the caller reads a property and identical
 // when it destructures, so it is better or equal in both. The first version
@@ -759,9 +759,28 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 			e.line("let %s;", result)
 		}
 	}
-	e.line("for (;;) {")
+	// A uniformly-updated loop variable moves into the `for` statement's post
+	// clause — see PostVars. On Go this recovered 1.4x on the sieve, by giving
+	// the loop one back edge instead of several.
+	post := PostVars(body, raw)
+	if len(post) > 0 {
+		var lhs, rhs []string
+		for i := range names {
+			if u, ok := post[i]; ok {
+				v, err := e.emit(u)
+				if err != nil {
+					return "", err
+				}
+				lhs = append(lhs, names[i])
+				rhs = append(rhs, v)
+			}
+		}
+		e.line("for (;; %s = %s) {", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+	} else {
+		e.line("for (;;) {")
+	}
 	e.indent++
-	if err := e.emitLoopBody(body, raw, names, result); err != nil {
+	if err := e.emitLoopBody(body, raw, names, result, post); err != nil {
 		return "", err
 	}
 	e.indent--
@@ -772,7 +791,7 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	return result, nil
 }
 
-func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result string) error {
+func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result string, post map[int]*core.Term) error {
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
 			cond, err := e.emit(t.Args()[0])
@@ -781,12 +800,12 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 			}
 			e.line("if (%s) {", cond)
 			e.indent++
-			if err := e.emitLoopBody(t.Args()[1], raw, names, result); err != nil {
+			if err := e.emitLoopBody(t.Args()[1], raw, names, result, post); err != nil {
 				return err
 			}
 			e.indent--
 			e.line("}")
-			return e.emitLoopBody(t.Args()[2], raw, names, result)
+			return e.emitLoopBody(t.Args()[2], raw, names, result, post)
 		}
 	}
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
@@ -802,16 +821,16 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 					if !emitsStatement(e.tgt, args[0]) {
 						e.line("%s;", val)
 					}
-					return e.emitLoopBody(k.Body(), raw, names, result)
+					return e.emitLoopBody(k.Body(), raw, names, result, post)
 				}
 				kb, _, kout := openFresh(k, e.bound, jsMangle)
 				e.line("const %s = %s;", kout[0], val)
-				return e.emitLoopBody(kb, raw, names, result)
+				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
 	}
 	if isAgain(t) {
-		return e.emitAgain(t, raw, names)
+		return e.emitAgain(t, raw, names, post)
 	}
 	v, err := e.emit(t)
 	if err != nil {
@@ -834,12 +853,12 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 // emitAgain: skip unchanged variables, and use temporaries only when a changed
 // one is read by another changed one — otherwise sequential assignment is
 // already simultaneous.
-func (e *jsEmitter) emitAgain(t *core.Term, raw, names []string) error {
+func (e *jsEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]*core.Term) error {
 	as := t.Args()
 	if len(as) != len(names) {
 		return fmt.Errorf("again takes %d argument(s), given %d", len(names), len(as))
 	}
-	changed := changedArgs(as, raw)
+	changed := changedArgs(as, raw, post)
 	vals := make(map[int]string, len(changed))
 	var real []int
 	for _, i := range changed {

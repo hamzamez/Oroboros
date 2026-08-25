@@ -259,7 +259,9 @@ func TestLoopEmitsHostFor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("emit: %v", err)
 	}
-	for _, want := range []string{"for {", "break", "i = (i + 1)", "continue"} {
+	// `for ; ; i = (i + 1)` rather than `for {`: a uniformly-updated loop
+	// variable moves into the post clause (PostVars).
+	for _, want := range []string{"for ; ; i = (i + 1) {", "break", "continue"} {
 		if !strings.Contains(code, want) {
 			t.Errorf("missing %q:\n%s", want, code)
 		}
@@ -298,10 +300,18 @@ func TestLoopSkipsUnchangedArguments(t *testing.T) {
 	if strings.Contains(code, "best, i = best,") {
 		t.Errorf("unchanged variable was reassigned:\n%s", code)
 	}
-	if !strings.Contains(code, "best, i = (a[i]), (i + 1)") {
-		t.Errorf("changed variables should use Go's parallel assignment:\n%s", code)
+	// `i` is updated identically by every `again`, so it moved into the `for`
+	// statement's post clause (PostVars) — which is what turned several back
+	// edges into one and recovered 1.4x on the sieve. `best` differs per clause
+	// and stays in the body.
+	if !strings.Contains(code, "for ; ; i = (i + 1) {") {
+		t.Errorf("the uniform update should be the loop's post clause:\n%s", code)
 	}
-	if !strings.Contains(code, "i = (i + 1)\n") {
-		t.Errorf("the skip path should assign only i:\n%s", code)
+	if !strings.Contains(code, "best = (a[i])") {
+		t.Errorf("a per-clause update stays in the body:\n%s", code)
+	}
+	// And the clause that changes nothing is a bare `continue` now.
+	if strings.Count(code, "i = (i + 1)") != 1 {
+		t.Errorf("the update should appear exactly once:\n%s", code)
 	}
 }

@@ -589,3 +589,29 @@ targets.
 4. **Rewrite `centroid` as a `loop`**; if parity holds, retire `fold-range2`.
 5. **Decide the trip-count question** by measuring §6's two ways out.
 6. **An ADR**, recording what it cost and what it retired.
+
+
+---
+
+## The emitted shape, and why it is not `for { … }`
+
+A loop variable that **every `again` updates identically** moves into the host `for` statement's
+post clause:
+
+```go
+for ; ; i = (i + 1) {
+	if (i * i) >= n { break }
+	…
+}
+```
+
+This is not cosmetic. Emitting `for { … i = i + 1; continue … }` duplicates the update into every
+clause, so the loop has several back edges and Go's SSA does not see a counted loop — measured at
+**1.4x** on the sieve ([loopshape-2026-08-25](../../gauntlet/results/loopshape-2026-08-25.md)).
+
+The condition is soundness, not tidiness: `again`'s arguments are evaluated **simultaneously** with
+every variable's old value, and a post clause runs **after** the body. So an update that reads
+another loop variable is left in the body, because by then the body may have assigned it.
+
+`dot` is unaffected — its loop has one back edge, and its machine code is byte-identical to
+hand-written either way. The hoist removes a cost that appears only with several back edges.

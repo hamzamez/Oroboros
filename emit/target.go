@@ -976,9 +976,18 @@ func openFresh(t *core.Term, taken map[string]bool, mangle func(string) string) 
 // hamza's optimisation: an unchanged variable needs no assignment at all, which
 // removes noise from the output AND shrinks the simultaneity problem, since an
 // unchanged variable cannot be clobbered by another.
-func changedArgs(as []*core.Term, raw []string) []int {
+// `post` names the variables the `for` statement's own post clause updates
+// (PostVars); assigning one here as well would advance it TWICE. That is not
+// hypothetical — the first version of the post hoist patched each backend's
+// `emitAgain` separately, JavaScript's routes through this helper instead, and
+// the emitted sieve incremented `i` twice per iteration and got 1984 of 2000
+// answers wrong. The skip belongs in the one place all three share.
+func changedArgs(as []*core.Term, raw []string, post map[int]*core.Term) []int {
 	var out []int
 	for i, a := range as {
+		if _, hoisted := post[i]; hoisted {
+			continue
+		}
 		if a.Kind == core.KName && a.Name == raw[i] {
 			continue
 		}
@@ -1168,5 +1177,119 @@ func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) st
 		// to; `int` is the one every target has.
 		return "int"
 	}
+	return found
+}
+
+// collectAgains gathers every `again` in a clause chain.
+func collectAgains(t *core.Term) []*core.Term {
+	var out []*core.Term
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KApp && len(x.Kids) > 0 &&
+			x.Kids[0].Kind == core.KName && x.Kids[0].Name == "again" {
+			out = append(out, x)
+			return // an `again` is a tail; nothing nests under it
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	return out
+}
+
+// PostVars picks the loop variables whose update can move into the `for`
+// statement's post clause, turning several back edges into one.
+//
+// This is what the sieve cost 1.4x against hand-written Go
+// (tables-write-2026-08-25). Our loops emit
+//
+//	for { if guard { break }; …; i = i + 1; continue }
+//
+// where a person writes `for i := 2; i*i < n; i++`. The increment is duplicated
+// into every clause, so the loop has several back edges and Go's SSA does not
+// see a counted loop. Measured: hoisting the increment ALONE takes the sieve
+// from 470k to 348k, at hand-written — and so does hoisting the condition
+// alone, so Go needs only one of the two to recognise the shape.
+//
+// A variable qualifies when:
+//
+//  1. every `again` passes the SAME term for it — otherwise there is no single
+//     update to hoist;
+//  2. that term is not the variable itself, which `changedArgs` already skips;
+//  3. the term reads no OTHER loop variable.
+//
+// (3) is the soundness condition and it is easy to get wrong. `again`'s
+// arguments are evaluated simultaneously, with every variable's OLD value. A
+// post clause runs after the body, so if the hoisted update read another
+// variable that the body had already assigned, it would see the new value.
+// `i = i + 1` reads only itself and is safe; `i = i + j` alongside a changing
+// `j` is not, and stays in the body.
+func PostVars(body *core.Term, raw []string) map[int]*core.Term {
+	agains := collectAgains(body)
+	if len(agains) == 0 {
+		return nil
+	}
+	out := map[int]*core.Term{}
+	for i := range raw {
+		var want *core.Term
+		ok := true
+		for _, a := range agains {
+			as := a.Args()
+			if i >= len(as) {
+				ok = false
+				break
+			}
+			if want == nil {
+				want = as[i]
+				continue
+			}
+			if want.String() != as[i].String() {
+				ok = false
+				break
+			}
+		}
+		if !ok || want == nil {
+			continue
+		}
+		if want.Kind == core.KName && want.Name == raw[i] {
+			continue // unchanged; nothing to hoist
+		}
+		if readsOtherLoopVar(want, raw, i) {
+			continue
+		}
+		out[i] = want
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// readsOtherLoopVar reports whether a term mentions a loop variable that is not
+// the one being updated. See PostVars (3).
+func readsOtherLoopVar(t *core.Term, raw []string, self int) bool {
+	found := false
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil || found {
+			return
+		}
+		if x.Kind == core.KName {
+			for j, n := range raw {
+				if j != self && x.Name == n {
+					found = true
+					return
+				}
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
 	return found
 }

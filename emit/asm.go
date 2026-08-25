@@ -1072,7 +1072,11 @@ func (e *asmEmitter) emitAgain(t *core.Term, raw []string, vars []place, top str
 		return fmt.Errorf("again takes %d argument(s), given %d", len(vars), len(as))
 	}
 	pending := map[int]bool{}
-	for _, i := range changedArgs(as, raw) {
+	// nil: x86 has no `for` statement to hoist a post clause into, and no host
+	// compiler to hide the loop shape from — the labels and the back jump ARE
+	// the emitted code. PostVars exists to make Go, V8 and C2 recognise a
+	// counted loop; here there is nobody to convince.
+	for _, i := range changedArgs(as, raw, nil) {
 		pending[i] = true
 	}
 	// A variable that has been copied aside is no longer a hazard: every later

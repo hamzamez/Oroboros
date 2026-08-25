@@ -19,9 +19,10 @@ residual. **The sieve is written portably** — the program that decided ADR 001
 cannot express a scatter — and it costs nothing against the version written with Go's own
 primitives.
 
-What it also measured: **the emitted sieve is ~1.4x hand-written Go, and the cause is our LOOP
-SHAPE, not tables.** Hand-written code in our shape measures the same as our output. That is a new
-open item and it belongs to `loop`, not here.
+What it also measured: **the emitted sieve was ~1.4x hand-written Go, and the cause was our LOOP
+SHAPE, not tables** — hand-written code in our shape measured the same as our output. Fixed the same
+day ([loopshape-2026-08-25](../../gauntlet/results/loopshape-2026-08-25.md)); the sieve is at
+**1.02x**.
 
 **Not built: windows.** It needs an array representation *and* an allocator — the other three hosts
 bring a collector and it brings `VirtualAlloc` and nothing — and ADR 0018 says that reclamation

@@ -7,11 +7,11 @@ func TableDot(a []float64, b []float64) float64 {
 	var i int = 0
 	var n1 int = len(a)
 	b = b[:n1]
-	for {
+	for ; ; i = (i + 1) {
 		if (i >= len(a)) {
 			break
 		}
-		acc, i = (acc + (a[i] * b[i])), (i + 1)
+		acc = (acc + (a[i] * b[i]))
 		continue
 	}
 	return acc

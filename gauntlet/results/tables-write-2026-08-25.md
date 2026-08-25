@@ -56,6 +56,11 @@ with the identical loop shape ([tables-read](tables-read-2026-08-25.md)).
 **This is a new open item, not a table problem.** Emitting a counted loop where the clause structure
 allows one is the obvious next move, and it would benefit every program rather than this one.
 
+> **FIXED the same day** — [loopshape-2026-08-25](loopshape-2026-08-25.md). A loop variable updated
+> identically by every `again` now moves into the `for` statement's post clause, and the sieve is at
+> **1.02x**. Measured first: either hoisting the increment *or* hoisting the condition recovers the
+> whole cost on its own, so only the cheaper one was built.
+
 ---
 
 ## 2. Linearity, which was missing and is the ADR's own safety property

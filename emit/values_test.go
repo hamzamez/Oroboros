@@ -245,13 +245,13 @@ func TestMatchReachesEveryBackend(t *testing.T) {
 	cases := []struct{ target, src, want string }{
 		{"go", `(use go)
 			(export g) (sig g ((s int) (n int)) int)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (go.- v 1)) else n)))`, "for {"},
+			(def g (fn (s n) (match (s n) 0 v (again 1 (go.- v 1)) else n)))`, "for "},
 		{"js", `(use js)
 			(export g) (sig g ((s any) (n any)) any)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (js.- v 1)) else n)))`, "for (;;)"},
+			(def g (fn (s n) (match (s n) 0 v (again 1 (js.- v 1)) else n)))`, "for (;"},
 		{"java", `(use java)
 			(export g) (sig g ((s int) (n int)) int)
-			(def g (fn (s n) (match (s n) 0 v (again 1 (java.- v 1)) else n)))`, "for (;;)"},
+			(def g (fn (s n) (match (s n) 0 v (again 1 (java.- v 1)) else n)))`, "for (;"},
 		{"windows", `(use x64)
 			(export g) (sig g ((s int) (n int)) int)
 			(def g (fn (s n) (match (s n) 0 v (again 1 (x64.sub v 1)) else n)))`, "Ltop"},

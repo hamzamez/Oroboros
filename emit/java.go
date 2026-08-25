@@ -958,9 +958,28 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 		result = javaMangle(e.fresh("r"))
 		e.line("%s %s = %s;", e.tgt.ty(rty), result, zeroOf(e.tgt.ty(rty)))
 	}
-	e.line("for (;;) {")
+	// A uniformly-updated loop variable moves into the `for` statement's post
+	// clause — see PostVars. On Go this recovered 1.4x on the sieve, by giving
+	// the loop one back edge instead of several.
+	post := PostVars(body, raw)
+	if len(post) > 0 {
+		var lhs, rhs []string
+		for i := range names {
+			if u, ok := post[i]; ok {
+				v, err := e.emit(u)
+				if err != nil {
+					return "", err
+				}
+				lhs = append(lhs, names[i])
+				rhs = append(rhs, v)
+			}
+		}
+		e.line("for (;; %s = %s) {", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+	} else {
+		e.line("for (;;) {")
+	}
 	e.indent++
-	if err := e.emitLoopBody(body, raw, names, result); err != nil {
+	if err := e.emitLoopBody(body, raw, names, result, post); err != nil {
 		return "", err
 	}
 	e.indent--
@@ -985,7 +1004,7 @@ func zeroOf(ty string) string {
 	}
 }
 
-func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result string) error {
+func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result string, post map[int]*core.Term) error {
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if p, ok := e.tgt.Prims[t.Op().Name]; ok && p.Kind == "cond" && len(t.Args()) == 3 {
 			cond, err := e.emit(t.Args()[0])
@@ -994,12 +1013,12 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 			}
 			e.line("if (%s) {", cond)
 			e.indent++
-			if err := e.emitLoopBody(t.Args()[1], raw, names, result); err != nil {
+			if err := e.emitLoopBody(t.Args()[1], raw, names, result, post); err != nil {
 				return err
 			}
 			e.indent--
 			e.line("}")
-			return e.emitLoopBody(t.Args()[2], raw, names, result)
+			return e.emitLoopBody(t.Args()[2], raw, names, result, post)
 		}
 	}
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
@@ -1018,18 +1037,18 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 					if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
 						e.line("final var %s = %s;", javaMangle(e.fresh("discard")), val)
 					}
-					return e.emitLoopBody(k.Body(), raw, names, result)
+					return e.emitLoopBody(k.Body(), raw, names, result, post)
 				}
 				ty := e.typeOf(args[0])
 				kb, kraw, kout := openFresh(k, e.bound, javaMangle)
 				e.types[kraw[0]] = ty
 				e.line("final %s %s = %s;", e.tgt.ty(ty), kout[0], val)
-				return e.emitLoopBody(kb, raw, names, result)
+				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
 	}
 	if isAgain(t) {
-		return e.emitAgain(t, raw, names)
+		return e.emitAgain(t, raw, names, post)
 	}
 	v, err := e.emit(t)
 	if err != nil {
@@ -1042,12 +1061,12 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 	return nil
 }
 
-func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string) error {
+func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]*core.Term) error {
 	as := t.Args()
 	if len(as) != len(names) {
 		return fmt.Errorf("again takes %d argument(s), given %d", len(names), len(as))
 	}
-	changed := changedArgs(as, raw)
+	changed := changedArgs(as, raw, post)
 	vals := make(map[int]string, len(changed))
 	var real []int
 	for _, i := range changed {

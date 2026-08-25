@@ -32,8 +32,11 @@ backends in the cloud. The four targets were application platforms all along —
 ## Where this actually stands
 
 A working compiler: a β/δ reducer with call-by-need and an effect discipline, **four backends**,
-and **all seven gauntlet programs at parity with hand-written code on two native targets** — two
-of them producing byte-identical machine code on Go.
+and **all seven gauntlet programs at parity with hand-written code on Go, JavaScript and Java** —
+two of them producing byte-identical machine code on Go.
+
+The language's own data structure — a **table**, which is a function with a known finite domain —
+works on all four targets, and on x86 the portable sieve is **0.88×** of hand-written assembly.
 
 | | |
 |---|---|
@@ -43,8 +46,8 @@ of them producing byte-identical machine code on Go.
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 47 programs |
-| `gauntlet/` | hand-written references and 32 recorded measurements — **the bar** |
+| `examples/` | 58 programs |
+| `gauntlet/` | hand-written references and 38 recorded measurements — **the bar** |
 
 ```bash
 go run ./cmd/oro   -target=go examples/dot.oro          # reduce to normal form
@@ -64,6 +67,10 @@ go test ./core/ ./emit/
 Everything else is sugar that erases before reduction: `let`, `seq`, `and`/`or`/`not`/`cond`,
 `loop`, `values`, `match` and `case`. A `sum` declaration is not even a concept downstream — it
 generates ordinary `def`s, so the reducer, the module system and every backend are unchanged by it.
+And **indexing has no word at all**: `(a i)` is an application, because a table *is* a function.
+
+Every word an `.oro` file can contain is audited in [inventory.md](docs/spec/inventory.md) — 62 of
+them, 57 specified, taken from the code rather than from memory.
 
 The rule count was **3** until sums landed on 2026-08-22 and it went up honestly rather than by
 relabelling: `=` now folds on two integer literals, and an eliminator is pushed through `if` and
@@ -76,53 +83,52 @@ Read off the code rather than from memory: [state.md](docs/spec/state.md).
 
 Seven programs that must reach parity with hand-written code. They are the one fixed commitment.
 
-Numbers are *emitted ÷ hand-written*, so **lower is better and ~1.00× is the bar**. The two
-current full runs are on the **native** targets — [Go](gauntlet/results/native-gauntlet-2026-08-20.md)
-and [JavaScript](gauntlet/results/native-js-2026-08-20.md):
+Numbers are *emitted ÷ hand-written*, so **lower is better and ~1.00× is the bar**. All three full
+runs are on the **native** targets — [Go](gauntlet/results/native-gauntlet-2026-08-20.md),
+[JavaScript](gauntlet/results/native-js-2026-08-20.md),
+[Java](gauntlet/results/native-java-2026-08-25.md):
 
-| | Go | JavaScript |
-|---|---|---|
-| dot product | 1.00× | 1.03× |
-| search | 0.97× early / 1.00× late | 1.21× early / 1.00× late |
-| centroid (structs) | 1.01× | 0.97× |
-| word count | 0.997× | 0.89× |
-| generics | 0.98× | 0.98× |
-| formatted output | correct — its pass condition is not a number | correct |
-| stencil (aliasing) | 0.93× allocating / 0.999× reusing | 0.94× / 0.97× |
+| | Go | JavaScript | Java |
+|---|---|---|---|
+| dot product | 1.00× | 1.03× | 0.98× |
+| search | 0.97× early / 1.00× late | 1.21× early / 1.00× late | 1.01× late |
+| centroid (structs) | 1.01× | 0.97× | 1.00× |
+| word count | 0.997× | 0.89× | 1.00× |
+| generics | 0.98× | 0.98× | 1.00× |
+| formatted output | correct — its pass condition is not a number | correct | correct |
+| stencil (aliasing) | 0.93× allocating / 0.999× reusing | 0.94× / 0.97× | 0.99× / 1.00× |
 
 All but one are inside the ~15% noise floor, which is the claim: **at parity, not faster**. The
 exception is JavaScript's early-exit search — 7.5 ns against 6.2 ns on a single call returning at
 index 6, so the 1.3 ns gap is call overhead at the timer's resolution floor. It is recorded as a
 loss rather than argued away.
+
 Separately, on the *earlier portable layer*, centroid and generics compiled to **byte-identical
 machine code** against hand-written Go
 ([structs](gauntlet/results/structs-2026-08-14.md), [generics](gauntlet/results/generics-2026-08-14.md)) —
 a stronger result than a timing, and the reason those two programs exist.
 
-Three caveats stated rather than buried:
+Three things stated rather than buried:
 
-- **Java has moved to the native target** —
-  [native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md). All seven programs, at
-  parity, on JDK 17. Two things came out of it: the migration **refuted** the measurement that made
-  Java the interesting case (the fused `merge` was recorded 2.6× slower than unfused and is
-  **1.19× faster**), and it put a price on ADR 0012 — our `int` maps to Java's `long`, so a loop
-  counter was 64-bit and every array access carried a cast, worth **1.04×–1.54×** depending on the
-  loop. That is [fixed](gauntlet/results/indextype-2026-08-25.md): a counter the compiler can bound
-  by a length is emitted as the host's own `int`, and every program is at parity with idiomatic
-  hand-written Java.
-- **The language's table works on all four targets** —
-  [wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md). On x86 the portable sieve
-  started at **3.7×** of hand-written assembly and ends at **0.88×**, faster than hand-written and
-  faster than the target-native form. Both costs were invisible on the other three hosts: element
-  size not being part of the type, and a threaded buffer costing a register.
-- **x86-64/Windows runs one program, not the gauntlet.** A 200,000-element sieve, at **0.97×
-  median** against hand-written assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)) —
-  and the hand-written reference is written the way a person writes it, not in the emitter's shape.
-  That is what [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md) rests on.
-- **The stencil's allocating form is [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s
-  open price.** It reaches parity here because the *native* target can express buffer reuse
-  (`go.set-float64` is Go's own store); the retired portable layer could not, and paid 1.79×. The
-  price is the **shape**, not the compiler — and it is expected to be paid off, not kept.
+- **Java's migration refuted the measurement that made Java the interesting case.** The fused
+  `merge` was recorded 2.6× slower than unfused and is **1.19× faster** on JDK 17
+  ([native-java-2026-08-25](gauntlet/results/native-java-2026-08-25.md)). Both forms are declared
+  now and the program picks — which is what "carry both forms" asks for and what the old conclusion
+  prevented. ADR 0008's *rule* is what survives; its example is not.
+- **x86-64/Windows runs two programs, not the gauntlet** — a sieve at 0.97× of hand-written
+  assembly ([windows-2026-08-19](gauntlet/results/windows-2026-08-19.md)), and the *portable* sieve
+  on the language's own table, which started at 3.7× and ends at **0.88×**
+  ([wintables-2026-08-25](gauntlet/results/wintables-2026-08-25.md)). It is the host where the
+  remaining costs become visible, which is what
+  [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md) says it is for: both of
+  those costs — element size not being part of the type, and a threaded buffer costing a register —
+  were being absorbed invisibly by the other three hosts.
+- **[ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price is the SHAPE,
+  now on three hosts.** Allocating costs 1.54× against reusing for *hand-written Java* too, and
+  2.71× for hand-written Go. The emitted code matches hand-written code in each shape; what the
+  portable language still cannot express is writing into a buffer the **caller** owns, which
+  [ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md) scopes to `build`. That is the
+  open half, and it is expected to be paid off rather than kept.
 
 ## What it looks like
 
@@ -296,7 +302,8 @@ rather than stated.
 | **Several results** | `(values a b)` is the *negative product* — sugar for `(fn (#k) (#k a b))`, so β is its algebra and the reducer needed nothing ([values.md](docs/spec/values.md)) |
 | **Pattern matching** | `match` is `loop`: reader sugar, zero rules, zero term kinds, `again` in a clause body ([match.md](docs/spec/match.md)) |
 | **Sums** | closed, finite, non-recursive. A sum is Σ, so its value is a tag and a payload — which is the product, already built on four targets ([sums.md](docs/spec/sums.md)) |
-| **Memory** | immutable values, one scoped **linear** buffer; the linearity check is occurrence counting on the residual, not a type ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)) |
+| **Tables** | the primary data structure, and there is one: **a function with a known finite domain.** `(array e…)` a graph, `(table n f)` a rule with no memory, `(len t)` the domain bound — and **indexing is APPLICATION**, `(a i)`, with no word of its own ([tables.md](docs/spec/tables.md)) |
+| **Memory** | immutable values, one scoped **linear** buffer — `(alloc t)` gathers, `(build n f)` scatters, `(set b i v)` consumes and returns. The linearity check is occurrence counting **on the residual, not a type**, and it is an *ordering* property: reads do not consume ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)) |
 | **Effects** | one declared bit per primitive, defaulting to impure. An impure argument is never substituted. No effect types, no monads ([ADR 0010](docs/decisions/0010-effects-as-structural-rules.md)) |
 
 ### Types are not in the language, and they still check
@@ -414,18 +421,30 @@ Java and JavaScript (3.5× slower to load, 2,600× larger source) —
 
 The honest list, with the reasoning written down rather than deferred to memory:
 
+- **Cross-target conformance for the language's own constructs.** `gauntlet/conformance/` exists
+  because `split-words` *"passed every check for two months while returning different answers on
+  different targets"* — and it covers that one primitive. `table`, `array`, `len`, indexing,
+  `alloc`, `build`, `set`, `match`, `case` and `values` have **none**, and two silent wrong-answer
+  bugs in one day were caught only by hand-written references
+  ([loopshape §3](gauntlet/results/loopshape-2026-08-25.md),
+  [wintables §4a](gauntlet/results/wintables-2026-08-25.md)). This is the largest open gap.
 - **Recursion** moved from *deferred* to **owed** — a JSON parser, a DOM walk and a
   recursive-descent parser all recurse to a depth the input decides, so
   [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) needs a superseding ADR
-  ([general-purpose.md](docs/general-purpose.md))
-- **Tables** — specified, not built ([tables.md](docs/spec/tables.md))
+  ([general-purpose.md](docs/general-purpose.md)). The standing counter-claim is that **recursive
+  data is a flat table plus indices**, measured 2.02× faster on irregular access — and now that
+  tables exist, a JSON parser written that way is the experiment that settles it.
 - **Strings**, **growable collections**, **maps** in the portable language
 - **The type system reasoning about the target** — expressing a Win32 contract so a program can be
   checked in Oroboros; SAL is the field-tested answer and five of the eight requirements exist
-- **The niche encoding** for sums, `try` as bind, and `match` on a sum
+- **The niche encoding** for sums, `try` as bind, and **`match` on a sum** — which would remove one
+  of the two eliminators, and is waiting for a program that wants `again` over a sum
+  ([sums.md §7](docs/spec/sums.md))
+- **Element size in the type**, generally. x86 needed it and got a local answer; nothing says what
+  `(array bool)` means on a host that has no `bool`
 - **Octagons** instead of the hand-rolled relational layer in `emit/refine.go`
-- [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price, which is
-  expected to be paid off, not kept
+- [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price — the shape, on
+  three hosts now, and expected to be paid off rather than kept
 
 Design questions still open are listed in §8 of
 [docs/design-direction.md](docs/design-direction.md). Current standing is
@@ -438,8 +457,10 @@ Design questions still open are listed in §8 of
    predecessor hit a performance wall
 3. [docs/the-atom.md](docs/the-atom.md) — what the core turned out to be
 4. [docs/spec/state.md](docs/spec/state.md) — the language as it is today
-5. The ADRs in [docs/decisions/](docs/decisions/)
-6. [gauntlet/results/](gauntlet/results/) — the authority
+5. [docs/spec/inventory.md](docs/spec/inventory.md) — every word an `.oro` file can contain, and
+   which of them are specified
+6. The ADRs in [docs/decisions/](docs/decisions/)
+7. [gauntlet/results/](gauntlet/results/) — the authority
 
 ## Name
 

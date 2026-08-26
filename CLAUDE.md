@@ -512,6 +512,18 @@ closed the first of the two holes shaped like a refinement, and **found a real l
 and `centroid`**, which index two arrays under one loop bound. Still open: the integer range hole
 ([arithmetic.md §4](docs/spec/arithmetic.md)).
 
+**A `where` means THREE things and nothing said so** — [refinements.md §6b](docs/spec/refinements.md).
+On a `prim` it is an obligation discharged at every call site. On an **exported** definition it is a
+published contract, *assumed*, because the caller is outside the program. On an **internal** one it
+is **dropped** — and what protects the program is that reduction inlines the call, so the body's own
+obligations land on the caller's concrete values. That is **stronger** than checking the clause,
+because the clause is a conservative summary: a declared `(< n 100)` on a body that needs
+`n < len a` would reject a legal `(get a 400)` against a 500-element array. **So enforcing a
+definition's `where` would be a regression, not a fix.** The genuine gap is the case inlining cannot
+reach — a body that is total and merely *wrong* outside its domain, where nothing fires;
+`win/fmt.print-int` prints a blank line for a negative number and is within its rights. That is
+SAL's `_Success_` shape and belongs beside the Win32 work.
+
 **What an unproven operation costs is 1.23× to 4.54×, and the shape decides** —
 [checkcost-2026-08-19](gauntlet/results/checkcost-2026-08-19.md), the same source compiled twice
 differing only in the declared range. Arithmetic-bound: **Go 4.54×, Java 1.52×** — the JVM has

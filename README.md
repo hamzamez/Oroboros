@@ -484,13 +484,16 @@ Java and JavaScript (3.5× slower to load, 2,600× larger source) —
 
 The honest list, with the reasoning written down rather than deferred to memory:
 
-- **A `where` on a DEFINITION is not checked at any call site.** A primitive's precondition is
-  discharged at every call; a definition's is documentation. The mechanism is that **reduction
-  inlines the call**, so by the time the residual reaches the refiner there is no call site left —
-  which means the check has to happen somewhere no other refinement lives. Found by the
-  differential suite on its first run
-  ([differential-2026-08-26 §4c](gauntlet/results/differential-2026-08-26.md)), and it needs its
-  own ADR.
+- **A precondition that states MEANING has no enforcement anywhere.** A `prim`'s `where` is
+  discharged at every call site; a definition's is *dropped*, and what protects the program instead
+  is that reduction inlines the call and the body's own obligations land on the caller's concrete
+  values — which is **stronger** than checking the declared clause, because that clause is only a
+  conservative summary. The gap is the case inlining cannot reach: a body that is total and merely
+  *wrong* outside its domain, where nothing fires. `win/fmt.print-int` prints a blank line for a
+  negative number and is within its rights. Same shape as SAL's `_Success_`, so it belongs beside
+  the Win32 work rather than ahead of it
+  ([refinements.md §6b](docs/spec/refinements.md),
+  [differential-2026-08-26](gauntlet/results/differential-2026-08-26.md)).
 - **Recursion** moved from *deferred* to **owed** — a JSON parser, a DOM walk and a
   recursive-descent parser all recurse to a depth the input decides, so
   [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) needs a superseding ADR

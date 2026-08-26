@@ -193,6 +193,16 @@ Ranked, and none of it is a language change today.
    specification and a fast implementation, with the signature as the contract (§8). This is the
    one genuinely new capability on the list.
 
+   > **What that will have to face, 2026-08-26.** A `sig`'s `where` already carries **three**
+   > meanings depending on where the definition ends up — an obligation on a `prim`, an assumed
+   > published contract on an *exported* definition, and a dropped summary on an *internal* one,
+   > where reduction inlines the call and the body's own obligations do the work instead
+   > ([refinements.md §6b](spec/refinements.md)). Making the signature *the* contract means
+   > deciding which of those it is, and the surprise is that the third is **more precise** than a
+   > checked declaration rather than less: the clause is a conservative summary and the propagated
+   > obligation is the truth. Whatever this becomes cannot simply start enforcing the clause, or it
+   > rejects programs that compile today.
+
 **Do not:**
 
 5. **Do not add closures, general recursion, or sums of products because Low\* has some of them.**

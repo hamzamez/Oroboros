@@ -121,6 +121,94 @@ And the softer case — a refinement that was *propagated* rather than *proven* 
 too, because [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) already established that a
 transformation which silently does not fire is indistinguishable from one that does.
 
+## 6b. A `where` on a DEFINITION is a different thing from one on a `prim`
+
+Found by the differential suite, 2026-08-26
+([differential-2026-08-26 §4](../../gauntlet/results/differential-2026-08-26.md)), and the answer
+is more interesting than the finding.
+
+**A primitive's `where` is discharged at every call site.** That is §5, it is what `aindex` and
+`go./` rest on, and it is unchanged.
+
+**A definition's is not — because there is no call site left.** Reduction inlines every
+non-exported call, so by the time the residual reaches `Refine` there is no `safe`, no `n`, and
+nothing to attach an obligation to:
+
+```lisp
+(sig safe ((n int)) int (where (<= 0 n)))
+(def safe (fn (n) (go.+ n 1)))
+(def f (fn (x) (safe (go.- 0 5))))        ; accepted
+```
+
+### The `where` is DROPPED, not assumed
+
+This is the difference between a missing check and an unsound one, and it is the first thing to
+establish. Nothing assumes `0 ≤ n` on the strength of the declaration; the clause simply does not
+participate. So a program is never *told* something false.
+
+### Inlining is the enforcement mechanism, and it is STRONGER than the declaration
+
+What actually protects the program is that the obligations *inside* the body land at the call site
+with the caller's own values:
+
+```lisp
+(sig safe ((a (array f64)) (n int)) f64 (where (and (<= 0 n) (< n (len a)))))
+(def safe (fn (a n) (a n)))
+(def f (fn (a) (safe a (go.- 0 5))))
+```
+
+```
+(a (go.- 0 5)) is an indexing, and (<= 0 (go.- 0 5)) does not follow
+```
+
+Refused — not because of the `where`, but because `(a -5)` is in the residual.
+
+And the declared clause is only ever a **summary**, so checking it instead would be *less* precise.
+A `where` of `(< n 100)` on a body that really needs `n < len a` rejects a legal `(get a 400)`
+against a 500-element array; the propagated obligation accepts it, because it is the truth rather
+than a conservative restatement of it.
+
+> **So a naive fix is a regression.** Enforcing a definition's `where` at call sites would reject
+> programs that are correct and currently compile. The declaration is documentation *plus* a
+> conservative summary; the check is the propagated obligation.
+
+### Except where the precondition states MEANING rather than guarding an obligation
+
+The one case inlining cannot reach is a body that is **total** and merely *wrong* outside its
+domain, because nothing fires. `lib/win/fmt.oro` is the instance:
+
+```lisp
+(sig print-int ((n int)) any (where (and (<= 0 n) (< n 9007199254740991))))
+```
+
+The digit loop exits immediately on `(x64.setg m 0)` for a negative `n` and writes the one byte it
+had already stored — so `print-int -13` prints a blank line. That is not a bug in the
+implementation: the declaration says it makes no claim there. It is a precondition with **no
+enforcement anywhere**, and the differential suite found it by printing a negative number.
+
+This is a real gap and a named one. It is the same shape as SAL's `_Success_` and
+`_Ret_maybenull_` — a contract about what a call *means*, not about what it may touch — which is
+the territory [general-purpose.md](../general-purpose.md) is already heading into for Win32. The
+difference is that SAL contracts sit on *primitives*, where `where` is enforced, and this one sits
+on a definition.
+
+### And an EXPORTED definition's `where` means a third thing
+
+For an exported function the caller is **outside the program**, so nothing in the program could
+check it. There it is *assumed*, and correctly: it is a published contract, exactly what SAL is
+for a C header. `Refine` assumes it so the body may rely on it.
+
+So one syntax carries three meanings, which nothing said until now:
+
+| on | meaning |
+|---|---|
+| a `prim` | an obligation, discharged at every call site |
+| an **exported** definition | a published contract, assumed; the caller is outside the program |
+| an **internal** definition | a summary — dropped, with the body's own obligations doing the work |
+
+The third is sound for everything that guards an obligation and empty for everything that states a
+meaning, and telling those apart is the open question.
+
 ## 7. What this does not do
 
 - **No solver for non-linear arithmetic.** Undecidable over the integers (Hilbert's tenth), and no
@@ -129,5 +217,7 @@ transformation which silently does not fire is indistinguishable from one that d
 - **No proofs.** Layer 2 ([types-sketch §7](../types-sketch.md)).
 - **No refinement inference.** A `where` is declared, never guessed. Liquid Types infers them by
   Horn-clause fixpoint; that is a larger machine and no program has asked.
+- **No enforcement of a precondition that states MEANING.** §6b: a definition whose body is total
+  and merely wrong outside its domain has nothing to catch. `win/fmt.print-int` is the instance.
 - **Not applied to the integer range yet.** §1's second hole needs `int` literals to carry ranges,
   which touches every arithmetic primitive. One hole at a time.

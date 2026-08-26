@@ -105,9 +105,27 @@ the call**, so by the time the residual reaches `Refine` there is no call site l
 attach the obligation to. The check has to happen before or during reduction, which is a different
 place from where every other refinement lives.
 
-This is the more serious of the two. `sig … where` is the language's way of stating a contract, it
-reads exactly like the primitive form that *is* enforced, and it silently is not. It needs its own
-build and probably its own ADR, and it is now the first item in the open list.
+> **Corrected the same day, after testing it properly.** The paragraph above is right that the
+> clause is not checked and wrong about what follows. Three things came out of pushing on it, and
+> they are written up in [refinements.md §6b](../../docs/spec/refinements.md):
+>
+> **The `where` is DROPPED, not assumed** — a missing check, not an unsound one. Nothing is ever
+> told something false.
+>
+> **Inlining is the enforcement mechanism, and it is stronger than the declaration.**
+> `(safe a (go.- 0 5))` IS refused, because `(a -5)` lands in the residual and the indexing
+> obligation catches it on the concrete value. And a `where` is only a conservative summary, so
+> checking it instead would be *less* precise: a declared `(< n 100)` on a body that needs
+> `n < len a` rejects a legal `(get a 400)` against a 500-element array, which the propagated
+> obligation accepts. **A naive fix would be a regression.**
+>
+> **What is genuinely lost is one nameable category**: a precondition that states MEANING rather
+> than guarding an obligation, where the body is total and merely wrong outside its domain.
+> `print-int` is exactly that, and it is the same shape as SAL's `_Success_`.
+>
+> So this is not one item needing an ADR. It is a documentation gap — three meanings on one syntax,
+> now written down — and one open question, which belongs beside the SAL work rather than ahead of
+> it.
 
 ---
 

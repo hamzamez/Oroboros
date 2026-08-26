@@ -550,13 +550,20 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 	}
 
 	// A spilled operand is loaded into scratch, because an instruction may name
-	// memory once. Two is the limit and it is checked: emitting
-	// `add [rsp+48], [rsp+56]` would at least fail to assemble, but a silently
-	// reused scratch register would not.
-	live, err := e.materialize(ops, t.Op().Name)
-	if err != nil {
-		return place{}, err
-	}
+	// memory once.
+	//
+	// THE LIMIT IS PER INSTRUCTION, NOT PER TEMPLATE, and this used to enforce
+	// the wrong one: any call with more spilled operands than scratch registers
+	// was refused, even though most templates only ever move an operand into a
+	// register. `mov rcx, [rsp+56]` is a legal instruction and a fifth argument
+	// to WriteFile does not need a scratch register to get there.
+	//
+	// So the excess stays in its frame slot and the RESULT is checked: a line
+	// naming memory twice is refused with the template that produced it. Found
+	// by a JSON tree walk, whose live values exhaust the seven callee-saved
+	// registers and left `print-int` unable to make a call that was always
+	// legal (json-tree-2026-08-26).
+	live, left := e.materializeBest(ops)
 
 	var dst, real place
 	if p.Kind == "stmt" {
@@ -576,9 +583,16 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 			}
 		}
 	}
-	body, err2 := fillAsm(p.Form, real, live, e.uniq())
-	if err = err2; err != nil {
+	body, err := fillAsm(p.Form, real, live, e.uniq())
+	if err != nil {
 		return place{}, fmt.Errorf("%s: %w", t.Op().Name, err)
+	}
+	if left > 0 {
+		if bad := twoMemoryOperands(body); bad != "" {
+			return place{}, fmt.Errorf("%s has more spilled operands than there are "+
+				"scratch registers, and its template needs them in registers: %s",
+				t.Op().Name, bad)
+		}
 	}
 	for _, l := range strings.Split(body, "\n") {
 		if s := strings.TrimSpace(l); s != "" {
@@ -598,6 +612,52 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 		e.release(o)
 	}
 	return dst, nil
+}
+
+// materializeBest loads spilled operands into scratch while scratch lasts and
+// leaves the rest in their frame slots, reporting how many it left. See the
+// template path for why that is allowed, and what checks it.
+func (e *asmEmitter) materializeBest(ops []place) ([]place, int) {
+	live := make([]place, len(ops))
+	copy(live, ops)
+	gp, xm, left := 0, 0, 0
+	for i := range live {
+		if live[i].slot == 0 {
+			continue
+		}
+		if live[i].xmm {
+			if xm >= len(asmScratchX) {
+				left++
+				continue
+			}
+			r := asmScratchX[xm]
+			xm++
+			e.line("movsd %s, %s", r, live[i].text)
+			live[i] = place{text: r, xmm: true}
+			continue
+		}
+		if gp >= len(asmScratchGP) {
+			left++
+			continue
+		}
+		r := asmScratchGP[gp]
+		gp++
+		e.line("mov %s, %s", r, live[i].text)
+		live[i] = place{text: r}
+	}
+	return live, left
+}
+
+// twoMemoryOperands returns the first filled line that names memory twice,
+// which is the constraint x86 actually has. A frame slot renders as
+// `qword ptr [rsp+56]`, so counting the brackets is counting the operands.
+func twoMemoryOperands(body string) string {
+	for _, l := range strings.Split(body, "\n") {
+		if s := strings.TrimSpace(l); strings.Count(s, "[") > 1 {
+			return s
+		}
+	}
+	return ""
 }
 
 // materialize loads any spilled operand into a scratch register, because an
@@ -1975,11 +2035,52 @@ func (e *asmEmitter) emitSet(t *core.Term) (place, error) {
 	if err != nil {
 		return place{}, err
 	}
+	w := 8
+	if e.elemOf(args[0]) == 1 {
+		w = 1
+	}
+	// A store wants THREE registers — base, index, value — and this host has
+	// two scratch. Usually that is fine, because at most two of the three are
+	// spilled and x86's addressing mode does the arithmetic for free.
+	//
+	// When all three are spilled, forming the address with `lea` first frees
+	// the index register before the value needs one. It costs an extra
+	// instruction, so it is taken only when the one-instruction form cannot be
+	// built: the sieve's inner loop, which wintables-2026-08-25 measured, is
+	// unaffected. Found by a JSON tree walk, which has three nested buffers and
+	// six loop variables live at once (json-tree-2026-08-26).
+	spilled := 0
+	for _, p := range []place{b, i, v} {
+		if p.slot > 0 && !p.xmm {
+			spilled++
+		}
+	}
+	if spilled > len(asmScratchGP) {
+		ba, err := e.materialize([]place{b, i}, "set")
+		if err != nil {
+			return place{}, err
+		}
+		addr := asmScratchGP[0]
+		e.line("lea %s, %s", addr, asmElemAddr(ba[0].text, ba[1].text, w))
+		val := v.text
+		if v.slot > 0 {
+			val = asmScratchGP[1]
+			e.line("mov %s, %s", val, v.text)
+		}
+		if w == 1 {
+			e.line("mov byte ptr [%s], %s", addr, asmByte(val))
+		} else {
+			e.line("mov qword ptr [%s], %s", addr, val)
+		}
+		e.release(i)
+		e.release(v)
+		return b, nil
+	}
 	live, err := e.materialize([]place{b, i, v}, "set")
 	if err != nil {
 		return place{}, err
 	}
-	if w := e.elemOf(args[0]); w == 1 {
+	if w == 1 {
 		e.line("mov byte ptr %s, %s",
 			asmElemAddr(live[0].text, live[1].text, 1), asmByte(live[2].text))
 	} else {

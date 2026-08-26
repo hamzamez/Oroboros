@@ -733,3 +733,26 @@ func TestAbstractionMovedAcrossBinderDepths(t *testing.T) {
 	`, "default",
 		"(fn (arr s) (fold-range 0.0 (alen arr) (fn (acc i) (add acc (mul (aindex arr i) s)))))")
 }
+
+// A CALL-BY-NEED BINDING MAY NOT TAKE A DEFINITION'S NAME (json-tree-2026-08-26).
+//
+// Reduction works on closed bodies and never reopens one — except here. When β
+// declines to substitute, it puts the parameter's own NAME back into the body
+// and wraps a `let` around it. `resolve` qualifies every definition with its
+// module path, so that is normally safe; in the MAIN module `qualify("", n)`
+// leaves definitions bare, and a parameter spelled like one was replaced BY it.
+//
+// One occurrence substituted and compiled correctly. Two reached this path and
+// silently returned the definition instead of the argument.
+func TestCallByNeedDoesNotCaptureADefinition(t *testing.T) {
+	got := reduceTo(t, `
+		(use go)
+		(def d1 "sentinel")
+		(def f (fn (k) ((fn (d1) (go.+ d1 d1)) (go.+ k 100))))`, "f")
+	if strings.Contains(got, "sentinel") {
+		t.Fatalf("the definition captured the bound name: %s", got)
+	}
+	if !strings.Contains(got, "go.+ k 100") {
+		t.Fatalf("the argument was lost: %s", got)
+	}
+}

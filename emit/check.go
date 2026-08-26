@@ -412,7 +412,11 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		if err != nil {
 			return fmt.Errorf("%s: %w", name, err)
 		}
-		if pass == 1 && got != "" && sig.Result != "" && sig.Result != "any" && got != sig.Result {
+		// `compatible`, for the third time today: a body the checker typed
+		// `any` carries no information, and refusing it would mean a target
+		// that declares everything `any` — targets/js, on purpose — can never
+		// carry a `sig` with a concrete result (json-tree-2026-08-26).
+		if pass == 1 && !compatible(got, sig.Result) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}

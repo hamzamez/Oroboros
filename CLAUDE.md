@@ -209,6 +209,38 @@ nothing can discharge it, so **the compiler makes the parser say what happens wh
 deeper than the stack** — a recursive-descent parser has the same limit, the C stack, and is never
 asked. The explicit stack does not create the limit, it makes it VISIBLE.
 
+**AND THE TREE IS BUILT TOO — the VALUE half** —
+[json-tree-2026-08-26](gauntlet/results/json-tree-2026-08-26.md),
+[examples/json/tree.oro](examples/json/tree.oro). A flat node table, stride 4, tag/val/kid/sib, with
+**node 0 as the `none` sentinel holding the header** — parsed, linked, and then **WALKED**, because
+building a tree and never traversing it would prove nothing. Four documents, answers computed by
+hand before running and reproduced exactly, on Go/JS/Java in the suite and on x86 by hand. 215
+lines, no new term kind, no new rule, no new primitive, no target declares anything. **`build`
+zero-fills, so 0 is `none` and `kid`/`sib` never need initialising** — a one-line note in
+tables.md §14.3 doing load-bearing work. **Linking is exactly what a recursive parser gets for
+free**: it RETURNS its subtree, we have to POINT at it. And **ADR 0015 chose the shape and chose
+better**: `again` may not go under an `if`, so five token classes became ONE `again` with
+`let`-computed arguments rather than five clauses repeating the link — which was not the first
+thing tried.
+
+**So the superseding ADR general-purpose.md called owed is NOT owed on the grounds it gave** — that
+argument was *"a JSON parser, a DOM walk and a recursive-descent parser all recurse"*, and two of
+the three now run without recursion. **What is unsettled is ERGONOMICS**, which is a different
+argument and has not been made with a measurement. And **termination got WORSE — 0 of 6 loops**,
+against the tokeniser's 12 of 16, because every loop's progress now depends on a link read out of a
+table. That is the clearest argument yet for octagons.
+
+**Five more bugs, and the first two are SILENT WRONG ANSWERS.** A **call-by-need binding took a
+definition's name** — when β declines to substitute it puts the parameter's NAME back in the body,
+which is safe for imports because `resolve` qualifies them and unsafe in the MAIN module where
+`qualify("", n)` is bare; one occurrence compiled correctly and two returned the definition.
+**`PostVars` hoisted an update out of the `let` that bound it** — ADR 0015 permits `again` under a
+`let` and the post clause sits outside every binder the body opened. `any` failed `CheckAgainstSig`
+(the **third** site today that had `compatible` and did not call it). And two on x86: a store with
+three spilled operands, and the template path **enforcing the wrong constraint** — the rule is one
+memory operand per INSTRUCTION, not two spilled operands per template, so `mov rcx, [rsp+56]` was
+being refused for no reason.
+
 **And CLAUSE ORDER CHANGES WHAT CAN BE PROVED** — the same program with one clause moved goes from
 **80 of 124** integer operations bounded and **12 of 16** loops terminating to **36 and 0**, same
 guards and same answers. The cause is **not isolated**: `collectAgain` refines through both branches

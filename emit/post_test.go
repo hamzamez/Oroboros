@@ -122,3 +122,36 @@ func mustRead(t *testing.T, src string) *core.Term {
 	}
 	return forms[0].Term
 }
+
+// AN UPDATE UNDER A `let` MAY NOT BE HOISTED (json-tree-2026-08-26).
+//
+// ADR 0015 permits `again` under a `let`, so an update can mention a name the
+// loop body bound. The post clause is written on the `for` statement, OUTSIDE
+// every binder the body opened — so hoisting one takes it out of scope.
+//
+// `collectAgains` walks the CLOSED body, so such a name is a bound index rather
+// than a name, and the emitter used to reach it and give up with
+// `unhandled term: #0.0`. Nothing had hit it because no program before had a
+// non-trivial update under a `let`; a JSON tree walk did.
+func TestPostDoesNotHoistOutOfALet(t *testing.T) {
+	code, err := genOn(t, "go", `
+		(use go)
+		(export f) (sig f ((a (array f64))) int)
+		(def f (fn (a)
+			(loop ((mx 0) (i 0))
+				(go.>= i (len a))  mx
+				else
+				  (let (go.+ i 1) (fn (d)
+					(again (if (go.> d mx) d mx) (go.+ i 1)))))))
+	`, "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// `i` is still hoisted: its update mentions nothing the `let` bound.
+	if !strings.Contains(code, "for ; ; ") {
+		t.Errorf("the counter should still move into the post clause:\n%s", code)
+	}
+	if strings.Contains(code, "#0.") {
+		t.Errorf("a bound index escaped into the emitted code:\n%s", code)
+	}
+}

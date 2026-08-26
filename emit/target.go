@@ -1237,7 +1237,8 @@ func collectAgains(t *core.Term) []*core.Term {
 //  1. every `again` passes the SAME term for it — otherwise there is no single
 //     update to hoist;
 //  2. that term is not the variable itself, which `changedArgs` already skips;
-//  3. the term reads no OTHER loop variable.
+//  3. the term reads no OTHER loop variable;
+//  4. the term mentions nothing bound BETWEEN the loop header and the `again`.
 //
 // (3) is the soundness condition and it is easy to get wrong. `again`'s
 // arguments are evaluated simultaneously, with every variable's OLD value. A
@@ -1245,6 +1246,14 @@ func collectAgains(t *core.Term) []*core.Term {
 // variable that the body had already assigned, it would see the new value.
 // `i = i + 1` reads only itself and is safe; `i = i + j` alongside a changing
 // `j` is not, and stays in the body.
+//
+// (4) is the scope condition, and it exists because ADR 0015 permits `again`
+// under a `let`. The post clause is written on the `for` statement, OUTSIDE
+// every binder the body opened, so an update like `(if (go.> dp mx) dp mx)`
+// whose `dp` came from an enclosing `let` cannot go there. `collectAgains`
+// walks the CLOSED body, so such a name is a `KBound` and this is exactly the
+// test for it. Nothing had hit it because no program before had a non-trivial
+// update under a `let` — a JSON tree walk did (json-tree-2026-08-26).
 func PostVars(body *core.Term, raw []string) map[int]*core.Term {
 	agains := collectAgains(body)
 	if len(agains) == 0 {
@@ -1275,7 +1284,7 @@ func PostVars(body *core.Term, raw []string) map[int]*core.Term {
 		if want.Kind == core.KName && want.Name == raw[i] {
 			continue // unchanged; nothing to hoist
 		}
-		if readsOtherLoopVar(want, raw, i) {
+		if readsOtherLoopVar(want, raw, i) || mentionsInnerBinder(want) {
 			continue
 		}
 		out[i] = want
@@ -1284,6 +1293,28 @@ func PostVars(body *core.Term, raw []string) map[int]*core.Term {
 		return nil
 	}
 	return out
+}
+
+// mentionsInnerBinder reports whether a term refers to a binder opened between
+// the loop header and this `again` — a `let`'s name, in practice. See
+// PostVars (4). In a closed body such a reference is a `KBound`.
+func mentionsInnerBinder(t *core.Term) bool {
+	found := false
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil || found {
+			return
+		}
+		if x.Kind == core.KBound {
+			found = true
+			return
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	return found
 }
 
 // readsOtherLoopVar reports whether a term mentions a loop variable that is not

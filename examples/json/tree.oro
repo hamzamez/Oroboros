@@ -1,0 +1,215 @@
+; A JSON TREE AS A FLAT NODE TABLE PLUS INDICES -- the VALUE half.
+;
+; json-2026-08-26 settled the CONTROL half of "recursive data is a flat table
+; plus indices": nesting to an input-decided depth needs no recursion. It
+; produced counts, not a tree, and said so.
+;
+; This is the other half. It BUILDS the document and then WALKS it, because
+; building a tree and never traversing it would prove nothing -- the walk is
+; where a tree normally recurses.
+;
+; The representation is one buffer, stride 4. Node k occupies
+;
+;     4k+0  tag        1 number, 2 string, 3 literal, 4 array, 5 object,
+;                      6 the document itself
+;     4k+1  val        a number's value; a string's or literal's byte length
+;     4k+2  kid        first child, 0 = none
+;     4k+3  sib        next sibling, 0 = none
+;
+; NODE 0 IS THE `none` SENTINEL, so its four slots are free and hold the header:
+; slot 0 is the node count and slot 1 is the valid bit. Zero means "no node"
+; because `build` zero-fills (tables.md 14.3) -- which is load-bearing here, and
+; is the whole reason `kid` and `sib` never have to be initialised.
+
+(use go)
+(export run)
+
+(def nmax (fn () 64))   ; nodes
+(def dmax (fn () 16))   ; nesting depth
+
+; Indices are CLAMPED rather than guarded, so the obligation 0 <= x < len holds
+; by construction: clampn is [0,63], times four is [0,252], plus a literal
+; offset of 0..3 is [0,255], and the buffer is 256 long. The refinement layer
+; discharges that without being told anything.
+(def clampn (fn (k) (if (go.< k 0) 0 (if (go.>= k (nmax)) 0 k))))
+(def nx (fn (k o) (go.+ (go.* 4 (clampn k)) o)))
+
+(def clampd (fn (d) (if (go.< d 0) 0 (if (go.>= d (dmax)) 0 d))))
+(def sx (fn (d o) (go.+ (go.* 2 (clampd d)) o)))
+
+; --- byte classes -----------------------------------------------------------
+
+(def space? (fn (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13))))))
+(def digit? (fn (c) (and (go.>= c 48) (go.<= c 57))))
+(def alpha? (fn (c) (and (go.>= c 97) (go.<= c 122))))
+(def numeric? (fn (c)
+  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69))))))))
+(def opener? (fn (c) (or (= c 123) (= c 91))))
+(def closer? (fn (c) (or (= c 125) (= c 93))))
+(def punct?  (fn (c) (or (= c 58) (= c 44))))
+
+; --- scanners ---------------------------------------------------------------
+;
+; (go.< j 0) is here for the reason json-2026-08-26 records: j >= i+1 is a
+; RELATIONAL fact and the interval analysis is not.
+
+(def scan-string (fn (src i)
+  (loop ((j (go.+ i 1)))
+    (go.< j 0)           j
+    (go.>= j (len src))  j
+    (= (src j) 92)       (again (go.+ j 2))
+    (= (src j) 34)       (go.+ j 1)
+    else                 (again (go.+ j 1)))))
+
+(def scan-run (fn (src i pred)
+  (loop ((j i))
+    (go.< j 0)           j
+    (go.>= j (len src))  j
+    (pred (src j))       (again (go.+ j 1))
+    else                 j)))
+
+(def num-val (fn (src i end)
+  (loop ((j i) (v 0))
+    (go.< j 0)           v
+    (go.>= j end)        v
+    (go.>= j (len src))  v
+    (digit? (src j))     (again (go.+ j 1) (go.+ (go.* v 10) (go.- (src j) 48)))
+    else                 (again (go.+ j 1) v))))
+
+; --- phase 1: parse into the node table -------------------------------------
+;
+; The document is node 1, pushed before the loop starts, so sp is never 0 and
+; every value has a parent. That is what removes the special case from the link
+; step -- and LINKING is the one operation a flat tree needs that a recursive
+; parser gets for free, because a recursive parser RETURNS its subtree to its
+; caller and this one has to point at it.
+;
+; Every allocating token shares that link step, and ADR 0015 is what decides the
+; shape: `again` may sit under a `let` and never under an `if`, so the five
+; token classes cannot be five clauses each ending in their own `again` without
+; repeating the link four more times. They become ONE `again` whose arguments
+; are computed by `let`, which is better code and was not the first thing tried.
+
+(def parse (fn (src)
+  (build (go.* 4 (nmax)) (fn (nodes)
+    (build (go.* 2 (dmax)) (fn (stk)
+      (loop ((nodes (set nodes (nx 1 0) 6))
+             (stk   (set stk (sx 0 0) 1))
+             (i 0) (nn 2) (sp 1) (ok 1))
+
+        (go.< i 0)         (set nodes (nx 0 1) 0)
+        (go.>= nn (nmax))  (set nodes (nx 0 1) 0)
+        (go.>= sp (dmax))  (set nodes (nx 0 1) 0)
+
+        (go.>= i (len src))
+          (set (set nodes (nx 0 0) nn) (nx 0 1) (if (= sp 1) ok 0))
+
+        (space? (src i))   (again nodes stk (go.+ i 1) nn sp ok)
+        (punct? (src i))   (again nodes stk (go.+ i 1) nn sp ok)
+
+        ; a closer pops, and must agree with the tag it is closing
+        (closer? (src i))
+          (again nodes stk (go.+ i 1) nn
+                 (if (go.< sp 2) 1 (go.- sp 1))
+                 (if (go.< sp 2) 0
+                     (if (= (if (= (nodes (nx (stk (sx (go.- sp 1) 0)) 0)) 5) 125 93)
+                            (src i))
+                         ok 0)))
+
+        else
+          (let (src i) (fn (c)
+          (let (go.- sp 1) (fn (d1)
+          (let (stk (sx d1 1)) (fn (lc)
+
+            ; the link: first child of the open container, or next sibling of
+            ; whatever it last took
+            (let (if (= lc 0)
+                     (set nodes (nx (stk (sx d1 0)) 2) nn)
+                     (set nodes (nx lc 3) nn)) (fn (linked)
+            (let (set stk (sx d1 1) nn) (fn (stk1)
+
+            (let (if (opener? c) (go.+ i 1)
+                   (if (= c 34) (scan-string src i)
+                     (if (numeric? c) (scan-run src i numeric?)
+                       (if (alpha? c) (scan-run src i alpha?) (go.+ i 1))))) (fn (e)
+            (let (if (opener? c) (if (= c 123) 5 4)
+                   (if (= c 34) 2
+                     (if (numeric? c) 1
+                       (if (alpha? c) 3 0)))) (fn (tg)
+            (let (if (= c 34) (go.- e i)
+                   (if (numeric? c) (num-val src i e)
+                     (if (alpha? c) (go.- e i) 0))) (fn (vl)
+
+              (again
+                (set (set linked (nx nn 0) tg) (nx nn 1) vl)
+                ; a container pushes, and zeroes the new frame's last-child
+                ; slot, because the stack is reused across sibling subtrees
+                (if (opener? c)
+                    (set (set stk1 (sx sp 0) nn) (sx sp 1) 0)
+                    stk1)
+                e
+                (go.+ nn 1)
+                (if (opener? c) (go.+ sp 1) sp)
+                ; tag 0 is a byte that is not JSON
+                (if (= tg 0) 0 ok))
+
+            )))))))))))))))))))))))
+
+; --- phase 2: walk it -------------------------------------------------------
+;
+; A worklist depth-first traversal over kid and sib, with its own explicit stack
+; of (node, depth) pairs. THIS is the part that would recurse in any ordinary
+; treatment, and it is the same loop and the same stack discipline as the parser
+; -- which is the claim, stated as a program.
+;
+; A sibling REPLACES the popped frame and only a child pushes, so the stack
+; depth is the tree's depth and not its node count.
+
+(def walk (fn (nodes)
+  (build (go.* 2 (dmax)) (fn (wstk)
+    (loop ((wstk (set (set wstk (sx 0 0) (nodes (nx 1 2))) (sx 0 1) 1))
+           (sp (if (= (nodes (nx 1 2)) 0) 0 1))
+           (acc 0) (nvis 0) (mx 0))
+
+      (go.>= sp (dmax))  0
+      (go.< sp 1)        (go.+ (go.* nvis 100000) (go.+ (go.* mx 10000) (go.* acc 10)))
+
+      else
+        (let (go.- sp 1) (fn (d1)
+        (let (wstk (sx d1 0)) (fn (n)
+        (let (wstk (sx d1 1)) (fn (dp)
+        (let (nodes (nx n 2)) (fn (kid)
+        (let (nodes (nx n 3)) (fn (sib)
+
+          (again
+            (if (= sib 0)
+                (set (set wstk (sx d1 0) kid) (sx d1 1) (go.+ dp 1))
+                (if (= kid 0)
+                    (set (set wstk (sx d1 0) sib) (sx d1 1) dp)
+                    (set (set (set (set wstk (sx d1 0) sib) (sx d1 1) dp)
+                              (sx (go.+ d1 1) 0) kid)
+                         (sx (go.+ d1 1) 1) (go.+ dp 1))))
+            (go.+ d1 (go.+ (if (= sib 0) 0 1) (if (= kid 0) 0 1)))
+            (go.+ acc (go.+ (go.* (nodes (nx n 0)) dp) (nodes (nx n 1))))
+            (go.+ nvis 1)
+            (if (go.> dp mx) dp mx))
+
+        )))))))))))))))
+
+; --- documents --------------------------------------------------------------
+
+; {"a":[1,2],"b":true}
+(def d0 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
+; [[[1]]]
+(def d1 (array 91 91 91 49 93 93 93))
+; {"a":1   -- unterminated
+(def d2 (array 123 34 97 34 58 49))
+; [{"x":[]},7]
+(def d3 (array 91 123 34 120 34 58 91 93 125 44 55 93))
+
+(def doc (fn (k) (if (= k 0) d0 (if (= k 1) d1 (if (= k 2) d2 d3)))))
+
+(sig run ((k int)) int)
+(def run (fn (k)
+  (let (parse (doc k)) (fn (t)
+    (go.+ (walk t) (t (nx 0 1)))))))

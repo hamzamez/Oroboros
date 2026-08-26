@@ -96,6 +96,53 @@ type Module struct {
 
 // qualify joins a module path to a local name. The root module has no path, so
 // a program that never says `(module …)` behaves exactly as before.
+
+// bindName picks the name a call-by-need binding may safely use.
+//
+// Reduction's invariant is stated at the KFn case of normalize: it works on
+// CLOSED bodies and never reopens one, so a bound variable can never be
+// mistaken for a global. Call-by-need is the one place that breaks the
+// invariant on purpose — when β declines to substitute, it puts the parameter's
+// own NAME back into the body and wraps a `let` around it.
+//
+// That is safe only if δ will not unfold the name it puts back. It usually is,
+// because `resolve` qualifies every definition with its module path. It is not
+// in the MAIN module, where `qualify("", n)` leaves definitions bare: a
+// parameter spelled like a top-level `def` in the program being compiled was
+// replaced by that definition, silently and with no error.
+//
+//	(def d1 (array 7 8 9))
+//	(def run (fn (k) ((fn (d1) (go.+ d1 d1)) (go.+ k 100))))
+//	→ (let (go.+ k 100) (fn (d1) (go.+ (array 7 8 9) (array 7 8 9))))
+//
+// One occurrence substituted and compiled correctly; two occurrences reached
+// this path and did not. Found by a JSON tree builder with a local `d1` and a
+// document named `d1` (json-tree-2026-08-26).
+func (e *Env) bindName(p string, params []string, used map[string]bool) string {
+	clash := func(n string) bool {
+		if used[n] {
+			return true
+		}
+		if _, ok := e.Defs[n]; ok {
+			return true
+		}
+		return false
+	}
+	if !clash(p) {
+		return p
+	}
+	taken := map[string]bool{}
+	for _, q := range params {
+		taken[q] = true
+	}
+	for i := 1; ; i++ {
+		n := fmt.Sprintf("%s%d", p, i)
+		if !clash(n) && !taken[n] {
+			return n
+		}
+	}
+}
+
 func qualify(path, name string) string {
 	if path == "" {
 		return name
@@ -820,6 +867,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				name string
 				val  *Term
 			}
+			// Names already chosen for bindings of THIS application, so two
+			// parameters cannot be renamed onto each other.
+			used := map[string]bool{}
 			for i, p := range op.Params {
 				// Impure: never substituted. Bound here, at the application
 				// site, which is where the programmer wrote it — at its
@@ -830,11 +880,13 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 					if err != nil {
 						return nil, err
 					}
+					nm := e.bindName(p, op.Params, used)
+					used[nm] = true
 					bound = append(bound, struct {
 						name string
 						val  *Term
-					}{p, na})
-					subs[i] = Name(p)
+					}{nm, na})
+					subs[i] = Name(nm)
 					continue
 				}
 				// One occurrence or none: substituting cannot duplicate anything.
@@ -853,11 +905,13 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 					subs[i] = na
 					continue
 				}
+				nm := e.bindName(p, op.Params, used)
+				used[nm] = true
 				bound = append(bound, struct {
 					name string
 					val  *Term
-				}{p, na})
-				subs[i] = Name(p)
+				}{nm, na})
+				subs[i] = Name(nm)
 			}
 			body, err := normalize(op.OpenWith(subs), e, fuel)
 			if err != nil {

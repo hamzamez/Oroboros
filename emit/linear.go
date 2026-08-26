@@ -231,6 +231,46 @@ func disequality(t *core.Term) (lo, hi *linear, ok bool) {
 		r.clone().addScaled(l, -1).addScaled(constant(-1), -1), true
 }
 
+// scaleTo returns the positive integer m for which `fact` scaled by m has
+// exactly `g`'s coefficients, or reports that no such m exists.
+//
+// This is one Farkas multiplier, and it is the smallest step that turns
+// coefficient-matching into something worth calling a decision procedure.
+// Without it `sp >= 1` cannot discharge `0 <= 2*sp - 1`, because the goal's
+// coefficient is -2 and the fact's is -1 — a consequence so immediate that the
+// gap looked like a missing fact rather than a missing inference.
+//
+// Found by examples/json/tree.oro, whose addressing is `(go.* 4 k)` and
+// `(go.* 2 d)`: EVERY index into a strided table has a coefficient the guard
+// that bounds it does not, so a stride is exactly the shape this misses. The
+// program was clamping instead, at a measured 1.35x
+// (json-tree-bench-2026-08-26).
+//
+// m is capped because a Farkas multiplier that large means the goal is not the
+// kind of consequence this procedure is for, and konst*m must not overflow.
+func scaleTo(fact, g *linear) (int64, bool) {
+	if len(fact.coef) == 0 || len(fact.coef) != len(g.coef) {
+		return 0, false
+	}
+	var m int64
+	for k, c := range fact.coef {
+		d, ok := g.coef[k]
+		if !ok || c == 0 || d%c != 0 {
+			return 0, false
+		}
+		q := d / c
+		if q <= 0 || q > 1<<20 {
+			return 0, false
+		}
+		if m == 0 {
+			m = q
+		} else if m != q {
+			return 0, false
+		}
+	}
+	return m, m > 0
+}
+
 func (f *facts) entails(goal *linear) bool {
 	g := f.substitute(goal)
 	if len(g.coef) == 0 {
@@ -243,6 +283,12 @@ func (f *facts) entails(goal *linear) bool {
 		// Getting this backwards made the stencil's j+1 < alen(a) unprovable
 		// from j < alen(a)-2, which is strictly stronger.
 		if sameVars(fact, g) && fact.konst >= g.konst {
+			return true
+		}
+		// The same fact SCALED. `m*L + m*a <= 0` implies `L' + b <= 0` whenever
+		// m*L is exactly L' and m*a >= b — one Farkas multiplier, and what a
+		// strided index needs.
+		if m, ok := scaleTo(fact, g); ok && fact.konst*m >= g.konst {
 			return true
 		}
 	}

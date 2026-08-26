@@ -39,8 +39,18 @@
 (use go)
 (export run)
 
-(def nmax (fn () 64))   ; nodes, including the sentinel
-(def dmax (fn () 16))   ; nesting depth
+; `measure` is exported for benchmarking: it takes its source as a PARAMETER,
+; which is what stops reduction from folding the whole parse away. `run` feeds
+; it constants and is what the differential suite checks.
+(export measure)
+(sig measure ((src (array int))) int)
+
+; The caps. A `build` needs its length UP FRONT, so a flat node table is sized
+; for the largest document it will accept rather than for the one it gets. That
+; is the cost of having no growable buffer (tables.md §14.3's `append`), and it
+; is a real one: a 20-byte document allocates the same table as a 6 KB one.
+(def nmax (fn () 512))  ; nodes, including the sentinel
+(def dmax (fn () 32))   ; nesting depth
 
 ; --- byte classes -----------------------------------------------------------
 
@@ -56,17 +66,31 @@
 
 ; --- addressing -------------------------------------------------------------
 ;
-; Every index is CLAMPED rather than guarded. The clamp is what discharges the
-; obligation — `(go.* 4 (cn k))` has interval [0, 4*(nmax-1)] and the table is
-; 4*nmax long, so the bound holds by construction on both sides of every test.
-; The guards in the parse loop are then about CORRECTNESS (bail out) rather than
-; about safety, which is the right division: a clamp that silently wrote to node
-; 0 would corrupt the header, so the loop refuses to run past nmax at all.
+; TWO ADDRESSING FORMS, and which one a site uses is a statement about what is
+; KNOWN there.
+;
+;   nsl / ssl / ssl2   the index came from a guarded loop variable, so the
+;                      bound is PROVEN and the address is bare
+;   nslc               the index was read out of a table and is opaque, so it
+;                      is CLAMPED into range
+;
+; The first version clamped everywhere, which was 1.35x slower and left the
+; analysis with MORE undischarged obligations rather than fewer — 110 against
+; 40 — because a clamp hides the fact instead of establishing it. What made the
+; proven form possible is one Farkas multiplier in the decision procedure: a
+; strided index `(go.* 4 k)` has a coefficient the guard bounding `k` does not,
+; so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
+; scale a fact (json-tree-bench-2026-08-26).
+;
+; The clamps that remain are real. A node index read out of the table is not
+; bounded by anything the compiler can see, and no guard would help, because
+; the value is data.
 
 (def cn (fn (k) (if (go.< k 0) 0 (if (go.>= k (nmax)) 0 k))))
 (def cd (fn (d) (if (go.< d 0) 0 (if (go.>= d (dmax)) 0 d))))
-(def nsl (fn (k o) (go.+ (go.* 4 (cn k)) o)))
-(def ssl (fn (d o) (go.+ (go.* 2 (cd d)) o)))
+(def nsl (fn (k o) (go.+ (go.* 4 k) o)))
+(def nslc (fn (k o) (go.+ (go.* 4 (cn k)) o)))
+(def ssl (fn (d o) (go.+ (go.* 2 d) o)))
 
 ; --- scanners ---------------------------------------------------------------
 
@@ -98,8 +122,8 @@
   (if (go.< sp 1) nodes
     (let (stk (ssl (go.- sp 1) 1)) (fn (lc)
       (if (= lc 0)
-        (set nodes (nsl (stk (ssl (go.- sp 1) 0)) 2) k)
-        (set nodes (nsl lc 3) k)))))))
+        (set nodes (nslc (stk (ssl (go.- sp 1) 0)) 2) k)
+        (set nodes (nslc lc 3) k)))))))
 
 (def mark (fn (stk sp k)
   (if (go.< sp 1) stk (set stk (ssl (go.- sp 1) 1) k))))
@@ -148,7 +172,7 @@
           (again nodes stk (go.+ i 1) nn
                  (if (go.< sp 1) 0 (go.- sp 1))
                  (if (go.< sp 1) 0
-                     (if (= (nodes (nsl (stk (ssl (go.- sp 1) 0)) 0))
+                     (if (= (nodes (nslc (stk (ssl (go.- sp 1) 0)) 0))
                             (if (= (src i) 125) 5 4))
                          ok 0)))
 
@@ -186,25 +210,29 @@
 ; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
 ; node — a tree shaped like a list pushes a sibling at every step.
 (def cw (fn (k) (if (go.< k 0) 0 (if (go.>= k (nmax)) 0 k))))
-(def ssl2 (fn (k o) (go.+ (go.* 2 (cw k)) o)))
+(def ssl2 (fn (k o) (go.+ (go.* 2 k) o)))
 
 (def walk (fn (nodes)
   (build (go.* 2 (nmax)) (fn (wl)
     (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
       (go.>= steps (go.* 2 (nmax)))  (go.+ (go.* seen 1000) acc)
       (go.< sp 1)                    (go.+ (go.* seen 1000) acc)
+      ; The worklist has the same shape of limit the parser's two do, and for
+      ; the same reason: `sp` grows with the tree and nothing can bound it, so
+      ; the program has to say what it does when the worklist fills.
+      (go.>= sp (nmax))              (go.+ (go.* seen 1000) acc)
       else
         (let (wl (ssl2 (go.- sp 1) 0)) (fn (n)
         (let (wl (ssl2 (go.- sp 1) 1)) (fn (d)
-        (let (nodes (nsl n 3)) (fn (sb)
-        (let (nodes (nsl n 2)) (fn (kd)
+        (let (nodes (nslc n 3)) (fn (sb)
+        (let (nodes (nslc n 2)) (fn (kd)
         (let (go.- sp 1) (fn (s1)
         (let (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d)) (fn (w1)
         (let (if (= sb 0) s1 (go.+ s1 1)) (fn (s2)
         (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (go.+ d 1))) (fn (w2)
         (let (if (= kd 0) s2 (go.+ s2 1)) (fn (s3)
           (again w2 s3 (go.+ seen 1)
-                 (go.+ acc (go.* (nodes (nsl n 0)) d))
+                 (go.+ acc (go.* (nodes (nslc n 0)) d))
                  (go.+ steps 1)))))))))))))))))))))))))
 
 ; --- documents --------------------------------------------------------------
@@ -232,6 +260,8 @@
     (go.+ (go.* (go.- (nodes 0) 1) 1000000)
       (go.+ (go.* (walk nodes) 10)
             (nodes 1)))))))
+
+(def measure (fn (src) (walk (parse src))))
 
 (sig run ((k int)) int)
 (def run (fn (k)

@@ -206,3 +206,59 @@ func TestNegateHandlesOperatorSpellings(t *testing.T) {
 		}
 	}
 }
+
+// A STRIDED INDEX needs one Farkas multiplier, and until it had one the only
+// way to write a flat node table was to clamp every access
+// (json-tree-bench-2026-08-26).
+//
+// `entails` matched a fact against a goal by requiring identical coefficients,
+// so `k < 512` could not discharge `4*k < 2048` — a consequence immediate
+// enough that the gap read as a missing fact rather than a missing inference.
+// Scaling a fact by a positive integer is the fix, and it is what a stride
+// always needs, because `(go.* 4 k)` has a coefficient the guard bounding `k`
+// does not.
+func TestStridedIndexIsProvable(t *testing.T) {
+	for _, e := range []struct{ name, src string }{
+		{"stride 4", `
+			(use num/vec)
+			(use num/int)
+			(fn (a)
+			  (loop ((k 0) (acc 0))
+			    (int.ge (int.mul 4 k) (vec.alen a))  acc
+			    else (again (int.add k 1) (int.add acc (vec.aindex a (int.mul 4 k))))))`},
+		{"stride 2, offset 1", `
+			(use num/vec)
+			(use num/int)
+			(fn (a)
+			  (loop ((k 1) (acc 0))
+			    (int.ge (int.add (int.mul 2 k) 1) (vec.alen a))  acc
+			    else (again (int.add k 1)
+			                (int.add acc (vec.aindex a (int.add (int.mul 2 k) 1))))))`},
+	} {
+		if err := refineSrc(t, e.src); err != nil {
+			t.Errorf("%s: a strided index bounded by its own guard must be provable: %v",
+				e.name, err)
+		}
+	}
+}
+
+// The multiplier must be POSITIVE and must divide exactly: scaling by a
+// negative flips the inequality, and a fractional one is not this procedure's
+// business. `k >= 0` says nothing about `3*k - 1 >= 0` when k is 0.
+func TestScaleToRejectsUnsound(t *testing.T) {
+	fact := &linear{coef: map[string]int64{"k": -1}, konst: 0}   // -k <= 0, k >= 0
+	goal := &linear{coef: map[string]int64{"k": 3}, konst: 0}    // 3k <= 0
+	if _, ok := scaleTo(fact, goal); ok {
+		t.Error("a negative multiplier must be refused: it reverses the inequality")
+	}
+	frac := &linear{coef: map[string]int64{"k": 2}, konst: 0}
+	odd := &linear{coef: map[string]int64{"k": 3}, konst: 0}
+	if _, ok := scaleTo(frac, odd); ok {
+		t.Error("a fractional multiplier must be refused")
+	}
+	two := &linear{coef: map[string]int64{"k": 2, "j": 4}, konst: 0}
+	one := &linear{coef: map[string]int64{"k": 1, "j": 2}, konst: 0}
+	if m, ok := scaleTo(one, two); !ok || m != 2 {
+		t.Errorf("a uniform multiplier must be found: got %d %v", m, ok)
+	}
+}

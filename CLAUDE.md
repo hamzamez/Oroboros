@@ -223,6 +223,43 @@ better**: `again` may not go under an `if`, so five token classes became ONE `ag
 `let`-computed arguments rather than five clauses repeating the link — which was not the first
 thing tried.
 
+**AND THE FLAT TABLE IS A *GO* FACT** —
+[json-tree-bench-2026-08-26](gauntlet/results/json-tree-bench-2026-08-26.md), and this refutes
+something this repository has been repeating. data-structures.md says *"recursive data is a flat
+table plus indices, 2.02× faster on irregular access"* and ADR 0014 leans on it. Measured on one
+program across three hosts, flat against recursive descent into linked objects: **Go 2.52× for
+flat, JavaScript 1.22× for flat, and the JVM 1.24× for RECURSIVE — flat LOSES there.** The JVM
+bump-allocates in a TLAB, its young collector pays for survivors and every node here dies, C2
+scalar-replaces what does not escape, and our 64-bit `int` makes an emitted node **32 bytes against
+a `Node`'s 24** — the flat form is *larger* than the boxed one, which is not true on Go. That is
+ADR 0008 landing on a DECISION rather than a primitive: *flat beats pointers* was a measurement on
+one host that had become a principle.
+
+**Our code generation is at parity where the shape is held fixed** — **Go 1.00×** against a
+hand-written clamped flat table (and **1.88× FASTER** than idiomatic recursive descent, 0 allocs
+against 443), **JavaScript 1.06×**, **Java 1.22×**. Java's 1.80× against idiomatic recursion
+decomposes into three separable costs and none is "the emitter is bad": the representation loses on
+that host (1.24×), our element width costs 1.19×, codegen plus clamps plus indextype's `(int)` casts
+cost 1.22×.
+
+**CLAMPING COST 1.35×, so the compiler learned to PROVE instead.** A clamp is not a branch — it is a
+data dependency in the address computation, which is why the tokeniser's three never-taken compares
+cost nothing and this cost a third. The reason every index was clamped turned out to be a **missing
+inference, not a missing fact**: `entails` matched a fact to a goal by requiring **identical
+coefficients**, so a known `sp >= 1` could not discharge `2*sp - 1 >= 0`. **One Farkas multiplier** —
+scale a fact by a positive integer — fixes it, and **a stride is exactly the shape it missed**, which
+is why nothing found it before: `(go.* 4 k)` has a coefficient the guard bounding `k` does not, and
+no program here had a strided index until a node table. It took the tree from **110 undischarged
+obligations to 40** and **1.12× faster**, and changes nothing on the sieve, the tokeniser, `dot` or
+the stencil — the honest scope. **Fewer clamps left FEWER undischarged obligations**, because a clamp
+hides the fact instead of establishing it.
+
+**And 0 allocations means the number is the number.** Measured alone the recursive Go version is
+stable at 11,370 ns; measured in one process with the others it ran **19,168 to 36,495** — a 1.9×
+spread on identical work, because 443 allocations put it at the mercy of the rest of the heap. The
+flat versions do not move. On a host where the timing alone does not settle it, that is the
+strongest remaining argument for the flat table.
+
 **So the superseding ADR general-purpose.md called owed is NOT owed on the grounds it gave** — that
 argument was *"a JSON parser, a DOM walk and a recursive-descent parser all recurse"*, and two of
 the three now run without recursion. **What is unsettled is ERGONOMICS**, which is a different

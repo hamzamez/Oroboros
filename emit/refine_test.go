@@ -246,8 +246,8 @@ func TestStridedIndexIsProvable(t *testing.T) {
 // negative flips the inequality, and a fractional one is not this procedure's
 // business. `k >= 0` says nothing about `3*k - 1 >= 0` when k is 0.
 func TestScaleToRejectsUnsound(t *testing.T) {
-	fact := &linear{coef: map[string]int64{"k": -1}, konst: 0}   // -k <= 0, k >= 0
-	goal := &linear{coef: map[string]int64{"k": 3}, konst: 0}    // 3k <= 0
+	fact := &linear{coef: map[string]int64{"k": -1}, konst: 0} // -k <= 0, k >= 0
+	goal := &linear{coef: map[string]int64{"k": 3}, konst: 0}  // 3k <= 0
 	if _, ok := scaleTo(fact, goal); ok {
 		t.Error("a negative multiplier must be refused: it reverses the inequality")
 	}

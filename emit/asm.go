@@ -467,7 +467,9 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 					return place{}, err
 				}
 				d := e.alloc(false)
-				e.line("mov %s, qword ptr [%s]", d.text, ll[0].text)
+				e.intoGP(d, ll, func(dst string) {
+					e.line("mov %s, qword ptr [%s]", dst, ll[0].text)
+				})
 				e.release(a)
 				return d, nil
 			}
@@ -896,6 +898,46 @@ func (e *asmEmitter) inRegister(p place) place {
 		return p
 	}
 	return e.scratchCopy(p, 0)
+}
+
+// intoGP emits a load whose destination may be SPILLED.
+//
+// x86 has no memory-to-memory `mov`, so a spilled destination has to be loaded
+// through a general register and then stored — the same rule `move` already
+// applies between two slots, arriving here from the other direction.
+//
+// The register has to be free AFTER the address is formed. A scratch register
+// the address does not use is free by definition; failing that, one the address
+// DOES use is free the instant the load reads it, because a single instruction
+// computes its memory operand before writing its destination, and materialize
+// put that value there for this instruction alone.
+//
+// Found by the JSON tokeniser — six loop variables and three nested loops, the
+// first program in this repository with enough live values for the destination
+// of a `len` to be spilled (json-2026-08-26).
+func (e *asmEmitter) intoGP(d place, live []place, emit func(dst string)) {
+	if d.slot == 0 {
+		emit(d.text)
+		return
+	}
+	r := ""
+	for _, s := range asmScratchGP {
+		used := false
+		for _, p := range live {
+			if p.text == s {
+				used = true
+			}
+		}
+		if !used {
+			r = s
+			break
+		}
+	}
+	if r == "" {
+		r = asmScratchGP[0]
+	}
+	emit(r)
+	e.line("mov %s, %s", d.text, r)
 }
 
 func (e *asmEmitter) scratchCopy(p place, n int) place {
@@ -1718,11 +1760,15 @@ func (e *asmEmitter) asmIndex(tab, idx *core.Term) (place, error) {
 	// would read seven bytes of the following elements, so getting the width
 	// wrong here is a wrong answer rather than a slow one.
 	if w := e.elemOf(tab); w == 1 {
-		e.line("movzx %s, byte ptr %s", asmDword(d.text),
-			asmElemAddr(live[0].text, live[1].text, 1))
+		e.intoGP(d, live, func(dst string) {
+			e.line("movzx %s, byte ptr %s", asmDword(dst),
+				asmElemAddr(live[0].text, live[1].text, 1))
+		})
 	} else {
-		e.line("mov %s, qword ptr %s", d.text,
-			asmElemAddr(live[0].text, live[1].text, 8))
+		e.intoGP(d, live, func(dst string) {
+			e.line("mov %s, qword ptr %s", dst,
+				asmElemAddr(live[0].text, live[1].text, 8))
+		})
 	}
 	e.release(a)
 	e.release(i)

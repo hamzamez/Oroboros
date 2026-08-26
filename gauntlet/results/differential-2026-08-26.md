@@ -129,6 +129,20 @@ place from where every other refinement lives.
 
 ---
 
+## 4b. And an eighth case, added the same day
+
+[`json-tokenize`](../differential/cases/json-tokenize.oro) — a JSON tokeniser, and the one case here
+that is a **program** rather than a construct ([json-2026-08-26](json-2026-08-26.md)).
+
+It is worth recording what that bought, because the seven construct cases had all passed and every
+construct the tokeniser uses was already among them. It found **four** things anyway: `typeOf` of a
+`build` assumed the body hands the buffer back, `any` demanded something in two checks that had a
+`compatible` helper and did not call it, and x86 emitted a memory-to-memory `mov` because nothing
+before had enough live values to spill the destination of a `len`.
+
+**All four are about the program being bigger, not about a construct being new.** A construct suite
+and a program are different tests, and this suite should keep at least one of each.
+
 ## 5. What it does not do
 
 It runs **integers only**, because float formatting differs per host by design — `3.328335e+08` on

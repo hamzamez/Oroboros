@@ -247,10 +247,13 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 			if err != nil {
 				return "", err
 			}
-			if a != "" && b != "" && a != b {
+			// Same rule as `cond`: `any` demands nothing, so a host that
+			// declares everything `any` does not turn a loop with one known
+			// exit into a type error (json-2026-08-26).
+			if !compatible(a, b) {
 				return "", fmt.Errorf("a loop's exits are %s and %s", a, b)
 			}
-			if a == "" {
+			if a == "" || a == "any" {
 				return b, nil
 			}
 			return a, nil
@@ -274,10 +277,17 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if a != "" && b != "" && a != b {
+	// `any` demands nothing (§3), and that rule belongs here too. A host that
+	// declares everything `any` — targets/js does, deliberately — otherwise
+	// makes `(if c (js.+ sp 1) mx)` a type error against a branch the checker
+	// happened to know more about. Found by the JSON tokeniser, whose depth
+	// counter is exactly that shape (json-2026-08-26).
+	if !compatible(a, b) {
 		return "", fmt.Errorf("the branches of a conditional are %s and %s", a, b)
 	}
-	if a == "" {
+	// The more informative of the two survives, so a known branch still
+	// constrains what the conditional is used as.
+	if a == "" || a == "any" {
 		a = b
 	}
 	return a, c.agree("a conditional", a, want)

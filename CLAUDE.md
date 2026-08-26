@@ -197,6 +197,35 @@ first construct that looks Tier 1 and is not — stack depth differs by orders o
 Go, the JVM and JS, and none of them guarantees tail calls. Iteration is `fold-range`. **TCO is
 moot** until a while-shaped loop primitive exists, which is also recursion's own prerequisite.
 
+**A JSON TOKENISER RUNS WITHOUT RECURSION ON ALL FOUR TARGETS** —
+[json-2026-08-26](gauntlet/results/json-2026-08-26.md),
+[examples/json/tokenize.oro](examples/json/tokenize.oro). Nesting to an input-decided depth, an
+explicit stack in a `build` buffer, `again` as the jump — 120 lines, **no new term kind, no new
+rule, no new primitive, and no target declares anything**. It settles the **control** half of *"recursive
+data is a flat table plus indices"* and deliberately not the **value** half: this produces counts,
+not a tree, and building the tree as a flat node table is named rather than assumed. **The best
+argument for ADR 0014 found so far is not about speed**: `(set stk sp …)` carries `sp < cap` and
+nothing can discharge it, so **the compiler makes the parser say what happens when the nesting is
+deeper than the stack** — a recursive-descent parser has the same limit, the C stack, and is never
+asked. The explicit stack does not create the limit, it makes it VISIBLE.
+
+**And CLAUSE ORDER CHANGES WHAT CAN BE PROVED** — the same program with one clause moved goes from
+**80 of 124** integer operations bounded and **12 of 16** loops terminating to **36 and 0**, same
+guards and same answers. The cause is **not isolated**: `collectAgain` refines through both branches
+of every clause, four reduced versions of the shape all prove, and it reproduces only in the real
+program. So the analysis is order-sensitive in a way the language is not, and a meaning-preserving
+edit can lose a termination proof — a stronger reason to want octagons than the two extra compares
+the same program needed for being non-relational.
+
+**Four bugs came with it, and what they share is that the PROGRAM was bigger, not that a construct
+was new** — every construct here was already covered by the differential suite, which passed.
+`typeOf` of a `build` assumed the body hands the buffer back (this is the first program whose buffer
+is **scratch** — a stack, dead at the boundary, returning a count); `any` demanded something in the
+conditional and loop-exit checks, which had a `compatible` helper and did not use it, so a running
+maximum was a type error on the host that declares everything `any` on purpose; and x86 emitted a
+**memory-to-memory `mov`**, because no program before had enough live values to spill the
+destination of a `len`. **That is the argument for having both a construct suite and a program.**
+
 **Iteration is `fold-range` and `loop`** — [ADR 0015](docs/decisions/0015-loop-and-again.md).
 `(loop ((x z)…) c e … else e)` with `(again a…)` gives n loop variables with **no product**, early
 exit at parity with hand-written code, and unbounded iteration. `again` may be a clause body or sit

@@ -332,6 +332,38 @@ func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
 	return dst, nil
 }
 
+// buildType is the type of a `(build n (fn (b) …))`, which is the type of its
+// BODY and not necessarily the buffer.
+//
+// The first version assumed the body hands the buffer back, because that is
+// what a sieve does and what ADR 0018 describes. A JSON tokeniser does not: it
+// writes into a stack and returns a COUNT, and the buffer is dead at the
+// boundary. That emitted a function declared `[]int` returning an `int`, which
+// Go refused — found by writing the first program whose buffer is scratch
+// rather than the result (json-2026-08-26).
+//
+// So the buffer's own type is bound and the body is asked. A body that returns
+// the buffer still answers `array V`, because the parameter now has that type.
+func (e *Emitter) buildType(lam *core.Term) string {
+	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+	elem := bufferElem(body, raw[0], e.typeOf)
+	saved, had := e.types[raw[0]], false
+	if _, ok := e.types[raw[0]]; ok {
+		had = true
+	}
+	e.types[raw[0]] = "array " + elem
+	ty := e.typeOf(body)
+	if had {
+		e.types[raw[0]] = saved
+	} else {
+		delete(e.types, raw[0])
+	}
+	if ty == "" {
+		return "array " + elem
+	}
+	return ty
+}
+
 // Imports accumulates what emitted functions need. A package-level sink is
 // crude — the real answer is that each binding declares its import and the file
 // writer collects them, which is g5's Tier 2 binding format arriving in the
@@ -413,8 +445,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				// `final /*unknown*/ c4 = c2;`.
 				if p.Kind == "table-build" && len(t.Args()) == 2 {
 					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
-						body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-						return "array " + bufferElem(body, raw[0], e.typeOf)
+						return e.buildType(lam)
 					}
 				}
 				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {

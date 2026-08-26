@@ -286,8 +286,7 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				// `final /*unknown*/ c4 = c2;`.
 				if p.Kind == "table-build" && len(t.Args()) == 2 {
 					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
-						body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-						return "array " + bufferElem(body, raw[0], e.typeOf)
+						return e.buildType(lam)
 					}
 				}
 				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {
@@ -1166,4 +1165,26 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 		return e.narrowIdx(a) && b.Kind == core.KInt
 	}
 	return false
+}
+
+// buildType is the type of a `(build n (fn (b) …))` — its BODY's type, which is
+// not necessarily the buffer's. See the Go emitter for what found that.
+func (e *javaEmitter) buildType(lam *core.Term) string {
+	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+	elem := bufferElem(body, raw[0], e.typeOf)
+	saved, had := e.types[raw[0]], false
+	if _, ok := e.types[raw[0]]; ok {
+		had = true
+	}
+	e.types[raw[0]] = "array " + elem
+	ty := e.typeOf(body)
+	if had {
+		e.types[raw[0]] = saved
+	} else {
+		delete(e.types, raw[0])
+	}
+	if ty == "" {
+		return "array " + elem
+	}
+	return ty
 }

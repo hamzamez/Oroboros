@@ -1004,18 +1004,31 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	// the loop one back edge instead of several.
 	post := PostVars(body, raw)
 	if len(post) > 0 {
-		var lhs, rhs []string
+		// ONE ASSIGNMENT PER VARIABLE, not Go's tuple assignment. Go's post
+		// clause is `a, b = x, y`, which is a simultaneous assignment; Java's is
+		// a comma-separated list of STATEMENTS, so it has to be
+		// `a = x, b = y` and each one takes effect before the next is
+		// evaluated. This emitter had Go's shape verbatim, and it was a syntax
+		// error that nothing reached until a loop had TWO uniformly-updated
+		// variables — examples/json/tree.oro's walk, with `seen` and `steps`
+		// (json-tree-2026-08-26).
+		//
+		// Sequential assignment would be wrong if one update read another
+		// hoisted variable, and it cannot: PostVars already refuses any update
+		// that reads a loop variable other than its own, a condition written to
+		// make the Go hoist correct that turns out to be exactly what makes the
+		// Java form correct too.
+		var ups []string
 		for i := range names {
 			if u, ok := post[i]; ok {
 				v, err := e.emit(u)
 				if err != nil {
 					return "", err
 				}
-				lhs = append(lhs, names[i])
-				rhs = append(rhs, v)
+				ups = append(ups, names[i]+" = "+v)
 			}
 		}
-		e.line("for (;; %s = %s) {", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+		e.line("for (;; %s) {", strings.Join(ups, ", "))
 	} else {
 		e.line("for (;;) {")
 	}

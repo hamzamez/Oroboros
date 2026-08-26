@@ -764,18 +764,31 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	// the loop one back edge instead of several.
 	post := PostVars(body, raw)
 	if len(post) > 0 {
-		var lhs, rhs []string
+		// ONE ASSIGNMENT PER VARIABLE. This emitter had Go's tuple assignment
+		// verbatim — `a, b = x, y` — and in JavaScript that is the COMMA
+		// OPERATOR: it evaluates `a`, assigns `b = x`, and throws `y` away. So
+		// the first variable never updated and the second got the wrong value,
+		// with no syntax error anywhere.
+		//
+		// The same emitted shape was a compile error on Java and a SILENT WRONG
+		// ANSWER here, which is the whole argument for the differential suite in
+		// one bug (json-tree-2026-08-26). It was latent because a single
+		// hoisted variable emits `a = x`, which is correct on all three hosts,
+		// and no program had two until the tree walk's `seen` and `steps`.
+		//
+		// Sequential assignment is safe because PostVars refuses any update that
+		// reads a loop variable other than its own.
+		var ups []string
 		for i := range names {
 			if u, ok := post[i]; ok {
 				v, err := e.emit(u)
 				if err != nil {
 					return "", err
 				}
-				lhs = append(lhs, names[i])
-				rhs = append(rhs, v)
+				ups = append(ups, names[i]+" = "+v)
 			}
 		}
-		e.line("for (;; %s = %s) {", strings.Join(lhs, ", "), strings.Join(rhs, ", "))
+		e.line("for (;; %s) {", strings.Join(ups, ", "))
 	} else {
 		e.line("for (;;) {")
 	}

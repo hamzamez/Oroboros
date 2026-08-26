@@ -1,0 +1,29 @@
+; A `build` BUFFER IS ZERO-FILLED, and nothing said so until now.
+; expect: 0 0
+; inputs: 0 1
+;
+; Two inputs, not the default nine: `run` ignores its argument, and reduction
+; inlines it at every call site, so nine calls is nine 16-element tables built
+; in one procedure -- which on x86 is more spilled operands than there are
+; scratch registers. That ceiling belongs to the backend and provoking it from
+; a conformance case would measure the harness.
+;
+; Four hosts agree by accident of four different mechanisms: Go's `make`, the
+; JVM's `new long[n]`, `new Array(n).fill(0)` on JavaScript, and VirtualAlloc
+; handing back committed pages on windows. Agreement across four targets with no
+; specification and no test is exactly the shape of `split-words`, which passed
+; every check for two months while returning different answers per target.
+;
+; It became load-bearing when examples/json/tree.oro made 0 the `none` sentinel
+; for a node's `kid` and `sib`: every link that is never written is a
+; correctness claim about what a fresh buffer contains.
+;
+; This reads every slot of a buffer that has had exactly ONE element written,
+; and sums the rest. A host that leaves a buffer uninitialised, or sparse, or
+; filled with `undefined`, cannot answer 0.
+(def run (fn (n)
+  (let (build 16 (fn (b) (set b 0 7)))
+    (fn (t)
+      (loop ((acc 0) (i 1))
+        (@ge i 16)  acc
+        else        (again (@add acc (t i)) (@add i 1)))))))

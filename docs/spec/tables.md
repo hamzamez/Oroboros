@@ -901,6 +901,30 @@ A compiler could also recover in-place when `a` is provably dead — that is M-A
 available as an *optimisation*. ADR 0018 declines to **rely** on it, because SISAL's lesson is that
 an optimisation with no source-level guarantee is a cliff you cannot see.
 
+### 14.3 A `build` buffer is ZERO-FILLED
+
+`(build n (fn (b) …))` hands the body a buffer of `n` elements, every one of them **zero** — `0`
+for an integer, `0.0` for a float, `false` for a boolean.
+
+This was true on all four targets from the day `build` was written, by four different mechanisms —
+Go's `make`, the JVM's `new long[n]`, `new Array(n).fill(0)` on JavaScript, and `VirtualAlloc`
+handing back committed pages — and **nothing said so**, which made it agreement rather than a
+guarantee. That is the shape of `split-words`, which passed every check for two months while
+returning a different answer on each target.
+
+It became load-bearing when [`examples/json/tree.oro`](../../examples/json/tree.oro) made `0` the
+`none` sentinel for a node's `kid` and `sib`: a link that is *never written* is then a claim about
+what a fresh buffer contains, and a leaf node writes neither. So it is stated here and checked by
+[`gauntlet/differential/cases/build-zero.oro`](../../gauntlet/differential/cases/build-zero.oro),
+which reads every slot of a buffer with exactly one element written.
+
+It is not an implementation detail a target may vary. A target whose allocator hands back dirty
+memory has to clear it, the same way `targets/windows/` has to supply an allocator at all.
+
+The reason it is *free* on every host we have is the same reason it is nearly free anywhere: a
+fresh page from the OS is already zero, for security, so a zeroing allocator is paying for
+something the platform did regardless.
+
 ### 14.3 Growing a table — `append`
 
 **There is no *portable* `append`, and a table does not grow — but growth is already reachable

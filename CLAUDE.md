@@ -241,6 +241,47 @@ three spilled operands, and the template path **enforcing the wrong constraint**
 memory operand per INSTRUCTION, not two spilled operands per template, so `mov rcx, [rsp+56]` was
 being refused for no reason.
 
+**AND THE TREE IS BUILT TOO — the VALUE half** —
+[json-tree-2026-08-26](gauntlet/results/json-tree-2026-08-26.md),
+[examples/json/tree.oro](examples/json/tree.oro). A flat node table, stride 4, tag/val/kid/sib, with
+**node 0 as the `none` sentinel holding the header** — parsed, linked, and then **WALKED**, because
+building a tree and never traversing it would prove nothing. Four documents, answers computed by
+hand before running and reproduced exactly, on Go/JS/Java in the suite and on x86 by hand. 107 lines
+of code, no new term kind, no new rule, no new primitive, no target declares anything. **`build`
+zero-fills, so 0 is `none` and `kid`/`sib` never need initialising** — a guarantee four targets kept
+by four unrelated mechanisms with **nothing specifying it**, which is `split-words`'s shape exactly;
+now [tables.md §14.3](docs/spec/tables.md) plus a conformance case. **Linking is exactly what a
+recursive parser gets for free**: it RETURNS its subtree, we have to POINT at it — one extra word
+per depth level, which is *smaller* than a stack frame. And **ADR 0015 chose the shape and chose
+better**: `again` may not go under an `if`, so three scalar kinds became ONE clause with
+`let`-computed tag and index rather than three copies of the link expression.
+
+**The bug of the day is the differential suite's whole argument in one line.** The Java and
+JavaScript loop emitters both had Go's post clause verbatim — `for (;; a, b = x, y)`. That is
+simultaneous tuple assignment on Go, a **syntax error** on Java (a comma list of *statements*), and
+on JavaScript the **comma operator** — evaluate `a`, assign `b = x`, discard `y`. So the same
+emitted shape was a compile error on one host and a **silent wrong answer** on another, which
+returned `3000081` where the other three returned `3030081`. **Latent for months because one hoisted
+variable emits `a = x`, correct everywhere**, and no program had two until this walk's `seen` and
+`steps`. The sequential fix is safe for a reason that already existed: `PostVars` refuses any update
+reading a loop variable other than its own — written to make the *Go* hoist correct.
+
+**Termination is where the honest limit is.** The walk cannot be proven from its structure, because
+progress depends on links read out of a table and nothing can know a table is acyclic — so it
+carries an explicit trip bound, worth **16 of 20 loops against 12**. The program is **408 of 448**
+integer operations bounded against the tokeniser's 80 of 124, because clamped addressing both
+discharges the index obligations and bounds the arithmetic.
+
+**So the superseding ADR general-purpose.md called owed is NOT owed on the grounds it gave** — that
+argument was *"a JSON parser, a DOM walk and a recursive-descent parser all recurse"*, and two of
+the three now run without recursion. **What is unsettled is ERGONOMICS**, which is a different
+argument and has not been made with a measurement: 107 lines against maybe 60 with recursion, and
+three constructs here — the clamps, the trip bound, the last-child slot — exist because of what the
+language refuses. Two things that ARE settled: **two live buffers work** (a `build` inside a
+`build`, both threaded through one loop, linearity and termination intact), and **a buffer can
+outlive the loop that filled it** — frozen on the way out and read back as an ordinary `array`,
+which is ADR 0018's freeze on the first program that needed it.
+
 **And CLAUSE ORDER CHANGES WHAT CAN BE PROVED** — the same program with one clause moved goes from
 **80 of 124** integer operations bounded and **12 of 16** loops terminating to **36 and 0**, same
 guards and same answers. The cause is **not isolated**: `collectAgain` refines through both branches

@@ -1,50 +1,28 @@
-; A JSON TREE: A FLAT NODE TABLE PLUS INDICES (json-tree-2026-08-26).
-; expect: 730461 440291 320150 530441
+; A JSON TREE: a flat node table plus indices, parsed, linked and WALKED.
+; expect: 3030081 3030111 4040171 7070331
 ; inputs: 0 1 2 3
 ;
-; The VALUE half of "recursive data is a flat table plus indices". It parses
-; four documents into a node table -- stride 4, tag/val/kid/sib, node 0 the
-; `none` sentinel -- and then WALKS it, because building a tree and never
-; traversing it would prove nothing.
+; The VALUE half of "recursive data is a flat table plus indices"
+; (json-tree-2026-08-26). tokenize.oro settled the control half and produced
+; counts; this produces a TREE -- stride-4 nodes, tag/val/kid/sib, node 0 the
+; `none` sentinel holding the header -- and then traverses it, because building
+; a tree and never walking it would prove nothing.
 ;
-; The result packs nvis*100000 + maxdepth*10000 + checksum*10 + valid, and the
-; checksum is sum(tag*depth) + sum(val) over every node the walk reaches, so a
-; wrong link is a wrong number rather than a crash.
+; The packed answer is  nodes*1000000 + seen*10000 + tagdepth*10 + ok, and every
+; one was computed by hand before the program was run. `seen == nodes` is the
+; check that every node is reachable exactly once through the links: a linking
+; bug that a parse-only test cannot see shows up here as a wrong count.
 ;
-; TWO nested `build`s in the parser and a third in the walk. It found two silent
-; wrong-answer bugs the construct cases could not: a call-by-need binding whose
-; name collided with a top-level `def` of the same spelling, and PostVars
-; hoisting an update out of the `let` that bound its operands.
-;
-; skip: windows
-;
-; REGISTER PRESSURE, and it is the HARNESS that exceeds it rather than the
-; program. x86 builds this and prints 730461 -- the same answer as the other
-; three -- for ONE document. The harness inlines `run` once per input, and two
-; copies of three nested buffers plus eleven live values exhaust the seven
-; callee-saved registers the value pool has. There is no eighth: rbp is the
-; frame pointer and the rest of the callee-saved set is already in the pool.
-;
-; Two real fixes came out of chasing it and are kept: `set` forms its address
-; with `lea` when all three operands are spilled, and the template path now
-; enforces the constraint x86 ACTUALLY has -- one memory operand per
-; instruction -- instead of a global scratch budget.
+; It exercises TWO LIVE BUFFERS at once (the node table and the parse stack, one
+; nested inside the other), a buffer that OUTLIVES the loop that filled it and
+; is read back as a frozen array, and `build`'s zero-fill as a correctness
+; property -- a leaf writes neither `kid` nor `sib` and reads 0 for both.
 ;
 ; See examples/json/tree.oro for the annotated original.
 
 
-(def nmax (fn () 64))   ; nodes
+(def nmax (fn () 64))   ; nodes, including the sentinel
 (def dmax (fn () 16))   ; nesting depth
-
-; Indices are CLAMPED rather than guarded, so the obligation 0 <= x < len holds
-; by construction: clampn is [0,63], times four is [0,252], plus a literal
-; offset of 0..3 is [0,255], and the buffer is 256 long. The refinement layer
-; discharges that without being told anything.
-(def clampn (fn (k) (if (@lt k 0) 0 (if (@ge k (nmax)) 0 k))))
-(def nx (fn (k o) (@add (@mul 4 (clampn k)) o)))
-
-(def clampd (fn (d) (if (@lt d 0) 0 (if (@ge d (dmax)) 0 d))))
-(def sx (fn (d o) (@add (@mul 2 (clampd d)) o)))
 
 ; --- byte classes -----------------------------------------------------------
 
@@ -56,14 +34,28 @@
 (def opener? (fn (c) (or (= c 123) (= c 91))))
 (def closer? (fn (c) (or (= c 125) (= c 93))))
 (def punct?  (fn (c) (or (= c 58) (= c 44))))
+(def scalar? (fn (c) (or (= c 34) (or (numeric? c) (alpha? c)))))
+
+; --- addressing -------------------------------------------------------------
+;
+; Every index is CLAMPED rather than guarded. The clamp is what discharges the
+; obligation — `(@mul 4 (cn k))` has interval [0, 4*(nmax-1)] and the table is
+; 4*nmax long, so the bound holds by construction on both sides of every test.
+; The guards in the parse loop are then about CORRECTNESS (bail out) rather than
+; about safety, which is the right division: a clamp that silently wrote to node
+; 0 would corrupt the header, so the loop refuses to run past nmax at all.
+
+(def cn (fn (k) (if (@lt k 0) 0 (if (@ge k (nmax)) 0 k))))
+(def cd (fn (d) (if (@lt d 0) 0 (if (@ge d (dmax)) 0 d))))
+(def nsl (fn (k o) (@add (@mul 4 (cn k)) o)))
+(def ssl (fn (d o) (@add (@mul 2 (cd d)) o)))
 
 ; --- scanners ---------------------------------------------------------------
-;
-; (@lt j 0) is here for the reason json-2026-08-26 records: j >= i+1 is a
-; RELATIONAL fact and the interval analysis is not.
 
 (def scan-string (fn (src i)
   (loop ((j (@add i 1)))
+    ; `j >= i + 1` is relational and the interval analysis is not, so
+    ; non-negativity is stated (json-2026-08-26 §2).
     (@lt j 0)           j
     (@ge j (len src))  j
     (= (src j) 92)       (again (@add j 2))
@@ -77,148 +69,154 @@
     (pred (src j))       (again (@add j 1))
     else                 j)))
 
-(def num-val (fn (src i end)
-  (loop ((j i) (v 0))
-    (@lt j 0)           v
-    (@ge j end)        v
-    (@ge j (len src))  v
-    (digit? (src j))     (again (@add j 1) (@add (@mul v 10) (@sub (src j) 48)))
-    else                 (again (@add j 1) v))))
+; --- linking ----------------------------------------------------------------
+;
+; LINKING IS EXACTLY WHAT A RECURSIVE PARSER GETS FOR FREE. `link` points the
+; parent at its new child, or the previous sibling at its next one; `mark`
+; records the new child so the following one knows where to attach; `push` opens
+; a level. A recursive parser expresses all three by returning a value.
 
-; --- phase 1: parse into the node table -------------------------------------
-;
-; The document is node 1, pushed before the loop starts, so sp is never 0 and
-; every value has a parent. That is what removes the special case from the link
-; step -- and LINKING is the one operation a flat tree needs that a recursive
-; parser gets for free, because a recursive parser RETURNS its subtree to its
-; caller and this one has to point at it.
-;
-; Every allocating token shares that link step, and ADR 0015 is what decides the
-; shape: `again` may sit under a `let` and never under an `if`, so the five
-; token classes cannot be five clauses each ending in their own `again` without
-; repeating the link four more times. They become ONE `again` whose arguments
-; are computed by `let`, which is better code and was not the first thing tried.
+(def link (fn (nodes stk sp k)
+  (if (@lt sp 1) nodes
+    (let (stk (ssl (@sub sp 1) 1)) (fn (lc)
+      (if (= lc 0)
+        (set nodes (nsl (stk (ssl (@sub sp 1) 0)) 2) k)
+        (set nodes (nsl lc 3) k)))))))
+
+(def mark (fn (stk sp k)
+  (if (@lt sp 1) stk (set stk (ssl (@sub sp 1) 1) k))))
+
+(def push (fn (stk sp k) (set (set stk (ssl sp 0) k) (ssl sp 1) 0)))
+
+; --- the parser -------------------------------------------------------------
 
 (def parse (fn (src)
   (build (@mul 4 (nmax)) (fn (nodes)
     (build (@mul 2 (dmax)) (fn (stk)
-      (loop ((nodes (set nodes (nx 1 0) 6))
-             (stk   (set stk (sx 0 0) 1))
-             (i 0) (nn 2) (sp 1) (ok 1))
+      (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
-        (@lt i 0)         (set nodes (nx 0 1) 0)
-        (@ge nn (nmax))  (set nodes (nx 0 1) 0)
-        (@ge sp (dmax))  (set nodes (nx 0 1) 0)
+        ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
+        (@lt i 0)  (set (set nodes 0 nn) 1 0)
 
         (@ge i (len src))
-          (set (set nodes (nx 0 0) nn) (nx 0 1) (if (= sp 1) ok 0))
+          (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
 
-        (space? (src i))   (again nodes stk (@add i 1) nn sp ok)
-        (punct? (src i))   (again nodes stk (@add i 1) nn sp ok)
+        ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
+        ; carries an obligation nothing can discharge, because both `nn` and
+        ; `sp` grow with the input — so the program has to say what happens when
+        ; a document has more nodes than the table, or nests deeper than the
+        ; stack. A recursive-descent parser has both limits too; the heap and
+        ; the C stack. It is never asked about either.
+        (@ge nn (nmax))  (set (set nodes 0 nn) 1 0)
+        (@ge sp (dmax))  (set (set nodes 0 nn) 1 0)
 
-        ; a closer pops, and must agree with the tag it is closing
+        (space? (src i))  (again nodes stk (@add i 1) nn sp ok)
+        (punct? (src i))  (again nodes stk (@add i 1) nn sp ok)
+
+        ; An opener allocates a container, attaches it, and opens a level. The
+        ; order is forced: `mark` records it as the last child at the CURRENT
+        ; depth, and only then does `push` move down.
+        (opener? (src i))
+          (again (link (set (set nodes (nsl nn 0) (if (= (src i) 123) 5 4))
+                            (nsl nn 1) 0)
+                       stk sp nn)
+                 (push (mark stk sp nn) sp nn)
+                 (@add i 1) (@add nn 1) (@add sp 1) ok)
+
+        ; A closer pops, and checks that what it closes is what was opened —
+        ; read back out of the node table, which is the first time the parser
+        ; reads a node it wrote earlier.
         (closer? (src i))
           (again nodes stk (@add i 1) nn
-                 (if (@lt sp 2) 1 (@sub sp 1))
-                 (if (@lt sp 2) 0
-                     (if (= (if (= (nodes (nx (stk (sx (@sub sp 1) 0)) 0)) 5) 125 93)
-                            (src i))
+                 (if (@lt sp 1) 0 (@sub sp 1))
+                 (if (@lt sp 1) 0
+                     (if (= (nodes (nsl (stk (ssl (@sub sp 1) 0)) 0))
+                            (if (= (src i) 125) 5 4))
                          ok 0)))
 
-        else
-          (let (src i) (fn (c)
-          (let (@sub sp 1) (fn (d1)
-          (let (stk (sx d1 1)) (fn (lc)
+        ; ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
+        ; go under an `if`, so three clauses would each have to repeat the whole
+        ; link-and-allocate expression. Computing the tag and the next index
+        ; with `let` first — which ADR 0015 does permit above `again` — leaves
+        ; one copy. That is the rule choosing the better shape, and it was not
+        ; the first thing tried.
+        (scalar? (src i))
+          (let (if (= (src i) 34) 2 (if (numeric? (src i)) 1 3)) (fn (tg)
+          (let (if (= (src i) 34) (scan-string src i)
+                (if (numeric? (src i)) (scan-run src i numeric?)
+                                       (scan-run src i alpha?))) (fn (ni)
+            (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (@sub ni i))
+                         stk sp nn)
+                   (mark stk sp nn)
+                   ni (@add nn 1) sp ok)))))
 
-            ; the link: first child of the open container, or next sibling of
-            ; whatever it last took
-            (let (if (= lc 0)
-                     (set nodes (nx (stk (sx d1 0)) 2) nn)
-                     (set nodes (nx lc 3) nn)) (fn (linked)
-            (let (set stk (sx d1 1) nn) (fn (stk1)
+        else (again nodes stk (@add i 1) nn sp 0))))))))
 
-            (let (if (opener? c) (@add i 1)
-                   (if (= c 34) (scan-string src i)
-                     (if (numeric? c) (scan-run src i numeric?)
-                       (if (alpha? c) (scan-run src i alpha?) (@add i 1))))) (fn (e)
-            (let (if (opener? c) (if (= c 123) 5 4)
-                   (if (= c 34) 2
-                     (if (numeric? c) 1
-                       (if (alpha? c) 3 0)))) (fn (tg)
-            (let (if (= c 34) (@sub e i)
-                   (if (numeric? c) (num-val src i e)
-                     (if (alpha? c) (@sub e i) 0))) (fn (vl)
-
-              (again
-                (set (set linked (nx nn 0) tg) (nx nn 1) vl)
-                ; a container pushes, and zeroes the new frame's last-child
-                ; slot, because the stack is reused across sibling subtrees
-                (if (opener? c)
-                    (set (set stk1 (sx sp 0) nn) (sx sp 1) 0)
-                    stk1)
-                e
-                (@add nn 1)
-                (if (opener? c) (@add sp 1) sp)
-                ; tag 0 is a byte that is not JSON
-                (if (= tg 0) 0 ok))
-
-            )))))))))))))))))))))))
-
-; --- phase 2: walk it -------------------------------------------------------
+; --- the walk ---------------------------------------------------------------
 ;
-; A worklist depth-first traversal over kid and sib, with its own explicit stack
-; of (node, depth) pairs. THIS is the part that would recurse in any ordinary
-; treatment, and it is the same loop and the same stack discipline as the parser
-; -- which is the claim, stated as a program.
+; A worklist depth-first traversal: pop a node, push its sibling, then push its
+; child one level deeper. This is the part a tree normally recurses for, and it
+; is the reason the tree is built at all — a linking bug that a parse-only test
+; cannot see shows up here as a wrong count.
 ;
-; A sibling REPLACES the popped frame and only a child pushes, so the stack
-; depth is the tree's depth and not its node count.
+; `steps` is a hard bound, and it is not defensive padding. Nothing in the
+; language can prove this loop terminates, because progress depends on links
+; read out of a table; the trip bound is what makes it a program rather than a
+; hope. It is also honest about the same thing the parse limits are: a cyclic
+; table would spin, so the walk says what it does about that.
+
+; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
+; node — a tree shaped like a list pushes a sibling at every step.
+(def cw (fn (k) (if (@lt k 0) 0 (if (@ge k (nmax)) 0 k))))
+(def ssl2 (fn (k o) (@add (@mul 2 (cw k)) o)))
 
 (def walk (fn (nodes)
-  (build (@mul 2 (dmax)) (fn (wstk)
-    (loop ((wstk (set (set wstk (sx 0 0) (nodes (nx 1 2))) (sx 0 1) 1))
-           (sp (if (= (nodes (nx 1 2)) 0) 0 1))
-           (acc 0) (nvis 0) (mx 0))
-
-      (@ge sp (dmax))  0
-      (@lt sp 1)        (@add (@mul nvis 100000) (@add (@mul mx 10000) (@mul acc 10)))
-
+  (build (@mul 2 (nmax)) (fn (wl)
+    (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
+      (@ge steps (@mul 2 (nmax)))  (@add (@mul seen 1000) acc)
+      (@lt sp 1)                    (@add (@mul seen 1000) acc)
       else
-        (let (@sub sp 1) (fn (d1)
-        (let (wstk (sx d1 0)) (fn (n)
-        (let (wstk (sx d1 1)) (fn (dp)
-        (let (nodes (nx n 2)) (fn (kid)
-        (let (nodes (nx n 3)) (fn (sib)
-
-          (again
-            (if (= sib 0)
-                (set (set wstk (sx d1 0) kid) (sx d1 1) (@add dp 1))
-                (if (= kid 0)
-                    (set (set wstk (sx d1 0) sib) (sx d1 1) dp)
-                    (set (set (set (set wstk (sx d1 0) sib) (sx d1 1) dp)
-                              (sx (@add d1 1) 0) kid)
-                         (sx (@add d1 1) 1) (@add dp 1))))
-            (@add d1 (@add (if (= sib 0) 0 1) (if (= kid 0) 0 1)))
-            (@add acc (@add (@mul (nodes (nx n 0)) dp) (nodes (nx n 1))))
-            (@add nvis 1)
-            (if (@gt dp mx) dp mx))
-
-        )))))))))))))))
+        (let (wl (ssl2 (@sub sp 1) 0)) (fn (n)
+        (let (wl (ssl2 (@sub sp 1) 1)) (fn (d)
+        (let (nodes (nsl n 3)) (fn (sb)
+        (let (nodes (nsl n 2)) (fn (kd)
+        (let (@sub sp 1) (fn (s1)
+        (let (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d)) (fn (w1)
+        (let (if (= sb 0) s1 (@add s1 1)) (fn (s2)
+        (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (@add d 1))) (fn (w2)
+        (let (if (= kd 0) s2 (@add s2 1)) (fn (s3)
+          (again w2 s3 (@add seen 1)
+                 (@add acc (@mul (nodes (nsl n 0)) d))
+                 (@add steps 1)))))))))))))))))))))))))
 
 ; --- documents --------------------------------------------------------------
+;
+; Answers computed BY HAND before running, which is the only way the walk tests
+; anything. The packed result is
+;
+;   nodes * 1000000 + seen * 10000 + tagdepth * 10 + ok
+;
+; where `nodes` counts everything but the sentinel, `seen` is how many the walk
+; reached, and `tagdepth` is the sum of tag x depth. seen == nodes is the check
+; that every node is reachable exactly once.
 
-; {"a":[1,2],"b":true}
-(def d0 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
-; [[[1]]]
-(def d1 (array 91 91 91 49 93 93 93))
-; {"a":1   -- unterminated
-(def d2 (array 123 34 97 34 58 49))
-; [{"x":[]},7]
-(def d3 (array 91 123 34 120 34 58 91 93 125 44 55 93))
+; [1,2]                 array(4)@1, num@2, num@2       tagdepth 4+2+2 = 8
+(def d0 (array 91 49 44 50 93))
+; {"a":1}               object(5)@1, str(2)@2, num(1)@2  tagdepth 5+4+2 = 11
+(def d1 (array 123 34 97 34 58 49 125))
+; [[1],2]               4@1, 4@2, 1@3, 1@2             tagdepth 4+8+3+2 = 17
+(def d2 (array 91 91 49 93 44 50 93))
+; {"a":[1,2],"b":true}  5@1 2@2 4@2 2@2 3@2 1@3 1@3    tagdepth 5+4+8+4+6+3+3 = 33
+(def d3 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
 
-(def doc (fn (k) (if (= k 0) d0 (if (= k 1) d1 (if (= k 2) d2 d3)))))
+(def report (fn (src)
+  (let (parse src) (fn (nodes)
+    (@add (@mul (@sub (nodes 0) 1) 1000000)
+      (@add (@mul (walk nodes) 10)
+            (nodes 1)))))))
 
 (sig run ((k int)) int)
 (def run (fn (k)
-  (let (parse (doc k)) (fn (t)
-    (@add (walk t) (t (nx 0 1)))))))
+  (if (= k 0) (report d0)
+    (if (= k 1) (report d1)
+      (if (= k 2) (report d2) (report d3))))))

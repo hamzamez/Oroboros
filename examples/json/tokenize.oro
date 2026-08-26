@@ -18,6 +18,13 @@
 (use go)
 (export run)
 
+; `tokens` is exported too, so it can be benchmarked against a hand-written
+; tokeniser over the same bytes. `run` feeds it constants and is what the
+; differential suite checks; this one takes its source as a PARAMETER, which is
+; what stops reduction from folding the whole thing away.
+(export tokens)
+(sig tokens ((src (array int))) int)
+
 (def cap (fn () 32))
 
 ; --- character classes ------------------------------------------------------

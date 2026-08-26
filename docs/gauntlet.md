@@ -2,7 +2,7 @@
 
 The one fixed thing in an otherwise exploratory project.
 
-Candidate cores are disposable. This test is not. Every candidate must express all five
+Candidate cores are disposable. This test is not. Every candidate must express all seven
 programs and reach parity with hand-written code on all three initial targets.
 
 ## Why this exists
@@ -27,9 +27,23 @@ Each one exists to kill a specific class of core.
 | 4 | Word frequency count over a text | **The parasite test.** Must emit Go's `map` and JS's `Map`, not a hand-rolled hash table |
 | 5 | Formatted output to stdout | The Tier 2 binding story — `fmt` on Go, `console` on JS, `System.out` on Java |
 | 6 | Stencil over a slice that may alias itself, plus dict update | Uniqueness. Where in-place mutation is unsound, and what failing to prove it costs |
+| 7 | **A JSON tokeniser over a table of bytes** | **Branchy code.** Every other program is a countable numeric loop; this one is a data-dependent switch per byte, with an input-decided nesting depth |
 
 Programs 1 and 4 are the important ones. 1 is where elegant cores die. 4 is where the whole
 Parasite thesis is either true or false.
+
+Program 7 was added on 2026-08-26, after two programs in a row were written and committed with
+no number attached. It exists because the first six are all the SAME SHAPE — countable loops over
+arrays, which is what every host optimises best and what the emitter had been tuned against for
+five months. Parity on branchy code had never been measured, and
+[general-purpose.md](general-purpose.md) had just said this is a general-purpose language, where
+most code is branchy. It is also the only program whose control flow depends on the input's
+structure rather than its length, which is what makes it the test for
+[ADR 0014](decisions/0014-recursion-is-not-in-the-language.md).
+
+Its first run is [jsontok-2026-08-26](../gauntlet/results/jsontok-2026-08-26.md): 0.96x on Go,
+1.02x on JavaScript, and 1.20x on Java — where the Java gap is isolated to the index type and not
+to code generation.
 
 Program 6 was added after [s2](derivations/s2-multiplicity-inference.md) found that the first
 five never mutate a shared structure, leaving uniqueness untested. It is the only program where
@@ -41,7 +55,7 @@ whether two slices alias, and no target language can express that they do not.
 1. **Write the reference implementations first**, by hand, idiomatically, in Go, JavaScript,
    and Java. Before any compiler exists. These are the numbers to beat.
 2. Record timings and output size on fixed inputs, with the toolchain versions.
-3. For each candidate core, express all five programs and generate target code.
+3. For each candidate core, express all seven programs and generate target code.
 4. Compare against the reference on: wall time, allocation count, and output size.
 5. A candidate **passes** a program on a target when it is within threshold on all three.
 

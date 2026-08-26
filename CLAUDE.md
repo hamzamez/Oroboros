@@ -249,6 +249,35 @@ program. So the analysis is order-sensitive in a way the language is not, and a 
 edit can lose a termination proof — a stronger reason to want octagons than the two extra compares
 the same program needed for being non-relational.
 
+**AND IT IS AT PARITY, WHICH IS THE FIRST TIME BRANCHY CODE HAS BEEN MEASURED** —
+[jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md). **Go 0.96x, JavaScript 1.02x, Java
+1.20x** against hand-written tokenisers, and the tokeniser is now **gauntlet program 7**, added
+because the first six are all the same shape — countable loops over arrays, which every host
+optimises best and which the emitter had been tuned against for five months. `make([]int, 32) does
+not escape`, so **ADR 0018's buffer is stack-allocated**, zero allocs, and it keeps **2** bounds
+checks where hand-written Go keeps 5. **Java's 1.20x is the INDEX TYPE and that is isolated, not
+assumed**: the same program hand-written with a `long` index measures 9,156 ns against our 9,400,
+so the emitter is at **1.03x of the shape it emits** and the whole gap is
+[indextype-2026-08-25](gauntlet/results/indextype-2026-08-25.md)'s narrowing failing to fire —
+which that result predicted, because our `i` is assigned a scanner's return value rather than
+stepping by +1. The fix is a PLATFORM fact, not an inferred range: a Java array holds at most
+2^31-1 elements.
+
+**Three things that run counter to the guesses.** The **64-bit `int` is nearly free** — Go's
+`[]int` form is 1.05x the `[]byte` one, because the loop is branch-bound and the eight-times-larger
+input hides; that is a **third regime** beside checkcost-2026-08-19's arithmetic-bound 4.54x and
+memory-bound 1.23x, and the lesson repeats that a cost behaves the way a saving does. The
+**refinement layer's three extra compares cost nothing measurable**, because a never-taken branch
+is what a predictor is best at. And **a string-based tokeniser is 1.89x slower than an array-based
+one on V8**, which lands on the strings work rather than on us.
+
+**A benchmark-method error was caught on the way, the third in this repository.** The first JS run
+said **0.68x** — the best number in the project's history — and it was measuring a closure: the
+hand-written reference read each byte through `(i) => s.charCodeAt(i)`, an indirect call per byte
+worth **1.5x**. Removing it moved the hand-written side from 12,320 ns to 8,314 and left ours
+still. Every surprising JavaScript result here has been a method error at least once; the rule that
+catches them is to **make a suspicious result explain itself before recording it**.
+
 **Four bugs came with it, and what they share is that the PROGRAM was bigger, not that a construct
 was new** — every construct here was already covered by the differential suite, which passed.
 `typeOf` of a `build` assumed the body hands the buffer back (this is the first program whose buffer

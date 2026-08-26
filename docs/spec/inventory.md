@@ -159,12 +159,12 @@ reproduce those numbers.
 two months while returning different answers on different targets, which is why
 [gauntlet/conformance/](../../gauntlet/conformance/) exists.
 
-**It covers `split-words` and nothing else.** `table`, `array`, `len`, indexing, `alloc`, `build`,
-`set`, `match`, `case`, `values` and `loop` are Tier 1 language constructs with **no cross-target
-conformance coverage** — and two silent wrong-answer bugs in one day were caught only by
-hand-written references ([loopshape-2026-08-25](../../gauntlet/results/loopshape-2026-08-25.md) §3,
-[wintables-2026-08-25](../../gauntlet/results/wintables-2026-08-25.md) §4a). That is the largest
-open gap this audit finds.
+It covers `split-words` and nothing else — so
+[`gauntlet/differential/`](../../gauntlet/differential/) was written the next day for the
+LANGUAGE's constructs: `table`, `array`, `len`, indexing, `alloc`, `build`, `set`, `match`, `case`,
+`values` and `loop`, each built on four targets, **run**, and required to agree *and* to give the
+right answer ([differential-2026-08-26](../../gauntlet/results/differential-2026-08-26.md)). Its
+pass condition was reproducing the two silent wrong-answer bugs this audit was written next to.
 
 ---
 

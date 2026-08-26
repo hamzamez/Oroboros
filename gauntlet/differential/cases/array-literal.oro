@@ -1,0 +1,13 @@
+; A GRAPH — the extensional presentation. β-tab looks an element up when the
+; expect: 0 10 30 60 150 150 150 150 150
+; index is a literal and leaves the application alone when it is not, so the
+; same text `(a i)` is an indexing whether it reduces here or reaches a backend
+; (tables.md §3.1).
+;
+; `n` selects dynamically, so nothing folds and the table has to exist.
+(def run (fn (n)
+  (let (array 10 20 30 40 50) (fn (a)
+    (loop ((acc 0) (i 0))
+      (@ge i (len a))  acc
+      (@ge i n)        acc
+      else             (again (@add acc (a i)) (@add i 1)))))))

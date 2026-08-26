@@ -1,0 +1,19 @@
+; THE JAVASCRIPT DOUBLE-INCREMENT (loopshape-2026-08-25 §3).
+; expect: 0 1 2 3 4 4 4 4 4
+;
+; A loop whose counter is updated identically by every `again` has that update
+; hoisted into the host `for` statement's post clause. The first version patched
+; each backend's emitAgain separately; JavaScript's routes through the shared
+; changedArgs instead, so the increment was emitted BOTH in the post clause and
+; in the body and the counter advanced by two.
+;
+; It compiled. It ran. It returned a number. Only the ANSWER was wrong, which is
+; what this suite exists to notice.
+;
+; Two clauses that both advance `i`, so the hoist fires; one that does not
+; change `acc`, so the shapes differ per clause.
+(def run (fn (n)
+  (loop ((acc 0) (i 0))
+    (@ge i n)   acc
+    (@gt i 3)   (again acc (@add i 1))
+    else        (again (@add acc 1) (@add i 1)))))

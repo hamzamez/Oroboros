@@ -1,0 +1,21 @@
+; A SUM crossing an `if` — the dynamic tag, which is where the commuting
+; expect: 0 2 4 6 10 16 1013 1021 1034
+; conversion earns its place. A tag known at compile time reduces away by β
+; alone; one decided at runtime gets stuck as `((if c A B) F G)` until an
+; eliminator is pushed into both branches (sums.md).
+;
+; Neither a tag nor a closure nor an allocation should survive to any backend.
+;
+; The err branch adds rather than negating, and that is not arbitrary: printing
+; a NEGATIVE number is outside `win/fmt.print-int`s declared domain, and the
+; first version of this case found that the domain is not enforced — see
+; differential-2026-08-26 §4.
+(sum result (ok int) (err int))
+
+(def step (fn (n)
+  (if (@ge n 10) (err n) (ok (@mul n 2)))))
+
+(def run (fn (n)
+  (case (step n)
+    (ok v)  v
+    (err e) (@add e 1000))))

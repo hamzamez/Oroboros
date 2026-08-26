@@ -1,0 +1,11 @@
+; SEVERAL RESULTS — the negative product. Consumed in the same reduction it
+; expect: 1 4 7 10 16 25 40 64 103
+; vanishes entirely; what reaches a backend is only the case that crosses a
+; boundary, and each host spells that its own way: Go's multiple return, a Java
+; record, a JavaScript object, rax/rdx on x86 (values.md §4).
+;
+; Here it is consumed in place, so the right answer is that nothing is built.
+(def divmod2 (fn (n) (values (@add n 1) (@mul n 2))))
+
+(def run (fn (n)
+  ((divmod2 n) (fn (a b) (@add a b)))))

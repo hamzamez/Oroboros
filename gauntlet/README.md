@@ -20,6 +20,12 @@ cd gauntlet/js && node bench.mjs
 ```bash
 cd gauntlet/java && javac -d out Gauntlet.java Bench.java && java -cp out Bench
 
+# DIFFERENTIAL CONFORMANCE — one program, four targets, built and RUN, outputs
+# required byte-identical AND required to be the right answer. This is the only
+# check that runs emitted code on every target; the sweep checks that a program
+# emits, and both of the wrong-answer bugs it was written for emitted cleanly.
+cd gauntlet/differential && go run run.go
+
 # the NATIVE Java target against hand-written Java (native-java-2026-08-25)
 cd gauntlet/java && javac -d out Gauntlet.java NativeBench.java gen/Nat*.java   && java -cp out NativeBench
 cd gauntlet/java && javac -d out Gauntlet.java NativeBench2.java gen/Nat*.java   && java -cp out NativeBench2

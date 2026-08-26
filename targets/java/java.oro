@@ -45,7 +45,15 @@
 
   ; No `narrow`: a Java array cannot be re-sliced.
 
-  (build "javac -d %s %s")
+  ; `Main.java` by NAME, not the source directory. cmd/build fills the second
+  ; hole with the work DIRECTORY and runs the command inside it, which `go build`
+  ; accepts and `javac` does not — it wants source files. This target could not
+  ; build a program at all until 2026-08-26, and nothing noticed because every
+  ; Java result so far came through cmd/gen plus javac by hand.
+  ;
+  ; -encoding UTF-8 is not optional: javac defaults to the platform charset
+  ; (strings.md §5).
+  (build "javac -encoding UTF-8 -d %s Main.java")
 
   ; THE STRUCTURAL SET IS ZERO. `if`, `let` and `loop` are the LANGUAGE's and are
   ; injected into every target; declaring one is an error. The backend implements

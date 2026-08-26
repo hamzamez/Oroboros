@@ -1,0 +1,23 @@
+; THE X86 ELEMENT WIDTH (wintables-2026-08-25 §4a).
+; expect: 0 2 5
+;
+; A boolean table is one byte per element on x86 and eight on the other three,
+; because that host has no types and the width has to be carried. Losing it at a
+; binder reads the array as qwords — seven bytes of the following elements per
+; access — which is a wrong answer rather than a slow one.
+;
+; inputs: 0 3 9
+;
+; The buffer is created by `build`, threaded through a loop, and re-bound by a
+; `let` before the counting loop reads it, which is exactly the chain that hid
+; the bug: the counting loop's `c` is bound to a `build` TERM, not to a name.
+(def run (fn (n)
+  (let (build (@add n 1) (fn (c)
+        (loop ((c c) (i 0))
+          (@ge i n)  c
+          else       (again (set c i true) (@add i 2)))))
+    (fn (b)
+      (loop ((acc 0) (k 0))
+        (@ge k n)  acc
+        (b k)      (again (@add acc 1) (@add k 1))
+        else       (again acc (@add k 1)))))))

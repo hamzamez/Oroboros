@@ -1,0 +1,15 @@
+; `match` — reader sugar over `loop`, so the guards, the bindings and `again`
+; expect: 0 0 0 0 0 0 1 1 2
+; all have to survive to four backends identically.
+;
+; A bare-name scrutinee BECOMES the loop variable (match.md §4). With fresh
+; variables a clause body reading `i` would see the value the loop started from
+; while `again` advanced a hidden one, and every iteration after the first would
+; read a stale value — a program that looks right.
+(def run (fn (n)
+  (match (0 n 0)
+    _ 0 c                          c
+    0 v c (when (@ge v 10))        (again 1 (@sub v 10) (@add c 1))
+    _ v c (when (@ge v 10))        (again 0 (@sub v 10) c)
+    _ v c                          (again 0 0 c)
+    else                           0)))

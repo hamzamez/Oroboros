@@ -484,13 +484,13 @@ Java and JavaScript (3.5× slower to load, 2,600× larger source) —
 
 The honest list, with the reasoning written down rather than deferred to memory:
 
-- **Cross-target conformance for the language's own constructs.** `gauntlet/conformance/` exists
-  because `split-words` *"passed every check for two months while returning different answers on
-  different targets"* — and it covers that one primitive. `table`, `array`, `len`, indexing,
-  `alloc`, `build`, `set`, `match`, `case` and `values` have **none**, and two silent wrong-answer
-  bugs in one day were caught only by hand-written references
-  ([loopshape §3](gauntlet/results/loopshape-2026-08-25.md),
-  [wintables §4a](gauntlet/results/wintables-2026-08-25.md)). This is the largest open gap.
+- **A `where` on a DEFINITION is not checked at any call site.** A primitive's precondition is
+  discharged at every call; a definition's is documentation. The mechanism is that **reduction
+  inlines the call**, so by the time the residual reaches the refiner there is no call site left —
+  which means the check has to happen somewhere no other refinement lives. Found by the
+  differential suite on its first run
+  ([differential-2026-08-26 §4c](gauntlet/results/differential-2026-08-26.md)), and it needs its
+  own ADR.
 - **Recursion** moved from *deferred* to **owed** — a JSON parser, a DOM walk and a
   recursive-descent parser all recurse to a depth the input decides, so
   [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) needs a superseding ADR

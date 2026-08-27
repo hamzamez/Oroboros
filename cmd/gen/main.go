@@ -145,6 +145,14 @@ func run(targetDir, src, target, out, name, path string, checked bool) error {
 		// nothing (sct-2026-08-19, data-model.md §1.5).
 		//
 		// A target declaring no checked form gets its term back unchanged.
+		// A POSTCONDITION on an exported definition is an OBLIGATION, not an
+		// assumption: the caller is outside the program, so the body is the
+		// only evidence there is (postconditions.md §2).
+		if ok, note := emit.CheckEnsures(tg, sig, nf); !ok {
+			return fmt.Errorf("%s: %s", fname, note)
+		} else if note != "" {
+			fmt.Fprintln(os.Stderr, "note:", fname+": "+note)
+		}
 		rep, sel := emit.Intervals(tg, sig, nf, 0)
 		if rep.Ops > 0 || rep.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+

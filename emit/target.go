@@ -87,6 +87,18 @@ type Prim struct {
 	// ADR 0002 answering, not a special case.
 	Checked string
 
+	// Ensures is a POSTCONDITION: what the call GUARANTEES about its result,
+	// over the parameter names and `result`. It is the only kind of contract a
+	// primitive cannot have derived for it, because a primitive has no body —
+	// which is why postconditions live here and are redundant on an internal
+	// definition (postconditions.md §3).
+	//
+	// It is ASSUMED at a call site, and only where the primitive's own `Where`
+	// was DISCHARGED. A contract is an implication: with the precondition
+	// unproven the guarantee says nothing, and assuming it anyway puts a false
+	// fact into a conjunctive fragment, from which everything follows.
+	Ensures *core.Term
+
 	// Where is a refinement: a boolean term over the primitive's parameter
 	// names, discharged at every call site (docs/spec/refinements.md).
 	Where *core.Term
@@ -663,6 +675,9 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
 			p.Where = rest.Kids[1]
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "ensures" && len(rest.Kids) == 2:
+			p.Ensures = rest.Kids[1]
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "checked" && len(rest.Kids) == 2 &&
 			rest.Kids[1].Kind == core.KName:

@@ -266,6 +266,12 @@ type IntervalReport struct {
 	Trips      int      // …of those, the ones that also yield a trip count
 	Diverging  []string // the idempotent cycle nothing was shown to shrink
 
+	// Result is the interval of what the function returns, which is what an
+	// exported definition's POSTCONDITION is checked against. A loop has no
+	// linear form, so the refinement layer cannot read a body's value and this
+	// is the only machinery that can.
+	Result ival
+
 	// MaxOp is the join of EVERY integer operation's result interval, which is
 	// the question index narrowing has to ask: computing in the host's 32-bit
 	// index type gives the same answer as computing in 64 bits exactly when
@@ -397,6 +403,98 @@ func (r *IntervalReport) MaxOpRange() string {
 	return lo + ".." + hi
 }
 
+// CheckEnsures decides an exported definition's POSTCONDITION against its body.
+//
+// This is the direction where Q is an OBLIGATION rather than an assumption
+// (postconditions.md §2): the caller is outside the program, so nothing else
+// can establish it, and the body is the only evidence there is.
+//
+// It decides the constant-bounded fragment — `K <= result`, `result <= K`, and
+// conjunctions of those — because that is what an interval can settle. A
+// RELATIONAL postcondition such as `result > i` is reported rather than
+// assumed, which is the same treatment §7 of refinements.md gives everything
+// outside its fragment, and for the same reason: an unproven claim that is
+// silently believed is worse than one that is reported.
+func CheckEnsures(tgt *Target, sig *core.Sig, t *core.Term) (bool, string) {
+	if sig == nil || sig.Ensures == nil {
+		return true, ""
+	}
+	rep, _ := Intervals(tgt, sig, t, 0)
+	ok, decided := entailsIval(tgt, sig.Ensures, rep.Result)
+	if !decided {
+		return true, "postcondition is outside the decidable fragment, " +
+			"propagated and not proven: " + sig.Ensures.String()
+	}
+	if !ok {
+		return false, "the body does not establish " + sig.Ensures.String() +
+			"; its result is " + rep.Result.String()
+	}
+	return true, ""
+}
+
+// entailsIval decides a postcondition against the result's interval, reporting
+// whether it holds and whether it could be decided at all.
+//
+// A conjunction is decided when BOTH halves are — an undecidable half makes the
+// whole undecidable, because a conjunction is only as good as its weakest part.
+func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
+	if c, ok := connective(tgt, q); ok && c.Op == "and" && len(c.Args) == 2 {
+		a, adec := entailsIval(tgt, c.Args[0], v)
+		b, bdec := entailsIval(tgt, c.Args[1], v)
+		if !adec || !bdec {
+			return false, false
+		}
+		return a && b, true
+	}
+	if q.Kind != core.KApp || q.Op().Kind != core.KName || len(q.Args()) != 2 {
+		return false, false
+	}
+	lhs, rhs := q.Args()[0], q.Args()[1]
+	name := q.Op().Name
+	isResult := func(x *core.Term) bool {
+		return x.Kind == core.KName && x.Name == core.ResultName
+	}
+	konst := func(x *core.Term) (int64, bool) {
+		if x.Kind == core.KInt {
+			return x.Int, true
+		}
+		return 0, false
+	}
+	switch {
+	case isResult(lhs):
+		k, ok := konst(rhs)
+		if !ok {
+			return false, false
+		}
+		switch {
+		case isOp(name, "le"):
+			return !v.hiInf && v.hi <= k, true
+		case isOp(name, "lt"):
+			return !v.hiInf && v.hi < k, true
+		case isOp(name, "ge"):
+			return !v.loInf && v.lo >= k, true
+		case isOp(name, "gt"):
+			return !v.loInf && v.lo > k, true
+		}
+	case isResult(rhs):
+		k, ok := konst(lhs)
+		if !ok {
+			return false, false
+		}
+		switch {
+		case isOp(name, "le"): // K <= result
+			return !v.loInf && v.lo >= k, true
+		case isOp(name, "lt"): // K < result
+			return !v.loInf && v.lo > k, true
+		case isOp(name, "ge"): // K >= result
+			return !v.hiInf && v.hi <= k, true
+		case isOp(name, "gt"): // K > result
+			return !v.hiInf && v.hi < k, true
+		}
+	}
+	return false, false
+}
+
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	rep.MaxOp = bottom
@@ -435,7 +533,8 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 	p.count = false
 	p.eval(t) // settle loop fixpoints
 	p.count = true
-	_, out := p.evalR(t)
+	res, out := p.evalR(t)
+	rep.Result = res
 	sort.Strings(rep.Unproven)
 	if head != nil {
 		out = core.FnClosed(head.Params, out) // t.Body() was already closed

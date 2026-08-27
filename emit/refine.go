@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"oroboros/core"
@@ -310,8 +311,18 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	}
 
 	// Discharge this primitive's own refinement before descending.
+	// A CALL'S ARGUMENTS ARE EVALUATED BEFORE IT, so their guarantees are in
+	// scope when its own obligation is discharged. Collecting them first is not
+	// an optimisation: in `(need (size v))` the only fact that can discharge
+	// `need`'s precondition is `size`'s postcondition, and discharging before
+	// collecting would refuse a correct program.
+	if known {
+		for _, a := range args {
+			r.collectEnsures(a, f)
+		}
+	}
 	if known && p.Where != nil {
-		if err := r.discharge(op.Name, p, args, f); err != nil {
+		if _, err := r.discharge(op.Name, p, args, f); err != nil {
 			return err
 		}
 	}
@@ -355,6 +366,58 @@ func (r *refiner) bind(f *facts, step *core.Term, count *core.Term) *facts {
 	return inner
 }
 
+// ensuresOf is the postcondition of a call, ready to assume about `result`.
+// It re-discharges the precondition against the same facts the call site had,
+// which is what Lemma 1 requires and is cheap: the fragment is tiny.
+func (r *refiner) ensuresOf(call *core.Term, result *core.Term, f *facts) *core.Term {
+	if call == nil || call.Kind != core.KApp || call.Op().Kind != core.KName {
+		return nil
+	}
+	p, known := r.tgt.Prims[call.Op().Name]
+	if !known || p.Ensures == nil {
+		return nil
+	}
+	proven := true
+	if p.Where != nil {
+		// Probing must not report: the real walk discharges this call too, and
+		// a diagnostic printed twice reads as two problems.
+		n := len(r.notes)
+		var err error
+		proven, err = r.discharge(call.Op().Name, p, call.Args(), f)
+		r.notes = r.notes[:n]
+		if err != nil || !proven {
+			return nil
+		}
+	}
+	q := r.ensured(p, call.Args(), result, proven)
+	if q != nil {
+		fmt.Fprintf(os.Stderr, "DBG assume %s proven=%v\n", q, proven)
+	}
+	return q
+}
+
+// collectEnsures assumes the postcondition of every PURE call inside a term,
+// about the call term itself.
+//
+// A pure call is a sound key by referential transparency: the same printed term
+// in a closed residual denotes the same value, which is exactly what Lemma 2
+// says an impure one does not. An impure call never reaches here as a bare
+// application — ADR 0010 let-binds it at the application site, and `let` is
+// where its guarantee attaches instead.
+func (r *refiner) collectEnsures(t *core.Term, f *facts) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return
+	}
+	for _, a := range t.Args() {
+		r.collectEnsures(a, f)
+	}
+	if p, known := r.tgt.Prims[t.Op().Name]; known && p.Ensures != nil && p.Pure {
+		if q := r.ensuresOf(t, t, f); q != nil {
+			assume(f, q)
+		}
+	}
+}
+
 func (r *refiner) let(args []*core.Term, f *facts) error {
 	if len(args) != 2 {
 		return nil
@@ -371,12 +434,30 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		inner.assumeEQ(k.Params[0], e)
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
+	// A POSTCONDITION ATTACHES TO THE NAME, not to the call (Lemma 2). Two
+	// occurrences of an impure call denote different values and the fact layer
+	// is keyed by printed term, so the only sound anchor is the binder — which
+	// ADR 0010 guarantees exists, because an impure argument is never
+	// substituted and is let-bound at the application site.
+	if q := r.ensuresOf(args[0], core.Name(k.Params[0]), f); q != nil {
+		r.markName(k.Params[0])
+		assume(inner, q)
+	}
 	return r.walk(k.Body(), inner)
 }
 
 // discharge proves a primitive's `where` at this call site, with the arguments
 // substituted for its parameter names.
-func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) error {
+// discharge proves a primitive's `where` at this call site and reports whether
+// it was PROVEN, as against merely not refused.
+//
+// The distinction exists for postconditions (Lemma 1, postconditions.md §4). A
+// contract is an implication, so an unproven precondition licenses nothing —
+// and this function has a path that reports "propagated, not proven" and
+// returns success. Treating that as proof would assume a guarantee whose
+// premise is unknown, and one false fact makes a conjunctive fragment derive
+// anything.
+func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (bool, error) {
 	sub := map[string]*core.Term{}
 	for i, n := range p.Names {
 		if n != "" && i < len(args) {
@@ -389,32 +470,55 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) er
 	// proving either proves it (integers.md §5).
 	if lo, hi, isNe := disequality(want); isNe {
 		if f.entailsEither(lo, hi) {
-			return nil
+			return true, nil
 		}
 		if k, ok := neKey(want); ok && f.entailsOpaque(k) {
-			return nil
+			return true, nil
 		}
-		return fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
+		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
 			name, want, f.known())
 	}
 	goals, ok := obligation(want)
+	fmt.Fprintf(os.Stderr, "DBG discharge %s want=%s ok=%v opaque=%v\n", name, want, ok, f.entailsOpaque(want.String()))
 	if !ok {
 		// Outside the fragment: an opaque atom (refinements.md §3). It can be
 		// discharged only by an assumption that is the SAME term; otherwise it
 		// is propagated, never assumed, and the note says so.
 		if f.entailsOpaque(want.String()) {
-			return nil
+			return true, nil
 		}
+		// PROPAGATED, NOT PROVEN — and the second half of that phrase is what a
+		// postcondition depends on. Reporting is not proving, so this returns
+		// false and the call's guarantee is not licensed (Lemma 1).
 		r.notes = append(r.notes, fmt.Sprintf("%s: refinement propagated, not proven", name))
-		return nil
+		return false, nil
 	}
 	for _, g := range goals {
 		if !f.entails(g) {
-			return fmt.Errorf("%s requires %s <= 0, which does not follow\n  known: %s",
+			return false, fmt.Errorf("%s requires %s <= 0, which does not follow\n  known: %s",
 				name, g.String(), f.known())
 		}
 	}
-	return nil
+	return true, nil
+}
+
+// ensured is the postcondition a call GUARANTEES, with the arguments
+// substituted for the parameter names and `result` for the value, or nil.
+//
+// It returns nil unless the precondition was PROVEN -- Lemma 1 -- and treats
+// a primitive that declares none as having P = true, which holds vacuously.
+func (r *refiner) ensured(p Prim, args []*core.Term, result *core.Term,
+	proven bool) *core.Term {
+	if p.Ensures == nil || !proven {
+		return nil
+	}
+	sub := map[string]*core.Term{core.ResultName: result}
+	for i, n := range p.Names {
+		if n != "" && i < len(args) {
+			sub[n] = args[i]
+		}
+	}
+	return core.Rename2(p.Ensures, sub)
 }
 
 // iterate collects facts from a loop's guards — docs/spec/iteration.md §6.

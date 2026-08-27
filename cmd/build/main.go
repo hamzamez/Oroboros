@@ -127,6 +127,13 @@ func run(targetDir, src, target, out, path string, keep, checked bool) error {
 		}
 	}
 	// REPRESENTATION SELECTION — see cmd/gen for the note.
+	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
+	// assumption: the caller is outside the program (postconditions.md §2).
+	if ok, note := emit.CheckEnsures(tg, prog.Sigs[entry], nf); !ok {
+		return fmt.Errorf("%s: %s", entry, note)
+	} else if note != "" {
+		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
+	}
 	rep, sel := emit.Intervals(tg, prog.Sigs[entry], nf, 0)
 	if rep.Ops > 0 || rep.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+

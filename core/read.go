@@ -68,6 +68,12 @@ type Sig struct {
 	// native form and it is not a tuple.
 	Results []string
 	Where   *Term // a boolean term over the parameter names, or nil
+	// Ensures is a POSTCONDITION: a boolean term over the parameter names and
+	// `result`. On an exported definition it is an obligation checked against
+	// the body; on an internal one it is redundant, because reduction inlines
+	// the call and the analysis sees the body at the site with the caller's own
+	// values (postconditions.md §3).
+	Ensures *Term
 }
 
 type SigParam struct{ Name, Type string }
@@ -688,6 +694,11 @@ func toForm(t *Term) (Form, error) {
 				sig.Where = rest.Kids[1]
 				continue
 			}
+			if rest.Kind == KApp && rest.Kids[0].Kind == KName &&
+				rest.Kids[0].Name == "ensures" && len(rest.Kids) == 2 {
+				sig.Ensures = rest.Kids[1]
+				continue
+			}
 			return Form{}, fmt.Errorf("sig %s: unexpected %s", t.Kids[1].Name, rest)
 		}
 		if t.Kids[2].Kind == KApp {
@@ -718,6 +729,19 @@ func toForm(t *Term) (Form, error) {
 				default:
 					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
 						t.Kids[1].Name, a)
+				}
+			}
+		}
+		// `result` NAMES THE RESULT in a postcondition, so a parameter may not
+		// take the name — otherwise `(ensures (< i result))` would mean two
+		// things and the checker would silently pick one. The same refusal
+		// `array` gets, for the same reason.
+		if sig.Ensures != nil {
+			for _, pm := range sig.Params {
+				if pm.Name == ResultName {
+					return Form{}, fmt.Errorf(
+						"sig %s: a parameter may not be named %q — an `ensures` uses that name "+
+							"for the result", t.Kids[1].Name, ResultName)
 				}
 			}
 		}
@@ -1291,6 +1315,12 @@ func TypeName(t *Term) string {
 	}
 	return ""
 }
+
+// ResultName is what a postcondition calls the value a call produces. It is a
+// reserved name inside an `ensures` and nowhere else; the language has no
+// `result` keyword and a program may still use the name for anything that is
+// not a parameter of a function carrying one.
+const ResultName = "result"
 
 // IntRange reads a `(int LO HI)` type back. A plain `int` is not a range: it is
 // the portable window (ADR 0012) and carries no representation claim.

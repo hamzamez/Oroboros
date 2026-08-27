@@ -740,6 +740,40 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
+**POSTCONDITIONS ARE BUILT, AND THE ALGEBRA IS A SWAP** —
+[postconditions.md](docs/spec/postconditions.md). `(ensures Q)` beside `(where P)`, with `result`
+naming the value — reserved only inside an `ensures`, and a parameter may not take the name there.
+The contract is **∀x. P(x) ⟹ Q(x, f(x))**, used in the two directions `sig` already had. And
+refinements.md §6b's trichotomy for P has an exact dual for Q, **each row exchanging the roles**:
+on a `prim` P is an obligation and Q an assumption; on an **exported** definition P is assumed and Q
+is **checked against the body**; on an **internal** one both vanish, for the same reason — reduction
+removes the boundary. So the implementation is **two cases, not six**.
+
+**Two soundness lemmas, and both bit.** **Lemma 1: an assumption needs its precondition** — `C` is an
+implication, so with P unproven Q says nothing, and `f = λx.x` with `P ≜ x>0`, `Q ≜ result>0` is
+false at `f(-5)`; one false fact makes a conjunctive fragment derive everything. The trap is that
+**"not refused" is not "proven"**: `discharge` reports *propagated, not proven* and returns success.
+**The first implementation got this wrong** — the refactor giving `discharge` a *proven* result
+rewrote every `return nil` in it, including that path — and the lemma test caught it. That test
+exercises the **propagated** path on purpose: a *refused* precondition aborts the walk, so the
+downstream effect is never reached and nothing is learned. **Lemma 2: Q attaches to the BINDER, not
+the call**, because two occurrences of an impure call differ and the fact layer keys by printed
+term — and the binder always exists, by **ADR 0010**, which never substitutes an impure argument.
+
+**What it cannot do, and the reason is Lemma 2 again.** A *pure* call is substituted, so it has no
+binder, and the linear fragment cannot name a general application — only a literal, a parameter and
+`alen`. So `ensures` on a pure prim is carried as an opaque atom and discharges only by syntactic
+match. The fix — treat a pure application as an opaque linear variable, sound by referential
+transparency — moves terms from *report it* into *refuse it* across every program and wants its own
+measurement. **The Win32 case is impure, which is the case that works.**
+
+**And the relational postcondition everything is blocked on should be DERIVED, not declared.**
+§3 says a declaration on an internal definition is redundant, and `scan-string` is one. **Theorem
+(loop monotonicity):** if every `again` gives position k a value ≥ its current one, then by induction
+on iterations `vₖ ≥ zₖ` throughout, and every exit ≥ `vₖ` is ≥ `zₖ`. **Corollary:** `scan-string`
+starts `j` at `i+1` and only ever adds, so its result is `> i` — the size-change witness the
+tokeniser's outer loop is missing, with **no declaration at all**. Not built; it is the next thing.
+
 **AND INDEX NARROWING IS GENERAL NOW** —
 [indexnarrow-2026-08-27](gauntlet/results/indexnarrow-2026-08-27.md). indextype-2026-08-25 narrowed a
 counter *bounded by a length and stepping by +1* and named the program it could not help — the

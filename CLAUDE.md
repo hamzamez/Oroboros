@@ -740,6 +740,34 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
+**LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
+[monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).
+Five results in a row terminated at one missing fact — **a scanner returns more than it was given** —
+and postconditions.md §3 proved that *declaring* it on an internal definition would be redundant. So
+the compiler derives it: a five-rule relation `e ⊒ S` with a soundness lemma, a theorem by induction
+on iterations, and a corollary turning a loop into **a lower bound on the value it produces** — which
+is what an interval cannot express when the bound mentions a variable. **The tokeniser goes from
+64.5% of integer operations bounded and 15 of 20 loops proven to 90.9% and 20 of 20**, same answers
+on four targets.
+
+**The corollary needs BOTH halves and a test for one would pass a wrong program**:
+`(loop ((j i)) (go.>= j 10) 0 else (again (go.+ j 1)))` increases every step and returns **0**. And
+**two places needed it, not one** — `stepOf` and `relate` derive the same thing separately, so wiring
+only `stepOf` moved nothing; the diagnostic went from `i` producing **no arc at all** to `i>=i`.
+
+**And `i>=i` was the TRUTH — the fix was in the program.** `scan-run` starts at `i` and returns `i`
+when the first byte fails its predicate, so `i' > i` is genuinely false; the analysis declined to
+prove a false thing and named the variable. But the clause fires only when `(src i)` already matched,
+so scanning can start one byte further on — identical answers, one fewer test, and the init becomes
+`i+1`. **The repair was a line the program wanted anyway.**
+
+**What is left is one shape**: all fifteen remaining unbounded operations trace to `mx`, a **running
+maximum** whose update mentions itself, so no step is found and the fixpoint widens it before `sp`
+narrows. A variable updated as `(if c e v)` is a running extremum and its bound is the join of its
+initial value with the other branch — the next small theorem, and it matters because **one unbounded
+operation anywhere refuses index narrowing for a whole method**, so Java's gap on the tokeniser is
+unchanged.
+
 **POSTCONDITIONS ARE BUILT, AND THE ALGEBRA IS A SWAP** —
 [postconditions.md](docs/spec/postconditions.md). `(ensures Q)` beside `(where P)`, with `result`
 naming the value — reserved only inside an `ensures`, and a parameter may not take the name there.

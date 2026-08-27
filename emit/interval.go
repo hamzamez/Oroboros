@@ -1288,6 +1288,9 @@ func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
 	if arg.Kind == core.KName && arg.Name == self {
 		return exact(0), true
 	}
+	if v, ok := p.stepOfLoop(arg, self); ok {
+		return v, true
+	}
 	if arg.Kind != core.KApp || arg.Op().Kind != core.KName || len(arg.Args()) != 2 {
 		return top, false
 	}
@@ -1312,6 +1315,29 @@ func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
 	return top, false
 }
 
+// stepOfLoop is the step of a variable assigned the value of an inlined LOOP.
+//
+// A scanner is a loop, and after reduction the call to it IS the loop, so a
+// counter advanced by one has no recognisable `self + c` shape and size change
+// sees nothing. Loop monotonicity supplies the missing fact: if the loop's
+// value is at least `self + c` then the step is at least c, and the step is
+// unbounded above because the loop may run any number of times
+// (monotone.go, the corollary).
+func (p *intervalPass) stepOfLoop(arg *core.Term, self string) (ival, bool) {
+	if !isLoopTerm(p.tgt, arg) {
+		return top, false
+	}
+	z := LoopLowerBound(p.tgt, arg)
+	if z == nil {
+		return top, false
+	}
+	c, ok := selfPlus(p.tgt, z, self)
+	if !ok {
+		return top, false
+	}
+	return ival{lo: c, hiInf: true}, true
+}
+
 // relate is the size-change abstraction: what is known about the value of
 // variable `dst` after this back edge, against variable `src` before it, in the
 // ORIENTED measure.
@@ -1324,6 +1350,27 @@ func (p *intervalPass) relate(arg *core.Term, src string, srcSign, dstSign int) 
 	// μ' = μ, when the argument IS the source variable.
 	if arg.Kind == core.KName && arg.Name == src {
 		return downEq, descent{}
+	}
+	// AN INLINED LOOP. A scanner's call reduces to the scanner's loop, so the
+	// argument has no `src ± e` shape and this saw nothing at all. Loop
+	// monotonicity gives the shape back: the value is at least `src + c`, so
+	// under the ascending measure μ = −src it descends by c when c ≥ 1 and does
+	// not increase when c = 0 (monotone.go).
+	//
+	// Only for the ascending measure. A lower bound says nothing about descent
+	// when the measure is +src: `src + c` with c ≥ 0 is not smaller than src.
+	if isLoopTerm(p.tgt, arg) {
+		if z := LoopLowerBound(p.tgt, arg); z != nil {
+			if c, ok := selfPlus(p.tgt, z, src); ok && srcSign < 0 {
+				if c >= 1 {
+					return down, descent{kind: 1, delta: c}
+				}
+				if c == 0 {
+					return downEq, descent{}
+				}
+			}
+		}
+		return noArc, descent{}
 	}
 	if arg.Kind != core.KApp || arg.Op().Kind != core.KName || len(arg.Args()) != 2 {
 		return noArc, descent{}

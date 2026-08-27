@@ -16,7 +16,6 @@
 ; -- two valid, one unterminated, one unbalanced. See examples/json/tokenize.oro
 ; for the annotated original.
 
-
 (def cap (fn () 32))
 
 ; --- character classes ------------------------------------------------------
@@ -103,8 +102,16 @@
 
       (punct? (src i))   (again stk (@add i 1) (@add nt 1) sp mx ok)
       (= (src i) 34)     (again stk (scan-string src i) (@add nt 1) sp mx ok)
-      (numeric? (src i)) (again stk (scan-run src i numeric?) (@add nt 1) sp mx ok)
-      (alpha? (src i))   (again stk (scan-run src i alpha?) (@add nt 1) sp mx ok)
+      ; SCANNING STARTS PAST THE BYTE THE GUARD ALREADY MATCHED. Identical
+      ; answers -- the clause fires only when `(src i)` satisfies the predicate,
+      ; so testing it again is redundant -- and it is what makes the program
+      ; PROVABLE. Starting at `i`, a scanner may legitimately return `i`, so
+      ; loop monotonicity gives only `i' >= i` and the outer loop has no strict
+      ; descent; starting at `i + 1` gives `i' > i`, which is the size-change
+      ; witness. 64.5% of integer operations bounded and 15 of 20 loops proven
+      ; becomes 90.9% and 20 of 20 (monotone-2026-08-27).
+      (numeric? (src i)) (again stk (scan-run src (@add i 1) numeric?) (@add nt 1) sp mx ok)
+      (alpha? (src i))   (again stk (scan-run src (@add i 1) alpha?) (@add nt 1) sp mx ok)
 
       else (again stk (@add i 1) nt sp mx 0))))))
 

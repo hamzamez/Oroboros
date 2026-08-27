@@ -23,7 +23,12 @@
 ; differential suite checks; this one takes its source as a PARAMETER, which is
 ; what stops reduction from folding the whole thing away.
 (export tokens)
-(sig tokens ((src (array int))) int)
+; THE ELEMENT TYPE IS A RANGE, and that is the whole of what makes this take
+; bytes. `(array (int 0 255))` says what a source byte IS; each target says how
+; wide it stores one — `[]byte` on Go, `short[]` on Java because the JVM's byte
+; is signed and 0..255 does not fit it, nothing on JavaScript because it has no
+; integers. The value read out is an integer everywhere it is used.
+(sig tokens ((src (array (int 0 255)))) int)
 
 (def cap (fn () 32))
 

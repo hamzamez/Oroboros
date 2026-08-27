@@ -701,6 +701,34 @@ miss. **The isolated microbenchmark was wrong in BOTH directions** — the same 
 bce-2026-08-15, where a 1.96× win in isolation vanished on memory-bound loops. A cost behaves the
 way a saving does, and neither survives being quoted without its condition.
 
+**ELEMENT WIDTH FROM THE RANGE IS BUILT** —
+[elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md). **A range is a type**:
+`(sig tokens ((src (array (int 0 255)))) int)` emits `[]byte` on Go and **`short[]` on Java, because
+the JVM's `byte` is SIGNED and 0..255 does not fit it** — and no host fact lives in Go for that. The
+target declares `(int-repr LO HI "spelling")` narrowest first and the narrowest one CONTAINING the
+range wins; JavaScript declares none and keeps its packed `Array`, which jsontok measured 1.15x
+faster than a `Uint8Array` anyway. That is ADR 0003's *"mathematical semantics, machine
+representation"* written in the type language five months after it was decided. **A range says what
+a value IS; the width belongs to its storage alone** — `ValueType` normalises a range to `int`
+everywhere but a table's element slot, or a counter over a byte array would overflow at 255 while
+the language says integers do not.
+
+**Go reaches 0.99x of hand-written `[]byte`** — the like-for-like comparison jsontok-2026-08-26 could
+not make. **And on Java it works and is NOT what Java's gap was**: `short[]` is now the fastest
+hand-written form (7,439 ns against `byte[]`'s 7,744), we moved 1.4%, and we sit at **1.00x of the
+shape we emit** with the whole remaining 1.25x being indextype-2026-08-25's `long` index. **Two costs
+that looked like one because they were measured together.** The element is a *declaration*; the index
+is an *inference*, and it needs the same missing fact the whole precision-integer plan needs — a
+postcondition bounding a scanner's result. **Two costs, measured independently, one cause.**
+
+**Not built: the write side** (a `build` buffer's element type is inferred, so only a *parameter* can
+be narrowed today), **x86's width**, and **a differential case** — and that last one is a finding:
+reduction inlines every non-exported call, so **a narrowed parameter only survives at an EXPORT**,
+which is precision-integers.md's "where do declarations live after staging" arriving as a limitation.
+**One bug on the way**: the target-directory merge dropped `Reprs`, so a single file selected
+`[]byte` and the real `targets/go/` selected `[]int` — silently, and every native target is a
+directory.
+
 **PRECISION INTEGERS ARE RESEARCHED, and the blockers turn out to be mostly CLEARED** —
 [precision-integers.md](docs/precision-integers.md), on hamza's *"they should not interfere with
 getting the best performance when the range is within the supported integers; beyond that they cost

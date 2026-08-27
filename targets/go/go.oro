@@ -19,6 +19,17 @@
   ; cannot say, and it is recorded rather than worked around.
   ; How this target spells an array of something. ONE declaration replaces an
   ; entry per element type — see docs/spec/tables.md §10.
+  ; WHAT THIS TARGET CAN STORE AN INTEGER IN, narrowest first (ADR 0003).
+  ; A range type selects the first one that CONTAINS it, and a table is the only
+  ; place the width is consulted -- a value read out of a byte array is an
+  ; integer everywhere it is used.
+  (int-repr 0 255 "byte")
+  (int-repr -128 127 "int8")
+  (int-repr 0 65535 "uint16")
+  (int-repr -32768 32767 "int16")
+  (int-repr 0 4294967295 "uint32")
+  (int-repr -2147483648 2147483647 "int32")
+
   (array-type "[]%s")
 
   (type int      "int")

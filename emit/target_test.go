@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"oroboros/core"
 )
 
 func TestLoadTargets(t *testing.T) {
@@ -173,5 +175,48 @@ func TestDeclaringALanguageConstructIsAnError(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), "belongs to the language") {
 			t.Errorf("%s must be refused, got %v", line, err)
 		}
+	}
+}
+
+// ELEMENT WIDTH FROM THE RANGE (ADR 0003, elemwidth-2026-08-27).
+//
+// A range is a type, the target declares what it can store a range in, and the
+// narrowest declared representation that CONTAINS the range wins. No host fact
+// lives in Go here: the JVM's signed `byte` excludes 0..255 by declaring
+// -128..127, and `short` is selected because it is next, not because anything
+// knows what a JVM is.
+func TestRangeSelectsRepresentation(t *testing.T) {
+	for _, c := range []struct{ target, ty, want string }{
+		{"go", "array int 0 255", "[]byte"},
+		{"go", "array int -128 127", "[]int8"},
+		{"go", "array int 0 70000", "[]uint32"},
+		{"go", "array int 0 9007199254740991", "[]int"}, // nothing narrower holds it
+		{"go", "array int", "[]int"},                    // a plain int is not a range
+		{"java", "array int 0 255", "short[]"},          // byte is SIGNED here
+		{"java", "array int -128 127", "byte[]"},
+		{"java", "array int 0 100000", "int[]"},
+	} {
+		tg, err := LoadTarget("../targets/" + c.target)
+		if err != nil {
+			t.Fatalf("%s: %v", c.target, err)
+		}
+		if got := tg.ty(c.ty); got != c.want {
+			t.Errorf("%s: ty(%q) = %q, want %q", c.target, c.ty, got, c.want)
+		}
+	}
+}
+
+// A range says what a value IS; the width belongs to its storage alone. A local
+// reading a byte array is an integer, or a counter over one would overflow at
+// 255 while the language says integers do not overflow.
+func TestRangeDoesNotNarrowAValue(t *testing.T) {
+	if got := core.ValueType("int 0 255"); got != "int" {
+		t.Errorf("ValueType(range) = %q, want int", got)
+	}
+	if got := core.ValueType("f64"); got != "f64" {
+		t.Errorf("ValueType must pass non-ranges through, got %q", got)
+	}
+	if _, _, ok := core.IntRange("int"); ok {
+		t.Error("a plain int must not read as a range: it is the portable window, not a claim")
 	}
 }

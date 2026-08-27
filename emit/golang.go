@@ -213,6 +213,16 @@ func (e *Emitter) index(tab, i *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// A narrowed element widens on the way out. Go is typed and `[]byte`
+	// indexed is a `byte`, so everything downstream would have to agree about
+	// the width — which is precisely what the language says it must not, since
+	// the value is an integer and only its storage is narrow. `int(b)` is a
+	// zero-extend and free.
+	if tab.Kind == core.KName {
+		if _, ok := e.tgt.NarrowedElem(e.types[tab.Name]); ok {
+			return fmt.Sprintf("%s(%s[%s])", e.tgt.ty("int"), a, idx), nil
+		}
+	}
 	return fmt.Sprintf("%s[%s]", a, idx), nil
 }
 
@@ -435,7 +445,10 @@ func (e *Emitter) typeOf(t *core.Term) string {
 			// only: a dynamic index forces homogeneity, so what the checker
 			// sees is `Fin n → V` and no dependent type is needed (tables.md §5).
 			if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
-				return elem
+				// A RANGE is an integer wherever it is used. The width belongs
+				// to the storage and nowhere else, so a local reading a byte
+				// array is an `int` and cannot overflow at 255.
+				return core.ValueType(elem)
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// The write side's result types. A `build` yields the array

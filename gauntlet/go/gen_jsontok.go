@@ -632,7 +632,7 @@ func GenRun(k int) int {
 	return t1
 }
 
-func GenTokens(src []int) int {
+func GenTokens(src []byte) int {
 	stk := make([]int, 32)
 	stk2 := stk
 	var i int = 0
@@ -660,15 +660,15 @@ func GenTokens(src []int) int {
 			r1 = (nt * 1000)
 			break
 		}
-		var c int = src[i]
+		var c int = int(src[i])
 		if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
 			i = (i + 1)
 			continue
 		}
-		var c2 int = src[i]
+		var c2 int = int(src[i])
 		if ((c2 == 123) || (c2 == 91)) {
 			var t3 int
-			if (src[i] == 123) {
+			if (int(src[i]) == 123) {
 				t3 = 125
 			} else {
 				t3 = 93
@@ -683,7 +683,7 @@ func GenTokens(src []int) int {
 			i, nt, sp, mx = (i + 1), (nt + 1), (sp + 1), t4
 			continue
 		}
-		var c3 int = src[i]
+		var c3 int = int(src[i])
 		if ((c3 == 125) || (c3 == 93)) {
 			var t5 int
 			if (sp < 1) {
@@ -702,7 +702,7 @@ func GenTokens(src []int) int {
 					t7 = (sp - 1)
 				}
 				var t8 int
-				if (stk2[t7] == src[i]) {
+				if (stk2[t7] == int(src[i])) {
 					t8 = ok
 				} else {
 					t8 = 0
@@ -712,12 +712,12 @@ func GenTokens(src []int) int {
 			i, nt, sp, ok = (i + 1), (nt + 1), t5, t6
 			continue
 		}
-		var c4 int = src[i]
+		var c4 int = int(src[i])
 		if ((c4 == 58) || (c4 == 44)) {
 			i, nt = (i + 1), (nt + 1)
 			continue
 		}
-		if (src[i] == 34) {
+		if (int(src[i]) == 34) {
 			var j int = (i + 1)
 			var r9 int
 			for {
@@ -729,11 +729,11 @@ func GenTokens(src []int) int {
 					r9 = j
 					break
 				}
-				if (src[j] == 92) {
+				if (int(src[j]) == 92) {
 					j = (j + 2)
 					continue
 				}
-				if (src[j] == 34) {
+				if (int(src[j]) == 34) {
 					r9 = (j + 1)
 					break
 				}
@@ -743,7 +743,7 @@ func GenTokens(src []int) int {
 			i, nt = r9, (nt + 1)
 			continue
 		}
-		var c5 int = src[i]
+		var c5 int = int(src[i])
 		if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
 			var j2 int = i
 			for ; ; j2 = (j2 + 1) {
@@ -753,7 +753,7 @@ func GenTokens(src []int) int {
 				if (j2 >= len(src)) {
 					break
 				}
-				var c6 int = src[j2]
+				var c6 int = int(src[j2])
 				if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
 					continue
 				}
@@ -762,7 +762,7 @@ func GenTokens(src []int) int {
 			i, nt = j2, (nt + 1)
 			continue
 		}
-		var c7 int = src[i]
+		var c7 int = int(src[i])
 		if ((c7 >= 97) && (c7 <= 122)) {
 			var j3 int = i
 			for ; ; j3 = (j3 + 1) {
@@ -772,7 +772,7 @@ func GenTokens(src []int) int {
 				if (j3 >= len(src)) {
 					break
 				}
-				var c8 int = src[j3]
+				var c8 int = int(src[j3])
 				if ((c8 >= 97) && (c8 <= 122)) {
 					continue
 				}

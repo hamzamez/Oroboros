@@ -539,7 +539,7 @@ public final class GenJsonTok {
 		return t114;
 	}
 
-	public static long GenTokens(long[] src) {
+	public static long GenTokens(short[] src) {
 		final long[] stk = new long[(int) 32];
 		long[] stk2 = stk;
 		long i = 0;
@@ -561,12 +561,12 @@ public final class GenJsonTok {
 				r1 = (nt * 1000);
 				break;
 			}
-			final long c = src[(int) i];
+			final short c = src[(int) i];
 			if (((c == 32) || ((c == 9) || ((c == 10) || (c == 13))))) {
 				i = (i + 1);
 				continue;
 			}
-			final long c2 = src[(int) i];
+			final short c2 = src[(int) i];
 			if (((c2 == 123) || (c2 == 91))) {
 				stk2[(int) sp] = ((src[(int) i] == 123) ? 125 : 93);
 				final var u2 = (i + 1);
@@ -579,7 +579,7 @@ public final class GenJsonTok {
 				mx = u5;
 				continue;
 			}
-			final long c3 = src[(int) i];
+			final short c3 = src[(int) i];
 			if (((c3 == 125) || (c3 == 93))) {
 				final var u6 = (i + 1);
 				final var u7 = (nt + 1);
@@ -591,7 +591,7 @@ public final class GenJsonTok {
 				ok = u9;
 				continue;
 			}
-			final long c4 = src[(int) i];
+			final short c4 = src[(int) i];
 			if (((c4 == 58) || (c4 == 44))) {
 				i = (i + 1);
 				nt = (nt + 1);
@@ -624,7 +624,7 @@ public final class GenJsonTok {
 				nt = (nt + 1);
 				continue;
 			}
-			final long c5 = src[(int) i];
+			final short c5 = src[(int) i];
 			if ((((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69))))))) {
 				long j2 = i;
 				for (;; j2 = (j2 + 1)) {
@@ -634,7 +634,7 @@ public final class GenJsonTok {
 					if ((j2 >= src.length)) {
 						break;
 					}
-					final long c6 = src[(int) j2];
+					final short c6 = src[(int) j2];
 					if ((((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69))))))) {
 						continue;
 					}
@@ -644,7 +644,7 @@ public final class GenJsonTok {
 				nt = (nt + 1);
 				continue;
 			}
-			final long c7 = src[(int) i];
+			final short c7 = src[(int) i];
 			if (((c7 >= 97) && (c7 <= 122))) {
 				long j3 = i;
 				for (;; j3 = (j3 + 1)) {
@@ -654,7 +654,7 @@ public final class GenJsonTok {
 					if ((j3 >= src.length)) {
 						break;
 					}
-					final long c8 = src[(int) j3];
+					final short c8 = src[(int) j3];
 					if (((c8 >= 97) && (c8 <= 122))) {
 						continue;
 					}

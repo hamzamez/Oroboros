@@ -19,6 +19,15 @@
   ; silent miscompilation (arithmetic.md §4). The consequence is that every
   ; array index needs a cast, because Java array indices are `int`.
   ; How this target spells an array of something (tables.md §10).
+  ; The JVM has NO UNSIGNED TYPES, so 0..255 does not fit its `byte`
+  ; (-128..127) and correctly selects `short`. Nothing special-cases that: the
+  ; target declares what it can hold and the range picks. This is the same fact
+  ; CLAUDE.md records as "the JVM has no unsigned types", stated where it can be
+  ; acted on.
+  (int-repr -128 127 "byte")
+  (int-repr -32768 32767 "short")
+  (int-repr -2147483648 2147483647 "int")
+
   (array-type "%s[]")
 
   (type int     "long")

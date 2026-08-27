@@ -1278,7 +1278,47 @@ func TypeName(t *Term) string {
 			return "array " + elem
 		}
 	}
+	// `(int LO HI)` — a RANGE is a type, which is ADR 0003's "mathematical
+	// semantics, machine representation" written in the type language. The
+	// range says what the value IS; the target says how wide it is stored.
+	//
+	// Canonicalised to "int LO HI" for the same reason `(array V)` becomes
+	// "array V": types are strings here, and a compound one has to print.
+	if t.Kind == KApp && len(t.Kids) == 3 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" &&
+		t.Kids[1].Kind == KInt && t.Kids[2].Kind == KInt {
+		return fmt.Sprintf("int %d %d", t.Kids[1].Int, t.Kids[2].Int)
+	}
 	return ""
+}
+
+// IntRange reads a `(int LO HI)` type back. A plain `int` is not a range: it is
+// the portable window (ADR 0012) and carries no representation claim.
+func IntRange(ty string) (int64, int64, bool) {
+	if !strings.HasPrefix(ty, "int ") {
+		return 0, 0, false
+	}
+	var lo, hi int64
+	if n, err := fmt.Sscanf(ty, "int %d %d", &lo, &hi); n != 2 || err != nil {
+		return 0, 0, false
+	}
+	if lo > hi {
+		return 0, 0, false
+	}
+	return lo, hi, true
+}
+
+// ValueType is what a range MEANS, as opposed to how it is stored. A range is an
+// integer; only a table's element slot ever consults the width.
+//
+// Keeping these apart is what stops a narrowed array from narrowing the LOCALS
+// that read it — a byte array read into a byte-wide counter would overflow at
+// 255 while the language says the value is an integer.
+func ValueType(ty string) string {
+	if _, _, ok := IntRange(ty); ok {
+		return "int"
+	}
+	return ty
 }
 
 // ArrayElem returns the element type of an `(array V)` type, or "".

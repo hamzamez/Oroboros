@@ -103,8 +103,20 @@ type Target struct {
 	// `%s[]` on Java. One declaration replaces an entry per element type.
 	// Empty means the target has no types to spell (JavaScript, windows).
 	ArrayType string
-	Prims     map[string]Prim
-	Names     []string // every primitive name, for core.Env
+
+	// Reprs are the integer representations this target can store, narrowest
+	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
+	// the first one that CONTAINS it — ADR 0003's "the compiler selects the
+	// representation that fits", moved out of Go and into the target file where
+	// every other host fact lives.
+	//
+	// A target that declares none stores every integer the one way it already
+	// does, which is the right answer for JavaScript: it has no integers, and a
+	// plain packed Array measured FASTER than a Uint8Array
+	// (jsontok-2026-08-26).
+	Reprs []IntRepr
+	Prims map[string]Prim
+	Names []string // every primitive name, for core.Env
 
 	// Narrow is a template `dst = src[:n]` that restricts a container to a
 	// known length. A target that declares one gets bounds-check elimination
@@ -404,6 +416,10 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.ArrayType = o.ArrayType
 	}
+	// Representations are ORDERED, so they append rather than merging by key —
+	// narrowest first is the whole selection rule. A target that splits them
+	// across files gets them in file order, which is the order it wrote them.
+	tg.Reprs = append(tg.Reprs, o.Reprs...)
 	for n, p := range o.Prims {
 		if _, dup := tg.Prims[n]; dup {
 			return fmt.Errorf("%s: %s is declared twice in this target", from, n)
@@ -446,6 +462,21 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			return nil, fmt.Errorf("%s: expected (type …) or (prim …), got %s", path, f)
 		}
 		switch f.Kids[0].Name {
+		case "int-repr":
+			// `(int-repr LO HI "spelling")`. Signedness is not a concept here
+			// and does not need to be: a host that cannot store 0..255 in its
+			// byte — the JVM, whose `byte` is signed — simply does not declare
+			// that range for it, and the range selects the next one up. The
+			// declaration says what the host CAN hold, and nothing else.
+			if len(f.Kids) != 4 || f.Kids[1].Kind != core.KInt ||
+				f.Kids[2].Kind != core.KInt || f.Kids[3].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (int-repr LO HI \"spelling\"), got %s", path, f)
+			}
+			lo, hi := f.Kids[1].Int, f.Kids[2].Int
+			if lo > hi {
+				return nil, fmt.Errorf("%s: int-repr %d..%d is empty", path, lo, hi)
+			}
+			tg.Reprs = append(tg.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: f.Kids[3].Str})
 		case "array-type":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
@@ -761,11 +792,59 @@ func fill(form string, vals []any) string {
 	return fmt.Sprintf(form, out...)
 }
 
+// IntRepr is one integer representation a target can store.
+type IntRepr struct {
+	Lo, Hi int64
+	Spell  string
+}
+
+// reprFor picks the narrowest declared representation that holds [lo,hi], or ""
+// if the target declared none that does — in which case the caller falls back
+// to the target's plain `int`, which is what it would have used anyway.
+//
+// Narrowest wins because the declarations are searched in order and a target
+// lists them narrowest first. That is a convention rather than a sort, so a
+// target author can put a wider one first deliberately and be believed.
+func (tg *Target) reprFor(lo, hi int64) string {
+	for _, r := range tg.Reprs {
+		if r.Lo <= lo && hi <= r.Hi {
+			return r.Spell
+		}
+	}
+	return ""
+}
+
+// NarrowedElem reports the host spelling for a table whose element type is a
+// range NARROWER than the target's own integer, and whether there is one.
+//
+// This is the only question the width is ever asked. A range never narrows a
+// local: `(a i)` is an integer wherever it is used, and the storage is the only
+// place a target gets an opinion.
+func (tg *Target) NarrowedElem(ty string) (string, bool) {
+	lo, hi, ok := core.IntRange(core.ArrayElem(ty))
+	if !ok {
+		return "", false
+	}
+	spell := tg.reprFor(lo, hi)
+	if spell == "" || spell == tg.ty("int") {
+		return "", false
+	}
+	return spell, true
+}
+
 // ty spells one of our type names in the target's own language. An untyped
 // target declares no types and this is never consulted.
 func (tg *Target) ty(name string) string {
 	if s, ok := tg.Types[name]; ok {
 		return s
+	}
+	// A RANGE spells itself as the representation that holds it, and falls back
+	// to the target's own integer when nothing narrower was declared.
+	if lo, hi, ok := core.IntRange(name); ok {
+		if spell := tg.reprFor(lo, hi); spell != "" {
+			return spell
+		}
+		return tg.ty("int")
 	}
 	// `(array V)` resolves through ONE declaration — `(array-type "[]%s")` on
 	// Go, `"%s[]"` on Java — instead of enumerating an entry per element type.

@@ -125,6 +125,70 @@ public final class JsonTokBench {
         }
     }
 
+    // OUR SHAPE NOW: the generated tokeniser takes short[], because its
+    // signature says (array (int 0 255)) and this target declares that it holds
+    // that range in a `short` -- the JVM's byte is SIGNED, so 0..255 does not
+    // fit it, and nothing special-cases that. byte[] stays as the control for
+    // what a person writes.
+
+    static long tokShorts(short[] src) {
+        short[] stk = new short[CAP];
+        int i = 0, nt = 0, sp = 0, mx = 0, ok = 1;
+        for (;;) {
+            if (i >= src.length) return nt * 1000L + mx * 10L + (sp == 0 ? ok : 0);
+            if (sp >= CAP) return nt * 1000L;
+            long c = src[i];
+            if (c == 32 || c == 9 || c == 10 || c == 13) { i++; continue; }
+            if (c == 123 || c == 91) {
+                stk[sp] = (short) (c == 123 ? 125 : 93);
+                i++; nt++; sp++;
+                if (sp > mx) mx = sp;
+                continue;
+            }
+            if (c == 125 || c == 93) {
+                i++; nt++;
+                if (sp < 1) { ok = 0; } else { sp--; if (stk[sp] != c) ok = 0; }
+                continue;
+            }
+            if (c == 58 || c == 44) { i++; nt++; continue; }
+            if (c == 34) {
+                int j = i + 1;
+                for (;;) {
+                    if (j >= src.length) break;
+                    long d = src[j];
+                    if (d == 92) { j += 2; continue; }
+                    if (d == 34) { j++; break; }
+                    j++;
+                }
+                i = j; nt++;
+                continue;
+            }
+            if (isNum(c)) {
+                int j = i;
+                while (j < src.length && isNum(src[j])) j++;
+                i = j; nt++;
+                continue;
+            }
+            if (c >= 97 && c <= 122) {
+                int j = i;
+                while (j < src.length) { long d = src[j]; if (d < 97 || d > 122) break; j++; }
+                i = j; nt++;
+                continue;
+            }
+            i++; ok = 0;
+        }
+    }
+
+    static int tokStringS(short[] a, int i) {
+        int j = i + 1;
+        for (;;) {
+            if (j >= a.length) return j;
+            if (a[j] == 92) { j += 2; continue; }
+            if (a[j] == 34) return j + 1;
+            j++;
+        }
+    }
+
     // THE SAME PROGRAM INDEXED BY A LONG, which is what the emitter produces
     // when index narrowing does not fire. If this measures like GEN then the
     // casts are the whole story; if it measures like tokLongs they are not.
@@ -250,6 +314,12 @@ public final class JsonTokBench {
         return out;
     }
 
+    static short[] shortsOf(String s) {
+        short[] out = new short[s.length()];
+        for (int i = 0; i < s.length(); i++) out[i] = (short) s.charAt(i);
+        return out;
+    }
+
     static long[] longsOf(String s) {
         long[] out = new long[s.length()];
         for (int i = 0; i < s.length(); i++) out[i] = s.charAt(i);
@@ -280,21 +350,23 @@ public final class JsonTokBench {
         String doc = makeDoc(64);
         byte[] db = bytesOf(doc);
         long[] dl = longsOf(doc);
+        short[] ds = shortsOf(doc);
 
         run("J  tokenize String     hand", () -> tokString(doc), 50000, 2000);
         run("J  tokenize byte[]     hand", () -> tokBytes(db), 50000, 2000);
         run("J  tokenize long[]     hand", () -> tokLongs(dl), 50000, 2000);
         run("J  tokenize long[]/long idx hand", () -> tokLongsIdx(dl), 50000, 2000);
-        run("J  tokenize long[]     GEN ", () -> GenJsonTok.GenTokens(dl), 50000, 2000);
+        run("J  tokenize short[]    hand", () -> tokShorts(ds), 50000, 2000);
+        run("J  tokenize short[]    GEN ", () -> GenJsonTok.GenTokens(ds), 50000, 2000);
     }
 
     static void check(String s) {
         long want = tokString(s);
         long[] l = longsOf(s);
         if (tokBytes(bytesOf(s)) != want || tokLongs(l) != want || tokLongsIdx(l) != want
-                || GenJsonTok.GenTokens(l) != want) {
+                || tokShorts(shortsOf(s)) != want || GenJsonTok.GenTokens(shortsOf(s)) != want) {
             throw new AssertionError(s + ": " + want + " " + tokBytes(bytesOf(s))
-                    + " " + tokLongs(l) + " " + GenJsonTok.GenTokens(l));
+                    + " " + tokLongs(l) + " " + tokShorts(shortsOf(s)));
         }
     }
 }

@@ -25,7 +25,7 @@ func TestJSONTokAgree(t *testing.T) {
 	for _, n := range []int{0, 1, 3, 17} {
 		doc := TokDoc(n)
 		ints := TokDocInts(doc)
-		b, i, g := TokBytes(doc), TokInts(ints), GenTokens(ints)
+		b, i, g := TokBytes(doc), TokInts(ints), GenTokens(doc)
 		if b != i || b != g {
 			t.Fatalf("records=%d: bytes=%d ints=%d generated=%d", n, b, i, g)
 		}
@@ -35,7 +35,7 @@ func TestJSONTokAgree(t *testing.T) {
 	for _, s := range []string{"]", "{\"a\":1", "[}", "{]", "\x01", "[[[[1]]]]", ""} {
 		doc := []byte(s)
 		ints := TokDocInts(doc)
-		b, i, g := TokBytes(doc), TokInts(ints), GenTokens(ints)
+		b, i, g := TokBytes(doc), TokInts(ints), GenTokens(doc)
 		if b != i || b != g {
 			t.Fatalf("%q: bytes=%d ints=%d generated=%d", s, b, i, g)
 		}
@@ -61,8 +61,14 @@ func BenchmarkTokHandInts(b *testing.B) {
 	}
 }
 
+// THE GENERATED TOKENISER TAKES []byte NOW, because its signature says
+// `(array (int 0 255))` and the Go target declares that it stores that range in
+// a `byte`. So this is finally a like-for-like comparison with TokBytes, which
+// is what a person writes — and TokInts becomes the control for what our
+// 64-bit element used to cost us.
 func BenchmarkTokGen(b *testing.B) {
-	doc := TokDocInts(TokDoc(tokRecords))
+	doc := TokDoc(tokRecords)
+	b.SetBytes(int64(len(doc)))
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
 		sink = GenTokens(doc)

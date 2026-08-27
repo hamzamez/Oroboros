@@ -297,8 +297,26 @@ func (e *Emitter) emitSet(t *core.Term) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	// A NARROWED SLOT takes the value converted. Go is typed and `[]byte` holds
+	// bytes; the value is an integer, so the store is where the two meet. The
+	// range came from what is stored, so the conversion never truncates —
+	// bufferElem widens to cover every store and the zero fill.
+	if spell, ok := e.narrowedSlot(args[0]); ok {
+		e.line("%s[%s] = %s(%s)", b, i, spell, v)
+		return b, nil
+	}
 	e.line("%s[%s] = %s", b, i, v)
 	return b, nil
+}
+
+// narrowedSlot reports the host spelling of a table's element when it is
+// narrower than the target's own integer, given the term that names the table.
+func (e *Emitter) narrowedSlot(tab *core.Term) (string, bool) {
+	root := BufferRoot(tab)
+	if root == "" {
+		return "", false
+	}
+	return e.tgt.NarrowedElem(e.types[root])
 }
 
 // emitAlloc puts a rule in memory — the GATHER, pure and parallel by

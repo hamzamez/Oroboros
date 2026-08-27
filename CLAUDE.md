@@ -721,8 +721,28 @@ that looked like one because they were measured together.** The element is a *de
 is an *inference*, and it needs the same missing fact the whole precision-integer plan needs — a
 postcondition bounding a scanner's result. **Two costs, measured independently, one cause.**
 
-**Not built: the write side** (a `build` buffer's element type is inferred, so only a *parameter* can
-be narrowed today), **x86's width**, and **a differential case** — and that last one is a finding:
+**AND THE WRITE SIDE TOO** — a `build` buffer's range is **INFERRED**, because ADR 0003 says ranges
+are declared at boundaries and inferred for LOCALS, and a buffer is a local.
+`(set stk sp (if (= (src i) 123) 125 93))` gives `[]byte` on Go, `byte[]` on Java (93..125 fits a
+*signed* byte), one byte per element on x86, nothing on JS. **The inference is deliberately
+syntactic** — a literal is its own exact range, a conditional joins its branches, a read from an
+already-narrowed table carries one, and everything else keeps the host's word. That is a soundness
+choice: **a range too narrow truncates on store and is a silent wrong answer**, so only facts exact
+by construction are used; the interval domain is a real extension owing its own argument.
+**Zero is always an element**, because `build` zero-fills and an unwritten slot reads 0.
+**`tree.oro`'s node table correctly stays 64-bit** — it stores node indices no syntactic fact bounds,
+and getting that answer right is the feature working.
+
+**Two more bugs, and the differential suite caught the one that mattered.** `BufferElemBytes` took
+the **FIRST** store, so the tree's node table — tag 1..5 in one slot, a node index up to 511 in
+another — said one byte and truncated every link: windows returned `4030140` where the other three
+returned `4040171`. It compiled, ran, and returned a number. And Java's value cast went into **one of
+two store paths**, the one a program takes only once its index is narrowed — so it would have failed
+on the first real program and passed every test with an index-narrowed loop.
+
+**Still not built: a buffer whose range only the INTERVAL ANALYSIS knows** — `tree.oro`'s node table
+wants `(int 0 511)`, which is where json-tree-bench measured the JVM's **1.19x** element cost — and
+**a differential case** for narrowing, which is itself a finding:
 reduction inlines every non-exported call, so **a narrowed parameter only survives at an EXPORT**,
 which is precision-integers.md's "where do declarations live after staging" arriving as a limitation.
 **One bug on the way**: the target-directory merge dropped `Reprs`, so a single file selected

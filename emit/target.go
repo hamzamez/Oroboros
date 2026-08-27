@@ -1249,18 +1249,116 @@ func isTableRule(tgt *Target, t *core.Term) bool {
 // length and a body, and what the buffer holds is whatever `set` puts there.
 // Reading it off the first store is exact, because a table is homogeneous — a
 // dynamic index forces that (tables.md §5).
+// storedRange is the range of a value being stored, where it can be had
+// EXACTLY. A literal is its own range, a read from an already-narrowed table
+// carries one, and a conditional is the join of its branches — which is the
+// shape a tag or a sentinel actually takes: `(if (= c 123) 125 93)`.
+//
+// Everything else answers no, and the buffer keeps the host's own width. This
+// is deliberately not the interval analysis: a range that is too narrow
+// truncates on store and is a silent wrong answer, so only facts that are exact
+// by construction are used.
+func storedRange(v *core.Term, typeOf func(*core.Term) string) (int64, int64, bool) {
+	if v == nil {
+		return 0, 0, false
+	}
+	if v.Kind == core.KInt {
+		return v.Int, v.Int, true
+	}
+	// `if` is injected into every target and declaring one is an error
+	// (ADR 0017), so there is exactly one spelling to match.
+	if v.Kind == core.KApp && len(v.Kids) == 4 && v.Kids[0].Kind == core.KName &&
+		v.Kids[0].Name == "if" {
+		alo, ahi, aok := storedRange(v.Kids[2], typeOf)
+		blo, bhi, bok := storedRange(v.Kids[3], typeOf)
+		if !aok || !bok {
+			return 0, 0, false
+		}
+		return min64(alo, blo), max64(ahi, bhi), true
+	}
+	return core.IntRange(typeOf(v))
+}
+
+func min64(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func max64(a, b int64) int64 {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+// BufferRoot follows a threaded buffer back to the name it came from.
+// `(set (set b i v) j w)` writes to `b`, and a program with two live buffers —
+// examples/json/tree.oro is the first — needs them told apart.
+func BufferRoot(t *core.Term) string {
+	for t != nil {
+		if t.Kind == core.KName {
+			return t.Name
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName &&
+			(t.Kids[0].Name == "set" || strings.HasSuffix(t.Kids[0].Name, ".set")) {
+			t = t.Kids[1]
+			continue
+		}
+		return ""
+	}
+	return ""
+}
+
+// bufferElem is a `build` buffer's element type, read off everything STORED
+// into it.
+//
+// ADR 0003 says ranges are declared at boundaries and inferred for locals, and
+// a buffer is a local — so unlike an array parameter, nothing declares its
+// width and it has to be derived. The derivation is deliberately syntactic:
+// a literal is its own exact range, and a value read out of an already-narrowed
+// table carries one. Anything else is a plain integer and the buffer stays the
+// host's own width.
+//
+// That is weaker than the interval analysis and is meant to be. A wrong range
+// here is a SILENT WRONG ANSWER — a value stored into a byte slot and read back
+// truncated — so the inference only draws on facts that are exact by
+// construction rather than on a fixpoint. Widening it to the interval domain is
+// a real extension and needs the soundness argument made separately.
+//
+// ZERO IS ALWAYS AN ELEMENT. `build` zero-fills (tables.md §14.3) and a leaf
+// slot is never written, so the range has to hold 0 whatever the program
+// stores.
 func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) string {
-	var found string
+	lo, hi := int64(0), int64(0)
+	sawRange, sawOther, other := false, false, ""
 	var walk func(t *core.Term)
 	walk = func(t *core.Term) {
-		if found != "" || t == nil {
+		if t == nil {
 			return
 		}
 		if t.Kind == core.KApp && len(t.Kids) == 4 &&
-			t.Kids[0].Kind == core.KName && t.Kids[0].Name == "set" {
-			if ty := typeOf(t.Kids[3]); ty != "" {
-				found = ty
-				return
+			t.Kids[0].Kind == core.KName && t.Kids[0].Name == "set" &&
+			// An UNIDENTIFIED root counts, which is what this did before there
+			// was a root at all. One caller passes `Closed()`, where the buffer
+			// is a KBound and no name is recoverable; merging two buffers'
+			// stores there only ever WIDENS the range, and a range too wide
+			// costs space while a range too narrow is a silent wrong answer.
+			(BufferRoot(t) == "" || BufferRoot(t) == name) {
+			if l, h, ok := storedRange(t.Kids[3], typeOf); ok {
+				sawRange = true
+				if l < lo {
+					lo = l
+				}
+				if h > hi {
+					hi = h
+				}
+			} else {
+				sawOther = true
+				if ty := typeOf(t.Kids[3]); other == "" && ty != "" {
+					other = ty
+				}
 			}
 		}
 		for _, k := range t.Kids {
@@ -1268,12 +1366,15 @@ func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) st
 		}
 	}
 	walk(body)
-	if found == "" {
-		// A buffer nobody writes to. Its elements are whatever the host zeroes
-		// to; `int` is the one every target has.
-		return "int"
+	switch {
+	case sawRange && !sawOther:
+		return fmt.Sprintf("int %d %d", lo, hi)
+	case other != "":
+		return other
 	}
-	return found
+	// A buffer nobody writes to. Its elements are whatever the host zeroes
+	// to; `int` is the one every target has.
+	return "int"
 }
 
 // collectAgains gathers every `again` in a clause chain.
@@ -1589,7 +1690,40 @@ func ElemBytes(tgt *Target, t *core.Term) int {
 	if IsBoolTerm(tgt, t) {
 		return 1
 	}
+	// A RANGE narrows the storage on a host with no type system too — this is
+	// the same question `(array (int 0 255))` asks Go, asked in the one unit
+	// x86 has, which is bytes. The target still decides: a width is used only
+	// if the target DECLARED a representation covering it, so a target that
+	// declares none keeps its machine word.
+	if lo, hi, ok := storedRange(t, func(*core.Term) string { return "" }); ok {
+		if n := tgt.reprBytes(lo, hi); n != 0 {
+			return n
+		}
+	}
 	return 8
+}
+
+// reprBytes is how many bytes the declared representation for [lo,hi] occupies,
+// or 0 if this target declared none that holds it.
+//
+// The width comes from the DECLARED range rather than from the spelling,
+// because the spelling is the host's word and the width is arithmetic. A target
+// that says it can hold -128..127 has said one byte, whatever it calls it.
+func (tg *Target) reprBytes(lo, hi int64) int {
+	for _, r := range tg.Reprs {
+		if r.Lo <= lo && hi <= r.Hi {
+			switch {
+			case r.Lo >= -128 && r.Hi <= 255:
+				return 1
+			case r.Lo >= -32768 && r.Hi <= 65535:
+				return 2
+			case r.Lo >= -2147483648 && r.Hi <= 4294967295:
+				return 4
+			}
+			return 8
+		}
+	}
+	return 0
 }
 
 // IsBoolTerm reports whether a term's value is a boolean — a literal, an `if`
@@ -1620,28 +1754,34 @@ func IsBoolTerm(tgt *Target, t *core.Term) bool {
 // BufferElemBytes reads a buffer's element width off the value a `set` stores
 // into it — the same trick bufferElem uses for Go and Java, without needing a
 // type environment, because a table is homogeneous.
+// BufferElemBytes is how wide one element of a `build` buffer is, on a host
+// with no type system to read it off.
+//
+// IT MUST CONSIDER EVERY STORE, not the first one. It took the first, and that
+// is a silent wrong answer waiting: examples/json/tree.oro's node table stores a
+// tag of 1..5 into slot 0 and a node index of up to 511 into slots 2 and 3, so
+// the first store said one byte and the rest were truncated. windows returned
+// 4030140 where the other three returned 4040171, and the differential suite is
+// what noticed (elemwidth-2026-08-27 §4).
+//
+// So it defers to bufferElem, which joins. The `typeOf` it passes recognises
+// booleans and nothing else, because that is all this host can know.
 func BufferElemBytes(tgt *Target, body *core.Term, name string) int {
-	found := 0
-	var walk func(*core.Term)
-	walk = func(t *core.Term) {
-		if found != 0 || t == nil {
-			return
+	ty := bufferElem(body, name, func(t *core.Term) string {
+		if IsBoolTerm(tgt, t) {
+			return "bool"
 		}
-		if t.Kind == core.KApp && len(t.Kids) == 4 && t.Kids[0].Kind == core.KName {
-			if p, ok := tgt.Prims[t.Kids[0].Name]; ok && p.Kind == "table-set" {
-				found = ElemBytes(tgt, t.Kids[3])
-				return
-			}
-		}
-		for _, k := range t.Kids {
-			walk(k)
+		return ""
+	})
+	if ty == "bool" {
+		return 1
+	}
+	if lo, hi, ok := core.IntRange(ty); ok {
+		if n := tgt.reprBytes(lo, hi); n != 0 {
+			return n
 		}
 	}
-	walk(body)
-	if found == 0 {
-		return 8
-	}
-	return found
+	return 8
 }
 
 // LoopInvariant reports which loop variables never actually change.

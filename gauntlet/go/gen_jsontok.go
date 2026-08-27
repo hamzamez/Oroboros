@@ -6,7 +6,7 @@ func GenRun(k int) int {
 	var t1 int
 	if (k == 0) {
 		src := []int{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
-		stk := make([]int, 32)
+		stk := make([]byte, 32)
 		stk2 := stk
 		var i int = 0
 		var nt int = 0
@@ -46,7 +46,7 @@ func GenRun(k int) int {
 				} else {
 					t4 = 93
 				}
-				stk2[sp] = t4
+				stk2[sp] = byte(t4)
 				var t5 int
 				if ((sp + 1) > mx) {
 					t5 = (sp + 1)
@@ -75,7 +75,7 @@ func GenRun(k int) int {
 						t8 = (sp - 1)
 					}
 					var t9 int
-					if (stk2[t8] == src[i]) {
+					if (int(stk2[t8]) == src[i]) {
 						t9 = ok
 					} else {
 						t9 = 0
@@ -162,7 +162,7 @@ func GenRun(k int) int {
 		var t11 int
 		if (k == 1) {
 			src2 := []int{91, 91, 91, 49, 93, 93, 93}
-			stk3 := make([]int, 32)
+			stk3 := make([]byte, 32)
 			stk4 := stk3
 			var i2 int = 0
 			var nt2 int = 0
@@ -202,7 +202,7 @@ func GenRun(k int) int {
 					} else {
 						t14 = 93
 					}
-					stk4[sp2] = t14
+					stk4[sp2] = byte(t14)
 					var t15 int
 					if ((sp2 + 1) > mx2) {
 						t15 = (sp2 + 1)
@@ -231,7 +231,7 @@ func GenRun(k int) int {
 							t18 = (sp2 - 1)
 						}
 						var t19 int
-						if (stk4[t18] == src2[i2]) {
+						if (int(stk4[t18]) == src2[i2]) {
 							t19 = ok2
 						} else {
 							t19 = 0
@@ -318,7 +318,7 @@ func GenRun(k int) int {
 			var t21 int
 			if (k == 2) {
 				src3 := []int{123, 34, 97, 34, 58, 49}
-				stk5 := make([]int, 32)
+				stk5 := make([]byte, 32)
 				stk6 := stk5
 				var i3 int = 0
 				var nt3 int = 0
@@ -358,7 +358,7 @@ func GenRun(k int) int {
 						} else {
 							t24 = 93
 						}
-						stk6[sp3] = t24
+						stk6[sp3] = byte(t24)
 						var t25 int
 						if ((sp3 + 1) > mx3) {
 							t25 = (sp3 + 1)
@@ -387,7 +387,7 @@ func GenRun(k int) int {
 								t28 = (sp3 - 1)
 							}
 							var t29 int
-							if (stk6[t28] == src3[i3]) {
+							if (int(stk6[t28]) == src3[i3]) {
 								t29 = ok3
 							} else {
 								t29 = 0
@@ -472,7 +472,7 @@ func GenRun(k int) int {
 				t21 = r22
 			} else {
 				src4 := []int{93}
-				stk7 := make([]int, 32)
+				stk7 := make([]byte, 32)
 				stk8 := stk7
 				var i4 int = 0
 				var nt4 int = 0
@@ -512,7 +512,7 @@ func GenRun(k int) int {
 						} else {
 							t33 = 93
 						}
-						stk8[sp4] = t33
+						stk8[sp4] = byte(t33)
 						var t34 int
 						if ((sp4 + 1) > mx4) {
 							t34 = (sp4 + 1)
@@ -541,7 +541,7 @@ func GenRun(k int) int {
 								t37 = (sp4 - 1)
 							}
 							var t38 int
-							if (stk8[t37] == src4[i4]) {
+							if (int(stk8[t37]) == src4[i4]) {
 								t38 = ok4
 							} else {
 								t38 = 0
@@ -633,7 +633,7 @@ func GenRun(k int) int {
 }
 
 func GenTokens(src []byte) int {
-	stk := make([]int, 32)
+	stk := make([]byte, 32)
 	stk2 := stk
 	var i int = 0
 	var nt int = 0
@@ -673,7 +673,7 @@ func GenTokens(src []byte) int {
 			} else {
 				t3 = 93
 			}
-			stk2[sp] = t3
+			stk2[sp] = byte(t3)
 			var t4 int
 			if ((sp + 1) > mx) {
 				t4 = (sp + 1)
@@ -702,7 +702,7 @@ func GenTokens(src []byte) int {
 					t7 = (sp - 1)
 				}
 				var t8 int
-				if (stk2[t7] == int(src[i])) {
+				if (int(stk2[t7]) == int(src[i])) {
 					t8 = ok
 				} else {
 					t8 = 0

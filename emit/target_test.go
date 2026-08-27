@@ -220,3 +220,53 @@ func TestRangeDoesNotNarrowAValue(t *testing.T) {
 		t.Error("a plain int must not read as a range: it is the portable window, not a claim")
 	}
 }
+
+// A BUFFER'S ELEMENT RANGE IS INFERRED FROM EVERY STORE, not from the first.
+//
+// Taking the first was a silent wrong answer: tree.oro's node table stores a
+// tag of 1..5 into one slot and a node index of up to 511 into another, so the
+// first store said one byte and the rest truncated. The differential suite
+// caught it as windows returning 4030140 where the others returned 4040171.
+func TestBufferElemJoinsEveryStore(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	typeOf := func(*core.Term) string { return "" }
+	for _, c := range []struct{ name, src, want string }{
+		{"literals join", `(fn (b) (set (set b 0 93) 1 125))`, "int 0 125"},
+		{"a big store widens", `(fn (b) (set (set b 0 5) 1 511))`, "int 0 511"},
+		{"zero is always an element", `(fn (b) (set b 0 40))`, "int 0 40"},
+		{"a negative store", `(fn (b) (set b 0 -7))`, "int -7 0"},
+		{"a conditional joins its branches", `(fn (b) (set b 0 (if c 125 93)))`, "int 0 125"},
+		{"one opaque store gives up", `(fn (b) (set (set b 0 5) 1 n))`, "int"},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		lam := forms[0].Term
+		got := bufferElem(lam.Closed(), lam.Params[0], typeOf)
+		if got != c.want {
+			t.Errorf("%s: bufferElem = %q, want %q", c.name, got, c.want)
+		}
+		if c.want == "int 0 125" && tg.ty("array "+got) != "[]byte" {
+			t.Errorf("%s: %q should store in a byte, got %q", c.name, got, tg.ty("array "+got))
+		}
+	}
+}
+
+// A range too WIDE costs space; a range too NARROW is a silent wrong answer. So
+// where two buffers cannot be told apart the stores merge, which can only
+// widen.
+func TestBufferRootDistinguishesTwoBuffers(t *testing.T) {
+	forms, _ := core.Read(`(fn (a) (fn (b) (set (set a 0 5) 1 500)))`)
+	inner := forms[0].Term.Closed()
+	if got := BufferRoot(inner); got != "" {
+		t.Errorf("an unopened lambda body has no nameable root, got %q", got)
+	}
+	forms, _ = core.Read(`(set (set nodes 0 5) 1 500)`)
+	if got := BufferRoot(forms[0].Term); got != "nodes" {
+		t.Errorf("BufferRoot through a threaded set = %q, want nodes", got)
+	}
+}

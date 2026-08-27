@@ -31,6 +31,14 @@
 ;      could not be kept.
 
 (target windows
+
+  ; THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
+  ; already load one: `movzx` zero-extends a byte, which is the same path a
+  ; boolean table takes (wintables-2026-08-25 §4a). 0..255 only -- a signed byte
+  ; needs `movsx` and nothing emits that yet, so it is not claimed.
+  ;
+  ; A target declares what it can DO. Everything wider keeps the machine word.
+  (int-repr 0 255 "db")
   (module x64
     ; ---- integer arithmetic. Two instructions each, for the reason above.
     (prim add  (int int) int expr "mov %r, %1\nadd %r, %2"  pure (checked add-checked))

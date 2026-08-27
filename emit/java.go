@@ -471,6 +471,18 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			// A NARROWED SLOT takes a cast on the VALUE. Java widens `short`
+			// and `byte` to `long` implicitly on the way out and refuses the
+			// way in, so the store is the only direction that needs saying.
+			//
+			// The index is a separate question with its own cast, and the two
+			// are independent: this had the value cast on only one of the two
+			// index paths, and the one it missed is the one a program without
+			// index narrowing takes — which is every program until the analysis
+			// can bound the counter (elemwidth-2026-08-27 §5).
+			if spell, ok := e.narrowedSlot(args[0]); ok {
+				v = fmt.Sprintf("(%s) %s", spell, v)
+			}
 			if e.narrowIdx(args[1]) {
 				e.line("%s[%s] = %s;", b, i, v)
 			} else {
@@ -1200,4 +1212,14 @@ func (e *javaEmitter) buildType(lam *core.Term) string {
 		return "array " + elem
 	}
 	return ty
+}
+
+// narrowedSlot reports the host spelling of a table's element when it is
+// narrower than the target's own integer. See the Go emitter.
+func (e *javaEmitter) narrowedSlot(tab *core.Term) (string, bool) {
+	root := BufferRoot(tab)
+	if root == "" {
+		return "", false
+	}
+	return e.tgt.NarrowedElem(e.types[root])
 }

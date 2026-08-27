@@ -119,16 +119,80 @@ next, and it is also the reason not to patch `indextype`'s condition again.
 
 ---
 
+## 5b. The write side: a buffer's range is INFERRED, because a buffer is a local
+
+ADR 0003 says ranges are declared at boundaries and **inferred for locals**. A `build` buffer is a
+local, so unlike an array parameter nothing declares its width and it has to be derived from what is
+stored.
+
+```lisp
+(set stk sp (if (= (src i) 123) 125 93))    →   stk : []byte
+```
+
+| target | buffer |
+|---|---|
+| Go | `stk := make([]byte, 32)`, stored as `byte(v)` |
+| Java | `final byte[] stk = new byte[32]`, stored as `(byte) v` — 93..125 fits a **signed** byte here |
+| x86 | one byte per element, the same `movzx` path a boolean table takes |
+| JavaScript | unchanged |
+
+**The inference is deliberately syntactic and weaker than the interval analysis.** A literal is its
+own exact range, a conditional is the join of its branches, and a value read from an
+already-narrowed table carries one. Everything else keeps the host's word.
+
+That is a soundness choice, not laziness: **a range too narrow truncates on store and is a silent
+wrong answer**, so only facts that are exact by construction are used. Widening this to the interval
+domain is a real extension and owes its own soundness argument.
+
+**Zero is always an element.** `build` zero-fills ([tables.md §14.3](../../docs/spec/tables.md)) and
+a slot that is never written reads 0, so the range has to hold 0 whatever the program stores. The
+tests pin that: `(set b 0 40)` gives `int 0 40`, not `int 40 40`.
+
+### What narrowed, and what correctly did not
+
+`tokenize.oro`'s stack becomes a byte buffer. **`tree.oro`'s node table correctly stays 64-bit**,
+because it stores node indices that no syntactic fact bounds — the range is `nn < 512`, which is the
+interval analysis's to know, not a literal's. Getting that answer right is the feature working.
+
+| | ns/op | |
+|---|---|---|
+| Go, generated | 8,988 | **0.95× of hand-written `[]byte`** in the same run |
+| Java, generated | 9,073 | from 9,269 — **2%**, and still 1.21× of hand-written `short[]` |
+
+Java's residue is the index, again and unchanged.
+
+---
+
+## 5c. Two bugs, and the suite earned its keep
+
+**`BufferElemBytes` took the FIRST store.** x86 has no type system, so element width is read off the
+program — and it read one store. `tree.oro`'s node table writes a tag of 1..5 into slot 0 and a node
+index of up to 511 into slots 2 and 3, so the first store said *one byte* and every link was
+truncated. windows returned **4030140** where the other three returned **4040171**.
+
+It compiled, it ran, and it returned a number. The differential suite is the only thing that saw it,
+which is the second time this week a silent wrong answer has been caught by running the same program
+on four hosts and demanding they agree.
+
+**Java's value cast was on one of two store paths.** The index has its own `(int)` cast and the
+emitter branches on whether that is needed; the value cast went into one branch. The branch it
+missed is the one every program takes until the index can be narrowed — so it would have failed on
+the first real program and passed every test that had an index-narrowed loop.
+
+**And a third, from §7 below**: two live buffers in one body could not be told apart, because the
+walk ignored which buffer a `set` targeted. It did not matter while every buffer was 64-bit. It
+matters now, and where the two genuinely cannot be distinguished — one caller passes a term whose
+binders are not opened — the stores **merge**, which can only widen a range and never truncate one.
+
 ## 6. What is not built
 
-**The write side.** A `build` buffer's element type is inferred from what is stored, not declared,
-so a narrowed *buffer* is not reachable yet — only a narrowed **parameter**. Nothing can `set` a
-parameter, so the first cut is coherent without it. `tree.oro`'s node table stays 64-bit, which is
-where [json-tree-bench](json-tree-bench-2026-08-26.md) measured the JVM's 1.19× element cost, and
-that number is still owed.
+**A buffer whose range only the INTERVAL ANALYSIS knows.** `tree.oro`'s node table wants
+`(int 0 511)` — two bytes, half the memory — and no syntactic fact says so. This is where
+[json-tree-bench](json-tree-bench-2026-08-26.md) measured the JVM's **1.19×** element cost, and it is
+still owed. Two routes: teach the inference to use the interval domain, with the soundness argument
+that needs; or give a `build` a declared element type, which is a language change.
 
-**x86 element width.** The `elem` map already carries one byte for booleans; generalising it to a
-declared range is the same shape and is not done.
+**The index.** Unchanged, and it is now the whole of Java's remaining gap in both programs.
 
 **A differential case.** Narrowing cannot be exercised there, and the reason is itself the finding:
 reduction inlines every non-exported call, so a narrowed parameter only survives at an **export**.

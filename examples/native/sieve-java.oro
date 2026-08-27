@@ -3,7 +3,13 @@
 (use java/System)
 (use java/String)
 (export sieve-count)
-(sig sieve-count ((n int)) int)
+; A DECLARED RANGE, and on this host it decides the emitted index type.
+; The loop's bound is `i*i >= n` and its step is `+i`, so
+; indextype-2026-08-25's pattern cannot narrow it -- it wants a counter
+; bounded by a length and stepping by +1. The interval analysis can, once
+; `n` is bounded: it puts every operation in 2..1048576, which fits the
+; host's own `int`, and the (int) cast at every access goes away.
+(sig sieve-count ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
 (def cross (fn (c i n)
   (loop ((j (java.* i i)))

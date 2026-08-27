@@ -1568,7 +1568,107 @@ func readsOtherLoopVar(t *core.Term, raw []string, self int) bool {
 //
 // It is a REPRESENTATION selection in the sense selection-2026-08-19
 // established: what is emitted changes, what the program means does not.
-func NarrowIndex(tgt *Target, body *core.Term, raw []string, inits []*core.Term) map[string]bool {
+// NarrowByInterval reports the loop variables this target may hold in its own
+// index type, decided by the INTERVAL ANALYSIS rather than by a syntactic
+// pattern.
+//
+// indextype-2026-08-25 narrows a counter "bounded by a length and stepping by
+// +1", and named the sieve as a program it cannot help: its bound is `i*i >= n`
+// and its step is `+i`. The analysis bounds that sieve at 1..20164, so the
+// general rule reaches what the pattern cannot.
+//
+// SOUNDNESS. Holding a value in 32 bits computes the same answer as 64 exactly
+// when every intermediate stays inside 32 bits, so two things must hold:
+//
+//  1. `MaxOp` — the join of every checkable operation in the loop — fits.
+//  2. Every value a narrowed variable can TAKE fits, and MaxOp does not cover
+//     all of those. A literal is not an operation, and neither is a read out of
+//     a table, whose element range this pass does not know. So each variable's
+//     sources are checked directly, and anything not recognised refuses.
+//
+// Refusing is always safe: the variable keeps the host's widest integer, which
+// is what every program emitted before this existed.
+func NarrowByInterval(tgt *Target, fitsIdx bool, body *core.Term,
+	raw []string, inits []*core.Term) map[string]bool {
+	// `fitsIdx` is the WHOLE FUNCTION's answer, computed once by the emitter
+	// with the signature in hand. Running the analysis on the loop alone does
+	// not work here and the reason is worth keeping: a loop's bound usually
+	// comes from the enclosing `where`, so a subterm loses exactly the fact it
+	// needs. That is the same conservatism that makes BufferRange safe, biting
+	// in the other direction.
+	//
+	// Whole-function is coarse — one unbounded operation anywhere refuses every
+	// loop in it — and it is the safe coarseness.
+	if !fitsIdx || len(raw) != len(inits) {
+		return nil
+	}
+	out := map[string]bool{}
+	for i, n := range raw {
+		out[n] = fitsIndexSource(tgt, inits[i], raw)
+	}
+	for _, a := range collectAgains(body) {
+		as := a.Args()
+		for i, n := range raw {
+			if i >= len(as) || !fitsIndexSource(tgt, as[i], raw) {
+				out[n] = false
+			}
+		}
+	}
+	for n, v := range out {
+		if !v {
+			delete(out, n)
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// fitsIndexSource reports whether a value a loop variable takes is one MaxOp has
+// already bounded, or is otherwise known to fit.
+//
+// A literal is checked against the range directly. Another loop variable is
+// fine inductively. An operation the target declares is covered by MaxOp — but
+// a CONDITIONAL is not, because it is a structural primitive rather than an
+// arithmetic one, so its branches are checked instead. Everything else, table
+// reads included, refuses.
+func fitsIndexSource(tgt *Target, t *core.Term, raw []string) bool {
+	switch {
+	case t == nil:
+		return false
+	case t.Kind == core.KInt:
+		return t.Int >= -2147483648 && t.Int <= 2147483647
+	case t.Kind == core.KName:
+		return contains(raw, t.Name)
+	case t.Kind == core.KApp:
+		op := t.Op()
+		if op.Kind != core.KName {
+			return false
+		}
+		p, known := tgt.Prims[op.Name]
+		if !known {
+			return false // a table read, whose element range this pass has not got
+		}
+		if p.Kind == "cond" && len(t.Args()) == 3 {
+			return fitsIndexSource(tgt, t.Args()[1], raw) &&
+				fitsIndexSource(tgt, t.Args()[2], raw)
+		}
+		// Only what MaxOp actually counted. Division is bounded by the analysis
+		// and NOT joined into MaxOp, so trusting it here would trust a number
+		// that was never checked.
+		return CountedOp(tgt, t)
+	}
+	return false
+}
+
+func NarrowIndex(tgt *Target, fitsIdx bool, body *core.Term,
+	raw []string, inits []*core.Term) map[string]bool {
+	// The analysis first: it subsumes the pattern wherever it can bound the
+	// loop, and reaches programs the pattern was written to exclude.
+	if nw := NarrowByInterval(tgt, fitsIdx, body, raw, inits); nw != nil {
+		return nw
+	}
 	idx, bound, ok := countedBy(tgt, body, raw)
 	if !ok || !isIntBound(tgt, bound) {
 		return nil

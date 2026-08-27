@@ -40,6 +40,12 @@ type javaEmitter struct {
 	// read at every leaf multiTail returns from.
 	rec string
 
+	// fitsIdx is whether EVERY integer operation in this method stays inside
+	// [-2^31, 2^31-1] — computed once, with the signature, because a loop's
+	// bound usually comes from the enclosing `where` and the loop alone does
+	// not have it. See NarrowByInterval.
+	fitsIdx bool
+
 	// bound is every name already emitted in this method — see openFresh.
 	bound map[string]bool
 
@@ -60,6 +66,13 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	}
 	e := &javaEmitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
 		imports: map[string]bool{}, indent: 2, bound: map[string]bool{}}
+	// INDEX-TYPE SELECTION asks one question of the whole method, once: does
+	// every integer operation in it stay inside the host's index type? A loop
+	// cannot answer that alone, because its bound usually comes from the
+	// signature's `where`.
+	if rep, _ := Intervals(tgt, sig, t, 0); rep.FitsIndex() {
+		e.fitsIdx = true
+	}
 	for _, p := range t.Params {
 		e.bound[javaMangle(p)] = true
 	}
@@ -989,7 +1002,7 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	if e.narrow == nil {
 		e.narrow = map[string]bool{}
 	}
-	nw := NarrowIndex(e.tgt, body, raw, inits)
+	nw := NarrowIndex(e.tgt, e.fitsIdx, body, raw, inits)
 	for i, n := range raw {
 		if nw[n] && tys[i] == "int" {
 			e.narrow[n] = true

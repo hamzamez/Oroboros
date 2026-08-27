@@ -75,6 +75,7 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 		}
 	}
 
+	maxOp, fitsIdx := "none", " FITS"
 	total, proven, lv, lb := 0, 0, 0, 0
 	loops, term, trips := 0, 0, 0
 	byOp := map[string][2]int{}
@@ -84,6 +85,10 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 			return fmt.Errorf("%s: %w", u.name, err)
 		}
 		r, _ := emit.Intervals(tg, u.sig, nf, assume)
+		maxOp = r.MaxOpRange()
+		if !r.FitsIndex() {
+			fitsIdx = ""
+		}
 		total += r.Ops
 		proven += r.Proven
 		lv += r.LoopVars
@@ -124,9 +129,9 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 		parts = append(parts, fmt.Sprintf("%s %d/%d", k, byOp[k][0], byOp[k][1]))
 	}
 	_ = lpct
-	fmt.Printf("%-28s %3d/%-3d ops (%5.1f%%)  loopvar %d/%d  term %d/%d  trip %d/%d  %s\n",
-		filepath.Base(src), proven, total, pct, lb, lv, term, loops, trips, loops,
-		strings.Join(parts, "  "))
+	fmt.Printf("%-24s %3d/%-3d ops (%5.1f%%)  term %d/%d  idx %-24s%-6s %s\n",
+		filepath.Base(src), proven, total, pct, term, loops,
+		maxOp, fitsIdx, strings.Join(parts, "  "))
 	return nil
 }
 

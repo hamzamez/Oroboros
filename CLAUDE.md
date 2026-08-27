@@ -740,6 +740,39 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
+**AND INDEX NARROWING IS GENERAL NOW** —
+[indexnarrow-2026-08-27](gauntlet/results/indexnarrow-2026-08-27.md). indextype-2026-08-25 narrowed a
+counter *bounded by a length and stepping by +1* and named the program it could not help — the
+sieve, whose bound is `i*i >= n`. The rule is now **the interval analysis**: if every integer
+operation in a method stays inside a 32-bit index, its counters are held in one. **Java's structural
+sieve goes from 1.16x to 0.99x — parity** — with `int` locals 0→4 and `(int)` casts 4→1, the
+survivor being `new boolean[(int) n]` on the method's own parameter.
+
+**`MaxOp` is a different question from `fits`** — a value inside the portable window at ±(2^53-1)
+does not fit a 32-bit index, and the two diverge on exactly the programs this is for. And **MaxOp
+does not cover every value a counter can TAKE**: a literal is not an operation and neither is a
+table read, so sources are checked directly and anything unrecognised refuses. **Division is bounded
+but NOT counted**, so a rule trusting MaxOp must not trust a division — that distinction lived inside
+a switch and is now `arithOp`, read by both the transfer function and the narrowing rule.
+
+**It has to be a WHOLE-METHOD question, and that is the same property from the other side.** Run on
+the loop alone it narrowed nothing, because **a loop's bound usually comes from the enclosing
+`where`** — less context can only widen, which is exactly what makes `BufferRange` safe on a `build`
+lambda in isolation and exactly the wrong trade here. So the emitter asks once with the signature in
+hand: one unbounded operation anywhere refuses every loop in the method, and that is the safe
+coarseness.
+
+**It changed NOTHING on the existing Java gauntlet** — all nine regenerate identically, because the
+syntactic rule already covered `+1` counters over lengths. It earns its place on one shape, a
+computed bound, and getting there needed two other facts: **`sieve-java.oro` declared no `where` at
+all** (half the corpus does not), and **a target-declared accessor hides the cast in its template** —
+`(prim at-bool … expr "%s[(int) %s]")` — so the emitter never gets a say and narrowing cannot reach
+it. That is an argument for structural indexing tables.md did not make: **a host detail buried in a
+target template is one no analysis can improve.**
+
+**Neither parser narrows**, both reporting `idx -inf..+inf`, for the scanner reason — the **third
+independent demand** for a postcondition naming a result.
+
 **AND THE INTERVAL ANALYSIS DECIDES THE REST.** `tree.oro`'s node table stores indices bounded by a
 loop guard — `nn < 512` — which no literal can show, so the analysis is asked when the exact facts do
 not settle it. The node table is **`[]uint16`, 4 KB instead of 16 KB**, the parse stack narrows too,

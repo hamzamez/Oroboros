@@ -266,6 +266,13 @@ type IntervalReport struct {
 	Trips      int      // …of those, the ones that also yield a trip count
 	Diverging  []string // the idempotent cycle nothing was shown to shrink
 
+	// MaxOp is the join of EVERY integer operation's result interval, which is
+	// the question index narrowing has to ask: computing in the host's 32-bit
+	// index type gives the same answer as computing in 64 bits exactly when
+	// every intermediate stays inside it. One unbounded operation makes the
+	// whole loop unnarrowable, which is the honest answer.
+	MaxOp ival
+
 	// Stores is the joined interval of everything written into each `build`
 	// buffer, keyed by the buffer's name. It is what lets a buffer be stored
 	// narrower than a machine word when no syntactic fact says so — the node
@@ -356,8 +363,43 @@ func BufferRange(tgt *Target, lam *core.Term) (string, bool) {
 	return fmt.Sprintf("int %d %d", out.lo, out.hi), true
 }
 
+// FitsIndex reports whether every integer operation in a term stays inside
+// [-2^31, 2^31-1] — the question index narrowing asks, and it is not the same
+// question as `fits`, which is the portable window at ±(2^53-1).
+//
+// A value bounded by 2^53 does not fit a 32-bit index, so the two answers
+// diverge on exactly the programs this is for.
+func (r *IntervalReport) FitsIndex() bool {
+	v := r.MaxOp
+	if v.loInf || v.hiInf {
+		return false
+	}
+	if v.lo > v.hi { // bottom: no integer operation at all
+		return true
+	}
+	return v.lo >= -2147483648 && v.hi <= 2147483647
+}
+
+// MaxOpRange prints the join of every operation's interval, for the tool that
+// answers whether narrowing could fire at all.
+func (r *IntervalReport) MaxOpRange() string {
+	v := r.MaxOp
+	if v.lo > v.hi && !v.loInf && !v.hiInf {
+		return "none"
+	}
+	lo, hi := "-inf", "+inf"
+	if !v.loInf {
+		lo = fmt.Sprintf("%d", v.lo)
+	}
+	if !v.hiInf {
+		hi = fmt.Sprintf("%d", v.hi)
+	}
+	return lo + ".." + hi
+}
+
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
+	rep.MaxOp = bottom
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0}
 	env := map[string]ival{}
 	var head *core.Term
@@ -561,6 +603,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	if checkable {
 		if p.count {
 			p.record(op.Name, out, t)
+			p.rep.MaxOp = joinI(p.rep.MaxOp, out)
 		}
 		// THE SELECTION. Provable: keep the host's own operator, which is what
 		// every program emits today. Not provable: use the checked primitive
@@ -587,24 +630,63 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
 	}
-	switch {
-	case len(v) == 2 && (isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add")):
+	switch arithOp(name, len(v)) {
+	case "add":
 		return addI(v[0], v[1]), true
-	case len(v) == 2 && (isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub")):
+	case "sub":
 		return subI(v[0], v[1]), true
-	case len(v) == 2 && (isOp(name, "mul") || name == "*" || strings.HasSuffix(name, ".imul")):
+	case "mul":
 		return mulI(v[0], v[1]), true
-	case len(v) == 2 && (name == "/" || strings.HasSuffix(name, ".idiv") || isOp(name, "div")):
-		return divI(v[0], v[1]), false
-	case len(v) == 2 && (name == "%" || strings.HasSuffix(name, ".irem") || isOp(name, "rem")):
-		return remI(v[0], v[1]), false
-	case len(v) == 1 && (isOp(name, "neg") || strings.HasSuffix(name, ".neg")):
+	case "neg":
 		return negI(v[0]), true
+	case "div":
+		return divI(v[0], v[1]), false
+	case "rem":
+		return remI(v[0], v[1]), false
 	}
-	if prim.Result == "int" {
-		return top, false // an integer from somewhere the analysis cannot see
+	return top, false // an integer from somewhere the analysis cannot see
+}
+
+// arithOp names the arithmetic an operator performs, across every spelling the
+// four targets use. ONE place, because two things now ask: the transfer
+// function, and NarrowByInterval deciding whether MaxOp bounded a value.
+//
+// Only add, sub, mul and neg are `checkable` and therefore joined into MaxOp.
+// Division and remainder are bounded but not counted, so anything trusting
+// MaxOp must not trust them — which is why this reports the operation rather
+// than a yes/no, and the caller decides.
+func arithOp(name string, n int) string {
+	switch {
+	case n == 2 && (isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add")):
+		return "add"
+	case n == 2 && (isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub")):
+		return "sub"
+	case n == 2 && (isOp(name, "mul") || name == "*" || strings.HasSuffix(name, ".imul")):
+		return "mul"
+	case n == 2 && (name == "/" || strings.HasSuffix(name, ".idiv") || isOp(name, "div")):
+		return "div"
+	case n == 2 && (name == "%" || strings.HasSuffix(name, ".irem") || isOp(name, "rem")):
+		return "rem"
+	case n == 1 && (isOp(name, "neg") || strings.HasSuffix(name, ".neg")):
+		return "neg"
 	}
-	return top, false
+	return ""
+}
+
+// CountedOp reports whether an application is one MaxOp has bounded.
+func CountedOp(tgt *Target, t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return false
+	}
+	prim, ok := tgt.Prims[t.Op().Name]
+	if !ok || (prim.Result != "int" && prim.Result != "") {
+		return false
+	}
+	switch arithOp(t.Op().Name, len(t.Args())) {
+	case "add", "sub", "mul", "neg":
+		return true
+	}
+	return false
 }
 
 func (p *intervalPass) record(name string, out ival, t *core.Term) {

@@ -391,3 +391,65 @@ func TestBufferRangeUsesAGuard(t *testing.T) {
 		t.Errorf("0..511 should store in a uint16 on Go, got %q", tg.ty("array "+got))
 	}
 }
+
+// INDEX NARROWING FROM THE INTERVAL ANALYSIS.
+//
+// Holding a value in 32 bits computes the same answer as 64 exactly when every
+// intermediate stays inside 32 bits. MaxOp answers that for operations; it does
+// NOT answer it for literals or for values read out of a table, so those are
+// checked directly. Refusing keeps the host's widest integer, which is what
+// every program emitted before this existed.
+func TestFitsIndexSourceRefusesWhatMaxOpDidNotCount(t *testing.T) {
+	tg, err := LoadTarget("../targets/java")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := []string{"i", "a"}
+	for _, c := range []struct {
+		name string
+		src  string
+		want bool
+	}{
+		{"a small literal", `7`, true},
+		{"a literal past int32", `4294967296`, false},
+		{"a loop variable", `i`, true},
+		{"a free name", `q`, false},
+		{"addition", `(java.+ i 1)`, true},
+		{"multiplication", `(java.* i i)`, true},
+		// Division is BOUNDED by the analysis and not joined into MaxOp, so
+		// trusting it would trust a number that was never checked.
+		{"division", `(java./ i 2)`, false},
+		// A table read's element range is not known to this pass.
+		{"a table read", `(a i)`, false},
+		{"a conditional over literals", `(if c 3 9)`, true},
+		{"a conditional hiding a big literal", `(if c 3 4294967296)`, false},
+		{"a conditional hiding a table read", `(if c 3 (a i))`, false},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := fitsIndexSource(tg, forms[0].Term, raw); got != c.want {
+			t.Errorf("%s: fitsIndexSource(%s) = %v, want %v", c.name, c.src, got, c.want)
+		}
+	}
+}
+
+// And the whole-function gate: one unbounded operation anywhere refuses every
+// loop in the method. Coarse, and the safe coarseness.
+func TestNarrowByIntervalNeedsTheWholeFunctionToFit(t *testing.T) {
+	tg, err := LoadTarget("../targets/java")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, _ := core.Read(`(again (java.+ i 1))`)
+	body := forms[0].Term
+	raw := []string{"i"}
+	inits := []*core.Term{{Kind: core.KInt, Int: 0}}
+	if nw := NarrowByInterval(tg, false, body, raw, inits); nw != nil {
+		t.Error("a method with an unbounded operation must narrow nothing")
+	}
+	if nw := NarrowByInterval(tg, true, body, raw, inits); nw == nil || !nw["i"] {
+		t.Error("a counter whose every value MaxOp bounded must narrow")
+	}
+}

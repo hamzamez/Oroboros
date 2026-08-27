@@ -701,6 +701,49 @@ miss. **The isolated microbenchmark was wrong in BOTH directions** — the same 
 bce-2026-08-15, where a 1.96× win in isolation vanished on memory-bound loops. A cost behaves the
 way a saving does, and neither survives being quoted without its condition.
 
+**PRECISION INTEGERS ARE RESEARCHED, and the blockers turn out to be mostly CLEARED** —
+[precision-integers.md](docs/precision-integers.md), on hamza's *"they should not interfere with
+getting the best performance when the range is within the supported integers; beyond that they cost
+what they would cost if we implemented them on the target."* data-model.md §8 blocked this on the
+product and on interval analysis, and **both are built** — as are sums, which it needed for a
+fallible result. So the question is no longer whether the machinery exists but **how much it
+proves**.
+
+**Re-measured, and the number MOVED — in both directions.** intervals-2026-08-19 said 39% with
+nothing declared and 81% with one range. On the old corpus that is now **100% everywhere** — one
+declared range takes every numeric loop to complete provability. **On the two parsers it is 64.5%
+and 91.2%, and declaring ranges changes NOTHING**, which is a qualitatively different failure from
+*not enough is declared*. One cause in both: the loop's progress variable is assigned **a scanner's
+return value**, so there is no size-change witness, so no trip count, so every accumulator is
+unbounded. **`go.*` is 0 of 15 in the tokeniser** — the worst operation to lose, since a checked
+multiply is 1.87x where the hardware high-multiply is reachable and **7.40x where it is not**, and
+JavaScript has none. Confirmed by construction: adding an explicit trip counter takes it to 78.5%
+and multiplication to 8 of 15.
+
+**What unlocks it is a POSTCONDITION NAMING THE RESULT** — `scan-string` returns `> i` and
+`<= (len src)`. `where` constrains parameters only today, and general-purpose.md **already lists
+result postconditions as owed** for Win32/SAL's `_Out_range_`. The integer work and the Win32 work
+want the same feature, which is the best evidence available that it is the right one. The
+alternative is octagons (a third independent demand), and a declared postcondition composes better
+because it survives inlining as an assumption instead of needing re-derivation.
+
+**Two things to do regardless of the rest.** **Element width from the range** — `(array (int 0 255))`
+as `[]byte`/`byte[]`/`Uint8Array`/`db` — subsumes the boolean special case in `ElemBytes` AND
+indextype-2026-08-25's hardcoded platform fact, and json-tree-bench measured our 64-bit element
+costing **1.19x on the JVM** for exactly that. And **R3 is a capability the target declares, not a
+runtime we ship**: Go has `math/big`, Java `BigInteger`, JavaScript `BigInt` in the language — three
+of four hosts already have it, so the bar *"costs what it would cost on that target"* is met by
+construction there; only windows needs one written.
+
+**Constant folding INVERTS in our favour** — today folding integers would be an ADR 0009 hazard
+(arbitrary precision at compile time, fixed width at run time); if integers are exact the hazard
+disappears, because folding at arbitrary precision *is* the runtime semantics. **And `int → f64`
+stops being free**, since it is exact today only because the window is binary64's exact-integer
+range. **Sub-byte storage is REFUSED with a trigger** (expressible natively on zero of four targets,
+and it makes adjacent elements alias, which breaks ADR 0018), and so is **reinterpretation** — *types
+choose representation* is wanted, *operations determine meaning* would make every bound, range and
+termination proof unsound.
+
 **The eleven integer questions are settled** — [integers.md](docs/spec/integers.md), each measured
 on all four targets rather than read off four specifications. They **agree** on everything inside
 the window: division truncates toward zero, the remainder takes the dividend's sign, the identity

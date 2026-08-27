@@ -761,12 +761,31 @@ prove a false thing and named the variable. But the clause fires only when `(src
 so scanning can start one byte further on — identical answers, one fewer test, and the init becomes
 `i+1`. **The repair was a line the program wanted anyway.**
 
-**What is left is one shape**: all fifteen remaining unbounded operations trace to `mx`, a **running
-maximum** whose update mentions itself, so no step is found and the fixpoint widens it before `sp`
-narrows. A variable updated as `(if c e v)` is a running extremum and its bound is the join of its
-initial value with the other branch — the next small theorem, and it matters because **one unbounded
-operation anywhere refuses index narrowing for a whole method**, so Java's gap on the tokeniser is
-unchanged.
+**AND THE RUNNING EXTREMUM CLOSED IT.** The fifteen remaining unbounded operations all traced to
+`mx`, a running maximum: its `else` branch is `mx` itself, so `next ⊇ cur` **always** — widening threw
+it to infinity and the narrowing phase, which accepts only a CONTAINED value, could never take it
+back. **Theorem (reachable set):** if every `again` argument is built from `vₖ` and `vₖ`-free
+expressions using only `if` (whose *condition* may mention it — a condition produces no value), then
+`⟦vₖ⟧ ∈ {⟦zₖ⟧} ∪ ⋃U` at every iteration, by induction. So `hull({z} ∪ U)` is **exact in one step and
+needs no widening** — the recurrence is not `v' = f(v)` but `v' ∈ {v} ∪ U`, and the reachable set is
+closed. **The tokeniser goes to 100% of integer operations bounded, 20 of 20 loops, and
+`idx 0..1321`.**
+
+**Which CASCADED into Java and found two more bugs.** With the range fitting an index, narrowing
+fired on the tokeniser for the first time — and **an inner loop narrowed while the outer did not**,
+because `fitsIndexSource` refused a loop term, so the scanner's `j` became an `int` initialised from
+a `long` `i`. javac caught it and nothing else would; the rule is **a loop's value fits when every one
+of its exits does**. Then the loop's **result variable** stayed `long` — narrowing is a whole-method
+decision, so either every int local is the host's own `int` or none is. Plus two shapes `narrowIdx`
+did not know, both rule 4 again: a **conditional index** (what a clamped stack index looks like) and
+an integer **literal**. **Java 9,073 → 8,626 ns and 50 → 5 casts.**
+
+**The honest part: casts went 50 → 5 and the time barely moved.** So **Java's residual 1.16× is no
+longer the index type or the element type** — both now match the hand-written reference — and what is
+left is code generation plus the refinement layer's guards. That is a different question from the one
+indextype-2026-08-25 opened, and the first time it has been. **The tree stayed at 91.3%**: its residue
+is values read out of the node table, which nothing bounds — the honest limit of a non-relational
+domain, and where octagons would be asked next.
 
 **POSTCONDITIONS ARE BUILT, AND THE ALGEBRA IS A SWAP** —
 [postconditions.md](docs/spec/postconditions.md). `(ensures Q)` beside `(where P)`, with `result`

@@ -7,11 +7,11 @@ public final class GenJsonTok {
 			final long[] src12 = new long[]{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125};
 			final byte[] stk23 = new byte[(int) 32];
 			byte[] stk24 = stk23;
-			long i12 = 0;
-			long nt12 = 0;
-			long sp12 = 0;
-			long mx12 = 0;
-			long ok12 = 1;
+			int i12 = 0;
+			int nt12 = 0;
+			int sp12 = 0;
+			int mx12 = 0;
+			int ok12 = 1;
 			long r115 = 0;
 			for (;;) {
 				if ((i12 < 0)) {
@@ -26,14 +26,14 @@ public final class GenJsonTok {
 					r115 = (nt12 * 1000);
 					break;
 				}
-				final long c89 = src12[(int) i12];
+				final long c89 = src12[i12];
 				if (((c89 == 32) || ((c89 == 9) || ((c89 == 10) || (c89 == 13))))) {
 					i12 = (i12 + 1);
 					continue;
 				}
-				final long c90 = src12[(int) i12];
+				final long c90 = src12[i12];
 				if (((c90 == 123) || (c90 == 91))) {
-					stk24[(int) sp12] = (byte) ((src12[(int) i12] == 123) ? 125 : 93);
+					stk24[sp12] = (byte) ((src12[i12] == 123) ? 125 : 93);
 					final var u116 = (i12 + 1);
 					final var u117 = (nt12 + 1);
 					final var u118 = (sp12 + 1);
@@ -44,27 +44,27 @@ public final class GenJsonTok {
 					mx12 = u119;
 					continue;
 				}
-				final long c91 = src12[(int) i12];
+				final long c91 = src12[i12];
 				if (((c91 == 125) || (c91 == 93))) {
 					final var u120 = (i12 + 1);
 					final var u121 = (nt12 + 1);
 					final var u122 = ((sp12 < 1) ? 0 : (sp12 - 1));
-					final var u123 = ((sp12 < 1) ? 0 : ((stk24[(int) ((sp12 < 1) ? 0 : (sp12 - 1))] == src12[(int) i12]) ? ok12 : 0));
+					final var u123 = ((sp12 < 1) ? 0 : ((stk24[((sp12 < 1) ? 0 : (sp12 - 1))] == src12[i12]) ? ok12 : 0));
 					i12 = u120;
 					nt12 = u121;
 					sp12 = u122;
 					ok12 = u123;
 					continue;
 				}
-				final long c92 = src12[(int) i12];
+				final long c92 = src12[i12];
 				if (((c92 == 58) || (c92 == 44))) {
 					i12 = (i12 + 1);
 					nt12 = (nt12 + 1);
 					continue;
 				}
-				if ((src12[(int) i12] == 34)) {
-					long j34 = (i12 + 1);
-					long r124 = 0;
+				if ((src12[i12] == 34)) {
+					int j34 = (i12 + 1);
+					int r124 = 0;
 					for (;;) {
 						if ((j34 < 0)) {
 							r124 = j34;
@@ -74,11 +74,11 @@ public final class GenJsonTok {
 							r124 = j34;
 							break;
 						}
-						if ((src12[(int) j34] == 92)) {
+						if ((src12[j34] == 92)) {
 							j34 = (j34 + 2);
 							continue;
 						}
-						if ((src12[(int) j34] == 34)) {
+						if ((src12[j34] == 34)) {
 							r124 = (j34 + 1);
 							break;
 						}
@@ -89,9 +89,9 @@ public final class GenJsonTok {
 					nt12 = (nt12 + 1);
 					continue;
 				}
-				final long c93 = src12[(int) i12];
+				final long c93 = src12[i12];
 				if ((((c93 >= 48) && (c93 <= 57)) || ((c93 == 45) || ((c93 == 43) || ((c93 == 46) || ((c93 == 101) || (c93 == 69))))))) {
-					long j35 = i12;
+					int j35 = (i12 + 1);
 					for (;; j35 = (j35 + 1)) {
 						if ((j35 < 0)) {
 							break;
@@ -99,7 +99,7 @@ public final class GenJsonTok {
 						if ((j35 >= src12.length)) {
 							break;
 						}
-						final long c94 = src12[(int) j35];
+						final long c94 = src12[j35];
 						if ((((c94 >= 48) && (c94 <= 57)) || ((c94 == 45) || ((c94 == 43) || ((c94 == 46) || ((c94 == 101) || (c94 == 69))))))) {
 							continue;
 						}
@@ -109,9 +109,9 @@ public final class GenJsonTok {
 					nt12 = (nt12 + 1);
 					continue;
 				}
-				final long c95 = src12[(int) i12];
+				final long c95 = src12[i12];
 				if (((c95 >= 97) && (c95 <= 122))) {
-					long j36 = i12;
+					int j36 = (i12 + 1);
 					for (;; j36 = (j36 + 1)) {
 						if ((j36 < 0)) {
 							break;
@@ -119,7 +119,7 @@ public final class GenJsonTok {
 						if ((j36 >= src12.length)) {
 							break;
 						}
-						final long c96 = src12[(int) j36];
+						final long c96 = src12[j36];
 						if (((c96 >= 97) && (c96 <= 122))) {
 							continue;
 						}
@@ -140,11 +140,11 @@ public final class GenJsonTok {
 				final long[] src18 = new long[]{91, 91, 91, 49, 93, 93, 93};
 				final byte[] stk35 = new byte[(int) 32];
 				byte[] stk36 = stk35;
-				long i18 = 0;
-				long nt18 = 0;
-				long sp18 = 0;
-				long mx18 = 0;
-				long ok18 = 1;
+				int i18 = 0;
+				int nt18 = 0;
+				int sp18 = 0;
+				int mx18 = 0;
+				int ok18 = 1;
 				long r177 = 0;
 				for (;;) {
 					if ((i18 < 0)) {
@@ -159,14 +159,14 @@ public final class GenJsonTok {
 						r177 = (nt18 * 1000);
 						break;
 					}
-					final long c137 = src18[(int) i18];
+					final long c137 = src18[i18];
 					if (((c137 == 32) || ((c137 == 9) || ((c137 == 10) || (c137 == 13))))) {
 						i18 = (i18 + 1);
 						continue;
 					}
-					final long c138 = src18[(int) i18];
+					final long c138 = src18[i18];
 					if (((c138 == 123) || (c138 == 91))) {
-						stk36[(int) sp18] = (byte) ((src18[(int) i18] == 123) ? 125 : 93);
+						stk36[sp18] = (byte) ((src18[i18] == 123) ? 125 : 93);
 						final var u178 = (i18 + 1);
 						final var u179 = (nt18 + 1);
 						final var u180 = (sp18 + 1);
@@ -177,27 +177,27 @@ public final class GenJsonTok {
 						mx18 = u181;
 						continue;
 					}
-					final long c139 = src18[(int) i18];
+					final long c139 = src18[i18];
 					if (((c139 == 125) || (c139 == 93))) {
 						final var u182 = (i18 + 1);
 						final var u183 = (nt18 + 1);
 						final var u184 = ((sp18 < 1) ? 0 : (sp18 - 1));
-						final var u185 = ((sp18 < 1) ? 0 : ((stk36[(int) ((sp18 < 1) ? 0 : (sp18 - 1))] == src18[(int) i18]) ? ok18 : 0));
+						final var u185 = ((sp18 < 1) ? 0 : ((stk36[((sp18 < 1) ? 0 : (sp18 - 1))] == src18[i18]) ? ok18 : 0));
 						i18 = u182;
 						nt18 = u183;
 						sp18 = u184;
 						ok18 = u185;
 						continue;
 					}
-					final long c140 = src18[(int) i18];
+					final long c140 = src18[i18];
 					if (((c140 == 58) || (c140 == 44))) {
 						i18 = (i18 + 1);
 						nt18 = (nt18 + 1);
 						continue;
 					}
-					if ((src18[(int) i18] == 34)) {
-						long j52 = (i18 + 1);
-						long r186 = 0;
+					if ((src18[i18] == 34)) {
+						int j52 = (i18 + 1);
+						int r186 = 0;
 						for (;;) {
 							if ((j52 < 0)) {
 								r186 = j52;
@@ -207,11 +207,11 @@ public final class GenJsonTok {
 								r186 = j52;
 								break;
 							}
-							if ((src18[(int) j52] == 92)) {
+							if ((src18[j52] == 92)) {
 								j52 = (j52 + 2);
 								continue;
 							}
-							if ((src18[(int) j52] == 34)) {
+							if ((src18[j52] == 34)) {
 								r186 = (j52 + 1);
 								break;
 							}
@@ -222,9 +222,9 @@ public final class GenJsonTok {
 						nt18 = (nt18 + 1);
 						continue;
 					}
-					final long c141 = src18[(int) i18];
+					final long c141 = src18[i18];
 					if ((((c141 >= 48) && (c141 <= 57)) || ((c141 == 45) || ((c141 == 43) || ((c141 == 46) || ((c141 == 101) || (c141 == 69))))))) {
-						long j53 = i18;
+						int j53 = (i18 + 1);
 						for (;; j53 = (j53 + 1)) {
 							if ((j53 < 0)) {
 								break;
@@ -232,7 +232,7 @@ public final class GenJsonTok {
 							if ((j53 >= src18.length)) {
 								break;
 							}
-							final long c142 = src18[(int) j53];
+							final long c142 = src18[j53];
 							if ((((c142 >= 48) && (c142 <= 57)) || ((c142 == 45) || ((c142 == 43) || ((c142 == 46) || ((c142 == 101) || (c142 == 69))))))) {
 								continue;
 							}
@@ -242,9 +242,9 @@ public final class GenJsonTok {
 						nt18 = (nt18 + 1);
 						continue;
 					}
-					final long c143 = src18[(int) i18];
+					final long c143 = src18[i18];
 					if (((c143 >= 97) && (c143 <= 122))) {
-						long j54 = i18;
+						int j54 = (i18 + 1);
 						for (;; j54 = (j54 + 1)) {
 							if ((j54 < 0)) {
 								break;
@@ -252,7 +252,7 @@ public final class GenJsonTok {
 							if ((j54 >= src18.length)) {
 								break;
 							}
-							final long c144 = src18[(int) j54];
+							final long c144 = src18[j54];
 							if (((c144 >= 97) && (c144 <= 122))) {
 								continue;
 							}
@@ -273,11 +273,11 @@ public final class GenJsonTok {
 					final long[] src21 = new long[]{123, 34, 97, 34, 58, 49};
 					final byte[] stk41 = new byte[(int) 32];
 					byte[] stk42 = stk41;
-					long i21 = 0;
-					long nt21 = 0;
-					long sp21 = 0;
-					long mx21 = 0;
-					long ok21 = 1;
+					int i21 = 0;
+					int nt21 = 0;
+					int sp21 = 0;
+					int mx21 = 0;
+					int ok21 = 1;
 					long r208 = 0;
 					for (;;) {
 						if ((i21 < 0)) {
@@ -292,14 +292,14 @@ public final class GenJsonTok {
 							r208 = (nt21 * 1000);
 							break;
 						}
-						final long c161 = src21[(int) i21];
+						final long c161 = src21[i21];
 						if (((c161 == 32) || ((c161 == 9) || ((c161 == 10) || (c161 == 13))))) {
 							i21 = (i21 + 1);
 							continue;
 						}
-						final long c162 = src21[(int) i21];
+						final long c162 = src21[i21];
 						if (((c162 == 123) || (c162 == 91))) {
-							stk42[(int) sp21] = (byte) ((src21[(int) i21] == 123) ? 125 : 93);
+							stk42[sp21] = (byte) ((src21[i21] == 123) ? 125 : 93);
 							final var u209 = (i21 + 1);
 							final var u210 = (nt21 + 1);
 							final var u211 = (sp21 + 1);
@@ -310,27 +310,27 @@ public final class GenJsonTok {
 							mx21 = u212;
 							continue;
 						}
-						final long c163 = src21[(int) i21];
+						final long c163 = src21[i21];
 						if (((c163 == 125) || (c163 == 93))) {
 							final var u213 = (i21 + 1);
 							final var u214 = (nt21 + 1);
 							final var u215 = ((sp21 < 1) ? 0 : (sp21 - 1));
-							final var u216 = ((sp21 < 1) ? 0 : ((stk42[(int) ((sp21 < 1) ? 0 : (sp21 - 1))] == src21[(int) i21]) ? ok21 : 0));
+							final var u216 = ((sp21 < 1) ? 0 : ((stk42[((sp21 < 1) ? 0 : (sp21 - 1))] == src21[i21]) ? ok21 : 0));
 							i21 = u213;
 							nt21 = u214;
 							sp21 = u215;
 							ok21 = u216;
 							continue;
 						}
-						final long c164 = src21[(int) i21];
+						final long c164 = src21[i21];
 						if (((c164 == 58) || (c164 == 44))) {
 							i21 = (i21 + 1);
 							nt21 = (nt21 + 1);
 							continue;
 						}
-						if ((src21[(int) i21] == 34)) {
-							long j61 = (i21 + 1);
-							long r217 = 0;
+						if ((src21[i21] == 34)) {
+							int j61 = (i21 + 1);
+							int r217 = 0;
 							for (;;) {
 								if ((j61 < 0)) {
 									r217 = j61;
@@ -340,11 +340,11 @@ public final class GenJsonTok {
 									r217 = j61;
 									break;
 								}
-								if ((src21[(int) j61] == 92)) {
+								if ((src21[j61] == 92)) {
 									j61 = (j61 + 2);
 									continue;
 								}
-								if ((src21[(int) j61] == 34)) {
+								if ((src21[j61] == 34)) {
 									r217 = (j61 + 1);
 									break;
 								}
@@ -355,9 +355,9 @@ public final class GenJsonTok {
 							nt21 = (nt21 + 1);
 							continue;
 						}
-						final long c165 = src21[(int) i21];
+						final long c165 = src21[i21];
 						if ((((c165 >= 48) && (c165 <= 57)) || ((c165 == 45) || ((c165 == 43) || ((c165 == 46) || ((c165 == 101) || (c165 == 69))))))) {
-							long j62 = i21;
+							int j62 = (i21 + 1);
 							for (;; j62 = (j62 + 1)) {
 								if ((j62 < 0)) {
 									break;
@@ -365,7 +365,7 @@ public final class GenJsonTok {
 								if ((j62 >= src21.length)) {
 									break;
 								}
-								final long c166 = src21[(int) j62];
+								final long c166 = src21[j62];
 								if ((((c166 >= 48) && (c166 <= 57)) || ((c166 == 45) || ((c166 == 43) || ((c166 == 46) || ((c166 == 101) || (c166 == 69))))))) {
 									continue;
 								}
@@ -375,9 +375,9 @@ public final class GenJsonTok {
 							nt21 = (nt21 + 1);
 							continue;
 						}
-						final long c167 = src21[(int) i21];
+						final long c167 = src21[i21];
 						if (((c167 >= 97) && (c167 <= 122))) {
-							long j63 = i21;
+							int j63 = (i21 + 1);
 							for (;; j63 = (j63 + 1)) {
 								if ((j63 < 0)) {
 									break;
@@ -385,7 +385,7 @@ public final class GenJsonTok {
 								if ((j63 >= src21.length)) {
 									break;
 								}
-								final long c168 = src21[(int) j63];
+								final long c168 = src21[j63];
 								if (((c168 >= 97) && (c168 <= 122))) {
 									continue;
 								}
@@ -404,11 +404,11 @@ public final class GenJsonTok {
 					final long[] src22 = new long[]{93};
 					final byte[] stk43 = new byte[(int) 32];
 					byte[] stk44 = stk43;
-					long i22 = 0;
-					long nt22 = 0;
-					long sp22 = 0;
-					long mx22 = 0;
-					long ok22 = 1;
+					int i22 = 0;
+					int nt22 = 0;
+					int sp22 = 0;
+					int mx22 = 0;
+					int ok22 = 1;
 					long r218 = 0;
 					for (;;) {
 						if ((i22 < 0)) {
@@ -423,14 +423,14 @@ public final class GenJsonTok {
 							r218 = (nt22 * 1000);
 							break;
 						}
-						final long c169 = src22[(int) i22];
+						final long c169 = src22[i22];
 						if (((c169 == 32) || ((c169 == 9) || ((c169 == 10) || (c169 == 13))))) {
 							i22 = (i22 + 1);
 							continue;
 						}
-						final long c170 = src22[(int) i22];
+						final long c170 = src22[i22];
 						if (((c170 == 123) || (c170 == 91))) {
-							stk44[(int) sp22] = (byte) ((src22[(int) i22] == 123) ? 125 : 93);
+							stk44[sp22] = (byte) ((src22[i22] == 123) ? 125 : 93);
 							final var u219 = (i22 + 1);
 							final var u220 = (nt22 + 1);
 							final var u221 = (sp22 + 1);
@@ -441,27 +441,27 @@ public final class GenJsonTok {
 							mx22 = u222;
 							continue;
 						}
-						final long c171 = src22[(int) i22];
+						final long c171 = src22[i22];
 						if (((c171 == 125) || (c171 == 93))) {
 							final var u223 = (i22 + 1);
 							final var u224 = (nt22 + 1);
 							final var u225 = ((sp22 < 1) ? 0 : (sp22 - 1));
-							final var u226 = ((sp22 < 1) ? 0 : ((stk44[(int) ((sp22 < 1) ? 0 : (sp22 - 1))] == src22[(int) i22]) ? ok22 : 0));
+							final var u226 = ((sp22 < 1) ? 0 : ((stk44[((sp22 < 1) ? 0 : (sp22 - 1))] == src22[i22]) ? ok22 : 0));
 							i22 = u223;
 							nt22 = u224;
 							sp22 = u225;
 							ok22 = u226;
 							continue;
 						}
-						final long c172 = src22[(int) i22];
+						final long c172 = src22[i22];
 						if (((c172 == 58) || (c172 == 44))) {
 							i22 = (i22 + 1);
 							nt22 = (nt22 + 1);
 							continue;
 						}
-						if ((src22[(int) i22] == 34)) {
-							long j64 = (i22 + 1);
-							long r227 = 0;
+						if ((src22[i22] == 34)) {
+							int j64 = (i22 + 1);
+							int r227 = 0;
 							for (;;) {
 								if ((j64 < 0)) {
 									r227 = j64;
@@ -471,11 +471,11 @@ public final class GenJsonTok {
 									r227 = j64;
 									break;
 								}
-								if ((src22[(int) j64] == 92)) {
+								if ((src22[j64] == 92)) {
 									j64 = (j64 + 2);
 									continue;
 								}
-								if ((src22[(int) j64] == 34)) {
+								if ((src22[j64] == 34)) {
 									r227 = (j64 + 1);
 									break;
 								}
@@ -486,9 +486,9 @@ public final class GenJsonTok {
 							nt22 = (nt22 + 1);
 							continue;
 						}
-						final long c173 = src22[(int) i22];
+						final long c173 = src22[i22];
 						if ((((c173 >= 48) && (c173 <= 57)) || ((c173 == 45) || ((c173 == 43) || ((c173 == 46) || ((c173 == 101) || (c173 == 69))))))) {
-							long j65 = i22;
+							int j65 = (i22 + 1);
 							for (;; j65 = (j65 + 1)) {
 								if ((j65 < 0)) {
 									break;
@@ -496,7 +496,7 @@ public final class GenJsonTok {
 								if ((j65 >= src22.length)) {
 									break;
 								}
-								final long c174 = src22[(int) j65];
+								final long c174 = src22[j65];
 								if ((((c174 >= 48) && (c174 <= 57)) || ((c174 == 45) || ((c174 == 43) || ((c174 == 46) || ((c174 == 101) || (c174 == 69))))))) {
 									continue;
 								}
@@ -506,9 +506,9 @@ public final class GenJsonTok {
 							nt22 = (nt22 + 1);
 							continue;
 						}
-						final long c175 = src22[(int) i22];
+						final long c175 = src22[i22];
 						if (((c175 >= 97) && (c175 <= 122))) {
-							long j66 = i22;
+							int j66 = (i22 + 1);
 							for (;; j66 = (j66 + 1)) {
 								if ((j66 < 0)) {
 									break;
@@ -516,7 +516,7 @@ public final class GenJsonTok {
 								if ((j66 >= src22.length)) {
 									break;
 								}
-								final long c176 = src22[(int) j66];
+								final long c176 = src22[j66];
 								if (((c176 >= 97) && (c176 <= 122))) {
 									continue;
 								}
@@ -542,11 +542,11 @@ public final class GenJsonTok {
 	public static long GenTokens(short[] src) {
 		final byte[] stk = new byte[(int) 32];
 		byte[] stk2 = stk;
-		long i = 0;
-		long nt = 0;
-		long sp = 0;
-		long mx = 0;
-		long ok = 1;
+		int i = 0;
+		int nt = 0;
+		int sp = 0;
+		int mx = 0;
+		int ok = 1;
 		long r1 = 0;
 		for (;;) {
 			if ((i < 0)) {
@@ -561,14 +561,14 @@ public final class GenJsonTok {
 				r1 = (nt * 1000);
 				break;
 			}
-			final short c = src[(int) i];
+			final short c = src[i];
 			if (((c == 32) || ((c == 9) || ((c == 10) || (c == 13))))) {
 				i = (i + 1);
 				continue;
 			}
-			final short c2 = src[(int) i];
+			final short c2 = src[i];
 			if (((c2 == 123) || (c2 == 91))) {
-				stk2[(int) sp] = (byte) ((src[(int) i] == 123) ? 125 : 93);
+				stk2[sp] = (byte) ((src[i] == 123) ? 125 : 93);
 				final var u2 = (i + 1);
 				final var u3 = (nt + 1);
 				final var u4 = (sp + 1);
@@ -579,27 +579,27 @@ public final class GenJsonTok {
 				mx = u5;
 				continue;
 			}
-			final short c3 = src[(int) i];
+			final short c3 = src[i];
 			if (((c3 == 125) || (c3 == 93))) {
 				final var u6 = (i + 1);
 				final var u7 = (nt + 1);
 				final var u8 = ((sp < 1) ? 0 : (sp - 1));
-				final var u9 = ((sp < 1) ? 0 : ((stk2[(int) ((sp < 1) ? 0 : (sp - 1))] == src[(int) i]) ? ok : 0));
+				final var u9 = ((sp < 1) ? 0 : ((stk2[((sp < 1) ? 0 : (sp - 1))] == src[i]) ? ok : 0));
 				i = u6;
 				nt = u7;
 				sp = u8;
 				ok = u9;
 				continue;
 			}
-			final short c4 = src[(int) i];
+			final short c4 = src[i];
 			if (((c4 == 58) || (c4 == 44))) {
 				i = (i + 1);
 				nt = (nt + 1);
 				continue;
 			}
-			if ((src[(int) i] == 34)) {
-				long j = (i + 1);
-				long r10 = 0;
+			if ((src[i] == 34)) {
+				int j = (i + 1);
+				int r10 = 0;
 				for (;;) {
 					if ((j < 0)) {
 						r10 = j;
@@ -609,11 +609,11 @@ public final class GenJsonTok {
 						r10 = j;
 						break;
 					}
-					if ((src[(int) j] == 92)) {
+					if ((src[j] == 92)) {
 						j = (j + 2);
 						continue;
 					}
-					if ((src[(int) j] == 34)) {
+					if ((src[j] == 34)) {
 						r10 = (j + 1);
 						break;
 					}
@@ -624,9 +624,9 @@ public final class GenJsonTok {
 				nt = (nt + 1);
 				continue;
 			}
-			final short c5 = src[(int) i];
+			final short c5 = src[i];
 			if ((((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69))))))) {
-				long j2 = i;
+				int j2 = (i + 1);
 				for (;; j2 = (j2 + 1)) {
 					if ((j2 < 0)) {
 						break;
@@ -634,7 +634,7 @@ public final class GenJsonTok {
 					if ((j2 >= src.length)) {
 						break;
 					}
-					final short c6 = src[(int) j2];
+					final short c6 = src[j2];
 					if ((((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69))))))) {
 						continue;
 					}
@@ -644,9 +644,9 @@ public final class GenJsonTok {
 				nt = (nt + 1);
 				continue;
 			}
-			final short c7 = src[(int) i];
+			final short c7 = src[i];
 			if (((c7 >= 97) && (c7 <= 122))) {
-				long j3 = i;
+				int j3 = (i + 1);
 				for (;; j3 = (j3 + 1)) {
 					if ((j3 < 0)) {
 						break;
@@ -654,7 +654,7 @@ public final class GenJsonTok {
 					if ((j3 >= src.length)) {
 						break;
 					}
-					final short c8 = src[(int) j3];
+					final short c8 = src[j3];
 					if (((c8 >= 97) && (c8 <= 122))) {
 						continue;
 					}

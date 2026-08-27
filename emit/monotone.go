@@ -280,3 +280,133 @@ func selfPlus(tgt *Target, e *core.Term, self string) (int64, bool) {
 	}
 	return 0, false
 }
+
+// ---------------------------------------------------------------- extremum
+//
+// A RUNNING EXTREMUM — `mx = max(mx, sp+1)` — and why the fixpoint could not
+// bound one.
+//
+//	(if (go.> (go.+ sp 1) mx) (go.+ sp 1) mx)
+//
+// The `else` branch is `mx` itself, so in the fixpoint `next[mx] ⊇ cur[mx]`
+// ALWAYS. Widening throws the bound to infinity, and the narrowing phase — which
+// only accepts a value CONTAINED in the previous one — can never take it back,
+// because the pass-through pins it. Every one of the fifteen operations the JSON
+// tokeniser could not bound traced to this (monotone-2026-08-27 §5).
+//
+// DEFINITION. Position k is SELF-CONTAINED if every `again` argument aₖ is built
+// from vₖ and expressions not mentioning vₖ, using only `if` — whose CONDITION
+// may mention vₖ, since a condition produces no value — and `let` whose bound
+// value is vₖ-free. Its UPDATE SET U(aₖ) is the vₖ-free leaves.
+//
+// THEOREM (reachable set).  For a self-contained position, at every iteration
+// ⟦vₖ⟧ ∈ {⟦zₖ⟧} ∪ ⋃U.
+//
+//	Proof, by induction on the iteration count n.
+//	 n = 0:  ⟦vₖ⟧ = ⟦zₖ⟧.
+//	 n → n+1: the new value is ⟦aₖ⟧, which by the structure of aₖ is either
+//	          ⟦vₖ⟧ — in the set by the induction hypothesis — or ⟦e⟧ for some
+//	          e ∈ U.  ∎
+//
+// COROLLARY.  hull({zₖ} ∪ U) is sound, EXACT in one step, and needs no
+// widening. And because it no longer mentions cur[k], it narrows as the other
+// variables narrow — which is what the pass-through was preventing.
+//
+// The recurrence is not `v' = f(v)` where f can grow. It is `v' ∈ {v} ∪ U`, so
+// the reachable set is closed after one step and a fixpoint was never needed.
+
+// selfContained decides the definition above, syntactically and with no
+// evaluation, so the caller can choose which way to evaluate without
+// double-counting operations.
+func selfContained(tgt *Target, a *core.Term, self string) bool {
+	if a == nil {
+		return false
+	}
+	if a.Kind == core.KName && a.Name == self {
+		return true // the pass-through: contributes nothing new
+	}
+	if !mentionsName(a, self) {
+		return true // a leaf of the update set
+	}
+	if v, lam, ok := asLet(tgt, a); ok {
+		if mentionsName(v, self) {
+			return false
+		}
+		body, _, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+		return selfContained(tgt, body, self)
+	}
+	if a.Kind == core.KApp && a.Op().Kind == core.KName {
+		if p, known := tgt.Prims[a.Op().Name]; known && p.Kind == "cond" && len(a.Args()) == 3 {
+			// The CONDITION may mention self freely — it produces no value.
+			return selfContained(tgt, a.Args()[1], self) &&
+				selfContained(tgt, a.Args()[2], self)
+		}
+	}
+	return false
+}
+
+// mentionsName reports whether a term refers to a name.
+func mentionsName(t *core.Term, name string) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KName {
+		return t.Name == name
+	}
+	for _, k := range t.Kids {
+		if mentionsName(k, name) {
+			return true
+		}
+	}
+	return false
+}
+
+// loopExitsFit reports whether every value a loop can produce is one the
+// enclosing method's index type can hold.
+//
+// A loop's value is one of its EXIT expressions — the tail positions of its
+// clause chain that are not `again`. Its own variables count as acceptable
+// sources: they are narrowed by the same whole-method gate that is asking this
+// question, so either all of them are held in the host's index type or none is.
+func loopExitsFit(tgt *Target, loop *core.Term, raw []string) bool {
+	args := loop.Args()
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return false
+	}
+	body, lraw, _ := openFresh(args[0], map[string]bool{}, func(x string) string { return x })
+	for _, z := range args[1:] {
+		if !fitsIndexSource(tgt, z, raw) {
+			return false
+		}
+	}
+	inner := append(append([]string{}, raw...), lraw...)
+	ok := true
+	var walk func(t *core.Term, tail bool)
+	walk = func(t *core.Term, tail bool) {
+		if !ok || t == nil {
+			return
+		}
+		if _, lam, isLet := asLet(tgt, t); isLet {
+			lb, lr, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+			inner = append(inner, lr...)
+			walk(lb, tail)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if t.Op().Name == "again" {
+				return // a back edge is not a value
+			}
+			if p, known := tgt.Prims[t.Op().Name]; known &&
+				p.Kind == "cond" && len(t.Args()) == 3 && tail {
+				walk(t.Args()[1], true)
+				walk(t.Args()[2], true)
+				return
+			}
+		}
+		if tail && !fitsIndexSource(tgt, t, inner) {
+			ok = false
+		}
+	}
+	walk(body, true)
+	return ok
+}

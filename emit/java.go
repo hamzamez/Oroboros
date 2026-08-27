@@ -1022,7 +1022,19 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, javaMangle)
 	if result == "" {
 		result = javaMangle(e.fresh("r"))
-		e.line("%s %s = %s;", e.tgt.ty(rty), result, zeroOf(e.tgt.ty(rty)))
+		// THE RESULT VARIABLE NARROWS WITH THE REST. A loop whose exits all fit
+		// the host's index type produces a value that fits, and its result is
+		// assigned to variables this method has already narrowed — leaving it a
+		// `long` puts a wide value into a narrow slot, which javac refuses.
+		//
+		// Narrowing is a whole-METHOD decision, so this is consistent by
+		// construction: either every int local here is the host's own int or
+		// none is (indexnarrow-2026-08-27 §2).
+		rt := e.tgt.ty(rty)
+		if rty == "int" && e.fitsIdx && loopExitsFit(e.tgt, t, raw) {
+			rt = "int"
+		}
+		e.line("%s %s = %s;", rt, result, zeroOf(rt))
 	}
 	// A uniformly-updated loop variable moves into the `for` statement's post
 	// clause — see PostVars. On Go this recovered 1.4x on the sieve, by giving
@@ -1190,10 +1202,24 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 		return false
 	}
 	switch t.Kind {
+	case core.KInt:
+		// A literal index needs no cast when it fits: `new short[(int) 32]` is
+		// noise, and the value is right there.
+		return t.Int >= -2147483648 && t.Int <= 2147483647
 	case core.KName:
 		return e.narrow[t.Name]
 	case core.KApp:
-		if t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		if t.Op().Kind != core.KName {
+			return false
+		}
+		// A CONDITIONAL index is narrow when both branches are — the same rule
+		// every other part of this analysis uses for `if`, and the shape a
+		// clamped stack index takes: `(if (< sp 1) 0 (- sp 1))`.
+		if p, known := e.tgt.Prims[t.Op().Name]; known &&
+			p.Kind == "cond" && len(t.Args()) == 3 {
+			return e.narrowIdx(t.Args()[1]) && e.narrowIdx(t.Args()[2])
+		}
+		if len(t.Args()) != 2 {
 			return false
 		}
 		if !isOp(t.Op().Name, "add") && !isOp(t.Op().Name, "sub") {

@@ -1187,6 +1187,34 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 
 // collectAgain walks the clause chain, refining by each guard, and joins the
 // interval of every `again` argument into acc.
+
+// updateIval is the interval of an `again` argument's UPDATE SET: the join of
+// the branches that do not simply hand the variable back.
+//
+// Only called where `selfContained` has already said yes, so the recursion is
+// total. Conditions are still evaluated, because they contain operations the
+// report has to count.
+func (p *intervalPass) updateIval(a *core.Term, self string) ival {
+	if a.Kind == core.KName && a.Name == self {
+		return bottom // the pass-through contributes nothing new
+	}
+	if !mentionsName(a, self) {
+		return p.eval(a)
+	}
+	if v, lam, ok := asLet(p.tgt, a); ok {
+		p.eval(v)
+		body, _, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+		return p.updateIval(body, self)
+	}
+	if a.Kind == core.KApp && a.Op().Kind == core.KName && len(a.Args()) == 3 {
+		if pr, known := p.tgt.Prims[a.Op().Name]; known && pr.Kind == "cond" {
+			p.eval(a.Args()[0])
+			return joinI(p.updateIval(a.Args()[1], self), p.updateIval(a.Args()[2], self))
+		}
+	}
+	return p.eval(a)
+}
+
 func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if prim, ok := p.tgt.Prims[t.Op().Name]; ok && prim.Kind == "cond" && len(t.Args()) == 3 {
@@ -1218,9 +1246,22 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 		if t.Op().Name == "again" {
 			args := t.Args()
 			for i, a := range args {
-				if i < len(acc) {
-					acc[i] = joinI(acc[i], p.eval(a))
+				if i >= len(acc) {
+					continue
 				}
+				// A RUNNING EXTREMUM contributes its UPDATE SET, not its whole
+				// value. `mx = max(mx, sp+1)` has `mx` in one branch, so
+				// evaluating the argument whole gives back `cur[mx]` and the
+				// bound can never shrink — widening sends it to infinity and
+				// narrowing cannot take it back. The reachable set is
+				// `{z} ∪ U`, and `acc` already starts at `z`, so the
+				// pass-through adds nothing (monotone.go, the reachable-set
+				// theorem).
+				if i < len(raw) && selfContained(p.tgt, a, raw[i]) {
+					acc[i] = joinI(acc[i], p.updateIval(a, raw[i]))
+					continue
+				}
+				acc[i] = joinI(acc[i], p.eval(a))
 			}
 			if p.scOn {
 				for j := range p.scRaw {

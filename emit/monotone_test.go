@@ -117,3 +117,79 @@ func TestAtLeastIsTheRelationAndNothingMore(t *testing.T) {
 		}
 	}
 }
+
+// RUNNING EXTREMUM — monotone.go, monotone-2026-08-27 §5.
+//
+// `mx = max(mx, sp+1)` hands the variable back in one branch, so the fixpoint's
+// `next` always contains `cur` and the bound can never shrink. The theorem says
+// the reachable set is {z} ∪ U, so the pass-through contributes nothing and no
+// widening is needed.
+func TestSelfContained(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, src string
+		want      bool
+	}{
+		{"a running maximum", "(if (go.> (go.+ sp 1) mx) (go.+ sp 1) mx)", true},
+		{"the pass-through alone", "mx", true},
+		{"a self-free expression", "(go.+ sp 1)", true},
+		{"a literal", "7", true},
+		{"nested conditionals", "(if a mx (if b (go.+ sp 1) mx))", true},
+
+		// The CONDITION may mention the variable freely: it produces no value.
+		{"a condition mentioning it", "(if (go.> mx 3) sp mx)", true},
+
+		// And what it must refuse. `(+ mx 1)` is a genuine accumulator: the
+		// reachable set is not closed after one step and the fixpoint is right
+		// to widen it.
+		{"an accumulator", "(if c (go.+ mx 1) mx)", false},
+		{"an accumulator, bare", "(go.+ mx 1)", false},
+		{"a branch computing from it", "(if c (go.* mx 2) mx)", false},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got := selfContained(tg, forms[0].Term, "mx"); got != c.want {
+			t.Errorf("%s: selfContained(%s) = %v, want %v", c.name, c.src, got, c.want)
+		}
+	}
+}
+
+// The whole point, end to end: a running maximum over a guarded variable is
+// bounded, where before it widened to infinity.
+func TestRunningMaximumIsBounded(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(use go)
+(def run (fn (n)
+  (loop ((i 0) (sp 0) (mx 0))
+    (go.>= sp 32)  mx
+    (go.>= i 100)  mx
+    else           (again (go.+ i 1)
+                          (if (go.> (go.+ sp 1) 4) 0 (go.+ sp 1))
+                          (if (go.> (go.+ sp 1) mx) (go.+ sp 1) mx)))))`
+	forms, _ := core.Read(src)
+	prog, _, err := core.LoadWith(forms, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, _ := tg.Env(prog)
+	nf, err := core.Normalize(prog.Defs["run"], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep, _ := Intervals(tg, nil, nf, 0)
+	if rep.Ops != rep.Proven {
+		t.Errorf("a running maximum over a guarded variable must be bounded: "+
+			"%d of %d operations proven", rep.Proven, rep.Ops)
+	}
+	if !rep.FitsIndex() {
+		t.Errorf("and its range must fit an index: %s", rep.MaxOpRange())
+	}
+}

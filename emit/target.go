@@ -1665,6 +1665,14 @@ func fitsIndexSource(tgt *Target, t *core.Term, raw []string) bool {
 		if !known {
 			return false // a table read, whose element range this pass has not got
 		}
+		// AN INLINED LOOP fits when every value it can produce fits, which is
+		// every one of its EXITS. Without this an inner loop narrows while the
+		// outer one does not, and the inner's initial value — computed from the
+		// outer's variable — is a `long` assigned to an `int`. javac catches it;
+		// nothing else would (monotone-2026-08-27 §7).
+		if p.Kind == "iterate" {
+			return loopExitsFit(tgt, t, raw)
+		}
 		if p.Kind == "cond" && len(t.Args()) == 3 {
 			return fitsIndexSource(tgt, t.Args()[1], raw) &&
 				fitsIndexSource(tgt, t.Args()[2], raw)

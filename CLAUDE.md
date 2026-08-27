@@ -283,7 +283,7 @@ being refused for no reason.
 [examples/json/tree.oro](examples/json/tree.oro). A flat node table, stride 4, tag/val/kid/sib, with
 **node 0 as the `none` sentinel holding the header** — parsed, linked, and then **WALKED**, because
 building a tree and never traversing it would prove nothing. Four documents, answers computed by
-hand before running and reproduced exactly, on Go/JS/Java in the suite and on x86 by hand. 107 lines
+hand before running and reproduced exactly, on Go/JS/Java in the suite and on x86 by hand. 112 lines
 of code, no new term kind, no new rule, no new primitive, no target declares anything. **`build`
 zero-fills, so 0 is `none` and `kid`/`sib` never need initialising** — a guarantee four targets kept
 by four unrelated mechanisms with **nothing specifying it**, which is `split-words`'s shape exactly;
@@ -312,7 +312,7 @@ discharges the index obligations and bounds the arithmetic.
 **So the superseding ADR general-purpose.md called owed is NOT owed on the grounds it gave** — that
 argument was *"a JSON parser, a DOM walk and a recursive-descent parser all recurse"*, and two of
 the three now run without recursion. **What is unsettled is ERGONOMICS**, which is a different
-argument and has not been made with a measurement: 107 lines against maybe 60 with recursion, and
+argument and has not been made with a measurement: 112 lines against maybe 60 with recursion, and
 three constructs here — the clamps, the trip bound, the last-child slot — exist because of what the
 language refuses. Two things that ARE settled: **two live buffers work** (a `build` inside a
 `build`, both threaded through one loop, linearity and termination intact), and **a buffer can

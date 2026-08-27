@@ -1,6 +1,6 @@
 ; The first Oroboros program that produces a binary.
 ;
-;   build -target=go -o hello examples/hello.oro
+;   go run ./cmd/build -target=go -o hello examples/hello.oro
 ;
 ; The entry point is an export named `main` taking no arguments — build.md §2.
 ; Its body may be impure because the λ makes it a VALUE, which is what ADR 0010
@@ -9,15 +9,16 @@
 ;
 ; Note what is NOT here: no runtime, no prelude, no support library. The emitted
 ; Go is a `package main` with one function, and the binary is whatever `go build`
-; makes of it.
+; makes of it. `twice` does not survive — reduction inlines it, so the emitted
+; code prints a literal.
 
-(use io)
-(use num/int)
+(use go)
+(use go/fmt)
 
 (export main)
 
 (def main (fn ()
-  (seq (io.print-line "hello from oroboros")
-       (io.print-line (twice 21)))))
+  (seq (fmt.Println "hello from oroboros")
+       (fmt.Println (twice 21)))))
 
-(def twice (fn (n) (int.add n n)))
+(def twice (fn (n) (go.+ n n)))

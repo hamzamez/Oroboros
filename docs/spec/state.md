@@ -35,7 +35,7 @@ are module bookkeeping; all but `def` are erased before reduction ([modules.md](
 
 ```
 (def name term)
-(sig name ((param type)…) result [(where pred)])
+(sig name ((param type)…) result [(where pred)] [(ensures pred)])
 (sum name (variant type)… )
 (module path)  (use path [as alias])  (export name…)
 ```

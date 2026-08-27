@@ -72,6 +72,44 @@ parsed, so it may be anything the host accepts — `map[string]int`, `HashMap<St
 spelling (`any` on Go, `Object` on Java) and the emitter uses that only when nothing else ever
 constrains the name.
 
+## 2b. `array-type` and `int-repr` — how the target stores a table
+
+```lisp
+(array-type "[]%s")          ; Go;  "%s[]" on Java
+(int-repr 0 255      "byte") ; narrowest first
+(int-repr -128 127   "int8")
+(int-repr 0 65535    "uint16")
+```
+
+`array-type` resolves `(array V)` through **one** declaration instead of an entry per element type.
+That enumeration is what [tables.md §10](tables.md) called the suffix explosion: Go had declared
+seven `slice-*` types and the four targets together fifty-four names, because the type language had
+no constructor.
+
+`int-repr` is how a **range** picks a representation, which is
+[ADR 0003](../decisions/0003-range-typed-integers.md)'s *"the compiler selects the representation
+that fits"* moved out of Go and into the target file. The rule is four lines: **the narrowest
+declared representation that CONTAINS the range wins**, searched in declaration order.
+
+Three things a target author should know.
+
+**Signedness is not a concept here and does not need to be.** A host that cannot hold `0..255` in
+its byte — the JVM, whose `byte` is `-128..127` — simply does not declare that range for it, and
+the range selects `short` instead. The declaration says what the host CAN hold and nothing else.
+
+**Declaring none is a legitimate answer.** Then every integer is stored the one way the target
+already does. That is correct for JavaScript, which has no integers, and it is a measured choice
+rather than an omission: a plain packed `Array` is
+[1.15× faster than a `Uint8Array`](../../gauntlet/results/jsontok-2026-08-26.md) on V8.
+
+**The width is read off the declared range, not off the spelling.** A target that says it can hold
+`-128..127` has said one byte, whatever it calls it — which is how `targets/windows/` gets byte
+elements from `(int-repr 0 255 "db")` without the emitter knowing what a `db` is.
+
+A range never narrows a **local**: `(a i)` is an integer wherever it is used, and only a table's
+element slot consults the width. See
+[elemwidth-2026-08-27](../../gauntlet/results/elemwidth-2026-08-27.md).
+
 ## 3. `prim` — expression and statement primitives
 
 These are **pure data**: an arity, types, a template, and attributes.
@@ -179,6 +217,35 @@ the same module, so it is qualified like any other.
 intrinsic, x86 has a flag and one instruction, Go has neither and uses a func literal called
 immediately, and JavaScript declares nothing at all — so a program needing exact arithmetic is
 simply not portable there, and covering says so.
+
+### `where` and `ensures` — what a call requires and guarantees
+
+```lisp
+(prim /  ((a int) (b int)) int expr "%s / %s" pure (where (!= b 0)))
+(prim size ((v any)) int expr "size(%s)" pure (ensures (<= 0 result)))
+```
+
+`where` is a **precondition**, discharged at every call site
+([refinements.md](refinements.md)). `ensures` is a **postcondition** over the parameter names and
+`result`, and it is **assumed** at every call site whose precondition was discharged
+([postconditions.md](postconditions.md)).
+
+A primitive is the one place a postcondition cannot be derived, because it has no body — which is
+why it belongs here and is redundant on an internal definition, where reduction inlines the call and
+the analysis sees the body with the caller's own values.
+
+Two things a target author should know, and both are soundness rather than style.
+
+**A guarantee needs its requirement.** A contract is `P ⟹ Q`, so `ensures` is licensed only where
+`where` was *proven* — not merely not refused. An obligation outside the decidable fragment is
+reported as *propagated, not proven*, and that does not license the guarantee.
+
+**It attaches to the name the result takes.** Two occurrences of an impure call denote different
+values, so the anchor is the binder — which
+[ADR 0010](../decisions/0010-effects-as-structural-rules.md) guarantees exists, since an impure
+argument is never substituted. For a **pure** primitive there is usually no binder, so `ensures`
+carries as an opaque atom and discharges only by syntactic match; that limit is stated in
+[postconditions.md §5](postconditions.md).
 
 ### `data` — storage the target owns
 

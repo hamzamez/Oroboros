@@ -32,11 +32,17 @@ backends in the cloud. The four targets were application platforms all along —
 ## Where this actually stands
 
 A working compiler: a β/δ reducer with call-by-need and an effect discipline, **four backends**,
-and **all seven gauntlet programs at parity with hand-written code on Go, JavaScript and Java** —
-two of them producing byte-identical machine code on Go.
+and **the gauntlet at parity with hand-written code on Go, JavaScript and Java** — two programs
+producing byte-identical machine code on Go, and one miss: Java's tokeniser at 1.16×, with the cause
+isolated rather than argued away.
 
 The language's own data structure — a **table**, which is a function with a known finite domain —
 works on all four targets, and on x86 the portable sieve is **0.88×** of hand-written assembly.
+
+A **JSON parser** — tokeniser and tree — runs on all four targets **without recursion**, which is
+the standing claim that recursive data is a flat table plus indices, put to work rather than
+argued ([tokeniser](gauntlet/results/json-2026-08-26.md),
+[tree](gauntlet/results/json-tree-2026-08-26.md)).
 
 | | |
 |---|---|
@@ -46,13 +52,15 @@ works on all four targets, and on x86 the portable sieve is **0.88×** of hand-w
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 58 programs |
-| `gauntlet/` | hand-written references and 38 recorded measurements — **the bar** |
+| `examples/` | 60 programs |
+| `gauntlet/` | hand-written references and 46 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 10 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
-go run ./cmd/oro   -target=go examples/dot.oro          # reduce to normal form
-go run ./cmd/build -target=portable-go -o hello examples/hello.oro
+go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
+go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
+cd gauntlet/differential && go run run.go                  # 10 programs x 4 targets
 ```
 
 ### The whole language
@@ -69,8 +77,8 @@ Everything else is sugar that erases before reduction: `let`, `seq`, `and`/`or`/
 generates ordinary `def`s, so the reducer, the module system and every backend are unchanged by it.
 And **indexing has no word at all**: `(a i)` is an application, because a table *is* a function.
 
-Every word an `.oro` file can contain is audited in [inventory.md](docs/spec/inventory.md) — 62 of
-them, 57 specified, taken from the code rather than from memory.
+Every word an `.oro` file can contain is audited in [inventory.md](docs/spec/inventory.md) — 65 of
+them, 60 specified, taken from the code rather than from memory.
 
 The rule count was **3** until sums landed on 2026-08-22 and it went up honestly rather than by
 relabelling: `=` now folds on two integer literals, and an eliminator is pushed through `if` and
@@ -97,9 +105,29 @@ runs are on the **native** targets — [Go](gauntlet/results/native-gauntlet-202
 | generics | 0.98× | 0.98× | 1.00× |
 | formatted output | correct — its pass condition is not a number | correct | correct |
 | stencil (aliasing) | 0.93× allocating / 0.999× reusing | 0.94× / 0.97× | 0.99× / 1.00× |
+| **JSON tokeniser** | **0.99×** | **1.02×** | **1.16×** |
 
-All but one are inside the ~15% noise floor, which is the claim: **at parity, not faster**. The
-exception is JavaScript's early-exit search — 7.5 ns against 6.2 ns on a single call returning at
+Programs 1–6 are all the same shape — countable loops over arrays, which every host optimises best
+and which the emitter had been tuned against for five months. **Program 7 is a tokeniser**, added
+because parity on *branchy* code had never been measured
+([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)): a data-dependent switch per byte,
+unpredictable branches, and scanners whose trip count the input decides. Go and JavaScript hold.
+
+**Java's 1.16× is the one place the bar is missed, and it has been taken apart rather than argued
+away.** It looked like one cost and was three, each isolated by hand-writing the same program in the
+shape we emit:
+
+| | |
+|---|---|
+| the **element type** — our `int` is 64-bit, so a byte array was `long[]` | fixed: a declared range now picks `short[]` |
+| the **index type** — a Java array index is 32-bit, so every access carried an `(int)` cast | fixed: the interval analysis narrows the counter, casts went 50 → 5 |
+| what is left | **code generation plus the refinement layer's guards** — a different question, and the first time it has been the residue |
+
+The first two are gone and the time barely moved, which is the finding: they were two costs that
+looked like one because they had only ever been measured together.
+
+All but two are inside the ~15% noise floor, which is the claim: **at parity, not faster**. The
+first exception is JavaScript's early-exit search — 7.5 ns against 6.2 ns on a single call returning at
 index 6, so the 1.3 ns gap is call overhead at the timer's resolution floor. It is recorded as a
 loss rather than argued away.
 
@@ -247,6 +275,65 @@ express a *scatter*, so the sieve, in-place sorting, histograms, union-find and 
 programming were inexpressible portably **at any speed** — which is what decided ADR 0018, and it
 was expressiveness rather than the 2.7×. It runs on all four targets and on x86 it is
 [0.88× of hand-written assembly](gauntlet/results/wintables-2026-08-25.md).
+
+### A JSON parser, with no recursion
+
+The claim that **recursive data is a flat table plus indices** had been repeated for months. This is
+it run. `examples/json/tokenize.oro` nests to a depth the *input* decides, using `loop`, `again` and
+a stack in a `build` buffer — 57 lines of code, no new term kind, no new reduction rule, no new
+primitive, and no target declares anything for it:
+
+```lisp
+(def tokens (fn (src)
+  (build (cap) (fn (stk)
+    (loop ((stk stk) (i 0) (nt 0) (sp 0) (mx 0) (ok 1))
+
+      (go.< i 0)  0
+
+      (go.>= i (len src))
+        (go.+ (go.* nt 1000) (go.+ (go.* mx 10) (if (= sp 0) ok 0)))
+
+      (go.>= sp (cap))  (go.* nt 1000)
+
+      (space? (src i))   (again stk (go.+ i 1) nt sp mx ok)
+
+      (opener? (src i))
+        (again (set stk sp (if (= (src i) 123) 125 93))
+               (go.+ i 1) (go.+ nt 1) (go.+ sp 1)
+               (if (go.> (go.+ sp 1) mx) (go.+ sp 1) mx) ok)
+
+      (closer? (src i))
+        (again stk (go.+ i 1) (go.+ nt 1)
+               (if (go.< sp 1) 0 (go.- sp 1)) mx
+               (if (go.< sp 1) 0
+                   (if (= (stk (if (go.< sp 1) 0 (go.- sp 1))) (src i)) ok 0)))
+
+      (punct? (src i))   (again stk (go.+ i 1) (go.+ nt 1) sp mx ok)
+      (= (src i) 34)     (again stk (scan-string src i) (go.+ nt 1) sp mx ok)
+      (numeric? (src i)) (again stk (scan-run src (go.+ i 1) numeric?) (go.+ nt 1) sp mx ok)
+      (alpha? (src i))   (again stk (scan-run src (go.+ i 1) alpha?) (go.+ nt 1) sp mx ok)
+
+      else (again stk (go.+ i 1) nt sp mx 0))))))
+```
+
+Three clauses there exist because the **compiler demanded them**, and the third is the result.
+`(set stk sp …)` carries `sp < cap` as an obligation that nothing in the program can discharge —
+`sp` grows with the input — so the program has to answer *"what happens when the nesting is deeper
+than the stack"*:
+
+```lisp
+(go.>= sp (cap))  (go.* nt 1000)
+```
+
+**A recursive-descent parser has exactly the same limit — the C stack — and is never asked.** The
+explicit stack does not create the limit; it makes it visible. That is the best argument for
+[ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) found so far, and it is not a
+performance argument.
+
+The other two are the interval analysis being non-relational, and they cost one compare each. The
+[tree](examples/json/tree.oro) is the other half — a flat node table, stride 4, `tag`/`val`/`kid`/`sib`,
+with node 0 as the `none` sentinel holding the header, parsed and then **walked**, because building a
+tree and never traversing it would prove nothing.
 
 ### And the same idea, twice more
 
@@ -476,9 +563,76 @@ depending on shape, and the isolated microbenchmark was wrong in *both* directio
 at any speed. It cost almost nothing, because every mechanism it needs already existed
 ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)).
 
+**"Recursive data is a flat table plus indices" is a GO fact.** The same program on three hosts:
+flat beats recursive descent **2.52× on Go**, **1.22× on JavaScript**, and **loses 1.24× on the
+JVM** — which bump-allocates in a TLAB, pays only for survivors when every node dies, and
+scalar-replaces what does not escape. A claim this repository had been repeating as a principle was
+a measurement on one host ([json-tree-bench-2026-08-26](gauntlet/results/json-tree-bench-2026-08-26.md)).
+
+**Clamping an index cost 1.35×, so the compiler learned to prove instead.** A clamp is not a branch
+— it is a data dependency in the address computation. The reason every index was clamped turned out
+to be a *missing inference*, not a missing fact: the decision procedure matched a fact to a goal by
+requiring identical coefficients, so `sp ≥ 1` could not discharge `2·sp − 1 ≥ 0`. **One Farkas
+multiplier** fixed it, and a **stride** is exactly the shape it had been missing — no program here
+had one until a node table.
+
 **Compile-time materialisation into static data is not a win.** Free on x86 and Go, a pure loss on
 Java and JavaScript (3.5× slower to load, 2,600× larger source) —
 [staticdata-2026-08-20](gauntlet/results/staticdata-2026-08-20.md).
+
+## What the compiler proves, and what it refuses to
+
+Types are not in the language, but four analyses run on the residual — where reduction has already
+made the term monomorphic, first-order and closed — and every one of them **reports rather than
+assumes** when it cannot decide.
+
+A **range is a type**. `(sig tokens ((src (array (int 0 255)))) int)` says what a source byte *is*;
+each target says how wide it stores one, declared as data:
+
+| | Go | Java | JavaScript |
+|---|---|---|---|
+| `(array (int 0 255))` | `[]byte` | **`short[]`** | plain `Array` |
+
+Java picks `short[]` because the JVM's `byte` is **signed**, so `0..255` does not fit it — and
+nothing in the compiler special-cases that. The target declares what it can hold and the range picks
+([elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md)). A `build` buffer's range is
+*inferred* rather than declared, because [ADR 0003](docs/decisions/0003-range-typed-integers.md) says
+ranges are declared at boundaries and inferred for locals.
+
+Two small theorems close the JSON tokeniser completely — **100% of its integer operations proven
+inside the portable window, every loop proven to terminate**:
+
+- **Loop monotonicity.** If every `again` gives a position a value no smaller than its current one,
+  and every exit is no smaller either, then the loop's value is at least its initial value. So a
+  scanner returns *more than it was given* — the fact five earlier results all terminated at, and it
+  is **derived rather than declared**, because a postcondition on an internal definition is
+  redundant once reduction inlines the call.
+- **The running extremum.** `mx = max(mx, e)` hands the variable back in one branch, so the fixpoint
+  could never shrink it. But the reachable set is `{z} ∪ U` — closed after one step — so the bound is
+  exact and needs no widening at all.
+
+Both are proved by induction in [monotone.go](emit/monotone.go), and each proof step is a test:
+`(loop ((j i)) (go.>= j 10) 0 else (again (go.+ j 1)))` increases at every step and returns **0**,
+which is why the exit half of the theorem is not optional.
+
+**Postconditions are the dual of preconditions, and the algebra is a swap.** One syntax, three
+meanings each, and every row exchanges the two roles
+([postconditions.md](docs/spec/postconditions.md)):
+
+| on | `where` | `ensures` |
+|---|---|---|
+| a `prim` | obligation, discharged at each call | assumption, granted where the obligation was **proven** |
+| an **exported** definition | assumption — the caller is outside | obligation, checked against the body |
+| an **internal** definition | dropped — inlining is stronger | redundant — inlining is stronger |
+
+Both vanish on the third for the same reason: reduction removes the boundary.
+
+**And ten programs are built and run on all four targets**, outputs required byte-identical *and*
+required to be the right answer — because four backends can agree and all be wrong, and the one bug
+a purely differential test cannot see is a bug in the reader or the reducer, which they share. It
+has caught silent wrong answers twice in a week, including `for (;; a, b = x, y)` — simultaneous
+assignment on Go, a **syntax error** on Java, and the **comma operator** on JavaScript
+([differential-2026-08-26](gauntlet/results/differential-2026-08-26.md)).
 
 ## What is open
 
@@ -494,13 +648,32 @@ The honest list, with the reasoning written down rather than deferred to memory:
   the Win32 work rather than ahead of it
   ([refinements.md §6b](docs/spec/refinements.md),
   [differential-2026-08-26](gauntlet/results/differential-2026-08-26.md)).
-- **Recursion** moved from *deferred* to **owed** — a JSON parser, a DOM walk and a
-  recursive-descent parser all recurse to a depth the input decides, so
-  [ADR 0014](docs/decisions/0014-recursion-is-not-in-the-language.md) needs a superseding ADR
-  ([general-purpose.md](docs/general-purpose.md)). The standing counter-claim is that **recursive
-  data is a flat table plus indices**, measured 2.02× faster on irregular access — and now that
-  tables exist, a JSON parser written that way is the experiment that settles it.
-- **Strings**, **growable collections**, **maps** in the portable language
+- **Recursion.** [general-purpose.md](docs/general-purpose.md) moved it from *deferred* to **owed**,
+  arguing that a JSON parser, a DOM walk and a recursive-descent parser all recurse to a depth the
+  input decides. **Two of those three now run here without recursion** — the tokeniser is the parser
+  and the tree walk is the DOM walk — so the superseding ADR is not owed *on the grounds it gave*.
+  What is genuinely unsettled is **ergonomics**, which is a different argument and has not been made
+  with a measurement: 112 lines against maybe 60, and three constructs in that program exist because
+  of what the language refuses. And the *performance* half of the counter-claim is now known to be
+  host-specific (see above), so ADR 0014 rests on portability — stack depth differs by orders of
+  magnitude across the four hosts and none guarantees tail calls.
+- **Strings**, **growable collections**, **maps** in the portable language. Two of these now have a
+  number attached rather than only a name: a string-based tokeniser is **1.89× slower than an
+  array-based one on V8**, so a JSON API handed a string should convert once rather than index it
+  ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)); and a `build` needs its length up
+  front, so `examples/json/tree.oro` sizes its node table for the largest document it will *accept*
+  rather than the one it gets — which is exactly what
+  [tables.md §14.3](docs/spec/tables.md)'s growable form is for, and it said it was waiting for a
+  real program.
+- **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
+  two costs that looked like one because they were measured together; both are now matched to the
+  hand-written reference, casts went from 50 to 5, and what remains is code generation plus the
+  refinement layer's guards.
+- **Octagons.** The interval domain is non-relational and every interesting obligation is
+  relational. `examples/json/tree.oro` sits at 91.3% with a residue that is not a running extremum
+  but values read *out of the node table*, which nothing bounds — the honest limit of a
+  non-relational domain, and where octagons would be asked next
+  ([decidability-map.md](docs/decidability-map.md) calls them the highest-value move available).
 - **The type system reasoning about the target** — expressing a Win32 contract so a program can be
   checked in Oroboros; SAL is the field-tested answer and five of the eight requirements exist
 - **The niche encoding** for sums, `try` as bind, and **`match` on a sum** — which would remove one
@@ -526,7 +699,8 @@ Design questions still open are listed in §8 of
 5. [docs/spec/inventory.md](docs/spec/inventory.md) — every word an `.oro` file can contain, and
    which of them are specified
 6. The ADRs in [docs/decisions/](docs/decisions/)
-7. [gauntlet/results/](gauntlet/results/) — the authority
+7. [gauntlet/results/](gauntlet/results/) — 46 measurements, and **the authority**: every design
+   claim here that was not measured has been wrong about half the time
 
 ## Name
 

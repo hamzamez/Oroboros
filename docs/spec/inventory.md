@@ -9,7 +9,7 @@ rather than from memory.
 > part. The language has roughly doubled since: tables, sums, `match`, several results, and the
 > write side of the memory model.
 >
-> **Result: of 62 words, 57 are specified.** Four are described only in code comments and one is
+> **Result: of 65 words, 60 are specified.** Four are described only in code comments and one is
 > genuinely undocumented (§6). **None is wrong**, which is the first time that has been true — the
 > previous audit found four outright errors.
 
@@ -45,6 +45,9 @@ target files and nowhere else ([state.md §2](state.md)).
 | `case` | ✅ sugar, expanded in `Load` | [sums.md](sums.md) |
 | `loop`, `again`, `else` | ✅ | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
 | `where` | ✅ | [refinements.md](refinements.md) |
+| `ensures` | ✅ | [postconditions.md](postconditions.md), [target-files.md §3](target-files.md) |
+| `array-type` | ✅ | [target-files.md §2b](target-files.md) |
+| `int-repr` | ✅ | [target-files.md §2b](target-files.md), [elemwidth-2026-08-27](../../gauntlet/results/elemwidth-2026-08-27.md) |
 | `true`, `false` | ✅ literals of the language | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) |
 
 **None of the sugar survives the reader**, except `case`, which needs a sum declared in another

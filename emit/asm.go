@@ -2001,7 +2001,7 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	// for. wintables-2026-08-25 measured 3x for getting this wrong on a
 	// boolean sieve.
 	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
-	width := BufferElemBytes(e.tgt, body, raw[0])
+	width := BufferElemBytes(e.tgt, args[1], body, raw[0])
 	buf, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
@@ -2148,7 +2148,7 @@ func (e *asmEmitter) elemOf(t *core.Term) int {
 			if len(t.Args()) == 2 && t.Args()[1].Kind == core.KFn &&
 				len(t.Args()[1].Params) == 1 {
 				lam := t.Args()[1]
-				return BufferElemBytes(e.tgt, lam.Closed(), lam.Params[0])
+				return BufferElemBytes(e.tgt, lam, lam.Closed(), lam.Params[0])
 			}
 		case "table-alloc":
 			if len(t.Args()) == 1 && isTableRule(e.tgt, t.Args()[0]) {

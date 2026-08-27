@@ -2,37 +2,37 @@
 
 public final class GenJsonTree {
 	public static long GenMeasure(long[] src) {
-		final long[] nodes = new long[(int) (4 * 512)];
-		final long[] stk = new long[(int) (2 * 32)];
-		long[] nodes2 = nodes;
-		long[] stk2 = stk;
+		final short[] nodes = new short[(int) (4 * 512)];
+		final short[] stk = new short[(int) (2 * 32)];
+		short[] nodes2 = nodes;
+		short[] stk2 = stk;
 		long i = 0;
 		long nn = 1;
 		long sp = 0;
 		long ok = 1;
-		long[] r1 = null;
+		short[] r1 = null;
 		for (;;) {
 			if ((i < 0)) {
-				nodes2[(int) 0] = nn;
-				nodes2[(int) 1] = 0;
+				nodes2[(int) 0] = (short) nn;
+				nodes2[(int) 1] = (short) 0;
 				r1 = nodes2;
 				break;
 			}
 			if ((i >= src.length)) {
-				nodes2[(int) 0] = nn;
-				nodes2[(int) 1] = ((sp == 0) ? ok : 0);
+				nodes2[(int) 0] = (short) nn;
+				nodes2[(int) 1] = (short) ((sp == 0) ? ok : 0);
 				r1 = nodes2;
 				break;
 			}
 			if ((nn >= 512)) {
-				nodes2[(int) 0] = nn;
-				nodes2[(int) 1] = 0;
+				nodes2[(int) 0] = (short) nn;
+				nodes2[(int) 1] = (short) 0;
 				r1 = nodes2;
 				break;
 			}
 			if ((sp >= 32)) {
-				nodes2[(int) 0] = nn;
-				nodes2[(int) 1] = 0;
+				nodes2[(int) 0] = (short) nn;
+				nodes2[(int) 1] = (short) 0;
 				r1 = nodes2;
 				break;
 			}
@@ -48,35 +48,35 @@ public final class GenJsonTree {
 			}
 			final long c3 = src[(int) i];
 			if (((c3 == 123) || (c3 == 91))) {
-				nodes2[(int) ((4 * nn) + 0)] = ((src[(int) i] == 123) ? 5 : 4);
-				nodes2[(int) ((4 * nn) + 1)] = 0;
-				final long[] nodes3 = nodes2;
-				long[] t3;
+				nodes2[(int) ((4 * nn) + 0)] = (short) ((src[(int) i] == 123) ? 5 : 4);
+				nodes2[(int) ((4 * nn) + 1)] = (short) 0;
+				final short[] nodes3 = nodes2;
+				short[] t3;
 				if ((sp < 1)) {
 					t3 = nodes3;
 				} else {
-					final long lc2 = stk2[(int) ((2 * (sp - 1)) + 1)];
-					long[] t4;
+					final short lc2 = stk2[(int) ((2 * (sp - 1)) + 1)];
+					short[] t4;
 					if ((lc2 == 0)) {
-						final long k4 = stk2[(int) ((2 * (sp - 1)) + 0)];
-						nodes3[(int) ((4 * ((k4 < 0) ? 0 : ((k4 >= 512) ? 0 : k4))) + 2)] = nn;
+						final short k4 = stk2[(int) ((2 * (sp - 1)) + 0)];
+						nodes3[(int) ((4 * ((k4 < 0) ? 0 : ((k4 >= 512) ? 0 : k4))) + 2)] = (short) nn;
 						t4 = nodes3;
 					} else {
-						nodes3[(int) ((4 * ((lc2 < 0) ? 0 : ((lc2 >= 512) ? 0 : lc2))) + 3)] = nn;
+						nodes3[(int) ((4 * ((lc2 < 0) ? 0 : ((lc2 >= 512) ? 0 : lc2))) + 3)] = (short) nn;
 						t4 = nodes3;
 					}
 					t3 = t4;
 				}
-				long[] t5;
+				short[] t5;
 				if ((sp < 1)) {
 					t5 = stk2;
 				} else {
-					stk2[(int) ((2 * (sp - 1)) + 1)] = nn;
+					stk2[(int) ((2 * (sp - 1)) + 1)] = (short) nn;
 					t5 = stk2;
 				}
-				final long[] stk3 = t5;
-				stk3[(int) ((2 * sp) + 0)] = nn;
-				stk3[(int) ((2 * sp) + 1)] = 0;
+				final short[] stk3 = t5;
+				stk3[(int) ((2 * sp) + 0)] = (short) nn;
+				stk3[(int) ((2 * sp) + 1)] = (short) 0;
 				final var u6 = t3;
 				final var u7 = stk3;
 				final var u8 = (i + 1);
@@ -95,7 +95,7 @@ public final class GenJsonTree {
 				if ((sp < 1)) {
 					t11 = 0;
 				} else {
-					final long k6 = stk2[(int) ((2 * (sp - 1)) + 0)];
+					final short k6 = stk2[(int) ((2 * (sp - 1)) + 0)];
 					t11 = ((nodes2[(int) ((4 * ((k6 < 0) ? 0 : ((k6 >= 512) ? 0 : k6))) + 0)] == ((src[(int) i] == 125) ? 5 : 4)) ? ok : 0);
 				}
 				final var u12 = (i + 1);
@@ -179,30 +179,30 @@ public final class GenJsonTree {
 					final long c17 = src[(int) i];
 					t20 = ((((c17 >= 48) && (c17 <= 57)) || ((c17 == 45) || ((c17 == 43) || ((c17 == 46) || ((c17 == 101) || (c17 == 69)))))) ? 1 : 3);
 				}
-				nodes2[(int) ((4 * nn) + 0)] = t20;
-				nodes2[(int) ((4 * nn) + 1)] = (ni - i);
-				final long[] nodes4 = nodes2;
-				long[] t22;
+				nodes2[(int) ((4 * nn) + 0)] = (short) t20;
+				nodes2[(int) ((4 * nn) + 1)] = (short) (ni - i);
+				final short[] nodes4 = nodes2;
+				short[] t22;
 				if ((sp < 1)) {
 					t22 = nodes4;
 				} else {
-					final long lc4 = stk2[(int) ((2 * (sp - 1)) + 1)];
-					long[] t23;
+					final short lc4 = stk2[(int) ((2 * (sp - 1)) + 1)];
+					short[] t23;
 					if ((lc4 == 0)) {
-						final long k10 = stk2[(int) ((2 * (sp - 1)) + 0)];
-						nodes4[(int) ((4 * ((k10 < 0) ? 0 : ((k10 >= 512) ? 0 : k10))) + 2)] = nn;
+						final short k10 = stk2[(int) ((2 * (sp - 1)) + 0)];
+						nodes4[(int) ((4 * ((k10 < 0) ? 0 : ((k10 >= 512) ? 0 : k10))) + 2)] = (short) nn;
 						t23 = nodes4;
 					} else {
-						nodes4[(int) ((4 * ((lc4 < 0) ? 0 : ((lc4 >= 512) ? 0 : lc4))) + 3)] = nn;
+						nodes4[(int) ((4 * ((lc4 < 0) ? 0 : ((lc4 >= 512) ? 0 : lc4))) + 3)] = (short) nn;
 						t23 = nodes4;
 					}
 					t22 = t23;
 				}
-				long[] t24;
+				short[] t24;
 				if ((sp < 1)) {
 					t24 = stk2;
 				} else {
-					stk2[(int) ((2 * (sp - 1)) + 1)] = nn;
+					stk2[(int) ((2 * (sp - 1)) + 1)] = (short) nn;
 					t24 = stk2;
 				}
 				final var u25 = t22;
@@ -219,7 +219,7 @@ public final class GenJsonTree {
 			ok = 0;
 			continue;
 		}
-		final long[] nodes5 = r1;
+		final short[] nodes5 = r1;
 		final long[] wl = new long[(int) (2 * 512)];
 		wl[(int) 0] = 1;
 		wl[(int) 1] = 1;
@@ -244,8 +244,8 @@ public final class GenJsonTree {
 			}
 			final long n = wl2[(int) ((2 * (sp2 - 1)) + 0)];
 			final long d = wl2[(int) ((2 * (sp2 - 1)) + 1)];
-			final long sb = nodes5[(int) ((4 * ((n < 0) ? 0 : ((n >= 512) ? 0 : n))) + 3)];
-			final long kd = nodes5[(int) ((4 * ((n < 0) ? 0 : ((n >= 512) ? 0 : n))) + 2)];
+			final short sb = nodes5[(int) ((4 * ((n < 0) ? 0 : ((n >= 512) ? 0 : n))) + 3)];
+			final short kd = nodes5[(int) ((4 * ((n < 0) ? 0 : ((n >= 512) ? 0 : n))) + 2)];
 			final long s1 = (sp2 - 1);
 			long[] t30;
 			if ((sb == 0)) {
@@ -278,37 +278,37 @@ public final class GenJsonTree {
 		long t345;
 		if ((k == 0)) {
 			final long[] src12 = new long[]{91, 49, 44, 50, 93};
-			final long[] nodes56 = new long[(int) (4 * 512)];
-			final long[] stk34 = new long[(int) (2 * 32)];
-			long[] nodes57 = nodes56;
-			long[] stk35 = stk34;
+			final short[] nodes56 = new short[(int) (4 * 512)];
+			final short[] stk34 = new short[(int) (2 * 32)];
+			short[] nodes57 = nodes56;
+			short[] stk35 = stk34;
 			long i12 = 0;
 			long nn12 = 1;
 			long sp23 = 0;
 			long ok12 = 1;
-			long[] r346 = null;
+			short[] r346 = null;
 			for (;;) {
 				if ((i12 < 0)) {
-					nodes57[(int) 0] = nn12;
-					nodes57[(int) 1] = 0;
+					nodes57[(int) 0] = (short) nn12;
+					nodes57[(int) 1] = (short) 0;
 					r346 = nodes57;
 					break;
 				}
 				if ((i12 >= src12.length)) {
-					nodes57[(int) 0] = nn12;
-					nodes57[(int) 1] = ((sp23 == 0) ? ok12 : 0);
+					nodes57[(int) 0] = (short) nn12;
+					nodes57[(int) 1] = (short) ((sp23 == 0) ? ok12 : 0);
 					r346 = nodes57;
 					break;
 				}
 				if ((nn12 >= 512)) {
-					nodes57[(int) 0] = nn12;
-					nodes57[(int) 1] = 0;
+					nodes57[(int) 0] = (short) nn12;
+					nodes57[(int) 1] = (short) 0;
 					r346 = nodes57;
 					break;
 				}
 				if ((sp23 >= 32)) {
-					nodes57[(int) 0] = nn12;
-					nodes57[(int) 1] = 0;
+					nodes57[(int) 0] = (short) nn12;
+					nodes57[(int) 1] = (short) 0;
 					r346 = nodes57;
 					break;
 				}
@@ -324,35 +324,35 @@ public final class GenJsonTree {
 				}
 				final long c190 = src12[(int) i12];
 				if (((c190 == 123) || (c190 == 91))) {
-					nodes57[(int) ((4 * nn12) + 0)] = ((src12[(int) i12] == 123) ? 5 : 4);
-					nodes57[(int) ((4 * nn12) + 1)] = 0;
-					final long[] nodes58 = nodes57;
-					long[] t348;
+					nodes57[(int) ((4 * nn12) + 0)] = (short) ((src12[(int) i12] == 123) ? 5 : 4);
+					nodes57[(int) ((4 * nn12) + 1)] = (short) 0;
+					final short[] nodes58 = nodes57;
+					short[] t348;
 					if ((sp23 < 1)) {
 						t348 = nodes58;
 					} else {
-						final long lc46 = stk35[(int) ((2 * (sp23 - 1)) + 1)];
-						long[] t349;
+						final short lc46 = stk35[(int) ((2 * (sp23 - 1)) + 1)];
+						short[] t349;
 						if ((lc46 == 0)) {
-							final long k115 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
-							nodes58[(int) ((4 * ((k115 < 0) ? 0 : ((k115 >= 512) ? 0 : k115))) + 2)] = nn12;
+							final short k115 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
+							nodes58[(int) ((4 * ((k115 < 0) ? 0 : ((k115 >= 512) ? 0 : k115))) + 2)] = (short) nn12;
 							t349 = nodes58;
 						} else {
-							nodes58[(int) ((4 * ((lc46 < 0) ? 0 : ((lc46 >= 512) ? 0 : lc46))) + 3)] = nn12;
+							nodes58[(int) ((4 * ((lc46 < 0) ? 0 : ((lc46 >= 512) ? 0 : lc46))) + 3)] = (short) nn12;
 							t349 = nodes58;
 						}
 						t348 = t349;
 					}
-					long[] t350;
+					short[] t350;
 					if ((sp23 < 1)) {
 						t350 = stk35;
 					} else {
-						stk35[(int) ((2 * (sp23 - 1)) + 1)] = nn12;
+						stk35[(int) ((2 * (sp23 - 1)) + 1)] = (short) nn12;
 						t350 = stk35;
 					}
-					final long[] stk36 = t350;
-					stk36[(int) ((2 * sp23) + 0)] = nn12;
-					stk36[(int) ((2 * sp23) + 1)] = 0;
+					final short[] stk36 = t350;
+					stk36[(int) ((2 * sp23) + 0)] = (short) nn12;
+					stk36[(int) ((2 * sp23) + 1)] = (short) 0;
 					final var u351 = t348;
 					final var u352 = stk36;
 					final var u353 = (i12 + 1);
@@ -371,7 +371,7 @@ public final class GenJsonTree {
 					if ((sp23 < 1)) {
 						t356 = 0;
 					} else {
-						final long k117 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
+						final short k117 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
 						t356 = ((nodes57[(int) ((4 * ((k117 < 0) ? 0 : ((k117 >= 512) ? 0 : k117))) + 0)] == ((src12[(int) i12] == 125) ? 5 : 4)) ? ok12 : 0);
 					}
 					final var u357 = (i12 + 1);
@@ -455,30 +455,30 @@ public final class GenJsonTree {
 						final long c204 = src12[(int) i12];
 						t365 = ((((c204 >= 48) && (c204 <= 57)) || ((c204 == 45) || ((c204 == 43) || ((c204 == 46) || ((c204 == 101) || (c204 == 69)))))) ? 1 : 3);
 					}
-					nodes57[(int) ((4 * nn12) + 0)] = t365;
-					nodes57[(int) ((4 * nn12) + 1)] = (ni12 - i12);
-					final long[] nodes59 = nodes57;
-					long[] t367;
+					nodes57[(int) ((4 * nn12) + 0)] = (short) t365;
+					nodes57[(int) ((4 * nn12) + 1)] = (short) (ni12 - i12);
+					final short[] nodes59 = nodes57;
+					short[] t367;
 					if ((sp23 < 1)) {
 						t367 = nodes59;
 					} else {
-						final long lc48 = stk35[(int) ((2 * (sp23 - 1)) + 1)];
-						long[] t368;
+						final short lc48 = stk35[(int) ((2 * (sp23 - 1)) + 1)];
+						short[] t368;
 						if ((lc48 == 0)) {
-							final long k121 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
-							nodes59[(int) ((4 * ((k121 < 0) ? 0 : ((k121 >= 512) ? 0 : k121))) + 2)] = nn12;
+							final short k121 = stk35[(int) ((2 * (sp23 - 1)) + 0)];
+							nodes59[(int) ((4 * ((k121 < 0) ? 0 : ((k121 >= 512) ? 0 : k121))) + 2)] = (short) nn12;
 							t368 = nodes59;
 						} else {
-							nodes59[(int) ((4 * ((lc48 < 0) ? 0 : ((lc48 >= 512) ? 0 : lc48))) + 3)] = nn12;
+							nodes59[(int) ((4 * ((lc48 < 0) ? 0 : ((lc48 >= 512) ? 0 : lc48))) + 3)] = (short) nn12;
 							t368 = nodes59;
 						}
 						t367 = t368;
 					}
-					long[] t369;
+					short[] t369;
 					if ((sp23 < 1)) {
 						t369 = stk35;
 					} else {
-						stk35[(int) ((2 * (sp23 - 1)) + 1)] = nn12;
+						stk35[(int) ((2 * (sp23 - 1)) + 1)] = (short) nn12;
 						t369 = stk35;
 					}
 					final var u370 = t367;
@@ -495,7 +495,7 @@ public final class GenJsonTree {
 				ok12 = 0;
 				continue;
 			}
-			final long[] nodes60 = r346;
+			final short[] nodes60 = r346;
 			final long[] wl23 = new long[(int) (2 * 512)];
 			wl23[(int) 0] = 1;
 			wl23[(int) 1] = 1;
@@ -520,8 +520,8 @@ public final class GenJsonTree {
 				}
 				final long n12 = wl24[(int) ((2 * (sp24 - 1)) + 0)];
 				final long d12 = wl24[(int) ((2 * (sp24 - 1)) + 1)];
-				final long sb12 = nodes60[(int) ((4 * ((n12 < 0) ? 0 : ((n12 >= 512) ? 0 : n12))) + 3)];
-				final long kd12 = nodes60[(int) ((4 * ((n12 < 0) ? 0 : ((n12 >= 512) ? 0 : n12))) + 2)];
+				final short sb12 = nodes60[(int) ((4 * ((n12 < 0) ? 0 : ((n12 >= 512) ? 0 : n12))) + 3)];
+				final short kd12 = nodes60[(int) ((4 * ((n12 < 0) ? 0 : ((n12 >= 512) ? 0 : n12))) + 2)];
 				final long s112 = (sp24 - 1);
 				long[] t375;
 				if ((sb12 == 0)) {
@@ -552,37 +552,37 @@ public final class GenJsonTree {
 			long t533;
 			if ((k == 1)) {
 				final long[] src18 = new long[]{123, 34, 97, 34, 58, 49, 125};
-				final long[] nodes86 = new long[(int) (4 * 512)];
-				final long[] stk52 = new long[(int) (2 * 32)];
-				long[] nodes87 = nodes86;
-				long[] stk53 = stk52;
+				final short[] nodes86 = new short[(int) (4 * 512)];
+				final short[] stk52 = new short[(int) (2 * 32)];
+				short[] nodes87 = nodes86;
+				short[] stk53 = stk52;
 				long i18 = 0;
 				long nn18 = 1;
 				long sp35 = 0;
 				long ok18 = 1;
-				long[] r534 = null;
+				short[] r534 = null;
 				for (;;) {
 					if ((i18 < 0)) {
-						nodes87[(int) 0] = nn18;
-						nodes87[(int) 1] = 0;
+						nodes87[(int) 0] = (short) nn18;
+						nodes87[(int) 1] = (short) 0;
 						r534 = nodes87;
 						break;
 					}
 					if ((i18 >= src18.length)) {
-						nodes87[(int) 0] = nn18;
-						nodes87[(int) 1] = ((sp35 == 0) ? ok18 : 0);
+						nodes87[(int) 0] = (short) nn18;
+						nodes87[(int) 1] = (short) ((sp35 == 0) ? ok18 : 0);
 						r534 = nodes87;
 						break;
 					}
 					if ((nn18 >= 512)) {
-						nodes87[(int) 0] = nn18;
-						nodes87[(int) 1] = 0;
+						nodes87[(int) 0] = (short) nn18;
+						nodes87[(int) 1] = (short) 0;
 						r534 = nodes87;
 						break;
 					}
 					if ((sp35 >= 32)) {
-						nodes87[(int) 0] = nn18;
-						nodes87[(int) 1] = 0;
+						nodes87[(int) 0] = (short) nn18;
+						nodes87[(int) 1] = (short) 0;
 						r534 = nodes87;
 						break;
 					}
@@ -598,35 +598,35 @@ public final class GenJsonTree {
 					}
 					final long c292 = src18[(int) i18];
 					if (((c292 == 123) || (c292 == 91))) {
-						nodes87[(int) ((4 * nn18) + 0)] = ((src18[(int) i18] == 123) ? 5 : 4);
-						nodes87[(int) ((4 * nn18) + 1)] = 0;
-						final long[] nodes88 = nodes87;
-						long[] t536;
+						nodes87[(int) ((4 * nn18) + 0)] = (short) ((src18[(int) i18] == 123) ? 5 : 4);
+						nodes87[(int) ((4 * nn18) + 1)] = (short) 0;
+						final short[] nodes88 = nodes87;
+						short[] t536;
 						if ((sp35 < 1)) {
 							t536 = nodes88;
 						} else {
-							final long lc70 = stk53[(int) ((2 * (sp35 - 1)) + 1)];
-							long[] t537;
+							final short lc70 = stk53[(int) ((2 * (sp35 - 1)) + 1)];
+							short[] t537;
 							if ((lc70 == 0)) {
-								final long k175 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
-								nodes88[(int) ((4 * ((k175 < 0) ? 0 : ((k175 >= 512) ? 0 : k175))) + 2)] = nn18;
+								final short k175 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
+								nodes88[(int) ((4 * ((k175 < 0) ? 0 : ((k175 >= 512) ? 0 : k175))) + 2)] = (short) nn18;
 								t537 = nodes88;
 							} else {
-								nodes88[(int) ((4 * ((lc70 < 0) ? 0 : ((lc70 >= 512) ? 0 : lc70))) + 3)] = nn18;
+								nodes88[(int) ((4 * ((lc70 < 0) ? 0 : ((lc70 >= 512) ? 0 : lc70))) + 3)] = (short) nn18;
 								t537 = nodes88;
 							}
 							t536 = t537;
 						}
-						long[] t538;
+						short[] t538;
 						if ((sp35 < 1)) {
 							t538 = stk53;
 						} else {
-							stk53[(int) ((2 * (sp35 - 1)) + 1)] = nn18;
+							stk53[(int) ((2 * (sp35 - 1)) + 1)] = (short) nn18;
 							t538 = stk53;
 						}
-						final long[] stk54 = t538;
-						stk54[(int) ((2 * sp35) + 0)] = nn18;
-						stk54[(int) ((2 * sp35) + 1)] = 0;
+						final short[] stk54 = t538;
+						stk54[(int) ((2 * sp35) + 0)] = (short) nn18;
+						stk54[(int) ((2 * sp35) + 1)] = (short) 0;
 						final var u539 = t536;
 						final var u540 = stk54;
 						final var u541 = (i18 + 1);
@@ -645,7 +645,7 @@ public final class GenJsonTree {
 						if ((sp35 < 1)) {
 							t544 = 0;
 						} else {
-							final long k177 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
+							final short k177 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
 							t544 = ((nodes87[(int) ((4 * ((k177 < 0) ? 0 : ((k177 >= 512) ? 0 : k177))) + 0)] == ((src18[(int) i18] == 125) ? 5 : 4)) ? ok18 : 0);
 						}
 						final var u545 = (i18 + 1);
@@ -729,30 +729,30 @@ public final class GenJsonTree {
 							final long c306 = src18[(int) i18];
 							t553 = ((((c306 >= 48) && (c306 <= 57)) || ((c306 == 45) || ((c306 == 43) || ((c306 == 46) || ((c306 == 101) || (c306 == 69)))))) ? 1 : 3);
 						}
-						nodes87[(int) ((4 * nn18) + 0)] = t553;
-						nodes87[(int) ((4 * nn18) + 1)] = (ni18 - i18);
-						final long[] nodes89 = nodes87;
-						long[] t555;
+						nodes87[(int) ((4 * nn18) + 0)] = (short) t553;
+						nodes87[(int) ((4 * nn18) + 1)] = (short) (ni18 - i18);
+						final short[] nodes89 = nodes87;
+						short[] t555;
 						if ((sp35 < 1)) {
 							t555 = nodes89;
 						} else {
-							final long lc72 = stk53[(int) ((2 * (sp35 - 1)) + 1)];
-							long[] t556;
+							final short lc72 = stk53[(int) ((2 * (sp35 - 1)) + 1)];
+							short[] t556;
 							if ((lc72 == 0)) {
-								final long k181 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
-								nodes89[(int) ((4 * ((k181 < 0) ? 0 : ((k181 >= 512) ? 0 : k181))) + 2)] = nn18;
+								final short k181 = stk53[(int) ((2 * (sp35 - 1)) + 0)];
+								nodes89[(int) ((4 * ((k181 < 0) ? 0 : ((k181 >= 512) ? 0 : k181))) + 2)] = (short) nn18;
 								t556 = nodes89;
 							} else {
-								nodes89[(int) ((4 * ((lc72 < 0) ? 0 : ((lc72 >= 512) ? 0 : lc72))) + 3)] = nn18;
+								nodes89[(int) ((4 * ((lc72 < 0) ? 0 : ((lc72 >= 512) ? 0 : lc72))) + 3)] = (short) nn18;
 								t556 = nodes89;
 							}
 							t555 = t556;
 						}
-						long[] t557;
+						short[] t557;
 						if ((sp35 < 1)) {
 							t557 = stk53;
 						} else {
-							stk53[(int) ((2 * (sp35 - 1)) + 1)] = nn18;
+							stk53[(int) ((2 * (sp35 - 1)) + 1)] = (short) nn18;
 							t557 = stk53;
 						}
 						final var u558 = t555;
@@ -769,7 +769,7 @@ public final class GenJsonTree {
 					ok18 = 0;
 					continue;
 				}
-				final long[] nodes90 = r534;
+				final short[] nodes90 = r534;
 				final long[] wl35 = new long[(int) (2 * 512)];
 				wl35[(int) 0] = 1;
 				wl35[(int) 1] = 1;
@@ -794,8 +794,8 @@ public final class GenJsonTree {
 					}
 					final long n18 = wl36[(int) ((2 * (sp36 - 1)) + 0)];
 					final long d18 = wl36[(int) ((2 * (sp36 - 1)) + 1)];
-					final long sb18 = nodes90[(int) ((4 * ((n18 < 0) ? 0 : ((n18 >= 512) ? 0 : n18))) + 3)];
-					final long kd18 = nodes90[(int) ((4 * ((n18 < 0) ? 0 : ((n18 >= 512) ? 0 : n18))) + 2)];
+					final short sb18 = nodes90[(int) ((4 * ((n18 < 0) ? 0 : ((n18 >= 512) ? 0 : n18))) + 3)];
+					final short kd18 = nodes90[(int) ((4 * ((n18 < 0) ? 0 : ((n18 >= 512) ? 0 : n18))) + 2)];
 					final long s118 = (sp36 - 1);
 					long[] t563;
 					if ((sb18 == 0)) {
@@ -826,37 +826,37 @@ public final class GenJsonTree {
 				long t627;
 				if ((k == 2)) {
 					final long[] src21 = new long[]{91, 91, 49, 93, 44, 50, 93};
-					final long[] nodes101 = new long[(int) (4 * 512)];
-					final long[] stk61 = new long[(int) (2 * 32)];
-					long[] nodes102 = nodes101;
-					long[] stk62 = stk61;
+					final short[] nodes101 = new short[(int) (4 * 512)];
+					final short[] stk61 = new short[(int) (2 * 32)];
+					short[] nodes102 = nodes101;
+					short[] stk62 = stk61;
 					long i21 = 0;
 					long nn21 = 1;
 					long sp41 = 0;
 					long ok21 = 1;
-					long[] r628 = null;
+					short[] r628 = null;
 					for (;;) {
 						if ((i21 < 0)) {
-							nodes102[(int) 0] = nn21;
-							nodes102[(int) 1] = 0;
+							nodes102[(int) 0] = (short) nn21;
+							nodes102[(int) 1] = (short) 0;
 							r628 = nodes102;
 							break;
 						}
 						if ((i21 >= src21.length)) {
-							nodes102[(int) 0] = nn21;
-							nodes102[(int) 1] = ((sp41 == 0) ? ok21 : 0);
+							nodes102[(int) 0] = (short) nn21;
+							nodes102[(int) 1] = (short) ((sp41 == 0) ? ok21 : 0);
 							r628 = nodes102;
 							break;
 						}
 						if ((nn21 >= 512)) {
-							nodes102[(int) 0] = nn21;
-							nodes102[(int) 1] = 0;
+							nodes102[(int) 0] = (short) nn21;
+							nodes102[(int) 1] = (short) 0;
 							r628 = nodes102;
 							break;
 						}
 						if ((sp41 >= 32)) {
-							nodes102[(int) 0] = nn21;
-							nodes102[(int) 1] = 0;
+							nodes102[(int) 0] = (short) nn21;
+							nodes102[(int) 1] = (short) 0;
 							r628 = nodes102;
 							break;
 						}
@@ -872,35 +872,35 @@ public final class GenJsonTree {
 						}
 						final long c343 = src21[(int) i21];
 						if (((c343 == 123) || (c343 == 91))) {
-							nodes102[(int) ((4 * nn21) + 0)] = ((src21[(int) i21] == 123) ? 5 : 4);
-							nodes102[(int) ((4 * nn21) + 1)] = 0;
-							final long[] nodes103 = nodes102;
-							long[] t630;
+							nodes102[(int) ((4 * nn21) + 0)] = (short) ((src21[(int) i21] == 123) ? 5 : 4);
+							nodes102[(int) ((4 * nn21) + 1)] = (short) 0;
+							final short[] nodes103 = nodes102;
+							short[] t630;
 							if ((sp41 < 1)) {
 								t630 = nodes103;
 							} else {
-								final long lc82 = stk62[(int) ((2 * (sp41 - 1)) + 1)];
-								long[] t631;
+								final short lc82 = stk62[(int) ((2 * (sp41 - 1)) + 1)];
+								short[] t631;
 								if ((lc82 == 0)) {
-									final long k205 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
-									nodes103[(int) ((4 * ((k205 < 0) ? 0 : ((k205 >= 512) ? 0 : k205))) + 2)] = nn21;
+									final short k205 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
+									nodes103[(int) ((4 * ((k205 < 0) ? 0 : ((k205 >= 512) ? 0 : k205))) + 2)] = (short) nn21;
 									t631 = nodes103;
 								} else {
-									nodes103[(int) ((4 * ((lc82 < 0) ? 0 : ((lc82 >= 512) ? 0 : lc82))) + 3)] = nn21;
+									nodes103[(int) ((4 * ((lc82 < 0) ? 0 : ((lc82 >= 512) ? 0 : lc82))) + 3)] = (short) nn21;
 									t631 = nodes103;
 								}
 								t630 = t631;
 							}
-							long[] t632;
+							short[] t632;
 							if ((sp41 < 1)) {
 								t632 = stk62;
 							} else {
-								stk62[(int) ((2 * (sp41 - 1)) + 1)] = nn21;
+								stk62[(int) ((2 * (sp41 - 1)) + 1)] = (short) nn21;
 								t632 = stk62;
 							}
-							final long[] stk63 = t632;
-							stk63[(int) ((2 * sp41) + 0)] = nn21;
-							stk63[(int) ((2 * sp41) + 1)] = 0;
+							final short[] stk63 = t632;
+							stk63[(int) ((2 * sp41) + 0)] = (short) nn21;
+							stk63[(int) ((2 * sp41) + 1)] = (short) 0;
 							final var u633 = t630;
 							final var u634 = stk63;
 							final var u635 = (i21 + 1);
@@ -919,7 +919,7 @@ public final class GenJsonTree {
 							if ((sp41 < 1)) {
 								t638 = 0;
 							} else {
-								final long k207 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
+								final short k207 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
 								t638 = ((nodes102[(int) ((4 * ((k207 < 0) ? 0 : ((k207 >= 512) ? 0 : k207))) + 0)] == ((src21[(int) i21] == 125) ? 5 : 4)) ? ok21 : 0);
 							}
 							final var u639 = (i21 + 1);
@@ -1003,30 +1003,30 @@ public final class GenJsonTree {
 								final long c357 = src21[(int) i21];
 								t647 = ((((c357 >= 48) && (c357 <= 57)) || ((c357 == 45) || ((c357 == 43) || ((c357 == 46) || ((c357 == 101) || (c357 == 69)))))) ? 1 : 3);
 							}
-							nodes102[(int) ((4 * nn21) + 0)] = t647;
-							nodes102[(int) ((4 * nn21) + 1)] = (ni21 - i21);
-							final long[] nodes104 = nodes102;
-							long[] t649;
+							nodes102[(int) ((4 * nn21) + 0)] = (short) t647;
+							nodes102[(int) ((4 * nn21) + 1)] = (short) (ni21 - i21);
+							final short[] nodes104 = nodes102;
+							short[] t649;
 							if ((sp41 < 1)) {
 								t649 = nodes104;
 							} else {
-								final long lc84 = stk62[(int) ((2 * (sp41 - 1)) + 1)];
-								long[] t650;
+								final short lc84 = stk62[(int) ((2 * (sp41 - 1)) + 1)];
+								short[] t650;
 								if ((lc84 == 0)) {
-									final long k211 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
-									nodes104[(int) ((4 * ((k211 < 0) ? 0 : ((k211 >= 512) ? 0 : k211))) + 2)] = nn21;
+									final short k211 = stk62[(int) ((2 * (sp41 - 1)) + 0)];
+									nodes104[(int) ((4 * ((k211 < 0) ? 0 : ((k211 >= 512) ? 0 : k211))) + 2)] = (short) nn21;
 									t650 = nodes104;
 								} else {
-									nodes104[(int) ((4 * ((lc84 < 0) ? 0 : ((lc84 >= 512) ? 0 : lc84))) + 3)] = nn21;
+									nodes104[(int) ((4 * ((lc84 < 0) ? 0 : ((lc84 >= 512) ? 0 : lc84))) + 3)] = (short) nn21;
 									t650 = nodes104;
 								}
 								t649 = t650;
 							}
-							long[] t651;
+							short[] t651;
 							if ((sp41 < 1)) {
 								t651 = stk62;
 							} else {
-								stk62[(int) ((2 * (sp41 - 1)) + 1)] = nn21;
+								stk62[(int) ((2 * (sp41 - 1)) + 1)] = (short) nn21;
 								t651 = stk62;
 							}
 							final var u652 = t649;
@@ -1043,7 +1043,7 @@ public final class GenJsonTree {
 						ok21 = 0;
 						continue;
 					}
-					final long[] nodes105 = r628;
+					final short[] nodes105 = r628;
 					final long[] wl41 = new long[(int) (2 * 512)];
 					wl41[(int) 0] = 1;
 					wl41[(int) 1] = 1;
@@ -1068,8 +1068,8 @@ public final class GenJsonTree {
 						}
 						final long n21 = wl42[(int) ((2 * (sp42 - 1)) + 0)];
 						final long d21 = wl42[(int) ((2 * (sp42 - 1)) + 1)];
-						final long sb21 = nodes105[(int) ((4 * ((n21 < 0) ? 0 : ((n21 >= 512) ? 0 : n21))) + 3)];
-						final long kd21 = nodes105[(int) ((4 * ((n21 < 0) ? 0 : ((n21 >= 512) ? 0 : n21))) + 2)];
+						final short sb21 = nodes105[(int) ((4 * ((n21 < 0) ? 0 : ((n21 >= 512) ? 0 : n21))) + 3)];
+						final short kd21 = nodes105[(int) ((4 * ((n21 < 0) ? 0 : ((n21 >= 512) ? 0 : n21))) + 2)];
 						final long s121 = (sp42 - 1);
 						long[] t657;
 						if ((sb21 == 0)) {
@@ -1098,37 +1098,37 @@ public final class GenJsonTree {
 					t627 = (((nodes105[(int) 0] - 1) * 1000000) + ((r656 * 10) + nodes105[(int) 1]));
 				} else {
 					final long[] src22 = new long[]{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125};
-					final long[] nodes106 = new long[(int) (4 * 512)];
-					final long[] stk64 = new long[(int) (2 * 32)];
-					long[] nodes107 = nodes106;
-					long[] stk65 = stk64;
+					final short[] nodes106 = new short[(int) (4 * 512)];
+					final short[] stk64 = new short[(int) (2 * 32)];
+					short[] nodes107 = nodes106;
+					short[] stk65 = stk64;
 					long i22 = 0;
 					long nn22 = 1;
 					long sp43 = 0;
 					long ok22 = 1;
-					long[] r659 = null;
+					short[] r659 = null;
 					for (;;) {
 						if ((i22 < 0)) {
-							nodes107[(int) 0] = nn22;
-							nodes107[(int) 1] = 0;
+							nodes107[(int) 0] = (short) nn22;
+							nodes107[(int) 1] = (short) 0;
 							r659 = nodes107;
 							break;
 						}
 						if ((i22 >= src22.length)) {
-							nodes107[(int) 0] = nn22;
-							nodes107[(int) 1] = ((sp43 == 0) ? ok22 : 0);
+							nodes107[(int) 0] = (short) nn22;
+							nodes107[(int) 1] = (short) ((sp43 == 0) ? ok22 : 0);
 							r659 = nodes107;
 							break;
 						}
 						if ((nn22 >= 512)) {
-							nodes107[(int) 0] = nn22;
-							nodes107[(int) 1] = 0;
+							nodes107[(int) 0] = (short) nn22;
+							nodes107[(int) 1] = (short) 0;
 							r659 = nodes107;
 							break;
 						}
 						if ((sp43 >= 32)) {
-							nodes107[(int) 0] = nn22;
-							nodes107[(int) 1] = 0;
+							nodes107[(int) 0] = (short) nn22;
+							nodes107[(int) 1] = (short) 0;
 							r659 = nodes107;
 							break;
 						}
@@ -1144,35 +1144,35 @@ public final class GenJsonTree {
 						}
 						final long c360 = src22[(int) i22];
 						if (((c360 == 123) || (c360 == 91))) {
-							nodes107[(int) ((4 * nn22) + 0)] = ((src22[(int) i22] == 123) ? 5 : 4);
-							nodes107[(int) ((4 * nn22) + 1)] = 0;
-							final long[] nodes108 = nodes107;
-							long[] t661;
+							nodes107[(int) ((4 * nn22) + 0)] = (short) ((src22[(int) i22] == 123) ? 5 : 4);
+							nodes107[(int) ((4 * nn22) + 1)] = (short) 0;
+							final short[] nodes108 = nodes107;
+							short[] t661;
 							if ((sp43 < 1)) {
 								t661 = nodes108;
 							} else {
-								final long lc86 = stk65[(int) ((2 * (sp43 - 1)) + 1)];
-								long[] t662;
+								final short lc86 = stk65[(int) ((2 * (sp43 - 1)) + 1)];
+								short[] t662;
 								if ((lc86 == 0)) {
-									final long k215 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
-									nodes108[(int) ((4 * ((k215 < 0) ? 0 : ((k215 >= 512) ? 0 : k215))) + 2)] = nn22;
+									final short k215 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
+									nodes108[(int) ((4 * ((k215 < 0) ? 0 : ((k215 >= 512) ? 0 : k215))) + 2)] = (short) nn22;
 									t662 = nodes108;
 								} else {
-									nodes108[(int) ((4 * ((lc86 < 0) ? 0 : ((lc86 >= 512) ? 0 : lc86))) + 3)] = nn22;
+									nodes108[(int) ((4 * ((lc86 < 0) ? 0 : ((lc86 >= 512) ? 0 : lc86))) + 3)] = (short) nn22;
 									t662 = nodes108;
 								}
 								t661 = t662;
 							}
-							long[] t663;
+							short[] t663;
 							if ((sp43 < 1)) {
 								t663 = stk65;
 							} else {
-								stk65[(int) ((2 * (sp43 - 1)) + 1)] = nn22;
+								stk65[(int) ((2 * (sp43 - 1)) + 1)] = (short) nn22;
 								t663 = stk65;
 							}
-							final long[] stk66 = t663;
-							stk66[(int) ((2 * sp43) + 0)] = nn22;
-							stk66[(int) ((2 * sp43) + 1)] = 0;
+							final short[] stk66 = t663;
+							stk66[(int) ((2 * sp43) + 0)] = (short) nn22;
+							stk66[(int) ((2 * sp43) + 1)] = (short) 0;
 							final var u664 = t661;
 							final var u665 = stk66;
 							final var u666 = (i22 + 1);
@@ -1191,7 +1191,7 @@ public final class GenJsonTree {
 							if ((sp43 < 1)) {
 								t669 = 0;
 							} else {
-								final long k217 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
+								final short k217 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
 								t669 = ((nodes107[(int) ((4 * ((k217 < 0) ? 0 : ((k217 >= 512) ? 0 : k217))) + 0)] == ((src22[(int) i22] == 125) ? 5 : 4)) ? ok22 : 0);
 							}
 							final var u670 = (i22 + 1);
@@ -1275,30 +1275,30 @@ public final class GenJsonTree {
 								final long c374 = src22[(int) i22];
 								t678 = ((((c374 >= 48) && (c374 <= 57)) || ((c374 == 45) || ((c374 == 43) || ((c374 == 46) || ((c374 == 101) || (c374 == 69)))))) ? 1 : 3);
 							}
-							nodes107[(int) ((4 * nn22) + 0)] = t678;
-							nodes107[(int) ((4 * nn22) + 1)] = (ni22 - i22);
-							final long[] nodes109 = nodes107;
-							long[] t680;
+							nodes107[(int) ((4 * nn22) + 0)] = (short) t678;
+							nodes107[(int) ((4 * nn22) + 1)] = (short) (ni22 - i22);
+							final short[] nodes109 = nodes107;
+							short[] t680;
 							if ((sp43 < 1)) {
 								t680 = nodes109;
 							} else {
-								final long lc88 = stk65[(int) ((2 * (sp43 - 1)) + 1)];
-								long[] t681;
+								final short lc88 = stk65[(int) ((2 * (sp43 - 1)) + 1)];
+								short[] t681;
 								if ((lc88 == 0)) {
-									final long k221 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
-									nodes109[(int) ((4 * ((k221 < 0) ? 0 : ((k221 >= 512) ? 0 : k221))) + 2)] = nn22;
+									final short k221 = stk65[(int) ((2 * (sp43 - 1)) + 0)];
+									nodes109[(int) ((4 * ((k221 < 0) ? 0 : ((k221 >= 512) ? 0 : k221))) + 2)] = (short) nn22;
 									t681 = nodes109;
 								} else {
-									nodes109[(int) ((4 * ((lc88 < 0) ? 0 : ((lc88 >= 512) ? 0 : lc88))) + 3)] = nn22;
+									nodes109[(int) ((4 * ((lc88 < 0) ? 0 : ((lc88 >= 512) ? 0 : lc88))) + 3)] = (short) nn22;
 									t681 = nodes109;
 								}
 								t680 = t681;
 							}
-							long[] t682;
+							short[] t682;
 							if ((sp43 < 1)) {
 								t682 = stk65;
 							} else {
-								stk65[(int) ((2 * (sp43 - 1)) + 1)] = nn22;
+								stk65[(int) ((2 * (sp43 - 1)) + 1)] = (short) nn22;
 								t682 = stk65;
 							}
 							final var u683 = t680;
@@ -1315,7 +1315,7 @@ public final class GenJsonTree {
 						ok22 = 0;
 						continue;
 					}
-					final long[] nodes110 = r659;
+					final short[] nodes110 = r659;
 					final long[] wl43 = new long[(int) (2 * 512)];
 					wl43[(int) 0] = 1;
 					wl43[(int) 1] = 1;
@@ -1340,8 +1340,8 @@ public final class GenJsonTree {
 						}
 						final long n22 = wl44[(int) ((2 * (sp44 - 1)) + 0)];
 						final long d22 = wl44[(int) ((2 * (sp44 - 1)) + 1)];
-						final long sb22 = nodes110[(int) ((4 * ((n22 < 0) ? 0 : ((n22 >= 512) ? 0 : n22))) + 3)];
-						final long kd22 = nodes110[(int) ((4 * ((n22 < 0) ? 0 : ((n22 >= 512) ? 0 : n22))) + 2)];
+						final short sb22 = nodes110[(int) ((4 * ((n22 < 0) ? 0 : ((n22 >= 512) ? 0 : n22))) + 3)];
+						final short kd22 = nodes110[(int) ((4 * ((n22 < 0) ? 0 : ((n22 >= 512) ? 0 : n22))) + 2)];
 						final long s122 = (sp44 - 1);
 						long[] t688;
 						if ((sb22 == 0)) {

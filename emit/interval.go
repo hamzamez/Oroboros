@@ -265,6 +265,13 @@ type IntervalReport struct {
 	Terminates int      // …proven terminating by size change plus a floor
 	Trips      int      // …of those, the ones that also yield a trip count
 	Diverging  []string // the idempotent cycle nothing was shown to shrink
+
+	// Stores is the joined interval of everything written into each `build`
+	// buffer, keyed by the buffer's name. It is what lets a buffer be stored
+	// narrower than a machine word when no syntactic fact says so — the node
+	// table in examples/json/tree.oro holds indices bounded by a loop guard and
+	// by nothing a literal can show.
+	Stores map[string]ival
 }
 
 type intervalPass struct {
@@ -303,8 +310,54 @@ type descent struct {
 // PARAMETER and every array length the range [0, assume], simulating a
 // programmer who declared ranges. Zero means declare nothing, which is what
 // every program in the repository does today.
+
+// BufferRange is the range of everything stored into a `build` buffer, as a
+// type — or "" when the analysis cannot bound it.
+//
+// THE SOUNDNESS ARGUMENT, because this is the first place an analysis result
+// decides how many BITS a value gets and a wrong answer is a silent wrong
+// answer rather than a slow one.
+//
+//  1. The pass is run on the `build` LAMBDA ALONE, not on the enclosing
+//     function. Less context can only widen an interval, never narrow one, so a
+//     subterm analysis is conservative with respect to the whole-program one.
+//     Anything free in the lambda is unbounded and the buffer stays wide.
+//  2. The range is the JOIN of every store, and 0 is always included because
+//     `build` zero-fills and an unwritten slot reads 0 (tables.md §14.3).
+//  3. A store the pass cannot bound gives an infinite endpoint and answers "",
+//     so the buffer keeps the host's own width. Failure is the safe direction
+//     and it is the default.
+//  4. It only ever NARROWS storage, never semantics. If the analysis is right
+//     the emitted program is identical in behaviour and smaller; if it is
+//     wrong, the differential suite's `; expect:` answers are what catch it —
+//     and note that AGREEMENT cannot, because every target narrows on the same
+//     decision.
+func BufferRange(tgt *Target, lam *core.Term) (string, bool) {
+	if lam == nil || lam.Kind != core.KFn || len(lam.Params) != 1 {
+		return "", false
+	}
+	rep, _ := Intervals(tgt, nil, lam, 0)
+	var out ival
+	found := false
+	for _, v := range rep.Stores {
+		if v.loInf || v.hiInf {
+			return "", false
+		}
+		if !found {
+			out, found = v, true
+			continue
+		}
+		out = joinI(out, v)
+	}
+	if !found {
+		return "", false
+	}
+	out = joinI(out, exact(0)) // the zero fill is an element
+	return fmt.Sprintf("int %d %d", out.lo, out.hi), true
+}
+
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
-	rep := &IntervalReport{ByOp: map[string][2]int{}}
+	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0}
 	env := map[string]ival{}
 	var head *core.Term
@@ -473,6 +526,20 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 
 	if op.Name == "again" {
 		return bottom, rebuilt // a back edge produces no value
+	}
+
+	// EVERY STORE INTO A BUFFER, joined, so the buffer can be held narrower
+	// than a machine word when the value's bound comes from a loop guard rather
+	// than from a literal. Recorded on the counting pass only, which is the one
+	// that runs after the loop fixpoints have settled.
+	if known && prim.Kind == "table-set" && len(args) == 3 {
+		if root := BufferRoot(t); root != "" && p.count {
+			if have, ok := p.rep.Stores[root]; ok {
+				p.rep.Stores[root] = joinI(have, vals[2])
+			} else {
+				p.rep.Stores[root] = vals[2]
+			}
+		}
 	}
 
 	// An array length is non-negative, and whatever else has been declared or

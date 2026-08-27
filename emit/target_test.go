@@ -270,3 +270,124 @@ func TestBufferRootDistinguishesTwoBuffers(t *testing.T) {
 		t.Errorf("BufferRoot through a threaded set = %q, want nodes", got)
 	}
 }
+
+// TRYING TO BREAK INTERVAL-DERIVED NARROWING.
+//
+// This is the first place an analysis result decides how many BITS a value
+// gets, so a wrong bound is a silent wrong answer rather than a slow program.
+// The differential suite cannot catch it — every target narrows on the same
+// decision, so they agree and are wrong together — which leaves these.
+//
+// The property is CONTAINMENT, not tightness: the claimed range must hold every
+// value the program can actually store. Over-approximating is the safe
+// direction and costs only space.
+//
+// Two of these were written expecting a refusal and got a claim, and the claims
+// were right: `0 * 3` stays 0 forever, and `i*j` for i<10 and j stepping by 1e9
+// really is under 9.9e10. The tests were wrong, which is the correct way round
+// for this to go.
+func TestBufferRangeContainsEveryStore(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name, src string
+		lo, hi    int64 // the true extremes, computed by hand
+	}{
+		{"a counter bounded by its own guard", `
+			(fn (b) (loop ((b b) (i 0))
+			  (go.>= i 512) b
+			  else (again (set b i i) (go.+ i 1))))`, 0, 511},
+		{"a multiplied accumulator that never leaves zero", `
+			(fn (b) (loop ((b b) (i 0) (acc 0))
+			  (go.>= i 10) b
+			  else (again (set b i acc) (go.+ i 1) (go.* acc 3))))`, 0, 0},
+		{"a product of two loop variables", `
+			(fn (b) (loop ((b b) (i 0) (j 0))
+			  (go.>= i 10) b
+			  else (again (set b i (go.* i j)) (go.+ i 1) (go.+ j 1000000000))))`,
+			0, 81000000000},
+		{"a doubling accumulator", `
+			(fn (b) (loop ((b b) (i 0) (acc 1))
+			  (go.>= i 8) b
+			  else (again (set b i acc) (go.+ i 1) (go.* acc 2))))`, 1, 128},
+		{"a negative store", `
+			(fn (b) (loop ((b b) (i 0))
+			  (go.>= i 10) b
+			  else (again (set b i (go.- 0 i)) (go.+ i 1))))`, -9, 0},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got, ok := BufferRange(tg, forms[0].Term)
+		if !ok {
+			continue // refusing is always safe
+		}
+		lo, hi, _ := core.IntRange(got)
+		if lo > c.lo || hi < c.hi {
+			t.Errorf("%s: claimed %q, which does not contain the true %d..%d — "+
+				"a range too narrow truncates on store", c.name, got, c.lo, c.hi)
+		}
+		if lo > 0 {
+			t.Errorf("%s: claimed %q, which excludes 0 — build zero-fills and an "+
+				"unwritten slot reads 0", c.name, got)
+		}
+	}
+}
+
+// And what it must refuse: a store nothing in the lambda can bound. Failure is
+// the safe direction and it has to be the default.
+func TestBufferRangeRefusesWhatItCannotBound(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ name, src string }{
+		{"a value read out of the buffer itself", `
+			(fn (b) (loop ((b b) (i 1))
+			  (go.>= i 10) b
+			  else (again (set b i (go.* (b (go.- i 1)) 2)) (go.+ i 1))))`},
+		{"a free variable", `(fn (b) (set b 0 n))`},
+		{"a parameter of the enclosing function", `(fn (b) (set b 0 (go.* n n)))`},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		if got, ok := BufferRange(tg, forms[0].Term); ok {
+			t.Errorf("%s: claimed %q; an unbounded store must keep the machine word",
+				c.name, got)
+		}
+	}
+}
+
+// And the bound it DOES claim has to hold. A guard is the fact that makes this
+// work at all — examples/json/tree.oro's node table is bounded by `nn < 512`
+// and by nothing a literal can show.
+func TestBufferRangeUsesAGuard(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	forms, err := core.Read(`
+		(fn (b) (loop ((b b) (i 0))
+		  (go.>= i 512) b
+		  else (again (set b i i) (go.+ i 1))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, ok := BufferRange(tg, forms[0].Term)
+	if !ok {
+		t.Fatal("a store bounded by the loop's own guard must be provable")
+	}
+	lo, hi, _ := core.IntRange(got)
+	if lo > 0 || hi < 511 {
+		t.Errorf("range %q must contain 0..511 — 0 because build zero-fills, "+
+			"511 because that is the largest value the guard admits", got)
+	}
+	if tg.ty("array "+got) != "[]uint16" {
+		t.Errorf("0..511 should store in a uint16 on Go, got %q", tg.ty("array "+got))
+	}
+}

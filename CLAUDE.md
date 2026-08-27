@@ -740,9 +740,34 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
-**Still not built: a buffer whose range only the INTERVAL ANALYSIS knows** — `tree.oro`'s node table
-wants `(int 0 511)`, which is where json-tree-bench measured the JVM's **1.19x** element cost — and
-**a differential case** for narrowing, which is itself a finding:
+**AND THE INTERVAL ANALYSIS DECIDES THE REST.** `tree.oro`'s node table stores indices bounded by a
+loop guard — `nn < 512` — which no literal can show, so the analysis is asked when the exact facts do
+not settle it. The node table is **`[]uint16`, 4 KB instead of 16 KB**, the parse stack narrows too,
+and **the worklist correctly does NOT** because it stores a depth read back out of itself. **Go
+6,053 → 5,524 ns (1.10x)**, now faster than the hand-written *clamped* form; **Java 7,756 → 6,795
+(1.14x)**.
+
+**The soundness argument, because this is where an analysis starts deciding BITS.** The pass runs on
+the `build` **lambda alone**, and less context can only WIDEN an interval — so a subterm analysis is
+conservative against the whole-program one and anything free is unbounded. Exact facts are tried
+first, so the argument carries only the residue. Failure is the safe direction and is the default.
+**And the differential suite CANNOT catch a bad narrowing** — every target narrows on the same
+decision, so they agree and are wrong together; only `; expect:` can. So the checks are direct:
+containment against hand-computed extremes on five programs (**containment, not tightness** — over-
+approximating costs space, under-approximating corrupts), refusal for a value read out of the buffer
+itself, and the tree's agreement test against two hand-written implementations at 443 nodes. **Two
+adversarial cases were written expecting a refusal and got a claim, and the claims were RIGHT** —
+`0*3` stays 0 forever and `i*j` for `i<10` really is under 9.9e10; the tests were wrong, which is the
+correct way round.
+
+**AND IT CORRECTS json-tree-bench's OWN REASONING.** That result explained part of the JVM's
+preference for recursion by size — *"our 64-bit `int` makes a node 32 bytes against a `Node`'s 24"*.
+A node is **8 bytes** now, a third of a `Node`, and **recursive still wins there** (4,265 ns against a
+hand-written `int[]` flat table's 5,330). So the flat form being larger was **not** the driver; TLAB
+bump-allocation and a young collector that pays for survivors are. The headline — *flat beats
+pointers is a Go fact* — is unchanged, and one of its three explanations is withdrawn.
+
+**Still not built: a differential case** for narrowing, which is itself a finding:
 reduction inlines every non-exported call, so **a narrowed parameter only survives at an EXPORT**,
 which is precision-integers.md's "where do declarations live after staging" arriving as a limitation.
 **One bug on the way**: the target-directory merge dropped `Reprs`, so a single file selected

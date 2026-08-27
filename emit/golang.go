@@ -271,7 +271,7 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 		return "", err
 	}
 	body, raw, out := openFresh(lam, e.bound, mangle)
-	elem := bufferElem(body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
 	e.types[raw[0]] = "array " + elem
 	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
 	return e.emit(body)
@@ -374,7 +374,7 @@ func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
 // the buffer still answers `array V`, because the parameter now has that type.
 func (e *Emitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := bufferElem(body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true

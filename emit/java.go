@@ -449,7 +449,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				return "", err
 			}
 			body, raw, out := openFresh(args[1], e.bound, javaMangle)
-			elem := bufferElem(body, raw[0], e.typeOf)
+			elem := ElemType(e.tgt, args[1], body, raw[0], e.typeOf)
 			e.types[raw[0]] = "array " + elem
 			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
 				e.tgt.ty(elem), count)
@@ -1196,7 +1196,7 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 // not necessarily the buffer's. See the Go emitter for what found that.
 func (e *javaEmitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := bufferElem(body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true

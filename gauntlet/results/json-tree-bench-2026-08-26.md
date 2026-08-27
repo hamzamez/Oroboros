@@ -40,6 +40,14 @@ This is [ADR 0008](../../docs/decisions/0008-measurement-over-principle.md) land
 rather than on a primitive. *Flat beats pointers* was a measurement on one host that had become a
 principle.
 
+> **Corrected 2026-08-27, and the correction is against this document's own reasoning.** The size
+> argument above is withdrawn. Once the interval analysis narrows the node table to 16-bit slots
+> ([elemwidth-2026-08-27 §5d](elemwidth-2026-08-27.md)) a node is **8 bytes**, a third of a `Node` —
+> and **recursive still wins on the JVM**, 4,265 ns against a hand-written `int[]` flat table's
+> 5,330. So the flat form being *larger* was not the driver. The other two explanations — TLAB
+> bump-allocation, and a young collector that pays for survivors when every node here dies — are
+> what carry it. The headline is unchanged.
+
 ---
 
 ## 2. Our code generation, with the representation held fixed

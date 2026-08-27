@@ -184,13 +184,73 @@ walk ignored which buffer a `set` targeted. It did not matter while every buffer
 matters now, and where the two genuinely cannot be distinguished — one caller passes a term whose
 binders are not opened — the stores **merge**, which can only widen a range and never truncate one.
 
-## 6. What is not built
+## 5d. And the interval analysis decides the rest
 
-**A buffer whose range only the INTERVAL ANALYSIS knows.** `tree.oro`'s node table wants
-`(int 0 511)` — two bytes, half the memory — and no syntactic fact says so. This is where
-[json-tree-bench](json-tree-bench-2026-08-26.md) measured the JVM's **1.19×** element cost, and it is
-still owed. Two routes: teach the inference to use the interval domain, with the soundness argument
-that needs; or give a `build` a declared element type, which is a language change.
+The syntactic inference gets a buffer of literals. It cannot get
+[`tree.oro`](../../examples/json/tree.oro)'s node table, whose stores are node indices bounded by a
+loop guard — `nn < 512` — and by nothing a literal can show. That is the interval analysis's fact,
+and it is now used.
+
+```
+tree.oro on Go:   make([]uint16, 4*512)   ← the node table, was []int
+                  make([]uint16, 2*32)    ← the parse stack
+                  make([]int,    2*512)   ← the worklist, correctly NOT narrowed
+```
+
+The worklist stays wide because it stores a depth read back out of itself, which nothing bounds.
+Getting that one right is as much the feature as the other two.
+
+### The soundness argument, because this is where an analysis starts deciding bits
+
+A wrong bound here is a **silent wrong answer**, not a slow program, so it is worth stating what
+this rests on.
+
+1. **The pass runs on the `build` lambda alone**, not the enclosing function. Less context can only
+   widen an interval, never narrow one — so a subterm analysis is conservative with respect to the
+   whole-program one, and anything free in the lambda is unbounded.
+2. **Exact facts are used first.** A literal, a conditional over literals, and a read from an
+   already-narrowed table are decided syntactically; the analysis is asked only when none of those
+   settles it. So this argument carries the residue, not the whole feature.
+3. **Failure is the safe direction and is the default.** An infinite endpoint answers no and the
+   buffer keeps the host's word.
+4. **The differential suite cannot catch a bad narrowing** — every target narrows on the same
+   decision, so they agree and are wrong together. Only the `; expect:` answers can, which is the
+   second time this week that half of the suite has been the load-bearing half.
+
+So the checks are direct. `TestBufferRangeContainsEveryStore` runs five programs whose true extremes
+are computed by hand and requires the claimed range to **contain** them — containment, not tightness,
+because over-approximating costs space and under-approximating corrupts. Two of those cases were
+written expecting a refusal and got a claim, and **the claims were right**: `0 * 3` stays 0 forever,
+and `i*j` for `i < 10` with `j` stepping by 10⁹ really is under 9.9×10¹⁰. The tests were wrong, which
+is the correct way round for that to go.
+
+`TestBufferRangeRefusesWhatItCannotBound` requires a refusal for a value read out of the buffer
+itself, a free variable, and a parameter of the enclosing function.
+
+And empirically: the tree's agreement test compares the generated parser against two hand-written
+implementations on documents of up to 443 nodes, where a truncated link breaks the walk immediately.
+
+### Measured
+
+| | before | after | |
+|---|---|---|---|
+| Go, tree | 6,053 ns | **5,524** | **1.10×**, and now faster than hand-written *clamped* (6,068) |
+| Java, tree | 7,756 ns | **6,795** | **1.14×** |
+| node table | 16 KB | **4 KB** | `4×512` slots at 2 bytes |
+
+### A correction to json-tree-bench-2026-08-26
+
+That result explained part of the JVM's preference for recursive descent by size: *"our 64-bit `int`
+makes an emitted node 32 bytes against a `Node`'s 24 — the flat form is larger than the boxed one."*
+
+A node is **8 bytes** now, a third of a `Node`, and **recursive still wins on the JVM** — 4,265 ns
+against our 6,795 and against a hand-written `int[]` flat table's 5,330. So element width was **not**
+the driver. What remains is what that result also named and should have leaned on alone: TLAB
+bump-allocation, a young collector that pays for survivors when every node here dies, and C2 scalar
+replacement. The headline — *flat beats pointers is a Go fact* — is unchanged; one of its three
+explanations was too generous and is withdrawn.
+
+## 6. What is not built
 
 **The index.** Unchanged, and it is now the whole of Java's remaining gap in both programs.
 

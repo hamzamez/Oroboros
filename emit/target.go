@@ -1293,6 +1293,25 @@ func max64(a, b int64) int64 {
 	return b
 }
 
+// ElemType is a `build` buffer's element type: the exact syntactic answer where
+// there is one, and the interval analysis's where there is not.
+//
+// The order matters and is not arbitrary. A literal, a conditional over
+// literals, and a read from an already-narrowed table are exact by
+// construction. Only when none of those decides does the analysis get asked —
+// so the cases that can be settled without trusting a fixpoint are, and
+// BufferRange's soundness argument carries only the rest.
+func ElemType(tgt *Target, lam, body *core.Term, name string,
+	typeOf func(*core.Term) string) string {
+	if ty := bufferElem(body, name, typeOf); ty != "int" {
+		return ty
+	}
+	if r, ok := BufferRange(tgt, lam); ok {
+		return r
+	}
+	return "int"
+}
+
 // BufferRoot follows a threaded buffer back to the name it came from.
 // `(set (set b i v) j w)` writes to `b`, and a program with two live buffers —
 // examples/json/tree.oro is the first — needs them told apart.
@@ -1766,8 +1785,8 @@ func IsBoolTerm(tgt *Target, t *core.Term) bool {
 //
 // So it defers to bufferElem, which joins. The `typeOf` it passes recognises
 // booleans and nothing else, because that is all this host can know.
-func BufferElemBytes(tgt *Target, body *core.Term, name string) int {
-	ty := bufferElem(body, name, func(t *core.Term) string {
+func BufferElemBytes(tgt *Target, lam, body *core.Term, name string) int {
+	ty := ElemType(tgt, lam, body, name, func(t *core.Term) string {
 		if IsBoolTerm(tgt, t) {
 			return "bool"
 		}

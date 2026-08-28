@@ -740,6 +740,30 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
+**THERE IS A LATENT FAULT IN THE INTERVAL FIXPOINT, AND NOTHING SHIPPED UNTIL IT IS FIXED** —
+[fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md). Teaching size change to see through
+a `let` and an `if` — which ADR 0015 permits and `tree.oro` uses — took the tree from **20 of 25
+loops proven terminating to 25 of 25**, and produced a **silent wrong answer**: the node table's
+inferred range collapsed from `int 0 512` to **`int 0 5`** and windows returned `4030140`.
+
+**The change is not the cause.** Proving the loop terminating is what first enabled `tripCount`,
+which read a value that was already wrong. Traced round by round, `next[i]` **shrinks** from `[0,2]`
+to `[0,0]` and the narrowing phase accepts it because it is contained; `sp` never leaves `[0,0]`.
+**The identical trace appears with the change reverted.** Two consequences: `(go.< sp 1)` is decided
+always true so every store in `link` is treated as unreachable, and `span = 0` makes the trip count
+**1**.
+
+**Guarding the symptom was the wrong instinct** — two guards were tried and neither helped, because
+the damage arrives through `sp` rather than through the witness. `cur[i] = [0,0]` for a variable that
+plainly grows is unsound on its own terms, and **buffer narrowing already reads `cur` to decide how
+many BITS a value gets**. So: reverted, and the fixpoint is the next thing. Left in place is
+`TestNodeTableRangeHoldsEveryIndex`, a tripwire asserting the node table's range contains 0..511 —
+it passes today and is there because it broke from a change that touched nothing about buffers.
+**Two candidates**: a `next` below an established `cur` means the step function is not monotone in
+`cur`, which is what widening/narrowing rests on; and `restore(saved)` installs the snapshot **by
+reference**, so the following `refine(cond, false)` mutates it and the second restore cannot undo
+anything. The second is likelier and cheaper to test.
+
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).
 Five results in a row terminated at one missing fact — **a scanner returns more than it was given** —

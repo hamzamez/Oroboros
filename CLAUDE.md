@@ -878,6 +878,36 @@ range being the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to
 maxlen-2026-08-28: `d` is read out of a *table*, so bounding it needs an inductive invariant over the
 buffer's SLOTS, which is a quantified array invariant and strictly stronger than an octagon.
 
+**HOW A VALUE GROWS IS RESEARCHED, AND THE OWED ORDER IS BACKWARDS** — [growth.md](docs/growth.md),
+no spec and no decision. general-purpose.md §2.4 owes *"growable collections, and maps"*; **the map is
+primary and a growable array may never be needed**. A growable array has a parity-preserving
+workaround every array language uses — count, then build, which is how Futhark, ISPC and every GPU
+library do `filter` — and `build` has survived two parsers, a sieve, a stencil and a tree without
+anyone missing growth **because every one of those is positional**. A map has no such workaround:
+`wordcount` is written **four times** in this repository and **cannot run on windows at all**.
+
+**GROWTH IS A CHANGE OF INDEX SET, and there are exactly two of them.** A table is `Π_{i∈I} V`;
+`append` extends `I` by a *position* and `insert` by a *point*. **Append keeps an EQUATION**
+(`len b = len b₀ + i`, proved by induction on iterations, and it is a linear fact the existing
+fragment decides — the same induction `monotone.go` already performs); **insert keeps only an
+INTERVAL**, `|dom m| ∈ [min(1,k), k]`, because whether a key was already present is a fact about the
+input. No relational domain helps: the missing fact is set membership, not arithmetic — the gap keeps
+not being a linear one.
+
+**AND THE MAP IS THE FIRST DOMAIN CONDITION NOTHING CAN DISCHARGE.** tables.md's three points are
+really three answers to *who discharges the domain condition*: `(fn (A) B)` the **type**, `(array V)`
+the **refinement layer** in QF-LIA, `(map K V)` **nobody, at compile time** — `dom m` is a function of
+the input. So a map read must be fallible, and **that is the first LANGUAGE-INTERNAL argument for
+sums**, which sums-research.md justified only from errors, Win32 and dispatch. Go's comma-ok is the
+host saying the same thing; tables.md noticed the coincidence and did not draw the conclusion.
+
+**Three of the four measurements a design would rest on are STALE and one is known-unstable** — JS's
+`Map` 3.25× is from the first baseline and every surprising JS result here has been a method error at
+least once; Java's `merge` already failed to reproduce. Re-taking them comes first. **`(map int V)`
+is the honest first step**: no string question, trivial hashing, and it answers growth, the fallible
+read, the value range and the windows implementation — which should be written **in Oroboros**, the
+first library the language writes for itself.
+
 **OCTAGONS ARE REFUTED BY MEASUREMENT, AND A LENGTH BOUND BUILT INSTEAD** —
 [maxlen-2026-08-28](gauntlet/results/maxlen-2026-08-28.md). decidability-map.md calls octagons *"the
 highest-value move available"* and three results named a demand. Before building an O(n³) domain,

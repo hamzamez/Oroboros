@@ -114,6 +114,12 @@ subset that names its price, plus target-native surfaces like `targets/go/string
 deferred with target-native answers, which is the right call for a numeric kernel and probably the
 wrong one when every program reads input of unknown length and keys things by string.
 
+> **Researched 2026-08-28 — [growth.md](growth.md), and the ORDER HERE IS BACKWARDS.** A growable
+> array has a parity-preserving workaround every array language uses (count, then build); a map does
+> not. The map is primary and the growable array may never be needed. The map also reaches further
+> than anyone had noticed: `k ∈ dom m` is the first domain condition in the language that **nothing
+> can discharge at compile time**, which is the first language-internal argument for sums.
+
 ### 2.5 Concurrency, and async
 
 All four platforms are event-driven: a Windows message loop, Android's main thread and coroutines,

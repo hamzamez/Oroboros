@@ -186,6 +186,17 @@ binders are not opened — the stores **merge**, which can only widen a range an
 
 ## 5d. And the interval analysis decides the rest
 
+> **WITHDRAWN 2026-08-27, the same day.** This section's gains rested on an interval fixpoint that
+> was not monotone ([fixpoint-2026-08-27](fixpoint-2026-08-27.md)). With that fixed, `BufferRange`
+> correctly **declines** to bound `tree.oro`'s node table — the pass runs on the `build` lambda alone,
+> where `src` is free — so the table is `[]int` again, not `[]uint16`, and the timings below are
+> withdrawn with it. The old answer `int 0 512` was a *sound range reached unsoundly*: it contained
+> 511, so no wrong answer shipped, but that was luck rather than the analysis working.
+>
+> **§5b's syntactic narrowing is untouched.** A literal, a conditional over literals, and a read from
+> an already-narrowed table never needed the fixpoint, so the tokeniser's stack is still `[]byte`.
+> That is the part of this result that stands.
+
 The syntactic inference gets a buffer of literals. It cannot get
 [`tree.oro`](../../examples/json/tree.oro)'s node table, whose stores are node indices bounded by a
 loop guard — `nn < 512` — and by nothing a literal can show. That is the interval analysis's fact,

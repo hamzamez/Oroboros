@@ -740,29 +740,43 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
-**THERE IS A LATENT FAULT IN THE INTERVAL FIXPOINT, AND NOTHING SHIPPED UNTIL IT IS FIXED** —
-[fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md). Teaching size change to see through
-a `let` and an `if` — which ADR 0015 permits and `tree.oro` uses — took the tree from **20 of 25
-loops proven terminating to 25 of 25**, and produced a **silent wrong answer**: the node table's
-inferred range collapsed from `int 0 512` to **`int 0 5`** and windows returned `4030140`.
+**THE INTERVAL FIXPOINT WAS NOT MONOTONE, AND EVERY PROVABILITY NUMBER WAS INFLATED** —
+[fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md). `restore` installed a snapshot **by
+reference**, and what follows a restore is `refine`, which narrows **in place** — so the second
+restore undid nothing and the environment leaving an `if` carried `¬c`, a fact true on one path
+only. **The property that breaks is monotonicity of the abstract step** `F(c⃗) = z⃗ ⊔ ⨆ ⟦a⃗⟧#(R(c⃗))`,
+which is what makes widening converge to a POST-fixpoint and what makes narrowing's
+`within(next, cur)` test legitimate. Measured non-monotone: `[0,0] ⊑ [0,2]` and yet `F([0,0])[i] =
+[0,2]` while `F([0,2])[i] = [0,0]`, so `i` and `sp` settled at their INITIAL values. **The fix is
+that `restore` installs a copy** — one edit, both sites, and the discipline cannot be got wrong
+again.
 
-**The change is not the cause.** Proving the loop terminating is what first enabled `tripCount`,
-which read a value that was already wrong. Traced round by round, `next[i]` **shrinks** from `[0,2]`
-to `[0,0]` and the narrowing phase accepts it because it is contained; `sp` never leaves `[0,0]`.
-**The identical trace appears with the change reverted.** Two consequences: `(go.< sp 1)` is decided
-always true so every store in `link` is treated as unreachable, and `span = 0` makes the trip count
-**1**.
+**The unsound intervals were NARROW, so they made operations look bounded that were not.** The
+tokeniser's *"100% of integer operations bounded, 20 of 20 loops"* was **86.7% and 16 of 20**; the
+tree's 91.3% was 88.9%. And **ADR 0008 lands again**: `elemwidth`'s interval-derived buffer narrowing
+is **withdrawn** — `tree.oro`'s node table is `[]int`, not `[]uint16`, because in the `build` lambda
+alone `src` is free and the stores genuinely cannot be bounded. The old `int 0 512` was a *sound
+range reached unsoundly*; it contained 511, so nothing shipped wrong, and that was luck. **The
+syntactic narrowing stands** — literals never needed the fixpoint, so the tokeniser's stack is still
+`[]byte`.
 
-**Guarding the symptom was the wrong instinct** — two guards were tried and neither helped, because
-the damage arrives through `sp` rather than through the witness. `cur[i] = [0,0]` for a variable that
-plainly grows is unsound on its own terms, and **buffer narrowing already reads `cur` to decide how
-many BITS a value gets**. So: reverted, and the fixpoint is the next thing. Left in place is
-`TestNodeTableRangeHoldsEveryIndex`, a tripwire asserting the node table's range contains 0..511 —
-it passes today and is there because it broke from a change that touched nothing about buffers.
-**Two candidates**: a `next` below an established `cur` means the step function is not monotone in
-`cur`, which is what widening/narrowing rests on; and `restore(saved)` installs the snapshot **by
-reference**, so the following `refine(cond, false)` mutates it and the second restore cannot undo
-anything. The second is likelier and cheaper to test.
+**And it CORRECTS the central finding of precision-integers.md.** That document recorded declaring
+ranges as *"changing NOTHING"* on the two parsers and called it a qualitatively different failure.
+That was the bug. With the fixpoint sound, **one declared range takes the tokeniser from 86.7% to
+100% and 16 of 20 loops to 20 of 20** — exactly what intervals-2026-08-19 predicted, so the plan is
+in better shape than the research concluded.
+
+**Two more gaps found by re-measuring, and neither is subtle.** **`len` was not recognised**: the
+refinement and interval layers knew `alen` and `slen` — the RETIRED portable layer's names — and not
+tables.md's structural `len`, which every program written since uses, so `(go.>= i (len src))`
+bounded nothing. And **an exactly-known length was thrown away**: reduction INLINES, and call-by-need
+*let-binds* an argument used more than once, so a literal document reaches the tokeniser as
+`(let (array …) (fn (src) … (len src) …))` — exact at the binding, lost one line later. Carrying it
+through took the tokeniser from **33.3% to 86.7%** and the tree from 79.1% to 88.9%.
+
+**Still owed**, now attemptable against an analysis that can be trusted: a read from a narrowed table
+should carry its element range, and monotonicity should see through a `let` and an `if` — that
+worked, was reverted, and `TestNodeTableRangeHoldsEveryIndex` is the tripwire for retrying it.
 
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).

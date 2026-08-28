@@ -370,17 +370,35 @@ func asLinear(t *core.Term) (*linear, bool) {
 					return constant(0).addScaled(a, args[1].Int), true
 				}
 			}
-		case (isOp(op.Name, "alen") || isOp(op.Name, "slen")) && len(args) == 1:
+		case isLenOp(op.Name) && len(args) == 1:
 			return variable(lengthVar(op.Name, args[0])), true
 		}
 	}
 	return nil, false
 }
 
+// isLenOp recognises every spelling of "how long is this".
+//
+// It was `alen` and `slen` only — the names the RETIRED portable layer used —
+// so tables.md's structural `len`, which is what every program written since
+// has said, was opaque to the whole refinement and interval layer. A guard of
+// `(go.>= i (len src))` therefore bounded nothing, and a `where` on `(len src)`
+// propagated nothing.
+//
+// Found while re-measuring after the fixpoint fix: `-assume`, which bounds
+// lengths directly, took the JSON tokeniser to 100%, and a real declared bound
+// on `(len src)` only reached 46.7% (fixpoint-2026-08-27 §5).
+func isLenOp(name string) bool {
+	return isOp(name, "alen") || isOp(name, "slen") ||
+		name == "len" || strings.HasSuffix(name, ".len")
+}
+
 // lengthVar names a length term opaquely. Two occurrences of `(alen a)` must
 // produce the same variable or nothing is provable.
 func lengthVar(op string, arg *core.Term) string {
-	return op + "(" + arg.String() + ")"
+	// NORMALISED, so `alen(a)` and `len(a)` are the same variable. Two
+	// spellings of one quantity must key alike or nothing composes.
+	return "len(" + arg.String() + ")"
 }
 
 // isOp matches a qualified primitive name by its last segment, so `num/int.add`

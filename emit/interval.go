@@ -590,9 +590,9 @@ func envKey(t *core.Term) (string, bool) {
 	case core.KName:
 		return t.Name, true
 	case core.KApp:
-		if op := t.Op(); op.Kind == core.KName && len(t.Args()) == 1 &&
-			(isOp(op.Name, "alen") || isOp(op.Name, "slen")) {
-			return op.Name + "(" + t.Args()[0].String() + ")", true
+		if op := t.Op(); op.Kind == core.KName && len(t.Args()) == 1 && isLenOp(op.Name) {
+			// Normalised, for the reason lengthVar is: one quantity, one key.
+			return "len(" + t.Args()[0].String() + ")", true
 		}
 	}
 	return "", false
@@ -685,10 +685,22 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 
 	// An array length is non-negative, and whatever else has been declared or
 	// narrowed about it.
-	if len(vals) == 1 && (isOp(op.Name, "alen") || isOp(op.Name, "slen")) {
+	if len(vals) == 1 && isLenOp(op.Name) {
 		out := ival{lo: 0, hiInf: true}
 		if p.assumed {
 			out = ival{lo: 0, hi: p.assume}
+		}
+		// A LENGTH THAT IS KNOWN EXACTLY. A table given by its GRAPH has as
+		// many elements as it was written with, and one given by a rule or a
+		// `build` has the length it was asked for — both are in the term, and
+		// treating them as unknown threw away the most certain fact available.
+		//
+		// It matters because reduction INLINES: `examples/json/tokenize.oro`'s
+		// `run` substitutes four literal documents into the tokeniser, so every
+		// `(len src)` there is a literal array's length and every loop over it
+		// was unbounded for want of reading it off.
+		if n, ok := exactLen(p.tgt, args[0]); ok {
+			out = intersect(out, exact(n))
 		}
 		if k, ok := envKey(t); ok {
 			if v, have := p.env[k]; have {
@@ -815,7 +827,23 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	body, raw, _ := openFresh(k, map[string]bool{}, asmIdent)
 	old, had := p.env[raw[0]]
 	p.env[raw[0]] = v
+	// A TABLE'S LENGTH SURVIVES THE BINDING. Call-by-need let-binds an argument
+	// used more than once (ADR 0010), so a program that passes a literal
+	// document to a tokeniser arrives here as
+	// `(let (array 123 …) (fn (src) … (len src) …))` — the length is exactly
+	// known at the binding and was thrown away one line later, leaving every
+	// loop over it unbounded.
+	lenKey := "len(" + raw[0] + ")"
+	oldL, hadL := p.env[lenKey]
+	if n, ok := exactLen(p.tgt, args[0]); ok {
+		p.env[lenKey] = exact(n)
+	}
 	out, nb := p.evalR(body)
+	if hadL {
+		p.env[lenKey] = oldL
+	} else {
+		delete(p.env, lenKey)
+	}
 	if had {
 		p.env[raw[0]] = old
 	} else {
@@ -849,7 +877,86 @@ func (p *intervalPass) snapshot() map[string]ival {
 	return m
 }
 
-func (p *intervalPass) restore(m map[string]ival) { p.env = m }
+// restore reinstalls a snapshot — as a COPY, and that is the whole of it.
+//
+// A snapshot is taken once and restored MORE THAN ONCE, and what follows a
+// restore is `refine`, which narrows the environment IN PLACE. Installing the
+// snapshot by reference therefore let the false-branch refinement mutate it, so
+// the second restore undid nothing and the environment leaving an `if` carried
+// `¬c` — a fact true on only one of the two paths.
+//
+// THE PROPERTY THIS RESTORES is monotonicity of the abstract step
+//
+//	F(c⃗) = z⃗ ⊔ ⨆{ ⟦a⃗⟧#(R_branch(c⃗)) : each `again` }
+//
+// which is what makes the widening sequence converge to a POST-fixpoint and
+// what makes narrowing's `within(next, cur)` test legitimate: it descends
+// within the post-fixpoints instead of leaving them. `refine` is monotone
+// (intersect is monotone in its first argument, and the bound it derives is
+// monotone in the environment), the abstract operations are monotone, and join
+// is monotone — so F is monotone AS LONG AS each branch really is evaluated in
+// R_branch(c⃗) rather than in R applied to something already narrowed.
+//
+// With the leak, it was not. Measured on examples/json/tree.oro: `[0,0] ⊑ [0,2]`
+// and yet `F([0,0])[i] = [0,2]` while `F([0,2])[i] = [0,0]` — non-monotone, so
+// the narrowing phase accepted a value that is not an over-approximation and
+// `i` settled at its initial value (fixpoint-2026-08-27.md).
+func (p *intervalPass) restore(m map[string]ival) {
+	n := make(map[string]ival, len(m))
+	for k, v := range m {
+		n[k] = v
+	}
+	p.env = n
+}
+
+// exactLen is the length of a table the term itself determines.
+//
+//	(array e₁ … eₙ)   n, the graph's own size
+//	(alloc (table n f)) n
+//	(build n (fn (b) …)) n
+//
+// Sound because these are the only three constructors (tables.md §4) and each
+// carries its length syntactically. A `set` hands back the buffer it was given,
+// so it is followed through.
+func exactLen(tgt *Target, t *core.Term) (int64, bool) {
+	for i := 0; i < 8 && t != nil; i++ {
+		if t.Kind != core.KApp || t.Op().Kind != core.KName {
+			return 0, false
+		}
+		p, known := tgt.Prims[t.Op().Name]
+		if !known {
+			return 0, false
+		}
+		args := t.Args()
+		switch p.Kind {
+		case "array":
+			return int64(len(args)), true
+		case "table-build":
+			if len(args) == 2 && args[0].Kind == core.KInt {
+				return args[0].Int, true
+			}
+			return 0, false
+		case "table-set":
+			if len(args) != 3 {
+				return 0, false
+			}
+			t = args[0] // a store hands the buffer back unchanged
+		case "table-alloc":
+			if len(args) != 1 {
+				return 0, false
+			}
+			t = args[0]
+		case "table":
+			if len(args) == 2 && args[0].Kind == core.KInt {
+				return args[0].Int, true
+			}
+			return 0, false
+		default:
+			return 0, false
+		}
+	}
+	return 0, false
+}
 
 // refine narrows the environment from a guard. This is the half that makes a
 // loop counter bounded at all: `(< i n)` inside the taken branch says i < n,

@@ -80,6 +80,20 @@ The 81% floor was indeed a floor; size-change termination lifted it.
 **The parsers do not move at all.** Declaring ranges on their inputs changes nothing, which is a
 qualitatively different failure from "not enough is declared". It is worth knowing exactly why.
 
+> **CORRECTED 2026-08-27. That was a bug, not a property of the programs.** The interval fixpoint
+> was not monotone — `restore` installed a snapshot by reference, so a branch's refinement leaked
+> past the `if` and some loop variables settled at their initial values
+> ([fixpoint-2026-08-27](../gauntlet/results/fixpoint-2026-08-27.md)). Two more gaps compounded it:
+> tables.md's structural `len` was unrecognised by both the interval and linear layers, which knew
+> only the retired portable layer's `alen`/`slen`; and an exactly-known length — a literal array's,
+> or a `build`'s — was thrown away at the `let` that call-by-need introduces.
+>
+> With all three fixed the answer inverts: `tokenize.oro` is **86.7%** with nothing declared and
+> **100% with one range declared**, and `tree.oro` is 88.9% and 91.3%. **Declaring a range is what
+> unlocks the parsers, exactly as intervals-2026-08-19 predicted** — so this document's central
+> worry is withdrawn and the plan is in better shape than it concluded. §3's postcondition is still
+> wanted; it is no longer the thing everything is blocked on.
+
 ### 2.1 One cause, and it is the same one in both programs
 
 ```

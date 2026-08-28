@@ -197,6 +197,29 @@ For a nested table `len` is the **leading-axis** length — `(len a)` is the num
 `(len (a 0))` is the number of columns. That is Iverson's and More's leading-axis rule expressed by
 currying, and it is why we need no separate `shape` primitive (§8.2).
 
+#### 2.3.1 How long a table can be
+
+**A table has at most 2⁵³−1 elements, on every target, and that is a consequence rather than a new
+rule.** `len` returns an `int`, and [ADR 0012](../decisions/0012-portable-integer-range.md) says
+`int` is exact within ±(2⁵³−1). A table with more elements than that has a length this language
+cannot count exactly — so `(len t)` would not be a number the program can compare, index with, or
+carry, and every guarantee in §2.3 about `dom(a) = [0, len a)` has already failed.
+
+It is written here because it was **relied on without being stated**, which is `split-words`'s shape
+and the zero-fill guarantee's shape: the interval analysis treated `(len t)` as unbounded above, so
+every counter under a `(>= i (len a))` guard was unprovable — 32 operations across the corpus, and
+every one of them the same three characters.
+
+**A target may declare something tighter with `(max-len N)`**, and one of ours can: a Java array
+holds at most 2³¹−1 elements, because `arraylength` returns an `int` and `new T[n]` takes one. That
+is the same shape as `int-repr` — the host declaring what it can hold — and it is what lets a
+counter be held in the host's own `int` rather than a `long`
+([indexnarrow](../../gauntlet/results/indexnarrow-2026-08-27.md)).
+
+`N` must not exceed 2⁵³−1, and declaring more is an **error**: a length the target cannot count
+exactly is not a length. Declaring nothing is the common case and means "no tighter than the
+language's own bound".
+
 ---
 
 ## 3. Indexing is application

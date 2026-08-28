@@ -1,0 +1,28 @@
+; A LENGTH IS BOUNDED WITHOUT BEING KNOWN (maxlen-2026-08-28).
+; inputs: 0 3 8
+; expect: 0 6 36
+;
+; The table is a `build` sized by a PARAMETER, so nothing knows how long it is
+; — `exactLen` wants a literal and there is none. What bounds the walk's
+; counter is that a length cannot exceed what an `int` can count (ADR 0012),
+; and on Java that a `arraylength` returns a 32-bit `int`.
+;
+; That is what makes `i` narrow to a host `int` on Java and stay a `long`
+; everywhere else, so this case is here to check the two agree. It is also the
+; first case where a buffer is FROZEN and read back by a different loop
+; (frozen-2026-08-28), which is the other thing the walk depends on.
+;
+; Three inputs only: reduction inlines `run` at every call site, and each
+; call builds a table, so more of them exhausts x86's scratch registers --
+; which measures the harness rather than the compiler (see run.go).
+;
+; Sum of 1..n, which is n(n+1)/2.
+(def run (fn (n)
+  (let (build n (fn (b)
+         (loop ((b b) (i 0))
+           (@ge i (len b))  b
+           else             (again (set b i (@add i 1)) (@add i 1)))))
+    (fn (t)
+      (loop ((acc 0) (i 0))
+        (@ge i (len t))  acc
+        else             (again (@add acc (t i)) (@add i 1)))))))

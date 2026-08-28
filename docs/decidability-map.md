@@ -116,6 +116,24 @@ they are O(n³), they are inside the polynomial ring of the map, and they expres
 **That is the single highest-value move available on the inference side, and it is not a patch — it
 is moving one step up a lattice that has been studied since 1978.**
 
+> **REFUTED BY MEASUREMENT, 2026-08-28** —
+> [maxlen-2026-08-28](../gauntlet/results/maxlen-2026-08-28.md). Every unproven operation in the
+> corpus was classified by what fact would settle it, and **not one needs an octagon**. The argument
+> above has a hole: `i < len(a)` *is* relational, but it becomes a **bound** on `i` only when
+> `len(a)` is bounded — and once it is, `refine` gets there non-relationally. So the relational fact
+> pays off exactly where the non-relational one already does. The shape that genuinely needs an
+> octagon — two variables each unbounded whose *difference* is bounded — has one candidate in the
+> corpus and it is bounded by other means.
+>
+> What the residue actually wanted was a bound on `len(a)`, which is
+> [ADR 0012](decisions/0012-portable-integer-range.md) and needed no new domain at all. And
+> `tree.oro`'s remainder wants an inductive invariant over a buffer's *slots* — a quantified array
+> invariant, **stronger** than octagons, not weaker.
+>
+> This is ADR 0008 landing on a decision rather than a primitive. Octagons are not refused for all
+> time; they are refused *on this corpus*, and the trigger to reopen is a program whose obligation is
+> a bounded difference of two unbounded quantities.
+
 ---
 
 ## 3. Why we are where we are, and it is structural rather than lucky

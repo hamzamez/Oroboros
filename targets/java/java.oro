@@ -30,6 +30,17 @@
 
   (array-type "%s[]")
 
+  ; HOW MANY ELEMENTS A TABLE CAN HAVE HERE, and this host can say something
+  ; stronger than the language can. `arraylength` returns an `int` and `new
+  ; T[n]` takes one, so a Java array holds at most 2^31-1 elements. Every other
+  ; length on this target is an `int` too -- `Map.size()`, `String.length()`.
+  ;
+  ; Without it a length is bounded only by ADR 0012's window at 2^53-1, which
+  ; is true everywhere and true here, but too wide to hold an index. This is
+  ; the platform fact indextype-2026-08-25 hardcoded in Go, stated where a
+  ; target author can act on it.
+  (max-len 2147483647)
+
   (type int     "long")
   (type f64     "double")
   (type bool    "boolean")

@@ -800,10 +800,21 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		}
 	}
 
-	// An array length is non-negative, and whatever else has been declared or
-	// narrowed about it.
+	// A LENGTH IS BOUNDED AT BOTH ENDS, and neither end needs a declaration.
+	//
+	// Non-negative is obvious. The upper end is ADR 0012: `(len t)` returns an
+	// `int`, `int` is exact within ±(2^53−1), and a table with more elements
+	// than that has a length the language cannot count — so it is outside the
+	// language and every guarantee about indexing it has already failed. A
+	// target may declare something tighter (Target.MaxLen); Java can, because
+	// `arraylength` returns a 32-bit `int`.
+	//
+	// This is the fact 32 of the corpus's unproven operations were waiting for,
+	// and every one of them is `(+ i 1)` under a guard `(>= i (len a))`: the
+	// guard already bounds `i` by `len a` — non-relationally, in `refine` —
+	// and `len a` was the thing with no bound.
 	if len(vals) == 1 && isLenOp(op.Name) {
-		out := ival{lo: 0, hiInf: true}
+		out := ival{lo: 0, hi: p.tgt.MaxLenOf()}
 		if p.assumed {
 			out = ival{lo: 0, hi: p.assume}
 		}

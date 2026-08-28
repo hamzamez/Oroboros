@@ -110,6 +110,29 @@ A range never narrows a **local**: `(a i)` is an integer wherever it is used, an
 element slot consults the width. See
 [elemwidth-2026-08-27](../../gauntlet/results/elemwidth-2026-08-27.md).
 
+## 2c. `max-len` — how many elements a table can have
+
+```
+(max-len 2147483647)          ; a Java array's length is an `int`
+```
+
+**Optional, and most targets should omit it.** A length is already bounded without any declaration:
+`len` returns an `int`, ADR 0012 makes `int` exact within ±(2⁵³−1), so a table with more elements
+has a length the language cannot count. See [tables.md §2.3.1](tables.md).
+
+Declare it only where the host says something **tighter and specified**. Java does: `arraylength`
+returns an `int` and `new T[n]` takes one, so 2³¹−1 is a fact of the platform rather than a guess
+about memory. Go does not — a slice length is a 64-bit `int` and the real limit is the address
+space, which is neither specified nor stable, so `targets/go/` declares nothing and keeps the
+language's bound.
+
+What a tighter bound buys is the **index type**: a counter bounded by a length fits the host's own
+`int` only if the length does. That is the platform fact
+[indextype-2026-08-25](../../gauntlet/results/indextype-2026-08-25.md) hardcoded in Go, moved to
+where a target author can state it.
+
+`N` beyond 2⁵³−1 is an **error**. A length the target cannot count exactly is not a length.
+
 ## 3. `prim` — expression and statement primitives
 
 These are **pure data**: an arity, types, a template, and attributes.

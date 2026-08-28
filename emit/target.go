@@ -126,6 +126,23 @@ type Target struct {
 	// does, which is the right answer for JavaScript: it has no integers, and a
 	// plain packed Array measured FASTER than a Uint8Array
 	// (jsontok-2026-08-26).
+	// MaxLen is the largest number of elements a table can have on this
+	// target, or 0 for "no tighter than the language's own bound".
+	//
+	// A LENGTH IS BOUNDED WITHOUT ANY DECLARATION, and that is a LANGUAGE fact
+	// rather than a host one. `(len t)` returns an `int`, and ADR 0012 says
+	// `int` is exact within ±(2^53−1); a table with more elements than that has
+	// a length this language cannot count exactly, so it is outside the
+	// language and every guarantee about indexing it has already failed. So the
+	// analysis may assume `(len t) ≤ 2^53−1` everywhere, assuming nothing ADR
+	// 0012 did not already require. See MaxLenOf and docs/spec/tables.md §2.3.
+	//
+	// A target may say something TIGHTER, and one of them can: a Java array
+	// holds at most 2^31−1 elements because `arraylength` returns an `int`.
+	// That is the same shape as `int-repr` — the host declaring what it can
+	// hold — and it is the fact indextype-2026-08-25 hardcoded in Go.
+	MaxLen int64
+
 	Reprs []IntRepr
 	Prims map[string]Prim
 	Names []string // every primitive name, for core.Env
@@ -428,6 +445,13 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.ArrayType = o.ArrayType
 	}
+	if o.MaxLen != 0 {
+		if tg.MaxLen != 0 && tg.MaxLen != o.MaxLen {
+			return fmt.Errorf("%s: max-len is declared as %d and as %d",
+				from, tg.MaxLen, o.MaxLen)
+		}
+		tg.MaxLen = o.MaxLen
+	}
 	// Representations are ORDERED, so they append rather than merging by key —
 	// narrowest first is the whole selection rule. A target that splits them
 	// across files gets them in file order, which is the order it wrote them.
@@ -489,6 +513,16 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: int-repr %d..%d is empty", path, lo, hi)
 			}
 			tg.Reprs = append(tg.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: f.Kids[3].Str})
+		case "max-len":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KInt || f.Kids[1].Int < 1 {
+				return nil, fmt.Errorf("%s: (max-len N) with N >= 1, got %s", path, f)
+			}
+			if f.Kids[1].Int > portableMaxLen {
+				return nil, fmt.Errorf("%s: max-len %d is outside the portable "+
+					"window; a length this target cannot count exactly is not a "+
+					"length (ADR 0012)", path, f.Kids[1].Int)
+			}
+			tg.MaxLen = f.Kids[1].Int
 		case "array-type":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
@@ -805,6 +839,24 @@ func fill(form string, vals []any) string {
 		out[i] = vals[i%len(vals)]
 	}
 	return fmt.Sprintf(form, out...)
+}
+
+// portableMaxLen is ADR 0012's window, and it is the bound on every table's
+// length that needs no declaration at all. See Target.MaxLen.
+const portableMaxLen = 1<<53 - 1
+
+// MaxLenOf is the largest length a table can have on this target: what the
+// target declared, or the language's own bound when it declared nothing.
+//
+// Failure is not a case here, which is the point. Before this, `(len a)` was
+// `[0, +inf)` and every counter under a `len` guard was unbounded — 32 of the
+// corpus's unproven operations, and every one of them is `(+ i 1)` under
+// `(>= i (len a))`.
+func (tg *Target) MaxLenOf() int64 {
+	if tg.MaxLen != 0 {
+		return tg.MaxLen
+	}
+	return portableMaxLen
 }
 
 // IntRepr is one integer representation a target can store.

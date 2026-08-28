@@ -871,13 +871,43 @@ not yet a post-fixpoint.
 byte-identical** across 41 programs, with compile time unmoved. A pure provability gain and not a speed
 one, which is the honest way to record it.
 
-**AND THE HONEST LIMIT IS NOW A DIFFERENT ONE, WITH A WITNESS.** The 42 operations still unproven all
-chain off `d`, a depth **read back out of the worklist that stores it** — stratum 0, correctly refused,
-and its element range is the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to ⊤. What bounds
-`d` is that it grows at most once per iteration under a trip bound: **`d ≤ steps`**, which is
-relational and which an interval cannot express. So the octagon argument survives — with a concrete
-witness in a real program instead of an unexplained order-sensitivity, which is a better reason than
-the one it replaced.
+**AND THE HONEST LIMIT IS NOW A DIFFERENT ONE.** The 42 operations still unproven all chain off `d`, a
+depth **read back out of the worklist that stores it** — stratum 0, correctly refused, its element
+range being the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to ⊤. What bounds `d` is
+`d ≤ steps`. **This result called that a witness for octagons and that was WRONG** — see
+maxlen-2026-08-28: `d` is read out of a *table*, so bounding it needs an inductive invariant over the
+buffer's SLOTS, which is a quantified array invariant and strictly stronger than an octagon.
+
+**OCTAGONS ARE REFUTED BY MEASUREMENT, AND A LENGTH BOUND BUILT INSTEAD** —
+[maxlen-2026-08-28](gauntlet/results/maxlen-2026-08-28.md). decidability-map.md calls octagons *"the
+highest-value move available"* and three results named a demand. Before building an O(n³) domain,
+**every unproven operation in the corpus was classified by what fact would settle it, and NOT ONE
+needs an octagon**: 30 are a counter or a subtraction under a `len` guard, 4 want a declared parameter
+range or a map's value range, 8 are deliberate true negatives, and 42 are `tree.oro`'s `d`.
+
+**The reason generalises**: an octagonal constraint `i − n ≤ c` becomes a BOUND on `i` only when `n` is
+itself bounded — and if `n` is bounded, the guard `i < n` already gives it non-relationally in
+`refine`. So the relational fact pays off only where the non-relational one already does. The genuine
+octagon shape — two variables each unbounded whose DIFFERENCE is bounded — has one candidate here,
+`(go.- ni i)`, and both operands are bounded the moment `(len src)` is. ADR 0008 landing on a
+*decision* rather than a primitive.
+
+**What measurement selected instead is that A LENGTH IS BOUNDED AT BOTH ENDS, and the upper end needs
+no declaration.** `len` returns an `int` and ADR 0012 makes `int` exact within ±(2⁵³−1), so a table
+with more elements has a length the language cannot count — every guarantee about `dom(a) = [0, len a)`
+has already failed. **It was relied on without being stated**, which is `split-words`'s shape and the
+zero-fill guarantee's shape; now [tables.md §2.3.1](docs/spec/tables.md). A target may declare
+`(max-len N)` where the host says something **tighter and specified** — Java's `arraylength` returns an
+`int`, so 2³¹−1; **Go declares nothing**, because a slice's real limit is the address space, which is
+neither specified nor stable. `N` past 2⁵³−1 is an error.
+
+**Thirteen programs improved**: `smooth-go` **0/13 ops and 0/2 loops → 13/13 and 2/2**, `generic-*`
+0/2 → 2/2, `search*` 0/1 → 1/1 with termination, `report-go` 1/2 → 2/2, `smooth-java` 0/16 → 14/16.
+**Exactly one emitted file changes** across 53 programs × 5 targets — `search-java` gets `int r1`
+instead of `long r1` — so Java's index narrowing now fires on a program indextype-2026-08-25's
+syntactic rule explicitly could not help. **No benchmarked program changed, so there is no speed claim
+here.** The differential suite passes on all four targets with a new case, `len-bounded.oro`, whose
+table is sized by a PARAMETER so nothing knows its length.
 
 **RE-BENCHMARKED, and the withdrawal cost is a PER-HOST answer** —
 [rebench-2026-08-27](gauntlet/results/rebench-2026-08-27.md). Tokeniser **Go 0.94x, JavaScript 1.00x,

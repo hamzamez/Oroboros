@@ -740,6 +740,31 @@ returned `4040171`. It compiled, ran, and returned a number. And Java's value ca
 two store paths**, the one a program takes only once its index is narrowed — so it would have failed
 on the first real program and passed every test with an index-narrowed loop.
 
+**AND THE ANALYSIS IS NOW TESTED BY A CONTAINMENT HARNESS** —
+[containment-2026-08-27](gauntlet/results/containment-2026-08-27.md),
+`emit/containment_test.go`. **1,877 randomly generated programs, run concretely**, every integer
+operation checked against what the analysis claimed. The property is **γ-soundness**: for every
+reachable state and every operation, `⟦e⟧σ ∈ γ(MaxOp)` — **containment, never tightness**, because
+a claim too wide costs space and one too narrow is a silent wrong answer.
+
+**It exists because a hand-written soundness test passed for months while the fixpoint was unsound.**
+`TestIntervalsNeverOverclaim` only catches what someone thought to write, the differential suite is
+**structurally blind** here (every target narrows on the same decision, so they agree and are wrong
+together), and two adversarial cases written that week expected a refusal where the analysis was
+right — the tests were wrong, not the analysis.
+
+**THE PASS CONDITION, and the harness failed it first.** It must FAIL when the fixpoint bug is put
+back — and with `restore` reverted it **passed anyway**. The reason is worth keeping: **every
+conditional the first generator made sat in TAIL position**, where the environment after an `if` is
+never used again, so the leak was invisible. The bug bites when an `if` is an OPERAND, where what the
+analysis believes afterwards is immediately spent on the other operand. With that shape generated it
+fails at **seed 15 — claims `-153..765`, program produces 918**. A harness that cannot fail proves
+nothing.
+
+**Not covered, and named**: buffers. The element range is the other place an interval decides bits,
+and a wrong one there TRUNCATES rather than merely widening. Generating `build`/`set` and checking
+every stored value against `ElemType` is the same property one level along.
+
 **THE INTERVAL FIXPOINT WAS NOT MONOTONE, AND EVERY PROVABILITY NUMBER WAS INFLATED** —
 [fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md). `restore` installed a snapshot **by
 reference**, and what follows a restore is `refine`, which narrows **in place** — so the second

@@ -367,11 +367,11 @@ type descent struct {
 //     wrong, the differential suite's `; expect:` answers are what catch it —
 //     and note that AGREEMENT cannot, because every target narrows on the same
 //     decision.
-func BufferRange(tgt *Target, lam *core.Term) (string, bool) {
+func BufferRange(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (string, bool) {
 	if lam == nil || lam.Kind != core.KFn || len(lam.Params) != 1 {
 		return "", false
 	}
-	rep, _ := Intervals(tgt, nil, lam, 0)
+	rep, _ := intervalsAssuming(tgt, lam, sig, params)
 	var out ival
 	found := false
 	for _, v := range rep.Stores {
@@ -515,6 +515,41 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 		}
 	}
 	return false, false
+}
+
+// intervalsAssuming analyses a subterm with the ENCLOSING function's
+// precondition in scope.
+//
+// A `build` lambda's free variables are the enclosing function's parameters,
+// and what bounds a buffer's stores is usually something the signature says
+// about them — examples/json/tree.oro stores a token length into its node
+// table, bounded by `len src` and by nothing inside the lambda.
+//
+// The alternative was to analyse the whole function once and look the answer up
+// per `build`, and it does not work: `openFresh` REBUILDS a term to substitute
+// its bound variables, so the build the backend holds is not the pointer the
+// analysis saw, and its printed form differs too because the parameters were
+// renamed. There is no key. Carrying the assumptions to the subterm is the same
+// information arriving by the one route that survives.
+//
+// SOUNDNESS. The `where` is a premise the program already relies on: on an
+// exported definition it is a published contract and is assumed, which is
+// refinements.md §6b's rule. Intervals taken with it are ⊑ the ones taken
+// without — tighter, and both sound.
+func intervalsAssuming(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (*IntervalReport, *core.Term) {
+	if sig == nil || sig.Where == nil || len(params) == 0 {
+		return Intervals(tgt, nil, lam, 0)
+	}
+	// Rename the signature's parameter names to the ones the caller opened
+	// with, for the reason Refine needs the same thing: a length is keyed by
+	// the printed term, so `len(p)` and `len(a)` are different variables.
+	sub := map[string]*core.Term{}
+	for i, n := range params {
+		if i < len(sig.Params) && sig.Params[i].Name != "" && sig.Params[i].Name != n {
+			sub[sig.Params[i].Name] = core.Name(n)
+		}
+	}
+	return Intervals(tgt, &core.Sig{Where: core.Rename2(sig.Where, sub)}, lam, 0)
 }
 
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {

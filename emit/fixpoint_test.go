@@ -54,7 +54,7 @@ func TestNodeTableRangeHoldsEveryIndex(t *testing.T) {
 		}
 		if x.Kind == core.KApp && x.Op().Kind == core.KName && len(x.Args()) == 2 {
 			if p, ok := tg.Prims[x.Op().Name]; ok && p.Kind == "table-build" {
-				if r, got := BufferRange(tg, x.Args()[1]); got {
+				if r, got := BufferRange(tg, x.Args()[1], nil, nil); got {
 					lo, hi, _ := core.IntRange(r)
 					if lo > 0 || hi < 511 {
 						t.Errorf("node table range %q excludes an index it stores; "+

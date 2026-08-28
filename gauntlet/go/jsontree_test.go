@@ -17,10 +17,17 @@ func treeDoc(records int) []int {
 	return TokDocInts(TokDoc(records))
 }
 
+// THE GENERATED PARSER TAKES []byte NOW, because examples/json/tree.oro declares
+// `(array (int 0 255))` on its source and the Go target stores that range in a
+// byte. The hand-written references still take []int, so this comparison is our
+// shape against theirs — which is what the flat/recursive/clamped rows already
+// are (fixpoint-2026-08-27 §13).
+func treeBytes(records int) []byte { return TokDoc(records) }
+
 func TestTreeAgree(t *testing.T) {
 	for _, n := range []int{0, 1, 2, 5, 20} {
 		doc := treeDoc(n)
-		r, f, c, g := TreeRec(doc), TreeFlat(doc), TreeFlatClamped(doc), TreeMeasure(doc)
+		r, f, c, g := TreeRec(doc), TreeFlat(doc), TreeFlatClamped(doc), TreeMeasure(TokDocBytes(doc))
 		if r != f || r != g || r != c {
 			t.Fatalf("records=%d: rec=%d flat=%d clamped=%d generated=%d", n, r, f, c, g)
 		}
@@ -28,7 +35,7 @@ func TestTreeAgree(t *testing.T) {
 	for _, s := range []string{"[1,2]", `{"a":1}`, "[[1],2]", `{"a":[1,2],"b":true}`,
 		"[]", "{}", "[[[[1]]]]", `["a\"b"]`} {
 		doc := TokDocInts([]byte(s))
-		r, f, g := TreeRec(doc), TreeFlat(doc), TreeMeasure(doc)
+		r, f, g := TreeRec(doc), TreeFlat(doc), TreeMeasure(TokDocBytes(doc))
 		if r != f || r != g {
 			t.Fatalf("%q: rec=%d flat=%d generated=%d", s, r, f, g)
 		}
@@ -61,7 +68,7 @@ func BenchmarkTreeFlat(b *testing.B) {
 }
 
 func BenchmarkTreeGen(b *testing.B) {
-	doc := treeDoc(treeRecords)
+	doc := treeBytes(treeRecords) // built ONCE: the conversion is not the parser
 	b.ReportAllocs()
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
@@ -77,4 +84,3 @@ func BenchmarkTreeFlatClamped(b *testing.B) {
 		sink = TreeFlatClamped(doc)
 	}
 }
-

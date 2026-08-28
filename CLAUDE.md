@@ -810,12 +810,22 @@ sensitive to.
 operation in the method to fit a 32-bit index, and 86.7% is the honest figure, so casts went
 **5 → 102** and the cost of 97 casts is **3.7%**. Third time this week the casts have proved cheap.
 
-**The narrowing is recoverable and what it needs is structural.** `BufferRange` runs on the `build`
-lambda ALONE — presented as a soundness argument, and with a sound fixpoint no longer needed for
-soundness. Declaring `(where (go.< (len src) 1024))` takes `tree.oro` to 91.3% and **25 of 25 loops**
-and the buffers *still* do not narrow, because the sub-pass never sees the signature. The fix is the
-one index narrowing already needed — **ask once per function with the signature in hand** —
-and `IntervalReport.Stores` already records what is wanted.
+**AND THE STRUCTURAL FIX LANDED, so the narrowing is earned back.** The obvious design — analyse the
+whole function once and look the answer up per `build` — **has no key**: `openFresh` REBUILDS a term
+to substitute its bound variables, so the build the backend holds is not the pointer the analysis
+saw, and its printed form differs because the parameters were renamed. It was built, measured, and
+found to record nothing the emitter could find; attribution was wrong too, since a store to the OUTER
+buffer happens inside the inner one's extent. **Carrying the ASSUMPTIONS to the subterm works** —
+`intervalsAssuming` runs the sub-pass with the enclosing precondition, renaming sig parameters to the
+names the backend opened with, which is what `Refine` already does and for the same reason.
+
+**The contract is what earns the representation**: `(sig measure ((src (array (int 0 255)))) int
+(where (go.< (len src) 1024)))` — one line, and `tree.oro` reaches **91.3% and 25 of 25 loops** with
+its node table in 16-bit slots. **Java 7,901 → 6,554 ns, which is 1.01x of hand-written `long[]`**
+where it was 1.23x; **Go is unmoved at 5,539**. So the node table's width is worth **nothing on Go and
+about 20% on the JVM** — ADR 0008 twice on one change. The derived range is `int -1021 1024` rather
+than `int 0 511`, because a token length is `ni - i` and the abstract state admits a negative one; it
+selects `int16` instead of `uint16`, the same two bytes.
 
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).

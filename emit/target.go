@@ -1317,11 +1317,13 @@ func max64(a, b int64) int64 {
 // so the cases that can be settled without trusting a fixpoint are, and
 // BufferRange's soundness argument carries only the rest.
 func ElemType(tgt *Target, lam, body *core.Term, name string,
-	typeOf func(*core.Term) string) string {
+	typeOf func(*core.Term) string, sig *core.Sig, params []string) string {
 	if ty := bufferElem(body, name, typeOf); ty != "int" {
 		return ty
 	}
-	if r, ok := BufferRange(tgt, lam); ok {
+	// The analysis is asked WITH the enclosing precondition, because what
+	// bounds a buffer's stores is usually something the signature says.
+	if r, ok := BufferRange(tgt, lam, sig, params); ok {
 		return r
 	}
 	return "int"
@@ -1908,13 +1910,14 @@ func IsBoolTerm(tgt *Target, t *core.Term) bool {
 //
 // So it defers to bufferElem, which joins. The `typeOf` it passes recognises
 // booleans and nothing else, because that is all this host can know.
-func BufferElemBytes(tgt *Target, lam, body *core.Term, name string) int {
+func BufferElemBytes(tgt *Target, lam, body *core.Term, name string,
+	sig *core.Sig, params []string) int {
 	ty := ElemType(tgt, lam, body, name, func(t *core.Term) string {
 		if IsBoolTerm(tgt, t) {
 			return "bool"
 		}
 		return ""
-	})
+	}, sig, params)
 	if ty == "bool" {
 		return 1
 	}

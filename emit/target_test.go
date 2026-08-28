@@ -321,7 +321,7 @@ func TestBufferRangeContainsEveryStore(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
-		got, ok := BufferRange(tg, forms[0].Term)
+		got, ok := BufferRange(tg, forms[0].Term, nil, nil)
 		if !ok {
 			continue // refusing is always safe
 		}
@@ -356,7 +356,7 @@ func TestBufferRangeRefusesWhatItCannotBound(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
-		if got, ok := BufferRange(tg, forms[0].Term); ok {
+		if got, ok := BufferRange(tg, forms[0].Term, nil, nil); ok {
 			t.Errorf("%s: claimed %q; an unbounded store must keep the machine word",
 				c.name, got)
 		}
@@ -378,7 +378,7 @@ func TestBufferRangeUsesAGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, ok := BufferRange(tg, forms[0].Term)
+	got, ok := BufferRange(tg, forms[0].Term, nil, nil)
 	if !ok {
 		t.Fatal("a store bounded by the loop's own guard must be provable")
 	}

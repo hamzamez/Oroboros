@@ -2,76 +2,76 @@
 
 package gauntlet
 
-func TreeMeasure(src []int) int {
-	nodes := make([]int, (4 * 512))
-	stk := make([]int, (2 * 32))
+func TreeMeasure(src []byte) int {
+	nodes := make([]int16, (4 * 512))
+	stk := make([]int16, (2 * 32))
 	nodes2 := nodes
 	stk2 := stk
 	var i int = 0
 	var nn int = 1
 	var sp int = 0
 	var ok int = 1
-	var r1 []int
+	var r1 []int16
 	for {
 		if (i < 0) {
-			nodes2[0] = nn
-			nodes2[1] = 0
+			nodes2[0] = int16(nn)
+			nodes2[1] = int16(0)
 			r1 = nodes2
 			break
 		}
 		if (i >= len(src)) {
-			nodes2[0] = nn
+			nodes2[0] = int16(nn)
 			var t2 int
 			if (sp == 0) {
 				t2 = ok
 			} else {
 				t2 = 0
 			}
-			nodes2[1] = t2
+			nodes2[1] = int16(t2)
 			r1 = nodes2
 			break
 		}
 		if (nn >= 512) {
-			nodes2[0] = nn
-			nodes2[1] = 0
+			nodes2[0] = int16(nn)
+			nodes2[1] = int16(0)
 			r1 = nodes2
 			break
 		}
 		if (sp >= 32) {
-			nodes2[0] = nn
-			nodes2[1] = 0
+			nodes2[0] = int16(nn)
+			nodes2[1] = int16(0)
 			r1 = nodes2
 			break
 		}
-		var c int = src[i]
+		var c int = int(src[i])
 		if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
 			i = (i + 1)
 			continue
 		}
-		var c2 int = src[i]
+		var c2 int = int(src[i])
 		if ((c2 == 58) || (c2 == 44)) {
 			i = (i + 1)
 			continue
 		}
-		var c3 int = src[i]
+		var c3 int = int(src[i])
 		if ((c3 == 123) || (c3 == 91)) {
 			var t3 int
-			if (src[i] == 123) {
+			if (int(src[i]) == 123) {
 				t3 = 5
 			} else {
 				t3 = 4
 			}
-			nodes2[((4 * nn) + 0)] = t3
-			nodes2[((4 * nn) + 1)] = 0
+			nodes2[((4 * nn) + 0)] = int16(t3)
+			nodes2[((4 * nn) + 1)] = int16(0)
 			nodes3 := nodes2
-			var t4 []int
+			var t4 []int16
 			if (sp < 1) {
 				t4 = nodes3
 			} else {
-				var lc int = stk2[((2 * (sp - 1)) + 1)]
-				var t5 []int
+				var lc int = int(stk2[((2 * (sp - 1)) + 1)])
+				var t5 []int16
 				if (lc == 0) {
-					var k int = stk2[((2 * (sp - 1)) + 0)]
+					var k int = int(stk2[((2 * (sp - 1)) + 0)])
 					var t6 int
 					if (k < 0) {
 						t6 = 0
@@ -84,7 +84,7 @@ func TreeMeasure(src []int) int {
 						}
 						t6 = t7
 					}
-					nodes3[((4 * t6) + 2)] = nn
+					nodes3[((4 * t6) + 2)] = int16(nn)
 					t5 = nodes3
 				} else {
 					var t8 int
@@ -99,25 +99,25 @@ func TreeMeasure(src []int) int {
 						}
 						t8 = t9
 					}
-					nodes3[((4 * t8) + 3)] = nn
+					nodes3[((4 * t8) + 3)] = int16(nn)
 					t5 = nodes3
 				}
 				t4 = t5
 			}
-			var t10 []int
+			var t10 []int16
 			if (sp < 1) {
 				t10 = stk2
 			} else {
-				stk2[((2 * (sp - 1)) + 1)] = nn
+				stk2[((2 * (sp - 1)) + 1)] = int16(nn)
 				t10 = stk2
 			}
 			stk3 := t10
-			stk3[((2 * sp) + 0)] = nn
-			stk3[((2 * sp) + 1)] = 0
+			stk3[((2 * sp) + 0)] = int16(nn)
+			stk3[((2 * sp) + 1)] = int16(0)
 			nodes2, stk2, i, nn, sp = t4, stk3, (i + 1), (nn + 1), (sp + 1)
 			continue
 		}
-		var c4 int = src[i]
+		var c4 int = int(src[i])
 		if ((c4 == 125) || (c4 == 93)) {
 			var t11 int
 			if (sp < 1) {
@@ -129,7 +129,7 @@ func TreeMeasure(src []int) int {
 			if (sp < 1) {
 				t12 = 0
 			} else {
-				var k2 int = stk2[((2 * (sp - 1)) + 0)]
+				var k2 int = int(stk2[((2 * (sp - 1)) + 0)])
 				var t13 int
 				if (k2 < 0) {
 					t13 = 0
@@ -143,13 +143,13 @@ func TreeMeasure(src []int) int {
 					t13 = t14
 				}
 				var t15 int
-				if (src[i] == 125) {
+				if (int(src[i]) == 125) {
 					t15 = 5
 				} else {
 					t15 = 4
 				}
 				var t16 int
-				if (nodes2[((4 * t13) + 0)] == t15) {
+				if (int(nodes2[((4 * t13) + 0)]) == t15) {
 					t16 = ok
 				} else {
 					t16 = 0
@@ -159,10 +159,10 @@ func TreeMeasure(src []int) int {
 			i, sp, ok = (i + 1), t11, t12
 			continue
 		}
-		var c5 int = src[i]
+		var c5 int = int(src[i])
 		if ((c5 == 34) || ((((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) || ((c5 >= 97) && (c5 <= 122)))) {
 			var t17 int
-			if (src[i] == 34) {
+			if (int(src[i]) == 34) {
 				var j int = (i + 1)
 				var r18 int
 				for {
@@ -174,11 +174,11 @@ func TreeMeasure(src []int) int {
 						r18 = j
 						break
 					}
-					if (src[j] == 92) {
+					if (int(src[j]) == 92) {
 						j = (j + 2)
 						continue
 					}
-					if (src[j] == 34) {
+					if (int(src[j]) == 34) {
 						r18 = (j + 1)
 						break
 					}
@@ -187,7 +187,7 @@ func TreeMeasure(src []int) int {
 				}
 				t17 = r18
 			} else {
-				var c6 int = src[i]
+				var c6 int = int(src[i])
 				var t19 int
 				if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
 					var j2 int = (i + 1)
@@ -198,7 +198,7 @@ func TreeMeasure(src []int) int {
 						if (j2 >= len(src)) {
 							break
 						}
-						var c7 int = src[j2]
+						var c7 int = int(src[j2])
 						if (((c7 >= 48) && (c7 <= 57)) || ((c7 == 45) || ((c7 == 43) || ((c7 == 46) || ((c7 == 101) || (c7 == 69)))))) {
 							continue
 						}
@@ -214,7 +214,7 @@ func TreeMeasure(src []int) int {
 						if (j3 >= len(src)) {
 							break
 						}
-						var c8 int = src[j3]
+						var c8 int = int(src[j3])
 						if ((c8 >= 97) && (c8 <= 122)) {
 							continue
 						}
@@ -226,10 +226,10 @@ func TreeMeasure(src []int) int {
 			}
 			var ni int = t17
 			var t20 int
-			if (src[i] == 34) {
+			if (int(src[i]) == 34) {
 				t20 = 2
 			} else {
-				var c9 int = src[i]
+				var c9 int = int(src[i])
 				var t21 int
 				if (((c9 >= 48) && (c9 <= 57)) || ((c9 == 45) || ((c9 == 43) || ((c9 == 46) || ((c9 == 101) || (c9 == 69)))))) {
 					t21 = 1
@@ -238,17 +238,17 @@ func TreeMeasure(src []int) int {
 				}
 				t20 = t21
 			}
-			nodes2[((4 * nn) + 0)] = t20
-			nodes2[((4 * nn) + 1)] = (ni - i)
+			nodes2[((4 * nn) + 0)] = int16(t20)
+			nodes2[((4 * nn) + 1)] = int16((ni - i))
 			nodes4 := nodes2
-			var t22 []int
+			var t22 []int16
 			if (sp < 1) {
 				t22 = nodes4
 			} else {
-				var lc2 int = stk2[((2 * (sp - 1)) + 1)]
-				var t23 []int
+				var lc2 int = int(stk2[((2 * (sp - 1)) + 1)])
+				var t23 []int16
 				if (lc2 == 0) {
-					var k3 int = stk2[((2 * (sp - 1)) + 0)]
+					var k3 int = int(stk2[((2 * (sp - 1)) + 0)])
 					var t24 int
 					if (k3 < 0) {
 						t24 = 0
@@ -261,7 +261,7 @@ func TreeMeasure(src []int) int {
 						}
 						t24 = t25
 					}
-					nodes4[((4 * t24) + 2)] = nn
+					nodes4[((4 * t24) + 2)] = int16(nn)
 					t23 = nodes4
 				} else {
 					var t26 int
@@ -276,16 +276,16 @@ func TreeMeasure(src []int) int {
 						}
 						t26 = t27
 					}
-					nodes4[((4 * t26) + 3)] = nn
+					nodes4[((4 * t26) + 3)] = int16(nn)
 					t23 = nodes4
 				}
 				t22 = t23
 			}
-			var t28 []int
+			var t28 []int16
 			if (sp < 1) {
 				t28 = stk2
 			} else {
-				stk2[((2 * (sp - 1)) + 1)] = nn
+				stk2[((2 * (sp - 1)) + 1)] = int16(nn)
 				t28 = stk2
 			}
 			nodes2, stk2, i, nn = t22, t28, ni, (nn + 1)
@@ -331,7 +331,7 @@ func TreeMeasure(src []int) int {
 			}
 			t30 = t31
 		}
-		var sb int = nodes5[((4 * t30) + 3)]
+		var sb int = int(nodes5[((4 * t30) + 3)])
 		var t32 int
 		if (n < 0) {
 			t32 = 0
@@ -344,7 +344,7 @@ func TreeMeasure(src []int) int {
 			}
 			t32 = t33
 		}
-		var kd int = nodes5[((4 * t32) + 2)]
+		var kd int = int(nodes5[((4 * t32) + 2)])
 		var s1 int = (sp2 - 1)
 		var t34 []int
 		if (sb == 0) {
@@ -389,7 +389,7 @@ func TreeMeasure(src []int) int {
 			}
 			t38 = t39
 		}
-		wl2, sp2, acc = w2, t37, (acc + (nodes5[((4 * t38) + 0)] * d))
+		wl2, sp2, acc = w2, t37, (acc + (int(nodes5[((4 * t38) + 0)]) * d))
 		continue
 	}
 	return r29

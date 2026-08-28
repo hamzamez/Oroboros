@@ -357,3 +357,14 @@ func jwalkFlatClamped(nodes []int) int {
 	}
 	return seen*1000 + acc
 }
+
+// TokDocBytes narrows a document back to bytes, so the generated parser can be
+// handed what its signature asks for while the hand-written references keep the
+// []int they were written against.
+func TokDocBytes(src []int) []byte {
+	out := make([]byte, len(src))
+	for i, v := range src {
+		out[i] = byte(v)
+	}
+	return out
+}

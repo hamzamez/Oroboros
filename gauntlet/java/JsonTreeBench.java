@@ -277,6 +277,16 @@ public final class JsonTreeBench {
         return b.append("]}").toString();
     }
 
+    // The generated parser takes short[] now: tree.oro declares (array (int 0
+    // 255)) on its source, the JVM's byte is SIGNED so 0..255 does not fit it,
+    // and short is the next representation up. The hand-written references keep
+    // the long[] they were written against.
+    static short[] shortsOf(String s) {
+        short[] out = new short[s.length()];
+        for (int i = 0; i < s.length(); i++) out[i] = (short) s.charAt(i);
+        return out;
+    }
+
     static long[] longsOf(String s) {
         long[] out = new long[s.length()];
         for (int i = 0; i < s.length(); i++) out[i] = s.charAt(i);
@@ -302,18 +312,19 @@ public final class JsonTreeBench {
         System.out.println("all three agree");
 
         long[] doc = longsOf(makeDoc(20));
+        short[] ds = shortsOf(makeDoc(20));
         run("T  tree recursive     hand", () -> treeRec(doc), 50000, 2000);
         run("T  tree flat          hand", () -> treeFlat(doc), 50000, 2000);
         run("T  tree flat int[]    hand", () -> treeFlatInt(doc), 50000, 2000);
-        run("T  tree flat          GEN ", () -> GenJsonTree.GenMeasure(doc), 50000, 2000);
+        run("T  tree flat          GEN ", () -> GenJsonTree.GenMeasure(ds), 50000, 2000);
     }
 
     static void check(String s) {
         long[] a = longsOf(s);
         long want = treeRec(a);
-        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.GenMeasure(a) != want) {
+        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.GenMeasure(shortsOf(s)) != want) {
             throw new AssertionError(s + ": rec=" + want + " flat=" + treeFlat(a)
-                    + " gen=" + GenJsonTree.GenMeasure(a));
+                    + " gen=" + GenJsonTree.GenMeasure(shortsOf(s)));
         }
     }
 }

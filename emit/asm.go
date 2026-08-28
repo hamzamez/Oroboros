@@ -83,7 +83,15 @@ type place struct {
 func (p place) reg() bool { return !p.imm && p.slot == 0 && p.text != "" }
 
 type asmEmitter struct {
-	tgt    *Target
+	tgt *Target
+
+	// sig and topParams are the enclosing function's contract and the names
+	// this backend opened its parameters with. A `build` buffer's stores are
+	// usually bounded by something the signature says, and the sub-pass that
+	// works out the element range needs both to see it.
+	sig       *core.Sig
+	topParams []string
+
 	buf    strings.Builder
 	freeGP []string
 	freeX  []string
@@ -1463,7 +1471,9 @@ func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, err
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
 	e := newAsmEmitter(tgt)
+	e.sig = sig
 	body, raw, _ := openFresh(t, e.bound, asmIdent)
+	e.topParams = raw
 	if len(raw) > len(asmArgGP) {
 		return "", fmt.Errorf("%s takes %d arguments; the Win64 convention passes four in "+
 			"registers and this backend does not read the fifth off the stack", name, len(raw))
@@ -2001,7 +2011,7 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	// for. wintables-2026-08-25 measured 3x for getting this wrong on a
 	// boolean sieve.
 	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
-	width := BufferElemBytes(e.tgt, args[1], body, raw[0])
+	width := BufferElemBytes(e.tgt, args[1], body, raw[0], e.sig, e.topParams)
 	buf, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
@@ -2148,7 +2158,7 @@ func (e *asmEmitter) elemOf(t *core.Term) int {
 			if len(t.Args()) == 2 && t.Args()[1].Kind == core.KFn &&
 				len(t.Args()[1].Params) == 1 {
 				lam := t.Args()[1]
-				return BufferElemBytes(e.tgt, lam, lam.Closed(), lam.Params[0])
+				return BufferElemBytes(e.tgt, lam, lam.Closed(), lam.Params[0], e.sig, e.topParams)
 			}
 		case "table-alloc":
 			if len(t.Args()) == 1 && isTableRule(e.tgt, t.Args()[0]) {

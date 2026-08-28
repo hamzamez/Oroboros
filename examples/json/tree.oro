@@ -43,7 +43,13 @@
 ; which is what stops reduction from folding the whole parse away. `run` feeds
 ; it constants and is what the differential suite checks.
 (export measure)
-(sig measure ((src (array int))) int)
+; THE CONTRACT IS WHAT EARNS THE REPRESENTATION. The element range says what a
+; source byte is; the `where` bounds the document, which is what bounds a token
+; LENGTH stored into the node table — and nothing inside the `build` can know
+; that. ADR 0003 puts declarations at boundaries for exactly this reason, and
+; the node table becomes 16-bit slots because of this one line
+; (fixpoint-2026-08-27 §13).
+(sig measure ((src (array (int 0 255)))) int (where (go.< (len src) 1024)))
 
 ; The caps. A `build` needs its length UP FRONT, so a flat node table is sized
 ; for the largest document it will accept rather than for the one it gets. That

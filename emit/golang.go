@@ -40,6 +40,13 @@ type Emitter struct {
 	tmp     int
 	indent  int
 
+	// sig and topParams are the enclosing function's contract and the names
+	// this backend opened its parameters with. A `build` buffer's stores are
+	// usually bounded by something the signature says, and the sub-pass that
+	// works out the element range needs both to see it.
+	sig       *core.Sig
+	topParams []string
+
 	// bound is every name already emitted in this function. A binder whose
 	// hint collides with one gets a fresh one — see openFresh.
 	bound map[string]bool
@@ -52,6 +59,7 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 	}
 	e := &Emitter{tgt: tgt, types: map[string]string{}, weak: map[string]string{},
 		imports: map[string]bool{}, bound: map[string]bool{}}
+	e.sig, e.topParams = sig, t.Params
 	for _, p := range t.Params {
 		e.bound[mangle(p)] = true
 	}
@@ -271,7 +279,7 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 		return "", err
 	}
 	body, raw, out := openFresh(lam, e.bound, mangle)
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
 	e.types[raw[0]] = "array " + elem
 	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
 	return e.emit(body)
@@ -374,7 +382,7 @@ func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
 // the buffer still answers `array V`, because the parameter now has that type.
 func (e *Emitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true

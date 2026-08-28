@@ -40,6 +40,13 @@ type javaEmitter struct {
 	// read at every leaf multiTail returns from.
 	rec string
 
+	// sig and topParams are the enclosing function's contract and the names
+	// this backend opened its parameters with. A `build` buffer's stores are
+	// usually bounded by something the signature says, and the sub-pass that
+	// works out the element range needs both to see it.
+	sig       *core.Sig
+	topParams []string
+
 	// fitsIdx is whether EVERY integer operation in this method stays inside
 	// [-2^31, 2^31-1] — computed once, with the signature, because a loop's
 	// bound usually comes from the enclosing `where` and the loop alone does
@@ -70,7 +77,9 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	// every integer operation in it stay inside the host's index type? A loop
 	// cannot answer that alone, because its bound usually comes from the
 	// signature's `where`.
-	if rep, _ := Intervals(tgt, sig, t, 0); rep.FitsIndex() {
+	e.sig, e.topParams = sig, t.Params
+	rep, _ := Intervals(tgt, sig, t, 0)
+	if rep.FitsIndex() {
 		e.fitsIdx = true
 	}
 	for _, p := range t.Params {
@@ -462,7 +471,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				return "", err
 			}
 			body, raw, out := openFresh(args[1], e.bound, javaMangle)
-			elem := ElemType(e.tgt, args[1], body, raw[0], e.typeOf)
+			elem := ElemType(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams)
 			e.types[raw[0]] = "array " + elem
 			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
 				e.tgt.ty(elem), count)
@@ -1248,7 +1257,7 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 // not necessarily the buffer's. See the Go emitter for what found that.
 func (e *javaEmitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf)
+	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true

@@ -827,6 +827,19 @@ about 20% on the JVM** — ADR 0008 twice on one change. The derived range is `i
 than `int 0 511`, because a token length is `ni - i` and the abstract state admits a negative one; it
 selects `int16` instead of `uint16`, the same two bytes.
 
+**AND THE TOKENISER TOO — both parsers now declare a contract, and it is honest rather than tuning**:
+`(where (go.< (len src) 1048576))` on the tokeniser and `(< (len src) 1024)` on the tree, because a
+node table fixed at 512 cannot accept more. The element range says what a byte IS; the `where` says
+how many there can be, which is what bounds the token count and hence `(go.* nt 1000)`. The tokeniser
+goes **86.7% → 100%** and **16 of 20 loops → 20 of 20**, and Java's index narrowing returns.
+
+**Final: tokeniser Go 0.92x, JavaScript 1.00x, Java 1.16x; tree Go 0.84x of hand-written clamped,
+JavaScript 1.02x, Java 1.01x.** What the two declarations are worth is **nothing on Go, nothing on
+V8, 1.03x and 1.21x on the JVM** — measured four times now on two programs, and the reason is
+json-tree-bench's: element width decides whether a flat node beats a boxed one and only the JVM is
+near that line. **A `where` costs nothing where it buys nothing** — it is a premise, not a runtime
+check, and on Go and JavaScript it changes no emitted code at all.
+
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).
 Five results in a row terminated at one missing fact — **a scanner returns more than it was given** —

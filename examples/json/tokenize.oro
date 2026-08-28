@@ -28,7 +28,13 @@
 ; wide it stores one — `[]byte` on Go, `short[]` on Java because the JVM's byte
 ; is signed and 0..255 does not fit it, nothing on JavaScript because it has no
 ; integers. The value read out is an integer everywhere it is used.
-(sig tokens ((src (array (int 0 255)))) int)
+; AND THE DOCUMENT IS BOUNDED, which is the other half of the contract. The
+; element range says what a byte IS; this says how many there can be — and that
+; is what bounds the token count, which bounds `(go.* nt 1000)`, which is what
+; takes the program from 86.7%% of its integer operations proven to 100%% and
+; from 16 of 20 loops to 20 of 20. ADR 0003 puts declarations at boundaries
+; because a loop inside cannot know them (fixpoint-2026-08-27 §13).
+(sig tokens ((src (array (int 0 255)))) int (where (go.< (len src) 1048576)))
 
 (def cap (fn () 32))
 

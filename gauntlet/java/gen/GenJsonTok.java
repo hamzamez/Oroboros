@@ -542,11 +542,11 @@ public final class GenJsonTok {
 	public static long GenTokens(short[] src) {
 		final byte[] stk = new byte[(int) 32];
 		byte[] stk2 = stk;
-		long i = 0;
-		long nt = 0;
-		long sp = 0;
-		long mx = 0;
-		long ok = 1;
+		int i = 0;
+		int nt = 0;
+		int sp = 0;
+		int mx = 0;
+		int ok = 1;
 		long r1 = 0;
 		for (;;) {
 			if ((i < 0)) {
@@ -561,45 +561,45 @@ public final class GenJsonTok {
 				r1 = (nt * 1000);
 				break;
 			}
-			final short c = src[(int) i];
+			final short c = src[i];
 			if (((c == 32) || ((c == 9) || ((c == 10) || (c == 13))))) {
-				i = (i + 1);
+				i = (int) ((i + 1));
 				continue;
 			}
-			final short c2 = src[(int) i];
+			final short c2 = src[i];
 			if (((c2 == 123) || (c2 == 91))) {
-				stk2[(int) sp] = (byte) ((src[(int) i] == 123) ? 125 : 93);
-				final var u2 = (i + 1);
-				final var u3 = (nt + 1);
-				final var u4 = (sp + 1);
-				final var u5 = (((sp + 1) > mx) ? (sp + 1) : mx);
+				stk2[sp] = (byte) ((src[i] == 123) ? 125 : 93);
+				final var u2 = (int) ((i + 1));
+				final var u3 = (int) ((nt + 1));
+				final var u4 = (int) ((sp + 1));
+				final var u5 = (int) ((((sp + 1) > mx) ? (sp + 1) : mx));
 				i = u2;
 				nt = u3;
 				sp = u4;
 				mx = u5;
 				continue;
 			}
-			final short c3 = src[(int) i];
+			final short c3 = src[i];
 			if (((c3 == 125) || (c3 == 93))) {
-				final var u6 = (i + 1);
-				final var u7 = (nt + 1);
-				final var u8 = ((sp < 1) ? 0 : (sp - 1));
-				final var u9 = ((sp < 1) ? 0 : ((stk2[(int) ((sp < 1) ? 0 : (sp - 1))] == src[(int) i]) ? ok : 0));
+				final var u6 = (int) ((i + 1));
+				final var u7 = (int) ((nt + 1));
+				final var u8 = (int) (((sp < 1) ? 0 : (sp - 1)));
+				final var u9 = (int) (((sp < 1) ? 0 : ((stk2[((sp < 1) ? 0 : (sp - 1))] == src[i]) ? ok : 0)));
 				i = u6;
 				nt = u7;
 				sp = u8;
 				ok = u9;
 				continue;
 			}
-			final short c4 = src[(int) i];
+			final short c4 = src[i];
 			if (((c4 == 58) || (c4 == 44))) {
-				i = (i + 1);
-				nt = (nt + 1);
+				i = (int) ((i + 1));
+				nt = (int) ((nt + 1));
 				continue;
 			}
-			if ((src[(int) i] == 34)) {
-				long j = (i + 1);
-				long r10 = 0;
+			if ((src[i] == 34)) {
+				int j = (i + 1);
+				int r10 = 0;
 				for (;;) {
 					if ((j < 0)) {
 						r10 = j;
@@ -609,24 +609,24 @@ public final class GenJsonTok {
 						r10 = j;
 						break;
 					}
-					if ((src[(int) j] == 92)) {
-						j = (j + 2);
+					if ((src[j] == 92)) {
+						j = (int) ((j + 2));
 						continue;
 					}
-					if ((src[(int) j] == 34)) {
+					if ((src[j] == 34)) {
 						r10 = (j + 1);
 						break;
 					}
-					j = (j + 1);
+					j = (int) ((j + 1));
 					continue;
 				}
-				i = r10;
-				nt = (nt + 1);
+				i = (int) (r10);
+				nt = (int) ((nt + 1));
 				continue;
 			}
-			final short c5 = src[(int) i];
+			final short c5 = src[i];
 			if ((((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69))))))) {
-				long j2 = (i + 1);
+				int j2 = (i + 1);
 				for (;; j2 = (j2 + 1)) {
 					if ((j2 < 0)) {
 						break;
@@ -634,19 +634,19 @@ public final class GenJsonTok {
 					if ((j2 >= src.length)) {
 						break;
 					}
-					final short c6 = src[(int) j2];
+					final short c6 = src[j2];
 					if ((((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69))))))) {
 						continue;
 					}
 					break;
 				}
-				i = j2;
-				nt = (nt + 1);
+				i = (int) (j2);
+				nt = (int) ((nt + 1));
 				continue;
 			}
-			final short c7 = src[(int) i];
+			final short c7 = src[i];
 			if (((c7 >= 97) && (c7 <= 122))) {
-				long j3 = (i + 1);
+				int j3 = (i + 1);
 				for (;; j3 = (j3 + 1)) {
 					if ((j3 < 0)) {
 						break;
@@ -654,18 +654,18 @@ public final class GenJsonTok {
 					if ((j3 >= src.length)) {
 						break;
 					}
-					final short c8 = src[(int) j3];
+					final short c8 = src[j3];
 					if (((c8 >= 97) && (c8 <= 122))) {
 						continue;
 					}
 					break;
 				}
-				i = j3;
-				nt = (nt + 1);
+				i = (int) (j3);
+				nt = (int) ((nt + 1));
 				continue;
 			}
-			i = (i + 1);
-			ok = 0;
+			i = (int) ((i + 1));
+			ok = (int) (0);
 			continue;
 		}
 		return r1;

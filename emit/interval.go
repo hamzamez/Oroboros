@@ -295,6 +295,28 @@ type intervalPass struct {
 	assume  int64 // simulated declared bound on parameters; 0 means none
 	assumed bool
 
+	// elem is a table's ELEMENT range, by the name the table is bound to.
+	//
+	// THEOREM. If t has element type (int lo hi) then ⟦t[i]⟧ ∈ [lo,hi]: the
+	// range over-approximates every stored value, and 0 is in it because
+	// `build` zero-fills (tables.md §14.3), so a read returns a stored value or
+	// the zero fill and both are in range.
+	//
+	// NON-CIRCULAR BY CONSTRUCTION. Only two sources are used, and neither is
+	// this analysis: a range DECLARED on a signature, which is a premise; and
+	// the SYNTACTIC range of a buffer's stores — literals and conditionals over
+	// them — which never consults an interval. `BufferRange`, which does consult
+	// one, is deliberately not a source: it runs its own sub-pass and using its
+	// answer here would be a fixpoint feeding itself.
+	elem map[string]ival
+
+	// letTerm is what each enclosing `let` bound, by name. The environment
+	// records a name's VALUE; this records the TERM it came from, which is what
+	// loop monotonicity needs to look at — ADR 0015 permits `again` under a
+	// `let`, so the argument advancing an index is often a bound name with the
+	// scanner's loop behind it.
+	letTerm map[string]*core.Term
+
 	// Size-change collection, filled while walking one loop's back edges.
 	scOn     bool
 	scRaw    []string
@@ -509,6 +531,20 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 		t = t.Body()
 	}
 	p.env = env
+	p.elem = map[string]ival{}
+	// A DECLARED element range on a parameter. `(sig tokens ((src (array (int 0
+	// 255)))) int)` says a source byte is 0..255, so `(src i)` is too — which is
+	// the premise, not an inference.
+	if head != nil && sig != nil {
+		for i, n := range head.Params {
+			if i >= len(sig.Params) {
+				break
+			}
+			if lo, hi, ok := core.IntRange(core.ArrayElem(sig.Params[i].Type)); ok {
+				p.elem[n] = ival{lo: lo, hi: hi}
+			}
+		}
+	}
 	// A DECLARED range, read off the signature the language already has.
 	//
 	// `(sig f ((n int)) int (where (go.&& (go.<= 0 n) (go.< n 65536))))` parses
@@ -710,6 +746,14 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		return out, rebuilt
 	}
 
+	// A READ FROM A TABLE WHOSE ELEMENTS ARE RANGED. `(src i)` is an
+	// application whose operator is a table, not a primitive — indexing IS
+	// application (tables.md) — so this is where the element range is spent.
+	if !known && len(vals) == 1 {
+		if e, ok := p.elem[op.Name]; ok {
+			return e, rebuilt
+		}
+	}
 	out, checkable := p.transfer(op.Name, prim, vals)
 	if checkable {
 		if p.count {
@@ -833,6 +877,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	// `(let (array 123 …) (fn (src) … (len src) …))` — the length is exactly
 	// known at the binding and was thrown away one line later, leaving every
 	// loop over it unbounded.
+	oldE, hadE := p.bindElem(raw[0], args[0])
 	lenKey := "len(" + raw[0] + ")"
 	oldL, hadL := p.env[lenKey]
 	if n, ok := exactLen(p.tgt, args[0]); ok {
@@ -844,6 +889,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	} else {
 		delete(p.env, lenKey)
 	}
+	p.unbindElem(raw[0], oldE, hadE)
 	if had {
 		p.env[raw[0]] = old
 	} else {
@@ -956,6 +1002,82 @@ func exactLen(tgt *Target, t *core.Term) (int64, bool) {
 		}
 	}
 	return 0, false
+}
+
+// elemRange is a table term's element range, from a declaration or from the
+// syntax of its stores — never from the interval analysis. See intervalPass.elem.
+func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
+	for i := 0; i < 8 && t != nil; i++ {
+		if t.Kind == core.KName {
+			v, ok := p.elem[t.Name]
+			return v, ok
+		}
+		if t.Kind != core.KApp || t.Op().Kind != core.KName {
+			return ival{}, false
+		}
+		pr, known := p.tgt.Prims[t.Op().Name]
+		if !known {
+			return ival{}, false
+		}
+		args := t.Args()
+		switch pr.Kind {
+		case "array":
+			// A GRAPH: the hull of the elements it was written with, which is
+			// exact and needs no analysis. Reduction inlines, so a literal
+			// document reaching a tokeniser arrives exactly like this.
+			out, seen := ival{}, false
+			for _, e := range args {
+				if e.Kind != core.KInt {
+					return ival{}, false
+				}
+				if !seen {
+					out, seen = exact(e.Int), true
+					continue
+				}
+				out = joinI(out, exact(e.Int))
+			}
+			return out, seen
+		case "table-set":
+			if len(args) != 3 {
+				return ival{}, false
+			}
+			t = args[0] // a store hands the buffer back
+		case "table-build":
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return ival{}, false
+			}
+			lam := args[1]
+			body, raw, _ := openFresh(lam, map[string]bool{}, asmIdent)
+			// A typeOf that knows nothing, so only literals and conditionals
+			// over them decide — the non-circular half of bufferElem.
+			ty := bufferElem(body, raw[0], func(*core.Term) string { return "" })
+			lo, hi, ok := core.IntRange(ty)
+			return ival{lo: lo, hi: hi}, ok
+		default:
+			return ival{}, false
+		}
+	}
+	return ival{}, false
+}
+
+// bindElem records a name's element range, and reports whether it had one so the
+// caller can restore.
+func (p *intervalPass) bindElem(name string, from *core.Term) (ival, bool) {
+	old, had := p.elem[name]
+	if v, ok := p.elemRange(from); ok {
+		p.elem[name] = v
+	} else {
+		delete(p.elem, name)
+	}
+	return old, had
+}
+
+func (p *intervalPass) unbindElem(name string, old ival, had bool) {
+	if had {
+		p.elem[name] = old
+	} else {
+		delete(p.elem, name)
+	}
 }
 
 // refine narrows the environment from a guard. This is the half that makes a
@@ -1341,7 +1463,17 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 				kb, kraw, _ := openFresh(k, map[string]bool{}, asmIdent)
 				old, had := p.env[kraw[0]]
 				p.env[kraw[0]] = v
+				if p.letTerm == nil {
+					p.letTerm = map[string]*core.Term{}
+				}
+				oldT, hadT := p.letTerm[kraw[0]]
+				p.letTerm[kraw[0]] = t.Args()[0]
 				p.collectAgain(kb, raw, acc)
+				if hadT {
+					p.letTerm[kraw[0]] = oldT
+				} else {
+					delete(p.letTerm, kraw[0])
+				}
 				if had {
 					p.env[kraw[0]] = old
 				} else {
@@ -1430,6 +1562,33 @@ func orient(steps []ival, known []bool) []int {
 	return out
 }
 
+// unLet replaces a `let`-bound name by the term it was bound to, so a shape
+// hidden behind a binding can still be recognised. It follows a chain and stops
+// at anything that is not a bound name.
+//
+// Only ever used to LOOK for a shape; a name's interval still comes from the
+// environment, so this cannot make a value more precise than the fixpoint said.
+func (p *intervalPass) unLet(t *core.Term) *core.Term {
+	for i := 0; i < 8 && t != nil && t.Kind == core.KName; i++ {
+		v, ok := p.letTerm[t.Name]
+		if !ok {
+			return t
+		}
+		t = v
+	}
+	return t
+}
+
+// stepOfDerived is the FALLBACK step, for an argument only loop monotonicity
+// can read. See DerivedStep for why it must never be tried first.
+func (p *intervalPass) stepOfDerived(arg *core.Term, self string) (ival, bool) {
+	c, ok := DerivedStep(p.tgt, arg, self, p.unLet)
+	if !ok {
+		return top, false
+	}
+	return ival{lo: c, hiInf: true}, true
+}
+
 // stepOf reads the per-iteration change of variable `self` from the expression
 // that replaces it, when that expression is `self`, `self + e` or `self − e`.
 func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
@@ -1440,14 +1599,14 @@ func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
 		return v, true
 	}
 	if arg.Kind != core.KApp || arg.Op().Kind != core.KName || len(arg.Args()) != 2 {
-		return top, false
+		return p.stepOfDerived(arg, self)
 	}
 	name := arg.Op().Name
 	a, b := arg.Args()[0], arg.Args()[1]
 	plus := isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add")
 	minus := isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub")
 	if !plus && !minus {
-		return top, false
+		return p.stepOfDerived(arg, self)
 	}
 	if a.Kind == core.KName && a.Name == self {
 		e := p.eval(b)
@@ -1460,7 +1619,7 @@ func (p *intervalPass) stepOf(arg *core.Term, self string) (ival, bool) {
 	if plus && b.Kind == core.KName && b.Name == self {
 		return p.eval(a), true
 	}
-	return top, false
+	return p.stepOfDerived(arg, self)
 }
 
 // stepOfLoop is the step of a variable assigned the value of an inlined LOOP.
@@ -1490,6 +1649,26 @@ func (p *intervalPass) stepOfLoop(arg *core.Term, self string) (ival, bool) {
 // variable `dst` after this back edge, against variable `src` before it, in the
 // ORIENTED measure.
 func (p *intervalPass) relate(arg *core.Term, src string, srcSign, dstSign int) (arc, descent) {
+	if a, d := p.relateSyntactic(arg, src, srcSign, dstSign); a != noArc {
+		return a, d
+	}
+	// A DERIVED step, and only as a FALLBACK. Under the ascending measure
+	// μ = −src a value at least `src + c` descends by c when c ≥ 1 and does not
+	// increase when c = 0. Only for the ascending measure: a lower bound says
+	// nothing about descent when the measure is +src.
+	//
+	// It gives the arc and WITHHOLDS the measure. `descent{}` keeps the position
+	// out of `tripCount`, because `span / delta + 1` also needs `cur[src]`, and
+	// src's value here comes out of the same opaque loop the bound came from.
+	if srcSign < 0 && srcSign == dstSign {
+		if c, ok := DerivedStep(p.tgt, arg, src, p.unLet); ok && c >= 1 {
+			return down, descent{}
+		}
+	}
+	return noArc, descent{}
+}
+
+func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstSign int) (arc, descent) {
 	if srcSign == 0 || dstSign == 0 || srcSign != dstSign {
 		// A cross-arc between measures pointing opposite ways says nothing that
 		// this analysis can use.

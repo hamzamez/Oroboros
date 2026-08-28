@@ -1168,6 +1168,19 @@ func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]
 		if v == names[i] {
 			continue // a statement primitive handed the variable back
 		}
+		// A NARROWED VARIABLE takes a cast on assignment. The value fits — the
+		// whole-method gate says every integer operation stays inside a 32-bit
+		// index — but Java TYPES the expression, and reading a `long[]` element
+		// makes the arithmetic `long` whatever its range. Without this,
+		// `acc = (acc + a[i])` with `acc` narrowed is "possible lossy
+		// conversion" and javac refuses the file.
+		//
+		// It appeared the moment the analysis got good enough to narrow a loop
+		// that reads a table, which the differential suite caught on the
+		// array-literal case (fixpoint-2026-08-27 §11).
+		if e.narrow[raw[i]] {
+			v = "(int) (" + v + ")"
+		}
 		vals[i] = v
 		real = append(real, i)
 	}

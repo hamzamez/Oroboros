@@ -193,3 +193,84 @@ func TestRunningMaximumIsBounded(t *testing.T) {
 		t.Errorf("and its range must fit an index: %s", rep.MaxOpRange())
 	}
 }
+
+// GAP 2 — the derived step must see through a `let` AND an `if`.
+//
+// ADR 0015 permits `again` under a `let`, and examples/json/tree.oro binds ONE
+// name to a choice of THREE scanners and advances its index with that name. So
+// at the `again` there is neither a loop nor a `self ± c` shape, only a name.
+func TestDerivedStepThroughLetAndIf(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scan := `(loop ((j (go.+ i 1))) (go.>= j (len s)) j else (again (go.+ j 1)))`
+	scan0 := `(loop ((j i)) (go.>= j (len s)) j else (again (go.+ j 1)))`
+	for _, c := range []struct {
+		name, src string
+		want      int64
+		ok        bool
+	}{
+		{"a bare loop", scan, 1, true},
+		{"a choice of two loops", "(if c " + scan + " " + scan + ")", 1, true},
+		// The MINIMUM is forced: either branch may be the one evaluated, and one
+		// of these can return `i` unchanged.
+		{"one branch that may not advance", "(if c " + scan + " " + scan0 + ")", 0, true},
+		{"a plain step is still read", "(go.+ i 3)", 3, true},
+		{"an opaque term", "(go.* i 2)", 0, false},
+	} {
+		forms, err := core.Read(c.src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		got, ok := DerivedStep(tg, forms[0].Term, "i", nil)
+		if ok != c.ok || (ok && got != c.want) {
+			t.Errorf("%s: DerivedStep = %d,%v want %d,%v", c.name, got, ok, c.want, c.ok)
+		}
+	}
+}
+
+// GAP 1 — a read from a table whose elements are RANGED carries that range.
+//
+// ⟦t[i]⟧ ∈ [lo,hi] because the range over-approximates every stored value and 0
+// is in it by `build`'s zero-fill, so a read returns a stored value or the zero
+// fill. The source used here is a DECLARATION, which is a premise rather than
+// an inference — the analysis never feeds itself.
+func TestReadCarriesTheElementRange(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := `(def f (fn (a)
+	  (loop ((i 0) (acc 0))
+	    (go.>= i (len a))  acc
+	    else               (again (go.+ i 1) (go.+ acc (go.* (a i) (a i)))))))`
+	for _, c := range []struct {
+		name, elem string
+		want       int
+	}{
+		{"declared 0..255", "(array (int 0 255))", 3},
+		{"undeclared", "(array int)", 1},
+	} {
+		src := "(use go)\n(export f)\n(sig f ((a " + c.elem +
+			")) int (where (go.< (len a) 1024)))\n" + body
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		prog, _, err := core.LoadWith(forms, nil)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		env, _ := tg.Env(prog)
+		nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatalf("%s: %v", c.name, err)
+		}
+		rep, _ := Intervals(tg, prog.Sigs["f"], nf, 0)
+		if rep.Proven != c.want {
+			t.Errorf("%s: %d of %d operations proven, want %d — a squared byte is "+
+				"at most 65025 and the analysis should say so", c.name, rep.Proven, rep.Ops, c.want)
+		}
+	}
+}

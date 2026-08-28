@@ -410,3 +410,55 @@ func loopExitsFit(tgt *Target, loop *core.Term, raw []string) bool {
 	walk(body, true)
 	return ok
 }
+
+// DerivedStep is the amount a value is guaranteed to exceed `self` by, when
+// that can be derived rather than read off a `self ± c` shape.
+//
+// It lifts the corollary of loop monotonicity through the two forms a residual
+// wraps a scanner call in:
+//
+//	self             → 0
+//	self + c         → c        (c a literal)
+//	a loop L         → c, where ⟦L⟧ ≥ self + c    (the corollary)
+//	(if _ p q)       → min(step p, step q)        (rule 4)
+//	a let-bound name → the step of what it was bound to
+//
+// The conditional case is what examples/json/tree.oro needs: ADR 0015 permits
+// `again` under a `let` and the tree uses it, binding ONE name to a choice of
+// THREE scanners and advancing the index with that name — so neither a loop nor
+// a `self ± c` shape is visible at the `again`. Taking the MINIMUM is forced:
+// either branch may be the one evaluated.
+//
+// It is strictly weaker than a syntactic step — a lower bound rather than an
+// exact one — so every caller must use it as a FALLBACK. Using it where an
+// exact step exists turns `[1,1]` into `[1,+∞)` and costs every trip count that
+// depended on it.
+func DerivedStep(tgt *Target, t *core.Term, self string, unLet func(*core.Term) *core.Term) (int64, bool) {
+	if unLet != nil {
+		t = unLet(t)
+	}
+	if t == nil {
+		return 0, false
+	}
+	if c, ok := selfPlus(tgt, t, self); ok {
+		return c, true
+	}
+	if isLoopTerm(tgt, t) {
+		z := LoopLowerBound(tgt, t)
+		if z == nil {
+			return 0, false
+		}
+		return selfPlus(tgt, z, self)
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName && len(t.Args()) == 3 {
+		if p, known := tgt.Prims[t.Op().Name]; known && p.Kind == "cond" {
+			a, aok := DerivedStep(tgt, t.Args()[1], self, unLet)
+			b, bok := DerivedStep(tgt, t.Args()[2], self, unLet)
+			if !aok || !bok {
+				return 0, false
+			}
+			return min64(a, b), true
+		}
+	}
+	return 0, false
+}

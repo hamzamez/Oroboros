@@ -774,9 +774,26 @@ bounded nothing. And **an exactly-known length was thrown away**: reduction INLI
 `(let (array …) (fn (src) … (len src) …))` — exact at the binding, lost one line later. Carrying it
 through took the tokeniser from **33.3% to 86.7%** and the tree from 79.1% to 88.9%.
 
-**Still owed**, now attemptable against an analysis that can be trusted: a read from a narrowed table
-should carry its element range, and monotonicity should see through a `let` and an `if` — that
-worked, was reverted, and `TestNodeTableRangeHoldsEveryIndex` is the tripwire for retrying it.
+**AND BOTH GAPS THEN CLOSED against the fixed analysis.** **The derived step through a `let` and an
+`if`** — ADR 0015 permits `again` under a `let`, and the tree binds ONE name to a choice of THREE
+scanners — takes `tree.oro` from **17 of 25 loops to 21 of 25**, and to **25 of 25** with a range
+declared. It lands as a strict **fallback** (a lower bound used where an exact step exists turns
+`[1,1]` into `[1,+inf)`) and it gives the arc while **withholding the measure**, keeping the position
+out of `tripCount`. **A read carrying its element range** is proved from the zero-fill guarantee and
+is **non-circular by construction** — only a DECLARED range or a buffer's SYNTACTIC one, never
+`BufferRange`, which would be a fixpoint feeding itself. It **buys nothing measurable on this
+corpus**, the second honest negative this week: it takes a squared byte from 1 of 3 operations proven
+to 3 of 3, and the parsers' reads feed comparisons rather than counted arithmetic.
+
+**One more bug, caught the same way.** With the analysis finally good enough to narrow a loop that
+reads a table, index narrowing fired on `array-literal` and **javac refused the file** — the value
+fits, but Java TYPES the expression, and a `long[]` element makes the arithmetic `long` whatever its
+range. A narrowed variable needs a cast on assignment; the post-clause path does not, because
+`PostVars` already refuses an update that reads another loop variable.
+
+**Where it ends up: `tokenize.oro` 86.7% and 16 of 20 loops, or 100% and 20 of 20 with one range
+declared; `tree.oro` 88.9% and 21 of 25, or 91.3% and 25 of 25.** Every loop in both parsers proves
+once a range is declared.
 
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).

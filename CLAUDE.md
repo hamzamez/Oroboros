@@ -761,9 +761,30 @@ analysis believes afterwards is immediately spent on the other operand. With tha
 fails at **seed 15 — claims `-153..765`, program produces 918**. A harness that cannot fail proves
 nothing.
 
-**Not covered, and named**: buffers. The element range is the other place an interval decides bits,
-and a wrong one there TRUNCATES rather than merely widening. Generating `build`/`set` and checking
-every stored value against `ElemType` is the same property one level along.
+**AND BUFFERS ARE COVERED TOO** — the decision that TRUNCATES rather than merely widening. 2,000
+generated `build` programs, **1,490 of which get a narrowed element**, every stored value checked
+against `ElemType`. The property quantifies over READS and the harness checks WRITES, and that is a
+theorem rather than a shortcut: **a slot holds either the zero fill or the most recent `set`**, there
+being no third source — `build` is the only allocator, `set` the only store, and ADR 0018's linearity
+means nothing else can have written it — so checking the stores and the zero is **sufficient**, not
+merely necessary. Both hypotheses are load-bearing and both are checked, because **dropping either is
+a real bug shape**.
+
+**Three more bugs reintroduced, three seeds.** The **first-store** rule — `tree.oro`'s node table at
+one byte, windows returning `4030140` — fails at **seed 6**, on a program storing 242 and 207 in one
+iteration, which is the node table's exact shape found on the sixth program. Dropping the
+**`sawOther` guard**, so a buffer narrows on its exact stores and ignores the unanalysable ones,
+fails at **seed 10**. Dropping the **zero-fill join** fails at **seed 14** — `int 2 344`, a range
+that excludes 0.
+
+**The buffer half needs an ANTI-VACUITY guard the other does not**: refusing to narrow is always
+sound, so a harness that only ever saw refusals would pass forever while testing nothing. It fails
+unless it watches the compiler COMMIT on at least 200 buffers.
+
+**And one rule random search CANNOT test**: a buffer may not narrow on its own contents. No
+counterexample exists to find — a self-reading buffer usually does have a narrow range in fact — so
+it is pinned as a POLICY test with a CONTROL, the same program storing a literal, which must narrow.
+A test whose passing case and failing case look identical is a test that proves nothing.
 
 **THE INTERVAL FIXPOINT WAS NOT MONOTONE, AND EVERY PROVABILITY NUMBER WAS INFLATED** —
 [fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md). `restore` installed a snapshot **by

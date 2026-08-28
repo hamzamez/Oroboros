@@ -295,6 +295,21 @@ type intervalPass struct {
 	assume  int64 // simulated declared bound on parameters; 0 means none
 	assumed bool
 
+	// sig and params are the enclosing contract, carried so that a FROZEN
+	// buffer's element range can be asked for with the same premises the
+	// emitter asks with. What bounds a node table is usually something the
+	// signature says — `(where (< (len src) 1024))` is what makes `nn < 512`
+	// reachable — so asking without it gets a refusal, which is what the
+	// structural fix in rebench-2026-08-27 was about.
+	sig    *core.Sig
+	params []string
+
+	// depth caps the recursion in elemRange, which may analyse a nested build
+	// to learn what it holds. Nesting is finite, so this is not needed for
+	// TERMINATION; it is a cost bound. Refusing is always sound, so a cap can
+	// only lose precision.
+	depth int
+
 	// elem is a table's ELEMENT range, by the name the table is bound to.
 	//
 	// THEOREM. If t has element type (int lo hi) then ⟦t[i]⟧ ∈ [lo,hi]: the
@@ -368,10 +383,16 @@ type descent struct {
 //     and note that AGREEMENT cannot, because every target narrows on the same
 //     decision.
 func BufferRange(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (string, bool) {
+	return bufferRangeSeeded(tgt, lam, sig, params, nil)
+}
+
+func bufferRangeSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
+	params []string, seed map[string]ival) (string, bool) {
+
 	if lam == nil || lam.Kind != core.KFn || len(lam.Params) != 1 {
 		return "", false
 	}
-	rep, _ := intervalsAssuming(tgt, lam, sig, params)
+	rep, _ := intervalsAssumingSeeded(tgt, lam, sig, params, seed)
 	var out ival
 	found := false
 	for _, v := range rep.Stores {
@@ -537,8 +558,14 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 // refinements.md §6b's rule. Intervals taken with it are ⊑ the ones taken
 // without — tighter, and both sound.
 func intervalsAssuming(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (*IntervalReport, *core.Term) {
+	return intervalsAssumingSeeded(tgt, lam, sig, params, nil)
+}
+
+func intervalsAssumingSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
+	params []string, seed map[string]ival) (*IntervalReport, *core.Term) {
+
 	if sig == nil || sig.Where == nil || len(params) == 0 {
-		return Intervals(tgt, nil, lam, 0)
+		return intervals(tgt, nil, lam, 0, seed)
 	}
 	// Rename the signature's parameter names to the ones the caller opened
 	// with, for the reason Refine needs the same thing: a length is keyed by
@@ -549,20 +576,39 @@ func intervalsAssuming(tgt *Target, lam *core.Term, sig *core.Sig, params []stri
 			sub[sig.Params[i].Name] = core.Name(n)
 		}
 	}
-	return Intervals(tgt, &core.Sig{Where: core.Rename2(sig.Where, sub)}, lam, 0)
+	return intervals(tgt, &core.Sig{Where: core.Rename2(sig.Where, sub)}, lam, 0, seed)
 }
 
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
+	return intervals(tgt, sig, t, assume, nil)
+}
+
+// intervals is Intervals with a SEED: facts about names that are free in `t`,
+// carried in from the enclosing analysis.
+//
+// It exists for one caller — elemRange asking what a frozen buffer holds — and
+// the seed is deliberately restricted to EXACT LENGTHS. The reason is soundness
+// and it is worth stating: a length fact comes either from `exactLen` on a
+// literal table or from a signature's `where`, so it is syntactic or a premise;
+// neither is a fixpoint iterate. Seeding an iterate would be seeding a claim
+// that is not yet a post-fixpoint. See lengthFacts.
+func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
+	seed map[string]ival) (*IntervalReport, *core.Term) {
+
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	rep.MaxOp = bottom
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0}
 	env := map[string]ival{}
+	for k, v := range seed {
+		env[k] = v
+	}
 	var head *core.Term
 	if t.Kind == core.KFn {
 		head = t
 		for _, n := range t.Params {
 			env[n] = p.paramIval(n, sig)
 		}
+		p.sig, p.params = sig, t.Params
 		t = t.Body()
 	}
 	p.env = env
@@ -1084,10 +1130,60 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 			lam := args[1]
 			body, raw, _ := openFresh(lam, map[string]bool{}, asmIdent)
 			// A typeOf that knows nothing, so only literals and conditionals
-			// over them decide — the non-circular half of bufferElem.
-			ty := bufferElem(body, raw[0], func(*core.Term) string { return "" })
-			lo, hi, ok := core.IntRange(ty)
-			return ival{lo: lo, hi: hi}, ok
+			// over them decide.
+			noTypes := func(*core.Term) string { return "" }
+			if lo, hi, ok := core.IntRange(bufferElem(body, raw[0], noTypes)); ok {
+				return ival{lo: lo, hi: hi}, true
+			}
+			// A FROZEN BUFFER CARRIES WHAT WAS PUT IN IT, and this is where the
+			// interval analysis is allowed to say so.
+			//
+			// THEOREM (read containment). Let b = (build n λx.e) and let
+			// E = ElemType(b). Then every value read out of b is in γ(E).
+			//
+			// PROOF. A slot holds either the zero fill or the value of the most
+			// recent `set` into it — there is no third source, `build` being
+			// the only allocator, `set` the only store, and ADR 0018's
+			// linearity meaning no other reference can have written it. E joins
+			// the zero fill explicitly and contains every stored value. ∎
+			//
+			// WHY IT IS NOT CIRCULAR, which is the objection this had to answer
+			// before it could be built. Stratify the reads of b:
+			//
+			//	stratum 0  a read inside λx.e itself, where the buffer is still
+			//	           being filled. Nothing binds x's element range — the
+			//	           only binder is `let`, and a build term is never in
+			//	           scope inside itself — so such a read is ⊤.
+			//	stratum 1  a read of b from OUTSIDE λx.e, after the freeze,
+			//	           where the value no longer changes.
+			//
+			// E(b) is computed by analysing λx.e, in which every read of b sits
+			// at stratum 0. So computing E(b) never consults E(b), and the
+			// induction on build-nesting depth extends it: an outer build may
+			// learn what a completed inner one holds, and the inner analysis
+			// cannot mention the outer.
+			//
+			// examples/json/tree.oro is the program that needs it. `walk` takes
+			// the node table as a PARAMETER — the buffer is frozen on the way
+			// out and read back as an ordinary array — so `(nodes k)` there is
+			// stratum 1, and it was ⊤, and 45 of the 50 unproven operations in
+			// that program were that one fact missing.
+			//
+			// The self-referential case still refuses, and correctly: the
+			// worklist stores a depth read back out of ITSELF, so its stores
+			// are stratum-0 reads and BufferRange declines. Refusing is the
+			// safe direction and stays the default.
+			if p.depth < 4 {
+				p.depth++
+				r, ok := bufferRangeSeeded(p.tgt, lam, p.sig, p.params, p.lengthFacts(lam))
+				p.depth--
+				if ok {
+					if lo, hi, ok := core.IntRange(r); ok {
+						return ival{lo: lo, hi: hi}, true
+					}
+				}
+			}
+			return ival{}, false
 		default:
 			return ival{}, false
 		}
@@ -1099,12 +1195,55 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 // caller can restore.
 func (p *intervalPass) bindElem(name string, from *core.Term) (ival, bool) {
 	old, had := p.elem[name]
-	if v, ok := p.elemRange(from); ok {
+	v, ok := p.elemRange(from)
+	if ok {
 		p.elem[name] = v
 	} else {
 		delete(p.elem, name)
 	}
 	return old, had
+}
+
+// lengthFacts is the seed carried into a sub-analysis: the exactly-known
+// lengths the enclosing pass has established, and nothing else.
+//
+// WHY ONLY LENGTHS. The sub-analysis runs on a lambda in isolation, where
+// everything the enclosing program bound is free and therefore ⊤. That is sound
+// but it loses the one fact a buffer's contents usually depend on: how long the
+// input is. Reduction INLINES, so `examples/json/tree.oro`'s `run` substitutes
+// four literal documents, and each `(len src)` is an array literal's length —
+// exact at the binding, and invisible one lambda in.
+//
+// A length fact is either syntactic (`exactLen` on a literal table) or a
+// premise (`assumeWhere` on a signature). Neither is a fixpoint iterate, which
+// is what makes it safe to carry: seeding an iterate would be seeding a claim
+// that is not yet a post-fixpoint, and the sub-analysis would believe it.
+//
+// SHADOWING. A fact about `len(x)` is dropped when the lambda binds `x` itself,
+// because the inner `x` is a different table and the outer length says nothing
+// about it.
+func (p *intervalPass) lengthFacts(lam *core.Term) map[string]ival {
+	var out map[string]ival
+	for k, v := range p.env {
+		if !strings.HasPrefix(k, "len(") {
+			continue
+		}
+		inner := strings.TrimSuffix(strings.TrimPrefix(k, "len("), ")")
+		shadowed := false
+		for _, n := range lam.Params {
+			if n == inner {
+				shadowed = true
+			}
+		}
+		if shadowed {
+			continue
+		}
+		if out == nil {
+			out = map[string]ival{}
+		}
+		out[k] = v
+	}
+	return out
 }
 
 func (p *intervalPass) unbindElem(name string, old ival, had bool) {

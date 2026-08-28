@@ -196,6 +196,13 @@ func (g *gen) pred() *core.Term {
 // behaviour (tables.md), and a generator that produced out-of-range stores
 // would be asking the interpreter to invent an answer three hosts disagree on.
 func (g *gen) bufProgram() *core.Term {
+	t, _ := g.buildTerm(false)
+	return t
+}
+
+// buildTerm is bufProgram with the two knobs the read-back test needs: whether
+// the loop hands the buffer out, and how long it is.
+func (g *gen) buildTerm(returnBuffer bool) (*core.Term, int64) {
 	lim := int64(3 + g.r.Intn(12))
 	size := lim + 8
 	g.vars = []string{"i", "a"}
@@ -213,10 +220,12 @@ func (g *gen) bufProgram() *core.Term {
 		g.update("a"))
 
 	var exit *core.Term
-	switch g.r.Intn(3) {
-	case 0:
+	switch {
+	case returnBuffer:
+		exit = core.Name("b")
+	case g.r.Intn(3) == 0:
 		exit = core.Name("b") // the buffer outlives the loop: ADR 0018's freeze
-	case 1:
+	case g.r.Intn(2) == 0:
 		exit = core.Name("a") // scratch: the buffer is dead, a count comes out
 	default:
 		exit = g.expr(1)
@@ -229,7 +238,37 @@ func (g *gen) bufProgram() *core.Term {
 		core.Fn([]string{"b", "i", "a"}, body),
 		core.Name("b"), core.Int(0), core.Int(int64(g.r.Intn(5))))
 	return core.App(core.Name("build"), core.Int(size),
-		core.Fn([]string{"b"}, loop))
+		core.Fn([]string{"b"}, loop)), size
+}
+
+// readProgram is the shape the new rule exists for: a buffer built, FROZEN, and
+// then read back by someone else.
+//
+//	(let (build N (fn (b) … b))
+//	     (fn (t) (loop ((i 0) (acc 0))
+//	               (>= i N) acc
+//	               else (again (+ i 1) (+ acc (t i))))))
+//
+// Reduction produces exactly this — call-by-need let-binds an argument used more
+// than once (ADR 0010), so `examples/json/tree.oro`'s `walk` arrives with its
+// node table bound by a `let` one line above the reads.
+//
+// The property under test is not the range itself but what is DONE with it: if
+// the frozen element range were wrong, `acc` would be claimed bounded while the
+// program runs past the claim, and MaxOp containment catches that.
+func (g *gen) readProgram() *core.Term {
+	build, size := g.buildTerm(true)
+	g.vars = []string{"i", "acc"}
+	read := core.App(core.Name("t"), core.Name("i"))
+	body := core.App(core.Name("if"),
+		core.App(core.Name("go.>="), core.Name("i"), core.Int(size)),
+		core.Name("acc"),
+		core.App(core.Name("again"),
+			core.App(core.Name("go.+"), core.Name("i"), core.Int(1)),
+			core.App(core.Name("go.+"), core.Name("acc"), read)))
+	loop := core.App(core.Name("loop"),
+		core.Fn([]string{"i", "acc"}, body), core.Int(0), core.Int(0))
+	return core.App(core.Name("let"), build, core.Fn([]string{"t"}, loop))
 }
 
 func (g *gen) index(lim int64) *core.Term {
@@ -361,6 +400,18 @@ func (r *runner) eval(t *core.Term, env map[string]bval) (bval, error) {
 			return bval{}, out
 		case "loop":
 			return r.loop(t, env)
+		case "let":
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return bval{}, fmt.Errorf("let shape")
+			}
+			v, err := r.eval(args[0], env)
+			if err != nil {
+				return bval{}, err
+			}
+			lbody, lraw, _ := openFresh(args[1], map[string]bool{}, ident)
+			inner := copyEnv(env)
+			inner[lraw[0]] = v
+			return r.eval(lbody, inner)
 		}
 		// INDEXING IS APPLICATION (tables.md), so a read is told from a
 		// primitive call by its operator being bound to a table — the same test
@@ -737,6 +788,62 @@ func TestBufferDoesNotNarrowOnItsOwnContents(t *testing.T) {
 		t.Fatalf("the control must narrow to `int 0 7` — zero fill joined with "+
 			"the one literal stored — and came back %q", got)
 	}
+}
+
+// TestFrozenBufferReadContainment tests the STRATUM-1 rule: what a reader is
+// allowed to believe about a buffer that has been frozen and handed out.
+//
+// The claim under test is not the range itself but what is spent on it. The
+// generated reader accumulates every element, so if the frozen element range
+// were too narrow, `acc` would be claimed bounded while the program runs past
+// the claim — and MaxOp containment sees that directly.
+//
+// The anti-vacuity guard is the same one the buffer half needs and for the same
+// reason: refusing to bound the reader is always sound, so the test insists the
+// analysis actually commits on a decent share of these.
+func TestFrozenBufferReadContainment(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked, bounded, skipped := 0, 0, 0
+	for seed := int64(1); seed <= 1000; seed++ {
+		g := &gen{r: rand.New(rand.NewSource(seed)), tgt: tg}
+		term := g.readProgram()
+
+		rep, _ := Intervals(tg, nil, term, 0)
+
+		run := &runner{tgt: tg, fuel: 2000000}
+		if _, err := run.eval(term, map[string]bval{}); err != nil {
+			skipped++
+			continue
+		}
+		if len(run.ops) == 0 {
+			skipped++
+			continue
+		}
+		checked++
+		if !rep.MaxOp.loInf && !rep.MaxOp.hiInf {
+			bounded++
+		}
+		for _, v := range run.ops {
+			if !holds(rep.MaxOp, v) {
+				t.Fatalf("seed %d: the analysis claims every operation is in %s, "+
+					"and one produced %d\n%s",
+					seed, rep.MaxOpRange(), v, indentTerm(term))
+			}
+		}
+	}
+	if checked < 300 {
+		t.Fatalf("only %d of 1000 read-back programs ran (%d skipped)", checked, skipped)
+	}
+	if bounded < 100 {
+		t.Fatalf("only %d of %d read-back programs got a bounded MaxOp; the "+
+			"frozen element range is not reaching the reader, so this test is "+
+			"passing on refusals", bounded, checked)
+	}
+	t.Logf("%d read-back programs checked (%d with a bounded MaxOp), %d skipped",
+		checked, bounded, skipped)
 }
 
 // fitsBytes is the weakest true statement about an n-byte slot: it holds a

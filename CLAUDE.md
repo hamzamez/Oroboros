@@ -319,13 +319,17 @@ language refuses. Two things that ARE settled: **two live buffers work** (a `bui
 outlive the loop that filled it** — frozen on the way out and read back as an ordinary `array`,
 which is ADR 0018's freeze on the first program that needed it.
 
-**And CLAUSE ORDER CHANGES WHAT CAN BE PROVED** — the same program with one clause moved goes from
-**80 of 124** integer operations bounded and **12 of 16** loops terminating to **36 and 0**, same
-guards and same answers. The cause is **not isolated**: `collectAgain` refines through both branches
-of every clause, four reduced versions of the shape all prove, and it reproduces only in the real
-program. So the analysis is order-sensitive in a way the language is not, and a meaning-preserving
-edit can lose a termination proof — a stronger reason to want octagons than the two extra compares
-the same program needed for being non-relational.
+**CLAUSE ORDER ONCE CHANGED WHAT COULD BE PROVED, AND IT WAS THE FIXPOINT BUG** — json-2026-08-26 §4
+recorded the same program with one clause moved going from **80 of 124** and **12 of 16** to **36 and
+0**, and called the cause *not isolated* because four hand-written reductions all proved. **Moved back
+2026-08-28 it makes NO difference in either position** — 165/165 and 20/20 with the declared `where`,
+143/165 and 16/20 without, either way
+([frozen-2026-08-28](gauntlet/results/frozen-2026-08-28.md) §1). The cause was almost certainly
+`restore` installing its snapshot by reference: the environment leaving an `if` carried `¬c`, and
+**which guard's negation leaked into which later clause is decided by clause order**. That is why the
+reductions could not find it — they were looking for a precision bug in a soundness bug's shadow. So
+*a meaning-preserving edit can lose a termination proof* is **withdrawn**, and with it one of the three
+standing arguments for octagons.
 
 **AND IT IS AT PARITY, WHICH IS THE FIRST TIME BRANCHY CODE HAS BEEN MEASURED** —
 [jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md). **Go 0.96x, JavaScript 1.02x, Java
@@ -840,6 +844,40 @@ range. A narrowed variable needs a cast on assignment; the post-clause path does
 **Where it ends up: `tokenize.oro` 86.7% and 16 of 20 loops, or 100% and 20 of 20 with one range
 declared; `tree.oro` 88.9% and 21 of 25, or 91.3% and 25 of 25.** Every loop in both parsers proves
 once a range is declared.
+
+**A FROZEN BUFFER CARRIES WHAT WAS PUT IN IT** —
+[frozen-2026-08-28](gauntlet/results/frozen-2026-08-28.md). The tree's 50 unproven operations were
+NAMED before anything was built, and they were **not relational**: every one traced to `(nodes k)`, a
+read out of the frozen node table, returning ⊤. An octagon relates variables and cannot say what a
+table holds, so **the highest-value move on the decidability map would have bought none of it**.
+
+**The theorem is the one the harness already tests, now USED rather than checked**: a slot holds either
+the zero fill or the most recent `set`, so every value read out of `b` is in `γ(ElemType(b))`. **Why it
+is not circular is a STRATIFICATION** — a read inside `λx.e` is stratum 0 and stays ⊤ (nothing binds
+the buffer's own name: the only binder is `let`, and a build term is never in scope inside itself); a
+read from outside, after the freeze, is stratum 1 and may have the range. Computing `E(b)` analyses
+`λx.e`, where every read of `b` is stratum 0, so it never consults itself.
+
+**What the argument had not said is that the sub-analysis loses the LENGTH.** `BufferRange` runs on the
+build lambda alone, where everything the enclosing program bound is free. `measure` has a declared
+`where`; **`run` has no signature at all**, and `run` is where reduction substituted four literal
+documents — so the identical shape succeeded in one and failed four times in the other. The fix is a
+**seed**, restricted to **exactly-known lengths only**, and that restriction is soundness rather than
+tidiness: a length comes from `exactLen` on a literal or from `assumeWhere` on a signature, so it is
+syntactic or a premise, never a fixpoint iterate — and seeding an iterate would seed a claim that is
+not yet a post-fixpoint.
+
+**tree.oro 91.3% → 92.7%, `go.-` 70 of 74 → 74 of 74**, and **every emitted file on all four targets is
+byte-identical** across 41 programs, with compile time unmoved. A pure provability gain and not a speed
+one, which is the honest way to record it.
+
+**AND THE HONEST LIMIT IS NOW A DIFFERENT ONE, WITH A WITNESS.** The 42 operations still unproven all
+chain off `d`, a depth **read back out of the worklist that stores it** — stratum 0, correctly refused,
+and its element range is the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to ⊤. What bounds
+`d` is that it grows at most once per iteration under a trip bound: **`d ≤ steps`**, which is
+relational and which an interval cannot express. So the octagon argument survives — with a concrete
+witness in a real program instead of an unexplained order-sensitivity, which is a better reason than
+the one it replaced.
 
 **RE-BENCHMARKED, and the withdrawal cost is a PER-HOST answer** —
 [rebench-2026-08-27](gauntlet/results/rebench-2026-08-27.md). Tokeniser **Go 0.94x, JavaScript 1.00x,

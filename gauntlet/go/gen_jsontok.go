@@ -118,7 +118,7 @@ func GenRun(k int) int {
 			}
 			var c5 int = src[i]
 			if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
-				var j2 int = i
+				var j2 int = (i + 1)
 				for ; ; j2 = (j2 + 1) {
 					if (j2 < 0) {
 						break
@@ -137,7 +137,7 @@ func GenRun(k int) int {
 			}
 			var c7 int = src[i]
 			if ((c7 >= 97) && (c7 <= 122)) {
-				var j3 int = i
+				var j3 int = (i + 1)
 				for ; ; j3 = (j3 + 1) {
 					if (j3 < 0) {
 						break
@@ -274,7 +274,7 @@ func GenRun(k int) int {
 				}
 				var c13 int = src2[i2]
 				if (((c13 >= 48) && (c13 <= 57)) || ((c13 == 45) || ((c13 == 43) || ((c13 == 46) || ((c13 == 101) || (c13 == 69)))))) {
-					var j5 int = i2
+					var j5 int = (i2 + 1)
 					for ; ; j5 = (j5 + 1) {
 						if (j5 < 0) {
 							break
@@ -293,7 +293,7 @@ func GenRun(k int) int {
 				}
 				var c15 int = src2[i2]
 				if ((c15 >= 97) && (c15 <= 122)) {
-					var j6 int = i2
+					var j6 int = (i2 + 1)
 					for ; ; j6 = (j6 + 1) {
 						if (j6 < 0) {
 							break
@@ -430,7 +430,7 @@ func GenRun(k int) int {
 					}
 					var c21 int = src3[i3]
 					if (((c21 >= 48) && (c21 <= 57)) || ((c21 == 45) || ((c21 == 43) || ((c21 == 46) || ((c21 == 101) || (c21 == 69)))))) {
-						var j8 int = i3
+						var j8 int = (i3 + 1)
 						for ; ; j8 = (j8 + 1) {
 							if (j8 < 0) {
 								break
@@ -449,7 +449,7 @@ func GenRun(k int) int {
 					}
 					var c23 int = src3[i3]
 					if ((c23 >= 97) && (c23 <= 122)) {
-						var j9 int = i3
+						var j9 int = (i3 + 1)
 						for ; ; j9 = (j9 + 1) {
 							if (j9 < 0) {
 								break
@@ -584,7 +584,7 @@ func GenRun(k int) int {
 					}
 					var c29 int = src4[i4]
 					if (((c29 >= 48) && (c29 <= 57)) || ((c29 == 45) || ((c29 == 43) || ((c29 == 46) || ((c29 == 101) || (c29 == 69)))))) {
-						var j11 int = i4
+						var j11 int = (i4 + 1)
 						for ; ; j11 = (j11 + 1) {
 							if (j11 < 0) {
 								break
@@ -603,7 +603,7 @@ func GenRun(k int) int {
 					}
 					var c31 int = src4[i4]
 					if ((c31 >= 97) && (c31 <= 122)) {
-						var j12 int = i4
+						var j12 int = (i4 + 1)
 						for ; ; j12 = (j12 + 1) {
 							if (j12 < 0) {
 								break
@@ -745,7 +745,7 @@ func GenTokens(src []byte) int {
 		}
 		var c5 int = int(src[i])
 		if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
-			var j2 int = i
+			var j2 int = (i + 1)
 			for ; ; j2 = (j2 + 1) {
 				if (j2 < 0) {
 					break
@@ -764,7 +764,7 @@ func GenTokens(src []byte) int {
 		}
 		var c7 int = int(src[i])
 		if ((c7 >= 97) && (c7 <= 122)) {
-			var j3 int = i
+			var j3 int = (i + 1)
 			for ; ; j3 = (j3 + 1) {
 				if (j3 < 0) {
 					break

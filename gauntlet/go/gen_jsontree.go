@@ -3,43 +3,43 @@
 package gauntlet
 
 func TreeMeasure(src []int) int {
-	nodes := make([]uint16, (4 * 512))
-	stk := make([]uint16, (2 * 32))
+	nodes := make([]int, (4 * 512))
+	stk := make([]int, (2 * 32))
 	nodes2 := nodes
 	stk2 := stk
 	var i int = 0
 	var nn int = 1
 	var sp int = 0
 	var ok int = 1
-	var r1 []uint16
+	var r1 []int
 	for {
 		if (i < 0) {
-			nodes2[0] = uint16(nn)
-			nodes2[1] = uint16(0)
+			nodes2[0] = nn
+			nodes2[1] = 0
 			r1 = nodes2
 			break
 		}
 		if (i >= len(src)) {
-			nodes2[0] = uint16(nn)
+			nodes2[0] = nn
 			var t2 int
 			if (sp == 0) {
 				t2 = ok
 			} else {
 				t2 = 0
 			}
-			nodes2[1] = uint16(t2)
+			nodes2[1] = t2
 			r1 = nodes2
 			break
 		}
 		if (nn >= 512) {
-			nodes2[0] = uint16(nn)
-			nodes2[1] = uint16(0)
+			nodes2[0] = nn
+			nodes2[1] = 0
 			r1 = nodes2
 			break
 		}
 		if (sp >= 32) {
-			nodes2[0] = uint16(nn)
-			nodes2[1] = uint16(0)
+			nodes2[0] = nn
+			nodes2[1] = 0
 			r1 = nodes2
 			break
 		}
@@ -61,17 +61,17 @@ func TreeMeasure(src []int) int {
 			} else {
 				t3 = 4
 			}
-			nodes2[((4 * nn) + 0)] = uint16(t3)
-			nodes2[((4 * nn) + 1)] = uint16(0)
+			nodes2[((4 * nn) + 0)] = t3
+			nodes2[((4 * nn) + 1)] = 0
 			nodes3 := nodes2
-			var t4 []uint16
+			var t4 []int
 			if (sp < 1) {
 				t4 = nodes3
 			} else {
-				var lc int = int(stk2[((2 * (sp - 1)) + 1)])
-				var t5 []uint16
+				var lc int = stk2[((2 * (sp - 1)) + 1)]
+				var t5 []int
 				if (lc == 0) {
-					var k int = int(stk2[((2 * (sp - 1)) + 0)])
+					var k int = stk2[((2 * (sp - 1)) + 0)]
 					var t6 int
 					if (k < 0) {
 						t6 = 0
@@ -84,7 +84,7 @@ func TreeMeasure(src []int) int {
 						}
 						t6 = t7
 					}
-					nodes3[((4 * t6) + 2)] = uint16(nn)
+					nodes3[((4 * t6) + 2)] = nn
 					t5 = nodes3
 				} else {
 					var t8 int
@@ -99,21 +99,21 @@ func TreeMeasure(src []int) int {
 						}
 						t8 = t9
 					}
-					nodes3[((4 * t8) + 3)] = uint16(nn)
+					nodes3[((4 * t8) + 3)] = nn
 					t5 = nodes3
 				}
 				t4 = t5
 			}
-			var t10 []uint16
+			var t10 []int
 			if (sp < 1) {
 				t10 = stk2
 			} else {
-				stk2[((2 * (sp - 1)) + 1)] = uint16(nn)
+				stk2[((2 * (sp - 1)) + 1)] = nn
 				t10 = stk2
 			}
 			stk3 := t10
-			stk3[((2 * sp) + 0)] = uint16(nn)
-			stk3[((2 * sp) + 1)] = uint16(0)
+			stk3[((2 * sp) + 0)] = nn
+			stk3[((2 * sp) + 1)] = 0
 			nodes2, stk2, i, nn, sp = t4, stk3, (i + 1), (nn + 1), (sp + 1)
 			continue
 		}
@@ -129,7 +129,7 @@ func TreeMeasure(src []int) int {
 			if (sp < 1) {
 				t12 = 0
 			} else {
-				var k2 int = int(stk2[((2 * (sp - 1)) + 0)])
+				var k2 int = stk2[((2 * (sp - 1)) + 0)]
 				var t13 int
 				if (k2 < 0) {
 					t13 = 0
@@ -149,7 +149,7 @@ func TreeMeasure(src []int) int {
 					t15 = 4
 				}
 				var t16 int
-				if (int(nodes2[((4 * t13) + 0)]) == t15) {
+				if (nodes2[((4 * t13) + 0)] == t15) {
 					t16 = ok
 				} else {
 					t16 = 0
@@ -190,7 +190,7 @@ func TreeMeasure(src []int) int {
 				var c6 int = src[i]
 				var t19 int
 				if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
-					var j2 int = i
+					var j2 int = (i + 1)
 					for ; ; j2 = (j2 + 1) {
 						if (j2 < 0) {
 							break
@@ -206,7 +206,7 @@ func TreeMeasure(src []int) int {
 					}
 					t19 = j2
 				} else {
-					var j3 int = i
+					var j3 int = (i + 1)
 					for ; ; j3 = (j3 + 1) {
 						if (j3 < 0) {
 							break
@@ -238,17 +238,17 @@ func TreeMeasure(src []int) int {
 				}
 				t20 = t21
 			}
-			nodes2[((4 * nn) + 0)] = uint16(t20)
-			nodes2[((4 * nn) + 1)] = uint16((ni - i))
+			nodes2[((4 * nn) + 0)] = t20
+			nodes2[((4 * nn) + 1)] = (ni - i)
 			nodes4 := nodes2
-			var t22 []uint16
+			var t22 []int
 			if (sp < 1) {
 				t22 = nodes4
 			} else {
-				var lc2 int = int(stk2[((2 * (sp - 1)) + 1)])
-				var t23 []uint16
+				var lc2 int = stk2[((2 * (sp - 1)) + 1)]
+				var t23 []int
 				if (lc2 == 0) {
-					var k3 int = int(stk2[((2 * (sp - 1)) + 0)])
+					var k3 int = stk2[((2 * (sp - 1)) + 0)]
 					var t24 int
 					if (k3 < 0) {
 						t24 = 0
@@ -261,7 +261,7 @@ func TreeMeasure(src []int) int {
 						}
 						t24 = t25
 					}
-					nodes4[((4 * t24) + 2)] = uint16(nn)
+					nodes4[((4 * t24) + 2)] = nn
 					t23 = nodes4
 				} else {
 					var t26 int
@@ -276,16 +276,16 @@ func TreeMeasure(src []int) int {
 						}
 						t26 = t27
 					}
-					nodes4[((4 * t26) + 3)] = uint16(nn)
+					nodes4[((4 * t26) + 3)] = nn
 					t23 = nodes4
 				}
 				t22 = t23
 			}
-			var t28 []uint16
+			var t28 []int
 			if (sp < 1) {
 				t28 = stk2
 			} else {
-				stk2[((2 * (sp - 1)) + 1)] = uint16(nn)
+				stk2[((2 * (sp - 1)) + 1)] = nn
 				t28 = stk2
 			}
 			nodes2, stk2, i, nn = t22, t28, ni, (nn + 1)
@@ -331,7 +331,7 @@ func TreeMeasure(src []int) int {
 			}
 			t30 = t31
 		}
-		var sb int = int(nodes5[((4 * t30) + 3)])
+		var sb int = nodes5[((4 * t30) + 3)]
 		var t32 int
 		if (n < 0) {
 			t32 = 0
@@ -344,7 +344,7 @@ func TreeMeasure(src []int) int {
 			}
 			t32 = t33
 		}
-		var kd int = int(nodes5[((4 * t32) + 2)])
+		var kd int = nodes5[((4 * t32) + 2)]
 		var s1 int = (sp2 - 1)
 		var t34 []int
 		if (sb == 0) {
@@ -389,7 +389,7 @@ func TreeMeasure(src []int) int {
 			}
 			t38 = t39
 		}
-		wl2, sp2, acc = w2, t37, (acc + (int(nodes5[((4 * t38) + 0)]) * d))
+		wl2, sp2, acc = w2, t37, (acc + (nodes5[((4 * t38) + 0)] * d))
 		continue
 	}
 	return r29
@@ -399,43 +399,43 @@ func TreeRun(k int) int {
 	var t1 int
 	if (k == 0) {
 		src := []int{91, 49, 44, 50, 93}
-		nodes := make([]uint16, (4 * 512))
-		stk := make([]uint16, (2 * 32))
+		nodes := make([]int, (4 * 512))
+		stk := make([]int, (2 * 32))
 		nodes2 := nodes
 		stk2 := stk
 		var i int = 0
 		var nn int = 1
 		var sp int = 0
 		var ok int = 1
-		var r2 []uint16
+		var r2 []int
 		for {
 			if (i < 0) {
-				nodes2[0] = uint16(nn)
-				nodes2[1] = uint16(0)
+				nodes2[0] = nn
+				nodes2[1] = 0
 				r2 = nodes2
 				break
 			}
 			if (i >= len(src)) {
-				nodes2[0] = uint16(nn)
+				nodes2[0] = nn
 				var t3 int
 				if (sp == 0) {
 					t3 = ok
 				} else {
 					t3 = 0
 				}
-				nodes2[1] = uint16(t3)
+				nodes2[1] = t3
 				r2 = nodes2
 				break
 			}
 			if (nn >= 512) {
-				nodes2[0] = uint16(nn)
-				nodes2[1] = uint16(0)
+				nodes2[0] = nn
+				nodes2[1] = 0
 				r2 = nodes2
 				break
 			}
 			if (sp >= 32) {
-				nodes2[0] = uint16(nn)
-				nodes2[1] = uint16(0)
+				nodes2[0] = nn
+				nodes2[1] = 0
 				r2 = nodes2
 				break
 			}
@@ -457,17 +457,17 @@ func TreeRun(k int) int {
 				} else {
 					t4 = 4
 				}
-				nodes2[((4 * nn) + 0)] = uint16(t4)
-				nodes2[((4 * nn) + 1)] = uint16(0)
+				nodes2[((4 * nn) + 0)] = t4
+				nodes2[((4 * nn) + 1)] = 0
 				nodes3 := nodes2
-				var t5 []uint16
+				var t5 []int
 				if (sp < 1) {
 					t5 = nodes3
 				} else {
-					var lc int = int(stk2[((2 * (sp - 1)) + 1)])
-					var t6 []uint16
+					var lc int = stk2[((2 * (sp - 1)) + 1)]
+					var t6 []int
 					if (lc == 0) {
-						var k2 int = int(stk2[((2 * (sp - 1)) + 0)])
+						var k2 int = stk2[((2 * (sp - 1)) + 0)]
 						var t7 int
 						if (k2 < 0) {
 							t7 = 0
@@ -480,7 +480,7 @@ func TreeRun(k int) int {
 							}
 							t7 = t8
 						}
-						nodes3[((4 * t7) + 2)] = uint16(nn)
+						nodes3[((4 * t7) + 2)] = nn
 						t6 = nodes3
 					} else {
 						var t9 int
@@ -495,21 +495,21 @@ func TreeRun(k int) int {
 							}
 							t9 = t10
 						}
-						nodes3[((4 * t9) + 3)] = uint16(nn)
+						nodes3[((4 * t9) + 3)] = nn
 						t6 = nodes3
 					}
 					t5 = t6
 				}
-				var t11 []uint16
+				var t11 []int
 				if (sp < 1) {
 					t11 = stk2
 				} else {
-					stk2[((2 * (sp - 1)) + 1)] = uint16(nn)
+					stk2[((2 * (sp - 1)) + 1)] = nn
 					t11 = stk2
 				}
 				stk3 := t11
-				stk3[((2 * sp) + 0)] = uint16(nn)
-				stk3[((2 * sp) + 1)] = uint16(0)
+				stk3[((2 * sp) + 0)] = nn
+				stk3[((2 * sp) + 1)] = 0
 				nodes2, stk2, i, nn, sp = t5, stk3, (i + 1), (nn + 1), (sp + 1)
 				continue
 			}
@@ -525,7 +525,7 @@ func TreeRun(k int) int {
 				if (sp < 1) {
 					t13 = 0
 				} else {
-					var k3 int = int(stk2[((2 * (sp - 1)) + 0)])
+					var k3 int = stk2[((2 * (sp - 1)) + 0)]
 					var t14 int
 					if (k3 < 0) {
 						t14 = 0
@@ -545,7 +545,7 @@ func TreeRun(k int) int {
 						t16 = 4
 					}
 					var t17 int
-					if (int(nodes2[((4 * t14) + 0)]) == t16) {
+					if (nodes2[((4 * t14) + 0)] == t16) {
 						t17 = ok
 					} else {
 						t17 = 0
@@ -586,7 +586,7 @@ func TreeRun(k int) int {
 					var c6 int = src[i]
 					var t20 int
 					if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
-						var j2 int = i
+						var j2 int = (i + 1)
 						for ; ; j2 = (j2 + 1) {
 							if (j2 < 0) {
 								break
@@ -602,7 +602,7 @@ func TreeRun(k int) int {
 						}
 						t20 = j2
 					} else {
-						var j3 int = i
+						var j3 int = (i + 1)
 						for ; ; j3 = (j3 + 1) {
 							if (j3 < 0) {
 								break
@@ -634,17 +634,17 @@ func TreeRun(k int) int {
 					}
 					t21 = t22
 				}
-				nodes2[((4 * nn) + 0)] = uint16(t21)
-				nodes2[((4 * nn) + 1)] = uint16((ni - i))
+				nodes2[((4 * nn) + 0)] = t21
+				nodes2[((4 * nn) + 1)] = (ni - i)
 				nodes4 := nodes2
-				var t23 []uint16
+				var t23 []int
 				if (sp < 1) {
 					t23 = nodes4
 				} else {
-					var lc2 int = int(stk2[((2 * (sp - 1)) + 1)])
-					var t24 []uint16
+					var lc2 int = stk2[((2 * (sp - 1)) + 1)]
+					var t24 []int
 					if (lc2 == 0) {
-						var k4 int = int(stk2[((2 * (sp - 1)) + 0)])
+						var k4 int = stk2[((2 * (sp - 1)) + 0)]
 						var t25 int
 						if (k4 < 0) {
 							t25 = 0
@@ -657,7 +657,7 @@ func TreeRun(k int) int {
 							}
 							t25 = t26
 						}
-						nodes4[((4 * t25) + 2)] = uint16(nn)
+						nodes4[((4 * t25) + 2)] = nn
 						t24 = nodes4
 					} else {
 						var t27 int
@@ -672,16 +672,16 @@ func TreeRun(k int) int {
 							}
 							t27 = t28
 						}
-						nodes4[((4 * t27) + 3)] = uint16(nn)
+						nodes4[((4 * t27) + 3)] = nn
 						t24 = nodes4
 					}
 					t23 = t24
 				}
-				var t29 []uint16
+				var t29 []int
 				if (sp < 1) {
 					t29 = stk2
 				} else {
-					stk2[((2 * (sp - 1)) + 1)] = uint16(nn)
+					stk2[((2 * (sp - 1)) + 1)] = nn
 					t29 = stk2
 				}
 				nodes2, stk2, i, nn = t23, t29, ni, (nn + 1)
@@ -727,7 +727,7 @@ func TreeRun(k int) int {
 				}
 				t31 = t32
 			}
-			var sb int = int(nodes5[((4 * t31) + 3)])
+			var sb int = nodes5[((4 * t31) + 3)]
 			var t33 int
 			if (n < 0) {
 				t33 = 0
@@ -740,7 +740,7 @@ func TreeRun(k int) int {
 				}
 				t33 = t34
 			}
-			var kd int = int(nodes5[((4 * t33) + 2)])
+			var kd int = nodes5[((4 * t33) + 2)]
 			var s1 int = (sp2 - 1)
 			var t35 []int
 			if (sb == 0) {
@@ -785,51 +785,51 @@ func TreeRun(k int) int {
 				}
 				t39 = t40
 			}
-			wl2, sp2, acc = w2, t38, (acc + (int(nodes5[((4 * t39) + 0)]) * d))
+			wl2, sp2, acc = w2, t38, (acc + (nodes5[((4 * t39) + 0)] * d))
 			continue
 		}
-		t1 = (((int(nodes5[0]) - 1) * 1000000) + ((r30 * 10) + int(nodes5[1])))
+		t1 = (((nodes5[0] - 1) * 1000000) + ((r30 * 10) + nodes5[1]))
 	} else {
 		var t41 int
 		if (k == 1) {
 			src2 := []int{123, 34, 97, 34, 58, 49, 125}
-			nodes6 := make([]uint16, (4 * 512))
-			stk4 := make([]uint16, (2 * 32))
+			nodes6 := make([]int, (4 * 512))
+			stk4 := make([]int, (2 * 32))
 			nodes7 := nodes6
 			stk5 := stk4
 			var i2 int = 0
 			var nn2 int = 1
 			var sp3 int = 0
 			var ok2 int = 1
-			var r42 []uint16
+			var r42 []int
 			for {
 				if (i2 < 0) {
-					nodes7[0] = uint16(nn2)
-					nodes7[1] = uint16(0)
+					nodes7[0] = nn2
+					nodes7[1] = 0
 					r42 = nodes7
 					break
 				}
 				if (i2 >= len(src2)) {
-					nodes7[0] = uint16(nn2)
+					nodes7[0] = nn2
 					var t43 int
 					if (sp3 == 0) {
 						t43 = ok2
 					} else {
 						t43 = 0
 					}
-					nodes7[1] = uint16(t43)
+					nodes7[1] = t43
 					r42 = nodes7
 					break
 				}
 				if (nn2 >= 512) {
-					nodes7[0] = uint16(nn2)
-					nodes7[1] = uint16(0)
+					nodes7[0] = nn2
+					nodes7[1] = 0
 					r42 = nodes7
 					break
 				}
 				if (sp3 >= 32) {
-					nodes7[0] = uint16(nn2)
-					nodes7[1] = uint16(0)
+					nodes7[0] = nn2
+					nodes7[1] = 0
 					r42 = nodes7
 					break
 				}
@@ -851,17 +851,17 @@ func TreeRun(k int) int {
 					} else {
 						t44 = 4
 					}
-					nodes7[((4 * nn2) + 0)] = uint16(t44)
-					nodes7[((4 * nn2) + 1)] = uint16(0)
+					nodes7[((4 * nn2) + 0)] = t44
+					nodes7[((4 * nn2) + 1)] = 0
 					nodes8 := nodes7
-					var t45 []uint16
+					var t45 []int
 					if (sp3 < 1) {
 						t45 = nodes8
 					} else {
-						var lc3 int = int(stk5[((2 * (sp3 - 1)) + 1)])
-						var t46 []uint16
+						var lc3 int = stk5[((2 * (sp3 - 1)) + 1)]
+						var t46 []int
 						if (lc3 == 0) {
-							var k5 int = int(stk5[((2 * (sp3 - 1)) + 0)])
+							var k5 int = stk5[((2 * (sp3 - 1)) + 0)]
 							var t47 int
 							if (k5 < 0) {
 								t47 = 0
@@ -874,7 +874,7 @@ func TreeRun(k int) int {
 								}
 								t47 = t48
 							}
-							nodes8[((4 * t47) + 2)] = uint16(nn2)
+							nodes8[((4 * t47) + 2)] = nn2
 							t46 = nodes8
 						} else {
 							var t49 int
@@ -889,21 +889,21 @@ func TreeRun(k int) int {
 								}
 								t49 = t50
 							}
-							nodes8[((4 * t49) + 3)] = uint16(nn2)
+							nodes8[((4 * t49) + 3)] = nn2
 							t46 = nodes8
 						}
 						t45 = t46
 					}
-					var t51 []uint16
+					var t51 []int
 					if (sp3 < 1) {
 						t51 = stk5
 					} else {
-						stk5[((2 * (sp3 - 1)) + 1)] = uint16(nn2)
+						stk5[((2 * (sp3 - 1)) + 1)] = nn2
 						t51 = stk5
 					}
 					stk6 := t51
-					stk6[((2 * sp3) + 0)] = uint16(nn2)
-					stk6[((2 * sp3) + 1)] = uint16(0)
+					stk6[((2 * sp3) + 0)] = nn2
+					stk6[((2 * sp3) + 1)] = 0
 					nodes7, stk5, i2, nn2, sp3 = t45, stk6, (i2 + 1), (nn2 + 1), (sp3 + 1)
 					continue
 				}
@@ -919,7 +919,7 @@ func TreeRun(k int) int {
 					if (sp3 < 1) {
 						t53 = 0
 					} else {
-						var k6 int = int(stk5[((2 * (sp3 - 1)) + 0)])
+						var k6 int = stk5[((2 * (sp3 - 1)) + 0)]
 						var t54 int
 						if (k6 < 0) {
 							t54 = 0
@@ -939,7 +939,7 @@ func TreeRun(k int) int {
 							t56 = 4
 						}
 						var t57 int
-						if (int(nodes7[((4 * t54) + 0)]) == t56) {
+						if (nodes7[((4 * t54) + 0)] == t56) {
 							t57 = ok2
 						} else {
 							t57 = 0
@@ -980,7 +980,7 @@ func TreeRun(k int) int {
 						var c15 int = src2[i2]
 						var t60 int
 						if (((c15 >= 48) && (c15 <= 57)) || ((c15 == 45) || ((c15 == 43) || ((c15 == 46) || ((c15 == 101) || (c15 == 69)))))) {
-							var j5 int = i2
+							var j5 int = (i2 + 1)
 							for ; ; j5 = (j5 + 1) {
 								if (j5 < 0) {
 									break
@@ -996,7 +996,7 @@ func TreeRun(k int) int {
 							}
 							t60 = j5
 						} else {
-							var j6 int = i2
+							var j6 int = (i2 + 1)
 							for ; ; j6 = (j6 + 1) {
 								if (j6 < 0) {
 									break
@@ -1028,17 +1028,17 @@ func TreeRun(k int) int {
 						}
 						t61 = t62
 					}
-					nodes7[((4 * nn2) + 0)] = uint16(t61)
-					nodes7[((4 * nn2) + 1)] = uint16((ni2 - i2))
+					nodes7[((4 * nn2) + 0)] = t61
+					nodes7[((4 * nn2) + 1)] = (ni2 - i2)
 					nodes9 := nodes7
-					var t63 []uint16
+					var t63 []int
 					if (sp3 < 1) {
 						t63 = nodes9
 					} else {
-						var lc4 int = int(stk5[((2 * (sp3 - 1)) + 1)])
-						var t64 []uint16
+						var lc4 int = stk5[((2 * (sp3 - 1)) + 1)]
+						var t64 []int
 						if (lc4 == 0) {
-							var k7 int = int(stk5[((2 * (sp3 - 1)) + 0)])
+							var k7 int = stk5[((2 * (sp3 - 1)) + 0)]
 							var t65 int
 							if (k7 < 0) {
 								t65 = 0
@@ -1051,7 +1051,7 @@ func TreeRun(k int) int {
 								}
 								t65 = t66
 							}
-							nodes9[((4 * t65) + 2)] = uint16(nn2)
+							nodes9[((4 * t65) + 2)] = nn2
 							t64 = nodes9
 						} else {
 							var t67 int
@@ -1066,16 +1066,16 @@ func TreeRun(k int) int {
 								}
 								t67 = t68
 							}
-							nodes9[((4 * t67) + 3)] = uint16(nn2)
+							nodes9[((4 * t67) + 3)] = nn2
 							t64 = nodes9
 						}
 						t63 = t64
 					}
-					var t69 []uint16
+					var t69 []int
 					if (sp3 < 1) {
 						t69 = stk5
 					} else {
-						stk5[((2 * (sp3 - 1)) + 1)] = uint16(nn2)
+						stk5[((2 * (sp3 - 1)) + 1)] = nn2
 						t69 = stk5
 					}
 					nodes7, stk5, i2, nn2 = t63, t69, ni2, (nn2 + 1)
@@ -1121,7 +1121,7 @@ func TreeRun(k int) int {
 					}
 					t71 = t72
 				}
-				var sb2 int = int(nodes10[((4 * t71) + 3)])
+				var sb2 int = nodes10[((4 * t71) + 3)]
 				var t73 int
 				if (n2 < 0) {
 					t73 = 0
@@ -1134,7 +1134,7 @@ func TreeRun(k int) int {
 					}
 					t73 = t74
 				}
-				var kd2 int = int(nodes10[((4 * t73) + 2)])
+				var kd2 int = nodes10[((4 * t73) + 2)]
 				var s12 int = (sp4 - 1)
 				var t75 []int
 				if (sb2 == 0) {
@@ -1179,51 +1179,51 @@ func TreeRun(k int) int {
 					}
 					t79 = t80
 				}
-				wl4, sp4, acc2 = w22, t78, (acc2 + (int(nodes10[((4 * t79) + 0)]) * d2))
+				wl4, sp4, acc2 = w22, t78, (acc2 + (nodes10[((4 * t79) + 0)] * d2))
 				continue
 			}
-			t41 = (((int(nodes10[0]) - 1) * 1000000) + ((r70 * 10) + int(nodes10[1])))
+			t41 = (((nodes10[0] - 1) * 1000000) + ((r70 * 10) + nodes10[1]))
 		} else {
 			var t81 int
 			if (k == 2) {
 				src3 := []int{91, 91, 49, 93, 44, 50, 93}
-				nodes11 := make([]uint16, (4 * 512))
-				stk7 := make([]uint16, (2 * 32))
+				nodes11 := make([]int, (4 * 512))
+				stk7 := make([]int, (2 * 32))
 				nodes12 := nodes11
 				stk8 := stk7
 				var i3 int = 0
 				var nn3 int = 1
 				var sp5 int = 0
 				var ok3 int = 1
-				var r82 []uint16
+				var r82 []int
 				for {
 					if (i3 < 0) {
-						nodes12[0] = uint16(nn3)
-						nodes12[1] = uint16(0)
+						nodes12[0] = nn3
+						nodes12[1] = 0
 						r82 = nodes12
 						break
 					}
 					if (i3 >= len(src3)) {
-						nodes12[0] = uint16(nn3)
+						nodes12[0] = nn3
 						var t83 int
 						if (sp5 == 0) {
 							t83 = ok3
 						} else {
 							t83 = 0
 						}
-						nodes12[1] = uint16(t83)
+						nodes12[1] = t83
 						r82 = nodes12
 						break
 					}
 					if (nn3 >= 512) {
-						nodes12[0] = uint16(nn3)
-						nodes12[1] = uint16(0)
+						nodes12[0] = nn3
+						nodes12[1] = 0
 						r82 = nodes12
 						break
 					}
 					if (sp5 >= 32) {
-						nodes12[0] = uint16(nn3)
-						nodes12[1] = uint16(0)
+						nodes12[0] = nn3
+						nodes12[1] = 0
 						r82 = nodes12
 						break
 					}
@@ -1245,17 +1245,17 @@ func TreeRun(k int) int {
 						} else {
 							t84 = 4
 						}
-						nodes12[((4 * nn3) + 0)] = uint16(t84)
-						nodes12[((4 * nn3) + 1)] = uint16(0)
+						nodes12[((4 * nn3) + 0)] = t84
+						nodes12[((4 * nn3) + 1)] = 0
 						nodes13 := nodes12
-						var t85 []uint16
+						var t85 []int
 						if (sp5 < 1) {
 							t85 = nodes13
 						} else {
-							var lc5 int = int(stk8[((2 * (sp5 - 1)) + 1)])
-							var t86 []uint16
+							var lc5 int = stk8[((2 * (sp5 - 1)) + 1)]
+							var t86 []int
 							if (lc5 == 0) {
-								var k8 int = int(stk8[((2 * (sp5 - 1)) + 0)])
+								var k8 int = stk8[((2 * (sp5 - 1)) + 0)]
 								var t87 int
 								if (k8 < 0) {
 									t87 = 0
@@ -1268,7 +1268,7 @@ func TreeRun(k int) int {
 									}
 									t87 = t88
 								}
-								nodes13[((4 * t87) + 2)] = uint16(nn3)
+								nodes13[((4 * t87) + 2)] = nn3
 								t86 = nodes13
 							} else {
 								var t89 int
@@ -1283,21 +1283,21 @@ func TreeRun(k int) int {
 									}
 									t89 = t90
 								}
-								nodes13[((4 * t89) + 3)] = uint16(nn3)
+								nodes13[((4 * t89) + 3)] = nn3
 								t86 = nodes13
 							}
 							t85 = t86
 						}
-						var t91 []uint16
+						var t91 []int
 						if (sp5 < 1) {
 							t91 = stk8
 						} else {
-							stk8[((2 * (sp5 - 1)) + 1)] = uint16(nn3)
+							stk8[((2 * (sp5 - 1)) + 1)] = nn3
 							t91 = stk8
 						}
 						stk9 := t91
-						stk9[((2 * sp5) + 0)] = uint16(nn3)
-						stk9[((2 * sp5) + 1)] = uint16(0)
+						stk9[((2 * sp5) + 0)] = nn3
+						stk9[((2 * sp5) + 1)] = 0
 						nodes12, stk8, i3, nn3, sp5 = t85, stk9, (i3 + 1), (nn3 + 1), (sp5 + 1)
 						continue
 					}
@@ -1313,7 +1313,7 @@ func TreeRun(k int) int {
 						if (sp5 < 1) {
 							t93 = 0
 						} else {
-							var k9 int = int(stk8[((2 * (sp5 - 1)) + 0)])
+							var k9 int = stk8[((2 * (sp5 - 1)) + 0)]
 							var t94 int
 							if (k9 < 0) {
 								t94 = 0
@@ -1333,7 +1333,7 @@ func TreeRun(k int) int {
 								t96 = 4
 							}
 							var t97 int
-							if (int(nodes12[((4 * t94) + 0)]) == t96) {
+							if (nodes12[((4 * t94) + 0)] == t96) {
 								t97 = ok3
 							} else {
 								t97 = 0
@@ -1374,7 +1374,7 @@ func TreeRun(k int) int {
 							var c24 int = src3[i3]
 							var t100 int
 							if (((c24 >= 48) && (c24 <= 57)) || ((c24 == 45) || ((c24 == 43) || ((c24 == 46) || ((c24 == 101) || (c24 == 69)))))) {
-								var j8 int = i3
+								var j8 int = (i3 + 1)
 								for ; ; j8 = (j8 + 1) {
 									if (j8 < 0) {
 										break
@@ -1390,7 +1390,7 @@ func TreeRun(k int) int {
 								}
 								t100 = j8
 							} else {
-								var j9 int = i3
+								var j9 int = (i3 + 1)
 								for ; ; j9 = (j9 + 1) {
 									if (j9 < 0) {
 										break
@@ -1422,17 +1422,17 @@ func TreeRun(k int) int {
 							}
 							t101 = t102
 						}
-						nodes12[((4 * nn3) + 0)] = uint16(t101)
-						nodes12[((4 * nn3) + 1)] = uint16((ni3 - i3))
+						nodes12[((4 * nn3) + 0)] = t101
+						nodes12[((4 * nn3) + 1)] = (ni3 - i3)
 						nodes14 := nodes12
-						var t103 []uint16
+						var t103 []int
 						if (sp5 < 1) {
 							t103 = nodes14
 						} else {
-							var lc6 int = int(stk8[((2 * (sp5 - 1)) + 1)])
-							var t104 []uint16
+							var lc6 int = stk8[((2 * (sp5 - 1)) + 1)]
+							var t104 []int
 							if (lc6 == 0) {
-								var k10 int = int(stk8[((2 * (sp5 - 1)) + 0)])
+								var k10 int = stk8[((2 * (sp5 - 1)) + 0)]
 								var t105 int
 								if (k10 < 0) {
 									t105 = 0
@@ -1445,7 +1445,7 @@ func TreeRun(k int) int {
 									}
 									t105 = t106
 								}
-								nodes14[((4 * t105) + 2)] = uint16(nn3)
+								nodes14[((4 * t105) + 2)] = nn3
 								t104 = nodes14
 							} else {
 								var t107 int
@@ -1460,16 +1460,16 @@ func TreeRun(k int) int {
 									}
 									t107 = t108
 								}
-								nodes14[((4 * t107) + 3)] = uint16(nn3)
+								nodes14[((4 * t107) + 3)] = nn3
 								t104 = nodes14
 							}
 							t103 = t104
 						}
-						var t109 []uint16
+						var t109 []int
 						if (sp5 < 1) {
 							t109 = stk8
 						} else {
-							stk8[((2 * (sp5 - 1)) + 1)] = uint16(nn3)
+							stk8[((2 * (sp5 - 1)) + 1)] = nn3
 							t109 = stk8
 						}
 						nodes12, stk8, i3, nn3 = t103, t109, ni3, (nn3 + 1)
@@ -1515,7 +1515,7 @@ func TreeRun(k int) int {
 						}
 						t111 = t112
 					}
-					var sb3 int = int(nodes15[((4 * t111) + 3)])
+					var sb3 int = nodes15[((4 * t111) + 3)]
 					var t113 int
 					if (n3 < 0) {
 						t113 = 0
@@ -1528,7 +1528,7 @@ func TreeRun(k int) int {
 						}
 						t113 = t114
 					}
-					var kd3 int = int(nodes15[((4 * t113) + 2)])
+					var kd3 int = nodes15[((4 * t113) + 2)]
 					var s13 int = (sp6 - 1)
 					var t115 []int
 					if (sb3 == 0) {
@@ -1573,49 +1573,49 @@ func TreeRun(k int) int {
 						}
 						t119 = t120
 					}
-					wl6, sp6, acc3 = w23, t118, (acc3 + (int(nodes15[((4 * t119) + 0)]) * d3))
+					wl6, sp6, acc3 = w23, t118, (acc3 + (nodes15[((4 * t119) + 0)] * d3))
 					continue
 				}
-				t81 = (((int(nodes15[0]) - 1) * 1000000) + ((r110 * 10) + int(nodes15[1])))
+				t81 = (((nodes15[0] - 1) * 1000000) + ((r110 * 10) + nodes15[1]))
 			} else {
 				src4 := []int{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
-				nodes16 := make([]uint16, (4 * 512))
-				stk10 := make([]uint16, (2 * 32))
+				nodes16 := make([]int, (4 * 512))
+				stk10 := make([]int, (2 * 32))
 				nodes17 := nodes16
 				stk11 := stk10
 				var i4 int = 0
 				var nn4 int = 1
 				var sp7 int = 0
 				var ok4 int = 1
-				var r121 []uint16
+				var r121 []int
 				for {
 					if (i4 < 0) {
-						nodes17[0] = uint16(nn4)
-						nodes17[1] = uint16(0)
+						nodes17[0] = nn4
+						nodes17[1] = 0
 						r121 = nodes17
 						break
 					}
 					if (i4 >= len(src4)) {
-						nodes17[0] = uint16(nn4)
+						nodes17[0] = nn4
 						var t122 int
 						if (sp7 == 0) {
 							t122 = ok4
 						} else {
 							t122 = 0
 						}
-						nodes17[1] = uint16(t122)
+						nodes17[1] = t122
 						r121 = nodes17
 						break
 					}
 					if (nn4 >= 512) {
-						nodes17[0] = uint16(nn4)
-						nodes17[1] = uint16(0)
+						nodes17[0] = nn4
+						nodes17[1] = 0
 						r121 = nodes17
 						break
 					}
 					if (sp7 >= 32) {
-						nodes17[0] = uint16(nn4)
-						nodes17[1] = uint16(0)
+						nodes17[0] = nn4
+						nodes17[1] = 0
 						r121 = nodes17
 						break
 					}
@@ -1637,17 +1637,17 @@ func TreeRun(k int) int {
 						} else {
 							t123 = 4
 						}
-						nodes17[((4 * nn4) + 0)] = uint16(t123)
-						nodes17[((4 * nn4) + 1)] = uint16(0)
+						nodes17[((4 * nn4) + 0)] = t123
+						nodes17[((4 * nn4) + 1)] = 0
 						nodes18 := nodes17
-						var t124 []uint16
+						var t124 []int
 						if (sp7 < 1) {
 							t124 = nodes18
 						} else {
-							var lc7 int = int(stk11[((2 * (sp7 - 1)) + 1)])
-							var t125 []uint16
+							var lc7 int = stk11[((2 * (sp7 - 1)) + 1)]
+							var t125 []int
 							if (lc7 == 0) {
-								var k11 int = int(stk11[((2 * (sp7 - 1)) + 0)])
+								var k11 int = stk11[((2 * (sp7 - 1)) + 0)]
 								var t126 int
 								if (k11 < 0) {
 									t126 = 0
@@ -1660,7 +1660,7 @@ func TreeRun(k int) int {
 									}
 									t126 = t127
 								}
-								nodes18[((4 * t126) + 2)] = uint16(nn4)
+								nodes18[((4 * t126) + 2)] = nn4
 								t125 = nodes18
 							} else {
 								var t128 int
@@ -1675,21 +1675,21 @@ func TreeRun(k int) int {
 									}
 									t128 = t129
 								}
-								nodes18[((4 * t128) + 3)] = uint16(nn4)
+								nodes18[((4 * t128) + 3)] = nn4
 								t125 = nodes18
 							}
 							t124 = t125
 						}
-						var t130 []uint16
+						var t130 []int
 						if (sp7 < 1) {
 							t130 = stk11
 						} else {
-							stk11[((2 * (sp7 - 1)) + 1)] = uint16(nn4)
+							stk11[((2 * (sp7 - 1)) + 1)] = nn4
 							t130 = stk11
 						}
 						stk12 := t130
-						stk12[((2 * sp7) + 0)] = uint16(nn4)
-						stk12[((2 * sp7) + 1)] = uint16(0)
+						stk12[((2 * sp7) + 0)] = nn4
+						stk12[((2 * sp7) + 1)] = 0
 						nodes17, stk11, i4, nn4, sp7 = t124, stk12, (i4 + 1), (nn4 + 1), (sp7 + 1)
 						continue
 					}
@@ -1705,7 +1705,7 @@ func TreeRun(k int) int {
 						if (sp7 < 1) {
 							t132 = 0
 						} else {
-							var k12 int = int(stk11[((2 * (sp7 - 1)) + 0)])
+							var k12 int = stk11[((2 * (sp7 - 1)) + 0)]
 							var t133 int
 							if (k12 < 0) {
 								t133 = 0
@@ -1725,7 +1725,7 @@ func TreeRun(k int) int {
 								t135 = 4
 							}
 							var t136 int
-							if (int(nodes17[((4 * t133) + 0)]) == t135) {
+							if (nodes17[((4 * t133) + 0)] == t135) {
 								t136 = ok4
 							} else {
 								t136 = 0
@@ -1766,7 +1766,7 @@ func TreeRun(k int) int {
 							var c33 int = src4[i4]
 							var t139 int
 							if (((c33 >= 48) && (c33 <= 57)) || ((c33 == 45) || ((c33 == 43) || ((c33 == 46) || ((c33 == 101) || (c33 == 69)))))) {
-								var j11 int = i4
+								var j11 int = (i4 + 1)
 								for ; ; j11 = (j11 + 1) {
 									if (j11 < 0) {
 										break
@@ -1782,7 +1782,7 @@ func TreeRun(k int) int {
 								}
 								t139 = j11
 							} else {
-								var j12 int = i4
+								var j12 int = (i4 + 1)
 								for ; ; j12 = (j12 + 1) {
 									if (j12 < 0) {
 										break
@@ -1814,17 +1814,17 @@ func TreeRun(k int) int {
 							}
 							t140 = t141
 						}
-						nodes17[((4 * nn4) + 0)] = uint16(t140)
-						nodes17[((4 * nn4) + 1)] = uint16((ni4 - i4))
+						nodes17[((4 * nn4) + 0)] = t140
+						nodes17[((4 * nn4) + 1)] = (ni4 - i4)
 						nodes19 := nodes17
-						var t142 []uint16
+						var t142 []int
 						if (sp7 < 1) {
 							t142 = nodes19
 						} else {
-							var lc8 int = int(stk11[((2 * (sp7 - 1)) + 1)])
-							var t143 []uint16
+							var lc8 int = stk11[((2 * (sp7 - 1)) + 1)]
+							var t143 []int
 							if (lc8 == 0) {
-								var k13 int = int(stk11[((2 * (sp7 - 1)) + 0)])
+								var k13 int = stk11[((2 * (sp7 - 1)) + 0)]
 								var t144 int
 								if (k13 < 0) {
 									t144 = 0
@@ -1837,7 +1837,7 @@ func TreeRun(k int) int {
 									}
 									t144 = t145
 								}
-								nodes19[((4 * t144) + 2)] = uint16(nn4)
+								nodes19[((4 * t144) + 2)] = nn4
 								t143 = nodes19
 							} else {
 								var t146 int
@@ -1852,16 +1852,16 @@ func TreeRun(k int) int {
 									}
 									t146 = t147
 								}
-								nodes19[((4 * t146) + 3)] = uint16(nn4)
+								nodes19[((4 * t146) + 3)] = nn4
 								t143 = nodes19
 							}
 							t142 = t143
 						}
-						var t148 []uint16
+						var t148 []int
 						if (sp7 < 1) {
 							t148 = stk11
 						} else {
-							stk11[((2 * (sp7 - 1)) + 1)] = uint16(nn4)
+							stk11[((2 * (sp7 - 1)) + 1)] = nn4
 							t148 = stk11
 						}
 						nodes17, stk11, i4, nn4 = t142, t148, ni4, (nn4 + 1)
@@ -1907,7 +1907,7 @@ func TreeRun(k int) int {
 						}
 						t150 = t151
 					}
-					var sb4 int = int(nodes20[((4 * t150) + 3)])
+					var sb4 int = nodes20[((4 * t150) + 3)]
 					var t152 int
 					if (n4 < 0) {
 						t152 = 0
@@ -1920,7 +1920,7 @@ func TreeRun(k int) int {
 						}
 						t152 = t153
 					}
-					var kd4 int = int(nodes20[((4 * t152) + 2)])
+					var kd4 int = nodes20[((4 * t152) + 2)]
 					var s14 int = (sp8 - 1)
 					var t154 []int
 					if (sb4 == 0) {
@@ -1965,10 +1965,10 @@ func TreeRun(k int) int {
 						}
 						t158 = t159
 					}
-					wl8, sp8, acc4 = w24, t157, (acc4 + (int(nodes20[((4 * t158) + 0)]) * d4))
+					wl8, sp8, acc4 = w24, t157, (acc4 + (nodes20[((4 * t158) + 0)] * d4))
 					continue
 				}
-				t81 = (((int(nodes20[0]) - 1) * 1000000) + ((r149 * 10) + int(nodes20[1])))
+				t81 = (((nodes20[0] - 1) * 1000000) + ((r149 * 10) + nodes20[1]))
 			}
 			t41 = t81
 		}

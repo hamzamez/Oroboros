@@ -136,7 +136,7 @@ export function nativeMeasure(src) {
 				const c11 = src[i];
 				let t19;
 				if ((((c11 >= 48) && (c11 <= 57)) || ((c11 === 45) || ((c11 === 43) || ((c11 === 46) || ((c11 === 101) || (c11 === 69))))))) {
-					let j9 = i;
+					let j9 = (i + 1);
 					for (;; j9 = (j9 + 1)) {
 						if ((j9 < 0)) {
 							break;
@@ -152,7 +152,7 @@ export function nativeMeasure(src) {
 					}
 					t19 = j9;
 				} else {
-					let j10 = i;
+					let j10 = (i + 1);
 					for (;; j10 = (j10 + 1)) {
 						if ((j10 < 0)) {
 							break;
@@ -412,7 +412,7 @@ export function nativeRun(k) {
 					const c198 = src12[i12];
 					let t364;
 					if ((((c198 >= 48) && (c198 <= 57)) || ((c198 === 45) || ((c198 === 43) || ((c198 === 46) || ((c198 === 101) || (c198 === 69))))))) {
-						let j119 = i12;
+						let j119 = (i12 + 1);
 						for (;; j119 = (j119 + 1)) {
 							if ((j119 < 0)) {
 								break;
@@ -428,7 +428,7 @@ export function nativeRun(k) {
 						}
 						t364 = j119;
 					} else {
-						let j120 = i12;
+						let j120 = (i12 + 1);
 						for (;; j120 = (j120 + 1)) {
 							if ((j120 < 0)) {
 								break;
@@ -686,7 +686,7 @@ export function nativeRun(k) {
 						const c300 = src18[i18];
 						let t552;
 						if ((((c300 >= 48) && (c300 <= 57)) || ((c300 === 45) || ((c300 === 43) || ((c300 === 46) || ((c300 === 101) || (c300 === 69))))))) {
-							let j179 = i18;
+							let j179 = (i18 + 1);
 							for (;; j179 = (j179 + 1)) {
 								if ((j179 < 0)) {
 									break;
@@ -702,7 +702,7 @@ export function nativeRun(k) {
 							}
 							t552 = j179;
 						} else {
-							let j180 = i18;
+							let j180 = (i18 + 1);
 							for (;; j180 = (j180 + 1)) {
 								if ((j180 < 0)) {
 									break;
@@ -960,7 +960,7 @@ export function nativeRun(k) {
 							const c351 = src21[i21];
 							let t646;
 							if ((((c351 >= 48) && (c351 <= 57)) || ((c351 === 45) || ((c351 === 43) || ((c351 === 46) || ((c351 === 101) || (c351 === 69))))))) {
-								let j209 = i21;
+								let j209 = (i21 + 1);
 								for (;; j209 = (j209 + 1)) {
 									if ((j209 < 0)) {
 										break;
@@ -976,7 +976,7 @@ export function nativeRun(k) {
 								}
 								t646 = j209;
 							} else {
-								let j210 = i21;
+								let j210 = (i21 + 1);
 								for (;; j210 = (j210 + 1)) {
 									if ((j210 < 0)) {
 										break;
@@ -1232,7 +1232,7 @@ export function nativeRun(k) {
 							const c368 = src22[i22];
 							let t677;
 							if ((((c368 >= 48) && (c368 <= 57)) || ((c368 === 45) || ((c368 === 43) || ((c368 === 46) || ((c368 === 101) || (c368 === 69))))))) {
-								let j219 = i22;
+								let j219 = (i22 + 1);
 								for (;; j219 = (j219 + 1)) {
 									if ((j219 < 0)) {
 										break;
@@ -1248,7 +1248,7 @@ export function nativeRun(k) {
 								}
 								t677 = j219;
 							} else {
-								let j220 = i22;
+								let j220 = (i22 + 1);
 								for (;; j220 = (j220 + 1)) {
 									if ((j220 < 0)) {
 										break;

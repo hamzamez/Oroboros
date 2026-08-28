@@ -795,6 +795,28 @@ range. A narrowed variable needs a cast on assignment; the post-clause path does
 declared; `tree.oro` 88.9% and 21 of 25, or 91.3% and 25 of 25.** Every loop in both parsers proves
 once a range is declared.
 
+**RE-BENCHMARKED, and the withdrawal cost is a PER-HOST answer** —
+[rebench-2026-08-27](gauntlet/results/rebench-2026-08-27.md). Tokeniser **Go 0.94x, JavaScript 1.00x,
+Java 1.20x**; tree **Go 0.92x** of hand-written clamped (and **2.03x FASTER** than recursive),
+**JavaScript 1.02x**, **Java 1.23x**. The node table is `[]int` again, 16 KB instead of 4 KB — and
+that cost **nothing on Go** and **1.16x on the JVM**. elemwidth §5d recorded 6,053 → 5,524 as a 1.10x
+gain from narrowing it; the un-narrowed program measures **5,483**, so that comparison did not
+survive being re-taken across sessions on a 15% noise floor. **Withdrawn twice over**: for resting on
+an unsound analysis, and for not being a measurable gain on that host anyway. The JVM number is
+consistent rather than surprising — json-tree-bench established element width is what that host is
+sensitive to.
+
+**Java's tokeniser lost index narrowing, and that is the RULE WORKING**: narrowing needs every
+operation in the method to fit a 32-bit index, and 86.7% is the honest figure, so casts went
+**5 → 102** and the cost of 97 casts is **3.7%**. Third time this week the casts have proved cheap.
+
+**The narrowing is recoverable and what it needs is structural.** `BufferRange` runs on the `build`
+lambda ALONE — presented as a soundness argument, and with a sound fixpoint no longer needed for
+soundness. Declaring `(where (go.< (len src) 1024))` takes `tree.oro` to 91.3% and **25 of 25 loops**
+and the buffers *still* do not narrow, because the sub-pass never sees the signature. The fix is the
+one index narrowing already needed — **ask once per function with the signature in hand** —
+and `IntervalReport.Stores` already records what is wanted.
+
 **LOOP MONOTONICITY IS BUILT, AND IT WAS DERIVED RATHER THAN DECLARED** —
 [monotone-2026-08-27](gauntlet/results/monotone-2026-08-27.md), [emit/monotone.go](emit/monotone.go).
 Five results in a row terminated at one missing fact — **a scanner returns more than it was given** —

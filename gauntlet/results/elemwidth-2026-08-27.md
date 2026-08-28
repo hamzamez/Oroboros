@@ -193,6 +193,12 @@ binders are not opened — the stores **merge**, which can only widen a range an
 > withdrawn with it. The old answer `int 0 512` was a *sound range reached unsoundly*: it contained
 > 511, so no wrong answer shipped, but that was luck rather than the analysis working.
 >
+> **Re-measured 2026-08-27** ([rebench](rebench-2026-08-27.md)): the un-narrowed tree measures
+> **5,483 ns** on Go against the 5,524 recorded here with narrowing, so this section's 1.10x was a
+> cross-session comparison that did not survive being re-taken. On the JVM the narrowing really was
+> worth **1.16x**. It is withdrawn twice over — for the analysis it rested on, and for not being a
+> gain on the host it was measured on.
+>
 > **§5b's syntactic narrowing is untouched.** A literal, a conditional over literals, and a read from
 > an already-narrowed table never needed the fixpoint, so the tokeniser's stack is still `[]byte`.
 > That is the part of this result that stands.

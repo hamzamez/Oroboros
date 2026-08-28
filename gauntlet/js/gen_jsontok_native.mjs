@@ -90,7 +90,7 @@ export function nativeRun(k) {
 			}
 			const c93 = src12[i12];
 			if ((((c93 >= 48) && (c93 <= 57)) || ((c93 === 45) || ((c93 === 43) || ((c93 === 46) || ((c93 === 101) || (c93 === 69))))))) {
-				let j35 = i12;
+				let j35 = (i12 + 1);
 				for (;; j35 = (j35 + 1)) {
 					if ((j35 < 0)) {
 						break;
@@ -110,7 +110,7 @@ export function nativeRun(k) {
 			}
 			const c95 = src12[i12];
 			if (((c95 >= 97) && (c95 <= 122))) {
-				let j36 = i12;
+				let j36 = (i12 + 1);
 				for (;; j36 = (j36 + 1)) {
 					if ((j36 < 0)) {
 						break;
@@ -223,7 +223,7 @@ export function nativeRun(k) {
 				}
 				const c141 = src18[i18];
 				if ((((c141 >= 48) && (c141 <= 57)) || ((c141 === 45) || ((c141 === 43) || ((c141 === 46) || ((c141 === 101) || (c141 === 69))))))) {
-					let j53 = i18;
+					let j53 = (i18 + 1);
 					for (;; j53 = (j53 + 1)) {
 						if ((j53 < 0)) {
 							break;
@@ -243,7 +243,7 @@ export function nativeRun(k) {
 				}
 				const c143 = src18[i18];
 				if (((c143 >= 97) && (c143 <= 122))) {
-					let j54 = i18;
+					let j54 = (i18 + 1);
 					for (;; j54 = (j54 + 1)) {
 						if ((j54 < 0)) {
 							break;
@@ -356,7 +356,7 @@ export function nativeRun(k) {
 					}
 					const c165 = src21[i21];
 					if ((((c165 >= 48) && (c165 <= 57)) || ((c165 === 45) || ((c165 === 43) || ((c165 === 46) || ((c165 === 101) || (c165 === 69))))))) {
-						let j62 = i21;
+						let j62 = (i21 + 1);
 						for (;; j62 = (j62 + 1)) {
 							if ((j62 < 0)) {
 								break;
@@ -376,7 +376,7 @@ export function nativeRun(k) {
 					}
 					const c167 = src21[i21];
 					if (((c167 >= 97) && (c167 <= 122))) {
-						let j63 = i21;
+						let j63 = (i21 + 1);
 						for (;; j63 = (j63 + 1)) {
 							if ((j63 < 0)) {
 								break;
@@ -487,7 +487,7 @@ export function nativeRun(k) {
 					}
 					const c173 = src22[i22];
 					if ((((c173 >= 48) && (c173 <= 57)) || ((c173 === 45) || ((c173 === 43) || ((c173 === 46) || ((c173 === 101) || (c173 === 69))))))) {
-						let j65 = i22;
+						let j65 = (i22 + 1);
 						for (;; j65 = (j65 + 1)) {
 							if ((j65 < 0)) {
 								break;
@@ -507,7 +507,7 @@ export function nativeRun(k) {
 					}
 					const c175 = src22[i22];
 					if (((c175 >= 97) && (c175 <= 122))) {
-						let j66 = i22;
+						let j66 = (i22 + 1);
 						for (;; j66 = (j66 + 1)) {
 							if ((j66 < 0)) {
 								break;
@@ -625,7 +625,7 @@ export function nativeTokens(src) {
 		}
 		const c5 = src[i];
 		if ((((c5 >= 48) && (c5 <= 57)) || ((c5 === 45) || ((c5 === 43) || ((c5 === 46) || ((c5 === 101) || (c5 === 69))))))) {
-			let j2 = i;
+			let j2 = (i + 1);
 			for (;; j2 = (j2 + 1)) {
 				if ((j2 < 0)) {
 					break;
@@ -645,7 +645,7 @@ export function nativeTokens(src) {
 		}
 		const c7 = src[i];
 		if (((c7 >= 97) && (c7 <= 122))) {
-			let j3 = i;
+			let j3 = (i + 1);
 			for (;; j3 = (j3 + 1)) {
 				if ((j3 < 0)) {
 					break;

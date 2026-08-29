@@ -929,9 +929,25 @@ of the usual advice in both directions: **match the element kind to the arithmet
 beats a plain `Array` for int limbs (1.20×), `Float64Array` LOSES to one for the same values as floats
 (1.47×), because V8 keeps a packed `Array` of small integers as Smis.
 
+**AND JAVA IS WHERE OURS WINS BY THE MOST, WITH NO CROSSOVER FOUND** — **50! 6.2×, 200! 3.4×,
+fib(1000) 2.67×, and still 1.84× at 314 limbs** where Go had reached parity and V8 had lost. The
+reason is the API, not the arithmetic: **`BigInteger` is IMMUTABLE**, so every operation allocates a
+fresh object and a fresh `int[]`, and the JDK's own mutable version is package-private.
+
+**So R3 is OURS with a per-target THRESHOLD, and the threshold is a target declaration.** Go crosses
+at ~1900 limbs, V8 at ~100, Java nowhere measured. `int-repr` already says what a host can hold; the
+same file saying *past N limbs use the host's own* is the parasite model working.
+
+**And the high multiply is NOT worth declaring unless the host has an UNSIGNED one.** `Math.multiplyHigh`
+is a JDK 9 intrinsic and is **signed**; JDK 17 has no `unsignedMultiplyHigh`, so 64-bit limbs need a
+three-term correction per multiply plus `Long.compareUnsigned` for the carry — and **32-bit limbs win
+at 50! and 200! despite carrying twice the limbs**, losing 2% at 2000!. Go and x86 have unsigned high
+multiplies, JDK 18+ has one, JDK 17 and JavaScript do not. Also: **`int[]` buys nothing but memory** —
+within noise at every size against `long[]`, which is what our `int` emits as anyway.
+
 **Still not measured**: big×big, where Karatsuba and hand-written assembly should favour the host and
-which both workloads avoid by multiplying big by SMALL; Java, expected to favour ours more strongly
-since `BigInteger` is immutable; and windows, where ours is the only option regardless.
+which all workloads avoid by multiplying big by SMALL; and windows, where ours is the only option
+regardless.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

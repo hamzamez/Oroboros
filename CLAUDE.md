@@ -878,6 +878,29 @@ range being the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to
 maxlen-2026-08-28: `d` is read out of a *table*, so bounding it needs an inductive invariant over the
 buffer's SLOTS, which is a quantified array invariant and strictly stronger than an octagon.
 
+**WHAT TURNING THE CHECKS ON COSTS NOW: ALMOST NOTHING, AND THE PATH WAS BROKEN** —
+[checked-2026-08-28](gauntlet/results/checked-2026-08-28.md). `-checked` emits a **byte-identical file
+on 30 of 39 programs**; the nine that change are `tree.oro`'s 42 (the `d` chain), `smooth-java`'s 2,
+`divmod`'s undeclared parameters, `wordcount`'s map value range, and **collatz/power/fib, which are in
+`examples/int/` TO BE REFUSED**. Cost on the one real program that pays: **1.05× on Go, inside the 15%
+noise floor** — consistent with checkcost-2026-08-19's memory-bound regime, not its 4.54× one.
+
+**And `-checked` emitted Go that would not compile.** `evalR` opened a lambda's body with `Body()` and
+rewrapped it with **`FnClosed`, which does not close** — so every parameter occurrence came back a FREE
+NAME and the binder stopped binding; `tree.oro` emitted `nodes7 := nodes` referring to a different
+function's variable. Invisible because the default path throws the rebuilt term away. **Printing hides
+it** — an opened body prints the same — so the test has two halves, and only the structural one
+(a lambda's stored body holds its parameters as indices, never as names) fails against the bug.
+
+**The affordability blocker for precision integers has therefore CLEARED, and it was never the real
+one.** `-checked` is **detection, not precision**: it panics where exactness would promote. Promotion
+is a **representation change** — a value that may leave the window is a boxed bignum, which is the one
+thing the core may never contain. So the proof rate decides *whether a boxed value can appear at all*,
+and the open decision is the policy at an unprovable site: **box** (refused — the predecessor's cause
+of death), **trap** (what `-checked` does, honest, not exactness), or **refuse to compile** (Low\*'s
+*"the restriction IS the mechanism"*, and `examples/int/` already demonstrates it). That is an ADR, not
+a build.
+
 **HOW A VALUE GROWS IS RESEARCHED, AND THE OWED ORDER IS BACKWARDS** — [growth.md](docs/growth.md),
 no spec and no decision. general-purpose.md §2.4 owes *"growable collections, and maps"*; **the map is
 primary and a growable array may never be needed**. A growable array has a parity-preserving

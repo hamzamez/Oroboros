@@ -745,8 +745,19 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 	case core.KName:
 		return p.lookup(t.Name), t
 	case core.KFn:
+		// `Body()` OPENS — it turns this lambda's KBound indices into KNames —
+		// so the rebuilt body has to be CLOSED again. `FnClosed` does not close;
+		// it takes a body whose indices are already intact, which is what the
+		// reducer always has and what this walker never has.
+		//
+		// Getting it wrong leaves the parameter's occurrences as free names, so
+		// the binder no longer binds them. The rebuilt term is only USED under
+		// `-checked`, which is why it survived: `examples/json/tree.oro`
+		// compiled to Go referring to a `nodes` from a different function, and
+		// go build refused it. `p.let` has the same shape and gets it right,
+		// with a comment saying so.
 		v, b := p.evalR(t.Body())
-		return v, core.FnClosed(t.Params, b)
+		return v, core.Fn(t.Params, b)
 	case core.KApp:
 		return p.app(t)
 	}

@@ -1,5 +1,19 @@
 # Precision integers: how to get there, and what must be right first
 
+> **Re-measured 2026-08-28 — [checked-2026-08-28](../gauntlet/results/checked-2026-08-28.md).** The
+> affordability question this document opens is now answered: `-checked` emits a **byte-identical
+> file on 30 of 39 programs**, and costs **1.05×** — inside the noise floor — on the one program that
+> still pays. The central worry recorded below, that declaring ranges *"changes NOTHING on the two
+> parsers"*, was [the fixpoint bug](../gauntlet/results/fixpoint-2026-08-27.md) and is withdrawn.
+>
+> Two things that measurement does **not** settle, and they are now the whole question. `-checked` is
+> **detection, not precision** — it panics where exactness would promote. And promotion is a
+> **representation change**: a value that may leave the window is a boxed bignum, which is the one
+> thing the core may never contain. So the proof rate decides *whether a boxed value can appear at
+> all*, and the open decision is the policy at an unprovable site — box, trap, or **refuse**. That is
+> an ADR, not a build.
+
+
 Research, 2026-08-27. **Deliberately not an ADR** — naming a design as a decision before
 measurement is the predecessor project's failure in ADR form.
 

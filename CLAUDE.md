@@ -945,9 +945,29 @@ at 50! and 200! despite carrying twice the limbs**, losing 2% at 2000!. Go and x
 multiplies, JDK 18+ has one, JDK 17 and JavaScript do not. Also: **`int[]` buys nothing but memory** —
 within noise at every size against `long[]`, which is what our `int` emits as anyway.
 
+**AND WINDOWS ASKS A DIFFERENT QUESTION, because it ships no bignum: what must the target DECLARE to
+reach hand-written assembly?** Hand-written x86-64 under MASM, checksums verified independently.
+**2000!: `adc` 162,663 ns against an explicit carry's 340,658. fib(1000): `adc` 3,922, a DECLARED
+PRIMITIVE 7,271, explicit carry 15,449.**
+
+**The multiply case is FULLY RECOVERABLE and fits better than it had any right to.** `mul` is one
+ordinary `(prim …)`, and values.md's multiple return passes two results in **rax/rdx on x86 — exactly
+where `mul` puts its low and high halves**. So `(prim mulwide (int int) (int int) …)` needs no new
+machinery and emits `mul; add; adc`, which IS the hand-written form.
+
+**The carry chain is HALF recoverable, and that is the finding.** A declared two-result `add-carry`
+materialises the carry as a VALUE — nothing survives between statements — but produces it with
+`adc r,0` rather than a compare, recovering **2.12× of the 3.94×** and leaving **1.85×**. So **`adc`
+is a real hole and a BOUNDED one: 1.85× on addition-heavy bignum code and nothing on multiplication.**
+The first version of that file assumed `adc` was simply unreachable and did not measure a middle form
+at all.
+
+**Absolute floor for 2000!**: x86 hand-written **162,663 ns**, Java 64-bit limbs 263,712, Go ~271,000,
+Java `BigInteger` 485,304, JavaScript bitwise 833,348 — read as a floor rather than a ranking, since
+the loop structures differ and the x86 fib does not even track its significant limb count.
+
 **Still not measured**: big×big, where Karatsuba and hand-written assembly should favour the host and
-which all workloads avoid by multiplying big by SMALL; and windows, where ours is the only option
-regardless.
+which all workloads avoid by multiplying big by SMALL.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

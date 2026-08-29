@@ -878,6 +878,44 @@ range being the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to
 maxlen-2026-08-28: `d` is read out of a *table*, so bounding it needs an inductive invariant over the
 buffer's SLOTS, which is a quantified array invariant and strictly stronger than an octagon.
 
+**R3 IS MEASURED, AND OURS BEATS THE HOST ON GO** —
+[bigarith-2026-08-28](gauntlet/results/bigarith-2026-08-28.md), on hamza's *"the decision should be
+on which is faster, and which fits better with the language."* Measured before anything was designed
+around it. The workloads are the two programs `examples/int/` REFUSES — `power`'s accumulator
+overflows by multiplication, `fib`'s by addition — and `math/big` is the correctness oracle.
+
+**50! (4 limbs) 3.97×, 200! (20 limbs) 1.81×, fib(1000) 1.11×, all at ZERO allocations; 2000! (1900
+limbs) is parity.** The advantage is largest small and amortises away, which is the honest shape:
+`math/big`'s inner loops are hand-written assembly and better than ours — what we avoid is its
+OVERHEAD, an allocation per operation naively and a receiver plus sign plus length plus a
+bounds-checked slice even carefully. **Naive `math/big` is 4–5× worse than careful**, at 100 and 400
+allocations, which is what a `bignum` type costs if it lowers without anyone thinking about it.
+
+**AND A DECLARED RANGE IS WHAT MAKES THE BIGNUM CHEAP**, which CORRECTS precision-by-declaration.md
+§5. That section recommended not supporting finite-but-huge ranges at first; it is right about the
+MIDDLE of the ladder (a 128-bit rung exists on two of four hosts) and wrong about the TOP. A finite
+wide range gives a limb count → a `build` of known length → zero allocations. An **unbounded**
+declaration gives none of that and lands back on allocate-per-operation. **Bounded-but-huge and
+unbounded are two different rungs, worth a factor of four.**
+
+**A bignum needs NO growable storage** — a product has at most `len(a)+len(b)` limbs and a sum
+`max+1`, so every result's size is computable from its operands' and "count, then build" covers
+bignums completely. **R3 is expressible with `build` today**, which is growth.md's conclusion arriving
+from a direction this benchmark was not written to test.
+
+**And the significant length must be a LOOP VARIABLE — leaving it out is a silent 1.21×.** The first
+`FibLimbs` added over the whole fixed buffer and measured 1.21× SLOWER than `math/big`; the buffer is
+sized for fib(1000) and the early iterations need one limb. `build` gives a buffer its CAPACITY and
+the COUNT has to be carried in `again`. Tracking it flipped the result to 1.11× faster — so the
+suspicious number was explained before it was recorded, rather than shipped as *"addition is where the
+host wins"*, which is false.
+
+**Not measured and named**: big×big, where Karatsuba and hand-written assembly should favour the host;
+Java, expected to favour ours more strongly since `BigInteger` is immutable; and **JavaScript, where
+the answer is expected to INVERT** — V8's `BigInt` is a builtin and JS has no 64×64→128 multiply at
+all. If that holds, R3 is the host's on JavaScript and ours elsewhere, which is a target declaration
+rather than a language decision.
+
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to
 arbitrary precision*. **Possible, and it is ADR 0003's ladder finished rather than a new mechanism** —

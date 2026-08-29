@@ -209,11 +209,16 @@ current corpus and fail on the first factorial.**
 ## 5. What it costs to build
 
 1. **A spelling for the top rung**, and a decision about whether finite-but-huge ranges
-   (`(int 0 10^30)`) are expressible at all. **Recommendation: they are not, at first.** A 128-bit
-   rung exists on Go and x86 and on neither Java nor JavaScript, so it could carry no portability
-   claim; it belongs as a target-native name like `go.set-float64`, not as a portable rung. That
-   removes the need for big literals in the range language entirely, and with it the change to
-   `IntRange`, `IntRepr` and `ival`.
+   (`(int 0 10^30)`) are expressible at all.
+
+   > **Recommendation WITHDRAWN 2026-08-28 by measurement** —
+   > [bigarith-2026-08-28](../gauntlet/results/bigarith-2026-08-28.md) §3a. This said *"they are not,
+   > at first"*, reasoning that a 128-bit rung exists on only two of four hosts and so could carry no
+   > portability claim. That is still right about the **middle** of the ladder and wrong about the
+   > **top**: a finite wide range gives a limb count, which gives a `build` of known length, which is
+   > what buys **zero allocations and 3.97× over `math/big`**. An *unbounded* declaration gives none
+   > of that and lands back on allocate-per-operation. **Bounded-but-huge and unbounded are two
+   > different rungs**, worth a factor of four, and the language should be able to say which it has.
 2. **The representation solver** of §4.1, bidirectional, over `word ⊑ big`.
 3. **R3 declarations per target** — `math/big`, `BigInteger`, `BigInt`, and **one written for
    windows**. Unavoidable in *any* option that has precision at all, including A and B-with-a-bignum-type.

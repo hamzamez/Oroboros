@@ -166,6 +166,47 @@ export function fibB30(n, a, b, t) {
   return [a, ua];
 }
 
+// ------------------------------------------------------------ big x big
+//
+// The case the other workloads avoid. Base 2^15 rather than 2^16, because the
+// accumulation here is `out[i+j] + a[i]*b[j] + carry`: at 2^15 the product is
+// under 2^30 and the whole sum stays inside int32, which §5a showed is the
+// boundary that actually matters on V8. At 2^16 the product alone is 2^32.
+const B15 = 32768;
+
+export function mulB15(a, b, out) {
+  out.fill(0);
+  for (let i = 0; i < a.length; i++) {
+    let carry = 0;
+    const ai = a[i];
+    for (let j = 0; j < b.length; j++) {
+      const t = ai * b[j] + out[i + j] + carry;
+      out[i + j] = t & 0x7fff;
+      carry = t >>> 15;
+    }
+    out[i + b.length] = carry;
+  }
+  return out;
+}
+
+export function limbsOf(n, seed, w) {
+  const out = new Int32Array(n);
+  let x = seed;
+  for (let i = 0; i < n; i++) {
+    x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+    out[i] = (x >>> 8) & ((1 << w) - 1);
+  }
+  out[n - 1] |= 1 << (w - 1);
+  return out;
+}
+
+export function limbsToBigInt(l, w) {
+  let out = 0n;
+  const W = BigInt(w);
+  for (let i = l.length - 1; i >= 0; i--) out = (out << W) | BigInt(l[i] >>> 0);
+  return out;
+}
+
 // ------------------------------------------------------------------ sizing
 
 // The limb count a compiler would have to derive BEFORE the loop. A product
@@ -221,6 +262,13 @@ function check() {
   // arithmetic with extra steps. 21! and fib(93) are the first past 2^63.
   if (factBigInt(20) >= 2n ** 63n || factBigInt(21) < 2n ** 63n) { console.log("FAIL: 21! crossover"); bad++; }
   if (fibBigInt(92) >= 2n ** 63n || fibBigInt(93) < 2n ** 63n) { console.log("FAIL: fib(93) crossover"); bad++; }
+  for (const bits of [64, 128, 256, 1024]) {
+    const n = Math.ceil(bits / 15);
+    const a = limbsOf(n, 12345, 15), b = limbsOf(n, 67890, 15);
+    const got = limbsToBigInt(mulB15(a, b, new Int32Array(2 * n + 1)), 15);
+    const want = limbsToBigInt(a, 15) * limbsToBigInt(b, 15);
+    if (got !== want) { console.log(`FAIL mulB15 ${bits}: ${got} != ${want}`); bad++; }
+  }
   console.log(bad === 0 ? "ok — every limb form agrees with BigInt" : `${bad} FAILURES`);
   return bad;
 }
@@ -253,6 +301,16 @@ switch (variant) {
   case "fib-f24-array": { const c = limbs(fibBits(n), 24); const x = new Array(c).fill(0), y = new Array(c).fill(0), z = new Array(c).fill(0); fn = () => fibF24(n, x, y, z); break; }
   case "fib-b30-array": { const c = limbs(fibBits(n), 30); const x = new Array(c).fill(0), y = new Array(c).fill(0), z = new Array(c).fill(0); fn = () => fibB30(n, x, y, z); break; }
   case "fib-b30-typed": { const c = limbs(fibBits(n), 30); const x = new Int32Array(c), y = new Int32Array(c), z = new Int32Array(c); fn = () => fibB30(n, x, y, z); break; }
+  case "mul-bigint": {
+    const nb = Math.ceil(n / 15);
+    const x = limbsToBigInt(limbsOf(nb, 12345, 15), 15), y = limbsToBigInt(limbsOf(nb, 67890, 15), 15);
+    fn = () => x * y; break;
+  }
+  case "mul-b15": {
+    const nb = Math.ceil(n / 15);
+    const x = limbsOf(nb, 12345, 15), y = limbsOf(nb, 67890, 15), o = new Int32Array(2 * nb + 1);
+    fn = () => mulB15(x, y, o); break;
+  }
   default: console.error("unknown variant " + variant); process.exit(2);
 }
 console.log(`${variant.padEnd(18)} n=${String(n).padEnd(5)} ${bench(fn, iters).toFixed(1)} ns/op`);

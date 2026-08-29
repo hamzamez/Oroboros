@@ -155,3 +155,52 @@ func FibLimbs(n int, a, b, t []uint64) []uint64 {
 // ratio gives a much tighter bound, but the loose one is what a compiler could
 // derive syntactically.
 func FibLimbCount(n int) int { return n*695/1000/64 + 2 }
+
+// ------------------------------------------------------------- big x big
+//
+// The case §4 named and all three earlier workloads avoid: both operands
+// large. Factorial and fibonacci multiply big by SMALL and add big to big,
+// which are linear for everyone. A big x big product is QUADRATIC in the limb
+// count for schoolbook and O(n^1.585) for Karatsuba, so this is where a host
+// library's asymptotics and hand-written assembly should start to matter.
+//
+// math/big switches to Karatsuba at 40 words and Toom-Cook above that; ours is
+// schoolbook and always will be, because Karatsuba needs recursion and
+// temporary allocation and ADR 0014 has no recursion.
+
+// MulLimbs is schoolbook: for each limb of a, multiply through b and add into
+// the running product. `out` must have len(a)+len(b) limbs.
+func MulLimbs(a, b, out []uint64) []uint64 {
+	for i := range out {
+		out[i] = 0
+	}
+	for i, ai := range a {
+		var carry uint64
+		for j, bj := range b {
+			hi, lo := bits.Mul64(ai, bj)
+			var c uint64
+			lo, c = bits.Add64(lo, carry, 0)
+			hi += c // hi <= 2^64-2, so this cannot overflow
+			out[i+j], c = bits.Add64(out[i+j], lo, 0)
+			carry = hi + c
+		}
+		out[i+len(b)] += carry
+	}
+	return out
+}
+
+// MulBigReuse is math/big with the receiver preallocated — the careful form,
+// which is the one that gave math/big its best showing everywhere else.
+func MulWideBig(a, b, r *big.Int) *big.Int { return r.Mul(a, b) }
+
+// LimbsOf makes a deterministic n-limb value with every limb full-width, so
+// the product genuinely needs 2n limbs and nothing degenerates.
+func LimbsOf(n int, seed uint64) []uint64 {
+	out := make([]uint64, n)
+	x := seed | 1<<63
+	for i := range out {
+		x = x*6364136223846793005 + 1442695040888963407
+		out[i] = x | 1<<63
+	}
+	return out
+}

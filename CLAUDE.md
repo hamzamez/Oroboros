@@ -966,8 +966,28 @@ at all.
 Java `BigInteger` 485,304, JavaScript bitwise 833,348 — read as a floor rather than a ranking, since
 the loop structures differ and the x86 fib does not even track its significant limb count.
 
-**Still not measured**: big×big, where Karatsuba and hand-written assembly should favour the host and
-which all workloads avoid by multiplying big by SMALL.
+**AND BIG×BIG FLIPS THE ANSWER, which makes the threshold PER-OPERATION.** Sized by bits so every form
+multiplies the same magnitude: **crossover at 4–8 limbs on Go and Java, and NONE on JavaScript**, where
+`BigInt` wins from the smallest size and by **148× at 16,384 bits**. Against big×small, where ours won
+to ~1900 limbs on Go and never lost on Java.
+
+**The rule underneath every number in that document: ours wins where the operation is LINEAR, the host
+wins where it is QUADRATIC.** Big×small and big+big are linear for both sides, so our advantage is the
+per-call overhead we avoid — a constant factor that persists. Big×big is quadratic for us and
+sub-quadratic for them, so their advantage compounds and takes over almost immediately.
+
+**And we cannot fix it, because KARATSUBA NEEDS RECURSION.** ADR 0014 removed recursion, and
+divide-and-conquer is the shape it removed — the explicit-stack trick works for a *traversal*, and
+Karatsuba needs three recursive products combined. **This is the first measured case where ADR 0014
+has a concrete performance price on a real algorithm.** Not an argument to reverse it — the price is
+confined to one operation and the answer is to call the host's multiply — but it belongs in that ADR's
+consequences.
+
+**The comparison was WRONG once and it flattered us.** The first Java run sized all three forms at the
+same LIMB COUNT, so the 31-bit form multiplied numbers half the size and reported ours winning at every
+size — the exact opposite of the corrected result. Same error shape as the `FibLimbs` one: a number
+made good by measuring less work, caught by the same reflex. **And the best limb width is
+operation-dependent too** — 32-bit beat 64-bit for big×small on Java and reverses for big×big.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

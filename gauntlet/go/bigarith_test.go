@@ -109,3 +109,51 @@ var (
 	sinkBig   *big.Int
 	sinkLimbs []uint64
 )
+
+// BIG x BIG. Correctness first, math/big as the oracle, at every size that is
+// benchmarked — including the ones that straddle math/big's Karatsuba
+// threshold at 40 words, since that is where its answer changes shape.
+func TestMulLimbsAgreesWithMathBig(t *testing.T) {
+	for _, n := range []int{1, 2, 4, 16, 39, 40, 41, 64, 256} {
+		a, b := LimbsOf(n, 12345), LimbsOf(n, 67890)
+		got := limbsToBig(MulLimbs(a, b, make([]uint64, 2*n)))
+		want := new(big.Int).Mul(limbsToBig(a), limbsToBig(b))
+		if got.Cmp(want) != 0 {
+			t.Fatalf("mul %d limbs: got %s, want %s", n, got, want)
+		}
+	}
+}
+
+func benchMul(b *testing.B, n int, useBig bool) {
+	x, y := LimbsOf(n, 12345), LimbsOf(n, 67890)
+	out := make([]uint64, 2*n)
+	bx, by, br := limbsToBig(x), limbsToBig(y), new(big.Int)
+	br.Mul(bx, by) // give the receiver its capacity, as the careful form would
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if useBig {
+			sinkBig = MulWideBig(bx, by, br)
+		} else {
+			sinkLimbs = MulLimbs(x, y, out)
+		}
+	}
+}
+
+func BenchmarkMul4Big(b *testing.B)   { benchMul(b, 4, true) }
+func BenchmarkMul4Limbs(b *testing.B) { benchMul(b, 4, false) }
+
+func BenchmarkMul8Big(b *testing.B)   { benchMul(b, 8, true) }
+func BenchmarkMul8Limbs(b *testing.B) { benchMul(b, 8, false) }
+
+func BenchmarkMul16Big(b *testing.B)   { benchMul(b, 16, true) }
+func BenchmarkMul16Limbs(b *testing.B) { benchMul(b, 16, false) }
+
+func BenchmarkMul64Big(b *testing.B)   { benchMul(b, 64, true) }
+func BenchmarkMul64Limbs(b *testing.B) { benchMul(b, 64, false) }
+
+func BenchmarkMul256Big(b *testing.B)   { benchMul(b, 256, true) }
+func BenchmarkMul256Limbs(b *testing.B) { benchMul(b, 256, false) }
+
+func BenchmarkMul1024Big(b *testing.B)   { benchMul(b, 1024, true) }
+func BenchmarkMul1024Limbs(b *testing.B) { benchMul(b, 1024, false) }

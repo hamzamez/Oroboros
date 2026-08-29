@@ -169,6 +169,71 @@ public final class BigArithBench {
         return used;
     }
 
+    // ------------------------------------------------------------ big x big
+    //
+    // The case the other workloads avoid: both operands large. Factorial
+    // multiplies big by SMALL and fibonacci adds, both linear. A big x big
+    // product is quadratic for schoolbook and O(n^1.585) for Karatsuba, which
+    // BigInteger switches to at 80 ints, with Toom-Cook above 240.
+    //
+    // TWO BASES, because 32-bit limbs DO NOT WORK here: (2^32-1)^2 exceeds a
+    // signed long before anything is accumulated into it. 31-bit limbs leave
+    // room for the running sum; 64-bit limbs need multiplyHigh and its sign
+    // correction, which §6a found was not worth it for big x small.
+    static final long M31 = 0x7fffffffL;
+
+    static void mulL31(long[] a, long[] b, long[] out) {
+        java.util.Arrays.fill(out, 0L);
+        for (int i = 0; i < a.length; i++) {
+            long carry = 0, ai = a[i];
+            for (int j = 0; j < b.length; j++) {
+                long t = ai * b[j] + out[i + j] + carry;
+                out[i + j] = t & M31;
+                carry = t >>> 31;
+            }
+            out[i + b.length] = carry;
+        }
+    }
+
+    static void mulL64(long[] a, long[] b, long[] out) {
+        java.util.Arrays.fill(out, 0L);
+        for (int i = 0; i < a.length; i++) {
+            long carry = 0, ai = a[i];
+            for (int j = 0; j < b.length; j++) {
+                long hi = umulHigh(ai, b[j]);
+                long lo = ai * b[j];
+                long s = lo + carry;
+                if (Long.compareUnsigned(s, lo) < 0) hi++;
+                long s2 = out[i + j] + s;
+                if (Long.compareUnsigned(s2, s) < 0) hi++;
+                out[i + j] = s2;
+                carry = hi;
+            }
+            out[i + b.length] = carry;
+        }
+    }
+
+    static long[] limbsOf(int n, long seed, long mask) {
+        long[] out = new long[n];
+        long x = seed | (1L << 62);
+        for (int i = 0; i < n; i++) {
+            x = x * 6364136223846793005L + 1442695040888963407L;
+            out[i] = (x | (1L << 62)) & mask;
+        }
+        return out;
+    }
+
+    static BigInteger fromLimbs(long[] l, int w) {
+        BigInteger out = BigInteger.ZERO;
+        for (int i = l.length - 1; i >= 0; i--) {
+            out = out.shiftLeft(w);
+            BigInteger limb = w == 64 ? new BigInteger(Long.toUnsignedString(l[i]))
+                                      : BigInteger.valueOf(l[i]);
+            out = out.or(limb);
+        }
+        return out;
+    }
+
     // ------------------------------------------------------------- sizing
 
     static int factBits(int n) {
@@ -235,6 +300,18 @@ public final class BigArithBench {
             throw new AssertionError("21! crossover");
         if (fibBig(92).bitLength() > 63 || fibBig(93).bitLength() <= 63)
             throw new AssertionError("fib(93) crossover");
+        for (int n : new int[]{1, 2, 4, 16, 79, 80, 81, 256}) {
+            long[] a31 = limbsOf(n, 12345, M31), b31 = limbsOf(n, 67890, M31);
+            long[] o31 = new long[2 * n + 1];
+            mulL31(a31, b31, o31);
+            if (!fromLimbs(o31, 31).equals(fromLimbs(a31, 31).multiply(fromLimbs(b31, 31))))
+                throw new AssertionError("mulL31 " + n);
+            long[] a64 = limbsOf(n, 12345, -1L), b64 = limbsOf(n, 67890, -1L);
+            long[] o64 = new long[2 * n + 1];
+            mulL64(a64, b64, o64);
+            if (!fromLimbs(o64, 64).equals(fromLimbs(a64, 64).multiply(fromLimbs(b64, 64))))
+                throw new AssertionError("mulL64 " + n);
+        }
         System.out.println("ok — every limb form agrees with BigInteger");
     }
 
@@ -265,6 +342,24 @@ public final class BigArithBench {
             run("  L32 long[]", () -> factL32(n, a32), w, it);
             run("  L32 int[] ", () -> factL32i(n, ai), w, it);
         }
+        // PARAMETERISED BY BITS, not by limbs. The first version sized all three
+        // forms at the same LIMB COUNT, so the 31-bit form was multiplying
+        // numbers half the size of the 64-bit one and its apparent win was an
+        // artefact of measuring less work.
+        for (int bits : new int[]{256, 512, 1024, 4096, 16384}) {
+            int n64 = (bits + 63) / 64, n31 = (bits + 30) / 31;
+            long[] a31 = limbsOf(n31, 12345, M31), b31 = limbsOf(n31, 67890, M31);
+            long[] o31 = new long[2 * n31 + 1];
+            long[] a64 = limbsOf(n64, 12345, -1L), b64x = limbsOf(n64, 67890, -1L);
+            long[] o64 = new long[2 * n64 + 1];
+            BigInteger ba = fromLimbs(a64, 64), bb = fromLimbs(b64x, 64);
+            int w2 = bits >= 4096 ? 2000 : 20000, i2 = bits >= 4096 ? 2000 : 20000;
+            System.out.println("-- big x big, " + bits + " bits (" + n64 + " x 64, " + n31 + " x 31)");
+            run("  BigInteger", () -> ba.multiply(bb), w2, i2);
+            run("  L64 long[]", () -> { mulL64(a64, b64x, o64); return o64; }, w2, i2);
+            run("  L31 long[]", () -> { mulL31(a31, b31, o31); return o31; }, w2, i2);
+        }
+
         int n = 1000;
         long[][] b64 = three(limbs(fibBits(n), 64));
         long[][] b32 = three(limbs(fibBits(n), 32));

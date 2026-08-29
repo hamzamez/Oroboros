@@ -878,6 +878,41 @@ range being the least solution of `E ⊇ {0,1} ∪ E ∪ (E+1)`, which widens to
 maxlen-2026-08-28: `d` is read out of a *table*, so bounding it needs an inductive invariant over the
 buffer's SLOTS, which is a quantified array invariant and strictly stronger than an octagon.
 
+**PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
+hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to
+arbitrary precision*. **Possible, and it is ADR 0003's ladder finished rather than a new mechanism** —
+`int-repr` already picks the narrowest declared representation containing a range, and precision is one
+more rung at the TOP. Below the word is built and measured; above it the language currently says
+nothing, and ADR 0012's window is where the ladder was cut off. **Going up the ladder can never lose a
+value; going down can** — which is why narrowing a local is refused and widening one is not.
+
+**The expected blocker is NOT the blocker.** `int64` is hardcoded as the width of the range language,
+the abstract domain (`sat = 1<<62`) and `IntRepr`, so ⊤ means *"bigger than 2⁶²"* and *"unknown"* at
+once. The obvious conclusion — the interval domain must go arbitrary-precision — is **wrong**: an
+operation on a value that is ALREADY exact cannot overflow, so the analysis is never asked about it.
+What C needs is a **two-point representation lattice `word ⊑ big` with `big` absorbing**, and one
+soundness rule: *an operation is an error only if every operand is word-represented and its result
+cannot be proven to fit*. `emit/interval.go` is untouched.
+
+**And the propagation must be BIDIRECTIONAL, with factorial as the witness**: `(fact (int 0 30))` has
+every input small and an accumulator reaching 30! ≈ 2.65×10³², so the pressure comes from the declared
+RESULT and nothing forward makes `acc` big. A forward-only solver would pass the entire current corpus
+and fail on the first factorial.
+
+**THE PREREQUISITE, CHECKED RATHER THAN ASSUMED: a scalar range is not usable today at all.**
+`(sig f ((n (int 0 1000))) int)` is refused — *"n is int 0 1000, but int is required here"* — because
+`core.ValueType` (a range MEANS `int`) is called at **exactly one site**, the table-read path, and
+`paramIval` matches `sp.Type == "int"` and so ignores a declared range anyway. **The range language
+works on array ELEMENTS and nowhere else**; a scalar's range is stated with a `where`. That is small to
+close and worth closing whichever option wins.
+
+**What C does NOT buy, and it is the part to weigh: C is B, with a third answer available where B
+already demanded one.** It refuses exactly the same six corpus programs. If the objection to B is that
+a real application needs declarations everywhere, **only A answers that** — and A pays with
+silent-slow failure and a whole-program boxing story. **The one measurement that can kill B and C is
+not about integers**: how many declarations does a real application need? 30-of-39 is a corpus of
+numeric kernels and two parsers written by people who knew the analysis.
+
 **WHAT TURNING THE CHECKS ON COSTS NOW: ALMOST NOTHING, AND THE PATH WAS BROKEN** —
 [checked-2026-08-28](gauntlet/results/checked-2026-08-28.md). `-checked` emits a **byte-identical file
 on 30 of 39 programs**; the nine that change are `tree.oro`'s 42 (the `d` chain), `smooth-java`'s 2,

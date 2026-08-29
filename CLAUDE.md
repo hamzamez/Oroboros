@@ -910,11 +910,28 @@ the COUNT has to be carried in `again`. Tracking it flipped the result to 1.11×
 suspicious number was explained before it was recorded, rather than shipped as *"addition is where the
 host wins"*, which is false.
 
-**Not measured and named**: big×big, where Karatsuba and hand-written assembly should favour the host;
-Java, expected to favour ours more strongly since `BigInteger` is immutable; and **JavaScript, where
-the answer is expected to INVERT** — V8's `BigInt` is a builtin and JS has no 64×64→128 multiply at
-all. If that holds, R3 is the host's on JavaScript and ours elsewhere, which is a target declaration
-rather than a language decision.
+**AND JAVASCRIPT DOES NOT INVERT — IT CROSSES OVER.** `BigInt` against a bitwise limb form: **50! is
+5.8× OURS, 200! 1.32× ours, fib(1000) parity, and 2000! is 2.62× BigInt.** Go's crossover is around
+1900 limbs and V8's around 100, because `BigInt` is C++ with real 64-bit limbs and **JS has no
+64×64→128 multiply at all** — but **the sizes precision integers actually reach are the small ones**,
+a value just past 2⁵³ being two or three limbs. So the answer is a **THRESHOLD, not a winner**, and a
+threshold is what a target declares: `int-repr` already says what a host can hold, and the same file
+saying *past N limbs use the host's own* is the parasite model working.
+
+**TWO V8 FACTS WORTH MORE THAN THE HEADLINE.** **The constraint is not 2⁵³, it is 2³¹** — the classic
+base-2²⁴ JS-bignum limb (jsbn, node-forge) blew up **75×** from 50! to 200! where the work grows 19×,
+with a **2.5× cliff between n=130 and n=132**; `acc[i]*k` leaves int32 at k=128. A **control** settles
+it: an identical base-2²⁰ form, chosen to stay under 2³¹, has **no cliff** and is 1.7× faster at 200
+*despite carrying more limbs*. Exactness is the folklore limit; the Smi boundary is the performance
+one, seven bits lower. And **bitwise carry extraction is worth 3.9× at equal storage** — a shift and a
+mask against a compare and a subtract, isolated on fib(1000). Plus a storage rule that is the opposite
+of the usual advice in both directions: **match the element kind to the arithmetic** — `Int32Array`
+beats a plain `Array` for int limbs (1.20×), `Float64Array` LOSES to one for the same values as floats
+(1.47×), because V8 keeps a packed `Array` of small integers as Smis.
+
+**Still not measured**: big×big, where Karatsuba and hand-written assembly should favour the host and
+which both workloads avoid by multiplying big by SMALL; Java, expected to favour ours more strongly
+since `BigInteger` is immutable; and windows, where ours is the only option regardless.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

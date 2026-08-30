@@ -238,10 +238,11 @@ k_school PROC
     mov  rdi, rdx                   ; b
     mov  r13, r8                    ; n
     mov  rbx, r9                    ; out
-    mov  rcx, rbx
-    mov  rdx, r13
-    add  rdx, r13
-    call k_zero
+    ; NO ZERO HERE. The slot is prodOf[D] limbs and 2n is SMALLER for the lo and
+    ; hi children, whose ln is lenOf[D]-1 — so zeroing 2n would leave stale limbs
+    ; at the top of the slot, which the combine then reads. The caller zeroes the
+    ; whole slot instead. This was latent: the benchmark multiplies the same
+    ; operands every round, so a stale limb held exactly the value it should.
     xor  r14, r14                   ; i
 sc_outer:
     cmp  r14, r13
@@ -659,8 +660,20 @@ mb_1:
     mov  r8, [r14 + rcx*8]
     mov  rax, [r15 + rcx*8]
     lea  r9, [rdi + rax*8]
-    mov  rcx, r10
-    mov  rdx, r11
+    mov  [rsp+40h], r10
+    mov  [rsp+48h], r11
+    mov  [rsp+50h], r8
+    mov  [rsp+58h], r9
+    ; zero the WHOLE slot, prodOf[D] limbs
+    mov  rcx, r9
+    mov  rax, [rbx + WS_PRODOF]
+    mov  rdx, [rbx + WS_D]
+    mov  rdx, [rax + rdx*8]
+    call k_zero
+    mov  rcx, [rsp+40h]
+    mov  rdx, [rsp+48h]
+    mov  r8, [rsp+50h]
+    mov  r9, [rsp+58h]
     call k_school
     mov  rax, [rsp+28h]
     inc  rax
@@ -696,62 +709,54 @@ mu_2:
     jge  mu_3
     mov  rcx, [rsp+38h]
     add  rcx, rax                   ; id
-    mov  r10, [r14 + rcx*8]
-    shr  r10, 1
-    mov  [rsp+68h], r10             ; h
+    ; THE COMBINE, in six passes over EXACT significant lengths rather than six
+    ; over the whole buffer. z0 is child0's product, so it is at most 2h limbs
+    ; and zero above that; z1 is at most 2(l-h). Only z2 needs the full csz.
+    ; That turns `zero(sz); add z0; add z1` into `copy z0; copy z1; zero tail`,
+    ; and shortens both subtractions.
+    mov  r10, [r14 + rcx*8]         ; l
+    mov  r11, r10
+    shr  r11, 1                     ; h
+    mov  [rsp+68h], r11
+    mov  r9, r11
+    add  r9, r9                     ; lo2 = 2h
+    mov  [rsp+48h], r9
+    sub  r10, r11
+    add  r10, r10                   ; hi2 = 2(l-h)
+    mov  [rsp+60h], r10
     mov  rax, [r15 + rcx*8]
     lea  r11, [rdi + rax*8]
-    mov  [rsp+50h], r11             ; out ptr
+    mov  [rsp+50h], r11             ; out
 
     mov  rax, [rsp+28h]
     lea  rax, [rax + rax*2]
     add  rax, [rsp+40h]
     mov  rax, [r15 + rax*8]
     lea  rax, [rdi + rax*8]
-    mov  [rsp+58h], rax             ; z0 ptr
+    mov  [rsp+58h], rax             ; z0
 
     mov  rcx, [rsp+50h]
-    mov  rdx, [rsp+78h]
-    call k_zero
+    mov  rdx, [rsp+58h]
+    mov  r8, [rsp+48h]
+    call k_copy                     ; out[0..lo2) = z0
 
-    ; out += z0
     mov  rcx, [rsp+50h]
-    mov  rdx, [rsp+78h]
-    mov  r8, [rsp+58h]
-    mov  r9, [rsp+70h]
-    call k_addat
-    ; out[2h..] += z1
-    mov  rax, [rsp+68h]
-    add  rax, rax
+    mov  rax, [rsp+48h]
+    lea  rcx, [rcx + rax*8]
+    mov  rdx, [rsp+58h]
+    mov  rax, [rsp+70h]
+    lea  rdx, [rdx + rax*8]
+    mov  r8, [rsp+60h]
+    call k_copy                     ; out[lo2..lo2+hi2) = z1
+
     mov  rcx, [rsp+50h]
+    mov  rax, [rsp+48h]
+    add  rax, [rsp+60h]
     lea  rcx, [rcx + rax*8]
     mov  rdx, [rsp+78h]
     sub  rdx, rax
-    mov  r8, [rsp+58h]
-    mov  r9, [rsp+70h]
-    lea  r8, [r8 + r9*8]
-    call k_addat
-    ; out[h..] += z2
-    mov  rax, [rsp+68h]
-    mov  rcx, [rsp+50h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+78h]
-    sub  rdx, rax
-    mov  r9, [rsp+70h]
-    mov  r8, [rsp+58h]
-    lea  r8, [r8 + r9*8]
-    lea  r8, [r8 + r9*8]
-    call k_addat
-    ; out[h..] -= z0
-    mov  rax, [rsp+68h]
-    mov  rcx, [rsp+50h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+78h]
-    sub  rdx, rax
-    mov  r8, [rsp+58h]
-    mov  r9, [rsp+70h]
-    call k_subat
-    ; out[h..] -= z1
+    call k_zero                     ; the tail above 2l
+
     mov  rax, [rsp+68h]
     mov  rcx, [rsp+50h]
     lea  rcx, [rcx + rax*8]
@@ -760,7 +765,28 @@ mu_2:
     mov  r9, [rsp+70h]
     mov  r8, [rsp+58h]
     lea  r8, [r8 + r9*8]
-    call k_subat
+    lea  r8, [r8 + r9*8]
+    call k_addat                    ; out[h..] += z2
+
+    mov  rax, [rsp+68h]
+    mov  rcx, [rsp+50h]
+    lea  rcx, [rcx + rax*8]
+    mov  rdx, [rsp+78h]
+    sub  rdx, rax
+    mov  r8, [rsp+58h]
+    mov  r9, [rsp+48h]
+    call k_subat                    ; out[h..] -= z0, lo2 limbs
+
+    mov  rax, [rsp+68h]
+    mov  rcx, [rsp+50h]
+    lea  rcx, [rcx + rax*8]
+    mov  rdx, [rsp+78h]
+    sub  rdx, rax
+    mov  r9, [rsp+70h]
+    mov  r8, [rsp+58h]
+    lea  r8, [r8 + r9*8]
+    mov  r9, [rsp+60h]
+    call k_subat                    ; out[h..] -= z1, hi2 limbs
 
     mov  rax, [rsp+28h]
     inc  rax

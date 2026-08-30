@@ -1012,6 +1012,20 @@ fixed `rdx:rax` and one carry chain. `MULX` touches no flags so several can be i
 and `cmp` write OF, so the chains must live inside an **unrolled block** and be folded at its boundary.
 **Schoolbook 844,682 → 456,068 (1.85×), Karatsuba 234,065 → 184,058**, checksum unchanged.
 
+**AND THE COMBINE IS DONE: 184,058 → 173,602, so 234,065 → 173,602 overall, 1.35×.** Two changes, both
+from noticing the buffers are mostly zero: **z0 and z1 have exact short significant lengths** (`2h` and
+`2(l-h)`, zero above), so `zero(sz); add z0; add z1` becomes `copy z0; copy z1; zero the tail` and both
+subtractions shorten. **A latent hazard fell out on the way** — `k_school` zeroed `2n` but a slot is
+`prodOf[D]` and the lo/hi children have `ln = lenOf[D]-1`, so two limbs were never cleared and the
+combine read them; invisible because the benchmark repeats the same operands, so a stale limb held
+exactly the right value. **Now 1.41× behind `math/big` (was 1.91×) and 1.18× AHEAD of `BigInt`.**
+
+**What is still on the table, named**: the combine is six passes and the two copies are the largest.
+A recursive Karatsuba pays neither, computing z0 and z1 **directly into the destination**. That is
+reachable — alias child 0's slot onto the parent's output at 0 and child 1's at 2h — and it is a
+LAYOUT change rather than a tweak: `out[h..] -= z0` would read `out[0..2h)` while writing `out[h..)`,
+which overlap, so the subtraction must go into z2's buffer first; and slot sizes stop being uniform.
+
 **What is left is the COMBINE, with arithmetic**: the kernel now runs at **0.435 ns per limb-multiply,
 about 1.4 cycles**, near the one-`mulx`-per-cycle ceiling. Base-case work falls as `(3/4)^D` while the
 combine rises as `3^D` — 17% of the time at D=4, 35% at D=5, **52% at D=6** — and they cross exactly

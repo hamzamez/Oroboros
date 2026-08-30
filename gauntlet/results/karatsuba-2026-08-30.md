@@ -281,6 +281,52 @@ subtract z1. `math/big` computes into the destination with a single scratch buff
 **So the next move is the combine, not a better algorithm** — and that is a much more specific thing to
 go after than "we are 1.5x behind".
 
+### 3f. The combine, done
+
+Two changes, both from noticing that the buffers are mostly zero.
+
+**z0 and z1 have exact, short significant lengths.** z0 is child 0's product, so it is at most `2h`
+limbs and zero above that; z1 is at most `2(l-h)`. Only z2, the sum-child's product, needs the full
+`csz`. That turns `zero(sz); add z0; add z1` into `copy z0; copy z1; zero the tail above 2l`, and
+shortens both subtractions from `csz` to their true lengths.
+
+**And a latent hazard fell out on the way.** `k_school` zeroed `2n`, but a base-case slot is
+`prodOf[D]` limbs and the lo/hi children have `ln = lenOf[D]-1` — so two limbs at the top of the slot
+were never cleared, and the combine read them. It was invisible because the benchmark multiplies the
+same operands every round, so a stale limb held exactly the value it should have held. The caller now
+zeroes the whole slot.
+
+| n = 1,024 limbs | naive kernel | + MULX/ADX | **+ combine** |
+|---|---|---|---|
+| schoolbook | 844,682 | 456,068 | 453,874 |
+| Karatsuba, best | 234,065 | 184,058 | **173,602** |
+
+**1.35x over where this section started**, and against the host bignums at 65,536 bits:
+
+| | ns | |
+|---|---|---|
+| Go `math/big` | 122,836 | we are **1.41x behind** — was 1.91x |
+| **our x86-64** | **173,602** | |
+| V8 `BigInt` | 205,439 | we are **1.18x ahead** |
+
+### What is still on the table, named precisely
+
+The combine is still **six passes**, and the two copies are the largest of them — `2l` limbs against
+`csz` for the others. A recursive Karatsuba pays neither, because it computes z0 and z1 **directly
+into the destination** at offsets 0 and 2h.
+
+That is reachable here too: alias child 0's product slot onto the parent's output at offset 0, child
+1's at offset 2h, and give only child 2 a slot of its own. The combine then becomes **four passes** —
+zero the tail, `z2 -= z0`, `z2 -= z1`, `out[h..] += z2` — with no copies at all.
+
+**It cannot be done by simply changing the offsets**, which is why it is not done here: `out[h..] -= z0`
+would read `out[0..2h)` while writing `out[h..)`, and those overlap. The subtraction has to be done
+into z2's own buffer *first*, while z0 and z1 are still pristine in the destination. And the slot
+sizes stop being uniform — child 0 needs `2h`, child 1 needs `2(l-h)`, child 2 needs `prodOf[L+1]` —
+so `pOff` needs a per-node length beside it.
+
+Worth doing, and a layout change rather than a tweak.
+
 ## 4. What this corrects
 
 **[ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md)'s consequence, added the

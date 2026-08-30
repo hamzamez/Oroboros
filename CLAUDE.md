@@ -1178,6 +1178,23 @@ of death), **trap** (what `-checked` does, honest, not exactness), or **refuse t
 *"the restriction IS the mechanism"*, and `examples/int/` already demonstrates it). That is an ADR, not
 a build.
 
+**THE THREE MAP MEASUREMENTS ARE RE-TAKEN, AND ALL THREE MOVED** —
+[maps-2026-08-30](gauntlet/results/maps-2026-08-30.md). **JS's `Map` is 1.56× slower than an object,
+not 3.25×** — direction survives, magnitude halved — and **a plain `{}` beats `Object.create(null)`**,
+which is the opposite of the folklore. **Integer keys are 3.67×**, more than twice the string gap, so
+`(map int V)`-first is the case where the host choice matters MOST rather than a way of dodging
+strings. **Java's fused `merge` is 1.22× FASTER**, not 2.59× slower — the second independent re-take
+to disagree with R5, and `targets/java/util.oro` declares the losing idiom because of it. ADR 0008's
+best example survives by being applied to itself.
+
+**AND COUNT-THEN-BUILD BEATS APPEND, so a growable array is NOT NEEDED**: **2.95× on Go** against
+growing `append` and **1.44×** against one with the capacity already right, and **1.06× on
+JavaScript** — the counting pass is a branch-predictable scan with no stores and the fill writes into
+an exactly-sized allocation. growth.md's D3 is **withdrawn**. Its own prediction that two passes would
+lose on JavaScript was **wrong**, and the first run agreed for the wrong reason: it compared a plain
+`Array` against a `Float64Array`, so it measured **array kind rather than growth**. Third time this
+session that **a comparison changing two things at once measured neither**.
+
 **HOW A VALUE GROWS IS RESEARCHED, AND THE OWED ORDER IS BACKWARDS** — [growth.md](docs/growth.md),
 no spec and no decision. general-purpose.md §2.4 owes *"growable collections, and maps"*; **the map is
 primary and a growable array may never be needed**. A growable array has a parity-preserving

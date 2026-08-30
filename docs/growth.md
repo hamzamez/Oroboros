@@ -277,6 +277,27 @@ nothing and reduces away. *This is already true and worth writing down*, but it 
 
 ## 8. What to measure, and the predictions recorded first
 
+> **MEASURED 2026-08-30 — [maps-2026-08-30](../gauntlet/results/maps-2026-08-30.md).** All three of
+> the gating numbers moved.
+>
+> **1. JS `Map` vs object: 1.56x**, not 3.25x — direction survives, magnitude halved. And a plain `{}`
+> beats `Object.create(null)`. **Integer keys are 3.67x**, more than twice the string gap, which makes
+> `(map int V)`-first the case where the host choice matters *most* rather than a way of dodging
+> strings.
+>
+> **2. Java `merge` is 1.22x FASTER**, not 2.59x slower. Second independent re-take to disagree with
+> R5; `targets/java/util.oro` declares the losing idiom.
+>
+> **3. Count-then-build BEATS append** — 2.95x on Go against growing `append`, 1.44x against
+> preallocated, and 1.06x on JavaScript. **So D3, the growable array, is withdrawn**: the workaround
+> is not merely parity-preserving, it is faster. §6's conclusion that the map is primary is
+> strengthened rather than merely confirmed.
+>
+> And prediction 3 below was **wrong**, for a reason worth keeping: the first run compared a plain
+> `Array` against a `Float64Array` and so measured array kind rather than growth.
+
+
+
 The repository's rule is that a prediction written after the run is not a prediction. These are
 written before.
 

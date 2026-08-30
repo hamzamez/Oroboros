@@ -125,6 +125,54 @@ wanted 38. A parent's product must reach `2h + (a child's product)`, and a flat 
 that. `karatsuba.go` got it right by accident: its uniform padding makes `2h + 2·s[L+1]` come to
 exactly `2·s[L]`. The ragged version has to compute the sizes bottom-up, which it now does exactly.
 
+## 3b. Java and JavaScript
+
+Same shape ported to both: descriptor table over one arena, two of three children as offsets.
+64-bit limbs on Java (bigarith §8c found L64 beats L31 for big x big); base 2^15 on JavaScript,
+because [§5a](bigarith-2026-08-28.md) found the constraint there is int32, not 2^53.
+
+| Java, 65,536 bits | ns/op | | JavaScript, 16,384 bits | ns/op |
+|---|---|---|---|---|
+| schoolbook | 1,914,360 | | schoolbook | 1,575,741 |
+| **Karatsuba D = 6** | **533,505** | | **Karatsuba D = 4** | **710,776** |
+| `BigInteger` | 340,367 | | `BigInt` | 22,866 |
+
+**Java 3.59x over schoolbook**, and 5.62x behind `BigInteger` becomes **1.57x**.
+**JavaScript 2.22x**, and 68.9x behind `BigInt` becomes **31.1x**.
+
+Java is where this pays most; JavaScript is where it changes least — 31x behind is still a rout, and
+no amount of Karatsuba closes a gap that is mostly 15-bit limbs against V8's 64-bit ones in C++.
+
+### The JavaScript measurement was wrong twice, and bigarith §8 is corrected
+
+Two method errors, found by re-measuring rather than by suspicion.
+
+**A fixed iteration count gave a 4x spread on identical work.** V8's `BigInt` multiply at 16,384 bits
+measured **5,900 ns at 20,000 iterations and 23,000 ns at 2,000** — from the count alone. A ratio
+taken against a number like that is not a result. The harness is now **time-budgeted**: each side runs
+for the same wall clock and the count falls out.
+
+**And the result was dead.** With the operands loop-invariant and the product unused, V8 eliminated
+`x * y` outright — a 16,384-bit multiply *measured* **48 ns/op**. The product now escapes into a sink
+that is read afterwards. The Karatsuba side never needed one; it writes into its workspace.
+
+The sanity check that settles which number is right: at 16,384 bits `BigInt` is 256 64-bit limbs, and
+Go's `math/big` does that in 12.9 us. **22.9 us is the right order; 5.9 us would have made V8 faster
+than `math/big`**, which is not credible.
+
+| bits | old ratio | **corrected** |
+|---|---|---|
+| 256 | 6.6x | **5.3x** |
+| 1,024 | 40x | **23.9x** |
+| 4,096 | 83x | **35.7x** |
+| 16,384 | **148x** | **68.9x** |
+
+The direction is unchanged — `BigInt` wins at every size and by more as they grow — but the magnitudes
+were roughly double. That is the **third** benchmark-method error in this repository's JavaScript
+numbers, after the per-byte closure in jsontok and the module-namespace lookup in native-js, and the
+rule that catches them keeps being the same one: **make a suspicious result explain itself before
+recording it.**
+
 ## 4. What this corrects
 
 **[ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md)'s consequence, added the

@@ -991,6 +991,19 @@ an **iterative FFT** exists.
 > What ADR 0014 actually forbids is divide-and-conquer whose **tree shape depends on the data** —
 > quicksort's pivot, a search that prunes on what it finds.
 
+**AND IT PORTS: Java 3.59× over schoolbook (5.62× behind `BigInteger` → 1.57×), JavaScript 2.22×
+(68.9× → 31.1×).** Java is where it pays most; JavaScript is where it changes least, because 15-bit
+limbs against V8's 64-bit ones in C++ is a gap no algorithm closes.
+
+**AND THE JAVASCRIPT MEASUREMENT WAS WRONG TWICE — the THIRD method error in this repository's JS
+numbers.** A fixed iteration count gave a **4× spread on identical work** (5,900 ns at 20,000
+iterations, 23,000 at 2,000), and with the operands loop-invariant and the product unused V8
+**eliminated the multiply outright** — a 16,384-bit product *measured* **48 ns/op**. Fixed by a
+time-budgeted harness and a sink the result escapes into. The sanity check that settles it: 22.9 µs
+for 256 64-bit limbs is the right order against Go's `math/big` at 12.9 µs; **5.9 µs would have made
+V8 faster than `math/big`**. bigarith's JS column is corrected — direction unchanged, magnitudes
+roughly halved, 148× becoming 68.9×.
+
 **AND IN PLACE IT IS 3.41×, because two of the three children are SUBRANGES OF THE PARENT.**
 `(a_lo, b_lo)` and `(a_hi, b_hi)` are already in memory; only the sum child is new data. So a node is
 an **offset and a length** — a flat descriptor table over one arena — which is this repository's own

@@ -223,6 +223,64 @@ the limb width exactly: 64-bit on x86 and Go, 64-bit on Java behind `multiplyHig
 What remains everywhere is the same two things and neither is about recursion: **hand-written
 ADX/MULX inner loops, and Toom-Cook above Karatsuba's range.**
 
+## 3e. Is windows faster than the host bignums? Not yet — and it is the COMBINE, not the algorithm
+
+hamza: *"is our windows implementation faster compared to big in go, or bignum in javascript or not?
+because it should, we control everything."*
+
+Measured like-for-like at **65,536 bits**:
+
+| | ns | |
+|---|---|---|
+| Go `math/big` | **122,836** | we are **1.50x behind** |
+| **our x86-64** | **184,058** | |
+| V8 `BigInt` | 205,439 | we are **1.12x ahead** |
+
+**So: yes against JavaScript, no against Go.** And chasing it produced the diagnosis.
+
+### It was never the algorithm
+
+**Go's `math/big` has no Toom-Cook.** At 1,024 words it runs Karatsuba over a schoolbook base case —
+the same algorithm we run. The gap was entirely its inner loop: `addMulVVW` is hand-written
+**MULX/ADOX/ADCX**, and ours was the naive form, which serialises on `mul`'s fixed `rdx:rax` and on a
+single carry chain.
+
+Three instructions fix that. `MULX` writes two *chosen* registers and touches no flags, so several can
+be in flight; `ADCX` and `ADOX` carry through **CF and OF**, which are independent, so two accumulation
+chains run at once. The catch is that `dec` and `cmp` write OF, so ordinary loop control destroys the
+ADOX chain — the answer is to keep both chains inside an **unrolled block of four** and fold them into
+the running carry at the block boundary, where the flags are dead.
+
+| | before | after |
+|---|---|---|
+| schoolbook, 1,024 limbs | 844,682 | **456,068** — 1.85x |
+| Karatsuba, best depth | 234,065 | **184,058** — 1.27x |
+
+The checksum is unchanged at every depth and still matches Go and `math/big`.
+
+### What is left is the combine, and here is the arithmetic
+
+Schoolbook does 1,024² = 1,048,576 limb-multiplies in 456,068 ns — **0.435 ns each, about 1.4 cycles**,
+which is close to the one-`mulx`-per-cycle ceiling. The kernel is no longer the problem.
+
+Multiply that rate by the base-case work each depth actually does:
+
+| depth | base multiplies | base work | measured | **combine** |
+|---|---|---|---|---|
+| D = 4 | 81 x 66² | 153,483 ns | 184,817 | 31,300 (17%) |
+| D = 5 | 243 x 34² | 122,195 ns | 187,364 | 65,200 (35%) |
+| D = 6 | 729 x 18² | 102,745 ns | 215,558 | **112,800 (52%)** |
+
+**The base-case work keeps falling as `(3/4)^D` and the combine keeps rising as `3^D`**, and they cross
+between D = 4 and D = 5 — which is exactly why depth stops paying there. If the combine were cheaper we
+could go deeper, and deeper is where `math/big` is.
+
+Our combine makes **six passes** over each node's output: zero it, add z0, add z1, add z2, subtract z0,
+subtract z1. `math/big` computes into the destination with a single scratch buffer and fewer passes.
+
+**So the next move is the combine, not a better algorithm** — and that is a much more specific thing to
+go after than "we are 1.5x behind".
+
 ## 4. What this corrects
 
 **[ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md)'s consequence, added the

@@ -127,6 +127,104 @@ ks_d:
     ret
 k_subat ENDP
 
+; k_mac(rcx=out, rdx=b, r8=n, r9=m) -> rax = carry
+;   out[0..n) += m * b[0..n)
+;
+; THE INNER LOOP IS THE WHOLE GAP. Go's math/big has no Toom-Cook: at 1024 words
+; it runs the same Karatsuba we do, and it is 1.91x faster purely because
+; `addMulVVW` is hand-written MULX/ADOX/ADCX. The naive form serialises on
+; mul's fixed rdx:rax and on one carry chain:
+;
+;       mul  [b+j]        ; 3-4 cycle latency, fixed registers
+;       add  rax, carry
+;       adc  rdx, 0
+;       add  [out+j], rax
+;       adc  rdx, 0
+;
+; Three instructions fix it. MULX writes two CHOSEN registers and touches no
+; flags, so several can be in flight. ADCX and ADOX carry through CF and OF
+; respectively, which are INDEPENDENT — so two accumulation chains proceed at
+; once instead of one.
+;
+; The catch: `dec` and `cmp` write OF, so ordinary loop control destroys the
+; ADOX chain. The answer is to keep both chains inside an UNROLLED BLOCK and
+; fold them into the running carry at the block boundary, where the flags are
+; dead and the loop counter is free to use them.
+k_mac PROC
+    push rbx
+    push rsi
+    push rdi
+    push r12
+    push r13
+    push r14
+    push r15
+    sub  rsp, 20h
+    mov  [rsp], r8                  ; n, kept off the register file: the
+                                    ; unrolled block uses every other register
+    mov  rsi, rdx                   ; b
+    mov  rdx, r9                    ; m — mulx's implicit multiplier
+    xor  rbx, rbx                   ; running carry
+    mov  rdi, r8
+    shr  rdi, 2                     ; blocks of four
+    xor  r9, r9                     ; j
+    test rdi, rdi
+    jz   km_tail
+km_blk:
+    xor  rax, rax                   ; CF = OF = 0, and the zero we fold with
+    mulx r11, r10, qword ptr [rsi + r9*8]
+    adox r10, qword ptr [rcx + r9*8]
+    adcx r10, rbx
+    mov  qword ptr [rcx + r9*8], r10
+
+    mulx r13, r12, qword ptr [rsi + r9*8 + 8]
+    adox r12, qword ptr [rcx + r9*8 + 8]
+    adcx r12, r11
+    mov  qword ptr [rcx + r9*8 + 8], r12
+
+    mulx r15, r14, qword ptr [rsi + r9*8 + 16]
+    adox r14, qword ptr [rcx + r9*8 + 16]
+    adcx r14, r13
+    mov  qword ptr [rcx + r9*8 + 16], r14
+
+    mulx rbx, r10, qword ptr [rsi + r9*8 + 24]
+    adox r10, qword ptr [rcx + r9*8 + 24]
+    adcx r10, r15
+    mov  qword ptr [rcx + r9*8 + 24], r10
+
+    ; Fold both chains into the carry. rbx <= 2^64-2, so +2 cannot overflow.
+    adcx rbx, rax
+    adox rbx, rax
+
+    lea  r9, [r9+4]
+    dec  rdi
+    jnz  km_blk
+km_tail:
+    ; The remainder, plain: base-case sizes are not multiples of four.
+    mov  r8, [rsp]
+km_t1:
+    cmp  r9, r8
+    jge  km_done
+    mulx r11, r10, qword ptr [rsi + r9*8]
+    add  r10, rbx
+    adc  r11, 0
+    add  qword ptr [rcx + r9*8], r10
+    adc  r11, 0
+    mov  rbx, r11
+    lea  r9, [r9+1]
+    jmp  km_t1
+km_done:
+    mov  rax, rbx
+    add  rsp, 20h
+    pop  r15
+    pop  r14
+    pop  r13
+    pop  r12
+    pop  rdi
+    pop  rsi
+    pop  rbx
+    ret
+k_mac ENDP
+
 ; k_school(rcx=a, rdx=b, r8=n, r9=out) — out is 2n limbs and is zeroed here.
 k_school PROC
     push rbx
@@ -135,11 +233,11 @@ k_school PROC
     push r12
     push r13
     push r14
-    mov  rsi, rcx
-    mov  rdi, rdx
-    mov  r13, r8
-    mov  rbx, r9
-    ; zero 2n
+    sub  rsp, 30h
+    mov  rsi, rcx                   ; a
+    mov  rdi, rdx                   ; b
+    mov  r13, r8                    ; n
+    mov  rbx, r9                    ; out
     mov  rcx, rbx
     mov  rdx, r13
     add  rdx, r13
@@ -148,25 +246,20 @@ k_school PROC
 sc_outer:
     cmp  r14, r13
     jge  sc_done
-    mov  r12, [rsi + r14*8]         ; ai
-    xor  r11, r11                   ; carry
-    xor  r10, r10                   ; j
-    lea  r9, [rbx + r14*8]          ; &out[i]
-sc_inner:
-    mov  rax, r12
-    mul  qword ptr [rdi + r10*8]    ; rdx:rax
-    add  rax, r11
-    adc  rdx, 0
-    add  [r9 + r10*8], rax
-    adc  rdx, 0
-    mov  r11, rdx
-    lea  r10, [r10+1]
-    cmp  r10, r13
-    jl   sc_inner
-    mov  [r9 + r13*8], r11
+    lea  rcx, [rbx + r14*8]         ; &out[i]
+    mov  rdx, rdi                   ; b
+    mov  r8, r13                    ; n
+    mov  r9, [rsi + r14*8]          ; a[i]
+    call k_mac
+    ; out[i+n] = carry. The slot is untouched by this row and by every earlier
+    ; one, so it is an assignment rather than an accumulate.
+    mov  rcx, r14
+    add  rcx, r13
+    mov  [rbx + rcx*8], rax
     lea  r14, [r14+1]
     jmp  sc_outer
 sc_done:
+    add  rsp, 30h
     pop  r14
     pop  r13
     pop  r12
@@ -802,7 +895,7 @@ main PROC
 
     xor  r15, r15                    ; D index
 mn_1:
-    cmp  r15, 4
+    cmp  r15, 5
     jge  mn_done
     xor  r13, r13
     cmp  r15, 0
@@ -810,8 +903,11 @@ mn_1:
     mov  r13, 3
     cmp  r15, 1
     je   mn_have
-    mov  r13, 5
+    mov  r13, 4
     cmp  r15, 2
+    je   mn_have
+    mov  r13, 5
+    cmp  r15, 3
     je   mn_have
     mov  r13, 6
 mn_have:

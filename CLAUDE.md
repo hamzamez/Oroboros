@@ -1003,6 +1003,22 @@ limb is `10113443065733330941` on both, with Go's checked against `math/big`. **
 the other ports miss** — the descriptor table is a function of `(n, D)` ALONE, so it is computed once
 in setup and the timed path never touches it; Go, Java and JavaScript rebuild it every multiply.
 
+**AND ON WINDOWS IT BEATS `BigInt` BUT NOT `math/big` — 1.12× ahead, 1.50× behind, at 65,536 bits.**
+Chasing that produced the diagnosis, and **it was never the algorithm**: Go's `math/big` has **no
+Toom-Cook**, so at 1024 words it runs the same Karatsuba we do, and the gap was entirely its inner
+loop. `addMulVVW` is hand-written **MULX/ADOX/ADCX**; ours was the naive form, serialising on `mul`'s
+fixed `rdx:rax` and one carry chain. `MULX` touches no flags so several can be in flight, and `ADCX`/
+`ADOX` carry through **CF and OF independently** so two chains run at once — with the catch that `dec`
+and `cmp` write OF, so the chains must live inside an **unrolled block** and be folded at its boundary.
+**Schoolbook 844,682 → 456,068 (1.85×), Karatsuba 234,065 → 184,058**, checksum unchanged.
+
+**What is left is the COMBINE, with arithmetic**: the kernel now runs at **0.435 ns per limb-multiply,
+about 1.4 cycles**, near the one-`mulx`-per-cycle ceiling. Base-case work falls as `(3/4)^D` while the
+combine rises as `3^D` — 17% of the time at D=4, 35% at D=5, **52% at D=6** — and they cross exactly
+where depth stops paying. Ours makes **six passes** per node (zero, +z0, +z1, +z2, −z0, −z1) where
+`math/big` computes into the destination with one scratch. **So the next move is the combine, not a
+better algorithm.**
+
 **Karatsuba is worth 2.2×–3.6× on every host, and it does not change who wins**: 9.53× → 1.93× behind
 `math/big`, 5.62× → 1.57× behind `BigInteger`, 68.9× → 31.1× behind `BigInt`, and on windows there is
 nothing to lose to. What remains everywhere is the same two things and **neither is about recursion**:

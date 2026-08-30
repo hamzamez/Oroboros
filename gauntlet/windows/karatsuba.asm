@@ -378,32 +378,30 @@ sp_1:
     mov  [rdi + r8*8], rax
     jmp  sp_1
 sp_2:
-    ; pOff, running total; prod follows
+    ; THE PROD LAYOUT IS TILED NOW, so pOff is assigned in the descriptor pass
+    ; below rather than by a running total here. Every slot is exactly 2*ln
+    ; limbs, and that is what makes child 0 and child 1 tile the parent's
+    ; output exactly: [0, 2h) and [2h, 2l), nothing left over and no copies.
     mov  [rbx + WS_PROD], rsi
-    xor  r11, r11                   ; tot
-    xor  r8, r8                     ; L
-    mov  r10, 1                     ; 3^L
-    mov  r9, [rbx + WS_POFF]
-    mov  rdx, [rbx + WS_BASE]
-sq_1:
+    ; Size it: the root's 2n, plus one fresh slot per internal node for its
+    ; SUM child, each 2*lenOf[L+1] limbs. The other two children need none.
+    mov  r11, r14
+    add  r11, r14                   ; 2n
+    xor  r8, r8
+    mov  r10, 1
+    mov  rcx, [rbx + WS_LENOF]
+sz_1:
     cmp  r8, r15
-    jg   sq_2
-    mov  rcx, [rdx + r8*8]          ; baseIdx[L]
-    xor  rax, rax                   ; k
-sq_3:
-    cmp  rax, r10
-    jge  sq_4
-    mov  [r9 + rcx*8], r11
-    add  r11, [rdi + r8*8]
-    inc  rcx
-    inc  rax
-    jmp  sq_3
-sq_4:
+    jge  sz_2
+    mov  rax, [rcx + r8*8 + 8]
+    add  rax, rax
+    imul rax, r10
+    add  r11, rax
     lea  r10, [r10 + r10*2]
     inc  r8
-    jmp  sq_1
-sq_2:
-    lea  rsi, [rsi + r11*8]         ; past prod
+    jmp  sz_1
+sz_2:
+    lea  rsi, [rsi + r11*8]
     mov  [rbx + WS_ARENA], rsi
 
     ; DESCRIPTORS. aOff[0]=0, bOff[0]=n, ln[0]=n, then three children per node.
@@ -417,8 +415,13 @@ sq_2:
     mov  [rcx], r14
     mov  rcx, [rsp+28h]
     mov  [rcx], r14
+    mov  rcx, [rbx + WS_POFF]
+    mov  qword ptr [rcx], 0         ; the root's product is at 0
+    mov  rcx, r14
+    add  rcx, r14
+    mov  [rsp+60h], rcx             ; prodFree = 2n
     mov  r11, r14
-    add  r11, r14                   ; free = 2n
+    add  r11, r14                   ; arena free = 2n
     xor  r8, r8                     ; L
     mov  r10, 1                     ; 3^L
 sd_1:
@@ -486,7 +489,26 @@ sd_2:
     mov  r14, [rsp+28h]
     mov  [r14 + rcx*8 + 16], rsi
     add  r11, rsi
-    add  r11, rsi                   ; free += 2cl
+    add  r11, rsi                   ; arena free += 2cl
+
+    ; PRODUCT SLOTS. Child 0 lands on the parent's output at 0 and child 1 at
+    ; 2h, which tiles [0, 2l) exactly because a slot is 2*ln. Only the sum
+    ; child needs storage of its own.
+    ; rax is the loop counter here, so r13 is the scratch.
+    mov  r14, [rbx + WS_POFF]
+    mov  rdx, [rsp+30h]             ; id
+    mov  rdx, [r14 + rdx*8]         ; parent pOff
+    mov  [r14 + rcx*8], rdx         ; child 0 lands on it
+    mov  r13, [rsp+58h]
+    add  r13, r13                   ; 2h
+    add  r13, rdx
+    mov  [r14 + rcx*8 + 8], r13     ; child 1 at 2h
+    mov  rdx, [rsp+60h]
+    mov  [r14 + rcx*8 + 16], rdx    ; the sum child, its own slot
+    mov  r13, rsi
+    add  r13, r13                   ; 2*cl
+    add  rdx, r13
+    mov  [rsp+60h], rdx             ; prodFree += 2cl
 
     mov  r14, [rbx + WS_N]
     inc  rax
@@ -664,11 +686,10 @@ mb_1:
     mov  [rsp+48h], r11
     mov  [rsp+50h], r8
     mov  [rsp+58h], r9
-    ; zero the WHOLE slot, prodOf[D] limbs
+    ; zero the slot, which is now exactly 2*ln limbs
     mov  rcx, r9
-    mov  rax, [rbx + WS_PRODOF]
-    mov  rdx, [rbx + WS_D]
-    mov  rdx, [rax + rdx*8]
+    mov  rdx, [rsp+50h]
+    add  rdx, rdx
     call k_zero
     mov  rcx, [rsp+40h]
     mov  rdx, [rsp+48h]
@@ -709,11 +730,16 @@ mu_2:
     jge  mu_3
     mov  rcx, [rsp+38h]
     add  rcx, rax                   ; id
-    ; THE COMBINE, in six passes over EXACT significant lengths rather than six
-    ; over the whole buffer. z0 is child0's product, so it is at most 2h limbs
-    ; and zero above that; z1 is at most 2(l-h). Only z2 needs the full csz.
-    ; That turns `zero(sz); add z0; add z1` into `copy z0; copy z1; zero tail`,
-    ; and shortens both subtractions.
+    ; THE COMBINE, IN THREE PASSES. z0 and z1 are already in the destination —
+    ; child 0's slot IS out[0..2h) and child 1's IS out[2h..2l), because a slot
+    ; is exactly 2*ln and the two tile the parent. Nothing is copied and nothing
+    ; is zeroed: the children wrote every limb.
+    ;
+    ;     z2 -= z0 ;  z2 -= z1 ;  out[h..] += z2
+    ;
+    ; The subtractions go into z2's OWN buffer, which is the only ordering that
+    ; works: doing them in place would read out[0..2h) while writing out[h..),
+    ; and those overlap. z2 >= z0 + z1 by construction, so no borrow escapes.
     mov  r10, [r14 + rcx*8]         ; l
     mov  r11, r10
     shr  r11, 1                     ; h
@@ -724,69 +750,50 @@ mu_2:
     sub  r10, r11
     add  r10, r10                   ; hi2 = 2(l-h)
     mov  [rsp+60h], r10
+    mov  r9, [rsp+48h]
+    add  r9, r10                    ; 2l = out's length
+    mov  [rsp+78h], r9
     mov  rax, [r15 + rcx*8]
     lea  r11, [rdi + rax*8]
     mov  [rsp+50h], r11             ; out
 
     mov  rax, [rsp+28h]
     lea  rax, [rax + rax*2]
-    add  rax, [rsp+40h]
-    mov  rax, [r15 + rax*8]
-    lea  rax, [rdi + rax*8]
-    mov  [rsp+58h], rax             ; z0
+    add  rax, [rsp+40h]             ; c0 index
+    mov  [rsp+88h], rax
+    mov  r9, [r15 + rax*8]
+    lea  r9, [rdi + r9*8]
+    mov  [rsp+58h], r9              ; z0 = out
+    mov  r9, [r15 + rax*8 + 8]
+    lea  r9, [rdi + r9*8]
+    mov  [rsp+80h], r9              ; z1
+    mov  r9, [r15 + rax*8 + 16]
+    lea  r9, [rdi + r9*8]
+    mov  [rsp+90h], r9              ; z2
+    mov  r9, [r14 + rax*8 + 16]
+    add  r9, r9                     ; z2 length = 2*ln[c2]
+    mov  [rsp+70h], r9
 
-    mov  rcx, [rsp+50h]
-    mov  rdx, [rsp+58h]
-    mov  r8, [rsp+48h]
-    call k_copy                     ; out[0..lo2) = z0
-
-    mov  rcx, [rsp+50h]
-    mov  rax, [rsp+48h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+58h]
-    mov  rax, [rsp+70h]
-    lea  rdx, [rdx + rax*8]
-    mov  r8, [rsp+60h]
-    call k_copy                     ; out[lo2..lo2+hi2) = z1
-
-    mov  rcx, [rsp+50h]
-    mov  rax, [rsp+48h]
-    add  rax, [rsp+60h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+78h]
-    sub  rdx, rax
-    call k_zero                     ; the tail above 2l
-
-    mov  rax, [rsp+68h]
-    mov  rcx, [rsp+50h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+78h]
-    sub  rdx, rax
-    mov  r9, [rsp+70h]
-    mov  r8, [rsp+58h]
-    lea  r8, [r8 + r9*8]
-    lea  r8, [r8 + r9*8]
-    call k_addat                    ; out[h..] += z2
-
-    mov  rax, [rsp+68h]
-    mov  rcx, [rsp+50h]
-    lea  rcx, [rcx + rax*8]
-    mov  rdx, [rsp+78h]
-    sub  rdx, rax
+    mov  rcx, [rsp+90h]
+    mov  rdx, [rsp+70h]
     mov  r8, [rsp+58h]
     mov  r9, [rsp+48h]
-    call k_subat                    ; out[h..] -= z0, lo2 limbs
+    call k_subat                    ; z2 -= z0
+
+    mov  rcx, [rsp+90h]
+    mov  rdx, [rsp+70h]
+    mov  r8, [rsp+80h]
+    mov  r9, [rsp+60h]
+    call k_subat                    ; z2 -= z1
 
     mov  rax, [rsp+68h]
     mov  rcx, [rsp+50h]
     lea  rcx, [rcx + rax*8]
     mov  rdx, [rsp+78h]
     sub  rdx, rax
+    mov  r8, [rsp+90h]
     mov  r9, [rsp+70h]
-    mov  r8, [rsp+58h]
-    lea  r8, [r8 + r9*8]
-    mov  r9, [rsp+60h]
-    call k_subat                    ; out[h..] -= z1, hi2 limbs
+    call k_addat                    ; out[h..] += z2
 
     mov  rax, [rsp+28h]
     inc  rax
@@ -921,21 +928,18 @@ main PROC
 
     xor  r15, r15                    ; D index
 mn_1:
-    cmp  r15, 5
+    cmp  r15, 7
     jge  mn_done
-    xor  r13, r13
+    mov  r13, r15
+    add  r13, r13
     cmp  r15, 0
-    je   mn_have
-    mov  r13, 3
-    cmp  r15, 1
-    je   mn_have
-    mov  r13, 4
-    cmp  r15, 2
-    je   mn_have
-    mov  r13, 5
-    cmp  r15, 3
-    je   mn_have
-    mov  r13, 6
+    jne  mn_h2
+    xor  r13, r13
+    jmp  mn_have
+mn_h2:
+    mov  r13, r15
+    add  r13, 3                     ; D = 4,5,6,7,8,9 for indices 1..6
+    dec  r13
 mn_have:
     mov  rcx, NLIMBS
     mov  rdx, r13

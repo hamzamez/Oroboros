@@ -1020,6 +1020,21 @@ subtractions shorten. **A latent hazard fell out on the way** — `k_school` zer
 combine read them; invisible because the benchmark repeats the same operands, so a stale limb held
 exactly the right value. **Now 1.41× behind `math/big` (was 1.91×) and 1.18× AHEAD of `BigInt`.**
 
+**AND THE TILED LAYOUT LANDED: ~163,000, so 234,065 → 163,000 overall, 1.44×.** The sizing works out
+exactly if **every slot is `2·ln`**: child 0's product goes at the parent's output offset 0 needing
+`2h`, child 1's at `2h` needing `2(l−h)`, and `2h + 2(l−h) = 2l` — **they tile the parent exactly**, so
+nothing is copied and nothing is zeroed. Only the sum child needs its own storage, and `out[h..] += z2`
+reaches `2l − h + 2 ≤ 2l` whenever `h ≥ 2`. The combine collapses to **three passes**:
+`z2 -= z0; z2 -= z1; out[h..] += z2`. **The order is the trick** — both subtractions go into z2's OWN
+buffer while z0 and z1 are still pristine in the destination; in place they would read `out[0..2h)`
+while writing `out[h..)`, which overlap. **Now 1.31× behind `math/big` (from 1.91×) and 1.28× AHEAD of
+`BigInt`.** Checksum unchanged at every depth throughout.
+
+**What remains is not structural**: `math/big` recurses below our base case, its inner loop unrolls
+further with two interleaved `mulx` streams, and **squaring is not specialised** (half the partial
+products in `a·a` are duplicates, worth close to 2× and most of an exponentiation). **None of these is
+a language question** — the remaining 1.31× is ordinary assembly tuning.
+
 **What is still on the table, named**: the combine is six passes and the two copies are the largest.
 A recursive Karatsuba pays neither, computing z0 and z1 **directly into the destination**. That is
 reachable — alias child 0's slot onto the parent's output at 0 and child 1's at 2h — and it is a

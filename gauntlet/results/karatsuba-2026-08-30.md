@@ -309,23 +309,59 @@ zeroes the whole slot.
 | **our x86-64** | **173,602** | |
 | V8 `BigInt` | 205,439 | we are **1.18x ahead** |
 
+### 3g. The tiled layout — three passes, and no copies at all
+
+The sizing works out exactly if **every product slot is `2·ln`**:
+
+- child 0's product goes at the parent's output offset **0**, needing `2h`;
+- child 1's at offset **2h**, needing `2(l−h)` — and `2h + 2(l−h) = 2l`, so the two **tile the parent
+  exactly**, with nothing left over and nothing to zero;
+- only the **sum child** needs storage of its own;
+- and `out[h..] += z2` reaches `h + 2(l−h+1) = 2l − h + 2`, which is inside `2l` whenever `h ≥ 2` —
+  true at every internal node here, where the smallest is `h = 5`.
+
+So the children write their products **directly into the destination**, which is what a recursive
+Karatsuba gets for free, and the combine collapses to **three passes**:
+
+```
+z2 -= z0        z2 -= z1        out[h..] += z2
+```
+
+**The order is the whole trick.** Both subtractions go into z2's *own* buffer, while z0 and z1 are
+still pristine in the destination. Doing them in place would read `out[0..2h)` while writing
+`out[h..)`, and those overlap — which is why this needed a layout change rather than different
+offsets. `z2 ≥ z0 + z1` by construction, so no borrow escapes.
+
+| n = 1,024 limbs | naive | + MULX/ADX | + exact lengths | **+ tiled, 3 passes** |
+|---|---|---|---|---|
+| schoolbook | 844,682 | 456,068 | 453,874 | ~430,000 |
+| Karatsuba, D = 5 | 234,065 | 184,058 | 173,602 | **~163,000** |
+
+**1.44x over where the windows work started**, and at 65,536 bits:
+
+| | ns | |
+|---|---|---|
+| Go `math/big` | 122,836 | we are **1.31x behind** — was 1.91x |
+| **our x86-64** | **~163,000** | |
+| V8 `BigInt` | 205,439 | we are **1.28x ahead** |
+
+The optimal depth is still 5: with the combine down to roughly `6h` limb-touches from `10h`, D = 6
+and D = 7 are closer but still lose. The checksum is unchanged at every depth through all three
+rounds of this work, and still matches Go and `math/big`.
+
 ### What is still on the table, named precisely
 
-The combine is still **six passes**, and the two copies are the largest of them — `2l` limbs against
-`csz` for the others. A recursive Karatsuba pays neither, because it computes z0 and z1 **directly
-into the destination** at offsets 0 and 2h.
+Three passes is the floor for this formulation, so what remains is not structural:
 
-That is reachable here too: alias child 0's product slot onto the parent's output at offset 0, child
-1's at offset 2h, and give only child 2 a slot of its own. The combine then becomes **four passes** —
-zero the tail, `z2 -= z0`, `z2 -= z1`, `out[h..] += z2` — with no copies at all.
+- **`math/big` recurses below our base case.** Its Karatsuba threshold is 40 words; at D = 5 our base
+  case is 34 limbs, so we are close, but its schoolbook is also better tuned at small sizes.
+- **The inner loop could go wider.** Ours unrolls by four with two ADX chains; the fastest known form
+  unrolls by eight and interleaves two independent `mulx` streams.
+- **Squaring is not specialised.** Half the partial products in `a·a` are duplicates, worth close to
+  2x on that case, and a bignum exponentiation is mostly squarings.
 
-**It cannot be done by simply changing the offsets**, which is why it is not done here: `out[h..] -= z0`
-would read `out[0..2h)` while writing `out[h..)`, and those overlap. The subtraction has to be done
-into z2's own buffer *first*, while z0 and z1 are still pristine in the destination. And the slot
-sizes stop being uniform — child 0 needs `2h`, child 1 needs `2(l-h)`, child 2 needs `prodOf[L+1]` —
-so `pOff` needs a per-node length beside it.
-
-Worth doing, and a layout change rather than a tweak.
+None of these is a language question, which is the point: the remaining 1.31x is ordinary assembly
+tuning, not anything about recursion, layout, or what the core can express.
 
 ## 4. What this corrects
 

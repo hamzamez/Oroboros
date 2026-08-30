@@ -995,6 +995,19 @@ an **iterative FFT** exists.
 (68.9× → 31.1×).** Java is where it pays most; JavaScript is where it changes least, because 15-bit
 limbs against V8's 64-bit ones in C++ is a gap no algorithm closes.
 
+**AND ON WINDOWS, WHERE WE CONTROL EVERYTHING, IT IS THE FASTEST OF THE FOUR** — hand-written MASM,
+`mul`/`adc`/`sbb` throughout, **844,682 ns schoolbook → 234,065 Karatsuba, 3.61×**, which is 1.44×
+faster than ours on Go and 2.28× faster than ours on Java. **Cross-host verified rather than
+self-consistent**: the operand generator is Go's `LimbsOf` reproduced exactly and the product's top
+limb is `10113443065733330941` on both, with Go's checked against `math/big`. **And one structural win
+the other ports miss** — the descriptor table is a function of `(n, D)` ALONE, so it is computed once
+in setup and the timed path never touches it; Go, Java and JavaScript rebuild it every multiply.
+
+**Karatsuba is worth 2.2×–3.6× on every host, and it does not change who wins**: 9.53× → 1.93× behind
+`math/big`, 5.62× → 1.57× behind `BigInteger`, 68.9× → 31.1× behind `BigInt`, and on windows there is
+nothing to lose to. What remains everywhere is the same two things and **neither is about recursion**:
+hand-written ADX/MULX inner loops, and Toom-Cook above Karatsuba's range.
+
 **AND THE JAVASCRIPT MEASUREMENT WAS WRONG TWICE — the THIRD method error in this repository's JS
 numbers.** A fixed iteration count gave a **4× spread on identical work** (5,900 ns at 20,000
 iterations, 23,000 at 2,000), and with the operands loop-invariant and the product unused V8

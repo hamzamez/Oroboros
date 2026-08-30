@@ -173,6 +173,56 @@ numbers, after the per-byte closure in jsontok and the module-namespace lookup i
 rule that catches them keeps being the same one: **make a suspicious result explain itself before
 recording it.**
 
+## 3c. windows, where we control everything
+
+`gauntlet/windows/karatsuba.asm`, hand-written MASM. This is the host with no bignum of its own, so
+"as fast as possible" is the whole brief — and x86-64 has three things no other host in the set does:
+`mul` (64x64 -> 128 in one instruction), `adc`, and `sbb`. Every carry chain below is the **flag**, so
+each loop bumps its index with `lea` and its counter with `dec`, the two instructions that leave CF
+alone.
+
+**And one structural win the other three ports miss.** The descriptor table — every node's
+`(aOff, bOff, len)` — is a function of `(n, D)` **alone**. It does not depend on the operands, so it is
+computed once in `kara_setup` and the timed path never touches it. Go, Java and JavaScript rebuild it
+on every multiply because it was cheap enough to ignore there.
+
+| n = 1,024 limbs (65,536 bits) | ns/round |
+|---|---|
+| schoolbook | 844,682 |
+| Karatsuba D = 3 | 374,675 |
+| **Karatsuba D = 5** | **234,065** |
+| Karatsuba D = 6 | 244,327 |
+
+**3.61x over schoolbook, and the fastest of the four implementations** — 1.44x faster than ours on Go
+and 2.28x faster than ours on Java.
+
+**Cross-host verified, not just self-consistent.** The operand generator is Go's `LimbsOf` reproduced
+exactly, and the top limb of the 2n-limb product is **10113443065733330941** on x86 and on Go, where
+Go's is checked against `math/big`. All four depths agree with each other as well.
+
+## 3d. All four hosts
+
+| | schoolbook | **Karatsuba** | over schoolbook | the host's bignum |
+|---|---|---|---|---|
+| **x86-64, hand-written** | 844,682 | **234,065** | **3.61x** | *none exists* |
+| Go | 1,152,062 | **337,535** | 3.41x | 121,546 |
+| Java | 1,914,360 | **533,505** | 3.59x | 340,367 |
+| JavaScript† | 1,575,741 | **710,776** | 2.22x | 22,866 |
+
+*(All at 1,024 limbs / 65,536 bits except † JavaScript at 16,384 bits, where its 15-bit limbs make the
+larger size impractical.)*
+
+**Karatsuba is worth 2.2x to 3.6x on every host**, and the ranking of our own implementations follows
+the limb width exactly: 64-bit on x86 and Go, 64-bit on Java behind `multiplyHigh`'s sign correction,
+15-bit on JavaScript.
+
+**It does not change who wins.** Against the host's own bignum we go from 9.53x to 1.93x behind on Go,
+5.62x to 1.57x on Java, and 68.9x to 31.1x on JavaScript. On windows there is nothing to lose to, and
+234 microseconds is simply the number.
+
+What remains everywhere is the same two things and neither is about recursion: **hand-written
+ADX/MULX inner loops, and Toom-Cook above Karatsuba's range.**
+
 ## 4. What this corrects
 
 **[ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md)'s consequence, added the

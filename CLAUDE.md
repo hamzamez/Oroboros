@@ -977,12 +977,26 @@ wins where it is QUADRATIC.** Big×small and big+big are linear for both sides, 
 per-call overhead we avoid — a constant factor that persists. Big×big is quadratic for us and
 sub-quadratic for them, so their advantage compounds and takes over almost immediately.
 
-**And we cannot fix it, because KARATSUBA NEEDS RECURSION.** ADR 0014 removed recursion, and
-divide-and-conquer is the shape it removed — the explicit-stack trick works for a *traversal*, and
-Karatsuba needs three recursive products combined. **This is the first measured case where ADR 0014
-has a concrete performance price on a real algorithm.** Not an argument to reverse it — the price is
-confined to one operation and the answer is to call the host's multiply — but it belongs in that ADR's
-consequences.
+**AND "KARATSUBA NEEDS RECURSION" WAS WRONG — hamza refused it and was right** —
+[karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md). Karatsuba's recursion tree is
+**balanced and data-independent**, so its shape is a function of `(n, D)` alone: lay it out in advance
+and walk it **bottom-up, level by level** — three nested loops, **no recursion, no stack, every buffer
+sized before the first loop runs**, verified against `math/big` and worth **2.45× over schoolbook at
+1,024 limbs** (9.53× behind `math/big` → 3.91×). The explicit-stack trick answers a *traversal*, where
+a node returns nothing; the level-walk sidesteps the value-passing entirely, which is the same reason
+an **iterative FFT** exists.
+
+> **A balanced, data-independent recursion is a loop over levels.** That is the general statement and
+> it is worth more than the one algorithm: mergesort, FFT, Karatsuba and binary search are all loops.
+> What ADR 0014 actually forbids is divide-and-conquer whose **tree shape depends on the data** —
+> quicksort's pivot, a search that prunes on what it finds.
+
+**The price is real and much smaller than "impossible"**: about 150 lines against maybe 30 recursive,
+a materialised `O(n^1.585)` layout, and per-level bookkeeping that caps the useful depth (D=5 beats
+D=7 at 1024 limbs, and the measured 2.45× is 40% short of theory's 4.2× for that reason). **The design
+conclusion is unchanged and only its REASON changes**: we call the host's multiply because its inner
+loop is assembly and its asymptotics go further, not because the language cannot express the
+algorithm.
 
 **The comparison was WRONG once and it flattered us.** The first Java run sized all three forms at the
 same LIMB COUNT, so the 31-bit form multiplied numbers half the size and reported ours winning at every

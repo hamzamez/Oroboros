@@ -157,3 +157,38 @@ func BenchmarkMul256Limbs(b *testing.B) { benchMul(b, 256, false) }
 
 func BenchmarkMul1024Big(b *testing.B)   { benchMul(b, 1024, true) }
 func BenchmarkMul1024Limbs(b *testing.B) { benchMul(b, 1024, false) }
+
+// KARATSUBA WITHOUT RECURSION. math/big is the oracle, at every level count
+// and every size, because a divide-and-conquer combination that is off by one
+// limb still produces a plausible-looking number.
+func TestKaratsubaAgreesWithMathBig(t *testing.T) {
+	for _, n := range []int{16, 32, 64, 128, 256} {
+		a, b := LimbsOf(n, 12345), LimbsOf(n, 67890)
+		want := new(big.Int).Mul(limbsToBig(a), limbsToBig(b))
+		for d := 0; d <= 4 && (n>>d) >= 4; d++ {
+			w := NewKWork(n, d)
+			if got := limbsToBig(KaratsubaLimbs(a, b, w)); got.Cmp(want) != 0 {
+				t.Fatalf("n=%d D=%d: got %s, want %s", n, d, got, want)
+			}
+		}
+	}
+}
+
+func benchKara(b *testing.B, n, d int) {
+	x, y := LimbsOf(n, 12345), LimbsOf(n, 67890)
+	w := NewKWork(n, d)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sinkLimbs = KaratsubaLimbs(x, y, w)
+	}
+}
+
+func BenchmarkKara256D0(b *testing.B) { benchKara(b, 256, 0) }
+func BenchmarkKara256D2(b *testing.B) { benchKara(b, 256, 2) }
+func BenchmarkKara256D4(b *testing.B) { benchKara(b, 256, 4) }
+
+func BenchmarkKara1024D0(b *testing.B) { benchKara(b, 1024, 0) }
+func BenchmarkKara1024D3(b *testing.B) { benchKara(b, 1024, 3) }
+func BenchmarkKara1024D5(b *testing.B) { benchKara(b, 1024, 5) }
+func BenchmarkKara1024D7(b *testing.B) { benchKara(b, 1024, 7) }

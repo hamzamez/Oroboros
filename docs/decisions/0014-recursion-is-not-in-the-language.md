@@ -99,15 +99,21 @@ A superseding ADR, not an edit to this one.
 
 ## Consequences
 
-- **KARATSUBA IS UNREACHABLE, and this is the first measured performance price this decision has on
-  a real algorithm** — [bigarith-2026-08-28 §8](../../gauntlet/results/bigarith-2026-08-28.md).
-  Divide-and-conquer multiplication needs three recursive products combined, which is exactly the
-  shape removed here; the explicit-stack trick that made `examples/json/` work applies to a
-  *traversal*. So a big × big product is quadratic for us and sub-quadratic for every host library,
-  and we lose from about four limbs — by 10.7× against `BigInteger` at 16,384 bits and **148×**
-  against V8's `BigInt`. The price is confined to one operation and the answer is to call the host's
-  multiply ([ADR 0019](0019-precision-by-declaration.md)), so this is recorded rather than treated as
-  a reopening trigger — but it is the first time the cost has been a number instead of a worry.
+- **WHAT THIS FORBIDS IS DIVIDE-AND-CONQUER WHOSE TREE SHAPE DEPENDS ON THE DATA, and not
+  divide-and-conquer** — [karatsuba-2026-08-30](../../gauntlet/results/karatsuba-2026-08-30.md).
+  A first version of this entry claimed Karatsuba was unreachable here; hamza refused it and was
+  right. Karatsuba's recursion tree is **balanced and data-independent**, so its shape is a function
+  of `(n, D)` alone and it can be laid out in advance and walked **bottom-up, level by level** — three
+  nested loops, no recursion, no stack, every buffer sized before the first loop runs, verified
+  against `math/big` and worth **2.45×** over schoolbook at 1,024 limbs. The same is true of
+  mergesort, FFT and binary search. A balanced recursion is a loop over levels.
+
+  The price is real and much smaller than "impossible": more code (about 150 lines against maybe 30
+  recursive), a materialised layout at `O(n^1.585)` rather than `O(n)`, and per-level bookkeeping that
+  caps the useful depth. What genuinely needs the stack is a recursion whose *depth or shape* is
+  decided at run time — quicksort's pivot, a search that prunes on what it finds — and
+  `examples/json/` shows even those are reachable when a traversal suffices.
+
 
 - `core.RecursiveNames` and its two call sites in `cmd/gen` and `cmd/build` are gone; the check
   happens once, earlier, for everyone.

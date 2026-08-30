@@ -71,6 +71,7 @@ recording alternatives that were considered and rejected.
 | A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
 | Booleans and control flow are in the language | [0017](docs/decisions/0017-booleans-are-in-the-language.md) |
 | Immutable values, one scoped linear buffer | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) |
+| Precision by declaration — provisionally | [0019](docs/decisions/0019-precision-by-declaration.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -988,6 +989,39 @@ same LIMB COUNT, so the 31-bit form multiplied numbers half the size and reporte
 size — the exact opposite of the corrected result. Same error shape as the `FibLimbs` one: a number
 made good by measuring less work, caught by the same reflex. **And the best limb width is
 operation-dependent too** — 32-bit beat 64-bit for big×small on Java and reverses for big×big.
+
+**PRECISION BY DECLARATION IS DECIDED, PROVISIONALLY** —
+[ADR 0019](docs/decisions/0019-precision-by-declaration.md). **Bounded by default; an integer
+operation the compiler cannot prove stays inside the window is a COMPILE ERROR; and the error is
+cleared by saying one of three things — narrow the range, declare a range ABOVE the window (which
+promotes that value to arbitrary precision), or ask for the trap.** `int` keeps ADR 0012's meaning and
+0012 is not superseded.
+
+**What decided it against B was MEASURED, and did not exist when C was proposed.** A finite range
+gives a limb count → a `build` of known length → zero allocations, worth **3.97× on Go, 6.2× on Java,
+5.8× on V8**; an unbounded declaration gives none of that. **B's surface is a type name and carries no
+size; C's is a range and carries exactly what the fast path needs** — about a factor of four, not a
+matter of taste. And turning the checks on now costs a **byte-identical file on 30 of 39 programs**.
+
+**A is rejected because the failure mode is SILENT-SLOW**, against a project that has chosen loud every
+time — and note that **SBCL, the most serious attempt at A, added compile-time notes** because it hit
+exactly this. Also: a tagged fixnum is not the host's integer, which is the parasite rule; and the
+untagged form makes representation a whole-program property that infects tables and ABIs, where C's
+blast radius is bounded because **every source of `big` is a declaration somebody wrote**.
+**Trap-by-default (Swift, Zig) is declined only because our proof rate makes a COMPILE-time refusal
+affordable** — a refusal names the operation, a trap names a stack frame.
+
+**The top rung is NOT one implementation, and that is the part the aesthetics hid**: ours wins where
+the operation is linear, the host wins where it is quadratic, so the threshold is per-OPERATION as well
+as per-target and something must choose. Whole-program reduction makes that decidable — the compiler
+sees which operations occur on a value — but a value whose representation changes needs a conversion
+at the boundary, and where that sits is opened rather than closed.
+
+**Owed before any of it works: a scalar range is not usable at all today**, a spelling for the
+unbounded rung, a **bidirectional** representation solver (factorial is the witness — the pressure
+comes from the declared RESULT), and R3 per target. **The trigger to watch is the one nothing measured
+can settle**: a real application needing declarations in more places than a programmer will tolerate.
+30-of-39 is numeric kernels and two parsers written by people who knew the analysis.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

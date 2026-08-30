@@ -99,6 +99,16 @@ A superseding ADR, not an edit to this one.
 
 ## Consequences
 
+- **KARATSUBA IS UNREACHABLE, and this is the first measured performance price this decision has on
+  a real algorithm** — [bigarith-2026-08-28 §8](../../gauntlet/results/bigarith-2026-08-28.md).
+  Divide-and-conquer multiplication needs three recursive products combined, which is exactly the
+  shape removed here; the explicit-stack trick that made `examples/json/` work applies to a
+  *traversal*. So a big × big product is quadratic for us and sub-quadratic for every host library,
+  and we lose from about four limbs — by 10.7× against `BigInteger` at 16,384 bits and **148×**
+  against V8's `BigInt`. The price is confined to one operation and the answer is to call the host's
+  multiply ([ADR 0019](0019-precision-by-declaration.md)), so this is recorded rather than treated as
+  a reopening trigger — but it is the first time the cost has been a number instead of a worry.
+
 - `core.RecursiveNames` and its two call sites in `cmd/gen` and `cmd/build` are gone; the check
   happens once, earlier, for everyone.
 - `Env.CheckScope` became `Env.CheckProgram` and does both checks.

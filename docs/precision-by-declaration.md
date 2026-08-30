@@ -1,6 +1,8 @@
 # Precision by declaration
 
-Research, 2026-08-28. **No decision, no specification.**
+Research, 2026-08-28. **Superseded as a decision by
+[ADR 0019](decisions/0019-precision-by-declaration.md), which accepts C provisionally.** This document
+is the reasoning that led there and is kept for its alternatives; the ADR is what is in force.
 
 hamza's proposal, as a third option beside the two
 [precision-integers.md](precision-integers.md) and

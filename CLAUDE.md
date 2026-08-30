@@ -991,12 +991,24 @@ an **iterative FFT** exists.
 > What ADR 0014 actually forbids is divide-and-conquer whose **tree shape depends on the data** —
 > quicksort's pivot, a search that prunes on what it finds.
 
-**The price is real and much smaller than "impossible"**: about 150 lines against maybe 30 recursive,
-a materialised `O(n^1.585)` layout, and per-level bookkeeping that caps the useful depth (D=5 beats
-D=7 at 1024 limbs, and the measured 2.45× is 40% short of theory's 4.2× for that reason). **The design
-conclusion is unchanged and only its REASON changes**: we call the host's multiply because its inner
-loop is assembly and its asymptotics go further, not because the language cannot express the
-algorithm.
+**AND IN PLACE IT IS 3.41×, because two of the three children are SUBRANGES OF THE PARENT.**
+`(a_lo, b_lo)` and `(a_hi, b_hi)` are already in memory; only the sum child is new data. So a node is
+an **offset and a length** — a flat descriptor table over one arena — which is this repository's own
+answer to recursive data arriving in a third place. **1.40× over the copying version at 1024 limbs
+(337,535 ns against 470,807), 81% of theory's `(3/4)^D` where copying reached 58%, and 9.53× behind
+`math/big` becomes 2.78×.** The optimal depth **moved deeper**, which is the clearest evidence the
+diagnosis was right: cheaper levels mean more of them pay.
+
+**What is left is not copying** — the sum child is genuinely new, and the upward combine is the
+algorithm. The residual 2.78× is close to the ~2× `math/big`'s hand-written ADX/MULX inner loop shows
+at sizes where neither side does Karatsuba: **we have most of the algorithm and none of the assembly.**
+One bug on the way, in the SIZING: a parent's product must reach `2h + (a child's product)`, and a
+flat `+4` is not that. `karatsuba.go` got it right by accident — its uniform padding makes the two
+expressions equal — and the ragged version has to compute sizes bottom-up.
+
+**The design conclusion is unchanged and only its REASON changes**: we call the host's multiply
+because its inner loop is assembly and its asymptotics go further, not because the language cannot
+express the algorithm.
 
 **The comparison was WRONG once and it flattered us.** The first Java run sized all three forms at the
 same LIMB COUNT, so the 31-bit form multiplied numbers half the size and reported ours winning at every

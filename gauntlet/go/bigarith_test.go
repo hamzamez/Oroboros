@@ -192,3 +192,34 @@ func BenchmarkKara1024D0(b *testing.B) { benchKara(b, 1024, 0) }
 func BenchmarkKara1024D3(b *testing.B) { benchKara(b, 1024, 3) }
 func BenchmarkKara1024D5(b *testing.B) { benchKara(b, 1024, 5) }
 func BenchmarkKara1024D7(b *testing.B) { benchKara(b, 1024, 7) }
+
+// The in-place layout must agree with math/big everywhere the copying one does.
+func TestKaratsubaInPlaceAgrees(t *testing.T) {
+	for _, n := range []int{16, 32, 64, 128, 256, 1024} {
+		a, b := LimbsOf(n, 12345), LimbsOf(n, 67890)
+		want := new(big.Int).Mul(limbsToBig(a), limbsToBig(b))
+		for d := 0; d <= 5 && (n>>d) >= 4; d++ {
+			w := NewKWork2(n, d)
+			if got := limbsToBig(KaratsubaInPlace(a, b, w)); got.Cmp(want) != 0 {
+				t.Fatalf("in-place n=%d D=%d disagrees with math/big", n, d)
+			}
+		}
+	}
+}
+
+func benchKara2(b *testing.B, n, d int) {
+	x, y := LimbsOf(n, 12345), LimbsOf(n, 67890)
+	w := NewKWork2(n, d)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sinkLimbs = KaratsubaInPlace(x, y, w)
+	}
+}
+
+func BenchmarkKara2_1024D3(b *testing.B) { benchKara2(b, 1024, 3) }
+func BenchmarkKara2_1024D5(b *testing.B) { benchKara2(b, 1024, 5) }
+func BenchmarkKara2_1024D7(b *testing.B) { benchKara2(b, 1024, 7) }
+func BenchmarkKara2_1024D8(b *testing.B) { benchKara2(b, 1024, 8) }
+func BenchmarkKara2_256D2(b *testing.B)  { benchKara2(b, 256, 2) }
+func BenchmarkKara2_256D4(b *testing.B)  { benchKara2(b, 256, 4) }

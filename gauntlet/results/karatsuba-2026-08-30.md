@@ -70,7 +70,7 @@ Go 1.26, `-benchtime=1s -count=3`, medians.
 | `math/big` | 12,829 | 5.6× |
 
 **It closes most of the gap and does not close all of it.** At 1,024 limbs we go from **9.53× behind
-`math/big` to 3.91×**; at 256 limbs from 5.48× to 3.64×.
+`math/big` to 3.91×**; at 256 limbs from 5.48× to 3.64×. §3a takes it further.
 
 **The optimal depth is finite**, and that is the honest limitation of this implementation rather than
 of the approach. Theory says D = 5 should be `(3/4)^5 = 0.237` of schoolbook — 4.2× — and it measures
@@ -82,16 +82,61 @@ slower than D = 5 because that overhead grows as `3^L` while the saving shrinks 
 assembly with ADX/MULX, and it switches to Toom-Cook above Karatsuba's range. Those are worth roughly
 the 3.9× that is left, and neither is a consequence of ADR 0014.
 
+## 3a. In place, without copying — and the depth goes deeper
+
+hamza: *"now do the level-by-level layout in place, without copying."* `karatsuba2.go`.
+
+**Two of the three children are subranges of the parent.** `(a_lo, b_lo)` and `(a_hi, b_hi)` are
+already in memory; only `(a_lo+a_hi, b_lo+b_hi)` is new data. So a node is an **offset and a length**,
+not a buffer — and the tree becomes a flat descriptor table `(aOff, bOff, len)` over one arena
+holding the two inputs and the sum buffers, which is this repository's own answer to recursive data
+arriving in a third place.
+
+| n = 1,024 limbs | ns/op | vs schoolbook | vs `math/big` |
+|---|---|---|---|
+| schoolbook | 1,152,062 | — | 9.53× behind |
+| Karatsuba, copying, D = 5 | 470,807 | 2.45× | 3.91× behind |
+| **Karatsuba, in place, D = 5** | **337,535** | **3.41×** | **2.78× behind** |
+| `math/big` | 121,546 | 9.5× | — |
+
+| n = 256 limbs | ns/op | vs schoolbook |
+|---|---|---|
+| schoolbook | 71,914 | — |
+| Karatsuba, copying, D = 2 | 47,043 | 1.53× |
+| **Karatsuba, in place, D = 4** | **34,402** | **2.09×** |
+
+**1.40× over the copying version at 1,024 limbs and 1.37× at 256**, and it reaches **81% of the
+theoretical `(3/4)^D`** where the copying version reached 58%.
+
+**And the optimal depth moved deeper**, which is the clearest evidence the diagnosis was right: at
+n = 256 the copying version peaked at D = 2 and got worse at D = 4, while the in-place one is still
+improving at D = 4. Cheaper levels mean more of them pay for themselves. At n = 1,024 the peak moved
+from D = 5 to D = 5 with D = 7 now only 1.15× off instead of 1.96×.
+
+**What is left is not copying.** The sum child is genuinely new data, and the upward combine's three
+adds and two subtracts are the algorithm. Against `math/big` the residual 2.78× is close to the ~2×
+its hand-written ADX/MULX inner loop shows at sizes where neither side is doing Karatsuba at all —
+which is the honest reading: **we have most of the algorithm and none of the assembly.**
+
+### One bug, and it was in the sizing
+
+The first in-place version panicked at n = 16, D = 1 — a product buffer of 36 limbs where the write
+wanted 38. A parent's product must reach `2h + (a child's product)`, and a flat slack of `+4` is not
+that. `karatsuba.go` got it right by accident: its uniform padding makes `2h + 2·s[L+1]` come to
+exactly `2·s[L]`. The ragged version has to compute the sizes bottom-up, which it now does exactly.
+
 ## 4. What this corrects
 
 **[ADR 0014](../../docs/decisions/0014-recursion-is-not-in-the-language.md)'s consequence, added the
 day before, is wrong as written and is corrected in place.** The price of having no recursion is not
 *"Karatsuba is unreachable"*. It is:
 
-- the divide-and-conquer must be written **level by level**, which is more code — about 150 lines
+- the divide-and-conquer must be written **level by level**, which is more code — about 170 lines
   here against maybe 30 recursive;
-- the layout must be **materialised**, so the workspace is `O(n^1.585)` rather than `O(n)`;
-- and the per-level bookkeeping costs, which caps the useful depth.
+- the tree must be **materialised** as a descriptor table, and the sum operands with it, so the
+  workspace is superlinear where a recursive implementation reuses one scratch buffer;
+- and the per-level work still caps the useful depth, though §3a's in-place layout pushes that cap
+  out and takes the shortfall against theory from 42% to 19%.
 
 That is a real price and a much smaller one, and it is the same shape as every other price this
 project pays: **the restriction makes the cost visible and the programmer state it**, rather than

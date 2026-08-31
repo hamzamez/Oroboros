@@ -1184,8 +1184,10 @@ not 3.25×** — direction survives, magnitude halved — and **a plain `{}` bea
 which is the opposite of the folklore. **Integer keys are 3.67×**, more than twice the string gap, so
 `(map int V)`-first is the case where the host choice matters MOST rather than a way of dodging
 strings. **Java's fused `merge` is 1.22× FASTER**, not 2.59× slower — the second independent re-take
-to disagree with R5, and `targets/java/util.oro` declares the losing idiom because of it. ADR 0008's
-best example survives by being applied to itself.
+to disagree with R5, so a number that has failed to reproduce twice should stop being quoted: the two
+forms are within ~20% on JDK 17 with the fused one ahead. `targets/java/util.oro` already declares
+**both** and the program picks, so nothing there needs changing. ADR 0008's best example survives by
+being applied to itself.
 
 **AND COUNT-THEN-BUILD BEATS APPEND, so a growable array is NOT NEEDED**: **2.95× on Go** against
 growing `append` and **1.44×** against one with the capacity already right, and **1.06× on

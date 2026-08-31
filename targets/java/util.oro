@@ -41,6 +41,13 @@
     ; independent JVM processes. The fused form is 1.19x FASTER and the sign of
     ; the finding is reversed.
     ;
+    ; Re-measured a THIRD time (maps-2026-08-30), with the split hoisted out and
+    ; a time-budgeted harness: merge 1,261,935 ns against getOrDefault+put's
+    ; 1,546,223 — the fused form 1.22x faster, agreeing with the second take.
+    ; A number that has now failed to reproduce twice should stop being quoted;
+    ; the honest statement is that the two forms are within ~20% on JDK 17 and
+    ; the fused one is ahead.
+    ;
     ; So both are declared and the program picks. ADR 0008's rule is unchanged
     ; and in fact reinforced — which granularity wins is a per-target
     ; MEASUREMENT — and this is what it looks like when the measurement moves.

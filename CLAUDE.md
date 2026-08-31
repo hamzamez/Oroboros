@@ -1235,6 +1235,50 @@ lose on JavaScript was **wrong**, and the first run agreed for the wrong reason:
 `Array` against a `Float64Array`, so it measured **array kind rather than growth**. Third time this
 session that **a comparison changing two things at once measured neither**.
 
+**MAPS ARE SPECIFIED, NOT BUILT** — [maps.md](docs/spec/maps.md). A map is a table whose index set is
+a finite subset of the key type, and everything follows from that plus three decisions. **F2**:
+`(m k)` is `(option V)` — still application, with the RESULT TYPE decided by the domain kind, which is
+where the difference between tables.md's three points should show: the function's domain condition is
+free, the array's is a proof, the map's is **a value**. **And F2 REMOVES an obligation rather than
+adding one** — the option makes the program say what happens when the key is absent, which is the only
+thing that can, since `k ∈ dom m` is set membership and no relational domain helps.
+
+**The key type is FORCED, not preferred.** `(map K V)` is well-formed exactly where the language's `=`
+is defined, and `=` is **integer equality only** — floats out because NaN is not an equivalence
+relation, strings out because no two targets agree. So `(map int V)` first is what the language already
+required; growth.md's framing of it as dodging the string question was weaker than the truth.
+
+**A static map leaves NOTHING**: `((map (1 10) (2 20)) 1) → (some 10)` is **β-tab with a sum in the
+result**, and the `case` then folds, so no map, no tag, no allocation. **And a dynamic read IS the
+host's own fallible read** — `(case (m k) (some v) A (none) B)` is `if v, ok := m[k]; ok`. So F2's
+option is not a thing we add; it is a thing the host already has and we were discarding. Unmeasured is
+an option that **escapes**.
+
+**EVERY MAP HAS A DECLARED CAPACITY, and that is the load-bearing decision.** windows ships no map, a
+growing hash table rebuilds into a larger allocation, and **that is not expressible** — `build` fixes
+its length and a nested `build` returns a frozen array, not a replacement buffer. So: let three hosts
+grow and windows not (an **observable** disagreement, which is a Tier 2 construct in the core), block
+on growable buffers (inverting growth.md's own finding that the map is primary *because* the array has
+a workaround), or **declare it**. The precedent is `tree.oro`'s node cap and it is celebrated rather
+than tolerated: **a capacity does not create the limit, it makes it VISIBLE.**
+
+**NO ITERATION ORDER, and the surface is a fold over an ENUMERATED commutative monoid.** Go
+randomises on purpose, JS objects have a *specified* order, Java's is unspecified. An unordered fold is
+a fold over a multiset, well-defined exactly when the step functions commute — and **that is program
+equivalence, which decidability-map.md already gave up as undecidable**. So: trust (`split-words`
+again), enumerate, or refuse. **And a commutative operator is NECESSARY AND NOT SUFFICIENT** —
+`argmax` is order-dependent through **ties**, which is exactly the shape *the most frequent word* has
+and would differ across hosts while passing every test on a corpus without ties. The first cut refuses
+`keys` entirely, and it costs nothing: **`wordcount` builds a map and returns it, and never iterates
+it.**
+
+**Lowerings**: Go `map[int]int` with comma-ok; JavaScript a **plain object** (3.67× on integer keys,
+and `{}` beats `Object.create(null)`); Java `HashMap` with **`merge`** and `get` returning null, which
+is ONE lookup where `containsKey`+`get` is two; windows **written in Oroboros**, open addressing over
+`build-map` — the first library the language writes for itself, and writable only because of the
+capacity decision. One honest per-target cost: JS's `len` is **O(n)** against O(1) elsewhere — same
+answer, different price, so not Tier 2.
+
 **HOW A VALUE GROWS IS RESEARCHED, AND THE OWED ORDER IS BACKWARDS** — [growth.md](docs/growth.md),
 no spec and no decision. general-purpose.md §2.4 owes *"growable collections, and maps"*; **the map is
 primary and a growable array may never be needed**. A growable array has a parity-preserving

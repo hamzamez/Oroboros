@@ -319,6 +319,31 @@ written before.
 
 ---
 
+## 8b. SPECIFIED 2026-08-31
+
+[maps.md](spec/maps.md) is written. The three measurements this document said must come first were
+re-taken ([maps-2026-08-30](../gauntlet/results/maps-2026-08-30.md)) and **all three moved, one
+reversed**; D3 is withdrawn, because count-then-build turned out to beat `append`.
+
+What the spec settled that this document left open:
+
+- **F2**, `(m k) : (option V)` — hamza's call, and the algebra's.
+- **The key type is not a staging choice.** `(map K V)` is well-formed exactly where `=` is defined,
+  and `=` is integer equality only. `(map int V)` first is forced, not preferred.
+- **A map is a value or a buffer on exactly the same terms as an array**, derived in
+  [arrays-revisited.md §6](arrays-revisited.md) rather than chosen: the discipline is about aliasing
+  and aliasing does not care what the index set is.
+- **Every map has a declared CAPACITY**, which is the load-bearing decision. windows has no host map,
+  a growing hash table must rebuild into a larger allocation, and that is not expressible — so the
+  choice was let three hosts grow and windows not (an observable disagreement, refused), block on
+  growable buffers (inverting this document's own finding), or declare the capacity. The precedent is
+  `tree.oro`'s node cap, which CLAUDE.md celebrates: *a capacity does not create the limit, it makes
+  it visible.*
+- **No iteration order**, and the surface is a fold over an **enumerated** commutative monoid, because
+  commutativity is program equivalence and undecidable. With the trap named: a commutative operator is
+  necessary and **not sufficient** — `argmax` is order-dependent through ties, which is exactly the
+  shape a `wordcount` reporter has.
+
 ## 9. What this document does not decide
 
 - Whether maps enter the language at all. §6 argues they must for a general-purpose language; that

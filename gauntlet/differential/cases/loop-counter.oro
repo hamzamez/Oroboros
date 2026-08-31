@@ -14,6 +14,6 @@
 ; change `acc`, so the shapes differ per clause.
 (def run (fn (n)
   (loop ((acc 0) (i 0))
-    (@ge i n)   acc
-    (@gt i 3)   (again acc (@add i 1))
-    else        (again (@add acc 1) (@add i 1)))))
+    (>= i n)   acc
+    (> i 3)   (again acc (+ i 1))
+    else        (again (+ acc 1) (+ i 1)))))

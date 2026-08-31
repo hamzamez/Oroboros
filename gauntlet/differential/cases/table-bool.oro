@@ -12,12 +12,12 @@
 ; `let` before the counting loop reads it, which is exactly the chain that hid
 ; the bug: the counting loop's `c` is bound to a `build` TERM, not to a name.
 (def run (fn (n)
-  (let (build (@add n 1) (fn (c)
+  (let (build (+ n 1) (fn (c)
         (loop ((c c) (i 0))
-          (@ge i n)  c
-          else       (again (set c i true) (@add i 2)))))
+          (>= i n)  c
+          else       (again (set c i true) (+ i 2)))))
     (fn (b)
       (loop ((acc 0) (k 0))
-        (@ge k n)  acc
-        (b k)      (again (@add acc 1) (@add k 1))
-        else       (again acc (@add k 1)))))))
+        (>= k n)  acc
+        (b k)      (again (+ acc 1) (+ k 1))
+        else       (again acc (+ k 1)))))))

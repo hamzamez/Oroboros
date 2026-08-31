@@ -8,6 +8,6 @@
 (def run (fn (n)
   (let (array 10 20 30 40 50) (fn (a)
     (loop ((acc 0) (i 0))
-      (@ge i (len a))  acc
-      (@ge i n)        acc
-      else             (again (@add acc (a i)) (@add i 1)))))))
+      (>= i (len a))  acc
+      (>= i n)        acc
+      else             (again (+ acc (a i)) (+ i 1)))))))

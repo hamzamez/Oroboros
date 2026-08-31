@@ -44,23 +44,22 @@ import (
 // agree on meaning and disagree on spelling. Anything the hosts disagree about
 // (integer division, float formatting) is deliberately absent, because a
 // differential test of a genuine divergence would only ever fail.
+// ops WAS the macro table, and its deletion is the point.
+//
+// Every case used to write `@add`, `@lt` and so on, and this map expanded them
+// into `go.+`, `x64.setl` and the other two spellings — because the LANGUAGE
+// had no arithmetic. `=` was the only integer operator it owned, so a case
+// could compare for equality portably and could not add two numbers.
+//
+// The operators are the language's now, found per target the way `=` always
+// was, so a case writes `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` and this
+// table has nothing left to do. That the cases compile unchanged on four
+// targets with the substitution gone is the proof the promotion worked.
+//
+// Kept as an empty map rather than deleted outright so that `render` still has
+// one place to grow if a construct ever needs per-target spelling again.
 var ops = map[string]map[string]string{
-	"go": {
-		"@add": "go.+", "@sub": "go.-", "@mul": "go.*",
-		"@lt": "go.<", "@le": "go.<=", "@gt": "go.>", "@ge": "go.>=",
-	},
-	"js": {
-		"@add": "js.+", "@sub": "js.-", "@mul": "js.*",
-		"@lt": "js.<", "@le": "js.<=", "@gt": "js.>", "@ge": "js.>=",
-	},
-	"java": {
-		"@add": "java.+", "@sub": "java.-", "@mul": "java.*",
-		"@lt": "java.<", "@le": "java.<=", "@gt": "java.>", "@ge": "java.>=",
-	},
-	"windows": {
-		"@add": "x64.add", "@sub": "x64.sub", "@mul": "x64.imul",
-		"@lt": "x64.setl", "@le": "x64.setle", "@gt": "x64.setg", "@ge": "x64.setge",
-	},
+	"go": {}, "js": {}, "java": {}, "windows": {},
 }
 
 // Printing is target-native on every host — it is the one thing a portable

@@ -29,8 +29,8 @@
 ; --- byte classes -----------------------------------------------------------
 
 (def space? (fn (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13))))))
-(def digit? (fn (c) (and (@ge c 48) (@le c 57))))
-(def alpha? (fn (c) (and (@ge c 97) (@le c 122))))
+(def digit? (fn (c) (and (>= c 48) (<= c 57))))
+(def alpha? (fn (c) (and (>= c 97) (<= c 122))))
 (def numeric? (fn (c)
   (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69))))))))
 (def opener? (fn (c) (or (= c 123) (= c 91))))
@@ -52,7 +52,7 @@
 ; analysis with MORE undischarged obligations rather than fewer — 110 against
 ; 40 — because a clamp hides the fact instead of establishing it. What made the
 ; proven form possible is one Farkas multiplier in the decision procedure: a
-; strided index `(@mul 4 k)` has a coefficient the guard bounding `k` does not,
+; strided index `(* 4 k)` has a coefficient the guard bounding `k` does not,
 ; so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
 ; scale a fact (json-tree-bench-2026-08-26).
 ;
@@ -60,29 +60,29 @@
 ; bounded by anything the compiler can see, and no guard would help, because
 ; the value is data.
 
-(def cn (fn (k) (if (@lt k 0) 0 (if (@ge k (nmax)) 0 k))))
-(def cd (fn (d) (if (@lt d 0) 0 (if (@ge d (dmax)) 0 d))))
-(def nsl (fn (k o) (@add (@mul 4 k) o)))
-(def nslc (fn (k o) (@add (@mul 4 (cn k)) o)))
-(def ssl (fn (d o) (@add (@mul 2 d) o)))
+(def cn (fn (k) (if (< k 0) 0 (if (>= k (nmax)) 0 k))))
+(def cd (fn (d) (if (< d 0) 0 (if (>= d (dmax)) 0 d))))
+(def nsl (fn (k o) (+ (* 4 k) o)))
+(def nslc (fn (k o) (+ (* 4 (cn k)) o)))
+(def ssl (fn (d o) (+ (* 2 d) o)))
 
 ; --- scanners ---------------------------------------------------------------
 
 (def scan-string (fn (src i)
-  (loop ((j (@add i 1)))
+  (loop ((j (+ i 1)))
     ; `j >= i + 1` is relational and the interval analysis is not, so
     ; non-negativity is stated (json-2026-08-26 §2).
-    (@lt j 0)           j
-    (@ge j (len src))  j
-    (= (src j) 92)       (again (@add j 2))
-    (= (src j) 34)       (@add j 1)
-    else                 (again (@add j 1)))))
+    (< j 0)           j
+    (>= j (len src))  j
+    (= (src j) 92)       (again (+ j 2))
+    (= (src j) 34)       (+ j 1)
+    else                 (again (+ j 1)))))
 
 (def scan-run (fn (src i pred)
   (loop ((j i))
-    (@lt j 0)           j
-    (@ge j (len src))  j
-    (pred (src j))       (again (@add j 1))
+    (< j 0)           j
+    (>= j (len src))  j
+    (pred (src j))       (again (+ j 1))
     else                 j)))
 
 ; --- linking ----------------------------------------------------------------
@@ -93,28 +93,28 @@
 ; a level. A recursive parser expresses all three by returning a value.
 
 (def link (fn (nodes stk sp k)
-  (if (@lt sp 1) nodes
-    (let (stk (ssl (@sub sp 1) 1)) (fn (lc)
+  (if (< sp 1) nodes
+    (let (stk (ssl (- sp 1) 1)) (fn (lc)
       (if (= lc 0)
-        (set nodes (nslc (stk (ssl (@sub sp 1) 0)) 2) k)
+        (set nodes (nslc (stk (ssl (- sp 1) 0)) 2) k)
         (set nodes (nslc lc 3) k)))))))
 
 (def mark (fn (stk sp k)
-  (if (@lt sp 1) stk (set stk (ssl (@sub sp 1) 1) k))))
+  (if (< sp 1) stk (set stk (ssl (- sp 1) 1) k))))
 
 (def push (fn (stk sp k) (set (set stk (ssl sp 0) k) (ssl sp 1) 0)))
 
 ; --- the parser -------------------------------------------------------------
 
 (def parse (fn (src)
-  (build (@mul 4 (nmax)) (fn (nodes)
-    (build (@mul 2 (dmax)) (fn (stk)
+  (build (* 4 (nmax)) (fn (nodes)
+    (build (* 2 (dmax)) (fn (stk)
       (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
         ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-        (@lt i 0)  (set (set nodes 0 nn) 1 0)
+        (< i 0)  (set (set nodes 0 nn) 1 0)
 
-        (@ge i (len src))
+        (>= i (len src))
           (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
 
         ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
@@ -123,11 +123,11 @@
         ; a document has more nodes than the table, or nests deeper than the
         ; stack. A recursive-descent parser has both limits too; the heap and
         ; the C stack. It is never asked about either.
-        (@ge nn (nmax))  (set (set nodes 0 nn) 1 0)
-        (@ge sp (dmax))  (set (set nodes 0 nn) 1 0)
+        (>= nn (nmax))  (set (set nodes 0 nn) 1 0)
+        (>= sp (dmax))  (set (set nodes 0 nn) 1 0)
 
-        (space? (src i))  (again nodes stk (@add i 1) nn sp ok)
-        (punct? (src i))  (again nodes stk (@add i 1) nn sp ok)
+        (space? (src i))  (again nodes stk (+ i 1) nn sp ok)
+        (punct? (src i))  (again nodes stk (+ i 1) nn sp ok)
 
         ; An opener allocates a container, attaches it, and opens a level. The
         ; order is forced: `mark` records it as the last child at the CURRENT
@@ -137,16 +137,16 @@
                             (nsl nn 1) 0)
                        stk sp nn)
                  (push (mark stk sp nn) sp nn)
-                 (@add i 1) (@add nn 1) (@add sp 1) ok)
+                 (+ i 1) (+ nn 1) (+ sp 1) ok)
 
         ; A closer pops, and checks that what it closes is what was opened —
         ; read back out of the node table, which is the first time the parser
         ; reads a node it wrote earlier.
         (closer? (src i))
-          (again nodes stk (@add i 1) nn
-                 (if (@lt sp 1) 0 (@sub sp 1))
-                 (if (@lt sp 1) 0
-                     (if (= (nodes (nslc (stk (ssl (@sub sp 1) 0)) 0))
+          (again nodes stk (+ i 1) nn
+                 (if (< sp 1) 0 (- sp 1))
+                 (if (< sp 1) 0
+                     (if (= (nodes (nslc (stk (ssl (- sp 1) 0)) 0))
                             (if (= (src i) 125) 5 4))
                          ok 0)))
 
@@ -163,14 +163,14 @@
           ; scanner may return `i`, so monotonicity gives only `i' >= i` and
           ; there is no strict descent (monotone-2026-08-27).
           (let (if (= (src i) 34) (scan-string src i)
-                (if (numeric? (src i)) (scan-run src (@add i 1) numeric?)
-                                       (scan-run src (@add i 1) alpha?))) (fn (ni)
-            (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (@sub ni i))
+                (if (numeric? (src i)) (scan-run src (+ i 1) numeric?)
+                                       (scan-run src (+ i 1) alpha?))) (fn (ni)
+            (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (- ni i))
                          stk sp nn)
                    (mark stk sp nn)
-                   ni (@add nn 1) sp ok)))))
+                   ni (+ nn 1) sp ok)))))
 
-        else (again nodes stk (@add i 1) nn sp 0))))))))
+        else (again nodes stk (+ i 1) nn sp 0))))))))
 
 ; --- the walk ---------------------------------------------------------------
 ;
@@ -187,31 +187,31 @@
 
 ; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
 ; node — a tree shaped like a list pushes a sibling at every step.
-(def cw (fn (k) (if (@lt k 0) 0 (if (@ge k (nmax)) 0 k))))
-(def ssl2 (fn (k o) (@add (@mul 2 k) o)))
+(def cw (fn (k) (if (< k 0) 0 (if (>= k (nmax)) 0 k))))
+(def ssl2 (fn (k o) (+ (* 2 k) o)))
 
 (def walk (fn (nodes)
-  (build (@mul 2 (nmax)) (fn (wl)
+  (build (* 2 (nmax)) (fn (wl)
     (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
-      (@ge steps (@mul 2 (nmax)))  (@add (@mul seen 1000) acc)
-      (@lt sp 1)                    (@add (@mul seen 1000) acc)
+      (>= steps (* 2 (nmax)))  (+ (* seen 1000) acc)
+      (< sp 1)                    (+ (* seen 1000) acc)
       ; The worklist has the same shape of limit the parser's two do, and for
       ; the same reason: `sp` grows with the tree and nothing can bound it, so
       ; the program has to say what it does when the worklist fills.
-      (@ge sp (nmax))              (@add (@mul seen 1000) acc)
+      (>= sp (nmax))              (+ (* seen 1000) acc)
       else
-        (let (wl (ssl2 (@sub sp 1) 0)) (fn (n)
-        (let (wl (ssl2 (@sub sp 1) 1)) (fn (d)
+        (let (wl (ssl2 (- sp 1) 0)) (fn (n)
+        (let (wl (ssl2 (- sp 1) 1)) (fn (d)
         (let (nodes (nslc n 3)) (fn (sb)
         (let (nodes (nslc n 2)) (fn (kd)
-        (let (@sub sp 1) (fn (s1)
+        (let (- sp 1) (fn (s1)
         (let (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d)) (fn (w1)
-        (let (if (= sb 0) s1 (@add s1 1)) (fn (s2)
-        (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (@add d 1))) (fn (w2)
-        (let (if (= kd 0) s2 (@add s2 1)) (fn (s3)
-          (again w2 s3 (@add seen 1)
-                 (@add acc (@mul (nodes (nslc n 0)) d))
-                 (@add steps 1)))))))))))))))))))))))))
+        (let (if (= sb 0) s1 (+ s1 1)) (fn (s2)
+        (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (+ d 1))) (fn (w2)
+        (let (if (= kd 0) s2 (+ s2 1)) (fn (s3)
+          (again w2 s3 (+ seen 1)
+                 (+ acc (* (nodes (nslc n 0)) d))
+                 (+ steps 1)))))))))))))))))))))))))
 
 ; --- documents --------------------------------------------------------------
 ;
@@ -235,8 +235,8 @@
 
 (def report (fn (src)
   (let (parse src) (fn (nodes)
-    (@add (@mul (@sub (nodes 0) 1) 1000000)
-      (@add (@mul (walk nodes) 10)
+    (+ (* (- (nodes 0) 1) 1000000)
+      (+ (* (walk nodes) 10)
             (nodes 1)))))))
 
 (def measure (fn (src) (walk (parse src))))

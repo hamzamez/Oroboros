@@ -23,6 +23,6 @@
 (def run (fn (n)
   (let (build-map 8 (fn (m)
          (loop ((m m) (i 0))
-           (@ge i n)  m
-           else       (again (insert m i 1) (@add i 1)))))
+           (>= i n)  m
+           else       (again (insert m i 1) (+ i 1)))))
     (fn (m) (len m)))))

@@ -20,9 +20,9 @@
 (def run (fn (n)
   (let (build n (fn (b)
          (loop ((b b) (i 0))
-           (@ge i (len b))  b
-           else             (again (set b i (@add i 1)) (@add i 1)))))
+           (>= i (len b))  b
+           else             (again (set b i (+ i 1)) (+ i 1)))))
     (fn (t)
       (loop ((acc 0) (i 0))
-        (@ge i (len t))  acc
-        else             (again (@add acc (t i)) (@add i 1)))))))
+        (>= i (len t))  acc
+        else             (again (+ acc (t i)) (+ i 1)))))))

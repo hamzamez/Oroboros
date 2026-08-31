@@ -25,6 +25,6 @@
 (def run (fn (n)
   (let (build-map 8 (fn (m)
          (loop ((m m) (i 0))
-           (@ge i n)  m
-           else       (again (insert m i (@mul i 10)) (@add i 1)))))
+           (>= i n)  m
+           else       (again (insert m i (* i 10)) (+ i 1)))))
     (fn (m) (case (m 2) (some v) v none 0)))))

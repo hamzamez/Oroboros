@@ -27,6 +27,20 @@
     ; keeps going, so the only thing standing between a program and a silently
     ; wrong answer is this obligation.
     (prim /   ((a any) (b any)) any expr "%s / %s"  pure (where (!= b 0)))
+
+    ; INTEGER DIVISION, which this host does not have. `/` is FLOAT division
+    ; here -- `7 / 2` is 3.5 -- where Go, Java and x86 all divide integers and
+    ; truncate toward zero (integers.md §3).
+    ;
+    ; So the language's `/` resolves to THIS on JavaScript and to the plain `/`
+    ; elsewhere, which is the parasite model doing exactly its job: the host
+    ; that lacks the operation says how to get it, in its own file, and no other
+    ; target learns that JavaScript is different.
+    ;
+    ; `Math.trunc` and not `| 0`: the bitwise form coerces to int32 and would
+    ; silently wrap every value past 2^31, which is well inside ADR 0012's
+    ; window. Exact for every integer the window admits.
+    (prim idiv ((a any) (b any)) any expr "Math.trunc(%s / %s)" pure (where (!= b 0)))
     (prim %   ((a any) (b any)) any expr "%s %% %s" pure (where (!= b 0)))
     (prim **  (any any) any expr "%s ** %s" pure)
     (prim neg (any) any        expr "-%s"      pure)

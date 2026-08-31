@@ -432,7 +432,101 @@ func (tg *Target) addCore() {
 			tg.Names = append(tg.Names, "=")
 		}
 	}
+	// AND THE REST OF INTEGER ARITHMETIC, on exactly `=`'s argument.
+	//
+	// `=` was promoted because equality on a finite type is portable and total.
+	// So is addition inside ADR 0012's window, and so is every operator below —
+	// [integers.md](../docs/spec/integers.md) asked the eleven questions on all
+	// four hosts and found them to AGREE on everything inside it: division
+	// truncates toward zero, the remainder takes the dividend's sign, and
+	// `(a/b)*b + a%b == a`.
+	//
+	// Until this, `=` was the only integer operator the language owned, and
+	// every "portable" claim in the repository was really a claim about `go.+`.
+	// A program could not add two numbers without naming a host.
+	//
+	// Found rather than written twice, so the emission, the `where` on
+	// division, and the `checked` variant ADR 0019 selects all come from the
+	// target's own declaration.
+	for _, op := range langOps {
+		if _, have := tg.Prims[op.name]; have {
+			continue
+		}
+		if p, ok := tg.findOpBySpelling(op.spellings, op.result); ok {
+			p.Name = op.name
+			p.Args = []string{"int", "int"}
+			if op.result != "" {
+				p.Result = op.result
+			}
+			p.Pure = true
+			tg.Prims[op.name] = p
+			tg.Names = append(tg.Names, op.name)
+		}
+	}
 	sort.Strings(tg.Names)
+}
+
+// langOps are the integer operators the LANGUAGE owns, with how a host may
+// spell each — most preferred first, so a target that has both keeps the one
+// its own programmers would write.
+//
+// BITWISE AND SHIFTS ARE DELIBERATELY ABSENT, and the reason is measured rather
+// than cautious: JavaScript coerces both operands to **int32** for `& | ^ << >>`
+// (and to uint32 for `>>>`), so `(2^32) & -1` is **0** on V8 and 4294967296 on
+// Go, Java and x86 — an OBSERVABLE disagreement INSIDE ADR 0012's window.
+// `targets/js/builtin.oro` says so already. They stay target-native, where a
+// program using one has chosen its host. Promoting them conditionally, when a
+// declared range fits int32, is a real design and is not made here.
+//
+// `/` and `%` carry whatever precondition the target declared — division by
+// zero is a precondition, not a behaviour (integers.md §5) — because the host
+// prim is copied wholesale rather than rebuilt.
+var langOps = []struct {
+	name      string
+	spellings []string
+	result    string // "" keeps the host's; comparisons say bool
+}{
+	{"+", []string{"+", "add"}, ""},
+	{"-", []string{"-", "sub"}, ""},
+	{"*", []string{"*", "imul", "mul"}, ""},
+	{"/", []string{"idiv", "/"}, ""},
+	{"%", []string{"%", "irem", "rem"}, ""},
+	{"<", []string{"<", "setl"}, "bool"},
+	{"<=", []string{"<=", "setle"}, "bool"},
+	{">", []string{">", "setg"}, "bool"},
+	{">=", []string{">=", "setge"}, "bool"},
+}
+
+// findOpBySpelling returns the target's own two-argument integer operator.
+//
+// It demands an INTEGER operator specifically: a host that declares `+` for
+// both ints and floats (JavaScript does, as `any`) is fine, but Go's `f+` must
+// never be picked for `+`, and it is not, because the segment compared is the
+// whole unqualified name.
+func (tg *Target) findOpBySpelling(spellings []string, result string) (Prim, bool) {
+	for _, want := range spellings {
+		for name, p := range tg.Prims {
+			seg := name
+			if i := strings.LastIndex(seg, "."); i >= 0 {
+				seg = seg[i+1:]
+			}
+			if seg != want || len(p.Args) != 2 || p.Kind != "expr" {
+				continue
+			}
+			// The host's own result must agree with what the language expects:
+			// a comparison yields a boolean and arithmetic does not. A host that
+			// types everything `any` (JavaScript, on purpose) says nothing and
+			// is accepted.
+			if result == "bool" && p.Result != "bool" && p.Result != "any" {
+				continue
+			}
+			if result == "" && p.Result == "bool" {
+				continue
+			}
+			return p, true
+		}
+	}
+	return Prim{}, false
 }
 
 // findEq returns the target's own integer equality, by spelling.

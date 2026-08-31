@@ -19,10 +19,10 @@
 (def run (fn (n)
   (let (build-map 8 (fn (m)
          (loop ((m m) (i 0))
-           (@ge i n)  m
-           else       (again (insert m (@sub 20 (@mul 3 i)) i) (@add i 1)))))
+           (>= i n)  m
+           else       (again (insert m (- 20 (* 3 i)) i) (+ i 1)))))
     (fn (m)
       (let (keys m) (fn (ks)
         (loop ((acc 0) (j 0))
-          (@ge j (len ks))  acc
-          else              (again (@add (@mul acc 100) (ks j)) (@add j 1)))))))))
+          (>= j (len ks))  acc
+          else              (again (+ (* acc 100) (ks j)) (+ j 1)))))))))

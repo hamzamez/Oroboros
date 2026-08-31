@@ -5,7 +5,7 @@
 ; record, a JavaScript object, rax/rdx on x86 (values.md §4).
 ;
 ; Here it is consumed in place, so the right answer is that nothing is built.
-(def divmod2 (fn (n) (values (@add n 1) (@mul n 2))))
+(def divmod2 (fn (n) (values (+ n 1) (* n 2))))
 
 (def run (fn (n)
-  ((divmod2 n) (fn (a b) (@add a b)))))
+  ((divmod2 n) (fn (a b) (+ a b)))))

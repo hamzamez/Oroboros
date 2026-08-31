@@ -26,4 +26,4 @@
            (let (b 0) (fn (vx)
              (let (b 1) (fn (vy)
                (set (set b 0 vy) 1 vx)))))))))
-    (fn (t) (@add (@mul 10 (t 0)) (@add (t 1) n))))))
+    (fn (t) (+ (* 10 (t 0)) (+ (t 1) n))))))

@@ -9,7 +9,7 @@
 (def run (fn (n)
   (match (0 n 0)
     _ 0 c                          c
-    0 v c (when (@ge v 10))        (again 1 (@sub v 10) (@add c 1))
-    _ v c (when (@ge v 10))        (again 0 (@sub v 10) c)
+    0 v c (when (>= v 10))        (again 1 (- v 10) (+ c 1))
+    _ v c (when (>= v 10))        (again 0 (- v 10) c)
     _ v c                          (again 0 0 c)
     else                           0)))

@@ -21,8 +21,8 @@
 ; --- character classes ------------------------------------------------------
 
 (def space? (fn (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13))))))
-(def digit? (fn (c) (and (@ge c 48) (@le c 57))))
-(def alpha? (fn (c) (and (@ge c 97) (@le c 122))))
+(def digit? (fn (c) (and (>= c 48) (<= c 57))))
+(def alpha? (fn (c) (and (>= c 97) (<= c 122))))
 (def numeric? (fn (c)
   (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69))))))))
 
@@ -33,21 +33,21 @@
 ; --- scanners: each returns the index just past what it consumed ------------
 
 (def scan-string (fn (src i)
-  (loop ((j (@add i 1)))
+  (loop ((j (+ i 1)))
     ; REFINEMENT 1. `j >= i + 1` is a RELATIONAL fact, and the interval analysis
     ; is non-relational (decidability-map.md), so `j >= 0` does not follow from
     ; `i >= 0` and has to be stated. This clause is where it comes from.
-    (@lt j 0)           j
-    (@ge j (len src))  j
-    (= (src j) 92)       (again (@add j 2))     ; an escape: skip the next byte
-    (= (src j) 34)       (@add j 1)             ; the closing quote
-    else                 (again (@add j 1)))))
+    (< j 0)           j
+    (>= j (len src))  j
+    (= (src j) 92)       (again (+ j 2))     ; an escape: skip the next byte
+    (= (src j) 34)       (+ j 1)             ; the closing quote
+    else                 (again (+ j 1)))))
 
 (def scan-run (fn (src i pred)
   (loop ((j i))
-    (@lt j 0)           j
-    (@ge j (len src))  j
-    (pred (src j))       (again (@add j 1))
+    (< j 0)           j
+    (>= j (len src))  j
+    (pred (src j))       (again (+ j 1))
     else                 j)))
 
 ; --- the tokeniser ----------------------------------------------------------
@@ -59,10 +59,10 @@
       ; REFINEMENT 2. A scanner's result is opaque to the analysis -- it is a
       ; loop's value, not an expression it can bound -- so `i` is not provably
       ; non-negative once it comes back from one. One compare per token buys it.
-      (@lt i 0)  0
+      (< i 0)  0
 
-      (@ge i (len src))
-        (@add (@mul nt 1000) (@add (@mul mx 10) (if (= sp 0) ok 0)))
+      (>= i (len src))
+        (+ (* nt 1000) (+ (* mx 10) (if (= sp 0) ok 0)))
 
       ; REFINEMENT 3, AND THE ONE WORTH READING. Depth is finite and the
       ; compiler MAKES THE PARSER SAY SO. The stack is a table of `cap`
@@ -80,28 +80,28 @@
       ; 80 of 124 integer operations bounded and 12 of 16 loops proven
       ; terminating to 36 and 0 -- same guards, same answers on these four
       ; documents, one clause swapped (json-2026-08-26 §4).
-      (@ge sp (cap))  (@mul nt 1000)
+      (>= sp (cap))  (* nt 1000)
 
 
-      (space? (src i))   (again stk (@add i 1) nt sp mx ok)
+      (space? (src i))   (again stk (+ i 1) nt sp mx ok)
 
       ; an opener: push the closer we expect, and record the depth
       (opener? (src i))
         (again (set stk sp (if (= (src i) 123) 125 93))
-               (@add i 1) (@add nt 1) (@add sp 1)
-               (if (@gt (@add sp 1) mx) (@add sp 1) mx) ok)
+               (+ i 1) (+ nt 1) (+ sp 1)
+               (if (> (+ sp 1) mx) (+ sp 1) mx) ok)
 
       ; a closer: it must match the top of the stack. A closer with nothing open
       ; is unbalanced, and the index is CLAMPED rather than guarded so that the
       ; indexing obligation holds on both sides of the test.
       (closer? (src i))
-        (again stk (@add i 1) (@add nt 1)
-               (if (@lt sp 1) 0 (@sub sp 1)) mx
-               (if (@lt sp 1) 0
-                   (if (= (stk (if (@lt sp 1) 0 (@sub sp 1))) (src i)) ok 0)))
+        (again stk (+ i 1) (+ nt 1)
+               (if (< sp 1) 0 (- sp 1)) mx
+               (if (< sp 1) 0
+                   (if (= (stk (if (< sp 1) 0 (- sp 1))) (src i)) ok 0)))
 
-      (punct? (src i))   (again stk (@add i 1) (@add nt 1) sp mx ok)
-      (= (src i) 34)     (again stk (scan-string src i) (@add nt 1) sp mx ok)
+      (punct? (src i))   (again stk (+ i 1) (+ nt 1) sp mx ok)
+      (= (src i) 34)     (again stk (scan-string src i) (+ nt 1) sp mx ok)
       ; SCANNING STARTS PAST THE BYTE THE GUARD ALREADY MATCHED. Identical
       ; answers -- the clause fires only when `(src i)` satisfies the predicate,
       ; so testing it again is redundant -- and it is what makes the program
@@ -110,10 +110,10 @@
       ; descent; starting at `i + 1` gives `i' > i`, which is the size-change
       ; witness. 64.5% of integer operations bounded and 15 of 20 loops proven
       ; becomes 90.9% and 20 of 20 (monotone-2026-08-27).
-      (numeric? (src i)) (again stk (scan-run src (@add i 1) numeric?) (@add nt 1) sp mx ok)
-      (alpha? (src i))   (again stk (scan-run src (@add i 1) alpha?) (@add nt 1) sp mx ok)
+      (numeric? (src i)) (again stk (scan-run src (+ i 1) numeric?) (+ nt 1) sp mx ok)
+      (alpha? (src i))   (again stk (scan-run src (+ i 1) alpha?) (+ nt 1) sp mx ok)
 
-      else (again stk (@add i 1) nt sp mx 0))))))
+      else (again stk (+ i 1) nt sp mx 0))))))
 
 ; --- documents, selected by k ----------------------------------------------
 

@@ -13,9 +13,9 @@
 (sum result (ok int) (err int))
 
 (def step (fn (n)
-  (if (@ge n 10) (err n) (ok (@mul n 2)))))
+  (if (>= n 10) (err n) (ok (* n 2)))))
 
 (def run (fn (n)
   (case (step n)
     (ok v)  v
-    (err e) (@add e 1000))))
+    (err e) (+ e 1000))))

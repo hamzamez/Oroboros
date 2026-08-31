@@ -33,6 +33,15 @@
 ; kernel32 preserves all of them.
 
 (target windows
+  ; THIS HOST SHIPS NO MAP, so the language supplies one -- `emit/winmap.oro`,
+  ; open addressing over an ordinary `build` buffer, lowered before reduction.
+  ;
+  ; Declared rather than inferred, because there is nothing sound to infer it
+  ; from: an empty `map-type` means "no map" here and "no TYPES" on JavaScript,
+  ; which has a perfectly good map and spells nothing at all. Guessing would
+  ; have handed JavaScript our hash table and thrown away a measured 3.67x.
+  (builtin-map)
+
   ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here: `int`
   ; and `f64` are what integer and float LITERALS type as, and `bool` is what
   ; `if` and a loop guard demand. The right-hand side is the machine

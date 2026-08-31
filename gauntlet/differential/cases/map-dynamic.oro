@@ -1,0 +1,30 @@
+; A DYNAMIC MAP: built, inserted into, and read with a key nothing knows.
+; inputs: 0 2 5 9
+; expect: 0 0 20 20
+;
+; Reads key 2. With n inserts of i -> i*10 for i < n, that is 20 when n > 2 and
+; absent otherwise -- so two of the four inputs MISS, which is the case worth
+; checking on four hosts because absence is where they differ most:
+;
+;   Go          v, ok := m[k]
+;   JavaScript  m[k], and undefined means absent
+;   Java        m.get(k), and null means absent
+;   windows     NO HOST MAP AT ALL -- open addressing over a `build` buffer,
+;               written in Oroboros (emit/winmap.oro) and lowered before
+;               reduction, so nothing below that file learns maps exist
+;
+; F2 REMOVES an obligation rather than adding one: the option makes the program
+; say what happens when the key is absent, which is the only thing that can,
+; since `k in dom m` is set membership and no fragment we have decides it.
+;
+; ABSENCE IS 0 AND NOT -1, which is a fact about the HARNESS rather than about
+; maps: `win/fmt.print-int` prints a blank line for a negative number and is
+; within its rights to (refinements.md §6b names exactly this as the gap
+; inlining cannot reach). A -1 here made windows look like it had lost entries
+; when it had computed them correctly and could not print them.
+(def run (fn (n)
+  (let (build-map 8 (fn (m)
+         (loop ((m m) (i 0))
+           (@ge i n)  m
+           else       (again (insert m i (@mul i 10)) (@add i 1)))))
+    (fn (m) (case (m 2) (some v) v none 0)))))

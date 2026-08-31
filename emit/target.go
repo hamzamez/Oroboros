@@ -133,6 +133,16 @@ type Target struct {
 	// `boxed` falls through to `ty` and nothing changes.
 	Boxed map[string]string
 
+	// BuiltinMap says this host ships no map of its own, so the language
+	// supplies one — `emit/winmap.oro`, lowered into buffers and loops before
+	// reduction.
+	//
+	// Declared rather than inferred, because there is nothing to infer it from:
+	// an empty `MapType` means "no map" on windows and "no TYPES" on
+	// JavaScript, which has a perfectly good map and spells nothing. A host
+	// fact belongs in a target file whichever way it points.
+	BuiltinMap bool
+
 	// Reprs are the integer representations this target can store, narrowest
 	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
 	// the first one that CONTAINS it — ADR 0003's "the compiler selects the
@@ -501,6 +511,9 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.Boxed[n] = ty
 	}
+	if o.BuiltinMap {
+		tg.BuiltinMap = true
+	}
 	if o.MapType != "" {
 		if tg.MapType != "" && tg.MapType != o.MapType {
 			return fmt.Errorf("%s: map-type is declared as %q and as %q",
@@ -591,6 +604,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
 			}
 			tg.ArrayType = f.Kids[1].Str
+		case "builtin-map":
+			if len(f.Kids) != 1 {
+				return nil, fmt.Errorf("%s: (builtin-map) takes nothing, got %s", path, f)
+			}
+			tg.BuiltinMap = true
 		case "boxed":
 			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (boxed NAME \"spelling\"), got %s", path, f)
@@ -886,6 +904,12 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// judgement reads through.
 	e.Prim["let"] = true
 	e.Pure["let"] = true
+	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before
+	// reduction so that nothing downstream learns maps exist (winmap.go).
+	if err := lowerMaps(tg, p); err != nil {
+		return nil, err
+	}
+	e.Defs = p.Defs
 	e.MarkRecursive()
 	return e, e.CheckDefs()
 }

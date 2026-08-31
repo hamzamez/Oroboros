@@ -1,0 +1,18 @@
+; A STATIC MAP LEAVES NOTHING (maps.md §5.2).
+; inputs: 1 2 5 9
+; expect: 10 20 50 0
+;
+; `((map (1 10) (2 20) (5 50)) k)` is beta-tab with a SUM in the result
+; position, and the `case` then folds against the constructor -- so no map, no
+; tag, no allocation and no dispatch reach any backend. The normal form of the
+; whole program is a constant.
+;
+; That is why F2 is affordable: free where it is used to THINK, priced where it
+; is used to RUN. Absence is a RESULT rather than a stuck term, which is exactly
+; where a map differs from an array -- an array's out-of-range index is left for
+; the refinement layer to report, because its domain condition is discharged
+; statically and a map's is discharged by the program.
+(def run (fn (k)
+  (case ((map (1 10) (2 20) (5 50)) k)
+    (some v)  v
+    none      0)))

@@ -288,6 +288,14 @@ var coreStructural = []Prim{
 	{Name: "array", Kind: "array", Pure: true},
 	{Name: "table", Kind: "table", Pure: true},
 	{Name: "len", Kind: "len", Pure: true},
+	// A MAP LITERAL — a table given by its graph, where the index set is not
+	// implicit so the graph carries both columns (maps.md §3.1).
+	//
+	// Pure, for `array`'s reason: it is a value and reading one has no effect.
+	// It overloads `map` between the type language and the term language
+	// exactly as `array` already does, disambiguated by position — a type only
+	// ever appears in a `sig` or a `prim`, which read syntax rather than terms.
+	{Name: "map", Kind: "map", Pure: true},
 	// IMPURE, all three, and that is the sequencing mechanism rather than an
 	// omission. ADR 0010 never substitutes an impure argument, which denies
 	// contraction (no duplicated store), weakening (no dropped store) and

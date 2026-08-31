@@ -222,7 +222,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			declared := false
 			var extra []string
 			for _, m := range subMods {
-				if m.Path == "" && len(m.Defs) == 0 {
+				if m.Path == "" && len(m.Defs) == len(injected) {
 					continue // the empty anonymous scope every file starts with
 				}
 				if m.Path == "" {
@@ -295,7 +295,11 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 		for _, sum := range m.Sums {
 			sums[sum.Name] = sum
 			for _, v := range sum.Variants {
-				if other, dup := byVariant[v.Name]; dup && other != sum {
+				// The comparison is by NAME, not by pointer. Every module gets
+				// its own copy of the language's injected `option` (newModule),
+				// so pointer inequality would report `option` as clashing with
+				// itself in a two-module program.
+				if other, dup := byVariant[v.Name]; dup && other.Name != sum.Name {
 					return nil, nil, fmt.Errorf("%s is a variant of both %s and %s; a "+
 						"constructor names one sum", v.Name, other.Name, sum.Name)
 				}
@@ -311,6 +315,20 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			}
 			m.Defs[n] = x
 		}
+	}
+	// AND OVER BARE ENTRY TERMS, which this loop did not reach. A `case` inside
+	// a `(def …)` expanded and the identical `case` written at top level did
+	// not — it stayed an application of an unbound name and reduced to a stuck
+	// term rather than an error. A construct that works in one position and
+	// silently does not in another is the shape of bug this repository keeps
+	// finding; every real program puts its code in a `def`, which is why it was
+	// never seen.
+	for i := range entries {
+		x, err := expandCase(entries[i].term, sums, byVariant)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
+		}
+		entries[i].term = x
 	}
 
 	// A SUM IN A SIGNATURE is the product of its tag and its payload, which is
@@ -385,11 +403,57 @@ type entry struct {
 	term *Term
 }
 
+// OptionSum is the language's own `option`, and it is INJECTED into every
+// module rather than declared by one.
+//
+// A map read is `(option V)` (maps.md §4), and the compiler is what produces
+// it — from β-tab on a literal, or from the host's own fallible read at a
+// boundary. So `some` and `none` have to resolve in whatever module the read
+// occurs in, and a program cannot be asked to import them any more than it can
+// be asked to import `if`.
+//
+// It is an ORDINARY sum, so nothing downstream learns that maps exist: the
+// constructors are definitions, and qualification, imports, δ, the occurrence
+// counter and `case`'s reader desugaring all apply unchanged (sums.md).
+//
+// The Church encoding is polymorphic in the payload — `some = λp.λk. k 0 p` —
+// so one declaration serves every V, and reduction has already made the term
+// monomorphic by the time anything asks.
+//
+// The payload type is written `any` because a sum's variant carries a type NAME
+// and the language has no type variables. Nothing checks it: reduction inlines
+// the constructor and the checker sees the payload's own type.
+func OptionSum() *Sum {
+	return &Sum{Name: "option", Variants: []Variant{
+		{Name: "some", Payload: "any"},
+		{Name: "none"},
+	}}
+}
+
+// newModule makes a module with the language's own declarations already in it.
+// injected is what every module gets for free: the option sum's constructors
+// and their tags. Named so that "this scope is empty" can mean "empty apart
+// from the language's own declarations" at the one place that asks.
+var injected = func() []string { o, _ := OptionSum().Defs(); return o }()
+
+func newModule(path string) *Module {
+	m := &Module{Path: path, Uses: map[string]string{},
+		Exports: map[string]bool{}, Defs: map[string]*Term{},
+		Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
+	opt := OptionSum()
+	m.Sums[opt.Name] = opt
+	order, defs := opt.Defs()
+	for _, n := range order {
+		m.Defs[n] = defs[n]
+		m.Order = append(m.Order, n)
+	}
+	return m
+}
+
 // partition splits a form list into module scopes. A file with no `(module …)`
 // is one anonymous root module, which is why every existing program still loads.
 func partition(forms []Form) ([]*Module, []entry, error) {
-	root := &Module{Uses: map[string]string{}, Exports: map[string]bool{},
-		Defs: map[string]*Term{}, Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
+	root := newModule("")
 	mods := []*Module{root}
 	byPath := map[string]*Module{"": root}
 	cur := root
@@ -400,9 +464,7 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 		case "module":
 			m, ok := byPath[f.Name]
 			if !ok {
-				m = &Module{Path: f.Name, Uses: map[string]string{},
-					Exports: map[string]bool{}, Defs: map[string]*Term{},
-					Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
+				m = newModule(f.Name)
 				mods = append(mods, m)
 				byPath[f.Name] = m
 			}
@@ -1493,6 +1555,41 @@ func (e *Env) betaTab(op *Term, args []*Term, fuel *int) (*Term, bool) {
 	if isForm(op, e, "table") && len(op.Kids) == 3 {
 		return &Term{Kind: KApp, Kids: []*Term{op.Kids[2], args[0]}}, true
 	}
+	// A MAP LITERAL, which is β-tab with a SUM in the result position.
+	//
+	// `((map (1 10) (2 20)) 1)` is `(some 10)` and `((map (1 10)) 5)` is
+	// `(none)`. Both need the index AND every literal key to be integer
+	// literals, because the domain condition `k ∈ dom m` is decided by equality
+	// and this is the only place equality can be decided by inspection.
+	//
+	// Absence is a RESULT here, not a stuck term — unlike an array, where an
+	// out-of-range index is left alone for the refinement layer to report with
+	// the bound and the call site. That difference IS the difference between
+	// the two constructs: an array's domain condition is discharged statically
+	// and a map's is discharged by the program (maps.md §1.1), so `none` is the
+	// answer rather than an error.
+	if isForm(op, e, "map") {
+		k, err := normalize(args[0], e, fuel)
+		if err != nil || k == nil || k.Kind != KInt {
+			return nil, false
+		}
+		for _, row := range op.Kids[1:] {
+			if row.Kind != KApp || len(row.Kids) != 2 {
+				return nil, false
+			}
+			key, err := normalize(row.Kids[0], e, fuel)
+			if err != nil || key == nil || key.Kind != KInt {
+				return nil, false
+			}
+			if key.Int == k.Int {
+				return &Term{Kind: KApp, Kids: []*Term{Name("some"), row.Kids[1]}}, true
+			}
+		}
+		// A payload-less variant IS the constructor — its definition is the
+		// encoded value, not a function — so absence is the NAME `none`, never
+		// an application of it.
+		return Name("none"), true
+	}
 	if isForm(op, e, "array") {
 		i, err := normalize(args[0], e, fuel)
 		if err != nil || i == nil || i.Kind != KInt {
@@ -1523,7 +1620,7 @@ func (e *Env) tableLen(args []*Term) (*Term, bool) {
 		return nil, false
 	}
 	t := args[0]
-	if isForm(t, e, "array") {
+	if isForm(t, e, "array") || isForm(t, e, "map") {
 		return &Term{Kind: KInt, Int: int64(len(t.Kids) - 1)}, true
 	}
 	if isForm(t, e, "table") && len(t.Kids) == 3 {

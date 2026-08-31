@@ -1386,6 +1386,22 @@ func TypeName(t *Term) string {
 	//
 	// Canonicalised to "int LO HI" for the same reason `(array V)` becomes
 	// "array V": types are strings here, and a compound one has to print.
+	// `(map K V)` — a table whose index set is a finite subset of K
+	// (maps.md §2). Canonicalised the same way `(array V)` is.
+	//
+	// K must be a type on which the language's `=` is defined, and today that
+	// is exactly `int`. That is not a staging convenience: a map's domain
+	// condition is `k ∈ dom m`, decided by equality on K, so `(map K V)` is
+	// well-formed exactly where `=` is. The refusal is in MapType's caller so
+	// that it can name the reason.
+	if t.Kind == KApp && len(t.Kids) == 3 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "map" {
+		k, v := TypeName(t.Kids[1]), TypeName(t.Kids[2])
+		if k != "" && v != "" {
+			return "map " + k + " " + v
+		}
+		return ""
+	}
 	if t.Kind == KApp && len(t.Kids) == 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" &&
 		t.Kids[1].Kind == KInt && t.Kids[2].Kind == KInt {
@@ -1436,6 +1452,40 @@ func ValueType(ty string) string {
 		return "int"
 	}
 	return ty
+}
+
+// MapTypes reads a `(map K V)` type back into its key and value types.
+//
+// A map type is `map K V` where both halves are themselves canonical type
+// strings. V may be compound — `map int (array f64)` is `map int array f64` —
+// so the split is on the FIRST space of the remainder, which is unambiguous
+// because K may not be compound: K is restricted to types the language's `=`
+// decides, and every one of those is a bare name.
+func MapTypes(ty string) (string, string, bool) {
+	if !strings.HasPrefix(ty, "map ") {
+		return "", "", false
+	}
+	rest := ty[len("map "):]
+	i := strings.Index(rest, " ")
+	if i <= 0 || i == len(rest)-1 {
+		return "", "", false
+	}
+	return rest[:i], rest[i+1:], true
+}
+
+// MapKeyOK reports whether K may be a map's key type.
+//
+// `=` is the language's equality and it is integer equality only (match.md):
+// floats are out because NaN is not an equivalence relation, strings because no
+// two of the four targets agree on comparing them. A map's domain condition is
+// decided by equality on K, so the set of legal key types is exactly the set
+// `=` is defined on — the language's own equality already refuses the key types
+// a map cannot have.
+func MapKeyOK(k string) bool {
+	if _, _, ok := IntRange(k); ok {
+		return true
+	}
+	return k == "int"
 }
 
 // ArrayElem returns the element type of an `(array V)` type, or "".

@@ -223,3 +223,32 @@ func BenchmarkKara2_1024D7(b *testing.B) { benchKara2(b, 1024, 7) }
 func BenchmarkKara2_1024D8(b *testing.B) { benchKara2(b, 1024, 8) }
 func BenchmarkKara2_256D2(b *testing.B)  { benchKara2(b, 256, 2) }
 func BenchmarkKara2_256D4(b *testing.B)  { benchKara2(b, 256, 4) }
+
+// WHAT ADR 0018's TRIGGER 2 COSTS, MEASURED ON KARATSUBA.
+//
+// ADR 0018 says mutation lives only inside `build`, whose buffer is allocated
+// fresh and frozen on the way out. So a WORKSPACE REUSED ACROSS CALLS is not
+// expressible: `KWork2` is allocated once here and used for every multiply,
+// and a portable Oroboros version would have to build it inside each call.
+//
+// That is trigger 2 — "a measured case needing buffer reuse across an exported
+// API" — and Karatsuba is the first program in this repository that plausibly
+// is one. It has never been measured, so this is the measurement rather than
+// the argument.
+//
+// Same work in both, the only difference being where the workspace comes from.
+func benchKara2Fresh(b *testing.B, n, d int) {
+	x, y := LimbsOf(n, 12345), LimbsOf(n, 67890)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		w := NewKWork2(n, d)
+		sinkLimbs = KaratsubaInPlace(x, y, w)
+	}
+}
+
+func BenchmarkKara2Fresh_1024D3(b *testing.B) { benchKara2Fresh(b, 1024, 3) }
+func BenchmarkKara2Fresh_1024D5(b *testing.B) { benchKara2Fresh(b, 1024, 5) }
+func BenchmarkKara2Fresh_1024D7(b *testing.B) { benchKara2Fresh(b, 1024, 7) }
+func BenchmarkKara2Fresh_256D2(b *testing.B)  { benchKara2Fresh(b, 256, 2) }
+func BenchmarkKara2Fresh_256D4(b *testing.B)  { benchKara2Fresh(b, 256, 4) }

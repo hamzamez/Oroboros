@@ -1,0 +1,68 @@
+(use go)
+(use go/fmt)
+(export run main)
+
+; KARATSUBA'S STRUCTURAL CORE IN OROBOROS: a schoolbook multiply run at offsets
+; read out of a DESCRIPTOR table, over one arena.
+;
+; This is `k_mac` driven by `kara_setup` -- the shape the level-walk needs, and
+; the one that decides whether ADR 0018's linear discipline can express the
+; algorithm at all. Three buffers are live: the arena (read), the descriptors
+; (read), the product (written), with two nested loops and every index computed
+; from a descriptor read.
+;
+; a = [1,2] at arena offset 0, b = [3,4] at offset 2, so the product is
+; 3, 4+6=10, 8 -- packed base 100 as 3*10000 + 10*100 + 8 = 31008.
+
+; A CLAMP, exactly as tree.oro uses one: an index read out of a table is not
+; bounded by anything the analysis can see, so the program says what happens
+; when it is out of range. The compiler makes it say so -- which is CLAUDE.md's
+; best argument for ADR 0014 arriving here unchanged.
+(def c4 (fn (k) (if (go.< k 0) 0 (if (go.>= k 4) 0 k))))
+
+; the descriptor table: ao=0, bo=2, ln=2
+(def descs (fn (u)
+  (build 3 (fn (d) (set (set (set d 0 0) 1 2) 2 2)))))
+
+(def limbs (fn (u)
+  (build 4 (fn (ar) (set (set (set (set ar 0 1) 1 2) 2 3) 3 4)))))
+
+; The inner accumulation: out[i+j] += arena[ao+i] * arena[bo+j].
+; `out` crosses a binder here, which reduction inlines away.
+(def macrow (fn (out desc arena i)
+  (loop ((out out) (j 0))
+    (go.>= j (desc 2))  out
+    else (again (set out (c4 (go.+ i j))
+                  (go.+ (out (c4 (go.+ i j)))
+                        (go.* (arena (c4 (go.+ (desc 0) i)))
+                              (arena (c4 (go.+ (desc 1) j))))))
+                (go.+ j 1)))))
+
+; ONE PASS of the multiply, taking the workspace it is given rather than
+; allocating one. `out` is threaded in and handed back, which is exactly what
+; ADR 0018's linearity is for.
+(def mulpass (fn (out arena desc)
+  (loop ((out out) (i 0))
+    (go.>= i (desc 2))  out
+    else (again (macrow out desc arena i) (go.+ i 1)))))
+
+; TWO multiplies sharing ONE workspace, the workspace threaded through the loop
+; as a linear buffer. This is the claim ADR 0018 makes -- that reuse is free
+; INSIDE a program because reduction removes the boundary -- tested rather than
+; taken. If it holds, the 1.66x measured for a fresh workspace is a cost at an
+; EXPORTED boundary only, which is what the ADR says the remaining gap is.
+(def mulat (fn (arena desc)
+  (build 4 (fn (out)
+    (loop ((out out) (r 0))
+      (go.>= r 2)  out
+      else (again (mulpass out arena desc) (go.+ r 1)))))))
+
+(def pack (fn (p)
+  (loop ((acc 0) (i 0))
+    (go.>= i 3)  acc
+    else (again (go.+ (go.* acc 100) (p i)) (go.+ i 1)))))
+
+(def run (fn (u) (pack (mulat (limbs 0) (descs 0)))))
+(sig run ((u int)) int)
+
+(def main (fn () (fmt.Println (run 0))))

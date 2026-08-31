@@ -159,6 +159,26 @@ C++11 memory models never come into it.
 which they hold. That is Haskell's `Array`/`STArray` split, which is real friction and which
 twenty-five years of practice suggests is the right friction.
 
+### Re-examined 2026-08-31, and it stands
+
+[arrays-revisited.md](../arrays-revisited.md) points every measurement taken since at this ADR,
+because it was **argued and not measured** and says so. Outcome:
+
+- **Trigger 1 has NOT fired.** It says it can only be found by writing awkward programs, so
+  Karatsuba's structural core — one arena, descriptor-driven offsets, three live buffers, and read
+  *and* write of one buffer at two computed offsets — was written in Oroboros
+  (`examples/kara/core.oro`). `occurrences` accepted all of it. What complained was the refinement
+  layer, on a value read out of a table, which is `tree.oro`'s separately-tracked gap.
+- **Trigger 2 HAS fired, at 1.07×–1.66×.** A reusable workspace is not expressible, because a buffer
+  is not a nameable type. This ADR says that firing it *"should produce an ADR adopting uniqueness on
+  parameters"*, and the sentence deferring (b) — *"no measured case in this repository needs it"* —
+  **is now false**, with Karatsuba as the counterexample.
+- **Seven properties now depend on linearity**, four of them measured *after* this ADR: the buffer
+  element theorem's sufficiency, the frozen-read stratification, β's substitution of a table, η-tab,
+  the free `modifies` set, race-freedom, and the parallel/sequential distinction being in the source.
+- **Free mutation is strictly dominated** by (b): it buys one thing (b) also buys and pays seven (b)
+  does not. The load-bearing axis is aliased-vs-not, not mutable-vs-immutable.
+
 ### What should reopen this
 
 1. **Occurrence counting rejects programs that are obviously fine.** If the threading discipline is

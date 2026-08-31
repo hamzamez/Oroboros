@@ -1613,7 +1613,56 @@ because APL arrays are data, ours are functions, so composing index maps is comp
 The leading-axis rule is currying, and MoA's DNF/ONF split is our residual/emission split. And
 **automatic unrolling is deferred, NOT refuted** — the measurement only covered cheap elements, the
 win scales as compile-cost over artifact-cost, and ADR 0009 bites exactly where the win would be
-because transcendentals are not bit-reproducible. **The memory model is DECIDED** —
+because transcendentals are not bit-reproducible. **AND ADR 0018 WAS RE-EXAMINED AND STANDS — but trigger 2 has FIRED** —
+[arrays-revisited.md](docs/arrays-revisited.md), on hamza's *"are our decisions still sound... this is
+oroboros after all, and sometimes we eat our own tail."* The ADR was **argued, not measured**, and says
+so; this points everything measured since at it.
+
+**Trigger 1 — the one the ADR says to watch — has NOT fired**, and it was tested rather than argued.
+It says it can only be found by writing awkward programs, so **Karatsuba's structural core was written
+in Oroboros** ([examples/kara/core.oro](examples/kara/core.oro)): one arena, a descriptor table driving
+computed offsets, three live buffers, a buffer crossing a binder, and **read AND write of one buffer at
+two overlapping computed offsets** — the tiled combine's exact shape. `occurrences` accepted all of it.
+What complained was the **refinement layer**, on `(desc 2)` being a value read out of a table — stratum
+0, ⊤ — which is `tree.oro`'s `d` gap and which frozen-2026-08-28 already says an octagon would not fix.
+**Conflating the memory model with the analysis would have given a false verdict in either direction.**
+And **reuse inside a program is free as claimed**: two multiplies threaded through one workspace emit
+**one** `make`.
+
+**TRIGGER 2 HAS FIRED, AT 1.07×–1.66×.** A buffer is not a nameable type — there is no `buffer` type
+name in the compiler — so an exported multiply must rebuild its workspace every call: **1024 limbs
+D=5, 721,064 ns reused against 1,195,545 fresh, 10 allocs and 504 KB per call.** That matters more
+than the stencil's larger number, because bigarith's whole result is that ours beats `math/big` **by
+allocating nothing**, and naive `math/big` is 4–5× worse than careful for exactly this reason — so a
+bignum that allocates per multiply **becomes the thing it beats**. ADR 0018 deferred uniqueness types
+saying *"no measured case in this repository needs it"*; **that sentence is now false** and the
+counterexample is Karatsuba. Its named answer is an ADR adopting **uniqueness on parameters**, not free
+mutation.
+
+**SEVEN PROPERTIES NOW DEPEND ON LINEARITY, four measured AFTER the ADR**: the buffer element
+theorem's *sufficiency* (no third source, so checking the stores suffices), the frozen-read
+**stratification**, **β's substitution of a table** (free mutation makes every read impure and
+substitution meaning-changing — a soundness loss in the reducer, not a slowdown), η-tab, `modifies`
+being **syntactically** the buffer (HACL\*'s largest proof burden, for free), race-freedom, and the
+parallel/sequential distinction being **in the source**. So the decision is better supported now than
+when it was made.
+
+**And the proposal does not survive being made precise.** The load-bearing axis is **aliased-vs-not**,
+not mutable-vs-immutable: there are exactly three ways to forbid aliased mutation — immutability
+(cannot express scatter), linearity (ours), ownership+borrowing (Rust). *Mutable by default* without
+one of them is ADR 0018 §(f); **with** one it is either what we already have or it is Rust. **Free
+mutation is strictly dominated by uniqueness types** — it buys one thing (b) also buys and pays seven
+(b) does not. The one honest remaining cost is **ergonomics** — threading the buffer through every
+`again` and every helper — which is unmeasured, is a different complaint from trigger 1, and probably
+wants sugar rather than a memory model.
+
+**And it settles the map's open question by DERIVATION rather than choice**: a map is both, on exactly
+the same terms as an array, **because the discipline is about aliasing and aliasing does not care what
+the index set is**. Growing map = linear buffer in `build`; frozen map = immutable value. And **Go's
+map is a reference type**, so `(set-map m k v)` returning `m` IS Go's own semantics — the host that
+looks least like our model needs the least translation, which is the surprise `(T, error)` gave sums.
+
+**The memory model is DECIDED** —
 [ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md), research in
 [memory-model.md](docs/memory-model.md). Values are immutable; mutation exists only inside
 `(build n (fn (b) …))`, whose buffer is **linear** and frozen on the way out; `(array V)` reads are

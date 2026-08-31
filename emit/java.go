@@ -295,6 +295,20 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
+		// A MAP READ UNDER ITS ELIMINATOR has the type of its clause bodies.
+		// Without this a method whose value is a map read comes out
+		// `/*unknown*/`, because every case below assumes the operator is a
+		// name — and here it is an application.
+		if op := t.Op(); op.Kind == core.KApp && len(t.Args()) == 1 {
+			if k := t.Args()[0]; k.Kind == core.KFn && len(k.Params) == 2 {
+				if _, vt, isMap := core.MapTypes(e.typeOf(op.Op())); isMap {
+					body, raw, _ := openFresh(k, map[string]bool{},
+						func(s string) string { return s })
+					e.types[raw[0]], e.types[raw[1]] = "int", vt
+					return e.typeOf(body)
+				}
+			}
+		}
 		if op := t.Op(); op.Kind == core.KName {
 			// Indexing is application, so `(a i)` has a's ELEMENT type.
 			if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
@@ -310,6 +324,27 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
 						return e.buildType(lam)
 					}
+				}
+				if p.Kind == "map-build" && len(t.Args()) == 2 {
+					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
+						body, raw, _ := openFresh(lam, map[string]bool{},
+							func(s string) string { return s })
+						kt, vt := MapElemTypes(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+						return "map " + kt + " " + vt
+					}
+				}
+				if p.Kind == "map-insert" && len(t.Args()) >= 1 {
+					return e.typeOf(t.Args()[0])
+				}
+				if p.Kind == "map" {
+					v := "int"
+					if rows := t.Args(); len(rows) > 0 && rows[0].Kind == core.KApp &&
+						len(rows[0].Kids) == 2 {
+						if ty := core.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
+							v = ty
+						}
+					}
+					return "map int " + v
 				}
 				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {
 					return e.typeOf(t.Args()[0])
@@ -424,6 +459,9 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			"  been checked against them.", t)
 	case core.KApp:
 		op := t.Op()
+		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
@@ -460,6 +498,71 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			e.imports[p.Import] = true
 		}
 		switch {
+		// THE MAP SIDE OF THE WRITE SIDE (maps.md §8.3).
+		case p.Kind == "map-build":
+			args := t.Args()
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return "", fmt.Errorf("build-map takes a capacity and (fn (m) …), got %s", t)
+			}
+			cap, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			body, raw, out := openFresh(args[1], e.bound, javaMangle)
+			kt, vt := MapElemTypes(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams)
+			ty := "map " + kt + " " + vt
+			e.types[raw[0]] = ty
+			e.line("final %s %s = new java.util.HashMap<>((int) %s);",
+				e.tgt.ty(ty), out[0], cap)
+			return e.emit(body)
+		case p.Kind == "map-insert":
+			args := t.Args()
+			if len(args) != 3 {
+				return "", fmt.Errorf("insert takes a map, a key and a value, got %s", t)
+			}
+			m, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			k, err := e.emit(args[1])
+			if err != nil {
+				return "", err
+			}
+			v, err := e.emit(args[2])
+			if err != nil {
+				return "", err
+			}
+			// EXPLICIT CASTS to the map's declared key and value types.
+			// Autoboxing goes `int`→`Integer` and `long`→`Long` and never
+			// across, so a key narrowed to a host `int` by index narrowing
+			// (indexnarrow-2026-08-27) is rejected by a `Map<Long,Long>`.
+			// javac catches it, but only on a program where narrowing fires.
+			kt, vt := "int", "int"
+			if a, b, ok := core.MapTypes(e.typeOf(args[0])); ok {
+				kt, vt = a, b
+			}
+			e.line("%s.put((%s) %s, (%s) %s);", m, e.tgt.ty(kt), k, e.tgt.ty(vt), v)
+			return m, nil
+		case p.Kind == "map":
+			rows := t.Args()
+			parts := make([]string, len(rows))
+			for i, row := range rows {
+				if row.Kind != core.KApp || len(row.Kids) != 2 {
+					return "", fmt.Errorf("a map literal row is (key value), got %s", row)
+				}
+				k, err := e.emit(row.Kids[0])
+				if err != nil {
+					return "", err
+				}
+				v, err := e.emit(row.Kids[1])
+				if err != nil {
+					return "", err
+				}
+				parts[i] = fmt.Sprintf("java.util.Map.entry(%s, %s)", k, v)
+			}
+			// `Map.ofEntries` gives an immutable map, which is what a literal
+			// IS. It reaches a backend only when the key is dynamic.
+			return "java.util.Map.ofEntries(" + strings.Join(parts, ", ") + ")", nil
 		// THE WRITE SIDE — ADR 0018.
 		case p.Kind == "table-build":
 			args := t.Args()
@@ -625,6 +728,50 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
+}
+
+// emitMapCase is the map read under its eliminator, in Java's idiom.
+//
+// `get` returning a BOXED value whose null means absent is ONE hash lookup,
+// where `containsKey` followed by `get` is two — and the boxing is already
+// there, because a `HashMap` cannot hold primitives. So the host's fallible
+// read is a null test, and that is what the option eliminates against.
+//
+// This is the same shape as Go's comma-ok and JavaScript's `undefined`: three
+// hosts, three spellings of a fallible read, and the sum is eliminated against
+// each rather than materialised on any of them (maps.md §5.3).
+func (e *javaEmitter) emitMapCase(t *core.Term) (string, bool, error) {
+	op := t.Op()
+	args := t.Args()
+	if op.Kind != core.KApp || len(args) != 1 || len(op.Args()) != 1 {
+		return "", false, nil
+	}
+	k := args[0]
+	if k.Kind != core.KFn || len(k.Params) != 2 {
+		return "", false, nil
+	}
+	inner := op.Op()
+	_, vt, isMap := core.MapTypes(e.typeOf(inner))
+	if !isMap {
+		return "", false, nil
+	}
+	m, err := e.emit(inner)
+	if err != nil {
+		return "", false, err
+	}
+	key, err := e.emit(op.Args()[0])
+	if err != nil {
+		return "", false, err
+	}
+	body, raw, out := openFresh(k, e.bound, javaMangle)
+	e.types[raw[0]], e.types[raw[1]] = "int", vt
+	box := out[1] + "b"
+	kt, _, _ := core.MapTypes(e.typeOf(inner))
+	e.line("final %s %s = %s.get((%s) %s);", e.tgt.boxed(vt), box, m, e.tgt.ty(kt), key)
+	e.line("final long %s = %s == null ? 1 : 0;", out[0], box)
+	e.line("final %s %s = %s == null ? 0 : %s;", e.tgt.ty(vt), out[1], box, box)
+	s, err := e.emit(body)
+	return s, true, err
 }
 
 func (e *javaEmitter) emitLet(t *core.Term) (string, error) {

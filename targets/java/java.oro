@@ -30,6 +30,21 @@
 
   (array-type "%s[]")
 
+  ; A MAP IS ONE DECLARATION, not an entry per (K, V) pair. This file's
+  ; java/util module says the alternative is "the same limitation squared" --
+  ; one name per (container, K, V) -- and it had declared exactly one
+  ; instantiation, Map<String,Long>, because that is all it could afford.
+  (map-type "java.util.Map<%s,%s>")
+
+  ; AND ITS TYPE ARGUMENTS MUST BE BOXED, because a JVM generic cannot be
+  ; instantiated at a primitive. `map int int` is `Map<Long,Long>`, never
+  ; `Map<long,long>`. Which types a host boxes and what it calls them is a host
+  ; fact, so it is declared here rather than hardcoded in the emitter -- no
+  ; other target declares any, and on those `boxed` is just the type.
+  (boxed int  "Long")
+  (boxed f64  "Double")
+  (boxed bool "Boolean")
+
   ; HOW MANY ELEMENTS A TABLE CAN HAVE HERE, and this host can say something
   ; stronger than the language can. `arraylength` returns an `int` and `new
   ; T[n]` takes one, so a Java array holds at most 2^31-1 elements. Every other

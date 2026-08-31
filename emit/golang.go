@@ -285,6 +285,33 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 	return e.emit(body)
 }
 
+// mapLit emits a surviving map literal.
+//
+// It survives exactly when the key is DYNAMIC: with a literal key, beta-tab
+// decides the domain condition and the whole thing folds to `(some v)` or
+// `none`, so nothing reaches here. That is the two-level language — free where
+// it is used to think, priced where it is used to run — and this is the priced
+// half.
+func (e *Emitter) mapLit(t *core.Term) (string, error) {
+	rows := t.Args()
+	parts := make([]string, len(rows))
+	for i, row := range rows {
+		if row.Kind != core.KApp || len(row.Kids) != 2 {
+			return "", fmt.Errorf("a map literal row is (key value), got %s", row)
+		}
+		k, err := e.emit(row.Kids[0])
+		if err != nil {
+			return "", err
+		}
+		v, err := e.emit(row.Kids[1])
+		if err != nil {
+			return "", err
+		}
+		parts[i] = k + ": " + v
+	}
+	return fmt.Sprintf("%s{%s}", e.tgt.ty(e.typeOf(t)), strings.Join(parts, ", ")), nil
+}
+
 // emitBuildMap is `build`, one index set over (maps.md §3.3).
 //
 // `(build-map cap (fn (m) …))` is ADR 0018's linear buffer with `I = S ⊆ K`
@@ -370,10 +397,14 @@ func (e *Emitter) emitMapCase(t *core.Term) (string, bool, error) {
 	if k.Kind != core.KFn || len(k.Params) != 2 {
 		return "", false, nil
 	}
-	// The operator must be a read of something we KNOW to be a map. Anything
-	// else is a different failure and must keep its own diagnostic.
+	// The operator must be a read of something we KNOW to be a map. It is the
+	// TYPE that decides, not the syntax: a bound name and a surviving literal
+	// are both maps, and a literal survives exactly when the key is dynamic —
+	// which is the only case that reaches a backend at all.
+	//
+	// Anything else is a different failure and must keep its own diagnostic.
 	inner := op.Op()
-	if inner.Kind != core.KName || len(op.Args()) != 1 {
+	if len(op.Args()) != 1 {
 		return "", false, nil
 	}
 	mty := e.typeOf(inner)
@@ -586,13 +617,13 @@ func (e *Emitter) typeOf(t *core.Term) string {
 		// is not a name and every case below assumes it is.
 		if op := t.Op(); op.Kind == core.KApp && len(t.Args()) == 1 {
 			if k := t.Args()[0]; k.Kind == core.KFn && len(k.Params) == 2 {
-				if inner := op.Op(); inner.Kind == core.KName {
-					if _, vt, isMap := core.MapTypes(e.typeOf(inner)); isMap {
-						body, raw, _ := openFresh(k, map[string]bool{},
-							func(s string) string { return s })
-						e.types[raw[0]], e.types[raw[1]] = "int", vt
-						return e.typeOf(body)
-					}
+				// The TYPE decides, not the syntax — a bound name and a
+				// surviving literal are both maps.
+				if _, vt, isMap := core.MapTypes(e.typeOf(op.Op())); isMap {
+					body, raw, _ := openFresh(k, map[string]bool{},
+						func(s string) string { return s })
+					e.types[raw[0]], e.types[raw[1]] = "int", vt
+					return e.typeOf(body)
 				}
 			}
 		}
@@ -638,6 +669,19 @@ func (e *Emitter) typeOf(t *core.Term) string {
 					if rule := t.Args()[1]; rule.Kind == core.KFn && len(rule.Params) == 1 {
 						return "array " + e.typeOf(rule.Body())
 					}
+				}
+				// A MAP LITERAL's type comes from its first value. The key is
+				// `int` and there is nothing to infer — `(map K V)` is
+				// well-formed exactly where `=` is defined (maps.md §2).
+				if p.Kind == "map" {
+					v := "int"
+					if rows := t.Args(); len(rows) > 0 && rows[0].Kind == core.KApp &&
+						len(rows[0].Kids) == 2 {
+						if ty := core.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
+							v = ty
+						}
+					}
+					return "map int " + v
 				}
 				if p.Kind == "array" && len(t.Args()) > 0 {
 					return "array " + e.typeOf(t.Args()[0])
@@ -863,6 +907,8 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 			return fmt.Sprintf("len(%s)", a), nil
 		case "array":
 			return e.arrayLit(t)
+		case "map":
+			return e.mapLit(t)
 		case "table":
 			return "", UnallocatedTableErr()
 		}

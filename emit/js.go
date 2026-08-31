@@ -30,6 +30,17 @@ type jsEmitter struct {
 	// bound is every name already emitted in this function — see openFresh.
 	bound map[string]bool
 
+	// maps is which emitted names hold a MAP, which JavaScript needs and the
+	// other backends do not: `targets/js` declares no types on purpose, so
+	// there is no `typeOf` to ask whether `(m k)` is a map read or an array
+	// read, and the two lower to different code.
+	//
+	// It is populated at `build-map` and propagated through `let`, and it is
+	// deliberately CONSERVATIVE: a name it does not know falls through to the
+	// existing diagnostic rather than to a guess, so it can under-fire but
+	// never produce a wrong answer.
+	maps map[string]bool
+
 	// tail is true while emitting a term whose value IS the function's value.
 	// A loop in that position returns directly instead of assigning a result
 	// variable and breaking, and `returned` records that it did so the wrapper
@@ -60,7 +71,7 @@ func JSFunc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, erro
 	if t.Kind != core.KFn {
 		return "", fmt.Errorf("top level must be an abstraction, got %s", t)
 	}
-	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}}
+	e := &jsEmitter{tgt: tgt, indent: 1, bound: map[string]bool{}, maps: map[string]bool{}}
 	// The PARAMETERS are already bound, and forgetting them is not a cosmetic
 	// bug on this host: `(loop ((n n)) …)` emitted `let n = n;` inside
 	// `function f(n)`, which is a SyntaxError — the module does not parse.
@@ -195,6 +206,79 @@ func (e *jsEmitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) e
 	return multiResultErr(name, sig, t)
 }
 
+// isMapTerm reports whether a term produces a MAP, conservatively.
+//
+// Two sources and no inference: a `build-map`, and a surviving map literal —
+// which survives exactly when the key is dynamic, because a literal key lets
+// beta-tab decide the domain condition and the whole thing folds.
+func (e *jsEmitter) isMapTerm(t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp {
+		return false
+	}
+	op := t.Op()
+	if op.Kind != core.KName {
+		return false
+	}
+	if p, ok := e.tgt.Prims[op.Name]; ok {
+		if p.Kind == "map-build" || p.Kind == "map" {
+			return true
+		}
+		// `insert` hands the map back, which is what makes it thread.
+		if p.Kind == "map-insert" && len(t.Args()) > 0 {
+			return e.isMapName(t.Args()[0]) || e.isMapTerm(t.Args()[0])
+		}
+	}
+	return false
+}
+
+func (e *jsEmitter) isMapName(t *core.Term) bool {
+	return t != nil && t.Kind == core.KName && e.maps[jsMangle(t.Name)]
+}
+
+// emitMapCase is the Go emitter's, in JavaScript's own idiom.
+//
+// A PLAIN OBJECT, not `Map`, and that is measured rather than assumed:
+// maps-2026-08-30 re-took the first baseline's 3.25x and found 1.56x on string
+// keys and 3.67x on INTEGER keys — more than twice the string gap, because V8
+// keeps integer-like properties in the elements backing store rather than a
+// hash. `(map int V)` is therefore the case where the host choice matters most,
+// which is the opposite of how it was framed when it was picked to dodge
+// strings. A plain `{}` also beat `Object.create(null)`, against the folklore.
+//
+// Absence is `undefined`, and that is SOUND rather than convenient: every value
+// in a map came from an `insert` of a term the checker typed, and no type in
+// the language has `undefined` as a value. So `=== undefined` distinguishes
+// absent from present exactly. It is one lookup where `k in m` plus `m[k]`
+// would be two.
+func (e *jsEmitter) emitMapCase(t *core.Term) (string, bool, error) {
+	op := t.Op()
+	args := t.Args()
+	if op.Kind != core.KApp || len(args) != 1 || len(op.Args()) != 1 {
+		return "", false, nil
+	}
+	k := args[0]
+	if k.Kind != core.KFn || len(k.Params) != 2 {
+		return "", false, nil
+	}
+	inner := op.Op()
+	if !e.isMapName(inner) && !e.isMapTerm(inner) {
+		return "", false, nil
+	}
+	m, err := e.emit(inner)
+	if err != nil {
+		return "", false, err
+	}
+	key, err := e.emit(op.Args()[0])
+	if err != nil {
+		return "", false, err
+	}
+	body, _, out := openFresh(k, e.bound, jsMangle)
+	e.line("const %s = %s[%s];", out[1], m, key)
+	e.line("const %s = %s === undefined ? 1 : 0;", out[0], out[1])
+	s, err := e.emit(body)
+	return s, true, err
+}
+
 func (e *jsEmitter) line(format string, args ...any) {
 	e.buf.WriteString(strings.Repeat("\t", e.indent))
 	fmt.Fprintf(&e.buf, format, args...)
@@ -251,6 +335,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 
 	case core.KApp:
 		op := t.Op()
+		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
@@ -289,6 +376,12 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 				return e.emit(k.Body())
 			}
 			kBody, _, kOut := openFresh(k, e.bound, jsMangle)
+			// The value's own map-ness, and also the emitted NAME's: a `let`
+			// bound to a loop gets the loop's result variable, which was
+			// already marked when the loop's variables were.
+			if e.isMapTerm(args[0]) || e.isMapName(args[0]) || e.maps[val] {
+				e.maps[kOut[0]] = true
+			}
 			e.line("const %s = %s;", kOut[0], val)
 			e.tail = tail
 			return e.emit(kBody)
@@ -333,6 +426,58 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		// THE WRITE SIDE — ADR 0018. The buffer is linear and scoped, so the
 		// freeze on the way out copies nothing.
 		switch p.Kind {
+		case "map-build":
+			args := t.Args()
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return "", fmt.Errorf("build-map takes a capacity and (fn (m) …), got %s", t)
+			}
+			body, _, out := openFresh(args[1], e.bound, jsMangle)
+			// A PLAIN OBJECT, and the capacity is DROPPED here rather than
+			// ignored: JavaScript objects have no capacity to give, and the
+			// declaration exists so that four targets agree on what a program
+			// means, not because every host needs the number (maps.md §6).
+			// windows is the target that cannot grow, and it is the reason.
+			e.line("const %s = {};", out[0])
+			e.maps[out[0]] = true
+			return e.emit(body)
+		case "map-insert":
+			args := t.Args()
+			if len(args) != 3 {
+				return "", fmt.Errorf("insert takes a map, a key and a value, got %s", t)
+			}
+			m, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			k, err := e.emit(args[1])
+			if err != nil {
+				return "", err
+			}
+			v, err := e.emit(args[2])
+			if err != nil {
+				return "", err
+			}
+			e.maps[m] = true
+			e.line("%s[%s] = %s;", m, k, v)
+			return m, nil
+		case "map":
+			rows := t.Args()
+			parts := make([]string, len(rows))
+			for i, row := range rows {
+				if row.Kind != core.KApp || len(row.Kids) != 2 {
+					return "", fmt.Errorf("a map literal row is (key value), got %s", row)
+				}
+				k, err := e.emit(row.Kids[0])
+				if err != nil {
+					return "", err
+				}
+				v, err := e.emit(row.Kids[1])
+				if err != nil {
+					return "", err
+				}
+				parts[i] = k + ": " + v
+			}
+			return "{" + strings.Join(parts, ", ") + "}", nil
 		case "table-build":
 			args := t.Args()
 			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
@@ -749,6 +894,14 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	}
 	body, raw, names := openFresh(lam, e.bound, jsMangle)
 	for i := range names {
+		// A LOOP VARIABLE INHERITS map-ness from its init, which is how a map
+		// threaded through a loop stays identifiable. Without it the tracking
+		// depends on some `insert` in the body happening to mark the name, so
+		// a loop that only READS a map — or one whose map is empty — would
+		// fall through to "application of a non-name".
+		if e.isMapName(inits[i]) || e.isMapTerm(inits[i]) {
+			e.maps[names[i]] = true
+		}
 		e.line("let %s = %s;", names[i], vals[i])
 	}
 	result := ""

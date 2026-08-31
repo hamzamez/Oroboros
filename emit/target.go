@@ -124,6 +124,15 @@ type Target struct {
 	// Empty means the target has no types to spell (JavaScript, windows).
 	MapType string
 
+	// Boxed is how this target spells a type when it must be an OBJECT rather
+	// than a primitive — `Long` for `long` on the JVM. Declared, not hardcoded:
+	// which types a host boxes and what it calls them is a host fact, and host
+	// facts live in target files.
+	//
+	// Only Java declares any. Everywhere else a boxed type is the type, so
+	// `boxed` falls through to `ty` and nothing changes.
+	Boxed map[string]string
+
 	// Reprs are the integer representations this target can store, narrowest
 	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
 	// the first one that CONTAINS it — ADR 0003's "the compiler selects the
@@ -483,6 +492,15 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.ArrayType = o.ArrayType
 	}
+	for n, ty := range o.Boxed {
+		if tg.Boxed == nil {
+			tg.Boxed = map[string]string{}
+		}
+		if have, dup := tg.Boxed[n]; dup && have != ty {
+			return fmt.Errorf("%s: boxed %s is declared as %q and as %q", from, n, have, ty)
+		}
+		tg.Boxed[n] = ty
+	}
 	if o.MapType != "" {
 		if tg.MapType != "" && tg.MapType != o.MapType {
 			return fmt.Errorf("%s: map-type is declared as %q and as %q",
@@ -573,6 +591,14 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
 			}
 			tg.ArrayType = f.Kids[1].Str
+		case "boxed":
+			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (boxed NAME \"spelling\"), got %s", path, f)
+			}
+			if tg.Boxed == nil {
+				tg.Boxed = map[string]string{}
+			}
+			tg.Boxed[f.Kids[1].Name] = f.Kids[2].Str
 		case "map-type":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (map-type \"map[%%s]%%s\"), got %s", path, f)
@@ -951,6 +977,15 @@ func (tg *Target) NarrowedElem(ty string) (string, bool) {
 
 // ty spells one of our type names in the target's own language. An untyped
 // target declares no types and this is never consulted.
+// boxed spells a type as an object where the target says one is needed, and as
+// itself everywhere else.
+func (tg *Target) boxed(name string) string {
+	if s, ok := tg.Boxed[core.ValueType(name)]; ok {
+		return s
+	}
+	return tg.ty(name)
+}
+
 func (tg *Target) ty(name string) string {
 	if s, ok := tg.Types[name]; ok {
 		return s
@@ -977,7 +1012,10 @@ func (tg *Target) ty(name string) string {
 	// "the same limitation squared" there, one name per (container, K, V).
 	if k, v, ok := core.MapTypes(name); ok {
 		if tg.MapType != "" {
-			return Fill(tg.MapType, tg.ty(k), tg.ty(v))
+			// BOXED type arguments. A JVM generic cannot be instantiated at a
+			// primitive, so `map int int` is `Map<Long,Long>` and not
+			// `Map<long,long>`. On a host that boxes nothing this is `ty`.
+			return Fill(tg.MapType, tg.boxed(k), tg.boxed(v))
 		}
 		// A target with no types — JavaScript, windows — spells a map nothing
 		// at all, which is why neither declares one.

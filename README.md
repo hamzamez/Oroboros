@@ -44,6 +44,15 @@ the standing claim that recursive data is a flat table plus indices, put to work
 argued ([tokeniser](gauntlet/results/json-2026-08-26.md),
 [tree](gauntlet/results/json-tree-2026-08-26.md)).
 
+**Maps** are built on all four ([maps.md](docs/spec/maps.md)) — including windows, which ships no
+hash table, so the language supplies one *written in Oroboros*. A static map read reduces to a
+constant even there, because the probe itself is static.
+
+And **integer arithmetic is finally the language's**. Until 2026-08-31 `=` was the only integer
+operator it owned: `(+ 1 2)` was *"not bound"*, and every portability claim in this repository was
+really a claim about `go.+`. `+ - * / % < <= > >=` are now found per target the way `=` always was,
+so one source computes the same answer on four hosts with no host name in it.
+
 | | |
 |---|---|
 | `core/` | reader, terms, β/δ reducer — [the atom](docs/the-atom.md) |
@@ -52,15 +61,15 @@ argued ([tokeniser](gauntlet/results/json-2026-08-26.md),
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 60 programs |
-| `gauntlet/` | hand-written references and 46 recorded measurements — **the bar** |
-| `gauntlet/differential/` | 10 programs built and **run** on all four targets, outputs required identical *and* right |
+| `examples/` | 62 programs |
+| `gauntlet/` | hand-written references and 56 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 16 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
 go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
 go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
-cd gauntlet/differential && go run run.go                  # 10 programs x 4 targets
+cd gauntlet/differential && go run run.go                  # 16 programs x 4 targets
 ```
 
 ### The whole language
@@ -78,12 +87,23 @@ generates ordinary `def`s, so the reducer, the module system and every backend a
 And **indexing has no word at all**: `(a i)` is an application, because a table *is* a function.
 
 Every word an `.oro` file can contain is audited in [inventory.md](docs/spec/inventory.md) — 65 of
-them, 60 specified, taken from the code rather than from memory.
+them, 60 specified, taken from the code rather than from memory. **That audit now predates the map
+and arithmetic work** and is owed a re-run: `map`, `build-map`, `insert`, `keys`, the nine promoted
+operators and three new target-file forms have arrived since, and an audit that is not re-taken is
+just a number.
 
 The rule count was **3** until sums landed on 2026-08-22 and it went up honestly rather than by
-relabelling: `=` now folds on two integer literals, and an eliminator is pushed through `if` and
-`let`. Both exist because a sum should cost nothing at *either* level, and the second was
+relabelling: literals fold, and an eliminator is pushed through `if` and `let`. Both exist because a
+sum should cost nothing at *either* level, and the second was
 [measured across 184 residuals](docs/spec/sums.md) to change no existing program before it shipped.
+
+Folding started as `=` on two integers and covers all of `+ - * / % < <= > >=` since they became the
+language's. Two side conditions, both [ADR 0009](docs/decisions/0009-staging-preserves-results.md):
+a result outside the portable window is **not** folded, because compile time is Go's `int64` and run
+time on V8 is a binary64 exact only to ±(2⁵³−1) — and leaving the operation alone is what lets the
+overflow analysis report it against what the programmer *wrote*. Division by zero is not folded
+either; it is a precondition, so the refinement layer names the call site instead of the compiler
+panicking. No float folds at all, which is ADR 0009's original case.
 
 Read off the code rather than from memory: [state.md](docs/spec/state.md).
 
@@ -452,8 +472,10 @@ rather than stated.
 | **Several results** | `(values a b)` is the *negative product* — sugar for `(fn (#k) (#k a b))`, so β is its algebra and the reducer needed nothing ([values.md](docs/spec/values.md)) |
 | **Pattern matching** | `match` is `loop`: reader sugar, zero rules, zero term kinds, `again` in a clause body ([match.md](docs/spec/match.md)) |
 | **Sums** | closed, finite, non-recursive. A sum is Σ, so its value is a tag and a payload — which is the product, already built on four targets ([sums.md](docs/spec/sums.md)) |
+| **Integers** | `int` is exact within ±(2⁵³−1) and a **range is a type** — `(int LO HI)` in a parameter, a result, an array element or a map value. `+ - * / % < <= > >=` and `=` are the language's, found per target by spelling; **bitwise and shifts are not**, because V8 truncates them to int32 and `(2³²) & -1` is 0 there and 4294967296 elsewhere — observable *inside* the window ([integers.md](docs/spec/integers.md), [ADR 0003](docs/decisions/0003-range-typed-integers.md), [ADR 0012](docs/decisions/0012-portable-integer-range.md)) |
+| **Maps** | a table whose index set is a finite subset of the key type. `(m k)` is `(option V)` — the map is the first construct whose domain condition *nothing* can discharge, so the program says what happens when the key is absent, and it lowers to the host's own fallible read. `keys` is ascending by key, which is **derived**: the result is an ordered index set, so producing one requires an order, and the only canonical one is K's ([maps.md](docs/spec/maps.md)) |
 | **Tables** | the primary data structure, and there is one: **a function with a known finite domain.** `(array e…)` a graph, `(table n f)` a rule with no memory, `(len t)` the domain bound — and **indexing is APPLICATION**, `(a i)`, with no word of its own ([tables.md](docs/spec/tables.md)) |
-| **Memory** | immutable values, one scoped **linear** buffer — `(alloc t)` gathers, `(build n f)` scatters, `(set b i v)` consumes and returns. The linearity check is occurrence counting **on the residual, not a type**, and it is an *ordering* property: reads do not consume ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)) |
+| **Memory** | immutable values, one scoped **linear** buffer — `(alloc t)` gathers, `(build n f)` scatters, `(set b i v)` consumes and returns. The linearity check is occurrence counting **on the residual, not a type**, and it is an *ordering* property: reads do not consume, and a read may not **move across a store** — which is where the discipline turned out to be leaking, since a buffer read looks exactly like an array read and an array read is genuinely pure ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md), [effects.md §7c](docs/spec/effects.md)) |
 | **Effects** | one declared bit per primitive, defaulting to impure. An impure argument is never substituted. No effect types, no monads ([ADR 0010](docs/decisions/0010-effects-as-structural-rules.md)) |
 
 ### Types are not in the language, and they still check
@@ -469,8 +491,13 @@ On top of that:
 - **Refinements** — `(where …)` in linear integer arithmetic, with a deliberately *incomplete*
   decision procedure. An undischarged obligation is **reported, never assumed**. Found a real
   latent bug in `dot` and `centroid` ([refinements.md](docs/spec/refinements.md)).
-- **Termination** — size-change termination plus a trip count proves **96% of loops**; the single
-  refusal is a true negative ([sct-2026-08-19](gauntlet/results/sct-2026-08-19.md)).
+- **Termination** — size-change termination plus a trip count. On the two parsers, with one range
+  declared: the tokeniser proves **20 of 20** loops and 100% of its integer operations, the tree
+  **25 of 25** ([rebench-2026-08-27](gauntlet/results/rebench-2026-08-27.md)). Read those numbers
+  with [fixpoint-2026-08-27](gauntlet/results/fixpoint-2026-08-27.md) beside them: the interval
+  fixpoint was **not monotone** — `restore` installed its snapshot by reference — so every
+  provability figure recorded before it was **inflated**, and the earlier 96% was measured against a
+  smaller corpus and an unsound analysis.
 - **Representation selection** — a declared range decides whether an integer operation keeps the
   host's operator or is rewritten to a `checked` primitive. Opt-in behind `-checked`, deliberately
   ([selection-2026-08-19](gauntlet/results/selection-2026-08-19.md)).
@@ -536,6 +563,7 @@ that is recorded too rather than dropped.
 | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) | A target need not be an expression language |
 | [0017](docs/decisions/0017-booleans-are-in-the-language.md) | Booleans and control flow are in the language |
 | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) | Immutable values, one scoped linear buffer |
+| [0019](docs/decisions/0019-precision-by-declaration.md) | Precision by declaration — **provisional** |
 
 Each has a "Why not" section recording the alternatives rejected — this project is deliberately put
 down at dead ends and picked up later, and the rejected alternatives are what will not be
@@ -562,6 +590,15 @@ depending on shape, and the isolated microbenchmark was wrong in *both* directio
 *scatter*, so the sieve, sorting, histograms, union-find and general DP are inexpressible portably
 at any speed. It cost almost nothing, because every mechanism it needs already existed
 ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md)).
+
+**A number that has failed to reproduce twice should stop being quoted.** All three measurements a
+map design would have rested on were re-taken and **all three moved**: JavaScript's `Map` is 1.56×
+slower than an object rather than 3.25×, a plain `{}` beats `Object.create(null)` against the
+folklore, and Java's fused `merge` is 1.22× *faster* where the first baseline had it 2.59× slower.
+Integer keys, never measured before, are **3.67×** — so `(map int V)`, picked to dodge the string
+question, is the case where the host choice matters most
+([maps-2026-08-30](gauntlet/results/maps-2026-08-30.md)). That is
+[ADR 0008](docs/decisions/0008-measurement-over-principle.md) applied to its own best example.
 
 **"Recursive data is a flat table plus indices" is a GO fact.** The same program on three hosts:
 flat beats recursive descent **2.52× on Go**, **1.22× on JavaScript**, and **loses 1.24× on the
@@ -657,23 +694,37 @@ The honest list, with the reasoning written down rather than deferred to memory:
   of what the language refuses. And the *performance* half of the counter-claim is now known to be
   host-specific (see above), so ADR 0014 rests on portability — stack depth differs by orders of
   magnitude across the four hosts and none guarantees tail calls.
-- **Strings**, **growable collections**, **maps** in the portable language. Two of these now have a
-  number attached rather than only a name: a string-based tokeniser is **1.89× slower than an
-  array-based one on V8**, so a JSON API handed a string should convert once rather than index it
-  ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)); and a `build` needs its length up
-  front, so `examples/json/tree.oro` sizes its node table for the largest document it will *accept*
-  rather than the one it gets — which is exactly what
-  [tables.md §14.3](docs/spec/tables.md)'s growable form is for, and it said it was waiting for a
-  real program.
+- **Strings.** The one of the three that is still open, and it has a number attached rather than
+  only a name: a string-based tokeniser is **1.89× slower than an array-based one on V8**, so a JSON
+  API handed a string should convert once rather than index it
+  ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)). `length` of `"🙂"` is 4 on Go, 2 on
+  JS and Java and 1 counting characters, which is why strings have almost no operations
+  ([strings.md](docs/spec/strings.md)). **Maps** are built ([maps.md](docs/spec/maps.md)), and
+  **growable collections are withdrawn**: count-then-build measures **2.95× faster than growing
+  `append` on Go** and at parity on JavaScript, so the workaround every array language uses is
+  better than the thing it works around ([maps-2026-08-30](gauntlet/results/maps-2026-08-30.md)).
+- **What integers still owe**, now that the operators are the language's: covering for the
+  JavaScript division hazard, so a program dividing by an unbounded value is told it is not portable
+  there — `1/0` is `Infinity` on V8 where three hosts trap; `f64 → int`, which is three hosts and
+  three out-of-domain answers; **bitwise as a *conditional* promotion**, legal exactly when a
+  declared range fits int32; and [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s
+  remaining three — a spelling for the unbounded rung, a **bidirectional** representation solver
+  (factorial is the witness: the pressure comes from the declared *result*), and arbitrary precision
+  emitted per target rather than hand-written.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the
   refinement layer's guards.
-- **Octagons.** The interval domain is non-relational and every interesting obligation is
-  relational. `examples/json/tree.oro` sits at 91.3% with a residue that is not a running extremum
-  but values read *out of the node table*, which nothing bounds — the honest limit of a
-  non-relational domain, and where octagons would be asked next
-  ([decidability-map.md](docs/decidability-map.md) calls them the highest-value move available).
+- ~~**Octagons.**~~ **Refuted by measurement, twice**, and left here because
+  [decidability-map.md](docs/decidability-map.md) called them *the highest-value move available* and
+  three results named a demand. Before building an O(n³) domain, every unproven operation in the
+  corpus was classified by the fact that would settle it and **not one needed an octagon**
+  ([maxlen-2026-08-28](gauntlet/results/maxlen-2026-08-28.md)) — the reason generalises, since
+  `i − n ≤ c` bounds `i` only when `n` is bounded, and if `n` is bounded the guard already gives it
+  non-relationally. The tree's residue then turned out to be values read *out of a table*, which
+  needs a quantified array invariant — **strictly stronger** than an octagon, not weaker
+  ([frozen-2026-08-28](gauntlet/results/frozen-2026-08-28.md)). What measurement selected instead
+  was a length bound at both ends, and it improved thirteen programs.
 - **The type system reasoning about the target** — expressing a Win32 contract so a program can be
   checked in Oroboros; SAL is the field-tested answer and five of the eight requirements exist
 - **The niche encoding** for sums, `try` as bind, and **`match` on a sum** — which would remove one
@@ -681,7 +732,6 @@ The honest list, with the reasoning written down rather than deferred to memory:
   ([sums.md §7](docs/spec/sums.md))
 - **Element size in the type**, generally. x86 needed it and got a local answer; nothing says what
   `(array bool)` means on a host that has no `bool`
-- **Octagons** instead of the hand-rolled relational layer in `emit/refine.go`
 - [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price — the shape, on
   three hosts now, and expected to be paid off rather than kept
 
@@ -699,7 +749,7 @@ Design questions still open are listed in §8 of
 5. [docs/spec/inventory.md](docs/spec/inventory.md) — every word an `.oro` file can contain, and
    which of them are specified
 6. The ADRs in [docs/decisions/](docs/decisions/)
-7. [gauntlet/results/](gauntlet/results/) — 46 measurements, and **the authority**: every design
+7. [gauntlet/results/](gauntlet/results/) — 56 measurements, and **the authority**: every design
    claim here that was not measured has been wrong about half the time
 
 ## Name

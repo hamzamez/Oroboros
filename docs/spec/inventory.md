@@ -9,7 +9,12 @@ rather than from memory.
 > part. The language has roughly doubled since: tables, sums, `match`, several results, and the
 > write side of the memory model.
 >
-> **Result: of 65 words, 60 are specified.** Four are described only in code comments and one is
+> **STALE as of 2026-08-31, and re-running it is owed.** Maps (`map`, `build-map`, `insert`,
+> `keys`), the nine promoted integer operators (`+ - * / % < <= > >=`), the injected `option`
+> constructors and three target-file forms (`map-type`, `boxed`, `builtin-map`) have all arrived
+> since this was taken. An audit that is not re-taken is just a number.
+>
+> **Result at the time: of 65 words, 60 are specified.** Four are described only in code comments and one is
 > genuinely undocumented (§6). **None is wrong**, which is the first time that has been true — the
 > previous audit found four outright errors.
 

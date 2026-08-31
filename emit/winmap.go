@@ -76,7 +76,7 @@ func lowerMaps(tg *Target, p *core.Program) error {
 		p.Defs[n] = d
 	}
 	for n, d := range p.Defs {
-		p.Defs[n] = rewriteMap(tg, p.Defs, d)
+		p.Defs[n] = rewriteMap(tg, p.Defs, newMapEnv(tg), d)
 	}
 	return nil
 }
@@ -113,7 +113,7 @@ func mentionsMap(tg *Target, t *core.Term) bool {
 
 // rewriteMap is the rewrite itself, bottom-up so a nested map is lowered before
 // the term that contains it.
-func rewriteMap(tg *Target, defs map[string]*core.Term, t *core.Term) *core.Term {
+func rewriteMap(tg *Target, defs map[string]*core.Term, env mapEnv, t *core.Term) *core.Term {
 	if t == nil {
 		return nil
 	}
@@ -123,7 +123,7 @@ func rewriteMap(tg *Target, defs map[string]*core.Term, t *core.Term) *core.Term
 	// buffer — indistinguishable from a map's. Deciding first and lowering the
 	// pieces afterwards keeps the two apart.
 	if t.Kind == core.KApp {
-		if out, done := rewriteRead(tg, defs, t); done {
+		if out, done := rewriteRead(tg, defs, env, t); done {
 			return out
 		}
 	}
@@ -131,7 +131,7 @@ func rewriteMap(tg *Target, defs map[string]*core.Term, t *core.Term) *core.Term
 	if len(t.Kids) > 0 {
 		out.Kids = make([]*core.Term, len(t.Kids))
 		for i, k := range t.Kids {
-			out.Kids[i] = rewriteMap(tg, defs, k)
+			out.Kids[i] = rewriteMap(tg, defs, env.at(t, i), k)
 		}
 	}
 	if out.Kind != core.KApp {
@@ -154,6 +154,19 @@ func rewriteMap(tg *Target, defs map[string]*core.Term, t *core.Term) *core.Term
 	case "map-insert":
 		if a := out.Args(); len(a) == 3 {
 			return core.App(core.Name(mapImplPrefix+"wm-put"), a[0], a[1], a[2])
+		}
+	case "len":
+		// `len m` IS `|dom m|`, and it is the one map operation that cannot be
+		// recognised after lowering: a lowered map is an array buffer, so
+		// `(len m)` and `(len a)` are the same term meaning different things.
+		// Deciding it HERE, while `build-map` is still visible, is the only
+		// place the type exists.
+		//
+		// Without this it returned the BUFFER's length — 3 words per slot, at
+		// twice the capacity — so a five-entry map reported 48. It compiled,
+		// ran and printed.
+		if a := out.Args(); len(a) == 1 && env.isMapValue(t.Args()[0]) {
+			return core.App(core.Name(mapImplPrefix+"wm-len"), a[0])
 		}
 	case "map":
 		// A LITERAL becomes a `build-map` of its own rows, which the case above
@@ -220,7 +233,7 @@ func rewriteMap(tg *Target, defs map[string]*core.Term, t *core.Term) *core.Term
 // would not duplicate it — the reducer let-binds an argument used more than
 // once — but relying on that would be relying on an optimisation for a
 // correctness-shaped property.
-func rewriteRead(tg *Target, defs map[string]*core.Term, t *core.Term) (*core.Term, bool) {
+func rewriteRead(tg *Target, defs map[string]*core.Term, env mapEnv, t *core.Term) (*core.Term, bool) {
 	op := t.Op()
 	if op.Kind != core.KApp || len(t.Args()) != 1 || len(op.Args()) != 1 {
 		return nil, false
@@ -229,12 +242,12 @@ func rewriteRead(tg *Target, defs map[string]*core.Term, t *core.Term) (*core.Te
 	if cont.Kind != core.KFn || len(cont.Params) != 2 {
 		return nil, false
 	}
-	if !isMapTerm(tg, defs, op.Op()) {
+	if !isMapTerm(tg, defs, env, op.Op()) {
 		return nil, false
 	}
-	m := rewriteMap(tg, defs, op.Op())
-	key := rewriteMap(tg, defs, op.Args()[0])
-	k := rewriteMap(tg, defs, cont)
+	m := rewriteMap(tg, defs, env, op.Op())
+	key := rewriteMap(tg, defs, env, op.Args()[0])
+	k := rewriteMap(tg, defs, env, cont)
 
 	// THE MAP IS BOUND ONCE. It is mentioned three times below — the probe, the
 	// clamp and the read — and when it is a lowered LITERAL that term is a
@@ -257,6 +270,169 @@ func rewriteRead(tg *Target, defs map[string]*core.Term, t *core.Term) (*core.Te
 		core.App(core.Name(mapImplPrefix+"wm-find"), mv, key),
 		core.Fn([]string{"#f"}, core.App(k, tag, val)))
 	return core.App(core.Name("let"), m, core.Fn([]string{"#mv"}, inner)), true
+}
+
+// mapEnv tracks WHICH BINDERS HOLD A MAP, which is the one thing the lowering
+// cannot recover after it has run.
+//
+// `(m k)` is distinguishable by shape — its eliminator is a two-parameter
+// continuation, and nothing else produces that. `(len m)` is NOT: after
+// lowering, a map IS an array buffer, so `(len m)` and `(len a)` are the same
+// term and mean different things. The difference is the TYPE, and the only
+// place the type is still visible is before the rewrite, while `build-map` and
+// `insert` are still in the term.
+//
+// So the identification happens on the way down, and it is the same
+// conservative tracking the JavaScript emitter does for the same reason: a
+// binder it does not recognise is left alone and keeps whatever meaning it had.
+// It can under-fire; it cannot invent a map.
+//
+// Keyed by ABSOLUTE binder level and parameter index. A `KBound` says how many
+// binders OUT it points (0 = nearest), so at walk-depth d it refers to level
+// d-1-Depth.
+type mapEnv struct {
+	tg    *Target
+	depth int
+	is    map[[2]int]bool
+
+	// pending is which parameters of the NEXT binder hold maps, decided by that
+	// binder's parent and consumed on the way in.
+	pending map[int]bool
+}
+
+func newMapEnv(tg *Target) mapEnv { return mapEnv{tg: tg, is: map[[2]int]bool{}} }
+
+// kindOf is the structural kind of a name on this target, or "".
+func (e mapEnv) kindOf(name string) string { return e.tg.Prims[name].Kind }
+
+// under enters a binder, marking the parameters at `which` as holding maps.
+func (e mapEnv) under(which map[int]bool) mapEnv {
+	out := mapEnv{tg: e.tg, depth: e.depth + 1, is: map[[2]int]bool{}}
+	for k, v := range e.is {
+		out.is[k] = v
+	}
+	for i := range which {
+		out.is[[2]int{e.depth, i}] = true
+	}
+	return out
+}
+
+// holdsMap reports whether a bound variable refers to a binder marked as a map.
+func (e mapEnv) holdsMap(t *core.Term) bool {
+	if t == nil || t.Kind != core.KBound {
+		return false
+	}
+	return e.is[[2]int{e.depth - 1 - t.Depth, t.Index}]
+}
+
+// at is the environment for kid i of term t.
+//
+// TWO THINGS HAPPEN AT DIFFERENT PLACES and conflating them was the first
+// version's bug. Depth increases when we ENTER a binder — a `KFn` binds its
+// body, whatever its parent was. Which of that binder's parameters hold maps is
+// decided by the binder's PARENT, one level up, so it is carried down as
+// `pending` and consumed on the way in.
+//
+// Three parents can introduce one, and they are exactly the three the
+// JavaScript emitter tracks — the construct that MAKES a map, the one that
+// NAMES it, and the one that THREADS it:
+//
+//	(build-map cap (fn (m) …))        m is the buffer
+//	(let VALUE (fn (x) …))            x is a map when VALUE is
+//	(loop (fn (v…) …) init…)          vᵢ is a map when initᵢ is
+//
+// Anything else carries nothing, so an unrecognised parent can only lose the
+// identification, never invent one.
+func (e mapEnv) at(t *core.Term, i int) mapEnv {
+	if t.Kind == core.KFn {
+		return e.under(e.pending)
+	}
+	out := e
+	out.pending = nil
+	if t.Kind != core.KApp || t.Kids[i].Kind != core.KFn {
+		return out
+	}
+	op := t.Op()
+	// A PLAIN BETA-REDEX, which is what a source `let` actually is. The reader
+	// does NOT keep `(let V K)`: it produces `((fn (x) body) V)`, so the binder
+	// is the OPERATOR and the value is an operand. Matching on the name `let`
+	// found nothing, which is why the first version of this tracked no binder
+	// at all and every `(len m)` fell through to the buffer's length.
+	if op.Kind == core.KFn && i == 0 {
+		which := map[int]bool{}
+		for j, a := range t.Args() {
+			if j < len(op.Params) && e.isMapValue(a) {
+				which[j] = true
+			}
+		}
+		if len(which) > 0 {
+			out.pending = which
+		}
+		return out
+	}
+	if op.Kind != core.KName {
+		return out
+	}
+	args := t.Args()
+	which := map[int]bool{}
+	switch e.kindOf(op.Name) {
+	case "map-build":
+		if i == 2 && len(args) == 2 {
+			which[0] = true
+		}
+	case "let":
+		if i == 2 && len(args) == 2 && e.isMapValue(args[0]) {
+			which[0] = true
+		}
+	case "iterate":
+		// `(loop (fn (v…) …) z…)`: the lambda is argument 1 and the inits
+		// follow it positionally.
+		if i == 1 {
+			for j, z := range args[1:] {
+				if e.isMapValue(z) {
+					which[j] = true
+				}
+			}
+		}
+	}
+	if len(which) > 0 {
+		out.pending = which
+	}
+	return out
+}
+
+// isMapValue reports whether a term, in the environment it appears in, produces
+// a map. Deliberately syntactic: a `build-map`, an `insert`, a literal, or a
+// bound variable already known to hold one.
+func (e mapEnv) isMapValue(t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	if e.holdsMap(t) {
+		return true
+	}
+	if t.Kind != core.KApp {
+		return false
+	}
+	if op := t.Op(); op.Kind == core.KName {
+		switch e.kindOf(op.Name) {
+		case "map-build", "map-insert", "map":
+			return true
+		case "iterate":
+			// A loop THREADING a map yields one. Its exits are its clause
+			// bodies, and the buffer is what a linear loop hands back, so it is
+			// enough that an INIT was a map.
+			for _, z := range t.Args()[1:] {
+				if e.isMapValue(z) {
+					return true
+				}
+			}
+		}
+		if op.Name == mapImplPrefix+"wm-put" || op.Name == mapImplPrefix+"wm-fill" {
+			return true
+		}
+	}
+	return false
 }
 
 // slotsOf is the slot count for a capacity: the least power of two that is at
@@ -296,13 +472,15 @@ func slotsOf(cap *core.Term) *core.Term {
 // A `case` on a sum-typed VARIABLE is safe either way — it expands to
 // `(s (fn (#t #p) …))`, whose operator is the variable itself and not an
 // application, so the guard above never reaches here.
-func isMapTerm(tg *Target, defs map[string]*core.Term, t *core.Term) bool {
+func isMapTerm(tg *Target, defs map[string]*core.Term, env mapEnv, t *core.Term) bool {
 	if t == nil {
 		return false
 	}
 	switch t.Kind {
 	case core.KBound:
-		return true
+		// Marked by an enclosing `build-map`, `let` or `loop` — not "any bound
+		// variable", which would call an ARRAY read a map read.
+		return env.holdsMap(t)
 	case core.KName:
 		// A map held by a top-level definition, which reduction would inline
 		// but has not yet.

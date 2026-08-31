@@ -1,0 +1,28 @@
+; A MAP'S LENGTH IS |dom m| (maps.md §1).
+; inputs: 0 1 5
+; expect: 0 1 5
+;
+; `len` is one construct with one meaning -- the cardinality of the index set --
+; at a different index set. Every table has one, so this is not a special case.
+;
+; It was wrong on THREE of the four targets and in three different ways, which
+; is the argument for this suite in one line:
+;
+;   Go        len(m)                   correct already
+;   JavaScript `{}.length`             SILENT: undefined
+;   Java       `.length` on a Map      a compile error -- javac refused it
+;   windows    the buffer's length     SILENT: 3 words a slot, so 48 for 5
+;
+; A host with types refused what the host without them printed. Neither
+; silent answer could be caught by reading the emitted code for one target.
+;
+; On windows this needs binder tracking rather than a shape: after lowering, a
+; map IS an array buffer, so `(len m)` and `(len a)` are the same term meaning
+; different things. The identification happens while `build-map` is still
+; visible, which is the only place the type exists.
+(def run (fn (n)
+  (let (build-map 8 (fn (m)
+         (loop ((m m) (i 0))
+           (@ge i n)  m
+           else       (again (insert m i 1) (@add i 1)))))
+    (fn (m) (len m)))))

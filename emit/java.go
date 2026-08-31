@@ -664,6 +664,17 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			// A MAP'S LENGTH IS |dom m| — `size()`, not `length`. Same
+			// construct, same meaning, different index set (maps.md §1).
+			//
+			// javac caught this one, which is worth recording beside the other
+			// two: the identical mistake was a SILENT wrong answer on
+			// JavaScript (`{}.length` is `undefined`) and on windows (the
+			// buffer's length, 3 words a slot), and a compile error here. A
+			// host with types refuses what a host without them prints.
+			if _, _, isMap := core.MapTypes(e.typeOf(t.Args()[0])); isMap {
+				return fmt.Sprintf("%s.size()", a), nil
+			}
 			return fmt.Sprintf("%s.length", a), nil
 		case p.Kind == "array":
 			elems := t.Args()

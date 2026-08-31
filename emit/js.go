@@ -554,6 +554,19 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			if err != nil {
 				return "", err
 			}
+			// A MAP'S LENGTH IS |dom m|, NOT `.length`. A map lowers to a plain
+			// object here, and `{}.length` is `undefined` — a silent wrong
+			// answer that compiled, ran and printed. `len m = len (keys m)` is
+			// the cardinality of the index set and every table has one, so this
+			// is the same construct with the same meaning at a different index
+			// set, not a special case.
+			//
+			// O(n) where Go and Java are O(1). The ANSWER is identical, so it
+			// is not a Tier 2 disagreement — only a different price, which
+			// maps.md §8.2 names rather than hides.
+			if e.isMapName(t.Args()[0]) || e.isMapTerm(t.Args()[0]) || e.maps[a] {
+				return fmt.Sprintf("Object.keys(%s).length", a), nil
+			}
 			return fmt.Sprintf("%s.length", a), nil
 		case "array":
 			elems := t.Args()

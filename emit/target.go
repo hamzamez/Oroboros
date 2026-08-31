@@ -2225,3 +2225,6 @@ func handsBack(tgt *Target, t *core.Term, name string) bool {
 	}
 	return false
 }
+
+// KindOf is a primitive's structural kind, for tests and tools.
+func (tg *Target) KindOf(name string) string { return tg.Prims[name].Kind }

@@ -104,15 +104,23 @@ func TestASumReturningCallIsNotAMapRead(t *testing.T) {
 	defs := map[string]*core.Term{"f": core.Fn([]string{"x"}, core.Name("x"))}
 	call := core.App(core.Name("f"), core.Name("x"))
 	cont := core.Fn([]string{"#t", "#p"}, core.Name("#p"))
-	if _, done := rewriteRead(tg, defs, core.App(call, cont)); done {
+	env := newMapEnv(tg)
+	if _, done := rewriteRead(tg, defs, env, core.App(call, cont)); done {
 		t.Error("a sum-returning CALL was rewritten as a map read; that compiles " +
 			"a different program, and it is what examples/sum/parse.oro looks like")
 	}
-	// The control: a KBound in the same position IS a map read, or the check
-	// above would pass by rewriting nothing at all.
+	// AND A BOUND VARIABLE IS NOT ENOUGH EITHER: an array buffer is a KBound in
+	// exactly the same position, so the binder must be one the tracking MARKED.
 	buf := &core.Term{Kind: core.KBound}
-	if _, done := rewriteRead(tg, defs, core.App(core.App(buf, core.Int(1)), cont)); !done {
-		t.Error("a read of a bound buffer was NOT rewritten, so the test above " +
-			"proves nothing")
+	if _, done := rewriteRead(tg, defs, env, core.App(core.App(buf, core.Int(1)), cont)); done {
+		t.Error("a read of an UNMARKED bound variable was rewritten as a map " +
+			"read; that is what an array buffer looks like")
+	}
+	// The control: marked, it IS a map read — or the two checks above would
+	// pass by rewriting nothing at all.
+	marked := env.under(map[int]bool{0: true})
+	if _, done := rewriteRead(tg, defs, marked, core.App(core.App(buf, core.Int(1)), cont)); !done {
+		t.Error("a read of a MARKED buffer was not rewritten, so the checks " +
+			"above prove nothing")
 	}
 }

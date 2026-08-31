@@ -285,6 +285,122 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 	return e.emit(body)
 }
 
+// emitBuildMap is `build`, one index set over (maps.md §3.3).
+//
+// `(build-map cap (fn (m) …))` is ADR 0018's linear buffer with `I = S ⊆ K`
+// instead of `I = Fin n`, which arrays-revisited.md §6 derives rather than
+// chooses: the discipline is about ALIASING, and aliasing does not care what
+// the index set is.
+//
+// The capacity is a real declaration and not a hint (maps.md §6). Go takes it
+// as a sizing hint and would grow without it; windows cannot grow at all, and
+// letting three hosts grow while one does not is an observable disagreement.
+// So every target gets the same bound and the program says what happens when it
+// is reached — `tree.oro`'s node cap, which does not create the limit but makes
+// it visible.
+func (e *Emitter) emitBuildMap(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 2 {
+		return "", fmt.Errorf("build-map takes a capacity and (fn (m) …), got %s", t)
+	}
+	lam := args[1]
+	if lam.Kind != core.KFn || len(lam.Params) != 1 {
+		return "", fmt.Errorf("build-map's body must be (fn (m) …), got %s", lam)
+	}
+	cap, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	body, raw, out := openFresh(lam, e.bound, mangle)
+	kt, vt := MapElemTypes(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+	ty := "map " + kt + " " + vt
+	e.types[raw[0]] = ty
+	e.line("%s := make(%s, %s)", out[0], e.tgt.ty(ty), cap)
+	return e.emit(body)
+}
+
+// emitInsert is `set`, one index set over: a STATEMENT that returns the map,
+// which is what makes `(insert m k v)` consume and return `m`.
+//
+// Go's map is a REFERENCE type — `m[k] = v` mutates in place and there is no
+// append-style reassignment — so this IS Go's own semantics, and linearity is
+// what makes threading it safe. The host that looks least like our model needs
+// the least translation, which is the surprise `(T, error)` gave sums.
+func (e *Emitter) emitInsert(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 3 {
+		return "", fmt.Errorf("insert takes a map, a key and a value, got %s", t)
+	}
+	m, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	k, err := e.emit(args[1])
+	if err != nil {
+		return "", err
+	}
+	v, err := e.emit(args[2])
+	if err != nil {
+		return "", err
+	}
+	e.line("%s[%s] = %s", m, k, v)
+	return m, nil
+}
+
+// emitMapCase recognises a map read under its eliminator and emits comma-ok.
+//
+//	((m k) (fn (#t #p) body))   ⟶   p, ok := m[k]
+//	                                 t := 1; if ok { t = 0 }
+//	                                 …body…
+//
+// `#t` is materialised as an integer rather than folded into `ok`, because the
+// body is an ordinary term that tests `(= #t 0)` and the emitter has no
+// business rewriting it. Whether Go's compiler collapses the two is a
+// MEASUREMENT owed rather than an assumption — ADR 0008.
+//
+// It reports done=false for anything that is not this shape, so a genuine
+// escaping closure keeps its own diagnostic.
+func (e *Emitter) emitMapCase(t *core.Term) (string, bool, error) {
+	op := t.Op()
+	args := t.Args()
+	if op.Kind != core.KApp || len(args) != 1 {
+		return "", false, nil
+	}
+	k := args[0]
+	if k.Kind != core.KFn || len(k.Params) != 2 {
+		return "", false, nil
+	}
+	// The operator must be a read of something we KNOW to be a map. Anything
+	// else is a different failure and must keep its own diagnostic.
+	inner := op.Op()
+	if inner.Kind != core.KName || len(op.Args()) != 1 {
+		return "", false, nil
+	}
+	mty := e.typeOf(inner)
+	_, vt, isMap := core.MapTypes(mty)
+	if !isMap {
+		return "", false, nil
+	}
+	m, err := e.emit(inner)
+	if err != nil {
+		return "", false, err
+	}
+	key, err := e.emit(op.Args()[0])
+	if err != nil {
+		return "", false, err
+	}
+	body, raw, out := openFresh(k, e.bound, mangle)
+	e.types[raw[0]], e.types[raw[1]] = "int", vt
+	ok := out[0] + "ok"
+	e.line("%s, %s := %s[%s]", out[1], ok, m, key)
+	e.line("%s := 1", out[0])
+	e.line("if %s {", ok)
+	e.line("	%s = 0", out[0])
+	e.line("}")
+	s, err := e.emit(body)
+	return s, true, err
+}
+
 // emitSet is a store. It is a STATEMENT that returns the buffer, which is what
 // makes `(set b i v)` consume and return `b` — the linear threading, spelled in
 // the host's own assignment.
@@ -464,6 +580,22 @@ func (e *Emitter) typeOf(t *core.Term) string {
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
+		// A MAP READ UNDER ITS ELIMINATOR has the type of the clause bodies,
+		// which the continuation's own body reports. Without this the whole
+		// function came out `/*unknown*/`, because the operator of `((m k) …)`
+		// is not a name and every case below assumes it is.
+		if op := t.Op(); op.Kind == core.KApp && len(t.Args()) == 1 {
+			if k := t.Args()[0]; k.Kind == core.KFn && len(k.Params) == 2 {
+				if inner := op.Op(); inner.Kind == core.KName {
+					if _, vt, isMap := core.MapTypes(e.typeOf(inner)); isMap {
+						body, raw, _ := openFresh(k, map[string]bool{},
+							func(s string) string { return s })
+						e.types[raw[0]], e.types[raw[1]] = "int", vt
+						return e.typeOf(body)
+					}
+				}
+			}
+		}
 		if op := t.Op(); op.Kind == core.KName {
 			// INDEXING IS APPLICATION, so the type of `(a i)` is a's ELEMENT
 			// type. This is the only place the checker needs to know tables
@@ -488,6 +620,18 @@ func (e *Emitter) typeOf(t *core.Term) string {
 					}
 				}
 				if (p.Kind == "table-alloc" || p.Kind == "table-set") && len(t.Args()) >= 1 {
+					return e.typeOf(t.Args()[0])
+				}
+				// The map side of the same two rules: `build-map` yields the
+				// map its buffer became, `insert` passes one through.
+				if p.Kind == "map-build" && len(t.Args()) == 2 {
+					if lam := t.Args()[1]; lam.Kind == core.KFn && len(lam.Params) == 1 {
+						body, raw, _ := openFresh(lam, map[string]bool{}, func(s string) string { return s })
+						kt, vt := MapElemTypes(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+						return "map " + kt + " " + vt
+					}
+				}
+				if p.Kind == "map-insert" && len(t.Args()) >= 1 {
 					return e.typeOf(t.Args()[0])
 				}
 				if p.Kind == "table" && len(t.Args()) == 2 {
@@ -621,6 +765,20 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 
 	case core.KApp:
 		op := t.Op()
+		// A MAP READ BEING ELIMINATED — `((m k) (fn (#t #p) body))`.
+		//
+		// `(m k)` is `(option V)` and a `case` on it expands to the Church
+		// eliminator applied to the read, so what reaches here is an
+		// application whose OPERATOR is itself an application. That is the one
+		// shape where an operator is legitimately not a name.
+		//
+		// It emits as Go's own comma-ok, which is what "emit at the highest
+		// layer the target natively provides" means here: the host's fallible
+		// read IS the sum, so F2's option is not a thing we add but a thing Go
+		// already has and we were discarding (maps.md §5.3).
+		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s\n"+
 				"  The operator must be a primitive; recursive definitions were the other\n"+
@@ -687,6 +845,10 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		// the construct doing its job: the rule form exists to FUSE, and one
 		// that reaches a backend did not.
 		switch p.Kind {
+		case "map-build":
+			return e.emitBuildMap(t)
+		case "map-insert":
+			return e.emitInsert(t)
 		case "table-build":
 			return e.emitBuild(t)
 		case "table-set":

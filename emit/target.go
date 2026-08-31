@@ -116,6 +116,14 @@ type Target struct {
 	// Empty means the target has no types to spell (JavaScript, windows).
 	ArrayType string
 
+	// MapType is how this target spells a map from something to something —
+	// `map[%s]%s` on Go, `java.util.HashMap<%s,%s>` on Java. One declaration
+	// replaces an entry per (K, V) pair, which is the suffix explosion squared:
+	// `targets/java/util.oro` says so in as many words, having had to declare
+	// `Map<String,Long>` and nothing else.
+	// Empty means the target has no types to spell (JavaScript, windows).
+	MapType string
+
 	// Reprs are the integer representations this target can store, narrowest
 	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
 	// the first one that CONTAINS it — ADR 0003's "the compiler selects the
@@ -273,6 +281,7 @@ var coreNames = map[string]bool{
 	// are inexpressible portably AT ANY SPEED without this. That is what
 	// decided ADR 0018 — expressiveness, not the 2.7x.
 	"alloc": true, "build": true, "set": true,
+	"map": true, "build-map": true, "insert": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -313,6 +322,27 @@ var coreStructural = []Prim{
 	{Name: "alloc", Kind: "table-alloc", LengthOf: 1},
 	{Name: "build", Kind: "table-build", Length: 1},
 	{Name: "set", Kind: "table-set", LengthOf: 1},
+	// A MAP BUFFER and its store (maps.md §3.3). Identical in discipline to
+	// `build`/`set` and impure for the same reasons — allocation for the first,
+	// sequencing for the second.
+	//
+	// arrays-revisited.md §6 derives rather than chooses this: the discipline
+	// is about ALIASING, and aliasing does not care what the index set is. So a
+	// growing map is ADR 0018's linear buffer with `I = S ⊆ K` instead of
+	// `I = Fin n`, and `occurrences` is the check, unchanged.
+	//
+	// `build-map` takes a CAPACITY, and that is the load-bearing decision of
+	// maps.md §6 rather than a performance hint: windows ships no map, a
+	// growing hash table must rebuild into a larger allocation, and that is not
+	// expressible. Letting three hosts grow and windows not is an OBSERVABLE
+	// disagreement, which is a Tier 2 construct in the core.
+	//
+	// No LengthOf on `insert`: `|dom m|` after an insert is `|dom m|` or one
+	// more, because whether the key was already present is a fact about the
+	// input (growth.md §1.1). Append keeps an equation; insert keeps only an
+	// interval, and claiming the equation here would be unsound.
+	{Name: "build-map", Kind: "map-build"},
+	{Name: "insert", Kind: "map-insert"},
 }
 
 // eqSpellings are how a target may spell integer equality, most preferred
@@ -453,6 +483,13 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.ArrayType = o.ArrayType
 	}
+	if o.MapType != "" {
+		if tg.MapType != "" && tg.MapType != o.MapType {
+			return fmt.Errorf("%s: map-type is declared as %q and as %q",
+				from, tg.MapType, o.MapType)
+		}
+		tg.MapType = o.MapType
+	}
 	if o.MaxLen != 0 {
 		if tg.MaxLen != 0 && tg.MaxLen != o.MaxLen {
 			return fmt.Errorf("%s: max-len is declared as %d and as %d",
@@ -536,6 +573,11 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
 			}
 			tg.ArrayType = f.Kids[1].Str
+		case "map-type":
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
+				return nil, fmt.Errorf("%s: (map-type \"map[%%s]%%s\"), got %s", path, f)
+			}
+			tg.MapType = f.Kids[1].Str
 		case "type":
 			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (type NAME \"spelling\"), got %s", path, f)
@@ -929,6 +971,18 @@ func (tg *Target) ty(name string) string {
 	// types and nineteen `at-*`/`make-*`/`set-*`/`len` primitives, and the four
 	// targets together declared 54. They existed because the type language had
 	// no constructor.
+	// `(map K V)` resolves through ONE declaration, for `array`'s reason: the
+	// alternative is an entry per (K, V) pair, and Java's collections showed
+	// what that costs — `targets/java/util.oro` says the suffix explosion is
+	// "the same limitation squared" there, one name per (container, K, V).
+	if k, v, ok := core.MapTypes(name); ok {
+		if tg.MapType != "" {
+			return Fill(tg.MapType, tg.ty(k), tg.ty(v))
+		}
+		// A target with no types — JavaScript, windows — spells a map nothing
+		// at all, which is why neither declares one.
+		return ""
+	}
 	if elem := core.ArrayElem(name); elem != "" {
 		if tg.ArrayType != "" {
 			return Fill(tg.ArrayType, tg.ty(elem))
@@ -1389,6 +1443,55 @@ func max64(a, b int64) int64 {
 // construction. Only when none of those decides does the analysis get asked —
 // so the cases that can be settled without trusting a fixpoint are, and
 // BufferRange's soundness argument carries only the rest.
+// MapElemTypes decides a map buffer's key and value types from its stores.
+//
+// The KEY is `int` and there is no inference to do: `(map K V)` is well-formed
+// exactly where the language's `=` is defined, and `=` is integer equality only
+// (maps.md §2). A range narrows the key's REPRESENTATION and not its type, so
+// this returns `int` and lets `ty` spell it.
+//
+// The VALUE is read off the `(insert m k v)` calls, the way ElemType reads a
+// buffer's element off its `set`s — and for the same soundness reason: a slot
+// holds either nothing or the most recent insert, there being no third source,
+// because `build-map` is the only allocator and `insert` the only store and
+// ADR 0018's linearity means nothing else can have written it.
+//
+// Where the stores disagree or say nothing, the host's own integer. Widening is
+// the safe direction: a value type too narrow truncates on store and is a
+// silent wrong answer, which is exactly what elemwidth-2026-08-27 recorded.
+func MapElemTypes(tgt *Target, lam, body *core.Term, name string,
+	typeOf func(*core.Term) string, sig *core.Sig, params []string) (string, string) {
+
+	val := ""
+	var walk func(*core.Term)
+	walk = func(t *core.Term) {
+		if t == nil {
+			return
+		}
+		if t.Kind == core.KApp {
+			if op := t.Op(); op.Kind == core.KName && op.Name == "insert" {
+				if a := t.Args(); len(a) == 3 && a[0].Kind == core.KName && a[0].Name == name {
+					if ty := core.ValueType(typeOf(a[2])); ty != "" && ty != "any" {
+						if val == "" {
+							val = ty
+						} else if val != ty {
+							val = "int" // disagreement widens, it never narrows
+						}
+					}
+				}
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	if val == "" {
+		val = "int"
+	}
+	return "int", val
+}
+
 func ElemType(tgt *Target, lam, body *core.Term, name string,
 	typeOf func(*core.Term) string, sig *core.Sig, params []string) string {
 	if ty := bufferElem(body, name, typeOf); ty != "int" {

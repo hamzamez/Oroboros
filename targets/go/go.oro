@@ -31,6 +31,7 @@
   (int-repr -2147483648 2147483647 "int32")
 
   (array-type "[]%s")
+  (map-type "map[%s]%s")
 
   (type int      "int")
   (type int64    "int64")

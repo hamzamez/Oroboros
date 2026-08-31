@@ -1,0 +1,37 @@
+; A DYNAMIC MAP on the native Go target (maps.md).
+;
+; The static half -- `((map (1 10)) 1)` -- reduces away entirely and reaches no
+; backend. This is the other half: a map built at run time, inserted into in a
+; loop, and read with a key the compiler cannot know.
+;
+; `(m k)` is `(option V)`, and the `case` is what discharges the domain
+; condition -- the only thing that can, because `k in dom m` is set membership
+; and no decidable fragment we have decides it. That is F2, and it REMOVES an
+; obligation rather than adding one: the program says what happens when the key
+; is absent.
+;
+; It emits as Go's own comma-ok, so the option is not a thing we add -- it is a
+; thing the host already has and we were discarding.
+;
+; The capacity is a declaration and not a hint (maps.md §6): windows ships no
+; map and a growing hash table cannot be expressed, so every target gets the
+; same bound rather than three growing and one not.
+
+(use go)
+(use go/fmt)
+(export main)
+
+; A DYNAMIC map: built, inserted into, and read with a key the compiler cannot
+; know. `(m k)` is `(option V)` and the `case` is what discharges the domain
+; condition -- the only thing that can, since `k in dom m` is set membership.
+(def build3 (fn (n)
+  (build-map 8 (fn (m)
+    (loop ((m m) (i 0))
+      (go.>= i n)  m
+      else         (again (insert m i (go.* i 10)) (go.+ i 1)))))))
+
+(def look (fn (m k) (case (m k) (some v) v none -1)))
+
+(def main (fn ()
+  (let (build3 5) (fn (m)
+    (fmt.Println (go.+ (go.* 100 (look m 3)) (look m 9)))))))

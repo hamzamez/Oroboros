@@ -108,7 +108,12 @@ func caseForm(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, 
 				return nil, fmt.Errorf("case: %s is not a variant of any sum in scope. "+
 					"A sum is declared with `(sum name (variant type) …)`", c.variant)
 			}
-			if sum != nil && owner != sum {
+			// By NAME, not by pointer. The language's `option` is injected into
+			// every module (newModule), so each module holds its own copy and
+			// a pointer comparison would report `option` as clashing with
+			// itself. Same shape as the check in `partition`, and latent here
+			// for the same reason: it only bites once one sum has two copies.
+			if sum != nil && owner.Name != sum.Name {
 				return nil, fmt.Errorf("case: %s is a variant of %s, but this case is "+
 					"on %s — one case eliminates one sum", c.variant, owner.Name, sum.Name)
 			}

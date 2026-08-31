@@ -1,0 +1,28 @@
+; A MAP'S KEYS, ASCENDING (maps.md §7).
+; inputs: 1 2 4
+; expect: 20 1720 11141720
+;
+; The keys are inserted DESCENDING -- 20, 17, 14, 11 -- and must come back
+; ascending on every target. That order is what the construct is FOR: a host's
+; iteration order is not canonical. Go randomises on purpose, JavaScript
+; specifies its own, Java leaves it unspecified, and windows has only hash-slot
+; order. Sorting by the order on K is what makes the answer the same on four
+; hosts, precisely because it ignores all four.
+;
+; The result is an `Array`, whose index set is `Fin n` and therefore ORDERED, so
+; producing one from an unordered index set REQUIRES supplying an order -- and
+; the only order available canonically is the one on K itself. Insertion order
+; is the other candidate and the algebra rules it out: a map is a SET.
+;
+; Each answer packs the keys base 100, so a wrong order is a different number
+; rather than the same digits rearranged.
+(def run (fn (n)
+  (let (build-map 8 (fn (m)
+         (loop ((m m) (i 0))
+           (@ge i n)  m
+           else       (again (insert m (@sub 20 (@mul 3 i)) i) (@add i 1)))))
+    (fn (m)
+      (let (keys m) (fn (ks)
+        (loop ((acc 0) (j 0))
+          (@ge j (len ks))  acc
+          else              (again (@add (@mul acc 100) (ks j)) (@add j 1)))))))))

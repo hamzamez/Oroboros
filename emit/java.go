@@ -336,6 +336,12 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				if p.Kind == "map-insert" && len(t.Args()) >= 1 {
 					return e.typeOf(t.Args()[0])
 				}
+				if p.Kind == "map-keys" && len(t.Args()) == 1 {
+					if k, _, ok := core.MapTypes(e.typeOf(t.Args()[0])); ok {
+						return "array " + k
+					}
+					return "array int"
+				}
 				if p.Kind == "map" {
 					v := "int"
 					if rows := t.Args(); len(rows) > 0 && rows[0].Kind == core.KApp &&
@@ -499,6 +505,27 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		}
 		switch {
 		// THE MAP SIDE OF THE WRITE SIDE (maps.md §8.3).
+		case p.Kind == "map-keys":
+			args := t.Args()
+			if len(args) != 1 {
+				return "", fmt.Errorf("keys takes a map, got %s", t)
+			}
+			m, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			kt := "int"
+			if k, _, ok := core.MapTypes(e.typeOf(args[0])); ok {
+				kt = k
+			}
+			// `HashMap`'s iteration order is unspecified, so the sort is what
+			// makes this the same answer as the other three targets rather than
+			// a tidying step. The stream is the host's own sort.
+			out := javaMangle(e.fresh("ks"))
+			e.line("final %s %s = %s.keySet().stream().sorted()"+
+				".mapToLong(Long::longValue).toArray();",
+				e.tgt.ty("array "+kt), out, m)
+			return out, nil
 		case p.Kind == "map-build":
 			args := t.Args()
 			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {

@@ -1,12 +1,14 @@
 # Maps
 
-**Status: specification. Not built.**
+**Status: specified and BUILT on all four targets.** §7 was rewritten once: it first specified a
+`fold-map` over an enumerated operator list, and doing the algebra showed that to be a corollary of
+`keys` rather than a primitive.
 
 A map is a table whose index set is a finite subset of the key type. Everything here follows from
 that sentence and from three decisions taken before it was written:
 
 - **F2** — `(m k)` has type `(option V)`, from [growth.md §2.1](../growth.md);
-- **no iteration order**, an explicit non-guarantee rather than silence;
+- **no host iteration order**, and §7 derives what replaces it — `keys` in ascending key order;
 - **a map is a value or a buffer on exactly the same terms as an array**, derived rather than chosen
   in [arrays-revisited.md §6](../arrays-revisited.md).
 
@@ -141,6 +143,7 @@ bound is gone. It should arrive with the program that needs it.
 (m k)          →  (option V)      indexing is APPLICATION
 (insert m k v) →  the buffer      only inside build-map
 (len m)        →  |dom m|
+(keys m)       →  (array K)       ascending, §7.3
 ```
 
 That is the whole surface. `(has m k)` is not a primitive because it is
@@ -256,9 +259,10 @@ A **literal** map's capacity is its size, so §3.1 needs nothing.
 
 ---
 
-## 7. Iteration has NO ORDER, and that is a declaration
+## 7. Iteration, derived
 
-The four hosts disagree, and the disagreement is **observable**:
+The four hosts disagree about iteration order, and the disagreement is
+**observable**:
 
 | | order |
 |---|---|
@@ -267,52 +271,92 @@ The four hosts disagree, and the disagreement is **observable**:
 | Java | `HashMap` unspecified; deterministic in practice, not by contract |
 | windows | whatever we write |
 
-By CLAUDE.md's third question this is Tier 2 territory. But an *unordered* iteration is not Tier 2 —
-it is a Tier 1 construct with a **weaker guarantee**, and stating the non-guarantee is what
-`split-words` failed to do for two months.
+So the language must say something. What it should say is **derived**, not chosen
+— and this section replaces an earlier one that guessed.
 
-### 7.1 Why the surface is a fold over a declared commutative monoid
+### 7.1 What free structure the index set carries
 
-An unordered iteration is a fold over a **multiset**, and a fold over a multiset is well-defined
-exactly when the step functions commute: currying `f : A → V → A` to `V → (A → A)`, order-independence
-for all inputs is `f v₁ ∘ f v₂ = f v₂ ∘ f v₁`.
+A table is `Π_{i∈I} V`. An eliminator that consumes the whole table, rather than
+projecting one index, is a fold. Which kind depends entirely on `I`:
 
-**We cannot check that.** It is program equivalence, which [decidability-map.md](../decidability-map.md)
-lists as one of the four things explicitly given up as undecidable.
+- `(array V)` has `I = Fin n`, which is **linearly ordered** → the entries form a
+  **list** → the free *monoid*.
+- `(map K V)` has `I = S ⊆ K`, a finite set with **no order** → the values form a
+  **multiset** → the free *commutative* monoid.
 
-So the choice is trust, enumerate, or refuse — and trust is `split-words` again, a silent wrong answer
-that differs per target. **Enumerate:**
+**The universal property does the work.** The free commutative monoid on X is the
+finite multisets over X: for any commutative monoid M and any `f : X → M` there
+is a **unique** homomorphism extending `f`. So a fold over a map is well-defined
+**iff** its target is a commutative monoid. That is forced.
+
+Idempotence is *not* also required, and the distinction matters: the entries form
+a set, but the **values** form a multiset, because two keys may hold the same
+value. Which is exactly why `sum` is legal.
+
+### 7.2 Commutativity is necessary and not sufficient — and the gap is repairable
+
+`argmax` — *which key holds the maximum* — steps over K×V and is **not**
+commutative: `(a,5) ⊕ (b,5) = (a,5)` while `(b,5) ⊕ (a,5) = (b,5)`. The algebra
+agrees it is ill-defined, which is a derivation rather than an implementation
+limit.
+
+But ⊕ fails commutativity **only on ties**, so supplying a total order `≤_K` and
+breaking ties with it gives "max by `(v, then −k)`" — a max over a total order,
+hence commutative, associative and idempotent. `argmax` becomes a legitimate
+commutative monoid.
+
+### 7.3 So the eliminator is `keys`, ascending
+
+The repair generalises past `argmax`: **supply the missing structure rather than
+restrict what consumes it.** An order on K turns the multiset back into a list,
+and a fold over a list needs only a function and a seed.
 
 ```
-(fold-map m op z)      ; op drawn from a fixed set of commutative monoids
+keys : Map K V → Array K          in ascending ≤_K order
 ```
 
-`+`, `*`, `max`, `min`, `and`, `or` — commutative by construction, not by claim, because the compiler
-knows which operator it was given.
+Both halves are derived. The result is an `Array`, whose index set is `Fin n` and
+therefore **ordered**, so producing one from an unordered index set *requires*
+supplying an order — and the only order available canonically is the one on K
+itself. A host's iteration order is not canonical, so sorting by `≤_K` is what
+makes `keys` the same on four hosts **precisely because it ignores all four**.
 
-### 7.2 A commutative operator is NECESSARY AND NOT SUFFICIENT, and this is the trap
+Insertion order is the other candidate and the algebra rules it out: a map is a
+**set**, it has no insertion order, and keeping one would mean storing it.
 
-`max` over the **values** of a map is a function of the multiset. `argmax` — *which key holds the
-maximum* — is **not**, because ties are broken by whichever key was visited first. So a fold whose
-result mentions the **key** is order-dependent even when its operator is commutative.
+`≤_K` comes for free: `(map K V)` is well-formed exactly where `=` is defined,
+`=` is integer equality, and `int` carries `≤` alongside it. A future
+`(map string V)` needs a total order too, and byte-lexicographic order is
+available and portable even where *collation* is not.
 
-This is worth stating loudly because it is the shape a `wordcount` reporter naturally has (*the most
-frequent word*) and it would produce different answers on Go and JavaScript while passing every test
-that used a corpus without ties.
+### 7.4 What that does to `fold-map`
 
-The fix, when it is wanted, is a **total order on keys** as a tie-break — which `int` has and which is
-therefore available for `(map int V)` — and it is deliberately not in the first cut.
+An earlier draft of this section specified `(fold-map m op z)` with `op` drawn
+from an enumerated list of commutative monoids, on the grounds that
+commutativity is undecidable. **It is a corollary, not a primitive:**
 
-### 7.3 The first cut refuses `keys` and general iteration
+```
+fold-map m ⊕ z  ≡  foldl ⊕ z (map m (keys m))
+```
 
-`(len m)` and `(fold-map m op z)`. No `keys`, no `entries`, no general fold.
+It survives only as an **optimisation** — when ⊕ is a commutative monoid you may
+skip the sort, O(n) instead of O(n log n). *That* is where an operator whitelist
+belongs: as a licence to optimise, never as the only surface. It is not built.
 
-The cost of that is smaller than it looks: **`wordcount` builds a map and returns it, and never
-iterates it** — on all four of the targets it is written for. The first cut is enough for a word
-count, a memo table, a sparse array, a graph's adjacency, and the interning table a string map would
-itself need.
+The earlier design also failed on its own terms, which is worth recording: the
+reason to iterate a word count is to report *the top N words*, which is `argmax`
+— and §7.2's version of `argmax` was refused. It answered a question nobody asks
+and refused the one everybody does.
 
----
+### 7.5 The cost, stated
+
+`keys` sorts. On Go, JavaScript and Java that is the host's own sort. On windows
+there is none, so it is **sorted by rank**: a map's keys are distinct, because
+the index set is a *set*, so a key's sorted position is the number of keys below
+it and every key is written straight to its place in one pass. O(n²) in
+comparisons, O(n) in stores, and no swap — which is honest rather than good. A
+counting sort over int keys is the obvious improvement and waits for a program
+that measures it.
 
 ## 8. What each target does
 
@@ -404,7 +448,7 @@ because the option makes it say what happens when the key is absent.
 | a rule form, `(map-of keys f)` | buys nothing over `build-map` — §3.2 |
 | `remove` | no program needs it, and it weakens `|dom m|`'s lower bound — §3.4 |
 | unbounded growth | not expressible for windows, and letting three hosts grow is an observable disagreement — §6 |
-| `keys`, general iteration | no order exists and commutativity is undecidable — §7 |
+| a general `fold-map` | derivable from `keys`; it is an optimisation, not a primitive — §7.4 |
 | `(has m k)` | is `(case (m k) …)`; a name that adds nothing should not exist |
 
 ---

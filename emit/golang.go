@@ -312,6 +312,36 @@ func (e *Emitter) mapLit(t *core.Term) (string, error) {
 	return fmt.Sprintf("%s{%s}", e.tgt.ty(e.typeOf(t)), strings.Join(parts, ", ")), nil
 }
 
+// emitKeys is `keys m` — the map's keys, ASCENDING.
+//
+// Go's own map iteration is deliberately randomised, so sorting is not a
+// tidying step here: it is what makes the answer the same on four hosts. The
+// sort is the host's, which is the rule about emitting at the highest layer the
+// target provides.
+func (e *Emitter) emitKeys(t *core.Term) (string, error) {
+	args := t.Args()
+	if len(args) != 1 {
+		return "", fmt.Errorf("keys takes a map, got %s", t)
+	}
+	m, err := e.emit(args[0])
+	if err != nil {
+		return "", err
+	}
+	kt := "int"
+	if k, _, ok := core.MapTypes(e.typeOf(args[0])); ok {
+		kt = k
+	}
+	out := mangle(e.fresh("ks"))
+	e.line("%s := make(%s, 0, len(%s))", out, e.tgt.ty("array "+kt), m)
+	e.line("for k := range %s {", m)
+	e.line("	%s = append(%s, k)", out, out)
+	e.line("}")
+	e.line("sort.Slice(%s, func(i, j int) bool { return %s[i] < %s[j] })", out, out, out)
+	e.imports["sort"] = true
+	Imports["sort"] = true
+	return out, nil
+}
+
 // emitBuildMap is `build`, one index set over (maps.md §3.3).
 //
 // `(build-map cap (fn (m) …))` is ADR 0018's linear buffer with `I = S ⊆ K`
@@ -665,6 +695,12 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				if p.Kind == "map-insert" && len(t.Args()) >= 1 {
 					return e.typeOf(t.Args()[0])
 				}
+				if p.Kind == "map-keys" && len(t.Args()) == 1 {
+					if k, _, ok := core.MapTypes(e.typeOf(t.Args()[0])); ok {
+						return "array " + k
+					}
+					return "array int"
+				}
 				if p.Kind == "table" && len(t.Args()) == 2 {
 					if rule := t.Args()[1]; rule.Kind == core.KFn && len(rule.Params) == 1 {
 						return "array " + e.typeOf(rule.Body())
@@ -889,6 +925,8 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		// the construct doing its job: the rule form exists to FUSE, and one
 		// that reaches a backend did not.
 		switch p.Kind {
+		case "map-keys":
+			return e.emitKeys(t)
 		case "map-build":
 			return e.emitBuildMap(t)
 		case "map-insert":

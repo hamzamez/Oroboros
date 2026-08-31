@@ -300,7 +300,7 @@ var coreNames = map[string]bool{
 	// are inexpressible portably AT ANY SPEED without this. That is what
 	// decided ADR 0018 — expressiveness, not the 2.7x.
 	"alloc": true, "build": true, "set": true,
-	"map": true, "build-map": true, "insert": true,
+	"map": true, "build-map": true, "insert": true, "keys": true,
 }
 
 // coreStructural is what addCore injects: the language's own constructs, with
@@ -362,6 +362,23 @@ var coreStructural = []Prim{
 	// interval, and claiming the equation here would be unsound.
 	{Name: "build-map", Kind: "map-build"},
 	{Name: "insert", Kind: "map-insert"},
+	// `keys : Map K V → Array K`, IN ASCENDING KEY ORDER, and both halves are
+	// derived rather than chosen (maps.md §7).
+	//
+	// The result is an `Array`, whose index set is `Fin n` and therefore
+	// ORDERED, so producing one from an unordered index set requires supplying
+	// an order — and the only order available canonically is the one on K
+	// itself. A host's iteration order is not canonical: Go randomises on
+	// purpose, JavaScript specifies its own, Java leaves it unspecified. So
+	// sorting by ≤_K is what makes `keys` the same on four hosts, precisely
+	// because it ignores all four.
+	//
+	// Insertion order is the other candidate and the algebra rules it out: a
+	// map is a SET, it has no insertion order, and keeping one would mean
+	// storing it.
+	//
+	// PURE — it is a value, like `array` and `len`.
+	{Name: "keys", Kind: "map-keys", Pure: true},
 }
 
 // eqSpellings are how a target may spell integer equality, most preferred

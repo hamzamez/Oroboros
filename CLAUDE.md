@@ -1235,7 +1235,7 @@ lose on JavaScript was **wrong**, and the first run agreed for the wrong reason:
 `Array` against a `Float64Array`, so it measured **array kind rather than growth**. Third time this
 session that **a comparison changing two things at once measured neither**.
 
-**MAPS ARE SPECIFIED, NOT BUILT** — [maps.md](docs/spec/maps.md). A map is a table whose index set is
+**MAPS ARE SPECIFIED AND BUILT ON ALL FOUR TARGETS** — [maps.md](docs/spec/maps.md). A map is a table whose index set is
 a finite subset of the key type, and everything follows from that plus three decisions. **F2**:
 `(m k)` is `(option V)` — still application, with the RESULT TYPE decided by the domain kind, which is
 where the difference between tables.md's three points should show: the function's domain condition is
@@ -1262,15 +1262,34 @@ on growable buffers (inverting growth.md's own finding that the map is primary *
 a workaround), or **declare it**. The precedent is `tree.oro`'s node cap and it is celebrated rather
 than tolerated: **a capacity does not create the limit, it makes it VISIBLE.**
 
-**NO ITERATION ORDER, and the surface is a fold over an ENUMERATED commutative monoid.** Go
-randomises on purpose, JS objects have a *specified* order, Java's is unspecified. An unordered fold is
-a fold over a multiset, well-defined exactly when the step functions commute — and **that is program
-equivalence, which decidability-map.md already gave up as undecidable**. So: trust (`split-words`
-again), enumerate, or refuse. **And a commutative operator is NECESSARY AND NOT SUFFICIENT** —
-`argmax` is order-dependent through **ties**, which is exactly the shape *the most frequent word* has
-and would differ across hosts while passing every test on a corpus without ties. The first cut refuses
-`keys` entirely, and it costs nothing: **`wordcount` builds a map and returns it, and never iterates
-it.**
+**ITERATION IS `keys`, ASCENDING — DERIVED, and the first answer was wrong.** maps.md §7 first
+specified a fold over an ENUMERATED list of commutative monoids. hamza refused the reasoning behind
+it: *"it should be mathematical and algebraic, based on reasoning and research… programs when written
+will inform us how good our design and implementation are."* **Deriving what a construct IS and
+measuring whether it is GOOD are different jobs, and waiting for a program is only ever the second.**
+
+The derivation, in four steps. **The index set decides the free structure**: `Fin n` is ordered so an
+array's entries are a LIST (free monoid); a map's `S ⊆ K` is unordered so its values are a MULTISET
+(free *commutative* monoid). **The universal property then forces the operator** — a fold out of the
+free commutative monoid exists and is unique exactly into a commutative monoid — which is what the
+first draft got right. **Commutativity is necessary and NOT sufficient**, and `argmax` shows it: ⊕
+fails commutativity *only on ties*. **So supply the missing structure instead of restricting what
+consumes it** — a total order `≤_K` makes `argmax` "max by (v, then −k)", a max over a total order,
+hence a commutative monoid.
+
+That generalises: an order on K turns the multiset back into a list, so
+**`keys : Map K V → Array K` in ascending `≤_K` order** is the eliminator. Both halves are derived —
+the result is an `Array`, whose index set `Fin n` is ORDERED, so producing one from an unordered index
+set REQUIRES an order, and the only canonical one is K's own. A host's order is not canonical (Go
+randomises on purpose, JS specifies its own, Java leaves it unspecified), so **sorting by `≤_K` is what
+makes `keys` the same on four hosts precisely because it ignores all four**. Insertion order is ruled
+out by the algebra: a map is a SET. And `≤_K` is free — `=` is integer equality and `int` carries `≤`.
+
+**`fold-map` is therefore a COROLLARY, not a primitive**: `fold-map m ⊕ z ≡ foldl ⊕ z (map m (keys m))`.
+It survives only as an *optimisation* — skip the sort when ⊕ commutes — and that is where an operator
+whitelist belongs, as a licence to optimise rather than the only surface. It also failed on its own
+terms: the reason to iterate a word count is *the top N words*, which is `argmax`, which the first
+draft refused. **It answered a question nobody asks and refused the one everybody does.**
 
 **Lowerings**: Go `map[int]int` with comma-ok; JavaScript a **plain object** (3.67× on integer keys,
 and `{}` beats `Object.create(null)`); Java `HashMap` with **`merge`** and `get` returning null, which

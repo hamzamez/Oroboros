@@ -155,6 +155,13 @@ func rewriteMap(tg *Target, defs map[string]*core.Term, env mapEnv, t *core.Term
 		if a := out.Args(); len(a) == 3 {
 			return core.App(core.Name(mapImplPrefix+"wm-put"), a[0], a[1], a[2])
 		}
+	case "map-keys":
+		// `keys` on the host with no map is our own scan-and-sort, and it needs
+		// the same binder tracking `len` does: after lowering there is nothing
+		// to tell a map from an array buffer.
+		if a := out.Args(); len(a) == 1 && env.isMapValue(t.Args()[0]) {
+			return core.App(core.Name(mapImplPrefix+"wm-keys"), a[0])
+		}
 	case "len":
 		// `len m` IS `|dom m|`, and it is the one map operation that cannot be
 		// recognised after lowering: a lowered map is an array buffer, so

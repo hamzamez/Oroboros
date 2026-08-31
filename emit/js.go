@@ -426,6 +426,24 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		// THE WRITE SIDE — ADR 0018. The buffer is linear and scoped, so the
 		// freeze on the way out copies nothing.
 		switch p.Kind {
+		case "map-keys":
+			args := t.Args()
+			if len(args) != 1 {
+				return "", fmt.Errorf("keys takes a map, got %s", t)
+			}
+			m, err := e.emit(args[0])
+			if err != nil {
+				return "", err
+			}
+			// `Object.keys` returns STRINGS — a JavaScript object's keys always
+			// are, whatever was written — so they are converted back before
+			// sorting. And the comparator is REQUIRED: `Array.sort` with no
+			// comparator sorts lexicographically, so [2,10] would come back
+			// [10,2]. That is the same shape of host default that
+			// `split-words` was, and it is silent.
+			out := jsMangle(e.fresh("ks"))
+			e.line("const %s = Object.keys(%s).map(Number).sort((a, b) => a - b);", out, m)
+			return out, nil
 		case "map-build":
 			args := t.Args()
 			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {

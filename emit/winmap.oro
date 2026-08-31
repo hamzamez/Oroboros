@@ -164,3 +164,54 @@
     ; arrays have the same length by construction here and nothing can see that,
     ; so the program says what happens if they do not.
     else                    (again (wm-put m (ks i) (vs (wm-c vs i))) (x64.add i 1)))))
+
+; ---------------------------------------------------------------- keys
+;
+; `keys m` is the map's keys in ASCENDING order, and the order is what the
+; construct is FOR: a host's iteration order is not canonical -- Go randomises
+; on purpose, JavaScript specifies its own, Java leaves it unspecified -- so
+; sorting by the order on K is what makes the answer the same on four hosts.
+; Here there is no host order at all, only slot order, which is the hash's.
+;
+; SORTED BY RANK, NOT BY EXCHANGE, and the reason is the map's own invariant:
+; A MAP'S KEYS ARE DISTINCT, because the index set is a SET. So the sorted
+; position of a key is exactly the number of keys below it, and every key can be
+; written straight to its place in one pass. No comparisons between output
+; slots, no swap, no shifting.
+;
+; That is O(n^2) in comparisons and O(n) in stores, which is honest rather than
+; good -- the price of an order on the host that has none. The other three call
+; their own sort, which is the rule about emitting at the highest layer the
+; target provides. A counting sort over int keys is the obvious improvement and
+; is not made until a program measures it.
+;
+; It also avoids a SWAP, and that is not a stylistic choice: a swap reads two
+; slots and then writes both, and the compiler currently substitutes a buffer
+; read past a store, so `b[x], b[y] = b[y], b[x]` emits as `b[x] = b[y];
+; b[y] = b[x]` and silently copies. That is a real bug in the effect discipline
+; -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
+; being judged impure. Ranking needs no swap and is correct either way.
+
+(def wm-used-at (fn (m s) (m (wm-c m (x64.imul 3 s)))))
+(def wm-key-at  (fn (m s) (m (wm-c m (x64.add (x64.imul 3 s) 1)))))
+
+; How many occupied keys are strictly less than k. With distinct keys that IS
+; the key's index in ascending order.
+(def wm-rank (fn (m k)
+  (loop ((c 0) (s 0))
+    (x64.setge s (wm-n m))     c
+    (= (wm-used-at m s) 0)     (again c (x64.add s 1))
+    else                       (again (if (x64.setl (wm-key-at m s) k) (x64.add c 1) c)
+                                      (x64.add s 1)))))
+
+; One pass over the slots, each occupied key written to its own rank. `out` is
+; only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
+(def wm-keys (fn (m)
+  (let (wm-len m) (fn (cnt)
+    (build cnt (fn (out)
+      (loop ((out out) (s 0))
+        (x64.setge s (wm-n m))   out
+        (= (wm-used-at m s) 0)   (again out (x64.add s 1))
+        else                     (again (set out (wm-c out (wm-rank m (wm-key-at m s)))
+                                              (wm-key-at m s))
+                                        (x64.add s 1)))))))))

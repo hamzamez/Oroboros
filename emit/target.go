@@ -1094,7 +1094,20 @@ func seedFromSig(types map[string]string, params []string, sig *core.Sig) {
 		if i >= len(sig.Params) {
 			return
 		}
-		if ty := sig.Params[i].Type; ty != "" && ty != "any" {
+		// THROUGH ValueType, because this seeds a SCALAR's type and a range is
+		// not a width. `(sig sq ((n (int 0 1000))) int)` otherwise emits
+		// `func GenSq(n uint16)`, and `n * n` at uint16 wraps at 65536: 1000*1000
+		// returns 16960. A range says what the value IS; only a table's element
+		// slot consults how wide it is stored.
+		//
+		// The bug was LATENT until a scalar range type-checked at all — the
+		// checker refused every use of the parameter, so nothing reached this
+		// line. A refusal was standing in front of a silent wrong answer.
+		//
+		// `(array (int 0 255))` is untouched: ValueType strips only a top-level
+		// range, so an element width still reaches the emitter, which is what
+		// elemwidth built and what must keep working.
+		if ty := core.ValueType(sig.Params[i].Type); ty != "" && ty != "any" {
 			types[p] = ty
 		}
 	}

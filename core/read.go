@@ -393,7 +393,7 @@ func (r *reader) list() (*Term, error) {
 				if short {
 					t = &Term{Kind: KApp, Kids: []*Term{Name("if"), kids[i], Bool(true), t}}
 				} else {
-					t = &Term{Kind: KApp, Kids: []*Term{Name("if"), kids[i], t, Bool(false)}}
+					t = conj(kids[i], t)
 				}
 			}
 			return t, nil
@@ -730,6 +730,70 @@ func toForm(t *Term) (Form, error) {
 					return Form{}, fmt.Errorf("sig %s: a parameter is TYPE or (name TYPE), got %s",
 						t.Kids[1].Name, a)
 				}
+			}
+		}
+		// A SCALAR RANGE IS A PREMISE, and it desugars into the `where` it
+		// means. `(n (int LO HI))` and `(n int) (where (and (<= LO n) (<= n HI)))`
+		// have the same denotation — γ(int LO HI) = {k | LO ≤ k ≤ HI} is exactly
+		// the satisfying set of that conjunct — so making one the sugar of the
+		// other is a definition, not an approximation.
+		//
+		// Doing it HERE is what costs nothing. `where` is already read by the
+		// refinement layer, the interval layer and termination; a range that
+		// became a fact by its own path would need each of those taught, and
+		// this repository has three recorded cases of a helper that existed and
+		// was not called at every site. Sugar that erases in the reader is what
+		// `let`, `seq`, `and`, `cond`, `match` and `values` all are.
+		//
+		// The TYPE is deliberately left alone. A range still says which rung of
+		// ADR 0003's ladder the value is stored on, which is what representation
+		// selection will read (ADR 0019); only the FACT is desugared.
+		//
+		// A range on an UNNAMED parameter is a type and nothing else, because a
+		// refinement attaches to a name (refinements.md) and there is no name to
+		// attach to. That is the existing rule, not a new limitation.
+		for _, pm := range sig.Params {
+			if pm.Name == "" {
+				continue
+			}
+			lo, hi, ok := IntRange(pm.Type)
+			if !ok {
+				continue
+			}
+			n := Name(pm.Name)
+			c := conj(App(Name("<="), Int(lo), n), App(Name("<="), n, Int(hi)))
+			if sig.Where == nil {
+				sig.Where = c
+			} else {
+				sig.Where = conj(sig.Where, c)
+			}
+		}
+		// AND THE RESULT'S RANGE IS THE DUAL — a GUARANTEE, desugaring into the
+		// `ensures` it means, exactly as a parameter's range desugars into its
+		// `where`. postconditions.md's algebra is a swap and this is that swap:
+		// `result : (int LO HI)` is `(and (<= LO result) (<= result HI))`.
+		//
+		// Without it a range in the result position is a declaration NOBODY
+		// CHECKS. `(sig sq ((n (int 0 100))) (int 0 5))` is false — the body
+		// reaches 10000 — and it was accepted in silence, while the same claim
+		// written as an `ensures` was refused with the interval that disproves
+		// it. A claim that is quietly ignored is worse than one that is refused,
+		// and the machinery that refuses it already existed.
+		//
+		// It rides on postconditions.md's trichotomy unchanged: assumed on a
+		// prim, CHECKED against the body on an exported definition, and gone on
+		// an internal one, where reduction removes the boundary.
+		//
+		// This must run BEFORE the `result`-name check below, or a signature
+		// with a ranged result and a parameter called `result` would mean two
+		// things and the checker would silently pick one.
+		if lo, hi, ok := IntRange(sig.Result); ok {
+			r := Name(ResultName)
+			c := conj(App(Name("<="), Int(lo), r), App(Name("<="), r, Int(hi)))
+			if sig.Ensures == nil {
+				sig.Ensures = c
+			} else {
+				sig.Ensures = conj(sig.Ensures, c)
 			}
 		}
 		// `result` NAMES THE RESULT in a postcondition, so a parameter may not
@@ -1289,6 +1353,20 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 // by staging. A dynamic index forces homogeneity and reduction removes every
 // static one, so the checker only ever sees `Fin n → V` and no dependent type is
 // needed.
+// conj is `(and a b)` ALREADY ERASED — `(if a b false)`.
+//
+// The connectives do not survive reading (booleans.md, ADR 0017): `and`, `or`,
+// `not` and `cond` are sugar and nothing downstream has ever seen one. A range's
+// premise and its guarantee are synthesised AFTER that erasure has run, so
+// building them with `(and …)` would put a term in a signature that the
+// refinement layer cannot read — it reported "outside the decidable fragment"
+// for a conjunction it decides perfectly well when the reader writes it.
+//
+// So there is one spelling of a conjunction and it lives here.
+func conj(a, b *Term) *Term {
+	return &Term{Kind: KApp, Kids: []*Term{Name("if"), a, b, Bool(false)}}
+}
+
 func TypeName(t *Term) string {
 	if t == nil {
 		return ""
@@ -1311,6 +1389,15 @@ func TypeName(t *Term) string {
 	if t.Kind == KApp && len(t.Kids) == 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" &&
 		t.Kids[1].Kind == KInt && t.Kids[2].Kind == KInt {
+		// AN EMPTY RANGE IS NOT A TYPE. `(int 100 0)` denotes ∅, which no value
+		// inhabits, so a parameter declared with one can never be called and a
+		// result declared with one can never be returned. It is a transposition
+		// typo, and saying "is not a type" where it is written is better than
+		// letting it flow on as the string "int 100 0" and surfacing later as a
+		// mismatch against `int` — which is what it did.
+		if t.Kids[1].Int > t.Kids[2].Int {
+			return ""
+		}
 		return fmt.Sprintf("int %d %d", t.Kids[1].Int, t.Kids[2].Int)
 	}
 	return ""

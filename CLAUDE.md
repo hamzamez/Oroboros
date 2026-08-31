@@ -1114,11 +1114,49 @@ as per-target and something must choose. Whole-program reduction makes that deci
 sees which operations occur on a value — but a value whose representation changes needs a conversion
 at the boundary, and where that sits is opened rather than closed.
 
-**Owed before any of it works: a scalar range is not usable at all today**, a spelling for the
-unbounded rung, a **bidirectional** representation solver (factorial is the witness — the pressure
-comes from the declared RESULT), and R3 per target. **The trigger to watch is the one nothing measured
-can settle**: a real application needing declarations in more places than a programmer will tolerate.
-30-of-39 is numeric kernels and two parsers written by people who knew the analysis.
+**Owed before any of it works: ~~a scalar range is not usable at all today~~ (DONE, below), a spelling
+for the unbounded rung, a **bidirectional** representation solver (factorial is the witness — the
+pressure comes from the declared RESULT), and R3 per target. **The trigger to watch is the one nothing
+measured can settle**: a real application needing declarations in more places than a programmer will
+tolerate. 30-of-39 is numeric kernels and two parsers written by people who knew the analysis.
+
+**A SCALAR RANGE IS A TYPE, AND IT WORKS NOW** —
+[scalarrange-2026-08-31](gauntlet/results/scalarrange-2026-08-31.md), ADR 0019's first owed item.
+`(sig sq ((n (int 0 1000))) int)` parsed and was then refused at **every use of the parameter** — a
+legal program rejected by its own declaration — because `core.ValueType` was called at **exactly one
+site**, the table-read path. **A range has THREE effects and the build is keeping them apart**: it is
+an `int` **for typing** (normalised at `compatible`, the single point two types are compared); it is a
+**premise**, desugaring IN THE READER into the `where` it means, so no analysis learns a new thing
+exists; and it is a **representation** declaration, which is still owed — the range is preserved on the
+signature and only its consumers normalise. The desugaring is a **definition, not an approximation**:
+γ(int LO HI) is exactly the satisfying set of `(and (<= LO n) (<= n HI))`. And it is complete rather
+than convenient — **the reader is the only producer of a signature with named parameters**, checked.
+
+**AND THE REFUSAL WAS STANDING IN FRONT OF A SILENT WRONG ANSWER.** With the checker no longer
+refusing, the declaration reached `seedFromSig` for the first time in the range language's life and Go
+emitted **`func GenSq(n uint16)`** — `n * n` wrapping at 65536, so 1000×1000 returned **16,960**.
+Latent because nothing could ever reach that line. *A refusal can hide a wrong answer, and removing the
+refusal is what finds it.* The test is the theorem rather than the spelling: **a range and the `where`
+it means must emit the same function.**
+
+**AND A RANGE IN THE RESULT POSITION WAS A DECLARATION NOBODY CHECKED.** postconditions.md's algebra is
+a swap and this is that swap in the type language: `result : (int LO HI)` is an `ensures`. The same
+false claim written as `(ensures …)` was **refused** with the interval that disproves it while
+`(int 0 5)` was **accepted in silence** — two spellings of one claim disagreeing. **And the synthesised
+conjunction had to be built ERASED**: the connectives do not survive reading (ADR 0017), so `(and a b)`
+built *after* that erasure is a shape no consumer knows and came back *"outside the decidable
+fragment"*. The failure mode is worth naming — **`CheckEnsures` returns SUCCESS with a note when a
+claim is outside its fragment**, so the wrong form passed while checking nothing, and a test asserting
+only *not refused* would have passed with it.
+
+**And a differential case was written and DELETED, because it passed with the bug reintroduced.**
+Reduction inlines every call, so **a declared parameter only survives at an EXPORT** — the same
+structural limit already recorded for index narrowing — and the harness calls with literals, so the
+output comes entirely from folded constants. The suite is **not** blind for the reason it is blind to a
+bad element narrowing (JavaScript declares no `int-repr` and would have disagreed); it simply cannot be
+made to *execute* the code that has the bug. `cmd/gen` reaches it. **Cost: byte-identical output on 41
+programs × 4 targets, so no speed claim** — one refusal of a legal program removed, one latent silent
+wrong answer fixed, one silently-ignored declaration made real.
 
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to

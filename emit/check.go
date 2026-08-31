@@ -133,7 +133,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 // agree is the whole of conflict detection: two different CONCRETE demands on
 // the same thing. Unknown agrees with everything, and `any` demands nothing.
 func (c *checker) agree(what, got, want string) error {
-	if got == "" || want == "" || want == "any" || got == "any" || got == want {
+	if compatible(got, want) {
 		return nil
 	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
@@ -385,7 +385,24 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 
 // compatible treats `any` and the unknown type as agreeing with anything, which
 // is the same rule the term checker uses.
+//
+// AND A RANGE IS AN INT. `(int LO HI)` says which values the thing can take, not
+// which operations accept it — `core.ValueType` is that distinction and this is
+// the second site to consult it. Without this, `(sig sq ((n (int 0 1000))) int)`
+// parses and is then refused at every use of `n`: a legal program rejected by
+// its own declaration, which is what ADR 0019 recorded as owed.
+//
+// Normalising HERE is what makes it complete. This is the only place two types
+// are compared — `agree` is defined in terms of it — so there is no second site
+// to forget, which is the failure mode three separate bugs in this repository
+// have had (a `compatible` that existed and was not called).
+//
+// `core.ValueType` strips only a TOP-LEVEL range, and that is load-bearing
+// rather than incidental: `array int 0 255` does not begin with `int ` and so
+// passes through unchanged, which keeps `(array (int 0 255))` and `(array int)`
+// distinct. A target that declares `[]byte` still refuses an `[]int` program.
 func compatible(a, b string) bool {
+	a, b = core.ValueType(a), core.ValueType(b)
 	return a == "" || b == "" || a == "any" || b == "any" || a == b
 }
 

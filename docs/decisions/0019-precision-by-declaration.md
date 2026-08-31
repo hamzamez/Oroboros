@@ -128,10 +128,25 @@ demonstration wired into the default path is a decision, whether or not anyone m
 
 **What this commits us to building**, in order:
 
-1. **A scalar range must become usable.** It is not, today: `(sig f ((n (int 0 1000))) int)` is
-   refused, because `core.ValueType` is called at exactly one site and `paramIval` matches
-   `sp.Type == "int"`. The range language works on array **elements** and nowhere else. This is
-   small, and it is owed whichever option had won.
+1. ~~**A scalar range must become usable.**~~ **DONE 2026-08-31** —
+   [scalarrange-2026-08-31](../../gauntlet/results/scalarrange-2026-08-31.md). It was refused,
+   because `core.ValueType` was called at exactly one site: the range language worked on array
+   **elements** and nowhere else.
+
+   A range turns out to have **three** effects and the build is about keeping them apart. It is an
+   `int` **for typing**, normalised at the single point two types are compared; it is a **premise**,
+   desugaring in the reader into the `where` it means, so no analysis learns a new thing exists; and
+   it is a **representation** declaration, which is deliberately still owed below — the declared
+   range is preserved on the signature and only its consumers normalise.
+
+   Two things came out that the plan had not predicted. **The refusal was standing in front of a
+   silent wrong answer**: with the checker no longer refusing, the declaration reached `seedFromSig`
+   for the first time and Go emitted `func GenSq(n uint16)`, wrapping 1000×1000 to 16,960. And **a
+   range in the RESULT position was a declaration nobody checked** — the same false claim spelled as
+   an `ensures` was refused with the interval that disproves it, so it now desugars into one, which
+   is postconditions.md's swap written in the type language.
+
+   Cost: **byte-identical output on 41 programs × 4 targets**. No speed claim.
 2. **A spelling for the unbounded rung**, since `(int LO HI)` has two finite endpoints and cannot
    say ℤ. This is the one place C is not purely "the existing mechanism, one rung further".
 3. **The representation solver** over `word ⊑ big`, and **it must be bidirectional**. Factorial is

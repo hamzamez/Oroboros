@@ -15,6 +15,28 @@ by our own compiler.
 
 ---
 
+## 0a. The operators are the language's now
+
+Everything below was written when `=` was the only integer operator the language
+owned and every other one was target-native: `(+ 1 2)` was *"not bound"*, and
+each answer here was really an answer about `go.+`. `+ - * / % < <= > >=` are
+the language's as of 2026-08-31, found per target the way `=` always was — so
+these eleven answers are now the LANGUAGE's guarantees rather than four parallel
+host facts.
+
+**One host needed a declaration rather than a rename.** JavaScript's `/` is
+float division — `7 / 2` is 3.5 — so `targets/js` declares `idiv` as
+`Math.trunc(a / b)` and the language's `/` resolves to it there. `Math.trunc`
+and not `| 0`, because the bitwise form coerces to int32 and would silently wrap
+every value past 2³¹, well inside the window.
+
+**Bitwise and shifts are NOT promoted**, and §12's third question is why: V8
+coerces both operands to int32 for `& | ^ << >>` (uint32 for `>>>`), so
+`(2³²) & -1` is **0** there and 4294967296 on Go, Java and x86. That is an
+observable disagreement *inside* the window, which is exactly what makes a
+construct Tier 2. Promoting them conditionally, when a declared range fits
+int32, is a real design and is not made.
+
 ## 0. What does not change
 
 [ADR 0012](../decisions/0012-portable-integer-range.md) stands, and this specification is mostly
@@ -315,7 +337,17 @@ In order, and none of it is a language change:
    `go.<` negated to nothing and the second half of Hoare logic never fired where programs live.
 2. ~~**`(where …)` on division**~~ — **built**, on all four native targets. `(if (== b 0) 0 (/ a b))`
    discharges; `(/ a b)` with nothing known is refused. **`f64 → int` is not yet declared.**
-3. **`(fold OP)`**, per §11.
+3. ~~**`(fold OP)`**, per §11~~ — **built**, and it needed the operators to be
+   the LANGUAGE's first. Folding `go.+` would have meant assuming one host's
+   semantics; `+` has semantics this document verified on all four. Two side
+   conditions, both ADR 0009: a result outside the portable window is **not**
+   folded, because compile time is Go's `int64` and run time on JavaScript is a
+   binary64 exact only to ±(2⁵³−1) — and leaving the operation alone is what
+   lets the overflow analysis report it against what the programmer wrote.
+   Division by zero is **not** folded either: it is a precondition, so the
+   refinement layer reports it with the call site rather than the compiler
+   panicking. Multiplication is checked by dividing back, since two in-window
+   operands can produce a product `int64` itself cannot hold.
 4. **Covering for the JavaScript division hazard**, so a program that divides by an unbounded value
    is told it is not portable there.
 

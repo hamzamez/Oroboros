@@ -768,6 +768,89 @@ func (e *Env) pureName(n string, seen map[string]bool) bool {
 }
 
 // unfoldable reports whether δ applies to this name under this environment.
+// langFoldable is which of the language's integer operators fold on two
+// literals. Bitwise and shifts are not the language's at all (JavaScript
+// truncates them to int32), and no float operator is here — ADR 0009 is the
+// whole reason: Go folds `0.1+0.2` to `0.3` at compile time and
+// `0.30000000000000004` at run time, because its untyped constants are
+// arbitrary-precision.
+var langFoldable = map[string]bool{
+	"+": true, "-": true, "*": true, "/": true, "%": true,
+	"<": true, "<=": true, ">": true, ">=": true, "=": true,
+}
+
+// foldInt evaluates one of the language's integer operators on two literals,
+// reporting whether it was safe to do so at all.
+//
+// TWO SIDE CONDITIONS, and both are ADR 0009 — staging must not change an
+// answer.
+//
+//  1. THE RESULT MUST STAY INSIDE THE PORTABLE WINDOW. Compile time here is
+//     Go's int64; run time on JavaScript is a float64 whose integers are exact
+//     only to ±(2^53−1). So `(* 9007199254740991 2)` folds to a value the
+//     runtime could not have produced, and is therefore left alone — where the
+//     overflow analysis reports it against the operation the programmer wrote.
+//     The operands are checked too: a literal outside the window was never a
+//     value the language could represent.
+//
+//  2. DIVISION BY ZERO IS NOT FOLDED. It is a PRECONDITION, not a behaviour
+//     (integers.md §5), and the refinement layer is what reports it with the
+//     call site. Folding it would panic the compiler instead.
+//
+// The division semantics are the language's and were measured: truncation
+// toward zero, and the remainder takes the DIVIDEND's sign. Go's own `/` and
+// `%` on int64 are exactly that, so the fold and the emission agree by
+// construction rather than by coincidence.
+func foldInt(op string, a, b int64) (*Term, bool) {
+	const lo, hi = -(1<<53 - 1), 1<<53 - 1
+	if a < lo || a > hi || b < lo || b > hi {
+		return nil, false
+	}
+	switch op {
+	case "<":
+		return Bool(a < b), true
+	case "<=":
+		return Bool(a <= b), true
+	case ">":
+		return Bool(a > b), true
+	case ">=":
+		return Bool(a >= b), true
+	case "=":
+		return Bool(a == b), true
+	}
+	var v int64
+	switch op {
+	case "+":
+		v = a + b
+	case "-":
+		v = a - b
+	case "*":
+		// Checked by DIVIDING BACK rather than by a width argument: two
+		// in-window operands can multiply to something int64 itself cannot
+		// hold, and then the range test below would be inspecting a wrapped
+		// value and would pass.
+		v = a * b
+		if a != 0 && (v/a != b) {
+			return nil, false
+		}
+	case "/", "%":
+		if b == 0 {
+			return nil, false
+		}
+		if op == "/" {
+			v = a / b
+		} else {
+			v = a % b
+		}
+	default:
+		return nil, false
+	}
+	if v < lo || v > hi {
+		return nil, false
+	}
+	return &Term{Kind: KInt, Int: v}, true
+}
+
 func (e *Env) unfoldable(name string) bool {
 	if e.Prim[name] || e.Rec[name] {
 		return false
@@ -1077,7 +1160,12 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		// on every target — the thing that is NOT true of float arithmetic,
 		// which is why Go folds `0.1+0.2` two different ways and why nothing
 		// here folds a float.
-		if op.Kind == KName && op.Name == "=" && e.Prim["="] && len(args) == 2 {
+		//
+		// GENERALISED to the rest of integer arithmetic once the operators
+		// became the LANGUAGE's. That order matters: folding `go.+` would have
+		// meant assuming a particular host's semantics, and `+` has semantics
+		// the language defines and integers.md verified on all four.
+		if op.Kind == KName && langFoldable[op.Name] && e.Prim[op.Name] && len(args) == 2 {
 			a, err := normalize(args[0], e, fuel)
 			if err != nil {
 				return nil, err
@@ -1087,7 +1175,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				return nil, err
 			}
 			if a.Kind == KInt && b.Kind == KInt {
-				return Bool(a.Int == b.Int), nil
+				if out, ok := foldInt(op.Name, a.Int, b.Int); ok {
+					return out, nil
+				}
 			}
 			return &Term{Kind: KApp, Kids: []*Term{op, a, b}}, nil
 		}

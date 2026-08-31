@@ -66,7 +66,10 @@ func TestBetaTabOnAGraph(t *testing.T) {
 // nothing to look up.
 func TestBetaTabOnARule(t *testing.T) {
 	e := tableEnv()
-	if got := tabNorm(t, e, `((table 5 (fn (i) (+ i 1))) 3)`); got != "(+ 3 1)" {
+	// `4` and not `(+ 3 1)`: the language's integer operators fold on two
+	// literals now, so the rule applies AND the arithmetic goes. That is a
+	// stronger demonstration of the same thing.
+	if got := tabNorm(t, e, `((table 5 (fn (i) (+ i 1))) 3)`); got != "4" {
 		t.Errorf("a rule applies to any index, got %s", got)
 	}
 }
@@ -133,7 +136,9 @@ func TestARuleTableFuses(t *testing.T) {
 	if strings.Contains(got, "table") {
 		t.Errorf("the intermediate table must not survive:\n%s", got)
 	}
-	if got != "(fn (n) (+ n (+ 0 1)))" {
+	// `(+ n 1)`: the table is gone and `(+ 0 1)` folded, leaving exactly the
+	// arithmetic the pipeline meant.
+	if got != "(fn (n) (+ n 1))" {
 		t.Errorf("expected the fused form, got %s", got)
 	}
 }
@@ -170,7 +175,7 @@ func TestAGraphUsedOnceFoldsAway(t *testing.T) {
 	e := tableEnv()
 	if got := tabNorm(t, e, `
 		(def use1 (fn (v) (+ (v 1) 100)))
-		(use1 (array 7 9))`); got != "(+ 9 100)" {
+		(use1 (array 7 9))`); got != "109" {
 		t.Errorf("one mention folds to the element, got %s", got)
 	}
 }

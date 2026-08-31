@@ -1615,6 +1615,41 @@ and it makes adjacent elements alias, which breaks ADR 0018), and so is **reinte
 choose representation* is wanted, *operations determine meaning* would make every bound, range and
 termination proof unsound.
 
+**INTEGER ARITHMETIC IS THE LANGUAGE'S, AND THE MACRO TABLE IS DELETED** —
+[integers.md §0a](docs/spec/integers.md). **`=` was the ONLY integer operator the language owned**:
+`(+ 1 2)` was *"not bound"*, every gauntlet program lived in `examples/native/` writing `go.+` or
+`x64.add`, and the differential harness carried a table expanding `@add` into four spellings. **Every
+portability claim in this repository was really a claim about `go.+`** — a program could compare for
+equality portably and could not add two numbers. Now `+ - * / % < <= > >=` join `=`, found per target
+by spelling the way `findEq` always did, so the emission, the `where` on division and ADR 0019's
+`checked` variant all come from the target's own declaration. **What made them promotable was already
+measured**: integers.md found all four hosts AGREE inside ADR 0012's window, so promotion turns those
+from claims about `go.+` into claims about the language.
+
+**One host needed a declaration rather than a rename**: JavaScript's `/` is FLOAT division — `7 / 2`
+is 3.5 — so the same source printed 7003 on three targets and **7003.5** on the fourth. `targets/js`
+declares `idiv` as `Math.trunc(a / b)`; **not `| 0`**, which coerces to int32 and would silently wrap
+every value past 2³¹, well inside the window. The host that lacks the operation says how to get it,
+in its own file, and no other target learns JavaScript is different.
+
+**BITWISE AND SHIFTS ARE DELIBERATELY NOT PROMOTED**, on a measured divergence rather than caution:
+V8 coerces both operands to **int32** for `& | ^ << >>` (uint32 for `>>>`), so **`(2³²) & -1` is 0
+there and 4294967296 on Go, Java and x86** — observable INSIDE the portable window, which is what
+makes a construct Tier 2. Promoting them conditionally when a declared range fits int32 is a real
+design and is not made.
+
+**AND CONSTANT FOLDING FOLLOWED, which the promotion is what made possible** — folding `go.+` would
+have meant assuming one host's semantics. `(* 3 4)` is `12` now where it survived to runtime before.
+Two side conditions, both ADR 0009: **a result outside the window is not folded** (compile time is
+Go's `int64`, run time on V8 is a binary64 exact only to ±(2⁵³−1)) — and leaving the operation alone
+is what lets the overflow analysis report it against what the programmer wrote; **division by zero is
+not folded**, being a precondition the refinement layer reports with the call site. Multiplication is
+checked by **dividing back**, since two in-window operands can produce a product `int64` itself
+cannot hold. No float folds, which is ADR 0009's original case.
+
+**The success criterion was deleting the macro table, and it is deleted**: every differential case
+writes `+`, `<`, `>=` directly and all of them agree on all four targets.
+
 **The eleven integer questions are settled** — [integers.md](docs/spec/integers.md), each measured
 on all four targets rather than read off four specifications. They **agree** on everything inside
 the window: division truncates toward zero, the remainder takes the dividend's sign, the identity

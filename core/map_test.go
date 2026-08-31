@@ -48,11 +48,11 @@ func TestMapLiteralReduces(t *testing.T) {
 // is affordable at all.
 func TestAStaticMapLeavesNothing(t *testing.T) {
 	got := mapNorm(t, "(case ((map (1 10) (2 20)) 2) (some v) (+ v 1) none 0)")
-	// `(+ 20 1)` rather than `21`, because this Env has no constant folder —
-	// that belongs to the target, and `cmd/oro` against a real one folds the
-	// rest of the way. What matters here is what is GONE.
-	if got != "(+ 20 1)" {
-		t.Errorf("a static map read left %s, want (+ 20 1)", got)
+	// `21`, and it used to be `(+ 20 1)`: with integer arithmetic promoted to
+	// the language it folds too, so "a static map leaves nothing" is now
+	// literally true rather than true of the map alone.
+	if got != "21" {
+		t.Errorf("a static map read left %s, want the constant 21", got)
 	}
 	for _, gone := range []string{"map", "#x", "case"} {
 		if strings.Contains(got, gone) {

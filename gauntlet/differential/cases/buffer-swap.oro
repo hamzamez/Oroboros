@@ -1,0 +1,29 @@
+; A SWAP IS A SWAP, NOT A COPY.
+; inputs: 0 1 2
+; expect: 73 74 75
+;
+; Two reads before two stores. The program is correct as written; the compiler
+; was substituting each read INTO a store position, so Go emitted
+;
+;   b[0] = b[1]
+;   b[1] = b[0]        <- reads what it just overwrote
+;
+; and a swap silently became a copy. ADR 0010 denies exchange precisely so that
+; cannot happen, and ADR 0018 says a buffer read is impure -- but nothing in a
+; term says which bound variables are buffers, since an ARRAY read has the same
+; shape and is genuinely pure. The rule therefore tests the DESTINATION: a read
+; does not move into a body that has effects to be reordered against.
+;
+; EVERY TARGET AGREED AND ALL OF THEM WERE WRONG, so this case could never have
+; FOUND the bug -- it is here to keep it fixed. What found it was writing a sort
+; for a map's `keys`, which is the argument for writing programs and not only
+; construct tests.
+;
+; [3,7] swapped is [7,3], printed as 73 plus the input so the three rows differ.
+(def run (fn (n)
+  (let (build 2 (fn (b)
+         (let (set (set b 0 3) 1 7) (fn (b)
+           (let (b 0) (fn (vx)
+             (let (b 1) (fn (vy)
+               (set (set b 0 vy) 1 vx)))))))))
+    (fn (t) (@add (@mul 10 (t 0)) (@add (t 1) n))))))

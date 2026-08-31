@@ -1235,6 +1235,26 @@ lose on JavaScript was **wrong**, and the first run agreed for the wrong reason:
 `Array` against a `Float64Array`, so it measured **array kind rather than growth**. Third time this
 session that **a comparison changing two things at once measured neither**.
 
+**A BUFFER READ WAS MOVING ACROSS A STORE, AND A SWAP BECAME A COPY** —
+[effects.md §7c](docs/spec/effects.md). ADR 0010 denies **exchange** and ADR 0018 says a
+`(buffer V)` read is impure, which is what stops a read being moved past a store. But `pureTerm`
+answers *"value"* for every bound variable, so `(b 0)` was judged PURE and substituted into the store
+position: `(let (b 0) (fn (vx) (let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))` emitted
+`b[0] = b[1]; b[1] = b[0]` — **a silent wrong answer on all four targets**, so the differential suite
+could not have found it either. Latent because it needs a read, then a store to that slot, then a USE
+of the read; the tokeniser and the tree consume each read inside the same expression as the store that
+follows. **What found it was writing a SORT** — for a map's `keys` — which is the argument for
+programs over construct suites arriving again.
+
+**The fix tests the DESTINATION, not the operand**: nothing in a term says which bound variables are
+buffers, since an array read has the identical shape and is genuinely pure. So **a term that reads a
+table through a bound variable is not substituted into an impure body** — a read may move into a body
+with no effects to be reordered against, and not into one that has. **Testing the operand was tried,
+measured and is WRONG**: a rule-table's rule reads its parameter table, so `(table n f)` becomes
+impure, stops being substituted and reaches the backend UNFUSED — `dot` and `smooth` on Java stop
+compiling. **Cost: 2 of 164 emitted files change** and the one benchmarked program among them measures
+**5,842 ns against 5,840**, indistinguishable.
+
 **MAPS ARE SPECIFIED AND BUILT ON ALL FOUR TARGETS** — [maps.md](docs/spec/maps.md). A map is a table whose index set is
 a finite subset of the key type, and everything follows from that plus three decisions. **F2**:
 `(m k)` is `(option V)` — still application, with the RESULT TYPE decided by the domain kind, which is

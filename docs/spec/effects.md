@@ -261,6 +261,59 @@ after, identical stream), so the fix cost nothing.
 The general lesson is worth keeping: **a discipline enforced at one layer is not enforced at the
 next.** β refuses to copy; δ refuses to copy; the emitter had never been asked.
 
+## 7c. Exchange was easy to LOSE by accident, and a swap is what found it
+
+The rules above assume the effect discipline can *see* an effect. It could not
+see a **buffer read**.
+
+[ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) says `(array V)`
+reads are pure and `(buffer V)` reads are **impure**, which is what stops a read
+being moved across a store. But `pureTerm` answers *"value"* for every bound
+variable, so `(b 0)` — an application whose operator is a `KBound` — was judged
+pure. The smallest program that shows it is a swap:
+
+```lisp
+(let (b 0) (fn (vx) (let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))
+```
+
+Both reads happen before either store and the program is correct. Both were
+substituted into the store positions, and Go emitted
+
+```go
+b[0] = b[1]
+b[1] = b[0]     // reads what it just overwrote
+```
+
+so **a swap silently became a copy, on all four targets** — which is why the
+differential suite could not have found it either. It was latent because it
+needs a read of a slot, then a store to that slot, then a *use* of the read
+value; the tokeniser and the tree read buffers constantly and consume each read
+inside the same expression as the store that follows. The first program to need
+it was a sort.
+
+### The fix tests the DESTINATION, not the operand
+
+Nothing in a term says which bound variables are buffers: an array read has the
+identical shape and is genuinely pure. So the rule is
+
+> **A term that reads a table through a bound variable is not substituted into an
+> impure body.**
+
+A read may move freely into a body with no effects to be reordered against, and
+not into one that has. That is exactly the property at stake, and it is
+decidable at the β site because the body is in hand.
+
+**Testing the operand instead — "any application of a bound variable is impure" —
+was tried and measured and is wrong.** A rule-table's rule reads its parameter
+table, so `(table n f)` becomes impure, stops being substituted, and reaches the
+backend **unfused**: `dot` and `smooth` on Java stop compiling. Recorded so it is
+not tried again.
+
+**Cost: 2 of 164 emitted files change**, both gaining one let-bound temporary
+before an impure call, and the one benchmarked program among them
+(`examples/json/tree.oro`) measures **5,842 ns against 5,840** — indistinguishable,
+against a 15% noise floor.
+
 ## 8. What this does not do
 
 - **No effect types, no monads, no regions.** Purity is one declared bit per primitive and a

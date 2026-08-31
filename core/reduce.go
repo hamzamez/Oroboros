@@ -695,6 +695,29 @@ func sortedKeys(m map[string]*Term) []string {
 // primitives — loop, loop2, cond, let — apply the λ they are given. Treating
 // `(fold-range z n (fn (acc i) (print-line i)))` as pure because its third
 // argument is a λ would license moving the whole loop into another loop.
+// readsBoundTable reports whether a term reads a table through a BOUND
+// variable — `(b i)` with `b` a parameter rather than a definition.
+//
+// That is the shape a buffer read has, and also the shape an array read has:
+// nothing in the term distinguishes them, which is why the caller tests the
+// destination rather than this. Recognising it at all is what keeps the rule
+// narrow — an ordinary arithmetic argument is still substituted into an impure
+// body, as it always was.
+func readsBoundTable(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KBound {
+		return true
+	}
+	for _, k := range t.Kids {
+		if readsBoundTable(k) {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 	switch t.Kind {
 	case KName, KInt, KFloat, KStr, KBool, KFn, KBound:
@@ -937,6 +960,45 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				// site, which is where the programmer wrote it — at its
 				// original loop depth and under its original guards. Binding
 				// at the USE site instead would be the bug. (effects.md §4)
+				// A TABLE READ IS NOT SUBSTITUTED INTO AN IMPURE BODY.
+				//
+				// `pureTerm` answers "value" for every bound variable, so
+				// `(b 0)` — a buffer read — is judged pure and may be moved.
+				// ADR 0018 says a buffer read is IMPURE and ADR 0010 says an
+				// impure argument is never substituted, precisely so that
+				// exchange is denied; without this a swap
+				//
+				//	(let (b 0) (fn (vx) (let (b 1) (fn (vy)
+				//	  (set (set b 0 vy) 1 vx)))))
+				//
+				// emits as `b[0] = b[1]; b[1] = b[0]` and silently copies.
+				//
+				// The term cannot say which bound variables are buffers — an
+				// ARRAY read has the identical shape and is genuinely pure — so
+				// the test is on the DESTINATION instead: a read may move freely
+				// into a body that has no effects to be reordered against, and
+				// not into one that has. That is exactly the property at stake,
+				// and it is decidable here because the body is in hand.
+				//
+				// Testing the OPERAND instead — "any application of a bound
+				// variable is impure" — was tried and is wrong: a rule-table's
+				// rule reads its parameter table, so `(table n f)` becomes
+				// impure, is no longer substituted, and reaches the backend
+				// unfused. `dot` and `smooth` on Java stop compiling.
+				if readsBoundTable(args[i]) && !e.pureTerm(op.Body(), map[string]bool{}) {
+					na, err := normalize(args[i], e, fuel)
+					if err != nil {
+						return nil, err
+					}
+					nm := e.bindName(p, op.Params, used)
+					used[nm] = true
+					bound = append(bound, struct {
+						name string
+						val  *Term
+					}{nm, na})
+					subs[i] = Name(nm)
+					continue
+				}
 				if !e.pureTerm(args[i], map[string]bool{}) {
 					na, err := normalize(args[i], e, fuel)
 					if err != nil {

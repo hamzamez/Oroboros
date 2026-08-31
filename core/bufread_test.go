@@ -5,81 +5,80 @@ import (
 	"testing"
 )
 
-// A BUFFER READ IS SUBSTITUTED PAST A STORE, AND THAT IS A SILENT WRONG ANSWER.
+// A TABLE READ IS NOT SUBSTITUTED INTO AN IMPURE BODY.
 //
-// ADR 0010 exists to forbid exactly this: an impure argument is never
-// substituted, which denies contraction, weakening and EXCHANGE — no reordered
-// store, and no read reordered across one. ADR 0018 says in as many words that
-// `(array V)` reads are pure and `(buffer V)` reads are impure.
-//
-// They are not. `pureTerm` answers "value" for every bound variable, so an
-// application whose operator is a bound variable is judged PURE — and a buffer
-// read is exactly that shape. The smallest program that shows it is a SWAP:
+// ADR 0010 denies exchange — no store reordered, and no read reordered across
+// one — and ADR 0018 says `(buffer V)` reads are impure where `(array V)` reads
+// are pure. They were not: `pureTerm` answers "value" for every bound variable,
+// so `(b 0)` was judged pure and could be moved. The smallest program that
+// shows it is a SWAP:
 //
 //	(let (b 0) (fn (vx) (let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))
 //
-// Both reads happen before either store, and the program is correct. Both are
-// substituted into the store positions, and Go emits
+// Both reads happen before either store and the program is correct. Both were
+// substituted into the store positions, and Go emitted
 //
 //	b[0] = b[1]
 //	b[1] = b[0]        ← reads what it just overwrote
 //
-// so a swap becomes a copy. Every target agrees, and all of them are wrong,
-// which is why the differential suite cannot see it either.
+// so a swap became a copy — on every target, which is why the differential
+// suite could not see it either.
 //
 // WHY IT WAS LATENT: it needs a read of a slot, then a store to that slot, then
-// a USE of the read value. The tokeniser and the tree read a buffer constantly
+// a USE of the read value. The tokeniser and the tree read buffers constantly
 // and consume each read inside the same expression as the store that follows.
-// The first program to need it was a sort.
+// The first program to need it was a sort, for a map's `keys`.
 //
-// WHY THE ONE-LINE FIX IS WRONG, recorded so it is not tried again: making an
-// application of a bound variable impure kills FUSION. `(table n f)`'s rule
-// reads its parameter table, so the whole rule-table becomes impure, is no
-// longer substituted, and reaches the backend un-fused — `dot` and `smooth` on
-// Java stop compiling. Measured: 2 of 164 emitted files improved, 2 vanished.
+// THE FIX TESTS THE DESTINATION, NOT THE OPERAND. Nothing in a term says which
+// bound variables are buffers — an array read has the identical shape and is
+// genuinely pure — so a read may move freely into a body with no effects to be
+// reordered against, and not into one that has. That is exactly the property at
+// stake, and it is decidable at the β site because the body is in hand.
 //
-// The real fix is to know WHICH bound variables are buffers, which is
-// `build`'s parameter threaded through `let`, `loop` and `set` — the same
-// tracking `emit/winmap.go` does for the same reason, and it has to reach the
-// reducer because purity is asked about an argument in isolation.
-//
-// This test asserts the CURRENT, WRONG behaviour so the bug is recorded and the
-// fix has something to flip. When the fix lands, invert it.
-func TestKnownBugBufferReadIsJudgedPure(t *testing.T) {
-	e := &Env{Defs: map[string]*Term{}, Prim: map[string]bool{}, Pure: map[string]bool{}}
-	for _, n := range []string{"build", "set", "let", "if"} {
-		e.Prim[n] = true
-	}
-	e.Pure["build"], e.Pure["set"] = false, false // ADR 0018: both allocate or store
+// Testing the operand instead — "any application of a bound variable is impure"
+// — was tried, measured and is wrong: a rule-table's rule reads its parameter
+// table, so `(table n f)` becomes impure, stops being substituted, and reaches
+// the backend UNFUSED. `dot` and `smooth` on Java stop compiling.
+func TestATableReadDoesNotMoveIntoAnImpureBody(t *testing.T) {
+	prims := "(prim build)\n(prim !set)\n(prim if)\n"
 
-	forms, err := Read("(fn (b) (b 0))")
-	if err != nil {
-		t.Fatal(err)
+	// The swap. Both reads must survive as bindings rather than be inlined into
+	// the stores, so the property is about WHERE the reads are rather than about
+	// a count.
+	got := norm(t, prims+"(fn (b) (let (b 0) (fn (vx) (let (b 1) (fn (vy) "+
+		"(set (set b 0 vy) 1 vx))))))", "")
+	i := strings.Index(got, "(set")
+	if i < 0 {
+		t.Fatalf("expected the stores to survive, got %s", got)
 	}
-	read := forms[0].Term.Body() // `(b 0)`, with b a KBound
-
-	if !e.pureTerm(read, map[string]bool{}) {
-		t.Log("a buffer read is now judged impure — the bug is FIXED. " +
-			"Invert this test and delete the `known bug` framing.")
-		t.Fail()
+	if stores := got[i:]; strings.Contains(stores, "(b 0)") || strings.Contains(stores, "(b 1)") {
+		t.Errorf("a buffer read was substituted into a store position, so a "+
+			"swap becomes a copy:\n%s", got)
 	}
 }
 
-// And the property the fix must establish, stated as the theorem rather than as
-// a spelling: READS BEFORE A STORE MUST STAY BEFORE IT.
-//
-// Written against the printed residual because that is where the reordering is
-// visible; it fails today, so it is skipped rather than deleted — a test that
-// only exists in a commit message is not a test.
-func TestKnownBugReadsMustNotMovePastAStore(t *testing.T) {
-	t.Skip("known bug: a buffer read is judged pure and is substituted past a " +
-		"store, so a swap emits as a copy. See TestKnownBugBufferReadIsJudgedPure.")
+// AND THE RULE IS NARROW: into a PURE body a table read still moves, which is
+// what keeps fusion working. Without this control the test above would pass
+// against a compiler that had simply stopped substituting anything.
+func TestATableReadStillMovesIntoAPureBody(t *testing.T) {
+	prims := "(prim add)\n(prim if)\n"
+	// ONE occurrence of x, deliberately: with two, call-by-need binds it
+	// whatever its purity, and the control would pass for the wrong reason.
+	got := norm(t, prims+"(fn (a) (let (a 0) (fn (x) (add x 1))))", "")
+	if strings.Contains(got, "let") {
+		t.Errorf("a table read was bound rather than substituted into a PURE "+
+			"body; that is what un-fuses a rule-table:\n%s", got)
+	}
+}
 
-	const prims = "(prim build)\n(prim set)\n(prim if)\n"
-	got := norm(t, prims+"(build 2 (fn (b) (let (b 0) (fn (vx) "+
-		"(let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))))", "")
-	// The reads must survive as bindings rather than be inlined into the stores.
-	if strings.Count(got, "(b 0)") != 1 || strings.Count(got, "(b 1)") != 1 {
-		t.Errorf("a buffer read was duplicated or moved: %s", got)
+// And an ordinary argument is unaffected: the rule fires only on a term that
+// READS a table through a bound variable, not on every argument to an impure
+// body.
+func TestAnOrdinaryArgumentIsUnaffected(t *testing.T) {
+	prims := "(prim !set)\n(prim add)\n(prim if)\n"
+	got := norm(t, prims+"(fn (b n) (let (add n 1) (fn (x) (set b 0 x))))", "")
+	if strings.Contains(got, "let") {
+		t.Errorf("a pure arithmetic argument was bound rather than substituted "+
+			"into an impure body, so the rule is wider than it should be:\n%s", got)
 	}
 }

@@ -73,7 +73,58 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 // substitution rather than two inequalities, which is what lets
 // `(int.eq (alen p) (alen q))` discharge an obligation about q from a fact
 // about p — the two-array case every real program has.
+// erasedAnd matches a conjunction as the reader leaves it: `(if p q false)`.
+//
+// Target-free on purpose. The connectives are erased by the READER, which emits
+// the language's own `if`, so a `where` written by a programmer always carries
+// that name — there is no host spelling to look up and no target to thread in.
+//
+// `or` is deliberately NOT matched: a disjunction cannot be assumed as facts
+// without a case split, and the fragment is conjunctive. Falling through
+// assumes nothing, which is the conservative direction.
+//
+// `(if p false true)` — `not` — is not matched either, its third argument being
+// `true`.
+func erasedAnd(t *core.Term) (*core.Term, *core.Term, bool) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return nil, nil, false
+	}
+	if !isOp(t.Op().Name, "if") {
+		return nil, nil, false
+	}
+	a := t.Args()
+	if len(a) != 3 || a[2].Kind != core.KBool || a[2].IsTrue() {
+		return nil, nil, false
+	}
+	return a[0], a[1], true
+}
+
 func assume(f *facts, where *core.Term) {
+	// A CONJUNCTION IS ASSUMED CONJUNCT BY CONJUNCT, and it has to be matched in
+	// its ERASED form.
+	//
+	// `and` does not survive the reader (ADR 0017): `(and a b)` is `(if a b
+	// false)` by the time anything here sees it, so the named match below never
+	// fires and this branch was doing the work alone — except it was not there.
+	//
+	// What that cost was NON-MONOTONIC and is the worst shape a prover can
+	// have: `(where (!= b 0))` discharged a division and
+	// `(where (and (!= b 0) (<= 0 a)))` did NOT. Adding a TRUE fact lost the
+	// proof. The reason is that a conjunction only reached the solver through
+	// `obligation`, which is all-or-nothing — a disequality is outside the
+	// linear fragment, so one `!=` conjunct threw away every conjunct including
+	// itself.
+	//
+	// Assuming each side separately lets each be taken by whichever mechanism
+	// fits it: `!=` as an opaque atom, a linear bound as a linear bound.
+	if a, b, ok := erasedAnd(where); ok {
+		assume(f, a)
+		assume(f, b)
+		return
+	}
+	// The NAMED form, for a target that declares its own `and`. None of the
+	// four does — declaring a boolean name is an error (ADR 0017) — so this is
+	// unreachable today and is kept only so that the rule reads completely.
 	if where.Kind == core.KApp && where.Op().Kind == core.KName &&
 		isOp(where.Op().Name, "and") && len(where.Args()) == 2 {
 		assume(f, where.Args()[0])

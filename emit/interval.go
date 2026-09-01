@@ -764,9 +764,60 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 	return top, t
 }
 
+// mapCase evaluates a map read under its eliminator, binding what the two
+// continuation parameters can hold.
+//
+//	#t  the tag, [0, 1] — a sum with two variants and nothing else
+//	#p  the payload, the map's VALUE RANGE
+//
+// The payload's bound is the theorem in elemRange's `map-build` case: every
+// value a read produces was inserted, so the hull of the inserts bounds it.
+func (p *intervalPass) mapCase(t *core.Term) (ival, *core.Term, bool) {
+	op := t.Op()
+	args := t.Args()
+	if op.Kind != core.KApp || len(args) != 1 || len(op.Args()) != 1 {
+		return top, t, false
+	}
+	k := args[0]
+	if k.Kind != core.KFn || len(k.Params) != 2 {
+		return top, t, false
+	}
+	val, ok := p.elemRange(op.Op())
+	if !ok {
+		return top, t, false
+	}
+	body, raw, _ := openFresh(k, map[string]bool{}, asmIdent)
+	oldT, hadT := p.env[raw[0]]
+	oldP, hadP := p.env[raw[1]]
+	p.env[raw[0]] = ival{lo: 0, hi: 1}
+	p.env[raw[1]] = val
+	v, nb := p.evalR(body)
+	restoreVar(p.env, raw[0], oldT, hadT)
+	restoreVar(p.env, raw[1], oldP, hadP)
+	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(k.Params, nb)}}, true
+}
+
+func restoreVar(env map[string]ival, n string, old ival, had bool) {
+	if had {
+		env[n] = old
+	} else {
+		delete(env, n)
+	}
+}
+
 func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	op := t.Op()
 	if op.Kind != core.KName {
+		// A MAP READ UNDER ITS ELIMINATOR — `((m k) (fn (#t #p) body))`, the one
+		// shape whose operator is legitimately not a name.
+		//
+		// Without this the whole thing is ⊤ and every operation downstream of a
+		// map read is unbounded, which is what `examples/map/dynamic.oro`
+		// measured at 2 of 4. growth.md called the map's value range FREE; it is
+		// free only once the analysis is told about it.
+		if v, nt, ok := p.mapCase(t); ok {
+			return v, nt
+		}
 		return top, t
 	}
 	prim, known := p.tgt.Prims[op.Name]
@@ -1140,6 +1191,44 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 				out = joinI(out, exact(e.Int))
 			}
 			return out, seen
+		case "map-insert":
+			// AN INSERT HANDS THE MAP BACK, exactly as a store hands a buffer
+			// back — arrays-revisited.md §6's point again, that the discipline
+			// does not care what the index set is.
+			if len(args) != 3 {
+				return ival{}, false
+			}
+			t = args[0]
+		case "map":
+			// A MAP LITERAL: the hull of the VALUES it was written with, which
+			// is exact. The keys are the index set and are not values.
+			out, seen := ival{}, false
+			for _, row := range args {
+				if row.Kind != core.KApp || len(row.Kids) != 2 || row.Kids[1].Kind != core.KInt {
+					return ival{}, false
+				}
+				if !seen {
+					out, seen = exact(row.Kids[1].Int), true
+					continue
+				}
+				out = joinI(out, exact(row.Kids[1].Int))
+			}
+			return out, seen
+		case "map-build":
+			// THE MAP'S VALUE RANGE, and it is frozen-2026-08-28's buffer
+			// theorem one index set over: a slot holds either NOTHING or the
+			// most recent `insert`, there being no third source — `build-map`
+			// is the only allocator, `insert` the only store, and ADR 0018's
+			// linearity means nothing else can have written it.
+			//
+			// So the hull of the inserted values bounds every value a read can
+			// produce. The absent case needs no join, because absence is a
+			// SUM: the `none` branch never sees a payload.
+			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+				return ival{}, false
+			}
+			body, raw, _ := openFresh(args[1], map[string]bool{}, asmIdent)
+			return p.insertedRange(body, raw[0])
 		case "table-set":
 			if len(args) != 3 {
 				return ival{}, false
@@ -1211,6 +1300,50 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 		}
 	}
 	return ival{}, false
+}
+
+// insertedRange is the hull of every value inserted into `name` inside a
+// `build-map` body — the map's half of `bufferElem`.
+//
+// SYNTACTIC ON PURPOSE, like the buffer's: a literal is its own exact range and
+// anything else refuses. That is a soundness choice rather than laziness — a
+// range too narrow would let a read be believed tighter than it is, and only
+// facts exact by construction are used. Refusing is always safe.
+//
+// The stratification is frozen-2026-08-28's and holds for the same reason: this
+// walks the build lambda, where the map's own name is the binder, so it never
+// consults a range it is in the middle of computing.
+func (p *intervalPass) insertedRange(body *core.Term, name string) (ival, bool) {
+	out, seen, bad := ival{}, false, false
+	var walk func(*core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || bad {
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if pr, ok := p.tgt.Prims[t.Op().Name]; ok && pr.Kind == "map-insert" {
+				if a := t.Args(); len(a) == 3 {
+					if a[2].Kind != core.KInt {
+						bad = true
+						return
+					}
+					if !seen {
+						out, seen = exact(a[2].Int), true
+					} else {
+						out = joinI(out, exact(a[2].Int))
+					}
+				}
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	if bad {
+		return ival{}, false
+	}
+	return out, seen
 }
 
 // bindElem records a name's element range, and reports whether it had one so the

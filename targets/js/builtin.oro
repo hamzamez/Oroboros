@@ -40,7 +40,18 @@
     ; `Math.trunc` and not `| 0`: the bitwise form coerces to int32 and would
     ; silently wrap every value past 2^31, which is well inside ADR 0012's
     ; window. Exact for every integer the window admits.
-    (prim idiv ((a any) (b any)) any expr "Math.trunc(%s / %s)" pure (where (!= b 0)))
+    ; The trailing `+ 0` is NEGATIVE ZERO, and it is not a nicety. `Math.trunc`
+    ; and `%` both yield `-0` on this host whenever the true result is zero and
+    ; the dividend is negative -- `-1 / 2` is `-0`, `-2 % 2` is `-0` -- where Go,
+    ; Java and x86 all give `0`. It compares equal to zero (`-0 === 0`), every
+    ; arithmetic operation normalises it, and `String(-0)` is `"0"`, so it hides
+    ; almost everywhere; `console.log` prints it as `-0`, so the SAME PROGRAM
+    ; printed 0 on three targets and -0 on one.
+    ;
+    ; `+ 0` maps `-0` to `0` and is the identity on every other value, including
+    ; every negative one: `-1 + 0` is `-1`. One addition, no branch.
+    (prim idiv ((a any) (b any)) any expr "(Math.trunc(%s / %s) + 0)" pure (where (!= b 0)))
+    (prim irem ((a any) (b any)) any expr "((%s %% %s) + 0)"          pure (where (!= b 0)))
     (prim %   ((a any) (b any)) any expr "%s %% %s" pure (where (!= b 0)))
     (prim **  (any any) any expr "%s ** %s" pure)
     (prim neg (any) any        expr "-%s"      pure)

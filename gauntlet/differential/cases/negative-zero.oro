@@ -1,0 +1,27 @@
+; NEGATIVE ZERO, which JavaScript produces and the other three do not.
+; inputs: 1 2 6
+; expect: 0 0 3
+;
+; `Math.trunc(-1 / 2)` is `-0` on V8, and so is `-2 % 2`, wherever the true
+; result is zero and the dividend is negative. Go, Java and x86 all give `0`.
+;
+; IT HIDES ALMOST EVERYWHERE, which is why this case prints the value RAW.
+; `-0 === 0` is true, `String(-0)` is `"0"`, and every arithmetic operation
+; normalises it -- `-0 + 5` is `5` -- so a case that combined the quotient into
+; a larger number would pass while the bug was present. `console.log` is the one
+; thing that shows it, printing `-0`.
+;
+; So the wrong answer here is not a different NUMBER, it is a different SIGN on
+; zero, and only an unmodified value carries it.
+;
+; The third row is the control: an ordinary division that is not zero at all, so
+; the case cannot pass by returning 0 for everything.
+;
+; The dividend comes out of a buffer because reduction does not execute a
+; `build` -- with a literal the whole division would fold at compile time and
+; never reach a backend.
+(def run (fn (n)
+  (let (build 2 (fn (b) (set (set b 0 (- 0 n)) 1 n))) (fn (t)
+    (if (= n 1) (/ (t 0) 2)
+      (if (= n 2) (% (t 0) 2)
+        (/ (t 1) 2)))))))

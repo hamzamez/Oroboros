@@ -1632,6 +1632,24 @@ declares `idiv` as `Math.trunc(a / b)`; **not `| 0`**, which coerces to int32 an
 every value past 2³¹, well inside the window. The host that lacks the operation says how to get it,
 in its own file, and no other target learns JavaScript is different.
 
+**AND THE DIVISION HAZARD integers.md §13.4 ASKED TO COVER IS ALREADY CLOSED, MORE STRONGLY THAN IT
+ASKED** — it wanted a program dividing by an unbounded value *told it is not portable* on JavaScript;
+what happens is that it is **refused on every target**, because a zero divisor is a PRECONDITION and
+an unproven one is an error rather than a note. Checked across the boundary: nothing known → refused,
+`(where (<= 0 n))` → **refused** (n may still be 0), `(where (< 0 n))` → accepted, and
+`(if (= n 0) 0 (/ a n))` → accepted, the guard discharging it. `1/0` cannot reach a backend, so V8's
+`Infinity` is unreachable rather than merely reported.
+
+**THE DIVERGENCE THAT WAS ACTUALLY LIVE IS NEGATIVE ZERO, and it arrived with the fix above.**
+`Math.trunc(-1 / 2)` is **`-0`** on V8, and so is `-2 % 2`, wherever the true result is zero and the
+dividend is negative; Go, Java and x86 all give `0`. **It hides almost everywhere** — `-0 === 0` is
+true, `String(-0)` is `"0"`, and every arithmetic operation normalises it, so `-0 + 5` is `5`. The one
+thing that shows it is printing the value RAW, where `console.log` gives `-0`: **the same program
+printed 0 on three targets and -0 on one.** Fixed with `+ 0` on both `idiv` and `irem`, which maps
+`-0` to `0` and is the identity on every other value, negatives included. **The differential case has
+to print the value unmodified** — a case that folded the quotient into a larger answer would pass with
+the bug present, because the addition normalises the sign away.
+
 **BITWISE AND SHIFTS ARE DELIBERATELY NOT PROMOTED**, on a measured divergence rather than caution:
 V8 coerces both operands to **int32** for `& | ^ << >>` (uint32 for `>>>`), so **`(2³²) & -1` is 0
 there and 4294967296 on Go, Java and x86** — observable INSIDE the portable window, which is what

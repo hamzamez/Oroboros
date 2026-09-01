@@ -163,6 +163,43 @@ conjunctions of linear inequalities. It is discharged by **case split**: prove e
 silently wrong, and no check we can afford will find it. A program that divides by a value it has
 not bounded is not portable to JavaScript, and covering should eventually say so.
 
+## 5a. Negative zero, which is the divergence that was actually live
+
+§5's hazard turned out to be closed. This one was not, and it arrived with the fix for a different
+problem — JavaScript's `/` being float division, so the language's `/` lowers to `Math.trunc(a / b)`
+there.
+
+| | Go | JavaScript | Java | x86-64 |
+|---|---|---|---|---|
+| `-1 / 2` | `0` | **`-0`** | `0` | `0` |
+| `-2 % 2` | `0` | **`-0`** | `0` | `0` |
+
+Wherever the true result is zero and the dividend is negative, V8 yields negative zero — from
+`Math.trunc` and from `%` alike.
+
+**It hides almost everywhere**, which is what makes it dangerous rather than merely untidy:
+`-0 === 0` is true, `String(-0)` is `"0"`, and every arithmetic operation normalises it, so
+`-0 + 5` is `5`. The one thing that shows it is printing the value unmodified, where `console.log`
+gives `-0`. **The same program printed `0` on three targets and `-0` on one.**
+
+**Decision: normalise at the target, with `+ 0`.** `targets/js` declares
+
+```lisp
+(prim idiv ((a any) (b any)) any expr "(Math.trunc(%s / %s) + 0)" pure (where (!= b 0)))
+(prim irem ((a any) (b any)) any expr "((%s %% %s) + 0)"          pure (where (!= b 0)))
+```
+
+`+ 0` maps `-0` to `0` and is the identity on every other value, negatives included — `-1 + 0` is
+`-1`. One addition, no branch, and it is exact for every integer in the window.
+
+The host's own `js./` and `js.%` are left alone: a program that names them has chosen JavaScript and
+should get JavaScript. It is the LANGUAGE's `/` and `%` that must agree on four hosts.
+
+**The differential case has to print the value raw**, and that is the part worth keeping: a case
+that folded the quotient into a larger answer would pass with the bug present, because the addition
+would normalise the sign away. `gauntlet/differential/cases/negative-zero.oro` returns the division
+itself, and it fails with the `+ 0` removed.
+
 ## 6. Comparing an `int` with an `f64`
 
 | | Go | JavaScript | Java | x86-64 |
@@ -348,8 +385,25 @@ In order, and none of it is a language change:
    refinement layer reports it with the call site rather than the compiler
    panicking. Multiplication is checked by dividing back, since two in-window
    operands can produce a product `int64` itself cannot hold.
-4. **Covering for the JavaScript division hazard**, so a program that divides by an unbounded value
-   is told it is not portable there.
+4. ~~**Covering for the JavaScript division hazard**~~ — **already closed, and more strongly than
+   this asked for.** It wanted a program dividing by an unbounded value to be *told it is not
+   portable* on JavaScript. What actually happens is that the program is **refused on every
+   target**, because the precondition is discharged at the call site and an unproven one is an
+   error rather than a note. Verified across the boundary:
+
+   | what is known about `n` in `(/ a n)` | |
+   |---|---|
+   | nothing | **refused** — *"`/` requires `(!= n 0)`, which does not follow"* |
+   | `(where (<= 0 n))` | **refused** — `n` may still be 0, which is the right answer |
+   | `(where (< 0 n))` | accepted |
+   | `(where (!= n 0))` | accepted |
+   | `(if (= n 0) 0 (/ a n))` | accepted — the guard discharges it |
+
+   So `1 / 0` cannot reach a backend, and JavaScript's `Infinity` is unreachable rather than
+   merely reported. Portability does not need computing here because the divergent state is one
+   the program has already been refused for being able to enter.
+
+5. ~~**Negative zero on JavaScript**~~ — **found and closed 2026-08-31**, §5a.
 
 What it does **not** ask for: a bignum, a second integer type, fixed-width types, or any change to
 the reader, the reducer, or the term language.

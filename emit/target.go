@@ -490,7 +490,7 @@ var langOps = []struct {
 	{"-", []string{"-", "sub"}, ""},
 	{"*", []string{"*", "imul", "mul"}, ""},
 	{"/", []string{"idiv", "/"}, ""},
-	{"%", []string{"%", "irem", "rem"}, ""},
+	{"%", []string{"irem", "%", "rem"}, ""},
 	{"<", []string{"<", "setl"}, "bool"},
 	{"<=", []string{"<=", "setle"}, "bool"},
 	{">", []string{">", "setg"}, "bool"},

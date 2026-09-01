@@ -1,6 +1,9 @@
 package emit
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // THE LANGUAGE OWNS INTEGER ARITHMETIC, on exactly `=`'s argument.
 //
@@ -93,14 +96,31 @@ func TestJavaScriptDivisionIsIntegerDivision(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := tg.Prims["/"].Form
-	if got == "%s / %s" {
-		t.Error("the language's `/` resolved to JavaScript's FLOAT division; " +
-			"7 / 2 is 3.5 there and 3 everywhere else")
+	// Asserted as PROPERTIES rather than one exact string, because the template
+	// has already had to grow once — for negative zero — and a test that pins
+	// the spelling fails on every future fix rather than on a regression.
+	for _, op := range []string{"/", "%"} {
+		got := tg.Prims[op].Form
+		if got == "%s / %s" {
+			t.Errorf("the language's %q resolved to JavaScript's FLOAT division; "+
+				"7 / 2 is 3.5 there and 3 everywhere else", op)
+		}
+		if strings.Contains(got, "| 0") || strings.Contains(got, "|0") {
+			t.Errorf("%q on JavaScript uses `| 0`, which coerces to int32 and "+
+				"wraps every value past 2^31 — well inside the window: %s", op, got)
+		}
+		// NEGATIVE ZERO: `Math.trunc(-1/2)` and `-2 % 2` are both `-0` on V8 and
+		// `0` on the other three. It compares equal, `String(-0)` is "0", and
+		// every arithmetic operation normalises it — so it hides everywhere
+		// except a raw print, where `console.log` shows `-0`. `+ 0` maps it to
+		// `0` and is the identity on every other value.
+		if !strings.Contains(got, "+ 0") {
+			t.Errorf("%q on JavaScript does not normalise negative zero: %s\n"+
+				"the same program printed 0 on three targets and -0 on one", op, got)
+		}
 	}
-	if got != "Math.trunc(%s / %s)" {
-		t.Errorf("`/` on JavaScript is %q, want Math.trunc — and NOT `| 0`, "+
-			"which coerces to int32 and wraps every value past 2^31", got)
+	if got := tg.Prims["/"].Form; !strings.Contains(got, "Math.trunc") {
+		t.Errorf("`/` on JavaScript is %q, want a truncating division", got)
 	}
 }
 

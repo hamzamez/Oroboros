@@ -136,6 +136,19 @@ func (c *checker) agree(what, got, want string) error {
 	if compatible(got, want) {
 		return nil
 	}
+	// A RANGE WIDER THAN THE WINDOW gets its own message, because "but int is
+	// required here" is true and explains nothing. This is the rung above the
+	// host's word: the value is not an `int`, it is arbitrary precision, and the
+	// refusal is where a programmer finds that out.
+	if core.ExceedsWindow(got) && core.ValueType(want) == "int" {
+		return fmt.Errorf("%s is %s, which is WIDER than the portable window "+
+			"±(2^53−1), so it is not an `int` — arbitrary precision is a rung "+
+			"above the host's word and is not implemented yet "+
+			"(docs/unbounded-rung.md).\n"+
+			"  A range above the window is a WIDENING, not a refinement: a value "+
+			"that may leave the machine word cannot silently be used where an "+
+			"`int` is required, and this refusal is where that is said.", what, got)
+	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
 }
 

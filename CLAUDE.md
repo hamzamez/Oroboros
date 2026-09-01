@@ -1180,7 +1180,24 @@ promotion cannot be transparent, and that refusal is the surface: it is where a 
 a value became a bignum. It is the decidable half of subtyping type-algebra.md already keeps, running
 the other way, and it makes scalarrange's THREE effects into four.
 
-**Recommended: arbitrary-precision endpoints first, `(int 0 +inf)` as the follow-on.** Infinite
+**AND THE SPELLING IS BUILT, in a shape none of the four candidates proposed** — hamza's: **an
+endpoint is a compile-time EXPRESSION.** `(int 0 (pow 2 70))`, `(int 0 (* 1000 1000))`,
+`(int (- 0 5) 5)`. The recommended candidate had hit a cost the research missed — types are built
+from ordinary terms, so a big literal needs an EIGHTH TERM KIND against state.md's *"seven term
+kinds, the entire grammar of what a program can say"*, or a literal smuggled in an unused field. An
+expression needs neither, because §2.1 is load-bearing: **it is evaluated, never emitted**, so `KInt`
+stays an `int64` and the only arbitrary-precision arithmetic in the compiler is `evalEndpoint` —
+**one function**, where the honest cost had been a twelve-site migration. The grammar is tiny on
+purpose (literals, unary `-`, `+ - *`, `pow`) and **division is absent** for ADR 0009's folding
+reason: it carries a precondition, and a bound with a precondition is not a bound. `pow` and not `^`,
+because `^` is XOR on three hosts.
+
+**And §3's refusal fell out with nothing written for it**: `ValueType` normalises a range to `int`
+only when `IntRange` can read it, and `IntRange` narrows to `int64`, so a range past the word simply
+is not an `int` and `compatible` already refused it. Only the MESSAGE was added. **No emitted file
+changes on any target** — the spelling exists and refuses honestly; selecting a representation is R3.
+
+**Recommended for what remains: `(int 0 +inf)` for the genuinely unbounded rung.** Infinite
 endpoints subsume the half-open case for free — a factorial accumulator is non-negative and bigarith
 measured sign handling as a real cost — and they are the vocabulary the compiler already prints
 (`idx -inf..+inf`). **Rejected and recorded**: a bare `bigint` names a REPRESENTATION, which is the

@@ -1,6 +1,9 @@
 # How a value says it is bigger than a word
 
-Research. **No decision and no specification** — this exists to say what
+Research, and **§3a is now built** — the spelling landed on 2026-08-31 in a shape none of the
+candidates below proposed. The rest is kept as the reasoning that produced it.
+
+**No decision on the unbounded rung itself** — this exists to say what
 [ADR 0019](decisions/0019-precision-by-declaration.md)'s second owed item actually is, why the
 question is really two questions, what each candidate spelling costs, and what has to be true before
 any of them is built.
@@ -94,7 +97,56 @@ an `int` for typing, a premise for the analyses, a representation for the emitte
 
 ---
 
+## 3a. BUILT 2026-08-31 — and the shape came from hamza rather than from §4
+
+The candidates below all assumed an endpoint is a *literal*, and implementing 4.1 immediately hit
+something none of them accounted for: **types are built from ordinary terms**, and the reader refuses
+a big literal at tokenisation, before `TypeName` ever sees it. So 4.1 needed either an eighth term
+kind — against *"Seven term kinds. That is the entire grammar of what a program can say"* — or a
+literal carried in an unused field, which is the silent-truncation shape deliberately.
+
+hamza's answer dissolves it: **an endpoint is a compile-time EXPRESSION.**
+
+```lisp
+(int 0 (pow 2 70))          [0, 2^70 − 1]
+(int 0 (* 1000 1000))       [0, 1000000]
+(int (- 0 5) 5)             [-5, 5]
+```
+
+It works because §2.1 is doing real work: **the expression is evaluated, never emitted.** ADR 0012
+constrains the integers a program computes with; an endpoint describes a set. So there is no eighth
+term kind, no big literal for the reader to refuse, and no widening of `KInt` — and the only
+arbitrary-precision arithmetic in the compiler is `evalEndpoint`, **one function**, where §4.1's
+honest cost was a twelve-site migration.
+
+It also makes the endpoint more legible than the thing it replaces: `(pow 2 70)` says what a
+seventy-digit literal would have hidden.
+
+**The grammar is deliberately tiny** — literals, unary `-`, `+`, `-`, `*`, `pow` — because an
+endpoint is written by a person to say how big something gets, not computed. **Division is absent**
+for the reason ADR 0009 gives about folding: it carries a precondition, and a bound with a
+precondition is not a bound. `pow` and not `^`, because `^` is XOR on Go, JavaScript and Java.
+
+**And §3's refusal fell out with nothing written for it.** `ValueType` normalises a range to `int`
+only when `IntRange` can read it, and `IntRange` narrows to `int64` and reports failure otherwise —
+so a range past the word is simply not an `int`, and `compatible` already refused it. The only
+addition was to make the message say *why*, which is the surface §3 predicted:
+
+```
+n is int 0 1180591620717411303424, which is WIDER than the portable window ±(2^53−1),
+so it is not an `int` — arbitrary precision is a rung above the host's word and is not
+implemented yet.
+  A range above the window is a WIDENING, not a refinement: a value that may leave the
+  machine word cannot silently be used where an `int` is required, and this refusal is
+  where that is said.
+```
+
+**Cost: no emitted file changes on any target.** The spelling exists and refuses honestly; what it
+does not yet do is *select a representation*, which is R3 — §5's ordering is unchanged.
+
 ## 4. Candidates
+
+
 
 ### 4.1 Arbitrary-precision endpoints — `(int 0 100000000000000000000)`
 

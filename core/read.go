@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math/big"
 	"strconv"
 	"strings"
 	"unicode"
@@ -1367,6 +1368,64 @@ func conj(a, b *Term) *Term {
 	return &Term{Kind: KApp, Kids: []*Term{Name("if"), a, b, Bool(false)}}
 }
 
+// evalEndpoint evaluates a range endpoint at compile time, at ARBITRARY
+// PRECISION.
+//
+// This is the only place in the compiler that does big-integer arithmetic, and
+// that is the point: the endpoint describes a set and is consumed as a width,
+// so nothing downstream needs to carry a big value. `KInt` stays an `int64` and
+// the value language does not move.
+//
+// The grammar is deliberately tiny — literals, negation, `+`, `-`, `*`, `pow` —
+// because an endpoint is written by a person to say how big something gets, not
+// computed. Division is absent for the reason ADR 0009 gives about folding: it
+// has a precondition, and a bound with a precondition is not a bound.
+func evalEndpoint(t *Term) (*big.Int, bool) {
+	if t == nil {
+		return nil, false
+	}
+	if t.Kind == KInt {
+		return big.NewInt(t.Int), true
+	}
+	if t.Kind != KApp || len(t.Kids) < 2 || t.Kids[0].Kind != KName {
+		return nil, false
+	}
+	op, args := t.Kids[0].Name, t.Kids[1:]
+	if op == "-" && len(args) == 1 {
+		v, ok := evalEndpoint(args[0])
+		if !ok {
+			return nil, false
+		}
+		return new(big.Int).Neg(v), true
+	}
+	if len(args) != 2 {
+		return nil, false
+	}
+	a, ok1 := evalEndpoint(args[0])
+	b, ok2 := evalEndpoint(args[1])
+	if !ok1 || !ok2 {
+		return nil, false
+	}
+	switch op {
+	case "+":
+		return new(big.Int).Add(a, b), true
+	case "-":
+		return new(big.Int).Sub(a, b), true
+	case "*":
+		return new(big.Int).Mul(a, b), true
+	case "pow":
+		// A NEGATIVE OR ABSURD EXPONENT IS REFUSED rather than saturated. The
+		// cap is generous — 2^1000000 is far past any representation anyone
+		// will ask for — and it exists so a typo cannot ask the compiler to
+		// build a gigabyte-long integer.
+		if b.Sign() < 0 || !b.IsInt64() || b.Int64() > 1000000 {
+			return nil, false
+		}
+		return new(big.Int).Exp(a, b, nil), true
+	}
+	return nil, false
+}
+
 func TypeName(t *Term) string {
 	if t == nil {
 		return ""
@@ -1402,19 +1461,30 @@ func TypeName(t *Term) string {
 		}
 		return ""
 	}
+	// `(int LO HI)` where each endpoint is a compile-time EXPRESSION, not only a
+	// literal: `(int 0 (pow 2 70))`, `(int 0 (* 1000 1000))`.
+	//
+	// AN ENDPOINT IS A BOUND, NOT A VALUE, and that one distinction is what
+	// makes this cheap. ADR 0012 constrains the integers a program COMPUTES
+	// WITH; an endpoint describes a set. So the expression is evaluated here, at
+	// arbitrary precision, and never becomes a term — which means no new term
+	// kind, no big literal in the value language, and no widening of `KInt`.
+	//
+	// It also removes the need to write a big literal at all: the reader refuses
+	// one, and `(pow 2 70)` says the same thing more legibly than seventy digits
+	// would. `pow` and not `^`, because `^` is XOR on Go, JavaScript and Java
+	// and a name should say what an operation IS (match.md's reason for `=`).
 	if t.Kind == KApp && len(t.Kids) == 3 &&
-		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" &&
-		t.Kids[1].Kind == KInt && t.Kids[2].Kind == KInt {
-		// AN EMPTY RANGE IS NOT A TYPE. `(int 100 0)` denotes ∅, which no value
-		// inhabits, so a parameter declared with one can never be called and a
-		// result declared with one can never be returned. It is a transposition
-		// typo, and saying "is not a type" where it is written is better than
-		// letting it flow on as the string "int 100 0" and surfacing later as a
-		// mismatch against `int` — which is what it did.
-		if t.Kids[1].Int > t.Kids[2].Int {
-			return ""
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" {
+		lo, ok1 := evalEndpoint(t.Kids[1])
+		hi, ok2 := evalEndpoint(t.Kids[2])
+		if ok1 && ok2 {
+			if lo.Cmp(hi) > 0 {
+				return "" // an empty range is not a type — see below
+			}
+			return "int " + lo.String() + " " + hi.String()
 		}
-		return fmt.Sprintf("int %d %d", t.Kids[1].Int, t.Kids[2].Int)
+		return ""
 	}
 	return ""
 }
@@ -1424,6 +1494,45 @@ func TypeName(t *Term) string {
 // `result` keyword and a program may still use the name for anything that is
 // not a parameter of a function carrying one.
 const ResultName = "result"
+
+// ExceedsWindow reports whether a range type names a set wider than ADR 0012's
+// portable window — the rung above the host's word.
+//
+// It is the test that separates a REFINEMENT from a WIDENING. Every range
+// inside the window satisfies `[LO,HI] ⊆ W`, which is why `ValueType`
+// normalises one to `int` and an `int` is accepted wherever it is wanted. A
+// range outside it does not, so it must be refused there instead — and that
+// refusal is the surface: it is where a programmer finds out a value has left
+// the machine word.
+func ExceedsWindow(ty string) bool {
+	lo, hi, ok := IntRangeBig(ty)
+	if !ok {
+		return false
+	}
+	w := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1))
+	return lo.CmpAbs(w) > 0 || hi.CmpAbs(w) > 0
+}
+
+// IntRangeBig reads a `(int LO HI)` type back at full precision.
+//
+// `IntRange` is this narrowed to `int64` and reports failure when an endpoint
+// does not fit — which is what keeps every existing consumer honest: a range it
+// cannot represent looks like "not a range" rather than like a smaller one.
+func IntRangeBig(ty string) (*big.Int, *big.Int, bool) {
+	if !strings.HasPrefix(ty, "int ") {
+		return nil, nil, false
+	}
+	f := strings.Fields(ty)
+	if len(f) != 3 {
+		return nil, nil, false
+	}
+	lo, ok1 := new(big.Int).SetString(f[1], 10)
+	hi, ok2 := new(big.Int).SetString(f[2], 10)
+	if !ok1 || !ok2 || lo.Cmp(hi) > 0 {
+		return nil, nil, false
+	}
+	return lo, hi, true
+}
 
 // IntRange reads a `(int LO HI)` type back. A plain `int` is not a range: it is
 // the portable window (ADR 0012) and carries no representation claim.

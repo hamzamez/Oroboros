@@ -193,10 +193,17 @@ demonstration wired into the default path is a decision, whether or not anyone m
    describes a set — and safe *now* specifically because an out-of-window range makes its operations
    unprovable, which is a compile error rather than a silent fallback to the host word.
 
-   Recommended: arbitrary-precision **endpoints** first, infinite endpoints (`(int 0 +inf)`) as the
-   follow-on. Rejected: a bare type name, because `bigint` names a representation, which is the
+   **BUILT 2026-08-31, and in a shape none of the candidates proposed.** An endpoint is a
+   compile-time EXPRESSION: `(int 0 (pow 2 70))`, `(int 0 (* 1000 1000))`. hamza's, after the
+   recommended candidate hit a cost the research had not accounted for — types are built from
+   ordinary terms, so a big literal needs an eighth term kind or an abused field. An expression
+   needs neither: it is EVALUATED, never emitted, so `KInt` stays an `int64` and the only
+   arbitrary-precision arithmetic in the compiler is one function.
+
+   Rejected and recorded: a bare type name, because `bigint` names a representation, which is the
    distinction ADR 0003 exists to make; and `(int)`, because beside `int` it would be
-   indistinguishable at a glance and opposite in meaning.
+   indistinguishable at a glance and opposite in meaning. `(int 0 +inf)` remains the follow-on for
+   the genuinely unbounded rung.
 
    And the objection every candidate faces: **the unbounded rung is not a refinement of `int`, it is
    a WIDENING.** Every range today satisfies `[LO,HI] ⊆ W`, which is why a range normalises to `int`

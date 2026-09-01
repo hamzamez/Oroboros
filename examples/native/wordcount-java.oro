@@ -1,3 +1,7 @@
+; BUILT WITH `-checked`, for the reason wordcount-go.oro gives: nothing
+; declares what a `Map<String,Long>` holds, and the language's own map -- which
+; carries a value range in its type -- needs string keys.
+;
 ; THE PARASITE TEST, on the native Java target.
 ;
 ; Java is where this matters most: baseline R5 measured Java's fused

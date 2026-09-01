@@ -183,7 +183,25 @@ func build(caseName, src, target, work string, keep bool) (string, error) {
 		return "", fmt.Errorf("no artifact convention for %s", target)
 	}
 	out := filepath.Join(dir, a.name)
-	cmd := exec.Command("go", "run", "./cmd/build", "-target="+target, "-o", out, oro)
+	// BUILT WITH `-checked`, and there are two reasons rather than one.
+	//
+	// ADR 0019 makes an integer operation the compiler cannot bound a compile
+	// error. These cases carry no signatures at all — the harness writes their
+	// `main`, and each is the smallest program that exercises one construct —
+	// so ten of sixteen cannot prove: `(+ acc (t i))` sums values read out of a
+	// table and nothing bounds a table's elements unless someone declares it.
+	// Annotating each would answer a question this suite does not ask.
+	//
+	// AND IT EXERCISES THE REBUILD PATH, which is the better reason. The
+	// selected term is discarded unless `-checked` is on, and that path has now
+	// hidden two bugs: a lambda rewrapped with `FnClosed`, which does not close,
+	// and variable capture from `openFresh` being handed a fresh empty set at
+	// every call site. The second silently made a five-entry map answer `len` of
+	// 1 on windows. A path nothing runs is a path nothing checks.
+	//
+	// It changes no ANSWER: the values are in range at run time, which is
+	// exactly what the suite then verifies on four targets.
+	cmd := exec.Command("go", "run", "./cmd/build", "-checked", "-target="+target, "-o", out, oro)
 	cmd.Dir = repoRoot()
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build: %v\n%s", err, indent(string(b)))

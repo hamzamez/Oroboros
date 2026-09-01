@@ -1,3 +1,13 @@
+; BUILT WITH `-checked` -- `go run ./cmd/build -checked …`.
+;
+; ADR 0019 makes an integer operation the compiler cannot bound a compile
+; error, and 36 of this program's 464 cannot be bounded. Every one chains off
+; a value read out of the frozen node table, whose stores are genuinely
+; unbounded inside the `build` lambda because `src` is free there
+; (frozen-2026-08-28). That is the honest limit of a non-relational domain and
+; not something a declaration here can fix, so this program takes ADR 0019's
+; second escape: the trap instead of the proof.
+;
 ; A JSON TREE AS A FLAT TABLE PLUS INDICES — parsed, linked, and WALKED.
 ;
 ; examples/json/tokenize.oro settled the CONTROL half of the standing claim that

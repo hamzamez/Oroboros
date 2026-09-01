@@ -1033,7 +1033,46 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 // Division and remainder are bounded but not counted, so anything trusting
 // MaxOp must not trust them — which is why this reports the operation rather
 // than a yes/no, and the caller decides.
+// uncheckedName maps a target's checked spelling back to the operation it
+// checks, so the analysis counts it as what it is.
+//
+// The spellings are the four targets' own — `add-exact` and `mul-exact` on Go,
+// `addExact` and `multiplyExact` on the JVM, `add-checked` and `imul-checked`
+// on x86 — and they are matched by SUFFIX, the way every other operator name is
+// here.
+func uncheckedName(name string) (string, bool) {
+	seg := name
+	if i := strings.LastIndex(seg, "."); i >= 0 {
+		seg = seg[i+1:]
+	}
+	switch seg {
+	case "add-exact", "addExact", "add-checked":
+		return "add", true
+	case "sub-exact", "subtractExact", "sub-checked":
+		return "sub", true
+	case "mul-exact", "multiplyExact", "imul-checked":
+		return "mul", true
+	}
+	return "", false
+}
+
 func arithOp(name string, n int) string {
+	// A CHECKED OPERATION IS STILL THE OPERATION, and the analysis has to see
+	// it. Under `-checked` the term handed to a backend has `Math.addExact` and
+	// `add-exact` where the plain operators were, and none of those matched
+	// below — so `MaxOp` came out BOTTOM, which `FitsIndex` reads as "no integer
+	// operation at all" and answers true.
+	//
+	// Java then narrowed a method whose values are genuinely unbounded: `long i`
+	// beside `int j = (i + 1)`, which javac refuses. That is the whole-method
+	// narrowing rule broken by the analysis being blind rather than by the rule
+	// being wrong — and the two conditions are contradictory by construction,
+	// since narrowing wants every operation inside a 32-bit index while
+	// `-checked` exists because some operation is not even inside the far larger
+	// portable window.
+	if base, ok := uncheckedName(name); ok {
+		name = base
+	}
 	switch {
 	case n == 2 && (isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add")):
 		return "add"

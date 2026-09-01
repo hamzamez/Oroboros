@@ -147,8 +147,7 @@ demonstration wired into the default path is a decision, whether or not anyone m
    is postconditions.md's swap written in the type language.
 
    Cost: **byte-identical output on 41 programs × 4 targets**. No speed claim.
-1b. **The refusal itself is BUILT, behind `-strict`, and not yet the default —
-   measured 2026-08-31.** `emit.Unbounded` refuses an integer operation that
+1b. **The refusal is BUILT AND IS THE DEFAULT — 2026-08-31.** `emit.Unbounded` refuses an integer operation that
    cannot be proven to stay inside the window and names the escapes. On the
    native corpus **7 of 41 programs refuse, and 3 of those are `examples/int/`,
    which exist to be refused** — so 4 legitimate programs, about 90%
@@ -166,6 +165,15 @@ demonstration wired into the default path is a decision, whether or not anyone m
    `FnClosed` bug hid in the same place. One shared, SCOPED set of names fixes
    it; scoped, because holding them forever renames siblings and renames the
    same binder again on each of the pass's sweeps.
+
+   **Flipping it changed no generated code at all**: of the programs that still
+   emit, every one is byte-identical. The refusal only refuses. Six programs stop
+   emitting by default — `examples/int/`'s three, which exist for that, plus
+   `tree.oro` and the two `wordcount`s, each of which takes the trap and says in
+   its header why it cannot prove instead.
+
+   There is **no flag to turn the check off**, deliberately: "ignore it" is not
+   one of the three escapes, and `-checked` is the way out.
 
    The other measurement worth keeping: **10 of 16 differential cases refuse**,
    because they carry no signatures at all — the harness writes their `main` and

@@ -1,3 +1,12 @@
+; BUILT WITH `-checked` -- `go run ./cmd/build -checked …`.
+;
+; `(go.+ (go.at-map m w) 1)` cannot be bounded: nothing declares what a
+; `map[string]int` holds, and a range on the PRIMITIVE would be a claim about
+; every use of it rather than about this program. The language's own map
+; carries a value range in its type and would fix it -- `(map string (int 0
+; 65535))` -- but string keys wait on strings.md. So this takes ADR 0019's
+; second escape: the trap instead of the proof.
+;
 ; Gauntlet program 4 — word frequency — on the NATIVE Go target.
 ;
 ; The portable form is examples/wordcount.oro, and its pass condition was never

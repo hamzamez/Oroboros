@@ -1,3 +1,10 @@
+; BUILT WITH `-checked` -- `go run ./cmd/build -checked …`.
+;
+; The map read's value range is derived SYNTACTICALLY, from the inserts, and
+; `(go.* i 10)` is computed rather than literal -- so it is correctly refused,
+; exactly as a buffer's element range refuses a computed store. Deriving it
+; from the interval analysis instead is a real extension and is not made.
+;
 ; A DYNAMIC MAP on the native Go target (maps.md).
 ;
 ; The static half -- `((map (1 10)) 1)` -- reduces away entirely and reaches no

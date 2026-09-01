@@ -26,9 +26,6 @@ func main() {
 	out := flag.String("o", "", "artifact to write (default: the source's stem)")
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
-	strictFlag := flag.Bool("strict", false,
-		"refuse an integer operation the compiler cannot prove stays inside the portable window "+
-			"(ADR 0019). Not yet the default: its escape, -checked, is wrong on windows")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: build [-target=NAME] [-o ARTIFACT] SRC.oro\n\n")
@@ -39,13 +36,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep, *checkedFlag, *strictFlag); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep, *checkedFlag); err != nil {
 		fmt.Fprintln(os.Stderr, "build:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, path string, keep, checked, strict bool) error {
+func run(targetDir, src, target, out, path string, keep, checked bool) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
@@ -147,10 +144,8 @@ func run(targetDir, src, target, out, path string, keep, checked, strict bool) e
 	// the trap instead of the refusal.
 	if checked {
 		nf = sel
-	} else if strict {
-		if err := emit.Unbounded(entry, rep); err != nil {
-			return err
-		}
+	} else if err := emit.Unbounded(entry, rep); err != nil {
+		return err
 	}
 	var code string
 	switch target {

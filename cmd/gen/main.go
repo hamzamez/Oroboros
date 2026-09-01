@@ -22,9 +22,6 @@ func main() {
 	path := flag.String("path", "lib", "search path for imported modules")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
-	strict := flag.Bool("strict", false,
-		"refuse an integer operation the compiler cannot prove stays inside the portable window "+
-			"(ADR 0019). Not yet the default: its escape, -checked, is wrong on windows")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: gen [-targets DIR] [-name N] SRC.oro TARGET OUT\n")
 		flag.PrintDefaults()
@@ -34,13 +31,13 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked, *strict); err != nil {
+	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, name, path string, checked, strict bool) error {
+func run(targetDir, src, target, out, name, path string, checked bool) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
@@ -166,10 +163,8 @@ func run(targetDir, src, target, out, name, path string, checked, strict bool) e
 		// takes the trap instead of the refusal.
 		if checked {
 			nf = sel
-		} else if strict {
-			if err := emit.Unbounded(fname, rep); err != nil {
-				return err
-			}
+		} else if err := emit.Unbounded(fname, rep); err != nil {
+			return err
 		}
 		var code string
 		switch target {

@@ -1678,6 +1678,36 @@ rather than emulated: outside the window (no claim), **division by zero** (a pre
 JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
 three answers). Not settled deliberately: a bignum, which needs the product first.
 
+**BOUNDED BY DEFAULT IS NOW REAL** — ADR 0019's decision, flipped on 2026-08-31. An integer
+operation the compiler cannot prove stays inside ADR 0012's window is a **compile error**, naming the
+operation, and there is **no flag to turn it off** — "ignore it" is not one of the three escapes.
+What motivated it is a measurement rather than the ADR: `fib(100)` gave **3736710778780434371** on Go
+and the JVM (wrapped), **354224848179262000000** on V8 (precision lost) and 354224848179261915075 in
+truth — one source, three answers, none right, compiling with only a note.
+
+**Flipping it changed NO generated code**: every program that still emits is byte-identical. Six stop
+emitting — `examples/int/`'s three, which exist for that, plus `tree.oro` and the two `wordcount`s,
+each taking `-checked` and saying in its header why it cannot prove. That is **4 of 41 legitimate
+programs**, which is ADR 0019's affordability claim measured rather than asserted.
+
+**AND THE ESCAPE WAS BROKEN, WHICH IS WHY THIS WAITED.** `-checked` silently returned a different
+answer on windows — a five-entry map reported `len` of 1 under it and 5 without — from **variable
+capture** in the interval pass's rebuild: `openFresh` renames only against the set it is given and
+every call site passed a fresh empty map, so a loop over `i` containing an inlined helper whose own
+loop variable is `i` gave both binders the same name and the inner `core.Fn` bound the outer's
+occurrences. **Invisible because the rebuilt term is discarded unless `-checked` is on** — the second
+bug to hide exactly there, after `FnClosed`. The set must be **scoped**, not merely shared: held
+forever it renames siblings and renames the same binder again on each of the pass's sweeps.
+
+**A second interaction, same path**: `arithOp` did not recognise the checked spellings, so on a
+selected term `MaxOp` came out BOTTOM and `FitsIndex` read that as *no integer operations at all* —
+Java then narrowed a method whose values are unbounded and emitted `long i` beside `int j = (i + 1)`,
+which javac refuses. **A checked operation is still the operation** and the analysis has to see it.
+
+**The differential suite now builds with `-checked`**, and the better reason is not that its cases
+carry no signatures: it is that the rebuild path has now hidden two bugs, and **a path nothing runs
+is a path nothing checks**.
+
 **Representation selection is OPT-IN, behind `-checked`, and that is deliberate** — wiring it into
 the default path reversed [ADR 0012](docs/decisions/0012-portable-integer-range.md) without an ADR,
 breached requirement 5 by up to 4.54×, and made cross-target divergence *worse* (three targets trap,

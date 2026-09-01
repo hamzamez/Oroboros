@@ -1,3 +1,10 @@
+; REFUSED BY DEFAULT SINCE 2026-08-31, which is this file's whole point.
+; ADR 0019 makes an integer operation the compiler cannot prove stays inside
+; the portable window a COMPILE ERROR, so `cmd/build` now declines this
+; program by name and operation instead of emitting code that wraps on Go
+; and the JVM and loses precision on V8. `-checked` still builds it, taking
+; the trap: that is the second escape, and it is what this program is for.
+;
 ; Iterative Fibonacci — which TERMINATES but whose accumulator provably does
 ; not stay in the portable window.
 ;

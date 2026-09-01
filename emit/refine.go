@@ -2,7 +2,6 @@ package emit
 
 import (
 	"fmt"
-	"os"
 	"strings"
 
 	"oroboros/core"
@@ -441,9 +440,6 @@ func (r *refiner) ensuresOf(call *core.Term, result *core.Term, f *facts) *core.
 		}
 	}
 	q := r.ensured(p, call.Args(), result, proven)
-	if q != nil {
-		fmt.Fprintf(os.Stderr, "DBG assume %s proven=%v\n", q, proven)
-	}
 	return q
 }
 
@@ -530,7 +526,6 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			name, want, f.known())
 	}
 	goals, ok := obligation(want)
-	fmt.Fprintf(os.Stderr, "DBG discharge %s want=%s ok=%v opaque=%v\n", name, want, ok, f.entailsOpaque(want.String()))
 	if !ok {
 		// Outside the fragment: an opaque atom (refinements.md §3). It can be
 		// discharged only by an assumption that is the SAME term; otherwise it

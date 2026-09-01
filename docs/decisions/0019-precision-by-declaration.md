@@ -184,6 +184,24 @@ demonstration wired into the default path is a decision, whether or not anyone m
 
 2. **A spelling for the unbounded rung**, since `(int LO HI)` has two finite endpoints and cannot
    say ℤ. This is the one place C is not purely "the existing mechanism, one rung further".
+
+   **RESEARCHED 2026-08-31** — [unbounded-rung.md](../unbounded-rung.md), and it is **two questions,
+   only one of which is about spelling.** The BOUNDED-but-huge rung needs no new syntax at all:
+   `(int LO HI)` already says it and only the READER refuses, because `KInt` is an `int64`. That is
+   the half where the measured factor of four lives. It is safe because **a range endpoint is a
+   bound, not a value** — ADR 0012 constrains what a program computes with, and an endpoint
+   describes a set — and safe *now* specifically because an out-of-window range makes its operations
+   unprovable, which is a compile error rather than a silent fallback to the host word.
+
+   Recommended: arbitrary-precision **endpoints** first, infinite endpoints (`(int 0 +inf)`) as the
+   follow-on. Rejected: a bare type name, because `bigint` names a representation, which is the
+   distinction ADR 0003 exists to make; and `(int)`, because beside `int` it would be
+   indistinguishable at a glance and opposite in meaning.
+
+   And the objection every candidate faces: **the unbounded rung is not a refinement of `int`, it is
+   a WIDENING.** Every range today satisfies `[LO,HI] ⊆ W`, which is why a range normalises to `int`
+   for typing; ℤ does not, so an unbounded value passed where an `int` is required must be REFUSED.
+   That refusal is the surface — it is where a programmer finds out a value became a bignum.
 3. **The representation solver** over `word ⊑ big`, and **it must be bidirectional**. Factorial is
    the witness: `(fact (int 0 30))` has every input small and an accumulator reaching 30! ≈ 2.65×10³²,
    so the pressure comes from the declared **result**. A forward-only solver would pass the entire

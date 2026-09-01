@@ -1158,6 +1158,37 @@ made to *execute* the code that has the bug. `cmd/gen` reaches it. **Cost: byte-
 programs × 4 targets, so no speed claim** — one refusal of a legal program removed, one latent silent
 wrong answer fixed, one silently-ignored declaration made real.
 
+**THE UNBOUNDED RUNG IS RESEARCHED, AND IT IS TWO QUESTIONS** —
+[unbounded-rung.md](docs/unbounded-rung.md), no decision. ADR 0019 owes *"a spelling for the
+unbounded rung"*; that phrasing hides the more valuable half. The type language is a lattice of
+SUBSETS OF Z with representation a monotone map out of it — and bigarith already measured the top two
+rungs as different things, since a finite range gives a limb count, a `build` of known length and
+**zero allocations** where unbounded gives none of that.
+
+**The BOUNDED-but-huge rung needs no new syntax at all**: `(int LO HI)` already says it and only the
+READER refuses, because `KInt` is an `int64`. That is where the measured 3.97x/6.2x/5.8x lives. It is
+safe because **a range endpoint is a BOUND, not a value** — ADR 0012 constrains what a program
+computes with, and an endpoint describes a set — and safe *now* because an out-of-window range makes
+its operations unprovable, which is a compile error rather than a silent fallback to the host word.
+Adding the spelling before the refusal would have produced a truncating wrong answer.
+
+**AND THE OBJECTION EVERY CANDIDATE FACES: the unbounded rung is not a REFINEMENT of `int`, it is a
+WIDENING.** Every range today satisfies `[LO,HI]` inside the window, which is why `ValueType`
+normalises a range to `int` and `compatible` accepts one anywhere an `int` is wanted. **Z is not
+inside the window**, so an unbounded value passed where an `int` is required must be REFUSED — the
+promotion cannot be transparent, and that refusal is the surface: it is where a programmer finds out
+a value became a bignum. It is the decidable half of subtyping type-algebra.md already keeps, running
+the other way, and it makes scalarrange's THREE effects into four.
+
+**Recommended: arbitrary-precision endpoints first, `(int 0 +inf)` as the follow-on.** Infinite
+endpoints subsume the half-open case for free — a factorial accumulator is non-negative and bigarith
+measured sign handling as a real cost — and they are the vocabulary the compiler already prints
+(`idx -inf..+inf`). **Rejected and recorded**: a bare `bigint` names a REPRESENTATION, which is the
+distinction ADR 0003 exists to make; and `(int)` beside `int` would be indistinguishable at a glance
+and opposite in meaning. **The honest cost is a twelve-site widening** — `IntRange` returns `int64`
+and `reprFor`/`reprBytes` take two — and a partial migration leaves a path that truncates silently,
+which is the failure shape that landed three times this week.
+
 **PRECISION BY DECLARATION IS RESEARCHED** — [precision-by-declaration.md](docs/precision-by-declaration.md),
 hamza's third option: *bounded by default, but a range declared ABOVE the bound moves that value to
 arbitrary precision*. **Possible, and it is ADR 0003's ladder finished rather than a new mechanism** —

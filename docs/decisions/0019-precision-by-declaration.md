@@ -147,6 +147,27 @@ demonstration wired into the default path is a decision, whether or not anyone m
    is postconditions.md's swap written in the type language.
 
    Cost: **byte-identical output on 41 programs × 4 targets**. No speed claim.
+1b. **The refusal itself is BUILT, behind `-strict`, and not yet the default —
+   measured 2026-08-31.** `emit.Unbounded` refuses an integer operation that
+   cannot be proven to stay inside the window and names the escapes. On the
+   native corpus **7 of 41 programs refuse, and 3 of those are `examples/int/`,
+   which exist to be refused** — so 4 legitimate programs, about 90%
+   affordable, which is what this ADR claimed and had not checked.
+
+   **What stops it being the default is a BUG, not the design: `-checked` is
+   wrong on windows.** The second escape — take the trap instead of the proof —
+   silently returns a different answer there: a five-entry map reports `len` of
+   1 under `-checked` and 5 without it. That is pre-existing and was found by
+   routing the differential suite through the escape. An escape that changes the
+   answer is not an escape, so the default waits on fixing it.
+
+   The other measurement worth keeping: **10 of 16 differential cases refuse**,
+   because they carry no signatures at all — the harness writes their `main` and
+   each is the smallest program that exercises one construct. `(+ acc (t i))`
+   sums values read out of a table and nothing bounds a table's elements unless
+   someone declares it. That is not evidence against the design; it is evidence
+   that a program with no declarations proves nothing, which is the design.
+
 2. **A spelling for the unbounded rung**, since `(int LO HI)` has two finite endpoints and cannot
    say ℤ. This is the one place C is not purely "the existing mechanism, one rung further".
 3. **The representation solver** over `word ⊑ big`, and **it must be bidirectional**. Factorial is

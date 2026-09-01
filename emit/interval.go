@@ -805,6 +805,39 @@ func restoreVar(env map[string]ival, n string, old ival, had bool) {
 	}
 }
 
+// ruleTable binds a rule-table's parameter to its own domain.
+//
+// `(table n f)` IS `f` restricted to `Fin n` (tables.md §2), so `f`'s parameter
+// is bounded by construction — a DEFINITION, not an inference, and the same
+// fact `(a i)`'s bounds check discharges.
+//
+// Without it a rule's index was ⊤, so `(a (+ j 1))` inside a kernel could not
+// be bounded and every arithmetic operation on the index went unproven. It
+// showed up as an asymmetry rather than as a wrong answer: `smooth-build`
+// proved, because its index becomes a LOOP variable with a guard, and
+// `smooth-alloc` did not, because its index stays a rule parameter. The same
+// program, two presentations of the same table, two different answers.
+func (p *intervalPass) ruleTable(t *core.Term) (ival, *core.Term) {
+	args := t.Args()
+	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+		return top, t
+	}
+	n, nn := p.evalR(args[0])
+	body, raw, _ := openFresh(args[1], map[string]bool{}, asmIdent)
+	// `Fin n` is [0, n-1]. A length is non-negative and bounded (tables.md
+	// §2.3.1), so an unknown `n` still gives a non-negative index.
+	idx := ival{lo: 0, hi: n.hi, hiInf: n.hiInf}
+	if !n.hiInf && n.hi > 0 {
+		idx.hi = n.hi - 1
+	}
+	old, had := p.env[raw[0]]
+	p.env[raw[0]] = idx
+	_, nb := p.evalR(body)
+	restoreVar(p.env, raw[0], old, had)
+	return top, &core.Term{Kind: core.KApp, Kids: []*core.Term{
+		t.Op(), nn, core.Fn(args[1].Params, nb)}}
+}
+
 func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	op := t.Op()
 	if op.Kind != core.KName {
@@ -831,6 +864,8 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 			return p.cond(t)
 		case "iterate":
 			return p.iterate(t)
+		case "table":
+			return p.ruleTable(t)
 		}
 	}
 

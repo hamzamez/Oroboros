@@ -15,7 +15,17 @@
 (export divmod divmod-sum)
 
 (sig divmod     ((a int) (b int)) (int int) (where (java.!= b 0)))
-(sig divmod-sum ((a int) (b int)) int       (where (java.!= b 0)))
+; THE SUM NEEDS A BOUND ON `a`, and 2^52-1 is derived rather than picked.
+; `q` is a/b and `r` is a%b, so |q| <= |a| and |r| <= |a| whatever b is --
+; therefore |q + r| <= 2|a|, and the sum stays inside ADR 0012's window exactly
+; when |a| <= (2^53-1)/2. Bounding `b` as well buys nothing: the analysis gets
+; both the quotient and the remainder from `a` alone.
+;
+; Without it this is REFUSED, which is ADR 0019 working -- outside the window Go
+; and the JVM wrap and JavaScript loses precision, so the program has to say
+; what it means.
+(sig divmod-sum ((a (int -4503599627370495 4503599627370495)) (b int)) int
+  (where (java.!= b 0)))
 
 (def dm (fn (a b) (values (java./ a b) (java.% a b))))
 

@@ -120,3 +120,115 @@ func TestIntervalsSelectsOnlyTheUnprovable(t *testing.T) {
 		t.Fatalf("the provable counter should keep `go.+`:\n%s", s)
 	}
 }
+
+// NO TWO ENCLOSING BINDERS MAY SHARE A NAME IN THE REBUILT TERM, which is the
+// invariant that makes `core.Fn` safe to call on an opened body.
+//
+// `openFresh` renames only against the set it is given, and the interval pass
+// passed a FRESH EMPTY MAP at every call site. So a loop over `i` containing a
+// loop over `i` — what an inlined helper produces constantly — gave both
+// binders the same fresh name, and the inner `core.Fn` then bound occurrences
+// that belonged to the outer one.
+//
+// INVISIBLE BY DEFAULT, because the rebuilt term is discarded unless `-checked`
+// is on. Under `-checked` the windows hash table read its probe counter where
+// the key should have been, so every insert after the first hashed to slot 0,
+// found it taken and reported the table full: a five-entry map answered `len`
+// of 1 while the unchecked build answered 5. Same class as the `FnClosed` bug
+// this file was written for, and hidden the same way.
+//
+// Asserted STRUCTURALLY rather than by printing, because renaming the inner
+// binder is exactly what the fix does — the output is alpha-equivalent to the
+// input and deliberately not identical to it.
+func TestNoTwoEnclosingBindersShareAName(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// THE SHAPE ONLY EXISTS AFTER INLINING, so this goes through the real
+	// pipeline. A helper whose own loop variable is also `i` is called with the
+	// caller's `i`; reduction substitutes it, and the reference then reaches
+	// PAST a binder spelled the same as the one it points at. That cannot be
+	// written directly — in surface syntax the inner `i` shadows — which is why
+	// the bug needed an inlined helper to appear, and `wm-put` inside a
+	// caller's insert loop is exactly that.
+	src := `
+		(use go)
+		(export run)
+		(def probe (fn (k) (loop ((i 0) (s 0)) (go.>= i 2) s
+		  else (again (go.+ i 1) (go.+ s k)))))
+		(def run (fn (n) (loop ((i 0) (acc 0)) (go.>= i 4) acc
+		  else (again (go.+ i 1) (go.+ acc (probe i))))))
+		(sig run ((n int)) int)
+	`
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs["run"], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, out := Intervals(tg, prog.Sigs["run"], nf, 0)
+
+	var walk func(*core.Term, map[string]bool)
+	walk = func(n *core.Term, live map[string]bool) {
+		if n == nil {
+			return
+		}
+		if n.Kind == core.KFn {
+			for _, p := range n.Params {
+				if live[p] {
+					t.Errorf("binder %q is nested inside another binder of the "+
+						"same name in the rebuilt term; the inner `core.Fn` "+
+						"captures the outer's occurrences:\n  %s", p, out)
+				}
+			}
+			inner := map[string]bool{}
+			for k := range live {
+				inner[k] = true
+			}
+			for _, p := range n.Params {
+				inner[p] = true
+			}
+			walk(n.Body(), inner)
+			return
+		}
+		for _, k := range n.Kids {
+			walk(k, live)
+		}
+	}
+	walk(out, map[string]bool{})
+}
+
+// AND SIBLING BINDERS MUST NOT BE RENAMED EITHER, which is the other half: the
+// set has to hold exactly the ENCLOSING binders, so a name is released when the
+// pass leaves its scope. Holding them forever renames the second `(loop ((i 0))
+// …)` in a function to `i2` though no `i` is in scope — and across the pass's
+// several sweeps it renames the same binder again on every one, so the rebuilt
+// term stops being the input even when nothing was selected.
+func TestSiblingBindersKeepTheirNames(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := "(fn (n) (go.+ (loop ((i 0)) (go.>= i 3) i else (again (go.+ i 1))) " +
+		"(loop ((i 0)) (go.>= i 5) i else (again (go.+ i 1)))))"
+	terms, err := core.ReadAll(src)
+	if err != nil || len(terms) != 1 {
+		t.Fatalf("read: %v", err)
+	}
+	in := terms[0]
+	_, out := Intervals(tg, nil, in, 0)
+	if got, want := out.String(), in.String(); got != want {
+		t.Errorf("sibling binders were renamed.\n  in:  %s\n  out: %s", want, got)
+	}
+}

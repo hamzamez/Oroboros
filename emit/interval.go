@@ -288,7 +288,24 @@ type IntervalReport struct {
 }
 
 type intervalPass struct {
-	tgt     *Target
+	tgt *Target
+
+	// bound is every name this pass has already opened a binder with, shared by
+	// every `openFresh` call so that two binders never get the same fresh name.
+	//
+	// IT WAS AN EMPTY MAP AT EVERY CALL SITE, and that is variable CAPTURE, not
+	// untidiness. `openFresh` renames only against the set it is given, so a
+	// nested loop whose parameter is spelled the same as an enclosing one — `i`
+	// inside `i`, which is what an inlined helper produces constantly — got the
+	// SAME fresh name, and the inner `core.Fn` then bound the outer's
+	// occurrences too.
+	//
+	// It was invisible because the rebuilt term is DISCARDED unless `-checked`
+	// is on, which is the same reason the `FnClosed` bug hid here. Under
+	// `-checked` the windows hash table read its probe counter where the key
+	// should have been, so every insert after the first hashed to slot 0, found
+	// it taken, and reported the table full: a five-entry map answered `len` 1.
+	bound   map[string]bool
 	env     map[string]ival
 	rep     *IntervalReport
 	count   bool  // only the final pass counts
@@ -597,7 +614,8 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	rep.MaxOp = bottom
-	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0}
+	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0,
+		bound: map[string]bool{}}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -786,7 +804,7 @@ func (p *intervalPass) mapCase(t *core.Term) (ival, *core.Term, bool) {
 	if !ok {
 		return top, t, false
 	}
-	body, raw, _ := openFresh(k, map[string]bool{}, asmIdent)
+	body, raw, _ := openFresh(k, p.bound, asmIdent)
 	oldT, hadT := p.env[raw[0]]
 	oldP, hadP := p.env[raw[1]]
 	p.env[raw[0]] = ival{lo: 0, hi: 1}
@@ -794,6 +812,7 @@ func (p *intervalPass) mapCase(t *core.Term) (ival, *core.Term, bool) {
 	v, nb := p.evalR(body)
 	restoreVar(p.env, raw[0], oldT, hadT)
 	restoreVar(p.env, raw[1], oldP, hadP)
+	p.releaseBound(raw)
 	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(k.Params, nb)}}, true
 }
 
@@ -823,7 +842,7 @@ func (p *intervalPass) ruleTable(t *core.Term) (ival, *core.Term) {
 		return top, t
 	}
 	n, nn := p.evalR(args[0])
-	body, raw, _ := openFresh(args[1], map[string]bool{}, asmIdent)
+	body, raw, _ := openFresh(args[1], p.bound, asmIdent)
 	// `Fin n` is [0, n-1]. A length is non-negative and bounded (tables.md
 	// §2.3.1), so an unknown `n` still gives a non-negative index.
 	idx := ival{lo: 0, hi: n.hi, hiInf: n.hiInf}
@@ -834,8 +853,23 @@ func (p *intervalPass) ruleTable(t *core.Term) (ival, *core.Term) {
 	p.env[raw[0]] = idx
 	_, nb := p.evalR(body)
 	restoreVar(p.env, raw[0], old, had)
+	p.releaseBound(raw)
 	return top, &core.Term{Kind: core.KApp, Kids: []*core.Term{
 		t.Op(), nn, core.Fn(args[1].Params, nb)}}
+}
+
+// releaseBound drops a binder's fresh names when the pass leaves its scope.
+//
+// The set must hold exactly the ENCLOSING binders and no more. Holding them
+// forever renames siblings too — the second `(loop ((i 0)) …)` in a function
+// would get `i2` though no `i` is in scope — and across the pass's several
+// sweeps it renames the same binder again on every one, so the rebuilt term
+// stops being the input even when nothing was selected. Scoped, a name is
+// renamed exactly when it would otherwise be captured.
+func (p *intervalPass) releaseBound(raw []string) {
+	for _, n := range raw {
+		delete(p.bound, asmIdent(n))
+	}
 }
 
 func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
@@ -1057,7 +1091,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	}
 	v, nv := p.evalR(args[0])
 	k := args[1]
-	body, raw, _ := openFresh(k, map[string]bool{}, asmIdent)
+	body, raw, _ := openFresh(k, p.bound, asmIdent)
 	old, had := p.env[raw[0]]
 	p.env[raw[0]] = v
 	// A TABLE'S LENGTH SURVIVES THE BINDING. Call-by-need let-binds an argument
@@ -1084,6 +1118,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	} else {
 		delete(p.env, raw[0])
 	}
+	p.releaseBound(raw)
 	// core.Fn closes an OPEN body, which is exactly what openFresh handed us.
 	return out, core.App(t.Op(), nv, core.Fn(raw, nb))
 }
@@ -1262,7 +1297,7 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
 				return ival{}, false
 			}
-			body, raw, _ := openFresh(args[1], map[string]bool{}, asmIdent)
+			body, raw, _ := openFresh(args[1], p.bound, asmIdent)
 			return p.insertedRange(body, raw[0])
 		case "table-set":
 			if len(args) != 3 {
@@ -1274,7 +1309,7 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 				return ival{}, false
 			}
 			lam := args[1]
-			body, raw, _ := openFresh(lam, map[string]bool{}, asmIdent)
+			body, raw, _ := openFresh(lam, p.bound, asmIdent)
 			// A typeOf that knows nothing, so only literals and conditionals
 			// over them decide.
 			noTypes := func(*core.Term) string { return "" }
@@ -1610,7 +1645,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	}
 	cur := make([]ival, len(initV))
 	copy(cur, initV)
-	body, raw, _ := openFresh(lam, map[string]bool{}, asmIdent)
+	body, raw, _ := openFresh(lam, p.bound, asmIdent)
 
 	saved := p.snapshot()
 	wasCounting := p.count
@@ -1774,6 +1809,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	for _, nm := range raw {
 		delete(p.env, nm)
 	}
+	p.releaseBound(raw)
 	kids := append([]*core.Term{t.Op(), core.Fn(raw, nb)}, nInits...)
 	return out, &core.Term{Kind: core.KApp, Kids: kids}
 }
@@ -1796,7 +1832,7 @@ func (p *intervalPass) updateIval(a *core.Term, self string) ival {
 	}
 	if v, lam, ok := asLet(p.tgt, a); ok {
 		p.eval(v)
-		body, _, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+		body, _, _ := openFresh(lam, p.bound, func(x string) string { return x })
 		return p.updateIval(body, self)
 	}
 	if a.Kind == core.KApp && a.Op().Kind == core.KName && len(a.Args()) == 3 {
@@ -1824,7 +1860,7 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 			k := t.Args()[1]
 			if k.Kind == core.KFn && len(k.Params) == 1 {
 				v := p.eval(t.Args()[0])
-				kb, kraw, _ := openFresh(k, map[string]bool{}, asmIdent)
+				kb, kraw, _ := openFresh(k, p.bound, asmIdent)
 				old, had := p.env[kraw[0]]
 				p.env[kraw[0]] = v
 				if p.letTerm == nil {

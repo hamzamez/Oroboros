@@ -154,12 +154,18 @@ demonstration wired into the default path is a decision, whether or not anyone m
    which exist to be refused** — so 4 legitimate programs, about 90%
    affordable, which is what this ADR claimed and had not checked.
 
-   **What stops it being the default is a BUG, not the design: `-checked` is
-   wrong on windows.** The second escape — take the trap instead of the proof —
-   silently returns a different answer there: a five-entry map reports `len` of
-   1 under `-checked` and 5 without it. That is pre-existing and was found by
-   routing the differential suite through the escape. An escape that changes the
-   answer is not an escape, so the default waits on fixing it.
+   **The escape was broken and is now fixed.** `-checked` silently returned a
+   different answer on windows — a five-entry map reported `len` of 1 under it
+   and 5 without — which made the second escape useless and blocked the default.
+   The cause was VARIABLE CAPTURE in the interval pass's rebuild: `openFresh`
+   renames only against the set it is given and every call site passed a fresh
+   empty map, so a loop over `i` containing an inlined helper whose own loop
+   variable is `i` gave both binders the same fresh name and the inner
+   `core.Fn` bound the outer's occurrences. Invisible by default, because the
+   rebuilt term is discarded unless `-checked` is on — the same way the
+   `FnClosed` bug hid in the same place. One shared, SCOPED set of names fixes
+   it; scoped, because holding them forever renames siblings and renames the
+   same binder again on each of the pass's sweeps.
 
    The other measurement worth keeping: **10 of 16 differential cases refuse**,
    because they carry no signatures at all — the harness writes their `main` and

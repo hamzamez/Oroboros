@@ -51,6 +51,9 @@
 
     (prim big-of (int) big expr "BigInt(%s)" pure)
     ; NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
-    ; bare console.log of a BigInt gives "123n". The suffix is a real
+    ; bare console.log of a BigInt gives "123n". The suffix is a real)
     ; divergence from the other two hosts and this is where it is removed.
-    (prim big-str (big) string expr "String(%s)" pure)))
+    (prim big-str (big) string expr "String(%s)" pure)
+    ; The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
+    ; declared width has to fail loudly rather than truncate.
+    (prim trap-if (int) int expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)")))

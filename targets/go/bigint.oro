@@ -82,4 +82,13 @@
     ; Widening into an object that already exists, which is what removes the
     ; other allocation in a loop: `acc.Mul(acc, big.NewInt(int64(i)))` still
     ; allocates once an iteration for the multiplicand.
-    (prim big-of! (big int) big expr "%s.SetInt64(int64(%s))")))
+    (prim big-of! (big int) big expr "%s.SetInt64(int64(%s))")
+    ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
+    ; TRUNCATES where the host's bignum stays exact, so selecting a
+    ; representation would change the answer -- ADR 0009's rule at a different
+    ; boundary. `trap-if` returns 0 when handed 0 and fails loudly otherwise.
+    ;
+    ; A func literal called immediately, exactly as the checked arithmetic in
+    ; builtin.oro is written, so each operand appears once and Go's inliner sees
+    ; straight-line code with a never-taken branch.
+    (prim trap-if (int) int expr "func(oroC int) int { if oroC != 0 { panic(\"bignum overflow: the declared range is too small\") }; return 0 }(%s)")))

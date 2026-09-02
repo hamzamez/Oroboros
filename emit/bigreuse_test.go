@@ -15,7 +15,7 @@ import (
 // in the CALLER, and the rule declining is only ever slow.
 
 const bigFactSrc = `(export fact)
-(sig fact ((n (int 0 30))) (int 0 (pow 2 110)))
+(sig fact ((n (int 0 30))) (int 0 +inf))
 (def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
 `
 
@@ -39,7 +39,7 @@ func TestAnAccumulatorIsWrittenInPlace(t *testing.T) {
 // two, because the rule found the free one rather than being told about it.
 func TestALoopRotatesThroughTheVariableThatIsFree(t *testing.T) {
 	src := `(export fib)
-(sig fib ((n (int 0 1000))) (int 0 (pow 2 1000)))
+(sig fib ((n (int 0 1000))) (int 0 +inf))
 (def fib (fn (n) (loop ((a 0) (b 1) (i 0)) (>= i n) a else (again b (+ a b) (+ i 1)))))
 `
 	got := promoteOn(t, "../targets/go", src, "fib")
@@ -63,7 +63,7 @@ func TestALoopRotatesThroughTheVariableThatIsFree(t *testing.T) {
 // destination costs an answer.
 func TestAValueReadTwiceKeepsItsAllocation(t *testing.T) {
 	src := `(export power)
-(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 (pow 2 640)))
+(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 +inf))
 (def power (fn (b e)
   (loop ((acc 1) (x b) (k e))
     (= k 0)        acc
@@ -99,7 +99,7 @@ func TestAValueReadTwiceKeepsItsAllocation(t *testing.T) {
 // against `(loop ((acc 1)) …)`.
 func TestALoopVariableFromAParameterIsNeverWrittenInto(t *testing.T) {
 	src := `(export sq)
-(sig sq ((n (int 0 (pow 2 70)))) (int 0 (pow 2 200)))
+(sig sq ((n (int 0 +inf))) (int 0 +inf))
 (def sq (fn (n) (loop ((acc n) (i 0)) (>= i 2) acc else (again (* acc n) (+ i 1)))))
 `
 	got := promoteOn(t, "../targets/go", src, "sq")

@@ -144,7 +144,11 @@ func (c *checker) agree(what, got, want string) error {
 	// the capability model answering, exactly as JavaScript answers for the
 	// CHECKED primitive it does not declare. Naming the target is the whole value
 	// of the message.
-	if core.ValueType(want) == core.BigType && !c.tgt.HasBig() {
+	// A FINITE range is served by the fixed-limb rung on EVERY target, including
+	// the one with no bignum — that is what the rung is for. Only ℤ needs the
+	// host's own, so only ℤ can be refused for its absence.
+	if core.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
+		(core.UnboundedRange(want) || want == core.BigType) {
 		return fmt.Errorf("%s needs arbitrary precision — %s is above the portable "+
 			"window ±(2^53−1) — and target %s declares none.\n"+
 			"  Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three "+
@@ -400,7 +404,19 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			// un-promoted residual refuses every one of them: `(+ a b)` types as
 			// `int` and the signature says the result is bigger than a word,
 			// which is exactly the disagreement the promotion resolves.
-			nf, _ = PromoteBig(tgt, sig, nf)
+			all := make([]*core.Sig, 0, len(prog.Sigs))
+			for _, sg := range prog.Sigs {
+				all = append(all, sg)
+			}
+			if p, _, err := PromoteBig(tgt, sig, nf, all...); err == nil {
+				nf = p
+			}
+			// ON THE FIXED-LIMB RUNG A BIG VALUE IS AN `array int`, so the
+			// claim is checked against the signature as that rung means it.
+			// Checking the declaration verbatim refuses a body that produces
+			// limbs, which is true of the declaration and false of the code.
+			_, onLimbs := LimbWidth(all...)
+			sig = LimbSig(sig, onLimbs)
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err
 			}

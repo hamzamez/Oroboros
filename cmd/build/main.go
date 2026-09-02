@@ -112,7 +112,11 @@ func run(targetDir, src, target, out, path string, keep, checked bool) error {
 	// BEFORE the checker because the promotion is part of what the program
 	// MEANS: the checker types `(* acc i)` as `int` and would refuse it against
 	// a value the program has said is bigger than a word.
-	if nb, n := emit.PromoteBig(tg, prog.Sigs[entry], nf); n > 0 {
+	nb, n, err := emit.PromoteBig(tg, prog.Sigs[entry], nf, allSigs(prog)...)
+	if err != nil {
+		return fmt.Errorf("%s: %w", entry, err)
+	}
+	if n > 0 {
 		nf = nb
 		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
 	}
@@ -261,4 +265,16 @@ func libDirs(entry, extra string) []string {
 		}
 	}
 	return dirs
+}
+
+// allSigs is every signature the program declares. The fixed-limb rung's width
+// comes from the whole program rather than from one function, because reduction
+// inlines every non-exported call and `main` has no signature at all — see
+// emit/biglimb.go's LimbWidth.
+func allSigs(p *core.Program) []*core.Sig {
+	out := make([]*core.Sig, 0, len(p.Sigs))
+	for _, s := range p.Sigs {
+		out = append(out, s)
+	}
+	return out
 }

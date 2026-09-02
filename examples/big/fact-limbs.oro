@@ -1,0 +1,31 @@
+; THE SAME FACTORIAL, DECLARED FINITE — so it gets FIXED LIMBS.
+;
+; `examples/big/fact.oro` is this program with `(int 0 +inf)` and it gets the
+; host's own bignum: exact whatever the value reaches, and allocating. This one
+; names a bound, and a bound is a LIMB COUNT: a `build` of known length, no
+; allocation per operation, and a trap if the value exceeds what was declared.
+;
+; Two declarations, two representations, one program. That is ADR 0019's ladder
+; made visible in the source, and the trade is the one bigarith-2026-08-28
+; measured: ours at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over
+; `BigInt` -- and on the last two the ONLY way there, because those bignums are
+; immutable. On windows it is the only way there at all.
+;
+; 200! is 375 digits, about 1,246 bits, so 52 base-2^24 limbs are significant.
+; `(pow 2 1300)` names a comfortable 55.
+;
+; WHAT HAPPENS IF THE BOUND IS TOO SMALL is the question a fixed width has to
+; answer, and the answer is a TRAP rather than a truncation. The host's bignum
+; is exact whatever the declaration says, so if limbs silently wrapped then
+; selecting a representation would change the answer -- ADR 0009's rule at a
+; different boundary. Every operation checks its final carry, which costs one
+; comparison per operation and nothing per limb.
+
+(export fact)
+
+(sig fact ((n (int 0 200))) (int 0 (pow 2 1300)))
+
+(def fact (fn (n)
+  (loop ((acc 1) (i 2))
+    (> i n)  acc
+    else     (again (* acc i) (+ i 1)))))

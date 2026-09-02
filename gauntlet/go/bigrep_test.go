@@ -110,3 +110,46 @@ func benchPower(b *testing.B, f func(int, int) *big.Int) {
 		bigSink = f(999, 64)
 	}
 }
+
+// ═══ THE FIXED-LIMB RUNG (biglimb-2026-09-02)
+//
+// The same factorial, declared FINITE instead of `+inf`, so a declared bound
+// becomes a limb count and the value is a `build` of known length rather than a
+// `math/big.Int`. What this measures is whether that is worth what
+// bigarith-2026-08-28 said it would be.
+//
+// The references are the two the host offers: the NAIVE `math/big` loop a
+// person first writes, and the CAREFUL one that reuses its receiver — which our
+// unbounded rung already matches (bigreuse-2026-09-02).
+
+func limbValue(l []int32) *big.Int {
+	out, base := new(big.Int), big.NewInt(1<<24)
+	for i := len(l) - 1; i >= 0; i-- {
+		out.Mul(out, base)
+		out.Add(out, big.NewInt(int64(l[i])))
+	}
+	return out
+}
+
+// CORRECTNESS FIRST, against `math/big`'s own `MulRange` — an oracle rather
+// than the same loop under another name.
+func TestLimbFactorialIsExact(t *testing.T) {
+	for _, n := range []int{0, 1, 2, 20, 50, 100, 200} {
+		want := new(big.Int).MulRange(1, int64(n))
+		if n == 0 {
+			want = big.NewInt(1)
+		}
+		if got := limbValue(GenFactLimbs(n)); got.Cmp(want) != 0 {
+			t.Errorf("GenFactLimbs(%d) = %s, want %s", n, got, want)
+		}
+	}
+}
+
+var limbSink []int32
+
+func BenchmarkBigFactLimbs(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		limbSink = GenFactLimbs(200)
+	}
+}

@@ -716,9 +716,15 @@ The honest list, with the reasoning written down rather than deferred to memory:
   ([bigreuse-2026-09-02](gauntlet/results/bigreuse-2026-09-02.md)); it needed **no new type**, since
   ADR 0015's loop makes the back edge one simultaneous assignment over the loop's own variables. That
   is a Go capability and not a portable one: `BigInteger` is immutable and `BigInt` is a primitive, so
-  on those hosts the careful form does not exist for a person to write either. What is left for them
-  is the **fixed-limb** rung, where a *finite* endpoint becomes a limb count and a `build` of known
-  length — bigarith's 3.97×/6.2×/5.8×, and the thing `(int 0 (pow 2 70))` was actually built to name.
+  on those hosts the careful form does not exist for a person to write either. The **fixed-limb** rung is wired too —
+  a *finite* endpoint is a limb count, a `build` of known length, and a **trap** if the value exceeds
+  what was declared, which is what keeps selecting a representation from changing the answer. It gives
+  **windows arbitrary precision for the first time**, and it is **8.3× slower than the host's bignum
+  on Go and 2.7× on Java** ([biglimb-2026-09-02](gauntlet/results/biglimb-2026-09-02.md)): bigarith's
+  3.97×/6.2×/5.8× were measured on *hand-written* host code using 64-bit limbs, a shift and a mask,
+  and one reused buffer — none of which a portable library written in this language can have. So the
+  advice the measurement gives is *declare `+inf` unless the target has no bignum*, and what would
+  change it is buffer reuse plus a target-declared limb width.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

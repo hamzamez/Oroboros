@@ -1,0 +1,148 @@
+; THE FIXED-LIMB RUNG, WRITTEN IN OROBOROS.
+;
+; ADR 0019's ladder has four rungs and this is the third: narrower than a word,
+; the host's word, FIXED LIMBS, and the host's own bignum. A range that is
+; FINITE and above the portable window gives a limb count, which gives a `build`
+; of known length, which gives ZERO ALLOCATIONS -- bigarith-2026-08-28 measured
+; that at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over `BigInt`,
+; and on the last two it is the ONLY way there, because those bignums are
+; immutable.
+;
+; It is a LIBRARY and not compiler code, for the reason `emit/winmap.oro` is:
+; adding a case to `emit/*.go` for something that is a library is the single
+; most common way to get this architecture wrong. It is embedded rather than
+; sitting in `lib/` because a program must not have to import it -- a range is
+; a declaration, not a dependency.
+;
+; ═══ BASE 2^24, AND THE BASE IS FORCED RATHER THAN CHOSEN
+;
+; A limb product plus the accumulated carry has to stay EXACT, and ADR 0012 says
+; an `int` is exact to +-(2^53-1). With W-bit limbs a product is under 2^2W, so
+; 2W < 53 and W <= 26. Taking W = 24 leaves four bits of headroom:
+;
+;   out[i+j] < 2^24, a[i]*b[j] < 2^48, carry < 2^25
+;   t = out + a*b + carry  <  2^48 + 2^25 + 2^24  <  2^49
+;
+; ═══ `/` AND `%`, NOT A SHIFT AND A MASK, AND THAT IS THE LANGUAGE SPEAKING
+;
+; The natural carry split is `t >> 24` and `t & 0xFFFFFF`. Bitwise operators are
+; DELIBERATELY not in the language (integers.md §0a): V8 coerces both operands
+; to int32, so `(2^32) & -1` is 0 there and 4294967296 on the other three -- an
+; observable disagreement INSIDE the portable window, which is what makes a
+; construct Tier 2.
+;
+; So this uses `/` and `%`, which all four hosts agree on. bigarith measured the
+; cost: bitwise carry extraction is worth 3.9x at equal storage on V8. That is
+; the price of writing the library ONCE instead of four times, and naming it
+; here is what makes it a decision rather than an oversight.
+;
+; ═══ THE WIDTH IS A DECLARATION, SO EXCEEDING IT MUST BE LOUD
+;
+; This is the rung's whole difficulty. The host's bignum is exact whatever the
+; declared range says, so an under-declared bound costs nothing there. A fixed
+; width TRUNCATES -- and then selecting a representation would change the
+; answer, which is ADR 0009's rule at a different boundary and the one thing
+; this project refuses.
+;
+; So every operation checks its final carry with `trap-if`, which every target
+; can express: `panic` on Go, `throw` on JavaScript and the JVM, `ud2` on x86.
+; One comparison per OPERATION, not per limb.
+;
+; That makes the two upper rungs a real choice rather than a detail:
+;
+;   (int 0 (pow 2 1300))   fixed width, no allocation, traps at the bound
+;   (int 0 +inf)           the host's bignum, exact, allocates
+;
+; ═══ WHAT IS AND IS NOT HERE
+;
+; Non-negative magnitudes only. `(int 0 N)` and `(int 0 +inf)` are the
+; declarations this serves and both are non-negative -- which is what
+; unbounded-rung.md §4.2 means by a half-open range carrying something the
+; representation can spend, since bigarith measured sign handling as a real
+; cost. Subtraction, division and remainder are absent, and a program using one
+; falls back to the host's bignum whole rather than mixing representations.
+
+(module big/limb)
+
+; A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
+; index here is derived from a loop bound over a DIFFERENT table than the one
+; being read -- two operands under one bound, which is the latent bug the
+; refinement layer found in `dot` and `centroid`. The tables have the same
+; length by construction and nothing can see that, so the program says what
+; happens if they do not.
+(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+
+; THE CARRY CHECK, and it is why this rung is sound at all. `trap-if` returns 0
+; when handed 0 and fails loudly otherwise; both branches of the conditional are
+; the buffer, so the check costs a compare and changes nothing when it passes.
+;
+; It is written as a conditional rather than a `seq` because `seq` needs an
+; impure operation to sequence, and a trap that only ever fires is pure in the
+; only sense that matters here: it returns the same thing every time it returns.
+(def guard (fn (c o) (if (= (trap-if c) 0) o o)))
+
+; ---------------------------------------------------------------- of a word
+;
+; A machine word spread over n limbs, least significant first. No check is
+; needed: the selection refuses a width under three limbs, and three base-2^24
+; limbs hold 2^72, comfortably past ADR 0012's window.
+(def of (fn (n v)
+  (build n (fn (b)
+    (loop ((b b) (i 0) (r v))
+      (>= i n)  b
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+
+; ---------------------------------------------------------------- addition
+;
+; The carry rides as an ordinary loop variable, which is what makes this
+; expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
+; named once and used for both the stored limb and the outgoing carry.
+(def add (fn (n a b)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  (guard c o)
+      else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+
+; ------------------------------------------------------- multiply by a word
+;
+; a * k for a machine-word k, which is what a factorial is made of and the case
+; bigarith measured our form winning by 3.97x. One pass, one carry.
+;
+; k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
+; 2^48, and the lowering only chooses this form when the multiplier is a widened
+; word whose range the analysis has bounded.
+(def mul-small (fn (n a k)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  (guard c o)
+      else      (let (+ (* (at a i) k) c) (fn (t)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+
+; ------------------------------------------------------------ big by big
+;
+; Schoolbook, one row at a time, with the row's carry rippling as a loop
+; variable. `row` accumulates a[i]*b[j] into out[i+j]; the outer loop walks i.
+;
+; THE READ-BACK IS MASKED, and that is the honest limit rather than a
+; shortcut. `(at o k)` is a read of the buffer INSIDE its own `build` lambda --
+; stratum 0 by frozen-2026-08-28's stratification, so the analysis correctly
+; refuses to claim a range for it, and without a mask every column sum is
+; unbounded and the whole file is refused. The fact that a slot always holds a
+; value under 2^24 is an inductive invariant over the buffer's own contents,
+; which frozen-2026-08-28 says is strictly stronger than an octagon. The mask is
+; the identity on every value this algorithm stores and costs one division per
+; inner iteration; removing it needs the analysis to use a buffer's element
+; range for reads of it inside its own lambda, which is a real extension.
+(def macrow (fn (n o a b i)
+  (loop ((o o) (j 0) (c 0))
+    (>= j n)  (guard c o)
+    else      (let (+ (+ (% (at o (+ i j)) 16777216) (* (at a i) (at b j))) c) (fn (t)
+                (again (set o (if (< (+ i j) n) (+ i j) 0) (% t 16777216))
+                       (+ j 1) (/ t 16777216)))))))
+
+(def mul (fn (n a b)
+  (build n (fn (o)
+    (loop ((o o) (i 0))
+      (>= i n)  o
+      else      (again (macrow n o a b i) (+ i 1)))))))

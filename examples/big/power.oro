@@ -24,7 +24,7 @@
 
 (export power)
 
-(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 (pow 2 640)))
+(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 +inf))
 
 (def power (fn (b e)
   (loop ((acc 1) (x b) (k e))

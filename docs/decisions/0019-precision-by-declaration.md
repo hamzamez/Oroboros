@@ -247,9 +247,27 @@ demonstration wired into the default path is a decision, whether or not anyone m
    bignum written in Oroboros, the way `win/map` is — and bigarith-2026-08-28 and
    karatsuba-2026-08-30 have already written and measured the algorithms.
 
-   **What is NOT done is the rung the spelling was built to name.** This build uses a declared
-   endpoint only to compare against the window; it does not use a FINITE endpoint as a limb count.
-   That is where bigarith's 3.97x on Go, 6.2x on Java and 5.8x on V8 live, and it stays owed.
+   ~~**What is NOT done is the rung the spelling was built to name.**~~ **DONE the same day** —
+   [biglimb-2026-09-02](../../gauntlet/results/biglimb-2026-09-02.md). A FINITE endpoint is a LIMB
+   COUNT now: a `build` of known length, a library written in Oroboros, and **windows gets arbitrary
+   precision for the first time**, which is what this item asked for.
+
+   **AND IT DOES NOT PAY, WHICH CORRECTS AN EXPECTATION THIS ADR CARRIED.** The limb rung is **8.3x
+   slower than our own unbounded rung on Go** (18,150 ns against 2,186 at 200!) and **2.7x slower on
+   Java** — the host bigarith predicted it would win on by 6.2x. bigarith's 3.97x/6.2x/5.8x were
+   measured on HAND-WRITTEN host code using three things a portable library written in this language
+   cannot have: **64-bit limbs** (ours are 24, because a limb product plus its carry must stay inside
+   ADR 0012's window), **a shift and a mask** (bitwise is Tier 2 — V8 coerces to int32), and **one
+   reused buffer** (ours allocates per operation, the linear-buffer gap in a FOURTH place). ADR 0008
+   on a measurement that had become an expectation.
+
+   **A fixed width TRAPS rather than truncating**, and that is what makes the rung sound: the host's
+   bignum is exact whatever the declaration says, so a silently wrapping limb form would mean
+   selecting a representation changes the answer — ADR 0009's rule at a different boundary. Every
+   target can fail, so the check costs one comparison per operation.
+
+   So the two upper rungs are now a real choice with a measured answer, and today the answer is
+   **declare `+inf` unless the target has no bignum.**
 5. ~~**A mutable bignum**~~ **DONE the same day** —
    [bigreuse-2026-09-02](../../gauntlet/results/bigreuse-2026-09-02.md). Emitted code is **1.04x,
    1.22x and 1.06x FASTER than careful hand-written Go**, at 10, 6 and 9 allocations against 2003,

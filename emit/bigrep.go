@@ -1,6 +1,10 @@
 package emit
 
-import "oroboros/core"
+import (
+	"fmt"
+
+	"oroboros/core"
+)
 
 // ARBITRARY PRECISION, SELECTED — ADR 0019's THIRD ESCAPE.
 //
@@ -178,7 +182,7 @@ func (p *intervalPass) widenTo(orig, rebuilt *core.Term) *core.Term {
 // declared argument is `big`, which is how a whole program asks — see the note
 // on inlining in `app`.
 func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term) (*core.Term, bool) {
-	if p.big == nil || !p.tgt.HasBig() {
+	if p.big == nil || !p.bigOK() {
 		return nil, false
 	}
 	op := t.Op()
@@ -198,7 +202,11 @@ func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term) (*core.Term, b
 		return nil, false
 	}
 	bigName := BigOpName(op.Name)
-	if _, ok := p.tgt.Prims[bigName]; !ok {
+	// ON THE LIMB RUNG THE NAME NEED NOT BE A PRIMITIVE. `big+` is an
+	// intermediate here — `LowerLimbs` replaces every one of them with the
+	// library before anything else looks — so demanding that the target declare
+	// it would exclude the one host the rung exists for.
+	if _, ok := p.tgt.Prims[bigName]; !ok && !p.limbs {
 		return nil, false
 	}
 	// (P), the pressure rule's input: which names a big ARITHMETIC operation
@@ -254,7 +262,7 @@ func (p *intervalPass) promote(n string) bool {
 // operands big would promote the whole dependency cone, which is what rule (P)
 // exists to do selectively and with a provability gate.
 func (p *intervalPass) againDemand(args []*core.Term, raw []string) {
-	if p.big == nil || !p.tgt.HasBig() {
+	if p.big == nil || !p.bigOK() {
 		return
 	}
 	for i, a := range args {
@@ -279,7 +287,7 @@ func (p *intervalPass) againDemand(args []*core.Term, raw []string) {
 // after reduction inlines `fib` into `main` there is no signature left, and the
 // demand arrives instead from `(big-str …)`, whose declared argument is `big`.
 func (p *intervalPass) exitDemand(t *core.Term) {
-	if !p.loopTail || p.big == nil || !p.tgt.HasBig() {
+	if !p.loopTail || p.big == nil || !p.bigOK() {
 		return
 	}
 	if t.Kind == core.KName {
@@ -324,12 +332,44 @@ func DeclaresBig(sig *core.Sig) bool {
 // result. After the rewrite it types `(big* acc (big-of i))` as `big` and
 // agrees. The promotion is part of what the program MEANS, so it has to happen
 // before the program is checked.
-func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term) (*core.Term, int) {
-	if !tgt.HasBig() || (!DeclaresBig(sig) && !MentionsBig(t)) {
-		return t, 0
+func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
+	// THE FIXED-LIMB RUNG COMES FIRST, because it decides how the promotion
+	// itself runs: a limb value is a TABLE, so the mutable-bignum rewrite —
+	// which writes into a host bignum object — has nothing to say about it.
+	//
+	// A target with no bignum at all can still take the limb rung, and that is
+	// the point of having it: windows ships nothing to fall back to.
+	w, limbs := LimbWidth(append([]*core.Sig{sig}, all...)...)
+	if !limbs && !tgt.HasBig() {
+		return t, 0, nil
 	}
-	rep, out := intervals(tgt, sig, t, 0, nil, true)
-	return out, rep.BigOps
+	if !limbs && !DeclaresBig(sig) && !MentionsBig(t) {
+		return t, 0, nil
+	}
+	rep, out := intervals(tgt, sig, t, 0, nil, true, limbs, limbs)
+	if !limbs {
+		return out, rep.BigOps, nil
+	}
+	// AN OPERATION WITH NO LIMB FORM TAKES THE WHOLE PROGRAM BACK to the host's
+	// bignum. Mixing representations needs a conversion at every boundary
+	// between them, and where that boundary sits is a question ADR 0019 opened
+	// and did not close — so this is coarse on purpose, and the promotion is
+	// simply redone with the destination rewrite allowed.
+	if !LimbSupported(out) {
+		if !tgt.HasBig() {
+			return nil, 0, fmt.Errorf("this program needs a bignum operation the "+
+				"fixed-limb rung does not implement — subtraction, division or a "+
+				"comparison — and target %s declares no arbitrary-precision integer "+
+				"to fall back to (emit/biglimb.go).", tgt.Name)
+		}
+		rep, out = intervals(tgt, sig, t, 0, nil, true)
+		return out, rep.BigOps, nil
+	}
+	lowered, n, err := LowerLimbs(tgt, w, out)
+	if err != nil {
+		return nil, 0, err
+	}
+	return lowered, n, nil
 }
 
 // MentionsBig reports whether a residual names an arbitrary-precision primitive
@@ -410,3 +450,7 @@ func (p *intervalPass) markBig(t *core.Term, big bool) {
 	}
 	p.bigVal[t] = true
 }
+
+// bigOK reports whether arbitrary precision is available at all: either the
+// target ships a bignum, or the fixed-limb rung is selected and we ship one.
+func (p *intervalPass) bigOK() bool { return p.limbs || p.tgt.HasBig() }

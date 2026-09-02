@@ -45,4 +45,15 @@
     ; Our `int` is Java's `long` (targets/java/java.oro), and `valueOf` takes a
     ; long, so this conversion is exact and needs no cast.
     (prim big-of (int) big expr "java.math.BigInteger.valueOf(%s)" pure)
-    (prim big-str (big) string expr "%s.toString()" pure)))
+    (prim big-str (big) string expr "%s.toString()" pure)
+    ; The fixed-limb rung's carry check -- see targets/go/bigint.oro. Java has
+    ; no throw EXPRESSION, so it is a lambda applied at once; the JIT inlines it
+    ; and the branch is never taken.
+    ;
+    ; THE PARAMETER IS `oro$c` AND NOT `c`, which is not cosmetic: Java forbids a
+    ; lambda parameter from SHADOWING a local, and the argument is usually a loop
+    ; variable the emitter happens to have called `c`. Go and JavaScript both
+    ; allow the shadow, so this is a one-host rule and it fires on the first
+    ; program with a carry. `$` is legal in a Java identifier and the emitter's
+    ; mangler never produces one.
+    (prim trap-if (int) int expr "((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return 0L; })).applyAsLong(%s)")))

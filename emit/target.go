@@ -523,6 +523,12 @@ var bigOps = []struct {
 	// HAVE a bignum the careful hand-written form does not exist either.
 	{"big+!", 3, false}, {"big-!", 3, false}, {"big*!", 3, false},
 	{"big/!", 3, false}, {"big%!", 3, false}, {"big-of!", 2, false},
+
+	// THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). Every target has it,
+	// because every target can fail: `panic`, `throw`, `throw`, `ud2`. It is
+	// IMPURE — an operation that can end the program is not one to duplicate or
+	// elide, which is exactly what ADR 0010's discipline is for.
+	{"trap-if", 1, false},
 }
 
 // findBySpelling returns the target's own primitive whose UNQUALIFIED name is

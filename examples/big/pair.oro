@@ -24,7 +24,7 @@
 
 (export pair)
 
-(sig pair ((n (int 0 20))) (int 0 (pow 2 20000)))
+(sig pair ((n (int 0 20))) (int 0 +inf))
 
 (def pair (fn (n)
   (loop ((a 2) (b 1) (i 0))

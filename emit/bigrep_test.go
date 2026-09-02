@@ -38,12 +38,12 @@ func promoteOn(t *testing.T, dir, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, _ := PromoteBig(tg, prog.Sigs[name], nf)
+	out, _, _ := PromoteBig(tg, prog.Sigs[name], nf)
 	return out.String()
 }
 
 const factSrc = `(export fact)
-(sig fact ((n (int 0 30))) (int 0 (pow 2 110)))
+(sig fact ((n (int 0 30))) (int 0 +inf))
 (def fact (fn (n)
   (loop ((acc 1) (i 1))
     (> i n)  acc
@@ -105,7 +105,7 @@ func TestAProvablyBoundedCounterStaysAMachineWord(t *testing.T) {
 // one.
 func TestAnUnboundedValueFeedingABigOperationIsPromoted(t *testing.T) {
 	src := `(export power)
-(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 (pow 2 640)))
+(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 +inf))
 (def power (fn (b e)
   (loop ((acc 1) (x b) (k e))
     (= k 0)        acc
@@ -196,7 +196,7 @@ func TestATargetWithoutABignumRefusesAndSaysSo(t *testing.T) {
 func TestABignumIsRefusedWhereAWordIsRequired(t *testing.T) {
 	src := `(use go)
 (export narrow)
-(sig narrow ((n (int 0 (pow 2 70)))) int)
+(sig narrow ((n (int 0 +inf))) int)
 (def narrow (fn (n) (+ n 1)))
 `
 	tg, err := LoadTarget("../targets/go")
@@ -294,7 +294,7 @@ func TestAProgramThatDeclaresNothingIsUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, n := PromoteBig(tg, prog.Sigs["f"], nf)
+	out, n, _ := PromoteBig(tg, prog.Sigs["f"], nf)
 	if n != 0 || out.String() != nf.String() {
 		t.Errorf("a program with no declaration above the window was rewritten "+
 			"(%d ops):\n%s", n, out)
@@ -307,7 +307,7 @@ func TestAProgramThatDeclaresNothingIsUntouched(t *testing.T) {
 // A `where` is ASSUMED, so half of it is a weaker assumption and safe. An
 // `ensures` on an exported definition is CHECKED AGAINST THE BODY — and the
 // interval domain does not model a bignum, reporting [-inf, +inf] for one by
-// construction. So synthesising `(<= 0 result)` from `(int 0 (pow 2 1000))`
+// construction. So synthesising `(<= 0 result)` from `(int 0 +inf)`
 // demands of the checker a fact it can never establish, and EVERY
 // arbitrary-precision program is refused for a claim nothing can discharge.
 //
@@ -316,7 +316,7 @@ func TestAProgramThatDeclaresNothingIsUntouched(t *testing.T) {
 // silent wrong answer behind it). Here there is nothing behind it: the value is
 // exact by construction, and the claim was never checkable.
 func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
-	for _, result := range []string{"(int 0 (pow 2 1000))", "(int 0 +inf)"} {
+	for _, result := range []string{"(int 0 +inf)", "(int 0 +inf)"} {
 		src := `(export fib)
 (sig fib ((n (int 0 1000))) ` + result + `)
 (def fib (fn (n) (loop ((a 0) (b 1) (i 0)) (>= i n) a else (again b (+ a b) (+ i 1)))))
@@ -351,7 +351,7 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		nf, _ = PromoteBig(tg, prog.Sigs["fib"], nf)
+		nf, _, _ = PromoteBig(tg, prog.Sigs["fib"], nf)
 		if ok, note := CheckEnsures(tg, prog.Sigs["fib"], nf); !ok {
 			t.Errorf("%s: %s", result, note)
 		}

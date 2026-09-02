@@ -22,7 +22,7 @@
 
 (export fact)
 
-(sig fact ((n (int 0 30))) (int 0 (pow 2 110)))
+(sig fact ((n (int 0 30))) (int 0 +inf))
 
 ; `i` starts at 2 rather than 1 because multiplying by 1 is a wasted bignum
 ; operation and an allocation -- fact(0) and fact(1) are both 1 and the guard

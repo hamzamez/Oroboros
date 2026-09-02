@@ -1726,6 +1726,44 @@ rather than emulated: outside the window (no claim), **division by zero** (a pre
 JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
 three answers). Not settled deliberately: a bignum, which needs the product first.
 
+**AND THE LIMB RUNG IS WIRED — AND IT DOES NOT PAY, WHICH IS THE RESULT** —
+[biglimb-2026-09-02](gauntlet/results/biglimb-2026-09-02.md), [emit/biglimb.go](emit/biglimb.go).
+A declared FINITE range above the window is a LIMB COUNT now: `(int 0 (pow 2 1300))` gives 55
+base-2^24 limbs and a `build` of known length; `(int 0 +inf)` gives the host's own bignum. Same
+source, two declarations, two representations, on all four targets — and **windows gets arbitrary
+precision for the first time**, which is ADR 0019 item 4.
+
+**8.3x SLOWER than our own unbounded rung on Go** (18,150 ns against 2,186 at 200!, 200 allocations
+against 6) and **2.7x slower on Java** — the host bigarith predicted it would win on by 6.2x.
+**bigarith's 3.97x/6.2x/5.8x were measured on HAND-WRITTEN host code** using three things a portable
+library written in this language cannot have: **64-bit limbs** (ours are 24, forced by ADR 0012 —
+2W < 53), **a shift and a mask** (bitwise is Tier 2, V8 coerces to int32, and bigarith measured
+bitwise carry extraction at 3.9x), and **one reused buffer** (ours allocates per operation — the
+linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable bignum). ADR 0008
+landing on a measurement that had become an expectation, and nothing measured the difference until
+something was emitted.
+
+**A FIXED WIDTH TRAPS RATHER THAN TRUNCATING, and that is what makes it sound.** The host's bignum
+is exact whatever the declaration says, so a silently wrapping limb form would mean **selecting a
+representation changes the answer** — ADR 0009's rule at a different boundary. Every target can
+fail: `panic`, `throw`, `throw`, `ud2`, the same instructions the checked arithmetic already uses.
+One comparison per OPERATION, not per limb. So the two upper rungs are a genuine choice, and today
+the answer is **declare `+inf` unless the target has no bignum**.
+
+**Three things the build taught.** **The width must come from the WHOLE PROGRAM** — reduction
+inlines every non-exported call and `main` has no signature, so a per-function width meant no whole
+program ever took the rung and the trap never fired (refinements.md §6b's limit, a fourth time).
+**A multiply by a widened word is a different algorithm** and has to be recognised BEFORE the operand
+is spliced, or a factorial does 55 passes instead of one. **A limb value is a table**, so the
+signature has to say `array int` or the checker refuses a body that produces one.
+
+**Two bugs, and one is the same one a third time.** Java forbids a lambda parameter SHADOWING a
+local, and the carry trap's parameter was called `c` — which is what the emitter calls the carry it
+is handed; Go and JavaScript both allow the shadow. And **`Body()` REBUILDS**: the Java method
+emitter called it twice, once to emit and once to type the result, so a method built `int[]` and
+declared `byte[]`. *A map keyed by a pointer into a term that a helper rebuilds answers about a
+copy.*
+
 **A FIXED-LIMB BIGNUM IS WRITTEN IN OROBOROS, PROVABLE, AND AGREES ON FOUR TARGETS** —
 [examples/big/limbs.oro](examples/big/limbs.oro), differential case `big-limbs`. Base-2^24 limbs
 with `/` and `%` for the carry split, naming **no host** — which is what integers.md's promotion

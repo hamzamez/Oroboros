@@ -56,6 +56,18 @@
       "mov %r, %1\nsub %r, %2\njno Lok%u\nud2\nLok%u:" pure)
     (prim imul-checked (int int) int expr
       "mov %r, %1\nimul %r, %2\njno Lok%u\nud2\nLok%u:" pure)
+    ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
+    ; TRUNCATES where a host bignum would stay exact, so selecting a
+    ; representation would change the answer -- ADR 0009's rule at a different
+    ; boundary. `trap-if` returns 0 when handed 0 and raises #UD otherwise.
+    ;
+    ; THIS HOST NEEDS THE RUNG MOST, because it ships no bignum at all: the
+    ; other three fall back to `math/big`, `BigInteger` or `BigInt` and windows
+    ; has nothing to fall back to. So the same three instructions the checked
+    ; arithmetic above uses are what make arbitrary precision reachable here --
+    ; no helper, no runtime.
+    (prim trap-if (int) int expr
+      "mov %r, %1\ntest %r, %r\njz Ltz%u\nud2\nLtz%u:\nxor %r, %r")
     (prim neg  (int) int     expr "mov %r, %1\nneg %r"      pure)
     (prim inc  (int) int     expr "mov %r, %1\ninc %r"      pure)
     (prim dec  (int) int     expr "mov %r, %1\ndec %r"      pure)

@@ -107,7 +107,29 @@ public final class BigRepBench {
         return t[3];
     }
 
+    // THE FIXED-LIMB RUNG on the host whose bignum is IMMUTABLE, which is where
+    // bigarith-2026-08-28 predicted it would pay most: `BigInteger` allocates an
+    // object and an int[] per operation and the JDK's mutable version is
+    // package-private, so our unbounded rung cannot reuse anything here either.
+    static java.math.BigInteger limbValue(int[] l) {
+        java.math.BigInteger out = java.math.BigInteger.ZERO;
+        java.math.BigInteger base = java.math.BigInteger.valueOf(1 << 24);
+        for (int i = l.length - 1; i >= 0; i--) {
+            out = out.multiply(base).add(java.math.BigInteger.valueOf(l[i]));
+        }
+        return out;
+    }
+
     public static void main(String[] args) {
+        if (!limbValue(GenFactLimbs.genFactLimbs(200)).equals(factHand(200))) {
+            System.out.println("FAIL limb factorial");
+            System.exit(1);
+        }
+        System.out.printf("limb-200!    %9.1f ns/op%n",
+                bench(() -> sink = GenFactLimbs.genFactLimbs(200), 20000));
+        System.out.printf("big-200!     %9.1f ns/op%n",
+                bench(() -> sink = factHand(200), 20000));
+
         if (check() != 0) System.exit(1);
         int it = 20000;
         System.out.printf("fib-gen      %9.1f ns/op%n", bench(() -> sink = GenBigFib.genFib(1000), it));

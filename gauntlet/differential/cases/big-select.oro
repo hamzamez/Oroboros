@@ -1,0 +1,36 @@
+; A DECLARED FINITE RANGE SELECTS FIXED LIMBS, and it is the same program that
+; `big-fib` runs on the host's bignum.
+;
+; ADR 0019's ladder has four rungs and this is the third. `(int 0 +inf)` says ℤ
+; and gets the host's own bignum -- exact whatever the value reaches, and
+; allocating. A FINITE bound is a LIMB COUNT: a `build` of known length, no
+; allocation per operation, and a TRAP if the value exceeds what was declared.
+;
+; Same source, two declarations, two representations. The trade is
+; bigarith-2026-08-28's, and until 2026-09-02 the declaration said nothing --
+; a finite endpoint was compared against the window and thrown away.
+;
+; inputs: 10 20 30 40 50
+; expect: 3628800 2432902008176640000 265252859812191058636308480000000 815915283247897734345611269596115894272000000000 30414093201713378043612608166064768844377641568960512000000000000
+;
+; The expected values are factorials computed independently -- an oracle rather
+; than a second implementation of ours.
+;
+; `; skip: windows` -- THE ARITHMETIC WORKS THERE AND THE RENDERING DOES NOT.
+; windows computes in limbs like everyone else, which is exactly what ADR 0019
+; item 4 asked for and what it could not do before today; what it cannot do is
+; turn a limb table into decimal, because that needs a string surface this
+; language does not have (docs/spec/strings.md). `big-limbs` exercises the same
+; limb algorithms there, hand-written.
+; skip: windows
+;
+; 50! is 65 digits, about 215 bits, so `(pow 2 300)` names 13 base-2^24 limbs
+; with room to spare.
+(sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
+
+(def fact (fn (n)
+  (loop ((acc 1) (i 2))
+    (> i n)  acc
+    else     (again (* acc i) (+ i 1)))))
+
+(def run (fn (n) (big-str (fact n))))

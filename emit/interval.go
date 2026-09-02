@@ -389,6 +389,8 @@ type intervalPass struct {
 	loopRaw    []string        // the enclosing loop's variables, for `again`
 	bigVal     map[*core.Term]bool // rebuilt terms whose value is a bignum
 	noChecked  bool            // select big, but not the checked arithmetic
+	noDest     bool            // …and not the mutable-bignum rewrite either
+	limbs      bool            // big is OUR representation, so the host need not have one
 
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
@@ -710,13 +712,23 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 // neither is a fixpoint iterate. Seeding an iterate would be seeding a claim
 // that is not yet a post-fixpoint. See lengthFacts.
 func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
-	seed map[string]ival, noChecked ...bool) (*IntervalReport, *core.Term) {
+	seed map[string]ival, flags ...bool) (*IntervalReport, *core.Term) {
 
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	rep.MaxOp = bottom
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0,
 		bound: map[string]bool{}, big: map[string]bool{}, bigReads: map[string]bool{},
-		noChecked: len(noChecked) > 0 && noChecked[0]}
+		noChecked: len(flags) > 0 && flags[0],
+		// THE FIXED-LIMB RUNG SUPPRESSES THE DESTINATION REWRITE. `big+!` writes
+		// into a host bignum object; a limb value is a table, and rule R's
+		// liveness argument is about neither. The two are different answers to
+		// the same allocation question and a program takes one (biglimb.go).
+		noDest: len(flags) > 1 && flags[1],
+		// THE LIMB RUNG NEEDS NO HOST BIGNUM, which is the whole reason it
+		// exists on windows. Every gate below asks `bigOK` rather than
+		// `HasBig`, or a target with nothing to fall back to would promote
+		// nothing and then be refused for producing a machine word.
+		limbs: len(flags) > 2 && flags[2]}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -736,7 +748,7 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 	// that makes the pass bidirectional. These two are the only sources — every
 	// other big value in the program is derived from one of them, which is ADR
 	// 0019's blast-radius claim made structural rather than asserted.
-	if tgt.HasBig() && sig != nil {
+	if p.bigOK() && sig != nil {
 		if core.ValueType(sig.Result) == core.BigType {
 			p.wantBig = true
 		}
@@ -1055,7 +1067,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// The widen is decided on the REBUILT argument: `selectBig` may have
 		// just turned it into a bignum, and wrapping that would be a type error
 		// rather than a conversion.
-		if p.demandBig && p.tgt.HasBig() && !p.bigTerm(na) {
+		if p.demandBig && p.bigOK() && !p.bigTerm(na) {
 			na = core.App(core.Name("big-of"), na)
 		}
 		vals[i] = v
@@ -1372,7 +1384,7 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 	// direction that loses a value.
 	// Decided on the REBUILT arms, and a JUMP is never widened: an `again` has
 	// no value to convert, and wrapping one emitted `big-of(goto)`.
-	if p.big != nil && p.tgt.HasBig() {
+	if p.big != nil && p.bigOK() {
 		ba, bb := p.bigTerm(na), p.bigTerm(nb)
 		if ba && !bb && !isJumpTerm(nb) {
 			nb = core.App(core.Name("big-of"), nb)
@@ -2130,7 +2142,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// detail: an accumulator starts at the literal `1`, and the emitter reads a
 	// loop variable's TYPE off its initialiser. Without this the Go backend
 	// declares `acc := 1` and then assigns a `*big.Int` to it.
-	if p.tgt.HasBig() {
+	if p.bigOK() {
 		for i := range nInits {
 			if i < len(raw) && p.big[raw[i]] && !p.bigTerm(inits[i]) {
 				nInits[i] = core.App(core.Name("big-of"), nInits[i])
@@ -2141,7 +2153,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// condition (4) asks whether a loop variable's initialiser allocates, and
 	// the literal `1` does not become `(big-of 1)` until the line above. Run
 	// first, the rule silently declines on every accumulator in the corpus.
-	if p.tgt.HasBigDest() && len(p.big) > 0 {
+	if p.tgt.HasBigDest() && !p.noDest && len(p.big) > 0 {
 		nb = p.reuseInLoop(nb, raw, nInits)
 	}
 	for _, nm := range raw {

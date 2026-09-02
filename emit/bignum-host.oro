@@ -1,0 +1,30 @@
+; CONVERTING A LIMB TABLE TO THE HOST'S OWN BIGNUM, so that it can be printed.
+;
+; A SEPARATE FILE because it names `big+`, `big*` and `big-of` — the language's
+; arbitrary precision, injected only on a target that HAS one. windows declares
+; none, and loading this there fails to cover, which is why the portable core in
+; `bignum.oro` must not mention them: that host can compute in limbs and cannot
+; render the result, and those are two different capabilities.
+
+
+
+; ------------------------------------------------------------- to the host
+;
+; A limb table converted back to the host's own bignum, so that it can be
+; printed. No host prints a limb table, and every program that computes a big
+; value has to say it eventually.
+;
+; Horner from the top would be shorter; this walks upward with a running power
+; so that the loop reads each limb once and the analysis sees a counted loop.
+;
+; It names `big+`, `big*` and `big-of`, which are the LANGUAGE's arbitrary
+; precision — injected on every target that has one (targets/*/bigint.oro). A
+; target without one cannot use this and the lowering refuses there by name,
+; which is the same answer JavaScript already gives for the checked primitive it
+; does not declare.
+(def to-host (fn (n a)
+  (loop ((acc (big-of 0)) (p (big-of 1)) (i 0))
+    (>= i n)  acc
+    else      (again (big+ acc (big* p (big-of (at a i))))
+                     (big* p (big-of 16777216))
+                     (+ i 1)))))

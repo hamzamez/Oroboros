@@ -110,7 +110,16 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 		return e.multiFunc(name, sig, t, params)
 	}
 
-	result, err := e.emit(t.Body())
+	// THE BODY IS OPENED ONCE AND REUSED. `Body()` calls `openTerm`, which
+	// REBUILDS the term, so two calls give two copies with no pointer in
+	// common — and the return type is decided from a map keyed by term
+	// pointers (LoopOneJoin). Emitting from one copy and typing from another
+	// gave a method that built `int[]` and declared `byte[]`.
+	//
+	// Third place this has bitten: the interval pass's rebuild, the Go
+	// emitter's four passes, and here.
+	body := t.Body()
+	result, err := e.emit(body)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +128,7 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	}
 
 	var out strings.Builder
-	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", e.tgt.ty(e.typeOf(t.Body())),
+	fmt.Fprintf(&out, "\tpublic static %s %s(%s) {\n", e.tgt.ty(e.typeOf(body)),
 		javaMangle(name), strings.Join(params, ", "))
 	out.WriteString(e.buf.String())
 	fmt.Fprintf(&out, "\t\treturn %s;\n\t}\n", result)

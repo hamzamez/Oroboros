@@ -463,8 +463,79 @@ func (tg *Target) addCore() {
 			tg.Names = append(tg.Names, op.name)
 		}
 	}
+	// ARBITRARY PRECISION, THE RUNG ABOVE THE HOST'S WORD.
+	//
+	// ADR 0019's third escape: a range declared ABOVE the portable window
+	// promotes that value to arbitrary precision. Found by spelling exactly the
+	// way `=` and `+` are, so a target says how it does it in its own file and
+	// nothing here learns that Go allocates a receiver or that Java's is
+	// immutable.
+	//
+	// A TARGET MAY DECLINE THIS ONE, and that is not the exception to CLAUDE.md's
+	// rule about language constructs. `int` is ADR 0012's window and every target
+	// provides it; ABOVE the window there is no portability claim to keep, so a
+	// missing bignum is the capability model answering — the same answer the
+	// `checked` primitive already gives on JavaScript, which declares none.
+	// windows declares none here, and ADR 0019 already says what it owes: a
+	// bignum written in Oroboros, the way win/map is.
+	for _, op := range bigOps {
+		if _, have := tg.Prims[op.name]; have {
+			continue
+		}
+		if p, ok := tg.findBySpelling(op.name, op.arity); ok {
+			p.Name = op.name
+			p.Pure = true
+			tg.Prims[op.name] = p
+			tg.Names = append(tg.Names, op.name)
+		}
+	}
 	sort.Strings(tg.Names)
 }
+
+// bigOps is the arbitrary-precision surface a target may declare. The names are
+// the language's; each target spells the operation its own way.
+//
+// It is the SAME set as langOps plus `=`, plus two conversions — and the
+// conversions go one way only. `big-of` widens a word to a bignum; there is no
+// narrowing, because unbounded-rung.md §3 is that the promotion is a WIDENING
+// and not a refinement, so a value that may leave the machine word cannot
+// silently be used where an `int` is required. `big-str` exists because a value
+// past 2^53 cannot be printed as an `int` on any of the four hosts.
+var bigOps = []struct {
+	name  string
+	arity int
+}{
+	{"big+", 2}, {"big-", 2}, {"big*", 2}, {"big/", 2}, {"big%", 2},
+	{"big<", 2}, {"big<=", 2}, {"big>", 2}, {"big>=", 2}, {"big=", 2},
+	{"big-of", 1}, {"big-str", 1},
+}
+
+// findBySpelling returns the target's own primitive whose UNQUALIFIED name is
+// `want`, at the given arity. It is findOpBySpelling without the result-kind
+// discrimination, which the big operators do not need: their names already say
+// which is a comparison.
+func (tg *Target) findBySpelling(want string, arity int) (Prim, bool) {
+	for name, p := range tg.Prims {
+		seg := name
+		if i := strings.LastIndex(seg, "."); i >= 0 {
+			seg = seg[i+1:]
+		}
+		if seg == want && len(p.Args) == arity && p.Kind == "expr" {
+			return p, true
+		}
+	}
+	return Prim{}, false
+}
+
+// HasBig reports whether this target declares arbitrary-precision integers.
+func (tg *Target) HasBig() bool {
+	_, ok := tg.Prims["big+"]
+	return ok
+}
+
+// BigOp is the target's arbitrary-precision form of a language operator, if it
+// has one. `+` becomes `big+`.
+func BigOpName(op string) string { return "big" + op }
 
 // langOps are the integer operators the LANGUAGE owns, with how a host may
 // spell each — most preferred first, so a target that has both keeps the one
@@ -481,16 +552,34 @@ func (tg *Target) addCore() {
 // `/` and `%` carry whatever precondition the target declared — division by
 // zero is a precondition, not a behaviour (integers.md §5) — because the host
 // prim is copied wholesale rather than rebuilt.
+// THE RESULT IS THE LANGUAGE'S AND NOT THE HOST'S, and that is a correction
+// rather than a tidy-up. `targets/js` declares everything `any` on purpose —
+// JavaScript has one number type — so the language's `+` inherited `any` there,
+// and `emit/interval.go`'s transfer function ignores any operation whose result
+// is not `int`. The consequence was that the analysis counted ZERO integer
+// operations on JavaScript, and `Unbounded` returns success when there is
+// nothing to prove.
+//
+// So ADR 0019's bounded-by-default was enforced on three targets and VACUOUS on
+// the fourth — the one whose failure mode is SILENT PRECISION LOSS, which is the
+// case the ADR's own headline example is about: fib(100) wraps on Go and the JVM
+// and comes back 354224848179262000000 on V8. The refusal fired everywhere
+// except where it mattered most.
+//
+// It is sound to say `int` here because these names are the LANGUAGE's:
+// `addCore` already declares their arguments `(int int)`, and integers.md
+// measured all four hosts agreeing on their meaning inside the window. Only the
+// result had been left to whatever the host happened to say.
 var langOps = []struct {
 	name      string
 	spellings []string
-	result    string // "" keeps the host's; comparisons say bool
+	result    string // the LANGUAGE's result type, not the host's
 }{
-	{"+", []string{"+", "add"}, ""},
-	{"-", []string{"-", "sub"}, ""},
-	{"*", []string{"*", "imul", "mul"}, ""},
-	{"/", []string{"idiv", "/"}, ""},
-	{"%", []string{"irem", "%", "rem"}, ""},
+	{"+", []string{"+", "add"}, "int"},
+	{"-", []string{"-", "sub"}, "int"},
+	{"*", []string{"*", "imul", "mul"}, "int"},
+	{"/", []string{"idiv", "/"}, "int"},
+	{"%", []string{"irem", "%", "rem"}, "int"},
 	{"<", []string{"<", "setl"}, "bool"},
 	{"<=", []string{"<=", "setle"}, "bool"},
 	{">", []string{">", "setg"}, "bool"},
@@ -520,7 +609,7 @@ func (tg *Target) findOpBySpelling(spellings []string, result string) (Prim, boo
 			if result == "bool" && p.Result != "bool" && p.Result != "any" {
 				continue
 			}
-			if result == "" && p.Result == "bool" {
+			if result != "bool" && p.Result == "bool" {
 				continue
 			}
 			return p, true

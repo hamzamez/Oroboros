@@ -143,3 +143,45 @@ func TestBitwiseIsNotPromoted(t *testing.T) {
 		}
 	}
 }
+
+// A LANGUAGE OPERATOR'S RESULT IS THE LANGUAGE'S, NOT THE HOST'S — and this is
+// the test for a soundness hole, not for tidiness.
+//
+// `targets/js` declares everything `any` on purpose: JavaScript has one number
+// type and untyped containers, so one declaration serves every element type.
+// `addCore` copies the host's primitive when it promotes `+` to the language,
+// and it used to copy the RESULT TYPE too — so the language's `+` returned
+// `any` on that host.
+//
+// `emit/interval.go`'s transfer function ignores any operation whose result is
+// not `int`. So the analysis counted ZERO integer operations on JavaScript, and
+// `emit.Unbounded` returns success when there is nothing to prove:
+//
+//	fib without a declaration    go REFUSED   java REFUSED   windows REFUSED
+//	                             js  compiled
+//
+// ADR 0019's bounded-by-default was enforced on three targets and VACUOUS on
+// the fourth — and the fourth is the one whose failure mode is silent precision
+// loss, which is the case the ADR's own headline example is about: fib(100)
+// wraps on Go and the JVM and comes back 354224848179262000000 on V8. The
+// refusal fired everywhere except where it mattered most.
+//
+// It is sound to say `int` because these names are the LANGUAGE's: their
+// arguments are already declared `(int int)`, and integers.md measured all four
+// hosts agreeing on their meaning inside the window. Only the result had been
+// left to whatever the host happened to say.
+func TestTheLanguagesArithmeticIsTypedByTheLanguage(t *testing.T) {
+	for _, dir := range []string{"../targets/go", "../targets/js", "../targets/java", "../targets/windows"} {
+		tg, err := LoadTarget(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, op := range []string{"+", "-", "*", "/", "%"} {
+			if got := tg.Prims[op].Result; got != "int" {
+				t.Errorf("%s: the language's %q returns %q, not int — the interval "+
+					"analysis skips it, so bounded-by-default is vacuous on this "+
+					"target", dir, op, got)
+			}
+		}
+	}
+}

@@ -1726,6 +1726,72 @@ rather than emulated: outside the window (no claim), **division by zero** (a pre
 JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
 three answers). Not settled deliberately: a bignum, which needs the product first.
 
+**ADR 0019'S THIRD ESCAPE IS REAL, AND IT IS AT PARITY** —
+[bigrep-2026-09-02](gauntlet/results/bigrep-2026-09-02.md), [emit/bigrep.go](emit/bigrep.go). A range
+declared ABOVE the portable window now promotes that value to arbitrary precision, and the emitted
+code matches hand-written bignum code: **Go 1.01x/0.99x/0.97x, JavaScript 1.00x/0.98x/1.01x, Java
+0.92x/1.01x/1.01x** on fib(1000), 200! and 999^64, with **identical allocation counts** on Go.
+`fib(100)` is **354224848179261915075** on all three — the value ADR 0019's refusal quotes as the one
+none of them produced. **A target declaration of 13 primitives per host and no compiler code for the
+lowering**: Go has `math/big`, the JVM `BigInteger`, V8 `BigInt`, so three of four hosts already have
+the capability. windows declares none and **refuses by name**, which is the same answer JavaScript
+gives for the `checked` primitive it lacks.
+
+**The solver is BIDIRECTIONAL and it is THREE rules, not two.** Supply, demand — and **pressure**: a
+big arithmetic operation reads a name AND that name is not provably inside the window.
+precision-by-declaration.md predicted the first two with factorial as the witness (every input small,
+the accumulator reaching 30!, so the pressure comes from the declared RESULT). The third is what
+promotes `power`'s multiplicand, which nothing declares and nothing assigns a big value to, and whose
+own square leaves the window — **and its provability gate is what leaves factorial's counter a machine
+word**, widened at the multiply instead. One rule, two answers, and the difference is a proof.
+**Getting the gate backwards is a slow program; getting the rule backwards is a wrong one.**
+`emit/interval.go`'s `int64` arithmetic was untouched, confirming that the interval domain does not
+have to go arbitrary-precision: an operation on a value already exact is never asked about.
+
+**AND IT FOUND ADR 0019's ENFORCEMENT TO BE VACUOUS ON JAVASCRIPT.** `targets/js` declares everything
+`any` on purpose, so the LANGUAGE's `+` inherited `any` there, and the transfer function ignores any
+operation whose result is not `int` — so the analysis counted **zero integer operations on
+JavaScript** and `Unbounded` returns success when there is nothing to prove. **Bounded by default was
+enforced on three targets and vacuous on the fourth, and the fourth is the one whose failure mode is
+SILENT PRECISION LOSS** — the case ADR 0019's headline example is about. The fix is that a language
+operator's RESULT is the language's, not the host's; **no emitted file changes** on 41 programs × 4
+targets, which is also why it survived.
+
+**Three seams, each of which compiled and ran.** **`again` is a jump, not a value** — the
+representation join at an `if` widens whichever arm disagrees, and a clause chain is an `if` whose one
+arm returns and whose other iterates, so the first version emitted `big-of(goto)`; the same mistake in
+the demand direction gave every bignum loop a bignum counter, because `(+ i 1)` is arithmetic in a
+big-demanding position and there is nothing locally wrong with that reading. **A `let` and a `loop`
+must report their own representation**, keyed by the rebuilt term, and **exactly** rather than
+conservatively — the opposite of the usual direction here, because a term wrongly called word gets
+wrapped in `big-of`, which is a type error rather than a missed optimisation. And **a flag whose
+meaning changed under a rename** (`tail` → `demandBig`) left its seed at `true`; a map benchmark with
+nothing to do with any of it caught that.
+
+**The declaration does NOT survive inlining, and the boundary is what does.** Reduction inlines every
+non-exported call, so a helper's declared big result is gone before the representation is selected —
+refinements.md §6b's limit for a `where`, a third time. What survives is `big-str`, which a program
+has to write anyway because no host prints a value past 2^53 as an `int`, and the general rule is that
+**an argument position declared `big` demands a bignum**, the signature's result being the outermost
+instance rather than a special case.
+
+**What is owed, and the first item is new.** **A MUTABLE bignum**: the emitted form allocates per
+operation because `math/big` and `BigInteger` do unless the caller owns its temporaries, and the
+careful form is **6.4x, 4.1x and 1.44x** faster — reaching it needs the bignum to be a linear buffer
+threaded through the loop, which is **the same gap arrays-revisited.md's trigger 2 names for
+Karatsuba's workspace and ADR 0013 names for the stencil. Three places, one gap**, and it is now the
+strongest form of the argument for uniqueness on parameters. Then **the fixed-limb rung**, which is
+where bigarith's 3.97x/6.2x/5.8x lives and which this build does NOT reach — it compares an endpoint
+against the window and never uses a finite one as a LIMB COUNT, so having the spelling was necessary
+and nowhere near sufficient. Then a **per-operation threshold**, and **windows**.
+
+**A measurement-method note, which is json-tree-bench's finding reproducing.** The first Go run
+measured fib at 141,693 ns and the factorial at 35,954; measured alone they are **48,312** and
+**11,117** — 2.9x and 3.2x on identical code, from nothing but sharing a process with other
+allocating benchmarks. 400 and 2003 allocations put a program at the mercy of the rest of the heap.
+The RATIO was stable across both runs because both sides move together, which is the only reason the
+first numbers were not wrong as well as inflated.
+
 **BOUNDED BY DEFAULT IS NOW REAL** — ADR 0019's decision, flipped on 2026-08-31. An integer
 operation the compiler cannot prove stays inside ADR 0012's window is a **compile error**, naming the
 operation, and there is **no flag to turn it off** — "ignore it" is not one of the three escapes.
@@ -2076,7 +2142,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs; `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 

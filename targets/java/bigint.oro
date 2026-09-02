@@ -1,0 +1,48 @@
+; ARBITRARY PRECISION ON THE JVM, WHICH IS `java.math.BigInteger`.
+;
+; ADR 0019's third escape lands here. See targets/go/bigint.oro for the shared
+; argument; what follows is what is different about this host.
+;
+; `remainder` AND NOT `mod`, WHICH IS THE HAZARD ON THIS HOST. `BigInteger.mod`
+; is Euclidean and always returns a NON-NEGATIVE result; `remainder` takes the
+; dividend's sign, which is what integers.md §4 measured all four hosts agreeing
+; on inside the window. Declaring `mod` would make the same source disagree with
+; itself either side of 2^53 -- and with the other three targets. Likewise
+; `divide` truncates toward zero, which is the one we want.
+;
+; FULLY QUALIFIED, so no import is needed and no program can be broken by one it
+; did not write. `java.math.BigInteger.valueOf` is long but it is emitted, not
+; typed by a person.
+;
+; A KNOWN COST, and it is the largest of the three hosts: `BigInteger` is
+; IMMUTABLE, so every operation allocates a fresh object AND a fresh int[], and
+; the JDK's own mutable version is package-private. bigarith-2026-08-28 measured
+; ours beating it by 6.2x at 50! and still 1.84x at 314 limbs with NO CROSSOVER
+; FOUND. So on this host the fixed-limb rung is worth the most and this
+; declaration is the weakest of the three -- which is a measurement to act on
+; later, not a reason to ship nothing now.
+
+(target java
+  (type big "java.math.BigInteger")
+
+  (module java
+    (prim big+ (big big) big expr "%s.add(%s)"      pure)
+    (prim big- (big big) big expr "%s.subtract(%s)" pure)
+    (prim big* (big big) big expr "%s.multiply(%s)" pure)
+    ; divide/remainder, NOT divide/mod -- see the header.
+    (prim big/ ((a big) (b big)) big expr "%s.divide(%s)"    pure)
+    (prim big% ((a big) (b big)) big expr "%s.remainder(%s)" pure)
+
+    (prim big<  (big big) bool expr "%s.compareTo(%s) < 0"  pure)
+    (prim big<= (big big) bool expr "%s.compareTo(%s) <= 0" pure)
+    (prim big>  (big big) bool expr "%s.compareTo(%s) > 0"  pure)
+    (prim big>= (big big) bool expr "%s.compareTo(%s) >= 0" pure)
+    ; `compareTo` and not `equals`: they agree for BigInteger, and using one
+    ; operation for all five comparisons is what makes the five templates
+    ; obviously consistent with each other.
+    (prim big=  (big big) bool expr "%s.compareTo(%s) == 0" pure)
+
+    ; Our `int` is Java's `long` (targets/java/java.oro), and `valueOf` takes a
+    ; long, so this conversion is exact and needs no cast.
+    (prim big-of (int) big expr "java.math.BigInteger.valueOf(%s)" pure)
+    (prim big-str (big) string expr "%s.toString()" pure)))

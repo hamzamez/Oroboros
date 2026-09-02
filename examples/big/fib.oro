@@ -1,0 +1,36 @@
+; FIBONACCI PAST THE PORTABLE WINDOW -- the program ADR 0019's refusal quotes.
+;
+; bounded.go's error message names this exact program:
+;
+;   fib(100)  Go   3736710778780434371     wrapped at int64
+;             Java 3736710778780434371     wrapped at int64
+;             JS   354224848179262000000   binary64, precision lost
+;             true 354224848179261915075
+;
+; One source, three answers, none of them right. `examples/int/fib.oro` is the
+; same program WITHOUT a declaration and is refused, which is the point of it.
+; This one declares a result above the window, which is ADR 0019's third escape,
+; and gets the true answer on every target that declares a bignum.
+;
+; THE DECLARATION IS ON THE RESULT AND NOTHING ELSE, which is what makes this the
+; witness for a BIDIRECTIONAL solver. Every input is small -- `n` is at most 1000
+; -- and nothing flowing forward makes `a` or `b` big. The pressure comes from
+; the declared result, backwards through the loop's exit and then along the back
+; edge: `a` is returned, so `a` is big; `(again b …)` assigns `b` to `a`, so `b`
+; is big; and `i` is provably 0..1000, so `i` stays a machine word.
+;
+; fib(1000) has 209 digits and 2^1000 is a comfortable bound for it. The endpoint
+; is an EXPRESSION rather than a literal, which is what the range language gained
+; on 2026-08-31: it is evaluated and never emitted, so `KInt` stays an int64.
+
+; NO `(use …)` AT ALL, and that is the promotion of integer arithmetic to the
+; language showing: `+` and `>=` are the language's names, found per target, so
+; this file names no host. It generates on Go, JavaScript and the JVM unchanged.
+(export fib)
+
+(sig fib ((n (int 0 1000))) (int 0 (pow 2 1000)))
+
+(def fib (fn (n)
+  (loop ((a 0) (b 1) (i 0))
+    (>= i n)  a
+    else      (again b (+ a b) (+ i 1)))))

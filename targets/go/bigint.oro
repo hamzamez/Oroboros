@@ -1,0 +1,55 @@
+; ARBITRARY PRECISION ON GO, WHICH IS `math/big`.
+;
+; ADR 0019's third escape: an integer operation the compiler cannot prove stays
+; inside the portable window is a compile error, and one of the three ways to
+; clear it is to declare a range ABOVE the window, which promotes that value to
+; arbitrary precision. This file is what that promotion lands on here.
+;
+; It is a TARGET DECLARATION and not a runtime we ship, which is the whole
+; parasite model: three of the four hosts already have a bignum, so the bar
+; general-purpose.md set — "beyond the window they cost what they would cost if
+; we implemented them on the target" — is met by construction on those three.
+; windows ships none and declares none, and covering says so.
+;
+; THE SEMANTICS MUST BE THE LANGUAGE'S, not Go's convenience. `Quo`/`Rem`
+; truncate toward zero and take the dividend's sign, which is what
+; integers.md §4 measured all four hosts agreeing on inside the window;
+; `Div`/`Mod` are Euclidean and would make the SAME source disagree with itself
+; either side of 2^53. That is the one place a bignum can silently change an
+; answer, and it is chosen here rather than inherited.
+;
+; A KNOWN COST, recorded rather than discovered later: `new(big.Int).Add(a, b)`
+; allocates a fresh receiver per operation, which is exactly the naive form
+; bigarith-2026-08-28 measured at 4-5x worse than a careful one, and 3.97x worse
+; than a fixed-limb `build`. That is the rung ABOVE this one -- a finite range
+; gives a limb count, which gives a `build` of known length, which gives zero
+; allocations -- and it is not built here. What is built here is correctness at
+; the host's own price, which is the bar this target has to clear first.
+
+(target go
+  ; Not `(type big …)` by accident: `big` is the type language's name for the
+  ; top of the representation ladder, and `*big.Int` is Go's spelling of it. The
+  ; pointer is part of the spelling because `big.Int` is a struct whose zero
+  ; value is usable but whose methods take a receiver.
+  (type big "*big.Int")
+
+  (module go
+    (prim big+ (big big) big expr "new(big.Int).Add(%s, %s)" pure (import "math/big"))
+    (prim big- (big big) big expr "new(big.Int).Sub(%s, %s)" pure (import "math/big"))
+    (prim big* (big big) big expr "new(big.Int).Mul(%s, %s)" pure (import "math/big"))
+    ; Quo and Rem, NOT Div and Mod -- see the header.
+    (prim big/ ((a big) (b big)) big expr "new(big.Int).Quo(%s, %s)" pure (import "math/big"))
+    (prim big% ((a big) (b big)) big expr "new(big.Int).Rem(%s, %s)" pure (import "math/big"))
+
+    (prim big<  (big big) bool expr "%s.Cmp(%s) < 0"  pure)
+    (prim big<= (big big) bool expr "%s.Cmp(%s) <= 0" pure)
+    (prim big>  (big big) bool expr "%s.Cmp(%s) > 0"  pure)
+    (prim big>= (big big) bool expr "%s.Cmp(%s) >= 0" pure)
+    (prim big=  (big big) bool expr "%s.Cmp(%s) == 0" pure)
+
+    ; WIDENING IS THE ONLY DIRECTION. A word value entering a big computation is
+    ; converted here; the other way round is refused by the type checker, which
+    ; is unbounded-rung.md §3 -- the promotion is a WIDENING, not a refinement,
+    ; so it may not happen silently.
+    (prim big-of (int) big expr "big.NewInt(int64(%s))" pure (import "math/big"))
+    (prim big-str (big) string expr "%s.String()" pure)))

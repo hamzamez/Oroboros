@@ -108,6 +108,14 @@ func run(targetDir, src, target, out, path string, keep, checked bool) error {
 		return fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
 	}
 
+	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE (emit/bigrep.go). It runs
+	// BEFORE the checker because the promotion is part of what the program
+	// MEANS: the checker types `(* acc i)` as `int` and would refuse it against
+	// a value the program has said is bigger than a word.
+	if nb, n := emit.PromoteBig(tg, prog.Sigs[entry], nf); n > 0 {
+		nf = nb
+		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
+	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would.
 	if err := emit.Check(tg, entry, nf); err != nil {

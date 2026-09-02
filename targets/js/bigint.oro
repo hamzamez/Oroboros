@@ -1,0 +1,56 @@
+; ARBITRARY PRECISION ON JAVASCRIPT, WHICH IS `BigInt` IN THE LANGUAGE ITSELF.
+;
+; ADR 0019's third escape lands here: a range declared above the portable window
+; promotes that value to arbitrary precision, and on this host the host already
+; has it. See targets/go/bigint.oro for the shared argument.
+;
+; THIS IS THE HOST WHERE THE OPERATORS SURVIVE. `+`, `-`, `*`, `<` all work on
+; `BigInt` directly, so the templates are the ordinary ones -- but they are a
+; SEPARATE declaration rather than a reuse of `js.+`, because mixing a Number
+; and a BigInt with `+` is a TypeError at run time. The compiler is what keeps
+; them apart, and it can only do that if the two are two names.
+;
+; `/` TRUNCATES TOWARD ZERO on BigInt, which is not what `/` does on Number --
+; there it is float division, and targets/js/builtin.oro has to declare
+; `Math.trunc(a / b)` to get the language's meaning. So the divergence
+; integers.md found at the word level does not exist at this one: BigInt is the
+; better-behaved of V8's two integer stories.
+;
+; AND NEGATIVE ZERO DOES NOT EXIST HERE, which is the other word-level hazard
+; gone: `-0n` is `0n`, so the `+ 0` normalisation `js./` and `js.%` need has
+; nothing to do. Two hazards this file does not inherit, both worth stating
+; because both cost a differential case at the word level.
+;
+; A KNOWN COST: bigarith-2026-08-28 measured V8's `BigInt` losing to a bitwise
+; limb form up to about 100 limbs and winning above it, because `BigInt` is C++
+; with real 64-bit limbs and JS has no 64x64->128 multiply at all. So this is
+; the RIGHT choice for large values and the wrong one for the small ones
+; precision integers actually reach -- and that is a THRESHOLD, which is a thing
+; a target declares. Not declared yet: the fixed-limb rung is not built.
+
+(target js
+  ; JavaScript has one number type and this is the second one. It is written for
+  ; the checker only; the emitter writes no types on this host.
+  (type big "bigint")
+
+  (module js
+    (prim big+ (big big) big expr "(%s + %s)" pure)
+    (prim big- (big big) big expr "(%s - %s)" pure)
+    (prim big* (big big) big expr "(%s * %s)" pure)
+    (prim big/ ((a big) (b big)) big expr "(%s / %s)" pure)
+    (prim big% ((a big) (b big)) big expr "(%s %% %s)" pure)
+
+    (prim big<  (big big) bool expr "(%s < %s)"   pure)
+    (prim big<= (big big) bool expr "(%s <= %s)"  pure)
+    (prim big>  (big big) bool expr "(%s > %s)"   pure)
+    (prim big>= (big big) bool expr "(%s >= %s)"  pure)
+    ; `===` and not `==`: `1n == 1` is TRUE and `1n === 1` is false. Equality
+    ; across the two representations is exactly the confusion this file exists
+    ; to prevent, so the strict form is the only correct one.
+    (prim big=  (big big) bool expr "(%s === %s)" pure)
+
+    (prim big-of (int) big expr "BigInt(%s)" pure)
+    ; NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
+    ; bare console.log of a BigInt gives "123n". The suffix is a real
+    ; divergence from the other two hosts and this is where it is removed.
+    (prim big-str (big) string expr "String(%s)" pure)))

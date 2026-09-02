@@ -1,0 +1,33 @@
+; EXPONENTIATION BY SQUARING -- the witness for rule (P), the third promotion
+; rule and the one that is not a declaration and not a data flow.
+;
+; `examples/int/power.oro` is this program without a declaration, and it is
+; refused: `acc` and `x` are both multiplied and a product of two unbounded
+; values is unbounded.
+;
+; THE INTERESTING VARIABLE IS `x`, NOT `acc`. `acc` is promoted the way
+; factorial's is -- it is returned, the result is declared above the window, so
+; it is a bignum. Nothing says the same about `x`: it is never returned, and no
+; big value is ever assigned to it. Its own update `(* x x)` reaches
+; b^(2^63), so leaving it a machine word would silently produce the wrong
+; answer while `acc` was scrupulously exact.
+;
+; The rule that catches it: a big operation reads `x` -- `(* acc x)` -- and `x`
+; is NOT provably inside the window, so `x` is a bignum too. That is the same
+; rule that leaves factorial's counter alone, because a counter IS provably in
+; the window. One rule, two answers, and the difference is a proof.
+;
+; `k` halves and is provably 0..64, so it stays a machine word: the loop
+; counter, the guard and the division are all ordinary integer arithmetic.
+;
+; 1000^64 = 10^192, comfortably under 2^640.
+
+(export power)
+
+(sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 (pow 2 640)))
+
+(def power (fn (b e)
+  (loop ((acc 1) (x b) (k e))
+    (= k 0)        acc
+    (= (% k 2) 1)  (again (* acc x) (* x x) (/ k 2))
+    else           (again acc (* x x) (/ k 2)))))

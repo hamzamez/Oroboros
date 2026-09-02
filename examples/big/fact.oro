@@ -1,0 +1,33 @@
+; FACTORIAL -- the witness precision-by-declaration.md named for why the
+; representation solver has to be BIDIRECTIONAL.
+;
+;   "(fact (int 0 30)) has every input small and an accumulator reaching
+;    30! ~ 2.65x10^32, so the pressure comes from the declared RESULT and
+;    nothing forward makes `acc` big. A forward-only solver would pass the
+;    entire current corpus and fail on the first factorial."
+;
+; That is this file. `n` is at most 30 and `i` at most 31; both are machine
+; words and stay machine words. Only `acc` is a bignum, and the only thing that
+; says so is the declared result -- read backwards through the loop's exit.
+;
+; AND `i` STAYING A WORD IS THE HALF THAT IS EASY TO GET WRONG. It is read by
+; the big multiply, so a solver that promoted everything a big operation touches
+; would give this loop a bignum counter and a bignum comparison. The rule is
+; gated on provability: a name a big operation reads is promoted only if it is
+; NOT provably inside the window, and `i` is provably 1..31. It is widened at
+; the multiply instead, which is one conversion per iteration against a bignum
+; increment and a bignum compare.
+;
+; 30! = 265252859812191058636308480000000, which is under 2^110.
+
+(export fact)
+
+(sig fact ((n (int 0 30))) (int 0 (pow 2 110)))
+
+; `i` starts at 2 rather than 1 because multiplying by 1 is a wasted bignum
+; operation and an allocation -- fact(0) and fact(1) are both 1 and the guard
+; already gives them.
+(def fact (fn (n)
+  (loop ((acc 1) (i 2))
+    (> i n)  acc
+    else     (again (* acc i) (+ i 1)))))

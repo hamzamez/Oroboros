@@ -1,0 +1,37 @@
+; ARBITRARY PRECISION, AND WHAT IT IS FOR IS EXACTLY THAT THE FOUR TARGETS
+; DISAGREE WITHOUT IT.
+;
+; ADR 0019's refusal quotes this program by name:
+;
+;   fib(100)  Go   3736710778780434371     wrapped at int64
+;             Java 3736710778780434371     wrapped at int64
+;             JS   354224848179262000000   binary64, precision lost
+;             true 354224848179261915075
+;
+; So this case is the one place in the suite where AGREEMENT is the whole point
+; rather than a property checked in passing -- and `; expect:` is what makes it
+; a test of correctness rather than of consistency, because two hosts could wrap
+; identically and agree while both being wrong. They do, at 100: Go and the JVM
+; both give 3736710778780434371.
+;
+; inputs: 0 1 2 10 50 90 100 200
+; expect: 0 1 1 55 12586269025 2880067194370816120 354224848179261915075 280571172992510140037611932413038677189525
+;
+; `; skip: windows` -- THE TARGET DECLARES NO BIGNUM, and that is the capability
+; model answering rather than a hole. Go has `math/big`, the JVM has
+; `BigInteger`, V8 has `BigInt` in the language; windows ships none, so it
+; declares none, exactly as JavaScript declares no CHECKED primitive and for the
+; same reason. ADR 0019 already says what is owed there: a bignum written in
+; Oroboros, the way `win/map` is.
+; skip: windows
+;
+; `big-str` is the boundary, and it is not decoration: no host prints a value
+; past 2^53 as an `int`, so a program has to name arbitrary precision here
+; anyway. It is also where the DEMAND comes from -- reduction inlines every
+; non-exported call, so a helper's declared big result is gone by the time the
+; representation is selected, and what survives inlining is this.
+(def run (fn (n)
+  (big-str
+    (loop ((a 0) (b 1) (i 0))
+      (>= i n)  a
+      else      (again b (+ a b) (+ i 1))))))

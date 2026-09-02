@@ -1513,6 +1513,33 @@ func ExceedsWindow(ty string) bool {
 	return lo.CmpAbs(w) > 0 || hi.CmpAbs(w) > 0
 }
 
+// ShowType renders a type for a human. It exists for exactly one case: a range
+// above the portable window can have hundreds of digits in it, and a diagnostic
+// that prints all of them is a diagnostic nobody reads.
+//
+// The abbreviation keeps the SIZE, which is the thing that matters at this rung
+// — how many digits, not which — and it keeps small endpoints verbatim, so
+// nothing a programmer typed is hidden from them.
+func ShowType(ty string) string {
+	lo, hi, ok := IntRangeBig(ty)
+	if !ok {
+		return ty
+	}
+	return "int " + showEndpoint(lo) + " " + showEndpoint(hi)
+}
+
+func showEndpoint(v *big.Int) string {
+	s := v.String()
+	neg := ""
+	if strings.HasPrefix(s, "-") {
+		neg, s = "-", s[1:]
+	}
+	if len(s) <= 20 {
+		return neg + s
+	}
+	return fmt.Sprintf("%s%s.%se%d (%d digits)", neg, s[:1], s[1:4], len(s)-1, len(s))
+}
+
 // IntRangeBig reads a `(int LO HI)` type back at full precision.
 //
 // `IntRange` is this narrowed to `int64` and reports failure when an endpoint
@@ -1560,8 +1587,28 @@ func ValueType(ty string) string {
 	if _, _, ok := IntRange(ty); ok {
 		return "int"
 	}
+	// AND A RANGE ABOVE THE WINDOW IS NOT AN `int` AT ALL — it is the rung
+	// above the host's word (unbounded-rung.md §3). `IntRange` narrows to
+	// `int64` and so cannot read one, which is why the case below is reached at
+	// all; without it such a range normalised to ITSELF and every consumer that
+	// compares type strings saw a name no target declares.
+	//
+	// This is the FOURTH effect a range has, after the three
+	// scalarrange-2026-08-31 separated: a type, a premise, a representation —
+	// and now, above the window, a DIFFERENT type. The promotion is a widening,
+	// not a refinement, so `compatible` refuses it against `int` and that
+	// refusal is the surface where a programmer finds out a value became a
+	// bignum.
+	if ExceedsWindow(ty) {
+		return BigType
+	}
 	return ty
 }
+
+// BigType is what a range above the portable window means: arbitrary precision.
+// It is the top of the representation ladder ADR 0003 opened — narrower than a
+// word, a word, and above it this — and a target spells it in its own file.
+const BigType = "big"
 
 // MapTypes reads a `(map K V)` type back into its key and value types.
 //

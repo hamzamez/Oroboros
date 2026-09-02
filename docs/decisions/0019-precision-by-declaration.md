@@ -209,12 +209,54 @@ demonstration wired into the default path is a decision, whether or not anyone m
    a WIDENING.** Every range today satisfies `[LO,HI] ⊆ W`, which is why a range normalises to `int`
    for typing; ℤ does not, so an unbounded value passed where an `int` is required must be REFUSED.
    That refusal is the surface — it is where a programmer finds out a value became a bignum.
-3. **The representation solver** over `word ⊑ big`, and **it must be bidirectional**. Factorial is
-   the witness: `(fact (int 0 30))` has every input small and an accumulator reaching 30! ≈ 2.65×10³²,
-   so the pressure comes from the declared **result**. A forward-only solver would pass the entire
-   current corpus and fail on the first factorial.
-4. **R3 per target.** Go, Java and JavaScript ship a bignum; windows ships none and needs one
-   written — in Oroboros, which is also the test of whether the language can write its own libraries.
+3. ~~**The representation solver** over `word ⊑ big`, and **it must be bidirectional**.~~ **DONE
+   2026-09-02**, together with item 4 —
+   [bigrep-2026-09-02](../../gauntlet/results/bigrep-2026-09-02.md). **The third escape is real.** A
+   declared range above the window promotes that value to arbitrary precision, and the emitted code
+   is at parity with hand-written bignum code on all three hosts that have one: **Go 1.01x / 0.99x /
+   0.97x, JavaScript 1.00x / 0.98x / 1.01x, Java 0.92x / 1.01x / 1.01x** on fib(1000), 200! and
+   999^64, with identical allocation counts on Go.
+
+   It is bidirectional, as predicted, and the solver is **three** rules rather than two: supply,
+   demand, and **pressure** — a big arithmetic operation reads a name AND that name is not provably
+   inside the window. The third is what promotes `power`'s multiplicand, which nothing declares and
+   nothing assigns a big value to, and its provability gate is what leaves factorial's counter a
+   machine word. **One rule, two answers, and the difference is a proof.** Getting the gate backwards
+   is a slow program; getting the rule backwards is a wrong one.
+
+   Two things the build taught that this ADR had not said. **The declaration does not survive
+   inlining** — the same structural limit refinements.md §6b records for a `where` — so what carries
+   the demand in a whole program is the BOUNDARY, `big-str`, which a program has to write anyway
+   because no host prints a value past 2^53 as an `int`. And **`emit/interval.go` was untouched**,
+   confirming precision-by-declaration.md's argument that the interval domain need not go
+   arbitrary-precision: an operation on a value that is already exact is never asked about.
+
+3b. **AND IT FOUND THIS ADR'S OWN ENFORCEMENT TO BE VACUOUS ON JAVASCRIPT.** `targets/js` declares
+   everything `any`, so the language's `+` inherited `any` there, and the transfer function ignores
+   any operation whose result is not `int` — so the analysis counted **zero** integer operations on
+   that host and `Unbounded` returns success when there is nothing to prove. **Bounded by default was
+   enforced on three targets and vacuous on the fourth**, and the fourth is the one whose failure mode
+   is silent precision loss, which is the case this ADR's own headline example is about. The fix is
+   that a language operator's RESULT is the language's and not the host's; **no emitted file changes**
+   on 41 programs × 4 targets, so it is a soundness hole closed with no code motion — and that is also
+   why it survived, since nothing was visibly wrong.
+4. **R3 per target** — Go, Java and JavaScript **DONE 2026-09-02**, each as a target declaration of
+   13 primitives and no compiler code, which is the parasite model: three of four hosts already have
+   the capability. **windows still ships none and declares none**, and refuses by name, which is the
+   same answer JavaScript already gives for the `checked` primitive it lacks. What it needs is a
+   bignum written in Oroboros, the way `win/map` is — and bigarith-2026-08-28 and
+   karatsuba-2026-08-30 have already written and measured the algorithms.
+
+   **What is NOT done is the rung the spelling was built to name.** This build uses a declared
+   endpoint only to compare against the window; it does not use a FINITE endpoint as a limb count.
+   That is where bigarith's 3.97x on Go, 6.2x on Java and 5.8x on V8 live, and it stays owed.
+5. **A mutable bignum**, which is new and is the clearest thing the measurement produced. The
+   emitted form allocates per operation because `math/big` and `BigInteger` do unless the caller owns
+   its temporaries; the careful form is **6.4x, 4.1x and 1.44x** faster on the three Go programs.
+   Reaching it needs the bignum to be a linear buffer threaded through the loop, which is ADR 0018's
+   buffer at a type the language does not have — **the same gap arrays-revisited.md's trigger 2 names
+   for Karatsuba's workspace and ADR 0013 names for the stencil. Three places, one gap**, and that is
+   now the strongest form of the argument for uniqueness types on parameters.
 
 **The top rung is not one implementation, and this is the part the aesthetics hid.** Measured across
 all four hosts: **ours wins where the operation is linear and the host wins where it is quadratic.**

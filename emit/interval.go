@@ -285,10 +285,34 @@ type IntervalReport struct {
 	// table in examples/json/tree.oro holds indices bounded by a loop guard and
 	// by nothing a literal can show.
 	Stores map[string]ival
+
+	// BigOps is how many operations were selected into the target's
+	// arbitrary-precision form (bigrep.go). They are deliberately NOT counted in
+	// Ops: a bignum cannot leave the window, so it is not an operation the
+	// window accounting has anything to say about.
+	BigOps int
 }
 
 type intervalPass struct {
 	tgt *Target
+
+	// REPRESENTATION SELECTION, the rung above the host's word (bigrep.go).
+	//
+	// `big` is the set of names held in arbitrary precision, keyed by the fresh
+	// names this pass itself hands out — which is why the decision is made HERE
+	// and not in a pass of its own: a separate walk would have to reproduce
+	// `openFresh`'s naming exactly, and "the obvious design has no key" is
+	// already recorded in this repository as a thing that was built and found
+	// to record nothing the emitter could find.
+	big        map[string]bool
+	bigReads   map[string]bool // names read by a big operation — rule (P)
+	bigChanged bool            // did this sweep promote anything?
+	wantBig    bool            // the signature declares a result above the window
+	demandBig  bool            // this position's value must BE a bignum
+	loopTail   bool            // …and the loop being iterated sits in one
+	loopRaw    []string        // the enclosing loop's variables, for `again`
+	bigVal     map[*core.Term]bool // rebuilt terms whose value is a bignum
+	noChecked  bool            // select big, but not the checked arithmetic
 
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
@@ -610,12 +634,13 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 // neither is a fixpoint iterate. Seeding an iterate would be seeding a claim
 // that is not yet a post-fixpoint. See lengthFacts.
 func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
-	seed map[string]ival) (*IntervalReport, *core.Term) {
+	seed map[string]ival, noChecked ...bool) (*IntervalReport, *core.Term) {
 
 	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
 	rep.MaxOp = bottom
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0,
-		bound: map[string]bool{}}
+		bound: map[string]bool{}, big: map[string]bool{}, bigReads: map[string]bool{},
+		noChecked: len(noChecked) > 0 && noChecked[0]}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -630,6 +655,23 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		t = t.Body()
 	}
 	p.env = env
+	// REPRESENTATION SEEDS (bigrep.go). A parameter declared above the portable
+	// window IS a bignum on the way in; a result declared above it is the DEMAND
+	// that makes the pass bidirectional. These two are the only sources — every
+	// other big value in the program is derived from one of them, which is ADR
+	// 0019's blast-radius claim made structural rather than asserted.
+	if tgt.HasBig() && sig != nil {
+		if core.ValueType(sig.Result) == core.BigType {
+			p.wantBig = true
+		}
+		if head != nil {
+			for i, n := range head.Params {
+				if i < len(sig.Params) && core.ValueType(sig.Params[i].Type) == core.BigType {
+					p.big[n] = true
+				}
+			}
+		}
+	}
 	p.elem = map[string]ival{}
 	// A DECLARED element range on a parameter. `(sig tokens ((src (array (int 0
 	// 255)))) int)` says a source byte is 0..255, so `(src i)` is too — which is
@@ -666,8 +708,10 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		p.assumeWhere(core.Rename2(sig.Where, sub))
 	}
 	p.count = false
-	p.eval(t) // settle loop fixpoints
+	p.demandBig = p.wantBig // the function's own result is the outermost demand
+	p.eval(t)               // settle loop fixpoints, and reach the representation fixpoint
 	p.count = true
+	p.demandBig = p.wantBig
 	res, out := p.evalR(t)
 	rep.Result = res
 	sort.Strings(rep.Unproven)
@@ -906,12 +950,53 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	vals := make([]ival, len(args))
 	kids := make([]*core.Term, 0, len(t.Kids))
 	kids = append(kids, op)
+	// A POSITION DEMANDS A BIGNUM WHEN THE PRIMITIVE SAYS SO, and otherwise it
+	// demands nothing. `let`, `if` and `loop` are handled above and each carries
+	// the demand to where the value actually goes; everything else consumes its
+	// arguments, and only a declared `big` parameter makes one a big position.
+	//
+	// This is what lets a WHOLE PROGRAM use arbitrary precision at all. Reduction
+	// inlines every non-exported call, so a helper's declared big result is gone
+	// by the time this pass runs — the same structural limit already recorded for
+	// a `where` on an internal definition and for index narrowing. What survives
+	// is the BOUNDARY: `(big-str …)` is where a value past 2^53 has to be named,
+	// because no host can print one as an `int`, and that is exactly where the
+	// demand comes from.
+	outerDemand := p.demandBig
 	for i, a := range args {
+		// AN `again` ARGUMENT IS DEMANDED BY ITS LOOP VARIABLE AND BY NOTHING
+		// ELSE, because `again` is a JUMP and not a value (ADR 0015). Letting
+		// the demand on the position the LOOP sits in reach its back edge
+		// promoted the loop counter of every bignum loop — `(+ i 1)` is an
+		// arithmetic operation in a big-demanded position and there is nothing
+		// locally wrong with that reading, which is why it has to be said here.
+		if op.Name == "again" {
+			p.demandBig = i < len(p.loopRaw) && p.big[p.loopRaw[i]]
+		} else {
+			p.demandBig = known && i < len(prim.Args) && prim.Args[i] == core.BigType
+		}
 		v, na := p.evalR(a)
+		// The widen is decided on the REBUILT argument: `selectBig` may have
+		// just turned it into a bignum, and wrapping that would be a type error
+		// rather than a conversion.
+		if p.demandBig && p.tgt.HasBig() && !p.bigTerm(na) {
+			na = core.App(core.Name("big-of"), na)
+		}
 		vals[i] = v
 		kids = append(kids, na)
 	}
+	p.demandBig = outerDemand
 	rebuilt := &core.Term{Kind: core.KApp, Kids: kids}
+
+	// THE RUNG ABOVE THE WORD (bigrep.go). Selected before `transfer`, because a
+	// big operation is not an operation the window accounting sees: its result
+	// is `big`, not `int`, so it is neither counted nor refused.
+	if nt, ok := p.selectBig(t, kids); ok {
+		if p.count {
+			p.rep.BigOps++
+		}
+		return top, nt
+	}
 
 	if op.Name == "again" {
 		return bottom, rebuilt // a back edge produces no value
@@ -988,7 +1073,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// the target declares — and if it declares none, that target cannot do
 		// exact arithmetic and covering says so, which is the capability model
 		// answering rather than a special case.
-		if !out.fits() && prim.Checked != "" {
+		if !out.fits() && prim.Checked != "" && !p.noChecked {
 			kids[0] = core.Name(prim.Checked)
 			if p.count {
 				p.rep.Selected++
@@ -1128,11 +1213,26 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
 		return top, t
 	}
+	outerDemand := p.demandBig
+	p.demandBig = false
 	v, nv := p.evalR(args[0])
+	p.demandBig = outerDemand
 	k := args[1]
 	body, raw, _ := openFresh(k, p.bound, asmIdent)
 	old, had := p.env[raw[0]]
 	p.env[raw[0]] = v
+	// RULE (S), SUPPLY: a name bound to a big expression is big. This is where
+	// arbitrary precision crosses a binder, and it is why `bigTerm` may answer
+	// NO for a `let` body without losing anything — the name inside carries the
+	// fact instead of the shape outside having to see through it.
+	oldBig, hadBig := p.big[raw[0]], p.big != nil
+	if p.big != nil {
+		if p.bigTerm(args[0]) {
+			p.big[raw[0]] = true
+		} else {
+			delete(p.big, raw[0])
+		}
+	}
 	// A TABLE'S LENGTH SURVIVES THE BINDING. Call-by-need let-binds an argument
 	// used more than once (ADR 0010), so a program that passes a literal
 	// document to a tokeniser arrives here as
@@ -1146,6 +1246,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 		p.env[lenKey] = exact(n)
 	}
 	out, nb := p.evalR(body)
+	wasBigBody := p.bigTerm(nb) // recorded before the binder goes out of scope
 	if hadL {
 		p.env[lenKey] = oldL
 	} else {
@@ -1157,9 +1258,18 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	} else {
 		delete(p.env, raw[0])
 	}
+	if hadBig {
+		if oldBig {
+			p.big[raw[0]] = true
+		} else {
+			delete(p.big, raw[0])
+		}
+	}
 	p.releaseBound(raw)
 	// core.Fn closes an OPEN body, which is exactly what openFresh handed us.
-	return out, core.App(t.Op(), nv, core.Fn(raw, nb))
+	rebuilt := core.App(t.Op(), nv, core.Fn(raw, nb))
+	p.markBig(rebuilt, wasBigBody)
+	return out, rebuilt
 }
 
 func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
@@ -1167,7 +1277,10 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 	if len(args) != 3 {
 		return top, t
 	}
+	outerDemand := p.demandBig
+	p.demandBig = false
 	_, nc := p.evalR(args[0])
+	p.demandBig = outerDemand
 	saved := p.snapshot()
 	p.refine(args[0], true)
 	a, na := p.evalR(args[1])
@@ -1175,6 +1288,22 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 	p.refine(args[0], false)
 	b, nb := p.evalR(args[2])
 	p.restore(saved)
+	// THE TWO ARMS MUST AGREE ON A REPRESENTATION, because no host can type a
+	// conditional whose branches are a machine word and a bignum — Go and Java
+	// would not compile it and JavaScript would throw a TypeError on the first
+	// arithmetic that mixed them. The join in the two-point lattice is `big`, so
+	// the word arm is widened rather than the big one narrowed; narrowing is the
+	// direction that loses a value.
+	// Decided on the REBUILT arms, and a JUMP is never widened: an `again` has
+	// no value to convert, and wrapping one emitted `big-of(goto)`.
+	if p.big != nil && p.tgt.HasBig() {
+		ba, bb := p.bigTerm(na), p.bigTerm(nb)
+		if ba && !bb && !isJumpTerm(nb) {
+			nb = core.App(core.Name("big-of"), nb)
+		} else if bb && !ba && !isJumpTerm(na) {
+			na = core.App(core.Name("big-of"), na)
+		}
+	}
 	return joinI(a, b), core.App(t.Op(), nc, na, nb)
 }
 
@@ -1679,12 +1808,18 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	lam, inits := args[0], args[1:]
 	initV := make([]ival, len(inits))
 	nInits := make([]*core.Term, len(inits))
+	outerDemand, outerLoopTail := p.demandBig, p.loopTail
+	p.loopTail = p.demandBig // an exit of THIS loop sits in the enclosing position
+	p.demandBig = false
+	outerLoopRaw := p.loopRaw
 	for i, z := range inits {
 		initV[i], nInits[i] = p.evalR(z)
 	}
+	p.demandBig = outerDemand
 	cur := make([]ival, len(initV))
 	copy(cur, initV)
 	body, raw, _ := openFresh(lam, p.bound, asmIdent)
+	p.loopRaw = raw // `again` reads this to know which arguments are bignums
 
 	saved := p.snapshot()
 	wasCounting := p.count
@@ -1755,6 +1890,41 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 		}
 	}
 
+	// THE REPRESENTATION FIXPOINT (bigrep.go), run on the settled intervals
+	// because rule (P) is gated on them: a name a big operation reads is
+	// promoted only if it is NOT provably inside the window, which is what keeps
+	// a bignum loop from acquiring a bignum loop counter.
+	//
+	// It re-runs `step`, which is what propagates supply through `let`s and
+	// through the operations themselves — so demand and supply are not two
+	// walks, they are one walk iterated. Monotone over a two-point lattice with
+	// finitely many names, so it terminates; the bound is one promotion per
+	// variable plus a sweep to observe stability.
+	if p.tgt.HasBig() && (p.loopTail || len(p.big) > 0) {
+		for round := 0; round < len(raw)+3; round++ {
+			p.bigChanged = false
+			p.bigReads = map[string]bool{}
+			step(cur)
+			for k, nm := range raw {
+				if p.bigReads[nm] && !cur[k].fits() {
+					p.promote(nm)
+				}
+			}
+			if !p.bigChanged {
+				break
+			}
+		}
+		// A PROMOTED VARIABLE HAS NO WINDOW BOUND, and saying so is not a loss:
+		// it is the interval domain declining to claim something about a value
+		// that is no longer held in a machine word. Leaving a stale finite
+		// interval there would let a later operation on it be "proven".
+		for k, nm := range raw {
+			if p.big[nm] {
+				cur[k] = top
+			}
+		}
+	}
+
 	// SIZE CHANGE, in two sweeps because orientation depends on the steps and
 	// the graphs depend on the orientation.
 	//
@@ -1821,6 +1991,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	}
 	p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn =
 		oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn
+	p.loopTail, p.loopRaw = outerLoopTail, outerLoopRaw
 
 	p.count = wasCounting
 	p.restore(saved)
@@ -1845,12 +2016,41 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// the direction that makes the headline number worse rather than better,
 	// which is the only reason it was not mistaken for a result.
 	out, nb := p.evalR(body)
+	// Whether the loop RETURNS a bignum, recorded while its variables are still
+	// in scope: after `releaseBound` the names mean nothing.
+	bigExit := p.chainBig(nb)
+	// THE INITIAL VALUE OF A PROMOTED VARIABLE IS WIDENED HERE, and it is not a
+	// detail: an accumulator starts at the literal `1`, and the emitter reads a
+	// loop variable's TYPE off its initialiser. Without this the Go backend
+	// declares `acc := 1` and then assigns a `*big.Int` to it.
+	if p.tgt.HasBig() {
+		for i := range nInits {
+			if i < len(raw) && p.big[raw[i]] && !p.bigTerm(inits[i]) {
+				nInits[i] = core.App(core.Name("big-of"), nInits[i])
+			}
+		}
+	}
 	for _, nm := range raw {
 		delete(p.env, nm)
 	}
+	bigRaw := make([]bool, len(raw))
+	for i, nm := range raw {
+		bigRaw[i] = p.big[nm]
+	}
 	p.releaseBound(raw)
+	// The names go out of scope with the binder, but their REPRESENTATION does
+	// not travel with them: `p.big` is keyed by fresh names and releaseBound
+	// hands those back for reuse, so a stale entry would make the next binder
+	// with the same name big for no reason.
+	for i, nm := range raw {
+		if bigRaw[i] {
+			delete(p.big, nm)
+		}
+	}
 	kids := append([]*core.Term{t.Op(), core.Fn(raw, nb)}, nInits...)
-	return out, &core.Term{Kind: core.KApp, Kids: kids}
+	rebuiltLoop := &core.Term{Kind: core.KApp, Kids: kids}
+	p.markBig(rebuiltLoop, bigExit)
+	return out, rebuiltLoop
 }
 
 // collectAgain walks the clause chain, refining by each guard, and joins the
@@ -1884,6 +2084,14 @@ func (p *intervalPass) updateIval(a *core.Term, self string) ival {
 }
 
 func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
+	// RULE (D) AT AN EXIT (bigrep.go). Everything this walker does not recurse
+	// into is a clause body that RETURNS, which is the loop's value — so when
+	// that value is the function's declared big result, a clause returning a
+	// bare loop variable is where the declaration gets its grip. This is the
+	// backward half of the solver, and it is here rather than in a walk of its
+	// own because this is the one place the clause chain is traversed with its
+	// binders already opened.
+	p.exitDemand(t)
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if prim, ok := p.tgt.Prims[t.Op().Name]; ok && prim.Kind == "cond" && len(t.Args()) == 3 {
 			saved := p.snapshot()
@@ -1923,7 +2131,17 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 		}
 		if t.Op().Name == "again" {
 			args := t.Args()
+			// RULE (D) AT THE BACK EDGE (bigrep.go), before the intervals,
+			// because the representation decides whether the interval matters.
+			p.againDemand(args, raw)
+			// AND THE SAME REASON `app` HAS TO SAY IT: this walker evaluates the
+			// arguments itself, so the ambient demand — the one belonging to the
+			// position the whole LOOP sits in — would reach them. It is not a
+			// duplicate of the rule in `app`; that one rebuilds the term and this
+			// one settles the fixpoint, and both walk the back edge.
+			outerDemand := p.demandBig
 			for i, a := range args {
+				p.demandBig = i < len(raw) && p.big[raw[i]]
 				if i >= len(acc) {
 					continue
 				}
@@ -1941,6 +2159,7 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 				}
 				acc[i] = joinI(acc[i], p.eval(a))
 			}
+			p.demandBig = outerDemand
 			if p.scOn {
 				for j := range p.scRaw {
 					if j >= len(args) {

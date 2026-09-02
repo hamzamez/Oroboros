@@ -138,16 +138,34 @@ func (c *checker) agree(what, got, want string) error {
 	}
 	// A RANGE WIDER THAN THE WINDOW gets its own message, because "but int is
 	// required here" is true and explains nothing. This is the rung above the
-	// host's word: the value is not an `int`, it is arbitrary precision, and the
-	// refusal is where a programmer finds that out.
-	if core.ExceedsWindow(got) && core.ValueType(want) == "int" {
+	// host's word, and two different things can go wrong there.
+	//
+	// THE TARGET HAS NO BIGNUM. Then it is not the program that is wrong; it is
+	// the capability model answering, exactly as JavaScript answers for the
+	// CHECKED primitive it does not declare. Naming the target is the whole value
+	// of the message.
+	if core.ValueType(want) == core.BigType && !c.tgt.HasBig() {
+		return fmt.Errorf("%s needs arbitrary precision — %s is above the portable "+
+			"window ±(2^53−1) — and target %s declares none.\n"+
+			"  Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three "+
+			"parasitize the host's own. A target without one needs a bignum WRITTEN, in "+
+			"Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).",
+			what, core.ShowType(want), c.tgt.Name)
+	}
+	// THE PROGRAM USED A BIGNUM WHERE A WORD IS REQUIRED. That refusal is the
+	// point rather than a wart: the promotion is a WIDENING, not a refinement, so
+	// it may not happen silently in the narrowing direction.
+	// `got` is either the declared range itself or, once the representation has
+	// been selected, the `big` it normalises to — the same claim arriving from
+	// the two sides of the promotion, so both spellings have to be caught.
+	if (core.ExceedsWindow(got) || got == core.BigType) && core.ValueType(want) == "int" {
 		return fmt.Errorf("%s is %s, which is WIDER than the portable window "+
-			"±(2^53−1), so it is not an `int` — arbitrary precision is a rung "+
-			"above the host's word and is not implemented yet "+
-			"(docs/unbounded-rung.md).\n"+
-			"  A range above the window is a WIDENING, not a refinement: a value "+
-			"that may leave the machine word cannot silently be used where an "+
-			"`int` is required, and this refusal is where that is said.", what, got)
+			"±(2^53−1), so it is not an `int` — it is arbitrary precision, "+
+			"a rung above the host's word (docs/unbounded-rung.md).\n"+
+			"  A range above the window is a WIDENING, not a refinement: a value that "+
+			"may leave the machine word cannot silently be used where an `int` is "+
+			"required, and this refusal is where that is said. Widen the destination, "+
+			"or take the value to a string with `big-str`.", what, core.ShowType(got))
 	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
 }
@@ -373,6 +391,13 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			if err != nil {
 				continue // reduction already reports this better
 			}
+			// THE CLAIM IS CHECKED AGAINST THE PROGRAM THE EMITTER WILL EMIT,
+			// which for a declared range above the portable window means after
+			// the representation is selected (emit/bigrep.go). Checking the
+			// un-promoted residual refuses every one of them: `(+ a b)` types as
+			// `int` and the signature says the result is bigger than a word,
+			// which is exactly the disagreement the promotion resolves.
+			nf, _ = PromoteBig(tgt, sig, nf)
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err
 			}

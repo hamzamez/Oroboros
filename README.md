@@ -703,14 +703,17 @@ The honest list, with the reasoning written down rather than deferred to memory:
   **growable collections are withdrawn**: count-then-build measures **2.95× faster than growing
   `append` on Go** and at parity on JavaScript, so the workaround every array language uses is
   better than the thing it works around ([maps-2026-08-30](gauntlet/results/maps-2026-08-30.md)).
-- **What integers still owe**, now that the operators are the language's: covering for the
-  JavaScript division hazard, so a program dividing by an unbounded value is told it is not portable
-  there — `1/0` is `Infinity` on V8 where three hosts trap; `f64 → int`, which is three hosts and
-  three out-of-domain answers; **bitwise as a *conditional* promotion**, legal exactly when a
-  declared range fits int32; and [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s
-  remaining three — a spelling for the unbounded rung, a **bidirectional** representation solver
-  (factorial is the witness: the pressure comes from the declared *result*), and arbitrary precision
-  emitted per target rather than hand-written.
+- **What integers still owe**, now that the operators are the language's and
+  [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s three escapes all exist: `f64 → int`,
+  which is three hosts and three out-of-domain answers; **bitwise as a *conditional* promotion**,
+  legal exactly when a declared range fits int32; and the two rungs above the host's word that are
+  named and not built. **A declared range above the portable window is arbitrary precision now**, at
+  parity with hand-written bignum code on the three hosts that ship one — Go 1.01×, JavaScript 1.00×,
+  Java 0.92× on fib(1000) ([bigrep-2026-09-02](gauntlet/results/bigrep-2026-09-02.md)) — with windows
+  refusing by name, because it declares no bignum. What is left is a **mutable** bignum, worth 4.1×
+  to 6.4× and blocked on the same linear-buffer gap as Karatsuba's workspace and the stencil, and the
+  **fixed-limb** rung, where a *finite* endpoint becomes a limb count and a `build` of known length —
+  bigarith's 3.97×/6.2×/5.8×, and the thing `(int 0 (pow 2 70))` was actually built to name.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

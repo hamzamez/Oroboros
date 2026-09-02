@@ -144,6 +144,31 @@ implemented yet.
 **Cost: no emitted file changes on any target.** The spelling exists and refuses honestly; what it
 does not yet do is *select a representation*, which is R3 — §5's ordering is unchanged.
 
+### 3b. AND R3 IS BUILT — 2026-09-02
+
+[bigrep-2026-09-02](../gauntlet/results/bigrep-2026-09-02.md). A range above the window now selects
+the target's own bignum, and the emitted code is **at parity with hand-written** on all three hosts
+that have one. So §3's refusal has stopped being the whole feature and become its boundary: a value
+above the window IS arbitrary precision, and the refusal is what stops it silently becoming an `int`
+again.
+
+**What this document got right and what it missed.** §2's split — bounded-but-huge and unbounded are
+two rungs — held, and §2.1's *an endpoint is a bound, not a value* is what made both the spelling and
+the selection cheap. §3's widening refusal fell out of `ValueType` with one message added, exactly as
+predicted; the fourth effect it names is one line (`ValueType` of an out-of-window range is `big`).
+
+**What it missed is that the bounded rung is not reached by having the spelling.** This build uses a
+declared endpoint only to compare against the window; it does not use a FINITE endpoint as a **limb
+count**, which is where bigarith's measured factor of four actually lives. §2's table says the
+bounded rung is *"the half where the factor of four lives"* — and it is, and having its syntax was
+necessary and nowhere near sufficient. Selecting a fixed-limb representation from an endpoint is
+still owed, and is now the top of the list.
+
+**And §5's falsifier 2 was right for a reason it did not name.** It watched for the twelve-site
+`int64` widening turning out to be more than mechanical. That widening never happened, because
+§3a's expression form removed the need for it — and what was more than mechanical instead was the
+*solver*: three rules rather than two, with the third gated on a proof.
+
 ## 4. Candidates
 
 
@@ -207,6 +232,9 @@ IS, and these two say the same thing and mean different ones.
 ---
 
 ## 5. What this suggests, and what would falsify it
+
+**Both halves of §3a/§3b are now done — the spelling and the selection.** What remains from this
+document is 4.2, and the list of what R3 still owes is in bigrep-2026-09-02 §8.
 
 **Do 4.1 first, and treat 4.2 as the follow-on.** The bounded rung is where the measurement is, it
 needs no new syntax, and it is the prerequisite for a representation solver that has anything to

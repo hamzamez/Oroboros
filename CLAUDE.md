@@ -1726,6 +1726,42 @@ rather than emulated: outside the window (no claim), **division by zero** (a pre
 JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
 three answers). Not settled deliberately: a bignum, which needs the product first.
 
+**A FIXED-LIMB BIGNUM IS WRITTEN IN OROBOROS, PROVABLE, AND AGREES ON FOUR TARGETS** —
+[examples/big/limbs.oro](examples/big/limbs.oro), differential case `big-limbs`. Base-2^24 limbs
+with `/` and `%` for the carry split, naming **no host** — which is what integers.md's promotion
+bought, since before it this had to be written four times. Limbs 0, 20 and 51 of 200! are 0,
+7266130 and 2730071 on Go, JavaScript, Java **and x86-64**, checked against `math/big`. That is
+**windows getting arbitrary precision from a library rather than a host bignum**, which is what ADR
+0019 item 4 says it needs. **What is NOT done is selecting it**: nothing yet wires
+`(int 0 (pow 2 1000))` to the library, and that is the last integer feature.
+
+**It is 20 of 20 integer operations bounded and 12 of 12 loops, with no clamp, no mask and no
+declared range** — and what refused it was the ANALYSIS, not the language. Two facts were missing.
+
+**A DIVISOR CONTRACTS, and `remI` was returning the QUOTIENT's interval.** `divI` kept the
+dividend's bound and ignored the divisor, which is sound and throws away the one fact a carry chain
+is made of: `c' = (bounded + c) / 2^24` settles in two iterations, and read as `c' = bounded + c` it
+grows, widens to infinity and takes every limb operation with it. Fixing it exposed `remI`'s
+fallback — `return divI(a, b)` for an unbounded divisor — which was sound only *by accident*, because
+divI used to be imprecise enough to cover it. **Both had never been checked at all**: the containment
+generator produced only `+`, `-`, `*` and comparisons, so 4,877 random programs a run contained no
+division. It now generates them, plus a direct test over 240,000 concrete pairs, and both bug shapes
+are verified to fail it.
+
+**A LOOP VARIABLE THAT HOLDS A TABLE GETS AN ELEMENT RANGE**, joined from its initialiser and every
+non-pass-through `again` argument — the only two sources of its value. Non-circular for
+frozen-2026-08-28's reason: the join analyses each source's own `build`, where the loop variable is
+FREE, so a read of it inside is unknown and the stores that do not read it decide.
+
+**AND THE PRECISION EXPOSED A LATENT WIDTH BUG, whose lucky case is a compile error.** A
+loop-carried buffer has several sources and one variable, each narrowed on its own — fine until two
+disagreed, which nothing in the corpus did before. Go refused the file; **JavaScript narrows nothing
+and on x86 the element size travels BY NAME, so reading a byte table as qwords is a wrong answer**,
+and windows was emitting `movb` against a qword table. `LoopOneJoin` gives every source of a loop
+variable one element type. **It is per-LOOP and takes the body already OPEN, which is the THIRD time
+this compiler has been caught by `Body()` and `openFresh` REBUILDING** — computed once per function
+it fixed the first of four identical sequenced calls and none of the others.
+
 **AND THE MUTABLE BIGNUM IS BUILT — WE ARE NOW FASTER THAN CAREFUL HAND-WRITTEN GO** —
 [bigreuse-2026-09-02](gauntlet/results/bigreuse-2026-09-02.md), [emit/bigreuse.go](emit/bigreuse.go).
 A bignum operation writes into storage nothing live can read instead of allocating: **fib(1000)

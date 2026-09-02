@@ -166,6 +166,27 @@ func (g *gen) expr(depth int) *core.Term {
 			core.App(core.Name("if"), g.pred(), g.expr(depth+1), g.expr(depth+1)),
 			g.expr(depth+1))
 	}
+	// DIVISION AND REMAINDER, which this generator did not produce until a carry
+	// chain needed them — so `divI` and `remI` had never been checked for
+	// γ-soundness at all, and a change to either was unfalsifiable here.
+	//
+	// The divisor is a NONZERO LITERAL, for two reasons that happen to agree:
+	// division by zero is a precondition the refinement layer discharges
+	// separately (integers.md §5) and the concrete interpreter would have to
+	// invent an answer three hosts disagree on; and a literal base is the shape
+	// that matters, because it is what a limb split is.
+	//
+	// Negative divisors are generated too. Truncation is toward zero and the
+	// remainder takes the DIVIDEND's sign, so the four sign combinations are
+	// four different paths through both transfer functions.
+	if g.r.Intn(6) == 0 {
+		op := []string{"go./", "go.%"}[g.r.Intn(2)]
+		d := int64(1 + g.r.Intn(2000))
+		if g.r.Intn(4) == 0 {
+			d = -d
+		}
+		return core.App(core.Name(op), g.expr(depth+1), core.Int(d))
+	}
 	op := []string{"go.+", "go.-", "go.*"}[g.r.Intn(3)]
 	return core.App(core.Name(op), g.expr(depth+1), g.expr(depth+1))
 }
@@ -542,6 +563,32 @@ func (r *runner) prim(name string, v []int64) (bval, error) {
 		out = v[0] * v[1]
 	case "neg":
 		out = -v[0]
+	// DIVISION AND REMAINDER ARE EVALUATED BUT NOT RECORDED, and that is the
+	// analysis's contract rather than a gap in this harness.
+	//
+	// `transfer` returns them with `checkable = false`, so `MaxOp` — the join of
+	// every operation that would need an overflow check — deliberately does not
+	// see them (they cannot grow a value, so nothing can leave the window
+	// through one). Checking their results against MaxOp therefore tests a
+	// property the analysis has never claimed, and it fails on the third
+	// program the generator writes.
+	//
+	// What DOES check them is TestDivisionAndRemainderContain, directly and
+	// exhaustively over the four sign combinations — which is stronger than this
+	// harness could be for them anyway, because it quantifies over the DIVISOR's
+	// interval rather than over whatever one program happens to contain.
+	//
+	// Go's own `/` and `%` on int64 ARE the language's semantics — truncation
+	// toward zero and a remainder taking the dividend's sign — which
+	// integers.md §3 and §4 measured all four hosts agreeing on.
+	case "div", "rem":
+		if v[1] == 0 {
+			return bval{}, fmt.Errorf("division by zero")
+		}
+		if arithOp(name, len(v)) == "div" {
+			return bval{n: v[0] / v[1]}, nil
+		}
+		return bval{n: v[0] % v[1]}, nil
 	default:
 		return bval{}, fmt.Errorf("prim %s", name)
 	}
@@ -549,6 +596,91 @@ func (r *runner) prim(name string, v []int64) (bval, error) {
 	// lives, so the harness cannot drift from what it is checking.
 	r.ops = append(r.ops, out)
 	return bval{n: out}, nil
+}
+
+// γ-SOUNDNESS OF DIVISION AND REMAINDER, checked directly.
+//
+// These two transfer functions had never been checked at all: the containment
+// generator produced only `+`, `-`, `*` and comparisons, so `divI` and `remI`
+// were unfalsifiable there from the day they were written — and a carry chain
+// is made of nothing else.
+//
+// The property is the same one, at the level of the operation: for every
+// concrete a ∈ γ(A) and b ∈ γ(B) with b ≠ 0,
+//
+//	a / b ∈ γ(divI(A, B))    and    a % b ∈ γ(remI(A, B))
+//
+// CONTAINMENT, never tightness. A claim too wide costs precision; one too
+// narrow is a silent wrong answer, and for `divI` specifically a narrow claim
+// would let an operation be "proven" inside the portable window when it is not.
+func TestDivisionAndRemainderContain(t *testing.T) {
+	r := rand.New(rand.NewSource(7))
+	bounds := []int64{-1000000, -70000, -1000, -7, -1, 0, 1, 7, 1000, 70000, 1000000}
+	pick := func() ival {
+		lo := bounds[r.Intn(len(bounds))]
+		hi := bounds[r.Intn(len(bounds))]
+		if lo > hi {
+			lo, hi = hi, lo
+		}
+		v := ival{lo: lo, hi: hi}
+		// One in eight is half-open, because an unbounded dividend divided by a
+		// bounded divisor is exactly the carry chain's shape before the fixpoint
+		// settles, and it is the case the contraction must NOT claim to bound.
+		switch r.Intn(8) {
+		case 0:
+			v.hiInf = true
+		case 1:
+			v.loInf = true
+		}
+		return v
+	}
+	tried := 0
+	for round := 0; round < 20000; round++ {
+		A, B := pick(), pick()
+		dv, rv := divI(A, B), remI(A, B)
+		for s := 0; s < 12; s++ {
+			a, ok1 := sample(r, A)
+			b, ok2 := sample(r, B)
+			if !ok1 || !ok2 || b == 0 {
+				continue
+			}
+			tried++
+			if !holds(dv, a/b) {
+				t.Fatalf("divI(%s, %s) = %s, but %d / %d = %d", A, B, dv, a, b, a/b)
+			}
+			if !holds(rv, a%b) {
+				t.Fatalf("remI(%s, %s) = %s, but %d %% %d = %d", A, B, rv, a, b, a%b)
+			}
+		}
+	}
+	// ANTI-VACUITY. A generator that never produced a legal pair would pass
+	// forever while testing nothing — the same guard the buffer half of this
+	// file needs and for the same reason.
+	if tried < 50000 {
+		t.Fatalf("only %d concrete pairs were checked; the sampler is not "+
+			"producing them", tried)
+	}
+}
+
+// sample draws a concrete value from an interval, or reports that it cannot —
+// an infinite end is sampled at a large magnitude rather than skipped, because
+// the unbounded cases are the ones the contraction must handle.
+func sample(r *rand.Rand, v ival) (int64, bool) {
+	lo, hi := v.lo, v.hi
+	if v.loInf {
+		lo = -1 << 40
+	}
+	if v.hiInf {
+		hi = 1 << 40
+	}
+	if lo > hi {
+		return 0, false
+	}
+	span := hi - lo
+	if span < 0 { // overflow on a doubly-infinite interval
+		return r.Int63() - (1 << 40), true
+	}
+	return lo + r.Int63n(span+1), true
 }
 
 func b2i(b bool) int64 {

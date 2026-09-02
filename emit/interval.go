@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -145,6 +146,31 @@ func mulI(a, b ival) ival {
 // divI is conservative: truncating division never increases magnitude except
 // for the one degenerate case, and a divisor that may be zero says nothing.
 func divI(a, b ival) ival {
+	// THE DIVISOR CONTRACTS, and using it is what makes a CARRY CHAIN provable.
+	//
+	// |a / b| <= |a| / min|b|, because truncation toward zero only ever moves a
+	// quotient closer to zero and the SMALLEST divisor produces the largest
+	// quotient. Ignoring the divisor is sound and it was throwing away the one
+	// fact a bignum needs: `c' = (bounded + c) / 2^24` contracts, so the carry
+	// settles in two iterations — and without the contraction it looks like
+	// `c' = bounded + c`, which grows, widens to infinity, and takes every limb
+	// operation in the program with it.
+	//
+	// Zero is not excluded from a divisor's interval here. Division by zero is a
+	// PRECONDITION the refinement layer discharges separately (integers.md §5),
+	// and an abstract transfer function may not assume a precondition it does
+	// not check — so a divisor that might be 0 or +-1 contracts by 1, which is
+	// exactly the old behaviour.
+	d := int64(1)
+	switch {
+	case !b.loInf && b.lo >= 1:
+		d = b.lo
+	case !b.hiInf && b.hi <= -1:
+		d = -b.hi
+	}
+	if d < 1 {
+		d = 1
+	}
 	// A non-negative dividend and a positive divisor keep the sign, and keeping
 	// it matters: without this the decimal printer's `m / 10` lost m's floor,
 	// and with no floor there is no well-founded descent and the loop could not
@@ -152,7 +178,7 @@ func divI(a, b ival) ival {
 	if !a.loInf && a.lo >= 0 && !b.loInf && b.lo >= 1 {
 		out := ival{lo: 0, hiInf: a.hiInf}
 		if !a.hiInf {
-			out.hi = a.hi
+			out.hi = a.hi / d
 		}
 		return out
 	}
@@ -163,26 +189,74 @@ func divI(a, b ival) ival {
 	if -a.lo > m {
 		m = -a.lo
 	}
-	return ival{lo: -m, hi: m}
+	return ival{lo: -(m / d), hi: m / d}
 }
 
 // remI is bounded by the divisor when the divisor is, and by the dividend
 // otherwise.
 func remI(a, b ival) ival {
-	if b.bounded() && !a.loInf && a.lo >= 0 && b.lo >= 1 {
-		return ival{lo: 0, hi: b.hi - 1}
+	// |a % b| <= min(|a|, |b| − 1), and the SIGN FOLLOWS THE DIVIDEND
+	// (integers.md §4, measured agreeing on all four hosts).
+	//
+	// Both halves of the minimum are needed and each is the only bound in some
+	// program. `7 % b` for an unbounded b is at most 7, which no fact about the
+	// divisor gives; `a % 16777216` for an unbounded a is under 2^24, which no
+	// fact about the dividend gives — and that second one is every carry split
+	// in a bignum.
+	//
+	// THE OLD FALLBACK RETURNED `divI(a, b)` FOR AN UNBOUNDED DIVISOR, which is
+	// the QUOTIENT's interval and has nothing to do with a remainder. It was
+	// sound only by accident: `divI` used to ignore the divisor and answer
+	// [0, a.hi], which happens to contain a % b. Making division contract turned
+	// that accident into `remI([1,7], [7,+inf)) = [0,1]` while `4 % 518733664200`
+	// is 4 — caught by the first run of the direct soundness test, which had
+	// never existed because the containment generator produced no division.
+	m, have := int64(-1), false
+	if a.bounded() {
+		m, have = maxAbs(a), true
 	}
 	if b.bounded() {
-		m := b.hi - 1
-		if -b.lo-1 > m {
-			m = -b.lo - 1
+		mb := maxAbs(b) - 1
+		if mb < 0 {
+			mb = 0
 		}
-		if m < 0 {
-			m = 0
+		if !have || mb < m {
+			m, have = mb, true
 		}
-		return ival{lo: -m, hi: m}
 	}
-	return divI(a, b)
+	if !have {
+		return top
+	}
+	switch {
+	case !a.loInf && a.lo >= 0:
+		return ival{lo: 0, hi: m}
+	case !a.hiInf && a.hi <= 0:
+		return ival{lo: -m, hi: 0}
+	}
+	return ival{lo: -m, hi: m}
+}
+
+// maxAbs is the largest magnitude a BOUNDED interval contains, saturated so
+// that negating the most negative int64 cannot wrap.
+func maxAbs(v ival) int64 {
+	m := v.hi
+	if m < 0 {
+		m = -m
+	}
+	lo := v.lo
+	if lo == math.MinInt64 {
+		lo = math.MinInt64 + 1
+	}
+	if lo < 0 {
+		lo = -lo
+	}
+	if lo > m {
+		m = lo
+	}
+	if m < 0 {
+		m = math.MaxInt64
+	}
+	return m
 }
 
 func joinI(a, b ival) ival {

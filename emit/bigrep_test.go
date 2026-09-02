@@ -59,7 +59,10 @@ const factSrc = `(export fact)
 // pass the entire current corpus and fail on the first factorial".
 func TestADeclaredResultPromotesTheAccumulatorBackwards(t *testing.T) {
 	got := promoteOn(t, "../targets/go", factSrc, "fact")
-	if !strings.Contains(got, "(big* acc") {
+	// Either spelling: the multiply may since have been given a DESTINATION by
+	// emit/bigreuse.go, which is a question about allocation rather than about
+	// representation. This test is about the latter.
+	if !strings.Contains(got, "(big* acc") && !strings.Contains(got, "(big*! acc acc") {
 		t.Errorf("the accumulator was not promoted, so the declared result "+
 			"bought nothing:\n%s", got)
 	}
@@ -78,7 +81,8 @@ func TestADeclaredResultPromotesTheAccumulatorBackwards(t *testing.T) {
 // answer, only slower. A wrong answer would have been easier to catch.
 func TestAProvablyBoundedCounterStaysAMachineWord(t *testing.T) {
 	got := promoteOn(t, "../targets/go", factSrc, "fact")
-	if strings.Contains(got, "(big+ i") || strings.Contains(got, "(big> i") {
+	if strings.Contains(got, "(big+ i") || strings.Contains(got, "(big> i") ||
+		strings.Contains(got, "(big+! i") {
 		t.Errorf("the loop counter was promoted; it is provably 1..31 and a "+
 			"bignum counter is pure loss:\n%s", got)
 	}

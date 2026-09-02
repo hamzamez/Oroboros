@@ -250,13 +250,29 @@ demonstration wired into the default path is a decision, whether or not anyone m
    **What is NOT done is the rung the spelling was built to name.** This build uses a declared
    endpoint only to compare against the window; it does not use a FINITE endpoint as a limb count.
    That is where bigarith's 3.97x on Go, 6.2x on Java and 5.8x on V8 live, and it stays owed.
-5. **A mutable bignum**, which is new and is the clearest thing the measurement produced. The
-   emitted form allocates per operation because `math/big` and `BigInteger` do unless the caller owns
-   its temporaries; the careful form is **6.4x, 4.1x and 1.44x** faster on the three Go programs.
-   Reaching it needs the bignum to be a linear buffer threaded through the loop, which is ADR 0018's
-   buffer at a type the language does not have — **the same gap arrays-revisited.md's trigger 2 names
-   for Karatsuba's workspace and ADR 0013 names for the stencil. Three places, one gap**, and that is
-   now the strongest form of the argument for uniqueness types on parameters.
+5. ~~**A mutable bignum**~~ **DONE the same day** —
+   [bigreuse-2026-09-02](../../gauntlet/results/bigreuse-2026-09-02.md). Emitted code is **1.04x,
+   1.22x and 1.06x FASTER than careful hand-written Go**, at 10, 6 and 9 allocations against 2003,
+   400 and 18.
+
+   **And it needed no new type.** The prediction here was that it wants ADR 0018's linear buffer at a
+   type the language does not have; it does not. ADR 0015's loop makes the back edge ONE simultaneous
+   assignment whose operands are exactly the loop's variables, so the liveness argument is four
+   syntactic conditions on an `again` — and reduction has already made everything lexically local, so
+   there is nothing to thread. That is ADR 0018's own claim about reuse *inside* a program arriving
+   somewhere it was not expected.
+
+   **The other prediction was also wrong, and usefully.** "Three places, one gap" is not right:
+   `java.math.BigInteger` is immutable and JavaScript's `BigInt` is a primitive, so on two of the
+   three hosts that HAVE a bignum the careful form does not exist for a person to write either. It is
+   one gap on ONE host — a capability Go declares in six lines of its target file — and what the
+   other two need is the fixed-limb rung of item 4, which is a different thing. Karatsuba's workspace
+   and the stencil are still what arrays-revisited.md says they are.
+
+   **And we beat the careful form because its scratch is unnecessary on Go**: `-gcflags=-m` says the
+   `big.NewInt` we emit inside the loop does not escape, so it is stack-allocated, where the
+   hand-written scratch is a heap object plus a `[]Word`. ADR 0008 landing on received wisdom about
+   an API rather than on a host primitive.
 
 **The top rung is not one implementation, and this is the part the aesthetics hid.** Measured across
 all four hosts: **ours wins where the operation is linear and the host wins where it is quadratic.**

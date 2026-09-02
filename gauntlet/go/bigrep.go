@@ -80,3 +80,26 @@ func PowerBigReuse(b, e int) *big.Int {
 	}
 	return acc
 }
+
+// PairBig is the reference for `examples/big/pair.oro`, and it exists to make
+// rule R's liveness condition FALSIFIABLE.
+//
+// Both accumulators are read twice at each step — once by their own update and
+// once by the other's — so neither one's storage is free and neither update may
+// be written in place. With condition (3) removed the compiler writes
+// `a.Mul(a, b)` and the addition then adds the NEW a, and the answer changes.
+//
+// It took three attempts to find a shape where that is true. `power` and the
+// two obvious two-accumulator loops are saved by the Go emitter's own
+// scheduling: `PostVars` hoists an update into the post clause when it reads
+// nothing but its own variable, and a hoisted update runs after the body, where
+// the hazard cannot arise. Both updates here read the OTHER variable, so both
+// stay in the body and the order is exposed. A test that relies on being saved
+// by the scheduler is a test of the scheduler.
+func PairBig(n int) *big.Int {
+	a, b := big.NewInt(2), big.NewInt(1)
+	for i := 0; i < n; i++ {
+		a, b = new(big.Int).Mul(a, b), new(big.Int).Add(b, a)
+	}
+	return b
+}

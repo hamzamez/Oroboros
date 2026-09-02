@@ -484,7 +484,13 @@ func (tg *Target) addCore() {
 		}
 		if p, ok := tg.findBySpelling(op.name, op.arity); ok {
 			p.Name = op.name
-			p.Pure = true
+			// PURITY IS NOT UNIFORM HERE, and forcing it was a bug the moment
+			// the destination forms existed: `big+` allocates a fresh result and
+			// reads nothing it can change, but `big+!` WRITES INTO its first
+			// argument. Declaring that pure would let the reducer substitute one
+			// call into two places, and both would write the same object — which
+			// is exactly what ADR 0010's effect discipline exists to prevent.
+			p.Pure = op.pure
 			tg.Prims[op.name] = p
 			tg.Names = append(tg.Names, op.name)
 		}
@@ -504,10 +510,19 @@ func (tg *Target) addCore() {
 var bigOps = []struct {
 	name  string
 	arity int
+	pure  bool
 }{
-	{"big+", 2}, {"big-", 2}, {"big*", 2}, {"big/", 2}, {"big%", 2},
-	{"big<", 2}, {"big<=", 2}, {"big>", 2}, {"big>=", 2}, {"big=", 2},
-	{"big-of", 1}, {"big-str", 1},
+	{"big+", 2, true}, {"big-", 2, true}, {"big*", 2, true}, {"big/", 2, true}, {"big%", 2, true},
+	{"big<", 2, true}, {"big<=", 2, true}, {"big>", 2, true}, {"big>=", 2, true}, {"big=", 2, true},
+	{"big-of", 1, true}, {"big-str", 1, true},
+
+	// THE DESTINATION FORMS, where the first argument is the object written
+	// into. A target that cannot mutate its bignum declares none of these, and
+	// that is a fact about the host: `java.math.BigInteger` is immutable and
+	// JavaScript's `BigInt` is a primitive, so on two of the three hosts that
+	// HAVE a bignum the careful hand-written form does not exist either.
+	{"big+!", 3, false}, {"big-!", 3, false}, {"big*!", 3, false},
+	{"big/!", 3, false}, {"big%!", 3, false}, {"big-of!", 2, false},
 }
 
 // findBySpelling returns the target's own primitive whose UNQUALIFIED name is

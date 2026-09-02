@@ -710,10 +710,15 @@ The honest list, with the reasoning written down rather than deferred to memory:
   named and not built. **A declared range above the portable window is arbitrary precision now**, at
   parity with hand-written bignum code on the three hosts that ship one — Go 1.01×, JavaScript 1.00×,
   Java 0.92× on fib(1000) ([bigrep-2026-09-02](gauntlet/results/bigrep-2026-09-02.md)) — with windows
-  refusing by name, because it declares no bignum. What is left is a **mutable** bignum, worth 4.1×
-  to 6.4× and blocked on the same linear-buffer gap as Karatsuba's workspace and the stencil, and the
-  **fixed-limb** rung, where a *finite* endpoint becomes a limb count and a `build` of known length —
-  bigarith's 3.97×/6.2×/5.8×, and the thing `(int 0 (pow 2 70))` was actually built to name.
+  refusing by name, because it declares no bignum. On Go the emitted code is now **faster than
+  careful hand-written** — 1.04×, 1.22× and 1.06×, at 10, 6 and 9 allocations against 2003, 400 and
+  18 — because a bignum operation writes into storage nothing live can read
+  ([bigreuse-2026-09-02](gauntlet/results/bigreuse-2026-09-02.md)); it needed **no new type**, since
+  ADR 0015's loop makes the back edge one simultaneous assignment over the loop's own variables. That
+  is a Go capability and not a portable one: `BigInteger` is immutable and `BigInt` is a primitive, so
+  on those hosts the careful form does not exist for a person to write either. What is left for them
+  is the **fixed-limb** rung, where a *finite* endpoint becomes a limb count and a `build` of known
+  length — bigarith's 3.97×/6.2×/5.8×, and the thing `(int 0 (pow 2 70))` was actually built to name.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

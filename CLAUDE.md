@@ -1726,6 +1726,58 @@ rather than emulated: outside the window (no claim), **division by zero** (a pre
 JavaScript `1/0` is `Infinity` and it keeps going), and `f64 → int` out of domain (three hosts,
 three answers). Not settled deliberately: a bignum, which needs the product first.
 
+**AND THE MUTABLE BIGNUM IS BUILT — WE ARE NOW FASTER THAN CAREFUL HAND-WRITTEN GO** —
+[bigreuse-2026-09-02](gauntlet/results/bigreuse-2026-09-02.md), [emit/bigreuse.go](emit/bigreuse.go).
+A bignum operation writes into storage nothing live can read instead of allocating: **fib(1000)
+7,003 ns at 10 allocations against a careful hand-written 7,312 at 14; 200! 2,184 at 6 against 2,661
+at 7; 999^64 352 at 9 against 372 at 10** — **1.04x, 1.22x and 1.06x FASTER than the best
+hand-written Go**, and 6.8x/5.2x/1.55x over what we emitted that morning. The source did not change.
+
+**AND IT NEEDED NO NEW TYPE, which is the prediction being wrong in the useful direction.** ADR 0019
+and bigrep-2026-09-02 both said this wants ADR 0018's linear buffer at a type the language does not
+have. It does not: **ADR 0015's loop makes the back edge ONE simultaneous assignment whose operands
+are exactly the loop's variables**, so the liveness argument is four syntactic conditions on an
+`again` — and reduction has already made everything lexically local, so there is nothing to thread.
+That is ADR 0018's own claim about reuse *inside* a program arriving somewhere it was not expected.
+
+**RULE R**: argument aₖ may be computed in place into big loop variable vⱼ when (1) aₖ allocates
+today, (2) vⱼ occurs in aₖ so the receiver is its own operand, (3) **every** occurrence of vⱼ in the
+whole `again` is inside aₖ, and (4) **vⱼ's initialiser allocates in this function**. (3) failing is a
+wrong answer inside the loop; **(4) failing is a wrong answer in the CALLER** — a loop variable
+initialised from a big *parameter* holds an object the caller still owns, and `(loop ((acc n)) …)`
+looks exactly like `(loop ((acc 1)) …)`. The rule is conservative on purpose: `power`'s squaring
+reads `x` twice at one back edge, so no variable is free for it and it keeps its allocation.
+
+**"THREE PLACES, ONE GAP" WAS WRONG, and the correction matters.** `java.math.BigInteger` is
+IMMUTABLE and JavaScript's `BigInt` is a PRIMITIVE, so on two of the three hosts that have a bignum
+**the careful form does not exist for a person to write either** — our claim there was already at the
+bar. It is one gap on ONE host, closed by six declarations in `targets/go/bigint.oro` and no compiler
+code for the lowering. What Java and V8 need instead is the fixed-limb rung. Karatsuba's workspace and
+the stencil are still what arrays-revisited.md says they are.
+
+**AND WE BEAT THE CAREFUL FORM BECAUSE ITS SCRATCH IS UNNECESSARY ON GO.** The hand-written factorial
+keeps a reusable multiplicand and calls `SetInt64`; we emit a fresh `big.NewInt` in the loop and
+`-gcflags=-m` says **it does not escape**, so it is stack-allocated — cheaper than a heap object plus
+its `[]Word`. ADR 0008 landing on received wisdom about an API rather than on a host primitive, and
+checked with the compiler's own output because the clock alone would have left it a guess.
+
+**THE FALSIFICATION TOOK THREE ATTEMPTS, AND WHY IS A FACT ABOUT THE EMITTER.** Removing condition
+(3) leaves `power` and the obvious two-accumulator loops STILL CORRECT, because `PostVars` hoists an
+update that reads only its own variable into the post clause, which runs after the body where the
+hazard cannot arise. The shape that exposes it needs **both** updates to read the OTHER variable:
+`(again (* a b) (+ b a) …)` emits `a, b = a.Mul(a,b), b.Add(b,a)` and the addition adds the NEW a —
+`GenPair(2)` returns **9** where the answer is **5**. So it is `examples/big/pair.oro` plus a runtime
+test, not a unit test on the term. **A test that relies on being saved by the scheduler is a test of
+the scheduler.**
+
+**One bug, mine**: `addCore` forced `Pure = true` on every primitive it injects, which is right for
+`big+` and wrong for `big+!` — an operation that writes into an object it was handed is what ADR
+0010's discipline exists to sequence, and a pure declaration would let the reducer substitute one
+call into two places, both writing the same object.
+
+**Cost: all 41 pre-existing programs byte-identical on all four targets**, JS and Java bignum output
+unchanged, differential suite green.
+
 **ADR 0019'S THIRD ESCAPE IS REAL, AND IT IS AT PARITY** —
 [bigrep-2026-09-02](gauntlet/results/bigrep-2026-09-02.md), [emit/bigrep.go](emit/bigrep.go). A range
 declared ABOVE the portable window now promotes that value to arbitrary precision, and the emitted

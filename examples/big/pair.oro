@@ -1,0 +1,32 @@
+; TWO ACCUMULATORS THAT READ EACH OTHER -- the shape that makes rule R's
+; liveness condition load-bearing.
+;
+; Each of `a` and `b` is read TWICE at the back edge -- once by its own update
+; and once by the other's -- so NEITHER storage is free and neither update may
+; be written in place. Every backend emits the back edge as a simultaneous
+; assignment whose right-hand sides are evaluated in order, so a mutation in an
+; earlier one IS visible to a later one, and `a := a*b` followed by
+; `b := b + a` would add the NEW a.
+;
+; Both updates also read the OTHER loop variable, which is what keeps them in
+; the loop body: the Go emitter hoists an update into the post clause only when
+; it reads nothing but its own variable, and a hoisted update runs after the
+; body, where the hazard cannot arise. That is why `power` and the obvious
+; two-accumulator shapes do NOT expose this -- the scheduling saves them, and a
+; test that relies on being saved is testing the scheduler.
+;
+; It is here rather than only in a unit test because the failure is a WRONG
+; ANSWER and not a compile error, and this repository's rule is that a check
+; which cannot be made to fail proves nothing. With condition (3) removed this
+; program returns a different number, and `gauntlet/go/bigrep_test.go` says
+; which one.
+;
+
+(export pair)
+
+(sig pair ((n (int 0 20))) (int 0 (pow 2 20000)))
+
+(def pair (fn (n)
+  (loop ((a 2) (b 1) (i 0))
+    (>= i n)  b
+    else      (again (* a b) (+ b a) (+ i 1)))))

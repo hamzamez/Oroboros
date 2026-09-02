@@ -52,4 +52,34 @@
     ; is unbounded-rung.md §3 -- the promotion is a WIDENING, not a refinement,
     ; so it may not happen silently.
     (prim big-of (int) big expr "big.NewInt(int64(%s))" pure (import "math/big"))
-    (prim big-str (big) string expr "%s.String()" pure)))
+    (prim big-str (big) string expr "%s.String()" pure)
+
+    ; ---- THE DESTINATION FORMS, and Go is the only one of the four hosts that
+    ; can have them.
+    ;
+    ; `math/big` operations WRITE INTO THEIR RECEIVER and return it, so a caller
+    ; that owns its temporaries allocates nothing per step. Java's `BigInteger`
+    ; is immutable and the JDK's mutable version is package-private;
+    ; JavaScript's `BigInt` is a primitive. So this is not a Go optimisation we
+    ; could port -- it is a Go CAPABILITY, and the other two hosts declare
+    ; nothing here because there is nothing to declare.
+    ;
+    ; The first argument is the DESTINATION. `%s.Add(%s, %s)` is `z.Add(x, y)`,
+    ; and `math/big`'s contract explicitly permits `z` to alias `x` or `y` --
+    ; every operation reads its operands before writing the receiver. That
+    ; guarantee is what makes `acc.Mul(acc, k)` legal, and it is the host fact
+    ; the reuse rule in emit/bigreuse.go rests on.
+    ;
+    ; They are IMPURE, and that is load-bearing rather than pedantic: an
+    ; operation that writes into an object it was handed is exactly what ADR
+    ; 0010's effect discipline exists to keep in order. Declaring one pure would
+    ; let the reducer substitute a destination form into two places.
+    (prim big+! (big big big) big expr "%s.Add(%s, %s)")
+    (prim big-! (big big big) big expr "%s.Sub(%s, %s)")
+    (prim big*! (big big big) big expr "%s.Mul(%s, %s)")
+    (prim big/! (big big big) big expr "%s.Quo(%s, %s)")
+    (prim big%! (big big big) big expr "%s.Rem(%s, %s)")
+    ; Widening into an object that already exists, which is what removes the
+    ; other allocation in a loop: `acc.Mul(acc, big.NewInt(int64(i)))` still
+    ; allocates once an iteration for the multiplicand.
+    (prim big-of! (big int) big expr "%s.SetInt64(int64(%s))")))

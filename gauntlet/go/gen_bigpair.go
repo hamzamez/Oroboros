@@ -4,17 +4,17 @@ package gauntlet
 
 import "math/big"
 
-func GenFib(n int) *big.Int {
-	a := (big.NewInt(int64(0)))
+func GenPair(n int) *big.Int {
+	a := (big.NewInt(int64(2)))
 	b := (big.NewInt(int64(1)))
 	var i int = 0
 	for ; ; i = (i + 1) {
 		if (i >= n) {
 			break
 		}
-		a, b = b, (a.Add(a, b))
+		a, b = (new(big.Int).Mul(a, b)), (new(big.Int).Add(b, a))
 		continue
 	}
-	return a
+	return b
 }
 

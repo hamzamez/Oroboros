@@ -11,7 +11,7 @@ func GenFact(n int) *big.Int {
 		if (i > n) {
 			break
 		}
-		acc = (new(big.Int).Mul(acc, (big.NewInt(int64(i)))))
+		acc = (acc.Mul(acc, (big.NewInt(int64(i)))))
 		continue
 	}
 	return acc

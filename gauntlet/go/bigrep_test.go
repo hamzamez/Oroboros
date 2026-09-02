@@ -55,6 +55,29 @@ func TestFibOneHundredIsTheTrueValue(t *testing.T) {
 	}
 }
 
+// AND THE LIVENESS CONDITION, which is the one that cannot be checked by
+// reading the emitted code: with rule R's condition (3) removed the compiler
+// writes the product into `a` and the sum then adds the NEW a. Both answers
+// compile and both look reasonable.
+//
+// The expected value is pinned as a literal as well as against PairBig, because
+// two implementations of ours agreeing proves only that they are the same
+// program — and here the failure mode is that they stop being one.
+func TestPairIsNotCorruptedByInPlaceWrites(t *testing.T) {
+	for _, n := range []int{0, 1, 2, 3, 5, 10, 15, 20} {
+		// Reported by digit count rather than in full: these reach thousands of
+		// digits and a failure that prints two of them is a failure nobody reads.
+		if got := GenPair(n); got.Cmp(PairBig(n)) != 0 {
+			t.Errorf("GenPair(%d) disagrees: %d digits vs %d; got %.40s...",
+				n, len(got.String()), len(PairBig(n).String()), got.String())
+		}
+	}
+	// n=5: a,b = 2,1 -> 2,3 -> 6,5 -> 30,11 -> 330,41 -> 13530,371
+	if got := GenPair(5); got.Cmp(big.NewInt(371)) != 0 {
+		t.Errorf("GenPair(5) = %s, want 371", got)
+	}
+}
+
 var bigSink *big.Int
 
 func BenchmarkBigFibGen(b *testing.B)     { benchFib(b, GenFib) }

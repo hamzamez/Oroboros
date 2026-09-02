@@ -260,6 +260,8 @@ type IntervalReport struct {
 	LoopVars  int
 	LoopBound int
 
+	BigReuse int // big operations that write into storage instead of allocating
+
 	Selected   int      // operations rewritten to a checked primitive
 	Loops      int      // loops seen
 	Terminates int      // …proven terminating by size change plus a floor
@@ -2029,6 +2031,13 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 				nInits[i] = core.App(core.Name("big-of"), nInits[i])
 			}
 		}
+	}
+	// THE MUTABLE BIGNUM (bigreuse.go), AFTER the widening rather than before —
+	// condition (4) asks whether a loop variable's initialiser allocates, and
+	// the literal `1` does not become `(big-of 1)` until the line above. Run
+	// first, the rule silently declines on every accumulator in the corpus.
+	if p.tgt.HasBigDest() && len(p.big) > 0 {
+		nb = p.reuseInLoop(nb, raw, nInits)
 	}
 	for _, nm := range raw {
 		delete(p.env, nm)

@@ -33,6 +33,11 @@ import (
 
 type Emitter struct {
 	tgt     *Target
+
+	// elemFix is LoopElemJoin's answer: the ONE element type every `build`
+	// feeding a given loop variable must use. Keyed by the build's lambda,
+	// which is a pointer into the term this emitter holds.
+	elemFix map[*core.Term]string
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
@@ -68,9 +73,17 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 	// body uses them. Local propagation from primitive signatures — not
 	// inference, just reading the table.
 	seedFromSig(e.types, t.Params, sig)
-	e.inferFrom(t.Body())
-	e.inferLet(t.Body())
-	e.inferFrom(t.Body())
+	// ONE ELEMENT TYPE PER LOOP-CARRIED BUFFER, computed once for the whole
+	// function because a `build` cannot see the variable it will be assigned to.
+	//
+	// THE BODY IS OPENED ONCE AND REUSED, and that is not tidiness: `Body()`
+	// calls `openTerm`, which REBUILDS the term, so two calls give two copies
+	// with no pointer in common — and this function passes the body to four
+	// different passes.
+	body := t.Body()
+	e.inferFrom(body)
+	e.inferLet(body)
+	e.inferFrom(body)
 
 	params := make([]string, len(t.Params))
 	for i, p := range t.Params {
@@ -92,10 +105,10 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 		return e.multiFunc(name, sig, t, params)
 	}
 
-	var body strings.Builder
-	e.buf = body
+	var buf strings.Builder
+	e.buf = buf
 	e.indent = 1
-	result, err := e.emit(t.Body())
+	result, err := e.emit(body)
 	if err != nil {
 		return "", err
 	}
@@ -103,7 +116,7 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 
 	var out strings.Builder
 	fmt.Fprintf(&out, "func %s(%s) %s {\n", export(name), strings.Join(params, ", "),
-		e.tgt.ty(e.typeOf(t.Body())))
+		e.tgt.ty(e.typeOf(body)))
 	out.WriteString(inner)
 	fmt.Fprintf(&out, "\treturn %s\n}\n", result)
 	for imp := range e.imports {
@@ -279,7 +292,7 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 		return "", err
 	}
 	body, raw, out := openFresh(lam, e.bound, mangle)
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+	elem := elemTypeFixed(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 	e.types[raw[0]] = "array " + elem
 	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
 	return e.emit(body)
@@ -559,7 +572,7 @@ func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
 // the buffer still answers `array V`, because the parameter now has that type.
 func (e *Emitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+	elem := elemTypeFixed(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true
@@ -1530,6 +1543,31 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 			len(lam.Params), len(inits))
 	}
 
+	// THE BODY IS OPENED FIRST, so that the element-type join below is computed
+	// over the very terms this function will emit.
+	//
+	// It cannot be done once for the whole function: every binder the emitter
+	// opens REBUILDS its subtree, so a map keyed by a pointer inside a `let`
+	// body is read against a copy. Four identical calls sequenced by `seq` gave
+	// the first one the joined width and the other three their own — which is
+	// the "obvious design has no key" hazard arriving for the third time, and
+	// the answer is the same one `Refine` and `intervalsAssuming` already use:
+	// carry the fact to the subterm rather than the subterm to the fact.
+	body, raw, names := openFresh(lam, e.bound, mangle)
+	// The join is merged and NOT popped on the way out: a loop's own RESULT
+	// type is asked for OUTSIDE its scope — `final byte[] t2 = acc;` — and a
+	// map restored on exit answers with the initialiser's unjoined width
+	// there. Accumulating is safe because every key is a pointer to a term
+	// that belongs to exactly one loop.
+	if fix := LoopOneJoin(e.tgt, inits, body, raw, e.typeOf, e.sig, e.topParams); len(fix) > 0 {
+		if e.elemFix == nil {
+			e.elemFix = map[*core.Term]string{}
+		}
+		for k, v := range fix {
+			e.elemFix[k] = v
+		}
+	}
+
 	// Types first: a loop variable's type is its initial value's.
 	tys := make([]string, len(inits))
 	for i := range inits {
@@ -1544,7 +1582,6 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 		vals[i] = v
 	}
 
-	body, raw, names := openFresh(lam, e.bound, mangle)
 	for i, n := range raw {
 		e.types[n] = tys[i]
 	}

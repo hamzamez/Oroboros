@@ -83,6 +83,13 @@ type place struct {
 func (p place) reg() bool { return !p.imm && p.slot == 0 && p.text != "" }
 
 type asmEmitter struct {
+	// elemFix is LoopOneJoin's answer: the ONE element type every `build`
+	// feeding a given loop variable must use. On this host it is a SOUNDNESS
+	// question rather than a size one — the element width travels BY NAME
+	// (wintables-2026-08-25), so two sources disagreeing reads a byte table as
+	// qwords, which is a wrong answer and not a slow one.
+	elemFix map[*core.Term]string
+
 	tgt *Target
 
 	// sig and topParams are the enclosing function's contract and the names
@@ -1069,6 +1076,24 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 		return place{}, fmt.Errorf("loop has %d variable(s) and %d initial value(s)",
 			len(lam.Params), len(inits))
 	}
+	// THE BODY IS OPENED BEFORE THE INITIALISERS ARE EMITTED, because the join
+	// below has to be installed before the first `build` picks a width — and one
+	// of the sources IS an initialiser.
+	body, raw, _ := openFresh(lam, e.bound, asmIdent)
+	// The join is merged and NOT popped on the way out: a loop's own RESULT
+	// type is asked for OUTSIDE its scope — `final byte[] t2 = acc;` — and a
+	// map restored on exit answers with the initialiser's unjoined width
+	// there. Accumulating is safe because every key is a pointer to a term
+	// that belongs to exactly one loop.
+	if fix := LoopOneJoin(e.tgt, inits, body, raw, func(*core.Term) string { return "" },
+		e.sig, e.topParams); len(fix) > 0 {
+		if e.elemFix == nil {
+			e.elemFix = map[*core.Term]string{}
+		}
+		for k, v := range fix {
+			e.elemFix[k] = v
+		}
+	}
 	vals := make([]place, len(inits))
 	for i, z := range inits {
 		v, err := e.emit(z)
@@ -1077,7 +1102,6 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 		}
 		vals[i] = v
 	}
-	body, raw, _ := openFresh(lam, e.bound, asmIdent)
 	vars := make([]place, len(inits))
 	saved := map[string]place{}
 	had := map[string]bool{}
@@ -2011,7 +2035,7 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	// for. wintables-2026-08-25 measured 3x for getting this wrong on a
 	// boolean sieve.
 	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
-	width := BufferElemBytes(e.tgt, args[1], body, raw[0], e.sig, e.topParams)
+	width := BufferElemBytes(e.tgt, args[1], body, raw[0], e.sig, e.topParams, e.elemFix)
 	buf, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
@@ -2158,7 +2182,7 @@ func (e *asmEmitter) elemOf(t *core.Term) int {
 			if len(t.Args()) == 2 && t.Args()[1].Kind == core.KFn &&
 				len(t.Args()[1].Params) == 1 {
 				lam := t.Args()[1]
-				return BufferElemBytes(e.tgt, lam, lam.Closed(), lam.Params[0], e.sig, e.topParams)
+				return BufferElemBytes(e.tgt, lam, lam.Closed(), lam.Params[0], e.sig, e.topParams, e.elemFix)
 			}
 		case "table-alloc":
 			if len(t.Args()) == 1 && isTableRule(e.tgt, t.Args()[0]) {

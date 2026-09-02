@@ -29,6 +29,9 @@ import (
 //     the Parasite thesis at its sharpest: the same capability, opposite idioms.
 
 type javaEmitter struct {
+	// elemFix is LoopElemJoin's answer — see the Go emitter.
+	elemFix map[*core.Term]string
+
 	tgt     *Target
 	buf     strings.Builder
 	imports map[string]bool
@@ -601,7 +604,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				return "", err
 			}
 			body, raw, out := openFresh(args[1], e.bound, javaMangle)
-			elem := ElemType(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams)
+			elem := elemTypeFixed(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 			e.types[raw[0]] = "array " + elem
 			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
 				e.tgt.ty(elem), count)
@@ -1175,6 +1178,23 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 		return "", fmt.Errorf("loop has %d variable(s) and %d initial value(s)",
 			len(lam.Params), len(inits))
 	}
+	// THE BODY IS OPENED BEFORE THE INITIALISERS ARE EMITTED, because the
+	// element-type join has to be installed before the first `build` picks a
+	// width — and one of that variable's sources IS an initialiser.
+	body, raw, names := openFresh(lam, e.bound, javaMangle)
+	// The join is merged and NOT popped on the way out: a loop's own RESULT
+	// type is asked for OUTSIDE its scope — `final byte[] t2 = acc;` — and a
+	// map restored on exit answers with the initialiser's unjoined width
+	// there. Accumulating is safe because every key is a pointer to a term
+	// that belongs to exactly one loop.
+	if fix := LoopOneJoin(e.tgt, inits, body, raw, e.typeOf, e.sig, e.topParams); len(fix) > 0 {
+		if e.elemFix == nil {
+			e.elemFix = map[*core.Term]string{}
+		}
+		for k, v := range fix {
+			e.elemFix[k] = v
+		}
+	}
 	tys := make([]string, len(inits))
 	vals := make([]string, len(inits))
 	for i, z := range inits {
@@ -1185,7 +1205,6 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 		}
 		vals[i] = v
 	}
-	body, raw, names := openFresh(lam, e.bound, javaMangle)
 	for i, n := range raw {
 		e.types[n] = tys[i]
 	}
@@ -1442,7 +1461,7 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 // not necessarily the buffer's. See the Go emitter for what found that.
 func (e *javaEmitter) buildType(lam *core.Term) string {
 	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-	elem := ElemType(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams)
+	elem := elemTypeFixed(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 	saved, had := e.types[raw[0]], false
 	if _, ok := e.types[raw[0]]; ok {
 		had = true

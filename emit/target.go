@@ -1769,8 +1769,163 @@ func MapElemTypes(tgt *Target, lam, body *core.Term, name string,
 	return "int", val
 }
 
+// LoopOneJoin gives every `build` that feeds one loop variable THE SAME element
+// type: the join over all of that variable's sources.
+//
+// A LOOP-CARRIED BUFFER HAS SEVERAL SOURCES AND ONE VARIABLE, and until the
+// interval analysis got precise enough about division nothing in the corpus had
+// two that disagreed. A bignum accumulator does: it starts as a buffer whose
+// stores are provably 0..1 and is replaced each iteration by one whose stores
+// are 0..2^24-1. Each was narrowed on its own and Go refused the file —
+// `cannot use []int32 as []byte`.
+//
+// A COMPILE ERROR IS THE LUCKY CASE, and only two of the four hosts give one.
+// Go and Java type their slices; JavaScript narrows nothing; and on x86 the
+// element size travels BY NAME (wintables-2026-08-25), so reading a byte table
+// as qwords is a wrong answer rather than a slow one. One shape, three
+// outcomes, one of them silent.
+//
+// It is per-LOOP and takes the body already OPEN, which is not a convenience:
+// every binder the emitter opens rebuilds its subtree, so a map keyed by a
+// pointer under a `let` is read against a copy — four identical sequenced calls
+// gave the first one the joined width and the other three their own. Carrying
+// the fact to the subterm is the answer `Refine` and `intervalsAssuming`
+// already use, and this is the third time the alternative has been tried here.
+//
+// Refusing is the fallback: a source this cannot read takes the whole variable
+// back to the host's word, because a narrowing that is wrong for one source is
+// wrong for the buffer.
+func LoopOneJoin(tgt *Target, inits []*core.Term, openBody *core.Term,
+	raw []string, typeOf func(*core.Term) string, sig *core.Sig,
+	params []string) map[*core.Term]string {
+	out := map[*core.Term]string{}
+	joinSources(tgt, inits, againTerms(tgt, openBody), typeOf, sig, params, out)
+	return out
+}
+
+func joinSources(tgt *Target, inits, agains []*core.Term,
+	typeOf func(*core.Term) string, sig *core.Sig, params []string,
+	out map[*core.Term]string) {
+	for k, init := range inits {
+		lams, tys, ok := []*core.Term{}, []string{}, true
+		add := func(src *core.Term) {
+			if src == nil {
+				return
+			}
+			lam, isBuild := buildLambda(tgt, src)
+			if !isBuild {
+				// A PASS-THROUGH IS NOT A SOURCE — it hands the same buffer
+				// back, so it adds nothing and must not veto. Anything else is
+				// a source this cannot read, and does.
+				if src.Kind != core.KBound && src.Kind != core.KName {
+					ok = false
+				}
+				return
+			}
+			b, r, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+			lams = append(lams, lam)
+			tys = append(tys, ElemType(tgt, lam, b, r[0], typeOf, sig, params))
+		}
+		add(init)
+		for _, ag := range agains {
+			if as := ag.Args(); k < len(as) {
+				add(as[k])
+			}
+		}
+		if !ok || len(lams) < 2 {
+			continue // one source cannot disagree with itself
+		}
+		j := joinElemTypes(tys)
+		same := true
+		for _, ty := range tys {
+			if ty != j {
+				same = false
+			}
+		}
+		if same {
+			continue
+		}
+		for _, lam := range lams {
+			out[lam] = j
+		}
+	}
+}
+
+// joinElemTypes is the join in the element lattice: ranges join to their hull,
+// and anything that is not a range takes the whole variable to the host's word.
+func joinElemTypes(tys []string) string {
+	lo, hi, seen := int64(0), int64(0), false
+	for _, ty := range tys {
+		l, h, ok := core.IntRange(ty)
+		if !ok {
+			return "int"
+		}
+		if !seen {
+			lo, hi, seen = l, h, true
+			continue
+		}
+		lo, hi = min64(lo, l), max64(hi, h)
+	}
+	if !seen {
+		return "int"
+	}
+	return fmt.Sprintf("int %d %d", lo, hi)
+}
+
+func buildLambda(tgt *Target, t *core.Term) (*core.Term, bool) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return nil, false
+	}
+	if pr, ok := tgt.Prims[t.Op().Name]; !ok || pr.Kind != "table-build" {
+		return nil, false
+	}
+	args := t.Args()
+	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+		return nil, false
+	}
+	return args[1], true
+}
+
+// againTerms are the back edges of ONE loop: a nested loop's are its own, and
+// two loops whose arities happened to match would be read as one.
+func againTerms(tgt *Target, body *core.Term) []*core.Term {
+	var out []*core.Term
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KApp && x.Op().Kind == core.KName {
+			if x.Op().Name == "again" {
+				out = append(out, x)
+				return
+			}
+			if pr, ok := tgt.Prims[x.Op().Name]; ok && pr.Kind == "iterate" {
+				return
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	return out
+}
+
 func ElemType(tgt *Target, lam, body *core.Term, name string,
 	typeOf func(*core.Term) string, sig *core.Sig, params []string) string {
+	return elemTypeFixed(tgt, lam, body, name, typeOf, sig, params, nil)
+}
+
+// elemTypeFixed is ElemType with LoopOneJoin's answer, when there is one. The
+// join OVERRIDES, because a buffer's own stores are the right answer only when
+// nothing else is assigned to the same variable.
+func elemTypeFixed(tgt *Target, lam, body *core.Term, name string,
+	typeOf func(*core.Term) string, sig *core.Sig, params []string,
+	fix map[*core.Term]string) string {
+	if ty, ok := fix[lam]; ok {
+		return ty
+	}
 	if ty := bufferElem(body, name, typeOf); ty != "int" {
 		return ty
 	}
@@ -2364,13 +2519,13 @@ func IsBoolTerm(tgt *Target, t *core.Term) bool {
 // So it defers to bufferElem, which joins. The `typeOf` it passes recognises
 // booleans and nothing else, because that is all this host can know.
 func BufferElemBytes(tgt *Target, lam, body *core.Term, name string,
-	sig *core.Sig, params []string) int {
-	ty := ElemType(tgt, lam, body, name, func(t *core.Term) string {
+	sig *core.Sig, params []string, fix map[*core.Term]string) int {
+	ty := elemTypeFixed(tgt, lam, body, name, func(t *core.Term) string {
 		if IsBoolTerm(tgt, t) {
 			return "bool"
 		}
 		return ""
-	}, sig, params)
+	}, sig, params, fix)
 	if ty == "bool" {
 		return 1
 	}

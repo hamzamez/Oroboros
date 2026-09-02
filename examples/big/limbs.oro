@@ -1,0 +1,131 @@
+; FIXED-LIMB BIGNUM ARITHMETIC, WRITTEN IN OROBOROS.
+;
+; This is the rung ADR 0019's endpoint spelling exists to name and which nothing
+; yet selects: a FINITE range above the portable window gives a limb count,
+; which gives a `build` of known length, which gives ZERO ALLOCATIONS.
+; bigarith-2026-08-28 measured that form at 3.97x over `math/big` on Go, 6.2x
+; over `BigInteger` and 5.8x over `BigInt` -- and on Java and V8 it is the ONLY
+; way to get there, because those bignums are immutable.
+;
+; It is written here as an ordinary program first, because the question that
+; decides everything downstream is whether the language can express it at all.
+; general-purpose.md claims it can; `emit/winmap.oro` is the one existing piece
+; of evidence, and a hash table is a much easier shape than a carry chain.
+;
+; ═══ BASE 2^24, AND THE BASE IS FORCED RATHER THAN CHOSEN
+;
+; A limb product plus the accumulated carry has to stay EXACT, and ADR 0012 says
+; an `int` is exact to +-(2^53-1). With W-bit limbs a product is under 2^2W, so
+; 2W < 53 and W <= 26. Taking W = 24 leaves room to spare:
+;
+;   out[i+j] < 2^24, a[i]*b[j] < 2^48, carry < 2^25
+;   t = out + a*b + carry  <  2^48 + 2^25 + 2^24  <  2^49
+;
+; so the carry stays under 2^25 forever and nothing approaches 2^53.
+;
+; ═══ `/` AND `%`, NOT A SHIFT AND A MASK, AND THAT IS THE LANGUAGE SPEAKING
+;
+; The natural way to split a limb is `t >> 24` and `t & 0xFFFFFF`. Bitwise
+; operators are DELIBERATELY not in the language (integers.md §0a): V8 coerces
+; both operands to int32, so `(2^32) & -1` is 0 there and 4294967296 on the
+; other three -- an observable disagreement INSIDE the portable window, which is
+; what makes a construct Tier 2.
+;
+; So this uses `/` and `%`, which every host agrees on. That is a real cost and
+; bigarith measured it: bitwise carry extraction is worth 3.9x at equal storage
+; on V8. It is the price of writing the library once instead of four times, and
+; naming it here is what makes it a decision rather than an oversight.
+;
+; ═══ WHAT IS AND IS NOT HERE
+;
+; Non-negative magnitudes only. `(int 0 +inf)` and `(int 0 (pow 2 N))` are the
+; declarations this serves and both are non-negative, and bigarith measured sign
+; handling as a real cost -- so the half-open range carries something the
+; representation spends, which is unbounded-rung.md §4.2's argument for `+inf`
+; over a bare type name.
+;
+; Decimal output is not here. It needs repeated division by a power of ten and
+; then a string, and strings are the one thing this language has almost none of.
+
+; NO `(use …)` AT ALL: every operator here is the language's, so this file names
+; no host and generates on all four targets unchanged. That is what integers.md
+; §0a bought — before the promotion this would have had to be written four
+; times, once per host's spelling of `+`.
+(export limb)
+
+; ---------------------------------------------------------------- the base
+;
+; Written out rather than computed, because it appears in every carry split and
+; reduction folds a literal where it would have to keep a computation.
+;   2^24 = 16777216
+
+; A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
+; index here is derived from a loop bound over a DIFFERENT table than the one
+; being read -- `a` and `b` are separate buffers under one bound -- which is the
+; latent bug the refinement layer found in `dot` and `centroid`. Two tables have
+; the same length by construction and nothing can see that, so the program says
+; what happens if they do not.
+(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+
+; ---------------------------------------------------------------- of a word
+;
+; A machine word spread over `n` limbs, least significant first.
+(def bn-of (fn (n v)
+  (build n (fn (b)
+    (loop ((b b) (i 0) (r v))
+      (>= i n)  b
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+
+; ---------------------------------------------------------------- addition
+;
+; a + b, into a buffer of the caller's length. A sum needs at most one limb more
+; than its longer operand, and `build` takes that length up front -- which is
+; the whole reason a bignum needs no growable storage: every result's size is
+; computable from its operands' (bigarith §"a bignum needs NO growable storage").
+;
+; The carry rides as an ordinary loop variable, which is what makes this
+; expressible at all: `again` may sit under a `let`, so the sum can be named
+; once and used for both the stored limb and the outgoing carry.
+(def bn-add (fn (n a b)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  o
+      else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+
+; ------------------------------------------------------- multiply by a word
+;
+; a * k for k < 2^24, which is the operation a factorial is made of and the one
+; bigarith measured our form winning by 3.97x. One pass, one carry.
+;
+; `(at a i) * k` is under 2^48 and the carry under 2^25, so the sum is under
+; 2^49 -- inside the window with four bits to spare.
+(def bn-mul-small (fn (n a k)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  o
+      else      (let (+ (* (at a i) k) c) (fn (t)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+
+; ---------------------------------------------------------------- factorial
+;
+; n! in `w` limbs. Two buffers are live -- the accumulator and the one
+; `bn-mul-small` builds -- and the accumulator is replaced each step, which is
+; ADR 0018's linearity: `build` freezes on the way out, so what the loop carries
+; is an ordinary immutable `array` and the next iteration reads it.
+;
+; It allocates one buffer per iteration, which is what the reuse question is
+; about and is deliberately left alone here: the question this file answers is
+; whether the language can EXPRESS the arithmetic.
+(def bn-fact (fn (w n)
+  (loop ((acc (bn-of w 1)) (i 2))
+    (> i n)  acc
+    else     (again (bn-mul-small w acc i) (+ i 1)))))
+
+; ------------------------------------------------------------------ harness
+;
+; `limb k` is limb k of 200!, checked against `math/big` and against `BigInt`
+; and `BigInteger` -- ORACLES rather than another implementation of ours -- by
+; `gauntlet/differential/cases/big-limbs.oro`. 200! is about 1,245 bits, so 52
+; limbs are significant and 64 is a comfortable buffer.
+(def limb (fn (k) (at (bn-fact 64 200) k)))

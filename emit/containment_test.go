@@ -802,7 +802,7 @@ func TestBufferElementContainment(t *testing.T) {
 		lam := term.Args()[1]
 		body, raw, _ := openFresh(lam, map[string]bool{}, ident)
 		elem := ElemType(tg, lam, body, raw[0], noTypes, nil, nil)
-		width := BufferElemBytes(tg, lam, body, raw[0], nil, nil)
+		width := BufferElemBytes(tg, lam, body, raw[0], nil, nil, nil)
 		rep, _ := Intervals(tg, nil, term, 0)
 
 		run := &runner{tgt: tg, fuel: 2000000}

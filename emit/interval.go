@@ -1897,6 +1897,37 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	body, raw, _ := openFresh(lam, p.bound, asmIdent)
 	p.loopRaw = raw // `again` reads this to know which arguments are bignums
 
+	// A LOOP VARIABLE THAT HOLDS A TABLE GETS AN ELEMENT RANGE, joined from its
+	// initialiser and from every `again` argument that is not a pass-through.
+	//
+	// Those are the only two sources of its value — the same premise the
+	// reachable-set theorem rests on — so the join bounds everything a read of
+	// it can produce, which is frozen-2026-08-28's buffer theorem at a loop
+	// variable instead of at a `let`.
+	//
+	// WHY IT IS NOT CIRCULAR is a stratification, and it is the same one:
+	// `elemRange` of an `again` argument analyses that argument's own `build`,
+	// where the loop variable is FREE — so a read of it inside is unknown and
+	// the stores that do not read it decide. Binding happens after the join is
+	// computed, so nothing consults the answer while producing it. A store that
+	// does read the loop variable makes `bufferElem` refuse, which is the safe
+	// direction and costs only precision.
+	//
+	// It is what a bignum accumulator needs and had no other way to get: `acc`
+	// is rebuilt every iteration by a `build` whose stores are all `(% t B)`,
+	// so its elements are provably under B — and without this, reading `acc`
+	// back gave ⊤ and every limb product was unbounded.
+	elemSaved := map[string][2]any{}
+	for k := range raw {
+		e, ok := p.loopElem(body, raw, inits, k)
+		if !ok {
+			continue
+		}
+		old, had := p.elem[raw[k]]
+		elemSaved[raw[k]] = [2]any{old, had}
+		p.elem[raw[k]] = e
+	}
+
 	saved := p.snapshot()
 	wasCounting := p.count
 	p.count = false
@@ -2116,6 +2147,13 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	for _, nm := range raw {
 		delete(p.env, nm)
 	}
+	for nm, sv := range elemSaved {
+		if sv[1].(bool) {
+			p.elem[nm] = sv[0].(ival)
+		} else {
+			delete(p.elem, nm)
+		}
+	}
 	bigRaw := make([]bool, len(raw))
 	for i, nm := range raw {
 		bigRaw[i] = p.big[nm]
@@ -2134,6 +2172,65 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	rebuiltLoop := &core.Term{Kind: core.KApp, Kids: kids}
 	p.markBig(rebuiltLoop, bigExit)
 	return out, rebuiltLoop
+}
+
+// loopElem is the element range of loop variable k, or nothing.
+//
+// A pass-through argument is skipped because it contributes no new value — the
+// same reason the running-extremum theorem drops it — and skipping it is what
+// makes the join computable at all, since a pass-through's range IS the answer
+// being computed.
+func (p *intervalPass) loopElem(body *core.Term, raw []string, inits []*core.Term, k int) (ival, bool) {
+	if k >= len(inits) {
+		return ival{}, false
+	}
+	out, ok := p.elemRange(inits[k])
+	if !ok {
+		return ival{}, false
+	}
+	for _, ag := range p.ownAgains(body) {
+		as := ag.Args()
+		if k >= len(as) {
+			return ival{}, false
+		}
+		a := as[k]
+		if a.Kind == core.KName && a.Name == raw[k] {
+			continue
+		}
+		e, ok := p.elemRange(a)
+		if !ok {
+			return ival{}, false
+		}
+		out = joinI(out, e)
+	}
+	return out, true
+}
+
+// ownAgains are the back edges of THIS loop: `collectAgains` walks into a nested
+// one, whose `again` has a different arity and a different meaning, and two
+// loops whose arities happened to match would silently be read as one.
+func (p *intervalPass) ownAgains(t *core.Term) []*core.Term {
+	var out []*core.Term
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KApp && x.Op().Kind == core.KName {
+			if x.Op().Name == "again" {
+				out = append(out, x)
+				return
+			}
+			if pr, ok := p.tgt.Prims[x.Op().Name]; ok && pr.Kind == "iterate" {
+				return // a nested loop's back edges are its own
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	return out
 }
 
 // collectAgain walks the clause chain, refining by each guard, and joins the

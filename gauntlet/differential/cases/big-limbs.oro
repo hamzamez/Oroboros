@@ -1,0 +1,55 @@
+; A FIXED-LIMB BIGNUM WRITTEN IN OROBOROS, agreeing on all four targets.
+;
+; This is the rung ADR 0019's endpoint spelling exists to name: a FINITE range
+; above the portable window gives a limb count, which gives a `build` of known
+; length, which gives zero allocations. bigarith-2026-08-28 measured that form
+; at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over `BigInt` -- and
+; on the last two it is the ONLY way there, because those bignums are immutable.
+;
+; It is `examples/big/limbs.oro`, and what makes it interesting is that it names
+; NO HOST: base-2^24 limbs, `/` and `%` for the carry split, and every operator
+; the language's. Before integers.md promoted them this had to be written four
+; times, once per spelling of `+`.
+;
+; inputs: 0 20 51
+; expect: 0 7266130 2730071
+;
+; The expected values are limbs of 200! computed independently -- an ORACLE
+; rather than a second implementation of ours, which is what `; expect:` is for
+; (four backends can be wrong in the same way; a bug in the reader or the
+; reducer is exactly the one a purely differential test cannot see).
+;
+; Limb 52 is 0 on purpose: 200! is about 1,245 bits, so 52 limbs are
+; significant and the buffer is 64. A form that forgot to zero its tail would
+; disagree there and nowhere else.
+;
+; AND IT IS FULLY PROVABLE -- 20 of 20 integer operations bounded, 12 of 12
+; loops terminating, with no clamp and no declared range. Getting there needed
+; two things the analysis did not have: a divisor CONTRACTS (a carry chain is
+; `c' = (bounded + c) / 2^24`, which settles in two iterations and looks
+; unbounded without it), and a loop variable holding a TABLE gets the join of
+; its sources' element ranges (the accumulator is rebuilt every iteration, and
+; reading it back was ⊤).
+(def run (fn (k) (limb k)))
+
+(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+
+(def bn-of (fn (n v)
+  (build n (fn (b)
+    (loop ((b b) (i 0) (r v))
+      (>= i n)  b
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+
+(def bn-mul-small (fn (n a k)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  o
+      else      (let (+ (* (at a i) k) c) (fn (t)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+
+(def bn-fact (fn (w n)
+  (loop ((acc (bn-of w 1)) (i 2))
+    (> i n)  acc
+    else     (again (bn-mul-small w acc i) (+ i 1)))))
+
+(def limb (fn (k) (at (bn-fact 64 200) k)))

@@ -300,3 +300,82 @@ func TestAProgramThatDeclaresNothingIsUntouched(t *testing.T) {
 			"(%d ops):\n%s", n, out)
 	}
 }
+
+// A RANGE ABOVE THE WINDOW IS A REPRESENTATION AND NOT A CONTRACT, and the
+// asymmetry with a parameter's range is soundness rather than convenience.
+//
+// A `where` is ASSUMED, so half of it is a weaker assumption and safe. An
+// `ensures` on an exported definition is CHECKED AGAINST THE BODY — and the
+// interval domain does not model a bignum, reporting [-inf, +inf] for one by
+// construction. So synthesising `(<= 0 result)` from `(int 0 (pow 2 1000))`
+// demands of the checker a fact it can never establish, and EVERY
+// arbitrary-precision program is refused for a claim nothing can discharge.
+//
+// That is a refusal standing in front of nothing, which this repository has
+// caught once already (scalarrange-2026-08-31, where removing one found a
+// silent wrong answer behind it). Here there is nothing behind it: the value is
+// exact by construction, and the claim was never checkable.
+func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
+	for _, result := range []string{"(int 0 (pow 2 1000))", "(int 0 +inf)"} {
+		src := `(export fib)
+(sig fib ((n (int 0 1000))) ` + result + `)
+(def fib (fn (n) (loop ((a 0) (b 1) (i 0)) (>= i n) a else (again b (+ a b) (+ i 1)))))
+`
+		tg, err := LoadTarget("../targets/go")
+		if err != nil {
+			t.Fatal(err)
+		}
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := firstSig(forms).Ensures; got != nil {
+			t.Errorf("%s synthesised the guarantee %s, which the interval domain "+
+				"can never establish for a bignum", result, got)
+		}
+		prog, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		// And the program must still get through the checks, which is the half a
+		// test on the signature alone would not catch.
+		if err := CheckSignatures(tg, prog, env); err != nil {
+			t.Errorf("%s: %v", result, err)
+			continue
+		}
+		nf, err := core.Normalize(prog.Defs["fib"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, _ = PromoteBig(tg, prog.Sigs["fib"], nf)
+		if ok, note := CheckEnsures(tg, prog.Sigs["fib"], nf); !ok {
+			t.Errorf("%s: %s", result, note)
+		}
+	}
+	// THE PARAMETER SIDE STILL SAYS ITS HALF, which is what `+inf` is for: a
+	// non-negative bignum needs no sign handling, and bigarith measured sign
+	// handling as a real cost.
+	forms, err := core.Read(`(sig f ((n (int 0 +inf))) (int 0 +inf))
+(def f (fn (n) n))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := firstSig(forms).Where; got == nil || got.String() != "(<= 0 n)" {
+		t.Errorf("a non-negative unbounded parameter carries %v, want (<= 0 n)", got)
+	}
+}
+
+// firstSig finds the signature among a file's forms, which is not forms[0]
+// unless the file begins with one.
+func firstSig(forms []core.Form) *core.Sig {
+	for _, f := range forms {
+		if f.Sig != nil {
+			return f.Sig
+		}
+	}
+	return &core.Sig{}
+}

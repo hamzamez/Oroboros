@@ -757,12 +757,10 @@ func toForm(t *Term) (Form, error) {
 			if pm.Name == "" {
 				continue
 			}
-			lo, hi, ok := IntRange(pm.Type)
-			if !ok {
+			c := rangePremise(pm.Type, Name(pm.Name))
+			if c == nil {
 				continue
 			}
-			n := Name(pm.Name)
-			c := conj(App(Name("<="), Int(lo), n), App(Name("<="), n, Int(hi)))
 			if sig.Where == nil {
 				sig.Where = c
 			} else {
@@ -788,9 +786,22 @@ func toForm(t *Term) (Form, error) {
 		// This must run BEFORE the `result`-name check below, or a signature
 		// with a ranged result and a parameter called `result` would mean two
 		// things and the checker would silently pick one.
-		if lo, hi, ok := IntRange(sig.Result); ok {
-			r := Name(ResultName)
-			c := conj(App(Name("<="), Int(lo), r), App(Name("<="), r, Int(hi)))
+		//
+		// ABOVE THE WINDOW A RANGE GUARANTEES NOTHING, and that asymmetry with
+		// the parameter case is a soundness fact rather than a convenience. A
+		// premise is ASSUMED, so a half of it is a weaker assumption and safe; a
+		// guarantee is CHECKED AGAINST THE BODY, and the interval domain does not
+		// model a bignum — it reports [-inf, +inf] for one by construction. So
+		// `(int 0 (pow 2 1000))` on a result would demand `(<= 0 result)` of a
+		// value the analysis can never bound, and every arbitrary-precision
+		// program would be refused for a claim nothing can discharge.
+		//
+		// That is the refusal-in-front-of-nothing shape, and this is where it is
+		// declined: above the window a range is a REPRESENTATION declaration and
+		// not a contract, which is the third of scalarrange-2026-08-31's three
+		// effects surviving alone.
+		if c := rangePremise(sig.Result, Name(ResultName)); c != nil &&
+			ValueType(sig.Result) == "int" {
 			if sig.Ensures == nil {
 				sig.Ensures = c
 			} else {
@@ -1381,49 +1392,79 @@ func conj(a, b *Term) *Term {
 // computed. Division is absent for the reason ADR 0009 gives about folding: it
 // has a precondition, and a bound with a precondition is not a bound.
 func evalEndpoint(t *Term) (*big.Int, bool) {
+	v, inf, ok := endpoint(t)
+	return v, ok && inf == 0
+}
+
+// endpoint evaluates a range endpoint, which may be INFINITE.
+//
+// The third result is -1, 0 or +1 for −inf, a finite value, and +inf, and an
+// infinite endpoint has no value. It is the top of the representation lattice
+// (unbounded-rung.md §1): `(int 0 +inf)` denotes ℕ, `(int -inf +inf)` denotes ℤ,
+// and neither is a set any machine word or any FIXED number of limbs contains.
+//
+// `+inf` and `-inf` are the vocabulary the compiler already prints — every
+// interval report says `idx -inf..+inf` — so the declaration and the diagnostic
+// finally use the same word for the same thing. They are ordinary names to the
+// reader, because `+` and `-` are name characters here.
+//
+// Arithmetic on an infinity is REFUSED rather than defined. `(pow 2 +inf)` and
+// `(+ +inf 1)` are not endpoints anyone means to write, and the extended reals'
+// answers to them (`+inf`, `+inf`, and `+inf − +inf` undefined) are a semantics
+// this language has no use for. An infinity may only stand alone.
+func endpoint(t *Term) (*big.Int, int, bool) {
 	if t == nil {
-		return nil, false
+		return nil, 0, false
 	}
 	if t.Kind == KInt {
-		return big.NewInt(t.Int), true
+		return big.NewInt(t.Int), 0, true
+	}
+	if t.Kind == KName {
+		switch t.Name {
+		case "+inf":
+			return nil, 1, true
+		case "-inf":
+			return nil, -1, true
+		}
+		return nil, 0, false
 	}
 	if t.Kind != KApp || len(t.Kids) < 2 || t.Kids[0].Kind != KName {
-		return nil, false
+		return nil, 0, false
 	}
 	op, args := t.Kids[0].Name, t.Kids[1:]
 	if op == "-" && len(args) == 1 {
 		v, ok := evalEndpoint(args[0])
 		if !ok {
-			return nil, false
+			return nil, 0, false
 		}
-		return new(big.Int).Neg(v), true
+		return new(big.Int).Neg(v), 0, true
 	}
 	if len(args) != 2 {
-		return nil, false
+		return nil, 0, false
 	}
 	a, ok1 := evalEndpoint(args[0])
 	b, ok2 := evalEndpoint(args[1])
 	if !ok1 || !ok2 {
-		return nil, false
+		return nil, 0, false
 	}
 	switch op {
 	case "+":
-		return new(big.Int).Add(a, b), true
+		return new(big.Int).Add(a, b), 0, true
 	case "-":
-		return new(big.Int).Sub(a, b), true
+		return new(big.Int).Sub(a, b), 0, true
 	case "*":
-		return new(big.Int).Mul(a, b), true
+		return new(big.Int).Mul(a, b), 0, true
 	case "pow":
 		// A NEGATIVE OR ABSURD EXPONENT IS REFUSED rather than saturated. The
 		// cap is generous — 2^1000000 is far past any representation anyone
 		// will ask for — and it exists so a typo cannot ask the compiler to
 		// build a gigabyte-long integer.
 		if b.Sign() < 0 || !b.IsInt64() || b.Int64() > 1000000 {
-			return nil, false
+			return nil, 0, false
 		}
-		return new(big.Int).Exp(a, b, nil), true
+		return new(big.Int).Exp(a, b, nil), 0, true
 	}
-	return nil, false
+	return nil, 0, false
 }
 
 func TypeName(t *Term) string {
@@ -1476,15 +1517,22 @@ func TypeName(t *Term) string {
 	// and a name should say what an operation IS (match.md's reason for `=`).
 	if t.Kind == KApp && len(t.Kids) == 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "int" {
-		lo, ok1 := evalEndpoint(t.Kids[1])
-		hi, ok2 := evalEndpoint(t.Kids[2])
-		if ok1 && ok2 {
-			if lo.Cmp(hi) > 0 {
-				return "" // an empty range is not a type — see below
-			}
-			return "int " + lo.String() + " " + hi.String()
+		lo, loInf, ok1 := endpoint(t.Kids[1])
+		hi, hiInf, ok2 := endpoint(t.Kids[2])
+		if !ok1 || !ok2 {
+			return ""
 		}
-		return ""
+		// AN INFINITE ENDPOINT MUST POINT OUTWARD. `(int +inf 0)` and
+		// `(int 0 -inf)` denote the empty set, and `(int +inf +inf)` denotes a
+		// point that is not an integer — none is a type, and refusing them here
+		// is the same refusal `lo > hi` already gets.
+		if loInf > 0 || hiInf < 0 {
+			return ""
+		}
+		if loInf == 0 && hiInf == 0 && lo.Cmp(hi) > 0 {
+			return "" // an empty range is not a type — see below
+		}
+		return "int " + endpointStr(lo, loInf) + " " + endpointStr(hi, hiInf)
 	}
 	return ""
 }
@@ -1511,6 +1559,92 @@ func ExceedsWindow(ty string) bool {
 	}
 	w := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1))
 	return lo.CmpAbs(w) > 0 || hi.CmpAbs(w) > 0
+}
+
+func endpointStr(v *big.Int, inf int) string {
+	switch {
+	case inf > 0:
+		return "+inf"
+	case inf < 0:
+		return "-inf"
+	}
+	return v.String()
+}
+
+// UnboundedRange reports whether a range type has an INFINITE endpoint — the
+// top of the representation lattice, where no fixed number of limbs suffices.
+//
+// It is the distinction the whole ladder turns on and the one the type language
+// could not make until `+inf` existed: `(int 0 (pow 2 1000))` is finite, so it
+// has a limb count and a `build` of known length; `(int 0 +inf)` has neither and
+// must fall back to whatever arbitrary-precision the target ships.
+//
+// `IntRangeBig` deliberately does NOT read one — an infinite endpoint is not a
+// `*big.Int` — so every existing consumer sees "not a finite range", which is
+// exactly what it is.
+func UnboundedRange(ty string) bool {
+	if !strings.HasPrefix(ty, "int ") {
+		return false
+	}
+	f := strings.Fields(ty)
+	if len(f) != 3 {
+		return false
+	}
+	return f[1] == "-inf" || f[2] == "+inf"
+}
+
+// RangeBounds reads whichever endpoints of a range are USABLE AS FACTS: finite,
+// and small enough to be a term.
+//
+// It is deliberately weaker than `IntRangeBig`, and the weakness is the point.
+// A premise is a conjunction, so dropping one half is sound — it says less —
+// while dropping the half that IS expressible says nothing at all, which is
+// what happened before this existed:
+//
+//	(int 0 +inf)          non-negative, and unbounded above
+//	(int 0 (pow 2 1000))  non-negative, with an upper bound no term can hold
+//
+// Both are half-open as far as the linear fragment is concerned, and both were
+// contributing NOTHING, because the desugaring demanded two int64 endpoints.
+// Non-negativity is exactly what a bignum representation can spend —
+// bigarith-2026-08-28 measured sign handling as a real cost — so this is
+// unbounded-rung.md §4.2's claim that `+inf` "carries something the
+// representation can spend", made true.
+func RangeBounds(ty string) (lo, hi int64, haveLo, haveHi bool) {
+	if !strings.HasPrefix(ty, "int ") {
+		return 0, 0, false, false
+	}
+	f := strings.Fields(ty)
+	if len(f) != 3 {
+		return 0, 0, false, false
+	}
+	if v, ok := new(big.Int).SetString(f[1], 10); ok && v.IsInt64() {
+		lo, haveLo = v.Int64(), true
+	}
+	if v, ok := new(big.Int).SetString(f[2], 10); ok && v.IsInt64() {
+		hi, haveHi = v.Int64(), true
+	}
+	return lo, hi, haveLo, haveHi
+}
+
+// rangePremise is what a range says about a name, as a term — the conjunction
+// of whichever halves RangeBounds could read. It returns nil when the range
+// says nothing expressible, which `(int -inf +inf)` does.
+func rangePremise(ty string, n *Term) *Term {
+	lo, hi, haveLo, haveHi := RangeBounds(ty)
+	var out *Term
+	if haveLo {
+		out = App(Name("<="), Int(lo), n)
+	}
+	if haveHi {
+		c := App(Name("<="), n, Int(hi))
+		if out == nil {
+			out = c
+		} else {
+			out = conj(out, c)
+		}
+	}
+	return out
 }
 
 // ShowType renders a type for a human. It exists for exactly one case: a range
@@ -1599,7 +1733,7 @@ func ValueType(ty string) string {
 	// not a refinement, so `compatible` refuses it against `int` and that
 	// refusal is the surface where a programmer finds out a value became a
 	// bignum.
-	if ExceedsWindow(ty) {
+	if ExceedsWindow(ty) || UnboundedRange(ty) {
 		return BigType
 	}
 	return ty

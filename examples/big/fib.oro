@@ -22,6 +22,14 @@
 ; fib(1000) has 209 digits and 2^1000 is a comfortable bound for it. The endpoint
 ; is an EXPRESSION rather than a literal, which is what the range language gained
 ; on 2026-08-31: it is evaluated and never emitted, so `KInt` stays an int64.
+;
+; THE BOUND IS FINITE ON PURPOSE. `(int 0 +inf)` would compile and give the same
+; answer today, and it says something weaker: a finite range has a LIMB COUNT,
+; which is a `build` of known length and zero allocations, where an unbounded one
+; must fall back to whatever arbitrary precision the target ships. That rung is
+; not built yet, so the two are indistinguishable in the emitted code -- but the
+; declaration is the place the difference is said, and saying it now costs
+; nothing.
 
 ; NO `(use …)` AT ALL, and that is the promotion of integer arithmetic to the
 ; language showing: `+` and `>=` are the language's names, found per target, so

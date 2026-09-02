@@ -155,10 +155,13 @@ func (c *checker) agree(what, got, want string) error {
 	// THE PROGRAM USED A BIGNUM WHERE A WORD IS REQUIRED. That refusal is the
 	// point rather than a wart: the promotion is a WIDENING, not a refinement, so
 	// it may not happen silently in the narrowing direction.
-	// `got` is either the declared range itself or, once the representation has
-	// been selected, the `big` it normalises to — the same claim arriving from
-	// the two sides of the promotion, so both spellings have to be caught.
-	if (core.ExceedsWindow(got) || got == core.BigType) && core.ValueType(want) == "int" {
+	// `got` is the declared range itself — finite-but-huge or INFINITE — or,
+	// once the representation has been selected, the `big` it normalises to.
+	// The same claim arrives from three directions and all three have to be
+	// caught, or the one that is missed falls through to "but int is required
+	// here", which is true and explains nothing.
+	if (core.ExceedsWindow(got) || core.UnboundedRange(got) || got == core.BigType) &&
+		core.ValueType(want) == "int" {
 		return fmt.Errorf("%s is %s, which is WIDER than the portable window "+
 			"±(2^53−1), so it is not an `int` — it is arbitrary precision, "+
 			"a rung above the host's word (docs/unbounded-rung.md).\n"+

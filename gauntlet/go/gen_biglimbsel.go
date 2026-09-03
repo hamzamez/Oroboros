@@ -43,7 +43,7 @@ func GenFactLimbs(n int) []int32 {
 				}
 				t1 = t2
 			}
-			var t int = ((t1 * i) + c)
+			var t int = (((t1 % 16777216) * i) + c)
 			o2[i3] = int32((t % 16777216))
 			c = (t / 16777216)
 			continue

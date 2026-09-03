@@ -516,6 +516,11 @@ var bigOps = []struct {
 	{"big<", 2, true}, {"big<=", 2, true}, {"big>", 2, true}, {"big>=", 2, true}, {"big=", 2, true},
 	{"big-of", 1, true}, {"big-str", 1, true},
 
+	// `big-of-small` is deliberately NOT here. No target declares it: it is a
+	// marker the representation pass writes and the fixed-limb lowering removes
+	// before anything else looks, saying that a widened word is small enough to
+	// be a limb multiplier (emit/bigrep.go's widenTo).
+
 	// THE DESTINATION FORMS, where the first argument is the object written
 	// into. A target that cannot mutate its bignum declares none of these, and
 	// that is a fact about the host: `java.math.BigInteger` is immutable and
@@ -1878,7 +1883,33 @@ func joinElemTypes(tys []string) string {
 	return fmt.Sprintf("int %d %d", lo, hi)
 }
 
+// buildLambda finds the `build` a source term yields, looking through the two
+// things that can stand between them.
+//
+// A `let` is what call-by-need leaves when a buffer is used more than once, and
+// a `set` hands the buffer back (ADR 0018). Neither changes which allocation the
+// loop variable ends up holding, so neither may hide it: the fixed-limb library
+// produces both shapes, and with them opaque a loop-carried buffer's sources
+// disagreed on width again — `byte[]` against `int[]` on Java.
 func buildLambda(tgt *Target, t *core.Term) (*core.Term, bool) {
+	for i := 0; i < 8 && t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName; i++ {
+		pr, ok := tgt.Prims[t.Op().Name]
+		if !ok {
+			return nil, false
+		}
+		args := t.Args()
+		switch {
+		case pr.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
+			t = args[1].Closed()
+		case pr.Kind == "table-set" && len(args) == 3:
+			t = args[0]
+		default:
+			i = 8
+		}
+		if i == 8 {
+			break
+		}
+	}
 	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
 		return nil, false
 	}

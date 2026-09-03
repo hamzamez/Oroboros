@@ -367,6 +367,8 @@ type IntervalReport struct {
 	// Ops: a bignum cannot leave the window, so it is not an operation the
 	// window accounting has anything to say about.
 	BigOps int
+
+
 }
 
 type intervalPass struct {
@@ -389,6 +391,7 @@ type intervalPass struct {
 	loopRaw    []string        // the enclosing loop's variables, for `again`
 	bigVal     map[*core.Term]bool // rebuilt terms whose value is a bignum
 	noChecked  bool            // select big, but not the checked arithmetic
+	selecting  bool            // this pass SELECTS a representation, rather than reporting on one
 	noDest     bool            // …and not the mutable-bignum rewrite either
 	limbs      bool            // big is OUR representation, so the host need not have one
 
@@ -719,6 +722,19 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0,
 		bound: map[string]bool{}, big: map[string]bool{}, bigReads: map[string]bool{},
 		noChecked: len(flags) > 0 && flags[0],
+		// THE SAME DECISION SEEN FROM TWO SIDES. A pass either selects a
+		// representation or reports on one already selected, and the two are
+		// exclusive: `PromoteBig` promotes and declines the checked forms,
+		// `Intervals` runs afterwards on the promoted term to count and to take
+		// `-checked`.
+		//
+		// Gating the big selection on it is not tidiness. A constant whose exact
+		// value leaves the window is a bignum (bigrep.go), and without this the
+		// REPORTING pass selected it too — so the operation vanished from the
+		// overflow accounting while the emitted term kept the machine-word
+		// multiply, and `(+ n 123456789012345678901234567890)` compiled to a
+		// wrapping constant with `int` as its declared result.
+		selecting: len(flags) > 0 && flags[0],
 		// THE FIXED-LIMB RUNG SUPPRESSES THE DESTINATION REWRITE. `big+!` writes
 		// into a host bignum object; a limb value is a table, and rule R's
 		// liveness argument is about neither. The two are different answers to
@@ -1079,7 +1095,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	// THE RUNG ABOVE THE WORD (bigrep.go). Selected before `transfer`, because a
 	// big operation is not an operation the window accounting sees: its result
 	// is `big`, not `int`, so it is neither counted nor refused.
-	if nt, ok := p.selectBig(t, kids); ok {
+	if nt, ok := p.selectBig(t, kids, vals); ok {
 		if p.count {
 			p.rep.BigOps++
 		}

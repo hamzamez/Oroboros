@@ -87,7 +87,8 @@ const limbPrefix = "big/limb."
 // magnitudes, and division needs a quotient estimate — so a program using one
 // keeps the host's bignum whole (see the header).
 var limbOf = map[string]string{
-	"big-of": limbPrefix + "of",
+	"big-of":       limbPrefix + "of",
+	"big-of-small": limbPrefix + "of",
 	"big+":   limbPrefix + "add",
 	"big*":   limbPrefix + "mul",
 }
@@ -244,7 +245,7 @@ func (l *limbLib) rewrite(tgt *Target, w int, t *core.Term, n *int) (*core.Term,
 	// the promotion produces for `(* acc i)` with `i` a machine word, which is
 	// rule (P)'s provability gate leaving it one.
 	if op := t.Op(); op.Kind == core.KName && op.Name == "big*" && len(t.Args()) == 2 {
-		if bigSide, word, ok := widenedOperand(t.Args()); ok {
+		if bigSide, word, ok := l.widenedOperand(t.Args()); ok {
 			a, err := l.rewrite(tgt, w, bigSide, n)
 			if err != nil {
 				return nil, err
@@ -291,11 +292,19 @@ func (l *limbLib) rewrite(tgt *Target, w int, t *core.Term, n *int) (*core.Term,
 }
 
 // widenedOperand splits a product into (big, word) when one side is a machine
-// word that was widened for the multiply.
-func widenedOperand(args []*core.Term) (*core.Term, *core.Term, bool) {
+// word that was widened for the multiply AND is small enough to be a limb
+// multiplier.
+func (l *limbLib) widenedOperand(args []*core.Term) (*core.Term, *core.Term, bool) {
 	isWiden := func(t *core.Term) (*core.Term, bool) {
 		if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName &&
-			t.Op().Name == "big-of" && len(t.Args()) == 1 {
+			t.Op().Name == "big-of-small" && len(t.Args()) == 1 {
+			// AND THE WORD HAS TO BE SMALL ENOUGH TO BE A MULTIPLIER, which the
+			// shape alone cannot say. `mul-small` computes `limb * k + carry` in
+			// one word, so k must stay under 2^28; a big literal's Horner spine
+			// multiplies by 10^15 and would overflow every column.
+			//
+			// The analysis named the widenings that qualify (widenTo); anything
+			// spelled `big-of` is spread over limbs and multiplied properly.
 			return t.Args()[0], true
 		}
 		return nil, false

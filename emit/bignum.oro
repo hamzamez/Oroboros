@@ -70,7 +70,28 @@
 ; refinement layer found in `dot` and `centroid`. The tables have the same
 ; length by construction and nothing can see that, so the program says what
 ; happens if they do not.
-(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+; AND THE VALUE IS MASKED, not only the index, which is the honest limit rather
+; than a shortcut.
+;
+; A limb is under 2^24 by construction, but that is an INDUCTIVE INVARIANT over a
+; buffer's own contents and frozen-2026-08-28 says such a thing is strictly
+; stronger than an octagon. Inside a `build` lambda every operand table is FREE,
+; so a read of one is stratum 0 and the analysis correctly refuses to claim a
+; range — and without a mask every column sum here is unbounded and the whole
+; library is refused by bounded-by-default.
+;
+; `% 2^24` is the identity on every value this library stores, so it changes no
+; answer; it costs one division per limb read. Removing it needs the analysis to
+; carry a frozen buffer's element range through a substitution into a lambda
+; where the buffer is free, which is a real extension and is named rather than
+; assumed.
+;
+; It has to be here rather than at the call sites because a LIBRARY is applied to
+; whatever the program has: `examples/big/limbs.oro` reads a loop variable, whose
+; element range the analysis does join, and a big literal's spine reads a `build`
+; whose range does not survive being substituted in. One of those proves and the
+; other does not, and a library may not be provable only sometimes.
+(def at (fn (t i) (% (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) 16777216)))
 
 ; THE CARRY CHECK, and it is why this rung is sound at all. `trap-if` returns 0
 ; when handed 0 and fails loudly otherwise; both branches of the conditional are
@@ -124,22 +145,29 @@
 ; Schoolbook, one row at a time, with the row's carry rippling as a loop
 ; variable. `row` accumulates a[i]*b[j] into out[i+j]; the outer loop walks i.
 ;
-; THE READ-BACK IS MASKED, and that is the honest limit rather than a
-; shortcut. `(at o k)` is a read of the buffer INSIDE its own `build` lambda --
-; stratum 0 by frozen-2026-08-28's stratification, so the analysis correctly
-; refuses to claim a range for it, and without a mask every column sum is
-; unbounded and the whole file is refused. The fact that a slot always holds a
-; value under 2^24 is an inductive invariant over the buffer's own contents,
-; which frozen-2026-08-28 says is strictly stronger than an octagon. The mask is
-; the identity on every value this algorithm stores and costs one division per
-; inner iteration; removing it needs the analysis to use a buffer's element
-; range for reads of it inside its own lambda, which is a real extension.
+; The read-back of `o` goes through `at` like every other read, so it carries the
+; same mask -- and here the buffer being read is the one being BUILT, which is
+; stratum 0 for a second reason.
+; THE COLUMN PAST THE LAST LIMB IS AN OVERFLOW, NOT A WRAP, and the first
+; version of this got it wrong in the way a fixed width invites: it CLAMPED the
+; store index, so a partial product at `i+j >= n` was written into slot 0 and
+; the answer came back wrong in its low digits. A clamp says "do something
+; safe"; here the only safe thing is to fail, because the declared width has
+; been exceeded.
+;
+; So the row has three clauses. Past the end of the row, stop. Past the end of
+; the RESULT, check that the contribution and the carry are both zero and keep
+; going -- `guard` nests, so both are checked. Otherwise accumulate.
+;
+; The middle clause is also what discharges the store's bounds obligation in the
+; last one: its negation gives `i + j < n`, and `n` is the buffer's length.
 (def macrow (fn (n o a b i)
   (loop ((o o) (j 0) (c 0))
-    (>= j n)  (guard c o)
-    else      (let (+ (+ (% (at o (+ i j)) 16777216) (* (at a i) (at b j))) c) (fn (t)
-                (again (set o (if (< (+ i j) n) (+ i j) 0) (% t 16777216))
-                       (+ j 1) (/ t 16777216)))))))
+    (>= j n)          (guard c o)
+    (>= (+ i j) n)    (again (guard (* (at a i) (at b j)) (guard c o)) (+ j 1) 0)
+    else              (let (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c) (fn (t)
+                        (again (set o (+ i j) (% t 16777216))
+                               (+ j 1) (/ t 16777216)))))))
 
 (def mul (fn (n a b)
   (build n (fn (o)

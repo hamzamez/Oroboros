@@ -448,6 +448,17 @@ func (e *javaEmitter) fresh(stem string) string {
 func (e *javaEmitter) emit(t *core.Term) (string, error) {
 	switch t.Kind {
 	case core.KInt:
+		// A LITERAL PAST 2^31 NEEDS THE `L` SUFFIX. Our `int` is Java's `long`
+		// (targets/java/java.oro), but a Java integer LITERAL is an `int`
+		// whatever it is assigned to, so `1000000000000000` is "integer number
+		// too large" at compile time.
+		//
+		// No corpus program had one until big literals arrived: `core/read.go`
+		// desugars a value past `int64` into Horner over base 10^15, and that
+		// base is the first literal in this repository above 2^31.
+		if t.Int > 2147483647 || t.Int < -2147483648 {
+			return strconv.FormatInt(t.Int, 10) + "L", nil
+		}
 		return strconv.FormatInt(t.Int, 10), nil
 	case core.KFloat:
 		s := strconv.FormatFloat(t.Float, 'g', -1, 64)
@@ -505,10 +516,28 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 				// Unless the index is already a host `int` — see NarrowIndex.
 				// Then the cast is not merely redundant, it is the thing that
 				// cost 1.04x to 1.45x.
+				// AND THE VALUE IS WIDENED TO THE HOST'S `int`, which on this
+				// target is `long`. A NARROWED table has `byte[]`, `short[]` or
+				// `int[]` elements, and Java arithmetic on those stays at the
+				// operand width — so `a[i] * b[j]` on two `int[]` limbs wraps at
+				// 2^31 while the same program on Go, which converts the read,
+				// is exact.
+				//
+				// A SILENT WRONG ANSWER, and it survived because no narrowed
+				// table had ever held values whose product left 2^31: the JSON
+				// tree's 16-bit node table multiplies by 4. A base-2^24 limb
+				// squared is 2^48, and Java returned a different number from
+				// the other three.
+				read := fmt.Sprintf("%s[(int) %s]", a, idx)
 				if e.narrowIdx(t.Args()[0]) {
-					return fmt.Sprintf("%s[%s]", a, idx), nil
+					read = fmt.Sprintf("%s[%s]", a, idx)
 				}
-				return fmt.Sprintf("%s[(int) %s]", a, idx), nil
+				if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
+					if _, _, narrowed := core.IntRange(elem); narrowed {
+						read = "(" + e.tgt.ty("int") + ") " + read
+					}
+				}
+				return read, nil
 			}
 			return "", IndexingErr("Java", op.Name)
 		}

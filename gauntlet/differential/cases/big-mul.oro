@@ -1,0 +1,28 @@
+; BIG TIMES BIG ON THE FIXED-LIMB RUNG, and a big LITERAL to make it.
+;
+; Two things neither `big-limbs` nor `big-select` exercised, and the gap hid a
+; WRONG ANSWER: `mul`'s schoolbook row clamped its store index when `i+j`
+; reached the declared width, so a partial product past the last limb was
+; written into slot 0 and the answer came back wrong in its low digits. A clamp
+; says "do something safe" and the only safe thing at a declared width is to
+; FAIL. It now checks the contribution and the carry and traps.
+;
+; The literal is 30 digits, which is past `int64` and so past what `KInt` can
+; hold. `core/read.go` desugars it into Horner over base 10^15, every leaf
+; inside the portable window and every operator the language's own — the same
+; move `(pow 2 70)` made for range endpoints, one level down.
+;
+; inputs: 0 1 7 1000
+; expect: 15241578753238836750495351562536198787501905199875019052100 15241578753238836750495351562659655576514250878776253619990 15241578753238836750495351563400396310588324952183661027330 15241578753238836750495351685992987799847584101109586942100
+;
+; Computed independently rather than by a second implementation of ours.
+;
+; `; skip: windows` -- the arithmetic works there; rendering a limb table as
+; decimal needs a string surface this language does not have. See `big-select`.
+; skip: windows
+(sig sq ((n (int 0 1000))) (int 0 (pow 2 400)))
+
+(def sq (fn (n)
+  (* 123456789012345678901234567890 (+ 123456789012345678901234567890 n))))
+
+(def run (fn (n) (big-str (sq n))))

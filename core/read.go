@@ -535,13 +535,13 @@ func (r *reader) atom() (*Term, error) {
 	// a threshold ten bits past the portable window and mentioned in no
 	// specification (data-model.md §1.1).
 	if looksInteger(text) {
-		v, err := strconv.ParseInt(text, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("line %d: %s does not fit in an integer; the portable range "+
-				"is ±(2^53−1) and the widest target is 64 bits (docs/spec/arithmetic.md §4)",
-				line, text)
+		if v, err := strconv.ParseInt(text, 10, 64); err == nil {
+			return Int(v), nil
 		}
-		return Int(v), nil
+		if t := bigLiteral(text); t != nil {
+			return t, nil
+		}
+		return nil, fmt.Errorf("line %d: %s is not an integer", line, text)
 	}
 	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
 		return Float(v), nil
@@ -1377,6 +1377,74 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 // So there is one spelling of a conjunction and it lives here.
 func conj(a, b *Term) *Term {
 	return &Term{Kind: KApp, Kids: []*Term{Name("if"), a, b, Bool(false)}}
+}
+
+// litChunk is the base a big literal is split into: 10^15, the largest power of
+// ten under ADR 0012's window, so every chunk and every digit group a person
+// reads back is a plain decimal number.
+const litChunk = 1000000000000000
+
+// bigLiteral reads an integer too large for an `int64` and returns it as a TERM
+// rather than a value.
+//
+// A LITERAL PAST THE WORD IS THE SAME PROBLEM A RANGE ENDPOINT HAD, and it has
+// the same answer. `KInt` holds an `int64`, so the obvious route was an eighth
+// term kind — against state.md's "seven term kinds, the entire grammar of what
+// a program can say". unbounded-rung.md §3a dissolved that for endpoints by
+// making them EXPRESSIONS; this is the same move one level down, for values.
+//
+// The literal becomes Horner over base 10^15:
+//
+//	123456789012345678901  ->  (+ (* 123456 1000000000000000) 789012345678901)
+//
+// Every leaf is inside the portable window and every operator is the language's
+// own, so nothing new enters the term language. What makes it CORRECT is what
+// the rest of the integer work built:
+//
+//   - constant folding refuses a result outside the window (ADR 0009), so the
+//     spine survives reduction instead of silently wrapping;
+//   - the representation solver promotes it, because the spine's intermediate
+//     values are not provably inside the window — so a literal used where a
+//     bignum is wanted computes in arbitrary precision, and one used where an
+//     `int` is required is REFUSED by bounded-by-default, which is the right
+//     answer for a value that does not fit a machine word.
+//
+// The cost is a few operations for a constant, which an emission-time fold
+// could remove later. The benefit is that a 400-digit literal needs no new term
+// kind, no widening of `KInt`, and no reader that knows what a bignum is.
+func bigLiteral(text string) *Term {
+	v, ok := new(big.Int).SetString(text, 10)
+	if !ok {
+		return nil
+	}
+	neg := v.Sign() < 0
+	if neg {
+		v = new(big.Int).Neg(v)
+	}
+	base := big.NewInt(litChunk)
+	var chunks []int64
+	for v.Sign() > 0 {
+		q, r := new(big.Int).QuoRem(v, base, new(big.Int))
+		chunks = append(chunks, r.Int64())
+		v = q
+	}
+	if len(chunks) == 0 {
+		chunks = []int64{0}
+	}
+	// Horner from the most significant chunk down, so each step is one multiply
+	// and one add and the tree is a spine rather than a sum of powers — a sum
+	// would need 10^30 as a literal, which is the thing being avoided.
+	out := Int(chunks[len(chunks)-1])
+	for i := len(chunks) - 2; i >= 0; i-- {
+		out = App(Name("*"), out, Int(litChunk))
+		if chunks[i] != 0 {
+			out = App(Name("+"), out, Int(chunks[i]))
+		}
+	}
+	if neg {
+		out = App(Name("-"), Int(0), out)
+	}
+	return out
 }
 
 // evalEndpoint evaluates a range endpoint at compile time, at ARBITRARY

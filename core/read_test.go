@@ -349,12 +349,14 @@ func TestModuleDiagnostics(t *testing.T) {
 	}
 }
 
-// An integer literal too large for int64 is an ERROR, not a float.
+// An integer literal is never a FLOAT, whatever its size.
 //
-// It used to fall through to ParseFloat, so `9223372036854775808` silently
-// became a float and the program's type changed underneath it — at a threshold
-// ten bits past the portable window and named in no specification
-// (docs/spec/data-model.md §1.1).
+// One too large for int64 used to fall through to ParseFloat, so
+// `9223372036854775808` silently became a float and the program's type changed
+// underneath it — at a threshold ten bits past the portable window and named in
+// no specification (docs/spec/data-model.md §1.1). It is now desugared into
+// in-window arithmetic instead, and the thing that must not regress is that it
+// stays an integer.
 func TestOversizedIntegerLiteralIsRefused(t *testing.T) {
 	for _, ok := range []string{"0", "-7", "9007199254740991", "9223372036854775807",
 		"-9223372036854775808", "1e20", "1.5", "-0.25"} {
@@ -362,11 +364,19 @@ func TestOversizedIntegerLiteralIsRefused(t *testing.T) {
 			t.Errorf("%s should read: %v", ok, err)
 		}
 	}
-	for _, bad := range []string{"9223372036854775808", "99999999999999999999",
+	// AND ONE PAST int64 IS NO LONGER REFUSED — it desugars into in-window
+	// arithmetic (see TestABigLiteralIsAValueBuiltFromSmallOnes). What must not
+	// regress is that it is never a FLOAT: the bug this test was written for was
+	// `9223372036854775808` falling through to ParseFloat.
+	for _, big := range []string{"9223372036854775808", "99999999999999999999",
 		"-99999999999999999999"} {
-		got, err := ReadTerm(bad)
-		if err == nil {
-			t.Errorf("%s should not read; got %s of kind %d", bad, got, got.Kind)
+		got, err := ReadTerm(big)
+		if err != nil {
+			t.Errorf("%s should read as a desugared spine: %v", big, err)
+			continue
+		}
+		if got.Kind == KFloat {
+			t.Errorf("%s became a float", big)
 		}
 	}
 	// And the ones that DO read are integers, not floats.

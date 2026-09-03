@@ -38,14 +38,50 @@ func TestEndpointExpressions(t *testing.T) {
 	}
 }
 
-// A LITERAL PAST THE WINDOW IS STILL REFUSED AS A VALUE, which is the other
-// half of the distinction and the thing that must not regress. The endpoint
-// grammar exists so that a BOUND can exceed the word; a value may not.
-func TestABigLiteralIsStillNotAValue(t *testing.T) {
-	if _, err := Read("(def f (fn () 9223372036854775808))"); err == nil {
-		t.Error("a literal past int64 was accepted as a value; ADR 0012's window " +
-			"is about what a program computes with, and widening a BOUND must " +
-			"not widen that")
+// A LITERAL PAST THE WORD IS A VALUE TOO, and it is the same trick one level
+// down.
+//
+// This used to be a refusal, and the refusal was about `KInt` holding an
+// `int64` rather than about anything a program means. The endpoint grammar
+// dissolved that for BOUNDS by making them expressions; a literal dissolves it
+// for VALUES by desugaring into Horner over base 10^15 — every leaf inside the
+// portable window, every operator the language's own, no eighth term kind.
+//
+// What keeps it honest is the rest of the integer work: constant folding
+// refuses a result outside the window (ADR 0009), so the spine survives instead
+// of wrapping; the representation solver promotes it, because a constant whose
+// exact value leaves the window can only be a bignum; and used where an `int`
+// is required, bounded-by-default refuses it.
+func TestABigLiteralIsAValueBuiltFromSmallOnes(t *testing.T) {
+	forms, err := Read("(def f (fn () 123456789012345678901234567890))")
+	if err != nil {
+		t.Fatalf("a 30-digit literal was refused: %v", err)
+	}
+	got := forms[0].Term.String()
+	want := "(fn () (+ (* 123456789012345 1000000000000000) 678901234567890))"
+	if got != want {
+		t.Errorf("desugared to %s, want %s", got, want)
+	}
+	// EVERY LEAF IS INSIDE THE PORTABLE WINDOW, which is what makes the spine a
+	// term at all — the whole point is that no `KInt` holds anything a host
+	// could not.
+	var check func(*Term)
+	check = func(x *Term) {
+		if x.Kind == KInt && (x.Int > 9007199254740991 || x.Int < -9007199254740991) {
+			t.Errorf("a leaf %d is outside ADR 0012's window", x.Int)
+		}
+		for _, k := range x.Kids {
+			check(k)
+		}
+	}
+	check(forms[0].Term)
+	// A negative one negates the magnitude rather than sign-extending a chunk.
+	neg, err := Read("(def f (fn () -123456789012345678901))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := neg[0].Term.String(); got != "(fn () (- 0 (+ (* 123456 1000000000000000) 789012345678901)))" {
+		t.Errorf("negative literal desugared to %s", got)
 	}
 }
 

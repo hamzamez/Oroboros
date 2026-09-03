@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math/big"
 
 	"oroboros/core"
 )
@@ -99,7 +100,7 @@ func langCompare(name string) bool {
 var bigOpNames = map[string]bool{
 	"big+": true, "big-": true, "big*": true, "big/": true, "big%": true,
 	"big<": true, "big<=": true, "big>": true, "big>=": true, "big=": true,
-	"big-of": true, "big-str": true,
+	"big-of": true, "big-of-small": true, "big-str": true,
 }
 
 func isBigOp(name string) bool { return bigOpNames[name] }
@@ -141,6 +142,9 @@ func (p *intervalPass) bigTerm(t *core.Term) bool {
 			return op.Name != "big-str"
 		}
 		if langArith(op.Name) {
+			if constBigValue(t) {
+				return true
+			}
 			for _, a := range t.Args() {
 				if p.bigTerm(a) {
 					return true
@@ -165,9 +169,32 @@ func (p *intervalPass) bigTerm(t *core.Term) bool {
 }
 
 // widenTo wraps a rebuilt term in `big-of` unless the original was already big.
-func (p *intervalPass) widenTo(orig, rebuilt *core.Term) *core.Term {
+func (p *intervalPass) widenTo(orig, rebuilt *core.Term, vals []ival, i int) *core.Term {
 	if p.bigTerm(orig) {
 		return rebuilt
+	}
+	// A WIDENED WORD THAT IS SMALL ENOUGH TO BE A MULTIPLIER gets its own NAME,
+	// because the fixed-limb rung's one-pass multiply needs the fact and cannot
+	// tell from the shape. `limb * k + carry` must stay inside the window: a
+	// limb is under 2^24 and a carry under 2^25, so k under 2^28 leaves
+	// 2^52 + 2^25.
+	//
+	// Getting it wrong is a WRONG ANSWER rather than a slow one — a big
+	// literal's Horner spine multiplies by 10^15, and `mul-small` at that
+	// multiplier overflows every column.
+	//
+	// A NAME AND NOT A MAP KEYED BY THE TERM, which was the first attempt and
+	// the fourth time this compiler has been caught by a rebuild: `core.Fn`
+	// closes a loop body by reconstructing it, so every pointer inside the map
+	// was stale before the lowering ever saw it. A name survives.
+	//
+	// It appears only on the limb rung, so the host rung never sees a second
+	// spelling of its widening.
+	if p.limbs && i < len(vals) {
+		v := vals[i]
+		if !v.loInf && !v.hiInf && v.lo >= 0 && v.hi < 1<<28 {
+			return core.App(core.Name("big-of-small"), rebuilt)
+		}
 	}
 	return core.App(core.Name("big-of"), rebuilt)
 }
@@ -181,8 +208,8 @@ func (p *intervalPass) widenTo(orig, rebuilt *core.Term) *core.Term {
 // arrives straight from the signature. The same rule reads `(big-str e)`, whose
 // declared argument is `big`, which is how a whole program asks — see the note
 // on inlining in `app`.
-func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term) (*core.Term, bool) {
-	if p.big == nil || !p.bigOK() {
+func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term, vals []ival) (*core.Term, bool) {
+	if p.big == nil || !p.bigOK() || !p.selecting {
 		return nil, false
 	}
 	op := t.Op()
@@ -194,7 +221,7 @@ func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term) (*core.Term, b
 	if len(args) != 2 || len(kids) != 3 {
 		return nil, false
 	}
-	byOperand := p.bigTerm(args[0]) || p.bigTerm(args[1])
+	byOperand := p.bigTerm(args[0]) || p.bigTerm(args[1]) || constBigValue(t)
 	// A COMPARISON IS NEVER FORCED BY ITS POSITION, only by its operands: it
 	// yields a bool, so a big DEMAND on the surrounding position says nothing
 	// about it.
@@ -229,8 +256,8 @@ func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term) (*core.Term, b
 	}
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{
 		core.Name(bigName),
-		p.widenTo(args[0], kids[1]),
-		p.widenTo(args[1], kids[2]),
+		p.widenTo(args[0], kids[1], vals, 0),
+		p.widenTo(args[1], kids[2], vals, 1),
 	}}, true
 }
 
@@ -454,3 +481,61 @@ func (p *intervalPass) markBig(t *core.Term, big bool) {
 // bigOK reports whether arbitrary precision is available at all: either the
 // target ships a bignum, or the fixed-limb rung is selected and we ship one.
 func (p *intervalPass) bigOK() bool { return p.limbs || p.tgt.HasBig() }
+
+// A CONSTANT ARITHMETIC TERM WHOSE EXACT VALUE LEAVES THE WINDOW is a bignum,
+// and there is nothing else it could be.
+//
+// This is what makes a big LITERAL work. `core/read.go` desugars one into Horner
+// over base 10^15 — `(+ (* 123456789012345 1000000000000000) 678901234567890)` —
+// because `KInt` holds an `int64` and the alternative was an eighth term kind.
+// Every leaf is inside the window; the SPINE is not, so the operations have to
+// be arbitrary precision or the program is refused.
+//
+// Recognising it exactly, rather than propagating a demand into every operand of
+// a big operation, is what keeps `(* acc (+ i 1))` from acquiring a bignum
+// counter: `(+ i 1)` is not constant, so nothing here fires. And there are no
+// false positives to worry about — a constant expression that leaves the window
+// can only be meant as a big value, since bounded-by-default refuses it as a
+// machine word.
+//
+// Constant folding does NOT collapse the spine first: ADR 0009 forbids folding a
+// result outside the window, because compile time is Go's int64 and run time on
+// V8 is a binary64 exact only to ±(2^53−1). That refusal is what leaves the
+// spine here to be found.
+func constBigValue(t *core.Term) bool {
+	v, ok := constValue(t, 0)
+	if !ok {
+		return false
+	}
+	w := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1))
+	return v.CmpAbs(w) > 0
+}
+
+// constValue evaluates a closed arithmetic term at arbitrary precision, or
+// reports that it is not one. The depth cap is a guard rather than a case: a
+// literal's spine is one level per fifteen digits.
+func constValue(t *core.Term, depth int) (*big.Int, bool) {
+	if t == nil || depth > 64 {
+		return nil, false
+	}
+	if t.Kind == core.KInt {
+		return big.NewInt(t.Int), true
+	}
+	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return nil, false
+	}
+	a, ok1 := constValue(t.Args()[0], depth+1)
+	b, ok2 := constValue(t.Args()[1], depth+1)
+	if !ok1 || !ok2 {
+		return nil, false
+	}
+	switch t.Op().Name {
+	case "+":
+		return new(big.Int).Add(a, b), true
+	case "-":
+		return new(big.Int).Sub(a, b), true
+	case "*":
+		return new(big.Int).Mul(a, b), true
+	}
+	return nil, false
+}

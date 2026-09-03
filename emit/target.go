@@ -2635,3 +2635,111 @@ func handsBack(tgt *Target, t *core.Term, name string) bool {
 
 // KindOf is a primitive's structural kind, for tests and tools.
 func (tg *Target) KindOf(name string) string { return tg.Prims[name].Kind }
+
+// LOOP-CARRIED BUFFER REUSE: a `build` on a back edge writes into storage the
+// loop already owns, instead of allocating a fresh table every iteration.
+//
+// This is the fourth place the same gap has been named — Karatsuba's workspace,
+// ADR 0013's stencil, the mutable bignum, and the fixed-limb rung, where 199
+// iterations of a factorial cost 199 allocations and that is most of what
+// biglimb-2026-09-02 measured. The first three are about a boundary; this one is
+// about a back edge, and a back edge is where ADR 0015 already gives the answer.
+//
+// THE CONDITIONS ARE RULE R's, ONE LEVEL UP. `emit/bigreuse.go` asks when a
+// bignum operation may write into a loop variable's object; this asks the same
+// of a table:
+//
+//	(1) the `again` argument for vⱼ is a `build` of constant length;
+//	(2) vⱼ's initialiser is a `build` of the SAME length, so the two are
+//	    interchangeable storage — and it allocates in this function, so nothing
+//	    outside owns it;
+//	(3) EVERY occurrence of vⱼ in the whole `again` is inside that argument;
+//	(4) the loop has exactly one back edge, so there is one story about which
+//	    buffer is live.
+//
+// TWO BUFFERS AND A SWAP, NOT ONE BUFFER IN PLACE. Writing the new value into
+// the old one would alias the reads the body makes of vⱼ, and whether that is
+// safe depends on the ALGORITHM: a limb multiply reads `a[i]` after writing
+// `o[i+j]`, and in place that is a wrong answer. Alternating two buffers needs
+// no aliasing argument at all — the body always reads one and writes the other —
+// and the buffer it writes was last read two iterations ago and is dead.
+//
+// The spare is CLEARED on entry, because `build` zero-fills (tables.md §14.3)
+// and a program may rely on it — `mul` accumulates into slots it has not
+// written. A clear is a memset where an allocation is a heap operation and a
+// collection.
+func LoopBufferReuse(tgt *Target, inits []*core.Term, openBody *core.Term,
+	raw []string) map[int]*core.Term {
+	agains := againTerms(tgt, openBody)
+	if len(agains) != 1 {
+		return nil // (4)
+	}
+	as := agains[0].Args()
+	out := map[int]*core.Term{}
+	for j := range raw {
+		if j >= len(as) || j >= len(inits) {
+			continue
+		}
+		lam, n, ok := constBuild(tgt, as[j]) // (1)
+		if !ok {
+			continue
+		}
+		if _, m, ok := constBuild(tgt, inits[j]); !ok || m != n { // (2)
+			continue
+		}
+		total := 0
+		for _, a := range as {
+			total += countName(a, raw[j])
+		}
+		if total != countName(as[j], raw[j]) || total == 0 { // (3)
+			continue
+		}
+		out[j] = lam
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// constBuild reports the lambda and length of a `build` whose length is a
+// literal, looking through the `let` call-by-need leaves and the `set` that
+// hands a buffer back — the same two shapes buildLambda sees through.
+func constBuild(tgt *Target, t *core.Term) (*core.Term, int64, bool) {
+	lam, ok := buildLambda(tgt, t)
+	if !ok {
+		return nil, 0, false
+	}
+	// buildLambda followed the wrappers; the length lives on the build itself,
+	// so find it the same way.
+	for i := 0; i < 8 && t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName; i++ {
+		pr, known := tgt.Prims[t.Op().Name]
+		if !known {
+			return nil, 0, false
+		}
+		args := t.Args()
+		if pr.Kind == "table-build" && len(args) == 2 {
+			if args[0].Kind != core.KInt {
+				return nil, 0, false
+			}
+			return lam, args[0].Int, true
+		}
+		switch {
+		case pr.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
+			t = args[1].Closed()
+		case pr.Kind == "table-set" && len(args) == 3:
+			t = args[0]
+		default:
+			return nil, 0, false
+		}
+	}
+	return nil, 0, false
+}
+
+// buildLen is a `build`'s literal length, or 0.
+func buildLen(tgt *Target, t *core.Term) int64 {
+	if _, n, ok := constBuild(tgt, t); ok {
+		return n
+	}
+	return 0
+}

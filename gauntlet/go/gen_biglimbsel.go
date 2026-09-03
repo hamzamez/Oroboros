@@ -16,11 +16,13 @@ func GenFactLimbs(n int) []int32 {
 	}
 	acc := b2
 	var i int = 2
+	sp1 := make([]int32, 55)
 	for ; ; i = (i + 1) {
 		if (i > n) {
 			break
 		}
-		o := make([]int32, 55)
+		clear(sp1)
+		o := sp1
 		o2 := o
 		var i3 int = 0
 		var c int = 0
@@ -31,24 +33,24 @@ func GenFactLimbs(n int) []int32 {
 				}
 				break
 			}
-			var t1 int
+			var t2 int
 			if (i3 < 0) {
-				t1 = 0
+				t2 = 0
 			} else {
-				var t2 int
+				var t3 int
 				if (i3 >= len(acc)) {
-					t2 = 0
+					t3 = 0
 				} else {
-					t2 = int(acc[i3])
+					t3 = int(acc[i3])
 				}
-				t1 = t2
+				t2 = t3
 			}
-			var t int = (((t1 % 16777216) * i) + c)
+			var t int = (((t2 % 16777216) * i) + c)
 			o2[i3] = int32((t % 16777216))
 			c = (t / 16777216)
 			continue
 		}
-		acc = o2
+		acc, sp1 = o2, acc
 		continue
 	}
 	return acc

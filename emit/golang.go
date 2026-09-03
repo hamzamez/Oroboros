@@ -38,6 +38,17 @@ type Emitter struct {
 	// feeding a given loop variable must use. Keyed by the build's lambda,
 	// which is a pointer into the term this emitter holds.
 	elemFix map[*core.Term]string
+
+	// bufReuse maps a back-edge `build`'s lambda to the spare buffer it writes
+	// into instead of allocating (LoopBufferReuse). Keyed the same way, and for
+	// the same reason it has to be per-loop: the emitter opens the body, so
+	// these are the pointers it will emit.
+	bufReuse map[*core.Term]string
+
+	// spareOf is the same answer indexed by LOOP VARIABLE, which is what the
+	// back edge needs: `acc, sp = <the build's result>, acc` is the swap, and
+	// the build's result IS `sp`, so it reads as `acc, sp = sp, acc`.
+	spareOf map[int]string
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
@@ -294,6 +305,15 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 	body, raw, out := openFresh(lam, e.bound, mangle)
 	elem := elemTypeFixed(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 	e.types[raw[0]] = "array " + elem
+	// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE instead of allocating
+	// (LoopBufferReuse). `clear` restores the zero fill `build` guarantees
+	// (tables.md §14.3), which a program may rely on — `mul` accumulates into
+	// slots it has not written — and a memset is not a heap operation.
+	if sp, ok := e.bufReuse[lam]; ok {
+		e.line("clear(%s)", sp)
+		e.line("%s := %s", out[0], sp)
+		return e.emit(body)
+	}
 	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
 	return e.emit(body)
 }
@@ -1559,6 +1579,7 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	// map restored on exit answers with the initialiser's unjoined width
 	// there. Accumulating is safe because every key is a pointer to a term
 	// that belongs to exactly one loop.
+	reuse := LoopBufferReuse(e.tgt, inits, body, raw)
 	if fix := LoopOneJoin(e.tgt, inits, body, raw, e.typeOf, e.sig, e.topParams); len(fix) > 0 {
 		if e.elemFix == nil {
 			e.elemFix = map[*core.Term]string{}
@@ -1592,6 +1613,27 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 			e.line("%s := %s", names[i], vals[i])
 		}
 	}
+
+	// THE SPARE BUFFERS, one per reusable loop variable, allocated once before
+	// the loop and alternated with it (LoopBufferReuse). Declared after the
+	// variables because the type comes from the initialiser's.
+	spares := map[int]string{}
+	for j, lam := range reuse {
+		sp := e.fresh("sp")
+		e.line("%s := make(%s, %d)", sp, e.tgt.ty(tys[j]), buildLen(e.tgt, inits[j]))
+		spares[j] = sp
+		if e.bufReuse == nil {
+			e.bufReuse = map[*core.Term]string{}
+		}
+		e.bufReuse[lam] = sp
+	}
+	// SCOPED, unlike `elemFix`: a spare belongs to ONE loop, and its `again` is
+	// the one that swaps it. Set globally, the INNER loop's empty table replaced
+	// the outer's and no swap was emitted at all — so the spare and the
+	// accumulator became the same buffer and `clear` wiped it before every read.
+	outerSpares := e.spareOf
+	e.spareOf = spares
+	defer func() { e.spareOf = outerSpares }()
 
 	// BOUNDS-CHECK ELIMINATION, which `fold-range` had and `loop` lost.
 	//
@@ -1760,6 +1802,13 @@ func (e *Emitter) emitAgain(t *core.Term, raw, names []string, post map[int]*cor
 		}
 		lhs = append(lhs, names[i])
 		rhs = append(rhs, v)
+		// AND THE SPARE TAKES THE OLD BUFFER. `v` is the spare, so this reads
+		// `acc, sp = sp, acc` — a swap, and Go evaluates every right-hand side
+		// before assigning, so it is one.
+		if sp, ok := e.spareOf[i]; ok {
+			lhs = append(lhs, sp)
+			rhs = append(rhs, names[i])
+		}
 	}
 	if len(lhs) > 0 {
 		e.line("%s = %s", strings.Join(lhs, ", "), strings.Join(rhs, ", "))

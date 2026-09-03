@@ -252,9 +252,10 @@ demonstration wired into the default path is a decision, whether or not anyone m
    COUNT now: a `build` of known length, a library written in Oroboros, and **windows gets arbitrary
    precision for the first time**, which is what this item asked for.
 
-   **AND IT DOES NOT PAY, WHICH CORRECTS AN EXPECTATION THIS ADR CARRIED.** The limb rung is **8.3x
-   slower than our own unbounded rung on Go** (18,150 ns against 2,186 at 200!) and **2.7x slower on
-   Java** — the host bigarith predicted it would win on by 6.2x. bigarith's 3.97x/6.2x/5.8x were
+   **AND IT DOES NOT PAY, WHICH CORRECTS AN EXPECTATION THIS ADR CARRIED.** The limb rung is **6.5x
+   slower than our own unbounded rung on Go** (13,850 ns against 2,131 at 200!, after loop-carried
+   buffer reuse took it from 19,270 and from 200 allocations to 2) and **2.7x slower on Java** — the
+   host bigarith predicted it would win on by 6.2x. bigarith's 3.97x/6.2x/5.8x were
    measured on HAND-WRITTEN host code using three things a portable library written in this language
    cannot have: **64-bit limbs** (ours are 24, because a limb product plus its carry must stay inside
    ADR 0012's window), **a shift and a mask** (bitwise is Tier 2 — V8 coerces to int32), and **one

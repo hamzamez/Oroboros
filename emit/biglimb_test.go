@@ -231,3 +231,91 @@ func allProgSigs(p *core.Program) []*core.Sig {
 	}
 	return out
 }
+
+// LOOP-CARRIED BUFFER REUSE (LoopBufferReuse), the back-edge instance of the
+// gap named in four places.
+//
+// A `build` on a back edge writes into storage the loop already owns. The
+// conditions are rule R's one level up, and the two that carry the weight are
+// (3) — every occurrence of the loop variable is inside that argument — and the
+// requirement that both lengths be the same CONSTANT, since two buffers of
+// different sizes are not interchangeable storage.
+func TestABackEdgeBuildReusesTheLoopsStorage(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(export fact)
+(sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
+(def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
+`
+	code := emitGo(t, tg, src, "fact")
+	// One `make` for the initial buffer and one for the spare, both OUTSIDE the
+	// loop; the allocating form has one inside it.
+	if n := strings.Count(code, "make("); n != 2 {
+		t.Errorf("%d allocations, want 2 — the spare is hoisted and the back edge "+
+			"swaps into it:\n%s", n, code)
+	}
+	if !strings.Contains(code, "clear(") {
+		t.Errorf("the spare is not cleared; `build` zero-fills (tables.md §14.3) "+
+			"and a program may rely on it:\n%s", code)
+	}
+	// AND THE SWAP, not a plain assignment: `acc = o` alone would make the
+	// accumulator and the spare the same buffer, and `clear` would wipe it
+	// before every read. That is what the first version did, and it returned 0.
+	if !strings.Contains(code, ", sp") || !strings.Contains(code, "= o") {
+		t.Errorf("no swap at the back edge:\n%s", code)
+	}
+}
+
+// AND A LOOP WHOSE BUFFER IS READ SOMEWHERE ELSE KEEPS ITS ALLOCATION, which is
+// condition (3): the old buffer has to be dead after the back edge, and another
+// reader is the proof that it is not.
+func TestABufferReadElsewhereIsNotReused(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(export f)
+(sig f ((n (int 0 20))) int)
+(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+(def f (fn (n)
+  (loop ((b (build 8 (fn (x) x))) (s 0) (i 0))
+    (>= i n)  s
+    else      (again (build 8 (fn (o) (set o 0 (at b 0)))) (+ s (at b 1)) (+ i 1)))))
+`
+	code := emitGo(t, tg, src, "f")
+	if strings.Count(code, "make(") != 2 || strings.Contains(code, "clear(") {
+		t.Errorf("a buffer read outside its own back-edge argument was reused; "+
+			"its old contents are still needed:\n%s", code)
+	}
+}
+
+func emitGo(t *testing.T, tg *Target, src, name string) string {
+	t.Helper()
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs[name], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, _, err = PromoteBig(tg, prog.Sigs[name], nf, allProgSigs(prog)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := Func(tg, name, prog.Sigs[name], nf)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return code
+}

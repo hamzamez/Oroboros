@@ -153,3 +153,4 @@ func BenchmarkBigFactLimbs(b *testing.B) {
 		limbSink = GenFactLimbs(200)
 	}
 }
+

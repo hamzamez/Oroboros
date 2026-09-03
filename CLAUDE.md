@@ -1733,8 +1733,9 @@ base-2^24 limbs and a `build` of known length; `(int 0 +inf)` gives the host's o
 source, two declarations, two representations, on all four targets — and **windows gets arbitrary
 precision for the first time**, which is ADR 0019 item 4.
 
-**8.3x SLOWER than our own unbounded rung on Go** (18,150 ns against 2,186 at 200!, 200 allocations
-against 6) and **2.7x slower on Java** — the host bigarith predicted it would win on by 6.2x.
+**6.5x SLOWER than our own unbounded rung on Go** (13,850 ns against 2,131 at 200!, and that is
+AFTER loop-carried buffer reuse took it from 19,270 and from 200 allocations to 2) and **2.7x slower
+on Java** — the host bigarith predicted it would win on by 6.2x.
 **bigarith's 3.97x/6.2x/5.8x were measured on HAND-WRITTEN host code** using three things a portable
 library written in this language cannot have: **64-bit limbs** (ours are 24, forced by ADR 0012 —
 2W < 53), **a shift and a mask** (bitwise is Tier 2, V8 coerces to int32, and bigarith measured
@@ -1749,6 +1750,25 @@ representation changes the answer** — ADR 0009's rule at a different boundary.
 fail: `panic`, `throw`, `throw`, `ud2`, the same instructions the checked arithmetic already uses.
 One comparison per OPERATION, not per limb. So the two upper rungs are a genuine choice, and today
 the answer is **declare `+inf` unless the target has no bignum**.
+
+**AND LOOP-CARRIED BUFFER REUSE IS BUILT, ON GO — 1.39x AND 200 ALLOCATIONS TO 2.** A `build` on a
+back edge writes into storage the loop already owns. **The conditions are rule R's one level up**:
+the `again` argument for a loop variable is a `build` of constant length, its initialiser is a
+`build` of the same length, every occurrence of the variable in the whole `again` is inside that
+argument, and there is one back edge. **TWO BUFFERS AND A SWAP, not one buffer in place** — in place
+the body would read the variable through the storage it writes, and whether that is safe depends on
+the ALGORITHM (`mul-small` would survive, `mul` would not); alternating needs no aliasing argument at
+all. The spare is `clear`ed, because `build` zero-fills and `mul` accumulates into slots it never
+writes. Exactly two emitted files change, both limb programs; it is the BACK-EDGE instance of the
+gap, and Karatsuba's workspace and ADR 0013's stencil are the boundary instance, still open.
+
+**AND THE MEASUREMENT METHOD WAS WRONG, A THIRD KIND.** The first attempt reported reuse at 39,000 ns
+against 18,150 allocating — reuse twice as SLOW at a hundredth of the allocations. Both used
+`-benchtime=Ns`, which lets Go choose N, and a program with 200 allocations per operation has a cost
+that depends on how many iterations the harness runs: the same binary gave 62,206, 19,464, 19,356 and
+19,145 on four consecutive passes. With a FIXED count (`-benchtime=100000x`) everything is stable to
+2% and the answer inverts. Two errors of this family are already recorded — process composition, in
+json-tree-bench and bigrep §3.2 — and this is a different one: **iteration count**.
 
 **Three things the build taught.** **The width must come from the WHOLE PROGRAM** — reduction
 inlines every non-exported call and `main` has no signature, so a per-function width meant no whole

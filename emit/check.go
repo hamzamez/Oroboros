@@ -415,7 +415,7 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			// claim is checked against the signature as that rung means it.
 			// Checking the declaration verbatim refuses a body that produces
 			// limbs, which is true of the declaration and false of the code.
-			_, onLimbs := LimbWidth(all...)
+			onLimbs, _, _ := BigRepr(tgt, all...)
 			sig = LimbSig(sig, onLimbs)
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err

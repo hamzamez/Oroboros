@@ -170,6 +170,33 @@ type Target struct {
 	// hold — and it is the fact indextype-2026-08-25 hardcoded in Go.
 	MaxLen int64
 
+	// BigRepr is how this target stores a value whose declared range is above
+	// the portable window but FINITE — "limbs" or "host". Empty means the
+	// obvious default: the host's own bignum where it has one, fixed limbs
+	// where it does not.
+	//
+	// IT IS A REPRESENTATION AND NOT A MEANING, which is the whole reason it is
+	// declared here rather than read off the range. `(int 0 (pow 2 1300))` says
+	// the value is a mathematical integer in that interval — a fact about the
+	// program, true on every target — and ADR 0003 has said since the beginning
+	// that mathematical semantics and machine representation are two different
+	// things. `int-repr` already works this way one rung down: the programmer
+	// writes `(int 0 255)` and Go picks `[]byte`, the JVM picks `short[]`
+	// (its byte is signed) and JavaScript picks nothing at all.
+	//
+	// The reason this exists is that the same rule was NOT followed at the top
+	// of the ladder. A finite range selected limbs and `+inf` selected the
+	// host's bignum, so the SHAPE of a declaration chose a representation —
+	// which cost 100x on V8, where BigInt is C++ with 64-bit limbs and ours is
+	// portable Oroboros with 24-bit ones (biglimb-2026-09-02).
+	//
+	// There is no total order to select from the way `int-repr` has one, so
+	// this cannot be derived: bigarith-2026-08-28 measured ours winning where
+	// the operation is LINEAR and the host winning where it is QUADRATIC. A
+	// target declares what somebody measured, and when the limb library gets
+	// faster the thing that changes is a target file and no program moves.
+	BigRepr string
+
 	Reprs []IntRepr
 	Prims map[string]Prim
 	Names []string // every primitive name, for core.Env
@@ -529,6 +556,21 @@ var bigOps = []struct {
 	{"big+!", 3, false}, {"big-!", 3, false}, {"big*!", 3, false},
 	{"big/!", 3, false}, {"big%!", 3, false}, {"big-of!", 2, false},
 
+	// THE DECLARED BOUND, ENFORCED ON THE HOST'S OWN BIGNUM. `(big-fit x k)` is
+	// x when x needs at most k bits and a trap otherwise.
+	//
+	// It exists because a bound is SEMANTICS and the representation is the
+	// target's choice, so the two representations have to enforce the same
+	// thing: the limb rung traps on its carry, and without this the host rung
+	// would silently accept what the limb rung refuses. Then `(big-repr host)`
+	// would not be a change of storage but a change of ANSWER, which is ADR
+	// 0009's rule at the representation boundary.
+	//
+	// Bit length rather than the endpoint itself, because that is O(1) on all
+	// three hosts that have a bignum where a full comparison costs what the
+	// operation costs. See emit/biglimb.go's BigBound.
+	{"big-fit", 2, false},
+
 	// THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). Every target has it,
 	// because every target can fail: `panic`, `throw`, `throw`, `ud2`. It is
 	// IMPURE — an operation that can end the program is not one to duplicate or
@@ -771,6 +813,7 @@ func (tg *Target) merge(o *Target, from string) error {
 		src  string
 		what string
 	}{
+		{&tg.BigRepr, o.BigRepr, "big-repr"},
 		{&tg.Narrow, o.Narrow, "narrow"},
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
@@ -825,6 +868,14 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 					"length (ADR 0012)", path, f.Kids[1].Int)
 			}
 			tg.MaxLen = f.Kids[1].Int
+		case "big-repr":
+			// `(big-repr limbs)` or `(big-repr host)` — how this target stores a
+			// value declared finite and above the portable window. See the field.
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName ||
+				(f.Kids[1].Name != "limbs" && f.Kids[1].Name != "host") {
+				return nil, fmt.Errorf("%s: (big-repr limbs) or (big-repr host), got %s", path, f)
+			}
+			tg.BigRepr = f.Kids[1].Name
 		case "array-type":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)

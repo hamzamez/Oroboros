@@ -23,6 +23,22 @@
 ; later, not a reason to ship nothing now.
 
 (target java
+  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+  ;
+  ; A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
+  ; mathematical integer in that interval, which is true on every target and
+  ; is what a programmer is taught. How it is STORED is this file's business,
+  ; exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` here
+  ; and a `short[]` on the JVM.
+  ;
+  ; `BigInteger`, by measurement rather than by expectation: 200! is 7,948 ns
+  ; in limbs against 2,905 through `BigInteger` (biglimb-2026-09-02) --
+  ; on the host bigarith-2026-08-28 predicted ours would win by 6.2x,
+  ; because `BigInteger` is immutable and allocates an object and an
+  ; int[] per operation. That prediction was measured on hand-written
+  ; 32-bit limbs; ours are 24-bit with `/` for the carry.
+  (big-repr host)
+
   (type big "java.math.BigInteger")
 
   (module java
@@ -46,6 +62,11 @@
     ; long, so this conversion is exact and needs no cast.
     (prim big-of (int) big expr "java.math.BigInteger.valueOf(%s)" pure)
     (prim big-str (big) string expr "%s.toString()" pure)
+
+    ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
+    ; representations must agree about it. Java has no throw EXPRESSION, so this
+    ; is a lambda applied at once, the same shape as `trap-if` below.
+    (prim big-fit ((x big) (k int)) big expr "((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return oro$z; })).apply(%s, (long)(%s))")
     ; The fixed-limb rung's carry check -- see targets/go/bigint.oro. Java has
     ; no throw EXPRESSION, so it is a lambda applied at once; the JIT inlines it
     ; and the branch is never taken.

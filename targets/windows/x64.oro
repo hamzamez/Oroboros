@@ -38,6 +38,17 @@
   ; needs `movsx` and nothing emits that yet, so it is not claimed.
   ;
   ; A target declares what it can DO. Everything wider keeps the machine word.
+  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+  ;
+  ; A range is SEMANTICS and how it is stored is this file's business, exactly
+  ; as `int-repr` below decides one rung down. Here there is nothing to weigh:
+  ; this host ships no bignum, so fixed limbs are the only representation
+  ; available, and declaring it is saying so rather than choosing.
+  ;
+  ; It is also the only one of the four targets where our library wins by
+  ; default, because the alternative is that the program does not run at all.
+  (big-repr limbs)
+
   (int-repr 0 255 "db")
   (module x64
     ; ---- integer arithmetic. Two instructions each, for the reason above.

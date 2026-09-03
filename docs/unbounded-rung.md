@@ -55,6 +55,20 @@ unbounded are two different rungs, worth a factor of four"* — because a finite
 count**, which gives a `build` of known length, which gives **zero allocations**. An unbounded
 declaration gives none of that and lands back on allocate-per-operation.
 
+> **CORRECTED 2026-09-03.** Two rungs, yes — but they are two rungs of the **representation**
+> lattice, and this section read them as two rungs of the *type* lattice, which is the conflation
+> ADR 0003 exists to prevent. A finite range gives a **bound**; whether that bound is stored as
+> limbs or as the host's own bignum is a target declaration
+> ([bigrepr-2026-09-03](../gauntlet/results/bigrepr-2026-09-03.md)). The factor-of-four also did not
+> survive: bigarith measured **hand-written** host code with 64-bit limbs and a shift-and-mask
+> carry, and our portable library — 24-bit limbs, `/` for the carry — is *slower* than the host's
+> bignum on all three hosts that have one, by 5.85x, 74.9x and 2.82x
+> ([biglimb-2026-09-02](../gauntlet/results/biglimb-2026-09-02.md)).
+>
+> What survives, and it is the load-bearing half: **bounded-but-huge and unbounded are different
+> STATEMENTS**, and a bound is what makes a fixed-size representation possible at all — which is
+> what windows runs on, having no other.
+
 | | what blocks it | measured value |
 |---|---|---|
 | **bounded-but-huge** | the **reader**. `KInt` is an `int64`, so `(int 0 9223372036854775808)` is refused: *"does not fit in an integer; the portable range is ±(2⁵³−1) and the widest target is 64 bits"* | ours beats the host's bignum **3.97× on Go, 6.2× on Java, 5.8× on V8** |

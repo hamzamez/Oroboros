@@ -28,24 +28,43 @@ func GenFactLimbs(n int) []int32 {
 		var c int = 0
 		for ; ; i3 = (i3 + 1) {
 			if (i3 >= 55) {
-				if ((func(oroC int) int { if oroC != 0 { panic("bignum overflow: the declared range is too small") }; return 0 }(c)) == 0) {
+				var i4 int = 54
+				var t2 int
+				if (i4 < 0) {
+					t2 = 0
+				} else {
+					var t3 int
+					if (i4 >= len(o2)) {
+						t3 = 0
+					} else {
+						t3 = int(o2[i4])
+					}
+					t2 = t3
+				}
+				var t4 int
+				if ((t2 % 16777216) < 32) {
+					t4 = 0
+				} else {
+					t4 = 1
+				}
+				if ((func(oroC int) int { if oroC != 0 { panic("bignum overflow: the declared range is too small") }; return 0 }((c + t4))) == 0) {
 					break
 				}
 				break
 			}
-			var t2 int
+			var t5 int
 			if (i3 < 0) {
-				t2 = 0
+				t5 = 0
 			} else {
-				var t3 int
+				var t6 int
 				if (i3 >= len(acc)) {
-					t3 = 0
+					t6 = 0
 				} else {
-					t3 = int(acc[i3])
+					t6 = int(acc[i3])
 				}
-				t2 = t3
+				t5 = t6
 			}
-			var t int = (((t2 % 16777216) * i) + c)
+			var t int = (((t5 % 16777216) * i) + c)
 			o2[i3] = int32((t % 16777216))
 			c = (t / 16777216)
 			continue

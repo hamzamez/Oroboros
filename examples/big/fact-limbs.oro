@@ -1,31 +1,43 @@
-; THE SAME FACTORIAL, DECLARED FINITE — so it gets FIXED LIMBS.
+; THE SAME FACTORIAL, DECLARED FINITE — so it carries a BOUND.
 ;
-; `examples/big/fact.oro` is this program with `(int 0 +inf)` and it gets the
-; host's own bignum: exact whatever the value reaches, and allocating. This one
-; names a bound, and a bound is a LIMB COUNT: a `build` of known length, no
-; allocation per operation, and a trap if the value exceeds what was declared.
+; `examples/big/fact.oro` is this program with `(int 0 +inf)`. The difference
+; between the two is SEMANTIC and it is the whole of the difference: this one
+; says the value stays under 2^1300 and the compiler enforces that, and the
+; other says there is no upper bound at all.
 ;
-; Two declarations, two representations, one program. That is ADR 0019's ladder
-; made visible in the source, and the trade is the one bigarith-2026-08-28
-; measured: ours at 3.97x over `math/big`, 6.2x over `BigInteger` and 5.8x over
-; `BigInt` -- and on the last two the ONLY way there, because those bignums are
-; immutable. On windows it is the only way there at all.
+; WHICH STORAGE EACH GETS IS NOT IN THIS FILE, and that separation was got wrong
+; at first. A finite range used to SELECT fixed limbs and `+inf` used to select
+; the host's own bignum, so the shape of a declaration chose a representation —
+; and on V8 that cost 75x for the same computation. A range is a fact about the
+; program, true on every target; the storage is a target declaration, exactly as
+; `int-repr` decides one rung down that `(int 0 255)` is a `[]byte` on Go and a
+; `short[]` on the JVM because the JVM's byte is signed.
+;
+; So today Go, JavaScript and Java store this in their own bignum and windows
+; stores it in 55 base-2^24 limbs, because it ships no bignum. Ask for the other
+; one with `-big-repr=limbs`, which is how the alternative gets measured before
+; a target file is changed to prefer it (gauntlet/results/bigrepr-2026-09-03.md).
 ;
 ; 200! is 375 digits, about 1,246 bits, so 52 base-2^24 limbs are significant.
 ; `(pow 2 1300)` names a comfortable 55.
 ;
-; WHAT HAPPENS IF THE BOUND IS TOO SMALL is the question a fixed width has to
-; answer, and the answer is a TRAP rather than a truncation. The host's bignum
-; is exact whatever the declaration says, so if limbs silently wrapped then
-; selecting a representation would change the answer -- ADR 0009's rule at a
-; different boundary. Every operation checks its final carry, which costs one
-; comparison per operation and nothing per limb.
+; WHAT HAPPENS IF THE BOUND IS TOO SMALL is the question the declaration has to
+; answer, and the answer is a TRAP — on BOTH representations, at the same value.
+; A fixed width has no choice: it would otherwise truncate. The host's bignum is
+; exact whatever the declaration says, so it is checked explicitly, or selecting
+; a representation would change which programs are legal. That is ADR 0009's
+; rule at the representation boundary.
+;
+; The bound is enforced at its BIT LENGTH, so `(pow 2 1300)` admits everything
+; under 2^1301 — slack of less than a factor of two, and what makes the check
+; O(1) on the host rung and free on the limb rung, where it falls out of the
+; carry.
 
-(export fact)
+(export fact-limbs)
 
-(sig fact ((n (int 0 200))) (int 0 (pow 2 1300)))
+(sig fact-limbs ((n (int 0 200))) (int 0 (pow 2 1300)))
 
-(def fact (fn (n)
+(def fact-limbs (fn (n)
   (loop ((acc 1) (i 2))
     (> i n)  acc
     else     (again (* acc i) (+ i 1)))))

@@ -1728,10 +1728,10 @@ three answers). Not settled deliberately: a bignum, which needs the product firs
 
 **AND THE LIMB RUNG IS WIRED — AND IT DOES NOT PAY, WHICH IS THE RESULT** —
 [biglimb-2026-09-02](gauntlet/results/biglimb-2026-09-02.md), [emit/biglimb.go](emit/biglimb.go).
-A declared FINITE range above the window is a LIMB COUNT now: `(int 0 (pow 2 1300))` gives 55
-base-2^24 limbs and a `build` of known length; `(int 0 +inf)` gives the host's own bignum. Same
-source, two declarations, two representations, on all four targets — and **windows gets arbitrary
-precision for the first time**, which is ADR 0019 item 4.
+A declared FINITE range above the window is a LIMB COUNT: `(int 0 (pow 2 1300))` gives 55
+base-2^24 limbs and a `build` of known length — and **windows gets arbitrary precision for the first
+time**, which is ADR 0019 item 4. (**Which declaration gets which representation is no longer this
+rule** — see the entry below; a finite range gives a BOUND and the target picks the storage.)
 
 **6.5x SLOWER than our own unbounded rung on Go** (13,850 ns against 2,131 at 200!, and that is
 AFTER loop-carried buffer reuse took it from 19,270 and from 200 allocations to 2) and **2.7x slower
@@ -1743,6 +1743,42 @@ bitwise carry extraction at 3.9x), and **one reused buffer** (ours allocates per
 linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable bignum). ADR 0008
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
+
+**A RANGE IS SEMANTICS AND THE TARGET PICKS THE REPRESENTATION** —
+[bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md), on hamza's *"our intervals are
+semantics, it says something about the program; the compiler's job is to pick the fastest
+representation per target using that information — they are two separate worlds."* That is
+**ADR 0003**, and the BOTTOM of the ladder always worked that way: `(array (int 0 255))` is a
+`[]byte` on Go, a `short[]` on the JVM because its `byte` is signed, and nothing at all on
+JavaScript. Nobody writes `byte`. **The top of the ladder did not** — a finite range SELECTED fixed
+limbs and `+inf` selected the host's bignum, so the SHAPE of a declaration chose storage.
+
+**That shortcut cost 5.85x on Go, 74.9x on V8 and 2.82x on Java**, paid by a programmer for writing
+the *more* informative declaration. `(big-repr host)` / `(big-repr limbs)` beside `int-repr`; Go, JS
+and Java declare `host`, windows declares `limbs` because it has nothing else. **There is no total
+order to select from the way `int-repr` has one** — widths nest, so narrowest-containing is a
+complete rule, and above the word bigarith measured ours winning where the operation is LINEAR and
+the host winning where it is QUADRATIC. So a target declares what somebody MEASURED, and **when the
+limb library gets 64-bit limbs and a bitwise carry, a target file changes and no program moves.**
+
+**THE BOUND MUST BE ENFORCED ON BOTH, OR IT IS NOT A BOUND.** A fixed width traps because the
+alternative is truncation; the host's bignum is exact whatever the declaration says, so left alone
+it would silently ACCEPT what limbs refuse — and then `(big-repr host)` would not be a change of
+storage but a change of **which programs are legal**, ADR 0009 at the representation boundary. So
+`guard` gained a top-limb ceiling (the carry alone admitted up to 23 bits more than declared) and
+the host rung gained `(big-fit x k)`. Enforced at the **bit length**, which is O(1) on three hosts
+and free on limbs, and the two admit *exactly* the same values — a theorem checked over every bound
+from 49 to 2,400 bits, and demonstrated at the boundary: with `(int 0 (pow 2 100))`, 2^100 prints on
+both and 2^101 panics on both. **`big-of` is not wrapped, and that is a PROOF**: this rung is
+reached only above the window, so the bound is ≥54 bits and a machine word is under 2^53.
+
+**AND THE SUITE'S COVERAGE EVAPORATED THE MOMENT THREE TARGETS DECLARED `host`** — the limb rung was
+still emitted and nothing ran it, which a green suite would have hidden. `; big-repr: both` builds a
+case BOTH ways on every target that can render the result, so the question is now *four hosts and
+two storage choices agree*: six variants, byte-identical digits. `-big-repr=` on `cmd/build` and
+`cmd/gen` overrides the declaration, for MEASURING the alternative — which is how §1's numbers came
+off one source file. **Cost: one program changes on four targets** (the only one declaring a finite
+range above the window); the other 69 x 4 emitted files are byte-identical.
 
 **A FIXED WIDTH TRAPS RATHER THAN TRUNCATING, and that is what makes it sound.** The host's bignum
 is exact whatever the declaration says, so a silently wrapping limb form would mean **selecting a

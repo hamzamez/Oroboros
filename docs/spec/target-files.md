@@ -133,6 +133,42 @@ where a target author can state it.
 
 `N` beyond 2⁵³−1 is an **error**. A length the target cannot count exactly is not a length.
 
+## 2d. `big-repr` — how the target stores a value above the portable window
+
+```
+(big-repr host)     ; the host's own arbitrary-precision integer
+(big-repr limbs)    ; a fixed number of base-2^24 limbs, in a `build`
+```
+
+**Optional.** The default is the only thing the target can do: `host` where it declares a bignum
+(`big+` and the rest, see §3), `limbs` where it does not.
+
+This is `int-repr` one rung up, and it exists for the same reason. `(int 0 (pow 2 1300))` says the
+value is a mathematical integer in that interval — a fact about the PROGRAM, true on every target.
+Which storage it gets is a fact about the HOST, and putting the second in the program was measured
+at **5.85x on Go, 74.9x on V8 and 2.82x on Java**
+([bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md)).
+
+**Unlike `int-repr`, this cannot be derived**, and that is why it is a declaration rather than a
+rule. Widths nest, so *narrowest containing* is complete. Above the word there is no such order:
+ours wins where the operation is LINEAR and the host's wins where it is QUADRATIC
+([bigarith-2026-08-28](../../gauntlet/results/bigarith-2026-08-28.md)). So a target declares what
+somebody **measured**, with the measurement in the file beside it.
+
+An UNBOUNDED range — `(int 0 +inf)` — is not affected: ℤ has no fixed size, so it always takes the
+host's bignum, and a target with none refuses the program by name.
+
+**A target that declares `host` must also declare `big-fit`** (§3), because the declared bound has
+to be enforced under BOTH representations. A fixed width traps; a host bignum is exact whatever the
+declaration says, so without an explicit check the two would disagree about which programs are
+legal — and selecting a representation would change an answer, which is
+[ADR 0009](../decisions/0009-staging-preserves-results.md) at the representation boundary. The
+compiler refuses rather than dropping the bound.
+
+`cmd/build` and `cmd/gen` take `-big-repr=limbs|host` to override this. It is for **measuring the
+alternative** before changing the declaration — not a knob a program should depend on, since the
+bound, and therefore the answer, is the same either way.
+
 ## 3. `prim` — expression and statement primitives
 
 These are **pure data**: an arity, types, a template, and attributes.

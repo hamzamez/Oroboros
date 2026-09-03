@@ -27,6 +27,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
+	bigRepr := flag.String("big-repr", "", "storage for a value above the portable window: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: build [-target=NAME] [-o ARTIFACT] SRC.oro\n\n")
 		flag.PrintDefaults()
@@ -36,16 +37,27 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep, *checkedFlag); err != nil {
+	if err := run(*dir, flag.Arg(0), *target, *out, *path, *keep, *checkedFlag, *bigRepr); err != nil {
 		fmt.Fprintln(os.Stderr, "build:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, path string, keep, checked bool) error {
+func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr string) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
+	}
+	// AN OVERRIDE, NOT A DECISION. The target declares which representation it
+	// prefers, because that declaration is a measurement somebody took. This
+	// exists so the alternative can be measured on the same program, and so the
+	// two can be checked against each other — a change of storage that changed
+	// an answer would be ADR 0009's rule broken at the representation boundary.
+	if bigRepr != "" {
+		if bigRepr != "limbs" && bigRepr != "host" {
+			return fmt.Errorf("-big-repr is `limbs` or `host`, got %q", bigRepr)
+		}
+		tg.BigRepr = bigRepr
 	}
 	if tg.Build == "" && tg.Artifact == "" {
 		return fmt.Errorf("target %q declares neither (build …) nor (artifact …), so it can "+

@@ -154,3 +154,50 @@ func BenchmarkBigFactLimbs(b *testing.B) {
 	}
 }
 
+
+// ═══ THE REPRESENTATION POLICY (bigrepr-2026-09-03)
+//
+// The SAME bounded program, stored two ways. `(int 0 (pow 2 1300))` says the
+// value is a mathematical integer in that interval — semantics — and which
+// storage a target picks for it is the target's declaration.
+//
+// Before this, the SHAPE of the declaration chose: finite meant fixed limbs and
+// `+inf` meant the host's bignum, so a programmer who wrote the more
+// informative bound got the slower program from a choice they did not make.
+//
+// What is measured here is what that choice is worth on Go, and what the bound
+// itself costs — `GenBoundedFactLimbs` is `GenFact` plus a `BitLen` per
+// operation, so the pair prices the check alone.
+
+func BenchmarkBigFactLimbs2(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		limbSink = GenFactLimbs(200)
+	}
+}
+
+func BenchmarkBigFactBounded(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		bigSink = GenBoundedFactLimbs(200)
+	}
+}
+
+// AND BOTH STORAGE CHOICES COMPUTE THE SAME NUMBER, which is the property that
+// makes the choice a choice of COST rather than of ANSWER. A change of
+// representation that changed a digit would be ADR 0009's rule broken at the
+// representation boundary.
+func TestBothRepresentationsAgree(t *testing.T) {
+	for _, n := range []int{0, 1, 2, 20, 50, 100, 200} {
+		want := new(big.Int).MulRange(1, int64(n))
+		if n == 0 {
+			want = big.NewInt(1)
+		}
+		if got := limbValue(GenFactLimbs(n)); got.Cmp(want) != 0 {
+			t.Errorf("limbs: fact(%d) = %s, want %s", n, got, want)
+		}
+		if got := GenBoundedFactLimbs(n); got.Cmp(want) != 0 {
+			t.Errorf("host: fact(%d) = %s, want %s", n, got, want)
+		}
+	}
+}

@@ -24,6 +24,7 @@ import { genFib } from "./gen_bigfib.mjs";
 import { genFact } from "./gen_bigfact.mjs";
 import { genPower } from "./gen_bigpower.mjs";
 import { genFactLimbs } from "./gen_factlimbs.mjs";
+import { genBoundedFactLimbs } from "./gen_bigbounded.mjs";
 
 // ------------------------------------------------------------ hand-written
 //
@@ -117,6 +118,11 @@ const table = {
   // the same factorial is 55 base-2^24 limbs in a `build` of known length
   // rather than a `BigInt` (biglimb-2026-09-02).
   "limb": () => genFactLimbs(200),
+  // THE SAME BOUNDED PROGRAM ON THE HOST RUNG (bigrepr-2026-09-03). A range is
+  // SEMANTICS and this target declares `(big-repr host)`, so the declaration
+  // that used to force limbs now gets `BigInt` plus one shift per operation to
+  // enforce the bound. The pair prices both the policy and the check.
+  "bounded": () => genBoundedFactLimbs(200),
 };
 const fn = table[variant];
 if (!fn) {

@@ -27,7 +27,8 @@ public final class GenFactLimbs {
 			long c = 0;
 			for (;; i3 = (i3 + 1)) {
 				if ((i3 >= 55)) {
-					if (((((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException("bignum overflow: the declared range is too small"); return 0L; })).applyAsLong(c)) == 0)) {
+					final long i4 = 54;
+					if (((((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException("bignum overflow: the declared range is too small"); return 0L; })).applyAsLong((c + (((((i4 < 0) ? 0 : ((i4 >= o2.length) ? 0 : (long) o2[(int) i4])) % 16777216) < 32) ? 0 : 1)))) == 0)) {
 						break;
 					}
 					break;

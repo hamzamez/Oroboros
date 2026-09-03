@@ -26,7 +26,8 @@ export function genFactLimbs(n) {
 		let c = 0;
 		for (;; i3 = (i3 + 1)) {
 			if ((i3 >= 55)) {
-				if ((((function(oroC){ if (oroC !== 0) throw new Error("bignum overflow: the declared range is too small"); return 0; })(c)) === 0)) {
+				const i4 = 54;
+				if ((((function(oroC){ if (oroC !== 0) throw new Error("bignum overflow: the declared range is too small"); return 0; })((c + (((((((i4 < 0) ? 0 : ((i4 >= o2.length) ? 0 : o2[i4])) % 16777216) + 0)) < 32) ? 0 : 1)))) === 0)) {
 					break;
 				}
 				break;

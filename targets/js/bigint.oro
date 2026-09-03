@@ -29,6 +29,22 @@
 ; a target declares. Not declared yet: the fixed-limb rung is not built.
 
 (target js
+  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+  ;
+  ; A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
+  ; mathematical integer in that interval, which is true on every target and is
+  ; what a programmer is taught. How it is STORED is this file's business,
+  ; exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` on Go
+  ; and a `short[]` on the JVM.
+  ;
+  ; `BigInt`, and this is where the SHAPE of a declaration was costing the most:
+  ; 200! is 530,870 ns in limbs against 6,886 through `BigInt`, a factor of 77
+  ; for the same computation. `BigInt` is C++ with real 64-bit limbs, and V8 has
+  ; no 64x64 multiply to offer a library written in this language -- ours are
+  ; 24-bit with `/` for the carry, because ADR 0012 forces 2W < 53 and bitwise
+  ; operators are Tier 2. This host is unlikely ever to prefer ours.
+  (big-repr host)
+
   ; JavaScript has one number type and this is the second one. It is written for
   ; the checker only; the emitter writes no types on this host.
   (type big "bigint")
@@ -54,6 +70,17 @@
     ; bare console.log of a BigInt gives "123n". The suffix is a real)
     ; divergence from the other two hosts and this is where it is removed.
     (prim big-str (big) string expr "String(%s)" pure)
+    ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
+    ; representations must agree about it.
+    ;
+    ; A SHIFT rather than a comparison against 2^k, because building that value
+    ; would allocate a `BigInt` per call. `BigInt(oroK)` still converts a small
+    ; number per call, and emitting the count as a `BigInt` LITERAL instead is
+    ; measured at 1.14x here (8,427 ns against 9,565 on 200!) -- available, and
+    ; not taken, because it would mean putting the bound FIRST in the
+    ; primitive's arguments on all three hosts to get it into the template body.
+    ; The check itself costs 1.32x over no check on this host.
+    (prim big-fit ((x big) (k int)) big expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)")
     ; The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
     ; declared width has to fail loudly rather than truncate.
     (prim trap-if (int) int expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)")))

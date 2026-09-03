@@ -166,8 +166,8 @@ func render(src, target string) string {
 	return b.String()
 }
 
-func build(caseName, src, target, work string, keep bool) (string, error) {
-	dir := filepath.Join(work, caseName+"."+target)
+func build(caseName, src, target, bigRepr, work string, keep bool) (string, error) {
+	dir := filepath.Join(work, caseName+"."+target+bigRepr)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
@@ -201,7 +201,11 @@ func build(caseName, src, target, work string, keep bool) (string, error) {
 	//
 	// It changes no ANSWER: the values are in range at run time, which is
 	// exactly what the suite then verifies on four targets.
-	cmd := exec.Command("go", "run", "./cmd/build", "-checked", "-target="+target, "-o", out, oro)
+	args := []string{"run", "./cmd/build", "-checked", "-target=" + target}
+	if bigRepr != "" {
+		args = append(args, "-big-repr="+bigRepr)
+	}
+	cmd := exec.Command("go", append(args, "-o", out, oro)...)
 	cmd.Dir = repoRoot()
 	if b, err := cmd.CombinedOutput(); err != nil {
 		return "", fmt.Errorf("build: %v\n%s", err, indent(string(b)))
@@ -287,18 +291,50 @@ func main() {
 			}
 		}
 
+		// AND A CASE MAY ASK FOR BOTH REPRESENTATIONS, which turns the suite's
+		// question from "four hosts agree" into "four hosts and two storage
+		// choices agree".
+		//
+		// That is the property the representation policy claims: a range is
+		// SEMANTICS, the target picks the storage, and picking differently
+		// changes what a program COSTS and not what it computes. Without this
+		// the limb rung lost its cross-target coverage the moment three of the
+		// four targets declared `(big-repr host)` — the code would still be
+		// emitted and nothing would run it.
+		//
+		// Fixed limbs need a host bignum only to RENDER the result, so windows
+		// takes that variant alone; the set is hardcoded here the way the
+		// drivers and artifacts above are, because this is test infrastructure.
+		variants := map[string][]string{}
+		for _, t := range targets {
+			variants[t] = []string{""}
+		}
+		if strings.Contains(src, "; big-repr: both") {
+			for _, t := range []string{"go", "js", "java"} {
+				variants[t] = []string{"host", "limbs"}
+			}
+		}
+
 		outs := map[string]string{}
+		var order []string
 		var errs []string
 		for _, t := range targets {
 			if skip[t] {
 				continue
 			}
-			o, err := build(name, src, t, work, keep)
-			if err != nil {
-				errs = append(errs, fmt.Sprintf("  %s: %v", t, err))
-				continue
+			for _, rep := range variants[t] {
+				label := t
+				if rep != "" {
+					label = t + "/" + rep
+				}
+				order = append(order, label)
+				o, err := build(name, src, t, rep, work, keep)
+				if err != nil {
+					errs = append(errs, fmt.Sprintf("  %s: %v", label, err))
+					continue
+				}
+				outs[label] = o
 			}
-			outs[t] = o
 		}
 		if len(errs) > 0 {
 			fails++
@@ -310,7 +346,7 @@ func main() {
 		var ref string
 		var refT string
 		agree := true
-		for _, t := range targets {
+		for _, t := range order {
 			o, ok := outs[t]
 			if !ok {
 				continue
@@ -348,7 +384,7 @@ func main() {
 			continue
 		}
 		var ran []string
-		for _, t := range targets {
+		for _, t := range order {
 			if _, ok := outs[t]; ok {
 				ran = append(ran, t)
 			}

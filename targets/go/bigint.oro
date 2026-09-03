@@ -27,6 +27,24 @@
 ; the host's own price, which is the bar this target has to clear first.
 
 (target go
+  ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
+  ;
+  ; A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
+  ; mathematical integer in that interval, which is true on every target and
+  ; is what a programmer is taught. How it is STORED is this file's business,
+  ; exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` here
+  ; and a `short[]` on the JVM.
+  ;
+  ; `math/big`, because ours does not win here today: the same 200! is
+  ; 18,150 ns in limbs against 2,186 through `math/big`, at 200
+  ; allocations against 6 (biglimb-2026-09-02). bigarith-2026-08-28
+  ; measured the limb form winning by 3.97x, and that was HAND-WRITTEN Go
+  ; with 64-bit limbs and a shift-and-mask carry -- two things a portable
+  ; library cannot have, since ADR 0012 forces 2W < 53 and bitwise
+  ; operators are Tier 2. When the library gets a target-declared limb
+  ; width, this line changes and no program moves.
+  (big-repr host)
+
   ; Not `(type big …)` by accident: `big` is the type language's name for the
   ; top of the representation ladder, and `*big.Int` is Go's spelling of it. The
   ; pointer is part of the spelling because `big.Int` is a struct whose zero
@@ -53,6 +71,21 @@
     ; so it may not happen silently.
     (prim big-of (int) big expr "big.NewInt(int64(%s))" pure (import "math/big"))
     (prim big-str (big) string expr "%s.String()" pure)
+
+
+    ; THE DECLARED BOUND, ENFORCED. `(big-fit x k)` is x when x needs at most k
+    ; bits and a panic otherwise.
+    ;
+    ; It exists because the fixed-limb rung traps when a value passes its
+    ; declared bound -- a fixed width has no choice, it would otherwise truncate
+    ; -- and `math/big` is exact whatever the declaration says. Without this the
+    ; two representations would DISAGREE about a legal program, and `(big-repr
+    ; host)` would stop being a choice of storage and become a choice of answer.
+    ;
+    ; `BitLen` and not `Cmp`, because the bound is enforced at its bit length
+    ; (emit/biglimb.go's BigBound): O(1) against a full-width comparison, which
+    ; would cost what the operation costs.
+    (prim big-fit ((x big) (k int)) big expr "func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic(\"bignum overflow: the declared range is too small\") }; return oroZ }(%s, %s)" (import "math/big"))
 
     ; ---- THE DESTINATION FORMS, and Go is the only one of the four hosts that
     ; can have them.

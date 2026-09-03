@@ -22,7 +22,7 @@
 ; target without one cannot use this and the lowering refuses there by name,
 ; which is the same answer JavaScript already gives for the checked primitive it
 ; does not declare.
-(def to-host (fn (n a)
+(def to-host (fn (n lim a)
   (loop ((acc (big-of 0)) (p (big-of 1)) (i 0))
     (>= i n)  acc
     else      (again (big+ acc (big* p (big-of (at a i))))

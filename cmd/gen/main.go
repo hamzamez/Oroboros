@@ -20,6 +20,7 @@ func main() {
 	dir := flag.String("targets", "targets", "directory holding target declarations")
 	name := flag.String("name", "", "name for the emitted function (defaults to the source's stem)")
 	path := flag.String("path", "lib", "search path for imported modules")
+	bigRepr := flag.String("big-repr", "", "storage for a value above the portable window: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	flag.Usage = func() {
@@ -31,16 +32,27 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked); err != nil {
+	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked, *bigRepr); err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, out, name, path string, checked bool) error {
+func run(targetDir, src, target, out, name, path string, checked bool, bigRepr string) error {
 	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
 	if err != nil {
 		return err
+	}
+	// AN OVERRIDE, NOT A DECISION. The target declares which representation it
+	// prefers, because that declaration is a measurement somebody took. This
+	// exists so the alternative can be measured on the same program, and so the
+	// two can be checked against each other — a change of storage that changed
+	// an answer would be ADR 0009's rule broken at the representation boundary.
+	if bigRepr != "" {
+		if bigRepr != "limbs" && bigRepr != "host" {
+			return fmt.Errorf("-big-repr is `limbs` or `host`, got %q", bigRepr)
+		}
+		tg.BigRepr = bigRepr
 	}
 	text, err := os.ReadFile(src)
 	if err != nil {

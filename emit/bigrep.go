@@ -366,16 +366,17 @@ func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 	//
 	// A target with no bignum at all can still take the limb rung, and that is
 	// the point of having it: windows ships nothing to fall back to.
-	w, limbs := LimbWidth(append([]*core.Sig{sig}, all...)...)
+	limbs, w, bits := BigRepr(tgt, append([]*core.Sig{sig}, all...)...)
 	if !limbs && !tgt.HasBig() {
 		return t, 0, nil
 	}
-	if !limbs && !DeclaresBig(sig) && !MentionsBig(t) {
+	if bits == 0 && !DeclaresBig(sig) && !MentionsBig(t) {
 		return t, 0, nil
 	}
 	rep, out := intervals(tgt, sig, t, 0, nil, true, limbs, limbs)
 	if !limbs {
-		return out, rep.BigOps, nil
+		out, err := fitBig(tgt, out, bits)
+		return out, rep.BigOps, err
 	}
 	// AN OPERATION WITH NO LIMB FORM TAKES THE WHOLE PROGRAM BACK to the host's
 	// bignum. Mixing representations needs a conversion at every boundary
@@ -390,9 +391,10 @@ func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 				"to fall back to (emit/biglimb.go).", tgt.Name)
 		}
 		rep, out = intervals(tgt, sig, t, 0, nil, true)
-		return out, rep.BigOps, nil
+		out, err := fitBig(tgt, out, bits)
+		return out, rep.BigOps, err
 	}
-	lowered, n, err := LowerLimbs(tgt, w, out)
+	lowered, n, err := LowerLimbs(tgt, w, bits, out)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -538,4 +540,73 @@ func constValue(t *core.Term, depth int) (*big.Int, bool) {
 		return new(big.Int).Mul(a, b), true
 	}
 	return nil, false
+}
+
+// ═══ THE DECLARED BOUND, ENFORCED ON THE HOST'S OWN BIGNUM
+//
+// A range is SEMANTICS: `(int 0 (pow 2 1300))` says the value is a mathematical
+// integer in that interval, which is a fact about the program and true on every
+// target. Which storage a target picks for it is `BigRepr`'s business.
+//
+// But then the two representations have to enforce the same thing. The limb
+// rung traps when a value passes its bound, because a fixed width has no choice
+// — it would otherwise truncate. The host's bignum is exact whatever the
+// declaration says, so left alone it would silently ACCEPT what the limb rung
+// refuses, and `(big-repr host)` would stop being a change of storage and
+// become a change of ANSWER. That is ADR 0009's rule at the representation
+// boundary, and it is the one thing this project refuses.
+//
+// So every operation that can GROW a value is wrapped. `big-of` is not, and
+// that is a proof rather than an omission: a range reaches this rung only by
+// being above the portable window, so the bound is at least 54 bits, and a
+// machine word is under 2^53 — widening one can never exceed it. Comparisons
+// and `big-str` produce no big value at all.
+//
+// The cost is one `BitLen` per operation and it is paid only by a program that
+// declares a bound. A program declaring `(int 0 +inf)` has nothing to check,
+// which is the honest difference between the two declarations and the reason
+// they are two.
+var bigGrows = map[string]bool{
+	"big+": true, "big-": true, "big*": true, "big/": true, "big%": true,
+	"big+!": true, "big-!": true, "big*!": true, "big/!": true, "big%!": true,
+}
+
+func fitBig(tgt *Target, t *core.Term, bits int) (*core.Term, error) {
+	if bits == 0 {
+		return t, nil // `(int 0 +inf)` — no bound was declared, so none is enforced
+	}
+	if _, ok := tgt.Prims["big-fit"]; !ok {
+		return nil, fmt.Errorf("this program declares a range above the portable "+
+			"window with a FINITE bound, and target %s stores that in its own "+
+			"arbitrary-precision integer but declares no `big-fit` to enforce the "+
+			"bound.\n"+
+			"  A bound the target cannot check is a declaration that means one\n"+
+			"  thing here and another on the fixed-limb rung, so it is refused\n"+
+			"  rather than dropped. Declare `big-fit`, or `(big-repr limbs)`.",
+			tgt.Name)
+	}
+	return fitWalk(t, bits), nil
+}
+
+func fitWalk(t *core.Term, bits int) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		// Rebuilt closed: the binders are de Bruijn indices and the wrap
+		// introduces no free names, so nothing can capture.
+		return core.FnClosed(t.Params, fitWalk(t.Closed(), bits))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = fitWalk(k, bits)
+	}
+	out := &core.Term{Kind: core.KApp, Kids: kids}
+	if op := out.Op(); op.Kind == core.KName && bigGrows[op.Name] {
+		return core.App(core.Name("big-fit"), out, core.Int(int64(bits)))
+	}
+	return out
 }

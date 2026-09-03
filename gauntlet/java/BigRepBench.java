@@ -127,6 +127,18 @@ public final class BigRepBench {
         }
         System.out.printf("limb-200!    %9.1f ns/op%n",
                 bench(() -> sink = GenFactLimbs.genFactLimbs(200), 20000));
+        // THE SAME BOUNDED PROGRAM ON THE HOST RUNG (bigrepr-2026-09-03). A
+        // range is SEMANTICS and this target declares `(big-repr host)`, so the
+        // declaration that used to force limbs now gets `BigInteger` plus one
+        // `bitLength` per operation to enforce the bound. Against `big-200!`
+        // below, which is the same loop with nothing to check, the pair prices
+        // the policy and the check separately.
+        if (!GenBoundedFactLimbs.genBoundedFactLimbs(200).equals(factHand(200))) {
+            System.out.println("FAIL bounded factorial on the host rung");
+            System.exit(1);
+        }
+        System.out.printf("bounded-200! %9.1f ns/op%n",
+                bench(() -> sink = GenBoundedFactLimbs.genBoundedFactLimbs(200), 20000));
         System.out.printf("big-200!     %9.1f ns/op%n",
                 bench(() -> sink = factHand(200), 20000));
 

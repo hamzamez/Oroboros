@@ -26,6 +26,13 @@
 ;
 ; 50! is 65 digits, about 215 bits, so `(pow 2 300)` names 13 base-2^24 limbs
 ; with room to spare.
+; BOTH REPRESENTATIONS, on every target that has a bignum to render through.
+; A range is SEMANTICS and the target picks the storage (emit/biglimb.go's
+; BigRepr), so the same program compiled as fixed limbs and as the host's own
+; bignum must return the same digits -- a change of storage that changed an
+; answer would be ADR 0009's rule broken at the representation boundary.
+; big-repr: both
+
 (sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
 
 (def fact (fn (n)

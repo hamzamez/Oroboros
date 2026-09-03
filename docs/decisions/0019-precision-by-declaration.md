@@ -66,6 +66,24 @@ allocate-per-operation, which is naive `math/big` and 4–5× worse.
 > information the fast path needs.** That is a measured difference of about four, not a matter of
 > taste.
 
+> **CORRECTION, 2026-09-03 — the argument above conflated two things, and the second half is
+> withdrawn.** *A range carries the information the fast path needs* stands: a finite bound is a limb
+> count, and that is still what windows runs on. *A finite range therefore SELECTS fixed limbs* does
+> not, and it was never part of this decision — it was an implementation shortcut.
+>
+> Two measurements killed it. [biglimb-2026-09-02](../../gauntlet/results/biglimb-2026-09-02.md)
+> found the 3.97x/6.2x/5.8x above to have been taken on **hand-written host code** with 64-bit limbs
+> and a shift-and-mask carry, neither of which a library written in this language can have — our
+> emitted limb form is *slower* than the host's bignum on all three hosts that have one. Then
+> [bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md) measured what the shortcut cost:
+> **5.85x on Go, 74.9x on V8, 2.82x on Java** for the same computation, paid by a programmer for
+> writing the more informative declaration.
+>
+> The rule now is ADR 0003's, which this ADR should have followed from the start: **a range is
+> semantics and the representation is a target declaration.** `(big-repr host)` / `(big-repr limbs)`
+> beside `int-repr`. The bound is enforced under both, so the choice is one of cost and never of
+> answer.
+
 ## Why not
 
 **(a) A — `int` is ℤ, boxed where unproven.** *Rejected*, on four grounds, in order of weight.

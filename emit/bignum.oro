@@ -93,21 +93,39 @@
 ; other does not, and a library may not be provable only sometimes.
 (def at (fn (t i) (% (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) 16777216)))
 
-; THE CARRY CHECK, and it is why this rung is sound at all. `trap-if` returns 0
+; THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
 ; when handed 0 and fails loudly otherwise; both branches of the conditional are
 ; the buffer, so the check costs a compare and changes nothing when it passes.
 ;
 ; It is written as a conditional rather than a `seq` because `seq` needs an
 ; impure operation to sequence, and a trap that only ever fires is pure in the
 ; only sense that matters here: it returns the same thing every time it returns.
-(def guard (fn (c o) (if (= (trap-if c) 0) o o)))
+;
+; TWO HALVES, AND THE SECOND IS WHAT MAKES THE TWO REPRESENTATIONS AGREE. The
+; carry `c` catches a value past the buffer's LAST limb; `lim` catches one past
+; the DECLARED bound, which can sit up to 23 bits lower. The host's bignum
+; enforces the bound at its bit length (`big-fit`), and a declaration that meant
+; one thing under limbs and another under `BigInt` would be ADR 0009's rule
+; broken at the representation boundary -- the compiler would be choosing the
+; answer, not just the storage.
+;
+; When the bound IS a whole number of limbs, `lim` is 2^24 and a limb is under
+; 2^24 by construction, so the check is present, free, and never fires. That is
+; the right shape for a check whose job is to make two representations agree.
+(def guard (fn (n lim c o)
+  (if (= (trap-if (+ c (if (< (at o (- n 1)) lim) 0 1))) 0) o o)))
 
 ; ---------------------------------------------------------------- of a word
 ;
-; A machine word spread over n limbs, least significant first. No check is
-; needed: the selection refuses a width under three limbs, and three base-2^24
-; limbs hold 2^72, comfortably past ADR 0012's window.
-(def of (fn (n v)
+; A machine word spread over n limbs, least significant first. `lim` is taken
+; and IGNORED, so that every entry point has one shape and the splice does not
+; have to know which of them checks.
+;
+; No check is needed here, and it is a proof rather than an oversight: a range
+; reaches this rung only by being ABOVE the portable window, so the declared
+; bound is at least 54 bits, and a machine word is under 2^53. A word can
+; therefore never exceed the bound it is being widened into.
+(def of (fn (n lim v)
   (build n (fn (b)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
@@ -118,10 +136,10 @@
 ; The carry rides as an ordinary loop variable, which is what makes this
 ; expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
 ; named once and used for both the stored limb and the outgoing carry.
-(def add (fn (n a b)
+(def add (fn (n lim a b)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
-      (>= i n)  (guard c o)
+      (>= i n)  (guard n lim c o)
       else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
                   (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
 
@@ -133,10 +151,10 @@
 ; k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
 ; 2^48, and the lowering only chooses this form when the multiplier is a widened
 ; word whose range the analysis has bounded.
-(def mul-small (fn (n a k)
+(def mul-small (fn (n lim a k)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
-      (>= i n)  (guard c o)
+      (>= i n)  (guard n lim c o)
       else      (let (+ (* (at a i) k) c) (fn (t)
                   (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
 
@@ -161,16 +179,16 @@
 ;
 ; The middle clause is also what discharges the store's bounds obligation in the
 ; last one: its negation gives `i + j < n`, and `n` is the buffer's length.
-(def macrow (fn (n o a b i)
+(def macrow (fn (n lim o a b i)
   (loop ((o o) (j 0) (c 0))
-    (>= j n)          (guard c o)
-    (>= (+ i j) n)    (again (guard (* (at a i) (at b j)) (guard c o)) (+ j 1) 0)
+    (>= j n)          (guard n lim c o)
+    (>= (+ i j) n)    (again (guard n lim (* (at a i) (at b j)) (guard n lim c o)) (+ j 1) 0)
     else              (let (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c) (fn (t)
                         (again (set o (+ i j) (% t 16777216))
                                (+ j 1) (/ t 16777216)))))))
 
-(def mul (fn (n a b)
+(def mul (fn (n lim a b)
   (build n (fn (o)
     (loop ((o o) (i 0))
       (>= i n)  o
-      else      (again (macrow n o a b i) (+ i 1)))))))
+      else      (again (macrow n lim o a b i) (+ i 1)))))))

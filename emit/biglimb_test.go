@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"math/big"
 	"strings"
 	"testing"
 
@@ -13,39 +14,107 @@ import (
 // thrown away: `(int 0 (pow 2 1000))` and `(int 0 +inf)` produced identical
 // code. Having the spelling was necessary and nowhere near sufficient.
 
-// THE DECLARATION CHOOSES THE REPRESENTATION, and the two upper rungs are a
-// genuine choice rather than an implementation detail.
+// THE DECLARATION GIVES A BOUND. IT DOES NOT CHOOSE A REPRESENTATION.
 //
-// A FINITE bound is a limb count — a `build` of known length, no allocation per
-// operation, and a trap if the value exceeds what was declared. ℤ has no limb
-// count, so `+inf` falls back to whatever arbitrary precision the target ships.
-func TestAFiniteRangeSelectsLimbsAndInfinityDoesNot(t *testing.T) {
+// That separation is the point and it was got wrong at first: a finite range
+// selected fixed limbs and `+inf` selected the host's bignum, so the SHAPE of a
+// declaration decided the storage. On V8 that cost 100x for the same
+// computation. `(int 0 (pow 2 1300))` says the value is a mathematical integer
+// in that interval — a fact about the program, true on every target — and ADR
+// 0003 has said since the beginning that this is not the same question as how a
+// host stores it.
+//
+// ℤ has no bound to enforce, which is what `+inf` is for.
+func TestAFiniteRangeGivesABoundAndInfinityDoesNot(t *testing.T) {
 	for _, c := range []struct {
 		result string
 		want   int
 	}{
-		{"(int 0 (pow 2 300))", 13},  // 301 bits over 24
-		{"(int 0 (pow 2 1300))", 55}, // 1301 bits over 24
+		{"(int 0 (pow 2 300))", 301},
+		{"(int 0 (pow 2 1300))", 1301},
 		{"(int 0 +inf)", 0},
 		{"(int -inf +inf)", 0},
 		{"int", 0},
 	} {
-		sig := resultSig(t, c.result)
-		w, on := LimbWidth(sig)
+		bits, on := BigBound(resultSig(t, c.result))
 		if c.want == 0 {
 			if on {
-				t.Errorf("%s selected the limb rung at width %d; ℤ has no limb count",
-					c.result, w)
+				t.Errorf("%s gave a bound of %d bits; ℤ is not an interval",
+					c.result, bits)
 			}
 			continue
 		}
-		if !on || w != c.want {
-			t.Errorf("%s gave width %d (on=%v), want %d", c.result, w, on, c.want)
+		if !on || bits != c.want {
+			t.Errorf("%s gave %d bits (on=%v), want %d", c.result, bits, on, c.want)
 		}
 	}
 }
 
-// AND THE WIDTH IS THE MAXIMUM OVER THE WHOLE PROGRAM, which is not laziness.
+// AND THE TARGET CHOOSES THE REPRESENTATION — the same signature, four hosts,
+// two answers, and no program changes to get either.
+//
+// This is `int-repr` one rung up: `(int 0 255)` is a `[]byte` on Go and a
+// `short[]` on the JVM because the JVM's byte is signed, and the programmer
+// writes neither. There is no total order to select from here the way there is
+// for widths, because bigarith-2026-08-28 measured ours winning where the
+// operation is LINEAR and the host winning where it is QUADRATIC — so a target
+// declares what somebody measured.
+func TestTheTargetChoosesTheRepresentation(t *testing.T) {
+	sig := resultSig(t, "(int 0 (pow 2 1300))")
+	for _, c := range []struct {
+		dir   string
+		limbs bool
+	}{
+		{"../targets/go", false},   // math/big: 2,186 ns against 18,150 in limbs
+		{"../targets/js", false},   // BigInt: 5,290 against 528,334 — a factor of 100
+		{"../targets/java", false}, // BigInteger: 2,905 against 7,948
+		{"../targets/windows", true}, // ships no bignum, so limbs or nothing
+	} {
+		tg, err := LoadTarget(c.dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		limbs, w, bits := BigRepr(tg, sig)
+		if limbs != c.limbs {
+			t.Errorf("%s: limbs=%v, want %v", c.dir, limbs, c.limbs)
+		}
+		if bits != 1301 {
+			t.Errorf("%s: bound is %d bits, want 1301 — the BOUND is the "+
+				"declaration's and does not depend on the target", c.dir, bits)
+		}
+		if c.limbs && w != 55 {
+			t.Errorf("%s: width %d, want 55", c.dir, w)
+		}
+	}
+}
+
+// AND BOTH REPRESENTATIONS ADMIT EXACTLY THE SAME VALUES, which is the property
+// that makes the choice above a choice of STORAGE rather than of ANSWER.
+//
+// The host rung refuses a value needing more than `bits` bits. The limb rung
+// has `w = ceil(bits/24)` limbs, so its carry check alone would admit
+// everything under 2^(24w) — up to 23 bits more than was declared. `limbLimit`
+// is the ceiling on the top limb that closes exactly that gap.
+//
+// Without it `(big-repr host)` would not be a change of representation but a
+// change of which programs are legal, which is ADR 0009's rule broken at the
+// representation boundary.
+func TestBothRepresentationsAdmitTheSameValues(t *testing.T) {
+	for bits := 2*limbBits + 1; bits <= 2400; bits++ {
+		w := (bits + limbBits - 1) / limbBits
+		// The largest value the limb rung accepts, plus one: the top limb reaches
+		// `limbLimit` and every limb below it is full.
+		limb := new(big.Int).Lsh(big.NewInt(limbLimit(bits, w)), uint(limbBits*(w-1)))
+		host := new(big.Int).Lsh(big.NewInt(1), uint(bits)) // BitLen() > bits
+		if limb.Cmp(host) != 0 {
+			t.Fatalf("at %d bits the limb rung admits under %s and the host rung "+
+				"under %s; a declaration would mean two different things",
+				bits, limb, host)
+		}
+	}
+}
+
+// AND THE BOUND IS THE MAXIMUM OVER THE WHOLE PROGRAM, which is not laziness.
 //
 // Reduction inlines every non-exported call, so by the time the representation
 // is selected a helper's declared range is gone — refinements.md §6b's limit
@@ -53,18 +122,18 @@ func TestAFiniteRangeSelectsLimbsAndInfinityDoesNot(t *testing.T) {
 // would mean no whole program could ever take this rung, which is exactly what
 // happened: the first version compiled `main` with the host's bignum and the
 // trap never fired.
-func TestTheWidthComesFromTheWholeProgram(t *testing.T) {
+func TestTheBoundComesFromTheWholeProgram(t *testing.T) {
 	small := resultSig(t, "(int 0 (pow 2 100))")
-	big := resultSig(t, "(int 0 (pow 2 1300))")
-	w, on := LimbWidth(nil, small, big)
-	if !on || w != 55 {
-		t.Errorf("width %d (on=%v) over two signatures, want the maximum, 55", w, on)
+	wide := resultSig(t, "(int 0 (pow 2 1300))")
+	bits, on := BigBound(nil, small, wide)
+	if !on || bits != 1301 {
+		t.Errorf("%d bits (on=%v) over two signatures, want the maximum, 1301", bits, on)
 	}
 	// One unbounded declaration anywhere takes the program to the host's bignum,
 	// because a program holds ONE representation and ℤ cannot be one of the
 	// fixed ones.
-	if _, on := LimbWidth(small, resultSig(t, "(int 0 +inf)")); on {
-		t.Error("an unbounded declaration did not veto the fixed-limb rung")
+	if _, on := BigBound(small, resultSig(t, "(int 0 +inf)")); on {
+		t.Error("an unbounded declaration did not veto the bound")
 	}
 }
 
@@ -159,6 +228,10 @@ func TestAMultiplyByAWordIsOnePass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// GO'S OWN ANSWER IS `math/big` (targets/go/bigint.oro), so the rung under
+	// test is asked for rather than assumed. That is the separation working:
+	// the program is the same either way.
+	tg.BigRepr = "limbs"
 	src := `(export fact)
 (sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
 (def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
@@ -181,6 +254,7 @@ func TestNoBigRangeMeansNoLimbs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	tg.BigRepr = "limbs"
 	src := `(export f)
 (sig f ((n (int 0 1000))) int)
 (def f (fn (n) (loop ((acc 0) (i 0)) (>= i n) acc else (again (+ acc i) (+ i 1)))))
@@ -245,6 +319,10 @@ func TestABackEdgeBuildReusesTheLoopsStorage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// THE LIMB RUNG IS ASKED FOR: Go's own answer for a bounded big value is
+	// `math/big` (targets/go/bigint.oro), where the reuse this test is about is
+	// `bigreuse.go`'s and not this one's. Same program, different storage.
+	tg.BigRepr = "limbs"
 	src := `(export fact)
 (sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
 (def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))

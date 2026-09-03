@@ -90,6 +90,13 @@ type asmEmitter struct {
 	// qwords, which is a wrong answer and not a slow one.
 	elemFix map[*core.Term]string
 
+	// bufReuse and spareOf are LoopBufferReuse's answer, and this is the host it
+	// matters most on: the allocator here is ONE VirtualAlloc per `build`, never
+	// freed (wintables-2026-08-25), so a loop that allocates per iteration
+	// leaks a page every time round. Go, V8 and the JVM at least collect.
+	bufReuse map[*core.Term]place
+	spareOf  map[int]place
+
 	tgt *Target
 
 	// sig and topParams are the enclosing function's contract and the names
@@ -1131,6 +1138,36 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 		e.carryElem(raw[i], inits[i])
 	}
 
+	// THE SPARE TABLES, one per reusable loop variable, allocated once outside
+	// the loop and alternated with it. Scoped: a spare belongs to ONE loop and
+	// it is that loop's `again` that swaps it.
+	outerSpares := e.spareOf
+	spares := map[int]place{}
+	for j, blam := range LoopBufferReuse(e.tgt, inits, body, raw) {
+		blen := buildLen(e.tgt, inits[j])
+		nP, err := e.emit(core.Int(blen))
+		if err != nil {
+			return place{}, err
+		}
+		nHold := e.alloc(false)
+		e.move(nHold, nP)
+		e.release(nP)
+		lb, lraw, _ := openFresh(blam, e.bound, asmIdent)
+		w := BufferElemBytes(e.tgt, blam, lb, lraw[0], e.sig, e.topParams, e.elemFix)
+		sp, err := e.tableOf(nHold, w)
+		if err != nil {
+			return place{}, err
+		}
+		e.release(nHold)
+		spares[j] = sp
+		if e.bufReuse == nil {
+			e.bufReuse = map[*core.Term]place{}
+		}
+		e.bufReuse[blam] = sp
+	}
+	e.spareOf = spares
+	defer func() { e.spareOf = outerSpares }()
+
 	// If every exit yields the same variable, that variable IS the loop's value
 	// and no result register is needed. The other three backends make the same
 	// saving; here it is a whole register rather than a declaration.
@@ -1292,6 +1329,18 @@ func (e *asmEmitter) emitAgain(t *core.Term, raw []string, vars []place, top str
 	saved := map[string]bool{}
 	var temps []place
 
+	// THE SWAP FOR A REUSED BUFFER. The spare takes the variable's OLD pointer,
+	// which the assignment below overwrites, so it is copied aside first — the
+	// same shape the cycle-breaking copy above uses, and for the same reason.
+	swapFrom := map[int]place{}
+	for i := range vars {
+		if _, ok := e.spareOf[i]; ok && pending[i] {
+			c := e.alloc(false)
+			e.move(c, vars[i])
+			swapFrom[i] = c
+		}
+	}
+
 	// hazard reports whether writing raw[i] now would be seen by an argument
 	// that has not been evaluated yet.
 	hazard := func(i int) bool {
@@ -1343,6 +1392,10 @@ func (e *asmEmitter) emitAgain(t *core.Term, raw []string, vars []place, top str
 		if saved[raw[i]] {
 			e.where[raw[i]] = hold(vars[i])
 		}
+	}
+	for i, c := range swapFrom {
+		e.move(e.spareOf[i], c)
+		e.release(c)
 	}
 	for _, c := range temps {
 		e.release(c)
@@ -2036,6 +2089,23 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	// boolean sieve.
 	body, raw, _ := openFresh(args[1], e.bound, asmIdent)
 	width := BufferElemBytes(e.tgt, args[1], body, raw[0], e.sig, e.topParams, e.elemFix)
+	// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. The clear restores the
+	// zero fill `build` guarantees (tables.md §14.3); on this host a fresh table
+	// is zero because VirtualAlloc returns zeroed pages, so a reused one is the
+	// only case that has to do the work.
+	if sp, ok := e.bufReuse[args[1]]; ok {
+		e.release(nHold)
+		if err := e.clearTable(sp, buildLen(e.tgt, t), width); err != nil {
+			return place{}, err
+		}
+		e.where[raw[0]] = hold(sp)
+		if width != 8 {
+			e.elem[raw[0]] = width
+		}
+		out, err := e.emit(body)
+		delete(e.where, raw[0])
+		return out, err
+	}
 	buf, err := e.tableOf(nHold, width)
 	if err != nil {
 		return place{}, err
@@ -2229,4 +2299,35 @@ func asmElemAddr(base, idx string, width int) string {
 		return fmt.Sprintf("[%s+%s+%d]", base, idx, asmTableHeader)
 	}
 	return fmt.Sprintf("[%s+%s*8+%d]", base, idx, asmTableHeader)
+}
+
+// clearTable zeroes a reused table's elements — a counted loop, because this
+// host has no `clear` and `rep stos` would need three fixed registers the
+// allocator is using.
+//
+// The length is a compile-time literal (LoopBufferReuse only fires on a `build`
+// of constant length), so the bound is an immediate and no place is needed for
+// it.
+func (e *asmEmitter) clearTable(buf place, n int64, width int) error {
+	idx := e.alloc(false)
+	live, err := e.materialize([]place{buf, idx}, "clear")
+	if err != nil {
+		return err
+	}
+	b, i := live[0].text, live[1].text
+	u := e.uniq()
+	e.line("xor %s, %s", i, i)
+	e.line("Lzc%d:", u)
+	e.line("cmp %s, %d", i, n)
+	e.line("jge Lzd%d", u)
+	if width == 1 {
+		e.line("mov byte ptr %s, 0", asmElemAddr(b, i, 1))
+	} else {
+		e.line("mov qword ptr %s, 0", asmElemAddr(b, i, 8))
+	}
+	e.line("inc %s", i)
+	e.line("jmp Lzc%d", u)
+	e.line("Lzd%d:", u)
+	e.release(idx)
+	return nil
 }

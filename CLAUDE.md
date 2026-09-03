@@ -1759,8 +1759,18 @@ argument, and there is one back edge. **TWO BUFFERS AND A SWAP, not one buffer i
 the body would read the variable through the storage it writes, and whether that is safe depends on
 the ALGORITHM (`mul-small` would survive, `mul` would not); alternating needs no aliasing argument at
 all. The spare is `clear`ed, because `build` zero-fills and `mul` accumulates into slots it never
-writes. Exactly two emitted files change, both limb programs; it is the BACK-EDGE instance of the
-gap, and Karatsuba's workspace and ADR 0013's stencil are the boundary instance, still open.
+writes. It is the BACK-EDGE instance of the gap; Karatsuba's workspace and ADR 0013's stencil are the
+boundary instance, still open.
+
+**AND IT PAYS ON ONE HOST OF FOUR, WHICH IS THE ALLOCATOR TALKING.** Ported to all four and measured
+A/B with the rule on and off: **Go 1.39x (19,270 → 13,850), the JVM 0.96x, V8 1.01x** — neutral on
+both. The JVM bump-allocates in a TLAB and its young collector pays only for survivors, V8's young
+generation is the same shape, and on both a fresh array arrives already zeroed so the `Arrays.fill`
+a reused one needs costs about what the allocation did. json-tree-bench recorded that about the JVM
+for a different program and it reproduces here. **On windows it is not a speed question at all**: that
+allocator is one `VirtualAlloc` per `build`, NEVER FREED (wintables-2026-08-25), so a loop that
+allocates per iteration leaks a page every time round — 199 for `fact(200)`. ADR 0008 again, and
+measuring one host would have made it a principle.
 
 **AND THE MEASUREMENT METHOD WAS WRONG, A THIRD KIND.** The first attempt reported reuse at 39,000 ns
 against 18,150 allocating — reuse twice as SLOW at a hundredth of the allocations. Both used

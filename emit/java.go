@@ -32,6 +32,12 @@ type javaEmitter struct {
 	// elemFix is LoopElemJoin's answer — see the Go emitter.
 	elemFix map[*core.Term]string
 
+	// bufReuse and spareOf are LoopBufferReuse's answer: a back-edge `build`
+	// writes into storage the loop already owns — see the Go emitter for the
+	// rule and for why it is two buffers and a swap rather than one in place.
+	bufReuse map[*core.Term]string
+	spareOf  map[int]string
+
 	tgt     *Target
 	buf     strings.Builder
 	imports map[string]bool
@@ -644,6 +650,16 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			body, raw, out := openFresh(args[1], e.bound, javaMangle)
 			elem := elemTypeFixed(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
 			e.types[raw[0]] = "array " + elem
+			// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `Arrays.fill`
+			// restores the zero fill `build` guarantees (tables.md §14.3), and
+			// the value needs the element type's own spelling: Java allows a
+			// constant to narrow in an ASSIGNMENT and not in a method call, so
+			// `fill(byteArray, 0)` does not compile.
+			if sp, ok := e.bufReuse[args[1]]; ok {
+				e.line("java.util.Arrays.fill(%s, %s);", sp, javaZero(e.tgt, elem))
+				e.line("final %s %s = %s;", e.tgt.ty("array "+elem), out[0], sp)
+				return e.emit(body)
+			}
 			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
 				e.tgt.ty(elem), count)
 			return e.emit(body)
@@ -1266,6 +1282,23 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 		}
 		e.line("%s %s = %s;", ty, names[i], vals[i])
 	}
+	// THE SPARE BUFFERS, one per reusable loop variable, allocated once outside
+	// the loop and alternated with it. Scoped: a spare belongs to ONE loop and
+	// it is that loop's `again` that swaps it.
+	outerSpares := e.spareOf
+	spares := map[int]string{}
+	for j, blam := range LoopBufferReuse(e.tgt, inits, body, raw) {
+		sp := javaMangle(e.fresh("sp"))
+		e.line("%s %s = new %s[%d];", e.tgt.ty(tys[j]), sp,
+			e.tgt.ty(core.ArrayElem(tys[j])), buildLen(e.tgt, inits[j]))
+		spares[j] = sp
+		if e.bufReuse == nil {
+			e.bufReuse = map[*core.Term]string{}
+		}
+		e.bufReuse[blam] = sp
+	}
+	e.spareOf = spares
+	defer func() { e.spareOf = outerSpares }()
 	rty := javaExitType(e, body)
 	if rty == "" {
 		rty = "any"
@@ -1436,6 +1469,24 @@ func (e *javaEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]
 		real = append(real, i)
 	}
 	changed = real
+	// THE SWAP FOR A REUSED BUFFER. Java has no simultaneous assignment either,
+	// so the variable's old value — which the spare takes — is named first.
+	for _, i := range changed {
+		if sp, ok := e.spareOf[i]; ok {
+			old := javaMangle(e.fresh("sw"))
+			e.line("final var %s = %s;", old, names[i])
+			e.line("%s = %s;", names[i], vals[i])
+			e.line("%s = %s;", sp, old)
+			delete(vals, i)
+		}
+	}
+	var rest []int
+	for _, i := range changed {
+		if _, done := vals[i]; done {
+			rest = append(rest, i)
+		}
+	}
+	changed = rest
 	if needTemps(as, raw, changed) {
 		tmp := make(map[int]string, len(changed))
 		for _, i := range changed {
@@ -1525,4 +1576,14 @@ func (e *javaEmitter) narrowedSlot(tab *core.Term) (string, bool) {
 		return "", false
 	}
 	return e.tgt.NarrowedElem(e.types[root])
+}
+
+// javaZero is the element type's own spelling of zero, because Java permits a
+// constant to narrow in an assignment and not in a method invocation:
+// `Arrays.fill(byteArray, 0)` does not compile.
+func javaZero(tgt *Target, elem string) string {
+	if elem == "bool" {
+		return "false"
+	}
+	return "(" + tgt.ty(elem) + ") 0"
 }

@@ -23,6 +23,13 @@ import (
 
 type jsEmitter struct {
 	tgt    *Target
+
+	// bufReuse and spareOf are LoopBufferReuse's answer: a back-edge `build`
+	// writes into storage the loop already owns. Keyed by the build's lambda
+	// and by the loop variable's index — see the Go emitter for the rule and
+	// for why it is two buffers and a swap rather than one in place.
+	bufReuse map[*core.Term]string
+	spareOf  map[int]string
 	buf    strings.Builder
 	tmp    int
 	indent int
@@ -514,6 +521,14 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			// element type off — and nothing that needs one. Zero fills both
 			// numeric and boolean buffers usefully enough, and what matters is
 			// that the array is PACKED rather than sparse.
+			// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `fill(0)` restores
+			// the zero fill `build` guarantees (tables.md §14.3) and keeps the
+			// array PACKED, which is the same reason the fresh one is filled.
+			if sp, ok := e.bufReuse[args[1]]; ok {
+				e.line("%s.fill(0);", sp)
+				e.line("const %s = %s;", out[0], sp)
+				return e.emit(body)
+			}
 			e.line("const %s = new Array(%s).fill(0);", out[0], count)
 			return e.emit(body)
 		case "table-set":
@@ -935,6 +950,22 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 		}
 		e.line("let %s = %s;", names[i], vals[i])
 	}
+	// THE SPARE BUFFERS, one per reusable loop variable, allocated once outside
+	// the loop and alternated with it. Scoped, because a spare belongs to ONE
+	// loop and it is that loop's `again` that swaps it.
+	outerSpares := e.spareOf
+	spares := map[int]string{}
+	for j, blam := range LoopBufferReuse(e.tgt, inits, body, raw) {
+		sp := e.fresh("sp")
+		e.line("let %s = new Array(%d).fill(0);", sp, buildLen(e.tgt, inits[j]))
+		spares[j] = sp
+		if e.bufReuse == nil {
+			e.bufReuse = map[*core.Term]string{}
+		}
+		e.bufReuse[blam] = sp
+	}
+	e.spareOf = spares
+	defer func() { e.spareOf = outerSpares }()
 	result := ""
 	if !tail {
 		result = soleExit(e.tgt.Prims, body, raw, names, e.bound, jsMangle)
@@ -1070,6 +1101,27 @@ func (e *jsEmitter) emitAgain(t *core.Term, raw, names []string, post map[int]*c
 		real = append(real, i)
 	}
 	changed = real
+	// THE SWAP FOR A REUSED BUFFER, and it needs its own temporary whatever
+	// `needTemps` says: `sp` takes the variable's OLD value, which the
+	// assignment below is about to overwrite. JavaScript has no simultaneous
+	// assignment — the comma operator is not one, which this emitter has
+	// already been caught by once — so the old value is named first.
+	for _, i := range changed {
+		if sp, ok := e.spareOf[i]; ok {
+			old := e.fresh("sw")
+			e.line("const %s = %s;", old, names[i])
+			e.line("%s = %s;", names[i], vals[i])
+			e.line("%s = %s;", sp, old)
+			delete(vals, i)
+		}
+	}
+	var rest []int
+	for _, i := range changed {
+		if _, done := vals[i]; done {
+			rest = append(rest, i)
+		}
+	}
+	changed = rest
 	if needTemps(as, raw, changed) {
 		tmp := make(map[int]string, len(changed))
 		for _, i := range changed {

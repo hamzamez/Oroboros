@@ -23,6 +23,7 @@
 import { genFib } from "./gen_bigfib.mjs";
 import { genFact } from "./gen_bigfact.mjs";
 import { genPower } from "./gen_bigpower.mjs";
+import { genFactLimbs } from "./gen_factlimbs.mjs";
 
 // ------------------------------------------------------------ hand-written
 //
@@ -83,12 +84,18 @@ function check() {
 // ns/op with neither, because V8 eliminated the whole computation.
 let sink = 0n;
 
+// The limb forms return an ARRAY, so the sink takes a limb rather than the
+// value; a BigInt result is masked as before. Both keep the result escaping.
+function sinkOf(v) {
+  return typeof v === "bigint" ? (v & 1n) : BigInt(v[0] & 1);
+}
+
 function bench(fn, iters) {
-  for (let i = 0; i < Math.max(iters, 200); i++) sink ^= fn() & 1n;
+  for (let i = 0; i < Math.max(iters, 200); i++) sink ^= sinkOf(fn());
   const times = [];
   for (let r = 0; r < 7; r++) {
     const t0 = process.hrtime.bigint();
-    for (let i = 0; i < iters; i++) sink ^= fn() & 1n;
+    for (let i = 0; i < iters; i++) sink ^= sinkOf(fn());
     times.push(Number(process.hrtime.bigint() - t0) / iters);
   }
   times.sort((a, b) => a - b);
@@ -106,6 +113,10 @@ const table = {
   "fact-hand": () => factHand(200),
   "power-gen": () => genPower(999, 64),
   "power-hand": () => powerHand(999, 64),
+  // THE FIXED-LIMB RUNG. `(int 0 (pow 2 1300))` instead of `(int 0 +inf)`, so
+  // the same factorial is 55 base-2^24 limbs in a `build` of known length
+  // rather than a `BigInt` (biglimb-2026-09-02).
+  "limb": () => genFactLimbs(200),
 };
 const fn = table[variant];
 if (!fn) {

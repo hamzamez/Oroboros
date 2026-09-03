@@ -15,11 +15,13 @@ public final class GenFactLimbs {
 		}
 		int[] acc = b2;
 		long i = 2;
+		int[] sp1 = new int[55];
 		for (;; i = (i + 1)) {
 			if ((i > n)) {
 				break;
 			}
-			final int[] o = new int[(int) 55];
+			java.util.Arrays.fill(sp1, (int) 0);
+			final int[] o = sp1;
 			int[] o2 = o;
 			long i3 = 0;
 			long c = 0;
@@ -30,12 +32,14 @@ public final class GenFactLimbs {
 					}
 					break;
 				}
-				final long t = ((((i3 < 0) ? 0 : ((i3 >= acc.length) ? 0 : acc[(int) i3])) * i) + c);
+				final long t = (((((i3 < 0) ? 0 : ((i3 >= acc.length) ? 0 : (long) acc[(int) i3])) % 16777216) * i) + c);
 				o2[(int) i3] = (int) (t % 16777216);
 				c = (t / 16777216);
 				continue;
 			}
+			final var sw2 = acc;
 			acc = o2;
+			sp1 = sw2;
 			continue;
 		}
 		return acc;

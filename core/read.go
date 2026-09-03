@@ -1389,8 +1389,16 @@ func conj(a, b *Term) *Term {
 //
 // The grammar is deliberately tiny — literals, negation, `+`, `-`, `*`, `pow` —
 // because an endpoint is written by a person to say how big something gets, not
-// computed. Division is absent for the reason ADR 0009 gives about folding: it
-// has a precondition, and a bound with a precondition is not a bound.
+// computed.
+//
+// DIVISION IS ABSENT, and the honest reason is weaker than "it has a
+// precondition". An endpoint has no variables, so every divisor here is a
+// literal and division by zero is decidable at read time — that case could
+// simply be refused. What is left is ROUNDING: `(int 0 (/ 100 3))` denotes
+// [0, 33] and integer division reaches it silently, so an author who meant
+// 100/3 has named a different set than they wrote. Nothing is unsound about
+// admitting it; the rounded value can always be written directly, so the
+// grammar declines to make the choice.
 func evalEndpoint(t *Term) (*big.Int, bool) {
 	v, inf, ok := endpoint(t)
 	return v, ok && inf == 0

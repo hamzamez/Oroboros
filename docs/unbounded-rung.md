@@ -123,9 +123,16 @@ It also makes the endpoint more legible than the thing it replaces: `(pow 2 70)`
 seventy-digit literal would have hidden.
 
 **The grammar is deliberately tiny** — literals, unary `-`, `+`, `-`, `*`, `pow` — because an
-endpoint is written by a person to say how big something gets, not computed. **Division is absent**
-for the reason ADR 0009 gives about folding: it carries a precondition, and a bound with a
-precondition is not a bound. `pow` and not `^`, because `^` is XOR on Go, JavaScript and Java.
+endpoint is written by a person to say how big something gets, not computed. `pow` and not `^`,
+because `^` is XOR on Go, JavaScript and Java.
+
+**Division is absent, and the first reason given for that was the weaker one.** It said division
+carries a precondition and a bound with a precondition is not a bound. But an endpoint has no
+variables, so every divisor is a literal and division by zero is decidable at read time — that case
+could just be refused. What actually argues against it is **rounding**: `(int 0 (/ 100 3))` denotes
+[0, 33], which integer division reaches silently, so an author who meant 100/3 has named a different
+set than they wrote. Nothing is unsound about admitting division; the rounded value can always be
+written directly, so the grammar declines to make the choice.
 
 **And §3's refusal fell out with nothing written for it.** `ValueType` normalises a range to `int`
 only when `IntRange` can read it, and `IntRange` narrows to `int64` and reports failure otherwise —

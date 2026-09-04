@@ -408,9 +408,19 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			for _, sg := range prog.Sigs {
 				all = append(all, sg)
 			}
-			if p, _, err := PromoteBig(tgt, sig, nf, all...); err == nil {
-				nf = p
+			p, _, err := PromoteBig(tgt, sig, nf, all...)
+			if err != nil {
+				// A REFUSAL IS REPORTED, NOT SWALLOWED. This used to drop the
+				// error and check the UN-promoted term against the limb
+				// signature, so `(- a b)` on two values declared above the
+				// window came back as "a is array int, but int is required
+				// here" — a type error naming an internal representation, from
+				// a program whose only fault is that the fixed-limb rung has no
+				// subtraction. The honest message was already written and
+				// nothing could reach it.
+				return fmt.Errorf("%s: %w", n, err)
 			}
+			nf = p
 			// ON THE FIXED-LIMB RUNG A BIG VALUE IS AN `array int`, so the
 			// claim is checked against the signature as that rung means it.
 			// Checking the declaration verbatim refuses a body that produces

@@ -385,12 +385,15 @@ func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 	// between them, and where that boundary sits is a question ADR 0019 opened
 	// and did not close — so this is coarse on purpose, and the promotion is
 	// simply redone with the destination rewrite allowed.
-	if !LimbSupported(out) {
+	if why, ok := LimbSupported(out); !ok {
 		if !tgt.HasBig() {
-			return nil, 0, fmt.Errorf("this program needs a bignum operation the "+
-				"fixed-limb rung does not implement — subtraction, division or a "+
-				"comparison — and target %s declares no arbitrary-precision integer "+
-				"to fall back to (emit/biglimb.go).", tgt.Name)
+			return nil, 0, fmt.Errorf("this program needs %s on an "+
+				"arbitrary-precision value.\n"+
+				"  Target %s stores one as fixed limbs (big-repr) and the built-in\n"+
+				"  limb library does not implement that; it declares no bignum of\n"+
+				"  its own to fall back to either. What it does have is addition,\n"+
+				"  subtraction, multiplication, and division by a machine word\n"+
+				"  (emit/bignum.oro).", why, tgt.Name)
 		}
 		rep, out = intervals(tgt, sig, t, 0, nil, true)
 		out, err := fitBig(tgt, out, bits)

@@ -1,0 +1,71 @@
+; A BORROW CHAIN AND A DESCENDING DIVISION, HAND-WRITTEN, on all four targets.
+;
+; `big-subdiv.oro` next door tests the same two algorithms as the COMPILER emits
+; them, and has to skip windows: that target stores a bounded big value as limbs
+; and cannot render one, because `big-str` needs a host bignum to convert
+; through. So the operation reaches the one host that most needs it and nothing
+; there can observe the answer.
+;
+; This closes that half by writing the two loops out directly and returning a
+; single LIMB, which is an ordinary integer every target can print. Between the
+; two cases the compiler's lowering is checked against three mature host bignums
+; and the emitted loop shapes are checked on four hosts.
+;
+; TWO SHAPES THAT ARE OTHERWISE UNTESTED ON WINDOWS. The borrow is a conditional
+; inside an `again` ARGUMENT — ADR 0015 forbids `again` under an `if`, so both
+; outcomes are computed and one `again` takes them — and the division walks
+; DOWNWARD, whose termination is by orientation (mu = -v) rather than by an
+; ascending counter.
+;
+; THE OPERANDS ARE CHOSEN SO THE BORROW ACTUALLY FIRES: limb 0 of a is
+; 13,008,895 and limb 0 of b is 14,000,000, so the subtraction borrows and limb 1
+; of a drops from 9,272,996 to 9,272,995. A case whose borrow never fired would
+; pass with the whole chain deleted.
+;
+;   a = 999999999999999,  b = 14000000
+;   q = (a - b) / 7 = 142857140857142
+;   q in base 2^24 = [2255158, 8514949, 0, …]
+
+; ONE INPUT, AND BOTH SIGNIFICANT LIMBS IN ONE NUMBER. The harness inlines `run`
+; at every call site, so three inputs is three copies of two `build`s and two
+; loops — and on x86 that exceeds what the register allocator can place, which
+; is a PRE-EXISTING backend ceiling (`x64.movb has more spilled operands than
+; there are scratch registers`) and reproduces with this work reverted. The
+; differential README already names that ceiling and says provoking it from a
+; harness measures the harness, so the answer is one call whose result encodes
+; what three would have checked.
+;
+;   2255158 + 8514949 * 100000000 = 851494902255158
+
+; inputs: 0
+; expect: 851494902255158
+
+(export run)
+
+(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+
+(def bn-of (fn (n v)
+  (build n (fn (b)
+    (loop ((b b) (i 0) (r v))
+      (>= i n)  b
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+
+(def bn-sub (fn (n a b)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (bw 0))
+      (>= i n)  o
+      else      (let (- (- (at a i) (at b i)) bw) (fn (t)
+                  (again (set o i (if (< t 0) (+ t 16777216) t))
+                         (+ i 1)
+                         (if (< t 0) 1 0)))))))))
+
+(def bn-div-small (fn (n a k)
+  (build n (fn (o)
+    (loop ((o o) (i (- n 1)) (r 0))
+      (< i 0)  o
+      else     (let (+ (* r 16777216) (at a i)) (fn (cur)
+                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))))
+
+(def run (fn (k)
+  (let (bn-div-small 3 (bn-sub 3 (bn-of 3 999999999999999) (bn-of 3 14000000)) 7) (fn (q)
+    (+ (at q k) (* (at q (+ k 1)) 100000000))))))

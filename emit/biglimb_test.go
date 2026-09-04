@@ -498,3 +498,91 @@ func TestNoShiftWidthMeansNoRewrite(t *testing.T) {
 		t.Errorf("a target declaring no shift width was rewritten anyway:\n%s", code)
 	}
 }
+
+// ═══ THE LIMB LIBRARY'S SURFACE (subdiv-2026-09-03)
+//
+// windows is the only target that stores a bounded big value as limbs, so what
+// the library implements is exactly what arbitrary precision means there. It
+// had addition and multiplication and nothing else, which is ADR 0019 item 4
+// half delivered: a host that could add two bignums and not subtract them.
+
+func TestWindowsCanSubtractAndDivideByAWord(t *testing.T) {
+	tg, err := LoadTarget("../targets/windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tg.HasBig() {
+		t.Skip("windows now declares a bignum; this test has done its job")
+	}
+	for _, body := range []string{"(- a b)", "(/ a 4)"} {
+		src := "(export f)\n" +
+			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) (int 0 (pow 2 200)))\n" +
+			"(def f (fn (a b) " + body + "))\n"
+		out := lowerOn(t, tg, src, "f")
+		if strings.Contains(out, "big-") || strings.Contains(out, "big/") {
+			t.Errorf("%s was not lowered to limbs on windows:\n%s", body, out)
+		}
+		if !strings.Contains(out, "build") {
+			t.Errorf("%s produced no limb buffer:\n%s", body, out)
+		}
+	}
+}
+
+// AND WHAT IS STILL MISSING IS REFUSED BY NAME, which is the whole of what a
+// programmer is told on a target with no bignum to fall back to.
+//
+// The message used to be a fixed list — "subtraction, division or a comparison"
+// — which was wrong about subtraction the moment subtraction existed and named
+// none of the three for the program in hand. Worse, it was UNREACHABLE: the
+// signature checker dropped `PromoteBig`'s error and then type-checked the
+// un-promoted body against the limb signature, so `(- a b)` came back as
+// "a is array int, but int is required here" — a type error naming an internal
+// representation.
+func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
+	tg, err := LoadTarget("../targets/windows")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tg.HasBig() {
+		t.Skip("windows now declares a bignum; this test has done its job")
+	}
+	for _, c := range []struct{ body, want string }{
+		{"(% a b)", "the remainder"},
+		{"(/ a b)", "division by another arbitrary-precision value"},
+		{"(if (< a b) a b)", "comparison"},
+	} {
+		src := "(export f)\n" +
+			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) (int 0 (pow 2 200)))\n" +
+			"(def f (fn (a b) " + c.body + "))\n"
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, _, err = PromoteBig(tg, prog.Sigs["f"], nf, allProgSigs(prog)...)
+		if err == nil {
+			t.Errorf("%s was accepted on windows, which cannot do it", c.body)
+			continue
+		}
+		if !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: refusal does not name the operation (want %q):\n%s",
+				c.body, c.want, err)
+		}
+		// AND IT SAYS WHAT IS AVAILABLE, so the answer to "then what can I do"
+		// is in the same message.
+		if !strings.Contains(err.Error(), "division by a machine word") {
+			t.Errorf("%s: refusal does not say what the library does have:\n%s", c.body, err)
+		}
+	}
+}

@@ -1,0 +1,41 @@
+; SUBTRACTION AND DIVISION-BY-A-WORD ON THE FIXED-LIMB RUNG.
+;
+; Until this the limb library had `+`, `*` and nothing else, so a program that
+; subtracted fell back to the host's own bignum — and on windows, which has
+; none, it was refused. That is ADR 0019 item 4 half delivered: a target with
+; arbitrary-precision arithmetic that could add and multiply and not subtract.
+;
+; WHAT MAKES THIS A REAL TEST is `; big-repr: both`. The same source is compiled
+; twice on every target that can render the result: once storing the value in
+; fixed limbs, where the subtraction is our own borrow chain and the division is
+; our own one-pass `div-small`, and once storing it in the host's bignum, where
+; both are `math/big`, `BigInt` and `BigInteger`. So the oracle is three mature
+; host implementations rather than another copy of ours.
+;
+; The expected digits were computed independently and are below, because
+; agreement is not correctness: a bug in the promotion would be shared by all
+; six variants.
+;
+; skip: windows
+;
+; windows is skipped and the reason is a CAPABILITY, not a disagreement: it can
+; now do this arithmetic and still cannot print the answer. `big-str` needs a
+; host bignum to convert through and that target declares none, so rendering
+; waits on decimal conversion from limbs, which waits on a string surface
+; (docs/spec/strings.md). The arithmetic reaching that host at all is the point
+; of the change this case tests.
+;
+; big-repr: both
+
+; expect: 216049380697530863994753086400 246913577925925925692592592570 277777775154320987390432098740 308641972382716049088271604910 370370366839506172483950617250 462962958524691357577469135760 617283944666666666066666666610 864197522493827159649382715970 1265432086462962961721296296180
+
+(export calc)
+
+(sig calc ((n (int 0 100))) (int 0 (pow 2 300)))
+
+(def calc (fn (n)
+  (let (* 123456789012345678901234567890 (+ n 7)) (fn (a)
+    (let (* 98765432109876543210 (+ n 3)) (fn (b)
+      (/ (- a b) 4)))))))
+
+(def run (fn (n) (big-str (calc n))))

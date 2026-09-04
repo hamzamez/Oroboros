@@ -59,8 +59,17 @@
 ; declarations this serves and both are non-negative -- which is what
 ; unbounded-rung.md §4.2 means by a half-open range carrying something the
 ; representation can spend, since bigarith measured sign handling as a real
-; cost. Subtraction, division and remainder are absent, and a program using one
-; falls back to the host's bignum whole rather than mixing representations.
+; cost.
+;
+; HERE: addition, subtraction, multiplication, and division by a machine WORD.
+; Subtraction returns a magnitude and TRAPS on underflow, for the same reason
+; addition traps on overflow -- a negative result is outside the `(int 0 N)` a
+; program declared to reach this rung.
+;
+; NOT HERE, and a program using one falls back to the host bignum whole (or is
+; refused by name on a target with none): the REMAINDER, whose result is a word
+; rather than a limb table and so a change of type; the COMPARISONS; and
+; big-by-big DIVISION, which needs a quotient estimate.
 
 (module big/limb)
 
@@ -214,3 +223,53 @@
     (loop ((o o) (i 0))
       (>= i n)  o
       else      (again (macrow n lim o a b i) (+ i 1)))))))
+
+; ---------------------------------------------------------------- subtraction
+;
+; A BORROW CHAIN, which is addition's dual and needs nothing addition did not.
+; ADR 0015 forbids `again` under an `if`, so the two outcomes are `let`-computed
+; arguments to ONE `again` rather than two clauses -- the shape json/tree.oro
+; found when five token classes became one clause.
+;
+; THE FINAL BORROW IS AN UNDERFLOW, and `guard` is already the right check for
+; it: these are non-negative magnitudes, `(int 0 N)` is what a program declares
+; to reach this rung, and `a - b` with a < b is a value outside that declaration
+; exactly as an overflow is. So it traps, and for the same reason -- the
+; alternative is a wrap, and then choosing a representation would change the
+; answer (ADR 0009 at the representation boundary).
+(def sub (fn (n lim a b)
+  (build n (fn (o)
+    (loop ((o o) (i 0) (bw 0))
+      (>= i n)  (guard n lim bw o)
+      else      (let (- (- (at a i) (at b i)) bw) (fn (t)
+                  (again (set o i (if (< t 0) (+ t 16777216) t))
+                         (+ i 1)
+                         (if (< t 0) 1 0)))))))))
+
+; --------------------------------------------------------- divide by a word
+;
+; a / k for a machine-word k -- the exact dual of `mul-small`, one pass, one
+; running remainder, and the operation DECIMAL RENDERING is made of: printing a
+; limb table is repeated division by a power of ten.
+;
+; IT WALKS DOWNWARD, most significant limb first, because that is the direction
+; a remainder propagates. Termination is by ORIENTATION (sct-2026-08-19): a
+; descending counter is an ascending one under mu = -v, so the size-change
+; witness is the same one an ordinary loop has.
+;
+; `cur` is `r * 2^24 + a[i]` with r < k, so it is under `k * 2^24 + 2^24` and the
+; window admits it only for k under about 2^28. Nothing here says so and nothing
+; needs to: bounded-by-default asks at the call site with the caller's own range
+; for k in hand, and refuses if it cannot prove it. A library that stated its own
+; limit would be stating a weaker one than the caller can.
+;
+; DIVISION BY ZERO IS THE CALLER'S OBLIGATION and is already discharged there:
+; `(/ x k)` carries it before the promotion runs (integers.md §13.4), and
+; `splice` normalises this body against the caller's actual argument, so the
+; same facts are in scope at the same goal.
+(def div-small (fn (n lim a k)
+  (build n (fn (o)
+    (loop ((o o) (i (- n 1)) (r 0))
+      (< i 0)  o
+      else     (let (+ (* r 16777216) (at a i)) (fn (cur)
+                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))))

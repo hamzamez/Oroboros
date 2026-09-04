@@ -24,14 +24,20 @@ import (
 //
 // ═══ THE DECISION
 //
-//	every big type finite   → limbs, width = ceil(maxbits / 24)
+//	every big type finite   → the target's declared storage (BigRepr)
 //	any big type unbounded  → the host's bignum
 //	an operation not in the library → the host's bignum, for the whole program
 //
 // The last one is coarse on purpose. Mixing representations needs a conversion
 // at every boundary between them, and where that boundary sits is a design
-// question ADR 0019 opened and did not close — so a program that subtracts or
-// divides keeps the host's bignum whole rather than half.
+// question ADR 0019 opened and did not close — so a program using an operation
+// the library lacks keeps the host's bignum whole rather than half, and on a
+// target with no bignum it is refused by name.
+//
+// The library has addition, subtraction, multiplication and division by a
+// machine word. What it lacks is the remainder (whose result is a word rather
+// than a limb table, so a change of type), the comparisons, and big-by-big
+// division (Knuth D, needing a quotient estimate).
 //
 // ═══ WHY THE WIDTH HAS TO TRAP
 //
@@ -83,13 +89,23 @@ const limbBits = 24
 const limbPrefix = "big/limb."
 
 // limbOf maps a promoted big operation to the library function that replaces
-// it. What is ABSENT is the point: subtraction can go negative and these are
-// magnitudes, and division needs a quotient estimate — so a program using one
-// keeps the host's bignum whole (see the header).
+// it, by NAME. What is absent from it is not necessarily unsupported: `big/`
+// is handled by shape rather than by name, because dividing by a machine WORD
+// is one pass and dividing by another bignum needs a quotient estimate.
+//
+// Subtraction is here and returns a magnitude: the final borrow is an underflow
+// and traps, exactly as the final carry of an addition is an overflow and traps.
+// A program declares `(int 0 N)` to reach this rung, so a negative result is
+// outside its own declaration.
+//
+// Still absent, and a program using one keeps the host's bignum whole (or is
+// refused on a target with none): `big%`, whose result is a machine word rather
+// than a limb table, the comparisons, and big-by-big division.
 var limbOf = map[string]string{
 	"big-of":       limbPrefix + "of",
 	"big-of-small": limbPrefix + "of",
 	"big+":   limbPrefix + "add",
+	"big-":   limbPrefix + "sub",
 	"big*":   limbPrefix + "mul",
 }
 
@@ -229,22 +245,89 @@ func limbLimit(bits, w int) int64 {
 }
 
 // LimbSupported reports whether every big operation in a promoted residual has
-// a limb form. One that does not takes the program back to the host's bignum.
-func LimbSupported(t *core.Term) bool {
+// a limb form, and NAMES the first that does not. One that does not takes the
+// program back to the host's bignum — or, on a target with none, is refused,
+// and then the name is the whole of what the programmer is told.
+//
+// IT IS A QUESTION ABOUT SHAPES, NOT ONLY NAMES, and `big/` is why: dividing a
+// bignum by a machine WORD is one pass and one running remainder, and dividing
+// it by another bignum needs a quotient estimate — the same split `big*`
+// already has between `mul-small` and `mul`, arriving on the operation where it
+// is the difference between supported and not.
+func LimbSupported(t *core.Term) (string, bool) {
 	if t == nil {
-		return true
+		return "", true
+	}
+	if t.Kind == core.KApp {
+		if op := t.Op(); op.Kind == core.KName && isBigOp(op.Name) {
+			if why, ok := limbShape(op.Name, t.Args()); !ok {
+				return why, false
+			}
+			// The operator is decided; only the operands remain.
+			for _, a := range t.Args() {
+				if why, ok := LimbSupported(a); !ok {
+					return why, false
+				}
+			}
+			return "", true
+		}
 	}
 	if t.Kind == core.KName && isBigOp(t.Name) {
 		if _, ok := limbOf[t.Name]; !ok && t.Name != "big-str" {
-			return false
+			return t.Name, false
 		}
 	}
 	for _, k := range t.Kids {
-		if !LimbSupported(k) {
-			return false
+		if why, ok := LimbSupported(k); !ok {
+			return why, false
 		}
 	}
-	return true
+	return "", true
+}
+
+// limbShape decides one application, and SAYS WHY when the answer is no.
+//
+// The reason is the message a programmer sees. It used to be a list of every
+// operation the rung might be missing — "subtraction, division or a comparison"
+// — which was wrong about subtraction from the day subtraction was added and
+// told nobody which one their program used.
+func limbShape(name string, args []*core.Term) (string, bool) {
+	if _, ok := limbOf[name]; ok {
+		return "", true
+	}
+	if name == "big-str" {
+		return "", true
+	}
+	if name == "big/" && len(args) == 2 {
+		if _, ok := widenedWord(args[1]); ok {
+			return "", true
+		}
+		// Division by a machine WORD is one pass and is implemented; by another
+		// bignum it needs a quotient estimate (Knuth D), which nothing has asked
+		// for yet.
+		return "division by another arbitrary-precision value", false
+	}
+	switch name {
+	case "big%":
+		// The remainder's result is a machine word rather than a limb table, so
+		// it is a change of TYPE and not just another loop.
+		return "the remainder", false
+	case "big<", "big<=", "big>", "big>=", "big=":
+		return "comparison", false
+	}
+	return name, false
+}
+
+// widenedWord is a machine word the promotion widened, small enough to be a
+// limb multiplier or divisor. `big-of-small` is the marker the representation
+// pass writes for exactly that (bigrep.go's widenTo); a value spelled `big-of`
+// is spread over limbs and has no word to offer.
+func widenedWord(t *core.Term) (*core.Term, bool) {
+	if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName &&
+		t.Op().Name == "big-of-small" && len(t.Args()) == 1 {
+		return t.Args()[0], true
+	}
+	return nil, false
 }
 
 // limbLib is the embedded library, loaded once per target.
@@ -318,6 +401,20 @@ func (l *limbLib) rewrite(tgt *Target, t *core.Term, n *int) (*core.Term, error)
 	// passes — and a factorial is nothing but this. The shape is exactly what
 	// the promotion produces for `(* acc i)` with `i` a machine word, which is
 	// rule (P)'s provability gate leaving it one.
+	// DIVIDING BY A WIDENED WORD IS ONE PASS, and like the multiply it has to be
+	// recognised BEFORE the operand is spliced: once `(big-of k)` is an ordinary
+	// `build`, nothing distinguishes it from a divisor that is a real bignum —
+	// which this library cannot divide by at all.
+	if op := t.Op(); op.Kind == core.KName && op.Name == "big/" && len(t.Args()) == 2 {
+		if word, ok := widenedWord(t.Args()[1]); ok {
+			a, err := l.rewrite(tgt, t.Args()[0], n)
+			if err != nil {
+				return nil, err
+			}
+			*n++
+			return l.splice(limbPrefix+"div-small", a, word)
+		}
+	}
 	if op := t.Op(); op.Kind == core.KName && op.Name == "big*" && len(t.Args()) == 2 {
 		if bigSide, word, ok := l.widenedOperand(t.Args()); ok {
 			a, err := l.rewrite(tgt, bigSide, n)
@@ -369,20 +466,14 @@ func (l *limbLib) rewrite(tgt *Target, t *core.Term, n *int) (*core.Term, error)
 // word that was widened for the multiply AND is small enough to be a limb
 // multiplier.
 func (l *limbLib) widenedOperand(args []*core.Term) (*core.Term, *core.Term, bool) {
-	isWiden := func(t *core.Term) (*core.Term, bool) {
-		if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName &&
-			t.Op().Name == "big-of-small" && len(t.Args()) == 1 {
-			// AND THE WORD HAS TO BE SMALL ENOUGH TO BE A MULTIPLIER, which the
-			// shape alone cannot say. `mul-small` computes `limb * k + carry` in
-			// one word, so k must stay under 2^28; a big literal's Horner spine
-			// multiplies by 10^15 and would overflow every column.
-			//
-			// The analysis named the widenings that qualify (widenTo); anything
-			// spelled `big-of` is spread over limbs and multiplied properly.
-			return t.Args()[0], true
-		}
-		return nil, false
-	}
+	// AND THE WORD HAS TO BE SMALL ENOUGH TO BE A MULTIPLIER, which the shape
+	// alone cannot say. `mul-small` computes `limb * k + carry` in one word, so
+	// k must stay under 2^28; a big literal's Horner spine multiplies by 10^15
+	// and would overflow every column.
+	//
+	// The analysis named the widenings that qualify (widenTo); anything spelled
+	// `big-of` is spread over limbs and multiplied properly.
+	isWiden := widenedWord
 	if v, ok := isWiden(args[1]); ok {
 		return args[0], v, true
 	}

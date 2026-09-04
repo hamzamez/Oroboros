@@ -1744,6 +1744,42 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**AND THE LIMB LIBRARY GREW SUBTRACTION AND DIVISION BY A WORD** —
+[subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md). windows is the only target that stores a
+bounded big value as limbs, so what the built-in library implements is what arbitrary precision
+MEANS there — and it implemented `+` and `*`. That is ADR 0019 item 4 half delivered: **a host that
+could add two bignums and not subtract them.**
+
+**AND THE REFUSAL WAS A TYPE ERROR NAMING AN INTERNAL REPRESENTATION.** `(- a b)` on two declared
+big values came back as *"a is array int, but int is required here"* — `array int` being how the
+limb rung spells a bignum, which nothing in the source says. The honest message already existed and
+**nothing could reach it**: `CheckSigs` called `PromoteBig`, **dropped the error**, and type-checked
+the un-promoted body against the limb signature. *A refusal written to explain a capability gap,
+swallowed one line before it would have printed.*
+
+**`sub` is a borrow chain and the final borrow TRAPS**, for the same reason a final carry does —
+these are non-negative magnitudes and `a - b` with `a < b` is outside the `(int 0 N)` the program
+declared; `guard` was already the right check. **`div-small` walks DOWNWARD**, terminating by
+orientation, and it deliberately states neither its own k limit (bounded-by-default asks at the call
+site with the caller's range in hand, which is stronger) nor a zero check (the caller discharged it
+before the promotion ran). **Support became a question about SHAPES**: `big/` is supported by a
+machine WORD and refused by another bignum, so `LimbSupported` walks applications rather than names.
+
+**Checked in two halves that need each other.** `big-subdiv` builds the compiler's own lowering BOTH
+ways on the three hosts that can render — our borrow chain against `math/big`, `BigInt` and
+`BigInteger`, digits pinned independently — and **skips windows for a CAPABILITY reason**: it can do
+this arithmetic and cannot print the answer. `limb-subdiv` writes the same two loops by hand and
+returns ordinary integers, so they run on **all four**, covering two shapes otherwise untested on
+x86: a conditional inside an `again` ARGUMENT, and a loop counting DOWN. Operands chosen so the
+borrow actually fires, because a case whose borrow never fired would pass with the chain deleted.
+
+**A pre-existing x86 ceiling was found and not fixed**: three inlined copies exceed what the register
+allocator can place (`x64.movb has more spilled operands than there are scratch registers`), and it
+**reproduces with this work reverted**. Second program to hit it. **Cost: no emitted file changes** —
+70 programs x 4 targets byte-identical. **What windows still cannot do is PRINT**, and decimal
+conversion is repeated division by a power of ten, so `div-small` is exactly the arithmetic half;
+what remains is strings.
+
 **THE LIMB RUNG'S COST WAS SIGNED DIVISION, AND THE FIX IS A PROOF** —
 [shiftdiv-2026-09-03](gauntlet/results/shiftdiv-2026-09-03.md). bigrepr §6 named the next move as
 *"a target-declared limb width and carry extraction"* on bigarith's 2.75x and 3.9x. **Those are

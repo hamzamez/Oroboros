@@ -1,0 +1,86 @@
+; DIVMOD AND COMPARISON ON AN ARBITRARY-PRECISION VALUE, on all four targets.
+;
+; This is what the two additions are FOR, so it is written the way they will be
+; used rather than as two isolated calls.
+;
+; `(% (/ x 100000000) 100000000)` is one step of DECIMAL RENDERING: printing a
+; big value is repeatedly taking the quotient and the remainder by a power of
+; ten, and each remainder is a group of digits. And `(> x 5e29)` is a bignum
+; controlling a branch, which was not expressible at all on a target storing its
+; big values as limbs — no `while (x > 1)`, no gcd, no Newton iteration.
+;
+; skip: windows
+;
+; WINDOWS IS SKIPPED FOR A REASON THAT IS NEITHER A CAPABILITY NOR A
+; DISAGREEMENT, and it is worth naming because it is the third case to hit it:
+; the x86 register allocator cannot place this many live limb buffers in one
+; procedure — `x64.movb has more spilled operands than there are scratch
+; registers` — and reduction inlines `run` at every call site. It reproduces at
+; ONE input with two comparisons, and with the big value built by a loop instead
+; of a literal, so it is program SIZE rather than any construct here. That
+; ceiling is pre-existing and belongs to the backend.
+;
+; What windows does run is `limb-subdiv`, which writes the same loops by hand at
+; a size that fits, and `emit`'s unit tests, which check that each of `-`, `/` by
+; a word, `%` by a word and a comparison lowers to limbs there with no bignum in
+; sight. So the capability is covered on that host and the whole-program size is
+; not — which is the honest split.
+;
+; THE RESULT TYPE IS THE LOAD-BEARING PART. `a % k` with 0 <= a and k a machine
+; word is under k, so the answer fits the portable window whatever a's magnitude
+; — arithmetic, not representation. Before `big%-small` existed the fixed-limb
+; rung returned a word here and the host rungs returned a bignum, so this exact
+; signature was accepted on one and refused on the other: selecting a
+; representation would have changed which programs are LEGAL, which is ADR 0009
+; at the representation boundary.
+;
+;   x(n)   = 12345678901234567890 * (n+7)    -- about 10^20, 67 bits
+;   run(n) = (x / 10^8) % 10^8
+;            + (10^12 if x > 1.2345…e19)   -- true
+;            + (10^9  if x > 10^24)        -- false
+;
+; THE BIG VALUE COMES FROM A LITERAL, and that is not incidental. A LIMITATION
+; found writing this case: a value declared big on a HELPER's signature is not
+; promoted once reduction inlines that helper, because the declaration is the
+; boundary and inlining removes it — refinements.md §6b's limit, arriving on the
+; representation solver. Written as `(sig scaled (…) (int 0 (pow 2 200)))` and
+; called from a `run` returning an `int`, this program is REFUSED: four integer
+; operations cannot be proven in-window, because nothing tells the solver the
+; accumulator is meant to be arbitrary-precision.
+;
+; A literal past the window carries its own magnitude, so `constBigValue` seeds
+; the promotion with no signature involved. That is why the case is written this
+; way, and the limitation is recorded rather than worked around silently — it is
+; the shape decimal rendering has, where the big value is internal and every
+; result is a word.
+;
+; The literal is kept SHORT (20 digits) on purpose: one past the word is a
+; Horner spine over base 10^15, and two inlined copies of a 30-digit one exceed
+; what the x86 register allocator can place.
+;
+; big-repr: both
+
+; TWO INPUTS, one either side of the threshold, because nine is expensive here
+; in a way the other cases are not: `; big-repr: both` builds six variants and
+; each inlines `run` per input, so nine inputs is fifty-four copies of a 200-bit
+; computation. Two exercises both branches of the comparison and both halves of
+; the divmod.
+
+; inputs: 0 5
+; expect: 1000097523086 1000081468148
+
+(export scaled run)
+
+; The BOUND still lives on a signature, because that is what gives the
+; fixed-limb rung a WIDTH: it is the maximum over every signature the program
+; has, precisely because inlining would otherwise erase it. What the signature
+; cannot do is make the value inside `run` big — see the header.
+(sig scaled ((n (int 0 50))) (int 0 (pow 2 200)))
+(def scaled (fn (n) (* 12345678901234567890 (+ n 7))))
+
+(sig run ((n (int 0 50))) int)
+(def run (fn (n)
+  (let (scaled n) (fn (x)
+    (+ (% (/ x 100000000) 100000000)
+       (+ (if (> x 12345678901234567890) 1000000000000 0)
+          (if (> x 999999999999999999999999) 1000000000 0)))))))

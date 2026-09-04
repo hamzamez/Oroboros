@@ -273,3 +273,47 @@
       (< i 0)  o
       else     (let (+ (* r 16777216) (at a i)) (fn (cur)
                  (again (set o i (/ cur k)) (- i 1) (% cur k)))))))))
+
+; ---------------------------------------------------------------- comparison
+;
+; Limb-wise from the TOP down: the first difference decides, and equality is
+; reaching the bottom without finding one. Both operands have the same width by
+; construction — one program holds one — so there is no length to compare first.
+;
+; WITHOUT THIS A BIGNUM CANNOT CONTROL A LOOP, which is an expressiveness gap
+; rather than a slow path: no `while (x > 1)`, no gcd, no Newton iteration, no
+; exponentiation that tests its own exponent. On a target that stores big values
+; as limbs and has no host bignum to fall back to, all of that was unreachable.
+;
+; It returns -1, 0 or 1 rather than a bool so that one loop serves all five
+; comparisons. Three guards read each limb twice, which is two compares more per
+; limb than a difference would cost; a comparison walks limbs and stops at the
+; first that differs, so this is not the arithmetic anyone measures.
+(def cmp (fn (n lim a b)
+  (loop ((i (- n 1)))
+    (< i 0)                 0
+    (> (at a i) (at b i))   1
+    (< (at a i) (at b i))   (- 0 1)
+    else                    (again (- i 1)))))
+
+(def lt (fn (n lim a b) (<  (cmp n lim a b) 0)))
+(def le (fn (n lim a b) (<= (cmp n lim a b) 0)))
+(def gt (fn (n lim a b) (>  (cmp n lim a b) 0)))
+(def ge (fn (n lim a b) (>= (cmp n lim a b) 0)))
+(def eq (fn (n lim a b) (=  (cmp n lim a b) 0)))
+
+; -------------------------------------------------------- remainder by a word
+;
+; `div-small`'s other half, and the two together are divmod — which is what
+; DECIMAL RENDERING consumes: printing a limb table is repeatedly taking the
+; quotient and the remainder by a power of ten.
+;
+; ITS RESULT IS A MACHINE WORD, not a limb table, which is the one place this
+; library changes the KIND of thing an operation produces. `a % k` is under k
+; and k is a word, so the answer is a word by construction — there is no limb
+; count to give it and no `build` here.
+(def rem-small (fn (n lim a k)
+  (loop ((i (- n 1)) (r 0))
+    (< i 0)  r
+    else     (let (+ (* r 16777216) (at a i)) (fn (cur)
+               (again (- i 1) (% cur k)))))))

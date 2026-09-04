@@ -506,7 +506,7 @@ func TestNoShiftWidthMeansNoRewrite(t *testing.T) {
 // had addition and multiplication and nothing else, which is ADR 0019 item 4
 // half delivered: a host that could add two bignums and not subtract them.
 
-func TestWindowsCanSubtractAndDivideByAWord(t *testing.T) {
+func TestWindowsCanSubtractCompareAndDivideByAWord(t *testing.T) {
 	tg, err := LoadTarget("../targets/windows")
 	if err != nil {
 		t.Fatal(err)
@@ -514,22 +514,42 @@ func TestWindowsCanSubtractAndDivideByAWord(t *testing.T) {
 	if tg.HasBig() {
 		t.Skip("windows now declares a bignum; this test has done its job")
 	}
-	for _, body := range []string{"(- a b)", "(/ a 4)"} {
+	for _, c := range []struct {
+		body, result string
+		build        bool
+	}{
+		// An arithmetic result is a new limb table. A comparison yields a bool
+		// and `(% a k)` yields a machine WORD — `a % k` is under k — so neither
+		// allocates one, and saying which is which is the point of `big%-small`.
+		{"(- a b)", "(int 0 (pow 2 200))", true},
+		{"(/ a 4)", "(int 0 (pow 2 200))", true},
+		{"(% a 4)", "int", false},
+		{"(if (< a b) a b)", "(int 0 (pow 2 200))", false},
+	} {
 		src := "(export f)\n" +
-			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) (int 0 (pow 2 200)))\n" +
-			"(def f (fn (a b) " + body + "))\n"
+			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) " + c.result + ")\n" +
+			"(def f (fn (a b) " + c.body + "))\n"
 		out := lowerOn(t, tg, src, "f")
-		if strings.Contains(out, "big-") || strings.Contains(out, "big/") {
-			t.Errorf("%s was not lowered to limbs on windows:\n%s", body, out)
+		for _, leftover := range []string{"big-", "big/", "big%", "big<"} {
+			if strings.Contains(out, leftover) {
+				t.Errorf("%s kept %s on windows, which declares no bignum:\n%s",
+					c.body, leftover, out)
+			}
 		}
-		if !strings.Contains(out, "build") {
-			t.Errorf("%s produced no limb buffer:\n%s", body, out)
+		if got := strings.Contains(out, "build"); got != c.build {
+			t.Errorf("%s: allocates a limb table = %v, want %v:\n%s",
+				c.body, got, c.build, out)
 		}
 	}
 }
 
 // AND WHAT IS STILL MISSING IS REFUSED BY NAME, which is the whole of what a
 // programmer is told on a target with no bignum to fall back to.
+//
+// What is missing is now exactly the two operations that need a QUOTIENT
+// ESTIMATE — division and remainder by another arbitrary-precision value.
+// Dividing by a machine word is one pass and is implemented, and so is the
+// remainder, whose result is a word.
 //
 // The message used to be a fixed list — "subtraction, division or a comparison"
 // — which was wrong about subtraction the moment subtraction existed and named
@@ -547,9 +567,8 @@ func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 		t.Skip("windows now declares a bignum; this test has done its job")
 	}
 	for _, c := range []struct{ body, want string }{
-		{"(% a b)", "the remainder"},
+		{"(% a b)", "the remainder by another arbitrary-precision value"},
 		{"(/ a b)", "division by another arbitrary-precision value"},
-		{"(if (< a b) a b)", "comparison"},
 	} {
 		src := "(export f)\n" +
 			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) (int 0 (pow 2 200)))\n" +

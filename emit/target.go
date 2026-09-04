@@ -579,6 +579,24 @@ var bigOps = []struct {
 	{"big+!", 3, false}, {"big-!", 3, false}, {"big*!", 3, false},
 	{"big/!", 3, false}, {"big%!", 3, false}, {"big-of!", 2, false},
 
+	// THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
+	// 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
+	// window — that is a fact about the ARITHMETIC and not about anyone's
+	// representation, so it must hold on all of them.
+	//
+	// Without it the two rungs disagreed about which programs type-check:
+	// `(sig digit ((a (int 0 (pow 2 200)))) int)` with body `(% a 100000000)`
+	// was accepted on the fixed-limb rung, where the loop naturally returns a
+	// word, and refused on the host's bignum, where `big%` yields a bignum
+	// against a declared `int`. Selecting a representation would then change
+	// which programs are LEGAL, which is ADR 0009 at the representation
+	// boundary — the same thing `big-fit` exists to prevent for the bound.
+	//
+	// It is not a new kind of thing: `big<` is already a big operation with a
+	// non-big result. And it is what DECIMAL RENDERING is made of, since
+	// printing needs each digit group as a word.
+	{"big%-small", 2, true},
+
 	// THE DECLARED BOUND, ENFORCED ON THE HOST'S OWN BIGNUM. `(big-fit x k)` is
 	// x when x needs at most k bits and a trap otherwise.
 	//

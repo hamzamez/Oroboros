@@ -101,6 +101,7 @@ var bigOpNames = map[string]bool{
 	"big+": true, "big-": true, "big*": true, "big/": true, "big%": true,
 	"big<": true, "big<=": true, "big>": true, "big>=": true, "big=": true,
 	"big-of": true, "big-of-small": true, "big-str": true,
+	"big%-small": true,
 }
 
 func isBigOp(name string) bool { return bigOpNames[name] }
@@ -139,9 +140,26 @@ func (p *intervalPass) bigTerm(t *core.Term) bool {
 			return false
 		}
 		if isBigOp(op.Name) {
-			return op.Name != "big-str"
+			// TWO BIG OPERATIONS DO NOT PRODUCE A BIG VALUE, and both have to
+			// say so here or the term above them is promoted around a word.
+			// `big-str` yields a string; `big%-small` yields a machine word,
+			// because `a % k` with k a word is under k.
+			//
+			// Getting the second wrong is not a missed optimisation: the sum
+			// above it became a `big+` and then refused its own operand —
+			// "big%-small is int, but big is required here" — and on the
+			// fixed-limb rung the same mistake indexed an `int` as a table.
+			return op.Name != "big-str" && op.Name != "big%-small"
 		}
 		if langArith(op.Name) {
+			// THE REMAINDER BY A WORD YIELDS A WORD, before the rewrite as well
+			// as after it. This walks UNPROMOTED arithmetic — it decides rather
+			// than observes — so without the rule here `(% big word)` looked big
+			// because an operand was, the sum above it became a `big+`, and that
+			// then refused its own operand.
+			if p.remByWord(t) {
+				return false
+			}
 			if constBigValue(t) {
 				return true
 			}
@@ -229,6 +247,27 @@ func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term, vals []ival) (
 	// about it.
 	if !byOperand && !(arith && p.demandBig) {
 		return nil, false
+	}
+	// THE REMAINDER BY A WORD YIELDS A WORD, on every representation, because
+	// `a % k` is under k and k is a machine word. See bigOps in target.go: this
+	// is the operation whose result KIND differs from its operands', and getting
+	// it wrong made the two rungs disagree about which programs type-check.
+	if arith && p.remByWord(t) {
+		if _, ok := p.tgt.Prims["big%-small"]; ok || p.limbs {
+			if a, aok := args[0], true; aok {
+				if a.Kind == core.KName {
+					if p.bigReads == nil {
+						p.bigReads = map[string]bool{}
+					}
+					p.bigReads[a.Name] = true
+				}
+			}
+			return &core.Term{Kind: core.KApp, Kids: []*core.Term{
+				core.Name("big%-small"),
+				p.widenTo(args[0], kids[1], vals, 0),
+				kids[2],
+			}}, true
+		}
 	}
 	bigName := BigOpName(op.Name)
 	// ON THE LIMB RUNG THE NAME NEED NOT BE A PRIMITIVE. `big+` is an
@@ -623,4 +662,23 @@ func fitWalk(t *core.Term, bits int) *core.Term {
 		return core.App(core.Name("big-fit"), out, core.Int(int64(bits)))
 	}
 	return out
+}
+
+// remByWord is `(% a k)` with a arbitrary-precision and k a machine word, whose
+// result is a WORD: `a % k` is under k, and k is inside the portable window.
+//
+// ONE PLACE, because two things ask and they must not drift. `selectBig` uses it
+// to emit `big%-small`, whose declared result is `int`; `bigTerm` uses it to
+// stop the surrounding expression being promoted around a word. Answering
+// differently in the two made a sum into a `big+` that then refused its own
+// operand, and on the fixed-limb rung indexed an `int` as a table.
+func (p *intervalPass) remByWord(t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp {
+		return false
+	}
+	op, args := t.Op(), t.Args()
+	if op.Kind != core.KName || op.Name != "%" || len(args) != 2 {
+		return false
+	}
+	return p.bigTerm(args[0]) && !p.bigTerm(args[1])
 }

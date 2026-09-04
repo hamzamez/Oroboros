@@ -98,15 +98,25 @@ const limbPrefix = "big/limb."
 // A program declares `(int 0 N)` to reach this rung, so a negative result is
 // outside its own declaration.
 //
-// Still absent, and a program using one keeps the host's bignum whole (or is
-// refused on a target with none): `big%`, whose result is a machine word rather
-// than a limb table, the comparisons, and big-by-big division.
+// The comparisons are here and return a bool, which is what lets a bignum
+// control a loop at all; without them no `while (x > 1)`, no gcd and no Newton
+// iteration was expressible on a target with no host bignum.
+//
+// `big/` and `big%` are handled by SHAPE below, not here: by a machine word
+// each is one pass, and by another bignum each needs a quotient estimate. Only
+// that last case is still absent, and a program using it keeps the host's
+// bignum whole (or is refused by name on a target with none).
 var limbOf = map[string]string{
 	"big-of":       limbPrefix + "of",
 	"big-of-small": limbPrefix + "of",
 	"big+":   limbPrefix + "add",
 	"big-":   limbPrefix + "sub",
 	"big*":   limbPrefix + "mul",
+	"big<":   limbPrefix + "lt",
+	"big<=":  limbPrefix + "le",
+	"big>":   limbPrefix + "gt",
+	"big>=":  limbPrefix + "ge",
+	"big=":   limbPrefix + "eq",
 }
 
 // BigBound is the bound a program's declarations place on its
@@ -307,13 +317,11 @@ func limbShape(name string, args []*core.Term) (string, bool) {
 		// for yet.
 		return "division by another arbitrary-precision value", false
 	}
-	switch name {
-	case "big%":
-		// The remainder's result is a machine word rather than a limb table, so
-		// it is a change of TYPE and not just another loop.
-		return "the remainder", false
-	case "big<", "big<=", "big>", "big>=", "big=":
-		return "comparison", false
+	if name == "big%-small" {
+		return "", true
+	}
+	if name == "big%" && len(args) == 2 {
+		return "the remainder by another arbitrary-precision value", false
 	}
 	return name, false
 }
@@ -405,14 +413,30 @@ func (l *limbLib) rewrite(tgt *Target, t *core.Term, n *int) (*core.Term, error)
 	// recognised BEFORE the operand is spliced: once `(big-of k)` is an ordinary
 	// `build`, nothing distinguishes it from a divisor that is a real bignum —
 	// which this library cannot divide by at all.
-	if op := t.Op(); op.Kind == core.KName && op.Name == "big/" && len(t.Args()) == 2 {
-		if word, ok := widenedWord(t.Args()[1]); ok {
+	//
+	// The remainder is the same walk and the same recognition, and it is the
+	// only operation here whose result is a machine WORD rather than a limb
+	// table: `a % k` is under k and k is a word. Together the two are divmod,
+	// which is what decimal rendering consumes.
+	if op := t.Op(); op.Kind == core.KName && len(t.Args()) == 2 {
+		byWord := map[string]string{"big/": "div-small", "big%": "rem-small"}
+		if op.Name == "big%-small" {
 			a, err := l.rewrite(tgt, t.Args()[0], n)
 			if err != nil {
 				return nil, err
 			}
 			*n++
-			return l.splice(limbPrefix+"div-small", a, word)
+			return l.splice(limbPrefix+"rem-small", a, t.Args()[1])
+		}
+		if fn, ok := byWord[op.Name]; ok {
+			if word, ok := widenedWord(t.Args()[1]); ok {
+				a, err := l.rewrite(tgt, t.Args()[0], n)
+				if err != nil {
+					return nil, err
+				}
+				*n++
+				return l.splice(limbPrefix+fn, a, word)
+			}
 		}
 	}
 	if op := t.Op(); op.Kind == core.KName && op.Name == "big*" && len(t.Args()) == 2 {

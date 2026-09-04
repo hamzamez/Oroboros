@@ -70,6 +70,20 @@
     ; bare console.log of a BigInt gives "123n". The suffix is a real)
     ; divergence from the other two hosts and this is where it is removed.
     (prim big-str (big) string expr "String(%s)" pure)
+    ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
+    ; 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
+    ; window whatever a's magnitude -- a fact about the arithmetic, not about
+    ; this host, so every representation has to agree with it.
+    ;
+    ; Without it the fixed-limb rung and this one disagreed about which programs
+    ; type-check: a signature declaring an `int` result over `(% a 100000000)`
+    ; was accepted there and refused here, so SELECTING a representation would
+    ; change which programs are legal (ADR 0009 at the representation boundary).
+    ;
+    ; It is also what decimal rendering is made of: printing needs each digit
+    ; group as a word.
+    (prim big%-small ((a big) (k int)) int expr "Number(%s %% BigInt(%s))" pure)
+
     ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
     ; representations must agree about it.
     ;

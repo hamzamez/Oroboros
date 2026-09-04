@@ -1744,6 +1744,39 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**AND THEN COMPARISONS AND THE REMAINDER, WHICH FINISHED IT** — same result document,
+[subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md) §6-§7. **Without comparisons a bignum
+cannot control a LOOP** — no `while (x > 1)`, no gcd, no Newton iteration — which is an
+expressiveness gap rather than a slow path; one `cmp` walking limbs from the top and returning
+-1/0/1 serves all five. `rem-small` is `div-small`'s other half, and the two are divmod, which is
+what decimal rendering consumes.
+
+**THE REMAINDER'S RESULT IS A WORD, AND THAT HAD TO BECOME A TYPE.** `a % k` with k a machine word
+is under k — a fact about the ARITHMETIC, not about storage — so every representation must agree.
+The first version did not: `(sig digit ((a (int 0 (pow 2 200)))) int)` over `(% a 100000000)` was
+**accepted on limbs and refused on the host bignum**, so selecting a representation would have
+changed which programs are LEGAL. That is ADR 0009 at the representation boundary, the invariant
+established two commits earlier. So `big%-small` is its own operation with an `int` result — **not a
+new kind of thing**, since `big<` is already a big operation with a non-big result.
+
+**Two bugs, one mistake, two places.** `bigTerm` DECIDES rather than observes, walking UNPROMOTED
+arithmetic — so `(% (/ x 1e8) 1e8)` looked big because an operand was, the sum above it became a
+`big+`, and that refused its own operand; on the limb rung the same mistake indexed an `int` as a
+table. The rule now lives in ONE function read by both `selectBig` and `bigTerm`, *because answering
+differently in the two is precisely what broke*.
+
+**AND A LIMITATION THAT IS THE SHAPE RENDERING HAS**: a big value declared on a HELPER's signature
+is **not promoted once reduction inlines that helper** — the declaration is a boundary and inlining
+removes it, refinements.md §6b for the FIFTH time. The program is refused rather than wrong, and a
+big LITERAL seeds the promotion with no signature involved, but the case where the big value is
+internal and every result is a word is exactly decimal rendering. Recorded, not patched: what
+survives inlining is a design question.
+
+**And the binding constraint on windows is no longer the library, it is the x86 REGISTER
+ALLOCATOR.** `big-divmod` cannot build there at any size that also exercises what it tests — it
+fails at one input with two comparisons, and with the big value built by a loop rather than a
+literal, so it is program SIZE and not any construct. Third case to hit that ceiling.
+
 **AND THE LIMB LIBRARY GREW SUBTRACTION AND DIVISION BY A WORD** —
 [subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md). windows is the only target that stores a
 bounded big value as limbs, so what the built-in library implements is what arbitrary precision

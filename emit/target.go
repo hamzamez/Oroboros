@@ -293,6 +293,10 @@ func LoadTarget(path string) (*Target, error) {
 // injected into every target by addCore.
 var coreNames = map[string]bool{
 	"if": true, "and": true, "or": true, "not": true, "cond": true,
+	// A range on a TERM. A target may not declare it for the same reason it may
+	// not declare `if`: it is the language's, and the compiler finds what it
+	// means on each host — which here is nothing, since it is erased.
+	core.AscribeName: true,
 	// `let` and `loop` for the same reason `if` is here, generalised late.
 	// A construct promoted to the LANGUAGE works on every target and the
 	// compiler finds the implementation; a target neither declines it nor
@@ -359,6 +363,16 @@ var coreStructural = []Prim{
 	{Name: "if", Kind: "cond", Pure: true},
 	{Name: "let", Kind: "let", Pure: true},
 	{Name: "loop", Kind: "iterate", Pure: true},
+	// A RANGE ON A TERM (core.AscribeName). `(the "int 0 …" e)` says what set
+	// the value of `e` is in, and it exists because a declaration on a signature
+	// is a boundary that whole-program reduction removes: a range the analysis
+	// cannot re-derive has nowhere else to live.
+	//
+	// It is ERASED at emission — it carries a range and nothing else, and the
+	// runtime enforcement of a declared bound is `big-fit` and the limb rung's
+	// `guard`, both of which already exist. Pure, because it is the identity on
+	// every value it accepts.
+	{Name: core.AscribeName, Kind: "ascribe", Args: []string{"string", "any"}, Pure: true},
 	// A table's two presentations and its domain bound (tables.md §2). Pure:
 	// a table is a value, and reading one has no effect — which is what
 	// separates `(array V)` from ADR 0018's `(buffer V)`, whose reads are impure

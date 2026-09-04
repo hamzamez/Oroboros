@@ -139,6 +139,13 @@ func (p *intervalPass) bigTerm(t *core.Term) bool {
 		if op.Kind != core.KName {
 			return false
 		}
+		// AN ASCRIPTION IS BIG WHEN THE RANGE IT CARRIES IS. This is what makes
+		// a declaration survive inlining: `core.LoadWith` moves the declared
+		// result of a definition onto its body, and the term keeps it where the
+		// signature could not.
+		if op.Name == core.AscribeName {
+			return ascribedBig(t.Args())
+		}
 		if isBigOp(op.Name) {
 			// TWO BIG OPERATIONS DO NOT PRODUCE A BIG VALUE, and both have to
 			// say so here or the term above them is promoted around a word.
@@ -401,6 +408,22 @@ func DeclaresBig(sig *core.Sig) bool {
 // agrees. The promotion is part of what the program MEANS, so it has to happen
 // before the program is checked.
 func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
+	// THE ASCRIPTION IS ERASED HERE, at the one point every caller goes through
+	// and before the type checker runs. It carries a range and nothing else: the
+	// solver below has just read it, and the runtime enforcement of a declared
+	// bound is `big-fit` and the limb rung's `guard`, which already exist.
+	//
+	// One pass rather than a case in each of four backends, and the same shape
+	// `LowerLimbs` uses to remove `big-of-small`: a marker written by one pass
+	// and removed by another, so no backend learns that it exists.
+	out, n, err := promoteBig(tgt, sig, t, all...)
+	if err != nil {
+		return nil, 0, err
+	}
+	return eraseAscriptions(out), n, nil
+}
+
+func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
 	// THE FIXED-LIMB RUNG COMES FIRST, because it decides how the promotion
 	// itself runs: a limb value is a TABLE, so the mutable-bignum rewrite —
 	// which writes into a host bignum object — has nothing to say about it.
@@ -461,6 +484,12 @@ func MentionsBig(t *core.Term) bool {
 		return false
 	}
 	if t.Kind == core.KName && isBigOp(t.Name) {
+		return true
+	}
+	// AND AN ASCRIPTION IS THE SECOND WAY, which is the whole point of it: a
+	// declaration reduction inlined away is a demand the residual still carries.
+	if t.Kind == core.KApp && t.Op().Kind == core.KName &&
+		t.Op().Name == core.AscribeName && ascribedBig(t.Args()) {
 		return true
 	}
 	for _, k := range t.Kids {
@@ -681,4 +710,41 @@ func (p *intervalPass) remByWord(t *core.Term) bool {
 		return false
 	}
 	return p.bigTerm(args[0]) && !p.bigTerm(args[1])
+}
+
+// ascribedBig reads the range an ascription carries and reports whether it is
+// wider than the portable window.
+//
+// The payload is a STRING — the canonical spelling `TypeName` already produces
+// for a signature — so this is the same `ExceedsWindow` every other consumer of
+// a declared range uses. There is no second notion of a type here.
+func ascribedBig(args []*core.Term) bool {
+	return len(args) == 2 && args[0] != nil && args[0].Kind == core.KStr &&
+		core.ExceedsWindow(args[0].Str)
+}
+
+// eraseAscriptions removes every `(the T e)`, leaving `e`.
+//
+// A lambda is rebuilt CLOSED: its binders are de Bruijn indices and this
+// introduces no free name, so nothing can capture — the same reason `fitWalk`
+// and the limb rewrite may descend into one without opening it.
+func eraseAscriptions(t *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, eraseAscriptions(t.Closed()))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	if op := t.Op(); op.Kind == core.KName && op.Name == core.AscribeName &&
+		len(t.Args()) == 2 {
+		return eraseAscriptions(t.Args()[1])
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = eraseAscriptions(k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
 }

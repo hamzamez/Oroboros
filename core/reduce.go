@@ -377,6 +377,39 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			p.Sigs[qualify(m.Path, n)] = sig
 		}
 	}
+	// ═══ A DECLARED WIDENING SURVIVES INLINING, BECAUSE IT IS A DIRECTIVE
+	//
+	// A range has three effects (scalarrange-2026-08-31): it is a type, it is a
+	// premise, and it is a representation. Reduction inlines every non-exported
+	// call, and the first two survive that — the checker re-derives the type,
+	// and dropping the premise is a STRENGTHENING, since the body's obligations
+	// then land on the caller's concrete values (refinements.md §6b).
+	//
+	// THE THIRD DOES NOT SURVIVE, and the difference is that it is not a fact.
+	// A range above the window does not assert something the compiler checks; it
+	// REQUESTS arbitrary precision. Inlining gives more information about values
+	// and none about intent, so removing the boundary removes the only record of
+	// the instruction — and the interval analysis cannot supply it, because a
+	// multiplicative loop widens to [-inf, +inf] and a factorial's bound is not
+	// expressible in the domain at all.
+	//
+	// So the declaration is moved onto the TERM, where reduction preserves it:
+	// `(the "int 0 …" body)`. `the` is a structural name the compiler injects
+	// into every target, exactly as `if`, `let` and `loop` are, and it is erased
+	// at emission — it carries a range and nothing else.
+	//
+	// Only a range ABOVE the window is wrapped. Below it the analysis derives
+	// what it needs and an ascription would be noise; above it there is nothing
+	// to derive. That is the same line `ExceedsWindow` draws everywhere else:
+	// a refinement on one side, a widening on the other.
+	for q, sig := range p.Sigs {
+		body, ok := p.Defs[q]
+		if !ok || sig == nil || !ExceedsWindow(sig.Result) {
+			continue
+		}
+		p.Defs[q] = ascribeResult(body, sig.Result)
+	}
+
 	for _, m := range mods {
 		if !entryPaths[m.Path] {
 			continue // a library's exports are not the program's entry points
@@ -1807,4 +1840,33 @@ func (e *Env) tableLen(args []*Term) (*Term, bool) {
 func (e *Env) duplicableTable(t *Term) bool {
 	return isForm(t, e, "table") && len(t.Kids) == 3 &&
 		e.pureTerm(t, map[string]bool{})
+}
+
+// AscribeName is the structural name that carries a range on a TERM.
+//
+// `(the "int 0 1606938…" e)` says the value of `e` is in that set. It exists
+// because a declaration on a signature is a BOUNDARY, and whole-program
+// reduction removes every boundary that is not an entry point — so a range that
+// the analysis cannot re-derive has nowhere to live once its `sig` is inlined
+// away.
+//
+// The type is a STRING, canonicalised by TypeName exactly as a signature's is,
+// so no new term kind is needed and every consumer uses the same IntRangeBig
+// and ValueType it already uses on a signature. An endpoint may be an
+// expression — `(int 0 (pow 2 200))` — and TypeName has already evaluated it at
+// arbitrary precision, which is why the payload is a string and not a term.
+const AscribeName = "the"
+
+// ascribeResult wraps a definition's result in an ascription, under whatever
+// binders it has. A `Fn` stores its body with de Bruijn indices, so wrapping
+// that body disturbs nothing: the ascription introduces no binder and no free
+// name.
+func ascribeResult(body *Term, ty string) *Term {
+	if body == nil || ty == "" {
+		return body
+	}
+	if body.Kind == KFn {
+		return FnClosed(body.Params, ascribeResult(body.Closed(), ty))
+	}
+	return App(Name(AscribeName), Str(ty), body)
 }

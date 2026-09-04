@@ -1,6 +1,9 @@
 # What a declaration means after inlining
 
-Research, 2026-09-03. No decision, no build.
+Research, 2026-09-03. **BUILT** — the recommendation in §6 was implemented the
+same day; see [ascribe-2026-09-03](../gauntlet/results/ascribe-2026-09-03.md) for
+what it cost and for the three bugs it found. This document is kept as the
+argument the build tested.
 
 On hamza's *"maybe I am wrong, but this is the type system question."*
 
@@ -225,6 +228,15 @@ the analysis cannot bound is silent-slow failure and a whole-program boxing
 story, which that ADR rejected on four grounds.
 
 ## 6. Recommendation
+
+> **BUILT, and one thing the argument had not tested.** Before writing anything,
+> the cheaper answer was measured: can the analysis simply DERIVE the magnitude?
+> The loop has a constant trip count of six and a constant multiplier, so a bound
+> is computable in principle. It reports **`[-inf, +inf]`** — and the general case
+> is worse, since a factorial's bound is not expressible in an interval domain at
+> all. That measurement is what makes §4's "what is missing is intent" a finding
+> rather than an assumption, and it should have been in this document before the
+> recommendation was made.
 
 **(a), then (b) if a program needs it.**
 

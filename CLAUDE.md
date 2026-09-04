@@ -1744,6 +1744,49 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**AND IT IS BUILT: A DECLARATION IS A DIRECTIVE, SO IT MOVES ONTO THE TERM** —
+[ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md), on hamza's *"that information will
+propagate through the program safely and confidently, statically checked, using the best
+representation at the end."* **That model is already the architecture** — `int-repr`, `big-repr` and
+element widths all work that way — and it needs a SOURCE of facts, of which there are two:
+derivation and declaration.
+
+**THE EXPERIMENT DECIDED THE DESIGN, and it was run before anything was written.** Can the analysis
+just DERIVE the magnitude? The loop has a constant trip count of six and a constant multiplier, so a
+bound is computable in principle — and it reports **`[-inf, +inf]`**. The general case is worse: a
+factorial's bound is `n!`, not expressible in an interval domain at all. **So derivation provably
+cannot replace the declaration**, which is what makes this intent rather than a precision gap.
+
+`core.LoadWith` moves a declared result above the window onto the definition's body as
+`(the "int 0 …" e)`. **No new term kind** — `the` is injected into every target the way `if`/`let`/
+`loop` are, and a target may neither decline nor declare it. **No new type representation** — the
+payload is the canonical string `TypeName` already produces for a signature, so every consumer uses
+the same `ExceedsWindow`. **No new surface** — the programmer already wrote the declaration.
+**Erased in ONE place**, `PromoteBig`, after the solver reads it and before the checker runs, which
+is `LowerLimbs` removing `big-of-small`. The bidirectional solver needed almost nothing: an
+ascription is a DEMAND in the same sense every other position is, and it had only lost its seed.
+
+**Three bugs, and two were already there.** **A widen inserted by the REPORTING pass** — `demandBig`
+was honoured whether or not the pass was selecting, so once the marker was erased the reporting pass
+wrapped an already-big value in `big-of`; visible only under `-checked` and only in a `main` with no
+signature. That is the **second** instance of interval.go's own rule that *a pass either selects a
+representation or reports on one, and the two are exclusive*. **`big%-small` had no transfer
+function**, so a digit group was ⊤ and every word operation reading one was unprovable — a bignum
+renderer refused for arithmetic on values under 10^8. And the marker had to be READ before it was
+erased: wrapping without teaching `bigTerm` broke the working path.
+
+**Cost: no emitted file changes** — 70 programs x 4 targets byte-identical, because every definition
+in the corpus that declares a big result is an entry point. **The corpus cannot exercise this**,
+which is a reason for the tests rather than for confidence. `big-divmod` is now written in the shape
+that was refused and runs on **six variants**; three unit tests pin the promotion, the erasure, and
+**the `[-inf, +inf]` measurement**, so a future analysis improvement is noticed rather than assumed.
+
+**What it does NOT do**: a big value with no helper anywhere still has no declaration site. The
+mechanism is general — `the` carries a range, not a flag — so exposing `(the TYPE e)` is a small
+step, but it is a language construct and owes a spec. And it enforces nothing: `the` is erased, and
+the runtime enforcement of a bound is `big-fit` and the limb `guard`, which is what a narrow
+ascription would need to become hamza's DOOR — checked once, then trusted.
+
 **A DECLARATION DOES NOT SURVIVE INLINING, AND THAT IS THE TYPE-SYSTEM QUESTION** —
 [inlining-and-declarations.md](docs/inlining-and-declarations.md), research, no decision, on hamza's
 *"maybe I am wrong, but this is the type system question."* **Not wrong**, and the precise sense is

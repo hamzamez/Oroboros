@@ -605,3 +605,102 @@ func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 		}
 	}
 }
+
+// ═══ A DECLARATION SURVIVES INLINING (inlining-and-declarations.md)
+//
+// A range has three effects: a type, a premise and a representation. Reduction
+// erases every non-exported boundary, and the first two survive that — the
+// checker re-derives the type, and dropping the premise is a strengthening
+// because the body's obligations land on the caller's concrete values.
+//
+// THE THIRD IS NOT A FACT. A range above the window does not assert something
+// the compiler checks; it REQUESTS arbitrary precision. So `core.LoadWith` moves
+// it onto the term, where reduction preserves it.
+
+func TestADeclaredWideningSurvivesInlining(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// `scaled` is not exported and `run` returns an ordinary `int`, so after
+	// inlining nothing in the residual mentions a big type — except the
+	// ascription.
+	src := `(export run)
+(sig scaled ((n (int 0 50))) (int 0 (pow 2 200)))
+(def scaled (fn (n) (loop ((acc (+ n 7)) (i 0)) (>= i 6) acc else (again (* acc 999983) (+ i 1)))))
+(sig run ((n (int 0 50))) int)
+(def run (fn (n) (% (scaled n) 100000000)))
+`
+	code := emitGo(t, tg, src, "run")
+	if !strings.Contains(code, "big.NewInt") || !strings.Contains(code, "Mul") {
+		t.Errorf("the inlined accumulator was not promoted:\n%s", code)
+	}
+	// AND THE MARKER IS GONE. It carries a range and nothing else; the runtime
+	// enforcement of the bound is `big-fit`, which is a different mechanism.
+	if strings.Contains(code, core.AscribeName+"(") || strings.Contains(code, "int 0 16069") {
+		t.Errorf("the ascription reached the backend:\n%s", code)
+	}
+}
+
+// AND THE ANALYSIS CANNOT SUPPLY WHAT THE DECLARATION DOES, which is why this
+// is intent rather than a precision gap. The same loop with the declaration
+// removed is refused, and the interval reported is ⊤ — not a large finite bound
+// the compiler could have used, even though the trip count is a constant 6.
+func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(export run)
+(sig run ((n (int 0 50))) int)
+(def run (fn (n) (% (loop ((acc (+ n 7)) (i 0)) (>= i 6) acc else (again (* acc 999983) (+ i 1))) 100000000)))
+`
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs["run"], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, _, err = PromoteBig(tg, prog.Sigs["run"], nf, allProgSigs(prog)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rep, _ := Intervals(tg, prog.Sigs["run"], nf, 0)
+	if err := Unbounded("run", rep); err == nil {
+		t.Fatal("the multiply was proven in-window without any declaration; " +
+			"if the analysis can now derive it, this test has done its job and " +
+			"the ascription may be unnecessary for this shape")
+	} else if !strings.Contains(err.Error(), "[-inf, +inf]") {
+		t.Errorf("expected the multiply to be unbounded, got:\n%s", err)
+	}
+}
+
+// AND A TARGET MAY NOT DECLARE IT, for the same reason it may not declare `if`.
+func TestNoTargetDeclaresTheAscription(t *testing.T) {
+	for _, dir := range []string{"../targets/go", "../targets/js", "../targets/java",
+		"../targets/windows"} {
+		tg, err := LoadTarget(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, ok := tg.Prims[core.AscribeName]
+		if !ok {
+			t.Errorf("%s has no `%s`; it is injected into every target", dir, core.AscribeName)
+			continue
+		}
+		if p.Kind != "ascribe" || p.Form != "" {
+			t.Errorf("%s: `%s` is not the injected structural form: %+v",
+				dir, core.AscribeName, p)
+		}
+	}
+}

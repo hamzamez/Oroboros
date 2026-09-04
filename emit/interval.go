@@ -1083,6 +1083,12 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// locally wrong with that reading, which is why it has to be said here.
 		if op.Name == "again" {
 			p.demandBig = i < len(p.loopRaw) && p.big[p.loopRaw[i]]
+		} else if op.Name == core.AscribeName {
+			// AN ASCRIPTION IS A DEMAND, and it is the one the signature used to
+			// carry: `(the "int 0 …" e)` says e is in that set, and a set wider
+			// than the portable window is a request for arbitrary precision.
+			// This is where a declaration that reduction inlined away arrives.
+			p.demandBig = i == 1 && ascribedBig(args)
 		} else {
 			p.demandBig = known && i < len(prim.Args) && prim.Args[i] == core.BigType
 		}
@@ -1090,7 +1096,17 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// The widen is decided on the REBUILT argument: `selectBig` may have
 		// just turned it into a bignum, and wrapping that would be a type error
 		// rather than a conversion.
-		if p.demandBig && p.bigOK() && !p.bigTerm(na) {
+		// GATED ON `selecting`, because INSERTING A WIDEN IS A SELECTION. A pass
+		// either selects a representation or reports on one already chosen, and
+		// the two are exclusive — the comment on `p.selecting` says so, and this
+		// is the second site to have got it wrong.
+		//
+		// `PromoteBig` erases the ascriptions once it has read them, so the
+		// reporting pass cannot see that a `let`-bound value is a bignum and
+		// wrapped it again: `big-of(x)` on an `x` that is already a `*big.Int`,
+		// which Go refuses. It only showed under `-checked`, whose term is the
+		// reporting pass's, and only in a `main` with no signature to seed from.
+		if p.selecting && p.demandBig && p.bigOK() && !p.bigTerm(na) {
 			na = core.App(core.Name("big-of"), na)
 		}
 		vals[i] = v
@@ -1228,6 +1244,21 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 // comparison, indexing and everything else do not produce integers that need
 // checking.
 func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
+	// THE REMAINDER BY A WORD IS BOUNDED BY THAT WORD, whatever the magnitude of
+	// the value it came from — which is the whole reason `big%-small` has an
+	// `int` result. Without this the answer is ⊤ and every ordinary word
+	// operation reading a digit group is unprovable, so a program that renders a
+	// bignum is refused for arithmetic on values under 10^8.
+	//
+	// `[-(k-1), k-1]` rather than `[0, k-1]`: `%` takes the DIVIDEND's sign on
+	// all four hosts and on `math/big`, and nothing here has proved the dividend
+	// non-negative. The symmetric bound is sound for either sign.
+	if name == "big%-small" && len(v) == 2 {
+		if k, ok := exactNonNeg(v[1]); ok && k > 0 {
+			return ival{lo: -(k - 1), hi: k - 1}, false
+		}
+		return top, false
+	}
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
 	}

@@ -6,11 +6,11 @@ public final class GenFactLimbs {
 		int[] b2 = b;
 		long i2 = 0;
 		long r = 1;
-		for (;; i2 = (i2 + 1), r = (r / 16777216)) {
+		for (;; i2 = (i2 + 1), r = (r >> 24)) {
 			if ((i2 >= 55)) {
 				break;
 			}
-			b2[(int) i2] = (int) (r % 16777216);
+			b2[(int) i2] = (int) (r & 16777215);
 			continue;
 		}
 		int[] acc = b2;
@@ -22,24 +22,26 @@ public final class GenFactLimbs {
 			}
 			java.util.Arrays.fill(sp1, (int) 0);
 			final int[] o = sp1;
-			int[] o2 = o;
-			long i3 = 0;
+			int[] o3 = o;
+			long i22 = 0;
 			long c = 0;
-			for (;; i3 = (i3 + 1)) {
-				if ((i3 >= 55)) {
-					final long i4 = 54;
-					if (((((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException("bignum overflow: the declared range is too small"); return 0L; })).applyAsLong((c + (((((i4 < 0) ? 0 : ((i4 >= o2.length) ? 0 : (long) o2[(int) i4])) % 16777216) < 32) ? 0 : 1)))) == 0)) {
+			for (;; i22 = (i22 + 1)) {
+				if ((i22 >= 55)) {
+					final long i3 = 54;
+					final long v = ((i3 < 0) ? 0 : ((i3 >= o3.length) ? 0 : (long) o3[(int) i3]));
+					if (((((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException("bignum overflow: the declared range is too small"); return 0L; })).applyAsLong((c + ((((v < 0) ? 0 : (v % 16777216)) < 32) ? 0 : 1)))) == 0)) {
 						break;
 					}
 					break;
 				}
-				final long t = (((((i3 < 0) ? 0 : ((i3 >= acc.length) ? 0 : (long) acc[(int) i3])) % 16777216) * i) + c);
-				o2[(int) i3] = (int) (t % 16777216);
-				c = (t / 16777216);
+				final long v2 = ((i22 < 0) ? 0 : ((i22 >= acc.length) ? 0 : (long) acc[(int) i22]));
+				final long t145 = ((((v2 < 0) ? 0 : (v2 & 16777215)) * i) + c);
+				o3[(int) i22] = (int) (t145 & 16777215);
+				c = (t145 >> 24);
 				continue;
 			}
 			final var sw2 = acc;
-			acc = o2;
+			acc = o3;
 			sp1 = sw2;
 			continue;
 		}

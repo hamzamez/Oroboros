@@ -169,6 +169,36 @@ compiler refuses rather than dropping the bound.
 alternative** before changing the declaration — not a knob a program should depend on, since the
 bound, and therefore the answer, is the same either way.
 
+## 2e. `shift-width` — how wide a shift is exact here
+
+```
+(shift-width 63)    ; Go, the JVM, x86 — a 64-bit shift
+(shift-width 31)    ; JavaScript — V8 coerces `>>` and `&` to int32
+```
+
+**Optional.** A target that declares nothing gets no rewrite, which is the safe
+default for a third-party target.
+
+`x / 2^k` on a SIGNED value is not a shift: truncation toward zero needs a
+rounding correction, and all three of Go, the JVM and x86 emit one even for a
+constant power-of-two divisor. Where the compiler can PROVE the dividend
+non-negative, it rewrites the division into a shift and the remainder into a
+mask, using this target's own spelling of each — found by spelling the way `=`
+and `+` are. Measured at **2.39x** on our fixed-limb factorial, which is the
+dominant cost in that program
+([shiftdiv-2026-09-03](../../gauntlet/results/shiftdiv-2026-09-03.md)).
+
+**This does not promote bitwise operators to the language.** integers.md §0a
+keeps them out because V8 coerces both operands of `& | ^ << >>` to int32, an
+observable disagreement inside the portable window, and that reason stands
+untouched. What this declaration adds is a fact about the HOST that a proof can
+be checked against, so the compiler may use the host's own shift for an
+operation a program may not write.
+
+`N` is the largest bit-width for which `>>` and `&` are exact on values in
+`[0, 2^N)`, and the ceiling is 63 — a host claiming to shift values it cannot
+represent exactly would be claiming something ADR 0012 already denies.
+
 ## 3. `prim` — expression and statement primitives
 
 These are **pure data**: an arity, types, a template, and attributes.

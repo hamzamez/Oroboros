@@ -197,6 +197,29 @@ type Target struct {
 	// faster the thing that changes is a target file and no program moves.
 	BigRepr string
 
+	// ShiftWidth is the largest N for which this host's `>>` and `&` are exact
+	// on every value in [0, 2^N). Zero means the target declares nothing and
+	// the compiler will not rewrite a division into a shift there.
+	//
+	// It exists because `x / 2^k` on a SIGNED value is not a shift: truncation
+	// toward zero needs a rounding correction, and Go, the JVM and x86 all emit
+	// one. Measured on our own fixed-limb factorial, replacing `/` and `%` by a
+	// constant power of two with a shift and a mask is worth **2.39x** — the
+	// dominant term in that program by a distance, larger than the clamp, the
+	// element mask and the buffer clear put together, which are together inside
+	// the noise floor (limbcost, gauntlet/results/shiftdiv-2026-09-03.md).
+	//
+	// The rewrite is licensed by a PROOF — the interval analysis showing the
+	// dividend non-negative and inside 2^N — rather than by a declaration, so
+	// it needs no new operator in the language and it applies to any program,
+	// not only a bignum. What the target declares is the host fact the proof is
+	// checked against, and the four disagree: Go, the JVM and x86 shift 64-bit
+	// values, and **V8 coerces both operands of `>>` and `&` to int32**, which
+	// is the same divergence integers.md §0a keeps bitwise operators out of the
+	// language for. So JavaScript declares 31 and gets the rewrite on values
+	// that provably fit, rather than being excluded.
+	ShiftWidth int64
+
 	Reprs []IntRepr
 	Prims map[string]Prim
 	Names []string // every primitive name, for core.Env
@@ -789,6 +812,13 @@ func (tg *Target) merge(o *Target, from string) error {
 		}
 		tg.MapType = o.MapType
 	}
+	if o.ShiftWidth != 0 {
+		if tg.ShiftWidth != 0 && tg.ShiftWidth != o.ShiftWidth {
+			return fmt.Errorf("%s: shift-width is declared as %d and as %d",
+				from, tg.ShiftWidth, o.ShiftWidth)
+		}
+		tg.ShiftWidth = o.ShiftWidth
+	}
 	if o.MaxLen != 0 {
 		if tg.MaxLen != 0 && tg.MaxLen != o.MaxLen {
 			return fmt.Errorf("%s: max-len is declared as %d and as %d",
@@ -876,6 +906,16 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (big-repr limbs) or (big-repr host), got %s", path, f)
 			}
 			tg.BigRepr = f.Kids[1].Name
+		case "shift-width":
+			// `(shift-width N)` — see the field. N is a number of bits, and the
+			// upper limit is the portable window's own: a host that claimed to
+			// shift values it cannot represent exactly would be claiming
+			// something ADR 0012 already denies.
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KInt ||
+				f.Kids[1].Int < 1 || f.Kids[1].Int > 63 {
+				return nil, fmt.Errorf("%s: (shift-width N) with 1 <= N <= 63, got %s", path, f)
+			}
+			tg.ShiftWidth = f.Kids[1].Int
 		case "array-type":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
@@ -2793,4 +2833,37 @@ func buildLen(tgt *Target, t *core.Term) int64 {
 		return n
 	}
 	return 0
+}
+
+// ShiftNames are this target's own spellings of a right shift and a bitwise
+// and, found the way `=` and `+` are found — by spelling, at the right arity,
+// so a target says how it does it in its own file.
+//
+// They are NOT promoted to the language and this does not make them portable:
+// integers.md §0a keeps bitwise operators out for a measured reason, and that
+// reason stands. What this does is let the COMPILER use a host's own shift
+// where it has proved the rewrite changes no answer, which is the parasite rule
+// (`emit at the highest layer the target natively provides`) applied to an
+// operation a program may not write.
+func (tg *Target) ShiftNames() (shr, and string, ok bool) {
+	find := func(spellings ...string) (string, bool) {
+		for _, want := range spellings {
+			for name, p := range tg.Prims {
+				seg := name
+				if i := strings.LastIndex(seg, "."); i >= 0 {
+					seg = seg[i+1:]
+				}
+				// `shr` before `sar` on x86: both are correct on a non-negative
+				// value and the logical one says so.
+				if seg == want && len(p.Args) == 2 && p.Kind == "expr" &&
+					p.Args[0] != "bool" && p.Args[1] != "bool" {
+					return name, true
+				}
+			}
+		}
+		return "", false
+	}
+	shr, okS := find(">>", "shr", "sar")
+	and, okA := find("&", "and")
+	return shr, and, okS && okA
 }

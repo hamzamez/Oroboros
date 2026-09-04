@@ -5,11 +5,11 @@ export function genFactLimbs(n) {
 	let b2 = b;
 	let i = 0;
 	let r = 1;
-	for (;; i = (i + 1), r = ((Math.trunc(r / 16777216) + 0))) {
+	for (;; i = (i + 1), r = (r >> 24)) {
 		if ((i >= 55)) {
 			break;
 		}
-		b2[i] = (((r % 16777216) + 0));
+		b2[i] = (r & 16777215);
 		continue;
 	}
 	let acc = b2;
@@ -21,24 +21,26 @@ export function genFactLimbs(n) {
 		}
 		sp1.fill(0);
 		const o = sp1;
-		let o2 = o;
-		let i3 = 0;
+		let o3 = o;
+		let i22 = 0;
 		let c = 0;
-		for (;; i3 = (i3 + 1)) {
-			if ((i3 >= 55)) {
-				const i4 = 54;
-				if ((((function(oroC){ if (oroC !== 0) throw new Error("bignum overflow: the declared range is too small"); return 0; })((c + (((((((i4 < 0) ? 0 : ((i4 >= o2.length) ? 0 : o2[i4])) % 16777216) + 0)) < 32) ? 0 : 1)))) === 0)) {
+		for (;; i22 = (i22 + 1)) {
+			if ((i22 >= 55)) {
+				const i3 = 54;
+				const v = ((i3 < 0) ? 0 : ((i3 >= o3.length) ? 0 : o3[i3]));
+				if ((((function(oroC){ if (oroC !== 0) throw new Error("bignum overflow: the declared range is too small"); return 0; })((c + ((((v < 0) ? 0 : (((v % 16777216) + 0))) < 32) ? 0 : 1)))) === 0)) {
 					break;
 				}
 				break;
 			}
-			const t = (((((((i3 < 0) ? 0 : ((i3 >= acc.length) ? 0 : acc[i3])) % 16777216) + 0)) * i2) + c);
-			o2[i3] = (((t % 16777216) + 0));
-			c = ((Math.trunc(t / 16777216) + 0));
+			const v2 = ((i22 < 0) ? 0 : ((i22 >= acc.length) ? 0 : acc[i22]));
+			const t145 = ((((v2 < 0) ? 0 : (v2 & 16777215)) * i2) + c);
+			o3[i22] = (((t145 % 16777216) + 0));
+			c = ((Math.trunc(t145 / 16777216) + 0));
 			continue;
 		}
 		const sw2 = acc;
-		acc = o2;
+		acc = o3;
 		sp1 = sw2;
 		continue;
 	}

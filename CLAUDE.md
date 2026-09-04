@@ -1744,6 +1744,52 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**THE LIMB RUNG'S COST WAS SIGNED DIVISION, AND THE FIX IS A PROOF** —
+[shiftdiv-2026-09-03](gauntlet/results/shiftdiv-2026-09-03.md). bigrepr §6 named the next move as
+*"a target-declared limb width and carry extraction"* on bigarith's 2.75x and 3.9x. **Those are
+numbers about HAND-WRITTEN HOST CODE and nobody had decomposed OURS** — so it was decomposed first,
+one hand-written variant per suspected cost, and the plan changed.
+
+**The element mask, the index clamp and the buffer clear are together inside the NOISE FLOOR** —
+12,540, 12,951 and 12,881 against 13,300, with removing the clamp measuring *slower* than removing
+the mask. All three looked expensive and all three cost nothing. **The carry split is 2.39x and is
+the whole gap.** And **64-bit limbs are UNREACHABLE**: ADR 0012 makes an `int` exact to ±(2⁵³−1), so
+a limb of 2⁶⁰ is not a value this language can hold — 32-bit limbs measure **1.20x**, not 2.75x.
+
+**And the carry is not about bitwise operators.** `x / 2^k` on a SIGNED value is not a shift:
+truncation toward zero needs a rounding correction, which Go, the JVM and x86 all emit for a
+constant power-of-two divisor. So the fix is the interval analysis: **`(/ x C)` becomes a shift and
+`(% x C)` a mask when C is a power of two, x is provably NON-NEGATIVE, and x fits the target's
+declared shift width.** Nothing enters the language — integers.md §0a's reason for keeping bitwise
+operators out stands — and any program with a provable dividend gets it, not just a bignum.
+**`(shift-width 63)` on Go, the JVM and x86; `(shift-width 31)` on JavaScript**, because V8 coerces
+both operands to int32; declaring the width rather than excluding the host is what lets it fire
+there at all. **Worth 1.75x on Go, 1.94x on V8, 1.44x on Java** — and it changes **no target's
+`big-repr`**, which is the framework working: the measurement moved, the declarations were
+re-examined, none of them moved.
+
+**The library had to SAY one thing for the proof to run**: `%` takes the dividend's sign, so masking
+an unbounded value gives `[-(2^24-1), 2^24-1]` and every column sum is symmetric. `at` now returns a
+non-negative value by construction, one compare. The honest version — a limb is non-negative by the
+buffer's ELEMENT RANGE — is an inductive invariant over a buffer's own contents, which
+frozen-2026-08-28 says is strictly stronger than an octagon.
+
+**Three bugs, and the first is the shape to remember. `1 << 63` OVERFLOWS an int64**, so the width
+test compared against a negative number and the rewrite fired NOWHERE on the three targets declaring
+63 — visible only because JavaScript declares 31 and worked. A feature silently doing nothing on
+three hosts while appearing to work on the fourth. Then **the rewrite outran the analysis**:
+`arithOp` did not know `&` or `>>`, so a rewritten carry split went to ⊤ and the factorial lost BOTH
+its element narrowing and its loop-carried buffer reuse — silently, still computing the right
+answer. *An optimisation that defeats two later analyses is a net loss.* And **the shift-only pass
+re-promoted a limb table to a bignum**, emitting `func GenFactLimbs(n int) *big.Int` over a body
+building a `[]byte`.
+
+**Checked by γ-soundness on `andI`/`shrI`** — direct and exhaustive, the shape
+`TestDivisionAndRemainderContain` already had, with both bug shapes reintroduced and both failing —
+and by a differential case carrying three shapes in one program, including **a negative dividend
+that agreement alone could not catch**, since Go, the JVM and x86 would all shift and all be wrong
+together. **Cost: 8 emitted files across 3 programs; the other 67 x 4 are byte-identical.**
+
 **A RANGE IS SEMANTICS AND THE TARGET PICKS THE REPRESENTATION** —
 [bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md), on hamza's *"our intervals are
 semantics, it says something about the program; the compiler's job is to pick the fastest

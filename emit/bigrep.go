@@ -209,7 +209,9 @@ func (p *intervalPass) widenTo(orig, rebuilt *core.Term, vals []ival, i int) *co
 // declared argument is `big`, which is how a whole program asks — see the note
 // on inlining in `app`.
 func (p *intervalPass) selectBig(t *core.Term, kids []*core.Term, vals []ival) (*core.Term, bool) {
-	if p.big == nil || !p.bigOK() || !p.selecting {
+	// `shiftOnly` runs AFTER a representation has been chosen, so re-selecting
+	// here would promote what is already promoted.
+	if p.big == nil || !p.bigOK() || !p.selecting || p.shiftOnly {
 		return nil, false
 	}
 	op := t.Op()
@@ -482,7 +484,16 @@ func (p *intervalPass) markBig(t *core.Term, big bool) {
 
 // bigOK reports whether arbitrary precision is available at all: either the
 // target ships a bignum, or the fixed-limb rung is selected and we ship one.
-func (p *intervalPass) bigOK() bool { return p.limbs || p.tgt.HasBig() }
+// bigOK is whether this pass may touch arbitrary precision at all.
+//
+// `shiftOnly` says no, and that gate is not decoration: the division-to-shift
+// pass runs AFTER a representation has been chosen and after the fixed-limb
+// library has been spliced in, so the supply/demand solver seeing a loop whose
+// variable it once promoted will promote it AGAIN — and it wrapped a limb table
+// in `big.NewInt`, emitting `func GenFactLimbs(n int) *big.Int` over a body that
+// builds a `[]byte`. It compiled to nothing sensible and it would have been
+// caught by the first build; a subtler shape might not have been.
+func (p *intervalPass) bigOK() bool { return !p.shiftOnly && (p.limbs || p.tgt.HasBig()) }
 
 // A CONSTANT ARITHMETIC TERM WHOSE EXACT VALUE LEAVES THE WINDOW is a bignum,
 // and there is nothing else it could be.

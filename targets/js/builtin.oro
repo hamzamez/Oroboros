@@ -9,6 +9,23 @@
 ; table showing through; here there is nothing left for it to show.
 
 (target js
+  ; ═══ HOW WIDE A SHIFT IS EXACT HERE
+  ;
+  ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
+  ; a rounding correction -- so the compiler rewrites it into one wherever it
+  ; can PROVE the dividend is non-negative and fits this many bits. Worth
+  ; **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
+  ;
+  ; This does NOT promote bitwise operators to the language, and integers.md
+  ; §0a's reason for keeping them out stands. It lets the COMPILER use this
+  ; host's own shift where it has proved the rewrite changes no answer.
+  ;
+  ; **31, not 63**, and this is the one place the four hosts disagree: V8
+  ; coerces both operands of `>>` and `&` to int32, so the rewrite is sound
+  ; here only below 2^31. Declaring the width rather than excluding the host
+  ; is what lets a program whose values provably fit get it anyway.
+  (shift-width 31)
+
   (module js
     ; ---- arithmetic, declared on `any`.
     ;

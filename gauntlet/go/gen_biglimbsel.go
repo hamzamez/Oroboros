@@ -2,74 +2,88 @@
 
 package gauntlet
 
-func GenFactLimbs(n int) []int32 {
-	b := make([]int32, 55)
+func GenFactLimbs(n int) []uint32 {
+	b := make([]uint32, 55)
 	b2 := b
 	var i2 int = 0
 	var r int = 1
-	for ; ; i2, r = (i2 + 1), (r / 16777216) {
+	for ; ; i2, r = (i2 + 1), (r >> 24) {
 		if (i2 >= 55) {
 			break
 		}
-		b2[i2] = int32((r % 16777216))
+		b2[i2] = uint32((r & 16777215))
 		continue
 	}
 	acc := b2
 	var i int = 2
-	sp1 := make([]int32, 55)
+	sp1 := make([]uint32, 55)
 	for ; ; i = (i + 1) {
 		if (i > n) {
 			break
 		}
 		clear(sp1)
 		o := sp1
-		o2 := o
-		var i3 int = 0
+		o3 := o
+		var i22 int = 0
 		var c int = 0
-		for ; ; i3 = (i3 + 1) {
-			if (i3 >= 55) {
-				var i4 int = 54
+		for ; ; i22 = (i22 + 1) {
+			if (i22 >= 55) {
+				var i3 int = 54
 				var t2 int
-				if (i4 < 0) {
+				if (i3 < 0) {
 					t2 = 0
 				} else {
 					var t3 int
-					if (i4 >= len(o2)) {
+					if (i3 >= len(o3)) {
 						t3 = 0
 					} else {
-						t3 = int(o2[i4])
+						t3 = int(o3[i3])
 					}
 					t2 = t3
 				}
+				var v int = t2
 				var t4 int
-				if ((t2 % 16777216) < 32) {
+				if (v < 0) {
 					t4 = 0
 				} else {
-					t4 = 1
+					t4 = (v % 16777216)
 				}
-				if ((func(oroC int) int { if oroC != 0 { panic("bignum overflow: the declared range is too small") }; return 0 }((c + t4))) == 0) {
+				var t5 int
+				if (t4 < 32) {
+					t5 = 0
+				} else {
+					t5 = 1
+				}
+				if ((func(oroC int) int { if oroC != 0 { panic("bignum overflow: the declared range is too small") }; return 0 }((c + t5))) == 0) {
 					break
 				}
 				break
 			}
-			var t5 int
-			if (i3 < 0) {
-				t5 = 0
+			var t6 int
+			if (i22 < 0) {
+				t6 = 0
 			} else {
-				var t6 int
-				if (i3 >= len(acc)) {
-					t6 = 0
+				var t7 int
+				if (i22 >= len(acc)) {
+					t7 = 0
 				} else {
-					t6 = int(acc[i3])
+					t7 = int(acc[i22])
 				}
-				t5 = t6
+				t6 = t7
 			}
-			var t int = (((t5 % 16777216) * i) + c)
-			o2[i3] = int32((t % 16777216))
-			c = (t / 16777216)
+			var v2 int = t6
+			var t8 int
+			if (v2 < 0) {
+				t8 = 0
+			} else {
+				t8 = (v2 & 16777215)
+			}
+			var t145 int = ((t8 * i) + c)
+			o3[i22] = uint32((t145 & 16777215))
+			c = (t145 >> 24)
 			continue
 		}
-		acc, sp1 = o2, acc
+		acc, sp1 = o3, acc
 		continue
 	}
 	return acc

@@ -122,11 +122,11 @@ func benchPower(b *testing.B, f func(int, int) *big.Int) {
 // person first writes, and the CAREFUL one that reuses its receiver — which our
 // unbounded rung already matches (bigreuse-2026-09-02).
 
-func limbValue(l []int32) *big.Int {
+func limbValue(l []uint32) *big.Int {
 	out, base := new(big.Int), big.NewInt(1<<24)
 	for i := len(l) - 1; i >= 0; i-- {
 		out.Mul(out, base)
-		out.Add(out, big.NewInt(int64(l[i])))
+		out.Add(out, new(big.Int).SetUint64(uint64(l[i])))
 	}
 	return out
 }
@@ -145,7 +145,7 @@ func TestLimbFactorialIsExact(t *testing.T) {
 	}
 }
 
-var limbSink []int32
+var limbSink []uint32
 
 func BenchmarkBigFactLimbs(b *testing.B) {
 	b.ReportAllocs()

@@ -1033,3 +1033,82 @@ func TestContainmentDetectsAnUnsoundClaim(t *testing.T) {
 		t.Fatal("fitsBytes is refusing values that fit")
 	}
 }
+
+// γ-SOUNDNESS OF THE MASK AND THE SHIFT, checked the same way and for the same
+// reason: `SelectShifts` PRODUCES these two operations, so `andI` and `shrI`
+// decide what the analysis believes about every carry split in the fixed-limb
+// library — and they were unfalsifiable the day they were written, which is
+// exactly what `divI` and `remI` were until a carry chain needed them.
+//
+// The property is containment at the level of the operation: for every concrete
+// a ∈ γ(A) and b ∈ γ(B),
+//
+//	a & b ∈ γ(andI(A, B))    and, where shrI does not answer ⊤,
+//	a >> b ∈ γ(shrI(A, B))
+//
+// TWO-COMPLEMENT SEMANTICS ARE THE POINT for `andI`. It claims [0, m] for a
+// non-negative constant mask WHATEVER the other operand is, including negative
+// ones — every bit set in `x & m` is set in `m` — and that claim is what
+// restores the element narrowing a `%` used to give. Go's own `&` on an int64
+// is the host semantics these lower to, so evaluating with it is the right
+// oracle rather than a convenience.
+func TestMaskAndShiftContain(t *testing.T) {
+	r := rand.New(rand.NewSource(11))
+	bounds := []int64{-1000000, -70000, -1000, -7, -1, 0, 1, 7, 255, 16777215, 1000000}
+	pick := func() ival {
+		lo := bounds[r.Intn(len(bounds))]
+		hi := bounds[r.Intn(len(bounds))]
+		if lo > hi {
+			lo, hi = hi, lo
+		}
+		v := ival{lo: lo, hi: hi}
+		// An unbounded operand is the shape a read inside a `build` lambda has —
+		// the buffer is free there, so it is ⊤ — and it is precisely the case
+		// the constant-mask rule must still bound.
+		switch r.Intn(8) {
+		case 0:
+			v.hiInf = true
+		case 1:
+			v.loInf = true
+		}
+		return v
+	}
+	masked, shifted := 0, 0
+	for round := 0; round < 20000; round++ {
+		A, B := pick(), pick()
+		av, sv := andI(A, B), shrI(A, B)
+		for s := 0; s < 12; s++ {
+			a, ok1 := sample(r, A)
+			b, ok2 := sample(r, B)
+			if !ok1 || !ok2 {
+				continue
+			}
+			masked++
+			if !holds(av, a&b) {
+				t.Fatalf("andI(%s, %s) = %s, but %d & %d = %d", A, B, av, a, b, a&b)
+			}
+			// A shift is only defined where the analysis claims anything: `shrI`
+			// answers ⊤ for a negative dividend or a non-constant count, and ⊤
+			// contains everything, so those rounds check nothing and are not
+			// counted.
+			if sv == top || b < 0 || b > 62 {
+				continue
+			}
+			shifted++
+			if !holds(sv, a>>uint(b)) {
+				t.Fatalf("shrI(%s, %s) = %s, but %d >> %d = %d", A, B, sv, a, b, a>>uint(b))
+			}
+		}
+	}
+	// ANTI-VACUITY, in two places rather than one. `shrI` answers ⊤ for most
+	// randomly drawn pairs — it needs a constant count and a non-negative
+	// dividend — so a generator that never produced one would pass forever, and
+	// the mask half would hide it.
+	if masked < 50000 {
+		t.Fatalf("only %d concrete pairs reached the mask; the sampler is not producing them", masked)
+	}
+	if shifted < 200 {
+		t.Fatalf("only %d pairs reached a NON-⊤ shift claim; the shift half of "+
+			"this test is vacuous", shifted)
+	}
+}

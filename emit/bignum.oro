@@ -91,7 +91,29 @@
 ; element range the analysis does join, and a big literal's spine reads a `build`
 ; whose range does not survive being substituted in. One of those proves and the
 ; other does not, and a library may not be provable only sometimes.
-(def at (fn (t i) (% (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) 16777216)))
+; AND THE RESULT IS NON-NEGATIVE BY CONSTRUCTION, which costs one compare and
+; buys 2.39x.
+;
+; `%` takes the DIVIDEND's sign, so masking a value the analysis cannot bound
+; gives back `[-(2^24-1), 2^24-1]` -- symmetric around zero. Every column sum
+; built from it is then symmetric too, and `t / 2^24` on a possibly-negative
+; value is not a shift: truncation toward zero needs a rounding correction, and
+; Go, the JVM and x86 all emit one.
+;
+; So the read says it is non-negative, and the whole carry chain follows: the
+; column sum, the stored limb and the outgoing carry are all provably >= 0, and
+; `SelectShifts` turns every `/` and `%` in this file into a shift and a mask.
+; Measured at 2.39x on the factorial (shiftdiv-2026-09-03), which is larger than
+; the clamp, this mask and the buffer clear PUT TOGETHER -- those three are
+; inside the noise floor.
+;
+; It is a fact the program states rather than one the analysis derives, and the
+; honest version is still owed: a limb IS non-negative by the buffer's element
+; range, which is an inductive invariant over a buffer's own contents, and
+; frozen-2026-08-28 says that is strictly stronger than an octagon.
+(def at (fn (t i)
+  (let (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) (fn (v)
+    (if (< v 0) 0 (% v 16777216))))))
 
 ; THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
 ; when handed 0 and fails loudly otherwise; both branches of the conditional are

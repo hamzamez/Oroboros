@@ -10,6 +10,20 @@
 ; s)` emits `s.length()` — which is the same receiver-order loss JavaScript has.
 
 (target java
+  ; ═══ HOW WIDE A SHIFT IS EXACT HERE
+  ;
+  ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
+  ; a rounding correction -- so the compiler rewrites it into one wherever it
+  ; can PROVE the dividend is non-negative and fits this many bits. Worth
+  ; **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
+  ;
+  ; This does NOT promote bitwise operators to the language, and integers.md
+  ; §0a's reason for keeping them out stands. It lets the COMPILER use this
+  ; host's own shift where it has proved the rewrite changes no answer.
+  ;
+  ; our `int` is Java's `long`, and `>>` on one is a 64-bit arithmetic shift.
+  (shift-width 63)
+
   (module java
     ; ---- arithmetic on long, which is our `int`
     ; The plain operators, and the CHECKED forms a declared range selects when

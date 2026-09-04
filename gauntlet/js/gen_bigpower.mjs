@@ -4,11 +4,11 @@ export function genPower(b, e) {
 	let acc = (BigInt(1));
 	let x = (BigInt(b));
 	let k = e;
-	for (;; x = ((x * x)), k = ((Math.trunc(k / 2) + 0))) {
+	for (;; x = ((x * x)), k = (k >> 1)) {
 		if ((k === 0)) {
 			return acc;
 		}
-		if (((((k % 2) + 0)) === 1)) {
+		if (((k & 1) === 1)) {
 			acc = ((acc * x));
 			continue;
 		}

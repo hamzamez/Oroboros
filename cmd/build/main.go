@@ -171,6 +171,17 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	} else if err := emit.Unbounded(entry, rep); err != nil {
 		return err
 	}
+	// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
+	// dividend non-negative and inside the target's declared shift width
+	// (shiftdiv-2026-09-03). LAST, because the fixed-limb library's own carry
+	// splits are spliced in by the promotion above and are what this is most
+	// for; and its own pass, because `Intervals` above has the checked
+	// selection ON and using its rebuilt term by default would reverse ADR 0012
+	// without an ADR.
+	if sh, k := emit.SelectShifts(tg, prog.Sigs[entry], nf); k > 0 {
+		nf = sh
+		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", k)
+	}
 	var code string
 	switch target {
 	case "js":

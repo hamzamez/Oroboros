@@ -5,11 +5,11 @@ public final class GenBigPower {
 		java.math.BigInteger acc = (java.math.BigInteger.valueOf(1));
 		java.math.BigInteger x = (java.math.BigInteger.valueOf(b));
 		long k = e;
-		for (;; x = (x.multiply(x)), k = (k / 2)) {
+		for (;; x = (x.multiply(x)), k = (k >> 1)) {
 			if ((k == 0)) {
 				break;
 			}
-			if (((k % 2) == 1)) {
+			if (((k & 1) == 1)) {
 				acc = (acc.multiply(x));
 				continue;
 			}

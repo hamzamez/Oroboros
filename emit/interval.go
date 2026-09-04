@@ -337,6 +337,7 @@ type IntervalReport struct {
 	BigReuse int // big operations that write into storage instead of allocating
 
 	Selected   int      // operations rewritten to a checked primitive
+	Shifted    int      // divisions and remainders rewritten to a shift or a mask
 	Loops      int      // loops seen
 	Terminates int      // …proven terminating by size change plus a floor
 	Trips      int      // …of those, the ones that also yield a trip count
@@ -393,6 +394,7 @@ type intervalPass struct {
 	noChecked  bool            // select big, but not the checked arithmetic
 	selecting  bool            // this pass SELECTS a representation, rather than reporting on one
 	noDest     bool            // …and not the mutable-bignum rewrite either
+	shiftOnly  bool            // …and nothing at all except division-to-shift
 	limbs      bool            // big is OUR representation, so the host need not have one
 
 	// bound is every name this pass has already opened a binder with, shared by
@@ -744,7 +746,12 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		// exists on windows. Every gate below asks `bigOK` rather than
 		// `HasBig`, or a target with nothing to fall back to would promote
 		// nothing and then be refused for producing a machine word.
-		limbs: len(flags) > 2 && flags[2]}
+		limbs: len(flags) > 2 && flags[2],
+		// SHIFT SELECTION ONLY. A pass that rewrites a division into a shift
+		// must not also promote a big constant or take the checked forms:
+		// `PromoteBig` has already chosen a representation by the time this
+		// runs, and re-selecting would promote what is already promoted.
+		shiftOnly: len(flags) > 3 && flags[3]}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -1166,6 +1173,33 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 			return e, rebuilt
 		}
 	}
+	// DIVISION BY A POWER OF TWO IS A SHIFT WHEN THE DIVIDEND IS NON-NEGATIVE,
+	// and that is a PROOF rather than a declaration — which is why it needs no
+	// new operator in the language and applies to any program.
+	//
+	// `x / 2^k` on a SIGNED value is not a shift: truncation toward zero needs a
+	// rounding correction, and Go, the JVM and x86 all emit one. Measured on our
+	// own fixed-limb factorial that correction is worth **2.39x**, the dominant
+	// cost in the program and larger than the clamp, the element mask and the
+	// buffer clear together (shiftdiv-2026-09-03).
+	if p.selecting {
+		if k, m, ok := shiftFor(p.tgt, arithOp(op.Name, len(vals)), vals); ok {
+			if shr, and, have := p.tgt.ShiftNames(); have {
+				if m == 0 {
+					kids = []*core.Term{core.Name(shr), kids[1], core.Int(k)}
+				} else {
+					kids = []*core.Term{core.Name(and), kids[1], core.Int(m)}
+				}
+				rebuilt = &core.Term{Kind: core.KApp, Kids: kids}
+				// COUNTED UNCONDITIONALLY, unlike every other tally here. The
+				// others report on a program; this one decides whether the
+				// rewritten TERM is used at all, and most of these operations
+				// sit inside a lambda, where `count` is off. Gating it there
+				// made the pass do the work and hand back the original.
+				p.rep.Shifted++
+			}
+		}
+	}
 	out, checkable := p.transfer(op.Name, prim, vals)
 	if checkable {
 		if p.count {
@@ -1177,7 +1211,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// the target declares — and if it declares none, that target cannot do
 		// exact arithmetic and covering says so, which is the capability model
 		// answering rather than a special case.
-		if !out.fits() && prim.Checked != "" && !p.noChecked {
+		if !out.fits() && prim.Checked != "" && !p.noChecked && !p.shiftOnly {
 			kids[0] = core.Name(prim.Checked)
 			if p.count {
 				p.rep.Selected++
@@ -1210,6 +1244,10 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 		return divI(v[0], v[1]), false
 	case "rem":
 		return remI(v[0], v[1]), false
+	case "and":
+		return andI(v[0], v[1]), false
+	case "shr":
+		return shrI(v[0], v[1]), false
 	}
 	return top, false // an integer from somewhere the analysis cannot see
 }
@@ -1275,6 +1313,20 @@ func arithOp(name string, n int) string {
 		return "rem"
 	case n == 1 && (isOp(name, "neg") || strings.HasSuffix(name, ".neg")):
 		return "neg"
+	// A MASK AND A SHIFT, because `SelectShifts` PRODUCES them and an analysis
+	// blind to what it emitted would throw away everything downstream. It did:
+	// with these missing, the fixed-limb factorial lost its element narrowing
+	// (`[]uint32` back to `[]int`) and its loop-carried buffer reuse, because
+	// the store's value range and the loop variable's went to the top.
+	//
+	// They are matched here and NOT added to `opAlias`, which the refinement
+	// layer's linear fragment also reads: `x & m` is not a linear term and
+	// teaching that fragment to think it is would be unsound.
+	case n == 2 && (name == "&" || strings.HasSuffix(name, ".&") || isOp(name, "and")):
+		return "and"
+	case n == 2 && (name == ">>" || strings.HasSuffix(name, ".>>") ||
+		isOp(name, "shr") || isOp(name, "sar")):
+		return "shr"
 	}
 	return ""
 }
@@ -2035,7 +2087,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// walks, they are one walk iterated. Monotone over a two-point lattice with
 	// finitely many names, so it terminates; the bound is one promotion per
 	// variable plus a sweep to observe stability.
-	if p.tgt.HasBig() && (p.loopTail || len(p.big) > 0) {
+	if p.bigOK() && p.tgt.HasBig() && (p.loopTail || len(p.big) > 0) {
 		for round := 0; round < len(raw)+3; round++ {
 			p.bigChanged = false
 			p.bigReads = map[string]bool{}
@@ -2713,4 +2765,148 @@ func (p *intervalPass) tripCount(cur []ival) (ival, bool) {
 		}
 	}
 	return best, found
+}
+
+// shiftFor decides whether `x / C` or `x % C` may become a shift or a mask, and
+// returns the shift count (for a division) or the mask (for a remainder).
+//
+// Three conditions, and each one is load-bearing.
+//
+//   - **C is an exact power of two, at least 2.** An interval pins it only when
+//     the divisor is a constant, which is what a carry split always is.
+//   - **x is non-negative.** This is the whole point: `x >> k` is floor
+//     division, and floor and truncation agree exactly on the non-negative
+//     numbers. For a negative x they differ by one and the rewrite would be a
+//     silent wrong answer.
+//   - **x fits the target's declared shift width.** Go, the JVM and x86 shift
+//     64-bit values; V8 coerces both operands of `>>` and `&` to int32, so on
+//     that host the rewrite is sound only below 2^31 — and saying so as a
+//     declared width is what lets it fire there at all instead of being
+//     excluded.
+//
+// The remainder case returns C−1 as a mask and a zero shift count; the division
+// case returns the shift count and a zero mask. They are told apart by which is
+// zero, which is unambiguous because a shift count of 0 would be a division by
+// 1 and C is at least 2.
+func shiftFor(tgt *Target, op string, v []ival) (shift, mask int64, ok bool) {
+	if tgt.ShiftWidth == 0 || len(v) != 2 {
+		return 0, 0, false
+	}
+	if op != "div" && op != "rem" {
+		return 0, 0, false
+	}
+	c := v[1]
+	if c.loInf || c.hiInf || c.lo != c.hi || c.lo < 2 || c.lo&(c.lo-1) != 0 {
+		return 0, 0, false
+	}
+	x := v[0]
+	if x.loInf || x.hiInf || x.lo < 0 {
+		return 0, 0, false
+	}
+	// `1 << 63` OVERFLOWS AN int64 and comes back negative, so a target that
+	// shifts full-width would refuse every value it can hold. At 63 the test is
+	// vacuous — a non-negative int64 is already under 2^63 — which is why the
+	// bug was silent rather than wrong: nothing was rewritten anywhere.
+	if tgt.ShiftWidth < 63 && x.hi >= int64(1)<<uint(tgt.ShiftWidth) {
+		return 0, 0, false
+	}
+	if op == "rem" {
+		return 0, c.lo - 1, true
+	}
+	k := int64(0)
+	for b := c.lo; b > 1; b >>= 1 {
+		k++
+	}
+	return k, 0, true
+}
+
+// SelectShifts rewrites `x / 2^k` into a shift and `x % 2^k` into a mask
+// wherever the analysis can prove the dividend non-negative and inside the
+// target's declared shift width.
+//
+// IT IS ITS OWN PASS, and running it inside `Intervals` instead would have been
+// a mistake worth naming: that pass has `noChecked` false, so using its rebuilt
+// term on the default path would turn ADR 0019's trapping arithmetic on for
+// every program — reversing ADR 0012 without an ADR, which is exactly what
+// assessment-2026-08-20 §2 records happening once already. A demonstration
+// wired into the default path is a decision whether or not anyone made one.
+//
+// It runs LAST, after `PromoteBig` and after the fixed-limb lowering, because
+// the library's own carry splits are spliced in by that lowering and are the
+// operations this is most for.
+func SelectShifts(tgt *Target, sig *core.Sig, t *core.Term) (*core.Term, int) {
+	if tgt.ShiftWidth == 0 {
+		return t, 0
+	}
+	if _, _, ok := tgt.ShiftNames(); !ok {
+		return t, 0
+	}
+	rep, out := intervals(tgt, sig, t, 0, nil, true, true, false, true)
+	if rep.Shifted == 0 {
+		// NOTHING FIRED, SO NOTHING IS RETURNED. A pass that rebuilds a term it
+		// did not change still hands back a different pointer, and this compiler
+		// has been bitten four times by a map keyed on one — so when there is no
+		// work, the original term is what the emitter gets.
+		return t, 0
+	}
+	return out, rep.Shifted
+}
+
+// andI and shrI are the abstract semantics of a bitwise and and a right shift.
+//
+// BOTH ARE DEFINED ONLY ON NON-NEGATIVE OPERANDS, and answer ⊤ otherwise. That
+// is not caution: on a negative value `>>` is an arithmetic shift on three hosts
+// and an int32 coercion on the fourth, and `&` on a two's-complement negative
+// depends on a width the language does not have. `SelectShifts` only ever emits
+// these where it has PROVED the operand non-negative, so the precise case is
+// the one that occurs; a hand-written `go.&` on a signed value gets the honest ⊤.
+func andI(a, b ival) ival {
+	// A NON-NEGATIVE CONSTANT MASK BOUNDS THE RESULT WHATEVER THE OTHER OPERAND
+	// IS, and this case is the one that matters: every bit set in `x & m` is set
+	// in `m`, which holds for a negative x too because a host's `&` is
+	// two's-complement. Without it a mask over a value the analysis cannot see —
+	// which is every read inside a `build` lambda, where the operand table is
+	// free — answers ⊤, and that is exactly what `SelectShifts` produces from a
+	// carry split. It cost the fixed-limb factorial its element narrowing the
+	// first time round: `[]int` where `%` had given `[]uint32`, because `remI`
+	// bounds by the divisor and the first `andI` did not.
+	if m, ok := exactNonNeg(b); ok {
+		return ival{lo: 0, hi: m}
+	}
+	if m, ok := exactNonNeg(a); ok {
+		return ival{lo: 0, hi: m}
+	}
+	if a.loInf || b.loInf || a.lo < 0 || b.lo < 0 {
+		return top
+	}
+	// 0 ≤ a&b ≤ min(a, b): every bit set in the result is set in both.
+	hi := b
+	if a.hiInf || (!b.hiInf && a.hi < b.hi) {
+		hi = a
+	}
+	if hi.hiInf {
+		return ival{lo: 0, hiInf: true}
+	}
+	return ival{lo: 0, hi: hi.hi}
+}
+
+func exactNonNeg(v ival) (int64, bool) {
+	if v.loInf || v.hiInf || v.lo != v.hi || v.lo < 0 {
+		return 0, false
+	}
+	return v.lo, true
+}
+
+func shrI(a, b ival) ival {
+	if a.loInf || a.lo < 0 || b.loInf || b.hiInf || b.lo != b.hi || b.lo < 0 || b.lo > 62 {
+		return top
+	}
+	k := uint(b.lo)
+	out := ival{lo: a.lo >> k}
+	if a.hiInf {
+		out.hiInf = true
+		return out
+	}
+	out.hi = a.hi >> k
+	return out
 }

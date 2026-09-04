@@ -1,0 +1,36 @@
+; DIVISION BY A POWER OF TWO BECOMES A SHIFT, and the two cases where it must
+; NOT are what this case is really for.
+;
+; `x / 2^k` is `x >> k` only when x is non-negative: an arithmetic shift is FLOOR
+; division and our `/` truncates toward zero, and the two differ by one on every
+; negative dividend. So `(0 - (n+1)) / 2` must stay a division on all four
+; targets, and `-1 / 2` must be 0 rather than -1.
+;
+; AGREEMENT ALONE WOULD NOT CATCH THAT — Go, the JVM and x86 would all shift and
+; all be wrong together, which is why this case carries an `; expect:` line with
+; values computed by hand. It is the same structural blindness the differential
+; suite has for element narrowing.
+;
+; The third term is the JavaScript half. V8 coerces both operands of `>>` and `&`
+; to int32, so `targets/js` declares `(shift-width 31)` and the rewrite fires
+; there only below 2^31. `n * 300000000` crosses that line inside this one
+; program — under it for n <= 5, over it from n = 8 — so JavaScript rewrites some
+; of these and declines the rest, and every target still returns the same number.
+;
+; run(n) = 1000000 + ((0-(n+1)) / 2) * 100 + ((0-(n+1)) % 8) + (n * 300000000) / 4
+;
+; THE OFFSET IS THE HARNESS, NOT THE TEST. `win/fmt.print-int` prints a blank
+; line for a negative number and is within its rights (refinements.md §6b names
+; it as the gap inlining cannot reach), so a case whose RESULT goes negative
+; loses a line on that target and looks like a disagreement. The negative
+; dividends this case exists for are all inside the expression.
+
+; expect: 999999 75999898 150999897 225999796 375999694 600999599 975999294 1575998894 2550998297
+
+(export run)
+
+(def run (fn (n)
+  (let (- 0 (+ n 1)) (fn (m)
+    (+ 1000000
+       (+ (+ (* (/ m 2) 100) (% m 8))
+          (/ (* n 300000000) 4)))))))

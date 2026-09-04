@@ -31,6 +31,20 @@
 ;      could not be kept.
 
 (target windows
+  ; ═══ HOW WIDE A SHIFT IS EXACT HERE
+  ;
+  ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
+  ; a rounding correction -- so the compiler rewrites it into one wherever it
+  ; can PROVE the dividend is non-negative and fits this many bits. Worth
+  ; **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
+  ;
+  ; This does NOT promote bitwise operators to the language, and integers.md
+  ; §0a's reason for keeping them out stands. It lets the COMPILER use this
+  ; host's own shift where it has proved the rewrite changes no answer.
+  ;
+  ; `shr` is a 64-bit logical shift, which is what a non-negative value wants.
+  (shift-width 63)
+
 
   ; THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
   ; already load one: `movzx` zero-extends a byte, which is the same path a

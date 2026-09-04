@@ -8,14 +8,15 @@ func GenPower(b int, e int) *big.Int {
 	acc := (big.NewInt(int64(1)))
 	x := (big.NewInt(int64(b)))
 	var k int = e
-	for ; ; x, k = (x.Mul(x, x)), (k / 2) {
+	for ; ; k = (k >> 1) {
 		if (k == 0) {
 			break
 		}
-		if ((k % 2) == 1) {
-			acc = (acc.Mul(acc, x))
+		if ((k & 1) == 1) {
+			acc, x = (acc.Mul(acc, x)), (new(big.Int).Mul(x, x))
 			continue
 		}
+		x = (x.Mul(x, x))
 		continue
 	}
 	return acc

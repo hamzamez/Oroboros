@@ -295,6 +295,11 @@ func lowerOn(t *testing.T, tg *Target, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// THE SAME ORDER THE DRIVERS USE (cmd/build, cmd/gen): the shift rewrite
+	// runs last, after the fixed-limb library has been spliced in, because the
+	// library's own carry splits are what it is most for. A helper that stopped
+	// before it would be testing a pipeline nothing runs.
+	out, _ = SelectShifts(tg, prog.Sigs[name], out)
 	return out.String()
 }
 
@@ -391,9 +396,105 @@ func emitGo(t *testing.T, tg *Target, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
+	nf, _ = SelectShifts(tg, prog.Sigs[name], nf)
 	code, err := Func(tg, name, prog.Sigs[name], nf)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return code
+}
+
+// ═══ DIVISION BY A POWER OF TWO BECOMES A SHIFT (shiftdiv-2026-09-03)
+//
+// The measured decomposition of the fixed-limb factorial put 2.39x on this one
+// operation — more than the clamp, the element mask and the buffer clear put
+// together, which are all inside the noise floor. `x / 2^k` on a SIGNED value is
+// not a shift: truncation toward zero needs a rounding correction.
+//
+// It is licensed by a PROOF rather than a declaration, which is what makes it
+// general: nothing enters the language and any program with a provably
+// non-negative dividend gets it.
+
+func TestADividendProvedNonNegativeBecomesAShift(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(export f)
+(sig f ((n (int 0 1000))) int)
+(def f (fn (n) (+ (/ n 8) (% n 8))))
+`
+	code := emitGo(t, tg, src, "f")
+	if !strings.Contains(code, ">> 3") || !strings.Contains(code, "& 7") {
+		t.Errorf("a non-negative dividend did not become a shift and a mask:\n%s", code)
+	}
+}
+
+// AND A DIVIDEND THAT MAY BE NEGATIVE DOES NOT, which is the rule this could
+// most easily get wrong — and the differential suite could not catch it, because
+// Go, the JVM and x86 would all shift and all be wrong together.
+//
+// An arithmetic shift is FLOOR division; our `/` truncates toward zero. They
+// differ by one on every negative dividend: `-1 / 2` is 0 and `-1 >> 1` is −1.
+func TestAPossiblyNegativeDividendStaysADivision(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	src := `(export f)
+(sig f ((n (int -1000 1000))) int)
+(def f (fn (n) (/ n 8)))
+`
+	code := emitGo(t, tg, src, "f")
+	if strings.Contains(code, ">>") {
+		t.Errorf("a dividend that can be negative was rewritten to a shift, which "+
+			"is floor division where ours truncates:\n%s", code)
+	}
+	if !strings.Contains(code, "/ 8") {
+		t.Errorf("the division disappeared without becoming a shift:\n%s", code)
+	}
+}
+
+// AND THE WIDTH IS THE TARGET'S. V8 coerces both operands of `>>` and `&` to
+// int32, so `targets/js` declares 31 — and a value that provably fits gets the
+// rewrite there while one that does not keeps its division. Declaring the width
+// rather than excluding the host is what buys the first half.
+func TestTheShiftWidthIsTheTargets(t *testing.T) {
+	for _, c := range []struct {
+		dir   string
+		param string
+		want  bool
+	}{
+		{"../targets/js", "(int 0 1000)", true},
+		{"../targets/js", "(int 0 4000000000)", false}, // past 2^31
+		{"../targets/go", "(int 0 4000000000)", true},  // Go shifts 64-bit values
+	} {
+		tg, err := LoadTarget(c.dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src := "(export f)\n(sig f ((n " + c.param + ")) int)\n(def f (fn (n) (/ n 8)))\n"
+		nf := lowerOn(t, tg, src, "f")
+		got := strings.Contains(nf, ">>")
+		if got != c.want {
+			t.Errorf("%s with %s: rewritten=%v, want %v\n%s", c.dir, c.param, got, c.want, nf)
+		}
+	}
+}
+
+// AND A TARGET THAT DECLARES NOTHING GETS NOTHING, which is the containment
+// property for this pass and the reason a third-party target is safe by default.
+func TestNoShiftWidthMeansNoRewrite(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg.ShiftWidth = 0
+	src := `(export f)
+(sig f ((n (int 0 1000))) int)
+(def f (fn (n) (/ n 8)))
+`
+	if code := emitGo(t, tg, src, "f"); strings.Contains(code, ">>") {
+		t.Errorf("a target declaring no shift width was rewritten anyway:\n%s", code)
+	}
 }

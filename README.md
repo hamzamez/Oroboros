@@ -53,6 +53,15 @@ operator it owned: `(+ 1 2)` was *"not bound"*, and every portability claim in t
 really a claim about `go.+`. `+ - * / % < <= > >=` are now found per target the way `=` always was,
 so one source computes the same answer on four hosts with no host name in it.
 
+**And the whole integer ladder is built** — narrower than a word, the host's word, fixed limbs, the
+host's own bignum. A **range is semantics and the target picks the storage**, exactly as
+`(array (int 0 255))` has always been a `[]byte` on Go and a `short[]` on the JVM; getting that
+backwards at the top of the ladder was costing 75× on V8
+([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)). windows, which ships no bignum, gets
+one **written in Oroboros** — add, subtract, multiply, divide and take the remainder by a machine
+word, and compare — so ADR 0019's fourth item is delivered on the host that had nothing to fall back
+to ([subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md)).
+
 | | |
 |---|---|
 | `core/` | reader, terms, β/δ reducer — [the atom](docs/the-atom.md) |
@@ -61,15 +70,15 @@ so one source computes the same answer on four hosts with no host name in it.
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 62 programs |
-| `gauntlet/` | hand-written references and 56 recorded measurements — **the bar** |
-| `gauntlet/differential/` | 16 programs built and **run** on all four targets, outputs required identical *and* right |
+| `examples/` | 68 programs |
+| `gauntlet/` | hand-written references and 63 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 25 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
 go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
 go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
-cd gauntlet/differential && go run run.go                  # 16 programs x 4 targets
+cd gauntlet/differential && go run run.go                  # 25 programs x 4 targets
 ```
 
 ### The whole language
@@ -472,7 +481,7 @@ rather than stated.
 | **Several results** | `(values a b)` is the *negative product* — sugar for `(fn (#k) (#k a b))`, so β is its algebra and the reducer needed nothing ([values.md](docs/spec/values.md)) |
 | **Pattern matching** | `match` is `loop`: reader sugar, zero rules, zero term kinds, `again` in a clause body ([match.md](docs/spec/match.md)) |
 | **Sums** | closed, finite, non-recursive. A sum is Σ, so its value is a tag and a payload — which is the product, already built on four targets ([sums.md](docs/spec/sums.md)) |
-| **Integers** | `int` is exact within ±(2⁵³−1) and a **range is a type** — `(int LO HI)` in a parameter, a result, an array element or a map value. `+ - * / % < <= > >=` and `=` are the language's, found per target by spelling; **bitwise and shifts are not**, because V8 truncates them to int32 and `(2³²) & -1` is 0 there and 4294967296 elsewhere — observable *inside* the window ([integers.md](docs/spec/integers.md), [ADR 0003](docs/decisions/0003-range-typed-integers.md), [ADR 0012](docs/decisions/0012-portable-integer-range.md)) |
+| **Integers** | `int` is exact within ±(2⁵³−1) and a **range is a type** — `(int LO HI)` in a parameter, a result, an array element or a map value. `+ - * / % < <= > >=` and `=` are the language's, found per target by spelling; **bitwise and shifts are not**, because V8 truncates them to int32 and `(2³²) & -1` is 0 there and 4294967296 elsewhere — observable *inside* the window. **Bounded by default**: an operation the compiler cannot prove stays in the window is a compile error, cleared by narrowing the range, taking the trap, or declaring a range *above* the window — which promotes that value to arbitrary precision, stored as the target says ([integers.md](docs/spec/integers.md), [ADR 0003](docs/decisions/0003-range-typed-integers.md), [ADR 0012](docs/decisions/0012-portable-integer-range.md), [ADR 0019](docs/decisions/0019-precision-by-declaration.md)) |
 | **Maps** | a table whose index set is a finite subset of the key type. `(m k)` is `(option V)` — the map is the first construct whose domain condition *nothing* can discharge, so the program says what happens when the key is absent, and it lowers to the host's own fallible read. `keys` is ascending by key, which is **derived**: the result is an ordered index set, so producing one requires an order, and the only canonical one is K's ([maps.md](docs/spec/maps.md)) |
 | **Tables** | the primary data structure, and there is one: **a function with a known finite domain.** `(array e…)` a graph, `(table n f)` a rule with no memory, `(len t)` the domain bound — and **indexing is APPLICATION**, `(a i)`, with no word of its own ([tables.md](docs/spec/tables.md)) |
 | **Memory** | immutable values, one scoped **linear** buffer — `(alloc t)` gathers, `(build n f)` scatters, `(set b i v)` consumes and returns. The linearity check is occurrence counting **on the residual, not a type**, and it is an *ordering* property: reads do not consume, and a read may not **move across a store** — which is where the discipline turned out to be leaking, since a buffer read looks exactly like an array read and an array read is genuinely pure ([ADR 0018](docs/decisions/0018-immutable-values-linear-buffers.md), [effects.md §7c](docs/spec/effects.md)) |
@@ -664,7 +673,17 @@ meanings each, and every row exchanges the two roles
 
 Both vanish on the third for the same reason: reduction removes the boundary.
 
-**And ten programs are built and run on all four targets**, outputs required byte-identical *and*
+**And there is exactly one exception, which took five arrivals to see.** That table holds for what a
+declaration **asserts** — a fact is something to be proven, and inlining gives strictly more
+information, so a fact declared at a boundary is redundant once the boundary is gone. It fails for
+what a declaration **requests**. A range *above* the portable window does not assert something the
+compiler checks; it asks for arbitrary precision, and inlining gives more information about values
+and none at all about intent. So that one is moved onto the term — `(the "int 0 …" e)`, a structural
+name injected into every target and erased once the representation is chosen
+([ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md)). Nothing here had separated assertion
+from request, because until arbitrary precision every declaration was an assertion.
+
+**And twenty-five programs are built and run on all four targets**, outputs required byte-identical *and*
 required to be the right answer — because four backends can agree and all be wrong, and the one bug
 a purely differential test cannot see is a bug in the reader or the reducer, which they share. It
 has caught silent wrong answers twice in a week, including `for (;; a, b = x, y)` — simultaneous
@@ -694,8 +713,14 @@ The honest list, with the reasoning written down rather than deferred to memory:
   of what the language refuses. And the *performance* half of the counter-claim is now known to be
   host-specific (see above), so ADR 0014 rests on portability — stack depth differs by orders of
   magnitude across the four hosts and none guarantees tail calls.
-- **Strings.** The one of the three that is still open, and it has a number attached rather than
-  only a name: a string-based tokeniser is **1.89× slower than an array-based one on V8**, so a JSON
+- **Strings — the next thing, and the last owed item.** `general-purpose.md`'s list is otherwise
+  answered: recursion by two parsers that do not need it, sums built, maps built, growable
+  collections withdrawn. Strings have a **term kind and reader syntax and no semantics, no
+  representation, no operations and no specification** — `strings.md` exists "to make the addition
+  legitimate or to remove it", and that is unresolved. It also blocks the one capability gap left in
+  integers: windows can compute an arbitrary-precision value and cannot print one, and decimal
+  conversion is repeated division by a power of ten, which is exactly the arithmetic that now exists.
+  It has a number attached rather than only a name: a string-based tokeniser is **1.89× slower than an array-based one on V8**, so a JSON
   API handed a string should convert once rather than index it
   ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)). `length` of `"🙂"` is 4 on Go, 2 on
   JS and Java and 1 counting characters, which is why strings have almost no operations
@@ -703,28 +728,32 @@ The honest list, with the reasoning written down rather than deferred to memory:
   **growable collections are withdrawn**: count-then-build measures **2.95× faster than growing
   `append` on Go** and at parity on JavaScript, so the workaround every array language uses is
   better than the thing it works around ([maps-2026-08-30](gauntlet/results/maps-2026-08-30.md)).
-- **What integers still owe**, now that the operators are the language's and
-  [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s three escapes all exist: `f64 → int`,
-  which is three hosts and three out-of-domain answers; **bitwise as a *conditional* promotion**,
-  legal exactly when a declared range fits int32; and the two rungs above the host's word that are
-  named and not built. **A declared range above the portable window is arbitrary precision now**, at
-  parity with hand-written bignum code on the three hosts that ship one — Go 1.01×, JavaScript 1.00×,
-  Java 0.92× on fib(1000) ([bigrep-2026-09-02](gauntlet/results/bigrep-2026-09-02.md)) — with windows
-  refusing by name, because it declares no bignum. On Go the emitted code is now **faster than
-  careful hand-written** — 1.04×, 1.22× and 1.06×, at 10, 6 and 9 allocations against 2003, 400 and
-  18 — because a bignum operation writes into storage nothing live can read
-  ([bigreuse-2026-09-02](gauntlet/results/bigreuse-2026-09-02.md)); it needed **no new type**, since
-  ADR 0015's loop makes the back edge one simultaneous assignment over the loop's own variables. That
-  is a Go capability and not a portable one: `BigInteger` is immutable and `BigInt` is a primitive, so
-  on those hosts the careful form does not exist for a person to write either. The **fixed-limb** rung is wired too —
-  a *finite* endpoint is a limb count, a `build` of known length, and a **trap** if the value exceeds
-  what was declared, which is what keeps selecting a representation from changing the answer. It gives
-  **windows arbitrary precision for the first time**, and it is **8.3× slower than the host's bignum
-  on Go and 2.7× on Java** ([biglimb-2026-09-02](gauntlet/results/biglimb-2026-09-02.md)): bigarith's
-  3.97×/6.2×/5.8× were measured on *hand-written* host code using 64-bit limbs, a shift and a mask,
-  and one reused buffer — none of which a portable library written in this language can have. So the
-  advice the measurement gives is *declare `+inf` unless the target has no bignum*, and what would
-  change it is buffer reuse plus a target-declared limb width.
+- **Integers are finished, and that is now the honest word for it.** Every one of
+  [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s escapes exists, the four rungs of
+  the representation ladder are built, and **a range is semantics while the target picks the
+  storage** — `(big-repr host)` on Go, JavaScript and Java, `(big-repr limbs)` on windows, each
+  carrying the measurement that decided it. Reading the *shape* of a declaration as a storage
+  instruction had been costing **5.85× on Go, 74.9× on V8 and 2.82× on Java**, paid by whoever wrote
+  the more informative declaration ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)).
+  The bound is enforced under both representations, so choosing one changes what a program *costs*
+  and never what it computes or whether it is legal.
+  Three things worth carrying out of that work. **Our own limb form was decomposed rather than
+  guessed at**, and the clamp, the element mask and the buffer clear are together inside the noise
+  floor while `/` and `%` by a constant power of two cost **2.39×** — because signed division needs a
+  rounding correction, so the fix is a *proof* that the dividend is non-negative and not a bitwise
+  operator in the language ([shiftdiv-2026-09-03](gauntlet/results/shiftdiv-2026-09-03.md)).
+  **64-bit limbs are unreachable**: ADR 0012 makes an `int` exact to ±(2⁵³−1), so bigarith's 2.75×
+  was never available to a portable library, and 32-bit measures 1.20×. And **a declaration is a
+  DIRECTIVE, so it moves onto the term**: a range above the window declared on an internal helper was
+  erased by inlining, and the analysis cannot supply what it says — it reports `[-inf, +inf]` for a
+  loop whose trip count is a constant 6, and a factorial's bound is not expressible in an interval
+  domain at all ([ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md)).
+  What is left is not integer work: **rendering a bignum on windows** waits on strings,
+  **big-by-big division** (Knuth D) has no caller, and **32-bit limbs and a per-operation threshold**
+  would move no target's declaration on today's numbers. The one open question is
+  [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s own trigger — *how many declarations
+  does a real application need?* — and 70-of-70 programs emitting byte-identically with the checks on
+  is a corpus of numeric kernels and two parsers written by people who knew the analysis.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the
@@ -746,6 +775,12 @@ The honest list, with the reasoning written down rather than deferred to memory:
   ([sums.md §7](docs/spec/sums.md))
 - **Element size in the type**, generally. x86 needed it and got a local answer; nothing says what
   `(array bool)` means on a host that has no `bool`
+- **The x86 register allocator**, which is now the binding constraint on windows rather than any
+  missing capability. Three differential cases cannot be built there — `x64.movb has more spilled
+  operands than there are scratch registers` — and it is program SIZE, not a construct: it
+  reproduces at one input, and with the big value built by a loop instead of a literal. That host
+  has neither a type system to size its elements nor a register allocator to spill for it, which is
+  [ADR 0016](docs/decisions/0016-targets-need-not-have-expressions.md)'s lesson arriving again.
 - [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md)'s allocation price — the shape, on
   three hosts now, and expected to be paid off rather than kept
 
@@ -763,7 +798,7 @@ Design questions still open are listed in §8 of
 5. [docs/spec/inventory.md](docs/spec/inventory.md) — every word an `.oro` file can contain, and
    which of them are specified
 6. The ADRs in [docs/decisions/](docs/decisions/)
-7. [gauntlet/results/](gauntlet/results/) — 56 measurements, and **the authority**: every design
+7. [gauntlet/results/](gauntlet/results/) — 63 measurements, and **the authority**: every design
    claim here that was not measured has been wrong about half the time
 
 ## Name

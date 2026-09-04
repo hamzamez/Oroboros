@@ -1744,6 +1744,47 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**A DECLARATION DOES NOT SURVIVE INLINING, AND THAT IS THE TYPE-SYSTEM QUESTION** —
+[inlining-and-declarations.md](docs/inlining-and-declarations.md), research, no decision, on hamza's
+*"maybe I am wrong, but this is the type system question."* **Not wrong**, and the precise sense is
+the finding.
+
+**The defect stated without mentioning inlining: ADR 0019 has three escapes and the third is
+expressible ONLY in a signature.** Narrowing a range is a fact about a value and can be written
+wherever the value is; `-checked` is a whole-program flag; **declaring a range above the window has
+no home for a value that is neither a parameter nor a result** — and it is the only escape that
+gives exactness. So a big value created and consumed inside one function cannot ask for it.
+Exporting the helper does not help (checked), and **the only escape that works today is
+ACCIDENTAL**: a big LITERAL carries its own magnitude, which is why `big-divmod.oro` is written with
+one — and a factorial has no literal, so it has no escape.
+
+**THE TRICHOTOMY HOLDS FOR WHAT A DECLARATION ASSERTS AND FAILS FOR WHAT IT REQUESTS.**
+refinements.md §6b argues that dropping an internal `where` is a *strengthening* — inlining lands the
+body's obligations on concrete values — and postconditions.md §3, indexnarrow and scalarrange all
+repeat it. **Those four are about FACTS and the argument is sound.** A range above the window is a
+DIRECTIVE: inlining gives more information about values and none about intent, so removing the
+boundary removes the only record of the instruction. Nothing here had separated the two, because
+until arbitrary precision every declaration was an assertion.
+
+**So a range's three effects split exactly on this.** The *type* survives (the checker re-derives
+it); the *premise* is correctly dropped; the *representation* is destroyed. **What is missing is not
+analytic power — the interval pass already sees the value leave the window, which is why it refuses
+— it is INTENT**, and the residual's types are inferred, so intent has no carrier. types.md types
+the residual AFTER reduction, which is a good trade and is exactly why the type layer cannot carry
+anything into it.
+
+**AND THE MECHANISM ALREADY EXISTS AND WORKS.** `big-str` is a term-level ascription that survives
+reduction, and with the demand coming from it ALONE — no signature declaring anything big — the same
+internal loop is promoted: `acc := big.NewInt(...)`, the mutable rewrite fires, 2 of 2 operations
+bounded. **What is missing is `big-str` minus the string.** The recommendation is therefore a
+wiring job rather than a design: when δ unfolds a definition whose declared result is above the
+window, wrap the body in an injected `the` — no new term kind (`coreNames` + `addCore` already
+inject `if`/`let`/`loop`), no new surface, and `Env.Rec` is the precedent for `unfoldable` carrying a
+per-name property. **The named risk is not speculative**: `big%-small` in the middle of a sum broke
+`bigTerm` the same day, and `PostVars`/`LoopBufferReuse` pattern-match on shapes a marker would sit
+inside — check that FIRST. Rejected: *do not inline across the boundary*, because `cmd/build` emits
+exactly ONE function and keeping a callee means teaching the pipeline to emit a call graph.
+
 **AND THEN COMPARISONS AND THE REMAINDER, WHICH FINISHED IT** — same result document,
 [subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md) §6-§7. **Without comparisons a bignum
 cannot control a LOOP** — no `while (x > 1)`, no gcd, no Newton iteration — which is an

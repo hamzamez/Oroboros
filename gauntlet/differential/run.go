@@ -72,6 +72,29 @@ var driver = map[string]struct{ uses, print string }{
 	"windows": {"(use x64)\n(use win/fmt)", "fmt.print-int"},
 }
 
+// AND A DRIVER THAT PRINTS A STRING, selected by `; prints: string` on a case.
+//
+// Three of the four print an integer and a string through the same name; only
+// windows differs, because a string there is a pointer to NUL-terminated bytes
+// and `msvcrt.printf` is what consumes one (windows-target.md).
+//
+// `printf` rather than `puts`, which is declared beside it and does NOT LINK:
+// the generated build.bat links `legacy_stdio_definitions.lib`, which supplies
+// printf and not puts, so `puts` has been unreachable since it was declared and
+// no program had used it. A build concern rather than a language one — the half
+// of this project strings.md §5 already named as not existing yet.
+//
+// It exists because otherwise the suite CANNOT CHECK A STRING LITERAL AT ALL:
+// the harness prints an integer, and there is no portable operation from a
+// string to one — which is strings.md §2's finding arriving in the test harness
+// rather than in a program.
+var stringDriver = map[string]struct{ uses, print string }{
+	"go":      {"(use go)\n(use go/fmt)", "fmt.Println"},
+	"js":      {"(use js)\n(use js/console as console)", "console.log"},
+	"java":    {"(use java)\n(use java/System as sys)", "sys.out-println"},
+	"windows": {"(use x64)\n(use windows/msvcrt as crt)", "crt.printf"},
+}
+
 // What each target's artifact is CALLED, and how to run it.
 //
 // Three hosts, three notions of a deliverable (build.md §3): Go and windows
@@ -142,6 +165,11 @@ func expectFor(src string) string {
 func render(src, target string) string {
 	inputs := inputsFor(src)
 	d := driver[target]
+	// A case that returns a STRING needs the host's string print, and on windows
+	// that is a different primitive. Everything else about the driver is the same.
+	if strings.Contains(src, "; prints: string") {
+		d = stringDriver[target]
+	}
 	var b strings.Builder
 	b.WriteString(d.uses)
 	b.WriteString("\n(export main)\n")

@@ -256,37 +256,125 @@ func (r *reader) term() (*Term, error) {
 
 const backslash = rune(92)
 
-// str reads a double-quoted literal.
+// str reads a double-quoted literal — string-literals.md.
 //
-// Scanning only has to find the closing quote — strconv.Unquote does the escape
-// handling, so the set of escapes we accept is Go's, which is a larger set than
-// core-0 specifies. Narrowing it is a spec question, not a reader one, and is
-// noted in docs/spec/concerns.md.
+// A literal denotes an element of Scalar*, and the notation mirrors the object:
+// a scalar denotes itself, and its value is the concatenation. Six escapes, and
+// every one of them is FORCED rather than borrowed from a host:
+//
+//	\"        the delimiter cannot delimit and denote at once
+//	\        the escape introducer, likewise
+//	\t \n \r  the source grammar's own whitespace. A token that could contain a
+//	          raw line terminator makes an unterminated literal indistinguishable
+//	          from a long one, so the error would be reported at end of file
+//	          rather than where it happened.
+//	\u{H…}    totality: most scalars cannot be typed and many are invisible
+//
+// AN UNKNOWN ESCAPE IS AN ERROR, which follows from unambiguity: if `\a` meant
+// `a`, two different literals would denote one string. That is the rule
+// JavaScript does not have — `"\a"` is the letter there — and it is the first of
+// three divergences string-literals.md §6.2 measured.
+//
+// `\xHH` and octal are absent because they denote a BYTE. A byte is not a scalar
+// value, so a notation that can build `\xff` is a notation for a different
+// object — and Go's `strconv.Unquote`, which this replaces, could build one.
 func (r *reader) str() (*Term, error) {
 	line := r.line
-	start := r.pos
 	r.next() // opening quote
+	var b strings.Builder
 	for {
 		if r.done() {
 			return nil, fmt.Errorf("line %d: unterminated string literal", line)
 		}
 		c := r.next()
-		if c == backslash {
-			if r.done() {
-				return nil, fmt.Errorf("line %d: unterminated escape in string literal", line)
-			}
-			r.next()
+		if c == '"' {
+			return Str(b.String()), nil
+		}
+		if c == '\t' || c == '\n' || c == '\r' {
+			return nil, fmt.Errorf("line %d: a string literal may not contain a raw "+
+				"tab, newline or carriage return; write \t, \n or \r", line)
+		}
+		if c != backslash {
+			b.WriteRune(c)
 			continue
 		}
-		if c == '"' {
-			break
+		if r.done() {
+			return nil, fmt.Errorf("line %d: unterminated escape in string literal", line)
+		}
+		switch e := r.next(); e {
+		case '"':
+			b.WriteByte('"')
+		case backslash:
+			b.WriteRune(backslash)
+		case 'n':
+			b.WriteByte('\n')
+		case 'r':
+			b.WriteByte('\r')
+		case 't':
+			b.WriteByte('\t')
+		case 'u':
+			v, err := r.scalarEscape(line)
+			if err != nil {
+				return nil, err
+			}
+			b.WriteRune(v)
+		default:
+			return nil, fmt.Errorf("line %d: %c%c is not an escape. The escapes are "+
+				"%c\" %c%c %ct %cn %cr and %cu{H…} for any scalar value "+
+				"(docs/spec/string-literals.md §3)",
+				line, backslash, e, backslash, backslash, backslash,
+				backslash, backslash, backslash, backslash)
 		}
 	}
-	v, err := strconv.Unquote(r.src[start:r.pos])
-	if err != nil {
-		return nil, fmt.Errorf("line %d: bad string literal: %w", line, err)
+}
+
+// scalarEscape reads the body of `\u{H…}`, having consumed the `u`.
+//
+// One to six hexadecimal digits, and the value must be a SCALAR VALUE: Unicode
+// excludes the surrogate range D800–DFFF, because a surrogate is an artefact of
+// the UTF-16 encoding form rather than a character. That exclusion is what makes
+// a string's value encoding-independent — every scalar sequence has a unique
+// representation in every encoding form, and a sequence containing a lone
+// surrogate has none in UTF-8 (string-literals.md §1).
+func (r *reader) scalarEscape(line int) (rune, error) {
+	if r.done() || r.next() != '{' {
+		return 0, fmt.Errorf("line %d: %cu must be written %cu{H…} with one to six "+
+			"hexadecimal digits", line, backslash, backslash)
 	}
-	return Str(v), nil
+	var digits []rune
+	for {
+		if r.done() {
+			return 0, fmt.Errorf("line %d: unterminated %cu{…} escape", line, backslash)
+		}
+		c := r.next()
+		if c == '}' {
+			break
+		}
+		digits = append(digits, c)
+		if len(digits) > 6 {
+			return 0, fmt.Errorf("line %d: %cu{…} takes at most six hexadecimal "+
+				"digits; the largest scalar value is 10FFFF", line, backslash)
+		}
+	}
+	if len(digits) == 0 {
+		return 0, fmt.Errorf("line %d: %cu{} has no digits", line, backslash)
+	}
+	v, err := strconv.ParseUint(string(digits), 16, 32)
+	if err != nil {
+		return 0, fmt.Errorf("line %d: %cu{%s} is not hexadecimal", line, backslash,
+			string(digits))
+	}
+	if v > 0x10FFFF {
+		return 0, fmt.Errorf("line %d: %cu{%s} is above the largest scalar value, 10FFFF",
+			line, backslash, string(digits))
+	}
+	if v >= 0xD800 && v <= 0xDFFF {
+		return 0, fmt.Errorf("line %d: %cu{%s} is a SURROGATE, which is not a scalar "+
+			"value — it exists only inside the UTF-16 encoding form, and a sequence "+
+			"containing one has no representation in UTF-8 at all "+
+			"(docs/spec/string-literals.md §1)", line, backslash, string(digits))
+	}
+	return rune(v), nil
 }
 
 func (r *reader) list() (*Term, error) {

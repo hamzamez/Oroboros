@@ -103,6 +103,16 @@ now because nothing needs it, per [ADR 0007](../decisions/0007-exploration-over-
 
 ## 5. A hazard the measurement turned up
 
+> **CLOSED BY CONSTRUCTION, 2026-09-04.** The emitter now writes ASCII only
+> ([string-literals.md §6](string-literals.md)), so an emitted `.java` file has no
+> byte whose meaning depends on the build's locale. The `-encoding UTF-8` flag is
+> still passed and is now belt as well as braces. And the hazard has a twin on
+> the way OUT that this section did not know about: `System.out` also encodes in
+> the platform charset, so a printed `é` is one byte on a Windows console and two
+> on Go and V8 — a property of PRINTING rather than of the literal, confirmed by
+> asking the JVM for the string's UTF-16 length instead.
+
+
 `javac` defaults to the **platform charset**, not UTF-8. The Java column in §2 initially matched
 Go's exactly, which is impossible for a UTF-16 language — because `javac` on Windows read the
 UTF-8 source as Windows-1252 and `café` became five characters.

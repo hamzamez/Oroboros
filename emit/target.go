@@ -1501,7 +1501,7 @@ for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Micros
 if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)
 call "!VCV!" >nul || exit /b 1
 ml64 -nologo -c -Fomain.obj main.asm || exit /b 1
-link -nologo -subsystem:console -entry:main main.obj kernel32.lib msvcrt.lib legacy_stdio_definitions.lib -out:main.exe || exit /b 1
+link -nologo -subsystem:console -entry:main main.obj kernel32.lib msvcrt.lib ucrt.lib vcruntime.lib legacy_stdio_definitions.lib -out:main.exe || exit /b 1
 `
 
 func sortedSet(m map[string]bool) []string {

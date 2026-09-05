@@ -1,0 +1,32 @@
+; STRING LITERALS, END TO END ON FOUR TARGETS — docs/spec/string-literals.md.
+;
+; The six escapes are DERIVED rather than borrowed from a host: two because the
+; delimiter and the escape introducer cannot denote themselves, three because
+; the source grammar owns tab and the line terminators, and `\u{H…}` because
+; totality demands that every scalar value be writable. This builds a string out
+; of all six and requires the four hosts to produce the same bytes.
+;
+; prints: string
+;
+; ASCII ONLY, and the reason is a real per-target divergence rather than caution:
+; `System.out` on the JVM encodes in the PLATFORM CHARSET, so a printed `é` is
+; one byte on a Windows console and two on Go and V8 — a property of PRINTING,
+; not of the literal, which was confirmed by asking the JVM for the string's
+; UTF-16 length instead (3, so the literal is intact). Printing a string is not
+; portable and strings.md §2 already says why; what this case can check is that
+; the six escapes denote the same scalars everywhere.
+;
+; The non-ASCII half is covered where it can be: `emit/strlit_test.go` renders
+; EVERY one of the 1,112,064 scalar values for both host string shapes, checks
+; the output is ASCII, and decodes the UTF-16 form back to the scalar it came
+; from. A table of examples cannot establish totality; that test can.
+;
+; `\u{41}` is `A`, `\u{7A}` is `z`. Written that way rather than as themselves so
+; the general escape is exercised on a value every host must agree about.
+
+; inputs: 0
+; expect: A	"\z
+
+(export run)
+
+(def run (fn (n) "\u{41}\t\"\\\u{7A}"))

@@ -31,6 +31,18 @@
     ; (sct-2026-08-19). The JVM has these as intrinsics — Math.addExact compiles
     ; to an add and a jump-on-overflow — which is why overflow-2026-08-19
     ; measured Java at 1.31x where Go pays 2.61x and JavaScript 3.74x.
+    ; ---- the free monoid (string-operations.md §1)
+    ;
+    ; CONCATENATION is the monoid's operation and `""` its unit. `String.concat`
+    ; rather than `+`, which the JVM compiles through StringConcatFactory: the
+    ; method names the operation plainly.
+    (prim concat (string string) string expr "%s.concat(%s)" pure)
+
+    ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
+    ; `toChars` yields the surrogate PAIR above the BMP, which is UTF-16's
+    ; representation of that one scalar and not two of anything.
+    (prim string-of (int) string expr "new String(Character.toChars((int) %s))" pure)
+
     (prim +  (int int) int expr "%s + %s"  pure (checked addExact))
     (prim -  (int int) int expr "%s - %s"  pure (checked subtractExact))
     (prim *  (int int) int expr "%s * %s"  pure (checked multiplyExact))

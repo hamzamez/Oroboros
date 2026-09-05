@@ -171,6 +171,14 @@ with no UTF-8 at all.
 
 ## 5. The measurement that decides, and the program that takes it
 
+> **TAKEN, 2026-09-04 — IT FOLDS.**
+> [render-2026-09-04](../gauntlet/results/render-2026-09-04.md). Decimal rendering
+> is 20 lines using `concat`, `""` and η, and **no `len`, no `alloc` and no `=`**.
+> So §6's recommendation was right and its follow-ups (1) and (2) stay
+> unmotivated: nothing in this program asks for a concept name. §4's two roads are
+> both still open — a text-CONSUMING program would index, and none has been
+> written.
+
 **Does a real text program index a string, or only fold it?**
 
 If it folds, `alloc` is rarely reached, the monoid alone is enough, and `string`

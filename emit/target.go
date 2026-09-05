@@ -342,6 +342,24 @@ var coreNames = map[string]bool{
 	// QUALIFIED name, so `go.len` — which works on maps and channels too, and
 	// stays reachable — and a bare `len` are different keys.
 	"array": true, "table": true, "len": true,
+	// CONCATENATION, which is the free monoid's operation and therefore the
+	// only string operation that is not derived from something else
+	// (string-operations.md §1). `empty` needs no name at all: it is `""`, the
+	// identity, and a literal already denotes it.
+	//
+	// A target may not declare it under this name for the reason it may not
+	// declare `if`: the language owns it, and the compiler finds each host's own
+	// spelling — which on three of the four is `+` on their string type.
+	"concat": true,
+	// AND THE GENERATOR INJECTION, η : Scalar → Scalar*, which the free monoid's
+	// universal property is stated in terms of — `f*(⟨c⟩) = f(c)` mentions the
+	// one-scalar string, so it is part of the structure rather than an extra
+	// (string-operations.md §1).
+	//
+	// With `concat` and `""` it is enough to BUILD any string, which is what a
+	// renderer does. Going the other way — a whole table of scalars at once — is
+	// `alloc`'s inverse and is not built, because nothing has needed it.
+	"string-of": true,
 	// THE WRITE SIDE — ADR 0018. Values are immutable; mutation exists only
 	// inside `build`, whose buffer is linear and is frozen on the way out.
 	//
@@ -494,6 +512,35 @@ func (tg *Target) addCore() {
 			eq.Pure = true
 			tg.Prims["="] = eq
 			tg.Names = append(tg.Names, "=")
+		}
+	}
+	// CONCATENATION, found the way `=` is found.
+	//
+	// It is the free monoid's operation (string-operations.md §1) and the only
+	// string operation that does not factor through something else — `length`,
+	// `=` and every encoding are folds, and `empty` is the literal `""`.
+	//
+	// A target that has no string type declares none, and a program using it
+	// there is refused by name — the same answer JavaScript gives for the
+	// `checked` primitive it does not declare.
+	if _, have := tg.Prims["string-of"]; !have {
+		if c, ok := tg.findBySpelling("string-of", 1); ok {
+			c.Name = "string-of"
+			c.Args = []string{"int"}
+			c.Result = "string"
+			c.Pure = true
+			tg.Prims["string-of"] = c
+			tg.Names = append(tg.Names, "string-of")
+		}
+	}
+	if _, have := tg.Prims["concat"]; !have {
+		if c, ok := tg.findBySpelling("concat", 2); ok {
+			c.Name = "concat"
+			c.Args = []string{"string", "string"}
+			c.Result = "string"
+			c.Pure = true
+			tg.Prims["concat"] = c
+			tg.Names = append(tg.Names, "concat")
 		}
 	}
 	// AND THE REST OF INTEGER ARITHMETIC, on exactly `=`'s argument.
@@ -2238,7 +2285,7 @@ func collectAgains(t *core.Term) []*core.Term {
 // walks the CLOSED body, so such a name is a `KBound` and this is exactly the
 // test for it. Nothing had hit it because no program before had a non-trivial
 // update under a `let` — a JSON tree walk did (json-tree-2026-08-26).
-func PostVars(body *core.Term, raw []string) map[int]*core.Term {
+func PostVars(body *core.Term, raw []string, scope map[string]bool) map[int]*core.Term {
 	agains := collectAgains(body)
 	if len(agains) == 0 {
 		return nil
@@ -2268,7 +2315,28 @@ func PostVars(body *core.Term, raw []string) map[int]*core.Term {
 		if want.Kind == core.KName && want.Name == raw[i] {
 			continue // unchanged; nothing to hoist
 		}
-		if readsOtherLoopVar(want, raw, i) || mentionsInnerBinder(want) {
+		// AND EVERY NAME IT MENTIONS MUST BE A LOOP VARIABLE.
+		//
+		// The post clause sits OUTSIDE every binder the body opens, so an update
+		// that mentions anything bound inside it is undefined there. ADR 0015
+		// permits `again` under a `let`, and decimal rendering uses that:
+		//
+		//	(let (/ v 100000000) (fn (nv) (again … nv …)))
+		//
+		// so `v`'s update is the name `nv`. It reads no other LOOP variable,
+		// which is what the sibling guard tests, so it was hoisted and Go
+		// refused the file with `undefined: nv44`.
+		//
+		// The rule is stated as a WHITELIST rather than as a search for inner
+		// binders, because the search has to know which names are bound where
+		// and that is exactly what a rebuilt term makes unreliable — the term
+		// reaching here can carry a binder whose body was opened by an earlier
+		// pass. Naming what is allowed needs no such knowledge: a loop variable
+		// is in scope at the post clause and nothing else is guaranteed to be.
+		// It costs the hoist for an update mentioning an outer constant, which
+		// measured as no emitted file across the whole corpus.
+		if readsOtherLoopVar(want, raw, i) || mentionsInnerBinder(want) ||
+			mentionsOutOfScope(want, raw, scope) {
 			continue
 		}
 		out[i] = want
@@ -2277,6 +2345,47 @@ func PostVars(body *core.Term, raw []string) map[int]*core.Term {
 		return nil
 	}
 	return out
+}
+
+// mentionsOutOfScope reports whether a term names anything that is not in scope
+// at the post clause: this loop's own variables, or a name the emitter has
+// already bound outside it.
+//
+// `bound` is the same set `soleExit` takes, and it is what "in scope" means
+// here — an enclosing loop's variable is in it, and a name a binder INSIDE the
+// body introduces is not.
+func mentionsOutOfScope(t *core.Term, raw []string, scope map[string]bool) bool {
+	ok := make(map[string]bool, len(scope)+len(raw))
+	for n := range scope {
+		ok[n] = true
+	}
+	for _, v := range raw {
+		ok[v] = true
+	}
+	found := false
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil || found {
+			return
+		}
+		if x.Kind == core.KName && !ok[x.Name] {
+			found = true
+			return
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	// The OPERATOR of an application is a primitive's name, not a value, so it
+	// is skipped: `(+ i 1)` mentions `+`, which is in scope everywhere.
+	if t != nil && t.Kind == core.KApp {
+		for _, a := range t.Args() {
+			walk(a)
+		}
+		return found
+	}
+	walk(t)
+	return found
 }
 
 // mentionsInnerBinder reports whether a term refers to a binder opened between

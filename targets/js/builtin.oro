@@ -35,6 +35,18 @@
     ; does not have; declaring both would reintroduce Go's suffix split for a
     ; reason belonging entirely to us. `any` demands nothing, so ONE name
     ; serves — at the price of no numeric checking on this target at all.
+    ; ---- the free monoid (string-operations.md §1)
+    ;
+    ; CONCATENATION is the monoid's operation and `""` its unit. V8 ropes it, so
+    ; it is O(1) amortised here where Go and the JVM copy — a difference in
+    ; PRICE and not in answer, which is what keeps it Tier 1.
+    (prim concat (string string) string expr "%s + %s" pure)
+
+    ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
+    ; `fromCodePoint` and NOT `fromCharCode`, which takes a UTF-16 code unit and
+    ; would truncate every scalar above the BMP.
+    (prim string-of (int) string expr "String.fromCodePoint(%s)" pure)
+
     (prim +   (any any) any expr "%s + %s"  pure)
     (prim -   (any any) any expr "%s - %s"  pure)
     (prim *   (any any) any expr "%s * %s"  pure)

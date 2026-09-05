@@ -665,6 +665,13 @@ func (e *Emitter) inferLet(t *core.Term) {
 
 func (e *Emitter) typeOf(t *core.Term) string {
 	switch t.Kind {
+	case core.KStr:
+		// A STRING LITERAL HAS A TYPE, and until a program used one in a typed
+		// position nothing needed to say so. `(if c "0" (digits x))` came out
+		// `/*unknown*/` — the conditional asks its branches and a literal had
+		// no answer. Found by the first text program (examples/big/render.oro),
+		// which is decimal rendering and returns one.
+		return "string"
 	case core.KInt:
 		return "int"
 	case core.KFloat:
@@ -1671,7 +1678,7 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	}
 	// A uniformly-updated loop variable moves into the `for` statement's post
 	// clause, which is what turns several back edges into one — see PostVars.
-	post := PostVars(body, raw)
+	post := PostVars(body, raw, e.bound)
 	if len(post) > 0 {
 		var lhs, rhs []string
 		for i := range names {

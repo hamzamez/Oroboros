@@ -34,6 +34,17 @@
 (target go
   (module go/strings
     ; ---- splitting and joining
+    ; ---- the free monoid (string-operations.md §1)
+    ;
+    ; CONCATENATION is the monoid's operation and `""` its unit. Found by
+    ; spelling, so this file says how Go does it and nothing in the compiler
+    ; learns that Go spells it `+`.
+    (prim concat (string string) string expr "%s + %s" pure)
+
+    ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
+    ; With `concat` and `""` it builds any string, which is what "free" means.
+    (prim string-of (int) string expr "string(rune(%s))" pure)
+
     (prim Fields   (string) slice-string          expr "strings.Fields(%s)"      pure (import "strings"))
     (prim Split    (string string) slice-string   expr "strings.Split(%s, %s)"   pure (import "strings"))
     (prim SplitN   (string string int) slice-string

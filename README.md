@@ -713,18 +713,28 @@ The honest list, with the reasoning written down rather than deferred to memory:
   of what the language refuses. And the *performance* half of the counter-claim is now known to be
   host-specific (see above), so ADR 0014 rests on portability — stack depth differs by orders of
   magnitude across the four hosts and none guarantees tail calls.
-- **Strings — the next thing, and the last owed item.** `general-purpose.md`'s list is otherwise
+- **Strings — started, and derived rather than borrowed.** `general-purpose.md`'s list is otherwise
   answered: recursion by two parsers that do not need it, sums built, maps built, growable
-  collections withdrawn. Strings have a **term kind and reader syntax and no semantics, no
-  representation, no operations and no specification** — `strings.md` exists "to make the addition
-  legitimate or to remove it", and that is unresolved. It also blocks the one capability gap left in
-  integers: windows can compute an arbitrary-precision value and cannot print one, and decimal
-  conversion is repeated division by a power of ten, which is exactly the arithmetic that now exists.
-  It has a number attached rather than only a name: a string-based tokeniser is **1.89× slower than an array-based one on V8**, so a JSON
-  API handed a string should convert once rather than index it
-  ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)). `length` of `"🙂"` is 4 on Go, 2 on
-  JS and Java and 1 counting characters, which is why strings have almost no operations
-  ([strings.md](docs/spec/strings.md)). **Maps** are built ([maps.md](docs/spec/maps.md)), and
+  collections withdrawn. **A string is an element of `Scalar*`, the free monoid over Unicode scalar
+  values**, and that one choice settles the rest: literals and their **six escapes are FORCED** by
+  the notation rather than copied from a host
+  ([string-literals.md](docs/spec/string-literals.md)), and the free monoid's universal property
+  **enumerates** the operation set instead of leaving it to taste — an encoding being a monoid
+  homomorphism too ([string-operations.md](docs/string-operations.md)).
+  **And the first real text program FOLDS rather than indexing**: decimal rendering of a bignum is
+  20 lines in three derived operations — `concat`, `""` and η — with no `(s i)`, no `length` and no
+  string `=`, on three hosts and both storage representations
+  ([render-2026-09-04](gauntlet/results/render-2026-09-04.md)). That defers the representation
+  question rather than answering it, because a text-CONSUMING program would index: a string-based
+  tokeniser is **1.89× slower than an array-based one on V8**
+  ([jsontok-2026-08-26](gauntlet/results/jsontok-2026-08-26.md)), and indexing by scalar position is
+  **quadratic on every host** — 262 ms on Go, 383 ms on V8, 97 ms on Java at 16,000 scalars — because
+  text is stored variable-width everywhere, so `alloc` is the resolution when one is needed.
+  It also corrects `strings.md` §2: `length` of `"🙂"` being 4 on Go and 2 on JS and Java are answers
+  to *different questions* — bytes and UTF-16 units — and the scalar count is **one answer,
+  computable on every target at O(n)**, which is price rather than disagreement. What is still owed
+  is windows, which has all the arithmetic and no string type, so `concat` and η there are a library
+  over `build`. **Maps** are built ([maps.md](docs/spec/maps.md)), and
   **growable collections are withdrawn**: count-then-build measures **2.95× faster than growing
   `append` on Go** and at parity on JavaScript, so the workaround every array language uses is
   better than the thing it works around ([maps-2026-08-30](gauntlet/results/maps-2026-08-30.md)).
@@ -748,7 +758,8 @@ The honest list, with the reasoning written down rather than deferred to memory:
   erased by inlining, and the analysis cannot supply what it says — it reports `[-inf, +inf]` for a
   loop whose trip count is a constant 6, and a factorial's bound is not expressible in an interval
   domain at all ([ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md)).
-  What is left is not integer work: **rendering a bignum on windows** waits on strings,
+  What is left is not integer work: **rendering a bignum on windows** waits on a string library for
+  that host — the other three render today ([render-2026-09-04](gauntlet/results/render-2026-09-04.md)),
   **big-by-big division** (Knuth D) has no caller, and **32-bit limbs and a per-operation threshold**
   would move no target's declaration on today's numbers. The one open question is
   [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s own trigger — *how many declarations

@@ -300,6 +300,13 @@ func (e *javaEmitter) inferLet(t *core.Term) {
 
 func (e *javaEmitter) typeOf(t *core.Term) string {
 	switch t.Kind {
+	case core.KStr:
+		// A STRING LITERAL HAS A TYPE, and until a program used one in a typed
+		// position nothing needed to say so. `(if c "0" (digits x))` came out
+		// `/*unknown*/` — the conditional asks its branches and a literal had
+		// no answer. Found by the first text program (examples/big/render.oro),
+		// which is decimal rendering and returns one.
+		return "string"
 	case core.KInt:
 		return "int"
 	case core.KFloat:
@@ -1322,7 +1329,7 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	// A uniformly-updated loop variable moves into the `for` statement's post
 	// clause — see PostVars. On Go this recovered 1.4x on the sieve, by giving
 	// the loop one back edge instead of several.
-	post := PostVars(body, raw)
+	post := PostVars(body, raw, e.bound)
 	if len(post) > 0 {
 		// ONE ASSIGNMENT PER VARIABLE, not Go's tuple assignment. Go's post
 		// clause is `a, b = x, y`, which is a simultaneous assignment; Java's is

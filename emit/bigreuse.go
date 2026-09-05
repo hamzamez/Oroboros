@@ -235,15 +235,25 @@ func (p *intervalPass) reuseInLoop(t *core.Term, raw []string, inits []*core.Ter
 		return core.App(t.Op(), t.Args()[0], a, b)
 	case "let":
 		// ADR 0015 permits `again` under a `let`. The bound value is not a
-		// clause body, so only the body is walked — and the binder is left
-		// closed, because rule R needs no name from inside it: every variable it
-		// reasons about is a LOOP variable, which is in scope on both sides.
+		// clause body, so only the body is walked.
+		//
+		// `Body()` OPENS, so the walked body carries this binder's parameters as
+		// NAMES and must be CLOSED again — `core.Fn` closes, `FnClosed` does
+		// not. Getting it wrong leaves the parameter's occurrences free, which
+		// PRINTS IDENTICALLY: the binder still shows its name and so does every
+		// occurrence, so no comparison of printed terms can see it. What it
+		// costs arrives one pass later — `p.let` freshens the binder against the
+		// names in scope and does NOT rename the (now free) occurrences with it,
+		// so the backend emits `_ = …` for a binding nothing uses beside a use
+		// of an undefined name. Fourth time `Body()`/`openFresh` rebuilding has
+		// bitten this compiler, and the first where the wrong term still printed
+		// correctly.
 		if len(t.Args()) != 2 || t.Args()[1].Kind != core.KFn {
 			return t
 		}
 		lam := t.Args()[1]
 		nb := p.reuseInLoop(lam.Body(), raw, inits)
-		return core.App(t.Op(), t.Args()[0], core.FnClosed(lam.Params, nb))
+		return core.App(t.Op(), t.Args()[0], core.Fn(lam.Params, nb))
 	}
 	return t
 }

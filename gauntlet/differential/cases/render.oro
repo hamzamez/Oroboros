@@ -1,0 +1,63 @@
+; DECIMAL RENDERING OF A BIGNUM, WRITTEN IN OROBOROS — the first text program.
+;
+; It exists to answer a question string-operations.md could not: does a text
+; program INDEX a string, or only fold it? That decides whether a string has to
+; become an indexable table and pay UTF-32, or can stay the free monoid it is.
+;
+; THE ANSWER IS THAT IT FOLDS. Every string here is built by `concat` out of
+; one-scalar strings — `η : Scalar → Scalar*`, the generator injection the free
+; monoid's universal property is stated in terms of. Nothing is indexed, nothing
+; needs a length, nothing compares two strings. Three operations, all derived.
+;
+; prints: string
+; big-repr: both
+;
+; BOTH STORAGE CHOICES, which makes this the first program to drive the limb
+; library end to end: `x % 10^8` is `rem-small`, `x / 10^8` is `div-small`, and
+; `(= v 0)` and `(> nv 0)` are the limb-wise `cmp` — all three landed yesterday
+; with only unit tests and a hand-written case behind them.
+;
+; skip: windows
+;
+; windows is skipped for a CAPABILITY reason and it is now a precise one: that
+; host declares neither `concat` nor `string-of`, because it has no string type —
+; a string there is a pointer to NUL-terminated bytes. It can do all the
+; arithmetic below. What it needs is those two operations written as a library
+; over `build`, which is the shape `emit/bignum.oro` already has.
+;
+;   run n = the decimal digits of (25 + n)!
+
+; inputs: 0 5
+; expect: 15511210043330985984000000 265252859812191058636308480000000
+
+(export run)
+
+; Eight decimal digits of a machine word, most significant first, built by
+; PREPENDING — which is the monoid operation, and the reason no index is needed.
+; `pad` keeps an interior group's leading zeros and drops the top group's; the
+; two differ only in a guard, so there is one `again` (ADR 0015).
+(def group (fn (d pad)
+  (loop ((s "") (k 0) (r d))
+    (>= k 8)                              s
+    (and (not pad) (and (= r 0) (> k 0))) s
+    else (again (concat (string-of (+ 48 (% r 10))) s) (+ k 1) (/ r 10)))))
+
+; Least significant group first, each prepended, so the digits come out in order
+; without anything being indexed or reversed. The trip bound is what makes it
+; terminate provably: nothing can bound a big value's magnitude from its
+; structure, so the program says how many groups there can be — `tree.oro`'s node
+; cap again, where a capacity does not create the limit but makes it visible.
+(def digits (fn (x)
+  (loop ((s "") (v x) (i 0))
+    (= v 0)   s
+    (>= i 32) s
+    else (let (/ v 100000000) (fn (nv)
+           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1)))))))
+
+(sig render ((x (int 0 (pow 2 200)))) string)
+(def render (fn (x) (if (= x 0) "0" (digits x))))
+
+(sig fact ((n (int 0 40))) (int 0 (pow 2 200)))
+(def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
+
+(def run (fn (n) (render (fact (+ 25 n)))))

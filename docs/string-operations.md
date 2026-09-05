@@ -233,3 +233,26 @@ before declaring an operation nobody calls.
 and which is a fold: repeated divmod produces digits, and digits concatenate. It
 uses `concat` and never indexes. That is one data point in the direction of "the
 monoid is enough", and it is available now.
+
+## 9. TAKEN — and it folds
+
+2026-09-04, [render-2026-09-04](../gauntlet/results/render-2026-09-04.md),
+[examples/big/render.oro](../examples/big/render.oro).
+
+Decimal rendering is written in **three operations, and all three are §1's**:
+`concat`, `""`, and η as `string-of`. It uses **no `(s i)`, no `length` and no
+string `=`** — so the first real text program in this language needed nothing
+from §5 and nothing from
+[overloading.md §3](overloading.md)'s concept-name machinery.
+
+`concat` and `string-of` are **two declarations per target and no compiler code**,
+found by spelling. windows declares neither and is skipped for a capability
+reason: it has no string type, so those two are a library over `build` there.
+
+**What this settles and what it does not.** It settles that the monoid alone
+carries a text-PRODUCING program, so §8's items 1 and 2 should be deferred rather
+than built ahead of a caller. It does not settle §5: a text-CONSUMING program —
+a tokeniser over text, a formatter reading a template — would index, and
+jsontok-2026-08-26's 1.89× is that case pointing the other way. **One program is
+one data point**, and the honest reading is that the pressure to make `string` a
+table has not arrived yet, not that it will not.

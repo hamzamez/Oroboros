@@ -976,7 +976,7 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	// A uniformly-updated loop variable moves into the `for` statement's post
 	// clause — see PostVars. On Go this recovered 1.4x on the sieve, by giving
 	// the loop one back edge instead of several.
-	post := PostVars(body, raw)
+	post := PostVars(body, raw, e.bound)
 	if len(post) > 0 {
 		// ONE ASSIGNMENT PER VARIABLE. This emitter had Go's tuple assignment
 		// verbatim — `a, b = x, y` — and in JavaScript that is the COMMA

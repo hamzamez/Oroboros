@@ -1855,6 +1855,53 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**AND A TEXT PROGRAM FOLDS — IT DOES NOT INDEX** —
+[render-2026-09-04](gauntlet/results/render-2026-09-04.md),
+[examples/big/render.oro](examples/big/render.oro). overloading.md §5 named ONE measurement as the
+thing that decides how a string is represented, and named the program that could take it: **does a
+real text program INDEX a string, or only fold it?** Decimal rendering of an arbitrary-precision
+value is 20 lines using **three operations — `concat`, `""` and η — every one DERIVED from the free
+monoid** rather than chosen, and it uses **no `(s i)`, no `length` and no string `=`**. So the first
+real text program needed **none** of the machinery overloading.md §3 exists to justify. That is a
+reason to DEFER a concept name, `len` on a second type and `alloc` on a string, not to refuse them —
+and it is one data point, deliberately: a text-CONSUMING program would index, which is
+jsontok-2026-08-26's 1.89x pointing the other way.
+
+**Two primitives per target and NO compiler code**, found by SPELLING the way `findEq` finds
+equality: `a + b` / `string(rune(c))` on Go, `a + b` / **`String.fromCodePoint`** on V8 (not
+`fromCharCode`, which takes a UTF-16 code unit and truncates every scalar above the BMP),
+`a.concat(b)` / **`Character.toChars`** on Java (the surrogate PAIR being UTF-16's representation of
+ONE scalar). **windows declares neither and is skipped for a CAPABILITY reason**: it has no string
+type and can do every piece of the arithmetic — what it needs is those two written as a library over
+`build`, which is `emit/bignum.oro`'s shape and the last capability gap in the integer work.
+**Six variants agree byte-for-byte** — three hosts x both storage choices — which drives the
+fixed-limb library end to end for the first time: `%` is `big%-small`, `/` is `big/` by a widened
+word, and the guards are the limb-wise `cmp`.
+
+**AND THE BUG OF THE DAY PRINTS CORRECTLY, WHICH IS WHY NOTHING COULD FIND IT.** `bigreuse.go`'s
+`let` walked `lam.Body()` — which **OPENS** — and rewrapped with **`FnClosed`, which does not
+close**, so the parameter's occurrences were left FREE. **`Term.String` renders a lambda by opening
+its body, so a binder that binds nothing prints identically to one that does**: two terms differing
+in *whether a variable is bound at all* have the same printed form, no comparison of printed terms
+can see it, and the differential suite cannot either because the residual is still a legal term. It
+surfaces one pass later — `intervalPass.let` freshens the binder and does NOT rename the free
+occurrences with it — as `_ = …` for an unused binding beside `undefined: nv19`. **Fourth time
+`Body()`/`openFresh` rebuilding has bitten this compiler, and the first where the wrong term was
+still printable.** Two more of the same shape were then found BY LOOKING (`mapCase` and `ruleTable`
+closed on the original params while the body carried `openFresh`'s renamed ones) plus one harmless
+only by luck (`intervals`' own head) — **a structural invariant that holds by luck at one site is not
+an invariant**. Pinned by a test stating the property directly — *a lambda's closed body never
+contains a free name equal to one of its own parameters* — over the WHOLE pipeline, and it runs on
+`render.oro` because **the shape cannot be hand-written down small**: a miniature with a big loop
+variable and a `let` under the `again` declined rule R and never reached the rebuild.
+
+**And a fourth bug from the fix, which is ADR 0015 meeting the post clause.** `PostVars` hoists a
+uniformly-updated loop variable to the `for` HEAD, outside every binder the body opens — and `again`
+under a `let` is exactly what ADR 0015 permits, so the digit loop hoisted a name out of the `let`
+that binds it. The rule is now stated **positively** — hoist only what is in scope AT THE POST CLAUSE
+— rather than by enumerating what to avoid. **Cost of all four: no emitted file changes**, 60 files
+across four targets byte-identical, so this is a correctness result with no speed claim.
+
 **AND IT IS BUILT: A DECLARATION IS A DIRECTIVE, SO IT MOVES ONTO THE TERM** —
 [ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md), on hamza's *"that information will
 propagate through the program safely and confidently, statically checked, using the best
@@ -2644,7 +2691,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision); `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision, including `render.oro` — the first text program); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 

@@ -87,7 +87,7 @@ func TestTheHoistedUpdateAppearsExactlyOnce(t *testing.T) {
 func TestAnUpdateReadingAnotherVariableIsNotHoisted(t *testing.T) {
 	raw := []string{"i", "j"}
 	body := mustRead(t, `(if c (again (go.+ i j) (go.+ j 1)) i)`)
-	post := PostVars(body, raw)
+	post := PostVars(body, raw, map[string]bool{})
 	if _, ok := post[0]; ok {
 		t.Error("(go.+ i j) reads j, which is also changing — it must stay in the body")
 	}
@@ -100,7 +100,7 @@ func TestAnUpdateReadingAnotherVariableIsNotHoisted(t *testing.T) {
 func TestDisagreeingUpdatesAreNotHoisted(t *testing.T) {
 	raw := []string{"i"}
 	body := mustRead(t, `(if c (again (go.+ i 1)) (again (go.+ i 2)))`)
-	if len(PostVars(body, raw)) != 0 {
+	if len(PostVars(body, raw, map[string]bool{})) != 0 {
 		t.Error("two different updates cannot become one post clause")
 	}
 }
@@ -109,7 +109,7 @@ func TestDisagreeingUpdatesAreNotHoisted(t *testing.T) {
 func TestUnchangedVariablesAreNotHoisted(t *testing.T) {
 	raw := []string{"i"}
 	body := mustRead(t, `(if c (again i) i)`)
-	if len(PostVars(body, raw)) != 0 {
+	if len(PostVars(body, raw, map[string]bool{})) != 0 {
 		t.Error("an unchanged variable has nothing to hoist")
 	}
 }
@@ -153,5 +153,55 @@ func TestPostDoesNotHoistOutOfALet(t *testing.T) {
 	}
 	if strings.Contains(code, "#0.") {
 		t.Errorf("a bound index escaped into the emitted code:\n%s", code)
+	}
+}
+
+// AN UPDATE NAMING SOMETHING BOUND INSIDE THE LOOP IS NOT HOISTED.
+//
+// The post clause runs at the `for` statement's head, outside every binder the
+// body opens — so an update mentioning a `let`'s name is a reference to
+// something that does not exist there. ADR 0015 permits `again` under a `let`
+// precisely so a clause can compute with an intermediate value, which makes
+// this reachable rather than theoretical: `examples/big/render.oro`'s digit
+// loop binds `nv` to `v / 10^8` and passes it as the next `v`, and hoisting
+// that emitted `undefined: nv`.
+//
+// The rule is stated positively — hoist only what is in scope AT THE POST
+// CLAUSE — rather than by enumerating what to avoid. `scope` is the emitter's
+// own set of bound names, so an enclosing loop's variable qualifies and a name
+// introduced inside the body does not.
+func TestAnUpdateNamingAnInnerBindingIsNotHoisted(t *testing.T) {
+	raw := []string{"s", "v", "i"}
+	body := mustRead(t, `(let (go./ v 100) (fn (nv) (again s nv (go.+ i 1))))`)
+	post := PostVars(body, raw, map[string]bool{})
+	if _, ok := post[1]; ok {
+		t.Error("`nv` is bound by the `let` INSIDE the loop body; an update " +
+			"naming it cannot run at the loop header")
+	}
+	// AND THE CONTROL: the counter beside it mentions nothing but itself, so it
+	// must still hoist. A rule that refused everything would pass the check
+	// above and prove nothing.
+	if _, ok := post[2]; !ok {
+		t.Error("(go.+ i 1) names only its own loop variable and must hoist; " +
+			"the rule has become a blanket refusal")
+	}
+}
+
+// AND A NAME THE EMITTER ALREADY HAS IN SCOPE IS FINE.
+//
+// The companion to the test above in the other direction: an update reading an
+// enclosing function's parameter, or an outer loop's variable, refers to
+// something that exists at the post clause and must not be refused. Without
+// this the rule would cost the hoist on every loop that reads a parameter.
+func TestAnUpdateReadingAnEnclosingNameIsHoisted(t *testing.T) {
+	raw := []string{"i"}
+	body := mustRead(t, `(if c (again (go.+ i n)) i)`)
+	if _, ok := PostVars(body, raw, map[string]bool{"n": true})[0]; !ok {
+		t.Error("`n` is bound outside the loop, so it is in scope at the post " +
+			"clause and the update must hoist")
+	}
+	if _, ok := PostVars(body, raw, map[string]bool{})[0]; ok {
+		t.Error("with `n` in nothing's scope the update must be refused; " +
+			"otherwise this test is not testing the scope set")
 	}
 }

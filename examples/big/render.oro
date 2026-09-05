@@ -1,0 +1,60 @@
+; DECIMAL RENDERING OF AN ARBITRARY-PRECISION VALUE, written in Oroboros.
+;
+; The first real text program in this language, and it exists to answer a
+; question string-operations.md could not: does a text program INDEX a string,
+; or only fold it? That decides whether a string has to become an indexable
+; table (and pay UTF-32) or can stay the free monoid it is.
+;
+; THE ANSWER IS THAT IT FOLDS. Every string here is built by `concat` out of
+; one-scalar strings; nothing is indexed, nothing needs a length, and nothing
+; compares two strings. Three operations — `concat`, `""` and η — and every one
+; of them is derived from the free monoid rather than chosen.
+;
+; It is also the arithmetic half of what windows has been missing: that host can
+; compute an arbitrary-precision value and cannot print one, and printing is
+; repeated division by a power of ten, which `div-small` and `rem-small` are.
+;
+;   x % 10^8   is `big%-small`, whose result is a machine WORD
+;   x / 10^8   is `big/` by a widened word, one pass
+;
+; The group size is 10^8 rather than 10^9 because `div-small`'s column is
+; `r * 2^24 + limb`, which stays inside ADR 0012's window only for a divisor
+; under about 2^28 — and nothing here states that, because bounded-by-default
+; asks at the call site with the caller's own range in hand.
+
+(export render)
+
+; ---------------------------------------------------------------- one group
+;
+; Eight decimal digits of a machine word, most significant first, built by
+; PREPENDING each digit to what is already there — which is the monoid operation
+; and the reason no index is ever needed.
+;
+; `pad` says whether this is an interior group, which keeps its leading zeros,
+; or the most significant one, which does not. The two cases differ only in a
+; guard, so there is one `again` (ADR 0015).
+(def group (fn (d pad)
+  (loop ((s "") (k 0) (r d))
+    (>= k 8)                              s
+    (and (not pad) (and (= r 0) (> k 0))) s
+    else (again (concat (string-of (+ 48 (% r 10))) s) (+ k 1) (/ r 10)))))
+
+; ---------------------------------------------------------------- the value
+;
+; Least significant group first, each PREPENDED, so the result comes out in
+; order without anything ever being indexed or reversed.
+;
+; The trip bound is what makes this terminate provably: `v` shrinks by a factor
+; of 10^8 each time, and nothing can bound a big value's magnitude from its
+; structure, so the program says how many groups there can be. That is
+; `tree.oro`'s node cap again — a capacity does not create the limit, it makes
+; it visible.
+(def digits (fn (x)
+  (loop ((s "") (v x) (i 0))
+    (= v 0)   s
+    (>= i 32) s
+    else (let (/ v 100000000) (fn (nv)
+           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1)))))))
+
+(sig render ((x (int 0 (pow 2 200)))) string)
+(def render (fn (x) (if (= x 0) "0" (digits x))))

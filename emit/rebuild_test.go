@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"os"
 	"strings"
 	"testing"
 
@@ -230,5 +231,103 @@ func TestSiblingBindersKeepTheirNames(t *testing.T) {
 	_, out := Intervals(tg, nil, in, 0)
 	if got, want := out.String(), in.String(); got != want {
 		t.Errorf("sibling binders were renamed.\n  in:  %s\n  out: %s", want, got)
+	}
+}
+
+// AND THE INVARIANT HOLDS FOR THE WHOLE PIPELINE, NOT ONLY FOR `Intervals`.
+//
+// The two tests above check one pass on a hand-written term. `PromoteBig` runs
+// several more — the representation solver, the fixed-limb lowering, and the
+// mutable-bignum rewrite — and each of them rebuilds lambdas, so each can make
+// the same mistake. One did: `bigreuse.go`'s `let` case walked `lam.Body()`,
+// which OPENS, and rewrapped with `FnClosed`, which does not close.
+//
+// WHAT MAKES THIS SHAPE HARD IS THAT IT PRINTS CORRECTLY. `Term.String` renders
+// a lambda by OPENING its body, so a binder whose occurrences were left as free
+// names prints exactly like one whose occurrences are indices — same parameter,
+// same body. Two terms differing in whether a variable is bound at all have the
+// same printed form, so no comparison of printed terms can see it, and neither
+// can the differential suite: the residual is still a legal term.
+//
+// It surfaces one pass later. `p.let` freshens the binder against the names in
+// scope; the occurrences are free, so they are NOT renamed with it; and the Go
+// backend then emits `_ = …` for a binding nothing uses beside a use of an
+// undefined name. `render.oro` failed to compile with `undefined: nv19`.
+//
+// So the check is structural and it runs over a real program.
+func TestPipelineNeverLeavesABinderOpen(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A REAL PROGRAM, because the shape cannot be hand-written down small: it
+	// needs an arbitrary-precision loop variable (to bring `bigreuse` into the
+	// pipeline at all), a `let` under the `again` (ADR 0015's permission, and
+	// the case that broke), and the `let`'s name read from INSIDE a further
+	// binder — a hand-written miniature satisfying the first two still declined
+	// rule R and never reached the rebuild.
+	text, err := os.ReadFile("../examples/big/render.oro")
+	if err != nil {
+		t.Skip(err)
+	}
+	forms, err := core.Read(string(text))
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.LoadWith(forms, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := prog.Exports[0]
+	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var all []*core.Sig
+	for _, s := range prog.Sigs {
+		all = append(all, s)
+	}
+	out, n, err := PromoteBig(tg, prog.Sigs[q], nf, all...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n == 0 {
+		t.Fatal("nothing was promoted, so this test proves nothing about the " +
+			"bignum passes")
+	}
+	// The invariant, on the promoted term and on what `-checked` would emit.
+	_, sel := Intervals(tg, prog.Sigs[q], out, 0)
+	for _, c := range []struct {
+		what string
+		term *core.Term
+	}{{"promoted", out}, {"checked", sel}} {
+		var walk func(*core.Term, []string)
+		walk = func(x *core.Term, bound []string) {
+			if x == nil {
+				return
+			}
+			switch x.Kind {
+			case core.KName:
+				for _, b := range bound {
+					if x.Name == b {
+						t.Fatalf("%s: %q occurs as a free NAME inside the lambda "+
+							"that binds it — a rebuilt body was never closed. "+
+							"This term PRINTS correctly; only this check sees it.",
+							c.what, b)
+					}
+				}
+			case core.KFn:
+				walk(x.Closed(), append(append([]string{}, bound...), x.Params...))
+			default:
+				for _, k := range x.Kids {
+					walk(k, bound)
+				}
+			}
+		}
+		walk(c.term, nil)
 	}
 }

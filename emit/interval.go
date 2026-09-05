@@ -827,7 +827,14 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 	rep.Result = res
 	sort.Strings(rep.Unproven)
 	if head != nil {
-		out = core.FnClosed(head.Params, out) // t.Body() was already closed
+		// `t = t.Body()` above OPENED this binder, so the rebuilt body carries the
+		// parameters as NAMES and `core.Fn` — which closes — is what puts them
+		// back. It has never mattered: nothing encloses the head, so no later pass
+		// renames it and a free `n` beside a parameter `n` emits correctly. It is
+		// fixed because the same mistake one level down is what bigreuse.go's
+		// `let` was, and a structural invariant that holds by luck at one site is
+		// not an invariant.
+		out = core.Fn(head.Params, out)
 	}
 	return rep, out
 }
@@ -968,7 +975,7 @@ func (p *intervalPass) mapCase(t *core.Term) (ival, *core.Term, bool) {
 	restoreVar(p.env, raw[0], oldT, hadT)
 	restoreVar(p.env, raw[1], oldP, hadP)
 	p.releaseBound(raw)
-	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(k.Params, nb)}}, true
+	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}, true
 }
 
 func restoreVar(env map[string]ival, n string, old ival, had bool) {
@@ -1010,7 +1017,7 @@ func (p *intervalPass) ruleTable(t *core.Term) (ival, *core.Term) {
 	restoreVar(p.env, raw[0], old, had)
 	p.releaseBound(raw)
 	return top, &core.Term{Kind: core.KApp, Kids: []*core.Term{
-		t.Op(), nn, core.Fn(args[1].Params, nb)}}
+		t.Op(), nn, core.Fn(raw, nb)}}
 }
 
 // releaseBound drops a binder's fresh names when the pass leaves its scope.
@@ -2119,6 +2126,28 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// finitely many names, so it terminates; the bound is one promotion per
 	// variable plus a sweep to observe stability.
 	if p.bigOK() && p.tgt.HasBig() && (p.loopTail || len(p.big) > 0) {
+		// SUPPLY REACHES A LOOP VARIABLE THROUGH ITS INITIALISER, and this line
+		// is rule (S) arriving at the back edge.
+		//
+		// The fixpoint below is rule (P) — promote a variable a big operation
+		// READS and the intervals cannot bound — and rule (D), the demand from
+		// the position the loop sits in. Neither fires for a loop seeded from a
+		// big value whose result is an ordinary word:
+		//
+		//	(loop ((v x)) (= v 0) 1 else (again (/ v 10)))
+		//
+		// with `x` a declared big parameter. A comparison deliberately records
+		// no read (a word compared against a bignum is widened at the comparison
+		// and is still a word everywhere else), a pass-through `again` reads
+		// nothing, and the loop's own value is an `int` — so `v` stayed a
+		// machine word and the checker refused the guard by name. The first
+		// program to hit it was decimal rendering, whose whole shape is a big
+		// value walked down to nothing while the answer is a string.
+		for i, nm := range raw {
+			if i < len(inits) && p.bigTerm(inits[i]) {
+				p.promote(nm)
+			}
+		}
 		for round := 0; round < len(raw)+3; round++ {
 			p.bigChanged = false
 			p.bigReads = map[string]bool{}

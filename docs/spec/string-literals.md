@@ -93,6 +93,24 @@ notation that splits them at U+FFFF is describing UTF-16's internals rather than
 the object. It also cannot spell half of a surrogate pair, so §1's exclusion is
 checked as a numeric range rather than as a rule about how two escapes combine.
 
+**And the digits are HEXADECIMAL because a scalar value's canonical name is.**
+Unicode writes U+1F642 — in the standard, in every chart, in every reference a
+programmer will have open — so naming a scalar the way the standard names it is
+the point rather than a base preference. Two facts follow it rather than
+motivating it: the set's own structure is legible in hex and invisible in decimal
+(the surrogate hole is D800–DFFF, the largest scalar is 10FFFF; in decimal those
+are 55296–57343 and 1114111, numbers that say nothing about the boundaries they
+mark), and a hex digit is four bits, so UTF-16's split falls on a digit edge.
+
+The objection is real and worth recording: **this language has no hexadecimal
+anywhere else.** `(int 0 1114111)` is decimal, and `(pow 2 200)` exists precisely
+so a large bound need not be written in an unusual notation. What answers it is
+that `\u{…}` is not an integer literal but a **delimited naming context** — three
+characters of syntax whose whole content is a code point — so it cannot be
+confused with a number anywhere else, and it costs one local convention rather
+than a second numeric syntax. `\u{128578}` would be a number that appears in no
+Unicode document.
+
 ### Not escapes
 
 `\a`, `\b`, `\f`, `\v`, `\xHH`, `\NNN` and every other `\X`. **An unknown escape

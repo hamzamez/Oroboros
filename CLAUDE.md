@@ -1744,6 +1744,53 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**ONE NAME AT SEVERAL TYPES IS ALREADY BUILT, AND IT IS NOT OVERLOADING** —
+[overloading.md](docs/overloading.md), research, no decision, on hamza's three questions: why
+hexadecimal in a scalar escape, whether storing a length settles the O(n), and whether it is time to
+discuss overloading. They connect, and the third has an answer this repository already uses twice
+and had never named.
+
+**`len` is defined TODAY on both `(array V)` and `(map K V)`** — a slice header's length and a hash
+table's count, different host operations selected by the argument's type at emission, with
+`map-len` as a differential case and maps.md recording the per-target cost. So the language already
+has *one name meaning one concept at two unrelated type constructors*, and a string would be a
+third instance of an existing mechanism rather than a new one. **What makes it cheap is that the
+residual is MONOMORPHIC** — decidability-map.md's own point — so there is no inference, no
+dictionary and no runtime dispatch, exactly like `int-repr` and `big-repr` selecting a
+representation.
+
+**Three things share a name and only one is overloading.** (a) parametric — `len : (array V) → int`,
+already works, nothing dispatches. (b) a **CONCEPT NAME**: one operation on a CLOSED set of types,
+resolved at emission; the set being closed is what stops it being ad-hoc, exactly as a target may
+not declare `if`. (c) genuine ad-hoc overloading — two unrelated operations sharing a name — which
+nothing has asked for. **Arity** overloading has one live instance and it is a target-file wart:
+`Println`, `Println2`, `Println3` exist because `tg.Prims` is keyed by name alone.
+
+**AND THE OVERLOADING QUESTION IS THE REPRESENTATION QUESTION.** If a string IS a table there is
+nothing to overload; if it is opaque there are three names to share and the mechanism exists. Both
+roads are open, neither needs a new idea, and what decides is a measurement nobody has taken: **does
+a real text program index a string, or only fold it?**
+
+**Storing the length is right about the cheaper half.** It fixes `length` and cannot fix `(s i)` —
+that is O(n) because the encoding is variable-width, so the question is not *how many* but *where*.
+It also makes our string stop being the host's string, which is what strings.md §3 avoids on
+purpose; and `alloc` already buys the length in O(1) **plus** indexing, so a length field is
+**dominated**, the same shape arrays-revisited found for free mutation against uniqueness types.
+**The honest residue** is that `(>= i (length s))` in a loop guard is O(n²) unless the compiler
+hoists a loop-invariant pure call, which it does not do today.
+
+**Hexadecimal because a scalar value's canonical NAME is hexadecimal** — U+1F642 is what the
+standard writes, so the escape names the thing the way the thing is named. The surrogate hole and
+the largest scalar are D800–DFFF and 10FFFF, which say nothing in decimal. The objection stands and
+is answered rather than dismissed: this language has no hex anywhere else, and what makes it
+affordable is that the escape is a **delimited naming context** rather than an integer literal.
+
+**Recommended next: build `concat` and `empty`, write decimal rendering, decide nothing else.** It
+is a FOLD, it needs neither `len` nor `alloc` nor `=`, so it collides with no name and needs none of
+the machinery above; windows needs it and it is the last capability gap in the integer work; and the
+arithmetic half already exists, since `div-small` and `rem-small` are exactly repeated division by a
+power of ten. It takes the measurement without answering any of the questions first.
+
 **STRING LITERALS ARE SPECIFIED AND BUILT, DERIVED FROM WHAT A STRING IS** —
 [string-literals.md](docs/spec/string-literals.md), on hamza's *"targets inform the spec, they don't
 dictate it."* **The first draft did exactly that** — it built its escape set as *"the intersection

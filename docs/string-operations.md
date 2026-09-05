@@ -174,6 +174,24 @@ library that names its Unicode version.
 that *is* derived, and it is not the order anyone wants for human-facing sorting,
 which is collation. Worth having and worth labelling as code-point order.
 
+## 6a. Would storing the length settle it?
+
+It fixes the cheaper half, and this document should have kept the two O(n)s
+further apart:
+
+| | why it is O(n) | does a stored length fix it |
+|---|---|---|
+| `length s` | the scalar count must be computed by scanning | **yes** |
+| `(s i)` | the *i*-th scalar's position depends on every width before it | **no** |
+
+The second is the expensive one and it is quadratic because the encoding is
+variable-width — the question is not *how many* but *where*, so a count cannot
+answer it. And `alloc` already gives the length in O(1) **plus** the indexing, so
+a stored length is dominated by it. Fully worked in
+[overloading.md §2](overloading.md), along with the one honest residue: a
+`length` inside a loop guard is O(n²) unless a loop-invariant pure call is
+hoisted, which this compiler does not do.
+
 ## 7. The one type problem
 
 `Scalar` is `[0, D7FF] ∪ [E000, 10FFFF]` — **not an interval**, because of the

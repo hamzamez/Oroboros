@@ -62,10 +62,19 @@ because no operation in the core distinguishes them.
 
 ## 4. The specification
 
+> **The literal itself is specified in [string-literals.md](string-literals.md)** — what it
+> denotes, the escape set, and how each target must emit one. It supersedes the third bullet
+> below and §7's last item, and it was written after measuring what the four hosts actually do
+> with an escape: `\a` is a bell on Go, a **compile error** on Java and the letter `a` on
+> JavaScript, and an unprintable scalar above the BMP is correct on Go, a compile error on
+> Java and **ten literal characters** on JavaScript.
+
 **Core provides exactly one thing: a literal.**
 
-- A literal denotes a sequence of Unicode scalar values, written in source, which is UTF-8 and
-  NFC-normalised ([core-0 §1.1](core-0.md)).
+- A literal denotes a sequence of Unicode scalar values
+  ([string-literals.md §1](string-literals.md)). The source is UTF-8 and NFC-normalised
+  ([core-0 §1.1](core-0.md)) — but NFC constrains the program TEXT and not the data, which
+  that document establishes and this line used to conflate.
 - A literal may be **passed to a primitive**. That is all it can do.
 - There is **no** length, no indexing, no slicing, no concatenation, no comparison in the core.
 
@@ -126,6 +135,9 @@ unnamed — if target files grow anything the language does not have, the split 
 - **Equality, length, indexing, slicing, concatenation.** All per-target until a program needs
   otherwise.
 - **A `char` or code-point type.** Would immediately force the representation question §3 avoids.
-- **Escape-set narrowing.** The reader delegates to `strconv.Unquote`, so the accepted escapes are
-  Go's rather than the four this document implies. Recorded in
-  [concerns.md §1.5](concerns.md).
+- ~~**Escape-set narrowing.**~~ **Specified** in [string-literals.md](string-literals.md), after
+  measuring three live divergences: `\a` and `\v` do not exist on Java, `\xHH`
+  denotes a byte rather than a scalar, and an unprintable scalar above the BMP is emitted as
+  `\U…` — which Java refuses and JavaScript silently reads as ten characters. The corpus
+  uses exactly three escapes inside literals and no non-ASCII at all, so narrowing costs
+  nothing.

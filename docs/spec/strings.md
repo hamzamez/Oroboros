@@ -43,6 +43,15 @@ would call characters, and *all three* disagree with the scalar count on the emo
 There is no portable `string-length`. Not "it is hard" — the three answers are different
 integers for the same text.
 
+> **CORRECTED 2026-09-04 — this is a target fact wearing a language fact's clothes**, which is the
+> same error [string-literals.md](string-literals.md) was rewritten to remove. The three integers
+> answer three DIFFERENT questions: Go's `len` asks how many UTF-8 bytes, Java's and JavaScript's
+> ask how many UTF-16 code units, and neither asks how many SCALAR VALUES — the only question
+> `Scalar*` poses, and the one with a single answer (4, 2, **1**, 2 for the rows above). It is
+> computable on every target at O(n) rather than O(1), which maps.md already records as a
+> difference in PRICE and not a reason to call a construct Tier 2. **`length` is Tier 1**, and so
+> are `=` and `concat` — see [string-operations.md](../string-operations.md).
+
 ## 3. So what is a string here
 
 > **An immutable, opaque sequence of Unicode scalar values.**
@@ -100,6 +109,11 @@ primitive. That is a genuine limitation and it will be felt as soon as anything 
 Equality *is* representation-independent and could be promoted to Tier 1 later. It is left out
 now because nothing needs it, per [ADR 0007](../decisions/0007-exploration-over-specification.md)
 — add it when a program demands it, not before.
+
+> **AND IT IS DERIVED, not merely possible.** `Scalar` has decidable equality, so the free monoid
+> over it does — and every host's own equality already computes it, because UTF-8 and UTF-16 are
+> both bijections on scalar sequences. Nothing has to be built for it to be right
+> ([string-operations.md §1](../string-operations.md)).
 
 ## 5. A hazard the measurement turned up
 

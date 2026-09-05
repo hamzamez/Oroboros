@@ -1744,6 +1744,70 @@ linear-buffer gap in a FOURTH place after Karatsuba, the stencil and the mutable
 landing on a measurement that had become an expectation, and nothing measured the difference until
 something was emitted.
 
+**STRING LITERALS ARE SPECIFIED AND BUILT, DERIVED FROM WHAT A STRING IS** —
+[string-literals.md](docs/spec/string-literals.md), on hamza's *"targets inform the spec, they don't
+dictate it."* **The first draft did exactly that** — it built its escape set as *"the intersection
+of Go's, Java's and JavaScript's"* and justified two refusals with *"Go cannot represent one"* and
+*"a windows string is NUL-terminated"* — and re-derived, **one of those refusals does not survive**.
+
+**A string is an element of Scalar\*, the free monoid over Unicode scalar values.** Scalar values
+rather than code points because a scalar sequence has a **unique representation in every encoding
+form** and one containing a lone surrogate has none — so that set is the encoding-independent one,
+and a lone surrogate is not denotable *because it is not a scalar value*. **U+0000 IS one and is now
+allowed**: NUL-termination is the C calling convention's, so it is a precondition on `msvcrt.puts`
+rather than a hole in the language, and it measures fine on all three hosts that print.
+
+**The escape set is FORCED.** Two because the delimiter and the escape introducer cannot denote
+themselves; three because the source grammar owns tab and the line terminators — a token that may
+contain a raw line terminator makes an unterminated literal indistinguishable from a long one; and
+the general scalar escape because totality demands every scalar be writable. **Six, all derived.**
+Two of the first draft's were there only because Java and JavaScript have them. An unknown escape is
+an **error**, which follows from unambiguity — the rule JavaScript lacks, where a bell escape is the
+letter `a`.
+
+**The measured divergences, all now closed**: the bell escape was a bell on Go, a **compile error**
+on Java and the letter `a` on JavaScript; the vertical tab a compile error on Java; a hex byte
+escape a raw BYTE on Go (so not a scalar sequence at all), a compile error on Java, U+00FF on V8.
+And the sharpest, which does not depend on how it is written: `strconv.Quote` renders any
+**unprintable** scalar above the BMP with Go's eight-digit escape, so U+E0001 was correct on Go, a
+compile error on Java and **ten literal characters** on JavaScript. Emission is now **ASCII only and
+only escapes the host has** — surrogate pairs on the UTF-16 hosts — which also removes javac's
+platform-charset hazard BY CONSTRUCTION. **Checked over every one of the 1,112,064 scalar values**,
+both host shapes, output ASCII and the UTF-16 form decoding back; both original bugs fail it.
+
+**Two things the build found.** **`msvcrt.puts` has never linked** — the generated `build.bat`
+linked `msvcrt.lib` and `legacy_stdio_definitions.lib` and **not the UCRT**, so every CRT stdio
+entry point that target declares was unreachable since the day it was declared; `ucrt.lib
+vcruntime.lib` fixes it and changes no emitted file. And **javac's charset hazard has a twin on the
+way OUT**: `System.out` encodes in the platform charset too, which is PRINTING and not the literal —
+confirmed by asking the JVM for the string's UTF-16 length instead.
+
+**AND THE OPERATIONS ARE RESEARCHED** — [string-operations.md](docs/string-operations.md), no
+decision. **The free monoid's universal property ENUMERATES the operation set** rather than leaving
+it to taste: `length` is the unique homomorphism into (N,+,0), `=` is decidable because `Scalar`'s
+is, and **an ENCODING is a homomorphism too**, so "convert to UTF-8" is an instance of the same
+property rather than a concession to a host.
+
+**AND IT CORRECTS strings.md §2, the same error one level up.** That section measured `length` as 4,
+2 and 2 and concluded *"there is no portable string-length"* — but **those are answers to three
+different questions**: bytes, UTF-16 units, and nobody asking about SCALARS, which has one answer and
+is computable everywhere at O(n). maps.md already records that shape as *price, not answer*. So
+`length`, `=` and `concat` are **Tier 1**.
+
+**A string IS a table — the free monoid is a length-indexed one — and you cannot index it where it
+lies.** Measured at 16,000 scalars: indexing by scalar position is **262 ms on Go, 383 ms on V8,
+97 ms on Java**, and **quadratic** (4x the length is 15-16x the work on all three), because every
+host stores text variable-width. `alloc` costs **one native iteration** — 41/74/60 us — and indexing
+after it is free, 6.9 us, 4.5 us. **`alloc` + index is 81 us against 383 ms: 4,700x.** So the
+resolution is tables.md's own `(alloc s)`, no new construct, the cost visible in the source — and it
+is jsontok-2026-08-26's 1.89x generalised. **`length` then survives as an OPTIMISATION of a derived
+operation**, which is exactly what `fold-map` turned out to be in maps.md.
+
+**Not derived and not to be invented**: graphemes (a quotient by UAX #29, *versioned with Unicode*),
+collation and case (locale-dependent). **The one type problem**: `Scalar` is not an interval — the
+surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
+boundary, which is `big-fit`'s shape.
+
 **AND IT IS BUILT: A DECLARATION IS A DIRECTIVE, SO IT MOVES ONTO THE TERM** —
 [ascribe-2026-09-03](gauntlet/results/ascribe-2026-09-03.md), on hamza's *"that information will
 propagate through the program safely and confidently, statically checked, using the best

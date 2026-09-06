@@ -11,8 +11,14 @@ word.
 
 > **Status.** §1–§4 describe what is BUILT, with one gap named at each point.
 > §5–§8 are PROPOSED and nothing in them is implemented. §9's theorems hold of
-> the built part. Priced against a real ecosystem in
-> [gostdlib-2026-09-06](../../gauntlet/results/gostdlib-2026-09-06.md).
+> the built part. Priced against two real ecosystems:
+> [gostdlib-2026-09-06](../../gauntlet/results/gostdlib-2026-09-06.md) and
+> [win32-2026-09-06](../../gauntlet/results/win32-2026-09-06.md).
+>
+> **Updated 2026-09-06** after the Windows survey, which found §1's implicit pair
+> to be an actual bug (§1.1), added a whole class of target-dependent limits
+> nothing had stated (§3.1), and turned up a source of facts worth more than the
+> one that was predicted (§4.1).
 
 ---
 
@@ -39,9 +45,34 @@ new structural kinds: a template cannot express a binder.
 and `P_T = dom Δ` is the capability set —
 [ADR 0002](../decisions/0002-capability-graph.md)'s parameter to reduction.
 
-This pair is the first thing the current implementation does not quite have.
-`LoadTarget` returns a `*Target` whose backend is chosen later, by name, from the
-target's own `Name` field. The pair is implicit, and §5 needs it explicit.
+This pair is the first thing the current implementation does not have.
+
+### 1.1 The pair is implicit, and that is a BUG rather than an untidiness
+
+`cmd/build` chooses the backend by switching on the **`-target` flag string**:
+
+```go
+switch target {          // ← the flag, not the target's declared name
+case "js":      …
+case "java":    …
+case "windows": …
+default:        code, err = emit.Func(…)   // the GO backend
+}
+```
+
+So a target directory named anything but `go`, `js`, `java` or `windows`
+**silently falls through to the Go backend**. Found by building: a generated
+Windows target in a directory called `wintest` loaded correctly, reported
+`tg.Name == "windows"`, and emitted **Go control flow with x86 templates spliced
+into it** — no error, no warning, and MASM eventually refusing the file with
+`invalid character`. The identical directory renamed to `windows` builds and runs
+([win32-2026-09-06 §6](../../gauntlet/results/win32-2026-09-06.md)).
+
+This makes §7's question worse than *"a user target cannot coexist with the
+built-ins"*: a user target can be **silently miscompiled** for having the wrong
+directory name. The pair must be explicit — the target declares its backend, or
+at minimum the switch reads `tg.Name` — and it is a prerequisite for §5 and §7
+rather than a consequence of them.
 
 ## 2. Two operations that are not the same operation
 
@@ -101,10 +132,59 @@ split one level up, between `sig` and `def`, and
 **Gap.** The format has no syntax for the two halves separately, so a family that
 shares `Σ` must repeat it once per member.
 
-## 4. Covering is unchanged
+### 3.1 A backend imposes limits on `I`, and they belong in the specification
+
+`Σ` is about the name; `I` is about the host. What the Windows survey found is
+that `I` has **capacity** limits, and only a backend with no expressions has
+them — a Go call is an expression and the host compiler places the arguments, so
+nothing there constrains arity.
+
+On `x86-64` there are three distinct ceilings, each a decision written down
+somewhere and none of them stated until now:
+
+| limit | what it is | share of the declarable Win32 API past it |
+|---|---|---:|
+| 4 arguments | the Win64 ABI's register quota | 21.1% |
+| 6 arguments | `emit/asm.go` reserves 48 bytes of home space | 7.0% |
+| 9 arguments | the `%1…%9` template holes | 1.0% |
+
+The widest entry point in the Windows SDK takes **14** arguments. All three
+limits are cheap to raise and none is a language question — but a target format
+that cannot state them lets a declaration be written that the backend cannot
+expand.
+
+> **A target declaration is a claim about `Σ` AND a demand on `B`.** The format
+> checks neither today.
+
+## 4. Covering is unchanged, and opacity is target-relative
 
 A program `t` builds on `T` iff `Residual_T(nf_T(t)) = ∅`. Everything above
 changes where `Δ` comes from and nothing about what covering means.
+
+### 4.1 What a declaration is WORTH, however, depends on the target
+
+Two facts from the surveys, both of which cut against the intuition that a poorer
+host is a harder one.
+
+**Opacity is a property of the pair, not of the name.** A `*bytes.Buffer` on Go is
+a value the program must obtain before it can call anything on it, and
+`gostdlib`'s dominant gap — 54.8% of declarable names — is exactly that. A
+`HANDLE` on x86-64 is **one register**: holdable, comparable, storable in a table.
+The same declaration is worth more on the host with no type system, and the
+numbers say so — **Win32 is 72.6% declarable and 33.5% callable against Go's
+70.0% and 19.0%.**
+
+**A host's own annotations are a source of facts, and the valuable one was not the
+predicted one.** `general-purpose.md` names buffers-and-sizes as the part of SAL
+our refinements already decide; measured, that is **8.5%** of Win32's annotations.
+**Nullability is 15.1%**, and **665 of 3,878 callable functions — 17% — are
+reachable ONLY because `_In_opt_` says a pointer we cannot construct may be 0.**
+`_In_range_`, the annotation that maps most exactly onto our range language, is
+**51 occurrences**.
+
+Neither of these belongs in the format yet. They are recorded because a design
+that reads host annotations should read the *nullable* ones first, and because
+§2's algebra says nothing about how much a fragment is worth.
 
 ---
 
@@ -312,6 +392,13 @@ rather than adding to them. A user target and `targets/go` cannot both exist.
 That is not a design decision anywhere; it is one call to `filepath.Join` that
 was never generalised.
 
+**And §1.1 makes it worse than an inconvenience.** A user target may be pointed
+at, and if the directory is not named `go`, `js`, `java` or `windows` it is
+compiled by the **wrong backend, silently**. So the honest answer to the question
+as asked is: *a target can live in the project folder, it cannot coexist with the
+built-ins, and if you name it anything of your own it is miscompiled.* §1.1 is
+therefore the first thing to fix and §7.2 the second.
+
 ### 7.2 Proposed: a target is the glue of the fragments on a path
 
 ```
@@ -425,9 +512,15 @@ floor — survives §6 verbatim. ∎
 
 Ordered by measured value, with the Go survey's numbers where they apply.
 
+0. **§1.1, the backend switched on the flag string.** One line, it is a silent
+   miscompilation today, and every other item here is downstream of a target
+   being able to have a name of its own.
 1. **Several results in a `prim`** — not from this document, but it dominates
    everything: 19.8% of the Go standard library, and the language already has
    `values` at parity ([gostdlib-2026-09-06 §4a](../../gauntlet/results/gostdlib-2026-09-06.md)).
+   On windows it is also the near-miss for §4a's structs-by-value, the largest
+   Win32 refusal at 13.9%: a two-word struct returned by value is `rax`/`rdx`,
+   which is exactly what multiple return already emits there.
 2. **A declared result range that the interval layer reads** — §4b of the same
    result. Without it, ADR 0019 refuses arithmetic on every host call in every
    ecosystem, and `-checked` is the only way through.

@@ -1855,6 +1855,63 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**AND THE WINDOWS API IS PRICED TOO, AND IT BEATS GO ON THE HARDER QUESTION** —
+[win32-2026-09-06](gauntlet/results/win32-2026-09-06.md), `gauntlet/stdlib/win32.go`, against the
+installed SDK's 1,753 headers and 11,575 flat entry points. **72.6% declarable and 33.5% callable,
+against Go's 70.0% and 19.0%** — nearly the same declarability and **1.8x the usability, on the host
+with no type system, no collector and no expressions**. And it is not paper: **7,813 generated
+primitives load, and a program calling them BUILDS UNDER MASM AND RUNS** — `MulDiv(7 6 2)` prints
+21 through a mechanically generated Win64 template, answer computed by hand first.
+
+**The reason is one sentence: on x86-64 every handle, pointer and integer is ONE REGISTER, so there
+is nothing to be opaque ABOUT.** Go's dominant gap was *cannot build the argument* at 54.8%, because
+a `*bytes.Buffer` must be obtained before anything can be called on it; a `HANDLE` is a qword we can
+hold, compare and store. **Opacity is a property of the PAIR, not of the name**, and the same
+declaration is worth more on the poorer host — which runs against the intuition that a bare host is
+the hard one. 163,597 COM slots are counted and EXCLUDED: a vtable index is dynamic dispatch, which
+is callbacks.md tier 3.
+
+**SAL is a source of facts and the valuable one is NOT the predicted one.** general-purpose.md names
+buffers-and-sizes as the part our refinements already decide; measured, that is **8.5%**.
+**Nullability is 15.1%**, and **665 of 3,878 callable functions — 17% — are reachable ONLY because
+`_In_opt_` says a pointer we cannot construct may be 0.** `_In_range_`, the annotation that maps
+most exactly onto our range language, is **51 occurrences**. A design that reads host annotations
+should read the nullable ones first.
+
+**ARITY IS A CEILING, and only a host with no expressions has one** — invisible in the Go survey,
+because a Go call is an expression and the host places the arguments. Three limits, each a decision
+written down somewhere and none of them stated until now: **4** (the Win64 register quota, 21.1%
+past it), **6** (`emit/asm.go` reserving 48 bytes of home space, **7.0%**), **9** (the `%1…%9`
+template holes, 1.0%); the widest SDK entry point takes **14**. All cheap to raise, none a language
+question — but **a target declaration is a claim about `Σ` AND a demand on `B`, and the format checks
+neither**. The largest refusal is **structs by value at 13.9%**, and values.md is the near-miss: a
+two-word struct returned by value is `rax`/`rdx`, which is exactly what multiple return already emits
+there.
+
+**THE BUG: THE BACKEND IS CHOSEN BY THE FLAG STRING.** `cmd/build` switches on `-target` rather than
+on the target's declared name, so a directory named anything but `go`/`js`/`java`/`windows`
+**silently falls through to the GO backend** — the declarations load, `tg.Name` is `windows`, and the
+emitter produces **Go control flow with x86 templates spliced into it**, no error and no warning,
+until MASM says `invalid character in file`. The identical directory renamed to `windows` builds and
+runs. That is target-system.md §1's *"the pair `(B, Δ)` is implicit"* turning out to be an actual
+silent miscompilation, and it makes the user-target question worse than *"you cannot have both"*:
+**name your own target and it is compiled by the wrong backend.** One line, and every other item in
+the build order is downstream of it.
+
+**And the interval gap REPRODUCED on a second ecosystem**, which is what turns it from an
+observation into a finding: `(fmt.print-int (GetCurrentProcessId))` is REFUSED, because
+`emit/interval.go` returns ⊤ for any primitive it does not structurally recognise. **There is no way
+for a target to say what range a host call's result lies in, so arithmetic on any host result in any
+ecosystem is refused** and `-checked` is the only way through. A `DWORD` is `0..4294967295` and the
+header says so.
+
+**One methodological note, twice over.** The unresolved-typedef residue began at **23.5%** and came
+down to 6.9% in two steps, both of which were the survey attributing its own vocabulary to the
+language: the legacy `IN`/`OUT`/`OPTIONAL` macros were being read as part of the TYPE, and typedef
+chains were not followed (`MSIHANDLE` is `unsigned long`; `typedef DWORD DEVNODE, DEVINST;` names
+two). That is the same shape as the Go survey scoring methods at 0% by DEFINING an opaque receiver as
+unusable. **In both surveys the first number was the tool talking about itself.**
+
 **THE TARGET SYSTEM IS SPECIFIED AS AN ALGEBRA, AND PRICED AGAINST GO'S WHOLE STANDARD LIBRARY** —
 [target-system.md](docs/spec/target-system.md),
 [gostdlib-2026-09-06](gauntlet/results/gostdlib-2026-09-06.md),
@@ -2765,7 +2822,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision, including `render.oro` — the first text program); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go` — how much of Go's standard library this language can declare, and why not the rest |
+| `gauntlet/stdlib/` | `survey.go` and `win32.go` — how much of Go's standard library and the Windows API this language can declare, and why not the rest |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

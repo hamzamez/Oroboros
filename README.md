@@ -782,6 +782,17 @@ The honest list, with the reasoning written down rather than deferred to memory:
   FORMAT rather than the language**, since `values` already exists and measures at parity. The
   honest statement is that **the parasite model reaches an ecosystem's functions and reaches its
   objects only as far as some constructor happens to be declarable.**
+  **And the Windows API beats it on the harder question** — **72.6% declarable and 33.5% callable**
+  against Go's 70.0% and 19.0%, with 7,813 generated primitives that **build under MASM and run**
+  ([win32-2026-09-06](gauntlet/results/win32-2026-09-06.md)). The reason inverts the intuition that
+  a bare host is the hard one: on x86-64 every handle and pointer is **one register**, so there is
+  nothing to be opaque about — **opacity is a property of the target, not of the name.** Two things
+  only that survey could see: **arity is a ceiling** (the emitter's 48-byte home space stops 7.0% of
+  the API, the `%1…%9` template holes stop 1.0%, and the widest entry point takes 14 arguments), and
+  **SAL's nullability is worth more than its buffer sizes** — 17% of the callable surface is
+  reachable only because `_In_opt_` says a pointer we cannot build may be 0. It also found a silent
+  miscompilation: **the backend is chosen by the `-target` flag string**, so a target directory with
+  a name of your own is compiled by the Go backend without a word.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

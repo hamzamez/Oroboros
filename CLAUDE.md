@@ -97,9 +97,21 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-08-20.md](docs/assessment-2026-08-20.md) — the
+**Current standing** is in [docs/assessment-2026-09-06.md](docs/assessment-2026-09-06.md) — the
+vertical round. **Yes on the method and the thesis, no on the balance of effort**: four of the last
+assessment's five items were done, and the fifth — *write something awkward* — has now been named in
+**three consecutive assessments and acted on in none**. Measured: the compiler grew **19,611 lines**
+in seventeen days while the corpus written in the language grew **477**, the compiler-to-core ratio
+went **2.65 → 3.62** (the previous assessment named that exact risk and it got worse), **the largest
+program ever written in this language is 112 lines**, and ten September results contain **no gauntlet
+measurement**. Two pieces of process debt: **ADR 0020 (uniqueness on parameters) is owed** since
+ADR 0018's trigger 2 fired, with four independent demands behind it; and the gauntlet, *"the one
+fixed commitment"*, was last benchmarked on 2026-08-27 (it still passes — checked, not assumed).
+The five things next are led by **the backend-by-flag-string bug** and **the two format changes the
+surveys located**, whose acceptance test is *a program that opens a file* rather than a percentage.
+The previous one is [2026-08-20](docs/assessment-2026-08-20.md) — the
 analysis round, the one place a demonstration became a decision by accident, and the five things
-next. The previous two are [2026-08-19](docs/assessment-2026-08-19.md) — four
+next. Before that, [2026-08-19](docs/assessment-2026-08-19.md) — four
 targets in, what should go into the language next, and the one place the process has drifted (the
 gauntlet still runs on the retired portable layer). The previous one is
 [docs/assessment-2026-08-13.md](docs/assessment-2026-08-13.md).

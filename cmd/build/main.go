@@ -48,6 +48,13 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err != nil {
 		return err
 	}
+	// WHICH CODE GENERATOR COMPILES THIS TARGET, asked of the TARGET and not of
+	// the flag, and asked HERE so a target that cannot answer is refused before
+	// anything is reduced (target-system.md §1.1).
+	backend, err := tg.ResolveBackend()
+	if err != nil {
+		return err
+	}
 	// AN OVERRIDE, NOT A DECISION. The target declares which representation it
 	// prefers, because that declaration is a measurement somebody took. This
 	// exists so the alternative can be measured on the same program, and so the
@@ -182,19 +189,29 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		nf = sh
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", k)
 	}
+	// THE BACKEND IS THE TARGET'S, NOT THE FLAG'S (target-system.md §1.1).
+	//
+	// This switch read the -target FLAG STRING and fell through to the Go
+	// backend for anything it did not recognise, so a target directory named
+	// anything of its own was compiled by the wrong generator — silently, with
+	// the first sign of it being MASM refusing a file full of Go control flow
+	// (win32-2026-09-06 §6). There is no default now: a target that cannot say
+	// which backend compiles it is refused before any work is done.
 	var code string
-	switch target {
+	switch backend {
 	case "js":
 		code, err = emit.JSFunc(tg, "oro-main", prog.Sigs[entry], nf)
 	case "java":
 		code, err = emit.JavaMethod(tg, "oro-main", prog.Sigs[entry], nf)
-	case "windows":
+	case "x86-64":
 		code, err = emit.AsmProc(tg, "oro-main", prog.Sigs[entry], nf)
 		if err == nil {
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
-	default:
+	case "go":
 		code, err = emit.Func(tg, "oro-main", prog.Sigs[entry], nf)
+	default:
+		return fmt.Errorf("no code generator for backend %q", backend)
 	}
 	if err != nil {
 		return err

@@ -9,6 +9,9 @@
 ; loses. Same capability, opposite idiom, one source — ADR 0008 made concrete.
 
 (target portable-java
+  ; Which code generator compiles this target (target-system.md §1.1).
+  (backend java)
+
   (type f64        "double")
   (type int        "long")
   (type bool       "boolean")

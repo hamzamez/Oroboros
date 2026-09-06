@@ -512,9 +512,11 @@ floor — survives §6 verbatim. ∎
 
 Ordered by measured value, with the Go survey's numbers where they apply.
 
-0. **§1.1, the backend switched on the flag string.** One line, it is a silent
-   miscompilation today, and every other item here is downstream of a target
-   being able to have a name of its own.
+0. ~~**§1.1, the backend switched on the flag string.**~~ **DONE, 2026-09-06.**
+   It had **two** live instances rather than one — `targets/portable-js.oro` had
+   been emitting Go since August — and fixing it turned up a second, worse bug:
+   the emitter was not a function of its input
+   ([backend-2026-09-06](../../gauntlet/results/backend-2026-09-06.md)).
 1. **Several results in a `prim`** — not from this document, but it dominates
    everything: 19.8% of the Go standard library, and the language already has
    `values` at parity ([gostdlib-2026-09-06 §4a](../../gauntlet/results/gostdlib-2026-09-06.md)).

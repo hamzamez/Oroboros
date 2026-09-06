@@ -27,7 +27,8 @@ no template expresses that.
 ```
 file        ::= (target NAME decl…)
 
-decl        ::= (type NAME "spelling")
+decl        ::= (backend NAME)                   ; which code generator compiles this
+              | (type NAME "spelling")
               | (narrow "template")           ; how this host restricts a container
               | (module PATH prim…)          ; declares into a module namespace
               | prim
@@ -52,6 +53,44 @@ resolution produces qualified names and R1 requires both to key one namespace.
 
 Duplicate names are an error. An unknown kind is an error. A `prim` without a template is an
 error.
+
+## 1b. `backend` — which code generator compiles this target
+
+```lisp
+(backend x86-64)      ; one of: go, js, java, x86-64
+```
+
+**Optional, and required in practice for any target that emits.** It is `B` of
+target-system.md's `T = (B, Δ)`: `Δ` is data and anyone may write it, `B` is
+compiler code and the set is **closed** — for the same reason §8 refuses new
+structural kinds, since a backend binds variables and emits control flow and no
+template can.
+
+**Omitted, the target's own NAME is used when the name is a backend**, so
+`(target go …)` need not also say `(backend go)`. When neither resolves, emitting
+is an **error** rather than a default:
+
+```
+target "portable-js" does not say which backend compiles it, and its name is
+not one, so it cannot emit code.
+  Add (backend NAME) to the target file, where NAME is one of: go, js, java, x86-64
+```
+
+There is no default because a wrong one is a **silent miscompilation**, which is
+what it was: `cmd/build` and `cmd/gen` switched on the `-target` *flag string* and
+fell through to the Go backend for any name they did not recognise, so
+`targets/portable-js.oro` emitted `package gauntlet` and a Go function
+([backend-2026-09-06](../../gauntlet/results/backend-2026-09-06.md)).
+
+**Declaring none is legitimate.** A target is a capability set first, and one that
+only parameterises the *normal form* ([ADR 0002](../decisions/0002-capability-graph.md))
+has nothing to emit with — `targets/blas.oro` declares `cblas_ddot(…)`, which is
+C, and exists to show reduction stopping at a different point under `cmd/oro`.
+Such a target works there and is refused for emission, which is the truth about
+it.
+
+`x86-64` rather than `windows`: the operating system and the instruction set are
+different things, and target-system.md §5.2 wants them separable.
 
 ## 2. `type`
 

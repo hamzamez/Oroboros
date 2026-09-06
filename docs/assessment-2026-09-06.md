@@ -141,9 +141,13 @@ touching a host result needs it. That was meant to be an escape, not a mode.
 
 **Ordered by value per line of compiler, which is the ratio §3.3 says to start watching.**
 
-**1. The backend is chosen by the flag string.** One line. It is a *silent miscompilation* today —
-name a target directory anything of your own and it is compiled by the Go backend — and every item
-in target-system.md's build order is downstream of it.
+**1. ~~The backend is chosen by the flag string.~~ DONE, 2026-09-06** —
+[backend-2026-09-06](../gauntlet/results/backend-2026-09-06.md). It had **two** live instances
+rather than the one this list assumed: `targets/portable-js.oro` had been emitting Go source from a
+JavaScript target since August, unnoticed because nothing had ever run `cmd/gen` against it. And
+verifying the fix turned up a worse bug — **the emitter was not a function of its input**, five
+lookups taking the first match out of a Go map, so six identical runs produced two different
+programs. Both are fixed and both are pinned by tests that fail against them.
 
 **2. The two format changes the surveys located.** Several results in a `prim`, and a declared
 result range the interval pass reads. Together they are most of the distance between 19% usable and

@@ -28,6 +28,9 @@
 ; opposite marker would cost correctness silently (docs/spec/effects.md §3).
 
 (target portable-go
+  ; Which code generator compiles this target (target-system.md §1.1).
+  (backend go)
+
   (type f64        "float64")
   ; int64 rather than int: Go's `int` is 64-bit on our platforms but is not
   ; guaranteed to be, and docs/spec/arithmetic.md §4 fixes the portable range

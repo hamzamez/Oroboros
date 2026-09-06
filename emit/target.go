@@ -230,6 +230,24 @@ type Target struct {
 	// is right for JS (no bounds checks) and Java (fixed-length arrays).
 	Narrow string
 
+	// Backend names the CODE GENERATOR that compiles this target — the `B` of
+	// target-system.md's `T = (B, Δ)`, made explicit.
+	//
+	// It is a finite closed set, because a backend is compiler code: it emits
+	// control flow and binds variables, which no template can do. `Δ` is data
+	// and anyone may write it; `B` is not.
+	//
+	// Empty means the target did not say, and `ResolveBackend` then falls back
+	// to the target's own NAME when that names a backend — so `(target go …)`
+	// need not also write `(backend go)`. When neither resolves, that is an
+	// ERROR rather than a default, which is the whole point of this field:
+	// `cmd/build` used to switch on the -target FLAG and fall through to the Go
+	// backend for any name it did not recognise, so a target directory called
+	// anything of its own was compiled by the wrong backend, silently, and the
+	// first sign of it was MASM refusing a file full of Go control flow
+	// (win32-2026-09-06 §6).
+	Backend string
+
 	// Artifact is the emitted filename that IS the deliverable when the host
 	// has no compile step. JavaScript is such a host: `node main.mjs` runs the
 	// source, so there is nothing to build and the artifact is a copy.
@@ -684,13 +702,60 @@ var bigOps = []struct {
 // `want`, at the given arity. It is findOpBySpelling without the result-kind
 // discrimination, which the big operators do not need: their names already say
 // which is a comparison.
-func (tg *Target) findBySpelling(want string, arity int) (Prim, bool) {
+// spelled returns every primitive whose UNQUALIFIED name is `want`, in a
+// DETERMINISTIC and principled order.
+//
+// THE EMITTED FILE MUST BE A FUNCTION OF ITS INPUT, and it was not. Five
+// lookups here iterated `tg.Prims` — a Go map, whose range order is randomised
+// — and returned the first match, so when a target declared one operation twice
+// the winner was decided per run. `targets/js/` declares `concat` three times
+// (the language's `%s + %s`, `js/Array.concat`, `js/String.concat`), and six
+// identical `cmd/gen` runs over `examples/big/render.oro` produced TWO different
+// programs. Every "byte-identical across N programs" claim in this repository
+// rests on this not happening.
+//
+// The order is LEAST-QUALIFIED FIRST, then by name. That is not merely stable,
+// it is the right preference: a name in the target's own core module is the
+// operation, and the same name in a sub-module is a HOST API binding that
+// happens to share it — overloading.md §3's distinction between a concept name
+// and a method. `js.concat` beats `js/String.concat` for that reason and not
+// because `.` sorts before `/`.
+//
+// A target declaring one operation twice is arguably ambiguous and could be
+// refused. It is not, because both spellings here are correct and a refusal
+// would make `targets/js/` illegal for declaring the String method it binds.
+func (tg *Target) spelled(want string) []Prim {
+	type cand struct {
+		name string
+		p    Prim
+	}
+	var cs []cand
 	for name, p := range tg.Prims {
 		seg := name
 		if i := strings.LastIndex(seg, "."); i >= 0 {
 			seg = seg[i+1:]
 		}
-		if seg == want && len(p.Args) == arity && p.Kind == "expr" {
+		if seg == want {
+			cs = append(cs, cand{name, p})
+		}
+	}
+	sort.Slice(cs, func(i, j int) bool {
+		qi, qj := strings.Count(cs[i].name, "/"), strings.Count(cs[j].name, "/")
+		if qi != qj {
+			return qi < qj
+		}
+		return cs[i].name < cs[j].name
+	})
+	out := make([]Prim, len(cs))
+	for i, c := range cs {
+		out[i] = c.p
+	}
+	return out
+}
+
+func (tg *Target) findBySpelling(want string, arity int) (Prim, bool) {
+	for _, p := range tg.spelled(want) {
+		if len(p.Args) == arity && p.Kind == "expr" {
 			return p, true
 		}
 	}
@@ -764,12 +829,8 @@ var langOps = []struct {
 // whole unqualified name.
 func (tg *Target) findOpBySpelling(spellings []string, result string) (Prim, bool) {
 	for _, want := range spellings {
-		for name, p := range tg.Prims {
-			seg := name
-			if i := strings.LastIndex(seg, "."); i >= 0 {
-				seg = seg[i+1:]
-			}
-			if seg != want || len(p.Args) != 2 || p.Kind != "expr" {
+		for _, p := range tg.spelled(want) {
+			if len(p.Args) != 2 || p.Kind != "expr" {
 				continue
 			}
 			// The host's own result must agree with what the language expects:
@@ -791,12 +852,8 @@ func (tg *Target) findOpBySpelling(spellings []string, result string) (Prim, boo
 // findEq returns the target's own integer equality, by spelling.
 func (tg *Target) findEq() (Prim, bool) {
 	for _, want := range eqSpellings {
-		for name, p := range tg.Prims {
-			seg := name
-			if i := strings.LastIndex(seg, "."); i >= 0 {
-				seg = seg[i+1:]
-			}
-			if seg == want && len(p.Args) == 2 && p.Kind == "expr" {
+		for _, p := range tg.spelled(want) {
+			if len(p.Args) == 2 && p.Kind == "expr" {
 				return p, true
 			}
 		}
@@ -817,6 +874,52 @@ func loadTargetFile(path string) (*Target, error) {
 		return nil, fmt.Errorf("%s: expected one (target …) form, got %d", path, len(terms))
 	}
 	return parseTarget(terms[0], path)
+}
+
+// Backends is the finite closed set of code generators — target-system.md §1's
+// `𝔅`. A backend emits control flow and binds variables, which is why a target
+// file may not add one and why `(structural …)` is closed for the same reason.
+//
+// `x86-64` currently implies MASM and the Win64 ABI; splitting those out is
+// target-system.md §5.2's family question and wants a second ISA first.
+var Backends = []string{"go", "js", "java", "x86-64"}
+
+func isBackend(n string) bool {
+	for _, b := range Backends {
+		if b == n {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveBackend answers which code generator compiles this target.
+//
+// Declared wins. Otherwise the target's own name, when that names a backend —
+// `(target go …)` writing `(backend go)` would be noise. Otherwise an ERROR,
+// which is the fix for the bug this field exists for: there is no default,
+// because a wrong default here is a silent miscompilation rather than a
+// missing feature.
+func (tg *Target) ResolveBackend() (string, error) {
+	if tg.Backend != "" {
+		return tg.Backend, nil
+	}
+	if isBackend(tg.Name) {
+		return tg.Name, nil
+	}
+	return "", fmt.Errorf("target %q does not say which backend compiles it, and its name is "+
+		"not one, so it cannot emit code.\n"+
+		"  Add (backend NAME) to the target file, where NAME is one of: %s\n"+
+		"  A backend is compiler code rather than data, so the set is closed.\n"+
+		"\n"+
+		"  Declaring none is legitimate: a target is a capability set first, and one\n"+
+		"  that only parameterises the NORMAL FORM (ADR 0002) works with cmd/oro and"+
+		"\n  has nothing to emit with. `blas` and the tutorial targets are exactly\n"+
+		"  that. What is refused is emitting from such a target, which used to fall\n"+
+		"  through to whichever generator the -target flag resembled — and is how a\n"+
+		"  windows target once emitted Go control flow with x86 templates spliced\n"+
+		"  into it (win32-2026-09-06 §6).",
+		tg.Name, strings.Join(Backends, ", "))
 }
 
 func loadTargetDir(dir string) (*Target, error) {
@@ -922,6 +1025,7 @@ func (tg *Target) merge(o *Target, from string) error {
 		src  string
 		what string
 	}{
+		{&tg.Backend, o.Backend, "backend"},
 		{&tg.BigRepr, o.BigRepr, "big-repr"},
 		{&tg.Narrow, o.Narrow, "narrow"},
 		{&tg.Artifact, o.Artifact, "artifact"},
@@ -1027,6 +1131,18 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err := tg.declare(f, "", path); err != nil {
 				return nil, err
 			}
+		case "backend":
+			// (backend NAME) — which code generator compiles this target.
+			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("%s: (backend NAME), one of %s; got %s",
+					path, strings.Join(Backends, ", "), f)
+			}
+			if !isBackend(f.Kids[1].Name) {
+				return nil, fmt.Errorf("%s: %q is not a backend. A backend is compiler code, "+
+					"not data, so the set is closed: %s",
+					path, f.Kids[1].Name, strings.Join(Backends, ", "))
+			}
+			tg.Backend = f.Kids[1].Name
 		case "artifact":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (artifact \"name\"), got %s", path, f)
@@ -2683,12 +2799,8 @@ var allocSpellings = []string{"VirtualAlloc", "malloc", "HeapAlloc"}
 // findAlloc returns the target's own allocator.
 func (tg *Target) findAlloc() (Prim, bool) {
 	for _, want := range allocSpellings {
-		for name, p := range tg.Prims {
-			seg := name
-			if i := strings.LastIndex(seg, "."); i >= 0 {
-				seg = seg[i+1:]
-			}
-			if seg == want && len(p.Args) == 1 && p.Kind == "expr" {
+		for _, p := range tg.spelled(want) {
+			if len(p.Args) == 1 && p.Kind == "expr" {
 				return p, true
 			}
 		}
@@ -2989,16 +3101,12 @@ func buildLen(tgt *Target, t *core.Term) int64 {
 func (tg *Target) ShiftNames() (shr, and string, ok bool) {
 	find := func(spellings ...string) (string, bool) {
 		for _, want := range spellings {
-			for name, p := range tg.Prims {
-				seg := name
-				if i := strings.LastIndex(seg, "."); i >= 0 {
-					seg = seg[i+1:]
-				}
-				// `shr` before `sar` on x86: both are correct on a non-negative
-				// value and the logical one says so.
-				if seg == want && len(p.Args) == 2 && p.Kind == "expr" &&
+			// `shr` before `sar` on x86: both are correct on a non-negative
+			// value and the logical one says so.
+			for _, p := range tg.spelled(want) {
+				if len(p.Args) == 2 && p.Kind == "expr" &&
 					p.Args[0] != "bool" && p.Args[1] != "bool" {
-					return name, true
+					return p.Name, true
 				}
 			}
 		}

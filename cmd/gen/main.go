@@ -43,6 +43,13 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err != nil {
 		return err
 	}
+	// WHICH CODE GENERATOR COMPILES THIS TARGET, asked of the TARGET and not of
+	// the flag, and asked HERE so a target that cannot answer is refused before
+	// anything is reduced (target-system.md §1.1).
+	backend, err := tg.ResolveBackend()
+	if err != nil {
+		return err
+	}
 	// AN OVERRIDE, NOT A DECISION. The target declares which representation it
 	// prefers, because that declaration is a measurement somebody took. This
 	// exists so the alternative can be measured on the same program, and so the
@@ -201,16 +208,19 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			nf = sh
 			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, k)
 		}
+		// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
 		var code string
-		switch target {
+		switch backend {
 		case "js":
 			code, err = emit.JSFunc(tg, fname, sig, nf)
 		case "java":
 			code, err = emit.JavaMethod(tg, fname, sig, nf)
-		case "windows":
+		case "x86-64":
 			code, err = emit.AsmProc(tg, fname, sig, nf)
-		default:
+		case "go":
 			code, err = emit.Func(tg, fname, sig, nf)
+		default:
+			return fmt.Errorf("no code generator for backend %q", backend)
 		}
 		if err != nil {
 			return err
@@ -219,16 +229,18 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	}
 
 	var text2 string
-	switch target {
+	switch backend {
 	case "js":
 		text2 = emit.JSFile(funcs)
 	case "java":
 		base := filepath.Base(out)
 		text2 = emit.JavaFile(strings.TrimSuffix(base, ".java"), funcs)
-	case "windows":
+	case "x86-64":
 		text2 = emit.AsmFile(tg, funcs, "")
-	default:
+	case "go":
 		text2 = emit.File("gauntlet", funcs)
+	default:
+		return fmt.Errorf("no code generator for backend %q", backend)
 	}
 	if err := os.WriteFile(out, []byte(text2), 0o644); err != nil {
 		return err

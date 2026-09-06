@@ -33,6 +33,12 @@
 ; kernel32 preserves all of them.
 
 (target windows
+  ; WHICH CODE GENERATOR COMPILES THIS TARGET (target-system.md §1.1). Not the
+  ; target NAME: windows is an operating system and x86-64 is the instruction
+  ; set, and target-system.md §5.2 wants those separable — the same Win32 API
+  ; over an arm64 backend is one member of the same family.
+  (backend x86-64)
+
   ; THIS HOST SHIPS NO MAP, so the language supplies one -- `emit/winmap.oro`,
   ; open addressing over an ordinary `build` buffer, lowered before reduction.
   ;

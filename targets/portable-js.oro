@@ -19,6 +19,9 @@
 ; whether β may move the term (docs/spec/effects.md §3).
 
 (target portable-js
+  ; Which code generator compiles this target (target-system.md §1.1).
+  (backend js)
+
 
   (module num/f64
     (prim add (f64 f64) f64  expr "%s + %s"  pure)

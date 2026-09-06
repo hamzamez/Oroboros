@@ -1867,6 +1867,40 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**THE BACKEND IS THE TARGET'S NOW, AND THE EMITTER IS A FUNCTION** —
+[backend-2026-09-06](gauntlet/results/backend-2026-09-06.md), assessment item 1. `(backend NAME)`
+joins the target format, the set `{go, js, java, x86-64}` is **closed** for the same reason
+`structural` is (a backend binds variables; no template can), and a target that resolves to none is
+**refused for emission rather than defaulted** — because a wrong default here is a silent
+miscompilation. Omitting it is still legitimate: `blas` declares `cblas_ddot(…)`, which is C, and
+exists to show reduction stopping elsewhere under `cmd/oro`; **a target is a capability set first**.
+`(backend x86-64)` on windows deliberately, not `windows` — the OS and the ISA are different things.
+
+**THE BUG HAD TWO LIVE INSTANCES, AND THE SECOND WAS ALREADY IN THE TREE.** Besides the constructed
+`wintest` case, **`targets/portable-js.oro` emitted `package gauntlet` and a Go function** — Go
+source from a JavaScript target, no diagnostic, since August. Proven by stashing the fix and running
+it. **Nothing had ever run `cmd/gen` against that target**, so a latent miscompilation sat there
+looking exactly like a working one: *a path nothing runs is a path nothing checks*, third time.
+
+**AND FIXING IT FOUND A WORSE ONE: THE EMITTER WAS NOT A FUNCTION OF ITS INPUT.** Six identical runs
+of `cmd/gen` over `render.oro` produced **two different programs**. Five lookups — `findBySpelling`,
+`findOpBySpelling`, `findEq`, `findAlloc`, `ShiftNames` — ranged over `tg.Prims`, a **Go map**, and
+took the first match, so a target declaring one operation twice resolved it per run; `targets/js/`
+declares `concat` at arity 2 **four** times. *Every "byte-identical across N programs x 4 targets"
+claim in this repository assumes this cannot happen, and one was written while it was happening.*
+
+**The blast radius was MEASURED rather than guessed, and it is small for a structural reason.** Each
+native target has 11 ties and **ten are harmless**: they are the INJECTED core name against the
+target's own — `+` against `go.+` — and `addCore` injects a **copy**, so both carry the same template
+and either winner emits the same text. The coin was flipped on every arithmetic operator in every
+program and never landed differently. The one divergent tie is `concat` (`%s + %s` against
+`%s.concat(%s)`), and the only program using it is `render.oro` — so exactly one claim was taken on a
+non-deterministic emitter and its conclusion is unaffected. **The fix is an ORDER that is principled
+rather than merely stable**: least-qualified first, because *a name in the target's core module is the
+operation and the same name in a sub-module is a host API binding that shares it* — overloading.md
+§3's distinction, applied. **Cost: 62 of 63 emitted files byte-identical, the one that changed being
+the one HEAD produced at random, and two consecutive sweeps now agree where they did not.**
+
 **AND THE WINDOWS API IS PRICED TOO, AND IT BEATS GO ON THE HARDER QUESTION** —
 [win32-2026-09-06](gauntlet/results/win32-2026-09-06.md), `gauntlet/stdlib/win32.go`, against the
 installed SDK's 1,753 headers and 11,575 flat entry points. **72.6% declarable and 33.5% callable,

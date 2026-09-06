@@ -765,6 +765,23 @@ The honest list, with the reasoning written down rather than deferred to memory:
   [ADR 0019](docs/decisions/0019-precision-by-declaration.md)'s own trigger — *how many declarations
   does a real application need?* — and 70-of-70 programs emitting byte-identically with the checks on
   is a corpus of numeric kernels and two parsers written by people who knew the analysis.
+- **The target system is specified as an algebra, and the parasite thesis now has a price.**
+  [target-system.md](docs/spec/target-system.md) separates two operations that were one word:
+  declarations are a **sheaf** — fragments glue exactly when they agree on their overlap, which is
+  what the directory merge already does — and **overriding** is a different, ordered operator, which
+  is what "native wins" already is. A target is `(backend, declarations)`, a declaration splits into
+  an interface and an implementation, and a **target family is a fibration over a shared
+  interface**: JavaScript fixes the backend and varies the API by gluing (`node`, `browser`,
+  `bun`), Windows fixes the API and varies the backend (`x64`, `arm64`). A program that builds for
+  one member of a family builds for all of them, by construction.
+  Measured against Go's whole standard library
+  ([gostdlib-2026-09-06](gauntlet/results/gostdlib-2026-09-06.md)): **70.0% of the callable surface
+  is declarable and 19.0% is usable**, with the declarable subset generated, loaded, emitted and
+  compiled — 952 primitives across 148 packages. The gap is not where the missing-feature list
+  suggests: concurrency costs **4 symbols**, while **several results costs 19.8% and is the target
+  FORMAT rather than the language**, since `values` already exists and measures at parity. The
+  honest statement is that **the parasite model reaches an ecosystem's functions and reaches its
+  objects only as far as some constructor happens to be declarable.**
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

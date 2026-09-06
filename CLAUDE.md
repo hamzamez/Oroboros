@@ -1855,6 +1855,77 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**THE TARGET SYSTEM IS SPECIFIED AS AN ALGEBRA, AND PRICED AGAINST GO'S WHOLE STANDARD LIBRARY** —
+[target-system.md](docs/spec/target-system.md),
+[gostdlib-2026-09-06](gauntlet/results/gostdlib-2026-09-06.md),
+`gauntlet/stdlib/survey.go`. target-files.md specifies the FILE; this specifies what a target IS.
+**Two operations were one word.** `Δ` is a **sheaf over the name space** — fragments glue exactly
+when they agree on their overlap, which is `loadTargetDir`'s merge, commutative and order-free and
+its comment says so without naming it — and **overriding** is a different operator, ordered and
+licensing disagreement, which is `unfoldable`'s native-wins. *A system that uses one word for both
+is one where adding a file can silently change a program and nobody can say from the rules whether
+it should have.*
+
+**A target is `(B, Δ)` with `B` from a finite closed set of BACKENDS (compiler code) and `Δ` data,
+and a declaration splits `Decl ≅ Σ × I`** — interface and implementation, which is `sig` vs `def`
+one level down. **A target FAMILY is then a FIBRATION over a shared `Σ`**, and the two cases the
+question named are the two independent axes: **JavaScript fixes the backend and varies `Σ` by
+GLUING** (`node = js-core ⊔ node-api`), **windows fixes `Σ` and varies the backend and `I`**
+(`Σ_win32` with an x64 fibre and an arm64 one). **T4: a program that builds for one member of a
+family builds for ALL of them**, because covering depends only on `dom Δ` — port to ARM64 and every
+x64 program still builds, by construction rather than by testing.
+
+**Oroboros in a target file is ALREADY HAPPENING, THREE TIMES, IN THE WRONG PLACE**:
+`emit/bignum.oro`, `emit/bignum-host.oro` and `emit/winmap.oro` ship by `//go:embed` and a Go pass,
+which is exactly what this project's own rule refuses. The algebra is one more use of the SAME
+override operator — `impl = P_T ▷ D_T ▷ D`, five cells instead of modules.md's four — and the
+reducer needs nothing. **How much of the language? ALL of it: the restriction is on FREE NAMES, not
+on constructs** — `FV(d) ⊆ Lang ∪ P_T ∪ dom D_T ∪ dom D`, with no recursion and covering already
+computed and demand-driven. The one genuine restriction is a **stratification**: a target library
+may `def` and may never `prim`, or `P_T` would depend on reduction and `P_T` is reduction's
+parameter. The risk is stated rather than waved: a `prim` is one line and a lie in it is bounded, a
+library is a program — so a target library must carry a `sig` and be in the conformance suite,
+which is `split-words`'s price and the same one a portable library pays.
+
+**A user's target CANNOT live in the project folder, and it is an asymmetry nobody decided.**
+`-targets` is ONE directory (`filepath.Join(dir, name)`) while `-path` is a genuine search path
+that already includes the source's own directory — so a library may live beside the program and a
+target may not; pointing `-targets` elsewhere REPLACES the built-ins. Proposed:
+`Δ_T = L₁ ▷ L₂ ▷ … ` with **glue within a layer and override between**, which is the two operators
+used exactly once each. **And a portable library does NOT need a file in each target folder** —
+`(provides go std/words …)` is specified in modules.md §6 and **nothing parses it**; the four cells
+are implemented and the syntax that lets a LIBRARY fill the third is not. The fix is only *where
+fragments are found*: a library's own directory is a fragment source. **T5′ is the theorem with
+teeth** — adding a fragment is monotone on COVERAGE and **not on EMISSION**, since a name in
+`P_T ∩ D` takes the native, so shipping a `provides` changes what an existing program compiles to.
+
+**AND THE PARASITE THESIS IS NOW PRICED: 70.0% of Go's callable standard library is DECLARABLE and
+19.0% is USABLE.** 167 packages, 9,282 portable symbols, 4,765 callable — and the declarable subset
+is **generated, loaded, emitted and compiled**, 952 primitives across 148 packages, which is what
+makes 70% a measurement rather than a classification. **The gap is not where the missing-feature
+list says.** Concurrency costs **4 symbols**. The dominant refusal is **several results at 19.8%,
+and it is the FORMAT, not the language** — `Prim.Result` is one string while `values` is reader
+sugar measured at 0.99x — and it compounds, because `(T, error)` is Go's CONSTRUCTOR idiom, so
+every name it blocks also blocks every method on the type that name would have returned.
+
+**The honest statement: the parasite model reaches an ecosystem's FUNCTIONS and reaches its OBJECTS
+only as far as some constructor happens to be declarable.** 3,013 of 4,765 callable names are
+methods. **Obtainable host types had to be a LEAST FIXED POINT** — a type is obtainable when some
+declarable function returns it and every argument it needs is a scalar or already obtainable — and
+computing it moved methods from 0% to 13.7% and the total from 9.2% to 19.0%. **The first version
+scored 0% by DEFINING an opaque receiver as unusable: a definition masquerading as a finding.**
+
+**Two roadblocks found by BUILDING, not by reading.** **A generated `bits.OnesCount64` compiles to
+Go that javac's equivalent refuses** — `cannot use n (int) as uint64` — because one `int` collapses
+Go's twelve integer types; **the format can already say the right thing** (`(prim ones ((x (int 0
+4294967295))) int expr "bits.OnesCount64(uint64(%s))")`, verified), so it is a GENERATOR limit and
+ADR 0003 at a call boundary. And **there is no way to declare what a host call RETURNS as a range**:
+`emit/interval.go` returns ⊤ for any primitive it does not structurally recognise, three spellings
+were tried (`ensures` pure, `ensures` impure, a range in the result position) and **none works**, so
+**ADR 0019's bounded-by-default refuses arithmetic on every host result in every ecosystem** and
+`-checked` is the only way through. That is the **fourth** independent demand for a postcondition
+naming a result.
+
 **AND A TEXT PROGRAM FOLDS — IT DOES NOT INDEX** —
 [render-2026-09-04](gauntlet/results/render-2026-09-04.md),
 [examples/big/render.oro](examples/big/render.oro). overloading.md §5 named ONE measurement as the
@@ -2694,6 +2765,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision, including `render.oro` — the first text program); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
+| `gauntlet/stdlib/` | `survey.go` — how much of Go's standard library this language can declare, and why not the rest |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

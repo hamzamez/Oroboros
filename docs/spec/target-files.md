@@ -252,6 +252,59 @@ The template is filled with the emitted arguments and **wrapped in parentheses b
 a template never needs to parenthesise itself. Arity is checked: the number of arguments applied
 must equal the number of declared argument types.
 
+### Several results
+
+```lisp
+(prim ReadFile ((path string)) ((array (int 0 255)) error) expr "os.ReadFile(%s)")
+(prim Open     ((path string)) (ptr error)                 expr "os.Open(%s)")
+```
+
+A result may be a **list** of two or more types. The language has had several
+results since [values.md](values.md) — `(values a b)` is the negative product,
+reader sugar for `(fn (#k) (#k a b))`, measured at 0.99x on Go with zero
+allocations — and this is the ability for a target to say that a **host** call
+has that shape.
+
+**A result LIST is not a compound TYPE.** `(int int)` is two results;
+`(array int)`, `(int 0 255)` and `(map int int)` are one. Both are an application
+of names, so the rule is: anything the type language already spells is one
+result, and everything else is a list.
+
+**The elimination form is application to a continuation**, which is how a product
+is consumed already:
+
+```lisp
+((os.ReadFile "go.mod") (fn (src err) …))
+```
+
+and the backend emits the host's own form — `src, err := os.ReadFile(…)` on Go,
+where a result the body never reads becomes `_`. A continuation of the wrong
+arity is an error naming both counts.
+
+Worth **19.8% of Go's callable standard library** on its own, and more than that
+indirectly: `(T, error)` is Go's constructor idiom, so it also unlocks the types
+those calls return and the methods on them
+([multiresult-2026-09-06](../../gauntlet/results/multiresult-2026-09-06.md)).
+
+### A result RANGE
+
+```lisp
+(prim ones ((x (int 0 4294967295))) (int 0 64) expr "bits.OnesCount64(uint64(%s))" pure)
+```
+
+A range in the result position says what the host call gives back, and the
+interval analysis reads it. **A primitive has no body, so a declaration is the
+only source of that fact there can be** — the same reason `ensures` belongs here
+and is redundant on an internal definition.
+
+Without it every host call is ⊤, so
+[ADR 0019](../decisions/0019-precision-by-declaration.md)'s bounded-by-default
+refuses *any arithmetic on any result from any ecosystem*, which was measured on
+Go and on Win32 independently. It is a range rather than an `ensures` because a
+range in a result position **is** an `ensures` (scalarrange-2026-08-31) and
+because `ensures` feeds the refinement layer while being in-window is decided by
+the interval layer.
+
 ### `stmt`
 
 ```lisp

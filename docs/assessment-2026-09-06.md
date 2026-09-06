@@ -149,10 +149,13 @@ verifying the fix turned up a worse bug — **the emitter was not a function of 
 lookups taking the first match out of a Go map, so six identical runs produced two different
 programs. Both are fixed and both are pinned by tests that fail against them.
 
-**2. The two format changes the surveys located.** Several results in a `prim`, and a declared
-result range the interval pass reads. Together they are most of the distance between 19% usable and
-an ecosystem a program can actually use, and neither touches the core, the reducer or ADR 0018.
-**The test of success is a program that opens a file**, not a percentage.
+**2. ~~The two format changes the surveys located.~~ DONE, 2026-09-06** —
+[multiresult-2026-09-06](../gauntlet/results/multiresult-2026-09-06.md). Go's callable standard
+library goes from **70.0% declarable and 19.0% usable to 88.0% and 32.0%**, obtainable host types
+from 108 to 198, and `os` from 18 usable names to 76. The acceptance test passed on its own terms:
+[examples/io/wc.oro](../examples/io/wc.oro) opens `go.mod`, counts its newlines and prints 5.
+The language needed nothing — both changes are fields in a data format and one branch in an
+analysis, and the elimination form `((f x) (fn (a b) …))` already existed.
 
 **3. ADR 0020 — uniqueness on parameters.** Owed, with four independent measured demands and a
 named alternative already refuted (free mutation is strictly dominated). Write the ADR; the build

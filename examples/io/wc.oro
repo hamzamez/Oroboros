@@ -1,0 +1,37 @@
+; THE FIRST OROBOROS PROGRAM THAT OPENS A FILE.
+;
+; It exists as the acceptance test for one field in a data format. `Prim.Result`
+; was a single Go string, so a target could not declare a host call that gives
+; back several values — and `(T, error)` is Go's constructor idiom, so that one
+; field refused **19.8% of Go's callable standard library**, more than every
+; language-level limitation combined (gostdlib-2026-09-06 §4a). It is why this
+; language had no file I/O, and the reason was never a design position.
+;
+; The LANGUAGE needed nothing. `(values a b)` has been the negative product since
+; values.md, measured at 0.99x on Go with zero allocations, and it is eliminated
+; by applying it to a continuation — which is what happens here. When the
+; producer is a `def`, beta performs that application and the product vanishes;
+; when it is a `prim`, beta cannot, so the shape reaches the backend intact and
+; the backend emits the host's own form.
+;
+;   src, err := os.ReadFile("go.mod")
+;
+; No product is built on Go, because Go has several results natively. That is
+; "emit at the highest layer the target natively provides" at a call boundary.
+
+(use go)
+(use go/os as os)
+(use go/fmt as fmt)
+
+(export main)
+
+; Count the newlines in a file. The byte range is DECLARED on `ReadFile`, so
+; `src` is a `[]byte` and `(src i)` may be compared without a refusal; the
+; length needs no declaration, being bounded at both ends already.
+(def main (fn ()
+  ((os.ReadFile "go.mod") (fn (src err)
+    (if (os.err-nil err)
+        (loop ((i 0) (lines 0))
+          (>= i (len src)) (fmt.Println lines)
+          else (again (+ i 1) (if (= (src i) 10) (+ lines 1) lines)))
+        (fmt.Println 0))))))

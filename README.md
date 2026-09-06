@@ -793,6 +793,15 @@ The honest list, with the reasoning written down rather than deferred to memory:
   reachable only because `_In_opt_` says a pointer we cannot build may be 0. It also found a silent
   miscompilation: **the backend is chosen by the `-target` flag string**, so a target directory with
   a name of your own is compiled by the Go backend without a word.
+  **And acting on that survey moved the number: 88.0% declarable and 32.0% usable**, with obtainable
+  host types going from 108 to 198 and `os` from 18 usable names to 76
+  ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md)). Two fields in a data
+  format and one branch in an analysis — the language needed nothing, because `(values a b)` has
+  been the negative product since August and `((f x) (fn (a b) …))` is how it is consumed. What
+  makes it work is that **β gets stuck**: with a `prim` producer the redex survives to the backend,
+  which emits `src, err := os.ReadFile(…)`. The acceptance test was not a percentage —
+  [examples/io/wc.oro](examples/io/wc.oro) is the first Oroboros program that **opens a file**, and
+  it counts the newlines in `go.mod` and prints 5.
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

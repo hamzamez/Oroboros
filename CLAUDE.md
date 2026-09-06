@@ -1867,6 +1867,50 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**A PROGRAM OPENS A FILE, AND THE LANGUAGE NEEDED NOTHING** —
+[multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md),
+[examples/io/wc.oro](examples/io/wc.oro), assessment item 2. **Go's callable standard library goes
+from 70.0% declarable and 19.0% usable to 88.0% and 32.0%**, obtainable host types from **108 to
+198**, methods from 13.7% to 28.3% usable, and `os` from **18 usable names to 76**. Both changes are
+fields in a data format and one branch in an analysis; the core, the reducer, ADR 0018 and the
+structural set are untouched, seven term kinds before and after.
+
+**`Prim.Result` WAS ONE STRING, and that field was why this language had no file I/O.** It refused
+**19.8%** of the callable surface — more than every language-level limitation combined — and
+compounded, because `(T, error)` is Go's CONSTRUCTOR idiom, so every name it blocked also blocked
+every method on the type that name would have returned. **The construct already existed**: `(values
+a b)` is the negative product, measured 0.99x with zero allocations, and `((f x) (fn (a b) …))` has
+been a differential case since August. **The mechanism is that β gets STUCK** — with a `def`
+producer β performs the application and the product vanishes; with a `prim` producer the operator of
+the outer application is itself an application, so the redex survives to the backend, which emits
+`src, err := os.ReadFile(…)`. That is `emitMapCase`'s shape generalised: a fallible map read IS a
+host call with two results, and maps.md lowered it to comma-ok before this existed.
+
+**The one subtlety is a result LIST against a compound TYPE** — `(int int)` is two results,
+`(array int)` and `(int 0 255)` are one, and both are an application of names, so only `TypeName`
+can tell them apart. **And a discarded result still has to be RECEIVED as `_`**, Go's multiple
+assignment being positional and an unused variable a compile error there — effects.md §5's rule
+arriving at a construct that cannot drop the slot.
+
+**AND A DECLARED RESULT RANGE IS NOW READ BY THE INTERVAL LAYER**, which is the same problem's other
+half and was measured on TWO independent ecosystems before it was built. A primitive has no body, so
+a declaration is the only source of the fact there can be. It is a range in the RESULT POSITION
+rather than an `ensures`, because scalarrange-2026-08-31 established those are the same claim and
+because `ensures` feeds the REFINEMENT layer while in-window is decided by the INTERVAL one — two
+layers, and only one was ever told. **The first attempt died on `transfer`'s
+`prim.Result != "int"` guard**, which keeps `bool` and `f64` out of the arithmetic and kept
+`int 0 64` out with them: scalarrange's *three effects of a range* landing in a fourth place.
+
+**Two bugs the build found, and the second is the one types.md exists for.** `typeOf` did not know
+the shape, so `main` was emitted with no result while its body returned one. And **the type CHECKER
+skipped the arguments entirely** — `(os.ReadFile 42)` was caught by the Go compiler and would not
+have been caught at all on a host that types everything `any`; the non-name operator was returning
+early with *"the emitter reports this better"*, true of an escaping closure and false of this.
+**Cost: 63 of 63 pre-existing emitted files byte-identical**, the only new one being the new program.
+`fmt` stays 1 of 23 — variadic `...any` is now the largest format refusal at 3.3% — and the
+remaining gap is **cannot build the argument at 43.6%**, which is interfaces and structs, refused
+elsewhere and now PRICED rather than reopened.
+
 **THE BACKEND IS THE TARGET'S NOW, AND THE EMITTER IS A FUNCTION** —
 [backend-2026-09-06](gauntlet/results/backend-2026-09-06.md), assessment item 1. `(backend NAME)`
 joins the target format, the set `{go, js, java, x86-64}` is **closed** for the same reason
@@ -2865,7 +2909,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs plus `int/` (meant to be refused) and `big/` (arbitrary precision, including `render.oro` — the first text program); `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro` — the first program that opens a file); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 | `gauntlet/stdlib/` | `survey.go` and `win32.go` — how much of Go's standard library and the Windows API this language can declare, and why not the rest |

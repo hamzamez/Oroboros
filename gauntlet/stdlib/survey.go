@@ -343,12 +343,11 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 	if s.generic {
 		return false, false, rGeneric
 	}
-	if len(s.results) > 1 {
-		// The FORMAT's limit, not the language's: `Prim.Result` is one string,
-		// while values.md gives the language several results and measures them
-		// at parity. Reported as its own reason for exactly that reason.
-		return false, false, rMultiResult
-	}
+	// SEVERAL RESULTS ARE DECLARABLE SINCE 2026-09-06 (multiresult-2026-09-06).
+	// `Prim.Results` exists, the elimination form is `((f x) (fn (a b) …))`
+	// which values.md already had, and a program opens a file. This branch is
+	// kept, empty, so the count of what it USED to refuse stays visible.
+	_ = rMultiResult
 	argOpaque, resOpaque, isErr := false, false, false
 	// The receiver is argument 0.
 	if s.recv != "" {
@@ -378,16 +377,28 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 			resOpaque = resOpaque || v.opaque
 		}
 	}
+	// AN `error` BESIDE A USABLE RESULT IS NOT A BLOCKER, since 2026-09-06.
+	// A target declares `(prim err-nil ((e error)) bool expr "%s == nil")` and
+	// the program branches on it — which is what `examples/io/wc.oro` does, and
+	// what most Go code does at the point of the call. What a program still
+	// cannot do is READ an error, which needs an interface (callbacks.md tier
+	// 3), so these are counted separately rather than folded in silently: the
+	// count is the size of what sums.md would buy.
 	switch {
 	case argOpaque:
 		return true, false, uArgOpaque
-	case isErr:
-		return true, false, uError
 	case resOpaque:
 		return true, false, uResOpaque
+	case isErr:
+		errOnly++
+		return true, true, ok
 	}
 	return true, true, ok
 }
+
+// errOnly counts calls whose only imperfection is an error the program can test
+// and cannot read.
+var errOnly int
 
 // obtainable is the least set of host types a program can actually GET HOLD OF.
 //
@@ -407,14 +418,14 @@ func obtainable(syms []sym) map[string]bool {
 	for {
 		grew := false
 		for _, s := range syms {
-			if s.kind != "func" || s.generic || len(s.results) != 1 || s.recv != "" {
+			if s.kind != "func" || s.generic || s.recv != "" || len(s.results) == 0 {
 				continue
 			}
-			r := s.results[0]
-			v := classify(r)
-			if v.why != ok || !v.opaque || have[r] {
-				continue
-			}
+			// EVERY RESULT POSITION, not just a lone one. Since 2026-09-06 a
+			// target may declare a call that gives back several values, so
+			// `os.Open` returning `(*File, error)` is a CONSTRUCTOR — which is
+			// the whole reason that change compounds: `(T, error)` is Go's
+			// constructor idiom, so it unlocks the type AND every method on it.
 			reachable := true
 			for _, p := range s.params {
 				pv := classify(p)
@@ -423,7 +434,14 @@ func obtainable(syms []sym) map[string]bool {
 					break
 				}
 			}
-			if reachable {
+			if !reachable {
+				continue
+			}
+			for _, r := range s.results {
+				v := classify(r)
+				if v.why != ok || !v.opaque || have[r] {
+					continue
+				}
 				have[r] = true
 				grew = true
 			}
@@ -539,6 +557,7 @@ func main() {
 	fmt.Printf("CALLABLE SURFACE (func + method): %d\n", all.total)
 	fmt.Printf("  declarable as a (prim …):  %5d  %5.1f%%\n", all.decl, pct(all.decl, all.total))
 	fmt.Printf("  usable by a program:       %5d  %5.1f%%\n", all.usable, pct(all.usable, all.total))
+	fmt.Printf("    of those, %d return an error the program can TEST and cannot READ\n", errOnly)
 	// SPLIT BY KIND, because the two are different questions. A `func` is an
 	// operation on values; a `method` needs a RECEIVER, which is a host object
 	// the program has no way to build. Reporting them together hides which of

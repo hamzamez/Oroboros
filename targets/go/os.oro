@@ -1,0 +1,45 @@
+; os — the host's file system.
+;
+; THE FIRST TARGET FILE THAT COULD NOT BE WRITTEN BEFORE. Every name here gives
+; back `(T, error)`, which is Go's constructor idiom and which `Prim.Result`, a
+; single string, refused — 19.8% of Go's callable standard library, more than
+; every language-level limitation combined (gostdlib-2026-09-06 §4a).
+;
+; The language needed nothing: `(values a b)` has been the negative product
+; since values.md and is eliminated by applying it to a continuation. What was
+; missing was the ability for a TARGET to say that a host call has that shape.
+;
+;   ((os.ReadFile path) (fn (bytes err) …))
+;
+; `error` is opaque here and that is honest: a program can hold one, compare it
+; to nothing, and hand it back. Making it inspectable is sums.md's job and needs
+; an interface, which callbacks.md tier 3 refuses. What a program CAN do today
+; is test it — see `err-nil` — which is the fallible-read shape maps.md already
+; established and enough to write real code against.
+
+(target go
+  (module go/os
+    ; ---- reading and writing whole files
+    ;
+    ; The element range is DECLARED — a file is bytes — which is what gives the
+    ; emitted `[]byte` and what lets `(src i)` be used in arithmetic without a
+    ; refusal (elemwidth-2026-08-27). The LENGTH is not declared and does not
+    ; need to be: `len` is bounded at both ends without any declaration
+    ; (tables.md §2.3.1).
+    (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
+      "os.ReadFile(%s)" (import "os"))
+
+    (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
+      "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os"))
+
+    ; ---- the error, which is a value we can test and not one we can read
+    ;
+    ; `err != nil` is the whole of what this language can do with a Go error,
+    ; and it is also the whole of what most Go code does with one at the point
+    ; of the call. Declared as a PRIMITIVE rather than derived, because `nil`
+    ; is not a value the language has.
+    (prim err-nil ((e error)) bool expr "%s == nil" pure)
+
+    ; ---- the environment, so a program can be told what to open
+    (prim Args (none) (array string) expr "os.Args" (import "os"))
+    (prim Getenv ((k string)) string expr "os.Getenv(%s)" pure (import "os"))))

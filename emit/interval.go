@@ -1266,6 +1266,34 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 		}
 		return top, false
 	}
+	// A DECLARED RESULT RANGE. The target says what the host call gives back,
+	// and that is the only source there is: a primitive has no body, so nothing
+	// can be derived from it — which is the same reason `ensures` belongs on a
+	// `prim` and is redundant on an internal definition (postconditions.md).
+	//
+	// Without this, EVERY host call is ⊤, so ADR 0019's bounded-by-default
+	// refuses arithmetic on any result from any ecosystem and `-checked` is the
+	// only way through. Measured on two independent ecosystems before it was
+	// built: `(fmt.print-int (GetCurrentProcessId))` is refused on windows and
+	// `bits.OnesCount64(n) + 1` is refused on Go, for one cause
+	// (gostdlib-2026-09-06 §4b, win32-2026-09-06 §5). A `DWORD` is
+	// 0..4294967295 and the header says so; `OnesCount64` is 0..64 and the doc
+	// says so. This is where a target gets to say it.
+	//
+	// IT MUST COME BEFORE THE `Result != "int"` BAIL BELOW, which is where the
+	// first attempt died: a range is an `int` FOR TYPING and a distinct string
+	// in the type language, so the guard that keeps `bool` and `f64` out of the
+	// arithmetic also kept `int 0 64` out. That is scalarrange-2026-08-31's
+	// three effects of a range arriving in a fourth place.
+	//
+	// It is `(int LO HI)` in the RESULT POSITION rather than an `ensures`,
+	// because scalarrange-2026-08-31 established that a range in a result
+	// position IS an ensures — the same claim in the type language — and
+	// because `ensures` feeds the refinement layer while being in-window is
+	// decided here. Two layers, and only one of them was ever told.
+	if lo, hi, ok := core.IntRange(prim.Result); ok {
+		return ival{lo: lo, hi: hi}, false
+	}
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
 	}

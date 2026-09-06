@@ -74,6 +74,32 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 
 	op := t.Op()
 	if op.Kind != core.KName {
+		// A HOST CALL WITH SEVERAL RESULTS, under its eliminator. The operator
+		// is legitimately not a name here, and skipping it meant the ARGUMENTS
+		// of every such call went unchecked — which is precisely the job
+		// types.md says this checker exists to do, since on JavaScript nothing
+		// else would. `(os.ReadFile 42)` was caught by the Go compiler and
+		// would not have been caught at all on a target that types everything
+		// `any`.
+		if p, as, k, ok := multiPrimCall(c.tgt, t); ok {
+			for i, a := range as {
+				d := ""
+				if i < len(p.Args) {
+					d = p.Args[i]
+				}
+				if _, err := c.walk(a, d); err != nil {
+					return "", fmt.Errorf("in %s's argument %d: %w", p.Name, i+1, err)
+				}
+			}
+			// The continuation's parameters are the declared results, and the
+			// whole term has the type of its body.
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for i := range raw {
+				c.types[raw[i]] = p.Results[i]
+			}
+			return c.walk(body, want)
+		}
 		return "", nil // the emitter reports this better than the checker can
 	}
 	p, ok := c.tgt.Prims[op.Name]

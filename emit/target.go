@@ -26,9 +26,15 @@ import (
 // `fmt.Println` needs no Go; adding a new control structure does.
 
 type Prim struct {
-	Name   string
-	Args   []string // our type names; empty when the target is untyped
-	Result string
+	Name string
+	Args []string // our type names; empty when the target is untyped
+
+	// Results is populated ONLY when the primitive gives back more than one —
+	// `(prim Open ((p string)) (ptr error) …)`. One result stays in `Result`,
+	// exactly as `core.Sig` does it, so every existing path is untouched.
+	// See parsePrim for why this field is worth 19.8% of an ecosystem.
+	Results []string
+	Result  string
 	Kind   string // expr | stmt | loop | loop2 | cond | let
 	Form   string // template with %s holes; empty for structural kinds
 	Import string
@@ -1233,6 +1239,28 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 }
 
 // (prim NAME (ARGTYPES…) RESULT KIND ["form"] [(import "x")])
+// resultList reads `(T1 T2 …)` — two or more result types — and refuses
+// anything `TypeName` already handles, so `(array int)`, `(int 0 255)` and
+// `(map int int)` stay SINGLE compound results and are not mistaken for two.
+//
+// That ordering is the whole subtlety: a compound type and a result list are
+// both an application of names, and only `TypeName` knows which constructors
+// exist.
+func resultList(t *core.Term) ([]string, bool) {
+	if t.Kind != core.KApp || len(t.Kids) < 2 || core.TypeName(t) != "" {
+		return nil, false
+	}
+	out := make([]string, 0, len(t.Kids))
+	for _, k := range t.Kids {
+		n := core.TypeName(k)
+		if n == "" {
+			return nil, false
+		}
+		out = append(out, n)
+	}
+	return out, true
+}
+
 func parsePrim(f *core.Term, path string) (Prim, error) {
 	k := f.Kids[1:]
 	if len(k) < 4 {
@@ -1280,6 +1308,24 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		p.Args = []string{k[1].Name}
 	}
 
+	// SEVERAL RESULTS — `(prim Open ((p string)) (ptr error) expr …)`.
+	//
+	// `Prim.Result` was a single string, and that one field was the largest
+	// single obstacle to the whole parasite thesis: it refused **19.8% of Go's
+	// callable standard library**, more than every language-level limitation
+	// combined, and it compounds, because `(T, error)` is Go's CONSTRUCTOR
+	// idiom — so every name it blocked also blocked every method on the type
+	// that name would have returned (gostdlib-2026-09-06 §4a).
+	//
+	// The LANGUAGE has had several results since values.md: `(values a b)` is
+	// reader sugar for `(fn (#k) (#k a b))`, the negative product, measured at
+	// 0.99x on Go with zero allocations, and NO TARGET DECLARES IT. What was
+	// missing was only the ability for a target to say a HOST call has that
+	// shape — and the consuming form needs nothing new either, because
+	// `((f x) (fn (a b) …))` is how a product is eliminated already.
+	if rs, ok := resultList(k[2]); ok {
+		p.Results = rs
+	} else
 	// A result type may be COMPOUND: `(array string)`, the same spelling the
 	// signature language uses. Without it a target's array types have to be
 	// enumerated — `string-array`, `long-array`, `double-array` — which is the

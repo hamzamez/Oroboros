@@ -495,6 +495,74 @@ func (e *Emitter) emitMapCase(t *core.Term) (string, bool, error) {
 	return s, true, err
 }
 
+// emitMultiPrim emits the elimination of a host call giving back several
+// results. On Go that is the host's own form and needs no product built:
+//
+//	f, err := os.Open(path)
+//	<body>
+//
+// The names come from the continuation's parameters, so the emitted code reads
+// as the programmer wrote it, and their TYPES come from the primitive's declared
+// results — which is the only place they can come from, a primitive having no
+// body to infer from.
+func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	p, args, k, ok := multiPrimCall(e.tgt, t)
+	if !ok {
+		// Distinguish "not this shape" from "this shape, wrong arity": an
+		// operator that IS a multi-result prim but is consumed by the wrong
+		// continuation deserves to be told so.
+		if op := t.Op(); op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
+			if q, known := e.tgt.Prims[op.Op().Name]; known && len(q.Results) >= 2 {
+				kk := t.Args()[0]
+				n := -1
+				if kk.Kind == core.KFn {
+					n = len(kk.Params)
+				}
+				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+			}
+		}
+		return "", false, nil
+	}
+	if p.Import != "" {
+		e.imports[p.Import] = true
+	}
+	vals := make([]any, len(args))
+	for i, a := range args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", true, err
+		}
+		vals[i] = v
+	}
+	body, raw, out := openFresh(k, e.bound, mangle)
+	for i := range raw {
+		e.types[raw[i]] = p.Results[i]
+	}
+	// A RESULT THE BODY NEVER READS still has to be RECEIVED, because Go's
+	// multiple assignment is positional and there is no way to take fewer — and
+	// it must be received as `_`, because an unused variable is a compile error
+	// on this host. That is the same reason `let` with an unused binder emits a
+	// bare expression rather than a binding (effects.md §5), arriving at a
+	// construct that cannot drop the slot.
+	all := "_"
+	for i, nm := range raw {
+		if !core.Occurs(body, nm) {
+			out[i] = "_"
+		} else {
+			all = ""
+		}
+	}
+	if all == "_" {
+		// Every result discarded. Go rejects `_, _ := f()`, so the call becomes
+		// a statement and the assignment goes away entirely.
+		e.line("%s", fill(p.Form, vals))
+	} else {
+		e.line("%s := %s", strings.Join(out, ", "), fill(p.Form, vals))
+	}
+	s, err := e.emit(body)
+	return s, true, err
+}
+
 // emitSet is a store. It is a STATEMENT that returns the buffer, which is what
 // makes `(set b i v)` consume and return `b` — the linear threading, spelled in
 // the host's own assignment.
@@ -681,6 +749,19 @@ func (e *Emitter) typeOf(t *core.Term) string {
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
+		// A HOST CALL WITH SEVERAL RESULTS, under its eliminator, has the type
+		// of the continuation's BODY — the same shape and the same reason as
+		// the map read below, which is that eliminator's special case. Without
+		// it the enclosing function's result came out unknown, and `main` was
+		// emitted with no result while its body returned one.
+		if p, _, k, ok := multiPrimCall(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for i := range raw {
+				e.types[raw[i]] = p.Results[i]
+			}
+			return e.typeOf(body)
+		}
 		// A MAP READ UNDER ITS ELIMINATOR has the type of the clause bodies,
 		// which the continuation's own body reports. Without this the whole
 		// function came out `/*unknown*/`, because the operator of `((m k) …)`
@@ -896,6 +977,12 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		// read IS the sum, so F2's option is not a thing we add but a thing Go
 		// already has and we were discarding (maps.md §5.3).
 		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
+		// A HOST CALL WITH SEVERAL RESULTS, being eliminated — `((os.Open p)
+		// (fn (f err) …))`. Go has the shape natively, so this is one line and
+		// it is what a Go programmer writes (values.md, gostdlib §4a).
+		if out, done, err := e.emitMultiPrim(t); err != nil || done {
 			return out, err
 		}
 		if op.Kind != core.KName {

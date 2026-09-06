@@ -1867,6 +1867,53 @@ collation and case (locale-dependent). **The one type problem**: `Scalar` is not
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
 
+**UNIQUENESS ON PARAMETERS IS RESEARCHED, AND THE BRIEF IS SMALLER THAN THE ASSESSMENT SAID** —
+[uniqueness.md](docs/uniqueness.md), no decision, before the ADR that ADR 0018's trigger 2 owes.
+**Rule R closed TWO of the four named demands three days ago** — the mutable bignum and the limb
+library were the BACK-EDGE instance and bigreuse-2026-09-02 took them; what uniqueness addresses is
+the **BOUNDARY** instance, where **one** case is measured and unmitigated (Karatsuba's workspace,
+1.07-1.66x, 10 allocs and 504 KB per multiply) and one is a portability gap (the stencil, where
+reuse IS expressible natively via `go.set-float64`). A type-system feature bought with one
+measurement deserves arguing rather than assuming, and the ADR should open with the corrected count.
+
+**LINEARITY IS NOT UNIQUENESS, and this repository has used one word for both.** Linearity is a
+restriction on the FUTURE — *used exactly once* — a promise the CONSUMER makes, which is why Linear
+Haskell puts the multiplicity on the ARROW. Uniqueness is a guarantee about the PAST — *no other
+reference exists* — a promise the CALLER makes, which is why Clean puts the attribute on the TYPE.
+Marshall/Vollmer/Orchard (ESOP 2022) call them duals. **An in-place parameter needs one of each at
+opposite ends**: uniqueness in, linearity through. Neither alone suffices — uniqueness without
+linearity lets the body read after a store, linearity without uniqueness lets the caller observe the
+write. That is ADR 0013's own correction (*"uniqueness constrains the CONTEXT, not the value"*)
+arriving from the literature and never connected to the design.
+
+**AND THE MECHANISM IS FAR CHEAPER HERE THAN ANYWHERE IT EXISTS, for a structural reason.**
+**ADR 0018 already made uniqueness a distinction between two TYPES rather than an ATTRIBUTE on every
+type** — `(array V)` is a shared immutable value, a buffer is linear and scoped — so there is no
+attribute lattice, no attribute variables and no inferred coercion, which is most of Clean's
+implementation and all of its reputation for unreadable signatures. The one coercion Clean infers we
+already WRITE, as the freeze. **So the whole surface of trigger 2 is one missing type name**:
+`(sig f ((b (buffer int))) int)` is refused today with *"(buffer int) is not a type"*.
+
+**And whole-program reduction removes the propagation problem.** Delta inlines every non-exported
+call before any check runs, so a non-export parameter survives no boundary and `CheckLinear` already
+decides it on the residual; at an export the caller is outside the program, so the guarantee is
+**assumed** — refinements.md 6b's middle row exactly. **The implementation is `CheckLinear` with a
+different SEED.**
+
+**Two things already free that other languages pay for.** `CheckLinear`'s *reads do not consume* is
+Wadler's `let!` and Odersky's observers, and it needs no borrow machinery because **no element type
+is unique** — `(array (buffer V))` is not a type, so an observation cannot extract an alias. And the
+`moved` bit is Rust's ownership without borrowing, because immutability means there is nothing to
+borrow. **The named soundness risk is exactly that**: if a table of buffers ever becomes
+expressible, the read-borrow needs real machinery.
+
+**Rejected with reasons**: destination-passing INFERENCE at the boundary (rule R one level up) —
+refused twice over on the project's own precedent, since an optimisation that silently does not fire
+is requirement 5's failure mode AND adding a parameter to an exported function changes the published
+API, so the information must be in the signature anyway; multiplicities on the arrow (Linear
+Haskell) — buys nothing when every surviving arrow is first-order; ownership+borrowing (Rust) —
+strictly larger, and what it adds is shared aliasing we do not need.
+
 **A PROGRAM OPENS A FILE, AND THE LANGUAGE NEEDED NOTHING** —
 [multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md),
 [examples/io/wc.oro](examples/io/wc.oro), assessment item 2. **Go's callable standard library goes

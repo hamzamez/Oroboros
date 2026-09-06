@@ -157,9 +157,13 @@ from 108 to 198, and `os` from 18 usable names to 76. The acceptance test passed
 The language needed nothing — both changes are fields in a data format and one branch in an
 analysis, and the elimination form `((f x) (fn (a b) …))` already existed.
 
-**3. ADR 0020 — uniqueness on parameters.** Owed, with four independent measured demands and a
-named alternative already refuted (free mutation is strictly dominated). Write the ADR; the build
-can follow.
+**3. ADR 0020 — uniqueness on parameters.** Owed. **Researched 2026-09-06**
+([uniqueness.md](uniqueness.md)), and the reading corrects this item: **rule R closed two of the
+four demands**, so the live case is Karatsuba's workspace alone. It also finds the feature much
+smaller than expected — ADR 0018 already made uniqueness a distinction between two *types* rather
+than an attribute, and whole-program reduction removes the propagation problem, so the surface is
+one missing type name and the implementation is `CheckLinear` with a different seed. Write the ADR
+with the corrected count; the build can follow.
 
 **4. Write an application.** Not a benchmark and not a kernel. Something with input, output, error
 handling and a shape nobody chose to suit the analysis — the smallest honest candidate is a

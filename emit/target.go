@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
@@ -293,23 +294,180 @@ var structuralKinds = map[string]bool{
 // is an error, because silently taking one would make a target's meaning depend
 // on filename order.
 func LoadTarget(path string) (*Target, error) {
-	info, err := os.Stat(path)
-	if err == nil && info.IsDir() {
-		return loadTargetDir(path)
-	}
-	if err != nil {
-		// A directory target may be named without its extension.
-		if di, dErr := os.Stat(strings.TrimSuffix(path, ".oro")); dErr == nil && di.IsDir() {
-			return loadTargetDir(strings.TrimSuffix(path, ".oro"))
-		}
-		return nil, err
-	}
-	tg, err := loadTargetFile(path)
+	tg, err := loadFragment(path)
 	if err != nil {
 		return nil, err
 	}
 	tg.addCore()
 	return tg, nil
+}
+
+// loadFragment is ONE LAYER: a directory whose `.oro` files are GLUED, or a
+// single file. It does not inject the core, because `addCore` resolves the
+// language's names by spelling and must therefore see the WHOLE target — run it
+// per layer and a name would be resolved against a fragment.
+func loadFragment(path string) (*Target, error) {
+	// ONE RULE, both spellings: a layer's contribution for target T is the
+	// DIRECTORY `L/T` or the FILE `L/T.oro`, and the caller may write either
+	// with or without the extension. `targets/go` is a directory and
+	// `targets/blas.oro` is a file, and nothing above here should have to know
+	// which.
+	base := strings.TrimSuffix(path, ".oro")
+	for _, d := range []string{path, base} {
+		if info, err := os.Stat(d); err == nil && info.IsDir() {
+			return loadTargetDir(d)
+		}
+	}
+	for _, f := range []string{path, base + ".oro"} {
+		if info, err := os.Stat(f); err == nil && !info.IsDir() {
+			return loadTargetFile(f)
+		}
+	}
+	return nil, &fs.PathError{Op: "open", Path: path, Err: fs.ErrNotExist}
+}
+
+// loadProvides is the LIBRARY layer — target-system.md §8, and modules.md §6's
+// `(provides …)`, specified since August and never parsed.
+//
+// ALGEBRAICALLY IT IS NOT A NEW THING. `(provides T M decl…)` is exactly
+// `(target T (module M decl…))` written in a library file, so it needs no new
+// operation, no new precedence and no new cell in the four-cell table: it is a
+// target FRAGMENT, and §7.2 already says a target is the glue of its fragments.
+// The only thing that changes is WHERE fragments are found.
+//
+// That is what makes a portable library with native fast paths a one-file job:
+// `mylib/mylib.oro` holds the portable definitions, `mylib/go.oro` holds
+// `(provides go …)`, and the library author never edits `targets/`.
+//
+// It is the LOWEST layer. A `provides` is a library's opinion about a host; the
+// target's own files are the authority on that host, so if both name the same
+// thing the target wins — which is `▷` with the library on the right.
+func loadProvides(name string, libDirs []string) (*Target, []string, error) {
+	out := &Target{Name: name, Types: map[string]string{}, Prims: map[string]Prim{}}
+	var from []string
+	for _, d := range libDirs {
+		if d == "" {
+			continue
+		}
+		_ = filepath.Walk(d, func(fp string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(fp, ".oro") {
+				return nil
+			}
+			src, err := os.ReadFile(fp)
+			if err != nil {
+				return nil
+			}
+			// Cheap reject before parsing: most library files have none.
+			if !strings.Contains(string(src), "(provides") {
+				return nil
+			}
+			terms, err := core.ReadAll(string(src))
+			if err != nil {
+				return nil // a library that does not parse is the loader's problem, not ours
+			}
+			for _, t := range terms {
+				if t.Kind != core.KApp || len(t.Kids) < 3 || t.Kids[0].Kind != core.KName ||
+					t.Kids[0].Name != "provides" {
+					continue
+				}
+				if t.Kids[1].Kind != core.KName || t.Kids[1].Name != name ||
+					t.Kids[2].Kind != core.KName {
+					continue
+				}
+				mod := t.Kids[2].Name
+				for _, inner := range t.Kids[3:] {
+					if inner.Kind != core.KApp || inner.Kids[0].Kind != core.KName ||
+						inner.Kids[0].Name != "prim" {
+						continue
+					}
+					if err := out.declare(inner, mod, fp); err != nil {
+						return nil
+					}
+				}
+				from = append(from, fp)
+			}
+			return nil
+		})
+	}
+	if len(out.Prims) == 0 {
+		return nil, nil, nil
+	}
+	return out, from, nil
+}
+
+// LoadTargetLayers builds `Δ_T = L₁ ▷ L₂ ▷ … ▷ Lₖ` — target-system.md §7.2.
+//
+// A target used to be ONE directory: `filepath.Join(dir, name)`, while modules
+// got a genuine search path that already included the source's own directory.
+// So a library could live beside the program and a target could not, and
+// pointing `-targets` elsewhere REPLACED the built-ins rather than adding to
+// them. That was not a decision anywhere; it was one call to `filepath.Join`
+// that was never generalised.
+//
+// The rule is the two operations used exactly once each: **glue within a layer,
+// override between layers**. Within a directory the files must agree and their
+// order cannot matter; between directories the nearer one wins and is allowed to
+// disagree, which is what lets a project replace a built-in binding deliberately
+// and say so.
+//
+// `dirs` is nearest first. A layer that does not have this target contributes
+// nothing — an absent layer is the empty fragment, which is `⊔`'s identity, so
+// there is no special case for it.
+func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target, error) {
+	var out *Target
+	var found []string
+	for _, d := range dirs {
+		if d == "" {
+			continue
+		}
+		p := filepath.Join(d, name)
+		frag, err := loadFragment(p)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue // this layer does not have it
+			}
+			return nil, err
+		}
+		found = append(found, p)
+		if out == nil {
+			out = frag
+			continue
+		}
+		if frag.Name != out.Name {
+			return nil, fmt.Errorf("%s declares target %q, but %s declares %q — the layers of "+
+				"one target must agree on its name", p, frag.Name, found[0], out.Name)
+		}
+		if err := out.combine(frag, p, override); err != nil {
+			return nil, err
+		}
+	}
+	// THE LIBRARY LAYER, LAST. See loadProvides: a `(provides T M …)` block is a
+	// target fragment that happens to live in a library file, so it joins the
+	// same chain — at the bottom, because the target's own files are the
+	// authority on the target.
+	for _, lds := range libDirs {
+		lib, _, err := loadProvides(name, lds)
+		if err != nil {
+			return nil, err
+		}
+		if lib == nil {
+			continue
+		}
+		if out == nil {
+			out = lib
+			continue
+		}
+		if err := out.combine(lib, "a library's (provides "+name+" …)", override); err != nil {
+			return nil, err
+		}
+	}
+	if out == nil {
+		return nil, fmt.Errorf("no target %q on the search path: looked in %s",
+			name, strings.Join(dirs, string(filepath.ListSeparator)))
+	}
+	sort.Strings(out.Names)
+	out.addCore()
+	return out, nil
 }
 
 // coreNames are the names the LANGUAGE owns. A target may not declare any of
@@ -962,88 +1120,138 @@ func loadTargetDir(dir string) (*Target, error) {
 		}
 	}
 	sort.Strings(out.Names)
-	out.addCore()
+	// NO `addCore` HERE. A directory is one LAYER, and the core's names are
+	// resolved by SPELLING against the whole target — inject them per layer and
+	// `concat` would be resolved against a fragment. The callers that have the
+	// finished target do it.
 	return out, nil
 }
 
-// merge folds one file's declarations into the target. Union, no precedence.
+// THE TWO OPERATIONS OF target-system.md §2, AS ONE FOLD.
+//
+// Composing targets is always one of exactly two things, and they differ ONLY in
+// what happens when two fragments declare the same name:
+//
+//	⊔  GLUE, within a layer.     They must agree; a collision is an error.
+//	                             Commutative, associative, idempotent — so the
+//	                             order files are discovered in cannot matter.
+//	▷  OVERRIDE, between layers. The nearer layer wins, silently. Ordered, and
+//	                             licensing disagreement is its whole purpose.
+//
+// Writing them as one walk with a `combiner` is not tidiness: it is the reason
+// the two can be reasoned about together. Everything else — which fields exist,
+// how a map is folded, that representations append in order — is shared, and the
+// single point of difference is `how`.
+type combiner int
+
+const (
+	glue     combiner = iota // ⊔ — agreement required
+	override                 // ▷ — the value already present wins
+)
+
+// combineOne folds a single-valued field. `zero` means "not declared here",
+// which is what makes gluing a partial map rather than a total one.
+func combineOne[T comparable](dst *T, src T, what, from string, how combiner) error {
+	var zero T
+	if src == zero || *dst == src {
+		return nil
+	}
+	if *dst == zero {
+		*dst = src
+		return nil
+	}
+	if how == glue {
+		return fmt.Errorf("%s: %s is declared as %v and as %v", from, what, *dst, src)
+	}
+	return nil // ▷ — the nearer layer already said, and it wins
+}
+
+// combineMap folds a keyed field. The sheaf condition is per name: two fragments
+// may both mention a name so long as they say the same thing about it.
+func combineMap[T comparable](dst, src map[string]T, what, from string, how combiner) error {
+	for n, v := range src {
+		have, dup := dst[n]
+		if !dup {
+			dst[n] = v
+			continue
+		}
+		if have == v {
+			continue
+		}
+		if how == glue {
+			return fmt.Errorf("%s: %s %s is declared as %v and as %v", from, what, n, have, v)
+		}
+	}
+	return nil
+}
+
+// merge is ⊔ — the operation `loadTargetDir` performs over the files of one
+// directory, and the one whose commutativity its comment already observed.
 func (tg *Target) merge(o *Target, from string) error {
-	for n, ty := range o.Types {
-		if have, dup := tg.Types[n]; dup && have != ty {
-			return fmt.Errorf("%s: type %s is declared as %q and as %q", from, n, have, ty)
-		}
-		tg.Types[n] = ty
+	return tg.combine(o, from, glue)
+}
+
+func (tg *Target) combine(o *Target, from string, how combiner) error {
+	if tg.Boxed == nil && len(o.Boxed) > 0 {
+		tg.Boxed = map[string]string{}
 	}
-	if o.ArrayType != "" {
-		if tg.ArrayType != "" && tg.ArrayType != o.ArrayType {
-			return fmt.Errorf("%s: array-type is declared as %q and as %q",
-				from, tg.ArrayType, o.ArrayType)
-		}
-		tg.ArrayType = o.ArrayType
+	if err := combineMap(tg.Types, o.Types, "type", from, how); err != nil {
+		return err
 	}
-	for n, ty := range o.Boxed {
-		if tg.Boxed == nil {
-			tg.Boxed = map[string]string{}
-		}
-		if have, dup := tg.Boxed[n]; dup && have != ty {
-			return fmt.Errorf("%s: boxed %s is declared as %q and as %q", from, n, have, ty)
-		}
-		tg.Boxed[n] = ty
+	if err := combineMap(tg.Boxed, o.Boxed, "boxed", from, how); err != nil {
+		return err
 	}
 	if o.BuiltinMap {
-		tg.BuiltinMap = true
+		tg.BuiltinMap = true // monotone: no collision is possible
 	}
-	if o.MapType != "" {
-		if tg.MapType != "" && tg.MapType != o.MapType {
-			return fmt.Errorf("%s: map-type is declared as %q and as %q",
-				from, tg.MapType, o.MapType)
-		}
-		tg.MapType = o.MapType
-	}
-	if o.ShiftWidth != 0 {
-		if tg.ShiftWidth != 0 && tg.ShiftWidth != o.ShiftWidth {
-			return fmt.Errorf("%s: shift-width is declared as %d and as %d",
-				from, tg.ShiftWidth, o.ShiftWidth)
-		}
-		tg.ShiftWidth = o.ShiftWidth
-	}
-	if o.MaxLen != 0 {
-		if tg.MaxLen != 0 && tg.MaxLen != o.MaxLen {
-			return fmt.Errorf("%s: max-len is declared as %d and as %d",
-				from, tg.MaxLen, o.MaxLen)
-		}
-		tg.MaxLen = o.MaxLen
-	}
-	// Representations are ORDERED, so they append rather than merging by key —
-	// narrowest first is the whole selection rule. A target that splits them
-	// across files gets them in file order, which is the order it wrote them.
-	tg.Reprs = append(tg.Reprs, o.Reprs...)
-	for n, p := range o.Prims {
-		if _, dup := tg.Prims[n]; dup {
-			return fmt.Errorf("%s: %s is declared twice in this target", from, n)
-		}
-		tg.Prims[n] = p
-		tg.Names = append(tg.Names, n)
-	}
-	tg.Data = append(tg.Data, o.Data...)
-	for _, pair := range []struct {
+	for _, f := range []struct {
 		dst  *string
 		src  string
 		what string
 	}{
+		{&tg.ArrayType, o.ArrayType, "array-type"},
+		{&tg.MapType, o.MapType, "map-type"},
 		{&tg.Backend, o.Backend, "backend"},
 		{&tg.BigRepr, o.BigRepr, "big-repr"},
 		{&tg.Narrow, o.Narrow, "narrow"},
 		{&tg.Artifact, o.Artifact, "artifact"},
 		{&tg.Build, o.Build, "build"},
 	} {
-		if pair.src == "" {
+		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
+			return err
+		}
+	}
+	for _, f := range []struct {
+		dst  *int64
+		src  int64
+		what string
+	}{
+		{&tg.ShiftWidth, o.ShiftWidth, "shift-width"},
+		{&tg.MaxLen, o.MaxLen, "max-len"},
+	} {
+		if err := combineOne(f.dst, f.src, f.what, from, how); err != nil {
+			return err
+		}
+	}
+	// ORDERED, so they append rather than folding by key — narrowest first is
+	// the whole selection rule for `int-repr`. Nearest layer first, so a nearer
+	// declaration is found before a built-in one.
+	tg.Reprs = append(tg.Reprs, o.Reprs...)
+	tg.Data = append(tg.Data, o.Data...)
+	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
+	// two identical declarations of one name in a single layer are a mistake
+	// rather than a coincidence, and saying so has caught real ones. Between
+	// layers the nearer wins, which is what makes a project able to replace a
+	// built-in binding.
+	for n, p := range o.Prims {
+		if _, dup := tg.Prims[n]; dup {
+			if how == glue {
+				return fmt.Errorf("%s: %s is declared twice in this target", from, n)
+			}
 			continue
 		}
-		if *pair.dst != "" && *pair.dst != pair.src {
-			return fmt.Errorf("%s: %s is declared twice in this target", from, pair.what)
-		}
-		*pair.dst = pair.src
+		tg.Prims[n] = p
+		tg.Names = append(tg.Names, n)
 	}
 	return nil
 }

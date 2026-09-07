@@ -793,6 +793,13 @@ The honest list, with the reasoning written down rather than deferred to memory:
   reachable only because `_In_opt_` says a pointer we cannot build may be 0. It also found a silent
   miscompilation: **the backend is chosen by the `-target` flag string**, so a target directory with
   a name of your own is compiled by the Go backend without a word.
+  **And the user-facing half is now built** ([layers-2026-09-07](gauntlet/results/layers-2026-09-07.md)):
+  a target is a chain of layers, so your own target can live beside your program with the built-ins
+  still on the path, and a portable library can ship its own native fast path — `(provides go …)`
+  next to the library, no edit to `targets/`. Both fell out of the algebra rather than being
+  designed: the two operations turned out to be **one fold with two combiners**, which deleted sixty
+  lines, and `provides` turned out to be **a target fragment that happens to live in a library
+  file**, needing no new operation at all.
   **And acting on that survey moved the number: 88.0% declarable and 32.0% usable**, with obtainable
   host types going from 108 to 198 and `os` from 18 usable names to 76
   ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md)). Two fields in a data

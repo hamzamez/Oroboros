@@ -21,7 +21,7 @@ import (
 
 func main() {
 	target := flag.String("target", "go", "target to build for")
-	dir := flag.String("targets", "targets", "directory holding target declarations")
+	dir := flag.String("targets", "targets", "search path for target declarations; the source's own directory is always the nearest layer")
 	path := flag.String("path", "lib", "search path for imported modules")
 	out := flag.String("o", "", "artifact to write (default: the source's stem)")
 	checkedFlag := flag.Bool("checked", false,
@@ -44,7 +44,7 @@ func main() {
 }
 
 func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr string) error {
-	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
+	tg, err := emit.LoadTargetLayers(target, targetDirs(src, targetDir), libDirs(src, path))
 	if err != nil {
 		return err
 	}
@@ -317,4 +317,18 @@ func allSigs(p *core.Program) []*core.Sig {
 		out = append(out, s)
 	}
 	return out
+}
+
+// targetDirs is the layer chain a target is glued and overridden from —
+// target-system.md §7.2, and deliberately the same shape `libDirs` already has
+// for modules. NEAREST FIRST: the program's own directory, then the `-targets`
+// entries. A layer that does not have the target contributes nothing.
+func targetDirs(entry, extra string) []string {
+	dirs := []string{filepath.Dir(entry)}
+	for _, d := range filepath.SplitList(extra) {
+		if d != "" {
+			dirs = append(dirs, d)
+		}
+	}
+	return dirs
 }

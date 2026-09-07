@@ -1943,6 +1943,36 @@ API, so the information must be in the signature anyway; multiplicities on the a
 Haskell) — buys nothing when every surviving arrow is first-order; ownership+borrowing (Rust) —
 strictly larger, and what it adds is shared aliasing we do not need.
 
+**A TARGET IS A CHAIN OF LAYERS, AND A LIBRARY MAY BE ONE OF THEM** —
+[layers-2026-09-07](gauntlet/results/layers-2026-09-07.md), target-system.md §7.2 and §8, and the
+answers to questions 3 and 4 of the brief that produced that spec. **Before**: a user's target could
+not coexist with the built-ins, and a portable library with a native fast path needed a file inside
+`targets/` per host. **After**: `Δ_T = L₁ ▷ L₂ ▷ … ▷ Lₖ`, the source's own directory is the nearest
+layer, and `(provides T M …)` is one more fragment in the same chain.
+
+**AND THE ALGEBRA PAID FOR ITSELF TWICE.** `merge` was sixty lines of one rule repeated per field —
+*if the accumulator has it and they differ, error; else take the incoming* — and **override is the
+same walk with a different answer at the collision**. So it is now ONE fold and a `combiner`, with
+two generic helpers, and `zero` meaning *not declared here* is what makes a fragment a PARTIAL map,
+from which the sheaf condition falls out per name. **One place is deliberately stricter than the
+algebra**: under glue a repeated `prim` is an error even when identical, because within one layer a
+repeat is a mistake rather than a coincidence.
+
+**And `provides` needed NO NEW OPERATION.** `(provides T M decl…)` is exactly
+`(target T (module M decl…))` written where the library lives — a target FRAGMENT, and §7.2 already
+says a target is the glue of its fragments. The only thing that changed is WHERE fragments are
+found. It is the LOWEST layer, because a library's opinion about a host loses to that target's own
+files. **modules.md §6's conditional lowering runs for the first time**: one library directory,
+`strings.ToUpper(x)` on Go and `x + "!"` on JavaScript, no edit to `targets/`.
+
+**Three things fall out rather than being coded.** An absent layer contributes nothing, because the
+empty fragment is `⊔`'s identity. **One lookup rule, both spellings** — a layer's contribution is the
+directory `L/T` or the file `L/T.oro`. And **`addCore` runs once at the end**, because the language's
+names are resolved by SPELLING against the whole target and injecting them per layer would resolve
+`concat` against a fragment. **Override replaces a NAME, not a layer**, which is what makes a
+one-line project override practical. **Cost: 65 of 65 emitted files byte-identical** — the right
+result for a change entirely about where declarations are found.
+
 **WINDOWS CAN CONSTRUCT A STRING NOW, AND THE GAP WAS NOT THE STRINGS** —
 [winstrings-2026-09-07](gauntlet/results/winstrings-2026-09-07.md),
 `targets/windows/strings.oro`, assessment item 5 and the last capability gap in the integer work.

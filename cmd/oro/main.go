@@ -20,7 +20,7 @@ import (
 
 func main() {
 	target := flag.String("target", "go", "target whose primitive set defines the normal form")
-	dir := flag.String("targets", "targets", "directory holding target declarations")
+	dir := flag.String("targets", "targets", "search path for target declarations; the source's own directory is always the nearest layer")
 	path := flag.String("path", "lib", "search path for imported modules")
 	steps := flag.Bool("steps", false, "print each top-level term before and after reduction")
 	fuel := flag.Int("fuel", core.DefaultFuel, "maximum reduction steps")
@@ -53,7 +53,7 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
+	tg, err := emit.LoadTargetLayers(target, targetDirs(src, targetDir), libDirs(src, path))
 	if err != nil {
 		return err
 	}
@@ -139,6 +139,20 @@ func fileResolver(dirs []string) core.Resolver {
 // libDirs is the search path: the entry file's own directory first, so a
 // program can keep its modules beside it, then whatever -path adds.
 func libDirs(entry, extra string) []string {
+	dirs := []string{filepath.Dir(entry)}
+	for _, d := range filepath.SplitList(extra) {
+		if d != "" {
+			dirs = append(dirs, d)
+		}
+	}
+	return dirs
+}
+
+// targetDirs is the layer chain a target is glued and overridden from —
+// target-system.md §7.2, and deliberately the same shape `libDirs` already has
+// for modules. NEAREST FIRST: the program's own directory, then the `-targets`
+// entries. A layer that does not have the target contributes nothing.
+func targetDirs(entry, extra string) []string {
 	dirs := []string{filepath.Dir(entry)}
 	for _, d := range filepath.SplitList(extra) {
 		if d != "" {

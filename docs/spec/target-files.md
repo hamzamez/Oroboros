@@ -92,6 +92,35 @@ it.
 `x86-64` rather than `windows`: the operating system and the instruction set are
 different things, and target-system.md §5.2 wants them separable.
 
+## 1c. `provides` — a target fragment in a LIBRARY's file
+
+```lisp
+; mylib/mylib-go.oro — beside the library, not inside targets/
+(provides go std/words
+  (prim split-words (string) (array string) expr "strings.Fields(%s)" pure (import "strings")))
+```
+
+**It is exactly `(target T (module M decl…))`, written where the library lives.**
+So it needs no new operation and no new precedence: a target is the glue of its
+fragments (target-system.md §7.2), and this is one more place a fragment is
+found. A library author never edits `targets/`; adding support for a host is one
+file next to the library.
+
+Picked up from the **module search path** (`-path`), and it forms the **lowest**
+layer: a library's opinion about a host loses to that target's own files, which
+are the authority on it.
+
+What it buys is [modules.md §6](modules.md)'s conditional lowering, which was
+specified in August and which nothing parsed: the same library is a host call on
+a target that provides one and a portable definition — unfolded by δ — on a
+target that does not.
+
+> **Adding one is monotone on COVERAGE and not on EMISSION** (target-system.md
+> T5′). A name in `P_T ∩ D` takes the native, so shipping a `provides` changes
+> what an existing program compiles to. That is conditional lowering working as
+> designed, and it is also how a library could silently change a program's
+> answer — which is what the conformance obligation in §7 is for.
+
 ## 2. `type`
 
 ```lisp

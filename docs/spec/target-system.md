@@ -399,7 +399,12 @@ as asked is: *a target can live in the project folder, it cannot coexist with th
 built-ins, and if you name it anything of your own it is miscompiled.* §1.1 is
 therefore the first thing to fix and §7.2 the second.
 
-### 7.2 Proposed: a target is the glue of the fragments on a path
+### 7.2 A target is the glue of the fragments on a path — **BUILT 2026-09-07**
+
+> [layers-2026-09-07](../../gauntlet/results/layers-2026-09-07.md). `LoadTargetLayers`
+> folds the chain; `-targets` is a search path on all three commands and the
+> source's own directory is always the nearest layer. Every emitted file in the
+> corpus is byte-identical.
 
 ```
     Δ_T  =  L₁ ▷ L₂ ▷ … ▷ Lₖ           each  Lᵢ = ⨆ { fragments for T in layer i }
@@ -437,7 +442,13 @@ it:
 Nothing in `emit/target.go` parses `provides`. The four cells are implemented;
 the syntax that lets a *library* fill the third one is not.
 
-### 8.1 The only change needed is where fragments are found
+### 8.1 The only change needed is where fragments are found — **BUILT 2026-09-07**
+
+> `(provides T M decl…)` is parsed, and it is *the same fragment* §7.2 already
+> composes — no new operation, no new precedence, no new cell. It is the LOWEST
+> layer, because a library's opinion about a host loses to the target's own
+> files. Demonstrated end to end: one library directory, native on Go and
+> δ-unfolded on JavaScript.
 
 `(provides T M …)` is a **declaration fragment for target `T`**, and §7.2 already
 says a target is the glue of its fragments. So the answer is one sentence:
@@ -531,11 +542,10 @@ Ordered by measured value, with the Go survey's numbers where they apply.
    2026-09-06**, in the same result. It had to be lifted above `transfer`'s
    `Result != "int"` bail, which is scalarrange-2026-08-31's *three effects of a
    range* arriving in a fourth place.
-3. **§7.2, the target search path.** Smallest change here, unblocks the user
-   question directly, and is the prerequisite for 4 and 5.
-4. **§8, `provides` from a library's own directory.** Specified since modules.md
-   and never built; makes a portable library with native fast paths a
-   one-file-per-target job.
+3. ~~**§7.2, the target search path.**~~ **DONE, 2026-09-07** —
+   [layers-2026-09-07](../../gauntlet/results/layers-2026-09-07.md).
+4. ~~**§8, `provides` from a library's own directory.**~~ **DONE, 2026-09-07**,
+   in the same result. Specified since modules.md in August and never parsed.
 5. **§6, `(library PATH)`.** Moves three files out of `//go:embed`. **Its
    motivating case went the other way, 2026-09-07**: windows' `concat` and
    `string-of` were named here as the fourth library that would force this, and

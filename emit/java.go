@@ -337,7 +337,17 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 		if op := t.Op(); op.Kind == core.KName {
 			// Indexing is application, so `(a i)` has a's ELEMENT type.
 			if elem := core.ArrayElem(e.types[op.Name]); elem != "" {
-				return elem
+				// A RANGE IS AN INTEGER WHEREVER IT IS USED, and the width
+				// belongs to the storage alone (elemwidth-2026-08-27). Go says
+				// so at the same site and Java did not, so a local bound to a
+				// read of a narrowed buffer was DECLARED at the element's width
+				// while the read itself emits a cast to the host's `long` —
+				// `final byte vx = (long) b[0]`, which javac refuses.
+				//
+				// Latent because nothing had bound a name to a read of a
+				// NARROWED buffer until the syntactic element inference learned
+				// to see through a `let` (examples/io/jsonfmt.oro).
+				return core.ValueType(elem)
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// The write side's result types. A `build` yields the array

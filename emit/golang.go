@@ -52,6 +52,9 @@ type Emitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
+	// renamed maps a container to the narrowed copy that stands in for it inside
+	// the loop that narrowed it — see emitNarrow.
+	renamed map[string]string
 	weak    map[string]string // variable -> `any`, used only if nothing else fits
 	tmp     int
 	indent  int
@@ -689,6 +692,20 @@ var Imports = map[string]bool{}
 func (e *Emitter) inferFrom(t *core.Term) {
 	switch t.Kind {
 	case core.KApp:
+		// A HOST CALL WITH SEVERAL RESULTS names its continuation's parameters
+		// here, in the pass that runs BEFORE emission — which is where a type
+		// has to be known, because the buffer's element width is decided while
+		// the enclosing `build` is emitted and a declaration learned later is
+		// learned too late.
+		if p, _, k, ok := multiPrimCall(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for i := range raw {
+				e.types[raw[i]] = p.Results[i]
+			}
+			e.inferFrom(body)
+			return
+		}
 		op := t.Op()
 		if op.Kind == core.KName {
 			if p, ok := e.tgt.Prims[op.Name]; ok {
@@ -956,6 +973,11 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		return GoStringLit(t.Str), nil
 
 	case core.KName:
+		// A NARROWED CONTAINER IS A DIFFERENT VARIABLE inside the loop that
+		// narrowed it. See emitNarrow.
+		if r, ok := e.renamed[t.Name]; ok {
+			return r, nil
+		}
 		return mangle(t.Name), nil
 
 	case core.KFn:
@@ -1141,7 +1163,8 @@ func (e *Emitter) emitFoldRange2(t *core.Term) (string, error) {
 	// `:=` would infer Go's `int` from a literal or from len(), and the
 	// two do not compare — the declaration has to be explicit.
 	e.line("var %s int64 = %s", n, count)
-	e.emitNarrow(sx.Params[2], n, sx.Body(), syBody)
+	undoNarrow := e.emitNarrow(sx.Params[2], n, sx.Body(), syBody)
+	defer undoNarrow()
 	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	bx, err := e.emit(sx.Body())
@@ -1279,10 +1302,37 @@ func mentions(t *core.Term, names []string) bool {
 // Conservative on purpose. A container is narrowed only if EVERY occurrence of
 // it in the body is an index by the bare loop variable — the stencil indexes
 // `a` at `j`, `j+1` and `j+2`, so `a` is left alone and stays correct.
-func (e *Emitter) emitNarrow(idxName, n string, bodies ...*core.Term) {
+// It narrows into a FRESH NAME, and that is a correctness fix rather than
+// style. `q = q[:n]` writes back to the container itself, so a loop whose bound
+// is SHORTER than the container permanently truncates it — every later
+// `len(q)` sees the narrowed length, which is observable and wrong.
+//
+// Invisible until 2026-09-06 because every earlier narrow was to the
+// container's own length, where the slice expression is the identity.
+// `examples/io/jsonfmt.oro` copies a TOKEN out of a document, so the bound is
+// the token's end: `src = src[:7]` after the first string, and the formatter
+// stopped at the first field with no diagnostic.
+//
+// The comment above is still true of INDEXING — primitives.md §2 leaves an
+// out-of-range read unspecified, so moving the panic earlier is invisible — and
+// it was never true of `len`, which is specified and which nothing here asked
+// about.
+func (e *Emitter) emitNarrow(idxName, n string, bodies ...*core.Term) func() {
+	var undo []string
 	for _, name := range e.narrowTargets(idxName, bodies...) {
-		m := mangle(name)
-		e.line("%s", fmt.Sprintf(e.tgt.Narrow, m, m, n))
+		fresh := e.fresh("s")
+		e.line("%s", fmt.Sprintf(e.tgt.Narrow, fresh, mangle(name), n))
+		e.types[fresh] = e.types[name]
+		if e.renamed == nil {
+			e.renamed = map[string]string{}
+		}
+		e.renamed[name] = fresh
+		undo = append(undo, name)
+	}
+	return func() {
+		for _, name := range undo {
+			delete(e.renamed, name)
+		}
 	}
 }
 
@@ -1495,7 +1545,7 @@ func (e *Emitter) emitFoldRange(t *core.Term) (string, error) {
 	// `:=` would infer Go's `int` from a literal or from len(), and the
 	// two do not compare — the declaration has to be explicit.
 	e.line("var %s int64 = %s", n, count)
-	e.emitNarrow(idxName, n, body)
+	defer e.emitNarrow(idxName, n, body)()
 	e.line("for %s := int64(0); %s < %s; %s++ {", idx, idx, n, idx)
 	e.indent++
 	got, err := e.emit(body)
@@ -1748,7 +1798,7 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 			// portable layer that is `int64`, and `var n int = int64(len(a))`
 			// does not compile.
 			e.line("var %s %s = %s", n, e.tgt.ty("int"), bv)
-			e.emitNarrow(idx, n, body)
+			defer e.emitNarrow(idx, n, body)()
 		}
 	}
 

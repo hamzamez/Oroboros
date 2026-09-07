@@ -1943,6 +1943,65 @@ API, so the information must be in the signature anyway; multiplicities on the a
 Haskell) — buys nothing when every surviving arrow is first-order; ownership+borrowing (Rust) —
 strictly larger, and what it adds is shared aliasing we do not need.
 
+**A TOOL IS WRITTEN, AND IT FOUND FOUR BUGS — TWO OF THEM SILENT WRONG ANSWERS** —
+[jsonfmt-2026-09-07](gauntlet/results/jsonfmt-2026-09-07.md),
+[examples/io/jsonfmt.oro](examples/io/jsonfmt.oro), assessment item 4, *write something awkward*,
+named in four consecutive assessments and acted on in none. A JSON pretty-printer: 95 lines, the
+second largest program in this language and the first that is a TOOL. Validated by a real parser —
+output is valid JSON, **semantically identical** to the input, **idempotent**, `{}` and `[]` stay
+compact, escapes survive, 300 records round-trip. **And it builds without `-checked`: 99 of 99
+integer operations bounded, 13 of 13 loops.**
+
+**BUG 1, MINE, SHIPPED THE DAY BEFORE: ADR 0019 was VACUOUS inside a multi-result continuation.**
+`evalR` met an application whose operator is itself an application, did not recognise it, and
+returned ⊤ **without walking the body** — so the interval pass never entered any code written after
+a host call with several results, which is how every program that opens a file is written. The same
+`(* a n)` was REFUSED in an ordinary function and ACCEPTED silently in a continuation. That is
+bigrep-2026-09-02's *"enforced on three targets and vacuous on the fourth"* arriving at a CONSTRUCT
+instead of a target. The fix binds each continuation parameter to what the primitive DECLARES, so
+the same repair that closes the hole is what lets a byte copy narrow.
+
+**BUG 2, PRE-EXISTING SINCE bce-2026-08-15: the bounds-check narrowing TRUNCATED ITS OWN SOURCE.**
+`src = src[:n]` writes back to the container, so a loop bounded by less than the whole table
+permanently shortens it. The emitter's comment justifies narrowing because *"no program with defined
+meaning can tell"* — **true of INDEXING**, which primitives.md §2 leaves unspecified out of range,
+and **never true of `len`**, which is specified. Invisible for three weeks because every earlier
+narrow was to the container's OWN length, where the slice is the identity; the formatter copies a
+TOKEN, so after the first string `len(src)` became 7 and the loop exited, printing `{
+  "name"` and
+stopping with no diagnostic. Fixed by narrowing into a fresh name. **The optimisation is unaffected —
+2 `IsInBounds` at the same two lines before and after**, checked by compiling both forms in one
+package rather than trusting timings.
+
+**BUG 3: a copied byte could NEVER be narrowed, because two rules had never met.** effects.md §7c
+GUARANTEES a table read is never substituted into an impure body, so a copied byte is ALWAYS
+let-bound; and the syntactic element inference resolved only the bare name, whose `typeOf` calls
+`ValueType` and has already normalised the range away. So `(set out i (src k))` never survives as
+written and elemwidth's own rule — *a read from an already-narrowed table carries one* — could not
+be reached. Making the `let` transparent re-opened the circularity the project already refuses (**a
+buffer may not narrow on its own contents**); `buffer-swap` is that shape and the differential suite
+caught it on Java. **BUG 4** fell out of it: Java declared a local at the ELEMENT width where Go
+normalises, so `final byte vx = (long) b[0]`.
+
+**AND IT SAYS SOMETHING ABOUT STRINGS THAT render.oro COULD NOT.** A text program that COPIES cannot
+build its output as text at all: `string-of` is η over SCALARS, so a raw UTF-8 byte becomes U+00C3.
+It works in bytes throughout and converts ONCE — string-operations.md's `alloc`-once advice from the
+opposite direction. **So the free monoid is enough to PRODUCE text and not enough to TRANSFORM it**,
+and what a transforming program needs is bytes-to-text at the boundary, not `length`, not indexing,
+not `=`.
+
+**Two more findings about the language rather than the compiler.** **Count-then-build has a real
+cost and this is the first time anyone had to WRITE it**: `build` fixes a length up front and returns
+the buffer with nowhere to put a second result, so the state machine is written TWICE and the copies
+must agree byte for byte — made safe by factoring the three length contributions into definitions
+both passes call. And **stating the input limit is worth everything**: the output length accumulates
+over an unbounded input, so 33 operations were unprovable, and one line — refuse a file over 64 KB —
+takes it to 99 of 99 with no `-checked`. `tree.oro`'s node cap again.
+
+**Cost: 6 of 64 emitted files change**, all the narrowing rename; the suite is green on 27 cases and
+four targets. **No benchmark**, deliberately: there is no hand-written reference formatter and the
+claim is correctness and expressiveness, not speed.
+
 **A PROGRAM OPENS A FILE, AND THE LANGUAGE NEEDED NOTHING** —
 [multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md),
 [examples/io/wc.oro](examples/io/wc.oro), assessment item 2. **Go's callable standard library goes
@@ -2985,7 +3044,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro` — the first program that opens a file); `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, and `jsonfmt.oro` — the first tool); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 | `gauntlet/stdlib/` | `survey.go` and `win32.go` — how much of Go's standard library and the Windows API this language can declare, and why not the rest |

@@ -55,7 +55,7 @@
 
   ; Restricting a container to a known length, so Go's own bounds-check
   ; elimination has a proof (bce-2026-08-15.md).
-  (narrow "%s = %s[:%s]")
+  (narrow "%s := %s[:%s]")
 
   (build "go build -o %s %s")
 

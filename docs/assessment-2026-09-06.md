@@ -166,7 +166,14 @@ one missing type name and the implementation is `CheckLinear` with a different s
 [ADR 0020](decisions/0020-uniqueness-on-parameters.md), with the corrected count, superseding
 ADR 0013 and amending ADR 0018's consequence 3. **Not yet built.**
 
-**4. Write an application.** Not a benchmark and not a kernel. Something with input, output, error
+**4. ~~Write an application.~~ DONE, 2026-09-07** —
+[jsonfmt-2026-09-07](../gauntlet/results/jsonfmt-2026-09-07.md). A JSON pretty-printer, 95 lines,
+the first tool. **It found four bugs, two of them silent wrong answers** — one shipped the previous
+day (ADR 0019 vacuous inside a multi-result continuation) and one three weeks old (the
+bounds-check narrowing truncating its own source). That is the answer to why this item kept being
+deferred and should not have been. The original entry follows.
+
+**Write an application.** Not a benchmark and not a kernel. Something with input, output, error
 handling and a shape nobody chose to suit the analysis — the smallest honest candidate is a
 command-line tool that reads a file, and it is blocked on exactly item 2, which is the argument for
 doing item 2 first. This is the item that has been deferred three times, and the way to stop

@@ -58,7 +58,7 @@
   ; Restricting a container to a known length. Go gains bounds-check
   ; elimination from it; JS has no bounds checks and Java's arrays cannot be
   ; narrowed, so neither declares one and neither gets the transformation.
-  (narrow "%s = %s[:%s]")
+  (narrow "%s := %s[:%s]")
 
   ; ---------------------------------------------------------------- arithmetic
   ;

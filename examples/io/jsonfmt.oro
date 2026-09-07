@@ -1,0 +1,205 @@
+; A JSON PRETTY-PRINTER. The first Oroboros program that is a TOOL.
+;
+;   jsonfmt FILE
+;
+; Reads a JSON document, reformats it with two-space indentation, and writes it
+; to stdout. It is the first program here with the shape a real program has —
+; argument, input, transform, output — rather than one that computes a number.
+;
+; THREE THINGS IT IS WRITTEN TO FIND OUT, none of which an argument settles.
+;
+; (1) DOES A TEXT PROGRAM BUILD ITS OUTPUT AS TEXT? render.oro answered the
+;     producing half of string-operations.md's question with `concat` over the
+;     free monoid. This one cannot: copying a token means copying its SOURCE
+;     BYTES, and `string-of` is η over SCALARS, so feeding it a raw UTF-8 byte
+;     would turn 0xC3 into U+00C3. So the formatter works in bytes throughout
+;     and converts once at the end — which is string-operations.md §5's own
+;     `alloc`-once advice, arriving from the other direction.
+;
+; (2) WHAT DOES "COUNT, THEN BUILD" COST A PROGRAMMER? `build` fixes a length up
+;     front, so the output size has to be known before the output is made. The
+;     answer here is to run the state machine TWICE — maps-2026-08-30 measured
+;     that pattern 2.95x faster than growing `append`, and this is the first
+;     time anyone has had to WRITE it rather than benchmark it. The two loops
+;     below must agree byte for byte, and keeping them in step is the cost.
+;
+; (3) IS THE LANGUAGE PLEASANT? Deliberately unmeasurable, and the reason the
+;     program exists at all.
+;
+; THE LAYOUT RULE, in one line: emit a newline and indentation before a token
+; only when nothing has been emitted at this level yet, and after every comma.
+; `fresh` is that bit. It is what makes `{}` come out as `{}` rather than as a
+; brace, a blank line and a brace.
+
+(use go)
+(use go/os as os)
+(use go/fmt as fmt)
+
+(export main)
+
+; The one limit the program states, and it is the same shape as tree.oro's node
+; cap: nesting is bounded because the layout depth is, and a document deeper
+; than this is refused rather than mis-indented.
+(def dmax (fn () 64))
+
+; --- byte classes -----------------------------------------------------------
+;
+; Lifted from examples/json/tokenize.oro unchanged. A formatter needs no
+; tokeniser table and no tree: it needs to know where each token ENDS, which is
+; the one thing a scanner gives.
+
+(def space? (fn (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13))))))
+(def digit? (fn (c) (and (>= c 48) (<= c 57))))
+(def alpha? (fn (c) (and (>= c 97) (<= c 122))))
+(def numeric? (fn (c)
+  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69))))))))
+(def opener? (fn (c) (or (= c 123) (= c 91))))
+(def closer? (fn (c) (or (= c 125) (= c 93))))
+(def scalar? (fn (c) (or (= c 34) (or (numeric? c) (alpha? c)))))
+
+; --- scanners ---------------------------------------------------------------
+
+(def scan-string (fn (src i)
+  (loop ((j (+ i 1)))
+    (< j 0)          j
+    (>= j (len src)) j
+    (= (src j) 92)   (again (+ j 2))
+    (= (src j) 34)   (+ j 1)
+    else             (again (+ j 1)))))
+
+(def scan-run (fn (src i pred)
+  (loop ((j i))
+    (< j 0)          j
+    (>= j (len src)) j
+    (pred (src j))   (again (+ j 1))
+    else             j)))
+
+; Where the token starting at `i` ends. Scanning starts PAST the byte the guard
+; already matched, which is monotone-2026-08-27's repair: starting at `i` a
+; scanner may return `i`, so there is no strict descent and the loop cannot be
+; proven to terminate.
+(def tok-end (fn (src i)
+  (if (= (src i) 34) (scan-string src i)
+    (if (numeric? (src i)) (scan-run src (+ i 1) numeric?)
+                           (scan-run src (+ i 1) alpha?)))))
+
+; --- how many bytes each token contributes ----------------------------------
+;
+; Factored out so the two passes cannot drift: each returns exactly what the
+; corresponding emit writes. This is the seam where "count, then build" is
+; either safe or a latent bug, so it is one definition rather than two.
+
+(def pad-before (fn (fresh d) (if (= fresh 1) (+ 1 (* 2 d)) 0)))
+(def pad-close  (fn (fresh d1) (if (= fresh 0) (+ 1 (* 2 d1)) 0)))
+(def depth-out  (fn (d) (if (< d 1) 0 (- d 1))))
+
+; --- pass 1: how long is the output -----------------------------------------
+;
+; `build` needs its length UP FRONT, so the size has to be computed before the
+; buffer exists. Running the state machine twice is the honest way to do that,
+; and the alternative — guess a capacity and carry the used length out — cannot
+; be written, because a `build` returns the buffer and there is nowhere to put
+; a second result.
+
+(def outlen (fn (src)
+  (loop ((n 0) (i 0) (d 0) (fresh 0))
+    (>= i (len src))  (+ n 1)
+    (>= d (dmax))     (+ n 1)
+    (space? (src i))  (again n (+ i 1) d fresh)
+    (opener? (src i)) (again (+ n (+ (pad-before fresh d) 1)) (+ i 1) (+ d 1) 1)
+    (closer? (src i)) (let (depth-out d) (fn (d1)
+                        (again (+ n (+ (pad-close fresh d1) 1)) (+ i 1) d1 0)))
+    (= (src i) 44)    (again (+ n (+ 2 (* 2 d))) (+ i 1) d 0)
+    (= (src i) 58)    (again (+ n 2) (+ i 1) d fresh)
+    (scalar? (src i)) (let (tok-end src i) (fn (ni)
+                        (again (+ n (+ (pad-before fresh d) (- ni i))) ni d 0)))
+    else              (again n (+ i 1) d fresh))))
+
+; --- writing ----------------------------------------------------------------
+;
+; Every helper returns the BUFFER and nothing else, and the caller advances the
+; offset itself. That is ADR 0018's linearity making the interface: a helper
+; cannot hand back both the buffer and a new offset, so the arithmetic stays
+; with the caller — which turns out to read better than the alternative, because
+; the offset and the length contribution then sit side by side.
+
+(def put (fn (out op c) (set out op c)))
+
+(def spaces (fn (out op n)
+  (loop ((out out) (k 0) (o op))
+    (>= k n) out
+    else     (again (set out o 32) (+ k 1) (+ o 1)))))
+
+(def nl (fn (out op d) (spaces (set out op 10) (+ op 1) (* 2 d))))
+
+(def copyr (fn (out op src a b)
+  (loop ((out out) (k a) (o op))
+    (>= k b) out
+    else     (again (set out o (src k)) (+ k 1) (+ o 1)))))
+
+; --- pass 2: write it -------------------------------------------------------
+;
+; The same state machine, emitting instead of counting. Every clause pairs with
+; the one above it and adds exactly the bytes that one counted.
+
+(def render (fn (src out)
+  (loop ((out out) (op 0) (i 0) (d 0) (fresh 0))
+    (>= i (len src))  (put out op 10)
+    (>= d (dmax))     (put out op 10)
+    (space? (src i))  (again out op (+ i 1) d fresh)
+
+    ; THE BRACKET IS NAMED, not echoed. `(src i)` here would be a byte the
+    ; compiler cannot bound — call-by-need let-binds it, and a let-bound copy of
+    ; a table read loses its element range, so the output buffer would be
+    ; `[]int` rather than `[]byte`. Writing the literal the guard already
+    ; established says what the formatter means anyway.
+    (opener? (src i))
+      (let (pad-before fresh d) (fn (p)
+        (again (put (if (= fresh 1) (nl out op d) out) (+ op p)
+                    (if (= (src i) 123) 123 91))
+               (+ op (+ p 1)) (+ i 1) (+ d 1) 1)))
+
+    (closer? (src i))
+      (let (depth-out d) (fn (d1)
+      (let (pad-close fresh d1) (fn (p)
+        (again (put (if (= fresh 0) (nl out op d1) out) (+ op p)
+                    (if (= (src i) 125) 125 93))
+               (+ op (+ p 1)) (+ i 1) d1 0)))))
+
+    (= (src i) 44)
+      (again (nl (put out op 44) (+ op 1) d)
+             (+ op (+ 2 (* 2 d))) (+ i 1) d 0)
+
+    (= (src i) 58)
+      (again (put (put out op 58) (+ op 1) 32) (+ op 2) (+ i 1) d fresh)
+
+    (scalar? (src i))
+      (let (tok-end src i) (fn (ni)
+      (let (pad-before fresh d) (fn (p)
+        (again (copyr (if (= fresh 1) (nl out op d) out) (+ op p) src i ni)
+               (+ op (+ p (- ni i))) ni d 0)))))
+
+    else (again out op (+ i 1) d fresh))))
+
+(def format (fn (src) (build (outlen src) (fn (out) (render src out)))))
+
+; --- the tool ---------------------------------------------------------------
+
+; THE SIZE LIMIT IS STATED, and that is what makes the program provable rather
+; than trapped. The output length accumulates over the input, so nothing can
+; bound it while the input is unbounded — and a file IS unbounded. Saying how
+; big a document this tool accepts turns 33 unprovable operations into zero,
+; and it is the same move as `tree.oro`'s node cap: a capacity does not create
+; the limit, it makes it visible.
+(def cap-in (fn () 65536))
+
+(def main (fn ()
+  (let (os.Args) (fn (av)
+    (if (< (len av) 2)
+        (fmt.Println "usage: jsonfmt FILE")
+        ((os.ReadFile (av 1)) (fn (src err)
+          (if (os.err-nil err)
+              (if (>= (len src) (cap-in))
+                  (fmt.Println "jsonfmt: file is larger than this tool accepts")
+                  (fmt.Print (os.text-of (format src))))
+              (fmt.Println "jsonfmt: cannot read that file")))))))))

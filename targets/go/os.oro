@@ -40,6 +40,20 @@
     ; is not a value the language has.
     (prim err-nil ((e error)) bool expr "%s == nil" pure)
 
+    ; ---- bytes to text, ONCE, at the boundary
+    ;
+    ; `string-of-bytes` in builtin.oro takes `slice-byte`, which is the RETIRED
+    ; enumerated array type from before `(array V)` existed, so a buffer frozen
+    ; out of a `build` — which is `(array (int 0 255))` — cannot reach it. Same
+    ; three characters of Go, two type languages that never met.
+    ;
+    ; It is declared here rather than renamed there because a text-producing
+    ; program wants exactly this shape: work in bytes, convert once at the end.
+    ; `string-of` is η over SCALARS, so copying a token's raw UTF-8 bytes
+    ; through it would turn 0xC3 into U+00C3; the conversion has to happen on
+    ; the whole sequence or not at all (string-operations.md §5).
+    (prim text-of ((b (array (int 0 255)))) string expr "string(%s)" pure)
+
     ; ---- the environment, so a program can be told what to open
     (prim Args (none) (array string) expr "os.Args" (import "os"))
     (prim Getenv ((k string)) string expr "os.Getenv(%s)" pure (import "os"))))

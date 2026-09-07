@@ -368,8 +368,6 @@ type IntervalReport struct {
 	// Ops: a bignum cannot leave the window, so it is not an operation the
 	// window accounting has anything to say about.
 	BigOps int
-
-
 }
 
 type intervalPass struct {
@@ -384,18 +382,18 @@ type intervalPass struct {
 	// already recorded in this repository as a thing that was built and found
 	// to record nothing the emitter could find.
 	big        map[string]bool
-	bigReads   map[string]bool // names read by a big operation — rule (P)
-	bigChanged bool            // did this sweep promote anything?
-	wantBig    bool            // the signature declares a result above the window
-	demandBig  bool            // this position's value must BE a bignum
-	loopTail   bool            // …and the loop being iterated sits in one
-	loopRaw    []string        // the enclosing loop's variables, for `again`
+	bigReads   map[string]bool     // names read by a big operation — rule (P)
+	bigChanged bool                // did this sweep promote anything?
+	wantBig    bool                // the signature declares a result above the window
+	demandBig  bool                // this position's value must BE a bignum
+	loopTail   bool                // …and the loop being iterated sits in one
+	loopRaw    []string            // the enclosing loop's variables, for `again`
 	bigVal     map[*core.Term]bool // rebuilt terms whose value is a bignum
-	noChecked  bool            // select big, but not the checked arithmetic
-	selecting  bool            // this pass SELECTS a representation, rather than reporting on one
-	noDest     bool            // …and not the mutable-bignum rewrite either
-	shiftOnly  bool            // …and nothing at all except division-to-shift
-	limbs      bool            // big is OUR representation, so the host need not have one
+	noChecked  bool                // select big, but not the checked arithmetic
+	selecting  bool                // this pass SELECTS a representation, rather than reporting on one
+	noDest     bool                // …and not the mutable-bignum rewrite either
+	shiftOnly  bool                // …and nothing at all except division-to-shift
+	limbs      bool                // big is OUR representation, so the host need not have one
 
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
@@ -944,6 +942,64 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 	return top, t
 }
 
+// multiPrim evaluates a host call with SEVERAL RESULTS under its eliminator —
+// `((os.ReadFile p) (fn (src err) …))` — binding each continuation parameter to
+// what the primitive declares it gives back.
+//
+// WITHOUT THIS, ADR 0019 IS VACUOUS INSIDE EVERY SUCH CONTINUATION. The operator
+// of the outer application is itself an application, so the walk fell through to
+// `return top, t` and never entered the body: the same unbounded `(* a n)` was
+// REFUSED in an ordinary function and silently ACCEPTED here. Since a
+// continuation is how every program that opens a file is written, the hole was
+// exactly the shape of the new code — the same failure mode bigrep-2026-09-02
+// found on JavaScript, where bounded-by-default was enforced on three targets
+// and vacuous on the fourth.
+//
+// It is also where a declared result becomes a FACT: a scalar range binds the
+// parameter's interval, and an `(array (int LO HI))` binds its ELEMENT range, so
+// a program that copies bytes out of `os.ReadFile`'s result can have the copy
+// narrowed. A primitive has no body; the declaration is the only source.
+func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
+	pr, args, k, ok := multiPrimCall(p.tgt, t)
+	if !ok {
+		return top, t, false
+	}
+	nargs := make([]*core.Term, len(args))
+	for i, a := range args {
+		_, nargs[i] = p.evalR(a)
+	}
+	body, raw, _ := openFresh(k, p.bound, asmIdent)
+	type saved struct {
+		v    ival
+		had  bool
+		e    ival
+		hadE bool
+	}
+	old := make([]saved, len(raw))
+	for i := range raw {
+		old[i].v, old[i].had = p.env[raw[i]]
+		old[i].e, old[i].hadE = p.elem[raw[i]]
+		delete(p.env, raw[i])
+		delete(p.elem, raw[i])
+		if i < len(pr.Results) {
+			if lo, hi, isR := core.IntRange(pr.Results[i]); isR {
+				p.env[raw[i]] = ival{lo: lo, hi: hi}
+			}
+			if lo, hi, isR := core.IntRange(core.ArrayElem(pr.Results[i])); isR {
+				p.elem[raw[i]] = ival{lo: lo, hi: hi}
+			}
+		}
+	}
+	v, nb := p.evalR(body)
+	for i := range raw {
+		restoreVar(p.env, raw[i], old[i].v, old[i].had)
+		restoreVar(p.elem, raw[i], old[i].e, old[i].hadE)
+	}
+	p.releaseBound(raw)
+	op := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{t.Op().Op()}, nargs...)}
+	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}, true
+}
+
 // mapCase evaluates a map read under its eliminator, binding what the two
 // continuation parameters can hold.
 //
@@ -1045,6 +1101,9 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// measured at 2 of 4. growth.md called the map's value range FREE; it is
 		// free only once the analysis is told about it.
 		if v, nt, ok := p.mapCase(t); ok {
+			return v, nt
+		}
+		if v, nt, ok := p.multiPrim(t); ok {
 			return v, nt
 		}
 		return top, t

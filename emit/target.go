@@ -35,11 +35,11 @@ type Prim struct {
 	// See parsePrim for why this field is worth 19.8% of an ecosystem.
 	Results []string
 	Result  string
-	Kind   string // expr | stmt | loop | loop2 | cond | let
-	Form   string // template with %s holes; empty for structural kinds
-	Import string
-	Pure   bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
-	Index  bool // declared `index`: argument 0 is a container indexed by argument 1
+	Kind    string // expr | stmt | loop | loop2 | cond | let
+	Form    string // template with %s holes; empty for structural kinds
+	Import  string
+	Pure    bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
+	Index   bool // declared `index`: argument 0 is a container indexed by argument 1
 
 	// Length is `(length N)`: the result is a container whose length is the
 	// VALUE of argument N — `make([]bool, n)` is n long. LengthOf is
@@ -2038,6 +2038,26 @@ func storedRange(v *core.Term, typeOf func(*core.Term) string) (int64, int64, bo
 		}
 		return min64(alo, blo), max64(ahi, bhi), true
 	}
+	// A COPY FROM AN ALREADY-NARROWED TABLE carries that table's element range.
+	// elemwidth-2026-08-27 states this rule — *"a read from an already-narrowed
+	// table carries one"* — and this path never implemented it, because nothing
+	// had copied bytes out of one table into another until a program formatted
+	// a file (examples/io/jsonfmt.oro). The tokeniser's stack stores literals;
+	// the tree's node table stores indices.
+	//
+	// It has to ask for the table's type rather than the READ's, because
+	// `typeOf` normalises a range to `int` — correct for the value, since a
+	// local reading a byte array is an `int` and cannot overflow at 255, and
+	// exactly what destroys the fact here. That is scalarrange-2026-08-31's
+	// three effects of a range: `typeOf` gives the TYPING answer and this wants
+	// the REPRESENTATION one.
+	if v.Kind == core.KApp && len(v.Kids) == 2 && v.Kids[0].Kind == core.KName {
+		if elem := core.ArrayElem(typeOf(v.Kids[0])); elem != "" {
+			if lo, hi, ok := core.IntRange(elem); ok {
+				return lo, hi, true
+			}
+		}
+	}
 	return core.IntRange(typeOf(v))
 }
 
@@ -2346,9 +2366,27 @@ func BufferRoot(t *core.Term) string {
 func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) string {
 	lo, hi := int64(0), int64(0)
 	sawRange, sawOther, other := false, false, ""
+	// A `let` IS TRANSPARENT HERE, and without this the rule above can never
+	// fire. `(set b i (src k))` does not survive as written: effects.md §7c
+	// refuses to substitute a table read into an impure body — a read moving
+	// across a store is a silent wrong answer — so a COPIED BYTE is ALWAYS
+	// let-bound, and what this walk sees is a bare name whose `typeOf` has
+	// already normalised the range away.
+	//
+	// So the two rules are exactly complementary: §7c guarantees the binding
+	// exists, and this resolves through it.
+	binds := map[string]*core.Term{}
 	var walk func(t *core.Term)
 	walk = func(t *core.Term) {
 		if t == nil {
+			return
+		}
+		if t.Kind == core.KApp && len(t.Kids) == 3 && t.Kids[0].Kind == core.KName &&
+			t.Kids[0].Name == "let" && t.Kids[2].Kind == core.KFn &&
+			len(t.Kids[2].Params) == 1 {
+			walk(t.Kids[1])
+			binds[t.Kids[2].Params[0]] = t.Kids[1]
+			walk(t.Kids[2].Body())
 			return
 		}
 		if t.Kind == core.KApp && len(t.Kids) == 4 &&
@@ -2359,7 +2397,27 @@ func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) st
 			// stores there only ever WIDENS the range, and a range too wide
 			// costs space while a range too narrow is a silent wrong answer.
 			(BufferRoot(t) == "" || BufferRoot(t) == name) {
-			if l, h, ok := storedRange(t.Kids[3], typeOf); ok {
+			v := t.Kids[3]
+			if v.Kind == core.KName {
+				if b, bound := binds[v.Name]; bound {
+					v = b
+				}
+			}
+			// A BUFFER MAY NOT NARROW ON ITS OWN CONTENTS. Resolving through the
+			// `let` above re-opened exactly the circularity the interval path
+			// already refuses (elemwidth-2026-08-27, pinned there as a policy
+			// test with a control) — and it opened it on the path that test
+			// does not cover, because until the let was transparent a store of
+			// a read was always an opaque name.
+			//
+			// `buffer-swap` is the case: `(set (set b 0 vy) 1 vx)` with `vx`
+			// and `vy` bound to reads of `b` itself. Java caught it as a lossy
+			// conversion; the analysis would have been reasoning in a circle.
+			if v.Kind == core.KApp && len(v.Kids) == 2 &&
+				v.Kids[0].Kind == core.KName && v.Kids[0].Name == name {
+				v = t.Kids[3]
+			}
+			if l, h, ok := storedRange(v, typeOf); ok {
 				sawRange = true
 				if l < lo {
 					lo = l
@@ -2369,7 +2427,7 @@ func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) st
 				}
 			} else {
 				sawOther = true
-				if ty := typeOf(t.Kids[3]); other == "" && ty != "" {
+				if ty := typeOf(v); other == "" && ty != "" {
 					other = ty
 				}
 			}

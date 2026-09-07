@@ -185,7 +185,13 @@ command-line tool that reads a file, and it is blocked on exactly item 2, which 
 doing item 2 first. This is the item that has been deferred three times, and the way to stop
 deferring it is to make it the *acceptance test* for item 2 rather than a separate task.
 
-**5. windows can print a string and cannot construct one.** `concat` and `string-of` over `build`,
+**5. ~~windows can print a string and cannot construct one.~~ DONE, 2026-09-07** —
+[winstrings-2026-09-07](../gauntlet/results/winstrings-2026-09-07.md). Two assembly templates over
+a static arena; `render.oro` runs on all four targets. **The gap was not the strings**: once they
+existed, a one-conjunct bug in the limb rung — a fixpoint gated on `HasBig()` as well as `bigOK()` —
+was still refusing the program on the only target with no host bignum. The original entry follows.
+
+**windows can print a string and cannot construct one.** `concat` and `string-of` over `build`,
 keeping the bare NUL-terminated pointer — the last capability gap in the integer work, and it makes
 `render.oro` run on four targets instead of three.
 

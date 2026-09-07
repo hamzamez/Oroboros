@@ -78,11 +78,17 @@ var driver = map[string]struct{ uses, print string }{
 // windows differs, because a string there is a pointer to NUL-terminated bytes
 // and `msvcrt.printf` is what consumes one (windows-target.md).
 //
-// `printf` rather than `puts`, which is declared beside it and does NOT LINK:
-// the generated build.bat links `legacy_stdio_definitions.lib`, which supplies
-// printf and not puts, so `puts` has been unreachable since it was declared and
-// no program had used it. A build concern rather than a language one — the half
-// of this project strings.md §5 already named as not existing yet.
+// `puts` RATHER THAN `printf`, corrected 2026-09-07. The note here used to say
+// `puts` does not link — true when it was written, because the generated
+// build.bat linked `legacy_stdio_definitions.lib` and not the UCRT, so every
+// CRT stdio entry point that target declares was unreachable. string-literals.md
+// fixed the link and nothing revisited this line.
+//
+// It matters now that a case prints SEVERAL strings: `printf` appends no
+// newline, so `render` came out as one run of digits on windows and as one line
+// per answer everywhere else — a disagreement in the HARNESS rather than in the
+// compiler. `puts` appends the newline, which is what the other three drivers
+// do.
 //
 // It exists because otherwise the suite CANNOT CHECK A STRING LITERAL AT ALL:
 // the harness prints an integer, and there is no portable operation from a
@@ -92,7 +98,7 @@ var stringDriver = map[string]struct{ uses, print string }{
 	"go":      {"(use go)\n(use go/fmt)", "fmt.Println"},
 	"js":      {"(use js)\n(use js/console as console)", "console.log"},
 	"java":    {"(use java)\n(use java/System as sys)", "sys.out-println"},
-	"windows": {"(use x64)\n(use windows/msvcrt as crt)", "crt.printf"},
+	"windows": {"(use x64)\n(use windows/msvcrt as crt)", "crt.puts"},
 }
 
 // What each target's artifact is CALLED, and how to run it.

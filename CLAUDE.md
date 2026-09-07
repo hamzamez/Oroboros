@@ -1943,6 +1943,38 @@ API, so the information must be in the signature anyway; multiplicities on the a
 Haskell) — buys nothing when every surviving arrow is first-order; ownership+borrowing (Rust) —
 strictly larger, and what it adds is shared aliasing we do not need.
 
+**WINDOWS CAN CONSTRUCT A STRING NOW, AND THE GAP WAS NOT THE STRINGS** —
+[winstrings-2026-09-07](gauntlet/results/winstrings-2026-09-07.md),
+`targets/windows/strings.oro`, assessment item 5 and the last capability gap in the integer work.
+`concat` and `string-of` as **two assembly templates over a static bump arena** — no `malloc`,
+because calling from inside a template is where it gets delicate: a call clobbers the volatiles and
+`%1`/`%2`/`%r` are whichever registers the allocator chose. The one discipline is **reading both
+operands before touching any scratch** (`concat` saves `%2` into the home space at `[rsp+32]`).
+Found by SPELLING, so these are the LANGUAGE's names and the file only says how this host does it.
+**`render.oro` now runs on all four targets** and its differential case goes from six variants to
+seven. **Byte-identical to Go at every UTF-8 width** — `A`, `é`, `日`, `🙂` — pinned as the
+`utf8-widths` case, deliberately two targets because `System.out` encodes in the platform charset
+and that is a property of PRINTING, which is why `string-escapes` is ASCII-only.
+
+**AND THE GAP WAS A ONE-CONJUNCT BUG IN THE LIMB RUNG.** With both operations declared, `render` was
+STILL refused on windows — *"v is array int, but int is required here"* — and it **reproduced with
+no strings in the program at all**. `emit/interval.go` gated the loop's representation fixpoint on
+`p.bigOK() && p.tgt.HasBig()`, and `bigOK()` is already `limbs || HasBig()`, so the extra conjunct
+**switched the fixpoint off on the only target with no host bignum to fall back on**: supply never
+reached a loop variable through its initialiser. **biglimb.go warns about exactly this shape** —
+*every gate asks `bigOK` rather than `HasBig`, or a target with nothing to fall back to promotes
+nothing* — and **the comment directly beneath the gate names decimal rendering as the program the
+rule was written for.** The rule was written for this program and disabled on the one target where it
+had no alternative. Unnoticed because the case carried `; skip: windows` for a capability reason
+that was true when written: **a path nothing runs is a path nothing checks**, fourth time.
+
+**And one in the harness.** `render` printed the right digits run together, because the windows
+string driver used `msvcrt.printf`, which appends no newline. Its own note said *"`printf` rather
+than `puts`, which does not link"* — true when written and **fixed by string-literals.md**, which
+added the UCRT to `build.bat`; nothing revisited the note. Invisible until a case printed MORE THAN
+ONE string, which `render` is the first to do. **Cost: no pre-existing emitted file changes**, one
+new (`render` on windows), 28 differential cases green.
+
 **THE GAUNTLET IS RE-RUN, AND ALL SEVEN PROGRAMS ARE AT PARITY ON ALL THREE TARGETS** —
 [gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md), first benchmarked since
 rebench-2026-08-27, eleven days and thirteen results ago. Run for a REASON rather than as hygiene:

@@ -2212,7 +2212,18 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// walks, they are one walk iterated. Monotone over a two-point lattice with
 	// finitely many names, so it terminates; the bound is one promotion per
 	// variable plus a sweep to observe stability.
-	if p.bigOK() && p.tgt.HasBig() && (p.loopTail || len(p.big) > 0) {
+	// `bigOK()` AND NOT `HasBig()`. The two are not the same and the difference
+	// is the whole limb rung: `bigOK` is `limbs || HasBig`, so adding `HasBig`
+	// as a second conjunct disabled this fixpoint on precisely the target that
+	// has no host bignum to fall back on. windows therefore never propagated
+	// supply through a loop initialiser, and the example in the comment below —
+	// which the comment already names as the program that motivated the rule —
+	// was refused there with `v is array int, but int is required here`.
+	//
+	// That is the mistake biglimb.go warns about in as many words: every gate
+	// here asks `bigOK` rather than `HasBig`, or a target with nothing to fall
+	// back to promotes nothing and is then refused for producing a word.
+	if p.bigOK() && (p.loopTail || len(p.big) > 0) {
 		// SUPPLY REACHES A LOOP VARIABLE THROUGH ITS INITIALISER, and this line
 		// is rule (S) arriving at the back edge.
 		//

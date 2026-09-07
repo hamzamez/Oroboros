@@ -1,0 +1,60 @@
+; THE FREE MONOID, ON A HOST WITH NO STRING TYPE.
+;
+; A string on this target is a pointer to NUL-terminated bytes — the C calling
+; convention's shape, because `msvcrt.printf` is what consumes one. Until now
+; this host could PRINT a string and could not CONSTRUCT one: literals are
+; emitted as `db …,0` in the data section and nothing could make a new one.
+; That was the last capability gap in the integer work, since decimal rendering
+; of an arbitrary-precision value is repeated division and then TEXT.
+;
+; WHAT IS DECLARED IS THE LANGUAGE'S, NOT THIS TARGET'S. `concat` and
+; `string-of` are found by SPELLING, the way `=` and `+` are, so what these two
+; lines do is tell the compiler how THIS host performs an operation the language
+; already has (string-operations.md §1). A target does not get to decline one —
+; which is why both are complete rather than the ASCII subset `render.oro`
+; happens to need.
+;
+; NO `malloc`. Both templates could call it, and calling from inside a template
+; is where this would get delicate: a call clobbers the volatile registers, and
+; `%1`, `%2` and `%r` are whichever registers the allocator chose. A static
+; bump arena needs no call, so every template below is straight-line code and
+; two loops.
+;
+; NEVER FREED, which is this target's existing memory story rather than a new
+; one: windows-target.md records one `VirtualAlloc` per `alloc`, never
+; released, and says changing that is a target-file edit. The arena is the same
+; decision for text, and its size is the same kind of stated limit as
+; `tree.oro`'s node cap — a capacity does not create the limit, it makes it
+; visible.
+
+(target windows
+  (data "__sarena db 262144 dup(0)")
+  (data "__stop   qword 0")
+
+  (module win/str
+    ; ---- η : Scalar → Scalar*, the generator injection
+    ;
+    ; The string of ONE scalar, UTF-8 encoded. Four cases, because UTF-8 is
+    ; four cases; the other three hosts hide them behind `string(rune(c))`,
+    ; `String.fromCodePoint` and `Character.toChars`, and this one does not
+    ; have a library to hide behind.
+    ;
+    ; `%u` is what makes a branchy template possible at all — each expansion
+    ; gets its own labels — and `strlen` next door is the precedent.
+    (prim string-of (int) string expr
+      "mov rax, %1\nlea rcx, __sarena\nadd rcx, qword ptr [__stop]\nmov r8, rcx\ncmp rax, 128\njl Ls1%u\ncmp rax, 2048\njl Ls2%u\ncmp rax, 65536\njl Ls3%u\nmov rdx, rax\nshr rdx, 18\nor dl, 0F0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 12\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+3], dl\nadd rcx, 4\njmp Lse%u\nLs3%u:\nmov rdx, rax\nshr rdx, 12\nor dl, 0E0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nadd rcx, 3\njmp Lse%u\nLs2%u:\nmov rdx, rax\nshr rdx, 6\nor dl, 0C0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nadd rcx, 2\njmp Lse%u\nLs1%u:\nmov byte ptr [rcx], al\ninc rcx\nLse%u:\nmov byte ptr [rcx], 0\ninc rcx\nlea rdx, __sarena\nsub rcx, rdx\nmov qword ptr [__stop], rcx\nmov %r, r8"
+      pure)
+
+    ; ---- the monoid's operation
+    ;
+    ; Copy until NUL, twice. That is `strlen` and the copy fused, which is what
+    ; a C programmer writes and what saves walking each string twice.
+    ;
+    ; `%2` IS SAVED FIRST, into the home space the emitter reserves at
+    ; [rsp+32] (targets/windows/kernel32.oro). It has to be: `%1` and `%2` are
+    ; whichever registers the allocator chose, and the scratch this template
+    ; needs — rax, rcx, rdx, r8 — may be either of them. Reading both operands
+    ; before touching any scratch is the whole of the discipline.
+    (prim concat (string string) string expr
+      "mov qword ptr [rsp+32], %2\nmov rcx, %1\nlea rax, __sarena\nadd rax, qword ptr [__stop]\nmov rdx, rax\nLca%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcae%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lca%u\nLcae%u:\nmov rcx, qword ptr [rsp+32]\nLcb%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcbe%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lcb%u\nLcbe%u:\nmov byte ptr [rdx], 0\ninc rdx\nlea rcx, __sarena\nsub rdx, rcx\nmov qword ptr [__stop], rdx\nmov %r, rax"
+      pure)))

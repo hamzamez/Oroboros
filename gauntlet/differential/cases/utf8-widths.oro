@@ -1,0 +1,29 @@
+; η AT ALL FOUR UTF-8 WIDTHS, on the host that has no library to hide behind.
+;
+; `string-of` is η : Scalar → Scalar*, the free monoid's generator injection.
+; Three hosts spell it with one call — `string(rune(c))`, `String.fromCodePoint`,
+; `Character.toChars` — and windows has no string type at all, so its `string-of`
+; is a hand-written UTF-8 encoder in an assembly template
+; (targets/windows/strings.oro). Four cases, because UTF-8 is four cases, and
+; nothing else in the corpus reaches past the first one: `render.oro` only ever
+; asks for a decimal digit.
+;
+; prints: string
+;
+; skip: java
+; skip: js
+;
+; TWO TARGETS, and that is a limitation of PRINTING rather than of the encoder.
+; `System.out` on the JVM encodes in the platform charset, so a printed `é` is
+; one byte on a Windows console and two on Go — which is why `string-escapes` is
+; ASCII-only and says so. V8 is skipped for the same reason. What is left is the
+; comparison that matters here: windows' hand-written encoder against Go's own
+; `string(rune(c))`, byte for byte.
+
+(export run)
+
+; inputs: 0
+; expect: Aé日🙂
+(def run (fn (n)
+  (concat (concat (string-of 65) (string-of 233))
+          (concat (string-of 26085) (string-of 128578)))))

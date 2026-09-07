@@ -17,13 +17,13 @@
 ; `(= v 0)` and `(> nv 0)` are the limb-wise `cmp` — all three landed yesterday
 ; with only unit tests and a hand-written case behind them.
 ;
-; skip: windows
-;
-; windows is skipped for a CAPABILITY reason and it is now a precise one: that
-; host declares neither `concat` nor `string-of`, because it has no string type —
-; a string there is a pointer to NUL-terminated bytes. It can do all the
-; arithmetic below. What it needs is those two operations written as a library
-; over `build`, which is the shape `emit/bignum.oro` already has.
+; AND WINDOWS RUNS IT NOW. It was skipped for a capability reason — that host
+; declares no string type, so it could PRINT a string and not CONSTRUCT one —
+; and `targets/windows/strings.oro` closes it: `concat` and `string-of` as two
+; assembly templates over a static bump arena, found by spelling like every
+; other language operation. So this case is four targets now, and on windows the
+; storage is limbs whatever `big-repr` asks for, because that host has no host
+; bignum to choose instead.
 ;
 ;   run n = the decimal digits of (25 + n)!
 

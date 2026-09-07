@@ -1,10 +1,14 @@
 # 0020 — A buffer is a nameable type: uniqueness on parameters
 
 Date: 2026-09-06
-Status: Accepted — **not yet built**. Supersedes [0013](0013-accept-the-allocation-price.md);
+Status: Accepted — **built 2026-09-07**,
+[uniqueness-2026-09-07](../../gauntlet/results/uniqueness-2026-09-07.md): 51 non-comment lines,
+zero backend changes, and 18,509 ns with **0 allocations** against 84,167 ns and 512 KB per call
+for the same body building its own workspace. Supersedes [0013](0013-accept-the-allocation-price.md);
 amends consequence 3 of [0018](0018-immutable-values-linear-buffers.md), on ADR 0018's own trigger.
 
 Research: [uniqueness.md](../uniqueness.md).
+Build: [uniqueness-2026-09-07](../../gauntlet/results/uniqueness-2026-09-07.md).
 
 ## Context
 

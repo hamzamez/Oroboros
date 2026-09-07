@@ -30,7 +30,7 @@ func linearOn(t *testing.T, src string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return CheckLinear(nf, tg)
+	return CheckLinear(nf, tg, nil)
 }
 
 // refineOn runs the REFINEMENT pass, which is where a bounds obligation is

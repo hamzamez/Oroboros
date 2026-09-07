@@ -62,6 +62,15 @@ one **written in Oroboros** — add, subtract, multiply, divide and take the rem
 word, and compare — so ADR 0019's fourth item is delivered on the host that had nothing to fall back
 to ([subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md)).
 
+**A workspace can be a parameter** — [ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md),
+built 2026-09-07. `(sig f ((w (buffer int))) …)`: the caller owns the scratch memory and hands it
+over, so an exported function need not rebuild it every call — **0 allocations against 512 KB, and
+4.5× on a kernel whose work is one pass over its buffer**
+([uniqueness-2026-09-07](gauntlet/results/uniqueness-2026-09-07.md)). It cost 51 lines and **no
+backend change**, because ADR 0018 had already made uniqueness a distinction between two *types*
+rather than an attribute on every type — so there is no attribute lattice, no attribute variables
+and no borrow checker. The caller's promise is assumed at the boundary; the body's is checked.
+
 | | |
 |---|---|
 | `core/` | reader, terms, β/δ reducer — [the atom](docs/the-atom.md) |
@@ -70,15 +79,15 @@ to ([subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md)).
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 68 programs |
-| `gauntlet/` | hand-written references and 63 recorded measurements — **the bar** |
-| `gauntlet/differential/` | 25 programs built and **run** on all four targets, outputs required identical *and* right |
+| `examples/` | 72 programs |
+| `gauntlet/` | hand-written references and 73 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 28 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
 go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
 go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
-cd gauntlet/differential && go run run.go                  # 25 programs x 4 targets
+cd gauntlet/differential && go run run.go                  # 28 programs x 4 targets
 ```
 
 ### The whole language

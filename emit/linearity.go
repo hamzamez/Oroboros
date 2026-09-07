@@ -24,8 +24,40 @@ import (
 //
 // Branches are independent — a buffer moved in one arm of an `if` is not moved
 // in the other — so the state forks and rejoins conservatively.
-func CheckLinear(t *core.Term, tgt *Target) error {
-	return (&linChecker{tgt: tgt}).scan(t)
+func CheckLinear(t *core.Term, tgt *Target, sig *core.Sig) error {
+	c := &linChecker{tgt: tgt}
+	// ADR 0020: A DECLARED BUFFER PARAMETER IS LINEAR THROUGH THE BODY, and this
+	// is the whole implementation of that half — the SAME walk, seeded from the
+	// signature instead of from `build`'s binder.
+	//
+	// The two obligations sit at opposite ends and are different properties
+	// (uniqueness.md 3, after Marshall/Vollmer/Orchard, ESOP 2022). UNIQUENESS
+	// IN — no other reference exists — is a promise the CALLER makes; at an
+	// export the caller is outside the program by construction, so it is
+	// ASSUMED, which is refinements.md 6b's middle row. LINEARITY THROUGH —
+	// moved exactly once, read freely before — is a promise the BODY makes, and
+	// it is checkable from the body, which is what happens here.
+	//
+	// Neither alone suffices: uniqueness without linearity lets the body read
+	// after a store, and linearity without uniqueness lets the caller observe
+	// the write.
+	//
+	// Nothing is needed for an INTERNAL definition. Delta inlines every
+	// non-exported call before any check runs, so such a parameter survives no
+	// boundary and its occurrences are already in the residual, where `scan`
+	// decides them against the `build` that made the buffer.
+	if sig != nil && t != nil && t.Kind == core.KFn {
+		body, raw, _ := openFresh(t, map[string]bool{}, asmIdent)
+		for i, name := range raw {
+			if i >= len(sig.Params) || !core.IsBuffer(sig.Params[i].Type) {
+				continue
+			}
+			if err := c.walk(body, name, &linState{declared: true}); err != nil {
+				return err
+			}
+		}
+	}
+	return c.scan(t)
 }
 
 type linChecker struct{ tgt *Target }
@@ -57,7 +89,13 @@ func (c *linChecker) scan(t *core.Term) error {
 	return nil
 }
 
-type linState struct{ moved bool }
+type linState struct {
+	moved bool
+	// declared distinguishes ADR 0020's parameter from ADR 0018's `build`
+	// binder, so the diagnostic can name the right thing. The RULE is identical;
+	// only where the buffer came from differs.
+	declared bool
+}
 
 func (c *linChecker) isKind(t *core.Term, kind string) bool {
 	if t == nil || t.Kind != core.KApp || len(t.Kids) == 0 || t.Kids[0].Kind != core.KName {
@@ -78,7 +116,7 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 		// A bare occurrence is a MOVE: the buffer is being handed on, as an
 		// `again` argument, a loop's initial value, or the body's own result.
 		if st.moved {
-			return c.dead(name, "used")
+			return c.dead(name, "used", st.declared)
 		}
 		st.moved = true
 		return nil
@@ -88,7 +126,7 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 		// A READ — `(b i)`. Reads do not consume, which is what lets the sieve
 		// test a cell and then keep going. The index is evaluated first.
 		if st.moved {
-			return c.dead(name, "read")
+			return c.dead(name, "read", st.declared)
 		}
 		return c.walk(t.Kids[1], name, st)
 
@@ -97,7 +135,7 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 		// A STORE consumes the buffer. Its index and value are evaluated
 		// before the store happens, so they are walked first.
 		if st.moved {
-			return c.dead(name, "stored into")
+			return c.dead(name, "stored into", st.declared)
 		}
 		if err := c.walk(t.Kids[2], name, st); err != nil {
 			return err
@@ -148,12 +186,17 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 	return nil
 }
 
-func (c *linChecker) dead(name, how string) error {
+func (c *linChecker) dead(name, how string, declared bool) error {
+	where := "A buffer is linear (ADR 0018), and that is what lets `build`\n" +
+		"  freeze it on the way out without copying: nothing else can be holding it."
+	if declared {
+		where = "A parameter declared `(buffer V)` is linear through the body\n" +
+			"  (ADR 0020): the caller guarantees nobody else holds it, and in exchange\n" +
+			"  the body must thread it and hand it back."
+	}
 	return fmt.Errorf("the buffer %s is %s after it has already been handed on.\n"+
 		"  `(set b i v)` CONSUMES b and returns it, so the value to carry forward is\n"+
-		"  the one `set` gave back — the old name is dead. A buffer is linear\n"+
-		"  (ADR 0018), and that is what lets `build` freeze it on the way out\n"+
-		"  without copying: nothing else can be holding it.\n"+
+		"  the one `set` gave back — the old name is dead. %s\n"+
 		"  Reading a buffer is fine and does not consume it; using it after a store\n"+
-		"  or after passing it on is not.", name, how)
+		"  or after passing it on is not.", name, how, where)
 }

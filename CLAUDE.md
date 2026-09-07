@@ -27,7 +27,42 @@ shape applied to memory. ADR 0013's trigger 1 said *"whether ADR 0010's structur
 reducer's occurrence counting suffice is **unmeasured**, and this trigger should not be treated as
 fired until it is"*; [uniqueness.md](docs/uniqueness.md) settled it — **they suffice, and the
 implementation is `emit/linearity.go` with a different seed.** Do not treat 1.8× as the bar; the bar
-is still hand-written code. **Not built yet.**
+is still hand-written code.
+
+**AND IT IS BUILT, IN 51 LINES, WITH NO BACKEND CHANGE** —
+[uniqueness-2026-09-07](gauntlet/results/uniqueness-2026-09-07.md),
+[examples/kara/workspace.oro](examples/kara/workspace.oro). `(sig f ((w (buffer int))) …)` parses,
+checks and emits on all four targets. The same body exported twice, differing only in where the
+workspace comes from: **18,509 ns and ZERO allocations against 84,167 ns and 512 KB — 4.5x.** The
+prediction was right about the size — **`CheckLinear` with a different SEED** and one type name —
+and right about why: ADR 0018 had already made uniqueness a distinction between two type
+CONSTRUCTORS rather than an attribute, so there is no attribute lattice, no attribute variables and
+no inferred coercion. **The two obligations sit at opposite ends** — uniqueness IN is the caller's
+promise and is *assumed* at an export (refinements.md §6b's middle row); linearity THROUGH is the
+body's promise and is *checked*.
+
+**And no backend learned that buffers exist**: the parameter emits as `[]int`, `long[]`, a plain JS
+array and a register. **A buffer is a table for every purpose but ALIASING** — element, width,
+indexing and bounds obligations are an array's, and `ArrayElem` answers for both. **Rule 6, a buffer
+may not be an ELEMENT type, is what keeps the read-borrow free**: `(b i)` yields a scalar or a
+frozen array, so an observation cannot alias the buffer, which is why *reads do not consume* needs
+none of Wadler's `let!` or Odersky's observers.
+
+**4.5x is the same effect measured where it is LARGEST, not a larger effect.** arrays-revisited
+measured 1.07x–1.66x on Karatsuba and said the cost grows with the workspace relative to the work;
+this kernel is one pass over its buffer, deliberately. What is unconditional is the allocation
+column — **0 against 1**. **On windows it is not a speed question at all**: that allocator never
+frees, so the allocating form leaks 512 KB per call — `gen_mac_fresh` contains one `VirtualAlloc`
+and `gen_mac_into` contains none.
+
+**Three limits, stated rather than found later.** The uniqueness half at an export is **assumed and
+uncheckable** — a host caller passing the same buffer twice gets a silent wrong answer, and unlike
+an exported `where` that is a MEMORY-SAFETY assumption. **No differential case is possible**, the
+fourth instance of *a declared parameter only survives at an EXPORT*: the runner calls `(run n)`
+with literals and only a host caller can supply a buffer, which is why scalarrange-2026-08-31
+deleted its case. And **`examples/kara/core.oro` could not be the demonstration**, tried first — it
+reduces but does not emit under bounded-by-default, so exporting its `mulpass` fails on ADR 0019
+before ADR 0020 is reached. **Cost: 65 of 65 pre-existing emitted files byte-identical**, four new.
 
 **Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
 (Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written
@@ -1873,7 +1908,8 @@ surrogate hole — so a table of ints is a strict superset, and the cheapest ans
 boundary, which is `big-fit`'s shape.
 
 **AND IT IS DECIDED: A BUFFER IS A NAMEABLE TYPE** —
-[ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md), 2026-09-06, **not yet built**.
+[ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md), 2026-09-06, **built 2026-09-07**
+([uniqueness-2026-09-07](gauntlet/results/uniqueness-2026-09-07.md)).
 `(sig mul ((a (array int)) (b (array int)) (w (buffer int))) (buffer int))`. **It supersedes
 ADR 0013** — reuse becomes *avoidable by declaration* rather than accepted, which is ADR 0019's
 shape applied to memory — and **amends ADR 0018's consequence 3 on ADR 0018's own trigger**: the

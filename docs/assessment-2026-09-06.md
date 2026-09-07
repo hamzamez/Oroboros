@@ -170,7 +170,12 @@ smaller than expected — ADR 0018 already made uniqueness a distinction between
 than an attribute, and whole-program reduction removes the propagation problem, so the surface is
 one missing type name and the implementation is `CheckLinear` with a different seed. **Written 2026-09-06** —
 [ADR 0020](decisions/0020-uniqueness-on-parameters.md), with the corrected count, superseding
-ADR 0013 and amending ADR 0018's consequence 3. **Not yet built.**
+ADR 0013 and amending ADR 0018's consequence 3. **Built 2026-09-07** —
+[uniqueness-2026-09-07](../gauntlet/results/uniqueness-2026-09-07.md). The research's estimate held:
+**51 non-comment lines, one type name, `CheckLinear` with a different seed, and no backend change**.
+Measured at the boundary the trigger named — **0 allocations against 512 KB per call**, 4.5x on a
+kernel whose work is one pass over its workspace. ADR 0013 is superseded and ADR 0018's trigger 2 is
+discharged.
 
 **4. ~~Write an application.~~ DONE, 2026-09-07** —
 [jsonfmt-2026-09-07](../gauntlet/results/jsonfmt-2026-09-07.md). A JSON pretty-printer, 95 lines,

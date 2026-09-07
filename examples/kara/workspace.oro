@@ -1,0 +1,58 @@
+; ADR 0020 AT AN EXPORTED BOUNDARY: the same computation, twice, differing only
+; in where the workspace comes from.
+;
+; ADR 0018 predicted exactly one residual gap — *"a portable program still
+; allocates where a caller-supplied buffer would not, at an EXPORTED boundary"* —
+; and arrays-revisited measured it at 1.07x–1.66x on Karatsuba, 10 allocations
+; and 504 KB per multiply. That was measured on HAND-WRITTEN Go, because a buffer
+; was not a nameable type and the Oroboros side could not be written at all.
+;
+; It can now. `mac-into` takes its workspace as a `(buffer int)` parameter;
+; `mac-fresh` is the same body with the workspace built inside. Both are
+; exported, so reduction cannot remove either boundary — which is the whole
+; point, since inside a program reuse was already free.
+;
+; THE WORK IS PROPORTIONAL TO THE WORKSPACE, deliberately. arrays-revisited found
+; the cost "growing with the size of the workspace relative to the work", so a
+; kernel whose work is one pass over the buffer is where the allocation is
+; comparable to the arithmetic and the difference is visible rather than lost.
+
+
+(export mac-into mac-fresh)
+
+(def n (fn () 65536))
+
+; THE SHARED BODY. Reduction inlines it into both entry points, so the two
+; measured functions differ in their signature and in nothing else — which is
+; what makes the comparison a measurement of the boundary rather than of two
+; programs.
+; THE ELEMENT RANGES ARE DECLARED, and bounded-by-default is why: a product of
+; two unbounded ints cannot be proven inside the portable window, so the program
+; is refused until it says what a source element is. A byte times a byte is under
+; 65536, which is what makes the store provable and what earns `w` a narrow
+; element type on the hosts that have one.
+(def mac (fn (w a b)
+  (loop ((w w) (i 0))
+    (>= i (n))  w
+    else (again (set w i (* (a i) (b i))) (+ i 1)))))
+
+; ADR 0020. The caller owns the workspace and hands it over; this never
+; allocates. `w` is UNIQUE on the way in — assumed, because the caller is outside
+; the program — and LINEAR through the body, which `CheckLinear` verifies from
+; this signature.
+; THE WORKSPACE IS PLAIN `int` IN BOTH, deliberately. Declaring `w` narrow here
+; and letting `mac-fresh` infer its own gave `[]uint16` against `[]int` — 128 KB
+; against 512 KB — so the two would have differed in the SIZE of the allocation
+; as well as in whether there was one, and a comparison that changes two things
+; measures neither. The element ranges on `a` and `b` stay, because without them
+; the product cannot be proven in-window and neither program compiles.
+(sig mac-into ((w (buffer int))
+               (a (array (int 0 255))) (b (array (int 0 255)))) (buffer int)
+  (where (and (<= 65536 (len w)) (<= 65536 (len a)) (<= 65536 (len b)))))
+(def mac-into (fn (w a b) (mac w a b)))
+
+; The same body, allocating its own workspace every call — what an exported
+; function had to do before a buffer could be named.
+(sig mac-fresh ((a (array (int 0 255))) (b (array (int 0 255)))) (array int)
+  (where (and (<= 65536 (len a)) (<= 65536 (len b)))))
+(def mac-fresh (fn (a b) (build (n) (fn (w) (mac w a b)))))

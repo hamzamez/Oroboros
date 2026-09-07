@@ -1640,8 +1640,32 @@ func TypeName(t *Term) string {
 	}
 	if t.Kind == KApp && len(t.Kids) == 2 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
-		if elem := TypeName(t.Kids[1]); elem != "" {
+		// A BUFFER MAY NOT BE AN ELEMENT — ADR 0020 rule 6, and it is enforced
+		// here because this is the one place a compound type is built.
+		if elem := TypeName(t.Kids[1]); elem != "" && !IsBuffer(elem) {
 			return "array " + elem
+		}
+	}
+	// `(buffer V)` — ADR 0020. A buffer is a NAMEABLE TYPE, so a function may
+	// take its workspace instead of building one every call.
+	//
+	// IT IS A TYPE CONSTRUCTOR AND NOT AN ATTRIBUTE, which is the whole reason
+	// this is affordable. Clean puts uniqueness on every type — `*[*Int]` — and
+	// pays for it with attribute variables, an inequality lattice and inferred
+	// coercions; ADR 0018 had already made the distinction one between two
+	// CONSTRUCTORS, `(array V)` shared and immutable against a buffer linear and
+	// scoped, so there is nothing to attach an attribute to. The one coercion
+	// Clean infers we already write, as the freeze at `build`'s boundary.
+	//
+	// A BUFFER MAY NOT BE AN ELEMENT TYPE, and that is load-bearing rather than
+	// tidy: it is what keeps the read-borrow free. `(b i)` yields a scalar or a
+	// frozen array, so an observation CANNOT alias the buffer — which is why
+	// reads-do-not-consume needs none of Wadler's `let!` or Odersky's observer
+	// machinery. Refused here, at the one place a type is built.
+	if t.Kind == KApp && len(t.Kids) == 2 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "buffer" {
+		if elem := TypeName(t.Kids[1]); elem != "" && !strings.HasPrefix(elem, "buffer ") {
+			return "buffer " + elem
 		}
 	}
 	// `(int LO HI)` — a RANGE is a type, which is ADR 0003's "mathematical
@@ -1661,7 +1685,8 @@ func TypeName(t *Term) string {
 	if t.Kind == KApp && len(t.Kids) == 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "map" {
 		k, v := TypeName(t.Kids[1]), TypeName(t.Kids[2])
-		if k != "" && v != "" {
+		// Rule 6 again: a buffer is not a key and not a value.
+		if k != "" && v != "" && !IsBuffer(k) && !IsBuffer(v) {
 			return "map " + k + " " + v
 		}
 		return ""
@@ -1947,5 +1972,27 @@ func ArrayElem(ty string) string {
 	if strings.HasPrefix(ty, "array ") {
 		return ty[len("array "):]
 	}
+	// A BUFFER IS A TABLE FOR EVERY PURPOSE BUT ALIASING. Its element range, its
+	// width, its indexing and its bounds obligations are an array's — what
+	// differs is who may hold it, which is ADR 0018's distinction and is not a
+	// question about elements. So every consumer that asks "what does this table
+	// hold" gets the same answer for both, and none of them learns that buffers
+	// exist.
+	if strings.HasPrefix(ty, "buffer ") {
+		return ty[len("buffer "):]
+	}
 	return ""
 }
+
+// BufferElem is ArrayElem restricted to a buffer, for the one caller that has to
+// tell them apart: the linearity check, which applies to a buffer and not to an
+// array.
+func BufferElem(ty string) string {
+	if strings.HasPrefix(ty, "buffer ") {
+		return ty[len("buffer "):]
+	}
+	return ""
+}
+
+// IsBuffer reports whether a declared type is ADR 0020's unique, linear table.
+func IsBuffer(ty string) bool { return strings.HasPrefix(ty, "buffer ") }

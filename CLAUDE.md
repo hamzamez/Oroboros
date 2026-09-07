@@ -5,8 +5,9 @@ repository.
 
 ## Project state
 
-**One gauntlet program is not at parity, and that is an accepted, provisional decision** —
-[ADR 0013](docs/decisions/0013-accept-the-allocation-price.md). g7's stencil runs at **1.79× on Go
+**One gauntlet program is not at parity on the RETIRED PORTABLE LAYER, and the decision that
+accepted it is now superseded** — [ADR 0013](docs/decisions/0013-accept-the-allocation-price.md),
+superseded by [ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md). g7's stencil runs at **1.79× on Go
 and 2.01× on JS** against a hand-written buffer-reusing form
 ([measurement](gauntlet/results/stencil-2026-08-15.md)). The emitted code is at parity with
 hand-written *functional* code; `materialize` is what costs, because it allocates fresh so nothing
@@ -19,12 +20,14 @@ buffer-reusing measures **0.999x**. In each shape emitted matches hand-written, 
 costs 2.71x for hand-written code too. So the portable layer has no way to express reuse and a
 native target does — `go.set-float64` is Go's own store, no portability claim, at parity.
 
-**This price is expected to be paid off, not kept.** The ADR names the triggers that should reopen
-it. Note the correction recorded there: the original first trigger, *a type system exists*, **fired
-and bought nothing** — uniqueness constrains the *context*, not the value, so it is not a
-refinement. The nearest machinery is ADR 0010's substructural discipline plus the reducer's
-occurrence counting, and that is a hypothesis rather than a finding. Do not treat 1.8× as the bar;
-the bar is still hand-written code.
+**AND THE PRICE IS NOW PAID OFF: ADR 0013 IS SUPERSEDED BY
+[ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md)**, 2026-09-06. **A buffer is a nameable
+type**, so reuse becomes **avoidable by declaration** rather than accepted — which is ADR 0019's
+shape applied to memory. ADR 0013's trigger 1 said *"whether ADR 0010's structural rules plus the
+reducer's occurrence counting suffice is **unmeasured**, and this trigger should not be treated as
+fired until it is"*; [uniqueness.md](docs/uniqueness.md) settled it — **they suffice, and the
+implementation is `emit/linearity.go` with a different seed.** Do not treat 1.8× as the bar; the bar
+is still hand-written code. **Not built yet.**
 
 **Working compiler.** A β/δ reducer with call-by-need and an effect discipline, three backends
 (Go, JavaScript, Java), and **all seven gauntlet programs** reaching parity with hand-written
@@ -65,13 +68,14 @@ recording alternatives that were considered and rejected.
 | Effects are a side condition on β, not a feature | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
 | Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
 | `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
-| Accept the allocation price, provisionally | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
+| ~~Accept the allocation price~~ — superseded by 0020 | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
 | `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
 | A target need not be an expression language | [0016](docs/decisions/0016-targets-need-not-have-expressions.md) |
 | Booleans and control flow are in the language | [0017](docs/decisions/0017-booleans-are-in-the-language.md) |
 | Immutable values, one scoped linear buffer | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) |
 | Precision by declaration — provisionally | [0019](docs/decisions/0019-precision-by-declaration.md) |
+| A buffer is a nameable type: uniqueness on parameters | [0020](docs/decisions/0020-uniqueness-on-parameters.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -104,8 +108,9 @@ assessment's five items were done, and the fifth — *write something awkward* �
 in seventeen days while the corpus written in the language grew **477**, the compiler-to-core ratio
 went **2.65 → 3.62** (the previous assessment named that exact risk and it got worse), **the largest
 program ever written in this language is 112 lines**, and ten September results contain **no gauntlet
-measurement**. Two pieces of process debt: **ADR 0020 (uniqueness on parameters) is owed** since
-ADR 0018's trigger 2 fired, with four independent demands behind it; and the gauntlet, *"the one
+measurement**. Two pieces of process debt, **one now cleared**: ADR 0020 (uniqueness on parameters)
+was owed since ADR 0018's trigger 2 fired and is **written**, with the demand count corrected from
+four to one; and the gauntlet, *"the one
 fixed commitment"*, was last benchmarked on 2026-08-27 (it still passes — checked, not assumed).
 The five things next are led by **the backend-by-flag-string bug** and **the two format changes the
 surveys located**, whose acceptance test is *a program that opens a file* rather than a percentage.
@@ -1866,6 +1871,30 @@ operation**, which is exactly what `fold-map` turned out to be in maps.md.
 collation and case (locale-dependent). **The one type problem**: `Scalar` is not an interval — the
 surrogate hole — so a table of ints is a strict superset, and the cheapest answer is a check at the
 boundary, which is `big-fit`'s shape.
+
+**AND IT IS DECIDED: A BUFFER IS A NAMEABLE TYPE** —
+[ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md), 2026-09-06, **not yet built**.
+`(sig mul ((a (array int)) (b (array int)) (w (buffer int))) (buffer int))`. **It supersedes
+ADR 0013** — reuse becomes *avoidable by declaration* rather than accepted, which is ADR 0019's
+shape applied to memory — and **amends ADR 0018's consequence 3 on ADR 0018's own trigger**: the
+check is still `occurrences` on the residual and is unchanged, but uniqueness now appears in a
+signature.
+
+**Six rules. Two obligations at OPPOSITE ENDS** — uniqueness in, linearity through, and neither
+alone suffices. **The linearity half is `CheckLinear` seeded from the signature**; **the uniqueness
+half is discharged by the residual internally and ASSUMED at an export**, which is refinements.md
+§6b's middle row. **No uniqueness ATTRIBUTE is added** — no `*T`, no attribute variables, no
+inferred coercion — because ADR 0018 already made the distinction one between two type
+CONSTRUCTORS, and the one coercion Clean infers we already write as the freeze. And **a buffer may
+not be an element type**, which is load-bearing rather than tidy: it is what keeps the read-borrow
+free, since an observation then cannot alias the buffer.
+
+**What it commits us to, stated rather than hidden**: a guarantee at an export that we cannot check.
+A host caller passing the same buffer twice gets a wrong answer, silently — and unlike an exported
+`where`, that is a MEMORY-SAFETY assumption rather than an arithmetic one. **The honest cost is
+ergonomics**, unmeasured, and the named trigger for revisiting is a program in which threading the
+workspace is what makes the program unpleasant — which is the assessment's *write an application*
+arriving from another direction.
 
 **UNIQUENESS ON PARAMETERS IS RESEARCHED, AND THE BRIEF IS SMALLER THAN THE ASSESSMENT SAID** —
 [uniqueness.md](docs/uniqueness.md), no decision, before the ADR that ADR 0018's trigger 2 owes.

@@ -1,6 +1,12 @@
 # Uniqueness on parameters
 
-Research, 2026-09-06. **No decision.** [ADR 0018](decisions/0018-immutable-values-linear-buffers.md)
+Research, 2026-09-06. **DECIDED the same day** —
+[ADR 0020](decisions/0020-uniqueness-on-parameters.md) takes §10's four points: the smallest form,
+the two obligations named at opposite ends, the corrected count, and the ergonomic trigger. It also
+supersedes ADR 0013 and amends ADR 0018's consequence 3. This document is kept as the reading the
+decision rests on.
+
+The brief was: [ADR 0018](decisions/0018-immutable-values-linear-buffers.md)
 says that firing its trigger 2 *"should produce an ADR adopting uniqueness on parameters rather than
 a workaround"*, and [arrays-revisited.md](arrays-revisited.md) fired it. This is the reading that
 should come before that ADR.

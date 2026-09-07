@@ -1,7 +1,19 @@
 # 0013 — Accept the allocation price, for now
 
 Date: 2026-08-15
-Status: Accepted — **provisional, and expected to be superseded**
+Status: **Superseded by [0020](0020-uniqueness-on-parameters.md)**, 2026-09-06
+
+> **Why it was superseded, and what survived.** This ADR accepted the allocation price
+> provisionally and named five reopening triggers. Trigger 5 fired with ADR 0018, which bounded the
+> price to an *exported* boundary; trigger 1 — rewritten in August to *"someone decides to spend a
+> substructural analysis … whether ADR 0010's structural rules plus the reducer's occurrence
+> counting suffice is **unmeasured**"* — was settled by [uniqueness.md](../uniqueness.md): they
+> suffice, and the check is `emit/linearity.go` with a different seed. ADR 0020 makes reuse
+> **avoidable by declaration** rather than accepted.
+>
+> What survived is the measurement and the reasoning around it, including the 2026-08-20 correction
+> below: the stencil's 1.79×/2.01× was a property of the SHAPE, not of the emitter, and hand-written
+> Go pays 2.71× for the allocating form too.
 
 > ## Correction, 2026-08-15
 >

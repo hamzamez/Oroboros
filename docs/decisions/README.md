@@ -51,3 +51,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0017](0017-booleans-are-in-the-language.md) | Booleans and control flow are in the language |
 | [0018](0018-immutable-values-linear-buffers.md) | Immutable values, one scoped linear buffer |
 | [0019](0019-precision-by-declaration.md) | Precision by declaration |
+| [0020](0020-uniqueness-on-parameters.md) | A buffer is a nameable type: uniqueness on parameters |

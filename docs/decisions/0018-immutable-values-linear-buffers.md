@@ -61,6 +61,11 @@ Four consequences, stated so they can be checked:
    eliminated only by `build`; it may be used at most once at each point.
 3. **The linearity check is `occurrences` on the residual**, not a type. Uniqueness does not enter
    the type language and does not appear in any signature.
+   **Amended by [ADR 0020](0020-uniqueness-on-parameters.md), 2026-09-06**, on this ADR's own
+   trigger: the *check* is still `occurrences` on the residual and is unchanged, but a buffer is now
+   a **nameable type**, so uniqueness does appear in a signature — at a parameter, where it is
+   assumed at an export and discharged by the residual everywhere else. The rest of this decision
+   stands entirely.
 4. **The freeze at `build`'s boundary copies nothing**, because linearity guarantees nothing else
    holds the buffer.
 

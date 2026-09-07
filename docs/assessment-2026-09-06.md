@@ -162,8 +162,9 @@ analysis, and the elimination form `((f x) (fn (a b) …))` already existed.
 four demands**, so the live case is Karatsuba's workspace alone. It also finds the feature much
 smaller than expected — ADR 0018 already made uniqueness a distinction between two *types* rather
 than an attribute, and whole-program reduction removes the propagation problem, so the surface is
-one missing type name and the implementation is `CheckLinear` with a different seed. Write the ADR
-with the corrected count; the build can follow.
+one missing type name and the implementation is `CheckLinear` with a different seed. **Written 2026-09-06** —
+[ADR 0020](decisions/0020-uniqueness-on-parameters.md), with the corrected count, superseding
+ADR 0013 and amending ADR 0018's consequence 3. **Not yet built.**
 
 **4. Write an application.** Not a benchmark and not a kernel. Something with input, output, error
 handling and a shape nobody chose to suit the analysis — the smallest honest candidate is a

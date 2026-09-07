@@ -517,22 +517,32 @@ Ordered by measured value, with the Go survey's numbers where they apply.
    been emitting Go since August — and fixing it turned up a second, worse bug:
    the emitter was not a function of its input
    ([backend-2026-09-06](../../gauntlet/results/backend-2026-09-06.md)).
-1. **Several results in a `prim`** — not from this document, but it dominates
+1. ~~**Several results in a `prim`.**~~ **DONE, 2026-09-06** —
+   [multiresult-2026-09-06](../../gauntlet/results/multiresult-2026-09-06.md).
+   Go's callable standard library went from 70.0% declarable and 19.0% usable to
+   **88.0% and 32.0%**, and `examples/io/wc.oro` opens a file. The original
+   entry: it dominates
    everything: 19.8% of the Go standard library, and the language already has
    `values` at parity ([gostdlib-2026-09-06 §4a](../../gauntlet/results/gostdlib-2026-09-06.md)).
    On windows it is also the near-miss for §4a's structs-by-value, the largest
    Win32 refusal at 13.9%: a two-word struct returned by value is `rax`/`rdx`,
    which is exactly what multiple return already emits there.
-2. **A declared result range that the interval layer reads** — §4b of the same
-   result. Without it, ADR 0019 refuses arithmetic on every host call in every
-   ecosystem, and `-checked` is the only way through.
+2. ~~**A declared result range that the interval layer reads.**~~ **DONE,
+   2026-09-06**, in the same result. It had to be lifted above `transfer`'s
+   `Result != "int"` bail, which is scalarrange-2026-08-31's *three effects of a
+   range* arriving in a fourth place.
 3. **§7.2, the target search path.** Smallest change here, unblocks the user
    question directly, and is the prerequisite for 4 and 5.
 4. **§8, `provides` from a library's own directory.** Specified since modules.md
    and never built; makes a portable library with native fast paths a
    one-file-per-target job.
-5. **§6, `(library PATH)`.** Moves three files out of `//go:embed`. Should wait
-   for a target that needs a fourth — windows' `concat` and `string-of` over
-   `build` is exactly that, and is next in the strings work.
+5. **§6, `(library PATH)`.** Moves three files out of `//go:embed`. **Its
+   motivating case went the other way, 2026-09-07**: windows' `concat` and
+   `string-of` were named here as the fourth library that would force this, and
+   [winstrings-2026-09-07](../../gauntlet/results/winstrings-2026-09-07.md)
+   wrote them as **two assembly templates** instead — which is smaller, needs no
+   new mechanism, and is what a target file is already for. So this item has no
+   live demand and should wait for one rather than be built on the strength of a
+   case that no longer exists.
 6. **§5.4, the interface/implementation split.** Wait for a second Windows ISA.
    A family with one member proves nothing.

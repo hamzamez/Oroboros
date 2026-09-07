@@ -115,6 +115,12 @@ directions: Karatsuba's arena, ADR 0013's stencil, the mutable bignum, and the l
 per-operation allocation. One ADR closes ADR 0013 *and* ADR 0018's trigger at once, and the
 project's own convention says a fired trigger produces a decision.
 
+> **RE-RUN 2026-09-07** — [gauntlet-2026-09-07](../gauntlet/results/gauntlet-2026-09-07.md). All
+> seven programs at parity on all three targets, nineteen comparisons, largest gap 1.13x. And the
+> portable-layer debt below is **not** as scored: three programs are still benchmarked on the
+> retired layer, and the reason is that their benchmarks were written against a different
+> interface.
+
 **Ten results in September, none of them a gauntlet measurement.** The gauntlet is *"the one fixed
 commitment"*, and the last time a gauntlet program was benchmarked against hand-written code was
 `rebench-2026-08-27`. It still passes — that was checked rather than assumed — but a fixed

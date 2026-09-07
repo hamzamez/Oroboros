@@ -1943,6 +1943,40 @@ API, so the information must be in the signature anyway; multiplicities on the a
 Haskell) — buys nothing when every surviving arrow is first-order; ownership+borrowing (Rust) —
 strictly larger, and what it adds is shared aliasing we do not need.
 
+**THE GAUNTLET IS RE-RUN, AND ALL SEVEN PROGRAMS ARE AT PARITY ON ALL THREE TARGETS** —
+[gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md), first benchmarked since
+rebench-2026-08-27, eleven days and thirteen results ago. Run for a REASON rather than as hygiene:
+the bounds-check fix changed the emitted code of six programs and **two of them are gauntlet
+programs 1 and 2**, and checking that the `IsInBounds` count was unchanged is not the same as
+checking parity. **Nineteen comparisons; the largest gap is 1.13x and the largest win 0.91x**, both
+on the tokeniser and on different hosts.
+
+**Go**: dot **0.97x**, centroid **0.99x**, generic **1.000x**, word count **1.001x** and **1.002x**
+in both map idioms, stencil **0.996x allocating and 1.003x reusing**, tokeniser **0.91x**, tree
+**0.96x** against hand-written clamped and **1.94x FASTER** than recursive descent. **JavaScript**:
+1.04x, 0.98x, 0.95x, 0.94x, 0.92x, 1.00x. **Java**: dot 0.998x, centroid 0.96x, word count 0.93x,
+search 1.00x/1.07x, tokeniser 1.13x, tree 1.04x. **G4 is the one gauntlet.md says decides the
+thesis, and it lands within 0.2% on Go.** The stencil is at parity in BOTH shapes and the allocating
+form costs 1.91x for hand-written Go too — ADR 0013's price measured again after ADR 0020 superseded
+it: the price is the SHAPE.
+
+**AND THE PORTABLE-LAYER DEBT IS NOT WHAT IT WAS SCORED.** `generated_report.go`,
+`generated_search.go` and `generated_wordcount.go` are still **portable-go** output, so
+assessment-2026-09-06's *"done for the programs that matter"* was generous. It has survived because
+it is not a one-line fix: the native sources export **different names and arities** — wordcount
+gives `tally`/`tally-inc` where the benchmark wants one `GenWordcount`, report gives `GenMain`,
+search's counter is an `int` against a test expecting `int64`. Each needs the BENCHMARK changed. G5's
+number above is labelled portable for that reason; G4's is not, being `gen_wordcount_native.go`.
+
+**AND THE FOURTH BENCHMARK-METHOD ERROR, A NEW SPECIES.** Finding that debt meant regenerating six
+`generated_*.go` from native sources — and then taking G1, G2 and G7 numbers **with those files
+replaced**, so `BenchmarkG1GenDot`, which exists to measure the PORTABLE layer, was measuring native
+code. The numbers were plausible (0.999x) and would have been recorded under the wrong label. What
+caught it was noticing `gen_dot_native.go` already existed, making the regeneration redundant and
+therefore wrong; everything was restored and §1 re-measured on a `git status` clean tree. After the
+closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
+bad harness but a measurement of a silently modified input**.
+
 **A TOOL IS WRITTEN, AND IT FOUND FOUR BUGS — TWO OF THEM SILENT WRONG ANSWERS** —
 [jsonfmt-2026-09-07](gauntlet/results/jsonfmt-2026-09-07.md),
 [examples/io/jsonfmt.oro](examples/io/jsonfmt.oro), assessment item 4, *write something awkward*,

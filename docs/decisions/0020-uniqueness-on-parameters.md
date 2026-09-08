@@ -3,8 +3,10 @@
 Date: 2026-09-06
 Status: Accepted — **built 2026-09-07**,
 [uniqueness-2026-09-07](../../gauntlet/results/uniqueness-2026-09-07.md): 51 non-comment lines,
-zero backend changes, and 18,509 ns with **0 allocations** against 84,167 ns and 512 KB per call
-for the same body building its own workspace. Supersedes [0013](0013-accept-the-allocation-price.md);
+zero backend changes, and 18,973 ns with **0 allocations** against 34,927 ns and 128 KB per call
+for the same body building its own workspace — **1.84x**, corrected 2026-09-08 from a first
+measurement taken at four times the workspace size
+([freq-2026-09-08](../../gauntlet/results/freq-2026-09-08.md) §8). Supersedes [0013](0013-accept-the-allocation-price.md);
 amends consequence 3 of [0018](0018-immutable-values-linear-buffers.md), on ADR 0018's own trigger.
 
 Research: [uniqueness.md](../uniqueness.md).

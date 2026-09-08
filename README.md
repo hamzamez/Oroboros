@@ -62,10 +62,19 @@ one **written in Oroboros** — add, subtract, multiply, divide and take the rem
 word, and compare — so ADR 0019's fourth item is delivered on the host that had nothing to fall back
 to ([subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md)).
 
+**And there are two tools.** [jsonfmt](examples/io/jsonfmt.oro) reformats a JSON document;
+[freq](examples/io/freq.oro) is `sort | uniq -c | sort -rn` — a word-frequency report, 158 lines, the
+largest program in the language, and **byte-identical to those tools** on seven real files. Between
+them they found **eight bugs**, four in the compiler and two of those silent wrong answers
+([jsonfmt-2026-09-07](gauntlet/results/jsonfmt-2026-09-07.md),
+[freq-2026-09-08](gauntlet/results/freq-2026-09-08.md)). The second one also carries a merge sort
+written as **a loop over levels** rather than a recursion, which is where the termination analysis
+stops: size-change handles a counter that steps by a constant and not one that doubles.
+
 **A workspace can be a parameter** — [ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md),
 built 2026-09-07. `(sig f ((w (buffer int))) …)`: the caller owns the scratch memory and hands it
-over, so an exported function need not rebuild it every call — **0 allocations against 512 KB, and
-4.5× on a kernel whose work is one pass over its buffer**
+over, so an exported function need not rebuild it every call — **0 allocations against 128 KB, and
+1.84× on a kernel whose work is one pass over its buffer**
 ([uniqueness-2026-09-07](gauntlet/results/uniqueness-2026-09-07.md)). It cost 51 lines and **no
 backend change**, because ADR 0018 had already made uniqueness a distinction between two *types*
 rather than an attribute on every type — so there is no attribute lattice, no attribute variables
@@ -79,15 +88,15 @@ and no borrow checker. The caller's promise is assumed at the boundary; the body
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
-| `examples/` | 72 programs |
-| `gauntlet/` | hand-written references and 73 recorded measurements — **the bar** |
-| `gauntlet/differential/` | 28 programs built and **run** on all four targets, outputs required identical *and* right |
+| `examples/` | 73 programs |
+| `gauntlet/` | hand-written references and 74 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 29 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
 go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
 go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
-cd gauntlet/differential && go run run.go                  # 28 programs x 4 targets
+cd gauntlet/differential && go run run.go                  # 29 programs x 4 targets
 ```
 
 ### The whole language

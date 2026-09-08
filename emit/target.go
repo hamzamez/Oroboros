@@ -3,6 +3,7 @@ package emit
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -2228,19 +2229,29 @@ func isTableRule(tgt *Target, t *core.Term) bool {
 // is deliberately not the interval analysis: a range that is too narrow
 // truncates on store and is a silent wrong answer, so only facts that are exact
 // by construction are used.
-func storedRange(v *core.Term, typeOf func(*core.Term) string) (int64, int64, bool) {
+// `self` is the buffer being filled, and a read of it answers NO at any depth.
+// A BUFFER MAY NOT NARROW ON ITS OWN CONTENTS — the rule already stated below
+// for a bare read, threaded through the recursion because arithmetic can bury
+// one: `(+ (b i) 1)` is an increment of a slot, and deciding `b`'s element
+// range from it would be reasoning in a circle. Pass "" where there is no
+// buffer in question.
+func storedRange(v *core.Term, typeOf func(*core.Term) string, self string) (int64, int64, bool) {
 	if v == nil {
 		return 0, 0, false
 	}
 	if v.Kind == core.KInt {
 		return v.Int, v.Int, true
 	}
+	if self != "" && v.Kind == core.KApp && len(v.Kids) == 2 &&
+		v.Kids[0].Kind == core.KName && v.Kids[0].Name == self {
+		return 0, 0, false
+	}
 	// `if` is injected into every target and declaring one is an error
 	// (ADR 0017), so there is exactly one spelling to match.
 	if v.Kind == core.KApp && len(v.Kids) == 4 && v.Kids[0].Kind == core.KName &&
 		v.Kids[0].Name == "if" {
-		alo, ahi, aok := storedRange(v.Kids[2], typeOf)
-		blo, bhi, bok := storedRange(v.Kids[3], typeOf)
+		alo, ahi, aok := storedRange(v.Kids[2], typeOf, self)
+		blo, bhi, bok := storedRange(v.Kids[3], typeOf, self)
 		if !aok || !bok {
 			return 0, 0, false
 		}
@@ -2266,7 +2277,97 @@ func storedRange(v *core.Term, typeOf func(*core.Term) string) (int64, int64, bo
 			}
 		}
 	}
+	// ARITHMETIC WHOSE OPERANDS ARE THEMSELVES EXACT.
+	//
+	// The rules above are closed under nothing, which is what a program that
+	// COMPUTES a byte runs into: `(+ 48 (% d 10))` is a digit, every operand is
+	// exact, and the composite was refused — so a text program could copy bytes
+	// into a byte buffer and not produce one. examples/io/freq.oro is the first
+	// program to write a number into text it is building.
+	//
+	// This is still not the interval analysis and the distinction is the one
+	// this function's header makes. Interval ARITHMETIC is exact on exact
+	// endpoints; what fixpoint-2026-08-27 withdrew is the interval FIXPOINT,
+	// whose endpoints come from widening a loop. There is no fixpoint here and
+	// no loop variable can enter, because a loop variable is a bare name and a
+	// bare name is decided by `typeOf` alone.
+	if v.Kind == core.KApp && len(v.Kids) == 3 && v.Kids[0].Kind == core.KName {
+		switch arithOp(v.Kids[0].Name, 2) {
+		case "add", "sub", "mul":
+			alo, ahi, aok := storedRange(v.Kids[1], typeOf, self)
+			blo, bhi, bok := storedRange(v.Kids[2], typeOf, self)
+			if aok && bok {
+				if lo, hi, ok := exactArith(arithOp(v.Kids[0].Name, 2),
+					alo, ahi, blo, bhi); ok {
+					return lo, hi, true
+				}
+			}
+		case "rem":
+			// |a %% d| < |d| WHATEVER a IS. The remainder takes the dividend's
+			// sign and its magnitude is under the divisor's, on all four
+			// targets inside the portable window (integers.md §5), so a literal
+			// divisor bounds the result with no fact about the dividend at all.
+			// That is what makes a digit exact: nothing bounds `x / p` and
+			// `(%% (/ x p) 10)` is still in -9..9.
+			if d := v.Kids[2]; d.Kind == core.KInt && d.Int != 0 && d.Int != math.MinInt64 {
+				m := d.Int
+				if m < 0 {
+					m = -m
+				}
+				return -(m - 1), m - 1, true
+			}
+		}
+	}
 	return core.IntRange(typeOf(v))
+}
+
+// exactArith is interval arithmetic on exact endpoints, refusing on overflow.
+// Refusing is the safe direction: the buffer keeps the host's own width.
+func exactArith(op string, alo, ahi, blo, bhi int64) (int64, int64, bool) {
+	switch op {
+	case "add":
+		return addChk(alo, blo), addChk(ahi, bhi), !ovf(alo, blo) && !ovf(ahi, bhi)
+	case "sub":
+		return addChk(alo, -bhi), addChk(ahi, -blo),
+			bhi != math.MinInt64 && blo != math.MinInt64 &&
+				!ovf(alo, -bhi) && !ovf(ahi, -blo)
+	case "mul":
+		lo, hi, ok := int64(0), int64(0), true
+		for i, x := range [4]int64{alo, alo, ahi, ahi} {
+			y := [4]int64{blo, bhi, blo, bhi}[i]
+			p, good := mulChk(x, y)
+			if !good {
+				ok = false
+				break
+			}
+			if i == 0 || p < lo {
+				lo = p
+			}
+			if i == 0 || p > hi {
+				hi = p
+			}
+		}
+		return lo, hi, ok
+	}
+	return 0, 0, false
+}
+
+func ovf(a, b int64) bool {
+	c := a + b
+	return (c > a) != (b > 0)
+}
+
+func addChk(a, b int64) int64 { return a + b }
+
+func mulChk(a, b int64) (int64, bool) {
+	if a == 0 || b == 0 {
+		return 0, true
+	}
+	c := a * b
+	if c/b != a {
+		return 0, false
+	}
+	return c, true
 }
 
 func min64(a, b int64) int64 {
@@ -2611,21 +2712,14 @@ func bufferElem(body *core.Term, name string, typeOf func(*core.Term) string) st
 					v = b
 				}
 			}
-			// A BUFFER MAY NOT NARROW ON ITS OWN CONTENTS. Resolving through the
-			// `let` above re-opened exactly the circularity the interval path
-			// already refuses (elemwidth-2026-08-27, pinned there as a policy
-			// test with a control) — and it opened it on the path that test
-			// does not cover, because until the let was transparent a store of
-			// a read was always an opaque name.
-			//
-			// `buffer-swap` is the case: `(set (set b 0 vy) 1 vx)` with `vx`
-			// and `vy` bound to reads of `b` itself. Java caught it as a lossy
-			// conversion; the analysis would have been reasoning in a circle.
-			if v.Kind == core.KApp && len(v.Kids) == 2 &&
-				v.Kids[0].Kind == core.KName && v.Kids[0].Name == name {
-				v = t.Kids[3]
-			}
-			if l, h, ok := storedRange(v, typeOf); ok {
+			// The circularity guard is `storedRange`'s `self` argument now, and
+			// it had to move there: it was written for a BARE read, and
+			// arithmetic can bury one — `(+ (b i) 1)` is an increment of a
+			// slot, which this saw as an opaque application and now recurses
+			// into. `buffer-swap` is the case that found the first version
+			// (elemwidth-2026-08-27, pinned there with a control), and
+			// examples/io/freq.oro's run-length counter is the buried one.
+			if l, h, ok := storedRange(v, typeOf, name); ok {
 				sawRange = true
 				if l < lo {
 					lo = l
@@ -3140,7 +3234,7 @@ func ElemBytes(tgt *Target, t *core.Term) int {
 	// x86 has, which is bytes. The target still decides: a width is used only
 	// if the target DECLARED a representation covering it, so a target that
 	// declares none keeps its machine word.
-	if lo, hi, ok := storedRange(t, func(*core.Term) string { return "" }); ok {
+	if lo, hi, ok := storedRange(t, func(*core.Term) string { return "" }, ""); ok {
 		if n := tgt.reprBytes(lo, hi); n != 0 {
 			return n
 		}

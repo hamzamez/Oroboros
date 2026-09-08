@@ -119,7 +119,9 @@ project's own convention says a fired trigger produces a decision.
 > seven programs at parity on all three targets, nineteen comparisons, largest gap 1.13x. And the
 > portable-layer debt below is **not** as scored: three programs are still benchmarked on the
 > retired layer, and the reason is that their benchmarks were written against a different
-> interface.
+> interface. **CORRECTED 2026-09-08** — it was ONE program, `report`; `search` and `wordcount` had
+> native benchmarks already, and `report` now does too, at 0.99x
+> ([freq-2026-09-08](../gauntlet/results/freq-2026-09-08.md) §9).
 
 **Ten results in September, none of them a gauntlet measurement.** The gauntlet is *"the one fixed
 commitment"*, and the last time a gauntlet program was benchmarked against hand-written code was
@@ -177,7 +179,15 @@ Measured at the boundary the trigger named — **0 allocations against 512 KB pe
 kernel whose work is one pass over its workspace. ADR 0013 is superseded and ADR 0018's trigger 2 is
 discharged.
 
-**4. ~~Write an application.~~ DONE, 2026-09-07** —
+**4. ~~Write an application.~~ DONE TWICE, 2026-09-07 and 2026-09-08** —
+[freq-2026-09-08](../gauntlet/results/freq-2026-09-08.md) is the second: a word-frequency report,
+158 lines, the largest program in the language, byte-identical to `sort | uniq -c | sort -rn` on
+seven real files. **Four more bugs, two of them in the compiler**, and one finding worth more than
+the bugs — the merge sort is the loop shape size-change termination cannot prove, so
+karatsuba-2026-08-30's rule for eliminating recursion produces exactly what the analysis misses.
+The first follows.
+
+**~~Write an application.~~ DONE, 2026-09-07** —
 [jsonfmt-2026-09-07](../gauntlet/results/jsonfmt-2026-09-07.md). A JSON pretty-printer, 95 lines,
 the first tool. **It found four bugs, two of them silent wrong answers** — one shipped the previous
 day (ADR 0019 vacuous inside a multi-result continuation) and one three weeks old (the

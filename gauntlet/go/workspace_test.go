@@ -5,15 +5,16 @@ import "testing"
 // ADR 0020 AT AN EXPORTED BOUNDARY.
 //
 // The same body, twice, differing only in where the workspace comes from:
-// `GenMacInto` takes a `(buffer int)` parameter, `GenMacFresh` builds one. Both
+// `GenMacInto` takes a `(buffer (int 0 65535))` parameter, `GenMacFresh` builds
+// one. Both
 // are exported, so reduction removes neither boundary — which is the point,
 // because inside a program reuse was already free (ADR 0018) and rule R closed
 // the back edge (bigreuse-2026-09-02). What is left is exactly this.
 var (
-	wsA = make([]byte, 65536)
-	wsB = make([]byte, 65536)
-	wsW = make([]int, 65536)
-	wsSink []int
+	wsA    = make([]byte, 65536)
+	wsB    = make([]byte, 65536)
+	wsW    = make([]uint16, 65536)
+	wsSink []uint16
 )
 
 func init() {
@@ -40,7 +41,7 @@ func BenchmarkWorkspaceFresh(b *testing.B) {
 // AND THEY MUST AGREE, or the comparison is of two programs rather than of one
 // boundary.
 func TestWorkspaceFormsAgree(t *testing.T) {
-	got := GenMacInto(make([]int, 65536), wsA, wsB)
+	got := GenMacInto(make([]uint16, 65536), wsA, wsB)
 	want := GenMacFresh(wsA, wsB)
 	for i := range want {
 		if got[i] != want[i] {

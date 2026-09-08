@@ -1,0 +1,102 @@
+; A BOTTOM-UP MERGE SORT, WHICH IS A LOOP OVER LEVELS.
+; inputs: 0 1 2
+; expect: 8699 9482 9391
+; skip: windows
+;
+; WINDOWS IS SKIPPED FOR A COMPILER CEILING AND NOT A CAPABILITY, which is a
+; distinction this repository has been burned by: winstrings-2026-09-07 found a
+; bug that had hidden for weeks behind a `skip` whose stated reason was true when
+; written and had stopped being true. So the reason here is exact and testable.
+;
+;   build: x64.movb has more spilled operands than there are scratch registers,
+;   and its template needs them in registers:
+;   mov byte ptr [r10+r11], qword ptr [rsp+104]
+;
+; A store needs THREE registers when the address's base, its index and the value
+; are all spilled, and a template may not touch anything but r10 and r11
+; (ADR 0016). Two live buffers plus four loop variables in the inner merge is
+; over that line. THIRD PROGRAM TO HIT THIS CEILING -- after `big-divmod` and
+; `limb-subdiv` -- and the first that is nothing but a sort, so the shape is now
+; isolated rather than incidental to a large program. Delete this line to
+; reproduce.
+;
+; karatsuba-2026-08-30 states the rule -- *a balanced, data-independent
+; recursion is a loop over levels* -- and names mergesort first. This is that
+; instance: width 1, 2, 4, 8, and at each width every adjacent pair of runs is
+; merged from one buffer into the other, then the two swap. No recursion, no
+; stack, and the shape is a function of the length alone.
+;
+; It is here because examples/io/freq.oro is Go-only -- its file I/O is -- while
+; the sort at its centre is portable, and the sort is the part with something to
+; get wrong. TWO LIVE BUFFERS HANDED BACK AND FORTH ON EVERY PASS is the most
+; workspace-threading any small program does, and windows is the target where
+; that is not free: a threaded buffer must not cost a register
+; (wintables-2026-08-25), and two programs have already hit the x86 register
+; allocator's ceiling.
+;
+; IT SORTS VALUES AND NOT A PERMUTATION, which is a concession to windows and
+; the reason is worth recording: the permutation form -- what freq.oro uses,
+; because a word is a pair of offsets and must not be moved -- was refused by the
+; x86 register allocator, `x64.movb has more spilled operands than there are
+; scratch registers`. THIRD PROGRAM TO HIT THAT CEILING, and the first where the
+; fix was to write a smaller program rather than to skip the target. The
+; comparator reading a key through an index is one live value more than the
+; allocator has. The checksum weights each key by its position, so it
+; changes if any element lands anywhere else -- a sort that merely permuted
+; would pass a sum.
+;
+; Stability is deliberately NOT observable here: the checksum reads keys, and
+; equal keys are equal, so nothing depends on which of two equal elements comes
+; first. That is the right choice for a four-target case -- freq.oro is where
+; stability matters, and it is checked there against `sort | uniq -c`.
+
+(def cap (fn () 16))
+
+; A clamp, because an index computed from two loop variables is bounded by
+; nothing the analysis can see.
+(def cli (fn (n i) (if (< i 0) 0 (if (>= i n) 0 i))))
+
+(def key (fn (s i) (% (+ (* 37 (+ i s)) 11) 101)))
+
+(def mmin (fn (x y) (if (< x y) x y)))
+
+(def fill (fn (a s)
+  (loop ((a a) (k 0))
+    (>= k (cap))  a
+    else          (again (set a (cli (cap) k) (key s k)) (+ k 1)))))
+
+; One merge of a[lo,mid) and a[mid,hi) into b. The left run wins ties, which is
+; what makes it stable -- not observable here, deliberately, see above.
+(def merge1 (fn (a b lo mid hi)
+  (loop ((b b) (i lo) (j mid) (k lo))
+    (>= k hi)   b
+    (>= i mid)  (again (set b (cli (cap) k) (a (cli (cap) j))) i (+ j 1) (+ k 1))
+    (>= j hi)   (again (set b (cli (cap) k) (a (cli (cap) i))) (+ i 1) j (+ k 1))
+    (< (a (cli (cap) j)) (a (cli (cap) i)))
+                (again (set b (cli (cap) k) (a (cli (cap) j))) i (+ j 1) (+ k 1))
+    else        (again (set b (cli (cap) k) (a (cli (cap) i))) (+ i 1) j (+ k 1)))))
+
+; One pass at width w over the whole table.
+(def mpass (fn (a b w)
+  (loop ((b b) (lo 0))
+    (>= lo (cap))  b
+    else (let (mmin (cap) (+ lo w)) (fn (mid)
+          (let (mmin (cap) (+ lo (* 2 w))) (fn (hi)
+            (again (merge1 a b lo mid hi) hi))))))))
+
+; THE WORKSPACE, THREADED. `a` is what is sorted so far and `b` is where this
+; pass writes; the `again` hands each to the other's place. `a` is READ inside
+; the pass and MOVED afterwards, in that order, which is exactly what ADR 0018's
+; linearity permits -- a read does not consume.
+(def msort (fn (s)
+  (build (cap) (fn (a)
+    (build (cap) (fn (b)
+      (loop ((a (fill a s)) (b b) (w 1))
+        (>= w (cap))  a
+        else          (again (mpass a b w) a (* 2 w))))))))) 
+
+(def run (fn (s)
+  (let (msort s) (fn (v)
+    (loop ((acc 0) (r 0))
+      (>= r (cap))  acc
+      else          (again (+ acc (* (+ r 1) (v (cli (cap) r)))) (+ r 1)))))))

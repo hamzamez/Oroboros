@@ -32,7 +32,7 @@ import (
 // ---------------------------------------------------------------- emitter
 
 type Emitter struct {
-	tgt     *Target
+	tgt *Target
 
 	// elemFix is LoopElemJoin's answer: the ONE element type every `build`
 	// feeding a given loop variable must use. Keyed by the build's lambda,
@@ -1791,8 +1791,17 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	// `i < n == len(v)` and drops the per-iteration check. A container shorter
 	// than the bound panics on the slice expression instead of inside the loop,
 	// which is the same failure moved earlier.
-	if idx, bound, ok := countedGuard(e, body, raw); ok {
-		if bv, err := e.emit(bound); err == nil && len(e.narrowTargets(idx, body)) > 0 {
+	//
+	// THE TARGETS ARE CHECKED BEFORE THE BOUND IS EMITTED, and the order is the
+	// whole of a bug found by examples/io/freq.oro. `e.emit` is not a query: a
+	// bound containing a `let` — which is any guard calling a definition that
+	// binds anything, `(>= k (slen sp w))` being the first one written — emits
+	// STATEMENTS into the enclosing block. Emitting it and then deciding not to
+	// narrow left those statements behind the loop's initialisers, dead, and Go
+	// refuses a declared and unused variable. Nine lines reproduce it and no
+	// program had a `let` in a loop guard before.
+	if idx, bound, ok := countedGuard(e, body, raw); ok && len(e.narrowTargets(idx, body)) > 0 {
+		if bv, err := e.emit(bound); err == nil {
 			n := e.fresh("n")
 			// The target's spelling of `int`, not Go's literal `int`: on the
 			// portable layer that is `int64`, and `var n int = int64(len(a))`

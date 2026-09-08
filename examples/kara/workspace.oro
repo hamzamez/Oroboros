@@ -40,19 +40,28 @@
 ; allocates. `w` is UNIQUE on the way in — assumed, because the caller is outside
 ; the program — and LINEAR through the body, which `CheckLinear` verifies from
 ; this signature.
-; THE WORKSPACE IS PLAIN `int` IN BOTH, deliberately. Declaring `w` narrow here
-; and letting `mac-fresh` infer its own gave `[]uint16` against `[]int` — 128 KB
-; against 512 KB — so the two would have differed in the SIZE of the allocation
-; as well as in whether there was one, and a comparison that changes two things
-; measures neither. The element ranges on `a` and `b` stay, because without them
-; the product cannot be proven in-window and neither program compiles.
-(sig mac-into ((w (buffer int))
-               (a (array (int 0 255))) (b (array (int 0 255)))) (buffer int)
+; THE WORKSPACE IS DECLARED AT THE WIDTH THE OTHER SIDE INFERS, and keeping the
+; two in step is the whole discipline of this comparison. `mac-fresh` BUILDS its
+; workspace, so the compiler reads the element range off the stores -- a product
+; of two bytes is 0..65025 -- and gives it `[]uint16`. `mac-into` is HANDED its
+; workspace, so the range can only come from the declaration. Leave them
+; different and the two forms differ in the SIZE of the allocation as well as in
+; whether there is one, and a comparison that changes two things measures
+; neither.
+;
+; It has now been wrong in both directions, which is why this is written out.
+; First `(buffer int)` against an inferred `[]uint16`; then both plain `int`,
+; because the element inference could not see through a product at all; then
+; freq-2026-09-08 taught it arithmetic and the fresh side narrowed on its own
+; again. The declaration follows the inference rather than fighting it.
+(sig mac-into ((w (buffer (int 0 65535)))
+               (a (array (int 0 255))) (b (array (int 0 255))))
+              (buffer (int 0 65535))
   (where (and (<= 65536 (len w)) (<= 65536 (len a)) (<= 65536 (len b)))))
 (def mac-into (fn (w a b) (mac w a b)))
 
 ; The same body, allocating its own workspace every call — what an exported
 ; function had to do before a buffer could be named.
-(sig mac-fresh ((a (array (int 0 255))) (b (array (int 0 255)))) (array int)
+(sig mac-fresh ((a (array (int 0 255))) (b (array (int 0 255)))) (array (int 0 65535))
   (where (and (<= 65536 (len a)) (<= 65536 (len b)))))
 (def mac-fresh (fn (a b) (build (n) (fn (w) (mac w a b)))))

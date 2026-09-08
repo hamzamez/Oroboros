@@ -12,26 +12,35 @@ measurement: Karatsuba's workspace, **1.07x–1.66x, 10 allocations and 504 KB p
 multiply**. That was measured on *hand-written Go*, because the Oroboros side
 could not be written at all.
 
-> **`(sig f ((w (buffer int))) …)` parses, checks and emits.** The same body,
-> exported twice, differing only in where the workspace comes from:
-> **18,509 ns and ZERO allocations against 84,167 ns and 512 KB — 4.5x.**
+> **CORRECTED 2026-09-08** — [freq-2026-09-08](freq-2026-09-08.md) §8. The
+> numbers below were taken with a 512 KB workspace, because the element
+> inference could not yet see through a product; it can now, both forms declare
+> `(int 0 65535)`, and the workspace is 128 KB. **The allocation column is
+> unchanged and the ratio is 1.84x, not 4.5x** — which is this document's own
+> §1.1 landing on its own number: the work is identical and the workspace is a
+> quarter of the size. §1 is rewritten below; nothing else here moves.
+>
+> **`(sig f ((w (buffer (int 0 65535)))) …)` parses, checks and emits.** The same
+> body, exported twice, differing only in where the workspace comes from:
+> **18,973 ns and ZERO allocations against 34,927 ns and 128 KB — 1.84x.**
 >
 > **51 lines of non-comment code across three files.** No new term kind, no
 > attribute, no coercion, no borrow machinery — and no backend learned that
-> buffers exist: the parameter emits as `[]int`, `long[]`, a plain JS array and
-> a register.
+> buffers exist: the parameter emits as `[]uint16`, `int[]`, a plain JS array
+> and a register.
 >
 > **On windows it is not a speed question at all.** That allocator is one
 > `VirtualAlloc` per `build` and never freed, so the allocating form leaks
-> 512 KB per call. `gen_mac_fresh` contains one `VirtualAlloc`; `gen_mac_into`
+> a page per call. `gen_mac_fresh` contains one `VirtualAlloc`; `gen_mac_into`
 > contains none.
 
 ---
 
 ## 1. The measurement
 
-`mac` multiplies two byte arrays elementwise into a workspace of 65,536 `int`.
-`mac-into` takes the workspace as a `(buffer int)` parameter; `mac-fresh` is
+`mac` multiplies two byte arrays elementwise into a workspace of 65,536
+elements. `mac-into` takes the workspace as a `(buffer (int 0 65535))`
+parameter; `mac-fresh` is
 **the same shared body** with the workspace `build`-ed inside. Both are exported,
 so reduction cannot remove either boundary — which is the whole point, since
 inside a program reuse was already free and `examples/kara/core.oro` already
@@ -41,12 +50,20 @@ Go 1.x, `-benchtime=2000x -count=7`, medians:
 
 | | ns/op | B/op | allocs/op |
 |---|---:|---:|---:|
-| `GenMacInto` — ADR 0020 | **18,509** | **0** | **0** |
-| `GenMacFresh` — build inside | 84,167 | 524,288 | 1 |
+| `GenMacInto` — ADR 0020 | **18,973** | **0** | **0** |
+| `GenMacFresh` — build inside | 34,927 | 131,072 | 1 |
 
-**4.5x** (an earlier pass gave 18,835 / 79,768, 4.2x; the noise floor here is
-~15% and the effect is far outside it). `TestWorkspaceFormsAgree` checks the two
-forms return the same 65,536 products before either is timed.
+**1.84x**, medians of seven; the noise floor here is ~15% and the effect is far
+outside it. `TestWorkspaceFormsAgree` checks the two forms return the same
+65,536 products before either is timed.
+
+**The first version of this table said 4.5x at 524,288 B**, and the difference is
+one declaration. The workspace holds a product of two bytes; on 2026-09-07 the
+element inference could not see through a product, so it stayed `[]int`, and
+freq-2026-09-08 taught it exact arithmetic. Both forms now declare
+`(int 0 65535)` — they MUST agree, or the comparison changes two things — and a
+quarter of the memory costs a quarter of the time to allocate. §1.1 predicted
+exactly this and is the reason the correction is small rather than embarrassing.
 
 ### 1.1 Why this is bigger than 1.66x, said before it is asked
 
@@ -54,12 +71,17 @@ forms return the same 65,536 products before either is timed.
 found the cost *"growing with the size of the workspace relative to the work"*,
 so this kernel is one pass over the buffer — the ratio at which the allocation
 is comparable to the arithmetic. Karatsuba does O(n^1.58) work over a linear
-arena, which is why it sits at 1.07x–1.66x.
+arena, which is why it sits at 1.07x–1.66x, and 1.84x here is close to it.
 
-**This is the same effect measured where it is largest, not a larger effect.**
-Quoting 4.5x as *the* cost of the boundary would be the mistake this repository
-has made and caught four times: a number without its condition. What is
-unconditional is the allocation column — **0 against 1**, and 0 against 512 KB.
+**And the rule was then confirmed against this document's own number.** Shrinking
+the workspace 4x while leaving the work identical moved the ratio from 4.5x to
+1.84x. That is the same effect at a different point on the same curve, measured
+rather than argued, which is the best possible outcome for a claim of this shape.
+
+**This is the same effect measured at one point on a curve, not a constant.**
+Quoting either number as *the* cost of the boundary would be the mistake this
+repository has made and caught four times: a number without its condition. What
+is unconditional is the allocation column — **0 against 1**.
 
 ## 2. What was built
 
@@ -107,13 +129,15 @@ The clearest evidence that this is one type name and not a feature is what the
 four backends emit:
 
 ```go
-func GenMacInto(w []int, a []byte, b []byte) []int          // go
-public static long[] genMacInto(long[] w, short[] a, …)     // java
+func GenMacInto(w []uint16, a []byte, b []byte) []uint16    // go
+public static int[] genMacInto(int[] w, short[] a, …)       // java
 export function genMacInto(w, a, b)                         // js
 gen_mac_into proc                                           // windows
 ```
 
-**No backend was changed.** A buffer's element, its width, its indexing, its
+**No backend was changed**, and a declared buffer parameter takes its
+representation from its range exactly as `(array (int 0 255))` does — which is
+what §1's correction turns on. A buffer's element, its width, its indexing, its
 bounds obligations and its representation are an array's; what differs is *who
 may hold it*, and that is a compile-time question that never reaches emission.
 So `ArrayElem` answers for both — `ArrayElem("buffer int 0 255")` is

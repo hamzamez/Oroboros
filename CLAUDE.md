@@ -33,7 +33,8 @@ is still hand-written code.
 [uniqueness-2026-09-07](gauntlet/results/uniqueness-2026-09-07.md),
 [examples/kara/workspace.oro](examples/kara/workspace.oro). `(sig f ((w (buffer int))) …)` parses,
 checks and emits on all four targets. The same body exported twice, differing only in where the
-workspace comes from: **18,509 ns and ZERO allocations against 84,167 ns and 512 KB — 4.5x.** The
+workspace comes from: **18,973 ns and ZERO allocations against 34,927 ns and 128 KB — 1.84x**
+(corrected 2026-09-08 from 4.5x at 512 KB; see the freq entry below). The
 prediction was right about the size — **`CheckLinear` with a different SEED** and one type name —
 and right about why: ADR 0018 had already made uniqueness a distinction between two type
 CONSTRUCTORS rather than an attribute, so there is no attribute lattice, no attribute variables and
@@ -41,19 +42,21 @@ no inferred coercion. **The two obligations sit at opposite ends** — uniquenes
 promise and is *assumed* at an export (refinements.md §6b's middle row); linearity THROUGH is the
 body's promise and is *checked*.
 
-**And no backend learned that buffers exist**: the parameter emits as `[]int`, `long[]`, a plain JS
-array and a register. **A buffer is a table for every purpose but ALIASING** — element, width,
+**And no backend learned that buffers exist**: the parameter emits as `[]uint16`, `int[]`, a plain
+JS array and a register, taking its representation from its declared range exactly as
+`(array (int 0 255))` does. **A buffer is a table for every purpose but ALIASING** — element, width,
 indexing and bounds obligations are an array's, and `ArrayElem` answers for both. **Rule 6, a buffer
 may not be an ELEMENT type, is what keeps the read-borrow free**: `(b i)` yields a scalar or a
 frozen array, so an observation cannot alias the buffer, which is why *reads do not consume* needs
 none of Wadler's `let!` or Odersky's observers.
 
-**4.5x is the same effect measured where it is LARGEST, not a larger effect.** arrays-revisited
-measured 1.07x–1.66x on Karatsuba and said the cost grows with the workspace relative to the work;
-this kernel is one pass over its buffer, deliberately. What is unconditional is the allocation
-column — **0 against 1**. **On windows it is not a speed question at all**: that allocator never
-frees, so the allocating form leaks 512 KB per call — `gen_mac_fresh` contains one `VirtualAlloc`
-and `gen_mac_into` contains none.
+**1.84x is one point on a curve, not a constant, and the curve was then MEASURED.** arrays-revisited
+said the cost grows with the workspace relative to the work; shrinking this workspace 4x while
+leaving the work identical moved the ratio from 4.5x to 1.84x, which is that claim confirmed against
+this result's own number. What is unconditional is the allocation column — **0 against 1**. **On
+windows it is not a speed question at all**: that allocator never frees, so the allocating form
+leaks a page per call — `gen_mac_fresh` contains one `VirtualAlloc` and `gen_mac_into` contains
+none.
 
 **Three limits, stated rather than found later.** The uniqueness half at an export is **assumed and
 uncheckable** — a host caller passing the same buffer twice gets a silent wrong answer, and unlike
@@ -2075,6 +2078,73 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**A SECOND TOOL, AND THE MERGE SORT IS WHERE TERMINATION STOPS** —
+[freq-2026-09-08](gauntlet/results/freq-2026-09-08.md),
+[examples/io/freq.oro](examples/io/freq.oro). `sort | uniq -c | sort -rn` in Oroboros: **158 lines of
+code, the largest program in the language** by 1.4x, **byte-identical to those tools on seven real
+files**, and **951 of 951 integer operations bounded with no `-checked`**.
+
+**THE TERMINATION FINDING IS THE ONE TO KEEP.** The four loops of 37 that are not proven are the
+merge sort's two, once per comparator — `w = 1, 2, 4, …` and `lo += 2w`. sct-2026-08-19 handles an
+ascending counter **by orientation**, μ = −v, and that works because the step is a CONSTANT; `w *= 2`
+needs μ = ⌈log₂(n/w)⌉, which is not a size-change. So **karatsuba-2026-08-30's rule for eliminating
+recursion — *a balanced, data-independent recursion is a loop over levels* — produces exactly the
+loop shape the termination checker cannot prove**, and every future FFT, binary search and level-walk
+lands here. First time it has been isolated; not fixed, because it wants a ranking function over a
+derived quantity rather than a missing case.
+
+**TWO COMPILER BUGS, BOTH PRE-EXISTING.** **A program that COMPUTES a byte could not get a byte
+buffer**: the syntactic element inference was closed under nothing — a literal, an `if` over
+literals, a narrowed read — so `(+ 48 (% (/ x p) 10))` was refused although every operand is exact,
+and jsonfmt only ever COPIED bytes. `storedRange` now recurses through arithmetic, plus one rule
+needing no fact about its operand at all: **|a % d| < |d| whatever a is**, which is what makes a
+digit exact since nothing bounds `x / p`. **Still not the interval analysis** — interval *arithmetic*
+is exact on exact endpoints; what fixpoint-2026-08-27 withdrew is the interval *fixpoint*, and no
+loop variable can enter because a bare name is decided by `typeOf` alone. The anti-circularity guard
+had to move INTO the recursion, because arithmetic can bury a self-read and freq's run-length counter
+is `(+ (b s) 1)`.
+
+**And a `let` inside a loop guard emitted dead code Go refuses** — nine lines reproduce it. The BCE
+pass did `if bv, err := e.emit(bound); err == nil && len(e.narrowTargets(…)) > 0`, and **`e.emit` is
+not a query**: a bound containing a `let` emits STATEMENTS, which stay when the narrowing is then
+declined. Latent because **no program had ever put a `let` in a loop guard** — `(>= k (slen sp w))`
+is the first, `slen` binding because a span's length is a difference of two table reads.
+
+**A CAPACITY THAT TRUNCATES IS WORSE THAN ONE THAT REFUSES, and better than either is one that cannot
+be reached.** The word cap was 8192, this README has more words, and `the` came out **433 against
+440** with no diagnostic. It is now DERIVED: two words are separated by at least one non-letter byte,
+so k words need 2k−1 bytes, so a file under the 65536-byte cap has at most 32768 words. The guard
+stays because the ANALYSIS needs it; no input reaches it. `tree.oro`'s node cap one step further.
+
+**AND A TEXT PROGRAM THAT CONSUMES STILL DOES NOT INDEX A STRING.** This was written to be
+overloading.md §5's hard case — it COMPARES words to each other, the operation neither render.oro
+(produce) nor jsonfmt.oro (transform) needed. A word is a **pair of offsets into the file's bytes**;
+the program touches text twice, to compare bytes and to hand the report to the host. **Three
+programs, three shapes, none wanting `length`, `(s i)` or string `=`.**
+
+**The map could not do it, by DERIVATION**: `(map K V)` is well formed exactly where `=` is defined
+and that is integer equality, so a word cannot be a key. `sort | uniq -c` is not a workaround — a
+report must order equal counts, a hash map has no order to offer, and the lexicographic sort plus a
+STABLE second sort gives the tie-break for free *and* makes the printed spelling a function of the
+input rather than of the host.
+
+**The sort is the differential case `merge-sort`** on three targets, verified to fail against two
+bugs. **windows is skipped for a COMPILER CEILING and not a capability** — `x64.movb has more spilled
+operands than there are scratch registers` — **third program to hit it** and the first that is
+nothing but a sort, so the shape is isolated; the case says exactly how to reproduce it, because
+winstrings lost weeks to a `skip` whose reason had quietly stopped being true.
+
+**AND G5's PORTABLE-LAYER DEBT IS CLOSED, and gauntlet-2026-09-07 is corrected: it was ONE program,
+not three.** `search` and `wordcount` had native benchmarks all along. `report` needed the BENCHMARK
+rewritten, because the native source exports `main`, which takes nothing and BUILDS its data — so the
+hand-written reference constructs too. **1,717 ns against 1,731, 0.99x**, and the pure part still
+fuses.
+
+**Cost: 68 of 69 pre-existing emitted files byte-identical.** The one that changed is
+`workspace.oro`, whose buffer holds a product of two bytes — so ADR 0020's measurement was re-taken
+at matched widths and **4.5x became 1.84x**, which is that result's own §1.1 landing on its own
+number.
+
 **A TOOL IS WRITTEN, AND IT FOUND FOUR BUGS — TWO OF THEM SILENT WRONG ANSWERS** —
 [jsonfmt-2026-09-07](gauntlet/results/jsonfmt-2026-09-07.md),
 [examples/io/jsonfmt.oro](examples/io/jsonfmt.oro), assessment item 4, *write something awkward*,
@@ -3176,7 +3246,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, and `jsonfmt.oro` — the first tool); `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 | `gauntlet/stdlib/` | `survey.go` and `win32.go` — how much of Go's standard library and the Windows API this language can declare, and why not the rest |

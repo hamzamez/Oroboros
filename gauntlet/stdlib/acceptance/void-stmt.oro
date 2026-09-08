@@ -1,0 +1,16 @@
+; ACCEPTANCE TEST for the generated `stmt` primitives.
+;
+; `SetLastError` returns VOID and takes one argument, which is 3.5% of the flat
+; Win32 API that the survey refused and the target format could always say: a
+; statement's value IS its first argument. Round-tripped through `GetLastError`,
+; which was already declarable, so the answer is checked rather than assumed.
+(use windows/kernel32 as k)
+(use win/errhandlingapi as e)
+(use win/fmt as fmt)
+(export main)
+; The comparison rather than the value, because a host result is unbounded and
+; ADR 0019 refuses arithmetic on it — which is the OTHER thing the surveys
+; located, and not what this test is about.
+(def main (fn ()
+  (seq (e.SetLastError 4242)
+       (fmt.print-int (if (= (k.GetLastError) 4242) 1 0)))))

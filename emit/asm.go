@@ -49,10 +49,55 @@ var (
 	asmScratchX  = []string{"xmm4"}
 )
 
-// asmShadow is the home space every Win64 caller owes its callee, plus room for
-// a fifth and sixth stack argument. WriteFile takes five, and the two extra
-// qwords are what let its template write [rsp+20h] without a frame of its own.
+// asmShadow is the FLOOR of the outgoing-argument area: the 32 bytes of home
+// space every Win64 caller owes its callee, plus room for a fifth and sixth
+// stack argument. WriteFile takes five, and the two extra qwords are what let
+// its template write [rsp+20h] without a frame of its own.
+//
+// IT IS A FLOOR AND NOT THE SIZE, and that distinction is worth its code. The
+// widest entry point in the Windows SDK takes fourteen arguments, so ten go on
+// the stack and a procedure that calls one needs 112 bytes reserved — 6.7% of
+// the declarable flat API is past six (win32-2026-09-06). But reserving 112 in
+// EVERY procedure pushes every value slot 64 bytes further from rsp, and x86
+// encodes a displacement up to 127 in one byte and everything above it in four,
+// so a hot loop that spills would pay in code size for a call it does not make.
+// Measured: the flat version changed all nine emitted windows programs; this one
+// changes none.
 const asmShadow = 48
+
+// asmShadowFor is the outgoing-argument area one procedure needs: the floor, or
+// room for the widest declared call in it, whichever is larger.
+//
+// A DECLARED ARITY IS A LOWER BOUND ON WHAT A TEMPLATE WRITES, not the truth —
+// `kernel32.ReadFile` declares three arguments and its template writes a fourth
+// and a fifth itself. That is why the floor exists and why it stays at the six
+// every hand-written template was authored against.
+func asmShadowFor(tgt *Target, t *core.Term) int {
+	widest := 0
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
+			return
+		}
+		if x.Kind == core.KApp && len(x.Kids) > 0 && x.Kids[0].Kind == core.KName {
+			if p, ok := tgt.Prims[x.Kids[0].Name]; ok && len(p.Args) > widest {
+				widest = len(p.Args)
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
+		}
+	}
+	walk(t)
+	n := asmShadow
+	if widest > 4 {
+		if want := 32 + 8*(widest-4); want > n {
+			n = want
+		}
+	}
+	// A multiple of 16, so the frame's alignment arithmetic is unchanged.
+	return (n + 15) / 16 * 16
+}
 
 // AsmData and AsmExterns accumulate what emitted procedures need — the same
 // package-level sink Imports is on Go. Data holds literals; Externs holds the
@@ -123,11 +168,16 @@ type asmEmitter struct {
 	// is threaded through loop variables and `let`s — and a name is what
 	// survives that. Absent means eight, which is what `int` and `f64` need.
 	elem map[string]int
+
+	// The outgoing-argument area this procedure reserves, from asmShadowFor.
+	// Every value slot is addressed above it, so it is fixed before emission.
+	shadow int
 }
 
 func newAsmEmitter(tgt *Target) *asmEmitter {
 	e := &asmEmitter{
 		tgt:    tgt,
+		shadow: asmShadow,
 		elem:   map[string]int{},
 		usedGP: map[string]bool{},
 		usedX:  map[string]bool{},
@@ -186,7 +236,7 @@ func (e *asmEmitter) allocSlot(xmm bool) place {
 	// push is in the prologue — so a slot's offset is known the moment it is
 	// handed out, and no frame pointer is needed at all.
 	return place{
-		text:  fmt.Sprintf("qword ptr [rsp+%d]", asmShadow+8*(s-1)),
+		text:  fmt.Sprintf("qword ptr [rsp+%d]", e.shadow+8*(s-1)),
 		xmm:   xmm,
 		slot:  s,
 		owned: true,
@@ -300,16 +350,37 @@ func asmStringLit(s string) string {
 func fillAsm(form string, dst place, ops []place, u int) (string, error) {
 	var b strings.Builder
 	next := 0
-	pick := func(c byte) (place, bool) {
-		if c == 'r' {
-			return dst, true
-		}
-		if c >= '1' && c <= '9' {
-			if i := int(c - '1'); i < len(ops) {
-				return ops[i], true
-			}
+	pick := func(n int) (place, bool) {
+		if n >= 1 && n <= len(ops) {
+			return ops[n-1], true
 		}
 		return place{}, false
+	}
+	// A BRACED HOLE, `%{10}`, IS HOW A TEMPLATE NAMES A TENTH OPERAND.
+	//
+	// The bare form stops at `%9` and cannot be extended: `%12` would have to
+	// mean operand 12 where twelve operands exist and operand 1 followed by the
+	// character `2` where they do not, so a template's meaning would depend on
+	// its arity. That is the kind of context-dependent parse this project
+	// refuses elsewhere, so the wide form is spelled differently instead.
+	//
+	// 1.0% of the declarable Win32 API is past nine arguments
+	// (win32-2026-09-06), which is small — it is here because the alternative
+	// was an ambiguity, not because the count justifies syntax.
+	braced := func(i int) (int, int, bool) {
+		if i >= len(form) || form[i] != '{' {
+			return 0, 0, false
+		}
+		j := i + 1
+		n := 0
+		for j < len(form) && form[j] >= '0' && form[j] <= '9' {
+			n = n*10 + int(form[j]-'0')
+			j++
+		}
+		if j == i+1 || j >= len(form) || form[j] != '}' {
+			return 0, 0, false
+		}
+		return n, j, true
 	}
 	for i := 0; i < len(form); i++ {
 		if form[i] != '%' || i+1 >= len(form) {
@@ -332,14 +403,37 @@ func fillAsm(form string, dst place, ops []place, u int) (string, error) {
 			b.WriteString(ops[next].text)
 			next++
 		case c >= '1' && c <= '9':
-			p, ok := pick(c)
+			p, ok := pick(int(c - '0'))
 			if !ok {
 				return "", fmt.Errorf("template %q names operand %c of %d", form, c, len(ops))
 			}
 			b.WriteString(p.text)
+		case c == '{':
+			n, end, okBrace := braced(i)
+			if !okBrace {
+				return "", fmt.Errorf("template %q has an unclosed %%{…}", form)
+			}
+			p, ok := pick(n)
+			if !ok {
+				return "", fmt.Errorf("template %q names operand %d of %d", form, n, len(ops))
+			}
+			b.WriteString(p.text)
+			i = end
 		case (c == 'b' || c == 'e') && i+1 < len(form):
 			i++
-			p, ok := pick(form[i])
+			num := int(form[i] - '0')
+			if n, end, okBrace := braced(i); okBrace {
+				num, i = n, end
+			} else if form[i] == 'r' {
+				num = 0
+			}
+			var p place
+			var ok bool
+			if num == 0 && form[i] == 'r' {
+				p, ok = dst, true
+			} else {
+				p, ok = pick(num)
+			}
 			if !ok {
 				return "", fmt.Errorf("template %q names operand %c of %d", form, form[i], len(ops))
 			}
@@ -1638,6 +1732,7 @@ func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, err
 	}
 	e := newAsmEmitter(tgt)
 	e.sig = sig
+	e.shadow = asmShadowFor(tgt, t)
 	body, raw, _ := openFresh(t, e.bound, asmIdent)
 	e.topParams = raw
 	if len(raw) > len(asmArgGP) {
@@ -1700,14 +1795,14 @@ func AsmProc(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, err
 			savedX = append(savedX, r)
 		}
 	}
-	frame := asmShadow + 8*(e.slots+len(savedX))
+	frame := e.shadow + 8*(e.slots+len(savedX))
 	// rsp is 8 mod 16 on entry and each push moves it by 8. The frame must
 	// bring it back to 0 mod 16 or a callee's own aligned spill faults — which
 	// is a crash inside kernel32 with nothing in the traceback pointing here.
 	for ((8-8*len(saved)-frame)%16+16)%16 != 0 {
 		frame += 8
 	}
-	xbase := asmShadow + 8*e.slots
+	xbase := e.shadow + 8*e.slots
 
 	m := AsmMangle(name)
 	var out strings.Builder

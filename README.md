@@ -89,7 +89,7 @@ and no borrow checker. The caller's promise is assumed at the boundary; the body
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
 | `examples/` | 73 programs |
-| `gauntlet/` | hand-written references and 74 recorded measurements — **the bar** |
+| `gauntlet/` | hand-written references and 75 recorded measurements — **the bar** |
 | `gauntlet/differential/` | 29 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash

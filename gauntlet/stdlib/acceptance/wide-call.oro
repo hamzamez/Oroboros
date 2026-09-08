@@ -1,0 +1,16 @@
+; ACCEPTANCE TEST for arity past the old ceiling.
+;
+; `CreateFileA` takes SEVEN arguments — three past the four Win64 passes in
+; registers, and one past the six the emitter used to reserve room for. The
+; template puts arguments 5, 6 and 7 at [rsp+32], [rsp+40] and [rsp+48], which
+; only works because asmShadow reserves them.
+;
+; Opening a file that does not exist must set ERROR_FILE_NOT_FOUND, which is 2.
+(use windows/kernel32 as k)
+(use x64 as x)
+(use win/fileapi as f)
+(use win/fmt as fmt)
+(export main)
+(def main (fn ()
+  (seq (f.CreateFileA "no-such-file-here.txt" 2147483648 0 (x.null) 3 128 0)
+       (fmt.print-int (k.GetLastError)))))

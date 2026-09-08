@@ -84,7 +84,13 @@ const (
 
 	// The target FORMAT cannot say it.
 	rVariadic  reason = "variadic"
-	rVoidRes   reason = "void result"     // a stmt's value is argument 0; there is none
+	// A `void` result is refused only when there is no argument either. With
+	// one, the format already says it: `stmt`'s value IS argument 0, which is
+	// how `Sleep` and `WriteFile` are declared in targets/windows/kernel32.oro
+	// today. Refusing all of them attributed 3.5% of the API to the format when
+	// the format could say it — the survey talking about itself for the third
+	// time, after methods-at-0% in the Go survey and the typedef residue here.
+	rVoidRes   reason = "void result and no argument"
 	rOutParam  reason = "out-parameter"   // the result comes back through a pointer
 	rStructVal reason = "struct by value" // does not fit one register
 
@@ -433,7 +439,11 @@ func main() {
 				why = rUnknown
 				unres[f.result]++
 			case shVoid:
-				why = rVoidRes
+				// A stmt hands back its first argument, so a void result needs
+				// one and nothing more.
+				if len(f.params) == 0 {
+					why = rVoidRes
+				}
 			}
 		}
 		if why != ok {
@@ -482,14 +492,25 @@ func main() {
 	fmt.Printf("  declarable as a (prim …):  %5d  %5.1f%%\n", declarable, pct(declarable, len(fns)))
 	fmt.Printf("  callable by a program:     %5d  %5.1f%%\n", callable, pct(callable, len(fns)))
 	fmt.Printf("  and the call says it all:  %5d  %5.1f%%\n\n", usable, pct(usable, len(fns)))
-	fmt.Printf("  of the callable, %d reach it only by passing NULL where SAL says _opt_/_Reserved_\n\n", nullPassed)
+	// AND NULL IS NOW WRITABLE, which this count assumed and nothing provided:
+	// the language has no null, an integer literal is an `int` and the checker
+	// refuses it where `ptr` is required, and the target declared nothing. So
+	// 17% of the callable number was a claim about a capability nobody had.
+	// `(x64.null)` is one line of target data, added 2026-09-08.
+	fmt.Printf("  of the callable, %d reach it only by passing NULL where SAL says _opt_/_Reserved_\n", nullPassed)
+	fmt.Printf("  — writable since 2026-09-08 as (x64.null); before that the count was aspirational\n\n")
 
-	// ARITY IS A REAL CEILING ON A HOST WITH NO EXPRESSIONS, and it is one the
-	// Go survey could not see. A template addresses its operands as `%1`…`%9`
-	// (target-files.md §3), the Win64 ABI passes four arguments in registers and
-	// the rest on the stack, and the x86 emitter reserves 48 bytes at the bottom
-	// of every frame so a template may write two stack arguments without knowing
-	// anything about the frame it is expanded into (targets/windows/kernel32.oro).
+	// ARITY WAS A REAL CEILING ON A HOST WITH NO EXPRESSIONS, and it is not one
+	// any more. The three limits this reported — four for the Win64 register
+	// quota, six for the emitter's reserved home space, nine for the `%1`…`%9`
+	// template holes — were a convention, a constant and a syntax, and the last
+	// two were raised on 2026-09-08: asmShadow reserves 112 bytes, enough for
+	// the widest entry point in the SDK, and `%{10}` names a tenth operand.
+	//
+	// The breakdown stays because the SHAPES are still worth seeing — what
+	// fraction of an OS API does not fit four registers is a fact about the API
+	// — but none of these rows is a refusal now. `-emit` writes a template for
+	// every declarable name.
 	var over4, over6, over9, maxA int
 	for n, c := range arity {
 		if n > 4 {
@@ -507,8 +528,8 @@ func main() {
 	}
 	fmt.Printf("ARITY, of the declarable (widest is %d arguments)\n", maxA)
 	fmt.Printf("  more than 4 — some arguments go on the stack:  %5d  %5.1f%%\n", over4, pct(over4, declarable))
-	fmt.Printf("  more than 6 — past the reserved 48-byte home:  %5d  %5.1f%%\n", over6, pct(over6, declarable))
-	fmt.Printf("  more than 9 — past the %%1…%%9 template holes:  %5d  %5.1f%%\n\n", over9, pct(over9, declarable))
+	fmt.Printf("  more than 6 — into the 112-byte reserved home: %5d  %5.1f%%\n", over6, pct(over6, declarable))
+	fmt.Printf("  more than 9 — named by the %%{10} braced hole:  %5d  %5.1f%%\n\n", over9, pct(over9, declarable))
 
 	fmt.Println("WHY THE REST CANNOT BE DECLARED")
 	type rc struct {
@@ -670,16 +691,30 @@ func newestSDK() (string, error) {
 // the point — this is what "a line of data per name" costs on a host with no
 // expressions.
 func win64(name string, n int) (string, bool) {
-	if n > 6 {
-		return "", false // past the 48 bytes the emitter reserves
+	// FOURTEEN is the widest entry point in the SDK, and the emitter now
+	// reserves exactly that much (emit/asm.go's asmShadow). It was six, and
+	// both ceilings under it were a constant and a hole syntax rather than
+	// anything about the host.
+	if n > 14 {
+		return "", false
 	}
 	regs := []string{"rcx", "rdx", "r8", "r9"}
+	// A tenth operand needs the BRACED hole: `%12` cannot mean operand 12,
+	// because it would have to mean operand 1 followed by the character `2` in
+	// a template with fewer operands, and a template's meaning may not depend
+	// on its arity.
+	hole := func(i int) string {
+		if i < 9 {
+			return fmt.Sprintf("%%%d", i+1)
+		}
+		return fmt.Sprintf("%%{%d}", i+1)
+	}
 	var b strings.Builder
 	for i := 0; i < n; i++ {
 		if i < 4 {
-			fmt.Fprintf(&b, "mov %s, %%%d\n", regs[i], i+1)
+			fmt.Fprintf(&b, "mov %s, %s\n", regs[i], hole(i))
 		} else {
-			fmt.Fprintf(&b, "mov rax, %%%d\nmov [rsp+%d], rax\n", i+1, 32+8*(i-4))
+			fmt.Fprintf(&b, "mov rax, %s\nmov [rsp+%d], rax\n", hole(i), 32+8*(i-4))
 		}
 	}
 	fmt.Fprintf(&b, "call %s\nmov %%r, rax", name)
@@ -731,16 +766,30 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			if len(args) > 0 {
 				al = "(" + strings.Join(args, " ") + ")"
 			}
-			res := "int"
-			if classify(f.result, structs, handles, callbacks, alias) == shPtr {
+			res, kind := "int", "expr"
+			switch classify(f.result, structs, handles, callbacks, alias) {
+			case shPtr:
 				res = "ptr"
+			case shVoid:
+				// THE RESULT OF A STATEMENT IS ITS FIRST ARGUMENT, on every
+				// target, so a void entry point is declared `stmt` and typed by
+				// the argument it hands back. `Sleep` and `WriteFile` in
+				// targets/windows/kernel32.oro are hand-written this way and
+				// always were; this tool refused 409 of them.
+				res, kind = args[0], "stmt"
 			}
 			tmpl, okArity := win64(f.name, len(f.params))
 			if !okArity {
 				continue
 			}
-			fmt.Fprintf(&b, "    (prim %s %s %s expr %q (import %q))\n",
-				f.name, al, res, tmpl, f.name)
+			if kind == "stmt" {
+				// A statement's template must not write `%r`: the emitter takes
+				// the value from argument 0 and allocates no result register,
+				// so `%r` would have nothing to expand to.
+				tmpl = strings.TrimSuffix(tmpl, "\nmov %r, rax")
+			}
+			fmt.Fprintf(&b, "    (prim %s %s %s %s %q (import %q))\n",
+				f.name, al, res, kind, tmpl, f.name)
 			n++
 		}
 		fmt.Fprintf(&b, "  ))\n")

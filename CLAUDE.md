@@ -2282,6 +2282,84 @@ operation and the same name in a sub-module is a host API binding that shares it
 §3's distinction, applied. **Cost: 62 of 63 emitted files byte-identical, the one that changed being
 the one HEAD produced at random, and two consecutive sweeps now agree where they did not.**
 
+**THE WIN32 CEILINGS WERE A CONSTANT, A SYNTAX AND A MISSING LINE** —
+[win32-2026-09-08](gauntlet/results/win32-2026-09-08.md). **72.6% → 76.1%
+declarable, 33.5% → 34.8% callable, and 7,813 → 8,809 primitives actually
+generated** across 384 → 392 headers. The generated count is the one that has to
+be true: a name counted declarable and never emitted is a claim.
+
+**A `void` RESULT WITH AN ARGUMENT WAS NEVER A LIMIT.** A statement's value IS
+its first argument — that is what `stmt` means, and `Sleep` and `WriteFile` have
+been hand-declared that way since the target was written. The survey refused all
+447 void-returning functions; **409 of them have an argument** and were
+declarable all along. **THIRD TIME A SURVEY'S FIRST NUMBER WAS THE TOOL TALKING
+ABOUT ITSELF**, after methods-at-0% in the Go survey and this survey's own
+typedef residue at 23.5%. The pattern is worth more than any instance: *when a
+measurement of what a language can do is written by the same hands as the
+language, the first number describes the measurer.*
+
+**AND THE BIGGEST CORRECTION IS ONE LINE OF TARGET DATA.** win32-2026-09-06
+recorded that *"665 of 3,878 callable functions — 17% — are reachable ONLY
+because `_In_opt_` says a pointer we cannot construct may be 0"* — and **we could
+not write 0**: the language has no null, an integer literal is an `int` and the
+checker refuses it where `ptr` is required, and the target declared nothing. So
+17% of the callable number was a claim about a capability nobody had.
+`(prim null (none) ptr expr "xor %er, %er" pure)` is the whole fix. **Found by
+trying to write the acceptance test, not by reading the survey.**
+
+**THE ARITY CEILINGS WERE OURS, NOT THE HOST'S.** Four is the Win64 ABI and never
+was a ceiling — the generator already wrote `mov rax, %5 / mov [rsp+32], rax`.
+**Six was a constant** (`asmShadow`) and **nine was a hole syntax**. Both raised,
+and the interesting half is HOW. Raising the constant to 112 works and **changes
+all nine emitted windows programs**, because every value slot moves 64 bytes
+further from rsp and x86 encodes a displacement up to 127 in one byte — a hot
+loop that spills would pay in code size for a call it does not make. So
+`asmShadowFor` sizes it PER PROCEDURE from the widest prim that procedure calls,
+with 48 as a floor, and **all 70 emitted files stay byte-identical**. The floor is
+load-bearing: **a declared arity is a LOWER BOUND on what a template writes** —
+`kernel32.ReadFile` declares three arguments and writes a fourth and fifth
+itself.
+
+**`%{10}` and not `%10`**: `%12` would have to mean operand 12 in a template with
+twelve operands and operand 1 followed by `2` in one with fewer, so **a
+template's meaning would depend on its arity**. Pinned by a test asserting `%12`
+still means `%1` then `2`.
+
+**Acceptance, because a percentage that does not build is a claim**:
+`gauntlet/stdlib/acceptance/` — a SEVEN-argument `CreateFileA` with `(x64.null)`
+prints 2 (ERROR_FILE_NOT_FOUND), and a generated void `stmt` round-trips
+`SetLastError` through `GetLastError`. **Wrong twice on the way**, and both are
+kept: a bogus non-NULL gave 998 (ERROR_NOACCESS), which proved argument four
+already reached the callee, and then the literal `0` was refused by the type
+checker, which is how the missing null was found.
+
+**What is left is ONE thing: struct by value, 1,610 names, 13.9%, `[format]`** —
+the only large refusal that is neither the tool's residue (unresolved typedef,
+6.9%) nor an argued one (function pointer, 2.7%, callbacks.md tier 3). And
+values.md is the near-miss it has always been: a two-word struct returned by
+value is `rax`/`rdx`, which is what multiple return already emits there.
+
+**A TABLE STORE HAS THREE OPERANDS AND THE SCRATCH POOL HAS TWO** —
+[win32-2026-09-08](gauntlet/results/win32-2026-09-08.md) and the commit before
+it. The language's primary data structure did not fit its own backend: the
+STRUCTURAL store had a way out — form the address with `lea` first, freeing the
+index register before the value needs one — and a DECLARED prim did not, because
+its template is opaque data. Three programs were refused, and the third says what
+the defect was: `merge-sort`'s failure was not in the sort but in
+`lib/win/fmt.oro`'s `print-int`, unable to make a call that was always legal
+because the program's own live values had exhausted the pool. **A template with
+more spilled operands than scratch now BORROWS a value register**, and two things
+make it safe: a value register is **callee-saved**, so a template that makes a
+call gets it back — the same fact that makes a Win32 call free here — and it is
+saved to a **frame slot rather than pushed**, because a push would shift the
+16-byte alignment a callee's own aligned spill depends on. Only a register that
+is IN USE is borrowed: a free one could be handed to `alloc` as the destination
+between the borrow and the restore. `big-divmod` runs on windows now, and
+`merge-sort` runs on all four in the PERMUTATION form — what freq.oro does, since
+a word is a pair of offsets and must not be moved. **The other four windows skips
+were TESTED rather than read**, and all four are still legitimate: `big-subdiv`
+proved it by failing on `big-str is not bound` rather than by its comment.
+
 **AND THE WINDOWS API IS PRICED TOO, AND IT BEATS GO ON THE HARDER QUESTION** —
 [win32-2026-09-06](gauntlet/results/win32-2026-09-06.md), `gauntlet/stdlib/win32.go`, against the
 installed SDK's 1,753 headers and 11,575 flat entry points. **72.6% declarable and 33.5% callable,

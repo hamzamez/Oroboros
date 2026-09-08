@@ -176,6 +176,23 @@
     (prim lea (ptr int) ptr expr "lea %r, [%1+%2]" pure)
     (prim buf (none) ptr    expr "lea %r, __buf"   pure)
 
+    ; THE NULL POINTER, which 681 Win32 entry points need and none could get.
+    ;
+    ; win32-2026-09-06 counted a function as callable when every pointer
+    ; argument could be passed, and took NULL as available because SAL's
+    ; `_In_opt_` says so — *"665 of 3,878 callable functions are reachable ONLY
+    ; because `_In_opt_` says a pointer we cannot construct may be 0"*. It was
+    ; not constructible: the language has no null, an integer literal is an
+    ; `int` and the checker refuses it where `ptr` is required, and this target
+    ; declared nothing. So 17% of that number was a claim about a capability
+    ; nobody had.
+    ;
+    ; It is one line of data, which is the parasite model working: a host
+    ; capability the target says how to perform. `xor` rather than `mov …, 0`
+    ; because it is shorter and breaks the dependency chain, and the 32-bit form
+    ; zeroes the whole register on x86-64.
+    (prim null (none) ptr    expr "xor %er, %er"   pure)
+
     ; One mnemonic, two names: our language has no assignable place, so the
     ; direction of the move has to be part of the name.
     (prim mov       ((p ptr) (i int)) int expr "mov %r, qword ptr [%1+%2*8]" pure index)

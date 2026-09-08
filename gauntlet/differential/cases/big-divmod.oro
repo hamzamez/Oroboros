@@ -20,19 +20,24 @@
 ; bound is not expressible in an interval domain at all. It is INTENT, and intent
 ; needs a carrier that survives reduction.
 ;
-; skip: windows
 ;
-; WINDOWS IS SKIPPED FOR A REASON THAT IS NEITHER A CAPABILITY NOR A
-; DISAGREEMENT, and it is the third case to hit it: the x86 register allocator
-; cannot place this many live limb buffers in one procedure — `x64.movb has more
-; spilled operands than there are scratch registers` — and reduction inlines
-; `run` at every call site. It reproduces at one input, so it is program SIZE
-; rather than any construct here, and it is pre-existing.
+; WINDOWS RUNS THIS NOW, and it did not until 2026-09-08. The refusal was
+; `x64.movb has more spilled operands than there are scratch registers`: the
+; scratch pool is two registers, a table store has three operands, and reduction
+; inlines `run` at every call site so this procedure has more live limb buffers
+; than the value pool holds. It reproduced at ONE input, so it was program SIZE
+; rather than any construct here.
 ;
-; What windows does run is `limb-subdiv`, which writes the same loops by hand at
-; a size that fits, and `emit`'s unit tests, which check that each of `-`, `/` by
-; a word, `%` by a word and a comparison lowers to limbs there with no bignum in
-; sight. The capability is covered on that host; whole-program size is not.
+; The fix is that a template with more spilled operands than scratch now BORROWS
+; a value register, saved to a frame slot for the length of the instruction. A
+; value register is callee-saved, so a template that makes a call gets it back;
+; and a frame slot rather than a push, because a push shifts the 16-byte
+; alignment a callee's own spill depends on.
+;
+; `limb-subdiv` stays, and is not made redundant by this: it writes the same
+; loops by hand and returns ordinary integers, so it covers two shapes on x86
+; that nothing else does — a conditional inside an `again` argument, and a loop
+; counting down.
 ;
 ; THE RESULT TYPE IS LOAD-BEARING. `a % k` with 0 <= a and k a machine word is
 ; under k, so the answer fits the portable window whatever a's magnitude —

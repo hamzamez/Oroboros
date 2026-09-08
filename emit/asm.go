@@ -585,7 +585,7 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 	// by a JSON tree walk, whose live values exhaust the seven callee-saved
 	// registers and left `print-int` unable to make a call that was always
 	// legal (json-tree-2026-08-26).
-	live, left := e.materializeBest(ops)
+	live, left, borrowed := e.materializeBest(ops)
 
 	var dst, real place
 	if p.Kind == "stmt" {
@@ -621,6 +621,10 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 			e.line("%s", s)
 		}
 	}
+	// AFTER the template and BEFORE the result is moved, because the result
+	// lands in rax or in a freshly allocated register and a borrowed one is
+	// neither.
+	e.restoreBorrows(borrowed)
 	if p.Kind == "stmt" {
 		for i := 1; i < len(ops); i++ {
 			e.release(ops[i])
@@ -639,35 +643,120 @@ func (e *asmEmitter) emitPrim(t *core.Term, p Prim) (place, error) {
 // materializeBest loads spilled operands into scratch while scratch lasts and
 // leaves the rest in their frame slots, reporting how many it left. See the
 // template path for why that is allowed, and what checks it.
-func (e *asmEmitter) materializeBest(ops []place) ([]place, int) {
+func (e *asmEmitter) materializeBest(ops []place) ([]place, int, []asmBorrow) {
 	live := make([]place, len(ops))
 	copy(live, ops)
+	// A register already holding one of THIS call's operands may not be
+	// borrowed, or loading a second operand into it would destroy the first.
+	taken := map[string]bool{}
+	for _, o := range ops {
+		if o.reg() {
+			taken[o.text] = true
+		}
+	}
 	gp, xm, left := 0, 0, 0
+	var borrowed []asmBorrow
 	for i := range live {
 		if live[i].slot == 0 {
 			continue
 		}
+		op, pool := "mov", asmScratchGP
 		if live[i].xmm {
-			if xm >= len(asmScratchX) {
-				left++
-				continue
-			}
-			r := asmScratchX[xm]
-			xm++
-			e.line("movsd %s, %s", r, live[i].text)
-			live[i] = place{text: r, xmm: true}
+			op, pool = "movsd", asmScratchX
+		}
+		n := &gp
+		if live[i].xmm {
+			n = &xm
+		}
+		if *n < len(pool) {
+			r := pool[*n]
+			*n++
+			e.line("%s %s, %s", op, r, live[i].text)
+			live[i] = place{text: r, xmm: live[i].xmm}
 			continue
 		}
-		if gp >= len(asmScratchGP) {
-			left++
+		if b, ok := e.borrowValueReg(live[i].xmm, taken); ok {
+			e.line("%s %s, %s", op, b.reg, live[i].text)
+			live[i] = place{text: b.reg, xmm: b.xmm}
+			borrowed = append(borrowed, b)
+			taken[b.reg] = true
 			continue
 		}
-		r := asmScratchGP[gp]
-		gp++
-		e.line("mov %s, %s", r, live[i].text)
-		live[i] = place{text: r}
+		left++
 	}
-	return live, left
+	return live, left, borrowed
+}
+
+// asmBorrow is a value register lent to an instruction that has more spilled
+// operands than there are scratch registers, and the frame slot holding what it
+// was carrying.
+type asmBorrow struct {
+	reg  string
+	save place
+	xmm  bool
+}
+
+// borrowValueReg lends one register for the length of one instruction.
+//
+// THE SCRATCH POOL IS TWO REGISTERS AND A TABLE STORE HAS THREE OPERANDS, which
+// is the one place the language's primary data structure did not fit its own
+// backend. The STRUCTURAL store has a way out — form the address with `lea`
+// first, which frees the index register before the value needs one — and a
+// DECLARED prim does not, because its template is opaque data: `x64.movb` is
+// `mov byte ptr [%1+%2], %b3`, and the emitter cannot rewrite it. Three
+// programs were refused for this (big-divmod, limb-subdiv, merge-sort), and in
+// the third the refusal was not even in the program: it was `lib/win/fmt.oro`'s
+// `print-int`, unable to make a call that was always legal because the
+// program's own live values had exhausted the pool.
+//
+// So a register is borrowed instead. Two things make it safe and neither is a
+// coincidence:
+//
+//   - A VALUE REGISTER IS CALLEE-SAVED, so a template that makes a call gets it
+//     back. The Win64 convention preserves rbx, rsi, rdi and r12-r15, which is
+//     also why a Win32 call is free here.
+//   - IT IS SAVED TO A FRAME SLOT, NOT PUSHED. rsp does not move inside a
+//     procedure — every push is in the prologue — so a slot's offset is known,
+//     and more to the point a push would shift the 16-byte alignment a callee's
+//     own aligned spill depends on. That is a fault inside kernel32 with
+//     nothing in the traceback pointing here.
+//
+// Only a register that is IN USE is borrowed. A free one may be handed to
+// `alloc` as this instruction's destination between the borrow and the restore,
+// and restoring would then overwrite the result.
+func (e *asmEmitter) borrowValueReg(xmm bool, taken map[string]bool) (asmBorrow, bool) {
+	pool, free := asmValueGP, e.freeGP
+	op := "mov"
+	if xmm {
+		pool, free, op = asmValueX, e.freeX, "movsd"
+	}
+	isFree := map[string]bool{}
+	for _, r := range free {
+		isFree[r] = true
+	}
+	for _, r := range pool {
+		if isFree[r] || taken[r] {
+			continue
+		}
+		save := e.allocSlot(xmm)
+		e.line("%s %s, %s", op, save.text, r)
+		return asmBorrow{reg: r, save: save, xmm: xmm}, true
+	}
+	return asmBorrow{}, false
+}
+
+// restoreBorrows puts back what borrowValueReg lent, after the instruction that
+// used it. In reverse, so a slot released here is available to the next
+// instruction rather than to this one.
+func (e *asmEmitter) restoreBorrows(bs []asmBorrow) {
+	for i := len(bs) - 1; i >= 0; i-- {
+		op := "mov"
+		if bs[i].xmm {
+			op = "movsd"
+		}
+		e.line("%s %s, %s", op, bs[i].reg, bs[i].save.text)
+		e.release(bs[i].save)
+	}
 }
 
 // twoMemoryOperands returns the first filled line that names memory twice,

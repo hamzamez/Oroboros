@@ -312,3 +312,68 @@ func TestANarrowedLoopInitialiserIsCast(t *testing.T) {
 			"local to mean anything:\n%s", out)
 	}
 }
+
+// A BUFFER NOBODY WRITES TO TAKES ITS ELEMENT TYPE FROM THE HOST CALL IT IS
+// PASSED TO, because the host is the thing that writes it.
+//
+// `build` zero-fills and a scratch buffer handed to `(*os.File).Read` has no
+// `set` anywhere, so the syntactic inference correctly has nothing to say — and
+// the buffer came out `[]int`, which that method does not take. Found on the
+// first program to call a GENERATED Go method, which is 3,098 of the 4,932
+// callable names in that ecosystem and none of which had ever been called.
+//
+// The rule is consulted ONLY where the stores decide nothing, and the control
+// below is that half: a buffer the program writes literals into keeps the range
+// its own stores give it, because narrowing it to what a host expects would
+// truncate them silently.
+func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
+	tg, err := LoadTargetLayers("go", []string{"../targets"}, []string{"../lib"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// `os.WriteFile`'s second parameter is `(array (int 0 255))` — a real
+	// declaration from `lib/os/go.oro`, so the test cannot drift from what a
+	// target actually says.
+	body := func(src string) *core.Term {
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return nf
+	}
+	got, err := Func(tg, "f", nil, body(`
+(use os)
+(export f)
+(def f (fn () (build 8 (fn (b) (os.WriteFile "x" b 420)))))`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(got, "make([]byte, 8)") {
+		t.Errorf("a buffer only the host writes takes the host's element:\n%s", got)
+	}
+	// THE CONTROL. A buffer the program stores into keeps what its own stores
+	// say — here a value no byte can hold — and a test whose passing and failing
+	// cases look the same proves nothing.
+	got2, err := Func(tg, "g", nil, body(`
+(use os)
+(export f)
+(def f (fn () (build 8 (fn (b) (seq (set b 0 100000) (os.WriteFile "x" b 420))))))`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got2, "make([]byte, 8)") {
+		t.Errorf("a buffer storing 100000 may not become a byte slice:\n%s", got2)
+	}
+}

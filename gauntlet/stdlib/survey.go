@@ -94,11 +94,31 @@ type verdict struct {
 	opaque bool // declarable, but the program cannot look inside
 }
 
+// A GO INTEGER TYPE IS A RANGE, and collapsing twelve of them into `int` is
+// what gostdlib-2026-09-06 recorded as a GENERATOR limit rather than a format
+// one: *"the format can already say the right thing"*. It says it here.
+//
+// The difference is not cosmetic. `[]uint8` as `(array int)` is `[]int` on Go
+// and `os.File.Read` takes `[]byte`, so every generated line touching a byte
+// slice named a type the host does not accept; declared `(array (int 0 255))`
+// it emits `[]byte` on Go and `short[]` on the JVM, which is ADR 0003's ladder
+// doing the work (elemwidth-2026-08-27).
+//
+// `int64` and `uint64` stay `int`, and that is ADR 0012 rather than laziness: a
+// range past the portable window makes its own operations unprovable, which is
+// a compile error at the call site — the honest place for it — where a declared
+// `(int 0 (pow 2 64))` would promote the value to arbitrary precision and
+// silently stop being the host's word.
 var scalar = map[string]string{
 	"bool": "bool", "string": "string",
-	"int": "int", "int8": "int", "int16": "int", "int32": "int", "int64": "int",
-	"uint": "int", "uint8": "int", "uint16": "int", "uint32": "int", "uint64": "int",
-	"byte": "int", "rune": "int",
+	"int": "int", "int64": "int", "uint": "int", "uint64": "int",
+	"int8":  "(int -128 127)",
+	"int16": "(int -32768 32767)",
+	"int32": "(int -2147483648 2147483647)",
+	"uint8": "(int 0 255)", "byte": "(int 0 255)",
+	"uint16":  "(int 0 65535)",
+	"uint32":  "(int 0 4294967295)",
+	"rune":    "(int -2147483648 2147483647)",
 	"float64": "f64", "float32": "f64",
 	"error": "error",
 }
@@ -338,6 +358,41 @@ const (
 	uError     reason = "result is an error"
 )
 
+// qual gives a host type the key the obtainable set is indexed by, and it is a
+// CORRECTION rather than tidiness.
+//
+// The api manifest writes a type local to its own package bare — `*File` inside
+// `os` — and a type from elsewhere qualified — `io.Reader`. Keyed by the raw
+// string, `*File` in `os` and `*File` in `archive/zip` are ONE ENTRY, so
+// obtaining an `*os.File` made every `*zip.File` method look reachable. That can
+// only inflate the usable number, which is the direction a measurement of one's
+// own language must never round.
+//
+// Base name rather than import path, because the manifest itself writes
+// `io.Reader` and not `io.Reader`'s path; two packages with the same base name
+// and the same type name still collide, and that residue is named rather than
+// hidden.
+func qual(pkg, t string) string {
+	pre := ""
+	for {
+		switch {
+		case strings.HasPrefix(t, "*"):
+			pre, t = pre+"*", t[1:]
+		case strings.HasPrefix(t, "[]"):
+			pre, t = pre+"[]", t[2:]
+		default:
+			if strings.Contains(t, ".") {
+				return pre + t
+			}
+			base := pkg
+			if i := strings.LastIndex(pkg, "/"); i >= 0 {
+				base = pkg[i+1:]
+			}
+			return pre + base + "." + t
+		}
+	}
+}
+
 // judge decides DECLARABLE and USABLE for one symbol.
 func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reason) {
 	if s.generic {
@@ -355,7 +410,7 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 		if v.why != ok {
 			return false, false, v.why
 		}
-		argOpaque = argOpaque || (v.opaque && !have[s.recv])
+		argOpaque = argOpaque || (v.opaque && !have[qual(s.pkg, s.recv)])
 	}
 	for _, p := range s.params {
 		v := classify(p)
@@ -364,7 +419,7 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 		}
 		// An argument the program cannot CONSTRUCT makes the call unreachable
 		// even though the line can be written.
-		argOpaque = argOpaque || (v.opaque && !have[p])
+		argOpaque = argOpaque || (v.opaque && !have[qual(s.pkg, p)])
 	}
 	for _, r := range s.results {
 		v := classify(r)
@@ -429,7 +484,7 @@ func obtainable(syms []sym) map[string]bool {
 			reachable := true
 			for _, p := range s.params {
 				pv := classify(p)
-				if pv.why != ok || (pv.opaque && !have[p]) {
+				if pv.why != ok || (pv.opaque && !have[qual(s.pkg, p)]) {
 					reachable = false
 					break
 				}
@@ -439,10 +494,11 @@ func obtainable(syms []sym) map[string]bool {
 			}
 			for _, r := range s.results {
 				v := classify(r)
-				if v.why != ok || !v.opaque || have[r] {
+				k := qual(s.pkg, r)
+				if v.why != ok || !v.opaque || have[k] {
 					continue
 				}
-				have[r] = true
+				have[k] = true
 				grew = true
 			}
 		}
@@ -625,6 +681,34 @@ func pct(a, b int) float64 {
 // emit writes the declarable subset as target files, one per Go package. This is
 // the half that turns "expressible in principle" into a thing that either loads
 // or does not.
+// emit writes the declarable subset as target files.
+//
+// IT MUST WRITE WHAT `judge` COUNTS, or the percentage is a claim. This is the
+// same defect win32-2026-09-08 fixed on the other survey and it was worse here:
+// `judge` had learned about several results, methods and voids and the generator
+// had not, so 130 declarable names in `os` produced 36 lines. A name counted
+// declarable and never emitted is a claim; the generated count is the one that
+// has to be true.
+//
+// THREE SHAPES THE FORMAT ALWAYS HAD.
+//
+//	several results   `(T, error)` is Go's constructor idiom, declarable since
+//	                  multiresult-2026-09-06 and the reason the obtainable-type
+//	                  fixed point has anything in it.
+//	a METHOD          the receiver is argument 0 — the same convention Win32's
+//	                  `HANDLE` already uses — and the module is `go/PKG/TYPE`,
+//	                  so `f.Read(b)` is `(File.Read f b)`.
+//	a VOID with an    a statement's value IS its first argument, which is what
+//	argument          `stmt` means. Win32's survey refused 447 of these and 409
+//	                  were declarable all along.
+//
+// AND IT NO LONGER CLAIMS `pure`. Every generated line said `pure`, including
+// `os.Chdir` — an operation whose whole purpose is to change global state, which
+// a pure declaration lets the reducer substitute into two places or drop
+// entirely (ADR 0010). Purity is one declared bit whose default is IMPURE
+// precisely so that an author's omission costs speed rather than correctness
+// (effects.md); a generator cannot justify the claim for 1,007 functions, so it
+// does not make it. A target author adding `pure` by hand is how it comes back.
 func emit(dir string, syms []sym) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
@@ -638,52 +722,139 @@ func emit(dir string, syms []sym) error {
 		pkgs = append(pkgs, p)
 	}
 	sort.Strings(pkgs)
-	n := 0
+	n, skipped := 0, 0
 	for _, p := range pkgs {
 		list := byPkg[p]
-		sort.Slice(list, func(i, j int) bool { return list[i].name < list[j].name })
-		var b strings.Builder
-		fmt.Fprintf(&b, "; GENERATED by gauntlet/stdlib/survey.go — do not edit.\n")
-		fmt.Fprintf(&b, "; The declarable subset of Go's %s.\n\n", p)
-		fmt.Fprintf(&b, "(target go\n  (module go/%s\n", strings.ReplaceAll(p, "/", "-"))
+		sort.Slice(list, func(i, j int) bool {
+			if list[i].recv != list[j].recv {
+				return list[i].recv < list[j].recv
+			}
+			return list[i].name < list[j].name
+		})
+		// An opaque type must be SPELLED for the host, or the emitted file names
+		// a type the backend cannot write. Collected as we go and declared at
+		// target level, because a type is the target's and not a module's.
+		types := map[string]string{}
+		// A TYPE IS RECORDED AS IT IS SPELLED, POINTER AND ALL. `os.Open` gives
+		// back `*os.File` and `(*File).Read`'s receiver is the same type, so the
+		// declaration has to be `(type ptr-os-File "*os.File")` — recording the
+		// pointee would name a type no prim mentions and leave every prim naming
+		// one the target does not have.
+		var spellQ func(string) string
+		spellQ = func(t string) string {
+			if _, isScalar := scalar[t]; isScalar {
+				return spell(t)
+			}
+			if strings.HasPrefix(t, "[]") {
+				return "(array " + spellQ(t[2:]) + ")"
+			}
+			if strings.HasPrefix(t, "map[") {
+				return "(map int " + spellQ(t[strings.Index(t, "]")+1:]) + ")"
+			}
+			q := qual(p, t)
+			types[spell(q)] = q
+			return spell(q)
+		}
 		base := p
 		if i := strings.LastIndex(p, "/"); i >= 0 {
 			base = p[i+1:]
 		}
+		// One buffer per MODULE: package-level functions in `go/PKG`, and each
+		// type's methods in `go/PKG/TYPE`.
+		mods := map[string]*strings.Builder{}
+		modBuf := func(name string) *strings.Builder {
+			if b, ok := mods[name]; ok {
+				return b
+			}
+			b := &strings.Builder{}
+			mods[name] = b
+			return b
+		}
 		for _, s := range list {
+			var args, holes []string
+			mod := "go/" + strings.ReplaceAll(p, "/", "-")
+			tmplRecv := ""
 			if s.recv != "" {
-				continue // a method needs a receiver expression; §, below
-			}
-			var args []string
-			var holes []string
-			for range s.params {
+				rt := strings.TrimPrefix(s.recv, "*")
+				mod = "go/" + strings.ReplaceAll(p, "/", "-") + "/" + spell(rt)
+				args = append(args, "(self "+spellQ(s.recv)+")")
 				holes = append(holes, "%s")
+				tmplRecv = "%s."
 			}
-			for _, a := range s.params {
-				args = append(args, spell(a))
-			}
-			res := "none"
-			if len(s.results) == 1 {
-				res = spell(s.results[0])
+			for k, a := range s.params {
+				args = append(args, fmt.Sprintf("(a%d %s)", k, spellQ(a)))
+				holes = append(holes, "%s")
 			}
 			argList := "(none)"
 			if len(args) > 0 {
 				argList = "(" + strings.Join(args, " ") + ")"
 			}
-			if res == "none" {
-				continue // a void function has no value; stmt would need arg 0
+			// The call text. A method is `%s.Name(…)`; a function is
+			// `pkg.Name(…)`, and the receiver hole is already in `holes`.
+			callArgs := holes
+			if s.recv != "" {
+				callArgs = holes[1:]
 			}
-			fmt.Fprintf(&b, "    (prim %s %s %s expr \"%s.%s(%s)\" pure (import %q))\n",
-				s.name, argList, res, base, s.name, strings.Join(holes, ", "), p)
+			call := tmplRecv + s.name + "(" + strings.Join(callArgs, ", ") + ")"
+			if s.recv == "" {
+				call = base + "." + call
+			}
+			kind, res := "expr", ""
+			switch len(s.results) {
+			case 0:
+				// A statement's value is its first argument, so a void with no
+				// argument has nothing to be. That is the honest refusal and it
+				// is small: `runtime.Gosched` and its kind.
+				if len(args) == 0 {
+					skipped++
+					continue
+				}
+				kind, res = "stmt", strings.TrimSuffix(strings.TrimPrefix(args[0],
+					"("+strings.Fields(args[0][1:])[0]+" "), ")")
+			case 1:
+				res = spellQ(s.results[0])
+			default:
+				var rs []string
+				for _, r := range s.results {
+					rs = append(rs, spellQ(r))
+				}
+				res = "(" + strings.Join(rs, " ") + ")"
+			}
+			fmt.Fprintf(modBuf(mod), "    (prim %s %s %s %s \"%s\" (import %q))\n",
+				s.name, argList, res, kind, call, p)
 			n++
 		}
-		fmt.Fprintf(&b, "  ))\n")
+		var b strings.Builder
+		fmt.Fprintf(&b, "; GENERATED by gauntlet/stdlib/survey.go — do not edit.\n")
+		fmt.Fprintf(&b, "; The declarable subset of Go's %s.\n", p)
+		b.WriteString("(target go\n")
+		var tn []string
+		for k := range types {
+			tn = append(tn, k)
+		}
+		sort.Strings(tn)
+		for _, k := range tn {
+			fmt.Fprintf(&b, "  (type %s %q)\n", k, types[k])
+		}
+		if len(tn) > 0 {
+			b.WriteString("\n")
+		}
+		var mn []string
+		for k := range mods {
+			mn = append(mn, k)
+		}
+		sort.Strings(mn)
+		for _, k := range mn {
+			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
+		}
+		b.WriteString(")\n")
 		out := filepath.Join(dir, strings.ReplaceAll(p, "/", "-")+".oro")
 		if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 			return err
 		}
 	}
-	fmt.Printf("\nemitted %d primitives across %d packages into %s\n", n, len(pkgs), dir)
+	fmt.Printf("\nemitted %d primitives across %d packages into %s (%d void with no argument)\n",
+		n, len(pkgs), dir, skipped)
 	return nil
 }
 

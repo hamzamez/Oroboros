@@ -2117,6 +2117,60 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**A GENERATED GO METHOD RUNS, AND THE SURVEY WAS FLATTERING ITSELF** —
+[gomethods-2026-09-09](gauntlet/results/gomethods-2026-09-09.md),
+`gauntlet/stdlib/survey.go`, `gauntlet/stdlib/acceptance/os-methods.oro`. On hamza's *"I wanted to
+support the api of each target"*. **A program reaches an ecosystem's OBJECTS now**: `os.Open` ->
+`*os.File` -> `(*File).Read` into a byte buffer -> `(*File).Close`, every declaration GENERATED,
+built and run, printing **64** — `head -c 64 go.mod`. That is the first Go METHOD this language has
+called, and methods are **3,098 of the 4,932 callable names**.
+
+**THE GENERATOR WROTE 1,007 PRIMITIVES WHERE THE SURVEY COUNTED 4,331.** `judge` had learned about
+several results, methods and voids; `emit` had learned none of them, so `os` produced **36 lines
+against 130 declarable**. *A name counted declarable and never emitted is a claim* —
+win32-2026-09-08's sentence arriving on the other survey unprompted. **1,007 → 4,311**, and the
+arithmetic closes exactly: the residue is the **20 voids with no argument**, which have nothing to
+be, since a statement's value IS its first argument.
+
+**AND EVERY GENERATED LINE CLAIMED `pure`, INCLUDING `os.Chdir`** — an operation whose whole purpose
+is to change global state, which a pure declaration lets the reducer substitute into two places or
+drop (ADR 0010). Purity's default is IMPURE precisely so an omission costs speed rather than
+correctness; a generator cannot justify the claim for a thousand functions, so it no longer makes
+it.
+
+**THE SURVEY'S OWN NUMBER WAS INFLATED, IN THE FLATTERING DIRECTION, AND IT WAS THREE DAYS OLD.**
+The obtainable-type fixed point was keyed by the bare type name as the Go api manifest writes it, so
+`*File` in `os` and `*File` in `archive/zip` were ONE ENTRY and an obtained `*os.File` made every
+`*zip.File` method look reachable. **Usable 31.7% → 27.5%, methods 28.5% → 22.3%**, obtainable types
+202 → **289** (collapsed names becoming distinct), and *cannot build the argument* 42.7% → **49.9%**.
+**Fourth time a survey's first number was the tool talking about itself — and the first that
+inflated.** A measurement of one's own language must never round in its own favour.
+
+**A GO INTEGER TYPE IS A RANGE, and that is where a named gap stopped being theoretical.** `spell`
+collapsed twelve integer types into `int`, which gostdlib-2026-09-06 recorded as a GENERATOR limit
+(*"the format can already say the right thing"*) — and `[]uint8` as `(array int)` is `[]int`, which
+`(*os.File).Read` does not take, so **no generated line touching a byte slice could ever have
+compiled**. `uint8` is `(int 0 255)` now and ADR 0003's ladder gives `[]byte` on Go and `short[]` on
+the JVM. **`int64` stays `int`**, and that is ADR 0012: a range past the window would promote the
+value to arbitrary precision and silently stop it being the host's word.
+
+**And the opaque types were never declared at all** — `(type ptr-os-File "*os.File")`, **as spelled,
+pointer and all**, because `os.Open`'s result and `(*File).Read`'s receiver are the same type and
+recording the pointee would name one no prim mentions.
+
+**ONE COMPILER CHANGE, and the program found it**: `(build 64 (fn (b) (File.Read f b) …))` has no
+`set` anywhere — the HOST writes it — so the syntactic element inference correctly had nothing to
+say and the buffer came out `[]int`. **A buffer nobody writes to takes its element type from the
+host call it is passed to**, consulted only where the stores decide nothing, because a buffer the
+program also writes must satisfy its own stores and narrowing it would truncate them silently.
+
+**Cost: 178 of 178 emitted files byte-identical**; two tests verified to fail against their bug, one
+with a control that must NOT narrow. **What it leaves**: *cannot build the argument* at 49.9% is now
+the whole question, and its residue is **interfaces** — `io` is 28 declarable and 7 usable because
+everything takes one. Passing an obtained concrete value where an interface is wanted is a far
+smaller question than manufacturing one, and it is the next thing to measure. **And no survey exists
+for JavaScript or the JVM**: two of four targets have never been priced.
+
 **A TOOL RUNS ON THREE HOSTS, AND THE GAP WAS NEVER THE LANGUAGE** —
 [portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md),
 `targets/{js,java}/os.oro`, `targets/{go,js,java}/io.oro`. On hamza's *"the I/O on js and java is

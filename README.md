@@ -834,9 +834,14 @@ The honest list, with the reasoning written down rather than deferred to memory:
   designed: the two operations turned out to be **one fold with two combiners**, which deleted sixty
   lines, and `provides` turned out to be **a target fragment that happens to live in a library
   file**, needing no new operation at all.
-  **And acting on that survey moved the number: 88.0% declarable and 32.0% usable**, with obtainable
-  host types going from 108 to 198 and `os` from 18 usable names to 76
-  ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md)). Two fields in a data
+  **And acting on that survey moved the number: 87.8% declarable and 27.5% usable**
+  ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md)). The usable figure was
+  reported as 31.7% for three days and was **inflated by my own tool**: the obtainable-type fixed
+  point was keyed by the bare type name, so `*File` in `os` and `*File` in `archive/zip` were one
+  entry ([gomethods-2026-09-09](gauntlet/results/gomethods-2026-09-09.md)). **A generated Go METHOD
+  now builds and runs** — `os.Open` to `*os.File` to `(*File).Read` to `Close` — and the generator,
+  which had been writing 1,007 primitives where the survey counted 4,331, writes **4,311**, the
+  residue being exactly the 20 voids that have no argument to be the value of. Two fields in a data
   format and one branch in an analysis — the language needed nothing, because `(values a b)` has
   been the negative product since August and `((f x) (fn (a b) …))` is how it is consumed. What
   makes it work is that **β gets stuck**: with a `prim` producer the redex survives to the backend,

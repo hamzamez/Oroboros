@@ -2666,12 +2666,72 @@ func elemTypeFixed(tgt *Target, lam, body *core.Term, name string,
 	if ty := bufferElem(body, name, typeOf); ty != "int" {
 		return ty
 	}
+	// A BUFFER NOBODY WRITES TO TAKES ITS ELEMENT TYPE FROM THE HOST CALL IT IS
+	// PASSED TO, because the host is the thing that writes it.
+	//
+	// `(build 64 (fn (b) (File.Read f b) ...))` is a scratch buffer handed to
+	// `(*os.File).Read`, whose declared parameter is `(array (int 0 255))` -- and
+	// with no `set` anywhere the syntactic inference correctly has nothing to say,
+	// so the buffer came out `[]int` and Go refused the file. Found on the first
+	// program to call a GENERATED `os` method.
+	//
+	// It is tried only where the stores decide nothing, and that is soundness
+	// rather than an order of preference: a declaration is the most exact source
+	// there is, but a buffer the program ALSO writes to must satisfy its own
+	// stores, and narrowing it to what the host expects would truncate them
+	// silently. Where the two disagree the host compiler says so, which is the
+	// loud direction.
+	if ty := declaredElem(tgt, body, name); ty != "" {
+		return ty
+	}
 	// The analysis is asked WITH the enclosing precondition, because what
 	// bounds a buffer's stores is usually something the signature says.
 	if r, ok := BufferRange(tgt, lam, sig, params); ok {
 		return r
 	}
 	return "int"
+}
+
+// declaredElem is the element type a PRIMITIVE declares for the position this
+// buffer is passed in. See elemTypeFixed for when it is consulted and why not
+// sooner.
+//
+// Both call shapes are walked, because a host call with several results is an
+// application whose operator is an application -- `((File.Read f b) (fn (n e)
+// ...))` -- which is the shape `multiPrimCall` recognises and the shape a
+// fallible read has on every host.
+func declaredElem(tgt *Target, body *core.Term, name string) string {
+	found := ""
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || found != "" {
+			return
+		}
+		if t.Kind == core.KApp {
+			op, args := t.Op(), t.Args()
+			if op.Kind == core.KApp && op.Op().Kind == core.KName {
+				op, args = op.Op(), op.Args()
+			}
+			if op.Kind == core.KName {
+				if p, ok := tgt.Prims[op.Name]; ok {
+					for i, a := range args {
+						if i >= len(p.Args) || BufferRoot(a) != name {
+							continue
+						}
+						if elem := core.ArrayElem(p.Args[i]); elem != "" && elem != "int" {
+							found = elem
+							return
+						}
+					}
+				}
+			}
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	walk(body)
+	return found
 }
 
 // BufferRoot follows a threaded buffer back to the name it came from.

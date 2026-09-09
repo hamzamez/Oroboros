@@ -10,11 +10,15 @@ import (
 
 // A MODULE NAME WITH NO TARGET PREFIX IS A CLAIM, AND THIS IS THE CHECK.
 //
-// `go/fmt` names Go's `fmt` package and claims nothing beyond that host.
-// `os` and `io` name a `Σ` several targets share — target-system.md's
-// `Decl ≅ Σ × I`, with the interface common and the implementation per host —
-// and a program whose free names lie inside `Σ` is portable by the computation
-// ADR 0001 already does.
+// `go/fmt` names Go's `fmt` package and claims nothing beyond that host, and it
+// lives in `targets/`. `os` and `io` name a `Σ` several targets share —
+// target-system.md's `Decl ≅ Σ × I`, interface common and implementation per
+// host — and they live in `lib/`, as `(provides T M …)` cells, because the
+// host's API is what this project claims it can parasitize and a portable name
+// over it is a claim about several hosts agreeing. See `lib/os/README.md`.
+//
+// So the target must be loaded through its LAYERS here: a `provides` is the
+// lowest layer of `Δ_T`, and `LoadTarget` on one directory cannot see it.
 //
 // A claim nothing checks is decoration, which is `split-words`'s lesson: it
 // passed every review for two months while returning different answers on
@@ -25,7 +29,7 @@ func TestTheUnprefixedModulesShareOneInterface(t *testing.T) {
 	targets := []string{"go", "js", "java"}
 	loaded := map[string]*Target{}
 	for _, n := range targets {
-		tg, err := LoadTarget("../targets/" + n)
+		tg, err := LoadTargetLayers(n, []string{"../targets"}, []string{"../lib"})
 		if err != nil {
 			t.Fatalf("%s: %v", n, err)
 		}
@@ -128,7 +132,7 @@ func TestJavaScriptEmitsTheTotalisationAndItsImport(t *testing.T) {
 	for k := range JSImports {
 		delete(JSImports, k)
 	}
-	tg, err := LoadTarget("../targets/js")
+	tg, err := LoadTargetLayers("js", []string{"../targets"}, []string{"../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -186,7 +190,7 @@ func TestJavaEmitsDeclaredDestinationsAndTheWidening(t *testing.T) {
 	for k := range JavaImports {
 		delete(JavaImports, k)
 	}
-	tg, err := LoadTarget("../targets/java")
+	tg, err := LoadTargetLayers("java", []string{"../targets"}, []string{"../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}

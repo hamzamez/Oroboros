@@ -62,6 +62,13 @@
   (type string  "String")
   (type any     "Object")
 
+  ; A HOST ERROR IS A TARGET-WIDE FACT, not a package's. `Exception` rather than
+  ; `IOException` because the only thing this language can do with one is hold
+  ; it, test it and hand it back (sums.md would be needed to read it, and that
+  ; needs an interface, which callbacks.md tier 3 refuses) -- so a narrower name
+  ; would be a claim about which calls may produce one.
+  (type error   "Exception")
+
   (type jint    "int")
   (type char    "char")
   (type long-array   "long[]")

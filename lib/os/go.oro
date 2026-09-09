@@ -1,0 +1,37 @@
+; os, on Go — the LIBRARY layer, not the target's.
+;
+; See `lib/os/README` for what this module is. In one line: `go/os` names Go's
+; `os` package and claims nothing beyond that host; `os` names a `Σ` several
+; targets share, and this file is Go's cell of it.
+;
+; `(provides T M decl…)` is exactly `(target T (module M decl…))` written where
+; the library lives — a target FRAGMENT, and target-system.md §7.2 already says
+; a target is the glue of its fragments. It is the LOWEST layer, because a
+; library's opinion about a host loses to that host's own files.
+;
+; THE TEMPLATES REPEAT `targets/go/os.oro`'s, AND THAT IS TWO CLAIMS RATHER THAN
+; ONE FACT WRITTEN TWICE. `go/os.ReadFile` is a binding to Go's `os.ReadFile`
+; and is answerable to Go's documentation. `os.ReadFile` is a portable name
+; answerable to the other targets' cells — and if Go's package changed shape,
+; one of the two would move and the other would not. modules.md §6 shows this
+; exact arrangement and calls it complete.
+
+(provides go os
+  (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
+    "os.ReadFile(%s)" (import "os"))
+
+  (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
+    "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os"))
+
+  ; The discriminator that totalises the pair above. `nil` is not a value this
+  ; language has, so it is a primitive rather than something derived.
+  (prim err-nil ((e error)) bool expr "%s == nil" pure)
+
+  ; Bytes to text, ONCE, at the boundary. `string-of` is η over SCALARS, so a
+  ; raw UTF-8 byte through it would become U+00C3; the decode has to see the
+  ; whole sequence (string-operations.md §5).
+  (prim text-of ((b (array (int 0 255)))) string expr "string(%s)" pure)
+
+  ; The environment, so a program can be told what to open.
+  (prim Args (none) (array string) expr "os.Args" (import "os"))
+  (prim Getenv ((k string)) string expr "os.Getenv(%s)" pure (import "os")))

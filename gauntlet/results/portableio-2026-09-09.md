@@ -26,8 +26,15 @@ still short."*
 >
 > **AND A MODULE NAME IS A CLAIM.** `go/os` names Go's `os` package; `os` names a
 > `Σ` several targets share. That distinction is what makes these three programs
-> portable, and it is now CHECKED — structurally by a test over the three
-> targets' declarations, behaviourally by the three tools.
+> portable, and it is now CHECKED — structurally by a test over the three cells,
+> behaviourally by the three tools.
+>
+> **CORRECTED THE SAME DAY, AND THE CORRECTION IS THE ORDERING** — §2.2. The
+> portable module was first written in `targets/`, which is the wrong layer: the
+> host's API is what this project claims it can parasitize, and a portable name
+> over it is a claim about several hosts agreeing. It now lives in `lib/os/` and
+> `lib/io/` as `(provides T M …)` cells, and **178 of 178 emitted files are
+> byte-identical across the move.**
 >
 > **Five bugs, two of them cross-host divergences the differential suite could
 > not see**, because no differential case reads a file or prints twice.
@@ -109,6 +116,39 @@ two months while returning different answers on different targets), so
 the same names at the same argument and result types, **in both directions** — a
 target may not quietly add to a shared interface either, because a program
 written against the richer one would look portable and not be.
+
+### 2.2 And it belongs in `lib/`, not in `targets/` — hamza's correction
+
+The first version of this put `(module os …)` in `targets/go/`, `targets/js/` and
+`targets/java/`. That is the wrong layer, and the reason is an ORDER rather than
+a taxonomy:
+
+> **The host's API is what this project claims it can PARASITIZE. A portable name
+> over it is a claim about several hosts agreeing.** Writing the second before
+> the first inverts the order — you cannot know what the shared `Σ` should be
+> until you know what each host's actually is. `targets/go/os.oro` declaring six
+> names and calling itself `os` made that mistake look like a design.
+
+So `targets/go/os.oro` is `go/os` again — Go's `os` package, which it should grow
+into — and the portable cells moved to `lib/os/{go,js,java}.oro` and
+`lib/io/{go,js,java}.oro` as `(provides T M …)`.
+
+**No new mechanism, which is what says the layer was already right.**
+`(provides T M decl…)` is exactly `(target T (module M decl…))` written where the
+library lives (target-system.md §7.2, §8), and it is the LOWEST layer because a
+library's opinion about a host loses to that host's own files.
+layers-2026-09-07 built this and modules.md §6 specifies it; **this is the first
+use of it that is not a demonstration.**
+
+One declaration moved rather than copied: `(type error "Exception")` is now in
+`targets/java/java.oro`, because **how a host spells an error value is a fact
+about the target rather than about a package** — and `loadProvides` reads `prim`
+and not `type`, which made the taxonomy question decide itself.
+
+**Cost of the move: 178 of 178 emitted files byte-identical**, the three tools
+still agreeing byte for byte on three hosts. That is the right result for a
+change entirely about where declarations are found — layers-2026-09-07's own
+sentence, arriving on its own mechanism.
 
 ### 2.1 `io`, and why it is three narrow names rather than one wide one
 

@@ -1,0 +1,70 @@
+; os, on the JVM — the LIBRARY layer, not the target's.
+;
+; TOTALISATION, ON THE HOST WHERE FAILURE IS IN THE TYPES. See `lib/os/js.oro`
+; for the algebra; the short form is that a fallible call is a partial map and a
+; partial map is a total one into a coproduct, no host gives that coproduct, and
+; so a cell declares the CALL that produces the pair and the DISCRIMINATOR that
+; reads it.
+;
+; Java's checked exceptions make no difference to us and that is worth saying:
+; `throws IOException` is a demand on the CALLER's syntax, and the caller here is
+; a template, which catches. The type system that makes this host's failures
+; loudest is the one that costs us the least. (`error` is `Exception` on this
+; target and is declared in `targets/java/java.oro`, because how a host spells an
+; error value is a fact about the target rather than about any package.)
+;
+; AND THE JVM CHARGES FOR A BYTE, WHICH THE OTHER TWO DO NOT.
+;
+; `Files.readAllBytes` gives a `byte[]`, and the JVM's byte is SIGNED, so 0..255
+; does not fit it — the exact fact elemwidth-2026-08-27 found when a declared
+; `(array (int 0 255))` came out `short[]` here and `[]byte` on Go. A file's
+; bytes ARE 0..255; declaring them −128..127 would make `(src i)` return −1 for
+; 0xFF and the same program answer differently on different hosts, which is what
+; ADR 0009's rule forbids one level down. So this host WIDENS on the way in and
+; NARROWS on the way out, one pass each, at the boundary and nowhere else.
+;
+; That is the parasite model pricing something honestly rather than hiding it:
+; Go and Node read a file for free, the JVM pays a copy, and the cost is written
+; in the cell that knows why.
+
+(provides java os
+  ; `%r0` and `%r1` are the DESTINATIONS. A `try`/`catch` is a statement and not
+  ; an expression yielding a pair, so a host that signals failure out of band has
+  ; to be given somewhere to put its two values — the second of the format's two
+  ; multi-result shapes, and the one every throwing host needs. The emitter
+  ; declares them and javac's definite-assignment check then enforces that every
+  ; arm writes every one.
+  ;
+  ; `$oroB`/`$oroI`/`$oroE` are scoped to the `try` block and are spelled so they
+  ; cannot collide with an emitted local: Java forbids shadowing one, and
+  ; `javaMangle` never produces a name starting with `$oro`.
+  (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
+    "try { final byte[] $oroB = Files.readAllBytes(Path.of(%s)); %r0 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) %r0[$oroI] = (short) ($oroB[$oroI] & 0xFF); %r1 = null; } catch (Exception $oroE) { %r0 = null; %r1 = $oroE; }"
+    (import "java.nio.file.*"))
+
+  (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
+    "try { final short[] $oroS = %s; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write(Path.of(%s), $oroB); %r0 = null; } catch (Exception $oroE) { %r0 = $oroE; }"
+    (import "java.nio.file.*"))
+
+  ; The discriminator.
+  (prim err-nil ((e error)) bool expr "%s == null" pure)
+
+  ; Bytes to text, ONCE, at the boundary.
+  ;
+  ; A LAMBDA APPLIED AT THE CALL SITE, and not because it reads well: `%s` is an
+  ; arbitrary expression — `(text-of (format src))` is the real call — and every
+  ; array-narrowing form Java has that is an EXPRESSION mentions its operand
+  ; twice. Once bound to a parameter it is evaluated once. This is callbacks.md
+  ; tier 1 exactly: the lambda never becomes a value in our residual, the host
+  ; closes over it, and C2 inlines it.
+  (prim text-of ((b (array (int 0 255)))) string expr
+    "((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; return new String($oroB, StandardCharsets.UTF_8); }).apply(%s)"
+    pure (import "java.nio.charset.StandardCharsets"))
+
+  ; THE COMMAND LINE IS THE ONE THING A JVM PROGRAM CANNOT ASK FOR. Go has
+  ; `os.Args` and Node has `process.argv`; the JVM hands its arguments to `main`
+  ; and offers no global, so this is the only declaration in the repository whose
+  ; implementation needs the program's LAYOUT to cooperate — `oroArgs` is emitted
+  ; by the Java program writer, and only when something reads it.
+  (prim Args (none) (array string) expr "oroArgs")
+  (prim Getenv ((k string)) string expr "System.getenv().getOrDefault(%s, \"\")" pure))

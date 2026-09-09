@@ -2144,7 +2144,14 @@ backend.
 host; **an UNPREFIXED module names a `Σ` several targets share** — target-system.md's `Decl ≅ Σ × I`
 between targets that are not a family — and a program whose free names lie inside it is portable by
 the computation ADR 0001 already does. `go/os` was making three programs un-portable by SPELLING, so
-it is `os` now, with `io` beside it. **It is not the retired portable layer returning: that layer had
+`os` exists now with `io` beside it — **in `lib/`, as `(provides T M …)` cells,
+which is hamza's correction the same day and the ORDERING is the point**: the
+host's API is what this project claims it can parasitize, and a portable name
+over it is a claim about several hosts agreeing, so writing the second in
+`targets/` before the first inverts the order. **The move needed no new
+mechanism** — `provides` is layers-2026-09-07's own operator getting its first
+non-demonstration use — and **178 of 178 emitted files are byte-identical across
+it**. **It is not the retired portable layer returning: that layer had
 BODIES** and lowered into shapes it chose, at a measured 1.79x; here each target's cell is its own
 host's call and nothing is shared but the name and the type. The claim is CHECKED — structurally,
 that the three targets declare the same names at the same types **in both directions**, since a

@@ -1,9 +1,11 @@
 ; io — the console, at the only two types every host agrees on.
 ;
-; SEE `os.oro` IN THIS DIRECTORY for why this module has no `go/` prefix. In
-; one line: a prefixed module names a HOST NAMESPACE and claims nothing; an
-; unprefixed one names a `Σ` several targets share, and the capability graph is
-; what checks the claim.
+; THE LIBRARY LAYER, not the target's. `go/fmt` names Go's `fmt` package and
+; claims nothing beyond that host; `io` names an interface several targets share,
+; and this file is Go's cell of it. `(provides T M decl...)` is exactly
+; `(target T (module M decl...))` written where the library lives -- a target
+; FRAGMENT (target-system.md 7.2, 8), and the lowest layer, because a library's
+; opinion about a host loses to that host's own files.
 ;
 ; WHY IT IS NOT `fmt.Println`. Go's own name is variadic `...any`, and `any` is
 ; where the agreement stops: a float prints `1e+06` on Go and `1000000` on V8,
@@ -17,8 +19,7 @@
 ; module is not a replacement for it and does not wrap it: both emit the same
 ; call, and neither is lowered further than the host provides.
 
-(target go
-  (module io
+(provides go io
     (prim print-line ((s string)) string stmt "fmt.Println(%s)" (import "fmt"))
     ; ---- and the same without the newline
     ;
@@ -28,4 +29,4 @@
     ; be a value at run time where this is a choice at the call site.
     (prim print ((s string)) string stmt "fmt.Print(%s)" (import "fmt"))
 
-    (prim print-int ((n int)) int stmt "fmt.Println(%s)" (import "fmt"))))
+    (prim print-int ((n int)) int stmt "fmt.Println(%s)" (import "fmt")))

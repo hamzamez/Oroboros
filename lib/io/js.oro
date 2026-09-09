@@ -1,6 +1,6 @@
 ; io — the console, at the only two types every host agrees on.
 ;
-; See `targets/go/io.oro` for what this module is and why it has no prefix, and
+; See `lib/io/go.oro` for what this module is and why it has no prefix, and
 ; `os.oro` in this directory for the naming rule itself.
 ;
 ; `console.log` of a JavaScript number prints its decimal digits for every value
@@ -10,8 +10,7 @@
 ; and it cannot arise, because `idiv` and `irem` normalise it at the source
 ; (integers.md §0a) rather than every consumer having to know.
 
-(target js
-  (module io
+(provides js io
     (prim print-line ((s string)) string stmt "console.log(%s)")
     ; ---- and the same without the newline
     ;
@@ -20,4 +19,4 @@
     ; form that does not. `process` is a Node global, so this needs no import.
     (prim print ((s string)) string stmt "process.stdout.write(%s)")
 
-    (prim print-int ((n int)) int stmt "console.log(%s)")))
+    (prim print-int ((n int)) int stmt "console.log(%s)"))

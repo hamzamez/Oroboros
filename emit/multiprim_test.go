@@ -26,9 +26,9 @@ func TestAPrimMayGiveBackSeveralResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, ok := tg.Prims["os.ReadFile"]
+	p, ok := tg.Prims["go/os.ReadFile"]
 	if !ok {
-		t.Fatal("targets/go declares no os.ReadFile")
+		t.Fatal("targets/go declares no go/os.ReadFile")
 	}
 	if len(p.Results) != 2 {
 		t.Fatalf("ReadFile has %d declared results, want 2: %v", len(p.Results), p.Results)
@@ -37,7 +37,7 @@ func TestAPrimMayGiveBackSeveralResults(t *testing.T) {
 	// and `(int 0 255)` are both an application of names, and only `TypeName`
 	// knows which constructors exist — which is why `resultList` consults it
 	// first rather than counting kids.
-	for _, n := range []string{"os.WriteFile", "os.Args"} {
+	for _, n := range []string{"go/os.WriteFile", "go/os.Args"} {
 		q := tg.Prims[n]
 		if len(q.Results) != 0 {
 			t.Errorf("%s: %q was read as %d results; a compound type is ONE result",
@@ -52,8 +52,8 @@ func TestSeveralResultsEmitTheHostsOwnForm(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	src := `(fn () ((os.ReadFile "f") (fn (src err)
-	           (if (os.err-nil err) (go.len src) 0))))`
+	src := `(fn () ((go/os.ReadFile "f") (fn (src err)
+	           (if (go/os.err-nil err) (go.len src) 0))))`
 	terms, err := core.ReadAll(src)
 	if err != nil || len(terms) != 1 {
 		t.Fatalf("read: %v", err)
@@ -80,7 +80,7 @@ func TestAnUnreadResultBecomesBlank(t *testing.T) {
 		t.Fatal(err)
 	}
 	terms, err := core.ReadAll(
-		`(fn () ((os.ReadFile "f") (fn (src err) (go.len src))))`)
+		`(fn () ((go/os.ReadFile "f") (fn (src err) (go.len src))))`)
 	if err != nil {
 		t.Fatal(err)
 	}

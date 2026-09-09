@@ -1,6 +1,6 @@
 ; io — the console, at the only two types every host agrees on.
 ;
-; See `targets/go/io.oro` for what this module is and why it has no prefix.
+; See `lib/io/go.oro` for what this module is and why it has no prefix.
 ;
 ; TWO THINGS `System.out` DOES THAT THE LANGUAGE DOES NOT MEAN, both found by
 ; diffing a program's output across three hosts rather than by reading a manual.
@@ -29,8 +29,7 @@
 ; it is evaluated once. callbacks.md tier 1 — the lambda never becomes a value in
 ; our residual, the host closes over it, and C2 inlines it.
 
-(target java
-  (module io
+(provides java io
     (prim print-line ((s string)) string stmt
       "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
       (import "java.nio.charset.StandardCharsets"))
@@ -45,4 +44,4 @@
     ; `print`; it does not, because two paths to one stream is the hazard above.
     (prim print-int ((n int)) int stmt
       "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
-      (import "java.nio.charset.StandardCharsets"))))
+      (import "java.nio.charset.StandardCharsets")))

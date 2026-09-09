@@ -17,29 +17,24 @@
 ; is test it — see `err-nil` — which is the fallible-read shape maps.md already
 ; established and enough to write real code against.
 ;
-; AND THE MODULE HAS NO `go/` PREFIX, WHICH IS A CLAIM RATHER THAN A STYLE.
+; AND THE `go/` PREFIX IS THE CLAIM THIS FILE MAKES, WHICH IS A NARROW ONE.
 ;
-; Every other module in this directory is named after a HOST NAMESPACE — `go/fmt`
-; is Go's `fmt` package, `js/Math` is V8's `Math`, `java/System` is that class —
-; and a prefixed name claims nothing beyond that one host. An UNPREFIXED name is
-; the other thing: it names a `Σ` that several targets share.
+; Every module in this directory is named after a HOST NAMESPACE: `go/fmt` is
+; Go's `fmt` package, `go/strings` is its `strings`. A prefixed name says *this
+; is that host's API and nothing more* — no portability, no shared meaning, and
+; no obligation on any other target. That is ADR 0001, and it is the layer this
+; file belongs to.
 ;
-; target-system.md says a declaration splits `Decl ≅ Σ × I` — interface and
-; implementation — and that a target FAMILY is a fibration over a shared `Σ`.
-; This is that shape between targets that are NOT a family: `os` is one interface
-; with several implementations, and a program whose free names lie inside it is
-; PORTABLE — computed by the capability graph exactly as ADR 0001 says, rather
-; than promised by a layer.
-;
-; It is not the retired portable layer returning, and the difference is that the
-; layer had BODIES: it lowered `materialize` and `fold-range2` into shapes it
-; chose, and the price was measured at 1.79x. There is no body here at all. Each
-; target's cell is its own host's call at the highest layer that host provides —
-; `os.ReadFile` on Go, `fs.readFileSync` on Node — and nothing is shared but the
-; name and the type.
+; A PORTABLE `os` is a different object and lives in `lib/os/`, as
+; `(provides go os …)` — a target FRAGMENT written where the library lives
+; (target-system.md §8, modules.md §6). The distinction is not bookkeeping: the
+; host's API is what this project claims it can PARASITIZE, and a portable name
+; over it is a claim about several hosts agreeing. Writing the second before the
+; first inverts the order — you cannot know what the shared `Σ` should be until
+; you know what each host's actually is.
 
 (target go
-  (module os
+  (module go/os
     ; ---- reading and writing whole files
     ;
     ; The element range is DECLARED — a file is bytes — which is what gives the

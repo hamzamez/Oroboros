@@ -1,0 +1,52 @@
+; AN ARRAY OF PAIRS, ON FOUR TARGETS.
+; inputs: 0 1 2
+; expect: 1079 1001 845
+;
+; products.md: a tuple is a function whose domain is a finite set, and
+; tables.md §5.3 had already written the consequence — *"a statically-indexed
+; heterogeneous `(array x y)` is a pair, and `(a 0)`/`(a 1)` are its
+; projections; the tuple is not a separate feature."*
+;
+; So this program never says `stride`. It builds `(cap)` PAIRS, writes each with
+; `(array a b)`, and reads a field with `((t i) j)`. The compiler generates
+; `t[2i+j]` and proves the index it generated — emit/product.go.
+;
+; IT IS HERE BECAUSE THE PASS IS TARGET-INDEPENDENT AND THAT IS A CLAIM.
+; Flattening happens before the checker, so the four backends never learn that
+; products exist and none of them changed. A claim of that shape is exactly what
+; the differential suite is for: if any target disagreed, the flattening would be
+; emitting a different program somewhere.
+;
+; THE CHECKSUM IS POSITION-WEIGHTED AND THE FIELD DIFFERENCE IS ORDERED,
+; deliberately. A weighted sum changes if any pair lands anywhere else, and
+; `f1 - f0` makes a swapped projection — `(… 0)` read for `(… 1)` — change the
+; answer rather than cancel. The expectations were computed by hand before the
+; program was run.
+;
+; The `+ 14` is a bias that keeps every term positive, and it is here for a
+; target rather than for the arithmetic: `win/fmt.print-int` prints a blank line
+; for a negative number and is within its rights (refinements.md §6b names that
+; exact gap). Without it windows built, ran, exited 0 and printed nothing.
+
+(def cap (fn () 12))
+
+; THERE IS NO CLAMP IN THIS PROGRAM, and that is the strongest thing it says.
+; Every index is a loop variable the guard already bounds, and the STRIDE — the
+; `2i` and `2i+1` the compiler generates from it — is proven from that same
+; guard by the Farkas multiplier json-tree-bench added for exactly this shape.
+; A hand-strided program writes the multiplication itself and then has to be
+; believed about it; here the compiler writes it and discharges it.
+
+; Field 0 is a counter, field 1 is a residue, so the two differ and a projection
+; that reads the wrong one is visible in the answer.
+(def mk (fn (s)
+  (build (cap) (fn (t)
+    (loop ((t t) (i 0))
+      (>= i (cap))  t
+      else (again (set t i (array (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1)))))))
+
+(def run (fn (s)
+  (let (mk s) (fn (t)
+    (loop ((acc 0) (r 0))
+      (>= r (cap))  acc
+      else (again (+ acc (* (+ r 1) (+ 14 (- ((t r) 1) ((t r) 0))))) (+ r 1)))))))

@@ -127,11 +127,22 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		return fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
 	}
 
+	// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the term
+	// is exactly what a hand-strided program is — ordinary tables and ordinary
+	// index arithmetic — so nothing below this line, and no backend, learns that
+	// products exist.
+	esig := prog.Sigs[entry]
+	if nfl, fsig, k, err := emit.FlattenProducts(tg, esig, nf); err != nil {
+		return fmt.Errorf("%s: %w", entry, err)
+	} else if k > 0 {
+		nf, esig = nfl, fsig
+		fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", k)
+	}
 	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE (emit/bigrep.go). It runs
 	// BEFORE the checker because the promotion is part of what the program
 	// MEANS: the checker types `(* acc i)` as `int` and would refuse it against
 	// a value the program has said is bigger than a word.
-	nb, n, err := emit.PromoteBig(tg, prog.Sigs[entry], nf, allSigs(prog)...)
+	nb, n, err := emit.PromoteBig(tg, esig, nf, allSigs(prog)...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}
@@ -147,10 +158,10 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// Refinements: the bounds obligation primitives.md §2 recorded and
 	// nothing checked (docs/spec/refinements.md).
 	// ADR 0018's linearity, checked on the residual rather than by a type.
-	if err := emit.CheckLinear(nf, tg, prog.Sigs[entry]); err != nil {
+	if err := emit.CheckLinear(nf, tg, esig); err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}
-	if notes, err := emit.Refine(tg, entry, prog.Sigs[entry], nf); err != nil {
+	if notes, err := emit.Refine(tg, entry, esig, nf); err != nil {
 		return err
 	} else {
 		for _, n := range notes {
@@ -160,12 +171,12 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// REPRESENTATION SELECTION — see cmd/gen for the note.
 	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
 	// assumption: the caller is outside the program (postconditions.md §2).
-	if ok, note := emit.CheckEnsures(tg, prog.Sigs[entry], nf); !ok {
+	if ok, note := emit.CheckEnsures(tg, esig, nf); !ok {
 		return fmt.Errorf("%s: %s", entry, note)
 	} else if note != "" {
 		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
 	}
-	rep, sel := emit.Intervals(tg, prog.Sigs[entry], nf, 0)
+	rep, sel := emit.Intervals(tg, esig, nf, 0)
 	if rep.Ops > 0 || rep.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
 			"%d of %d loop(s) proven terminating\n",
@@ -185,7 +196,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// for; and its own pass, because `Intervals` above has the checked
 	// selection ON and using its rebuilt term by default would reverse ADR 0012
 	// without an ADR.
-	if sh, k := emit.SelectShifts(tg, prog.Sigs[entry], nf); k > 0 {
+	if sh, k := emit.SelectShifts(tg, esig, nf); k > 0 {
 		nf = sh
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", k)
 	}
@@ -200,16 +211,16 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	var code string
 	switch backend {
 	case "js":
-		code, err = emit.JSFunc(tg, "oro-main", prog.Sigs[entry], nf)
+		code, err = emit.JSFunc(tg, "oro-main", esig, nf)
 	case "java":
-		code, err = emit.JavaMethod(tg, "oro-main", prog.Sigs[entry], nf)
+		code, err = emit.JavaMethod(tg, "oro-main", esig, nf)
 	case "x86-64":
-		code, err = emit.AsmProc(tg, "oro-main", prog.Sigs[entry], nf)
+		code, err = emit.AsmProc(tg, "oro-main", esig, nf)
 		if err == nil {
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
 	case "go":
-		code, err = emit.Func(tg, "oro-main", prog.Sigs[entry], nf)
+		code, err = emit.Func(tg, "oro-main", esig, nf)
 	default:
 		return fmt.Errorf("no code generator for backend %q", backend)
 	}

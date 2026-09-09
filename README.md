@@ -71,6 +71,14 @@ them they found **eight bugs**, four in the compiler and two of those silent wro
 written as **a loop over levels** rather than a recursion, which is where the termination analysis
 stops: size-change handles a counter that steps by a constant and not one that doubles.
 
+**And a pair is a type** — [products.md](docs/products.md),
+[product-2026-09-09](gauntlet/results/product-2026-09-09.md). `(array A B)`, spelled the way the
+term already is, because a tuple is a function whose domain is a finite set and the language's
+tables already are. Flattening it is **currying** — `Π_{I×J} V ≅ Π_I Π_J V` — so an array of pairs
+is the flat table with a stride, and **the compiler generates the stride it used to be given and
+proves the index it generates**. No backend changed. Rewriting the word-frequency tool's two hand-
+strided tables took 16 strided index expressions to 2 and made the emitted Go **10% smaller**.
+
 **A workspace can be a parameter** — [ADR 0020](docs/decisions/0020-uniqueness-on-parameters.md),
 built 2026-09-07. `(sig f ((w (buffer int))) …)`: the caller owns the scratch memory and hands it
 over, so an exported function need not rebuild it every call — **0 allocations against 128 KB, and
@@ -89,14 +97,14 @@ and no borrow checker. The caller's promise is assumed at the boundary; the body
 | `cmd/gen` | emit a file into the gauntlet |
 | `cmd/build` | follow imports, reduce `main`, emit, run the host toolchain |
 | `examples/` | 73 programs |
-| `gauntlet/` | hand-written references and 75 recorded measurements — **the bar** |
-| `gauntlet/differential/` | 29 programs built and **run** on all four targets, outputs required identical *and* right |
+| `gauntlet/` | hand-written references and 76 recorded measurements — **the bar** |
+| `gauntlet/differential/` | 30 programs built and **run** on all four targets, outputs required identical *and* right |
 
 ```bash
 go run ./cmd/oro   -target=go examples/table/dot.oro       # reduce to normal form
 go run ./cmd/build -target=go -o hello examples/hello.oro  # a real binary
 go test ./core/ ./emit/
-cd gauntlet/differential && go run run.go                  # 29 programs x 4 targets
+cd gauntlet/differential && go run run.go                  # 30 programs x 4 targets
 ```
 
 ### The whole language

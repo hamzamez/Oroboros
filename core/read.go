@@ -1646,6 +1646,42 @@ func TypeName(t *Term) string {
 			return "array " + elem
 		}
 	}
+	// `(array T1 T2 … Tn)`, n >= 2 — THE PRODUCT, and the spelling is the term's.
+	//
+	// products.md: a tuple is a function whose domain is a finite set, and
+	// tables.md §5.3 had already written the consequence — *"a statically-indexed
+	// heterogeneous `(array x y)` is a pair, and `(a 0)`/`(a 1)` are its
+	// projections; the tuple is not a separate feature."* That sentence is the
+	// type former, so the type former is spelled the way the term already is.
+	//
+	// ARITY DISAMBIGUATES AND IT IS NOT A TRICK. `(array V)` names one index set
+	// — `Fin n` for an n nobody has stated — so it is homogeneous and its length
+	// is dynamic. `(array A B)` names `Fin 2` exactly, so the family may vary.
+	// One argument or many is precisely the static/dynamic distinction that
+	// tables.md §5.3 says forces homogeneity, written in the type.
+	//
+	// The canonical form is DELIMITED where every other one is space-separated,
+	// because a component may itself contain spaces — `int 0 255` does — and
+	// `MapTypes` splits on the first space only because a map's key is always one
+	// token. A comma cannot occur inside a type, so `prod(A, B)` parses back.
+	if t.Kind == KApp && len(t.Kids) >= 3 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
+		parts := make([]string, 0, len(t.Kids)-1)
+		for _, k := range t.Kids[1:] {
+			e := TypeName(k)
+			// Rule 6 again, and one of its own: a buffer may not be a field,
+			// for the reason it may not be an element — an observation must not
+			// be able to extract an alias (ADR 0020). And a product may not
+			// contain a product yet: flattening is what gives it a
+			// representation, and a nested one would need the layout machinery
+			// products.md §8 puts last.
+			if e == "" || IsBuffer(e) || IsProd(e) {
+				return ""
+			}
+			parts = append(parts, e)
+		}
+		return "prod(" + strings.Join(parts, ", ") + ")"
+	}
 	// `(buffer V)` — ADR 0020. A buffer is a NAMEABLE TYPE, so a function may
 	// take its workspace instead of building one every call.
 	//
@@ -1992,6 +2028,31 @@ func BufferElem(ty string) string {
 		return ty[len("buffer "):]
 	}
 	return ""
+}
+
+// IsProd reports whether a type is the n-ary product, and ProdTypes reads its
+// components back. The canonical form is `prod(A, B, …)`; a component never
+// contains a comma, because a type never does.
+func IsProd(ty string) bool {
+	return strings.HasPrefix(ty, "prod(") && strings.HasSuffix(ty, ")")
+}
+
+// ProdTypes returns the components of a product type, or nil.
+func ProdTypes(ty string) []string {
+	if !IsProd(ty) {
+		return nil
+	}
+	inner := ty[len("prod(") : len(ty)-1]
+	if inner == "" {
+		return nil
+	}
+	parts := strings.Split(inner, ", ")
+	for _, p := range parts {
+		if p == "" {
+			return nil
+		}
+	}
+	return parts
 }
 
 // IsBuffer reports whether a declared type is ADR 0020's unique, linear table.

@@ -303,6 +303,44 @@ func (f *facts) entails(goal *linear) bool {
 			}
 		}
 	}
+	// AND THE SUM OF TWO WITH MULTIPLIERS THAT CANCEL A VARIABLE — one
+	// Fourier–Motzkin elimination step, which is the principled form of the
+	// single Farkas multiplier above rather than another special case.
+	//
+	// For `a <= 0` and `b <= 0` sharing a variable v with opposite signs,
+	// `|b_v|·a + |a_v|·b <= 0` holds and no longer mentions v. Sound because
+	// both multipliers are positive; incomplete over the integers, which is the
+	// side this procedure has always taken.
+	//
+	// It is what a flattened product needs. From `w < (len sp)/2` and the
+	// axiom `2·((len sp)/2) <= len sp`, cancelling the quotient gives
+	// `2w + 2 <= len sp`, which is the bound on `(sp (+ (* 2 w) 1))` — and
+	// neither one fact scaled nor two facts summed can reach it, because the
+	// combination needs a different multiplier on each.
+	for i, a := range f.le {
+		for _, b := range f.le[i+1:] {
+			for v, av := range a.coef {
+				bv, ok := b.coef[v]
+				if !ok || (av > 0) == (bv > 0) {
+					continue
+				}
+				ma, mb := bv, av
+				if ma < 0 {
+					ma = -ma
+				}
+				if mb < 0 {
+					mb = -mb
+				}
+				sum := constant(0).addScaled(a, ma).addScaled(b, mb)
+				if sameVars(sum, g) && sum.konst >= g.konst {
+					return true
+				}
+				if m, ok := scaleTo(sum, g); ok && sum.konst*m >= g.konst {
+					return true
+				}
+			}
+		}
+	}
 	return false
 }
 
@@ -372,6 +410,23 @@ func asLinear(t *core.Term) (*linear, bool) {
 			}
 		case isLenOp(op.Name) && len(args) == 1:
 			return variable(lengthVar(op.Name, args[0])), true
+
+		// A DIVISION BY A POSITIVE LITERAL IS AN ATOM, and it was outside the
+		// fragment entirely — not opaque, ABSENT — so a guard mentioning one
+		// bounded nothing at all. `(< w (/ (len sp) 2))` is a perfectly linear
+		// fact about the unknown `(len sp)/2`; what is nonlinear is the
+		// RELATION between that unknown and `(len sp)`, and that relation is a
+		// declared axiom rather than a search (decidability-map.md).
+		//
+		// Naming the atom by the whole term is what makes two occurrences of
+		// one quotient the same variable, exactly as `lengthVar` does for a
+		// length — and for the same reason: two spellings of one quantity must
+		// key alike or nothing composes.
+		case isOp(op.Name, "div") && len(args) == 2 &&
+			args[1].Kind == core.KInt && args[1].Int > 0:
+			if _, ok := asLinear(args[0]); ok {
+				return variable(divVar(t)), true
+			}
 		}
 	}
 	return nil, false
@@ -392,6 +447,20 @@ func isLenOp(name string) bool {
 	return isOp(name, "alen") || isOp(name, "slen") ||
 		name == "len" || strings.HasSuffix(name, ".len")
 }
+
+// isLenTerm reports whether a term IS a length, which is the cheapest source of
+// "this is non-negative" the fragment has.
+func isLenTerm(t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp {
+		return false
+	}
+	op := t.Op()
+	return op.Kind == core.KName && isLenOp(op.Name) && len(t.Args()) == 1
+}
+
+// divVar names a quotient opaquely, keyed by the whole division term so that
+// two occurrences of one quotient are one variable.
+func divVar(t *core.Term) string { return "div" + t.String() }
 
 // lengthVar names a length term opaquely. Two occurrences of `(alen a)` must
 // produce the same variable or nothing is provable.

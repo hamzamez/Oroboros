@@ -103,12 +103,13 @@
 
 ; --- the span table ---------------------------------------------------------
 ;
-; Stride 2: word w occupies slots 2w (start) and 2w+1 (end). A flat table plus
-; indices, which is this repository's answer to structured data, arriving in a
-; program that has nothing to do with parsing.
+; A word is a PAIR of offsets, and the table is an array of pairs. It was
+; written as stride 2 -- slots 2w and 2w+1 -- until products.md made the pair a
+; type; the compiler now generates the stride it used to be given, and proves
+; the index it generates.
 
-(def sbeg (fn (sp w) (sp (* 2 w))))
-(def send (fn (sp w) (sp (+ (* 2 w) 1))))
+(def sbeg (fn (sp w) ((sp w) 0)))
+(def send (fn (sp w) ((sp w) 1)))
 ; A SPAN'S LENGTH IS CLAMPED, and the reason is the honest one. Both endpoints
 ; are values read out of a table, so their difference is unrelated to anything
 ; the analysis can see -- frozen-2026-08-28's `d`, in a program with no parser in
@@ -119,13 +120,13 @@
     (if (< d 0) 0 (if (>= d (cap-in)) 0 d))))))
 
 (def spans (fn (src nw)
-  (build (* 2 nw) (fn (sp)
+  (build nw (fn (sp)
     (loop ((sp sp) (i 0) (w 0))
       (>= i (len src))  sp
       (>= w nw)         sp
       (alpha? (src i))
         (let (word-end src i) (fn (ni)
-          (again (set (set sp (* 2 w) i) (+ (* 2 w) 1) ni) ni (+ w 1))))
+          (again (set sp w (array i ni)) ni (+ w 1))))
       else              (again sp (+ i 1) w))))))
 
 ; --- comparing two words ----------------------------------------------------
@@ -237,21 +238,24 @@
     (new? src sp ord nw k)  (again (+ n 1) (+ k 1))
     else                  (again n (+ k 1)))))
 
-; Stride 2 again: distinct d occupies slots 2d (a word index, standing for the
-; whole group) and 2d+1 (how many times it occurred).
+; A PAIR AGAIN: distinct d is a word index, standing for the whole group, and
+; how many times it occurred. This was stride 2 as well, with a `dslot` helper
+; computing `2d` and two clamps on the strided bound; the type replaced all
+; three.
 ;
-; BOTH READS ARE CLAMPED, and by the SAME cap, which is what makes the clamp a
-; statement rather than a chore: neither a word index nor an occurrence count can
-; exceed the number of words. Without it the 25 operations left after `pat` are
-; `(* 2 (dword …))` -- a word index used to reach into the span table -- and
-; `(pow10 (ndigits (dcount …)))`, which the analysis has to believe could be 10^20
-; and therefore outside the window. One cap answers both.
-(def dslot  (fn (nd d) (cli (* 2 nd) (* 2 d))))
-(def dword  (fn (dt nd d) (cli (+ (wmax) 1) (dt (dslot nd d)))))
-(def dcount (fn (dt nd d) (cli (+ (wmax) 1) (dt (cli (* 2 nd) (+ (dslot nd d) 1))))))
+; BOTH READS ARE STILL CLAMPED, and by the SAME cap — but note WHICH clamps
+; survived. The ones the product removed were INDEX clamps, on the slot the
+; program computed; these are VALUE clamps, on what a table read RETURNS, and
+; that is frozen-2026-08-28's stratum 0 and has nothing to do with products.
+; Neither a word index nor an occurrence count can exceed the number of words,
+; and without saying so `(* 2 (dword …))` reaching into the span table and
+; `(pow10 (ndigits (dcount …)))` are both outside the window. One cap answers
+; both.
+(def dword  (fn (dt d) (cli (+ (wmax) 1) ((dt d) 0))))
+(def dcount (fn (dt d) (cli (+ (wmax) 1) ((dt d) 1))))
 
 (def dists (fn (src sp ord nw nd)
-  (build (* 2 nd) (fn (dt)
+  (build nd (fn (dt)
     (loop ((dt dt) (k 0) (d 0))
       (>= k nw)   dt
       ; THE CAPACITY GUARD STOPS A NEW GROUP AND NOT THE COUNTING, which is a
@@ -262,17 +266,15 @@
       ; exists needs no room.
       (and (new? src sp ord nw k) (>= d nd))  dt
       (new? src sp ord nw k)
-        (again (set (set dt (cli (* 2 nd) (* 2 d)) (pat ord nw k))
-                    (cli (* 2 nd) (+ (* 2 d) 1)) 1)
-               (+ k 1) (+ d 1))
+        (again (set dt (cli nd d) (array (pat ord nw k) 1)) (+ k 1) (+ d 1))
       else
-        (let (cli (* 2 nd) (+ (* 2 (- d 1)) 1)) (fn (s)
+        (let (cli nd (- d 1)) (fn (s)
           ; CLAMPED ON THE WAY BACK IN. This is the one read of a buffer from
           ; INSIDE the `build` that fills it -- stratum 0, where
           ; frozen-2026-08-28 says the element range is correctly refused -- so
           ; the increment is unbounded unless the program says what a count can
           ; be. It is the same cap `dcount` applies on the way out.
-          (again (set dt s (+ (cli (+ (wmax) 1) (dt s)) 1)) (+ k 1) d))))))))
+          (again (set (dt s) 1 (+ (cli (+ (wmax) 1) ((dt s) 1)) 1)) (+ k 1) d))))))))
 
 ; --- rendering the report ---------------------------------------------------
 ;
@@ -315,15 +317,15 @@
 ; ONE DEFINITION, called by both passes, which is jsonfmt's seam: count-then-build
 ; is safe exactly where the two passes cannot drift, and the way to guarantee that
 ; is to give them nothing of their own to disagree about.
-(def linelen (fn (sp dt nd d)
-  (+ (ndigits (dcount dt nd d)) (+ 2 (slen sp (dword dt nd d))))))
+(def linelen (fn (sp dt d)
+  (+ (ndigits (dcount dt d)) (+ 2 (slen sp (dword dt d))))))
 
 (def rows (fn (nd) (mmin nd (topn))))
 
 (def outlen (fn (sp dt ord2 nd)
   (loop ((n 0) (r 0))
     (>= r (rows nd))  n
-    else              (again (+ n (linelen sp dt nd (pat ord2 nd r))) (+ r 1)))))
+    else              (again (+ n (linelen sp dt (pat ord2 nd r))) (+ r 1)))))
 
 ; --- pass 2: write it -------------------------------------------------------
 ;
@@ -354,12 +356,12 @@
     ; report copies the source bytes. Which is what a reader wants anyway.
     else (again (set out (cli m o) (src (cl src (+ (sbeg sp w) k)))) (cli m (+ o 1)) (+ k 1)))))
 
-(def putline (fn (out o src sp dt nd d m)
-  (let (dcount dt nd d) (fn (c)
-  (let (dword  dt nd d) (fn (w)
+(def putline (fn (out o src sp dt d m)
+  (let (dcount dt d) (fn (c)
+  (let (dword  dt d) (fn (w)
     (set (putword (set (putnum out o c m) (cli m (+ o (ndigits c))) 32)
                   (+ o (+ (ndigits c) 1)) src sp w m)
-         (cli m (+ o (- (linelen sp dt nd d) 1)))
+         (cli m (+ o (- (linelen sp dt d) 1)))
          10)))))))
 
 (def report (fn (src sp dt ord2 nd)
@@ -368,8 +370,8 @@
       (loop ((out out) (o 0) (r 0))
         (>= r (rows nd))  out
         else (let (pat ord2 nd r) (fn (d)
-               (again (putline out o src sp dt nd d m)
-                      (+ o (linelen sp dt nd d)) (+ r 1)))))))))))
+               (again (putline out o src sp dt d m)
+                      (+ o (linelen sp dt d)) (+ r 1)))))))))))
 
 ; --- the tool ---------------------------------------------------------------
 
@@ -379,7 +381,7 @@
   (let (msort (fn (u v) (< (wcmp src sp u v) 0)) nw) (fn (ord)
   (let (ndist src sp ord nw) (fn (nd)
   (let (dists src sp ord nw nd) (fn (dt)
-  (let (msort (fn (u v) (> (dcount dt nd u) (dcount dt nd v))) nd) (fn (ord2)
+  (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
     (report src sp dt ord2 nd)))))))))))))))
 
 (def main (fn ()

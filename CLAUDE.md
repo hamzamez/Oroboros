@@ -2078,6 +2078,75 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**THE PRODUCT IS BUILT, AND FLATTENING IT IS CURRYING** —
+[products.md](docs/products.md), [product-2026-09-09](gauntlet/results/product-2026-09-09.md),
+`emit/product.go`. type-algebra.md §8 lists four things to build in order; sums, `match` and
+case-of-case were built and **item 1, the product, was the only one that was not**. On hamza's
+*"tuples and records (TLA) are themselves functions … whatever we add should come from well-reasoned
+mathematics, not because we want to reflect windows or go."*
+
+**THE TYPE IS SPELLED THE WAY THE TERM ALREADY IS.** `(array A B)`, because tables.md §5.3 wrote the
+consequence years before there was a type: *"a statically-indexed heterogeneous `(array x y)` is a
+pair, and `(a 0)`/`(a 1)` are its projections; the tuple is not a separate feature."* **Arity
+disambiguates and it is not a trick**: `(array V)` names `Fin n` for an n nobody stated, so it is
+homogeneous and dynamic; `(array A B)` names `Fin 2` exactly, so the family may vary — which is
+tables.md's own *a dynamic index forces homogeneity*, written in the type.
+
+**POLARITY DOES NOT BELONG IN THE SYNTAX AND ALREADY IS NOT THERE.** One product, because the
+algebra is cartesian and `&` and `⊗` coincide where contraction and weakening are available; **not
+observable**, because ADR 0010 denies weakening for an impure term so a component nobody projects
+runs anyway — `((values (fmt.Println 1) (fmt.Println 2)) (fn (x y) x))` prints BOTH. The compiler
+already decided three of four cases with no marker: a static index folds, a static index over a
+HETEROGENEOUS literal folds too, an escape at a typed boundary materialises. Only the dynamic index
+was refused. **What was missing was a type, not a term** — and the spelling collided, since
+`(array int string)` in a result slot is read as THREE RESULTS.
+
+**FLATTENING IS ONE ISOMORPHISM IN FOUR POSITIONS.** `Π_{I×J} V ≅ Π_I Π_J V` — currying — so
+`((t i) j)` becomes `(t (+ (* k i) j))`, a store becomes k stores, `(len t)` divides by k and
+`(build n f)` multiplies. **The field update is `set` applied to a PROJECTION**, the exact dual of
+read applied to one. It runs BEFORE the checker, so **no backend changed and nothing downstream
+learns products exist** — the term after the pass is exactly what a hand-strided program has always
+been.
+
+**THE HARD PART WAS NOT THE REWRITE, IT WAS KNOWING WHICH TABLES ARE PRODUCTS.** ADR 0018's
+threading is why: a `build`'s binder is handed straight to the `loop` that fills it, so the stores
+are to the LOOP's variable; a helper returning a table becomes `(let (build …) (fn (sp) …))` once
+inlined; and detection reads the arity off the stores, so it must follow the same aliasing the
+rewrite does. Each was found by a program failing to flatten.
+
+**AND THREE FACTS THE REFINEMENT LAYER DID NOT HAVE, each load-bearing.** A **quotient was outside
+the linear fragment entirely** — not opaque, ABSENT — so a guard mentioning one bounded nothing.
+**`k·(x/k) <= x`** is a declared sound axiom (decidability-map.md's rule, the same shape as
+`x <= x*x`), seeded ONCE AT THE ROOT because a quotient in a loop's guard never reaches the walk —
+`loopLike` turns a guard into a fact directly. And **one Fourier–Motzkin elimination step**:
+`2·(w < q) + 1·(2q <= len)` gives `2w+2 <= len`, which neither one fact scaled nor two facts summed
+can reach, because the combination needs a DIFFERENT multiplier on each. That is the principled form
+of the Farkas multiplier json-tree-bench added for a hand-written stride. **All three are
+provability only: 70 of 70 files byte-identical before any program was rewritten.**
+
+**MEASURED ON `freq.oro`, which products.md said was the falsifiable question.** Both strided tables
+became arrays of pairs: **16 strided index expressions → 2**, and the survivors are the merge sort's
+width doubling, which was never a record. **872 of 872 integer operations bounded**, output
+byte-identical to `sort | uniq -c | sort -rn` on eight files, and **the emitted Go is 210 lines
+SMALLER — 2,105 → 1,895**, because the compiler clamps the ELEMENT index and generates the stride
+where the program had to clamp the STRIDED one.
+
+**And the clamp answer is sharper than the question.** Clamps went 34 → 31, and which matters more
+than how many: **the clamps a product removes are INDEX clamps, on a slot the program computed; the
+clamps that survive are VALUE clamps, on what a table read returns** — frozen-2026-08-28's stratum
+0, which no type reaches. So the argument was half right, and the wrong half was worth learning.
+
+**Cost: 69 of 70 emitted files byte-identical**, the one that moved being the rewritten program;
+30 differential cases green including `product` on all four targets, computed by hand first and
+verified to fail against two bugs; **no backend changed**.
+
+**What it leaves.** The HETEROGENEOUS product has a type and no representation — `(array int string)`
+type-checks and is refused where it tries to exist, which is the layout machinery products.md §8
+puts last and what Win32's `GUID` needs. **AoS against SoA is untouched and still owes a
+measurement.** A product may not be a scalar value; `values` remains the negative product at a
+function boundary. And one pre-existing limitation surfaced: **a clamped value used twice is
+let-bound, and the refinement layer loses the clamp's bounds across that binding.**
+
 **A SECOND TOOL, AND THE MERGE SORT IS WHERE TERMINATION STOPS** —
 [freq-2026-09-08](gauntlet/results/freq-2026-09-08.md),
 [examples/io/freq.oro](examples/io/freq.oro). `sort | uniq -c | sort -rn` in Oroboros: **158 lines of

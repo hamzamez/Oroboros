@@ -138,11 +138,22 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		fname := u.name
+		// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the
+		// term is exactly what a hand-strided program is — ordinary tables and
+		// ordinary index arithmetic — so nothing below this line, and no
+		// backend, learns that products exist.
+		usig := prog.Sigs[u.qual]
+		if nfl, fsig, k, err := emit.FlattenProducts(tg, usig, nf); err != nil {
+			return fmt.Errorf("%s: %w", fname, err)
+		} else if k > 0 {
+			nf, usig = nfl, fsig
+			fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, k)
+		}
 		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE (emit/bigrep.go). Before
 		// the checker, because the promotion is part of what the program MEANS:
 		// `(* acc i)` types as `int` and would be refused against a result the
 		// program has declared bigger than a machine word.
-		nb, n, err := emit.PromoteBig(tg, prog.Sigs[u.qual], nf, allSigs(prog)...)
+		nb, n, err := emit.PromoteBig(tg, usig, nf, allSigs(prog)...)
 		if err != nil {
 			return fmt.Errorf("%s: %w", fname, err)
 		}
@@ -157,7 +168,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		}
 		// Refinements: the bounds obligation primitives.md §2 recorded and
 		// nothing checked (docs/spec/refinements.md).
-		sig := prog.Sigs[u.qual]
+		sig := usig
 		// ADR 0018's linearity, checked on the residual rather than by a type.
 		if err := emit.CheckLinear(nf, tg, sig); err != nil {
 			return fmt.Errorf("%s: %w", fname, err)

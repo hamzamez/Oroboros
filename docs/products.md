@@ -1,6 +1,12 @@
 # Products: the one empty cell in the algebra
 
-Research, 2026-09-09. No decision and no build. On hamza's *"if we say that we have functions
+Research, 2026-09-09. **BUILT the same day** —
+[product-2026-09-09](../gauntlet/results/product-2026-09-09.md): `(array A B)` is
+a type, flattening is the currying isomorphism of §6, **no backend changed**, and
+69 of 70 emitted files are byte-identical. §11's three measurements are answered
+at the end of this document.
+
+The research, as it stood before the build. On hamza's *"if we say that we have functions
 and sets, in mathematics they use tuples and records (TLA) which are themselves functions as well
 … whatever we are going to add to the language should come from well-reasoned mathematics, not
 because we want to reflect windows or go. Then the compiler spits out the correct type for the
@@ -382,3 +388,45 @@ is legibility alone.
 **And one thing not to do:** do not build the layout machinery first. §8's item 1 is the real cost,
 and item 2 is a decision that has to be measured; starting with the surface would repeat the
 `values` reversion, which happened because a construct shipped before every target could carry it.
+
+---
+
+## 12. Answered, 2026-09-09
+
+[product-2026-09-09](../gauntlet/results/product-2026-09-09.md). The advice above
+was followed: the layout machinery was **not** built, the flat representation was
+taken because it is the one three programs already write, and AoS-against-SoA is
+still a measurement nobody has taken.
+
+**1. Does the record recover the clamps? PARTLY, and the split is sharper than
+the question.** `freq.oro`'s two strided tables became arrays of pairs:
+**16 strided index expressions → 2**, and the two survivors are the merge sort's
+width doubling, which was never a record. Clamps went 34 → 31, and *which*
+matters more than *how many*: **five `(cli (* 2 nd) …)` disappeared and two
+`(cli nd …)` replaced them.** The clamps a product removes are INDEX clamps, on a
+slot the program computed; the clamps that survive are VALUE clamps, on what a
+table read returns — frozen-2026-08-28's stratum 0, which no type reaches.
+
+So §5's argument is **half right**, and the half that is wrong was worth
+learning: the compiler generating the stride removes the arithmetic and the
+obligations that come with it, and does nothing at all about a value read out of
+a table being unknown.
+
+**2. Can the compiler produce today's code from the better source? It produces
+BETTER code.** 2,105 emitted lines → **1,895**, 10% smaller, because the compiler
+clamps the element index and generates the stride from it where the program had
+to clamp the strided index. And across the corpus, **69 of 70 files are
+byte-identical** — the one that moved is the program whose source changed.
+
+**3. AoS against SoA per host: not taken, and still the right next
+measurement.** The flat form is what shipped, for the reason the result's §2.1
+gives — it is what the hand-written programs already chose, so it cannot cost
+speed — and the other two representations are a target declaration and a
+benchmark, in that order.
+
+**And the build found three facts the refinement layer did not have**, none of
+which was predicted here: a quotient was outside the linear fragment *entirely*,
+`k·(x/k) <= x` had to be a declared axiom seeded at the root, and discharging a
+generated stride needs **one Fourier–Motzkin step** — the principled form of the
+single Farkas multiplier json-tree-bench added for a hand-written one. Each is
+load-bearing: the proof fails if any is removed.

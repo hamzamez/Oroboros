@@ -2117,6 +2117,35 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**STRUCT LITERALS ARE MEASURED, AND THEY ARE THE LARGEST LEVER LEFT** —
+[struct-literals.md](docs/struct-literals.md), research, no decision. The residue interfaces.md
+pointed at: **1,867 declarable-and-unusable names blocked by something that is not an interface**,
+and the something is an argument built by literal. **THE FORMAT NEEDS NOTHING** —
+`(prim URL ((scheme string) …) ptr-url-URL expr "&url.URL{Scheme: %s, …}")` is declarable today, and
+it was declared, built and run: it prints `https://example.com/a/b?x=1`. So this is a GENERATOR
+question, exactly as methods, several results and voids were.
+
+**A struct is `Π` over a finite set of LABELS, and products.md §7's deferral does not apply**: that
+defers a product WE represent, for want of a flat layout, and here the value lives on the host, is
+built by the host and is passed back to it. We hold an opaque token — `HANDLE`'s shape, a fourth
+time. **MEASURED: +486 names, usable 45.4% → 55.2%** of the callable surface, with the fixed point
+re-run with the constructibles SEEDED rather than merely added, since a constructed `*http.Request`
+reaches functions nothing else does.
+
+**AND CONSTRUCTIBLE IS NOT USEFUL, so the rule is narrower than the number could have been.** A
+constructor is generated only for a struct with at least one spellable exported field: `&bytes.
+Buffer{}` is the documented idiom and `&os.File{}` is a broken file, and the manifest — the exported
+API — cannot tell them apart, because the difference is a sentence in a doc comment. **A generator
+does not make a claim it cannot justify**, which is the rule `pure` was removed under on the same
+tool the same day. That costs **220 struct types** and is the difference between +1,012 and +486;
+the larger number is the one a survey written by the same hands as the language would have reported.
+
+**Three risks named for the build**: field ORDER must be sorted or the emitter stops being a function
+of its input (backend-2026-09-06, where it would be easiest to miss); a struct-typed field nests the
+literal and does NOT reopen the layout question, because the inner value is another token; and the
+number will not survive contact unchanged, since *usable* counts whether the arguments can be built
+and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
+
 **THE COERCION IS BUILT, AND THE HOST IS THE ORACLE** —
 [coercion-2026-09-09](gauntlet/results/coercion-2026-09-09.md),
 [target-files.md §2a](docs/spec/target-files.md), `gauntlet/stdlib/acceptance/io-reader.oro`.

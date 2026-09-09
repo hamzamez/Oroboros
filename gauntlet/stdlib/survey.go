@@ -429,6 +429,155 @@ func candidateImplements(raw []string, syms []sym) map[string][]string {
 // usable number and the emitted edges rest on the same verified facts.
 var verifiedSat = map[string][]string{}
 
+// ------------------------------------------------------------- struct literals
+//
+// A STRUCT IS A PRODUCT WITH LABELS — `Π_{f ∈ fields} T_f` — and products.md §7
+// defers the heterogeneous product for want of a LAYOUT. On a host that has
+// structs there is no layout to invent: `&http.Client{Timeout: d}` is built by
+// the HOST, and the format can already say it,
+//
+//	(prim Client ((timeout time-Duration)) ptr-http-Client expr
+//	  "&http.Client{Timeout: %s}")
+//
+// so this is a GENERATOR question, exactly as methods and several results turned
+// out to be. What it needs from the manifest is the field list, which is there.
+//
+// AND CONSTRUCTIBLE IS NOT USEFUL, which is why this is counted separately from
+// `obtainable` rather than folded into it. `&bytes.Buffer{}` is what a Go
+// programmer writes; `&os.File{}` is a broken file. A survey that merged the two
+// would report a capability the language does not have, which is the failure
+// mode four of this tool's five corrections have had.
+
+type structDef struct {
+	fields []sym // name + one result type, as the manifest writes a field
+	known  bool
+}
+
+// structTypes reads `pkg P, type T struct` and its field lines. A type with no
+// field line still gets an entry: `bytes.Buffer` has no exported field and
+// `&bytes.Buffer{}` is exactly the idiom.
+func structTypes(lines []string) map[string]*structDef {
+	out := map[string]*structDef{}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "pkg ") {
+			continue
+		}
+		c := strings.Index(line, ", ")
+		if c < 0 {
+			continue
+		}
+		pkg, rest := line[4:c], line[c+2:]
+		if strings.Contains(pkg, " ") || !strings.HasPrefix(rest, "type ") {
+			continue
+		}
+		rest = rest[5:]
+		sp := strings.Index(rest, " ")
+		if sp < 0 {
+			continue
+		}
+		name, tail := rest[:sp], rest[sp+1:]
+		if strings.ContainsAny(name, "[]") {
+			continue // generic
+		}
+		k := qual(pkg, name)
+		switch {
+		case tail == "struct":
+			if out[k] == nil {
+				out[k] = &structDef{}
+			}
+			out[k].known = true
+		case strings.HasPrefix(tail, "struct, "):
+			f := tail[len("struct, "):]
+			i := strings.Index(f, " ")
+			if i < 0 {
+				continue
+			}
+			fn, ft := f[:i], f[i+1:]
+			if fn == "" || fn[0] < 'A' || fn[0] > 'Z' {
+				continue // unexported: not writable in a composite literal
+			}
+			if out[k] == nil {
+				out[k] = &structDef{}
+			}
+			out[k].known = true
+			out[k].fields = append(out[k].fields, sym{pkg: pkg, name: fn, results: []string{ft}})
+		}
+	}
+	return out
+}
+
+// structReport measures what a generated struct literal would buy, before one
+// is written. maxlen-2026-08-28's discipline for the third time this week.
+func structReport(lines []string, syms []sym, have map[string]bool) {
+	defs := structTypes(lines)
+
+	// A CONSTRUCTOR IS GENERATED ONLY FOR A STRUCT WITH AT LEAST ONE SPELLABLE
+	// EXPORTED FIELD, and that restriction is the `pure` rule again: a generator
+	// does not make a claim it cannot justify.
+	//
+	// `&bytes.Buffer{}` is the documented idiom and `&os.File{}` is a broken
+	// file, and the manifest cannot tell them apart -- a zero value's usefulness
+	// is a per-type judgment and belongs in a hand-written target file. What a
+	// generator CAN justify is a literal the program fills in: if you are setting
+	// `Timeout`, you meant to build a `Client`.
+	ctor := map[string]bool{}
+	full, partial, zeroOnly := 0, 0, 0
+	for k, d := range defs {
+		if !d.known {
+			continue
+		}
+		spellable, any := true, false
+		for _, f := range d.fields {
+			if v := classify(f.results[0]); v.why != ok {
+				spellable = false
+			} else {
+				any = true
+			}
+		}
+		if !any {
+			zeroOnly++
+			continue
+		}
+		ctor[k], ctor["*"+k] = true, true
+		if spellable {
+			full++
+		} else {
+			partial++
+		}
+	}
+
+	// THE FIXED POINT IS RE-RUN WITH THE CONSTRUCTIBLES SEEDED, because a
+	// constructed `*http.Request` is an argument to functions returning things
+	// we could not otherwise obtain. Adding them to `have` without re-running
+	// would be a lower bound.
+	grew := obtainableFrom(syms, ctor)
+	before, after := 0, 0
+	for _, s := range syms {
+		if s.kind != "func" && s.kind != "method" {
+			continue
+		}
+		if d, u, _ := judge(s, have); d && u {
+			before++
+		}
+		if d, u, _ := judge(s, grew); d && u {
+			after++
+		}
+	}
+	fmt.Printf("\nSTRUCT LITERALS: %d struct types; %d get a generated constructor\n",
+		len(defs), full+partial)
+	fmt.Printf("  %d have every exported field spellable; %d have one we cannot spell,\n",
+		full, partial)
+	fmt.Printf("  which a composite literal LEAVES ZERO -- what a Go program does.\n")
+	fmt.Printf("  %d have no exported field and get NOTHING: a zero literal is useful for\n", zeroOnly)
+	fmt.Printf("  `bytes.Buffer` and broken for `os.File`, and the manifest cannot tell\n")
+	fmt.Printf("  them apart, so that one is a hand declaration -- the `pure` rule again.\n")
+	fmt.Printf("  USABLE WOULD GO %d -> %d (+%d), %.1f%% -> %.1f%% of the callable surface.\n",
+		before, after, after-before, pct(before, 4932), pct(after, 4932))
+	fmt.Printf("  Counted apart from `obtainable`, which only ever means a constructor\n")
+	fmt.Printf("  RETURNED it: constructible is not useful, and merging the two would\n")
+	fmt.Printf("  report a capability this language does not have.\n")
+}
+
 // interfaceReport classifies what an interface-typed position actually costs.
 //
 // maxlen-2026-08-28's discipline: before building anything, every blocked name
@@ -817,8 +966,15 @@ var errOnly int
 // returns a `*Reader` with a string argument, so every `*Reader` method is
 // reachable; `os.Open` returns `(*File, error)`, which the format cannot declare
 // at all, so no `*File` method is. Measuring the difference is the point.
-func obtainable(syms []sym) map[string]bool {
+// obtainable is the least fixed point with nothing seeded: a type is obtainable
+// only when some declarable CONSTRUCTOR returns it.
+func obtainable(syms []sym) map[string]bool { return obtainableFrom(syms, nil) }
+
+func obtainableFrom(syms []sym, seed map[string]bool) map[string]bool {
 	have := map[string]bool{}
+	for k := range seed {
+		have[k] = true
+	}
 	for {
 		grew := false
 		for _, s := range syms {
@@ -1050,6 +1206,7 @@ func main() {
 
 	// THE INTERFACE QUESTION, MEASURED RATHER THAN ARGUED. See interfaceReport.
 	interfaceReport(raw, syms, have)
+	structReport(raw, syms, have)
 
 	if *emitDir != "" {
 		if err := emit(*emitDir, declarables, raw); err != nil {

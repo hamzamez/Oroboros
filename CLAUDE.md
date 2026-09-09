@@ -139,7 +139,26 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-09-06.md](docs/assessment-2026-09-06.md) — the
+**Current standing** is in [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
+round the plan ran out**, written because all five items of the previous one are done rather than
+because time passed. **Yes on all three, and the criticism that led three assessments has moved for
+the first time**: the corpus grew **275 lines against 3,169 of compiler — 11.5 to 1 at the margin,
+against 41 to 1** three days earlier, and the largest program went 112 → **155**. Two tools now
+exist and between them they found **eight bugs, four in the compiler and two silent wrong answers**,
+which is the answer to *"the corpus is not evidence"* that three assessments asked for and none had.
+**One column still moves the wrong way** and it is the one named for four rounds running:
+`emit : core` **3.62 → 4.00**, with the analysis layer at **5,175 lines**. **One process failure,
+named**: the product shipped **without a spec**, against this repository's own first rule for adding
+to the language — every prior addition has one and it is the first item of the five things next,
+ahead of anything larger. Then **file I/O on JavaScript and Java**, because the sharpest thing wrong
+is new to that list: **all three programs with input, output and error handling run on Go alone**,
+so the kernels are portable and the applications are not, which is backwards for the thesis. Then
+**AoS against SoA** — the one measurement that could show part of this week's work to be worth
+nothing — and the **Win32 enum classification**. Deliberately not next: the heterogeneous product's
+layout (nothing here wants it), the termination gap (analysis, and that is risk 1), another survey,
+and more gauntlet programs.
+
+The previous one is [docs/assessment-2026-09-06.md](docs/assessment-2026-09-06.md) — the
 vertical round. **Yes on the method and the thesis, no on the balance of effort**: four of the last
 assessment's five items were done, and the fifth — *write something awkward* — has now been named in
 **three consecutive assessments and acted on in none**. Measured: the compiler grew **19,611 lines**

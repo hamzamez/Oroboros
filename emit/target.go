@@ -119,6 +119,31 @@ type Target struct {
 	Name  string
 	Types map[string]string // our type name -> the target's spelling
 
+	// Implements is the SUBSUMPTION relation this host declares: which concrete
+	// types it accepts where an interface is wanted. Keyed by the concrete type,
+	// the value being every interface it satisfies, closed transitively at load.
+	//
+	// AN INTERFACE IS AN EXISTENTIAL TYPE and PACKING one is manufacturing a
+	// closure, which callbacks.md tier 3 refuses. But `io.Copy(dst, f)` does not
+	// ask us to pack one -- it asks us to hand over a `*os.File`, and the HOST
+	// inserts the coercion. So what is missing is not a value, a runtime or a
+	// representation: it is a fact the type CHECKER needs and the backend does not.
+	// The denotation of the coercion is the IDENTITY and it costs zero emitted
+	// characters (docs/interfaces.md).
+	//
+	// DECLARED rather than derived. Derived, the relation is `methods(I) subset of
+	// methods(T)` -- Cardelli's record subtyping over method sets -- and a method
+	// signature may mention an interface, so it is recursive and wants coinduction
+	// (Amadio & Cardelli 1993); it is also fragile against us, since our `error` is
+	// opaque and our `int` is a range, so two signatures Go calls equal need not
+	// survive `spell`. Declared, it is a preorder on GROUND names decided by
+	// lookup. Pierce's undecidable F<: is about BOUNDED QUANTIFICATION and after
+	// staging nothing is quantified, so none of that arises.
+	//
+	// And unusually the claim is checkable BY THE HOST: `var _ io.Reader =
+	// (*os.File)(nil)` is one line per edge and `go build` decides.
+	Implements map[string][]string
+
 	// ArrayType is how this target spells an array of something — `[]%s` on Go,
 	// `%s[]` on Java. One declaration replaces an entry per element type.
 	// Empty means the target has no types to spell (JavaScript, windows).
@@ -300,6 +325,7 @@ func LoadTarget(path string) (*Target, error) {
 		return nil, err
 	}
 	tg.addCore()
+	tg.closeImplements()
 	return tg, nil
 }
 
@@ -468,6 +494,7 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 	}
 	sort.Strings(out.Names)
 	out.addCore()
+	out.closeImplements()
 	return out, nil
 }
 
@@ -1237,6 +1264,16 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	// ORDERED, so they append rather than folding by key — narrowest first is
 	// the whole selection rule for `int-repr`. Nearest layer first, so a nearer
 	// declaration is found before a built-in one.
+	// A RELATION IS A SET, so glue and override are the same operation here and
+	// a repeat is not a mistake: two layers may both know that `*os.File` reads.
+	// That is why this is an append rather than a `combineMap` -- there is no
+	// collision to detect, because there is no disagreement expressible.
+	for sub, ifs := range o.Implements {
+		if tg.Implements == nil {
+			tg.Implements = map[string][]string{}
+		}
+		tg.Implements[sub] = append(tg.Implements[sub], ifs...)
+	}
 	tg.Reprs = append(tg.Reprs, o.Reprs...)
 	tg.Data = append(tg.Data, o.Data...)
 	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
@@ -1337,6 +1374,29 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (map-type \"map[%%s]%%s\"), got %s", path, f)
 			}
 			tg.MapType = f.Kids[1].Str
+		case "implements":
+			// (implements T I ...) -- T is accepted where any I is wanted.
+			//
+			// SEVERAL INTERFACES ON ONE LINE because the relation is a SET and a
+			// concrete type usually satisfies a family: `*os.File` is a Reader, a
+			// Writer, a Closer and a ReaderAt, and writing four lines would suggest
+			// four independent facts.
+			if len(f.Kids) < 3 {
+				return nil, fmt.Errorf("%s: (implements TYPE IFACE ...), got %s", path, f)
+			}
+			for _, k := range f.Kids[1:] {
+				if k.Kind != core.KName {
+					return nil, fmt.Errorf("%s: (implements TYPE IFACE ...) takes names, got %s",
+						path, f)
+				}
+			}
+			if tg.Implements == nil {
+				tg.Implements = map[string][]string{}
+			}
+			sub := f.Kids[1].Name
+			for _, k := range f.Kids[2:] {
+				tg.Implements[sub] = append(tg.Implements[sub], k.Name)
+			}
 		case "type":
 			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (type NAME \"spelling\"), got %s", path, f)
@@ -2732,6 +2792,77 @@ func declaredElem(tgt *Target, body *core.Term, name string) string {
 	}
 	walk(body)
 	return found
+}
+
+// closeImplements makes the declared edges a PREORDER: reflexive by
+// `compatible`'s own equality, and transitive here.
+//
+// Transitivity is not decoration. `io.ReadCloser` embeds `io.Reader`, so a type
+// declared to satisfy the first satisfies the second -- and a target file that
+// had to spell out every consequence would be stating a closure by hand and
+// getting it wrong. The relation is finite and small, so the closure is the
+// obvious fixed point rather than anything clever.
+//
+// ANTISYMMETRIC RATHER THAN SYMMETRIC, which is the whole difference from
+// `compatible`: a `*os.File` goes where an `io.Reader` is wanted and an
+// `io.Reader` does not go where a `*os.File` is wanted. Subsumption FORGETS
+// (every method but the interface's own), and forgetting has a direction.
+func (tg *Target) closeImplements() {
+	if len(tg.Implements) == 0 {
+		return
+	}
+	for {
+		grew := false
+		for sub, ifs := range tg.Implements {
+			have := map[string]bool{}
+			for _, i := range ifs {
+				have[i] = true
+			}
+			for _, i := range ifs {
+				for _, up := range tg.Implements[i] {
+					if up == sub || have[up] {
+						continue
+					}
+					have[up] = true
+					tg.Implements[sub] = append(tg.Implements[sub], up)
+					grew = true
+				}
+			}
+		}
+		if !grew {
+			break
+		}
+	}
+	for sub, ifs := range tg.Implements {
+		seen := map[string]bool{}
+		out := ifs[:0]
+		for _, i := range ifs {
+			if !seen[i] {
+				seen[i] = true
+				out = append(out, i)
+			}
+		}
+		sort.Strings(out)
+		tg.Implements[sub] = out
+	}
+}
+
+// Subsumes reports whether a value of type `got` may stand where `want` is
+// declared. It is a LOOKUP: the relation is ground, finite and declared, so
+// there is no inference, no variance and no fixed point to run here.
+//
+// The emitted text is unchanged either way -- see the Implements field. This
+// answers a question the type checker asks and nothing else.
+func (tg *Target) Subsumes(got, want string) bool {
+	if tg == nil || got == "" || want == "" || got == want {
+		return got == want && got != ""
+	}
+	for _, i := range tg.Implements[got] {
+		if i == want {
+			return true
+		}
+	}
+	return false
 }
 
 // BufferRoot follows a threaded buffer back to the name it came from.

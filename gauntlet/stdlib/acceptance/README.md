@@ -1,11 +1,11 @@
-# Three programs that check the surveys are not paper
+# Four programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These three check that a
+A survey reports what the target format can DECLARE. These four check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Two are Win32's and one is Go's; the Go one is below.
+Two are Win32's and two are Go's; the Go ones are below.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -54,6 +54,41 @@ _ = (f.Close())
 multiresult-2026-09-06, and the reason `*os.File` is in the obtainable-type fixed
 point at all. `(*File).Read` is a method, so the receiver is argument 0, which is
 the convention Win32's `HANDLE` already used arriving on a host that has objects.
+
+---
+
+## Go: `io-reader.oro` — a concrete type where an interface is wanted
+
+`io.ReadAll(r io.Reader)` called with an `*os.File`. **Go's own compiler inserts
+the coercion**, so the emitted text is `io.ReadAll(f)` with no conversion syntax
+at all; what the `(implements ptr-os-File io-Reader …)` edge buys is our type
+checker not refusing a program the host accepts.
+
+```bash
+go run gauntlet/stdlib/survey.go -emit /tmp/gostd
+mkdir -p /tmp/goproj/tg/go && cp /tmp/gostd/os.oro /tmp/goproj/tg/go/os-gen.oro
+cp /tmp/gostd/io.oro /tmp/goproj/tg/go/io-gen.oro
+cp gauntlet/stdlib/acceptance/io-reader.oro /tmp/goproj/
+go run ./cmd/build -target=go -targets "/tmp/goproj/tg;targets" -o /tmp/ior /tmp/goproj/io-reader.oro
+/tmp/ior            # must print `wc -c < go.mod`
+```
+
+The generated files go in `tg/go/` rather than `go/`, and under a name that is
+not `os.oro`: the source's own directory is also the LIBRARY search path, so a
+file at `<src>/go/os.oro` is found by `(use go/os)` as a module and read with the
+wrong grammar. Layers make a target directory and a library directory the same
+kind of thing, which is the cost of that.
+
+**Every edge is host-verified.** The api manifest lists the EXPORTED API, so an
+interface sealed by an unexported method — `ast.Decl` has `declNode()` — looks
+satisfied by everything. 182 of 1,651 candidates were false and `go build` on the
+generated `implements_check.go` named every one; `survey.go` drops them and emits
+only the survivors. To see that check for yourself:
+
+```bash
+mkdir -p /tmp/ck && cp /tmp/gostd/implements_check.go /tmp/ck/
+cd /tmp/ck && go mod init check && go build ./...   # must be silent
+```
 
 ---
 

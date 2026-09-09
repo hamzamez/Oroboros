@@ -140,6 +140,60 @@ parsed, so it may be anything the host accepts — `map[string]int`, `HashMap<St
 spelling (`any` on Go, `Object` on Java) and the emitter uses that only when nothing else ever
 constrains the name.
 
+## 2a. `implements` — where a concrete type may stand
+
+```lisp
+(implements ptr-os-File io-Reader io-Writer io-Closer)
+```
+
+`T` is accepted wherever any of the listed types is declared. Several on one line
+because the relation is a SET and a concrete type usually satisfies a family;
+writing four lines would suggest four independent facts.
+
+**AN INTERFACE IS AN EXISTENTIAL TYPE** — `∃X. X × Πᵢ(X → Tᵢ)`, a hidden
+representation packed with the operations that consume it (Mitchell & Plotkin
+1988). *Packing* one is manufacturing a closure and is refused
+([callbacks.md](callbacks.md) tier 3). *Holding* one is nothing new: an opaque
+host token with methods, which a Win32 `HANDLE` has always been. **Passing one is
+neither** — `io.ReadAll(f)` does not ask us to build an `io.Reader`, it asks for
+an `*os.File`, and the host inserts the coercion.
+
+So this declares a fact the **type checker** needs and the **backend** does not:
+
+```
+    T ≤ I                    in the checker
+    ⟦coerce⟧ = id            at emission — zero emitted characters
+```
+
+**The relation is a preorder**: reflexive by the checker's own equality,
+transitive by a closure computed at load (so `(implements T ReadCloser)` and
+`(implements ReadCloser Reader)` give `T ≤ Reader` without anyone spelling it),
+and **antisymmetric** — a `*os.File` goes where an `io.Reader` is wanted and not
+the reverse, because subsumption forgets every method but the interface's own and
+forgetting has a direction.
+
+**Declared rather than derived, and it is not the subtyping type-algebra.md
+refuses.** Derived, `T ≤ I` iff `methods(I) ⊆ methods(T)` — Cardelli's record
+subtyping — and a method signature may mention an interface, so the relation is
+recursive and wants coinduction (Amadio & Cardelli 1993). Declared, it is a
+relation on GROUND names decided by lookup. Pierce's undecidable F<: is about
+BOUNDED QUANTIFICATION, and after staging nothing is quantified.
+
+**Glue and override are the same operation here**, unlike every other field: a
+relation is a set, so two layers both knowing that `*os.File` reads is not a
+collision and there is no disagreement expressible.
+
+**And the claim is checkable BY THE HOST**, which no `prim` template is:
+
+```go
+var _ io.Reader = *new(*os.File)
+```
+
+one line per edge, and `go build` decides. `gauntlet/stdlib/survey.go` generates
+exactly that file and **emits only the edges the Go compiler accepted** — 182 of
+1,651 candidates were false, because the api manifest lists the exported API and
+an interface sealed by an unexported method looks satisfied by everything.
+
 ## 2b. `array-type` and `int-repr` — how the target stores a table
 
 ```lisp

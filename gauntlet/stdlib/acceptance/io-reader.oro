@@ -1,0 +1,40 @@
+; ACCEPTANCE: a concrete host type goes where an INTERFACE is wanted.
+;
+; `io.ReadAll(r io.Reader)` is the shape 49.9% of Go's declarable-but-unusable
+; surface was said to be blocked on. It is not — interfaces.md measured that and
+; refuted it — but this is the part that IS an interface, and it costs one
+; declared edge:
+;
+;   (implements ptr-os-File io-Reader …)
+;
+; AN INTERFACE IS AN EXISTENTIAL TYPE, `∃X. X × Πᵢ(X → Tᵢ)` (Mitchell & Plotkin
+; 1988). PACKING one is manufacturing a closure and is refused (callbacks.md
+; tier 3). This program does not pack one: it obtains an `*os.File` and hands it
+; over, and **Go's own compiler inserts the coercion**. The emitted text is
+;
+;   b, e2 := io.ReadAll(f)
+;
+; with no conversion syntax at all — `⟦coerce⟧ = id`, zero emitted characters.
+; What the edge buys is our own type checker not refusing a program the host
+; accepts.
+;
+; EVERY EDGE IS HOST-VERIFIED. The Go api manifest lists the EXPORTED API, so an
+; interface sealed by an unexported method (`ast.Decl` has `declNode()`) looks
+; satisfied by everything — 182 of 1,651 candidates were false, and `go build`
+; on the generated assertion file named every one. The relation this program
+; relies on is the survivors.
+;
+; It prints the size of `go.mod`, which is `wc -c`.
+
+(use go/os as gos)
+(use go/io as gio)
+(use io)
+
+(export main)
+
+(def main (fn ()
+  ((gos.Open "go.mod") (fn (f e1)
+    (if (gos.err-nil e1)
+        ((gio.ReadAll f) (fn (b e2)
+          (if (gos.err-nil e2) (io.print-int (len b)) (io.print-int 0))))
+        (io.print-int 0))))))

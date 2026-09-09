@@ -2117,6 +2117,44 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**THE COERCION IS BUILT, AND THE HOST IS THE ORACLE** —
+[coercion-2026-09-09](gauntlet/results/coercion-2026-09-09.md),
+[target-files.md §2a](docs/spec/target-files.md), `gauntlet/stdlib/acceptance/io-reader.oro`.
+The one thing interfaces.md recommended. **`io.ReadAll(f)` with an `*os.File` builds and runs**,
+printing `wc -c < go.mod`, and the emitted Go is `b, e2 := io.ReadAll(f)` — **no conversion syntax
+at all**, because `⟦coerce⟧ = id` and the host inserts what it needs. **One declaration
+(`(implements T I …)`), one map lookup in the checker, no backend change, 178 of 178 emitted files
+byte-identical.**
+
+**`agree` IS THE ONLY SITE THAT COULD ASK, AND THE REASON IS DIRECTION.** `compatible` is symmetric
+and subsumption is not — a `*os.File` goes where an `io.Reader` is wanted and not the reverse,
+because the coercion FORGETS every method but the interface's own. `agree(got, want)` is where the
+direction exists. **Glue and override are the same operation here**, which no other target field can
+say: a relation is a SET, so two layers both knowing that `*os.File` reads is not a collision — there
+is no disagreement expressible. **Transitivity is closed at load** rather than spelled, or a target
+file would be stating a closure by hand and getting it wrong.
+
+**AND THE HOST IS THE ORACLE, WHICH IS WHAT THE BUILD TAUGHT.** The api manifest lists the EXPORTED
+API, so an interface sealed by an unexported method — `ast.Decl` has `declNode()` — looks satisfied
+by everything, and the structural rule cheerfully claimed `*ast.ArrayType` is an `ast.Decl`. **182 of
+1,651 candidate edges were FALSE**, and `go build` on a generated file of `var _ io.Reader =
+*new(*os.File)` named every one. So the generator **candidate-generates and host-filters**: compute,
+assert, compile, drop what the compiler refuses, emit the **1,466 survivors**. *Every edge this
+language relies on has been accepted by the Go compiler* — a stronger guarantee than any `prim`
+template carries, since a template is checked only when some program happens to call it. **And if the
+toolchain cannot run, NO edge is emitted**: an unverified edge is a claim.
+
+**One bug, and it is a shape worth keeping**: the line-number map was computed from a GUESS at the
+header length, so no error ever matched an edge and the refinement dropped nothing while reporting
+the same 182 errors twenty times. **A loop reporting identical progress is not converging slowly, it
+is not moving.**
+
+**Measured: 41 names, against a prediction of 47** — usable **44.5% → 45.4%**, `net/http` 68 → **77**,
+`regexp` 42 → **46**, and the interface residue 47 → **6**. interfaces.md said *build it because it is
+nearly free, not because it moves the number*, and 0.9 points is what that looks like. **What remains
+is 1,867 names blocked by a NON-interface argument** — struct arguments built by literal, which is
+products.md §7's deferred layout and Win32's struct-by-value 13.9% converging.
+
 **INTERFACES ARE RESEARCHED, AND THE MEASUREMENT REFUTES THE PLAN** —
 [interfaces.md](docs/interfaces.md), research, no decision, on hamza's *"that go has interfaces does
 not mean we have to, it just means: can we express the api? can we use it? what are the semantics in

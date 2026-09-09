@@ -2,6 +2,8 @@ package emit
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -375,5 +377,108 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	}
 	if strings.Contains(got2, "make([]byte, 8)") {
 		t.Errorf("a buffer storing 100000 may not become a byte slice:\n%s", got2)
+	}
+}
+
+// A CONCRETE TYPE GOES WHERE AN INTERFACE IS WANTED, AND THE COERCION IS THE
+// IDENTITY.
+//
+// An interface is an existential type and PACKING one is manufacturing a closure
+// (callbacks.md tier 3, refused). PASSING one is neither: `io.ReadAll(f)` asks
+// for an `*os.File` and the HOST inserts the coercion, so what is missing is a
+// fact the type checker needs and the backend does not — `⟦coerce⟧ = id`
+// (docs/interfaces.md §3).
+//
+// The relation is DECLARED, ground and finite, so this is a lookup: no variance,
+// no inference, and none of Pierce's F<: because after staging nothing is
+// quantified.
+func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
+	load := func(src string) *Target {
+		t.Helper()
+		dir := t.TempDir()
+		if err := os.MkdirAll(filepath.Join(dir, "x"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, "x", "x.oro"), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		tg, err := LoadTargetLayers("x", []string{dir})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tg
+	}
+	tg := load(`(target x
+  (backend go)
+  (type file "*os.File")
+  (type reader "io.Reader")
+  (type closer "io.Closer")
+  (type rc "io.ReadCloser")
+  (implements file rc)
+  (implements rc reader closer)
+  (module x
+    (prim open ((p string)) file expr "os.Open(%s)")
+    (prim slurp ((r reader)) int expr "io.ReadAll(%s)")))`)
+
+	// TRANSITIVITY IS NOT DECORATION: `io.ReadCloser` embeds `io.Reader`, so a
+	// type declared to satisfy the first satisfies the second. A target file
+	// that had to spell out every consequence would be stating a closure by
+	// hand and getting it wrong.
+	if !tg.Subsumes("file", "reader") {
+		t.Errorf("the relation must be transitive: file -> rc -> reader")
+	}
+	// ANTISYMMETRIC, which is the whole difference from `compatible`.
+	// Subsumption FORGETS every method but the interface's own, and forgetting
+	// has a direction.
+	if tg.Subsumes("reader", "file") {
+		t.Errorf("an io.Reader does not go where an *os.File is wanted")
+	}
+	if tg.Subsumes("closer", "reader") {
+		t.Errorf("a Closer is not a Reader; nothing declared that")
+	}
+
+	prog := func(tg *Target, src string) error {
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		p, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, err := core.Normalize(p.Defs["f"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return Check(tg, "f", nf)
+	}
+	const src = `
+(use x)
+(export f)
+(def f (fn () (x.slurp (x.open "go.mod"))))`
+	if err := prog(tg, src); err != nil {
+		t.Errorf("a file where a reader is wanted: %v", err)
+	}
+
+	// THE CONTROL, and it is what makes the test mean anything: with the edges
+	// removed the same program must be REFUSED. A test whose passing and
+	// failing cases look identical proves nothing.
+	bare := load(`(target x
+  (backend go)
+  (type file "*os.File")
+  (type reader "io.Reader")
+  (module x
+    (prim open ((p string)) file expr "os.Open(%s)")
+    (prim slurp ((r reader)) int expr "io.ReadAll(%s)")))`)
+	err := prog(bare, src)
+	if err == nil {
+		t.Fatal("without a declared edge the program must be refused")
+	}
+	if !strings.Contains(err.Error(), "file") || !strings.Contains(err.Error(), "reader") {
+		t.Errorf("the refusal should name both types, got %v", err)
 	}
 }

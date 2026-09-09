@@ -845,7 +845,11 @@ The honest list, with the reasoning written down rather than deferred to memory:
   (inflating), predeclared types were qualified per package (deflating), and — much the largest — a
   result whose type is obtainable was called unreadable, so `os.Open` scored unusable while a
   program in this repository opens a file with it. `os` is 96 usable of 130 declarable, `io` 17 of
-  28, `context` 10 of 10. Two fields in a data
+  28, `context` 10 of 10. **And a concrete host type goes where an INTERFACE is wanted** —
+  `io.ReadAll(f)` with an `*os.File`, one declared edge, `⟦coerce⟧ = id`
+  ([coercion-2026-09-09](gauntlet/results/coercion-2026-09-09.md)); **every edge is verified by the
+  Go compiler itself**, which refused 182 of 1,651 candidates because the api manifest cannot see an
+  interface sealed by an unexported method. Two fields in a data
   format and one branch in an analysis — the language needed nothing, because `(values a b)` has
   been the negative product since August and `((f x) (fn (a b) …))` is how it is consumed. What
   makes it work is that **β gets stuck**: with a `prim` producer the redex survives to the backend,

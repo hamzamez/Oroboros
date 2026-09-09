@@ -406,6 +406,29 @@ func implements(have map[string]msig, want map[string]msig) bool {
 	return true
 }
 
+// candidateImplements is the relation computed from the manifest, before the
+// host has been asked. See verifyImplements for why that is only half of it.
+func candidateImplements(raw []string, syms []sym) map[string][]string {
+	ifaces := ifaceMethods(raw)
+	concrete := concreteMethods(syms)
+	sat := map[string][]string{}
+	for t, ms := range concrete {
+		for i, want := range ifaces {
+			if len(want) > 0 && implements(ms, want) {
+				sat[t] = append(sat[t], i)
+			}
+		}
+	}
+	for t := range sat {
+		sort.Strings(sat[t])
+	}
+	return sat
+}
+
+// verifiedSat is the host-accepted relation, computed once in main so that the
+// usable number and the emitted edges rest on the same verified facts.
+var verifiedSat = map[string][]string{}
+
 // interfaceReport classifies what an interface-typed position actually costs.
 //
 // maxlen-2026-08-28's discipline: before building anything, every blocked name
@@ -654,6 +677,15 @@ var builtin = map[string]bool{
 	"float32": true, "float64": true, "complex64": true, "complex128": true,
 }
 
+// supplied is the set of interfaces some OBTAINABLE concrete type satisfies —
+// the subsumption relation, read as a question about reachability.
+//
+// An interface-typed argument is not a blocker when we hold something that goes
+// there: the host inserts the coercion and `(implements T I)` is the one line
+// that tells our checker so. Empty until `interfaceReport` fills it, so a run
+// that does not compute the relation scores exactly as before.
+var supplied = map[string]bool{}
+
 // qual gives a host type the key the obtainable set is indexed by, and it is a
 // CORRECTION rather than tidiness.
 //
@@ -722,7 +754,12 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 		}
 		// An argument the program cannot CONSTRUCT makes the call unreachable
 		// even though the line can be written.
-		argOpaque = argOpaque || (v.opaque && !have[qual(s.pkg, p)])
+		// AND A DECLARED SUBSUMPTION EDGE MAKES AN INTERFACE ARGUMENT
+		// REACHABLE. `io.ReadAll(r io.Reader)` is callable because we can
+		// obtain an `*os.File` and the host coerces it; that is the whole of
+		// what the coercion buys, measured rather than predicted.
+		k := qual(s.pkg, p)
+		argOpaque = argOpaque || (v.opaque && !have[k] && !supplied[k])
 	}
 	for _, r := range s.results {
 		v := classify(r)
@@ -877,7 +914,43 @@ func main() {
 		fh.Close()
 	}
 
+	// THE SUBSUMPTION RELATION, COMPUTED AND VERIFIED ONCE, so the usable number
+	// and the emitted `(implements ...)` edges rest on the same host-accepted
+	// facts. A candidate the Go compiler refuses must not appear in either.
+	var raw []string
+	for l := range seen {
+		raw = append(raw, l)
+	}
+	cand := candidateImplements(raw, syms)
+	nCand := 0
+	for _, ifs := range cand {
+		nCand += len(ifs)
+	}
+	if v, passes, err := verifyImplements(syms, cand); err != nil {
+		fmt.Fprintf(os.Stderr, "\nNO SUBSUMPTION EDGE IS USED: %v\n"+
+			"An unverified edge is a claim, and a claim that makes the type checker\n"+
+			"accept a program the host refuses is the failure this avoids.\n", err)
+	} else {
+		verifiedSat = v
+		nKept := 0
+		for _, ifs := range v {
+			nKept += len(ifs)
+		}
+		fmt.Printf("SUBSUMPTION: %d candidate edges, %d accepted by the host "+
+			"in %d refining pass(es)\n", nCand, nKept, passes)
+	}
 	have := obtainable(syms)
+	// AN INTERFACE WE CAN SUPPLY IS NOT A BLOCKER. Only an OBTAINABLE concrete
+	// type counts: holding nothing that implements `io.Reader` leaves an
+	// `io.Reader` argument exactly as unreachable as it was.
+	for t, ifs := range verifiedSat {
+		if !have[t] {
+			continue
+		}
+		for _, i := range ifs {
+			supplied[i] = true
+		}
+	}
 	type tally struct{ decl, usable, total int }
 	byKind := map[string]*tally{"func": {}, "method": {}}
 	byReason := map[reason]int{}
@@ -976,18 +1049,181 @@ func main() {
 	}
 
 	// THE INTERFACE QUESTION, MEASURED RATHER THAN ARGUED. See interfaceReport.
-	var raw []string
-	for l := range seen {
-		raw = append(raw, l)
-	}
 	interfaceReport(raw, syms, have)
 
 	if *emitDir != "" {
-		if err := emit(*emitDir, declarables); err != nil {
+		if err := emit(*emitDir, declarables, raw); err != nil {
 			fmt.Fprintln(os.Stderr, "emit:", err)
 			os.Exit(1)
 		}
 	}
+}
+
+// writeImplementsCheck writes the subsumption relation as GO SOURCE, so the
+// HOST decides whether we got it right.
+//
+// This is a conformance story no `prim` template has. A template is a claim
+// nobody can check until some program happens to call it; an edge is
+//
+//	var _ io.Reader = *new(*os.File)
+//
+// one line, and `go build` refuses the file if the claim is false. `*new(T)`
+// rather than `(T)(nil)` because it is well typed for EVERY T — a pointer, an
+// interface, and `os.FileMode`, which is an integer.
+//
+// A base name that two packages share is SKIPPED and counted rather than
+// guessed at: the manifest writes `rand.Rand` and does not say which `rand`.
+func writeImplementsCheck(path string, syms []sym, sat map[string][]string) (map[string]int, error) {
+	lineOf := map[string]int{}
+	pkgOf, ambiguous := map[string]string{}, map[string]bool{}
+	for _, s := range syms {
+		base := s.pkg
+		if i := strings.LastIndex(base, "/"); i >= 0 {
+			base = base[i+1:]
+		}
+		if p, seen := pkgOf[base]; seen && p != s.pkg {
+			ambiguous[base] = true
+		}
+		pkgOf[base] = s.pkg
+	}
+	pkgOfType := func(t string) (string, bool) {
+		t = strings.TrimLeft(t, "*[]")
+		i := strings.Index(t, ".")
+		if i < 0 {
+			return "", false
+		}
+		base := t[:i]
+		if ambiguous[base] {
+			return "", false
+		}
+		p, ok := pkgOf[base]
+		return p, ok
+	}
+	type edge struct{ t, i string }
+	var edges []edge
+	need := map[string]bool{}
+	skipped := 0
+	var subs []string
+	for t := range sat {
+		subs = append(subs, t)
+	}
+	sort.Strings(subs)
+	for _, t := range subs {
+		pt, ok := pkgOfType(t)
+		if !ok || strings.Contains(pt, "internal") {
+			skipped += len(sat[t])
+			continue
+		}
+		for _, i := range sat[t] {
+			pi, ok := pkgOfType(i)
+			if !ok || strings.Contains(pi, "internal") {
+				skipped++
+				continue
+			}
+			edges = append(edges, edge{t, i})
+			need[pt], need[pi] = true, true
+		}
+	}
+	var b strings.Builder
+	b.WriteString("// GENERATED by gauntlet/stdlib/survey.go — do not edit.\n")
+	b.WriteString("//\n")
+	b.WriteString("// Every (implements T I) edge the generated target files declare, as a\n")
+	b.WriteString("// Go assignment. `go build` on this file is the host checking our claim.\n\n")
+	b.WriteString("package check\n\nimport (\n")
+	var imps []string
+	for p := range need {
+		imps = append(imps, p)
+	}
+	sort.Strings(imps)
+	for _, p := range imps {
+		fmt.Fprintf(&b, "\t%q\n", p)
+	}
+	b.WriteString(")\n\n")
+	// The line NUMBER is the key: a compiler error names a line, and that is how
+	// a refused edge is identified. Counted rather than assumed, so the header
+	// above may change without breaking the mapping.
+	line := strings.Count(b.String(), "\n") + 1
+	for n, e := range edges {
+		fmt.Fprintf(&b, "var _%d %s = *new(%s)\n", n, e.i, e.t)
+		lineOf[e.t+" "+e.i] = line
+		line++
+	}
+	fmt.Fprintf(&b, "\n// %d edges; %d skipped for an ambiguous or internal package.\n",
+		len(edges), skipped)
+	return lineOf, os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// verifyImplements asks the HOST which candidate edges are true, and keeps only
+// those. It is the difference between a measurement and a claim.
+//
+// THE MANIFEST CANNOT SEE A SEALED INTERFACE. `go1.txt` lists the EXPORTED API,
+// and `ast.Decl` is `{ Pos, End, declNode }` with the third unexported — so the
+// structural computation sees two methods, finds them on every AST node, and
+// concludes that `*ast.ArrayType` is an `ast.Decl`. It is not, and `go build`
+// says so in one line. That is not a bug in the rule; it is the manifest not
+// containing the fact, and no amount of care with the manifest recovers it.
+//
+// So the relation is CANDIDATE-GENERATE and HOST-FILTER. Every surviving edge
+// has been accepted by the Go compiler, which is a stronger guarantee than any
+// `prim` template in this repository carries — a template is checked only when
+// some program happens to call it.
+//
+// AND IF THE TOOLCHAIN CANNOT RUN, NO EDGE IS EMITTED. An unverified edge is a
+// claim, and a claim that makes the type checker accept a program the host will
+// refuse is exactly the failure this whole file exists to avoid.
+func verifyImplements(syms []sym, sat map[string][]string) (map[string][]string, int, error) {
+	dir, err := os.MkdirTemp("", "oroimpl")
+	if err != nil {
+		return nil, 0, err
+	}
+	defer os.RemoveAll(dir)
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"),
+		[]byte("module check\n\ngo 1.21\n"), 0o644); err != nil {
+		return nil, 0, err
+	}
+	src := filepath.Join(dir, "implements_check.go")
+	for pass := 0; pass < 20; pass++ {
+		lineOf, err := writeImplementsCheck(src, syms, sat)
+		if err != nil {
+			return nil, 0, err
+		}
+		cmd := exec.Command("go", "build", "-gcflags=-e", "./...")
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			return sat, pass, nil
+		}
+		// `implements_check.go:93:8: …` — the line names the edge that failed.
+		bad := map[int]bool{}
+		for _, line := range strings.Split(string(out), "\n") {
+			i := strings.Index(line, "implements_check.go:")
+			if i < 0 {
+				continue
+			}
+			rest := line[i+len("implements_check.go:"):]
+			j := strings.Index(rest, ":")
+			if j < 0 {
+				continue
+			}
+			var n int
+			if _, err := fmt.Sscanf(rest[:j], "%d", &n); err == nil {
+				bad[n] = true
+			}
+		}
+		if len(bad) == 0 {
+			return nil, 0, fmt.Errorf("the host refused the check and named no edge:\n%s", out)
+		}
+		next := map[string][]string{}
+		for t, ifs := range sat {
+			for _, i := range ifs {
+				if !bad[lineOf[t+" "+i]] {
+					next[t] = append(next[t], i)
+				}
+			}
+		}
+		sat = next
+	}
+	return nil, 0, fmt.Errorf("the candidate relation did not settle in twenty passes")
 }
 
 func pct(a, b int) float64 {
@@ -1025,7 +1261,10 @@ func pct(a, b int) float64 {
 // precisely so that an author's omission costs speed rather than correctness
 // (effects.md); a generator cannot justify the claim for 1,007 functions, so it
 // does not make it. A target author adding `pure` by hand is how it comes back.
-func emit(dir string, syms []sym) error {
+func emit(dir string, syms []sym, raw []string) error {
+	// The relation was computed and HOST-VERIFIED once, in main: the usable
+	// number and the emitted edges must rest on the same accepted facts.
+	sat := verifiedSat
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -1140,6 +1379,28 @@ func emit(dir string, syms []sym) error {
 				s.name, argList, res, kind, call, p)
 			n++
 		}
+		// THE EDGES FOR THE TYPES THIS FILE DECLARES. Put with the CONCRETE type,
+		// because that is where the file already spells it -- and the interface it
+		// satisfies is spelled here too, so a program loading one file is never left
+		// naming a type the target does not have.
+		edges := map[string][]string{}
+		for k, q := range types {
+			ifs := sat[q]
+			if len(ifs) == 0 {
+				continue
+			}
+			for _, iq := range ifs {
+				edges[k] = append(edges[k], spell(iq))
+			}
+		}
+		for _, ifs := range sat {
+			_ = ifs
+		}
+		for k := range edges {
+			for _, q := range sat[types[k]] {
+				types[spell(q)] = q
+			}
+		}
 		var b strings.Builder
 		fmt.Fprintf(&b, "; GENERATED by gauntlet/stdlib/survey.go — do not edit.\n")
 		fmt.Fprintf(&b, "; The declarable subset of Go's %s.\n", p)
@@ -1155,6 +1416,17 @@ func emit(dir string, syms []sym) error {
 		if len(tn) > 0 {
 			b.WriteString("\n")
 		}
+		var en []string
+		for k := range edges {
+			en = append(en, k)
+		}
+		sort.Strings(en)
+		for _, k := range en {
+			fmt.Fprintf(&b, "  (implements %s %s)\n", k, strings.Join(edges[k], " "))
+		}
+		if len(en) > 0 {
+			b.WriteString("\n")
+		}
 		var mn []string
 		for k := range mods {
 			mn = append(mn, k)
@@ -1168,6 +1440,9 @@ func emit(dir string, syms []sym) error {
 		if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 			return err
 		}
+	}
+	if _, err := writeImplementsCheck(filepath.Join(dir, "implements_check.go"), syms, sat); err != nil {
+		return err
 	}
 	fmt.Printf("\nemitted %d primitives across %d packages into %s (%d void with no argument)\n",
 		n, len(pkgs), dir, skipped)

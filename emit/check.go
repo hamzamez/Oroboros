@@ -162,6 +162,16 @@ func (c *checker) agree(what, got, want string) error {
 	if compatible(got, want) {
 		return nil
 	}
+	// AND A DECLARED SUBSUMPTION EDGE, which is the ONE direction `compatible`
+	// cannot have: it is symmetric, and `*os.File` goes where an `io.Reader` is
+	// wanted while the reverse is false. `agree` is where the direction exists
+	// -- `got` flows into `want` -- so this is the only site that can ask.
+	//
+	// The coercion is the host's and its denotation is the identity, so nothing
+	// downstream of here learns that it happened (docs/interfaces.md 3).
+	if c.tgt.Subsumes(core.ValueType(got), core.ValueType(want)) {
+		return nil
+	}
 	// A RANGE WIDER THAN THE WINDOW gets its own message, because "but int is
 	// required here" is true and explains nothing. This is the rung above the
 	// host's word, and two different things can go wrong there.
@@ -526,7 +536,8 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		// `any` carries no information, and refusing it would mean a target
 		// that declares everything `any` — targets/js, on purpose — can never
 		// carry a `sig` with a concrete result (json-tree-2026-08-26).
-		if pass == 1 && !compatible(got, sig.Result) {
+		if pass == 1 && !compatible(got, sig.Result) &&
+			!tgt.Subsumes(core.ValueType(got), core.ValueType(sig.Result)) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}

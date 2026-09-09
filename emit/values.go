@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 )
@@ -88,6 +89,72 @@ func multiPrimCall(tg *Target, t *core.Term) (Prim, []*core.Term, *core.Term, bo
 		return Prim{}, nil, nil, false
 	}
 	return p, op.Args(), k, true
+}
+
+// TOTALISATION, AND IT IS WHY A HOST CALL THAT CAN FAIL NEEDS NOTHING NEW.
+//
+// A host offers a PARTIAL function `f : A ⇀ B`, and partiality is the whole
+// content of "it can fail". The standard correspondence is that partial maps
+// `A ⇀ B` are exactly total maps `A → B + 1`, and with information on the
+// failure `A → B + E` — a COPRODUCT, which sums.md already has and which
+// `(values b e)` already carries across a boundary.
+//
+// So the TYPE of a fallible call is host-independent and the language already
+// has it. What varies is the host's MECHANISM for saying which summand you got:
+//
+//	Go           a second return value          `B × E` plus a convention
+//	JavaScript   throw                          a partial map and an escape
+//	Java         throw, checked                 the same, with E in the types
+//	windows      a sentinel plus GetLastError   `B + 1` niche-encoded
+//
+// NO HOST GIVES THE COPRODUCT. Go's `(T, error)` is a PRODUCT with a discipline,
+// and `(prim err-nil ((e error)) bool expr "%s == nil")` is the discriminator
+// that totalises it — so this project has been totalising on Go since the day it
+// could open a file and never called it that.
+//
+// It follows that a target declares two things and the compiler learns nothing
+// about exceptions: **the CALL that produces the pair, and the DISCRIMINATOR
+// that reads it.** The first is a multi-result prim, which is a language
+// construct (values.md) — so a host call with several results working on ONE
+// backend of four was never a missing feature. It was the same incoherence
+// values.md was reverted for: a construct in the core that most targets decline.
+//
+// multiPrimDests reports the destination holes a template names — `%r0`, `%r1`,
+// … — and how many.
+//
+// A MULTI-RESULT TEMPLATE IS ONE OF TWO SHAPES, and the two are the two host
+// shapes rather than two mechanisms:
+//
+//	the call IS the tuple      `os.ReadFile(%s)`         — the emitter assigns
+//	the call ASSIGNS the tuple `try { %r0 = … } catch`   — the template assigns
+//
+// The second subsumes the first and exists because a host that signals failure
+// out of band cannot be an expression yielding two values; it has to be given
+// somewhere to put them. `%r` is `%r0` at arity one, so this is the existing
+// result hole at the arity the call actually has.
+func multiPrimDests(form string, n int) bool {
+	for i := 0; i < n; i++ {
+		if !strings.Contains(form, fmt.Sprintf("%%r%d", i)) {
+			return false
+		}
+	}
+	return n > 0
+}
+
+// fillDests replaces `%r0`…`%rn-1` with the names the emitter chose.
+//
+// IT RUNS BEFORE `fill`, AND THE ORDER IS NOT A PREFERENCE. `fill` is
+// `fmt.Sprintf`, so `%r` reaches it as an unknown verb and comes back
+// `%!r(MISSING)` — the whole template, silently, as a string. Running the
+// destinations first leaves only `%s` for Sprintf to see. It is also the safe
+// order for a different reason: an argument's emitted value is arbitrary text
+// and could contain `%r0` (a string literal can), where a destination is always
+// an identifier the emitter just made.
+func fillDests(form string, dests []string) string {
+	for i, d := range dests {
+		form = strings.ReplaceAll(form, fmt.Sprintf("%%r%d", i), d)
+	}
+	return form
 }
 
 // multiPrimArityErr is the message when the continuation does not take what the

@@ -1,0 +1,89 @@
+; os — the host's file system, on the JVM.
+;
+; See `targets/go/os.oro` for what this module is and why its name has no
+; prefix: `os` is one `Σ` with an implementation per target, and a program whose
+; free names lie inside it is portable by the computation ADR 0001 already does.
+;
+; TOTALISATION, ON THE HOST WHERE FAILURE IS IN THE TYPES.
+;
+; A fallible host call is a partial map `A ⇀ B`, and a partial map is a total
+; `A → B + E`. No host gives that coproduct: Go gives a PRODUCT plus a
+; convention, Node throws, and Java throws with `E` written into the method's
+; signature. So a target declares the CALL that produces the pair and the
+; DISCRIMINATOR that reads it, and the compiler learns nothing about exceptions.
+;
+; Java's checked exceptions make no difference to us and that is worth saying:
+; `throws IOException` is a demand on the CALLER's syntax, and the caller here is
+; a template, which catches. The type system that makes this host's failures
+; loudest is the one that costs us the least.
+;
+; AND THE JVM CHARGES FOR A BYTE, WHICH THE OTHER TWO DO NOT.
+;
+; `Files.readAllBytes` gives a `byte[]`, and the JVM's byte is SIGNED, so 0..255
+; does not fit it — the exact fact elemwidth-2026-08-27 found when a declared
+; `(array (int 0 255))` came out `short[]` here and `[]byte` on Go. A file's
+; bytes ARE 0..255; declaring them −128..127 would make `(src i)` return −1 for
+; 0xFF and the same program answer differently on different hosts, which is what
+; ADR 0009's rule forbids one level down. So this host WIDENS on the way in and
+; NARROWS on the way out, one pass each, at the boundary and nowhere else.
+;
+; That is the parasite model pricing something honestly rather than hiding it:
+; Go and Node read a file for free, the JVM pays a copy, and the cost is written
+; in the file that knows why.
+
+(target java
+  ; The error is opaque, and `Exception` rather than `IOException` because the
+  ; discriminator below is the whole of what a program can do with one — hold it,
+  ; test it, hand it back. A narrower name would be a claim about which calls may
+  ; appear in this module, which is not a claim this file is in a position to
+  ; make.
+  (type error "Exception")
+
+  (module os
+    ; ---- reading and writing whole files
+    ;
+    ; `%r0` and `%r1` are the DESTINATIONS. A `try`/`catch` is a statement and
+    ; not an expression yielding a pair, so a host that signals failure out of
+    ; band has to be given somewhere to put its two values — which is the second
+    ; of the format's two multi-result shapes, and the one every throwing host
+    ; needs. The emitter declares them and javac's definite-assignment check then
+    ; enforces that every arm writes every one.
+    ;
+    ; `$oroB`/`$oroI`/`$oroE` are scoped to the `try` block and are spelled so
+    ; they cannot collide with an emitted local: Java forbids shadowing one, and
+    ; `javaMangle` never produces a name starting with `$oro`.
+    (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
+      "try { final byte[] $oroB = Files.readAllBytes(Path.of(%s)); %r0 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) %r0[$oroI] = (short) ($oroB[$oroI] & 0xFF); %r1 = null; } catch (Exception $oroE) { %r0 = null; %r1 = $oroE; }"
+      (import "java.nio.file.*"))
+
+    (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
+      "try { final short[] $oroS = %s; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write(Path.of(%s), $oroB); %r0 = null; } catch (Exception $oroE) { %r0 = $oroE; }"
+      (import "java.nio.file.*"))
+
+    ; ---- the discriminator
+    (prim err-nil ((e error)) bool expr "%s == null" pure)
+
+    ; ---- bytes to text, ONCE, at the boundary
+    ;
+    ; `string-of` is η over SCALARS, so pushing a raw UTF-8 byte through it would
+    ; turn 0xC3 into U+00C3; the decode has to see the whole sequence
+    ; (string-operations.md §5).
+    ;
+    ; A LAMBDA APPLIED AT THE CALL SITE, and not because it reads well: `%s` is
+    ; an arbitrary expression — `(text-of (format src))` is the real call — and
+    ; every array-narrowing form Java has that is an EXPRESSION mentions its
+    ; operand twice. Once bound to a parameter it is evaluated once. This is
+    ; callbacks.md tier 1 exactly: the lambda never becomes a value in our
+    ; residual, the host closes over it, and C2 inlines it.
+    (prim text-of ((b (array (int 0 255)))) string expr
+      "((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; return new String($oroB, StandardCharsets.UTF_8); }).apply(%s)"
+      pure (import "java.nio.charset.StandardCharsets"))
+
+    ; ---- the environment, so a program can be told what to open
+    ;
+    ; A JVM `main` receives its arguments and the program name is NOT among them,
+    ; where `os.Args` and `process.argv` both start with it. The prepended `""`
+    ; is what makes `(av 1)` the first argument on every host — the difference
+    ; stated once, in the file that knows about it.
+    (prim Args (none) (array string) expr "oroArgs")
+    (prim Getenv ((k string)) string expr "System.getenv().getOrDefault(%s, \"\")" pure)))

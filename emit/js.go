@@ -21,8 +21,30 @@ import (
 // the point of building it second is to find out which parts of emit/golang.go
 // were general and which were Go-shaped assumptions.
 
+// JSImports accumulates what emitted functions need, like the Go and Java
+// sinks.
+//
+// IT DID NOT EXIST, AND THE FORMAT COULD ALREADY SAY IT. `(import …)` is one
+// field of the shared target format; Go collects it, Java collects it, x86
+// turns it into an extern — and JavaScript DROPPED it silently, because no
+// target file had ever declared one. A path nothing runs is a path nothing
+// checks, and this is that for a whole host: the first primitive on this target
+// that needs a module could not have one.
+var JSImports = map[string]bool{}
+
+// jsImportAlias names the namespace an import is bound to. `node:fs` becomes
+// `fs`, which is what a template writes and what a person would write — the
+// specifier is the module's ADDRESS and the alias is its NAME, and a target file
+// should not have to repeat the second inside every template.
+func jsImportAlias(spec string) string {
+	if i := strings.LastIndexAny(spec, ":/"); i >= 0 {
+		spec = spec[i+1:]
+	}
+	return jsMangle(spec)
+}
+
 type jsEmitter struct {
-	tgt    *Target
+	tgt *Target
 
 	// bufReuse and spareOf are LoopBufferReuse's answer: a back-edge `build`
 	// writes into storage the loop already owns. Keyed by the build's lambda
@@ -30,9 +52,9 @@ type jsEmitter struct {
 	// for why it is two buffers and a swap rather than one in place.
 	bufReuse map[*core.Term]string
 	spareOf  map[int]string
-	buf    strings.Builder
-	tmp    int
-	indent int
+	buf      strings.Builder
+	tmp      int
+	indent   int
 
 	// bound is every name already emitted in this function — see openFresh.
 	bound map[string]bool
@@ -257,6 +279,72 @@ func (e *jsEmitter) isMapName(t *core.Term) bool {
 // the language has `undefined` as a value. So `=== undefined` distinguishes
 // absent from present exactly. It is one lookup where `k in m` plus `m[k]`
 // would be two.
+// emitMultiPrim is the consumer side of a host call with several results, and
+// it exists on this backend for the reason it exists on Go: `values` is a
+// LANGUAGE construct (values.md), so a host call that produces several results
+// must work on every target or the construct is one two of four decline —
+// which is exactly what values.md was reverted for the first time.
+//
+// The shape is a STUCK β-redex. With a `def` producer beta performs the
+// application and the product vanishes; with a `prim` producer the operator of
+// the outer application is itself an application, so the redex survives to the
+// backend, which emits the host's own form. Here that form is a destructuring
+// binding.
+//
+// TWO TEMPLATE SHAPES, which are the two host shapes — see multiPrimDests. A
+// host whose call IS the tuple is destructured; a host that signals failure out
+// of band assigns into destinations the emitter declares, because a try/catch
+// is not an expression yielding two values.
+func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	p, args, k, ok := multiPrimCall(e.tgt, t)
+	if !ok {
+		if op := t.Op(); op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
+			if q, known := e.tgt.Prims[op.Op().Name]; known && len(q.Results) >= 2 {
+				n := -1
+				if kk := t.Args()[0]; kk.Kind == core.KFn {
+					n = len(kk.Params)
+				}
+				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+			}
+		}
+		return "", false, nil
+	}
+	if p.Import != "" {
+		JSImports[p.Import] = true
+	}
+	vals := make([]any, len(args))
+	for i, a := range args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", true, err
+		}
+		vals[i] = v
+	}
+	body, _, out := openFresh(k, e.bound, jsMangle)
+	if multiPrimDests(p.Form, len(p.Results)) {
+		// The template assigns. `let` first, because a destination has to exist
+		// before a `catch` arm can write to it, and one binding for all of them
+		// because they are one call's results.
+		e.line("let %s;", strings.Join(out, ", "))
+		for _, l := range strings.Split(fill(fillDests(p.Form, out), vals), "\n") {
+			if s := strings.TrimSpace(l); s != "" {
+				e.line("%s", s)
+			}
+		}
+	} else {
+		// The call is the tuple. multiresult-2026-08-22 measured the OBJECT
+		// against the array and found the object better or equal in both
+		// directions, and free when the caller destructures — which this is.
+		fields := make([]string, len(out))
+		for i, n := range out {
+			fields[i] = fmt.Sprintf("f%d: %s", i, n)
+		}
+		e.line("const {%s} = %s;", strings.Join(fields, ", "), fill(p.Form, vals))
+	}
+	s, err := e.emit(body)
+	return s, true, err
+}
+
 func (e *jsEmitter) emitMapCase(t *core.Term) (string, bool, error) {
 	op := t.Op()
 	args := t.Args()
@@ -342,6 +430,9 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 	case core.KApp:
 		op := t.Op()
 		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
+		if out, done, err := e.emitMultiPrim(t); err != nil || done {
 			return out, err
 		}
 		if op.Kind != core.KName {

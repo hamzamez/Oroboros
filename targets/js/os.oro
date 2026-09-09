@@ -1,0 +1,83 @@
+; os — the host's file system, on Node.
+;
+; THE SECOND TARGET TO DECLARE FILE I/O, and the point of writing it is the
+; question rather than the capability: `targets/go/os.oro` was the only one, so
+; every program in this repository with input, output and error handling ran on
+; one host. The kernels were portable and the applications were not, which is
+; backwards for a language whose claim is that portability is a property a
+; program may or may not have.
+;
+; TOTALISATION, AND WHY NOTHING NEW WAS NEEDED IN THE LANGUAGE.
+;
+; A host offers a PARTIAL function `f : A ⇀ B`; partiality is the whole content
+; of "it can fail". Partial maps `A ⇀ B` are exactly total maps `A → B + 1`, and
+; with information on the failure `A → B + E` — a coproduct, which sums.md has
+; and which `(values b e)` already carries across a boundary. So the TYPE of a
+; fallible call is host-independent and already in the language.
+;
+; What varies is the host's MECHANISM for saying which summand you got:
+;
+;   Go           a second return value          `B × E` plus a convention
+;   JavaScript   throw                          a partial map and an escape
+;   Java         throw, checked                 the same, with E in the types
+;   windows      a sentinel and GetLastError    `B + 1`, niche-encoded
+;
+; NO HOST GIVES THE COPRODUCT. Go's `(T, error)` is a PRODUCT with a discipline
+; and `err-nil` is the discriminator that totalises it, so this repository has
+; been totalising since the day it could open a file and never called it that.
+;
+; It follows that a target declares two things — the CALL that produces the
+; pair, and the DISCRIMINATOR that reads it — and the compiler learns nothing
+; about exceptions. On this host the totalisation is a `try`/`catch`, written
+; here, in data.
+
+(target js
+  (module os
+    ; ---- reading and writing whole files
+    ;
+    ; THE TEMPLATE ASSIGNS ITS RESULTS rather than being them, and that is the
+    ; second of the two multi-result shapes the format has (`%r0`, `%r1`). A
+    ; host whose call IS the tuple is destructured; a host that signals failure
+    ; out of band has to be GIVEN somewhere to put the two values, because a
+    ; `try`/`catch` is a statement and not an expression yielding a pair.
+    ;
+    ; `%r` is `%r0` at arity one, so this is the existing result hole at the
+    ; arity the call actually has.
+    ;
+    ; THE ELEMENT RANGE IS DECLARED — a file is bytes — which is what gives the
+    ; reads their width and lets `(src i)` be used in arithmetic without a
+    ; refusal (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
+    ; Uint8Array, and indexes 0..255 exactly as the declaration says.
+    (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
+      "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
+      (import "node:fs"))
+
+    (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
+      "try { fs.writeFileSync(%s, Buffer.from(%s), { mode: %s }); %r0 = null; } catch (e) { %r0 = e; }"
+      (import "node:fs"))
+
+    ; ---- the discriminator
+    ;
+    ; The whole of what this language can do with a host error, and the whole of
+    ; what most code does with one at the point of the call. `null` because that
+    ; is what the templates above put there — the target says both halves, so
+    ; the two cannot disagree.
+    (prim err-nil ((e error)) bool expr "%s === null" pure)
+
+    ; ---- bytes to text, ONCE, at the boundary
+    ;
+    ; `string-of` is η over SCALARS, so pushing a raw UTF-8 byte through it would
+    ; turn 0xC3 into U+00C3; the conversion has to happen on the whole sequence
+    ; or not at all (string-operations.md §5). `TextDecoder` is the platform's
+    ; own UTF-8 decode and needs no import.
+    (prim text-of ((b (array (int 0 255)))) string expr
+      "new TextDecoder().decode(Uint8Array.from(%s))" pure)
+
+    ; ---- the environment, so a program can be told what to open
+    ;
+    ; `process.argv` is [node, script, …] where Go's `os.Args` is [prog, …], so
+    ; the first two are dropped and a program sees the same shape on both hosts.
+    ; That is the parasite model doing its job: the difference is stated once, in
+    ; the file that knows about it, and no program learns the hosts disagree.
+    (prim Args (none) (array string) expr "process.argv.slice(1)")
+    (prim Getenv ((k string)) string expr "(process.env[%s] ?? \"\")" pure)))

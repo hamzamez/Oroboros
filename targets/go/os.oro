@@ -16,9 +16,30 @@
 ; an interface, which callbacks.md tier 3 refuses. What a program CAN do today
 ; is test it — see `err-nil` — which is the fallible-read shape maps.md already
 ; established and enough to write real code against.
+;
+; AND THE MODULE HAS NO `go/` PREFIX, WHICH IS A CLAIM RATHER THAN A STYLE.
+;
+; Every other module in this directory is named after a HOST NAMESPACE — `go/fmt`
+; is Go's `fmt` package, `js/Math` is V8's `Math`, `java/System` is that class —
+; and a prefixed name claims nothing beyond that one host. An UNPREFIXED name is
+; the other thing: it names a `Σ` that several targets share.
+;
+; target-system.md says a declaration splits `Decl ≅ Σ × I` — interface and
+; implementation — and that a target FAMILY is a fibration over a shared `Σ`.
+; This is that shape between targets that are NOT a family: `os` is one interface
+; with several implementations, and a program whose free names lie inside it is
+; PORTABLE — computed by the capability graph exactly as ADR 0001 says, rather
+; than promised by a layer.
+;
+; It is not the retired portable layer returning, and the difference is that the
+; layer had BODIES: it lowered `materialize` and `fold-range2` into shapes it
+; chose, and the price was measured at 1.79x. There is no body here at all. Each
+; target's cell is its own host's call at the highest layer that host provides —
+; `os.ReadFile` on Go, `fs.readFileSync` on Node — and nothing is shared but the
+; name and the type.
 
 (target go
-  (module go/os
+  (module os
     ; ---- reading and writing whole files
     ;
     ; The element range is DECLARED — a file is bytes — which is what gives the

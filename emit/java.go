@@ -261,6 +261,18 @@ func javaRecordName(tys []string) string {
 func (e *javaEmitter) inferFrom(t *core.Term) {
 	switch t.Kind {
 	case core.KApp:
+		// The continuation's parameters are named HERE, before emission, because
+		// a buffer's element width is decided while the enclosing `build` is
+		// emitted and a type learned later is learned too late.
+		if p, _, k, ok := multiPrimCall(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for i := range raw {
+				e.types[raw[i]] = p.Results[i]
+			}
+			e.inferFrom(body)
+			return
+		}
 		if op := t.Op(); op.Kind == core.KName {
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				for i, a := range t.Args() {
@@ -320,6 +332,19 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 	case core.KName:
 		return e.types[t.Name]
 	case core.KApp:
+		// A HOST CALL WITH SEVERAL RESULTS has the type of its CONTINUATION's
+		// body, and its parameters get the types the primitive declares — the
+		// only place they can come from, a primitive having no body to infer
+		// from. Without it a method whose value is written after such a call
+		// comes out unknown; the Go backend needed the same two hooks.
+		if p, _, k, ok := multiPrimCall(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for i := range raw {
+				e.types[raw[i]] = p.Results[i]
+			}
+			return e.typeOf(body)
+		}
 		// A MAP READ UNDER ITS ELIMINATOR has the type of its clause bodies.
 		// Without this a method whose value is a map read comes out
 		// `/*unknown*/`, because every case below assumes the operator is a
@@ -511,6 +536,9 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 	case core.KApp:
 		op := t.Op()
 		if out, done, err := e.emitMapCase(t); err != nil || done {
+			return out, err
+		}
+		if out, done, err := e.emitMultiPrim(t); err != nil || done {
 			return out, err
 		}
 		if op.Kind != core.KName {
@@ -839,6 +867,75 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
+}
+
+// emitMultiPrim is the elimination of a host call that gives back several
+// results, on the host where the language's own multi-result function returns a
+// generated `record`.
+//
+// IT EXISTS BECAUSE `values` IS A LANGUAGE CONSTRUCT. values.md was reverted
+// once for shipping a core construct that two of four targets declined, and a
+// host call with several results working on ONE backend was the same shape
+// arriving from the producer side instead of the consumer side.
+//
+// TWO TEMPLATE SHAPES, and on this host they are genuinely different things.
+// A template naming `%r0`…`%rn` ASSIGNS its results, which is what a host that
+// signals failure by THROWING has to do — a `try`/`catch` is a statement, not an
+// expression yielding a pair. A template that does not is an expression whose
+// value carries the results, and on Java that value is a record with `f0()`,
+// `f1()` — the same convention `multiFunc` emits, so a prim may name one of our
+// own generated methods.
+func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	p, args, k, ok := multiPrimCall(e.tgt, t)
+	if !ok {
+		if op := t.Op(); op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
+			if q, known := e.tgt.Prims[op.Op().Name]; known && len(q.Results) >= 2 {
+				n := -1
+				if kk := t.Args()[0]; kk.Kind == core.KFn {
+					n = len(kk.Params)
+				}
+				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+			}
+		}
+		return "", false, nil
+	}
+	if p.Import != "" {
+		JavaImports[p.Import] = true
+	}
+	vals := make([]any, len(args))
+	for i, a := range args {
+		v, err := e.emit(a)
+		if err != nil {
+			return "", true, err
+		}
+		vals[i] = v
+	}
+	body, raw, out := openFresh(k, e.bound, javaMangle)
+	for i := range raw {
+		e.types[raw[i]] = p.Results[i]
+	}
+	if multiPrimDests(p.Form, len(p.Results)) {
+		// DECLARED, THEN ASSIGNED, and not `final`: every arm of the template
+		// writes every destination, which is exactly what javac's definite
+		// assignment checks, so the compiler enforces the discipline the two
+		// halves of a totalisation have to keep.
+		for i, nm := range out {
+			e.line("%s %s;", e.tgt.ty(p.Results[i]), nm)
+		}
+		for _, l := range strings.Split(fill(fillDests(p.Form, out), vals), "\n") {
+			if str := strings.TrimSpace(l); str != "" {
+				e.line("%s", str)
+			}
+		}
+	} else {
+		tmp := javaMangle(e.fresh("res"))
+		e.line("final var %s = %s;", tmp, fill(p.Form, vals))
+		for i, nm := range out {
+			e.line("final %s %s = %s.f%d();", e.tgt.ty(p.Results[i]), nm, tmp, i)
+		}
+	}
+	s, err := e.emit(body)
+	return s, true, err
 }
 
 // emitMapCase is the map read under its eliminator, in Java's idiom.
@@ -1293,10 +1390,27 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	}
 	for i := range names {
 		ty := e.tgt.ty(tys[i])
+		v := vals[i]
 		if e.narrow[raw[i]] {
 			ty = "int"
+			// A NARROWED VARIABLE TAKES A CAST ON ITS INITIALISER, for exactly
+			// the reason it takes one on assignment a hundred lines below — the
+			// value fits, and Java TYPES the expression. An INNER loop's
+			// initialiser is computed from the OUTER loop's variable, so the
+			// two need not narrow together: `int j = i + 1` with `i` a `long` is
+			// "possible lossy conversion" and javac refuses the file.
+			//
+			// Found by the first program with a nested scan to reach this host
+			// (examples/io/freq.oro's word scanner). monotone-2026-08-27 fixed
+			// the half where the inner loop's EXITS are read; this is the half
+			// where its ENTRY is written, and only a cast can close it, because
+			// narrowing is decided per loop and the two decisions are honestly
+			// independent.
+			if !e.narrowIdx(inits[i]) {
+				v = "(int) (" + v + ")"
+			}
 		}
-		e.line("%s %s = %s;", ty, names[i], vals[i])
+		e.line("%s %s = %s;", ty, names[i], v)
 	}
 	// THE SPARE BUFFERS, one per reusable loop variable, allocated once outside
 	// the loop and alternated with it. Scoped: a spare belongs to ONE loop and
@@ -1553,11 +1667,18 @@ func (e *javaEmitter) narrowIdx(t *core.Term) bool {
 		if len(t.Args()) != 2 {
 			return false
 		}
-		if !isOp(t.Op().Name, "add") && !isOp(t.Op().Name, "sub") {
+		if !isOp(t.Op().Name, "add") && !isOp(t.Op().Name, "sub") &&
+			!isOp(t.Op().Name, "mul") {
 			return false
 		}
+		// BOTH OPERANDS, which is what "already typed `int`" means in Java —
+		// `int op int` is `int` and `int op long` is `long`, whatever the range.
+		// The rule used to accept only a literal on the right, which was enough
+		// while this predicate answered about INDEXES; it also answers about a
+		// narrowed loop variable's initialiser now, and `(* i i)` — the sieve's
+		// inner bound — is that shape.
 		a, b := t.Args()[0], t.Args()[1]
-		return e.narrowIdx(a) && b.Kind == core.KInt
+		return e.narrowIdx(a) && (b.Kind == core.KInt || e.narrowIdx(b))
 	}
 	return false
 }

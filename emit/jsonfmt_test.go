@@ -34,7 +34,7 @@ func TestBoundedByDefaultReachesIntoAContinuation(t *testing.T) {
 	for _, c := range []struct{ what, src string }{
 		{"directly", `(fn (n) ` + loop("n") + `)`},
 		{"in a continuation",
-			`(fn () ((go/os.ReadFile "f") (fn (b e) ` + loop("(go.len b)") + `)))`},
+			`(fn () ((os.ReadFile "f") (fn (b e) ` + loop("(go.len b)") + `)))`},
 	} {
 		terms, err := core.ReadAll(c.src)
 		if err != nil || len(terms) != 1 {

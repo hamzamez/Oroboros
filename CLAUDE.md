@@ -169,7 +169,11 @@ pass, no backend. Start with file I/O on JavaScript and Java because it is small
 question, it makes three programs portable, and it walks into Java's `Path` — *cannot build the
 argument* arriving as a specific thing to construct — and it forces one design question this project
 has never answered: **how does a target declare a host call that fails by THROWING?** `(T, error)`
-is Go's idiom alone. Then **AoS against SoA**, the one measurement that could show part of this
+is Go's idiom alone. **DONE the same day** —
+[portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md), and the answer to the design
+question is that it does not need to: a fallible call is TOTALISATION, `try`/`catch` is a template,
+and the compiler never learns exceptions exist. The three programs are portable and the residue is
+windows. Then **AoS against SoA**, the one measurement that could show part of this
 week's work to be worth nothing. Deliberately not next: the heterogeneous product's
 layout (nothing here wants it), the termination gap (analysis, and that is risk 1), another survey,
 and more gauntlet programs.
@@ -2112,6 +2116,76 @@ caught it was noticing `gen_dot_native.go` already existed, making the regenerat
 therefore wrong; everything was restored and §1 re-measured on a `git status` clean tree. After the
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
+
+**A TOOL RUNS ON THREE HOSTS, AND THE GAP WAS NEVER THE LANGUAGE** —
+[portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md),
+`targets/{js,java}/os.oro`, `targets/{go,js,java}/io.oro`. On hamza's *"the I/O on js and java is
+the same problem of supporting the api… can we or not? … the fact that we can't express the entire
+go api, and the entire windows api, tells us we are still short."* **`wc`, `jsonfmt` and `freq`
+build and run on Go, JavaScript AND Java and produce BYTE-IDENTICAL output on all three** — seven
+real files, two JSON documents including non-ASCII, and every error path; `wc` agrees with GNU
+`wc -l` and `freq` with `sort | uniq -c | sort -rn`.
+
+**A FALLIBLE HOST CALL IS TOTALISATION, and no host gives the coproduct.** A partial `A ⇀ B` is a
+total `A → B + E`, which sums.md has and `(values b e)` already carries across a boundary — so the
+TYPE is host-independent and the language has had it since values.md. What varies is the MECHANISM:
+Go returns a product plus a convention, JavaScript throws, Java throws with `E` in the type, windows
+uses a sentinel. **Go's `(T, error)` plus `err-nil` is itself a totalisation nobody had named.** So a
+target declares the CALL that produces the pair and the DISCRIMINATOR that reads it, and **the
+compiler learns nothing about exceptions**: `try`/`catch` is written in a TEMPLATE, in data.
+
+**What was missing was two BACKENDS and one NAME.** `emitMultiPrim` existed on one backend of four —
+the same incoherence `values` was reverted for — and **JavaScript had no import mechanism at all**,
+silently dropping `(import …)`, a field Go, Java and x86 all honour, because no target file for that
+host had ever declared one. *A path nothing runs is a path nothing checks*, at the scale of a whole
+backend.
+
+**AND A MODULE NAME IS A CLAIM.** `go/fmt` names Go's `fmt` package and claims nothing beyond that
+host; **an UNPREFIXED module names a `Σ` several targets share** — target-system.md's `Decl ≅ Σ × I`
+between targets that are not a family — and a program whose free names lie inside it is portable by
+the computation ADR 0001 already does. `go/os` was making three programs un-portable by SPELLING, so
+it is `os` now, with `io` beside it. **It is not the retired portable layer returning: that layer had
+BODIES** and lowered into shapes it chose, at a measured 1.79x; here each target's cell is its own
+host's call and nothing is shared but the name and the type. The claim is CHECKED — structurally,
+that the three targets declare the same names at the same types **in both directions**, since a
+target that quietly adds to a shared interface makes a program look portable and not be.
+
+**Five bugs, two of them cross-host divergences the differential suite could not see**, because no
+case reads a file or prints twice. **`%r` MET `fmt.Sprintf`** and the whole template came back
+`%!r(MISSING)`, silently — destination holes are filled BEFORE argument holes now, which is also the
+safe order because an argument's emitted text could contain `%r0` and a destination never can.
+**`System.out.println` WRITES THE PLATFORM'S LINE SEPARATOR** — CRLF against LF, *the same program
+producing two different byte sequences*, which is what makes a name Tier 2; found by diffing `freq`
+on a file big enough to trip its size guard, so the only line printed was the message. **`System.out`
+ENCODES IN THE PLATFORM CHARSET**, so `é` came out `?`; all three `io` names encode UTF-8 and write
+BYTES, which also removes the `PrintStream` char-buffer/byte-stream ordering hazard by construction.
+And **a NARROWED LOOP VARIABLE'S INITIALISER needed a cast** — narrowing is decided per loop, so an
+inner loop narrows while the outer does not and `int j = i + 1` with `i` a `long` is refused by
+javac; monotone-2026-08-27 closed the half where the inner loop's EXITS are read and **this is the
+half where its ENTRY is written**, found by the first program with a nested scanner to reach that
+host.
+
+**AND THE JVM CHARGES FOR A BYTE, priced rather than hidden.** `Files.readAllBytes` gives a `byte[]`
+and the JVM's byte is SIGNED, so 0..255 does not fit it (elemwidth-2026-08-27) — and declaring a
+file's bytes −128..127 would make `(src i)` answer −1 for 0xFF, *the same program answering
+differently on different hosts*. So that host widens on the way in and narrows on the way out, one
+pass each, at the boundary: **Go free, Node free, the JVM one pass in each direction**, written in
+the file that knows why.
+
+**`wc.oro` builds at all for the first time**, and nobody had noticed it was refused because nothing
+built it. Stating the input limit takes it to **2 of 2 operations bounded with no `-checked`** —
+`tree.oro`'s node cap for the fourth time. One analysis detail worth keeping: the bound must be the
+OUTER test, because `(and a b)` erases to `(if a b false)` (ADR 0017) and the refinement layer reads
+its facts off comparisons, not off a nested `if`.
+
+**Cost: 171 of 171 pre-existing emitted files byte-identical**, seven new; 30 differential cases
+green on four targets; no new term kind and no new reduction rule. **The honest remaining gap is
+windows** — `kernel32.ReadFile` is the handle-based API, so `os.ReadFile` there is a LIBRARY written
+in the language (`lib/win/fmt.oro`'s shape) rather than a template, and `io` is the same story.
+**And the question is answered for this instance**: the FORMAT could already say everything, the
+COMPILER was missing two of four consumers, and the LANGUAGE needed nothing — the third consecutive
+time the answer has been the compiler or the format.
+
 
 **THE PRODUCT IS BUILT, AND FLATTENING IT IS CURRYING** —
 [products.md](docs/products.md), [product-2026-09-09](gauntlet/results/product-2026-09-09.md),

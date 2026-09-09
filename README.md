@@ -62,14 +62,22 @@ one **written in Oroboros** — add, subtract, multiply, divide and take the rem
 word, and compare — so ADR 0019's fourth item is delivered on the host that had nothing to fall back
 to ([subdiv-2026-09-03](gauntlet/results/subdiv-2026-09-03.md)).
 
-**And there are two tools.** [jsonfmt](examples/io/jsonfmt.oro) reformats a JSON document;
-[freq](examples/io/freq.oro) is `sort | uniq -c | sort -rn` — a word-frequency report, 158 lines, the
-largest program in the language, and **byte-identical to those tools** on seven real files. Between
-them they found **eight bugs**, four in the compiler and two of those silent wrong answers
+**And there are three tools, on three hosts.** [wc](examples/io/wc.oro) counts lines;
+[jsonfmt](examples/io/jsonfmt.oro) reformats a JSON document;
+[freq](examples/io/freq.oro) is `sort | uniq -c | sort -rn` — a word-frequency report, the largest
+program in the language, and **byte-identical to those tools** on seven real files. **All three
+build and run on Go, JavaScript and Java and produce byte-identical output on all three**, error
+paths included ([portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md)): a fallible host
+call is TOTALISATION — a partial `A ⇀ B` is a total `A → B + E` — so a target declares the call that
+produces the pair and the discriminator that reads it, and a JavaScript `throw` and a Java checked
+exception are a `try`/`catch` written in a template. The compiler never learns exceptions exist.
+Between them the tools found **thirteen bugs**, seven in the compiler, and four of them
+SILENT — two wrong answers and two cross-host divergences
 ([jsonfmt-2026-09-07](gauntlet/results/jsonfmt-2026-09-07.md),
-[freq-2026-09-08](gauntlet/results/freq-2026-09-08.md)). The second one also carries a merge sort
-written as **a loop over levels** rather than a recursion, which is where the termination analysis
-stops: size-change handles a counter that steps by a constant and not one that doubles.
+[freq-2026-09-08](gauntlet/results/freq-2026-09-08.md),
+[portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md)). `freq` also carries a merge
+sort written as **a loop over levels** rather than a recursion, which is where the termination
+analysis stops: size-change handles a counter that steps by a constant and not one that doubles.
 
 **And a pair is a type** — [products.md](docs/products.md),
 [product-2026-09-09](gauntlet/results/product-2026-09-09.md). `(array A B)`, spelled the way the
@@ -833,8 +841,9 @@ The honest list, with the reasoning written down rather than deferred to memory:
   been the negative product since August and `((f x) (fn (a b) …))` is how it is consumed. What
   makes it work is that **β gets stuck**: with a `prim` producer the redex survives to the backend,
   which emits `src, err := os.ReadFile(…)`. The acceptance test was not a percentage —
-  [examples/io/wc.oro](examples/io/wc.oro) is the first Oroboros program that **opens a file**, and
-  it counts the newlines in `go.mod` and prints 5.
+  [examples/io/wc.oro](examples/io/wc.oro) is the first Oroboros program that **opens a file**. It
+  now takes its filename on the command line and runs on three hosts
+  ([portableio-2026-09-09](gauntlet/results/portableio-2026-09-09.md)).
 - **Java's last 1.16×**, and it is a smaller question than it was. Element width and index type were
   two costs that looked like one because they were measured together; both are now matched to the
   hand-written reference, casts went from 50 to 5, and what remains is code generation plus the

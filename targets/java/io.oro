@@ -1,0 +1,48 @@
+; io — the console, at the only two types every host agrees on.
+;
+; See `targets/go/io.oro` for what this module is and why it has no prefix.
+;
+; TWO THINGS `System.out` DOES THAT THE LANGUAGE DOES NOT MEAN, both found by
+; diffing a program's output across three hosts rather than by reading a manual.
+;
+; (1) `println` WRITES THE PLATFORM'S LINE SEPARATOR — CRLF on Windows, where
+;     `fmt.Println` and `console.log` write LF. The same program produced two
+;     different byte sequences, which is exactly what makes a name Tier 2 rather
+;     than Tier 1. Caught on a file big enough to trip `freq`'s size guard, so
+;     the only line printed was the message and nothing else could hide it.
+;
+; (2) `print(String)` ENCODES IN THE PLATFORM CHARSET, so `é` and `日` came out
+;     as `?` on a machine whose default is cp1252 while Go and V8 wrote UTF-8.
+;     string-literals.md hit the same wall from the other side and drew the line
+;     at PRINTING, because nothing then could do better; here the target file can
+;     say what the language means, so it does.
+;
+; So all three names take the same shape: encode the string as UTF-8 and write
+; the BYTES. That also keeps the ordering honest — `PrintStream` buffers its
+; character writer separately from its byte stream, so mixing `print(String)`
+; with `write(byte[])` on one stream is a real hazard, and using one path for
+; every name removes it rather than reasoning about it.
+;
+; A LAMBDA APPLIED AT THE CALL SITE, for `text-of`'s reason in `os.oro`: `%s` is
+; an arbitrary expression and the byte array must be measured as well as written,
+; so a template mentioning it twice would evaluate it twice. Bound to a parameter
+; it is evaluated once. callbacks.md tier 1 — the lambda never becomes a value in
+; our residual, the host closes over it, and C2 inlines it.
+
+(target java
+  (module io
+    (prim print-line ((s string)) string stmt
+      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
+      (import "java.nio.charset.StandardCharsets"))
+
+    ; ---- and the same without the newline
+    (prim print ((s string)) string stmt
+      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s)"
+      (import "java.nio.charset.StandardCharsets"))
+
+    ; `%s + "\n"` on a `long` is `String.valueOf(long)` and a concatenation. The
+    ; digits are ASCII whatever the charset, so this one could have gone through
+    ; `print`; it does not, because two paths to one stream is the hazard above.
+    (prim print-int ((n int)) int stmt
+      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
+      (import "java.nio.charset.StandardCharsets"))))

@@ -1,0 +1,31 @@
+; io — the console, at the only two types every host agrees on.
+;
+; SEE `os.oro` IN THIS DIRECTORY for why this module has no `go/` prefix. In
+; one line: a prefixed module names a HOST NAMESPACE and claims nothing; an
+; unprefixed one names a `Σ` several targets share, and the capability graph is
+; what checks the claim.
+;
+; WHY IT IS NOT `fmt.Println`. Go's own name is variadic `...any`, and `any` is
+; where the agreement stops: a float prints `1e+06` on Go and `1000000` on V8,
+; so a portable `(print x)` would be a Tier 1 name that is not Tier 1. The two
+; types below ARE portable and were measured to be, not assumed —
+; string-literals.md checked every one of the 1,112,064 scalar values, and
+; integers.md found all four hosts agree on decimal rendering inside ADR 0012's
+; window. So the signature is the claim, and the checker refuses the rest.
+;
+; `go/fmt` still declares `Println` and everything else Go's `fmt` has. This
+; module is not a replacement for it and does not wrap it: both emit the same
+; call, and neither is lowered further than the host provides.
+
+(target go
+  (module io
+    (prim print-line ((s string)) string stmt "fmt.Println(%s)" (import "fmt"))
+    ; ---- and the same without the newline
+    ;
+    ; A program that BUILDS its whole output as text — jsonfmt and freq both do —
+    ; supplies its own line breaks, so a `print-line` here would add one the
+    ; program did not write. Two names rather than a flag, because a flag would
+    ; be a value at run time where this is a choice at the call site.
+    (prim print ((s string)) string stmt "fmt.Print(%s)" (import "fmt"))
+
+    (prim print-int ((n int)) int stmt "fmt.Println(%s)" (import "fmt"))))

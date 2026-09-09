@@ -31,9 +31,8 @@
 ; `fresh` is that bit. It is what makes `{}` come out as `{}` rather than as a
 ; brace, a blank line and a brace.
 
-(use go)
-(use go/os as os)
-(use go/fmt as fmt)
+(use os)
+(use io)
 
 (export main)
 
@@ -196,10 +195,10 @@
 (def main (fn ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
-        (fmt.Println "usage: jsonfmt FILE")
+        (io.print-line "usage: jsonfmt FILE")
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
               (if (>= (len src) (cap-in))
-                  (fmt.Println "jsonfmt: file is larger than this tool accepts")
-                  (fmt.Print (os.text-of (format src))))
-              (fmt.Println "jsonfmt: cannot read that file")))))))))
+                  (io.print-line "jsonfmt: file is larger than this tool accepts")
+                  (io.print (os.text-of (format src))))
+              (io.print-line "jsonfmt: cannot read that file")))))))))

@@ -37,9 +37,8 @@
 ; small integers and touches text exactly twice: once to compare bytes, and once
 ; at the very end to hand the report to the host.
 
-(use go)
-(use go/os as os)
-(use go/fmt as fmt)
+(use os)
+(use io)
 
 (export main)
 
@@ -387,10 +386,10 @@
 (def main (fn ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
-        (fmt.Println "usage: freq FILE")
+        (io.print-line "usage: freq FILE")
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
               (if (>= (len src) (cap-in))
-                  (fmt.Println "freq: file is larger than this tool accepts")
-                  (fmt.Print (os.text-of (freq src))))
-              (fmt.Println "freq: cannot read that file")))))))))
+                  (io.print-line "freq: file is larger than this tool accepts")
+                  (io.print (os.text-of (freq src))))
+              (io.print-line "freq: cannot read that file")))))))))

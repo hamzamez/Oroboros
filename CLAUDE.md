@@ -148,13 +148,29 @@ exist and between them they found **eight bugs, four in the compiler and two sil
 which is the answer to *"the corpus is not evidence"* that three assessments asked for and none had.
 **One column still moves the wrong way** and it is the one named for four rounds running:
 `emit : core` **3.62 → 4.00**, with the analysis layer at **5,175 lines**. **One process failure,
-named**: the product shipped **without a spec**, against this repository's own first rule for adding
-to the language — every prior addition has one and it is the first item of the five things next,
-ahead of anything larger. Then **file I/O on JavaScript and Java**, because the sharpest thing wrong
-is new to that list: **all three programs with input, output and error handling run on Go alone**,
-so the kernels are portable and the applications are not, which is backwards for the thesis. Then
-**AoS against SoA** — the one measurement that could show part of this week's work to be worth
-nothing — and the **Win32 enum classification**. Deliberately not next: the heterogeneous product's
+named and then FIXED the same day**: the product shipped **without a spec**, against this
+repository's own first rule — and writing [spec/products.md](docs/spec/products.md) immediately
+found three shapes that had been silently accepted, one of which emitted
+`map[int]/*prod(int, int)?*/`, **a Go type that does not exist** and that a host typing nothing
+would have taken without a word. The rule is not ceremony.
+
+**AND THE NEXT ITEM IS ONE QUESTION RATHER THAN FOUR**, on hamza's correction: *"the I/O on js and
+java is the same problem of supporting the api — we have yet to support it on go and windows, it is
+going to be the same question: can we or not? … the fact that we can't express the entire go api,
+and the entire windows api, tells us we are still short."* **File I/O on two more hosts is an
+INSTANCE of that, not a task beside it.** The question is whether this language can express a host's
+whole API, and where it cannot, whether that is the FORMAT, the COMPILER or the LANGUAGE — and the
+surveys already answer it as a number, so **the residue is the roadmap**: Go's *cannot build the
+argument* at 43.6%, Win32's struct-by-value at 13.9% (675 of which are the tool misreading enums),
+typedefs at 6.9%, function pointers at 2.7%. It pushes both halves at once — *express everything* is
+the language question, which is where several results and a declared result range came from;
+*translate* is the compiler's, which is what this week's product was: one type former, one lowering
+pass, no backend. Start with file I/O on JavaScript and Java because it is small, it is the same
+question, it makes three programs portable, and it walks into Java's `Path` — *cannot build the
+argument* arriving as a specific thing to construct — and it forces one design question this project
+has never answered: **how does a target declare a host call that fails by THROWING?** `(T, error)`
+is Go's idiom alone. Then **AoS against SoA**, the one measurement that could show part of this
+week's work to be worth nothing. Deliberately not next: the heterogeneous product's
 layout (nothing here wants it), the termination gap (analysis, and that is risk 1), another survey,
 and more gauntlet programs.
 

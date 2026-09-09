@@ -19,7 +19,13 @@ done**, so the document that says what this project should do next has been desc
 > it. That is the risk that has now survived four assessments.
 >
 > **One process failure, mine, yesterday**: the product shipped **without a spec**, against this
-> repository's own first rule for adding to the language.
+> repository's own first rule for adding to the language. **Written today**, and it paid at once —
+> three shapes that had been accepted are refused by name, one of them emitting a Go type that does
+> not exist.
+>
+> **And the next item is one question rather than four.** hamza: *"the fact that we can't express
+> the entire go api, and the entire windows api, tells us we are still short."* File I/O on two more
+> hosts is an INSTANCE of that, not a task beside it — §5.
 
 ---
 
@@ -146,6 +152,18 @@ They happen to agree — the differential case runs on four targets — but that
 specification, and the rule exists because `split-words` passed every mechanical check for two
 months while returning different answers.
 
+**WRITTEN THE SAME DAY, AND IT PAID BEFORE IT WAS FINISHED** —
+[docs/spec/products.md](spec/products.md). Answering *"where may a product appear"* found three
+shapes that had been silently accepted: a bare product **parameter**, a product **result**, and a
+map whose value is a product — and that last one emitted `map[int]/*prod(int, int)?*/`, **a Go type
+that does not exist**, which a host typing nothing would have taken without a word. All three are
+refused by name now, with a message saying what to write instead, and each refusal is pinned by a
+test that fails without it.
+
+So the rule is not ceremony. Two of those three would have compiled on some target and one would
+have compiled on none, and **the thing that found them was being made to say what each target does
+with it.**
+
 **Everything else is clear.** The gauntlet was benchmarked two days ago, all seven at parity, and
 G5's portable-layer debt is closed at 0.99×; that debt was also **corrected** — it was one program,
 not the three the previous result claimed.
@@ -164,8 +182,12 @@ thesis is that *portability is a property a program may or may not have, compute
 only programs anyone would call programs currently have it set to "no" for a reason that is not a
 language limit. This is new to this list and it is the sharpest thing wrong.
 
-**3. The product has no spec.** §3.4. Cheap to fix and it should be fixed before anything else is
-added.
+**3. The product has no spec.** §3.4. **Fixed 2026-09-09** —
+[docs/spec/products.md](spec/products.md), and writing it found three holes that had been accepted:
+a bare product parameter, a product result, and a map of products, the last emitting
+`map[int]/*prod(int, int)?*/` — **a Go type that does not exist**, which a host typing nothing would
+have taken silently. All three are refused by name now. That is the rule earning its place in one
+afternoon.
 
 **4. Struct by value, and it is smaller than 13.9%.** The largest remaining Win32 refusal, but
 measured: **675 of 1,610 are enums the tool misreads**, and of the rest the calling convention is
@@ -177,15 +199,43 @@ bitwise, refused on V8's int32 coercion) and one genuine design question (a name
 
 **Ordered by what the risks above say, not by what is interesting.**
 
-**1. A spec for the product.** §3.4. It is owed by the project's own first rule, it is the smallest
-item on the list, and writing it is what would have caught the one thing this round got wrong.
+**1. ~~A spec for the product.~~ DONE, 2026-09-09** — [spec/products.md](spec/products.md), and it
+paid immediately: three shapes that had been accepted are refused by name, one of them emitting a Go
+type that does not exist. Writing the spec is what found them, which is the argument for the rule.
 
-**2. File I/O on JavaScript and Java.** Risk 2. Two target files, and one real question rather than
-mechanical work: **how does a target declare a host call that fails by THROWING?** Go's `(T, error)`
-is Go's idiom alone; `fs.readFileSync` and `Files.readAllBytes` throw. It would make three programs
-portable, let the differential suite run a *program* rather than a kernel for the first time, and
-walk into Java's `Path` — the "cannot build the argument" wall, arriving as a specific thing to
-construct rather than as a percentage.
+**2. THE ECOSYSTEM, AND IT IS ONE ITEM RATHER THAN FOUR.** This list first had *file I/O on
+JavaScript and Java* here, as two target files. hamza corrected the framing and the correction is
+the more valuable half:
+
+> *"I think the I/O on js and java is the same problem of supporting the api — we have yet to
+> support it on go and windows, it is going to be the same question to ask about js and java: can we
+> or not? And I think this is the direction we push towards. It will inform the language design
+> (express everything) and the compiler (translate). The fact that we can't express the entire go
+> api, and the entire windows api, tells us we are still short."*
+
+That is right, and it reorganises this list. **File I/O on two more hosts is an INSTANCE of the
+question, not a task beside it**, and the question is: *can this language express a host's whole
+API, and where it cannot, is that the format, the compiler, or the language?* The surveys already
+answer it as a number — **Go 88.0% declarable, Win32 76.1%** — so what is short is measured rather
+than felt, and every point of the residue is a specific thing to name.
+
+**The residue is the roadmap, and it is already itemised.** On Go: *cannot build the argument* at
+43.6%, which is interfaces and structs. On Win32: struct by value 13.9% (of which 675 names are the
+tool misreading enums), unresolved typedefs 6.9%, function pointers 2.7%. Each has been priced;
+none has been attacked since the two format changes.
+
+**And it is the right direction for the reason the quote gives**: it pushes on both halves at once.
+*Express everything* is the language question — what a `prim` can say, which is where several
+results and a declared result range came from, and where a layout would come from next. *Translate*
+is the compiler's — and this week's product is exactly that shape: one type former, one lowering
+pass, no backend.
+
+So the item is **close the residue, host by host, and let what it refuses name the next language
+question.** File I/O on JavaScript and Java is where to start, because it is small, it is the same
+question, and it makes three programs portable — and because it walks straight into Java's `Path`,
+which is the *cannot build the argument* wall arriving as a specific thing to construct rather than
+as a percentage. It also forces one design question this project has not had to answer: **how does a
+target declare a host call that fails by THROWING?** `(T, error)` is Go's idiom alone.
 
 **3. AoS against SoA, per host.** [products.md §11](products.md) item 3, and the only measurement
 that could show part of what was built this week to be worth nothing. If every host prefers the flat
@@ -212,5 +262,7 @@ the applications.
 
 The method is right, the core is right, the thesis is measured on two ecosystems — and for the first
 time the project spent a round making more language than compiler, which is what the last three
-assessments asked for; the next round should be judged by whether a program can run on more than one
-host, because that is the claim, and today no application does.
+assessments asked for; the next round should be judged by **how much of a host's API this language
+can express**, because the residue is the honest measure of what is missing, every point of it names
+a specific thing, and the fact that no application yet runs on two hosts is the smallest instance of
+exactly that gap.

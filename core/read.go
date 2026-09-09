@@ -909,6 +909,40 @@ func toForm(t *Term) (Form, error) {
 				}
 			}
 		}
+		// A PRODUCT IS AN ELEMENT TYPE, and a signature is where that is
+		// enforced because a signature is where a type crosses a boundary.
+		//
+		// `(array A B)` has a representation as the ELEMENT of a table — the
+		// flat form, which is currying (products.md §6) — and none on its own.
+		// A bare product parameter has no width the caller and callee could
+		// agree on, and a bare product result duplicates `values`, which is the
+		// negative product and is what that position already has.
+		//
+		// Refused by name rather than left to fail downstream: an unrepresented
+		// product reached the emitter as `/*prod(int, int)?*/` on Go and would
+		// have reached JavaScript, which types nothing, as whatever it liked.
+		for _, pm := range sig.Params {
+			if IsProd(pm.Type) {
+				return Form{}, fmt.Errorf(
+					"sig %s: %s is a product, and a product is an ELEMENT type — "+
+						"a TABLE of them is `(array (array %s))`. On its own a product "+
+						"has no representation; `values` is the product at a function "+
+						"boundary", t.Kids[1].Name, pm.Type,
+					strings.Join(ProdTypes(pm.Type), " "))
+			}
+		}
+		// ONE RESULT LIVES IN `Result` AND SEVERAL IN `Results`, so both are
+		// asked. Checking only the list let a product result through, and it
+		// emitted `[]int{n, n}` — which happens to be the flat form and happens
+		// to be right, and "happens to" is not a specification.
+		for _, r := range append(append([]string(nil), sig.Results...), sig.Result) {
+			if IsProd(r) {
+				return Form{}, fmt.Errorf(
+					"sig %s: %s is a product in the result, and a product is an ELEMENT "+
+						"type. Several results are `(values …)`, declared `(%s)`",
+					t.Kids[1].Name, r, strings.Join(ProdTypes(r), " "))
+			}
+		}
 		return Form{Kind: "sig", Name: t.Kids[1].Name, Sig: sig}, nil
 	case "sum":
 		sum, err := readSum(t)
@@ -1721,8 +1755,13 @@ func TypeName(t *Term) string {
 	if t.Kind == KApp && len(t.Kids) == 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "map" {
 		k, v := TypeName(t.Kids[1]), TypeName(t.Kids[2])
-		// Rule 6 again: a buffer is not a key and not a value.
-		if k != "" && v != "" && !IsBuffer(k) && !IsBuffer(v) {
+		// Rule 6 again: a buffer is not a key and not a value. And a PRODUCT is
+		// not a value either — not because the algebra refuses it, but because
+		// this build gives a product a representation by FLATTENING an array of
+		// them, and a map is not an array. Accepting it emitted
+		// `map[int]/*prod(int, int)?*/`, a Go type that does not exist and that
+		// a host with no types would have taken silently.
+		if k != "" && v != "" && !IsBuffer(k) && !IsBuffer(v) && !IsProd(k) && !IsProd(v) {
 			return "map " + k + " " + v
 		}
 		return ""

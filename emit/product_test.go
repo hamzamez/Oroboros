@@ -158,9 +158,12 @@ func TestWhatMayNotBeAField(t *testing.T) {
 			t.Errorf("%s was accepted as a product", ty)
 		}
 	}
-	// The control: the same shapes with ordinary components must still be types,
-	// so the refusal above is about what a field may be and not about products.
-	for _, ty := range []string{"(array int int)", "(array (int 0 255) int int)"} {
+	// The control: the same shapes with ordinary components must still be types.
+	// AS AN ELEMENT, because a product is an element type and a signature is
+	// where that is enforced — a bare product parameter has no width the caller
+	// and callee could agree on, and is refused by name.
+	for _, ty := range []string{"(array (array int int))",
+		"(array (array (int 0 255) int int))", "(buffer (array int int))"} {
 		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
 		if err != nil {
 			t.Fatal(err)
@@ -245,6 +248,49 @@ func TestTheStrideIsProvenFromTheGuard(t *testing.T) {
 	for _, n := range notes {
 		if strings.Contains(n, "propagated") {
 			t.Errorf("propagated rather than proven: %s", n)
+		}
+	}
+}
+
+// A PRODUCT IS AN ELEMENT TYPE, AND A SIGNATURE IS WHERE THAT IS ENFORCED.
+//
+// All three of these were ACCEPTED until docs/spec/products.md was written, and
+// writing it is what found them — which is the argument for the rule that a
+// language addition needs a specification saying what each target does with it.
+// A map of products emitted `map[int]/*prod(int, int)?*/`, a Go type that does
+// not exist and that a host typing nothing would have taken silently; a product
+// result emitted `[]int{n, n}`, which happens to be the flat form and happens to
+// be right, and "happens to" is not a specification.
+func TestAProductIsAnElementTypeAndNothingElse(t *testing.T) {
+	for _, tc := range []struct{ what, src, want string }{
+		{"a bare product parameter",
+			"(sig f ((p (array int int))) int)\n(def f (fn (p) 0))", "ELEMENT type"},
+		{"a product result",
+			"(sig f ((n int)) (array int int))\n(def f (fn (n) (array n n)))", "in the result"},
+		{"a map of products",
+			"(sig f ((m (map int (array int int)))) int)\n(def f (fn (m) 0))", "is not a type"},
+	} {
+		forms, err := core.Read(tc.src)
+		if err == nil {
+			_, _, err = core.LoadWith(forms, nil)
+		}
+		if err == nil {
+			t.Errorf("%s was accepted", tc.what)
+			continue
+		}
+		if !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: the message should say %q, got %v", tc.what, tc.want, err)
+		}
+	}
+	// The control: as an ELEMENT all three shapes are types, so the refusals
+	// above are about where a product may stand and not about products.
+	for _, ty := range []string{"(array (array int int))", "(buffer (array int int))"} {
+		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := core.LoadWith(forms, nil); err != nil {
+			t.Errorf("%s must be a type: %v", ty, err)
 		}
 	}
 }

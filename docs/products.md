@@ -15,6 +15,11 @@ target."*
 > And it is not a new proposal either. [type-algebra.md §8](type-algebra.md) lists four things to
 > build in order. Items 2, 3 and 4 — sums, `match`, case-of-case — are built.
 > **Item 1 is the product, and it is the only one that is not.**
+>
+> **Polarity does not belong in the syntax and already is not there** (§3.1). One product, because
+> the algebra is cartesian; not observable, because ADR 0010 makes an unprojected effect run anyway;
+> and the compiler already decides three of the four cases with no marker — a statically indexed
+> heterogeneous `(array 10 "two")` folds away *today*. **What is missing is a type, not a term.**
 
 ---
 
@@ -100,6 +105,80 @@ gen: This is an escaping closure. g6 measured its cost but the emitter
 It is not a closure. It is a pair with nowhere to be written down. values.md knew this and fixed it
 at **one** boundary — *"`(sig f (…) (int int))` is what disambiguates a product from an escaping
 closure"* — and the general form of that sentence is the whole of this document.
+
+### 3.1 So does polarity belong in the syntax? No — and it already does not
+
+hamza: *"do we have to distinguish between positive and negative in the syntax, or should it be
+decided by the compiler? `(array a b c d)` can reduce away at compile time, or be kept in memory."*
+
+**It should be the compiler's, there is a proof, and three quarters of it is already built.**
+
+**The proof.** Linear logic splits conjunction into `&` and `⊗` precisely because it denies
+contraction and weakening; where both are available the two coincide, and a cartesian closed
+category has exactly **one** product. type-algebra.md §2.1 already calls this algebra bicartesian
+closed. ADR 0018 makes values immutable and shared — linearity is on buffers alone — so on values
+contraction and weakening are available and there is one product to have.
+
+**The one place it could be observable is effects, and it is not.** ADR 0010 denies weakening for an
+impure term, so a component nobody projects still runs. Measured rather than reasoned:
+
+```lisp
+(def main (fn () ((values (fmt.Println 1) (fmt.Println 2)) (fn (x y) x))))
+```
+```
+1
+2
+```
+
+The second component is projected by nobody and prints anyway. **So the negative reading is not
+observable, and polarity is a compilation strategy rather than a type.** Putting it in the syntax
+would be asking the programmer to write down something no program can detect.
+
+**And the compiler already decides.** One surface form, `(array e…)`, four cases, three of them
+already answered without any marker:
+
+| | today |
+|---|---|
+| static index | **folds** — `((array 10 20 30) 1)` emits `fmt.Println(20)`, nothing exists |
+| static index, **heterogeneous** | **folds** — `((array 10 "two") 0)`, `… 1` emits `fmt.Println(10, "two")` |
+| escapes at a typed boundary | **materialises** — `return []int{a, 20, 30}` |
+| **dynamic index** | **refused** — *"the operator must be a primitive"* |
+
+So tables.md §5.3's *"a statically-indexed heterogeneous `(array x y)` is a pair"* is not a proposal.
+**It is already true and already free.** The pair reduces away today, on all four targets, with no
+type, no marker and no allocation.
+
+**What is missing is a TYPE, not a term and not a polarity.** The heterogeneous case cannot cross a
+boundary, and the reason is §4's: there is nothing to write. Worse than absent — the spelling
+collides:
+
+```lisp
+(sig mk ((a int)) (array int string) …)   →  "A function with several results must
+                                              reduce to (values e1 … e3)"
+```
+
+The result slot is an arity list, so `(array int string)` is read as **three results**. The one slot
+where a product is expressible is the one slot where the spelling for it means something else.
+
+**The decision rule needs nothing new either.** Materialise iff it *escapes* — and then the
+signature already carries the type — or it is *dynamically indexed*, and then tables.md §5.3 forces
+homogeneity anyway. Those are the two conditions the language already has, doing the same work they
+already do.
+
+**And `alloc` survives, for a different question.** tables.md made `(alloc t)` explicit so the cost
+is visible in the source, and requirement 5 is why uniqueness.md **rejected** destination-passing
+inference — *"an optimisation that silently does not fire is requirement 5's failure mode"*. That
+argument does not reach here, and the distinction is worth stating because it is what reconciles the
+two precedents:
+
+> `(table n f)` is a **rule**, and materialising it trades computation for memory — a real cost
+> decision, so `alloc` stays written. `(array e…)` is a **graph**: the elements exist as terms
+> already, and materialising asks only *where these n values live*, which is a representation
+> question. ADR 0003 says representation is the target's.
+
+The honest residue is that a literal table large enough to matter would allocate without the source
+saying so — but that is `(array e…)`'s existing behaviour at an escape, measured above, not
+something this would introduce.
 
 ## 4. Measured: the algebra is not closed under `×`
 

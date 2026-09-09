@@ -2117,6 +2117,58 @@ therefore wrong; everything was restored and §1 re-measured on a `git status` c
 closure in the JS reference, the fixed iteration count, and process composition, this one is **not a
 bad harness but a measurement of a silently modified input**.
 
+**INTERFACES ARE RESEARCHED, AND THE MEASUREMENT REFUTES THE PLAN** —
+[interfaces.md](docs/interfaces.md), research, no decision, on hamza's *"that go has interfaces does
+not mean we have to, it just means: can we express the api? can we use it? what are the semantics in
+oroboros?"* **The question is never whether this language should have interfaces** — it is what an
+`io.Reader`-typed parameter MEANS to a program we compile, and that is three things with three
+prices.
+
+**AN INTERFACE IS AN EXISTENTIAL TYPE**, `∃X. X × Πᵢ(X → Tᵢ)` — a hidden representation packed with the
+operations that consume it (Mitchell & Plotkin 1988), which is Cook 2009's *object* rather than his
+*ADT*. **PACKING one is manufacturing a closure**, callbacks.md tier 3, a vtable and an indirect call
+we would have to ship; **HOLDING one is nothing at all**, an opaque host token with methods, which
+`HANDLE` has been since the windows target existed. **And PASSING one is neither**: `io.Copy(dst, f)`
+does not ask us to build an `io.Reader`, it asks us to hand over a `*os.File`, and Go's own compiler
+inserts the coercion. What is missing is not a value, a runtime or a representation — it is **one
+declared edge** telling our type checker the host accepts it. **`⟦coerce⟧ = id`: zero emitted
+characters.**
+
+**AND THE SUBTYPING IS THE AFFORDABLE HALF, again.** `T ≤ I` iff `methods(I) ⊆ methods(T)` — the
+powerset lattice under reverse inclusion, Cardelli's record subtyping with method sets. **Pierce's
+undecidable F<: is about BOUNDED QUANTIFICATION** and after staging nothing is quantified, so this is
+a preorder on GROUND names decided by lookup. **Declared rather than derived**, because a derived one
+is recursive (Amadio & Cardelli 1993) and because our `error` is opaque and our `int` is a range, so
+two signatures Go calls equal need not survive `spell`. And the claim is **checkable by the host**:
+`var _ io.Reader = (*os.File)(nil)`, one line per edge, `go build` decides — a stronger conformance
+story than any `prim` template has.
+
+**THE MEASUREMENT KILLS IT AS A PRIORITY.** maxlen-2026-08-28's discipline — classify every blocked
+name by the fact that would settle it, before building anything. Of **2,135** declarable-and-unusable
+Go names: **47** are blocked only by an interface we could supply, **87** by one we could not, and
+**1,867 by something that is not an interface at all**. 189 interfaces in the manifest and 67 are
+satisfied by a type we can already obtain — and the head of the still-blocked list is `types.Type`
+(98), `context.Context` (39) and `reflect.Type` (38), where the interface IS the whole API and no
+concrete implementation is exported. **Build the coercion because it is nearly free, not because it
+moves the number.**
+
+**AND ASKING THE QUESTION FOUND THE SURVEY WRONG TWICE MORE, THE SECOND TIME LARGELY.** `qual` was
+qualifying PREDECLARED types, so `error` became `os.error`/`io.error`, one per package, and an error
+obtained in one stopped satisfying an error argument in another (27.5% → **29.3%**). Then the big
+one: **a result whose type is OBTAINABLE can be READ**, and `judge` called every opaque result
+unreadable — so `os.Open` scored unusable **while `gauntlet/stdlib/acceptance/os-methods.oro` opens a
+file with it and prints 64**. Having methods is the whole of what reading an opaque value means here,
+and the circularity is well-founded because the fixed point never consults usability. **Usable
+44.5%**, *cannot read the result* 18.7% → **3.1%**; `os` 96 of 130, `io` 17 of 28, `time` 70 of 81,
+`context` 10 of 10, `net/http` 68 of 130. **Fifth instance of a survey's number describing the
+measurer, four deflating and one inflating** — and this one had been reporting the language as less
+capable than a running program in this repository proves it to be.
+
+**What it points at next is NOT interfaces**: 1,867 names are blocked by a non-interface argument,
+which is **struct arguments built by literal** and types no declarable function returns — the same
+layout question products.md §7 defers and Win32's struct-by-value 13.9% names from the other side.
+**Two questions converging on one missing thing.**
+
 **A GENERATED GO METHOD RUNS, AND THE SURVEY WAS FLATTERING ITSELF** —
 [gomethods-2026-09-09](gauntlet/results/gomethods-2026-09-09.md),
 `gauntlet/stdlib/survey.go`, `gauntlet/stdlib/acceptance/os-methods.oro`. On hamza's *"I wanted to
@@ -2144,7 +2196,9 @@ The obtainable-type fixed point was keyed by the bare type name as the Go api ma
 `*zip.File` method look reachable. **Usable 31.7% → 27.5%, methods 28.5% → 22.3%**, obtainable types
 202 → **289** (collapsed names becoming distinct), and *cannot build the argument* 42.7% → **49.9%**.
 **Fourth time a survey's first number was the tool talking about itself — and the first that
-inflated.** A measurement of one's own language must never round in its own favour.
+inflated.** A measurement of one's own language must never round in its own favour. **Corrected twice
+more the same day and the honest figure is 44.5% — see interfaces.md §5 below**; every per-package
+number in that result document is superseded there.
 
 **A GO INTEGER TYPE IS A RANGE, and that is where a named gap stopped being theoretical.** `spell`
 collapsed twelve integer types into `int`, which gostdlib-2026-09-06 recorded as a GENERATOR limit

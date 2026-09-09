@@ -834,14 +834,18 @@ The honest list, with the reasoning written down rather than deferred to memory:
   designed: the two operations turned out to be **one fold with two combiners**, which deleted sixty
   lines, and `provides` turned out to be **a target fragment that happens to live in a library
   file**, needing no new operation at all.
-  **And acting on that survey moved the number: 87.8% declarable and 27.5% usable**
-  ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md)). The usable figure was
-  reported as 31.7% for three days and was **inflated by my own tool**: the obtainable-type fixed
-  point was keyed by the bare type name, so `*File` in `os` and `*File` in `archive/zip` were one
-  entry ([gomethods-2026-09-09](gauntlet/results/gomethods-2026-09-09.md)). **A generated Go METHOD
-  now builds and runs** — `os.Open` to `*os.File` to `(*File).Read` to `Close` — and the generator,
-  which had been writing 1,007 primitives where the survey counted 4,331, writes **4,311**, the
-  residue being exactly the 20 voids that have no argument to be the value of. Two fields in a data
+  **And acting on that survey moved the number: 87.8% declarable and 44.5% usable**
+  ([multiresult-2026-09-06](gauntlet/results/multiresult-2026-09-06.md),
+  [gomethods-2026-09-09](gauntlet/results/gomethods-2026-09-09.md),
+  [interfaces.md §5](docs/interfaces.md)). **A generated Go METHOD now builds and runs** — `os.Open`
+  to `*os.File` to `(*File).Read` to `Close` — and the generator, which had been writing 1,007
+  primitives where the survey counted 4,331, writes **4,311**, the residue being exactly the 20
+  voids that have no argument to be the value of. The usable figure has been corrected three times
+  in one day and the tool was **wrong in both directions**: type names collided across packages
+  (inflating), predeclared types were qualified per package (deflating), and — much the largest — a
+  result whose type is obtainable was called unreadable, so `os.Open` scored unusable while a
+  program in this repository opens a file with it. `os` is 96 usable of 130 declarable, `io` 17 of
+  28, `context` 10 of 10. Two fields in a data
   format and one branch in an analysis — the language needed nothing, because `(values a b)` has
   been the negative product since August and `((f x) (fn (a b) …))` is how it is consumed. What
   makes it work is that **β gets stuck**: with a `prim` producer the redex survives to the backend,

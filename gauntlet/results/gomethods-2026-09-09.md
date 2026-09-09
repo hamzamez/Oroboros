@@ -30,6 +30,15 @@ library layer where it belongs.
 > methods **28.5% → 22.3%**, and *cannot build the argument* rises 42.7% → 49.9%.
 > Three days old and mine.
 >
+> **CORRECTED TWICE MORE THE SAME DAY, AND THE SECOND CORRECTION IS LARGE** —
+> [interfaces.md §5](../../docs/interfaces.md). The fix above ALSO qualified
+> predeclared types, so `error` became `os.error`, `io.error`, one per package
+> (27.5% → **29.3%** once fixed). Then: **a result whose type is OBTAINABLE can be
+> read**, and `judge` called every opaque result unreadable — so `os.Open` scored
+> unusable while the acceptance program below opens a file with it. **Usable is
+> 44.5%**, and *cannot read the result* falls 18.7% → **3.1%**. Every per-package
+> figure in §5 of this document is superseded there.
+>
 > **One compiler change**: a buffer nobody writes to takes its element type from
 > the host call it is passed to.
 >
@@ -54,7 +63,7 @@ in `net/textproto` were **one map entry**. Obtaining an `*os.File` made every
 |---|---:|---:|
 | callable surface | 4,932 | 4,932 |
 | declarable | 87.8% | 87.8% |
-| **usable** | **31.7%** | **27.5%** |
+| **usable** | **31.7%** | **27.5%** — and see below, the honest figure is **44.5%** |
 | func usable | 37.0% | 36.4% |
 | **method usable** | **28.5%** | **22.3%** |
 | obtainable host types | 202 | **289** |

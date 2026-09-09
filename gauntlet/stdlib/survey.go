@@ -255,6 +255,294 @@ func matchParen(s string, i int) int {
 	return -1
 }
 
+// ------------------------------------------------------- interfaces, measured
+//
+// AN INTERFACE IS AN EXISTENTIAL TYPE — `∃X. X × (X → …)`, a hidden
+// representation packed with the operations that consume it (Mitchell & Plotkin
+// 1988). Packing one is manufacturing a closure, which callbacks.md tier 3
+// refuses. But `io.Copy(dst, src)` does not ask us to PACK one: it asks us to
+// hand it a value that already is one, and a `*os.File` obtained from `os.Open`
+// already is.
+//
+// So the question splits, and this measures the split rather than arguing it:
+//
+//	an interface RESULT      a token we hold and call methods on — an opaque
+//	                         host type like any other, and nothing new
+//	an interface ARGUMENT,   Go inserts the coercion at the call site; the only
+//	  we hold an impl        thing missing is a DECLARED edge saying so
+//	an interface ARGUMENT,   genuinely tier 3
+//	  we hold nothing
+//
+// A method's identity for this purpose is its NAME and its qualified signature,
+// which is Go's own rule: implementation is structural.
+
+type msig struct {
+	params, results string
+}
+
+// ifaceMethods is the method set of every interface type in the manifest,
+// keyed `pkg.Name`. The manifest gives both halves — a brace line listing the
+// names (already flattened through embedding) and one line per method with its
+// signature — and only the second is needed.
+func ifaceMethods(lines []string) map[string]map[string]msig {
+	out := map[string]map[string]msig{}
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "pkg ") {
+			continue
+		}
+		c := strings.Index(line, ", ")
+		if c < 0 {
+			continue
+		}
+		pkg, rest := line[4:c], line[c+2:]
+		if i := strings.Index(pkg, " "); i >= 0 {
+			continue // a platform-qualified line; a different question
+		}
+		if !strings.HasPrefix(rest, "type ") {
+			continue
+		}
+		rest = rest[5:]
+		sp := strings.Index(rest, " ")
+		if sp < 0 {
+			continue
+		}
+		name, tail := rest[:sp], rest[sp+1:]
+		if !strings.HasPrefix(tail, "interface, ") {
+			continue // the brace line, or not an interface at all
+		}
+		m, ok := parseSig(pkg, tail[len("interface, "):])
+		if !ok {
+			continue
+		}
+		k := qual(pkg, name)
+		if out[k] == nil {
+			out[k] = map[string]msig{}
+		}
+		out[k][m.name] = msig{params: strings.Join(m.params, ","), results: strings.Join(m.results, ",")}
+	}
+	return out
+}
+
+// parseSig reads `Name(params) results` with every type name qualified against
+// the package it was written in, so an interface's `Reader` and a concrete
+// method's `io.Reader` compare equal.
+func parseSig(pkg, s string) (sym, bool) {
+	p := strings.IndexAny(s, "([")
+	if p < 0 || s[p] == '[' {
+		return sym{}, false // generic; the residual is monomorphic
+	}
+	var m sym
+	m.pkg, m.name = pkg, s[:p]
+	rest := s[p:]
+	e := matchParen(rest, 0)
+	if e < 0 {
+		return sym{}, false
+	}
+	for _, t := range splitTop(rest[1 : e-1]) {
+		m.params = append(m.params, qual(pkg, t))
+	}
+	res := strings.TrimSpace(rest[e:])
+	if strings.HasPrefix(res, "(") {
+		res = strings.TrimSuffix(strings.TrimPrefix(res, "("), ")")
+		for _, t := range splitTop(res) {
+			m.results = append(m.results, qual(pkg, t))
+		}
+	} else if res != "" {
+		m.results = append(m.results, qual(pkg, res))
+	}
+	return m, true
+}
+
+// concreteMethods is the method set of every non-interface type, keyed the same
+// way. A pointer receiver and a value receiver are DIFFERENT keys, because Go's
+// method sets differ: `*T` has both, `T` has only the value methods.
+func concreteMethods(syms []sym) map[string]map[string]msig {
+	out := map[string]map[string]msig{}
+	for _, s := range syms {
+		if s.kind != "method" || s.generic {
+			continue
+		}
+		k := qual(s.pkg, s.recv)
+		if out[k] == nil {
+			out[k] = map[string]msig{}
+		}
+		var ps, rs []string
+		for _, t := range s.params {
+			ps = append(ps, qual(s.pkg, t))
+		}
+		for _, t := range s.results {
+			rs = append(rs, qual(s.pkg, t))
+		}
+		out[k][s.name] = msig{params: strings.Join(ps, ","), results: strings.Join(rs, ",")}
+		// A VALUE method belongs to the pointer's set as well. Go's rule, and
+		// leaving it out would refuse `*os.File` for an interface satisfied by
+		// a method declared on `os.File`.
+		if !strings.HasPrefix(s.recv, "*") {
+			pk := qual(s.pkg, "*"+s.recv)
+			if out[pk] == nil {
+				out[pk] = map[string]msig{}
+			}
+			out[pk][s.name] = out[k][s.name]
+		}
+	}
+	return out
+}
+
+// implements is Go's own rule: structural, by name and signature. It is a
+// LOOKUP and not an inference — no variance, no quantifiers, no fixed point —
+// which is why the subtyping type-algebra.md refuses does not arise. Pierce's
+// undecidable F<: is about BOUNDED QUANTIFICATION, and after staging there is
+// nothing quantified left.
+func implements(have map[string]msig, want map[string]msig) bool {
+	if len(want) == 0 {
+		return true // `interface{}` — everything is below the top
+	}
+	for n, w := range want {
+		h, ok := have[n]
+		if !ok || h != w {
+			return false
+		}
+	}
+	return true
+}
+
+// interfaceReport classifies what an interface-typed position actually costs.
+//
+// maxlen-2026-08-28's discipline: before building anything, every blocked name
+// is classified by the fact that would settle it. There it killed octagons.
+func interfaceReport(lines []string, syms []sym, have map[string]bool) {
+	ifaces := ifaceMethods(lines)
+	concrete := concreteMethods(syms)
+
+	// Which interfaces can we SUPPLY? One pass over the obtainable set.
+	supply := map[string][]string{}
+	for t := range have {
+		ms, ok := concrete[t]
+		if !ok {
+			continue
+		}
+		for i, want := range ifaces {
+			if implements(ms, want) {
+				supply[i] = append(supply[i], t)
+			}
+		}
+	}
+
+	isIface := func(t string) (string, bool) {
+		b := strings.TrimPrefix(strings.TrimPrefix(t, "[]"), "*")
+		if _, ok := ifaces[b]; ok {
+			return b, true
+		}
+		return "", false
+	}
+
+	var byIface = map[string]int{}
+	held, unheld, other, resultOnly, resultReadable := 0, 0, 0, 0, 0
+	var examples []string
+	for _, s := range syms {
+		if s.kind != "func" && s.kind != "method" {
+			continue
+		}
+		decl, usable, _ := judge(s, have)
+		if !decl || usable {
+			continue
+		}
+		var blockers []string
+		pos := append([]string{}, s.params...)
+		if s.recv != "" {
+			pos = append(pos, s.recv)
+		}
+		for _, p := range pos {
+			v := classify(p)
+			if v.opaque && !have[qual(s.pkg, p)] {
+				blockers = append(blockers, qual(s.pkg, p))
+			}
+			if _, yes := isIface(qual(s.pkg, p)); yes {
+				blockers = append(blockers, qual(s.pkg, p))
+			}
+		}
+		if len(blockers) == 0 {
+			resultOnly++
+			// AND CAN THE RESULT BE READ AFTER ALL? `judge` calls an opaque
+			// result unreadable whatever it is -- so `os.Open` scores unusable
+			// while gauntlet/stdlib/acceptance/os-methods.oro opens a file with
+			// it, reads through the methods of what it returns and prints 64.
+			// A result whose type is in the OBTAINABLE set has methods, and
+			// having methods is the whole of what reading it means here.
+			readable := true
+			for _, r := range s.results {
+				v := classify(r)
+				if v.opaque && !have[qual(s.pkg, r)] {
+					readable = false
+				}
+			}
+			if readable {
+				resultReadable++
+			}
+			continue
+		}
+		allIface, allHeld := true, true
+		for _, b := range blockers {
+			name, yes := isIface(b)
+			if !yes {
+				allIface = false
+				continue
+			}
+			byIface[name]++
+			if len(supply[name]) == 0 {
+				allHeld = false
+			}
+		}
+		switch {
+		case allIface && allHeld:
+			held++
+			if len(examples) < 8 {
+				examples = append(examples, s.pkg+"."+s.name)
+			}
+		case allIface:
+			unheld++
+		default:
+			other++
+		}
+	}
+
+	fmt.Printf("\nINTERFACES: %d declared in the manifest, %d of them satisfied by a type\n",
+		len(ifaces), len(supply))
+	fmt.Printf("            a program can already obtain\n")
+	fmt.Printf("\nWHAT AN INTERFACE-TYPED ARGUMENT COSTS (declarable and not usable)\n")
+	fmt.Printf("  every blocker is an interface WE HOLD an implementation of   %5d\n", held)
+	fmt.Printf("  every blocker is an interface we hold NOTHING for            %5d\n", unheld)
+	fmt.Printf("  at least one blocker is not an interface                     %5d\n", other)
+	fmt.Printf("  nothing blocks an argument; the RESULT is what is unread     %5d\n", resultOnly)
+	fmt.Printf("    of those, the result type IS obtainable and has methods    %5d\n", resultReadable)
+	if len(examples) > 0 {
+		fmt.Printf("  reachable by a declared coercion, for example: %s\n",
+			strings.Join(examples, ", "))
+	}
+
+	type dm struct {
+		name string
+		n    int
+	}
+	var ds []dm
+	for k, v := range byIface {
+		ds = append(ds, dm{k, v})
+	}
+	sort.Slice(ds, func(i, j int) bool { return ds[i].n > ds[j].n })
+	fmt.Printf("\nTHE INTERFACES MOST ASKED FOR, and what we could hand them\n")
+	for i, d := range ds {
+		if i >= 12 {
+			break
+		}
+		s := "nothing"
+		if len(supply[d.name]) > 0 {
+			sort.Strings(supply[d.name])
+			s = fmt.Sprintf("%d types, e.g. %s", len(supply[d.name]), supply[d.name][0])
+		}
+		fmt.Printf("  %-28s %4d positions   %s\n", d.name, d.n, s)
+	}
+}
+
 // ------------------------------------------------------------------ the symbol
 
 type sym struct {
@@ -358,6 +646,14 @@ const (
 	uError     reason = "result is an error"
 )
 
+// builtin is Go's predeclared type names, which belong to no package.
+var builtin = map[string]bool{
+	"bool": true, "string": true, "error": true, "any": true, "rune": true, "byte": true,
+	"int": true, "int8": true, "int16": true, "int32": true, "int64": true,
+	"uint": true, "uint8": true, "uint16": true, "uint32": true, "uint64": true, "uintptr": true,
+	"float32": true, "float64": true, "complex64": true, "complex128": true,
+}
+
 // qual gives a host type the key the obtainable set is indexed by, and it is a
 // CORRECTION rather than tidiness.
 //
@@ -373,6 +669,13 @@ const (
 // and the same type name still collide, and that residue is named rather than
 // hidden.
 func qual(pkg, t string) string {
+	// A PREDECLARED TYPE BELONGS TO NO PACKAGE. `[]uint8` qualified against `os`
+	// is `[]os.uint8`, which matches nothing — and that mattered the moment this
+	// was used to compare an interface method against a concrete one, where the
+	// two are written in different packages and every builtin would differ.
+	if base := strings.TrimLeft(t, "*[]"); builtin[base] {
+		return t
+	}
 	pre := ""
 	for {
 		switch {
@@ -429,7 +732,16 @@ func judge(s sym, have map[string]bool) (declarable bool, usable bool, why reaso
 		if r == "error" {
 			isErr = true
 		} else {
-			resOpaque = resOpaque || v.opaque
+			// A RESULT WHOSE TYPE IS OBTAINABLE CAN BE READ, and calling it
+			// unreadable was this survey deciding against itself. `os.Open`
+			// returns `*os.File`, which is in the obtainable set BY THIS CALL,
+			// and gauntlet/stdlib/acceptance/os-methods.oro opens a file with it,
+			// reads through that type's methods and prints 64. Having methods is
+			// the whole of what reading an opaque value means here.
+			//
+			// Circular and well-founded: the fixed point decides obtainability
+			// without consulting usability, and this consults the fixed point.
+			resOpaque = resOpaque || (v.opaque && !have[qual(s.pkg, r)])
 		}
 	}
 	// AN `error` BESIDE A USABLE RESULT IS NOT A BLOCKER, since 2026-09-06.
@@ -663,6 +975,13 @@ func main() {
 		}
 	}
 
+	// THE INTERFACE QUESTION, MEASURED RATHER THAN ARGUED. See interfaceReport.
+	var raw []string
+	for l := range seen {
+		raw = append(raw, l)
+	}
+	interfaceReport(raw, syms, have)
+
 	if *emitDir != "" {
 		if err := emit(*emitDir, declarables); err != nil {
 			fmt.Fprintln(os.Stderr, "emit:", err)
@@ -678,9 +997,6 @@ func pct(a, b int) float64 {
 	return 100 * float64(a) / float64(b)
 }
 
-// emit writes the declarable subset as target files, one per Go package. This is
-// the half that turns "expressible in principle" into a thing that either loads
-// or does not.
 // emit writes the declarable subset as target files.
 //
 // IT MUST WRITE WHAT `judge` COUNTS, or the percentage is a claim. This is the

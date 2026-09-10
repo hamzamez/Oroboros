@@ -1,11 +1,11 @@
-# Four programs that check the surveys are not paper
+# Five programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These four check that a
+A survey reports what the target format can DECLARE. These five check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Two are Win32's and two are Go's; the Go ones are below.
+Two are Win32's and three are Go's; the Go ones are below.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -89,6 +89,46 @@ only the survivors. To see that check for yourself:
 mkdir -p /tmp/ck && cp /tmp/gostd/implements_check.go /tmp/ck/
 cd /tmp/ck && go mod init check && go build ./...   # must be silent
 ```
+
+---
+
+## Go: `struct-literal.oro` — a value the host never handed us
+
+A struct is `Pi` over a finite set of LABELS, and on a host that HAS structs there
+is no layout to invent, because the host builds it and we hold a token. So the
+constructor is an ordinary primitive whose template is a composite literal, and
+this checks one that NESTS: `image.Rectangle`'s two fields are `image.Point`.
+
+```bash
+go run gauntlet/stdlib/survey.go -emit /tmp/gostd
+mkdir -p /tmp/goproj/tg/go && cp /tmp/gostd/image.oro /tmp/goproj/tg/go/image-gen.oro
+cp gauntlet/stdlib/acceptance/struct-literal.oro /tmp/goproj/
+go run ./cmd/build -target=go -targets "/tmp/goproj/tg;targets" -o /tmp/sl /tmp/goproj/struct-literal.oro
+/tmp/sl             # must print 8 then 4
+```
+
+It emits
+
+```go
+r := ((image.Rectangle{Max: ((image.Point{X: 10, Y: 5})), Min: ((image.Point{X: 2, Y: 1}))}))
+```
+
+**Max before Min, because fields are sorted by name** — an unsorted map iteration
+would make the emitter stop being a function of its input
+(backend-2026-09-06), and that is why a generated parameter is named for its
+FIELD rather than `a0`, `a1`.
+
+**The form is decided by the method set.** `&T{...}` is a `*T` and `T{...}` is a
+`T`; our checker compares type names and gets no auto-dereference, so the pointer
+form is generated exactly when the manifest gives the type a pointer-receiver
+method. `image.Rectangle` is value methods only and gets the value form;
+`(&http.MaxBytesError{Limit: 5}).Error()` is the other path and prints
+`http: request body too large`.
+
+**And it prints two numbers rather than their product**, because
+`(* (Rect.Dx r) (Rect.Dy r))` is refused: a host call's result has no declared
+range and ADR 0019 is bounded by default. The refusal is correct — Go's `int` is
+the host's word — and the program says only what it can prove.
 
 ---
 

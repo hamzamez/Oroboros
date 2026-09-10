@@ -19,8 +19,17 @@ mostly an argument built by literal.
 > GENERATOR question, exactly as methods, several results and voids all turned
 > out to be.
 >
-> **MEASURED: +486 names, usable 45.4% → 55.2%** of the whole callable surface.
+> **PROJECTED: +486 names, usable 45.4% → 55.2%** of the whole callable surface.
 > Nearly ten points, and the largest lever left by a distance.
+>
+> **BUILT 2026-09-10, AND THAT NUMBER WAS WRONG BY 260 —
+> [structlit-2026-09-10](../gauntlet/results/structlit-2026-09-10.md).** The
+> delivery is **+229, 45.4% → 50.0%**, and the difference is the METHOD rather
+> than the data: §2 below SEEDED the constructibles into the obtainable set,
+> which asserts they are buildable, where a constructor is an ordinary function
+> and belongs INSIDE the fixed point, which asks whether its FIELDS are. **229 of
+> the 462 want a field nothing can build.** Everything else in this document
+> survived, including both risks §5 names.
 >
 > **AND CONSTRUCTIBLE IS NOT USEFUL, so the rule is narrower than the number
 > could have been.** A constructor is generated only for a struct with at least
@@ -57,7 +66,13 @@ fields it sets and **a Go program outside the package can set exactly those**.
 Unexported fields are left at their zero value, which is not a limitation we
 impose: it is what the host permits and what Go programmers write.
 
-## 2. Measured, before anything is generated
+## 2. Projected, before anything is generated
+
+> **SUPERSEDED by structlit-2026-09-10, and kept because the error is the
+> finding.** This section's number is reproducible — run this method on the
+> corrected data and it still says +489 — so the 260-name gap is not the two bugs
+> the build found. It is the seeding, called out in this section's own last
+> paragraph and done anyway.
 
 `gauntlet/stdlib/survey.go` now reports it:
 
@@ -74,6 +89,12 @@ the obtainable set: a constructed `*http.Request` is an argument to functions
 returning things nothing else reaches, so folding it in without re-running would
 have been a lower bound.
 
+**And re-running it with them SEEDED is still the wrong operation** — the
+correction, written here rather than only in the result, because this paragraph
+is where the mistake was made. Seeding puts the answer in; a constructor is a
+function with arguments, and the fixed point exists to decide whether those
+arguments can be built. Half of them cannot.
+
 For comparison, every lever measured this week:
 
 | | names | usable |
@@ -82,7 +103,8 @@ For comparison, every lever measured this week:
 | methods generated | — | — |
 | a readable result | +751 | 29.3% → 44.5% |
 | **the interface coercion** | **+41** | 44.5% → 45.4% |
-| **struct literals** | **+486** | **45.4% → 55.2%** |
+| **struct literals**, projected | +486 | 45.4% → 55.2% |
+| **struct literals**, built | **+229** | **45.4% → 50.0%** |
 
 ¹ later corrected; see gomethods-2026-09-09 §1 and interfaces.md §5.
 
@@ -140,6 +162,15 @@ and every "byte-identical" claim in this repository stops meaning anything —
 backend-2026-09-06's non-deterministic emitter, arriving where it would be
 easiest to miss. Sorted by field name.
 
+> **THIS ONE FIRED, WITH THE SORTING ALREADY WRITTEN.** The manifest lists a
+> deprecated field a second time with an ANNOTATION where the type goes
+> (`CompressedSize //deprecated`), so five packages had a struct with the same
+> field twice — a duplicate key in the emitted literal, and a PARTIAL order for
+> `sort.Slice`, which is not stable. Sorting was necessary and not sufficient;
+> what the risk is really about is a TOTAL order, so fields are deduped by name.
+> Caught by `diff -r` between two emits, which is the whole test a generator that
+> claims to be a function of its input needs.
+
 **A field whose type is a struct we also construct** makes the composite literal
 nest, and nesting is where a layout question could sneak back in. It does not:
 the inner value is another opaque token, built by its own constructor and passed
@@ -157,6 +188,17 @@ as it was for methods — not a percentage.
 **Build it, and expect a correction.** It is the largest measured lever left, it
 needs no language change, no format change and no backend change, and the
 feasibility is checked rather than argued.
+
+> **DONE 2026-09-10, and the correction was this document's own number** —
+> [structlit-2026-09-10](../gauntlet/results/structlit-2026-09-10.md). +229 rather
+> than +486, **45.4% → 50.0%**, no compiler change, and one thing §5 did not
+> foresee: **the FORM of the literal is decided by the method set**. `&T{…}` is a
+> `*T` and `T{…}` is a `T`, and our checker compares type names and gets no
+> auto-dereference — so the pointer form is generated exactly when the manifest
+> gives the type a pointer-receiver method, which is worth 78 names and is what
+> makes `image.Rectangle` usable at all. 52 types have both and lose their value
+> methods; the fix is a receiver-position auto-dereference in the checker, which
+> is the first thing here that is a compiler question.
 
 Then the residue is what it has been all along: **interfaces we can supply
 nothing for** (87 names, tier 3), **types no declarable function returns and no

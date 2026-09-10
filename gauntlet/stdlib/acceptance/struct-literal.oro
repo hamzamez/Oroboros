@@ -1,0 +1,58 @@
+; ACCEPTANCE: a program BUILDS a host value it was never handed.
+;
+; struct-literals.md measured this before anything was generated and named the
+; acceptance test as *a program, not a percentage* — because `usable` counts
+; whether the arguments can be built and not whether the call does anything.
+;
+; A struct is `Π` over a finite set of LABELS, and products.md §7's deferral does
+; not apply: that defers a product WE represent, for want of a flat layout, and
+; here the value lives on the host, is built by the host and is handed straight
+; back to it. What we hold is an opaque token — `HANDLE`'s shape a fourth time.
+;
+;   mk_T : Π_{f ∈ writable(T)} T_f  →  T          ⟦mk_T⟧ = T{f: …}
+;
+; TWO THINGS THIS CHECKS THAT ONE CONSTRUCTOR WOULD NOT.
+;
+; THE LITERAL NESTS. `image.Rectangle`'s two fields are themselves `image.Point`,
+; so the emitted Go is a composite literal whose operands are composite literals
+; — struct-literals.md §5's second named risk, and it does NOT reopen the layout
+; question, because the inner value is another opaque token built by its own
+; constructor.
+;
+; AND THE FORM IS DECIDED BY THE METHOD SET. `&T{…}` is a `*T` and `T{…}` is a
+; `T`; in Go the pointer's method set holds both kinds and the value's holds only
+; the value methods, but our checker compares TYPE NAMES and gets no
+; auto-dereference — so whichever form is generated is the only method set the
+; program can reach. `image.Point` and `image.Rectangle` have value methods only,
+; so they are generated as VALUES and `Dx`/`Dy` are reachable.
+;
+; FIELDS ARE SORTED BY NAME, or the emitter would stop being a function of its
+; input (backend-2026-09-06). So `Rectangle` takes MAX then MIN, and `Point`
+; takes X then Y — which is what the generated declaration says and why the
+; parameters are named for their fields rather than `a0`, `a1`.
+;
+;   Max (10,5), Min (2,1)  ->  Dx 8, Dy 4
+;
+; AND IT PRINTS THE TWO RATHER THAN THEIR PRODUCT, which is not squeamishness:
+; `(* (Rect.Dx r) (Rect.Dy r))` is REFUSED, because a host call's result has no
+; declared range and ADR 0019 is bounded by default. That is the standing gap
+; win32-2026-09-06 and gostdlib-2026-09-06 both name — the format CAN say
+; `(prim Dx (…) (int 0 65535) …)` since multiresult-2026-09-06 and the generator
+; writes Go's `int` as `int`, because a Go `int` really is unbounded. So the
+; refusal is correct and the program says what it can prove.
+;
+; Nothing in Go's `image` package returns an `image.Rectangle` from arguments we
+; can write — `image.Rect` is a func and IS declarable, so the honest claim here
+; is not that the type was unreachable but that the LITERAL reaches it directly,
+; which is what 199 other types have no alternative for.
+
+(use go/image as img)
+(use go/image/Rectangle as Rect)
+(use io)
+
+(export main)
+
+(def main (fn ()
+  (let (img.Rectangle (img.Point 10 5) (img.Point 2 1)) (fn (r)
+    (seq (io.print-int (Rect.Dx r))
+         (io.print-int (Rect.Dy r)))))))

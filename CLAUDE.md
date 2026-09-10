@@ -2128,9 +2128,10 @@ question, exactly as methods, several results and voids were.
 **A struct is `Π` over a finite set of LABELS, and products.md §7's deferral does not apply**: that
 defers a product WE represent, for want of a flat layout, and here the value lives on the host, is
 built by the host and is passed back to it. We hold an opaque token — `HANDLE`'s shape, a fourth
-time. **MEASURED: +486 names, usable 45.4% → 55.2%** of the callable surface, with the fixed point
-re-run with the constructibles SEEDED rather than merely added, since a constructed `*http.Request`
-reaches functions nothing else does.
+time. **PROJECTED: +486 names, usable 45.4% → 55.2%** — **built the next day it is +229 and
+50.0%**, because seeding a fixed point is not running it; see the entry above. The projection
+re-ran the fixed point with the constructibles SEEDED rather than merely added, since a constructed
+`*http.Request` reaches functions nothing else does.
 
 **AND CONSTRUCTIBLE IS NOT USEFUL, so the rule is narrower than the number could have been.** A
 constructor is generated only for a struct with at least one spellable exported field: `&bytes.
@@ -2145,6 +2146,79 @@ of its input (backend-2026-09-06, where it would be easiest to miss); a struct-t
 literal and does NOT reopen the layout question, because the inner value is another token; and the
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
+
+**STRUCT LITERALS ARE BUILT, AND THE PROJECTION WAS ITS OWN LAST CORRECTION** —
+[structlit-2026-09-10](gauntlet/results/structlit-2026-09-10.md),
+`gauntlet/stdlib/acceptance/struct-literal.oro`. struct-literals.md's
+recommendation was *"build it, and expect a correction"*, and the correction is
+its own headline number. **A program BUILDS a host value nothing handed it**:
+`image.Rectangle{Max: image.Point{X:10,Y:5}, Min: image.Point{X:2,Y:1}}` — a
+composite literal whose operands are composite literals — every declaration
+GENERATED, built and run, printing **8** and **4**, with the generator going
+**4,311 -> 4,773 primitives** (+462 constructors). **No compiler change, no format
+change, no backend change**: nothing under `core/`, `emit/`, `targets/` or `lib/`
+is touched, so no emitted file can move, and the differential suite is green on 30
+cases and four targets.
+
+**AND +486 WAS +229 — 45.4% -> 50.0%, not 55.2%.** The gap is **the METHOD and not
+the data**: run the projection's own method on today's corrected manifest and it
+reports **+489**, reproducing itself. **SEEDING A FIXED POINT IS NOT RUNNING IT** —
+the projection put the constructibles into the ANSWER, which asserts they are
+buildable, where a constructor is an ordinary function and belongs in the INPUT,
+where the fixed point asks whether its FIELDS can be built. **229 of the 462 want
+a field nothing can build**: declarable, and not callable. *The tool caught itself
+the only way it could, by being made to GENERATE the thing it had measured* —
+sixth correction to a number this survey published, and the first the survey found
+rather than the next question finding it. Two real bugs did surface (a field type
+carrying the manifest's issue number, `OmitHost bool #46059`, was unspellable; 50
+more struct types registered once `type T struct #12345` parsed) and together they
+are worth **three names**.
+
+**AND THE FORM OF THE LITERAL IS DECIDED BY THE METHOD SET, which the research had
+not seen** — worth **+78**. `&T{…}` is a `*T` whose method set holds both kinds and
+`T{…}` is a `T` whose set holds only the value methods; **our checker compares type
+names and gets no auto-dereference**, so whichever form is generated is the only
+method set the program can reach. Pointer iff the manifest gives the type a
+pointer-receiver method: `image.Rectangle` and the `color` types become usable,
+`http.MaxBytesError` and `os.PathError` get the pointer. **52 types have BOTH and
+lose their value methods**, counted rather than hidden — the fix is a
+receiver-position auto-dereference in the checker, and a blanket `*T ≤ T` edge
+would be UNSOUND, since an ordinary `T` parameter does not accept a `*T` in Go
+either. That is the first thing in this line of work that is a compiler question.
+
+**AND THE NAMED RISK FIRED, WITH THE SORTING ALREADY WRITTEN.** Two independent
+emits of the generator **differed in five files**, because
+**`CompressedSize //deprecated` is not a field of type `//deprecated`** — the
+manifest records HISTORY and a later file marks an existing field deprecated by
+re-listing it with an ANNOTATION where the type goes. Read as a type it gave
+`archive/zip.FileHeader` **two `CompressedSize` fields**, which is two defects at
+once: the emitted composite literal has a **duplicate key**, which Go refuses, so
+those five packages could never have compiled; and a repeated name makes
+**sort-by-name a PARTIAL order**, so `sort.Slice`, which is not stable, flipped a
+coin per run. Fixed in both places — an annotation is not a type, and fields are
+**deduped by name, last wins**, which is `parseLine`'s own rule for the same
+reason. **Sorting was necessary and not sufficient: what the risk was really about
+is a TOTAL order.** And the check is worth more than the bug: **a generator that
+is a function of its input can be tested by running it twice** — `diff -r` between
+two emits, where backend-2026-09-06 needed six runs of `cmd/gen` and a noticing
+eye. Neither defect moves the headline; the constructor-usable count goes 229 →
+**233**.
+
+**What it buys: 199 host types are buildable that no declarable function
+returns** — `os.PathError`, `image.Point`, `color.RGBA`, `elf.Header64`,
+`dsa.PrivateKey` — and every method on each of them was unreachable the day
+before. **238 struct types still get NOTHING, deliberately**: `&bytes.Buffer{}` is
+the documented idiom and `&os.File{}` is a broken file, the manifest cannot tell
+them apart because the difference is a doc comment, and **a generator does not make
+a claim it cannot justify**. Three things the acceptance program is shaped to
+check, all named as risks first: **the literal NESTS** (and does not reopen
+products.md §7's layout question, because the inner value is another token),
+**fields are SORTED by name** (or the emitter stops being a function of its input,
+which is why a parameter is named for its field rather than `a0`), and **the
+literal is PARENTHESISED** (`&T{…}.M()` parses as `&(T{…}.M())`). And it prints two
+numbers rather than their product, because `(* (Rect.Dx r) (Rect.Dy r))` is
+**refused** — a host call's result has no declared range and ADR 0019 is bounded by
+default, which is correct here rather than a limitation.
 
 **THE COERCION IS BUILT, AND THE HOST IS THE ORACLE** —
 [coercion-2026-09-09](gauntlet/results/coercion-2026-09-09.md),

@@ -449,8 +449,10 @@ var verifiedSat = map[string][]string{}
 // mode four of this tool's five corrections have had.
 
 type structDef struct {
-	fields []sym // name + one result type, as the manifest writes a field
-	known  bool
+	fields   []sym // name + one result type, as the manifest writes a field
+	known    bool
+	pkg, tag string // the full import path and the type's own name
+	amb      bool   // two packages share a base name and both define this type
 }
 
 // structTypes reads `pkg P, type T struct` and its field lines. A type with no
@@ -470,6 +472,14 @@ func structTypes(lines []string) map[string]*structDef {
 		if strings.Contains(pkg, " ") || !strings.HasPrefix(rest, "type ") {
 			continue
 		}
+		// THE ISSUE NUMBER IS NOT PART OF THE TYPE. `parseLine` strips ` #` and
+		// this did not, so `OmitHost bool #46059` was a field of type
+		// "bool #46059" -- unspellable, which demoted `net/url.URL` from
+		// every-field-spellable to partial. Found by generating the file the
+		// measurement was a projection of.
+		if h := strings.Index(rest, " #"); h >= 0 {
+			rest = rest[:h]
+		}
 		rest = rest[5:]
 		sp := strings.Index(rest, " ")
 		if sp < 0 {
@@ -483,9 +493,10 @@ func structTypes(lines []string) map[string]*structDef {
 		switch {
 		case tail == "struct":
 			if out[k] == nil {
-				out[k] = &structDef{}
+				out[k] = &structDef{pkg: pkg, tag: name}
 			}
 			out[k].known = true
+			out[k].amb = out[k].amb || out[k].pkg != pkg
 		case strings.HasPrefix(tail, "struct, "):
 			f := tail[len("struct, "):]
 			i := strings.Index(f, " ")
@@ -493,76 +504,239 @@ func structTypes(lines []string) map[string]*structDef {
 				continue
 			}
 			fn, ft := f[:i], f[i+1:]
+			// `CompressedSize //deprecated` IS NOT A FIELD OF TYPE
+			// `//deprecated`. The manifest records HISTORY, and a later file
+			// marks an existing field deprecated by re-listing it with an
+			// ANNOTATION where the type goes. Reading that as a type gave
+			// `archive/zip.FileHeader` two `CompressedSize` fields -- a
+			// composite literal with a duplicate key, which Go refuses -- and,
+			// because a repeated name makes sort-by-name a PARTIAL order, two
+			// runs of the generator produced two different files. Found by
+			// diffing two emits, which is the check backend-2026-09-06 exists
+			// to make routine.
+			if strings.HasPrefix(ft, "//") {
+				continue
+			}
 			if fn == "" || fn[0] < 'A' || fn[0] > 'Z' {
-				continue // unexported: not writable in a composite literal
+				// unexported: not writable in a composite literal. An EMBEDDED
+				// field is written `embedded T` and lands here too -- its key
+				// in a literal is the type name, and leaving it zero is the
+				// conservative reading rather than a limitation.
+				continue
 			}
 			if out[k] == nil {
-				out[k] = &structDef{}
+				out[k] = &structDef{pkg: pkg, tag: name}
 			}
 			out[k].known = true
+			out[k].amb = out[k].amb || out[k].pkg != pkg
 			out[k].fields = append(out[k].fields, sym{pkg: pkg, name: fn, results: []string{ft}})
 		}
 	}
 	return out
 }
 
-// structReport measures what a generated struct literal would buy, before one
-// is written. maxlen-2026-08-28's discipline for the third time this week.
-func structReport(lines []string, syms []sym, have map[string]bool) {
-	defs := structTypes(lines)
+// structCtors turns the manifest's struct definitions into CONSTRUCTORS, as
+// ORDINARY SYMS, so the fixed point, the report and the emitter all see one
+// shape and cannot disagree about which types a program can build. That is the
+// lesson of the subsumption relation two commits ago: the number and the
+// emitted declaration must rest on the same facts.
+//
+//	mk_T : Π_{f ∈ writable(T)} T_f  →  *T          ⟦mk_T⟧ = &T{f: …}
+//
+// A CONSTRUCTOR IS GENERATED ONLY FOR A STRUCT WITH AT LEAST ONE SPELLABLE
+// EXPORTED FIELD, and that restriction is the `pure` rule again: a generator
+// does not make a claim it cannot justify. `&bytes.Buffer{}` is the documented
+// idiom and `&os.File{}` is a broken file, and the manifest -- the exported API
+// -- cannot tell them apart, because the difference is a sentence in a doc
+// comment. A zero literal is therefore a HAND declaration, where somebody can
+// be answerable for it. That costs 220 struct types and is the difference
+// between +1,012 names and +486.
+//
+// A FIELD WE CANNOT SPELL IS LEFT ZERO, which is not a limitation we impose: a
+// composite literal names the fields it sets and a Go program outside the
+// package writes exactly the same thing.
+//
+// FIELDS ARE SORTED BY NAME. A Go map has no order and the emitter must be a
+// FUNCTION OF ITS INPUT — backend-2026-09-06, where six identical runs of
+// `cmd/gen` produced two different programs, and this is where that would have
+// been easiest to miss.
+//
+// THE CONSTRUCTOR TAKES THE TYPE'S OWN NAME, and it cannot collide with a
+// function's: a type and a func are both package-scope identifiers in Go, so
+// `url.URL` names exactly one thing and the module `go/net-url` gains `URL`
+// with nothing displaced.
+// ctorBoth counts the types whose value methods a pointer constructor puts out
+// of reach — the honest residue of the rule below.
+var ctorBoth int
 
-	// A CONSTRUCTOR IS GENERATED ONLY FOR A STRUCT WITH AT LEAST ONE SPELLABLE
-	// EXPORTED FIELD, and that restriction is the `pure` rule again: a generator
-	// does not make a claim it cannot justify.
+func structCtors(lines []string, syms []sym) []sym {
+	// THE FORM IS DECIDED BY THE TYPE'S OWN METHOD SET, and this is the one
+	// place the two languages disagree about a composite literal.
 	//
-	// `&bytes.Buffer{}` is the documented idiom and `&os.File{}` is a broken
-	// file, and the manifest cannot tell them apart -- a zero value's usefulness
-	// is a per-type judgment and belongs in a hand-written target file. What a
-	// generator CAN justify is a literal the program fills in: if you are setting
-	// `Timeout`, you meant to build a `Client`.
-	ctor := map[string]bool{}
-	full, partial, zeroOnly := 0, 0, 0
-	for k, d := range defs {
+	// In Go, `&T{…}` is a `*T` whose method set holds BOTH the value and the
+	// pointer methods, and `T{…}` is a `T` whose method set holds only the
+	// value ones — so `&T{…}` is strictly the more capable value there. Our
+	// checker compares TYPE NAMES, so it gets no auto-dereference: whichever
+	// form is generated is the only method set the program can reach.
+	//
+	// So generate `&T{…}` exactly when the manifest gives T a pointer-receiver
+	// method, and `T{…}` otherwise. `image.Rectangle` and `color.RGBA` are all
+	// value methods and become usable; `http.Client` and `os.PathError` need
+	// the pointer. A type with BOTH loses its value methods, which is counted
+	// rather than hidden: the general fix is an auto-dereference rule in the
+	// checker for a receiver position, which is a compiler question and not a
+	// generator one.
+	ptrRecv, valRecv := map[string]bool{}, map[string]bool{}
+	for _, s := range syms {
+		if s.kind != "method" {
+			continue
+		}
+		if strings.HasPrefix(s.recv, "*") {
+			ptrRecv[s.pkg+"."+s.recv[1:]] = true
+		} else {
+			valRecv[s.pkg+"."+s.recv] = true
+		}
+	}
+	defs := structTypes(lines)
+	var keys []string
+	for k := range defs {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var out []sym
+	for _, k := range keys {
+		d := defs[k]
+		if !d.known || d.amb {
+			// `math/rand` and `crypto/rand` share a base name, which is what
+			// the manifest itself writes; guessing which one a field belongs
+			// to would be the tool inventing a fact. Skipped and counted.
+			continue
+		}
+		// DEDUPED BY NAME, LAST WINS -- the rule `parseLine` already uses, for
+		// the same reason: the manifest records history, so one field can be
+		// listed twice. Deduping is what makes sort-by-name a TOTAL order, and
+		// a total order is what makes the generator a function of its input.
+		seen := map[string]int{}
+		var fs []sym
+		for _, f := range d.fields {
+			if at, dup := seen[f.name]; dup {
+				fs[at] = f
+				continue
+			}
+			seen[f.name] = len(fs)
+			fs = append(fs, f)
+		}
+		sort.Slice(fs, func(i, j int) bool { return fs[i].name < fs[j].name })
+		res := d.tag
+		if ptrRecv[d.pkg+"."+d.tag] {
+			res = "*" + d.tag
+			if valRecv[d.pkg+"."+d.tag] {
+				ctorBoth++
+			}
+		}
+		c := sym{pkg: d.pkg, kind: "func", name: d.tag, results: []string{res}}
+		for _, f := range fs {
+			if classify(f.results[0]).why != ok {
+				continue
+			}
+			c.fields = append(c.fields, f.name)
+			c.params = append(c.params, f.results[0])
+		}
+		if len(c.fields) == 0 {
+			continue
+		}
+		out = append(out, c)
+	}
+	return out
+}
+
+// structReport says what the constructors bought, measured the way everything
+// else here is: against the same survey with them removed.
+//
+// It used to be a PROJECTION -- struct-literals.md's +486 -- and generating the
+// files is what turns it into a measurement. Two things moved on contact, both
+// recorded in that document's own §5 as risks: a field type carrying the
+// manifest's issue number was unspellable, and a struct constructor whose
+// argument nothing can build is declarable and NOT usable, which seeding the
+// fixed point blindly would have counted anyway.
+func structReport(lines []string, syms, ctors []sym, have map[string]bool) {
+	defs := structTypes(lines)
+	zeroOnly, ambiguous, full, partial := 0, 0, 0, 0
+	byName := map[string]*sym{}
+	for i := range ctors {
+		byName[ctors[i].pkg+"."+ctors[i].name] = &ctors[i]
+	}
+	for _, d := range defs {
 		if !d.known {
 			continue
 		}
-		spellable, any := true, false
-		for _, f := range d.fields {
-			if v := classify(f.results[0]); v.why != ok {
-				spellable = false
-			} else {
-				any = true
-			}
-		}
-		if !any {
+		switch {
+		case d.amb:
+			ambiguous++
+		case byName[d.pkg+"."+d.tag] == nil:
 			zeroOnly++
-			continue
-		}
-		ctor[k], ctor["*"+k] = true, true
-		if spellable {
-			full++
-		} else {
-			partial++
+		default:
+			spellable := true
+			for _, f := range d.fields {
+				if classify(f.results[0]).why != ok {
+					spellable = false
+				}
+			}
+			if spellable {
+				full++
+			} else {
+				partial++
+			}
 		}
 	}
 
-	// THE FIXED POINT IS RE-RUN WITH THE CONSTRUCTIBLES SEEDED, because a
-	// constructed `*http.Request` is an argument to functions returning things
-	// we could not otherwise obtain. Adding them to `have` without re-running
-	// would be a lower bound.
-	grew := obtainableFrom(syms, ctor)
-	before, after := 0, 0
+	// WITHOUT THE CONSTRUCTORS, on the same survey. A constructed
+	// `*http.Request` is an argument to functions returning things nothing else
+	// reaches, so the fixed point has to be re-run rather than topped up.
+	bare := obtainable(syms)
+	grown := supplied
+	supplied = suppliedBy(bare)
+	before := 0
 	for _, s := range syms {
 		if s.kind != "func" && s.kind != "method" {
 			continue
 		}
-		if d, u, _ := judge(s, have); d && u {
+		if d, u, _ := judge(s, bare); d && u {
 			before++
 		}
-		if d, u, _ := judge(s, grew); d && u {
+	}
+	supplied = grown
+	after, ctorUsable := 0, 0
+	var unlocked []string
+	for _, s := range syms {
+		if s.kind != "func" && s.kind != "method" {
+			continue
+		}
+		_, was, _ := judge(s, bare)
+		d, u, _ := judge(s, have)
+		if d && u {
 			after++
+			if !was && len(unlocked) < 6 {
+				n := s.pkg + "." + s.name
+				if s.recv != "" {
+					n = s.pkg + "." + strings.TrimPrefix(s.recv, "*") + "." + s.name
+				}
+				unlocked = append(unlocked, n)
+			}
 		}
 	}
+	built := 0
+	for t := range have {
+		if !bare[t] {
+			built++
+		}
+	}
+	for _, c := range ctors {
+		if d, u, _ := judge(c, have); d && u {
+			ctorUsable++
+		}
+	}
+
 	fmt.Printf("\nSTRUCT LITERALS: %d struct types; %d get a generated constructor\n",
 		len(defs), full+partial)
 	fmt.Printf("  %d have every exported field spellable; %d have one we cannot spell,\n",
@@ -571,11 +745,19 @@ func structReport(lines []string, syms []sym, have map[string]bool) {
 	fmt.Printf("  %d have no exported field and get NOTHING: a zero literal is useful for\n", zeroOnly)
 	fmt.Printf("  `bytes.Buffer` and broken for `os.File`, and the manifest cannot tell\n")
 	fmt.Printf("  them apart, so that one is a hand declaration -- the `pure` rule again.\n")
-	fmt.Printf("  USABLE WOULD GO %d -> %d (+%d), %.1f%% -> %.1f%% of the callable surface.\n",
+	fmt.Printf("  %d are skipped: two packages share a base name and both define the type.\n", ambiguous)
+	fmt.Printf("  %d of the %d constructors are themselves USABLE -- the rest want a field\n",
+		ctorUsable, len(ctors))
+	fmt.Printf("  whose type nothing can build, which is declarable and not callable.\n")
+	fmt.Printf("  USABLE GOES %d -> %d (+%d), %.1f%% -> %.1f%% of the callable surface.\n",
 		before, after, after-before, pct(before, 4932), pct(after, 4932))
-	fmt.Printf("  Counted apart from `obtainable`, which only ever means a constructor\n")
-	fmt.Printf("  RETURNED it: constructible is not useful, and merging the two would\n")
-	fmt.Printf("  report a capability this language does not have.\n")
+	fmt.Printf("  %d types have BOTH a value and a pointer method and get the pointer form,\n", ctorBoth)
+	fmt.Printf("  so their value methods are out of reach: the checker compares type names\n")
+	fmt.Printf("  and gets no auto-dereference, which is a compiler question, not this one.\n")
+	fmt.Printf("  %d host types are buildable that nothing RETURNS, and they are what the\n", built)
+	fmt.Printf("  names above hang off, for example: %s\n", strings.Join(unlocked, ", "))
+	fmt.Printf("  Counted apart from the constructors themselves, which are not part of\n")
+	fmt.Printf("  the host's callable surface: they are ours, and the surface is Go's.\n")
 }
 
 // interfaceReport classifies what an interface-typed position actually costs.
@@ -722,6 +904,11 @@ type sym struct {
 	params, results []string
 	recv            string
 	generic         bool
+	// fields is non-empty only for a STRUCT CONSTRUCTOR (structCtors): the
+	// label each parameter fills in, parallel to `params`. It is what makes
+	// the template a composite literal rather than a call, and it is the only
+	// thing that distinguishes the two shapes downstream.
+	fields []string
 }
 
 func parseLine(line string) (sym, bool) {
@@ -834,6 +1021,23 @@ var builtin = map[string]bool{
 // that tells our checker so. Empty until `interfaceReport` fills it, so a run
 // that does not compute the relation scores exactly as before.
 var supplied = map[string]bool{}
+
+// suppliedBy reads that relation off a given obtainable set. It is a function
+// rather than a loop in `main` because the struct report has to ask the same
+// question of the survey WITHOUT the constructors, and an interface supplied by
+// a type only a constructor reaches would otherwise leak into the before.
+func suppliedBy(have map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for t, ifs := range verifiedSat {
+		if !have[t] {
+			continue
+		}
+		for _, i := range ifs {
+			out[i] = true
+		}
+	}
+	return out
+}
 
 // qual gives a host type the key the obtainable set is indexed by, and it is a
 // CORRECTION rather than tidiness.
@@ -1095,18 +1299,17 @@ func main() {
 		fmt.Printf("SUBSUMPTION: %d candidate edges, %d accepted by the host "+
 			"in %d refining pass(es)\n", nCand, nKept, passes)
 	}
-	have := obtainable(syms)
+	// A STRUCT LITERAL IS A CONSTRUCTOR, so the constructors go into the fixed
+	// point rather than being seeded into its answer. Seeding would claim every
+	// struct with a spellable field is buildable; running the fixed point over
+	// them asks whether the FIELDS can be built, which is the same question the
+	// fixed point already answers for `os.Open`'s arguments.
+	ctors := structCtors(raw, syms)
+	have := obtainableFrom(append(append([]sym{}, syms...), ctors...), nil)
 	// AN INTERFACE WE CAN SUPPLY IS NOT A BLOCKER. Only an OBTAINABLE concrete
 	// type counts: holding nothing that implements `io.Reader` leaves an
 	// `io.Reader` argument exactly as unreachable as it was.
-	for t, ifs := range verifiedSat {
-		if !have[t] {
-			continue
-		}
-		for _, i := range ifs {
-			supplied[i] = true
-		}
-	}
+	supplied = suppliedBy(have)
 	type tally struct{ decl, usable, total int }
 	byKind := map[string]*tally{"func": {}, "method": {}}
 	byReason := map[reason]int{}
@@ -1206,10 +1409,10 @@ func main() {
 
 	// THE INTERFACE QUESTION, MEASURED RATHER THAN ARGUED. See interfaceReport.
 	interfaceReport(raw, syms, have)
-	structReport(raw, syms, have)
+	structReport(raw, syms, ctors, have)
 
 	if *emitDir != "" {
-		if err := emit(*emitDir, declarables, raw); err != nil {
+		if err := emit(*emitDir, append(declarables, ctors...), raw); err != nil {
 			fmt.Fprintln(os.Stderr, "emit:", err)
 			os.Exit(1)
 		}
@@ -1494,7 +1697,15 @@ func emit(dir string, syms []sym, raw []string) error {
 				tmplRecv = "%s."
 			}
 			for k, a := range s.params {
-				args = append(args, fmt.Sprintf("(a%d %s)", k, spellQ(a)))
+				// A CONSTRUCTOR'S PARAMETER IS NAMED FOR ITS FIELD, because
+				// that is the only thing at a call site that says which slot a
+				// value fills: `(u.URL "https" "example.com" …)` has eleven of
+				// them and the declaration is where a reader finds out which.
+				nm := fmt.Sprintf("a%d", k)
+				if len(s.fields) > 0 {
+					nm = strings.ToLower(s.fields[k][:1]) + s.fields[k][1:]
+				}
+				args = append(args, fmt.Sprintf("(%s %s)", nm, spellQ(a)))
 				holes = append(holes, "%s")
 			}
 			argList := "(none)"
@@ -1510,6 +1721,22 @@ func emit(dir string, syms []sym, raw []string) error {
 			call := tmplRecv + s.name + "(" + strings.Join(callArgs, ", ") + ")"
 			if s.recv == "" {
 				call = base + "." + call
+			}
+			// A STRUCT CONSTRUCTOR IS A COMPOSITE LITERAL, and that is the only
+			// place the template is not a call. PARENTHESISED, because a
+			// literal is a value here: `&T{…}.M()` parses as `&(T{…}.M())`,
+			// which is not addressable, and a bare literal in a `for` header or
+			// an `if` condition is ambiguous in Go's own grammar.
+			if len(s.fields) > 0 {
+				var kv []string
+				for k, f := range s.fields {
+					kv = append(kv, f+": "+holes[k])
+				}
+				amp := ""
+				if strings.HasPrefix(s.results[0], "*") {
+					amp = "&"
+				}
+				call = "(" + amp + base + "." + s.name + "{" + strings.Join(kv, ", ") + "})"
 			}
 			kind, res := "expr", ""
 			switch len(s.results) {

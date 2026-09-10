@@ -180,6 +180,62 @@ func TestJavaScriptEmitsTheTotalisationAndItsImport(t *testing.T) {
 	}
 }
 
+// AND AN IMPORT IS RECORDED WHEREVER A PRIM IS RESOLVED, not only on the
+// several-results path.
+//
+// The test above passes with the bug present, because `os.ReadFile` is fallible
+// and therefore multi-result, and `emitMultiPrim` collected the import while the
+// ORDINARY prim path did not. Every prim that had ever carried an `(import …)`
+// on this host was multi-result, so the hole was invisible until a generated
+// declaration of the whole Node runtime called `path.join()` — which emitted a
+// ReferenceError with no diagnostic from us.
+//
+// *A path nothing runs is a path nothing checks*, and the fix is one line at the
+// site where the prim is looked up. This case is deliberately the SIMPLEST
+// shape: one result, one import, no continuation.
+func TestASingleResultPrimKeepsItsImport(t *testing.T) {
+	for k := range JSImports {
+		delete(JSImports, k)
+	}
+	tg, err := LoadTargetLayers("js", []string{"../targets"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The declaration a generated file writes, added directly rather than
+	// through a temporary layer: what is under test is the EMITTER, and going
+	// through the loader would test the loader too.
+	tg.Prims["js/pathgen.join"] = Prim{
+		Name: "js/pathgen.join", Result: "any", Kind: "expr",
+		Form: "path.join()", Import: "node:path",
+	}
+	src, err := core.Read(`
+(use js/pathgen as p)
+(export main)
+(def main (fn () (p.join)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs["main"], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := JSFunc(tg, "main", prog.Sigs["main"], nf); err != nil {
+		t.Fatal(err)
+	}
+	if !JSImports["node:path"] {
+		t.Error("a single-result prim dropped its (import \"node:path\"): " +
+			"the emitted call names a binding nothing creates")
+	}
+}
+
 // THE SAME CALL ON THE HOST WHERE FAILURE IS IN THE TYPES, plus the price the
 // JVM charges for a byte.
 //

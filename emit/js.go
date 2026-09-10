@@ -439,6 +439,20 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
 		p, ok := e.tgt.Prims[op.Name]
+		// AN IMPORT IS RECORDED WHEREVER A PRIM IS RESOLVED, not only on the
+		// several-results path. `emitMultiPrim` collected it and this did not,
+		// so `(prim join (none) any expr "path.join()" (import "node:path"))`
+		// emitted a call to a name nothing binds — a ReferenceError at run time
+		// with no diagnostic from us.
+		//
+		// Latent since the JS import mechanism landed, because every prim that
+		// had ever carried an import was fallible and therefore multi-result:
+		// `fs.readFileSync` is a `try`/`catch` template, and `lib/io/js.oro`
+		// reaches `process`, which is a global. *A path nothing runs is a path
+		// nothing checks*, and what ran it was generating the whole runtime.
+		if ok && p.Import != "" {
+			JSImports[p.Import] = true
+		}
 		if !ok {
 			if IsTableOperand(jsMangle(op.Name), e.bound) && len(t.Args()) == 1 {
 				a, err := e.emit(op)

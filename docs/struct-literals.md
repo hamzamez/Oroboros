@@ -24,7 +24,10 @@ mostly an argument built by literal.
 >
 > **BUILT 2026-09-10, AND THAT NUMBER WAS WRONG BY 260 —
 > [structlit-2026-09-10](../gauntlet/results/structlit-2026-09-10.md).** The
-> delivery is **+229, 45.4% → 50.0%**, and the difference is the METHOD rather
+> delivery is **+229, 45.4% → 50.0%** — and BOTH figures moved again the next
+> day, to **+268 and 60.4%**, when the JVM survey showed this one had been
+> under-counting the obtainable set (surveys-2026-09-10). The difference from
+> the projection is the METHOD rather
 > than the data: §2 below SEEDED the constructibles into the obtainable set,
 > which asserts they are buildable, where a constructor is an ordinary function
 > and belongs INSIDE the fixed point, which asks whether its FIELDS are. **229 of

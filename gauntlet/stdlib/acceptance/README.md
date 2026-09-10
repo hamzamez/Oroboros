@@ -1,11 +1,12 @@
-# Five programs that check the surveys are not paper
+# Seven programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These five check that a
+A survey reports what the target format can DECLARE. These seven check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Two are Win32's and three are Go's; the Go ones are below.
+Two are Win32's, three are Go's, one is the JVM's and one is JavaScript's — one
+per target plus the three Go questions that needed separate programs.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -129,6 +130,71 @@ method. `image.Rectangle` is value methods only and gets the value form;
 `(* (Rect.Dx r) (Rect.Dy r))` is refused: a host call's result has no declared
 range and ADR 0019 is bounded by default. The refusal is correct — Go's `int` is
 the host's word — and the program says only what it can prove.
+
+---
+
+## The JVM: `jvm-object.oro`
+
+`gauntlet/stdlib/jvm.go` reports what the JDK can declare, from a manifest the
+runtime writes about itself. This checks that the declarations build and run.
+
+```bash
+java gauntlet/stdlib/jdk/Dump.java > /tmp/jdk-api.txt
+go run gauntlet/stdlib/jvm.go -api /tmp/jdk-api.txt -emit /tmp/jdkgen
+mkdir -p /tmp/jproj/tg/java
+cp /tmp/jdkgen/java-util.oro /tmp/jproj/tg/java/java-util-gen.oro
+cp /tmp/jdkgen/java-lang.oro /tmp/jproj/tg/java/java-lang-gen.oro
+cp gauntlet/stdlib/acceptance/jvm-object.oro /tmp/jproj/
+go run ./cmd/build -target=java -targets "/tmp/jproj/tg;targets" -o /tmp/jvmobj /tmp/jproj/jvm-object.oro
+java -cp /tmp/jvmobj Main      # must print `a, b, c` then 30
+```
+
+**30 is what `new java.util.Random(42).nextInt(100)` prints in Java** — a value
+the JVM specifies, so the answer is checkable against the host rather than
+against ourselves.
+
+Four things it exercises, each a refusal that had to be answered. **`new`** is a
+keyword rather than a function here, so 4,138 constructors exist where Go has a
+handful of `NewT` — and the ones on an abstract class, which `getConstructors`
+lists anyway, have to be skipped. **The coercion**: `StringJoiner` takes a
+`CharSequence` and we hold a `string`, so `(implements string
+java-lang-CharSequence …)` is what makes it legal, with no conversion syntax in
+the emitted Java at all. **The overload**: `Random.nextInt` is two methods and
+one name, so the second is `nextInt2` — overloading.md's `Println`/`Println2`
+wart, which has 5,446 instances on this host. **The method chain**: `add` returns
+the joiner, which is what makes a method a SOURCE in the obtainable fixed point
+and not just a consumer — leaving that out understated Go by ten points until the
+JVM survey was written.
+
+## JavaScript: `js-shape.oro`
+
+`gauntlet/stdlib/js.go` reports that the other two surveys' questions have no
+content on this host: every type is `any`, so declarable is 100% by construction
+and the obtainable fixed point has one type in its domain. What a JavaScript
+declaration needs instead is a name, a call form and an ARITY.
+
+```bash
+node gauntlet/stdlib/jsdump.mjs > /tmp/js-api.txt
+go run gauntlet/stdlib/js.go -api /tmp/js-api.txt -emit /tmp/jsgen
+mkdir -p /tmp/sproj/tg/js
+cp /tmp/jsgen/globalThis.oro /tmp/sproj/tg/js/global-gen.oro
+cp /tmp/jsgen/node-path.oro /tmp/sproj/tg/js/path-gen.oro
+cp gauntlet/stdlib/acceptance/js-shape.oro /tmp/sproj/
+go run ./cmd/build -target=js -targets "/tmp/sproj/tg;targets" -o /tmp/jsshape.mjs /tmp/sproj/js-shape.oro
+node /tmp/jsshape.mjs          # must print 7, then ABC, then a single dot
+```
+
+**The dot is the point.** `path.join.length` is 0, so the generated declaration
+is `(prim join (none) any expr "path.join()")` — legal, buildable, runnable, and
+unable to be passed a path. `Function.length` counts the parameters before the
+first default or rest and a native function's are not introspectable at all, so
+`Math.max.length` is 2 on a variadic function and `console.log.length` is 0. **The
+host does not merely decline to give us types; it misreports the shape**, which
+is the one thing a declaration needs from it.
+
+It also found a compiler bug: a single-result JavaScript prim silently dropped
+its `(import …)`, because only the several-results path collected one and every
+prim that had ever carried an import on that host was fallible.
 
 ---
 

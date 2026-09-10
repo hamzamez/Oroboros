@@ -2147,6 +2147,114 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**THE LAST TWO TARGETS ARE PRICED, AND THE GO SURVEY WAS UNDER-COUNTING ITSELF** —
+[surveys-2026-09-10](gauntlet/results/surveys-2026-09-10.md),
+`gauntlet/stdlib/jdk/Dump.java`, `gauntlet/stdlib/jvm.go`,
+`gauntlet/stdlib/jsdump.mjs`, `gauntlet/stdlib/js.go`. Two of four targets had
+never been surveyed; **all four have a number now**, and the two big managed
+ecosystems land half a point apart from completely different refusals:
+**Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8%,
+JavaScript 100% / not answerable.**
+
+**THE RUNTIME IS THE MANIFEST, for the second and third time.** Go ships
+`api/go1*.txt` and the Windows SDK ships headers; the JDK ships neither and needs
+neither, because `jrt:/` plus reflection IS the JDK — **48,966 lines, 4,508 public
+types, 38,042 callable members, 7.7x Go's surface** — and V8 is more reflectable
+still. So neither of these two can be WRONG about what exists, only about what we
+can do with it. That is the coercion result's *the host is the oracle* arriving on
+two more hosts.
+
+**AND WRITING THE SECOND SURVEY FOUND THE FIRST ONE WRONG, WHICH IS WHY DOING BOTH
+WAS WORTH IT.** Go's obtainable fixed point counted only package FUNCTIONS as a
+source, so a type returned by a METHOD was not obtainable — and `(*os.File).Stat`
+gives an `fs.FileInfo` from a file we can open. On the JVM `new` and a method are
+the two idioms and leaving either out would have been obvious; on Go the
+constructor idiom is a package function, so the omission looked like the whole
+story. **Go's usable 50.0% -> 60.4%**, obtainable types 289 -> **568**, methods
+42.6% -> 53.9%, and struct literals are worth **+268** on the corrected base
+rather than +229. **Seventh correction to a number this survey has published, four
+deflating and three inflating**, and the second in two days that the survey found
+itself.
+
+**THE JVM'S DEFINING REFUSAL IS THE TYPE VARIABLE, and half of it is answerable.**
+`E`, `T`, `? extends E` — 3,026 names mention one, **8.0%**, and it is not a
+version of Go's refusal: Go's standard library is barely generic and Java's is
+generic to the bone. **1,872 are a member of a generic CLASS**, where instantiating
+at a ground type would substitute — one declaration per (class, argument), which
+`targets/java/util.oro` already calls *the same limitation squared*; **1,154 are
+a variable in the member's OWN signature and nothing can substitute those.** Four
+decisions were made before the number and each is a host fact rather than a
+preference: **our `int` is Java's `long`**, so Java's `int` is the RANGE
+`(int -2147483648 2147483647)` and ADR 0003's ladder renders it back; **a boxed
+type is its primitive**, because javac inserts the conversion both ways (JLS
+5.1.7/5.1.8), with *unboxing a null throws* named rather than hidden; **a
+parameterised type IS spellable at a GROUND instantiation** — we never apply a type
+constructor, we NAME the applied thing, which is a correction the Go survey owes
+itself; and **a functional interface is an ORDINARY OBJECT here**, so holding and
+calling one cost nothing and only manufacturing one is callbacks.md tier 3 — *the
+same refusal costs different amounts depending on how the host spells the thing
+refused*.
+
+**AND THE JVM DECLARES ITS OWN SUBTYPING, so the coercion is READ rather than
+DERIVED.** coercion-2026-09-09 had to compute Go's relation structurally and let
+`go build` refuse **182 of 1,651** false candidates, because an interface sealed by
+an unexported method looks satisfied by everything. `extends` and `implements` are
+written down, so **5,186 edges** are read off the host with nothing to guess and
+nothing for a filter to catch. **`(implements string java-lang-CharSequence …)`**
+is the one that pays, and it needed one thing Go never raised: **a range is not a
+name** — `java.lang.Byte` spells `(int -128 127)`, a type EXPRESSION, which cannot
+be the subject of an edge, and nothing is lost because `ValueType` normalises a
+range to `int`.
+
+**TWO FORMAT PROBLEMS THE GO SURVEY COULD NOT HAVE SHOWN.** **Overloading**:
+`tg.Prims` is keyed by NAME ALONE, so `nextInt()` and `nextInt(int)` are one entry
+— overloading.md §3 records that as *a target-file wart* with ONE live instance,
+and **Java has 5,446, 17.6% of the emitted surface**, answered by the existing
+`Println`/`Println2`/`Println3` precedent. And **a CLASS is the module, not a
+package**: `java.lang.Math.atan2` and `java.lang.StrictMath.atan2` are two classes,
+one package and one name, so every member lives in `java/<pkg>/<Class>` — which is
+what `targets/java/lang.oro` already does by hand. **30,940 emitted + 19 voids with
+no argument = 30,959 declarable**, and the arithmetic closing is the discipline.
+
+**AND JAVASCRIPT'S HEADLINE IS THAT THERE IS NO HEADLINE.** `targets/js` declares
+every type `any`, so **declarable is 100% BY CONSTRUCTION** and reporting it as a
+capability would be the fifth time a survey's first number described the measurer,
+and the largest. **USABLE has no domain**: the fixed point asks which types a
+program can obtain, there is one type and every value has it — *the same fact that
+made ADR 0019's bounded-by-default VACUOUS on JavaScript* (bigrep-2026-09-02). So
+the survey measures the SHAPE, and **the shape is misreported**: `Function.length`
+counts parameters before the first default or rest and a native function's are not
+introspectable at all, so **`Math.max.length` is 2 on a variadic function,
+`console.log.length` is 0, and 604 of 2,303 callable members report arity ZERO**.
+*The host does not merely decline to give us types; it misreports the one thing a
+declaration needs from it.* That is win32-2026-09-06's *opacity is a property of
+the PAIR* taken to its limit and inverted: **everything is one dynamic value, so
+nothing is opaque AND nothing is checked.** The only refusal that is OURS is ten
+names our reader cannot take — `RegExp.$1`, because `core/read.go` omits `$` on
+purpose.
+
+**ONE COMPILER BUG, and generating a whole runtime is what ran the path.** A
+**single-result JavaScript prim silently DROPPED its `(import …)`** — only
+`emitMultiPrim` collected one — so the emitted call named a binding nothing
+creates and Node said `ReferenceError: path is not defined` with no diagnostic from
+us. Latent since the JS import mechanism landed the day before, because **every
+prim that had ever carried an import on that host was fallible and therefore
+multi-result**. *A path nothing runs is a path nothing checks*, sixth time. **Cost:
+one line; 19 of 19 emitted JS files byte-identical**, 30 differential cases green.
+
+**Acceptance, because a percentage that does not build is a claim.**
+`jvm-object.oro` prints `a, b, c` and **30**, which is what
+`new java.util.Random(42).nextInt(100)` prints in Java — checkable against the host
+rather than against ourselves — with **no conversion syntax at all** for the
+`string` -> `CharSequence` coercion. `js-shape.oro` prints 7, ABC and **a single
+dot**, and the dot is the point: `path.join()` is what the generated declaration
+can call, because the host reported arity 0. **The finding exhibited rather than
+asserted.** Three things the JS dumper had to stop describing, each of which put
+this machine into the manifest rather than the host — `_pathCache` is keyed by
+absolute path, `process.config` is how this Node was built, `http.METHODS` is an
+ARRAY whose elements became members named `0`, `1`, `2`: *a manifest that embeds
+where it was run is not a description of the host.*
+
 **STRUCT LITERALS ARE BUILT, AND THE PROJECTION WAS ITS OWN LAST CORRECTION** —
 [structlit-2026-09-10](gauntlet/results/structlit-2026-09-10.md),
 `gauntlet/stdlib/acceptance/struct-literal.oro`. struct-literals.md's
@@ -2160,7 +2268,7 @@ change, no backend change**: nothing under `core/`, `emit/`, `targets/` or `lib/
 is touched, so no emitted file can move, and the differential suite is green on 30
 cases and four targets.
 
-**AND +486 WAS +229 — 45.4% -> 50.0%, not 55.2%.** The gap is **the METHOD and not
+**AND +486 WAS +229 — 45.4% -> 50.0%, not 55.2%** (both superseded the next day: on the corrected obtainable set it is **+268 and 60.4%** — see the entry above). The gap is **the METHOD and not
 the data**: run the projection's own method on today's corrected manifest and it
 reports **+489**, reproducing itself. **SEEDING A FIXED POINT IS NOT RUNNING IT** —
 the projection put the constructibles into the ANSWER, which asserts they are
@@ -3761,7 +3869,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go` and `win32.go` — how much of Go's standard library and the Windows API this language can declare, and why not the rest |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the seven programs that check a percentage is not a claim |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

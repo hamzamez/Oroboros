@@ -1182,7 +1182,27 @@ func obtainableFrom(syms []sym, seed map[string]bool) map[string]bool {
 	for {
 		grew := false
 		for _, s := range syms {
-			if s.kind != "func" || s.generic || s.recv != "" || len(s.results) == 0 {
+			if s.generic || len(s.results) == 0 {
+				continue
+			}
+			// A METHOD ON AN OBTAINABLE RECEIVER IS ALSO A SOURCE, and leaving
+			// it out was this survey under-counting itself. `(*os.File).Stat`
+			// gives an `fs.FileInfo` from a file we can open, and a program that
+			// can open a file can plainly obtain one.
+			//
+			// FOUND BY WRITING THE JVM SURVEY, where `new` and a method are the
+			// two idioms and leaving either out would have been obvious. Go's
+			// constructor idiom is a package function, so the omission looked
+			// like the whole story — and the two numbers are only comparable
+			// once both ask the same question.
+			//
+			// Well-founded for the same reason the rest is: this is a LEAST
+			// fixed point, and a receiver is consulted only once it is already
+			// in `have`.
+			if s.kind != "func" && s.kind != "method" {
+				continue
+			}
+			if s.recv != "" && !have[qual(s.pkg, s.recv)] {
 				continue
 			}
 			// EVERY RESULT POSITION, not just a lone one. Since 2026-09-06 a

@@ -1,0 +1,30 @@
+; ACCEPTANCE: a signed 32-bit Win32 result comes back SIGNED.
+;
+; Under Win64 a C `int` result is in EAX, and writing EAX ZERO-extends into RAX.
+; The generator read every result as `mov %r, rax`, so a negative `int` arrived
+; as a large positive one: `MulDiv(-7, 6, 2)` is -21 in C and was 4294967275
+; here. Every `HRESULT` has that shape, and for an `HRESULT` failure IS the
+; negative value — so `(< hr 0)` was false on every failure.
+;
+; `wide-call.oro` called `MulDiv(7, 6, 2)`, printed 21 and passed, and the bug
+; cannot show on a positive value. A WITNESS THAT CANNOT FAIL PROVES NOTHING —
+; the containment harness learned that in August and it did not travel here.
+; This one is chosen so the wrong answer and the right one print differently.
+;
+; It prints 1 (the result IS negative) and then 79 (-21 + 100). With the bug it
+; printed 0 and 4294967375.
+;
+; `print-int` is not asked to print the negative itself: win/fmt.print-int
+; prints a blank line for one, and is within its rights (refinements.md §6b).
+; It needs `-checked`, because a host call's result has no declared range and
+; ADR 0019 refuses arithmetic on it otherwise.
+
+(use win/WinBase as w)
+(use win/fmt as fmt)
+
+(export main)
+
+(def main (fn ()
+  (let (w.MulDiv (- 0 7) 6 2) (fn (r)
+    (seq (fmt.print-int (if (< r 0) 1 0))
+         (fmt.print-int (+ r 100)))))))

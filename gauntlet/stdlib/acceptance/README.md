@@ -1,12 +1,11 @@
-# Seven programs that check the surveys are not paper
+# Nine programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These seven check that a
+A survey reports what the target format can DECLARE. These nine check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Two are Win32's, three are Go's, one is the JVM's and one is JavaScript's — one
-per target plus the three Go questions that needed separate programs.
+Four are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -210,3 +209,22 @@ ERROR_FILE_NOT_FOUND.
 409 functions and the format could always say: a statement's value IS its first
 argument. Round-tripped through `GetLastError`, so the answer is checked rather
 than assumed.
+
+**`signed-result.oro`** — `MulDiv(-7, 6, 2)` must print **1** and then **79**: the result is negative,
+and −21 + 100 is 79. Until 2026-09-11 it printed **0** and **4294967375**, because every generated
+result was read as `mov %r, rax` and a C `int` comes back in `EAX`, which zero-extends
+(win32enum-2026-09-11). `wide-call.oro` called `MulDiv` with positive arguments and could not have
+seen it. **A witness has to be able to fail.**
+
+**`enum-param.oro`** — `GetFileInformationByHandleEx` takes an enum, which the survey refused as a
+struct until 2026-09-11. It must print **0, 24, 87**: class `FileBasicInfo` fails on the buffer
+length, class 9999 fails as an invalid parameter, so two enum values give two errors and the callee
+read the one we passed. The first prediction, 6, was wrong and the program says so.
+
+```bash
+go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
+mkdir -p /tmp/proj/windows && cp /tmp/win32gen/WinBase.oro /tmp/proj/windows/
+cp gauntlet/stdlib/acceptance/signed-result.oro gauntlet/stdlib/acceptance/enum-param.oro /tmp/proj/
+go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/signed /tmp/proj/signed-result.oro
+go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/enum /tmp/proj/enum-param.oro
+```

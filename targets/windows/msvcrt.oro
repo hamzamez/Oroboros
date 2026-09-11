@@ -26,28 +26,28 @@
 
 (target windows
   (module windows/msvcrt
-    (prim puts    (string) int expr "mov rcx, %1\ncall puts\nmov %r, rax"    (import "puts"))
-    (prim putchar (int) int    expr "mov rcx, %1\ncall putchar\nmov %r, rax" (import "putchar"))
+    (prim puts    (string) int expr "mov rcx, %1\ncall puts\nmovsxd %r, eax"    (import "puts"))
+    (prim putchar (int) int    expr "mov rcx, %1\ncall putchar\nmovsxd %r, eax" (import "putchar"))
 
     (prim printf  (string) int expr
-      "mov rcx, %1\ncall printf\nmov %r, rax" (import "printf"))
+      "mov rcx, %1\ncall printf\nmovsxd %r, eax" (import "printf"))
     (prim printf1 (string int) int expr
-      "mov rcx, %1\nmov rdx, %2\ncall printf\nmov %r, rax" (import "printf"))
+      "mov rcx, %1\nmov rdx, %2\ncall printf\nmovsxd %r, eax" (import "printf"))
     (prim printf2 (string int int) int expr
-      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall printf\nmov %r, rax" (import "printf"))
+      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall printf\nmovsxd %r, eax" (import "printf"))
     (prim printf3 (string int int int) int expr
-      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nmov r9, %4\ncall printf\nmov %r, rax"
+      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nmov r9, %4\ncall printf\nmovsxd %r, eax"
       (import "printf"))
     ; The double goes in xmm1 AND rdx. Both. That is the convention.
     (prim printf1f (string f64) int expr
-      "mov rcx, %1\nmovsd xmm1, %2\nmovq rdx, xmm1\ncall printf\nmov %r, rax" (import "printf"))
+      "mov rcx, %1\nmovsd xmm1, %2\nmovq rdx, xmm1\ncall printf\nmovsxd %r, eax" (import "printf"))
 
     (prim malloc (int) ptr    expr "mov rcx, %1\ncall malloc\nmov %r, rax" (import "malloc"))
     (prim free   (ptr) ptr    stmt "mov rcx, %1\ncall free"                (import "free"))
     (prim memset (ptr int int) ptr stmt
       "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall memset" (import "memset"))
-    (prim atoi   (string) int  expr "mov rcx, %1\ncall atoi\nmov %r, rax"    (import "atoi"))
+    (prim atoi   (string) int  expr "mov rcx, %1\ncall atoi\nmovsxd %r, eax"    (import "atoi"))
     (prim atof   (string) f64  expr "mov rcx, %1\ncall atof\nmovsd %r, xmm0" (import "atof"))
-    (prim rand   (none) int    expr "call rand\nmov %r, rax"                 (import "rand"))
+    (prim rand   (none) int    expr "call rand\nmovsxd %r, eax"                 (import "rand"))
     (prim srand  (int) int     stmt "mov rcx, %1\ncall srand"                (import "srand"))
-    (prim clock  (none) int    expr "call clock\nmov %r, rax"                (import "clock"))))
+    (prim clock  (none) int    expr "call clock\nmovsxd %r, eax"                (import "clock"))))

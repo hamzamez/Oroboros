@@ -1,0 +1,37 @@
+; ACCEPTANCE: a Win32 function that takes an ENUM builds, runs, and the callee
+; dispatches on the value we passed.
+;
+; GetFileInformationByHandleEx takes FILE_INFO_BY_HANDLE_CLASS, an enum, and was
+; refused as "struct by value": the survey's struct table took the name after
+; ANY closing brace, so `typedef enum _X { ... } X;` put X in it. An enum is a C
+; `int` under Win64 -- one register (win32enum-2026-09-11).
+;
+; TWO CALLS, because one could not tell a delivered enum from a dropped one.
+;
+;   class 0 (FileBasicInfo), no buffer   ->  FALSE, then 24  ERROR_BAD_LENGTH
+;   class 9999, not a class at all       ->  FALSE, then 87  ERROR_INVALID_PARAMETER
+;
+; Different errors for different enum values means the callee read the enum we
+; passed. THE FIRST PREDICTION WAS WRONG and is kept: it said 6,
+; ERROR_INVALID_HANDLE, for the NULL handle -- but the function validates the
+; buffer length for the class BEFORE it looks at the handle, which is itself the
+; host saying it read the class. The expectations above are what the host
+; answered, recorded as observed rather than dressed as predicted.
+;
+; It needs `-checked` for the reason wide-call.oro does: win/fmt.print-int does
+; arithmetic on its argument, and a host call's result has no declared range,
+; so ADR 0019 refuses to prove it in the window rather than assume it.
+
+(use win/WinBase as w)
+(use windows/kernel32 as k)
+(use x64 as x)
+(use win/fmt as fmt)
+
+(export main)
+
+(def main (fn ()
+  (let (w.GetFileInformationByHandleEx 0 0 (x.null) 0) (fn (ok)
+    (seq (fmt.print-int ok)
+         (fmt.print-int (k.GetLastError))
+         (w.GetFileInformationByHandleEx 0 9999 (x.null) 0)
+         (fmt.print-int (k.GetLastError)))))))

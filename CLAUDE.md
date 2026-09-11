@@ -139,7 +139,18 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
+**Current standing** is in [docs/assessment-2026-09-11.md](docs/assessment-2026-09-11.md) — **the
+round the hosts were measured, and the language was not written**. Yes on the thesis — all four
+hosts priced, Go **60.4%** and the JVM **60.9%** usable from completely different refusals — and
+**no on the balance**: 1,074 lines of compiler against **six lines of Oroboros programs**, while
+the survey tooling grew **1,511 → 4,559 lines with no tests at all**. `emit : core` moved the wrong
+way a fifth time, 3.98 → 4.13; the analysis layer, for the first time in five rounds, did not grow.
+Writing it found **a silent wrong answer in every generated signed Win32 result** and **an unsourced
+figure repeated three times**; item 1 fixed both the same day. **What is next**: tests for the
+survey tooling, one application on two hosts through generated declarations, then Win32 struct
+by value.
+
+The previous one is [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
 round the plan ran out**, written because all five items of the previous one are done rather than
 because time passed. **Yes on all three, and the criticism that led three assessments has moved for
 the first time**: the corpus grew **275 lines against 3,169 of compiler — 11.5 to 1 at the margin,
@@ -161,7 +172,7 @@ and the entire windows api, tells us we are still short."* **File I/O on two mor
 INSTANCE of that, not a task beside it.** The question is whether this language can express a host's
 whole API, and where it cannot, whether that is the FORMAT, the COMPILER or the LANGUAGE — and the
 surveys already answer it as a number, so **the residue is the roadmap**: Go's *cannot build the
-argument* at 43.6%, Win32's struct-by-value at 13.9% (675 of which are the tool misreading enums),
+argument* at 43.6%, Win32's struct-by-value at 13.9% (665 of which were the tool misreading enums — measured 2026-09-11, when the fix took it to 8.2%; the "675" first written here had never been measured),
 typedefs at 6.9%, function pointers at 2.7%. It pushes both halves at once — *express everything* is
 the language question, which is where several results and a declared result range came from;
 *translate* is the compiler's, which is what this week's product was: one type former, one lowering
@@ -2147,6 +2158,39 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**WIN32 ENUMS ARE WORDS, AND EVERY SIGNED RESULT WAS BEING READ UNSIGNED** —
+[win32enum-2026-09-11](gauntlet/results/win32enum-2026-09-11.md), `gauntlet/stdlib/win32.go`,
+`targets/windows/msvcrt.oro`, `gauntlet/stdlib/acceptance/signed-result.oro` and `enum-param.oro`.
+assessment-2026-09-11 item 1. **The enum share is measured at 665 — not the 675 three documents had
+repeated without anyone measuring it.** The survey's struct table took the name after ANY closing
+brace, so `typedef enum _X { … } X;` put `X` in it and 5,831 of the SDK's 10,028 enum names were read
+as structs. **Struct by value 13.9% → 8.2%, declarable 76.1% → 81.4%, callable 34.8% → 36.8%**, and
+9,427 generated primitives equal the 9,427 declarable. An enum is decided BEFORE the naming
+heuristics, because `PROCESS_DPI_AWARENESS` is all capitals and starts with P, and the pointer rule
+would have claimed it one step after the struct table let go.
+
+**AND A SILENT WRONG ANSWER IN EVERY SIGNED WIN32 RESULT, since win32-2026-09-06, found by checking
+the enum claim before fixing it.** The generator read every result as `mov %r, rax`; a C `int` comes
+back in `EAX`, and writing `EAX` ZERO-extends, so **`MulDiv(-7, 6, 2)` read 4,294,967,275** and every
+failing `HRESULT`, whose failure IS the negative value, read as a success. Results are now read at
+their C width and signedness — `movsxd`, `mov %er, eax`, `movsx`/`movzx` — because Windows is LLP64
+and `long`, `LONG` and `HRESULT` are 32 bits. `signed-result.oro` prints `1, 79` where it printed `0,
+4294967375`. **`wide-call.oro` called `MulDiv(7, 6, 2)` and could never have seen it: a witness that
+cannot fail proves nothing**, the containment harness's lesson from August not having travelled. The
+same bug was in **ten hand-written `msvcrt` templates**, and `atoi("-5")` was 4,294,967,291.
+
+**Two more claims of the same kind fell out.** **36 floating-point entry points** were declared
+through `RCX` and read from `RAX`, where Win64 uses `XMM` — refused now, since a generator does not
+make a claim it cannot justify. And an **arity ceiling at 14 had gone stale**: enums made the widest
+entry point 17, six names were counted declarable and never emitted, and `asmShadowFor` had no cap to
+protect anyway. **One prediction was wrong and is kept**: the enum witness was predicted to fail with
+`ERROR_INVALID_HANDLE`, 6, and the host said `ERROR_BAD_LENGTH`, 24 — it checks the length FOR THE
+CLASS before the handle — and a second call with class 9999 returns 87, so two enum values give two
+errors and the callee dispatched on the enum we passed. **Named, not fixed: the build links only
+`kernel32`, `msvcrt`, `ucrt` and `vcruntime`**, so a generated `user32` declaration is declarable,
+counted callable, and cannot link; the link line is hard-coded in the emitter. **Cost: no compiler
+change**, 9 of 9 windows examples byte-identical, differential green on four targets.
+
 **AoS AGAINST SoA IS MEASURED, AND THE ACCESS PATTERN CHOOSES, NOT THE HOST** —
 [aossoa-2026-09-11](gauntlet/results/aossoa-2026-09-11.md), `gauntlet/go/aossoa.go`,
 `gauntlet/js/aossoa.mjs`, `gauntlet/java/AosSoaBench.java`. products.md §11 item 3, and the
@@ -2192,7 +2236,7 @@ written to keep noise out of a manifest took signal out with it.*
 `gauntlet/stdlib/jsdump.mjs`, `gauntlet/stdlib/js.go`. Two of four targets had
 never been surveyed; **all four have a number now**, and the two big managed
 ecosystems land half a point apart from completely different refusals:
-**Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8%,
+**Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8% (81.4% / 36.8% once enums stopped being read as structs, win32enum-2026-09-11),
 JavaScript 100% / not answerable.** (2,340 callable, corrected from 2,303 on 2026-09-11.)
 
 **THE RUNTIME IS THE MANIFEST, for the second and third time.** Go ships

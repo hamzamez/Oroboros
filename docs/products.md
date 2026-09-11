@@ -347,7 +347,7 @@ type-algebra.md §8 already said what would be hard about it:
 > four targets, **because the last attempt was reverted precisely for declaring it optional**."*
 
 And the Win32 survey is a **second, independent witness arriving from outside**: 1,610 names —
-13.9% of the flat API — refused as *struct by value*, of which 675 are enums the tool misread and the
+13.9% of the flat API — refused as *struct by value*, of which 665 are enums the tool misread (measured 2026-09-11, win32enum-2026-09-11; first written here as 675, a figure nobody had measured) and the
 rest are aggregates the ABI passes in a register or by a pointer to a layout. The project treats two
 independent demands for one feature as its strongest evidence — it is what settled the postcondition
 naming a result — and this is that pattern, with the internal demand (four strided programs and a

@@ -43,6 +43,9 @@ import (
 
 var word = map[string]bool{}
 
+// floating is NOT a word: Win64 passes it in XMM0-3 and returns it in XMM0.
+var floating = map[string]bool{"FLOAT": true, "DOUBLE": true, "float": true, "double": true}
+
 func init() {
 	for _, t := range strings.Fields(`
 		BOOL BOOLEAN BYTE CHAR UCHAR WCHAR TCHAR SHORT USHORT WORD ATOM
@@ -52,11 +55,121 @@ func init() {
 		INT_PTR UINT_PTR LONG_PTR ULONG_PTR DWORD_PTR SIZE_T SSIZE_T
 		HRESULT NTSTATUS LRESULT LPARAM WPARAM LSTATUS
 		COLORREF LCID LANGID LGRPID SCODE HFILE
-		int unsigned char short long float double size_t wchar_t __int64 __int32
+		int unsigned char short long size_t wchar_t __int64 __int32
 		MMRESULT CONFIGRET DNS_STATUS SECURITY_INFORMATION REGSAM ACCESS_MASK
-		FLOAT DOUBLE`) {
+		`) {
 		word[t] = true
 	}
+}
+
+// enumBase maps every enum name the headers declare -- the typedef name, its tag
+// and any comma-listed alias -- to the C type it is STORED as: `int`, unless the
+// declaration names another (`typedef enum _X : BYTE {...} X;`, five of them in
+// the SDK, plus 29 C++ `enum class`).
+var enumBase = map[string]string{}
+
+// enumWasStruct records the enum names the struct table had captured. It is the
+// number assessment-2026-09-09 asserted as "675" without ever measuring it.
+var enumWasStruct = map[string]bool{}
+
+func baseOr(b string) string {
+	if b = strings.TrimSpace(b); b == "" {
+		return "int"
+	}
+	return b
+}
+
+// resultMove says how a result reaches our register, and it is a CORRECTNESS
+// question rather than a cosmetic one. Under Win64 an integer result narrower
+// than 64 bits is in EAX, AX or AL and the rest of RAX is not part of it -- and
+// writing EAX ZERO-extends, so `mov %r, rax` turned every negative `int` into a
+// large positive one. `MulDiv(-7, 6, 2)` read 4294967275, and every failing
+// `HRESULT`, whose failure IS the negative value, read as a success. Measured,
+// not inferred: gauntlet/stdlib/acceptance/signed-result.oro.
+//
+// The C type decides, after the alias chain and after an enum becomes its base.
+// A type this cannot place keeps the full register, which is right for every
+// pointer, handle and 64-bit word.
+func resultMove(t string, alias map[string]string) string {
+	for i := 0; i < 8; i++ {
+		b := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(t), "_"))
+		for _, q := range []string{"CONST ", "const ", "volatile ", "enum ", "struct ", "union "} {
+			b = strings.TrimPrefix(b, q)
+		}
+		b = strings.TrimSpace(b)
+		if strings.HasSuffix(b, "*") {
+			return "mov %r, rax"
+		}
+		// `unsigned` is a qualifier classify1 strips because the SHAPE does not
+		// depend on it, and here it is the whole answer: `unsigned int`
+		// sign-extended would turn 3,000,000,000 negative.
+		unsigned := false
+		if b == "unsigned" || strings.HasPrefix(b, "unsigned ") {
+			unsigned, b = true, strings.TrimSpace(strings.TrimPrefix(b, "unsigned"))
+			if b == "" {
+				b = "int"
+			}
+		}
+		b = strings.TrimSpace(strings.TrimPrefix(b, "signed "))
+		if eb, isEnum := enumBase[b]; isEnum {
+			b = eb
+		}
+		if w, signed, known := intWidth(b); known {
+			if unsigned {
+				signed = false
+			}
+			switch {
+			case w == 64:
+				return "mov %r, rax"
+			case w == 32 && signed:
+				return "movsxd %r, eax"
+			case w == 32:
+				return "mov %er, eax"
+			case w == 16 && signed:
+				return "movsx %r, ax"
+			case w == 16:
+				return "movzx %er, ax"
+			case w == 8 && signed:
+				return "movsx %r, al"
+			default:
+				return "movzx %er, al"
+			}
+		}
+		nxt, have := alias[b]
+		if !have || nxt == b {
+			return "mov %r, rax"
+		}
+		t = nxt
+	}
+	return "mov %r, rax"
+}
+
+// intWidth gives a Win64 integer type's width in bits and whether it is signed.
+// Windows is LLP64, not LP64: `long` is 32 bits here, and so are `LONG`,
+// `HRESULT` and `clock_t`, which is the whole reason this table exists. TCHAR
+// is WCHAR in a UNICODE build, which is how these headers are read.
+func intWidth(b string) (int, bool, bool) {
+	switch b {
+	case "INT", "LONG", "BOOL", "HRESULT", "NTSTATUS", "LSTATUS", "INT32", "LONG32",
+		"SCODE", "HFILE", "DNS_STATUS", "int", "long", "__int32":
+		return 32, true, true
+	case "UINT", "ULONG", "DWORD", "UINT32", "ULONG32", "DWORD32", "COLORREF", "LCID",
+		"LGRPID", "SECURITY_INFORMATION", "REGSAM", "ACCESS_MASK", "MMRESULT", "CONFIGRET":
+		return 32, false, true
+	case "SHORT", "short", "INT16":
+		return 16, true, true
+	case "USHORT", "WORD", "ATOM", "WCHAR", "wchar_t", "LANGID", "UINT16", "TCHAR":
+		return 16, false, true
+	case "CHAR", "char", "INT8":
+		return 8, true, true
+	case "BYTE", "UCHAR", "BOOLEAN", "UINT8", "bool":
+		return 8, false, true
+	case "LONGLONG", "ULONGLONG", "DWORDLONG", "INT64", "UINT64", "LONG64", "ULONG64",
+		"DWORD64", "SHORT64", "INT_PTR", "UINT_PTR", "LONG_PTR", "ULONG_PTR", "DWORD_PTR",
+		"SIZE_T", "SSIZE_T", "LRESULT", "LPARAM", "WPARAM", "size_t", "__int64", "long long":
+		return 64, true, true
+	}
+	return 0, false, false
 }
 
 // A NUL-terminated string is a pointer, and it is the one pointer this language
@@ -83,7 +196,7 @@ const (
 	ok reason = ""
 
 	// The target FORMAT cannot say it.
-	rVariadic  reason = "variadic"
+	rVariadic reason = "variadic"
 	// A `void` result is refused only when there is no argument either. With
 	// one, the format already says it: `stmt`'s value IS argument 0, which is
 	// how `Sleep` and `WriteFile` are declared in targets/windows/kernel32.oro
@@ -93,6 +206,14 @@ const (
 	rVoidRes   reason = "void result and no argument"
 	rOutParam  reason = "out-parameter"   // the result comes back through a pointer
 	rStructVal reason = "struct by value" // does not fit one register
+	// FLOATING POINT is passed and returned in XMM registers under Win64,
+	// and the generated template moves arguments into RCX/RDX/R8/R9 and
+	// reads RAX. `FLOAT` and `DOUBLE` sat in the word table, so every one of
+	// these was declared and would have passed and read the wrong register
+	// -- a claim this generator cannot justify, so it is refused until a
+	// template says which XMM register. targets/windows/msvcrt.oro writes
+	// printf's double by hand, `movsd xmm1`, which is the shape it wants.
+	rFloat reason = "floating point"
 
 	// The LANGUAGE cannot say it.
 	rCallback reason = "function pointer"
@@ -101,7 +222,7 @@ const (
 
 func blame(r reason) string {
 	switch r {
-	case rVariadic, rVoidRes, rOutParam, rStructVal:
+	case rVariadic, rVoidRes, rOutParam, rStructVal, rFloat:
 		return "format"
 	case ok:
 		return "-"
@@ -240,6 +361,7 @@ const (
 	shPtr                 // one register, and the program cannot make one
 	shStruct              // does not fit a register
 	shFunc                // a code address
+	shFloat               // passed and returned in an XMM register
 	shVoid
 	shUnknown
 )
@@ -280,6 +402,16 @@ func classify1(t string, structs, handles, callbacks map[string]bool) shape {
 		return shPtr
 	}
 	if word[t] {
+		return shWord
+	}
+	if floating[t] {
+		return shFloat
+	}
+	// AN ENUM IS A C `int` (or its declared underlying type), decided HERE,
+	// before the naming heuristics below: `PROCESS_DPI_AWARENESS` is all
+	// capitals and starts with P, so the LP.../P... rule would call it a
+	// pointer, and the struct table would call it a struct.
+	if _, isEnum := enumBase[t]; isEnum {
 		return shWord
 	}
 	if strPtr[t] {
@@ -416,6 +548,8 @@ func main() {
 				switch sh {
 				case shStruct:
 					why = rStructVal
+				case shFloat:
+					why = rFloat
 				case shFunc:
 					why = rCallback
 				case shUnknown:
@@ -435,6 +569,8 @@ func main() {
 			switch classify(f.result, structs, handles, callbacks, alias) {
 			case shStruct:
 				why = rStructVal
+			case shFloat:
+				why = rFloat
 			case shUnknown:
 				why = rUnknown
 				unres[f.result]++
@@ -531,6 +667,9 @@ func main() {
 	fmt.Printf("  more than 6 — into the 112-byte reserved home: %5d  %5.1f%%\n", over6, pct(over6, declarable))
 	fmt.Printf("  more than 9 — named by the %%{10} braced hole:  %5d  %5.1f%%\n\n", over9, pct(over9, declarable))
 
+	fmt.Printf("ENUMS: %d enum type names; %d of them the struct table had been reading as a struct\n",
+		len(enumBase), len(enumWasStruct))
+	fmt.Printf("  -- an enum is a C `int` under Win64, one register: refusing it was this tool, not the format.\n\n")
 	fmt.Println("WHY THE REST CANNOT BE DECLARED")
 	type rc struct {
 		r reason
@@ -624,9 +763,11 @@ var (
 	// `typedef ULONG_PTR MSIHANDLE;` — a plain alias. Win32 has hundreds, and
 	// following them is the difference between a measurement and this tool's
 	// own vocabulary.
-	reAlias  = regexp.MustCompile(`typedef\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s+(\**[A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*\**[A-Za-z_][A-Za-z0-9_]*)*)\s*;`)
-	reStruct = regexp.MustCompile(`\}\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,[^;]*)?;`)
-	reCbType = regexp.MustCompile(`typedef[^;]*\(\s*(?:CALLBACK|WINAPI|APIENTRY|NTAPI|__stdcall|\*)\s*\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
+	reAlias   = regexp.MustCompile(`typedef\s+([A-Za-z_][A-Za-z0-9_ ]*?)\s+(\**[A-Za-z_][A-Za-z0-9_]*(?:\s*,\s*\**[A-Za-z_][A-Za-z0-9_]*)*)\s*;`)
+	reStruct  = regexp.MustCompile(`\}\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:,[^;]*)?;`)
+	reCbType  = regexp.MustCompile(`typedef[^;]*\(\s*(?:CALLBACK|WINAPI|APIENTRY|NTAPI|__stdcall|\*)\s*\*?\s*([A-Za-z_][A-Za-z0-9_]*)\s*\)`)
+	reEnumTD  = regexp.MustCompile(`typedef\s+enum\s+(?:class\s+)?([A-Za-z_]\w*)?\s*(?::\s*([A-Za-z_]\w*)\s*)?\{[^}]*\}\s*([A-Za-z_]\w*)((?:\s*,\s*\**\s*[A-Za-z_]\w*)*)\s*;`)
+	reEnumTag = regexp.MustCompile(`\benum\s+(?:class\s+)?([A-Za-z_]\w*)\s*(?::\s*([A-Za-z_]\w*)\s*)?\{`)
 )
 
 // collectTypes builds the tables `classify` consults. Approximate on purpose:
@@ -653,7 +794,42 @@ func collectTypes(src string, structs, handles, callbacks map[string]bool, alias
 	for _, m := range reHandle.FindAllStringSubmatch(src, -1) {
 		handles[m[1]] = true
 	}
+	// AN ENUM IS A C `int` -- or its declared underlying type -- and one
+	// register. `reStruct` takes the name after ANY closing brace, so
+	// `typedef enum _X { A, B } X;` put X in the struct table, and every
+	// function taking or returning one was refused as "struct by value".
+	// The SDK declares 5,178 `typedef enum`s.
+	isEnum := map[string]bool{}
+	for _, m := range reEnumTag.FindAllStringSubmatch(src, -1) {
+		enumBase[m[1]] = baseOr(m[2])
+	}
+	for _, m := range reEnumTD.FindAllStringSubmatch(src, -1) {
+		b := baseOr(m[2])
+		if m[1] != "" {
+			enumBase[m[1]] = b
+		}
+		enumBase[m[3]], isEnum[m[3]] = b, true
+		for _, nm := range strings.Split(m[4], ",") {
+			nm = strings.TrimSpace(nm)
+			ptr := strings.HasPrefix(nm, "*")
+			nm = strings.TrimSpace(strings.TrimLeft(nm, "* "))
+			if nm == "" {
+				continue
+			}
+			if ptr {
+				if alias[nm] == "" {
+					alias[nm] = m[3] + "*"
+				}
+				continue
+			}
+			enumBase[nm], isEnum[nm] = b, true
+		}
+	}
 	for _, m := range reStruct.FindAllStringSubmatch(src, -1) {
+		if isEnum[m[1]] {
+			enumWasStruct[m[1]] = true
+			continue
+		}
 		structs[m[1]] = true
 	}
 	for _, m := range reCbType.FindAllStringSubmatch(src, -1) {
@@ -691,13 +867,14 @@ func newestSDK() (string, error) {
 // the point — this is what "a line of data per name" costs on a host with no
 // expressions.
 func win64(name string, n int) (string, bool) {
-	// FOURTEEN is the widest entry point in the SDK, and the emitter now
-	// reserves exactly that much (emit/asm.go's asmShadow). It was six, and
-	// both ceilings under it were a constant and a hole syntax rather than
-	// anything about the host.
-	if n > 14 {
-		return "", false
-	}
+	// NO ARITY CEILING. There was one at fourteen, "the widest entry point in
+	// the SDK" -- true until enums stopped being refused as structs, when the
+	// widest became SEVENTEEN and six names were counted declarable and never
+	// emitted. The limit was already stale: emit/asm.go's asmShadowFor sizes
+	// each procedure's reserved home from the widest prim that procedure
+	// calls, with no cap, and the %{10} hole names any operand. A name
+	// counted declarable and never emitted is a claim, and the two counts
+	// agree again.
 	regs := []string{"rcx", "rdx", "r8", "r9"}
 	// A tenth operand needs the BRACED hole: `%12` cannot mean operand 12,
 	// because it would have to mean operand 1 followed by the character `2` in
@@ -781,6 +958,10 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			tmpl, okArity := win64(f.name, len(f.params))
 			if !okArity {
 				continue
+			}
+			// A RESULT IS READ AT ITS C WIDTH AND SIGNEDNESS -- see resultMove.
+			if kind == "expr" && res == "int" {
+				tmpl = strings.TrimSuffix(tmpl, "mov %r, rax") + resultMove(f.result, alias)
 			}
 			if kind == "stmt" {
 				// A statement's template must not write `%r`: the emitter takes

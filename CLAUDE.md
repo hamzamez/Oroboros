@@ -148,8 +148,9 @@ way a fifth time, 3.98 → 4.13; the analysis layer, for the first time in five 
 Writing it found **a silent wrong answer in every generated signed Win32 result** and **an unsourced
 figure repeated three times**; item 1 fixed both the same day. **Item 2 is DONE too** —
 [tooling-2026-09-11](gauntlet/results/tooling-2026-09-11.md): the tooling has tests, and three of
-four properties failed on the first run. **What is next**: one application on two hosts through
-generated declarations, then Win32 struct by value.
+four properties failed on the first run. **And item 3** —
+[tally-2026-09-11](gauntlet/results/tally-2026-09-11.md): one application on Go and the JVM through
+generated declarations, and it found five compiler bugs. **What is next**: Win32 struct by value.
 
 The previous one is [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
 round the plan ran out**, written because all five items of the previous one are done rather than
@@ -2159,6 +2160,38 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**ONE APPLICATION RUNS ON TWO HOSTS THROUGH GENERATED DECLARATIONS, AND IT FOUND FIVE COMPILER
+BUGS** — [tally-2026-09-11](gauntlet/results/tally-2026-09-11.md), `examples/tally/`,
+assessment-2026-09-11 item 3. `tally PATTERN FILE` — capture group 1 of every matching line, counted,
+most frequent first, with **the host's own regex engine**. **One 97-line core, bound by 15 lines on Go
+and 19 on the JVM**, every host call a GENERATED declaration, and byte-identical to each other and to
+`grep | sort | uniq -c` on a sample log and on this file. **It needed no new mechanism**: the six host
+operations are a static-level argument, a `(values …)` reduction erases — an ML functor applied at
+compile time, and why the core holds a regex it has no type for. What it costs without target-system
+§6.2's `D_T`, which would make it one `main`: two binding files.
+
+**THE FIVE BUGS, each pinned by a test that fails against HEAD, and every construct was already in
+the differential suite — what was new was the SIZE and a string table read handed to an impure host
+call.** (1) **a λ that reads a table was refused substitution** into an impure body (effects.md §7c),
+though a λ reads nothing until applied — the host interface reached the emitter as an "escaping
+closure", and `freq.oro` had escaped only because its comparator hides the read behind `wcmp`. (2)
+**A residual's hints captured**: β let-bound a comparator's arguments under hints `a`, `b` inside a sort
+whose buffers are `a`, `b`, correct by index and wrong the moment any consumer opens by name —
+`core/hygiene.go` renames exactly the capturing binders, and **the witness is Go's own compiler**, which
+refuses the build without it; the `Body()` family a fifth time. (3) **The checker's binder types
+outlived their bodies** — one map keyed by name, so a sibling with the same hint read a stranger's type;
+every earlier program read bytes, so every leaked type was `int` and right. (4) **The interval pass was
+EXPONENTIAL in nested conditions** — five evaluations of every comparison operand per `if`. (5) **The Go
+and Java emitters walked every λ twice**, each walk running an interval analysis per `build` —
+exponential in nested lets. **The build went from killed at 500 s to 3 s on Go and 12 s on the JVM.**
+
+**AND "N OF N INTEGER OPERATIONS BOUNDED" WAS COUNTING EVALUATIONS**: `freq.oro`'s 872 of 872 is **324
+of 324**, 33 of 37 loops is **27 of 31** — every ratio stands, the magnitudes were inflated, and the
+documents quoting them are annotated. **One host fact the JVM survey had wrong**: a generated `String`
+result may be `null` — `(a)?b` gave `""` on Go and a `NullPointerException` on the JVM until the binding
+asked `start(1)`, and that input is a suite case. **Cost: 175 of 178 emitted files byte-identical**, the
+three being `limbs.oro`'s one renamed variable; differential and tooling suites green.
+
 **THE SURVEY TOOLING HAS TESTS, AND THREE OF FOUR PROPERTIES FAILED ON THE FIRST RUN** —
 [tooling-2026-09-11](gauntlet/results/tooling-2026-09-11.md), `gauntlet/stdlib/tooling_test.go`,
 assessment-2026-09-11 item 2. `go test ./gauntlet/stdlib/` runs every survey TWICE from the manifest
@@ -2714,7 +2747,8 @@ provability only: 70 of 70 files byte-identical before any program was rewritten
 
 **MEASURED ON `freq.oro`, which products.md said was the falsifiable question.** Both strided tables
 became arrays of pairs: **16 strided index expressions → 2**, and the survivors are the merge sort's
-width doubling, which was never a record. **872 of 872 integer operations bounded**, output
+width doubling, which was never a record. **872 of 872 integer operations bounded** (EVALUATIONS:
+324 of 324 operations, tally-2026-09-11), output
 byte-identical to `sort | uniq -c | sort -rn` on eight files, and **the emitted Go is 210 lines
 SMALLER — 2,105 → 1,895**, because the compiler clamps the ELEMENT index and generates the stride
 where the program had to clamp the STRIDED one.
@@ -2739,7 +2773,8 @@ let-bound, and the refinement layer loses the clamp's bounds across that binding
 [freq-2026-09-08](gauntlet/results/freq-2026-09-08.md),
 [examples/io/freq.oro](examples/io/freq.oro). `sort | uniq -c | sort -rn` in Oroboros: **158 lines of
 code, the largest program in the language** by 1.4x, **byte-identical to those tools on seven real
-files**, and **951 of 951 integer operations bounded with no `-checked`**.
+files**, and **951 of 951 integer operations bounded with no `-checked`** (a count of evaluations,
+not operations; the ratio stands — tally-2026-09-11).
 
 **THE TERMINATION FINDING IS THE ONE TO KEEP.** The four loops of 37 that are not proven are the
 merge sort's two, once per comparator — `w = 1, 2, 4, …` and `lo += 2w`. sct-2026-08-19 handles an
@@ -3981,7 +4016,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `cmd/oro` | reduce a file to normal form against a target |
 | `cmd/gen` | emit a file into the gauntlet's Go package |
 | `cmd/build` | follow imports, reduce `main`, emit a program, run the host toolchain |
-| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet |
+| `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet; `tally/` is the first application on two hosts through generated declarations |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
 | `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the nine programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all nine |

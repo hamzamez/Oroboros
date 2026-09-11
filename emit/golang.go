@@ -740,11 +740,19 @@ func (e *Emitter) inferLet(t *core.Term) {
 			e.types[k.Params[0]] = e.typeOf(t.Args()[0])
 		}
 	}
-	for _, k := range t.Kids {
-		e.inferLet(k)
-	}
+	// A λ IS WALKED ONCE, OPENED. This used to walk its CLOSED body through
+	// `Kids` and then the opened one, so every level of nesting doubled the walk,
+	// and every `let` of a `build` met on the way asks typeOf, which runs an
+	// interval analysis of the build: 2^depth analyses. tally.oro nests lets deeply
+	// and its build took minutes (tally-2026-09-11). The closed walk contributed
+	// nothing — `Body()` opens with the same hints and the opened walk ran after it
+	// at every level, so its assignments always won.
 	if t.Kind == core.KFn {
 		e.inferLet(t.Body())
+		return
+	}
+	for _, k := range t.Kids {
+		e.inferLet(k)
 	}
 }
 

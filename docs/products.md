@@ -366,7 +366,8 @@ different currencies, and both were re-measured today rather than quoted:
 | `freq.oro` | **0** — it clamps instead | `cli` 25, `cl` 2, `pat` 7 | **16** |
 | `kara/core.oro` | **6** (9 of 12) | `c4` | stride 3 |
 
-`freq.oro` is at 951 of 951 with nothing propagated, and that is not the absence of the cost — it is
+`freq.oro` is at 951 of 951 (evaluations rather than operations — tally-2026-09-11; the ratio
+stands) with nothing propagated, and that is not the absence of the cost — it is
 the cost **paid in advance**: thirty-four clamp call sites, most of them clamping an index the
 program computed from a stride it also wrote. Rewrite either table as an array of records and count
 again. **If neither number falls, §5's argument is wrong** and the feature is ergonomics alone.

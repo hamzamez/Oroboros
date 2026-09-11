@@ -1969,13 +1969,62 @@ func (p *intervalPass) refine(c *core.Term, taken bool) {
 	// as a loop's exit guard means every other clause has y ≥ 1, which is what
 	// makes Euclid's remainder a strict descent and what makes `k / 2` shrink.
 	// Without it gcd and exponentiation-by-squaring were both unprovable.
+	// AN OPERAND IS EVALUATED ONLY WHEN THE OTHER SIDE CAN BE NARROWED. `cond`
+	// has already evaluated the whole condition, and refines once per branch, so
+	// evaluating both operands here unconditionally cost five evaluations of every
+	// operand per `if` — and an operand containing an `if` pays that again, so the
+	// cost was exponential in how deeply conditions nest inside conditions. A
+	// clamped table read is two nested `if`s, and `(= (cmp (cs (pat …)) …) 0)` put
+	// two of them under a comparison under a clause: tally.oro's build did not
+	// finish in five minutes (tally-2026-09-11). Narrowing a literal or a call was
+	// always a no-op — `narrow` and `narrowEq` return at once without a key — so
+	// skipping the evaluation that fed it loses no fact.
 	if rel == "eq" || rel == "ne" {
-		p.narrowEq(a, rel, p.eval(b))
-		p.narrowEq(b, rel, p.eval(a))
+		if _, ok := envKey(a); ok {
+			p.narrowEq(a, rel, p.eval(b))
+		}
+		if _, ok := envKey(b); ok {
+			p.narrowEq(b, rel, p.eval(a))
+		}
 		return
 	}
-	p.narrow(a, rel, p.eval(b))
-	p.narrow(b, map[string]string{"lt": "gt", "gt": "lt", "le": "ge", "ge": "le"}[rel], p.eval(a))
+	flip := map[string]string{"lt": "gt", "gt": "lt", "le": "ge", "ge": "le"}[rel]
+	if narrowable(a, rel) {
+		p.narrow(a, rel, p.eval(b))
+	}
+	if narrowable(b, flip) {
+		p.narrow(b, flip, p.eval(a))
+	}
+}
+
+// narrowable is exactly what `narrow` can act on: a key, or — below a bound —
+// the square of one.
+func narrowable(t *core.Term, rel string) bool {
+	if _, ok := envKey(t); ok {
+		return true
+	}
+	if rel != "lt" && rel != "le" {
+		return false
+	}
+	_, ok := squareOf(t)
+	return ok
+}
+
+// squareOf recognises `(* x x)` and names x — the one non-key shape a guard can
+// narrow, by taking a square root of the bound.
+func squareOf(t *core.Term) (string, bool) {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return "", false
+	}
+	name := t.Op().Name
+	if !isOp(name, "mul") && name != "*" && !strings.HasSuffix(name, ".imul") {
+		return "", false
+	}
+	a, b := t.Args()[0], t.Args()[1]
+	if a.Kind != core.KName || b.Kind != core.KName || a.Name != b.Name {
+		return "", false
+	}
+	return a.Name, true
 }
 
 func (p *intervalPass) narrowEq(t *core.Term, rel string, other ival) {
@@ -2043,29 +2092,22 @@ func (p *intervalPass) narrowSquare(t *core.Term, rel string, other ival) {
 	if rel != "lt" && rel != "le" {
 		return
 	}
-	if t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
-		return
-	}
-	name := t.Op().Name
-	if !isOp(name, "mul") && name != "*" && !strings.HasSuffix(name, ".imul") {
-		return
-	}
-	a, b := t.Args()[0], t.Args()[1]
-	if a.Kind != core.KName || b.Kind != core.KName || a.Name != b.Name {
+	x, ok := squareOf(t)
+	if !ok {
 		return
 	}
 	if other.hiInf || other.hi < 0 {
 		return
 	}
 	s := isqrt(other.hi)
-	v := p.lookup(a.Name)
+	v := p.lookup(x)
 	if v.hiInf || s < v.hi {
 		v.hi, v.hiInf = s, false
 	}
 	if v.loInf || -s > v.lo {
 		v.lo, v.loInf = -s, false
 	}
-	p.env[a.Name] = v
+	p.env[x] = v
 }
 
 func isqrt(n int64) int64 {

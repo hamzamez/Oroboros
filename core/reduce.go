@@ -943,7 +943,13 @@ func head(t *Term) string {
 // loop bodies.
 func Normalize(t *Term, e *Env, fuel int) (*Term, error) {
 	f := &fuel
-	return normalize(t, e, f)
+	nf, err := normalize(t, e, f)
+	if err != nil {
+		return nil, err
+	}
+	// Every consumer opens the residual by its hints, so the hints must be a
+	// faithful naming of the indices — see hygiene.go.
+	return hygienic(nf), nil
 }
 
 func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
@@ -1101,7 +1107,19 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				// rule reads its parameter table, so `(table n f)` becomes
 				// impure, is no longer substituted, and reaches the backend
 				// unfused. `dot` and `smooth` on Java stop compiling.
-				if readsBoundTable(args[i]) && !e.pureTerm(op.Body(), map[string]bool{}) {
+				//
+				// A λ IS EXEMPT, for the reason pureTerm gives: as an argument it
+				// is a VALUE, and the read inside it runs at each APPLICATION,
+				// which the body already contains at the place the programmer
+				// wrote it. Substituting a λ moves no evaluation, so it cannot
+				// move a read across a store. Without the exemption a
+				// comparator `(fn (u v) (< (cmp (cs u) (cs v)) 0))` handed to a
+				// sort that fills a buffer was let-bound as a bare λ — and so
+				// was the continuation handed to a dictionary of host
+				// operations, which reached the emitter as an "escaping
+				// closure" (tally-2026-09-11). freq.oro escaped only because
+				// its comparator hides the read behind a call to `wcmp`.
+				if args[i].Kind != KFn && readsBoundTable(args[i]) && !e.pureTerm(op.Body(), map[string]bool{}) {
 					na, err := normalize(args[i], e, fuel)
 					if err != nil {
 						return nil, err

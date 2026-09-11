@@ -239,6 +239,16 @@ than it was, and the tooling has only ever been exercised by twenty-line harness
 reaching a host API by generated declarations on two hosts tests all three layers at once, and it is
 what *"write something awkward"* means now.
 
+> **DONE THE SAME DAY** — [tally-2026-09-11](../gauntlet/results/tally-2026-09-11.md),
+> `examples/tally`. A regex tally over a file: one 97-line core over six host operations, bound on
+> Go (15 lines) and the JVM (19) by generated declarations only, agreeing with a hand-written
+> reference on every input tried. It needed no new mechanism — the interface is a static-level
+> argument reduction erases — and it found **five compiler bugs**, two of them exponential: a λ
+> refused substitution, a residual whose hints capture (the witness is a Go compile error), a
+> checker whose binder types outlived their bodies, an interval pass exponential in nested
+> conditions, and an emitter walking every λ twice. The build went from not finishing to three
+> seconds. And one host fact the JVM survey had wrong: a generated `String` result may be `null`.
+
 **4. Then struct by value on Win32** — research first, starting from the measured enum share.
 
 ### Deliberately not next

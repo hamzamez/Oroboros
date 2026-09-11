@@ -252,7 +252,9 @@ The error row is the totalisation working: a Go `err != nil`, a JavaScript
 
 **Provability did not move**: `jsonfmt` is 99 of 99 integer operations bounded
 and 13 of 13 loops on every target, `freq` 872 of 872 and 33 of 37, identical to
-the Go-only numbers of the day before.
+the Go-only numbers of the day before. (`freq`'s counts were of EVALUATIONS: it is
+324 of 324 operations and 27 of 31 loops, the same four unproven —
+tally-2026-09-11.)
 
 **And `wc.oro` builds at all for the first time.** It had been refused since it
 was written — `(+ lines 1)` is unbounded over an unbounded file — and nobody had

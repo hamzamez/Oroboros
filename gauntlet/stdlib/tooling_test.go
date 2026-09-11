@@ -440,6 +440,50 @@ type accept struct {
 	files  map[string]string // project-relative path -> generated file
 	flags  []string
 	want   []string
+	// An APPLICATION rather than a one-file witness: its sources (repo-relative,
+	// the entry first), its command line ("{proj}" is the project directory),
+	// and any input files it reads. Empty for the nine acceptance programs.
+	srcs   []string
+	args   []string
+	inputs map[string]string
+}
+
+// tallyReference is what `tally PATTERN FILE` must print, computed by
+// HAND-WRITTEN Go rather than by anything this repository compiles: capture group
+// 1 (or the whole match) of every matching line, counted, most frequent first,
+// ties in ascending byte order. A group that takes no part is "" — Go's answer,
+// and the one the JVM binding had to be taught (tally-2026-09-11).
+func tallyReference(text, pattern string) []string {
+	re := regexp.MustCompile(pattern)
+	count := map[string]int{}
+	for _, line := range strings.Split(text, "\n") {
+		m := re.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		v := m[0]
+		if len(m) > 1 {
+			v = m[1]
+		}
+		count[v]++
+	}
+	var vs []string
+	for v := range count {
+		vs = append(vs, v)
+	}
+	sort.Slice(vs, func(i, j int) bool { return byCountThenValue(count, vs[i], vs[j]) })
+	var out []string
+	for _, v := range vs {
+		out = append(out, fmt.Sprintf("%d\t%s", count[v], v))
+	}
+	return out
+}
+
+func byCountThenValue(count map[string]int, a, b string) bool {
+	if count[a] != count[b] {
+		return count[a] > count[b]
+	}
+	return a < b
 }
 
 func acceptance() map[string]accept {
@@ -449,7 +493,36 @@ func acceptance() map[string]accept {
 		size = strconv.FormatInt(gomod.Size(), 10)
 	}
 	checked := []string{"-checked"}
+	// THE APPLICATION: examples/tally, one core over six host operations, bound on
+	// each host by generated declarations — assessment-2026-09-11 item 3. Two
+	// inputs: a sample access log, and the one place the hosts DIVERGED, an
+	// optional group that takes no part (Go "", the JVM null).
+	logText := ""
+	if b, err := os.ReadFile(filepath.Join(root, "examples", "tally", "access.log")); err == nil {
+		logText = string(b)
+	}
+	const logPat = `"[A-Z]+ ([^ ?]*)`
+	const optText, optPat = "ab\nb\n", `(a)?b`
+	tallyOn := func(host, target, entry string, files map[string]string) []accept {
+		srcs := []string{"examples/tally/" + entry, "examples/tally/tally.oro"}
+		return []accept{
+			{host: host, target: target, layer: "tg", files: files, srcs: srcs,
+				args: []string{logPat, "examples/tally/access.log"}, want: tallyReference(logText, logPat)},
+			{host: host, target: target, layer: "tg", files: files, srcs: srcs,
+				inputs: map[string]string{"opt.txt": optText},
+				args:   []string{optPat, "{proj}/opt.txt"}, want: tallyReference(optText, optPat)},
+		}
+	}
+	goTally := tallyOn("go", "go", "tally-go.oro", map[string]string{
+		"tg/go/regexp-gen.oro": "regexp.oro", "tg/go/strings-gen.oro": "strings.oro",
+		"tg/go/strconv-gen.oro": "strconv.oro"})
+	jvmTally := tallyOn("jvm", "java", "tally-java.oro", map[string]string{
+		"tg/java/regex-gen.oro": "java-util-regex.oro", "tg/java/lang-gen.oro": "java-lang.oro"})
 	return map[string]accept{
+		"tally-go":            goTally[0],
+		"tally-go-optional":   goTally[1],
+		"tally-java":          jvmTally[0],
+		"tally-java-optional": jvmTally[1],
 		// Win32: a seven-argument call with a NULL, a void statement, a SIGNED
 		// result — the one that could fail and did (win32enum-2026-09-11) — and
 		// an enum whose two values must give two different errors.
@@ -545,14 +618,25 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			src := filepath.Join(proj, name+".oro")
-			b, err := os.ReadFile(filepath.Join(root, "gauntlet", "stdlib", "acceptance", name+".oro"))
-			if err != nil {
-				t.Fatal(err)
+			srcs := a.srcs
+			if len(srcs) == 0 {
+				srcs = []string{"gauntlet/stdlib/acceptance/" + name + ".oro"}
 			}
-			if err := os.WriteFile(src, b, 0o644); err != nil {
-				t.Fatal(err)
+			for _, s := range srcs {
+				b, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(s)))
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(proj, filepath.Base(s)), b, 0o644); err != nil {
+					t.Fatal(err)
+				}
 			}
+			for n, body := range a.inputs {
+				if err := os.WriteFile(filepath.Join(proj, n), []byte(body), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			src := filepath.Join(proj, filepath.Base(srcs[0]))
 			layers := filepath.Join(proj, a.layer) + string(os.PathListSeparator) + filepath.Join(root, "targets")
 			out := filepath.Join(proj, artifact[a.target].name)
 			argv := append([]string{bin}, a.flags...)
@@ -561,7 +645,11 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 				t.Fatalf("build: %v", err)
 			}
 			// Run from the repository root: os-methods and io-reader read go.mod.
-			got, err := command(root, artifact[a.target].run(out)...)
+			cmdline := artifact[a.target].run(out)
+			for _, arg := range a.args {
+				cmdline = append(cmdline, strings.ReplaceAll(arg, "{proj}", proj))
+			}
+			got, err := command(root, cmdline...)
 			if err != nil {
 				t.Fatalf("run: %v", err)
 			}

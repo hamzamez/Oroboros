@@ -82,3 +82,23 @@ func TestAnOrdinaryArgumentIsUnaffected(t *testing.T) {
 			"into an impure body, so the rule is wider than it should be:\n%s", got)
 	}
 }
+
+// AND A λ IS A VALUE, whatever it reads. The rule above stops a READ moving
+// across a store; a λ performs no read until it is applied, and its
+// applications are already in the body where the programmer wrote them. So a
+// comparator that reads a table is substituted into a sort that fills a buffer.
+// Without the exemption it was let-bound as a bare λ and reached the emitter as
+// an "escaping closure" — which is what stopped tally.oro, whose comparator is
+// `(fn (u v) (< (cmp (cs u) (cs v)) 0))` (tally-2026-09-11).
+func TestALambdaReadingATableIsStillSubstituted(t *testing.T) {
+	prims := "(prim build)\n(prim !set)\n(prim if)\n(prim lt)\n"
+	got := norm(t, prims+"(fn (cs b) ((fn (less) (set b 0 (if (less 0 1) 1 2))) "+
+		"(fn (u v) (lt (cs u) (cs v)))))", "")
+	if strings.Contains(got, "(fn (u v)") {
+		t.Errorf("a λ that reads a table was let-bound rather than substituted "+
+			"into an impure body, so it survives as a closure:\n%s", got)
+	}
+	if !strings.Contains(got, "(lt (cs 0) (cs 1))") {
+		t.Errorf("expected the comparator applied in place, got\n%s", got)
+	}
+}

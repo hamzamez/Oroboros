@@ -302,11 +302,14 @@ func (e *javaEmitter) inferLet(t *core.Term) {
 			e.types[k.Params[0]] = e.typeOf(t.Args()[0])
 		}
 	}
-	for _, k := range t.Kids {
-		e.inferLet(k)
-	}
+	// A λ IS WALKED ONCE, OPENED — see the Go emitter's inferLet: walking the
+	// closed body as well doubled the work at every level of nesting.
 	if t.Kind == core.KFn {
 		e.inferLet(t.Body())
+		return
+	}
+	for _, k := range t.Kids {
+		e.inferLet(k)
 	}
 }
 

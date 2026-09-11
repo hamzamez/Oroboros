@@ -50,6 +50,12 @@ builds these programs from that run's declarations, and checks what the host
 prints (tooling-2026-09-11). `-short` skips it; a missing toolchain skips its
 host by name.
 
+**And one application beside them**: `examples/tally`, a regex tally over a file,
+one core module bound on Go and on the JVM by generated declarations
+(tally-2026-09-11). The suite builds both bindings and checks each against the
+same answer computed by hand-written Go, on a sample log and on the one input
+where the two hosts diverged — an optional group that takes no part.
+
 It emits exactly what a person would write:
 
 ```go

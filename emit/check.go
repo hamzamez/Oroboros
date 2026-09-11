@@ -25,6 +25,43 @@ type checker struct {
 	types map[string]string // name -> the type demanded of it
 }
 
+// bind gives a binder's names their types for the walk of ITS body, and returns
+// what puts the previous entries back.
+//
+// `types` is keyed by name, so without this a binder's type outlived its body:
+// a later binder with the same hint — a sibling, or one the reducer made while
+// let-binding an argument — found the stale entry and was checked against it.
+// Every program that read bytes got away with it, because every leaked type was
+// `int` and happened to be right; the first program to pass a STRING table read
+// into an impure host call was told "s is int, but string is required"
+// (tally-2026-09-11). An unknown type CLEARS the name rather than leaving the old
+// entry, so inference starts fresh instead of reading a stranger's demand.
+func (c *checker) bind(names, tys []string) func() {
+	type prev struct {
+		ty string
+		ok bool
+	}
+	old := make([]prev, len(names))
+	for i, n := range names {
+		ty, ok := c.types[n]
+		old[i] = prev{ty, ok}
+		if tys[i] == "" {
+			delete(c.types, n)
+		} else {
+			c.types[n] = tys[i]
+		}
+	}
+	return func() {
+		for i := len(names) - 1; i >= 0; i-- {
+			if old[i].ok {
+				c.types[names[i]] = old[i].ty
+			} else {
+				delete(c.types, names[i])
+			}
+		}
+	}
+}
+
 // Check verifies a residual against the target's declared types. It reports the
 // first conflict, naming both demands.
 func Check(tgt *Target, what string, t *core.Term) error {
@@ -95,9 +132,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			// whole term has the type of its body.
 			body, raw, _ := openFresh(k, map[string]bool{},
 				func(s string) string { return s })
-			for i := range raw {
-				c.types[raw[i]] = p.Results[i]
-			}
+			defer c.bind(raw, p.Results[:len(raw)])()
 			return c.walk(body, want)
 		}
 		return "", nil // the emitter reports this better than the checker can
@@ -226,11 +261,10 @@ func (c *checker) loop(args []*core.Term, want string) (string, error) {
 	}
 	step := args[2]
 	if step.Kind == core.KFn && len(step.Params) == 2 {
-		if acc != "" {
-			c.types[step.Params[0]] = acc
-		}
-		c.types[step.Params[1]] = "int"
-		if _, err := c.walk(step.Body(), acc); err != nil {
+		restore := c.bind(step.Params, []string{acc, "int"})
+		_, err := c.walk(step.Body(), acc)
+		restore()
+		if err != nil {
 			return "", fmt.Errorf("in a loop body: %w", err)
 		}
 	}
@@ -251,15 +285,17 @@ func (c *checker) loop2(args []*core.Term, want string) (string, error) {
 	}
 	for _, s := range []*core.Term{args[3], args[4]} {
 		if s.Kind == core.KFn && len(s.Params) == 3 {
-			c.types[s.Params[0]], c.types[s.Params[1]], c.types[s.Params[2]] = "f64", "f64", "int"
-			if _, err := c.walk(s.Body(), "f64"); err != nil {
+			restore := c.bind(s.Params, []string{"f64", "f64", "int"})
+			_, err := c.walk(s.Body(), "f64")
+			restore()
+			if err != nil {
 				return "", fmt.Errorf("in a loop2 step: %w", err)
 			}
 		}
 	}
 	fin := args[5]
 	if fin.Kind == core.KFn && len(fin.Params) == 2 {
-		c.types[fin.Params[0]], c.types[fin.Params[1]] = "f64", "f64"
+		defer c.bind(fin.Params, []string{"f64", "f64"})()
 		return c.walk(fin.Body(), want)
 	}
 	return "", nil
@@ -288,8 +324,11 @@ func (c *checker) iterate(args []*core.Term, want string) (string, error) {
 			return "", fmt.Errorf("in a loop's initial value: %w", err)
 		}
 		tys[i] = ty
-		c.types[lam.Params[i]] = ty
 	}
+	// Bound only once every initial value is walked: the inits are OUTSIDE the
+	// loop's scope, and binding each variable before the next init was checked
+	// let a loop variable's type leak into its sibling's initialiser.
+	defer c.bind(lam.Params, tys)()
 	return c.loopBody(lam.Body(), lam.Params, tys, want)
 }
 
@@ -377,9 +416,7 @@ func (c *checker) let(args []*core.Term, want string) (string, error) {
 	}
 	k := args[1]
 	if k.Kind == core.KFn && len(k.Params) == 1 {
-		if v != "" {
-			c.types[k.Params[0]] = v
-		}
+		defer c.bind(k.Params, []string{v})()
 		return c.walk(k.Body(), want)
 	}
 	return "", nil
@@ -394,8 +431,10 @@ func (c *checker) build(args []*core.Term, want string) (string, error) {
 	}
 	elem := args[1]
 	if elem.Kind == core.KFn && len(elem.Params) == 1 {
-		c.types[elem.Params[0]] = "int"
-		if _, err := c.walk(elem.Body(), "f64"); err != nil {
+		restore := c.bind(elem.Params, []string{"int"})
+		_, err := c.walk(elem.Body(), "f64")
+		restore()
+		if err != nil {
 			return "", fmt.Errorf("in a make-vec element: %w", err)
 		}
 	}

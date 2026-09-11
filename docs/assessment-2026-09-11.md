@@ -225,6 +225,15 @@ so the witness can fail.
 and the published counts pinned — so that the next correction is found by a failing test rather than
 by the next question.
 
+> **DONE THE SAME DAY** — [tooling-2026-09-11](../gauntlet/results/tooling-2026-09-11.md),
+> `gauntlet/stdlib/tooling_test.go`. Four properties, and **three failed on the first run**: the
+> Go and Win32 REPORTS differed between identical runs (ties sorted in map order, eight sites); two
+> published JVM figures — **5,186 edges and 5,446 overloads** — are produced by nothing, the tool
+> printing 4,948 overloads and the relation being **10,095 edges**, the closure rather than the
+> direct edges §2 of surveys-2026-09-10 claimed; and `os-methods.oro`'s recipe had never run since
+> it was written and does not build. Each property was then made to fail against a bug this tooling
+> really shipped. No compiler change.
+
 **3. An application on two hosts, through generated declarations.** The corpus is six lines better
 than it was, and the tooling has only ever been exercised by twenty-line harnesses. One real program
 reaching a host API by generated declarations on two hosts tests all three layers at once, and it is

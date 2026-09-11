@@ -882,7 +882,7 @@ func interfaceReport(lines []string, syms []sym, have map[string]bool) {
 	for k, v := range byIface {
 		ds = append(ds, dm{k, v})
 	}
-	sort.Slice(ds, func(i, j int) bool { return ds[i].n > ds[j].n })
+	sort.Slice(ds, func(i, j int) bool { return byCount(ds[i].n, ds[j].n, ds[i].name, ds[j].name) })
 	fmt.Printf("\nTHE INTERFACES MOST ASKED FOR, and what we could hand them\n")
 	for i, d := range ds {
 		if i >= 12 {
@@ -1398,7 +1398,7 @@ func main() {
 	for r, n := range byReason {
 		rs = append(rs, rc{r, n})
 	}
-	sort.Slice(rs, func(i, j int) bool { return rs[i].n > rs[j].n })
+	sort.Slice(rs, func(i, j int) bool { return byCount(rs[i].n, rs[j].n, rs[i].r, rs[j].r) })
 	for _, x := range rs {
 		fmt.Printf("  %-24s %6d  %5.1f%%   [%s]\n", x.r, x.n, pct(x.n, all.total), blame(x.r))
 	}
@@ -1409,7 +1409,7 @@ func main() {
 	for r, n := range byGap {
 		gs = append(gs, rc{r, n})
 	}
-	sort.Slice(gs, func(i, j int) bool { return gs[i].n > gs[j].n })
+	sort.Slice(gs, func(i, j int) bool { return byCount(gs[i].n, gs[j].n, gs[i].r, gs[j].r) })
 	for _, x := range gs {
 		fmt.Printf("  %-24s %6d  %5.1f%% of declarable\n", x.r, x.n, pct(x.n, all.decl))
 	}
@@ -1604,6 +1604,17 @@ func verifyImplements(syms []sym, sat map[string][]string) (map[string][]string,
 		sat = next
 	}
 	return nil, 0, fmt.Errorf("the candidate relation did not settle in twenty passes")
+}
+
+// byCount orders by count, largest first, and then by NAME. A count alone is a
+// partial order, ties are common, every ranked list here is filled from a map,
+// and sort.Slice is not stable — so the report changed between two identical
+// runs, and nothing noticed until a test ran the tool twice (tooling-2026-09-11).
+func byCount[K ~string](a, b int, ka, kb K) bool {
+	if a != b {
+		return a > b
+	}
+	return ka < kb
 }
 
 func pct(a, b int) float64 {

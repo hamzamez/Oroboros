@@ -35,11 +35,20 @@ declaration it generates can be built and run — including a **method**, which 
 
 ```bash
 go run gauntlet/stdlib/survey.go -emit /tmp/gostd
-mkdir -p /tmp/goproj/go && cp /tmp/gostd/os.oro /tmp/goproj/go/
+mkdir -p /tmp/goproj/tg/go && cp /tmp/gostd/os.oro /tmp/goproj/tg/go/os-gen.oro
 cp gauntlet/stdlib/acceptance/os-methods.oro /tmp/goproj/
-go run ./cmd/build -target=go -targets "/tmp/goproj;targets" -o /tmp/osm /tmp/goproj/os-methods.oro
+go run ./cmd/build -target=go -targets "/tmp/goproj/tg;targets" -o /tmp/osm /tmp/goproj/os-methods.oro
 /tmp/osm            # must print 64, which is `head -c 64 go.mod | wc -c`
 ```
+
+(Corrected 2026-09-11: this recipe put the file at `/tmp/goproj/go/os.oro`, which
+the library search path finds as module `go/os` and refuses — the trap described
+under `io-reader` below. Nothing had run it since; `tooling_test.go` does now.)
+
+**All nine are a test**: `go test ./gauntlet/stdlib/` runs every survey twice,
+builds these programs from that run's declarations, and checks what the host
+prints (tooling-2026-09-11). `-short` skips it; a missing toolchain skips its
+host by name.
 
 It emits exactly what a person would write:
 
@@ -160,7 +169,8 @@ lists anyway, have to be skipped. **The coercion**: `StringJoiner` takes a
 java-lang-CharSequence …)` is what makes it legal, with no conversion syntax in
 the emitted Java at all. **The overload**: `Random.nextInt` is two methods and
 one name, so the second is `nextInt2` — overloading.md's `Println`/`Println2`
-wart, which has 5,446 instances on this host. **The method chain**: `add` returns
+wart, which has 4,948 instances on this host (5,446 when first written, a figure the
+committed tool does not print — tooling-2026-09-11). **The method chain**: `add` returns
 the joiner, which is what makes a method a SOURCE in the obtainable fixed point
 and not just a consumer — leaving that out understated Go by ten points until the
 JVM survey was written.

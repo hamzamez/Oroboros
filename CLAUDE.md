@@ -146,9 +146,10 @@ hosts priced, Go **60.4%** and the JVM **60.9%** usable from completely differen
 the survey tooling grew **1,511 → 4,559 lines with no tests at all**. `emit : core` moved the wrong
 way a fifth time, 3.98 → 4.13; the analysis layer, for the first time in five rounds, did not grow.
 Writing it found **a silent wrong answer in every generated signed Win32 result** and **an unsourced
-figure repeated three times**; item 1 fixed both the same day. **What is next**: tests for the
-survey tooling, one application on two hosts through generated declarations, then Win32 struct
-by value.
+figure repeated three times**; item 1 fixed both the same day. **Item 2 is DONE too** —
+[tooling-2026-09-11](gauntlet/results/tooling-2026-09-11.md): the tooling has tests, and three of
+four properties failed on the first run. **What is next**: one application on two hosts through
+generated declarations, then Win32 struct by value.
 
 The previous one is [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
 round the plan ran out**, written because all five items of the previous one are done rather than
@@ -2158,6 +2159,35 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**THE SURVEY TOOLING HAS TESTS, AND THREE OF FOUR PROPERTIES FAILED ON THE FIRST RUN** —
+[tooling-2026-09-11](gauntlet/results/tooling-2026-09-11.md), `gauntlet/stdlib/tooling_test.go`,
+assessment-2026-09-11 item 2. `go test ./gauntlet/stdlib/` runs every survey TWICE from the manifest
+up and checks four things: the two runs are byte-identical; **every name counted declarable is
+emitted**, as arithmetic that needs no pinned number (Go 4,331 − 20 voids + 462 constructors = 4,773);
+every figure a document quotes is still printed, **pinned to the host version it was measured on and
+FAILING rather than skipping on a new one**; and the nine acceptance programs build from that run's
+declarations and print the host's answer. 81 seconds; `-short` skips it; a missing toolchain skips its
+host by name.
+
+**THE EMITTED FILES WERE DETERMINISTIC AND THE REPORTS WERE NOT.** structlit-2026-09-10 made the
+generator a function of its input by diffing two emits, and never compared the REPORTS the numbers are
+read from: every ranked list sorted by count alone, from a map, with `sort.Slice`, so `IUnknown` and
+`bool` (17 each) swapped between identical runs. Eight sites, now tie-broken by name — *a total order*,
+that result's own lesson one level up. **AND TWO PUBLISHED JVM FIGURES ARE PRODUCED BY NOTHING**: the
+committed tool prints **4,948 overloads (16.0%)**, not 5,446 (17.6%), and **5,186 edges** matches no
+count at all — the tool printed `implements` LINES as edges (4,626), the emitted relation is **10,095
+pairs over 3,225 subtypes**, and it is the CLOSURE where the document said *"direct edges only"*. A
+second unsourced figure the day after the first was named, and the first a test found. **And
+`os-methods.oro`'s recipe had never run since it was written**: it put the file where `(use go/os)`
+reads it as a module, the trap the same README explains for the recipe next to it.
+
+**Each property was made to fail against a bug this tooling really shipped** — the tie order, the stale
+14-argument cap, every result read as `mov %r, rax` — and `signed-result` printed `0, 4294967375`
+exactly as before its fix. **What it leaves, stated**: a pin says a number has not moved, not that it
+was right, and every wrong figure here was wrong in its METHOD, which a pin would have frozen — so the
+arithmetic test is worth more than the pins. And nine acceptance programs are the only semantic check on
+47,000 generated declarations. **Cost: no compiler change**; every emitted file byte-identical.
+
 **WIN32 ENUMS ARE WORDS, AND EVERY SIGNED RESULT WAS BEING READ UNSIGNED** —
 [win32enum-2026-09-11](gauntlet/results/win32enum-2026-09-11.md), `gauntlet/stdlib/win32.go`,
 `targets/windows/msvcrt.oro`, `gauntlet/stdlib/acceptance/signed-result.oro` and `enum-param.oro`.
@@ -2282,8 +2312,9 @@ refused*.
 DERIVED.** coercion-2026-09-09 had to compute Go's relation structurally and let
 `go build` refuse **182 of 1,651** false candidates, because an interface sealed by
 an unexported method looks satisfied by everything. `extends` and `implements` are
-written down, so **5,186 edges** are read off the host with nothing to guess and
-nothing for a filter to catch. **`(implements string java-lang-CharSequence …)`**
+written down, so **10,095 edges** are read off the host with nothing to guess and
+nothing for a filter to catch (*5,186* when first written — reproduced by nothing,
+tooling-2026-09-11). **`(implements string java-lang-CharSequence …)`**
 is the one that pays, and it needed one thing Go never raised: **a range is not a
 name** — `java.lang.Byte` spells `(int -128 127)`, a type EXPRESSION, which cannot
 be the subject of an edge, and nothing is lost because `ValueType` normalises a
@@ -2292,7 +2323,8 @@ range to `int`.
 **TWO FORMAT PROBLEMS THE GO SURVEY COULD NOT HAVE SHOWN.** **Overloading**:
 `tg.Prims` is keyed by NAME ALONE, so `nextInt()` and `nextInt(int)` are one entry
 — overloading.md §3 records that as *a target-file wart* with ONE live instance,
-and **Java has 5,446, 17.6% of the emitted surface**, answered by the existing
+and **Java has 4,948, 16.0% of the emitted surface** (5,446 and 17.6% when first
+written, which the committed tool does not print — tooling-2026-09-11), answered by the existing
 `Println`/`Println2`/`Println3` precedent. And **a CLASS is the module, not a
 package**: `java.lang.Math.atan2` and `java.lang.StrictMath.atan2` are two classes,
 one package and one name, so every member lives in `java/<pkg>/<Class>` — which is
@@ -3952,7 +3984,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the seven programs that check a percentage is not a claim |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the nine programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all nine |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

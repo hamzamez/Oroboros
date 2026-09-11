@@ -530,6 +530,17 @@ func closeSub() {
 	sub = closed
 }
 
+// byCount orders by count, largest first, and then by NAME. A count alone is a
+// partial order, ties are common, every ranked list here is filled from a map,
+// and sort.Slice is not stable — so the report changed between two identical
+// runs, and nothing noticed until a test ran the tool twice (tooling-2026-09-11).
+func byCount[K ~string](a, b int, ka, kb K) bool {
+	if a != b {
+		return a > b
+	}
+	return ka < kb
+}
+
 func pct(a, b int) float64 {
 	if b == 0 {
 		return 0
@@ -695,7 +706,7 @@ func main() {
 	for r, n := range byReason {
 		rs = append(rs, rc{r, n})
 	}
-	sort.Slice(rs, func(i, j int) bool { return rs[i].n > rs[j].n })
+	sort.Slice(rs, func(i, j int) bool { return byCount(rs[i].n, rs[j].n, rs[i].r, rs[j].r) })
 	for _, x := range rs {
 		fmt.Printf("  %-26s %6d  %5.1f%%   [%s]\n", x.r, x.n, pct(x.n, all.total), blame(x.r))
 	}
@@ -706,7 +717,7 @@ func main() {
 	for r, n := range byGap {
 		gs = append(gs, rc{r, n})
 	}
-	sort.Slice(gs, func(i, j int) bool { return gs[i].n > gs[j].n })
+	sort.Slice(gs, func(i, j int) bool { return byCount(gs[i].n, gs[j].n, gs[i].r, gs[j].r) })
 	for _, x := range gs {
 		fmt.Printf("  %-26s %6d  %5.1f%% of declarable\n", x.r, x.n, pct(x.n, all.decl))
 	}
@@ -791,7 +802,15 @@ func genericReport(syms []sym, total int) {
 // template can spell `java.util.Objects.toString(%s)` and needs no `(import …)`
 // at all — which also means two classes with the same simple name can never
 // collide in a generated file.
-var overloaded, skipped, nEdges int
+var overloaded, skipped int
+
+// edgePairs counts what the report calls an EDGE: one (subtype, supertype) pair,
+// however many package files repeat it. The first version counted `implements`
+// LINES, one per subject per file, and printed that as edges — 4,626 against
+// 10,095 pairs — while the published figure, 5,186, matched neither and was never
+// reproduced (tooling-2026-09-11).
+var edgePairs = map[string]bool{}
+var edgeSubjects = map[string]bool{}
 
 func emit(dir string, syms []sym) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -1028,7 +1047,10 @@ func emit(dir string, syms []sym) error {
 		sort.Strings(en)
 		for _, k := range en {
 			fmt.Fprintf(&b, "  (implements %s %s)\n", k, strings.Join(edges[k], " "))
-			nEdges++
+			edgeSubjects[k] = true
+			for _, up := range edges[k] {
+				edgePairs[k+" "+up] = true
+			}
 		}
 		if len(en) > 0 {
 			b.WriteString("\n")
@@ -1053,9 +1075,12 @@ func emit(dir string, syms []sym) error {
 	fmt.Printf("  is keyed by name alone, and Java's surface is overloaded throughout.\n")
 	fmt.Printf("  %d declarable names have no template: a void with no argument, which\n", skipped)
 	fmt.Printf("  has nothing to be, since a statement's value IS its first argument.\n")
-	fmt.Printf("  %d subsumption edges, READ from `extends`/`implements` rather than\n", nEdges)
-	fmt.Printf("  derived: this host declares its own relation, so unlike Go there is\n")
-	fmt.Printf("  nothing to guess and nothing for a host filter to catch.\n")
+	fmt.Printf("  %d subsumption edges over %d subtypes, READ from `extends`/`implements`\n",
+		len(edgePairs), len(edgeSubjects))
+	fmt.Printf("  rather than derived: this host declares its own relation, so unlike Go\n")
+	fmt.Printf("  there is nothing to guess and nothing for a host filter to catch. They\n")
+	fmt.Printf("  are the CLOSURE, which the loader would compute anyway, so emitting it\n")
+	fmt.Printf("  changes no program.\n")
 	return nil
 }
 

@@ -679,7 +679,7 @@ func main() {
 	for r, n := range byReason {
 		rs = append(rs, rc{r, n})
 	}
-	sort.Slice(rs, func(i, j int) bool { return rs[i].n > rs[j].n })
+	sort.Slice(rs, func(i, j int) bool { return byCount(rs[i].n, rs[j].n, rs[i].r, rs[j].r) })
 	for _, x := range rs {
 		fmt.Printf("  %-24s %6d  %5.1f%%   [%s]\n", x.r, x.n, pct(x.n, len(fns)), blame(x.r))
 	}
@@ -693,7 +693,7 @@ func main() {
 		for t, n := range unres {
 			us = append(us, uc{t, n})
 		}
-		sort.Slice(us, func(i, j int) bool { return us[i].n > us[j].n })
+		sort.Slice(us, func(i, j int) bool { return byCount(us[i].n, us[j].n, us[i].t, us[j].t) })
 		fmt.Println("\nTOP UNRESOLVED TYPEDEFS (this tool's residue, not a language limit)")
 		for i, x := range us {
 			if i >= 25 {
@@ -709,7 +709,7 @@ func main() {
 	for k := range salCount {
 		ks = append(ks, k)
 	}
-	sort.Slice(ks, func(i, j int) bool { return salCount[ks[i]] > salCount[ks[j]] })
+	sort.Slice(ks, func(i, j int) bool { return byCount(salCount[ks[i]], salCount[ks[j]], ks[i], ks[j]) })
 	total := 0
 	for _, k := range ks {
 		total += salCount[k]
@@ -896,6 +896,17 @@ func win64(name string, n int) (string, bool) {
 	}
 	fmt.Fprintf(&b, "call %s\nmov %%r, rax", name)
 	return b.String(), true
+}
+
+// byCount orders by count, largest first, and then by NAME. A count alone is a
+// partial order, ties are common, every ranked list here is filled from a map,
+// and sort.Slice is not stable — so the report changed between two identical
+// runs, and nothing noticed until a test ran the tool twice (tooling-2026-09-11).
+func byCount[K ~string](a, b int, ka, kb K) bool {
+	if a != b {
+		return a > b
+	}
+	return ka < kb
 }
 
 func pct(a, b int) float64 {

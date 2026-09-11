@@ -86,6 +86,13 @@ function walk(root, path, depth) {
     // of them is a description of JavaScript, and all three put machine-
     // specific text into the manifest. Named explicitly rather than filtered by
     // a heuristic, because three names are checkable and a heuristic is not.
+    //
+    // AND THE NAME IS BUILT BEFORE IT IS USED. The first version of this guard
+    // referenced `p` above its `const` — a temporal-dead-zone ReferenceError,
+    // which the per-module `try` swallowed, so `node:process` stopped at `chdir`
+    // and every member after `config` vanished with no diagnostic. A guard
+    // written to keep noise OUT of the manifest took signal out with it.
+    const p = path + "." + n;
     if (path === "node:process" && (n === "env" || n === "config" || n === "moduleLoadList")) {
       out.push(`mem ${p} value 0`);
       continue;
@@ -97,7 +104,6 @@ function walk(root, path, depth) {
       continue;
     }
     if (!desc) continue;
-    const p = path + "." + n;
     // THE NAME CHECK COMES BEFORE THE KIND, because a GETTER can have an
     // unnameable key too: `RegExp.$&` is a legacy accessor, and the first
     // version marked only value-shaped members, so it reached the reader as

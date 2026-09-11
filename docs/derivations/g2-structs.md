@@ -92,6 +92,12 @@ assumed**. Measured, n=65536, array-of-structs against parallel arrays:
 built objects out contiguously, so iterating `Point[]` is near-sequential despite the
 indirection. Only JS actually pays.
 
+> **Scoped 2026-09-11 by [aossoa-2026-09-11](../../gauntlet/results/aossoa-2026-09-11.md) §4.3.**
+> The 1.05x is objects visited **in allocation order**, which is the case the TLAB makes
+> sequential. Visited at random over a table past cache, `Node[]` is **1.93x** behind a flat
+> `int[]` on the JVM — the allocator makes objects contiguous; it cannot make a random access
+> pattern sequential. The finding stands for the access pattern it measured and no further.
+
 That halves the scope of the problem: one target of three needs a different representation, not
 two.
 

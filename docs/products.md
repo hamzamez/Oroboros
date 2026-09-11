@@ -424,6 +424,17 @@ gives — it is what the hand-written programs already chose, so it cannot cost
 speed — and the other two representations are a target declaration and a
 benchmark, in that order.
 
+> **TAKEN 2026-09-11, AND §6 WAS WRONG ABOUT WHO CHOOSES** —
+> [aossoa-2026-09-11](../gauntlet/results/aossoa-2026-09-11.md). The freedom
+> to choose is worth having — SoA wins a column scan by up to **2.13x**, flat
+> wins a random gather by up to **5.58x** — but **every host agrees on which
+> layout wins which workload**, so the choice is a PROGRAM decision made by the
+> access pattern, not a TARGET decision the way `int-repr` is. A per-target
+> layout declaration would be the wrong mechanism. And the flat stride that
+> shipped is the **minimax** layout: its worst case is 2.13x, SoA's is 5.58x. An
+> array of objects is never the best choice on any host, so "AoS" only ever means
+> the flat stride. `tree.oro`'s own table is L1-resident and indifferent.
+
 **And the build found three facts the refinement layer did not have**, none of
 which was predicted here: a quotient was outside the linear fragment *entirely*,
 `k·(x/k) <= x` had to be a declared axiom seeded at the root, and discharging a

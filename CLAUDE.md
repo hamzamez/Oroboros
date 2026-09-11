@@ -174,7 +174,7 @@ is Go's idiom alone. **DONE the same day** —
 question is that it does not need to: a fallible call is TOTALISATION, `try`/`catch` is a template,
 and the compiler never learns exceptions exist. The three programs are portable and the residue is
 windows. Then **AoS against SoA**, the one measurement that could show part of this
-week's work to be worth nothing. Deliberately not next: the heterogeneous product's
+week's work to be worth nothing. **DONE 2026-09-11** — [aossoa-2026-09-11](gauntlet/results/aossoa-2026-09-11.md): every host agrees on which layout wins which access pattern, so the choice belongs to the program rather than the target, and the flat stride that shipped is the minimax one. Deliberately not next: the heterogeneous product's
 layout (nothing here wants it), the termination gap (analysis, and that is risk 1), another survey,
 and more gauntlet programs.
 
@@ -2147,6 +2147,45 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**AoS AGAINST SoA IS MEASURED, AND THE ACCESS PATTERN CHOOSES, NOT THE HOST** —
+[aossoa-2026-09-11](gauntlet/results/aossoa-2026-09-11.md), `gauntlet/go/aossoa.go`,
+`gauntlet/js/aossoa.mjs`, `gauntlet/java/AosSoaBench.java`. products.md §11 item 3, and the
+measurement the 09-09 assessment said *could show part of what was built this week to be worth
+nothing*. Three layouts — the flat stride, four parallel tables, an array of records — with the
+layout as the only variable, three workloads, three hosts. **SoA wins the column scan on every host
+— 2.13x on Go, 1.69x on the JVM, within noise on V8 — and flat wins a random gather over a table
+past cache on every host, with SoA 5.58x, 3.94x and 3.04x slower.** The direction agrees
+everywhere; only the magnitude is a host property.
+
+**So products.md §6 was right that the choice is worth having and WRONG about who makes it.** It
+said which layout is emitted is a TARGET decision; measured, it is a PROGRAM decision — the access
+pattern picks and the host only scales the stakes — which is the opposite of `int-repr` and
+`big-repr`, so a per-target layout declaration would be the wrong mechanism. **The flat stride that
+shipped is the MINIMAX layout**: its worst case is 2.13x behind SoA, SoA's is 5.58x behind flat,
+which is why the product pass's choice was right for a reason nobody had stated. **An array of
+objects is never the best layout on any host**: on Go the value struct IS the flat stride (206,356
+against 206,360 ns), on the JVM and V8 it is an array of references, and g2-structs' Java 1.05x is
+scoped to objects visited in ALLOCATION ORDER — at random they cost 1.93x. **`tree.oro`'s own node
+table is L1-resident and indifferent to layout.**
+
+**AND THE FIRST RUN WAS MISSING ITS LOSING FORM.** With two workloads it said *SoA never loses* —
+because the one workload shaped for AoS ran on 16 KB, where locality cannot matter, so it measured
+address arithmetic instead. A third workload with the same access pattern past cache decided the
+result. *A workload is only the losing form if it can actually lose.* One thing measured and not
+explained: Go's struct scan is 1.19x slower than the flat scan over the same bytes, and the
+compiler's own bounds-check output refutes the obvious cause — the flat loop keeps two checks and the
+struct loop none. **What it leaves**: a layout rule — a sequential loop over a strict subset of a
+product's fields gets SoA, anything else the flat stride — which whole-program reduction makes
+decidable and which should not be built until a real program has a product table past cache. **No
+compiler change.**
+
+**AND THE JS DUMPER HAD TRUNCATED `node:process`**, found the day after it shipped: the guard written
+to keep runtime state out of the manifest referenced `p` above its `const` — a temporal-dead-zone
+`ReferenceError` that the per-module `try` swallowed — so the walk stopped at `chdir` and 94 members
+vanished. surveys-2026-09-10's JavaScript figures are corrected to **2,340 callable** from 2,303,
+with **604 of 2,326 nameable members reporting arity zero, 26.0%**; no conclusion moves. *A guard
+written to keep noise out of a manifest took signal out with it.*
+
 **THE LAST TWO TARGETS ARE PRICED, AND THE GO SURVEY WAS UNDER-COUNTING ITSELF** —
 [surveys-2026-09-10](gauntlet/results/surveys-2026-09-10.md),
 `gauntlet/stdlib/jdk/Dump.java`, `gauntlet/stdlib/jvm.go`,
@@ -2154,7 +2193,7 @@ and not whether the call does anything — **the acceptance test is a program, a
 never been surveyed; **all four have a number now**, and the two big managed
 ecosystems land half a point apart from completely different refusals:
 **Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8%,
-JavaScript 100% / not answerable.**
+JavaScript 100% / not answerable.** (2,340 callable, corrected from 2,303 on 2026-09-11.)
 
 **THE RUNTIME IS THE MANIFEST, for the second and third time.** Go ships
 `api/go1*.txt` and the Windows SDK ships headers; the JDK ships neither and needs
@@ -2225,7 +2264,7 @@ made ADR 0019's bounded-by-default VACUOUS on JavaScript* (bigrep-2026-09-02). S
 the survey measures the SHAPE, and **the shape is misreported**: `Function.length`
 counts parameters before the first default or rest and a native function's are not
 introspectable at all, so **`Math.max.length` is 2 on a variadic function,
-`console.log.length` is 0, and 604 of 2,303 callable members report arity ZERO**.
+`console.log.length` is 0, and 604 of 2,326 nameable callable members report arity ZERO** (corrected 2026-09-11 from 2,303; see the AoS entry above).
 *The host does not merely decline to give us types; it misreports the one thing a
 declaration needs from it.* That is win32-2026-09-06's *opacity is a property of
 the PAIR* taken to its limit and inverted: **everything is one dynamic value, so

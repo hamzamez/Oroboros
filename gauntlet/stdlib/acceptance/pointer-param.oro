@@ -1,0 +1,37 @@
+; ACCEPTANCE: a Win32 parameter written `TYPE *name` is a POINTER.
+;
+; C binds `*` to the DECLARATOR, so `_In_opt_ VOID *lp` is a pointer whose name
+; is `lp` — and the survey took the last field of the parameter as the name and
+; threw the star away, making the parameter a `VOID` BY VALUE. In the other
+; direction it made `BOOL *pfOn` a WORD, so `GetDevicePowerState` was declared
+; `(int int)`: a program could pass the literal 0 where an address belongs, the
+; type checker would accept it, and the host would write a BOOL to address 0.
+; 585 of the 9,427 declarations the generator wrote had a parameter of that
+; shape (structval-2026-09-12).
+;
+; `IsBadReadPtr(_In_opt_ VOID *lp, _In_ UINT_PTR ucb)` is the witness because it
+; is CALLABLE: the annotation says the pointer may be NULL, so `(x64.null)` is a
+; legal argument and the program runs rather than being refused.
+;
+; TWO CALLS, because one could not fail. The host answers differently for the
+; same pointer at two lengths, so the program cannot be right by accident:
+;
+;   null, 1 byte  ->  1   TRUE: address 0 is not readable
+;   null, 0 bytes ->  0   FALSE: there is nothing to check
+;
+; Verified against C on this host before it was written here.
+;
+; And it does not compile against the old declaration AT ALL: with `lp` typed
+; `int`, `(x.null)` is a `ptr` where an `int` is required, and with the literal
+; 0 in its place the FIXED declaration refuses it. The two spellings and the two
+; declarations are each other's negative.
+
+(use win/WinBase as w)
+(use x64 as x)
+(use win/fmt as fmt)
+
+(export main)
+
+(def main (fn ()
+  (seq (fmt.print-int (w.IsBadReadPtr (x.null) 1))
+       (fmt.print-int (w.IsBadReadPtr (x.null) 0)))))

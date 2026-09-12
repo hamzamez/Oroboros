@@ -318,7 +318,7 @@ lives: **struct arguments built by literal**, and types no declarable function
 returns. Whether a struct literal is expressible — `(array …)` is a product and
 products.md §7 defers the layout that a `GUID` and an `http.Client{}` both need —
 is the question this measurement points at, and it is the same layout question
-Win32's struct-by-value 13.9% points at from the other side.
+Win32's struct-by-value 13.9% points at from the other side. *(That number is **1.2%** as of structval-2026-09-12 — two thirds of it was the survey misreading `TYPE *name` as a value, and the convergence is smaller than it looked.)*
 
 **Two questions convergng on one missing thing is the best evidence this
 repository has ever used** that the thing is the right one to build.

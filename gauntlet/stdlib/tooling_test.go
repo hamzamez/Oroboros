@@ -26,10 +26,10 @@
 //
 // And a fourth, which is the reason the first three matter: THE ACCEPTANCE
 // PROGRAMS RUN. A percentage that does not build is a claim, and a witness that
-// cannot fail proves nothing — so these are the nine programs in acceptance/,
+// cannot fail proves nothing — so these are the ten programs in acceptance/,
 // built from THIS run's generated declarations and checked against the host.
 //
-// Slow — every survey runs twice, and nine programs go through four toolchains —
+// Slow — every survey runs twice, and ten programs go through four toolchains —
 // so `-short` skips all of it. A host whose toolchain is absent is skipped BY
 // NAME; nothing is skipped for any other reason.
 package stdlib
@@ -365,16 +365,26 @@ var published = map[string][]string{
 		"USABLE GOES 2710 -> 2978 (+268)",
 		"emitted 4773 primitives",
 	},
-	"win32": { // win32-2026-09-08, win32enum-2026-09-11
+	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12
 		"FLAT C API: 11575",
-		"declarable as a (prim …): 9427 81.4%",
-		"callable by a program: 4257 36.8%",
-		"and the call says it all: 3950 34.1%",
+		"declarable as a (prim …): 10479 90.5%",
+		"callable by a program: 4093 35.4%",
+		"and the call says it all: 3756 32.4%",
 		"(widest is 17 arguments)",
-		"ENUMS: 10028 enum type names; 5831 of them",
-		"struct by value 945 8.2%",
-		"floating point 36 0.3%",
-		"emitted 9427 primitives",
+		"ENUMS: 10109 enum type names; 6031 of them",
+		"struct by value 140 1.2%",
+		"floating point 29 0.3%",
+		"emitted 10479 primitives",
+		// structval-2026-09-12. The bucket that was the largest refusal at
+		// 945, and what the ABI does with what is left of it.
+		"STRUCT BY VALUE: 24 aggregate types across 140 refusals",
+		"1/2/4/8 bytes — one register 12 77 7",
+		"other — by reference / RCX 12 55 1",
+		// And the ceiling nobody had measured: a callable name in a library
+		// the link line does not name is a claim.
+		"in a library the build links: 666 16.3%",
+		"in another import library: 3160 77.2%",
+		"in no import library at all: 267 6.5%",
 	},
 	"jvm": { // surveys-2026-09-10, corrected by tooling-2026-09-11
 		"4508 public types",
@@ -425,6 +435,16 @@ func TestPublishedCountsAreTheCounts(t *testing.T) {
 					t.Errorf("published %q, and the %s survey no longer says it", line, name)
 				}
 			}
+			// A PIN SAYS A NUMBER HAS NOT MOVED, NOT THAT IT WAS RIGHT, and
+			// the ABI-class rows read from a committed size table. A new SDK
+			// can add a blocking aggregate the table does not cover, and the
+			// report would then say "size not measured" — honest, and useless
+			// as a finding. So the absence of that row is pinned too.
+			if name == "win32" && strings.Contains(report, "size not measured") {
+				t.Errorf("an aggregate blocks an entry point and has no measured size; " +
+					"regenerate with `go run gauntlet/stdlib/win32.go -sizes " +
+					"gauntlet/stdlib/win32-sizes.txt`")
+			}
 		})
 	}
 }
@@ -442,7 +462,7 @@ type accept struct {
 	want   []string
 	// An APPLICATION rather than a one-file witness: its sources (repo-relative,
 	// the entry first), its command line ("{proj}" is the project directory),
-	// and any input files it reads. Empty for the nine acceptance programs.
+	// and any input files it reads. Empty for the ten acceptance programs.
 	srcs   []string
 	args   []string
 	inputs map[string]string
@@ -533,6 +553,13 @@ func acceptance() map[string]accept {
 		"signed-result": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "79"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
 		"enum-param": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"0", "24", "87"},
+			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		// And a parameter written `TYPE *name`, which the survey read as a
+		// value by value: `IsBadReadPtr(NULL, 1)` is TRUE and
+		// `IsBadReadPtr(NULL, 0)` is FALSE, so one declaration gives two
+		// answers and the program cannot be right by accident
+		// (structval-2026-09-12).
+		"pointer-param": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the

@@ -20,17 +20,30 @@
 //	          (windows-target.md), so `opaque` costs less here than it does on a
 //	          host with a type system.
 //
+// AND TWO QUESTIONS THIS TOOL ASKS THE HOST RATHER THAN ANSWERING ITSELF, both
+// because it has been wrong about them (structval-2026-09-12): what an
+// aggregate's Win64 layout is, and whether a name it read as an enum really is
+// an integer type. MSVC knows both, the way `go build` knows which subsumption
+// edges are real (coercion-2026-09-09). The sizes are committed in
+// `win32-sizes.txt` so the report stays a function of the headers alone.
+//
 //	go run gauntlet/stdlib/win32.go
 //	go run gauntlet/stdlib/win32.go -emit DIR
+//	go run gauntlet/stdlib/win32.go -sig CreateFileA          one signature
+//	go run gauntlet/stdlib/win32.go -check-enums              needs MSVC
+//	go run gauntlet/stdlib/win32.go -sizes gauntlet/stdlib/win32-sizes.txt
 package main
 
 import (
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -71,6 +84,17 @@ var enumBase = map[string]string{}
 // enumWasStruct records the enum names the struct table had captured. It is the
 // number assessment-2026-09-09 asserted as "675" without ever measuring it.
 var enumWasStruct = map[string]bool{}
+
+// structHdr records the header each aggregate name was first declared in, so a
+// sizeof probe can include the file that defines it.
+//
+// THE HOST IS THE ORACLE FOR A LAYOUT. The ABI class of a struct is decided by
+// its SIZE — Win64 passes an aggregate of exactly 1, 2, 4 or 8 bytes in a
+// register and everything else by reference — and a size computed here would
+// have to get bitfields, `#pragma pack`, anonymous unions and nested alignment
+// right on 900 declarations. MSVC already knows. So `-sizes` asks it, the way
+// coercion-2026-09-09 asked `go build` which subsumption edges are real.
+var structHdr = map[string]string{}
 
 func baseOr(b string) string {
 	if b = strings.TrimSpace(b); b == "" {
@@ -334,18 +358,42 @@ func parseParams(s string) ([]param, bool) {
 	doneLegacy:
 		// The last identifier is the parameter's name, unless the whole thing
 		// is a bare type.
+		//
+		// THE DECLARATOR CARRIES THE POINTER, AND IT IS THE SDK'S OWN STYLE.
+		// C binds `*` to the DECLARATOR, so `SURFOBJ *pso` is a pointer whose
+		// name is `pso` — and taking the last field as the name threw the star
+		// away, making the parameter a `SURFOBJ` BY VALUE. That is not a
+		// cosmetic misread: it put 78 entry points under the largest refusal in
+		// the table, and in the other direction it made `DWORD *pcb` a WORD, so
+		// a pointer the program cannot build was counted as passable and
+		// `-emit` generated a prim taking an integer where the host wants an
+		// address. `TYPE name[]` had the same hole — `TrimSuffix` removed the
+		// brackets before the test that looks for them could see them.
 		f := strings.Fields(p)
 		pp := param{sal: strings.Join(sal, " ")}
 		if len(f) >= 2 && !strings.HasSuffix(f[len(f)-1], "*") {
-			pp.name = strings.TrimSuffix(f[len(f)-1], "[]")
-			pp.typ = strings.Join(f[:len(f)-1], " ")
+			d := f[len(f)-1]
+			stars := 0
+			for strings.HasPrefix(d, "*") {
+				stars, d = stars+1, d[1:]
+			}
+			if i := strings.Index(d, "["); i >= 0 {
+				stars, d = stars+1, d[:i]
+			}
+			pp.name = d
+			pp.typ = strings.Join(f[:len(f)-1], " ") + strings.Repeat("*", stars)
+			// A declarator this does NOT read is an inline function pointer,
+			// `int (*cb)(void)`, where the name is inside parentheses and the
+			// type is spread around it. Counted rather than assumed absent:
+			// the SDK writes callbacks as typedefs, and if that stops being
+			// true the row says so.
+			if strings.ContainsAny(d, "()") {
+				oddDeclarators++
+			}
 		} else {
 			pp.typ = p
 		}
 		pp.typ = strings.TrimSpace(pp.typ)
-		if strings.HasSuffix(pp.name, "[]") || strings.Contains(pp.name, "[") {
-			pp.typ += "*"
-		}
 		out = append(out, pp)
 	}
 	return out, variadic
@@ -385,13 +433,20 @@ func classify(t string, structs, handles, callbacks map[string]bool, alias map[s
 	return shUnknown
 }
 
-func classify1(t string, structs, handles, callbacks map[string]bool) shape {
+// cleanType strips the qualifiers a SHAPE does not depend on. Factored out of
+// classify1 so that `structName` can report the same spelling classify1
+// matched — a sizeof probe has to ask the host about the name the headers use.
+func cleanType(t string) string {
 	t = strings.TrimSpace(strings.TrimPrefix(t, "_"))
 	for _, q := range []string{"CONST ", "const ", "unsigned ", "signed ", "struct ",
 		"union ", "enum ", "volatile "} {
 		t = strings.TrimPrefix(t, q)
 	}
-	t = strings.TrimSpace(t)
+	return strings.TrimSpace(t)
+}
+
+func classify1(t string, structs, handles, callbacks map[string]bool) shape {
+	t = cleanType(t)
 	if t == "" {
 		return shVoid
 	}
@@ -412,6 +467,12 @@ func classify1(t string, structs, handles, callbacks map[string]bool) shape {
 	// capitals and starts with P, so the LP.../P... rule would call it a
 	// pointer, and the struct table would call it a struct.
 	if _, isEnum := enumBase[t]; isEnum {
+		// Recorded so `-check-enums` can ask the host to confirm it. The
+		// enum-or-struct decision has been wrong twice, and getting it wrong
+		// this way is the DANGEROUS direction: an aggregate over 8 bytes is
+		// passed as a POINTER to a copy, so declaring it a word makes the
+		// callee dereference whatever integer the program passed.
+		enumUsed[t] = true
 		return shWord
 	}
 	if strPtr[t] {
@@ -436,6 +497,24 @@ func classify1(t string, structs, handles, callbacks map[string]bool) shape {
 	return shUnknown
 }
 
+// structName follows the same alias chain `classify` follows and returns the
+// name that made the type an aggregate — the spelling a sizeof probe has to ask
+// the host about. `PRECTL` is a pointer and `RECTL` is not, and which of the two
+// a parameter says decides whether this is asked at all.
+func structName(t string, structs, handles, callbacks map[string]bool, alias map[string]string) string {
+	for i := 0; i < 8; i++ {
+		if classify1(t, structs, handles, callbacks) == shStruct {
+			return cleanType(t)
+		}
+		nxt, have := alias[strings.TrimSpace(t)]
+		if !have || nxt == t {
+			return cleanType(t)
+		}
+		t = nxt
+	}
+	return cleanType(t)
+}
+
 // canPass says whether a program could supply this argument TODAY.
 //
 // This is where SAL earns its place. A pointer to a structure we cannot build
@@ -455,7 +534,12 @@ func canPass(p param, sh shape) bool {
 func main() {
 	sdk := flag.String("sdk", "", "SDK include directory (default: the newest installed)")
 	emitDir := flag.String("emit", "", "write the declarable subset as target files into DIR")
+	sig := flag.String("sig", "", "print the parsed signature and verdict for one entry point")
+	sizes := flag.String("sizes", "", "ask MSVC for each blocking aggregate's size and write it to FILE")
+	checkEnums := flag.Bool("check-enums", false, "ask MSVC to confirm every enum a declaration relies on is an integer type")
+	sizeTab := flag.String("sizetable", sizeTableFile, "read aggregate sizes from FILE")
 	flag.Parse()
+	readSizes(*sizeTab)
 
 	dir := *sdk
 	if dir == "" {
@@ -484,9 +568,9 @@ func main() {
 			}
 			files++
 			src := reLine.ReplaceAllString(reComment.ReplaceAllString(string(b), " "), " ")
-			collectTypes(src, structs, handles, callbacks, alias)
-			comMethods += len(reCallback.FindAllString(src, -1))
 			base := filepath.Base(h)
+			collectTypes(base, src, structs, handles, callbacks, alias)
+			comMethods += len(reCallback.FindAllString(src, -1))
 			for _, m := range reFn.FindAllStringSubmatch(src, -1) {
 				res := strings.Fields(m[1])
 				r := ""
@@ -522,9 +606,43 @@ func main() {
 	}
 	fns = uniq
 
+	// -sig prints ONE entry point as this tool sees it. It exists because every
+	// number here is a sum over 11,575 signatures, and a sum cannot say that a
+	// signature was misread: `SURFOBJ *pso` was parsed as a `SURFOBJ` by value
+	// and counted under the largest refusal in the table.
+	if *sig != "" {
+		for _, f := range fns {
+			if f.name != *sig {
+				continue
+			}
+			fmt.Printf("%s  [%s]\n", f.name, f.hdr)
+			fmt.Printf("  result %-28q shape %v\n", f.result,
+				shapeName(classify(f.result, structs, handles, callbacks, alias)))
+			for i, p := range f.params {
+				fmt.Printf("  arg %-2d type %-24q name %-16q sal %-22q shape %v\n",
+					i, p.typ, p.name, p.sal,
+					shapeName(classify(p.typ, structs, handles, callbacks, alias)))
+			}
+			return
+		}
+		fmt.Fprintf(os.Stderr, "%s: not among the %d entry points\n", *sig, len(fns))
+		os.Exit(1)
+	}
+
 	var declarable, callable, usable int
 	byReason := map[reason]int{}
 	byGap := map[reason]int{}
+	// Struct by value is the largest remaining refusal, and the roadmap
+	// question is not how many but WHICH: an aggregate of 1, 2, 4 or 8 bytes
+	// travels in a register and everything else travels by reference, so the
+	// bucket splits on a size the host knows. `argOf`/`resOf` keep the position
+	// because the ABI treats them differently and so does our emitter: an
+	// argument by reference is a caller-built copy, a result over 8 bytes is a
+	// hidden pointer in RCX that nothing here emits.
+	argOf := map[string]int{}
+	resOf := map[string]int{}
+	structFns := map[string][]string{}
+	var callableNames []string
 	salCount := map[string]int{}
 	unres := map[string]int{}
 	nullPassed := 0
@@ -548,6 +666,9 @@ func main() {
 				switch sh {
 				case shStruct:
 					why = rStructVal
+					n := structName(p.typ, structs, handles, callbacks, alias)
+					argOf[n]++
+					structFns[n] = append(structFns[n], f.name)
 				case shFloat:
 					why = rFloat
 				case shFunc:
@@ -569,6 +690,9 @@ func main() {
 			switch classify(f.result, structs, handles, callbacks, alias) {
 			case shStruct:
 				why = rStructVal
+				n := structName(f.result, structs, handles, callbacks, alias)
+				resOf[n]++
+				structFns[n] = append(structFns[n], f.name)
 			case shFloat:
 				why = rFloat
 			case shUnknown:
@@ -607,6 +731,7 @@ func main() {
 			continue
 		}
 		callable++
+		callableNames = append(callableNames, f.name)
 		if usedNull {
 			nullPassed++
 		}
@@ -618,6 +743,45 @@ func main() {
 			continue
 		}
 		usable++
+	}
+
+	if *sizes != "" {
+		var ns []string
+		seenN := map[string]bool{}
+		for _, m := range []map[string]int{argOf, resOf} {
+			for n := range m {
+				if !seenN[n] {
+					seenN[n], ns = true, append(ns, n)
+				}
+			}
+		}
+		sort.Strings(ns)
+		hdrs := map[string]string{}
+		for _, n := range ns {
+			hdrs[n] = structHdr[n]
+		}
+		if err := writeSizes(*sizes, filepath.Base(dir), ns, hdrs); err != nil {
+			fmt.Fprintln(os.Stderr, "sizes:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
+	if *checkEnums {
+		var ns []string
+		for n := range enumUsed {
+			ns = append(ns, n)
+		}
+		sort.Strings(ns)
+		hdrs := map[string]string{}
+		for _, n := range ns {
+			hdrs[n] = enumHdr[n]
+		}
+		if err := verifyEnums(ns, hdrs); err != nil {
+			fmt.Fprintln(os.Stderr, "check-enums:", err)
+			os.Exit(1)
+		}
+		return
 	}
 
 	fmt.Printf("WINDOWS SDK %s\n", filepath.Base(dir))
@@ -667,10 +831,20 @@ func main() {
 	fmt.Printf("  more than 6 — into the 112-byte reserved home: %5d  %5.1f%%\n", over6, pct(over6, declarable))
 	fmt.Printf("  more than 9 — named by the %%{10} braced hole:  %5d  %5.1f%%\n\n", over9, pct(over9, declarable))
 
+	if oddDeclarators > 0 {
+		fmt.Println("PARSER RESIDUE: parameter declarators not fully read:", oddDeclarators)
+		fmt.Println("  (an inline function pointer, int (*cb)(void), whose name is in parentheses)")
+		fmt.Println()
+	}
 	fmt.Printf("ENUMS: %d enum type names; %d of them the struct table had been reading as a struct\n",
 		len(enumBase), len(enumWasStruct))
 	fmt.Printf("  -- an enum is a C `int` under Win64, one register: refusing it was this tool, not the format.\n\n")
-	fmt.Println("WHY THE REST CANNOT BE DECLARED")
+	// EVERY ROW IS A FIRST REFUSAL, and saying so is not pedantry: the walk
+	// stops at the first thing it cannot declare, so clearing one refusal
+	// makes another RISE. Fixing the pointer declarator took struct by value
+	// from 945 to 256 and pushed function pointer from 329 to 337
+	// (structval-2026-09-12) — nothing got worse.
+	fmt.Println("WHY THE REST CANNOT BE DECLARED (each name counted at its FIRST refusal)")
 	type rc struct {
 		r reason
 		n int
@@ -683,6 +857,9 @@ func main() {
 	for _, x := range rs {
 		fmt.Printf("  %-24s %6d  %5.1f%%   [%s]\n", x.r, x.n, pct(x.n, len(fns)), blame(x.r))
 	}
+
+	reportStructs(argOf, resOf, structFns)
+	reportLinking(dir, callableNames)
 
 	if len(unres) > 0 {
 		type uc struct {
@@ -773,7 +950,7 @@ var (
 // collectTypes builds the tables `classify` consults. Approximate on purpose:
 // what it cannot resolve is counted as `unresolved typedef` rather than guessed,
 // so the residue is visible instead of being folded into a better-looking number.
-func collectTypes(src string, structs, handles, callbacks map[string]bool, alias map[string]string) {
+func collectTypes(hdr, src string, structs, handles, callbacks map[string]bool, alias map[string]string) {
 	for _, m := range reAlias.FindAllStringSubmatch(src, -1) {
 		t := strings.TrimSpace(m[1])
 		// `typedef DWORD DEVNODE, DEVINST;` names two aliases, and
@@ -825,12 +1002,52 @@ func collectTypes(src string, structs, handles, callbacks map[string]bool, alias
 			enumBase[nm], isEnum[nm] = b, true
 		}
 	}
-	for _, m := range reStruct.FindAllStringSubmatch(src, -1) {
-		if isEnum[m[1]] {
-			enumWasStruct[m[1]] = true
+	// ENUM OR STRUCT IS DECIDED BY THE BRACE, NOT BY A REGEX OVER THE TYPEDEF.
+	//
+	// `reStruct` finds `} NAME;` and says nothing about what that brace OPENED.
+	// win32enum-2026-09-11 answered it with `reEnumTD`, a pattern over
+	// `typedef enum TAG [: BASE] { … } NAME;` — and the SDK writes three
+	// spellings that pattern cannot see:
+	//
+	//	typedef _Return_type_success_(return == 0) enum _JsErrorCode : unsigned int
+	//	                       junk between `typedef` and `enum`, AND a base of
+	//	                       two tokens where the pattern allows one
+	//	                       (`JsErrorCode`, 99 entry points)
+	//	enum tagX { … } X;     no `typedef` at all — legal C++, and the SDK
+	//	                       uses it (`EapHostPeerMethodResultReason`)
+	//
+	// So the decision moves to where the fact is: match the brace backwards and
+	// read the keyword in front of it. That answers every spelling at once
+	// rather than one more of them, which is the difference between fixing a
+	// bug and fixing its instance.
+	for _, ix := range reStruct.FindAllStringSubmatchIndex(src, -1) {
+		nm := src[ix[2]:ix[3]]
+		kind, base := kindOfBody(src, ix[0])
+		if kind == "enum" {
+			if _, had := enumBase[nm]; !had {
+				enumBase[nm] = baseOr(base)
+			}
+			if enumHdr[nm] == "" {
+				enumHdr[nm] = hdr
+			}
+			if structs[nm] {
+				// A header seen earlier read it as a struct; the brace is the
+				// authority, so take the name back.
+				delete(structs, nm)
+			}
+			enumWasStruct[nm] = true
 			continue
 		}
-		structs[m[1]] = true
+		if _, isEnum := enumBase[nm]; isEnum {
+			// Declared an enum somewhere and re-listed here; enum wins, since
+			// an enum name and a struct name cannot both be right.
+			enumWasStruct[nm] = true
+			continue
+		}
+		structs[nm] = true
+		if structHdr[nm] == "" {
+			structHdr[nm] = hdr
+		}
 	}
 	for _, m := range reCbType.FindAllStringSubmatch(src, -1) {
 		callbacks[m[1]] = true
@@ -992,3 +1209,693 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 	fmt.Printf("\nemitted %d primitives across %d headers into %s\n", n, len(hs), dir)
 	return nil
 }
+
+// ---------------------------------------------------------------------------
+// STRUCT BY VALUE, BY ABI CLASS
+//
+// 945 names, 8.2%, the largest remaining refusal once enums stopped being read
+// as structs (win32enum-2026-09-11). The number was the whole of what was
+// known about it; this says which aggregates they are and what the calling
+// convention does with each, because those are two different pieces of work:
+//
+//	1, 2, 4 or 8 bytes   passed in a register, returned in RAX. One word — which
+//	                     is what this target's convention already carries. What
+//	                     is missing is a way to BUILD the word.
+//
+//	anything else        passed as a POINTER to a caller-allocated copy, and
+//	                     returned through a hidden pointer the caller passes in
+//	                     RCX and the callee hands back in RAX. The argument case
+//	                     needs the heterogeneous product's layout (products.md
+//	                     §7); the result case needs a convention no backend here
+//	                     emits.
+//
+// The sizes come from MSVC (`-sizes`), never from a layout computed here.
+
+// sizeTable is the measured size of each aggregate, read from the file `-sizes`
+// writes. Absent means unmeasured, and unmeasured is reported as its own row
+// rather than folded into either class — the residue stays visible, which is
+// this tool's rule for its own vocabulary.
+var sizeTable = map[string]int{}
+
+// regClass is the Win64 rule, and it is exact rather than a threshold: a
+// 3-byte aggregate is NOT register-passed even though it fits in a register.
+func regClass(sz int) bool { return sz == 1 || sz == 2 || sz == 4 || sz == 8 }
+
+func reportStructs(argOf, resOf map[string]int, fns map[string][]string) {
+	all := map[string]bool{}
+	for n := range argOf {
+		all[n] = true
+	}
+	for n := range resOf {
+		all[n] = true
+	}
+	type row struct {
+		name     string
+		arg, res int
+		size     int
+		known    bool
+	}
+	var rows []row
+	for n := range all {
+		sz, known := sizeTable[n]
+		rows = append(rows, row{n, argOf[n], resOf[n], sz, known})
+	}
+	sort.Slice(rows, func(i, j int) bool {
+		return byCount(rows[i].arg+rows[i].res, rows[j].arg+rows[j].res, rows[i].name, rows[j].name)
+	})
+
+	var regA, regR, memA, memR, unkA, unkR int
+	var regT, memT, unkT int
+	for _, r := range rows {
+		switch {
+		case !r.known:
+			unkA, unkR, unkT = unkA+r.arg, unkR+r.res, unkT+1
+		case regClass(r.size):
+			regA, regR, regT = regA+r.arg, regR+r.res, regT+1
+		default:
+			memA, memR, memT = memA+r.arg, memR+r.res, memT+1
+		}
+	}
+
+	fmt.Printf("\nSTRUCT BY VALUE: %d aggregate types across %d refusals\n",
+		len(rows), regA+regR+memA+memR+unkA+unkR)
+	fmt.Println("  (a refusal is counted once per position; a function refused for two")
+	fmt.Println("   struct arguments stops at the first, so these are first refusals)")
+	fmt.Printf("  %-34s %6s %6s %6s\n", "ABI class", "types", "args", "results")
+	fmt.Printf("  %-34s %6d %6d %6d\n", "1/2/4/8 bytes — one register", regT, regA, regR)
+	fmt.Printf("  %-34s %6d %6d %6d\n", "other — by reference / RCX", memT, memA, memR)
+	if unkT > 0 {
+		fmt.Printf("  %-34s %6d %6d %6d\n", "size not measured", unkT, unkA, unkR)
+	}
+
+	fmt.Println("\n  THE AGGREGATES, by how many entry points they block")
+	for i, r := range rows {
+		if i >= 30 {
+			break
+		}
+		sz := "     ?"
+		cls := "unmeasured"
+		if r.known {
+			sz = fmt.Sprintf("%6d", r.size)
+			cls = "by reference"
+			if regClass(r.size) {
+				cls = "one register"
+			}
+		}
+		fmt.Printf("    %-34s %s  %-13s arg %4d  res %4d  [%s]\n",
+			r.name, sz, cls, r.arg, r.res, structHdr[r.name])
+	}
+	fmt.Printf("    … %d distinct aggregate types in total\n", len(rows))
+}
+
+func shapeName(s shape) string {
+	switch s {
+	case shWord:
+		return "word"
+	case shString:
+		return "string"
+	case shPtr:
+		return "pointer"
+	case shStruct:
+		return "STRUCT BY VALUE"
+	case shFunc:
+		return "function pointer"
+	case shFloat:
+		return "float"
+	case shVoid:
+		return "void"
+	}
+	return "unresolved"
+}
+
+// ---------------------------------------------------------------------------
+// WHICH LIBRARY WOULD THE LINK LINE NEED?
+//
+// win32enum-2026-09-11 named this and did not measure it: `build.bat` links
+// kernel32, msvcrt, ucrt and vcruntime and nothing else, so a generated
+// declaration for user32 or gdi32 is counted CALLABLE and cannot link. That
+// result said the survey "cannot map a header to its DLL without reading the
+// SDK's import libraries". It can — and it needs no toolchain, because a COFF
+// archive carries its own symbol table:
+//
+//	8 bytes "!<arch>\n", then members with a 60-byte header, and the FIRST
+//	member is named "/" and holds a big-endian count, that many offsets, then
+//	that many NUL-terminated symbol names.
+//
+// So the mapping is read off the same SDK the headers come from, which makes it
+// a measurement rather than a list somebody maintains.
+
+// linked is what asmBuildBat's link line names today (emit/target.go).
+var linked = map[string]bool{
+	"kernel32": true, "msvcrt": true, "ucrt": true, "vcruntime": true,
+	"legacy_stdio_definitions": true,
+}
+
+// archSymbols returns every symbol name an import library exports.
+func archSymbols(path string) ([]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if len(b) < 68 || string(b[:8]) != "!<arch>\n" {
+		return nil, fmt.Errorf("%s: not a COFF archive", filepath.Base(path))
+	}
+	if nm := strings.TrimSpace(string(b[8:24])); nm != "/" {
+		return nil, fmt.Errorf("%s: first member is %q, not the linker member", filepath.Base(path), nm)
+	}
+	size, err := strconv.Atoi(strings.TrimSpace(string(b[56:66])))
+	if err != nil || 68+size > len(b) {
+		return nil, fmt.Errorf("%s: bad linker member size", filepath.Base(path))
+	}
+	c := b[68 : 68+size]
+	if len(c) < 4 {
+		return nil, fmt.Errorf("%s: empty linker member", filepath.Base(path))
+	}
+	n := int(binary.BigEndian.Uint32(c[:4]))
+	if 4+4*n > len(c) {
+		return nil, fmt.Errorf("%s: symbol count %d does not fit", filepath.Base(path), n)
+	}
+	names := c[4+4*n:]
+	out := make([]string, 0, n)
+	for s := 0; s < len(names) && len(out) < n; {
+		e := s
+		for e < len(names) && names[e] != 0 {
+			e++
+		}
+		out = append(out, string(names[s:e]))
+		s = e + 1
+	}
+	return out, nil
+}
+
+// libIndex maps an entry point to the import libraries that export it. A name
+// in several is normal — `um/x64` ships both `kernel32.lib` and, say,
+// `onecore.lib` for the same symbol — so the answer to "can this link" is
+// whether ANY of them is on the line, and the answer to "which is missing" is
+// the one with the shortest name, which is the canonical spelling.
+func libIndex(sdkInclude string) (map[string][]string, int, error) {
+	root := filepath.Dir(filepath.Dir(sdkInclude)) // …/10/Include/<ver> -> …/10
+	ver := filepath.Base(sdkInclude)
+	idx := map[string][]string{}
+	nlib := 0
+	for _, sub := range []string{"um", "ucrt"} {
+		dir := filepath.Join(root, "Lib", ver, sub, "x64")
+		libs, _ := filepath.Glob(filepath.Join(dir, "*"))
+		for _, l := range libs {
+			if e := strings.ToLower(filepath.Ext(l)); e != ".lib" {
+				continue
+			}
+			syms, err := archSymbols(l)
+			if err != nil {
+				continue
+			}
+			nlib++
+			base := strings.ToLower(strings.TrimSuffix(filepath.Base(l), filepath.Ext(l)))
+			for _, s := range syms {
+				// __imp_X is the same entry point; the plain name is enough,
+				// and the descriptor symbols are not entry points at all.
+				if strings.HasPrefix(s, "__imp_") || strings.HasPrefix(s, "__IMPORT_DESCRIPTOR") ||
+					strings.HasPrefix(s, "__NULL_IMPORT") || strings.HasSuffix(s, "_NULL_THUNK_DATA") {
+					continue
+				}
+				idx[s] = append(idx[s], base)
+			}
+		}
+	}
+	if nlib == 0 {
+		return nil, 0, fmt.Errorf("no import libraries under %s", filepath.Join(root, "Lib", ver))
+	}
+	return idx, nlib, nil
+}
+
+// reportLinking says how many callable names the emitted link line can actually
+// reach. A name this survey counts and a program cannot link is a claim, which
+// is the same sentence win32-2026-09-08 wrote about a name counted declarable
+// and never emitted.
+func reportLinking(sdkInclude string, callable []string) {
+	idx, nlib, err := libIndex(sdkInclude)
+	if err != nil {
+		fmt.Printf("\nLINKING: not measured — %v\n", err)
+		return
+	}
+	var onLine, elsewhere, nowhere int
+	missing := map[string]int{}
+	for _, n := range callable {
+		libs := idx[n]
+		if len(libs) == 0 {
+			nowhere++
+			continue
+		}
+		found := false
+		for _, l := range libs {
+			if linked[l] {
+				found = true
+				break
+			}
+		}
+		if found {
+			onLine++
+			continue
+		}
+		elsewhere++
+		// The shortest name is the canonical library — `user32` rather than
+		// `onecore` or an api-set stub that also exports it.
+		best := libs[0]
+		for _, l := range libs {
+			if len(l) < len(best) || (len(l) == len(best) && l < best) {
+				best = l
+			}
+		}
+		missing[best]++
+	}
+	fmt.Printf("\nLINKING, of the %d callable (%d import libraries read)\n", len(callable), nlib)
+	fmt.Printf("  in a library the build links:   %5d  %5.1f%%\n", onLine, pct(onLine, len(callable)))
+	fmt.Printf("  in another import library:      %5d  %5.1f%%   [emitter: the link line is hard-coded]\n",
+		elsewhere, pct(elsewhere, len(callable)))
+	fmt.Printf("  in no import library at all:    %5d  %5.1f%%   [a header with no static import]\n",
+		nowhere, pct(nowhere, len(callable)))
+
+	type lc struct {
+		lib string
+		n   int
+	}
+	var ls []lc
+	for l, n := range missing {
+		ls = append(ls, lc{l, n})
+	}
+	sort.Slice(ls, func(i, j int) bool { return byCount(ls[i].n, ls[j].n, ls[i].lib, ls[j].lib) })
+	fmt.Println("\n  THE LIBRARIES THE LINE IS MISSING, by callable names in each")
+	for i, x := range ls {
+		if i >= 15 {
+			break
+		}
+		fmt.Printf("    %-28s %5d\n", x.lib, x.n)
+	}
+	fmt.Printf("    … %d distinct libraries in total\n", len(ls))
+}
+
+// kindOfBody says what the brace closing at `end` opened, and with what
+// underlying type. It scans back to the matching `{`, then back again to the
+// nearest `;`, `{` or `}` — which cannot be crossed, so nothing from a
+// neighbouring declaration or a nested member leaks in — and reads the last
+// aggregate keyword in that window.
+//
+// `end` is the index of the closing `}`.
+func kindOfBody(src string, end int) (kind, base string) {
+	depth := 0
+	open := -1
+	for j := end; j >= 0; j-- {
+		switch src[j] {
+		case '}':
+			depth++
+		case '{':
+			depth--
+			if depth == 0 {
+				open = j
+			}
+		}
+		if open >= 0 {
+			break
+		}
+	}
+	if open < 0 {
+		return "", ""
+	}
+	start := 0
+	for j := open - 1; j >= 0; j-- {
+		if c := src[j]; c == ';' || c == '{' || c == '}' {
+			start = j + 1
+			break
+		}
+	}
+	head := src[start:open]
+	// The LAST keyword decides: `typedef struct { … }` inside nothing, but also
+	// `union … enum` can never both appear in one window without a brace.
+	at, kw := -1, ""
+	for _, k := range []string{"enum", "struct", "union"} {
+		if i := lastWord(head, k); i > at {
+			at, kw = i, k
+		}
+	}
+	if kw == "" {
+		return "", ""
+	}
+	// What follows is `TAG` and optionally `: BASE`, and BASE may be several
+	// tokens (`unsigned int`).
+	rest := head[at+len(kw):]
+	if i := strings.Index(rest, ":"); i >= 0 {
+		base = strings.TrimSpace(rest[i+1:])
+	}
+	return kw, base
+}
+
+// lastWord finds the last occurrence of w in s as a whole word, or -1.
+func lastWord(s, w string) int {
+	for i := len(s) - len(w); i >= 0; i-- {
+		if s[i:i+len(w)] != w {
+			continue
+		}
+		if i > 0 && isIdentByte(s[i-1]) {
+			continue
+		}
+		if j := i + len(w); j < len(s) && isIdentByte(s[j]) {
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+func isIdentByte(c byte) bool {
+	return c == '_' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= '0' && c <= '9'
+}
+
+// ---------------------------------------------------------------------------
+// ASKING THE HOST FOR A LAYOUT
+//
+// `-sizes FILE` writes the size of every aggregate that blocks an entry point,
+// as MSVC reports it, and the survey reads that file to classify. Two reasons
+// it is a file rather than a computation:
+//
+//	IT IS NOT OURS TO COMPUTE. Win64 layout is natural alignment plus
+//	`#pragma pack` plus bitfield packing plus anonymous unions, and a size
+//	wrong by one byte moves an aggregate between ABI classes and so moves the
+//	ROADMAP. MSVC already knows. This is coercion-2026-09-09's rule — the host
+//	decides, we candidate-generate and host-filter.
+//
+//	THE SURVEY MUST STAY A FUNCTION OF ITS INPUT. tooling-2026-09-11 runs it
+//	twice and compares; invoking a C compiler from the default path would make
+//	the report depend on a toolchain as well as on the headers.
+
+const sizeTableFile = "gauntlet/stdlib/win32-sizes.txt"
+
+// readSizes fills sizeTable. A missing file is not an error: the class column
+// then reads "size not measured", which is the honest answer and is visible.
+func readSizes(path string) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+	for _, ln := range strings.Split(string(b), "\n") {
+		if ln = strings.TrimSpace(ln); ln == "" || strings.HasPrefix(ln, "#") {
+			continue
+		}
+		f := strings.Fields(ln)
+		if len(f) != 2 {
+			continue
+		}
+		if n, err := strconv.Atoi(f[1]); err == nil {
+			sizeTable[f[0]] = n
+		}
+	}
+}
+
+// writeSizes generates a C probe for these aggregates, compiles and runs it
+// under MSVC, and writes what the host said.
+//
+// CANDIDATE-GENERATE AND HOST-FILTER. Not every SDK header compiles when
+// included on its own, and not every aggregate name is spellable in a C
+// translation unit (some are C++-only, some are behind a version macro). So the
+// probe is compiled, whatever cl refuses is dropped, and the rest is asked
+// again — bounded, and what never resolves stays unmeasured rather than being
+// guessed at.
+func writeSizes(path, sdkVer string, names []string, hdrs map[string]string) error {
+	tmp, err := os.MkdirTemp("", "win32sizes")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	want := map[string]bool{}
+	for _, n := range names {
+		want[n] = true
+	}
+	got := map[string]int{}
+
+	for round := 0; round < 8 && len(want) > 0; round++ {
+		var ns []string
+		incs := map[string]bool{}
+		for n := range want {
+			ns = append(ns, n)
+			if h := hdrs[n]; h != "" {
+				incs[h] = true
+			}
+		}
+		sort.Strings(ns)
+		var ih []string
+		for h := range incs {
+			ih = append(ih, h)
+		}
+		sort.Strings(ih)
+
+		var src strings.Builder
+		src.WriteString("#include <windows.h>\n#include <stdio.h>\n")
+		for _, h := range ih {
+			fmt.Fprintf(&src, "#include <%s>\n", h)
+		}
+		src.WriteString("int main(void){\n")
+		for _, n := range ns {
+			fmt.Fprintf(&src, "  printf(%q, (size_t)sizeof(%s));\n", n+" %zu\n", n)
+		}
+		src.WriteString("  return 0;\n}\n")
+		if err := os.WriteFile(filepath.Join(tmp, "probe.c"), []byte(src.String()), 0o644); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(tmp, "run.bat"), []byte(probeBat), 0o644); err != nil {
+			return err
+		}
+
+		out, runErr := runBat(tmp)
+		before := len(got)
+		for _, ln := range strings.Split(out, "\n") {
+			f := strings.Fields(strings.TrimSpace(ln))
+			if len(f) == 2 && want[f[0]] {
+				if v, e := strconv.Atoi(f[1]); e == nil {
+					got[f[0]] = v
+					delete(want, f[0])
+				}
+			}
+		}
+		// A round that measured nothing is worth showing: the host refused the
+		// whole probe, and its reason is the only thing that says why.
+		if len(got) == before {
+			fmt.Fprintf(os.Stderr, "sizes: round %d measured nothing (err %v); cl said:\n%s\n",
+				round, runErr, out)
+		}
+		if runErr == nil && len(want) == 0 {
+			break
+		}
+		// Drop whatever cl named. An error line is
+		// `probe.c(12): error C2065: 'X': undeclared identifier` for a type,
+		// or names a header that will not compile.
+		dropped := 0
+		for _, ln := range strings.Split(out, "\n") {
+			if !strings.Contains(ln, "error") && !strings.Contains(ln, "fatal error") {
+				continue
+			}
+			for n := range want {
+				if strings.Contains(ln, "'"+n+"'") || strings.Contains(ln, "sizeof("+n+")") {
+					delete(want, n)
+					dropped++
+				}
+			}
+			for _, h := range ih {
+				if !strings.Contains(ln, h) {
+					continue
+				}
+				// A header that will not compile takes its own includes out,
+				// and its types are retried through windows.h alone.
+				for n, hh := range hdrs {
+					if hh == h && want[n] {
+						hdrs[n] = ""
+						dropped++
+					}
+				}
+			}
+		}
+		if dropped == 0 {
+			break
+		}
+	}
+
+	var b strings.Builder
+	fmt.Fprintf(&b, "# Win64 sizeof, as MSVC reports it, for every aggregate that blocks an\n")
+	fmt.Fprintf(&b, "# entry point. Regenerate with:\n")
+	fmt.Fprintf(&b, "#   go run gauntlet/stdlib/win32.go -sizes %s\n", sizeTableFile)
+	fmt.Fprintf(&b, "# Windows SDK %s. A size is the HOST's answer, never one computed here.\n", sdkVer)
+	var ks []string
+	for k := range got {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	for _, k := range ks {
+		fmt.Fprintf(&b, "%s %d\n", k, got[k])
+	}
+	if len(want) > 0 {
+		var un []string
+		for n := range want {
+			un = append(un, n)
+		}
+		sort.Strings(un)
+		fmt.Fprintf(&b, "# not spellable in a C translation unit, so unmeasured: %s\n", strings.Join(un, " "))
+	}
+	fmt.Printf("sizes: %d measured, %d refused by the host\n", len(got), len(want))
+	return os.WriteFile(path, []byte(b.String()), 0o644)
+}
+
+// probeBat finds MSVC the way emit/target.go's asmBuildBat does, because that
+// is the discovery this project already relies on.
+const probeBat = `@echo off
+setlocal enabledelayedexpansion
+set "VCV="
+for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Microsoft Visual Studio") do (
+  for /d %%v in ("%%~p\*") do (
+    for /d %%e in ("%%~v\*") do (
+      if exist "%%~e\VC\Auxiliary\Build\vcvars64.bat" set "VCV=%%~e\VC\Auxiliary\Build\vcvars64.bat"
+    )
+  )
+)
+if not defined VCV (echo probe: no MSVC toolchain was found & exit /b 1)
+call "!VCV!" >nul || exit /b 1
+cl -nologo -W0 probe.c -Feprobe.exe || exit /b 1
+.\probe.exe
+`
+
+func runBat(dir string) (string, error) {
+	// `.\run.bat`, spelled relative on purpose: this machine sets
+	// NoDefaultCurrentDirectoryInExePath, so cmd does not search the working
+	// directory for a command and a bare `run.bat` is not found.
+	cmd := exec.Command("cmd", "/c", `call .\run.bat`)
+	cmd.Dir = dir
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// enumUsed is every name a declaration was written against BECAUSE this tool
+// called it an enum. Only these matter: a misread name that no signature
+// mentions costs nothing.
+var enumUsed = map[string]bool{}
+
+// enumHdr is where each enum name was declared, so the probe can include it.
+var enumHdr = map[string]string{}
+
+// oddDeclarators counts parameter declarators this parser does not fully read.
+var oddDeclarators = 0
+
+// verifyEnums asks MSVC whether each of those names really is an integer type.
+// `T v = (T)0; return (int)v;` compiles for an enum and for an integer typedef,
+// and fails for a struct or a union — so the host decides, and what it refuses
+// is printed rather than counted.
+func verifyEnums(names []string, hdrs map[string]string) error {
+	tmp, err := os.MkdirTemp("", "win32enums")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+
+	// A CONTROL, because a check that cannot fail proves nothing: `RECT` is an
+	// aggregate, so `RECT v = (RECT)0` must be REFUSED. If the host accepts it
+	// the probe is not testing what it claims and says so.
+	const control = "RECT"
+	names = append(append([]string{}, names...), control)
+	hdrs[control] = ""
+	controlRefused := false
+
+	// One translation unit per batch, and a batch is small enough that a
+	// refusal names the type rather than sinking the run. cl reports every
+	// error in a file, so one compile settles a whole batch.
+	const batch = 400
+	bad, tested := []string{}, 0
+	for i := 0; i < len(names); i += batch {
+		j := min(i+batch, len(names))
+		part := names[i:j]
+		incs := map[string]bool{}
+		for _, n := range part {
+			if h := hdrs[n]; h != "" {
+				incs[h] = true
+			}
+		}
+		var ih []string
+		for h := range incs {
+			ih = append(ih, h)
+		}
+		sort.Strings(ih)
+
+		var src strings.Builder
+		src.WriteString("#include <windows.h>\n")
+		for _, h := range ih {
+			fmt.Fprintf(&src, "#include <%s>\n", h)
+		}
+		for k, n := range part {
+			fmt.Fprintf(&src, "int probe%d(void){ %s v = (%s)0; return (int)v; }\n", k, n, n)
+		}
+		if err := os.WriteFile(filepath.Join(tmp, "probe.c"), []byte(src.String()), 0o644); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(tmp, "run.bat"), []byte(enumBat), 0o644); err != nil {
+			return err
+		}
+		out, _ := runBat(tmp)
+		// A type the host does not know at all is not evidence either way —
+		// it is behind a version macro or is C++-only — so `undeclared` is
+		// separated from a real refusal.
+		unknown := 0
+		for _, ln := range strings.Split(out, "\n") {
+			if !strings.Contains(ln, ": error") && !strings.Contains(ln, ": fatal error") {
+				continue
+			}
+			named := ""
+			for _, n := range part {
+				if strings.Contains(ln, "'"+n+"'") {
+					named = n
+					break
+				}
+			}
+			if named == "" {
+				continue
+			}
+			if strings.Contains(ln, "C2065") || strings.Contains(ln, "undeclared") ||
+				strings.Contains(ln, "C2061") {
+				unknown++
+				continue
+			}
+			if named == control {
+				controlRefused = true
+				continue
+			}
+			bad = append(bad, named+": "+strings.TrimSpace(ln))
+		}
+		tested += len(part) - unknown
+	}
+	fmt.Printf("ENUM CHECK: %d names a declaration relies on, %d spellable in C\n", len(names)-1, tested-1)
+	if !controlRefused {
+		fmt.Printf("  BROKEN: the control %s was not refused, so this check is testing nothing\n", control)
+		return fmt.Errorf("control %s accepted as an integer type", control)
+	}
+	fmt.Printf("  the control %s was refused, so a struct read as an enum would be caught\n", control)
+	if len(bad) == 0 {
+		fmt.Println("  and the host accepts every one of the rest as an integer type")
+		return nil
+	}
+	fmt.Printf("  THE HOST REFUSED %d:\n", len(bad))
+	sort.Strings(bad)
+	for _, b := range bad {
+		fmt.Println("   ", b)
+	}
+	return nil
+}
+
+const enumBat = `@echo off
+setlocal enabledelayedexpansion
+set "VCV="
+for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Microsoft Visual Studio") do (
+  for /d %%v in ("%%~p\*") do (
+    for /d %%e in ("%%~v\*") do (
+      if exist "%%~e\VC\Auxiliary\Build\vcvars64.bat" set "VCV=%%~e\VC\Auxiliary\Build\vcvars64.bat"
+    )
+  )
+)
+if not defined VCV (echo probe: no MSVC toolchain was found & exit /b 1)
+call "!VCV!" >nul || exit /b 1
+cl -nologo -W0 -c probe.c
+`

@@ -536,7 +536,10 @@ Ordered by measured value, with the Go survey's numbers where they apply.
    everything: 19.8% of the Go standard library, and the language already has
    `values` at parity ([gostdlib-2026-09-06 §4a](../../gauntlet/results/gostdlib-2026-09-06.md)).
    On windows it is also the near-miss for §4a's structs-by-value, the largest
-   Win32 refusal at 13.9%: a two-word struct returned by value is `rax`/`rdx`,
+   Win32 refusal at 13.9% — measured at 1.2% on 2026-09-12
+   ([structval](../../gauntlet/results/structval-2026-09-12.md)), where the
+   result position turns out to be 8 refusals of which 7 are already
+   register-class: a two-word struct returned by value is `rax`/`rdx`,
    which is exactly what multiple return already emits there.
 2. ~~**A declared result range that the interval layer reads.**~~ **DONE,
    2026-09-06**, in the same result. It had to be lifted above `transfer`'s

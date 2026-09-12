@@ -150,7 +150,12 @@ figure repeated three times**; item 1 fixed both the same day. **Item 2 is DONE 
 [tooling-2026-09-11](gauntlet/results/tooling-2026-09-11.md): the tooling has tests, and three of
 four properties failed on the first run. **And item 3** —
 [tally-2026-09-11](gauntlet/results/tally-2026-09-11.md): one application on Go and the JVM through
-generated declarations, and it found five compiler bugs. **What is next**: Win32 struct by value.
+generated declarations, and it found five compiler bugs. **And item 4 is done, and it dissolved** —
+[structval-2026-09-12](gauntlet/results/structval-2026-09-12.md): struct by value was 8.2% because
+the survey read `TYPE *name` as a value, it is **1.2%**, and **585 generated declarations had typed an
+address as an integer**. **What is next**: the link line computed from the declarations — 666 of 4,093
+callable Win32 names are in a library the build links, and that is the only factor-of-six gap left on
+that host.
 
 The previous one is [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
 round the plan ran out**, written because all five items of the previous one are done rather than
@@ -174,7 +179,7 @@ and the entire windows api, tells us we are still short."* **File I/O on two mor
 INSTANCE of that, not a task beside it.** The question is whether this language can express a host's
 whole API, and where it cannot, whether that is the FORMAT, the COMPILER or the LANGUAGE — and the
 surveys already answer it as a number, so **the residue is the roadmap**: Go's *cannot build the
-argument* at 43.6%, Win32's struct-by-value at 13.9% (665 of which were the tool misreading enums — measured 2026-09-11, when the fix took it to 8.2%; the "675" first written here had never been measured),
+argument* at 43.6%, Win32's struct-by-value at 13.9% (665 of which were the tool misreading enums — measured 2026-09-11, when the fix took it to 8.2%; the "675" first written here had never been measured — and **805 more were pointer parameters the tool misread, so it is 1.2%**, structval-2026-09-12),
 typedefs at 6.9%, function pointers at 2.7%. It pushes both halves at once — *express everything* is
 the language question, which is where several results and a declared result range came from;
 *translate* is the compiler's, which is what this week's product was: one type former, one lowering
@@ -2160,6 +2165,61 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**STRUCT BY VALUE WAS THE LARGEST WIN32 REFUSAL BECAUSE THE SURVEY WAS READING THE POINTER OFF THE
+DECLARATOR** — [structval-2026-09-12](gauntlet/results/structval-2026-09-12.md),
+`gauntlet/stdlib/win32.go`, assessment-2026-09-11 item 4. The research was to classify 945 names by
+ABI class; **805 of them are not struct arguments at all.** C binds `*` to the DECLARATOR, so
+`SURFOBJ *pso` is a pointer whose name is `pso` — and `parseParams` took the last whitespace field as
+the name and threw the star away. **Struct by value 945 (8.2%) → 140 (1.2%)**, from the largest
+remaining refusal to the third; **declarable 81.4% → 90.5%**.
+
+**AND IT RAN THE OTHER WAY TOO, WHICH IS THE DIRECTION THAT MATTERS.** `BOOL *pfOn` read as a WORD
+made a pointer the program cannot build count as passable — **callable 36.8% → 35.4%, usable 34.1% →
+32.4%** — and **585 of the 9,427 generated declarations typed a parameter as an integer where the
+host wants an address.** `GetDevicePowerState` was `(int int)` and kernel32 exports it; the old
+declaration COMPILED a program handing it the literal 0, and the fixed one refuses it. That is
+assessment-2026-09-11 §4 item 1 arriving with an instance: *a generated declaration should be checked
+by the host that will run it.* The witness is `pointer-param.oro`, the tenth acceptance program —
+`IsBadReadPtr(NULL,1)` is 1 and `IsBadReadPtr(NULL,0)` is 0, **two answers from one declaration**, and
+the two declarations are each other's negative.
+
+**AND THE ENUM DECISION MOVED TO THE BRACE, after being wrong twice by regex.** Three SDK spellings
+`reEnumTD` cannot see — a SAL annotation between `typedef` and `enum`, a two-token base
+(`: unsigned int`), and `enum tag {…} NAME;` with no `typedef` at all. `reStruct` finds `} NAME;` and
+says nothing about what that brace OPENED, so the decision now **matches the brace backwards and
+reads the keyword**, which answers every spelling at once rather than one more of them. Worth 116
+refusals and **6,031** names the struct table had held. **Getting this wrong the other way is the
+DANGEROUS direction** — an aggregate over 8 bytes is passed as a pointer to a copy, so declaring it a
+word makes the callee dereference whatever integer was passed — so `-check-enums` asks MSVC, and
+**the probe carries a CONTROL, `RECT`, that must be refused**: 403 of 407 spellable, all accepted.
+
+**THE 140 THAT REMAIN, CLASSIFIED BY WHAT THE ABI DOES, WITH MSVC AS THE ORACLE** (`-sizes`, a
+committed table, because a size wrong by one byte moves an aggregate between classes and so moves the
+roadmap): **12 aggregate types in one register** — 1/2/4/8 bytes, 84 refusals — and **12 by
+reference**, 56. So **60% of what is left needs no layout at all**, only a way to BUILD the word:
+`POINT` is two 32-bit fields in one qword and this target already passes one value per register. The
+other 40% is products.md §7's deferred layout, which `GUID` wants at 18 arguments. **And the
+hidden-pointer return convention is worth EXACTLY ONE entry point** — 7 of the 8 result-position
+refusals are register-class, which is what values.md's two-result form already emits there. Measured
+before being built, which is what doing the research first is for.
+
+**AND THE REAL CEILING IS THE LINK LINE: 666 of 4,093 callable names, 16.3%.** win32enum said the
+survey *"cannot map a header to its DLL without reading the SDK's import libraries"* — it can, with
+no toolchain, because a COFF archive carries its own symbol table. 461 libraries, 328,290 symbols,
+read off the same SDK the headers come from. **77.2% are in one of 145 libraries `build.bat` does not
+name** — user32 504, gdi32 220, msi 209 — so *callable* is 4,093 as a property of the declarations
+and **666 as a property of a program**. Every prim already carries `(import "Name")`; what the
+emitter does not know is which library each lives in, and that is a target declaration. **Not built,
+and it is the largest move available on this host: 666 → about 3,826.**
+
+**What it leaves: item 4's premise is gone.** The largest refusals are now *unresolved typedef* at
+4.6%, which is this tool's own residue, and *function pointer* at 3.0%, which callbacks.md tier 3
+argued and declined. **Cost: no compiler change**, every emitted file untouched, differential suite
+green on four targets, tooling suite green with ten acceptance programs. Four new affordances, each
+because a number was wrong without anything noticing: `-sig` prints one signature (a sum over 11,575
+cannot say one was misread), `-sizes`, `-check-enums`, and **a parser-residue row** — 5 declarators
+are still not fully read, an inline `int (*cb)(void)`, counted rather than assumed absent.
+
 **ONE APPLICATION RUNS ON TWO HOSTS THROUGH GENERATED DECLARATIONS, AND IT FOUND FIVE COMPILER
 BUGS** — [tally-2026-09-11](gauntlet/results/tally-2026-09-11.md), `examples/tally/`,
 assessment-2026-09-11 item 3. `tally PATTERN FILE` — capture group 1 of every matching line, counted,
@@ -2228,7 +2288,8 @@ assessment-2026-09-11 item 1. **The enum share is measured at 665 — not the 67
 repeated without anyone measuring it.** The survey's struct table took the name after ANY closing
 brace, so `typedef enum _X { … } X;` put `X` in it and 5,831 of the SDK's 10,028 enum names were read
 as structs. **Struct by value 13.9% → 8.2%, declarable 76.1% → 81.4%, callable 34.8% → 36.8%**, and
-9,427 generated primitives equal the 9,427 declarable. An enum is decided BEFORE the naming
+9,427 generated primitives equal the 9,427 declarable. (Every one of those superseded the next day —
+**1.2%, 90.5%, 35.4%, 10,479** — structval-2026-09-12.) An enum is decided BEFORE the naming
 heuristics, because `PROCESS_DPI_AWARENESS` is all capitals and starts with P, and the pointer rule
 would have claimed it one step after the struct table let go.
 
@@ -2299,7 +2360,7 @@ written to keep noise out of a manifest took signal out with it.*
 `gauntlet/stdlib/jsdump.mjs`, `gauntlet/stdlib/js.go`. Two of four targets had
 never been surveyed; **all four have a number now**, and the two big managed
 ecosystems land half a point apart from completely different refusals:
-**Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8% (81.4% / 36.8% once enums stopped being read as structs, win32enum-2026-09-11),
+**Go 87.8% declarable / 60.4% usable, the JVM 81.4% / 60.9%, Win32 76.1% / 34.8% (90.5% / 35.4% once enums stopped being read as structs and `TYPE *name` stopped being read as a value — win32enum-2026-09-11, structval-2026-09-12),
 JavaScript 100% / not answerable.** (2,340 callable, corrected from 2,303 on 2026-09-11.)
 
 **THE RUNTIME IS THE MANIFEST, for the second and third time.** Go ships
@@ -2512,7 +2573,7 @@ is not moving.**
 `regexp` 42 → **46**, and the interface residue 47 → **6**. interfaces.md said *build it because it is
 nearly free, not because it moves the number*, and 0.9 points is what that looks like. **What remains
 is 1,867 names blocked by a NON-interface argument** — struct arguments built by literal, which is
-products.md §7's deferred layout and Win32's struct-by-value 13.9% converging.
+products.md §7's deferred layout and Win32's struct-by-value 13.9% converging. (Win32's half is **1.2%** and 56 refusals as of structval-2026-09-12 — the convergence is real and small.)
 
 **INTERFACES ARE RESEARCHED, AND THE MEASUREMENT REFUTES THE PLAN** —
 [interfaces.md](docs/interfaces.md), research, no decision, on hamza's *"that go has interfaces does
@@ -2563,7 +2624,7 @@ capable than a running program in this repository proves it to be.
 
 **What it points at next is NOT interfaces**: 1,867 names are blocked by a non-interface argument,
 which is **struct arguments built by literal** and types no declarable function returns — the same
-layout question products.md §7 defers and Win32's struct-by-value 13.9% names from the other side.
+layout question products.md §7 defers and Win32's struct-by-value 13.9% names from the other side (**1.2%** once measured — structval-2026-09-12).
 **Two questions converging on one missing thing.**
 
 **A GENERATED GO METHOD RUNS, AND THE SURVEY WAS FLATTERING ITSELF** —
@@ -2977,7 +3038,9 @@ the one HEAD produced at random, and two consecutive sweeps now agree where they
 **THE WIN32 CEILINGS WERE A CONSTANT, A SYNTAX AND A MISSING LINE** —
 [win32-2026-09-08](gauntlet/results/win32-2026-09-08.md). **72.6% → 76.1%
 declarable, 33.5% → 34.8% callable, and 7,813 → 8,809 primitives actually
-generated** across 384 → 392 headers. The generated count is the one that has to
+generated** across 384 → 392 headers. (**90.5% / 35.4% and 10,479 primitives** as of
+structval-2026-09-12; callable FELL there, because a pointer read as a word had counted as
+passable.) The generated count is the one that has to
 be true: a name counted declarable and never emitted is a claim.
 
 **A `void` RESULT WITH AN ARGUMENT WAS NEVER A LIMIT.** A statement's value IS
@@ -3027,7 +3090,9 @@ checker, which is how the missing null was found.
 
 **What is left is ONE thing: struct by value, 1,610 names, 13.9%, `[format]`** —
 the only large refusal that is neither the tool's residue (unresolved typedef,
-6.9%) nor an argued one (function pointer, 2.7%, callbacks.md tier 3). And
+6.9%) nor an argued one (function pointer, 2.7%, callbacks.md tier 3). **That
+sentence was wrong and the research said so: it is 140 names, 1.2%, and the tool's
+residue is what is left** (structval-2026-09-12). And
 values.md is the near-miss it has always been: a two-word struct returned by
 value is `rax`/`rdx`, which is what multiple return already emits there.
 
@@ -3081,9 +3146,10 @@ written down somewhere and none of them stated until now: **4** (the Win64 regis
 past it), **6** (`emit/asm.go` reserving 48 bytes of home space, **7.0%**), **9** (the `%1…%9`
 template holes, 1.0%); the widest SDK entry point takes **14**. All cheap to raise, none a language
 question — but **a target declaration is a claim about `Σ` AND a demand on `B`, and the format checks
-neither**. The largest refusal is **structs by value at 13.9%**, and values.md is the near-miss: a
+neither**. The largest refusal is **structs by value at 13.9%** (1.2% once the enums and the
+misread pointers came out — structval-2026-09-12), and values.md is the near-miss: a
 two-word struct returned by value is `rax`/`rdx`, which is exactly what multiple return already emits
-there.
+there — **measured worth 7 of the 8 remaining result-position refusals**.
 
 **THE BUG: THE BACKEND IS CHOSEN BY THE FLAG STRING.** `cmd/build` switches on `-target` rather than
 on the target's declared name, so a directory named anything but `go`/`js`/`java`/`windows`
@@ -4019,7 +4085,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet; `tally/` is the first application on two hosts through generated declarations |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the nine programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all nine |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the ten programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all ten; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

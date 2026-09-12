@@ -133,6 +133,8 @@ and it should be said as plainly as it was said when it grew.
 | Go | 4,932 | 87.8% | **60.4%** |
 | JVM | 38,042 | 81.4% | **60.9%** |
 | Win32 | 11,575 | 76.1% | **34.8%** |
+<!-- Win32 is 90.5% / 35.4% as of structval-2026-09-12, and only 16.3% of the
+     callable names are in a library the build links. -->
 | JavaScript | 2,340 | 100% | **not answerable** |
 
 The two big managed ecosystems land half a point apart from completely different refusals — Go's are
@@ -202,7 +204,9 @@ tooling, the format and the language at once.
 the emitters' multi-result and import paths, which is the right place for it. Watched, not alarming.
 
 **5. Win32 struct by value.** The largest remaining Win32 refusal, 1,610 names at 13.9%, and its
-enum share is unmeasured. What the calling convention needs is known; what is missing is
+enum share is unmeasured. *(Measured 2026-09-12: 140 names, 1.2%. It was never the largest — the
+tool was reading pointer parameters as values, and the real ceiling on that host is a link line that
+reaches 666 of 4,093 callable names.)* What the calling convention needs is known; what is missing is
 construction, and that is the heterogeneous product's layout products.md §7 deferred — which Win32
 and `GUID` now want.
 
@@ -250,6 +254,23 @@ what *"write something awkward"* means now.
 > seconds. And one host fact the JVM survey had wrong: a generated `String` result may be `null`.
 
 **4. Then struct by value on Win32** — research first, starting from the measured enum share.
+
+> **DONE 2026-09-12, AND THE PREMISE DISSOLVED** —
+> [structval-2026-09-12](../gauntlet/results/structval-2026-09-12.md). The research was to classify
+> 945 names by ABI class, and **805 of them are not struct arguments**: C binds `*` to the
+> declarator, and `parseParams` took the last whitespace field as the parameter's name and threw the
+> star away, so `SURFOBJ *pso` was a `SURFOBJ` **by value**. Struct by value is **140 names, 1.2%**,
+> the third refusal rather than the first; declarable **81.4% → 90.5%**. **And the misread ran the
+> other way too, which is the direction that matters**: `BOOL *pfOn` read as a word made an
+> unbuildable pointer count as passable, so callable falls **36.8% → 35.4%**, and **585 of the 9,427
+> generated declarations typed an address as an integer** — `GetDevicePowerState` was `(int int)`,
+> kernel32 exports it, and the old declaration compiled a program handing it the literal 0. That is
+> item 1 of §4 arriving with an instance. The enum decision also moved from a regex to matching the
+> brace, after being wrong twice, and MSVC now confirms all 403 spellable enum names with a control
+> that must be refused. **Of the 140 left, 84 refusals want one packed word and 56 want the
+> heterogeneous layout, and the hidden-pointer return convention is worth exactly ONE entry point.**
+> What the research found instead: **only 666 of 4,093 callable names are in a library the build
+> links** — 16.3%, the hard-coded link line, and the largest move left on that host.
 
 ### Deliberately not next
 

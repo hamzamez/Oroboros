@@ -1,0 +1,28 @@
+# Win64 sizeof, as MSVC reports it, for every aggregate that blocks an
+# entry point. Regenerate with:
+#   go run gauntlet/stdlib/win32.go -sizes gauntlet/stdlib/win32-sizes.txt
+# Windows SDK 10.0.26100.0. A size is the HOST's answer, never one computed here.
+BLENDFUNCTION 4
+CLS_LSN 8
+COORD 4
+CRYPT_PKCS8_IMPORT_PARAMS 48
+CY 8
+D3DCOLORVALUE 16
+DELTA_INPUT 24
+DHCPCAPI_PARAMS_ARRAY 16
+DHCPV6CAPI_PARAMS_ARRAY 16
+EAP_METHOD_TYPE 16
+FILETIME 8
+GUID 16
+IID 16
+IORING_CREATE_FLAGS 8
+IORING_HANDLE_REF 16
+LARGE_INTEGER 8
+LUID 8
+NOTIFY_FILTER_AND_TYPE 16
+PACKAGE_VERSION 8
+POINT 8
+POINTFIX 8
+RECT 16
+SIZEL 8
+WINBIO_IDENTITY 76

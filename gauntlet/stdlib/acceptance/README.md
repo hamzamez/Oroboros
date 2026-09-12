@@ -1,11 +1,11 @@
-# Nine programs that check the surveys are not paper
+# Ten programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These nine check that a
+A survey reports what the target format can DECLARE. These ten check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Four are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
+Five are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -23,7 +23,7 @@ go run ./cmd/build -target=windows -targets "/tmp/proj;targets" -o /tmp/void /tm
 
 The generated modules go in a project-local layer, which is what
 layers-2026-09-07 built: `Δ_T = L₁ ▷ L₂ ▷ …`, and the source's own directory is
-the nearest layer, so 8,809 generated primitives can sit beside a program without
+the nearest layer, so 10,479 generated primitives can sit beside a program without
 touching `targets/`.
 
 ## Go: `os-methods.oro`
@@ -45,7 +45,7 @@ go run ./cmd/build -target=go -targets "/tmp/goproj/tg;targets" -o /tmp/osm /tmp
 the library search path finds as module `go/os` and refuses — the trap described
 under `io-reader` below. Nothing had run it since; `tooling_test.go` does now.)
 
-**All nine are a test**: `go test ./gauntlet/stdlib/` runs every survey twice,
+**All ten are a test**: `go test ./gauntlet/stdlib/` runs every survey twice,
 builds these programs from that run's declarations, and checks what the host
 prints (tooling-2026-09-11). `-short` skips it; a missing toolchain skips its
 host by name.
@@ -232,6 +232,15 @@ result was read as `mov %r, rax` and a C `int` comes back in `EAX`, which zero-e
 (win32enum-2026-09-11). `wide-call.oro` called `MulDiv` with positive arguments and could not have
 seen it. **A witness has to be able to fail.**
 
+**`pointer-param.oro`** — `IsBadReadPtr(_In_opt_ VOID *lp, _In_ UINT_PTR ucb)`. C binds `*` to the
+DECLARATOR, and the survey took the last field of a parameter as its name and threw the star away, so
+`TYPE *name` was a `TYPE` **by value** — which made struct-by-value the largest refusal on this host
+and, in the other direction, made `BOOL *pfOn` a WORD, so 585 generated declarations typed an address
+as an integer (structval-2026-09-12). It must print **1** and then **0**: address 0 is not readable,
+and with a length of zero there is nothing to check. **Two answers from one declaration**, so the
+program cannot be right by accident — and the two declarations are each other's negative, since the
+old one refuses `(x64.null)` and compiles the literal `0` while the fixed one does the reverse.
+
 **`enum-param.oro`** — `GetFileInformationByHandleEx` takes an enum, which the survey refused as a
 struct until 2026-09-11. It must print **0, 24, 87**: class `FileBasicInfo` fails on the buffer
 length, class 9999 fails as an invalid parameter, so two enum values give two errors and the callee
@@ -243,4 +252,25 @@ mkdir -p /tmp/proj/windows && cp /tmp/win32gen/WinBase.oro /tmp/proj/windows/
 cp gauntlet/stdlib/acceptance/signed-result.oro gauntlet/stdlib/acceptance/enum-param.oro /tmp/proj/
 go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/signed /tmp/proj/signed-result.oro
 go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/enum /tmp/proj/enum-param.oro
+go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/pp /tmp/proj/pointer-param.oro
 ```
+
+Two of the survey's own claims are checked by the host rather than by us, and both
+need MSVC:
+
+```bash
+go run gauntlet/stdlib/win32.go -check-enums   # every enum a declaration relies on
+go run gauntlet/stdlib/win32.go -sizes gauntlet/stdlib/win32-sizes.txt
+```
+
+`-check-enums` compiles `T v = (T)0` for each of the 407 enum names a declaration
+was written against, **with `RECT` in the list as a control that must be
+refused** — a struct read as an enum is the dangerous direction, since an
+aggregate over 8 bytes travels as a pointer to a copy. `-sizes` asks MSVC for the
+layout of every aggregate that blocks an entry point, which is what decides
+whether it travels in a register; the answers are committed in
+`win32-sizes.txt`, so the survey stays a function of its input.
+
+And `-sig NAME` prints one entry point as the tool sees it. Every figure the
+survey reports is a sum over 11,575 signatures, and a sum cannot say that a
+signature was misread.

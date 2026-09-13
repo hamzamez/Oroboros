@@ -139,7 +139,21 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-09-11.md](docs/assessment-2026-09-11.md) — **the
+**Current standing** is in [docs/assessment-2026-09-13.md](docs/assessment-2026-09-13.md) — **the
+round an application was written, and the measurer was measured**. **Yes on the balance for the first
+time**: 574 lines of compiler against 131 of Oroboros, **4.4 : 1 at the margin** (18.5 : 1 last round,
+41 : 1 before), all of it `tally`, which paid for itself with five compiler bugs; `emit : core` moved
+the RIGHT way for the first time in six rounds, **4.13 → 4.03**. **And the survey moved more than the
+language**: Win32's headline figures were corrected three times in three days, *callable* went from
+36.8% to **31.0%** once it had to link, **585 generated declarations had typed an address as an
+integer**, and the last plan's fourth item — struct by value, *"the largest remaining refusal"* — was
+1.2% on inspection. The tooling grew +2,033 again (701 of it tests). **What is next**: have each host
+check every generated declaration (48,518 of them, against eleven acceptance programs), with a witness
+that names structval's 585 when its fix is reverted; an ADR for *a generator does not make a claim it
+cannot justify*, applied six times and written down nowhere; and a Windows application through
+generated declarations.
+
+The previous one is [docs/assessment-2026-09-11.md](docs/assessment-2026-09-11.md) — **the
 round the hosts were measured, and the language was not written**. Yes on the thesis — all four
 hosts priced, Go **60.4%** and the JVM **60.9%** usable from completely different refusals — and
 **no on the balance**: 1,074 lines of compiler against **six lines of Oroboros programs**, while

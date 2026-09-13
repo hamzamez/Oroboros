@@ -2180,6 +2180,30 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**WHAT A HOST CALL DOES TO A BUFFER IS RESEARCHED, AND THE FIRST FINDING IS A SOUNDNESS HOLE** —
+[host-buffers.md](docs/host-buffers.md), research, no decision, on hamza's *"be mathematical and
+algebraic, and always reach for the literature"*. **`CheckLinear` is seeded by BINDERS — `build`'s and
+a declared `(buffer V)` parameter's — and a buffer can also come from a PRIMITIVE'S RESULT, which is
+never checked**: handed to a second call and then read, it is accepted and prints `195`, the second
+write through a dead name, while the identical shape on a `build` binder is refused. Linearity is a
+property of the TYPE and the check is keyed by SYNTAX; they agreed only while no target declared a
+buffer result, and none does. **And the aliasing predates the generator**: `targets/go/builtin.oro`'s
+`append-int` on a shared `slice-int` gives `x = [1 2 3 5]` where immutability says `[1 2 3 4]`.
+**The write-borrow needs no new construct** — `B ⊸ B ⊗ R`, the identity written in the template, runs
+and prints Go's answer; it is Linear Haskell's array API (`Array a %1-> (Ur a, Array a)`) and RustHorn's
+reading of `&mut` as a (current, final) pair, which is why a borrow ending at its call needs no
+lifetime. **What a host does to storage is Aspinall and Hofmann's three USAGE ASPECTS** (ESOP 2002) —
+destroyed, read and shared with the result, read and unshared — each with one typing, and a theorem
+that invariant (I) survives every host call exactly when aspect 1 is declared at `B`, aspect 2 never is,
+and every term of type `B` is linear; each hypothesis has a failing witness. **A Go slice's CAPACITY is
+L3's unstated capability**, and the full slice expression `a[:len:len]` is the host's own revocation.
+**Measured on Go's standard library by reading bodies: of the 166 slice parameters whose behaviour can
+be read, 81 — 49% — are destructive**, and 79.9% cannot be read by an intraprocedural-plus-package
+reading at all. The classifier failed its hand-checked witness three times, the first because its
+parent chain was built with `append` — the bug it was written to study. **Open for decision**: seed
+linearity by type (a repair to shipped mechanisms), have the generator declare aspects with *unknown ⇒
+buffer* as ADR 0010's default, or clip capacity at the boundary at an allocation per call.
+
 **THE GO STANDARD LIBRARY, ONE PACKAGE AT A TIME — `unicode/utf8` IS THE FIRST, AND THE WALL IS THE
 MEMORY MODEL** — [gostd-utf8-2026-09-13](gauntlet/results/gostd-utf8-2026-09-13.md),
 `gauntlet/stdlib/acceptance/unicode-utf8.oro`. hamza's goal: *support the entire Go standard library,

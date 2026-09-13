@@ -271,6 +271,13 @@ what *"write something awkward"* means now.
 > heterogeneous layout, and the hidden-pointer return convention is worth exactly ONE entry point.**
 > What the research found instead: **only 666 of 4,093 callable names are in a library the build
 > links** — 16.3%, the hard-coded link line, and the largest move left on that host.
+>
+> **And that was built the next day** — [linkline-2026-09-13](../gauntlet/results/linkline-2026-09-13.md).
+> `(link …)` on the target and `(lib …)` on a primitive, collected like `import`, and **callable AND it
+> links goes 666 → 3,593**. Which library a declaration may name is read from the libraries' own short
+> import objects, which state the DLL each symbol binds to; **155 names are bound to different DLLs by
+> different libraries and are refused rather than guessed**. The first rule counted DLLs per library, was
+> wrong twice, and was replaced before the commit.
 
 ### Deliberately not next
 

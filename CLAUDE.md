@@ -153,9 +153,10 @@ four properties failed on the first run. **And item 3** —
 generated declarations, and it found five compiler bugs. **And item 4 is done, and it dissolved** —
 [structval-2026-09-12](gauntlet/results/structval-2026-09-12.md): struct by value was 8.2% because
 the survey read `TYPE *name` as a value, it is **1.2%**, and **585 generated declarations had typed an
-address as an integer**. **What is next**: the link line computed from the declarations — 666 of 4,093
-callable Win32 names are in a library the build links, and that is the only factor-of-six gap left on
-that host.
+address as an integer**. **And the link line is computed from the declarations** —
+[linkline-2026-09-13](gauntlet/results/linkline-2026-09-13.md): callable AND it links went **666 → 3,593**,
+and 155 names the libraries bind to two different DLLs are refused rather than guessed. **The plan in that
+assessment is finished**, so what is next is a new assessment rather than a fifth item.
 
 The previous one is [docs/assessment-2026-09-09.md](docs/assessment-2026-09-09.md) — **the
 round the plan ran out**, written because all five items of the previous one are done rather than
@@ -2165,6 +2166,40 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**THE LINK LINE IS COMPUTED FROM THE DECLARATIONS, AND 666 CALLABLE WIN32 NAMES BECAME 3,593** —
+[linkline-2026-09-13](gauntlet/results/linkline-2026-09-13.md), [target-files.md §6a](docs/spec/target-files.md),
+`emit/target.go`, `emit/asm.go`, `targets/windows/windows.oro`, `gauntlet/stdlib/acceptance/link-line.oro`.
+The windows build script linked five libraries named in a Go constant, so a generated declaration from
+anywhere else loaded, type-checked, assembled and failed at the linker — a host fact living in Go, in this
+repository's own emitter. **Now `(link "…")` in `windows.oro` names what every program links, and a
+primitive's `(lib "…")` names the import library that resolves its `import`, collected exactly as the import
+is: only from what the program calls.** One field, one list, one collection site; no backend learned
+anything new, and a program calling no `lib` gets its old build script byte for byte, pinned against the
+literal line. **Callable AND it links: 666 → 3,593, 5.8% → 31.0% of the flat API.** `link-line.oro` calls
+`IsCharAlphaA` from `user32` and `GetSidLengthRequired` from `advapi32` and prints **1, 0, 12, 28**, which is
+what C prints on this host; against the old line the linker names both symbols unresolved.
+
+**NAMING A LIBRARY CHOOSES A DLL, AND THE LIBRARY SAYS WHICH.** An import library is an archive of short
+import objects, each binding one symbol to one DLL, so *which DLL does this name mean* is READ from the host
+rather than inferred. **155 callable names are bound to DIFFERENT DLLs by different libraries** —
+`AbortPrinter` to `winspool.drv` and to `spoolss.dll`, the print client and the spooler's own side — and those
+get no `lib`, so the linker refuses the call rather than binding it to the wrong code. The documentation names
+the DLL in a *Requirements* row no header carries; a generator does not make a claim it cannot justify.
+
+**THE FIRST RULE WAS A HEURISTIC AND WAS WRONG TWICE, found by checking the result document's own claim before
+committing it.** It counted each library's `__IMPORT_DESCRIPTOR_`s, called the split bimodal, and refused a
+name only an "umbrella" listed. **20 libraries sit between 2 and 428 DLLs** — `vfw32` binds three — and
+**`onecore.lib` binds `MulDiv` to `kernel32.dll` exactly as `kernel32.lib` does**, so an umbrella was never the
+question; whether the libraries AGREE about the DLL is. The heuristic reported 3,622; the binding says 3,593,
+and the ties went UP, 130 → 155, because the binding sees disagreements the count could not (`lz32.lib` and an
+umbrella disagreeing about `LZOpenFileA`). **And structval's projection was 233 generous**: *"about 3,826"*
+counted every name some library lists, and 155 ties, 61 API-set-only and 17 static-only cannot be named. Its
+ranked table's `onecore` 281 and `mincore` 197 were the shortest-name rule attributing kernel32 and user32
+names to umbrellas; both are annotated. **Cost: about 70 lines of compiler and 9 of Oroboros**, the survey
+reading the baseline from `windows.oro` instead of keeping a copy — a host fact written twice is two facts
+that can disagree. **Left, and named**: the 155 ties need the documentation, the 267 no library lists are
+unexamined (probably kernel-mode `Eng*`), and linking an API set is a target decision nobody has made.
+
 **STRUCT BY VALUE WAS THE LARGEST WIN32 REFUSAL BECAUSE THE SURVEY WAS READING THE POINTER OFF THE
 DECLARATOR** — [structval-2026-09-12](gauntlet/results/structval-2026-09-12.md),
 `gauntlet/stdlib/win32.go`, assessment-2026-09-11 item 4. The research was to classify 945 names by
@@ -2210,7 +2245,9 @@ read off the same SDK the headers come from. **77.2% are in one of 145 libraries
 name** — user32 504, gdi32 220, msi 209 — so *callable* is 4,093 as a property of the declarations
 and **666 as a property of a program**. Every prim already carries `(import "Name")`; what the
 emitter does not know is which library each lives in, and that is a target declaration. **Not built,
-and it is the largest move available on this host: 666 → about 3,826.**
+and it is the largest move available on this host: 666 → about 3,826.** (**Built the next day and it is
+3,593**: 233 names are listed by a library and bound to two DLLs, to an API set only, or to none —
+linkline-2026-09-13.)
 
 **What it leaves: item 4's premise is gone.** The largest refusals are now *unresolved typedef* at
 4.6%, which is this tool's own residue, and *function pointer* at 3.0%, which callbacks.md tier 3
@@ -4085,7 +4122,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet; `tally/` is the first application on two hosts through generated declarations |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the ten programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all ten; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the eleven programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all eleven; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

@@ -26,10 +26,10 @@
 //
 // And a fourth, which is the reason the first three matter: THE ACCEPTANCE
 // PROGRAMS RUN. A percentage that does not build is a claim, and a witness that
-// cannot fail proves nothing — so these are the ten programs in acceptance/,
+// cannot fail proves nothing — so these are the eleven programs in acceptance/,
 // built from THIS run's generated declarations and checked against the host.
 //
-// Slow — every survey runs twice, and ten programs go through four toolchains —
+// Slow — every survey runs twice, and eleven programs go through four toolchains —
 // so `-short` skips all of it. A host whose toolchain is absent is skipped BY
 // NAME; nothing is skipped for any other reason.
 package stdlib
@@ -381,10 +381,16 @@ var published = map[string][]string{
 		"1/2/4/8 bytes — one register 12 77 7",
 		"other — by reference / RCX 12 55 1",
 		// And the ceiling nobody had measured: a callable name in a library
-		// the link line does not name is a claim.
-		"in a library the build links: 666 16.3%",
-		"in another import library: 3160 77.2%",
+		// the link line does not name is a claim. linkline-2026-09-13 computes
+		// the line from the declarations, and these are what that buys and
+		// what it deliberately refuses.
+		"by a library the target always links: 666 16.3%",
+		"bound to ONE DLL by every library: 2927 71.5%",
+		"refused: bound to two or more DLLs: 155 3.8%",
+		"refused: only through an API set: 61 1.5%",
+		"refused: listed and bound to no DLL: 17 0.4%",
 		"in no import library at all: 267 6.5%",
+		"CALLABLE AND IT LINKS: 3593 31.0% of the flat API",
 	},
 	"jvm": { // surveys-2026-09-10, corrected by tooling-2026-09-11
 		"4508 public types",
@@ -462,7 +468,7 @@ type accept struct {
 	want   []string
 	// An APPLICATION rather than a one-file witness: its sources (repo-relative,
 	// the entry first), its command line ("{proj}" is the project directory),
-	// and any input files it reads. Empty for the ten acceptance programs.
+	// and any input files it reads. Empty for the eleven acceptance programs.
 	srcs   []string
 	args   []string
 	inputs map[string]string
@@ -561,6 +567,12 @@ func acceptance() map[string]accept {
 		// (structval-2026-09-12).
 		"pointer-param": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0"},
 			files: map[string]string{"windows/WinBase.oro": "WinBase.oro"}},
+		// And two libraries the target does not link by default, reached only
+		// because a generated declaration says `(lib "…")` and the link line is
+		// computed from what the program calls (linkline-2026-09-13). Against
+		// the old constant line this does not build at all.
+		"link-line": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0", "12", "28"},
+			files: map[string]string{"windows/WinUser.oro": "WinUser.oro", "windows/securitybaseapi.oro": "securitybaseapi.oro"}},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —

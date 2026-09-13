@@ -105,14 +105,17 @@ func asmShadowFor(tgt *Target, t *core.Term) int {
 var (
 	AsmData    []string
 	AsmExterns = map[string]bool{}
-	asmUniq    int
-	asmLits    = map[string]string{} // literal text -> label, so equals are shared
+	// AsmLibs is the import libraries those externs need: a primitive's `lib`,
+	// collected beside its `import` (target-files.md §6a).
+	AsmLibs = map[string]bool{}
+	asmUniq int
+	asmLits = map[string]string{} // literal text -> label, so equals are shared
 )
 
 // ResetAsm clears the accumulators. Emitting two programs in one process
 // otherwise carries one's literals into the other.
 func ResetAsm() {
-	AsmData, AsmExterns, asmUniq = nil, map[string]bool{}, 0
+	AsmData, AsmExterns, AsmLibs, asmUniq = nil, map[string]bool{}, map[string]bool{}, 0
 	asmLits = map[string]string{}
 }
 
@@ -628,6 +631,9 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 		}
 		if p.Import != "" {
 			AsmExterns[p.Import] = true
+			if p.Lib != "" {
+				AsmLibs[p.Lib] = true
+			}
 		}
 		switch p.Kind {
 		case "let":
@@ -2134,6 +2140,9 @@ func (e *asmEmitter) rawAlloc(bytes place) (place, error) {
 	}
 	if p.Import != "" {
 		AsmExterns[p.Import] = true
+		if p.Lib != "" {
+			AsmLibs[p.Lib] = true
+		}
 	}
 	// The operand must be in a register: an allocator template moves it into
 	// rdx or rcx, and an instruction may name memory once.

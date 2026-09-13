@@ -304,6 +304,14 @@ LINKING, of the 4093 callable (461 import libraries read)
 | mincore | 197 |
 | … | 145 in total |
 
+*(Two rows of that table are wrong, corrected the next day —
+[linkline-2026-09-13](linkline-2026-09-13.md). It named each missing
+library by the SHORTEST name exporting the symbol, which picks `onecore` (7
+letters) over `kernel32` (8). `onecore` and `mincore` bind 129 and 209 DLLs, and
+list most of kernel32's and user32's names beside those libraries; ranked by the
+library a declaration now names, neither appears, `setupapi` is 160 and
+`advapi32` 147. The totals above are unaffected.)*
+
 **So "callable by a program" is 4,093 as a property of the declarations and 666
 as a property of a program.** `asmBuildBat` links `kernel32 msvcrt ucrt
 vcruntime legacy_stdio_definitions` and the list is a constant in
@@ -317,6 +325,10 @@ program calls; what it does not know is which library each lives in, and that is
 a target declaration — one line per library, or one `(library …)` field beside
 `(import …)`. Linking all 461 would be the wrong answer. **Not built here**, and
 it is the largest single move available on this target: 666 → about 3,826.
+*(Built the next day, and 3,826 was **3,593** — 233 of those names are bound
+to two different DLLs by different libraries, reachable only through an API set,
+or bound to no DLL at all, and a declaration that cannot name its library
+honestly names none: linkline-2026-09-13.)*
 
 ## 7. Cost
 

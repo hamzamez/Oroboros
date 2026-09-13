@@ -28,6 +28,7 @@ no template expresses that.
 file        ::= (target NAME decl…)
 
 decl        ::= (backend NAME)                   ; which code generator compiles this
+              | (link "library"…)               ; always on the link line (§6a)
               | (type NAME "spelling")
               | (narrow "template")           ; how this host restricts a container
               | (module PATH prim…)          ; declares into a module namespace
@@ -41,7 +42,7 @@ template    ::= "…%s…"
 structural  ::= (structural NAME skind attr…)
 skind       ::= let | cond | loop | loop2 | build
 
-attr        ::= pure | index | (length INT) | (import "…")
+attr        ::= pure | index | (length INT) | (import "…") | (lib "…")
 argtype     ::= NAME | none                  ; `none` alone means arity zero
 ```
 
@@ -689,6 +690,47 @@ slow, not wrong.**
 An opaque string handed to the backend's import mechanism, collected across every primitive the
 emitted file actually uses. Go and Java emit it; JavaScript ignores it.
 
+## 6a. `lib` and `link` — what the linker must be handed
+
+```lisp
+(link "kernel32" "msvcrt" "ucrt" "vcruntime" "legacy_stdio_definitions")
+(prim IsCharAlphaA (int) int expr "mov rcx, %1\ncall IsCharAlphaA\nmovsxd %r, eax"
+      (import "IsCharAlphaA") (lib "user32"))
+```
+
+On a host whose toolchain resolves an import at LINK time rather than at compile time, naming the
+symbol is half of what a call needs. `(import "X")` makes the emitted unit refer to `X`; something
+must also hand the linker a library that defines it. **That is a fact about the host, so it is
+declared**, on the same terms as the import.
+
+- **`(lib "NAME")`** on a `prim` names the import library that resolves its `import`, without an
+  extension. It is collected **exactly as the import is**: only from primitives the emitted program
+  uses, so declaring ten thousand costs a program nothing.
+- **`(link "NAME"…)`** at target level names libraries every program is linked against, whatever
+  it calls — the ones the backend's own code needs (x86-64 injects `ExitProcess`) and the runtime
+  the target's hand-written declarations assume.
+
+The link line is **`link` in declared order, then each used `lib` not already present, in sorted
+order**. Both halves are functions of the input, so the build script is too. A `lib` repeated or
+already in `link` is not an error: a library is a set member and naming it twice says nothing new.
+Across layers `link` is appended, for the same reason `implements` is — a set cannot collide.
+
+**Only the x86-64 backend reads either field.** Go, Java and JavaScript resolve their imports with
+the host's own compiler or loader, so there is no line to build. A `lib` on such a target is
+accepted and ignored, the way JavaScript ignores `import`.
+
+**What `lib` claims, and why a declaration may carry none.** Naming a library chooses a DLL: an
+import library is an archive of short import objects, each binding one symbol to one DLL, and the
+loader goes to that DLL at run time. So `lib` claims more than *this links* — it claims **this is
+the DLL the name means**. Usually every library that lists a name binds it to the same DLL
+(`onecore.lib` binds `MulDiv` to `kernel32.dll` exactly as `kernel32.lib` does), and then any of
+them is right. Sometimes they disagree: `AbortPrinter` is bound to `winspool.drv` by one library and
+to `spoolss.dll` by another, which is the print client and the spooler's own side, and both link. A
+generator that cannot tell which is meant **does not write a `lib`**, and the call is refused at
+link time rather than bound to the wrong code
+([structval-2026-09-12](../../gauntlet/results/structval-2026-09-12.md) §6,
+[linkline-2026-09-13](../../gauntlet/results/linkline-2026-09-13.md)).
+
 ## 7. What a target author is promising
 
 A declaration is believed. Nothing here is checked, so each line is an obligation:
@@ -699,7 +741,8 @@ A declaration is believed. Nothing here is checked, so each line is an obligatio
    wrong is a miscompilation, not a slowdown.
 4. **A `stmt`'s value really is argument 0.**
 5. **The declared types are the host's actual types**, since they drive the emitted signatures.
-6. **The import is what the template needs.**
+6. **The import is what the template needs**, and on a link-time host **the `lib` defines it** —
+   and defines the one the name means, not merely one that links.
 7. **If the name belongs to a module carrying a signature, the implementation conforms to it.**
    This is the only obligation with a mechanism behind it — a conformance suite
    ([modules.md §8](modules.md)) — and it exists because covering proves a name is *provided* and

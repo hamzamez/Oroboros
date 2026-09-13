@@ -1,11 +1,11 @@
-# Ten programs that check the surveys are not paper
+# Eleven programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These ten check that a
+A survey reports what the target format can DECLARE. These eleven check that a
 declaration it generates can be BUILT AND RUN, which is the only thing that makes
 a percentage a measurement. All of them need generated target files, so they live
 here rather than in `examples/`.
 
-Five are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
+Six are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -23,7 +23,8 @@ go run ./cmd/build -target=windows -targets "/tmp/proj;targets" -o /tmp/void /tm
 
 The generated modules go in a project-local layer, which is what
 layers-2026-09-07 built: `Δ_T = L₁ ▷ L₂ ▷ …`, and the source's own directory is
-the nearest layer, so 10,479 generated primitives can sit beside a program without
+the nearest layer, so 10,479 generated primitives — 8,640 of them naming the library that resolves
+them — can sit beside a program without
 touching `targets/`.
 
 ## Go: `os-methods.oro`
@@ -45,7 +46,7 @@ go run ./cmd/build -target=go -targets "/tmp/goproj/tg;targets" -o /tmp/osm /tmp
 the library search path finds as module `go/os` and refuses — the trap described
 under `io-reader` below. Nothing had run it since; `tooling_test.go` does now.)
 
-**All ten are a test**: `go test ./gauntlet/stdlib/` runs every survey twice,
+**All eleven are a test**: `go test ./gauntlet/stdlib/` runs every survey twice,
 builds these programs from that run's declarations, and checks what the host
 prints (tooling-2026-09-11). `-short` skips it; a missing toolchain skips its
 host by name.
@@ -241,6 +242,15 @@ and with a length of zero there is nothing to check. **Two answers from one decl
 program cannot be right by accident — and the two declarations are each other's negative, since the
 old one refuses `(x64.null)` and compiles the literal `0` while the fixed one does the reverse.
 
+**`link-line.oro`** — `IsCharAlphaA` from `user32` and `GetSidLengthRequired` from `advapi32`, two
+libraries the windows target does not link into every program. Until 2026-09-13 the link line was a
+constant, so each generated declaration loaded, type-checked and assembled and then failed at the
+linker with `unresolved external symbol`; the survey counted all of them callable. Each declaration
+now says `(lib "…")` and the library joins the line only when a program calls it
+(linkline-2026-09-13, target-files.md §6a). It must print **1, 0, 12, 28**: `'A'` is alphabetic,
+`'1'` is not, and a SID needs 8 bytes plus 4 per sub-authority. Against the old line it does not
+build.
+
 **`enum-param.oro`** — `GetFileInformationByHandleEx` takes an enum, which the survey refused as a
 struct until 2026-09-11. It must print **0, 24, 87**: class `FileBasicInfo` fails on the buffer
 length, class 9999 fails as an invalid parameter, so two enum values give two errors and the callee
@@ -253,6 +263,9 @@ cp gauntlet/stdlib/acceptance/signed-result.oro gauntlet/stdlib/acceptance/enum-
 go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/signed /tmp/proj/signed-result.oro
 go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/enum /tmp/proj/enum-param.oro
 go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/pp /tmp/proj/pointer-param.oro
+cp /tmp/win32gen/WinUser.oro /tmp/win32gen/securitybaseapi.oro /tmp/proj/windows/
+cp gauntlet/stdlib/acceptance/link-line.oro /tmp/proj/
+go run ./cmd/build -checked -target=windows -targets "/tmp/proj;targets" -o /tmp/ll /tmp/proj/link-line.oro
 ```
 
 Two of the survey's own claims are checked by the host rather than by us, and both

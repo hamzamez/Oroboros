@@ -859,7 +859,8 @@ func main() {
 	}
 
 	reportStructs(argOf, resOf, structFns)
-	reportLinking(dir, callableNames)
+	lk, lkErr := loadLinkage(dir)
+	reportLinking(lk, lkErr, callableNames, len(fns))
 
 	if len(unres) > 0 {
 		type uc struct {
@@ -896,7 +897,7 @@ func main() {
 	}
 
 	if *emitDir != "" {
-		if err := emit(*emitDir, decls, structs, handles, callbacks, alias); err != nil {
+		if err := emit(*emitDir, decls, structs, handles, callbacks, alias, lk); err != nil {
 			fmt.Fprintln(os.Stderr, "emit:", err)
 			os.Exit(1)
 		}
@@ -1133,7 +1134,7 @@ func pct(a, b int) float64 {
 	return 100 * float64(a) / float64(b)
 }
 
-func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, alias map[string]string) error {
+func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, alias map[string]string, lk *linkage) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -1197,8 +1198,16 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 				// so `%r` would have nothing to expand to.
 				tmpl = strings.TrimSuffix(tmpl, "\nmov %r, rax")
 			}
-			fmt.Fprintf(&b, "    (prim %s %s %s %s %q (import %q))\n",
-				f.name, al, res, kind, tmpl, f.name)
+			// THE LIBRARY THAT RESOLVES IT, when exactly one can be named
+			// honestly (linkage.resolve). A declaration with none still loads
+			// and still type-checks; what it cannot do is link, and that is a
+			// refusal at the linker rather than a binding to the wrong DLL.
+			libAttr := ""
+			if lib, _ := lk.resolve(f.name); lib != "" {
+				libAttr = fmt.Sprintf(" (lib %q)", lib)
+			}
+			fmt.Fprintf(&b, "    (prim %s %s %s %s %q (import %q)%s)\n",
+				f.name, al, res, kind, tmpl, f.name, libAttr)
 			n++
 		}
 		fmt.Fprintf(&b, "  ))\n")
@@ -1345,11 +1354,36 @@ func shapeName(s shape) string {
 // So the mapping is read off the same SDK the headers come from, which makes it
 // a measurement rather than a list somebody maintains.
 
-// linked is what asmBuildBat's link line names today (emit/target.go).
-var linked = map[string]bool{
-	"kernel32": true, "msvcrt": true, "ucrt": true, "vcruntime": true,
-	"legacy_stdio_definitions": true,
+// baseLink is the libraries the windows target links into EVERY program, read
+// from targets/windows/windows.oro rather than repeated here. Until
+// linkline-2026-09-13 the list was a constant in emit/target.go and a copy of it
+// in this file: a host fact written twice is two facts that can disagree.
+func baseLink() (map[string]bool, error) {
+	b, err := os.ReadFile(filepath.Join("targets", "windows", "windows.oro"))
+	if err != nil {
+		return nil, err
+	}
+	var code []string
+	for _, ln := range strings.Split(string(b), "\n") {
+		if !strings.HasPrefix(strings.TrimSpace(ln), ";") {
+			code = append(code, ln)
+		}
+	}
+	m := reLink.FindStringSubmatch(strings.Join(code, "\n"))
+	if m == nil {
+		return nil, fmt.Errorf("targets/windows/windows.oro declares no (link …)")
+	}
+	base := map[string]bool{}
+	for _, q := range reQuoted.FindAllStringSubmatch(m[1], -1) {
+		base[strings.ToLower(q[1])] = true
+	}
+	return base, nil
 }
+
+var (
+	reLink   = regexp.MustCompile(`\(link((?:\s+"[^"]*")+)\s*\)`)
+	reQuoted = regexp.MustCompile(`"([^"]*)"`)
+)
 
 // archSymbols returns every symbol name an import library exports.
 func archSymbols(path string) ([]string, error) {
@@ -1388,19 +1422,32 @@ func archSymbols(path string) ([]string, error) {
 	return out, nil
 }
 
-// libIndex maps an entry point to the import libraries that export it. A name
-// in several is normal — `um/x64` ships both `kernel32.lib` and, say,
-// `onecore.lib` for the same symbol — so the answer to "can this link" is
-// whether ANY of them is on the line, and the answer to "which is missing" is
-// the one with the shortest name, which is the canonical spelling.
-func libIndex(sdkInclude string) (map[string][]string, int, error) {
+// libIndex reads every import library in the SDK and returns three things the
+// host states about itself:
+//
+//	idx    symbol -> the libraries whose linker member lists it
+//	bind   symbol -> for each library, the DLL that library binds it to
+//	dlls   library -> how many DLLs it binds to in all
+//
+// `bind` is the one that decides anything. A Windows import library is an
+// archive of SHORT IMPORT objects, each an IMPORT_OBJECT_HEADER (Sig1 0x0000,
+// Sig2 0xFFFF) followed by the symbol name and the DLL name, NUL-terminated —
+// so which DLL a name resolves to through which library is not inferred, it is
+// read. linkline-2026-09-13 first decided by counting a library's
+// `__IMPORT_DESCRIPTOR_`s, called the split bimodal, and was wrong twice: 20
+// libraries sit between 2 and 428 DLLs, and an "umbrella" like `onecore`
+// binds `MulDiv` to kernel32.dll exactly as kernel32.lib does.
+func libIndex(sdkInclude string) (map[string][]string, map[string][]binding, map[string]int, int, error) {
 	root := filepath.Dir(filepath.Dir(sdkInclude)) // …/10/Include/<ver> -> …/10
 	ver := filepath.Base(sdkInclude)
 	idx := map[string][]string{}
+	bind := map[string][]binding{}
+	dlls := map[string]int{}
 	nlib := 0
 	for _, sub := range []string{"um", "ucrt"} {
 		dir := filepath.Join(root, "Lib", ver, sub, "x64")
 		libs, _ := filepath.Glob(filepath.Join(dir, "*"))
+		sort.Strings(libs)
 		for _, l := range libs {
 			if e := strings.ToLower(filepath.Ext(l)); e != ".lib" {
 				continue
@@ -1411,80 +1458,219 @@ func libIndex(sdkInclude string) (map[string][]string, int, error) {
 			}
 			nlib++
 			base := strings.ToLower(strings.TrimSuffix(filepath.Base(l), filepath.Ext(l)))
+			seen := map[string]bool{}
 			for _, s := range syms {
-				// __imp_X is the same entry point; the plain name is enough,
-				// and the descriptor symbols are not entry points at all.
-				if strings.HasPrefix(s, "__imp_") || strings.HasPrefix(s, "__IMPORT_DESCRIPTOR") ||
-					strings.HasPrefix(s, "__NULL_IMPORT") || strings.HasSuffix(s, "_NULL_THUNK_DATA") {
+				if strings.HasPrefix(s, "__IMPORT_DESCRIPTOR_") {
+					dlls[base]++
 					continue
 				}
+				// __imp_X is the same entry point; the plain name is enough.
+				if strings.HasPrefix(s, "__imp_") || strings.HasPrefix(s, "__NULL_IMPORT") ||
+					strings.HasSuffix(s, "_NULL_THUNK_DATA") || seen[s] {
+					continue
+				}
+				seen[s] = true
 				idx[s] = append(idx[s], base)
 			}
+			shortImports(l, func(sym, dll string) {
+				bind[sym] = append(bind[sym], binding{base, strings.ToLower(dll)})
+			})
 		}
 	}
 	if nlib == 0 {
-		return nil, 0, fmt.Errorf("no import libraries under %s", filepath.Join(root, "Lib", ver))
+		return nil, nil, nil, 0, fmt.Errorf("no import libraries under %s", filepath.Join(root, "Lib", ver))
 	}
-	return idx, nlib, nil
+	return idx, bind, dlls, nlib, nil
+}
+
+// binding is one library's statement of which DLL a symbol resolves to.
+type binding struct{ lib, dll string }
+
+// shortImports walks every member of an archive and reports each short import
+// object's symbol and DLL. A member is 60 bytes of header, then its size in
+// bytes, padded to an even offset.
+func shortImports(path string, fn func(sym, dll string)) {
+	b, err := os.ReadFile(path)
+	if err != nil || len(b) < 8 || string(b[:8]) != "!<arch>\n" {
+		return
+	}
+	for p := 8; p+60 <= len(b); {
+		size, err := strconv.Atoi(strings.TrimSpace(string(b[p+48 : p+58])))
+		if err != nil || p+60+size > len(b) {
+			return
+		}
+		d := b[p+60 : p+60+size]
+		if len(d) >= 20 && binary.LittleEndian.Uint16(d[0:]) == 0 && binary.LittleEndian.Uint16(d[2:]) == 0xFFFF {
+			if n := int(binary.LittleEndian.Uint32(d[12:])); 20+n <= len(d) {
+				if parts := strings.SplitN(string(d[20:20+n]), "\x00", 3); len(parts) >= 2 && parts[0] != "" {
+					fn(parts[0], parts[1])
+				}
+			}
+		}
+		p += 60 + size
+		if p%2 == 1 {
+			p++
+		}
+	}
+}
+
+// apiSet says whether a DLL name is an API SET contract rather than a DLL —
+// `api-ms-win-core-…` and `ext-ms-win-…`, the host's own documented prefixes. A
+// binding to one is resolved by the loader to whatever implements the contract
+// on the machine it runs on.
+func apiSet(dll string) bool {
+	return strings.HasPrefix(dll, "api-ms-win-") || strings.HasPrefix(dll, "ext-ms-win-")
+}
+
+// linkage answers, for a generated declaration, which import library it may
+// name. It is nil when the SDK's libraries could not be read, and then no
+// declaration names one.
+type linkage struct {
+	idx  map[string][]string
+	bind map[string][]binding
+	dlls map[string]int
+	base map[string]bool
+	nlib int
+}
+
+func loadLinkage(sdkInclude string) (*linkage, error) {
+	base, err := baseLink()
+	if err != nil {
+		return nil, err
+	}
+	idx, bind, dlls, nlib, err := libIndex(sdkInclude)
+	if err != nil {
+		return nil, err
+	}
+	return &linkage{idx, bind, dlls, base, nlib}, nil
+}
+
+// resolve says which library a declaration of `name` may carry as its `lib`,
+// and why when it may carry none. The question is which DLL the name MEANS, and
+// the libraries answer it:
+//
+//	base      a library the target links into every program exports it: the
+//	          program already imports from that library, so naming it binds
+//	          nothing new — which is also how `kernel32` settles against
+//	          `vertdll` without anyone choosing.
+//	lib       every library that binds it names ONE real DLL. The library
+//	          named is the one binding the fewest DLLs, so kernel32.lib over
+//	          onecore.lib and avifil32.lib over vfw32.lib — the same DLL at run
+//	          time either way, and the narrower library on the line.
+//	tied      libraries bind it to DIFFERENT DLLs — `AbortPrinter` to
+//	          winspool.drv and to spoolss.dll, which is the client API and the
+//	          spooler's own side. The headers do not say which is meant, so this
+//	          names neither and the linker refuses the call.
+//	apiset    it is reachable only through an API set contract.
+//	unbound   a library lists it and no short import object binds it — a
+//	          static library, code rather than a DLL call.
+//	none      no library in the SDK lists it at all.
+func (lk *linkage) resolve(name string) (lib, why string) {
+	if lk == nil {
+		return "", "unmeasured"
+	}
+	libs := append([]string(nil), lk.idx[name]...)
+	sort.Strings(libs)
+	for _, l := range libs {
+		if lk.base[l] {
+			return l, "base"
+		}
+	}
+	real := map[string][]string{}
+	viaAPI := false
+	for _, x := range lk.bind[name] {
+		if apiSet(x.dll) {
+			viaAPI = true
+			continue
+		}
+		real[x.dll] = append(real[x.dll], x.lib)
+	}
+	switch {
+	case len(real) == 1:
+		for _, cands := range real {
+			sort.Slice(cands, func(i, j int) bool {
+				if lk.dlls[cands[i]] != lk.dlls[cands[j]] {
+					return lk.dlls[cands[i]] < lk.dlls[cands[j]]
+				}
+				return cands[i] < cands[j]
+			})
+			return cands[0], "lib"
+		}
+	case len(real) > 1:
+		var ds []string
+		for d := range real {
+			ds = append(ds, d)
+		}
+		sort.Strings(ds)
+		return "", "tied:" + strings.Join(ds, " + ")
+	case viaAPI:
+		return "", "apiset"
+	case len(libs) > 0:
+		return "", "unbound"
+	}
+	return "", "none"
 }
 
 // reportLinking says how many callable names the emitted link line can actually
 // reach. A name this survey counts and a program cannot link is a claim, which
 // is the same sentence win32-2026-09-08 wrote about a name counted declarable
 // and never emitted.
-func reportLinking(sdkInclude string, callable []string) {
-	idx, nlib, err := libIndex(sdkInclude)
-	if err != nil {
-		fmt.Printf("\nLINKING: not measured — %v\n", err)
+func reportLinking(lk *linkage, lkErr error, callable []string, total int) {
+	if lkErr != nil {
+		fmt.Printf("\nLINKING: not measured — %v\n", lkErr)
 		return
 	}
-	var onLine, elsewhere, nowhere int
-	missing := map[string]int{}
+	var base, withLib, apiset, unbound, none, tiedN int
+	reach := map[string]int{}
+	ties := map[string]int{}
 	for _, n := range callable {
-		libs := idx[n]
-		if len(libs) == 0 {
-			nowhere++
-			continue
+		lib, why := lk.resolve(n)
+		switch {
+		case why == "base":
+			base++
+		case why == "lib":
+			withLib++
+			reach[lib]++
+		case strings.HasPrefix(why, "tied:"):
+			tiedN++
+			ties[strings.TrimPrefix(why, "tied:")]++
+		case why == "apiset":
+			apiset++
+		case why == "unbound":
+			unbound++
+		default:
+			none++
 		}
-		found := false
-		for _, l := range libs {
-			if linked[l] {
-				found = true
-				break
-			}
-		}
-		if found {
-			onLine++
-			continue
-		}
-		elsewhere++
-		// The shortest name is the canonical library — `user32` rather than
-		// `onecore` or an api-set stub that also exports it.
-		best := libs[0]
-		for _, l := range libs {
-			if len(l) < len(best) || (len(l) == len(best) && l < best) {
-				best = l
-			}
-		}
-		missing[best]++
 	}
-	fmt.Printf("\nLINKING, of the %d callable (%d import libraries read)\n", len(callable), nlib)
-	fmt.Printf("  in a library the build links:   %5d  %5.1f%%\n", onLine, pct(onLine, len(callable)))
-	fmt.Printf("  in another import library:      %5d  %5.1f%%   [emitter: the link line is hard-coded]\n",
-		elsewhere, pct(elsewhere, len(callable)))
+	links := base + withLib
+	fmt.Printf("\nLINKING, of the %d callable (%d import libraries read; the target links %d into every program)\n",
+		len(callable), lk.nlib, len(lk.base))
+	fmt.Printf("  by a library the target always links:   %5d  %5.1f%%\n", base, pct(base, len(callable)))
+	fmt.Printf("  bound to ONE DLL by every library:      %5d  %5.1f%%   [declared (lib …); joins the line when used]\n",
+		withLib, pct(withLib, len(callable)))
+	fmt.Printf("  refused: bound to two or more DLLs:     %5d  %5.1f%%   [the headers do not say which is meant]\n",
+		tiedN, pct(tiedN, len(callable)))
+	fmt.Printf("  refused: only through an API set:       %5d  %5.1f%%\n", apiset, pct(apiset, len(callable)))
+	fmt.Printf("  refused: listed and bound to no DLL:    %5d  %5.1f%%   [a static library]\n",
+		unbound, pct(unbound, len(callable)))
 	fmt.Printf("  in no import library at all:    %5d  %5.1f%%   [a header with no static import]\n",
-		nowhere, pct(nowhere, len(callable)))
+		none, pct(none, len(callable)))
+	fmt.Printf("  CALLABLE AND IT LINKS:                  %5d  %5.1f%% of the flat API\n", links, pct(links, total))
 
 	type lc struct {
 		lib string
 		n   int
 	}
-	var ls []lc
-	for l, n := range missing {
-		ls = append(ls, lc{l, n})
+	ranked := func(m map[string]int) []lc {
+		var ls []lc
+		for l, n := range m {
+			ls = append(ls, lc{l, n})
+		}
+		sort.Slice(ls, func(i, j int) bool { return byCount(ls[i].n, ls[j].n, ls[i].lib, ls[j].lib) })
+		return ls
 	}
-	sort.Slice(ls, func(i, j int) bool { return byCount(ls[i].n, ls[j].n, ls[i].lib, ls[j].lib) })
-	fmt.Println("\n  THE LIBRARIES THE LINE IS MISSING, by callable names in each")
+	fmt.Println("\n  THE LIBRARIES A DECLARATION NOW NAMES, by callable names in each")
+	ls := ranked(reach)
 	for i, x := range ls {
 		if i >= 15 {
 			break
@@ -1492,6 +1678,17 @@ func reportLinking(sdkInclude string, callable []string) {
 		fmt.Printf("    %-28s %5d\n", x.lib, x.n)
 	}
 	fmt.Printf("    … %d distinct libraries in total\n", len(ls))
+	if len(ties) > 0 {
+		fmt.Println("\n  THE TIES, by callable names: one name, several DLLs")
+		ts := ranked(ties)
+		for i, x := range ts {
+			if i >= 12 {
+				break
+			}
+			fmt.Printf("    %-44s %5d\n", x.lib, x.n)
+		}
+		fmt.Printf("    … %d distinct tie sets in total\n", len(ts))
+	}
 }
 
 // kindOfBody says what the brace closing at `end` opened, and with what

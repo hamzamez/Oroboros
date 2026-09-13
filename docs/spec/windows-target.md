@@ -255,6 +255,12 @@ under a path with a space in it. `go`, `node` and `javac` are bare words on PATH
 ever needed more than one command or a quoted path. Discovery moves into a `build.bat` the target
 writes — which works and is a workaround, not a fix.
 
+**And the link line in that script was a constant** naming `kernel32`, `msvcrt`, `ucrt`,
+`vcruntime` and `legacy_stdio_definitions`, so a declaration of anything in `user32` or `gdi32`
+loaded, checked, assembled and failed at the linker. It is now `(link …)` in `windows.oro` plus a
+primitive's `(lib …)`, collected only from what the program calls
+([target-files.md §6a](target-files.md), linkline-2026-09-13).
+
 **`cmd/build` copied the artifact only before the build.** `go build -o` takes a destination;
 `ml64` and `link` do not, and neither does any toolchain driven through a script. It now copies
 after as well.

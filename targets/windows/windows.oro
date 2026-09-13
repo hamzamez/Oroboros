@@ -76,6 +76,13 @@
   (data "__qpc     qword 0")
   (data "__buf     db 256 dup(0)")
 
+  ; THE LINK LINE IS DATA. These five were a constant in emit/target.go, which is a
+  ; host fact living in Go: kernel32 for ExitProcess, which the backend itself
+  ; emits, and the CRT the hand-written msvcrt.oro assumes. A primitive that lives
+  ; anywhere else says so with `(lib "…")`, and the library joins the line only
+  ; when a program calls it (target-files.md §6a, linkline-2026-09-13).
+  (link "kernel32" "msvcrt" "ucrt" "vcruntime" "legacy_stdio_definitions")
+
   (build "cmd /c .\\build.bat")
   (artifact "main.exe")
 

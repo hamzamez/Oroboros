@@ -40,8 +40,13 @@ type Prim struct {
 	Kind    string // expr | stmt | loop | loop2 | cond | let
 	Form    string // template with %s holes; empty for structural kinds
 	Import  string
-	Pure    bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
-	Index   bool // declared `index`: argument 0 is a container indexed by argument 1
+	// Lib is the import library that RESOLVES Import on a host that links —
+	// `(lib "user32")`. Collected exactly as Import is, from primitives the
+	// program uses, so the link line is computed rather than a constant that
+	// silently reached 666 of 4,093 callable Win32 names (target-files.md §6a).
+	Lib   string
+	Pure  bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
+	Index bool // declared `index`: argument 0 is a container indexed by argument 1
 
 	// Length is `(length N)`: the result is a container whose length is the
 	// VALUE of argument N — `make([]bool, n)` is n long. LengthOf is
@@ -292,6 +297,13 @@ type Target struct {
 	// `WriteFile` takes an out-pointer, and there is nowhere in the LANGUAGE to
 	// put one. Emitted verbatim into the artifact's data section.
 	Data []string
+
+	// Link is the libraries EVERY program is linked against on a host that
+	// resolves imports at link time — what the backend's own code needs and
+	// what the target's hand-written runtime assumes. A primitive's `lib` adds
+	// to it only when the program uses that primitive (target-files.md §6a).
+	// It was a constant in asmBuildBat, which is a host fact living in Go.
+	Link []string
 
 	// Build is the host toolchain command: %s is the artifact path, %s the
 	// directory holding the emitted source. A target that declares none can
@@ -1276,6 +1288,8 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}
 	tg.Reprs = append(tg.Reprs, o.Reprs...)
 	tg.Data = append(tg.Data, o.Data...)
+	// A library is a set member, so two layers naming one is not a collision.
+	tg.Link = append(tg.Link, o.Link...)
 	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
 	// two identical declarations of one name in a single layer are a mistake
 	// rather than a coincidence, and saying so has caught real ones. Between
@@ -1433,6 +1447,16 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (data \"label ...\"), got %s", path, f)
 			}
 			tg.Data = append(tg.Data, f.Kids[1].Str)
+		case "link":
+			if len(f.Kids) < 2 {
+				return nil, fmt.Errorf("%s: (link \"library\"…) names at least one library, got %s", path, f)
+			}
+			for _, k := range f.Kids[1:] {
+				if k.Kind != core.KStr {
+					return nil, fmt.Errorf("%s: (link \"library\"…) takes strings, got %s", path, f)
+				}
+				tg.Link = append(tg.Link, k.Str)
+			}
 		case "narrow":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (narrow \"dst = src[:n]\"), got %s", path, f)
@@ -1668,6 +1692,9 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "import" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Import = rest.Kids[1].Str
+		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "lib" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
+			p.Lib = rest.Kids[1].Str
 		default:
 			return Prim{}, fmt.Errorf("%s: %s has an unexpected trailing form %s", path, p.Name, rest)
 		}
@@ -1993,7 +2020,7 @@ func (tg *Target) WriteProgram(dir, code, entry string) error {
 		if err := os.WriteFile(filepath.Join(dir, "main.asm"), []byte(code), 0o644); err != nil {
 			return err
 		}
-		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(asmBuildBat), 0o644)
+		return os.WriteFile(filepath.Join(dir, "build.bat"), []byte(asmBuildScript(tg.Link, AsmLibs)), 0o644)
 	}
 	return fmt.Errorf("target %q has no program layout", tg.Name)
 }
@@ -2018,8 +2045,38 @@ for %%p in ("%ProgramFiles%\Microsoft Visual Studio" "%ProgramFiles(x86)%\Micros
 if not defined VCV (echo build.bat: no MSVC toolchain with ml64 was found & exit /b 1)
 call "!VCV!" >nul || exit /b 1
 ml64 -nologo -c -Fomain.obj main.asm || exit /b 1
-link -nologo -subsystem:console -entry:main main.obj kernel32.lib msvcrt.lib ucrt.lib vcruntime.lib legacy_stdio_definitions.lib -out:main.exe || exit /b 1
+link -nologo -subsystem:console -entry:main main.obj {{LIBS}} -out:main.exe || exit /b 1
 `
+
+// asmBuildScript fills the link line. It is `link` in declared order, then each
+// library a USED primitive names that is not already there, sorted — so the
+// script is a function of the program and the target, and a program that calls
+// nothing new gets exactly the line it always had.
+//
+// Windows library names are case-insensitive, so presence is decided on the
+// lowercase spelling; the declared spelling is what is written.
+func asmBuildScript(link []string, used map[string]bool) string {
+	var libs []string
+	have := map[string]bool{}
+	for _, l := range link {
+		if k := strings.ToLower(l); !have[k] {
+			have[k] = true
+			libs = append(libs, l+".lib")
+		}
+	}
+	var extra []string
+	for l := range used {
+		if k := strings.ToLower(l); !have[k] {
+			have[k] = true
+			extra = append(extra, l)
+		}
+	}
+	sort.Strings(extra)
+	for _, l := range extra {
+		libs = append(libs, l+".lib")
+	}
+	return strings.Replace(asmBuildBat, "{{LIBS}}", strings.Join(libs, " "), 1)
+}
 
 func sortedSet(m map[string]bool) []string {
 	out := make([]string, 0, len(m))

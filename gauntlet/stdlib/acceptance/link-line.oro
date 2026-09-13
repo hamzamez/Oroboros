@@ -1,0 +1,38 @@
+; ACCEPTANCE: a program that calls two libraries the target does not link by
+; default BUILDS, and the host answers.
+;
+; Until linkline-2026-09-13 the windows link line was a constant naming kernel32,
+; msvcrt, ucrt, vcruntime and legacy_stdio_definitions, so a generated
+; declaration from anywhere else loaded, type-checked, assembled and then failed
+; at the linker: `unresolved external symbol`. 3,427 of the 4,093 callable names
+; were in that position and the survey counted every one of them callable.
+;
+; Now a declaration carries `(lib "…")` and the library joins the line only when
+; a program calls it. This one calls two:
+;
+;   IsCharAlphaA       user32     'A' (65) is alphabetic, '1' (49) is not
+;   GetSidLengthRequired  advapi32   8 + 4 bytes per sub-authority
+;
+; It must print 1, 0, 12, 28 — what a C program on this host prints, verified
+; before this was written. FOUR ANSWERS FROM TWO LIBRARIES, and two per
+; declaration, so neither call can be right by accident.
+;
+; And against the old link line it cannot build at all: the linker names both
+; symbols as unresolved. The witness fails the build rather than the output,
+; which is the failure the bug had.
+;
+; It needs `-checked` for the reason every Win32 acceptance program does:
+; win/fmt.print-int does arithmetic on its argument, and a host call's result
+; has no declared range.
+
+(use win/WinUser as u)
+(use win/securitybaseapi as s)
+(use win/fmt as fmt)
+
+(export main)
+
+(def main (fn ()
+  (seq (fmt.print-int (u.IsCharAlphaA 65))
+       (fmt.print-int (u.IsCharAlphaA 49))
+       (fmt.print-int (s.GetSidLengthRequired 1))
+       (fmt.print-int (s.GetSidLengthRequired 5)))))

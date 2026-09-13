@@ -1,0 +1,103 @@
+; ACCEPTANCE: unicode/utf8, THE WHOLE PACKAGE — every function and every
+; constant, each called with a value the program COMPUTED.
+;
+; That last condition is the point. A generated declaration with a narrow
+; parameter did not compile when handed a variable — `cannot use r (variable
+; of type int) as rune value in argument to utf8.RuneLen` — and every earlier
+; acceptance program passed a literal, which Go treats as an untyped constant
+; and converts silently. So a program made of literals could not have failed,
+; and this one takes every rune out of a table.
+;
+; The expected output is not written here. It is computed by hand-written Go
+; calling the real package in the same order (utf8Reference in
+; tooling_test.go), so the host is the oracle and nothing is copied from a
+; run of this program.
+;
+; The inputs are chosen so every function has a case that goes each way:
+; scalars of one, two, three and four bytes; -1, a surrogate and one past
+; MaxRune, which are not scalar values and encode as U+FFFD; and a truncated
+; four-byte sequence, which is not valid UTF-8 at all and has no literal,
+; because a string literal denotes scalar values (string-literals.md).
+
+(use go/unicode-utf8 as u)
+(use go/fmt as fmt)
+(use os)
+
+(export main)
+
+; One rune: its encoded length, whether it is a scalar value, and how many
+; bytes EncodeRune writes into a four-byte buffer.
+;
+; ONLY THE COUNT, AND THAT IS THE WALL. EncodeRune writes into its buffer and
+; returns a number, and the buffer is linear (ADR 0018): passing it to the call
+; consumes it, so the program can have the count or the bytes and not both.
+; A scratch buffer whose `build` yields the count is what this language can
+; say today (gostd-utf8-2026-09-13 §4).
+(def each-rune (fn (r)
+  (seq (fmt.Println (u.RuneLen r))
+       (fmt.Println (u.ValidRune r))
+       (fmt.Println (build 4 (fn (b) (u.EncodeRune b r)))))))
+
+; A decoded rune and its width, and then their SUM. The sum is the witness: the
+; host gives back a `rune` and an `int`, and printing each alone compiles
+; whether or not the rune was received into the language's integer, while
+; adding them is `int32 + int`, which Go refuses unless it was.
+(def pair (fn (r n) (seq (fmt.Println r) (fmt.Println n) (fmt.Println (+ r n)))))
+
+(def over-bytes (fn (acc)
+  (seq (fmt.Println acc)
+       (fmt.Println (u.RuneCount acc))
+       (fmt.Println (u.Valid acc))
+       (fmt.Println (u.FullRune acc))
+       ((u.DecodeRune acc) (fn (r n) (pair r n)))
+       ((u.DecodeLastRune acc) (fn (r n) (pair r n)))
+       (loop ((j 0) (c 0))
+         (>= j (len acc)) (fmt.Println c)
+         else (again (+ j 1) (if (u.RuneStart (acc j)) (+ c 1) c))))))
+
+(def over-string (fn (s)
+  (seq (fmt.Println (u.RuneCountInString s))
+       (fmt.Println (u.ValidString s))
+       (fmt.Println (u.FullRuneInString s))
+       ((u.DecodeRuneInString s) (fn (r n) (pair r n)))
+       ((u.DecodeLastRuneInString s) (fn (r n) (pair r n))))))
+
+(def invalid (fn ()
+  (let (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153))) (fn (bad)
+    (seq (fmt.Println (u.FullRune bad))
+         (fmt.Println (u.Valid bad))
+         (fmt.Println (u.RuneCount bad))
+         ((u.DecodeRune bad) (fn (r n) (pair r n)))
+         (fmt.Println (u.ValidString (os.text-of bad)))
+         (fmt.Println (u.FullRuneInString (os.text-of bad)))
+         (fmt.Println (u.RuneCountInString (os.text-of bad))))))))
+
+(def constants (fn ()
+  (seq (fmt.Println (u.MaxRune))
+       (fmt.Println (u.RuneError))
+       (fmt.Println (u.RuneSelf))
+       (fmt.Println (u.UTFMax))
+       (fmt.Println (u.ValidRune (+ (u.MaxRune) 1)))
+       (fmt.Println (u.RuneLen (u.RuneError))))))
+
+; THE ACCUMULATOR STARTS AS ONE BYTE, `h`, and not as an empty table, for a
+; reason that is the compiler's: `(build 0 (fn (b) b))` bound by a `let` comes
+; out `[]int`, because the rule that gives an unwritten buffer the element type
+; of the host call it reaches sees only a call inside its own `build`. A stored
+; literal gives `[]byte` by the syntactic rule. Recorded in
+; gostd-utf8-2026-09-13 §5 rather than worked around silently.
+;
+; THE RUNE TABLE IS BOUND BY A `let`, the shape the `array-literal` differential
+; case uses: a `def`'d literal is substituted by δ, and `((array …) i)` in
+; operator position is refused as an application of a non-name.
+(def main (fn ()
+  (let (array 104 233 26085 128578 -1 55296 1114112) (fn (runes)
+  (let (build 1 (fn (b) (set b 0 104))) (fn (h)
+    (loop ((i 0) (acc h))
+      (>= i (len runes))
+        (seq (over-bytes acc)
+             (over-string (os.text-of acc))
+             (invalid)
+             (constants))
+      else (seq (each-rune (runes i))
+                (again (+ i 1) (u.AppendRune acc (runes i)))))))))))

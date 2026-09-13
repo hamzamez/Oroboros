@@ -34,6 +34,7 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -909,6 +910,11 @@ type sym struct {
 	// the template a composite literal rather than a call, and it is the only
 	// thing that distinguishes the two shapes downstream.
 	fields []string
+	// value is a CONSTANT's value as the manifest writes it. The manifest gives
+	// a constant two lines — `const MaxRune = 1114111` and `const MaxRune
+	// ideal-char` — and dedup by identity kept only the second, so every value
+	// was dropped before anything could read it (mergeConst).
+	value string
 }
 
 func parseLine(line string) (sym, bool) {
@@ -1284,8 +1290,15 @@ func main() {
 				// is one alias and two lines. Keyed by identity, last wins.
 				k := s.pkg + "|" + s.kind + "|" + s.recv + "|" + s.name
 				if i, dup := index[k]; dup {
+					if s.kind == "const" {
+						syms[i] = mergeConst(syms[i], s)
+						continue
+					}
 					syms[i] = s
 					continue
+				}
+				if s.kind == "const" {
+					s = mergeConst(sym{pkg: s.pkg, kind: s.kind, name: s.name}, s)
 				}
 				index[k] = len(syms)
 				syms = append(syms, s)
@@ -1337,6 +1350,25 @@ func main() {
 	byPkg := map[string]*tally{}
 	all := tally{}
 	callable := 0
+	// CONSTANTS ARE PART OF A PACKAGE, and until unicode/utf8 was supported
+	// in full nothing here counted one. A Go constant is evaluated at compile
+	// time and has no effect, so its declaration may say `pure` — the one claim
+	// this generator can justify for every name of a kind.
+	var consts []sym
+	constTotal := 0
+	constRefused := map[reason]int{}
+	for _, s := range syms {
+		if s.kind != "const" {
+			continue
+		}
+		constTotal++
+		if _, why := constResult(s); why != "" {
+			constRefused[reason(why)]++
+			continue
+		}
+		consts = append(consts, s)
+	}
+
 	var declarables []sym
 
 	for _, s := range syms {
@@ -1431,8 +1463,20 @@ func main() {
 	interfaceReport(raw, syms, have)
 	structReport(raw, syms, ctors, have)
 
+	fmt.Printf("\nCONSTANTS: %d exported, %d declarable\n", constTotal, len(consts))
+	var crs []string
+	for r := range constRefused {
+		crs = append(crs, string(r))
+	}
+	sort.Slice(crs, func(i, j int) bool {
+		return byCount(constRefused[reason(crs[i])], constRefused[reason(crs[j])], crs[i], crs[j])
+	})
+	for _, r := range crs {
+		fmt.Printf("  %-44s %5d\n", r, constRefused[reason(r)])
+	}
+
 	if *emitDir != "" {
-		if err := emit(*emitDir, append(declarables, ctors...), raw); err != nil {
+		if err := emit(*emitDir, append(append(declarables, ctors...), consts...), raw); err != nil {
 			fmt.Fprintln(os.Stderr, "emit:", err)
 			os.Exit(1)
 		}
@@ -1717,6 +1761,21 @@ func emit(dir string, syms []sym, raw []string) error {
 			return b
 		}
 		for _, s := range list {
+			if s.kind == "const" {
+				// `utf8.MaxRune` is a primitive of no arguments whose result
+				// is the EXACT range [v, v], so the interval analysis knows the
+				// value and `(+ (u.MaxRune) 1)` is provable. The emitter
+				// receives a range result as the language's integer.
+				res, why := constResult(s)
+				if why != "" {
+					continue
+				}
+				fmt.Fprintf(modBuf("go/"+strings.ReplaceAll(p, "/", "-")),
+					"    (prim %s (none) %s expr \"%s.%s\" pure (import %q))\n",
+					s.name, res, base, s.name, p)
+				n++
+				continue
+			}
 			var args, holes []string
 			mod := "go/" + strings.ReplaceAll(p, "/", "-")
 			tmplRecv := ""
@@ -1737,7 +1796,7 @@ func emit(dir string, syms []sym, raw []string) error {
 					nm = strings.ToLower(s.fields[k][:1]) + s.fields[k][1:]
 				}
 				args = append(args, fmt.Sprintf("(%s %s)", nm, spellQ(a)))
-				holes = append(holes, "%s")
+				holes = append(holes, hostArg(a))
 			}
 			argList := "(none)"
 			if len(args) > 0 {
@@ -1883,4 +1942,90 @@ func spell(t string) string {
 	// legal in an identifier position.
 	t = strings.NewReplacer("*", "ptr-", ".", "-", "/", "-").Replace(t)
 	return t
+}
+
+// hostArg is the template hole for one argument, CONVERTED to the host's own
+// parameter type when that type is not the target's integer.
+//
+// A range says what a value IS, and our integer is Go's `int` whatever the
+// range; so `(u.RuneLen r)` hands `utf8.RuneLen` an `int`, which Go refuses —
+// `cannot use r (variable of type int) as rune value`. Every earlier acceptance
+// program passed a LITERAL, which Go treats as an untyped constant and converts
+// silently, so the refusal was invisible to every test this tool had. The host
+// type is known here and nowhere else — a hand-written `(int 0 64)` is a range,
+// not a Go type — which is why the conversion is written into the template, as
+// `bits.OnesCount64(uint64(%s))` was verified in gostdlib-2026-09-06, rather
+// than inferred by the emitter.
+//
+// Only the narrow integer types are converted. `int64`, `uint` and `uint64` are
+// spelled `int` here and are the next package's question, because converting a
+// negative value to `uint64` wraps silently.
+func hostArg(goType string) string {
+	switch goType {
+	case "int8", "int16", "int32", "rune", "uint8", "byte", "uint16", "uint32":
+		return goType + "(%s)"
+	}
+	return "%s"
+}
+
+// mergeConst folds a constant's two manifest lines into one symbol: the
+// `= VALUE` line gives the value, the other gives the type. Either may come
+// first, and a later spelling of either replaces an earlier one, which is the
+// manifest's own history rule.
+func mergeConst(old, s sym) sym {
+	if len(s.results) > 0 && strings.HasPrefix(s.results[0], "= ") {
+		old.value = strings.TrimPrefix(s.results[0], "= ")
+		return old
+	}
+	s.value = old.value
+	return s
+}
+
+// portableWindow is ADR 0012's: an `int` is exact within ±(2^53−1).
+var portableWindow = new(big.Int).SetUint64(1<<53 - 1)
+
+// constResult spells a constant's result, or says why it cannot be declared.
+//
+// An INTEGER constant is the exact range [v, v] — which is both its type and
+// the one fact the interval analysis needs — and one outside ADR 0012's window
+// is refused rather than promoted: `math.MaxUint64` is a value the language's
+// integer cannot hold, and declaring it an `int` would make the Go compiler
+// refuse `int(math.MaxUint64)` at best. A constant of a NAMED type
+// (`fs.ModeDir FileMode`) is refused for now: its value is a `FileMode`, and
+// a range would drop the name every method on it needs.
+func constResult(s sym) (string, string) {
+	t := ""
+	if len(s.results) > 0 {
+		t = s.results[0]
+	}
+	switch t {
+	case "ideal-int", "ideal-char", "int", "int8", "int16", "int32", "int64", "rune",
+		"uint", "uint8", "byte", "uint16", "uint32", "uint64", "uintptr":
+		// A PORTABLE TYPE AND A PER-PLATFORM VALUE. `math.MaxInt`,
+		// `math/bits.UintSize` and `os.O_APPEND` have their type in the
+		// portable section and their value only on lines like `pkg math
+		// (darwin-amd64), const MaxInt = …`, because the value depends on the
+		// platform. A declaration fixing one value would be a claim about a
+		// platform, so there is none.
+		if s.value == "" {
+			return "", "integer constant whose value is per-platform"
+		}
+		v, ok := new(big.Int).SetString(s.value, 0)
+		if !ok {
+			return "", "integer constant with no readable value"
+		}
+		if new(big.Int).Abs(v).Cmp(portableWindow) > 0 {
+			return "", "integer constant outside the portable window"
+		}
+		return fmt.Sprintf("(int %s %s)", v, v), ""
+	case "ideal-float", "float64", "float32":
+		return "f64", ""
+	case "ideal-string", "string":
+		return "string", ""
+	case "ideal-bool", "bool":
+		return "bool", ""
+	case "ideal-complex", "complex64", "complex128":
+		return "", "complex constant"
+	}
+	return "", "constant of a named type"
 }

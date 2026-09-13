@@ -26,10 +26,10 @@
 //
 // And a fourth, which is the reason the first three matter: THE ACCEPTANCE
 // PROGRAMS RUN. A percentage that does not build is a claim, and a witness that
-// cannot fail proves nothing — so these are the eleven programs in acceptance/,
+// cannot fail proves nothing — so these are the twelve programs in acceptance/,
 // built from THIS run's generated declarations and checked against the host.
 //
-// Slow — every survey runs twice, and eleven programs go through four toolchains —
+// Slow — every survey runs twice, and twelve programs go through four toolchains —
 // so `-short` skips all of it. A host whose toolchain is absent is skipped BY
 // NAME; nothing is skipped for any other reason.
 package stdlib
@@ -48,6 +48,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
 
 var root = func() string {
@@ -315,7 +316,9 @@ func TestEveryDeclarableNameIsEmitted(t *testing.T) {
 				decl := num(t, r, declared)
 				voids := num(t, r, `\((\d+) void with no argument\)`)
 				ctors := num(t, r, `(\d+) get a generated constructor`)
-				want, why = decl-voids+ctors, fmt.Sprintf("%d declarable - %d voids + %d constructors", decl, voids, ctors)
+				consts := num(t, r, `CONSTANTS: \d+ exported, (\d+) declarable`)
+				want, why = decl-voids+ctors+consts, fmt.Sprintf("%d declarable - %d voids + %d constructors + %d constants",
+					decl, voids, ctors, consts)
 			case "win32":
 				want, why = num(t, r, declared), "declarable"
 			case "jvm":
@@ -363,7 +366,13 @@ var published = map[string][]string{
 		"238 have no exported field and get NOTHING",
 		"52 types have BOTH",
 		"USABLE GOES 2710 -> 2978 (+268)",
-		"emitted 4773 primitives",
+		// gostd-utf8-2026-09-13. A constant is a zero-argument pure prim whose
+		// result is its own exact range, and these are what refuses the rest.
+		"CONSTANTS: 2989 exported, 509 declarable",
+		"constant of a named type 2425",
+		"integer constant whose value is per-platform 50",
+		"integer constant outside the portable window 5",
+		"emitted 5282 primitives",
 	},
 	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12
 		"FLAT C API: 11575",
@@ -468,7 +477,7 @@ type accept struct {
 	want   []string
 	// An APPLICATION rather than a one-file witness: its sources (repo-relative,
 	// the entry first), its command line ("{proj}" is the project directory),
-	// and any input files it reads. Empty for the eleven acceptance programs.
+	// and any input files it reads. Empty for the twelve acceptance programs.
 	srcs   []string
 	args   []string
 	inputs map[string]string
@@ -573,6 +582,12 @@ func acceptance() map[string]accept {
 		// the old constant line this does not build at all.
 		"link-line": {host: "win32", target: "windows", layer: ".", flags: checked, want: []string{"1", "0", "12", "28"},
 			files: map[string]string{"windows/WinUser.oro": "WinUser.oro", "windows/securitybaseapi.oro": "securitybaseapi.oro"}},
+		// A WHOLE PACKAGE, unicode/utf8: every function and every constant,
+		// each called with a value the program computed rather than a literal
+		// (gostd-utf8-2026-09-13). The expected lines are computed by the real
+		// package, not copied from a run.
+		"unicode-utf8": {host: "go", target: "go", layer: "tg", flags: checked, want: utf8Reference(),
+			files: map[string]string{"tg/go/utf8-gen.oro": "unicode-utf8.oro"}},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —
@@ -698,4 +713,55 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 			}
 		})
 	}
+}
+
+// utf8Reference is unicode-utf8.oro's expected output, computed by calling the
+// real unicode/utf8 in the order the program does. It is hand-written Go and
+// never a copy of a run, so a wrong declaration or a wrong conversion shows up
+// as a difference from the HOST rather than as agreement with ourselves.
+func utf8Reference() []string {
+	var out []string
+	p := func(v any) { out = append(out, fmt.Sprint(v)) }
+	acc := []byte{104}
+	for _, r := range []rune{104, 233, 26085, 128578, -1, 55296, 1114112} {
+		p(utf8.RuneLen(r))
+		p(utf8.ValidRune(r))
+		p(utf8.EncodeRune(make([]byte, 4), r))
+		acc = utf8.AppendRune(acc, r)
+	}
+	pair := func(r rune, n int) { p(r); p(n); p(int(r) + n) }
+	p(acc)
+	p(utf8.RuneCount(acc))
+	p(utf8.Valid(acc))
+	p(utf8.FullRune(acc))
+	pair(utf8.DecodeRune(acc))
+	pair(utf8.DecodeLastRune(acc))
+	starts := 0
+	for _, x := range acc {
+		if utf8.RuneStart(x) {
+			starts++
+		}
+	}
+	p(starts)
+	s := string(acc)
+	p(utf8.RuneCountInString(s))
+	p(utf8.ValidString(s))
+	p(utf8.FullRuneInString(s))
+	pair(utf8.DecodeRuneInString(s))
+	pair(utf8.DecodeLastRuneInString(s))
+	bad := []byte{240, 159, 153}
+	p(utf8.FullRune(bad))
+	p(utf8.Valid(bad))
+	p(utf8.RuneCount(bad))
+	pair(utf8.DecodeRune(bad))
+	p(utf8.ValidString(string(bad)))
+	p(utf8.FullRuneInString(string(bad)))
+	p(utf8.RuneCountInString(string(bad)))
+	p(utf8.MaxRune)
+	p(utf8.RuneError)
+	p(utf8.RuneSelf)
+	p(utf8.UTFMax)
+	p(utf8.ValidRune(utf8.MaxRune + 1))
+	p(utf8.RuneLen(utf8.RuneError))
+	return out
 }

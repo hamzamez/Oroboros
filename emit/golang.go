@@ -12,6 +12,7 @@ package emit
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strconv"
 	"strings"
@@ -539,7 +540,7 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 	}
 	body, raw, out := openFresh(k, e.bound, mangle)
 	for i := range raw {
-		e.types[raw[i]] = p.Results[i]
+		e.types[raw[i]] = core.ValueType(p.Results[i])
 	}
 	// A RESULT THE BODY NEVER READS still has to be RECEIVED, because Go's
 	// multiple assignment is positional and there is no way to take fewer — and
@@ -560,7 +561,27 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 		// a statement and the assignment goes away entirely.
 		e.line("%s", fill(p.Form, vals))
 	} else {
-		e.line("%s := %s", strings.Join(out, ", "), fill(p.Form, vals))
+		// A RANGE RESULT IS RECEIVED INTO THE LANGUAGE'S `int`. The host gives
+		// back its own width — `utf8.DecodeRune` a `rune` — and Go's multiple
+		// assignment cannot convert in place, so it lands in a temporary and
+		// the name the program reads is `int(tmp)`. That conversion compiles
+		// from every Go integer type, so it needs no knowledge of which one
+		// the host used; the ARGUMENT direction does, which is why that one
+		// is the declaration's (target-files.md §3, "A result RANGE").
+		recv := append([]string(nil), out...)
+		var conv []string
+		for i := range out {
+			if out[i] == "_" || !isScalarRange(p.Results[i]) {
+				continue
+			}
+			tmp := e.fresh(out[i] + "h")
+			recv[i] = tmp
+			conv = append(conv, fmt.Sprintf("%s := %s(%s)", out[i], e.tgt.ty("int"), tmp))
+		}
+		e.line("%s := %s", strings.Join(recv, ", "), fill(p.Form, vals))
+		for _, c := range conv {
+			e.line("%s", c)
+		}
 	}
 	s, err := e.emit(body)
 	return s, true, err
@@ -701,7 +722,7 @@ func (e *Emitter) inferFrom(t *core.Term) {
 			body, raw, _ := openFresh(k, map[string]bool{},
 				func(s string) string { return s })
 			for i := range raw {
-				e.types[raw[i]] = p.Results[i]
+				e.types[raw[i]] = core.ValueType(p.Results[i])
 			}
 			e.inferFrom(body)
 			return
@@ -783,7 +804,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 			body, raw, _ := openFresh(k, map[string]bool{},
 				func(s string) string { return s })
 			for i := range raw {
-				e.types[raw[i]] = p.Results[i]
+				e.types[raw[i]] = core.ValueType(p.Results[i])
 			}
 			return e.typeOf(body)
 		}
@@ -928,7 +949,11 @@ func (e *Emitter) typeOf(t *core.Term) string {
 						return ty
 					}
 				}
-				return p.Result
+				// A RANGE RESULT IS AN `int` WHEREVER IT IS USED, which is what
+				// ValueType already says of every other range: the width a
+				// host call gives back belongs to the host, and the value is
+				// received into the language's integer (receiveInt).
+				return core.ValueType(p.Result)
 			}
 		}
 	}
@@ -1123,6 +1148,10 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		// Parenthesised throughout rather than tracking precedence. Go's parser
 		// does not care and neither does its optimiser; gofmt would strip them.
+		if isScalarRange(p.Result) {
+			// Received into the language's integer, as a several-result call is.
+			return e.tgt.ty("int") + "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
+		}
 		return "(" + fmt.Sprintf(p.Form, vals...) + ")", nil
 	}
 	return "", fmt.Errorf("unhandled term: %s", t)
@@ -1414,6 +1443,7 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 	if k.Kind != core.KFn || len(k.Params) != 1 {
 		return "", fmt.Errorf("let's continuation must be (fn (x) …), got %s", k)
 	}
+	before := maps.Clone(e.bound)
 	val, err := e.emit(args[0])
 	if err != nil {
 		return "", err
@@ -1423,7 +1453,7 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 	// what `seq` desugars into. Emitting `x := v` here would be rejected by Go
 	// as an unused variable.
 	if !core.Occurs(k.Body(), k.Params[0]) {
-		if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
+		if !emitsStatement(e.tgt, args[0]) && !(atomicValue(val) && !declaredBy(before, e.bound, val)) {
 			e.line("_ = %s", val) // Go forbids a bare expression statement
 		}
 		return e.emit(k.Body())
@@ -1443,6 +1473,17 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 // effect, in which case a sequencing let needs to add nothing. Shared by the
 // three backends, which agree here and differ only in how they spell a discarded
 // expression.
+// declaredBy reports whether emitting a term declared the name it evaluated to.
+// A discarded atomic value needs no statement when it is a literal or a name
+// that already existed — a parameter, or a buffer a loop threaded and handed
+// back — but a name the emission itself declared is a temporary: a loop's
+// result, an if's. Go refuses a declared local nothing reads, and no program
+// had discarded one until a loop sat in a `seq` before another statement
+// (gostd-utf8-2026-09-13). `bound` only grows, so new is exactly not-before.
+func declaredBy(before, after map[string]bool, name string) bool {
+	return after[name] && !before[name]
+}
+
 func emitsStatement(tgt *Target, t *core.Term) bool {
 	if t.Kind != core.KApp || t.Op().Kind != core.KName {
 		return false
@@ -1894,12 +1935,13 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string,
 			args := t.Args()
 			k := args[1]
 			if k.Kind == core.KFn && len(k.Params) == 1 {
+				before := maps.Clone(e.bound)
 				val, err := e.emit(args[0])
 				if err != nil {
 					return err
 				}
 				if !core.Occurs(k.Body(), k.Params[0]) {
-					if !emitsStatement(e.tgt, args[0]) && !atomicValue(val) {
+					if !emitsStatement(e.tgt, args[0]) && !(atomicValue(val) && !declaredBy(before, e.bound, val)) {
 						e.line("_ = %s", val)
 					}
 					return e.emitLoopBody(k.Body(), raw, names, result, post)
@@ -1975,4 +2017,11 @@ func (e *Emitter) emitAgain(t *core.Term, raw, names []string, post map[int]*cor
 	}
 	e.line("continue")
 	return nil
+}
+
+// isScalarRange reports a SCALAR integer range — `int 0 255` — as opposed to a
+// table of them, `array int 0 255`, whose width is the storage's and stays.
+func isScalarRange(ty string) bool {
+	_, _, ok := core.IntRange(ty)
+	return ok
 }

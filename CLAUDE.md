@@ -2180,6 +2180,27 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**THE GO STANDARD LIBRARY, ONE PACKAGE AT A TIME — `unicode/utf8` IS THE FIRST, AND THE WALL IS THE
+MEMORY MODEL** — [gostd-utf8-2026-09-13](gauntlet/results/gostd-utf8-2026-09-13.md),
+`gauntlet/stdlib/acceptance/unicode-utf8.oro`. hamza's goal: *support the entire Go standard library,
+package by package; when a wall needs language work, stop to research and design.* All fifteen
+functions and four constants are generated and called with values the program COMPUTED, and the output
+equals hand-written Go calling the real package. **Every earlier acceptance program passed LITERALS,
+which Go converts silently, so none could have failed** — a variable of our `int` handed to a `rune`
+parameter does not compile. The two directions split along ADR 0003: an argument's host type is the
+TEMPLATE's (`utf8.RuneLen(int32(%s))`), a range result is received into the language's `int` by the
+EMITTER (`int(x)` compiles from every Go integer type). **Constants are primitives now, 509 of 2,989**
+— a zero-argument pure prim whose result is its exact range; 2,425 refused as named types, 50 as
+per-platform, 5 past the window. Two emitter bugs, each pinned by a test failing against HEAD: a range
+result bound at the host's width (`r + n` was `int32 + int`), and a loop whose value a `seq` discards
+leaving an unused variable. **THE WALL, and nothing is decided**: `EncodeRune` writes into a buffer and
+returns a count, and a linear buffer handed to a primitive is consumed, so a program gets the count or
+the bytes, never both — the shape of `io.Reader.Read`, `hex.Encode`, `binary.PutUvarint`, and already of
+`os-methods.oro`, which prints a count for exactly this reason; and **`AppendRune` twice on one
+immutable value ALIASES** — `x` changed when `y` was appended, in Oroboros and in plain Go identically,
+a silent wrong answer reachable through a generated declaration today. Both are one question: what a
+host call does to a buffer it is handed. **Cost: 178 of 178 emitted files byte-identical.**
+
 **THE LINK LINE IS COMPUTED FROM THE DECLARATIONS, AND 666 CALLABLE WIN32 NAMES BECAME 3,593** —
 [linkline-2026-09-13](gauntlet/results/linkline-2026-09-13.md), [target-files.md §6a](docs/spec/target-files.md),
 `emit/target.go`, `emit/asm.go`, `targets/windows/windows.oro`, `gauntlet/stdlib/acceptance/link-line.oro`.
@@ -4136,7 +4157,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet; `tally/` is the first application on two hosts through generated declarations |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the eleven programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all eleven; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the twelve programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all twelve; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

@@ -389,6 +389,17 @@ range in a result position **is** an `ensures` (scalarrange-2026-08-31) and
 because `ensures` feeds the refinement layer while being in-window is decided by
 the interval layer.
 
+**A range result is received into the language's integer.** A range says what a
+value IS; its width belongs to storage (elemwidth-2026-08-27). So a backend whose
+host gives back a narrower type converts on receipt — Go emits `int(utf8.RuneLen(…))`,
+and for several results `r, n := utf8.DecodeRune(…)` becomes a temporary and
+`r := int(tmp)`, since a multiple assignment cannot convert in place. That
+direction needs no knowledge of the host's type, because `int(x)` compiles from
+every Go integer type. **The argument direction does**, and a hand-written
+`(int 0 64)` is a range rather than a host type, so an argument conversion is the
+TEMPLATE's: `bits.OnesCount64(uint64(%s))`. A template that omits it compiles for a
+literal — an untyped constant in Go — and is refused for a variable.
+
 ### `stmt`
 
 ```lisp

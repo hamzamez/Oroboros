@@ -1653,9 +1653,19 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 			p.Pure = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
+			// A second clause used to REPLACE the first, so a precondition the
+			// author wrote vanished without a word. A conjunction is one clause.
+			if p.Where != nil {
+				return Prim{}, fmt.Errorf("%s: %s gives (where …) twice, and one would be dropped; "+
+					"write one (where (and …))", path, p.Name)
+			}
 			p.Where = rest.Kids[1]
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "ensures" && len(rest.Kids) == 2:
+			if p.Ensures != nil {
+				return Prim{}, fmt.Errorf("%s: %s gives (ensures …) twice, and one would be dropped; "+
+					"write one (ensures (and …))", path, p.Name)
+			}
 			p.Ensures = rest.Kids[1]
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "checked" && len(rest.Kids) == 2 &&

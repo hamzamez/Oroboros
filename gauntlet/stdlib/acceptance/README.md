@@ -1,11 +1,12 @@
-# Eleven programs that check the surveys are not paper
+# Thirteen programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These eleven check that a
-declaration it generates can be BUILT AND RUN, which is the only thing that makes
-a percentage a measurement. All of them need generated target files, so they live
-here rather than in `examples/`.
+A survey reports what the target format can DECLARE. These thirteen check that a
+declaration can be BUILT AND RUN, which is the only thing that makes a percentage
+a measurement. They live here rather than in `examples/` because each is tied to a
+host's declarations — generated ones, or, for the two whole packages, ones written
+by hand and checked against the generator.
 
-Six are Win32's, three are Go's, one is the JVM's and one is JavaScript's.
+Six are Win32's, five are Go's, one is the JVM's and one is JavaScript's.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen
@@ -70,6 +71,35 @@ _ = (f.Close())
 multiresult-2026-09-06, and the reason `*os.File` is in the obtainable-type fixed
 point at all. `(*File).Read` is a method, so the receiver is argument 0, which is
 the convention Win32's `HANDLE` already used arriving on a host that has objects.
+
+---
+
+## Go, whole packages declared by hand: `unicode-utf8.oro` and `encoding-hex.oro`
+
+Each is a WHOLE standard-library package, declared by hand in `targets/go/`
+(handdecl-2026-09-14, hex-2026-09-14) and called on values the program COMPUTED,
+with the expected output written as hand-written Go calling the real package
+(`utf8Reference` and `hexReference` in `tooling_test.go`), so the host is the oracle.
+`TestHandDeclarationsAgreeWithTheHost` checks every hand declaration against what
+the generator spells, and plants mistakes the check must catch.
+
+```bash
+go run gauntlet/stdlib/survey.go -emit /tmp/gostd
+mkdir -p /tmp/hexproj/tg/go && cp /tmp/gostd/os.oro /tmp/hexproj/tg/go/os-gen.oro
+cp /tmp/gostd/io.oro /tmp/hexproj/tg/go/io-gen.oro
+cp gauntlet/stdlib/acceptance/encoding-hex.oro /tmp/hexproj/
+go run ./cmd/build -checked -target=go -targets "/tmp/hexproj/tg;targets" -o /tmp/hex /tmp/hexproj/encoding-hex.oro
+```
+
+`unicode-utf8.oro` needs no generated file and builds the same way against
+`targets` alone.
+
+**Each section of `encoding-hex.oro` is a law of the package's algebra**: the
+encoding doubles length, decoding is its left inverse, encode-after-decode is a
+projection onto lowercase, and off its domain decoding returns a prefix. The
+dumper is written to and never closed, and the file shows exactly what `Close`
+would have added, because `Close` on an `io.WriteCloser` is an interface method no
+declaration reaches.
 
 ---
 

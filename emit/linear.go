@@ -276,8 +276,18 @@ func (f *facts) entails(goal *linear) bool {
 	if len(g.coef) == 0 {
 		return g.konst <= 0
 	}
+	// THE FACTS ARE REWRITTEN BY THE SAME EQUATIONS AS THE GOAL, and at the same
+	// moment. A fact is substituted when it is assumed, and an equation can
+	// arrive later — the division axioms are seeded at the root, before any
+	// `let` — so a fact kept `len(enc)` while the goal, rewritten now, said
+	// `2·len(a)`, and they stopped matching (hex-2026-09-14 §3). Equality is a
+	// congruence, so rewriting both sides by one set of equations is sound.
+	le := make([]*linear, len(f.le))
+	for i, fact := range f.le {
+		le[i] = f.substitute(fact)
+	}
 	// A single fact, after substitution.
-	for _, fact := range f.le {
+	for _, fact := range le {
 		// `fact` says L + a <= 0, i.e. L <= -a. `g` says L + b <= 0, i.e.
 		// L <= -b. The fact implies the goal when -a <= -b, i.e. a >= b.
 		// Getting this backwards made the stencil's j+1 < alen(a) unprovable
@@ -295,8 +305,8 @@ func (f *facts) entails(goal *linear) bool {
 	// Or the sum of two. `i < alen p` plus `alen p <= alen q` gives
 	// `i < alen q`, which is the shape a two-array loop always produces and
 	// which one fact can never reach. Cheap: the fact set is tiny.
-	for i, a := range f.le {
-		for _, b := range f.le[i+1:] {
+	for i, a := range le {
+		for _, b := range le[i+1:] {
 			sum := a.addScaled(b, 1)
 			if sameVars(sum, g) && sum.konst >= g.konst {
 				return true
@@ -317,8 +327,8 @@ func (f *facts) entails(goal *linear) bool {
 	// `2w + 2 <= len sp`, which is the bound on `(sp (+ (* 2 w) 1))` — and
 	// neither one fact scaled nor two facts summed can reach it, because the
 	// combination needs a different multiplier on each.
-	for i, a := range f.le {
-		for _, b := range f.le[i+1:] {
+	for i, a := range le {
+		for _, b := range le[i+1:] {
 			for v, av := range a.coef {
 				bv, ok := b.coef[v]
 				if !ok || (av > 0) == (bv > 0) {

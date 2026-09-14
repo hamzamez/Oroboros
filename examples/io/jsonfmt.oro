@@ -58,10 +58,23 @@
 
 ; --- scanners ---------------------------------------------------------------
 
+; AN ESCAPE SKIPS TWO BYTES, so a document that ends inside a string on a
+; backslash takes `j` to len + 1, and returning `j` there handed the copy loop a
+; token reaching one byte PAST the input: Go and JavaScript printed a NUL where
+; the byte would be and the JVM threw ArrayIndexOutOfBoundsException, one
+; source answering two ways (hex-2026-09-14 §4). The end of the input is the end
+; of the token, so a backslash on the last byte ends it there.
+;
+; Stopped at the ESCAPE rather than clamped at the exit, and the difference is
+; the proof: every exit is still `j` or `j + 1`, so the scanner's value is at
+; least where it started and the caller's index is still non-decreasing
+; (monotone.go). An exit of `(len src)` is smaller than `j` in its own clause
+; and costs that derivation.
 (def scan-string (fn (src i)
   (loop ((j (+ i 1)))
     (< j 0)          j
     (>= j (len src)) j
+    (and (= (src j) 92) (>= (+ j 1) (len src))) (+ j 1)
     (= (src j) 92)   (again (+ j 2))
     (= (src j) 34)   (+ j 1)
     else             (again (+ j 1)))))
@@ -131,10 +144,15 @@
 
 (def nl (fn (out op d) (spaces (set out op 10) (+ op 1) (* 2 d))))
 
+; The second guard is never taken now that a token ends inside the input, and
+; it is what lets the compiler PROVE `(src k)` rather than trust it: `k < b` and
+; `b <= len src` is a relation between a loop and the scanner that produced `b`,
+; which the refinement layer does not derive.
 (def copyr (fn (out op src a b)
   (loop ((out out) (k a) (o op))
-    (>= k b) out
-    else     (again (set out o (src k)) (+ k 1) (+ o 1)))))
+    (>= k b)         out
+    (>= k (len src)) out
+    else             (again (set out o (src k)) (+ k 1) (+ o 1)))))
 
 ; --- pass 2: write it -------------------------------------------------------
 ;

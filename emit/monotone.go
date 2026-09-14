@@ -31,6 +31,12 @@ package emit
 //	3. (- a c) ⊒ S              if a ⊒ S and c is a literal ≤ 0
 //	4. (if _ p q) ⊒ S           if p ⊒ S and q ⊒ S
 //	5. (let d (fn (x) b)) ⊒ S   if b ⊒ S ∪ {x} when d ⊒ S, else b ⊒ S
+//	6. L ⊒ S                    if L is a loop, LoopLowerBound(L) = z, and z ⊒ S
+//
+// Rule 6 was added 2026-09-14 (hex-2026-09-14 §3) and is the COROLLARY below
+// used inside the relation it was derived from: an index assigned a scanner's
+// result, `(let (scan src i) (fn (ni) … (again ni)))`, is at least `i` exactly
+// because the scanner's loop is at least its initial value `i + 1`.
 //
 // LEMMA A.  If every x ∈ S has ⟦x⟧σ ≥ ⟦v⟧σ, and e ⊒ S, then ⟦e⟧σ ≥ ⟦v⟧σ.
 //
@@ -40,7 +46,13 @@ package emit
 //	 (3) ⟦a - c⟧ = ⟦a⟧ - c ≥ ⟦a⟧ ≥ ⟦v⟧, since c ≤ 0.
 //	 (4) whichever branch is evaluated satisfies it by the hypothesis.
 //	 (5) if d ⊒ S then ⟦x⟧ = ⟦d⟧ ≥ ⟦v⟧ by the hypothesis, so S ∪ {x} meets the
-//	     premise and b's hypothesis applies; otherwise S alone does.  ∎
+//	     premise and b's hypothesis applies; otherwise S alone does.
+//	 (6) the corollary gives ⟦L⟧ ≥ ⟦z⟧, and z is evaluated in the environment
+//	     L stands in, so z ⊒ S gives ⟦z⟧ ≥ ⟦v⟧ by induction.  ∎
+//
+// The induction is well-founded because rule 6 descends into z, a proper
+// subterm of L, and LoopLowerBound decides L's own body with rules 1–6 on
+// subterms of that body.
 //
 // Rules 2 and 3 use `a + c ≥ a`, which is arithmetic over ℤ and false under
 // wrapping. Our integers are exact inside ADR 0012's window and the target's
@@ -116,6 +128,13 @@ func atLeast(tgt *Target, e *core.Term, s map[string]bool) bool {
 				inner[raw[0]] = true
 			}
 			return atLeast(tgt, body, inner)
+		}
+		// rule 6 — a loop is at least S when the value it is bounded below by is.
+		if isLoopTerm(tgt, e) {
+			if z := LoopLowerBound(tgt, e); z != nil {
+				return atLeast(tgt, z, s)
+			}
+			return false
 		}
 		op := e.Op()
 		if op.Kind != core.KName {
@@ -240,6 +259,52 @@ func monotoneAt(tgt *Target, body *core.Term, raw []string, k int) bool {
 	}
 	walk(body, base, true)
 	return ok && sawExit
+}
+
+// monotoneStep is the THEOREM's hypothesis for one position, without the
+// corollary's exit half: every `again` in the loop gives position k a value
+// ⊒ the let-environment it is reached in. By the theorem the variable then
+// never falls below its initial value — which is what licenses `0 <= v` for a
+// non-negative start, and what the refinement layer asks.
+func monotoneStep(tgt *Target, lam *core.Term, k int) bool {
+	if lam == nil || lam.Kind != core.KFn || k >= len(lam.Params) {
+		return false
+	}
+	body, raw, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
+	ok := true
+	var walk func(t *core.Term, s map[string]bool)
+	walk = func(t *core.Term, s map[string]bool) {
+		if !ok || t == nil {
+			return
+		}
+		if v, l, isLet := asLet(tgt, t); isLet {
+			lb, lraw, _ := openFresh(l, map[string]bool{}, func(x string) string { return x })
+			inner := s
+			if atLeast(tgt, v, s) {
+				inner = cloneSet(s)
+				inner[lraw[0]] = true
+			}
+			walk(lb, inner)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			args := t.Args()
+			if t.Op().Name == "again" {
+				if k >= len(args) || !atLeast(tgt, args[k], s) {
+					ok = false
+				}
+				return
+			}
+			// An `again` is only ever a clause body or under a `let` (ADR 0015),
+			// so the branches of the clause chain are the only other places to look.
+			if p, known := tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(args) == 3 {
+				walk(args[1], s)
+				walk(args[2], s)
+			}
+		}
+	}
+	walk(body, map[string]bool{raw[k]: true})
+	return ok
 }
 
 // isLoopTerm reports whether a term is a `loop`, without the caller needing to

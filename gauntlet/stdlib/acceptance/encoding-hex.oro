@@ -1,0 +1,109 @@
+; ACCEPTANCE: encoding/hex, THE WHOLE PACKAGE, declared BY HAND
+; (targets/go/encoding-hex.oro), every name called on bytes the program COMPUTED.
+;
+; Each section is a LAW of the package's algebra (hex-2026-09-14 §1), and the
+; host is the oracle: the expected output is hexReference in tooling_test.go,
+; hand-written Go calling the real package in the same order.
+;
+;   lengths     |H(x)| = 2|x|, and ⌊2n/2⌋ = n
+;   encode      H into a buffer the program sized as 2·len src, count and bytes
+;   left        G∘H = id, into fresh storage and into a buffer
+;   projection  H∘G is idempotent and ≠ id: uppercase comes back lowercase
+;   prefix      off its domain G returns the whole pairs before the first bad byte
+;   append      the consume-and-return forms, threaded through one buffer
+;   dump        hexdump -C
+;   streams     the encoder and decoder agree with H and G, and the dumper
+;               without Close is missing exactly what Close would write
+
+(use go/encoding-hex as hex)
+(use go/fmt as fmt)
+(use go/os as gos)
+(use go/os/File as file)
+(use go/io as gio)
+(use os)
+
+(export main)
+
+; Twenty-one bytes, 94 + (37·i mod 95): printable from 94 to 126 and not above,
+; so the dump's right-hand column shows both.
+(def source (fn (n)
+  (build n (fn (b)
+    (loop ((i 0) (b b))
+      (>= i n) b
+      else (again (+ i 1) (set b i (+ 94 (% (* 37 i) 95)))))))))
+
+(def lengths (fn (src)
+  (seq (fmt.Println (len src))
+       (fmt.Println (hex.EncodedLen (len src)))
+       (fmt.Println (hex.DecodedLen (hex.EncodedLen (len src)))))))
+
+; H into a buffer of exactly 2·len src: the precondition is linear and proven.
+(def encode (fn (src)
+  (build (* 2 (len src)) (fn (b)
+    ((hex.Encode b src) (fn (b2 n) (seq (fmt.Println n) b2)))))))
+
+(def left (fn (src enc)
+  (seq ((hex.DecodeString (hex.EncodeToString src)) (fn (back e)
+         (seq (fmt.Println back) (fmt.Println (gos.err-nil e)))))
+       (fmt.Println (build (/ (len enc) 2) (fn (b)
+         ((hex.Decode b enc) (fn (b2 n e)
+           (seq (fmt.Println n) (fmt.Println (gos.err-nil e)) b2)))))))))
+
+(def projection (fn ()
+  ((hex.DecodeString "DEADbeef00FF") (fn (x e)
+    (seq (fmt.Println x)
+         (fmt.Println (hex.EncodeToString x)))))))
+
+; "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,
+; and an odd length after one.
+(def prefix (fn ()
+  (seq (let (build 6 (fn (b) (set (set (set (set (set (set b 0 48) 1 49) 2 48) 3 50) 4 122) 5 122)))
+         (fn (bad)
+           (fmt.Println (build 3 (fn (b)
+             ((hex.Decode b bad) (fn (b2 n e)
+               (seq (fmt.Println n) (fmt.Println e) b2))))))))
+       ((hex.DecodeString "abcg12") (fn (x e) (seq (fmt.Println x) (fmt.Println e))))
+       ((hex.DecodeString "abc") (fn (x e) (seq (fmt.Println x) (fmt.Println e)))))))
+
+; One buffer: '>' then H(src) then G(H(src)).
+(def append (fn (src enc)
+  (fmt.Println (build 1 (fn (b)
+    ((hex.AppendDecode (hex.AppendEncode (set b 0 62) src) enc) (fn (b2 e)
+      (seq (fmt.Println (gos.err-nil e)) b2))))))))
+
+(def streams (fn (src)
+  ((gos.MkdirTemp "" "orohex") (fn (dir e0)
+    (seq
+      ; the encoder writes H(src)
+      ((gos.Create (concat dir "/enc")) (fn (f e1)
+        (seq ((gio.WriteString (hex.NewEncoder f) (os.text-of src)) (fn (n e2)
+               (fmt.Println n)))
+             (file.Close f))))
+      ((gos.ReadFile (concat dir "/enc")) (fn (b e3)
+        (fmt.Println (os.text-of b))))
+      ; the decoder reads G of it back
+      ((gos.Open (concat dir "/enc")) (fn (f e4)
+        (seq ((gio.ReadAll (hex.NewDecoder f)) (fn (b e5)
+               (seq (fmt.Println b) (fmt.Println (gos.err-nil e5)))))
+             (file.Close f))))
+      ; the dumper, never closed
+      ((gos.Create (concat dir "/dump")) (fn (f e6)
+        (seq ((gio.WriteString (hex.Dumper f) (os.text-of src)) (fn (n e7)
+               (fmt.Println n)))
+             (file.Close f))))
+      ((gos.ReadFile (concat dir "/dump")) (fn (b e8)
+        (fmt.Println (os.text-of b))))
+      (gos.RemoveAll dir))))))
+
+(def main (fn ()
+  (let (source 21) (fn (src)
+    (let (encode src) (fn (enc)
+      (seq (lengths src)
+           (fmt.Println (os.text-of enc))
+           (fmt.Println (hex.EncodeToString src))
+           (left src enc)
+           (projection)
+           (prefix)
+           (append src enc)
+           (fmt.Print (hex.Dump src))
+           (streams src))))))))

@@ -2180,6 +2180,30 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**`encoding/hex` IS DECLARED BY HAND, AND THE REFINEMENT LAYER HAD NEVER LOOKED INSIDE A HOST CALL** —
+[hex-2026-09-14](gauntlet/results/hex-2026-09-14.md), `targets/go/encoding-hex.oro`, `emit/refine.go`,
+`emit/multiwhere_test.go`. The package is an ALGEBRA before it is a list: the encoding is a monoid
+homomorphism doubling length, decoding its left inverse, encode-after-decode a projection, and off its
+domain decoding returns a prefix — the acceptance program is those laws in order and prints the host's 31
+lines. **Both buffer preconditions are LINEAR and stated exactly** (`2·len src ≤ len dst`,
+`len src ≤ 2·len dst + 1`), the streams are impure because generativity is observable (Pitts & Stark), and
+`io.WriteCloser ≤ io.Writer` had to be declared because the generated relation has only concrete subjects.
+**THEN A SHORT BUFFER UNDER `hex.Encode` BUILT, AND PANICKED IN THE HOST**: the refinement walk returned at
+any operator that is not a name, which is how every host call with several results is used, so the call's
+`where`, its arguments and **the whole continuation — every file-reading program's body — had never been
+checked**; utf8's `EncodeRune` precondition, recorded that morning as checked, was checked nowhere. And a
+repeated `(where …)` silently replaced the first. **Walking the bodies needed five derived facts, each a
+theorem with a witness failing against HEAD**: a loop is at least its lower bound (rule 6 of `e ⊒ S`); a
+loop's start need not be a literal; Euclidean division's UPPER half; facts and goals rewritten by the same
+equations (equality is a congruence); and a let-bound conditional keeps what every branch satisfies — the
+join of template domains (Sankaranarayanan, Sipma & Manna 2005), which **closes the "clamped value used
+twice" limitation recorded with the product**. **And it found a real out-of-range read**: `jsonfmt` on a
+document ending in a backslash inside a string printed a NUL on Go and JavaScript and threw on the JVM; fixed
+in the program, all three now agree. `freq` states five invariants over its permutation it cannot prove, and
+prints the same as before on five files and three hosts; `tally`, freq's shape, needed the one clause. **Cost: 172 of 178 emitted files byte-identical**,
+the six being those two programs. The surface questions (module paths, constant sugar, names for ranges) are
+[declaration-surface.md](docs/declaration-surface.md), undecided.
+
 **HOST DECLARATIONS ARE WRITTEN BY HAND NOW, AND LINEARITY IS SEEDED BY TYPE** —
 [handdecl-2026-09-14](gauntlet/results/handdecl-2026-09-14.md), `emit/linearity.go`,
 `targets/go/unicode-utf8.oro`. hamza's decision after host-buffers.md: *"shouldn't we do it by hand, all
@@ -4074,6 +4098,16 @@ host re-proves it. That win has been **collected as an emitter pattern**, needin
 
 ## Working conventions
 
+**Always be mathematical and algebraic, and reach for the literature.** hamza's standing rule, said
+more than once and written down on 2026-09-14. Before building or declaring anything, say what it
+IS: the set, the operation, the law it obeys, the theorem that makes the design sound, and where
+the literature already answered it. A host package is an algebra before it is a list of functions
+(an encoding is a monoid homomorphism, a decoder its partial left inverse, a length a
+homomorphism into ℕ), and a declaration is a claim about that algebra — so state the law, then
+make the declaration say as much of it as the language can check, then name the part it cannot.
+Deriving what a construct is and measuring whether it is good are different jobs; do the first
+before the second, and never substitute a list of cases for a derivation.
+
 **Every significant decision gets an ADR.** Numbered, in `docs/decisions/`, using the template
 in that directory's README. The "Why not" section is the point — this project is deliberately
 put down at dead ends and picked up later, and the rejected alternatives are what will not be
@@ -4200,7 +4234,7 @@ The gauntlet (`gauntlet/go`, `gauntlet/js`, `gauntlet/java`) and `experiments/le
 | `examples/` | twelve programs plus `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro` — the first text program) and `io/` (`wc.oro`, `jsonfmt.oro` — the first tool — and `freq.oro`, the largest program in the language); `smooth.oro` completes the gauntlet; `tally/` is the first application on two hosts through generated declarations |
 | `lib/` | modules a program imports by `(use …)`; resolved on a search path |
 | `gauntlet/` | hand-written references and results — the bar |
-| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the twelve programs that check a percentage is not a claim; `tooling_test.go` runs every survey twice, pins the published counts and runs all twelve; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
+| `gauntlet/stdlib/` | `survey.go`, `win32.go`, `jvm.go` (+`jdk/Dump.java`) and `js.go` (+`jsdump.mjs`) — how much of each of the four hosts this language can declare, and why not the rest; `acceptance/` holds the thirteen programs that check a percentage is not a claim, two of them whole packages declared by hand; `tooling_test.go` runs every survey twice, pins the published counts, runs all thirteen and checks every hand declaration against the host; `win32-sizes.txt` is MSVC's answer for every aggregate that blocks a Win32 entry point |
 
 **Both emitted programs reach parity with hand-written Go.** See
 [parity](gauntlet/results/parity-2026-08-14.md).

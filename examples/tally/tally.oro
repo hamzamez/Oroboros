@@ -142,6 +142,11 @@
   (build nd (fn (dt)
     (loop ((dt dt) (k 0) (d 0))
       (>= k n)  dt
+      ; NO GROUPS, NO TABLE: `nd >= 1` whenever a value exists is a relation
+      ; between `ndist` and this loop that no fact states, and without it the
+      ; group read `(dt s)` cannot be shown inside `nd` pairs. Never taken
+      ; (hex-2026-09-14 §4, freq.oro's same clause).
+      (< nd 1)  dt
       (and (new? cmp cs ord n k) (>= d nd))  dt
       (new? cmp cs ord n k)
         (again (set dt (cli nd d) (array k 1)) (+ k 1) (+ d 1))

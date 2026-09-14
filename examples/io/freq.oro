@@ -250,13 +250,22 @@
 ; and without saying so `(* 2 (dword …))` reaching into the span table and
 ; `(pow10 (ndigits (dcount …)))` are both outside the window. One cap answers
 ; both.
-(def dword  (fn (dt d) (cli (+ (wmax) 1) ((dt d) 0))))
+; And a word index is clamped a SECOND time, into the span table it indexes. The
+; cap above bounds the ARITHMETIC — `(* 2 w)` stays in the window — and says
+; nothing about WHICH table: the refinement layer needs w < len sp, a relation
+; between what `dists` stored and what `spans` built (hex-2026-09-14 §4).
+(def dword  (fn (sp dt d) (cl sp (cli (+ (wmax) 1) ((dt d) 0)))))
 (def dcount (fn (dt d) (cli (+ (wmax) 1) ((dt d) 1))))
 
 (def dists (fn (src sp ord nw nd)
   (build nd (fn (dt)
     (loop ((dt dt) (k 0) (d 0))
       (>= k nw)   dt
+      ; NO GROUPS, NO TABLE. `nd` is at least one whenever a word exists, and that
+      ; is a relation between `ndist` and this loop which no fact states — so a
+      ; group read `(dt s)` could not be shown inside a table of `nd` pairs. Never
+      ; taken; its negation is `nd >= 1` (hex-2026-09-14 §4).
+      (< nd 1)    dt
       ; THE CAPACITY GUARD STOPS A NEW GROUP AND NOT THE COUNTING, which is a
       ; distinction the first version did not make -- `(>= d nd)` as its own
       ; clause exited the moment the LAST group had been opened, so every
@@ -317,13 +326,20 @@
 ; is safe exactly where the two passes cannot drift, and the way to guarantee that
 ; is to give them nothing of their own to disagree about.
 (def linelen (fn (sp dt d)
-  (+ (ndigits (dcount dt d)) (+ 2 (slen sp (dword dt d))))))
+  (+ (ndigits (dcount dt d)) (+ 2 (slen sp (dword sp dt d))))))
 
 (def rows (fn (nd) (mmin nd (topn))))
 
+; TWO GUARDS AND NOT `(rows nd)`. The rows are min(nd, topn), and a comparison
+; against a conditional reaches the refinement layer as an opaque atom, so
+; `r < nd` was never learned and `(pat ord2 nd r)` could not be shown to index a
+; table of nd pairs (hex-2026-09-14 §4). Two clauses say the same thing, and
+; each negation is a fact the layer reads.
 (def outlen (fn (sp dt ord2 nd)
   (loop ((n 0) (r 0))
-    (>= r (rows nd))  n
+    (>= r nd)         n
+    (>= r (topn))     n
+    (< (len sp) 1)    n
     else              (again (+ n (linelen sp dt (pat ord2 nd r))) (+ r 1)))))
 
 ; --- pass 2: write it -------------------------------------------------------
@@ -357,7 +373,7 @@
 
 (def putline (fn (out o src sp dt d m)
   (let (dcount dt d) (fn (c)
-  (let (dword  dt d) (fn (w)
+  (let (dword sp dt d) (fn (w)
     (set (putword (set (putnum out o c m) (cli m (+ o (ndigits c))) 32)
                   (+ o (+ (ndigits c) 1)) src sp w m)
          (cli m (+ o (- (linelen sp dt d) 1)))
@@ -367,7 +383,9 @@
   (let (outlen sp dt ord2 nd) (fn (m)
     (build m (fn (out)
       (loop ((out out) (o 0) (r 0))
-        (>= r (rows nd))  out
+        (>= r nd)         out
+        (>= r (topn))     out
+        (< (len sp) 1)    out
         else (let (pat ord2 nd r) (fn (d)
                (again (putline out o src sp dt d m)
                       (+ o (linelen sp dt d)) (+ r 1)))))))))))
@@ -377,7 +395,18 @@
 (def freq (fn (src)
   (let (nwords src) (fn (nw)
   (let (spans src nw) (fn (sp)
-  (let (msort (fn (u v) (< (wcmp src sp u v) 0)) nw) (fn (ord)
+  ; A GUARD on each word index, which is a value read out of the sort's own
+  ; permutation table: that it lies in [0, nw) is an invariant over the table's
+  ; slots, and no analysis here states one (frozen-2026-08-28). Unchecked until
+  ; hex-2026-09-14 §3, because this whole body sits in ReadFile's continuation.
+  ; A guard and not a clamp: a clamped value used twice is let-bound and the
+  ; refinement layer loses its bounds across the binding, while a guard's facts
+  ; hold in its branch.
+  (let (msort (fn (u v)
+                (if (and (<= 0 u) (and (< u nw) (and (<= 0 v) (< v nw))))
+                    (< (wcmp src sp u v) 0)
+                    false))
+              nw) (fn (ord)
   (let (ndist src sp ord nw) (fn (nd)
   (let (dists src sp ord nw nd) (fn (dt)
   (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)

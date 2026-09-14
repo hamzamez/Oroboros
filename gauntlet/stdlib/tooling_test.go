@@ -36,7 +36,9 @@ package stdlib
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -593,6 +595,11 @@ func acceptance() map[string]accept {
 		// survey still runs, because TestHandDeclarationsAgreeWithTheHost
 		// checks those declarations against what it spells.
 		"unicode-utf8": {host: "go", target: "go", layer: "tg", flags: checked, want: utf8Reference()},
+		// A SECOND WHOLE PACKAGE by hand, encoding/hex: each section of the
+		// program is a law of the package's algebra (hex-2026-09-14 §1), and the
+		// streams need the generated os and io to obtain a file to write to.
+		"encoding-hex": {host: "go", target: "go", layer: "tg", flags: checked, want: hexReference(),
+			files: map[string]string{"tg/go/os-gen.oro": "os.oro", "tg/go/io-gen.oro": "io.oro"}},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —
@@ -773,6 +780,71 @@ func utf8Reference() []string {
 	return out
 }
 
+// hexReference is encoding-hex.oro's expected output, computed by the real
+// encoding/hex in the order the program prints. Output is collected as the
+// program's is — Println and Print into one text, split into lines — because
+// a dump is several lines in one string. The streams write to an in-memory
+// buffer where the program writes to a file; the host calls are the same.
+func hexReference() []string {
+	var b strings.Builder
+	p := func(v any) { fmt.Fprintln(&b, v) }
+	src := make([]byte, 21)
+	for i := range src {
+		src[i] = byte(94 + (37*i)%95)
+	}
+	// The encoded buffer is bound first, so its count prints first.
+	enc := make([]byte, 2*len(src))
+	p(hex.Encode(enc, src))
+	p(len(src))
+	p(hex.EncodedLen(len(src)))
+	p(hex.DecodedLen(hex.EncodedLen(len(src))))
+	p(string(enc))
+	p(hex.EncodeToString(src))
+	// G∘H = id, into fresh storage and into a buffer.
+	back, err := hex.DecodeString(hex.EncodeToString(src))
+	p(back)
+	p(err == nil)
+	dec := make([]byte, len(enc)/2)
+	n, err := hex.Decode(dec, enc)
+	p(n)
+	p(err == nil)
+	p(dec)
+	// H∘G is a projection.
+	x, _ := hex.DecodeString("DEADbeef00FF")
+	p(x)
+	p(hex.EncodeToString(x))
+	// Off its domain, the prefix of whole pairs.
+	d3 := make([]byte, 3)
+	n, err = hex.Decode(d3, []byte("0102zz"))
+	p(n)
+	p(err)
+	p(d3)
+	x, err = hex.DecodeString("abcg12")
+	p(x)
+	p(err)
+	x, err = hex.DecodeString("abc")
+	p(x)
+	p(err)
+	// One buffer threaded through both append forms.
+	acc, err := hex.AppendDecode(hex.AppendEncode([]byte{62}, src), enc)
+	p(err == nil)
+	p(acc)
+	fmt.Fprint(&b, hex.Dump(src))
+	// The streams. The dumper is never closed, as in the program.
+	var w bytes.Buffer
+	n, _ = io.WriteString(hex.NewEncoder(&w), string(src))
+	p(n)
+	p(w.String())
+	r, err := io.ReadAll(hex.NewDecoder(strings.NewReader(w.String())))
+	p(r)
+	p(err == nil)
+	var dw bytes.Buffer
+	n, _ = io.WriteString(hex.Dumper(&dw), string(src))
+	p(n)
+	p(dw.String())
+	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
 // ---------------------------------------------------------------------------
 // 5. A declaration written by hand agrees with the host.
 //
@@ -784,15 +856,73 @@ func utf8Reference() []string {
 // host's own types, allowing only the refinements a person can justify, and must
 // cover every name the host exports.
 
-// handDeclared names the host modules written by hand in targets/, and the
-// generated file each is checked against.
-var handDeclared = []struct{ host, file, generated, module string }{
-	{"go", "targets/go/unicode-utf8.oro", "unicode-utf8.oro", "go/unicode-utf8"},
+// handDeclared names the host modules written by hand in targets/, the
+// generated file each is checked against, and — because A CHECKER THAT CANNOT
+// FAIL PROVES NOTHING — the mistakes a person could make writing it, each of
+// which must be caught. The mistakes are planted in the first module.
+var handDeclared = []struct {
+	host, file, generated string
+	modules               []string
+	mistakes              map[string]func(m map[string]emit.Prim)
+}{
+	{"go", "targets/go/unicode-utf8.oro", "unicode-utf8.oro", []string{"go/unicode-utf8"}, utf8Mistakes},
+	{"go", "targets/go/encoding-hex.oro", "encoding-hex.oro",
+		[]string{"go/encoding-hex", "go/encoding-hex/InvalidByteError"}, hexMistakes},
+}
+
+var utf8Mistakes = map[string]func(m map[string]emit.Prim){
+	"a mistyped argument": func(m map[string]emit.Prim) {
+		p := m["RuneLen"]
+		p.Args = []string{"int 0 255"}
+		m["RuneLen"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["EncodeRune"]
+		p.Form = strings.ReplaceAll(p.Form, "utf8.EncodeRune", "utf8.AppendRune")
+		m["EncodeRune"] = p
+	},
+	"a result range wider than the host's type": func(m map[string]emit.Prim) {
+		p := m["DecodeRune"]
+		p.Results = []string{"int -2147483649 2147483647", p.Results[1]}
+		m["DecodeRune"] = p
+	},
+	"a buffer where the host takes a string": func(m map[string]emit.Prim) {
+		p := m["ValidString"]
+		p.Args = []string{"buffer int 0 255"}
+		m["ValidString"] = p
+	},
+	"a missing name":        func(m map[string]emit.Prim) { delete(m, "Valid") },
+	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Valid"] },
+}
+
+var hexMistakes = map[string]func(m map[string]emit.Prim){
+	"a mistyped argument": func(m map[string]emit.Prim) {
+		p := m["DecodedLen"]
+		p.Args = []string{"int 0 255"}
+		m["DecodedLen"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["Encode"]
+		p.Form = strings.ReplaceAll(p.Form, "hex.Encode(", "hex.AppendEncode(")
+		m["Encode"] = p
+	},
+	"a result range wider than the host's type": func(m map[string]emit.Prim) {
+		p := m["Decode"]
+		p.Results = []string{p.Results[0], "int 0 9007199254740992", p.Results[2]}
+		m["Decode"] = p
+	},
+	"a buffer where the host takes a string": func(m map[string]emit.Prim) {
+		p := m["DecodeString"]
+		p.Args = []string{"buffer int 0 255"}
+		m["DecodeString"] = p
+	},
+	"a missing name":        func(m map[string]emit.Prim) { delete(m, "Dump") },
+	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Dump"] },
 }
 
 func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 	for _, h := range handDeclared {
-		t.Run(h.module, func(t *testing.T) {
+		t.Run(h.modules[0], func(t *testing.T) {
 			s := surveyOf(t, h.host)
 			hostTg, err := emit.LoadTarget(filepath.Join(s.runs[0].emit, h.generated))
 			if err != nil {
@@ -802,41 +932,18 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			host, hand := modulePrims(hostTg, h.module), modulePrims(handTg, h.module)
-			if len(host) == 0 {
-				t.Fatalf("the survey declares nothing in %s, so nothing is checked", h.module)
-			}
-			for _, e := range agreeAll(hand, host) {
-				t.Error(e)
+			for _, module := range h.modules {
+				host, hand := modulePrims(hostTg, module), modulePrims(handTg, module)
+				if len(host) == 0 {
+					t.Fatalf("the survey declares nothing in %s, so nothing is checked", module)
+				}
+				for _, e := range agreeAll(hand, host) {
+					t.Errorf("%s: %v", module, e)
+				}
 			}
 
-			// A CHECKER THAT CANNOT FAIL PROVES NOTHING. Each mistake a person
-			// could make writing this file by hand must be caught.
-			mistakes := map[string]func(m map[string]emit.Prim){
-				"a mistyped argument": func(m map[string]emit.Prim) {
-					p := m["RuneLen"]
-					p.Args = []string{"int 0 255"}
-					m["RuneLen"] = p
-				},
-				"a template calling the wrong host function": func(m map[string]emit.Prim) {
-					p := m["EncodeRune"]
-					p.Form = strings.ReplaceAll(p.Form, "utf8.EncodeRune", "utf8.AppendRune")
-					m["EncodeRune"] = p
-				},
-				"a result range wider than the host's type": func(m map[string]emit.Prim) {
-					p := m["DecodeRune"]
-					p.Results = []string{"int -2147483649 2147483647", p.Results[1]}
-					m["DecodeRune"] = p
-				},
-				"a buffer where the host takes a string": func(m map[string]emit.Prim) {
-					p := m["ValidString"]
-					p.Args = []string{"buffer int 0 255"}
-					m["ValidString"] = p
-				},
-				"a missing name":   func(m map[string]emit.Prim) { delete(m, "Valid") },
-				"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Valid"] },
-			}
-			for what, mutate := range mistakes {
+			hand, host := modulePrims(handTg, h.modules[0]), modulePrims(hostTg, h.modules[0])
+			for what, mutate := range h.mistakes {
 				m := map[string]emit.Prim{}
 				for k, v := range hand {
 					m[k] = v

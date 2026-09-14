@@ -87,8 +87,15 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 	return r.notes, nil
 }
 
-// seedDivAxioms walks a term once and assumes `k·(x/k) <= x` for every
-// quotient of a length by a positive literal.
+// seedDivAxioms walks a term once and assumes BOTH halves of Euclidean
+// division, `k·(x/k) <= x <= k·(x/k) + (k−1)`, for every quotient of a length
+// by a positive literal.
+//
+// Both halves need x >= 0 — for a negative x, truncation toward zero reverses
+// them — and the guard that supplies it is the one already here: x is a
+// LENGTH. The upper half was missing, so a buffer sized ⌊x/2⌋ could not be
+// shown to hold the decoding of x bytes, which is hex.Decode's exact
+// precondition `x <= 2·len + 1` (hex-2026-09-14 §3).
 func seedDivAxioms(f *facts, t *core.Term) {
 	seen := map[string]bool{}
 	var walk func(*core.Term)
@@ -112,6 +119,10 @@ func seedDivAxioms(f *facts, t *core.Term) {
 						f.assumeLE(constant(0).addScaled(q, args[1].Int).addScaled(el, -1),
 							fmt.Sprintf("assumed %d*(%s) <= %s (k*(x/k) <= x)",
 								args[1].Int, q.String(), el.String()))
+						// x - k·q - (k-1) <= 0
+						f.assumeLE(el.addScaled(q, -args[1].Int).addScaled(constant(args[1].Int-1), -1),
+							fmt.Sprintf("assumed %s <= %d*(%s) + %d (x <= k*(x/k) + k-1)",
+								el.String(), args[1].Int, q.String(), args[1].Int-1))
 					}
 				}
 			}
@@ -292,6 +303,41 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 
 	op := t.Op()
 	if op.Kind != core.KName {
+		// AN OPERATOR THAT IS NOT A NAME IS STILL A TERM WITH OBLIGATIONS IN IT.
+		// A host call with several results is eliminated by applying it to its
+		// continuation, `((p a…) (fn (x y) body))` (values.go, multiPrimCall),
+		// and returning here skipped p's own `where`, its arguments and the
+		// whole continuation — every file-reading program's body. Walking the
+		// operator discharges the call; walking the argument walks the body.
+		// More walking can only find more obligations, so this is sound in the
+		// direction that matters (hex-2026-09-14 §3).
+		//
+		// ONE OPERATOR IS NOT AN INDEXING, and it is the MAP READ being
+		// eliminated: `((m k) (fn (tag v) …))` (maps.md F2). A table's domain
+		// condition is a proof and a map's is a VALUE, the option the
+		// continuation takes apart, so `(m k)` carries no bounds obligation. It
+		// is recognised without types: the read is not a primitive, and it is
+		// applied to a function — which an ARRAY element never can be, because a
+		// closure does not survive staging and a table's elements are data.
+		if op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 &&
+			t.Args()[0].Kind == core.KFn {
+			if _, isPrim := r.tgt.Prims[op.Op().Name]; !isPrim {
+				for _, a := range op.Args() {
+					if err := r.walk(a, f); err != nil {
+						return err
+					}
+				}
+				return r.walk(t.Args()[0], f)
+			}
+		}
+		if err := r.walk(op, f); err != nil {
+			return err
+		}
+		for _, a := range t.Args() {
+			if err := r.walk(a, f); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 	r.markBound(t)
@@ -536,6 +582,7 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		inner.assumeEQ(k.Params[0], e)
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
+	r.joinConditional(inner, k.Params[0], args[0], f)
 	// A POSTCONDITION ATTACHES TO THE NAME, not to the call (Lemma 2). Two
 	// occurrences of an impure call denote different values and the fact layer
 	// is keyed by printed term, so the only sound anchor is the binder — which
@@ -546,6 +593,132 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		assume(inner, q)
 	}
 	return r.walk(k.Body(), inner)
+}
+
+// joinConditional gives a name bound to a CONDITIONAL the facts that hold on
+// every branch — which is what a clamp is for, and what was lost the moment a
+// clamped value was used twice and call-by-need let-bound it.
+//
+// THE RULE. Let x = (if c₁ … ℓ₁ … ℓₘ) be a chain whose leaves ℓⱼ are linear,
+// each reached under path facts Pⱼ = F ∧ (the guards, or their negations, on
+// the way to it). For an inequality φ(x),
+//
+//	if  Pⱼ ⊢ φ(ℓⱼ)  for every j,  then  F ⊢ φ(x).
+//
+// Proof: exactly one leaf is evaluated, on a path whose facts hold, and x is
+// its value. ∎
+//
+// The set of φ tried is FINITE and TEMPLATE-shaped: x compared by <, <=, >, >=
+// with each linear side of each guard in the chain, and with 0. That is the
+// join of template constraint domains (Sankaranarayanan, Sipma & Manna, VMCAI
+// 2005) — exact over the templates, and it never needs a convex hull, which a
+// conjunction of inequalities cannot represent in general.
+//
+// For the clamp `(if (< i 0) 0 (if (>= i n) 0 i))` it gives 0 <= x, and x < n
+// whenever the facts in scope already give 0 < n — which a caller indexing a
+// table it is iterating over always has (hex-2026-09-14 §4).
+func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *facts) {
+	type leaf struct {
+		e    *linear
+		path *facts
+	}
+	var leaves []leaf
+	var sides []*linear
+	// Names bound INSIDE the value. A clamp of a table read is let-bound before it
+	// is compared — `(cli n (t j))` reaches here as `(let (t j) (fn (i) (if …)))`
+	// — so the walk goes through the `let`; a side mentioning `i` is then not a
+	// template, since outside the value `i` may be a different variable.
+	binders := map[string]bool{}
+	ok := true
+	var walk func(t *core.Term, path *facts, depth int)
+	walk = func(t *core.Term, path *facts, depth int) {
+		if !ok {
+			return
+		}
+		if depth > 8 {
+			ok = false
+			return
+		}
+		if _, lam, isLet := asLet(r.tgt, t); isLet {
+			binders[lam.Params[0]] = true
+			walk(lam.Body(), path, depth+1)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if p, known := r.tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+				c := t.Args()[0]
+				if c.Kind == core.KApp && len(c.Args()) == 2 {
+					for _, s := range c.Args() {
+						if l, isLin := asLinear(s); isLin {
+							sides = append(sides, l)
+						}
+					}
+				}
+				taken := path.clone()
+				assume(taken, c)
+				walk(t.Args()[1], taken, depth+1)
+				missed := path.clone()
+				if n := negate(c); n != nil {
+					assume(missed, n)
+				}
+				walk(t.Args()[2], missed, depth+1)
+				return
+			}
+		}
+		e, isLin := asLinear(t)
+		if !isLin {
+			ok = false
+			return
+		}
+		leaves = append(leaves, leaf{e, path})
+	}
+	walk(value, f.clone(), 0)
+	if !ok || len(leaves) < 2 {
+		return
+	}
+	sides = append(sides, constant(0))
+	xv := variable(x)
+	// Each template is `x - a + c <= 0` (below a: c = 0 for <=, 1 for <) or
+	// `a - x + c <= 0` (above a).
+	for _, a := range sides {
+		inside := false
+		for name := range a.coef {
+			if binders[name] {
+				inside = true
+			}
+		}
+		if inside {
+			continue
+		}
+		for _, t := range []struct {
+			below bool
+			c     int64
+		}{{true, 0}, {true, 1}, {false, 0}, {false, 1}} {
+			holds := true
+			for _, l := range leaves {
+				var g *linear
+				if t.below {
+					g = l.e.addScaled(a, -1).addScaled(constant(t.c), 1)
+				} else {
+					g = a.addScaled(l.e, -1).addScaled(constant(t.c), 1)
+				}
+				if !l.path.entails(g) {
+					holds = false
+					break
+				}
+			}
+			if !holds {
+				continue
+			}
+			var fact *linear
+			if t.below {
+				fact = xv.addScaled(a, -1).addScaled(constant(t.c), 1)
+			} else {
+				fact = a.addScaled(xv, -1).addScaled(constant(t.c), 1)
+			}
+			inner.assumeLE(fact, fmt.Sprintf("%s joined over its branches", x))
+		}
+	}
 }
 
 // discharge proves a primitive's `where` at this call site, with the arguments
@@ -649,7 +822,17 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	for i, n := range lam.Params {
 		if i < len(inits) {
 			if e, ok := asLinear(inits[i]); ok {
-				if c, isConst := e.constantValue(); isConst && c >= 0 && nonDecreasing(lam.Body(), i, n) {
+				// Non-decreasing by the SYNTACTIC rule — every `again` adds a
+				// literal — or by loop monotonicity's relation `e ⊒ S`, which also
+				// sees an index assigned a scanner's result (monotone.go, rule 6).
+				//
+				// And the start need not be a literal. The theorem gives v >= z for
+				// the value z had on ENTRY, and every name z mentions is immutable,
+				// so whatever the entry facts prove about z holds of it at every
+				// iteration: `0 <= z` entailed there is `0 <= v` throughout. A
+				// literal is the case with no names, decided by the same call.
+				if f.entails(constant(0).addScaled(e, -1)) &&
+					(nonDecreasing(lam.Body(), i, n) || monotoneStep(r.tgt, lam, i)) {
 					g.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n)
 				}
 			}

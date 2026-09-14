@@ -1,6 +1,14 @@
 # What a host call does to a buffer
 
-Research, 2026-09-13. **No decision.** The wall
+Research, 2026-09-13. **DECIDED 2026-09-14, and built** —
+[handdecl-2026-09-14](../gauntlet/results/handdecl-2026-09-14.md). D1 is done: linearity is seeded by
+type, and building it closed a second hole — an immutable array handed to a parameter declared a
+buffer. And the question behind D2 was settled more broadly than §7 put it: **host declarations are
+written by hand**, carrying what a call does to a buffer, what it requires and what it returns, with
+the generator kept as the checker of the mechanical half. `unicode/utf8` is the first. D3 is not
+taken. This document is kept as the reading the decision rests on.
+
+The wall
 [gostd-utf8-2026-09-13](../gauntlet/results/gostd-utf8-2026-09-13.md) §4 stopped at, on hamza's
 *"go ahead with the research, be mathematical and algebraic, and always reach for the literature."*
 Experiments are in §2 and are reproducible from the programs quoted there.

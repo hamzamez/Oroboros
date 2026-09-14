@@ -47,6 +47,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"oroboros/core"
+	"oroboros/emit"
 	"testing"
 	"unicode/utf8"
 )
@@ -585,9 +588,11 @@ func acceptance() map[string]accept {
 		// A WHOLE PACKAGE, unicode/utf8: every function and every constant,
 		// each called with a value the program computed rather than a literal
 		// (gostd-utf8-2026-09-13). The expected lines are computed by the real
-		// package, not copied from a run.
-		"unicode-utf8": {host: "go", target: "go", layer: "tg", flags: checked, want: utf8Reference(),
-			files: map[string]string{"tg/go/utf8-gen.oro": "unicode-utf8.oro"}},
+		// package, not copied from a run. Its declarations are written BY HAND
+		// in targets/go/unicode-utf8.oro, so no generated file is supplied; the
+		// survey still runs, because TestHandDeclarationsAgreeWithTheHost
+		// checks those declarations against what it spells.
+		"unicode-utf8": {host: "go", target: "go", layer: "tg", flags: checked, want: utf8Reference()},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —
@@ -726,7 +731,9 @@ func utf8Reference() []string {
 	for _, r := range []rune{104, 233, 26085, 128578, -1, 55296, 1114112} {
 		p(utf8.RuneLen(r))
 		p(utf8.ValidRune(r))
-		p(utf8.EncodeRune(make([]byte, 4), r))
+		b := make([]byte, 4)
+		p(utf8.EncodeRune(b, r))
+		p(b)
 		acc = utf8.AppendRune(acc, r)
 	}
 	pair := func(r rune, n int) { p(r); p(n); p(int(r) + n) }
@@ -764,4 +771,200 @@ func utf8Reference() []string {
 	p(utf8.ValidRune(utf8.MaxRune + 1))
 	p(utf8.RuneLen(utf8.RuneError))
 	return out
+}
+
+// ---------------------------------------------------------------------------
+// 5. A declaration written by hand agrees with the host.
+//
+// Host declarations are written by hand, because every claim a declaration makes
+// beyond its types — what the host does to a buffer, what it requires, what it
+// can return — needs someone who read the host to justify it, and a generator
+// does not make a claim it cannot justify (host-buffers.md). The generator is
+// kept as the CHECKER of the mechanical half: a hand declaration must spell the
+// host's own types, allowing only the refinements a person can justify, and must
+// cover every name the host exports.
+
+// handDeclared names the host modules written by hand in targets/, and the
+// generated file each is checked against.
+var handDeclared = []struct{ host, file, generated, module string }{
+	{"go", "targets/go/unicode-utf8.oro", "unicode-utf8.oro", "go/unicode-utf8"},
+}
+
+func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
+	for _, h := range handDeclared {
+		t.Run(h.module, func(t *testing.T) {
+			s := surveyOf(t, h.host)
+			hostTg, err := emit.LoadTarget(filepath.Join(s.runs[0].emit, h.generated))
+			if err != nil {
+				t.Fatalf("the %s survey's %s: %v", h.host, h.generated, err)
+			}
+			handTg, err := emit.LoadTarget(filepath.Join(root, filepath.FromSlash(h.file)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			host, hand := modulePrims(hostTg, h.module), modulePrims(handTg, h.module)
+			if len(host) == 0 {
+				t.Fatalf("the survey declares nothing in %s, so nothing is checked", h.module)
+			}
+			for _, e := range agreeAll(hand, host) {
+				t.Error(e)
+			}
+
+			// A CHECKER THAT CANNOT FAIL PROVES NOTHING. Each mistake a person
+			// could make writing this file by hand must be caught.
+			mistakes := map[string]func(m map[string]emit.Prim){
+				"a mistyped argument": func(m map[string]emit.Prim) {
+					p := m["RuneLen"]
+					p.Args = []string{"int 0 255"}
+					m["RuneLen"] = p
+				},
+				"a template calling the wrong host function": func(m map[string]emit.Prim) {
+					p := m["EncodeRune"]
+					p.Form = strings.ReplaceAll(p.Form, "utf8.EncodeRune", "utf8.AppendRune")
+					m["EncodeRune"] = p
+				},
+				"a result range wider than the host's type": func(m map[string]emit.Prim) {
+					p := m["DecodeRune"]
+					p.Results = []string{"int -2147483649 2147483647", p.Results[1]}
+					m["DecodeRune"] = p
+				},
+				"a buffer where the host takes a string": func(m map[string]emit.Prim) {
+					p := m["ValidString"]
+					p.Args = []string{"buffer int 0 255"}
+					m["ValidString"] = p
+				},
+				"a missing name":   func(m map[string]emit.Prim) { delete(m, "Valid") },
+				"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Valid"] },
+			}
+			for what, mutate := range mistakes {
+				m := map[string]emit.Prim{}
+				for k, v := range hand {
+					m[k] = v
+				}
+				mutate(m)
+				if errs := agreeAll(m, host); len(errs) == 0 {
+					t.Errorf("%s was not caught", what)
+				}
+			}
+		})
+	}
+}
+
+// modulePrims is a target's declarations in one module, by unqualified name.
+func modulePrims(tg *emit.Target, module string) map[string]emit.Prim {
+	out := map[string]emit.Prim{}
+	for k, p := range tg.Prims {
+		if strings.HasPrefix(k, module+".") {
+			out[strings.TrimPrefix(k, module+".")] = p
+		}
+	}
+	return out
+}
+
+// agreeAll checks coverage in both directions and then every shared name.
+func agreeAll(hand, host map[string]emit.Prim) []error {
+	var errs []error
+	var names []string
+	for n := range host {
+		names = append(names, n)
+	}
+	for n := range hand {
+		if _, ok := host[n]; !ok {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		h, inHand := hand[n]
+		g, inHost := host[n]
+		switch {
+		case !inHand:
+			errs = append(errs, fmt.Errorf("%s is exported by the host and not declared by hand", n))
+		case !inHost:
+			errs = append(errs, fmt.Errorf("%s is declared by hand and the host has no such name", n))
+		default:
+			if err := agreeOne(n, h, g); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errs
+}
+
+// agreeOne is the mechanical half of a hand declaration. It may differ from the
+// host's spelling in exactly three justified ways, each a claim the generator
+// cannot make and a person can:
+//
+//   - a parameter or result the host spells as a slice may be a BUFFER, because
+//     the host writes it;
+//   - a write-borrow's result list may BEGIN with the buffer it hands back;
+//   - an integer result may be a narrower RANGE inside the host's type.
+func agreeOne(name string, h, g emit.Prim) error {
+	if len(h.Args) != len(g.Args) {
+		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))
+	}
+	for i := range h.Args {
+		if !sameOrBuffer(h.Args[i], g.Args[i]) {
+			return fmt.Errorf("%s: argument %d is %q by hand and %q on the host", name, i+1, h.Args[i], g.Args[i])
+		}
+	}
+	hr, gr := resultsOf(h), resultsOf(g)
+	if len(hr) == len(gr)+1 && len(hr) > 0 && core.IsBuffer(hr[0]) {
+		for _, a := range h.Args {
+			if a == hr[0] {
+				hr = hr[1:] // a write-borrow hands its buffer back first
+				break
+			}
+		}
+	}
+	if len(hr) != len(gr) {
+		return fmt.Errorf("%s returns %d value(s) by hand and %d on the host", name, len(hr), len(gr))
+	}
+	for i := range hr {
+		if !sameOrBuffer(hr[i], gr[i]) && !rangeWithin(hr[i], gr[i]) {
+			return fmt.Errorf("%s: result %d is %q by hand, which is not the host's %q or a range inside it",
+				name, i+1, hr[i], gr[i])
+		}
+	}
+	callee := g.Form
+	if i := strings.Index(callee, "("); i >= 0 {
+		callee = callee[:i+1]
+	}
+	if callee == "" || !strings.Contains(h.Form, callee) {
+		return fmt.Errorf("%s: the template %q does not call the host's %s", name, h.Form, callee)
+	}
+	if h.Import != g.Import {
+		return fmt.Errorf("%s imports %q by hand and %q on the host", name, h.Import, g.Import)
+	}
+	return nil
+}
+
+func resultsOf(p emit.Prim) []string {
+	if len(p.Results) > 0 {
+		return p.Results
+	}
+	if p.Result != "" {
+		return []string{p.Result}
+	}
+	return nil
+}
+
+func sameOrBuffer(hand, host string) bool {
+	return hand == host || (core.IsBuffer(hand) && host == "array "+strings.TrimPrefix(hand, "buffer "))
+}
+
+// rangeWithin: `int` on the host is the language's integer, the portable window.
+func rangeWithin(hand, host string) bool {
+	hl, hh, ok := core.IntRange(hand)
+	if !ok {
+		return false
+	}
+	const window = 1<<53 - 1
+	gl, gh := int64(-window), int64(window)
+	if host != "int" {
+		if gl, gh, ok = core.IntRange(host); !ok {
+			return false
+		}
+	}
+	return gl <= hl && hh <= gh
 }

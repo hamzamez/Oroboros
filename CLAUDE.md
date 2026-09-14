@@ -2180,6 +2180,25 @@ literal and does NOT reopen the layout question, because the inner value is anot
 number will not survive contact unchanged, since *usable* counts whether the arguments can be built
 and not whether the call does anything — **the acceptance test is a program, as it was for methods.**
 
+**HOST DECLARATIONS ARE WRITTEN BY HAND NOW, AND LINEARITY IS SEEDED BY TYPE** —
+[handdecl-2026-09-14](gauntlet/results/handdecl-2026-09-14.md), `emit/linearity.go`,
+`targets/go/unicode-utf8.oro`. hamza's decision after host-buffers.md: *"shouldn't we do it by hand, all
+of it?"* — every claim a declaration makes beyond its types (what the call does to a buffer, what it
+requires, what it returns) needs someone who read the host, so **declarations are hand-written and the
+generator is their CHECKER**: `TestHandDeclarationsAgreeWithTheHost` requires the host's own types,
+allowing only three justified refinements (a slice the host writes may be a buffer; a write-borrow's
+results may begin with the buffer it hands back; an integer result may be a narrower range), requires
+coverage both ways, and catches six planted mistakes. **R1 closed TWO holes**: a buffer a primitive
+returns was never checked, and **an immutable array could reach a parameter declared a buffer**,
+because the type checker gives `build` no result type — both now refused, each witness failing against
+HEAD. **Walking every buffer first refused three correct corpus programs, and each refusal was a rule
+the checker had never stated**: `again`'s arguments are simultaneous, so a buffer passed through is
+handed on at the jump; `len` observes and never moves; and a length **cannot observe a write**, so it is
+legal even through a dead name (the Windows map needs it). **`unicode/utf8` by hand prints the host's 63
+lines**, including the bytes `EncodeRune` writes, and its declared result ranges take the program from
+**3 of 9 integer operations proven to 8 of 9** — the one left, `(+ c 1)`, is a loop invariant, not a
+host fact. **Cost: 178 of 178 emitted files byte-identical**, differential green on four targets.
+
 **WHAT A HOST CALL DOES TO A BUFFER IS RESEARCHED, AND THE FIRST FINDING IS A SOUNDNESS HOLE** —
 [host-buffers.md](docs/host-buffers.md), research, no decision, on hamza's *"be mathematical and
 algebraic, and always reach for the literature"*. **`CheckLinear` is seeded by BINDERS — `build`'s and

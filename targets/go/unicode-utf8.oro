@@ -1,0 +1,87 @@
+; unicode/utf8, DECLARED BY HAND (host-buffers.md §7; the decision to write host
+; declarations by hand and keep the generator as their checker).
+;
+; Every claim below was read off the package's documentation and source in the
+; Go 1.27 toolchain, and each kind of claim is one the generator cannot make:
+;
+;   pure       — the function reads its arguments and writes nothing; the census
+;                in host-buffers.md §6 classified every slice parameter here.
+;   a buffer   — EncodeRune writes into p; AppendRune may write into p's spare
+;                capacity. Both take a BUFFER, so an immutable array can never
+;                reach them and ADR 0018's invariant survives the call.
+;   a range    — what the host can return, which is what lets bounded-by-default
+;                prove arithmetic on a result instead of refusing it.
+;   a where    — what the host requires, checked at every call site.
+;
+; The generator still spells the host's types; gauntlet/stdlib/tooling_test.go
+; checks that every declaration here agrees with them, and that none is missing.
+
+(target go
+  (module go/unicode-utf8
+
+    ; ------------------------------------------------------------ constants
+    (prim MaxRune   (none) (int 1114111 1114111) expr "utf8.MaxRune"   pure (import "unicode/utf8"))
+    (prim RuneError (none) (int 65533 65533)     expr "utf8.RuneError" pure (import "unicode/utf8"))
+    (prim RuneSelf  (none) (int 128 128)         expr "utf8.RuneSelf"  pure (import "unicode/utf8"))
+    (prim UTFMax    (none) (int 4 4)             expr "utf8.UTFMax"    pure (import "unicode/utf8"))
+
+    ; ------------------------------------------------------------ one rune
+    ; "It returns -1 if the rune is not a valid value to encode in UTF-8."
+    (prim RuneLen   ((r (int -2147483648 2147483647))) (int -1 4)
+          expr "utf8.RuneLen(int32(%s))" pure (import "unicode/utf8"))
+    (prim ValidRune ((r (int -2147483648 2147483647))) bool
+          expr "utf8.ValidRune(int32(%s))" pure (import "unicode/utf8"))
+    (prim RuneStart ((b (int 0 255))) bool
+          expr "utf8.RuneStart(uint8(%s))" pure (import "unicode/utf8"))
+
+    ; ------------------------------------------------------------ writing
+    ; A WRITE-BORROW: B ⊸ B ⊗ R. The host writes into p "(which must be large
+    ; enough)" and returns how many bytes it wrote; the template hands p back,
+    ; which is the identity and costs nothing. An out-of-range rune writes
+    ; RuneError, three bytes, so the count is 1..4 whatever r is.
+    ;
+    ; The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
+    ; bytes (three for an invalid rune), and four is enough for every rune. The
+    ; exact requirement is a disjunction the linear fragment cannot state.
+    (prim EncodeRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
+          ((buffer (int 0 255)) (int 1 4))
+          expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
+          (where (<= 4 (len p)))
+          (import "unicode/utf8"))
+
+    ; CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
+    ; and returns the extended buffer" — the same storage when p has capacity, new
+    ; storage when not, and p is dead either way.
+    (prim AppendRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
+          (buffer (int 0 255))
+          expr "utf8.AppendRune(%s, int32(%s))"
+          (import "unicode/utf8"))
+
+    ; ------------------------------------------------------------ reading bytes
+    ; A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
+    ; 0 only for empty input and at most UTFMax.
+    (prim DecodeRune     ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4))
+          expr "utf8.DecodeRune(%s)" pure (import "unicode/utf8"))
+    (prim DecodeLastRune ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4))
+          expr "utf8.DecodeLastRune(%s)" pure (import "unicode/utf8"))
+    (prim FullRune       ((p (array (int 0 255)))) bool
+          expr "utf8.FullRune(%s)" pure (import "unicode/utf8"))
+    ; Every rune, valid or not, is at least one byte.
+    (prim RuneCount      ((p (array (int 0 255)))) (int 0 9007199254740991)
+          expr "utf8.RuneCount(%s)" pure (ensures (<= result (len p))) (import "unicode/utf8"))
+    (prim Valid          ((p (array (int 0 255)))) bool
+          expr "utf8.Valid(%s)" pure (import "unicode/utf8"))
+
+    ; ------------------------------------------------------------ reading strings
+    (prim DecodeRuneInString     ((s string)) ((int 0 1114111) (int 0 4))
+          expr "utf8.DecodeRuneInString(%s)" pure (import "unicode/utf8"))
+    (prim DecodeLastRuneInString ((s string)) ((int 0 1114111) (int 0 4))
+          expr "utf8.DecodeLastRuneInString(%s)" pure (import "unicode/utf8"))
+    (prim FullRuneInString       ((s string)) bool
+          expr "utf8.FullRuneInString(%s)" pure (import "unicode/utf8"))
+    (prim RuneCountInString      ((s string)) (int 0 9007199254740991)
+          expr "utf8.RuneCountInString(%s)" pure (import "unicode/utf8"))
+    (prim ValidString            ((s string)) bool
+          expr "utf8.ValidString(%s)" pure (import "unicode/utf8"))
+  )
+)

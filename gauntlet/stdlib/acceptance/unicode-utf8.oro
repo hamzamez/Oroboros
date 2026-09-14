@@ -1,23 +1,21 @@
-; ACCEPTANCE: unicode/utf8, THE WHOLE PACKAGE — every function and every
-; constant, each called with a value the program COMPUTED.
+; ACCEPTANCE: unicode/utf8, THE WHOLE PACKAGE, declared BY HAND — every function
+; and every constant, each called with a value the program COMPUTED.
 ;
-; That last condition is the point. A generated declaration with a narrow
-; parameter did not compile when handed a variable — `cannot use r (variable
-; of type int) as rune value in argument to utf8.RuneLen` — and every earlier
-; acceptance program passed a literal, which Go treats as an untyped constant
-; and converts silently. So a program made of literals could not have failed,
-; and this one takes every rune out of a table.
+; Computed rather than literal, because a Go untyped constant converts silently:
+; a program made of literals could not fail on a mistyped parameter, and the
+; first version of these declarations had exactly that mistake
+; (gostd-utf8-2026-09-13 §1).
 ;
-; The expected output is not written here. It is computed by hand-written Go
-; calling the real package in the same order (utf8Reference in
-; tooling_test.go), so the host is the oracle and nothing is copied from a
-; run of this program.
+; The expected output is computed by hand-written Go calling the real package in
+; the same order (utf8Reference in tooling_test.go), so the host is the oracle.
 ;
-; The inputs are chosen so every function has a case that goes each way:
-; scalars of one, two, three and four bytes; -1, a surrogate and one past
-; MaxRune, which are not scalar values and encode as U+FFFD; and a truncated
-; four-byte sequence, which is not valid UTF-8 at all and has no literal,
-; because a string literal denotes scalar values (string-literals.md).
+; What the declarations now let this program say, which the generated ones did
+; not (host-buffers.md):
+;   - EncodeRune hands its buffer back, so the program prints the COUNT and the
+;     BYTES — before, a buffer handed to the call was consumed and the bytes lost;
+;   - AppendRune takes and returns a BUFFER, so the accumulator is threaded
+;     through the loop and cannot alias — before, it took an immutable array and
+;     two appends to one value could share its capacity.
 
 (use go/unicode-utf8 as u)
 (use go/fmt as fmt)
@@ -25,23 +23,17 @@
 
 (export main)
 
-; One rune: its encoded length, whether it is a scalar value, and how many
-; bytes EncodeRune writes into a four-byte buffer.
-;
-; ONLY THE COUNT, AND THAT IS THE WALL. EncodeRune writes into its buffer and
-; returns a number, and the buffer is linear (ADR 0018): passing it to the call
-; consumes it, so the program can have the count or the bytes and not both.
-; A scratch buffer whose `build` yields the count is what this language can
-; say today (gostd-utf8-2026-09-13 §4).
+; One rune: its encoded length, whether it is a scalar value, and what EncodeRune
+; writes into a four-byte buffer — the count, then the buffer it handed back.
 (def each-rune (fn (r)
   (seq (fmt.Println (u.RuneLen r))
        (fmt.Println (u.ValidRune r))
-       (fmt.Println (build 4 (fn (b) (u.EncodeRune b r)))))))
+       (fmt.Println (build 4 (fn (b)
+         ((u.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2)))))))))
 
-; A decoded rune and its width, and then their SUM. The sum is the witness: the
-; host gives back a `rune` and an `int`, and printing each alone compiles
-; whether or not the rune was received into the language's integer, while
-; adding them is `int32 + int`, which Go refuses unless it was.
+; A decoded rune and its width, and then their SUM, which is the witness that a
+; range result is received into the language's integer (gostd-utf8-2026-09-13 §1)
+; — and, with the declared ranges, a sum the analysis now proves in the window.
 (def pair (fn (r n) (seq (fmt.Println r) (fmt.Println n) (fmt.Println (+ r n)))))
 
 (def over-bytes (fn (acc)
@@ -62,6 +54,8 @@
        ((u.DecodeRuneInString s) (fn (r n) (pair r n)))
        ((u.DecodeLastRuneInString s) (fn (r n) (pair r n))))))
 
+; A truncated four-byte sequence: not valid UTF-8, and no string literal can
+; denote it, because a literal denotes scalar values (string-literals.md).
 (def invalid (fn ()
   (let (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153))) (fn (bad)
     (seq (fmt.Println (u.FullRune bad))
@@ -80,24 +74,18 @@
        (fmt.Println (u.ValidRune (+ (u.MaxRune) 1)))
        (fmt.Println (u.RuneLen (u.RuneError))))))
 
-; THE ACCUMULATOR STARTS AS ONE BYTE, `h`, and not as an empty table, for a
-; reason that is the compiler's: `(build 0 (fn (b) b))` bound by a `let` comes
-; out `[]int`, because the rule that gives an unwritten buffer the element type
-; of the host call it reaches sees only a call inside its own `build`. A stored
-; literal gives `[]byte` by the syntactic rule. Recorded in
-; gostd-utf8-2026-09-13 §5 rather than worked around silently.
-;
-; THE RUNE TABLE IS BOUND BY A `let`, the shape the `array-literal` differential
-; case uses: a `def`'d literal is substituted by δ, and `((array …) i)` in
-; operator position is refused as an application of a non-name.
+; The accumulator is a BUFFER from start to finish: born with one byte, extended
+; by AppendRune once per rune, and frozen on the way out of `build` into the
+; immutable text the readers see.
 (def main (fn ()
   (let (array 104 233 26085 128578 -1 55296 1114112) (fn (runes)
-  (let (build 1 (fn (b) (set b 0 104))) (fn (h)
-    (loop ((i 0) (acc h))
-      (>= i (len runes))
-        (seq (over-bytes acc)
-             (over-string (os.text-of acc))
-             (invalid)
-             (constants))
-      else (seq (each-rune (runes i))
-                (again (+ i 1) (u.AppendRune acc (runes i)))))))))))
+  (let (build 1 (fn (b)
+         (loop ((i 0) (acc (set b 0 104)))
+           (>= i (len runes)) acc
+           else (seq (each-rune (runes i))
+                     (again (+ i 1) (u.AppendRune acc (runes i)))))))
+    (fn (text)
+      (seq (over-bytes text)
+           (over-string (os.text-of text))
+           (invalid)
+           (constants))))))))

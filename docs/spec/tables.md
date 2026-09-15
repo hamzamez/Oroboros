@@ -54,6 +54,10 @@ it turns out to reorganise more than the data structure.
 
 ### 1.1 Types are functions; the domain is what varies
 
+> **Extended to six points — [data.md](data.md) §1.** Tuples, records and variants join this scale.
+> A tuple is a function on `{0…n−1}` and a record one on a static label set, both known statically.
+> A variant is a function defined at **exactly one** label, which is why eliminating it is a branch.
+
 A table is a function. So its type is a function type. The only thing that distinguishes an array
 from a map from an ordinary function is **what the domain is**:
 

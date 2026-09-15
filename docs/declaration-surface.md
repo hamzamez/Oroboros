@@ -67,11 +67,15 @@ is a **host convention**, not a property of our module system.
 - Buys: the module is named the way the host names it; the default alias is right; the file maps
   onto a directory the way the import path does.
 - Costs:
-  - it separates packages from types by capitalisation, a host convention a future host may lack;
-  - the target loader reads one directory level (`emit/target.go:1130`, `os.ReadDir`), so
-    `targets/go/unicode/utf8.oro` needs a recursive walk;
+  - it separates packages from types by capitalisation, a host convention a future host may lack
+    (§1.6 removes this cost);
   - a rename across the generator, both surveys' output, the pinned reports, the tests and every
     `(use …)`;
+  - *(an earlier version listed "the target loader reads one directory level, so it needs a
+    recursive walk". That is wrong: a target file declares its module path inside the file,
+    `(module go/encoding-hex …)`, and the file name is not read. A library's `(use …)` is resolved
+    as a file path with `filepath.FromSlash` (`cmd/build/main.go:298`), which already descends
+    directories.)*
   - nesting suggests containment and there is none: `go/unicode` does not contain
     `go/unicode/utf8` (true of Go too).
 
@@ -83,7 +87,51 @@ is a **host convention**, not a property of our module system.
 ### 1.5 Leaning
 
 B, because the alias cost is paid in every program and the ambiguity cost is paid by a host we do
-not have. C is the answer if that host arrives.
+not have. C is the answer if that host arrives. §1.6 says why C may never be needed.
+
+### 1.6 Modules inside modules (hamza, 2026-09-14)
+
+The question: if a module may contain modules, is the problem solved, as
+`go/encoding-hex/InvalidByteError` seems to do already?
+
+**What the code does today.** Modules do not nest. `(module PATH …)` may contain only `(prim …)`
+(`emit/target.go:1488`). `go/encoding-hex/InvalidByteError` is a separate module whose *name* has
+`go/encoding-hex` as a prefix. Nothing relates the two except that string prefix.
+
+**Nesting adds less structure than it seems, because the tree is already there.** `Seg*` ordered by
+prefix *is* a tree, the trie of all paths. So a set of module paths already forms a tree in which a
+node may have both members and children. `go/encoding-hex` has prims and a child today. What nesting
+adds is only this:
+- **a way to write it** — `(module go/os … (module File …))`, where a child's path is its parent's
+  path, then `/`, then the child's name. This is reader sugar, pure resolution, so ADR 0011 holds.
+- **a rule saying what a child is.**
+
+Only the second touches the ambiguity in §1.1. Nesting alone does not settle it: `go/unicode/utf8`
+and `go/os/File` are still both "a child", and something must still say which child is a package and
+which is a type's method set.
+
+**What settles it is types living in modules (§4).** Once a module owns its types, the two meanings
+separate by a checked fact instead of by letter case:
+- a child module that has the same name as a type in its parent is that type's **companion**, the
+  type's method set;
+- any other child is a nested package.
+
+For this to work, a type name and a child module name must not collide, and the loader can refuse a
+collision. The JVM already forbids one: JLS §7.1 makes a package containing both a subpackage and a
+top-level type of the same name a compile-time error. Go avoids it by convention: exported types are
+capitalised and package paths are not. Win32 has no nesting.
+
+So §1.3's appeal to letter case becomes a load-time check. Option C's second separator is needed
+only by a host that breaks the rule on purpose, and such a host would be refused with a message
+rather than misread.
+
+**Is another container needed? No.** Option B with types in modules and the companion rule keeps one
+container, the module, with three kinds of member: operations, types and child modules. OCaml has
+exactly these three separate namespaces in a structure.
+
+OCaml's other convention puts the type *inside* its own module, as `File.t`. It would also work, and
+it would remove the companion rule. But it spells `os.File.t` where the host says `os.File`, which is
+the cost this section set out to remove.
 
 ---
 
@@ -200,11 +248,105 @@ ever abbreviates a storage fact and cannot pose as a meaning.
 
 ---
 
-## 4. What is left for the decision
+## 4. Where a type lives
 
-- **§1** is a rename with a known list of places; B or C.
+### 4.1 What it is
+
+A module in a target is meant to be a **signature**, and a many-sorted signature is a pair
+`Σ = (S, Ω)`: the **sorts** and the **operation symbols** typed over them (Goguen and Burstall's
+institutions; OBJ's modules, which declare `sort` beside `op`). Today a target module holds only
+`Ω`. Its sorts come from one pool shared by the whole target, `tg.Types`, a flat map from name to
+spelling (`emit/target.go:125`), glued across files. `go/encoding-hex` is therefore not a signature
+on its own: `InvalidByteError`, which is its own sort, is declared outside it.
+
+In ML's terms, a host type is an **abstract type component** of a structure: `type t` in a signature
+whose representation is hidden, here because the host holds it (MacQueen 1984; manifest and abstract
+types in Leroy 1994 and Harper and Lillibridge 1994). An opaque host token is exactly that.
+
+### 4.2 What the flat pool costs today, with instances
+
+- **The qualifier is mangled into the name by hand.** `io-Reader` and `hex-InvalidByteError` are
+  `io.Reader` and `hex.InvalidByteError` with the `.` turned into `-` because the pool has no
+  structure. The generator does the same mechanically (`gauntlet/stdlib/survey.go:1745`, `spell(qual(…))`).
+- **The mangling uses the base name, not the path, so distinct host types can collide.**
+  `qual`'s own comment says so (`survey.go:1058`: *"two packages with the same base name and the
+  same type name still collide"*). **Measured against Go's API manifest: 3 of 1,270 exported type
+  names collide.** `template.Template` (`html/` and `text/template`) and `scanner.Scanner`
+  (`go/` and `text/scanner`) are distinct structs that the pool makes one. `template.FuncMap` is
+  one type, because `html/template` declares `type FuncMap = template.FuncMap`, so the pool is right
+  about it by accident. Go refuses a file that confuses the first two, so no answer is silently
+  wrong. It is still a false fact in our checker, the kind the coercion work was careful never to
+  hold. [theories.md §2.2](theories.md) reads the three as two abstract types and one alias.
+- **A sort is re-declared by whoever needs it.** `targets/go/encoding-hex.oro` declares
+  `io-Reader`, `io-Writer` and `io-WriteCloser`, which belong to `io`. Glue accepts the repeat
+  because the spelling matches. Nothing records that hex *depends* on io, and nothing stops a third
+  file from declaring `io-Writer` with a different meaning in a layer that overrides.
+
+### 4.3 The options
+
+**A. Keep the flat pool (today).**
+- Buys: no resolution of type names at all. A type in a signature is a string compared by equality.
+- Costs: §4.2, all three.
+
+**B. Types are members of modules.** `(module go/io (type Writer "io.Writer") …)`, named
+`go/io.Writer` everywhere, the way a prim is.
+- Buys:
+  - no hand prefixes;
+  - the base-name collision disappears, because the name carries the whole path;
+  - a type has one owner, so another module referring to it states a dependency rather than making
+    a second declaration, and a declaration of a type in a module one does not own can be refused;
+  - it is what makes §1.6's companion rule possible.
+- Costs:
+  - **type names enter name resolution.** A prim in `go/encoding-hex` taking an `io.Writer` must
+    reach `go/io`, and the target format has no `use`. So either signatures in target files write
+    the full path, `(w go/io.Writer)`, or target modules gain `(use …)`;
+  - **program signatures that name a host type resolve through aliases**, as values do. The reader
+    qualifies value names today and not type names;
+  - a rename across the generator, the pinned reports and every hand file.
+
+### 4.4 Where an `implements` edge lives
+
+Once types have owners, an edge has a place to belong. For edges within one module the answer is
+obvious: `io.WriteCloser ≤ io.Writer` belongs in `go/io`. For an edge between modules there is
+Haskell's **orphan instance** problem to consider, and it does not arise here.
+
+An orphan instance is dangerous in Haskell because an instance is *evidence*, a dictionary. Two
+orphans for one class and type are two different dictionaries, and coherence breaks. Our edge
+carries no evidence: `⟦coerce⟧ = id` (target-files.md §2a), and the relation is a set, so declaring
+an edge twice is `R ∪ R = R`. An edge declared anywhere cannot be incoherent. Its placement is about
+**ownership and checking**, not meaning.
+
+The natural owner is the **subject's** module:
+- Go declares a type's methods in the type's package, so `*os.File ≤ io.Reader` belongs to `go/os`.
+- The JVM writes `implements` on the class.
+
+### 4.5 Leaning
+
+B, together with §1's B and §1.6's companion rule. The three belong together: a module with its
+sorts, its operations and its child modules is one container that answers all three questions. The
+decision that remains is the syntax for referring to another module's type inside a target file:
+the full path, or a `use`.
+
+---
+
+## 5. What is left for the decision
+
+- **§1** is a rename with a known list of places; B, with the companion rule of §1.6 once §4 is B.
 - **§2** is either reader sugar in the target format (A) or a name-resolution rule keyed on purity (B).
 - **§3** needs no change to take C; an alias (B) is a reader desugaring; D is a type-system decision.
+- **§4** changes what a type name *is*, a string or a resolved path, and so is the one question
+  here that is not purely spelling. It touches the reader, the checker's type comparison, the target
+  format and the generator.
 
-None blocks the next package, and the next package can be written in whichever surface is chosen,
-since all three questions are spelling rather than meaning.
+§1, §2 and §3 are spelling. §4 is not, and it decides the shape of every hand file still to be
+written, so it is the one to settle before the next package.
+
+> **Carried forward 2026-09-15.** All four questions are answered in the specifications that followed
+> the research in [theories.md](theories.md) and [theories-b-or-c.md](theories-b-or-c.md):
+> - §1: host paths, nesting and companions — [spec/theories.md](spec/theories.md) §3;
+> - §2: `const` as the conditional cell — spec/theories.md §8.3;
+> - §3: manifest types with host-qualified names, `(type rune int32)` in module `go` —
+>   spec/theories.md §1–§2;
+> - §4: types resolved like terms, owned by modules — spec/theories.md §3.4.
+>
+> Both specifications are drafts, and nothing in them is built.

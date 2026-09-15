@@ -2204,6 +2204,98 @@ prints the same as before on five files and three hosts; `tally`, freq's shape, 
 the six being those two programs. The surface questions (module paths, constant sugar, names for ranges) are
 [declaration-surface.md](docs/declaration-surface.md), undecided.
 
+**DECLARATIONS ARE THEORIES — RESEARCHED, NOT DECIDED** — [theories.md](docs/theories.md), on hamza's
+*"they are connected: modules, targets, types, alias, const, interfaces, algebraic types, rules as data."*
+Every form elaborates to one declaration `x : A [= t] [↦ ρ]` at three levels (type, term, prop); a module
+is a THEORY (MMT, LF, institutions), a target a MODEL that realizes what theories leave abstract, and
+`use`/`export`/`provides`/`implements` are morphisms. **Definiens × realization gives modules.md's four
+cells at every level**: an alias is a type with a definiens, a host type one with a realization, a constant
+the CONDITIONAL cell (value for the analysis, host name for the emitter, host-checkable agreement), and the
+prop row is ADR 0019's three escapes. `⊔` is amalgamation, `▷` Harper & Pierce's asymmetric concatenation,
+`export` a reduct, and renaming preserves meaning only when INJECTIVE — **measured: 3 of Go's 1,270 type
+names collide by base name, two distinct structs and one real alias the flat pool gets right by accident.**
+**Sum and interface are the two POLARITIES** of one form (data/codata; Zeilberger, copatterns, Cook), which
+derives interfaces.md's three prices; a view carries no evidence, so orphans cannot be incoherent — which is
+exactly why type classes stay refused. **Rules as data without Shen's search: extend the rules, never the
+fragments** — five owned fragments, and the new one is R4, trigger-instantiated local schemata
+(McAllester; Sofronie-Stokkermans), whose acceptance test is moving `seedDivAxioms` out of Go with
+byte-identical output. Leaning: B as the model, built as A (types in theories, nesting, companions) first.
+One naming collision found: target-system.md's `(implements win32 x86-64 …)` is a model and should be
+`provides`. The honest limit: recursion and μ would be the one ADDITIVE extension — a declaration class
+allowed to break the well-founded order that refuses both today.
+
+**B OR C: A BUILD ALREADY IS AN INSTANTIATION** — [theories-b-or-c.md](docs/theories-b-or-c.md),
+research, no decision, on hamza's *"explore B vs C; a rewrite is cheap; include the syntax."* **ADR 0011
+refused functors because "the target is already the parameter", and that reason is WRONG**: the program
+is parameterised by the target's theory and a build is Ehrig–Mahr parameter passing along the target's
+view — and `tally-go.oro` builds a SECOND, untyped functor argument by hand. **C is six features**, and
+priced separately: C1 (pushout instantiation along a view) and C2 (named views) are resolution-time,
+applicative (Leroy 1995), functorial by the pasting lemma, and a CONSERVATIVE extension of B (every B
+program is C along ambient views); C5 opaque sealing needs a TYPED STATIC LEVEL, because representation
+independence is a theorem about a typed language and reduction erases the abstraction before the
+residual checker runs; C6 first-class modules are dictionaries, refused; C3/C4 wait for demand. **And
+most of C is already B** once `provides` may hold a `def` — target-system.md §6's `D_T`, which tally has
+demanded since 2026-09-11: its two binding files become two checked models and one `main`. **Candidate
+Z (modules as static values, 1ML/Zig) is refused on a principle kept for everything else: declarations
+are DATA, definitions are TERMS** — every host check, glue and survey reads declarations without running
+a program. **The syntax is redesigned, declarations only**: one declaration with four parts, `host` the
+only clause carrying host text (so "no host clause" is a checkable portability property), a file's path
+is its module, `(values A B)` in result position (removes the `TypeName` ambiguity and products.md's
+three-results collision), a companion's `include` derives `WriteCloser ≤ Writer` instead of declaring it.
+Two findings from mapping every attribute: **`boxed` and `builtin-map` are parsed and specified
+nowhere**, and **`length`/`length-of` are postconditions under another name**, gated on pure-call
+`ensures`. Leaning: specify C₁₂, build B's part first, `with` reserved; build order step 2 is an
+elaborating loader with every emitted file byte-identical.
+
+**FACTS ARE RESEARCHED, AND THE INVENTORY CAME FIRST** — [facts.md](docs/facts.md). **DECIDED: F-B, with
+F-C, F-D and F-E kept OPEN as reserved fragments** ([spec/theories.md §7](docs/spec/theories.md)): admission
+classifies a fact by fragment, and `forall` and `lemma` are reserved words, so building one later ADDS a
+fragment and never loosens F-B. On hamza's *"should we research facts? literature, math and algebra, and future extension?"* A fact is the
+one declaration whose mistake is a wrong answer rather than a refusal, so everything the compiler already
+assumes was classified before anything was designed. **41 rules, split by what they quantify over: 12
+FACTS (over values), 13 PROOF RULES (over formulas: Farkas, Fourier–Motzkin, congruence, template join),
+8 INDUCTION PRINCIPLES (over programs: monotonicity, reachable set, SCT) and 8 SEMANTIC THEOREMS of `lang`'s
+data** — and only the first class may ever be declared; declaring the others is Shen. **The 12 are
+SCATTERED**: the remainder bound lives in THREE encodings (`remI`, `storedRange`'s `|a%d|<|d|`,
+`big%-small`'s transfer), division and square in two each — the shape of every recorded *"two layers, and
+only one was ever told"*. **All 12 are guarded BOUNDEDNESS axioms of a LOCAL theory extension**
+(Sofronie-Stokkermans CADE 2005; Ihlemann, Jacobs & Sofronie-Stokkermans TACAS 2008): instantiating only on
+terms already present is sound, terminating, free of matching loops and as complete as `entails` — and
+**`seedDivAxioms` already IS that instantiation, without the name.** **Theorem T: a boundedness fact induces
+a sound interval transfer function**, so one declaration can feed the linear layer, the interval layer and
+element narrowing — Cousot's reduced product with a single source. **Consistency needs no check** (every
+fact true of one model per target), and **retraction is safe** because no proof outlives a build.
+**Contracts ARE facts with the call as trigger**, so the pure-call `ensures` limitation's own named fix is
+the atom `asLinear` already gives a quotient — which also unblocks `length` into `ensures`. Recommended
+**F-B, ACL2's `:linear` rule class**: flat, every variable in the trigger, linear guard and bounds. Refused:
+user proof and rewrite rules; deferred: two-term triggers (F-C), the array property fragment (F-D),
+refinement reflection (F-E). **Acceptance**: F1–F12 moved out of Go with byte-identical emission AND
+identical per-program proof counts; deleting a moved fact fails a named witness; an `ensures` on a pure prim
+proves what HEAD only propagates. **What refutes it**: an induced transfer proving less than the
+hand-written one with no clause set that recovers it.
+
+**THE DATA AND DECLARATION SPECS ARE WRITTEN, DRAFT, NOTHING BUILT** — [spec/data.md](docs/spec/data.md),
+[spec/theories.md](docs/spec/theories.md), on hamza's *"everything is a function, with syntax sugar over it,
+following TLA+, keeping what we should from F#/OCaml/ML."* **Six data forms are one idea, a function whose
+DOMAIN differs**: `fn` all of A, `tuple` `{0…n−1}`, `record` a static label set, `array` `[0,len)`, `map` a
+finite subset of keys (application gives an `option`), and **`variant` a function defined at EXACTLY ONE
+label** — Theorem V, `Σ_l T_l ≅` one-point functions — which is why a record projects and a variant must
+branch. **Respelled**: `sum` → `variant` (record/variant is the textbook pair; `union`/`enum`/`data` each
+carry a false reading, `enum` colliding with every Win32 header), `values` and the product `(array A B)` →
+`tuple` (`(array int)` could not tell a one-component product from a table of ints), heterogeneous
+`(array a b)` refused. **Records are STRUCTURAL** (TLA+; F# needs nominal records only for inference and our
+residual is monomorphic), lowered as the tuple of their CANONICAL label order — products.md §1's bijection
+made precise — with update `(with r ('x e))` = TLA+'s EXCEPT, obeying the lens laws (Foster et al. 2007).
+**Labels are symbols, `'x`, not `:x`**: neither character is an identifier character today, so the choice
+is meaning — `'` is quotation, the use–mention distinction a label is, while `:x` is a RUN-TIME keyword in
+Clojure/Elixir and ours never survives staging; `'` takes only an identifier and reads as `(quote "x")`, so
+the language keeps seven term kinds. **A host interface is NOT a record**: an abstract type plus a companion
+module whose `include` derives the subtyping. theories.md specifies declarations `x : A [= t] [↦ ρ]`, the four
+cells with native-wins generalised to every level, files as modules, companions (a child sharing a TYPE's
+name), types resolved like terms, `host` as the only clause carrying host text, `provides` holding `def`s
+(`D_T`), `repr`, `max-len` as a `fact`, `with`/`view` reserved; its acceptance test is an elaborating loader
+with every emitted file byte-identical. Facts and the undocumented `boxed`/`builtin-map` are marked to write.
+
 **HOST DECLARATIONS ARE WRITTEN BY HAND NOW, AND LINEARITY IS SEEDED BY TYPE** —
 [handdecl-2026-09-14](gauntlet/results/handdecl-2026-09-14.md), `emit/linearity.go`,
 `targets/go/unicode-utf8.oro`. hamza's decision after host-buffers.md: *"shouldn't we do it by hand, all

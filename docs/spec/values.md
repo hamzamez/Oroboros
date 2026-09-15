@@ -1,5 +1,11 @@
 # `values` — several results, and why it is not a tuple
 
+> **Respelling specified, not built — [data.md](data.md) §3.** `values` becomes `tuple`, and the result
+> list `(A B)` becomes the type `(tuple A B)`. This document's title meant *"not a heap-allocated
+> tuple"*. products.md later settled that representation is chosen per position, not by the syntax,
+> so one product needs one name. Both eliminators here — destructuring by a continuation, and
+> projection — are kept, and so is every lowering this document measured.
+
 A function may return more than one value.
 
 ```lisp

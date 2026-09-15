@@ -1,5 +1,13 @@
 # The type algebra, and `match`
 
+> **Surface respelled 2026-09-15 — [spec/data.md](spec/data.md).** The algebra below stands. The
+> spellings this document uses do not:
+> - `sum` is `variant`;
+> - `×` and `values` are `tuple`;
+> - labelled products are structural `record`s with `'x` labels.
+>
+> The exclusions are unchanged: no μ, no subtyping, no untagged unions.
+
 hamza: *"this looks a lot like algebraic types. if we are going to do it, let's do it right. we
 already have types as functions, arrays as functions, and datatypes as sets. and just like in
 mathematics we add products `float * int` and sums … let's add the whole machinery to express our

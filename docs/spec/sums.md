@@ -2,6 +2,10 @@
 
 **Status**: built, 2026-08-22. Closed, finite, non-recursive. Zero new term kinds.
 
+> **Respelling specified, not built — [data.md](data.md) §5.** `sum` becomes `variant`, the textbook
+> pair of `record`; `sum` reads as arithmetic. Several payloads and type parameters are specified
+> there too. Everything below about meaning, reduction and representation is unchanged.
+
 The research is [sums-research.md](../sums-research.md) and the algebra is
 [type-algebra.md](../type-algebra.md); this is what got built and what building it changed.
 

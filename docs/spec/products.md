@@ -1,5 +1,11 @@
 # Products
 
+> **Respelling specified, not built — [data.md](data.md) §3, §4, §6.** The product type `(array A B)`
+> and the heterogeneous literal `(array a b)` become `(tuple …)`, because `(array int)` could not
+> tell a one-component product from a table of ints. Labelled products are `(record ('x A) …)`,
+> lowered as the tuple of their canonical label order. That is §1's *"a tuple up to a bijection on
+> the index set"* made precise. The positions, representation and flattening below are unchanged.
+
 The specification CLAUDE.md's first rule requires and
 [product-2026-09-09](../../gauntlet/results/product-2026-09-09.md) shipped without:
 *"Nothing goes in without a specification saying how it behaves on every target."* The research is

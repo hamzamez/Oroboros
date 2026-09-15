@@ -10,7 +10,7 @@
 ; a NEGATIVE number is outside `win/fmt.print-int`s declared domain, and the
 ; first version of this case found that the domain is not enforced — see
 ; differential-2026-08-26 §4.
-(sum result (ok int) (err int))
+(variant result (ok int) (err int))
 
 (def step (fn (n)
   (if (>= n 10) (err n) (ok (* n 2)))))

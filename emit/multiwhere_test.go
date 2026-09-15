@@ -16,7 +16,7 @@ import (
 // under hex.Encode, which built and panicked inside the host.
 
 func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
-	tg := tempTarget(t, `(sig pair ((k int)) (int int) (where (<= 0 k)) (host expr "pair(%s)"))`)
+	tg := tempTarget(t, `(sig pair ((k int)) (tuple int int) (where (<= 0 k)) (host expr "pair(%s)"))`)
 	// k is unconstrained, so the precondition does not follow.
 	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair k) (fn (a b) a)))`); err == nil {
 		t.Error("an unproven precondition on a primitive with two results was accepted")
@@ -32,7 +32,7 @@ func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
 }
 
 func TestTheContinuationOfAPrimitiveWithSeveralResultsIsWalked(t *testing.T) {
-	tg := tempTarget(t, `(sig pair ((k int)) (int int) (host expr "pair(%s)"))`)
+	tg := tempTarget(t, `(sig pair ((k int)) (tuple int int) (host expr "pair(%s)"))`)
 	// `need` requires 0 <= k, and the continuation passes it an unconstrained name.
 	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair 1) (fn (a b) (tgt.need k))))`); err == nil {
 		t.Error("an obligation inside the continuation body was never discharged")

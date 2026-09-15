@@ -59,7 +59,7 @@ func TestValuesVanishesWhenConsumed(t *testing.T) {
 		(use go)
 		(export f)
 		(sig f ((a int) (b int)) int (where (go.!= b 0)))
-		(def divmod (fn (a b) (values (go./ a b) (go.% a b))))
+		(def divmod (fn (a b) (tuple (go./ a b) (go.% a b))))
 		(def f (fn (a b) ((divmod a b) (fn (q r) (go.+ q r)))))
 	`, "f")
 	if err != nil {
@@ -79,20 +79,20 @@ func TestValuesVanishesWhenConsumed(t *testing.T) {
 func TestEveryTargetHasMultipleResults(t *testing.T) {
 	cases := []struct{ target, src, want string }{
 		{"go", `(use go)
-			(export d) (sig d ((a int) (b int)) (int int) (where (go.!= b 0)))
-			(def d (fn (a b) (values (go./ a b) (go.% a b))))`,
+			(export d) (sig d ((a int) (b int)) (tuple int int) (where (go.!= b 0)))
+			(def d (fn (a b) (tuple (go./ a b) (go.% a b))))`,
 			"(a int, b int) (int, int)"},
 		{"js", `(use js)
-			(export d) (sig d ((a any) (b any)) (any any))
-			(def d (fn (a b) (values (js.+ a b) (js.- a b))))`,
+			(export d) (sig d ((a any) (b any)) (tuple any any))
+			(def d (fn (a b) (tuple (js.+ a b) (js.- a b))))`,
 			"return {f0: (a + b), f1: (a - b)};"},
 		{"java", `(use java)
-			(export d) (sig d ((a int) (b int)) (int int) (where (java.!= b 0)))
-			(def d (fn (a b) (values (java./ a b) (java.% a b))))`,
+			(export d) (sig d ((a int) (b int)) (tuple int int) (where (java.!= b 0)))
+			(def d (fn (a b) (tuple (java./ a b) (java.% a b))))`,
 			"return new Tup_long_long("},
 		{"windows", `(use x64)
-			(export d) (sig d ((a int) (b int)) (int int))
-			(def d (fn (a b) (values (x64.idiv a b) (x64.irem a b))))`,
+			(export d) (sig d ((a int) (b int)) (tuple int int))
+			(def d (fn (a b) (tuple (x64.idiv a b) (x64.irem a b))))`,
 			"mov rdx,"},
 	}
 	for _, c := range cases {
@@ -119,8 +119,8 @@ func TestEveryTargetHasMultipleResults(t *testing.T) {
 func TestAsmPlacesResultsAfterComputing(t *testing.T) {
 	code, err := genOn(t, "windows", `
 		(use x64)
-		(export d) (sig d ((a int) (b int)) (int int))
-		(def d (fn (a b) (values (x64.idiv a b) (x64.irem a b))))
+		(export d) (sig d ((a int) (b int)) (tuple int int))
+		(def d (fn (a b) (tuple (x64.idiv a b) (x64.irem a b))))
 	`, "d")
 	if err != nil {
 		t.Fatal(err)
@@ -145,8 +145,8 @@ func TestJavaSharesRecordsByShape(t *testing.T) {
 	for _, n := range []string{"d", "e"} {
 		if _, err := genOn(t, "java", `
 			(use java)
-			(export `+n+`) (sig `+n+` ((a int) (b int)) (int int))
-			(def `+n+` (fn (a b) (values (java.+ a b) (java.- a b))))
+			(export `+n+`) (sig `+n+` ((a int) (b int)) (tuple int int))
+			(def `+n+` (fn (a b) (tuple (java.+ a b) (java.- a b))))
 		`, n); err != nil {
 			t.Fatal(err)
 		}
@@ -161,8 +161,8 @@ func TestJavaSharesRecordsByShape(t *testing.T) {
 func TestResultArityMustMatch(t *testing.T) {
 	_, err := genOn(t, "go", `
 		(use go)
-		(export three) (sig three ((a int)) (int int int))
-		(def three (fn (a) (values a a)))
+		(export three) (sig three ((a int)) (tuple int int int))
+		(def three (fn (a) (tuple a a)))
 	`, "three")
 	if err == nil || !strings.Contains(err.Error(), "does not produce them") {
 		t.Errorf("declaring 3 results and producing 2 must be refused, got %v", err)
@@ -176,7 +176,7 @@ func TestWithoutAMultiResultSigItIsStillAClosure(t *testing.T) {
 	_, err := genOn(t, "go", `
 		(use go)
 		(export pair) (sig pair ((a int) (b int)) any)
-		(def pair (fn (a b) (values a b)))
+		(def pair (fn (a b) (tuple a b)))
 	`, "pair")
 	if err == nil || !strings.Contains(err.Error(), "escaping closure") {
 		t.Errorf("no multi-result sig means no product, got %v", err)
@@ -186,16 +186,16 @@ func TestWithoutAMultiResultSigItIsStillAClosure(t *testing.T) {
 // `(values x)` is refused: one value is just the value, so there is exactly one
 // spelling for one result and nothing ambiguous reaches a backend.
 func TestValuesNeedsTwoOrMore(t *testing.T) {
-	_, err := core.Read(`(def f (fn (a) (values a)))`)
+	_, err := core.Read(`(def f (fn (a) (tuple a)))`)
 	if err == nil || !strings.Contains(err.Error(), "two or more") {
-		t.Errorf("(values x) must be refused, got %v", err)
+		t.Errorf("(tuple x) must be refused, got %v", err)
 	}
 }
 
 // And a single result declared as a one-element list is the same signature as a
 // bare type — one spelling reaching the backends.
 func TestOneResultListIsABareType(t *testing.T) {
-	forms, err := core.Read(`(sig f ((a int)) (int))`)
+	forms, err := core.Read(`(sig f ((a int)) int)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -278,22 +278,22 @@ func TestSumCrossesEveryBoundary(t *testing.T) {
 		want        []string
 	}{
 		{"go", `(use go)
-			(sum result (ok int) (err int))
+			(variant result (ok int) (err int))
 			(export d) (sig d ((a int) (b int)) result)
 			(def d (fn (a b) (if (= b 0) (err 0) (ok (go./ a b)))))`,
 			[]string{"(int, int)", "return 1, 0", "return 0, (a / b)"}},
 		{"js", `(use js)
-			(sum result (ok any) (err any))
+			(variant result (ok any) (err any))
 			(export d) (sig d ((a any) (b any)) result)
 			(def d (fn (a b) (if (= b 0) (err 0) (ok (js./ a b)))))`,
 			[]string{"return {f0: 1, f1: 0};", "return {f0: 0, f1: (a / b)};"}},
 		{"java", `(use java)
-			(sum result (ok int) (err int))
+			(variant result (ok int) (err int))
 			(export d) (sig d ((a int) (b int)) result)
 			(def d (fn (a b) (if (= b 0) (err 0) (ok (java./ a b)))))`,
 			[]string{"Tup_long_long", "return new Tup_long_long(1, 0);"}},
 		{"windows", `(use x64)
-			(sum result (ok int) (err int))
+			(variant result (ok int) (err int))
 			(export d) (sig d ((a int) (b int)) result)
 			(def d (fn (a b) (if (= b 0) (err 0) (ok (x64.idiv a b)))))`,
 			[]string{"mov rax, 1", "mov rdx,"}},

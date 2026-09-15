@@ -2,9 +2,10 @@
 
 **Status**: built, 2026-08-22. Closed, finite, non-recursive. Zero new term kinds.
 
-> **Respelling specified, not built — [data.md](data.md) §5.** `sum` becomes `variant`, the textbook
-> pair of `record`; `sum` reads as arithmetic. Several payloads and type parameters are specified
-> there too. Everything below about meaning, reduction and representation is unchanged.
+> **Respelled 2026-09-15 — [data.md](data.md) §5,
+> [respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md).** `sum` is now `variant`, the
+> textbook pair of `record`; read `variant` wherever this document writes `(sum …)`. Several payloads
+> and type parameters are specified there and not built. Everything below about meaning, reduction and representation is unchanged.
 >
 > **A bug in this document's implementation, found 2026-09-15 and fixed in the interim —
 > [data.md §5.5.2](data.md).** Sums were kept in one table keyed by the bare name, so two modules each

@@ -17,7 +17,7 @@
 ; exact arrangement and calls it complete.
 
 (provides go os
-  (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+  (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
       "os.ReadFile(%s)" (import "os")))
 
   (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr

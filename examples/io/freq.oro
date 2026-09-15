@@ -125,7 +125,7 @@
       (>= w nw)         sp
       (alpha? (src i))
         (let (word-end src i) (fn (ni)
-          (again (set sp w (array i ni)) ni (+ w 1))))
+          (again (set sp w (tuple i ni)) ni (+ w 1))))
       else              (again sp (+ i 1) w))))))
 
 ; --- comparing two words ----------------------------------------------------
@@ -274,7 +274,7 @@
       ; exists needs no room.
       (and (new? src sp ord nw k) (>= d nd))  dt
       (new? src sp ord nw k)
-        (again (set dt (cli nd d) (array (pat ord nw k) 1)) (+ k 1) (+ d 1))
+        (again (set dt (cli nd d) (tuple (pat ord nw k) 1)) (+ k 1) (+ d 1))
       else
         (let (cli nd (- d 1)) (fn (s)
           ; CLAMPED ON THE WAY BACK IN. This is the one read of a buffer from

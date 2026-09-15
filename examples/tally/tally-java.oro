@@ -14,7 +14,7 @@
 
 (export main)
 
-(def host (values
+(def host (tuple
   (fn (p) (pt.compile p))
   ; A Matcher is STATEFUL -- `find` advances it -- so each question gets its own.
   (fn (r s) (mt.find (pt.matcher r s)))

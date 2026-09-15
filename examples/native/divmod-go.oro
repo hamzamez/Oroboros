@@ -24,7 +24,7 @@
 
 (export divmod divmod-sum)
 
-(sig divmod     ((a int) (b int)) (int int) (where (go.!= b 0)))
+(sig divmod     ((a int) (b int)) (tuple int int) (where (go.!= b 0)))
 ; THE SUM NEEDS A BOUND ON `a`, and 2^52-1 is derived rather than picked.
 ; `q` is a/b and `r` is a%b, so |q| <= |a| and |r| <= |a| whatever b is --
 ; therefore |q + r| <= 2|a|, and the sum stays inside ADR 0012's window exactly
@@ -37,7 +37,7 @@
 (sig divmod-sum ((a (int -4503599627370495 4503599627370495)) (b int)) int
   (where (go.!= b 0)))
 
-(def dm (fn (a b) (values (go./ a b) (go.% a b))))
+(def dm (fn (a b) (tuple (go./ a b) (go.% a b))))
 
 (def divmod     (fn (a b) (dm a b)))
 (def divmod-sum (fn (a b) ((dm a b) (fn (q r) (go.+ q r)))))

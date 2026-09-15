@@ -1619,29 +1619,6 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	return nil
 }
 
-// (prim NAME (ARGTYPES…) RESULT KIND ["form"] [(import "x")])
-// resultList reads `(T1 T2 …)` — two or more result types — and refuses
-// anything `TypeName` already handles, so `(array int)`, `(int 0 255)` and
-// `(map int int)` stay SINGLE compound results and are not mistaken for two.
-//
-// That ordering is the whole subtlety: a compound type and a result list are
-// both an application of names, and only `TypeName` knows which constructors
-// exist.
-func resultList(t *core.Term) ([]string, bool) {
-	if t.Kind != core.KApp || len(t.Kids) < 2 || core.TypeName(t) != "" {
-		return nil, false
-	}
-	out := make([]string, 0, len(t.Kids))
-	for _, k := range t.Kids {
-		n := core.TypeName(k)
-		if n == "" {
-			return nil, false
-		}
-		out = append(out, n)
-	}
-	return out, true
-}
-
 // respelled are the target forms theories.md §8.4 respelled. They are refused
 // rather than kept as aliases, for data.md §10's reason: two spellings of one
 // declaration is the shape `merge` had before glue and override were separated.
@@ -1799,20 +1776,22 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 	// missing was only the ability for a target to say a HOST call has that
 	// shape — and the consuming form needs nothing new either, because
 	// `((f x) (fn (a b) …))` is how a product is eliminated already.
-	if rs, ok := resultList(k[2]); ok {
-		p.Results = rs
-	} else
+	//
 	// A result type may be COMPOUND: `(array string)`, the same spelling the
 	// signature language uses. Without it a target's array types have to be
 	// enumerated — `string-array`, `long-array`, `double-array` — which is the
 	// suffix explosion `(array V)` exists to delete (tables.md §10), and it
 	// showed up as `final /*unknown*/ w = ws[(int) i]` the first time a native
-	// Java program indexed the result of `split`.
-	if rt := core.TypeName(k[2]); rt != "" {
+	// Java program indexed the result of `split`. And several results are a
+	// TUPLE, `(tuple ptr error)`, exactly as in a program's sig (spec/data.md §3.3).
+	switch rt := core.TypeName(k[2]); {
+	case core.IsProd(rt):
+		p.Results = core.ProdTypes(rt)
+	case rt != "":
 		p.Result = rt
-	} else {
-		return Prim{}, fmt.Errorf("%s: %s has a result type that is neither a name nor "+
-			"`(array T)`: %s", path, p.Name, k[2])
+	default:
+		return Prim{}, fmt.Errorf("%s: %s has a result that is not a type; several results are "+
+			"(tuple A B …): %s", path, p.Name, k[2])
 	}
 
 	if k[3].Kind != core.KName {

@@ -1,8 +1,10 @@
 # Products
 
-> **Respelling specified, not built — [data.md](data.md) §3, §4, §6.** The product type `(array A B)`
-> and the heterogeneous literal `(array a b)` become `(tuple …)`, because `(array int)` could not
-> tell a one-component product from a table of ints. Labelled products are `(record ('x A) …)`,
+> **Tuples respelled 2026-09-15 — [data.md](data.md) §3, §6,
+> [respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md).** The product type `(array A B)`
+> and a stored pair `(array a b)` are now `(tuple …)`, because `(array int)` could not tell a
+> one-component product from a table of ints; read `(tuple …)` below wherever this document writes
+> the old form. **Records are specified and not built**: labelled products are `(record ('x A) …)`,
 > lowered as the tuple of their canonical label order. That is §1's *"a tuple up to a bijection on
 > the index set"* made precise. The positions, representation and flattening below are unchanged.
 

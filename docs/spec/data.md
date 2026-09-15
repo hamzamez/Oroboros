@@ -207,12 +207,17 @@ This is products.md §3, unchanged, and the reasons are unchanged:
   Today values.md obtains it for free, because `(values …)` reads as `(fn (#k) (#k e…))` and the
   rule is β.
 
-**Open, and it is the one implementation question in this document.** One spelling has to serve
-both eliminators. The reader can keep `(tuple e…)` as the Church term, in which case projection
-needs β-tab to recognise it. Or it can make `(tuple e…)` a table literal, in which case
-destructuring needs a clause beside β-tab. Either is one clause of an existing rule, not a fourth
-rule (tables.md §4.2). **The acceptance test decides which**: every emitted file byte-identical after
-`values` and `(array a b)` are respelled.
+**Decided, by the acceptance test: the Church term** ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md)).
+One spelling has to serve both eliminators. The reader keeps `(tuple e…)` as `(fn (#k) (#k e…))`,
+the term `values` always read as, so destructuring is β, every backend's multiple return is
+unchanged, and the product pass recognises a stored tuple with the same matcher the backends use.
+The other choice, a table literal, would have needed destructuring as a clause beside β-tab and every
+backend's several-results path taught a second shape. With the Church term every emitted file is
+byte-identical. **Projection of a literal tuple by an integer, `((tuple a b) 0)`, is not reduced yet**:
+no program writes it, and it is one clause when one does.
+
+A type is built from a term, so `TypeName` inverts the reading: `(fn (#k) (#k A B))` in a type
+position is the type `(tuple A B)`. `#k` cannot be written in source, so nothing else has that shape.
 
 ### 3.5 Laws
 
@@ -565,6 +570,11 @@ against the bug it exists for:
 ---
 
 ## 10. Migration
+
+> **Built 2026-09-15** ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md)): `variant`,
+> `tuple` as term and type, and `(tuple A B)` for several results in a program's `sig` and a target's.
+> The old spellings are refused with the message below. Records, symbols, `with` and the heterogeneous
+> `(array a b)` *literal* refusal (which needs types, so it belongs to the checker) are not built.
 
 | old | new | refused with |
 |---|---|---|

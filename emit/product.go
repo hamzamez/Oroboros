@@ -28,7 +28,7 @@ import (
 // the point, and it is why this could be built without touching a backend.
 //
 //	((t i) j)              ->  (t (+ (* k i) j))          projection, j static
-//	(set b i (array v…))   ->  k nested sets              construction
+//	(set b i (tuple v…))   ->  k nested sets              construction
 //	(len t)                ->  (/ (len t) k)              elements, not slots
 //	(build n f)            ->  (build (* k n) f)          capacity in slots
 //
@@ -202,15 +202,23 @@ func (f *flattener) isKind(t *core.Term, kind string) bool {
 	return ok && p.Kind == kind
 }
 
-// prodLit returns the components of `(array v1 … vk)` used as a VALUE — the
-// product's introduction form — or nil. Arity two and up, because `(array v)`
-// is a one-element table and means what it always meant.
+// prodLit returns the components of `(tuple v1 … vk)` used as a VALUE — the
+// product's introduction form — or nil.
+//
+// A tuple reads as its Church term `(fn (#k) (#k v…))` (spec/data.md §3.4), so
+// this is `multiValue`'s shape at any arity of two or more: the one recogniser
+// the backends already use for several results, now the one this pass uses for
+// an element. `(array a b)` is a table of two and no longer a product.
 func (f *flattener) prodLit(t *core.Term) []*core.Term {
-	if t == nil || t.Kind != core.KApp || len(t.Kids) < 3 ||
-		t.Kids[0].Kind != core.KName || t.Kids[0].Name != "array" {
+	if t == nil || t.Kind != core.KFn || len(t.Params) != 1 {
 		return nil
 	}
-	return t.Kids[1:]
+	b := t.Body()
+	if b.Kind != core.KApp || len(b.Args()) < 2 {
+		return nil
+	}
+	parts, _ := multiValue(t, len(b.Args()))
+	return parts
 }
 
 func mul(k int, e *core.Term) *core.Term {
@@ -285,7 +293,7 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 		}
 	}
 
-	// CONSTRUCTION — `(set b i (array v1 … vk))` becomes k stores, and the
+	// CONSTRUCTION — `(set b i (tuple v1 … vk))` becomes k stores, and the
 	// order is the field order so the emitted code reads like the source.
 	if f.isKind(t, "table-set") && len(t.Kids) == 4 {
 		if root := BufferRoot(t.Kids[1]); root != "" {

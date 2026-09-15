@@ -56,7 +56,7 @@
     ; stated exactly rather than conservatively. The count is always 2|src|
     ; ("this value is always EncodedLen(len(src))"), so it is at most 2^53 − 2.
     (sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-          ((buffer (int 0 255)) (int 0 9007199254740990))
+          (tuple (buffer (int 0 255)) (int 0 9007199254740990))
           (where (<= (* 2 (len src)) (len dst)))
           (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
             (import "encoding/hex")))
@@ -78,7 +78,7 @@
     ; ⌊s/2⌋ ≤ d, which over the integers is s ≤ 2d + 1 — linear again. The count
     ; is the number of whole pairs decoded before the first bad byte.
     (sig Decode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-          ((buffer (int 0 255)) (int 0 4503599627370495) error)
+          (tuple (buffer (int 0 255)) (int 0 4503599627370495) error)
           (where (<= (len src) (+ (* 2 (len dst)) 1)))
           (host expr "func(dst, src []byte) ([]byte, int, error) { n, err := hex.Decode(dst, src); return dst, n, err }(%s, %s)"
             (import "encoding/hex")))
@@ -86,12 +86,12 @@
     ; CONSUME AND RETURN with a fallible result: the decoded prefix is appended
     ; either way.
     (sig AppendDecode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-          ((buffer (int 0 255)) error)
+          (tuple (buffer (int 0 255)) error)
           (host expr "hex.AppendDecode(%s, %s)"
             (import "encoding/hex")))
 
     ; G from text into fresh storage: the prefix it decoded, and the error.
-    (sig DecodeString ((s string)) ((array (int 0 255)) error) pure
+    (sig DecodeString ((s string)) (tuple (array (int 0 255)) error) pure
           (host expr "hex.DecodeString(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- hexdump -C

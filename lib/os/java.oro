@@ -38,7 +38,7 @@
   ; `$oroB`/`$oroI`/`$oroE` are scoped to the `try` block and are spelled so they
   ; cannot collide with an emitted local: Java forbids shadowing one, and
   ; `javaMangle` never produces a name starting with `$oro`.
-  (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+  (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
       "try { final byte[] $oroB = Files.readAllBytes(Path.of(%s)); %r0 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) %r0[$oroI] = (short) ($oroB[$oroI] & 0xFF); %r1 = null; } catch (Exception $oroE) { %r0 = null; %r1 = $oroE; }"
       (import "java.nio.file.*")))
 

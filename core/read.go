@@ -497,7 +497,14 @@ func (r *reader) list() (*Term, error) {
 		case "cond":
 			return clauseChain(kids[1:], "cond", line, nil)
 		case "values":
-			// (values a b …)  ⟶  (fn (k) (k a b …))
+			return nil, fmt.Errorf("line %d: `values` is spelled `tuple` (spec/data.md §3)", line)
+		case "tuple":
+			// (tuple a b …)  ⟶  (fn (k) (k a b …))
+			//
+			// A TUPLE IS A FUNCTION ON Fin n (spec/data.md §1), and this is its
+			// Church presentation: the currying eliminator is β itself. It is the
+			// term `values` read as, so every backend's multiple return and the
+			// product pass see exactly the shape they always have.
 			//
 			// The NEGATIVE PRODUCT, and it is sugar because beta already is its
 			// algebra: a caller that consumes it in the same place reduces the
@@ -510,8 +517,8 @@ func (r *reader) list() (*Term, error) {
 			// structures, for the same reason: an implementation should return
 			// several results in registers rather than box them to unbox them.
 			if len(kids) < 3 {
-				return nil, fmt.Errorf("line %d: values takes two or more terms; "+
-					"one value is just the value", line)
+				return nil, fmt.Errorf("line %d: tuple takes two or more terms; "+
+					"a tuple of one is just the value", line)
 			}
 			// The binder's name starts with `#`, which is not isIdentStart, so
 			// no source term can contain a free occurrence of it and `Fn`
@@ -753,29 +760,30 @@ func toForm(t *Term) (Form, error) {
 		switch r := t.Kids[3]; {
 		case r.Kind == KName:
 			sig.Result = r.Name
-		case r.Kind == KApp && TypeName(r) != "":
+		case r.Kind != KName && TypeName(r) != "": // a tuple type reads as a function term
 			// A COMPOUND TYPE, not a result list. `(array f64)` is one result
 			// whose type happens to be written as a list, and reading it as two
 			// made a table-returning function look like a product — which is
 			// what `(sig squares ((n int)) (array int))` did until this case
 			// existed.
-			sig.Result = TypeName(r)
+			//
+			// SEVERAL RESULTS ARE A TUPLE (spec/data.md §3.3): a function whose
+			// result is `(tuple A B)` returns two, which is values.md's negative
+			// product at the one position a product becomes the host's own form.
+			if ty := TypeName(r); IsProd(ty) {
+				sig.Results = ProdTypes(ty)
+			} else {
+				sig.Result = ty
+			}
+		case r.Kind == KFn: // a tuple type TypeName refused, such as one nested in another
+			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
+		case r.Kind == KApp && len(r.Kids) > 0 && r.Kids[0].Kind == KName &&
+			(r.Kids[0].Name == "tuple" || r.Kids[0].Name == "array" || r.Kids[0].Name == "buffer" ||
+				r.Kids[0].Name == "map" || r.Kids[0].Name == "int"):
+			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
 		case r.Kind == KApp:
-			// Several results. `(R)` with one entry is the same as a bare R,
-			// so there is one spelling for one result and no ambiguity.
-			for _, a := range r.Kids {
-				if a.Kind != KName {
-					return Form{}, fmt.Errorf("sig %s: a result is a type name, got %s",
-						t.Kids[1].Name, a)
-				}
-				sig.Results = append(sig.Results, a.Name)
-			}
-			if len(sig.Results) == 0 {
-				return Form{}, fmt.Errorf("sig %s: the result list is empty", t.Kids[1].Name)
-			}
-			if len(sig.Results) == 1 {
-				sig.Result, sig.Results = sig.Results[0], nil
-			}
+			return Form{}, fmt.Errorf("sig %s: a result list is a tuple type — write (tuple A B …) "+
+				"(spec/data.md §10), got %s", t.Kids[1].Name, r)
 		default:
 			return Form{}, fmt.Errorf("sig takes a name, a parameter list and a result type: %s", t)
 		}
@@ -810,7 +818,7 @@ func toForm(t *Term) (Form, error) {
 					a.Kids[0].Kind == KName && a.Kids[1].Kind == KName:
 					sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, a.Kids[1].Name})
 				case a.Kind == KApp && len(a.Kids) == 2 &&
-					a.Kids[0].Kind == KName && a.Kids[1].Kind == KApp:
+					a.Kids[0].Kind == KName && a.Kids[1].Kind != KName:
 					// (name (array f64)) — named, with a compound type.
 					if ty := TypeName(a.Kids[1]); ty != "" {
 						sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, ty})
@@ -927,26 +935,16 @@ func toForm(t *Term) (Form, error) {
 			if IsProd(pm.Type) {
 				return Form{}, fmt.Errorf(
 					"sig %s: %s is a product, and a product is an ELEMENT type — "+
-						"a TABLE of them is `(array (array %s))`. On its own a product "+
-						"has no representation; `values` is the product at a function "+
-						"boundary", t.Kids[1].Name, pm.Type,
+						"a TABLE of them is `(array (tuple %s))`. On its own a product "+
+						"has no representation; a tuple RESULT is several results at a "+
+						"function boundary", t.Kids[1].Name, pm.Type,
 					strings.Join(ProdTypes(pm.Type), " "))
-			}
-		}
-		// ONE RESULT LIVES IN `Result` AND SEVERAL IN `Results`, so both are
-		// asked. Checking only the list let a product result through, and it
-		// emitted `[]int{n, n}` — which happens to be the flat form and happens
-		// to be right, and "happens to" is not a specification.
-		for _, r := range append(append([]string(nil), sig.Results...), sig.Result) {
-			if IsProd(r) {
-				return Form{}, fmt.Errorf(
-					"sig %s: %s is a product in the result, and a product is an ELEMENT "+
-						"type. Several results are `(values …)`, declared `(%s)`",
-					t.Kids[1].Name, r, strings.Join(ProdTypes(r), " "))
 			}
 		}
 		return Form{Kind: "sig", Name: t.Kids[1].Name, Sig: sig}, nil
 	case "sum":
+		return Form{}, fmt.Errorf("`sum` is spelled `variant` (spec/data.md §5.2): %s", t)
+	case "variant":
 		sum, err := readSum(t)
 		if err != nil {
 			return Form{}, err
@@ -1409,7 +1407,7 @@ func noAgain(t *Term, line int) error {
 // concept, which is why an enum needs nothing added.
 func readSum(t *Term) (*Sum, error) {
 	if len(t.Kids) < 3 || t.Kids[1].Kind != KName {
-		return nil, fmt.Errorf("sum takes a name and at least two variants: %s", t)
+		return nil, fmt.Errorf("variant takes a name and at least two constructors: %s", t)
 	}
 	sum := &Sum{Name: t.Kids[1].Name}
 	seen := map[string]bool{}
@@ -1422,22 +1420,22 @@ func readSum(t *Term) (*Sum, error) {
 			k.Kids[0].Kind == KName && k.Kids[1].Kind == KName:
 			v = Variant{Name: k.Kids[0].Name, Payload: k.Kids[1].Name}
 		default:
-			return nil, fmt.Errorf("sum %s: a variant is a name, or a name and one "+
+			return nil, fmt.Errorf("variant %s: a constructor is a name, or a name and one "+
 				"payload type — `(ok int)`; got %s", sum.Name, k)
 		}
 		if seen[v.Name] {
-			return nil, fmt.Errorf("sum %s: %s is declared twice", sum.Name, v.Name)
+			return nil, fmt.Errorf("variant %s: %s is declared twice", sum.Name, v.Name)
 		}
 		if v.Name == sum.Name {
-			return nil, fmt.Errorf("sum %s: a variant may not have the sum's own name, "+
+			return nil, fmt.Errorf("variant %s: a constructor may not have the type's own name, "+
 				"because the constructor and the type would be one name", sum.Name)
 		}
 		seen[v.Name] = true
 		sum.Variants = append(sum.Variants, v)
 	}
 	if len(sum.Variants) < 2 {
-		return nil, fmt.Errorf("sum %s: a sum has two or more variants; one variant is "+
-			"just the payload", sum.Name)
+		return nil, fmt.Errorf("variant %s: a variant type has two or more constructors; one "+
+			"is just the payload", sum.Name)
 	}
 	return sum, nil
 }
@@ -1671,6 +1669,16 @@ func TypeName(t *Term) string {
 	if t == nil {
 		return ""
 	}
+	// THE READER IS CONTEXT-FREE, so `(tuple A B)` written as a TYPE arrives as
+	// the term it reads as everywhere, `(fn (#k) (#k A B))`. A type is built from
+	// a term here, so this is where that reading is inverted — the one place both
+	// meet — and `#k` cannot be written in source, so nothing else has this shape.
+	if t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
+		if b := t.Body(); b.Kind == KApp && len(b.Kids) >= 3 &&
+			b.Kids[0].Kind == KName && b.Kids[0].Name == "#k" {
+			return TypeName(&Term{Kind: KApp, Kids: append([]*Term{Name("tuple")}, b.Kids[1:]...)})
+		}
+	}
 	if t.Kind == KName {
 		return t.Name
 	}
@@ -1678,7 +1686,7 @@ func TypeName(t *Term) string {
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
 		// A BUFFER MAY NOT BE AN ELEMENT — ADR 0020 rule 6, and it is enforced
 		// here because this is the one place a compound type is built.
-		if elem := TypeName(t.Kids[1]); elem != "" && !IsBuffer(elem) {
+		if elem := TypeName(t.Kids[1]); elem != "" && !IsBuffer(elem) && !prodHoldsBuffer(elem) {
 			return "array " + elem
 		}
 	}
@@ -1700,8 +1708,14 @@ func TypeName(t *Term) string {
 	// because a component may itself contain spaces — `int 0 255` does — and
 	// `MapTypes` splits on the first space only because a map's key is always one
 	// token. A comma cannot occur inside a type, so `prod(A, B)` parses back.
+	//
+	// RESPELLED `(tuple T1 … Tn)` (spec/data.md §3, §6): `(array int)` could not
+	// tell a table of ints from a product of one, and `(array A B)` in a result
+	// was read as two results, so arity was carrying a meaning a NAME should. A
+	// buffer may be a component — several results may hand one back — and may
+	// not be inside an array's element, which the `array` case above refuses.
 	if t.Kind == KApp && len(t.Kids) >= 3 &&
-		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "tuple" {
 		parts := make([]string, 0, len(t.Kids)-1)
 		for _, k := range t.Kids[1:] {
 			e := TypeName(k)
@@ -1711,7 +1725,7 @@ func TypeName(t *Term) string {
 			// contain a product yet: flattening is what gives it a
 			// representation, and a nested one would need the layout machinery
 			// products.md §8 puts last.
-			if e == "" || IsBuffer(e) || IsProd(e) {
+			if e == "" || IsProd(e) {
 				return ""
 			}
 			parts = append(parts, e)
@@ -1808,6 +1822,17 @@ func TypeName(t *Term) string {
 // `result` keyword and a program may still use the name for anything that is
 // not a parameter of a function carrying one.
 const ResultName = "result"
+
+// prodHoldsBuffer is ADR 0020's rule 6 for a product element: a buffer may not
+// be a field of a table's element any more than the element itself.
+func prodHoldsBuffer(ty string) bool {
+	for _, p := range ProdTypes(ty) {
+		if IsBuffer(p) {
+			return true
+		}
+	}
+	return false
+}
 
 // ExceedsWindow reports whether a range type names a set wider than ADR 0012's
 // portable window — the rung above the host's word.

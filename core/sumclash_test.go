@@ -27,13 +27,13 @@ import (
 // refused, so that meaning cannot depend on load order.
 func TestTwoDifferentSumsWithOneNameAreRefused(t *testing.T) {
 	a := `(module a)
-(sum result (ok int) (err int))
+(variant result (ok int) (err int))
 (export pick)
 (sig pick ((n int)) result)
 (def pick (fn (n) (if (< n 0) (err 0) (ok n))))
 `
 	b := `(module b)
-(sum result (ok string) (err string))
+(variant result (ok string) (err string))
 (export label)
 (def label (fn (s) s))
 `
@@ -64,12 +64,12 @@ func TestTwoDifferentSumsWithOneNameAreRefused(t *testing.T) {
 // two identical ones cannot disagree about anything.
 func TestTheSameSumDeclaredInTwoModulesStillLoads(t *testing.T) {
 	src := `(module a)
-(sum result (ok int) (err int))
+(variant result (ok int) (err int))
 (export pick)
 (def pick (fn (n) (ok n)))
 
 (module b)
-(sum result (ok int) (err int))
+(variant result (ok int) (err int))
 (export pick2)
 (def pick2 (fn (n) (err n)))
 `

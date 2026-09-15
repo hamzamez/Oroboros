@@ -1,7 +1,9 @@
 # `values` — several results, and why it is not a tuple
 
-> **Respelling specified, not built — [data.md](data.md) §3.** `values` becomes `tuple`, and the result
-> list `(A B)` becomes the type `(tuple A B)`. This document's title meant *"not a heap-allocated
+> **Respelled 2026-09-15 — [data.md](data.md) §3,
+> [respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md).** `values` is now `tuple`, and the
+> result list `(A B)` is the type `(tuple A B)`; read those wherever this document writes the old forms.
+> The term is unchanged, `(fn (#k) (#k a b))`, which is why every emitted file stayed byte-identical. This document's title meant *"not a heap-allocated
 > tuple"*. products.md later settled that representation is chosen per position, not by the syntax,
 > so one product needs one name. Both eliminators here — destructuring by a continuation, and
 > projection — are kept, and so is every lowering this document measured.

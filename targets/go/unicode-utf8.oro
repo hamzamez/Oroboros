@@ -44,7 +44,7 @@
     ; bytes (three for an invalid rune), and four is enough for every rune. The
     ; exact requirement is a disjunction the linear fragment cannot state.
     (sig EncodeRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
-          ((buffer (int 0 255)) (int 1 4))
+          (tuple (buffer (int 0 255)) (int 1 4))
           (where (<= 4 (len p)))
           (host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
             (import "unicode/utf8")))
@@ -60,9 +60,9 @@
     ; ------------------------------------------------------------ reading bytes
     ; A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
     ; 0 only for empty input and at most UTFMax.
-    (sig DecodeRune     ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4)) pure
+    (sig DecodeRune     ((p (array (int 0 255)))) (tuple (int 0 1114111) (int 0 4)) pure
           (host expr "utf8.DecodeRune(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRune ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4)) pure
+    (sig DecodeLastRune ((p (array (int 0 255)))) (tuple (int 0 1114111) (int 0 4)) pure
           (host expr "utf8.DecodeLastRune(%s)" (import "unicode/utf8")))
     (sig FullRune       ((p (array (int 0 255)))) bool pure
           (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
@@ -73,9 +73,9 @@
           (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading strings
-    (sig DecodeRuneInString     ((s string)) ((int 0 1114111) (int 0 4)) pure
+    (sig DecodeRuneInString     ((s string)) (tuple (int 0 1114111) (int 0 4)) pure
           (host expr "utf8.DecodeRuneInString(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRuneInString ((s string)) ((int 0 1114111) (int 0 4)) pure
+    (sig DecodeLastRuneInString ((s string)) (tuple (int 0 1114111) (int 0 4)) pure
           (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
     (sig FullRuneInString       ((s string)) bool pure
           (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))

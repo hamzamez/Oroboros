@@ -149,7 +149,7 @@
       (< nd 1)  dt
       (and (new? cmp cs ord n k) (>= d nd))  dt
       (new? cmp cs ord n k)
-        (again (set dt (cli nd d) (array k 1)) (+ k 1) (+ d 1))
+        (again (set dt (cli nd d) (tuple k 1)) (+ k 1) (+ d 1))
       else
         (let (cli nd (- d 1)) (fn (s)
           (again (set (dt s) 1 (+ (cli (+ (nmax) 1) ((dt s) 1)) 1)) (+ k 1) d))))))))

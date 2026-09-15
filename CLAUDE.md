@@ -2268,6 +2268,21 @@ the new reader checks more. **Cost: 194 of 194 emitted files byte-identical, pro
 refusal's wording changed. Not yet: the program half (`type`/`variant`/`const` in modules), and a target sig's
 ranged parameter is not a premise where a program sig's is.
 
+**`variant` AND ONE `tuple` ARE BUILT** — [respell-2026-09-15](gauntlet/results/respell-2026-09-15.md),
+[spec/data.md §10](docs/spec/data.md). `sum` → `variant`; `values`, the product type `(array A B)`, a stored pair
+`(array a b)` and several results `(A B)` all → `tuple`, because they are one object, a function on `Fin n`, and
+data.md §3.3 already says where each position lowers it. The old spellings are refused naming the new one, and
+**`(array …)` means only a table now**. **data.md §3.4's open question is decided by the byte-identical test:
+the Church term**, what `values` always read as, so destructuring is β, the backends' several-results path is
+untouched and the product pass recognises a stored tuple with the same `multiValue` matcher. The reader being
+context-free, a tuple TYPE arrives as that term too, so **`TypeName` inverts the reading** — the one place a
+type is built from a term. A buffer may be a tuple component (a result may hand one back) and not inside an
+array's element. **Two bugs, both caught by existing checks**: the translator renamed eight user functions
+called `sum` (core tests), and a hand search missed `freq.oro`'s nested pair store (the emission check: 71 → 57
+flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted files byte-identical, proof counts
+identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
+projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
+
 **A VARIANT'S TYPE PARAMETERS ACROSS MODULES ARE SPECIFIED, AND ASKING FOUND A LOAD-ORDER BUG** —
 [spec/data.md §5.5](docs/spec/data.md), `core/sumclash_test.go`. **The bug, measured**: `Load` kept sums in ONE
 table keyed by the BARE name and checked only that no constructor belonged to two differently-named sums, so two

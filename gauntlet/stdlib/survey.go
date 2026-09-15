@@ -1847,7 +1847,7 @@ func emit(dir string, syms []sym, raw []string) error {
 				for _, r := range s.results {
 					rs = append(rs, spellQ(r))
 				}
-				res = "(" + strings.Join(rs, " ") + ")"
+				res = "(tuple " + strings.Join(rs, " ") + ")"
 			}
 			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s \"%s\" (import %q)))\n",
 				s.name, strings.Replace(argList, "(none)", "()", 1), res, kind, call, p)

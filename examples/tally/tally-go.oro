@@ -16,7 +16,7 @@
 
 (export main)
 
-(def host (values
+(def host (tuple
   (fn (p) (re.MustCompile p))
   (fn (r s) (rx.MatchString r s))
   ; FindStringSubmatch is the whole match followed by every group, or empty.

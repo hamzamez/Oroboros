@@ -58,7 +58,7 @@ func TestAProjectionBecomesAStridedIndex(t *testing.T) {
 	got, err := genFlat(t, `
 (use go)
 (export f)
-(sig f ((sp (array (array (int 0 65535) (int 0 65535))))) int
+(sig f ((sp (array (tuple (int 0 65535) (int 0 65535))))) int
   (where (< (len sp) 1000)))
 (def f (fn (sp)
   (loop ((acc 0) (w 0))
@@ -81,7 +81,7 @@ func TestAProjectionBecomesAStridedIndex(t *testing.T) {
 }
 
 // CONSTRUCTION AND FIELD UPDATE, which are the two directions of the same
-// surface: `(set b i (array v…))` writes a whole element and `(set (b i) j v)`
+// surface: `(set b i (tuple v…))` writes a whole element and `(set (b i) j v)`
 // writes one field — set applied to a projection, the exact dual of read
 // applied to one.
 func TestConstructionAndFieldUpdate(t *testing.T) {
@@ -93,7 +93,7 @@ func TestConstructionAndFieldUpdate(t *testing.T) {
   (build n (fn (t)
     (loop ((t t) (i 0))
       (>= i n)  (set (t 0) 1 7)
-      else      (again (set t i (array i 0)) (+ i 1)))))))`, "mk")
+      else      (again (set t i (tuple i 0)) (+ i 1)))))))`, "mk")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +125,7 @@ func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
   (build n (fn (t)
     (loop ((t t) (i 0))
       (>= i n)  t
-      else      (again (set t i (array i i)) (+ i 1)))))))
+      else      (again (set t i (tuple i i)) (+ i 1)))))))
 (def use (fn (n)
   (let (mk n) (fn (sp)
     (loop ((acc 0) (w 0))
@@ -147,8 +147,8 @@ func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
 // one would need the layout machinery products.md §8 puts last.
 func TestWhatMayNotBeAField(t *testing.T) {
 	for _, ty := range []string{
-		"(array (buffer int) int)",
-		"(array (array int int) int)",
+		"(array (tuple (buffer int) int))",
+		"(array (tuple (tuple int int) int))",
 	} {
 		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
 		if err == nil {
@@ -162,8 +162,8 @@ func TestWhatMayNotBeAField(t *testing.T) {
 	// AS AN ELEMENT, because a product is an element type and a signature is
 	// where that is enforced — a bare product parameter has no width the caller
 	// and callee could agree on, and is refused by name.
-	for _, ty := range []string{"(array (array int int))",
-		"(array (array (int 0 255) int int))", "(buffer (array int int))"} {
+	for _, ty := range []string{"(array (tuple int int))",
+		"(array (tuple (int 0 255) int int))", "(buffer (tuple int int))"} {
 		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
 		if err != nil {
 			t.Fatal(err)
@@ -216,7 +216,7 @@ func TestTheStrideIsProvenFromTheGuard(t *testing.T) {
 	forms, err := core.Read(`
 (use go)
 (export f)
-(sig f ((sp (array (array (int 0 65535) (int 0 65535))))) int
+(sig f ((sp (array (tuple (int 0 65535) (int 0 65535))))) int
   (where (< (len sp) 1000)))
 (def f (fn (sp)
   (loop ((acc 0) (w 0))
@@ -264,11 +264,13 @@ func TestTheStrideIsProvenFromTheGuard(t *testing.T) {
 func TestAProductIsAnElementTypeAndNothingElse(t *testing.T) {
 	for _, tc := range []struct{ what, src, want string }{
 		{"a bare product parameter",
-			"(sig f ((p (array int int))) int)\n(def f (fn (p) 0))", "ELEMENT type"},
-		{"a product result",
-			"(sig f ((n int)) (array int int))\n(def f (fn (n) (array n n)))", "in the result"},
+			"(sig f ((p (tuple int int))) int)\n(def f (fn (p) 0))", "ELEMENT type"},
+		// A tuple RESULT is several results now (spec/data.md §3.3), so what stays
+		// refused in that position is a tuple inside one.
+		{"a tuple inside a tuple result",
+			"(sig f ((n int)) (tuple (tuple int int) int))\n(def f (fn (n) 0))", "is not a type"},
 		{"a map of products",
-			"(sig f ((m (map int (array int int)))) int)\n(def f (fn (m) 0))", "is not a type"},
+			"(sig f ((m (map int (tuple int int)))) int)\n(def f (fn (m) 0))", "is not a type"},
 	} {
 		forms, err := core.Read(tc.src)
 		if err == nil {
@@ -284,7 +286,7 @@ func TestAProductIsAnElementTypeAndNothingElse(t *testing.T) {
 	}
 	// The control: as an ELEMENT all three shapes are types, so the refusals
 	// above are about where a product may stand and not about products.
-	for _, ty := range []string{"(array (array int int))", "(buffer (array int int))"} {
+	for _, ty := range []string{"(array (tuple int int))", "(buffer (tuple int int))"} {
 		forms, err := core.Read("(sig f ((x " + ty + ")) int)\n(def f (fn (x) 0))")
 		if err != nil {
 			t.Fatal(err)

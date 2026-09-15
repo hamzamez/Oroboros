@@ -44,7 +44,7 @@
   ; reads their width and lets `(src i)` be used in arithmetic without a refusal
   ; (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
   ; Uint8Array, and indexes 0..255 exactly as the declaration says.
-  (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+  (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
       "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
       (import "node:fs")))
 

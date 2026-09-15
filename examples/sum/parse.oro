@@ -8,7 +8,7 @@
 (use go)
 (export step)
 
-(sum result (ok int) (err int))
+(variant result (ok int) (err int))
 
 (sig step ((a int) (b int)) result)
 

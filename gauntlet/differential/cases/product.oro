@@ -5,10 +5,11 @@
 ; products.md: a tuple is a function whose domain is a finite set, and
 ; tables.md §5.3 had already written the consequence — *"a statically-indexed
 ; heterogeneous `(array x y)` is a pair, and `(a 0)`/`(a 1)` are its
-; projections; the tuple is not a separate feature."*
+; projections; the tuple is not a separate feature."* That pair is now spelled
+; `(tuple x y)` (spec/data.md §3), so `(array x y)` means one thing: a table of two.
 ;
 ; So this program never says `stride`. It builds `(cap)` PAIRS, writes each with
-; `(array a b)`, and reads a field with `((t i) j)`. The compiler generates
+; `(tuple a b)`, and reads a field with `((t i) j)`. The compiler generates
 ; `t[2i+j]` and proves the index it generated — emit/product.go.
 ;
 ; IT IS HERE BECAUSE THE PASS IS TARGET-INDEPENDENT AND THAT IS A CLAIM.
@@ -43,7 +44,7 @@
   (build (cap) (fn (t)
     (loop ((t t) (i 0))
       (>= i (cap))  t
-      else (again (set t i (array (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1)))))))
+      else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1)))))))
 
 (def run (fn (s)
   (let (mk s) (fn (t)

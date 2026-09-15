@@ -38,7 +38,7 @@ func mustLoadFail(t *testing.T, src, want string) {
 // qualification, imports, δ and the occurrence counter apply to a constructor
 // without any of them learning that sums exist.
 func TestSumGeneratesConstructors(t *testing.T) {
-	p, err := loadSrc(t, `(sum result (ok int) (err int))`)
+	p, err := loadSrc(t, `(variant result (ok int) (err int))`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestSumGeneratesConstructors(t *testing.T) {
 
 // An enum is a sum with no payloads — the degenerate case, not a new concept.
 func TestEnumIsASumWithNoPayloads(t *testing.T) {
-	p, err := loadSrc(t, `(sum colour red green blue)`)
+	p, err := loadSrc(t, `(variant colour red green blue)`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -69,11 +69,11 @@ func TestEnumIsASumWithNoPayloads(t *testing.T) {
 // --- what a sum REFUSES ------------------------------------------------------
 
 func TestSumNeedsTwoVariants(t *testing.T) {
-	mustLoadFail(t, `(sum wrapper (only int))`, "two or more variants")
+	mustLoadFail(t, `(variant wrapper (only int))`, "two or more constructors")
 }
 
 func TestSumRefusesDuplicateVariant(t *testing.T) {
-	mustLoadFail(t, `(sum r (ok int) (ok int))`, "declared twice")
+	mustLoadFail(t, `(variant r (ok int) (ok int))`, "declared twice")
 }
 
 // A constructor names ONE sum. Sums are nominal — `(ok 3)` does not determine
@@ -82,7 +82,7 @@ func TestVariantMayNotBelongToTwoSums(t *testing.T) {
 	// In one module the constructor-definition collision fires first, and it
 	// says more: the two sums cannot both define `ok`. Across modules there is
 	// no shared definition namespace, so the byVariant check is what catches it.
-	mustLoadFail(t, `(sum a (ok int) (no int)) (sum b (ok int) (yes int))`,
+	mustLoadFail(t, `(variant a (ok int) (no int)) (variant b (ok int) (yes int))`,
 		"sum b declares a variant of that name")
 }
 
@@ -92,7 +92,7 @@ func TestVariantMayNotBelongToTwoSums(t *testing.T) {
 // and it is what earns the last clause its missing test.
 func TestCaseMustBeExhaustive(t *testing.T) {
 	mustLoadFail(t, `
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (r) (case r (ok v) v)))`,
 		"not exhaustive: err is unmatched")
 }
@@ -101,29 +101,29 @@ func TestCaseMustBeExhaustive(t *testing.T) {
 // more useful than silently accepting it.
 func TestElseUnderACompleteMatchIsDead(t *testing.T) {
 	mustLoadFail(t, `
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (r) (case r (ok v) v (err e) e else 0)))`,
 		"`else` is dead code")
 }
 
 func TestCaseRefusesUnknownVariant(t *testing.T) {
 	mustLoadFail(t, `
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (r) (case r (ok v) v (nope e) e)))`,
 		"not a variant of any sum")
 }
 
 func TestCaseRefusesMixingSums(t *testing.T) {
 	mustLoadFail(t, `
-		(sum a (ok int) (no int))
-		(sum b (yes int) (nah int))
+		(variant a (ok int) (no int))
+		(variant b (yes int) (nah int))
 		(def f (fn (r) (case r (ok v) v (yes e) e)))`,
 		"one case eliminates one sum")
 }
 
 func TestCaseRefusesRepeatedVariant(t *testing.T) {
 	mustLoadFail(t, `
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (r) (case r (ok v) v (ok e) e)))`,
 		"matched twice")
 }
@@ -131,7 +131,7 @@ func TestCaseRefusesRepeatedVariant(t *testing.T) {
 // A variant that carries nothing has nothing to bind.
 func TestCaseRefusesBindingOnAnEmptyVariant(t *testing.T) {
 	mustLoadFail(t, `
-		(sum colour red green)
+		(variant colour red green)
 		(def f (fn (c) (case c (red x) x (green y) 1)))`,
 		"carries no payload")
 }
@@ -141,12 +141,12 @@ func TestCaseRefusesBindingOnAnEmptyVariant(t *testing.T) {
 // reduction removes it — which is why the refusal is on the SIGNATURE.
 func TestMixedPayloadsRefusedOnlyAtABoundary(t *testing.T) {
 	if _, err := loadSrc(t, `
-		(sum mixed (num int) (name string))
+		(variant mixed (num int) (name string))
 		(def f (fn (r) (case r (num v) v (name s) 0)))`); err != nil {
 		t.Errorf("a mixed sum is fine inside a program: %v", err)
 	}
 	mustLoadFail(t, `
-		(sum mixed (num int) (name string))
+		(variant mixed (num int) (name string))
 		(sig f ((a int)) mixed)
 		(def f (fn (a) (num a)))`,
 		"different payload types")
@@ -157,7 +157,7 @@ func TestMixedPayloadsRefusedOnlyAtABoundary(t *testing.T) {
 // targets.
 func TestSumInASignatureIsTwoResults(t *testing.T) {
 	p, err := loadSrc(t, `
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(sig f ((a int)) result)
 		(def f (fn (a) (ok a)))`)
 	if err != nil {
@@ -192,7 +192,7 @@ func reduceTo(t *testing.T, src, export string) string {
 func TestStaticSumVanishes(t *testing.T) {
 	got := reduceTo(t, `
 		(use go)
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (n) (case (ok n) (ok v) (go.+ v 1) (err e) e)))`, "f")
 	if got != "(fn (n) (go.+ n 1))" {
 		t.Errorf("a static sum must leave nothing behind: %s", got)
@@ -206,7 +206,7 @@ func TestStaticSumVanishes(t *testing.T) {
 func TestDynamicSumVanishesThroughCaseOfCase(t *testing.T) {
 	got := reduceTo(t, `
 		(use go)
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def f (fn (n) (case (if (go.> n 0) (ok n) (err 0)) (ok v) (go.+ v 1) (err e) e)))`, "f")
 	if got != "(fn (n) (if (go.> n 0) (go.+ n 1) 0))" {
 		t.Errorf("case-of-case must reunite each constructor with the eliminator: %s", got)
@@ -219,7 +219,7 @@ func TestDynamicSumVanishesThroughCaseOfCase(t *testing.T) {
 func TestEliminatorCommutesThroughLet(t *testing.T) {
 	got := reduceTo(t, `
 		(use go)
-		(sum result (ok int) (err int))
+		(variant result (ok int) (err int))
 		(def step (fn (r k)
 			(case r (ok v) (if (go.> v k) (ok (go.- v k)) (err v)) (err e) (err e))))
 		(def f (fn (a b) (case (step (step (ok a) b) b) (ok v) v (err e) (go.- 0 e))))`, "f")

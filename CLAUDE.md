@@ -2292,7 +2292,10 @@ keyed by the bare name was resolution composed with forgetting the module. Keyed
 module's `ok` was CAPTURED by a module that never imported it (its tag resolved by δ to the root's
 definition), an imported `ok` written unqualified was accepted with its tag left FREE, and `a.ok`, the
 spelling that means what it says, was refused. A pattern now resolves by `Module.resolve`'s own rule and a
-tag is exported with its constructor. Not yet: `option` as one `lang` declaration, shadowing, type arguments.
+tag is exported with its constructor. **And `option` is ONE declaration in `lang`** — every module had held
+a copy reconciled by name; now resolution is *own declarations, then `lang`*, so a module's `option` shadows
+the language's while the compiler's map-read `some` stays the language's, and the main module, unqualified
+like `lang`, is refused a colliding declaration. Not yet: type arguments.
 
 **A VARIANT'S TYPE PARAMETERS ACROSS MODULES ARE SPECIFIED, AND ASKING FOUND A LOAD-ORDER BUG** —
 [spec/data.md §5.5](docs/spec/data.md), `core/sumclash_test.go`. **The bug, measured**: `Load` kept sums in ONE

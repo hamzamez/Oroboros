@@ -65,8 +65,35 @@ that `option` loads in two modules.
   262 refused, unchanged), proof counts identical (2,307 of 2,413 integer operations, 345 of 382
   loops), differential on four targets, tooling.
 
-## 5. Not built
+## 5. Then: `option` is one declaration, in `lang`
 
-- `option` as one declaration in `lang` rather than an identical copy per module (data.md §5.5.1).
-- A module's own declaration shadowing `lang`'s, with the two-spelling message (§5.5.2, D4).
+Every module held its own copy of `option`, so a two-module program had `some`, `a.some` and `b.some`,
+reconciled by name wherever two met. That was the reason §1's key needed a special case for `option`.
+
+**Resolution is now "own declarations, then `lang`"** (theories.md §3.4). The program holds `lang`'s
+constructors once, under bare names. That is the spelling the compiler already produced, because β on a
+map literal builds `some` wherever the read occurs and it had only ever resolved through the main
+module's copy. `sumKey` loses its special case.
+
+**Two consequences, each a witness failing against the previous commit:**
+
+| test | against the previous commit |
+|---|---|
+| `TestOptionIsOneDeclaration` | module `a` holds `a.some`, `a.none` and both tags |
+| `TestAModuleMayShadowOption`: a module's own `(variant option (yes int) no)` beside a map read's `some` | refused, *"sum a.option is declared twice"* |
+| `TestTheMainModuleCannotRedeclareTheLanguagesOwn` | refused, but as *"declared twice"*, which does not say why |
+
+**The side condition is a real one.** The main module's names are unqualified, like `lang`'s, so in the
+main module `option` and `lang.option` would be one name. A `(module …)` declaration is qualified and
+shadows; the main module's is refused, naming the reason and where to put it.
+
+**Cost**: `core/sum.go` 198 → 192, `core/reduce.go` 1,257 → 1,277, **+14** net.
+**`go run ./cmd/check`, every step, passes**: emission 194 of 194 files byte-identical, proof counts
+identical, differential on four targets, tooling.
+
+## 6. Not built
+
+- The two-spelling type error of data.md §5.5.2 (*"option (my/opt.option) is not option
+  (lang.option)"*). It needs typed variant values at a boundary, and a variant in a signature is
+  lowered to its tag and payload before any type is compared.
 - Type arguments on variant types (§5.5.3–§5.5.5), and `type`, companions and `const` in modules.

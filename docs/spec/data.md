@@ -393,9 +393,10 @@ qualified name of its declaration together with its arguments**:
 - **Applicative in the arguments.** Two occurrences of `(option int)` resolving to one declaration
   are the **same type**, because instantiation is resolution and names the instance by its diagram
   (theories-b-or-c.md §3.2, I3).
-- **`option` is one declaration, in `lang`.** Today every module holds its own copy
-  (`core/reduce.go`, `newModule`), and sums are compared by name so the copies do not clash. Under
-  §5.5.1 there are no copies to reconcile.
+- **`option` is one declaration, in `lang`.** Built 2026-09-15: every module held its own copy
+  (`a.some`, `b.some`, …) compared by name; now the program holds the constructors once, under the bare
+  names the compiler's map reads already produce. The main module's names are unqualified like
+  `lang`'s, so it may not declare `option`, `some` or `none`; a `(module …)` may, and shadows.
 
 The canonical spelling of an applied type uses products.md §2's delimited form, `a/result(int,
 string)`, because an argument may itself contain spaces: `(int 0 255)`.
@@ -438,8 +439,9 @@ key was resolution composed with forgetting the module. Measuring what else that
 | `a.ok` | refused as *"not a variant of any sum"* | resolved; a static case reduces to nothing |
 
 A pattern now resolves by `Module.resolve`'s own rule, and the tag `c#tag` is exported exactly when
-`c` is. **Not yet built from §5.5.1**: `option` is still a copy per module, identified by key rather
-than removed; a module's own declaration shadowing `lang`'s; and type arguments.
+`c` is. **Then, the same day**: `option` is one declaration in `lang` and a module's own declaration
+shadows it (§5.5.1). **Not yet built**: the two-spelling type error of this section's second
+paragraph, which needs typed variant values at a boundary, and type arguments (§5.5.3).
 
 #### 5.5.3 Type arguments are never inferred
 

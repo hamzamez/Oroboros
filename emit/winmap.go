@@ -62,9 +62,8 @@ func lowerMaps(tg *Target, p *core.Program) error {
 		return fmt.Errorf("the built-in map implementation does not load: %w", err)
 	}
 	// Only what the implementation's own MODULE declares. Loading it produces
-	// the language's injected `option` too — every module gets `some` and
-	// `none` — and those are already in the program under the same names, so
-	// merging everything reports the injection colliding with itself.
+	// the language's `option` too — `some` and `none`, declared once in `lang`
+	// — and those are already in the program under the same names.
 	for n, d := range impl.Defs {
 		if !strings.HasPrefix(n, mapImplPrefix) {
 			continue

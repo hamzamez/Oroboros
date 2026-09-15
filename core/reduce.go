@@ -222,7 +222,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			declared := false
 			var extra []string
 			for _, m := range subMods {
-				if m.Path == "" && len(m.Defs) == len(injected) {
+				if m.Path == "" && len(m.Defs) == 0 {
 					continue // the empty anonymous scope every file starts with
 				}
 				if m.Path == "" {
@@ -292,10 +292,20 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	// resolved in the module that wrote them (sumRef).
 	byPath := map[string]*Module{}
 	sums := map[string]*Sum{}
+	for k, s := range langSums {
+		sums[k] = s
+	}
 	for _, m := range mods {
 		byPath[m.Path] = m
 		for _, sum := range m.Sums {
-			sums[sumKey(m.Path, sum)] = sum
+			k := sumKey(m.Path, sum)
+			if _, own := langSums[k]; own {
+				return nil, nil, fmt.Errorf("%s declares (variant %s …), which is the language's "+
+					"own. The main module's names are unqualified, like the language's, so they "+
+					"would be one name; declare it in a (module …), where it shadows the "+
+					"language's", modLabel(m.Path), sum.Name)
+			}
+			sums[k] = sum
 		}
 	}
 	for _, m := range mods {
@@ -355,6 +365,15 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	sort.Strings(unresolved)
 	p.Unresolved = unresolved
 	p.Sums = sums
+	// The language's declarations are in the program ONCE, unqualified, which is
+	// the spelling the compiler already produces — β on a map literal builds
+	// `some` and `none` wherever the read occurs. A module finds them after its
+	// own declarations because `resolve` leaves a name it does not define bare.
+	langOrder, langDefs := OptionSum().Defs()
+	for _, n := range langOrder {
+		p.Defs[n] = langDefs[n]
+		p.Order = append(p.Order, n)
+	}
 	for _, m := range mods {
 		for _, n := range m.Order {
 			body, err := m.resolve(m.Defs[n], map[string]bool{}, mods)
@@ -362,6 +381,12 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
 			}
 			q := qualify(m.Path, n)
+			if _, own := langDefs[q]; own {
+				return nil, nil, fmt.Errorf("%s defines %s, which is the language's own. The main "+
+					"module's names are unqualified, like the language's, so they would be one "+
+					"name; define it in a (module …), where it shadows the language's",
+					modLabel(m.Path), q)
+			}
 			if _, dup := p.Defs[q]; dup {
 				return nil, nil, fmt.Errorf("%s is defined twice", q)
 			}
@@ -433,8 +458,10 @@ type entry struct {
 	term *Term
 }
 
-// OptionSum is the language's own `option`, and it is INJECTED into every
-// module rather than declared by one.
+// OptionSum is the language's own `option`: ONE declaration, in `lang`, seen by
+// every module after its own declarations (spec/data.md §5.5.1). It was a copy
+// injected into every module, and the copies had to be reconciled by name
+// wherever two met; with one declaration there is nothing to reconcile.
 //
 // A map read is `(option V)` (maps.md §4), and the compiler is what produces
 // it — from β-tab on a literal, or from the host's own fallible read at a
@@ -460,24 +487,15 @@ func OptionSum() *Sum {
 	}}
 }
 
-// newModule makes a module with the language's own declarations already in it.
-// injected is what every module gets for free: the option sum's constructors
-// and their tags. Named so that "this scope is empty" can mean "empty apart
-// from the language's own declarations" at the one place that asks.
-var injected = func() []string { o, _ := OptionSum().Defs(); return o }()
+// langSums are `lang`'s variant types, by key. The key of a `lang` declaration
+// is its bare name, qualify("", name), which is why the main module — also
+// unqualified — may not declare one.
+var langSums = map[string]*Sum{"option": OptionSum()}
 
 func newModule(path string) *Module {
-	m := &Module{Path: path, Uses: map[string]string{},
+	return &Module{Path: path, Uses: map[string]string{},
 		Exports: map[string]bool{}, Defs: map[string]*Term{},
 		Sigs: map[string]*Sig{}, Sums: map[string]*Sum{}}
-	opt := OptionSum()
-	m.Sums[opt.Name] = opt
-	order, defs := opt.Defs()
-	for _, n := range order {
-		m.Defs[n] = defs[n]
-		m.Order = append(m.Order, n)
-	}
-	return m
 }
 
 // partition splits a form list into module scopes. A file with no `(module …)`
@@ -628,9 +646,14 @@ func (m *Module) constructor(sp string, byPath map[string]*Module, mods []*Modul
 		}
 	}
 	if owner == m {
+		for k, s := range langSums {
+			if s.has(sp) {
+				return ctorRef{ref: sumRef{key: k, sum: s}, local: sp, tag: sp + "#tag"}, nil
+			}
+		}
 		for _, other := range mods {
 			for _, s := range other.Sums {
-				if other != m && s.Name != optionName && s.has(sp) {
+				if other != m && s.has(sp) {
 					return ctorRef{}, fmt.Errorf("case: %s is not a constructor in %s; it is "+
 						"declared by %s in %s — import that module and write the pattern "+
 						"through its alias, as for any name it defines",
@@ -650,11 +673,13 @@ func (m *Module) sumType(sp string, byPath map[string]*Module) (sumRef, bool) {
 	if err != nil {
 		return sumRef{}, false
 	}
-	s, ok := owner.Sums[local]
-	if !ok {
-		return sumRef{}, false
+	if s, ok := owner.Sums[local]; ok {
+		return sumRef{key: sumKey(owner.Path, s), sum: s}, true
 	}
-	return sumRef{key: sumKey(owner.Path, s), sum: s}, true
+	if s, ok := langSums[sp]; ok && owner == m {
+		return sumRef{key: sp, sum: s}, true
+	}
+	return sumRef{}, false
 }
 
 // scope is the half of ρ_m every namespace shares: a spelling names a member of

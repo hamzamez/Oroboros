@@ -90,18 +90,9 @@ type ctorRef struct {
 
 type ctorLookup func(spelling string) (ctorRef, error)
 
-// sumKey is ρ on a declaration. `option` is ONE declaration, the language's
-// (data.md §5.5.1): every module holds a copy only so that `some` and `none`
-// resolve wherever the compiler produces a map read, and a program may not
-// declare its own, so identifying the copies loses nothing.
-func sumKey(path string, s *Sum) string {
-	if s.Name == optionName {
-		return optionName
-	}
-	return qualify(path, s.Name)
-}
-
-const optionName = "option"
+// sumKey is ρ on a declaration: its module path and its name. The language's
+// `option` is the declaration with no path (langSums).
+func sumKey(path string, s *Sum) string { return qualify(path, s.Name) }
 
 func caseForm(t *Term, look ctorLookup) (*Term, error) {
 	if len(t.Kids) < 4 {

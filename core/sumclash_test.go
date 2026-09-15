@@ -129,8 +129,58 @@ func TestOneCaseDoesNotMixTwoTypesWithOneSpelling(t *testing.T) {
 	}
 }
 
-// THE CONTROL: the language's `option` is one declaration, though every module
-// holds a copy, so a two-module program eliminates it in both.
+// `option` IS ONE DECLARATION, IN `lang` (spec/data.md §5.5.1). Every module
+// held a copy — `a.some`, `b.some`, … — reconciled by name wherever two met.
+// Now the program holds the constructors once, under the bare names the
+// compiler's own map reads already produce, and no module holds any.
+func TestOptionIsOneDeclaration(t *testing.T) {
+	p, err := loadSrc(t, `(module a)
+(export f)
+(def f (fn (n) (case (some n) (some v) v none 0)))
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"some", "none", "some#tag", "none#tag"} {
+		if _, ok := p.Defs[n]; !ok {
+			t.Errorf("lang's %s must be in the program once, unqualified", n)
+		}
+		if _, ok := p.Defs["a."+n]; ok {
+			t.Errorf("module a holds its own copy a.%s; option is one declaration", n)
+		}
+	}
+}
+
+// A module's own declaration SHADOWS the language's, as any inner name shadows
+// an outer one (§5.5.2) — and the compiler's `some` from a map read is still
+// the language's, because the module's `option` has no `some`.
+func TestAModuleMayShadowOption(t *testing.T) {
+	p, err := loadSrc(t, `(module a)
+(variant option (yes int) no)
+(export f)
+(def f (fn (n) (+ (case (yes n) (yes v) v no 0)
+                  (case ((map (1 10)) 1) (some v) v none 0))))
+`)
+	if err != nil {
+		t.Fatalf("a module may declare its own option: %v", err)
+	}
+	nf, err := Normalize(p.Defs["a.f"], testEnv(p, "map", "if", "=", "+"), DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := nf.String(); got != "(fn (n) (+ n 10))" {
+		t.Errorf("both options must eliminate, each by its own declaration: %s", got)
+	}
+}
+
+// The main module's names are unqualified, like `lang`'s, so the two would be
+// one name there: refused, where a (module …) would shadow.
+func TestTheMainModuleCannotRedeclareTheLanguagesOwn(t *testing.T) {
+	mustLoadFail(t, `(variant option (yes int) no)`, "which is the language's own")
+	mustLoadFail(t, `(def some 3)`, "which is the language's own")
+}
+
+// THE CONTROL: a two-module program eliminates the one option in both.
 func TestOptionIsOneTypeInEveryModule(t *testing.T) {
 	src := `(module a)
 (export f)

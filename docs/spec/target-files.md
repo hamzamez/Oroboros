@@ -50,9 +50,11 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (implements T I…)
               | (module PATH sig…)               ; declares into a module namespace
               | sig
+              | const
               | structural
 
 sig         ::= (sig NAME (param…) result sclause… (host kind template hclause…))
+const       ::= (const NAME INT (host "spelling" hclause…))   ; §3, "A constant"
 param       ::= type | (NAME type)               ; `()` is arity zero
 kind        ::= expr | stmt
 template    ::= "…%s…"
@@ -437,6 +439,19 @@ every Go integer type. **The argument direction does**, and a hand-written
 `(int 0 64)` is a range rather than a host type, so an argument conversion is the
 TEMPLATE's: `bits.OnesCount64(uint64(%s))`. A template that omits it compiles for a
 literal — an untyped constant in Go — and is refused for a variable.
+
+### A constant
+
+```lisp
+(const MaxRune 1114111 (host "utf8.MaxRune" (import "unicode/utf8")))
+```
+
+is exactly `(sig MaxRune () (int 1114111 1114111) pure (host expr "utf8.MaxRune" (import "unicode/utf8")))`,
+the declaration a range result already makes for a call of no arguments, with its value written once
+instead of twice ([theories.md §8.3](theories.md)). **The value must be an integer**, because a
+constant is a declaration whose value the compiler reads, and only an integer's is read. A float,
+string or bool host constant is a zero-argument `sig` with its type as the result. The `host` clause
+takes no kind: a constant is a value.
 
 ### `stmt`
 

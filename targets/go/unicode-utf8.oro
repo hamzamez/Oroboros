@@ -20,10 +20,10 @@
   (module go/unicode-utf8
 
     ; ------------------------------------------------------------ constants
-    (sig MaxRune   () (int 1114111 1114111)   pure (host expr "utf8.MaxRune" (import "unicode/utf8")))
-    (sig RuneError () (int 65533 65533) pure     (host expr "utf8.RuneError" (import "unicode/utf8")))
-    (sig RuneSelf  () (int 128 128)  pure         (host expr "utf8.RuneSelf" (import "unicode/utf8")))
-    (sig UTFMax    () (int 4 4)    pure             (host expr "utf8.UTFMax" (import "unicode/utf8")))
+    (const MaxRune   1114111 (host "utf8.MaxRune"   (import "unicode/utf8")))
+    (const RuneError 65533   (host "utf8.RuneError" (import "unicode/utf8")))
+    (const RuneSelf  128     (host "utf8.RuneSelf"  (import "unicode/utf8")))
+    (const UTFMax    4       (host "utf8.UTFMax"    (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ one rune
     ; "It returns -1 if the rune is not a valid value to encode in UTF-8."

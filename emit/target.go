@@ -1376,7 +1376,7 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err := parseFact(f, frag, path); err != nil {
 				return nil, err
 			}
-		case "sig":
+		case "sig", "const":
 			if err := frag.declare(f, "", path); err != nil {
 				return nil, err
 			}
@@ -1644,6 +1644,40 @@ var (
 	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true}
 )
 
+// constSig elaborates a constant to the declaration it means (theories.md §8.3):
+//
+//	(const NAME v (host "spelling" hclause…))
+//	  =  (sig NAME () (int v v) pure (host expr "spelling" hclause…))
+//
+// It is the CONDITIONAL cell of §2: a definiens, which the analysis reads as the
+// exact range [v, v], and a realization, which the emitter writes. The spelled-out
+// sig states v twice — once in the range and once, implicitly, as whatever the
+// host's name holds — and a value written twice is two claims that can disagree.
+//
+// ONLY AN INTEGER IS A CONSTANT HERE, and that is the definition, not a gap. A
+// constant is a declaration with a definiens the compiler may USE. An integer's
+// value is used: it proves arithmetic on the name. A float's may not be folded
+// (ADR 0009), and nothing analyses a string or a bool, so their definiens is
+// never read. For them a zero-argument sig already says everything true.
+func constSig(f *core.Term, path string) (*core.Term, error) {
+	if len(f.Kids) != 4 || f.Kids[1].Kind != core.KName || formWord(f.Kids[3]) != "host" {
+		return nil, fmt.Errorf("%s: (const NAME INTEGER (host \"spelling\" hclause…)), got %s", path, f)
+	}
+	name, v, host := f.Kids[1], f.Kids[2], f.Kids[3]
+	if v.Kind != core.KInt {
+		return nil, fmt.Errorf("%s: const %s: %s is not an integer literal. A constant's value is a fact "+
+			"the analysis uses, and only an integer's is one; for any other value write "+
+			"(sig %s () TYPE pure (host expr \"spelling\"))", path, name.Name, v, name.Name)
+	}
+	if len(host.Kids) < 2 || host.Kids[1].Kind != core.KStr {
+		return nil, fmt.Errorf("%s: const %s: (host \"spelling\" hclause…) — a constant is a value, so "+
+			"its host clause has no kind; got %s", path, name.Name, host)
+	}
+	app := func(kids ...*core.Term) *core.Term { return &core.Term{Kind: core.KApp, Kids: kids} }
+	realize := app(append([]*core.Term{core.Name("host"), core.Name("expr")}, host.Kids[1:]...)...)
+	return app(core.Name("sig"), name, app(), app(core.Name("int"), v, v), core.Name("pure"), realize), nil
+}
+
 // parseSig reads the declaration a target realizes:
 //
 //	(sig NAME ((x τ)…) τ clause… (host KIND "template" hclause…))
@@ -1652,6 +1686,13 @@ var (
 // same Prim by the same reader: the host clause's kind, template and clauses
 // are handed to primOf beside the sig's own.
 func parseSig(f *core.Term, path string) (Prim, error) {
+	if formWord(f) == "const" && f.Kind == core.KApp {
+		s, err := constSig(f, path)
+		if err != nil {
+			return Prim{}, err
+		}
+		f = s
+	}
 	if w := formWord(f); w != "sig" || f.Kind != core.KApp {
 		if spelled, old := respelled[w]; old {
 			return Prim{}, fmt.Errorf("%s: (%s …) is spelled %s (theories.md §8.4)", path, w, spelled)

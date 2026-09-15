@@ -64,6 +64,44 @@ func TestASigSeparatesItsTwoKindsOfClaim(t *testing.T) {
 	}
 }
 
+// A CONSTANT IS THE SIG IT MEANS: E(const) = sig, checked as structural equality
+// of the loaded declarations, at the top level and inside a module.
+func TestAConstIsTheSigItMeans(t *testing.T) {
+	for _, wrap := range []func(string) string{
+		func(d string) string { return "(target x " + d + ")" },
+		func(d string) string { return "(target x (module m " + d + "))" },
+	} {
+		c, err := loadOne(t, wrap(`(const Max -7 (host "p.Max" (import "p")))`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := loadOne(t, wrap(`(sig Max () (int -7 -7) pure (host expr "p.Max" (import "p")))`))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for n, p := range s.Prims {
+			if q := c.Prims[n]; !reflect.DeepEqual(p, q) {
+				t.Errorf("%s: a const must load to the sig it elaborates to:\n const %+v\n sig   %+v", n, q, p)
+			}
+		}
+		if len(c.Prims) != len(s.Prims) {
+			t.Errorf("a const declared %d names where its sig declares %d", len(c.Prims), len(s.Prims))
+		}
+	}
+	refused := map[string]string{
+		`(const Pi 3.14 (host "math.Pi"))`: "not an integer literal",
+		`(const S "x" (host "p.S"))`:       "not an integer literal",
+		`(const N 4)`:                      "(const NAME INTEGER",
+		`(const N 4 (host expr "p.N"))`:    "has no kind",
+		`(const N 4 pure (host "p.N"))`:    "(const NAME INTEGER",
+	}
+	for decl, why := range refused {
+		if _, err := loadOne(t, "(target x "+decl+")"); err == nil || !strings.Contains(err.Error(), why) {
+			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
+		}
+	}
+}
+
 func TestReprAndFactAreRefusedOffTheirShapes(t *testing.T) {
 	refused := map[string]string{
 		`(repr big medium)`:                       "(repr big host) or (repr big limbs)",

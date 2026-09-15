@@ -559,6 +559,16 @@ It is the conditional cell of §2. The emitter writes `utf8.MaxRune`, and `(int 
 legal range endpoint because the definiens is available when the endpoint is evaluated. `term` must
 be a literal, since it is a compile-time value.
 
+**`term` is an integer literal.** A constant is a declaration whose definiens the compiler *uses*, and
+only an integer's is used: it proves arithmetic on the name. A float's may not be folded (ADR 0009) and
+nothing analyses a string or a bool, so their definiens would never be read; for them the zero-argument
+`(sig NAME () TYPE pure (host expr "…"))` already says everything true, and `const` refuses them naming
+that spelling. The attached `host` clause has no kind, because a constant is a value.
+
+> **Built in target layers, 2026-09-15** ([constdecl-2026-09-15](../../gauntlet/results/constdecl-2026-09-15.md)):
+> `const` elaborates to exactly that `sig` and is checked as a commuting square. **Not built**: `const` in
+> a program module, and a constant's name as a range endpoint.
+
 ### 8.4 From today's forms
 
 | today | here |

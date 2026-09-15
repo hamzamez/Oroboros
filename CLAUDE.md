@@ -2283,6 +2283,16 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**`const` IS BUILT IN TARGET LAYERS, AS THE SIG IT MEANS** —
+[constdecl-2026-09-15](gauntlet/results/constdecl-2026-09-15.md), `emit/target.go` `constSig`.
+`(const MaxRune 1114111 (host "utf8.MaxRune" …))` elaborates to `(sig MaxRune () (int v v) pure (host expr …))`,
+which stated `v` twice — a value written twice is two claims that can disagree. **Only an integer is a constant,
+by definition**: a definiens matters only if something reads it, and only an integer's is read (a float may not
+be folded, ADR 0009), so other types keep their zero-argument `sig`, and the Go generator follows the same line.
+Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `DeepEqual` before and after — and both
+the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
+module, and a constant's name as a range endpoint.
+
 **A VARIANT TYPE IS ITS QUALIFIED DECLARATION, AND PATTERNS RESOLVE LEXICALLY** —
 [qualvariant-2026-09-15](gauntlet/results/qualvariant-2026-09-15.md), `core/sum.go`, `core/reduce.go`.
 The interim refusal below is gone: **resolution must be injective on declarations that differ**, and a table

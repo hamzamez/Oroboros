@@ -1770,9 +1770,17 @@ func emit(dir string, syms []sym, raw []string) error {
 				if why != "" {
 					continue
 				}
-				fmt.Fprintf(modBuf("go/"+strings.ReplaceAll(p, "/", "-")),
-					"    (sig %s () %s pure (host expr \"%s.%s\" (import %q)))\n",
-					s.name, res, base, s.name, p)
+				// An integer is a CONSTANT, whose one written value is the exact
+				// range; anything else is a zero-argument sig, since its value is
+				// never read (emit.constSig says why).
+				buf := modBuf("go/" + strings.ReplaceAll(p, "/", "-"))
+				if exact, isInt := strings.CutPrefix(res, "(int "); isInt {
+					fmt.Fprintf(buf, "    (const %s %s (host \"%s.%s\" (import %q)))\n",
+						s.name, strings.Fields(exact)[0], base, s.name, p)
+				} else {
+					fmt.Fprintf(buf, "    (sig %s () %s pure (host expr \"%s.%s\" (import %q)))\n",
+						s.name, res, base, s.name, p)
+				}
 				n++
 				continue
 			}

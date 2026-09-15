@@ -1,0 +1,5 @@
+# The emission baseline is compared BYTE FOR BYTE (gauntlet/check/README.md), so git must
+# never convert its line endings on checkout: a Windows checkout would otherwise turn every
+# LF into CRLF and report every emitted file as changed.
+gauntlet/check/emitted/** -text
+gauntlet/check/outcomes.txt -text

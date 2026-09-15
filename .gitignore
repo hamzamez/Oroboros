@@ -49,3 +49,6 @@ gauntlet/java/*.class
 # hand-written assembly reference build outputs
 gauntlet/windows/*.obj
 gauntlet/windows/*.exe
+
+# The one-command check (cmd/check): this run's emission and logs
+/.check/

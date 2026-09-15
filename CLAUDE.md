@@ -4313,10 +4313,19 @@ surfaces core flaws while they are still cheap to fix.
 Module path is `oroboros` (local). Change it when the repository gets a home.
 
 ```bash
+go run ./cmd/check               # EVERY check, nothing excluded — gauntlet/check/README.md
+go run ./cmd/check -skip tooling # everything but the host surveys
 go test ./core/ ./emit/          # the compiler
 go test ./core/ -run TestBeta    # one test
 go vet ./...
 ```
+
+**Emission is byte-identical by default** (hamza, 2026-09-15). `cmd/check` compares every source × target's
+emitted code, outcome, proof counts and refusal text with the baseline committed in `gauntlet/check/`. A
+difference is a CHANGE for review, not a failure: **keep it when it is correct and no slower** — the suites
+pass and a benchmark covering the program does not regress — with `-accept "reason"`, which is refused
+unless the compiler and differential steps passed in the same run and logs the reason in
+`gauntlet/check/ACCEPTED.md`. Otherwise it is a regression and the code is fixed.
 
 ```bash
 go run ./cmd/build -target=portable-go -o hello examples/hello.oro   # a real binary

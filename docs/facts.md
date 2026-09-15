@@ -2,8 +2,10 @@
 
 > **Status, 2026-09-15: F1, F2 and F11's lower half are declarations**, `emit/lang-facts.oro`, instantiated
 > by one algorithm in `emit/fact.go`; `seedDivAxioms` is deleted
-> ([langfacts-2026-09-15](../gauntlet/results/langfacts-2026-09-15.md)). The interval-layer facts
-> (F5–F10, F12) are still Go.
+> ([langfacts-2026-09-15](../gauntlet/results/langfacts-2026-09-15.md)). **And F6, F7, F8 — the
+> remainder, three encodings of one law — are four facts** read by the interval layer through Theorem
+> T with case splitting ([remfacts-2026-09-15](../gauntlet/results/remfacts-2026-09-15.md)). Still Go:
+> F5, F9, F10, F12.
 
 Research, **decided 2026-09-15, nothing built**: hamza took **F-B**, and **kept F-C, F-D and F-E open**.
 They are specified as reserved fragments in [spec/theories.md](spec/theories.md) §7.6, recognised

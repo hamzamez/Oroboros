@@ -1,6 +1,7 @@
 package emit
 
 import (
+	"math/rand"
 	"strings"
 	"testing"
 )
@@ -8,8 +9,8 @@ import (
 // theories.md §7.4: each admission condition refuses by name, and `lang`'s own
 // facts are admitted.
 func TestFactAdmissionIsTheFBFragment(t *testing.T) {
-	if len(langFacts) != 2 {
-		t.Fatalf("lang's theory must load both facts, got %d", len(langFacts))
+	if len(langFacts) != 6 {
+		t.Fatalf("lang's theory must load all six facts, got %d", len(langFacts))
 	}
 	refused := map[string]string{
 		`(fact two ((x int) (y int)) (<= (% x 3) (% y 3)))`:           "F-C",
@@ -62,6 +63,104 @@ func TestDeletingDivFloorsUpperHalfFailsTheDecodeWitness(t *testing.T) {
 		t.Error("with div-floor's upper half deleted Decode's precondition was still proven, " +
 			"so nothing checks that half")
 	}
+}
+
+// remIHand is the transfer remI replaced, kept here as the bar the induced one
+// must meet: |a % b| <= min(|a|, |b| − 1), sign of the dividend.
+func remIHand(a, b ival) ival {
+	m, have := int64(-1), false
+	if a.bounded() {
+		m, have = maxAbs(a), true
+	}
+	if b.bounded() {
+		mb := maxAbs(b) - 1
+		if mb < 0 {
+			mb = 0
+		}
+		if !have || mb < m {
+			m, have = mb, true
+		}
+	}
+	if !have {
+		return top
+	}
+	switch {
+	case !a.loInf && a.lo >= 0:
+		return ival{lo: 0, hi: m}
+	case !a.hiInf && a.hi <= 0:
+		return ival{lo: -m, hi: 0}
+	}
+	return ival{lo: -m, hi: m}
+}
+
+func randomIval(r *rand.Rand) ival {
+	bounds := []int64{-1000000, -70000, -1000, -7, -1, 0, 1, 7, 1000, 70000, 1000000}
+	lo, hi := bounds[r.Intn(len(bounds))], bounds[r.Intn(len(bounds))]
+	if lo > hi {
+		lo, hi = hi, lo
+	}
+	v := ival{lo: lo, hi: hi}
+	switch r.Intn(8) {
+	case 0:
+		v.hiInf = true
+	case 1:
+		v.loInf = true
+	}
+	return v
+}
+
+// inside reports γ(a) ⊆ γ(b).
+func inside(a, b ival) bool {
+	return (b.loInf || (!a.loInf && a.lo >= b.lo)) && (b.hiInf || (!a.hiInf && a.hi <= b.hi))
+}
+
+// THE REFUTATION CONDITION OF theories.md §7.10, AS A TEST: an induced transfer
+// proving less than the hand-written one would mean Theorem T needs a second
+// encoding after all. It must be contained in the old remI everywhere — and on
+// the case that motivated case splitting it must be strictly tighter.
+func TestTheInducedRemainderIsNeverLessPrecise(t *testing.T) {
+	r := rand.New(rand.NewSource(11))
+	for i := 0; i < 50000; i++ {
+		a, b := randomIval(r), randomIval(r)
+		if got, bar := remI(a, b), remIHand(a, b); !inside(got, bar) {
+			t.Fatalf("induced remI(%s, %s) = %s is wider than the hand-written %s", a, b, got, bar)
+		}
+	}
+	if got := remI(ival{lo: -5, hi: 7}, exact(10)); got != (ival{lo: -5, hi: 7}) {
+		t.Errorf("[-5,7] %% 10 should be [-5,7] by case splitting on the dividend's sign, got %s", got)
+	}
+	if got := remI(top, ival{lo: -7, hi: 7}); got != (ival{lo: -6, hi: 6}) {
+		t.Errorf("a %% [-7,7] should be [-6,6]: the divisor spans both sign guards and 0 is undefined, got %s", got)
+	}
+}
+
+// THE EVIDENCE CAN FAIL: weaken rem-divisor-pos's upper bound by one, and random
+// containment finds a remainder outside the claim.
+func TestWeakeningARemainderFactFailsContainment(t *testing.T) {
+	src := strings.Replace(langFactsSrc, "(<= (% a b) (- b 1))", "(<= (% a b) (- b 2))", 1)
+	if src == langFactsSrc {
+		t.Fatal("the fact to weaken was not found in lang-facts.oro")
+	}
+	weak, err := readFacts(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := langFacts
+	langFacts = weak
+	defer func() { langFacts = saved }()
+	r := rand.New(rand.NewSource(7))
+	for i := 0; i < 20000; i++ {
+		A, B := randomIval(r), randomIval(r)
+		rv := remI(A, B)
+		for s := 0; s < 12; s++ {
+			a, ok1 := sample(r, A)
+			b, ok2 := sample(r, B)
+			if ok1 && ok2 && b != 0 && !holds(rv, a%b) {
+				return // found: the weakened fact is caught
+			}
+		}
+	}
+	t.Error("a remainder fact weakened by one was never contradicted, so nothing checks it")
 }
 
 // And len-nonneg is load-bearing: without it div-floor's guard 0 <= x is not

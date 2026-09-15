@@ -2678,12 +2678,13 @@ func storedRange(v *core.Term, typeOf func(*core.Term) string, self string) (int
 			// divisor bounds the result with no fact about the dividend at all.
 			// That is what makes a digit exact: nothing bounds `x / p` and
 			// `(%% (/ x p) 10)` is still in -9..9.
+			//
+			// F7, now read from the same facts as the interval layer's `%`: an
+			// exact range is Theorem T on a point interval, with the dividend ⊤.
 			if d := v.Kids[2]; d.Kind == core.KInt && d.Int != 0 && d.Int != math.MinInt64 {
-				m := d.Int
-				if m < 0 {
-					m = -m
+				if r := remI(top, exact(d.Int)); r.bounded() {
+					return r.lo, r.hi, true
 				}
-				return -(m - 1), m - 1, true
 			}
 		}
 	}

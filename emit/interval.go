@@ -192,49 +192,21 @@ func divI(a, b ival) ival {
 	return ival{lo: -(m / d), hi: m / d}
 }
 
-// remI is bounded by the divisor when the divisor is, and by the dividend
-// otherwise.
-func remI(a, b ival) ival {
-	// |a % b| <= min(|a|, |b| − 1), and the SIGN FOLLOWS THE DIVIDEND
-	// (integers.md §4, measured agreeing on all four hosts).
-	//
-	// Both halves of the minimum are needed and each is the only bound in some
-	// program. `7 % b` for an unbounded b is at most 7, which no fact about the
-	// divisor gives; `a % 16777216` for an unbounded a is under 2^24, which no
-	// fact about the dividend gives — and that second one is every carry split
-	// in a bignum.
-	//
-	// THE OLD FALLBACK RETURNED `divI(a, b)` FOR AN UNBOUNDED DIVISOR, which is
-	// the QUOTIENT's interval and has nothing to do with a remainder. It was
-	// sound only by accident: `divI` used to ignore the divisor and answer
-	// [0, a.hi], which happens to contain a % b. Making division contract turned
-	// that accident into `remI([1,7], [7,+inf)) = [0,1]` while `4 % 518733664200`
-	// is 4 — caught by the first run of the direct soundness test, which had
-	// never existed because the containment generator produced no division.
-	m, have := int64(-1), false
-	if a.bounded() {
-		m, have = maxAbs(a), true
-	}
-	if b.bounded() {
-		mb := maxAbs(b) - 1
-		if mb < 0 {
-			mb = 0
-		}
-		if !have || mb < m {
-			m, have = mb, true
-		}
-	}
-	if !have {
-		return top
-	}
-	switch {
-	case !a.loInf && a.lo >= 0:
-		return ival{lo: 0, hi: m}
-	case !a.hiInf && a.hi <= 0:
-		return ival{lo: -m, hi: 0}
-	}
-	return ival{lo: -m, hi: m}
-}
+// remI is the remainder's transfer, INDUCED from `lang`'s four remainder facts
+// (lang-facts.oro) by Theorem T with case splitting (fact.go, inducedTransfer).
+//
+// It was hand-written here as |a % b| <= min(|a|, |b| − 1) with the sign of the
+// dividend, and the same law was written twice more — `storedRange`'s literal
+// divisor (F7) and `big%-small`'s transfer (F8). All three now read one
+// declaration. Both halves of the minimum stay load-bearing, as two pairs of
+// clauses: `7 % b` for an unbounded b is at most 7, which only the dividend
+// gives; `a % 16777216` for an unbounded a is under 2^24, which only the
+// divisor gives — every carry split in a bignum.
+//
+// Never less precise than the hand-written version, and strictly tighter where a
+// bounded dividend spans zero: [−5, 7] % 10 is [−5, 7], where min(|a|, |b|−1)
+// said [−7, 7]. TestTheInducedRemainderIsNeverLessPrecise holds it to that.
+func remI(a, b ival) ival { return inducedTransfer(langFacts, "rem", []ival{a, b}, 1) }
 
 // maxAbs is the largest magnitude a BOUNDED interval contains, saturated so
 // that negating the most negative int64 cannot wrap.
@@ -1320,10 +1292,7 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 	// all four hosts and on `math/big`, and nothing here has proved the dividend
 	// non-negative. The symmetric bound is sound for either sign.
 	if name == "big%-small" && len(v) == 2 {
-		if k, ok := exactNonNeg(v[1]); ok && k > 0 {
-			return ival{lo: -(k - 1), hi: k - 1}, false
-		}
-		return top, false
+		return remI(v[0], v[1]), false // the same law as `%`, F8 (lang-facts.oro)
 	}
 	// A DECLARED RESULT RANGE. The target says what the host call gives back,
 	// and that is the only source there is: a primitive has no body, so nothing

@@ -2283,6 +2283,17 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**THE REMAINDER IS FOUR FACTS, AND THE INTERVAL LAYER INDUCES ITS TRANSFER** —
+[remfacts-2026-09-15](gauntlet/results/remfacts-2026-09-15.md). One law — `|a % b| < |b|`, sign of the dividend — was
+three Go encodings (`remI` F6, `storedRange` F7, `big%-small` F8); now four F-B facts on `(% a b)` read by all three.
+**Theorem T alone proves LESS than the Go** — a guard holding on part of a box drops its clause, so `a % [-7,7]` would be
+⊤ — and **the repair is exact**: cut each argument's interval at its guards' half-line thresholds, meet the facts per
+cell, join the cells; the divisor's `{0}` cell is undefined and contributes nothing. **Never less precise than the old
+`remI` on 50,000 random pairs, strictly tighter where a bounded dividend spans zero** (`[-5,7] % 10` = `[-5,7]`, not
+`[-7,7]`), and weakening a fact by one is caught. The precision test found two bugs first: scaling by a constant went
+through `mulI`, which gives up on an unbounded factor, and an all-undefined divisor returned ⊤ where ⊥ is exact.
+**Emission byte-identical, notes and proof counts identical**; +199 code lines. Still Go: F5, F9, F10, F12.
+
 **`lang`'S FACTS ARE DECLARATIONS, AND ONE ALGORITHM INSTANTIATES THEM** —
 [langfacts-2026-09-15](gauntlet/results/langfacts-2026-09-15.md), `emit/lang-facts.oro`, `emit/fact.go`,
 theories.md §7. `seedDivAxioms` — F1 and F2 written as Go — is deleted: `div-floor` (both halves of Euclidean

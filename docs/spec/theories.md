@@ -351,9 +351,13 @@ theories-b-or-c.md §7 names the trigger: a program that needs a view other than
 > `emit/fact.go` admits a fact by §7.4 and instantiates it on present terms to a fixpoint, with each
 > guard *entailed* (§7.5). `seedDivAxioms` is deleted. One reading of §7.3 is made precise: a
 > **constant parameter** — one in a literal-only position of the trigger, the divisor of `/` — is a
-> literal for admission, which is what makes `div-floor`'s own `(* k (/ x k))` linear. **Not built**: the
-> interval layer's induced transfers (F5–F10, F12, Theorem T), facts in target layers beyond `max-len`,
-> and §7.9's contracts as facts.
+> literal for admission, which is what makes `div-floor`'s own `(* k (/ x k))` linear. **Then the
+> interval layer, for the remainder** ([remfacts-2026-09-15](../../gauntlet/results/remfacts-2026-09-15.md)):
+> four facts on `(% a b)` replace F6, F7 and F8, and §7.5's induced transfer is built. **§7.5 is made
+> complete**: a guard holding on only part of a box would drop its clause, so each argument's interval
+> is cut at its guards' thresholds, each cell meets the facts whose guards hold there, and the cells are
+> joined; the divisor's cell `{0}` contributes nothing, `%` being undefined there. **Not built**: F5, F9,
+> F10, F12's induced transfers, facts in target layers beyond `max-len`, and §7.9's contracts as facts.
 
 **Decided 2026-09-15: F-B**, local boundedness facts, from [facts.md](../facts.md). **F-C, F-D and
 F-E are kept open**, by construction rather than by intention: each is a *reserved fragment* that

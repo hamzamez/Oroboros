@@ -21,3 +21,24 @@
   (when (<= 0 x) (<= 1 k))
   (and (<= (* k (/ x k)) x)
        (<= x (+ (* k (/ x k)) (- k 1)))))
+
+; F6, F7, F8 — THE REMAINDER, one law that was three encodings in Go. Truncating
+; division gives a = b·q + r with |r| < |b| and r taking a's sign (integers.md §4,
+; measured agreeing on all four hosts). Written as four clauses because |·| is
+; not linear: two bound r by the divisor, two by the dividend. The interval layer
+; splits an argument's interval at these guards and meets the clauses per cell.
+(fact rem-divisor-pos ((a int) (b int))
+  (when (<= 1 b))
+  (and (<= (- 1 b) (% a b)) (<= (% a b) (- b 1))))
+
+(fact rem-divisor-neg ((a int) (b int))
+  (when (<= b -1))
+  (and (<= (+ b 1) (% a b)) (<= (% a b) (- -1 b))))
+
+(fact rem-dividend-nonneg ((a int) (b int))
+  (when (<= 0 a))
+  (and (<= 0 (% a b)) (<= (% a b) a)))
+
+(fact rem-dividend-nonpos ((a int) (b int))
+  (when (<= a 0))
+  (and (<= a (% a b)) (<= (% a b) 0)))

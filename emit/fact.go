@@ -151,7 +151,10 @@ func admitFact(t *core.Term) (*Fact, error) {
 				"%s, so an instance is not determined by a term already present", f.Name, p, f.Trigger)
 		}
 	}
-	// Condition 4: linear once the trigger is an atom and constants are literals.
+	// Condition 4: linear once the trigger is READ AS AN ATOM — replaced by one —
+	// and constants are literals. Asking `asLinear` to recognise the trigger
+	// instead would accept `/` by a literal, which it happens to atomise, and
+	// refuse `%`, which it does not.
 	probe := map[string]*core.Term{}
 	for p := range f.Params {
 		if constant[p] {
@@ -159,7 +162,7 @@ func admitFact(t *core.Term) (*Fact, error) {
 		}
 	}
 	for _, g := range append([]*core.Term{f.Concl}, f.Guards...) {
-		if _, ok := obligation(core.Rename2(g, probe)); !ok {
+		if _, ok := obligation(core.Rename2(substTerm(g, f.Trigger, core.Name(atomName)), probe)); !ok {
 			return nil, fmt.Errorf("fact %s: condition 4 — %s is not linear once %s is an atom",
 				f.Name, g, f.Trigger)
 		}
@@ -302,6 +305,283 @@ func seedFacts(f *facts, t *core.Term, theory []*Fact) {
 			}
 		}
 	}
+}
+
+// atomName stands for a fact's trigger when its guards and conclusion are read
+// as linear forms. `#` is not an identifier character, so no program term can
+// name it.
+const atomName = "#T"
+
+// substTerm replaces every occurrence of a subterm, compared by printed form.
+func substTerm(x, from, to *core.Term) *core.Term {
+	if x.String() == from.String() {
+		return to
+	}
+	if x.Kind != core.KApp {
+		return x
+	}
+	out := *x
+	out.Kids = make([]*core.Term, len(x.Kids))
+	for i, k := range x.Kids {
+		out.Kids[i] = substTerm(k, from, to)
+	}
+	return &out
+}
+
+// inducedTransfer is THEOREM T (facts.md §3.3), MADE COMPLETE BY CASE SPLITTING:
+// the interval of `op(args)` induced by every fact whose trigger is `op`.
+//
+// Theorem T applies a fact only where its guard holds on ALL of γ(X̄), and a
+// guard like 1 ≤ b holds on none of [−7, 7] — so a meet of facts alone would be
+// ⊤ where the remainder is plainly under 7. The repair is exact rather than a
+// heuristic. Each single-variable guard c·x + k ≤ 0 is a half-line, so it CUTS
+// x's interval at one point; cutting every argument at every guard's point
+// partitions the box into cells on each of which every guard is decided. Then
+//
+//	⟦op⟧#(X̄)  =  ⊔_{cells C}  ⊓_{facts whose guards hold on C}  [lo s#(C), hi t#(C)]
+//
+// is sound — each meet is Theorem T on C, and the cells cover γ(X̄) — and it
+// never loses a clause to a guard that holds on part of the box.
+//
+// `divisor` names the argument on which op is UNDEFINED at 0 (lang's semantics
+// of division, integers.md §5, facts.md class S): its cell {0} contributes no
+// value. −1 for none.
+func inducedTransfer(theory []*Fact, op string, args []ival, divisor int) ival {
+	type clause struct {
+		pos    map[string]int
+		guards []*linear
+		bounds []*linear
+	}
+	var clauses []clause
+	cuts := make([]map[int64]bool, len(args))
+	for i := range cuts {
+		cuts[i] = map[int64]bool{}
+	}
+	if divisor >= 0 && divisor < len(args) {
+		cuts[divisor][-1], cuts[divisor][0] = true, true
+	}
+	for _, f := range theory {
+		tr := f.Trigger
+		if canonOp(tr) != op || len(tr.Args()) != len(args) {
+			continue
+		}
+		c := clause{pos: map[string]int{}}
+		ok := true
+		for i, a := range tr.Args() {
+			if a.Kind != core.KName || !f.Params[a.Name] {
+				ok = false
+				break
+			}
+			c.pos[a.Name] = i
+		}
+		for _, g := range f.Guards {
+			goals, gok := obligation(g)
+			ok = ok && gok
+			for _, l := range goals {
+				c.guards = append(c.guards, l)
+				if len(l.coef) != 1 {
+					continue
+				}
+				for name, k := range l.coef {
+					if p, in := c.pos[name]; in {
+						cuts[p][cutPoint(k, l.konst)] = true
+					}
+				}
+			}
+		}
+		bounds, bok := obligation(substTerm(f.Concl, tr, core.Name(atomName)))
+		if !ok || !bok {
+			continue
+		}
+		c.bounds = bounds
+		clauses = append(clauses, c)
+	}
+
+	cells := make([][]ival, len(args))
+	for i, a := range args {
+		cells[i] = splitAt(a, cuts[i])
+	}
+	result, any, defined := ival{}, false, false
+	cell := make([]ival, len(args))
+	var visit func(int)
+	visit = func(i int) {
+		if i < len(args) {
+			for _, c := range cells[i] {
+				cell[i] = c
+				visit(i + 1)
+			}
+			return
+		}
+		if divisor >= 0 && divisor < len(args) && cell[divisor] == exact(0) {
+			return // undefined: no value to contain
+		}
+		defined = true
+		v := top
+		for _, c := range clauses {
+			if !allHold(c.guards, cell, c.pos) {
+				continue
+			}
+			for _, b := range c.bounds {
+				v = tighten(v, b, cell, c.pos)
+			}
+		}
+		if v.isBottom() {
+			return
+		}
+		if !any {
+			result, any = v, true
+		} else {
+			result = joinIval(result, v)
+		}
+	}
+	visit(0)
+	switch {
+	case !defined:
+		// EVERY CELL IS UNDEFINED — the divisor is exactly 0 — so the application
+		// has no value, and the exact abstraction of the empty set is ⊥. It is
+		// unreachable in an emitted program, whose division by zero is refused.
+		return bottom
+	case !any:
+		return top
+	}
+	return result
+}
+
+// cutPoint is where the half-line c·x + k ≤ 0 begins or ends: the cell boundary
+// t such that the guard is decided on x ≤ t and on x ≥ t+1.
+func cutPoint(c, k int64) int64 {
+	if c > 0 { // x ≤ ⌊−k/c⌋
+		return floorDiv(-k, c)
+	}
+	return ceilDiv(k, -c) - 1 // x ≥ ⌈k/|c|⌉
+}
+
+func floorDiv(a, b int64) int64 {
+	q := a / b
+	if (a%b != 0) && ((a < 0) != (b < 0)) {
+		q--
+	}
+	return q
+}
+
+func ceilDiv(a, b int64) int64 { return -floorDiv(-a, b) }
+
+// splitAt partitions an interval at every cut strictly inside it.
+func splitAt(v ival, cuts map[int64]bool) []ival {
+	if v.isBottom() {
+		return nil
+	}
+	ts := make([]int64, 0, len(cuts))
+	for t := range cuts {
+		ts = append(ts, t)
+	}
+	for i := 1; i < len(ts); i++ {
+		for j := i; j > 0 && ts[j] < ts[j-1]; j-- {
+			ts[j], ts[j-1] = ts[j-1], ts[j]
+		}
+	}
+	var out []ival
+	cur := v
+	for _, t := range ts {
+		above := cur.loInf || t >= cur.lo
+		below := cur.hiInf || t < cur.hi
+		if !above || !below {
+			continue
+		}
+		out = append(out, ival{lo: cur.lo, loInf: cur.loInf, hi: t})
+		cur = ival{lo: t + 1, hi: cur.hi, hiInf: cur.hiInf}
+	}
+	return append(out, cur)
+}
+
+// evalLinear is interval evaluation of a linear form over a cell (Moore).
+func evalLinear(l *linear, cell []ival, pos map[string]int) (ival, bool) {
+	out := exact(l.konst)
+	for name, c := range l.coef {
+		p, in := pos[name]
+		if !in {
+			return top, false
+		}
+		out = addI(out, scaleI(c, cell[p]))
+	}
+	return out, true
+}
+
+// scaleI is c·X for a CONSTANT c. Not mulI: interval multiplication gives up on
+// an unbounded factor, which is right for two unknowns and wrong for a constant,
+// where x ↦ c·x is monotone and maps a half-line to a half-line. A guard like
+// a ≤ 0 on (−∞, −1] is exactly that shape, and evaluating it as ⊤ dropped the
+// dividend's sign clause from every cell with an unbounded dividend.
+func scaleI(c int64, x ival) ival {
+	if c == 0 {
+		return exact(0)
+	}
+	end := func(v int64, inf bool) (int64, bool) {
+		if inf {
+			return 0, true
+		}
+		p, ok := clamp(c * v)
+		if !ok || p/c != v {
+			return 0, true // saturates to an infinity, which is sound
+		}
+		return p, false
+	}
+	lo, loInf := end(x.lo, x.loInf)
+	hi, hiInf := end(x.hi, x.hiInf)
+	if c < 0 {
+		lo, hi, loInf, hiInf = hi, lo, hiInf, loInf
+	}
+	return ival{lo: lo, hi: hi, loInf: loInf, hiInf: hiInf}
+}
+
+// allHold decides each guard l ≤ 0 on every point of the cell.
+func allHold(guards []*linear, cell []ival, pos map[string]int) bool {
+	for _, g := range guards {
+		v, ok := evalLinear(g, cell, pos)
+		if !ok || v.hiInf || v.hi > 0 {
+			return false
+		}
+	}
+	return true
+}
+
+// tighten meets v with the bound c·T + rest ≤ 0 on the trigger T.
+func tighten(v ival, b *linear, cell []ival, pos map[string]int) ival {
+	c := b.coef[atomName]
+	if c == 0 {
+		return v
+	}
+	rest := b.clone()
+	delete(rest.coef, atomName)
+	r, ok := evalLinear(rest, cell, pos)
+	if !ok {
+		return v
+	}
+	if c > 0 { // T ≤ −rest / c
+		if !r.loInf {
+			if hi := floorDiv(-r.lo, c); v.hiInf || hi < v.hi {
+				v.hi, v.hiInf = hi, false
+			}
+		}
+		return v
+	}
+	if !r.loInf { // T ≥ rest / |c|
+		if lo := ceilDiv(r.lo, -c); v.loInf || lo > v.lo {
+			v.lo, v.loInf = lo, false
+		}
+	}
+	return v
+}
+
+func joinIval(a, b ival) ival {
+	out := a
+	if b.loInf || (!out.loInf && b.lo < out.lo) {
+		out.lo, out.loInf = b.lo, b.loInf
+	}
+	if b.hiInf || (!out.hiInf && b.hi > out.hi) {
+		out.hi, out.hiInf = b.hi, b.hiInf
+	}
+	return out
 }
 
 // instanceHolds reports whether every guard of σ(fact) is ENTAILED.

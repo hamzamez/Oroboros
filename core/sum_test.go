@@ -79,9 +79,9 @@ func TestSumRefusesDuplicateVariant(t *testing.T) {
 // A constructor names ONE sum. Sums are nominal — `(ok 3)` does not determine
 // its type — which is why every language without runtime types went nominal here.
 func TestVariantMayNotBelongToTwoSums(t *testing.T) {
-	// In one module the constructor-definition collision fires first, and it
-	// says more: the two sums cannot both define `ok`. Across modules there is
-	// no shared definition namespace, so the byVariant check is what catches it.
+	// In one module the two sums cannot both define `ok`. Across modules there
+	// is no collision to refuse: `a.ok` and `b.ok` are two constructors of two
+	// types (sumclash_test.go).
 	mustLoadFail(t, `(variant a (ok int) (no int)) (variant b (ok int) (yes int))`,
 		"sum b declares a variant of that name")
 }
@@ -110,7 +110,7 @@ func TestCaseRefusesUnknownVariant(t *testing.T) {
 	mustLoadFail(t, `
 		(variant result (ok int) (err int))
 		(def f (fn (r) (case r (ok v) v (nope e) e)))`,
-		"not a variant of any sum")
+		"not a constructor of any variant type")
 }
 
 func TestCaseRefusesMixingSums(t *testing.T) {
@@ -118,7 +118,7 @@ func TestCaseRefusesMixingSums(t *testing.T) {
 		(variant a (ok int) (no int))
 		(variant b (yes int) (nah int))
 		(def f (fn (r) (case r (ok v) v (yes e) e)))`,
-		"one case eliminates one sum")
+		"one case eliminates one variant type")
 }
 
 func TestCaseRefusesRepeatedVariant(t *testing.T) {

@@ -286,53 +286,22 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 		}
 	}
 
-	// `case` expands here, before name resolution, and with EVERY module's sums
-	// in scope. That is the reason it is not reader sugar like `match`: the
-	// reader sees one file, and an error type is declared in another.
+	// `case` expands here, before name resolution, and with EVERY module in
+	// scope. That is the reason it is not reader sugar like `match`: the reader
+	// sees one file, and an error type is declared in another. Its patterns are
+	// resolved in the module that wrote them (sumRef).
+	byPath := map[string]*Module{}
 	sums := map[string]*Sum{}
-	sumOwner := map[string]string{}
-	byVariant := map[string]*Sum{}
 	for _, m := range mods {
+		byPath[m.Path] = m
 		for _, sum := range m.Sums {
-			// TWO DIFFERENT SUMS WITH ONE NAME are refused, because this table is
-			// keyed by the bare name and the later one used to OVERWRITE the
-			// earlier — so a signature returning `result` took its payload from
-			// whichever module loaded last (core/sumclash_test.go). Identical
-			// declarations are fine, and every module's injected `option` is one.
-			// The real fix is a type name resolved like any other name
-			// (spec/theories.md §3.4), after which `a/result` and `b/result` are
-			// simply different types.
-			if prev, dup := sums[sum.Name]; dup {
-				if !sameSum(prev, sum) {
-					first, second := sumOwner[sum.Name], modLabel(m.Path)
-					if second < first {
-						first, second = second, first
-					}
-					return nil, nil, fmt.Errorf("%s is declared as two different sums, in %s and "+
-						"in %s. A sum's name is one namespace until type names are qualified "+
-						"(spec/data.md §5.5), so which one a signature meant would depend on "+
-						"load order — rename one of them", sum.Name, first, second)
-				}
-				continue
-			}
-			sums[sum.Name] = sum
-			sumOwner[sum.Name] = modLabel(m.Path)
-			for _, v := range sum.Variants {
-				// The comparison is by NAME, not by pointer. Every module gets
-				// its own copy of the language's injected `option` (newModule),
-				// so pointer inequality would report `option` as clashing with
-				// itself in a two-module program.
-				if other, dup := byVariant[v.Name]; dup && other.Name != sum.Name {
-					return nil, nil, fmt.Errorf("%s is a variant of both %s and %s; a "+
-						"constructor names one sum", v.Name, other.Name, sum.Name)
-				}
-				byVariant[v.Name] = sum
-			}
+			sums[sumKey(m.Path, sum)] = sum
 		}
 	}
 	for _, m := range mods {
+		look := func(sp string) (ctorRef, error) { return m.constructor(sp, byPath, mods) }
 		for n, body := range m.Defs {
-			x, err := expandCase(body, sums, byVariant)
+			x, err := expandCase(body, look)
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
 			}
@@ -347,7 +316,9 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	// finding; every real program puts its code in a `def`, which is why it was
 	// never seen.
 	for i := range entries {
-		x, err := expandCase(entries[i].term, sums, byVariant)
+		m := entries[i].mod
+		look := func(sp string) (ctorRef, error) { return m.constructor(sp, byPath, mods) }
+		x, err := expandCase(entries[i].term, look)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
 		}
@@ -361,16 +332,19 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	// on any target, and Go's own `(T, error)` idiom IS this shape.
 	for _, m := range mods {
 		for n, sig := range m.Sigs {
-			sum, ok := sums[sig.Result]
-			if !ok || len(sig.Results) > 0 {
+			if len(sig.Results) > 0 {
 				continue
 			}
-			payload, uniform := sum.uniformPayload()
+			ref, ok := m.sumType(sig.Result, byPath)
+			if !ok {
+				continue
+			}
+			payload, uniform := ref.sum.uniformPayload()
 			if !uniform {
 				return nil, nil, fmt.Errorf("%s returns %s, whose variants carry different "+
 					"payload types. A sum CROSSING A BOUNDARY is transmitted as its tag and "+
 					"its payload, so the payload needs one type; inside a program a mixed sum "+
-					"is fine, because reduction removes it", qualify(m.Path, n), sum.Name)
+					"is fine, because reduction removes it", qualify(m.Path, n), ref.key)
 			}
 			sig.Result = ""
 			sig.Results = []string{"int", payload}
@@ -634,10 +608,84 @@ func (m *Module) resolve(t *Term, bound map[string]bool, mods []*Module) (*Term,
 	return &Term{Kind: KApp, Kids: kids}, nil
 }
 
+// constructor is ρ_m on a constructor's spelling — the rule `resolve` applies to
+// every other name, applied to a `case` pattern (sumRef). `c` is looked up in
+// m's own declarations, `alias.c` in the module the alias imports, and nothing
+// else is in scope: a constructor another module declares is reachable only
+// through a `use`, exactly as a function it defines is.
+func (m *Module) constructor(sp string, byPath map[string]*Module, mods []*Module) (ctorRef, error) {
+	owner, local, err := m.scope(sp, byPath)
+	if err == nil && owner != m {
+		err = checkExported(mods, owner.Path, local)
+	}
+	if err != nil {
+		return ctorRef{}, err
+	}
+	for _, s := range owner.Sums {
+		if s.has(local) {
+			return ctorRef{ref: sumRef{key: sumKey(owner.Path, s), sum: s},
+				local: local, tag: sp + "#tag"}, nil
+		}
+	}
+	if owner == m {
+		for _, other := range mods {
+			for _, s := range other.Sums {
+				if other != m && s.Name != optionName && s.has(sp) {
+					return ctorRef{}, fmt.Errorf("case: %s is not a constructor in %s; it is "+
+						"declared by %s in %s — import that module and write the pattern "+
+						"through its alias, as for any name it defines",
+						sp, modLabel(m.Path), sumKey(other.Path, s), modLabel(other.Path))
+				}
+			}
+		}
+	}
+	return ctorRef{}, fmt.Errorf("case: %s is not a constructor of any variant type in scope. "+
+		"A variant type is declared with (variant NAME (constructor type) …)", sp)
+}
+
+// sumType is ρ_m on a type spelling that may name a variant type: `result` in
+// m's own declarations, `alias.result` through a `use`.
+func (m *Module) sumType(sp string, byPath map[string]*Module) (sumRef, bool) {
+	owner, local, err := m.scope(sp, byPath)
+	if err != nil {
+		return sumRef{}, false
+	}
+	s, ok := owner.Sums[local]
+	if !ok {
+		return sumRef{}, false
+	}
+	return sumRef{key: sumKey(owner.Path, s), sum: s}, true
+}
+
+// scope is the half of ρ_m every namespace shares: a spelling names a member of
+// m itself, or `alias.x` a member of the module the alias imports.
+func (m *Module) scope(sp string, byPath map[string]*Module) (*Module, string, error) {
+	i := strings.Index(sp, ".")
+	if i < 0 {
+		return m, sp, nil
+	}
+	alias, local := sp[:i], sp[i+1:]
+	path, ok := m.Uses[alias]
+	if !ok {
+		return nil, "", fmt.Errorf("%s is not imported: add (use %s) or (use PATH as %s)",
+			alias, alias, alias)
+	}
+	if byPath[path] == nil {
+		return nil, "", fmt.Errorf("%s names module %s, which has no source, so it declares "+
+			"no variant types", sp, path)
+	}
+	return byPath[path], local, nil
+}
+
 // checkExported enforces the export list of a module we can see. A module we
 // cannot see is one the TARGET provides, and its surface is the target file's
 // business rather than ours.
+//
+// A constructor's tag, `c#tag`, is exported exactly when `c` is: `#` is not an
+// identifier character, so no program can write the tag, and it exists only as
+// what `case` expands a pattern into.
 func checkExported(mods []*Module, path, name string) error {
+	name = strings.TrimSuffix(name, "#tag")
 	for _, m := range mods {
 		if m.Path != path {
 			continue

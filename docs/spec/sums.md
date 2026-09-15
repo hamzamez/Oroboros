@@ -7,12 +7,13 @@
 > textbook pair of `record`; read `variant` wherever this document writes `(sum …)`. Several payloads
 > and type parameters are specified there and not built. Everything below about meaning, reduction and representation is unchanged.
 >
-> **A bug in this document's implementation, found 2026-09-15 and fixed in the interim —
+> **A bug in this document's implementation, found and fixed 2026-09-15 —
 > [data.md §5.5.2](data.md).** Sums were kept in one table keyed by the bare name, so two modules each
 > declaring `result` with different payloads loaded, and a signature returning `result` took its
 > payload from whichever module loaded last. On Go it was `(int, string)` in one order and `(int, int)`
-> in the other, accepted by our checker both times. Two *different* sums with one name are now
-> refused, naming both modules (`core/sumclash_test.go`). The real fix is qualified type names.
+> in the other, accepted by our checker both times. A variant type is now keyed by its qualified
+> declaration, and a `case` pattern resolves in the module that wrote it, so a constructor from
+> another module is written `a.ok` (`core/sumclash_test.go`).
 
 The research is [sums-research.md](../sums-research.md) and the algebra is
 [type-algebra.md](../type-algebra.md); this is what got built and what building it changed.
@@ -198,7 +199,7 @@ is reported as dead code.
 | **recursive sums** | a JSON node is a *non-recursive* sum plus indices into a table, which measured **2.02× faster** on irregular access ([indexgraph](../../gauntlet/results/indexgraph-2026-08-21.md)). μ buys nothing and costs the size-change termination argument |
 | **untagged unions** | `float \| int` is idempotent, is not a coproduct, needs a runtime type test three of four hosts lack, and needs subtyping |
 | **one-variant sums** | that is just the payload |
-| **a variant in two sums** | a constructor names one sum; sums are nominal |
+| **a variant in two sums of one module** | a constructor names one sum; sums are nominal. In two modules they are two constructors, `a.ok` and `b.ok` |
 | **mixed payloads at a boundary** | the payload gets one slot (§6) |
 
 ## 9. Still open

@@ -424,11 +424,22 @@ JavaScript emitted the first without complaint, since it declares no types. Insi
 confusion is invisible, because reduction erases a payload's type; that is why no program in the
 corpus ever showed it.
 
-**Built now, as the interim rule:** two *different* sums with one name are refused, naming both
-modules. Identical declarations still load, which every module's injected `option` copy requires.
-Witness: `core/sumclash_test.go`, failing against HEAD in both load orders, with a control that must
-load. **The rule is removed when type names are resolved** (§5.5.1), after which the two `result`s are
-simply different types.
+**Built 2026-09-15, replacing the interim rule**
+([qualvariant-2026-09-15](../../gauntlet/results/qualvariant-2026-09-15.md)). A variant type is keyed
+by its qualified declaration name, so the two `result`s are two types and both load in either order.
+The fix is one law: resolution must be **injective on declarations that differ**, and the bare-name
+key was resolution composed with forgetting the module. Measuring what else that table did found that
+`case` patterns were the one kind of name that ignored scope:
+
+| written in module `b` | before | now |
+|---|---|---|
+| `ok`, declared by the root module, not imported | captured: the tag resolved by δ to the root's definition | refused, naming the declaration and its module |
+| `ok`, declared by `a`, imported as `a` | accepted, residual `(if (= 0 ok#tag) n 0)` with the tag free | refused: *"write the pattern through its alias"* |
+| `a.ok` | refused as *"not a variant of any sum"* | resolved; a static case reduces to nothing |
+
+A pattern now resolves by `Module.resolve`'s own rule, and the tag `c#tag` is exported exactly when
+`c` is. **Not yet built from §5.5.1**: `option` is still a copy per module, identified by key rather
+than removed; a module's own declaration shadowing `lang`'s; and type arguments.
 
 #### 5.5.3 Type arguments are never inferred
 

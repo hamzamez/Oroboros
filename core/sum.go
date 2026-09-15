@@ -34,13 +34,13 @@ import (
 // exhaustiveness buys: the clauses cover the declared variants, so once the
 // others are excluded the last one is the only thing left. `checkCase` is what
 // earns it, and an `else` clause is how a deliberately partial match says so.
-func expandCase(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, error) {
+func expandCase(t *Term, look ctorLookup) (*Term, error) {
 	if t == nil {
 		return t, nil
 	}
 	if t.Kind == KApp && len(t.Kids) > 0 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "case" {
-		return caseForm(t, sums, byVariant)
+		return caseForm(t, look)
 	}
 	if len(t.Kids) == 0 {
 		return t, nil
@@ -48,7 +48,7 @@ func expandCase(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term
 	out := *t
 	out.Kids = make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := expandCase(k, sums, byVariant)
+		x, err := expandCase(k, look)
 		if err != nil {
 			return nil, err
 		}
@@ -57,11 +57,57 @@ func expandCase(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term
 	return &out, nil
 }
 
-func caseForm(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, error) {
+// A VARIANT TYPE IS ITS DECLARATION, NOT ITS SPELLING (spec/data.md §5.5.1).
+//
+// Resolution is a renaming ρ from what a module can write to the declarations
+// it means, and the one law it must obey is INJECTIVITY on declarations that
+// differ: two `result`s in modules a and b are two types because ρ sends them to
+// `a.result` and `b.result`. The old table was keyed by the spelling, which is ρ
+// composed with forgetting the module — not injective — so the later declaration
+// overwrote the earlier.
+//
+// A `case` pattern is a constructor, and a constructor is a NAME, so it resolves
+// by exactly the rule every other name in the module does (`Module.resolve`):
+// unqualified in the module's own declarations, `alias.c` through a `use`. A
+// global table had made patterns the one kind of name that ignored scope, with
+// three measured consequences — a root module's variant captured by a module
+// that never imported it, an imported one written unqualified accepted with its
+// tag left free, and the qualified spelling refused.
+type sumRef struct {
+	key string // the declaration's qualified name; the language's `option` is "option"
+	sum *Sum
+}
+
+// ctorRef is a constructor after resolution: the variant type it belongs to,
+// its local name in that declaration, and the spelling of its tag in the
+// module that wrote the pattern — which `Module.resolve` then qualifies exactly
+// as it qualifies the constructor itself.
+type ctorRef struct {
+	ref   sumRef
+	local string
+	tag   string
+}
+
+type ctorLookup func(spelling string) (ctorRef, error)
+
+// sumKey is ρ on a declaration. `option` is ONE declaration, the language's
+// (data.md §5.5.1): every module holds a copy only so that `some` and `none`
+// resolve wherever the compiler produces a map read, and a program may not
+// declare its own, so identifying the copies loses nothing.
+func sumKey(path string, s *Sum) string {
+	if s.Name == optionName {
+		return optionName
+	}
+	return qualify(path, s.Name)
+}
+
+const optionName = "option"
+
+func caseForm(t *Term, look ctorLookup) (*Term, error) {
 	if len(t.Kids) < 4 {
 		return nil, fmt.Errorf("case takes a scrutinee and at least two clauses: %s", t)
 	}
-	scrut, err := expandCase(t.Kids[1], sums, byVariant)
+	scrut, err := expandCase(t.Kids[1], look)
 	if err != nil {
 		return nil, err
 	}
@@ -72,16 +118,17 @@ func caseForm(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, 
 	}
 
 	type clause struct {
-		variant string // "" for else
+		variant string // the pattern's spelling; "" for else
 		bind    string // "" when the variant carries nothing, or it is else
+		tag     string // the tag's spelling in this module
 		body    *Term
 	}
 	var cls []clause
-	var sum *Sum
+	var on *sumRef
 	seen := map[string]bool{}
 	for i := 0; i < len(rest); i += 2 {
 		pat, raw := rest[i], rest[i+1]
-		body, err := expandCase(raw, sums, byVariant)
+		body, err := expandCase(raw, look)
 		if err != nil {
 			return nil, err
 		}
@@ -99,41 +146,39 @@ func caseForm(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, 
 			pat.Kids[0].Kind == KName && pat.Kids[1].Kind == KName:
 			c = clause{variant: pat.Kids[0].Name, bind: pat.Kids[1].Name, body: body}
 		default:
-			return nil, fmt.Errorf("case: a clause pattern is a variant name, a variant "+
+			return nil, fmt.Errorf("case: a clause pattern is a constructor, a constructor "+
 				"and one binding — `(ok v)` — or `else`; got %s", pat)
 		}
 		if c.variant != "" {
-			owner, ok := byVariant[c.variant]
-			if !ok {
-				return nil, fmt.Errorf("case: %s is not a variant of any sum in scope. "+
-					"A sum is declared with `(sum name (variant type) …)`", c.variant)
+			ctor, err := look(c.variant)
+			if err != nil {
+				return nil, err
 			}
-			// By NAME, not by pointer. The language's `option` is injected into
-			// every module (newModule), so each module holds its own copy and
-			// a pointer comparison would report `option` as clashing with
-			// itself. Same shape as the check in `partition`, and latent here
-			// for the same reason: it only bites once one sum has two copies.
-			if sum != nil && owner.Name != sum.Name {
-				return nil, fmt.Errorf("case: %s is a variant of %s, but this case is "+
-					"on %s — one case eliminates one sum", c.variant, owner.Name, sum.Name)
+			// By IDENTITY of the declaration, which is its key — not by pointer,
+			// since every module holds its own copy of `option`, and not by
+			// spelling, which is the non-injective map this replaced.
+			if on != nil && ctor.ref.key != on.key {
+				return nil, fmt.Errorf("case: %s is a constructor of %s, but this case is "+
+					"on %s — one case eliminates one variant type", c.variant, ctor.ref.key, on.key)
 			}
-			sum = owner
-			if seen[c.variant] {
+			on = &ctor.ref
+			if seen[ctor.local] {
 				return nil, fmt.Errorf("case: %s is matched twice", c.variant)
 			}
-			seen[c.variant] = true
-			if c.bind != "" && owner.payloadOf(c.variant) == "" {
+			seen[ctor.local] = true
+			if c.bind != "" && ctor.ref.sum.payloadOf(ctor.local) == "" {
 				return nil, fmt.Errorf("case: %s carries no payload, so `(%s %s)` has "+
 					"nothing to bind — write `%s`", c.variant, c.variant, c.bind, c.variant)
 			}
+			c.tag = ctor.tag
 		}
 		cls = append(cls, c)
 	}
-	if sum == nil {
-		return nil, fmt.Errorf("case: no clause names a variant, so there is nothing to " +
+	if on == nil {
+		return nil, fmt.Errorf("case: no clause names a constructor, so there is nothing to " +
 			"eliminate — use `if` or `match`")
 	}
-	if err := checkCase(sum, seen, cls[len(cls)-1].variant == ""); err != nil {
+	if err := checkCase(on.sum, seen, cls[len(cls)-1].variant == ""); err != nil {
 		return nil, err
 	}
 
@@ -143,7 +188,7 @@ func caseForm(t *Term, sums map[string]*Sum, byVariant map[string]*Sum) (*Term, 
 	for i := len(cls) - 2; i >= 0; i-- {
 		c := cls[i]
 		test := &Term{Kind: KApp, Kids: []*Term{
-			Name("="), Name("#t"), Name(c.variant + "#tag")}}
+			Name("="), Name("#t"), Name(c.tag)}}
 		body = &Term{Kind: KApp, Kids: []*Term{
 			Name("if"), test, renameFree(c.body, bindOf(c.bind)), body}}
 	}
@@ -157,19 +202,13 @@ func bindOf(name string) map[string]string {
 	return map[string]string{name: "#p"}
 }
 
-// sameSum reports whether two declarations are the same sum: the same name and
-// the same variants, in order, with the same payloads. Order matters because a
-// variant's position IS its tag.
-func sameSum(a, b *Sum) bool {
-	if a.Name != b.Name || len(a.Variants) != len(b.Variants) {
-		return false
-	}
-	for i := range a.Variants {
-		if a.Variants[i] != b.Variants[i] {
-			return false
+func (s *Sum) has(variant string) bool {
+	for _, v := range s.Variants {
+		if v.Name == variant {
+			return true
 		}
 	}
-	return true
+	return false
 }
 
 func (s *Sum) payloadOf(variant string) string {

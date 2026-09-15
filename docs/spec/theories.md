@@ -585,9 +585,11 @@ be a literal, since it is a compile-time value.
 > commuting square before the old forms were deleted: loading every file before and after gave the
 > identical target ([loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md)). Then data.md
 > §10's respelling: `variant`, and `tuple` for products and several results
-> ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md)). Not yet: types, companions and
-> `const` in modules (`core.Module`), §7 facts beyond `max-len`, and §10.3's refusal tests beyond the
-> target forms.
+> ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md)). Then §3.4 for variant types:
+> a variant type is keyed by its qualified declaration and a `case` pattern resolves lexically
+> ([qualvariant-2026-09-15](../../gauntlet/results/qualvariant-2026-09-15.md)). Not yet: `type`,
+> companions and `const` in modules (`core.Module`), §7 facts beyond `max-len`, and §10.3's refusal
+> tests beyond the target forms.
 
 The first build of this specification is an **elaborating loader**: the new forms are read and
 turned into today's `emit.Target`, `emit.Prim` and `core.Module` structures, and nothing downstream

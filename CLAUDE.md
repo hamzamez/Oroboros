@@ -2283,6 +2283,17 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**A VARIANT TYPE IS ITS QUALIFIED DECLARATION, AND PATTERNS RESOLVE LEXICALLY** —
+[qualvariant-2026-09-15](gauntlet/results/qualvariant-2026-09-15.md), `core/sum.go`, `core/reduce.go`.
+The interim refusal below is gone: **resolution must be injective on declarations that differ**, and a table
+keyed by the bare name was resolution composed with forgetting the module. Keyed by `a.result`, two modules'
+`result`s are two types and load in either order, the witness failing against a planted global lookup.
+**Measuring what else the table did found patterns were the one kind of name that ignored scope**: a root
+module's `ok` was CAPTURED by a module that never imported it (its tag resolved by δ to the root's
+definition), an imported `ok` written unqualified was accepted with its tag left FREE, and `a.ok`, the
+spelling that means what it says, was refused. A pattern now resolves by `Module.resolve`'s own rule and a
+tag is exported with its constructor. Not yet: `option` as one `lang` declaration, shadowing, type arguments.
+
 **A VARIANT'S TYPE PARAMETERS ACROSS MODULES ARE SPECIFIED, AND ASKING FOUND A LOAD-ORDER BUG** —
 [spec/data.md §5.5](docs/spec/data.md), `core/sumclash_test.go`. **The bug, measured**: `Load` kept sums in ONE
 table keyed by the BARE name and checked only that no constructor belonged to two differently-named sums, so two

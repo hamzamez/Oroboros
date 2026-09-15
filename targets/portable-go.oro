@@ -165,8 +165,8 @@
     (sig append-int (slice-int int) slice-int (host expr "append(%s, %s)"))
 
     ; make. One per element type, because the type is part of the syntax.
-    (sig make-int (int) slice-int (length 0) (host expr "make([]int64, %s)"))
-    (sig make-bool (int) slice-bool (length 0) (host expr "make([]bool, %s)"))
+    (sig make-int ((n int)) slice-int (ensures (= (len result) n)) (host expr "make([]int64, %s)"))
+    (sig make-bool ((n int)) slice-bool (ensures (= (len result) n)) (host expr "make([]bool, %s)"))
     (sig make-map  () map-str-int (host expr "make(map[string]int64)"))
 
     ; Indexed read and write. The write is a `stmt` whose value is argument 0,

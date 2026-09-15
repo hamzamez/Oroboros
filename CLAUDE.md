@@ -2283,6 +2283,16 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**A LENGTH IS A POSTCONDITION: `(length N)` AND `(length-of N)` ARE RESPELLED AS `ensures`** —
+[lengthensures-2026-09-15](gauntlet/results/lengthensures-2026-09-15.md), theories.md §8.4. A count is
+`len(f(x̄)) = x_N` and a pass-through `len(f(x̄)) = len(x_N)`: two equations with one extension term, which were two
+positional attributes beside the clause that already states guarantees. Now `(ensures (= (len result) n))` and
+`(ensures (= (len result) (len c)))`, the old spellings refused naming the new, `Prim.Length`/`LengthOf` deleted, and
+the compiler's own `build`/`alloc`/`set` state theirs as terms. **The fields change, so the square is taken on what
+the compiler reads**: `lengthContract`, the respelling's inverse, gives 40 contracts — HEAD's 25 target declarations
+with the same kind and argument position, plus the structural three on five targets — and no primitive gains one.
+**Emission, notes and proof counts identical**; +45 code lines.
+
 **A PURE CALL'S CONTRACT IS A FACT: THE LINEAR FRAGMENT HAS A SIGNATURE OF ATOMS** —
 [purecontract-2026-09-15](gauntlet/results/purecontract-2026-09-15.md), theories.md §7.9–§7.10 item 3. A pure call has
 no binder, so its `ensures` was an OPAQUE STRING discharging only an identical obligation — `0 ≤ size(v)` could not

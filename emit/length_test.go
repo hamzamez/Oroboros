@@ -100,13 +100,14 @@ func TestAMapStoreClaimsNoLength(t *testing.T) {
 	tg := goNative(t)
 	if p, ok := tg.Prims["go.set-map"]; !ok {
 		t.Fatal("go target must declare set-map")
-	} else if p.Length != 0 || p.LengthOf != 0 {
+	} else if _, _, declared := lengthContract(p); declared {
 		t.Errorf("set-map must claim no length: a map insert can add a key")
 	}
 	if p, ok := tg.Prims["go.set-bool"]; !ok {
 		t.Fatal("go target must declare set-bool")
-	} else if p.LengthOf != 1 {
-		t.Errorf("set-bool must pass its container's length through, got %d", p.LengthOf)
+	} else if count, at, declared := lengthContract(p); !declared || count || at != 0 {
+		t.Errorf("set-bool must pass its container's length through: count=%v at=%d declared=%v",
+			count, at, declared)
 	}
 }
 
@@ -121,13 +122,14 @@ func TestAJavaScriptArrayStoreClaimsNoLength(t *testing.T) {
 	}
 	if p, ok := tg.Prims["js.set"]; !ok {
 		t.Fatal("js target must declare set")
-	} else if p.Length != 0 || p.LengthOf != 0 {
+	} else if _, _, declared := lengthContract(p); declared {
 		t.Errorf("js.set must claim no length: a store past the end extends the array")
 	}
 	if p, ok := tg.Prims["js.Array"]; !ok {
 		t.Fatal("js target must declare Array")
-	} else if p.Length != 1 {
-		t.Errorf("new Array(n) must claim length from its count, got %d", p.Length)
+	} else if count, at, declared := lengthContract(p); !declared || !count || at != 0 {
+		t.Errorf("new Array(n) must claim length from its count: count=%v at=%d declared=%v",
+			count, at, declared)
 	}
 }
 
@@ -153,22 +155,25 @@ func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 	}
 }
 
-// (length N) must name an argument the primitive has. Checked through a real
-// target file, because a bare `(prim …)` is not a top-level form — it is only
-// meaningful inside a `(target …)`.
-func TestLengthMustNameARealArgument(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "bad.oro")
-	src := `(target bad
-  (type int (host "int"))
-  (type slice-bool (host "[]bool"))
-  (sig mk (int) slice-bool (length 3) (host expr "make([]bool, %s)")))
-`
-	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	_, err := LoadTarget(path)
-	if err == nil || !strings.Contains(err.Error(), "which it does not have") {
-		t.Errorf("(length 3) on a one-argument primitive must be rejected, got %v", err)
+// (length N) and (length-of N) are RESPELLED as the postcondition they always
+// were, and the old spellings are refused naming the new one (theories.md §8.4).
+// Checked through a real target file, because a declaration is only meaningful
+// inside a `(target …)`.
+func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
+	for old, want := range map[string]string{
+		`(sig mk (int) slice-bool (length 0) (host expr "make([]bool, %s)"))`:                "(ensures (= (len result) n))",
+		`(sig st (slice-bool int bool) slice-bool (length-of 0) (host stmt "%s[%s] = %s"))`: "(ensures (= (len result) (len c)))",
+	} {
+		dir := t.TempDir()
+		path := filepath.Join(dir, "bad.oro")
+		src := "(target bad\n  (type int (host \"int\"))\n  (type bool (host \"bool\"))\n" +
+			"  (type slice-bool (host \"[]bool\"))\n  " + old + ")\n"
+		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		_, err := LoadTarget(path)
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s must be refused naming %s, got %v", old, want, err)
+		}
 	}
 }

@@ -99,12 +99,13 @@
     (sig append-float64 (slice-float64 f64) slice-float64 (host expr "append(%s, %s)"))
     (sig append-string  (slice-string string) slice-string    (host expr "append(%s, %s)"))
 
-    ; make: the element type is part of Go's syntax, so one name per type.
-    (sig make-int (int) slice-int (length 0) (host expr "make([]int, %s)"))
-    (sig make-int64 (int) slice-int64 (length 0) (host expr "make([]int64, %s)"))
-    (sig make-float64 (int) slice-float64 (length 0) (host expr "make([]float64, %s)"))
-    (sig make-string (int) slice-string (length 0) (host expr "make([]string, %s)"))
-    (sig make-bool    (int) slice-bool (length 0)    (host expr "make([]bool, %s)"))
+    ; make: the element type is part of Go's syntax, so one name per type. Each
+    ; result is n long, a postcondition (theories.md §7.9, §8.4).
+    (sig make-int ((n int)) slice-int (ensures (= (len result) n)) (host expr "make([]int, %s)"))
+    (sig make-int64 ((n int)) slice-int64 (ensures (= (len result) n)) (host expr "make([]int64, %s)"))
+    (sig make-float64 ((n int)) slice-float64 (ensures (= (len result) n)) (host expr "make([]float64, %s)"))
+    (sig make-string ((n int)) slice-string (ensures (= (len result) n)) (host expr "make([]string, %s)"))
+    (sig make-bool ((n int)) slice-bool (ensures (= (len result) n)) (host expr "make([]bool, %s)"))
     (sig make-map     () map-string-int (host expr "make(map[string]int)"))
 
     (sig copy-float64 (slice-float64 slice-float64) int       (host expr "copy(%s, %s)"))
@@ -126,11 +127,11 @@
       (where (go.&& (go.<= 0 i) (go.< i (go.len v))))       (host expr "%s[%s]"))
     (sig at-map     (map-string-int string) int pure         (host expr "%s[%s]"))
 
-    (sig set-int (slice-int int int) slice-int (length-of 0) (host stmt "%s[%s] = %s"))
-    (sig set-float64 (slice-float64 int f64) slice-float64 (length-of 0) (host stmt "%s[%s] = %s"))
-    (sig set-string (slice-string int string) slice-string (length-of 0) (host stmt "%s[%s] = %s"))
-    (sig set-bool (slice-bool int bool) slice-bool (length-of 0) (host stmt "%s[%s] = %s"))
-    ; NO (length 0) here, and the omission is the point. An array store leaves
+    (sig set-int ((c slice-int) (i int) (x int)) slice-int (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
+    (sig set-float64 ((c slice-float64) (i int) (x f64)) slice-float64 (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
+    (sig set-string ((c slice-string) (i int) (x string)) slice-string (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
+    (sig set-bool ((c slice-bool) (i int) (x bool)) slice-bool (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
+    ; NO length postcondition here, and the omission is the point. An array store leaves
     ; the length alone, so `set-float64` passes its container's length through;
     ; a map INSERT can add a key, so `len(m)` after is not `len(m)` before.
     ; The two read identically in Go and are opposite facts.

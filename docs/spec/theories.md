@@ -598,7 +598,7 @@ that spelling. The attached `host` clause has no kind, because a constant is a v
 | `(type NAME "spelling")` in a flat pool | `(type NAME (host "spelling"))` in the module that owns it |
 | `(target T (module P prim…))` | a target layer file, with `(module P …)` blocks |
 | `(provides T M prim…)` | `(provides T M assign…)` |
-| `(length N)`, `(length-of N)` | `(ensures (= (len result) …))`, **gated** on pure-call postconditions |
+| `(length N)`, `(length-of N)` | `(ensures (= (len result) n))`, `(ensures (= (len result) (len c)))` — **built 2026-09-15**, the old spellings refused |
 | `(int-repr …)`, `(big-repr …)`, `(shift-width …)`, `(max-len …)` | §5.5, §5.8 |
 | `(array-type "…")`, `(map-type "…")` | `(type (array A) (host "…"))`, `(type (map K V) (host "…"))` — §5.6 |
 | `(boxed T "s")` | `(repr (ref T) (host "s"))` — §5.7 |

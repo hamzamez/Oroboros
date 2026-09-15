@@ -94,10 +94,10 @@
     ;
     ; Every index carries `(int)`: our `int` is Java's `long`, and a Java array
     ; index must be `int`. Free at run time, and unavoidable.
-    (sig new-long (int) long-array (length 0) (host expr "new long[(int) %s]"))
-    (sig new-double (int) double-array (length 0) (host expr "new double[(int) %s]"))
-    (sig new-bool (int) bool-array (length 0) (host expr "new boolean[(int) %s]"))
-    (sig new-string (int) string-array (length 0) (host expr "new String[(int) %s]"))
+    (sig new-long ((n int)) long-array (ensures (= (len result) n)) (host expr "new long[(int) %s]"))
+    (sig new-double ((n int)) double-array (ensures (= (len result) n)) (host expr "new double[(int) %s]"))
+    (sig new-bool ((n int)) bool-array (ensures (= (len result) n)) (host expr "new boolean[(int) %s]"))
+    (sig new-string ((n int)) string-array (ensures (= (len result) n)) (host expr "new String[(int) %s]"))
 
     (sig len (any) int pure (host expr "%s.length"))
 
@@ -110,10 +110,10 @@
     (sig at-string ((v string-array) (i int)) string pure index
       (where (java.&& (java.<= 0 i) (java.< i (java.len v)))) (host expr "%s[(int) %s]"))
 
-    (sig set-long (long-array int int) long-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
-    (sig set-double (double-array int f64) double-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
-    (sig set-bool (bool-array int bool) bool-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
-    (sig set-string (string-array int string) string-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
+    (sig set-long ((c long-array) (i int) (x int)) long-array (ensures (= (len result) (len c))) (host stmt "%s[(int) %s] = %s"))
+    (sig set-double ((c double-array) (i int) (x f64)) double-array (ensures (= (len result) (len c))) (host stmt "%s[(int) %s] = %s"))
+    (sig set-bool ((c bool-array) (i int) (x bool)) bool-array (ensures (= (len result) (len c))) (host stmt "%s[(int) %s] = %s"))
+    (sig set-string ((c string-array) (i int) (x string)) string-array (ensures (= (len result) (len c))) (host stmt "%s[(int) %s] = %s"))
 
     ; ---- conversions. Java spells these (T) x or T.valueOf.
     (sig int-of-f64  (f64) int   pure    (host expr "(long) %s"))

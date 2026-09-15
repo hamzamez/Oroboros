@@ -58,7 +58,7 @@ const       ::= (const NAME INT (host "spelling" hclause…))   ; §3, "A consta
 param       ::= type | (NAME type)               ; `()` is arity zero
 kind        ::= expr | stmt
 template    ::= "…%s…"
-sclause     ::= pure | index | (where φ) | (ensures φ) | (length INT) | (length-of INT)
+sclause     ::= pure | index | (where φ) | (ensures φ)   ; a length is an ensures, §4 `length`
 hclause     ::= (import "…") | (lib "…") | (checked NAME) | (jump "cc" ["compare"])
 
 structural  ::= (structural NAME skind [pure])
@@ -704,17 +704,23 @@ declares no `narrow` gets no transformation, which is correct for JavaScript and
 ### `length` — how long the result is
 
 ```lisp
-(sig make-bool (int) slice-bool            (length 0) (host expr "make([]bool, %s)"))
-(sig set-bool  (slice-bool int bool) slice-bool (length 0) (host stmt "%s[%s] = %s"))
+(sig make-bool ((n int)) slice-bool (ensures (= (len result) n)) (host expr "make([]bool, %s)"))
+(sig set-bool ((c slice-bool) (i int) (x bool)) slice-bool
+     (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
 ```
 
-`(length N)` says **argument N decides the result's length**, and the argument's declared *type*
-says how to read it:
+**A result's length is a postcondition**, and there are two shapes the compiler reads
+(`refine.go`, `lengthContract`):
 
-| argument N's type | reading | example |
+| postcondition | reading | example |
 |---|---|---|
-| `int` | the length **is** that value | `make([]bool, n)` has length n |
-| anything else | the result is **as long as** that argument | `c[i] = true` returns something as long as `c` |
+| `(= (len result) n)` | a **count**: the length is argument `n`'s value | `make([]bool, n)` has length n |
+| `(= (len result) (len c))` | a **pass-through**: the result is as long as argument `c` | `c[i] = true` returns something as long as `c` |
+
+It was two positional attributes, `(length N)` and `(length-of N)`, beside the clause that already
+says what a call guarantees. Those spellings are now refused, naming the postcondition (theories.md
+§8.4). The shape is read off the equation, never off an argument's type, because `targets/js/` types
+every argument `any`.
 
 It is what lets the compiler prove an index is in range for an array the program built itself. The
 sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))` has no other route: without the

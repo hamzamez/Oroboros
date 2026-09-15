@@ -983,6 +983,57 @@ func (r *refiner) assumeLengthEq(f *facts, name string, e *linear) {
 	}
 }
 
+// lengthContract reads a primitive's LENGTH POSTCONDITION: the conjunct of its
+// `ensures` that is `len(result) = n` (a COUNT, argument n) or
+// `len(result) = len(c)` (a PASS-THROUGH, argument c), in either orientation.
+// It is the inverse of the respelling of `(length N)` and `(length-of N)`
+// (theories.md §8.4), which is what makes that respelling checkable: for every
+// declaration, reading the new form back gives the old attribute.
+func lengthContract(p Prim) (count bool, at int, ok bool) {
+	var scan func(t *core.Term) bool
+	scan = func(t *core.Term) bool {
+		if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+			return false
+		}
+		if a, b, conj := erasedAnd(t); conj {
+			return scan(a) || scan(b)
+		}
+		if isOp(t.Op().Name, "and") && len(t.Args()) == 2 {
+			return scan(t.Args()[0]) || scan(t.Args()[1])
+		}
+		if !isOp(t.Op().Name, "eq") || len(t.Args()) != 2 {
+			return false
+		}
+		isLenOf := func(x *core.Term, name string) (string, bool) {
+			if x.Kind != core.KApp || x.Op().Kind != core.KName || !isLenOp(x.Op().Name) ||
+				len(x.Args()) != 1 || x.Args()[0].Kind != core.KName {
+				return "", false
+			}
+			return x.Args()[0].Name, name == "" || x.Args()[0].Name == name
+		}
+		for _, side := range [][2]*core.Term{{t.Args()[0], t.Args()[1]}, {t.Args()[1], t.Args()[0]}} {
+			if _, isResult := isLenOf(side[0], core.ResultName); !isResult {
+				continue
+			}
+			other, arg := side[1], ""
+			if other.Kind == core.KName {
+				arg, count = other.Name, true
+			} else if name, isLen := isLenOf(other, ""); isLen {
+				arg, count = name, false
+			}
+			for i, n := range p.Names {
+				if arg != "" && n == arg {
+					at = i
+					return true
+				}
+			}
+		}
+		return false
+	}
+	ok = scan(p.Ensures)
+	return count, at, ok
+}
+
 // valueLength is a length abstraction: it computes the length of an array
 // expression, or reports that it cannot.
 //
@@ -1016,15 +1067,16 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 	if !known {
 		return nil, false
 	}
+	count, at, declared := lengthContract(p)
 	switch {
-	// `(length N)`: argument N is a COUNT. `make([]bool, n)` is n long.
-	case p.Length > 0 && p.Length <= len(args):
-		return r.lin(args[p.Length-1])
-	// `(length-of N)`: the result is AS LONG AS argument N. `c[i] = true`
+	// len(result) = n: argument n is a COUNT. `make([]bool, n)` is n long.
+	case declared && count && at < len(args):
+		return r.lin(args[at])
+	// len(result) = len(c): the result is AS LONG AS argument c. `c[i] = true`
 	// returns something as long as c, which is what makes an in-place store
 	// usable as a loop variable.
-	case p.LengthOf > 0 && p.LengthOf <= len(args):
-		return r.valueLength(args[p.LengthOf-1], env, depth+1)
+	case declared && !count && at < len(args):
+		return r.valueLength(args[at], env, depth+1)
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1:
 		inner := map[string]*linear{}
 		for k, v := range env {

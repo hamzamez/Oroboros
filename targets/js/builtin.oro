@@ -159,8 +159,8 @@
     ; the clearest single contrast with targets/go/, which needs at-int,
     ; at-float64, at-string, at-bool and a `make` per type.
     (sig at     (any any) any     pure index     (host expr "%s[%s]"))
-    ; NO `(length-of 0)` on `set`, and JavaScript is the reason the attribute
-    ; had to be split in two. On Go, `c[i] = x` cannot change len(c) — an
+    ; NO length postcondition on `set`, and JavaScript is the reason a count and
+    ; a pass-through had to be told apart. On Go, `c[i] = x` cannot change len(c) — an
     ; out-of-range store panics. On JavaScript `a[10] = x` on a three-element
     ; array EXTENDS IT to length 11, silently, and `a[10]` before that returns
     ; `undefined` rather than throwing (primitives.md §2). So a JS array store
@@ -173,13 +173,13 @@
     (sig get    (any string) any     pure     (host expr "%s[%s]"))
     (sig put    (any string any) any (host stmt "%s[%s] = %s"))
     (sig len    (any) any  pure         (host expr "%s.length"))
-    ; `new Array(n)` and the typed arrays ARE n long. Declared `(length 0)`
+    ; `new Array(n)` and the typed arrays ARE n long. Declared as a postcondition
     ; even though every argument here is typed `any` — which is exactly why the
     ; reading is declared rather than read off the argument's type.
-    (sig Array  (any) any            (length 0)         (host expr "new Array(%s)"))
-    (sig ArrayFill (any any) any   (length 0)  (host expr "new Array(%s).fill(%s)"))
-    (sig Float64Array (any) any     (length 0)   (host expr "new Float64Array(%s)"))
-    (sig Int32Array   (any) any       (length 0)   (host expr "new Int32Array(%s)"))
+    (sig Array ((n any)) any (ensures (= (len result) n)) (host expr "new Array(%s)"))
+    (sig ArrayFill ((n any) (x any)) any (ensures (= (len result) n)) (host expr "new Array(%s).fill(%s)"))
+    (sig Float64Array ((n any)) any (ensures (= (len result) n)) (host expr "new Float64Array(%s)"))
+    (sig Int32Array ((n any)) any (ensures (= (len result) n)) (host expr "new Int32Array(%s)"))
     ; A null-prototype object as a dictionary — baseline R4 measured Map at
     ; 3.25x slower for string keys.
     (sig object () any           (host expr "Object.create(null)"))))

@@ -171,8 +171,8 @@
   ; One declaration per element type, because the type language has no
   ; constructors: long[] and boolean[] are unrelated atoms.
   (module java/array
-    (sig make-int (int) vec-int (length 0) (host expr "new long[(int) %s]"))
-    (sig make-bool (int) vec-bool (length 0) (host expr "new boolean[(int) %s]"))
+    (sig make-int ((n int)) vec-int (ensures (= (len result) n)) (host expr "new long[(int) %s]"))
+    (sig make-bool ((n int)) vec-bool (ensures (= (len result) n)) (host expr "new boolean[(int) %s]"))
     (sig len        (any) int pure                 (host expr "%s.length"))
     (sig iat        (vec-int int) int  pure         (host expr "%s[(int) %s]"))
     (sig bat        (vec-bool int) bool  pure       (host expr "%s[(int) %s]"))

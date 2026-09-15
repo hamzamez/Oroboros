@@ -48,30 +48,13 @@ type Prim struct {
 	Pure  bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
 	Index bool // declared `index`: argument 0 is a container indexed by argument 1
 
-	// Length is `(length N)`: the result is a container whose length is the
-	// VALUE of argument N — `make([]bool, n)` is n long. LengthOf is
-	// `(length-of N)`: the result is AS LONG AS argument N — `c[i] = true`
-	// returns something as long as c.
-	//
-	// Both are declared, never inferred, because each is a fact about the HOST
-	// call and only the target author knows it. Nothing about the string
-	// "make-bool" says the result is n long.
-	//
-	// They are two attributes rather than one read off the argument's declared
-	// type, and that is the second design: the first inferred `int` argument
-	// means count, anything else means pass-through. It broke on the first
-	// target that tried it. `targets/js/` declares EVERY argument as `any`,
-	// because JavaScript has one number type and untyped containers, so
-	// `new Array(n)` and a hypothetical pass-through are indistinguishable by
-	// type. A declaration that only works on targets with a rich type table is
-	// not a declaration.
-	//
-	// Without either, a program that allocates and then indexes cannot be
-	// proven: the sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))`
-	// has `len(c)` as an opaque variable unrelated to `n`. Zero means "not
-	// declared"; positions are stored one-based for exactly that reason.
-	Length   int
-	LengthOf int
+	// A CONTAINER'S LENGTH IS A POSTCONDITION, `(ensures (= (len result) n))` for
+	// a count and `(ensures (= (len result) (len c)))` for a pass-through
+	// (theories.md §7.9, §8.4). It was two positional attributes, `(length N)` and
+	// `(length-of N)`, beside the one clause that already says what a call
+	// guarantees. refine.go's `lengthContract` reads it back; the reasons it is
+	// declared rather than read off an argument's type — `targets/js/` types every
+	// argument `any` — are unchanged.
 
 	// Jump is a BRANCH form: the host's own condition code for this predicate,
 	// so a conditional can test it directly instead of materialising a boolean
@@ -646,13 +629,14 @@ var coreStructural = []Prim{
 	// duplicates the allocation. ADR 0018 calls `alloc` pure in the
 	// referential-transparency sense, which is true and is not the property β
 	// needs here.
-	// The LENGTH attributes are 1-based, matching the reader. `build` makes a
-	// buffer as long as its count; `alloc` and `set` pass their argument's
-	// length through. Without them a program cannot prove its own index, because
-	// nothing relates the buffer to the number it was made from.
-	{Name: "alloc", Kind: "table-alloc", LengthOf: 1},
-	{Name: "build", Kind: "table-build", Length: 1},
-	{Name: "set", Kind: "table-set", LengthOf: 1},
+	// THEIR LENGTHS ARE POSTCONDITIONS, stated the way a target states one
+	// (theories.md §8.4). `build` makes a buffer as long as its count; `alloc` and
+	// `set` pass their argument's length through. Without them a program cannot
+	// prove its own index, because nothing relates the buffer to the number it
+	// was made from.
+	{Name: "alloc", Kind: "table-alloc", Names: []string{"t"}, Ensures: lenEquals("t", false)},
+	{Name: "build", Kind: "table-build", Names: []string{"n", "f"}, Ensures: lenEquals("n", true)},
+	{Name: "set", Kind: "table-set", Names: []string{"c", "i", "x"}, Ensures: lenEquals("c", false)},
 	// A MAP BUFFER and its store (maps.md §3.3). Identical in discipline to
 	// `build`/`set` and impure for the same reasons — allocation for the first,
 	// sequencing for the second.
@@ -1619,6 +1603,17 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	return nil
 }
 
+// lenEquals is a length postcondition built as a term: `len(result) = arg` for
+// a count, `len(result) = len(arg)` for a pass-through — the two shapes
+// refine.go's lengthContract reads, for the compiler's own structural tables.
+func lenEquals(arg string, count bool) *core.Term {
+	rhs := core.Name(arg)
+	if !count {
+		rhs = core.App(core.Name("len"), core.Name(arg))
+	}
+	return core.App(core.Name("="), core.App(core.Name("len"), core.Name(core.ResultName)), rhs)
+}
+
 // respelled are the target forms theories.md §8.4 respelled. They are refused
 // rather than kept as aliases, for data.md §10's reason: two spellings of one
 // declaration is the shape `merge` had before glue and override were separated.
@@ -1720,7 +1715,7 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 				path, name, w)
 		default:
 			return Prim{}, fmt.Errorf("%s: sig %s: unexpected %s; a sig takes pure, index, (where …), "+
-				"(ensures …), (length N), (length-of N) and one (host …)", path, name, c)
+				"(ensures …) and one (host …)", path, name, c)
 		}
 	}
 	if host == nil {
@@ -1884,18 +1879,15 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 					path, p.Name, rest)
 			}
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
-			(rest.Kids[0].Name == "length" || rest.Kids[0].Name == "length-of") &&
-			len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KInt:
-			n := int(rest.Kids[1].Int)
-			if n < 0 || n >= len(p.Args) {
-				return Prim{}, fmt.Errorf("%s: %s: (%s %d) names argument %d, "+
-					"which it does not have", path, p.Name, rest.Kids[0].Name, n, n)
-			}
+			(rest.Kids[0].Name == "length" || rest.Kids[0].Name == "length-of"):
+			// RESPELLED as the postcondition it always was (theories.md §8.4), and
+			// refused naming the new spelling, as every respelled form is.
 			if rest.Kids[0].Name == "length" {
-				p.Length = n + 1
-			} else {
-				p.LengthOf = n + 1
+				return Prim{}, fmt.Errorf("%s: %s: (length N) is spelled "+
+					"(ensures (= (len result) n)), naming argument N as n", path, p.Name)
 			}
+			return Prim{}, fmt.Errorf("%s: %s: (length-of N) is spelled "+
+				"(ensures (= (len result) (len c))), naming argument N as c", path, p.Name)
 		case rest.Kind == core.KName && rest.Name == "index":
 			if len(p.Args) != 2 {
 				return Prim{}, fmt.Errorf("%s: %s is marked index but does not take "+

@@ -157,6 +157,21 @@ func bindOf(name string) map[string]string {
 	return map[string]string{name: "#p"}
 }
 
+// sameSum reports whether two declarations are the same sum: the same name and
+// the same variants, in order, with the same payloads. Order matters because a
+// variant's position IS its tag.
+func sameSum(a, b *Sum) bool {
+	if a.Name != b.Name || len(a.Variants) != len(b.Variants) {
+		return false
+	}
+	for i := range a.Variants {
+		if a.Variants[i] != b.Variants[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (s *Sum) payloadOf(variant string) string {
 	for _, v := range s.Variants {
 		if v.Name == variant {

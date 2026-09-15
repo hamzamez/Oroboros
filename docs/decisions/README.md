@@ -52,3 +52,6 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0018](0018-immutable-values-linear-buffers.md) | Immutable values, one scoped linear buffer |
 | [0019](0019-precision-by-declaration.md) | Precision by declaration |
 | [0020](0020-uniqueness-on-parameters.md) | A buffer is a nameable type: uniqueness on parameters |
+| [0021](0021-declarations-are-theories.md) | Declarations are theories, and the surface that follows |
+| [0022](0022-host-declarations-are-written-by-hand.md) | Host declarations are written by hand; the generator is their checker |
+| [0023](0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) | A generator does not make a claim it cannot justify |

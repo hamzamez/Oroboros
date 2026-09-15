@@ -5,6 +5,13 @@
 > **Respelling specified, not built — [data.md](data.md) §5.** `sum` becomes `variant`, the textbook
 > pair of `record`; `sum` reads as arithmetic. Several payloads and type parameters are specified
 > there too. Everything below about meaning, reduction and representation is unchanged.
+>
+> **A bug in this document's implementation, found 2026-09-15 and fixed in the interim —
+> [data.md §5.5.2](data.md).** Sums were kept in one table keyed by the bare name, so two modules each
+> declaring `result` with different payloads loaded, and a signature returning `result` took its
+> payload from whichever module loaded last. On Go it was `(int, string)` in one order and `(int, int)`
+> in the other, accepted by our checker both times. Two *different* sums with one name are now
+> refused, naming both modules (`core/sumclash_test.go`). The real fix is qualified type names.
 
 The research is [sums-research.md](../sums-research.md) and the algebra is
 [type-algebra.md](../type-algebra.md); this is what got built and what building it changed.

@@ -587,17 +587,269 @@ changes. It passes when:
 3. the differential suite and the tooling suite are green, including
    `TestHandDeclarationsAgreeWithTheHost` catching all of its planted mistakes.
 
+4. every refusal in §10.3 has a test that builds the failing declaration and checks §10.7's three
+   properties.
+
 Item 2 is also the test of theories-b-or-c.md §2.1's central claim, that resolution against a target
 and instantiation along the ambient view give the same names in every case. If they differ anywhere,
 that is where it shows.
 
 ---
 
-## 10. Not yet specified
+## 10. Diagnostics
+
+Every rule in this specification can fail. This section decides, for each failure, whether it is an
+**error**, a **note**, or **legitimate**, and what the message must say. It exists because the
+easiest implementation of a rule is to ignore the declarations that break it. Here, ignoring a
+declaration has repeatedly meant a program that compiles and gives a wrong answer:
+- `split-words` passed every check for two months while giving different answers on different
+  targets (modules.md §8);
+- `CheckEnsures` returned success with a note when a claim was outside its fragment
+  (scalarrange-2026-08-31);
+- `CheckSigs` swallowed the honest refusal about the limb representation and printed a misleading
+  one (subdiv-2026-09-03).
+
+### 10.1 Principles
+
+**D1 — No silent acceptance.** A declaration that breaks a rule is refused, or its case is listed in
+§10.4 as legitimate. An implementation that drops such a declaration without doing either does not
+conform to this specification.
+
+**D2 — A declaration error is reported when the declaration is loaded.** Anything decidable from
+declarations alone is reported before any program is reduced, whether or not a program uses the
+name. This follows from *declarations are data* (theories-b-or-c.md §6.2). Today a template is
+checked only when some program happens to call it (coercion-2026-09-09), and a declaration error
+that waits for a program is one that some program will find. **Covering is the exception**: it is
+defined relative to a program (§2).
+
+**D3 — Provenance.** Every declaration carries its **origin** (§10.2). A message about one
+declaration names its origin; a message about two names both.
+
+**D4 — Source spelling.** Names are printed as they are spelled at the reported site, with the
+qualified name in parentheses where the two differ:
+
+```
+Writer (go/io.Writer)
+```
+
+This is always possible, and for a structural reason: resolution is an **injective** renaming
+(§3.4; theories.md §3, T1), and an injective map has an inverse, so every elaborated name has exactly
+one source spelling in a given scope. The flat type pool this specification replaces could not
+promise that. `template-Template` named two types (theories.md §2.2).
+
+**D5 — Say what to write.** Every error names the rule it breaks and the correction, to the standard
+products.md §3 set: *"every refusal … by name, checked, and has a message that says what to write
+instead."*
+
+**D6 — A failed proof names its premises.** The `known:` list shows every premise with its source:
+- a `where`, with its declaration's origin;
+- a guard;
+- a fact, **by name and instance**: `div-floor at (/ (len src) 2)`;
+- an interval rule derived from a fact (§7.5).
+
+A premise that came from a **target layer's** fact is marked, because the proof is then not portable
+(§7.7).
+
+**D7 — Deterministic output.** Diagnostics are ordered by file, then line, then name, which is a total
+order. A ranked report with ties once swapped between identical runs (tooling-2026-09-11).
+
+**D8 — A note never stands in for an error.** A note is printed and changes nothing. If a rule's
+failure can change what a program means, it is an error.
+
+### 10.2 The origin record
+
+```
+origin ::= (file, line, layer, module, via)
+via    ::= written
+         | sugar(form, origin)        ; e.g. the const, attached host or include that produced it
+         | generated(tool)            ; e.g. gauntlet/stdlib/survey.go
+```
+
+- `layer` is the declaration's position in §4's chain, nearest first: the program's directory, then
+  each `-targets` entry, then the built-ins, then a library's `provides`.
+- **Sugar records what it expanded from.** An error in `(sig MaxRune (int 1114111 1114111) pure)` is
+  reported as the `const` that produced it, at the `const`'s line.
+- **Generated declarations record the tool that wrote them**, so a message can say that a
+  declaration was generated rather than hand-written. The distinction is handdecl-2026-09-14's
+  decision: hand declarations are checked *against* generated ones.
+
+**Terms do not carry origins in this specification.** The reader tracks lines while parsing
+(`core/read.go`) and discards them, so positions on terms would be a compiler-wide change. It would
+touch the same term-rebuilding code (`Body()`, `openFresh`) that five recorded bugs came from. That is
+a decision of its own (§10.6). Declarations are data the loader already holds, and giving them
+origins costs nothing downstream.
+
+### 10.3 The refusals
+
+"Fires" is **L** (load, by D2) or **P** (program, after resolution or reduction). "Names" lists what
+the message must contain beyond the rule and the correction.
+
+#### Reading
+
+| # | condition | fires | names |
+|---|---|---|---|
+| R1 | `'` not followed by an identifier: `'(…)`, `'3`, `'"s"`, or `'` inside an identifier (data.md §2.2) | L | the token and its line |
+| R2 | a retired spelling: `sum`, `values`, the type `(array A B)`, a result list `(A B)` (data.md §10) | L | the replacement |
+| R3 | a reserved word used as a name: `forall`, `lemma`, `view`, `quote`, or `with` outside `use` | L | the fragment or section it is reserved for |
+| R4 | a `(module …)` header in a library file | L | the module name the file's path already gives |
+
+#### Modules and resolution
+
+| # | condition | fires | names |
+|---|---|---|---|
+| M1 | an unresolved name | P | every module searched, innermost first, ending in `lang`; the nearest declared spellings (§10.5) |
+| M2 | a `use` path with no file, and no target layer provides the module | P | the search path and the target layers searched (modules.md's `Program.Unresolved`, kept) |
+| M3 | **a child module with the same name as a *term* in its parent** (§3.3) | L | both declarations' origins |
+| M4 | **an ambiguous qualifier**: `Writer.m` where `Writer` is both a `use` alias and a companion in scope | P | both, and *"rename the alias"* |
+| M5 | two `use` bindings of one alias to different paths | L | both paths (today's error, with origins added) |
+| M6 | an `export` or a `sig` naming nothing in its module | L | the module, and the nearest names (today's rule, kept) |
+
+#### Composition
+
+| # | condition | fires | names |
+|---|---|---|---|
+| C1 | two declarations of one name within a layer disagree | L | **both** origins and the parts that differ |
+| C2 | one declaration repeated identically within a layer (§4) | L | both origins |
+| C3 | a target layer declares a fact whose trigger is `lang` arithmetic (§7.7) | L | the fact and its origin |
+| C4 | a nearer layer **overrides** a declaration and changes its classifier or its realization | L | **a note**: both origins. Legitimate by §4, but it can change emission for an existing program (target-system.md T5′), so it is shown |
+
+**C1 changes today's behaviour.** `combineMap` reports *"`from`: type X is declared as A and as B"*
+([target.go:1222](../../emit/target.go)), where `from` is the file being merged in. The file that
+declared the first version is not named. Both must be.
+
+#### Models
+
+| # | condition | fires | names |
+|---|---|---|---|
+| H1 | **a `host` clause with no target context**: not in a target layer and not in a `provides` (§5.2) | L | the clause, and *"move it into `targets/T/…` or a `(provides T …)`"* |
+| H2 | a template hole beyond the declaration's parameters | L | the hole and the arity. A hole may be *omitted*: on x86-64 a declared arity is a lower bound on what a template writes (win32-2026-09-08) |
+| H3 | `(provides T M …)` where no theory `M` exists | L | the search path |
+| H4 | **`provides` assigns a name `M` does not declare** | L | the name, and the nearest names `M` declares (§10.5) |
+| H5 | a `def` in a `provides` whose free names leave `lang`, `T`'s realizations and the theories in scope (§5.4) | L | each free name, and where it was looked for |
+| H6 | a `provides` assignment whose type disagrees with the theory's declaration | P | both origins |
+| H7 | a target realizes a structural name of `lang` (ADR 0017) | L | today's error, with the origin |
+| H8 | contradictory representation choices, such as `(repr map library)` beside a map type spelling | L | both origins |
+| H9 | `(ref T)` anywhere but the subject of a `repr` (§5.7) | L | *"`ref` is not a type"* |
+| H10 | a target with no `backend` is used for emission | P | today's refusal, kept (backend-2026-09-06) |
+
+**H4 is the case this section most exists for.** Without it, a misspelled assignment realizes nothing:
+the native implementation is never selected, δ unfolds the portable definition instead, and the
+emitted program changes without a word.
+
+#### Views
+
+| # | condition | fires | names |
+|---|---|---|---|
+| V1 | `implements T I` and `I`'s companion declares a method `T`'s does not | L | the method, and both companions' origins |
+| V2 | `implements T I` and a method's type does not satisfy the view's variance (§6.1) | L | the method, the parameter position, and both types |
+| V3 | `include X` where `X` is not a module in scope | L | the name |
+| V4 | a cycle of `include`s | L | the whole cycle, in order (§1.3's well-founded order) |
+| V5 | `(use M with V)` or `(view …)` | L | *"named views are specified in theories-b-or-c.md and not built"* (§6.3) |
+
+#### Facts
+
+| # | condition | fires | names |
+|---|---|---|---|
+| F1 | a fact fails F-B admission (§7.4) | L | **which condition failed**, and the offending subterm: e.g. *"`(/ (% a b) 2)` nests one extension term inside another (condition 2)"* |
+| F2 | a fact matches a reserved fragment (§7.6) | L | the fragment: F-C, F-D or F-E |
+| F3 | a proof used a premise from a target layer's fact | P | **a note** (D6): the fact and its layer, and *"this proof does not hold on other targets"* |
+| F4 | a `lang` fact with no named evidence test (§7.8) | test time | the fact. This is checked by a repository test, not by the loader, because evidence is a test that must exist |
+
+#### Data forms (data.md)
+
+| # | condition | fires | names |
+|---|---|---|---|
+| X1 | a label repeated in a record type, literal or `with` | L/P | the label, both positions |
+| X2 | a record literal missing a label, or giving one the type lacks | P | the missing and the extra labels |
+| X3 | projection of a label the record's type does not have | P | the type's labels |
+| X4 | a dynamic index into a tuple, or a computed label | P | *"write an `array`"* or *"write a `map`"* (data.md §3.2, §4.2) |
+| X5 | `(tuple)` or `(tuple T)` | L | data.md §3.1's reason |
+| X6 | a heterogeneous `(array …)` literal | P | *"write `(tuple …)`"* |
+| X7 | a symbol reaches the residual (data.md §2.4) | P | the symbol, and the export being built |
+| X8 | `(t (fn (x…) …))` whose arity is not the tuple's | P | both arities |
+| X9 | a `case` that misses a constructor | P | the missing constructors (sums.md's rule, kept) |
+
+#### Covering
+
+| # | condition | fires | names |
+|---|---|---|---|
+| K1 | the residual mentions a name no layer realizes on `T` and no definition gives (§2) | P | where the name is declared (origin), **every layer searched for `T`**, and whether another target realizes it |
+
+### 10.4 Legitimate — must not be refused
+
+Each of these looks like a mistake and is not. A conforming implementation must accept them without an
+error. Refusing one would break a rule elsewhere in this specification.
+
+| case | why it is legitimate |
+|---|---|
+| a `provides` that realizes only some of a theory's declarations | partial realization is how porting works (modules.md §4); covering reports what a program actually needs |
+| a child module with the same name as a *type* in its parent | that is a companion (§3.3) |
+| a type and a term with one name in one module | separate namespaces (§3.2) |
+| a nearer layer overriding a declaration | that is what `▷` is for (§4); C4 shows it as a note |
+| a fact that no program ever triggers | an unused fact licenses nothing and costs nothing |
+| a template that omits a parameter's hole | a statement's template may write fewer, and x86-64 may write more (H2) |
+| the same realization reached through two layers | an `implements` edge is a set, so a repeat is not a disagreement (coercion-2026-09-09) |
+
+### 10.5 Suggestions
+
+A message may suggest the declared names nearest to a misspelling: M1 and H4. A suggestion must be
+**deterministic**, so that two runs print the same text (D7):
+- distance is Damerau–Levenshtein at most 2;
+- candidates are drawn from the scope searched;
+- ties break by name.
+
+A suggestion is never applied, only printed.
+
+### 10.6 Messages about residual terms
+
+Checks that run after reduction — refinement, intervals, termination, linearity — see a term that
+reduction and the lowering passes have rewritten. Until terms carry origins (§10.2), such a message
+must:
+- name **the export being built** and **the `def`s inlined into the reported subterm**, where
+  reduction's δ steps recorded them;
+- print names in source spelling (D4);
+- **print a term a lowering pass rewrote as the term it was rewritten from**, where the pass can
+  record it.
+
+The witness is the tally failure the refinement-walk fix produced (hex-2026-09-14 §4):
+
+```
+build: main: (dt (+ (* 2 s) 1)) is an indexing, and (< (+ (* 2 s) 1) (len dt)) does not follow
+  known: …, s joined over its branches, s joined over its branches
+```
+
+The program wrote `((dt s) 1)`. The message describes the stride the product-flattening pass
+generated and a join the refinement layer derived, so neither the index nor the premise is
+recognisable. The flattening pass is the first place to record a rewrite's original.
+
+**Positions on terms are owed**, as a decision in their own right, with that rebuilding risk weighed
+first.
+
+### 10.7 Acceptance
+
+Every row of §10.3 has a test that builds the failing declaration and checks three things:
+
+1. **It is refused**, or noted where the row says note. For H1, H4 and M3, which today are accepted
+   silently or cannot yet be written, the test is written first and must fail against HEAD.
+2. **The message contains every item in the row's "names" column**, including both origins where a
+   row names two.
+3. **The message contains no internal spelling.** Pinned by a pattern that fails on any of:
+   - a generated binder hint such as `#tag` or `#k`;
+   - a quotient atom `div(`;
+   - a flat-pool type prefix such as `ptr-os-`;
+   - a strided index `(+ (* k i) j)` for an index the source wrote as a projection.
+
+And every row of §10.4 has a test that the case is **accepted**. A refusal of a legitimate case is a
+bug of the same size as an acceptance of a wrong one.
+
+---
+
+## 11. Not yet specified
 
 - **Reserved** fact fragments F-C, F-D and F-E (§7.6), and literal-only functions in a fact's bounds.
-- **(to write)** The diagnostics: an ambiguous companion, a `provides` naming a declaration its
-  theory does not have, a `host` clause outside any target context.
-- **(to write)** How a type parameter of a variant (`(variant (option T) …)`) is resolved across
-  modules.
+- ~~How a type parameter of a variant is resolved across modules~~ — **specified** in
+  [data.md §5.5](data.md): identity is the qualified declaration plus its arguments; type arguments
+  are never inferred; the boundary representation is one slot per distinct payload type
+  (Theorem R). The load-order bug found on the way is fixed in the interim (`core/sumclash_test.go`).
 - **Named views** — reserved (§6.3).
+- **Positions on terms** — owed as its own decision (§10.6).

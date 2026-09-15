@@ -290,10 +290,33 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	// in scope. That is the reason it is not reader sugar like `match`: the
 	// reader sees one file, and an error type is declared in another.
 	sums := map[string]*Sum{}
+	sumOwner := map[string]string{}
 	byVariant := map[string]*Sum{}
 	for _, m := range mods {
 		for _, sum := range m.Sums {
+			// TWO DIFFERENT SUMS WITH ONE NAME are refused, because this table is
+			// keyed by the bare name and the later one used to OVERWRITE the
+			// earlier — so a signature returning `result` took its payload from
+			// whichever module loaded last (core/sumclash_test.go). Identical
+			// declarations are fine, and every module's injected `option` is one.
+			// The real fix is a type name resolved like any other name
+			// (spec/theories.md §3.4), after which `a/result` and `b/result` are
+			// simply different types.
+			if prev, dup := sums[sum.Name]; dup {
+				if !sameSum(prev, sum) {
+					first, second := sumOwner[sum.Name], modLabel(m.Path)
+					if second < first {
+						first, second = second, first
+					}
+					return nil, nil, fmt.Errorf("%s is declared as two different sums, in %s and "+
+						"in %s. A sum's name is one namespace until type names are qualified "+
+						"(spec/data.md §5.5), so which one a signature meant would depend on "+
+						"load order — rename one of them", sum.Name, first, second)
+				}
+				continue
+			}
 			sums[sum.Name] = sum
+			sumOwner[sum.Name] = modLabel(m.Path)
 			for _, v := range sum.Variants {
 				// The comparison is by NAME, not by pointer. Every module gets
 				// its own copy of the language's injected `option` (newModule),

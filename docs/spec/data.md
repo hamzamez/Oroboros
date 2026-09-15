@@ -368,6 +368,146 @@ argument. Staging makes every use monomorphic, so no parameter survives to the c
 single point whose identity is a run-time fact, so its domain condition is a branch, and the branch
 is `case`.
 
+### 5.5 Across modules and at boundaries
+
+The questions here were spec/theories.md §11's gap. Answering them turned up a bug that was live at
+HEAD (§5.5.2).
+
+#### 5.5.1 What a variant type is
+
+A variant **declaration** introduces a type constructor, of kind `type` or `type → … → type`. A
+variant **type** is that constructor applied to its arguments, and it is identified by **the
+qualified name of its declaration together with its arguments**:
+
+```
+    a/result(int, string)          b/result(int, string)          lang.option(int)
+```
+
+- **Nominal in the declaration.** `a/result` and `b/result` are different types even when their
+  constructors are spelled alike. That is §5.3's reason: `(ok 3)` alone does not determine a type.
+- **Applicative in the arguments.** Two occurrences of `(option int)` resolving to one declaration
+  are the **same type**, because instantiation is resolution and names the instance by its diagram
+  (theories-b-or-c.md §3.2, I3).
+- **`option` is one declaration, in `lang`.** Today every module holds its own copy
+  (`core/reduce.go`, `newModule`), and sums are compared by name so the copies do not clash. Under
+  §5.5.1 there are no copies to reconcile.
+
+The canonical spelling of an applied type uses products.md §2's delimited form, `a/result(int,
+string)`, because an argument may itself contain spaces: `(int 0 255)`.
+
+#### 5.5.2 Resolution, and the bug it closes
+
+**Constructors are names**, resolved lexically like every other name (spec/theories.md §3.4). A
+`case` clause's pattern resolves to a constructor, and all of a `case`'s clauses must resolve to
+constructors of **one declaration**, compared by identity rather than by spelling.
+
+**A module's own declaration shadows `lang`'s**, as any inner name shadows an outer one. Passing a
+map read (a `lang.option`) where a module's own `option` is wanted is a type error, reported in both
+spellings (spec/theories.md §10, D4): *"option (my/opt.option) is not option (lang.option)"*.
+
+**The bug.** `Load` kept every module's sums in one table keyed by the **bare** name, and checked only
+that no constructor belonged to two differently named sums. Two modules each declaring `result` passed
+that check, and the later declaration **overwrote** the earlier. A signature returning `result` then
+took its payload type from whichever module loaded last. Measured 2026-09-15:
+
+| order | emitted on Go | our checker | Go |
+|---|---|---|---|
+| module `a` (`ok int`) before `b` (`ok string`) | `func GenPick(n int) (int, string)` | accepted | refused |
+| `b` before `a` | `func GenPick(n int) (int, int)` | accepted | accepted |
+
+JavaScript emitted the first without complaint, since it declares no types. Inside a program the
+confusion is invisible, because reduction erases a payload's type; that is why no program in the
+corpus ever showed it.
+
+**Built now, as the interim rule:** two *different* sums with one name are refused, naming both
+modules. Identical declarations still load, which every module's injected `option` copy requires.
+Witness: `core/sumclash_test.go`, failing against HEAD in both load orders, with a control that must
+load. **The rule is removed when type names are resolved** (§5.5.1), after which the two `result`s are
+simply different types.
+
+#### 5.5.3 Type arguments are never inferred
+
+- **Inside a program they are not needed.** A constructor is a Church term polymorphic in its payload,
+  `some = λp.λk. k tag p`, and reduction erases every variant that does not cross a boundary. By the
+  time anything checks a type, the term is monomorphic (decidability-map.md).
+- **At a boundary the signature writes them.** `(sig lookup ((k int)) (option int))`. So the only
+  place an argument is needed is the only place one is written, and no inference, unification or
+  Hindley–Milner is involved.
+- **Errors:**
+  - a parameterised variant named without its arguments at a boundary, as in `(sig f … option)`, is
+    refused with *"write (option T) with its argument"*;
+  - the wrong number of arguments is refused, naming the declaration's arity.
+
+#### 5.5.4 Well-formed parameters
+
+Each rule is the consequence of one stated elsewhere:
+
+- **A parameter has kind `type`.** A parameter that is itself applied, `(variant (wrap F) (w (F int)))`,
+  is higher-kinded, and is refused: there is no demand, and it is where module systems become research
+  projects (theories-b-or-c.md §6.1).
+- **A declaration may not mention itself**, applied or not. `(variant (list T) nil (cons T (list T)))`
+  is μ, which the well-founded order of declarations refuses (spec/theories.md §1.3, type-algebra.md
+  §3.1). A parameter does not smuggle recursion back in.
+- **A payload may not be a buffer.** A payload is an element position: `case` binds it, and binding is
+  an observation. ADR 0020 rule 6, *a buffer may not be an element type*, is what keeps an observation
+  from extracting an alias, and the same reasoning applies here.
+- **Every parameter occurs in some payload.** A phantom parameter is refused until a program needs one.
+
+#### 5.5.5 At a boundary: one slot per distinct payload type
+
+This is the representation question, and it is answered from what a variant **is**, not from what
+any target can hold.
+
+**The encoding.** Let a variant type have constructors `c₀ … cₘ₋₁` in declaration order. After
+instantiation, let `S₁ … Sₖ` be the **distinct** payload types, in canonical order (the total order on
+canonical type spellings; §4.4's reason). Then a value crossing a boundary is
+
+```
+    (tuple tag S₁ … Sₖ)          tag = the constructor's index, as sums.md's tags already are
+```
+
+A value built by `cᵢ` with payload type `Sⱼ` stores its payload in slot `j`. Its other slots are
+**unconstrained**.
+
+> **Theorem R (faithfulness).** Let `enc(cᵢ v)` put `i` in the tag and `v` in slot `j(i)`, and let
+> `dec` read the tag, then read slot `j(tag)` and apply `c_tag`. Then `dec ∘ enc = id`, whatever the
+> unused slots hold.
+>
+> *Proof.* Tags are distinct, so the tag determines `i`. `i` determines `j(i)`. Slot `j(i)` holds `v`
+> by construction, and `dec` reads no other slot. ∎
+
+**Consequences:**
+- **The unused slots may hold anything**, so a backend may leave each at its host's zero or default
+  value. Nothing reads it, because `case` reads only the slot its tag selects.
+- **`k = 1` is exactly today's representation**, sums.md's `(tag, payload)`. The existing refusal,
+  *"variants carry different payload types"*, becomes the special case `k > 1` not yet built. **Every
+  emitted file for an existing program is unchanged.**
+- **`k = 0`**, a variant with no payloads, is the tag alone.
+- **Sharing a slot is sound.** Two constructors with the same payload type use one slot, and the tag
+  still tells them apart. That is why slots are per *type*, not per *constructor*: `(result int int)`
+  is `(tag, int)`, not `(tag, int, int)`.
+- **A niche encoding is an optimisation of this representation, never a replacement for it.** A
+  target may declare one where the host already represents the extra point, as `boxed`'s `Long` does
+  with `null` (spec/theories.md §5.7). Without a declaration, Theorem R's encoding is used.
+
+**Lowering is the tuple's** (§3.3): a variant result is a tuple result, and a variant table element is
+a flat stride of `1 + k` slots, under products.md §4's rule that a component with no flat
+representation is refused.
+
+**A target does not get to bound `k`.** A tuple of any width is the language's (values.md: *"if several
+results go into the language, Java gets a generated record and windows gets a register or stack
+convention, and finding those is the compiler's job, not the target author's"*). A backend that has
+not yet built a convention for a given width reports a **compiler limitation**, named as one. It is
+never a rule of this specification, and never a reason to narrow what a variant may carry.
+
+#### 5.5.6 Conformance
+
+| case | what it checks | fails against |
+|---|---|---|
+| `variant-two-payloads` | an exported function returning `(result int string)` along both constructors, called by a host driver on every target that can print both | slot assignment by constructor rather than by type, or slots in written order rather than canonical order |
+| `variant-shared-slot` | `(result int int)` returned along both constructors | a shared slot overwritten, or the tag ignored |
+| `variant-two-modules` | two modules each declaring a different `result`, used at a boundary | today's global table; after the loader, qualified names |
+
 ---
 
 ## 6. Arrays and maps

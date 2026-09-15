@@ -114,6 +114,9 @@ recording alternatives that were considered and rejected.
 | Immutable values, one scoped linear buffer | [0018](docs/decisions/0018-immutable-values-linear-buffers.md) |
 | Precision by declaration — provisionally | [0019](docs/decisions/0019-precision-by-declaration.md) |
 | A buffer is a nameable type: uniqueness on parameters | [0020](docs/decisions/0020-uniqueness-on-parameters.md) |
+| Declarations are theories, and the surface that follows — amends 0011's *reasoning* | [0021](docs/decisions/0021-declarations-are-theories.md) |
+| Host declarations are written by hand; the generator is their checker | [0022](docs/decisions/0022-host-declarations-are-written-by-hand.md) |
+| A generator does not make a claim it cannot justify | [0023](docs/decisions/0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) |
 
 Design questions still open are listed in section 8 of
 [docs/design-direction.md](docs/design-direction.md) — memory model, error model,
@@ -2247,6 +2250,27 @@ nowhere**, and **`length`/`length-of` are postconditions under another name**, g
 `ensures`. Leaning: specify C₁₂, build B's part first, `with` reserved; build order step 2 is an
 elaborating loader with every emitted file byte-identical.
 
+**A VARIANT'S TYPE PARAMETERS ACROSS MODULES ARE SPECIFIED, AND ASKING FOUND A LOAD-ORDER BUG** —
+[spec/data.md §5.5](docs/spec/data.md), `core/sumclash_test.go`. **The bug, measured**: `Load` kept sums in ONE
+table keyed by the BARE name and checked only that no constructor belonged to two differently-named sums, so two
+modules each declaring `result` with different payloads loaded and the later OVERWROTE the earlier — `a.pick` was
+emitted `func GenPick(n int) (int, string)` in one load order and `(int, int)` in the other, **our checker
+accepted both**, Go refused one, JavaScript emitted it silently. Invisible inside a program because reduction
+erases payload types, which is why the corpus never showed it. **Interim fix built**: two DIFFERENT sums with one
+name are refused naming both modules; identical ones still load, which every module's injected `option` copy
+needs; the witness fails against HEAD in both orders and has a control; core and emit green, the corpus's two
+sums identical and in separate programs. **The spec, on hamza's "don't let windows dictate the spec"**: a variant
+type is its QUALIFIED declaration plus its arguments — nominal in the declaration, APPLICATIVE in the arguments,
+`option` one declaration in `lang`; constructors resolve lexically and a `case` is on one declaration by identity;
+**type arguments are NEVER inferred** — erased inside a program, written by the signature at a boundary, which is
+the only place one is needed; parameters are kind `type`, may not recurse, may not be buffers (ADR 0020 rule 6), may
+not be phantom. **At a boundary: `(tuple tag S₁ … Sₖ)` with ONE SLOT PER DISTINCT PAYLOAD TYPE in canonical order —
+Theorem R, `dec ∘ enc = id` whatever the unused slots hold**, so a backend leaves them at the host's zero; `k = 1`
+is today's `(tag, payload)` exactly, so no emitted file changes; a niche encoding is an optimisation of it, never a
+replacement. **A target does not get to bound `k`**: a backend without a convention for a width reports a
+COMPILER limitation, never a spec rule — values.md's own sentence that Java gets a record and windows a register
+or stack convention.
+
 **FACTS ARE RESEARCHED, AND THE INVENTORY CAME FIRST** — [facts.md](docs/facts.md). **DECIDED: F-B, with
 F-C, F-D and F-E kept OPEN as reserved fragments** ([spec/theories.md §7](docs/spec/theories.md)): admission
 classifies a fact by fragment, and `forall` and `lemma` are reserved words, so building one later ADDS a
@@ -2294,7 +2318,20 @@ module whose `include` derives the subtyping. theories.md specifies declarations
 cells with native-wins generalised to every level, files as modules, companions (a child sharing a TYPE's
 name), types resolved like terms, `host` as the only clause carrying host text, `provides` holding `def`s
 (`D_T`), `repr`, `max-len` as a `fact`, `with`/`view` reserved; its acceptance test is an elaborating loader
-with every emitted file byte-identical. Facts and the undocumented `boxed`/`builtin-map` are marked to write.
+with every emitted file byte-identical. **`boxed` and `builtin-map` are now specified** (§5.7–§5.8): `boxed` is a
+representation chosen by POSITION, and its map read is the first working NICHE encoding of `(option int)` with
+`none` as `null`; `builtin-map` is the same kind of declaration as `(big-repr limbs)`, and its merge was a JOIN
+where layers need OVERRIDE, so a nearer layer could turn it on and never off. **Diagnostics are specified**
+(§10) because the easiest implementation of a rule ignores what breaks it, and here that has meant a wrong
+program three recorded times. Eight principles: no silent acceptance; a declaration error fires at LOAD (a
+misspelled `provides` must not wait for a program); every declaration carries an ORIGIN (file, line, layer,
+module, and the sugar or tool that produced it); names printed in SOURCE spelling, always possible because
+resolution is an INJECTIVE renaming and so has an inverse; a failed proof names its premises, facts by name and
+instance, marking a target's fact as not portable. A table of 43 rows across eight phases (40 refusals, two notes and one test-time check), each saying what
+the message must name, and a table of seven cases that look like mistakes and must be ACCEPTED (partial
+`provides`, companions, overrides). Acceptance: every row refused, every named item present, and NO internal
+spelling (`#tag`, `div(`, `ptr-os-`, a generated stride). Positions on TERMS are owed as their own decision,
+with the tally message `(dt (+ (* 2 s) 1))` for a source `((dt s) 1)` as the witness.
 
 **HOST DECLARATIONS ARE WRITTEN BY HAND NOW, AND LINEARITY IS SEEDED BY TYPE** —
 [handdecl-2026-09-14](gauntlet/results/handdecl-2026-09-14.md), `emit/linearity.go`,

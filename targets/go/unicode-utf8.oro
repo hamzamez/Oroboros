@@ -20,19 +20,19 @@
   (module go/unicode-utf8
 
     ; ------------------------------------------------------------ constants
-    (prim MaxRune   (none) (int 1114111 1114111) expr "utf8.MaxRune"   pure (import "unicode/utf8"))
-    (prim RuneError (none) (int 65533 65533)     expr "utf8.RuneError" pure (import "unicode/utf8"))
-    (prim RuneSelf  (none) (int 128 128)         expr "utf8.RuneSelf"  pure (import "unicode/utf8"))
-    (prim UTFMax    (none) (int 4 4)             expr "utf8.UTFMax"    pure (import "unicode/utf8"))
+    (sig MaxRune   () (int 1114111 1114111)   pure (host expr "utf8.MaxRune" (import "unicode/utf8")))
+    (sig RuneError () (int 65533 65533) pure     (host expr "utf8.RuneError" (import "unicode/utf8")))
+    (sig RuneSelf  () (int 128 128)  pure         (host expr "utf8.RuneSelf" (import "unicode/utf8")))
+    (sig UTFMax    () (int 4 4)    pure             (host expr "utf8.UTFMax" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ one rune
     ; "It returns -1 if the rune is not a valid value to encode in UTF-8."
-    (prim RuneLen   ((r (int -2147483648 2147483647))) (int -1 4)
-          expr "utf8.RuneLen(int32(%s))" pure (import "unicode/utf8"))
-    (prim ValidRune ((r (int -2147483648 2147483647))) bool
-          expr "utf8.ValidRune(int32(%s))" pure (import "unicode/utf8"))
-    (prim RuneStart ((b (int 0 255))) bool
-          expr "utf8.RuneStart(uint8(%s))" pure (import "unicode/utf8"))
+    (sig RuneLen   ((r (int -2147483648 2147483647))) (int -1 4) pure
+          (host expr "utf8.RuneLen(int32(%s))" (import "unicode/utf8")))
+    (sig ValidRune ((r (int -2147483648 2147483647))) bool pure
+          (host expr "utf8.ValidRune(int32(%s))" (import "unicode/utf8")))
+    (sig RuneStart ((b (int 0 255))) bool pure
+          (host expr "utf8.RuneStart(uint8(%s))" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ writing
     ; A WRITE-BORROW: B ⊸ B ⊗ R. The host writes into p "(which must be large
@@ -43,45 +43,45 @@
     ; The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
     ; bytes (three for an invalid rune), and four is enough for every rune. The
     ; exact requirement is a disjunction the linear fragment cannot state.
-    (prim EncodeRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
+    (sig EncodeRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
           ((buffer (int 0 255)) (int 1 4))
-          expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
           (where (<= 4 (len p)))
-          (import "unicode/utf8"))
+          (host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
+            (import "unicode/utf8")))
 
     ; CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
     ; and returns the extended buffer" — the same storage when p has capacity, new
     ; storage when not, and p is dead either way.
-    (prim AppendRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
+    (sig AppendRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
           (buffer (int 0 255))
-          expr "utf8.AppendRune(%s, int32(%s))"
-          (import "unicode/utf8"))
+          (host expr "utf8.AppendRune(%s, int32(%s))"
+            (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading bytes
     ; A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
     ; 0 only for empty input and at most UTFMax.
-    (prim DecodeRune     ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4))
-          expr "utf8.DecodeRune(%s)" pure (import "unicode/utf8"))
-    (prim DecodeLastRune ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4))
-          expr "utf8.DecodeLastRune(%s)" pure (import "unicode/utf8"))
-    (prim FullRune       ((p (array (int 0 255)))) bool
-          expr "utf8.FullRune(%s)" pure (import "unicode/utf8"))
+    (sig DecodeRune     ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4)) pure
+          (host expr "utf8.DecodeRune(%s)" (import "unicode/utf8")))
+    (sig DecodeLastRune ((p (array (int 0 255)))) ((int 0 1114111) (int 0 4)) pure
+          (host expr "utf8.DecodeLastRune(%s)" (import "unicode/utf8")))
+    (sig FullRune       ((p (array (int 0 255)))) bool pure
+          (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
     ; Every rune, valid or not, is at least one byte.
-    (prim RuneCount      ((p (array (int 0 255)))) (int 0 9007199254740991)
-          expr "utf8.RuneCount(%s)" pure (ensures (<= result (len p))) (import "unicode/utf8"))
-    (prim Valid          ((p (array (int 0 255)))) bool
-          expr "utf8.Valid(%s)" pure (import "unicode/utf8"))
+    (sig RuneCount      ((p (array (int 0 255)))) (int 0 9007199254740991) pure (ensures (<= result (len p)))
+          (host expr "utf8.RuneCount(%s)" (import "unicode/utf8")))
+    (sig Valid          ((p (array (int 0 255)))) bool pure
+          (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading strings
-    (prim DecodeRuneInString     ((s string)) ((int 0 1114111) (int 0 4))
-          expr "utf8.DecodeRuneInString(%s)" pure (import "unicode/utf8"))
-    (prim DecodeLastRuneInString ((s string)) ((int 0 1114111) (int 0 4))
-          expr "utf8.DecodeLastRuneInString(%s)" pure (import "unicode/utf8"))
-    (prim FullRuneInString       ((s string)) bool
-          expr "utf8.FullRuneInString(%s)" pure (import "unicode/utf8"))
-    (prim RuneCountInString      ((s string)) (int 0 9007199254740991)
-          expr "utf8.RuneCountInString(%s)" pure (import "unicode/utf8"))
-    (prim ValidString            ((s string)) bool
-          expr "utf8.ValidString(%s)" pure (import "unicode/utf8"))
+    (sig DecodeRuneInString     ((s string)) ((int 0 1114111) (int 0 4)) pure
+          (host expr "utf8.DecodeRuneInString(%s)" (import "unicode/utf8")))
+    (sig DecodeLastRuneInString ((s string)) ((int 0 1114111) (int 0 4)) pure
+          (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
+    (sig FullRuneInString       ((s string)) bool pure
+          (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))
+    (sig RuneCountInString      ((s string)) (int 0 9007199254740991) pure
+          (host expr "utf8.RuneCountInString(%s)" (import "unicode/utf8")))
+    (sig ValidString            ((s string)) bool pure
+          (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))
   )
 )

@@ -11,12 +11,12 @@
 ; (integers.md §0a) rather than every consumer having to know.
 
 (provides js io
-    (prim print-line ((s string)) string stmt "console.log(%s)")
+    (sig print-line ((s string)) string (host stmt "console.log(%s)"))
     ; ---- and the same without the newline
     ;
     ; `process.stdout.write`, not `console.log`, and it is the ONE place this
     ; module reaches past the console: `console.log` appends a newline and has no
     ; form that does not. `process` is a Node global, so this needs no import.
-    (prim print ((s string)) string stmt "process.stdout.write(%s)")
+    (sig print ((s string)) string (host stmt "process.stdout.write(%s)"))
 
-    (prim print-int ((n int)) int stmt "console.log(%s)"))
+    (sig print-int ((n int)) int (host stmt "console.log(%s)")))

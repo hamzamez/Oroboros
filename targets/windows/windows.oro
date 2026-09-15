@@ -46,18 +46,18 @@
   ; from: an empty `map-type` means "no map" here and "no TYPES" on JavaScript,
   ; which has a perfectly good map and spells nothing at all. Guessing would
   ; have handed JavaScript our hash table and thrown away a measured 3.67x.
-  (builtin-map)
+  (repr map library)
 
   ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here: `int`
   ; and `f64` are what integer and float LITERALS type as, and `bool` is what
   ; `if` and a loop guard demand. The right-hand side is the machine
   ; representation, which on this host is all a type can be.
-  (type int    "qword")
-  (type f64    "real8")
-  (type bool   "qword")
-  (type string "qword")   ; a pointer to NUL-terminated bytes
-  (type ptr    "qword")
-  (type any    "qword")
+  (type int    (host "qword"))
+  (type f64    (host "real8"))
+  (type bool   (host "qword"))
+  (type string (host "qword"))   ; a pointer to NUL-terminated bytes
+  (type ptr    (host "qword"))
+  (type any    (host "qword"))
 
   ; STORAGE THE TARGET OWNS. This is new, and Win32 forced it. `WriteFile` takes
   ; a pointer to a cell it writes the byte count into, and our language has no

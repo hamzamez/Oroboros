@@ -214,7 +214,7 @@ func normalise(s, root, work string) []string {
 
 const outcomesHeader = `# gauntlet/check/outcomes.txt — written by "go run ./cmd/check -accept". Do not edit by hand.
 # One block per source and target: "== SOURCE TARGET emitted HASH" or "== SOURCE TARGET refused",
-# then every line the compiler printed. The emitted text itself is in gauntlet/check/emitted/.
+# then every line the compiler printed. The emitted text itself is in gauntlet/check/testdata/emitted/.
 `
 
 func formatOutcomes(list []outcome) string {
@@ -410,7 +410,7 @@ func (c *checker) emission() result {
 		fmt.Printf("   %-24s %s\n", ch.kind, ch.key)
 		if ch.kind == textChanged {
 			name := emittedName(ch.new.Source, ch.new.Target)
-			fmt.Printf("   %-24s git diff --no-index gauntlet/check/emitted/%s .check/emitted/%s\n", "", name, name)
+			fmt.Printf("   %-24s git diff --no-index gauntlet/check/testdata/emitted/%s .check/emitted/%s\n", "", name, name)
 		}
 	}
 	if len(c.changes) > 0 {
@@ -424,7 +424,10 @@ func (c *checker) emission() result {
 func (c *checker) acceptBaseline(reason string, tooling status) error {
 	baseDir := filepath.Join(c.root, "gauntlet", "check")
 	newDir := filepath.Join(c.work, "emitted")
-	emittedDir := filepath.Join(baseDir, "emitted")
+	// Under testdata/, which the go tool never builds: the baseline holds one Go
+	// file per program, all in `package main`, and `go vet ./...` read them as one
+	// package with a hundred `GenMain`s.
+	emittedDir := filepath.Join(baseDir, "testdata", "emitted")
 	if err := os.RemoveAll(emittedDir); err != nil {
 		return err
 	}

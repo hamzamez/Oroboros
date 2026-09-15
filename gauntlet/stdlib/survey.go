@@ -1771,7 +1771,7 @@ func emit(dir string, syms []sym, raw []string) error {
 					continue
 				}
 				fmt.Fprintf(modBuf("go/"+strings.ReplaceAll(p, "/", "-")),
-					"    (prim %s (none) %s expr \"%s.%s\" pure (import %q))\n",
+					"    (sig %s () %s pure (host expr \"%s.%s\" (import %q)))\n",
 					s.name, res, base, s.name, p)
 				n++
 				continue
@@ -1849,8 +1849,8 @@ func emit(dir string, syms []sym, raw []string) error {
 				}
 				res = "(" + strings.Join(rs, " ") + ")"
 			}
-			fmt.Fprintf(modBuf(mod), "    (prim %s %s %s %s \"%s\" (import %q))\n",
-				s.name, argList, res, kind, call, p)
+			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s \"%s\" (import %q)))\n",
+				s.name, strings.Replace(argList, "(none)", "()", 1), res, kind, call, p)
 			n++
 		}
 		// THE EDGES FOR THE TYPES THIS FILE DECLARES. Put with the CONCRETE type,
@@ -1885,7 +1885,7 @@ func emit(dir string, syms []sym, raw []string) error {
 		}
 		sort.Strings(tn)
 		for _, k := range tn {
-			fmt.Fprintf(&b, "  (type %s %q)\n", k, types[k])
+			fmt.Fprintf(&b, "  (type %s (host %q))\n", k, types[k])
 		}
 		if len(tn) > 0 {
 			b.WriteString("\n")

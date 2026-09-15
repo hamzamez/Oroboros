@@ -37,31 +37,31 @@
   ; because `BigInteger` is immutable and allocates an object and an
   ; int[] per operation. That prediction was measured on hand-written
   ; 32-bit limbs; ours are 24-bit with `/` for the carry.
-  (big-repr host)
+  (repr big host)
 
-  (type big "java.math.BigInteger")
+  (type big (host "java.math.BigInteger"))
 
   (module java
-    (prim big+ (big big) big expr "%s.add(%s)"      pure)
-    (prim big- (big big) big expr "%s.subtract(%s)" pure)
-    (prim big* (big big) big expr "%s.multiply(%s)" pure)
+    (sig big+ (big big) big      pure (host expr "%s.add(%s)"))
+    (sig big- (big big) big pure (host expr "%s.subtract(%s)"))
+    (sig big* (big big) big pure (host expr "%s.multiply(%s)"))
     ; divide/remainder, NOT divide/mod -- see the header.
-    (prim big/ ((a big) (b big)) big expr "%s.divide(%s)"    pure)
-    (prim big% ((a big) (b big)) big expr "%s.remainder(%s)" pure)
+    (sig big/ ((a big) (b big)) big    pure (host expr "%s.divide(%s)"))
+    (sig big% ((a big) (b big)) big pure (host expr "%s.remainder(%s)"))
 
-    (prim big<  (big big) bool expr "%s.compareTo(%s) < 0"  pure)
-    (prim big<= (big big) bool expr "%s.compareTo(%s) <= 0" pure)
-    (prim big>  (big big) bool expr "%s.compareTo(%s) > 0"  pure)
-    (prim big>= (big big) bool expr "%s.compareTo(%s) >= 0" pure)
+    (sig big<  (big big) bool  pure (host expr "%s.compareTo(%s) < 0"))
+    (sig big<= (big big) bool pure (host expr "%s.compareTo(%s) <= 0"))
+    (sig big>  (big big) bool  pure (host expr "%s.compareTo(%s) > 0"))
+    (sig big>= (big big) bool pure (host expr "%s.compareTo(%s) >= 0"))
     ; `compareTo` and not `equals`: they agree for BigInteger, and using one
     ; operation for all five comparisons is what makes the five templates
     ; obviously consistent with each other.
-    (prim big=  (big big) bool expr "%s.compareTo(%s) == 0" pure)
+    (sig big=  (big big) bool pure (host expr "%s.compareTo(%s) == 0"))
 
     ; Our `int` is Java's `long` (targets/java/java.oro), and `valueOf` takes a
     ; long, so this conversion is exact and needs no cast.
-    (prim big-of (int) big expr "java.math.BigInteger.valueOf(%s)" pure)
-    (prim big-str (big) string expr "%s.toString()" pure)
+    (sig big-of (int) big pure (host expr "java.math.BigInteger.valueOf(%s)"))
+    (sig big-str (big) string pure (host expr "%s.toString()"))
 
     ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
     ; 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
@@ -75,12 +75,12 @@
     ;
     ; It is also what decimal rendering is made of: printing needs each digit
     ; group as a word.
-    (prim big%-small ((a big) (k int)) int expr "%s.remainder(java.math.BigInteger.valueOf(%s)).longValue()" pure)
+    (sig big%-small ((a big) (k int)) int pure (host expr "%s.remainder(java.math.BigInteger.valueOf(%s)).longValue()"))
 
     ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
     ; representations must agree about it. Java has no throw EXPRESSION, so this
     ; is a lambda applied at once, the same shape as `trap-if` below.
-    (prim big-fit ((x big) (k int)) big expr "((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return oro$z; })).apply(%s, (long)(%s))")
+    (sig big-fit ((x big) (k int)) big (host expr "((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return oro$z; })).apply(%s, (long)(%s))"))
     ; The fixed-limb rung's carry check -- see targets/go/bigint.oro. Java has
     ; no throw EXPRESSION, so it is a lambda applied at once; the JIT inlines it
     ; and the branch is never taken.
@@ -91,4 +91,4 @@
     ; allow the shadow, so this is a one-host rule and it fires on the first
     ; program with a carry. `$` is legal in a Java identifier and the emitter's
     ; mangler never produces one.
-    (prim trap-if (int) int expr "((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return 0L; })).applyAsLong(%s)")))
+    (sig trap-if (int) int (host expr "((java.util.function.LongUnaryOperator)(oro$c -> { if (oro$c != 0) throw new ArithmeticException(\"bignum overflow: the declared range is too small\"); return 0L; })).applyAsLong(%s)"))))

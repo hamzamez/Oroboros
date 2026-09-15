@@ -167,7 +167,7 @@ func TestDeclaringALanguageConstructIsAnError(t *testing.T) {
 	} {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
-		src := "(target t\n  (type int \"int\")\n  " + line + ")\n"
+		src := "(target t\n  (type int (host \"int\"))\n  " + line + ")\n"
 		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}

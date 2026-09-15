@@ -14,35 +14,35 @@
 ; this target is for `oro`, which prints normal forms.
 
 (target tutorial
-  (type num  "num")
-  (type bool "bool")
+  (type num  (host "num"))
+  (type bool (host "bool"))
 
-  (prim + (num num) num  expr "%s + %s" pure)
-  (prim - (num num) num  expr "%s - %s" pure)
-  (prim * (num num) num  expr "%s * %s" pure)
-  (prim / (num num) num  expr "%s / %s" pure)
-  (prim < (num num) bool expr "%s < %s" pure)
+  (sig + (num num) num pure  (host expr "%s + %s"))
+  (sig - (num num) num pure  (host expr "%s - %s"))
+  (sig * (num num) num pure  (host expr "%s * %s"))
+  (sig / (num num) num pure  (host expr "%s / %s"))
+  (sig < (num num) bool pure (host expr "%s < %s"))
 
   ; Opaque stand-ins. Reduction halts on these, which is the whole point:
   ; they let an example show a shape without showing an implementation.
-  (prim f (num) num      expr "f(%s)" pure)
-  (prim g (num) num      expr "g(%s)" pure)
-  (prim h (num num) num  expr "h(%s, %s)" pure)
-  (prim x (none) num     expr "x" pure)
-  (prim y (none) num     expr "y" pure)
-  (prim z (none) num     expr "z" pure)
+  (sig f (num) num pure      (host expr "f(%s)"))
+  (sig g (num) num pure      (host expr "g(%s)"))
+  (sig h (num num) num pure  (host expr "h(%s, %s)"))
+  (sig x () num pure     (host expr "x"))
+  (sig y () num pure     (host expr "y"))
+  (sig z () num pure     (host expr "z"))
 
   ; A module the TARGET provides. `(use math/trig)` finds no file on the search
   ; path, and that is not an error — it is a module this target implements
   ; natively (chapter 3).
   (module math/trig
-    (prim sin (num) num expr "sin(%s)" pure)
-    (prim cos (num) num expr "cos(%s)" pure))
+    (sig sin (num) num pure (host expr "sin(%s)"))
+    (sig cos (num) num pure (host expr "cos(%s)")))
 
   ; The impure primitives. Reduction may not copy, drop or reorder these,
   ; which is the whole of chapter 4.
-  (prim shout   (num) num  stmt "shout(%s)")
-  (prim whisper (num) num  stmt "whisper(%s)")
-  (prim tick    (none) num stmt "tick()")
+  (sig shout   (num) num  (host stmt "shout(%s)"))
+  (sig whisper (num) num  (host stmt "whisper(%s)"))
+  (sig tick    () num (host stmt "tick()"))
 
   (structural fold-range loop pure))

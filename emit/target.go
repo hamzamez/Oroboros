@@ -171,15 +171,20 @@ type Target struct {
 	// `boxed` falls through to `ty` and nothing changes.
 	Boxed map[string]string
 
-	// BuiltinMap says this host ships no map of its own, so the language
-	// supplies one — `emit/winmap.oro`, lowered into buffers and loops before
-	// reduction.
+	// MapRepr is how this model realizes `map`: "library" when this host ships
+	// no map of its own, so the language supplies one — `emit/winmap.oro`,
+	// lowered into buffers and loops before reduction — and "host" or "" for the
+	// host's own. `(repr map library)`, theories.md §5.8.
 	//
 	// Declared rather than inferred, because there is nothing to infer it from:
 	// an empty `MapType` means "no map" on windows and "no TYPES" on
 	// JavaScript, which has a perfectly good map and spells nothing. A host
 	// fact belongs in a target file whichever way it points.
-	BuiltinMap bool
+	//
+	// A WORD AND NOT A FLAG, because it composes by override. It was a bool
+	// joined with `||`, so a nearer layer could turn the library map on and never
+	// off; "" is "not declared here", which is what lets `▷` see a choice.
+	MapRepr string
 
 	// Reprs are the integer representations this target can store, narrowest
 	// first, declared as `(int-repr LO HI "spelling")`. A range type selects
@@ -388,7 +393,7 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 		if d == "" {
 			continue
 		}
-		_ = filepath.Walk(d, func(fp string, info os.FileInfo, err error) error {
+		err := filepath.Walk(d, func(fp string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() || !strings.HasSuffix(fp, ".oro") {
 				return nil
 			}
@@ -414,19 +419,22 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 					continue
 				}
 				mod := t.Kids[2].Name
+				// A DECLARATION THAT DOES NOT LOAD IS AN ERROR HERE TOO. Both used to
+				// vanish: anything but a `prim` was skipped and a declaration that
+				// failed ended the file's walk in silence, so a library's native fast
+				// path could disappear with no diagnostic (theories.md §10.1, D1).
 				for _, inner := range t.Kids[3:] {
-					if inner.Kind != core.KApp || inner.Kids[0].Kind != core.KName ||
-						inner.Kids[0].Name != "prim" {
-						continue
-					}
 					if err := out.declare(inner, mod, fp); err != nil {
-						return nil
+						return err
 					}
 				}
 				from = append(from, fp)
 			}
 			return nil
 		})
+		if err != nil {
+			return nil, nil, err
+		}
 	}
 	if len(out.Prims) == 0 {
 		return nil, nil, nil
@@ -1074,10 +1082,16 @@ func loadTargetFile(path string) (*Target, error) {
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
-	if len(terms) != 1 {
-		return nil, fmt.Errorf("%s: expected one (target …) form, got %d", path, len(terms))
+	if len(terms) == 0 || formWord(terms[0]) != "target" {
+		return nil, fmt.Errorf("%s: a target file begins with (target NAME …)", path)
 	}
-	return parseTarget(terms[0], path)
+	// THE HEADER NAMES THE MODEL AND EVERY FORM AFTER IT IS GLUED IN. Whether a
+	// form sits inside the header's parentheses or after them is the same fragment
+	// by the homomorphism parseTarget folds with, so both load; the header-only
+	// spelling is theories.md §5.1's.
+	head := *terms[0]
+	head.Kids = append(append([]*core.Term(nil), head.Kids...), terms[1:]...)
+	return parseTarget(&head, path)
 }
 
 // Backends is the finite closed set of code generators — target-system.md §1's
@@ -1241,14 +1255,12 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if err := combineMap(tg.Boxed, o.Boxed, "boxed", from, how); err != nil {
 		return err
 	}
-	if o.BuiltinMap {
-		tg.BuiltinMap = true // monotone: no collision is possible
-	}
 	for _, f := range []struct {
 		dst  *string
 		src  string
 		what string
 	}{
+		{&tg.MapRepr, o.MapRepr, "map representation"},
 		{&tg.ArrayType, o.ArrayType, "array-type"},
 		{&tg.MapType, o.MapType, "map-type"},
 		{&tg.Backend, o.Backend, "backend"},
@@ -1315,79 +1327,24 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 	if len(t.Kids) < 2 || t.Kids[1].Kind != core.KName {
 		return nil, fmt.Errorf("%s: target needs a name", path)
 	}
-	tg := &Target{Name: t.Kids[1].Name, Types: map[string]string{}, Prims: map[string]Prim{}}
+	tg := newTarget(t.Kids[1].Name)
 
+	// A FILE IS THE GLUE OF ITS FORMS, exactly as a directory is the glue of its
+	// files: each form elaborates to a fragment and `merge` folds them. That is the
+	// homomorphism load(F₁ ++ F₂) = load(F₁) ⊔ load(F₂), so splitting a file in two
+	// cannot change a target. Assigning fields as they were read did: a second
+	// `(array-type …)` replaced the first in one file and was refused across two
+	// (TestSplittingAFileChangesNothing).
 	for _, f := range t.Kids[2:] {
 		if f.Kind != core.KApp || f.Kids[0].Kind != core.KName {
-			return nil, fmt.Errorf("%s: expected (type …) or (prim …), got %s", path, f)
+			return nil, fmt.Errorf("%s: expected a declaration — (sig …), (type …), (repr …), (module …) — got %s",
+				path, f)
 		}
+		if spelled, old := respelled[f.Kids[0].Name]; old {
+			return nil, fmt.Errorf("%s: (%s …) is spelled %s (theories.md §8.4)", path, f.Kids[0].Name, spelled)
+		}
+		frag := newTarget(tg.Name)
 		switch f.Kids[0].Name {
-		case "int-repr":
-			// `(int-repr LO HI "spelling")`. Signedness is not a concept here
-			// and does not need to be: a host that cannot store 0..255 in its
-			// byte — the JVM, whose `byte` is signed — simply does not declare
-			// that range for it, and the range selects the next one up. The
-			// declaration says what the host CAN hold, and nothing else.
-			if len(f.Kids) != 4 || f.Kids[1].Kind != core.KInt ||
-				f.Kids[2].Kind != core.KInt || f.Kids[3].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (int-repr LO HI \"spelling\"), got %s", path, f)
-			}
-			lo, hi := f.Kids[1].Int, f.Kids[2].Int
-			if lo > hi {
-				return nil, fmt.Errorf("%s: int-repr %d..%d is empty", path, lo, hi)
-			}
-			tg.Reprs = append(tg.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: f.Kids[3].Str})
-		case "max-len":
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KInt || f.Kids[1].Int < 1 {
-				return nil, fmt.Errorf("%s: (max-len N) with N >= 1, got %s", path, f)
-			}
-			if f.Kids[1].Int > portableMaxLen {
-				return nil, fmt.Errorf("%s: max-len %d is outside the portable "+
-					"window; a length this target cannot count exactly is not a "+
-					"length (ADR 0012)", path, f.Kids[1].Int)
-			}
-			tg.MaxLen = f.Kids[1].Int
-		case "big-repr":
-			// `(big-repr limbs)` or `(big-repr host)` — how this target stores a
-			// value declared finite and above the portable window. See the field.
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName ||
-				(f.Kids[1].Name != "limbs" && f.Kids[1].Name != "host") {
-				return nil, fmt.Errorf("%s: (big-repr limbs) or (big-repr host), got %s", path, f)
-			}
-			tg.BigRepr = f.Kids[1].Name
-		case "shift-width":
-			// `(shift-width N)` — see the field. N is a number of bits, and the
-			// upper limit is the portable window's own: a host that claimed to
-			// shift values it cannot represent exactly would be claiming
-			// something ADR 0012 already denies.
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KInt ||
-				f.Kids[1].Int < 1 || f.Kids[1].Int > 63 {
-				return nil, fmt.Errorf("%s: (shift-width N) with 1 <= N <= 63, got %s", path, f)
-			}
-			tg.ShiftWidth = f.Kids[1].Int
-		case "array-type":
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (array-type \"[]%%s\"), got %s", path, f)
-			}
-			tg.ArrayType = f.Kids[1].Str
-		case "builtin-map":
-			if len(f.Kids) != 1 {
-				return nil, fmt.Errorf("%s: (builtin-map) takes nothing, got %s", path, f)
-			}
-			tg.BuiltinMap = true
-		case "boxed":
-			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (boxed NAME \"spelling\"), got %s", path, f)
-			}
-			if tg.Boxed == nil {
-				tg.Boxed = map[string]string{}
-			}
-			tg.Boxed[f.Kids[1].Name] = f.Kids[2].Str
-		case "map-type":
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (map-type \"map[%%s]%%s\"), got %s", path, f)
-			}
-			tg.MapType = f.Kids[1].Str
 		case "implements":
 			// (implements T I ...) -- T is accepted where any I is wanted.
 			//
@@ -1404,22 +1361,45 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 						path, f)
 				}
 			}
-			if tg.Implements == nil {
-				tg.Implements = map[string][]string{}
+			if frag.Implements == nil {
+				frag.Implements = map[string][]string{}
 			}
 			sub := f.Kids[1].Name
 			for _, k := range f.Kids[2:] {
-				tg.Implements[sub] = append(tg.Implements[sub], k.Name)
+				frag.Implements[sub] = append(frag.Implements[sub], k.Name)
 			}
-		case "type":
-			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName || f.Kids[2].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (type NAME \"spelling\"), got %s", path, f)
-			}
-			tg.Types[f.Kids[1].Name] = f.Kids[2].Str
-		case "prim":
-			if err := tg.declare(f, "", path); err != nil {
+		case "repr":
+			if err := parseRepr(f, frag, path); err != nil {
 				return nil, err
 			}
+		case "fact":
+			if err := parseFact(f, frag, path); err != nil {
+				return nil, err
+			}
+		case "sig":
+			if err := frag.declare(f, "", path); err != nil {
+				return nil, err
+			}
+		case "type":
+			// (type NAME (host "s")), and the two constructors `lang` owns and every
+			// typed target must realize: (type (array A) (host "[]%s")) and
+			// (type (map K V) (host "map[%s]%s")) — theories.md §5.6.
+			if s, ok := hostSpelling(lastKid(f)); ok && len(f.Kids) == 3 {
+				switch n := f.Kids[1]; {
+				case n.Kind == core.KName:
+					frag.Types[n.Name] = s
+				case formWord(n) == "array" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
+					frag.ArrayType = s
+				case formWord(n) == "map" && len(n.Kids) == 3 &&
+					n.Kids[1].Kind == core.KName && n.Kids[2].Kind == core.KName:
+					frag.MapType = s
+				default:
+					return nil, fmt.Errorf("%s: (type NAME (host …)), (type (array A) (host …)) or "+
+						"(type (map K V) (host …)), got %s", path, f)
+				}
+				break
+			}
+			return nil, fmt.Errorf("%s: (type NAME (host \"spelling\")), got %s", path, f)
 		case "backend":
 			// (backend NAME) — which code generator compiles this target.
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName {
@@ -1431,22 +1411,22 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 					"not data, so the set is closed: %s",
 					path, f.Kids[1].Name, strings.Join(Backends, ", "))
 			}
-			tg.Backend = f.Kids[1].Name
+			frag.Backend = f.Kids[1].Name
 		case "artifact":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (artifact \"name\"), got %s", path, f)
 			}
-			tg.Artifact = f.Kids[1].Str
+			frag.Artifact = f.Kids[1].Str
 		case "build":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (build \"cmd %%s %%s\"), got %s", path, f)
 			}
-			tg.Build = f.Kids[1].Str
+			frag.Build = f.Kids[1].Str
 		case "data":
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
 				return nil, fmt.Errorf("%s: (data \"label ...\"), got %s", path, f)
 			}
-			tg.Data = append(tg.Data, f.Kids[1].Str)
+			frag.Data = append(frag.Data, f.Kids[1].Str)
 		case "link":
 			if len(f.Kids) < 2 {
 				return nil, fmt.Errorf("%s: (link \"library\"…) names at least one library, got %s", path, f)
@@ -1455,13 +1435,8 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				if k.Kind != core.KStr {
 					return nil, fmt.Errorf("%s: (link \"library\"…) takes strings, got %s", path, f)
 				}
-				tg.Link = append(tg.Link, k.Str)
+				frag.Link = append(frag.Link, k.Str)
 			}
-		case "narrow":
-			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KStr {
-				return nil, fmt.Errorf("%s: (narrow \"dst = src[:n]\"), got %s", path, f)
-			}
-			tg.Narrow = f.Kids[1].Str
 		case "structural":
 			// (structural NAME KIND [pure]) — the four the backend implements.
 			// They carry NO TYPES, because fold-range is
@@ -1472,42 +1447,155 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err != nil {
 				return nil, err
 			}
-			if _, dup := tg.Prims[p.Name]; dup {
-				return nil, fmt.Errorf("%s: %s is declared twice", path, p.Name)
-			}
-			tg.Prims[p.Name] = p
-			tg.Names = append(tg.Names, p.Name)
+			frag.Prims[p.Name] = p
+			frag.Names = append(frag.Names, p.Name)
 		case "module":
-			// (module PATH (prim …) …) — the names this target provides
+			// (module PATH (sig …) …) — the names this target provides
 			// NATIVELY from that module. A target may provide any subset,
 			// including none, which is what makes porting demand-driven
 			// (modules.md §4).
 			if len(f.Kids) < 2 || f.Kids[1].Kind != core.KName {
-				return nil, fmt.Errorf("%s: (module PATH (prim …)…), got %s", path, f)
+				return nil, fmt.Errorf("%s: (module PATH (sig …)…), got %s", path, f)
 			}
 			for _, inner := range f.Kids[2:] {
-				if inner.Kind != core.KApp || inner.Kids[0].Kind != core.KName ||
-					inner.Kids[0].Name != "prim" {
-					return nil, fmt.Errorf("%s: module %s may only contain (prim …), got %s",
-						path, f.Kids[1].Name, inner)
-				}
-				if err := tg.declare(inner, f.Kids[1].Name, path); err != nil {
+				if err := frag.declare(inner, f.Kids[1].Name, path); err != nil {
 					return nil, err
 				}
 			}
 		default:
 			return nil, fmt.Errorf("%s: unknown target form %q", path, f.Kids[0].Name)
 		}
+		if err := tg.merge(frag, path); err != nil {
+			return nil, err
+		}
 	}
 	sort.Strings(tg.Names)
 	return tg, nil
+}
+
+func newTarget(name string) *Target {
+	return &Target{Name: name, Types: map[string]string{}, Prims: map[string]Prim{}}
+}
+
+func lastKid(t *core.Term) *core.Term {
+	if t.Kind != core.KApp || len(t.Kids) == 0 {
+		return t
+	}
+	return t.Kids[len(t.Kids)-1]
+}
+
+// parseRepr reads a representation choice (theories.md §5.5–§5.9). It declares
+// no name: it chooses how this model realizes something the language already
+// has, so it composes by override like every other declaration.
+func parseRepr(f *core.Term, frag *Target, path string) error {
+	bad := func(want string) error { return fmt.Errorf("%s: %s, got %s", path, want, f) }
+	if len(f.Kids) != 3 {
+		return bad("(repr SUBJECT CHOICE)")
+	}
+	subj, choice := f.Kids[1], f.Kids[2]
+	spelling, hosted := hostSpelling(choice)
+	word := func(options ...string) (string, bool) {
+		for _, o := range options {
+			if subj.Kind == core.KName && choice.Kind == core.KName && choice.Name == o {
+				return o, true
+			}
+		}
+		return "", false
+	}
+	switch formWord(subj) {
+	case "int":
+		// Signedness is not a concept here and does not need to be: a host that
+		// cannot store 0..255 in its byte — the JVM, whose `byte` is signed —
+		// simply does not declare that range for it, and the range selects the
+		// next one up. The declaration says what the host CAN hold, and nothing else.
+		if subj.Kind != core.KApp || len(subj.Kids) != 3 || subj.Kids[1].Kind != core.KInt ||
+			subj.Kids[2].Kind != core.KInt || !hosted {
+			return bad(`(repr (int LO HI) (host "spelling"))`)
+		}
+		lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
+		if lo > hi {
+			return fmt.Errorf("%s: (int %d %d) is empty", path, lo, hi)
+		}
+		frag.Reprs = append(frag.Reprs, IntRepr{Lo: lo, Hi: hi, Spell: spelling})
+	case "ref":
+		if subj.Kind != core.KApp || len(subj.Kids) != 2 || subj.Kids[1].Kind != core.KName || !hosted {
+			return bad(`(repr (ref T) (host "spelling"))`)
+		}
+		frag.Boxed = map[string]string{subj.Kids[1].Name: spelling}
+	case "big":
+		w, ok := word("host", "limbs")
+		if !ok {
+			return bad("(repr big host) or (repr big limbs)")
+		}
+		frag.BigRepr = w
+	case "map":
+		w, ok := word("host", "library")
+		if !ok {
+			return bad("(repr map host) or (repr map library)")
+		}
+		frag.MapRepr = w
+	case "shift":
+		// N is a number of bits, and the upper limit is the portable window's own:
+		// a host that claimed to shift values it cannot represent exactly would be
+		// claiming something ADR 0012 already denies.
+		if subj.Kind != core.KName || choice.Kind != core.KInt || choice.Int < 1 || choice.Int > 63 {
+			return bad("(repr shift N) with 1 <= N <= 63")
+		}
+		frag.ShiftWidth = choice.Int
+	case "narrow":
+		if subj.Kind != core.KName || !hosted {
+			return bad(`(repr narrow (host "dst = src[:n]"))`)
+		}
+		frag.Narrow = spelling
+	default:
+		return bad("(repr (int LO HI) | (ref T) | big | map | shift | narrow  CHOICE)")
+	}
+	return nil
+}
+
+// parseFact reads the one fact a target may state before facts are built
+// (theories.md §7): every array on this model is at most N long.
+//
+//	(fact NAME ((a (array A))) (<= (len a) N))
+//
+// It is a fact because it IS one — a proposition true of every array here,
+// which the refinement layer assumes — and any other fact is refused rather
+// than read as this one.
+func parseFact(f *core.Term, frag *Target, path string) error {
+	var n int64
+	ok := len(f.Kids) == 4 && f.Kids[1].Kind == core.KName
+	if ok {
+		ps, body := f.Kids[2], f.Kids[3]
+		ok = ps.Kind == core.KApp && len(ps.Kids) == 1 && ps.Kids[0].Kind == core.KApp &&
+			len(ps.Kids[0].Kids) == 2 && ps.Kids[0].Kids[0].Kind == core.KName &&
+			strings.HasPrefix(core.TypeName(ps.Kids[0].Kids[1]), "array ")
+		ok = ok && formWord(body) == "<=" && len(body.Kids) == 3 && body.Kids[2].Kind == core.KInt
+		if ok {
+			l := body.Kids[1]
+			ok = formWord(l) == "len" && len(l.Kids) == 2 && l.Kids[1].Kind == core.KName &&
+				l.Kids[1].Name == ps.Kids[0].Kids[0].Name
+			n = body.Kids[2].Int
+		}
+	}
+	switch {
+	case !ok:
+		return fmt.Errorf("%s: facts are specified (theories.md §7) and not built; the one fact a "+
+			"target may state today is (fact NAME ((a (array A))) (<= (len a) N)), got %s", path, f)
+	case n < 1:
+		return fmt.Errorf("%s: an array bound must be at least 1, got %d", path, n)
+	case n > portableMaxLen:
+		return fmt.Errorf("%s: an array bound of %d is outside the portable window; a length this "+
+			"target cannot count exactly is not a length (ADR 0012)", path, n)
+	}
+	frag.MaxLen = n
+	return nil
 }
 
 // declare records one primitive under a module path. The name stored is the
 // FULLY QUALIFIED one, because that is what resolution produces and R1 requires
 // targets and libraries to key the same namespace (modules.md §5).
 func (tg *Target) declare(f *core.Term, modPath, file string) error {
-	p, err := parsePrim(f, file)
+	p, err := parseSig(f, file)
 	if err != nil {
 		return err
 	}
@@ -1554,17 +1642,112 @@ func resultList(t *core.Term) ([]string, bool) {
 	return out, true
 }
 
-func parsePrim(f *core.Term, path string) (Prim, error) {
-	k := f.Kids[1:]
-	if len(k) < 4 {
-		return Prim{}, fmt.Errorf("%s: (prim NAME (args) result kind [form] [(import x)]), got %s", path, f)
+// respelled are the target forms theories.md §8.4 respelled. They are refused
+// rather than kept as aliases, for data.md §10's reason: two spellings of one
+// declaration is the shape `merge` had before glue and override were separated.
+var respelled = map[string]string{
+	"prim":        `(sig NAME ((x τ)…) τ clause… (host KIND "template" hclause…))`,
+	"int-repr":    `(repr (int LO HI) (host "spelling"))`,
+	"big-repr":    `(repr big host) or (repr big limbs)`,
+	"shift-width": `(repr shift N)`,
+	"max-len":     `(fact max-len ((a (array A))) (<= (len a) N))`,
+	"array-type":  `(type (array A) (host "spelling"))`,
+	"map-type":    `(type (map K V) (host "spelling"))`,
+	"boxed":       `(repr (ref T) (host "spelling"))`,
+	"builtin-map": `(repr map library)`,
+	"narrow":      `(repr narrow (host "spelling"))`,
+}
+
+// The words a `sig` may carry, split by WHO they are a claim about. A sig clause
+// is a fact about the operation's meaning; a host clause is text for, or a fact
+// about, one host (theories.md §5.2). Keeping the second set inside `(host …)` is
+// what makes "no host clause" mean "no claim about any host".
+var (
+	sigWords  = map[string]bool{"pure": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true}
+	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true}
+)
+
+// parseSig reads the declaration a target realizes:
+//
+//	(sig NAME ((x τ)…) τ clause… (host KIND "template" hclause…))
+//
+// It is `prim` with its two kinds of claim separated, so it elaborates to the
+// same Prim by the same reader: the host clause's kind, template and clauses
+// are handed to primOf beside the sig's own.
+func parseSig(f *core.Term, path string) (Prim, error) {
+	if w := formWord(f); w != "sig" || f.Kind != core.KApp {
+		if spelled, old := respelled[w]; old {
+			return Prim{}, fmt.Errorf("%s: (%s …) is spelled %s (theories.md §8.4)", path, w, spelled)
+		}
+		return Prim{}, fmt.Errorf("%s: expected (sig …), got %s", path, f)
 	}
+	if len(f.Kids) < 4 {
+		return Prim{}, fmt.Errorf("%s: (sig NAME ((x τ)…) τ clause… (host KIND \"template\" …)), got %s", path, f)
+	}
+	name := f.Kids[1]
+	var host *core.Term
+	var rest []*core.Term
+	for _, c := range f.Kids[4:] {
+		w := formWord(c)
+		switch {
+		case w == "host":
+			if host != nil {
+				return Prim{}, fmt.Errorf("%s: sig %s gives (host …) twice", path, name)
+			}
+			host = c
+		case sigWords[w]:
+			rest = append(rest, c)
+		case hostWords[w]:
+			return Prim{}, fmt.Errorf("%s: sig %s: (%s …) is a claim about the host, and goes inside (host …)",
+				path, name, w)
+		default:
+			return Prim{}, fmt.Errorf("%s: sig %s: unexpected %s; a sig takes pure, index, (where …), "+
+				"(ensures …), (length N), (length-of N) and one (host …)", path, name, c)
+		}
+	}
+	if host == nil {
+		return Prim{}, fmt.Errorf("%s: sig %s has no (host …) clause. A target REALIZES a declaration, "+
+			"and one with no realization belongs in a module (theories.md §5.2)", path, name)
+	}
+	if len(host.Kids) < 3 || host.Kids[2].Kind != core.KStr {
+		return Prim{}, fmt.Errorf("%s: sig %s: (host KIND \"template\" hclause…), got %s", path, name, host)
+	}
+	for _, c := range host.Kids[3:] {
+		if !hostWords[formWord(c)] {
+			return Prim{}, fmt.Errorf("%s: sig %s: (host …) takes (import …), (lib …), (checked …) and "+
+				"(jump …), got %s", path, name, c)
+		}
+	}
+	return primOf(name, f.Kids[2], f.Kids[3], host.Kids[1], append(rest, host.Kids[2:]...), path)
+}
+
+// formWord is the head of `(word …)`, or a bare word itself, or "".
+func formWord(t *core.Term) string {
+	switch {
+	case t.Kind == core.KName:
+		return t.Name
+	case t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName:
+		return t.Kids[0].Name
+	}
+	return ""
+}
+
+// hostSpelling reads `(host "spelling")`.
+func hostSpelling(t *core.Term) (string, bool) {
+	if formWord(t) != "host" || len(t.Kids) != 2 || t.Kids[1].Kind != core.KStr {
+		return "", false
+	}
+	return t.Kids[1].Str, true
+}
+
+func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path string) (Prim, error) {
+	k := []*core.Term{nameT, argsT, resultT, kindT}
 	if k[0].Kind == core.KBool {
 		return Prim{}, fmt.Errorf("%s: `%s` is a literal of the language, not a name a target "+
 			"declares (docs/spec/booleans.md)", path, k[0])
 	}
 	if k[0].Kind != core.KName {
-		return Prim{}, fmt.Errorf("%s: prim needs a name, got %s", path, k[0])
+		return Prim{}, fmt.Errorf("%s: a sig needs a name, got %s", path, k[0])
 	}
 	p := Prim{Name: k[0].Name}
 
@@ -1645,7 +1828,7 @@ func parsePrim(f *core.Term, path string) (Prim, error) {
 		return Prim{}, fmt.Errorf("%s: %s has unknown kind %q (expr, stmt)", path, p.Name, p.Kind)
 	}
 
-	for _, rest := range k[4:] {
+	for _, rest := range rest {
 		switch {
 		case rest.Kind == core.KStr:
 			p.Form = rest.Str

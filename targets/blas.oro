@@ -4,25 +4,25 @@
 ; between emitting a BLAS call and emitting a loop.
 
 (target blas
-  (type f64     "double")
-  (type int     "int")
-  (type vec-f64 "double*")
+  (type f64     (host "double"))
+  (type int     (host "int"))
+  (type vec-f64 (host "double*"))
 
   (module num/f64
-    (prim add (f64 f64) f64 expr "%s + %s" pure)
-    (prim mul (f64 f64) f64 expr "%s * %s" pure))
+    (sig add (f64 f64) f64 pure (host expr "%s + %s"))
+    (sig mul (f64 f64) f64 pure (host expr "%s * %s")))
 
-  (prim alen   (vec-f64) int      expr "%s.n"    pure)
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]"  pure)
+  (sig alen   (vec-f64) int    pure      (host expr "%s.n"))
+  (sig aindex (vec-f64 int) f64  pure  (host expr "%s[%s]"))
 
-  (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)" pure)
+  (sig dot (vec-f64 vec-f64) f64 pure (host expr "cblas_ddot(%s.n, %s, 1, %s, 1)"))
 
   ; The same capability, declared as a member of a MODULE. A target provides
   ; whatever subset of a module it happens to have natively (modules.md §4), and
   ; the name it declares is the fully qualified one, so that P_T and the
   ; library's definitions key the same namespace — R1.
   (module num/vec
-    (prim dot (vec-f64 vec-f64) f64 expr "cblas_ddot(%s.n, %s, 1, %s, 1)" pure))
+    (sig dot (vec-f64 vec-f64) f64 pure (host expr "cblas_ddot(%s.n, %s, 1, %s, 1)")))
 
 
   ; The four the BACKEND implements. No types: fold-range is

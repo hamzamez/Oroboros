@@ -16,7 +16,7 @@ import (
 // under hex.Encode, which built and panicked inside the host.
 
 func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
-	tg := tempTarget(t, `(prim pair ((k int)) (int int) expr "pair(%s)" (where (<= 0 k)))`)
+	tg := tempTarget(t, `(sig pair ((k int)) (int int) (where (<= 0 k)) (host expr "pair(%s)"))`)
 	// k is unconstrained, so the precondition does not follow.
 	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair k) (fn (a b) a)))`); err == nil {
 		t.Error("an unproven precondition on a primitive with two results was accepted")
@@ -32,7 +32,7 @@ func TestAWhereOnAPrimitiveWithSeveralResultsIsDischarged(t *testing.T) {
 }
 
 func TestTheContinuationOfAPrimitiveWithSeveralResultsIsWalked(t *testing.T) {
-	tg := tempTarget(t, `(prim pair ((k int)) (int int) expr "pair(%s)")`)
+	tg := tempTarget(t, `(sig pair ((k int)) (int int) (host expr "pair(%s)"))`)
 	// `need` requires 0 <= k, and the continuation passes it an unconstrained name.
 	if _, err := refineWith(t, tg, `(use tgt) (fn (k) ((tgt.pair 1) (fn (a b) (tgt.need k))))`); err == nil {
 		t.Error("an obligation inside the continuation body was never discharged")
@@ -54,7 +54,7 @@ func TestTheContinuationOfAPrimitiveWithSeveralResultsIsWalked(t *testing.T) {
 func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 	// IMPURE, so the call with an unused result survives reduction and there is
 	// an obligation left to discharge (see the note on `half` below).
-	tg := tempTarget(t, `(prim at ((k int)) int expr "at(%s)" (where (<= 0 k)))`)
+	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
 	// The scanner is a definition, as in freq.oro: reduction inlines it, so the
 	// loop reaches the refiner as the value of a `let`.
 	const scanner = `(use tgt)
@@ -85,9 +85,9 @@ func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 // needs x <= 2·len + 1 — hex.Decode's exact precondition. The guard that makes
 // both halves sound is the same one: x is a LENGTH, so x >= 0.
 func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
-	tg := tempTarget(t, `(prim / ((a int) (b int)) int expr "%s / %s" pure)
-    (prim half ((dst (array int)) (src (array int))) int expr "half(%s, %s)"
-      (where (<= (len src) (+ (* 2 (len dst)) 1))))`)
+	tg := tempTarget(t, `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
+    (sig half ((dst (array int)) (src (array int))) int
+      (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`)
 	// IMPURE on purpose: a pure call whose result is unused is dropped by
 	// reduction (weakening is allowed for it, ADR 0010), and then there is no
 	// call left to check and both halves of this test pass vacuously.
@@ -113,9 +113,9 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 // became `2·len(a)`, and the two stopped matching. Equality is a congruence:
 // rewriting both sides by the same equations at query time changes no meaning.
 func TestAFactAndAGoalAreRewrittenByTheSameEquations(t *testing.T) {
-	tg := tempTarget(t, `(prim / ((a int) (b int)) int expr "%s / %s" pure)
-    (prim half ((dst (array int)) (src (array int))) int expr "half(%s, %s)"
-      (where (<= (len src) (+ (* 2 (len dst)) 1))))`)
+	tg := tempTarget(t, `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
+    (sig half ((dst (array int)) (src (array int))) int
+      (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`)
 	const ok = `(use tgt)
 	  (fn (a) (let (build (* 2 (len a)) (fn (c) c)) (fn (enc)
 	    (build (/ (len enc) 2) (fn (b) (let (tgt.half b enc) (fn (u) b)))))))`
@@ -136,7 +136,7 @@ func TestAFactAndAGoalAreRewrittenByTheSameEquations(t *testing.T) {
 // jsonfmt.oro copies a token with a loop starting at the index `i` it already
 // knows is non-negative, and was refused on it.
 func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
-	tg := tempTarget(t, `(prim at ((k int)) int expr "at(%s)" (where (<= 0 k)))`)
+	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
 	const guarded = `(use tgt)
 	  (fn (n m) (if (< m 0) 0
 	    (loop ((k m)) (>= k n) 0 else (let (tgt.at k) (fn (u) (again (+ k 1)))))))`
@@ -157,7 +157,7 @@ func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
 // the product. The join over the branches (refine.go, joinConditional) gives
 // the name every inequality all its leaves satisfy on their paths.
 func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
-	tg := tempTarget(t, `(prim at ((k int)) int expr "at(%s)" (where (and (<= 0 k) (< k 10))))`)
+	tg := tempTarget(t, `(sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
 	const clamp = `(use tgt)
 	  (fn (i) (let (if (< i 0) 0 (if (>= i 10) 0 i)) (fn (c)
 	    (let (tgt.at c) (fn (u) (tgt.at c))))))`
@@ -178,8 +178,8 @@ func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
 // the join has to look through that `let` — and must not keep a fact about the
 // inner name, which means nothing outside.
 func TestAClampOfAnOpaqueValueKeepsItsBounds(t *testing.T) {
-	tg := tempTarget(t, `(prim rd ((k int)) int expr "rd(%s)")
-    (prim at ((k int)) int expr "at(%s)" (where (and (<= 0 k) (< k 10))))`)
+	tg := tempTarget(t, `(sig rd ((k int)) int (host expr "rd(%s)"))
+    (sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
 	const clamp = `(use tgt)
 	  (def cl (fn (i) (if (< i 0) 0 (if (>= i 10) 0 i))))
 	  (fn (j) (let (cl (tgt.rd j)) (fn (c) (let (tgt.at c) (fn (u) (tgt.at c))))))`
@@ -201,8 +201,8 @@ func TestARepeatedWhereOrEnsuresIsRefused(t *testing.T) {
 	for _, clause := range []string{"where", "ensures"} {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
-		src := `(target tgt (type int "int") (module tgt
-  (prim f ((n int)) int expr "f(%s)" pure (` + clause + ` (<= 0 n)) (` + clause + ` (<= n 9)))))`
+		src := `(target tgt (type int (host "int")) (module tgt
+  (sig f ((n int)) int pure (` + clause + ` (<= 0 n)) (` + clause + ` (<= n 9)) (host expr "f(%s)"))))`
 		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 			t.Fatal(err)
 		}

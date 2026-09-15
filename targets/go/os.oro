@@ -42,11 +42,11 @@
     ; refusal (elemwidth-2026-08-27). The LENGTH is not declared and does not
     ; need to be: `len` is bounded at both ends without any declaration
     ; (tables.md §2.3.1).
-    (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
-      "os.ReadFile(%s)" (import "os"))
+    (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+        "os.ReadFile(%s)" (import "os")))
 
-    (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
-      "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os"))
+    (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
+        "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
 
     ; ---- the error, which is a value we can test and not one we can read
     ;
@@ -54,7 +54,7 @@
     ; and it is also the whole of what most Go code does with one at the point
     ; of the call. Declared as a PRIMITIVE rather than derived, because `nil`
     ; is not a value the language has.
-    (prim err-nil ((e error)) bool expr "%s == nil" pure)
+    (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
 
     ; ---- bytes to text, ONCE, at the boundary
     ;
@@ -68,8 +68,8 @@
     ; `string-of` is η over SCALARS, so copying a token's raw UTF-8 bytes
     ; through it would turn 0xC3 into U+00C3; the conversion has to happen on
     ; the whole sequence or not at all (string-operations.md §5).
-    (prim text-of ((b (array (int 0 255)))) string expr "string(%s)" pure)
+    (sig text-of ((b (array (int 0 255)))) string pure (host expr "string(%s)"))
 
     ; ---- the environment, so a program can be told what to open
-    (prim Args (none) (array string) expr "os.Args" (import "os"))
-    (prim Getenv ((k string)) string expr "os.Getenv(%s)" pure (import "os"))))
+    (sig Args () (array string) (host expr "os.Args" (import "os")))
+    (sig Getenv ((k string)) string pure (host expr "os.Getenv(%s)" (import "os")))))

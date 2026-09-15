@@ -392,8 +392,10 @@ func (r *reader) list() (*Term, error) {
 		}
 		// `()` is not a term, but it IS a legal parameter list: `(fn () b)` is
 		// a nullary abstraction, which is what a program's entry point has to
-		// be (build.md §2). Nothing else may be empty.
-		if len(kids) == 1 && isFnHead(kids[0]) && r.peek() == '(' {
+		// be (build.md §2), and `(sig null () ptr …)` declares one. Nothing else
+		// may be empty.
+		if (len(kids) == 1 && isFnHead(kids[0]) || len(kids) == 2 && kids[0].Kind == KName &&
+			kids[0].Name == "sig") && r.peek() == '(' {
 			save := r.pos
 			r.next()
 			r.skipSpace()

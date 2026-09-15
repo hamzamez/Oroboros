@@ -1206,8 +1206,8 @@ func emit(dir string, fns []fn, structs, handles, callbacks map[string]bool, ali
 			if lib, _ := lk.resolve(f.name); lib != "" {
 				libAttr = fmt.Sprintf(" (lib %q)", lib)
 			}
-			fmt.Fprintf(&b, "    (prim %s %s %s %s %q (import %q)%s)\n",
-				f.name, al, res, kind, tmpl, f.name, libAttr)
+			fmt.Fprintf(&b, "    (sig %s %s %s (host %s %q (import %q)%s))\n",
+				f.name, strings.Replace(al, "(none)", "()", 1), res, kind, tmpl, f.name, libAttr)
 			n++
 		}
 		fmt.Fprintf(&b, "  ))\n")

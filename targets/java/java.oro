@@ -24,26 +24,26 @@
   ; target declares what it can hold and the range picks. This is the same fact
   ; CLAUDE.md records as "the JVM has no unsigned types", stated where it can be
   ; acted on.
-  (int-repr -128 127 "byte")
-  (int-repr -32768 32767 "short")
-  (int-repr -2147483648 2147483647 "int")
+  (repr (int -128 127) (host "byte"))
+  (repr (int -32768 32767) (host "short"))
+  (repr (int -2147483648 2147483647) (host "int"))
 
-  (array-type "%s[]")
+  (type (array A) (host "%s[]"))
 
   ; A MAP IS ONE DECLARATION, not an entry per (K, V) pair. This file's
   ; java/util module says the alternative is "the same limitation squared" --
   ; one name per (container, K, V) -- and it had declared exactly one
   ; instantiation, Map<String,Long>, because that is all it could afford.
-  (map-type "java.util.Map<%s,%s>")
+  (type (map K V) (host "java.util.Map<%s,%s>"))
 
   ; AND ITS TYPE ARGUMENTS MUST BE BOXED, because a JVM generic cannot be
   ; instantiated at a primitive. `map int int` is `Map<Long,Long>`, never
   ; `Map<long,long>`. Which types a host boxes and what it calls them is a host
   ; fact, so it is declared here rather than hardcoded in the emitter -- no
   ; other target declares any, and on those `boxed` is just the type.
-  (boxed int  "Long")
-  (boxed f64  "Double")
-  (boxed bool "Boolean")
+  (repr (ref int) (host "Long"))
+  (repr (ref f64) (host "Double"))
+  (repr (ref bool) (host "Boolean"))
 
   ; HOW MANY ELEMENTS A TABLE CAN HAVE HERE, and this host can say something
   ; stronger than the language can. `arraylength` returns an `int` and `new
@@ -54,36 +54,36 @@
   ; is true everywhere and true here, but too wide to hold an index. This is
   ; the platform fact indextype-2026-08-25 hardcoded in Go, stated where a
   ; target author can act on it.
-  (max-len 2147483647)
+  (fact max-len ((a (array A))) (<= (len a) 2147483647))
 
-  (type int     "long")
-  (type f64     "double")
-  (type bool    "boolean")
-  (type string  "String")
-  (type any     "Object")
+  (type int     (host "long"))
+  (type f64     (host "double"))
+  (type bool    (host "boolean"))
+  (type string  (host "String"))
+  (type any     (host "Object"))
 
   ; A HOST ERROR IS A TARGET-WIDE FACT, not a package's. `Exception` rather than
   ; `IOException` because the only thing this language can do with one is hold
   ; it, test it and hand it back (sums.md would be needed to read it, and that
   ; needs an interface, which callbacks.md tier 3 refuses) -- so a narrower name
   ; would be a claim about which calls may produce one.
-  (type error   "Exception")
+  (type error   (host "Exception"))
 
-  (type jint    "int")
-  (type char    "char")
-  (type long-array   "long[]")
-  (type double-array "double[]")
-  (type bool-array   "boolean[]")
-  (type string-array "String[]")
-  (type strbuf       "StringBuilder")
+  (type jint    (host "int"))
+  (type char    (host "char"))
+  (type long-array   (host "long[]"))
+  (type double-array (host "double[]"))
+  (type bool-array   (host "boolean[]"))
+  (type string-array (host "String[]"))
+  (type strbuf       (host "StringBuilder"))
 
   ; java.util, which is not java.lang and needs an import — but is as much a
   ; part of the platform as anything else. The generic parameters are baked in
   ; because our type language has no constructors: List<Long> and List<String>
   ; are two unrelated atoms, and every other instantiation is unreachable.
-  (type list-long    "java.util.List<Long>")
-  (type list-string  "java.util.List<String>")
-  (type map-string-long "java.util.Map<String,Long>")
+  (type list-long    (host "java.util.List<Long>"))
+  (type list-string  (host "java.util.List<String>"))
+  (type map-string-long (host "java.util.Map<String,Long>"))
 
   ; No `narrow`: a Java array cannot be re-sliced.
 

@@ -25,11 +25,11 @@
   ; JavaScript has ONE number type, so `int` and `f64` are both `number` here —
   ; and that mismatch is the whole reason js/builtin.oro declares arithmetic on
   ; `any` rather than on a numeric type.
-  (type int     "number")
-  (type f64     "number")
-  (type bool    "boolean")
-  (type string  "string")
-  (type any     "any")
+  (type int     (host "number"))
+  (type f64     (host "number"))
+  (type bool    (host "boolean"))
+  (type string  (host "string"))
+  (type any     (host "any"))
 
   ; No `narrow`: JavaScript has no bounds checks to eliminate.
 

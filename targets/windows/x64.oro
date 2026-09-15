@@ -43,7 +43,7 @@
   ; host's own shift where it has proved the rewrite changes no answer.
   ;
   ; `shr` is a 64-bit logical shift, which is what a non-negative value wants.
-  (shift-width 63)
+  (repr shift 63)
 
 
   ; THE ONLY WIDTH THIS TARGET DECLARES, and it declares it because it can
@@ -61,26 +61,26 @@
   ;
   ; It is also the only one of the four targets where our library wins by
   ; default, because the alternative is that the program does not run at all.
-  (big-repr limbs)
+  (repr big limbs)
 
-  (int-repr 0 255 "db")
+  (repr (int 0 255) (host "db"))
   (module x64
     ; ---- integer arithmetic. Two instructions each, for the reason above.
-    (prim add  (int int) int expr "mov %r, %1\nadd %r, %2"  pure (checked add-checked))
-    (prim sub  (int int) int expr "mov %r, %1\nsub %r, %2"  pure (checked sub-checked))
-    (prim imul (int int) int expr "mov %r, %1\nimul %r, %2" pure (checked imul-checked))
+    (sig add  (int int) int  pure (host expr "mov %r, %1\nadd %r, %2" (checked add-checked)))
+    (sig sub  (int int) int  pure (host expr "mov %r, %1\nsub %r, %2" (checked sub-checked)))
+    (sig imul (int int) int pure (host expr "mov %r, %1\nimul %r, %2" (checked imul-checked)))
 
     ; THE CHECKED FORMS, selected when a declared range does not prove the
     ; result stays in the window (sct-2026-08-19). The hardware has carried an
     ; overflow flag since 1978, so this is ONE extra instruction and a
     ; perfectly-predicted branch — and `ud2` raises #UD, which ends the process
     ; the way an unrecoverable arithmetic fault should. No helper, no runtime.
-    (prim add-checked  (int int) int expr
-      "mov %r, %1\nadd %r, %2\njno Lok%u\nud2\nLok%u:" pure)
-    (prim sub-checked  (int int) int expr
-      "mov %r, %1\nsub %r, %2\njno Lok%u\nud2\nLok%u:" pure)
-    (prim imul-checked (int int) int expr
-      "mov %r, %1\nimul %r, %2\njno Lok%u\nud2\nLok%u:" pure)
+    (sig add-checked  (int int) int pure (host expr
+        "mov %r, %1\nadd %r, %2\njno Lok%u\nud2\nLok%u:"))
+    (sig sub-checked  (int int) int pure (host expr
+        "mov %r, %1\nsub %r, %2\njno Lok%u\nud2\nLok%u:"))
+    (sig imul-checked (int int) int pure (host expr
+        "mov %r, %1\nimul %r, %2\njno Lok%u\nud2\nLok%u:"))
     ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
     ; TRUNCATES where a host bignum would stay exact, so selecting a
     ; representation would change the answer -- ADR 0009's rule at a different
@@ -91,31 +91,31 @@
     ; has nothing to fall back to. So the same three instructions the checked
     ; arithmetic above uses are what make arbitrary precision reachable here --
     ; no helper, no runtime.
-    (prim trap-if (int) int expr
-      "mov %r, %1\ntest %r, %r\njz Ltz%u\nud2\nLtz%u:\nxor %r, %r")
-    (prim neg  (int) int     expr "mov %r, %1\nneg %r"      pure)
-    (prim inc  (int) int     expr "mov %r, %1\ninc %r"      pure)
-    (prim dec  (int) int     expr "mov %r, %1\ndec %r"      pure)
+    (sig trap-if (int) int (host expr
+        "mov %r, %1\ntest %r, %r\njz Ltz%u\nud2\nLtz%u:\nxor %r, %r"))
+    (sig neg  (int) int      pure     (host expr "mov %r, %1\nneg %r"))
+    (sig inc  (int) int      pure     (host expr "mov %r, %1\ninc %r"))
+    (sig dec  (int) int      pure     (host expr "mov %r, %1\ndec %r"))
 
     ; idiv wants the dividend sign-extended across rdx:rax, which is what cqo
     ; is for. Declared twice because one instruction produces two results and
     ; there is no way to say that.
     ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5. Here
     ; it is #DE, a hardware trap that ends the process and that nothing catches.
-    (prim idiv ((a int) (b int)) int expr
-      "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax" pure (where (!= b 0)))
-    (prim irem ((a int) (b int)) int expr
-      "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx" pure (where (!= b 0)))
+    (sig idiv ((a int) (b int)) int pure (where (!= b 0)) (host expr
+        "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rax"))
+    (sig irem ((a int) (b int)) int pure (where (!= b 0)) (host expr
+        "mov rax, %1\ncqo\nmov rcx, %2\nidiv rcx\nmov %r, rdx"))
 
     ; ---- bitwise and shifts. A variable shift count must be in cl; x86 has no
     ; other form, which is why rcx appears in a template that never mentions it.
-    (prim and (int int) int expr "mov %r, %1\nand %r, %2" pure)
-    (prim or  (int int) int expr "mov %r, %1\nor %r, %2"  pure)
-    (prim xor (int int) int expr "mov %r, %1\nxor %r, %2" pure)
-    (prim not (int) int     expr "mov %r, %1\nnot %r"     pure)
-    (prim shl (int int) int expr "mov %r, %1\nmov rcx, %2\nshl %r, cl" pure)
-    (prim shr (int int) int expr "mov %r, %1\nmov rcx, %2\nshr %r, cl" pure)
-    (prim sar (int int) int expr "mov %r, %1\nmov rcx, %2\nsar %r, cl" pure)
+    (sig and (int int) int pure (host expr "mov %r, %1\nand %r, %2"))
+    (sig or  (int int) int  pure (host expr "mov %r, %1\nor %r, %2"))
+    (sig xor (int int) int pure (host expr "mov %r, %1\nxor %r, %2"))
+    (sig not (int) int     pure     (host expr "mov %r, %1\nnot %r"))
+    (sig shl (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nshl %r, cl"))
+    (sig shr (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nshr %r, cl"))
+    (sig sar (int int) int pure (host expr "mov %r, %1\nmov rcx, %2\nsar %r, cl"))
 
     ; ---- comparison. `setcc` is the mnemonic that MAKES a boolean; `(jump …)`
     ; is the condition code that BRANCHES on one. Both are needed and they are
@@ -124,12 +124,12 @@
     ;
     ; Every other host folds a comparison into its branch by itself. This is the
     ; first one that has to be told, and (jump …) is the whole of being told.
-    (prim sete  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsete %br\nmovzx %er, %br"  pure (jump "e"))
-    (prim setne (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetne %br\nmovzx %er, %br" pure (jump "ne"))
-    (prim setl  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br"  pure (jump "l"))
-    (prim setle (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetle %br\nmovzx %er, %br" pure (jump "le"))
-    (prim setg  (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetg %br\nmovzx %er, %br"  pure (jump "g"))
-    (prim setge (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetge %br\nmovzx %er, %br" pure (jump "ge"))
+    (sig sete  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsete %br\nmovzx %er, %br" (jump "e")))
+    (sig setne (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetne %br\nmovzx %er, %br" (jump "ne")))
+    (sig setl  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br" (jump "l")))
+    (sig setle (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetle %br\nmovzx %er, %br" (jump "le")))
+    (sig setg  (int int) bool  pure (host expr "mov %r, %1\ncmp %r, %2\nsetg %br\nmovzx %er, %br" (jump "g")))
+    (sig setge (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetge %br\nmovzx %er, %br" (jump "ge")))
 
     ; ---- boolean, STRICT AND BRANCHLESS, which is what the instruction is.
     ;
@@ -146,35 +146,35 @@
     ; target makes about an operator.
     ;
     ; No portability claim, and a program reaching for one should have measured.
-    (prim andb (bool bool) bool expr "mov %r, %1\nand %r, %2" pure)
-    (prim orb  (bool bool) bool expr "mov %r, %1\nor %r, %2"  pure)
-    (prim notb (bool) bool      expr "mov %r, %1\nxor %r, 1"  pure)
+    (sig andb (bool bool) bool pure (host expr "mov %r, %1\nand %r, %2"))
+    (sig orb  (bool bool) bool  pure (host expr "mov %r, %1\nor %r, %2"))
+    (sig notb (bool) bool  pure      (host expr "mov %r, %1\nxor %r, 1"))
 
     ; ---- SSE2 scalar double. A separate register file, which is why the
     ; backend has to know one bit of type for every value it places.
-    (prim addsd  (f64 f64) f64 expr "movsd %r, %1\naddsd %r, %2" pure)
-    (prim subsd  (f64 f64) f64 expr "movsd %r, %1\nsubsd %r, %2" pure)
-    (prim mulsd  (f64 f64) f64 expr "movsd %r, %1\nmulsd %r, %2" pure)
-    (prim divsd  (f64 f64) f64 expr "movsd %r, %1\ndivsd %r, %2" pure)
-    (prim sqrtsd (f64) f64     expr "sqrtsd %r, %1"              pure)
-    (prim minsd  (f64 f64) f64 expr "movsd %r, %1\nminsd %r, %2" pure)
-    (prim maxsd  (f64 f64) f64 expr "movsd %r, %1\nmaxsd %r, %2" pure)
+    (sig addsd  (f64 f64) f64 pure (host expr "movsd %r, %1\naddsd %r, %2"))
+    (sig subsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nsubsd %r, %2"))
+    (sig mulsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nmulsd %r, %2"))
+    (sig divsd  (f64 f64) f64 pure (host expr "movsd %r, %1\ndivsd %r, %2"))
+    (sig sqrtsd (f64) f64              pure     (host expr "sqrtsd %r, %1"))
+    (sig minsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nminsd %r, %2"))
+    (sig maxsd  (f64 f64) f64 pure (host expr "movsd %r, %1\nmaxsd %r, %2"))
 
     ; comisd sets the CARRY flag, not the sign flag, so a float predicate takes
     ; the UNSIGNED condition codes. Getting this wrong compares correctly for
     ; positive numbers and silently wrongly for the rest.
-    (prim setb  (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetb %br"  pure (jump "b"))
-    (prim setbe (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetbe %br" pure (jump "be"))
-    (prim seta  (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nseta %br"  pure (jump "a"))
-    (prim setae (f64 f64) bool expr "xor %er, %er\ncomisd %1, %2\nsetae %br" pure (jump "ae"))
+    (sig setb  (f64 f64) bool  pure (host expr "xor %er, %er\ncomisd %1, %2\nsetb %br" (jump "b")))
+    (sig setbe (f64 f64) bool pure (host expr "xor %er, %er\ncomisd %1, %2\nsetbe %br" (jump "be")))
+    (sig seta  (f64 f64) bool  pure (host expr "xor %er, %er\ncomisd %1, %2\nseta %br" (jump "a")))
+    (sig setae (f64 f64) bool pure (host expr "xor %er, %er\ncomisd %1, %2\nsetae %br" (jump "ae")))
 
-    (prim cvtsi2sd  (int) f64 expr "mov rax, %1\ncvtsi2sd %r, rax" pure)
-    (prim cvttsd2si (f64) int expr "cvttsd2si %r, %1"              pure)
+    (sig cvtsi2sd  (int) f64 pure (host expr "mov rax, %1\ncvtsi2sd %r, rax"))
+    (sig cvttsd2si (f64) int              pure (host expr "cvttsd2si %r, %1"))
 
     ; ---- memory. `lea` is how x86 does pointer arithmetic, and it is also the
     ; only way to get an address at all, since the language has no `&`.
-    (prim lea (ptr int) ptr expr "lea %r, [%1+%2]" pure)
-    (prim buf (none) ptr    expr "lea %r, __buf"   pure)
+    (sig lea (ptr int) ptr pure (host expr "lea %r, [%1+%2]"))
+    (sig buf () ptr   pure    (host expr "lea %r, __buf"))
 
     ; THE NULL POINTER, which 681 Win32 entry points need and none could get.
     ;
@@ -191,14 +191,14 @@
     ; capability the target says how to perform. `xor` rather than `mov …, 0`
     ; because it is shorter and breaks the dependency chain, and the 32-bit form
     ; zeroes the whole register on x86-64.
-    (prim null (none) ptr    expr "xor %er, %er"   pure)
+    (sig null () ptr   pure    (host expr "xor %er, %er"))
 
     ; One mnemonic, two names: our language has no assignable place, so the
     ; direction of the move has to be part of the name.
-    (prim mov       ((p ptr) (i int)) int expr "mov %r, qword ptr [%1+%2*8]" pure index)
-    (prim mov-store (ptr int int) ptr     stmt "mov qword ptr [%1+%2*8], %3")
-    (prim movzx     ((p ptr) (i int)) int expr "movzx %er, byte ptr [%1+%2]" pure index)
-    (prim movb      (ptr int int) ptr     stmt "mov byte ptr [%1+%2], %b3")
+    (sig mov       ((p ptr) (i int)) int pure index (host expr "mov %r, qword ptr [%1+%2*8]"))
+    (sig mov-store (ptr int int) ptr     (host stmt "mov qword ptr [%1+%2*8], %3"))
+    (sig movzx     ((p ptr) (i int)) int pure index (host expr "movzx %er, byte ptr [%1+%2]"))
+    (sig movb      (ptr int int) ptr     (host stmt "mov byte ptr [%1+%2], %b3"))
 
     ; A PREDICATE THAT IS NOT A COMPARISON OF TWO VALUES.
     ;
@@ -208,9 +208,9 @@
     ; counting loop carries an extra load and an extra compare per element, and
     ; the value form below is what the same predicate still costs when it is
     ; used as a value rather than as a guard.
-    (prim test-byte ((p ptr) (i int)) bool
-      expr "xor %er, %er\ncmp byte ptr [%1+%2], 0\nsetne %br" pure
-      (jump "ne" "cmp byte ptr [%1+%2], 0"))
+    (sig test-byte ((p ptr) (i int)) bool pure
+      (host expr "xor %er, %er\ncmp byte ptr [%1+%2], 0\nsetne %br"
+        (jump "ne" "cmp byte ptr [%1+%2], 0")))
 
     ; ---- a template with its own control flow.
     ;
@@ -219,5 +219,5 @@
     ; is here to answer the obvious question about a target-file format made of
     ; templates — no, they are not limited to single instructions, and a target
     ; can put a whole loop behind one name when the host has no call for it.
-    (prim strlen (string) int expr
-      "mov rax, %1\nLstr%u:\ncmp byte ptr [rax], 0\nje Lstrend%u\ninc rax\njmp Lstr%u\nLstrend%u:\nsub rax, %1\nmov %r, rax" pure)))
+    (sig strlen (string) int pure (host expr
+        "mov rax, %1\nLstr%u:\ncmp byte ptr [rax], 0\nje Lstrend%u\ninc rax\njmp Lstr%u\nLstrend%u:\nsub rax, %1\nmov %r, rax"))))

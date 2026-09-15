@@ -43,33 +43,33 @@
   ; no 64x64 multiply to offer a library written in this language -- ours are
   ; 24-bit with `/` for the carry, because ADR 0012 forces 2W < 53 and bitwise
   ; operators are Tier 2. This host is unlikely ever to prefer ours.
-  (big-repr host)
+  (repr big host)
 
   ; JavaScript has one number type and this is the second one. It is written for
   ; the checker only; the emitter writes no types on this host.
-  (type big "bigint")
+  (type big (host "bigint"))
 
   (module js
-    (prim big+ (big big) big expr "(%s + %s)" pure)
-    (prim big- (big big) big expr "(%s - %s)" pure)
-    (prim big* (big big) big expr "(%s * %s)" pure)
-    (prim big/ ((a big) (b big)) big expr "(%s / %s)" pure)
-    (prim big% ((a big) (b big)) big expr "(%s %% %s)" pure)
+    (sig big+ (big big) big pure (host expr "(%s + %s)"))
+    (sig big- (big big) big pure (host expr "(%s - %s)"))
+    (sig big* (big big) big pure (host expr "(%s * %s)"))
+    (sig big/ ((a big) (b big)) big pure (host expr "(%s / %s)"))
+    (sig big% ((a big) (b big)) big pure (host expr "(%s %% %s)"))
 
-    (prim big<  (big big) bool expr "(%s < %s)"   pure)
-    (prim big<= (big big) bool expr "(%s <= %s)"  pure)
-    (prim big>  (big big) bool expr "(%s > %s)"   pure)
-    (prim big>= (big big) bool expr "(%s >= %s)"  pure)
+    (sig big<  (big big) bool   pure (host expr "(%s < %s)"))
+    (sig big<= (big big) bool  pure (host expr "(%s <= %s)"))
+    (sig big>  (big big) bool   pure (host expr "(%s > %s)"))
+    (sig big>= (big big) bool  pure (host expr "(%s >= %s)"))
     ; `===` and not `==`: `1n == 1` is TRUE and `1n === 1` is false. Equality
     ; across the two representations is exactly the confusion this file exists
     ; to prevent, so the strict form is the only correct one.
-    (prim big=  (big big) bool expr "(%s === %s)" pure)
+    (sig big=  (big big) bool pure (host expr "(%s === %s)"))
 
-    (prim big-of (int) big expr "BigInt(%s)" pure)
+    (sig big-of (int) big pure (host expr "BigInt(%s)"))
     ; NOT `%s.toString()`: `String(x)` gives "123" where a template literal or a
     ; bare console.log of a BigInt gives "123n". The suffix is a real)
     ; divergence from the other two hosts and this is where it is removed.
-    (prim big-str (big) string expr "String(%s)" pure)
+    (sig big-str (big) string pure (host expr "String(%s)"))
     ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
     ; 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
     ; window whatever a's magnitude -- a fact about the arithmetic, not about
@@ -82,7 +82,7 @@
     ;
     ; It is also what decimal rendering is made of: printing needs each digit
     ; group as a word.
-    (prim big%-small ((a big) (k int)) int expr "Number(%s %% BigInt(%s))" pure)
+    (sig big%-small ((a big) (k int)) int pure (host expr "Number(%s %% BigInt(%s))"))
 
     ; THE DECLARED BOUND, ENFORCED -- see targets/go/bigint.oro for why the two
     ; representations must agree about it.
@@ -94,7 +94,7 @@
     ; not taken, because it would mean putting the bound FIRST in the
     ; primitive's arguments on all three hosts to get it into the template body.
     ; The check itself costs 1.32x over no check on this host.
-    (prim big-fit ((x big) (k int)) big expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)")
+    (sig big-fit ((x big) (k int)) big (host expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)"))
     ; The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
     ; declared width has to fail loudly rather than truncate.
-    (prim trap-if (int) int expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)")))
+    (sig trap-if (int) int (host expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)"))))

@@ -26,7 +26,7 @@
   ;
   ; Go's `>>` on an `int` is a 64-bit arithmetic shift, exact on every value
   ; the language can hold.
-  (shift-width 63)
+  (repr shift 63)
 
   (module go
     ; ---- arithmetic. One declaration per Go type, because the type language
@@ -38,103 +38,103 @@
     ; at 2.61x against Java's 1.31x. The check is written as a func literal
     ; called immediately, so each operand appears ONCE and Go's inliner sees
     ; straight-line code. No runtime, no prelude, no support library.
-    (prim +   (int int) int             expr "%s + %s"  pure (checked add-exact))
-    (prim -   (int int) int             expr "%s - %s"  pure (checked sub-exact))
-    (prim *   (int int) int             expr "%s * %s"  pure (checked mul-exact))
-    (prim add-exact (int int) int expr
-      "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)" pure)
-    (prim sub-exact (int int) int expr
-      "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)" pure)
-    (prim mul-exact (int int) int expr
-      "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)" pure)
+    (sig +   (int int) int  pure             (host expr "%s + %s" (checked add-exact)))
+    (sig -   (int int) int  pure             (host expr "%s - %s" (checked sub-exact)))
+    (sig *   (int int) int  pure             (host expr "%s * %s" (checked mul-exact)))
+    (sig add-exact (int int) int pure (host expr
+        "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
+    (sig sub-exact (int int) int pure (host expr
+        "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
+    (sig mul-exact (int int) int pure (host expr
+        "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)"))
     ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR (integers.md §5). Go
     ; panics, Java throws, x86 raises #DE — and JavaScript returns Infinity and
     ; keeps going, which is why specifying a value would mean emulating one
     ; everywhere. `d != 0` is a DISJUNCTION, discharged by case split against
     ; the conjunctive fragment that already exists.
-    (prim /   ((a int) (b int)) int     expr "%s / %s"  pure (where (!= b 0)))
-    (prim %   ((a int) (b int)) int     expr "%s %% %s" pure (where (!= b 0)))
-    (prim f+  (f64 f64) f64 expr "%s + %s"  pure)
-    (prim f-  (f64 f64) f64 expr "%s - %s"  pure)
-    (prim f*  (f64 f64) f64 expr "%s * %s"  pure)
-    (prim f/  (f64 f64) f64 expr "%s / %s"  pure)
+    (sig /   ((a int) (b int)) int  pure (where (!= b 0))     (host expr "%s / %s"))
+    (sig %   ((a int) (b int)) int pure (where (!= b 0))     (host expr "%s %% %s"))
+    (sig f+  (f64 f64) f64  pure (host expr "%s + %s"))
+    (sig f-  (f64 f64) f64  pure (host expr "%s - %s"))
+    (sig f*  (f64 f64) f64  pure (host expr "%s * %s"))
+    (sig f/  (f64 f64) f64  pure (host expr "%s / %s"))
 
     ; ---- bitwise
-    (prim &   (int int) int expr "%s & %s"  pure)
-    (prim |   (int int) int expr "%s | %s"  pure)
-    (prim ^   (int int) int expr "%s ^ %s"  pure)
-    (prim &^  (int int) int expr "%s &^ %s" pure)
-    (prim <<  (int int) int expr "%s << %s" pure)
-    (prim >>  (int int) int expr "%s >> %s" pure)
+    (sig &   (int int) int  pure (host expr "%s & %s"))
+    (sig |   (int int) int  pure (host expr "%s | %s"))
+    (sig ^   (int int) int  pure (host expr "%s ^ %s"))
+    (sig &^  (int int) int pure (host expr "%s &^ %s"))
+    (sig <<  (int int) int pure (host expr "%s << %s"))
+    (sig >>  (int int) int pure (host expr "%s >> %s"))
 
     ; ---- comparison. Go's == is defined on every comparable type, which a
     ; monomorphic table cannot say, so `any` stands where Go is polymorphic.
-    (prim ==  (any any) bool expr "%s == %s" pure)
-    (prim !=  (any any) bool expr "%s != %s" pure)
-    (prim <   (int int) bool expr "%s < %s"  pure)
-    (prim <=  (int int) bool expr "%s <= %s" pure)
-    (prim >   (int int) bool expr "%s > %s"  pure)
-    (prim >=  (int int) bool expr "%s >= %s" pure)
-    (prim f<  (f64 f64) bool expr "%s < %s"  pure)
-    (prim f<= (f64 f64) bool expr "%s <= %s" pure)
-    (prim f>  (f64 f64) bool expr "%s > %s"  pure)
-    (prim f>= (f64 f64) bool expr "%s >= %s" pure)
-    (prim s<  (string string) bool   expr "%s < %s"  pure)
+    (sig ==  (any any) bool pure (host expr "%s == %s"))
+    (sig !=  (any any) bool pure (host expr "%s != %s"))
+    (sig <   (int int) bool  pure (host expr "%s < %s"))
+    (sig <=  (int int) bool pure (host expr "%s <= %s"))
+    (sig >   (int int) bool  pure (host expr "%s > %s"))
+    (sig >=  (int int) bool pure (host expr "%s >= %s"))
+    (sig f<  (f64 f64) bool  pure (host expr "%s < %s"))
+    (sig f<= (f64 f64) bool pure (host expr "%s <= %s"))
+    (sig f>  (f64 f64) bool  pure (host expr "%s > %s"))
+    (sig f>= (f64 f64) bool pure (host expr "%s >= %s"))
+    (sig s<  (string string) bool  pure   (host expr "%s < %s"))
 
     ; ---- boolean
-    (prim &&  (bool bool) bool expr "%s && %s" pure)
-    (prim ||  (bool bool) bool expr "%s || %s" pure)
-    (prim !   (bool) bool      expr "!%s"      pure)
+    (sig &&  (bool bool) bool pure (host expr "%s && %s"))
+    (sig ||  (bool bool) bool pure (host expr "%s || %s"))
+    (sig !   (bool) bool      pure      (host expr "!%s"))
 
     ; ---- predeclared constants
 
     ; ---- predeclared functions
-    (prim len (any) int expr "len(%s)" pure)
-    (prim cap (any) int expr "cap(%s)" pure)
-    (prim min (int int) int expr "min(%s, %s)" pure)
-    (prim max (int int) int expr "max(%s, %s)" pure)
+    (sig len (any) int pure (host expr "len(%s)"))
+    (sig cap (any) int pure (host expr "cap(%s)"))
+    (sig min (int int) int pure (host expr "min(%s, %s)"))
+    (sig max (int int) int pure (host expr "max(%s, %s)"))
 
     ; append may write into the argument's backing array, so it is NOT pure.
-    (prim append-int     (slice-int int) slice-int             expr "append(%s, %s)")
-    (prim append-float64 (slice-float64 f64) slice-float64 expr "append(%s, %s)")
-    (prim append-string  (slice-string string) slice-string    expr "append(%s, %s)")
+    (sig append-int     (slice-int int) slice-int             (host expr "append(%s, %s)"))
+    (sig append-float64 (slice-float64 f64) slice-float64 (host expr "append(%s, %s)"))
+    (sig append-string  (slice-string string) slice-string    (host expr "append(%s, %s)"))
 
     ; make: the element type is part of Go's syntax, so one name per type.
-    (prim make-int (int) slice-int expr "make([]int, %s)" (length 0))
-    (prim make-int64 (int) slice-int64 expr "make([]int64, %s)" (length 0))
-    (prim make-float64 (int) slice-float64 expr "make([]float64, %s)" (length 0))
-    (prim make-string (int) slice-string expr "make([]string, %s)" (length 0))
-    (prim make-bool    (int) slice-bool    expr "make([]bool, %s)" (length 0))
-    (prim make-map     (none) map-string-int expr "make(map[string]int)")
+    (sig make-int (int) slice-int (length 0) (host expr "make([]int, %s)"))
+    (sig make-int64 (int) slice-int64 (length 0) (host expr "make([]int64, %s)"))
+    (sig make-float64 (int) slice-float64 (length 0) (host expr "make([]float64, %s)"))
+    (sig make-string (int) slice-string (length 0) (host expr "make([]string, %s)"))
+    (sig make-bool    (int) slice-bool (length 0)    (host expr "make([]bool, %s)"))
+    (sig make-map     () map-string-int (host expr "make(map[string]int)"))
 
-    (prim copy-float64 (slice-float64 slice-float64) int       expr "copy(%s, %s)")
-    (prim clear-map    (map-string-int) map-string-int         stmt "clear(%s)")
-    (prim delete       (map-string-int string) map-string-int  stmt "delete(%s, %s)")
-    (prim panic        (any) any stmt "panic(%s)")
-    (prim print        (any) any stmt "print(%s)")
-    (prim println      (any) any stmt "println(%s)")
+    (sig copy-float64 (slice-float64 slice-float64) int       (host expr "copy(%s, %s)"))
+    (sig clear-map    (map-string-int) map-string-int         (host stmt "clear(%s)"))
+    (sig delete       (map-string-int string) map-string-int  (host stmt "delete(%s, %s)"))
+    (sig panic        (any) any (host stmt "panic(%s)"))
+    (sig print        (any) any (host stmt "print(%s)"))
+    (sig println      (any) any (host stmt "println(%s)"))
 
     ; ---- indexing and slicing. Go's own, with Go's own panic outside bounds,
     ; which is why the refinement is carried rather than assumed.
-    (prim at-int     ((v slice-int) (i int)) int         expr "%s[%s]" pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
-    (prim at-float64 ((v slice-float64) (i int)) f64 expr "%s[%s]" pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
-    (prim at-string  ((v slice-string) (i int)) string   expr "%s[%s]" pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
-    (prim at-bool    ((v slice-bool) (i int)) bool       expr "%s[%s]" pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))))
-    (prim at-map     (map-string-int string) int         expr "%s[%s]" pure)
+    (sig at-int     ((v slice-int) (i int)) int pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))         (host expr "%s[%s]"))
+    (sig at-float64 ((v slice-float64) (i int)) f64 pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))) (host expr "%s[%s]"))
+    (sig at-string  ((v slice-string) (i int)) string pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))   (host expr "%s[%s]"))
+    (sig at-bool    ((v slice-bool) (i int)) bool pure index
+      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))       (host expr "%s[%s]"))
+    (sig at-map     (map-string-int string) int pure         (host expr "%s[%s]"))
 
-    (prim set-int (slice-int int int) slice-int stmt "%s[%s] = %s" (length-of 0))
-    (prim set-float64 (slice-float64 int f64) slice-float64 stmt "%s[%s] = %s" (length-of 0))
-    (prim set-string (slice-string int string) slice-string stmt "%s[%s] = %s" (length-of 0))
-    (prim set-bool (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length-of 0))
+    (sig set-int (slice-int int int) slice-int (length-of 0) (host stmt "%s[%s] = %s"))
+    (sig set-float64 (slice-float64 int f64) slice-float64 (length-of 0) (host stmt "%s[%s] = %s"))
+    (sig set-string (slice-string int string) slice-string (length-of 0) (host stmt "%s[%s] = %s"))
+    (sig set-bool (slice-bool int bool) slice-bool (length-of 0) (host stmt "%s[%s] = %s"))
     ; NO (length 0) here, and the omission is the point. An array store leaves
     ; the length alone, so `set-float64` passes its container's length through;
     ; a map INSERT can add a key, so `len(m)` after is not `len(m)` before.
     ; The two read identically in Go and are opposite facts.
-    (prim set-map (map-string-int string int) map-string-int stmt "%s[%s] = %s")
+    (sig set-map (map-string-int string int) map-string-int (host stmt "%s[%s] = %s"))
 
     ; Go's fused increment. `m[k]++` is ONE mapassign returning a value pointer;
     ; `m[k] = m[k] + 1` is a mapaccess AND a mapassign — the same key hashed
@@ -145,14 +145,14 @@
     ; layer the target natively provides. And it is the OPPOSITE of Java, where
     ; the fused `merge` loses 2.6x to unfused getOrDefault+put — which is why
     ; this is a per-target declaration and not a principle (ADR 0008).
-    (prim inc-map (map-string-int string) map-string-int stmt "%s[%s]++")
+    (sig inc-map (map-string-int string) map-string-int (host stmt "%s[%s]++"))
 
-    (prim slice-float64 (slice-float64 int int) slice-float64 expr "%s[%s:%s]" pure)
-    (prim slice-string  (slice-string int int) slice-string   expr "%s[%s:%s]" pure)
+    (sig slice-float64 (slice-float64 int int) slice-float64 pure (host expr "%s[%s:%s]"))
+    (sig slice-string  (slice-string int int) slice-string pure   (host expr "%s[%s:%s]"))
 
     ; ---- conversions. Go spells these T(x); each is its own name here.
-    (prim int-of-float64  (f64) int       expr "int(%s)"     pure)
-    (prim float64-of-int  (int) f64       expr "float64(%s)" pure)
-    (prim int64-of-int    (int) int64         expr "int64(%s)"   pure)
-    (prim string-of-bytes (slice-byte) string expr "string(%s)"  pure)
-    (prim bytes-of-string (string) slice-byte expr "[]byte(%s)"  pure)))
+    (sig int-of-float64  (f64) int     pure       (host expr "int(%s)"))
+    (sig float64-of-int  (int) f64 pure       (host expr "float64(%s)"))
+    (sig int64-of-int    (int) int64   pure         (host expr "int64(%s)"))
+    (sig string-of-bytes (slice-byte) string  pure (host expr "string(%s)"))
+    (sig bytes-of-string (string) slice-byte  pure (host expr "[]byte(%s)"))))

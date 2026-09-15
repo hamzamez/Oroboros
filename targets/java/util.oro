@@ -13,20 +13,20 @@
 
 (target java
   (module java/List
-    (prim newLong    (none) list-long        expr "new java.util.ArrayList<Long>()")
-    (prim newString  (none) list-string      expr "new java.util.ArrayList<String>()")
-    (prim addLong    (list-long int) list-long     stmt "%s.add(%s)")
-    (prim addString  (list-string string) list-string stmt "%s.add(%s)")
-    (prim getLong    (list-long int) int     expr "%s.get((int) %s)"    pure)
-    (prim getString  (list-string int) string expr "%s.get((int) %s)"   pure)
-    (prim setLong    (list-long int int) list-long stmt "%s.set((int) %s, %s)")
-    (prim sizeLong   (list-long) int         expr "%s.size()"           pure)
-    (prim sizeString (list-string) int       expr "%s.size()"           pure)
-    (prim containsLong (list-long int) bool  expr "%s.contains(%s)"     pure)
-    (prim clearLong  (list-long) list-long   stmt "%s.clear()"))
+    (sig newLong    () list-long        (host expr "new java.util.ArrayList<Long>()"))
+    (sig newString  () list-string      (host expr "new java.util.ArrayList<String>()"))
+    (sig addLong    (list-long int) list-long     (host stmt "%s.add(%s)"))
+    (sig addString  (list-string string) list-string (host stmt "%s.add(%s)"))
+    (sig getLong    (list-long int) int    pure     (host expr "%s.get((int) %s)"))
+    (sig getString  (list-string int) string   pure (host expr "%s.get((int) %s)"))
+    (sig setLong    (list-long int int) list-long (host stmt "%s.set((int) %s, %s)"))
+    (sig sizeLong   (list-long) int           pure         (host expr "%s.size()"))
+    (sig sizeString (list-string) int           pure       (host expr "%s.size()"))
+    (sig containsLong (list-long int) bool     pure  (host expr "%s.contains(%s)"))
+    (sig clearLong  (list-long) list-long   (host stmt "%s.clear()")))
 
   (module java/Map
-    (prim new        (none) map-string-long  expr "new java.util.HashMap<String,Long>()")
+    (sig new        () map-string-long  (host expr "new java.util.HashMap<String,Long>()"))
     ; BOTH FORMS ARE DECLARED, because the measurement that chose between them
     ; did not reproduce.
     ;
@@ -51,22 +51,22 @@
     ; So both are declared and the program picks. ADR 0008's rule is unchanged
     ; and in fact reinforced — which granularity wins is a per-target
     ; MEASUREMENT — and this is what it looks like when the measurement moves.
-    (prim get        (map-string-long string) int expr "%s.getOrDefault(%s, 0L)" pure)
-    (prim merge      (map-string-long string) map-string-long
-      stmt "%s.merge(%s, 1L, Long::sum)")
-    (prim put        (map-string-long string int) map-string-long stmt "%s.put(%s, %s)")
-    (prim containsKey (map-string-long string) bool expr "%s.containsKey(%s)" pure)
-    (prim remove     (map-string-long string) map-string-long stmt "%s.remove(%s)")
-    (prim size       (map-string-long) int   expr "%s.size()"            pure)
-    (prim clear      (map-string-long) map-string-long stmt "%s.clear()"))
+    (sig get        (map-string-long string) int pure (host expr "%s.getOrDefault(%s, 0L)"))
+    (sig merge      (map-string-long string) map-string-long
+      (host stmt "%s.merge(%s, 1L, Long::sum)"))
+    (sig put        (map-string-long string int) map-string-long (host stmt "%s.put(%s, %s)"))
+    (sig containsKey (map-string-long string) bool pure (host expr "%s.containsKey(%s)"))
+    (sig remove     (map-string-long string) map-string-long (host stmt "%s.remove(%s)"))
+    (sig size       (map-string-long) int            pure   (host expr "%s.size()"))
+    (sig clear      (map-string-long) map-string-long (host stmt "%s.clear()")))
 
   (module java/Arrays
-    (prim sortLong    (long-array) long-array     stmt "java.util.Arrays.sort(%s)")
-    (prim sortDouble  (double-array) double-array stmt "java.util.Arrays.sort(%s)")
-    (prim fillLong    (long-array int) long-array stmt "java.util.Arrays.fill(%s, %s)")
-    (prim fillBool    (bool-array bool) bool-array stmt "java.util.Arrays.fill(%s, %s)")
-    (prim toStringLong (long-array) string expr "java.util.Arrays.toString(%s)" pure)
-    (prim copyOfDouble (double-array int) double-array
-                      expr "java.util.Arrays.copyOf(%s, (int) %s)" pure)
-    (prim binarySearchLong (long-array int) int
-                      expr "java.util.Arrays.binarySearch(%s, %s)" pure)))
+    (sig sortLong    (long-array) long-array     (host stmt "java.util.Arrays.sort(%s)"))
+    (sig sortDouble  (double-array) double-array (host stmt "java.util.Arrays.sort(%s)"))
+    (sig fillLong    (long-array int) long-array (host stmt "java.util.Arrays.fill(%s, %s)"))
+    (sig fillBool    (bool-array bool) bool-array (host stmt "java.util.Arrays.fill(%s, %s)"))
+    (sig toStringLong (long-array) string pure (host expr "java.util.Arrays.toString(%s)"))
+    (sig copyOfDouble (double-array int) double-array pure
+                      (host expr "java.util.Arrays.copyOf(%s, (int) %s)"))
+    (sig binarySearchLong (long-array int) int pure
+                      (host expr "java.util.Arrays.binarySearch(%s, %s)"))))

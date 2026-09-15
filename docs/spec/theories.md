@@ -276,11 +276,12 @@ arrived separately.
 *no map* on windows and *no types at all* on JavaScript, which has a good map. Inferring it would
 have given JavaScript our hash table, which measured 3.67× slower than its own.
 
-**A composition bug the new loader fixes.** Today two fragments combine as
-`BuiltinMap = a || b` ([target.go:1244](../../emit/target.go)), whose comment calls it monotone. That
-is a join on `false < true`, not §4's override: a nearer layer can turn the built-in map on and
-**can never turn it off**. `repr` composes by override like every other declaration, so a project
-layer's `(repr map host)` wins. No program depends on the old behaviour.
+**A composition bug the new loader fixes — fixed 2026-09-15.** Two fragments combined as
+`BuiltinMap = a || b`, whose comment called it monotone. That is a join on `false < true`, not §4's
+override: a nearer layer could turn the built-in map on and **never turn it off**. It is now
+`Target.MapRepr`, a word composed by override like every other declaration, so a project layer's
+`(repr map host)` wins (`TestANearerLayerCanTurnTheLibraryMapOff`). No program depended on the old
+behaviour.
 
 **Where it is used today:** one declaration ([windows.oro:49](../../targets/windows/windows.oro)),
 one check (`NeedsMapImpl`, read by `lowerMaps`), one test (`emit/winmap_test.go`).
@@ -577,6 +578,14 @@ be a literal, since it is a compile-time value.
 ---
 
 ## 9. Acceptance
+
+> **Status, 2026-09-15: the target half is built.** Target layers and `provides` read §5 and §8's
+> forms into `emit.Target`, the old spellings are refused naming the new ones, and every target file,
+> library, generator and test in the repository is translated. The translation was checked as a
+> commuting square before the old forms were deleted: loading every file before and after gave the
+> identical target ([loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md)). Not yet: the
+> program half (`type`/`variant`/`const` in modules, `core.Module`), §7 facts beyond `max-len`, and
+> §10.3's refusal tests beyond the target forms.
 
 The first build of this specification is an **elaborating loader**: the new forms are read and
 turned into today's `emit.Target`, `emit.Prim` and `core.Module` structures, and nothing downstream

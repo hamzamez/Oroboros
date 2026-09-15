@@ -79,7 +79,7 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 		t.Fatalf("java declares max-len 2147483647; got %d", got)
 	}
 
-	form, err := core.ReadAll("(target bad (max-len 9007199254740992))")
+	form, err := core.ReadAll("(target bad (fact max-len ((a (array A))) (<= (len a) 9007199254740992)))")
 	if err != nil {
 		t.Fatal(err)
 	}

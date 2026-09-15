@@ -444,7 +444,8 @@ func emit(dir string, ms []member) error {
 			if strings.HasPrefix(r, "node:") {
 				imp = fmt.Sprintf(" (import %q)", r)
 			}
-			fmt.Fprintf(modBuf(mod), "    (prim %s %s any expr %q%s)\n", pname, argList, call, imp)
+			fmt.Fprintf(modBuf(mod), "    (sig %s %s any (host expr %q%s))\n",
+				pname, strings.Replace(argList, "(none)", "()", 1), call, imp)
 			n++
 		}
 		var b strings.Builder

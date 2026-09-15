@@ -1,6 +1,6 @@
 # gauntlet/check/outcomes.txt — written by "go run ./cmd/check -accept". Do not edit by hand.
 # One block per source and target: "== SOURCE TARGET emitted HASH" or "== SOURCE TARGET refused",
-# then every line the compiler printed. The emitted text itself is in gauntlet/check/emitted/.
+# then every line the compiler printed. The emitted text itself is in gauntlet/check/testdata/emitted/.
 == examples/big/fact-limbs.oro go emitted fc659b3636fac05f87d28e2a99396975099b16d9c23e5ca9ec785a7f9ddb027a
    note: gen-fact-limbs: 1 operation(s) in arbitrary precision
    note: gen-fact-limbs: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -1392,27 +1392,27 @@
 == gauntlet/differential/cases/values-product.oro java emitted 0138a4a39e9cd4cec01c08bf84df9e89ed0d0539663e2b74b5d7d457ac266c75
 == gauntlet/differential/cases/values-product.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == lib/io/go.oro go refused
-   gen: lib\io\go.oro: expected (target NAME …)
+   gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/go.oro js refused
-   gen: lib\io\js.oro: expected (target NAME …)
+   gen: lib\io\js.oro: a target file begins with (target NAME …)
 == lib/io/go.oro java refused
-   gen: lib\io\java.oro: expected (target NAME …)
+   gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/go.oro windows refused
    gen: lib/io/go.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/io/java.oro go refused
-   gen: lib\io\go.oro: expected (target NAME …)
+   gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/java.oro js refused
-   gen: lib\io\js.oro: expected (target NAME …)
+   gen: lib\io\js.oro: a target file begins with (target NAME …)
 == lib/io/java.oro java refused
-   gen: lib\io\java.oro: expected (target NAME …)
+   gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/java.oro windows refused
    gen: lib/io/java.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/io/js.oro go refused
-   gen: lib\io\go.oro: expected (target NAME …)
+   gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/js.oro js refused
-   gen: lib\io\js.oro: expected (target NAME …)
+   gen: lib\io\js.oro: a target file begins with (target NAME …)
 == lib/io/js.oro java refused
-   gen: lib\io\java.oro: expected (target NAME …)
+   gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/js.oro windows refused
    gen: lib/io/js.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/num/vec.oro go refused
@@ -1428,27 +1428,27 @@
    gen: lib/num/vec.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
 == lib/os/go.oro go refused
-   gen: lib\os\go.oro: expected (target NAME …)
+   gen: lib\os\go.oro: a target file begins with (target NAME …)
 == lib/os/go.oro js refused
-   gen: lib\os\js.oro: expected (target NAME …)
+   gen: lib\os\js.oro: a target file begins with (target NAME …)
 == lib/os/go.oro java refused
-   gen: lib\os\java.oro: expected (target NAME …)
+   gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/go.oro windows refused
    gen: lib/os/go.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/os/java.oro go refused
-   gen: lib\os\go.oro: expected (target NAME …)
+   gen: lib\os\go.oro: a target file begins with (target NAME …)
 == lib/os/java.oro js refused
-   gen: lib\os\js.oro: expected (target NAME …)
+   gen: lib\os\js.oro: a target file begins with (target NAME …)
 == lib/os/java.oro java refused
-   gen: lib\os\java.oro: expected (target NAME …)
+   gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/java.oro windows refused
    gen: lib/os/java.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/os/js.oro go refused
-   gen: lib\os\go.oro: expected (target NAME …)
+   gen: lib\os\go.oro: a target file begins with (target NAME …)
 == lib/os/js.oro js refused
-   gen: lib\os\js.oro: expected (target NAME …)
+   gen: lib\os\js.oro: a target file begins with (target NAME …)
 == lib/os/js.oro java refused
-   gen: lib\os\java.oro: expected (target NAME …)
+   gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/js.oro windows refused
    gen: lib/os/js.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/win/fmt.oro go refused

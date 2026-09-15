@@ -966,7 +966,8 @@ func emit(dir string, syms []sym) error {
 				pname = fmt.Sprintf("%s%d", pname, k)
 				overloaded++
 			}
-			fmt.Fprintf(modBuf(mod), "    (prim %s %s %s %s %q)\n", pname, argList, res, kind, call)
+			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s %q))\n",
+				pname, strings.Replace(argList, "(none)", "()", 1), res, kind, call)
 			n++
 		}
 		// THE EDGES FOR THE TYPES THIS FILE DECLARES, put with the SUBTYPE,
@@ -1035,7 +1036,7 @@ func emit(dir string, syms []sym) error {
 		}
 		sort.Strings(tn)
 		for _, k := range tn {
-			fmt.Fprintf(&b, "  (type %s %q)\n", k, jsrc(types[k]))
+			fmt.Fprintf(&b, "  (type %s (host %q))\n", k, jsrc(types[k]))
 		}
 		if len(tn) > 0 {
 			b.WriteString("\n")

@@ -17,21 +17,21 @@
 ; exact arrangement and calls it complete.
 
 (provides go os
-  (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
-    "os.ReadFile(%s)" (import "os"))
+  (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+      "os.ReadFile(%s)" (import "os")))
 
-  (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
-    "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os"))
+  (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
+      "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
 
   ; The discriminator that totalises the pair above. `nil` is not a value this
   ; language has, so it is a primitive rather than something derived.
-  (prim err-nil ((e error)) bool expr "%s == nil" pure)
+  (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
 
   ; Bytes to text, ONCE, at the boundary. `string-of` is η over SCALARS, so a
   ; raw UTF-8 byte through it would become U+00C3; the decode has to see the
   ; whole sequence (string-operations.md §5).
-  (prim text-of ((b (array (int 0 255)))) string expr "string(%s)" pure)
+  (sig text-of ((b (array (int 0 255)))) string pure (host expr "string(%s)"))
 
   ; The environment, so a program can be told what to open.
-  (prim Args (none) (array string) expr "os.Args" (import "os"))
-  (prim Getenv ((k string)) string expr "os.Getenv(%s)" pure (import "os")))
+  (sig Args () (array string) (host expr "os.Args" (import "os")))
+  (sig Getenv ((k string)) string pure (host expr "os.Getenv(%s)" (import "os"))))

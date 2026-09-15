@@ -33,8 +33,8 @@
   (module windows/kernel32
     ; ---- handles. -11 is STD_OUTPUT_HANDLE, -10 stdin, -12 stderr. The
     ; language has no constants and no enums, so the number is the interface.
-    (prim GetStdHandle (int) ptr expr
-      "mov rcx, %1\ncall GetStdHandle\nmov %r, rax" (import "GetStdHandle"))
+    (sig GetStdHandle (int) ptr (host expr
+        "mov rcx, %1\ncall GetStdHandle\nmov %r, rax" (import "GetStdHandle")))
 
     ; The buffer is `any`, not `ptr`, and that is a finding rather than laziness.
     ; On this host a string IS a pointer to bytes — the same qword — so the two
@@ -42,69 +42,69 @@
     ; `(WriteFile h "hi" 2)` a type error the host does not have. It is the JS
     ; `js.+` problem again from the other side: there, one host type had to
     ; serve two of ours; here, two of ours name one host type.
-    (prim WriteFile (ptr any int) ptr stmt
-      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile"
-      (import "WriteFile"))
+    (sig WriteFile (ptr any int) ptr (host stmt
+        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile"
+        (import "WriteFile")))
 
     ; The count comes back through the out-parameter, so unlike WriteFile this
     ; one has to be an expr and has to read the cell afterwards.
-    (prim ReadFile (ptr ptr int) int expr
-      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __read\nmov qword ptr [rsp+32], 0\ncall ReadFile\nmov %r, qword ptr [__read]"
-      (import "ReadFile"))
+    (sig ReadFile (ptr ptr int) int (host expr
+        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\nlea r9, __read\nmov qword ptr [rsp+32], 0\ncall ReadFile\nmov %r, qword ptr [__read]"
+        (import "ReadFile")))
 
-    (prim ExitProcess (int) int stmt
-      "mov rcx, %1\ncall ExitProcess" (import "ExitProcess"))
+    (sig ExitProcess (int) int (host stmt
+        "mov rcx, %1\ncall ExitProcess" (import "ExitProcess")))
 
     ; ---- memory. VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
     ; is the platform allocator, and the three constants are baked in because
     ; there is nowhere else to put them.
-    (prim VirtualAlloc (int) ptr expr
-      "xor ecx, ecx\nmov rdx, %1\nmov r8, 3000h\nmov r9, 4\ncall VirtualAlloc\nmov %r, rax"
-      (import "VirtualAlloc"))
-    (prim VirtualFree (ptr) ptr stmt
-      "mov rcx, %1\nxor edx, edx\nmov r8, 8000h\ncall VirtualFree" (import "VirtualFree"))
+    (sig VirtualAlloc (int) ptr (host expr
+        "xor ecx, ecx\nmov rdx, %1\nmov r8, 3000h\nmov r9, 4\ncall VirtualAlloc\nmov %r, rax"
+        (import "VirtualAlloc")))
+    (sig VirtualFree (ptr) ptr (host stmt
+        "mov rcx, %1\nxor edx, edx\nmov r8, 8000h\ncall VirtualFree" (import "VirtualFree")))
 
-    (prim GetProcessHeap (none) ptr expr
-      "call GetProcessHeap\nmov %r, rax" (import "GetProcessHeap"))
-    (prim HeapAlloc (ptr int) ptr expr
-      "mov rcx, %1\nmov rdx, 8\nmov r8, %2\ncall HeapAlloc\nmov %r, rax" (import "HeapAlloc"))
-    (prim HeapFree (ptr ptr) ptr stmt
-      "mov rcx, %1\nxor edx, edx\nmov r8, %2\ncall HeapFree" (import "HeapFree"))
+    (sig GetProcessHeap () ptr (host expr
+        "call GetProcessHeap\nmov %r, rax" (import "GetProcessHeap")))
+    (sig HeapAlloc (ptr int) ptr (host expr
+        "mov rcx, %1\nmov rdx, 8\nmov r8, %2\ncall HeapAlloc\nmov %r, rax" (import "HeapAlloc")))
+    (sig HeapFree (ptr ptr) ptr (host stmt
+        "mov rcx, %1\nxor edx, edx\nmov r8, %2\ncall HeapFree" (import "HeapFree")))
 
     ; ---- time. QueryPerformanceCounter is another out-parameter, and it is
     ; what a benchmark on this target has to use: there is no clock in the
     ; language and no library to borrow one from.
-    (prim GetTickCount64 (none) int expr
-      "call GetTickCount64\nmov %r, rax" (import "GetTickCount64"))
-    (prim QueryPerformanceCounter (none) int expr
-      "lea rcx, __qpc\ncall QueryPerformanceCounter\nmov %r, qword ptr [__qpc]"
-      (import "QueryPerformanceCounter"))
-    (prim QueryPerformanceFrequency (none) int expr
-      "lea rcx, __qpc\ncall QueryPerformanceFrequency\nmov %r, qword ptr [__qpc]"
-      (import "QueryPerformanceFrequency"))
-    (prim Sleep (int) int stmt "mov rcx, %1\ncall Sleep" (import "Sleep"))
+    (sig GetTickCount64 () int (host expr
+        "call GetTickCount64\nmov %r, rax" (import "GetTickCount64")))
+    (sig QueryPerformanceCounter () int (host expr
+        "lea rcx, __qpc\ncall QueryPerformanceCounter\nmov %r, qword ptr [__qpc]"
+        (import "QueryPerformanceCounter")))
+    (sig QueryPerformanceFrequency () int (host expr
+        "lea rcx, __qpc\ncall QueryPerformanceFrequency\nmov %r, qword ptr [__qpc]"
+        (import "QueryPerformanceFrequency")))
+    (sig Sleep (int) int (host stmt "mov rcx, %1\ncall Sleep" (import "Sleep")))
 
     ; ---- process and environment
-    (prim GetCommandLineA (none) string expr
-      "call GetCommandLineA\nmov %r, rax" (import "GetCommandLineA"))
-    (prim GetLastError (none) int expr
-      "call GetLastError\nmov %r, rax" (import "GetLastError"))
-    (prim GetCurrentProcessId (none) int expr
-      "call GetCurrentProcessId\nmov %r, rax" (import "GetCurrentProcessId"))
-    (prim GetEnvironmentVariableA (string ptr int) int expr
-      "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall GetEnvironmentVariableA\nmov %r, rax"
-      (import "GetEnvironmentVariableA"))
+    (sig GetCommandLineA () string (host expr
+        "call GetCommandLineA\nmov %r, rax" (import "GetCommandLineA")))
+    (sig GetLastError () int (host expr
+        "call GetLastError\nmov %r, rax" (import "GetLastError")))
+    (sig GetCurrentProcessId () int (host expr
+        "call GetCurrentProcessId\nmov %r, rax" (import "GetCurrentProcessId")))
+    (sig GetEnvironmentVariableA (string ptr int) int (host expr
+        "mov rcx, %1\nmov rdx, %2\nmov r8, %3\ncall GetEnvironmentVariableA\nmov %r, rax"
+        (import "GetEnvironmentVariableA")))
 
     ; ---- files. CreateFileA takes SEVEN arguments; three go on the stack, and
     ; the frame the emitter reserves has room for two. So the access mode, share
     ; mode and creation disposition are baked in — this opens an existing file
     ; for reading, and nothing else. A target file cannot ask for a bigger
     ; frame, and that is a real limit, recorded in windows-target.md §6.
-    (prim CloseHandle (ptr) ptr stmt
-      "mov rcx, %1\ncall CloseHandle" (import "CloseHandle"))
+    (sig CloseHandle (ptr) ptr (host stmt
+        "mov rcx, %1\ncall CloseHandle" (import "CloseHandle")))
 
     ; ---- console
-    (prim SetConsoleTextAttribute (ptr int) ptr stmt
-      "mov rcx, %1\nmov rdx, %2\ncall SetConsoleTextAttribute" (import "SetConsoleTextAttribute"))
-    (prim Beep (int int) int stmt
-      "mov rcx, %1\nmov rdx, %2\ncall Beep" (import "Beep"))))
+    (sig SetConsoleTextAttribute (ptr int) ptr (host stmt
+        "mov rcx, %1\nmov rdx, %2\ncall SetConsoleTextAttribute" (import "SetConsoleTextAttribute")))
+    (sig Beep (int int) int (host stmt
+        "mov rcx, %1\nmov rdx, %2\ncall Beep" (import "Beep")))))

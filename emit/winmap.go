@@ -40,7 +40,7 @@ const mapImplPrefix = "win/map."
 // "this host has no TYPES" on JavaScript, which has a perfectly good map and
 // spells nothing at all. Guessing would have given JavaScript our hash table
 // and thrown away a measured 3.67x.
-func (tg *Target) NeedsMapImpl() bool { return tg.BuiltinMap }
+func (tg *Target) NeedsMapImpl() bool { return tg.MapRepr == "library" }
 
 // lowerMaps rewrites every map operation in the program into calls to the
 // embedded implementation, and adds that implementation's definitions.

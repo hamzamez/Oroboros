@@ -44,26 +44,26 @@
   ; reads their width and lets `(src i)` be used in arithmetic without a refusal
   ; (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
   ; Uint8Array, and indexes 0..255 exactly as the declaration says.
-  (prim ReadFile ((path string)) ((array (int 0 255)) error) expr
-    "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
-    (import "node:fs"))
+  (sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr
+      "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
+      (import "node:fs")))
 
-  (prim WriteFile ((path string) (data (array (int 0 255))) (perm int)) error expr
-    "try { fs.writeFileSync(%s, Buffer.from(%s), { mode: %s }); %r0 = null; } catch (e) { %r0 = e; }"
-    (import "node:fs"))
+  (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
+      "try { fs.writeFileSync(%s, Buffer.from(%s), { mode: %s }); %r0 = null; } catch (e) { %r0 = e; }"
+      (import "node:fs")))
 
   ; The discriminator. `null` because that is what the templates above put
   ; there — one file says both halves, so the two cannot disagree.
-  (prim err-nil ((e error)) bool expr "%s === null" pure)
+  (sig err-nil ((e error)) bool pure (host expr "%s === null"))
 
   ; Bytes to text, ONCE, at the boundary. `TextDecoder` is the platform's own
   ; UTF-8 decode and needs no import.
-  (prim text-of ((b (array (int 0 255)))) string expr
-    "new TextDecoder().decode(Uint8Array.from(%s))" pure)
+  (sig text-of ((b (array (int 0 255)))) string pure (host expr
+      "new TextDecoder().decode(Uint8Array.from(%s))"))
 
   ; `process.argv` is [node, script, …] where Go's `os.Args` is [prog, …], so
   ; the first is dropped and a program sees the same shape on both hosts. That
   ; is the parasite model doing its job: the difference is stated once, in the
   ; cell that knows about it, and no program learns the hosts disagree.
-  (prim Args (none) (array string) expr "process.argv.slice(1)")
-  (prim Getenv ((k string)) string expr "(process.env[%s] ?? \"\")" pure))
+  (sig Args () (array string) (host expr "process.argv.slice(1)"))
+  (sig Getenv ((k string)) string pure (host expr "(process.env[%s] ?? \"\")")))

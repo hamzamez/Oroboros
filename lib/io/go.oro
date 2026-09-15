@@ -20,13 +20,13 @@
 ; call, and neither is lowered further than the host provides.
 
 (provides go io
-    (prim print-line ((s string)) string stmt "fmt.Println(%s)" (import "fmt"))
+    (sig print-line ((s string)) string (host stmt "fmt.Println(%s)" (import "fmt")))
     ; ---- and the same without the newline
     ;
     ; A program that BUILDS its whole output as text — jsonfmt and freq both do —
     ; supplies its own line breaks, so a `print-line` here would add one the
     ; program did not write. Two names rather than a flag, because a flag would
     ; be a value at run time where this is a choice at the call site.
-    (prim print ((s string)) string stmt "fmt.Print(%s)" (import "fmt"))
+    (sig print ((s string)) string (host stmt "fmt.Print(%s)" (import "fmt")))
 
-    (prim print-int ((n int)) int stmt "fmt.Println(%s)" (import "fmt")))
+    (sig print-int ((n int)) int (host stmt "fmt.Println(%s)" (import "fmt"))))

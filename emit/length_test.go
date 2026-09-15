@@ -160,9 +160,9 @@ func TestLengthMustNameARealArgument(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "bad.oro")
 	src := `(target bad
-  (type int "int")
-  (type slice-bool "[]bool")
-  (prim mk (int) slice-bool expr "make([]bool, %s)" (length 3)))
+  (type int (host "int"))
+  (type slice-bool (host "[]bool"))
+  (sig mk (int) slice-bool (length 3) (host expr "make([]bool, %s)")))
 `
 	if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
 		t.Fatal(err)

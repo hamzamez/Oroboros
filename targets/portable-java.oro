@@ -12,85 +12,85 @@
   ; Which code generator compiles this target (target-system.md §1.1).
   (backend java)
 
-  (type f64        "double")
-  (type int        "long")
-  (type bool       "boolean")
-  (type vec-f64    "double[]")
-  (type string     "String")
-  (type vec-string "String[]")
-  (type dict       "HashMap<String,Integer>")
-  (type any        "Object")
+  (type f64        (host "double"))
+  (type int        (host "long"))
+  (type bool       (host "boolean"))
+  (type vec-f64    (host "double[]"))
+  (type string     (host "String"))
+  (type vec-string (host "String[]"))
+  (type dict       (host "HashMap<String,Integer>"))
+  (type any        (host "Object"))
 
   ; ---- experiment: java.lang's top level. See experiments/java-toplevel/.
-  (type vec-int    "long[]")
-  (type vec-bool   "boolean[]")
-  (type strbuf     "StringBuilder")
-  (type char       "char")
+  (type vec-int    (host "long[]"))
+  (type vec-bool   (host "boolean[]"))
+  (type strbuf     (host "StringBuilder"))
+  (type char       (host "char"))
 
 
   ; Java arrays carry .length, so alen and slen share a shape — unlike Go, where
   ; len() is a function.
   (module num/f64
-    (prim add (f64 f64) f64  expr "%s + %s"  pure)
-    (prim sub (f64 f64) f64  expr "%s - %s"  pure)
-    (prim mul (f64 f64) f64  expr "%s * %s"  pure)
+    (sig add (f64 f64) f64  pure  (host expr "%s + %s"))
+    (sig sub (f64 f64) f64  pure  (host expr "%s - %s"))
+    (sig mul (f64 f64) f64  pure  (host expr "%s * %s"))
     ; f64 division is Tier 1: all three hosts agree on every case measured,
     ; including x/0 = +-Inf and 0/0 = NaN, with no trap anywhere. It is
     ; INTEGER division that diverges, and arithmetic.md 7 conflated them.
-    (prim div (f64 f64) f64  expr "%s / %s"  pure)
-    (prim lt  (f64 f64) bool expr "%s < %s"  pure)
-    (prim le  (f64 f64) bool expr "%s <= %s" pure)
-    (prim gt  (f64 f64) bool expr "%s > %s"  pure)
-    (prim ge  (f64 f64) bool expr "%s >= %s" pure)
-    (prim eq  (f64 f64) bool expr "%s == %s" pure)
-    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
-    (prim abs  (f64) f64 expr "Math.abs(%s)"  pure))
+    (sig div (f64 f64) f64  pure  (host expr "%s / %s"))
+    (sig lt  (f64 f64) bool  pure (host expr "%s < %s"))
+    (sig le  (f64 f64) bool pure (host expr "%s <= %s"))
+    (sig gt  (f64 f64) bool  pure (host expr "%s > %s"))
+    (sig ge  (f64 f64) bool pure (host expr "%s >= %s"))
+    (sig eq  (f64 f64) bool pure (host expr "%s == %s"))
+    (sig sqrt (f64) f64 pure (host expr "Math.sqrt(%s)"))
+    (sig abs  (f64) f64  pure (host expr "Math.abs(%s)")))
 
   ; long, never int: Java's int wraps at 2^31, INSIDE the portable range
   ; (arithmetic.md §4). Declaring it would be a silent miscompilation.
   (module num/int
-    (prim add (int int) int  expr "%s + %s"  pure)
-    (prim sub (int int) int  expr "%s - %s"  pure)
-    (prim mul (int int) int  expr "%s * %s"  pure)
-    (prim lt  (int int) bool expr "%s < %s"  pure)
-    (prim le  (int int) bool expr "%s <= %s" pure)
-    (prim gt  (int int) bool expr "%s > %s"  pure)
-    (prim ge  (int int) bool expr "%s >= %s" pure)
-    (prim eq  (int int) bool expr "%s == %s" pure))
+    (sig add (int int) int  pure  (host expr "%s + %s"))
+    (sig sub (int int) int  pure  (host expr "%s - %s"))
+    (sig mul (int int) int  pure  (host expr "%s * %s"))
+    (sig lt  (int int) bool  pure (host expr "%s < %s"))
+    (sig le  (int int) bool pure (host expr "%s <= %s"))
+    (sig gt  (int int) bool  pure (host expr "%s > %s"))
+    (sig ge  (int int) bool pure (host expr "%s >= %s"))
+    (sig eq  (int int) bool pure (host expr "%s == %s")))
 
   ; int -> f64 is EXACTLY lossless inside the portable range, because that
   ; range is 2^53 precisely so an f64 holds every integer in it
   ; (arithmetic.md 4). The lossy direction, f64 -> int, is still absent:
   ; it needs a rounding decision and no program has asked.
   (module num/f64
-    (prim of-int (int) f64 expr "(double) %s" pure))
+    (sig of-int (int) f64 pure (host expr "(double) %s")))
 
   (module logic
-    (prim and (bool bool) bool expr "%s && %s" pure)
-    (prim or  (bool bool) bool expr "%s || %s" pure)
-    (prim not (bool)      bool expr "!%s"      pure))
+    (sig and (bool bool) bool pure (host expr "%s && %s"))
+    (sig or  (bool bool) bool pure (host expr "%s || %s"))
+    (sig not (bool)      bool      pure (host expr "!%s")))
 
-  (prim alen   (vec-f64) int      expr "%s.length" pure)
+  (sig alen   (vec-f64) int pure      (host expr "%s.length"))
   ; Java array indices are int, not long. This template said `%s[%s]` and
   ; compiled only because fold-range happens to declare its index variable
   ; as int; a `loop` variable is our `int`, which is long, and the same
   ; template then fails to compile. The cast is free at run time.
-  (prim aindex ((v vec-f64) (i int)) f64 expr "%s[(int) %s]" pure index
-    (where (logic.and (int.le 0 i) (int.lt i (alen v)))))
+  (sig aindex ((v vec-f64) (i int)) f64 pure index
+    (where (logic.and (int.le 0 i) (int.lt i (alen v)))) (host expr "%s[(int) %s]"))
 
-  (prim slen        (vec-string) int        expr "%s.length" pure)
-  (prim sat         (vec-string int) string expr "%s[%s]"    pure)
+  (sig slen        (vec-string) int pure        (host expr "%s.length"))
+  (sig sat         (vec-string int) string    pure (host expr "%s[%s]"))
   ; Go's strings.Fields semantics. split() cannot express it: even with (?U),
   ; which DOES handle Unicode whitespace correctly, it still yields a leading
   ; empty field for leading whitespace and one empty field for the empty
   ; string. A matcher over runs of non-whitespace is exact on all ten
   ; conformance cases — docs/spec/primitives.md.
-  (prim split-words (string) vec-string expr
-    "java.util.regex.Pattern.compile(\"[^\\\\p{IsWhite_Space}]+\").matcher(%s).results().map(java.util.regex.MatchResult::group).toArray(String[]::new)"
-    pure)
-  (prim dict-empty  (none) dict             expr "new HashMap<String,Integer>()"
-                                                 (import "java.util.HashMap"))
-  (prim dict-inc    (dict string) dict      stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)")
+  (sig split-words (string) vec-string
+    pure (host expr
+      "java.util.regex.Pattern.compile(\"[^\\\\p{IsWhite_Space}]+\").matcher(%s).results().map(java.util.regex.MatchResult::group).toArray(String[]::new)"))
+  (sig dict-empty  () dict             (host expr "new HashMap<String,Integer>()"
+                                                   (import "java.util.HashMap")))
+  (sig dict-inc    (dict string) dict      (host stmt "%s.put(%s, %s.getOrDefault(%s, 0) + 1)"))
 
 
   ; Tier 2 — effects.md §6. This is the target that disagrees most: println
@@ -110,86 +110,86 @@
   ; they are fixed-length, which is the same statement from the other side.
 
   (module java/math
-    (prim floor (f64) f64      expr "Math.floor(%s)" pure)
-    (prim ceil  (f64) f64      expr "Math.ceil(%s)"  pure)
-    (prim round (f64) int      expr "Math.round(%s)" pure)
-    (prim abs   (f64) f64      expr "Math.abs(%s)"   pure)
-    (prim sqrt  (f64) f64      expr "Math.sqrt(%s)"  pure)
-    (prim pow   (f64 f64) f64  expr "Math.pow(%s, %s)" pure)
-    (prim min   (int int) int  expr "Math.min(%s, %s)" pure)
-    (prim max   (int int) int  expr "Math.max(%s, %s)" pure)
-    (prim log   (f64) f64      expr "Math.log(%s)"   pure)
-    (prim pi    (none) f64     expr "Math.PI"        pure)
+    (sig floor (f64) f64 pure      (host expr "Math.floor(%s)"))
+    (sig ceil  (f64) f64  pure      (host expr "Math.ceil(%s)"))
+    (sig round (f64) int pure      (host expr "Math.round(%s)"))
+    (sig abs   (f64) f64   pure      (host expr "Math.abs(%s)"))
+    (sig sqrt  (f64) f64  pure      (host expr "Math.sqrt(%s)"))
+    (sig pow   (f64 f64) f64 pure  (host expr "Math.pow(%s, %s)"))
+    (sig min   (int int) int pure  (host expr "Math.min(%s, %s)"))
+    (sig max   (int int) int pure  (host expr "Math.max(%s, %s)"))
+    (sig log   (f64) f64   pure      (host expr "Math.log(%s)"))
+    (sig pi    () f64        pure     (host expr "Math.PI"))
     ; Not pure: two calls, two answers. An `expr` that is not pure, which is
     ; the case that kills the "expr means pure" heuristic (effects.md 3).
-    (prim random (none) f64    expr "Math.random()"))
+    (sig random () f64    (host expr "Math.random()")))
 
   ; Integer arithmetic Java's way. NOT in num/int: the hosts disagree on
   ; truncation and on division by zero, which throws here and does not on JS.
   (module java/int
-    (prim quo   (int int) int    expr "%s / %s"  pure)
-    (prim rem   (int int) int    expr "%s %% %s" pure)
-    (prim parse (string) int     expr "Long.parseLong(%s)" pure)
-    (prim to-string (int) string expr "Long.toString(%s)"  pure)
-    (prim to-binary (int) string expr "Long.toBinaryString(%s)" pure)
-    (prim bit-count (int) int    expr "Long.bitCount(%s)"  pure)
-    (prim max-value (none) int   expr "Long.MAX_VALUE"     pure))
+    (sig quo   (int int) int  pure    (host expr "%s / %s"))
+    (sig rem   (int int) int pure    (host expr "%s %% %s"))
+    (sig parse (string) int pure     (host expr "Long.parseLong(%s)"))
+    (sig to-string (int) string  pure (host expr "Long.toString(%s)"))
+    (sig to-binary (int) string pure (host expr "Long.toBinaryString(%s)"))
+    (sig bit-count (int) int  pure    (host expr "Long.bitCount(%s)"))
+    (sig max-value () int     pure   (host expr "Long.MAX_VALUE")))
 
   ; java.lang.String. Immutable, so everything here is pure.
   (module java/string
-    (prim len       (string) int            expr "%s.length()"        pure)
-    (prim char-at   (string int) char       expr "%s.charAt((int) %s)" pure)
-    (prim substring (string int int) string expr "%s.substring((int) %s, (int) %s)" pure)
-    (prim index-of  (string string) int     expr "%s.indexOf(%s)"     pure)
-    (prim contains? (string string) bool    expr "%s.contains(%s)"    pure)
-    (prim starts?   (string string) bool    expr "%s.startsWith(%s)"  pure)
-    (prim upper     (string) string         expr "%s.toUpperCase()"   pure)
-    (prim lower     (string) string         expr "%s.toLowerCase()"   pure)
-    (prim trim      (string) string         expr "%s.strip()"         pure)
-    (prim repeat    (string int) string     expr "%s.repeat((int) %s)" pure)
-    (prim concat    (string string) string  expr "(%s + %s)"          pure)
-    (prim eq        (string string) bool    expr "%s.equals(%s)"      pure)
-    (prim of-char   (char) string           expr "String.valueOf(%s)" pure))
+    (sig len       (string) int        pure            (host expr "%s.length()"))
+    (sig char-at   (string int) char pure       (host expr "%s.charAt((int) %s)"))
+    (sig substring (string int int) string pure (host expr "%s.substring((int) %s, (int) %s)"))
+    (sig index-of  (string string) int     pure     (host expr "%s.indexOf(%s)"))
+    (sig contains? (string string) bool    pure    (host expr "%s.contains(%s)"))
+    (sig starts?   (string string) bool  pure    (host expr "%s.startsWith(%s)"))
+    (sig upper     (string) string   pure         (host expr "%s.toUpperCase()"))
+    (sig lower     (string) string   pure         (host expr "%s.toLowerCase()"))
+    (sig trim      (string) string         pure         (host expr "%s.strip()"))
+    (sig repeat    (string int) string pure     (host expr "%s.repeat((int) %s)"))
+    (sig concat    (string string) string          pure  (host expr "(%s + %s)"))
+    (sig eq        (string string) bool      pure    (host expr "%s.equals(%s)"))
+    (sig of-char   (char) string pure           (host expr "String.valueOf(%s)")))
 
   (module java/char
-    (prim digit?  (char) bool expr "Character.isDigit(%s)"     pure)
-    (prim letter? (char) bool expr "Character.isLetter(%s)"    pure)
-    (prim space?  (char) bool expr "Character.isWhitespace(%s)" pure)
-    (prim lower   (char) char expr "Character.toLowerCase(%s)" pure)
-    (prim code    (char) int  expr "(long) %s"                 pure))
+    (sig digit?  (char) bool     pure (host expr "Character.isDigit(%s)"))
+    (sig letter? (char) bool    pure (host expr "Character.isLetter(%s)"))
+    (sig space?  (char) bool pure (host expr "Character.isWhitespace(%s)"))
+    (sig lower   (char) char pure (host expr "Character.toLowerCase(%s)"))
+    (sig code    (char) int                 pure  (host expr "(long) %s")))
 
   ; StringBuilder — the ONLY growable container in java.lang. A `stmt` whose
   ; value is its receiver, so it threads through a fold like an accumulator.
   (module java/strbuf
-    (prim empty     (none) strbuf          expr "new StringBuilder()")
-    (prim add       (strbuf string) strbuf stmt "%s.append(%s)")
-    (prim add-char  (strbuf char) strbuf   stmt "%s.append(%s)")
-    (prim len       (strbuf) int           expr "%s.length()"     pure)
-    (prim to-string (strbuf) string        expr "%s.toString()"   pure))
+    (sig empty     () strbuf          (host expr "new StringBuilder()"))
+    (sig add       (strbuf string) strbuf (host stmt "%s.append(%s)"))
+    (sig add-char  (strbuf char) strbuf   (host stmt "%s.append(%s)"))
+    (sig len       (strbuf) int     pure           (host expr "%s.length()"))
+    (sig to-string (strbuf) string   pure        (host expr "%s.toString()")))
 
   ; Arrays. Language-level, so no import — and fixed-length, so no append.
   ; One declaration per element type, because the type language has no
   ; constructors: long[] and boolean[] are unrelated atoms.
   (module java/array
-    (prim make-int (int) vec-int expr "new long[(int) %s]" (length 0))
-    (prim make-bool (int) vec-bool expr "new boolean[(int) %s]" (length 0))
-    (prim len        (any) int                 expr "%s.length" pure)
-    (prim iat        (vec-int int) int         expr "%s[(int) %s]"  pure)
-    (prim bat        (vec-bool int) bool       expr "%s[(int) %s]"  pure)
-    (prim iset       (vec-int int int) vec-int stmt "%s[(int) %s] = %s")
-    (prim bset       (vec-bool int bool) vec-bool stmt "%s[(int) %s] = %s")
-    (prim copy       (vec-int vec-int int) vec-int
-                     stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)"))
+    (sig make-int (int) vec-int (length 0) (host expr "new long[(int) %s]"))
+    (sig make-bool (int) vec-bool (length 0) (host expr "new boolean[(int) %s]"))
+    (sig len        (any) int pure                 (host expr "%s.length"))
+    (sig iat        (vec-int int) int  pure         (host expr "%s[(int) %s]"))
+    (sig bat        (vec-bool int) bool  pure       (host expr "%s[(int) %s]"))
+    (sig iset       (vec-int int int) vec-int (host stmt "%s[(int) %s] = %s"))
+    (sig bset       (vec-bool int bool) vec-bool (host stmt "%s[(int) %s] = %s"))
+    (sig copy       (vec-int vec-int int) vec-int
+                     (host stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)")))
 
   (module java/system
-    (prim println (any) any  stmt "System.out.println(%s)")
-    (prim errorln (any) any  stmt "System.err.println(%s)")
-    (prim nanos   (none) int expr "System.nanoTime()"))
+    (sig println (any) any  (host stmt "System.out.println(%s)"))
+    (sig errorln (any) any  (host stmt "System.err.println(%s)"))
+    (sig nanos   () int (host expr "System.nanoTime()")))
 
   (module java/bool)
 
   (module io
-    (prim print-line (any) any stmt "System.out.println(%s)"))
+    (sig print-line (any) any (host stmt "System.out.println(%s)")))
 
   ; javac produces a class DIRECTORY, not a single file, so the artifact here
   ; is a directory you run with `java -cp DIR Main`. Three hosts, three notions

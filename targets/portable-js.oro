@@ -24,59 +24,59 @@
 
 
   (module num/f64
-    (prim add (f64 f64) f64  expr "%s + %s"  pure)
-    (prim sub (f64 f64) f64  expr "%s - %s"  pure)
-    (prim mul (f64 f64) f64  expr "%s * %s"  pure)
+    (sig add (f64 f64) f64  pure  (host expr "%s + %s"))
+    (sig sub (f64 f64) f64  pure  (host expr "%s - %s"))
+    (sig mul (f64 f64) f64  pure  (host expr "%s * %s"))
     ; f64 division is Tier 1: all three hosts agree on every case measured,
     ; including x/0 = +-Inf and 0/0 = NaN, with no trap anywhere. It is
     ; INTEGER division that diverges, and arithmetic.md 7 conflated them.
-    (prim div (f64 f64) f64  expr "%s / %s"  pure)
-    (prim lt  (f64 f64) bool expr "%s < %s"  pure)
-    (prim le  (f64 f64) bool expr "%s <= %s" pure)
-    (prim gt  (f64 f64) bool expr "%s > %s"  pure)
-    (prim ge  (f64 f64) bool expr "%s >= %s" pure)
-    (prim eq  (f64 f64) bool expr "%s === %s" pure)
-    (prim sqrt (f64) f64 expr "Math.sqrt(%s)" pure)
-    (prim abs  (f64) f64 expr "Math.abs(%s)"  pure))
+    (sig div (f64 f64) f64  pure  (host expr "%s / %s"))
+    (sig lt  (f64 f64) bool  pure (host expr "%s < %s"))
+    (sig le  (f64 f64) bool pure (host expr "%s <= %s"))
+    (sig gt  (f64 f64) bool  pure (host expr "%s > %s"))
+    (sig ge  (f64 f64) bool pure (host expr "%s >= %s"))
+    (sig eq  (f64 f64) bool pure (host expr "%s === %s"))
+    (sig sqrt (f64) f64 pure (host expr "Math.sqrt(%s)"))
+    (sig abs  (f64) f64  pure (host expr "Math.abs(%s)")))
 
   ; A JS Number IS the representation: nothing is emulated and nothing coerced.
   ; The portable range stops at 2^53 because of this target, not despite it
   ; (arithmetic.md §4).
   (module num/int
-    (prim add (int int) int  expr "%s + %s"   pure)
-    (prim sub (int int) int  expr "%s - %s"   pure)
-    (prim mul (int int) int  expr "%s * %s"   pure)
-    (prim lt  (int int) bool expr "%s < %s"   pure)
-    (prim le  (int int) bool expr "%s <= %s"  pure)
-    (prim gt  (int int) bool expr "%s > %s"   pure)
-    (prim ge  (int int) bool expr "%s >= %s"  pure)
-    (prim eq  (int int) bool expr "%s === %s" pure))
+    (sig add (int int) int   pure  (host expr "%s + %s"))
+    (sig sub (int int) int   pure  (host expr "%s - %s"))
+    (sig mul (int int) int   pure  (host expr "%s * %s"))
+    (sig lt  (int int) bool   pure (host expr "%s < %s"))
+    (sig le  (int int) bool  pure (host expr "%s <= %s"))
+    (sig gt  (int int) bool   pure (host expr "%s > %s"))
+    (sig ge  (int int) bool  pure (host expr "%s >= %s"))
+    (sig eq  (int int) bool pure (host expr "%s === %s")))
 
   ; int -> f64 is EXACTLY lossless inside the portable range, because that
   ; range is 2^53 precisely so an f64 holds every integer in it
   ; (arithmetic.md 4). The lossy direction, f64 -> int, is still absent:
   ; it needs a rounding decision and no program has asked.
   (module num/f64
-    (prim of-int (int) f64 expr "%s" pure))
+    (sig of-int (int) f64 pure (host expr "%s")))
 
   (module logic
-    (prim and (bool bool) bool expr "%s && %s" pure)
-    (prim or  (bool bool) bool expr "%s || %s" pure)
-    (prim not (bool)      bool expr "!%s"      pure))
+    (sig and (bool bool) bool pure (host expr "%s && %s"))
+    (sig or  (bool bool) bool pure (host expr "%s || %s"))
+    (sig not (bool)      bool      pure (host expr "!%s")))
 
-  (prim alen   (vec-f64) int      expr "%s.length" pure)
-  (prim aindex (vec-f64 int) f64  expr "%s[%s]"    pure)
+  (sig alen   (vec-f64) int pure      (host expr "%s.length"))
+  (sig aindex (vec-f64 int) f64    pure  (host expr "%s[%s]"))
 
   ; A null-prototype object, NOT Map. Baseline R4 measured Map at 3.25x slower
   ; for string keys, which refuted g4's original pass condition.
-  (prim slen        (vec-string) int        expr "%s.length"    pure)
-  (prim sat         (vec-string int) string expr "%s[%s]"       pure)
+  (sig slen        (vec-string) int    pure        (host expr "%s.length"))
+  (sig sat         (vec-string int) string       pure (host expr "%s[%s]"))
   ; Go's strings.Fields semantics: runs of non-whitespace, no empty fields.
     ; .split(" ") was WRONG on tabs, newlines, repeated and leading spaces --
     ; four of ten conformance cases. See docs/spec/primitives.md.
-    (prim split-words (string) vec-string     expr "(%s.match(/\\S+/g) ?? [])" pure)
-  (prim dict-empty  (none) dict             expr "Object.create(null)")
-  (prim dict-inc    (dict string) dict      stmt "%s[%s] = (%s[%s] ?? 0) + 1")
+    (sig split-words (string) vec-string pure     (host expr "(%s.match(/\\S+/g) ?? [])"))
+  (sig dict-empty  () dict             (host expr "Object.create(null)"))
+  (sig dict-inc    (dict string) dict      (host stmt "%s[%s] = (%s[%s] ?? 0) + 1"))
 
 
   ; Tier 2 — effects.md §6. console.log prints 1 for 1.0 and 100000000 for 1e8,
@@ -96,110 +96,110 @@
 
   ; Free functions on the global object.
   (module js/global
-    (prim parse-int    (string) int     expr "parseInt(%s, 10)"   pure)
-    (prim parse-float  (string) f64     expr "parseFloat(%s)"     pure)
-    (prim nan?         (f64) bool       expr "Number.isNaN(%s)"   pure)
-    (prim finite?      (f64) bool       expr "Number.isFinite(%s)" pure)
-    (prim integer?     (f64) bool       expr "Number.isInteger(%s)" pure)
-    (prim to-number    (any) f64        expr "Number(%s)"         pure)
-    (prim to-string    (any) string     expr "String(%s)"         pure)
-    (prim truthy?      (any) bool       expr "Boolean(%s)"        pure)
-    (prim nan          (none) f64       expr "NaN"                pure)
-    (prim infinity     (none) f64       expr "Infinity"           pure))
+    (sig parse-int    (string) int   pure     (host expr "parseInt(%s, 10)"))
+    (sig parse-float  (string) f64     pure     (host expr "parseFloat(%s)"))
+    (sig nan?         (f64) bool   pure       (host expr "Number.isNaN(%s)"))
+    (sig finite?      (f64) bool pure       (host expr "Number.isFinite(%s)"))
+    (sig integer?     (f64) bool pure       (host expr "Number.isInteger(%s)"))
+    (sig to-number    (any) f64         pure        (host expr "Number(%s)"))
+    (sig to-string    (any) string         pure     (host expr "String(%s)"))
+    (sig truthy?      (any) bool        pure       (host expr "Boolean(%s)"))
+    (sig nan          () f64                pure       (host expr "NaN"))
+    (sig infinity     () f64           pure       (host expr "Infinity")))
 
   ; Math — every method is a static, so every one is a one-line declaration.
   (module js/math
-    (prim floor  (f64) f64      expr "Math.floor(%s)" pure)
-    (prim ceil   (f64) f64      expr "Math.ceil(%s)"  pure)
-    (prim round  (f64) f64      expr "Math.round(%s)" pure)
-    (prim trunc  (f64) f64      expr "Math.trunc(%s)" pure)
-    (prim abs    (f64) f64      expr "Math.abs(%s)"   pure)
-    (prim sqrt   (f64) f64      expr "Math.sqrt(%s)"  pure)
-    (prim pow    (f64 f64) f64  expr "(%s ** %s)"     pure)
-    (prim min    (f64 f64) f64  expr "Math.min(%s, %s)" pure)
-    (prim max    (f64 f64) f64  expr "Math.max(%s, %s)" pure)
-    (prim log    (f64) f64      expr "Math.log(%s)"   pure)
-    (prim sin    (f64) f64      expr "Math.sin(%s)"   pure)
-    (prim cos    (f64) f64      expr "Math.cos(%s)"   pure)
-    (prim pi     (none) f64     expr "Math.PI"        pure)
+    (sig floor  (f64) f64 pure      (host expr "Math.floor(%s)"))
+    (sig ceil   (f64) f64  pure      (host expr "Math.ceil(%s)"))
+    (sig round  (f64) f64 pure      (host expr "Math.round(%s)"))
+    (sig trunc  (f64) f64 pure      (host expr "Math.trunc(%s)"))
+    (sig abs    (f64) f64   pure      (host expr "Math.abs(%s)"))
+    (sig sqrt   (f64) f64  pure      (host expr "Math.sqrt(%s)"))
+    (sig pow    (f64 f64) f64     pure  (host expr "(%s ** %s)"))
+    (sig min    (f64 f64) f64 pure  (host expr "Math.min(%s, %s)"))
+    (sig max    (f64 f64) f64 pure  (host expr "Math.max(%s, %s)"))
+    (sig log    (f64) f64   pure      (host expr "Math.log(%s)"))
+    (sig sin    (f64) f64   pure      (host expr "Math.sin(%s)"))
+    (sig cos    (f64) f64   pure      (host expr "Math.cos(%s)"))
+    (sig pi     () f64        pure     (host expr "Math.PI"))
     ; NOT pure: two calls give two answers, which is exactly what the effect
     ; discipline is for. `expr` kind, so the tempting `expr means pure`
     ; heuristic would have got this wrong (effects.md 3).
-    (prim random (none) f64     expr "Math.random()"))
+    (sig random () f64     (host expr "Math.random()")))
 
   ; Numbers are doubles, so integer division and remainder are Math.trunc and
   ; `%`. Not portable, hence not in num/int.
   (module js/int
-    (prim quo (int int) int expr "Math.trunc(%s / %s)" pure)
-    (prim rem (int int) int expr "(%s %% %s)"          pure)
+    (sig quo (int int) int pure (host expr "Math.trunc(%s / %s)"))
+    (sig rem (int int) int          pure (host expr "(%s %% %s)"))
     ; f64 -> int. Absent from num/f64 because it needs a rounding DECISION the
     ; hosts do not share; here it is simply truncation toward zero, with no
     ; portability claim. A JS Number is already the representation, so this
     ; costs nothing at runtime.
-    (prim of-f64 (f64) int expr "Math.trunc(%s)" pure))
+    (sig of-f64 (f64) int pure (host expr "Math.trunc(%s)")))
 
   ; Arrays. The receiver goes in the first hole.
   (module js/array
-    (prim make       (int) vec-f64            expr "new Array(%s)")
-    (prim of-size    (int f64) vec-f64        expr "new Array(%s).fill(%s)")
-    (prim len        (vec-f64) int            expr "%s.length"       pure)
-    (prim at         (vec-f64 int) f64        expr "%s[%s]"          pure index)
-    (prim set        (vec-f64 int f64) vec-f64 stmt "%s[%s] = %s")
-    (prim push       (vec-f64 f64) vec-f64    stmt "%s.push(%s)")
-    (prim pop        (vec-f64) f64            expr "%s.pop()")
-    (prim slice      (vec-f64 int int) vec-f64 expr "%s.slice(%s, %s)" pure)
-    (prim concat     (vec-f64 vec-f64) vec-f64 expr "%s.concat(%s)"   pure)
-    (prim index-of   (vec-f64 f64) int        expr "%s.indexOf(%s)"   pure)
-    (prim includes?  (vec-f64 f64) bool       expr "%s.includes(%s)"  pure)
-    (prim reverse    (vec-f64) vec-f64        stmt "%s.reverse()")
-    (prim join       (vec-string string) string expr "%s.join(%s)"    pure)
+    (sig make       (int) vec-f64            (host expr "new Array(%s)"))
+    (sig of-size    (int f64) vec-f64        (host expr "new Array(%s).fill(%s)"))
+    (sig len        (vec-f64) int       pure            (host expr "%s.length"))
+    (sig at         (vec-f64 int) f64          pure index        (host expr "%s[%s]"))
+    (sig set        (vec-f64 int f64) vec-f64 (host stmt "%s[%s] = %s"))
+    (sig push       (vec-f64 f64) vec-f64    (host stmt "%s.push(%s)"))
+    (sig pop        (vec-f64) f64            (host expr "%s.pop()"))
+    (sig slice      (vec-f64 int int) vec-f64 pure (host expr "%s.slice(%s, %s)"))
+    (sig concat     (vec-f64 vec-f64) vec-f64   pure (host expr "%s.concat(%s)"))
+    (sig index-of   (vec-f64 f64) int   pure        (host expr "%s.indexOf(%s)"))
+    (sig includes?  (vec-f64 f64) bool  pure       (host expr "%s.includes(%s)"))
+    (sig reverse    (vec-f64) vec-f64        (host stmt "%s.reverse()"))
+    (sig join       (vec-string string) string    pure (host expr "%s.join(%s)"))
 
     ; The higher-order half of JS's array API. Every one of these takes a
     ; FUNCTION, which is the experiment: can a lambda reach a host callback?
-    (prim map        (vec-f64 any) vec-f64    expr "%s.map(%s)"       pure)
-    (prim filter     (vec-f64 any) vec-f64    expr "%s.filter(%s)"    pure)
-    (prim reduce     (vec-f64 any f64) f64    expr "%s.reduce(%s, %s)" pure)
-    (prim some?      (vec-f64 any) bool       expr "%s.some(%s)"      pure)
-    (prim find-index (vec-f64 any) int        expr "%s.findIndex(%s)" pure)
-    (prim sort       (vec-f64 any) vec-f64    stmt "%s.sort(%s)"))
+    (sig map        (vec-f64 any) vec-f64       pure    (host expr "%s.map(%s)"))
+    (sig filter     (vec-f64 any) vec-f64    pure    (host expr "%s.filter(%s)"))
+    (sig reduce     (vec-f64 any f64) f64 pure    (host expr "%s.reduce(%s, %s)"))
+    (sig some?      (vec-f64 any) bool      pure       (host expr "%s.some(%s)"))
+    (sig find-index (vec-f64 any) int pure        (host expr "%s.findIndex(%s)"))
+    (sig sort       (vec-f64 any) vec-f64    (host stmt "%s.sort(%s)")))
 
   ; Strings are immutable, so every method here is pure.
   (module js/string
-    (prim len        (string) int             expr "%s.length"        pure)
-    (prim char-at    (string int) string      expr "%s[%s]"           pure)
-    (prim slice      (string int int) string  expr "%s.slice(%s, %s)" pure)
-    (prim index-of   (string string) int      expr "%s.indexOf(%s)"   pure)
-    (prim includes?  (string string) bool     expr "%s.includes(%s)"  pure)
-    (prim starts?    (string string) bool     expr "%s.startsWith(%s)" pure)
-    (prim upper      (string) string          expr "%s.toUpperCase()" pure)
-    (prim lower      (string) string          expr "%s.toLowerCase()" pure)
-    (prim trim       (string) string          expr "%s.trim()"        pure)
-    (prim repeat     (string int) string      expr "%s.repeat(%s)"    pure)
-    (prim split      (string string) vec-string expr "%s.split(%s)"   pure)
-    (prim concat     (string string) string   expr "(%s + %s)"        pure)
-    (prim code-at    (string int) int         expr "%s.charCodeAt(%s)" pure)
-    (prim eq         (string string) bool     expr "%s === %s"        pure))
+    (sig len        (string) int        pure             (host expr "%s.length"))
+    (sig char-at    (string int) string           pure      (host expr "%s[%s]"))
+    (sig slice      (string int int) string pure  (host expr "%s.slice(%s, %s)"))
+    (sig index-of   (string string) int   pure      (host expr "%s.indexOf(%s)"))
+    (sig includes?  (string string) bool  pure     (host expr "%s.includes(%s)"))
+    (sig starts?    (string string) bool pure     (host expr "%s.startsWith(%s)"))
+    (sig upper      (string) string pure          (host expr "%s.toUpperCase()"))
+    (sig lower      (string) string pure          (host expr "%s.toLowerCase()"))
+    (sig trim       (string) string        pure          (host expr "%s.trim()"))
+    (sig repeat     (string int) string    pure      (host expr "%s.repeat(%s)"))
+    (sig split      (string string) vec-string   pure (host expr "%s.split(%s)"))
+    (sig concat     (string string) string        pure   (host expr "(%s + %s)"))
+    (sig code-at    (string int) int pure         (host expr "%s.charCodeAt(%s)"))
+    (sig eq         (string string) bool        pure     (host expr "%s === %s")))
 
   ; A dictionary is a null-prototype object, per baseline R4.
   (module js/object
-    (prim empty      (none) dict              expr "Object.create(null)")
-    (prim get        (dict string) f64        expr "(%s[%s] ?? 0)"    pure)
-    (prim set        (dict string f64) dict   stmt "%s[%s] = %s")
-    (prim has?       (dict string) bool       expr "(%s in %s)"       pure)
-    (prim del        (dict string) dict       stmt "delete %s[%s]")
-    (prim keys       (dict) vec-string        expr "Object.keys(%s)"  pure))
+    (sig empty      () dict              (host expr "Object.create(null)"))
+    (sig get        (dict string) f64    pure        (host expr "(%s[%s] ?? 0)"))
+    (sig set        (dict string f64) dict   (host stmt "%s[%s] = %s"))
+    (sig has?       (dict string) bool       pure       (host expr "(%s in %s)"))
+    (sig del        (dict string) dict       (host stmt "delete %s[%s]"))
+    (sig keys       (dict) vec-string  pure        (host expr "Object.keys(%s)")))
 
   (module js/json
-    (prim stringify  (any) string             expr "JSON.stringify(%s)" pure)
-    (prim parse      (string) any             expr "JSON.parse(%s)"     pure))
+    (sig stringify  (any) string pure             (host expr "JSON.stringify(%s)"))
+    (sig parse      (string) any     pure             (host expr "JSON.parse(%s)")))
 
   ; console exists in Node and in every browser, with no import.
   (module js/console
-    (prim log   (any) any stmt "console.log(%s)")
-    (prim error (any) any stmt "console.error(%s)"))
+    (sig log   (any) any (host stmt "console.log(%s)"))
+    (sig error (any) any (host stmt "console.error(%s)")))
 
   (module io
-    (prim print-line (any) any stmt "console.log(%s)"))
+    (sig print-line (any) any (host stmt "console.log(%s)")))
 
   ; JavaScript has no compile step: the emitted module IS the deliverable, so
   ; there is an artifact and only a syntax check for a build.

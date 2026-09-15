@@ -24,28 +24,28 @@
   (module go/fmt
     ; ---- printing to stdout. Impure, and `stmt` because the value is a count
     ; nobody uses.
-    (prim Println  (any) any         stmt "fmt.Println(%s)"        (import "fmt"))
-    (prim Println2 (any any) any     stmt "fmt.Println(%s, %s)"    (import "fmt"))
-    (prim Println3 (any any any) any stmt "fmt.Println(%s, %s, %s)" (import "fmt"))
-    (prim Print    (any) any         stmt "fmt.Print(%s)"          (import "fmt"))
-    (prim Print2   (any any) any     stmt "fmt.Print(%s, %s)"      (import "fmt"))
-    (prim Printf   (string any) any  stmt "fmt.Printf(%s, %s)"     (import "fmt"))
-    (prim Printf2  (string any any) any     stmt "fmt.Printf(%s, %s, %s)"     (import "fmt"))
-    (prim Printf3  (string any any any) any stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt"))
+    (sig Println  (any) any         (host stmt "fmt.Println(%s)" (import "fmt")))
+    (sig Println2 (any any) any     (host stmt "fmt.Println(%s, %s)" (import "fmt")))
+    (sig Println3 (any any any) any (host stmt "fmt.Println(%s, %s, %s)" (import "fmt")))
+    (sig Print    (any) any         (host stmt "fmt.Print(%s)" (import "fmt")))
+    (sig Print2   (any any) any     (host stmt "fmt.Print(%s, %s)" (import "fmt")))
+    (sig Printf   (string any) any  (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
+    (sig Printf2  (string any any) any     (host stmt "fmt.Printf(%s, %s, %s)" (import "fmt")))
+    (sig Printf3  (string any any any) any (host stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt")))
 
     ; ---- formatting to a string. Pure: same operands, same string, no effect.
-    (prim Sprint    (any) string             expr "fmt.Sprint(%s)"            pure (import "fmt"))
-    (prim Sprint2   (any any) string         expr "fmt.Sprint(%s, %s)"        pure (import "fmt"))
-    (prim Sprintln  (any) string             expr "fmt.Sprintln(%s)"          pure (import "fmt"))
-    (prim Sprintf   (string any) string      expr "fmt.Sprintf(%s, %s)"       pure (import "fmt"))
-    (prim Sprintf2  (string any any) string  expr "fmt.Sprintf(%s, %s, %s)"   pure (import "fmt"))
-    (prim Sprintf3  (string any any any) string
-                    expr "fmt.Sprintf(%s, %s, %s, %s)" pure (import "fmt"))
+    (sig Sprint    (any) string            pure             (host expr "fmt.Sprint(%s)" (import "fmt")))
+    (sig Sprint2   (any any) string        pure         (host expr "fmt.Sprint(%s, %s)" (import "fmt")))
+    (sig Sprintln  (any) string          pure             (host expr "fmt.Sprintln(%s)" (import "fmt")))
+    (sig Sprintf   (string any) string       pure      (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
+    (sig Sprintf2  (string any any) string   pure  (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
+    (sig Sprintf3  (string any any any) string pure
+                    (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
 
     ; ---- errors
-    (prim Errorf   (string any) error      expr "fmt.Errorf(%s, %s)"     pure (import "fmt"))
-    (prim Errorf2  (string any any) error  expr "fmt.Errorf(%s, %s, %s)" pure (import "fmt"))
+    (sig Errorf   (string any) error     pure      (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
+    (sig Errorf2  (string any any) error pure  (host expr "fmt.Errorf(%s, %s, %s)" (import "fmt")))
 
     ; ---- scanning from stdin. Go returns (n, err); only n is reachable.
-    (prim Scanln (any) int expr "func() int { n, _ := fmt.Scanln(%s); return n }()"
-                 (import "fmt"))))
+    (sig Scanln (any) int (host expr "func() int { n, _ := fmt.Scanln(%s); return n }()"
+                   (import "fmt")))))

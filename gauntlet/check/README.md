@@ -24,7 +24,7 @@ Every step's full output is in `.check/logs/`, which git ignores.
 
 ## The rule for emission
 
-**Byte-identical is the default.** Emitted code is compared byte for byte with `emitted/`, and every
+**Byte-identical is the default.** Emitted code is compared byte for byte with `testdata/emitted/`, and every
 compiler outcome with `outcomes.txt`:
 - whether each source emitted or was refused on each target;
 - the hash of what it emitted;
@@ -70,7 +70,7 @@ source, target and flags in its header, so the check can regenerate it and repor
 
 | file | what |
 |---|---|
-| `emitted/` | the baseline's emitted code, one file per source and target |
+| `testdata/emitted/` | the baseline's emitted code, one file per source and target — under `testdata/` so the go tool never compiles it as a package |
 | `outcomes.txt` | every source × target outcome, hash and compiler output |
 | `ACCEPTED.md` | every accepted change, with its reason |
 | `../../.gitattributes` | keeps git from converting this directory's line endings |

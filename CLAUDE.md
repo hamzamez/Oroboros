@@ -2250,6 +2250,24 @@ nowhere**, and **`length`/`length-of` are postconditions under another name**, g
 `ensures`. Leaning: specify C₁₂, build B's part first, `with` reserved; build order step 2 is an
 elaborating loader with every emitted file byte-identical.
 
+**THE LOADER'S TARGET HALF IS BUILT, AND A FILE IS THE GLUE OF ITS FORMS** —
+[loader-2026-09-15](gauntlet/results/loader-2026-09-15.md), `emit/target.go`, [target-files.md](docs/spec/target-files.md).
+**Loading a file was not a homomorphism**: a second `(array-type …)` in one file silently replaced the first
+while the same two lines in two files were refused — 9 of 15 pairs failed `TestSplittingAFileChangesNothing`
+against HEAD. Each form now elaborates to a fragment glued by `merge`, so `load(F₁ ++ F₂) = load(F₁) ⊔ load(F₂)`
+and a form inside or after the header is the same fragment. **Target files are respelled** as theories.md §8:
+`(sig … (host KIND "template" …))`, `(type (array A) (host …))`, `(repr …)`, `(fact max-len …)`; a host word
+outside `(host …)` and a sig with no host clause are refused, and every old word is refused naming its new
+spelling. **The translation was a commuting square, E ∘ T = P**: every target and library loaded to a
+`DeepEqual` target before and after, the test failed on a planted translator bug, then the old forms and the
+translator were deleted — 1,044 forms in 35 files, plus the Go tests and four generators. **Three defects on
+the way**: `builtin-map` joined with `||` so a nearer layer could never turn it off (now `MapRepr`, by
+override); `loadProvides` silently dropped a library's broken declaration; and `go vet ./...` failed on the
+emitted baseline, now under `gauntlet/check/testdata/`. **It did not get smaller: +129 lines of code**, because
+the new reader checks more. **Cost: 194 of 194 emitted files byte-identical, proof counts identical**, one
+refusal's wording changed. Not yet: the program half (`type`/`variant`/`const` in modules), and a target sig's
+ranged parameter is not a premise where a program sig's is.
+
 **A VARIANT'S TYPE PARAMETERS ACROSS MODULES ARE SPECIFIED, AND ASKING FOUND A LOAD-ORDER BUG** —
 [spec/data.md §5.5](docs/spec/data.md), `core/sumclash_test.go`. **The bug, measured**: `Load` kept sums in ONE
 table keyed by the BARE name and checked only that no constructor belonged to two differently-named sums, so two

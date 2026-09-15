@@ -24,7 +24,7 @@
   ; coerces both operands of `>>` and `&` to int32, so the rewrite is sound
   ; here only below 2^31. Declaring the width rather than excluding the host
   ; is what lets a program whose values provably fit get it anyway.
-  (shift-width 31)
+  (repr shift 31)
 
   (module js
     ; ---- arithmetic, declared on `any`.
@@ -40,22 +40,22 @@
     ; CONCATENATION is the monoid's operation and `""` its unit. V8 ropes it, so
     ; it is O(1) amortised here where Go and the JVM copy — a difference in
     ; PRICE and not in answer, which is what keeps it Tier 1.
-    (prim concat (string string) string expr "%s + %s" pure)
+    (sig concat (string string) string pure (host expr "%s + %s"))
 
     ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
     ; `fromCodePoint` and NOT `fromCharCode`, which takes a UTF-16 code unit and
     ; would truncate every scalar above the BMP.
-    (prim string-of (int) string expr "String.fromCodePoint(%s)" pure)
+    (sig string-of (int) string pure (host expr "String.fromCodePoint(%s)"))
 
-    (prim +   (any any) any expr "%s + %s"  pure)
-    (prim -   (any any) any expr "%s - %s"  pure)
-    (prim *   (any any) any expr "%s * %s"  pure)
+    (sig +   (any any) any  pure (host expr "%s + %s"))
+    (sig -   (any any) any  pure (host expr "%s - %s"))
+    (sig *   (any any) any  pure (host expr "%s * %s"))
     ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5 — and
     ; THIS IS THE TARGET WHERE IT MATTERS MOST. Go panics, Java throws and x86
     ; raises #DE; JavaScript returns Infinity for `1/0` and NaN for `1%0` and
     ; keeps going, so the only thing standing between a program and a silently
     ; wrong answer is this obligation.
-    (prim /   ((a any) (b any)) any expr "%s / %s"  pure (where (!= b 0)))
+    (sig /   ((a any) (b any)) any  pure (where (!= b 0)) (host expr "%s / %s"))
 
     ; INTEGER DIVISION, which this host does not have. `/` is FLOAT division
     ; here -- `7 / 2` is 3.5 -- where Go, Java and x86 all divide integers and
@@ -79,11 +79,11 @@
     ;
     ; `+ 0` maps `-0` to `0` and is the identity on every other value, including
     ; every negative one: `-1 + 0` is `-1`. One addition, no branch.
-    (prim idiv ((a any) (b any)) any expr "(Math.trunc(%s / %s) + 0)" pure (where (!= b 0)))
-    (prim irem ((a any) (b any)) any expr "((%s %% %s) + 0)"          pure (where (!= b 0)))
-    (prim %   ((a any) (b any)) any expr "%s %% %s" pure (where (!= b 0)))
-    (prim **  (any any) any expr "%s ** %s" pure)
-    (prim neg (any) any        expr "-%s"      pure)
+    (sig idiv ((a any) (b any)) any pure (where (!= b 0)) (host expr "(Math.trunc(%s / %s) + 0)"))
+    (sig irem ((a any) (b any)) any          pure (where (!= b 0)) (host expr "((%s %% %s) + 0)"))
+    (sig %   ((a any) (b any)) any pure (where (!= b 0)) (host expr "%s %% %s"))
+    (sig **  (any any) any pure (host expr "%s ** %s"))
+    (sig neg (any) any      pure        (host expr "-%s"))
 
     ; String concatenation is the SAME operator; with `any` operands, `js.+`
     ; already covers it. Nothing to add.
@@ -106,59 +106,59 @@
     ; `>>>` is worse than the others: it yields an UNSIGNED 32-bit result, so it
     ; escapes the window upward as well. Java's `>>>` is 64-bit and is a
     ; different function with the same spelling.
-    (prim &    (any any) any expr "%s & %s"   pure)
-    (prim |    (any any) any expr "%s | %s"   pure)
-    (prim ^    (any any) any expr "%s ^ %s"   pure)
-    (prim ~    (any) any        expr "~%s"       pure)
-    (prim <<   (any any) any expr "%s << %s"  pure)
-    (prim >>   (any any) any expr "%s >> %s"  pure)
-    (prim >>>  (any any) any expr "%s >>> %s" pure)
+    (sig &    (any any) any   pure (host expr "%s & %s"))
+    (sig |    (any any) any   pure (host expr "%s | %s"))
+    (sig ^    (any any) any   pure (host expr "%s ^ %s"))
+    (sig ~    (any) any       pure        (host expr "~%s"))
+    (sig <<   (any any) any  pure (host expr "%s << %s"))
+    (sig >>   (any any) any  pure (host expr "%s >> %s"))
+    (sig >>>  (any any) any pure (host expr "%s >>> %s"))
 
     ; ---- comparison. Both equalities, because JS has both and they differ.
-    (prim ===  (any any) bool expr "%s === %s" pure)
-    (prim !==  (any any) bool expr "%s !== %s" pure)
-    (prim ==   (any any) bool expr "%s == %s"  pure)
-    (prim !=   (any any) bool expr "%s != %s"  pure)
-    (prim <    (any any) bool expr "%s < %s"   pure)
-    (prim <=   (any any) bool expr "%s <= %s"  pure)
-    (prim >    (any any) bool expr "%s > %s"   pure)
-    (prim >=   (any any) bool expr "%s >= %s"  pure)
+    (sig ===  (any any) bool pure (host expr "%s === %s"))
+    (sig !==  (any any) bool pure (host expr "%s !== %s"))
+    (sig ==   (any any) bool  pure (host expr "%s == %s"))
+    (sig !=   (any any) bool  pure (host expr "%s != %s"))
+    (sig <    (any any) bool   pure (host expr "%s < %s"))
+    (sig <=   (any any) bool  pure (host expr "%s <= %s"))
+    (sig >    (any any) bool   pure (host expr "%s > %s"))
+    (sig >=   (any any) bool  pure (host expr "%s >= %s"))
 
     ; ---- logic and the nullish operators
-    (prim &&  (any any) any     expr "%s && %s" pure)
-    (prim ||  (any any) any     expr "%s || %s" pure)
-    (prim !   (any) bool     expr "!%s"      pure)
-    (prim ??  (any any) any     expr "%s ?? %s" pure)
+    (sig &&  (any any) any pure     (host expr "%s && %s"))
+    (sig ||  (any any) any pure     (host expr "%s || %s"))
+    (sig !   (any) bool      pure     (host expr "!%s"))
+    (sig ??  (any any) any pure     (host expr "%s ?? %s"))
 
     ; ---- literals JavaScript spells as keywords
-    (prim null      (none) any     expr "null"      pure)
-    (prim undefined (none) any     expr "undefined" pure)
-    (prim NaN       (none) any  expr "NaN"       pure)
-    (prim Infinity  (none) any  expr "Infinity"  pure)
+    (sig null      () any      pure     (host expr "null"))
+    (sig undefined () any pure     (host expr "undefined"))
+    (sig NaN       () any       pure  (host expr "NaN"))
+    (sig Infinity  () any  pure  (host expr "Infinity"))
 
     ; ---- operators that are keywords
-    (prim typeof     (any) string      expr "typeof %s"        pure)
-    (prim instanceof (any any) bool expr "%s instanceof %s" pure)
-    (prim in         (string any) bool expr "%s in %s"      pure)
-    (prim void       (any) any         expr "void %s"          pure)
+    (sig typeof     (any) string        pure      (host expr "typeof %s"))
+    (sig instanceof (any any) bool pure (host expr "%s instanceof %s"))
+    (sig in         (string any) bool      pure (host expr "%s in %s"))
+    (sig void       (any) any          pure         (host expr "void %s"))
     ; `delete` mutates, so it is not pure; its value is the object.
-    (prim delete     (any string) any  stmt "delete %s[%s]")
+    (sig delete     (any string) any  (host stmt "delete %s[%s]"))
 
     ; ---- global functions
-    (prim parseInt   (string) any  expr "parseInt(%s, 10)" pure)
-    (prim parseFloat (string) any  expr "parseFloat(%s)"   pure)
-    (prim isNaN      (any) bool    expr "Number.isNaN(%s)" pure)
-    (prim isFinite   (any) bool    expr "Number.isFinite(%s)" pure)
-    (prim String     (any) string     expr "String(%s)"       pure)
-    (prim Number     (any) any     expr "Number(%s)"       pure)
-    (prim Boolean    (any) bool    expr "Boolean(%s)"      pure)
-    (prim structuredClone (any) any   expr "structuredClone(%s)")
+    (sig parseInt   (string) any pure  (host expr "parseInt(%s, 10)"))
+    (sig parseFloat (string) any   pure  (host expr "parseFloat(%s)"))
+    (sig isNaN      (any) bool pure    (host expr "Number.isNaN(%s)"))
+    (sig isFinite   (any) bool pure    (host expr "Number.isFinite(%s)"))
+    (sig String     (any) string       pure     (host expr "String(%s)"))
+    (sig Number     (any) any       pure     (host expr "Number(%s)"))
+    (sig Boolean    (any) bool      pure    (host expr "Boolean(%s)"))
+    (sig structuredClone (any) any   (host expr "structuredClone(%s)"))
 
     ; ---- indexing and construction. ONE declaration each, covering every
     ; element type there is, because JavaScript containers are untyped. This is
     ; the clearest single contrast with targets/go/, which needs at-int,
     ; at-float64, at-string, at-bool and a `make` per type.
-    (prim at     (any any) any     expr "%s[%s]"     pure index)
+    (sig at     (any any) any     pure index     (host expr "%s[%s]"))
     ; NO `(length-of 0)` on `set`, and JavaScript is the reason the attribute
     ; had to be split in two. On Go, `c[i] = x` cannot change len(c) — an
     ; out-of-range store panics. On JavaScript `a[10] = x` on a three-element
@@ -169,17 +169,17 @@
     ; That is the same refusal `go.set-map` makes, arriving from the other
     ; direction: the two hosts spell the operation identically and disagree
     ; about whether it preserves a length.
-    (prim set    (any any any) any stmt "%s[%s] = %s")
-    (prim get    (any string) any     expr "%s[%s]"     pure)
-    (prim put    (any string any) any stmt "%s[%s] = %s")
-    (prim len    (any) any         expr "%s.length"  pure)
+    (sig set    (any any any) any (host stmt "%s[%s] = %s"))
+    (sig get    (any string) any     pure     (host expr "%s[%s]"))
+    (sig put    (any string any) any (host stmt "%s[%s] = %s"))
+    (sig len    (any) any  pure         (host expr "%s.length"))
     ; `new Array(n)` and the typed arrays ARE n long. Declared `(length 0)`
     ; even though every argument here is typed `any` — which is exactly why the
     ; reading is declared rather than read off the argument's type.
-    (prim Array  (any) any         expr "new Array(%s)"            (length 0))
-    (prim ArrayFill (any any) any  expr "new Array(%s).fill(%s)"   (length 0))
-    (prim Float64Array (any) any   expr "new Float64Array(%s)"     (length 0))
-    (prim Int32Array   (any) any   expr "new Int32Array(%s)"       (length 0))
+    (sig Array  (any) any            (length 0)         (host expr "new Array(%s)"))
+    (sig ArrayFill (any any) any   (length 0)  (host expr "new Array(%s).fill(%s)"))
+    (sig Float64Array (any) any     (length 0)   (host expr "new Float64Array(%s)"))
+    (sig Int32Array   (any) any       (length 0)   (host expr "new Int32Array(%s)"))
     ; A null-prototype object as a dictionary — baseline R4 measured Map at
     ; 3.25x slower for string keys.
-    (prim object (none) any           expr "Object.create(null)")))
+    (sig object () any           (host expr "Object.create(null)"))))

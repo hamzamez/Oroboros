@@ -12,6 +12,13 @@ Read off `emit/target.go` and the three backends, not from memory.
 > returned `/*unknown*/` the moment the lie was removed. A `loop2`'s result is its **finisher's**
 > type, and now is.
 
+> **Status, 2026-09-15. Respelled** as [theories.md §8](theories.md): a primitive is a `sig` whose
+> host text sits in one `(host …)` clause, and every representation choice is a `repr`. The old
+> words (`prim`, `int-repr`, `array-type`, `boxed`, `builtin-map`, …) are refused with the new
+> spelling in the message, not kept as aliases. Every target and library in the repository was
+> translated mechanically and loaded to the identical target before the old forms were deleted
+> ([loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md)).
+
 This is the file a **third party** writes to add a target — requirement 3 — and it is the format
 the whole parasite thesis depends on strangers getting right. Until now every word in it was
 described in a code comment or nowhere ([inventory.md §2](inventory.md)).
@@ -25,35 +32,57 @@ no template expresses that.
 ## 1. Grammar
 
 ```
-file        ::= (target NAME decl…)
+file        ::= (target NAME decl…) decl…       ; forms inside the header or after it
 
 decl        ::= (backend NAME)                   ; which code generator compiles this
               | (link "library"…)               ; always on the link line (§6a)
-              | (type NAME "spelling")
-              | (narrow "template")           ; how this host restricts a container
-              | (module PATH prim…)          ; declares into a module namespace
-              | prim
+              | (build "…") | (artifact "…") | (data "…")
+              | (type NAME (host "spelling"))
+              | (type (array A) (host "…%s…"))   ; §2b
+              | (type (map K V) (host "…%s…%s…"))
+              | (repr (int LO HI) (host "spelling"))
+              | (repr (ref T) (host "spelling")) ; the boxed spelling, theories.md §5.7
+              | (repr big host) | (repr big limbs)
+              | (repr map host) | (repr map library)
+              | (repr shift N)
+              | (repr narrow (host "template"))  ; how this host restricts a container
+              | (fact NAME ((a (array A))) (<= (len a) N))
+              | (implements T I…)
+              | (module PATH sig…)               ; declares into a module namespace
+              | sig
               | structural
 
-prim        ::= (prim NAME (argtype…) restype kind template attr…)
+sig         ::= (sig NAME (param…) result sclause… (host kind template hclause…))
+param       ::= type | (NAME type)               ; `()` is arity zero
 kind        ::= expr | stmt
 template    ::= "…%s…"
+sclause     ::= pure | index | (where φ) | (ensures φ) | (length INT) | (length-of INT)
+hclause     ::= (import "…") | (lib "…") | (checked NAME) | (jump "cc" ["compare"])
 
-structural  ::= (structural NAME skind attr…)
+structural  ::= (structural NAME skind [pure])
 skind       ::= let | cond | loop | loop2 | build
-
-attr        ::= pure | index | (length INT) | (import "…") | (lib "…")
-argtype     ::= NAME | none                  ; `none` alone means arity zero
 ```
 
 `NAME` is an identifier ([core-0 §1.1](core-0.md)). `PATH` is a module path — one identifier,
 `/` being an ordinary identifier character ([modules.md §3](modules.md)).
 
+**A `sig` makes two kinds of claim, and the `host` clause is where they part.** A sig clause is about
+what the operation MEANS — purity, contracts, indexing, length. A host clause is text for, or a fact
+about, ONE host. So a declaration with no `host` clause makes no claim about any host, and in a
+target file that is an error: a target realizes declarations, and one with no realization belongs
+in a module ([theories.md §5.2](theories.md)). A host word outside `(host …)`, or a sig word inside
+it, is refused.
+
 A name declared inside `(module PATH …)` is recorded **fully qualified** as `PATH.NAME`, because
 resolution produces qualified names and R1 requires both to key one namespace.
 
-Duplicate names are an error. An unknown kind is an error. A `prim` without a template is an
-error.
+**A file is the glue of its forms**, exactly as a directory is the glue of its files
+([target-system.md §2](target-system.md)): `load(F₁ ++ F₂) = load(F₁) ⊔ load(F₂)`. So splitting a
+file in two, merging two, or moving a form in or out of the header's parentheses never changes a
+target. Two forms that disagree are refused in one file as they are across two.
+
+Duplicate names are an error. An unknown kind is an error. A `sig` whose kind is `expr` or `stmt`
+without a template is an error.
 
 ## 1b. `backend` — which code generator compiles this target
 
@@ -98,7 +127,7 @@ different things, and target-system.md §5.2 wants them separable.
 ```lisp
 ; mylib/mylib-go.oro — beside the library, not inside targets/
 (provides go std/words
-  (prim split-words (string) (array string) expr "strings.Fields(%s)" pure (import "strings")))
+  (sig split-words (string) (array string) pure (host expr "strings.Fields(%s)" (import "strings"))))
 ```
 
 **It is exactly `(target T (module M decl…))`, written where the library lives.**
@@ -125,7 +154,7 @@ target that does not.
 ## 2. `type`
 
 ```lisp
-(type f64 "float64")
+(type f64 (host "float64"))
 ```
 
 Maps **our** name for a type to **the target's** spelling. The language owns the name; the target
@@ -136,7 +165,7 @@ The spelling is emitted verbatim into function signatures and variable declarati
 parsed, so it may be anything the host accepts — `map[string]int`, `HashMap<String,Integer>`,
 `double*`.
 
-**`any` and `none` are not types.** `none` is the argument list of a nullary primitive. `any` is
+**`any` is not a type.** `any` is
 *the absence of a constraint*, used where the host itself is polymorphic; a target may give it a
 spelling (`any` on Go, `Object` on Java) and the emitter uses that only when nothing else ever
 constrains the name.
@@ -195,21 +224,21 @@ exactly that file and **emits only the edges the Go compiler accepted** — 182 
 1,651 candidates were false, because the api manifest lists the exported API and
 an interface sealed by an unexported method looks satisfied by everything.
 
-## 2b. `array-type` and `int-repr` — how the target stores a table
+## 2b. `(type (array A) …)` and `(repr (int …) …)` — how the target stores a table
 
 ```lisp
-(array-type "[]%s")          ; Go;  "%s[]" on Java
-(int-repr 0 255      "byte") ; narrowest first
-(int-repr -128 127   "int8")
-(int-repr 0 65535    "uint16")
+(type (array A) (host "[]%s"))        ; Go;  "%s[]" on Java
+(repr (int 0 255)    (host "byte"))   ; narrowest first
+(repr (int -128 127) (host "int8"))
+(repr (int 0 65535)  (host "uint16"))
 ```
 
-`array-type` resolves `(array V)` through **one** declaration instead of an entry per element type.
+`(type (array A) …)` realizes `lang`'s constructor, and resolves `(array V)` through **one** declaration instead of an entry per element type.
 That enumeration is what [tables.md §10](tables.md) called the suffix explosion: Go had declared
 seven `slice-*` types and the four targets together fifty-four names, because the type language had
 no constructor.
 
-`int-repr` is how a **range** picks a representation, which is
+`(repr (int LO HI) …)` is how a **range** picks a representation, which is
 [ADR 0003](../decisions/0003-range-typed-integers.md)'s *"the compiler selects the representation
 that fits"* moved out of Go and into the target file. The rule is four lines: **the narrowest
 declared representation that CONTAINS the range wins**, searched in declaration order.
@@ -227,7 +256,7 @@ rather than an omission: a plain packed `Array` is
 
 **The width is read off the declared range, not off the spelling.** A target that says it can hold
 `-128..127` has said one byte, whatever it calls it — which is how `targets/windows/` gets byte
-elements from `(int-repr 0 255 "db")` without the emitter knowing what a `db` is.
+elements from `(repr (int 0 255) (host "db"))` without the emitter knowing what a `db` is.
 
 A range never narrows a **local**: `(a i)` is an integer wherever it is used, and only a table's
 element slot consults the width. See
@@ -235,9 +264,13 @@ element slot consults the width. See
 
 ## 2c. `max-len` — how many elements a table can have
 
+```lisp
+(fact max-len ((a (array A))) (<= (len a) 2147483647))   ; a Java array's length is an `int`
 ```
-(max-len 2147483647)          ; a Java array's length is an `int`
-```
+
+**It is a fact because it is one** — a proposition true of every array on this target, which the
+refinement layer assumes ([theories.md §7](theories.md)). Facts are specified and not built, so this
+is the one shape a target may state today, and any other fact is refused rather than read as it.
 
 **Optional, and most targets should omit it.** A length is already bounded without any declaration:
 `len` returns an `int`, ADR 0012 makes `int` exact within ±(2⁵³−1), so a table with more elements
@@ -256,17 +289,22 @@ where a target author can state it.
 
 `N` beyond 2⁵³−1 is an **error**. A length the target cannot count exactly is not a length.
 
-## 2d. `big-repr` — how the target stores a value above the portable window
+## 2d. `(repr big …)` — how the target stores a value above the portable window
 
+```lisp
+(repr big host)     ; the host's own arbitrary-precision integer
+(repr big limbs)    ; a fixed number of base-2^24 limbs, in a `build`
 ```
-(big-repr host)     ; the host's own arbitrary-precision integer
-(big-repr limbs)    ; a fixed number of base-2^24 limbs, in a `build`
-```
+
+**`(repr map library)` is the same kind of choice** — realize a language type by the language's own
+library rather than the host's — and windows declares it because it ships no map
+([theories.md §5.8](theories.md)). Like every declaration it composes by override, so a nearer layer's
+`(repr map host)` wins.
 
 **Optional.** The default is the only thing the target can do: `host` where it declares a bignum
 (`big+` and the rest, see §3), `limbs` where it does not.
 
-This is `int-repr` one rung up, and it exists for the same reason. `(int 0 (pow 2 1300))` says the
+This is `(repr (int …))` one rung up, and it exists for the same reason. `(int 0 (pow 2 1300))` says the
 value is a mathematical integer in that interval — a fact about the PROGRAM, true on every target.
 Which storage it gets is a fact about the HOST, and putting the second in the program was measured
 at **5.85x on Go, 74.9x on V8 and 2.82x on Java**
@@ -292,11 +330,11 @@ compiler refuses rather than dropping the bound.
 alternative** before changing the declaration — not a knob a program should depend on, since the
 bound, and therefore the answer, is the same either way.
 
-## 2e. `shift-width` — how wide a shift is exact here
+## 2e. `(repr shift N)` — how wide a shift is exact here
 
-```
-(shift-width 63)    ; Go, the JVM, x86 — a 64-bit shift
-(shift-width 31)    ; JavaScript — V8 coerces `>>` and `&` to int32
+```lisp
+(repr shift 63)    ; Go, the JVM, x86 — a 64-bit shift
+(repr shift 31)    ; JavaScript — V8 coerces `>>` and `&` to int32
 ```
 
 **Optional.** A target that declares nothing gets no rewrite, which is the safe
@@ -322,14 +360,14 @@ operation a program may not write.
 `[0, 2^N)`, and the ceiling is 63 — a host claiming to shift values it cannot
 represent exactly would be claiming something ADR 0012 already denies.
 
-## 3. `prim` — expression and statement primitives
+## 3. `sig` with a `host` clause — expression and statement primitives
 
 These are **pure data**: an arity, types, a template, and attributes.
 
 ### `expr`
 
 ```lisp
-(prim add (f64 f64) f64 expr "%s + %s" pure)
+(sig add (f64 f64) f64 pure (host expr "%s + %s"))
 ```
 
 The template is filled with the emitted arguments and **wrapped in parentheses by the emitter**, so
@@ -339,8 +377,8 @@ must equal the number of declared argument types.
 ### Several results
 
 ```lisp
-(prim ReadFile ((path string)) ((array (int 0 255)) error) expr "os.ReadFile(%s)")
-(prim Open     ((path string)) (ptr error)                 expr "os.Open(%s)")
+(sig ReadFile ((path string)) ((array (int 0 255)) error) (host expr "os.ReadFile(%s)"))
+(sig Open     ((path string)) (ptr error)                 (host expr "os.Open(%s)"))
 ```
 
 A result may be a **list** of two or more types. The language has had several
@@ -373,7 +411,7 @@ those calls return and the methods on them
 ### A result RANGE
 
 ```lisp
-(prim ones ((x (int 0 4294967295))) (int 0 64) expr "bits.OnesCount64(uint64(%s))" pure)
+(sig ones ((x (int 0 4294967295))) (int 0 64) pure (host expr "bits.OnesCount64(uint64(%s))"))
 ```
 
 A range in the result position says what the host call gives back, and the
@@ -403,7 +441,7 @@ literal — an untyped constant in Go — and is refused for a variable.
 ### `stmt`
 
 ```lisp
-(prim dict-inc (dict string) dict stmt "%s[%s]++")
+(sig dict-inc (dict string) dict (host stmt "%s[%s]++"))
 ```
 
 The filled template is emitted as **its own line**, and
@@ -452,14 +490,14 @@ A template may span lines. `%s` still takes the next operand in sequence, so a s
 template is written exactly as before.
 
 ```lisp
-(prim add (int int) int expr "mov %r, %1\nadd %r, %2" pure)
+(sig add (int int) int pure (host expr "mov %r, %1\nadd %r, %2"))
 ```
 
 ### `jump` — a predicate in branch position
 
 ```lisp
-(prim setl (int int) bool expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br" pure (jump "l"))
-(prim test-byte ((p ptr) (i int)) bool expr "…" pure (jump "ne" "cmp byte ptr [%1+%2], 0"))
+(sig setl (int int) bool pure (host expr "mov %r, %1\ncmp %r, %2\nsetl %br\nmovzx %er, %br" (jump "l")))
+(sig test-byte ((p ptr) (i int)) bool pure (host expr "…" (jump "ne" "cmp byte ptr [%1+%2], 0")))
 ```
 
 The `expr` form is what the predicate costs **as a value**; `(jump …)` is what it costs **as a
@@ -480,8 +518,8 @@ loop guard is two comparisons.
 ### `checked` — the representation a declared range selects
 
 ```lisp
-(prim + (int int) int expr "%s + %s" pure (checked add-exact))
-(prim add-exact (int int) int expr "Math.addExact(%s, %s)" pure)
+(sig + (int int) int pure (host expr "%s + %s" (checked add-exact)))
+(sig add-exact (int int) int pure (host expr "Math.addExact(%s, %s)"))
 ```
 
 An integer operation whose result the compiler proves stays inside the portable window keeps the
@@ -497,8 +535,8 @@ simply not portable there, and covering says so.
 ### `where` and `ensures` — what a call requires and guarantees
 
 ```lisp
-(prim /  ((a int) (b int)) int expr "%s / %s" pure (where (!= b 0)))
-(prim size ((v any)) int expr "size(%s)" pure (ensures (<= 0 result)))
+(sig /  ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s / %s"))
+(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))
 ```
 
 `where` is a **precondition**, discharged at every call site
@@ -641,7 +679,7 @@ alternative as an unused variable ([effects.md §5](effects.md)).
 ### `index` and `narrow`
 
 `index` on a two-argument primitive says **argument 0 is a container indexed by argument 1**.
-`(narrow "…")` on the target says how that host restricts a container to a known length.
+`(repr narrow (host "…"))` on the target says how that host restricts a container to a known length.
 
 Together they let the backend emit `q = q[:n]` before a loop, which hands the host's own
 bounds-check elimination a proof it will accept — worth 1.96× on compute-bound loops and nothing on
@@ -651,8 +689,8 @@ declares no `narrow` gets no transformation, which is correct for JavaScript and
 ### `length` — how long the result is
 
 ```lisp
-(prim make-bool (int) slice-bool           expr "make([]bool, %s)"  (length 0))
-(prim set-bool  (slice-bool int bool) slice-bool stmt "%s[%s] = %s" (length 0))
+(sig make-bool (int) slice-bool            (length 0) (host expr "make([]bool, %s)"))
+(sig set-bool  (slice-bool int bool) slice-bool (length 0) (host stmt "%s[%s] = %s"))
 ```
 
 `(length N)` says **argument N decides the result's length**, and the argument's declared *type*
@@ -682,7 +720,7 @@ proof rather than a correct program.
 ## 5. `pure`
 
 ```lisp
-(prim add (f64 f64) f64 expr "%s + %s" pure)
+(sig add (f64 f64) f64 pure (host expr "%s + %s"))
 ```
 
 Licenses the reducer to copy, drop and reorder an application of this primitive
@@ -695,7 +733,7 @@ slow, not wrong.**
 ## 6. `import`
 
 ```lisp
-(prim sqrt (f64) f64 expr "math.Sqrt(%s)" pure (import "math"))
+(sig sqrt (f64) f64 pure (host expr "math.Sqrt(%s)" (import "math")))
 ```
 
 An opaque string handed to the backend's import mechanism, collected across every primitive the
@@ -705,8 +743,8 @@ emitted file actually uses. Go and Java emit it; JavaScript ignores it.
 
 ```lisp
 (link "kernel32" "msvcrt" "ucrt" "vcruntime" "legacy_stdio_definitions")
-(prim IsCharAlphaA (int) int expr "mov rcx, %1\ncall IsCharAlphaA\nmovsxd %r, eax"
-      (import "IsCharAlphaA") (lib "user32"))
+(sig IsCharAlphaA (int) int
+     (host expr "mov rcx, %1\ncall IsCharAlphaA\nmovsxd %r, eax" (import "IsCharAlphaA") (lib "user32")))
 ```
 
 On a host whose toolchain resolves an import at LINK time rather than at compile time, naming the

@@ -30,18 +30,18 @@
 ; our residual, the host closes over it, and C2 inlines it.
 
 (provides java io
-    (prim print-line ((s string)) string stmt
-      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
-      (import "java.nio.charset.StandardCharsets"))
+    (sig print-line ((s string)) string (host stmt
+        "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
+        (import "java.nio.charset.StandardCharsets")))
 
     ; ---- and the same without the newline
-    (prim print ((s string)) string stmt
-      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s)"
-      (import "java.nio.charset.StandardCharsets"))
+    (sig print ((s string)) string (host stmt
+        "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s)"
+        (import "java.nio.charset.StandardCharsets")))
 
     ; `%s + "\n"` on a `long` is `String.valueOf(long)` and a concatenation. The
     ; digits are ASCII whatever the charset, so this one could have gone through
     ; `print`; it does not, because two paths to one stream is the hazard above.
-    (prim print-int ((n int)) int stmt
-      "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
-      (import "java.nio.charset.StandardCharsets")))
+    (sig print-int ((n int)) int (host stmt
+        "((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(%s + \"\\n\")"
+        (import "java.nio.charset.StandardCharsets"))))

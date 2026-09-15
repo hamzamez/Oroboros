@@ -9,3 +9,30 @@ Every change to the baseline in this directory, with its reason. Written by `go 
 456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
 
 The initial baseline.
+
+## 2026-09-15 — on 9a8a590, with uncommitted changes
+
+**Reason:** loader (target half): 194 emitted files byte-identical, proof counts identical (2307/2413 ops, 345/382 loops); only change is the refusal text for a provides file given to gen as a target, 'expected (target NAME ...)' -> 'a target file begins with (target NAME ...)'. Same refusal, same inputs. Tooling passed in the previous full run of this tree.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- compiler output changed — `lib/io/go.oro go`
+- compiler output changed — `lib/io/go.oro java`
+- compiler output changed — `lib/io/go.oro js`
+- compiler output changed — `lib/io/java.oro go`
+- compiler output changed — `lib/io/java.oro java`
+- compiler output changed — `lib/io/java.oro js`
+- compiler output changed — `lib/io/js.oro go`
+- compiler output changed — `lib/io/js.oro java`
+- compiler output changed — `lib/io/js.oro js`
+- compiler output changed — `lib/os/go.oro go`
+- compiler output changed — `lib/os/go.oro java`
+- compiler output changed — `lib/os/go.oro js`
+- compiler output changed — `lib/os/java.oro go`
+- compiler output changed — `lib/os/java.oro java`
+- compiler output changed — `lib/os/java.oro js`
+- compiler output changed — `lib/os/js.oro go`
+- compiler output changed — `lib/os/js.oro java`
+- compiler output changed — `lib/os/js.oro js`

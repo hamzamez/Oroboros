@@ -466,15 +466,15 @@ func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
 	}
 	tg := load(`(target x
   (backend go)
-  (type file "*os.File")
-  (type reader "io.Reader")
-  (type closer "io.Closer")
-  (type rc "io.ReadCloser")
+  (type file (host "*os.File"))
+  (type reader (host "io.Reader"))
+  (type closer (host "io.Closer"))
+  (type rc (host "io.ReadCloser"))
   (implements file rc)
   (implements rc reader closer)
   (module x
-    (prim open ((p string)) file expr "os.Open(%s)")
-    (prim slurp ((r reader)) int expr "io.ReadAll(%s)")))`)
+    (sig open ((p string)) file (host expr "os.Open(%s)"))
+    (sig slurp ((r reader)) int (host expr "io.ReadAll(%s)"))))`)
 
 	// TRANSITIVITY IS NOT DECORATION: `io.ReadCloser` embeds `io.Reader`, so a
 	// type declared to satisfy the first satisfies the second. A target file
@@ -525,11 +525,11 @@ func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
 	// failing cases look identical proves nothing.
 	bare := load(`(target x
   (backend go)
-  (type file "*os.File")
-  (type reader "io.Reader")
+  (type file (host "*os.File"))
+  (type reader (host "io.Reader"))
   (module x
-    (prim open ((p string)) file expr "os.Open(%s)")
-    (prim slurp ((r reader)) int expr "io.ReadAll(%s)")))`)
+    (sig open ((p string)) file (host expr "os.Open(%s)"))
+    (sig slurp ((r reader)) int (host expr "io.ReadAll(%s)"))))`)
 	err := prog(bare, src)
 	if err == nil {
 		t.Fatal("without a declared edge the program must be refused")

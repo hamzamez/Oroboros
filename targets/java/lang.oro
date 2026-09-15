@@ -22,7 +22,7 @@
   ; host's own shift where it has proved the rewrite changes no answer.
   ;
   ; our `int` is Java's `long`, and `>>` on one is a 64-bit arithmetic shift.
-  (shift-width 63)
+  (repr shift 63)
 
   (module java
     ; ---- arithmetic on long, which is our `int`
@@ -36,188 +36,188 @@
     ; CONCATENATION is the monoid's operation and `""` its unit. `String.concat`
     ; rather than `+`, which the JVM compiles through StringConcatFactory: the
     ; method names the operation plainly.
-    (prim concat (string string) string expr "%s.concat(%s)" pure)
+    (sig concat (string string) string pure (host expr "%s.concat(%s)"))
 
     ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
     ; `toChars` yields the surrogate PAIR above the BMP, which is UTF-16's
     ; representation of that one scalar and not two of anything.
-    (prim string-of (int) string expr "new String(Character.toChars((int) %s))" pure)
+    (sig string-of (int) string pure (host expr "new String(Character.toChars((int) %s))"))
 
-    (prim +  (int int) int expr "%s + %s"  pure (checked addExact))
-    (prim -  (int int) int expr "%s - %s"  pure (checked subtractExact))
-    (prim *  (int int) int expr "%s * %s"  pure (checked multiplyExact))
-    (prim addExact      (int int) int expr "Math.addExact(%s, %s)"      pure)
-    (prim subtractExact (int int) int expr "Math.subtractExact(%s, %s)" pure)
-    (prim multiplyExact (int int) int expr "Math.multiplyExact(%s, %s)" pure)
+    (sig +  (int int) int  pure (host expr "%s + %s" (checked addExact)))
+    (sig -  (int int) int  pure (host expr "%s - %s" (checked subtractExact)))
+    (sig *  (int int) int  pure (host expr "%s * %s" (checked multiplyExact)))
+    (sig addExact      (int int) int      pure (host expr "Math.addExact(%s, %s)"))
+    (sig subtractExact (int int) int pure (host expr "Math.subtractExact(%s, %s)"))
+    (sig multiplyExact (int int) int pure (host expr "Math.multiplyExact(%s, %s)"))
     ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR — integers.md §5.
-    (prim /  ((a int) (b int)) int expr "%s / %s"  pure (where (!= b 0)))
-    (prim %  ((a int) (b int)) int expr "%s %% %s" pure (where (!= b 0)))
-    (prim neg (int) int    expr "-%s"      pure)
+    (sig /  ((a int) (b int)) int  pure (where (!= b 0)) (host expr "%s / %s"))
+    (sig %  ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s %% %s"))
+    (sig neg (int) int      pure    (host expr "-%s"))
 
     ; ---- arithmetic on double
-    (prim f+ (f64 f64) f64 expr "%s + %s" pure)
-    (prim f- (f64 f64) f64 expr "%s - %s" pure)
-    (prim f* (f64 f64) f64 expr "%s * %s" pure)
-    (prim f/ (f64 f64) f64 expr "%s / %s" pure)
+    (sig f+ (f64 f64) f64 pure (host expr "%s + %s"))
+    (sig f- (f64 f64) f64 pure (host expr "%s - %s"))
+    (sig f* (f64 f64) f64 pure (host expr "%s * %s"))
+    (sig f/ (f64 f64) f64 pure (host expr "%s / %s"))
 
     ; ---- bitwise, including Java's unsigned shift
-    (prim &   (int int) int expr "%s & %s"   pure)
-    (prim |   (int int) int expr "%s | %s"   pure)
-    (prim ^   (int int) int expr "%s ^ %s"   pure)
-    (prim ~   (int) int     expr "~%s"       pure)
-    (prim <<  (int int) int expr "%s << %s"  pure)
-    (prim >>  (int int) int expr "%s >> %s"  pure)
-    (prim >>> (int int) int expr "%s >>> %s" pure)
+    (sig &   (int int) int   pure (host expr "%s & %s"))
+    (sig |   (int int) int   pure (host expr "%s | %s"))
+    (sig ^   (int int) int   pure (host expr "%s ^ %s"))
+    (sig ~   (int) int       pure     (host expr "~%s"))
+    (sig <<  (int int) int  pure (host expr "%s << %s"))
+    (sig >>  (int int) int  pure (host expr "%s >> %s"))
+    (sig >>> (int int) int pure (host expr "%s >>> %s"))
 
     ; ---- comparison
-    (prim <   (int int) bool expr "%s < %s"  pure)
-    (prim <=  (int int) bool expr "%s <= %s" pure)
-    (prim >   (int int) bool expr "%s > %s"  pure)
-    (prim >=  (int int) bool expr "%s >= %s" pure)
-    (prim ==  (int int) bool expr "%s == %s" pure)
-    (prim !=  (int int) bool expr "%s != %s" pure)
-    (prim f<  (f64 f64) bool expr "%s < %s"  pure)
-    (prim f<= (f64 f64) bool expr "%s <= %s" pure)
-    (prim f>  (f64 f64) bool expr "%s > %s"  pure)
-    (prim f>= (f64 f64) bool expr "%s >= %s" pure)
+    (sig <   (int int) bool  pure (host expr "%s < %s"))
+    (sig <=  (int int) bool pure (host expr "%s <= %s"))
+    (sig >   (int int) bool  pure (host expr "%s > %s"))
+    (sig >=  (int int) bool pure (host expr "%s >= %s"))
+    (sig ==  (int int) bool pure (host expr "%s == %s"))
+    (sig !=  (int int) bool pure (host expr "%s != %s"))
+    (sig f<  (f64 f64) bool  pure (host expr "%s < %s"))
+    (sig f<= (f64 f64) bool pure (host expr "%s <= %s"))
+    (sig f>  (f64 f64) bool  pure (host expr "%s > %s"))
+    (sig f>= (f64 f64) bool pure (host expr "%s >= %s"))
 
     ; ---- boolean
-    (prim &&  (bool bool) bool expr "%s && %s" pure)
-    (prim ||  (bool bool) bool expr "%s || %s" pure)
-    (prim !   (bool) bool      expr "!%s"      pure)
-    (prim null  (none) any  expr "null"  pure)
+    (sig &&  (bool bool) bool pure (host expr "%s && %s"))
+    (sig ||  (bool bool) bool pure (host expr "%s || %s"))
+    (sig !   (bool) bool      pure      (host expr "!%s"))
+    (sig null  () any  pure  (host expr "null"))
 
-    (prim instanceof (any any) bool expr "%s instanceof %s" pure)
+    (sig instanceof (any any) bool pure (host expr "%s instanceof %s"))
 
     ; ---- arrays. Language-level, so no import — and fixed-length, so nothing
     ; to append to. One declaration per element type, because `T[]` is an atom.
     ;
     ; Every index carries `(int)`: our `int` is Java's `long`, and a Java array
     ; index must be `int`. Free at run time, and unavoidable.
-    (prim new-long (int) long-array expr "new long[(int) %s]" (length 0))
-    (prim new-double (int) double-array expr "new double[(int) %s]" (length 0))
-    (prim new-bool (int) bool-array expr "new boolean[(int) %s]" (length 0))
-    (prim new-string (int) string-array expr "new String[(int) %s]" (length 0))
+    (sig new-long (int) long-array (length 0) (host expr "new long[(int) %s]"))
+    (sig new-double (int) double-array (length 0) (host expr "new double[(int) %s]"))
+    (sig new-bool (int) bool-array (length 0) (host expr "new boolean[(int) %s]"))
+    (sig new-string (int) string-array (length 0) (host expr "new String[(int) %s]"))
 
-    (prim len (any) int expr "%s.length" pure)
+    (sig len (any) int pure (host expr "%s.length"))
 
-    (prim at-long   ((v long-array) (i int)) int      expr "%s[(int) %s]" pure index
-      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
-    (prim at-double ((v double-array) (i int)) f64    expr "%s[(int) %s]" pure index
-      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
-    (prim at-bool   ((v bool-array) (i int)) bool     expr "%s[(int) %s]" pure index
-      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
-    (prim at-string ((v string-array) (i int)) string expr "%s[(int) %s]" pure index
-      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))))
+    (sig at-long   ((v long-array) (i int)) int pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v))))      (host expr "%s[(int) %s]"))
+    (sig at-double ((v double-array) (i int)) f64 pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v))))    (host expr "%s[(int) %s]"))
+    (sig at-bool   ((v bool-array) (i int)) bool pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v))))     (host expr "%s[(int) %s]"))
+    (sig at-string ((v string-array) (i int)) string pure index
+      (where (java.&& (java.<= 0 i) (java.< i (java.len v)))) (host expr "%s[(int) %s]"))
 
-    (prim set-long (long-array int int) long-array stmt "%s[(int) %s] = %s" (length-of 0))
-    (prim set-double (double-array int f64) double-array stmt "%s[(int) %s] = %s" (length-of 0))
-    (prim set-bool (bool-array int bool) bool-array stmt "%s[(int) %s] = %s" (length-of 0))
-    (prim set-string (string-array int string) string-array stmt "%s[(int) %s] = %s" (length-of 0))
+    (sig set-long (long-array int int) long-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
+    (sig set-double (double-array int f64) double-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
+    (sig set-bool (bool-array int bool) bool-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
+    (sig set-string (string-array int string) string-array (length-of 0) (host stmt "%s[(int) %s] = %s"))
 
     ; ---- conversions. Java spells these (T) x or T.valueOf.
-    (prim int-of-f64  (f64) int    expr "(long) %s"   pure)
-    (prim f64-of-int  (int) f64    expr "(double) %s" pure)
-    (prim jint-of-int (int) jint   expr "(int) %s"    pure))
+    (sig int-of-f64  (f64) int   pure    (host expr "(long) %s"))
+    (sig f64-of-int  (int) f64 pure    (host expr "(double) %s"))
+    (sig jint-of-int (int) jint    pure   (host expr "(int) %s")))
 
   (module java/Math
-    (prim abs   (f64) f64     expr "Math.abs(%s)"      pure)
-    (prim absl  (int) int     expr "Math.abs(%s)"      pure)
-    (prim sqrt  (f64) f64     expr "Math.sqrt(%s)"     pure)
-    (prim cbrt  (f64) f64     expr "Math.cbrt(%s)"     pure)
-    (prim pow   (f64 f64) f64 expr "Math.pow(%s, %s)"  pure)
-    (prim exp   (f64) f64     expr "Math.exp(%s)"      pure)
-    (prim log   (f64) f64     expr "Math.log(%s)"      pure)
-    (prim log10 (f64) f64     expr "Math.log10(%s)"    pure)
-    (prim sin   (f64) f64     expr "Math.sin(%s)"      pure)
-    (prim cos   (f64) f64     expr "Math.cos(%s)"      pure)
-    (prim tan   (f64) f64     expr "Math.tan(%s)"      pure)
-    (prim atan2 (f64 f64) f64 expr "Math.atan2(%s, %s)" pure)
-    (prim hypot (f64 f64) f64 expr "Math.hypot(%s, %s)" pure)
-    (prim floor (f64) f64     expr "Math.floor(%s)"    pure)
-    (prim ceil  (f64) f64     expr "Math.ceil(%s)"     pure)
-    (prim round (f64) int     expr "Math.round(%s)"    pure)
-    (prim min   (int int) int expr "Math.min(%s, %s)"  pure)
-    (prim max   (int int) int expr "Math.max(%s, %s)"  pure)
-    (prim PI    (none) f64    expr "Math.PI"           pure)
-    (prim E     (none) f64    expr "Math.E"            pure)
-    (prim random (none) f64   expr "Math.random()"))
+    (sig abs   (f64) f64      pure     (host expr "Math.abs(%s)"))
+    (sig absl  (int) int      pure     (host expr "Math.abs(%s)"))
+    (sig sqrt  (f64) f64     pure     (host expr "Math.sqrt(%s)"))
+    (sig cbrt  (f64) f64     pure     (host expr "Math.cbrt(%s)"))
+    (sig pow   (f64 f64) f64  pure (host expr "Math.pow(%s, %s)"))
+    (sig exp   (f64) f64      pure     (host expr "Math.exp(%s)"))
+    (sig log   (f64) f64      pure     (host expr "Math.log(%s)"))
+    (sig log10 (f64) f64    pure     (host expr "Math.log10(%s)"))
+    (sig sin   (f64) f64      pure     (host expr "Math.sin(%s)"))
+    (sig cos   (f64) f64      pure     (host expr "Math.cos(%s)"))
+    (sig tan   (f64) f64      pure     (host expr "Math.tan(%s)"))
+    (sig atan2 (f64 f64) f64 pure (host expr "Math.atan2(%s, %s)"))
+    (sig hypot (f64 f64) f64 pure (host expr "Math.hypot(%s, %s)"))
+    (sig floor (f64) f64    pure     (host expr "Math.floor(%s)"))
+    (sig ceil  (f64) f64     pure     (host expr "Math.ceil(%s)"))
+    (sig round (f64) int    pure     (host expr "Math.round(%s)"))
+    (sig min   (int int) int  pure (host expr "Math.min(%s, %s)"))
+    (sig max   (int int) int  pure (host expr "Math.max(%s, %s)"))
+    (sig PI    () f64           pure    (host expr "Math.PI"))
+    (sig E     () f64            pure    (host expr "Math.E"))
+    (sig random () f64   (host expr "Math.random()")))
 
   (module java/Integer
-    (prim parseInt      (string) jint  expr "Integer.parseInt(%s)"   pure)
-    (prim toString      (jint) string  expr "Integer.toString(%s)"   pure)
-    (prim toBinaryString (jint) string expr "Integer.toBinaryString(%s)" pure)
-    (prim toHexString   (jint) string  expr "Integer.toHexString(%s)" pure)
-    (prim bitCount      (jint) jint    expr "Integer.bitCount(%s)"   pure)
-    (prim MAX_VALUE     (none) jint    expr "Integer.MAX_VALUE"      pure)
-    (prim MIN_VALUE     (none) jint    expr "Integer.MIN_VALUE"      pure))
+    (sig parseInt      (string) jint   pure  (host expr "Integer.parseInt(%s)"))
+    (sig toString      (jint) string   pure  (host expr "Integer.toString(%s)"))
+    (sig toBinaryString (jint) string pure (host expr "Integer.toBinaryString(%s)"))
+    (sig toHexString   (jint) string pure  (host expr "Integer.toHexString(%s)"))
+    (sig bitCount      (jint) jint   pure    (host expr "Integer.bitCount(%s)"))
+    (sig MAX_VALUE     () jint      pure    (host expr "Integer.MAX_VALUE"))
+    (sig MIN_VALUE     () jint      pure    (host expr "Integer.MIN_VALUE")))
 
   (module java/Long
-    (prim parseLong (string) int expr "Long.parseLong(%s)" pure)
-    (prim toString  (int) string expr "Long.toString(%s)"  pure)
-    (prim bitCount  (int) jint   expr "Long.bitCount(%s)"  pure)
-    (prim MAX_VALUE (none) int   expr "Long.MAX_VALUE"     pure))
+    (sig parseLong (string) int pure (host expr "Long.parseLong(%s)"))
+    (sig toString  (int) string  pure (host expr "Long.toString(%s)"))
+    (sig bitCount  (int) jint  pure   (host expr "Long.bitCount(%s)"))
+    (sig MAX_VALUE () int     pure   (host expr "Long.MAX_VALUE")))
 
   (module java/Double
-    (prim parseDouble (string) f64  expr "Double.parseDouble(%s)" pure)
-    (prim toString    (f64) string  expr "Double.toString(%s)"    pure)
-    (prim isNaN       (f64) bool    expr "Double.isNaN(%s)"       pure)
-    (prim NaN         (none) f64    expr "Double.NaN"             pure)
-    (prim POSITIVE_INFINITY (none) f64 expr "Double.POSITIVE_INFINITY" pure))
+    (sig parseDouble (string) f64 pure  (host expr "Double.parseDouble(%s)"))
+    (sig toString    (f64) string    pure  (host expr "Double.toString(%s)"))
+    (sig isNaN       (f64) bool       pure    (host expr "Double.isNaN(%s)"))
+    (sig NaN         () f64             pure    (host expr "Double.NaN"))
+    (sig POSITIVE_INFINITY () f64 pure (host expr "Double.POSITIVE_INFINITY")))
 
   ; Instance methods on String. `(String.length s)` emits `s.length()`.
   (module java/String
-    (prim length     (string) int         expr "%s.length()"        pure)
-    (prim charAt     (string int) char    expr "%s.charAt((int) %s)" pure)
-    (prim substring  (string int int) string expr "%s.substring((int) %s, (int) %s)" pure)
-    (prim indexOf    (string string) int  expr "%s.indexOf(%s)"     pure)
-    (prim contains   (string string) bool expr "%s.contains(%s)"    pure)
-    (prim startsWith (string string) bool expr "%s.startsWith(%s)"  pure)
-    (prim endsWith   (string string) bool expr "%s.endsWith(%s)"    pure)
-    (prim toUpperCase (string) string     expr "%s.toUpperCase()"   pure)
-    (prim toLowerCase (string) string     expr "%s.toLowerCase()"   pure)
-    (prim strip      (string) string      expr "%s.strip()"         pure)
-    (prim repeat     (string int) string  expr "%s.repeat((int) %s)" pure)
-    (prim replace    (string string string) string expr "%s.replace(%s, %s)" pure)
-    (prim split      (string string) (array string) expr "%s.split(%s)" pure)
-    (prim isEmpty    (string) bool        expr "%s.isEmpty()"       pure)
+    (sig length     (string) int        pure         (host expr "%s.length()"))
+    (sig charAt     (string int) char pure    (host expr "%s.charAt((int) %s)"))
+    (sig substring  (string int int) string pure (host expr "%s.substring((int) %s, (int) %s)"))
+    (sig indexOf    (string string) int     pure  (host expr "%s.indexOf(%s)"))
+    (sig contains   (string string) bool    pure (host expr "%s.contains(%s)"))
+    (sig startsWith (string string) bool  pure (host expr "%s.startsWith(%s)"))
+    (sig endsWith   (string string) bool    pure (host expr "%s.endsWith(%s)"))
+    (sig toUpperCase (string) string   pure     (host expr "%s.toUpperCase()"))
+    (sig toLowerCase (string) string   pure     (host expr "%s.toLowerCase()"))
+    (sig strip      (string) string         pure      (host expr "%s.strip()"))
+    (sig repeat     (string int) string pure  (host expr "%s.repeat((int) %s)"))
+    (sig replace    (string string string) string pure (host expr "%s.replace(%s, %s)"))
+    (sig split      (string string) (array string) pure (host expr "%s.split(%s)"))
+    (sig isEmpty    (string) bool       pure        (host expr "%s.isEmpty()"))
     ; `==` on Strings compares references, which is why this exists.
-    (prim equals     (string string) bool expr "%s.equals(%s)"      pure)
-    (prim compareTo  (string string) int  expr "%s.compareTo(%s)"   pure)
-    (prim concat     (string string) string expr "(%s + %s)"        pure)
-    (prim valueOf    (any) string         expr "String.valueOf(%s)" pure)
-    (prim join       (string string-array) string expr "String.join(%s, %s)" pure))
+    (sig equals     (string string) bool      pure (host expr "%s.equals(%s)"))
+    (sig compareTo  (string string) int   pure  (host expr "%s.compareTo(%s)"))
+    (sig concat     (string string) string        pure (host expr "(%s + %s)"))
+    (sig valueOf    (any) string pure         (host expr "String.valueOf(%s)"))
+    (sig join       (string string-array) string pure (host expr "String.join(%s, %s)")))
 
   (module java/Character
-    (prim isDigit      (char) bool expr "Character.isDigit(%s)"      pure)
-    (prim isLetter     (char) bool expr "Character.isLetter(%s)"     pure)
-    (prim isWhitespace (char) bool expr "Character.isWhitespace(%s)" pure)
-    (prim isUpperCase  (char) bool expr "Character.isUpperCase(%s)"  pure)
-    (prim toLowerCase  (char) char expr "Character.toLowerCase(%s)"  pure)
-    (prim toUpperCase  (char) char expr "Character.toUpperCase(%s)"  pure)
-    (prim code         (char) int  expr "(long) %s"                  pure))
+    (sig isDigit      (char) bool      pure (host expr "Character.isDigit(%s)"))
+    (sig isLetter     (char) bool     pure (host expr "Character.isLetter(%s)"))
+    (sig isWhitespace (char) bool pure (host expr "Character.isWhitespace(%s)"))
+    (sig isUpperCase  (char) bool  pure (host expr "Character.isUpperCase(%s)"))
+    (sig toLowerCase  (char) char  pure (host expr "Character.toLowerCase(%s)"))
+    (sig toUpperCase  (char) char  pure (host expr "Character.toUpperCase(%s)"))
+    (sig code         (char) int                  pure  (host expr "(long) %s")))
 
   ; The ONLY growable container in java.lang, and it only holds text.
   (module java/StringBuilder
-    (prim new       (none) strbuf          expr "new StringBuilder()")
-    (prim append    (strbuf string) strbuf stmt "%s.append(%s)")
-    (prim appendInt (strbuf int) strbuf    stmt "%s.append(%s)")
-    (prim appendChar (strbuf char) strbuf  stmt "%s.append(%s)")
-    (prim length    (strbuf) int           expr "%s.length()"   pure)
-    (prim toString  (strbuf) string        expr "%s.toString()" pure))
+    (sig new       () strbuf          (host expr "new StringBuilder()"))
+    (sig append    (strbuf string) strbuf (host stmt "%s.append(%s)"))
+    (sig appendInt (strbuf int) strbuf    (host stmt "%s.append(%s)"))
+    (sig appendChar (strbuf char) strbuf  (host stmt "%s.append(%s)"))
+    (sig length    (strbuf) int   pure           (host expr "%s.length()"))
+    (sig toString  (strbuf) string pure        (host expr "%s.toString()")))
 
   (module java/System
-    (prim out-println (any) any  stmt "System.out.println(%s)")
-    (prim out-print   (any) any  stmt "System.out.print(%s)")
-    (prim err-println (any) any  stmt "System.err.println(%s)")
-    (prim nanoTime    (none) int expr "System.nanoTime()")
-    (prim currentTimeMillis (none) int expr "System.currentTimeMillis()")
-    (prim arraycopy   (double-array double-array int) double-array
-                      stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)")
-    (prim exit        (int) any  stmt "System.exit((int) %s)")
-    (prim getenv      (string) string expr "System.getenv(%s)"))
+    (sig out-println (any) any  (host stmt "System.out.println(%s)"))
+    (sig out-print   (any) any  (host stmt "System.out.print(%s)"))
+    (sig err-println (any) any  (host stmt "System.err.println(%s)"))
+    (sig nanoTime    () int (host expr "System.nanoTime()"))
+    (sig currentTimeMillis () int (host expr "System.currentTimeMillis()"))
+    (sig arraycopy   (double-array double-array int) double-array
+                      (host stmt "System.arraycopy(%s, 0, %s, 0, (int) %s)"))
+    (sig exit        (int) any  (host stmt "System.exit((int) %s)"))
+    (sig getenv      (string) string (host expr "System.getenv(%s)")))
 
   (module java/Objects
-    (prim equals   (any any) bool expr "java.util.Objects.equals(%s, %s)" pure)
-    (prim hashCode (any) jint     expr "java.util.Objects.hashCode(%s)"   pure)
-    (prim toString (any) string   expr "java.util.Objects.toString(%s)"   pure)))
+    (sig equals   (any any) bool pure (host expr "java.util.Objects.equals(%s, %s)"))
+    (sig hashCode (any) jint   pure     (host expr "java.util.Objects.hashCode(%s)"))
+    (sig toString (any) string   pure   (host expr "java.util.Objects.toString(%s)"))))

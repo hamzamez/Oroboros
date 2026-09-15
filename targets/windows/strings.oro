@@ -41,9 +41,9 @@
     ;
     ; `%u` is what makes a branchy template possible at all — each expansion
     ; gets its own labels — and `strlen` next door is the precedent.
-    (prim string-of (int) string expr
-      "mov rax, %1\nlea rcx, __sarena\nadd rcx, qword ptr [__stop]\nmov r8, rcx\ncmp rax, 128\njl Ls1%u\ncmp rax, 2048\njl Ls2%u\ncmp rax, 65536\njl Ls3%u\nmov rdx, rax\nshr rdx, 18\nor dl, 0F0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 12\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+3], dl\nadd rcx, 4\njmp Lse%u\nLs3%u:\nmov rdx, rax\nshr rdx, 12\nor dl, 0E0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nadd rcx, 3\njmp Lse%u\nLs2%u:\nmov rdx, rax\nshr rdx, 6\nor dl, 0C0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nadd rcx, 2\njmp Lse%u\nLs1%u:\nmov byte ptr [rcx], al\ninc rcx\nLse%u:\nmov byte ptr [rcx], 0\ninc rcx\nlea rdx, __sarena\nsub rcx, rdx\nmov qword ptr [__stop], rcx\nmov %r, r8"
-      pure)
+    (sig string-of (int) string
+      pure (host expr
+        "mov rax, %1\nlea rcx, __sarena\nadd rcx, qword ptr [__stop]\nmov r8, rcx\ncmp rax, 128\njl Ls1%u\ncmp rax, 2048\njl Ls2%u\ncmp rax, 65536\njl Ls3%u\nmov rdx, rax\nshr rdx, 18\nor dl, 0F0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 12\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+3], dl\nadd rcx, 4\njmp Lse%u\nLs3%u:\nmov rdx, rax\nshr rdx, 12\nor dl, 0E0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nshr rdx, 6\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+2], dl\nadd rcx, 3\njmp Lse%u\nLs2%u:\nmov rdx, rax\nshr rdx, 6\nor dl, 0C0h\nmov byte ptr [rcx], dl\nmov rdx, rax\nand dl, 3Fh\nor dl, 80h\nmov byte ptr [rcx+1], dl\nadd rcx, 2\njmp Lse%u\nLs1%u:\nmov byte ptr [rcx], al\ninc rcx\nLse%u:\nmov byte ptr [rcx], 0\ninc rcx\nlea rdx, __sarena\nsub rcx, rdx\nmov qword ptr [__stop], rcx\nmov %r, r8"))
 
     ; ---- the monoid's operation
     ;
@@ -55,6 +55,6 @@
     ; whichever registers the allocator chose, and the scratch this template
     ; needs — rax, rcx, rdx, r8 — may be either of them. Reading both operands
     ; before touching any scratch is the whole of the discipline.
-    (prim concat (string string) string expr
-      "mov qword ptr [rsp+32], %2\nmov rcx, %1\nlea rax, __sarena\nadd rax, qword ptr [__stop]\nmov rdx, rax\nLca%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcae%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lca%u\nLcae%u:\nmov rcx, qword ptr [rsp+32]\nLcb%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcbe%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lcb%u\nLcbe%u:\nmov byte ptr [rdx], 0\ninc rdx\nlea rcx, __sarena\nsub rdx, rcx\nmov qword ptr [__stop], rdx\nmov %r, rax"
-      pure)))
+    (sig concat (string string) string
+      pure (host expr
+        "mov qword ptr [rsp+32], %2\nmov rcx, %1\nlea rax, __sarena\nadd rax, qword ptr [__stop]\nmov rdx, rax\nLca%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcae%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lca%u\nLcae%u:\nmov rcx, qword ptr [rsp+32]\nLcb%u:\nmov r8b, byte ptr [rcx]\ntest r8b, r8b\nje Lcbe%u\nmov byte ptr [rdx], r8b\ninc rcx\ninc rdx\njmp Lcb%u\nLcbe%u:\nmov byte ptr [rdx], 0\ninc rdx\nlea rcx, __sarena\nsub rdx, rcx\nmov qword ptr [__stop], rdx\nmov %r, rax"))))

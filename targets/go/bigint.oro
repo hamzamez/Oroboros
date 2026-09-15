@@ -43,34 +43,34 @@
   ; library cannot have, since ADR 0012 forces 2W < 53 and bitwise
   ; operators are Tier 2. When the library gets a target-declared limb
   ; width, this line changes and no program moves.
-  (big-repr host)
+  (repr big host)
 
   ; Not `(type big …)` by accident: `big` is the type language's name for the
   ; top of the representation ladder, and `*big.Int` is Go's spelling of it. The
   ; pointer is part of the spelling because `big.Int` is a struct whose zero
   ; value is usable but whose methods take a receiver.
-  (type big "*big.Int")
+  (type big (host "*big.Int"))
 
   (module go
-    (prim big+ (big big) big expr "new(big.Int).Add(%s, %s)" pure (import "math/big"))
-    (prim big- (big big) big expr "new(big.Int).Sub(%s, %s)" pure (import "math/big"))
-    (prim big* (big big) big expr "new(big.Int).Mul(%s, %s)" pure (import "math/big"))
+    (sig big+ (big big) big pure (host expr "new(big.Int).Add(%s, %s)" (import "math/big")))
+    (sig big- (big big) big pure (host expr "new(big.Int).Sub(%s, %s)" (import "math/big")))
+    (sig big* (big big) big pure (host expr "new(big.Int).Mul(%s, %s)" (import "math/big")))
     ; Quo and Rem, NOT Div and Mod -- see the header.
-    (prim big/ ((a big) (b big)) big expr "new(big.Int).Quo(%s, %s)" pure (import "math/big"))
-    (prim big% ((a big) (b big)) big expr "new(big.Int).Rem(%s, %s)" pure (import "math/big"))
+    (sig big/ ((a big) (b big)) big pure (host expr "new(big.Int).Quo(%s, %s)" (import "math/big")))
+    (sig big% ((a big) (b big)) big pure (host expr "new(big.Int).Rem(%s, %s)" (import "math/big")))
 
-    (prim big<  (big big) bool expr "%s.Cmp(%s) < 0"  pure)
-    (prim big<= (big big) bool expr "%s.Cmp(%s) <= 0" pure)
-    (prim big>  (big big) bool expr "%s.Cmp(%s) > 0"  pure)
-    (prim big>= (big big) bool expr "%s.Cmp(%s) >= 0" pure)
-    (prim big=  (big big) bool expr "%s.Cmp(%s) == 0" pure)
+    (sig big<  (big big) bool  pure (host expr "%s.Cmp(%s) < 0"))
+    (sig big<= (big big) bool pure (host expr "%s.Cmp(%s) <= 0"))
+    (sig big>  (big big) bool  pure (host expr "%s.Cmp(%s) > 0"))
+    (sig big>= (big big) bool pure (host expr "%s.Cmp(%s) >= 0"))
+    (sig big=  (big big) bool pure (host expr "%s.Cmp(%s) == 0"))
 
     ; WIDENING IS THE ONLY DIRECTION. A word value entering a big computation is
     ; converted here; the other way round is refused by the type checker, which
     ; is unbounded-rung.md §3 -- the promotion is a WIDENING, not a refinement,
     ; so it may not happen silently.
-    (prim big-of (int) big expr "big.NewInt(int64(%s))" pure (import "math/big"))
-    (prim big-str (big) string expr "%s.String()" pure)
+    (sig big-of (int) big pure (host expr "big.NewInt(int64(%s))" (import "math/big")))
+    (sig big-str (big) string pure (host expr "%s.String()"))
 
 
     ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
@@ -85,7 +85,7 @@
     ;
     ; It is also what decimal rendering is made of: printing needs each digit
     ; group as a word.
-    (prim big%-small ((a big) (k int)) int expr "int(new(big.Int).Rem(%s, big.NewInt(int64(%s))).Int64())" pure (import "math/big"))
+    (sig big%-small ((a big) (k int)) int pure (host expr "int(new(big.Int).Rem(%s, big.NewInt(int64(%s))).Int64())" (import "math/big")))
 
     ; THE DECLARED BOUND, ENFORCED. `(big-fit x k)` is x when x needs at most k
     ; bits and a panic otherwise.
@@ -99,7 +99,7 @@
     ; `BitLen` and not `Cmp`, because the bound is enforced at its bit length
     ; (emit/biglimb.go's BigBound): O(1) against a full-width comparison, which
     ; would cost what the operation costs.
-    (prim big-fit ((x big) (k int)) big expr "func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic(\"bignum overflow: the declared range is too small\") }; return oroZ }(%s, %s)" (import "math/big"))
+    (sig big-fit ((x big) (k int)) big (host expr "func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic(\"bignum overflow: the declared range is too small\") }; return oroZ }(%s, %s)" (import "math/big")))
 
     ; ---- THE DESTINATION FORMS, and Go is the only one of the four hosts that
     ; can have them.
@@ -121,15 +121,15 @@
     ; operation that writes into an object it was handed is exactly what ADR
     ; 0010's effect discipline exists to keep in order. Declaring one pure would
     ; let the reducer substitute a destination form into two places.
-    (prim big+! (big big big) big expr "%s.Add(%s, %s)")
-    (prim big-! (big big big) big expr "%s.Sub(%s, %s)")
-    (prim big*! (big big big) big expr "%s.Mul(%s, %s)")
-    (prim big/! (big big big) big expr "%s.Quo(%s, %s)")
-    (prim big%! (big big big) big expr "%s.Rem(%s, %s)")
+    (sig big+! (big big big) big (host expr "%s.Add(%s, %s)"))
+    (sig big-! (big big big) big (host expr "%s.Sub(%s, %s)"))
+    (sig big*! (big big big) big (host expr "%s.Mul(%s, %s)"))
+    (sig big/! (big big big) big (host expr "%s.Quo(%s, %s)"))
+    (sig big%! (big big big) big (host expr "%s.Rem(%s, %s)"))
     ; Widening into an object that already exists, which is what removes the
     ; other allocation in a loop: `acc.Mul(acc, big.NewInt(int64(i)))` still
     ; allocates once an iteration for the multiplicand.
-    (prim big-of! (big int) big expr "%s.SetInt64(int64(%s))")
+    (sig big-of! (big int) big (host expr "%s.SetInt64(int64(%s))"))
     ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
     ; TRUNCATES where the host's bignum stays exact, so selecting a
     ; representation would change the answer -- ADR 0009's rule at a different
@@ -138,4 +138,4 @@
     ; A func literal called immediately, exactly as the checked arithmetic in
     ; builtin.oro is written, so each operand appears once and Go's inliner sees
     ; straight-line code with a never-taken branch.
-    (prim trap-if (int) int expr "func(oroC int) int { if oroC != 0 { panic(\"bignum overflow: the declared range is too small\") }; return 0 }(%s)")))
+    (sig trap-if (int) int (host expr "func(oroC int) int { if oroC != 0 { panic(\"bignum overflow: the declared range is too small\") }; return 0 }(%s)"))))

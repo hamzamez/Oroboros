@@ -19,10 +19,10 @@
 ; missing.
 
 (target go
-  (type io-Reader      "io.Reader")
-  (type io-Writer      "io.Writer")
-  (type io-WriteCloser "io.WriteCloser")
-  (type hex-InvalidByteError "hex.InvalidByteError")
+  (type io-Reader      (host "io.Reader"))
+  (type io-Writer      (host "io.Writer"))
+  (type io-WriteCloser (host "io.WriteCloser"))
+  (type hex-InvalidByteError (host "hex.InvalidByteError"))
 
   ; INTERFACE ≤ INTERFACE. Method-set inclusion is a preorder on interfaces as
   ; well as from a concrete type to one (Cardelli's record subtyping), and
@@ -40,14 +40,14 @@
     ; closed under it, so the result is an `int` only on the PREIMAGE of the
     ; window, |n| ≤ 2^52 − 1 — which is what the `where` says. The host needs
     ; no precondition; ADR 0012 does.
-    (prim EncodedLen ((n int)) int
-          expr "hex.EncodedLen(%s)" pure
+    (sig EncodedLen ((n int)) int pure
           (where (and (<= -4503599627370495 n) (<= n 4503599627370495)))
-          (import "encoding/hex"))
+          (host expr "hex.EncodedLen(%s)"
+            (import "encoding/hex")))
 
     ; DecodedLen is x ↦ x/2, truncating, which the window IS closed under.
-    (prim DecodedLen ((x int)) int
-          expr "hex.DecodedLen(%s)" pure (import "encoding/hex"))
+    (sig DecodedLen ((x int)) int pure
+          (host expr "hex.DecodedLen(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- H into a buffer
     ; A WRITE-BORROW, B ⊸ B ⊗ int. The host writes dst[0 .. 2|src|) — it indexes
@@ -55,49 +55,49 @@
     ; exact requirement is 2·len src ≤ len dst, which is LINEAR and therefore
     ; stated exactly rather than conservatively. The count is always 2|src|
     ; ("this value is always EncodedLen(len(src))"), so it is at most 2^53 − 2.
-    (prim Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+    (sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
           ((buffer (int 0 255)) (int 0 9007199254740990))
-          expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
           (where (<= (* 2 (len src)) (len dst)))
-          (import "encoding/hex"))
+          (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
+            (import "encoding/hex")))
 
     ; CONSUME AND RETURN, B ⊸ B: appends H(src) to dst, growing it when it must
     ; (slices.Grow), so dst is dead either way.
-    (prim AppendEncode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+    (sig AppendEncode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
           (buffer (int 0 255))
-          expr "hex.AppendEncode(%s, %s)"
-          (import "encoding/hex"))
+          (host expr "hex.AppendEncode(%s, %s)"
+            (import "encoding/hex")))
 
     ; H to text. Allocates its own storage and writes nothing it was handed.
-    (prim EncodeToString ((src (array (int 0 255)))) string
-          expr "hex.EncodeToString(%s)" pure (import "encoding/hex"))
+    (sig EncodeToString ((src (array (int 0 255)))) string pure
+          (host expr "hex.EncodeToString(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- G
     ; A WRITE-BORROW with a fallible result, B ⊸ B ⊗ int ⊗ error. The host writes
     ; dst[i] for i < ⌊len src / 2⌋ and no further, so the exact requirement is
     ; ⌊s/2⌋ ≤ d, which over the integers is s ≤ 2d + 1 — linear again. The count
     ; is the number of whole pairs decoded before the first bad byte.
-    (prim Decode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+    (sig Decode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
           ((buffer (int 0 255)) (int 0 4503599627370495) error)
-          expr "func(dst, src []byte) ([]byte, int, error) { n, err := hex.Decode(dst, src); return dst, n, err }(%s, %s)"
           (where (<= (len src) (+ (* 2 (len dst)) 1)))
-          (import "encoding/hex"))
+          (host expr "func(dst, src []byte) ([]byte, int, error) { n, err := hex.Decode(dst, src); return dst, n, err }(%s, %s)"
+            (import "encoding/hex")))
 
     ; CONSUME AND RETURN with a fallible result: the decoded prefix is appended
     ; either way.
-    (prim AppendDecode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+    (sig AppendDecode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
           ((buffer (int 0 255)) error)
-          expr "hex.AppendDecode(%s, %s)"
-          (import "encoding/hex"))
+          (host expr "hex.AppendDecode(%s, %s)"
+            (import "encoding/hex")))
 
     ; G from text into fresh storage: the prefix it decoded, and the error.
-    (prim DecodeString ((s string)) ((array (int 0 255)) error)
-          expr "hex.DecodeString(%s)" pure (import "encoding/hex"))
+    (sig DecodeString ((s string)) ((array (int 0 255)) error) pure
+          (host expr "hex.DecodeString(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- hexdump -C
     ; A pure function of its bytes; the empty input gives "".
-    (prim Dump ((data (array (int 0 255)))) string
-          expr "hex.Dump(%s)" pure (import "encoding/hex"))
+    (sig Dump ((data (array (int 0 255)))) string pure
+          (host expr "hex.Dump(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- streams
     ; NOT pure, though they write nothing yet: each call allocates a fresh
@@ -106,17 +106,17 @@
     ; Generativity is an effect exactly when the generated thing can be told
     ; apart, which is Pitts & Stark's ν-calculus (1993); DecodeString's fresh
     ; slice cannot be, because the program only ever reads it.
-    (prim NewEncoder ((w io-Writer)) io-Writer
-          expr "hex.NewEncoder(%s)" (import "encoding/hex"))
-    (prim NewDecoder ((r io-Reader)) io-Reader
-          expr "hex.NewDecoder(%s)" (import "encoding/hex"))
-    (prim Dumper ((w io-Writer)) io-WriteCloser
-          expr "hex.Dumper(%s)" (import "encoding/hex"))
+    (sig NewEncoder ((w io-Writer)) io-Writer
+          (host expr "hex.NewEncoder(%s)" (import "encoding/hex")))
+    (sig NewDecoder ((r io-Reader)) io-Reader
+          (host expr "hex.NewDecoder(%s)" (import "encoding/hex")))
+    (sig Dumper ((w io-Writer)) io-WriteCloser
+          (host expr "hex.Dumper(%s)" (import "encoding/hex")))
   )
 
   ; The error type's one method. The message is a pure function of the byte.
   (module go/encoding-hex/InvalidByteError
-    (prim Error ((self hex-InvalidByteError)) string
-          expr "%s.Error()" pure (import "encoding/hex"))
+    (sig Error ((self hex-InvalidByteError)) string pure
+          (host expr "%s.Error()" (import "encoding/hex")))
   )
 )

@@ -22,18 +22,18 @@ func tempTarget(t *testing.T, prim string) *Target {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "t.oro")
 	src := `(target tgt
-  (type int "int") (type bool "bool") (type any "any")
-  (array-type "[]%s")
+  (type int (host "int")) (type bool (host "bool")) (type any (host "any"))
+  (type (array A) (host "[]%s"))
   (module tgt
-    (prim + ((a int) (b int)) int expr "%s + %s" pure)
-    (prim - ((a int) (b int)) int expr "%s - %s" pure)
-    (prim * ((a int) (b int)) int expr "%s * %s" pure)
-    (prim < ((a int) (b int)) bool expr "%s < %s" pure)
-    (prim <= ((a int) (b int)) bool expr "%s <= %s" pure)
-    (prim > ((a int) (b int)) bool expr "%s > %s" pure)
-    (prim >= ((a int) (b int)) bool expr "%s >= %s" pure)
+    (sig + ((a int) (b int)) int pure (host expr "%s + %s"))
+    (sig - ((a int) (b int)) int pure (host expr "%s - %s"))
+    (sig * ((a int) (b int)) int pure (host expr "%s * %s"))
+    (sig < ((a int) (b int)) bool pure (host expr "%s < %s"))
+    (sig <= ((a int) (b int)) bool pure (host expr "%s <= %s"))
+    (sig > ((a int) (b int)) bool pure (host expr "%s > %s"))
+    (sig >= ((a int) (b int)) bool pure (host expr "%s >= %s"))
     ` + prim + `
-    (prim need ((k int)) int expr "need(%s)" pure (where (<= 0 k)))))
+    (sig need ((k int)) int pure (where (<= 0 k)) (host expr "need(%s)"))))
 `
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
@@ -81,7 +81,7 @@ func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 	const prog = `(use tgt)
 		(fn (v) (let (tgt.size v) (fn (n) (tgt.need n))))`
 	// `need` requires `0 <= k`, and nothing but the postcondition says so.
-	tg := tempTarget(t, `(prim size ((v any)) int expr "size(%s)" pure (ensures (<= 0 result)))`)
+	tg := tempTarget(t, `(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))`)
 	notes, err := refineWith(t, tg, prog)
 	if err != nil {
 		t.Errorf("the postcondition must discharge the obligation: %v", err)
@@ -92,7 +92,7 @@ func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 	// The same program with no postcondition declared must not discharge it.
 	// Note that it does not ERROR either: an atom outside the fragment is
 	// reported, never assumed, so the note is the whole difference.
-	bare := tempTarget(t, `(prim size ((v any)) int expr "size(%s)" pure)`)
+	bare := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))`)
 	notes, _ = refineWith(t, bare, prog)
 	if !propagated(notes) {
 		t.Errorf("without a postcondition there is no fact and the obligation "+
@@ -115,8 +115,8 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 	//
 	// Deliberately impure, so ADR 0010 let-binds the call and the guarantee has
 	// a name the linear fragment could use — if it were licensed.
-	tg := tempTarget(t, `(prim ident ((x int)) int expr "%s" `+
-		"(where (< 0 (tgt.* x x))) (ensures (< 0 result)))")
+	tg := tempTarget(t, `(sig ident ((x int)) int `+
+		`(where (< 0 (tgt.* x x))) (ensures (< 0 result)) (host expr "%s"))`)
 	const prog = `(use tgt)
 		(fn (n) (let (tgt.ident n) (fn (y) (tgt.need y))))`
 	notes, err := refineWith(t, tg, prog)
@@ -139,8 +139,8 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 
 	// THE CONTROL. The same shapes with a precondition the fragment can prove:
 	// now the guarantee is licensed and the downstream obligation is proven.
-	ok := tempTarget(t, `(prim ident ((x int)) int expr "%s" `+
-		"(where (< 0 x)) (ensures (< 0 result)))")
+	ok := tempTarget(t, `(sig ident ((x int)) int `+
+		`(where (< 0 x)) (ensures (< 0 result)) (host expr "%s"))`)
 	notes, err = refineWith(t, ok, `(use tgt)
 		(fn (n) (let (tgt.ident 7) (fn (y) (tgt.need y))))`)
 	if err != nil || propagated(notes) {
@@ -154,7 +154,7 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 // is keyed by printed term. ADR 0010 guarantees the binder exists: an impure
 // argument is never substituted, it is let-bound at the application site.
 func TestEnsuresAttachesToTheBinder(t *testing.T) {
-	tg := tempTarget(t, `(prim readc ((h int)) int expr "readc(%s)" (ensures (<= 0 result)))`)
+	tg := tempTarget(t, `(sig readc ((h int)) int (ensures (<= 0 result)) (host expr "readc(%s)"))`)
 	notes, err := refineWith(t, tg, `(use tgt)
 		(fn (h) (let (tgt.readc h) (fn (a) (tgt.need a))))`)
 	if err != nil || propagated(notes) {

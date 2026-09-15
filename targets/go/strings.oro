@@ -39,43 +39,43 @@
     ; CONCATENATION is the monoid's operation and `""` its unit. Found by
     ; spelling, so this file says how Go does it and nothing in the compiler
     ; learns that Go spells it `+`.
-    (prim concat (string string) string expr "%s + %s" pure)
+    (sig concat (string string) string pure (host expr "%s + %s"))
 
     ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
     ; With `concat` and `""` it builds any string, which is what "free" means.
-    (prim string-of (int) string expr "string(rune(%s))" pure)
+    (sig string-of (int) string pure (host expr "string(rune(%s))"))
 
-    (prim Fields   (string) slice-string          expr "strings.Fields(%s)"      pure (import "strings"))
-    (prim Split    (string string) slice-string   expr "strings.Split(%s, %s)"   pure (import "strings"))
-    (prim SplitN   (string string int) slice-string
-                   expr "strings.SplitN(%s, %s, %s)" pure (import "strings"))
-    (prim Join     (slice-string string) string   expr "strings.Join(%s, %s)"    pure (import "strings"))
+    (sig Fields   (string) slice-string      pure          (host expr "strings.Fields(%s)" (import "strings")))
+    (sig Split    (string string) slice-string   pure   (host expr "strings.Split(%s, %s)" (import "strings")))
+    (sig SplitN   (string string int) slice-string pure
+                   (host expr "strings.SplitN(%s, %s, %s)" (import "strings")))
+    (sig Join     (slice-string string) string    pure   (host expr "strings.Join(%s, %s)" (import "strings")))
 
     ; ---- searching. Index returns -1 when absent, which is a total function
     ; and needs no product.
-    (prim Contains  (string string) bool  expr "strings.Contains(%s, %s)"  pure (import "strings"))
-    (prim HasPrefix (string string) bool  expr "strings.HasPrefix(%s, %s)" pure (import "strings"))
-    (prim HasSuffix (string string) bool  expr "strings.HasSuffix(%s, %s)" pure (import "strings"))
-    (prim Index     (string string) int   expr "strings.Index(%s, %s)"     pure (import "strings"))
-    (prim LastIndex (string string) int   expr "strings.LastIndex(%s, %s)" pure (import "strings"))
-    (prim Count     (string string) int   expr "strings.Count(%s, %s)"     pure (import "strings"))
-    (prim EqualFold (string string) bool  expr "strings.EqualFold(%s, %s)" pure (import "strings"))
+    (sig Contains  (string string) bool  pure  (host expr "strings.Contains(%s, %s)" (import "strings")))
+    (sig HasPrefix (string string) bool pure  (host expr "strings.HasPrefix(%s, %s)" (import "strings")))
+    (sig HasSuffix (string string) bool pure  (host expr "strings.HasSuffix(%s, %s)" (import "strings")))
+    (sig Index     (string string) int     pure   (host expr "strings.Index(%s, %s)" (import "strings")))
+    (sig LastIndex (string string) int pure   (host expr "strings.LastIndex(%s, %s)" (import "strings")))
+    (sig Count     (string string) int     pure   (host expr "strings.Count(%s, %s)" (import "strings")))
+    (sig EqualFold (string string) bool pure  (host expr "strings.EqualFold(%s, %s)" (import "strings")))
 
     ; ---- transforming
-    (prim ToLower   (string) string         expr "strings.ToLower(%s)"        pure (import "strings"))
-    (prim ToUpper   (string) string         expr "strings.ToUpper(%s)"        pure (import "strings"))
-    (prim ToTitle   (string) string         expr "strings.ToTitle(%s)"        pure (import "strings"))
-    (prim TrimSpace (string) string         expr "strings.TrimSpace(%s)"      pure (import "strings"))
-    (prim Trim      (string string) string  expr "strings.Trim(%s, %s)"       pure (import "strings"))
-    (prim TrimLeft  (string string) string  expr "strings.TrimLeft(%s, %s)"   pure (import "strings"))
-    (prim TrimRight (string string) string  expr "strings.TrimRight(%s, %s)"  pure (import "strings"))
-    (prim TrimPrefix (string string) string expr "strings.TrimPrefix(%s, %s)" pure (import "strings"))
-    (prim TrimSuffix (string string) string expr "strings.TrimSuffix(%s, %s)" pure (import "strings"))
-    (prim Repeat    (string int) string     expr "strings.Repeat(%s, %s)"     pure (import "strings"))
-    (prim Replace   (string string string int) string
-                    expr "strings.Replace(%s, %s, %s, %s)"  pure (import "strings"))
-    (prim ReplaceAll (string string string) string
-                    expr "strings.ReplaceAll(%s, %s, %s)"   pure (import "strings"))
+    (sig ToLower   (string) string        pure         (host expr "strings.ToLower(%s)" (import "strings")))
+    (sig ToUpper   (string) string        pure         (host expr "strings.ToUpper(%s)" (import "strings")))
+    (sig ToTitle   (string) string        pure         (host expr "strings.ToTitle(%s)" (import "strings")))
+    (sig TrimSpace (string) string      pure         (host expr "strings.TrimSpace(%s)" (import "strings")))
+    (sig Trim      (string string) string       pure  (host expr "strings.Trim(%s, %s)" (import "strings")))
+    (sig TrimLeft  (string string) string   pure  (host expr "strings.TrimLeft(%s, %s)" (import "strings")))
+    (sig TrimRight (string string) string  pure  (host expr "strings.TrimRight(%s, %s)" (import "strings")))
+    (sig TrimPrefix (string string) string pure (host expr "strings.TrimPrefix(%s, %s)" (import "strings")))
+    (sig TrimSuffix (string string) string pure (host expr "strings.TrimSuffix(%s, %s)" (import "strings")))
+    (sig Repeat    (string int) string     pure     (host expr "strings.Repeat(%s, %s)" (import "strings")))
+    (sig Replace   (string string string int) string  pure
+                    (host expr "strings.Replace(%s, %s, %s, %s)" (import "strings")))
+    (sig ReplaceAll (string string string) string   pure
+                    (host expr "strings.ReplaceAll(%s, %s, %s)" (import "strings")))
 
     ; ---- comparison. Go's Compare is -1/0/+1 and total.
-    (prim Compare (string string) int expr "strings.Compare(%s, %s)" pure (import "strings"))))
+    (sig Compare (string string) int pure (host expr "strings.Compare(%s, %s)" (import "strings")))))

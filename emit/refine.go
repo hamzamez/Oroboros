@@ -62,76 +62,26 @@ func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, er
 			assume(f, core.Rename2(sig.Where, sub))
 		}
 	}
-	// `k · (x / k) <= x` FOR A NON-NEGATIVE x AND A POSITIVE LITERAL k, seeded
-	// ONCE AT THE ROOT rather than where the quotient is met.
-	//
-	// A DECLARED SOUND AXIOM, NEVER A SEARCH — decidability-map.md's rule for
-	// the nonlinear fragment, and the same shape as `x <= x*x`: the operation is
-	// outside the fragment and it ENTAILS something inside it. Truncating
-	// division gives `k·(x/k) <= x` whenever x >= 0, and restricting x to a
-	// LENGTH is what makes x >= 0 free rather than assumed.
+	// `lang`'S FACTS, INSTANTIATED ONCE AT THE ROOT on every term of the program
+	// (emit/fact.go, lang-facts.oro). A DECLARED SOUND AXIOM, NEVER A SEARCH —
+	// decidability-map.md's rule for the nonlinear fragment: an operation outside
+	// the fragment ENTAILS something inside it, and a local extension instantiated
+	// on present terms is complete for it.
 	//
 	// At the root because a quotient in a loop's GUARD never reaches `walk` —
-	// `loopLike` turns a guard into a fact directly — so an axiom added where
-	// the term is met is an axiom the one program that needs it never sees.
+	// `loopLike` turns a guard into a fact directly — so an axiom added where the
+	// term is met is an axiom the one program that needs it never sees.
 	//
-	// It is what a flattened product needs and could not have. `((sp w) 1)`
-	// becomes `(sp (+ (* 2 w) 1))` guarded by `w < (len sp)/2`, and without the
-	// axiom the two facts share no variable at all: the quotient is an unknown,
-	// and nothing says it has anything to do with the length it came from.
-	seedDivAxioms(f, t)
+	// It is what a flattened product needs. `((sp w) 1)` becomes
+	// `(sp (+ (* 2 w) 1))` guarded by `w < (len sp)/2`, and without `div-floor`
+	// the two facts share no variable: the quotient is an unknown, and nothing
+	// says it has anything to do with the length it came from.
+	seedFacts(f, t, langFacts)
 
 	if err := r.walk(t, f); err != nil {
 		return r.notes, fmt.Errorf("%s: %w", what, err)
 	}
 	return r.notes, nil
-}
-
-// seedDivAxioms walks a term once and assumes BOTH halves of Euclidean
-// division, `k·(x/k) <= x <= k·(x/k) + (k−1)`, for every quotient of a length
-// by a positive literal.
-//
-// Both halves need x >= 0 — for a negative x, truncation toward zero reverses
-// them — and the guard that supplies it is the one already here: x is a
-// LENGTH. The upper half was missing, so a buffer sized ⌊x/2⌋ could not be
-// shown to hold the decoding of x bytes, which is hex.Decode's exact
-// precondition `x <= 2·len + 1` (hex-2026-09-14 §3).
-func seedDivAxioms(f *facts, t *core.Term) {
-	seen := map[string]bool{}
-	var walk func(*core.Term)
-	walk = func(x *core.Term) {
-		if x == nil {
-			return
-		}
-		if x.Kind == core.KFn {
-			walk(x.Body())
-			return
-		}
-		if x.Kind == core.KApp {
-			op := x.Op()
-			args := x.Args()
-			if op.Kind == core.KName && isOp(op.Name, "div") && len(args) == 2 &&
-				args[1].Kind == core.KInt && args[1].Int > 0 && isLenTerm(args[0]) {
-				if el, ok := asLinear(args[0]); ok {
-					q := variable(divVar(x))
-					if !seen[q.String()] {
-						seen[q.String()] = true
-						f.assumeLE(constant(0).addScaled(q, args[1].Int).addScaled(el, -1),
-							fmt.Sprintf("assumed %d*(%s) <= %s (k*(x/k) <= x)",
-								args[1].Int, q.String(), el.String()))
-						// x - k·q - (k-1) <= 0
-						f.assumeLE(el.addScaled(q, -args[1].Int).addScaled(constant(args[1].Int-1), -1),
-							fmt.Sprintf("assumed %s <= %d*(%s) + %d (x <= k*(x/k) + k-1)",
-								el.String(), args[1].Int, q.String(), args[1].Int-1))
-					}
-				}
-			}
-		}
-		for _, k := range x.Kids {
-			walk(k)
-		}
-	}
-	walk(t)
 }
 
 // assume records a `where` clause as facts. An EQUALITY becomes a

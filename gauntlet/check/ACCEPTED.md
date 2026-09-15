@@ -36,3 +36,15 @@ The initial baseline.
 - compiler output changed — `lib/os/js.oro go`
 - compiler output changed — `lib/os/js.oro java`
 - compiler output changed — `lib/os/js.oro js`
+
+## 2026-09-15 — on 2bfb4eb, with uncommitted changes
+
+**Reason:** lang facts: an unproven obligation in tally now names the fact it knows, len-nonneg, where it said 'known: nothing'; emitted text and proof counts identical
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+3 change(s):
+
+- compiler output changed — `examples/tally/tally.oro go`
+- compiler output changed — `examples/tally/tally.oro java`
+- compiler output changed — `examples/tally/tally.oro js`

@@ -1,0 +1,23 @@
+; THE LANGUAGE'S FACTS (spec/theories.md §7, docs/facts.md).
+;
+; A fact is an axiom schema  ∀x̄. G(x̄) → C(x̄)  added to the theory the refinement
+; layer decides. Each one here is F-B: one trigger term, flat, covering every
+; parameter, linear once the trigger is read as an atom. That is a LOCAL theory
+; extension (Sofronie-Stokkermans, CADE 2005): instantiating on terms already
+; present is sound, terminates, and is as complete as the linear procedure.
+;
+; `lang` is closed, so these are the same on every target. Each is TRUE of the
+; integers, with a proof below, and each has a test that fails when it is
+; deleted or weakened (emit/fact_test.go).
+
+; F11, the lower half. A length counts elements, so it is a natural number.
+(fact len-nonneg ((t (array A)))
+  (<= 0 (len t)))
+
+; F1 and F2 — both halves of Euclidean division by a positive literal.
+; For x ≥ 0 and k ≥ 1, q = ⌊x/k⌋ is the unique integer with k·q ≤ x < k·q + k,
+; and truncation toward zero agrees with the floor exactly when x ≥ 0.
+(fact div-floor ((x int) (k int))
+  (when (<= 0 x) (<= 1 k))
+  (and (<= (* k (/ x k)) x)
+       (<= x (+ (* k (/ x k)) (- k 1)))))

@@ -346,6 +346,15 @@ theories-b-or-c.md §7 names the trigger: a program that needs a view other than
 
 ## 7. Facts
 
+> **Built for the linear layer, 2026-09-15** ([langfacts-2026-09-15](../../gauntlet/results/langfacts-2026-09-15.md)).
+> `emit/lang-facts.oro` is `lang`'s theory: `len-nonneg` (F11's lower half) and `div-floor` (F1, F2).
+> `emit/fact.go` admits a fact by §7.4 and instantiates it on present terms to a fixpoint, with each
+> guard *entailed* (§7.5). `seedDivAxioms` is deleted. One reading of §7.3 is made precise: a
+> **constant parameter** — one in a literal-only position of the trigger, the divisor of `/` — is a
+> literal for admission, which is what makes `div-floor`'s own `(* k (/ x k))` linear. **Not built**: the
+> interval layer's induced transfers (F5–F10, F12, Theorem T), facts in target layers beyond `max-len`,
+> and §7.9's contracts as facts.
+
 **Decided 2026-09-15: F-B**, local boundedness facts, from [facts.md](../facts.md). **F-C, F-D and
 F-E are kept open**, by construction rather than by intention: each is a *reserved fragment* that
 the admission check recognises and refuses by name (§7.6). Building one later adds a fragment; it

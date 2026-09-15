@@ -2283,6 +2283,20 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**`lang`'S FACTS ARE DECLARATIONS, AND ONE ALGORITHM INSTANTIATES THEM** —
+[langfacts-2026-09-15](gauntlet/results/langfacts-2026-09-15.md), `emit/lang-facts.oro`, `emit/fact.go`,
+theories.md §7. `seedDivAxioms` — F1 and F2 written as Go — is deleted: `div-floor` (both halves of Euclidean
+division) and `len-nonneg` (F11's lower half) are axiom schemata of a LOCAL theory extension, instantiated on
+present terms to a fixpoint (Sofronie-Stokkermans 2005; Ihlemann, Jacobs & Sofronie-Stokkermans 2008), which is
+complete, and terminates because an instance adds inequalities and never a term. **The guard is ENTAILED, not
+matched**: `x ≥ 0` for a length was a syntactic test and is now the theorem `len-nonneg`, so it is a fixpoint and not
+one pass. Admission is §7.4 and refuses by the condition failed (F-C, F-D, F-E, flatness, covering, floats). **The
+spec's own example failed its admission rule** — `(* k (/ x k))` looks like a second extension term — and is made
+precise: `k` is in a literal-only position of the trigger, so it is a constant. Witnesses: delete `div-floor`'s upper
+half and hex.Decode's precondition is no longer proven; delete `len-nonneg` and neither half fires. **Cost: emission
+byte-identical, proof counts identical**; one refusal's `known: nothing` now names `(fact len-nonneg)`, accepted.
+Not built: the interval layer's facts (F5–F10, F12), which is where one declaration would feed three consumers.
+
 **A VARIANT TYPE TAKES TYPE ARGUMENTS, BY SUBSTITUTION** —
 [typeargs-2026-09-15](gauntlet/results/typeargs-2026-09-15.md), data.md §5.5.3–§5.5.4. `(variant (F T…) …)` is a
 type constructor `Typeⁿ → Type`; an instance is `[A⃗/T⃗]` on the payloads, spelled `F(A, B)` and keyed

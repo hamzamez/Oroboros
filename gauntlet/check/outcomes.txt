@@ -1198,21 +1198,21 @@
 == examples/tally/tally.oro go refused
    note: gen-tally: 8 product access(es) flattened
    gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: nothing
+     known: assumed -len(ls) <= 0 (fact len-nonneg)
      A table is a function with a finite domain, so 0 <= i < len is the
      condition for the application to be DEFINED — not a check bolted on
      (docs/spec/tables.md §6).
 == examples/tally/tally.oro js refused
    note: gen-tally: 8 product access(es) flattened
    gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: nothing
+     known: assumed -len(ls) <= 0 (fact len-nonneg)
      A table is a function with a finite domain, so 0 <= i < len is the
      condition for the application to be DEFINED — not a check bolted on
      (docs/spec/tables.md §6).
 == examples/tally/tally.oro java refused
    note: gen-tally: 8 product access(es) flattened
    gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: nothing
+     known: assumed -len(ls) <= 0 (fact len-nonneg)
      A table is a function with a finite domain, so 0 <= i < len is the
      condition for the application to be DEFINED — not a check bolted on
      (docs/spec/tables.md §6).

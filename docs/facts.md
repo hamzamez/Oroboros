@@ -1,5 +1,10 @@
 # Facts: what the compiler may assume, who says so, and how it is used
 
+> **Status, 2026-09-15: F1, F2 and F11's lower half are declarations**, `emit/lang-facts.oro`, instantiated
+> by one algorithm in `emit/fact.go`; `seedDivAxioms` is deleted
+> ([langfacts-2026-09-15](../gauntlet/results/langfacts-2026-09-15.md)). The interval-layer facts
+> (F5–F10, F12) are still Go.
+
 Research, **decided 2026-09-15, nothing built**: hamza took **F-B**, and **kept F-C, F-D and F-E open**.
 They are specified as reserved fragments in [spec/theories.md](spec/theories.md) §7.6, recognised
 and refused by name. 2026-09-15, on hamza's *"should we research facts?

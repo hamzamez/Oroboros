@@ -42,3 +42,16 @@
 (fact rem-dividend-nonpos ((a int) (b int))
   (when (<= a 0))
   (and (<= a (% a b)) (<= (% a b) 0)))
+
+; F9 — A MASK. In two's complement `&` only clears bits, so every bit of a&b is a
+; bit of each operand. A non-negative operand has its sign bit clear, hence so
+; does the result, and a&b ≤ that operand — whatever the other operand is,
+; negative included. Two clauses, one per operand; the interval layer meets them
+; where both hold, which is the min(a, b) bound.
+(fact and-left ((a int) (b int))
+  (when (<= 0 a))
+  (and (<= 0 (& a b)) (<= (& a b) a)))
+
+(fact and-right ((a int) (b int))
+  (when (<= 0 b))
+  (and (<= 0 (& a b)) (<= (& a b) b)))

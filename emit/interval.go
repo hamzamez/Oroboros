@@ -3030,33 +3030,18 @@ func SelectShifts(tgt *Target, sig *core.Sig, t *core.Term) (*core.Term, int) {
 // these where it has PROVED the operand non-negative, so the precise case is
 // the one that occurs; a hand-written `go.&` on a signed value gets the honest ⊤.
 func andI(a, b ival) ival {
-	// A NON-NEGATIVE CONSTANT MASK BOUNDS THE RESULT WHATEVER THE OTHER OPERAND
-	// IS, and this case is the one that matters: every bit set in `x & m` is set
-	// in `m`, which holds for a negative x too because a host's `&` is
-	// two's-complement. Without it a mask over a value the analysis cannot see —
-	// which is every read inside a `build` lambda, where the operand table is
-	// free — answers ⊤, and that is exactly what `SelectShifts` produces from a
-	// carry split. It cost the fixed-limb factorial its element narrowing the
-	// first time round: `[]int` where `%` had given `[]uint32`, because `remI`
-	// bounds by the divisor and the first `andI` did not.
-	if m, ok := exactNonNeg(b); ok {
-		return ival{lo: 0, hi: m}
-	}
-	if m, ok := exactNonNeg(a); ok {
-		return ival{lo: 0, hi: m}
-	}
-	if a.loInf || b.loInf || a.lo < 0 || b.lo < 0 {
-		return top
-	}
-	// 0 ≤ a&b ≤ min(a, b): every bit set in the result is set in both.
-	hi := b
-	if a.hiInf || (!b.hiInf && a.hi < b.hi) {
-		hi = a
-	}
-	if hi.hiInf {
-		return ival{lo: 0, hiInf: true}
-	}
-	return ival{lo: 0, hi: hi.hi}
+	// INDUCED FROM `and-left` AND `and-right` (lang-facts.oro, F9) by Theorem T
+	// with case splitting (fact.go). A NON-NEGATIVE CONSTANT MASK BOUNDS THE
+	// RESULT WHATEVER THE OTHER OPERAND IS, which is the case that matters: a mask
+	// over a value the analysis cannot see — every read inside a `build` lambda —
+	// is what `SelectShifts` produces from a carry split, and answering ⊤ there
+	// cost the fixed-limb factorial its element narrowing the first time round.
+	//
+	// Never less precise than the hand-written version it replaced, and strictly
+	// tighter where one operand is non-negative and the other spans zero: the
+	// non-negative operand's clause holds on every cell of the split, where the
+	// old rule answered ⊤. TestTheInducedMaskIsNeverLessPrecise holds it to that.
+	return inducedTransfer(langFacts, "&", []ival{a, b}, -1)
 }
 
 func exactNonNeg(v ival) (int64, bool) {

@@ -356,8 +356,12 @@ theories-b-or-c.md §7 names the trigger: a program that needs a view other than
 > four facts on `(% a b)` replace F6, F7 and F8, and §7.5's induced transfer is built. **§7.5 is made
 > complete**: a guard holding on only part of a box would drop its clause, so each argument's interval
 > is cut at its guards' thresholds, each cell meets the facts whose guards hold there, and the cells are
-> joined; the divisor's cell `{0}` contributes nothing, `%` being undefined there. **Not built**: F5, F9,
-> F10, F12's induced transfers, facts in target layers beyond `max-len`, and §7.9's contracts as facts.
+> joined; the divisor's cell `{0}` contributes nothing, `%` being undefined there. **And F9, the mask**,
+> as `and-left` and `and-right`. **F5, F10 and F12 are reclassified, not moved** (facts.md status):
+> the division contraction is Moore's interval quotient, the shift equation is F-C, and `0·x = 0` is
+> interval multiplication's own convention. So every class-F entry of facts.md's inventory is either a
+> declaration or reclassified with its reason. **Not built**: F3/F4 (`isqrt`, reserved), facts in target
+> layers beyond `max-len`, and §7.9's contracts as facts.
 
 **Decided 2026-09-15: F-B**, local boundedness facts, from [facts.md](../facts.md). **F-C, F-D and
 F-E are kept open**, by construction rather than by intention: each is a *reserved fragment* that

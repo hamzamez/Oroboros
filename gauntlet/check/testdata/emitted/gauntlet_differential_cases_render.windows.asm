@@ -824,8 +824,7 @@ Ldone46:
         mov rsi, r15
         mov r15, 9
         mov qword ptr [rsp+64], r15
-        add qword ptr [rsp+64], 1
-        shl qword ptr [rsp+64], 3
+        add qword ptr [rsp+64], 8
         mov r10, qword ptr [rsp+64]
         xor ecx, ecx
         mov rdx, r10
@@ -848,7 +847,7 @@ Lnext109:
         mov qword ptr [rsp+88], rax
         mov r10, qword ptr [rsp+72]
         mov r11, qword ptr [rsp+88]
-        mov qword ptr [r10+r15*8+8], r11
+        mov byte ptr [r10+r15+8], r11b
         add r15, 1
         mov r10, qword ptr [rsp+64]
         mov rax, r10
@@ -1006,7 +1005,7 @@ Lelse128:
         jmp Lend129
 Lelse129:
         mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [r15+r10*8+8]
+        movzx r11d, byte ptr [r15+r10+8]
         mov qword ptr [rsp+96], r11
         mov r10, qword ptr [rsp+96]
         mov qword ptr [rsp+104], r10
@@ -1067,8 +1066,7 @@ Ldone114:
 Ldone14:
         mov rdi, 9
         mov r14, rdi
-        add r14, 1
-        shl r14, 3
+        add r14, 8
         xor ecx, ecx
         mov rdx, r14
         mov r8, 3000h
@@ -1086,7 +1084,7 @@ Lnext140:
         and rax, 16777215
         mov qword ptr [rsp+88], rax
         mov r10, qword ptr [rsp+88]
-        mov qword ptr [r15+rdi*8+8], r10
+        mov byte ptr [r15+rdi+8], r10b
         add rdi, 1
         mov rcx, 24
         shr r14, cl
@@ -1150,7 +1148,7 @@ Lelse151:
         mov qword ptr [rsp+120], 0
         jmp Lend152
 Lelse152:
-        mov r10, qword ptr [r14+rdi*8+8]
+        movzx r10d, byte ptr [r14+rdi+8]
         mov qword ptr [rsp+112], r10
         mov r10, qword ptr [rsp+112]
         mov qword ptr [rsp+120], r10
@@ -1228,7 +1226,7 @@ Lelse160:
         mov qword ptr [rsp+64], 0
         jmp Lend161
 Lelse161:
-        mov r10, qword ptr [r14+rdi*8+8]
+        movzx r10d, byte ptr [r14+rdi+8]
         mov qword ptr [rsp+112], r10
         mov r10, qword ptr [rsp+112]
         mov qword ptr [rsp+64], r10
@@ -1278,8 +1276,7 @@ Ltop168:
         mov qword ptr [rsp+104], 9
         mov r10, qword ptr [rsp+104]
         mov qword ptr [rsp+120], r10
-        add qword ptr [rsp+120], 1
-        shl qword ptr [rsp+120], 3
+        add qword ptr [rsp+120], 8
         mov r10, qword ptr [rsp+120]
         xor ecx, ecx
         mov rdx, r10
@@ -1304,9 +1301,9 @@ Lnext172:
         mov qword ptr [rsp+96], rax
         mov r10, qword ptr [rsp+112]
         mov r11, qword ptr [rsp+104]
-        lea r10, [r10+r11*8+8]
+        lea r10, [r10+r11+8]
         mov r11, qword ptr [rsp+96]
-        mov qword ptr [r10], r11
+        mov byte ptr [r10], r11b
         mov r10, qword ptr [rsp+104]
         mov rax, r10
         add rax, 1
@@ -1390,7 +1387,7 @@ Lelse183:
 Lelse184:
         mov r10, qword ptr [rsp+120]
         mov r11, qword ptr [rsp+104]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+152], r10
         mov r10, qword ptr [rsp+152]
         mov qword ptr [rsp+144], r10
@@ -1476,7 +1473,7 @@ Lelse192:
 Lelse193:
         mov r10, qword ptr [rsp+120]
         mov r11, qword ptr [rsp+104]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+152], r10
         mov r10, qword ptr [rsp+152]
         mov qword ptr [rsp+128], r10
@@ -1717,8 +1714,7 @@ Lnext222:
         mov qword ptr [rsp+144], 9
         mov r10, qword ptr [rsp+144]
         mov qword ptr [rsp+152], r10
-        add qword ptr [rsp+152], 1
-        shl qword ptr [rsp+152], 3
+        add qword ptr [rsp+152], 8
         mov r10, qword ptr [rsp+152]
         xor ecx, ecx
         mov rdx, r10
@@ -1743,9 +1739,9 @@ Lnext226:
         mov qword ptr [rsp+168], rax
         mov r10, qword ptr [rsp+128]
         mov r11, qword ptr [rsp+144]
-        lea r10, [r10+r11*8+8]
+        lea r10, [r10+r11+8]
         mov r11, qword ptr [rsp+168]
-        mov qword ptr [r10], r11
+        mov byte ptr [r10], r11b
         mov r10, qword ptr [rsp+144]
         mov rax, r10
         add rax, 1
@@ -1828,7 +1824,7 @@ Lelse237:
 Lelse238:
         mov r10, qword ptr [rsp+152]
         mov r11, qword ptr [rsp+144]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+200], r10
         mov r10, qword ptr [rsp+200]
         mov qword ptr [rsp+192], r10
@@ -1913,7 +1909,7 @@ Lelse246:
 Lelse247:
         mov r10, qword ptr [rsp+152]
         mov r11, qword ptr [rsp+144]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+200], r10
         mov r10, qword ptr [rsp+200]
         mov qword ptr [rsp+176], r10

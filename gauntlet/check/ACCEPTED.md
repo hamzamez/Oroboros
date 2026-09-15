@@ -48,3 +48,14 @@ The initial baseline.
 - compiler output changed — `examples/tally/tally.oro go`
 - compiler output changed — `examples/tally/tally.oro java`
 - compiler output changed — `examples/tally/tally.oro js`
+
+## 2026-09-15 — on 1f0641e, with uncommitted changes
+
+**Reason:** facts F9: the induced mask transfer is tighter than the hand-written andI (it meets and-left), so a windows limb table in render.oro narrows to one byte; HEAD's andI reproduces the baseline exactly, and the differential case prints 25! and 30! correctly from the byte table
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `examples/big/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

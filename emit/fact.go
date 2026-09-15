@@ -397,8 +397,19 @@ func inducedTransfer(theory []*Fact, op string, args []ival, divisor int) ival {
 		clauses = append(clauses, c)
 	}
 
+	// A ⊥ ARGUMENT IS READ AS ⊤. Strictness, f(⊥) = ⊥, is right only where ⊥
+	// means "no value", and in this analysis ⊥ also stands for a value NOT YET
+	// KNOWN — an operand before its loop's fixpoint has risen. The hand-written
+	// transfers these replace never answered ⊥ for a ⊥ operand, and nothing has
+	// measured whether their consumers tolerate one, so the induced transfer keeps
+	// that behaviour: a fact's conclusion that does not mention the operand
+	// (`and-right` bounds a&b by b for every a) still gives its bound. Reading ⊥ as
+	// ⊤ can only widen, so it is sound.
 	cells := make([][]ival, len(args))
 	for i, a := range args {
+		if a.isBottom() {
+			a = top
+		}
 		cells[i] = splitAt(a, cuts[i])
 	}
 	result, any, defined := ival{}, false, false

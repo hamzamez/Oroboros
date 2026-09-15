@@ -5,7 +5,19 @@
 > ([langfacts-2026-09-15](../gauntlet/results/langfacts-2026-09-15.md)). **And F6, F7, F8 — the
 > remainder, three encodings of one law — are four facts** read by the interval layer through Theorem
 > T with case splitting ([remfacts-2026-09-15](../gauntlet/results/remfacts-2026-09-15.md)). Still Go:
-> F5, F9, F10, F12.
+> F5, F10, F12 — **and those three are not facts, which moving the others is what showed**. F9, the mask,
+> is two facts (`and-left`, `and-right`) read the same way.
+>
+> **Reclassified, each with its reason:**
+> - **F5, the division contraction `|a/b| ≤ |a| / min|b|`, is Moore's interval quotient, not an axiom.**
+>   Stated as a fact it is `b·q ≤ a` for `b ≥ 1`, a product of two extension terms, so it fails
+>   covering and linearity at once. Over a box whose divisor excludes 0 it is exactly the interval
+>   quotient, the best abstraction of `/` in the class §7.5 keeps for `+`, `−` and `·`. The sign facts it
+>   also encodes (`a ≥ 0 ∧ b ≥ 1 → q ≥ 0`, `|q| ≤ |a|`) are corollaries of that quotient.
+> - **F10, `x >> k = ⌊x / 2ᵏ⌋`, is F-C.** It equates two extension terms and needs `2ᵏ` as a compile-time
+>   function of the literal `k`, which theories.md §7.6 reserves with `isqrt`.
+> - **F12, `0·x = 0` for an unbounded `x`, is interval multiplication's convention for `0 · ±∞`**, the
+>   operator's own abstraction and not a law a declaration could add.
 
 Research, **decided 2026-09-15, nothing built**: hamza took **F-B**, and **kept F-C, F-D and F-E open**.
 They are specified as reserved fragments in [spec/theories.md](spec/theories.md) §7.6, recognised

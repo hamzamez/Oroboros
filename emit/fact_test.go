@@ -9,8 +9,8 @@ import (
 // theories.md §7.4: each admission condition refuses by name, and `lang`'s own
 // facts are admitted.
 func TestFactAdmissionIsTheFBFragment(t *testing.T) {
-	if len(langFacts) != 6 {
-		t.Fatalf("lang's theory must load all six facts, got %d", len(langFacts))
+	if len(langFacts) != 8 {
+		t.Fatalf("lang's theory must load all eight facts, got %d", len(langFacts))
 	}
 	refused := map[string]string{
 		`(fact two ((x int) (y int)) (<= (% x 3) (% y 3)))`:           "F-C",
@@ -161,6 +161,89 @@ func TestWeakeningARemainderFactFailsContainment(t *testing.T) {
 		}
 	}
 	t.Error("a remainder fact weakened by one was never contradicted, so nothing checks it")
+}
+
+// andIHand is the mask transfer andI replaced, kept as its precision bar.
+func andIHand(a, b ival) ival {
+	if m, ok := exactNonNeg(b); ok {
+		return ival{lo: 0, hi: m}
+	}
+	if m, ok := exactNonNeg(a); ok {
+		return ival{lo: 0, hi: m}
+	}
+	if a.loInf || b.loInf || a.lo < 0 || b.lo < 0 {
+		return top
+	}
+	hi := b
+	if a.hiInf || (!b.hiInf && a.hi < b.hi) {
+		hi = a
+	}
+	if hi.hiInf {
+		return ival{lo: 0, hiInf: true}
+	}
+	return ival{lo: 0, hi: hi.hi}
+}
+
+// The same refutation condition for F9: the induced mask transfer inside the
+// hand-written one everywhere, and strictly tighter where it should be.
+func TestTheInducedMaskIsNeverLessPrecise(t *testing.T) {
+	r := rand.New(rand.NewSource(13))
+	for i := 0; i < 50000; i++ {
+		a, b := randomIval(r), randomIval(r)
+		if got, bar := andI(a, b), andIHand(a, b); !inside(got, bar) {
+			t.Fatalf("induced andI(%s, %s) = %s is wider than the hand-written %s", a, b, got, bar)
+		}
+	}
+	// A non-negative operand bounds the result though the other spans zero,
+	// where the old rule answered top.
+	if got := andI(ival{lo: 0, hi: 255}, ival{lo: -7, hi: 7}); got != (ival{lo: 0, hi: 255}) {
+		t.Errorf("[0,255] & [-7,7] should be [0,255], got %s", got)
+	}
+}
+
+// A ⊥ OPERAND IS READ AS UNKNOWN. The first induced transfers answered ⊥ for a
+// ⊥ operand — `⊥ & 16777215` was ⊥ where the hand-written rule said
+// [0, 16777215] — and the random precision tests never sample ⊥, so nothing
+// compared them there. It was suspected of a windows byte narrowing and was not
+// its cause (remfacts-2026-09-15 §6); it is pinned because the old transfers
+// never answered ⊥ and nothing has measured a consumer that must accept one.
+func TestABottomOperandIsReadAsUnknown(t *testing.T) {
+	if got := andI(bottom, exact(16777215)); got != (ival{lo: 0, hi: 16777215}) {
+		t.Errorf("⊥ & 16777215 must be [0, 16777215] — the mask bounds it whatever the other "+
+			"operand is — got %s", got)
+	}
+	if got := remI(bottom, exact(10)); got != (ival{lo: -9, hi: 9}) {
+		t.Errorf("⊥ %% 10 must be [-9, 9], got %s", got)
+	}
+}
+
+// THE EVIDENCE CAN FAIL: weaken and-right's upper bound by one, and random
+// sampling finds a mask outside the claim.
+func TestWeakeningAMaskFactFailsContainment(t *testing.T) {
+	src := strings.Replace(langFactsSrc, "(<= (& a b) b)", "(<= (& a b) (- b 1))", 1)
+	if src == langFactsSrc {
+		t.Fatal("the fact to weaken was not found in lang-facts.oro")
+	}
+	weak, err := readFacts(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved := langFacts
+	langFacts = weak
+	defer func() { langFacts = saved }()
+	r := rand.New(rand.NewSource(7))
+	for i := 0; i < 20000; i++ {
+		A, B := randomIval(r), randomIval(r)
+		av := andI(A, B)
+		for s := 0; s < 12; s++ {
+			a, ok1 := sample(r, A)
+			b, ok2 := sample(r, B)
+			if ok1 && ok2 && !holds(av, a&b) {
+				return
+			}
+		}
+	}
+	t.Error("a mask fact weakened by one was never contradicted, so nothing checks it")
 }
 
 // And len-nonneg is load-bearing: without it div-floor's guard 0 <= x is not

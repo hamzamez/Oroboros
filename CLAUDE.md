@@ -2283,6 +2283,19 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**THE MASK IS TWO FACTS, AND THREE ENTRIES OF THE INVENTORY WERE NEVER FACTS** —
+[remfacts-2026-09-15](gauntlet/results/remfacts-2026-09-15.md) §6. F9 is `and-left`/`and-right` (`&` only clears bits,
+so a non-negative operand bounds the result whatever the other is), and `andI` is the induced transfer: never wider
+than the old one on 50,000 pairs, strictly tighter where one operand is non-negative and the other spans zero.
+**Moving the rest showed they are not facts**: F5's contraction is `b·q ≤ a`, a product of two unknowns, i.e. Moore's
+interval quotient; F10 equates two extension terms (F-C); F12 is multiplication's `0·∞` convention. So class F is now
+declaration or reclassification throughout, bar F3/F4 (`isqrt`, reserved). **The one emitted change looked like a
+silent wrong answer and is not**: a windows limb table in `render.oro` went from `qword` to `byte` stores of
+`x & 16777215`. The first hypothesis — a ⊥ operand answered ⊥ — was real (fixed, a ⊥ operand now reads as ⊤) and
+**was not the cause: the hashes did not move**. Measured instead: HEAD's hand-written `andI` reproduces the baseline
+byte for byte, so the tighter induced mask is the cause, and the windows differential case prints 25! and 30!
+correctly from the byte table. Accepted.
+
 **THE REMAINDER IS FOUR FACTS, AND THE INTERVAL LAYER INDUCES ITS TRANSFER** —
 [remfacts-2026-09-15](gauntlet/results/remfacts-2026-09-15.md). One law — `|a % b| < |b|`, sign of the dividend — was
 three Go encodings (`remI` F6, `storedRange` F7, `big%-small` F8); now four F-B facts on `(% a b)` read by all three.

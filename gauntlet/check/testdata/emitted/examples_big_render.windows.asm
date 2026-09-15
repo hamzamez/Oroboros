@@ -25,8 +25,7 @@ gen_render proc
         mov rbx, rcx
         mov rsi, 9
         mov rdi, rsi
-        add rdi, 1
-        shl rdi, 3
+        add rdi, 8
         xor ecx, ecx
         mov rdx, rdi
         mov r8, 3000h
@@ -42,7 +41,7 @@ Ltop3:
 Lnext4:
         mov r13, rdi
         and r13, 16777215
-        mov qword ptr [r12+rsi*8+8], r13
+        mov byte ptr [r12+rsi+8], r13b
         add rsi, 1
         mov rcx, 24
         shr rdi, cl
@@ -99,7 +98,7 @@ Lelse15:
         mov qword ptr [rsp+48], 0
         jmp Lend16
 Lelse16:
-        mov r10, qword ptr [rdi+rsi*8+8]
+        movzx r10d, byte ptr [rdi+rsi+8]
         mov qword ptr [rsp+56], r10
         mov r10, qword ptr [rsp+56]
         mov qword ptr [rsp+48], r10
@@ -166,7 +165,7 @@ Lelse24:
         mov qword ptr [rsp+48], 0
         jmp Lend25
 Lelse25:
-        mov r10, qword ptr [rdi+rsi*8+8]
+        movzx r10d, byte ptr [rdi+rsi+8]
         mov qword ptr [rsp+56], r10
         mov r10, qword ptr [rsp+56]
         mov qword ptr [rsp+48], r10
@@ -210,8 +209,7 @@ Lelse1:
 Ltop32:
         mov r15, 9
         mov qword ptr [rsp+48], r15
-        add qword ptr [rsp+48], 1
-        shl qword ptr [rsp+48], 3
+        add qword ptr [rsp+48], 8
         mov r10, qword ptr [rsp+48]
         xor ecx, ecx
         mov rdx, r10
@@ -234,7 +232,7 @@ Lnext36:
         mov qword ptr [rsp+64], rax
         mov r10, qword ptr [rsp+56]
         mov r11, qword ptr [rsp+64]
-        mov qword ptr [r10+r15*8+8], r11
+        mov byte ptr [r10+r15+8], r11b
         add r15, 1
         mov r10, qword ptr [rsp+48]
         mov rax, r10
@@ -310,7 +308,7 @@ Lelse47:
         jmp Lend48
 Lelse48:
         mov r10, qword ptr [rsp+48]
-        mov r11, qword ptr [r15+r10*8+8]
+        movzx r11d, byte ptr [r15+r10+8]
         mov qword ptr [rsp+96], r11
         mov r10, qword ptr [rsp+96]
         mov qword ptr [rsp+88], r10
@@ -394,7 +392,7 @@ Lelse56:
         jmp Lend57
 Lelse57:
         mov r10, qword ptr [rsp+48]
-        mov r11, qword ptr [r15+r10*8+8]
+        movzx r11d, byte ptr [r15+r10+8]
         mov qword ptr [rsp+96], r11
         mov r10, qword ptr [rsp+96]
         mov qword ptr [rsp+72], r10
@@ -620,8 +618,7 @@ Lnext86:
         mov qword ptr [rsp+88], 9
         mov r10, qword ptr [rsp+88]
         mov qword ptr [rsp+96], r10
-        add qword ptr [rsp+96], 1
-        shl qword ptr [rsp+96], 3
+        add qword ptr [rsp+96], 8
         mov r10, qword ptr [rsp+96]
         xor ecx, ecx
         mov rdx, r10
@@ -646,9 +643,9 @@ Lnext90:
         mov qword ptr [rsp+112], rax
         mov r10, qword ptr [rsp+72]
         mov r11, qword ptr [rsp+88]
-        lea r10, [r10+r11*8+8]
+        lea r10, [r10+r11+8]
         mov r11, qword ptr [rsp+112]
-        mov qword ptr [r10], r11
+        mov byte ptr [r10], r11b
         mov r10, qword ptr [rsp+88]
         mov rax, r10
         add rax, 1
@@ -729,7 +726,7 @@ Lelse101:
 Lelse102:
         mov r10, qword ptr [rsp+96]
         mov r11, qword ptr [rsp+88]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+144], r10
         mov r10, qword ptr [rsp+144]
         mov qword ptr [rsp+136], r10
@@ -812,7 +809,7 @@ Lelse110:
 Lelse111:
         mov r10, qword ptr [rsp+96]
         mov r11, qword ptr [rsp+88]
-        mov r10, qword ptr [r10+r11*8+8]
+        movzx r10d, byte ptr [r10+r11+8]
         mov qword ptr [rsp+144], r10
         mov r10, qword ptr [rsp+144]
         mov qword ptr [rsp+120], r10

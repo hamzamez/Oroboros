@@ -103,6 +103,7 @@ type Form struct {
 // runtime types went nominal here.
 type Sum struct {
 	Name     string
+	Params   []string // type parameters: the declaration is a constructor Typeⁿ → Type
 	Variants []Variant
 }
 
@@ -775,6 +776,8 @@ func toForm(t *Term) (Form, error) {
 			} else {
 				sig.Result = ty
 			}
+		case r.Kind == KApp && TypeTerm(r) != "": // a variant type applied to its arguments
+			sig.Result = TypeTerm(r)
 		case r.Kind == KFn: // a tuple type TypeName refused, such as one nested in another
 			return Form{}, fmt.Errorf("sig %s: %s is not a type", t.Kids[1].Name, r)
 		case r.Kind == KApp && len(r.Kids) > 0 && r.Kids[0].Kind == KName &&
@@ -820,7 +823,7 @@ func toForm(t *Term) (Form, error) {
 				case a.Kind == KApp && len(a.Kids) == 2 &&
 					a.Kids[0].Kind == KName && a.Kids[1].Kind != KName:
 					// (name (array f64)) — named, with a compound type.
-					if ty := TypeName(a.Kids[1]); ty != "" {
+					if ty := TypeTerm(a.Kids[1]); ty != "" {
 						sig.Params = append(sig.Params, SigParam{a.Kids[0].Name, ty})
 						continue
 					}
@@ -1406,10 +1409,35 @@ func noAgain(t *Term, line int) error {
 // A variant with no payload is the degenerate case rather than a separate
 // concept, which is why an enum needs nothing added.
 func readSum(t *Term) (*Sum, error) {
-	if len(t.Kids) < 3 || t.Kids[1].Kind != KName {
+	if len(t.Kids) < 3 {
 		return nil, fmt.Errorf("variant takes a name and at least two constructors: %s", t)
 	}
-	sum := &Sum{Name: t.Kids[1].Name}
+	sum := &Sum{}
+	// The head is NAME, or (NAME T₁ … Tₙ): a type constructor of n parameters
+	// (spec/data.md §5.5.4). A parameter has kind `type`, so it is a bare name;
+	// an applied parameter would be higher-kinded, which the shape refuses.
+	switch h := t.Kids[1]; {
+	case h.Kind == KName:
+		sum.Name = h.Name
+	case h.Kind == KApp && len(h.Kids) >= 2 && h.Kids[0].Kind == KName:
+		sum.Name = h.Kids[0].Name
+		distinct := map[string]bool{sum.Name: true}
+		for _, p := range h.Kids[1:] {
+			if p.Kind != KName {
+				return nil, fmt.Errorf("variant %s: a type parameter is a name — a parameter that "+
+					"is itself applied is higher-kinded, which is refused; got %s", sum.Name, p)
+			}
+			if distinct[p.Name] {
+				return nil, fmt.Errorf("variant %s: type parameter %s is declared twice, or has "+
+					"the type's own name", sum.Name, p.Name)
+			}
+			distinct[p.Name] = true
+			sum.Params = append(sum.Params, p.Name)
+		}
+	default:
+		return nil, fmt.Errorf("variant takes a name, or (NAME T …), and at least two "+
+			"constructors: %s", t)
+	}
 	seen := map[string]bool{}
 	for _, k := range t.Kids[2:] {
 		var v Variant
@@ -1436,6 +1464,26 @@ func readSum(t *Term) (*Sum, error) {
 	if len(sum.Variants) < 2 {
 		return nil, fmt.Errorf("variant %s: a variant type has two or more constructors; one "+
 			"is just the payload", sum.Name)
+	}
+	used := map[string]bool{}
+	for _, v := range sum.Variants {
+		// A DECLARATION MAY NOT MENTION ITSELF: that is μ, which the well-founded
+		// order of declarations refuses (theories.md §1.3, type-algebra.md §3.1).
+		if v.Payload == sum.Name {
+			return nil, fmt.Errorf("variant %s: constructor %s carries a %s, so the type "+
+				"contains itself. That is a recursive type, which is refused; recursive data is a "+
+				"flat table plus indices (type-algebra.md §3.1)", sum.Name, v.Name, sum.Name)
+		}
+		used[v.Payload] = true
+	}
+	for _, p := range sum.Params {
+		// NO PHANTOMS: an instance is identified by its arguments, and a parameter
+		// that occurs in no payload would make two instances with equal values
+		// different types for no reason a program has shown.
+		if !used[p] {
+			return nil, fmt.Errorf("variant %s: type parameter %s occurs in no constructor's "+
+				"payload, and a phantom parameter is refused until a program needs one", sum.Name, p)
+		}
 	}
 	return sum, nil
 }
@@ -1815,6 +1863,74 @@ func TypeName(t *Term) string {
 		return "int " + endpointStr(lo, loInf) + " " + endpointStr(hi, hiInf)
 	}
 	return ""
+}
+
+// TypeTerm is TypeName extended by `(F A₁ … Aₙ)` — A TYPE CONSTRUCTOR APPLIED TO
+// ITS ARGUMENTS (spec/data.md §5.5.1). A parameterised variant declaration is
+// F : Typeⁿ → Type, and an instance is identified APPLICATIVELY, by the
+// declaration and its arguments, so its canonical spelling is `F(A₁, …, Aₙ)`,
+// delimited for products.md §2's reason: an argument may contain spaces.
+//
+// IT IS A SEPARATE FUNCTION BECAUSE THE GRAMMAR IS AMBIGUOUS WITHOUT POSITION.
+// A parameter is `TYPE | (NAME TYPE)`, and `(i int)` is both a named parameter
+// and `i` applied to `int`. So the applied production is admitted only where a
+// named parameter cannot stand — a result, the type of a named parameter, and a
+// type argument — and TypeName, which every parameter list reads, keeps exactly
+// the language it had. The reader is context-free and cannot know whether F is
+// a variant type; Load resolves F and refuses it if it is not one.
+func TypeTerm(t *Term) string {
+	if ty := TypeName(t); ty != "" {
+		return ty
+	}
+	if t == nil || t.Kind != KApp || len(t.Kids) < 2 || t.Kids[0].Kind != KName || typeFormers[t.Kids[0].Name] {
+		return ""
+	}
+	args := make([]string, 0, len(t.Kids)-1)
+	for _, k := range t.Kids[1:] {
+		a := TypeTerm(k)
+		// ADR 0020 rule 6: an argument lands in a payload, which `case` binds,
+		// and binding is an observation.
+		if a == "" || IsBuffer(a) {
+			return ""
+		}
+		args = append(args, a)
+	}
+	return t.Kids[0].Name + "(" + strings.Join(args, ", ") + ")"
+}
+
+// typeFormers are the heads the type language owns; any other head applied to
+// arguments is a declared type constructor.
+var typeFormers = map[string]bool{
+	"array": true, "tuple": true, "buffer": true, "map": true, "int": true,
+	"fn": true, "record": true, "prod": true,
+}
+
+// Applied splits a canonical applied type `F(A, B)` into its constructor and
+// arguments. Arguments are split at parenthesis depth zero, because an
+// argument may itself be applied: `result(option(int), int)`.
+func Applied(ty string) (string, []string, bool) {
+	open := strings.IndexByte(ty, '(')
+	if open <= 0 || !strings.HasSuffix(ty, ")") || IsProd(ty) || strings.ContainsRune(ty[:open], ' ') {
+		return "", nil, false
+	}
+	var args []string
+	depth, start := 0, open+1
+	inner := ty[:len(ty)-1]
+	for i := open + 1; i < len(inner); i++ {
+		switch inner[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				args = append(args, strings.TrimSpace(inner[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	args = append(args, strings.TrimSpace(inner[start:]))
+	return ty[:open], args, true
 }
 
 // ResultName is what a postcondition calls the value a call produces. It is a

@@ -4,8 +4,9 @@
 
 > **Respelled 2026-09-15 — [data.md](data.md) §5,
 > [respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md).** `sum` is now `variant`, the
-> textbook pair of `record`; read `variant` wherever this document writes `(sum …)`. Several payloads
-> and type parameters are specified there and not built. Everything below about meaning, reduction and representation is unchanged.
+> textbook pair of `record`; read `variant` wherever this document writes `(sum …)`. **Type
+> parameters are built** (data.md §5.5.3, `(variant (result T E) …)`, instantiated by substitution at a
+> boundary); several distinct payload types at a boundary are specified there and not built. Everything below about meaning, reduction and representation is unchanged.
 >
 > **A bug in this document's implementation, found and fixed 2026-09-15 —
 > [data.md §5.5.2](data.md).** Sums were kept in one table keyed by the bare name, so two modules each

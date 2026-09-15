@@ -342,19 +342,32 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	// on any target, and Go's own `(T, error)` idiom IS this shape.
 	for _, m := range mods {
 		for n, sig := range m.Sigs {
+			q := qualify(m.Path, n)
+			// An applied type in a PARAMETER is not built: a variant crosses a
+			// boundary as a result (sums.md §6).
+			for _, pm := range sig.Params {
+				if _, _, applied := Applied(pm.Type); applied {
+					return nil, nil, fmt.Errorf("%s takes a %s. A variant type crosses a boundary "+
+						"as a RESULT today; as a parameter it is not built", q, pm.Type)
+				}
+			}
 			if len(sig.Results) > 0 {
 				continue
 			}
-			ref, ok := m.sumType(sig.Result, byPath)
-			if !ok {
+			inst, err := m.instance(q, sig.Result, byPath)
+			if err != nil {
+				return nil, nil, err
+			}
+			if inst == nil {
 				continue
 			}
-			payload, uniform := ref.sum.uniformPayload()
+			payload, uniform := inst.sum.uniformPayload()
 			if !uniform {
 				return nil, nil, fmt.Errorf("%s returns %s, whose variants carry different "+
-					"payload types. A sum CROSSING A BOUNDARY is transmitted as its tag and "+
-					"its payload, so the payload needs one type; inside a program a mixed sum "+
-					"is fine, because reduction removes it", qualify(m.Path, n), ref.key)
+					"payload types. A sum CROSSING A BOUNDARY is transmitted as its tag and one "+
+					"slot per distinct payload type (data.md §5.5.5); more than one slot is a "+
+					"compiler limitation, not yet built. Inside a program a mixed sum is fine, "+
+					"because reduction removes it", q, inst.key)
 			}
 			sig.Result = ""
 			sig.Results = []string{"int", payload}
@@ -477,12 +490,14 @@ type entry struct {
 // so one declaration serves every V, and reduction has already made the term
 // monomorphic by the time anything asks.
 //
-// The payload type is written `any` because a sum's variant carries a type NAME
-// and the language has no type variables. Nothing checks it: reduction inlines
-// the constructor and the checker sees the payload's own type.
+// It is `(variant (option T) (some T) none)`: a type constructor of one
+// parameter, so a signature writes `(option int)` and the payload is found by
+// substitution (spec/data.md §5.5.3). Inside a program the argument is never
+// needed, because reduction inlines the constructor and the checker sees the
+// payload's own type.
 func OptionSum() *Sum {
-	return &Sum{Name: "option", Variants: []Variant{
-		{Name: "some", Payload: "any"},
+	return &Sum{Name: "option", Params: []string{"T"}, Variants: []Variant{
+		{Name: "some", Payload: "T"},
 		{Name: "none"},
 	}}
 }
@@ -664,6 +679,38 @@ func (m *Module) constructor(sp string, byPath map[string]*Module, mods []*Modul
 	}
 	return ctorRef{}, fmt.Errorf("case: %s is not a constructor of any variant type in scope. "+
 		"A variant type is declared with (variant NAME (constructor type) …)", sp)
+}
+
+// instance resolves a result type that may be a variant type INSTANCE: a bare
+// name for a declaration of no parameters, `F(A⃗)` for one of |A⃗|. It returns
+// nil for a type that is not a variant at all, and the substituted declaration
+// keyed applicatively, `a.result(int, string)`, for one that is.
+func (m *Module) instance(q, ty string, byPath map[string]*Module) (*sumRef, error) {
+	head, args, applied := Applied(ty)
+	if !applied {
+		head = ty
+	}
+	ref, ok := m.sumType(head, byPath)
+	switch {
+	case !ok && applied:
+		return nil, fmt.Errorf("%s returns %s, but %s is not a parameterised variant type in "+
+			"scope. Several results are (tuple A B …) (spec/data.md §10)", q, ty, head)
+	case !ok:
+		return nil, nil
+	case len(args) != len(ref.sum.Params) && !applied:
+		return nil, fmt.Errorf("%s returns %s, which takes %d type argument%s — write (%s %s) "+
+			"with its argument%s (spec/data.md §5.5.3)", q, head, len(ref.sum.Params),
+			plural(len(ref.sum.Params), "", "s"), head, strings.Join(ref.sum.Params, " "),
+			plural(len(ref.sum.Params), "", "s"))
+	case len(args) != len(ref.sum.Params):
+		return nil, fmt.Errorf("%s returns %s, but %s takes %d type argument%s, not %d",
+			q, ty, ref.key, len(ref.sum.Params), plural(len(ref.sum.Params), "", "s"), len(args))
+	}
+	if !applied {
+		return &ref, nil
+	}
+	return &sumRef{key: ref.key + "(" + strings.Join(args, ", ") + ")",
+		sum: ref.sum.instantiate(args)}, nil
 }
 
 // sumType is ρ_m on a type spelling that may name a variant type: `result` in

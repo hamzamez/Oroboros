@@ -445,6 +445,19 @@ paragraph, which needs typed variant values at a boundary, and type arguments (�
 
 #### 5.5.3 Type arguments are never inferred
 
+> **Built 2026-09-15, `k = 1`** ([typeargs-2026-09-15](../../gauntlet/results/typeargs-2026-09-15.md)).
+> `(variant (F T…) …)` declares a constructor, an instance is the substitution `[A⃗/T⃗]` on its
+> payloads, spelled `F(A, B)` and keyed applicatively. `option` is `(option T)`, so `(sig f … (option
+> int))` is expressible for the first time. §5.5.4's rules and this section's errors are refused by
+> name. **Not built**: `k > 1` (§5.5.5, reported as a compiler limitation), an applied type in a
+> parameter, and a payload that is itself an applied type.
+>
+> **The grammar is ambiguous without position.** A parameter is `TYPE | (NAME TYPE)`, and `(i int)` is
+> both a named parameter and `i` applied to `int`. So the applied production is admitted only where a
+> named parameter cannot stand — a result, the type of a named parameter, and inside a type argument —
+> and the parameter-list reader keeps exactly the language it had. The first build admitted it
+> everywhere, and fourteen emit tests failed on refinements that had lost their parameter names.
+
 - **Inside a program they are not needed.** A constructor is a Church term polymorphic in its payload,
   `some = λp.λk. k tag p`, and reduction erases every variant that does not cross a boundary. By the
   time anything checks a type, the term is monomorphic (decidability-map.md).

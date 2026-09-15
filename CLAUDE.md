@@ -2283,6 +2283,17 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**A VARIANT TYPE TAKES TYPE ARGUMENTS, BY SUBSTITUTION** —
+[typeargs-2026-09-15](gauntlet/results/typeargs-2026-09-15.md), data.md §5.5.3–§5.5.4. `(variant (F T…) …)` is a
+type constructor `Typeⁿ → Type`; an instance is `[A⃗/T⃗]` on the payloads, spelled `F(A, B)` and keyed
+applicatively, and at a boundary it is the existing `k = 1` tag-and-payload, so nothing new is emitted.
+`option` is `(option T)`, which makes `(sig f … (option int))` writable for the first time. Refused by name:
+repeated or self-named parameters, a higher-kinded one, a phantom, a type containing itself (μ), a missing
+argument list, a wrong arity, an applied name that is no variant, and `k > 1` as a compiler limitation. **The
+grammar is ambiguous without position** — `(i int)` is a named parameter and `i` applied to `int` — so the
+applied production lives in `TypeTerm`, admitted only in a result, a named parameter's type and a type
+argument; admitting it in `TypeName` first renamed every named parameter and failed fourteen emit tests.
+
 **`const` IS BUILT IN TARGET LAYERS, AS THE SIG IT MEANS** —
 [constdecl-2026-09-15](gauntlet/results/constdecl-2026-09-15.md), `emit/target.go` `constSig`.
 `(const MaxRune 1114111 (host "utf8.MaxRune" …))` elaborates to `(sig MaxRune () (int v v) pure (host expr …))`,

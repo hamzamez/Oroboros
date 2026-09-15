@@ -193,6 +193,25 @@ func bindOf(name string) map[string]string {
 	return map[string]string{name: "#p"}
 }
 
+// instantiate is σ = [A⃗/T⃗] applied to a declaration: every payload that names a
+// parameter becomes the argument in its position. Substitution on a flat
+// payload is the whole homomorphism, because a payload is a type name and a
+// parameter can only occur as the whole of one.
+func (s *Sum) instantiate(args []string) *Sum {
+	sigma := map[string]string{}
+	for i, p := range s.Params {
+		sigma[p] = args[i]
+	}
+	out := &Sum{Name: s.Name}
+	for _, v := range s.Variants {
+		if a, ok := sigma[v.Payload]; ok {
+			v.Payload = a
+		}
+		out.Variants = append(out.Variants, v)
+	}
+	return out
+}
+
 func (s *Sum) has(variant string) bool {
 	for _, v := range s.Variants {
 		if v.Name == variant {

@@ -2283,6 +2283,18 @@ flattened accesses, freq refused on three hosts). **Cost: 194 of 194 emitted fil
 identical, no refusal text changed; 4,028 → 4,027 code lines** across the three files touched. Not built:
 projection of a literal tuple, the heterogeneous-literal refusal (a checker question), records, symbols, `with`.
 
+**A PURE CALL'S CONTRACT IS A FACT: THE LINEAR FRAGMENT HAS A SIGNATURE OF ATOMS** —
+[purecontract-2026-09-15](gauntlet/results/purecontract-2026-09-15.md), theories.md §7.9–§7.10 item 3. A pure call has
+no binder, so its `ensures` was an OPAQUE STRING discharging only an identical obligation — `0 ≤ size(v)` could not
+prove `1 ≤ size(v) + 1`, and the witness failed against HEAD. **The fragment is a theory over a signature**: its atoms
+were parameters, lengths and quotients, and a pure host call is a sound one by referential transparency. **Σ cannot
+be read off the term** — a buffer read `(b i)` is a bare application too, impure, and two across a store differ — so
+it is the target's: `pureAtoms` admits a declared pure `expr` call and nothing the fragment interprets or keeps
+opaque. `asLinearIn(Σ, ·)` and `obligationIn(Σ, ·)` are read through ONE Σ at every site in the refinement layer, so
+a fact and a goal about one call cannot disagree. **facts.md's predicted gate fired in a unit test** — an unentailed
+goal about a now-readable call is REFUSED rather than propagated — **and nowhere in the corpus**: emission, notes and
+proof counts identical. +31 code lines. Unblocks `length` as `ensures`.
+
 **THE MASK IS TWO FACTS, AND THREE ENTRIES OF THE INVENTORY WERE NEVER FACTS** —
 [remfacts-2026-09-15](gauntlet/results/remfacts-2026-09-15.md) §6. F9 is `and-left`/`and-right` (`&` only clears bits,
 so a non-negative operand bounds the result whatever the other is), and `andI` is the induced transfer: never wider

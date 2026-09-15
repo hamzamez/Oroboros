@@ -90,13 +90,70 @@ func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 		t.Errorf("the obligation must be PROVEN, not propagated: %s", notes)
 	}
 	// The same program with no postcondition declared must not discharge it.
-	// Note that it does not ERROR either: an atom outside the fragment is
-	// reported, never assumed, so the note is the whole difference.
+	//
+	// It used to be PROPAGATED, because `(size v)` was outside the fragment and an
+	// opaque obligation is reported rather than refused. A pure call is an atom
+	// now (theories.md §7.9), so `0 <= size(v)` is a linear goal that nothing
+	// entails, and it is REFUSED — facts.md §6's predicted gate: naming an atom
+	// makes an obligation readable that was opaque before. Either way it is not
+	// proven, and that is the property.
 	bare := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))`)
-	notes, _ = refineWith(t, bare, prog)
-	if !propagated(notes) {
+	notes, err = refineWith(t, bare, prog)
+	if err == nil && !propagated(notes) {
 		t.Errorf("without a postcondition there is no fact and the obligation "+
-			"must be reported unproven, got %q", notes)
+			"must not be proven, got %q", notes)
+	}
+}
+
+// A PURE CALL'S CONTRACT IS A FACT, SO IT PROVES CONSEQUENCES, NOT ONLY ITSELF
+// (spec/theories.md §7.9, §7.10 item 3; facts.md §6).
+//
+// The test above passes by SYNTACTIC MATCH: `need` requires `0 <= (size v)` and
+// `size` ensures exactly that printed term, kept as an opaque atom. A consequence
+// is not a match. `need1` requires `1 <= k + 1`, which follows from
+// `0 <= size(v)` in one linear step — but only if the application `(size v)` is a
+// VARIABLE of the linear fragment, which referential transparency licenses for a
+// pure call. The control: with no `ensures` there is no fact to use.
+func TestAPureContractProvesALinearConsequence(t *testing.T) {
+	const prog = `(use tgt) (fn (v) (tgt.need1 (tgt.size v)))`
+	const need1 = `(sig need1 ((k int)) int pure (where (<= 1 (tgt.+ k 1))) (host expr "need1(%s)"))`
+	tg := tempTarget(t, `(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))
+    `+need1)
+	notes, err := refineWith(t, tg, prog)
+	if err != nil || propagated(notes) {
+		t.Errorf("0 <= size(v) must prove 1 <= size(v) + 1: err=%v notes=%q", err, notes)
+	}
+	bare := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))
+    `+need1)
+	notes, err = refineWith(t, bare, prog)
+	if err == nil && !propagated(notes) {
+		t.Errorf("with no postcondition the obligation must not be proven, got %q", notes)
+	}
+}
+
+// Σ ADMITS EXACTLY A PURE HOST CALL. An atom is keyed by its printed form, which
+// is sound only by referential transparency — so an impure call must never be one
+// (two occurrences denote different values), and neither may anything the
+// fragment already interprets or keeps opaque on purpose. A buffer read is kept
+// out by construction: it is not a declared primitive at all.
+func TestTheAtomSignatureAdmitsOnlyPureHostCalls(t *testing.T) {
+	tg := tempTarget(t, `(sig size ((v any)) int pure (host expr "size(%s)"))
+    (sig tick ((v any)) int (host expr "tick(%s)"))
+    (sig put ((v any)) int pure (host stmt "put(%s)"))`)
+	sigma := pureAtoms(tg)
+	for op, want := range map[string]bool{
+		"tgt.size": true,  // pure, an expression: an atom
+		"tgt.tick": false, // impure: two calls differ
+		"tgt.put":  false, // a statement, not a value
+		"tgt.+":    false, // interpreted by the fragment
+		"tgt.*":    false, // a product stays opaque, as it was
+		"tgt.<=":   false, // a proposition, not a term
+		"tgt.need": true,  // pure and an expression, contract or not
+		"b":        false, // not a declared primitive: a buffer read's head
+	} {
+		if got := sigma(op); got != want {
+			t.Errorf("Σ(%s) = %v, want %v", op, got, want)
+		}
 	}
 }
 

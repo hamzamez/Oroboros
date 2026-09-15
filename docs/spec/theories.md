@@ -360,8 +360,12 @@ theories-b-or-c.md §7 names the trigger: a program that needs a view other than
 > as `and-left` and `and-right`. **F5, F10 and F12 are reclassified, not moved** (facts.md status):
 > the division contraction is Moore's interval quotient, the shift equation is F-C, and `0·x = 0` is
 > interval multiplication's own convention. So every class-F entry of facts.md's inventory is either a
-> declaration or reclassified with its reason. **Not built**: F3/F4 (`isqrt`, reserved), facts in target
-> layers beyond `max-len`, and §7.9's contracts as facts.
+> declaration or reclassified with its reason. **And §7.9, contracts as facts**
+> ([purecontract-2026-09-15](../../gauntlet/results/purecontract-2026-09-15.md)): the linear fragment
+> has an atom signature Σ supplied by the target, a pure host `expr` call is an atom, and a pure call's
+> `ensures` proves consequences, not only an identical obligation. §7.10 item 3's witness failed against
+> HEAD first. **Not built**: F3/F4 (`isqrt`, reserved), `length` respelled as `ensures`, and facts in target
+> layers beyond `max-len`.
 
 **Decided 2026-09-15: F-B**, local boundedness facts, from [facts.md](../facts.md). **F-C, F-D and
 F-E are kept open**, by construction rather than by intention: each is a *reserved fragment* that

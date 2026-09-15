@@ -293,7 +293,7 @@ func seedFacts(f *facts, t *core.Term, theory []*Fact) {
 				if used[key] || !instanceHolds(f, fact, sigma) {
 					continue
 				}
-				goals, ok := obligation(core.Rename2(fact.Concl, sigma))
+				goals, ok := f.oblig(core.Rename2(fact.Concl, sigma))
 				if !ok {
 					continue // not linear at this instance: assume nothing
 				}
@@ -598,7 +598,7 @@ func joinIval(a, b ival) ival {
 // instanceHolds reports whether every guard of σ(fact) is ENTAILED.
 func instanceHolds(f *facts, fact *Fact, sigma map[string]*core.Term) bool {
 	for _, g := range fact.Guards {
-		goals, ok := obligation(core.Rename2(g, sigma))
+		goals, ok := f.oblig(core.Rename2(g, sigma))
 		if !ok {
 			return false
 		}

@@ -99,6 +99,9 @@ type facts struct {
 	// the solver could not read left the diagnostic saying `known: nothing`
 	// while the program declared something.
 	opaque []string
+
+	// pure is the atom signature this fact set reasons in (atoms).
+	pure atoms
 }
 
 func newFacts() *facts { return &facts{eq: map[string]*linear{}} }
@@ -127,7 +130,7 @@ func (f *facts) entailsOpaque(printed string) bool {
 
 func (f *facts) clone() *facts {
 	c := &facts{le: append([]*linear(nil), f.le...), eq: make(map[string]*linear, len(f.eq)),
-		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...)}
+		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...), pure: f.pure}
 	for k, v := range f.eq {
 		c.eq[k] = v
 	}
@@ -381,7 +384,31 @@ func (f *facts) known() string {
 // outside the fragment. A length term is opaque: `(alen a)` becomes the variable
 // "alen(a)", which is exactly what lets bounds reasoning work without the
 // checker knowing anything about arrays.
-func asLinear(t *core.Term) (*linear, bool) {
+// atoms is the ATOM SIGNATURE Σ of the linear fragment: which applications,
+// beyond the ones asLinear interprets, may be read as variables. The fragment is
+// a theory over a signature, and its atoms are the signature's uninterpreted
+// terms.
+//
+// A PURE HOST CALL is a sound atom by referential transparency: two occurrences
+// of one printed application in a closed residual denote one value. That is not
+// true of a bare application in general — a buffer read `(b i)` is headed by a
+// name too, is impure (ADR 0018), and two occurrences across a store differ — so
+// Σ cannot be decided from the term alone, and is supplied by the target
+// (refine.go, pureAtoms). nil is the fragment with no extra atoms.
+type atoms func(op string) bool
+
+// appVar names a pure application as a variable, by its printed form — exactly
+// as divVar names a quotient and lengthVar a length.
+func appVar(t *core.Term) string { return "app" + t.String() }
+
+// lin and oblig read a term in the signature this fact set reasons in, so a
+// fact and a goal about the same pure call name the same atom.
+func (f *facts) lin(t *core.Term) (*linear, bool)     { return asLinearIn(f.pure, t) }
+func (f *facts) oblig(t *core.Term) ([]*linear, bool) { return obligationIn(f.pure, t) }
+
+func asLinear(t *core.Term) (*linear, bool) { return asLinearIn(nil, t) }
+
+func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 	switch t.Kind {
 	case core.KInt:
 		return constant(t.Int), true
@@ -395,26 +422,26 @@ func asLinear(t *core.Term) (*linear, bool) {
 		args := t.Args()
 		switch {
 		case isOp(op.Name, "add") && len(args) == 2:
-			a, ok1 := asLinear(args[0])
-			b, ok2 := asLinear(args[1])
+			a, ok1 := asLinearIn(pure, args[0])
+			b, ok2 := asLinearIn(pure, args[1])
 			if ok1 && ok2 {
 				return a.addScaled(b, 1), true
 			}
 		case isOp(op.Name, "sub") && len(args) == 2:
-			a, ok1 := asLinear(args[0])
-			b, ok2 := asLinear(args[1])
+			a, ok1 := asLinearIn(pure, args[0])
+			b, ok2 := asLinearIn(pure, args[1])
 			if ok1 && ok2 {
 				return a.addScaled(b, -1), true
 			}
 		case isOp(op.Name, "mul") && len(args) == 2:
 			// Linear only when one side is a literal.
 			if args[0].Kind == core.KInt {
-				if b, ok := asLinear(args[1]); ok {
+				if b, ok := asLinearIn(pure, args[1]); ok {
 					return constant(0).addScaled(b, args[0].Int), true
 				}
 			}
 			if args[1].Kind == core.KInt {
-				if a, ok := asLinear(args[0]); ok {
+				if a, ok := asLinearIn(pure, args[0]); ok {
 					return constant(0).addScaled(a, args[1].Int), true
 				}
 			}
@@ -434,9 +461,15 @@ func asLinear(t *core.Term) (*linear, bool) {
 		// key alike or nothing composes.
 		case isOp(op.Name, "div") && len(args) == 2 &&
 			args[1].Kind == core.KInt && args[1].Int > 0:
-			if _, ok := asLinear(args[0]); ok {
+			if _, ok := asLinearIn(pure, args[0]); ok {
 				return variable(divVar(t)), true
 			}
+		}
+		// AN APPLICATION IN Σ IS AN ATOM — a pure host call, so its contract can
+		// be a fact about it (theories.md §7.9) rather than an opaque string that
+		// discharges only an identical one.
+		if pure != nil && pure(op.Name) {
+			return variable(appVar(t)), true
 		}
 	}
 	return nil, false
@@ -548,7 +581,9 @@ func isOp(name, want string) bool {
 
 // obligation turns a boolean term into goals of the form `e <= 0`, or reports
 // that it is outside the fragment and must be treated as an opaque atom.
-func obligation(t *core.Term) ([]*linear, bool) {
+func obligation(t *core.Term) ([]*linear, bool) { return obligationIn(nil, t) }
+
+func obligationIn(pure atoms, t *core.Term) ([]*linear, bool) {
 	if t.Kind != core.KApp || t.Op().Kind != core.KName {
 		return nil, false
 	}
@@ -573,8 +608,8 @@ func obligation(t *core.Term) ([]*linear, bool) {
 		args = args[:2]
 	}
 	if conj {
-		a, ok1 := obligation(args[0])
-		b, ok2 := obligation(args[1])
+		a, ok1 := obligationIn(pure, args[0])
+		b, ok2 := obligationIn(pure, args[1])
 		if ok1 && ok2 {
 			return append(a, b...), true
 		}
@@ -583,8 +618,8 @@ func obligation(t *core.Term) ([]*linear, bool) {
 	if len(args) != 2 {
 		return nil, false
 	}
-	l, ok1 := asLinear(args[0])
-	r, ok2 := asLinear(args[1])
+	l, ok1 := asLinearIn(pure, args[0])
+	r, ok2 := asLinearIn(pure, args[1])
 	if !ok1 || !ok2 {
 		return nil, false
 	}

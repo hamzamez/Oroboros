@@ -29,6 +29,37 @@ type refiner struct {
 	// table, because it is not a declared primitive either — found by the
 	// existing refinement tests the moment indexing became application.
 	bound map[string]bool
+
+	// pure is the atom signature Σ every linear reading here uses (linear.go,
+	// atoms), so a contract assumed about a pure call and a goal mentioning it
+	// name one variable.
+	pure atoms
+}
+
+func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
+
+// pureAtoms is Σ for a target: an application of a declared PURE host primitive
+// — an `expr` — that is not an operator the fragment already interprets or keeps
+// opaque on purpose. Arithmetic, masks and shifts stay out, so `(* x y)` and a
+// non-literal `%` are exactly as opaque as they were; so do comparisons and
+// connectives, which are propositions rather than terms.
+func pureAtoms(tgt *Target) atoms {
+	if tgt == nil {
+		return nil
+	}
+	return func(op string) bool {
+		p, ok := tgt.Prims[op]
+		if !ok || !p.Pure || p.Kind != "expr" || isLenOp(op) ||
+			arithOp(op, 1) != "" || arithOp(op, 2) != "" {
+			return false
+		}
+		for _, w := range []string{"lt", "le", "gt", "ge", "eq", "ne", "and", "or", "not", "if"} {
+			if isOp(op, w) {
+				return false
+			}
+		}
+		return true
+	}
 }
 
 // Refine discharges every refinement obligation in a residual.
@@ -36,8 +67,9 @@ type refiner struct {
 // `sig` supplies the assumptions: a definition may assume its own `where`, and
 // that is how a precondition moves to the caller.
 func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, error) {
-	r := &refiner{tgt: tgt}
+	r := &refiner{tgt: tgt, pure: pureAtoms(tgt)}
 	f := newFacts()
+	f.pure = r.pure
 
 	if t.Kind == core.KFn && sig != nil {
 		// The signature names parameters independently of the definition, so
@@ -148,8 +180,8 @@ func assume(f *facts, where *core.Term) {
 	}
 	if where.Kind == core.KApp && where.Op().Kind == core.KName &&
 		isOp(where.Op().Name, "eq") && len(where.Args()) == 2 {
-		a, ok1 := asLinear(where.Args()[0])
-		b, ok2 := asLinear(where.Args()[1])
+		a, ok1 := f.lin(where.Args()[0])
+		b, ok2 := f.lin(where.Args()[1])
 		if ok1 && ok2 {
 			if name, ok := isVar(b); ok {
 				f.assumeEQ(name, a)
@@ -165,7 +197,7 @@ func assume(f *facts, where *core.Term) {
 		f.assumeOpaque(k)
 		return
 	}
-	if goals, ok := obligation(where); ok {
+	if goals, ok := f.oblig(where); ok {
 		for _, g := range goals {
 			f.assumeLE(g, "assumed "+g.String()+" <= 0")
 		}
@@ -345,7 +377,7 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				j := args[1].Params[0]
 				r.markName(j)
 				inner.assumeLE(constant(0).addScaled(variable(j), -1), "0 <= "+j)
-				if e, ok := asLinear(args[0]); ok {
+				if e, ok := f.lin(args[0]); ok {
 					// j < n, i.e. j - n + 1 <= 0.
 					// j - n + 1 <= 0
 					inner.assumeLE(variable(j).addScaled(e, -1).addScaled(constant(1), 1),
@@ -368,7 +400,7 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			if len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 {
 				inner := f.clone()
 				name := args[1].Params[0]
-				if e, ok := asLinear(args[0]); ok {
+				if e, ok := f.lin(args[0]); ok {
 					r.assumeLengthEq(inner, name, e)
 				}
 				r.markName(name)
@@ -460,7 +492,7 @@ func (r *refiner) bind(f *facts, step *core.Term, count *core.Term) *facts {
 	inner := f.clone()
 	i := variable(idx)
 	inner.assumeLE(constant(0).addScaled(i, -1), "0 <= "+idx)
-	if n, ok := asLinear(count); ok {
+	if n, ok := f.lin(count); ok {
 		// i < n  ⟶  i - n + 1 <= 0
 		inner.assumeLE(i.addScaled(n, -1).addScaled(constant(1), 1), idx+" < "+n.String())
 	}
@@ -528,7 +560,7 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 		return nil
 	}
 	inner := f.clone()
-	if e, ok := asLinear(args[0]); ok {
+	if e, ok := f.lin(args[0]); ok {
 		inner.assumeEQ(k.Params[0], e)
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
@@ -599,7 +631,7 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 				c := t.Args()[0]
 				if c.Kind == core.KApp && len(c.Args()) == 2 {
 					for _, s := range c.Args() {
-						if l, isLin := asLinear(s); isLin {
+						if l, isLin := path.lin(s); isLin {
 							sides = append(sides, l)
 						}
 					}
@@ -615,7 +647,7 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 				return
 			}
 		}
-		e, isLin := asLinear(t)
+		e, isLin := path.lin(t)
 		if !isLin {
 			ok = false
 			return
@@ -703,7 +735,7 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
 			name, want, f.known())
 	}
-	goals, ok := obligation(want)
+	goals, ok := f.oblig(want)
 	if !ok {
 		// Outside the fragment: an opaque atom (refinements.md §3). It can be
 		// discharged only by an assumption that is the SAME term; otherwise it
@@ -771,7 +803,7 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	// argument is itself plus a non-negative literal.
 	for i, n := range lam.Params {
 		if i < len(inits) {
-			if e, ok := asLinear(inits[i]); ok {
+			if e, ok := f.lin(inits[i]); ok {
 				// Non-decreasing by the SYNTACTIC rule — every `again` adds a
 				// literal — or by loop monotonicity's relation `e ⊒ S`, which also
 				// sees an index assigned a scanner's result (monotone.go, rule 6).
@@ -987,7 +1019,7 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 	switch {
 	// `(length N)`: argument N is a COUNT. `make([]bool, n)` is n long.
 	case p.Length > 0 && p.Length <= len(args):
-		return asLinear(args[p.Length-1])
+		return r.lin(args[p.Length-1])
 	// `(length-of N)`: the result is AS LONG AS argument N. `c[i] = true`
 	// returns something as long as c, which is what makes an in-place store
 	// usable as a loop variable.
@@ -1128,7 +1160,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 		core.Name("<"), idx,
 		&core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("len"), tab}}}}
 	for _, want := range []*core.Term{lo, hi} {
-		goals, ok := obligation(want)
+		goals, ok := f.oblig(want)
 		if !ok {
 			r.notes = append(r.notes,
 				fmt.Sprintf("%s: index bound propagated, not proven", tab))

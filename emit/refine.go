@@ -57,7 +57,7 @@ type refiner struct {
 	// bodyFacts remembers the facts `iterate` established for a loop's body,
 	// keyed by the loop's lambda, so a `let` summarising that loop's RESULT does
 	// not run the invariant fixpoint a second time.
-	bodyFacts map[*core.Term]*facts
+	bodyFacts map[string]*facts
 }
 
 func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
@@ -430,6 +430,7 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				if e, ok := f.lin(args[0]); ok {
 					r.assumeLengthEq(inner, name, e)
 				}
+				inner.zero[name] = true
 				r.markName(name)
 				if err := r.walk(args[0], inner); err != nil {
 					return err
@@ -593,6 +594,7 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 	r.assumeLength(inner, k.Params[0], args[0])
 	r.joinConditional(inner, k.Params[0], args[0], f)
 	r.summarizeLoop(inner, k.Params[0], args[0])
+	r.bindContent(inner, k.Params[0], args[0], f)
 	// A POSTCONDITION ATTACHES TO THE NAME, not to the call (Lemma 2). Two
 	// occurrences of an impure call denote different values and the fact layer
 	// is keyed by printed term, so the only sound anchor is the binder — which
@@ -881,10 +883,11 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 		}
 	}
 	r.loopInvariants(lam, inits, f, g)
+	r.contentInvariants(lam, inits, f, g)
 	if r.bodyFacts == nil {
-		r.bodyFacts = map[*core.Term]*facts{}
+		r.bodyFacts = map[string]*facts{}
 	}
-	r.bodyFacts[lam] = g
+	r.bodyFacts[loopKey(lam, inits, f)] = g
 	r.loopDepth++
 	defer func() { r.loopDepth-- }()
 	return r.clauses(lam.Body(), g)
@@ -920,7 +923,7 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 	if *budget <= 0 {
 		return false
 	}
-	alien := r.firstAlien(goal)
+	alien := r.firstAlien(goal, f)
 	if alien == nil {
 		goals, ok := f.oblig(goal)
 		if !ok {
@@ -937,7 +940,7 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 	// A LOOP is named too: C[loop] = let x = loop in C[x], and x carries the
 	// loop's result summary. β substitutes a scanner used once straight into the
 	// `again` that consumes it, so a back-edge argument is often the loop itself.
-	if alien.Op().Kind == core.KName && loopKinds[alien.Op().Name] {
+	if alien.Op().Kind == core.KName && (loopKinds[alien.Op().Name] || isContentRead(alien, f)) {
 		r.splitFresh++
 		x := fmt.Sprintf("#s%d", r.splitFresh)
 		inner := f.clone()
@@ -985,7 +988,7 @@ func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
 				kids := append([]*core.Term(nil), c.Kids...)
 				for i := 1; i < len(kids); i++ {
 					for n := 0; n < 4; n++ {
-						alien := r.firstAlien(kids[i])
+						alien := r.firstAlien(kids[i], f)
 						if alien == nil {
 							break
 						}
@@ -1021,9 +1024,17 @@ func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
 // summarizeNamed gives the fresh name x what is known of the alien term e, under
 // facts at: a loop's result summary, or a conditional's (or `let`'s) branch join.
 func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts) {
+	if isContentRead(e, at) {
+		if len(r.readInstances(e, at)) > 0 {
+			for _, phi := range at.content[e.Op().Name] {
+				assume(into, instance(phi, core.Name(x)))
+			}
+		}
+		return
+	}
 	if e.Op().Kind == core.KName && loopKinds[e.Op().Name] {
-		if args := e.Args(); len(args) > 0 {
-			if _, done := r.bodyFacts[args[0]]; done {
+		if args := e.Args(); len(args) > 1 {
+			if _, done := r.bodyFacts[loopKey(args[0], args[1:], at)]; done {
 				r.summarizeLoop(into, x, e)
 				return
 			}
@@ -1046,9 +1057,14 @@ const splitBudget = 64
 
 // firstAlien is the leftmost-outermost conditional or `let` in a goal, outside
 // any lambda — the subterm the next split is on.
-func (r *refiner) firstAlien(t *core.Term) *core.Term {
+func (r *refiner) firstAlien(t *core.Term, f *facts) *core.Term {
 	if t == nil || t.Kind != core.KApp {
 		return nil
+	}
+	// A READ OF A TABLE WITH CONTENT FACTS is named too, so its instances reach
+	// the goal (Theorem D, emit/content.go).
+	if isContentRead(t, f) {
+		return t
 	}
 	if _, _, isLet := asLet(r.tgt, t); isLet {
 		return t
@@ -1062,7 +1078,7 @@ func (r *refiner) firstAlien(t *core.Term) *core.Term {
 		}
 	}
 	for _, a := range t.Args() {
-		if found := r.firstAlien(a); found != nil {
+		if found := r.firstAlien(a, f); found != nil {
 			return found
 		}
 	}
@@ -1249,7 +1265,7 @@ func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) {
 		return
 	}
 	lam, inits := args[0], args[1:]
-	body, ok := r.bodyFacts[lam]
+	body, ok := r.bodyFacts[loopKey(lam, inits, inner)]
 	if !ok {
 		return
 	}

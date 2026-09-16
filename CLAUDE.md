@@ -2364,6 +2364,20 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**F-D₁ DERIVED, THE REFINEMENT HALF: A TABLE'S CONTENTS ARE PROVEN BY INDUCTION ON ITS STORE CHAIN** —
+[fdrefine-2026-09-16](gauntlet/results/fdrefine-2026-09-16.md), `emit/content.go`. A content fact is φ over `#e`
+holding of every slot. **Theorem D**: at a read whose bounds are PROVEN, φ[#e := read] holds, and the read is an alien
+the goal splitter names. **Theorem S**: one structural judgement `holds(t, F, C)` — zero fill under `len ≥ 1`, `set` by
+McCarthy's axioms, `if` by intersection, a loop by its exits. **Theorem S′**: Houdini over `0 ≤ #e`, `#e < s`, `#e ≤ s`
+and the content in scope, JOINTLY over every table-valued loop variable, so swapped buffers are one induction. Five
+witnesses, each failing against a planted bug — and the first zero-fill control tested a non-template, so it could not
+fail and was replaced. **It first made the sweep 24 s → 37 s, and the fix was the decision procedure, not the new
+code**: `entails` re-substituted every fact per query and walked all fact pairs through maps; caching the substituted
+facts and rejecting a pair unless each one's goal-foreign variables occur in the other (exact, since no coefficient is
+stored as zero) takes freq on Go 16.0 → **9.6 s, below HEAD's 10.7**. Emission byte-identical, proof counts identical.
+**Not claimed: no clamp is deleted yet** — those operations are counted by the interval layer, whose consumer (array
+smashing, Blanchet et al. 2003) is next.
+
 **A LOOP'S RESULT IS SUMMARISED AND ENTAILMENT IS FOURIER–MOTZKIN: 53 PROPAGATED BECOME 2** —
 [loopsum-2026-09-16](gauntlet/results/loopsum-2026-09-16.md). freq's clamps needed `len src ≥ 1` from `0 ≤ u`,
 `u + 1 ≤ nw` and a missing `nw ≤ len src`. **Four pieces, each a theorem.** (1) Houdini over TEMPLATES — `0 ≤ v`,

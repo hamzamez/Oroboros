@@ -106,9 +106,23 @@ type facts struct {
 
 	// pure is the atom signature this fact set reasons in (atoms).
 	pure atoms
+
+	// content is F-D₁: for a table name, the φ over `#e` that hold of every slot
+	// (emit/content.go). zero marks a `build` binder still holding its zero fill
+	// until a loop threading it says otherwise.
+	content map[string][]*core.Term
+	zero    map[string]bool
+
+	// sub caches le rewritten by eq, which entails needs on every call: sub[i] is
+	// substitute(le[i]) under the equations as they stood at version subEq. An
+	// equation invalidates it (eqVer moves); a new inequality only extends it.
+	sub          []*linear
+	eqVer, subEq int
 }
 
-func newFacts() *facts { return &facts{eq: map[string]*linear{}} }
+func newFacts() *facts {
+	return &facts{eq: map[string]*linear{}, content: map[string][]*core.Term{}, zero: map[string]bool{}}
+}
 
 // assumeOpaque records an assumption the fragment cannot decide.
 func (f *facts) assumeOpaque(printed string) {
@@ -134,11 +148,49 @@ func (f *facts) entailsOpaque(printed string) bool {
 
 func (f *facts) clone() *facts {
 	c := &facts{le: append([]*linear(nil), f.le...), eq: make(map[string]*linear, len(f.eq)),
-		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...), pure: f.pure}
+		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...), pure: f.pure,
+		content: make(map[string][]*core.Term, len(f.content)), zero: make(map[string]bool, len(f.zero)),
+		sub: f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
 	for k, v := range f.eq {
 		c.eq[k] = v
 	}
+	for k, v := range f.content {
+		c.content[k] = v
+	}
+	for k, v := range f.zero {
+		c.zero[k] = v
+	}
 	return c
+}
+
+// fingerprint is a deterministic rendering of everything a fact set assumes:
+// inequalities, equations, opaque atoms and content facts. Two fact sets with one
+// fingerprint entail the same things, which is what makes it a sound cache key.
+func (f *facts) fingerprint() string {
+	var b strings.Builder
+	for _, l := range f.le {
+		b.WriteString(l.String())
+		b.WriteByte(';')
+	}
+	names := make([]string, 0, len(f.eq))
+	for n := range f.eq {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		b.WriteString(n + "=" + f.eq[n].String() + ";")
+	}
+	for _, o := range f.opaque {
+		b.WriteString(o + ";")
+	}
+	b.WriteString(f.contentString())
+	zs := make([]string, 0, len(f.zero))
+	for n := range f.zero {
+		zs = append(zs, n)
+	}
+	sort.Strings(zs)
+	b.WriteString(strings.Join(zs, ","))
+	return b.String()
 }
 
 // assumeLE records `e <= 0`.
@@ -152,10 +204,16 @@ func (f *facts) assumeLE(e *linear, why string) {
 // `i + 2 < alen a`.
 func (f *facts) assumeEQ(name string, e *linear) {
 	f.eq[name] = f.substitute(e)
+	f.eqVer++
 }
 
 // substitute replaces known equalities, repeatedly, so a chain of lets resolves.
 func (f *facts) substitute(e *linear) *linear {
+	// Nothing to rewrite is the common case, and deciding it walks e's handful of
+	// variables rather than every equation in scope eight times over.
+	if !f.rewrites(e) {
+		return e
+	}
 	out := e
 	for pass := 0; pass < 8; pass++ {
 		changed := false
@@ -174,6 +232,84 @@ func (f *facts) substitute(e *linear) *linear {
 		}
 	}
 	return out
+}
+
+// substituted is le rewritten by the equations now in scope, from the cache where
+// it is still valid. The slice is shared and must not be modified.
+func (f *facts) substituted() []*linear {
+	if f.subEq != f.eqVer {
+		f.sub, f.subEq = nil, f.eqVer
+	}
+	for i := len(f.sub); i < len(f.le); i++ {
+		f.sub = append(f.sub, f.substitute(f.le[i]))
+	}
+	return f.sub
+}
+
+// rewrites reports whether some equation in scope names a variable of e — exactly
+// when substitute's first pass would change anything.
+func (f *facts) rewrites(e *linear) bool {
+	if len(f.eq) == 0 {
+		return false
+	}
+	for name := range e.coef {
+		if _, ok := f.eq[name]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+// combMatch decides whether ma·a + mb·b implies the goal g, without building the
+// sum: with scale false, that the sum has g's variable part and a constant at
+// least g's (sameVars); with scale true, that g's variable part is q times the
+// sum's for one q in (0, 2^20] and q times the sum's constant is at least g's
+// (scaleTo). Coefficients are never stored as zero — every constructor drops
+// them — so a zero entry of the sum is simply absent, as addScaled leaves it.
+func combMatch(a *linear, ma int64, b *linear, mb int64, g *linear, scale bool) bool {
+	n := 0
+	var q int64
+	check := func(k string, s int64) bool {
+		if s == 0 {
+			return true
+		}
+		n++
+		d, ok := g.coef[k]
+		if !scale {
+			return ok && d == s
+		}
+		if !ok || d%s != 0 {
+			return false
+		}
+		qq := d / s
+		if qq <= 0 || qq > 1<<20 {
+			return false
+		}
+		if q == 0 {
+			q = qq
+		}
+		return q == qq
+	}
+	for k, av := range a.coef {
+		if !check(k, ma*av+mb*b.coef[k]) {
+			return false
+		}
+	}
+	for k, bv := range b.coef {
+		if _, in := a.coef[k]; in {
+			continue
+		}
+		if !check(k, mb*bv) {
+			return false
+		}
+	}
+	if n == 0 || n != len(g.coef) {
+		return false
+	}
+	if !scale {
+		q = 1
+	}
+	return (ma*a.konst+mb*b.konst)*q >= g.konst
 }
 
 // entails reports whether the facts prove `goal <= 0`.
@@ -289,10 +425,7 @@ func (f *facts) entails(goal *linear) bool {
 	// `let` — so a fact kept `len(enc)` while the goal, rewritten now, said
 	// `2·len(a)`, and they stopped matching (hex-2026-09-14 §3). Equality is a
 	// congruence, so rewriting both sides by one set of equations is sound.
-	le := make([]*linear, len(f.le))
-	for i, fact := range f.le {
-		le[i] = f.substitute(fact)
-	}
+	le := f.substituted()
 	// A single fact, after substitution.
 	for _, fact := range le {
 		// `fact` says L + a <= 0, i.e. L <= -a. `g` says L + b <= 0, i.e.
@@ -312,10 +445,33 @@ func (f *facts) entails(goal *linear) bool {
 	// Or the sum of two. `i < alen p` plus `alen p <= alen q` gives
 	// `i < alen q`, which is the shape a two-array loop always produces and
 	// which one fact can never reach. Cheap: the fact set is tiny.
+	// A PAIR CAN ONLY SUM TO THE GOAL'S VARIABLES if every variable of each that the
+	// goal lacks is cancelled, so occurs in the other. That is decided on a short
+	// list per fact before any combination is formed, and rejects almost every
+	// pair of a large fact set without iterating a map.
+	out := make([][]string, len(le))
+	for i, fact := range le {
+		for v := range fact.coef {
+			if _, in := g.coef[v]; !in {
+				out[i] = append(out[i], v)
+			}
+		}
+	}
+	covers := func(i, j int) bool {
+		for _, v := range out[i] {
+			if _, in := le[j].coef[v]; !in {
+				return false
+			}
+		}
+		return true
+	}
 	for i, a := range le {
-		for _, b := range le[i+1:] {
-			sum := a.addScaled(b, 1)
-			if sameVars(sum, g) && sum.konst >= g.konst {
+		for j := i + 1; j < len(le); j++ {
+			b := le[j]
+			if !covers(i, j) || !covers(j, i) {
+				continue
+			}
+			if combMatch(a, 1, b, 1, g, false) {
 				return true
 			}
 		}
@@ -335,7 +491,11 @@ func (f *facts) entails(goal *linear) bool {
 	// neither one fact scaled nor two facts summed can reach it, because the
 	// combination needs a different multiplier on each.
 	for i, a := range le {
-		for _, b := range le[i+1:] {
+		for j := i + 1; j < len(le); j++ {
+			b := le[j]
+			if !covers(i, j) || !covers(j, i) {
+				continue
+			}
 			for v, av := range a.coef {
 				bv, ok := b.coef[v]
 				if !ok || (av > 0) == (bv > 0) {
@@ -348,11 +508,7 @@ func (f *facts) entails(goal *linear) bool {
 				if mb < 0 {
 					mb = -mb
 				}
-				sum := constant(0).addScaled(a, ma).addScaled(b, mb)
-				if sameVars(sum, g) && sum.konst >= g.konst {
-					return true
-				}
-				if m, ok := scaleTo(sum, g); ok && sum.konst*m >= g.konst {
+				if combMatch(a, ma, b, mb, g, false) || combMatch(a, ma, b, mb, g, true) {
 					return true
 				}
 			}

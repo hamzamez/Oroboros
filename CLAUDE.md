@@ -2364,6 +2364,26 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A MANIFEST TYPE IS WHAT IT MEANS — THE SECOND CELL, AT THE TYPE LEVEL** —
+[manifest-2026-09-16](gauntlet/results/manifest-2026-09-16.md), theories.md §2/§5.5a; the other half of
+step 4. §2 classifies a declaration by whether it has a DEFINIENS and whether it has a REALIZATION, and at
+the type level only two of the four cells were built: `(type NAME (host "spelling"))` is the host type, and
+**`(type int32 (int -2147483648 2147483647))` is the manifest one — an EQUATION, so unfolding it is δ and
+the name is ERASED**. `((r int32))` IS `((r (int -2147483648 2147483647)))`, so no backend, no analysis and
+no generator learns that manifest types exist. **Unfolded after the glue**, because the definiens may be in
+another file or another layer, to a FIXPOINT, with the invariant stated: no manifest name occurs in any
+declaration afterwards. **Four refusals, each the equation's own rule** — no realization (after δ the name
+is gone, so a spelling attached to it could never be reached), no cycle, not a language type (a target does
+not get to say what `int` means), not a tuple (several results are read from the declaration itself, so a
+name standing for one would be one result where the tuple it means is two). **`targets/go/go.oro` states
+Go's integer types as the ranges ADR 0003 says they are, once** — `int` and `int64` absent, which is
+ADR 0012 — and `unicode-utf8.oro` lost twelve literal intervals and reads like the package's documentation.
+**The acceptance is the hand-declaration checker rather than a new test**: after δ the string it compares
+against the host is character for character the one it compared before. **Emission byte-identical, proof
+counts identical**; +170 code lines. Not built: a manifest type in a program module, one whose definiens
+names a constant (the two δs are at different phases), and moving the survey's own copy of the same six
+ranges out of Go.
+
 **A CONSTANT'S NAME IS A RANGE ENDPOINT, WHICH IS δ AT THE TYPE LEVEL** —
 [constendpoint-2026-09-16](gauntlet/results/constendpoint-2026-09-16.md), theories.md §8.3; step 4 of the
 build order. A constant has a DEFINIENS, an endpoint is a compile-time integer expression, so `(int 0 MaxRune)`

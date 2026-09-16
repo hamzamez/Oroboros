@@ -323,9 +323,9 @@ func TestAFalseImplementsEdgeIsRefused(t *testing.T) {
 
 func TestIncludeIsRefusedOffACompanion(t *testing.T) {
 	for body, want := range map[string]string{
-		`(target x (module go/io (include go/io/Writer)))`:                             "not a companion",
+		`(target x (module go/io (include go/io/Writer)))`:                                                      "not a companion",
 		`(target x (type t (host "T")) (module go/io (type A (host "A")) ) (module go/io/A (include go/io/B)))`: "no type go/io.B is declared",
-		`(target x (module go/io (type A (host "A"))) (module go/io/A (include go/io/A)))`: "includes itself",
+		`(target x (module go/io (type A (host "A"))) (module go/io/A (include go/io/A)))`:                      "includes itself",
 	} {
 		if _, err := loadOne(t, body); err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s: want a refusal naming %q, got %v", body, want, err)
@@ -442,5 +442,66 @@ func TestAnEndpointThatIsNotAConstantIsRefused(t *testing.T) {
 	}
 	if got := tg.Prims["m.f"].Result; got != "int 0 +inf" {
 		t.Errorf("result %q, want int 0 +inf", got)
+	}
+}
+
+// A MANIFEST TYPE IS WHAT IT MEANS — `(type NAME τ)`, a type with a DEFINIENS
+// and no realization (theories.md §2's four cells at the type level).
+//
+// The property is the same commuting square a constant endpoint gets, one level
+// up: unfolding is δ, so a declaration written with the name is the declaration
+// written with what it stands for, and no backend, analysis or generator learns
+// that aliases exist.
+func TestAManifestTypeIsWhatItMeans(t *testing.T) {
+	sig := func(ty string) string {
+		return `(sig f ((x ` + ty + `) (p (array ` + ty + `))) ` + ty +
+			` pure (host expr "F(%s,%s)"))`
+	}
+	named, err := loadOne(t, `(target x (type u8 (int 0 255)) (module m `+sig("u8")+`))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := loadOne(t, `(target x (module m `+sig("(int 0 255)")+`))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(named.Prims["m.f"], plain.Prims["m.f"]) {
+		t.Errorf("a manifest type must be the declaration it means:\n named %+v\n plain %+v",
+			named.Prims["m.f"], plain.Prims["m.f"])
+	}
+	// AND IT IS UNFOLDED TO A FIXPOINT, because an alias may be written in terms
+	// of another — and the definiens may be in another file or another layer,
+	// which is why the unfolding waits for the glue.
+	near, far := t.TempDir(), t.TempDir()
+	writeTarget(t, filepath.Join(near, "x"), "a", `(target x (type b (array u8)) (module m `+sig("b")+`))`)
+	writeTarget(t, filepath.Join(far, "x"), "a", `(target x (type u8 (int 0 255)))`)
+	chain, err := LoadTargetLayers("x", []string{near, far})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := chain.Prims["m.f"].Result; got != "array int 0 255" {
+		t.Errorf("result %q, want array int 0 255", got)
+	}
+}
+
+// AND WHAT IT MAY NOT BE. Each refusal is a rule with a reason: a cycle has no
+// normal form, a language type is not a target's to define, several results are
+// read from the declaration itself, and a host spelling belongs in `(host …)` —
+// which is what makes "no host clause" mean "no claim about any host".
+func TestAManifestTypeIsRefusedOffItsRules(t *testing.T) {
+	refused := map[string]string{
+		`(type a (array b)) (type b (array a))`:  "defined in terms of itself",
+		`(type a (array a))`:                     "defined in terms of itself",
+		`(type int (int 0 255))`:                 "the language's own type",
+		`(type array (int 0 255))`:               "the language's own type",
+		`(type p (tuple int int))`:               "may not stand for a tuple",
+		`(type t "spelling")`:                    `goes inside (host …)`,
+		`(type t (host "T")) (type t (int 0 1))`: "a type has one definition",
+	}
+	for decl, why := range refused {
+		if _, err := loadOne(t, "(target x "+decl+")"); err == nil ||
+			!strings.Contains(err.Error(), why) {
+			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
+		}
 	}
 }

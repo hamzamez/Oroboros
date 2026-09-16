@@ -43,6 +43,22 @@
   (type error    (host "error"))
   (type any      (host "any"))
 
+  ; ═══ GO'S INTEGER TYPES ARE RANGES — ADR 0003, said in the type language
+  ;
+  ; MANIFEST types: a definiens and no realization (theories.md §2 at the type
+  ; level), so `int32` MEANS the interval and δ erases the name before anything
+  ; downstream sees it. `int` and `int64` are deliberately absent and that is
+  ; ADR 0012 rather than an omission: a range past the portable window would
+  ; promote the value to arbitrary precision and stop it being the host's word,
+  ; so they stay the language's `int`, which is what the `(type int …)` above
+  ; realizes.
+  (type int8   (int -128 127))
+  (type int16  (int -32768 32767))
+  (type int32  (int -2147483648 2147483647))
+  (type uint8  (int 0 255))
+  (type uint16 (int 0 65535))
+  (type uint32 (int 0 4294967295))
+
   (type slice-int     (host "[]int"))
   (type slice-int64   (host "[]int64"))
   (type slice-float64 (host "[]float64"))

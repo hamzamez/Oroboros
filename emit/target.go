@@ -305,6 +305,11 @@ type Target struct {
 	// still emit source, which is what cmd/gen does (build.md §4).
 	Build string
 
+	// Aliases are the MANIFEST types — `(type NAME τ)`, a type with a definiens
+	// and no realization (theories.md §2 at the type level). Unfolded on the
+	// glued target, after which no alias name occurs anywhere: emit/alias.go.
+	Aliases map[string]string
+
 	// Deferred are the declarations whose types name a CONSTANT as a range
 	// endpoint, carried unparsed through the glue and elaborated once the target
 	// is whole — emit/constend.go. Empty after a successful load.
@@ -338,6 +343,9 @@ func LoadTarget(path string) (*Target, error) {
 	}
 	if err := tg.resolveDeferred(); err != nil {
 		return nil, err
+	}
+	if err := tg.unfoldAliases(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	tg.addCore()
 	if err := tg.expandCompanions(); err != nil {
@@ -518,6 +526,9 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 	}
 	sort.Strings(out.Names)
 	if err := out.resolveDeferred(); err != nil {
+		return nil, err
+	}
+	if err := out.unfoldAliases(); err != nil {
 		return nil, err
 	}
 	out.addCore()
@@ -1266,6 +1277,12 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if err := combineMap(tg.Types, o.Types, "type", from, how); err != nil {
 		return err
 	}
+	if tg.Aliases == nil && len(o.Aliases) > 0 {
+		tg.Aliases = map[string]string{}
+	}
+	if err := combineMap(tg.Aliases, o.Aliases, "manifest type", from, how); err != nil {
+		return err
+	}
 	if err := combineMap(tg.Boxed, o.Boxed, "boxed", from, how); err != nil {
 		return err
 	}
@@ -1609,9 +1626,29 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 // TARGET's, not a module's: `array` and `map` are `lang`'s own, realized once
 // per target, so declaring one inside a module is refused.
 func parseType(f *core.Term, frag *Target, modPath, path string) error {
+	// `(type NAME τ)` — A DEFINIENS RATHER THAN A REALIZATION, which is the
+	// MANIFEST type of theories.md §2's four cells at the type level. It is
+	// unfolded by δ on the glued target and the name then does not exist, which
+	// is why it may not also carry a host spelling: emit/alias.go.
+	if len(f.Kids) == 3 && f.Kids[1].Kind == core.KName && formWord(f.Kids[2]) != "host" {
+		ty, err := aliasOf(f, path)
+		if err != nil {
+			return err
+		}
+		n := f.Kids[1].Name
+		if langTypes[n] || core.IsTypeFormer(n) {
+			return fmt.Errorf("%s: (type %s …): %s is the language's own type and a target does not "+
+				"get to say what it means (docs/spec/booleans.md's rule, one level up)", path, n, n)
+		}
+		if frag.Aliases == nil {
+			frag.Aliases = map[string]string{}
+		}
+		frag.Aliases[qualify(modPath, n)] = ty
+		return nil
+	}
 	s, ok := hostSpelling(lastKid(f))
 	if !ok || len(f.Kids) != 3 {
-		return fmt.Errorf("%s: (type NAME (host \"spelling\")), got %s", path, f)
+		return fmt.Errorf("%s: (type NAME (host \"spelling\")) or (type NAME τ), got %s", path, f)
 	}
 	switch n := f.Kids[1]; {
 	case n.Kind == core.KName:

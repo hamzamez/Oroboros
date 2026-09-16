@@ -205,6 +205,31 @@ the theory at `PATH`. **Not built** (theories-b-or-c.md §9, step 5).
 of a name. `max-len` becomes a `fact` because it *is* one: a proposition true of every array on
 this target, which the refinement layer uses.
 
+### 5.5a A manifest type
+
+`(type NAME τ)` — a definiens and no realization — is the MANIFEST type, §2's second cell at the type
+level. It is an equation, so δ erases the name:
+
+```lisp
+(type int32 (int -2147483648 2147483647))
+(type uint8 (int 0 255))
+```
+
+`((r int32))` IS `((r (int -2147483648 2147483647)))`, so nothing downstream learns that manifest
+types exist. Four rules follow from it being an equation rather than a claim:
+
+- **No realization.** After δ the name is gone, so a `host` spelling attached to it could never be
+  reached, and a claim nothing can use is a claim nothing checks.
+- **No cycle.** An equation defined in terms of itself has no normal form; refused naming the chain.
+- **Not a language type.** A target does not get to say what `int` or `array` means, which is
+  [booleans.md](booleans.md)'s rule at the type level.
+- **Not a tuple.** Several results are read from the declaration itself, so a name standing for a
+  tuple would be one result where the tuple it means is two.
+
+> **Built 2026-09-16** ([manifest-2026-09-16](../../gauntlet/results/manifest-2026-09-16.md)):
+> unfolded on the glued target, after which no manifest name occurs in any declaration.
+> `targets/go/go.oro` states Go's integer types as the ranges ADR 0003 says they are, once.
+
 ### 5.6 Realizing `lang`'s type constructors
 
 `lang` owns `array` and `map`, and every target must realize them. A target realizes a *type

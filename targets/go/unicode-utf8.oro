@@ -27,11 +27,11 @@
 
     ; ------------------------------------------------------------ one rune
     ; "It returns -1 if the rune is not a valid value to encode in UTF-8."
-    (sig RuneLen   ((r (int -2147483648 2147483647))) (int -1 UTFMax) pure
+    (sig RuneLen   ((r int32)) (int -1 UTFMax) pure
           (host expr "utf8.RuneLen(int32(%s))" (import "unicode/utf8")))
-    (sig ValidRune ((r (int -2147483648 2147483647))) bool pure
+    (sig ValidRune ((r int32)) bool pure
           (host expr "utf8.ValidRune(int32(%s))" (import "unicode/utf8")))
-    (sig RuneStart ((b (int 0 255))) bool pure
+    (sig RuneStart ((b uint8)) bool pure
           (host expr "utf8.RuneStart(uint8(%s))" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ writing
@@ -43,8 +43,8 @@
     ; The precondition is CONSERVATIVE and says so: the host needs RuneLen(r)
     ; bytes (three for an invalid rune), and four is enough for every rune. The
     ; exact requirement is a disjunction the linear fragment cannot state.
-    (sig EncodeRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
-          (tuple (buffer (int 0 255)) (int 1 4))
+    (sig EncodeRune ((p (buffer uint8)) (r int32))
+          (tuple (buffer uint8) (int 1 4))
           (where (<= 4 (len p)))
           (host expr "func(p []byte, r int32) ([]byte, int) { return p, utf8.EncodeRune(p, r) }(%s, int32(%s))"
             (import "unicode/utf8")))
@@ -52,8 +52,8 @@
     ; CONSUME AND RETURN: B ⊸ B. "appends the UTF-8 encoding of r to the end of p
     ; and returns the extended buffer" — the same storage when p has capacity, new
     ; storage when not, and p is dead either way.
-    (sig AppendRune ((p (buffer (int 0 255))) (r (int -2147483648 2147483647)))
-          (buffer (int 0 255))
+    (sig AppendRune ((p (buffer uint8)) (r int32))
+          (buffer uint8)
           (host expr "utf8.AppendRune(%s, int32(%s))"
             (import "unicode/utf8")))
 
@@ -62,16 +62,16 @@
     ; 0 only for empty input and at most UTFMax. Both are written as the
     ; CONSTANTS this file already declares: a value written twice is two claims
     ; that can disagree, which is `const`'s own reason one level up.
-    (sig DecodeRune     ((p (array (int 0 255)))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
+    (sig DecodeRune     ((p (array uint8))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeRune(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRune ((p (array (int 0 255)))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
+    (sig DecodeLastRune ((p (array uint8))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeLastRune(%s)" (import "unicode/utf8")))
-    (sig FullRune       ((p (array (int 0 255)))) bool pure
+    (sig FullRune       ((p (array uint8))) bool pure
           (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
     ; Every rune, valid or not, is at least one byte.
-    (sig RuneCount      ((p (array (int 0 255)))) (int 0 9007199254740991) pure (ensures (<= result (len p)))
+    (sig RuneCount      ((p (array uint8))) (int 0 9007199254740991) pure (ensures (<= result (len p)))
           (host expr "utf8.RuneCount(%s)" (import "unicode/utf8")))
-    (sig Valid          ((p (array (int 0 255)))) bool pure
+    (sig Valid          ((p (array uint8))) bool pure
           (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading strings

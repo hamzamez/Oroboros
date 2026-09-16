@@ -839,8 +839,10 @@ func hexReference() []string {
 	p(r)
 	p(err == nil)
 	var dw bytes.Buffer
-	n, _ = io.WriteString(hex.Dumper(&dw), string(src))
+	d := hex.Dumper(&dw)
+	n, _ = io.WriteString(d, string(src))
 	p(n)
+	p(d.Close() == nil)
 	p(dw.String())
 	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
 }

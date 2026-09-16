@@ -2364,6 +2364,21 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**AN INTERFACE HAS A METHOD SET NOW, AND THE SUBTYPING EDGE IS A THEOREM** —
+[companions-2026-09-16](gauntlet/results/companions-2026-09-16.md), theories.md §3.3/§6.1/§6.2; step 6 of the build
+order and the wall hex-2026-09-14 §6 recorded. **A companion is the child module sharing a type's name**, which is how
+a host type's methods are written and the only way an interface gets any. **`include` is theory inclusion between
+companions**: `io.WriteCloser` is DEFINED as `interface { Writer; Closer }`, so its companion includes theirs and every
+declaration arrives with the receiver retyped, the includer's own winning. **Then `T ≤ I` is DERIVED** — it says
+methods(I) ⊆ methods(T) (Cardelli), and an inclusion is that containment — so io.oro's hand-written
+`(implements go/io.WriteCloser go/io.Writer)` is deleted and follows from the declarations beside it. **And a written
+edge is CHECKED as a view** (§6.1), where it was declared and believed; a false one is refused naming the method.
+**The payoff is measured**: the hex acceptance program wrote into `hex.Dumper` and could not close it, and against the
+real package Close is worth **104 bytes and 1 line → 147 and 2** — the final partial line `|t._..|`. It closes it now,
+with hand-written Go closing it too as the oracle. **Emission byte-identical, proof counts identical**; +189 code
+lines. Not built: `io`'s Ω is two methods (Read is a write-borrow), and a generated survey declares no interface
+methods, so the view check is vacuous on its thousands of edges.
+
 **A TYPE IS A MEMBER OF ITS MODULE, AND ITS IDENTITY IS WHAT IT REALIZES** —
 [ownedtypes-2026-09-16](gauntlet/results/ownedtypes-2026-09-16.md), theories.md §3.2; step 3 of the build order and
 the question declaration-surface.md says decides every hand file still to be written. A module in a target is a

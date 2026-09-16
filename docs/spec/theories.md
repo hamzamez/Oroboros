@@ -324,6 +324,11 @@ are declared.
 
 ### 6.2 `include`
 
+> **Built 2026-09-16** ([companions-2026-09-16](../../gauntlet/results/companions-2026-09-16.md)):
+> `(include COMPANION …)` inside a companion copies the included companion's declarations with the
+> receiver retyped, and DERIVES `T ≤ I` — method-set inclusion is what the subtyping is. `implements`
+> is checked as a view (§6.1) where the interface's companion declares anything to check against.
+
 ```lisp
 (module WriteCloser (include Writer Closer))
 ```

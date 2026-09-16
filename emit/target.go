@@ -132,6 +132,13 @@ type Target struct {
 	// (*os.File)(nil)` is one line per edge and `go build` decides.
 	Implements map[string][]string
 
+	// Includes is theory inclusion between COMPANIONS (theories.md §6.2), by
+	// companion module path: `go/io/WriteCloser` includes `go/io/Writer` and
+	// `go/io/Closer`, which is how an interface defined as `interface { Writer;
+	// Closer }` says so. Resolved once on the merged target, because an included
+	// companion may live in another file or layer (emit/companion.go).
+	Includes map[string][]string
+
 	// ArrayType is how this target spells an array of something — `[]%s` on Go,
 	// `%s[]` on Java. One declaration replaces an entry per element type.
 	// Empty means the target has no types to spell (JavaScript, windows).
@@ -325,7 +332,13 @@ func LoadTarget(path string) (*Target, error) {
 		return nil, err
 	}
 	tg.addCore()
+	if err := tg.expandCompanions(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
 	tg.closeImplements()
+	if err := tg.checkViews(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
 	return tg, nil
 }
 
@@ -497,7 +510,13 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 	}
 	sort.Strings(out.Names)
 	out.addCore()
+	if err := out.expandCompanions(); err != nil {
+		return nil, err
+	}
 	out.closeImplements()
+	if err := out.checkViews(); err != nil {
+		return nil, err
+	}
 	return out, nil
 }
 
@@ -1276,6 +1295,16 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	// a repeat is not a mistake: two layers may both know that `*os.File` reads.
 	// That is why this is an append rather than a `combineMap` -- there is no
 	// collision to detect, because there is no disagreement expressible.
+	for mod, incs := range o.Includes {
+		if tg.Includes == nil {
+			tg.Includes = map[string][]string{}
+		}
+		for _, i := range incs {
+			if !contains(tg.Includes[mod], i) {
+				tg.Includes[mod] = append(tg.Includes[mod], i)
+			}
+		}
+	}
 	for sub, ifs := range o.Implements {
 		if tg.Implements == nil {
 			tg.Implements = map[string][]string{}
@@ -1430,6 +1459,21 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				// (theories.md §3.2, §3.4). A module in a target is a signature
 				// Σ = (S, Ω), and its sorts belong to it: `go/io.Writer` has one
 				// owner, and a base name shared by two packages is two types.
+				if formWord(inner) == "include" {
+					if len(inner.Kids) < 2 {
+						return nil, fmt.Errorf("%s: (include COMPANION …), got %s", path, inner)
+					}
+					for _, k := range inner.Kids[1:] {
+						if k.Kind != core.KName {
+							return nil, fmt.Errorf("%s: (include …) takes module names, got %s", path, k)
+						}
+						if frag.Includes == nil {
+							frag.Includes = map[string][]string{}
+						}
+						frag.Includes[f.Kids[1].Name] = append(frag.Includes[f.Kids[1].Name], k.Name)
+					}
+					continue
+				}
 				if formWord(inner) == "type" {
 					if err := parseType(inner, frag, f.Kids[1].Name, path); err != nil {
 						return nil, err

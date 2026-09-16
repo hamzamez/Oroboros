@@ -12,14 +12,15 @@
 ;   prefix      off its domain G returns the whole pairs before the first bad byte
 ;   append      the consume-and-return forms, threaded through one buffer
 ;   dump        hexdump -C
-;   streams     the encoder and decoder agree with H and G, and the dumper
-;               without Close is missing exactly what Close would write
+;   streams     the encoder and decoder agree with H and G, and the dumper is
+;               closed through the method set its companion includes
 
 (use go/encoding-hex as hex)
 (use go/fmt as fmt)
 (use go/os as gos)
 (use go/os/File as file)
 (use go/io as gio)
+(use go/io/WriteCloser as wc)
 (use os)
 
 (export main)
@@ -86,10 +87,15 @@
         (seq ((gio.ReadAll (hex.NewDecoder f)) (fn (b e5)
                (seq (fmt.Println b) (fmt.Println (gos.err-nil e5)))))
              (file.Close f))))
-      ; the dumper, never closed
+      ; the dumper, CLOSED. `Close` is `io.Closer`'s, and it reaches a
+      ; `io.WriteCloser` because that interface's companion INCLUDES Closer's
+      ; (targets/go/io.oro) — until companions existed there was no way to give an
+      ; interface a method, and this dump was missing its last, partial line.
       ((gos.Create (concat dir "/dump")) (fn (f e6)
-        (seq ((gio.WriteString (hex.Dumper f) (os.text-of src)) (fn (n e7)
-               (fmt.Println n)))
+        (seq (let (hex.Dumper f) (fn (d)
+               (seq ((gio.WriteString d (os.text-of src)) (fn (n e7)
+                      (fmt.Println n)))
+                    (fmt.Println (gos.err-nil (wc.Close d))))))
              (file.Close f))))
       ((gos.ReadFile (concat dir "/dump")) (fn (b e8)
         (fmt.Println (os.text-of b))))

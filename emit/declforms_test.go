@@ -265,3 +265,70 @@ func TestOneHostTypeMayHaveTwoKeys(t *testing.T) {
 		t.Error("subsumption has a direction")
 	}
 }
+
+// A COMPANION IS A TYPE'S METHOD SET, `include` IS THEORY INCLUSION, AND THE
+// SUBTYPING EDGE IS DERIVED (theories.md §3.3, §6.1, §6.2).
+//
+// An interface had no way to carry a method, which is the wall encoding/hex
+// recorded: a value of `io.WriteCloser` could be written to and never closed.
+func TestACompanionIncludesAnotherAndTheEdgeFollows(t *testing.T) {
+	tg, err := loadOne(t, `(target x
+	  (type error (host "error")) (type int (host "int"))
+	  (module go/io
+	    (type Writer (host "io.Writer")) (type Closer (host "io.Closer"))
+	    (type WriteCloser (host "io.WriteCloser")))
+	  (module go/io/Writer (sig Write ((self go/io.Writer) (p int)) int (host expr "%s.Write(%s)")))
+	  (module go/io/Closer (sig Close ((self go/io.Closer)) error (host expr "%s.Close()")))
+	  (module go/io/WriteCloser (include go/io/Writer go/io/Closer)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// THE DECLARATIONS ARE THE INCLUDED ONES, with the receiver retyped: a method
+	// of Writer applies to a WriteCloser because a WriteCloser is one.
+	w, okW := tg.Prims["go/io/WriteCloser.Write"]
+	_, okC := tg.Prims["go/io/WriteCloser.Close"]
+	if !okW || !okC {
+		t.Fatalf("include must bring both method sets: Write=%v Close=%v", okW, okC)
+	}
+	if w.Args[0] != "go/io.WriteCloser" || w.Args[1] != "int" || w.Form != "%s.Write(%s)" {
+		t.Errorf("the receiver is retyped and nothing else moves: %+v", w)
+	}
+	// AND THE EDGE IS A THEOREM: methods(I) ⊆ methods(T) is what T ≤ I says.
+	if !tg.Subsumes("go/io.WriteCloser", "go/io.Writer") || !tg.Subsumes("go/io.WriteCloser", "go/io.Closer") {
+		t.Error("an inclusion must derive the subsumption edge")
+	}
+	if tg.Subsumes("go/io.Writer", "go/io.WriteCloser") {
+		t.Error("subsumption has a direction: a Writer is not a WriteCloser")
+	}
+}
+
+// AN EDGE IS A VIEW, AND A VIEW IS CHECKED (§6.1). It was declared and believed.
+func TestAFalseImplementsEdgeIsRefused(t *testing.T) {
+	decls := `(target x
+	  (type error (host "error"))
+	  (module go/io (type Writer (host "io.Writer")) (type Closer (host "io.Closer")))
+	  (module go/io/Closer (sig Close ((self go/io.Closer)) error (host expr "%s.Close()")))
+	  `
+	_, err := loadOne(t, decls+`(implements go/io.Writer go/io.Closer))`)
+	if err == nil || !strings.Contains(err.Error(), "is false") || !strings.Contains(err.Error(), "Close") {
+		t.Errorf("an edge whose interface declares a method the subject does not must be refused, got %v", err)
+	}
+	// The control: state the method and the same edge is accepted.
+	_, err = loadOne(t, decls+`(module go/io/Writer (sig Close ((self go/io.Writer)) error (host expr "%s.Close()")))
+	  (implements go/io.Writer go/io.Closer))`)
+	if err != nil {
+		t.Errorf("the edge holds once the method is declared: %v", err)
+	}
+}
+
+func TestIncludeIsRefusedOffACompanion(t *testing.T) {
+	for body, want := range map[string]string{
+		`(target x (module go/io (include go/io/Writer)))`:                             "not a companion",
+		`(target x (type t (host "T")) (module go/io (type A (host "A")) ) (module go/io/A (include go/io/B)))`: "no type go/io.B is declared",
+		`(target x (module go/io (type A (host "A"))) (module go/io/A (include go/io/A)))`: "includes itself",
+	} {
+		if _, err := loadOne(t, body); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s: want a refusal naming %q, got %v", body, want, err)
+		}
+	}
+}

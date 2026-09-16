@@ -103,3 +103,17 @@ The initial baseline.
 1 change(s):
 
 - compiler output changed — `examples/tally/tally.oro js`
+
+## 2026-09-16 — on 99c0549, with uncommitted changes
+
+**Reason:** A let or conditional index is now PROVEN through the branch join where every branch is in range: propagated notes 298 -> 105 (freq 80->21 on three hosts, tokenize 10->0, kara/core 6->0). Emitted code byte-identical, no refusal changed; a failed attempt leaves the note exactly as before.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/json/tokenize.oro go`
+- compiler output changed — `examples/kara/core.oro go`

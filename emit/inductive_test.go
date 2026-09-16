@@ -64,3 +64,37 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 		t.Error("m depends on a non-inductive w and must not be given 0 <= m")
 	}
 }
+
+// AN INDEX THAT IS A CONDITIONAL TERM IS PROVEN WHEN EVERY BRANCH IS IN RANGE,
+// and stays PROPAGATED — never refused, never proven — when one is not.
+// refine.go, provedThroughJoin: a proof attempt for a term outside the fragment,
+// so the proven set grows and nothing that built stops building.
+func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
+	tg := tempTarget(t, ``)
+	// A clamp, under a guard that makes the table non-empty: both bounds hold on
+	// every branch, so both are PROVEN and no note remains.
+	notes, err := refineWith(t, tg, `(use tgt)
+	  (fn (a i) (if (>= (len a) 1) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))) 0))`)
+	if err != nil {
+		t.Fatalf("a clamped index was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("a clamp into a non-empty table must be proven, got: %s", notes)
+	}
+	// CONTROL: one branch is 5 and the table may be shorter, so the upper bound
+	// does not follow — and must be PROPAGATED, exactly as before, not proven.
+	notes, err = refineWith(t, tg, `(use tgt)
+	  (fn (a i) (if (>= (len a) 1) (a (if (< i 0) 0 5)) 0))`)
+	if err != nil {
+		t.Fatalf("an unprovable conditional index must be propagated, not refused: %v", err)
+	}
+	if !propagated(notes) {
+		t.Errorf("a branch outside the table was taken as proven")
+	}
+	// AND WITHOUT THE GUARD the clamp's zero branch is out of range for an empty
+	// table, so it is not proven either — the case freq.oro and tally leave as a note.
+	notes, _ = refineWith(t, tg, `(use tgt) (fn (a i) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))))`)
+	if !propagated(notes) {
+		t.Errorf("a clamp into a possibly empty table was taken as proven")
+	}
+}

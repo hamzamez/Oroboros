@@ -872,6 +872,44 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	return r.clauses(lam.Body(), g)
 }
 
+// provedThroughJoin tries to PROVE a bound on an index that is a `let` or a
+// conditional TERM — outside the fragment as written, so it has always been
+// propagated. The term denotes one value, so it is read as a fresh name carrying
+// what every branch satisfies (joinConditional's theorem).
+//
+// IT IS A PROOF ATTEMPT, NOT A WIDER FRAGMENT, and the difference was measured.
+// Read as a widening, an unproven bound on such an index became a REFUSAL:
+// tokenize.oro's 10 propagated obligations and kara/core.oro's 6 were all
+// proven, and freq.oro and tally were refused, because their clamps are in range
+// only when a table is non-empty — true, and a fact about a table's contents or a
+// loop's result that no fragment here derives. So a success removes the note and
+// a failure leaves exactly the propagation there was: the proven set only grows,
+// and nothing that built stops building.
+func (r *refiner) provedThroughJoin(tab, idx *core.Term, lower bool, f *facts) bool {
+	if idx.Kind != core.KApp {
+		return false
+	}
+	const fresh = "#index"
+	g := f.clone()
+	r.joinConditional(g, fresh, idx, f)
+	x := variable(fresh)
+	if lower {
+		return g.entails(constant(0).addScaled(x, -1)) // 0 <= x
+	}
+	want := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("<"), core.Name(fresh),
+		&core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("len"), tab}}}}
+	goals, ok := g.oblig(want)
+	if !ok {
+		return false
+	}
+	for _, goal := range goals {
+		if !g.entails(goal) {
+			return false
+		}
+	}
+	return true
+}
+
 // nonNegative reports whether facts f prove 0 <= e. A back-edge argument is
 // often a CONDITIONAL rather than a name — β substitutes a let-bound clamp used
 // once straight into the `again` — so e is read as if bound to a fresh name and
@@ -1352,6 +1390,9 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 	for _, want := range []*core.Term{lo, hi} {
 		goals, ok := f.oblig(want)
 		if !ok {
+			if r.provedThroughJoin(tab, idx, want == lo, f) {
+				continue
+			}
 			r.notes = append(r.notes,
 				fmt.Sprintf("%s: index bound propagated, not proven", tab))
 			continue

@@ -2364,6 +2364,18 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**AN INDEX THAT IS A TERM IS PROVEN BRANCH BY BRANCH: 298 PROPAGATED OBLIGATIONS BECOME 105** —
+[joinindex-2026-09-16](gauntlet/results/joinindex-2026-09-16.md). An index that is a `let` or conditional TERM was
+outside the fragment and always propagated; it denotes one value, so it is read as a fresh name carrying what every
+branch satisfies — joinConditional's theorem. **Read as a WIDENING it refused working programs**: tokenize's 10 and
+kara/core's 6 were all proven, and freq and tally were refused over clamps that are in range only when a loop's result
+is positive, a true fact no fragment here derives. Propagation IS the report, so **it is a PROOF ATTEMPT, not a wider
+fragment**: success removes the note, failure leaves the propagation there was, and the proven set only grows. **298 →
+105 corpus-wide** (freq 80 → 21 ×3, tokenize 10 → 0, kara/core 6 → 0, tally 58 → 6); every emitted file byte-identical,
+no refusal changed. **And what is left is ONE class**: 103 of 105 are an index computed from a value READ OUT OF A
+TABLE — `tree.oro`'s links, freq's word offsets — bounded only by an invariant over a table's contents, which is
+facts.md's F-D (the array property fragment), not an octagon. +27 code lines.
+
 **0 ≤ v IS AN INDUCTIVE INVARIANT, AND THE COMPARATOR WAS NEVER A LOST PROOF** —
 [inductive-2026-09-16](gauntlet/results/inductive-2026-09-16.md), `emit/refine.go`. dt-2026-09-16 §5 said `h.cmp` inside
 tally's sort comparator LOST `(cs u)`'s bound. **It did not**: in the spelling that "worked" the index reached the

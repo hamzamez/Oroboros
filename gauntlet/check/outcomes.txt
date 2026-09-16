@@ -262,14 +262,6 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/io/freq.oro go emitted 31dd0be46d364f8cfadf252ce62e026421df80c0bc2480a02e2f05594d2f4bbc
    note: gen-main: 71 product access(es) flattened
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -278,14 +270,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -294,66 +278,15 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
 == examples/io/freq.oro js emitted 982e726075e67d03df2833e2809d5e10c0d8fadf405574997057f03069fe2567
    note: gen-main: 71 product access(es) flattened
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -362,14 +295,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -378,65 +303,14 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
 == examples/io/freq.oro java emitted c95fcc58558d518d35f9c59ded11c3a29e0969a7a659ec4e06fbcbd12bdb639c
    note: gen-main: 71 product access(es) flattened
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -445,14 +319,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
@@ -461,53 +327,10 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: ord: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
    note: dt: index bound propagated, not proven
    note: dt: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: a: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: ord2: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
@@ -533,17 +356,7 @@
    gen: examples/io/wc.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/json/tokenize.oro go emitted 9c5558a8a28116e61459e03869dd5dcd6e8f41597438523255340435d94ad6e2
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
    note: gen-tokens: 31 of 31 integer operations bounded; 4 of 4 loop(s) proven terminating
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
-   note: stk: index bound propagated, not proven
    note: gen-run: 124 of 124 integer operations bounded; 16 of 16 loop(s) proven terminating
 == examples/json/tokenize.oro js refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -607,12 +420,6 @@
    gen: examples/json/tree.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/kara/core.oro go refused
-   note: out: index bound propagated, not proven
-   note: out: index bound propagated, not proven
-   note: arena: index bound propagated, not proven
-   note: arena: index bound propagated, not proven
-   note: arena: index bound propagated, not proven
-   note: arena: index bound propagated, not proven
    note: gen-run: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
      go.* [-inf, +inf] in (go.* acc 100)

@@ -332,3 +332,115 @@ func TestIncludeIsRefusedOffACompanion(t *testing.T) {
 		}
 	}
 }
+
+// A CONSTANT'S NAME IS A RANGE ENDPOINT, and it elaborates to the declaration
+// the digits would have given — emit/constend.go, theories.md §8.3.
+//
+// The property is a commuting square: writing `(int 0 Max)` and writing
+// `(int 0 1114111)` are the same declaration, so the Prim is DeepEqual either
+// way. That is what makes it a spelling rather than a feature: nothing
+// downstream can tell which was written.
+func TestAConstantsNameIsARangeEndpoint(t *testing.T) {
+	const c = `(const Max 1114111 (host "u.Max" (import "u")))`
+	named, err := loadOne(t, "(target x (module m "+c+
+		` (sig f ((r int)) (int 0 Max) pure (host expr "u.F(%s)" (import "u")))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digits, err := loadOne(t, "(target x (module m "+c+
+		` (sig f ((r int)) (int 0 1114111) pure (host expr "u.F(%s)" (import "u")))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(named.Prims["m.f"], digits.Prims["m.f"]) {
+		t.Errorf("a named endpoint must be the declaration the digits give:\n named  %+v\n digits %+v",
+			named.Prims["m.f"], digits.Prims["m.f"])
+	}
+	if got := named.Prims["m.f"].Result; got != "int 0 1114111" {
+		t.Errorf("result %q, want int 0 1114111", got)
+	}
+	if len(named.Deferred) != 0 {
+		t.Errorf("a successful load leaves nothing deferred, got %d", len(named.Deferred))
+	}
+}
+
+// A CONSTANT MAY BE IN ANOTHER FILE, which is why resolution waits for the
+// glue: a file is a fragment and load(F₁ ++ F₂) = load(F₁) ⊔ load(F₂), so
+// splitting a file between a constant and its use must change nothing
+// (loader-2026-09-15, TestSplittingAFileChangesNothing).
+func TestAConstantEndpointResolvesAcrossFilesAndLayers(t *testing.T) {
+	sig := `(sig f ((r int)) (int 0 Max) pure (host expr "u.F(%s)" (import "u")))`
+	cst := `(const Max 7 (host "u.Max" (import "u")))`
+	one, err := loadOne(t, "(target x (module m "+cst+" "+sig+"))")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two files in one layer, the USE read first — glue is order-free, and
+	// sorting puts "a" before "b".
+	dir := t.TempDir()
+	writeTarget(t, filepath.Join(dir, "x"), "a", "(target x (module m "+sig+"))")
+	writeTarget(t, filepath.Join(dir, "x"), "b", "(target x (module m "+cst+"))")
+	split, err := LoadTargetLayers("x", []string{dir})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(one.Prims["m.f"], split.Prims["m.f"]) {
+		t.Errorf("splitting the file changed the declaration:\n one   %+v\n split %+v",
+			one.Prims["m.f"], split.Prims["m.f"])
+	}
+	// And two LAYERS: the constant is in the far one, the use in the near one.
+	near, far := t.TempDir(), t.TempDir()
+	writeTarget(t, filepath.Join(near, "x"), "a", "(target x (module m "+sig+"))")
+	writeTarget(t, filepath.Join(far, "x"), "a", "(target x (module m "+cst+"))")
+	layered, err := LoadTargetLayers("x", []string{near, far})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(one.Prims["m.f"], layered.Prims["m.f"]) {
+		t.Errorf("a constant in a farther layer was not found:\n one     %+v\n layered %+v",
+			one.Prims["m.f"], layered.Prims["m.f"])
+	}
+}
+
+// AN ENDPOINT THAT IS NOT A CONSTANT IS REFUSED, naming it. The singleton range
+// IS the definiens, so a declaration that has no exact value is not one — and
+// `+inf`/`-inf` stay endpoints of the grammar rather than becoming names to look
+// up, which the control at the end checks.
+func TestAnEndpointThatIsNotAConstantIsRefused(t *testing.T) {
+	refused := map[string]string{
+		`(sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "is not declared in this target",
+		`(const Max 7 (host "u.Max"))
+		 (sig g ((r int)) (int 0 Max2) pure (host expr "G(%s)"))`: "Max2 is not declared",
+		`(sig Max ((x int)) (int 7 7) pure (host expr "M(%s)"))
+		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "it must be a CONSTANT",
+		`(sig Max () (int 0 7) pure (host expr "M()"))
+		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "it must be a CONSTANT",
+		`(sig Max () (int 7 7) (host expr "M()"))
+		 (sig f ((r int)) (int 0 Max) pure (host expr "F(%s)"))`: "not pure",
+	}
+	for decl, why := range refused {
+		if _, err := loadOne(t, "(target x (module m "+decl+"))"); err == nil ||
+			!strings.Contains(err.Error(), why) {
+			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
+		}
+	}
+	// AND THE AMBIGUITY WITNESS: `(int int string)` is an ARGUMENT LIST of three
+	// types, not a range over a constant called `string`. Both are applications
+	// headed by `int`, so a scan that looked for the shape anywhere refused every
+	// generated windows declaration written positionally.
+	pos, err := loadOne(t, `(target x (module m (sig f (int int string) int pure (host expr "F(%s,%s,%s)"))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := pos.Prims["m.f"].Args; !reflect.DeepEqual(got, []string{"int", "int", "string"}) {
+		t.Errorf("args %v, want [int int string]", got)
+	}
+	// THE CONTROL: an infinite endpoint is not a constant name.
+	tg, err := loadOne(t, `(target x (module m (sig f ((r int)) (int 0 +inf) pure (host expr "F(%s)"))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := tg.Prims["m.f"].Result; got != "int 0 +inf" {
+		t.Errorf("result %q, want int 0 +inf", got)
+	}
+}

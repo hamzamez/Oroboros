@@ -27,7 +27,7 @@
 
     ; ------------------------------------------------------------ one rune
     ; "It returns -1 if the rune is not a valid value to encode in UTF-8."
-    (sig RuneLen   ((r (int -2147483648 2147483647))) (int -1 4) pure
+    (sig RuneLen   ((r (int -2147483648 2147483647))) (int -1 UTFMax) pure
           (host expr "utf8.RuneLen(int32(%s))" (import "unicode/utf8")))
     (sig ValidRune ((r (int -2147483648 2147483647))) bool pure
           (host expr "utf8.ValidRune(int32(%s))" (import "unicode/utf8")))
@@ -59,10 +59,12 @@
 
     ; ------------------------------------------------------------ reading bytes
     ; A decoded rune is a scalar value or RuneError, so 0..MaxRune; its size is
-    ; 0 only for empty input and at most UTFMax.
-    (sig DecodeRune     ((p (array (int 0 255)))) (tuple (int 0 1114111) (int 0 4)) pure
+    ; 0 only for empty input and at most UTFMax. Both are written as the
+    ; CONSTANTS this file already declares: a value written twice is two claims
+    ; that can disagree, which is `const`'s own reason one level up.
+    (sig DecodeRune     ((p (array (int 0 255)))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeRune(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRune ((p (array (int 0 255)))) (tuple (int 0 1114111) (int 0 4)) pure
+    (sig DecodeLastRune ((p (array (int 0 255)))) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeLastRune(%s)" (import "unicode/utf8")))
     (sig FullRune       ((p (array (int 0 255)))) bool pure
           (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
@@ -73,9 +75,9 @@
           (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading strings
-    (sig DecodeRuneInString     ((s string)) (tuple (int 0 1114111) (int 0 4)) pure
+    (sig DecodeRuneInString     ((s string)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeRuneInString(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRuneInString ((s string)) (tuple (int 0 1114111) (int 0 4)) pure
+    (sig DecodeLastRuneInString ((s string)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
     (sig FullRuneInString       ((s string)) bool pure
           (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))

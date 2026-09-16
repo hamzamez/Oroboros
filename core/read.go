@@ -1905,6 +1905,12 @@ var typeFormers = map[string]bool{
 	"fn": true, "record": true, "prod": true,
 }
 
+// IsTypeFormer reports whether a name is one of them. The emitter asks when it
+// has to tell a NAMED PARAMETER from a compound type — `(i int)` from
+// `(array int)` — which is the one place the declaration grammar is ambiguous
+// without position (spec/data.md §5.5.1).
+func IsTypeFormer(n string) bool { return typeFormers[n] }
+
 // Applied splits a canonical applied type `F(A, B)` into its constructor and
 // arguments. Arguments are split at parenthesis depth zero, because an
 // argument may itself be applied: `result(option(int), int)`.

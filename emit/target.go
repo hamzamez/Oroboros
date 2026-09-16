@@ -304,6 +304,11 @@ type Target struct {
 	// directory holding the emitted source. A target that declares none can
 	// still emit source, which is what cmd/gen does (build.md §4).
 	Build string
+
+	// Deferred are the declarations whose types name a CONSTANT as a range
+	// endpoint, carried unparsed through the glue and elaborated once the target
+	// is whole — emit/constend.go. Empty after a successful load.
+	Deferred []deferred
 }
 
 // Kinds that the emitter implements in code rather than from a template.
@@ -329,6 +334,9 @@ var structuralKinds = map[string]bool{
 func LoadTarget(path string) (*Target, error) {
 	tg, err := loadFragment(path)
 	if err != nil {
+		return nil, err
+	}
+	if err := tg.resolveDeferred(); err != nil {
 		return nil, err
 	}
 	tg.addCore()
@@ -509,6 +517,9 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 			name, strings.Join(dirs, string(filepath.ListSeparator)))
 	}
 	sort.Strings(out.Names)
+	if err := out.resolveDeferred(); err != nil {
+		return nil, err
+	}
 	out.addCore()
 	if err := out.expandCompanions(); err != nil {
 		return nil, err
@@ -1313,6 +1324,9 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}
 	tg.Reprs = append(tg.Reprs, o.Reprs...)
 	tg.Data = append(tg.Data, o.Data...)
+	// A deferred declaration is a declaration that has not been read yet, so it
+	// travels with the fragment under BOTH operators and is elaborated once.
+	tg.Deferred = append(tg.Deferred, o.Deferred...)
 	// A library is a set member, so two layers naming one is not a collision.
 	tg.Link = append(tg.Link, o.Link...)
 	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
@@ -1660,6 +1674,13 @@ func parseFact(f *core.Term, frag *Target, path string) error {
 // FULLY QUALIFIED one, because that is what resolution produces and R1 requires
 // targets and libraries to key the same namespace (modules.md §5).
 func (tg *Target) declare(f *core.Term, modPath, file string) error {
+	// A CONSTANT'S NAME AS A RANGE ENDPOINT needs the definiens, which may be
+	// declared in another file or another layer, so the declaration waits for
+	// the finished target (emit/constend.go).
+	if namesEndpoint(f) {
+		tg.Deferred = append(tg.Deferred, deferred{form: f, mod: modPath, file: file})
+		return nil
+	}
 	p, err := parseSig(f, file)
 	if err != nil {
 		return err

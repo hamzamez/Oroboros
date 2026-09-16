@@ -473,6 +473,14 @@ constant is a declaration whose value the compiler reads, and only an integer's 
 string or bool host constant is a zero-argument `sig` with its type as the result. The `host` clause
 takes no kind: a constant is a value.
 
+**And its NAME is a range endpoint.** `(int 0 MaxRune)` is the type `(int 0 1114111)`, byte for byte:
+the definiens is a compile-time integer and an endpoint is a compile-time integer expression, so
+substituting one is δ at the type level. The name resolves like any other — the module's own first,
+then the bare one — and it must be a **constant**: a pure declaration of no arguments whose result is
+an exact range, which is what the singleton `(int v v)` says. Anything else is refused naming it. The
+constant may be declared in another file or another layer, so such a declaration is elaborated once the
+target is whole; a name it then collides with is refused rather than resolved by layer order.
+
 ### `stmt`
 
 ```lisp

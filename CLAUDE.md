@@ -2364,6 +2364,25 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A CONSTANT'S NAME IS A RANGE ENDPOINT, WHICH IS δ AT THE TYPE LEVEL** —
+[constendpoint-2026-09-16](gauntlet/results/constendpoint-2026-09-16.md), theories.md §8.3; step 4 of the
+build order. A constant has a DEFINIENS, an endpoint is a compile-time integer expression, so `(int 0 MaxRune)`
+is a substitution — and the test is the COMMUTING SQUARE: it elaborates to the declaration the digits give,
+`DeepEqual`, so nothing downstream can tell which was written. **The singleton range IS the definiens**, so
+nothing records that a declaration came from `const`: a pure operation of no arguments whose result is
+`(int v v)` denotes v and can denote nothing else, and `const` is the sugar that writes it once. **Resolution
+is DEFERRED to the finished target**, because a constant may be in another file or another layer and a file is
+a FRAGMENT — resolving against the file being read would make splitting a file change a target, which is
+loader-2026-09-15's property; checked across two files and two layers. **And the ambiguity bit for the third
+time**: `(int 0 255)` is a range and `(int int string)` is an ARGUMENT LIST, both applications headed by
+`int`, so a scan for the shape ANYWHERE read every positional windows declaration as a range over a constant
+called `string` — the rule is typeargs-2026-09-15's, admit the shape only where it cannot mean the other
+thing, and inside a type it must walk everything because `(tuple A B)` IS the Church term. Worth five
+declarations in `unicode-utf8.oro` that stated `MaxRune` and `UTFMax` and then repeated their digits, with a
+comment beside them naming the constants. **Emission byte-identical, proof counts identical**; +193 code
+lines. Not built: `const` in a program module, a constant in a `repr`, and layer order on a deferred
+declaration (a collision is refused rather than ordered).
+
 **AN INTERFACE HAS A METHOD SET NOW, AND THE SUBTYPING EDGE IS A THEOREM** —
 [companions-2026-09-16](gauntlet/results/companions-2026-09-16.md), theories.md §3.3/§6.1/§6.2; step 6 of the build
 order and the wall hex-2026-09-14 §6 recorded. **A companion is the child module sharing a type's name**, which is how

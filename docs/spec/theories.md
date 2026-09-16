@@ -592,8 +592,16 @@ nothing analyses a string or a bool, so their definiens would never be read; for
 that spelling. The attached `host` clause has no kind, because a constant is a value.
 
 > **Built in target layers, 2026-09-15** ([constdecl-2026-09-15](../../gauntlet/results/constdecl-2026-09-15.md)):
-> `const` elaborates to exactly that `sig` and is checked as a commuting square. **Not built**: `const` in
-> a program module, and a constant's name as a range endpoint.
+> `const` elaborates to exactly that `sig` and is checked as a commuting square.
+>
+> **And the endpoint too, 2026-09-16** ([constendpoint-2026-09-16](../../gauntlet/results/constendpoint-2026-09-16.md)):
+> `(int 0 MaxRune)` elaborates to the declaration the digits give — a commuting square again. **The
+> singleton range IS the definiens**, so nothing records that a declaration came from `const`: a pure
+> operation of no arguments whose result is `(int v v)` denotes v and can denote nothing else. Resolution
+> is DEFERRED to the finished target, because the constant may be in another file or another layer and a
+> file is a fragment that is glued; a deferred declaration is glued and never overridden, which is stated
+> in emit/constend.go. **Not built**: `const` in a program module, so an endpoint naming one is a target
+> declaration's alone.
 
 ### 8.4 From today's forms
 

@@ -2364,6 +2364,21 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A TYPE IS A MEMBER OF ITS MODULE, AND ITS IDENTITY IS WHAT IT REALIZES** —
+[ownedtypes-2026-09-16](gauntlet/results/ownedtypes-2026-09-16.md), theories.md §3.2; step 3 of the build order and
+the question declaration-surface.md says decides every hand file still to be written. A module in a target is a
+signature `Σ = (S, Ω)` and **held Ω alone**: sorts lived in one flat pool keyed by a hand-mangled base name, which is
+not injective — **3 of Go's 1,270 exported type names collide**, two of them distinct structs — and which let hex
+declare `io`'s three sorts, recording no dependency. Now `(type NAME …)` inside `(module PATH …)` is `PATH.NAME`,
+`targets/go/io.oro` owns io's, and a constructor is refused inside a module (`array`/`map` are `lang`'s, realized
+once per target). **Splitting the naming asked a question one pool had answered by construction: a TYPE'S IDENTITY IS
+ITS REALIZATION.** The hex acceptance program refused a generated `*os.File` where hand-declared `go/io.Writer` was
+wanted; `SameHostType` says two names realizing one spelling are one type, `agree` asks it where `compatible` fails,
+and `Subsumes` reads an edge through it on BOTH ends. Controls: two spellings are two types, and subsumption has a
+direction. **Emission byte-identical, proof counts identical**; +41 code lines. Not built: the generator still writes
+types at target level — naming them by module needs a base-name→path index the manifest does not carry, which is what
+makes the two `Template` types distinct there.
+
 **A VARIANT TYPE IS ITS QUALIFIED DECLARATION, AND PATTERNS RESOLVE LEXICALLY** —
 [qualvariant-2026-09-15](gauntlet/results/qualvariant-2026-09-15.md), `core/sum.go`, `core/reduce.go`.
 The interim refusal below is gone: **resolution must be injective on declarations that differ**, and a table

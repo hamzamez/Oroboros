@@ -619,7 +619,11 @@ that spelling. The attached `host` clause has no kind, because a constant is a v
 > ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md)). Then §3.4 for variant types:
 > a variant type is keyed by its qualified declaration, a `case` pattern resolves lexically, and
 > `option` is one declaration in §5.3's `lang`, shadowed by a module's own
-> ([qualvariant-2026-09-15](../../gauntlet/results/qualvariant-2026-09-15.md)). Not yet: `type`,
+> ([qualvariant-2026-09-15](../../gauntlet/results/qualvariant-2026-09-15.md)). **And §3.2's types are
+> members of their modules, 2026-09-16**
+> ([ownedtypes-2026-09-16](../../gauntlet/results/ownedtypes-2026-09-16.md)): `(type NAME …)` inside
+> `(module PATH …)` is named `PATH.NAME`, a constructor is refused there, and a type's identity is the
+> spelling it realizes rather than the key that names it. Not yet: `type`,
 > companions and `const` in modules (`core.Module`), §7 facts beyond `max-len`, and §10.3's refusal
 > tests beyond the target forms.
 

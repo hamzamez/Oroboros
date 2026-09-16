@@ -96,7 +96,12 @@ what the host will see. The planted mistakes still fail.
 
 ## 5. Cost
 
-CHECK
+- **Code**: `emit/target.go` 2,322 → 2,360, `emit/check.go` 404 → 407, **+41**. One new target file,
+  `targets/go/io.oro`.
+- **`go run ./cmd/check`, every step, passes**: emission 194 of 194 files byte-identical, no compiler
+  note changed, proof counts identical (2,307 of 2,413 integer operations, 345 of 382 loops),
+  differential on four targets, and tooling — every survey twice, the hand-declaration checker with its
+  six planted mistakes, and twelve acceptance programs, of which `encoding-hex` is the mixed case.
 
 ## 6. Not built
 

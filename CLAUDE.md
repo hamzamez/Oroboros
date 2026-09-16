@@ -2364,6 +2364,15 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A GOAL IS SPLIT ON ITS CONDITIONALS — CASE-OF-CASE IN THE LOGIC** —
+[split-2026-09-16](gauntlet/results/split-2026-09-16.md). `C[(if c a b)] = (if c C[a] C[b])` is an equation between
+terms, so `G(C[if c a b]) ⟺ (c → G(C[a])) ∧ (¬c → G(C[b]))`, and a `let` is a fresh name equal to its value. This is
+Nelson–Oppen purification made EXACT: the goal is split on the alien subterm rather than the alien replaced by a name
+with template facts, so no template has to foresee the bound (`4·clamp(k)+2 < 2048`). Still a proof attempt, bounded at
+64 leaves. **Propagated obligations 105 → 53** (tree 40 → 0, freq's `dt` 4 → 0 ×3, tally 6 → 2); emitted code
+byte-identical. The 53 left are exactly what array-facts.md §1.1 predicted: freq's `src`, which needs a loop-result
+bound, and a JavaScript division. +57 code lines.
+
 **FACTS ABOUT A TABLE'S CONTENTS ARE RESEARCHED AND SPECIFIED — F-D₁, NOTHING BUILT** —
 [array-facts.md](docs/array-facts.md), [spec/theories.md §7.11](docs/spec/theories.md). **Measured first, and it
 corrected joinindex §4**: printing each remaining obligation's index shows NONE needs F-D. 122 are a clamp nested inside

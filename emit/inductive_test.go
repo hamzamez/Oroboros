@@ -98,3 +98,42 @@ func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 		t.Errorf("a clamp into a possibly empty table was taken as proven")
 	}
 }
+
+// A CONDITIONAL NESTED UNDER ARITHMETIC IS SPLIT ON: case-of-case in the logic.
+// `4·(clamp k) + 2 < 4·512` is outside the fragment as written — the clamp is an
+// alien inside a linear skeleton — and no template join foresees 2048. Splitting
+// the GOAL on the clamp's branches proves it exactly (refine.go, provedBySplit).
+func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
+	tg := tempTarget(t, ``)
+	const strided = `(use tgt)
+	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (if (< k 0) 0 (if (>= k 512) 0 k))) 2)))))`
+	notes, err := refineWith(t, tg, strided)
+	if err != nil {
+		t.Fatalf("a strided clamp was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("4·clamp(k)+2 < 2048 must be proven by splitting, got: %s", notes)
+	}
+	// CONTROL: one slot too far — stride 4 with offset 4 reaches 2048 — must stay
+	// propagated, never proven.
+	const over = `(use tgt)
+	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (if (< k 0) 0 (if (>= k 512) 0 k))) 4)))))`
+	notes, err = refineWith(t, tg, over)
+	if err != nil {
+		t.Fatalf("an unprovable strided index must be propagated, not refused: %v", err)
+	}
+	if !propagated(notes) {
+		t.Error("an index reaching past the table was taken as proven")
+	}
+	// A `let` INSIDE the arithmetic: its binder becomes a fresh name, equal to the
+	// value when the value is linear.
+	const let = `(use tgt)
+	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (let (+ k 1) (fn (i) (if (< i 1) 0 (if (>= i 512) 0 i))))) 3)))))`
+	notes, err = refineWith(t, tg, let)
+	if err != nil {
+		t.Fatalf("a let-bound strided clamp was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("a let-bound clamp under arithmetic must be proven, got: %s", notes)
+	}
+}

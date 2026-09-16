@@ -43,6 +43,10 @@ type refiner struct {
 	probe     bool
 	onAgain   func(args []*core.Term, f *facts)
 	loopDepth int
+
+	// splitFresh numbers the names provedBySplit gives a `let`'s binder, so a
+	// split never captures a name in the goal around it.
+	splitFresh int
 }
 
 func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
@@ -872,57 +876,131 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	return r.clauses(lam.Body(), g)
 }
 
-// provedThroughJoin tries to PROVE a bound on an index that is a `let` or a
-// conditional TERM — outside the fragment as written, so it has always been
-// propagated. The term denotes one value, so it is read as a fresh name carrying
-// what every branch satisfies (joinConditional's theorem).
+// provedBySplit tries to PROVE a goal that is outside the fragment because a
+// CONDITIONAL or a `let` sits somewhere inside it — at the top, as a clamped
+// index, or nested under arithmetic, as a strided clamp `4·(clamp k) + 2`.
 //
-// IT IS A PROOF ATTEMPT, NOT A WIDER FRAGMENT, and the difference was measured.
-// Read as a widening, an unproven bound on such an index became a REFUSAL:
-// tokenize.oro's 10 propagated obligations and kara/core.oro's 6 were all
-// proven, and freq.oro and tally were refused, because their clamps are in range
-// only when a table is non-empty — true, and a fact about a table's contents or a
-// loop's result that no fragment here derives. So a success removes the note and
-// a failure leaves exactly the propagation there was: the proven set only grows,
-// and nothing that built stops building.
-func (r *refiner) provedThroughJoin(tab, idx *core.Term, lower bool, f *facts) bool {
-	if idx.Kind != core.KApp {
+// THE ALGEBRA IS CASE-OF-CASE, the commuting conversion reduction already uses
+// (sums.md): for any context C[·],
+//
+//	C[(if c a b)]            =  (if c C[a] C[b])
+//	C[(let v (fn (x) e))]    =  (let v (fn (x) C[e]))        x fresh
+//
+// so, for a goal G,
+//
+//	G(C[(if c a b)])  ⟺  (c → G(C[a]))  ∧  (¬c → G(C[b]))
+//
+// and a `let` becomes an assumption `x = v` when v is linear (and x is otherwise
+// opaque, which only weakens). That is Nelson & Oppen's purification made EXACT
+// rather than approximated: the alien subterm is not replaced by a name carrying
+// template facts — the goal is split on it, so no template has to foresee the
+// bound (`4·k + 2 < 2048` is not a side of any guard in sight). Each split is
+// sound because exactly one branch is evaluated, under the facts that hold on
+// its path.
+//
+// IT IS A PROOF ATTEMPT, never a refusal (joinindex-2026-09-16): a goal it cannot
+// prove is propagated exactly as before. The split is bounded — `splitBudget`
+// leaves — because it is exponential in the number of aliens, and a goal with
+// more is left to the note.
+func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
+	if *budget <= 0 {
 		return false
 	}
-	const fresh = "#index"
-	g := f.clone()
-	r.joinConditional(g, fresh, idx, f)
-	x := variable(fresh)
-	if lower {
-		return g.entails(constant(0).addScaled(x, -1)) // 0 <= x
-	}
-	want := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("<"), core.Name(fresh),
-		&core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("len"), tab}}}}
-	goals, ok := g.oblig(want)
-	if !ok {
-		return false
-	}
-	for _, goal := range goals {
-		if !g.entails(goal) {
+	alien := r.firstAlien(goal)
+	if alien == nil {
+		goals, ok := f.oblig(goal)
+		if !ok {
 			return false
 		}
+		for _, g := range goals {
+			if !f.entails(g) {
+				return false
+			}
+		}
+		*budget--
+		return true
 	}
-	return true
+	if v, lam, isLet := asLet(r.tgt, alien); isLet {
+		r.splitFresh++
+		x := fmt.Sprintf("#s%d", r.splitFresh)
+		inner := f.clone()
+		if e, ok := f.lin(v); ok {
+			inner.assumeEQ(x, e)
+		} else {
+			r.joinConditional(inner, x, v, f)
+		}
+		body := lam.OpenWith([]*core.Term{core.Name(x)})
+		return r.provedBySplit(replaceTerm(goal, alien, body), inner, budget)
+	}
+	args := alien.Args()
+	c := args[0]
+	taken := f.clone()
+	assume(taken, c)
+	if !r.provedBySplit(replaceTerm(goal, alien, args[1]), taken, budget) {
+		return false
+	}
+	missed := f.clone()
+	if n := negate(c); n != nil {
+		assume(missed, n)
+	}
+	return r.provedBySplit(replaceTerm(goal, alien, args[2]), missed, budget)
+}
+
+// splitBudget bounds provedBySplit's leaves. The corpus's goals carry at most
+// three aliens; 64 leaves is two more levels than that needs.
+const splitBudget = 64
+
+// firstAlien is the leftmost-outermost conditional or `let` in a goal, outside
+// any lambda — the subterm the next split is on.
+func (r *refiner) firstAlien(t *core.Term) *core.Term {
+	if t == nil || t.Kind != core.KApp {
+		return nil
+	}
+	if _, _, isLet := asLet(r.tgt, t); isLet {
+		return t
+	}
+	if op := t.Op(); op.Kind == core.KName {
+		if p, known := r.tgt.Prims[op.Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+			return t
+		}
+	}
+	for _, a := range t.Args() {
+		if found := r.firstAlien(a); found != nil {
+			return found
+		}
+	}
+	return nil
+}
+
+// replaceTerm rebuilds t with the one subterm `old` (by identity) replaced.
+func replaceTerm(t, old, new *core.Term) *core.Term {
+	if t == old {
+		return new
+	}
+	if t == nil || t.Kind != core.KApp {
+		return t
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	changed := false
+	for i, k := range t.Kids {
+		kids[i] = replaceTerm(k, old, new)
+		changed = changed || kids[i] != k
+	}
+	if !changed {
+		return t
+	}
+	out := *t
+	out.Kids = kids
+	return &out
 }
 
 // nonNegative reports whether facts f prove 0 <= e. A back-edge argument is
 // often a CONDITIONAL rather than a name — β substitutes a let-bound clamp used
-// once straight into the `again` — so e is read as if bound to a fresh name and
-// given what every branch satisfies (joinConditional's theorem: exactly one leaf
-// is evaluated, on a path whose facts hold).
+// once straight into the `again` — so the goal is split on it (provedBySplit).
 func (r *refiner) nonNegative(e *core.Term, f *facts) bool {
-	if a, ok := f.lin(e); ok {
-		return f.entails(constant(0).addScaled(a, -1))
-	}
-	const fresh = "#again-arg"
-	g := f.clone()
-	r.joinConditional(g, fresh, e, f)
-	return g.entails(constant(0).addScaled(variable(fresh), -1))
+	budget := splitBudget
+	goal := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("<="), &core.Term{Kind: core.KInt}, e}}
+	return r.provedBySplit(goal, f, &budget)
 }
 
 // inductiveLowerBounds assumes `0 <= v` for every loop variable for which that
@@ -1390,7 +1468,8 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 	for _, want := range []*core.Term{lo, hi} {
 		goals, ok := f.oblig(want)
 		if !ok {
-			if r.provedThroughJoin(tab, idx, want == lo, f) {
+			budget := splitBudget
+			if r.provedBySplit(want, f, &budget) {
 				continue
 			}
 			r.notes = append(r.notes,

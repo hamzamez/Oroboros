@@ -278,10 +278,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
@@ -303,10 +299,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
 == examples/io/freq.oro java emitted c95fcc58558d518d35f9c59ded11c3a29e0969a7a659ec4e06fbcbd12bdb639c
@@ -327,10 +319,6 @@
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: src: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
-   note: dt: index bound propagated, not proven
    note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
@@ -368,47 +356,7 @@
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/json/tree.oro go emitted d9678041cabb11d1e698fd631a9b9088c30c2362d3e4be430dff8649c22e6a18
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
    note: gen-measure: 95 of 101 integer operations bounded; 5 of 5 loop(s) proven terminating
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
-   note: nodes: index bound propagated, not proven
    note: gen-run: 388 of 424 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused
    gen: examples/json/tree.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target

@@ -117,3 +117,16 @@ The initial baseline.
 - compiler output changed — `examples/io/freq.oro js`
 - compiler output changed — `examples/json/tokenize.oro go`
 - compiler output changed — `examples/kara/core.oro go`
+
+## 2026-09-16 — on 4bdfb41, with uncommitted changes
+
+**Reason:** Goals split on nested conditionals (case-of-case in the logic): propagated notes 105 -> 53, tree.oro 40 -> 0, freq dt 4 -> 0 on three hosts. Emitted code byte-identical, no refusal changed.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/json/tree.oro go`

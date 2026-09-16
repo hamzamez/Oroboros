@@ -1365,25 +1365,9 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, err
 			}
 		case "type":
-			// (type NAME (host "s")), and the two constructors `lang` owns and every
-			// typed target must realize: (type (array A) (host "[]%s")) and
-			// (type (map K V) (host "map[%s]%s")) — theories.md §5.6.
-			if s, ok := hostSpelling(lastKid(f)); ok && len(f.Kids) == 3 {
-				switch n := f.Kids[1]; {
-				case n.Kind == core.KName:
-					frag.Types[n.Name] = s
-				case formWord(n) == "array" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
-					frag.ArrayType = s
-				case formWord(n) == "map" && len(n.Kids) == 3 &&
-					n.Kids[1].Kind == core.KName && n.Kids[2].Kind == core.KName:
-					frag.MapType = s
-				default:
-					return nil, fmt.Errorf("%s: (type NAME (host …)), (type (array A) (host …)) or "+
-						"(type (map K V) (host …)), got %s", path, f)
-				}
-				break
+			if err := parseType(f, frag, "", path); err != nil {
+				return nil, err
 			}
-			return nil, fmt.Errorf("%s: (type NAME (host \"spelling\")), got %s", path, f)
 		case "backend":
 			// (backend NAME) — which code generator compiles this target.
 			if len(f.Kids) != 2 || f.Kids[1].Kind != core.KName {
@@ -1442,6 +1426,16 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 				return nil, fmt.Errorf("%s: (module PATH (sig …)…), got %s", path, f)
 			}
 			for _, inner := range f.Kids[2:] {
+				// A TYPE IS A MEMBER OF ITS MODULE, named by the whole path
+				// (theories.md §3.2, §3.4). A module in a target is a signature
+				// Σ = (S, Ω), and its sorts belong to it: `go/io.Writer` has one
+				// owner, and a base name shared by two packages is two types.
+				if formWord(inner) == "type" {
+					if err := parseType(inner, frag, f.Kids[1].Name, path); err != nil {
+						return nil, err
+					}
+					continue
+				}
 				if err := frag.declare(inner, f.Kids[1].Name, path); err != nil {
 					return nil, err
 				}
@@ -1545,6 +1539,49 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 // It is a fact because it IS one — a proposition true of every array here,
 // which the refinement layer assumes — and any other fact is refused rather
 // than read as this one.
+// parseType reads a sort declaration: `(type NAME (host "spelling"))`, and the
+// two constructors `lang` owns which every typed target must realize,
+// `(type (array A) …)` and `(type (map K V) …)` (theories.md §5.6).
+//
+// A MODULE IN A TARGET IS A SIGNATURE Σ = (S, Ω), AND ITS SORTS BELONG TO IT.
+// Declared inside `(module PATH …)` a type is named `PATH.NAME`, so it has one
+// owner and a base name two packages share is two types — measured: 3 of Go's
+// 1,270 exported type names collide by base name, two of them distinct structs
+// (theories.md §2.2, declaration-surface.md §4). A type constructor is the
+// TARGET's, not a module's: `array` and `map` are `lang`'s own, realized once
+// per target, so declaring one inside a module is refused.
+func parseType(f *core.Term, frag *Target, modPath, path string) error {
+	s, ok := hostSpelling(lastKid(f))
+	if !ok || len(f.Kids) != 3 {
+		return fmt.Errorf("%s: (type NAME (host \"spelling\")), got %s", path, f)
+	}
+	switch n := f.Kids[1]; {
+	case n.Kind == core.KName:
+		frag.Types[qualify(modPath, n.Name)] = s
+	case modPath != "":
+		return fmt.Errorf("%s: (type %s …) in module %s: `array` and `map` are the language's own "+
+			"type constructors and a target realizes each once, outside any module (theories.md §5.6)",
+			path, n, modPath)
+	case formWord(n) == "array" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
+		frag.ArrayType = s
+	case formWord(n) == "map" && len(n.Kids) == 3 &&
+		n.Kids[1].Kind == core.KName && n.Kids[2].Kind == core.KName:
+		frag.MapType = s
+	default:
+		return fmt.Errorf("%s: (type NAME (host …)), (type (array A) (host …)) or "+
+			"(type (map K V) (host …)), got %s", path, f)
+	}
+	return nil
+}
+
+// qualify joins a module path to a member name, as resolution does.
+func qualify(modPath, name string) string {
+	if modPath == "" {
+		return name
+	}
+	return modPath + "." + name
+}
+
 func parseFact(f *core.Term, frag *Target, path string) error {
 	var n int64
 	ok := len(f.Kids) == 4 && f.Kids[1].Kind == core.KName
@@ -3120,12 +3157,42 @@ func (tg *Target) Subsumes(got, want string) bool {
 	if tg == nil || got == "" || want == "" || got == want {
 		return got == want && got != ""
 	}
-	for _, i := range tg.Implements[got] {
-		if i == want {
-			return true
+	// BY REALIZATION ON BOTH ENDS, because a type owned by its module means one
+	// host type may have two keys — a hand file's `go/io.Writer` and a generated
+	// `io-Writer` (SameHostType).
+	for subj, ifs := range tg.Implements {
+		if subj != got && !tg.SameHostType(subj, got) {
+			continue
+		}
+		for _, i := range ifs {
+			if i == want || tg.SameHostType(i, want) {
+				return true
+			}
 		}
 	}
 	return false
+}
+
+// SameHostType reports whether two of OUR names denote ONE host type: they
+// realize the same spelling.
+//
+// A TYPE'S IDENTITY IS ITS REALIZATION. The pool maps a name to the host's own
+// spelling, and for an opaque host type that spelling IS the type — so two names
+// realizing "io.Writer" name one thing however each is keyed. Nothing had to ask
+// while one flat pool per target gave every host type exactly one name; a type
+// owned by its module (theories.md §3.2) means a hand-written file and a
+// generated one may key it differently, and a program that uses both must still
+// pass a value from one to the other (ownedtypes-2026-09-16).
+func (tg *Target) SameHostType(a, b string) bool {
+	if tg == nil || a == "" || b == "" {
+		return false
+	}
+	if a == b {
+		return true
+	}
+	sa, oka := tg.Types[a]
+	sb, okb := tg.Types[b]
+	return oka && okb && sa != "" && sa == sb
 }
 
 // BufferRoot follows a threaded buffer back to the name it came from.

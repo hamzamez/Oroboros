@@ -349,4 +349,11 @@ written, so it is the one to settle before the next package.
 >   spec/theories.md §1–§2;
 > - §4: types resolved like terms, owned by modules — spec/theories.md §3.4.
 >
-> Both specifications are drafts, and nothing in them is built.
+> Specified, and being built in the order theories-b-or-c.md §9 fixes. **§4 is built, 2026-09-16**
+> ([ownedtypes-2026-09-16](../gauntlet/results/ownedtypes-2026-09-16.md)): a type declared inside
+> `(module PATH …)` is named `PATH.NAME`, `targets/go/io.oro` owns `io`'s three sorts, and the
+> hand-declaration checker compares a declaration to the host by the SPELLING it realizes rather than
+> by the key that names it — so hand and generated files may name one host type differently and still
+> be checked against each other. The generator still writes types at target level: naming them by
+> module needs a base-name-to-path index the api manifest does not carry, which is the half that
+> makes the two `Template` types distinct.

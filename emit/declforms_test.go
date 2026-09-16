@@ -189,3 +189,79 @@ func TestABrokenProvidesIsRefusedNotDropped(t *testing.T) {
 		t.Error("the corrected provides must contribute m.f")
 	}
 }
+
+// A TYPE IS A MEMBER OF ITS MODULE (theories.md §3.2, §3.4). A module in a
+// target is a signature Σ = (S, Ω), and its sorts belong to it — so the key is
+// the whole path, which is what makes resolution injective on types: a base name
+// two packages share is two types, measured as 3 of Go's 1,270 exported type
+// names (declaration-surface.md §4.2).
+func TestATypeIsAMemberOfItsModule(t *testing.T) {
+	tg, err := loadOne(t, `(target x
+	  (type int (host "int"))
+	  (module go/io (type Writer (host "io.Writer")))
+	  (module go/text-template (type Template (host "template.Template")))
+	  (module go/html-template (type Template (host "template.Template")))
+	  (module go/encoding-hex
+	    (sig NewEncoder ((w go/io.Writer)) go/io.Writer (host expr "hex.NewEncoder(%s)"))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for name, want := range map[string]string{
+		"go/io.Writer":              "io.Writer",
+		"go/text-template.Template": "template.Template",
+		"go/html-template.Template": "template.Template",
+	} {
+		if got := tg.Types[name]; got != want {
+			t.Errorf("%s realizes %q, want %q", name, got, want)
+		}
+	}
+	// THE COLLISION IS GONE: two distinct host types with one base name are two
+	// declarations, where a flat pool keyed by the base name had one.
+	if _, flat := tg.Types["Template"]; flat {
+		t.Error("a module's type must not also land in the target's flat pool")
+	}
+	if p := tg.Prims["go/encoding-hex.NewEncoder"]; len(p.Args) != 1 || p.Args[0] != "go/io.Writer" {
+		t.Errorf("a signature names another module's type by its path: %+v", p.Args)
+	}
+}
+
+// A TYPE CONSTRUCTOR IS THE TARGET'S, not a module's: `array` and `map` are
+// `lang`'s own and every typed target realizes each exactly once (§5.6).
+func TestATypeConstructorIsNotAModuleMember(t *testing.T) {
+	_, err := loadOne(t, `(target x (module go/io (type (array A) (host "[]%s"))))`)
+	if err == nil || !strings.Contains(err.Error(), "outside any module") {
+		t.Errorf("a constructor inside a module must be refused, got %v", err)
+	}
+}
+
+// A TYPE'S IDENTITY IS ITS REALIZATION. Once a type is owned by its module, one
+// host type can have two keys — a hand-written file's `go/io.Writer` and a
+// generated survey's `io-Writer` — and a program using both must still pass a
+// value from one to the other. The pool maps a name to the host's spelling, and
+// for an opaque host type that spelling IS the type.
+func TestOneHostTypeMayHaveTwoKeys(t *testing.T) {
+	tg, err := loadOne(t, `(target x
+	  (type ptr-os-File (host "*os.File"))
+	  (type io-Writer (host "io.Writer"))
+	  (implements ptr-os-File io-Writer)
+	  (module go/io (type Writer (host "io.Writer"))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !tg.SameHostType("io-Writer", "go/io.Writer") {
+		t.Error("two keys realizing io.Writer must name one type")
+	}
+	// AND THE EDGE IS READ THROUGH IT, on both ends: the subsumption was declared
+	// with the generated key and is asked with the hand-written one.
+	if !tg.Subsumes("ptr-os-File", "go/io.Writer") {
+		t.Error("an implements edge must hold whichever key names its interface")
+	}
+	// The control: different spellings are different types, which is what stops
+	// this from identifying everything.
+	if tg.SameHostType("ptr-os-File", "go/io.Writer") {
+		t.Error("*os.File and io.Writer are two host types")
+	}
+	if tg.Subsumes("go/io.Writer", "ptr-os-File") {
+		t.Error("subsumption has a direction")
+	}
+}

@@ -204,6 +204,12 @@ func (c *checker) agree(what, got, want string) error {
 	//
 	// The coercion is the host's and its denotation is the identity, so nothing
 	// downstream of here learns that it happened (docs/interfaces.md 3).
+	// ONE HOST TYPE, TWO KEYS. A type is owned by its module now, so a hand file
+	// and a generated one may name the same host type differently; what they
+	// realize is what they mean (Target.SameHostType).
+	if c.tgt.SameHostType(core.ValueType(got), core.ValueType(want)) {
+		return nil
+	}
 	if c.tgt.Subsumes(core.ValueType(got), core.ValueType(want)) {
 		return nil
 	}

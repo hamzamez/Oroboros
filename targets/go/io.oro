@@ -1,0 +1,27 @@
+; io, DECLARED BY HAND — the SORTS only, for now.
+;
+; A module in a target is a signature Σ = (S, Ω): its sorts and the operations
+; typed over them (Goguen and Burstall's institutions; OBJ declares `sort`
+; beside `op`). These three are S for `io`, and they live here because a type
+; has ONE OWNER — `encoding/hex` declared them until 2026-09-16, which recorded
+; no dependency and let a second file declare `io.Writer` to mean something else
+; (declaration-surface.md §4.2, theories.md §3.2).
+;
+; Ω is empty on purpose: nothing here has read a method of `io` off the host, and
+; a declaration is a claim (ADR 0022). `Reader` and `Writer` are interfaces, so
+; their methods are unreachable until companions are built (hex-2026-09-14 §6).
+
+(target go
+  ; INTERFACE ≤ INTERFACE. Method-set inclusion is a preorder on interfaces as
+  ; well as from a concrete type to one (Cardelli's record subtyping), and
+  ; `io.WriteCloser` is DEFINED as `interface { Writer; Closer }` in io.go, so it
+  ; is below both by construction. The generated relation has only concrete
+  ; subjects, so a value of it could not be written to until this edge was
+  ; stated. Go checks it at every use: the coercion emits nothing and the host
+  ; compiler refuses the file if the edge were false.
+  (implements go/io.WriteCloser go/io.Writer)
+
+  (module go/io
+    (type Reader      (host "io.Reader"))
+    (type Writer      (host "io.Writer"))
+    (type WriteCloser (host "io.WriteCloser"))))

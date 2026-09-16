@@ -928,7 +928,11 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 			if err != nil {
 				t.Fatalf("the %s survey's %s: %v", h.host, h.generated, err)
 			}
-			handTg, err := emit.LoadTarget(filepath.Join(root, filepath.FromSlash(h.file)))
+			// THE WHOLE TARGET DIRECTORY, not the one file. A declaration's meaning
+			// is relative to the target it lives in — a target is the glue of its
+			// fragments — and since a type is owned by its module, hex's signatures
+			// name `go/io.Writer`, whose declaration is in targets/go/io.oro.
+			handTg, err := emit.LoadTarget(filepath.Dir(filepath.Join(root, filepath.FromSlash(h.file))))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -937,7 +941,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				if len(host) == 0 {
 					t.Fatalf("the survey declares nothing in %s, so nothing is checked", module)
 				}
-				for _, e := range agreeAll(hand, host) {
+				for _, e := range agreeAll(hand, host, realization(handTg), realization(hostTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
 			}
@@ -949,7 +953,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 					m[k] = v
 				}
 				mutate(m)
-				if errs := agreeAll(m, host); len(errs) == 0 {
+				if errs := agreeAll(m, host, realization(handTg), realization(hostTg)); len(errs) == 0 {
 					t.Errorf("%s was not caught", what)
 				}
 			}
@@ -969,7 +973,25 @@ func modulePrims(tg *emit.Target, module string) map[string]emit.Prim {
 }
 
 // agreeAll checks coverage in both directions and then every shared name.
-func agreeAll(hand, host map[string]emit.Prim) []error {
+// realization resolves a declared type name to the HOST SPELLING it stands for.
+//
+// Hand and generated declarations are compared by what they NAME, not by the key
+// that names it: a type is a member of its module now, so a hand file says
+// `go/io.Writer` where the generator still says `io-Writer`, and both realize
+// "io.Writer" — which is the claim either one makes (theories.md §3.2).
+func realization(tg *emit.Target) func(string) string {
+	return func(ty string) string {
+		parts := strings.Fields(ty)
+		for i, tok := range parts {
+			if s, ok := tg.Types[tok]; ok {
+				parts[i] = s
+			}
+		}
+		return strings.Join(parts, " ")
+	}
+}
+
+func agreeAll(hand, host map[string]emit.Prim, hres, gres func(string) string) []error {
 	var errs []error
 	var names []string
 	for n := range host {
@@ -990,7 +1012,7 @@ func agreeAll(hand, host map[string]emit.Prim) []error {
 		case !inHost:
 			errs = append(errs, fmt.Errorf("%s is declared by hand and the host has no such name", n))
 		default:
-			if err := agreeOne(n, h, g); err != nil {
+			if err := agreeOne(n, h, g, hres, gres); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -1006,12 +1028,12 @@ func agreeAll(hand, host map[string]emit.Prim) []error {
 //     the host writes it;
 //   - a write-borrow's result list may BEGIN with the buffer it hands back;
 //   - an integer result may be a narrower RANGE inside the host's type.
-func agreeOne(name string, h, g emit.Prim) error {
+func agreeOne(name string, h, g emit.Prim, hres, gres func(string) string) error {
 	if len(h.Args) != len(g.Args) {
 		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))
 	}
 	for i := range h.Args {
-		if !sameOrBuffer(h.Args[i], g.Args[i]) {
+		if !sameOrBuffer(hres(h.Args[i]), gres(g.Args[i])) {
 			return fmt.Errorf("%s: argument %d is %q by hand and %q on the host", name, i+1, h.Args[i], g.Args[i])
 		}
 	}
@@ -1028,7 +1050,7 @@ func agreeOne(name string, h, g emit.Prim) error {
 		return fmt.Errorf("%s returns %d value(s) by hand and %d on the host", name, len(hr), len(gr))
 	}
 	for i := range hr {
-		if !sameOrBuffer(hr[i], gr[i]) && !rangeWithin(hr[i], gr[i]) {
+		if !sameOrBuffer(hres(hr[i]), gres(gr[i])) && !rangeWithin(hres(hr[i]), gres(gr[i])) {
 			return fmt.Errorf("%s: result %d is %q by hand, which is not the host's %q or a range inside it",
 				name, i+1, hr[i], gr[i])
 		}

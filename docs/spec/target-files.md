@@ -48,7 +48,7 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (repr narrow (host "template"))  ; how this host restricts a container
               | (fact NAME ((a (array A))) (<= (len a) N))
               | (implements T I…)
-              | (module PATH sig…)               ; declares into a module namespace
+              | (module PATH (sig…|const…|type…))  ; declares into a module namespace
               | sig
               | const
               | structural
@@ -160,7 +160,27 @@ target that does not.
 ```
 
 Maps **our** name for a type to **the target's** spelling. The language owns the name; the target
-owns the spelling. `targets/js.oro` declares none at all, which is correct — JavaScript needs no
+owns the spelling.
+
+**A TYPE IS A MEMBER OF ITS MODULE**, named by the whole path (theories.md §3.2, §3.4):
+
+```lisp
+(module go/io
+  (type Writer (host "io.Writer")))
+```
+
+is `go/io.Writer` everywhere, and a signature in another module writes that path. A module in a
+target is a signature `Σ = (S, Ω)` — its sorts *and* its operations — and until 2026-09-16 the sorts
+lived in one flat pool per target, keyed by a hand-mangled base name. That key is not injective:
+**3 of Go's 1,270 exported type names collide by base name**, two of them distinct structs
+(`text/template.Template` and `html/template.Template`). Under this rule they are two declarations.
+
+It also gives a type ONE OWNER. `targets/go/encoding-hex.oro` declared `io.Reader`, `io.Writer` and
+`io.WriteCloser` itself, which recorded no dependency on `io` and left a third file free to declare
+one of them differently; they are `targets/go/io.oro`'s now.
+
+**A type constructor is the target's, not a module's.** `(type (array A) …)` and `(type (map K V) …)`
+realize `lang`'s own constructors, once per target, and are refused inside a module (§5.6). `targets/js.oro` declares none at all, which is correct — JavaScript needs no
 type layer, and that is [measured](../../gauntlet/results/js-2026-08-14.md) rather than assumed.
 
 The spelling is emitted verbatim into function signatures and variable declarations. It is never

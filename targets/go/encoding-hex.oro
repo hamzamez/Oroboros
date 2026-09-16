@@ -17,23 +17,13 @@
 ; The generator still spells the host's types; gauntlet/stdlib/tooling_test.go
 ; checks every declaration here against them, in both modules, and that none is
 ; missing.
-
 (target go
-  (type io-Reader      (host "io.Reader"))
-  (type io-Writer      (host "io.Writer"))
-  (type io-WriteCloser (host "io.WriteCloser"))
-  (type hex-InvalidByteError (host "hex.InvalidByteError"))
-
-  ; INTERFACE ≤ INTERFACE. Method-set inclusion is a preorder on interfaces as
-  ; well as from a concrete type to one (Cardelli's record subtyping), and
-  ; `io.WriteCloser` is DEFINED as `interface { Writer; Closer }` in io.go, so
-  ; it is below both by construction. The generated relation has only concrete
-  ; subjects, so the value Dumper returns could not be written to until this
-  ; edge was stated. Go checks it at every use: the coercion emits nothing and
-  ; the host compiler refuses the file if the edge were false.
-  (implements io-WriteCloser io-Writer)
 
   (module go/encoding-hex
+    ; THIS PACKAGE'S OWN SORT. `io`'s three live in targets/go/io.oro, because a
+    ; type has one owner and this file declaring them recorded no dependency
+    ; (declaration-surface.md §4.2).
+    (type InvalidByteError (host "hex.InvalidByteError"))
 
     ; ---------------------------------------------------------- lengths
     ; EncodedLen is the ℤ-linear map n ↦ 2n. The language's `int` window is NOT
@@ -106,17 +96,17 @@
     ; Generativity is an effect exactly when the generated thing can be told
     ; apart, which is Pitts & Stark's ν-calculus (1993); DecodeString's fresh
     ; slice cannot be, because the program only ever reads it.
-    (sig NewEncoder ((w io-Writer)) io-Writer
+    (sig NewEncoder ((w go/io.Writer)) go/io.Writer
           (host expr "hex.NewEncoder(%s)" (import "encoding/hex")))
-    (sig NewDecoder ((r io-Reader)) io-Reader
+    (sig NewDecoder ((r go/io.Reader)) go/io.Reader
           (host expr "hex.NewDecoder(%s)" (import "encoding/hex")))
-    (sig Dumper ((w io-Writer)) io-WriteCloser
+    (sig Dumper ((w go/io.Writer)) go/io.WriteCloser
           (host expr "hex.Dumper(%s)" (import "encoding/hex")))
   )
 
   ; The error type's one method. The message is a pure function of the byte.
   (module go/encoding-hex/InvalidByteError
-    (sig Error ((self hex-InvalidByteError)) string pure
+    (sig Error ((self go/encoding-hex.InvalidByteError)) string pure
           (host expr "%s.Error()" (import "encoding/hex")))
   )
 )

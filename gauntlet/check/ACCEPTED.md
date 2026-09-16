@@ -130,3 +130,15 @@ The initial baseline.
 - compiler output changed — `examples/io/freq.oro java`
 - compiler output changed — `examples/io/freq.oro js`
 - compiler output changed — `examples/json/tree.oro go`
+
+## 2026-09-16 — on 80386e1, with uncommitted changes
+
+**Reason:** Loop invariants over templates, result summaries, loops and conditionals named inside goals and guards, and Fourier-Motzkin entailment: propagated notes 53 -> 2 (freq 17 -> 0 on three hosts). Emitted code byte-identical, no refusal changed; farkas checked against enumeration.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+3 change(s):
+
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro js`

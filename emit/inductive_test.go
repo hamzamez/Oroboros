@@ -137,3 +137,50 @@ func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 		t.Errorf("a let-bound clamp under arithmetic must be proven, got: %s", notes)
 	}
 }
+
+// A LOOP'S RESULT IS SUMMARISED FROM ITS EXITS, UNDER ITS INVARIANTS.
+//
+// A count that advances with its index satisfies `n ≤ i` — a difference template
+// — and `i ≤ len a` holds of the index, so both exits return a value `≤ len a`.
+// With the count bound, `nw ≥ 1` and `nw ≤ len a` give `len a ≥ 1`: three facts
+// combined, which is Fourier–Motzkin's job, and what makes `(a 0)` in range.
+func TestALoopResultIsBoundedByItsExits(t *testing.T) {
+	tg := tempTarget(t, ``)
+	const count = `(use tgt)
+	  (fn (a)
+	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1))) (fn (nw)
+	      (if (>= nw 1) (a (if (< nw 0) 0 0)) 0))))`
+	notes, err := refineWith(t, tg, count)
+	if err != nil {
+		t.Fatalf("a count bounded by its loop was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("nw ≤ len a must be summarised and (a 0) proven, got: %s", notes)
+	}
+	// THREE FACTS, freq's own shape: 0 ≤ u, u < nw and nw ≤ len a give 0 < len a.
+	// No single fact and no sum of two reaches it; eliminating u and nw does.
+	const three = `(use tgt)
+	  (fn (a u)
+	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1))) (fn (nw)
+	      (if (>= u 0) (if (< u nw) (a (if (< u 0) 0 0)) 0) 0))))`
+	notes, err = refineWith(t, tg, three)
+	if err != nil {
+		t.Fatalf("a three-fact entailment was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("0 < len a from 0 ≤ u < nw ≤ len a must be proven by elimination, got: %s", notes)
+	}
+	// CONTROL: a count that advances TWICE as fast is not below the index, so no
+	// summary relates it to the table, and the read stays propagated.
+	const twice = `(use tgt)
+	  (fn (a)
+	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 2) (+ i 1))) (fn (nw)
+	      (if (>= nw 1) (a (if (< nw 0) 0 0)) 0))))`
+	notes, err = refineWith(t, tg, twice)
+	if err != nil {
+		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)
+	}
+	if !propagated(notes) {
+		t.Error("a count that can exceed the table's length was summarised as bounded by it")
+	}
+}

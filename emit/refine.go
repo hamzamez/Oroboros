@@ -47,6 +47,17 @@ type refiner struct {
 	// splitFresh numbers the names provedBySplit gives a `let`'s binder, so a
 	// split never captures a name in the goal around it.
 	splitFresh int
+
+	// probeDepth is how many dry walks enclose this one. A loop met inside a
+	// probe still gets its invariants and its result summary — a step that reads
+	// a scanner's result needs the scanner's summary — but only to a fixed depth,
+	// so the rounds do not multiply without bound.
+	probeDepth int
+
+	// bodyFacts remembers the facts `iterate` established for a loop's body,
+	// keyed by the loop's lambda, so a `let` summarising that loop's RESULT does
+	// not run the invariant fixpoint a second time.
+	bodyFacts map[*core.Term]*facts
 }
 
 func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
@@ -581,6 +592,7 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 	}
 	r.assumeLength(inner, k.Params[0], args[0])
 	r.joinConditional(inner, k.Params[0], args[0], f)
+	r.summarizeLoop(inner, k.Params[0], args[0])
 	// A POSTCONDITION ATTACHES TO THE NAME, not to the call (Lemma 2). Two
 	// occurrences of an impure call denote different values and the fact layer
 	// is keyed by printed term, so the only sound anchor is the binder — which
@@ -661,12 +673,10 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 					}
 				}
 				taken := path.clone()
-				assume(taken, c)
+				r.guard(taken, c, true)
 				walk(t.Args()[1], taken, depth+1)
 				missed := path.clone()
-				if n := negate(c); n != nil {
-					assume(missed, n)
-				}
+				r.guard(missed, c, false)
 				walk(t.Args()[2], missed, depth+1)
 				return
 			}
@@ -870,7 +880,11 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 			}
 		}
 	}
-	r.inductiveLowerBounds(lam, inits, f, g)
+	r.loopInvariants(lam, inits, f, g)
+	if r.bodyFacts == nil {
+		r.bodyFacts = map[*core.Term]*facts{}
+	}
+	r.bodyFacts[lam] = g
 	r.loopDepth++
 	defer func() { r.loopDepth-- }()
 	return r.clauses(lam.Body(), g)
@@ -920,6 +934,16 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 		*budget--
 		return true
 	}
+	// A LOOP is named too: C[loop] = let x = loop in C[x], and x carries the
+	// loop's result summary. β substitutes a scanner used once straight into the
+	// `again` that consumes it, so a back-edge argument is often the loop itself.
+	if alien.Op().Kind == core.KName && loopKinds[alien.Op().Name] {
+		r.splitFresh++
+		x := fmt.Sprintf("#s%d", r.splitFresh)
+		inner := f.clone()
+		r.summarizeNamed(inner, x, alien, f)
+		return r.provedBySplit(replaceTerm(goal, alien, core.Name(x)), inner, budget)
+	}
 	if v, lam, isLet := asLet(r.tgt, alien); isLet {
 		r.splitFresh++
 		x := fmt.Sprintf("#s%d", r.splitFresh)
@@ -935,15 +959,85 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 	args := alien.Args()
 	c := args[0]
 	taken := f.clone()
-	assume(taken, c)
+	r.guard(taken, c, true)
 	if !r.provedBySplit(replaceTerm(goal, alien, args[1]), taken, budget) {
 		return false
 	}
 	missed := f.clone()
-	if n := negate(c); n != nil {
-		assume(missed, n)
-	}
+	r.guard(missed, c, false)
 	return r.provedBySplit(replaceTerm(goal, alien, args[2]), missed, budget)
+}
+
+// guard assumes a clause guard — or its negation — with every alien subterm of
+// its comparison NAMED first.
+//
+// A hypothesis cannot be split the way a goal is: splitting `C[if c a b]` as a
+// fact gives a DISJUNCTION, which a conjunction of inequalities cannot hold. It
+// can be NAMED exactly: C[e] is `let x = e in C[x]`, so assuming C[x] together
+// with what is known of x — a loop's result summary, a conditional's branch
+// join — loses nothing that the opaque atom kept, and reads what it could not.
+// β puts a scanner used once straight into the guard that tests it, so
+// `(< u (loop …))` is a comparison the fragment could never read before.
+func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
+	if c != nil && c.Kind == core.KApp && c.Op().Kind == core.KName && len(c.Args()) == 2 {
+		if _, _, isLet := asLet(r.tgt, c); !isLet {
+			if p, known := r.tgt.Prims[c.Op().Name]; !known || p.Kind != "cond" {
+				kids := append([]*core.Term(nil), c.Kids...)
+				for i := 1; i < len(kids); i++ {
+					for n := 0; n < 4; n++ {
+						alien := r.firstAlien(kids[i])
+						if alien == nil {
+							break
+						}
+						r.splitFresh++
+						x := fmt.Sprintf("#g%d", r.splitFresh)
+						r.summarizeNamed(f, x, alien, f)
+						kids[i] = replaceTerm(kids[i], alien, core.Name(x))
+					}
+				}
+				named := *c
+				named.Kids = kids
+				// BOTH are true, and both are kept: the original is what an
+				// opaque goal written the same way matches syntactically, and the
+				// named comparison is what the fragment can read.
+				if holds {
+					assume(f, c)
+				} else if n := negate(c); n != nil {
+					assume(f, n)
+				}
+				c = &named
+			}
+		}
+	}
+	if holds {
+		assume(f, c)
+		return
+	}
+	if n := negate(c); n != nil {
+		assume(f, n)
+	}
+}
+
+// summarizeNamed gives the fresh name x what is known of the alien term e, under
+// facts at: a loop's result summary, or a conditional's (or `let`'s) branch join.
+func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts) {
+	if e.Op().Kind == core.KName && loopKinds[e.Op().Name] {
+		if args := e.Args(); len(args) > 0 {
+			if _, done := r.bodyFacts[args[0]]; done {
+				r.summarizeLoop(into, x, e)
+				return
+			}
+		}
+		bound := map[string]bool{}
+		for k, v := range r.bound {
+			bound[k] = v
+		}
+		d := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth}
+		_ = d.walk(e, at)
+		d.summarizeLoop(into, x, e)
+		return
+	}
+	r.joinConditional(into, x, e, at)
 }
 
 // splitBudget bounds provedBySplit's leaves. The corpus's goals carry at most
@@ -961,6 +1055,9 @@ func (r *refiner) firstAlien(t *core.Term) *core.Term {
 	}
 	if op := t.Op(); op.Kind == core.KName {
 		if p, known := r.tgt.Prims[op.Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+			return t
+		}
+		if loopKinds[op.Name] {
 			return t
 		}
 	}
@@ -1003,78 +1100,112 @@ func (r *refiner) nonNegative(e *core.Term, f *facts) bool {
 	return r.provedBySplit(goal, f, &budget)
 }
 
-// inductiveLowerBounds assumes `0 <= v` for every loop variable for which that
-// is an INDUCTIVE INVARIANT, decided by the fragment rather than by the shape of
-// the step.
+// loopInvariants assumes every candidate linear inequality over a loop's
+// variables that is an INDUCTIVE INVARIANT, decided by the fragment rather than by
+// the shape of the step (inductive-2026-09-16, generalised).
 //
-// The syntactic rules above see `(+ v 3)` and `e ⊒ S`; they do not see a pass
-// over a merge sort, `lo ← min(n, lo + 2w)`, whose step is non-negative only
-// because the clause guard says `lo < n` and the invariant already says `lo`
-// and `w` are. That is induction, and it is decided exactly as induction is.
+// THEOREM (inductive invariant). Let C be a set of linear inequalities over the
+// loop variables v̄ such that the entry facts F prove each φ ∈ C with v̄ := z̄, and
+// at every back edge `(again ā)`, reached under facts P,
+// P ∧ ⋀C ⊢ φ[ā/v̄] for every φ ∈ C. Then ⋀C holds at every iteration.
+// Proof: induction on iterations, simultaneously over C. On entry by the first
+// hypothesis; if ⋀C holds at an iteration, the back edge taken is reached under
+// facts that hold there, so ⋀C holds of the next values. ∎
 //
-// THEOREM (inductive invariant). Let C be a set of loop variables such that for
-// each v ∈ C the entry facts F prove 0 ≤ z_v, and at every back edge
-// `(again a₁ … aₙ)` reached under facts P, P ∧ ⋀_{u∈C} 0 ≤ u ⊢ 0 ≤ a_v for every
-// v ∈ C. Then 0 ≤ v holds at every iteration, for every v ∈ C.
-// Proof: by induction on iterations, simultaneously for all of C. On entry each
-// v is z_v and F holds. If ⋀ 0 ≤ u holds at an iteration, the back edge taken is
-// reached under facts that hold there — clause guards, and bindings of names
-// that are immutable — so each new value a_v is non-negative. ∎
+// P may be used because the facts `iterate` keeps in a body never include a
+// variable's initial value — only what every iteration guarantees.
 //
-// P may be used because the facts in scope inside a loop body never include a
-// variable's initial value — `iterate` assumes only what EVERY iteration
-// guarantees.
+// FINDING C is Houdini (Flanagan & Leino, FME 2001) over a FINITE set of
+// templates fixed before the fixpoint — Sankaranarayanan, Sipma & Manna's shape:
 //
-// FINDING C is Houdini (Flanagan & Leino, FME 2001): start from every candidate,
-// discard those some back edge fails to preserve, repeat. Discarding only
-// weakens the hypotheses, so the iteration is monotone and stops within |C| + 1
-// rounds at the GREATEST inductive subset — every candidate that is jointly
-// inductive, which is the most this template can give.
+//	0 ≤ v          v ≤ s,  s ≤ v   for s a linear side of a guard in the clause chain
+//	z ≤ v          for z an initial value naming no loop variable (a frame term)
+//	u ≤ v          for two loop variables — the difference template, count ≤ trips
 //
-// Each round is a dry walk of the body (refiner.probe). A nested loop met during
-// a probe keeps only the syntactic rule, or rounds would multiply with depth.
-func (r *refiner) inductiveLowerBounds(lam *core.Term, inits []*core.Term, f, g *facts) {
-	if r.probe {
+// Discarding only weakens the hypotheses, so the iteration is monotone and stops
+// within |C| + 1 rounds at the greatest jointly inductive subset. A candidate the
+// templates do not generate is not searched for.
+//
+// Each round is a dry walk of the body (refiner.probe), which reads the facts at
+// each of this loop's back edges — including the result summaries of loops inside
+// it, to a fixed probe depth.
+func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts) {
+	if r.probeDepth >= 3 {
 		return
 	}
-	var cand []string
-	for i, n := range lam.Params {
-		if i >= len(inits) {
-			continue
-		}
-		e, ok := f.lin(inits[i])
-		if !ok || !f.entails(constant(0).addScaled(e, -1)) {
-			continue
-		}
-		if g.entails(constant(0).addScaled(variable(n), -1)) {
-			continue // the syntactic rule already gave it
-		}
-		cand = append(cand, n)
+	params := lam.Params
+	if len(inits) < len(params) {
+		return
 	}
-	pos := map[string]int{}
-	for i, n := range lam.Params {
-		pos[n] = i
+	entry := map[string]*core.Term{}
+	for i, n := range params {
+		entry[n] = inits[i]
 	}
-	for round := 0; round <= len(lam.Params) && len(cand) > 0; round++ {
+	var cands []*core.Term
+	seen := map[string]bool{}
+	add := func(a, b *core.Term) {
+		c := core.App(core.Name("<="), a, b)
+		k := c.String()
+		if seen[k] || a.String() == b.String() {
+			return
+		}
+		seen[k] = true
+		// Already known — the syntactic rules gave it — or false on entry.
+		if goals, ok := g.oblig(c); ok && allEntailed(g, goals) {
+			return
+		}
+		budget := splitBudget
+		if !r.provedBySplit(core.Rename2(c, entry), f, &budget) {
+			return
+		}
+		cands = append(cands, c)
+	}
+	zero := &core.Term{Kind: core.KInt}
+	sides := r.guardSides(lam.Body())
+	for i, n := range params {
+		v := core.Name(n)
+		add(zero, v)
+		for _, sd := range sides {
+			if mentionsName(sd, n) {
+				continue
+			}
+			add(v, sd)
+			add(sd, v)
+		}
+		if !mentionsAny(inits[i], params) {
+			add(inits[i], v)
+		}
+		for _, u := range params {
+			if u != n {
+				add(core.Name(u), v)
+			}
+		}
+	}
+	for round := 0; round <= len(cands) && len(cands) > 0; round++ {
 		h := g.clone()
-		for _, n := range cand {
-			h.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n+" (inductive)")
+		for _, c := range cands {
+			assume(h, c)
 		}
-		failed := map[string]bool{}
+		failed := map[int]bool{}
 		bound := map[string]bool{}
 		for k, v := range r.bound {
 			bound[k] = v
 		}
-		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true}
+		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth + 1}
 		dry.onAgain = func(args []*core.Term, at *facts) {
-			for _, n := range cand {
-				i := pos[n]
-				if i >= len(args) {
-					failed[n] = true
+			sub := map[string]*core.Term{}
+			for i, n := range params {
+				if i < len(args) {
+					sub[n] = args[i]
+				}
+			}
+			for i, c := range cands {
+				if failed[i] {
 					continue
 				}
-				if !r.nonNegative(args[i], at) {
-					failed[n] = true
+				budget := splitBudget
+				if len(args) < len(params) || !dry.provedBySplit(core.Rename2(c, sub), at, &budget) {
+					failed[i] = true
 				}
 			}
 		}
@@ -1082,19 +1213,172 @@ func (r *refiner) inductiveLowerBounds(lam *core.Term, inits []*core.Term, f, g 
 			return // a probe that cannot walk the body licenses nothing
 		}
 		if len(failed) == 0 {
-			for _, n := range cand {
-				g.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n+" (inductive)")
+			for _, c := range cands {
+				assume(g, c)
 			}
 			return
 		}
-		var keep []string
-		for _, n := range cand {
-			if !failed[n] {
-				keep = append(keep, n)
+		var keep []*core.Term
+		for i, c := range cands {
+			if !failed[i] {
+				keep = append(keep, c)
 			}
 		}
-		cand = keep
+		cands = keep
 	}
+}
+
+// summarizeLoop gives a name bound to a LOOP'S RESULT what every exit satisfies.
+//
+// THEOREM (result summary). Let I be the invariants of the loop's body, and let
+// each exit clause return r_j, reached under path facts P_j. If P_j ∧ I ⊢ φ(r_j)
+// for every exit j, then φ(result). Proof: a loop has a value only at some exit
+// on some iteration, where I and that exit's path facts hold. ∎ (Partial
+// correctness: a loop that does not terminate has no value to be wrong about.)
+//
+// The candidate φ are `result ≤ s` and `s ≤ result` for s a guard side or an
+// initial value naming no loop variable, and `0 ≤ result` — the same finite
+// template set as the invariants, read at the exits. `nwords`' count is at most
+// `len src` this way: the invariants say n ≤ i ≤ len src, and both exits return n.
+func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) {
+	if loop.Kind != core.KApp || loop.Op().Kind != core.KName || !loopKinds[loop.Op().Name] {
+		return
+	}
+	args := loop.Args()
+	if len(args) < 2 || args[0].Kind != core.KFn {
+		return
+	}
+	lam, inits := args[0], args[1:]
+	body, ok := r.bodyFacts[lam]
+	if !ok {
+		return
+	}
+	params := lam.Params
+	type exit struct {
+		value *core.Term
+		at    *facts
+	}
+	var exits []exit
+	var walk func(t *core.Term, at *facts)
+	walk = func(t *core.Term, at *facts) {
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if p, known := r.tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+				c := t.Args()[0]
+				taken := at.clone()
+				r.guard(taken, c, true)
+				walk(t.Args()[1], taken)
+				missed := at.clone()
+				r.guard(missed, c, false)
+				walk(t.Args()[2], missed)
+				return
+			}
+		}
+		if hasAgain(t) {
+			return // a back edge, not an exit
+		}
+		exits = append(exits, exit{t, at})
+	}
+	walk(lam.Body(), body)
+	if len(exits) == 0 {
+		return
+	}
+	res := core.Name(x)
+	zero := &core.Term{Kind: core.KInt}
+	var frames []*core.Term
+	for _, sd := range r.guardSides(lam.Body()) {
+		if !mentionsAny(sd, params) {
+			frames = append(frames, sd)
+		}
+	}
+	for _, z := range inits {
+		if !mentionsAny(z, params) {
+			frames = append(frames, z)
+		}
+	}
+	try := func(c *core.Term) {
+		for _, e := range exits {
+			budget := splitBudget
+			if !r.provedBySplit(core.Rename2(c, map[string]*core.Term{x: e.value}), e.at, &budget) {
+				return
+			}
+		}
+		assume(inner, c)
+	}
+	try(core.App(core.Name("<="), zero, res))
+	for _, sd := range frames {
+		try(core.App(core.Name("<="), res, sd))
+		try(core.App(core.Name("<="), sd, res))
+	}
+}
+
+// guardSides is the linear-arithmetic sides of every comparison guarding a clause
+// of a loop body's chain — the template vocabulary for its invariants.
+func (r *refiner) guardSides(body *core.Term) []*core.Term {
+	var out []*core.Term
+	seen := map[string]bool{}
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+			return
+		}
+		if p, known := r.tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+			c := t.Args()[0]
+			if c.Kind == core.KApp && len(c.Args()) == 2 {
+				for _, sd := range c.Args() {
+					if k := sd.String(); !seen[k] {
+						seen[k] = true
+						out = append(out, sd)
+					}
+				}
+			}
+			walk(t.Args()[2])
+		}
+	}
+	walk(body)
+	return out
+}
+
+func mentionsAny(t *core.Term, names []string) bool {
+	for _, n := range names {
+		if mentionsName(t, n) {
+			return true
+		}
+	}
+	return false
+}
+
+func allEntailed(f *facts, goals []*linear) bool {
+	for _, g := range goals {
+		if !f.entails(g) {
+			return false
+		}
+	}
+	return true
+}
+
+// hasAgain reports whether t jumps back to the loop that owns it: an `again`
+// outside any nested loop, whose own back edges are its own.
+func hasAgain(t *core.Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if t.Op().Name == "again" {
+			return true
+		}
+		if loopKinds[t.Op().Name] {
+			return false
+		}
+	}
+	if t.Kind == core.KFn {
+		return hasAgain(t.Body())
+	}
+	for _, k := range t.Kids {
+		if hasAgain(k) {
+			return true
+		}
+	}
+	return false
 }
 
 // clauses walks the if-chain, assuming each guard inside its own branch.
@@ -1106,7 +1390,7 @@ func (r *refiner) clauses(t *core.Term, f *facts) error {
 				return err
 			}
 			taken := f.clone()
-			assume(taken, args[0])
+			r.guard(taken, args[0], true)
 			if err := r.clauses(args[1], taken); err != nil {
 				return err
 			}
@@ -1115,9 +1399,7 @@ func (r *refiner) clauses(t *core.Term, f *facts) error {
 			// is where `i < alen a` comes from in a search whose first clause is
 			// `(int.ge i (alen a))`.
 			missed := f.clone()
-			if n := negate(args[0]); n != nil {
-				assume(missed, n)
-			}
+			r.guard(missed, args[0], false)
 			return r.clauses(args[2], missed)
 		}
 	}

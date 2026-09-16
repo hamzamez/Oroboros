@@ -2364,6 +2364,21 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A LOOP'S RESULT IS SUMMARISED AND ENTAILMENT IS FOURIER–MOTZKIN: 53 PROPAGATED BECOME 2** —
+[loopsum-2026-09-16](gauntlet/results/loopsum-2026-09-16.md). freq's clamps needed `len src ≥ 1` from `0 ≤ u`,
+`u + 1 ≤ nw` and a missing `nw ≤ len src`. **Four pieces, each a theorem.** (1) Houdini over TEMPLATES — `0 ≤ v`,
+`v ≤ s`, `z ≤ v`, and the difference `u ≤ v` — gives `nwords`' `n ≤ i`, the corpus's first octagon-shaped fact,
+arriving as one template rather than a domain. (2) **Result summary**: φ holds of a loop's value when every exit value
+satisfies it under the invariants (partial correctness), so `nw ≤ len src`. (3) **β puts a loop inside an `again`
+argument or a guard**: in a GOAL it is split and named; in a HYPOTHESIS it is only NAMED, because splitting a fact is a
+disjunction, and the opaque atom is kept beside it. (4) **Entailment is Farkas**: over ℤ, facts ⊢ g ≤ 0 if facts ∪
+{1 − g ≤ 0} has no rational solution, decided exactly by Fourier–Motzkin with Omega-test gcd rounding. It is relevance
+filtered and gives up past sizes, and **the size caps were wrong once**: at 48 facts, more true facts in scope LOST four
+proofs, and 160 recovers them at no measured cost. **Checked against enumeration**: 4,000 random boxed systems, every
+claim true at all 729 points, 727 of 760 entailed goals proven, and it fails at trial 64 with the rounding pushed past
+the ceiling. **298 → 2 in one day**; what remains is two JavaScript divisions. Emitted code byte-identical; +424 code
+lines.
+
 **A GOAL IS SPLIT ON ITS CONDITIONALS — CASE-OF-CASE IN THE LOGIC** —
 [split-2026-09-16](gauntlet/results/split-2026-09-16.md). `C[(if c a b)] = (if c C[a] C[b])` is an equation between
 terms, so `G(C[if c a b]) ⟺ (c → G(C[a])) ∧ (¬c → G(C[b]))`, and a `let` is a fresh name equal to its value. This is

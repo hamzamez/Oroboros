@@ -262,64 +262,13 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/io/freq.oro go emitted 31dd0be46d364f8cfadf252ce62e026421df80c0bc2480a02e2f05594d2f4bbc
    note: gen-main: 71 product access(es) flattened
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
 == examples/io/freq.oro js emitted 982e726075e67d03df2833e2809d5e10c0d8fadf405574997057f03069fe2567
    note: gen-main: 71 product access(es) flattened
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
 == examples/io/freq.oro java emitted c95fcc58558d518d35f9c59ded11c3a29e0969a7a659ec4e06fbcbd12bdb639c
    note: gen-main: 71 product access(es) flattened
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
-   note: src: index bound propagated, not proven
    note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
    note: gen-main: 256 division(s) became a shift or a mask
 == examples/io/freq.oro windows refused

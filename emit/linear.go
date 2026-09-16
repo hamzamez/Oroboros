@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 
@@ -12,10 +13,13 @@ import (
 // arithmetic over difference constraints, which is what every bounds obligation
 // actually is.
 //
-// Deliberately incomplete. This is not Fourier-Motzkin and not an SMT solver —
-// it is the smallest thing that decides the obligations this language generates,
-// and being incomplete is safe because an undischarged obligation is REPORTED
-// rather than assumed.
+// Deliberately incomplete OVER THE INTEGERS, and not an SMT solver. `entails`
+// tries the one- and two-fact certificates first and then `farkas`, which is
+// Fourier–Motzkin elimination on the goal's negation: complete for every
+// entailment a rational certificate proves, and sound over ℤ because a system with
+// no rational solution has no integer one (split-2026-09-16's successor, loopsum).
+// What it misses is what only integrality proves, and being incomplete is safe
+// because an undischarged obligation is REPORTED rather than assumed.
 
 // linear is a linear expression: coefficients over opaque variables, plus a
 // constant. A variable is a parameter name, or a length term like "alen(a)"
@@ -354,7 +358,241 @@ func (f *facts) entails(goal *linear) bool {
 			}
 		}
 	}
-	return false
+	return farkas(le, g)
+}
+
+// farkas decides `facts ⊢ g <= 0` over the integers by refuting its negation.
+//
+// THE THEOREM. Every variable here is an integer, so g > 0 is g ≥ 1, and
+//
+//	{ aᵢ ≤ 0 } ⊢ g ≤ 0     if     { aᵢ ≤ 0 } ∪ { 1 − g ≤ 0 } has no RATIONAL solution,
+//
+// because a system with no rational solution has no integer one. Rational
+// infeasibility of a conjunction of linear inequalities is exactly what
+// Fourier–Motzkin elimination decides (Fourier 1826, Motzkin 1936): eliminating
+// a variable v combines every pair with opposite signs on v by positive
+// multipliers, and the eliminated system is feasible iff the original is. When
+// no variable is left, the system is infeasible iff some row reads c ≤ 0 with
+// c > 0. The combination that reaches that row is a Farkas certificate — the
+// non-negative multipliers whose sum is a contradiction (Farkas 1902) — which is
+// what the one- and two-fact checks above were each a special case of.
+//
+// TWO INTEGER STRENGTHENINGS, both sound over ℤ: every row Σaⱼxⱼ + c ≤ 0 is
+// divided by d = gcd(aⱼ) with the constant rounded UP, Σ(aⱼ/d)xⱼ + ⌈c/d⌉ ≤ 0
+// (the normalisation step of Pugh's Omega test, 1991); and the goal is negated to
+// g ≥ 1 rather than g > 0. Neither is complete for ℤ, which this procedure has
+// never claimed to be — it is sound, and complete for everything a rational
+// certificate proves.
+//
+// IT MAY GIVE UP, and giving up is "not proven", never a guess: Fourier–Motzkin
+// is doubly exponential in the worst case, so only facts connected to the goal's
+// variables take part, and the elimination stops past fixed sizes. A coefficient
+// that would overflow drops that combination, which only weakens the system.
+func farkas(le []*linear, g *linear) bool {
+	// Relevance: the connected component of the goal's variables.
+	vars := map[string]bool{}
+	for v := range g.coef {
+		vars[v] = true
+	}
+	used := make([]bool, len(le))
+	var rows []*linear
+	for changed := true; changed; {
+		changed = false
+		for i, a := range le {
+			if used[i] {
+				continue
+			}
+			for v := range a.coef {
+				if vars[v] {
+					used[i] = true
+					rows = append(rows, a)
+					for w := range a.coef {
+						vars[w] = true
+					}
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	if len(rows) == 0 || len(rows) > farkasMaxFacts {
+		return false
+	}
+	sys := make([]*linear, 0, len(rows)+1)
+	for _, r := range rows {
+		if n, ok := normalizeRow(r); ok {
+			sys = append(sys, n)
+		}
+	}
+	if neg, ok := normalizeRow(constant(1).addScaled(g, -1)); ok {
+		sys = append(sys, neg)
+	} else {
+		return false
+	}
+	for {
+		for _, r := range sys {
+			if len(r.coef) == 0 && r.konst > 0 {
+				return true
+			}
+		}
+		// Eliminate the variable whose elimination creates the fewest rows.
+		best, bestCost := "", -1
+		count := map[string][2]int{}
+		for _, r := range sys {
+			for v, c := range r.coef {
+				pn := count[v]
+				if c > 0 {
+					pn[0]++
+				} else {
+					pn[1]++
+				}
+				count[v] = pn
+			}
+		}
+		for v, pn := range count {
+			cost := pn[0] * pn[1]
+			if bestCost < 0 || cost < bestCost || (cost == bestCost && v < best) {
+				best, bestCost = v, cost
+			}
+		}
+		if best == "" {
+			return false // no variables and no contradiction: feasible
+		}
+		var pos, neg, next []*linear
+		for _, r := range sys {
+			switch c := r.coef[best]; {
+			case c > 0:
+				pos = append(pos, r)
+			case c < 0:
+				neg = append(neg, r)
+			default:
+				next = append(next, r)
+			}
+		}
+		seen := map[string]bool{}
+		for _, r := range next {
+			seen[r.String()] = true
+		}
+		for _, p := range pos {
+			for _, n := range neg {
+				mp, mn := -n.coef[best], p.coef[best]
+				row, ok := combine(p, mp, n, mn)
+				if !ok {
+					continue // an overflow drops a row, which only weakens the system
+				}
+				delete(row.coef, best)
+				row, ok = normalizeRow(row)
+				if !ok {
+					continue
+				}
+				if k := row.String(); !seen[k] {
+					seen[k] = true
+					next = append(next, row)
+				}
+			}
+		}
+		if len(next) > farkasMaxRows {
+			return false
+		}
+		sys = next
+	}
+}
+
+// The sizes past which farkas gives up. They are MEASURED, not guessed: at 48
+// connected facts freq.oro lost four proofs the moment guards started naming
+// their loops (more true facts in scope, and the procedure gave up rather than
+// using them). 160 facts and 4,096 rows recover every one with no measurable
+// change in the sweep's time.
+const (
+	farkasMaxFacts = 160
+	farkasMaxRows  = 4096
+)
+
+// combine is ma·a + mb·b with overflow reported rather than wrapped.
+func combine(a *linear, ma int64, b *linear, mb int64) (*linear, bool) {
+	out := constant(0)
+	add := func(x, y int64) (int64, bool) {
+		s := x + y
+		if (s > x) != (y > 0) {
+			return 0, false
+		}
+		return s, true
+	}
+	mul := func(x, y int64) (int64, bool) {
+		if x == 0 || y == 0 {
+			return 0, true
+		}
+		p := x * y
+		if p/y != x || (x == -1 && y == math.MinInt64) || (y == -1 && x == math.MinInt64) {
+			return 0, false
+		}
+		return p, true
+	}
+	for _, t := range []struct {
+		l *linear
+		m int64
+	}{{a, ma}, {b, mb}} {
+		for v, c := range t.l.coef {
+			p, ok := mul(c, t.m)
+			if !ok {
+				return nil, false
+			}
+			s, ok := add(out.coef[v], p)
+			if !ok {
+				return nil, false
+			}
+			if s == 0 {
+				delete(out.coef, v)
+			} else {
+				out.coef[v] = s
+			}
+		}
+		p, ok := mul(t.l.konst, t.m)
+		if !ok {
+			return nil, false
+		}
+		if out.konst, ok = add(out.konst, p); !ok {
+			return nil, false
+		}
+	}
+	return out, true
+}
+
+// normalizeRow divides Σaⱼxⱼ + c ≤ 0 by the gcd of its coefficients, rounding the
+// constant up — valid over the integers, and the reason a parity fact can close
+// a gap a rational certificate cannot.
+func normalizeRow(r *linear) (*linear, bool) {
+	out := constant(r.konst)
+	var d int64
+	for v, c := range r.coef {
+		if c == 0 {
+			continue
+		}
+		out.coef[v] = c
+		a := c
+		if a < 0 {
+			a = -a
+		}
+		if d == 0 {
+			d = a
+		} else {
+			for a != 0 {
+				d, a = a, d%a
+			}
+		}
+	}
+	if d > 1 {
+		for v := range out.coef {
+			out.coef[v] /= d
+		}
+		// ⌈c/d⌉ for either sign of c.
+		q := out.konst / d
+		if out.konst%d != 0 && out.konst > 0 {
+			q++
+		}
+		out.konst = q
+	}
+	return out, true
 }
 
 // isVar reports whether e is exactly one variable with coefficient 1 and no

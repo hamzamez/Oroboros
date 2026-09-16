@@ -2364,6 +2364,26 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**FACTS ABOUT A TABLE'S CONTENTS ARE RESEARCHED AND SPECIFIED — F-D₁, NOTHING BUILT** —
+[array-facts.md](docs/array-facts.md), [spec/theories.md §7.11](docs/spec/theories.md). **Measured first, and it
+corrected joinindex §4**: printing each remaining obligation's index shows NONE needs F-D. 122 are a clamp nested inside
+`+`/`*` (purification) and 26 a loop-result bound `nw ≤ len src`. **F-D's real demand is in the SOURCE**: 15
+hand-written VALUE clamps (freq 5, tally 4, tree's `nslc` ×6) and tree's walk at 388 of 424. **Deciding is solved
+and cheap**: the array property fragment (Bradley, Manna & Sipma, VMCAI 2006) is decided by instantiating on present
+reads, which is F-B's local-extension mechanism with a table read as trigger, licensed only at a PROVEN read (Lemma 1
+again). **Establishing is where the literature pays for aliasing** (Flanagan & Qadeer; Gopan, Reps & Sagiv;
+Halbwachs & Péron; Fluid updates) **and we do not**: ADR 0018 makes a buffer's writes a CHAIN, so a table is `0ⁿ` acted
+on by a word of `set`s, and **Theorem S** — zero fill satisfies φ, every store preserves it — is an invariant of a
+monoid action, proved by induction on the chain. That same induction **replaces frozen-2026-08-28's stratum 0**: a read
+of the buffer inside its own build is the induction hypothesis, not a fixpoint iterate. Theorem S′ threads loops, with
+frames that move in φ's direction, jointly for freq's two swapped buffers. Inference is Houdini over templates, which
+covers every clamp. **A stride is a product**: the periodic fragment (Habermehl, Iosif & Vojnar 2008) is never needed,
+because currying turns `s ≡ c mod k` into a guard-free fact on component c, instantiated by the index's syntactic
+`k·e + c`. **F-D₁** is one index, guard = domain, value-only, linear, with frame terms. **F-D₂ reserved**: index guards,
+sortedness, pointwise, `s` in φ. **Refused**: `a[s+1]`, `a[a[s]]` (undecidable) and permutation. decidability-map.md's
+*"sortedness is not in the fragment"* is corrected: it IS BMS's own example. Recommended order: purification and the
+loop-result bound first (cheap, and they clean the measurement), then F-D₁ derived, then declared.
+
 **AN INDEX THAT IS A TERM IS PROVEN BRANCH BY BRANCH: 298 PROPAGATED OBLIGATIONS BECOME 105** —
 [joinindex-2026-09-16](gauntlet/results/joinindex-2026-09-16.md). An index that is a `let` or conditional TERM was
 outside the fragment and always propagated; it denotes one value, so it is read as a fresh name carrying what every

@@ -58,6 +58,12 @@ The first case fails with the attempt removed.
 
 ## 4. What is left is ONE class, and it is not relational
 
+> **Corrected the same day** ([array-facts.md §1.1](../../docs/array-facts.md)): the classification below was read
+> off NOTES, which do not say which index. Printing each index term shows that **none of the remaining notes needs
+> F-D**. tree's and freq's `dt` obligations are a clamp nested inside `+`/`*` (purification), and freq's `src` needs
+> `nw ≤ len src`, a loop-result bound. F-D's real demand is in the SOURCE: 15 hand-written value clamps and tree's 36
+> unproven operations.
+
 Of the 105:
 
 | where | count | index |

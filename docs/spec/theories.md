@@ -510,7 +510,7 @@ those operators, not facts (facts.md §1.2).
 | fragment | what it would admit | recognised by | refused with |
 |---|---|---|---|
 | **F-C** | a relation between several extension terms, e.g. monotonicity `(when (<= x y)) (<= (f x) (f y))` | two or more distinct extension terms | *"a fact relating two terms is F-C, reserved (facts.md §5)"* |
-| **F-D** | a quantified fact over a table's contents: the array property fragment | a `(forall ((i int)) …)` in a conclusion | *"a quantified fact is F-D, reserved (facts.md §5)"* |
+| **F-D** | a quantified fact over a table's contents: the array property fragment. **F-D₁ is specified in §7.11** (draft, not built); F-D₂ stays reserved | a `(forall ((i int)) …)` in a conclusion | *"a quantified fact is F-D, reserved (facts.md §5)"*, until §7.11 is built |
 | **F-E** | a law about a `def`, **proved by the compiler** by unfolding | the form `(lemma NAME …)` | *"`lemma` is F-E, reserved (facts.md §5)"* |
 
 `forall` and `lemma` are **reserved words** from this specification on, so neither can be taken for
@@ -566,6 +566,129 @@ proven* into a refusal.
 **What would refute this section:** an induced transfer proving less than the hand-written one on some
 program, with no set of facts that recovers it. Then Theorem T's single source would need a second
 encoding after all.
+
+### 7.11 F-D₁ — facts about a table's contents (specified, draft, not built)
+
+Research and derivations: [array-facts.md](../array-facts.md). This section is normative for a build.
+
+#### 7.11.1 The fragment
+
+An **F-D₁ fact** about a table `b` is
+
+```
+∀s.  0 ≤ s < len b  →  φ(b[s], x̄)
+```
+
+1. The guard is **exactly** the domain of `b`.
+2. `φ` is a conjunction of linear inequalities over the element, or over its components `π_c(b[s])` when the
+   element type is `(tuple …)`, and **frame terms** `x̄`.
+3. `s` does not occur in `φ`.
+4. A frame term is a linear term over names bound **outside** the quantifier.
+
+Anything else quantified over a table is F-D₂ (reserved) or refused, per §7.11.6.
+
+#### 7.11.2 Meaning: instantiation at a proven read (Theorem D)
+
+At a read `(b t)` whose domain obligation `0 ≤ t < len b` is **proven**, every F-D₁ fact about `b` in scope gives the
+instance `φ(b[t], x̄)`.
+
+- **A read whose bound is only propagated gives no instance.** The analogue of postconditions.md Lemma 1: an
+  undefined read has no value to state a fact about.
+- **A read of a flattened or hand-strided table** whose index is syntactically `k·e + c`, with literal `0 ≤ c < k`,
+  gives the instance for component `c` only. The compiler never reasons about `mod`.
+
+**Consumers**, as §7.5:
+
+- the refinement layer assumes the instance;
+- the interval layer takes the element range when every side of `φ` is a constant;
+- element narrowing reads that range.
+
+#### 7.11.3 Derivation from a `build` (Theorem S)
+
+For `(build n (fn (b) e))`, a candidate `φ` holds of the result when
+
+1. `F ∧ n ≥ 1 ⊢ φ(0, x̄)` at the `build`, and
+2. at every `set` on `b`'s linear chain, reached under facts `P`, `P ∧ ∀s. φ(b′[s], x̄) ⊢ φ(v, x̄)`.
+
+The hypothesis in 2 **may be used at reads of `b′` itself**: it is the induction hypothesis on the chain, not a
+fixpoint iterate. A store of a component, `(set (b i) c v)`, checks `φ`'s component-`c` conjuncts against `v`; its
+other components are carried by the hypothesis. A store at an index not of the form `k·e + c` checks **every**
+component's conjuncts against `v`.
+
+#### 7.11.4 Derivation through a `loop` (Theorem S′)
+
+A loop threading buffers `b₁ … b_m` with loop variables `x̄` holds `⋀ⱼ ∀s. φⱼ(bⱼ[s], x̄)` as an invariant when
+
+1. **at entry**, each initial value satisfies its `φⱼ` with `x̄ := z̄`;
+2. **at each back edge**, under the facts `P` there and every candidate assumed for every `bⱼ` **simultaneously**,
+   every store in the iteration satisfies 7.11.3's condition 2 with the frame at its current values;
+3. **the frame moves in `φ`'s direction:** `P ∧ φⱼ(v, x̄) ⊢ φⱼ(v, x̄′)`, with `v` a fresh variable.
+
+**Inference is Houdini:** the candidate set is fixed before the fixpoint and shrinks monotonically to the greatest
+jointly inductive subset. Candidates are, per buffer and per component,
+
+```
+0 ≤ v        v ≤ e + c        v < e + c
+```
+
+where
+
+- `e` ranges over the linear sides of guards dominating a store into the buffer, the lengths of tables in scope and
+  the loop variables threading it;
+- `c` ranges over `{0, 1}` and the literals stored.
+
+The set is finite. **No other candidate is generated.** A fact outside it is a declaration (§7.11.5).
+
+#### 7.11.5 Declaration
+
+```lisp
+(forall ((s int)) (when (<= 0 s) (< s (len TABLE))) φ)
+```
+
+This is admitted in exactly two positions, and nowhere else:
+
+- **`(where …)` on a table parameter of a `sig`:** a precondition. It is discharged at each call site by 7.11.3,
+  7.11.4 or another declaration, and **assumed** at an export.
+- **`(ensures …)` whose `TABLE` is `result`:** a postcondition. It is **assumed** for a `prim`, and for an exported
+  `def` **checked** against the body by 7.11.3 and 7.11.4.
+
+A `(forall …)` inside a `fact` stays refused (§7.6), except as F-D₂ (§7.11.6).
+
+#### 7.11.6 Refusals
+
+| shape | fragment | message must name |
+|---|---|---|
+| a guard other than the domain | F-D₂, reserved | the guard, and *"F-D₂: an index-guarded fact is reserved"* |
+| two quantified indices, e.g. sortedness | F-D₂, reserved | *"F-D₂"*, and that sortedness belongs there |
+| two tables pointwise | F-D₂, reserved | both tables |
+| `s` in the value constraint | F-D₂, reserved | the occurrence of `s` |
+| `(b (+ s 1))` or any index arithmetic on `s` | refused | *"undecidable (Bradley, Manna & Sipma 2006)"*; for order, the two-index form |
+| a nested read `(b (b s))` | refused | *"undecidable"* |
+| `mod` on `s` in a guard | refused | *"a stride is a product: state the fact on `(tuple …)` components"* |
+| a fact about a table's elements that are buffers | cannot arise | — (ADR 0020 rule 6) |
+
+#### 7.11.7 Acceptance
+
+Written before the build, from array-facts.md §8.2:
+
+1. **The 15 value clamps** in freq.oro, tally.oro and tree.oro are deleted. Each program:
+   - prints what it prints today on every tested input and host;
+   - reports 100% of integer operations bounded.
+
+   A clamp that cannot be deleted is named, with the candidate that failed.
+2. **tree.oro's walk: 424 of 424** integer operations bounded, up from 388.
+3. **Five witnesses, each failing against the build:**
+   - a guarded store off by one;
+   - `1 ≤ v` on a zero-filled table;
+   - one planted bad store in freq's alternating buffers, refused for both;
+   - a frame that decreases;
+   - a store at a non-literal strided index.
+4. **The containment harness** checks a derived F-D₁ fact at every concrete read of generated buffer programs.
+5. **A benchmark** of tree.oro with and without its six clamps, on Go and the JVM.
+
+**What would refute this section:** a clamp whose true invariant is F-D₁ but not jointly inductive over the
+templates, which would make the template set the limit and declaration the only path; or two live versions of one
+buffer, which would make Theorem S unsound.
 
 ---
 

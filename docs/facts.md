@@ -386,6 +386,9 @@ The array property fragment (Bradley, Manna & Sipma, VMCAI 2006): `∀i. G(i) �
 covering initialisation and bounded contents.
 - It is what tree.oro's `d` gap needs (frozen-2026-08-28).
 - A different fragment with its own decision procedure. Future, and its own research.
+- **Researched 2026-09-16** — [array-facts.md](array-facts.md): F-D₁, flat and value-only, specified in
+  spec/theories.md §7.11. Deciding with one is instantiation at a proven read, F-B's own mechanism. ESTABLISHING one is
+  induction on a linear buffer's store chain, with Houdini over templates.
 
 **F-E. Lemmas proved by unfolding.**
 A fact about a user's `def`, proved by the compiler by unfolding the definition on present terms:

@@ -200,6 +200,11 @@ over index variables, guards restricted to comparisons among indices and index t
 comparison between two array reads inside the body. Initialisation is in it. General sortedness is
 not, because it compares `a[i]` with `a[j]`.
 
+> **Corrected 2026-09-16** ([array-facts.md §2.2](array-facts.md)): the paragraph above misstates the fragment.
+> Sortedness, `∀i,j. i ≤ j → a[i] ≤ a[j]`, IS in it, and is Bradley, Manna & Sipma's own running example. What is
+> outside is index arithmetic on a quantified variable, `a[i+1]`, and nested reads, `a[a[i]]`. **Permutation** is
+> outside everything cited, because it needs counting.
+
 **Recommendation:** adopt the array property fragment *if and when* an API contract demands it. It
 is a real, bounded, published fragment — not an open-ended step into quantified logic.
 

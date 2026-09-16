@@ -2364,6 +2364,23 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A TARGET MAY DEFINE, NOT ONLY SPELL: `D_T` IS BUILT AND TALLY IS ONE PROGRAM** —
+[dt-2026-09-16](gauntlet/results/dt-2026-09-16.md), theories.md §5.4, target-system.md §6.2; step 5 of the build
+order. `impl = P_T ▷ D_T ▷ D`: `(def …)` and `(use …)` inside `(provides T PATH …)` are the target's own
+definitions, handed to the program loader as forms, and **δ unfolds them exactly as it unfolds a library's — the
+reducer learned nothing**. **Injected AFTER the import fixpoint**, because declaring the module first would put
+its path in `seen` and the real library file would never be read. **Demand-driven, which the first build was
+not**: injecting every target definition into every program refused `hello.oro` for a name in tally's Go binding,
+because `CheckProgram` reads EVERY definition — so a target-provided module exists only for a `use` that found no
+file. **`tally-go.oro` and `tally-java.oro` are gone**: one `tally.oro` with `(use tally/host as h)`, and
+`host-go.oro`/`host-java.oro` as `provides` fragments beside it; **the emitted Go is byte-identical to the old
+entry's** and the tooling suite checks both hosts. **One finding recorded, not fixed**: writing `h.cmp` inside the
+sort comparator LOSES `(cs u)`'s bound — bisected to that one use, δ reaching a global inside a lambda at a
+different point than β substitutes a parameter — so the six are destructured once at the top, with the reason
+beside it. And a file that is only `(provides …)` is refused by what it is rather than as `provides is not
+bound`. **Proof counts identical**; +132 code lines. Not built: *"a provides may not declare a new name"* (a
+target-provided module has no theory to check against), and moving the three `//go:embed` libraries.
+
 **A MANIFEST TYPE IS WHAT IT MEANS — THE SECOND CELL, AT THE TYPE LEVEL** —
 [manifest-2026-09-16](gauntlet/results/manifest-2026-09-16.md), theories.md §2/§5.5a; the other half of
 step 4. §2 classifies a declaration by whether it has a DEFINIENS and whether it has a REALIZATION, and at

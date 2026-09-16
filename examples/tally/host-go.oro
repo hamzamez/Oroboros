@@ -1,0 +1,27 @@
+; tally's six operations on Go -- `D_T`, target-system.md §6.2.
+;
+; `(provides go tally/host …)` is the ambient view of the theory `tally/host` on
+; the Go target: no file declares that module, so these definitions ARE it. They
+; are ordinary Oroboros, δ unfolds them, and every host call below reaches the
+; host through a line gauntlet/stdlib/survey.go wrote.
+;
+;   go run gauntlet/stdlib/survey.go -emit GEN
+;   cp GEN/regexp.oro  TG/go/regexp-gen.oro
+;   cp GEN/strings.oro TG/go/strings-gen.oro
+;   cp GEN/strconv.oro TG/go/strconv-gen.oro
+;   go run ./cmd/build -target=go -targets "TG;targets" -o tally examples/tally/tally.oro
+
+(provides go tally/host
+  (use go/regexp as re)
+  (use go/regexp/Regexp as rx)
+  (use go/strings as str)
+  (use go/strconv as conv)
+
+  (def compile (fn (p) (re.MustCompile p)))
+  (def hit?    (fn (r s) (rx.MatchString r s)))
+  ; FindStringSubmatch is the whole match followed by every group, or empty.
+  (def capture (fn (r s) (let (rx.FindStringSubmatch r s) (fn (m)
+    (if (>= (len m) 2) (m 1) (if (>= (len m) 1) (m 0) ""))))))
+  (def cmp     (fn (a b) (str.Compare a b)))
+  (def lines   (fn (t) (str.Split t "\n")))
+  (def show    (fn (n) (conv.Itoa n))))

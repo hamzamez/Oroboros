@@ -505,3 +505,61 @@ func TestAManifestTypeIsRefusedOffItsRules(t *testing.T) {
 		}
 	}
 }
+
+// `D_T` — A TARGET MAY DEFINE, NOT ONLY REALIZE. target-system.md §6.2,
+// theories.md §5.4.
+//
+// Implementation selection is `P_T ▷ D_T ▷ D`, the same `▷` used everywhere
+// else, and nothing in the reducer changes: a name in `D_T` is more entries in
+// the definition environment and δ unfolds it exactly as it unfolds a library's.
+func TestATargetMayDefineAndNotOnlyRealize(t *testing.T) {
+	tg, err := loadOne(t, `(target x (module m (use n as q) (def f (fn (a) (q.g a)))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := tg.Defs["m"]
+	if len(got) != 2 || got[0].Kind != "use" || got[0].Alias != "q" || got[0].Name != "n" ||
+		got[1].Kind != "def" || got[1].Name != "f" {
+		t.Fatalf("D_T for module m is %+v", got)
+	}
+	if _, isPrim := tg.Prims["m.f"]; isPrim {
+		t.Error("a definition is not a primitive: reduction must unfold it, not halt on it")
+	}
+	refused := map[string]string{
+		`(target x (def f (fn (a) a)))`:             "belongs to a module",
+		`(target x (use n))`:                        "belongs to a module",
+		`(target x (module m (def f 1) (def f 2)))`: "m.f is defined twice",
+	}
+	for decl, why := range refused {
+		if _, err := loadOne(t, decl); err == nil || !strings.Contains(err.Error(), why) {
+			t.Errorf("%s: want a refusal containing %q, got %v", decl, why, err)
+		}
+	}
+}
+
+// AND IT COMPOSES PER NAME LIKE EVERYTHING ELSE: a repeat within a layer is a
+// mistake, and between layers the nearer one wins.
+func TestATargetsDefinitionsGlueAndOverride(t *testing.T) {
+	a, b := t.TempDir(), t.TempDir()
+	writeTarget(t, filepath.Join(a, "x"), "a", `(target x (module m (def f 1)))`)
+	writeTarget(t, filepath.Join(b, "x"), "a", `(target x (module m (def f 2) (def g 3)))`)
+	near, err := LoadTargetLayers("x", []string{a, b})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, f := range near.Defs["m"] {
+		names = append(names, f.Name+"="+f.Term.String())
+	}
+	if !reflect.DeepEqual(names, []string{"f=1", "g=3"}) {
+		t.Errorf("the nearer layer's f must win and g must still arrive; got %v", names)
+	}
+	// Within ONE layer the same two files are a collision.
+	one := t.TempDir()
+	writeTarget(t, filepath.Join(one, "x"), "a", `(target x (module m (def f 1)))`)
+	writeTarget(t, filepath.Join(one, "x"), "b", `(target x (module m (def f 2)))`)
+	if _, err := LoadTargetLayers("x", []string{one}); err == nil ||
+		!strings.Contains(err.Error(), "m.f is defined twice") {
+		t.Errorf("want a glue collision naming m.f, got %v", err)
+	}
+}

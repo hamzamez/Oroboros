@@ -543,8 +543,11 @@ func acceptance() map[string]accept {
 	}
 	const logPat = `"[A-Z]+ ([^ ?]*)`
 	const optText, optPat = "ab\nb\n", `(a)?b`
-	tallyOn := func(host, target, entry string, files map[string]string) []accept {
-		srcs := []string{"examples/tally/" + entry, "examples/tally/tally.oro"}
+	tallyOn := func(host, target, binding string, files map[string]string) []accept {
+		// ONE PROGRAM, TWO HOSTS. `tally.oro` is the entry on both; the host's six
+		// operations are a `(provides TARGET tally/host …)` fragment beside it,
+		// which is `D_T` (target-system.md §6.2, dt-2026-09-16).
+		srcs := []string{"examples/tally/tally.oro", "examples/tally/" + binding}
 		return []accept{
 			{host: host, target: target, layer: "tg", files: files, srcs: srcs,
 				args: []string{logPat, "examples/tally/access.log"}, want: tallyReference(logText, logPat)},
@@ -553,10 +556,10 @@ func acceptance() map[string]accept {
 				args:   []string{optPat, "{proj}/opt.txt"}, want: tallyReference(optText, optPat)},
 		}
 	}
-	goTally := tallyOn("go", "go", "tally-go.oro", map[string]string{
+	goTally := tallyOn("go", "go", "host-go.oro", map[string]string{
 		"tg/go/regexp-gen.oro": "regexp.oro", "tg/go/strings-gen.oro": "strings.oro",
 		"tg/go/strconv-gen.oro": "strconv.oro"})
-	jvmTally := tallyOn("jvm", "java", "tally-java.oro", map[string]string{
+	jvmTally := tallyOn("jvm", "java", "host-java.oro", map[string]string{
 		"tg/java/regex-gen.oro": "java-util-regex.oro", "tg/java/lang-gen.oro": "java-lang.oro"})
 	return map[string]accept{
 		"tally-go":            goTally[0],

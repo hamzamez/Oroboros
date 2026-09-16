@@ -25,30 +25,26 @@
 ; The two hosts spell the operations this tool needs completely differently:
 ; Go matches with one call returning a slice, the JVM builds a Matcher and asks
 ; it; Go splits a string exactly and the JVM splits by regex and drops trailing
-; empties. So this module is written against an INTERFACE -- six operations --
-; and each host's program supplies them, written over its own generated
-; declarations (tally-go.oro, tally-java.oro).
+; empties. So this module is written against an INTERFACE of six operations, and
+; each host DEFINES them -- host-go.oro, host-java.oro, one (provides …) each.
 ;
-; The interface is a function argument, and that costs nothing: `run` takes a
-; negative product `(values compile hit? capture cmp lines show)` and the
-; reducer substitutes it away, so the residual is one first-order function per
-; host with the host's calls written straight in. It is an ML functor applied at
-; COMPILE time -- closures-direction.md's static level, where higher-order code
-; is free because none of it survives staging -- and it is also why the core can
-; mention a regex without having a type for one: the residual is typed after
-; reduction, when `re` is a `*regexp.Regexp` on one host and a `Pattern` on the
-; other, and nothing here ever had to say which.
+; The core can mention a regex without having a type for one: the residual is
+; typed after reduction, when `re` is a `*regexp.Regexp` on one host and a
+; `Pattern` on the other, and nothing here ever had to say which.
 ;
-; target-system.md §6.2 specifies the other way to do it -- `D_T`, a target's
-; own library, so one `main` would pick up each host's binding through the
-; capability graph -- and it is not built. This program is what that mechanism
-; would remove, measured: two files of 15 and 19 lines of code.
+; AND THE FUNCTOR IS GONE. It was written against an INTERFACE of six operations
+; passed as a `(tuple …)` argument -- an ML functor applied at compile time, free
+; because none of it survives staging -- and each host had its own entry file
+; supplying the tuple. target-system.md §6.2's `D_T` is now built, so the six are
+; ordinary DEFINITIONS the target contributes and this is ONE program: the
+; capability graph picks the binding, exactly as it picks a primitive.
 
 (module tally)
 (use os)
 (use io)
+(use tally/host as h)
 
-(export run tally)
+(export main)
 
 ; --- the stated limits ------------------------------------------------------
 ;
@@ -166,16 +162,30 @@
                                       (concat "\t" (concat (dvalue cs ord n dt d) "\n"))))
                   (+ r 1)))))))
 
-; THE INTERFACE. `h` is `(values compile hit? capture cmp lines show)`:
+; THE HOST'S SIX OPERATIONS. They are DEFINED BY THE TARGET -- `D_T`,
+; target-system.md §6.2 -- in `(provides TARGET tally/host …)`:
 ;
-;   (compile p)      a compiled pattern, of whatever type the host has
-;   (hit? re s)      does the pattern match somewhere in s
-;   (capture re s)   group 1 of the leftmost match, or the whole match
-;   (cmp a b)        <0, 0 or >0, ordering the host's strings
-;   (lines text)     text split at every "\n", keeping empty lines
-;   (show n)         n in decimal
-(def tally (fn (h p text)
-  (h (fn (compile hit? capture cmp lines show)
+;   (h.compile p)      a compiled pattern, of whatever type the host has
+;   (h.hit? re s)      does the pattern match somewhere in s
+;   (h.capture re s)   group 1 of the leftmost match, or the whole match
+;   (h.cmp a b)        <0, 0 or >0, ordering the host's strings
+;   (h.lines text)     text split at every newline, keeping empty lines
+;   (h.show n)         n in decimal
+;
+; No file declares `tally/host`, which is exactly how a target-provided module
+; looks (modules.md §4). Each host's binding is a LIBRARY FRAGMENT beside this
+; file -- host-go.oro, host-java.oro -- so this is ONE program and the
+; capability graph picks the binding, exactly as it picks a primitive.
+;
+; THE SIX ARE BOUND ONCE, as a tuple destructured at the top. That is not
+; decoration: writing `h.cmp` at its use site instead REFUSES the program --
+; `(cs u) is an indexing, and (< u (len cs)) does not follow` -- because the one
+; use inside the sort comparator is a lambda δ reaches at a different time than β
+; reaches a parameter, and the refinement layer loses the length. Measured, and
+; the only one of the six that does it; recorded in dt-2026-09-16 §5.
+(def tally (fn (p text)
+  ((tuple h.compile h.hit? h.capture h.cmp h.lines h.show)
+   (fn (compile hit? capture cmp lines show)
     (let (compile p) (fn (re)
     (let (lines text) (fn (ls)
     (let (nhits hit? re ls) (fn (n)
@@ -186,7 +196,7 @@
     (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
       (report show cs ord n dt ord2 nd)))))))))))))))))))))
 
-(def run (fn (h)
+(def run (fn ()
   (let (os.Args) (fn (av)
     (if (< (len av) 3)
         (io.print-line "usage: tally PATTERN FILE")
@@ -194,5 +204,7 @@
           (if (os.err-nil err)
               (if (>= (len src) (cap-in))
                   (io.print-line "tally: file is larger than this tool accepts")
-                  (io.print (tally h (av 1) (os.text-of src))))
+                  (io.print (tally (av 1) (os.text-of src))))
               (io.print-line "tally: cannot read that file")))))))))
+
+(def main (fn () (run)))

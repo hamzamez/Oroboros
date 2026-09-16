@@ -59,3 +59,37 @@ The initial baseline.
 
 - emitted text changed — `examples/big/render.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-09-16 — on 644b6aa, with uncommitted changes
+
+**Reason:** D_T: tally is ONE program on two hosts (step 5). tally-go.oro and tally-java.oro are gone, replaced by (provides TARGET tally/host ...) fragments beside the program; the emitted Go is byte-identical to the old entry's. And a fragment-only file is refused by what it is rather than by the first name inside it, which is the six lib/{io,os} messages.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+25 change(s):
+
+- new source — `examples/tally/host-go.oro go`
+- new source — `examples/tally/host-go.oro java`
+- new source — `examples/tally/host-go.oro js`
+- new source — `examples/tally/host-go.oro windows`
+- new source — `examples/tally/host-java.oro go`
+- new source — `examples/tally/host-java.oro java`
+- new source — `examples/tally/host-java.oro js`
+- new source — `examples/tally/host-java.oro windows`
+- source removed — `examples/tally/tally-go.oro go`
+- source removed — `examples/tally/tally-go.oro java`
+- source removed — `examples/tally/tally-go.oro js`
+- source removed — `examples/tally/tally-go.oro windows`
+- source removed — `examples/tally/tally-java.oro go`
+- source removed — `examples/tally/tally-java.oro java`
+- source removed — `examples/tally/tally-java.oro js`
+- source removed — `examples/tally/tally-java.oro windows`
+- compiler output changed — `examples/tally/tally.oro go`
+- compiler output changed — `examples/tally/tally.oro java`
+- compiler output changed — `examples/tally/tally.oro js`
+- compiler output changed — `lib/io/go.oro windows`
+- compiler output changed — `lib/io/java.oro windows`
+- compiler output changed — `lib/io/js.oro windows`
+- compiler output changed — `lib/os/go.oro windows`
+- compiler output changed — `lib/os/java.oro windows`
+- compiler output changed — `lib/os/js.oro windows`

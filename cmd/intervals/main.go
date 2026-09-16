@@ -52,7 +52,7 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 	if err != nil {
 		return err
 	}
-	prog, terms, err := core.LoadWith(forms, resolver(dirs(src, path)))
+	prog, terms, err := core.LoadWithDefs(forms, resolver(dirs(src, path)), tg.Defs)
 	if err != nil {
 		return err
 	}

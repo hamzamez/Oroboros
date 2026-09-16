@@ -49,13 +49,15 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	prog, terms, err := core.LoadWith(forms, fileResolver(libDirs(src, path)))
-	if err != nil {
-		return fmt.Errorf("%s: %w", src, err)
-	}
+	// THE TARGET IS LOADED FIRST, because it may carry definitions of its own —
+	// `D_T`, target-system.md §6.2 — and those are part of the program.
 	tg, err := emit.LoadTargetLayers(target, targetDirs(src, targetDir), libDirs(src, path))
 	if err != nil {
 		return err
+	}
+	prog, terms, err := core.LoadWithDefs(forms, fileResolver(libDirs(src, path)), tg.Defs)
+	if err != nil {
+		return fmt.Errorf("%s: %w", src, err)
 	}
 	env, err := tg.Env(prog)
 	if err != nil {

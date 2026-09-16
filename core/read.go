@@ -712,6 +712,35 @@ func looksNumeric(s string) bool {
 	return false
 }
 
+// OnlyFragments reports whether a file says nothing but `(provides …)` — a
+// TARGET FRAGMENT rather than a program. It is what lets a command refuse such a
+// file by what it IS, instead of reporting the first name inside it as unbound.
+func OnlyFragments(forms []Form) bool {
+	n := 0
+	for _, f := range forms {
+		if f.Kind != "provides" {
+			return false
+		}
+		n++
+	}
+	return n > 0
+}
+
+// nameOr is the name at position i, or "" — for a form whose meaning belongs to
+// another reader and whose shape is therefore not checked here.
+func nameOr(kids []*Term, i int) string {
+	if i < len(kids) && kids[i].Kind == KName {
+		return kids[i].Name
+	}
+	return ""
+}
+
+// ToForm reads one already-parsed term as a declaration form. The target loader
+// asks, for the `(def …)` and `(use …)` of `D_T`: a target file is
+// s-expressions rather than a program, so it reads terms and hands back the two
+// forms that are a program's.
+func ToForm(t *Term) (Form, error) { return toForm(t) }
+
 func toForm(t *Term) (Form, error) {
 	if t.Kind != KApp || t.Kids[0].Kind != KName {
 		return Form{Kind: "term", Term: t}, nil
@@ -965,6 +994,14 @@ func toForm(t *Term) (Form, error) {
 			return Form{}, fmt.Errorf("prim: %w", err)
 		}
 		return Form{Kind: "prim", Names: names}, nil
+	case "provides":
+		// A `(provides TARGET PATH …)` IS A TARGET FRAGMENT, not a program —
+		// `(target T (module PATH …))` written where the library lives
+		// (target-system.md §8). A library file may hold one beside its
+		// definitions, so reading that file as a program must SKIP it rather
+		// than take it for a term: read as a term, its inner `(use … as re)`
+		// is invisible and every name under it is reported unimported.
+		return Form{Kind: "provides", Name: nameOr(t.Kids, 2)}, nil
 	case "target":
 		if len(t.Kids) < 3 || t.Kids[1].Kind != KName {
 			return Form{}, fmt.Errorf("target takes a name and a (prim ...) list: %s", t)

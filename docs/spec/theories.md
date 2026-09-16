@@ -190,7 +190,15 @@ declarations on that target. An assignment may be a realization, a definition, o
 **New here:** a `def` assignment. That is target-system.md §6's `D_T`, the target's own library.
 Its free names must lie in `lang`, the target's realizations, and the theories in scope
 (target-system.md §6.3). A `provides` may not declare a new name: every assigned name must exist in
-the theory at `PATH`. **Not built** (theories-b-or-c.md §9, step 5).
+the theory at `PATH`.
+
+> **Built 2026-09-16** ([dt-2026-09-16](../../gauntlet/results/dt-2026-09-16.md)): `(def …)` and `(use …)`
+> inside `(provides T PATH …)` or a target's `(module PATH …)` are `D_T`, handed to the program loader
+> after the import fixpoint, so δ unfolds them exactly as it unfolds a library's; `▷` over a library's
+> own definition, said as a note. **Demand-driven**: they reach a program only for a module it imports.
+> tally is one program on two hosts. **Not built**: *"may not declare a new name"* — a target-provided
+> module has no theory file to check against, which is the case tally is; the rule needs `sig`s in a
+> theory module, and none is written yet.
 
 ### 5.5 Representation choices and model facts
 

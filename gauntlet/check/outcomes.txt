@@ -1171,51 +1171,29 @@
 == examples/table/sieve.oro windows refused
    gen: examples/table/sieve.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/tally/tally-go.oro go refused
-   gen: examples/tally/tally-go.oro: in host: go/regexp.MustCompile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go/regexp) matched no file on the search path and this target provides no module go/regexp either, so every name from it is unbound. Check the path.
-== examples/tally/tally-go.oro js refused
-   gen: examples/tally/tally-go.oro: in host: go/regexp.MustCompile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go/regexp) matched no file on the search path and this target provides no module go/regexp either, so every name from it is unbound. Check the path.
-== examples/tally/tally-go.oro java refused
-   gen: examples/tally/tally-go.oro: in host: go/regexp.MustCompile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go/regexp) matched no file on the search path and this target provides no module go/regexp either, so every name from it is unbound. Check the path.
-== examples/tally/tally-go.oro windows refused
-   gen: examples/tally/tally-go.oro: in host: go/regexp.MustCompile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go/regexp) matched no file on the search path and this target provides no module go/regexp either, so every name from it is unbound. Check the path.
-== examples/tally/tally-java.oro go refused
-   gen: examples/tally/tally-java.oro: in host: java/java-util-regex/Pattern.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use java/java-util-regex/Pattern) matched no file on the search path and this target provides no module java/java-util-regex/Pattern either, so every name from it is unbound. Check the path.
-== examples/tally/tally-java.oro js refused
-   gen: examples/tally/tally-java.oro: in host: java/java-util-regex/Pattern.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use java/java-util-regex/Pattern) matched no file on the search path and this target provides no module java/java-util-regex/Pattern either, so every name from it is unbound. Check the path.
-== examples/tally/tally-java.oro java refused
-   gen: examples/tally/tally-java.oro: in host: java/java-util-regex/Pattern.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use java/java-util-regex/Pattern) matched no file on the search path and this target provides no module java/java-util-regex/Pattern either, so every name from it is unbound. Check the path.
-== examples/tally/tally-java.oro windows refused
-   gen: examples/tally/tally-java.oro: in host: java/java-util-regex/Pattern.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use java/java-util-regex/Pattern) matched no file on the search path and this target provides no module java/java-util-regex/Pattern either, so every name from it is unbound. Check the path.
+== examples/tally/host-go.oro go refused
+   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-go.oro js refused
+   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-go.oro java refused
+   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-go.oro windows refused
+   gen: examples/tally/host-go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-java.oro go refused
+   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-java.oro js refused
+   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-java.oro java refused
+   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== examples/tally/host-java.oro windows refused
+   gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == examples/tally/tally.oro go refused
-   note: gen-tally: 8 product access(es) flattened
-   gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: assumed -len(ls) <= 0 (fact len-nonneg)
-     A table is a function with a finite domain, so 0 <= i < len is the
-     condition for the application to be DEFINED — not a check bolted on
-     (docs/spec/tables.md §6).
+   gen: examples/tally/tally.oro: in tally/host.capture: go/regexp/Regexp.FindStringSubmatch is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == examples/tally/tally.oro js refused
-   note: gen-tally: 8 product access(es) flattened
-   gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: assumed -len(ls) <= 0 (fact len-nonneg)
-     A table is a function with a finite domain, so 0 <= i < len is the
-     condition for the application to be DEFINED — not a check bolted on
-     (docs/spec/tables.md §6).
+   gen: examples/tally/tally.oro: in tally.tally: tally/host.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use tally/host) matched no file on the search path and this target provides no module tally/host either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro java refused
-   note: gen-tally: 8 product access(es) flattened
-   gen: gen-tally: (compile p) is an indexing, and (<= 0 p) does not follow
-     known: assumed -len(ls) <= 0 (fact len-nonneg)
-     A table is a function with a finite domain, so 0 <= i < len is the
-     condition for the application to be DEFINED — not a check bolted on
-     (docs/spec/tables.md §6).
+   gen: examples/tally/tally.oro: in tally/host.capture: java/java-util-regex/Matcher.find is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == examples/tally/tally.oro windows refused
    gen: examples/tally/tally.oro: in tally.run: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
@@ -1398,7 +1376,7 @@
 == lib/io/go.oro java refused
    gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/go.oro windows refused
-   gen: lib/io/go.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/io/go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/io/java.oro go refused
    gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/java.oro js refused
@@ -1406,7 +1384,7 @@
 == lib/io/java.oro java refused
    gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/java.oro windows refused
-   gen: lib/io/java.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/io/java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/io/js.oro go refused
    gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/js.oro js refused
@@ -1414,7 +1392,7 @@
 == lib/io/js.oro java refused
    gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/js.oro windows refused
-   gen: lib/io/js.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/io/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/num/vec.oro go refused
    gen: lib/num/vec.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -1434,7 +1412,7 @@
 == lib/os/go.oro java refused
    gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/go.oro windows refused
-   gen: lib/os/go.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/os/go.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/os/java.oro go refused
    gen: lib\os\go.oro: a target file begins with (target NAME …)
 == lib/os/java.oro js refused
@@ -1442,7 +1420,7 @@
 == lib/os/java.oro java refused
    gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/java.oro windows refused
-   gen: lib/os/java.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/os/java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/os/js.oro go refused
    gen: lib\os\go.oro: a target file begins with (target NAME …)
 == lib/os/js.oro js refused
@@ -1450,7 +1428,7 @@
 == lib/os/js.oro java refused
    gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/js.oro windows refused
-   gen: lib/os/js.oro: at the top level: provides is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: lib/os/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/win/fmt.oro go refused
    gen: lib/win/fmt.oro: in win/fmt.print-int: x64.sete is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use x64) matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.

@@ -352,6 +352,13 @@ Oroboros module the target ships, loaded into `D_T` when the target is loaded.
 The three embedded files move from `//go:embed` into the target directories that
 need them, and `emit/biglimb.go`'s splice becomes the ordinary δ.
 
+> **Built 2026-09-16, as theories.md §5.4 spells it rather than as `(library …)`**
+> ([dt-2026-09-16](../../gauntlet/results/dt-2026-09-16.md)): `(def …)` and `(use …)` written inside
+> `(provides T PATH …)` or a target's `(module PATH …)`. It cost a form and a load step, as predicted —
+> and one condition the paragraph above did not state: `D_T` reaches a program **only for a module it
+> imports**, because the program check reads every definition and a binding for a module nobody uses
+> is not part of the program. **Not done**: moving the three `//go:embed` libraries.
+
 **Risk, stated plainly: a target library can be slow or wrong, and only
 conformance can tell.** A `prim` is one line and a lie in it is bounded; a
 library is a program and a lie in it is a program. The mechanism that answers

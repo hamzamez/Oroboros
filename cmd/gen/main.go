@@ -69,7 +69,15 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}
-	prog, terms, err := core.LoadWith(forms, fileResolver(libDirs(src, path)))
+	// A TARGET FRAGMENT IS NOT A PROGRAM. `(provides TARGET PATH …)` is read by
+	// the target loader — it is `(target T (module PATH …))` written where the
+	// library lives — so a file that says nothing else has nothing to emit, and
+	// saying so beats reporting the first name inside it as unbound.
+	if core.OnlyFragments(forms) {
+		return fmt.Errorf("%s is a target fragment — it declares (provides …) and nothing else, "+
+			"so there is no program here to build", src)
+	}
+	prog, terms, err := core.LoadWithDefs(forms, fileResolver(libDirs(src, path)), tg.Defs)
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

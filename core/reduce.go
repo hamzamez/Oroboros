@@ -46,6 +46,10 @@ type Program struct {
 	// in the reducer (sums-research.md, docs/spec/sums.md).
 	Sums map[string]*Sum
 
+	// TargetDefined are the names a library defines AND the target redefines in
+	// `D_T`, so the build can say which one it used — `▷`, said out loud.
+	TargetDefined []string
+
 	// Unresolved are `use` paths that found no file on the search path. That is
 	// not an error — it is how a target-provided module looks (modules.md §4) —
 	// but it is also how a MISSPELLED path looks, and the two were
@@ -163,12 +167,40 @@ type Resolver func(path string) (src string, found bool, err error)
 // declared in the same text, or provided by the target.
 func Load(forms []Form) (*Program, []*Term, error) { return LoadWith(forms, nil) }
 
+// TargetDefs is `D_T` — the definitions a TARGET contributes, keyed by module
+// path, in the order they were declared (target-system.md §6.2).
+//
+// A target has always been able to say *this host spells that name like this*;
+// `D_T` lets it say *this host DEFINES that name, in Oroboros*. It is the third
+// source of an implementation, and selection is the same `▷` used everywhere
+// else:
+//
+//	impl  =  P_T  ▷  D_T  ▷  D
+//
+// Nothing in the reducer changes. A name in `D_T` is more entries in the
+// definition environment, δ unfolds it exactly as it unfolds a library's, and
+// covering already reports a name that reaches no primitive.
+type TargetDefs map[string][]Form
+
+// LoadWithDefs is LoadWith plus `D_T`.
+//
+// The defs are injected AFTER the import fixpoint, and that is not an
+// implementation detail: declaring the module up front would put its path in
+// `seen`, and the library file that really defines it would never be read.
+func LoadWithDefs(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term, error) {
+	return loadWith(forms, resolve, dt)
+}
+
 // LoadWith reads an entry source and follows its imports, transitively.
 //
 // Only the ENTRY file contributes entry points: a library's bare terms and
 // exports are not the program's. That is what makes `(use …)` a dependency
 // rather than an inclusion.
 func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
+	return loadWith(forms, resolve, nil)
+}
+
+func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term, error) {
 	mods, entries, err := partition(forms)
 	if err != nil {
 		return nil, nil, err
@@ -257,6 +289,72 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 			}
 		}
 	}
+	// `D_T` — the target's own definitions, injected once every library the
+	// program uses has been read.
+	//
+	// A name the library ALSO defines is `▷`: the target's wins, and the program
+	// records it so the build can say so, exactly as it says so for a native
+	// primitive shadowing a definition. A module the program never uses gets
+	// nothing — covering is demand-driven, and a `provides` for a module nobody
+	// imports contributes no more than a `prim` for one does.
+	var overridden []string
+	if len(dt) > 0 {
+		byPath := map[string]*Module{}
+		for _, m := range mods {
+			byPath[m.Path] = m
+		}
+		wanted := map[string]bool{}
+		for _, u := range unresolved {
+			wanted[u] = true
+		}
+		paths := make([]string, 0, len(dt))
+		for path := range dt {
+			paths = append(paths, path)
+		}
+		sort.Strings(paths)
+		for _, path := range paths {
+			m, ok := byPath[path]
+			if !ok {
+				// A TARGET-PROVIDED MODULE: no file declares it, so the target's
+				// definitions ARE it (modules.md §4). This is the shape that lets
+				// one program pick up a different host binding on each target.
+				//
+				// ONLY IF THE PROGRAM ASKED FOR IT. A `use` that found no file is
+				// exactly how such a module looks, and a path nothing imported is
+				// a module this program does not have — injecting it anyway put
+				// every library's host binding into every program, and
+				// `CheckProgram` reads EVERY definition, so `hello.oro` was
+				// refused for a name in tally's Go binding.
+				if !wanted[path] {
+					continue
+				}
+				m = newModule(path)
+				mods = append(mods, m)
+				byPath[path] = m
+			}
+			for _, f := range dt[path] {
+				switch f.Kind {
+				case "use":
+					if prev, dup := m.Uses[f.Alias]; dup && prev != f.Name {
+						return nil, nil, fmt.Errorf("a target's (provides … %s …) binds %s to %s, "+
+							"and the module binds it to %s", path, f.Alias, f.Name, prev)
+					}
+					m.Uses[f.Alias] = f.Name
+				case "def":
+					if _, dup := m.Defs[f.Name]; dup {
+						overridden = append(overridden, qualify(path, f.Name))
+					} else {
+						m.Order = append(m.Order, f.Name)
+					}
+					m.Defs[f.Name] = f.Term
+				default:
+					return nil, nil, fmt.Errorf("a target's (provides … %s …) may hold (use …) and "+
+						"(def …); got a %s", path, f.Kind)
+				}
+			}
+		}
+	}
+
 	// An `export` or a `sig` naming nothing was silently dropped, because both
 	// were read off m.Order — the list of DEFINITIONS. A misspelled export left
 	// a program with no entry points, and build then reported the absence of a
@@ -377,6 +475,7 @@ func LoadWith(forms []Form, resolve Resolver) (*Program, []*Term, error) {
 	p := NewProgram()
 	sort.Strings(unresolved)
 	p.Unresolved = unresolved
+	p.TargetDefined = overridden
 	p.Sums = sums
 	// The language's declarations are in the program ONCE, unqualified, which is
 	// the spelling the compiler already produces — β on a map literal builds
@@ -551,6 +650,9 @@ func partition(forms []Form) ([]*Module, []entry, error) {
 			}
 			cur.Defs[f.Name] = f.Term
 			cur.Order = append(cur.Order, f.Name)
+		case "provides":
+			// A target fragment in a library file: read by emit.loadProvides, and
+			// not part of the program (target-system.md §8).
 		case "sum":
 			// A sum declaration is DEFINITIONS. The constructors become ordinary
 			// defs, so qualification, imports, delta and the occurrence counter

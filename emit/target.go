@@ -305,6 +305,17 @@ type Target struct {
 	// still emit source, which is what cmd/gen does (build.md §4).
 	Build string
 
+	// Defs are `D_T` — the definitions this target contributes, in Oroboros,
+	// keyed by module path (target-system.md §6.2, theories.md §5.4). A target
+	// has always been able to say how a host SPELLS a name; this lets it say
+	// that the host DEFINES one. Handed to core.LoadWithDefs, where δ unfolds
+	// them exactly as it unfolds a library's.
+	//
+	// A TARGET LIBRARY MAY NOT DECLARE — `def` and `use`, never `sig`, `type` or
+	// `structural` — and that is a stratification rather than a taste: `P_T` is
+	// reduction's parameter, so it may not depend on reduction.
+	Defs map[string][]core.Form
+
 	// Aliases are the MANIFEST types — `(type NAME τ)`, a type with a definiens
 	// and no realization (theories.md §2 at the type level). Unfolded on the
 	// glued target, after which no alias name occurs anywhere: emit/alias.go.
@@ -448,7 +459,7 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			return nil, nil, err
 		}
 	}
-	if len(out.Prims) == 0 {
+	if len(out.Prims) == 0 && len(out.Defs) == 0 {
 		return nil, nil, nil
 	}
 	return out, from, nil
@@ -1344,6 +1355,30 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	// A deferred declaration is a declaration that has not been read yet, so it
 	// travels with the fragment under BOTH operators and is elaborated once.
 	tg.Deferred = append(tg.Deferred, o.Deferred...)
+	// `D_T` composes per NAME like everything else: a repeat within a layer is a
+	// mistake, and between layers the nearer one — already present, since layers
+	// fold nearest first — wins.
+	for path, fs := range o.Defs {
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		have := map[string]bool{}
+		for _, g := range tg.Defs[path] {
+			if g.Kind == "def" {
+				have[g.Name] = true
+			}
+		}
+		for _, f := range fs {
+			if f.Kind == "def" && have[f.Name] {
+				if how == glue {
+					return fmt.Errorf("%s: %s is defined twice in this target", from,
+						qualify(path, f.Name))
+				}
+				continue
+			}
+			tg.Defs[path] = append(tg.Defs[path], f)
+		}
+	}
 	// A library is a set member, so two layers naming one is not a collision.
 	tg.Link = append(tg.Link, o.Link...)
 	// A PRIMITIVE IS STRICTER THAN THE SHEAF CONDITION UNDER GLUE, deliberately:
@@ -1420,7 +1455,9 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			if err := parseFact(f, frag, path); err != nil {
 				return nil, err
 			}
-		case "sig", "const":
+		case "sig", "const", "def", "use":
+			// `def` and `use` reach `declare` only to be refused with the reason:
+			// they are `D_T`, and `D_T` is keyed by module.
 			if err := frag.declare(f, "", path); err != nil {
 				return nil, err
 			}
@@ -1711,6 +1748,31 @@ func parseFact(f *core.Term, frag *Target, path string) error {
 // FULLY QUALIFIED one, because that is what resolution produces and R1 requires
 // targets and libraries to key the same namespace (modules.md §5).
 func (tg *Target) declare(f *core.Term, modPath, file string) error {
+	// `(def NAME term)` and `(use PATH [as A])` are `D_T`, not declarations:
+	// they are the target's own library, and they go to core rather than to the
+	// primitive table (target-system.md §6).
+	if w := formWord(f); w == "def" || w == "use" {
+		if modPath == "" {
+			return fmt.Errorf("%s: (%s …) is the target's own library and belongs to a module — "+
+				"write it inside (module PATH …) or (provides TARGET PATH …) (theories.md §5.4)",
+				file, w)
+		}
+		fm, err := core.ToForm(f)
+		if err != nil {
+			return fmt.Errorf("%s: %w", file, err)
+		}
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		for _, g := range tg.Defs[modPath] {
+			if g.Kind == "def" && fm.Kind == "def" && g.Name == fm.Name {
+				return fmt.Errorf("%s: %s is defined twice in this target", file,
+					qualify(modPath, fm.Name))
+			}
+		}
+		tg.Defs[modPath] = append(tg.Defs[modPath], fm)
+		return nil
+	}
 	// A CONSTANT'S NAME AS A RANGE ENDPOINT needs the definiens, which may be
 	// declared in another file or another layer, so the declaration waits for
 	// the finished target (emit/constend.go).

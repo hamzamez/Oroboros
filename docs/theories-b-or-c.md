@@ -664,6 +664,8 @@ built, no program that used the word for something else can exist.
    wrongly written constant refused by a host check; the result-list ambiguity gone from `TypeName`.
 5. **Definitions inside `provides` (`D_T`).** *Test:* tally is one program on two hosts, and its
    output is byte-identical to today's on the sample log and on the suite's `(a)?b` case.
+   **Built 2026-09-16** — [dt-2026-09-16](../gauntlet/results/dt-2026-09-16.md); the emitted Go is
+   byte-identical to the old per-host entry's.
 6. **Companions with `include`; `implements` checked as a view.** *Test:* the hand-written
    `(implements io-WriteCloser io-Writer)` deleted and derived; a false edge refused from
    declarations alone.

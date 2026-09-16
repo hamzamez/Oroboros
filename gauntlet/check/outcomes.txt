@@ -1190,7 +1190,7 @@
 == examples/tally/tally.oro go refused
    gen: examples/tally/tally.oro: in tally/host.capture: go/regexp/Regexp.FindStringSubmatch is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == examples/tally/tally.oro js refused
-   gen: examples/tally/tally.oro: in tally.tally: tally/host.compile is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/tally/tally.oro: in tally.tally: tally/host.show is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use tally/host) matched no file on the search path and this target provides no module tally/host either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro java refused
    gen: examples/tally/tally.oro: in tally/host.capture: java/java-util-regex/Matcher.find is not bound — it is not a parameter, not a definition, and not a primitive on this target

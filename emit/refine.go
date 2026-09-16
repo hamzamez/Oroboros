@@ -34,6 +34,15 @@ type refiner struct {
 	// atoms), so a contract assumed about a pure call and a goal mentioning it
 	// name one variable.
 	pure atoms
+
+	// probe is set on a DRY walk, one that proves nothing and refuses nothing:
+	// it exists to read the facts in scope at a loop's back edges, for the
+	// invariant check in `iterate`. An undischarged obligation there is not an
+	// error — the real walk will meet it — and `onAgain` is told the facts at
+	// every `again` of the loop being probed (loopDepth 0), not of a nested one.
+	probe     bool
+	onAgain   func(args []*core.Term, f *facts)
+	loopDepth int
 }
 
 func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
@@ -324,6 +333,9 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 	}
 	r.markBound(t)
 	args := t.Args()
+	if op.Name == "again" && r.onAgain != nil && r.loopDepth == 0 {
+		r.onAgain(args, f)
+	}
 	p, known := r.tgt.Prims[op.Name]
 
 	// A length is never negative on any target — free, and worth having.
@@ -621,8 +633,16 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			ok = false
 			return
 		}
-		if _, lam, isLet := asLet(r.tgt, t); isLet {
+		if v, lam, isLet := asLet(r.tgt, t); isLet {
 			binders[lam.Params[0]] = true
+			// A NAME BOUND TO A LINEAR VALUE IS THAT VALUE, so the equation holds on
+			// every path below it. Without it a clamp written through a helper —
+			// `(let (+ lo w) (fn (b) (if (< n b) n b)))`, `min` inlined — had a leaf
+			// `b` about which nothing was known.
+			if e, ok := path.lin(v); ok {
+				path = path.clone()
+				path.assumeEQ(lam.Params[0], e)
+			}
 			walk(lam.Body(), path, depth+1)
 			return
 		}
@@ -732,6 +752,9 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		if k, ok := neKey(want); ok && f.entailsOpaque(k) {
 			return true, nil
 		}
+		if r.probe {
+			return false, nil
+		}
 		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s",
 			name, want, f.known())
 	}
@@ -751,6 +774,9 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 	}
 	for _, g := range goals {
 		if !f.entails(g) {
+			if r.probe {
+				return false, nil
+			}
 			return false, fmt.Errorf("%s requires %s <= 0, which does not follow\n  known: %s",
 				name, g.String(), f.known())
 		}
@@ -840,7 +866,119 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 			}
 		}
 	}
+	r.inductiveLowerBounds(lam, inits, f, g)
+	r.loopDepth++
+	defer func() { r.loopDepth-- }()
 	return r.clauses(lam.Body(), g)
+}
+
+// nonNegative reports whether facts f prove 0 <= e. A back-edge argument is
+// often a CONDITIONAL rather than a name — β substitutes a let-bound clamp used
+// once straight into the `again` — so e is read as if bound to a fresh name and
+// given what every branch satisfies (joinConditional's theorem: exactly one leaf
+// is evaluated, on a path whose facts hold).
+func (r *refiner) nonNegative(e *core.Term, f *facts) bool {
+	if a, ok := f.lin(e); ok {
+		return f.entails(constant(0).addScaled(a, -1))
+	}
+	const fresh = "#again-arg"
+	g := f.clone()
+	r.joinConditional(g, fresh, e, f)
+	return g.entails(constant(0).addScaled(variable(fresh), -1))
+}
+
+// inductiveLowerBounds assumes `0 <= v` for every loop variable for which that
+// is an INDUCTIVE INVARIANT, decided by the fragment rather than by the shape of
+// the step.
+//
+// The syntactic rules above see `(+ v 3)` and `e ⊒ S`; they do not see a pass
+// over a merge sort, `lo ← min(n, lo + 2w)`, whose step is non-negative only
+// because the clause guard says `lo < n` and the invariant already says `lo`
+// and `w` are. That is induction, and it is decided exactly as induction is.
+//
+// THEOREM (inductive invariant). Let C be a set of loop variables such that for
+// each v ∈ C the entry facts F prove 0 ≤ z_v, and at every back edge
+// `(again a₁ … aₙ)` reached under facts P, P ∧ ⋀_{u∈C} 0 ≤ u ⊢ 0 ≤ a_v for every
+// v ∈ C. Then 0 ≤ v holds at every iteration, for every v ∈ C.
+// Proof: by induction on iterations, simultaneously for all of C. On entry each
+// v is z_v and F holds. If ⋀ 0 ≤ u holds at an iteration, the back edge taken is
+// reached under facts that hold there — clause guards, and bindings of names
+// that are immutable — so each new value a_v is non-negative. ∎
+//
+// P may be used because the facts in scope inside a loop body never include a
+// variable's initial value — `iterate` assumes only what EVERY iteration
+// guarantees.
+//
+// FINDING C is Houdini (Flanagan & Leino, FME 2001): start from every candidate,
+// discard those some back edge fails to preserve, repeat. Discarding only
+// weakens the hypotheses, so the iteration is monotone and stops within |C| + 1
+// rounds at the GREATEST inductive subset — every candidate that is jointly
+// inductive, which is the most this template can give.
+//
+// Each round is a dry walk of the body (refiner.probe). A nested loop met during
+// a probe keeps only the syntactic rule, or rounds would multiply with depth.
+func (r *refiner) inductiveLowerBounds(lam *core.Term, inits []*core.Term, f, g *facts) {
+	if r.probe {
+		return
+	}
+	var cand []string
+	for i, n := range lam.Params {
+		if i >= len(inits) {
+			continue
+		}
+		e, ok := f.lin(inits[i])
+		if !ok || !f.entails(constant(0).addScaled(e, -1)) {
+			continue
+		}
+		if g.entails(constant(0).addScaled(variable(n), -1)) {
+			continue // the syntactic rule already gave it
+		}
+		cand = append(cand, n)
+	}
+	pos := map[string]int{}
+	for i, n := range lam.Params {
+		pos[n] = i
+	}
+	for round := 0; round <= len(lam.Params) && len(cand) > 0; round++ {
+		h := g.clone()
+		for _, n := range cand {
+			h.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n+" (inductive)")
+		}
+		failed := map[string]bool{}
+		bound := map[string]bool{}
+		for k, v := range r.bound {
+			bound[k] = v
+		}
+		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true}
+		dry.onAgain = func(args []*core.Term, at *facts) {
+			for _, n := range cand {
+				i := pos[n]
+				if i >= len(args) {
+					failed[n] = true
+					continue
+				}
+				if !r.nonNegative(args[i], at) {
+					failed[n] = true
+				}
+			}
+		}
+		if err := dry.clauses(lam.Body(), h); err != nil {
+			return // a probe that cannot walk the body licenses nothing
+		}
+		if len(failed) == 0 {
+			for _, n := range cand {
+				g.assumeLE(constant(0).addScaled(variable(n), -1), "0 <= "+n+" (inductive)")
+			}
+			return
+		}
+		var keep []string
+		for _, n := range cand {
+			if !failed[n] {
+				keep = append(keep, n)
+			}
+		}
+		cand = keep
+	}
 }
 
 // clauses walks the if-chain, assuming each guard inside its own branch.
@@ -1219,7 +1357,7 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			continue
 		}
 		for _, g := range goals {
-			if f.entails(g) {
+			if f.entails(g) || r.probe {
 				continue
 			}
 			return fmt.Errorf("(%s %s) is an indexing, and %s does not follow\n"+

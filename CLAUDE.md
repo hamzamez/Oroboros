@@ -2364,6 +2364,21 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**0 ≤ v IS AN INDUCTIVE INVARIANT, AND THE COMPARATOR WAS NEVER A LOST PROOF** —
+[inductive-2026-09-16](gauntlet/results/inductive-2026-09-16.md), `emit/refine.go`. dt-2026-09-16 §5 said `h.cmp` inside
+tally's sort comparator LOST `(cs u)`'s bound. **It did not**: in the spelling that "worked" the index reached the
+checker as a `let` TERM, outside the fragment, so it was **propagated, not proven**; as a name it was read and could
+not be proved — purecontract's gate firing on a program, the spelling that passed being the one that checked less.
+**What the proof needed was `0 ≤ lo`** for the merge pass `lo′ = min(n, lo + 2w)`, `w′ = 2w`, which no syntactic rule
+sees. **Theorem**: if every back edge preserves `⋀_{v∈C} 0 ≤ v` under the facts at that edge, it holds at every
+iteration, by simultaneous induction; **the greatest such C is Houdini** (Flanagan & Leino 2001), a monotone greatest
+fixpoint within |C|+1 dry walks. **Two readings the witness forced**: a back-edge argument is often the CONDITIONAL β
+substituted in, read by `joinConditional`'s theorem under a fresh name; and a name bound to a linear value IS that
+value, an equation the join had walked past without assuming. Each of the three pieces fails the witness when removed.
+**tally is written naturally now, and 4 of its index obligations go from propagated to proven (62 → 58)**; the rest of
+the corpus is byte-identical to the note. +91 code lines. Next: the other 58 are the same class — an index that is a
+`let` or conditional term — and the same reading proves or refuses each.
+
 **A TARGET MAY DEFINE, NOT ONLY SPELL: `D_T` IS BUILT AND TALLY IS ONE PROGRAM** —
 [dt-2026-09-16](gauntlet/results/dt-2026-09-16.md), theories.md §5.4, target-system.md §6.2; step 5 of the build
 order. `impl = P_T ▷ D_T ▷ D`: `(def …)` and `(use …)` inside `(provides T PATH …)` are the target's own

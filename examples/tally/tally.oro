@@ -176,25 +176,16 @@
 ; looks (modules.md §4). Each host's binding is a LIBRARY FRAGMENT beside this
 ; file -- host-go.oro, host-java.oro -- so this is ONE program and the
 ; capability graph picks the binding, exactly as it picks a primitive.
-;
-; THE SIX ARE BOUND ONCE, as a tuple destructured at the top. That is not
-; decoration: writing `h.cmp` at its use site instead REFUSES the program --
-; `(cs u) is an indexing, and (< u (len cs)) does not follow` -- because the one
-; use inside the sort comparator is a lambda δ reaches at a different time than β
-; reaches a parameter, and the refinement layer loses the length. Measured, and
-; the only one of the six that does it; recorded in dt-2026-09-16 §5.
 (def tally (fn (p text)
-  ((tuple h.compile h.hit? h.capture h.cmp h.lines h.show)
-   (fn (compile hit? capture cmp lines show)
-    (let (compile p) (fn (re)
-    (let (lines text) (fn (ls)
-    (let (nhits hit? re ls) (fn (n)
-    (let (captures hit? capture re ls n) (fn (cs)
-    (let (msort (fn (u v) (< (cmp (cs u) (cs v)) 0)) n) (fn (ord)
-    (let (ndist cmp cs ord n) (fn (nd)
-    (let (dists cmp cs ord n nd) (fn (dt)
+    (let (h.compile p) (fn (re)
+    (let (h.lines text) (fn (ls)
+    (let (nhits h.hit? re ls) (fn (n)
+    (let (captures h.hit? h.capture re ls n) (fn (cs)
+    (let (msort (fn (u v) (< (h.cmp (cs u) (cs v)) 0)) n) (fn (ord)
+    (let (ndist h.cmp cs ord n) (fn (nd)
+    (let (dists h.cmp cs ord n nd) (fn (dt)
     (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
-      (report show cs ord n dt ord2 nd)))))))))))))))))))))
+      (report h.show cs ord n dt ord2 nd)))))))))))))))))))
 
 (def run (fn ()
   (let (os.Args) (fn (av)

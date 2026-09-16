@@ -93,3 +93,13 @@ The initial baseline.
 - compiler output changed — `lib/os/go.oro windows`
 - compiler output changed — `lib/os/java.oro windows`
 - compiler output changed — `lib/os/js.oro windows`
+
+## 2026-09-16 — on bffdcf9, with uncommitted changes
+
+**Reason:** tally.oro spelled with h.* directly now that the comparator's index is proven: the only change is which unbound name the js refusal reports first.
+
+456 runs: 194 emitted, 262 refused; 2307 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+1 change(s):
+
+- compiler output changed — `examples/tally/tally.oro js`

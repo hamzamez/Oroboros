@@ -1,50 +1,145 @@
 # Oroboros
 
-**Write a program once. Compile it to Go, JavaScript, Java or x86-64 assembly, as the code a good
-programmer on that platform would have written — and call that platform's own libraries directly.**
+A small language that compiles to **Go, JavaScript, Java and x86-64 assembly**. The output is the code
+a good programmer on that platform would have written, and it calls the platform's own libraries
+directly.
 
-> **Work in progress, not a release.** The compiler works and every claim below is measured, but the
-> language is still changing, nothing is versioned, and there is no package manager, no editor
-> support and no stability promise. Read it to see where it is going; don't build on it yet.
+```lisp
+(def main (fn ()
+  (io.print-line (big-str (fib 100)))))
+```
+
+```
+354224848179261915075          ; on Go, on Node, and on the JVM
+```
+
+> **Status: a working compiler, not a release.** Every claim on this page was measured or run, and the
+> measurements are linked. The language still changes, nothing is versioned, and there is no package manager,
+> no editor support and no stability promise.
 
 ---
 
-## Why you might care
+## The idea in four sentences
 
-Every cross-platform language makes you choose.
+1. **There is no runtime and no wrapper.** A program becomes ordinary host source (a Go function, a JS
+   module, a Java class, a MASM file), and a call to `os.ReadFile` *is* a call to `os.ReadFile`.
+2. **Portability is a property the compiler computes**, not a promise the language makes. Use only
+   what every target provides and the program runs everywhere; call a Go package and it runs on Go,
+   and the compiler says so.
+3. **The program is evaluated at compile time as far as it can be.** Functions, abstractions and
+   compile-time data structures disappear, and what reaches the backend is loops, tables and host
+   calls.
+4. **What cannot be proven is refused, not checked at run time.** That covers array bounds,
+   preconditions on host calls, and integers leaving their range.
 
-- **Portable languages wrap the platform.** You get their standard library, their runtime, their
-  garbage collector and their idea of a string — and you reach the host's own APIs through an escape
-  hatch, a binding generator or not at all.
-- **Native code is fast and fully capable, and you write it once per platform.**
+---
 
-Oroboros takes a different position: **there is no runtime and no wrapper**. A program compiles to
-ordinary source for the host — a Go function, a JavaScript module, a Java class, a MASM file — and a
-call to `os.ReadFile` *is* a call to `os.ReadFile`. What you get in exchange for giving up a global
-portability guarantee:
+## A tour, in five programs
 
-- **The emitted code is at parity with hand-written code.** Not "close enough": the benchmark suite
-  holds it to within the noise floor of a hand-written equivalent on each host, and it records where
-  it misses.
-- **Portability is something the compiler tells you, not something the language enforces.** Use
-  only what every target provides and your program runs everywhere. Call Win32, and it runs on
-  Windows — and that is a normal, first-class program to write.
-- **Arithmetic means what it says on every host.** Integers are exact. If the compiler cannot prove an
-  operation stays in range, it refuses to compile rather than letting Go wrap, the JVM wrap and
-  JavaScript lose precision — three different wrong answers from one line of source. When you need
-  big numbers, you declare the range and get arbitrary precision.
-- **The compiler proves things for you, and says so when it can't.** Array indices, preconditions on
-  host calls, and loop termination are checked at compile time. An obligation it cannot discharge is
-  an error that names the operation, not a silent runtime check.
+The first four were compiled and run for this page, and each output shown is what they printed. The fifth
+comes from the test suite, which runs it on every target.
 
-## What it looks like
+### 1. A sieve: tables, loops and buffers
 
-A line counter. It reads a file named on the command line and prints how many newlines it has.
+```lisp
+(use io)
+(export main)
+
+(def count-primes (fn (n)
+  (let (build n (fn (sieve)                   ; a buffer of n booleans, zero-filled
+         (loop ((s sieve) (i 2))
+           (>= (* i i) n)   s
+           (>= i (len s))   s
+           (s i)            (again s (+ i 1))  ; indexing is application
+           else             (again (loop ((s s) (j (* i i)))
+                                     (>= j n)  s
+                                     else      (again (set s j true) (+ j i)))
+                                   (+ i 1)))))
+    (fn (composite)                           ; frozen on the way out
+      (loop ((k 2) (count 0))
+        (>= k n)       count
+        (composite k)  (again (+ k 1) count)
+        else           (again (+ k 1) (+ count 1)))))))
+
+(def main (fn () (io.print-int (count-primes 1000))))
+```
+
+```
+168
+```
+
+It prints the same on Go, Node and the JVM. The emitted Go has a `[]bool`, three plain `for` loops, no
+bounds-check helpers and no wrapper:
+
+```go
+sieve := make([]bool, 1000)
+s := sieve
+var i int = 2
+for ; ; i = (i + 1) {
+	if ((i * i) >= 1000) {
+		break
+	}
+	if (i >= len(s)) {
+		break
+	}
+	if s[i] {
+		continue
+	}
+	…
+```
+
+The language's whole character is in there:
+- **`loop` names its variables and `again` jumps back** with new values. There is no recursion, and no
+  other iteration.
+- **Mutation happens only on a `build` buffer.** A buffer is *linear*: every `set` consumes it and
+  hands it back, so no two parts of a program can write the same memory. On the way out it freezes
+  into an ordinary immutable table.
+- **`(s i)` is an application.** A table is a function with a known, finite domain, and the compiler
+  proved `i` is inside it.
+
+### 2. Fibonacci: exact integers
+
+The same loop, asked for `fib(100)` as an ordinary integer:
+
+```lisp
+(def fib (fn (n)
+  (loop ((a 0) (b 1) (i 0))
+    (>= i n)  a
+    else      (again b (+ a b) (+ i 1)))))
+
+(def main (fn () (io.print-int (fib 100))))
+```
+
+```
+build: main: 1 of 2 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+  + [1, +inf] in (+ a b)
+  Outside that window the four targets disagree silently — Go and the JVM
+  wrap, JavaScript loses precision — so this is refused rather than noted
+```
+
+This refusal is the point. Compiled naively, that line gives `3736710778780434371` on Go and the JVM
+(wrapped) and `354224848179262000000` on Node (rounded): three wrong answers from one source. Say the
+result is unbounded instead:
+
+```lisp
+(sig fib ((n (int 0 1000))) (int 0 +inf))
+
+(def main (fn () (io.print-line (big-str (fib 100)))))
+```
+
+```
+354224848179261915075
+```
+
+Each host uses its own big integer: `*big.Int` on Go, `BigInt` on Node, `BigInteger` on the JVM. A
+range is part of a value's *type*: `(int 0 255)` is stored as a `[]byte` on Go and as a `short[]` on
+the JVM, whose `byte` is signed. Above the machine word, the target picks the representation.
+
+### 3. A line counter: calling a host API that can fail
 
 ```lisp
 (use os)
 (use io)
-
 (export main)
 
 (def cap-in (fn () 16777216))
@@ -66,144 +161,163 @@ A line counter. It reads a file named on the command line and prints how many ne
               (seq (io.print-line "wc: cannot read that file") 0)))))))))
 ```
 
-The same file, three hosts, one answer:
-
 ```bash
-go run ./cmd/build -target=go   -o wc.exe      examples/io/wc.oro && ./wc.exe README.md
-go run ./cmd/build -target=js   -o wc.mjs      examples/io/wc.oro && node wc.mjs README.md
-go run ./cmd/build -target=java -o wc-classes  examples/io/wc.oro && java -cp wc-classes Main README.md
+go run ./cmd/build -target=go   -o wc.exe     examples/io/wc.oro && ./wc.exe CLAUDE.md
+go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro && node wc.mjs CLAUDE.md
+go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-classes Main CLAUDE.md
 ```
 
-On Go, `os.ReadFile` comes out as the host's own two-result call, with no wrapper type and no
-intermediate object:
+All three print `455`, the same as `wc -l`.
+- **A fallible call gives two results, `(fn (src err) …)`, on every host**, including the ones where
+  the platform throws. How each host fails is written once, in that target's declarations. On Go it
+  compiles to `src, err := os.ReadFile(av[1])`.
+- **`cap-in` is not decoration.** A count over an unbounded file cannot be proven to stay in range, so
+  the program states how large a file it accepts. The compiler made it say what happens at the limit.
 
-```go
-src, err := os.ReadFile(av[1])
-```
-
-A few things in that program are worth a second look, because they are the language's character:
-
-- **There is no recursion and no mutation outside a loop.** `loop` names its variables and `again`
-  jumps back with new values. That is all the iteration there is, and it is why termination can be
-  checked.
-- **A fallible host call gives back two values**, `(fn (src err) …)`, on every host — including the
-  ones where the platform throws. How each host signals failure is written once in that target's
-  declarations, and your program never sees an exception.
-- **`cap-in` is not decoration.** A count over an unbounded file cannot be proven to stay in range,
-  so the program states how big a file it accepts. The compiler made it say what happens at the
-  limit instead of pretending there isn't one.
-
-### When the compiler says no
-
-Fibonacci, with the result declared as an ordinary integer:
+### 4. `encoding/hex`: a host package, with its preconditions
 
 ```lisp
-(sig fib ((n int)) int (where (and (<= 0 n) (< n 1000))))
-(def fib (fn (n)
-  (loop ((a 0) (b 1) (i 0))
-    (>= i n)  a
-    else      (again b (+ a b) (+ i 1)))))
+(use go/encoding-hex as hex)
+(use os)
+(use io)
+(export main)
+
+(def main (fn ()
+  (let (build 3 (fn (b) (set (set (set b 0 104) 1 105) 2 33))) (fn (src)   ; "hi!"
+    (io.print-line
+      (os.text-of
+        (build (* 2 (len src)) (fn (dst)
+          ((hex.Encode dst src) (fn (dst n) dst))))))))))
 ```
 
 ```
-1 of 2 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
-  + [1, +inf] in (+ a b)
-  Outside that window the four targets disagree silently — Go and the JVM
-  wrap, JavaScript loses precision — so this is refused rather than noted
-  (ADR 0012, ADR 0019).
-  Clear it by saying one of:
-    · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
-    …
+686921
 ```
 
-Say what you mean instead — the result is a non-negative integer of any size:
+Go's `hex.Encode` panics if `dst` is too short. Here it cannot be called with one. Change the
+destination to `(+ (len src) 1)` bytes and the program does not compile:
+
+```
+build: main: go/encoding-hex.Encode requires -len(dst) + 2*len(src) <= 0, which does not follow
+```
+
+The declaration is plain data, written by hand from the package's source and checked against the real
+package:
 
 ```lisp
-(sig fib ((n (int 0 1000))) (int 0 +inf))
+(sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+      (tuple (buffer (int 0 255)) (int 0 9007199254740990))
+      (where (<= (* 2 (len src)) (len dst)))
+      (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
+        (import "encoding/hex")))
 ```
 
-Now it compiles on all three, using each host's own big integer: `*big.Int` on Go, `BigInt` in
-JavaScript, `BigInteger` on the JVM. `fib(100)` is `354224848179261915075` everywhere, where the
-naive version printed three different wrong numbers.
+The same program built for JavaScript stops with `(use go/encoding-hex) matched no file`. That is
+portability being computed: this program is a Go program, and the compiler says so.
 
-## What works today
+### 5. Variants and `match`
 
-**Four targets.** Go, JavaScript (Node), Java (the JVM) and Windows x86-64 assembly under MASM. The
-first three are the everyday ones; Windows is the host with no runtime at all, where the compiler has
-to supply everything a higher-level host gave it for free.
+From the test suite, where each runs on all four targets:
 
-**Real programs, not just benchmarks.**
+```lisp
+(variant result (ok int) (err int))
+
+(def step (fn (n)
+  (if (>= n 10) (err n) (ok (* n 2)))))
+
+(def run (fn (n)
+  (case (step n)
+    (ok v)  v
+    (err e) (+ e 1000))))
+```
+
+A variant whose constructor is known at compile time disappears. One decided at run time becomes the
+`if` that decided it: no tag, no allocation, no dispatch.
+
+```lisp
+(def run (fn (n)
+  (match (0 n 0)
+    _ 0 c                     c
+    0 v c (when (>= v 10))   (again 1 (- v 10) (+ c 1))
+    _ v c (when (>= v 10))   (again 0 (- v 10) c)
+    _ v c                     (again 0 0 c)
+    else                      0)))
+```
+
+`match` is a `loop` over its scrutinees, so `again` means *match again*. A parser's state machine is
+written directly.
+
+---
+
+## The language on one page
+
+The full, current description is [docs/spec/state.md](docs/spec/state.md). Every word the compiler
+knows is listed in [docs/spec/inventory.md](docs/spec/inventory.md), and a test fails if the two
+drift apart.
 
 | | |
 |---|---|
-| [wc](examples/io/wc.oro) | line count, byte-identical output on Go, JavaScript and Java |
-| [jsonfmt](examples/io/jsonfmt.oro) | a JSON pretty-printer, same three hosts |
-| [freq](examples/io/freq.oro) | a word-frequency report — `sort \| uniq -c \| sort -rn` — same three hosts |
-| [tally](examples/tally/) | counts regex captures in a log, using each host's own regex engine; one core, bound to Go and to the JVM |
-| [a JSON parser](examples/json/) | tokeniser and tree, on all four targets, with no recursion |
+| **Terms** | seven kinds: name, integer, float, string, `true`/`false`, `(fn (x…) e)`, application |
+| **Top level** | `def`, `sig` (with `where`, `ensures`), `variant`, `module`, `use`, `export` |
+| **Sugar** | `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`; all gone after reading |
+| **Iteration** | `loop` and `again`. No recursion, and termination is checked |
+| **Data** | tables `(array V)`, maps `(map int V)`, tuples, variants with type arguments, strings as scalar sequences; `option` for a map read |
+| **Mutation** | only on a linear buffer, inside `build` or as a declared `(buffer V)` parameter |
+| **Integers** | exact within ±(2⁵³−1) on every host; a range `(int LO HI)` is a type; `(int 0 +inf)` is arbitrary precision |
+| **Functions** | fully higher-order at compile time; nothing that needs a closure at run time may survive to the output |
+| **Effects** | one purity bit per host call; an impure call runs exactly once, where it was written |
+| **Targets** | directories of declarations (`sig`, `type`, `repr`, `fact`, `const`), which are data and never compiler code |
 
-**The language.** Functions, `loop`/`again`, booleans and `if`, several return values, pattern
-matching, sum types (`(sum result (ok int) (err int))`), tuples, arrays, maps with integer keys,
-strings built by concatenation, exact integers with declared ranges and arbitrary precision, and
-mutable buffers that are *linear* — used exactly once, so two parts of a program can never modify the
-same memory by surprise. Functions are fully higher-order at compile time; nothing that needs a
-closure at runtime survives to the output.
+## What the compiler guarantees
 
-**Performance.** Seven benchmark programs — dot product, search, structs, word count, generics,
-stencil, a JSON tokeniser — are held against hand-written code on Go, JavaScript and Java. Nineteen
-comparisons in the latest run: the largest gap is **1.13×** and the best is **0.91×**, on a laptop
-with a ~15% noise floor ([gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md)). Two programs
-compiled to *byte-identical machine code* against the hand-written Go.
+| | how | measured |
+|---|---|---|
+| Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | largest gap **1.13×**, best **0.91×** over 19 comparisons ([gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md)); two programs compile to byte-identical machine code ([generics](gauntlet/results/generics-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md)) |
+| An integer never silently wraps or rounds | interval analysis; unproven means refused | **2,361 of 2,413** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) |
+| Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
+| Loops terminate | size-change termination | **345 of 382** loops proven |
+| Every host agrees | 30 programs built and **run** on all four targets, required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
+| The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
 
-**Host APIs.** Declaring a host function is one line of data — no binding generator, no Go code:
+## How much of each platform it can reach
 
-```lisp
-(prim sqrt (f64) f64 expr "math.Sqrt(%s)" (import "math"))
-```
+Surveys read each host's own API list and count what the declaration format can express:
 
-A declaration can also carry what the call needs and what it guarantees. From Go's `encoding/hex`:
+| host | declarable | usable today |
+|---|---:|---:|
+| Go standard library | 87.8% | 60.4% |
+| JVM (JDK) | 81.4% | 60.9% |
+| Win32 | 90.5% | 31.0% callable *and* linkable |
+| Node | 100% | not a meaningful number: every value has one type |
 
-```lisp
-(prim Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-      ((buffer (int 0 255)) (int 0 9007199254740990))
-      expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
-      (where (<= (* 2 (len src)) (len dst)))
-      (import "encoding/hex"))
-```
-
-Pass a buffer one byte too short and the program doesn't compile — the error names the call and the
-inequality it could not prove. Two Go standard library packages, `unicode/utf8` and `encoding/hex`,
-are declared completely this way and checked against the real packages. Surveys of all four hosts
-measure how much of each API the declaration format can express today
-([gauntlet/stdlib](gauntlet/stdlib/)).
-
-**Testing.** Thirty programs are built and *run* on every target on every change, and must print the
-same, correct answer ([differential](gauntlet/differential/)). It has caught several silent
-wrong answers that compiled cleanly on every host.
+"Declarable" is not "supported". A package is supported when every function is declared **by hand**,
+with its preconditions and what it does to buffers, and checked against the real package
+([ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)). Today that is
+`unicode/utf8` and `encoding/hex`, plus `io`'s interfaces. Working through Go's standard library
+package by package is the current work.
 
 ## What doesn't work yet
 
-Being straight about it, because it decides whether this is useful to you:
-
-- **Most of each standard library is not declared.** The surveys say how much *can* be; two Go
-  packages are fully done by hand, and the rest is the current work.
-- **No recursion.** Balanced divide-and-conquer (merge sort, Karatsuba) is written as a loop over
-  levels, and recursive data as a flat table with indices. It works and it is fast; it is also more
-  to write than recursion, and whether that is acceptable for everyday code is not settled.
-- **No closures at runtime, no concurrency, no interfaces you can implement.** You can pass a host
-  object where the host expects an interface; you cannot build one.
-- **Strings are thin.** Concatenation and conversion at the boundary. Text-processing programs so
-  far have worked in bytes.
+- **Most of each standard library** is not declared by hand yet.
+- **No recursion.** Balanced divide-and-conquer (merge sort, Karatsuba) is a loop over levels, and
+  recursive data is a flat table with indices. It is fast, and it is more to write.
+- **No runtime closures, no concurrency, no interfaces you implement.** You can pass a host object where
+  a host interface is wanted; you cannot build one.
+- **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
 - **Maps take integer keys only.**
-- **Windows is the least complete target**: fewer libraries, and larger programs can exceed its
-  register allocator.
-- **No packaging, no editor support, no error messages written for newcomers**, and the syntax may
-  change — the questions currently open about how declarations read are in
-  [declaration-surface.md](docs/declaration-surface.md).
+- **Windows** is the least complete target, and large programs can exceed its register allocator.
+- **Rough edges found while writing this page:**
+  - an array *literal* passed to a byte-array host parameter passes our type checker and is then
+    rejected by the Go compiler;
+  - a buffer's length is not carried out of an inner loop, which is why the sieve guards `(len s)` as
+    well as `n`.
+- **No packaging, no editor support**, and error messages written for the compiler's authors rather
+  than for newcomers.
 
 ## Try it
 
-You need Go 1.26 or newer. Node and a JDK for those targets; Visual Studio's MASM for Windows.
+You need Go 1.26 or newer (checked with 1.27). For the other targets you need Node (checked with 26)
+and a JDK (checked with 17), and Visual Studio's MASM for Windows.
 
 ```bash
 go run ./cmd/build -target=go -o hello examples/hello.oro && ./hello
@@ -215,49 +329,34 @@ hello from oroboros
 ```
 
 ```bash
-go run ./cmd/oro -target=go examples/table/dot.oro   # show what a program reduces to
-go test ./core/ ./emit/                              # the compiler's tests
-cd gauntlet/differential && go run run.go            # every test program, on every target
+go run ./cmd/check                                  # every check: tests, emission baseline, all targets
+go run ./cmd/oro -target=portable-go examples/dot.oro   # what a program reduces to
+cd gauntlet/differential && go run run.go           # every test program, on every target
 ```
 
-## How it works, briefly
+## Where things are
 
-A program is evaluated **at compile time** as far as it can be. Every function call that can be
-inlined is inlined, every abstraction that can be removed is removed, and what is left — loops,
-tables and calls to the host — is handed to a backend that writes it the way that host's programmers
-would. Higher-order code is free because none of it survives.
+| | |
+|---|---|
+| [core/](core/) | reader, terms, reducer |
+| [emit/](emit/) | the four backends, the type checker and the proofs |
+| [targets/](targets/) | what each host provides: declarations, never compiler code |
+| [lib/](lib/) | portable modules such as `os` and `io`, and each host's implementation of them |
+| [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `jsonfmt`, `freq`), [json/](examples/json/) and [tally/](examples/tally/) |
+| [gauntlet/](gauntlet/) | hand-written references, benchmarks, the differential suite, and [results/](gauntlet/results/) |
+| [docs/decisions/](docs/decisions/) | every significant decision, with what was rejected and why |
+| [docs/spec/](docs/spec/) | the specifications; start with [state.md](docs/spec/state.md) |
 
-A **target** is a directory of plain declarations: which host functions exist, what types they take,
-what they need and guarantee, and the text to emit. The language's own constructs (`if`, `loop`,
-arithmetic, tables) are implemented by the compiler on every target; everything else is data you can
-add without touching the compiler, and your own target layers can live next to your program.
+## How it is built
 
-The compiler proves what it can — array bounds, preconditions, integer ranges, termination — using a
-deliberately small, predictable decision procedure. It never guesses: what it cannot prove, it reports.
+- **Measure, don't assert.** Every performance or design claim is benchmarked against hand-written code,
+  with the expected loser in the benchmark too. Unmeasured claims here have been wrong about half the
+  time, and the corrections are kept.
+- **Derive, then build.** A feature starts from what it *is*: its algebra, its laws, and the literature.
+  Then it is specified, and only then written.
 
-## How the project is run
-
-Two rules decide almost everything:
-
-- **Measure, don't assert.** Every performance or design claim is benchmarked against a hand-written
-  equivalent, with both the expected winner and the expected loser in the benchmark. Unmeasured claims
-  in this repository have been wrong about half the time, and the corrections are kept, not deleted.
-- **Derive, then build.** A feature starts from what it *is* — its algebra, its laws, and prior work in
-  the literature — before a line of it is written.
-
-Decisions are recorded as ADRs in [docs/decisions/](docs/decisions/), each with the alternatives that
-were rejected and why. Measurements are in [gauntlet/results/](gauntlet/results/), and they are the
-authority when a document disagrees with them.
-
-## Going deeper
-
-- [docs/design-direction.md](docs/design-direction.md) — the reasoning behind the design, and the
-  predecessor project it learned from
-- [docs/spec/state.md](docs/spec/state.md) — the language as it currently is
-- [docs/the-atom.md](docs/the-atom.md) — what the core turned out to be
-- [docs/decisions/](docs/decisions/) — the decisions, and what was rejected
-- [gauntlet/results/](gauntlet/results/) — the measurements
-- [CLAUDE.md](CLAUDE.md) — the running log of findings, dense and complete
+The current assessment of the project, including what is going badly, is
+[docs/assessment-2026-09-17.md](docs/assessment-2026-09-17.md).
 
 ## The name
 

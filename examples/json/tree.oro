@@ -7,8 +7,11 @@
 ; at most once per trip, so no depth exceeds 1 + that. The interval layer proves it
 ; now (array smashing, the copy-closed joint invariant and the bounded-increment
 ; theorem), and every one of the 525 operations is bounded with no declaration.
-; The node-index clamps (`cn`, `cw`) stay: WHICH slot is in range is a relation
-; the refinement layer decides, not a bound.
+; And it has NO CLAMPS left (compfacts-2026-09-17). A node index read out of the
+; stack, the worklist or the node table is proven in range: every one of those
+; tables is strided, and the slots that hold node indices are exactly the ones
+; stored under `nn < nmax`. A fact about one COMPONENT of a strided table says so,
+; and the component a read lands in is decided by its index mod the stride.
 ;
 ; A JSON TREE AS A FLAT TABLE PLUS INDICES — parsed, linked, and WALKED.
 ;
@@ -87,10 +90,7 @@
 ; TWO ADDRESSING FORMS, and which one a site uses is a statement about what is
 ; KNOWN there.
 ;
-;   nsl / ssl / ssl2   the index came from a guarded loop variable, so the
-;                      bound is PROVEN and the address is bare
-;   nslc               the index was read out of a table and is opaque, so it
-;                      is CLAMPED into range
+;   nsl / ssl / ssl2   one form, bare, whatever the index came from
 ;
 ; The first version clamped everywhere, which was 1.35x slower and left the
 ; analysis with MORE undischarged obligations rather than fewer — 110 against
@@ -100,14 +100,16 @@
 ; so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
 ; scale a fact (json-tree-bench-2026-08-26).
 ;
-; The clamps that remain are real. A node index read out of the table is not
-; bounded by anything the compiler can see, and no guard would help, because
-; the value is data.
+; A NODE INDEX READ OUT OF A TABLE WAS CLAMPED here, six times, with a comment
+; saying the clamps were real because the value is data. The value IS data, and
+; what the data holds is provable: node indices go only into the stack's slot 0
+; and 1, the worklist's slot 0 and the node table's slots 2 and 3, and every one
+; of those stores happens under `nn < nmax`. The fact is about a COMPONENT — the
+; node table's slot 1 holds token lengths up to 1023 and the worklist's slot 1
+; holds depths — so a fact about the whole table could not state it; a fact about
+; the residue class of the index can (compfacts-2026-09-17).
 
-(def cn (fn (k) (if (go.< k 0) 0 (if (go.>= k (nmax)) 0 k))))
-(def cd (fn (d) (if (go.< d 0) 0 (if (go.>= d (dmax)) 0 d))))
 (def nsl (fn (k o) (go.+ (go.* 4 k) o)))
-(def nslc (fn (k o) (go.+ (go.* 4 (cn k)) o)))
 (def ssl (fn (d o) (go.+ (go.* 2 d) o)))
 
 ; --- scanners ---------------------------------------------------------------
@@ -140,8 +142,8 @@
   (if (go.< sp 1) nodes
     (let (stk (ssl (go.- sp 1) 1)) (fn (lc)
       (if (= lc 0)
-        (set nodes (nslc (stk (ssl (go.- sp 1) 0)) 2) k)
-        (set nodes (nslc lc 3) k)))))))
+        (set nodes (nsl (stk (ssl (go.- sp 1) 0)) 2) k)
+        (set nodes (nsl lc 3) k)))))))
 
 (def mark (fn (stk sp k)
   (if (go.< sp 1) stk (set stk (ssl (go.- sp 1) 1) k))))
@@ -190,7 +192,7 @@
           (again nodes stk (go.+ i 1) nn
                  (if (go.< sp 1) 0 (go.- sp 1))
                  (if (go.< sp 1) 0
-                     (if (= (nodes (nslc (stk (ssl (go.- sp 1) 0)) 0))
+                     (if (= (nodes (nsl (stk (ssl (go.- sp 1) 0)) 0))
                             (if (= (src i) 125) 5 4))
                          ok 0)))
 
@@ -231,7 +233,6 @@
 
 ; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
 ; node — a tree shaped like a list pushes a sibling at every step.
-(def cw (fn (k) (if (go.< k 0) 0 (if (go.>= k (nmax)) 0 k))))
 (def ssl2 (fn (k o) (go.+ (go.* 2 k) o)))
 
 (def walk (fn (nodes)
@@ -246,15 +247,15 @@
       else
         (let (wl (ssl2 (go.- sp 1) 0)) (fn (n)
         (let (wl (ssl2 (go.- sp 1) 1)) (fn (d)
-        (let (nodes (nslc n 3)) (fn (sb)
-        (let (nodes (nslc n 2)) (fn (kd)
+        (let (nodes (nsl n 3)) (fn (sb)
+        (let (nodes (nsl n 2)) (fn (kd)
         (let (go.- sp 1) (fn (s1)
         (let (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d)) (fn (w1)
         (let (if (= sb 0) s1 (go.+ s1 1)) (fn (s2)
         (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (go.+ d 1))) (fn (w2)
         (let (if (= kd 0) s2 (go.+ s2 1)) (fn (s3)
           (again w2 s3 (go.+ seen 1)
-                 (go.+ acc (go.* (nodes (nslc n 0)) d))
+                 (go.+ acc (go.* (nodes (nsl n 0)) d))
                  (go.+ steps 1)))))))))))))))))))))))))
 
 ; --- documents --------------------------------------------------------------

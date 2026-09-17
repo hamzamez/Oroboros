@@ -190,3 +190,13 @@ The initial baseline.
 1 change(s):
 
 - emitted text changed — `examples/json/tree.oro go`
+
+## 2026-09-17 — on 947761c, with uncommitted changes
+
+**Reason:** tree.oro: its six node-index clamps are deleted, proven by facts about one component of a strided table (compfacts-2026-09-17); answers identical to the clamped form on every document size, 1.06x of hand-written unclamped Go and faster than the clamped emission it replaces.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+1 change(s):
+
+- emitted text changed — `examples/json/tree.oro go`

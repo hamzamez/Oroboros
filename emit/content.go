@@ -40,6 +40,17 @@ func instance(phi, elem *core.Term) *core.Term {
 // readInstances returns the content facts about a read `(t i)`, instantiated, or
 // nothing when t has none or the read is not proven in range.
 func (r *refiner) readInstances(read *core.Term, f *facts) []*core.Term {
+	var out []*core.Term
+	for _, phi := range r.readFacts(read, f) {
+		out = append(out, instance(phi, read))
+	}
+	return out
+}
+
+// readFacts is the φ that hold of the value a read `(t i)` produces: the facts
+// about t whose component the index is proven to lie in (component.go), and only
+// when the read is proven in range.
+func (r *refiner) readFacts(read *core.Term, f *facts) []*core.Term {
 	if read == nil || read.Kind != core.KApp || len(read.Args()) != 1 || read.Op().Kind != core.KName {
 		return nil
 	}
@@ -60,9 +71,13 @@ func (r *refiner) readInstances(read *core.Term, f *facts) []*core.Term {
 			return nil
 		}
 	}
-	out := make([]*core.Term, 0, len(phis))
-	for _, phi := range phis {
-		out = append(out, instance(phi, read))
+	res := r.residueOf(idx, f)
+	var out []*core.Term
+	for _, fact := range phis {
+		k, c, phi := splitFact(fact)
+		if decided, in := res.decides(k, c); decided && in {
+			out = append(out, phi)
+		}
 	}
 	return out
 }
@@ -109,12 +124,21 @@ func (r *refiner) holds(t *core.Term, f *facts, cands []*core.Term, depth int) [
 	switch {
 	case known && p.Kind == "table-set" && len(args) == 3:
 		// McCARTHY'S AXIOMS: slot i now holds v, and every other slot is b's.
+		// A store at an index whose residue proves it outside a fact's component
+		// leaves that component untouched (component.go), so the fact survives
+		// without being checked against the stored value.
 		base := r.holds(args[0], f, cands, depth+1)
+		res := r.residueOf(args[1], f)
 		var out []*core.Term
-		for _, phi := range base {
+		for _, fact := range base {
+			k, c, phi := splitFact(fact)
+			if decided, in := res.decides(k, c); decided && !in {
+				out = append(out, fact)
+				continue
+			}
 			budget := splitBudget
 			if r.provedBySplit(instance(phi, args[2]), f, &budget) {
-				out = append(out, phi)
+				out = append(out, fact)
 			}
 		}
 		return out
@@ -151,10 +175,11 @@ func (r *refiner) zeroFill(name string, f *facts, cands []*core.Term) []*core.Te
 	one := core.App(core.Name("<="), &core.Term{Kind: core.KInt, Int: 1}, core.App(core.Name("len"), core.Name(name)))
 	assume(g, one)
 	var out []*core.Term
-	for _, phi := range cands {
+	for _, fact := range cands {
+		_, _, phi := splitFact(fact)
 		budget := splitBudget
 		if r.provedBySplit(instance(phi, &core.Term{Kind: core.KInt}), g, &budget) {
-			out = append(out, phi)
+			out = append(out, fact)
 		}
 	}
 	return out
@@ -193,10 +218,8 @@ func (r *refiner) bindContent(inner *facts, x string, v *core.Term, f *facts) {
 		read = lam.OpenWith([]*core.Term{core.Name(y)})
 	}
 	if isContentRead(read, at) {
-		if len(r.readInstances(read, at)) > 0 {
-			for _, phi := range at.content[read.Op().Name] {
-				assume(inner, instance(phi, core.Name(x)))
-			}
+		for _, phi := range r.readFacts(read, at) {
+			assume(inner, instance(phi, core.Name(x)))
 		}
 		return
 	}
@@ -331,6 +354,16 @@ func (r *refiner) contentInvariants(lam *core.Term, inits []*core.Term, f, g *fa
 		}
 		addT(core.App(core.Name("<"), e, sd))
 		addT(core.App(core.Name("<="), e, sd))
+	}
+	// COMPONENT CANDIDATES (component.go): each base template restricted to each
+	// component of each stride the loop's stores use.
+	base := append([]*core.Term(nil), templates...)
+	for _, k := range r.strides(lam.Body(), f) {
+		for c := int64(0); c < k; c++ {
+			for _, phi := range base {
+				addT(atFact(k, c, phi))
+			}
+		}
 	}
 	for _, phi := range allContent(f) {
 		if !mentionsAny(phi, params) {

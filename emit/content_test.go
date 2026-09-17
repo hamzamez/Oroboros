@@ -86,3 +86,66 @@ func TestSwappedBuffersKeepTheirContentJointly(t *testing.T) {
 		t.Error("a store of n into one buffer was taken as preserving #e < n for the pair")
 	}
 }
+
+// A FACT ABOUT ONE COMPONENT OF A STRIDED TABLE (component.go): slot 2j holds an
+// index below n, slot 2j+1 holds anything. A fact about the whole table cannot
+// state the bound, because slot 1's values exceed it; the component fact can, and
+// a read at `2k + 0` — residue 0 mod 2, decided by the index — instantiates it.
+func TestAComponentFactHoldsOfItsResidueClass(t *testing.T) {
+	tg := tempTarget(t, ``)
+	prog := func(read string) string {
+		return `(use tgt)
+	  (fn (a n)
+	    (if (<= n (len a))
+	      (let (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
+	             (again (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000) (+ i 1)))))
+	        (fn (t) (loop ((k 0) (s 0)) (>= k n) s else
+	          (again (+ k 1) (+ s (a ` + read + `))))))
+	      0))`
+	}
+	notes, err := refineWith(t, tg, prog(`(t (+ (* 2 k) 0))`))
+	if err != nil {
+		t.Fatalf("a read of component 0 was refused: %v", err)
+	}
+	if propagated(notes) {
+		t.Errorf("component 0 holds indices below n and its read must be proven, got: %s", notes)
+	}
+	// CONTROL, THE OTHER COMPONENT: slot 2k+1 holds 1000000, so the index is not
+	// in range — it must not be proven, whichever way it is reported.
+	notes, err = refineWith(t, tg, prog(`(t (+ (* 2 k) 1))`))
+	if err == nil && !propagated(notes) {
+		t.Error("component 1 was taken to hold indices below n")
+	}
+	// CONTROL, AN UNDECIDED RESIDUE: `k` alone is not known mod 2, so no component
+	// fact applies to `(t k)`.
+	notes, err = refineWith(t, tg, prog(`(t k)`))
+	if err == nil && !propagated(notes) {
+		t.Error("a component fact was applied at an index whose residue is unknown")
+	}
+	// CONTROL, A CONDITIONAL INDEX OVER TWO RESIDUES: `(if … 0 1)` lands in both
+	// components, so the join of its branches' residues knows nothing mod 2.
+	notes, err = refineWith(t, tg, prog(`(t (if (< k 1) 0 1))`))
+	if err == nil && !propagated(notes) {
+		t.Error("a conditional index over residues 0 and 1 was taken to lie in component 0")
+	}
+}
+
+// A STORE WHOSE RESIDUE IS UNKNOWN touches every component, so it must be checked
+// against every component fact — skipping it would keep `#e < n` on component 0
+// after a store of 1000000 at an index that may be even.
+func TestAStoreOfUnknownResidueTouchesEveryComponent(t *testing.T) {
+	tg := tempTarget(t, ``)
+	const src = `(use tgt)
+	  (fn (a n j)
+	    (if (<= n (len a))
+	      (let (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
+	             (again (set (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000)
+	                         (if (< j 0) 0 (if (>= j (* 2 n)) 0 j)) 1000000) (+ i 1)))))
+	        (fn (t) (loop ((k 0) (s 0)) (>= k n) s else
+	          (again (+ k 1) (+ s (a (t (+ (* 2 k) 0))))))))
+	      0))`
+	notes, err := refineWith(t, tg, src)
+	if err == nil && !propagated(notes) {
+		t.Error("a store at an index of unknown residue was taken to leave component 0 alone")
+	}
+}

@@ -1025,10 +1025,8 @@ func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
 // facts at: a loop's result summary, or a conditional's (or `let`'s) branch join.
 func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts) {
 	if isContentRead(e, at) {
-		if len(r.readInstances(e, at)) > 0 {
-			for _, phi := range at.content[e.Op().Name] {
-				assume(into, instance(phi, core.Name(x)))
-			}
+		for _, phi := range r.readFacts(e, at) {
+			assume(into, instance(phi, core.Name(x)))
 		}
 		return
 	}

@@ -2364,6 +2364,19 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**A FACT ABOUT ONE COMPONENT OF A STRIDED TABLE: TREE'S LAST CLAMPS COME OUT** —
+[compfacts-2026-09-17](gauntlet/results/compfacts-2026-09-17.md), `emit/component.go`. **Measured before built, and it
+moved the work**: no unproven operation needs per-component INTERVAL cells — the demand was the refinement layer, on
+tree's `nslc`, a node index read out of a table whose OTHER slots hold token lengths and depths, so `∀s. t[s] < nmax`
+is false of every table and true of their index COMPONENTS. **Currying**, `Π_{s<k·n} V ≅ Π_{c<k} Π_{j<n} V`, makes a
+component fact an ordinary F-D₁ fact, and **the modular guard is a ring homomorphism** ℤ → ℤ/mℤ computed off the
+INDEX — literal exact, `±` by gcd, `L·x` scales the modulus, a conditional joins by `gcd(m_a, m_b, |r_a − r_b|)`, a
+name's linear form gives `gcd(aᵥ)` — so the periodic fragment is never needed. A store whose residue proves it outside
+a component leaves it untouched (McCarthy's second axiom, the disequality proved by the congruence). Written
+`(#at k c φ)`, so the rest of the machinery carries it unchanged. **tree.oro has no clamps**: all fifteen array-facts.md
+counted are now deleted; answers identical, **1.06× of hand-written UNCLAMPED Go**. Four plants each fail a named
+witness. Emission byte-identical elsewhere; freq compiles ~4.6% slower from the larger Houdini set, recorded.
+
 **ARRAY SMASHING: THE VALUE CLAMPS COME OUT, AND TREE BUILDS WITHOUT `-checked`** —
 [smashfd-2026-09-16](gauntlet/results/smashfd-2026-09-16.md), `emit/smash.go`. The interval layer's consumer of F-D:
 one abstract cell per table (Blanchet et al., PLDI 2003), weak updates, the zero fill `[0,0]`, and a loop's tables

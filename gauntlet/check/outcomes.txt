@@ -304,7 +304,7 @@
 == examples/json/tokenize.oro windows refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted a29c7a51f42228771731c39e87ded5d822b58df8543a45bcbcd8bea3d388d1ac
+== examples/json/tree.oro go emitted d31f5f5e21f943141f8a3a3f66d9112a30da867c6035e0beb17e05e4c5e76ad9
    note: gen-measure: 101 of 101 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-run: 424 of 424 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused

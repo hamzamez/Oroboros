@@ -1,215 +1,285 @@
 # Inventory: every word an `.oro` file can contain
 
-The standard is *no word used in an `.oro` file should go unexplained or unspecified*. This is the
-audit against it, taken mechanically from `core/read.go`, `emit/target.go` and `targets/*/*.oro`
-rather than from memory.
+The standard is *no word used in an `.oro` file should go unexplained or unspecified*. This is the audit
+against that standard.
 
-> **Retaken 2026-08-25.** The previous audit was of the **retired portable layer** and all four of
-> its findings are closed — see §5, which keeps them because what closed each one is the useful
-> part. The language has roughly doubled since: tables, sums, `match`, several results, and the
-> write side of the memory model.
+> **Retaken 2026-09-17, and it cannot go stale silently any more.**
+> `TestTheInventoryIsTheWordsTheCompilerKnows` (`emit/inventory_test.go`) reads the words out of the
+> compiler **mechanically**:
+> - every literal a form's head is dispatched on in the reader, the module loader and the target
+>   loaders;
+> - the compiler's word tables: injected names, respelled forms, clause words, type formers, operators,
+>   backends and `lang`'s variant.
 >
-> **STALE as of 2026-08-31, and re-running it is owed.** Maps (`map`, `build-map`, `insert`,
-> `keys`), the nine promoted integer operators (`+ - * / % < <= > >=`), the injected `option`
-> constructors and three target-file forms (`map-type`, `boxed`, `builtin-map`) have all arrived
-> since this was taken. An audit that is not re-taken is just a number.
+> It then requires the tables below to list **exactly that set**. A word the compiler knows and this
+> file omits fails the test, and so does a word listed here that the compiler no longer knows.
+> **A row marked `specified` must link a spec that mentions the word in code** — a necessary
+> condition, which the test checks, for a sufficient one, which the row's reader judges.
+> `TestTheInventoryCheckFails` shows each of those rules failing against a planted mistake.
 >
-> **Result at the time: of 65 words, 60 are specified.** Four are described only in code comments and one is
-> genuinely undocumented (§6). **None is wrong**, which is the first time that has been true — the
-> previous audit found four outright errors.
+> The two previous audits (2026-08-25, and the portable layer's before it) were taken by hand, and each
+> was stale within a week.
+
+**Result: 136 words.**
+
+| status | count |
+|---|---:|
+| `specified` — a spec states it | 95 |
+| `recorded` — only research, a result document or code comments | 25 |
+| `reserved` — refused, and specified as owed | 4 |
+| `refused` — an old spelling, refused naming the new one | 12 |
+| `undocumented` | 0 |
+
+A row carries one status, so the counts sum to the total. What is left is §6.
+
+Statuses, as the test reads them:
+- **`specified`**: a document under `docs/spec/` or `docs/decisions/` says what the word means, and the
+  row links it.
+- **`recorded`**: explained only in a result document or a code comment. It is true and findable, but
+  it is not a specification.
+- **`reserved`**: the compiler refuses the word so it cannot be taken for something else before its
+  construct is built.
+- **`refused`**: a former spelling, refused with a message naming its replacement.
+- **`undocumented`**: nowhere.
 
 ---
 
-## 1. Program forms — the language proper
+## 1. Program forms
 
-Everything a *program* may write. Taken from `core/read.go`'s form kinds and its special-form
-switch.
+Everything a *program* may write. From `core/read.go`'s form and special-form dispatch.
 
-### Top-level forms — six
-
-| word | status | where |
-|---|---|---|
-| `def` | ✅ | [def.md](def.md) |
-| `sig` | ✅ | [types.md](types.md), [refinements.md](refinements.md) |
-| `sum` | ✅ | [sums.md](sums.md) |
-| `module`, `use`, `as`, `export` | ✅ | [modules.md §3](modules.md) |
-
-`prim` and `target` also parse, and a program writing either is an **error** — primitives come from
-target files and nowhere else ([state.md §2](state.md)).
-
-### Term forms — one primitive, the rest sugar
+### Top-level forms
 
 | word | status | where |
 |---|---|---|
-| `fn`, `λ` | ✅ the only non-sugar special form | [core-0.md](core-0.md) |
-| `let` | ✅ sugar → `(k e)` | [def.md](def.md) |
-| `seq` | ✅ sugar → `((fn (_) b) a)` | [effects.md §5](effects.md) |
-| `and`, `or`, `not`, `cond` | ✅ sugar → `if` | [booleans.md](booleans.md) |
-| `values` | ✅ sugar → `(fn (#k) (#k a b))` | [values.md](values.md) |
-| `match`, `when` | ✅ sugar → `loop` | [match.md](match.md) |
-| `case` | ✅ sugar, expanded in `Load` | [sums.md](sums.md) |
-| `loop`, `again`, `else` | ✅ | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
-| `where` | ✅ | [refinements.md](refinements.md) |
-| `ensures` | ✅ | [postconditions.md](postconditions.md), [target-files.md §3](target-files.md) |
-| `array-type` | ✅ | [target-files.md §2b](target-files.md) |
-| `int-repr` | ✅ | [target-files.md §2b](target-files.md), [elemwidth-2026-08-27](../../gauntlet/results/elemwidth-2026-08-27.md) |
-| `true`, `false` | ✅ literals of the language | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) |
+| `def` | specified | [def.md](def.md) |
+| `sig` | specified | [types.md](types.md), [refinements.md](refinements.md) |
+| `where` | specified — a precondition, on a program sig and a target sig | [refinements.md](refinements.md) |
+| `ensures` | specified — a postcondition | [postconditions.md](postconditions.md) |
+| `result` | specified — the value, named only inside `ensures` | [postconditions.md](postconditions.md) |
+| `variant` | specified — closed, finite, non-recursive, with type arguments | [sums.md](sums.md), [data.md](data.md) |
+| `module`, `use`, `export` | specified — in a program, and `module` in a target | [modules.md](modules.md) |
+| `as` | specified — `(use PATH as ALIAS)` | [state.md](state.md) |
+| `provides` | specified — a target fragment written where a library lives, which may hold `def`s | [target-system.md](target-system.md), [theories.md](theories.md) |
+| `target` | specified — a target file's header; a program writing it is refused | [target-files.md](target-files.md) |
 
-**None of the sugar survives the reader**, except `case`, which needs a sum declared in another
-file and so expands in `Load` ([state.md §1](state.md)).
+### Term forms
 
-### Names the compiler injects into every target — ten
+**None of the sugar survives the reader**, except `case`, which needs a variant declared in another file
+and so expands in `Load` ([state.md](state.md)).
+
+| word | status | where |
+|---|---|---|
+| `fn`, `λ` | specified — the only non-sugar special form | [core-0.md](core-0.md), [state.md](state.md) |
+| `let` | specified — sugar for `(k e)`; injected, and a structural kind | [def.md](def.md) |
+| `seq` | specified — sugar for `((fn (_) b) a)` | [effects.md](effects.md) |
+| `and`, `or`, `not`, `cond` | specified — sugar for `if`; `cond` is also a structural kind | [booleans.md](booleans.md) |
+| `tuple` | specified — sugar for `(fn (k) (k a b …))`, and the tuple type | [data.md](data.md) |
+| `match`, `when`, `else` | specified — sugar for `loop` | [match.md](match.md) |
+| `_` | specified — a pattern that binds nothing, and `seq`'s binder | [match.md](match.md) |
+| `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |
+| `loop`, `again` | specified — also the retired layer's structural kind `loop` | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
+| `true`, `false` | specified — the boolean literals | [booleans.md](booleans.md) |
+
+### The type language
+
+| word | status | where |
+|---|---|---|
+| `int` | specified — and `(int LO HI)`, a range; also the subject of `(repr (int LO HI) …)` | [integers.md](integers.md) |
+| `f64` | specified | [arithmetic.md](arithmetic.md) |
+| `bool` | specified | [booleans.md](booleans.md) |
+| `string` | specified | [strings.md](strings.md) |
+| `array` | specified — a table type, and the injected graph constructor | [tables.md](tables.md) |
+| `map` | specified — a type, the injected constructor, and `(repr map …)` | [maps.md](maps.md) |
+| `buffer` | specified — a linear parameter type | [ADR 0020](../decisions/0020-uniqueness-on-parameters.md) |
+| `record` | reserved — a type former in `core/read.go`, specified in data.md and not built | [data.md](data.md) |
+| `prod` | recorded — the internal spelling of a tuple type (`prod(A, B)`), reserved as a type former so no variant can take the name | `core/read.go` `TypeName` |
+
+### Range endpoints
+
+An endpoint is a compile-time integer expression, evaluated and never emitted.
+
+| word | status | where |
+|---|---|---|
+| `+inf`, `-inf` | specified — an unbounded endpoint | [ADR 0019](../decisions/0019-precision-by-declaration.md), [unbounded-rung.md](../unbounded-rung.md) |
+| `pow` | specified | [ADR 0019](../decisions/0019-precision-by-declaration.md), [unbounded-rung.md](../unbounded-rung.md) |
+
+`+`, `-` and `*` are also endpoint operators; their rows are in §1's injected names.
+
+### Names the compiler injects into every target
 
 A target may not declare one, and declaring one is an **error**.
 
 | word | status | where |
 |---|---|---|
-| `if` | ✅ | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) |
-| `let`, `loop` | ✅ | [ADR 0015](../decisions/0015-loop-and-again.md), [state.md §1](state.md) |
-| `=` | ✅ integer equality only, and the refusal explains itself | [match.md §6](match.md) |
-| `array`, `table`, `len` | ✅ | [tables.md](tables.md) |
-| `alloc`, `build`, `set` | ✅ | [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), [tables.md §9](tables.md) |
+| `if` | specified | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [booleans.md](booleans.md) |
+| `=` | specified — integer equality only | [match.md](match.md) |
+| `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` | specified — found per target by spelling | [integers.md](integers.md) |
+| `table`, `len` | specified | [tables.md](tables.md) |
+| `alloc`, `set` | specified | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
+| `build` | specified — the scoped buffer; also a target file's `(build "cmd")` and a retired structural kind | [tables.md](tables.md), [build.md](build.md) |
+| `build-map`, `insert`, `keys` | specified | [maps.md](maps.md) |
+| `concat`, `string-of` | recorded — the free monoid's operation and its generator; derived in research and built, and no spec in `docs/spec/` states them | [string-operations.md](../string-operations.md), [render-2026-09-04](../../gauntlet/results/render-2026-09-04.md) |
+| `the` | recorded — a range ascribed to a term, erased at emission; the construct owes a spec | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md), [inlining-and-declarations.md](../inlining-and-declarations.md) |
 
-**Indexing has no word at all** — `(a i)` is an application, because a table *is* a function with a
-known finite domain ([tables.md §3](tables.md)).
+**Indexing has no word at all.** `(a i)` is an application, because a table *is* a function with a
+known finite domain ([tables.md](tables.md)).
 
-**Thirty-three of thirty-three specified.** This half is in good order, which is what happens when
-the specification is written first.
+### `lang`'s declarations
+
+| word | status | where |
+|---|---|---|
+| `option`, `some` | specified — one declaration, in `lang` | [maps.md](maps.md), [data.md](data.md) |
+| `none` | specified — `option`'s other variant, and a nullary sig's argument list in a target file | [maps.md](maps.md), [target-files.md](target-files.md) |
 
 ---
 
 ## 2. Target-file forms
 
-Taken from `emit/target.go`'s parser. The whole grammar is
-[target-files.md](target-files.md), which is the file a third party writes and therefore the one
-that most needs to be a specification.
+From `emit/target.go`, `emit/fact.go` and `emit/constend.go`. The whole grammar is
+[target-files.md](target-files.md), the file a third party writes; its algebra is
+[theories.md](theories.md).
+
+### Forms
 
 | word | status | where |
 |---|---|---|
-| `target`, `module` | ✅ | [target-files.md](target-files.md), [modules.md §4](modules.md) |
-| `prim` | ✅ | [target-files.md §2](target-files.md) |
-| `structural` | ✅ | [target-files.md §4](target-files.md) |
-| `type` | ✅ | [target-files.md](target-files.md) |
-| `data` | ✅ | [windows-target.md](windows-target.md) |
-| `artifact`, `build` | ✅ | [build.md](build.md) |
-| `narrow` | ✅ | [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) |
-| **`array-type`** | ⚠️ **code comment** | `emit/target.go` — how a target spells an array of something, one declaration replacing an entry per element type ([tables.md §10](tables.md) states the *intent*, not the form) |
+| `type` | specified — a host type, a manifest type, or a constructor's realization | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `const` | specified — sugar for a pure zero-argument sig with a singleton range | [target-files.md](target-files.md) |
+| `host` | specified — the only clause carrying host text; also `(repr big host)`, `(repr map host)` | [target-files.md](target-files.md) |
+| `repr` | specified | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `fact` | specified — `(fact max-len …)` in a target, and `lang`'s facts | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `implements` | specified — checked as a view | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `include` | specified — theory inclusion between companions | [theories.md](theories.md) |
+| `structural` | specified | [target-files.md](target-files.md) |
+| `backend` | specified | [target-files.md](target-files.md) |
+| `artifact` | specified | [build.md](build.md) |
+| `data` | specified | [windows-target.md](windows-target.md) |
+| `link` | specified | [target-files.md](target-files.md) |
 
-### Primitive attributes
-
-| word | status | where |
-|---|---|---|
-| `pure` | ✅ | [effects.md §3](effects.md) |
-| `import` | ✅ | [target-files.md §2](target-files.md) |
-| `where` | ✅ | [refinements.md](refinements.md) |
-| `checked` | ✅ | [selection-2026-08-19](../../gauntlet/results/selection-2026-08-19.md) |
-| `length`, `length-of` | ✅ | [native-gauntlet-2026-08-20](../../gauntlet/results/native-gauntlet-2026-08-20.md) |
-| `index` | ✅ | [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) |
-| `jump` | ✅ | [ADR 0016](../decisions/0016-targets-need-not-have-expressions.md), [windows-target.md](windows-target.md) |
-| `none` | ✅ a nullary primitive's argument list | [target-files.md §2](target-files.md) |
-
-### Primitive kinds
+### Sig and host clauses
 
 | word | status | where |
 |---|---|---|
-| `expr`, `stmt` | ✅ — a statement's value is argument 0 | [target-files.md §3](target-files.md) |
-| `cond`, `let`, `iterate` | ✅ structural; named in data, implemented in the backend | [target-files.md §4](target-files.md) |
-| `array`, `table`, `len` | ✅ | [tables.md](tables.md) |
-| `table-alloc`, `table-build`, `table-set` | ⚠️ **code comment** | `emit/target.go`, `emit/asm.go` — the *constructs* are specified in [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md); the KIND names a target-file reader would meet are not |
-| `loop`, `loop2`, `build` | ✅ retired portable layer, kept for the gauntlet | [iteration.md](iteration.md) |
+| `pure` | specified | [effects.md](effects.md) |
+| `index` | specified | [target-files.md](target-files.md) |
+| `import` | specified | [target-files.md](target-files.md) |
+| `lib` | specified | [target-files.md](target-files.md) |
+| `checked` | specified | [target-files.md](target-files.md) |
+| `jump` | specified | [windows-target.md](windows-target.md) |
 
----
+### Kinds
 
-## 3. Type names
+What a sig's `(host KIND …)` or a `(structural NAME KIND)` may say.
 
-Each target declares its own; nothing here is portable, and that is the point
-([target-native.md](target-native.md)).
-
-| | declared by | status |
+| word | status | where |
 |---|---|---|
-| `int`, `f64`, `bool`, `string`, `any` | all four | ✅ [integers.md](integers.md), [arithmetic.md](arithmetic.md), [booleans.md](booleans.md), [strings.md](strings.md) |
-| `(array V)` | Go, Java via `array-type`; JavaScript and windows have no types to spell | ✅ [tables.md §5](tables.md) |
-| `int64`, `byte`, `rune`, `error`, `slice-*`, `map-*` | Go | ⚠️ target-native, no portability claim, and the `slice-*` family is what `(array V)` replaces |
-| `long-array`, `double-array`, `bool-array`, `string-array`, `list-*`, `map-string-long`, `strbuf`, `char`, `jint` | Java | ⚠️ as above |
-| `ptr` | windows | ❌ **undocumented** — the only word in a target file that names a machine concept, and [windows-target.md](windows-target.md) does not define it |
+| `expr`, `stmt` | specified — a statement's value is its first argument | [target-files.md](target-files.md) |
+| `loop2` | specified — the retired portable layer's two-accumulator fold, kept for old benchmarks | [target-files.md](target-files.md) |
+| `iterate` | recorded — the structural kind of `loop`; named only in `emit/target.go`, because the kind `loop` was already taken by `fold-range` | `emit/target.go` `structuralKinds` |
 
-**The enumerated array types are the surface `(array V)` exists to delete.** Go still declares
-seven `slice-*`, Java four `*-array`; both are reachable and both are what a program written before
-tables used.
+`let`, `cond`, `loop` and `build` are kinds as well; their rows are in §1.
 
----
+### `repr` subjects and choices
 
-## 4. Primitives
+| word | status | where |
+|---|---|---|
+| `ref` | specified — `(repr (ref T) (host …))`, a boxed representation | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `big` | specified — `(repr big host)` or `(repr big limbs)` | [target-files.md](target-files.md) |
+| `limbs` | specified | [target-files.md](target-files.md) |
+| `library` | specified — `(repr map library)`: a map written in Oroboros | [target-files.md](target-files.md) |
+| `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |
+| `narrow` | specified — `(repr narrow (host …))` | [theories.md](theories.md) |
 
-There is no longer a portable primitive layer to audit. **Every primitive is target-native and
-qualified** — `go.+`, `js.===`, `java.merge`, `x64.imul` — carrying no portability claim by
-construction ([target-native.md](target-native.md)). Each is classified in
-[primitives.md](primitives.md).
+### Backends
 
-What replaced the old portable names:
+| word | status | where |
+|---|---|---|
+| `go`, `js`, `java`, `x86-64` | specified — the closed set of backends | [target-files.md](target-files.md) |
+| `windows` | recorded — **a finding, §6**: `WriteProgram` lays out a program's build tree by the target's NAME (`go`, `js`, `java`, `windows`), not by its backend | `emit/target.go` `WriteProgram` |
 
-| was | is now |
-|---|---|
-| `add sub mul lt gt` (f64 only) | each target's own, at every width it has |
-| `alen aindex slen sat` | `len` and **application** — the language's, on every target |
-| `fold-range`, `fold-range2` | `loop`/`again` — n variables, no product |
-| `dict-empty`, `dict-inc` | each host's own map, fused or unfused as **measured** |
-| `if` | the language's, injected, undeclarable |
-| `split-words` | `go.Fields`, `java.split`, … — and the conformance suite that caught it |
+### Names a target declares for the compiler to find
 
-The retired `portable-*.oro` files still exist and still declare the old names, because the
-gauntlet's older results were taken against them and deleting them would delete the ability to
-reproduce those numbers.
+The integer operators and `=` above are found by spelling in the same way. These are the arbitrary-
+precision names the host rung needs: the target declares them, and the compiler selects and emits them.
 
-### Still true, and worth keeping visible
-
-**A Tier 1 name without a conformance suite is decoration.** `split-words` passed every check for
-two months while returning different answers on different targets, which is why
-[gauntlet/conformance/](../../gauntlet/conformance/) exists.
-
-It covers `split-words` and nothing else — so
-[`gauntlet/differential/`](../../gauntlet/differential/) was written the next day for the
-LANGUAGE's constructs: `table`, `array`, `len`, indexing, `alloc`, `build`, `set`, `match`, `case`,
-`values` and `loop`, each built on four targets, **run**, and required to agree *and* to give the
-right answer ([differential-2026-08-26](../../gauntlet/results/differential-2026-08-26.md)). Its
-pass condition was reproducing the two silent wrong-answer bugs this audit was written next to.
+| word | status | where |
+|---|---|---|
+| `big+` | specified | [target-files.md](target-files.md) |
+| `big-fit` | specified — the bound enforced on a host bignum | [target-files.md](target-files.md) |
+| `big-`, `big*`, `big/`, `big%`, `big<`, `big<=`, `big>`, `big>=`, `big=`, `big-of`, `big-str` | recorded — "`big+` and the rest" in target-files.md §3 names the family, not these words | [bigrep-2026-09-02](../../gauntlet/results/bigrep-2026-09-02.md) |
+| `big+!`, `big-!`, `big*!`, `big/!`, `big%!`, `big-of!` | recorded — the in-place forms | [bigreuse-2026-09-02](../../gauntlet/results/bigreuse-2026-09-02.md) |
+| `big%-small` | recorded — a remainder by a machine word, whose result is a word | [subdiv-2026-09-03](../../gauntlet/results/subdiv-2026-09-03.md) |
+| `trap-if` | recorded — the fixed-width rung's overflow trap | [bigrepr-2026-09-03](../../gauntlet/results/bigrepr-2026-09-03.md) |
 
 ---
 
-## 5. The previous audit's four findings, and what closed each
+## 3. Reserved words
 
-Kept because what closed them is the useful part.
+| word | status | where |
+|---|---|---|
+| `lemma` | reserved — F-E, a proved law | [theories.md](theories.md) |
+| `forall` | reserved — a quantified fact (F-D); refused inside a `fact` | [theories.md](theories.md) |
+| `prim` | reserved — a program may not declare a primitive; in a target it is `refused`, respelled `sig` (§4) | [state.md](state.md), [target-files.md](target-files.md) |
 
-**§1.1 — `fold-range` declared a type that was false.** The accumulator was `f64` and word count
-passed a dictionary. Closed twice over: structural primitives carry no types in the table
-([target-files.md §4](target-files.md)), and `fold-range` itself is **gone** — `loop` has n
-variables and no product, so the construct that needed a polymorphic accumulator does not exist
-([native-gauntlet-2026-08-20](../../gauntlet/results/native-gauntlet-2026-08-20.md) §6).
+`record` (§1) is the fourth.
 
-**§1.2 — there was no integer arithmetic.** Closed by the native targets, and specified far past
-what the finding asked for: [integers.md](integers.md) settles eleven questions by measuring all
-four hosts, and [ADR 0012](../decisions/0012-portable-integer-range.md) fixes the portable window.
+---
 
-**§1.3 — there was no boolean logic.** Closed by
-[ADR 0017](../decisions/0017-booleans-are-in-the-language.md): `bool` is data, `if` is its
-eliminator, the connectives are sugar, and **declaring a boolean name is an error**.
+## 4. Refused spellings
 
-**§1.4 — the type names had no owner.** Closed by making targets directories
-([target-native.md](target-native.md)): every type name is declared by exactly one target and
-qualified by it. `ptr` in §3 is the one word this did not reach.
+Each is refused with a message naming the spelling that replaced it. A refused word stays in the
+compiler so the message can be given.
+
+| word | status | where |
+|---|---|---|
+| `sum` | refused — `variant` | [data.md](data.md) |
+| `values` | refused — `tuple` | [data.md](data.md) |
+| `int-repr` | refused — `(repr (int LO HI) (host …))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `big-repr` | refused — `(repr big host)` or `(repr big limbs)` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `shift-width` | refused — `(repr shift N)` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `max-len` | refused as a form — `(fact max-len ((a (array A))) (<= (len a) N))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `array-type` | refused — `(type (array A) (host …))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `map-type` | refused — `(type (map K V) (host …))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `boxed` | refused — `(repr (ref T) (host …))` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `builtin-map` | refused — `(repr map library)` | [loader-2026-09-15](../../gauntlet/results/loader-2026-09-15.md) |
+| `length`, `length-of` | refused — `(ensures (= (len result) n))` and `(ensures (= (len result) (len c)))` | [lengthensures-2026-09-15](../../gauntlet/results/lengthensures-2026-09-15.md) |
+
+---
+
+## 5. Type names a target declares
+
+Each target declares its own, and nothing here is portable, which is the point
+([target-native.md](target-native.md)). They are **not** words of the language, so the test does not
+read them:
+- Go spells its integer types as manifest ranges (`int32` is `(int -2147483648 2147483647)`) and owns
+  host types by module (`go/io.Writer`).
+- The JVM and windows declare host spellings.
+- JavaScript declares everything `any`.
+
+`ptr`, which the last audit found undocumented, is windows' address type; it is a target type name
+like the others and is declared in `targets/windows/`.
 
 ---
 
 ## 6. What is left
 
-Three words undocumented and two in code comments only:
-
-1. **`array-type`** — a target-file form, in a comment. [target-files.md](target-files.md) is the
-   document it belongs in.
-2. **`table-alloc` / `table-build` / `table-set`** — primitive kinds, in comments. A target author
-   never writes them today, which is why they were missed; that stops being true the moment a
-   target wants to provide one natively.
-3. **`ptr`** — a windows type name, nowhere.
-
-And the one that is not a word at all: **the conformance suite covers one primitive and none of
-the language's constructs** (§4).
+1. **The program's build tree is chosen by the target's NAME.** `WriteProgram` switches on
+   `go`/`js`/`java`/`windows`, so a user target called anything else, with a perfectly good
+   `(backend go)`, emits its code and is then refused by `cmd/build` with `target "mygo" has no
+   program layout`. It is loud rather than wrong, and it is still the shape backend-2026-09-06 fixed
+   for emission, left behind in the layout step: the layout belongs to the backend. Found by this
+   audit, not fixed here.
+2. **`the` has no specification.** It is a construct of the language, injected into every target, and
+   only [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md) says what it means. Exposing
+   `(the TYPE e)` to programs was recorded there as owing a spec, and the spec was never written.
+3. **The big-integer names are specified as a family, not as words.** target-files.md §3 says "`big+`
+   and the rest". A target author declaring the host rung has to read three result documents to learn
+   the other twenty names and their arities.
+4. **`iterate` and `prod` are explained only in code.** Neither can be misused (`prod` is reserved,
+   `iterate` is a kind), but a reader of a target file meets `iterate` and finds nothing.
+5. **Specified and not in the compiler**, named so they are not mistaken for gaps in this audit:
+   `quote`, `with` and `view` (theories.md), and records.
+6. **`concat` and `string-of` are derived and built, and not specified.** string-operations.md derives
+   them from the free monoid's universal property, and render-2026-09-04 built them on four targets;
+   strings.md defers to that research rather than stating them.

@@ -3,7 +3,7 @@
 package gauntlet
 
 func GenLimb(k int) int {
-	b := make([]int32, 64)
+	b := make([]uint32, 64)
 	b2 := b
 	var i2 int = 0
 	var r int = 1
@@ -11,12 +11,12 @@ func GenLimb(k int) int {
 		if (i2 >= 64) {
 			break
 		}
-		b2[i2] = int32((r & 16777215))
+		b2[i2] = uint32((r & 16777215))
 		continue
 	}
 	acc := b2
 	var i int = 2
-	sp1 := make([]int32, 64)
+	sp1 := make([]uint32, 64)
 	for ; ; i = (i + 1) {
 		if (i > 200) {
 			break
@@ -43,8 +43,8 @@ func GenLimb(k int) int {
 				t2 = t3
 			}
 			var t145 int = ((t2 * i) + c)
-			o3[i1] = int32((t145 % 16777216))
-			c = (t145 / 16777216)
+			o3[i1] = uint32((t145 & 16777215))
+			c = (t145 >> 24)
 			continue
 		}
 		acc, sp1 = o3, acc

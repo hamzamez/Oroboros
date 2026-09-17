@@ -30,8 +30,8 @@ public final class examples_big_limbs.java {
 					break;
 				}
 				final long t145 = ((((i1 < 0) ? 0 : ((i1 >= acc.length) ? 0 : (long) acc[(int) i1])) * i) + c);
-				o3[(int) i1] = (int) (t145 % 16777216);
-				c = (t145 / 16777216);
+				o3[(int) i1] = (int) (t145 & 16777215);
+				c = (t145 >> 24);
 				continue;
 			}
 			final var sw2 = acc;

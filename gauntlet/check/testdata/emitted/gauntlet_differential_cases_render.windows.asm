@@ -168,10 +168,7 @@ Lend26:
 Lelse28:
         mov r10, qword ptr [rsp+72]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+88], rax
         mov r10, qword ptr [rsp+88]
         mov qword ptr [rsp+80], r10
@@ -246,10 +243,7 @@ Lend35:
 Lelse37:
         mov r10, qword ptr [rsp+88]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+72], rax
         mov r10, qword ptr [rsp+72]
         mov qword ptr [rsp+80], r10
@@ -364,10 +358,7 @@ Lend52:
 Lelse54:
         mov r10, qword ptr [rsp+96]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+112], rax
         mov r10, qword ptr [rsp+112]
         mov qword ptr [rsp+104], r10
@@ -440,10 +431,7 @@ Lend62:
 Lelse64:
         mov r10, qword ptr [rsp+104]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+112], rax
         mov r10, qword ptr [rsp+112]
         mov qword ptr [rsp+96], r10
@@ -548,10 +536,7 @@ Lend73:
 Lelse75:
         mov r10, qword ptr [rsp+104]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+128], rax
         mov r10, qword ptr [rsp+128]
         mov qword ptr [rsp+120], r10
@@ -594,10 +579,7 @@ Lend79:
 Lelse81:
         mov r10, qword ptr [rsp+120]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+128], rax
         mov r10, qword ptr [rsp+128]
         mov qword ptr [rsp+112], r10
@@ -683,10 +665,7 @@ Lend87:
 Lelse89:
         mov r10, qword ptr [rsp+96]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+104], rax
         mov r10, qword ptr [rsp+104]
         mov qword ptr [rsp+120], r10
@@ -760,10 +739,7 @@ Lend95:
 Lelse97:
         mov r10, qword ptr [rsp+112]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+128], rax
         mov r10, qword ptr [rsp+128]
         mov qword ptr [rsp+104], r10
@@ -914,10 +890,7 @@ Lend118:
 Lelse120:
         mov r10, qword ptr [rsp+112]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+104], rax
         mov r10, qword ptr [rsp+104]
         mov qword ptr [rsp+120], r10
@@ -981,10 +954,7 @@ Lend124:
 Lelse126:
         mov r10, qword ptr [rsp+120]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+104], rax
         mov r10, qword ptr [rsp+104]
         mov qword ptr [rsp+112], r10
@@ -1127,10 +1097,7 @@ Lend147:
 Lelse149:
         mov r10, qword ptr [rsp+64]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+120], rax
         mov r10, qword ptr [rsp+120]
         mov qword ptr [rsp+104], r10
@@ -1205,10 +1172,7 @@ Lend156:
 Lelse158:
         mov r10, qword ptr [rsp+120]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+64], rax
         mov r10, qword ptr [rsp+64]
         mov qword ptr [rsp+104], r10
@@ -1361,10 +1325,7 @@ Lend179:
 Lelse181:
         mov r10, qword ptr [rsp+128]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+144], rax
         mov r10, qword ptr [rsp+144]
         mov qword ptr [rsp+136], r10
@@ -1447,10 +1408,7 @@ Lend188:
 Lelse190:
         mov r10, qword ptr [rsp+144]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+128], rax
         mov r10, qword ptr [rsp+128]
         mov qword ptr [rsp+136], r10
@@ -1582,10 +1540,7 @@ Lend203:
 Lelse205:
         mov r10, qword ptr [rsp+136]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+152], rax
         mov r10, qword ptr [rsp+152]
         mov qword ptr [rsp+144], r10
@@ -1671,10 +1626,7 @@ Lend214:
 Lelse216:
         mov r10, qword ptr [rsp+152]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+168], rax
         mov r10, qword ptr [rsp+168]
         mov qword ptr [rsp+160], r10

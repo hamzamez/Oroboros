@@ -97,7 +97,7 @@ func GenRun(k int) int {
 			}
 			t7 = t8
 		}
-		var cur1717 int = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((r3 * 16777216), t7))
+		var cur1717 int = ((r3 * 16777216) + t7)
 		o4[i4] = (cur1717 / 7)
 		r3 = (cur1717 % 7)
 		continue
@@ -128,6 +128,6 @@ func GenRun(k int) int {
 		}
 		t11 = t12
 	}
-	return (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(t9, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(t11, 100000000))))
+	return (t9 + (t11 * 100000000))
 }
 

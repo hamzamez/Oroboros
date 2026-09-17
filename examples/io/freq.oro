@@ -154,12 +154,14 @@
 (def cl (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 i))))
 (def cli (fn (n i) (if (< i 0) 0 (if (>= i n) 0 i))))
 
-; A PERMUTATION ENTRY, CLAMPED TO BE ONE. `ord` holds indices, but to the
-; analysis a value read out of a table is just a value, so `(* 2 (ord k))` is
-; unbounded and every operation downstream of it is refused. One clamp at the
-; read turns a permutation into what its type would have said, and every use of
-; it is then provable -- 319 unbounded operations to none.
-(def pat (fn (t n i) (cli n (t (cli n i)))))
+; A PERMUTATION ENTRY. `ord` holds indices, and the compiler now knows it: a
+; table's contents are one abstract cell per buffer (array smashing), `iota`
+; stores `k < nw` into it, and the sort only COPIES slots between its two
+; buffers, which adds nothing to the pair's joint cell (smashfd-2026-09-16). So
+; `(* 2 (ord k))` is bounded with no clamp on the value. It used to carry one,
+; worth 319 unbounded operations to none; the index clamp stays, because WHICH
+; slot is in range is a relation, not a bound.
+(def pat (fn (t n i) (t (cli n i))))
 
 ; --- the sort ---------------------------------------------------------------
 ;
@@ -242,20 +244,18 @@
 ; computing `2d` and two clamps on the strided bound; the type replaced all
 ; three.
 ;
-; BOTH READS ARE STILL CLAMPED, and by the SAME cap — but note WHICH clamps
-; survived. The ones the product removed were INDEX clamps, on the slot the
-; program computed; these are VALUE clamps, on what a table read RETURNS, and
-; that is frozen-2026-08-28's stratum 0 and has nothing to do with products.
-; Neither a word index nor an occurrence count can exceed the number of words,
-; and without saying so `(* 2 (dword …))` reaching into the span table and
-; `(pow10 (ndigits (dcount …)))` are both outside the window. One cap answers
-; both.
-; And a word index is clamped a SECOND time, into the span table it indexes. The
-; cap above bounds the ARITHMETIC — `(* 2 w)` stays in the window — and says
-; nothing about WHICH table: the refinement layer needs w < len sp, a relation
-; between what `dists` stored and what `spans` built (hex-2026-09-14 §4).
-(def dword  (fn (sp dt d) (cl sp (cli (+ (wmax) 1) ((dt d) 0)))))
-(def dcount (fn (dt d) (cli (+ (wmax) 1) ((dt d) 1))))
+; NEITHER READ CLAMPS ITS VALUE ANY MORE. These were VALUE clamps, on what a
+; table read RETURNS — frozen-2026-08-28's stratum 0 — capping a word index and an
+; occurrence count at `(wmax)` so that `(* 2 (dword …))` and
+; `(pow10 (ndigits (dcount …)))` stayed in the window. The compiler derives both
+; bounds now: a word index is a copy of `ord`'s cell, and a count starts at 1 and
+; is incremented at most once per word, so it is at most 1 + nw (the
+; bounded-increment theorem, smashfd-2026-09-16).
+; A word index is still clamped INTO the span table it indexes. That clamp is not
+; about arithmetic: the refinement layer needs w < len sp, a relation between
+; what `dists` stored and what `spans` built (hex-2026-09-14 §4).
+(def dword  (fn (sp dt d) (cl sp ((dt d) 0))))
+(def dcount (fn (dt d) ((dt d) 1)))
 
 (def dists (fn (src sp ord nw nd)
   (build nd (fn (dt)
@@ -277,12 +277,12 @@
         (again (set dt (cli nd d) (tuple (pat ord nw k) 1)) (+ k 1) (+ d 1))
       else
         (let (cli nd (- d 1)) (fn (s)
-          ; CLAMPED ON THE WAY BACK IN. This is the one read of a buffer from
-          ; INSIDE the `build` that fills it -- stratum 0, where
-          ; frozen-2026-08-28 says the element range is correctly refused -- so
-          ; the increment is unbounded unless the program says what a count can
-          ; be. It is the same cap `dcount` applies on the way out.
-          (again (set (dt s) 1 (+ (cli (+ (wmax) 1) ((dt s) 1)) 1)) (+ k 1) d))))))))
+          ; THE ONE READ OF A BUFFER FROM INSIDE THE `build` THAT FILLS IT. It
+          ; was clamped, because frozen-2026-08-28 refused an element range here.
+          ; What bounds it is a count: this loop runs at most nw times and adds 1
+          ; to one slot per trip, so no count exceeds 1 + nw — and the compiler
+          ; proves exactly that (smashfd-2026-09-16).
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))))
 
 ; --- rendering the report ---------------------------------------------------
 ;

@@ -107,20 +107,15 @@ Lend13:
         mov qword ptr [rsp+56], rax
         mov r10, qword ptr [rsp+56]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+64], rax
         mov r10, qword ptr [rsp+64]
         mov qword ptr [r15+r14*8+8], r10
         add r14, 1
         mov r10, qword ptr [rsp+56]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rax
+        mov rcx, 24
+        shr rax, cl
         mov qword ptr [rsp+64], rax
         mov r10, qword ptr [rsp+64]
         mov qword ptr [rsp+48], r10

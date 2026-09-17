@@ -111,10 +111,10 @@ func GenMeasure(src []byte) int {
 				stk2[((2 * (sp - 1)) + 1)] = int16(nn)
 				t10 = stk2
 			}
-			stk22 := t10
-			stk22[((2 * sp) + 0)] = int16(nn)
-			stk22[((2 * sp) + 1)] = int16(0)
-			nodes2, stk2, i, nn, sp = t4, stk22, (i + 1), (nn + 1), (sp + 1)
+			stk3 := t10
+			stk3[((2 * sp) + 0)] = int16(nn)
+			stk3[((2 * sp) + 1)] = int16(0)
+			nodes2, stk2, i, nn, sp = t4, stk3, (i + 1), (nn + 1), (sp + 1)
 			continue
 		}
 		var c4 int = int(src[i])
@@ -174,7 +174,7 @@ func GenMeasure(src []byte) int {
 				}
 				t17 = t18
 			}
-			var tg17 int = t17
+			var tg int = t17
 			var t19 int
 			if (int(src[i]) == 34) {
 				var j int = (i + 1)
@@ -238,13 +238,13 @@ func GenMeasure(src []byte) int {
 				}
 				t19 = t21
 			}
-			var ni17 int = t19
-			nodes2[((4 * nn) + 0)] = int16(tg17)
-			nodes2[((4 * nn) + 1)] = int16((ni17 - i))
-			nodes32 := nodes2
+			var ni int = t19
+			nodes2[((4 * nn) + 0)] = int16(tg)
+			nodes2[((4 * nn) + 1)] = int16((ni - i))
+			nodes4 := nodes2
 			var t22 []int16
 			if (sp < 1) {
-				t22 = nodes32
+				t22 = nodes4
 			} else {
 				var lc2 int = int(stk2[((2 * (sp - 1)) + 1)])
 				var t23 []int16
@@ -262,8 +262,8 @@ func GenMeasure(src []byte) int {
 						}
 						t24 = t25
 					}
-					nodes32[((4 * t24) + 2)] = int16(nn)
-					t23 = nodes32
+					nodes4[((4 * t24) + 2)] = int16(nn)
+					t23 = nodes4
 				} else {
 					var t26 int
 					if (lc2 < 0) {
@@ -277,8 +277,8 @@ func GenMeasure(src []byte) int {
 						}
 						t26 = t27
 					}
-					nodes32[((4 * t26) + 3)] = int16(nn)
-					t23 = nodes32
+					nodes4[((4 * t26) + 3)] = int16(nn)
+					t23 = nodes4
 				}
 				t22 = t23
 			}
@@ -289,13 +289,13 @@ func GenMeasure(src []byte) int {
 				stk2[((2 * (sp - 1)) + 1)] = int16(nn)
 				t28 = stk2
 			}
-			nodes2, stk2, i, nn = t22, t28, ni17, (nn + 1)
+			nodes2, stk2, i, nn = t22, t28, ni, (nn + 1)
 			continue
 		}
 		i, ok = (i + 1), 0
 		continue
 	}
-	nodes4 := r1
+	nodes5 := r1
 	wl := make([]int, (2 * 512))
 	wl[0] = 1
 	wl[1] = 1
@@ -307,90 +307,90 @@ func GenMeasure(src []byte) int {
 	var r29 int
 	for ; ; seen, steps = (seen + 1), (steps + 1) {
 		if (steps >= (2 * 512)) {
-			r29 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+			r29 = ((seen * 1000) + acc)
 			break
 		}
 		if (sp2 < 1) {
-			r29 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+			r29 = ((seen * 1000) + acc)
 			break
 		}
 		if (sp2 >= 512) {
-			r29 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+			r29 = ((seen * 1000) + acc)
 			break
 		}
-		var n17 int = wl2[((2 * (sp2 - 1)) + 0)]
-		var d17 int = wl2[((2 * (sp2 - 1)) + 1)]
+		var n int = wl2[((2 * (sp2 - 1)) + 0)]
+		var d int = wl2[((2 * (sp2 - 1)) + 1)]
 		var t30 int
-		if (n17 < 0) {
+		if (n < 0) {
 			t30 = 0
 		} else {
 			var t31 int
-			if (n17 >= 512) {
+			if (n >= 512) {
 				t31 = 0
 			} else {
-				t31 = n17
+				t31 = n
 			}
 			t30 = t31
 		}
-		var sb17 int = int(nodes4[((4 * t30) + 3)])
+		var sb int = int(nodes5[((4 * t30) + 3)])
 		var t32 int
-		if (n17 < 0) {
+		if (n < 0) {
 			t32 = 0
 		} else {
 			var t33 int
-			if (n17 >= 512) {
+			if (n >= 512) {
 				t33 = 0
 			} else {
-				t33 = n17
+				t33 = n
 			}
 			t32 = t33
 		}
-		var kd17 int = int(nodes4[((4 * t32) + 2)])
-		var s117 int = (sp2 - 1)
+		var kd int = int(nodes5[((4 * t32) + 2)])
+		var s1 int = (sp2 - 1)
 		var t34 []int
-		if (sb17 == 0) {
+		if (sb == 0) {
 			t34 = wl2
 		} else {
-			wl2[((2 * s117) + 0)] = sb17
-			wl2[((2 * s117) + 1)] = d17
+			wl2[((2 * s1) + 0)] = sb
+			wl2[((2 * s1) + 1)] = d
 			t34 = wl2
 		}
-		w117 := t34
+		w1 := t34
 		var t35 int
-		if (sb17 == 0) {
-			t35 = s117
+		if (sb == 0) {
+			t35 = s1
 		} else {
-			t35 = (s117 + 1)
+			t35 = (s1 + 1)
 		}
-		var s217 int = t35
+		var s2 int = t35
 		var t36 []int
-		if (kd17 == 0) {
-			t36 = w117
+		if (kd == 0) {
+			t36 = w1
 		} else {
-			w117[((2 * s217) + 0)] = kd17
-			w117[((2 * s217) + 1)] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(d17, 1))
-			t36 = w117
+			w1[((2 * s2) + 0)] = kd
+			w1[((2 * s2) + 1)] = (d + 1)
+			t36 = w1
 		}
-		w217 := t36
+		w2 := t36
 		var t37 int
-		if (kd17 == 0) {
-			t37 = s217
+		if (kd == 0) {
+			t37 = s2
 		} else {
-			t37 = (s217 + 1)
+			t37 = (s2 + 1)
 		}
 		var t38 int
-		if (n17 < 0) {
+		if (n < 0) {
 			t38 = 0
 		} else {
 			var t39 int
-			if (n17 >= 512) {
+			if (n >= 512) {
 				t39 = 0
 			} else {
-				t39 = n17
+				t39 = n
 			}
 			t38 = t39
 		}
-		wl2, sp2, acc = w217, t37, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(acc, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(int(nodes4[((4 * t38) + 0)]), d17))))
+		wl2, sp2, acc = w2, t37, (acc + (int(nodes5[((4 * t38) + 0)]) * d))
 		continue
 	}
 	return r29
@@ -460,10 +460,10 @@ func GenRun(k int) int {
 				}
 				nodes2[((4 * nn) + 0)] = t4
 				nodes2[((4 * nn) + 1)] = 0
-				nodes6 := nodes2
+				nodes3 := nodes2
 				var t5 []int
 				if (sp < 1) {
-					t5 = nodes6
+					t5 = nodes3
 				} else {
 					var lc int = stk2[((2 * (sp - 1)) + 1)]
 					var t6 []int
@@ -481,8 +481,8 @@ func GenRun(k int) int {
 							}
 							t7 = t8
 						}
-						nodes6[((4 * t7) + 2)] = nn
-						t6 = nodes6
+						nodes3[((4 * t7) + 2)] = nn
+						t6 = nodes3
 					} else {
 						var t9 int
 						if (lc < 0) {
@@ -496,8 +496,8 @@ func GenRun(k int) int {
 							}
 							t9 = t10
 						}
-						nodes6[((4 * t9) + 3)] = nn
-						t6 = nodes6
+						nodes3[((4 * t9) + 3)] = nn
+						t6 = nodes3
 					}
 					t5 = t6
 				}
@@ -508,10 +508,10 @@ func GenRun(k int) int {
 					stk2[((2 * (sp - 1)) + 1)] = nn
 					t11 = stk2
 				}
-				stk22 := t11
-				stk22[((2 * sp) + 0)] = nn
-				stk22[((2 * sp) + 1)] = 0
-				nodes2, stk2, i, nn, sp = t5, stk22, (i + 1), (nn + 1), (sp + 1)
+				stk3 := t11
+				stk3[((2 * sp) + 0)] = nn
+				stk3[((2 * sp) + 1)] = 0
+				nodes2, stk2, i, nn, sp = t5, stk3, (i + 1), (nn + 1), (sp + 1)
 				continue
 			}
 			var c4 int = src[i]
@@ -571,7 +571,7 @@ func GenRun(k int) int {
 					}
 					t18 = t19
 				}
-				var tg41 int = t18
+				var tg int = t18
 				var t20 int
 				if (src[i] == 34) {
 					var j int = (i + 1)
@@ -635,13 +635,13 @@ func GenRun(k int) int {
 					}
 					t20 = t22
 				}
-				var ni41 int = t20
-				nodes2[((4 * nn) + 0)] = tg41
-				nodes2[((4 * nn) + 1)] = (ni41 - i)
-				nodes62 := nodes2
+				var ni int = t20
+				nodes2[((4 * nn) + 0)] = tg
+				nodes2[((4 * nn) + 1)] = (ni - i)
+				nodes4 := nodes2
 				var t23 []int
 				if (sp < 1) {
-					t23 = nodes62
+					t23 = nodes4
 				} else {
 					var lc2 int = stk2[((2 * (sp - 1)) + 1)]
 					var t24 []int
@@ -659,8 +659,8 @@ func GenRun(k int) int {
 							}
 							t25 = t26
 						}
-						nodes62[((4 * t25) + 2)] = nn
-						t24 = nodes62
+						nodes4[((4 * t25) + 2)] = nn
+						t24 = nodes4
 					} else {
 						var t27 int
 						if (lc2 < 0) {
@@ -674,8 +674,8 @@ func GenRun(k int) int {
 							}
 							t27 = t28
 						}
-						nodes62[((4 * t27) + 3)] = nn
-						t24 = nodes62
+						nodes4[((4 * t27) + 3)] = nn
+						t24 = nodes4
 					}
 					t23 = t24
 				}
@@ -686,13 +686,13 @@ func GenRun(k int) int {
 					stk2[((2 * (sp - 1)) + 1)] = nn
 					t29 = stk2
 				}
-				nodes2, stk2, i, nn = t23, t29, ni41, (nn + 1)
+				nodes2, stk2, i, nn = t23, t29, ni, (nn + 1)
 				continue
 			}
 			i, ok = (i + 1), 0
 			continue
 		}
-		nodes3 := r2
+		nodes5 := r2
 		wl := make([]int, (2 * 512))
 		wl[0] = 1
 		wl[1] = 1
@@ -704,101 +704,101 @@ func GenRun(k int) int {
 		var r30 int
 		for ; ; seen, steps = (seen + 1), (steps + 1) {
 			if (steps >= (2 * 512)) {
-				r30 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+				r30 = ((seen * 1000) + acc)
 				break
 			}
 			if (sp2 < 1) {
-				r30 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+				r30 = ((seen * 1000) + acc)
 				break
 			}
 			if (sp2 >= 512) {
-				r30 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen * 1000), acc))
+				r30 = ((seen * 1000) + acc)
 				break
 			}
-			var n41 int = wl2[((2 * (sp2 - 1)) + 0)]
-			var d41 int = wl2[((2 * (sp2 - 1)) + 1)]
+			var n int = wl2[((2 * (sp2 - 1)) + 0)]
+			var d int = wl2[((2 * (sp2 - 1)) + 1)]
 			var t31 int
-			if (n41 < 0) {
+			if (n < 0) {
 				t31 = 0
 			} else {
 				var t32 int
-				if (n41 >= 512) {
+				if (n >= 512) {
 					t32 = 0
 				} else {
-					t32 = n41
+					t32 = n
 				}
 				t31 = t32
 			}
-			var sb41 int = nodes3[((4 * t31) + 3)]
+			var sb int = nodes5[((4 * t31) + 3)]
 			var t33 int
-			if (n41 < 0) {
+			if (n < 0) {
 				t33 = 0
 			} else {
 				var t34 int
-				if (n41 >= 512) {
+				if (n >= 512) {
 					t34 = 0
 				} else {
-					t34 = n41
+					t34 = n
 				}
 				t33 = t34
 			}
-			var kd41 int = nodes3[((4 * t33) + 2)]
-			var s141 int = (sp2 - 1)
+			var kd int = nodes5[((4 * t33) + 2)]
+			var s1 int = (sp2 - 1)
 			var t35 []int
-			if (sb41 == 0) {
+			if (sb == 0) {
 				t35 = wl2
 			} else {
-				wl2[((2 * s141) + 0)] = sb41
-				wl2[((2 * s141) + 1)] = d41
+				wl2[((2 * s1) + 0)] = sb
+				wl2[((2 * s1) + 1)] = d
 				t35 = wl2
 			}
-			w141 := t35
+			w1 := t35
 			var t36 int
-			if (sb41 == 0) {
-				t36 = s141
+			if (sb == 0) {
+				t36 = s1
 			} else {
-				t36 = (s141 + 1)
+				t36 = (s1 + 1)
 			}
-			var s241 int = t36
+			var s2 int = t36
 			var t37 []int
-			if (kd41 == 0) {
-				t37 = w141
+			if (kd == 0) {
+				t37 = w1
 			} else {
-				w141[((2 * s241) + 0)] = kd41
-				w141[((2 * s241) + 1)] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(d41, 1))
-				t37 = w141
+				w1[((2 * s2) + 0)] = kd
+				w1[((2 * s2) + 1)] = (d + 1)
+				t37 = w1
 			}
-			w241 := t37
+			w2 := t37
 			var t38 int
-			if (kd41 == 0) {
-				t38 = s241
+			if (kd == 0) {
+				t38 = s2
 			} else {
-				t38 = (s241 + 1)
+				t38 = (s2 + 1)
 			}
 			var t39 int
-			if (n41 < 0) {
+			if (n < 0) {
 				t39 = 0
 			} else {
 				var t40 int
-				if (n41 >= 512) {
+				if (n >= 512) {
 					t40 = 0
 				} else {
-					t40 = n41
+					t40 = n
 				}
 				t39 = t40
 			}
-			wl2, sp2, acc = w241, t38, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(acc, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(nodes3[((4 * t39) + 0)], d41))))
+			wl2, sp2, acc = w2, t38, (acc + (nodes5[((4 * t39) + 0)] * d))
 			continue
 		}
-		t1 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(((nodes3[0] - 1) * 1000000), (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(r30, 10)), nodes3[1]))))
+		t1 = (((nodes5[0] - 1) * 1000000) + ((r30 * 10) + nodes5[1]))
 	} else {
 		var t41 int
 		if (k == 1) {
 			src2 := []int{123, 34, 97, 34, 58, 49, 125}
-			nodes4 := make([]int, (4 * 512))
-			stk3 := make([]int, (2 * 32))
-			nodes5 := nodes4
-			stk4 := stk3
+			nodes6 := make([]int, (4 * 512))
+			stk4 := make([]int, (2 * 32))
+			nodes7 := nodes6
+			stk5 := stk4
 			var i2 int = 0
 			var nn2 int = 1
 			var sp3 int = 0
@@ -806,33 +806,33 @@ func GenRun(k int) int {
 			var r42 []int
 			for {
 				if (i2 < 0) {
-					nodes5[0] = nn2
-					nodes5[1] = 0
-					r42 = nodes5
+					nodes7[0] = nn2
+					nodes7[1] = 0
+					r42 = nodes7
 					break
 				}
 				if (i2 >= len(src2)) {
-					nodes5[0] = nn2
+					nodes7[0] = nn2
 					var t43 int
 					if (sp3 == 0) {
 						t43 = ok2
 					} else {
 						t43 = 0
 					}
-					nodes5[1] = t43
-					r42 = nodes5
+					nodes7[1] = t43
+					r42 = nodes7
 					break
 				}
 				if (nn2 >= 512) {
-					nodes5[0] = nn2
-					nodes5[1] = 0
-					r42 = nodes5
+					nodes7[0] = nn2
+					nodes7[1] = 0
+					r42 = nodes7
 					break
 				}
 				if (sp3 >= 32) {
-					nodes5[0] = nn2
-					nodes5[1] = 0
-					r42 = nodes5
+					nodes7[0] = nn2
+					nodes7[1] = 0
+					r42 = nodes7
 					break
 				}
 				var c10 int = src2[i2]
@@ -853,17 +853,17 @@ func GenRun(k int) int {
 					} else {
 						t44 = 4
 					}
-					nodes5[((4 * nn2) + 0)] = t44
-					nodes5[((4 * nn2) + 1)] = 0
-					nodes7 := nodes5
+					nodes7[((4 * nn2) + 0)] = t44
+					nodes7[((4 * nn2) + 1)] = 0
+					nodes8 := nodes7
 					var t45 []int
 					if (sp3 < 1) {
-						t45 = nodes7
+						t45 = nodes8
 					} else {
-						var lc3 int = stk4[((2 * (sp3 - 1)) + 1)]
+						var lc3 int = stk5[((2 * (sp3 - 1)) + 1)]
 						var t46 []int
 						if (lc3 == 0) {
-							var k5 int = stk4[((2 * (sp3 - 1)) + 0)]
+							var k5 int = stk5[((2 * (sp3 - 1)) + 0)]
 							var t47 int
 							if (k5 < 0) {
 								t47 = 0
@@ -876,8 +876,8 @@ func GenRun(k int) int {
 								}
 								t47 = t48
 							}
-							nodes7[((4 * t47) + 2)] = nn2
-							t46 = nodes7
+							nodes8[((4 * t47) + 2)] = nn2
+							t46 = nodes8
 						} else {
 							var t49 int
 							if (lc3 < 0) {
@@ -891,22 +891,22 @@ func GenRun(k int) int {
 								}
 								t49 = t50
 							}
-							nodes7[((4 * t49) + 3)] = nn2
-							t46 = nodes7
+							nodes8[((4 * t49) + 3)] = nn2
+							t46 = nodes8
 						}
 						t45 = t46
 					}
 					var t51 []int
 					if (sp3 < 1) {
-						t51 = stk4
+						t51 = stk5
 					} else {
-						stk4[((2 * (sp3 - 1)) + 1)] = nn2
-						t51 = stk4
+						stk5[((2 * (sp3 - 1)) + 1)] = nn2
+						t51 = stk5
 					}
-					stk23 := t51
-					stk23[((2 * sp3) + 0)] = nn2
-					stk23[((2 * sp3) + 1)] = 0
-					nodes5, stk4, i2, nn2, sp3 = t45, stk23, (i2 + 1), (nn2 + 1), (sp3 + 1)
+					stk6 := t51
+					stk6[((2 * sp3) + 0)] = nn2
+					stk6[((2 * sp3) + 1)] = 0
+					nodes7, stk5, i2, nn2, sp3 = t45, stk6, (i2 + 1), (nn2 + 1), (sp3 + 1)
 					continue
 				}
 				var c13 int = src2[i2]
@@ -921,7 +921,7 @@ func GenRun(k int) int {
 					if (sp3 < 1) {
 						t53 = 0
 					} else {
-						var k6 int = stk4[((2 * (sp3 - 1)) + 0)]
+						var k6 int = stk5[((2 * (sp3 - 1)) + 0)]
 						var t54 int
 						if (k6 < 0) {
 							t54 = 0
@@ -941,7 +941,7 @@ func GenRun(k int) int {
 							t56 = 4
 						}
 						var t57 int
-						if (nodes5[((4 * t54) + 0)] == t56) {
+						if (nodes7[((4 * t54) + 0)] == t56) {
 							t57 = ok2
 						} else {
 							t57 = 0
@@ -966,7 +966,7 @@ func GenRun(k int) int {
 						}
 						t58 = t59
 					}
-					var tg49 int = t58
+					var tg2 int = t58
 					var t60 int
 					if (src2[i2] == 34) {
 						var j4 int = (i2 + 1)
@@ -1030,18 +1030,18 @@ func GenRun(k int) int {
 						}
 						t60 = t62
 					}
-					var ni49 int = t60
-					nodes5[((4 * nn2) + 0)] = tg49
-					nodes5[((4 * nn2) + 1)] = (ni49 - i2)
-					nodes72 := nodes5
+					var ni2 int = t60
+					nodes7[((4 * nn2) + 0)] = tg2
+					nodes7[((4 * nn2) + 1)] = (ni2 - i2)
+					nodes9 := nodes7
 					var t63 []int
 					if (sp3 < 1) {
-						t63 = nodes72
+						t63 = nodes9
 					} else {
-						var lc4 int = stk4[((2 * (sp3 - 1)) + 1)]
+						var lc4 int = stk5[((2 * (sp3 - 1)) + 1)]
 						var t64 []int
 						if (lc4 == 0) {
-							var k7 int = stk4[((2 * (sp3 - 1)) + 0)]
+							var k7 int = stk5[((2 * (sp3 - 1)) + 0)]
 							var t65 int
 							if (k7 < 0) {
 								t65 = 0
@@ -1054,8 +1054,8 @@ func GenRun(k int) int {
 								}
 								t65 = t66
 							}
-							nodes72[((4 * t65) + 2)] = nn2
-							t64 = nodes72
+							nodes9[((4 * t65) + 2)] = nn2
+							t64 = nodes9
 						} else {
 							var t67 int
 							if (lc4 < 0) {
@@ -1069,25 +1069,25 @@ func GenRun(k int) int {
 								}
 								t67 = t68
 							}
-							nodes72[((4 * t67) + 3)] = nn2
-							t64 = nodes72
+							nodes9[((4 * t67) + 3)] = nn2
+							t64 = nodes9
 						}
 						t63 = t64
 					}
 					var t69 []int
 					if (sp3 < 1) {
-						t69 = stk4
+						t69 = stk5
 					} else {
-						stk4[((2 * (sp3 - 1)) + 1)] = nn2
-						t69 = stk4
+						stk5[((2 * (sp3 - 1)) + 1)] = nn2
+						t69 = stk5
 					}
-					nodes5, stk4, i2, nn2 = t63, t69, ni49, (nn2 + 1)
+					nodes7, stk5, i2, nn2 = t63, t69, ni2, (nn2 + 1)
 					continue
 				}
 				i2, ok2 = (i2 + 1), 0
 				continue
 			}
-			nodes8 := r42
+			nodes10 := r42
 			wl3 := make([]int, (2 * 512))
 			wl3[0] = 1
 			wl3[1] = 1
@@ -1099,101 +1099,101 @@ func GenRun(k int) int {
 			var r70 int
 			for ; ; seen2, steps2 = (seen2 + 1), (steps2 + 1) {
 				if (steps2 >= (2 * 512)) {
-					r70 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen2 * 1000), acc2))
+					r70 = ((seen2 * 1000) + acc2)
 					break
 				}
 				if (sp4 < 1) {
-					r70 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen2 * 1000), acc2))
+					r70 = ((seen2 * 1000) + acc2)
 					break
 				}
 				if (sp4 >= 512) {
-					r70 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen2 * 1000), acc2))
+					r70 = ((seen2 * 1000) + acc2)
 					break
 				}
-				var n49 int = wl4[((2 * (sp4 - 1)) + 0)]
-				var d49 int = wl4[((2 * (sp4 - 1)) + 1)]
+				var n2 int = wl4[((2 * (sp4 - 1)) + 0)]
+				var d2 int = wl4[((2 * (sp4 - 1)) + 1)]
 				var t71 int
-				if (n49 < 0) {
+				if (n2 < 0) {
 					t71 = 0
 				} else {
 					var t72 int
-					if (n49 >= 512) {
+					if (n2 >= 512) {
 						t72 = 0
 					} else {
-						t72 = n49
+						t72 = n2
 					}
 					t71 = t72
 				}
-				var sb49 int = nodes8[((4 * t71) + 3)]
+				var sb2 int = nodes10[((4 * t71) + 3)]
 				var t73 int
-				if (n49 < 0) {
+				if (n2 < 0) {
 					t73 = 0
 				} else {
 					var t74 int
-					if (n49 >= 512) {
+					if (n2 >= 512) {
 						t74 = 0
 					} else {
-						t74 = n49
+						t74 = n2
 					}
 					t73 = t74
 				}
-				var kd49 int = nodes8[((4 * t73) + 2)]
-				var s149 int = (sp4 - 1)
+				var kd2 int = nodes10[((4 * t73) + 2)]
+				var s12 int = (sp4 - 1)
 				var t75 []int
-				if (sb49 == 0) {
+				if (sb2 == 0) {
 					t75 = wl4
 				} else {
-					wl4[((2 * s149) + 0)] = sb49
-					wl4[((2 * s149) + 1)] = d49
+					wl4[((2 * s12) + 0)] = sb2
+					wl4[((2 * s12) + 1)] = d2
 					t75 = wl4
 				}
-				w149 := t75
+				w12 := t75
 				var t76 int
-				if (sb49 == 0) {
-					t76 = s149
+				if (sb2 == 0) {
+					t76 = s12
 				} else {
-					t76 = (s149 + 1)
+					t76 = (s12 + 1)
 				}
-				var s249 int = t76
+				var s22 int = t76
 				var t77 []int
-				if (kd49 == 0) {
-					t77 = w149
+				if (kd2 == 0) {
+					t77 = w12
 				} else {
-					w149[((2 * s249) + 0)] = kd49
-					w149[((2 * s249) + 1)] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(d49, 1))
-					t77 = w149
+					w12[((2 * s22) + 0)] = kd2
+					w12[((2 * s22) + 1)] = (d2 + 1)
+					t77 = w12
 				}
-				w249 := t77
+				w22 := t77
 				var t78 int
-				if (kd49 == 0) {
-					t78 = s249
+				if (kd2 == 0) {
+					t78 = s22
 				} else {
-					t78 = (s249 + 1)
+					t78 = (s22 + 1)
 				}
 				var t79 int
-				if (n49 < 0) {
+				if (n2 < 0) {
 					t79 = 0
 				} else {
 					var t80 int
-					if (n49 >= 512) {
+					if (n2 >= 512) {
 						t80 = 0
 					} else {
-						t80 = n49
+						t80 = n2
 					}
 					t79 = t80
 				}
-				wl4, sp4, acc2 = w249, t78, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(acc2, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(nodes8[((4 * t79) + 0)], d49))))
+				wl4, sp4, acc2 = w22, t78, (acc2 + (nodes10[((4 * t79) + 0)] * d2))
 				continue
 			}
-			t41 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(((nodes8[0] - 1) * 1000000), (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(r70, 10)), nodes8[1]))))
+			t41 = (((nodes10[0] - 1) * 1000000) + ((r70 * 10) + nodes10[1]))
 		} else {
 			var t81 int
 			if (k == 2) {
 				src3 := []int{91, 91, 49, 93, 44, 50, 93}
-				nodes9 := make([]int, (4 * 512))
-				stk5 := make([]int, (2 * 32))
-				nodes10 := nodes9
-				stk6 := stk5
+				nodes11 := make([]int, (4 * 512))
+				stk7 := make([]int, (2 * 32))
+				nodes12 := nodes11
+				stk8 := stk7
 				var i3 int = 0
 				var nn3 int = 1
 				var sp5 int = 0
@@ -1201,33 +1201,33 @@ func GenRun(k int) int {
 				var r82 []int
 				for {
 					if (i3 < 0) {
-						nodes10[0] = nn3
-						nodes10[1] = 0
-						r82 = nodes10
+						nodes12[0] = nn3
+						nodes12[1] = 0
+						r82 = nodes12
 						break
 					}
 					if (i3 >= len(src3)) {
-						nodes10[0] = nn3
+						nodes12[0] = nn3
 						var t83 int
 						if (sp5 == 0) {
 							t83 = ok3
 						} else {
 							t83 = 0
 						}
-						nodes10[1] = t83
-						r82 = nodes10
+						nodes12[1] = t83
+						r82 = nodes12
 						break
 					}
 					if (nn3 >= 512) {
-						nodes10[0] = nn3
-						nodes10[1] = 0
-						r82 = nodes10
+						nodes12[0] = nn3
+						nodes12[1] = 0
+						r82 = nodes12
 						break
 					}
 					if (sp5 >= 32) {
-						nodes10[0] = nn3
-						nodes10[1] = 0
-						r82 = nodes10
+						nodes12[0] = nn3
+						nodes12[1] = 0
+						r82 = nodes12
 						break
 					}
 					var c19 int = src3[i3]
@@ -1248,17 +1248,17 @@ func GenRun(k int) int {
 						} else {
 							t84 = 4
 						}
-						nodes10[((4 * nn3) + 0)] = t84
-						nodes10[((4 * nn3) + 1)] = 0
-						nodes82 := nodes10
+						nodes12[((4 * nn3) + 0)] = t84
+						nodes12[((4 * nn3) + 1)] = 0
+						nodes13 := nodes12
 						var t85 []int
 						if (sp5 < 1) {
-							t85 = nodes82
+							t85 = nodes13
 						} else {
-							var lc5 int = stk6[((2 * (sp5 - 1)) + 1)]
+							var lc5 int = stk8[((2 * (sp5 - 1)) + 1)]
 							var t86 []int
 							if (lc5 == 0) {
-								var k8 int = stk6[((2 * (sp5 - 1)) + 0)]
+								var k8 int = stk8[((2 * (sp5 - 1)) + 0)]
 								var t87 int
 								if (k8 < 0) {
 									t87 = 0
@@ -1271,8 +1271,8 @@ func GenRun(k int) int {
 									}
 									t87 = t88
 								}
-								nodes82[((4 * t87) + 2)] = nn3
-								t86 = nodes82
+								nodes13[((4 * t87) + 2)] = nn3
+								t86 = nodes13
 							} else {
 								var t89 int
 								if (lc5 < 0) {
@@ -1286,22 +1286,22 @@ func GenRun(k int) int {
 									}
 									t89 = t90
 								}
-								nodes82[((4 * t89) + 3)] = nn3
-								t86 = nodes82
+								nodes13[((4 * t89) + 3)] = nn3
+								t86 = nodes13
 							}
 							t85 = t86
 						}
 						var t91 []int
 						if (sp5 < 1) {
-							t91 = stk6
+							t91 = stk8
 						} else {
-							stk6[((2 * (sp5 - 1)) + 1)] = nn3
-							t91 = stk6
+							stk8[((2 * (sp5 - 1)) + 1)] = nn3
+							t91 = stk8
 						}
-						stk24 := t91
-						stk24[((2 * sp5) + 0)] = nn3
-						stk24[((2 * sp5) + 1)] = 0
-						nodes10, stk6, i3, nn3, sp5 = t85, stk24, (i3 + 1), (nn3 + 1), (sp5 + 1)
+						stk9 := t91
+						stk9[((2 * sp5) + 0)] = nn3
+						stk9[((2 * sp5) + 1)] = 0
+						nodes12, stk8, i3, nn3, sp5 = t85, stk9, (i3 + 1), (nn3 + 1), (sp5 + 1)
 						continue
 					}
 					var c22 int = src3[i3]
@@ -1316,7 +1316,7 @@ func GenRun(k int) int {
 						if (sp5 < 1) {
 							t93 = 0
 						} else {
-							var k9 int = stk6[((2 * (sp5 - 1)) + 0)]
+							var k9 int = stk8[((2 * (sp5 - 1)) + 0)]
 							var t94 int
 							if (k9 < 0) {
 								t94 = 0
@@ -1336,7 +1336,7 @@ func GenRun(k int) int {
 								t96 = 4
 							}
 							var t97 int
-							if (nodes10[((4 * t94) + 0)] == t96) {
+							if (nodes12[((4 * t94) + 0)] == t96) {
 								t97 = ok3
 							} else {
 								t97 = 0
@@ -1361,7 +1361,7 @@ func GenRun(k int) int {
 							}
 							t98 = t99
 						}
-						var tg57 int = t98
+						var tg3 int = t98
 						var t100 int
 						if (src3[i3] == 34) {
 							var j7 int = (i3 + 1)
@@ -1425,18 +1425,18 @@ func GenRun(k int) int {
 							}
 							t100 = t102
 						}
-						var ni57 int = t100
-						nodes10[((4 * nn3) + 0)] = tg57
-						nodes10[((4 * nn3) + 1)] = (ni57 - i3)
-						nodes83 := nodes10
+						var ni3 int = t100
+						nodes12[((4 * nn3) + 0)] = tg3
+						nodes12[((4 * nn3) + 1)] = (ni3 - i3)
+						nodes14 := nodes12
 						var t103 []int
 						if (sp5 < 1) {
-							t103 = nodes83
+							t103 = nodes14
 						} else {
-							var lc6 int = stk6[((2 * (sp5 - 1)) + 1)]
+							var lc6 int = stk8[((2 * (sp5 - 1)) + 1)]
 							var t104 []int
 							if (lc6 == 0) {
-								var k10 int = stk6[((2 * (sp5 - 1)) + 0)]
+								var k10 int = stk8[((2 * (sp5 - 1)) + 0)]
 								var t105 int
 								if (k10 < 0) {
 									t105 = 0
@@ -1449,8 +1449,8 @@ func GenRun(k int) int {
 									}
 									t105 = t106
 								}
-								nodes83[((4 * t105) + 2)] = nn3
-								t104 = nodes83
+								nodes14[((4 * t105) + 2)] = nn3
+								t104 = nodes14
 							} else {
 								var t107 int
 								if (lc6 < 0) {
@@ -1464,25 +1464,25 @@ func GenRun(k int) int {
 									}
 									t107 = t108
 								}
-								nodes83[((4 * t107) + 3)] = nn3
-								t104 = nodes83
+								nodes14[((4 * t107) + 3)] = nn3
+								t104 = nodes14
 							}
 							t103 = t104
 						}
 						var t109 []int
 						if (sp5 < 1) {
-							t109 = stk6
+							t109 = stk8
 						} else {
-							stk6[((2 * (sp5 - 1)) + 1)] = nn3
-							t109 = stk6
+							stk8[((2 * (sp5 - 1)) + 1)] = nn3
+							t109 = stk8
 						}
-						nodes10, stk6, i3, nn3 = t103, t109, ni57, (nn3 + 1)
+						nodes12, stk8, i3, nn3 = t103, t109, ni3, (nn3 + 1)
 						continue
 					}
 					i3, ok3 = (i3 + 1), 0
 					continue
 				}
-				nodes11 := r82
+				nodes15 := r82
 				wl5 := make([]int, (2 * 512))
 				wl5[0] = 1
 				wl5[1] = 1
@@ -1494,99 +1494,99 @@ func GenRun(k int) int {
 				var r110 int
 				for ; ; seen3, steps3 = (seen3 + 1), (steps3 + 1) {
 					if (steps3 >= (2 * 512)) {
-						r110 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen3 * 1000), acc3))
+						r110 = ((seen3 * 1000) + acc3)
 						break
 					}
 					if (sp6 < 1) {
-						r110 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen3 * 1000), acc3))
+						r110 = ((seen3 * 1000) + acc3)
 						break
 					}
 					if (sp6 >= 512) {
-						r110 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen3 * 1000), acc3))
+						r110 = ((seen3 * 1000) + acc3)
 						break
 					}
-					var n57 int = wl6[((2 * (sp6 - 1)) + 0)]
-					var d57 int = wl6[((2 * (sp6 - 1)) + 1)]
+					var n3 int = wl6[((2 * (sp6 - 1)) + 0)]
+					var d3 int = wl6[((2 * (sp6 - 1)) + 1)]
 					var t111 int
-					if (n57 < 0) {
+					if (n3 < 0) {
 						t111 = 0
 					} else {
 						var t112 int
-						if (n57 >= 512) {
+						if (n3 >= 512) {
 							t112 = 0
 						} else {
-							t112 = n57
+							t112 = n3
 						}
 						t111 = t112
 					}
-					var sb57 int = nodes11[((4 * t111) + 3)]
+					var sb3 int = nodes15[((4 * t111) + 3)]
 					var t113 int
-					if (n57 < 0) {
+					if (n3 < 0) {
 						t113 = 0
 					} else {
 						var t114 int
-						if (n57 >= 512) {
+						if (n3 >= 512) {
 							t114 = 0
 						} else {
-							t114 = n57
+							t114 = n3
 						}
 						t113 = t114
 					}
-					var kd57 int = nodes11[((4 * t113) + 2)]
-					var s157 int = (sp6 - 1)
+					var kd3 int = nodes15[((4 * t113) + 2)]
+					var s13 int = (sp6 - 1)
 					var t115 []int
-					if (sb57 == 0) {
+					if (sb3 == 0) {
 						t115 = wl6
 					} else {
-						wl6[((2 * s157) + 0)] = sb57
-						wl6[((2 * s157) + 1)] = d57
+						wl6[((2 * s13) + 0)] = sb3
+						wl6[((2 * s13) + 1)] = d3
 						t115 = wl6
 					}
-					w157 := t115
+					w13 := t115
 					var t116 int
-					if (sb57 == 0) {
-						t116 = s157
+					if (sb3 == 0) {
+						t116 = s13
 					} else {
-						t116 = (s157 + 1)
+						t116 = (s13 + 1)
 					}
-					var s257 int = t116
+					var s23 int = t116
 					var t117 []int
-					if (kd57 == 0) {
-						t117 = w157
+					if (kd3 == 0) {
+						t117 = w13
 					} else {
-						w157[((2 * s257) + 0)] = kd57
-						w157[((2 * s257) + 1)] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(d57, 1))
-						t117 = w157
+						w13[((2 * s23) + 0)] = kd3
+						w13[((2 * s23) + 1)] = (d3 + 1)
+						t117 = w13
 					}
-					w257 := t117
+					w23 := t117
 					var t118 int
-					if (kd57 == 0) {
-						t118 = s257
+					if (kd3 == 0) {
+						t118 = s23
 					} else {
-						t118 = (s257 + 1)
+						t118 = (s23 + 1)
 					}
 					var t119 int
-					if (n57 < 0) {
+					if (n3 < 0) {
 						t119 = 0
 					} else {
 						var t120 int
-						if (n57 >= 512) {
+						if (n3 >= 512) {
 							t120 = 0
 						} else {
-							t120 = n57
+							t120 = n3
 						}
 						t119 = t120
 					}
-					wl6, sp6, acc3 = w257, t118, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(acc3, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(nodes11[((4 * t119) + 0)], d57))))
+					wl6, sp6, acc3 = w23, t118, (acc3 + (nodes15[((4 * t119) + 0)] * d3))
 					continue
 				}
-				t81 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(((nodes11[0] - 1) * 1000000), (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(r110, 10)), nodes11[1]))))
+				t81 = (((nodes15[0] - 1) * 1000000) + ((r110 * 10) + nodes15[1]))
 			} else {
 				src4 := []int{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
-				nodes12 := make([]int, (4 * 512))
-				stk7 := make([]int, (2 * 32))
-				nodes13 := nodes12
-				stk8 := stk7
+				nodes16 := make([]int, (4 * 512))
+				stk10 := make([]int, (2 * 32))
+				nodes17 := nodes16
+				stk11 := stk10
 				var i4 int = 0
 				var nn4 int = 1
 				var sp7 int = 0
@@ -1594,33 +1594,33 @@ func GenRun(k int) int {
 				var r121 []int
 				for {
 					if (i4 < 0) {
-						nodes13[0] = nn4
-						nodes13[1] = 0
-						r121 = nodes13
+						nodes17[0] = nn4
+						nodes17[1] = 0
+						r121 = nodes17
 						break
 					}
 					if (i4 >= len(src4)) {
-						nodes13[0] = nn4
+						nodes17[0] = nn4
 						var t122 int
 						if (sp7 == 0) {
 							t122 = ok4
 						} else {
 							t122 = 0
 						}
-						nodes13[1] = t122
-						r121 = nodes13
+						nodes17[1] = t122
+						r121 = nodes17
 						break
 					}
 					if (nn4 >= 512) {
-						nodes13[0] = nn4
-						nodes13[1] = 0
-						r121 = nodes13
+						nodes17[0] = nn4
+						nodes17[1] = 0
+						r121 = nodes17
 						break
 					}
 					if (sp7 >= 32) {
-						nodes13[0] = nn4
-						nodes13[1] = 0
-						r121 = nodes13
+						nodes17[0] = nn4
+						nodes17[1] = 0
+						r121 = nodes17
 						break
 					}
 					var c28 int = src4[i4]
@@ -1641,17 +1641,17 @@ func GenRun(k int) int {
 						} else {
 							t123 = 4
 						}
-						nodes13[((4 * nn4) + 0)] = t123
-						nodes13[((4 * nn4) + 1)] = 0
-						nodes92 := nodes13
+						nodes17[((4 * nn4) + 0)] = t123
+						nodes17[((4 * nn4) + 1)] = 0
+						nodes18 := nodes17
 						var t124 []int
 						if (sp7 < 1) {
-							t124 = nodes92
+							t124 = nodes18
 						} else {
-							var lc7 int = stk8[((2 * (sp7 - 1)) + 1)]
+							var lc7 int = stk11[((2 * (sp7 - 1)) + 1)]
 							var t125 []int
 							if (lc7 == 0) {
-								var k11 int = stk8[((2 * (sp7 - 1)) + 0)]
+								var k11 int = stk11[((2 * (sp7 - 1)) + 0)]
 								var t126 int
 								if (k11 < 0) {
 									t126 = 0
@@ -1664,8 +1664,8 @@ func GenRun(k int) int {
 									}
 									t126 = t127
 								}
-								nodes92[((4 * t126) + 2)] = nn4
-								t125 = nodes92
+								nodes18[((4 * t126) + 2)] = nn4
+								t125 = nodes18
 							} else {
 								var t128 int
 								if (lc7 < 0) {
@@ -1679,22 +1679,22 @@ func GenRun(k int) int {
 									}
 									t128 = t129
 								}
-								nodes92[((4 * t128) + 3)] = nn4
-								t125 = nodes92
+								nodes18[((4 * t128) + 3)] = nn4
+								t125 = nodes18
 							}
 							t124 = t125
 						}
 						var t130 []int
 						if (sp7 < 1) {
-							t130 = stk8
+							t130 = stk11
 						} else {
-							stk8[((2 * (sp7 - 1)) + 1)] = nn4
-							t130 = stk8
+							stk11[((2 * (sp7 - 1)) + 1)] = nn4
+							t130 = stk11
 						}
-						stk25 := t130
-						stk25[((2 * sp7) + 0)] = nn4
-						stk25[((2 * sp7) + 1)] = 0
-						nodes13, stk8, i4, nn4, sp7 = t124, stk25, (i4 + 1), (nn4 + 1), (sp7 + 1)
+						stk12 := t130
+						stk12[((2 * sp7) + 0)] = nn4
+						stk12[((2 * sp7) + 1)] = 0
+						nodes17, stk11, i4, nn4, sp7 = t124, stk12, (i4 + 1), (nn4 + 1), (sp7 + 1)
 						continue
 					}
 					var c31 int = src4[i4]
@@ -1709,7 +1709,7 @@ func GenRun(k int) int {
 						if (sp7 < 1) {
 							t132 = 0
 						} else {
-							var k12 int = stk8[((2 * (sp7 - 1)) + 0)]
+							var k12 int = stk11[((2 * (sp7 - 1)) + 0)]
 							var t133 int
 							if (k12 < 0) {
 								t133 = 0
@@ -1729,7 +1729,7 @@ func GenRun(k int) int {
 								t135 = 4
 							}
 							var t136 int
-							if (nodes13[((4 * t133) + 0)] == t135) {
+							if (nodes17[((4 * t133) + 0)] == t135) {
 								t136 = ok4
 							} else {
 								t136 = 0
@@ -1754,7 +1754,7 @@ func GenRun(k int) int {
 							}
 							t137 = t138
 						}
-						var tg65 int = t137
+						var tg4 int = t137
 						var t139 int
 						if (src4[i4] == 34) {
 							var j10 int = (i4 + 1)
@@ -1818,18 +1818,18 @@ func GenRun(k int) int {
 							}
 							t139 = t141
 						}
-						var ni65 int = t139
-						nodes13[((4 * nn4) + 0)] = tg65
-						nodes13[((4 * nn4) + 1)] = (ni65 - i4)
-						nodes93 := nodes13
+						var ni4 int = t139
+						nodes17[((4 * nn4) + 0)] = tg4
+						nodes17[((4 * nn4) + 1)] = (ni4 - i4)
+						nodes19 := nodes17
 						var t142 []int
 						if (sp7 < 1) {
-							t142 = nodes93
+							t142 = nodes19
 						} else {
-							var lc8 int = stk8[((2 * (sp7 - 1)) + 1)]
+							var lc8 int = stk11[((2 * (sp7 - 1)) + 1)]
 							var t143 []int
 							if (lc8 == 0) {
-								var k13 int = stk8[((2 * (sp7 - 1)) + 0)]
+								var k13 int = stk11[((2 * (sp7 - 1)) + 0)]
 								var t144 int
 								if (k13 < 0) {
 									t144 = 0
@@ -1842,8 +1842,8 @@ func GenRun(k int) int {
 									}
 									t144 = t145
 								}
-								nodes93[((4 * t144) + 2)] = nn4
-								t143 = nodes93
+								nodes19[((4 * t144) + 2)] = nn4
+								t143 = nodes19
 							} else {
 								var t146 int
 								if (lc8 < 0) {
@@ -1857,25 +1857,25 @@ func GenRun(k int) int {
 									}
 									t146 = t147
 								}
-								nodes93[((4 * t146) + 3)] = nn4
-								t143 = nodes93
+								nodes19[((4 * t146) + 3)] = nn4
+								t143 = nodes19
 							}
 							t142 = t143
 						}
 						var t148 []int
 						if (sp7 < 1) {
-							t148 = stk8
+							t148 = stk11
 						} else {
-							stk8[((2 * (sp7 - 1)) + 1)] = nn4
-							t148 = stk8
+							stk11[((2 * (sp7 - 1)) + 1)] = nn4
+							t148 = stk11
 						}
-						nodes13, stk8, i4, nn4 = t142, t148, ni65, (nn4 + 1)
+						nodes17, stk11, i4, nn4 = t142, t148, ni4, (nn4 + 1)
 						continue
 					}
 					i4, ok4 = (i4 + 1), 0
 					continue
 				}
-				nodes14 := r121
+				nodes20 := r121
 				wl7 := make([]int, (2 * 512))
 				wl7[0] = 1
 				wl7[1] = 1
@@ -1887,93 +1887,93 @@ func GenRun(k int) int {
 				var r149 int
 				for ; ; seen4, steps4 = (seen4 + 1), (steps4 + 1) {
 					if (steps4 >= (2 * 512)) {
-						r149 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen4 * 1000), acc4))
+						r149 = ((seen4 * 1000) + acc4)
 						break
 					}
 					if (sp8 < 1) {
-						r149 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen4 * 1000), acc4))
+						r149 = ((seen4 * 1000) + acc4)
 						break
 					}
 					if (sp8 >= 512) {
-						r149 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((seen4 * 1000), acc4))
+						r149 = ((seen4 * 1000) + acc4)
 						break
 					}
-					var n65 int = wl8[((2 * (sp8 - 1)) + 0)]
-					var d65 int = wl8[((2 * (sp8 - 1)) + 1)]
+					var n4 int = wl8[((2 * (sp8 - 1)) + 0)]
+					var d4 int = wl8[((2 * (sp8 - 1)) + 1)]
 					var t150 int
-					if (n65 < 0) {
+					if (n4 < 0) {
 						t150 = 0
 					} else {
 						var t151 int
-						if (n65 >= 512) {
+						if (n4 >= 512) {
 							t151 = 0
 						} else {
-							t151 = n65
+							t151 = n4
 						}
 						t150 = t151
 					}
-					var sb65 int = nodes14[((4 * t150) + 3)]
+					var sb4 int = nodes20[((4 * t150) + 3)]
 					var t152 int
-					if (n65 < 0) {
+					if (n4 < 0) {
 						t152 = 0
 					} else {
 						var t153 int
-						if (n65 >= 512) {
+						if (n4 >= 512) {
 							t153 = 0
 						} else {
-							t153 = n65
+							t153 = n4
 						}
 						t152 = t153
 					}
-					var kd65 int = nodes14[((4 * t152) + 2)]
-					var s165 int = (sp8 - 1)
+					var kd4 int = nodes20[((4 * t152) + 2)]
+					var s14 int = (sp8 - 1)
 					var t154 []int
-					if (sb65 == 0) {
+					if (sb4 == 0) {
 						t154 = wl8
 					} else {
-						wl8[((2 * s165) + 0)] = sb65
-						wl8[((2 * s165) + 1)] = d65
+						wl8[((2 * s14) + 0)] = sb4
+						wl8[((2 * s14) + 1)] = d4
 						t154 = wl8
 					}
-					w165 := t154
+					w14 := t154
 					var t155 int
-					if (sb65 == 0) {
-						t155 = s165
+					if (sb4 == 0) {
+						t155 = s14
 					} else {
-						t155 = (s165 + 1)
+						t155 = (s14 + 1)
 					}
-					var s265 int = t155
+					var s24 int = t155
 					var t156 []int
-					if (kd65 == 0) {
-						t156 = w165
+					if (kd4 == 0) {
+						t156 = w14
 					} else {
-						w165[((2 * s265) + 0)] = kd65
-						w165[((2 * s265) + 1)] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(d65, 1))
-						t156 = w165
+						w14[((2 * s24) + 0)] = kd4
+						w14[((2 * s24) + 1)] = (d4 + 1)
+						t156 = w14
 					}
-					w265 := t156
+					w24 := t156
 					var t157 int
-					if (kd65 == 0) {
-						t157 = s265
+					if (kd4 == 0) {
+						t157 = s24
 					} else {
-						t157 = (s265 + 1)
+						t157 = (s24 + 1)
 					}
 					var t158 int
-					if (n65 < 0) {
+					if (n4 < 0) {
 						t158 = 0
 					} else {
 						var t159 int
-						if (n65 >= 512) {
+						if (n4 >= 512) {
 							t159 = 0
 						} else {
-							t159 = n65
+							t159 = n4
 						}
 						t158 = t159
 					}
-					wl8, sp8, acc4 = w265, t157, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(acc4, (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(nodes14[((4 * t158) + 0)], d65))))
+					wl8, sp8, acc4 = w24, t157, (acc4 + (nodes20[((4 * t158) + 0)] * d4))
 					continue
 				}
-				t81 = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(((nodes14[0] - 1) * 1000000), (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(r149, 10)), nodes14[1]))))
+				t81 = (((nodes20[0] - 1) * 1000000) + ((r149 * 10) + nodes20[1]))
 			}
 			t41 = t81
 		}

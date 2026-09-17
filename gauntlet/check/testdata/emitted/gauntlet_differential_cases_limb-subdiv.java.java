@@ -48,14 +48,14 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			if ((i4 < 0)) {
 				break;
 			}
-			final long cur1717 = (Math.addExact((r3 * 16777216), ((i4 < 0) ? 0 : ((i4 >= a2.length) ? 0 : a2[(int) i4]))));
+			final long cur1717 = ((r3 * 16777216) + ((i4 < 0) ? 0 : ((i4 >= a2.length) ? 0 : a2[(int) i4])));
 			o4[(int) i4] = (cur1717 / 7);
 			r3 = (cur1717 % 7);
 			continue;
 		}
 		final long[] q = o4;
 		final long i5 = (Math.addExact(k, 1));
-		return (Math.addExact(((k < 0) ? 0 : ((k >= q.length) ? 0 : q[(int) k])), (Math.multiplyExact(((i5 < 0) ? 0 : ((i5 >= q.length) ? 0 : q[(int) i5])), 100000000))));
+		return (((k < 0) ? 0 : ((k >= q.length) ? 0 : q[(int) k])) + (((i5 < 0) ? 0 : ((i5 >= q.length) ? 0 : q[(int) i5])) * 100000000));
 	}
 
 }

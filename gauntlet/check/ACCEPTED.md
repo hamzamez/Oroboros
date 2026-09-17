@@ -142,3 +142,51 @@ The initial baseline.
 - compiler output changed — `examples/io/freq.oro go`
 - compiler output changed — `examples/io/freq.oro java`
 - compiler output changed — `examples/io/freq.oro js`
+
+## 2026-09-16 — on 87d5d37, with uncommitted changes
+
+**Reason:** Array smashing (smashfd-2026-09-16): a table's contents are an abstract cell, and the copy-closed joint invariant and bounded-increment theorem narrow it. Limb library: a limb is proven non-negative, so the carry split is a shift and a mask (2.2x faster, identical limbs). freq/tally: value clamps deleted, output identical on go/js/java and against tally's hand-written oracle. tree: 525/525 operations proven, so its checked additions become plain ones. Other diffs are fresh-name renumbering only.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+29 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- compiler output changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro go`
+- compiler output changed — `examples/big/limbs.oro go`
+- emitted text changed — `examples/big/limbs.oro java`
+- compiler output changed — `examples/big/limbs.oro java`
+- compiler output changed — `examples/big/limbs.oro js`
+- emitted text changed — `examples/big/limbs.oro windows`
+- compiler output changed — `examples/big/limbs.oro windows`
+- compiler output changed — `examples/big/render.oro windows`
+- emitted text changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`
+- emitted text changed — `examples/json/tree.oro go`
+- compiler output changed — `examples/json/tree.oro go`
+- compiler output changed — `examples/kara/core.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-09-17 — on 87d5d37, with uncommitted changes
+
+**Reason:** tree.oro builds without -checked: all 525 operations proven by array smashing, so no checked arithmetic was being selected; the diff is fresh-name renumbering only.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+1 change(s):
+
+- emitted text changed — `examples/json/tree.oro go`

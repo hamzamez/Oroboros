@@ -105,10 +105,7 @@ Lend15:
 Lelse17:
         mov r10, qword ptr [rsp+56]
         mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov rax, rdx
+        and rax, 16777215
         mov qword ptr [rsp+72], rax
         mov r10, qword ptr [rsp+72]
         mov qword ptr [rsp+64], r10

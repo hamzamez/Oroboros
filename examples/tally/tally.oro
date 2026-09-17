@@ -56,7 +56,9 @@
 (def nmax   (fn () 16777217))
 
 (def cli  (fn (n i) (if (< i 0) 0 (if (>= i n) 0 i))))
-(def pat  (fn (t n i) (cli n (t (cli n i)))))
+; A permutation entry: the index is clamped, the value is not — the compiler
+; derives that `ord` holds indices below n (array smashing, smashfd-2026-09-16).
+(def pat  (fn (t n i) (t (cli n i))))
 (def mmin (fn (a b) (if (< a b) a b)))
 
 ; --- the sort: freq.oro's, over a permutation -------------------------------
@@ -130,9 +132,11 @@
 
 ; A distinct value and how often it occurred: a PAIR, (position of its first
 ; occurrence in `ord`, count). freq.oro's `dists`, with its two lessons kept --
-; the capacity guard stops a new group and not the counting, and a count read
-; back inside its own `build` is clamped.
-(def dcount (fn (dt d) (cli (+ (nmax) 1) ((dt d) 1))))
+; the capacity guard stops a new group and not the counting. A count read back
+; inside its own `build` is no longer clamped: this loop runs at most n times
+; and adds 1 to one slot per trip, so a count is at most 1 + n, which the
+; compiler proves (the bounded-increment theorem, smashfd-2026-09-16).
+(def dcount (fn (dt d) ((dt d) 1)))
 
 (def dists (fn (cmp cs ord n nd)
   (build nd (fn (dt)
@@ -148,9 +152,9 @@
         (again (set dt (cli nd d) (tuple k 1)) (+ k 1) (+ d 1))
       else
         (let (cli nd (- d 1)) (fn (s)
-          (again (set (dt s) 1 (+ (cli (+ (nmax) 1) ((dt s) 1)) 1)) (+ k 1) d))))))))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))))
 
-(def dvalue (fn (cs ord n dt d) (at cs ord n (cli (+ (nmax) 1) ((dt d) 0)))))
+(def dvalue (fn (cs ord n dt d) (at cs ord n ((dt d) 0))))
 
 ; The report is TEXT, built by concatenation -- render.oro's free monoid, and
 ; the host's own strings throughout. `show` is the host's integer-to-text.

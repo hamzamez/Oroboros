@@ -222,244 +222,218 @@ func GenMain() string {
 								}
 								t16 = t17
 							}
-							var i22 int = a3[t16]
+							var u int = a3[t16]
 							var t18 int
-							if (i22 < 0) {
+							if (i3 < 0) {
 								t18 = 0
 							} else {
 								var t19 int
-								if (i22 >= nw) {
+								if (i3 >= nw) {
 									t19 = 0
 								} else {
-									t19 = i22
+									t19 = i3
 								}
 								t18 = t19
 							}
-							var u int = t18
-							var t20 int
-							if (i3 < 0) {
-								t20 = 0
-							} else {
-								var t21 int
-								if (i3 >= nw) {
-									t21 = 0
-								} else {
-									t21 = i3
-								}
-								t20 = t21
-							}
-							var i23 int = a3[t20]
-							var t22 int
-							if (i23 < 0) {
-								t22 = 0
-							} else {
-								var t23 int
-								if (i23 >= nw) {
-									t23 = 0
-								} else {
-									t23 = i23
-								}
-								t22 = t23
-							}
-							var v int = t22
+							var v int = a3[t18]
 							var k22 int = 0
-							var r24 int
+							var r20 int
 							for ; ; k22 = (k22 + 1) {
 								var d9 int = (sp3[((2 * u) + 1)] - sp3[(2 * u)])
-								var t25 int
+								var t21 int
 								if (d9 < 0) {
+									t21 = 0
+								} else {
+									var t22 int
+									if (d9 >= 65536) {
+										t22 = 0
+									} else {
+										t22 = d9
+									}
+									t21 = t22
+								}
+								if (k22 >= t21) {
+									var d92 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
+									var t23 int
+									if (d92 < 0) {
+										t23 = 0
+									} else {
+										var t24 int
+										if (d92 >= 65536) {
+											t24 = 0
+										} else {
+											t24 = d92
+										}
+										t23 = t24
+									}
+									if (k22 >= t23) {
+										r20 = 0
+										break
+									}
+									r20 = -1
+									break
+								}
+								var d93 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
+								var t25 int
+								if (d93 < 0) {
 									t25 = 0
 								} else {
 									var t26 int
-									if (d9 >= 65536) {
+									if (d93 >= 65536) {
 										t26 = 0
 									} else {
-										t26 = d9
+										t26 = d93
 									}
 									t25 = t26
 								}
 								if (k22 >= t25) {
-									var d92 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
-									var t27 int
-									if (d92 < 0) {
-										t27 = 0
-									} else {
-										var t28 int
-										if (d92 >= 65536) {
-											t28 = 0
-										} else {
-											t28 = d92
-										}
-										t27 = t28
-									}
-									if (k22 >= t27) {
-										r24 = 0
-										break
-									}
-									r24 = -1
+									r20 = 1
 									break
 								}
-								var d93 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
+								var i22 int = (sp3[(2 * u)] + k22)
+								var t27 int
+								if (i22 < 0) {
+									t27 = 0
+								} else {
+									var t28 int
+									if (i22 >= len(src)) {
+										t28 = 0
+									} else {
+										t28 = i22
+									}
+									t27 = t28
+								}
+								var c5 int = int(src[t27])
 								var t29 int
-								if (d93 < 0) {
-									t29 = 0
-								} else {
-									var t30 int
-									if (d93 >= 65536) {
-										t30 = 0
-									} else {
-										t30 = d93
-									}
-									t29 = t30
-								}
-								if (k22 >= t29) {
-									r24 = 1
-									break
-								}
-								var i24 int = (sp3[(2 * u)] + k22)
-								var t31 int
-								if (i24 < 0) {
-									t31 = 0
-								} else {
-									var t32 int
-									if (i24 >= len(src)) {
-										t32 = 0
-									} else {
-										t32 = i24
-									}
-									t31 = t32
-								}
-								var c5 int = int(src[t31])
-								var t33 int
 								if ((c5 >= 65) && (c5 <= 90)) {
-									t33 = (c5 + 32)
+									t29 = (c5 + 32)
 								} else {
-									t33 = c5
+									t29 = c5
 								}
-								var i25 int = (sp3[(2 * v)] + k22)
-								var t34 int
-								if (i25 < 0) {
-									t34 = 0
+								var i23 int = (sp3[(2 * v)] + k22)
+								var t30 int
+								if (i23 < 0) {
+									t30 = 0
 								} else {
-									var t35 int
-									if (i25 >= len(src)) {
-										t35 = 0
+									var t31 int
+									if (i23 >= len(src)) {
+										t31 = 0
 									} else {
-										t35 = i25
+										t31 = i23
 									}
-									t34 = t35
+									t30 = t31
 								}
-								var c6 int = int(src[t34])
-								var t36 int
+								var c6 int = int(src[t30])
+								var t32 int
 								if ((c6 >= 65) && (c6 <= 90)) {
-									t36 = (c6 + 32)
+									t32 = (c6 + 32)
 								} else {
-									t36 = c6
+									t32 = c6
 								}
-								if (t33 == t36) {
+								if (t29 == t32) {
 									continue
 								}
-								var i26 int = (sp3[(2 * u)] + k22)
-								var t37 int
-								if (i26 < 0) {
-									t37 = 0
+								var i24 int = (sp3[(2 * u)] + k22)
+								var t33 int
+								if (i24 < 0) {
+									t33 = 0
 								} else {
-									var t38 int
-									if (i26 >= len(src)) {
-										t38 = 0
+									var t34 int
+									if (i24 >= len(src)) {
+										t34 = 0
 									} else {
-										t38 = i26
+										t34 = i24
 									}
-									t37 = t38
+									t33 = t34
 								}
-								var c7 int = int(src[t37])
-								var t39 int
+								var c7 int = int(src[t33])
+								var t35 int
 								if ((c7 >= 65) && (c7 <= 90)) {
-									t39 = (c7 + 32)
+									t35 = (c7 + 32)
 								} else {
-									t39 = c7
+									t35 = c7
 								}
-								var i27 int = (sp3[(2 * v)] + k22)
-								var t40 int
-								if (i27 < 0) {
-									t40 = 0
+								var i25 int = (sp3[(2 * v)] + k22)
+								var t36 int
+								if (i25 < 0) {
+									t36 = 0
 								} else {
-									var t41 int
-									if (i27 >= len(src)) {
-										t41 = 0
+									var t37 int
+									if (i25 >= len(src)) {
+										t37 = 0
 									} else {
-										t41 = i27
+										t37 = i25
 									}
-									t40 = t41
+									t36 = t37
 								}
-								var c8 int = int(src[t40])
-								var t42 int
+								var c8 int = int(src[t36])
+								var t38 int
 								if ((c8 >= 65) && (c8 <= 90)) {
-									t42 = (c8 + 32)
+									t38 = (c8 + 32)
 								} else {
-									t42 = c8
+									t38 = c8
 								}
-								if (t39 < t42) {
-									r24 = -1
+								if (t35 < t38) {
+									r20 = -1
 									break
 								}
-								r24 = 1
+								r20 = 1
 								break
 							}
-							if (((0 <= u) && ((u < nw) && ((0 <= v) && (v < nw)))) && (r24 < 0)) {
-								var t43 int
+							if (((0 <= u) && ((u < nw) && ((0 <= v) && (v < nw)))) && (r20 < 0)) {
+								var t39 int
 								if (k2 < 0) {
-									t43 = 0
+									t39 = 0
 								} else {
-									var t44 int
+									var t40 int
 									if (k2 >= nw) {
-										t44 = 0
+										t40 = 0
 									} else {
-										t44 = k2
+										t40 = k2
 									}
-									t43 = t44
+									t39 = t40
 								}
-								var t45 int
+								var t41 int
 								if (j3 < 0) {
-									t45 = 0
+									t41 = 0
 								} else {
-									var t46 int
+									var t42 int
 									if (j3 >= nw) {
-										t46 = 0
+										t42 = 0
 									} else {
-										t46 = j3
+										t42 = j3
 									}
-									t45 = t46
+									t41 = t42
 								}
-								b33[t43] = a3[t45]
+								b33[t39] = a3[t41]
 								j3, k2 = (j3 + 1), (k2 + 1)
 								continue
 							}
-							var t47 int
+							var t43 int
 							if (k2 < 0) {
-								t47 = 0
+								t43 = 0
 							} else {
-								var t48 int
+								var t44 int
 								if (k2 >= nw) {
-									t48 = 0
+									t44 = 0
 								} else {
-									t48 = k2
+									t44 = k2
 								}
-								t47 = t48
+								t43 = t44
 							}
-							var t49 int
+							var t45 int
 							if (i3 < 0) {
-								t49 = 0
+								t45 = 0
 							} else {
-								var t50 int
+								var t46 int
 								if (i3 >= nw) {
-									t50 = 0
+									t46 = 0
 								} else {
-									t50 = i3
+									t46 = i3
 								}
-								t49 = t50
+								t45 = t46
 							}
-							b33[t47] = a3[t49]
+							b33[t43] = a3[t45]
 							i3, k2 = (i3 + 1), (k2 + 1)
 							continue
 						}
@@ -479,204 +453,178 @@ func GenMain() string {
 					if (n2 >= 32768) {
 						break
 					}
-					var t51 int
+					var t47 int
 					if (k3 < 0) {
-						t51 = 0
+						t47 = 0
 					} else {
-						var t52 int
+						var t48 int
 						if (k3 >= nw) {
-							t52 = 0
+							t48 = 0
 						} else {
-							t52 = k3
+							t48 = k3
 						}
-						t51 = t52
+						t47 = t48
 					}
-					var i4 int = ord[t51]
-					var t53 int
+					var u2 int = ord[t47]
+					var i4 int = (k3 - 1)
+					var t49 int
 					if (i4 < 0) {
-						t53 = 0
+						t49 = 0
 					} else {
-						var t54 int
+						var t50 int
 						if (i4 >= nw) {
-							t54 = 0
+							t50 = 0
 						} else {
-							t54 = i4
+							t50 = i4
 						}
-						t53 = t54
+						t49 = t50
 					}
-					var u2 int = t53
-					var i5 int = (k3 - 1)
-					var t55 int
-					if (i5 < 0) {
-						t55 = 0
-					} else {
-						var t56 int
-						if (i5 >= nw) {
-							t56 = 0
-						} else {
-							t56 = i5
-						}
-						t55 = t56
-					}
-					var i28 int = ord[t55]
-					var t57 int
-					if (i28 < 0) {
-						t57 = 0
-					} else {
-						var t58 int
-						if (i28 >= nw) {
-							t58 = 0
-						} else {
-							t58 = i28
-						}
-						t57 = t58
-					}
-					var v2 int = t57
+					var v2 int = ord[t49]
 					var k23 int = 0
-					var r59 int
+					var r51 int
 					for ; ; k23 = (k23 + 1) {
 						var d94 int = (sp3[((2 * u2) + 1)] - sp3[(2 * u2)])
-						var t60 int
+						var t52 int
 						if (d94 < 0) {
-							t60 = 0
+							t52 = 0
 						} else {
-							var t61 int
+							var t53 int
 							if (d94 >= 65536) {
-								t61 = 0
+								t53 = 0
 							} else {
-								t61 = d94
+								t53 = d94
 							}
-							t60 = t61
+							t52 = t53
 						}
-						if (k23 >= t60) {
+						if (k23 >= t52) {
 							var d95 int = (sp3[((2 * v2) + 1)] - sp3[(2 * v2)])
-							var t62 int
+							var t54 int
 							if (d95 < 0) {
-								t62 = 0
+								t54 = 0
 							} else {
-								var t63 int
+								var t55 int
 								if (d95 >= 65536) {
-									t63 = 0
+									t55 = 0
 								} else {
-									t63 = d95
+									t55 = d95
 								}
-								t62 = t63
+								t54 = t55
 							}
-							if (k23 >= t62) {
-								r59 = 0
+							if (k23 >= t54) {
+								r51 = 0
 								break
 							}
-							r59 = -1
+							r51 = -1
 							break
 						}
 						var d96 int = (sp3[((2 * v2) + 1)] - sp3[(2 * v2)])
-						var t64 int
+						var t56 int
 						if (d96 < 0) {
+							t56 = 0
+						} else {
+							var t57 int
+							if (d96 >= 65536) {
+								t57 = 0
+							} else {
+								t57 = d96
+							}
+							t56 = t57
+						}
+						if (k23 >= t56) {
+							r51 = 1
+							break
+						}
+						var i5 int = (sp3[(2 * u2)] + k23)
+						var t58 int
+						if (i5 < 0) {
+							t58 = 0
+						} else {
+							var t59 int
+							if (i5 >= len(src)) {
+								t59 = 0
+							} else {
+								t59 = i5
+							}
+							t58 = t59
+						}
+						var c9 int = int(src[t58])
+						var t60 int
+						if ((c9 >= 65) && (c9 <= 90)) {
+							t60 = (c9 + 32)
+						} else {
+							t60 = c9
+						}
+						var i6 int = (sp3[(2 * v2)] + k23)
+						var t61 int
+						if (i6 < 0) {
+							t61 = 0
+						} else {
+							var t62 int
+							if (i6 >= len(src)) {
+								t62 = 0
+							} else {
+								t62 = i6
+							}
+							t61 = t62
+						}
+						var c10 int = int(src[t61])
+						var t63 int
+						if ((c10 >= 65) && (c10 <= 90)) {
+							t63 = (c10 + 32)
+						} else {
+							t63 = c10
+						}
+						if (t60 == t63) {
+							continue
+						}
+						var i7 int = (sp3[(2 * u2)] + k23)
+						var t64 int
+						if (i7 < 0) {
 							t64 = 0
 						} else {
 							var t65 int
-							if (d96 >= 65536) {
+							if (i7 >= len(src)) {
 								t65 = 0
 							} else {
-								t65 = d96
+								t65 = i7
 							}
 							t64 = t65
 						}
-						if (k23 >= t64) {
-							r59 = 1
-							break
-						}
-						var i6 int = (sp3[(2 * u2)] + k23)
+						var c11 int = int(src[t64])
 						var t66 int
-						if (i6 < 0) {
-							t66 = 0
-						} else {
-							var t67 int
-							if (i6 >= len(src)) {
-								t67 = 0
-							} else {
-								t67 = i6
-							}
-							t66 = t67
-						}
-						var c9 int = int(src[t66])
-						var t68 int
-						if ((c9 >= 65) && (c9 <= 90)) {
-							t68 = (c9 + 32)
-						} else {
-							t68 = c9
-						}
-						var i7 int = (sp3[(2 * v2)] + k23)
-						var t69 int
-						if (i7 < 0) {
-							t69 = 0
-						} else {
-							var t70 int
-							if (i7 >= len(src)) {
-								t70 = 0
-							} else {
-								t70 = i7
-							}
-							t69 = t70
-						}
-						var c10 int = int(src[t69])
-						var t71 int
-						if ((c10 >= 65) && (c10 <= 90)) {
-							t71 = (c10 + 32)
-						} else {
-							t71 = c10
-						}
-						if (t68 == t71) {
-							continue
-						}
-						var i8 int = (sp3[(2 * u2)] + k23)
-						var t72 int
-						if (i8 < 0) {
-							t72 = 0
-						} else {
-							var t73 int
-							if (i8 >= len(src)) {
-								t73 = 0
-							} else {
-								t73 = i8
-							}
-							t72 = t73
-						}
-						var c11 int = int(src[t72])
-						var t74 int
 						if ((c11 >= 65) && (c11 <= 90)) {
-							t74 = (c11 + 32)
+							t66 = (c11 + 32)
 						} else {
-							t74 = c11
+							t66 = c11
 						}
-						var i9 int = (sp3[(2 * v2)] + k23)
-						var t75 int
-						if (i9 < 0) {
-							t75 = 0
+						var i8 int = (sp3[(2 * v2)] + k23)
+						var t67 int
+						if (i8 < 0) {
+							t67 = 0
 						} else {
-							var t76 int
-							if (i9 >= len(src)) {
-								t76 = 0
+							var t68 int
+							if (i8 >= len(src)) {
+								t68 = 0
 							} else {
-								t76 = i9
+								t68 = i8
 							}
-							t75 = t76
+							t67 = t68
 						}
-						var c12 int = int(src[t75])
-						var t77 int
+						var c12 int = int(src[t67])
+						var t69 int
 						if ((c12 >= 65) && (c12 <= 90)) {
-							t77 = (c12 + 32)
+							t69 = (c12 + 32)
 						} else {
-							t77 = c12
+							t69 = c12
 						}
-						if (t74 < t77) {
-							r59 = -1
+						if (t66 < t69) {
+							r51 = -1
 							break
 						}
-						r59 = 1
+						r51 = 1
 						break
 					}
-					if ((k3 == 0) || (!(r59 == 0))) {
+					if ((k3 == 0) || (!(r51 == 0))) {
 						n2, k3 = (n2 + 1), (k3 + 1)
 						continue
 					}
@@ -695,486 +643,408 @@ func GenMain() string {
 					if (nd < 1) {
 						break
 					}
-					var t78 int
+					var t70 int
 					if (k4 < 0) {
-						t78 = 0
+						t70 = 0
 					} else {
-						var t79 int
+						var t71 int
 						if (k4 >= nw) {
-							t79 = 0
+							t71 = 0
 						} else {
-							t79 = k4
+							t71 = k4
 						}
-						t78 = t79
+						t70 = t71
 					}
-					var i10 int = ord[t78]
-					var t80 int
-					if (i10 < 0) {
-						t80 = 0
+					var u3 int = ord[t70]
+					var i9 int = (k4 - 1)
+					var t72 int
+					if (i9 < 0) {
+						t72 = 0
 					} else {
-						var t81 int
-						if (i10 >= nw) {
-							t81 = 0
+						var t73 int
+						if (i9 >= nw) {
+							t73 = 0
 						} else {
-							t81 = i10
+							t73 = i9
 						}
-						t80 = t81
+						t72 = t73
 					}
-					var u3 int = t80
-					var i11 int = (k4 - 1)
-					var t82 int
-					if (i11 < 0) {
-						t82 = 0
-					} else {
-						var t83 int
-						if (i11 >= nw) {
-							t83 = 0
-						} else {
-							t83 = i11
-						}
-						t82 = t83
-					}
-					var i29 int = ord[t82]
-					var t84 int
-					if (i29 < 0) {
-						t84 = 0
-					} else {
-						var t85 int
-						if (i29 >= nw) {
-							t85 = 0
-						} else {
-							t85 = i29
-						}
-						t84 = t85
-					}
-					var v3 int = t84
+					var v3 int = ord[t72]
 					var k24 int = 0
-					var r86 int
+					var r74 int
 					for ; ; k24 = (k24 + 1) {
 						var d10 int = (sp3[((2 * u3) + 1)] - sp3[(2 * u3)])
-						var t87 int
+						var t75 int
 						if (d10 < 0) {
-							t87 = 0
+							t75 = 0
 						} else {
-							var t88 int
+							var t76 int
 							if (d10 >= 65536) {
-								t88 = 0
+								t76 = 0
 							} else {
-								t88 = d10
+								t76 = d10
 							}
-							t87 = t88
+							t75 = t76
 						}
-						if (k24 >= t87) {
+						if (k24 >= t75) {
 							var d102 int = (sp3[((2 * v3) + 1)] - sp3[(2 * v3)])
-							var t89 int
+							var t77 int
 							if (d102 < 0) {
-								t89 = 0
+								t77 = 0
 							} else {
-								var t90 int
+								var t78 int
 								if (d102 >= 65536) {
-									t90 = 0
+									t78 = 0
 								} else {
-									t90 = d102
+									t78 = d102
 								}
-								t89 = t90
+								t77 = t78
 							}
-							if (k24 >= t89) {
-								r86 = 0
+							if (k24 >= t77) {
+								r74 = 0
 								break
 							}
-							r86 = -1
+							r74 = -1
 							break
 						}
 						var d103 int = (sp3[((2 * v3) + 1)] - sp3[(2 * v3)])
-						var t91 int
+						var t79 int
 						if (d103 < 0) {
-							t91 = 0
+							t79 = 0
 						} else {
-							var t92 int
+							var t80 int
 							if (d103 >= 65536) {
-								t92 = 0
+								t80 = 0
 							} else {
-								t92 = d103
+								t80 = d103
 							}
-							t91 = t92
+							t79 = t80
 						}
-						if (k24 >= t91) {
-							r86 = 1
+						if (k24 >= t79) {
+							r74 = 1
 							break
 						}
-						var i12 int = (sp3[(2 * u3)] + k24)
-						var t93 int
-						if (i12 < 0) {
-							t93 = 0
+						var i10 int = (sp3[(2 * u3)] + k24)
+						var t81 int
+						if (i10 < 0) {
+							t81 = 0
 						} else {
-							var t94 int
-							if (i12 >= len(src)) {
-								t94 = 0
+							var t82 int
+							if (i10 >= len(src)) {
+								t82 = 0
 							} else {
-								t94 = i12
+								t82 = i10
 							}
-							t93 = t94
+							t81 = t82
 						}
-						var c13 int = int(src[t93])
-						var t95 int
+						var c13 int = int(src[t81])
+						var t83 int
 						if ((c13 >= 65) && (c13 <= 90)) {
-							t95 = (c13 + 32)
+							t83 = (c13 + 32)
 						} else {
-							t95 = c13
+							t83 = c13
 						}
-						var i13 int = (sp3[(2 * v3)] + k24)
-						var t96 int
-						if (i13 < 0) {
-							t96 = 0
+						var i11 int = (sp3[(2 * v3)] + k24)
+						var t84 int
+						if (i11 < 0) {
+							t84 = 0
 						} else {
-							var t97 int
-							if (i13 >= len(src)) {
-								t97 = 0
+							var t85 int
+							if (i11 >= len(src)) {
+								t85 = 0
 							} else {
-								t97 = i13
+								t85 = i11
 							}
-							t96 = t97
+							t84 = t85
 						}
-						var c14 int = int(src[t96])
-						var t98 int
+						var c14 int = int(src[t84])
+						var t86 int
 						if ((c14 >= 65) && (c14 <= 90)) {
-							t98 = (c14 + 32)
+							t86 = (c14 + 32)
 						} else {
-							t98 = c14
+							t86 = c14
 						}
-						if (t95 == t98) {
+						if (t83 == t86) {
 							continue
 						}
-						var i14 int = (sp3[(2 * u3)] + k24)
-						var t99 int
-						if (i14 < 0) {
-							t99 = 0
+						var i12 int = (sp3[(2 * u3)] + k24)
+						var t87 int
+						if (i12 < 0) {
+							t87 = 0
 						} else {
-							var t100 int
-							if (i14 >= len(src)) {
-								t100 = 0
+							var t88 int
+							if (i12 >= len(src)) {
+								t88 = 0
 							} else {
-								t100 = i14
+								t88 = i12
 							}
-							t99 = t100
+							t87 = t88
 						}
-						var c15 int = int(src[t99])
-						var t101 int
+						var c15 int = int(src[t87])
+						var t89 int
 						if ((c15 >= 65) && (c15 <= 90)) {
-							t101 = (c15 + 32)
+							t89 = (c15 + 32)
 						} else {
-							t101 = c15
+							t89 = c15
 						}
-						var i15 int = (sp3[(2 * v3)] + k24)
-						var t102 int
-						if (i15 < 0) {
-							t102 = 0
+						var i13 int = (sp3[(2 * v3)] + k24)
+						var t90 int
+						if (i13 < 0) {
+							t90 = 0
 						} else {
-							var t103 int
-							if (i15 >= len(src)) {
-								t103 = 0
+							var t91 int
+							if (i13 >= len(src)) {
+								t91 = 0
 							} else {
-								t103 = i15
+								t91 = i13
 							}
-							t102 = t103
+							t90 = t91
 						}
-						var c16 int = int(src[t102])
-						var t104 int
+						var c16 int = int(src[t90])
+						var t92 int
 						if ((c16 >= 65) && (c16 <= 90)) {
-							t104 = (c16 + 32)
+							t92 = (c16 + 32)
 						} else {
-							t104 = c16
+							t92 = c16
 						}
-						if (t101 < t104) {
-							r86 = -1
+						if (t89 < t92) {
+							r74 = -1
 							break
 						}
-						r86 = 1
+						r74 = 1
 						break
 					}
-					if (((k4 == 0) || (!(r86 == 0))) && (d97 >= nd)) {
+					if (((k4 == 0) || (!(r74 == 0))) && (d97 >= nd)) {
 						break
 					}
-					var t105 int
+					var t93 int
 					if (k4 < 0) {
-						t105 = 0
+						t93 = 0
 					} else {
-						var t106 int
+						var t94 int
 						if (k4 >= nw) {
-							t106 = 0
+							t94 = 0
 						} else {
-							t106 = k4
+							t94 = k4
 						}
-						t105 = t106
+						t93 = t94
 					}
-					var i16 int = ord[t105]
-					var t107 int
-					if (i16 < 0) {
-						t107 = 0
+					var u4 int = ord[t93]
+					var i14 int = (k4 - 1)
+					var t95 int
+					if (i14 < 0) {
+						t95 = 0
 					} else {
-						var t108 int
-						if (i16 >= nw) {
-							t108 = 0
+						var t96 int
+						if (i14 >= nw) {
+							t96 = 0
 						} else {
-							t108 = i16
+							t96 = i14
 						}
-						t107 = t108
+						t95 = t96
 					}
-					var u4 int = t107
-					var i17 int = (k4 - 1)
-					var t109 int
-					if (i17 < 0) {
-						t109 = 0
-					} else {
-						var t110 int
-						if (i17 >= nw) {
-							t110 = 0
-						} else {
-							t110 = i17
-						}
-						t109 = t110
-					}
-					var i210 int = ord[t109]
-					var t111 int
-					if (i210 < 0) {
-						t111 = 0
-					} else {
-						var t112 int
-						if (i210 >= nw) {
-							t112 = 0
-						} else {
-							t112 = i210
-						}
-						t111 = t112
-					}
-					var v4 int = t111
+					var v4 int = ord[t95]
 					var k25 int = 0
-					var r113 int
+					var r97 int
 					for ; ; k25 = (k25 + 1) {
 						var d104 int = (sp3[((2 * u4) + 1)] - sp3[(2 * u4)])
-						var t114 int
+						var t98 int
 						if (d104 < 0) {
-							t114 = 0
+							t98 = 0
 						} else {
-							var t115 int
+							var t99 int
 							if (d104 >= 65536) {
-								t115 = 0
+								t99 = 0
 							} else {
-								t115 = d104
+								t99 = d104
 							}
-							t114 = t115
+							t98 = t99
 						}
-						if (k25 >= t114) {
+						if (k25 >= t98) {
 							var d105 int = (sp3[((2 * v4) + 1)] - sp3[(2 * v4)])
-							var t116 int
+							var t100 int
 							if (d105 < 0) {
-								t116 = 0
+								t100 = 0
 							} else {
-								var t117 int
+								var t101 int
 								if (d105 >= 65536) {
-									t117 = 0
+									t101 = 0
 								} else {
-									t117 = d105
+									t101 = d105
 								}
-								t116 = t117
+								t100 = t101
 							}
-							if (k25 >= t116) {
-								r113 = 0
+							if (k25 >= t100) {
+								r97 = 0
 								break
 							}
-							r113 = -1
+							r97 = -1
 							break
 						}
 						var d106 int = (sp3[((2 * v4) + 1)] - sp3[(2 * v4)])
-						var t118 int
+						var t102 int
 						if (d106 < 0) {
+							t102 = 0
+						} else {
+							var t103 int
+							if (d106 >= 65536) {
+								t103 = 0
+							} else {
+								t103 = d106
+							}
+							t102 = t103
+						}
+						if (k25 >= t102) {
+							r97 = 1
+							break
+						}
+						var i15 int = (sp3[(2 * u4)] + k25)
+						var t104 int
+						if (i15 < 0) {
+							t104 = 0
+						} else {
+							var t105 int
+							if (i15 >= len(src)) {
+								t105 = 0
+							} else {
+								t105 = i15
+							}
+							t104 = t105
+						}
+						var c17 int = int(src[t104])
+						var t106 int
+						if ((c17 >= 65) && (c17 <= 90)) {
+							t106 = (c17 + 32)
+						} else {
+							t106 = c17
+						}
+						var i16 int = (sp3[(2 * v4)] + k25)
+						var t107 int
+						if (i16 < 0) {
+							t107 = 0
+						} else {
+							var t108 int
+							if (i16 >= len(src)) {
+								t108 = 0
+							} else {
+								t108 = i16
+							}
+							t107 = t108
+						}
+						var c18 int = int(src[t107])
+						var t109 int
+						if ((c18 >= 65) && (c18 <= 90)) {
+							t109 = (c18 + 32)
+						} else {
+							t109 = c18
+						}
+						if (t106 == t109) {
+							continue
+						}
+						var i17 int = (sp3[(2 * u4)] + k25)
+						var t110 int
+						if (i17 < 0) {
+							t110 = 0
+						} else {
+							var t111 int
+							if (i17 >= len(src)) {
+								t111 = 0
+							} else {
+								t111 = i17
+							}
+							t110 = t111
+						}
+						var c19 int = int(src[t110])
+						var t112 int
+						if ((c19 >= 65) && (c19 <= 90)) {
+							t112 = (c19 + 32)
+						} else {
+							t112 = c19
+						}
+						var i18 int = (sp3[(2 * v4)] + k25)
+						var t113 int
+						if (i18 < 0) {
+							t113 = 0
+						} else {
+							var t114 int
+							if (i18 >= len(src)) {
+								t114 = 0
+							} else {
+								t114 = i18
+							}
+							t113 = t114
+						}
+						var c20 int = int(src[t113])
+						var t115 int
+						if ((c20 >= 65) && (c20 <= 90)) {
+							t115 = (c20 + 32)
+						} else {
+							t115 = c20
+						}
+						if (t112 < t115) {
+							r97 = -1
+							break
+						}
+						r97 = 1
+						break
+					}
+					if ((k4 == 0) || (!(r97 == 0))) {
+						var t116 int
+						if (d97 < 0) {
+							t116 = 0
+						} else {
+							var t117 int
+							if (d97 >= nd) {
+								t117 = 0
+							} else {
+								t117 = d97
+							}
+							t116 = t117
+						}
+						var t118 int
+						if (k4 < 0) {
 							t118 = 0
 						} else {
 							var t119 int
-							if (d106 >= 65536) {
+							if (k4 >= nw) {
 								t119 = 0
 							} else {
-								t119 = d106
+								t119 = k4
 							}
 							t118 = t119
 						}
-						if (k25 >= t118) {
-							r113 = 1
-							break
-						}
-						var i18 int = (sp3[(2 * u4)] + k25)
+						dt2[(2 * t116)] = ord[t118]
 						var t120 int
-						if (i18 < 0) {
+						if (d97 < 0) {
 							t120 = 0
 						} else {
 							var t121 int
-							if (i18 >= len(src)) {
+							if (d97 >= nd) {
 								t121 = 0
 							} else {
-								t121 = i18
+								t121 = d97
 							}
 							t120 = t121
 						}
-						var c17 int = int(src[t120])
-						var t122 int
-						if ((c17 >= 65) && (c17 <= 90)) {
-							t122 = (c17 + 32)
-						} else {
-							t122 = c17
-						}
-						var i19 int = (sp3[(2 * v4)] + k25)
-						var t123 int
-						if (i19 < 0) {
-							t123 = 0
-						} else {
-							var t124 int
-							if (i19 >= len(src)) {
-								t124 = 0
-							} else {
-								t124 = i19
-							}
-							t123 = t124
-						}
-						var c18 int = int(src[t123])
-						var t125 int
-						if ((c18 >= 65) && (c18 <= 90)) {
-							t125 = (c18 + 32)
-						} else {
-							t125 = c18
-						}
-						if (t122 == t125) {
-							continue
-						}
-						var i20 int = (sp3[(2 * u4)] + k25)
-						var t126 int
-						if (i20 < 0) {
-							t126 = 0
-						} else {
-							var t127 int
-							if (i20 >= len(src)) {
-								t127 = 0
-							} else {
-								t127 = i20
-							}
-							t126 = t127
-						}
-						var c19 int = int(src[t126])
-						var t128 int
-						if ((c19 >= 65) && (c19 <= 90)) {
-							t128 = (c19 + 32)
-						} else {
-							t128 = c19
-						}
-						var i21 int = (sp3[(2 * v4)] + k25)
-						var t129 int
-						if (i21 < 0) {
-							t129 = 0
-						} else {
-							var t130 int
-							if (i21 >= len(src)) {
-								t130 = 0
-							} else {
-								t130 = i21
-							}
-							t129 = t130
-						}
-						var c20 int = int(src[t129])
-						var t131 int
-						if ((c20 >= 65) && (c20 <= 90)) {
-							t131 = (c20 + 32)
-						} else {
-							t131 = c20
-						}
-						if (t128 < t131) {
-							r113 = -1
-							break
-						}
-						r113 = 1
-						break
-					}
-					if ((k4 == 0) || (!(r113 == 0))) {
-						var t132 int
-						if (d97 < 0) {
-							t132 = 0
-						} else {
-							var t133 int
-							if (d97 >= nd) {
-								t133 = 0
-							} else {
-								t133 = d97
-							}
-							t132 = t133
-						}
-						var t134 int
-						if (k4 < 0) {
-							t134 = 0
-						} else {
-							var t135 int
-							if (k4 >= nw) {
-								t135 = 0
-							} else {
-								t135 = k4
-							}
-							t134 = t135
-						}
-						var i30 int = ord[t134]
-						var t136 int
-						if (i30 < 0) {
-							t136 = 0
-						} else {
-							var t137 int
-							if (i30 >= nw) {
-								t137 = 0
-							} else {
-								t137 = i30
-							}
-							t136 = t137
-						}
-						dt2[(2 * t132)] = t136
-						var t138 int
-						if (d97 < 0) {
-							t138 = 0
-						} else {
-							var t139 int
-							if (d97 >= nd) {
-								t139 = 0
-							} else {
-								t139 = d97
-							}
-							t138 = t139
-						}
-						dt2[((2 * t138) + 1)] = 1
+						dt2[((2 * t120) + 1)] = 1
 						k4, d97 = (k4 + 1), (d97 + 1)
 						continue
 					}
-					var i31 int = (d97 - 1)
-					var t140 int
-					if (i31 < 0) {
-						t140 = 0
+					var i19 int = (d97 - 1)
+					var t122 int
+					if (i19 < 0) {
+						t122 = 0
 					} else {
-						var t141 int
-						if (i31 >= nd) {
-							t141 = 0
+						var t123 int
+						if (i19 >= nd) {
+							t123 = 0
 						} else {
-							t141 = i31
+							t123 = i19
 						}
-						t140 = t141
+						t122 = t123
 					}
-					var s17 int = t140
-					var i32 int = dt2[((2 * s17) + 1)]
-					var t142 int
-					if (i32 < 0) {
-						t142 = 0
-					} else {
-						var t143 int
-						if (i32 >= 32769) {
-							t143 = 0
-						} else {
-							t143 = i32
-						}
-						t142 = t143
-					}
-					dt2[((2 * s17) + 1)] = (t142 + 1)
+					var s19 int = t122
+					dt2[((2 * s19) + 1)] = (dt2[((2 * s19) + 1)] + 1)
 					k4 = (k4 + 1)
 					continue
 				}
@@ -1187,19 +1057,19 @@ func GenMain() string {
 					if (k5 >= nd) {
 						break
 					}
-					var t144 int
+					var t124 int
 					if (k5 < 0) {
-						t144 = 0
+						t124 = 0
 					} else {
-						var t145 int
+						var t125 int
 						if (k5 >= nd) {
-							t145 = 0
+							t125 = 0
 						} else {
-							t145 = k5
+							t125 = k5
 						}
-						t144 = t145
+						t124 = t125
 					}
-					a42[t144] = k5
+					a42[t124] = k5
 					continue
 				}
 				a4 := a42
@@ -1219,218 +1089,166 @@ func GenMain() string {
 							break
 						}
 						var b34 int = (lo2 + w3)
-						var t146 int
+						var t126 int
 						if (nd < b34) {
-							t146 = nd
+							t126 = nd
 						} else {
-							t146 = b34
+							t126 = b34
 						}
-						var mid217 int = t146
+						var mid217 int = t126
 						var b35 int = (lo2 + (2 * w3))
-						var t147 int
+						var t127 int
 						if (nd < b35) {
-							t147 = nd
+							t127 = nd
 						} else {
-							t147 = b35
+							t127 = b35
 						}
-						var hi217 int = t147
+						var hi217 int = t127
 						b36 := b23
-						var i33 int = lo2
+						var i20 int = lo2
 						var j4 int = mid217
 						var k6 int = lo2
 						for ; ; k6 = (k6 + 1) {
 							if (k6 >= hi217) {
 								break
 							}
-							if (i33 >= mid217) {
-								var t148 int
+							if (i20 >= mid217) {
+								var t128 int
 								if (k6 < 0) {
-									t148 = 0
+									t128 = 0
 								} else {
-									var t149 int
+									var t129 int
 									if (k6 >= nd) {
-										t149 = 0
+										t129 = 0
 									} else {
-										t149 = k6
+										t129 = k6
 									}
-									t148 = t149
+									t128 = t129
 								}
-								var t150 int
+								var t130 int
 								if (j4 < 0) {
-									t150 = 0
+									t130 = 0
 								} else {
-									var t151 int
+									var t131 int
 									if (j4 >= nd) {
-										t151 = 0
+										t131 = 0
 									} else {
-										t151 = j4
+										t131 = j4
 									}
-									t150 = t151
+									t130 = t131
 								}
-								b36[t148] = a4[t150]
+								b36[t128] = a4[t130]
 								j4 = (j4 + 1)
 								continue
 							}
 							if (j4 >= hi217) {
-								var t152 int
+								var t132 int
 								if (k6 < 0) {
-									t152 = 0
+									t132 = 0
 								} else {
-									var t153 int
+									var t133 int
 									if (k6 >= nd) {
-										t153 = 0
+										t133 = 0
 									} else {
-										t153 = k6
+										t133 = k6
 									}
-									t152 = t153
+									t132 = t133
 								}
-								var t154 int
-								if (i33 < 0) {
-									t154 = 0
+								var t134 int
+								if (i20 < 0) {
+									t134 = 0
 								} else {
-									var t155 int
-									if (i33 >= nd) {
-										t155 = 0
+									var t135 int
+									if (i20 >= nd) {
+										t135 = 0
 									} else {
-										t155 = i33
+										t135 = i20
 									}
-									t154 = t155
+									t134 = t135
 								}
-								b36[t152] = a4[t154]
-								i33 = (i33 + 1)
+								b36[t132] = a4[t134]
+								i20 = (i20 + 1)
 								continue
 							}
-							var t156 int
+							var t136 int
 							if (j4 < 0) {
-								t156 = 0
+								t136 = 0
 							} else {
-								var t157 int
+								var t137 int
 								if (j4 >= nd) {
-									t157 = 0
+									t137 = 0
 								} else {
-									t157 = j4
+									t137 = j4
 								}
-								t156 = t157
+								t136 = t137
 							}
-							var i211 int = a4[t156]
-							var t158 int
-							if (i211 < 0) {
-								t158 = 0
+							var t138 int
+							if (i20 < 0) {
+								t138 = 0
 							} else {
-								var t159 int
-								if (i211 >= nd) {
-									t159 = 0
+								var t139 int
+								if (i20 >= nd) {
+									t139 = 0
 								} else {
-									t159 = i211
+									t139 = i20
 								}
-								t158 = t159
+								t138 = t139
 							}
-							var i212 int = dt3[((2 * t158) + 1)]
-							var t160 int
-							if (i212 < 0) {
-								t160 = 0
-							} else {
-								var t161 int
-								if (i212 >= 32769) {
-									t161 = 0
-								} else {
-									t161 = i212
-								}
-								t160 = t161
-							}
-							var t162 int
-							if (i33 < 0) {
-								t162 = 0
-							} else {
-								var t163 int
-								if (i33 >= nd) {
-									t163 = 0
-								} else {
-									t163 = i33
-								}
-								t162 = t163
-							}
-							var i213 int = a4[t162]
-							var t164 int
-							if (i213 < 0) {
-								t164 = 0
-							} else {
-								var t165 int
-								if (i213 >= nd) {
-									t165 = 0
-								} else {
-									t165 = i213
-								}
-								t164 = t165
-							}
-							var i214 int = dt3[((2 * t164) + 1)]
-							var t166 int
-							if (i214 < 0) {
-								t166 = 0
-							} else {
-								var t167 int
-								if (i214 >= 32769) {
-									t167 = 0
-								} else {
-									t167 = i214
-								}
-								t166 = t167
-							}
-							if (t160 > t166) {
-								var t168 int
+							if (dt3[((2 * a4[t136]) + 1)] > dt3[((2 * a4[t138]) + 1)]) {
+								var t140 int
 								if (k6 < 0) {
-									t168 = 0
+									t140 = 0
 								} else {
-									var t169 int
+									var t141 int
 									if (k6 >= nd) {
-										t169 = 0
+										t141 = 0
 									} else {
-										t169 = k6
+										t141 = k6
 									}
-									t168 = t169
+									t140 = t141
 								}
-								var t170 int
+								var t142 int
 								if (j4 < 0) {
-									t170 = 0
+									t142 = 0
 								} else {
-									var t171 int
+									var t143 int
 									if (j4 >= nd) {
-										t171 = 0
+										t143 = 0
 									} else {
-										t171 = j4
+										t143 = j4
 									}
-									t170 = t171
+									t142 = t143
 								}
-								b36[t168] = a4[t170]
+								b36[t140] = a4[t142]
 								j4 = (j4 + 1)
 								continue
 							}
-							var t172 int
+							var t144 int
 							if (k6 < 0) {
-								t172 = 0
+								t144 = 0
 							} else {
-								var t173 int
+								var t145 int
 								if (k6 >= nd) {
-									t173 = 0
+									t145 = 0
 								} else {
-									t173 = k6
+									t145 = k6
 								}
-								t172 = t173
+								t144 = t145
 							}
-							var t174 int
-							if (i33 < 0) {
-								t174 = 0
+							var t146 int
+							if (i20 < 0) {
+								t146 = 0
 							} else {
-								var t175 int
-								if (i33 >= nd) {
-									t175 = 0
+								var t147 int
+								if (i20 >= nd) {
+									t147 = 0
 								} else {
-									t175 = i33
+									t147 = i20
 								}
-								t174 = t175
+								t146 = t147
 							}
-							b36[t172] = a4[t174]
-							i33 = (i33 + 1)
+							b36[t144] = a4[t146]
+							i20 = (i20 + 1)
 							continue
 						}
 						b23, lo2 = b36, hi217
@@ -1452,47 +1270,21 @@ func GenMain() string {
 					if ((len(sp3) >> 1) < 1) {
 						break
 					}
-					var t176 int
+					var t148 int
 					if (r < 0) {
-						t176 = 0
+						t148 = 0
 					} else {
-						var t177 int
+						var t149 int
 						if (r >= nd) {
-							t177 = 0
+							t149 = 0
 						} else {
-							t177 = r
+							t149 = r
 						}
-						t176 = t177
+						t148 = t149
 					}
-					var i34 int = ord2[t176]
-					var t178 int
-					if (i34 < 0) {
-						t178 = 0
-					} else {
-						var t179 int
-						if (i34 >= nd) {
-							t179 = 0
-						} else {
-							t179 = i34
-						}
-						t178 = t179
-					}
-					var d98 int = t178
-					var i35 int = dt3[((2 * d98) + 1)]
-					var t180 int
-					if (i35 < 0) {
-						t180 = 0
-					} else {
-						var t181 int
-						if (i35 >= 32769) {
-							t181 = 0
-						} else {
-							t181 = i35
-						}
-						t180 = t181
-					}
+					var d98 int = ord2[t148]
 					var d107 int = 1
-					var x int = t180
+					var x int = dt3[((2 * d98) + 1)]
 					for ; ; d107, x = (d107 + 1), (x / 10) {
 						if (x < 10) {
 							break
@@ -1502,47 +1294,34 @@ func GenMain() string {
 						}
 						continue
 					}
-					var i36 int = dt3[(2 * d98)]
-					var t182 int
-					if (i36 < 0) {
-						t182 = 0
+					var i21 int = dt3[(2 * d98)]
+					var t150 int
+					if (i21 < 0) {
+						t150 = 0
 					} else {
-						var t183 int
-						if (i36 >= 32769) {
-							t183 = 0
+						var t151 int
+						if (i21 >= (len(sp3) >> 1)) {
+							t151 = 0
 						} else {
-							t183 = i36
+							t151 = i21
 						}
-						t182 = t183
+						t150 = t151
 					}
-					var i37 int = t182
-					var t184 int
-					if (i37 < 0) {
-						t184 = 0
-					} else {
-						var t185 int
-						if (i37 >= (len(sp3) >> 1)) {
-							t185 = 0
-						} else {
-							t185 = i37
-						}
-						t184 = t185
-					}
-					var w4 int = t184
+					var w4 int = t150
 					var d108 int = (sp3[((2 * w4) + 1)] - sp3[(2 * w4)])
-					var t186 int
+					var t152 int
 					if (d108 < 0) {
-						t186 = 0
+						t152 = 0
 					} else {
-						var t187 int
+						var t153 int
 						if (d108 >= 65536) {
-							t187 = 0
+							t153 = 0
 						} else {
-							t187 = d108
+							t153 = d108
 						}
-						t186 = t187
+						t152 = t153
 					}
-					n3 = (n3 + (d107 + (2 + t186)))
+					n3 = (n3 + (d107 + (2 + t152)))
 					continue
 				}
 				var m int = n3
@@ -1560,73 +1339,34 @@ func GenMain() string {
 					if ((len(sp3) >> 1) < 1) {
 						break
 					}
-					var t188 int
+					var t154 int
 					if (r2 < 0) {
-						t188 = 0
+						t154 = 0
 					} else {
-						var t189 int
+						var t155 int
 						if (r2 >= nd) {
-							t189 = 0
+							t155 = 0
 						} else {
-							t189 = r2
+							t155 = r2
 						}
-						t188 = t189
+						t154 = t155
 					}
-					var i38 int = ord2[t188]
-					var t190 int
-					if (i38 < 0) {
-						t190 = 0
+					var d17 int = ord2[t154]
+					var c21 int = dt3[((2 * d17) + 1)]
+					var i26 int = dt3[(2 * d17)]
+					var t156 int
+					if (i26 < 0) {
+						t156 = 0
 					} else {
-						var t191 int
-						if (i38 >= nd) {
-							t191 = 0
+						var t157 int
+						if (i26 >= (len(sp3) >> 1)) {
+							t157 = 0
 						} else {
-							t191 = i38
+							t157 = i26
 						}
-						t190 = t191
+						t156 = t157
 					}
-					var d17 int = t190
-					var i39 int = dt3[((2 * d17) + 1)]
-					var t192 int
-					if (i39 < 0) {
-						t192 = 0
-					} else {
-						var t193 int
-						if (i39 >= 32769) {
-							t193 = 0
-						} else {
-							t193 = i39
-						}
-						t192 = t193
-					}
-					var c21 int = t192
-					var i40 int = dt3[(2 * d17)]
-					var t194 int
-					if (i40 < 0) {
-						t194 = 0
-					} else {
-						var t195 int
-						if (i40 >= 32769) {
-							t195 = 0
-						} else {
-							t195 = i40
-						}
-						t194 = t195
-					}
-					var i41 int = t194
-					var t196 int
-					if (i41 < 0) {
-						t196 = 0
-					} else {
-						var t197 int
-						if (i41 >= (len(sp3) >> 1)) {
-							t197 = 0
-						} else {
-							t197 = i41
-						}
-						t196 = t197
-					}
-					var w5 int = t196
+					var w5 int = t156
 					var p2 int = 1
 					var k7 int = 1
 					for {
@@ -1661,33 +1401,33 @@ func GenMain() string {
 						if (p < 1) {
 							break
 						}
-						var t198 int
+						var t158 int
 						if (o2 < 0) {
-							t198 = 0
+							t158 = 0
 						} else {
-							var t199 int
+							var t159 int
 							if (o2 >= m) {
-								t199 = 0
+								t159 = 0
 							} else {
-								t199 = o2
+								t159 = o2
 							}
-							t198 = t199
+							t158 = t159
 						}
-						out22[t198] = byte((48 + ((x2 / p) % 10)))
-						var i42 int = (o2 + 1)
-						var t200 int
-						if (i42 < 0) {
-							t200 = 0
+						out22[t158] = byte((48 + ((x2 / p) % 10)))
+						var i27 int = (o2 + 1)
+						var t160 int
+						if (i27 < 0) {
+							t160 = 0
 						} else {
-							var t201 int
-							if (i42 >= m) {
-								t201 = 0
+							var t161 int
+							if (i27 >= m) {
+								t161 = 0
 							} else {
-								t201 = i42
+								t161 = i27
 							}
-							t200 = t201
+							t160 = t161
 						}
-						o2 = t200
+						o2 = t160
 						continue
 					}
 					var d182 int = 1
@@ -1701,20 +1441,20 @@ func GenMain() string {
 						}
 						continue
 					}
-					var i43 int = (o + d182)
-					var t202 int
-					if (i43 < 0) {
-						t202 = 0
+					var i28 int = (o + d182)
+					var t162 int
+					if (i28 < 0) {
+						t162 = 0
 					} else {
-						var t203 int
-						if (i43 >= m) {
-							t203 = 0
+						var t163 int
+						if (i28 >= m) {
+							t163 = 0
 						} else {
-							t203 = i43
+							t163 = i28
 						}
-						t202 = t203
+						t162 = t163
 					}
-					out22[t202] = 32
+					out22[t162] = 32
 					out23 := out22
 					var d183 int = 1
 					var x5 int = c21
@@ -1732,78 +1472,65 @@ func GenMain() string {
 					var k8 int = 0
 					for ; ; k8 = (k8 + 1) {
 						var d184 int = (sp3[((2 * w5) + 1)] - sp3[(2 * w5)])
-						var t204 int
+						var t164 int
 						if (d184 < 0) {
-							t204 = 0
+							t164 = 0
 						} else {
-							var t205 int
+							var t165 int
 							if (d184 >= 65536) {
-								t205 = 0
+								t165 = 0
 							} else {
-								t205 = d184
+								t165 = d184
 							}
-							t204 = t205
+							t164 = t165
 						}
-						if (k8 >= t204) {
+						if (k8 >= t164) {
 							break
 						}
-						var t206 int
+						var t166 int
 						if (o22 < 0) {
-							t206 = 0
+							t166 = 0
 						} else {
-							var t207 int
+							var t167 int
 							if (o22 >= m) {
-								t207 = 0
+								t167 = 0
 							} else {
-								t207 = o22
+								t167 = o22
 							}
-							t206 = t207
+							t166 = t167
 						}
-						var i44 int = (sp3[(2 * w5)] + k8)
-						var t208 int
-						if (i44 < 0) {
-							t208 = 0
+						var i29 int = (sp3[(2 * w5)] + k8)
+						var t168 int
+						if (i29 < 0) {
+							t168 = 0
 						} else {
-							var t209 int
-							if (i44 >= len(src)) {
-								t209 = 0
+							var t169 int
+							if (i29 >= len(src)) {
+								t169 = 0
 							} else {
-								t209 = i44
+								t169 = i29
 							}
-							t208 = t209
+							t168 = t169
 						}
-						out3[t206] = byte(int(src[t208]))
-						var i45 int = (o22 + 1)
-						var t210 int
-						if (i45 < 0) {
-							t210 = 0
+						out3[t166] = byte(int(src[t168]))
+						var i30 int = (o22 + 1)
+						var t170 int
+						if (i30 < 0) {
+							t170 = 0
 						} else {
-							var t211 int
-							if (i45 >= m) {
-								t211 = 0
+							var t171 int
+							if (i30 >= m) {
+								t171 = 0
 							} else {
-								t211 = i45
+								t171 = i30
 							}
-							t210 = t211
+							t170 = t171
 						}
-						o22 = t210
+						o22 = t170
 						continue
 					}
-					var i46 int = dt3[((2 * d17) + 1)]
-					var t212 int
-					if (i46 < 0) {
-						t212 = 0
-					} else {
-						var t213 int
-						if (i46 >= 32769) {
-							t213 = 0
-						} else {
-							t213 = i46
-						}
-						t212 = t213
-					}
 					var d185 int = 1
-					var x6 int = t212
+					var x6 int = dt3[((2 * d17) + 1)]
 					for ; ; d185, x6 = (d185 + 1), (x6 / 10) {
 						if (x6 < 10) {
 							break
@@ -1813,75 +1540,49 @@ func GenMain() string {
 						}
 						continue
 					}
-					var i47 int = dt3[(2 * d17)]
-					var t214 int
-					if (i47 < 0) {
-						t214 = 0
+					var i31 int = dt3[(2 * d17)]
+					var t172 int
+					if (i31 < 0) {
+						t172 = 0
 					} else {
-						var t215 int
-						if (i47 >= 32769) {
-							t215 = 0
+						var t173 int
+						if (i31 >= (len(sp3) >> 1)) {
+							t173 = 0
 						} else {
-							t215 = i47
+							t173 = i31
 						}
-						t214 = t215
+						t172 = t173
 					}
-					var i48 int = t214
-					var t216 int
-					if (i48 < 0) {
-						t216 = 0
-					} else {
-						var t217 int
-						if (i48 >= (len(sp3) >> 1)) {
-							t217 = 0
-						} else {
-							t217 = i48
-						}
-						t216 = t217
-					}
-					var w22 int = t216
+					var w22 int = t172
 					var d186 int = (sp3[((2 * w22) + 1)] - sp3[(2 * w22)])
-					var t218 int
+					var t174 int
 					if (d186 < 0) {
-						t218 = 0
+						t174 = 0
 					} else {
-						var t219 int
+						var t175 int
 						if (d186 >= 65536) {
-							t219 = 0
+							t175 = 0
 						} else {
-							t219 = d186
+							t175 = d186
 						}
-						t218 = t219
+						t174 = t175
 					}
-					var i49 int = (o + ((d185 + (2 + t218)) - 1))
-					var t220 int
-					if (i49 < 0) {
-						t220 = 0
+					var i32 int = (o + ((d185 + (2 + t174)) - 1))
+					var t176 int
+					if (i32 < 0) {
+						t176 = 0
 					} else {
-						var t221 int
-						if (i49 >= m) {
-							t221 = 0
+						var t177 int
+						if (i32 >= m) {
+							t177 = 0
 						} else {
-							t221 = i49
+							t177 = i32
 						}
-						t220 = t221
+						t176 = t177
 					}
-					out3[t220] = 10
-					var i50 int = dt3[((2 * d17) + 1)]
-					var t222 int
-					if (i50 < 0) {
-						t222 = 0
-					} else {
-						var t223 int
-						if (i50 >= 32769) {
-							t223 = 0
-						} else {
-							t223 = i50
-						}
-						t222 = t223
-					}
+					out3[t176] = 10
 					var d187 int = 1
-					var x7 int = t222
+					var x7 int = dt3[((2 * d17) + 1)]
 					for ; ; d187, x7 = (d187 + 1), (x7 / 10) {
 						if (x7 < 10) {
 							break
@@ -1891,52 +1592,39 @@ func GenMain() string {
 						}
 						continue
 					}
-					var i51 int = dt3[(2 * d17)]
-					var t224 int
-					if (i51 < 0) {
-						t224 = 0
+					var i33 int = dt3[(2 * d17)]
+					var t178 int
+					if (i33 < 0) {
+						t178 = 0
 					} else {
-						var t225 int
-						if (i51 >= 32769) {
-							t225 = 0
+						var t179 int
+						if (i33 >= (len(sp3) >> 1)) {
+							t179 = 0
 						} else {
-							t225 = i51
+							t179 = i33
 						}
-						t224 = t225
+						t178 = t179
 					}
-					var i52 int = t224
-					var t226 int
-					if (i52 < 0) {
-						t226 = 0
-					} else {
-						var t227 int
-						if (i52 >= (len(sp3) >> 1)) {
-							t227 = 0
-						} else {
-							t227 = i52
-						}
-						t226 = t227
-					}
-					var w6 int = t226
+					var w6 int = t178
 					var d188 int = (sp3[((2 * w6) + 1)] - sp3[(2 * w6)])
-					var t228 int
+					var t180 int
 					if (d188 < 0) {
-						t228 = 0
+						t180 = 0
 					} else {
-						var t229 int
+						var t181 int
 						if (d188 >= 65536) {
-							t229 = 0
+							t181 = 0
 						} else {
-							t229 = d188
+							t181 = d188
 						}
-						t228 = t229
+						t180 = t181
 					}
-					out2, o = out3, (o + (d187 + (2 + t228)))
+					out2, o = out3, (o + (d187 + (2 + t180)))
 					continue
 				}
-				var v230 string = (string(out2))
-				fmt.Print(v230)
-				t3 = v230
+				var v182 string = (string(out2))
+				fmt.Print(v182)
+				t3 = v182
 			}
 			t2 = t3
 		} else {

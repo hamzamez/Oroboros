@@ -22,17 +22,17 @@ public final class examples_io_freq.java {
 					t112 = "freq: file is larger than this tool accepts";
 				} else {
 					int n22 = 0;
-					int i381 = 0;
+					int i208 = 0;
 					for (;;) {
-						if ((i381 >= src2.length)) {
+						if ((i208 >= src2.length)) {
 							break;
 						}
 						if ((n22 >= 32768)) {
 							break;
 						}
-						final long c148 = (long) src2[i381];
+						final long c148 = (long) src2[i208];
 						if ((((c148 >= 65) && (c148 <= 90)) || ((c148 >= 97) && (c148 <= 122)))) {
-							int j29 = (i381 + 1);
+							int j29 = (i208 + 1);
 							for (;; j29 = (j29 + 1)) {
 								if ((j29 < 0)) {
 									break;
@@ -47,27 +47,27 @@ public final class examples_io_freq.java {
 								break;
 							}
 							n22 = (int) ((n22 + 1));
-							i381 = (int) (j29);
+							i208 = (int) (j29);
 							continue;
 						}
-						i381 = (int) ((i381 + 1));
+						i208 = (int) ((i208 + 1));
 						continue;
 					}
 					final long nw8 = n22;
 					final int[] sp22 = new int[(int) (2 * nw8)];
 					int[] sp23 = sp22;
-					long i382 = 0;
+					long i209 = 0;
 					long w47 = 0;
 					for (;;) {
-						if ((i382 >= src2.length)) {
+						if ((i209 >= src2.length)) {
 							break;
 						}
 						if ((w47 >= nw8)) {
 							break;
 						}
-						final long c150 = (long) src2[(int) i382];
+						final long c150 = (long) src2[(int) i209];
 						if ((((c150 >= 65) && (c150 <= 90)) || ((c150 >= 97) && (c150 <= 122)))) {
-							int j30 = (int) ((i382 + 1));
+							int j30 = (int) ((i209 + 1));
 							for (;; j30 = (j30 + 1)) {
 								if ((j30 < 0)) {
 									break;
@@ -82,13 +82,13 @@ public final class examples_io_freq.java {
 								break;
 							}
 							final long ni178 = j30;
-							sp23[(int) (2 * w47)] = (int) i382;
+							sp23[(int) (2 * w47)] = (int) i209;
 							sp23[(int) ((2 * w47) + 1)] = (int) ni178;
-							i382 = ni178;
+							i209 = ni178;
 							w47 = (w47 + 1);
 							continue;
 						}
-						i382 = (i382 + 1);
+						i209 = (i209 + 1);
 						continue;
 					}
 					final int[] sp24 = sp23;
@@ -124,29 +124,27 @@ public final class examples_io_freq.java {
 							final long b344 = (lo15 + (2 * w48));
 							final long hi1638 = ((nw8 < b344) ? nw8 : b344);
 							long[] b345 = b216;
-							long i383 = lo15;
+							long i234 = lo15;
 							long j31 = mid1638;
 							long k66 = lo15;
 							for (;;) {
 								if ((k66 >= hi1638)) {
 									break;
 								}
-								if ((i383 >= mid1638)) {
+								if ((i234 >= mid1638)) {
 									b345[(int) ((k66 < 0) ? 0 : ((k66 >= nw8) ? 0 : k66))] = a315[(int) ((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
 									j31 = (j31 + 1);
 									k66 = (k66 + 1);
 									continue;
 								}
 								if ((j31 >= hi1638)) {
-									b345[(int) ((k66 < 0) ? 0 : ((k66 >= nw8) ? 0 : k66))] = a315[(int) ((i383 < 0) ? 0 : ((i383 >= nw8) ? 0 : i383))];
-									i383 = (i383 + 1);
+									b345[(int) ((k66 < 0) ? 0 : ((k66 >= nw8) ? 0 : k66))] = a315[(int) ((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
+									i234 = (i234 + 1);
 									k66 = (k66 + 1);
 									continue;
 								}
-								final long i2119 = a315[(int) ((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
-								final long u79 = ((i2119 < 0) ? 0 : ((i2119 >= nw8) ? 0 : i2119));
-								final long i2120 = a315[(int) ((i383 < 0) ? 0 : ((i383 >= nw8) ? 0 : i383))];
-								final long v30 = ((i2120 < 0) ? 0 : ((i2120 >= nw8) ? 0 : i2120));
+								final long u79 = a315[(int) ((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
+								final long v30 = a315[(int) ((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
 								int k230 = 0;
 								int r113 = 0;
 								for (;; k230 = (k230 + 1)) {
@@ -165,17 +163,17 @@ public final class examples_io_freq.java {
 										r113 = 1;
 										break;
 									}
-									final long i2121 = ((long) sp24[(int) (2 * u79)] + k230);
-									final long c152 = (long) src2[(int) ((i2121 < 0) ? 0 : ((i2121 >= src2.length) ? 0 : i2121))];
-									final long i2122 = ((long) sp24[(int) (2 * v30)] + k230);
-									final long c153 = (long) src2[(int) ((i2122 < 0) ? 0 : ((i2122 >= src2.length) ? 0 : i2122))];
+									final long i235 = ((long) sp24[(int) (2 * u79)] + k230);
+									final long c152 = (long) src2[(int) ((i235 < 0) ? 0 : ((i235 >= src2.length) ? 0 : i235))];
+									final long i236 = ((long) sp24[(int) (2 * v30)] + k230);
+									final long c153 = (long) src2[(int) ((i236 < 0) ? 0 : ((i236 >= src2.length) ? 0 : i236))];
 									if (((((c152 >= 65) && (c152 <= 90)) ? (c152 + 32) : c152) == (((c153 >= 65) && (c153 <= 90)) ? (c153 + 32) : c153))) {
 										continue;
 									}
-									final long i2123 = ((long) sp24[(int) (2 * u79)] + k230);
-									final long c154 = (long) src2[(int) ((i2123 < 0) ? 0 : ((i2123 >= src2.length) ? 0 : i2123))];
-									final long i2124 = ((long) sp24[(int) (2 * v30)] + k230);
-									final long c155 = (long) src2[(int) ((i2124 < 0) ? 0 : ((i2124 >= src2.length) ? 0 : i2124))];
+									final long i237 = ((long) sp24[(int) (2 * u79)] + k230);
+									final long c154 = (long) src2[(int) ((i237 < 0) ? 0 : ((i237 >= src2.length) ? 0 : i237))];
+									final long i238 = ((long) sp24[(int) (2 * v30)] + k230);
+									final long c155 = (long) src2[(int) ((i238 < 0) ? 0 : ((i238 >= src2.length) ? 0 : i238))];
 									if (((((c154 >= 65) && (c154 <= 90)) ? (c154 + 32) : c154) < (((c155 >= 65) && (c155 <= 90)) ? (c155 + 32) : c155))) {
 										r113 = -1;
 										break;
@@ -189,8 +187,8 @@ public final class examples_io_freq.java {
 									k66 = (k66 + 1);
 									continue;
 								}
-								b345[(int) ((k66 < 0) ? 0 : ((k66 >= nw8) ? 0 : k66))] = a315[(int) ((i383 < 0) ? 0 : ((i383 >= nw8) ? 0 : i383))];
-								i383 = (i383 + 1);
+								b345[(int) ((k66 < 0) ? 0 : ((k66 >= nw8) ? 0 : k66))] = a315[(int) ((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
+								i234 = (i234 + 1);
 								k66 = (k66 + 1);
 								continue;
 							}
@@ -216,11 +214,9 @@ public final class examples_io_freq.java {
 						if ((n23 >= 32768)) {
 							break;
 						}
-						final long i384 = ord9[(int) ((k67 < 0) ? 0 : ((k67 >= nw8) ? 0 : k67))];
-						final long u80 = ((i384 < 0) ? 0 : ((i384 >= nw8) ? 0 : i384));
-						final long i385 = (k67 - 1);
-						final long i2125 = ord9[(int) ((i385 < 0) ? 0 : ((i385 >= nw8) ? 0 : i385))];
-						final long v32 = ((i2125 < 0) ? 0 : ((i2125 >= nw8) ? 0 : i2125));
+						final long u80 = ord9[(int) ((k67 < 0) ? 0 : ((k67 >= nw8) ? 0 : k67))];
+						final long i239 = (k67 - 1);
+						final long v32 = ord9[(int) ((i239 < 0) ? 0 : ((i239 >= nw8) ? 0 : i239))];
 						int k231 = 0;
 						int r118 = 0;
 						for (;; k231 = (k231 + 1)) {
@@ -239,17 +235,17 @@ public final class examples_io_freq.java {
 								r118 = 1;
 								break;
 							}
-							final long i386 = ((long) sp24[(int) (2 * u80)] + k231);
-							final long c156 = (long) src2[(int) ((i386 < 0) ? 0 : ((i386 >= src2.length) ? 0 : i386))];
-							final long i387 = ((long) sp24[(int) (2 * v32)] + k231);
-							final long c157 = (long) src2[(int) ((i387 < 0) ? 0 : ((i387 >= src2.length) ? 0 : i387))];
+							final long i240 = ((long) sp24[(int) (2 * u80)] + k231);
+							final long c156 = (long) src2[(int) ((i240 < 0) ? 0 : ((i240 >= src2.length) ? 0 : i240))];
+							final long i241 = ((long) sp24[(int) (2 * v32)] + k231);
+							final long c157 = (long) src2[(int) ((i241 < 0) ? 0 : ((i241 >= src2.length) ? 0 : i241))];
 							if (((((c156 >= 65) && (c156 <= 90)) ? (c156 + 32) : c156) == (((c157 >= 65) && (c157 <= 90)) ? (c157 + 32) : c157))) {
 								continue;
 							}
-							final long i388 = ((long) sp24[(int) (2 * u80)] + k231);
-							final long c158 = (long) src2[(int) ((i388 < 0) ? 0 : ((i388 >= src2.length) ? 0 : i388))];
-							final long i389 = ((long) sp24[(int) (2 * v32)] + k231);
-							final long c159 = (long) src2[(int) ((i389 < 0) ? 0 : ((i389 >= src2.length) ? 0 : i389))];
+							final long i242 = ((long) sp24[(int) (2 * u80)] + k231);
+							final long c158 = (long) src2[(int) ((i242 < 0) ? 0 : ((i242 >= src2.length) ? 0 : i242))];
+							final long i243 = ((long) sp24[(int) (2 * v32)] + k231);
+							final long c159 = (long) src2[(int) ((i243 < 0) ? 0 : ((i243 >= src2.length) ? 0 : i243))];
 							if (((((c158 >= 65) && (c158 <= 90)) ? (c158 + 32) : c158) < (((c159 >= 65) && (c159 <= 90)) ? (c159 + 32) : c159))) {
 								r118 = -1;
 								break;
@@ -277,11 +273,9 @@ public final class examples_io_freq.java {
 						if ((nd8 < 1)) {
 							break;
 						}
-						final long i390 = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
-						final long u81 = ((i390 < 0) ? 0 : ((i390 >= nw8) ? 0 : i390));
-						final long i391 = (k68 - 1);
-						final long i2126 = ord9[(int) ((i391 < 0) ? 0 : ((i391 >= nw8) ? 0 : i391))];
-						final long v33 = ((i2126 < 0) ? 0 : ((i2126 >= nw8) ? 0 : i2126));
+						final long u81 = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
+						final long i244 = (k68 - 1);
+						final long v33 = ord9[(int) ((i244 < 0) ? 0 : ((i244 >= nw8) ? 0 : i244))];
 						int k232 = 0;
 						int r119 = 0;
 						for (;; k232 = (k232 + 1)) {
@@ -300,17 +294,17 @@ public final class examples_io_freq.java {
 								r119 = 1;
 								break;
 							}
-							final long i392 = ((long) sp24[(int) (2 * u81)] + k232);
-							final long c160 = (long) src2[(int) ((i392 < 0) ? 0 : ((i392 >= src2.length) ? 0 : i392))];
-							final long i393 = ((long) sp24[(int) (2 * v33)] + k232);
-							final long c161 = (long) src2[(int) ((i393 < 0) ? 0 : ((i393 >= src2.length) ? 0 : i393))];
+							final long i245 = ((long) sp24[(int) (2 * u81)] + k232);
+							final long c160 = (long) src2[(int) ((i245 < 0) ? 0 : ((i245 >= src2.length) ? 0 : i245))];
+							final long i246 = ((long) sp24[(int) (2 * v33)] + k232);
+							final long c161 = (long) src2[(int) ((i246 < 0) ? 0 : ((i246 >= src2.length) ? 0 : i246))];
 							if (((((c160 >= 65) && (c160 <= 90)) ? (c160 + 32) : c160) == (((c161 >= 65) && (c161 <= 90)) ? (c161 + 32) : c161))) {
 								continue;
 							}
-							final long i394 = ((long) sp24[(int) (2 * u81)] + k232);
-							final long c162 = (long) src2[(int) ((i394 < 0) ? 0 : ((i394 >= src2.length) ? 0 : i394))];
-							final long i395 = ((long) sp24[(int) (2 * v33)] + k232);
-							final long c163 = (long) src2[(int) ((i395 < 0) ? 0 : ((i395 >= src2.length) ? 0 : i395))];
+							final long i247 = ((long) sp24[(int) (2 * u81)] + k232);
+							final long c162 = (long) src2[(int) ((i247 < 0) ? 0 : ((i247 >= src2.length) ? 0 : i247))];
+							final long i248 = ((long) sp24[(int) (2 * v33)] + k232);
+							final long c163 = (long) src2[(int) ((i248 < 0) ? 0 : ((i248 >= src2.length) ? 0 : i248))];
 							if (((((c162 >= 65) && (c162 <= 90)) ? (c162 + 32) : c162) < (((c163 >= 65) && (c163 <= 90)) ? (c163 + 32) : c163))) {
 								r119 = -1;
 								break;
@@ -321,11 +315,9 @@ public final class examples_io_freq.java {
 						if ((((k68 == 0) || (!(r119 == 0))) && (d963 >= nd8))) {
 							break;
 						}
-						final long i396 = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
-						final long u86 = ((i396 < 0) ? 0 : ((i396 >= nw8) ? 0 : i396));
-						final long i397 = (k68 - 1);
-						final long i2127 = ord9[(int) ((i397 < 0) ? 0 : ((i397 >= nw8) ? 0 : i397))];
-						final long v34 = ((i2127 < 0) ? 0 : ((i2127 >= nw8) ? 0 : i2127));
+						final long u86 = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
+						final long i249 = (k68 - 1);
+						final long v34 = ord9[(int) ((i249 < 0) ? 0 : ((i249 >= nw8) ? 0 : i249))];
 						int k233 = 0;
 						int r120 = 0;
 						for (;; k233 = (k233 + 1)) {
@@ -344,17 +336,17 @@ public final class examples_io_freq.java {
 								r120 = 1;
 								break;
 							}
-							final long i398 = ((long) sp24[(int) (2 * u86)] + k233);
-							final long c164 = (long) src2[(int) ((i398 < 0) ? 0 : ((i398 >= src2.length) ? 0 : i398))];
-							final long i399 = ((long) sp24[(int) (2 * v34)] + k233);
-							final long c165 = (long) src2[(int) ((i399 < 0) ? 0 : ((i399 >= src2.length) ? 0 : i399))];
+							final long i250 = ((long) sp24[(int) (2 * u86)] + k233);
+							final long c164 = (long) src2[(int) ((i250 < 0) ? 0 : ((i250 >= src2.length) ? 0 : i250))];
+							final long i251 = ((long) sp24[(int) (2 * v34)] + k233);
+							final long c165 = (long) src2[(int) ((i251 < 0) ? 0 : ((i251 >= src2.length) ? 0 : i251))];
 							if (((((c164 >= 65) && (c164 <= 90)) ? (c164 + 32) : c164) == (((c165 >= 65) && (c165 <= 90)) ? (c165 + 32) : c165))) {
 								continue;
 							}
-							final long i400 = ((long) sp24[(int) (2 * u86)] + k233);
-							final long c166 = (long) src2[(int) ((i400 < 0) ? 0 : ((i400 >= src2.length) ? 0 : i400))];
-							final long i401 = ((long) sp24[(int) (2 * v34)] + k233);
-							final long c167 = (long) src2[(int) ((i401 < 0) ? 0 : ((i401 >= src2.length) ? 0 : i401))];
+							final long i252 = ((long) sp24[(int) (2 * u86)] + k233);
+							final long c166 = (long) src2[(int) ((i252 < 0) ? 0 : ((i252 >= src2.length) ? 0 : i252))];
+							final long i253 = ((long) sp24[(int) (2 * v34)] + k233);
+							final long c167 = (long) src2[(int) ((i253 < 0) ? 0 : ((i253 >= src2.length) ? 0 : i253))];
 							if (((((c166 >= 65) && (c166 <= 90)) ? (c166 + 32) : c166) < (((c167 >= 65) && (c167 <= 90)) ? (c167 + 32) : c167))) {
 								r120 = -1;
 								break;
@@ -363,17 +355,15 @@ public final class examples_io_freq.java {
 							break;
 						}
 						if (((k68 == 0) || (!(r120 == 0)))) {
-							final long i402 = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
-							dt23[(int) (2 * ((d963 < 0) ? 0 : ((d963 >= nd8) ? 0 : d963)))] = ((i402 < 0) ? 0 : ((i402 >= nw8) ? 0 : i402));
+							dt23[(int) (2 * ((d963 < 0) ? 0 : ((d963 >= nd8) ? 0 : d963)))] = ord9[(int) ((k68 < 0) ? 0 : ((k68 >= nw8) ? 0 : k68))];
 							dt23[(int) ((2 * ((d963 < 0) ? 0 : ((d963 >= nd8) ? 0 : d963))) + 1)] = 1;
 							k68 = (k68 + 1);
 							d963 = (d963 + 1);
 							continue;
 						}
-						final long i403 = (d963 - 1);
-						final long s178 = ((i403 < 0) ? 0 : ((i403 >= nd8) ? 0 : i403));
-						final long i404 = dt23[(int) ((2 * s178) + 1)];
-						dt23[(int) ((2 * s178) + 1)] = (((i404 < 0) ? 0 : ((i404 >= 32769) ? 0 : i404)) + 1);
+						final long i254 = (d963 - 1);
+						final long s198 = ((i254 < 0) ? 0 : ((i254 >= nd8) ? 0 : i254));
+						dt23[(int) ((2 * s198) + 1)] = (dt23[(int) ((2 * s198) + 1)] + 1);
 						k68 = (k68 + 1);
 						continue;
 					}
@@ -410,34 +400,30 @@ public final class examples_io_freq.java {
 							final long b347 = (lo16 + (2 * w49));
 							final long hi2178 = ((nd8 < b347) ? nd8 : b347);
 							long[] b348 = b217;
-							long i405 = lo16;
+							long i255 = lo16;
 							long j32 = mid2178;
 							long k70 = lo16;
 							for (;; k70 = (k70 + 1)) {
 								if ((k70 >= hi2178)) {
 									break;
 								}
-								if ((i405 >= mid2178)) {
+								if ((i255 >= mid2178)) {
 									b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
 									j32 = (j32 + 1);
 									continue;
 								}
 								if ((j32 >= hi2178)) {
-									b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((i405 < 0) ? 0 : ((i405 >= nd8) ? 0 : i405))];
-									i405 = (i405 + 1);
+									b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))];
+									i255 = (i255 + 1);
 									continue;
 								}
-								final long i2128 = a415[(int) ((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
-								final long i2129 = dt24[(int) ((2 * ((i2128 < 0) ? 0 : ((i2128 >= nd8) ? 0 : i2128))) + 1)];
-								final long i2130 = a415[(int) ((i405 < 0) ? 0 : ((i405 >= nd8) ? 0 : i405))];
-								final long i2131 = dt24[(int) ((2 * ((i2130 < 0) ? 0 : ((i2130 >= nd8) ? 0 : i2130))) + 1)];
-								if ((((i2129 < 0) ? 0 : ((i2129 >= 32769) ? 0 : i2129)) > ((i2131 < 0) ? 0 : ((i2131 >= 32769) ? 0 : i2131)))) {
+								if ((dt24[(int) ((2 * a415[(int) ((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))]) + 1)] > dt24[(int) ((2 * a415[(int) ((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))]) + 1)])) {
 									b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
 									j32 = (j32 + 1);
 									continue;
 								}
-								b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((i405 < 0) ? 0 : ((i405 >= nd8) ? 0 : i405))];
-								i405 = (i405 + 1);
+								b348[(int) ((k70 < 0) ? 0 : ((k70 >= nd8) ? 0 : k70))] = a415[(int) ((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))];
+								i255 = (i255 + 1);
 								continue;
 							}
 							final var u121 = b348;
@@ -465,11 +451,9 @@ public final class examples_io_freq.java {
 						if (((sp24.length >> 1) < 1)) {
 							break;
 						}
-						final long i406 = ord28[((r19 < 0) ? 0 : ((r19 >= nd8) ? 0 : r19))];
-						final long d964 = ((i406 < 0) ? 0 : ((i406 >= nd8) ? 0 : i406));
-						final long i407 = dt24[(int) ((2 * d964) + 1)];
+						final long d964 = ord28[((r19 < 0) ? 0 : ((r19 >= nd8) ? 0 : r19))];
 						int d1063 = 1;
-						long x50 = ((i407 < 0) ? 0 : ((i407 >= 32769) ? 0 : i407));
+						long x50 = dt24[(int) ((2 * d964) + 1)];
 						for (;; d1063 = (d1063 + 1), x50 = (x50 / 10)) {
 							if ((x50 < 10)) {
 								break;
@@ -479,9 +463,8 @@ public final class examples_io_freq.java {
 							}
 							continue;
 						}
-						final long i408 = dt24[(int) (2 * d964)];
-						final long i409 = ((i408 < 0) ? 0 : ((i408 >= 32769) ? 0 : i408));
-						final long w50 = ((i409 < 0) ? 0 : ((i409 >= (sp24.length >> 1)) ? 0 : i409));
+						final long i256 = dt24[(int) (2 * d964)];
+						final long w50 = ((i256 < 0) ? 0 : ((i256 >= (sp24.length >> 1)) ? 0 : i256));
 						final long d1064 = ((long) sp24[(int) ((2 * w50) + 1)] - (long) sp24[(int) (2 * w50)]);
 						n24 = (int) ((n24 + (d1063 + (2 + ((d1064 < 0) ? 0 : ((d1064 >= 65536) ? 0 : d1064))))));
 						continue;
@@ -501,13 +484,10 @@ public final class examples_io_freq.java {
 						if (((sp24.length >> 1) < 1)) {
 							break;
 						}
-						final long i410 = ord28[((r20 < 0) ? 0 : ((r20 >= nd8) ? 0 : r20))];
-						final long d178 = ((i410 < 0) ? 0 : ((i410 >= nd8) ? 0 : i410));
-						final long i411 = dt24[(int) ((2 * d178) + 1)];
-						final long c168 = ((i411 < 0) ? 0 : ((i411 >= 32769) ? 0 : i411));
-						final long i412 = dt24[(int) (2 * d178)];
-						final long i413 = ((i412 < 0) ? 0 : ((i412 >= 32769) ? 0 : i412));
-						final long w51 = ((i413 < 0) ? 0 : ((i413 >= (sp24.length >> 1)) ? 0 : i413));
+						final long d178 = ord28[((r20 < 0) ? 0 : ((r20 >= nd8) ? 0 : r20))];
+						final long c168 = dt24[(int) ((2 * d178) + 1)];
+						final long i257 = dt24[(int) (2 * d178)];
+						final long w51 = ((i257 < 0) ? 0 : ((i257 >= (sp24.length >> 1)) ? 0 : i257));
 						int p16 = 1;
 						long k71 = 1;
 						for (;;) {
@@ -544,8 +524,8 @@ public final class examples_io_freq.java {
 								break;
 							}
 							out216[(int) ((o215 < 0) ? 0 : ((o215 >= m8) ? 0 : o215))] = (short) (48 + ((x51 / p15) % 10));
-							final long i414 = (o215 + 1);
-							o215 = ((i414 < 0) ? 0 : ((i414 >= m8) ? 0 : i414));
+							final long i258 = (o215 + 1);
+							o215 = ((i258 < 0) ? 0 : ((i258 >= m8) ? 0 : i258));
 							continue;
 						}
 						int d1858 = 1;
@@ -559,8 +539,8 @@ public final class examples_io_freq.java {
 							}
 							continue;
 						}
-						final long i415 = (o9 + d1858);
-						out216[(int) ((i415 < 0) ? 0 : ((i415 >= m8) ? 0 : i415))] = 32;
+						final long i259 = (o9 + d1858);
+						out216[(int) ((i259 < 0) ? 0 : ((i259 >= m8) ? 0 : i259))] = 32;
 						final short[] out217 = out216;
 						int d1859 = 1;
 						long x54 = c168;
@@ -581,15 +561,14 @@ public final class examples_io_freq.java {
 							if ((k72 >= ((d1860 < 0) ? 0 : ((d1860 >= 65536) ? 0 : d1860)))) {
 								break;
 							}
-							final long i416 = ((long) sp24[(int) (2 * w51)] + k72);
-							out38[(int) ((o216 < 0) ? 0 : ((o216 >= m8) ? 0 : o216))] = (short) (long) src2[(int) ((i416 < 0) ? 0 : ((i416 >= src2.length) ? 0 : i416))];
-							final long i417 = (o216 + 1);
-							o216 = ((i417 < 0) ? 0 : ((i417 >= m8) ? 0 : i417));
+							final long i260 = ((long) sp24[(int) (2 * w51)] + k72);
+							out38[(int) ((o216 < 0) ? 0 : ((o216 >= m8) ? 0 : o216))] = (short) (long) src2[(int) ((i260 < 0) ? 0 : ((i260 >= src2.length) ? 0 : i260))];
+							final long i261 = (o216 + 1);
+							o216 = ((i261 < 0) ? 0 : ((i261 >= m8) ? 0 : i261));
 							continue;
 						}
-						final long i418 = dt24[(int) ((2 * d178) + 1)];
 						int d1861 = 1;
-						long x55 = ((i418 < 0) ? 0 : ((i418 >= 32769) ? 0 : i418));
+						long x55 = dt24[(int) ((2 * d178) + 1)];
 						for (;; d1861 = (d1861 + 1), x55 = (x55 / 10)) {
 							if ((x55 < 10)) {
 								break;
@@ -599,15 +578,13 @@ public final class examples_io_freq.java {
 							}
 							continue;
 						}
-						final long i419 = dt24[(int) (2 * d178)];
-						final long i420 = ((i419 < 0) ? 0 : ((i419 >= 32769) ? 0 : i419));
-						final long w213 = ((i420 < 0) ? 0 : ((i420 >= (sp24.length >> 1)) ? 0 : i420));
+						final long i262 = dt24[(int) (2 * d178)];
+						final long w213 = ((i262 < 0) ? 0 : ((i262 >= (sp24.length >> 1)) ? 0 : i262));
 						final long d1862 = ((long) sp24[(int) ((2 * w213) + 1)] - (long) sp24[(int) (2 * w213)]);
-						final long i421 = (o9 + ((d1861 + (2 + ((d1862 < 0) ? 0 : ((d1862 >= 65536) ? 0 : d1862)))) - 1));
-						out38[(int) ((i421 < 0) ? 0 : ((i421 >= m8) ? 0 : i421))] = 10;
-						final long i422 = dt24[(int) ((2 * d178) + 1)];
+						final long i263 = (o9 + ((d1861 + (2 + ((d1862 < 0) ? 0 : ((d1862 >= 65536) ? 0 : d1862)))) - 1));
+						out38[(int) ((i263 < 0) ? 0 : ((i263 >= m8) ? 0 : i263))] = 10;
 						int d1863 = 1;
-						long x56 = ((i422 < 0) ? 0 : ((i422 >= 32769) ? 0 : i422));
+						long x56 = dt24[(int) ((2 * d178) + 1)];
 						for (;; d1863 = (d1863 + 1), x56 = (x56 / 10)) {
 							if ((x56 < 10)) {
 								break;
@@ -617,9 +594,8 @@ public final class examples_io_freq.java {
 							}
 							continue;
 						}
-						final long i423 = dt24[(int) (2 * d178)];
-						final long i424 = ((i423 < 0) ? 0 : ((i423 >= 32769) ? 0 : i423));
-						final long w52 = ((i424 < 0) ? 0 : ((i424 >= (sp24.length >> 1)) ? 0 : i424));
+						final long i264 = dt24[(int) (2 * d178)];
+						final long w52 = ((i264 < 0) ? 0 : ((i264 >= (sp24.length >> 1)) ? 0 : i264));
 						final long d1864 = ((long) sp24[(int) ((2 * w52) + 1)] - (long) sp24[(int) (2 * w52)]);
 						final var u125 = out38;
 						final var u126 = (int) ((o9 + (d1863 + (2 + ((d1864 < 0) ? 0 : ((d1864 >= 65536) ? 0 : d1864))))));

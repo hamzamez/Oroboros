@@ -17,17 +17,17 @@ export function genMain() {
 				t112 = "freq: file is larger than this tool accepts";
 			} else {
 				let n22 = 0;
-				let i400 = 0;
+				let i232 = 0;
 				for (;;) {
-					if ((i400 >= src2.length)) {
+					if ((i232 >= src2.length)) {
 						break;
 					}
 					if ((n22 >= 32768)) {
 						break;
 					}
-					const c148 = src2[i400];
+					const c148 = src2[i232];
 					if ((((c148 >= 65) && (c148 <= 90)) || ((c148 >= 97) && (c148 <= 122)))) {
-						let j29 = (i400 + 1);
+						let j29 = (i232 + 1);
 						for (;; j29 = (j29 + 1)) {
 							if ((j29 < 0)) {
 								break;
@@ -42,27 +42,27 @@ export function genMain() {
 							break;
 						}
 						n22 = (n22 + 1);
-						i400 = j29;
+						i232 = j29;
 						continue;
 					}
-					i400 = (i400 + 1);
+					i232 = (i232 + 1);
 					continue;
 				}
 				const nw8 = n22;
 				const sp22 = new Array((2 * nw8)).fill(0);
 				let sp23 = sp22;
-				let i401 = 0;
+				let i233 = 0;
 				let w50 = 0;
 				for (;;) {
-					if ((i401 >= src2.length)) {
+					if ((i233 >= src2.length)) {
 						break;
 					}
 					if ((w50 >= nw8)) {
 						break;
 					}
-					const c150 = src2[i401];
+					const c150 = src2[i233];
 					if ((((c150 >= 65) && (c150 <= 90)) || ((c150 >= 97) && (c150 <= 122)))) {
-						let j30 = (i401 + 1);
+						let j30 = (i233 + 1);
 						for (;; j30 = (j30 + 1)) {
 							if ((j30 < 0)) {
 								break;
@@ -77,13 +77,13 @@ export function genMain() {
 							break;
 						}
 						const ni8 = j30;
-						sp23[(2 * w50)] = i401;
+						sp23[(2 * w50)] = i233;
 						sp23[((2 * w50) + 1)] = ni8;
-						i401 = ni8;
+						i233 = ni8;
 						w50 = (w50 + 1);
 						continue;
 					}
-					i401 = (i401 + 1);
+					i233 = (i233 + 1);
 					continue;
 				}
 				const sp24 = sp23;
@@ -119,29 +119,27 @@ export function genMain() {
 						const b89 = (lo15 + (2 * w51));
 						const hi15 = ((nw8 < b89) ? nw8 : b89);
 						let b90 = b87;
-						let i402 = lo15;
+						let i234 = lo15;
 						let j31 = mid15;
 						let k86 = lo15;
 						for (;;) {
 							if ((k86 >= hi15)) {
 								break;
 							}
-							if ((i402 >= mid15)) {
+							if ((i234 >= mid15)) {
 								b90[((k86 < 0) ? 0 : ((k86 >= nw8) ? 0 : k86))] = a45[((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
 								j31 = (j31 + 1);
 								k86 = (k86 + 1);
 								continue;
 							}
 							if ((j31 >= hi15)) {
-								b90[((k86 < 0) ? 0 : ((k86 >= nw8) ? 0 : k86))] = a45[((i402 < 0) ? 0 : ((i402 >= nw8) ? 0 : i402))];
-								i402 = (i402 + 1);
+								b90[((k86 < 0) ? 0 : ((k86 >= nw8) ? 0 : k86))] = a45[((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
+								i234 = (i234 + 1);
 								k86 = (k86 + 1);
 								continue;
 							}
-							const i403 = a45[((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
-							const u79 = ((i403 < 0) ? 0 : ((i403 >= nw8) ? 0 : i403));
-							const i404 = a45[((i402 < 0) ? 0 : ((i402 >= nw8) ? 0 : i402))];
-							const v30 = ((i404 < 0) ? 0 : ((i404 >= nw8) ? 0 : i404));
+							const u79 = a45[((j31 < 0) ? 0 : ((j31 >= nw8) ? 0 : j31))];
+							const v30 = a45[((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
 							let k87 = 0;
 							let r113;
 							for (;; k87 = (k87 + 1)) {
@@ -160,17 +158,17 @@ export function genMain() {
 									r113 = 1;
 									break;
 								}
-								const i405 = (sp24[(2 * u79)] + k87);
-								const c152 = src2[((i405 < 0) ? 0 : ((i405 >= src2.length) ? 0 : i405))];
-								const i406 = (sp24[(2 * v30)] + k87);
-								const c153 = src2[((i406 < 0) ? 0 : ((i406 >= src2.length) ? 0 : i406))];
+								const i235 = (sp24[(2 * u79)] + k87);
+								const c152 = src2[((i235 < 0) ? 0 : ((i235 >= src2.length) ? 0 : i235))];
+								const i236 = (sp24[(2 * v30)] + k87);
+								const c153 = src2[((i236 < 0) ? 0 : ((i236 >= src2.length) ? 0 : i236))];
 								if (((((c152 >= 65) && (c152 <= 90)) ? (c152 + 32) : c152) === (((c153 >= 65) && (c153 <= 90)) ? (c153 + 32) : c153))) {
 									continue;
 								}
-								const i407 = (sp24[(2 * u79)] + k87);
-								const c154 = src2[((i407 < 0) ? 0 : ((i407 >= src2.length) ? 0 : i407))];
-								const i408 = (sp24[(2 * v30)] + k87);
-								const c155 = src2[((i408 < 0) ? 0 : ((i408 >= src2.length) ? 0 : i408))];
+								const i237 = (sp24[(2 * u79)] + k87);
+								const c154 = src2[((i237 < 0) ? 0 : ((i237 >= src2.length) ? 0 : i237))];
+								const i238 = (sp24[(2 * v30)] + k87);
+								const c155 = src2[((i238 < 0) ? 0 : ((i238 >= src2.length) ? 0 : i238))];
 								if (((((c154 >= 65) && (c154 <= 90)) ? (c154 + 32) : c154) < (((c155 >= 65) && (c155 <= 90)) ? (c155 + 32) : c155))) {
 									r113 = -1;
 									break;
@@ -184,8 +182,8 @@ export function genMain() {
 								k86 = (k86 + 1);
 								continue;
 							}
-							b90[((k86 < 0) ? 0 : ((k86 >= nw8) ? 0 : k86))] = a45[((i402 < 0) ? 0 : ((i402 >= nw8) ? 0 : i402))];
-							i402 = (i402 + 1);
+							b90[((k86 < 0) ? 0 : ((k86 >= nw8) ? 0 : k86))] = a45[((i234 < 0) ? 0 : ((i234 >= nw8) ? 0 : i234))];
+							i234 = (i234 + 1);
 							k86 = (k86 + 1);
 							continue;
 						}
@@ -211,11 +209,9 @@ export function genMain() {
 					if ((n23 >= 32768)) {
 						break;
 					}
-					const i409 = ord9[((k88 < 0) ? 0 : ((k88 >= nw8) ? 0 : k88))];
-					const u80 = ((i409 < 0) ? 0 : ((i409 >= nw8) ? 0 : i409));
-					const i410 = (k88 - 1);
-					const i411 = ord9[((i410 < 0) ? 0 : ((i410 >= nw8) ? 0 : i410))];
-					const v32 = ((i411 < 0) ? 0 : ((i411 >= nw8) ? 0 : i411));
+					const u80 = ord9[((k88 < 0) ? 0 : ((k88 >= nw8) ? 0 : k88))];
+					const i239 = (k88 - 1);
+					const v32 = ord9[((i239 < 0) ? 0 : ((i239 >= nw8) ? 0 : i239))];
 					let k89 = 0;
 					let r118;
 					for (;; k89 = (k89 + 1)) {
@@ -234,17 +230,17 @@ export function genMain() {
 							r118 = 1;
 							break;
 						}
-						const i412 = (sp24[(2 * u80)] + k89);
-						const c156 = src2[((i412 < 0) ? 0 : ((i412 >= src2.length) ? 0 : i412))];
-						const i413 = (sp24[(2 * v32)] + k89);
-						const c157 = src2[((i413 < 0) ? 0 : ((i413 >= src2.length) ? 0 : i413))];
+						const i240 = (sp24[(2 * u80)] + k89);
+						const c156 = src2[((i240 < 0) ? 0 : ((i240 >= src2.length) ? 0 : i240))];
+						const i241 = (sp24[(2 * v32)] + k89);
+						const c157 = src2[((i241 < 0) ? 0 : ((i241 >= src2.length) ? 0 : i241))];
 						if (((((c156 >= 65) && (c156 <= 90)) ? (c156 + 32) : c156) === (((c157 >= 65) && (c157 <= 90)) ? (c157 + 32) : c157))) {
 							continue;
 						}
-						const i414 = (sp24[(2 * u80)] + k89);
-						const c158 = src2[((i414 < 0) ? 0 : ((i414 >= src2.length) ? 0 : i414))];
-						const i415 = (sp24[(2 * v32)] + k89);
-						const c159 = src2[((i415 < 0) ? 0 : ((i415 >= src2.length) ? 0 : i415))];
+						const i242 = (sp24[(2 * u80)] + k89);
+						const c158 = src2[((i242 < 0) ? 0 : ((i242 >= src2.length) ? 0 : i242))];
+						const i243 = (sp24[(2 * v32)] + k89);
+						const c159 = src2[((i243 < 0) ? 0 : ((i243 >= src2.length) ? 0 : i243))];
 						if (((((c158 >= 65) && (c158 <= 90)) ? (c158 + 32) : c158) < (((c159 >= 65) && (c159 <= 90)) ? (c159 + 32) : c159))) {
 							r118 = -1;
 							break;
@@ -272,11 +268,9 @@ export function genMain() {
 					if ((nd8 < 1)) {
 						break;
 					}
-					const i416 = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
-					const u81 = ((i416 < 0) ? 0 : ((i416 >= nw8) ? 0 : i416));
-					const i417 = (k90 - 1);
-					const i418 = ord9[((i417 < 0) ? 0 : ((i417 >= nw8) ? 0 : i417))];
-					const v33 = ((i418 < 0) ? 0 : ((i418 >= nw8) ? 0 : i418));
+					const u81 = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
+					const i244 = (k90 - 1);
+					const v33 = ord9[((i244 < 0) ? 0 : ((i244 >= nw8) ? 0 : i244))];
 					let k91 = 0;
 					let r119;
 					for (;; k91 = (k91 + 1)) {
@@ -295,17 +289,17 @@ export function genMain() {
 							r119 = 1;
 							break;
 						}
-						const i419 = (sp24[(2 * u81)] + k91);
-						const c160 = src2[((i419 < 0) ? 0 : ((i419 >= src2.length) ? 0 : i419))];
-						const i420 = (sp24[(2 * v33)] + k91);
-						const c161 = src2[((i420 < 0) ? 0 : ((i420 >= src2.length) ? 0 : i420))];
+						const i245 = (sp24[(2 * u81)] + k91);
+						const c160 = src2[((i245 < 0) ? 0 : ((i245 >= src2.length) ? 0 : i245))];
+						const i246 = (sp24[(2 * v33)] + k91);
+						const c161 = src2[((i246 < 0) ? 0 : ((i246 >= src2.length) ? 0 : i246))];
 						if (((((c160 >= 65) && (c160 <= 90)) ? (c160 + 32) : c160) === (((c161 >= 65) && (c161 <= 90)) ? (c161 + 32) : c161))) {
 							continue;
 						}
-						const i421 = (sp24[(2 * u81)] + k91);
-						const c162 = src2[((i421 < 0) ? 0 : ((i421 >= src2.length) ? 0 : i421))];
-						const i422 = (sp24[(2 * v33)] + k91);
-						const c163 = src2[((i422 < 0) ? 0 : ((i422 >= src2.length) ? 0 : i422))];
+						const i247 = (sp24[(2 * u81)] + k91);
+						const c162 = src2[((i247 < 0) ? 0 : ((i247 >= src2.length) ? 0 : i247))];
+						const i248 = (sp24[(2 * v33)] + k91);
+						const c163 = src2[((i248 < 0) ? 0 : ((i248 >= src2.length) ? 0 : i248))];
 						if (((((c162 >= 65) && (c162 <= 90)) ? (c162 + 32) : c162) < (((c163 >= 65) && (c163 <= 90)) ? (c163 + 32) : c163))) {
 							r119 = -1;
 							break;
@@ -316,11 +310,9 @@ export function genMain() {
 					if ((((k90 === 0) || (!(r119 === 0))) && (d182 >= nd8))) {
 						break;
 					}
-					const i423 = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
-					const u86 = ((i423 < 0) ? 0 : ((i423 >= nw8) ? 0 : i423));
-					const i424 = (k90 - 1);
-					const i425 = ord9[((i424 < 0) ? 0 : ((i424 >= nw8) ? 0 : i424))];
-					const v34 = ((i425 < 0) ? 0 : ((i425 >= nw8) ? 0 : i425));
+					const u86 = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
+					const i249 = (k90 - 1);
+					const v34 = ord9[((i249 < 0) ? 0 : ((i249 >= nw8) ? 0 : i249))];
 					let k92 = 0;
 					let r120;
 					for (;; k92 = (k92 + 1)) {
@@ -339,17 +331,17 @@ export function genMain() {
 							r120 = 1;
 							break;
 						}
-						const i426 = (sp24[(2 * u86)] + k92);
-						const c164 = src2[((i426 < 0) ? 0 : ((i426 >= src2.length) ? 0 : i426))];
-						const i427 = (sp24[(2 * v34)] + k92);
-						const c165 = src2[((i427 < 0) ? 0 : ((i427 >= src2.length) ? 0 : i427))];
+						const i250 = (sp24[(2 * u86)] + k92);
+						const c164 = src2[((i250 < 0) ? 0 : ((i250 >= src2.length) ? 0 : i250))];
+						const i251 = (sp24[(2 * v34)] + k92);
+						const c165 = src2[((i251 < 0) ? 0 : ((i251 >= src2.length) ? 0 : i251))];
 						if (((((c164 >= 65) && (c164 <= 90)) ? (c164 + 32) : c164) === (((c165 >= 65) && (c165 <= 90)) ? (c165 + 32) : c165))) {
 							continue;
 						}
-						const i428 = (sp24[(2 * u86)] + k92);
-						const c166 = src2[((i428 < 0) ? 0 : ((i428 >= src2.length) ? 0 : i428))];
-						const i429 = (sp24[(2 * v34)] + k92);
-						const c167 = src2[((i429 < 0) ? 0 : ((i429 >= src2.length) ? 0 : i429))];
+						const i252 = (sp24[(2 * u86)] + k92);
+						const c166 = src2[((i252 < 0) ? 0 : ((i252 >= src2.length) ? 0 : i252))];
+						const i253 = (sp24[(2 * v34)] + k92);
+						const c167 = src2[((i253 < 0) ? 0 : ((i253 >= src2.length) ? 0 : i253))];
 						if (((((c166 >= 65) && (c166 <= 90)) ? (c166 + 32) : c166) < (((c167 >= 65) && (c167 <= 90)) ? (c167 + 32) : c167))) {
 							r120 = -1;
 							break;
@@ -358,17 +350,15 @@ export function genMain() {
 						break;
 					}
 					if (((k90 === 0) || (!(r120 === 0)))) {
-						const i430 = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
-						dt23[(2 * ((d182 < 0) ? 0 : ((d182 >= nd8) ? 0 : d182)))] = ((i430 < 0) ? 0 : ((i430 >= nw8) ? 0 : i430));
+						dt23[(2 * ((d182 < 0) ? 0 : ((d182 >= nd8) ? 0 : d182)))] = ord9[((k90 < 0) ? 0 : ((k90 >= nw8) ? 0 : k90))];
 						dt23[((2 * ((d182 < 0) ? 0 : ((d182 >= nd8) ? 0 : d182))) + 1)] = 1;
 						k90 = (k90 + 1);
 						d182 = (d182 + 1);
 						continue;
 					}
-					const i431 = (d182 - 1);
-					const s8 = ((i431 < 0) ? 0 : ((i431 >= nd8) ? 0 : i431));
-					const i432 = dt23[((2 * s8) + 1)];
-					dt23[((2 * s8) + 1)] = (((i432 < 0) ? 0 : ((i432 >= 32769) ? 0 : i432)) + 1);
+					const i254 = (d182 - 1);
+					const s8 = ((i254 < 0) ? 0 : ((i254 >= nd8) ? 0 : i254));
+					dt23[((2 * s8) + 1)] = (dt23[((2 * s8) + 1)] + 1);
 					k90 = (k90 + 1);
 					continue;
 				}
@@ -405,34 +395,30 @@ export function genMain() {
 						const b95 = (lo16 + (2 * w52));
 						const hi16 = ((nd8 < b95) ? nd8 : b95);
 						let b96 = b93;
-						let i433 = lo16;
+						let i255 = lo16;
 						let j32 = mid16;
 						let k94 = lo16;
 						for (;; k94 = (k94 + 1)) {
 							if ((k94 >= hi16)) {
 								break;
 							}
-							if ((i433 >= mid16)) {
+							if ((i255 >= mid16)) {
 								b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
 								j32 = (j32 + 1);
 								continue;
 							}
 							if ((j32 >= hi16)) {
-								b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((i433 < 0) ? 0 : ((i433 >= nd8) ? 0 : i433))];
-								i433 = (i433 + 1);
+								b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))];
+								i255 = (i255 + 1);
 								continue;
 							}
-							const i434 = a48[((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
-							const i435 = dt24[((2 * ((i434 < 0) ? 0 : ((i434 >= nd8) ? 0 : i434))) + 1)];
-							const i436 = a48[((i433 < 0) ? 0 : ((i433 >= nd8) ? 0 : i433))];
-							const i437 = dt24[((2 * ((i436 < 0) ? 0 : ((i436 >= nd8) ? 0 : i436))) + 1)];
-							if ((((i435 < 0) ? 0 : ((i435 >= 32769) ? 0 : i435)) > ((i437 < 0) ? 0 : ((i437 >= 32769) ? 0 : i437)))) {
+							if ((dt24[((2 * a48[((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))]) + 1)] > dt24[((2 * a48[((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))]) + 1)])) {
 								b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((j32 < 0) ? 0 : ((j32 >= nd8) ? 0 : j32))];
 								j32 = (j32 + 1);
 								continue;
 							}
-							b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((i433 < 0) ? 0 : ((i433 >= nd8) ? 0 : i433))];
-							i433 = (i433 + 1);
+							b96[((k94 < 0) ? 0 : ((k94 >= nd8) ? 0 : k94))] = a48[((i255 < 0) ? 0 : ((i255 >= nd8) ? 0 : i255))];
+							i255 = (i255 + 1);
 							continue;
 						}
 						const u121 = b96;
@@ -460,11 +446,9 @@ export function genMain() {
 					if ((((Math.trunc(sp24.length / 2) + 0)) < 1)) {
 						break;
 					}
-					const i438 = ord28[((r19 < 0) ? 0 : ((r19 >= nd8) ? 0 : r19))];
-					const d189 = ((i438 < 0) ? 0 : ((i438 >= nd8) ? 0 : i438));
-					const i439 = dt24[((2 * d189) + 1)];
+					const d189 = ord28[((r19 < 0) ? 0 : ((r19 >= nd8) ? 0 : r19))];
 					let d190 = 1;
-					let x50 = ((i439 < 0) ? 0 : ((i439 >= 32769) ? 0 : i439));
+					let x50 = dt24[((2 * d189) + 1)];
 					for (;; d190 = (d190 + 1), x50 = ((Math.trunc(x50 / 10) + 0))) {
 						if ((x50 < 10)) {
 							break;
@@ -474,9 +458,8 @@ export function genMain() {
 						}
 						continue;
 					}
-					const i440 = dt24[(2 * d189)];
-					const i441 = ((i440 < 0) ? 0 : ((i440 >= 32769) ? 0 : i440));
-					const w53 = ((i441 < 0) ? 0 : ((i441 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i441));
+					const i256 = dt24[(2 * d189)];
+					const w53 = ((i256 < 0) ? 0 : ((i256 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i256));
 					const d191 = (sp24[((2 * w53) + 1)] - sp24[(2 * w53)]);
 					n24 = (n24 + (d190 + (2 + ((d191 < 0) ? 0 : ((d191 >= 65536) ? 0 : d191)))));
 					continue;
@@ -496,13 +479,10 @@ export function genMain() {
 					if ((((Math.trunc(sp24.length / 2) + 0)) < 1)) {
 						break;
 					}
-					const i442 = ord28[((r20 < 0) ? 0 : ((r20 >= nd8) ? 0 : r20))];
-					const d192 = ((i442 < 0) ? 0 : ((i442 >= nd8) ? 0 : i442));
-					const i443 = dt24[((2 * d192) + 1)];
-					const c168 = ((i443 < 0) ? 0 : ((i443 >= 32769) ? 0 : i443));
-					const i444 = dt24[(2 * d192)];
-					const i445 = ((i444 < 0) ? 0 : ((i444 >= 32769) ? 0 : i444));
-					const w54 = ((i445 < 0) ? 0 : ((i445 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i445));
+					const d192 = ord28[((r20 < 0) ? 0 : ((r20 >= nd8) ? 0 : r20))];
+					const c168 = dt24[((2 * d192) + 1)];
+					const i257 = dt24[(2 * d192)];
+					const w54 = ((i257 < 0) ? 0 : ((i257 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i257));
 					let p15 = 1;
 					let k95 = 1;
 					for (;;) {
@@ -539,8 +519,8 @@ export function genMain() {
 							break;
 						}
 						out38[((o23 < 0) ? 0 : ((o23 >= m8) ? 0 : o23))] = (48 + (((((Math.trunc(x52 / p16) + 0)) % 10) + 0)));
-						const i446 = (o23 + 1);
-						o23 = ((i446 < 0) ? 0 : ((i446 >= m8) ? 0 : i446));
+						const i258 = (o23 + 1);
+						o23 = ((i258 < 0) ? 0 : ((i258 >= m8) ? 0 : i258));
 						continue;
 					}
 					let d194 = 1;
@@ -554,8 +534,8 @@ export function genMain() {
 						}
 						continue;
 					}
-					const i447 = (o22 + d194);
-					out38[((i447 < 0) ? 0 : ((i447 >= m8) ? 0 : i447))] = 32;
+					const i259 = (o22 + d194);
+					out38[((i259 < 0) ? 0 : ((i259 >= m8) ? 0 : i259))] = 32;
 					const out39 = out38;
 					let d195 = 1;
 					let x54 = c168;
@@ -576,15 +556,14 @@ export function genMain() {
 						if ((k96 >= ((d196 < 0) ? 0 : ((d196 >= 65536) ? 0 : d196)))) {
 							break;
 						}
-						const i448 = (sp24[(2 * w54)] + k96);
-						out40[((o24 < 0) ? 0 : ((o24 >= m8) ? 0 : o24))] = src2[((i448 < 0) ? 0 : ((i448 >= src2.length) ? 0 : i448))];
-						const i449 = (o24 + 1);
-						o24 = ((i449 < 0) ? 0 : ((i449 >= m8) ? 0 : i449));
+						const i260 = (sp24[(2 * w54)] + k96);
+						out40[((o24 < 0) ? 0 : ((o24 >= m8) ? 0 : o24))] = src2[((i260 < 0) ? 0 : ((i260 >= src2.length) ? 0 : i260))];
+						const i261 = (o24 + 1);
+						o24 = ((i261 < 0) ? 0 : ((i261 >= m8) ? 0 : i261));
 						continue;
 					}
-					const i450 = dt24[((2 * d192) + 1)];
 					let d197 = 1;
-					let x55 = ((i450 < 0) ? 0 : ((i450 >= 32769) ? 0 : i450));
+					let x55 = dt24[((2 * d192) + 1)];
 					for (;; d197 = (d197 + 1), x55 = ((Math.trunc(x55 / 10) + 0))) {
 						if ((x55 < 10)) {
 							break;
@@ -594,15 +573,13 @@ export function genMain() {
 						}
 						continue;
 					}
-					const i451 = dt24[(2 * d192)];
-					const i452 = ((i451 < 0) ? 0 : ((i451 >= 32769) ? 0 : i451));
-					const w55 = ((i452 < 0) ? 0 : ((i452 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i452));
+					const i262 = dt24[(2 * d192)];
+					const w55 = ((i262 < 0) ? 0 : ((i262 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i262));
 					const d198 = (sp24[((2 * w55) + 1)] - sp24[(2 * w55)]);
-					const i453 = (o22 + ((d197 + (2 + ((d198 < 0) ? 0 : ((d198 >= 65536) ? 0 : d198)))) - 1));
-					out40[((i453 < 0) ? 0 : ((i453 >= m8) ? 0 : i453))] = 10;
-					const i454 = dt24[((2 * d192) + 1)];
+					const i263 = (o22 + ((d197 + (2 + ((d198 < 0) ? 0 : ((d198 >= 65536) ? 0 : d198)))) - 1));
+					out40[((i263 < 0) ? 0 : ((i263 >= m8) ? 0 : i263))] = 10;
 					let d199 = 1;
-					let x56 = ((i454 < 0) ? 0 : ((i454 >= 32769) ? 0 : i454));
+					let x56 = dt24[((2 * d192) + 1)];
 					for (;; d199 = (d199 + 1), x56 = ((Math.trunc(x56 / 10) + 0))) {
 						if ((x56 < 10)) {
 							break;
@@ -612,9 +589,8 @@ export function genMain() {
 						}
 						continue;
 					}
-					const i455 = dt24[(2 * d192)];
-					const i456 = ((i455 < 0) ? 0 : ((i455 >= 32769) ? 0 : i455));
-					const w56 = ((i456 < 0) ? 0 : ((i456 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i456));
+					const i264 = dt24[(2 * d192)];
+					const w56 = ((i264 < 0) ? 0 : ((i264 >= ((Math.trunc(sp24.length / 2) + 0))) ? 0 : i264));
 					const d200 = (sp24[((2 * w56) + 1)] - sp24[(2 * w56)]);
 					const u125 = out40;
 					const u126 = (o22 + (d199 + (2 + ((d200 < 0) ? 0 : ((d200 >= 65536) ? 0 : d200)))));

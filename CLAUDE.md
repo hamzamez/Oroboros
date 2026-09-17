@@ -2364,6 +2364,22 @@ Checked as a commuting square — `unicode-utf8.oro` 33 of 33 declarations `Deep
 the square and the unit test fail against an elaboration that drops `pure`. Not built: `const` in a program
 module, and a constant's name as a range endpoint.
 
+**ARRAY SMASHING: THE VALUE CLAMPS COME OUT, AND TREE BUILDS WITHOUT `-checked`** —
+[smashfd-2026-09-16](gauntlet/results/smashfd-2026-09-16.md), `emit/smash.go`. The interval layer's consumer of F-D:
+one abstract cell per table (Blanchet et al., PLDI 2003), weak updates, the zero fill `[0,0]`, and a loop's tables
+joining the scalars' Kleene iteration — so a read of a buffer inside its own loop is an iterate of ONE monotone
+fixpoint, which is why frozen-2026-08-28's stratum-0 refusal no longer applies. **A weak update is EXTENSIVE, so
+narrowing could never shrink a widened cell** (monotone.go's running extremum, at a table), and two theorems repair
+it: the **copy-closed joint invariant** `J′ = ⨆init(G) ⊔ U`, where a copy of a G-slot adds nothing (a sort), and
+**bounded increments** `J₀ + T·s·Δ` with T the size-change trip count (a count table, a depth stored back plus one).
+**2,307 → 2,361 operations proven; freq's and tally's value clamps deleted** with output identical on three hosts and
+against tally's oracle; **tree is 525 of 525 and its walk 424 of 424 with no `-checked`** — what bounds `d` was a
+COUNT, not a relation. **The harness found a real soundness bug on the way** (`elemRange` read a store as its base,
+dropping the value: seed 315 claimed `-80..15`, the program produced `-231`); 15 plants fail it or two exact
+witnesses, and the two the random harness cannot catch are pinned because over-counting is sound. **And the limb
+library got 2.2× faster as a side effect**: a limb is now proven non-negative, so shiftdiv's rewrite fires. Storage
+width deliberately unchanged. Not built: a cell per stride component, and F-D₁ declared.
+
 **F-D₁ DERIVED, THE REFINEMENT HALF: A TABLE'S CONTENTS ARE PROVEN BY INDUCTION ON ITS STORE CHAIN** —
 [fdrefine-2026-09-16](gauntlet/results/fdrefine-2026-09-16.md), `emit/content.go`. A content fact is φ over `#e`
 holding of every slot. **Theorem D**: at a read whose bounds are PROVEN, φ[#e := read] holds, and the read is an alien

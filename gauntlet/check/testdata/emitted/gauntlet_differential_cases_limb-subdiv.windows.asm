@@ -215,9 +215,6 @@ Lend30:
         mov r11, qword ptr [rsp+72]
         mov rax, r10
         add rax, r11
-        jno Lok32
-        ud2
-        Lok32:
         mov qword ptr [rsp+56], rax
         mov r10, qword ptr [rsp+56]
         mov rax, r10
@@ -286,14 +283,8 @@ Lend39:
         mov r10, qword ptr [rsp+56]
         mov rsi, r10
         imul rsi, 100000000
-        jno Lok41
-        ud2
-        Lok41:
         mov rax, r15
         add rax, rsi
-        jno Lok42
-        ud2
-        Lok42:
         mov qword ptr [rsp+56], rax
         mov rax, qword ptr [rsp+56]
         add rsp, 96

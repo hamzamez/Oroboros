@@ -419,6 +419,38 @@ type intervalPass struct {
 	// answer here would be a fixpoint feeding itself.
 	elem map[string]ival
 
+	// ARRAY SMASHING (smash.go). tabElem is E for a rebuilt table-valued term;
+	// noSmash turns it off, for the buffer sub-pass that chooses storage. The
+	// smash* fields are the enclosing loop's back-edge accumulator.
+	tabElem      map[*core.Term]ival
+	noSmash      bool
+	smashRaw     []string
+	smashTracked []bool
+	smashAcc     []ival
+	smashOK      []bool
+
+	// THE DELTA ROUND (smash.go, the copy-closed joint invariant): dgroup is the
+	// loop's table variables, whose delta is ⊥; dcell a derived binder's delta;
+	// tabDelta a rebuilt term's; smashDAcc the back-edge accumulator.
+	dmode     bool
+	dgroup    map[string]bool
+	dcell     map[string]ival
+	tabDelta  map[*core.Term]ival
+	smashDAcc []ival
+
+	// BOUNDED INCREMENTS (smash.go): a store of a G-slot read plus a literal is
+	// counted rather than joined — dInc joins the literals, dIncEdge counts them
+	// along the back edge being evaluated and dIncMax over all edges, dDepth is
+	// how many loops deep inside the round's own loop a store sits, and dIncBad
+	// records an increment the count cannot bound.
+	dReadOf  map[string]*core.Term // a binder bound to a read of a G-derived table: the read
+	dInc     ival
+	dIncSeen bool
+	dIncBad  bool
+	dIncEdge int
+	dIncMax  int
+	dDepth   int
+
 	// letTerm is what each enclosing `let` bound, by name. The environment
 	// records a name's VALUE; this records the TERM it came from, which is what
 	// loop monotonicity needs to look at — ADR 0015 permits `again` under a
@@ -486,7 +518,7 @@ func bufferRangeSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
 	if lam == nil || lam.Kind != core.KFn || len(lam.Params) != 1 {
 		return "", false
 	}
-	rep, _ := intervalsAssumingSeeded(tgt, lam, sig, params, seed)
+	rep, _ := intervalsAssumingSeeded(tgt, lam, sig, params, seed, true)
 	var out ival
 	found := false
 	for _, v := range rep.Stores {
@@ -652,14 +684,15 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 // refinements.md §6b's rule. Intervals taken with it are ⊑ the ones taken
 // without — tighter, and both sound.
 func intervalsAssuming(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (*IntervalReport, *core.Term) {
-	return intervalsAssumingSeeded(tgt, lam, sig, params, nil)
+	return intervalsAssumingSeeded(tgt, lam, sig, params, nil, false)
 }
 
 func intervalsAssumingSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
-	params []string, seed map[string]ival) (*IntervalReport, *core.Term) {
+	params []string, seed map[string]ival, noSmash bool) (*IntervalReport, *core.Term) {
 
+	flags := []bool{false, false, false, false, noSmash}
 	if sig == nil || sig.Where == nil || len(params) == 0 {
-		return intervals(tgt, nil, lam, 0, seed)
+		return intervals(tgt, nil, lam, 0, seed, flags...)
 	}
 	// Rename the signature's parameter names to the ones the caller opened
 	// with, for the reason Refine needs the same thing: a length is keyed by
@@ -670,7 +703,7 @@ func intervalsAssumingSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
 			sub[sig.Params[i].Name] = core.Name(n)
 		}
 	}
-	return intervals(tgt, &core.Sig{Where: core.Rename2(sig.Where, sub)}, lam, 0, seed)
+	return intervals(tgt, &core.Sig{Where: core.Rename2(sig.Where, sub)}, lam, 0, seed, flags...)
 }
 
 func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*IntervalReport, *core.Term) {
@@ -721,7 +754,10 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		// must not also promote a big constant or take the checked forms:
 		// `PromoteBig` has already chosen a representation by the time this
 		// runs, and re-selecting would promote what is already promoted.
-		shiftOnly: len(flags) > 3 && flags[3]}
+		shiftOnly: len(flags) > 3 && flags[3],
+		// NO ARRAY SMASHING, for the sub-pass whose stores decide a buffer's
+		// STORAGE width (smash.go): smashing bounds values, never representation.
+		noSmash: len(flags) > 4 && flags[4]}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -906,8 +942,28 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 		// compiled to Go referring to a `nodes` from a different function, and
 		// go build refused it. `p.let` has the same shape and gets it right,
 		// with a comment saying so.
+		type shadow struct {
+			v        ival
+			had, did bool
+		}
+		sh := make([]shadow, len(t.Params))
+		for i, n := range t.Params {
+			if p.dmode && p.dgroup[n] {
+				sh[i].v, sh[i].had, sh[i].did = p.shadowDelta(n, top)
+			}
+		}
 		v, b := p.evalR(t.Body())
-		return v, core.Fn(t.Params, b)
+		fn := core.Fn(t.Params, b)
+		if e, ok := p.elemOf(b); ok { // while the body's names are still bound
+			p.setElemOf(fn, e)
+		}
+		if d, ok := p.deltaOf(b); ok {
+			p.setDeltaOf(fn, d)
+		}
+		for i, n := range t.Params {
+			p.unshadowDelta(n, sh[i].v, sh[i].had, sh[i].did)
+		}
+		return v, fn
 	case core.KApp:
 		return p.app(t)
 	}
@@ -1130,7 +1186,20 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		} else {
 			p.demandBig = known && i < len(prim.Args) && prim.Args[i] == core.BigType
 		}
+		// THE ZERO FILL (smash.go): inside `(build n λx.e)`, E(x) = [0,0].
+		zeroed, zOld, zHad := "", ival{}, false
+		dOld, dHad, dDid := ival{}, false, false
+		if known && prim.Kind == "table-build" && i == 1 && a.Kind == core.KFn && len(a.Params) == 1 && !p.noSmash {
+			zeroed = a.Params[0]
+			zOld, zHad = p.elem[zeroed]
+			p.elem[zeroed] = exact(0)
+			dOld, dHad, dDid = p.shadowDelta(zeroed, exact(0)) // a fresh buffer, not G's
+		}
 		v, na := p.evalR(a)
+		if zeroed != "" {
+			restoreVar(p.elem, zeroed, zOld, zHad)
+			p.unshadowDelta(zeroed, dOld, dHad, dDid)
+		}
 		// The widen is decided on the REBUILT argument: `selectBig` may have
 		// just turned it into a bignum, and wrapping that would be a type error
 		// rather than a conversion.
@@ -1164,7 +1233,32 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	}
 
 	if op.Name == "again" {
+		p.setElemOf(rebuilt, bottom) // a jump has no value, so no elements
+		p.setDeltaOf(rebuilt, bottom)
 		return bottom, rebuilt // a back edge produces no value
+	}
+
+	// THE CELL OF A TABLE-VALUED TERM (smash.go): a store is a weak update, a
+	// build is its body's cell with the zero fill, a graph is the hull of its
+	// elements.
+	if known && !p.noSmash {
+		switch {
+		case prim.Kind == "table-set" && len(args) == 3:
+			if e, ok := p.elemOf(kids[1]); ok {
+				p.setElemOf(rebuilt, joinI(e, vals[2]))
+			}
+			if d, ok := p.deltaOf(kids[1]); ok {
+				p.setDeltaOf(rebuilt, joinI(d, p.storedDelta(kids[3], vals[2])))
+			}
+		case prim.Kind == "table-build" && len(args) == 2:
+			if e, ok := p.elemOf(kids[2]); ok {
+				p.setElemOf(rebuilt, joinI(e, exact(0)))
+			}
+		case prim.Kind == "array":
+			if e, ok := p.elemRange(t); ok {
+				p.setElemOf(rebuilt, e)
+			}
+		}
 	}
 
 	// EVERY STORE INTO A BUFFER, joined, so the buffer can be held narrower
@@ -1255,6 +1349,14 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		}
 	}
 	out, checkable := p.transfer(op.Name, prim, vals)
+	// A BUILD'S VALUE IS ITS BODY'S. `(build n λb.e)` is `e` with b the zero-filled
+	// buffer, and `vals[1]` — the λ's interval — is e's. A body that hands the
+	// buffer back has a table value, whose interval says nothing either way; a
+	// body that returns a count (a scratch buffer: a stack, a worklist) has the
+	// count's, and that was ⊤ for want of saying so.
+	if known && prim.Kind == "table-build" && len(vals) == 2 {
+		out = intersect(out, vals[1])
+	}
 	if checkable {
 		if p.count {
 			p.record(op.Name, out, t)
@@ -1490,6 +1592,28 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	// known at the binding and was thrown away one line later, leaving every
 	// loop over it unbounded.
 	oldE, hadE := p.bindElem(raw[0], args[0])
+	// A BINDER IS ITS VALUE, cell included (smash.go) — met with what the
+	// syntactic and declared sources say, both being sound.
+	if e, ok := p.elemOf(nv); ok {
+		if have, had := p.elem[raw[0]]; had {
+			e = intersect(have, e)
+		}
+		p.elem[raw[0]] = e
+	}
+	lvOld, lvHad, lvDid := ival{}, false, false
+	if d, ok := p.deltaOf(nv); ok {
+		lvOld, lvHad, lvDid = p.shadowDelta(raw[0], d)
+	}
+	// A BINDER BOUND TO A READ IS THAT READ (smash.go, storedDelta).
+	rdOld, rdHad := p.dReadOf[raw[0]], false
+	if p.dmode {
+		_, rdHad = p.dReadOf[raw[0]]
+		if p.derivedRead(nv) {
+			p.dReadOf[raw[0]] = nv
+		} else {
+			delete(p.dReadOf, raw[0])
+		}
+	}
 	lenKey := "len(" + raw[0] + ")"
 	oldL, hadL := p.env[lenKey]
 	if n, ok := exactLen(p.tgt, args[0]); ok {
@@ -1497,6 +1621,16 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	}
 	out, nb := p.evalR(body)
 	wasBigBody := p.bigTerm(nb) // recorded before the binder goes out of scope
+	bodyE, bodyHasE := p.elemOf(nb)
+	bodyD, bodyHasD := p.deltaOf(nb)
+	p.unshadowDelta(raw[0], lvOld, lvHad, lvDid)
+	if p.dmode {
+		if rdHad {
+			p.dReadOf[raw[0]] = rdOld
+		} else {
+			delete(p.dReadOf, raw[0])
+		}
+	}
 	if hadL {
 		p.env[lenKey] = oldL
 	} else {
@@ -1519,6 +1653,12 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	// core.Fn closes an OPEN body, which is exactly what openFresh handed us.
 	rebuilt := core.App(t.Op(), nv, core.Fn(raw, nb))
 	p.markBig(rebuilt, wasBigBody)
+	if bodyHasE {
+		p.setElemOf(rebuilt, bodyE)
+	}
+	if bodyHasD {
+		p.setDeltaOf(rebuilt, bodyD)
+	}
 	return out, rebuilt
 }
 
@@ -1554,7 +1694,18 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 			na = core.App(core.Name("big-of"), na)
 		}
 	}
-	return joinI(a, b), core.App(t.Op(), nc, na, nb)
+	rebuilt := core.App(t.Op(), nc, na, nb)
+	if ea, ok := p.elemOf(na); ok {
+		if eb, ok := p.elemOf(nb); ok {
+			p.setElemOf(rebuilt, joinI(ea, eb))
+		}
+	}
+	if da, ok := p.deltaOf(na); ok {
+		if db, ok := p.deltaOf(nb); ok {
+			p.setDeltaOf(rebuilt, joinI(da, db))
+		}
+	}
+	return joinI(a, b), rebuilt
 }
 
 func (p *intervalPass) snapshot() map[string]ival {
@@ -1721,7 +1872,19 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 			if len(args) != 3 {
 				return ival{}, false
 			}
-			t = args[0] // a store hands the buffer back
+			// A STORE HANDS THE BUFFER BACK, and its range is the base's only
+			// while no buffer being filled has one — which was true of every
+			// source this function had: a declared range is a premise the stores
+			// must meet. Array smashing gives a build binder the zero fill and a
+			// loop variable a computed cell, and then `(set c i v)` read as `c`
+			// drops v: `(let (set x 11 234) …)` met the right cell E(x) ⊔ 234
+			// with the stale E(x), and a program printing -231 was claimed inside
+			// -80..15 (TestArraySmashingContains, seed 315). So in a smashing
+			// pass a store's cell is `elemOf`'s weak update and nothing else.
+			if !p.noSmash {
+				return ival{}, false
+			}
+			t = args[0]
 		case "table-build":
 			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
 				return ival{}, false
@@ -2133,16 +2296,69 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// is rebuilt every iteration by a `build` whose stores are all `(% t B)`,
 	// so its elements are provably under B — and without this, reading `acc`
 	// back gave ⊤ and every limb product was unbounded.
-	elemSaved := map[string][2]any{}
+	// ARRAY SMASHING (smash.go): a table-valued variable whose initialiser has a
+	// cell carries one through the fixpoint below, jointly with the scalars.
+	//
+	// READ BEFORE ANYTHING BELOW REBINDS A NAME. A loop threading a build's buffer
+	// is `(loop ((o o) …))`, `openFresh` keeps the spelling when it is free, and
+	// the initialiser `o` is the binder's zero fill — which the static setup that
+	// follows deletes under the loop variable's name.
+	tracked := make([]bool, len(raw))
+	initE := make([]ival, len(raw))
 	for k := range raw {
-		e, ok := p.loopElem(body, raw, inits, k)
-		if !ok {
-			continue
+		if k < len(nInits) {
+			if e, ok := p.elemOf(nInits[k]); ok {
+				tracked[k], initE[k] = true, e
+			}
 		}
+	}
+	elemSaved := map[string][2]any{}
+	static := make([]ival, len(raw))
+	hasStatic := make([]bool, len(raw))
+	for k := range raw {
 		old, had := p.elem[raw[k]]
 		elemSaved[raw[k]] = [2]any{old, had}
-		p.elem[raw[k]] = e
+		if e, ok := p.loopElem(body, raw, inits, k); ok {
+			static[k], hasStatic[k] = e, true
+			p.elem[raw[k]] = e
+		} else {
+			delete(p.elem, raw[k])
+		}
 	}
+
+	curE := make([]ival, len(raw))
+	copy(curE, initE)
+	lastE := make([]ival, len(raw))
+	lastOK := make([]bool, len(raw))
+	oSmRaw, oSmTr, oSmAcc, oSmOK := p.smashRaw, p.smashTracked, p.smashAcc, p.smashOK
+
+	// THE DELTA of each table variable (smash.go). Inside a delta round a nested
+	// loop's variable starts from its initialiser's delta and absorbs its back
+	// edges', exactly as its cell does; at the root of a round the initial deltas
+	// are ⊥ and init(G) is joined separately.
+	if p.dmode {
+		p.dDepth++
+		defer func() { p.dDepth-- }()
+	}
+	initD := make([]ival, len(raw))
+	if p.dmode {
+		for k := range raw {
+			if tracked[k] {
+				initD[k], _ = p.deltaOf(nInits[k])
+			}
+		}
+	}
+	curD := make([]ival, len(raw))
+	copy(curD, initD)
+	lastD := make([]ival, len(raw))
+	dSaved := make([][3]any, len(raw))
+	if p.dmode {
+		for k, n := range raw {
+			old, had := p.dcell[n]
+			dSaved[k] = [3]any{old, had, true}
+		}
+	}
+	oSmD := p.smashDAcc
 
 	saved := p.snapshot()
 	wasCounting := p.count
@@ -2162,18 +2378,69 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// ASCENDING with widening, to reach a post-fixpoint in bounded time.
 	//
 	// The transfer is `init ⊔ F(cur)`: a loop variable holds either its initial
-	// value or something an `again` produced, and nothing else.
+	// value or something an `again` produced, and nothing else. A smashed
+	// table's cell is part of the state: `initE ⊔ ⨆ E(arg)`.
 	step := func(cur []ival) []ival {
 		for i, n := range raw {
 			p.env[n] = cur[i]
 		}
+		for k, n := range raw {
+			switch {
+			case tracked[k] && hasStatic[k]:
+				p.elem[n] = intersect(curE[k], static[k])
+			case tracked[k]:
+				p.elem[n] = curE[k]
+			case hasStatic[k]:
+				p.elem[n] = static[k]
+			default:
+				delete(p.elem, n)
+			}
+		}
+		if p.dmode {
+			for k, n := range raw {
+				if tracked[k] {
+					p.dcell[n] = curD[k]
+				} else if p.dgroup[n] {
+					p.dcell[n] = top // shadows a G-table it is not
+				}
+			}
+		}
+		copy(lastE, initE)
+		copy(lastD, initD)
+		for k := range lastOK {
+			lastOK[k] = true
+		}
+		p.smashRaw, p.smashTracked, p.smashAcc, p.smashOK = raw, tracked, lastE, lastOK
+		p.smashDAcc = lastD
+		if p.dmode && p.dDepth == 0 {
+			p.dIncEdge = 0
+		}
 		next := make([]ival, len(initV))
 		copy(next, initV)
 		p.collectAgain(body, raw, next)
+		p.smashRaw, p.smashTracked, p.smashAcc, p.smashOK = oSmRaw, oSmTr, oSmAcc, oSmOK
+		p.smashDAcc = oSmD
 		return next
+	}
+	// dropUncelled removes from the smashed set every variable some back edge
+	// hands a value with no cell: its cell was a guess, and reads through it may
+	// have been too narrow. Nothing is reset, and that is sound rather than
+	// thrifty — the ascent `x ← x ⊔ F(x)` reaches a post-fixpoint of the CORRECT
+	// F from any starting point, because every iterate joins the initial values
+	// and a post-fixpoint over-approximates every reachable state whatever lies
+	// below it. A value a wrong cell produced is only an extra element of a join.
+	// Whether an argument has a cell is structural, so a variable is dropped at
+	// most once.
+	dropUncelled := func() {
+		for k := range raw {
+			if tracked[k] && !lastOK[k] {
+				tracked[k] = false
+			}
+		}
 	}
 	for round := 0; round < 8; round++ {
 		next := step(cur)
+		dropUncelled()
 		stable := true
 		for i := range cur {
 			j := joinI(cur[i], next[i])
@@ -2185,6 +2452,29 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 			}
 			cur[i] = j
 		}
+		for k := range raw {
+			if !tracked[k] {
+				continue
+			}
+			j := joinI(curE[k], lastE[k])
+			if round >= 2 {
+				j = widen(curE[k], j)
+			}
+			if !eqI(j, curE[k]) {
+				stable = false
+			}
+			curE[k] = j
+			if p.dmode {
+				d := joinI(curD[k], lastD[k])
+				if round >= 2 {
+					d = widen(curD[k], d)
+				}
+				if !eqI(d, curD[k]) {
+					stable = false
+				}
+				curD[k] = d
+			}
+		}
 		if stable {
 			break
 		}
@@ -2192,26 +2482,131 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 
 	// DESCENDING, which is the half that makes the whole thing work.
 	//
-	// Widening throws a growing bound straight to infinity, and it does so
-	// BEFORE the loop's own guard has had a chance to cap it. Re-evaluating from
-	// a post-fixpoint recovers the bound: the guard now applies to an infinite
+	// Widening throws a growing bound straight to infinity, and it does so BEFORE
+	// the loop's own guard has had a chance to cap it. Re-evaluating from a
+	// post-fixpoint recovers the bound: the guard now applies to an infinite
 	// interval and cuts it back to something finite. Without this phase every
 	// counter in every program came out unbounded, and the experiment's first
 	// numbers — 10% to 20% — were measuring its absence rather than anything
 	// about the programs.
-	for round := 0; round < 4; round++ {
-		next := step(cur)
-		improved := false
-		for i := range cur {
-			if within(next[i], cur[i]) && !eqI(next[i], cur[i]) {
-				cur[i] = next[i]
-				improved = true
+	//
+	// A drop here cannot happen (cells are structural and the ascent saw every
+	// edge), but if one did the step it came from is discarded, not narrowed to.
+	descend := func() {
+		for round := 0; round < 4; round++ {
+			next := step(cur)
+			before := append([]bool(nil), tracked...)
+			dropUncelled()
+			dropped := false
+			for k := range raw {
+				dropped = dropped || before[k] != tracked[k]
+			}
+			if dropped {
+				break
+			}
+			improved := false
+			for i := range cur {
+				if within(next[i], cur[i]) && !eqI(next[i], cur[i]) {
+					cur[i] = next[i]
+					improved = true
+				}
+			}
+			for k := range raw {
+				if tracked[k] && within(lastE[k], curE[k]) && !eqI(lastE[k], curE[k]) {
+					curE[k] = lastE[k]
+					improved = true
+				}
+				if p.dmode && tracked[k] && within(lastD[k], curD[k]) && !eqI(lastD[k], curD[k]) {
+					curD[k] = lastD[k]
+					improved = true
+				}
+			}
+			if !improved {
+				break
 			}
 		}
-		if !improved {
-			break
-		}
 	}
+	descend()
+
+	// THE DELTA ROUND (smash.go): the copy-closed joint invariant J′, evaluated
+	// from the post-fixpoint, met into every cell of the group, and the scalars
+	// descended again under the narrower cells. Each round is sound on its own,
+	// so stopping early costs only precision. It runs at the root of a round and
+	// never inside one — a nested loop met while a round is running is part of
+	// that round's U.
+	//
+	// With `trips` negative an increment blocks the round, because nothing
+	// bounds how often it runs. After the size-change sweeps the trip count T is
+	// known and the round runs again, extending J₀ = init ⊔ U by T·s·Δ — the
+	// bounded-increment theorem. It reports whether an increment blocked it.
+	deltaRounds := func(trips int64) bool {
+		if p.dmode || p.noSmash {
+			return false
+		}
+		group := map[string]bool{}
+		for k, n := range raw {
+			if tracked[k] {
+				group[n] = true
+			}
+		}
+		if len(group) == 0 {
+			return false
+		}
+		// Every term these rounds rebuild is discarded — the final walk is the
+		// one that is kept — so the fresh names they take are handed back
+		// afterwards. Otherwise every later binder is renumbered and the emitted
+		// program changes for nothing.
+		boundBefore := make(map[string]bool, len(p.bound))
+		for n := range p.bound {
+			boundBefore[n] = true
+		}
+		defer func() { p.bound = boundBefore }()
+		blocked := false
+		for dround := 0; dround < 3; dround++ {
+			oMode, oGroup, oCell, oTab := p.dmode, p.dgroup, p.dcell, p.tabDelta
+			p.dmode, p.dgroup, p.dcell, p.tabDelta = true, group, map[string]ival{}, map[*core.Term]ival{}
+			p.dReadOf = map[string]*core.Term{}
+			p.dInc, p.dIncSeen, p.dIncBad, p.dIncEdge, p.dIncMax = bottom, false, false, 0, 0
+			for k := range initD {
+				initD[k], curD[k] = bottom, bottom
+			}
+			step(cur)
+			p.dmode, p.dgroup, p.dcell, p.tabDelta = oMode, oGroup, oCell, oTab
+			j := bottom
+			for k := range raw {
+				if tracked[k] {
+					j = joinI(joinI(j, initE[k]), lastD[k])
+					if !lastOK[k] {
+						j = top // a back edge with no cell: no joint invariant this round
+					}
+				}
+			}
+			if p.dIncSeen {
+				if trips < 0 || p.dIncBad {
+					return true
+				}
+				// J₀ extended by T·s·Δ, with 0 joined into Δ so each end moves
+				// only outward.
+				ext := mulI(exact(trips), mulI(exact(int64(p.dIncMax)), joinI(p.dInc, exact(0))))
+				j = addI(j, ext)
+				j = joinI(j, bottom)
+			}
+			changed := false
+			for k := range raw {
+				if tracked[k] {
+					if n := intersect(curE[k], j); !eqI(n, curE[k]) {
+						curE[k], changed = n, true
+					}
+				}
+			}
+			if !changed {
+				break
+			}
+			descend()
+		}
+		return blocked
+	}
+	blockedByIncrement := deltaRounds(-1)
 
 	// THE REPRESENTATION FIXPOINT (bigrep.go), run on the settled intervals
 	// because rule (P) is gated on them: a name a big operation reads is
@@ -2333,6 +2728,42 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 			}
 		}
 	}
+	// THE BOUNDED-INCREMENT ROUND (smash.go), now that T is known.
+	if blockedByIncrement && haveTrip && !trip.hiInf && trip.hi >= 0 {
+		before := append([]ival(nil), curE...)
+		deltaRounds(trip.hi)
+		narrowed := false
+		for k := range raw {
+			narrowed = narrowed || !eqI(before[k], curE[k])
+		}
+		// A NARROWER CELL MAKES A STEP NARROWER, and the trip bound above was
+		// taken with the wider one: an accumulator that adds a value read out of
+		// the table was given an unbounded step. So the steps are measured again
+		// under the new cells and the bound v ∈ v₀ + T·step applied again. T is
+		// unchanged — the termination argument did not read a cell — and each
+		// step is evaluated under sound cells, so the bound is sound.
+		if narrowed {
+			p.scOn = true
+			p.scSteps, p.scKnown, p.scSeen = make([]ival, n), make([]bool, n), make([]bool, n)
+			for i := range p.scKnown {
+				p.scKnown[i] = true
+			}
+			p.scEdges = nil
+			step(cur)
+			p.scOn = false
+			for j := range raw {
+				if !p.scKnown[j] || !p.scSeen[j] {
+					continue
+				}
+				reach := addI(initV[j], mulI(trip, p.scSteps[j]))
+				if within(reach, cur[j]) {
+					cur[j] = reach
+				} else if !reach.loInf || !reach.hiInf {
+					cur[j] = intersect(cur[j], reach)
+				}
+			}
+		}
+	}
 	if wasCounting { // p.count is still false here; the fixpoint runs silently
 		p.rep.Loops++
 		if ok {
@@ -2372,6 +2803,8 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// the direction that makes the headline number worse rather than better,
 	// which is the only reason it was not mistaken for a result.
 	out, nb := p.evalR(body)
+	loopE, loopHasE := p.elemOf(nb)
+	loopD, loopHasD := p.deltaOf(nb)
 	// Whether the loop RETURNS a bignum, recorded while its variables are still
 	// in scope: after `releaseBound` the names mean nothing.
 	bigExit := p.chainBig(nb)
@@ -2395,6 +2828,13 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	}
 	for _, nm := range raw {
 		delete(p.env, nm)
+	}
+	if p.dmode {
+		for k, n := range raw {
+			if dSaved[k][2].(bool) {
+				restoreVar(p.dcell, n, dSaved[k][0].(ival), dSaved[k][1].(bool))
+			}
+		}
 	}
 	for nm, sv := range elemSaved {
 		if sv[1].(bool) {
@@ -2420,6 +2860,12 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	kids := append([]*core.Term{t.Op(), core.Fn(raw, nb)}, nInits...)
 	rebuiltLoop := &core.Term{Kind: core.KApp, Kids: kids}
 	p.markBig(rebuiltLoop, bigExit)
+	if loopHasE {
+		p.setElemOf(rebuiltLoop, loopE)
+	}
+	if loopHasD {
+		p.setDeltaOf(rebuiltLoop, loopD)
+	}
 	return out, rebuiltLoop
 }
 
@@ -2524,9 +2970,11 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
 		if prim, ok := p.tgt.Prims[t.Op().Name]; ok && prim.Kind == "cond" && len(t.Args()) == 3 {
 			saved := p.snapshot()
+			incAt := p.dIncEdge // each clause path counts its own increments
 			p.refine(t.Args()[0], true)
 			p.collectAgain(t.Args()[1], raw, acc)
 			p.restore(saved)
+			p.dIncEdge = incAt
 			p.refine(t.Args()[0], false)
 			p.collectAgain(t.Args()[2], raw, acc)
 			p.restore(saved)
@@ -2535,7 +2983,7 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 		if prim, ok := p.tgt.Prims[t.Op().Name]; ok && prim.Kind == "let" && len(t.Args()) == 2 {
 			k := t.Args()[1]
 			if k.Kind == core.KFn && len(k.Params) == 1 {
-				v := p.eval(t.Args()[0])
+				v, nv := p.evalR(t.Args()[0])
 				kb, kraw, _ := openFresh(k, p.bound, asmIdent)
 				old, had := p.env[kraw[0]]
 				p.env[kraw[0]] = v
@@ -2544,7 +2992,31 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 				}
 				oldT, hadT := p.letTerm[kraw[0]]
 				p.letTerm[kraw[0]] = t.Args()[0]
+				// A BINDER IS ITS VALUE, cell and delta included (smash.go) — the
+				// same rule as `p.let`, for the `let` a clause chain binds before
+				// its `again`, whose name is usually what the back edge hands on.
+				oldE, hadE := p.elem[kraw[0]]
+				if e, ok := p.elemOf(nv); ok {
+					p.elem[kraw[0]] = e
+				}
+				dOld, dHad, dDid := ival{}, false, false
+				if d, ok := p.deltaOf(nv); ok {
+					dOld, dHad, dDid = p.shadowDelta(kraw[0], d)
+				}
+				rdOld, rdHad := p.dReadOf[kraw[0]]
+				if p.dmode && p.derivedRead(nv) {
+					p.dReadOf[kraw[0]] = nv
+				}
 				p.collectAgain(kb, raw, acc)
+				if p.dmode {
+					if rdHad {
+						p.dReadOf[kraw[0]] = rdOld
+					} else {
+						delete(p.dReadOf, kraw[0])
+					}
+				}
+				p.unshadowDelta(kraw[0], dOld, dHad, dDid)
+				restoreVar(p.elem, kraw[0], oldE, hadE)
 				if hadT {
 					p.letTerm[kraw[0]] = oldT
 				} else {
@@ -2560,6 +3032,13 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 		}
 		if t.Op().Name == "again" {
 			args := t.Args()
+			if p.dmode && p.dDepth == 0 {
+				defer func() {
+					if p.dIncEdge > p.dIncMax {
+						p.dIncMax = p.dIncEdge
+					}
+				}()
+			}
 			// RULE (D) AT THE BACK EDGE (bigrep.go), before the intervals,
 			// because the representation decides whether the interval matters.
 			p.againDemand(args, raw)
@@ -2582,11 +3061,21 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 				// `{z} ∪ U`, and `acc` already starts at `z`, so the
 				// pass-through adds nothing (monotone.go, the reachable-set
 				// theorem).
+				smashing := len(raw) > 0 && len(p.smashRaw) == len(raw) && &p.smashRaw[0] == &raw[0] &&
+					i < len(p.smashTracked) && p.smashTracked[i]
 				if i < len(raw) && selfContained(p.tgt, a, raw[i]) {
 					acc[i] = joinI(acc[i], p.updateIval(a, raw[i]))
+					if smashing {
+						_, na := p.evalR(a)
+						p.smashEdge(i, na)
+					}
 					continue
 				}
-				acc[i] = joinI(acc[i], p.eval(a))
+				v, na := p.evalR(a)
+				acc[i] = joinI(acc[i], v)
+				if smashing {
+					p.smashEdge(i, na)
+				}
 			}
 			p.demandBig = outerDemand
 			if p.scOn {

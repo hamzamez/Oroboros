@@ -1,12 +1,14 @@
-; BUILT WITH `-checked` -- `go run ./cmd/build -checked …`.
+; BUILT WITHOUT `-checked`, and that is new (smashfd-2026-09-16).
 ;
-; ADR 0019 makes an integer operation the compiler cannot bound a compile
-; error, and 36 of this program's 464 cannot be bounded. Every one chains off
-; a value read out of the frozen node table, whose stores are genuinely
-; unbounded inside the `build` lambda because `src` is free there
-; (frozen-2026-08-28). That is the honest limit of a non-relational domain and
-; not something a declaration here can fix, so this program takes ADR 0019's
-; second escape: the trap instead of the proof.
+; It used to need the trap: 36 integer operations chained off `d`, a depth read
+; back out of the worklist that stores it, and frozen-2026-08-28 refused an
+; element range for a read of a buffer inside its own build. What bounds `d` is a
+; COUNT, not a relation: the walk runs at most (* 2 (nmax)) trips and stores `d + 1`
+; at most once per trip, so no depth exceeds 1 + that. The interval layer proves it
+; now (array smashing, the copy-closed joint invariant and the bounded-increment
+; theorem), and every one of the 525 operations is bounded with no declaration.
+; The node-index clamps (`cn`, `cw`) stay: WHICH slot is in range is a relation
+; the refinement layer decides, not a bound.
 ;
 ; A JSON TREE AS A FLAT TABLE PLUS INDICES — parsed, linked, and WALKED.
 ;

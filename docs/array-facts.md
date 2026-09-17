@@ -1,6 +1,10 @@
 # Facts about a table's contents — F-D researched
 
-Research, 2026-09-16. **No decision.** A draft specification follows in
+Research, 2026-09-16. **F-D₁ derived is built since**: the refinement half
+([fdrefine-2026-09-16](../gauntlet/results/fdrefine-2026-09-16.md)), the interval half
+([smashfd-2026-09-16](../gauntlet/results/smashfd-2026-09-16.md)) and stride components
+([compfacts-2026-09-17](../gauntlet/results/compfacts-2026-09-17.md)); all fifteen clamps of §1.2 are deleted.
+F-D₁ declared is not built, and nothing measured asks for it. A draft specification follows in
 [spec/theories.md §7.11](spec/theories.md). Written on hamza's *"research and specify F-D, literature, math and
 algebra"*.
 

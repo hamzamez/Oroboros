@@ -1,7 +1,9 @@
 # Data: functions on a domain
 
-**Status: specification, not built under these names.** Four of the six forms below exist today
-under older spellings. This document fixes the spelling, and says what each form is and what it
+**Status, 2026-09-17: partly built.** `variant` (with type arguments) and `tuple` are built under these
+names ([respell-2026-09-15](../../gauntlet/results/respell-2026-09-15.md),
+[typeargs-2026-09-15](../../gauntlet/results/typeargs-2026-09-15.md)); records, symbols and `with` are not.
+Written when four of the six forms existed only under older spellings. This document fixes the spelling, and says what each form is and what it
 lowers to. The design came from [theories.md](../theories.md) §4 and
 [theories-b-or-c.md](../theories-b-or-c.md) §8, and the vocabulary was agreed with hamza on
 2026-09-15. The declaration forms that *name* these types are specified in [theories.md](theories.md).

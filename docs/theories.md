@@ -1,6 +1,7 @@
 # Declarations are theories
 
-Research, **no decision, nothing built**. 2026-09-14, on hamza's *"let's research the literature, do
+Research. **Decided since** (ADR 0021, 2026-09-15) and largely built — [spec/theories.md](spec/theories.md)
+carries the status. 2026-09-14, on hamza's *"let's research the literature, do
 the math, derive the algebra — they are connected: modules, targets, types, alias, const, maybe
 interfaces, algebraic types, and the rules as data we said we should borrow from sequent calculus in
 Shen. Sketch candidates, and build a solid foundation, even if we don't implement everything now;

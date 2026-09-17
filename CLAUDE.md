@@ -142,7 +142,24 @@ hand-derivation of all five programs plus escaping closures, in
 generics, closures, or capability granularity; each records what was believed, what measurement
 said, and which of the two won.
 
-**Current standing** is in [docs/assessment-2026-09-13.md](docs/assessment-2026-09-13.md) — **the
+**Current standing** is in [docs/assessment-2026-09-17.md](docs/assessment-2026-09-17.md) — **the round the
+declarations became theories, and the analysis outgrew the language**. Yes on method and thesis, **no on the
+balance, the worst recorded**:
+- the compiler grew **+7,892** lines and `examples/`+`lib/` grew **+3**; counting hand declarations and
+  acceptance programs it is still **19.5 : 1**;
+- `emit : core` went **4.03 → 4.42**, and the analysis layer **5,410 → 8,727** lines, most of it in twenty hours
+  driven by no new program;
+- **compile time was ungated and regressed**: tokenize **108 → 710 ms**, freq **4.2 → 7.0 s**, bisected to
+  `7e36002`, past two results that each said *no slower* against the previous commit;
+- the Go standard library is still at **2 packages**.
+
+**Next:**
+1. resume packages (`encoding/binary`, `strconv`), with the analysis growing only for a named refusal;
+2. gate compile time against the baseline in `cmd/check`;
+3. rewrite this file as a state rather than a history, with hamza's agreement;
+4. the Windows application.
+
+The previous one is [docs/assessment-2026-09-13.md](docs/assessment-2026-09-13.md) — **the
 round an application was written, and the measurer was measured**. **Yes on the balance for the first
 time**: 574 lines of compiler against 131 of Oroboros, **4.4 : 1 at the margin** (18.5 : 1 last round,
 41 : 1 before), all of it `tally`, which paid for itself with five compiler bugs; `emit : core` moved

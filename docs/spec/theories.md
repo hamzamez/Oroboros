@@ -1,6 +1,9 @@
 # Theories: declarations, modules, models and views
 
-**Status: specification, draft, nothing built.** This is build-order step 1 of
+**Status, 2026-09-17: specification, draft — and mostly BUILT.** Steps 2–8 of the build order are built
+in target layers (loader, respell, ownedtypes, constendpoint, manifest, dt, companions, langfacts,
+lengthensures — see [assessment-2026-09-17](../assessment-2026-09-17.md) §1). Not built: the loader's
+program half (`const` and manifest types in a program module), records, named views. Written as build-order step 1 of
 [theories-b-or-c.md](../theories-b-or-c.md) §9. It specifies what that research recommends, **C₁₂**:
 theories, models, instantiation along the ambient view, and named views reserved but not built.
 The research, the literature and the rejected candidates are in [theories.md](../theories.md) and

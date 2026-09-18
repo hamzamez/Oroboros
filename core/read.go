@@ -396,7 +396,7 @@ func (r *reader) list() (*Term, error) {
 		// be (build.md §2), and `(sig null () ptr …)` declares one. Nothing else
 		// may be empty.
 		if (len(kids) == 1 && isFnHead(kids[0]) || len(kids) == 2 && kids[0].Kind == KName &&
-			kids[0].Name == "sig") && r.peek() == '(' {
+			(kids[0].Name == "sig" || kids[0].Name == "def")) && r.peek() == '(' {
 			save := r.pos
 			r.next()
 			r.skipSpace()
@@ -573,18 +573,23 @@ func isFnHead(t *Term) bool {
 	return t.Kind == KName && (t.Name == "fn" || t.Name == "λ")
 }
 
-func paramList(t *Term, line int) ([]string, error) {
+func paramList(t *Term, line int) ([]string, error) { return paramListOf("fn", t, line) }
+
+// paramListOf reads a parameter list for `fn` or for `def`'s shorthand. One
+// implementation, because a parameter list means the same thing in both: two
+// would be two rules that can disagree.
+func paramListOf(what string, t *Term, line int) ([]string, error) {
 	if t.Kind == KName {
-		return nil, fmt.Errorf("line %d: fn parameters must be a list, got %s", line, t.Name)
+		return nil, fmt.Errorf("%s%s parameters must be a list, got %s", at(line), what, t.Name)
 	}
 	if t.Kind != KApp {
-		return nil, fmt.Errorf("line %d: fn parameters must be a list", line)
+		return nil, fmt.Errorf("%s%s parameters must be a list", at(line), what)
 	}
 	params := make([]string, 0, len(t.Kids))
 	seen := make(map[string]bool, len(t.Kids))
 	for _, k := range t.Kids {
 		if k.Kind != KName {
-			return nil, fmt.Errorf("line %d: fn parameter must be a name, got %s", line, k)
+			return nil, fmt.Errorf("%s%s parameter must be a name, got %s", at(line), what, k)
 		}
 		// A repeated binder in ONE abstraction is ill-formed. β substitutes
 		// parameter by parameter, so the later argument silently won and the
@@ -599,12 +604,12 @@ func paramList(t *Term, line int) ([]string, error) {
 		// to (9.0 1.0 2.0): a parameter shadowed a module-qualified primitive
 		// and reduction happily applied a number to two arguments.
 		if strings.Contains(k.Name, ".") {
-			return nil, fmt.Errorf("line %d: %s cannot be a parameter; a binder is a simple "+
-				"name, and `.` qualifies a module member", line, k.Name)
+			return nil, fmt.Errorf("%s%s cannot be a parameter; a binder is a simple "+
+				"name, and `.` qualifies a module member", at(line), k.Name)
 		}
 		if seen[k.Name] {
-			return nil, fmt.Errorf("line %d: fn binds %s twice; a parameter list may not repeat "+
-				"a name, because the second would silently shadow the first", line, k.Name)
+			return nil, fmt.Errorf("%s%s binds %s twice; a parameter list may not repeat "+
+				"a name, because the second would silently shadow the first", at(line), what, k.Name)
 		}
 		seen[k.Name] = true
 		params = append(params, k.Name)
@@ -747,8 +752,40 @@ func toForm(t *Term) (Form, error) {
 	}
 	switch t.Kids[0].Name {
 	case "def":
+		// THE EQUATIONAL SHORTHAND (docs/program-surface.md). `(def f (x…) body)`
+		// reads as `(def f (fn (x…) body))`, which is what mathematics means by
+		// `f(x) = e` and what Scheme's `(define (f x) …)` has always been: SUGAR,
+		// erased here, with a unique expansion. def.md §4 recorded the position
+		// before there was a form.
+		//
+		// THE DISCRIMINATOR, fixed here so a later form cannot collide with it: a
+		// PARAMETER LIST is a list of NAMES ONLY. Anything else in that position
+		// is not one — in particular a list whose first element is itself a list,
+		// which is the shape several arities under one name would take
+		// (program-surface.md §8.3). This is the rule type arguments and constant
+		// endpoints already use: admit a shape only where it cannot mean the
+		// other thing.
+		if len(t.Kids) >= 4 && t.Kids[1].Kind == KName && allNames(t.Kids[2]) {
+			if len(t.Kids) > 4 {
+				return Form{}, fmt.Errorf("def %s takes ONE body; `(seq a b)` is how two "+
+					"expressions are sequenced, and it is written because a pure first one "+
+					"would otherwise be deleted in silence: %s", t.Kids[1].Name, t)
+			}
+			ps, err := paramListOf("def", t.Kids[2], 0)
+			if err != nil {
+				return Form{}, err
+			}
+			t = &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], Fn(ps, t.Kids[3])}}
+		}
 		if len(t.Kids) != 3 || t.Kids[1].Kind != KName {
-			return Form{}, fmt.Errorf("def takes a name and one term: %s", t)
+			if len(t.Kids) >= 4 && t.Kids[1].Kind == KName && t.Kids[2].Kind == KApp &&
+				len(t.Kids[2].Kids) > 0 && t.Kids[2].Kids[0].Kind == KApp {
+				return Form{}, fmt.Errorf("def %s: several arities under one name are not built "+
+					"(docs/program-surface.md §8.3); a parameter list is a list of names: %s",
+					t.Kids[1].Name, t)
+			}
+			return Form{}, fmt.Errorf("def takes a name and one term, or a name, a parameter "+
+				"list and one body: %s", t)
 		}
 		// A definition names a member of THIS module, so `.` cannot appear: a
 		// qualified name in a term always means an import (modules.md §3), so
@@ -2282,3 +2319,26 @@ func ProdTypes(ty string) []string {
 
 // IsBuffer reports whether a declared type is ADR 0020's unique, linear table.
 func IsBuffer(ty string) bool { return strings.HasPrefix(ty, "buffer ") }
+
+// allNames reports whether a term is a list of names — a parameter list, and
+// nothing else. `(a b)` is one; `((a b) c)`, `(a 1)` and a bare name are not.
+func allNames(t *Term) bool {
+	if t == nil || t.Kind != KApp {
+		return false
+	}
+	for _, k := range t.Kids {
+		if k.Kind != KName {
+			return false
+		}
+	}
+	return true
+}
+
+// at prefixes a message with a line when there is one. A form read by ToForm
+// carries no line, and "line 0" is worse than no line at all.
+func at(line int) string {
+	if line <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("line %d: ", line)
+}

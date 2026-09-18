@@ -945,7 +945,8 @@ func (e *Env) CheckDefs() error {
 		}
 		return fmt.Errorf("the body of %s is a computation, not a value, "+
 			"so unfolding it would repeat its effects\n"+
-			"  Wrap it in (fn () …) and apply it, or bind it with let at the point of use.", name)
+			"  Give it an empty parameter list — (def %s () …) — and apply it,\n"+
+			"  or bind it with let at the point of use.", name, name)
 	}
 	return nil
 }

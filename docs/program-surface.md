@@ -146,8 +146,8 @@ None.
 - **No link-time entity**: every definition is inlined by δ, and what a backend emits is decided by
   the residual, not by the declaration.
 - **No visibility on `def`**: `export` carries that, separately.
-- **No metadata, no docstrings, no arity overloading** — the three things Clojure's `defn` exists for,
-  and arity overloading is refused ([overloading.md](overloading.md)).
+- **No metadata, no docstrings, and no arity overloading *today*** — the three things Clojure's `defn`
+  exists for. The third is unsettled rather than refused, and §8 is what it would do to this.
 
 And [theories.md §2](spec/theories.md) classifies a declaration by whether it has a **definiens** and a
 **realization**, not by the shape of the definiens. A `defn` would be a fourth classification axis that
@@ -279,3 +279,98 @@ wrapper's visibility is the one thing the shorthand spends, and a real program i
 **What is deliberately not proposed:** multi-body definitions, curried definitions, a `sig`/`def`
 parameter-name agreement check (4 corpus mismatches make it tempting, and it is a separate question),
 and rewriting the corpus.
+
+---
+
+## 8. Variadics and overloading, and what they would do to the shorthand
+
+hamza, on §3.2: *"we have yet to settle variadic functions, and type and arity overloading, and we
+might need it."* Correct, and §3.2's "refused" was too strong. Three features get lumped together and
+they land in three different places, only one of which is `def`'s surface.
+
+| | what it is | where it lives |
+|---|---|---|
+| **V** | calling a **host** variadic function — `fmt.Println(a, b, c)` | the **declaration**: `sig`, and how `tg.Prims` is keyed |
+| **D** | a **program** definition taking a rest parameter | **`fn`'s parameter list** |
+| **O** | **overloading**: one name, several definitions, chosen by arity or by type | the **name table** |
+
+### 8.1 Where the pressure actually is, measured
+
+- **V dominates, and it is a host fact.** Go: **117 variadic symbols, 2.5%**, and it is why `fmt` is
+  **1 of 23** usable ([gostdlib](../gauntlet/results/gostdlib-2026-09-06.md)). JavaScript's natives
+  under-report it (`Math.max.length` is 2, and it is variadic). Win32 has the `printf` family.
+- **O is mostly the JVM, and also a host fact:** **4,948 overloads, 16.0%** of the emitted surface,
+  because `nextInt()` and `nextInt(int)` are one entry in a table keyed by name
+  ([surveys](../gauntlet/results/surveys-2026-09-10.md)). Our own target files carry the same wart by
+  hand: `Println`, `Println2`, `Println3`.
+- **D and program-level O have no demand at all.** No program in the corpus has asked for either, and
+  a second definition of one name is refused today: *"f is defined twice"* (`core/reduce.go`).
+
+So the live pressure is on **declarations**, which the shorthand does not touch.
+
+### 8.2 What each would change
+
+**V — nothing in the term language.** A call site has a fixed arity after reduction, so what is
+missing is a declaration that can say *"any number of these"*: either `tg.Prims` keyed by
+`(name, arity)` — the small version, which deletes `Println2`/`Println3` — or a template with a
+repeating hole. No `def`, no `fn`, no reader change.
+
+**D — one marker in `fn`'s parameter list, which the shorthand inherits verbatim**, because the
+shorthand's parameter list *is* `fn`'s. Whatever `(fn (a … r) …)` comes to mean, `(def f (a … r) …)`
+means the same by construction; there is no second decision to make.
+
+> **Derivation — a rest parameter is static, or it is a table.** At the static level an application's
+> argument count is known, so β can bind the rest to a `tuple` and nothing survives; a tuple is a
+> function on `Fin n` and costs nothing ([data.md](spec/data.md)). If the rest must survive to run
+> time, its length is decided at run time, and a dynamic index forces homogeneity
+> ([tables.md](spec/tables.md)) — so it is an `(array V)`, and a heterogeneous variadic cannot
+> survive staging. That is the same shape as the rule for closures, and it is what makes `...any`
+> a host-boundary question rather than a language one.
+
+**O — the name table, not the surface.** Today Γ maps a name to one definition. Overloading makes it a
+map to a set, resolved by arity (decidable at the call site) or by type at emission —
+[overloading.md](overloading.md)'s **concept name**, of which `len` on tables and maps is already one.
+That is a change in `Load` and in resolution; `(def f …)`'s spelling is not involved either way.
+
+### 8.3 The one real interaction: the grammar slot
+
+If arity overloading ever reaches program definitions, the natural spelling is the one Clojure and
+Erlang use — several clauses under one name:
+
+```lisp
+(def f ((a) (* a 2))
+       ((a b) (+ a b)))
+```
+
+That wants the **same slot** as the shorthand: a `def` with four or more elements. The two stay
+distinguishable, and the rule should be fixed now rather than discovered later:
+
+> **A parameter list is a list of NAMES ONLY; a clause is a list whose first element is itself a
+> list.** `(a b)` is a parameter list; `((a b) body)` is a clause.
+
+That is the rule already used twice, for type arguments and for constants as range endpoints: *admit a
+shape only where it cannot mean the other thing*. The prototype in §6.4 already tests exactly this —
+it falls back to today's meaning unless every element is a name — so the insurance costs nothing; it
+needs writing into the spec so the next person does not spend it.
+
+### 8.4 One spelling is already taken, measured
+
+Clojure's rest marker is `&`, and **`&` is not free here**: it is a declared primitive on Go, Java and
+JavaScript (bitwise and, `targets/go/builtin.oro`), and `symbolChars` makes it an ordinary name. So
+`(fn (a & r) …)` parses **today** as three parameters, silently.
+
+`...` is free: the reader refuses it as a name, naming its own rule — *"`...` has an empty segment; `.`
+separates qualifiers and cannot begin, end, or double"*. A rest marker would therefore be `...` at the
+cost of one reader clause, or a sublist such as `(rest r)`. Either way the decision belongs to `fn`.
+
+### 8.5 The answer
+
+**Adopting the shorthand costs nothing in any of the three directions, and helps in one.**
+- V and O live in declarations and in the name table; the shorthand is invisible to both.
+- D lives in `fn`'s parameter list, and the shorthand inherits whatever is decided there.
+- If multi-arity definitions ever arrive, the shorthand is the form they extend — Clojure and Erlang
+  both write them exactly that way — and **without** the shorthand there would be no natural place to
+  put them at all, since `fn` is one λ and `(def f (fn …))` twice is refused.
+
+The only thing to bank today is §8.3's discriminator. If the answer to the shorthand is yes, that
+sentence goes into the spec with it.

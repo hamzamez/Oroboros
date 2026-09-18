@@ -52,7 +52,7 @@ Everything a *program* may write. From `core/read.go`'s form and special-form di
 
 | word | status | where |
 |---|---|---|
-| `def` | specified | [def.md](def.md) |
+| `def` | specified — and its shorthand `(def f (x…) body)` | [def.md](def.md), [program-surface.md](../program-surface.md) |
 | `sig` | specified | [types.md](types.md), [refinements.md](refinements.md) |
 | `where` | specified — a precondition, on a program sig and a target sig | [refinements.md](refinements.md) |
 | `ensures` | specified — a postcondition | [postconditions.md](postconditions.md) |

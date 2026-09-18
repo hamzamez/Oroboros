@@ -31,14 +31,14 @@
 ; A DYNAMIC map: built, inserted into, and read with a key the compiler cannot
 ; know. `(m k)` is `(option V)` and the `case` is what discharges the domain
 ; condition -- the only thing that can, since `k in dom m` is set membership.
-(def build3 (fn (n)
+(def build3 (n)
   (build-map 8 (fn (m)
     (loop ((m m) (i 0))
       (go.>= i n)  m
-      else         (again (insert m i (go.* i 10)) (go.+ i 1)))))))
+      else         (again (insert m i (go.* i 10)) (go.+ i 1))))))
 
-(def look (fn (m k) (case (m k) (some v) v none -1)))
+(def look (m k) (case (m k) (some v) v none -1))
 
-(def main (fn ()
+(def main ()
   (let (build3 5) (fn (m)
-    (fmt.Println (go.+ (go.* 100 (look m 3)) (look m 9)))))))
+    (fmt.Println (go.+ (go.* 100 (look m 3)) (look m 9))))))

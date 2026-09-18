@@ -16,8 +16,8 @@
 
 (sig power ((b int) (e int)) int (where (and (<= 0 e) (< e 64))))
 
-(def power (fn (b e)
+(def power (b e)
   (loop ((acc 1) (x b) (k e))
     (go.== k 0)            acc
     (go.== (go.% k 2) 1)   (again (go.* acc x) (go.* x x) (go./ k 2))
-    else                   (again acc (go.* x x) (go./ k 2)))))
+    else                   (again acc (go.* x x) (go./ k 2))))

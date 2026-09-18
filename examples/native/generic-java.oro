@@ -13,14 +13,14 @@
 (sig sum-of     ((a (array f64))) f64)
 (sig word-tally ((text string)) map-string-long)
 
-(def reduce-over (fn (n get combine init)
+(def reduce-over (n get combine init)
   (loop ((acc init) (i 0))
     (java.>= i n)  acc
-    else           (again (combine acc (get i)) (java.+ i 1)))))
+    else           (again (combine acc (get i)) (java.+ i 1))))
 
-(def sum-of (fn (a)
-  (reduce-over (len a) (fn (i) (a i)) java.f+ 0.0)))
+(def sum-of (a)
+  (reduce-over (len a) (fn (i) (a i)) java.f+ 0.0))
 
-(def word-tally (fn (text)
+(def word-tally (text)
   (let (Str.split text " ") (fn (ws)
-    (reduce-over (len ws) (fn (i) (ws i)) Map.merge (Map.new))))))
+    (reduce-over (len ws) (fn (i) (ws i)) Map.merge (Map.new)))))

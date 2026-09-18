@@ -11,7 +11,7 @@
 ; The buffer is created by `build`, threaded through a loop, and re-bound by a
 ; `let` before the counting loop reads it, which is exactly the chain that hid
 ; the bug: the counting loop's `c` is bound to a `build` TERM, not to a name.
-(def run (fn (n)
+(def run (n)
   (let (build (+ n 1) (fn (c)
         (loop ((c c) (i 0))
           (>= i n)  c
@@ -20,4 +20,4 @@
       (loop ((acc 0) (k 0))
         (>= k n)  acc
         (b k)      (again (+ acc 1) (+ k 1))
-        else       (again acc (+ k 1)))))))
+        else       (again acc (+ k 1))))))

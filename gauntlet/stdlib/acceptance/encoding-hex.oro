@@ -27,52 +27,52 @@
 
 ; Twenty-one bytes, 94 + (37·i mod 95): printable from 94 to 126 and not above,
 ; so the dump's right-hand column shows both.
-(def source (fn (n)
+(def source (n)
   (build n (fn (b)
     (loop ((i 0) (b b))
       (>= i n) b
-      else (again (+ i 1) (set b i (+ 94 (% (* 37 i) 95)))))))))
+      else (again (+ i 1) (set b i (+ 94 (% (* 37 i) 95))))))))
 
-(def lengths (fn (src)
+(def lengths (src)
   (seq (fmt.Println (len src))
        (fmt.Println (hex.EncodedLen (len src)))
-       (fmt.Println (hex.DecodedLen (hex.EncodedLen (len src)))))))
+       (fmt.Println (hex.DecodedLen (hex.EncodedLen (len src))))))
 
 ; H into a buffer of exactly 2·len src: the precondition is linear and proven.
-(def encode (fn (src)
+(def encode (src)
   (build (* 2 (len src)) (fn (b)
-    ((hex.Encode b src) (fn (b2 n) (seq (fmt.Println n) b2)))))))
+    ((hex.Encode b src) (fn (b2 n) (seq (fmt.Println n) b2))))))
 
-(def left (fn (src enc)
+(def left (src enc)
   (seq ((hex.DecodeString (hex.EncodeToString src)) (fn (back e)
          (seq (fmt.Println back) (fmt.Println (gos.err-nil e)))))
        (fmt.Println (build (/ (len enc) 2) (fn (b)
          ((hex.Decode b enc) (fn (b2 n e)
-           (seq (fmt.Println n) (fmt.Println (gos.err-nil e)) b2)))))))))
+           (seq (fmt.Println n) (fmt.Println (gos.err-nil e)) b2))))))))
 
-(def projection (fn ()
+(def projection ()
   ((hex.DecodeString "DEADbeef00FF") (fn (x e)
     (seq (fmt.Println x)
-         (fmt.Println (hex.EncodeToString x)))))))
+         (fmt.Println (hex.EncodeToString x))))))
 
 ; "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,
 ; and an odd length after one.
-(def prefix (fn ()
+(def prefix ()
   (seq (let (build 6 (fn (b) (set (set (set (set (set (set b 0 48) 1 49) 2 48) 3 50) 4 122) 5 122)))
          (fn (bad)
            (fmt.Println (build 3 (fn (b)
              ((hex.Decode b bad) (fn (b2 n e)
                (seq (fmt.Println n) (fmt.Println e) b2))))))))
        ((hex.DecodeString "abcg12") (fn (x e) (seq (fmt.Println x) (fmt.Println e))))
-       ((hex.DecodeString "abc") (fn (x e) (seq (fmt.Println x) (fmt.Println e)))))))
+       ((hex.DecodeString "abc") (fn (x e) (seq (fmt.Println x) (fmt.Println e))))))
 
 ; One buffer: '>' then H(src) then G(H(src)).
-(def append (fn (src enc)
+(def append (src enc)
   (fmt.Println (build 1 (fn (b)
     ((hex.AppendDecode (hex.AppendEncode (set b 0 62) src) enc) (fn (b2 e)
-      (seq (fmt.Println (gos.err-nil e)) b2))))))))
+      (seq (fmt.Println (gos.err-nil e)) b2)))))))
 
-(def streams (fn (src)
+(def streams (src)
   ((gos.MkdirTemp "" "orohex") (fn (dir e0)
     (seq
       ; the encoder writes H(src)
@@ -99,9 +99,9 @@
              (file.Close f))))
       ((gos.ReadFile (concat dir "/dump")) (fn (b e8)
         (fmt.Println (os.text-of b))))
-      (gos.RemoveAll dir))))))
+      (gos.RemoveAll dir)))))
 
-(def main (fn ()
+(def main ()
   (let (source 21) (fn (src)
     (let (encode src) (fn (enc)
       (seq (lengths src)
@@ -112,4 +112,4 @@
            (prefix)
            (append src enc)
            (fmt.Print (hex.Dump src))
-           (streams src))))))))
+           (streams src)))))))

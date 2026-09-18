@@ -1,6 +1,8 @@
 # How a program reads: `def`, a shorthand for it, and constants
 
-Research, **no decision**. 2026-09-18, on hamza's three questions:
+Research. **Decided and built the same day** — the recommendation in §7 was taken whole:
+[defshorthand-2026-09-18](../gauntlet/results/defshorthand-2026-09-18.md). §8's discriminator went
+into the reader with it. 2026-09-18, on hamza's three questions:
 
 1. can a definition be written `(def main () …)` instead of `(def main (fn () …))`;
 2. should one word `def` keep doing both jobs, as Scheme's `define` does, or should there be a second

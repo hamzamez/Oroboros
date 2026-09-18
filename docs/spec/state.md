@@ -33,6 +33,7 @@ Six, all erased before reduction except `def`:
 
 ```
 (def name term)
+(def name (param…) body)                    ; sugar: the term is (fn (param…) body)
 (sig name ((param type)…) result [(where pred)] [(ensures pred)])
 (variant name (constructor payload…)…)      ; or (variant (name T…) …) with type arguments
 (module path)  (use path [as alias])  (export name…)
@@ -61,6 +62,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 
 | written | reads as | spec |
 |---|---|---|
+| `(def f (x…) body)` | `(def f (fn (x…) body))` — the equational shorthand; a parameter list is a list of NAMES, and one body | [def.md §4](def.md), [program-surface.md](../program-surface.md) |
 | `(let e (fn (x) b))` | `((fn (x) b) e)` | [def.md](def.md) |
 | `(seq a b)` | `((fn (_) b) a)` | [effects.md §5](effects.md) |
 | `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if` | [booleans.md](booleans.md) |

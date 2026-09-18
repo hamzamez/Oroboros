@@ -43,8 +43,8 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (seq
     (io.print-int (Math.max 3 7))
     (io.print-line (Str.toUpperCase "abc"))
-    (io.print-line (path.join)))))
+    (io.print-line (path.join))))

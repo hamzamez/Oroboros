@@ -25,18 +25,18 @@
 
 ; One rune: its encoded length, whether it is a scalar value, and what EncodeRune
 ; writes into a four-byte buffer — the count, then the buffer it handed back.
-(def each-rune (fn (r)
+(def each-rune (r)
   (seq (fmt.Println (u.RuneLen r))
        (fmt.Println (u.ValidRune r))
        (fmt.Println (build 4 (fn (b)
-         ((u.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2)))))))))
+         ((u.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2))))))))
 
 ; A decoded rune and its width, and then their SUM, which is the witness that a
 ; range result is received into the language's integer (gostd-utf8-2026-09-13 §1)
 ; — and, with the declared ranges, a sum the analysis now proves in the window.
-(def pair (fn (r n) (seq (fmt.Println r) (fmt.Println n) (fmt.Println (+ r n)))))
+(def pair (r n) (seq (fmt.Println r) (fmt.Println n) (fmt.Println (+ r n))))
 
-(def over-bytes (fn (acc)
+(def over-bytes (acc)
   (seq (fmt.Println acc)
        (fmt.Println (u.RuneCount acc))
        (fmt.Println (u.Valid acc))
@@ -45,18 +45,18 @@
        ((u.DecodeLastRune acc) (fn (r n) (pair r n)))
        (loop ((j 0) (c 0))
          (>= j (len acc)) (fmt.Println c)
-         else (again (+ j 1) (if (u.RuneStart (acc j)) (+ c 1) c))))))
+         else (again (+ j 1) (if (u.RuneStart (acc j)) (+ c 1) c)))))
 
-(def over-string (fn (s)
+(def over-string (s)
   (seq (fmt.Println (u.RuneCountInString s))
        (fmt.Println (u.ValidString s))
        (fmt.Println (u.FullRuneInString s))
        ((u.DecodeRuneInString s) (fn (r n) (pair r n)))
-       ((u.DecodeLastRuneInString s) (fn (r n) (pair r n))))))
+       ((u.DecodeLastRuneInString s) (fn (r n) (pair r n)))))
 
 ; A truncated four-byte sequence: not valid UTF-8, and no string literal can
 ; denote it, because a literal denotes scalar values (string-literals.md).
-(def invalid (fn ()
+(def invalid ()
   (let (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153))) (fn (bad)
     (seq (fmt.Println (u.FullRune bad))
          (fmt.Println (u.Valid bad))
@@ -64,20 +64,20 @@
          ((u.DecodeRune bad) (fn (r n) (pair r n)))
          (fmt.Println (u.ValidString (os.text-of bad)))
          (fmt.Println (u.FullRuneInString (os.text-of bad)))
-         (fmt.Println (u.RuneCountInString (os.text-of bad))))))))
+         (fmt.Println (u.RuneCountInString (os.text-of bad)))))))
 
-(def constants (fn ()
+(def constants ()
   (seq (fmt.Println (u.MaxRune))
        (fmt.Println (u.RuneError))
        (fmt.Println (u.RuneSelf))
        (fmt.Println (u.UTFMax))
        (fmt.Println (u.ValidRune (+ (u.MaxRune) 1)))
-       (fmt.Println (u.RuneLen (u.RuneError))))))
+       (fmt.Println (u.RuneLen (u.RuneError)))))
 
 ; The accumulator is a BUFFER from start to finish: born with one byte, extended
 ; by AppendRune once per rune, and frozen on the way out of `build` into the
 ; immutable text the readers see.
-(def main (fn ()
+(def main ()
   (let (array 104 233 26085 128578 -1 55296 1114112) (fn (runes)
   (let (build 1 (fn (b)
          (loop ((i 0) (acc (set b 0 104)))
@@ -88,4 +88,4 @@
       (seq (over-bytes text)
            (over-string (os.text-of text))
            (invalid)
-           (constants))))))))
+           (constants)))))))

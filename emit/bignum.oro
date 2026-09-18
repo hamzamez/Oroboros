@@ -120,9 +120,9 @@
 ; honest version is still owed: a limb IS non-negative by the buffer's element
 ; range, which is an inductive invariant over a buffer's own contents, and
 ; frozen-2026-08-28 says that is strictly stronger than an octagon.
-(def at (fn (t i)
+(def at (t i)
   (let (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) (fn (v)
-    (if (< v 0) 0 (% v 16777216))))))
+    (if (< v 0) 0 (% v 16777216)))))
 
 ; THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
 ; when handed 0 and fails loudly otherwise; both branches of the conditional are
@@ -143,8 +143,8 @@
 ; When the bound IS a whole number of limbs, `lim` is 2^24 and a limb is under
 ; 2^24 by construction, so the check is present, free, and never fires. That is
 ; the right shape for a check whose job is to make two representations agree.
-(def guard (fn (n lim c o)
-  (if (= (trap-if (+ c (if (< (at o (- n 1)) lim) 0 1))) 0) o o)))
+(def guard (n lim c o)
+  (if (= (trap-if (+ c (if (< (at o (- n 1)) lim) 0 1))) 0) o o))
 
 ; ---------------------------------------------------------------- of a word
 ;
@@ -156,23 +156,23 @@
 ; reaches this rung only by being ABOVE the portable window, so the declared
 ; bound is at least 54 bits, and a machine word is under 2^53. A word can
 ; therefore never exceed the bound it is being widened into.
-(def of (fn (n lim v)
+(def of (n lim v)
   (build n (fn (b)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
 
 ; ---------------------------------------------------------------- addition
 ;
 ; The carry rides as an ordinary loop variable, which is what makes this
 ; expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
 ; named once and used for both the stored limb and the outgoing carry.
-(def add (fn (n lim a b)
+(def add (n lim a b)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
       else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 
 ; ------------------------------------------------------- multiply by a word
 ;
@@ -182,12 +182,12 @@
 ; k is NOT assumed to fit a limb: `(at a i) * k` with k up to 2^24 stays under
 ; 2^48, and the lowering only chooses this form when the multiplier is a widened
 ; word whose range the analysis has bounded.
-(def mul-small (fn (n lim a k)
+(def mul-small (n lim a k)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
       else      (let (+ (* (at a i) k) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 
 ; ------------------------------------------------------------ big by big
 ;
@@ -210,19 +210,19 @@
 ;
 ; The middle clause is also what discharges the store's bounds obligation in the
 ; last one: its negation gives `i + j < n`, and `n` is the buffer's length.
-(def macrow (fn (n lim o a b i)
+(def macrow (n lim o a b i)
   (loop ((o o) (j 0) (c 0))
     (>= j n)          (guard n lim c o)
     (>= (+ i j) n)    (again (guard n lim (* (at a i) (at b j)) (guard n lim c o)) (+ j 1) 0)
     else              (let (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c) (fn (t)
                         (again (set o (+ i j) (% t 16777216))
-                               (+ j 1) (/ t 16777216)))))))
+                               (+ j 1) (/ t 16777216))))))
 
-(def mul (fn (n lim a b)
+(def mul (n lim a b)
   (build n (fn (o)
     (loop ((o o) (i 0))
       (>= i n)  o
-      else      (again (macrow n lim o a b i) (+ i 1)))))))
+      else      (again (macrow n lim o a b i) (+ i 1))))))
 
 ; ---------------------------------------------------------------- subtraction
 ;
@@ -237,14 +237,14 @@
 ; exactly as an overflow is. So it traps, and for the same reason -- the
 ; alternative is a wrap, and then choosing a representation would change the
 ; answer (ADR 0009 at the representation boundary).
-(def sub (fn (n lim a b)
+(def sub (n lim a b)
   (build n (fn (o)
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  (guard n lim bw o)
       else      (let (- (- (at a i) (at b i)) bw) (fn (t)
                   (again (set o i (if (< t 0) (+ t 16777216) t))
                          (+ i 1)
-                         (if (< t 0) 1 0)))))))))
+                         (if (< t 0) 1 0))))))))
 
 ; --------------------------------------------------------- divide by a word
 ;
@@ -267,12 +267,12 @@
 ; `(/ x k)` carries it before the promotion runs (integers.md §13.4), and
 ; `splice` normalises this body against the caller's actual argument, so the
 ; same facts are in scope at the same goal.
-(def div-small (fn (n lim a k)
+(def div-small (n lim a k)
   (build n (fn (o)
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
       else     (let (+ (* r 16777216) (at a i)) (fn (cur)
-                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))))
+                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))))
 
 ; ---------------------------------------------------------------- comparison
 ;
@@ -289,18 +289,18 @@
 ; comparisons. Three guards read each limb twice, which is two compares more per
 ; limb than a difference would cost; a comparison walks limbs and stops at the
 ; first that differs, so this is not the arithmetic anyone measures.
-(def cmp (fn (n lim a b)
+(def cmp (n lim a b)
   (loop ((i (- n 1)))
     (< i 0)                 0
     (> (at a i) (at b i))   1
     (< (at a i) (at b i))   (- 0 1)
-    else                    (again (- i 1)))))
+    else                    (again (- i 1))))
 
-(def lt (fn (n lim a b) (<  (cmp n lim a b) 0)))
-(def le (fn (n lim a b) (<= (cmp n lim a b) 0)))
-(def gt (fn (n lim a b) (>  (cmp n lim a b) 0)))
-(def ge (fn (n lim a b) (>= (cmp n lim a b) 0)))
-(def eq (fn (n lim a b) (=  (cmp n lim a b) 0)))
+(def lt (n lim a b) (<  (cmp n lim a b) 0))
+(def le (n lim a b) (<= (cmp n lim a b) 0))
+(def gt (n lim a b) (>  (cmp n lim a b) 0))
+(def ge (n lim a b) (>= (cmp n lim a b) 0))
+(def eq (n lim a b) (=  (cmp n lim a b) 0))
 
 ; -------------------------------------------------------- remainder by a word
 ;
@@ -312,8 +312,8 @@
 ; library changes the KIND of thing an operation produces. `a % k` is under k
 ; and k is a word, so the answer is a word by construction — there is no limb
 ; count to give it and no `build` here.
-(def rem-small (fn (n lim a k)
+(def rem-small (n lim a k)
   (loop ((i (- n 1)) (r 0))
     (< i 0)  r
     else     (let (+ (* r 16777216) (at a i)) (fn (cur)
-               (again (- i 1) (% cur k)))))))
+               (again (- i 1) (% cur k))))))

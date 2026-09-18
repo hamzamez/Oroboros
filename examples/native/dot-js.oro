@@ -21,16 +21,16 @@
   (where (and (js.=== (js.len p) (js.len q))
               (js.< (js.len p) 65536))))
 
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (js.len a) (fn (i) (js.at a i)))))
+(def vec      (n f) (fn (sel) (sel n f)))
+(def vlen     (v)   (v (fn (n f) n)))
+(def vindex   (v i) ((v (fn (n f) f)) i))
+(def of-array (a)   (vec (js.len a) (fn (i) (js.at a i))))
 
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+(def zip (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i)))))
 
-(def sum (fn (v)
+(def sum (v)
   (loop ((acc 0.0) (i 0))
     (js.>= i (vlen v))  acc
-    else                (again (js.+ acc (vindex v i)) (js.+ i 1)))))
+    else                (again (js.+ acc (vindex v i)) (js.+ i 1))))
 
-(def dot (fn (a b) (sum (zip js.* (of-array a) (of-array b)))))
+(def dot (a b) (sum (zip js.* (of-array a) (of-array b))))

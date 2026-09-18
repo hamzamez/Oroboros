@@ -12,7 +12,7 @@
 ; where a map differs from an array -- an array's out-of-range index is left for
 ; the refinement layer to report, because its domain condition is discharged
 ; statically and a map's is discharged by the program.
-(def run (fn (k)
+(def run (k)
   (case ((map (1 10) (2 20) (5 50)) k)
     (some v)  v
-    none      0)))
+    none      0))

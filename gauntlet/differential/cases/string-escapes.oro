@@ -29,4 +29,4 @@
 
 (export run)
 
-(def run (fn (n) "\u{41}\t\"\\\u{7A}"))
+(def run (n) "\u{41}\t\"\\\u{7A}")

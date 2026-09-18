@@ -11,6 +11,6 @@
 (use win/fileapi as f)
 (use win/fmt as fmt)
 (export main)
-(def main (fn ()
+(def main ()
   (seq (f.CreateFileA "no-such-file-here.txt" 2147483648 0 (x.null) 3 128 0)
-       (fmt.print-int (k.GetLastError)))))
+       (fmt.print-int (k.GetLastError))))

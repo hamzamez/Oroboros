@@ -29,33 +29,33 @@
   (where (go.== (go.len dst) (go.len a))))
 
 ; The delayed vector, unchanged from dot-go.oro. A library, not a primitive.
-(def vec    (fn (n f) (fn (sel) (sel n f))))
-(def vlen   (fn (v)   (v (fn (n f) n))))
-(def vindex (fn (v i) ((v (fn (n f) f)) i)))
+(def vec    (n f) (fn (sel) (sel n f)))
+(def vlen   (v)   (v (fn (n f) n)))
+(def vindex (v i) ((v (fn (n f) f)) i))
 
 ; `materialize`, written against the target instead of imported from num/vec:
 ; allocate, then a `loop` that threads the destination and stores each element.
 ; If reduction fuses the index function into the store, this IS the hand-written
 ; loop, and the only thing left of the portable version's price is the `make`.
-(def materialize (fn (v)
+(def materialize (v)
   (let (go.make-float64 (vlen v)) (fn (dst)
     (loop ((d dst) (i 0))
       (go.>= i (vlen v))  d
-      else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1)))))))
+      else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1))))))
 
 ; The same loop, over a destination the caller supplies. Nothing is allocated.
-(def fill-into (fn (dst v)
+(def fill-into (dst v)
   (loop ((d dst) (i 0))
     (go.>= i (vlen v))  d
-    else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1)))))
+    else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1))))
 
-(def window (fn (a j)
+(def window (a j)
   (go.f+ (go.f+ (go.at-float64 a j)
                 (go.at-float64 a (go.+ j 1)))
-         (go.at-float64 a (go.+ j 2)))))
+         (go.at-float64 a (go.+ j 2))))
 
-(def kernel (fn (a)
-  (vec (go.- (go.len a) 2) (fn (j) (go.f/ (window a j) 3.0)))))
+(def kernel (a)
+  (vec (go.- (go.len a) 2) (fn (j) (go.f/ (window a j) 3.0))))
 
-(def smooth      (fn (a)     (materialize (kernel a))))
-(def smooth-into (fn (dst a) (fill-into dst (kernel a))))
+(def smooth      (a)     (materialize (kernel a)))
+(def smooth-into (dst a) (fill-into dst (kernel a)))

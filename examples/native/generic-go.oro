@@ -30,18 +30,18 @@
 ; `loop` replaces `fold-range`, so the accumulator and the index are two loop
 ; variables rather than a pair — the product `fold-range2` needed and `loop`
 ; does not.
-(def reduce-over (fn (n get combine init)
+(def reduce-over (n get combine init)
   (loop ((acc init) (i 0))
     (go.>= i n)  acc
-    else         (again (combine acc (get i)) (go.+ i 1)))))
+    else         (again (combine acc (get i)) (go.+ i 1))))
 
 ; Instantiation 1 — f64 elements, f64 accumulator.
-(def sum-floats (fn (a)
-  (reduce-over (go.len a) (fn (i) (go.at-float64 a i)) go.f+ 0.0)))
+(def sum-floats (a)
+  (reduce-over (go.len a) (fn (i) (go.at-float64 a i)) go.f+ 0.0))
 
 ; Instantiation 2 — string elements, map accumulator.
-(def tally-words (fn (ws)
-  (reduce-over (go.len ws) (fn (i) (go.at-string ws i)) go.inc-map (go.make-map))))
+(def tally-words (ws)
+  (reduce-over (go.len ws) (fn (i) (go.at-string ws i)) go.inc-map (go.make-map)))
 
-(def sum-of     (fn (a)    (sum-floats a)))
-(def word-tally (fn (text) (tally-words (strings.Fields text))))
+(def sum-of     (a)    (sum-floats a))
+(def word-tally (text) (tally-words (strings.Fields text)))

@@ -17,7 +17,7 @@
 ; which measures the harness rather than the compiler (see run.go).
 ;
 ; Sum of 1..n, which is n(n+1)/2.
-(def run (fn (n)
+(def run (n)
   (let (build n (fn (b)
          (loop ((b b) (i 0))
            (>= i (len b))  b
@@ -25,4 +25,4 @@
     (fn (t)
       (loop ((acc 0) (i 0))
         (>= i (len t))  acc
-        else             (again (+ acc (t i)) (+ i 1)))))))
+        else             (again (+ acc (t i)) (+ i 1))))))

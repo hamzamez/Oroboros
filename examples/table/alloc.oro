@@ -5,4 +5,4 @@
 (export squares)
 (sig squares ((n int)) (array int) (where (and (<= 0 n) (< n 1000))))
 ; A rule, put in memory. GATHER — pure, parallel by construction.
-(def squares (fn (n) (alloc (table n (fn (i) (go.* i i))))))
+(def squares (n) (alloc (table n (fn (i) (go.* i i)))))

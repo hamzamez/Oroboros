@@ -59,13 +59,13 @@
 ; NOT EXPORTED, so reduction inlines it and nothing of this signature reaches the
 ; residual except through `the`.
 (sig scaled ((n (int 0 50))) (int 0 (pow 2 200)))
-(def scaled (fn (n)
+(def scaled (n)
   (loop ((acc (+ n 7)) (i 0))
     (>= i 6)  acc
-    else      (again (* acc 999983) (+ i 1)))))
+    else      (again (* acc 999983) (+ i 1))))
 
 (sig run ((n (int 0 50))) int)
-(def run (fn (n)
+(def run (n)
   (let (scaled n) (fn (x)
     (+ (% (/ x 100000000) 100000000)
-       (if (> x (scaled 4)) 1000000000000 0))))))
+       (if (> x (scaled 4)) 1000000000000 0)))))

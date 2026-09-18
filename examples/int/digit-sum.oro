@@ -10,7 +10,7 @@
 
 (sig digit-sum ((n int)) int (where (and (<= 0 n) (< n 1000000000))))
 
-(def digit-sum (fn (n)
+(def digit-sum (n)
   (loop ((m n) (s 0))
     (go.<= m 0)  s
-    else         (again (go./ m 10) (go.+ s (go.% m 10))))))
+    else         (again (go./ m 10) (go.+ s (go.% m 10)))))

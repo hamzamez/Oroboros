@@ -16,4 +16,4 @@
 (sig dot ((p vec-f64) (q vec-f64)) f64
   (where (int.eq (alen p) (alen q))))
 
-(def dot (fn (p q) (vec.dot p q)))
+(def dot (p q) (vec.dot p q))

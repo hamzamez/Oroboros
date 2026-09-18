@@ -24,7 +24,7 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (let (w.MulDiv (- 0 7) 6 2) (fn (r)
     (seq (fmt.print-int (if (< r 0) 1 0))
-         (fmt.print-int (+ r 100)))))))
+         (fmt.print-int (+ r 100))))))

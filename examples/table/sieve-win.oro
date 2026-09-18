@@ -11,27 +11,27 @@
 
 (sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
-(def cross (fn (c i n)
+(def cross (c i n)
   (loop ((c c) (j (x64.imul i i)))
     (x64.setl j n)  (again (set c j true) (x64.add j i))
-    else            c)))
+    else            c))
 
-(def sieve (fn (n)
+(def sieve (n)
   (build n (fn (c)
     (loop ((c c) (i 2))
       (x64.setge (x64.imul i i) n)  c
       (c i)                         (again c (x64.add i 1))
-      else                          (again (cross c i n) (x64.add i 1)))))))
+      else                          (again (cross c i n) (x64.add i 1))))))
 
-(def count-primes (fn (n)
+(def count-primes (n)
   (let (sieve n) (fn (c)
     (loop ((acc 0) (k 2))
       (x64.setge k n)  acc
       (c k)            (again acc (x64.add k 1))
-      else             (again (x64.add acc 1) (x64.add k 1)))))))
+      else             (again (x64.add acc 1) (x64.add k 1))))))
 
-(def main (fn ()
+(def main ()
   (fmt.print-int
     (loop ((r 0) (t 0))
       (x64.setge t 100)  r
-      else               (again (x64.add r (count-primes 200000)) (x64.add t 1))))))
+      else               (again (x64.add r (count-primes 200000)) (x64.add t 1)))))

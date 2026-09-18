@@ -46,12 +46,12 @@
 
 ; -11 is STD_OUTPUT_HANDLE. There is no constant in the language to name it
 ; with, so the number is the interface — see targets/windows/kernel32.oro.
-(def write-bytes (fn (p n)
-  (kernel32.WriteFile (kernel32.GetStdHandle -11) p n)))
+(def write-bytes (p n)
+  (kernel32.WriteFile (kernel32.GetStdHandle -11) p n))
 
-(def print-str (fn (s)
+(def print-str (s)
   (seq (write-bytes s (x64.strlen s))
-       (write-bytes "\n" 1))))
+       (write-bytes "\n" 1)))
 
 ; Digits are produced least-significant first, so they are written BACKWARDS
 ; from the end of the field and the loop returns where it stopped. The loop's
@@ -60,7 +60,7 @@
 ;
 ; 48 is '0'. 10 is '\n'. The language has no character literals, and adding some
 ; would be the first thing here that is not already in it.
-(def print-int (fn (n)
+(def print-int (n)
   (if (x64.sete n 0)
       (print-str "0")
       (let (x64.buf) (fn (b)
@@ -72,4 +72,4 @@
                      else i)
                   (fn (start)
                     (write-bytes (x64.lea b start)
-                                 (x64.add (x64.sub 24 start) 1))))))))))
+                                 (x64.add (x64.sub 24 start) 1)))))))))

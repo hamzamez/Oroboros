@@ -20,7 +20,7 @@
 
 (export mac-into mac-fresh)
 
-(def n (fn () 65536))
+(def n 65536)
 
 ; THE SHARED BODY. Reduction inlines it into both entry points, so the two
 ; measured functions differ in their signature and in nothing else — which is
@@ -31,10 +31,10 @@
 ; is refused until it says what a source element is. A byte times a byte is under
 ; 65536, which is what makes the store provable and what earns `w` a narrow
 ; element type on the hosts that have one.
-(def mac (fn (w a b)
+(def mac (w a b)
   (loop ((w w) (i 0))
-    (>= i (n))  w
-    else (again (set w i (* (a i) (b i))) (+ i 1)))))
+    (>= i n)  w
+    else (again (set w i (* (a i) (b i))) (+ i 1))))
 
 ; ADR 0020. The caller owns the workspace and hands it over; this never
 ; allocates. `w` is UNIQUE on the way in — assumed, because the caller is outside
@@ -58,10 +58,10 @@
                (a (array (int 0 255))) (b (array (int 0 255))))
               (buffer (int 0 65535))
   (where (and (<= 65536 (len w)) (<= 65536 (len a)) (<= 65536 (len b)))))
-(def mac-into (fn (w a b) (mac w a b)))
+(def mac-into (w a b) (mac w a b))
 
 ; The same body, allocating its own workspace every call — what an exported
 ; function had to do before a buffer could be named.
 (sig mac-fresh ((a (array (int 0 255))) (b (array (int 0 255)))) (array (int 0 65535))
   (where (and (<= 65536 (len a)) (<= 65536 (len b)))))
-(def mac-fresh (fn (a b) (build (n) (fn (w) (mac w a b)))))
+(def mac-fresh (a b) (build n (fn (w) (mac w a b))))

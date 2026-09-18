@@ -29,25 +29,25 @@
 ; terminate. That is the whole trade (sct-2026-08-19).
 (sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
-(def cross (fn (c i n)
+(def cross (c i n)
   (loop ((j (x64.imul i i)))
     (x64.setl j n)  (seq (x64.movb c j 1) (again (x64.add j i)))
-    else            c)))
+    else            c))
 
-(def composite? (fn (c i) (x64.test-byte c i)))
+(def composite? (c i) (x64.test-byte c i))
 
-(def sieve (fn (n)
+(def sieve (n)
   (let (kernel32.VirtualAlloc n) (fn (c)
     (loop ((i 2))
       (x64.setge (x64.imul i i) n)  c
       (composite? c i)              (again (x64.add i 1))
-      else                          (seq (cross c i n) (again (x64.add i 1))))))))
+      else                          (seq (cross c i n) (again (x64.add i 1)))))))
 
-(def count-primes (fn (n)
+(def count-primes (n)
   (let (sieve n) (fn (c)
     (loop ((acc 0) (k 2))
       (x64.setge k n)     acc
       (composite? c k)    (again acc (x64.add k 1))
-      else                (again (x64.add acc 1) (x64.add k 1)))))))
+      else                (again (x64.add acc 1) (x64.add k 1))))))
 
-(def main (fn () (fmt.print-int (count-primes 20000))))
+(def main () (fmt.print-int (count-primes 20000)))

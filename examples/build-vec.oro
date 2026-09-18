@@ -13,9 +13,9 @@
 (export main)
 
 ; squares of 0 .. n-1, as a real array
-(def squares (fn (n)
-  (vec.materialize (vec.vec n (fn (i) (f64.mul (f64.of-int i) (f64.of-int i)))))))
+(def squares (n)
+  (vec.materialize (vec.vec n (fn (i) (f64.mul (f64.of-int i) (f64.of-int i))))))
 
-(def main (fn ()
+(def main ()
   (seq (io.print-line "built an array of length")
-       (io.print-line (alen (squares 5))))))
+       (io.print-line (alen (squares 5)))))

@@ -8,7 +8,7 @@
 ; projections; the tuple is not a separate feature."* That pair is now spelled
 ; `(tuple x y)` (spec/data.md §3), so `(array x y)` means one thing: a table of two.
 ;
-; So this program never says `stride`. It builds `(cap)` PAIRS, writes each with
+; So this program never says `stride`. It builds `cap` PAIRS, writes each with
 ; `(tuple a b)`, and reads a field with `((t i) j)`. The compiler generates
 ; `t[2i+j]` and proves the index it generated — emit/product.go.
 ;
@@ -29,7 +29,7 @@
 ; for a negative number and is within its rights (refinements.md §6b names that
 ; exact gap). Without it windows built, ran, exited 0 and printed nothing.
 
-(def cap (fn () 12))
+(def cap 12)
 
 ; THERE IS NO CLAMP IN THIS PROGRAM, and that is the strongest thing it says.
 ; Every index is a loop variable the guard already bounds, and the STRIDE — the
@@ -40,14 +40,14 @@
 
 ; Field 0 is a counter, field 1 is a residue, so the two differ and a projection
 ; that reads the wrong one is visible in the answer.
-(def mk (fn (s)
-  (build (cap) (fn (t)
+(def mk (s)
+  (build cap (fn (t)
     (loop ((t t) (i 0))
-      (>= i (cap))  t
-      else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1)))))))
+      (>= i cap)  t
+      else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1))))))
 
-(def run (fn (s)
+(def run (s)
   (let (mk s) (fn (t)
     (loop ((acc 0) (r 0))
-      (>= r (cap))  acc
-      else (again (+ acc (* (+ r 1) (+ 14 (- ((t r) 1) ((t r) 0))))) (+ r 1)))))))
+      (>= r cap)  acc
+      else (again (+ acc (* (+ r 1) (+ 14 (- ((t r) 1) ((t r) 0))))) (+ r 1))))))

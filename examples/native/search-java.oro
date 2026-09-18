@@ -4,8 +4,8 @@
 
 (sig find-first ((a (array f64)) (k f64)) int)
 
-(def find-first (fn (a k)
+(def find-first (a k)
   (loop ((i 0))
     (java.>= i (len a))    -1
     (java.f> (a i) k)      i
-    else                   (again (java.+ i 1)))))
+    else                   (again (java.+ i 1))))

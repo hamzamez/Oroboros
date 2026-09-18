@@ -13,21 +13,21 @@
 (export count-primes)
 (sig count-primes ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
-(def cross (fn (c i n)
+(def cross (c i n)
   (loop ((c c) (j (go.* i i)))
     (go.< j n)  (again (set c j true) (go.+ j i))
-    else        c)))
+    else        c))
 
-(def sieve (fn (n)
+(def sieve (n)
   (build n (fn (c)
     (loop ((c c) (i 2))
       (go.>= (go.* i i) n)   c
       (c i)                  (again c (go.+ i 1))
-      else                   (again (cross c i n) (go.+ i 1)))))))
+      else                   (again (cross c i n) (go.+ i 1))))))
 
-(def count-primes (fn (n)
+(def count-primes (n)
   (let (sieve n) (fn (c)
     (loop ((acc 0) (k 2))
       (go.>= k n)   acc
       (c k)         (again acc (go.+ k 1))
-      else          (again (go.+ acc 1) (go.+ k 1)))))))
+      else          (again (go.+ acc 1) (go.+ k 1))))))

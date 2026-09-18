@@ -11,11 +11,11 @@
   (where (and (= (len p) (len q))
               (java.< (len p) 65536))))
 
-(def zip (fn (g a b) (table (len a) (fn (i) (g (a i) (b i))))))
+(def zip (g a b) (table (len a) (fn (i) (g (a i) (b i)))))
 
-(def sum (fn (v)
+(def sum (v)
   (loop ((acc 0.0) (i 0))
     (java.>= i (len v))  acc
-    else                 (again (java.f+ acc (v i)) (java.+ i 1)))))
+    else                 (again (java.f+ acc (v i)) (java.+ i 1))))
 
-(def dot (fn (a b) (sum (zip java.f* a b))))
+(def dot (a b) (sum (zip java.f* a b)))

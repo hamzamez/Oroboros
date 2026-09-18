@@ -30,8 +30,8 @@
 ; anyway. It is also where the DEMAND comes from -- reduction inlines every
 ; non-exported call, so a helper's declared big result is gone by the time the
 ; representation is selected, and what survives inlining is this.
-(def run (fn (n)
+(def run (n)
   (big-str
     (loop ((a 0) (b 1) (i 0))
       (>= i n)  a
-      else      (again b (+ a b) (+ i 1))))))
+      else      (again b (+ a b) (+ i 1)))))

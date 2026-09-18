@@ -18,7 +18,7 @@
 
 (sig fib ((n int)) int (where (and (<= 0 n) (< n 1000))))
 
-(def fib (fn (n)
+(def fib (n)
   (loop ((a 0) (b 1) (i 0))
     (go.>= i n)  a
-    else         (again b (go.+ a b) (go.+ i 1)))))
+    else         (again b (go.+ a b) (go.+ i 1))))

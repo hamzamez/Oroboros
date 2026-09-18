@@ -31,8 +31,8 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (seq (fmt.print-int (u.IsCharAlphaA 65))
        (fmt.print-int (u.IsCharAlphaA 49))
        (fmt.print-int (s.GetSidLengthRequired 1))
-       (fmt.print-int (s.GetSidLengthRequired 5)))))
+       (fmt.print-int (s.GetSidLengthRequired 5))))

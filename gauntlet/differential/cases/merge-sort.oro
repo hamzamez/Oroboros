@@ -33,55 +33,55 @@
 ; first. That is the right choice for a four-target case -- freq.oro is where
 ; stability matters, and it is checked there against `sort | uniq -c`.
 
-(def cap (fn () 16))
+(def cap 16)
 
 ; A clamp, because an index computed from two loop variables is bounded by
 ; nothing the analysis can see.
-(def cli (fn (n i) (if (< i 0) 0 (if (>= i n) 0 i))))
+(def cli (n i) (if (< i 0) 0 (if (>= i n) 0 i)))
 
-(def key (fn (s i) (% (+ (* 37 (+ i s)) 11) 101)))
+(def key (s i) (% (+ (* 37 (+ i s)) 11) 101))
 
-(def mmin (fn (x y) (if (< x y) x y)))
+(def mmin (x y) (if (< x y) x y))
 
-(def pat (fn (t i) (cli (cap) (t (cli (cap) i)))))
+(def pat (t i) (cli cap (t (cli cap i))))
 
-(def iota (fn (a)
+(def iota (a)
   (loop ((a a) (k 0))
-    (>= k (cap))  a
-    else          (again (set a (cli (cap) k) k) (+ k 1)))))
+    (>= k cap)  a
+    else          (again (set a (cli cap k) k) (+ k 1))))
 
 ; One merge of a[lo,mid) and a[mid,hi) into b. The left run wins ties, which is
 ; what makes it stable -- not observable here, deliberately, see above.
-(def merge1 (fn (s a b lo mid hi)
+(def merge1 (s a b lo mid hi)
   (loop ((b b) (i lo) (j mid) (k lo))
     (>= k hi)   b
-    (>= i mid)  (again (set b (cli (cap) k) (pat a j)) i (+ j 1) (+ k 1))
-    (>= j hi)   (again (set b (cli (cap) k) (pat a i)) (+ i 1) j (+ k 1))
+    (>= i mid)  (again (set b (cli cap k) (pat a j)) i (+ j 1) (+ k 1))
+    (>= j hi)   (again (set b (cli cap k) (pat a i)) (+ i 1) j (+ k 1))
     (< (key s (pat a j)) (key s (pat a i)))
-                (again (set b (cli (cap) k) (pat a j)) i (+ j 1) (+ k 1))
-    else        (again (set b (cli (cap) k) (pat a i)) (+ i 1) j (+ k 1)))))
+                (again (set b (cli cap k) (pat a j)) i (+ j 1) (+ k 1))
+    else        (again (set b (cli cap k) (pat a i)) (+ i 1) j (+ k 1))))
 
 ; One pass at width w over the whole table.
-(def mpass (fn (s a b w)
+(def mpass (s a b w)
   (loop ((b b) (lo 0))
-    (>= lo (cap))  b
-    else (let (mmin (cap) (+ lo w)) (fn (mid)
-          (let (mmin (cap) (+ lo (* 2 w))) (fn (hi)
-            (again (merge1 s a b lo mid hi) hi))))))))
+    (>= lo cap)  b
+    else (let (mmin cap (+ lo w)) (fn (mid)
+          (let (mmin cap (+ lo (* 2 w))) (fn (hi)
+            (again (merge1 s a b lo mid hi) hi)))))))
 
 ; THE WORKSPACE, THREADED. `a` is what is sorted so far and `b` is where this
 ; pass writes; the `again` hands each to the other's place. `a` is READ inside
 ; the pass and MOVED afterwards, in that order, which is exactly what ADR 0018's
 ; linearity permits -- a read does not consume.
-(def msort (fn (s)
-  (build (cap) (fn (a)
-    (build (cap) (fn (b)
+(def msort (s)
+  (build cap (fn (a)
+    (build cap (fn (b)
       (loop ((a (iota a)) (b b) (w 1))
-        (>= w (cap))  a
-        else          (again (mpass s a b w) a (* 2 w))))))))) 
+        (>= w cap)  a
+        else          (again (mpass s a b w) a (* 2 w)))))))) 
 
-(def run (fn (s)
+(def run (s)
   (let (msort s) (fn (v)
     (loop ((acc 0) (r 0))
-      (>= r (cap))  acc
-      else          (again (+ acc (* (+ r 1) (key s (pat v r)))) (+ r 1)))))))
+      (>= r cap)  acc
+      else          (again (+ acc (* (+ r 1) (key s (pat v r)))) (+ r 1))))))

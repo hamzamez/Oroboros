@@ -37,7 +37,7 @@
 (sig divmod-sum ((a (int -4503599627370495 4503599627370495)) (b int)) int
   (where (go.!= b 0)))
 
-(def dm (fn (a b) (tuple (go./ a b) (go.% a b))))
+(def dm (a b) (tuple (go./ a b) (go.% a b)))
 
-(def divmod     (fn (a b) (dm a b)))
-(def divmod-sum (fn (a b) ((dm a b) (fn (q r) (go.+ q r)))))
+(def divmod     (a b) (dm a b))
+(def divmod-sum (a b) ((dm a b) (fn (q r) (go.+ q r))))

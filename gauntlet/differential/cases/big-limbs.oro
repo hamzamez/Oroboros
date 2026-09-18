@@ -30,26 +30,26 @@
 ; unbounded without it), and a loop variable holding a TABLE gets the join of
 ; its sources' element ranges (the accumulator is rebuilt every iteration, and
 ; reading it back was ⊤).
-(def run (fn (k) (limb k)))
+(def run (k) (limb k))
 
-(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+(def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
 
-(def bn-of (fn (n v)
+(def bn-of (n v)
   (build n (fn (b)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
 
-(def bn-mul-small (fn (n a k)
+(def bn-mul-small (n a k)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let (+ (* (at a i) k) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 
-(def bn-fact (fn (w n)
+(def bn-fact (w n)
   (loop ((acc (bn-of w 1)) (i 2))
     (> i n)  acc
-    else     (again (bn-mul-small w acc i) (+ i 1)))))
+    else     (again (bn-mul-small w acc i) (+ i 1))))
 
-(def limb (fn (k) (at (bn-fact 64 200) k)))
+(def limb (k) (at (bn-fact 64 200) k))

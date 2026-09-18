@@ -29,6 +29,17 @@ values, `shout` is the one impure primitive, and `if`, `let` and `fold-range` ar
 
 `(def NAME TERM)` associates a name with a term. Using the name is the same as writing the term.
 
+A definition whose term is a function is so common that it has a shorthand, which is the way
+mathematics writes an equation — `f(n) = n²`:
+
+```lisp
+(def square (n) (* n n))
+```
+
+That is the **same definition**, read as the one above before anything else looks at it. The
+parameter list is a list of names, and there is one body; `(fn …)` is still there to be written
+whenever a function is wanted somewhere other than a definition.
+
 The term does not have to be a function:
 
 ```lisp

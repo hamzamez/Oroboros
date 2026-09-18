@@ -49,24 +49,24 @@
 
 ; The slot count, read back off the buffer rather than threaded through every
 ; call. `(len m)` is 3n by construction, so there is nothing to carry.
-(def wm-n (fn (m) (x64.idiv (len m) 3)))
+(def wm-n (m) (x64.idiv (len m) 3))
 
 ; The slot for key k at probe distance i, masked into [0, n).
-(def wm-s (fn (n k i) (x64.and (x64.add (x64.and k (x64.sub n 1)) i) (x64.sub n 1))))
+(def wm-s (n k i) (x64.and (x64.add (x64.and k (x64.sub n 1)) i) (x64.sub n 1)))
 
 ; A CLAMP, exactly as tree.oro uses one. `wm-s` is masked and therefore already
 ; in range, but the refinement layer reasons in linear integer arithmetic and
 ; `x64.and` is not linear -- so the fact is true and undischargeable, which is
 ; the honest limit of the domain rather than a hole in the program. Clamping
 ; turns a refusal into a note and says what happens if the impossible occurs.
-(def wm-c (fn (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 x))))
+(def wm-c (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 x)))
 
-(def wm-used (fn (m n k i) (m (wm-c m (x64.imul 3 (wm-s n k i))))))
-(def wm-key  (fn (m n k i) (m (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 1)))))
+(def wm-used (m n k i) (m (wm-c m (x64.imul 3 (wm-s n k i)))))
+(def wm-key  (m n k i) (m (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 1))))
 
 ; The index of the VALUE cell, which is what a find returns so the caller needs
 ; no second computation.
-(def wm-vi (fn (m n k i) (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 2))))
+(def wm-vi (m n k i) (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 2)))
 
 ; FIND: the value cell's index, or -1 when the key is absent.
 ;
@@ -78,13 +78,13 @@
 ;   an EMPTY slot      -> absent, because linear probing never leaves a gap
 ;                         before a key it stored
 ;   the key            -> found
-(def wm-find (fn (m k)
+(def wm-find (m k)
   (let (wm-n m) (fn (n)
     (loop ((i 0))
       (x64.setge i n)              -1
       (= (wm-used m n k i) 0)      -1
       (= (wm-key m n k i) k)       (wm-vi m n k i)
-      else                         (again (x64.add i 1)))))))
+      else                         (again (x64.add i 1))))))
 
 ; INSERT. The same three-way probe, with the buffer threaded through so ADR
 ; 0018's linearity holds: every clause body either returns the buffer or hands
@@ -109,7 +109,7 @@
 ;
 ; It costs a division per probe step, which the host hoists out of a loop whose
 ; buffer does not change length; if that ever measures, `n` becomes a parameter.
-(def wm-put (fn (m k v)
+(def wm-put (m k v)
   (loop ((m m) (i 0))
       ; Full. The entry is DROPPED -- see the header.
       (x64.setge i (wm-n m))          m
@@ -125,7 +125,7 @@
       ; the input, and here is where the program finds out.
       (= (wm-key m (wm-n m) k i) k)
         (let (wm-vi m (wm-n m) k i) (fn (vc) (set m vc v)))
-      else                     (again m (x64.add i 1)))))
+      else                     (again m (x64.add i 1))))
 
 ; HOW MANY KEYS ARE PRESENT. A scan, because nothing counts as it goes.
 ;
@@ -133,20 +133,20 @@
 ; pays with `Object.keys(m).length` -- the ANSWER is identical, so it is not a
 ; Tier 2 disagreement, only a different price. A count in a reserved header cell
 ; would make it O(1) and is not done here because no program needs it yet.
-(def wm-len (fn (m)
+(def wm-len (m)
   (let (wm-n m) (fn (n)
     (loop ((c 0) (s 0))
       (x64.setge s n)  c
-      else             (again (x64.add c (m (wm-c m (x64.imul 3 s)))) (x64.add s 1)))))))
+      else             (again (x64.add c (m (wm-c m (x64.imul 3 s)))) (x64.add s 1))))))
 
 ; THE SLOT COUNT FROM A CAPACITY: the least power of two that is at least twice
 ; the capacity, so the load factor never exceeds 1/2 and linear probing stays
 ; short. Computed with a loop because the capacity may be a runtime value; when
 ; it is a literal, reduction folds the whole thing away.
-(def wm-slots (fn (cap)
+(def wm-slots (cap)
   (loop ((n 1))
     (x64.setge n (x64.imul 2 cap))  n
-    else                            (again (x64.imul n 2)))))
+    else                            (again (x64.imul n 2))))
 
 ; FILL a table from two parallel arrays, which is how a map LITERAL is built.
 ;
@@ -155,7 +155,7 @@
 ; index and a slot, and nesting them past two exhausts x86's scratch registers
 ; -- the same wall `len-bounded.oro` caps itself at three inputs to avoid. A
 ; loop has constant register pressure however many rows there are.
-(def wm-fill (fn (m ks vs)
+(def wm-fill (m ks vs)
   (loop ((m m) (i 0))
     (x64.setge i (len ks))  m
     ; THE VALUE INDEX IS CLAMPED, because the loop is bounded by `(len ks)` and
@@ -163,7 +163,7 @@
     ; latent bug the refinement layer found in `dot` and `centroid`. The two
     ; arrays have the same length by construction here and nothing can see that,
     ; so the program says what happens if they do not.
-    else                    (again (wm-put m (ks i) (vs (wm-c vs i))) (x64.add i 1)))))
+    else                    (again (wm-put m (ks i) (vs (wm-c vs i))) (x64.add i 1))))
 
 ; ---------------------------------------------------------------- keys
 ;
@@ -192,21 +192,21 @@
 ; -- ADR 0010 exists to forbid exactly that reordering, and a buffer read is not
 ; being judged impure. Ranking needs no swap and is correct either way.
 
-(def wm-used-at (fn (m s) (m (wm-c m (x64.imul 3 s)))))
-(def wm-key-at  (fn (m s) (m (wm-c m (x64.add (x64.imul 3 s) 1)))))
+(def wm-used-at (m s) (m (wm-c m (x64.imul 3 s))))
+(def wm-key-at  (m s) (m (wm-c m (x64.add (x64.imul 3 s) 1))))
 
 ; How many occupied keys are strictly less than k. With distinct keys that IS
 ; the key's index in ascending order.
-(def wm-rank (fn (m k)
+(def wm-rank (m k)
   (loop ((c 0) (s 0))
     (x64.setge s (wm-n m))     c
     (= (wm-used-at m s) 0)     (again c (x64.add s 1))
     else                       (again (if (x64.setl (wm-key-at m s) k) (x64.add c 1) c)
-                                      (x64.add s 1)))))
+                                      (x64.add s 1))))
 
 ; One pass over the slots, each occupied key written to its own rank. `out` is
 ; only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
-(def wm-keys (fn (m)
+(def wm-keys (m)
   (let (wm-len m) (fn (cnt)
     (build cnt (fn (out)
       (loop ((out out) (s 0))
@@ -214,4 +214,4 @@
         (= (wm-used-at m s) 0)   (again out (x64.add s 1))
         else                     (again (set out (wm-c out (wm-rank m (wm-key-at m s)))
                                               (wm-key-at m s))
-                                        (x64.add s 1)))))))))
+                                        (x64.add s 1))))))))

@@ -6,10 +6,10 @@
 
 (export area perimeter scale)
 
-(def area      (fn (w h) (* w h)))
-(def perimeter (fn (w h) (* 2 (+ w h))))
-(def scale     (fn (k w h) (area (* k w) (* k h))))
+(def area      (w h) (* w h))
+(def perimeter (w h) (* 2 (+ w h)))
+(def scale     (k w h) (area (* k w) (* k h)))
 
 ; Not exported. It is reachable from `scale` inside this module and from
 ; nowhere outside it.
-(def twice (fn (n) (* 2 n)))
+(def twice (n) (* 2 n))

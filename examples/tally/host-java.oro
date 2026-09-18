@@ -12,9 +12,9 @@
   (use java/java-lang/String as js)
   (use java/java-lang/Long as jl)
 
-  (def compile (fn (p) (pt.compile p)))
+  (def compile (p) (pt.compile p))
   ; A Matcher is STATEFUL -- `find` advances it -- so each question gets its own.
-  (def hit?    (fn (r s) (mt.find (pt.matcher r s))))
+  (def hit?    (r s) (mt.find (pt.matcher r s)))
   ; A GROUP THAT TOOK NO PART IS `null` HERE AND "" ON GO. `(a)?b` on the line
   ; `b` matches with group 1 absent; Go's FindStringSubmatch gives "", the JVM's
   ; group(1) gives null, and the sort's compareTo threw a NullPointerException.
@@ -22,15 +22,15 @@
   ; nullable — a claim the host does not keep. `start(1)` is -1 exactly when the
   ; group took no part, so the binding asks that first, with generated
   ; declarations only, and both hosts answer "".
-  (def capture (fn (r s) (let (pt.matcher r s) (fn (m)
+  (def capture (r s) (let (pt.matcher r s) (fn (m)
     (if (mt.find m)
         (if (>= (mt.groupCount m) 1)
             (if (>= (mt.start2 m 1) 0) (mt.group2 m 1) "")
             (mt.group m))
-        "")))))
-  (def cmp     (fn (a b) (js.compareTo a b)))
+        ""))))
+  (def cmp     (a b) (js.compareTo a b))
   ; split2 with a NEGATIVE limit, because `split` drops trailing empty strings
   ; and Go's Split does not: the same file would have a different number of
   ; lines on the two hosts.
-  (def lines   (fn (t) (js.split2 t "\n" (- 0 1))))
-  (def show    (fn (n) (jl.toString n))))
+  (def lines   (t) (js.split2 t "\n" (- 0 1)))
+  (def show    (n) (jl.toString n)))

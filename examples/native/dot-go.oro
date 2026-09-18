@@ -27,20 +27,20 @@
 
 ; A vector is a length paired with an index function. It has no runtime
 ; existence and reduces away entirely (inventory §4a).
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (go.len a) (fn (i) (go.at-float64 a i)))))
+(def vec      (n f) (fn (sel) (sel n f)))
+(def vlen     (v)   (v (fn (n f) n)))
+(def vindex   (v i) ((v (fn (n f) f)) i))
+(def of-array (a)   (vec (go.len a) (fn (i) (go.at-float64 a i))))
 
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
+(def zip (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i)))))
 
 ; `fold-range` was System T's recursor and is retired on the native targets;
 ; `loop` is what replaced it (ADR 0015). The accumulator and the index are two
 ; loop variables rather than a pair, which is the product `fold-range2` needed
 ; and `loop` does not.
-(def sum (fn (v)
+(def sum (v)
   (loop ((acc 0.0) (i 0))
     (go.>= i (vlen v))  acc
-    else                (again (go.f+ acc (vindex v i)) (go.+ i 1)))))
+    else                (again (go.f+ acc (vindex v i)) (go.+ i 1))))
 
-(def dot (fn (a b) (sum (zip go.f* (of-array a) (of-array b)))))
+(def dot (a b) (sum (zip go.f* (of-array a) (of-array b))))

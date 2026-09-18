@@ -26,8 +26,8 @@
 
 (sig power ((b (int 0 1000)) (e (int 0 64))) (int 0 +inf))
 
-(def power (fn (b e)
+(def power (b e)
   (loop ((acc 1) (x b) (k e))
     (= k 0)        acc
     (= (% k 2) 1)  (again (* acc x) (* x x) (/ k 2))
-    else           (again acc (* x x) (/ k 2)))))
+    else           (again acc (* x x) (/ k 2))))

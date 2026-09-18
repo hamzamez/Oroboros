@@ -33,11 +33,11 @@
 ; `pad` says whether this is an interior group, which keeps its leading zeros,
 ; or the most significant one, which does not. The two cases differ only in a
 ; guard, so there is one `again` (ADR 0015).
-(def group (fn (d pad)
+(def group (d pad)
   (loop ((s "") (k 0) (r d))
     (>= k 8)                              s
     (and (not pad) (and (= r 0) (> k 0))) s
-    else (again (concat (string-of (+ 48 (% r 10))) s) (+ k 1) (/ r 10)))))
+    else (again (concat (string-of (+ 48 (% r 10))) s) (+ k 1) (/ r 10))))
 
 ; ---------------------------------------------------------------- the value
 ;
@@ -49,12 +49,12 @@
 ; structure, so the program says how many groups there can be. That is
 ; `tree.oro`'s node cap again — a capacity does not create the limit, it makes
 ; it visible.
-(def digits (fn (x)
+(def digits (x)
   (loop ((s "") (v x) (i 0))
     (= v 0)   s
     (>= i 32) s
     else (let (/ v 100000000) (fn (nv)
-           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1)))))))
+           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1))))))
 
 (sig render ((x (int 0 (pow 2 200)))) string)
-(def render (fn (x) (if (= x 0) "0" (digits x))))
+(def render (x) (if (= x 0) "0" (digits x)))

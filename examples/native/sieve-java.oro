@@ -11,12 +11,12 @@
 ; host's own `int`, and the (int) cast at every access goes away.
 (sig sieve-count ((n int)) int (where (and (<= 0 n) (< n 1048576))))
 
-(def cross (fn (c i n)
+(def cross (c i n)
   (loop ((j (java.* i i)))
     (java.< j n)  (seq (java.set-bool c j true) (again (java.+ j i)))
-    else          c)))
+    else          c))
 
-(def sieve-count (fn (n)
+(def sieve-count (n)
   (let (java.new-bool n) (fn (c)
     (let (loop ((i 2))
            (java.>= (java.* i i) n)  c
@@ -26,4 +26,4 @@
         (loop ((acc 0) (k 2))
           (java.>= k n)      acc
           (java.at-bool c k) (again acc (java.+ k 1))
-          else               (again (java.+ acc 1) (java.+ k 1)))))))))
+          else               (again (java.+ acc 1) (java.+ k 1))))))))

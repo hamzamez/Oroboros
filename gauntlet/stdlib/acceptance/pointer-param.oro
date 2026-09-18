@@ -32,6 +32,6 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (seq (fmt.print-int (w.IsBadReadPtr (x.null) 1))
-       (fmt.print-int (w.IsBadReadPtr (x.null) 0)))))
+       (fmt.print-int (w.IsBadReadPtr (x.null) 0))))

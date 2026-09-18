@@ -16,11 +16,11 @@
 
 (export main)
 
-(def small-ratio? (fn (n d)
-  (and (x64.setne d 0) (x64.setl (x64.idiv n d) 20))))
+(def small-ratio? (n d)
+  (and (x64.setne d 0) (x64.setl (x64.idiv n d) 20)))
 
-(def main (fn ()
+(def main ()
   (loop ((i 0))
     (x64.setge i 2)  0
     else             (seq (fmt.print-int (if (small-ratio? 10 i) 111 222))
-                          (again (x64.add i 1))))))
+                          (again (x64.add i 1)))))

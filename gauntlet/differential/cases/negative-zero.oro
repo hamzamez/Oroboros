@@ -20,8 +20,8 @@
 ; The dividend comes out of a buffer because reduction does not execute a
 ; `build` -- with a literal the whole division would fold at compile time and
 ; never reach a backend.
-(def run (fn (n)
+(def run (n)
   (let (build 2 (fn (b) (set (set b 0 (- 0 n)) 1 n))) (fn (t)
     (if (= n 1) (/ (t 0) 2)
       (if (= n 2) (% (t 0) 2)
-        (/ (t 1) 2)))))))
+        (/ (t 1) 2))))))

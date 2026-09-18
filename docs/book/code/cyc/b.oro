@@ -1,4 +1,4 @@
 (module cyc/b)
 (use cyc/a)
 (export g)
-(def g (fn (n) (* n 2)))
+(def g (n) (* n 2))

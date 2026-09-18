@@ -5,8 +5,8 @@ a good programmer on that platform would have written, and it calls the platform
 directly.
 
 ```lisp
-(def main (fn ()
-  (io.print-line (big-str (fib 100)))))
+(def main ()
+  (io.print-line (big-str (fib 100))))
 ```
 
 ```
@@ -45,7 +45,7 @@ comes from the test suite, which runs it on every target.
 (use io)
 (export main)
 
-(def count-primes (fn (n)
+(def count-primes (n)
   (let (build n (fn (sieve)                   ; a buffer of n booleans, zero-filled
          (loop ((s sieve) (i 2))
            (>= (* i i) n)   s
@@ -59,9 +59,9 @@ comes from the test suite, which runs it on every target.
       (loop ((k 2) (count 0))
         (>= k n)       count
         (composite k)  (again (+ k 1) count)
-        else           (again (+ k 1) (+ count 1)))))))
+        else           (again (+ k 1) (+ count 1))))))
 
-(def main (fn () (io.print-int (count-primes 1000))))
+(def main () (io.print-int (count-primes 1000)))
 ```
 
 ```
@@ -102,12 +102,12 @@ The language's whole character is in there:
 The same loop, asked for `fib(100)` as an ordinary integer:
 
 ```lisp
-(def fib (fn (n)
+(def fib (n)
   (loop ((a 0) (b 1) (i 0))
     (>= i n)  a
-    else      (again b (+ a b) (+ i 1)))))
+    else      (again b (+ a b) (+ i 1))))
 
-(def main (fn () (io.print-int (fib 100))))
+(def main () (io.print-int (fib 100)))
 ```
 
 ```
@@ -124,7 +124,7 @@ result is unbounded instead:
 ```lisp
 (sig fib ((n (int 0 1000))) (int 0 +inf))
 
-(def main (fn () (io.print-line (big-str (fib 100)))))
+(def main () (io.print-line (big-str (fib 100))))
 ```
 
 ```
@@ -142,23 +142,23 @@ the JVM, whose `byte` is signed. Above the machine word, the target picks the re
 (use io)
 (export main)
 
-(def cap-in (fn () 16777216))
+(def cap-in 16777216)
 
-(def main (fn ()
+(def main ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
-              (if (>= (len src) (cap-in))
+              (if (>= (len src) cap-in)
                   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
                   (loop ((i 0) (lines 0))
                     (>= i (len src)) (io.print-int lines)
                     else (again (+ i 1)
-                          (if (< lines (cap-in))
+                          (if (< lines cap-in)
                               (if (= (src i) 10) (+ lines 1) lines)
                               lines))))
-              (seq (io.print-line "wc: cannot read that file") 0)))))))))
+              (seq (io.print-line "wc: cannot read that file") 0))))))))
 ```
 
 ```bash
@@ -171,7 +171,9 @@ All three print `455`, the same as `wc -l`.
 - **A fallible call gives two results, `(fn (src err) …)`, on every host**, including the ones where
   the platform throws. How each host fails is written once, in that target's declarations. On Go it
   compiles to `src, err := os.ReadFile(av[1])`.
-- **`cap-in` is not decoration.** A count over an unbounded file cannot be proven to stay in range, so
+- **`cap-in` is a value, not a function.** A constant is a term the compiler unfolds; the
+  `(fn () …)` wrapper is for a *computation*, whose effects unfolding would repeat. And it is not
+  decoration: a count over an unbounded file cannot be proven to stay in range, so
   the program states how large a file it accepts. The compiler made it say what happens at the limit.
 
 ### 4. `encoding/hex`: a host package, with its preconditions
@@ -182,12 +184,12 @@ All three print `455`, the same as `wc -l`.
 (use io)
 (export main)
 
-(def main (fn ()
+(def main ()
   (let (build 3 (fn (b) (set (set (set b 0 104) 1 105) 2 33))) (fn (src)   ; "hi!"
     (io.print-line
       (os.text-of
         (build (* 2 (len src)) (fn (dst)
-          ((hex.Encode dst src) (fn (dst n) dst))))))))))
+          ((hex.Encode dst src) (fn (dst n) dst)))))))))
 ```
 
 ```
@@ -222,26 +224,26 @@ From the test suite, where each runs on all four targets:
 ```lisp
 (variant result (ok int) (err int))
 
-(def step (fn (n)
-  (if (>= n 10) (err n) (ok (* n 2)))))
+(def step (n)
+  (if (>= n 10) (err n) (ok (* n 2))))
 
-(def run (fn (n)
+(def run (n)
   (case (step n)
     (ok v)  v
-    (err e) (+ e 1000))))
+    (err e) (+ e 1000)))
 ```
 
 A variant whose constructor is known at compile time disappears. One decided at run time becomes the
 `if` that decided it: no tag, no allocation, no dispatch.
 
 ```lisp
-(def run (fn (n)
+(def run (n)
   (match (0 n 0)
     _ 0 c                     c
     0 v c (when (>= v 10))   (again 1 (- v 10) (+ c 1))
     _ v c (when (>= v 10))   (again 0 (- v 10) c)
     _ v c                     (again 0 0 c)
-    else                      0)))
+    else                      0))
 ```
 
 `match` is a `loop` over its scrutinees, so `again` means *match again*. A parser's state machine is
@@ -259,7 +261,7 @@ drift apart.
 |---|---|
 | **Terms** | seven kinds: name, integer, float, string, `true`/`false`, `(fn (x…) e)`, application |
 | **Top level** | `def`, `sig` (with `where`, `ensures`), `variant`, `module`, `use`, `export` |
-| **Sugar** | `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`; all gone after reading |
+| **Sugar** | `(def f (x…) body)` for a λ, `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`; all gone after reading |
 | **Iteration** | `loop` and `again`. No recursion, and termination is checked |
 | **Data** | tables `(array V)`, maps `(map int V)`, tuples, variants with type arguments, strings as scalar sequences; `option` for a map read |
 | **Mutation** | only on a linear buffer, inside `build` or as a declared `(buffer V)` parameter |

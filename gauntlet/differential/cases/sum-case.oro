@@ -12,10 +12,10 @@
 ; differential-2026-08-26 §4.
 (variant result (ok int) (err int))
 
-(def step (fn (n)
-  (if (>= n 10) (err n) (ok (* n 2)))))
+(def step (n)
+  (if (>= n 10) (err n) (ok (* n 2))))
 
-(def run (fn (n)
+(def run (n)
   (case (step n)
     (ok v)  v
-    (err e) (+ e 1000))))
+    (err e) (+ e 1000)))

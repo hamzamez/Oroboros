@@ -8,8 +8,8 @@
 ;
 ; Neither backend had a dictionary before this file.
 
-(def tally (fn (ws)
+(def tally (ws)
   (fold-range (dict-empty) (slen ws)
-    (fn (acc i) (dict-inc acc (sat ws i))))))
+    (fn (acc i) (dict-inc acc (sat ws i)))))
 
 (fn (text) (tally (split-words text)))

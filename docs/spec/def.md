@@ -146,8 +146,22 @@ the string and `(name)` is applying it. Functions come only from `fn`:
 `(def greet (fn () "hamza"))`. There is no implicit "definitions are functions" rule, which is
 where Scheme's `define` earns part of its complexity.
 
-**Scheme's `(define (f x) body)` shorthand is sugar** for `(def f (fn (x) body))` and should be
-recognised as such if we adopt it — not as a second meaning for `def`.
+**So a constant is a value, and the `(fn () …)` wrapper means something else.** Write
+`(def cap-in 16777216)`. The wrapper is for a **computation**: δ unfolds a definition at every use,
+so a body with an effect — or an allocation — would repeat it, and §7's value restriction refuses it,
+offering the empty parameter list instead. *A constant is a value; a computation gets an empty
+parameter list.*
+
+**Scheme's shorthand is sugar, and it is adopted** — 2026-09-18, in the spelling
+`(def f (x…) body)`, which puts the name where `sig` puts it
+([program-surface.md](../program-surface.md),
+[defshorthand-2026-09-18](../../gauntlet/results/defshorthand-2026-09-18.md)). It is **not** a second
+meaning for `def`: the reader rewrites it to `(def f (fn (x…) body))` and nothing downstream can tell
+the two apart. Three rules come with it, and each is refused by name:
+- **a parameter list is a list of NAMES ONLY**, which is what keeps the slot open for several arities
+  under one name, should they ever arrive;
+- **one body form** — an implicit `seq` would delete a pure leading expression in silence;
+- the shorthand does not curry: `(def c (fn (a) (fn (b) …)))` stays written out.
 
 **Stuck terms need a well-formedness check.** ~~and we do not have one~~ — the emitters now
 refuse: *"application of a non-name: the operator must be a primitive or a recursive definition."*
@@ -372,7 +386,8 @@ general.
    mutually recursive group and is never unfolded. This makes the grade readable at the
    definition site.
 3. **`def` binds a term, not a function.** `(def name "hamza")` makes `name` the string;
-   `(name)` applies it and is an error. `(def (f x) …)` shorthand, if adopted, is sugar.
+   `(name)` applies it and is an error, and a constant is therefore a VALUE. The shorthand
+   `(def f (x…) body)` was adopted 2026-09-18 and is sugar for `(def f (fn (x…) body))` — §4.
 4. **Add a well-formedness check on the residual:** an application's operator must be a λ, a
    primitive, or a recursive definition.
 5. **Numbers yes, strings yes-with-caveats, symbols no.** Symbols exist to serve a runtime

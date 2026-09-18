@@ -19,14 +19,14 @@
 (sig tally       ((text string)) map-string-long)
 (sig tally-merge ((text string)) map-string-long)
 
-(def bump       (fn (m w) (Map.put m w (java.+ (Map.get m w) 1))))
-(def bump-merge (fn (m w) (Map.merge m w)))
+(def bump       (m w) (Map.put m w (java.+ (Map.get m w) 1)))
+(def bump-merge (m w) (Map.merge m w))
 
-(def count-with (fn (step text)
+(def count-with (step text)
   (let (Str.split text " ") (fn (ws)
     (loop ((m (Map.new)) (i 0))
       (java.>= i (len ws))  m
-      else                  (again (step m (ws i)) (java.+ i 1)))))))
+      else                  (again (step m (ws i)) (java.+ i 1))))))
 
-(def tally       (fn (text) (count-with bump       text)))
-(def tally-merge (fn (text) (count-with bump-merge text)))
+(def tally       (text) (count-with bump       text))
+(def tally-merge (text) (count-with bump-merge text))

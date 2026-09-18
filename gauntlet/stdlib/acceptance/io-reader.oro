@@ -32,9 +32,9 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   ((gos.Open "go.mod") (fn (f e1)
     (if (gos.err-nil e1)
         ((gio.ReadAll f) (fn (b e2)
           (if (gos.err-nil e2) (io.print-int (len b)) (io.print-int 0))))
-        (io.print-int 0))))))
+        (io.print-int 0)))))

@@ -8,9 +8,9 @@
               (java.< (len xs) 65536)
               (java.> (len xs) 0))))
 
-(def centroid-x (fn (xs ys)
+(def centroid-x (xs ys)
   (loop ((ax 0.0) (ay 0.0) (i 0))
     (java.>= i (len xs))  (java.f+ ax ay)
     else                  (again (java.f+ ax (xs i))
                                  (java.f+ ay (ys i))
-                                 (java.+ i 1)))))
+                                 (java.+ i 1))))

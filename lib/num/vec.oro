@@ -20,17 +20,17 @@
 (sig dot ((a vec-f64) (b vec-f64)) f64)
 (sig materialize ((v any)) vec-f64)
 
-(def vec      (fn (n f) (fn (sel) (sel n f))))
-(def vlen     (fn (v)   (v (fn (n f) n))))
-(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
+(def vec      (n f) (fn (sel) (sel n f)))
+(def vlen     (v)   (v (fn (n f) n)))
+(def vindex   (v i) ((v (fn (n f) f)) i))
+(def of-array (a)   (vec (alen a) (fn (i) (aindex a i))))
 
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
-(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
+(def zip (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i)))))
+(def sum (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i)))))
+(def dot (a b)   (sum (zip f64.mul (of-array a) (of-array b))))
 
 ; The one place a delayed vector becomes a real array. Materialize at a
 ; BOUNDARY -- handing an array to a host function, or returning one. Doing it in
 ; the interior costs the 13x the stencil benchmark measured, and that cost is
 ; the point (construction.md 6).
-(def materialize (fn (v) (make-vec (vlen v) (fn (i) (vindex v i)))))
+(def materialize (v) (make-vec (vlen v) (fn (i) (vindex v i))))

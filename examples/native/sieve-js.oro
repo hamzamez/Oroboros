@@ -5,12 +5,12 @@
 (export main sieve-count)
 (sig sieve-count ((n int)) int)
 
-(def cross (fn (c i n)
+(def cross (c i n)
   (loop ((j (js.* i i)))
     (js.< j n)  (seq (js.set c j true) (again (js.+ j i)))
-    else        c)))
+    else        c))
 
-(def sieve-count (fn (n)
+(def sieve-count (n)
   (let (js.ArrayFill n false) (fn (c)
     (let (loop ((i 2))
            (js.>= (js.* i i) n)  c
@@ -20,7 +20,7 @@
         (loop ((acc 0) (k 2))
           (js.>= k n)   acc
           (js.at c k)   (again acc (js.+ k 1))
-          else          (again (js.+ acc 1) (js.+ k 1)))))))))
+          else          (again (js.+ acc 1) (js.+ k 1))))))))
 
-(def main (fn ()
-  (console.log (String.concat "primes: " (js.String (sieve-count 20000))))))
+(def main ()
+  (console.log (String.concat "primes: " (js.String (sieve-count 20000)))))

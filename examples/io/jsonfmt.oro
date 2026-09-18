@@ -39,7 +39,7 @@
 ; The one limit the program states, and it is the same shape as tree.oro's node
 ; cap: nesting is bounded because the layout depth is, and a document deeper
 ; than this is refused rather than mis-indented.
-(def dmax (fn () 64))
+(def dmax 64)
 
 ; --- byte classes -----------------------------------------------------------
 ;
@@ -47,14 +47,14 @@
 ; tokeniser table and no tree: it needs to know where each token ENDS, which is
 ; the one thing a scanner gives.
 
-(def space? (fn (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13))))))
-(def digit? (fn (c) (and (>= c 48) (<= c 57))))
-(def alpha? (fn (c) (and (>= c 97) (<= c 122))))
-(def numeric? (fn (c)
-  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69))))))))
-(def opener? (fn (c) (or (= c 123) (= c 91))))
-(def closer? (fn (c) (or (= c 125) (= c 93))))
-(def scalar? (fn (c) (or (= c 34) (or (numeric? c) (alpha? c)))))
+(def space? (c) (or (= c 32) (or (= c 9) (or (= c 10) (= c 13)))))
+(def digit? (c) (and (>= c 48) (<= c 57)))
+(def alpha? (c) (and (>= c 97) (<= c 122)))
+(def numeric? (c)
+  (or (digit? c) (or (= c 45) (or (= c 43) (or (= c 46) (or (= c 101) (= c 69)))))))
+(def opener? (c) (or (= c 123) (= c 91)))
+(def closer? (c) (or (= c 125) (= c 93)))
+(def scalar? (c) (or (= c 34) (or (numeric? c) (alpha? c))))
 
 ; --- scanners ---------------------------------------------------------------
 
@@ -70,30 +70,30 @@
 ; least where it started and the caller's index is still non-decreasing
 ; (monotone.go). An exit of `(len src)` is smaller than `j` in its own clause
 ; and costs that derivation.
-(def scan-string (fn (src i)
+(def scan-string (src i)
   (loop ((j (+ i 1)))
     (< j 0)          j
     (>= j (len src)) j
     (and (= (src j) 92) (>= (+ j 1) (len src))) (+ j 1)
     (= (src j) 92)   (again (+ j 2))
     (= (src j) 34)   (+ j 1)
-    else             (again (+ j 1)))))
+    else             (again (+ j 1))))
 
-(def scan-run (fn (src i pred)
+(def scan-run (src i pred)
   (loop ((j i))
     (< j 0)          j
     (>= j (len src)) j
     (pred (src j))   (again (+ j 1))
-    else             j)))
+    else             j))
 
 ; Where the token starting at `i` ends. Scanning starts PAST the byte the guard
 ; already matched, which is monotone-2026-08-27's repair: starting at `i` a
 ; scanner may return `i`, so there is no strict descent and the loop cannot be
 ; proven to terminate.
-(def tok-end (fn (src i)
+(def tok-end (src i)
   (if (= (src i) 34) (scan-string src i)
     (if (numeric? (src i)) (scan-run src (+ i 1) numeric?)
-                           (scan-run src (+ i 1) alpha?)))))
+                           (scan-run src (+ i 1) alpha?))))
 
 ; --- how many bytes each token contributes ----------------------------------
 ;
@@ -101,9 +101,9 @@
 ; corresponding emit writes. This is the seam where "count, then build" is
 ; either safe or a latent bug, so it is one definition rather than two.
 
-(def pad-before (fn (fresh d) (if (= fresh 1) (+ 1 (* 2 d)) 0)))
-(def pad-close  (fn (fresh d1) (if (= fresh 0) (+ 1 (* 2 d1)) 0)))
-(def depth-out  (fn (d) (if (< d 1) 0 (- d 1))))
+(def pad-before (fresh d) (if (= fresh 1) (+ 1 (* 2 d)) 0))
+(def pad-close  (fresh d1) (if (= fresh 0) (+ 1 (* 2 d1)) 0))
+(def depth-out  (d) (if (< d 1) 0 (- d 1)))
 
 ; --- pass 1: how long is the output -----------------------------------------
 ;
@@ -113,10 +113,10 @@
 ; be written, because a `build` returns the buffer and there is nowhere to put
 ; a second result.
 
-(def outlen (fn (src)
+(def outlen (src)
   (loop ((n 0) (i 0) (d 0) (fresh 0))
     (>= i (len src))  (+ n 1)
-    (>= d (dmax))     (+ n 1)
+    (>= d dmax)     (+ n 1)
     (space? (src i))  (again n (+ i 1) d fresh)
     (opener? (src i)) (again (+ n (+ (pad-before fresh d) 1)) (+ i 1) (+ d 1) 1)
     (closer? (src i)) (let (depth-out d) (fn (d1)
@@ -125,7 +125,7 @@
     (= (src i) 58)    (again (+ n 2) (+ i 1) d fresh)
     (scalar? (src i)) (let (tok-end src i) (fn (ni)
                         (again (+ n (+ (pad-before fresh d) (- ni i))) ni d 0)))
-    else              (again n (+ i 1) d fresh))))
+    else              (again n (+ i 1) d fresh)))
 
 ; --- writing ----------------------------------------------------------------
 ;
@@ -135,34 +135,34 @@
 ; with the caller — which turns out to read better than the alternative, because
 ; the offset and the length contribution then sit side by side.
 
-(def put (fn (out op c) (set out op c)))
+(def put (out op c) (set out op c))
 
-(def spaces (fn (out op n)
+(def spaces (out op n)
   (loop ((out out) (k 0) (o op))
     (>= k n) out
-    else     (again (set out o 32) (+ k 1) (+ o 1)))))
+    else     (again (set out o 32) (+ k 1) (+ o 1))))
 
-(def nl (fn (out op d) (spaces (set out op 10) (+ op 1) (* 2 d))))
+(def nl (out op d) (spaces (set out op 10) (+ op 1) (* 2 d)))
 
 ; The second guard is never taken now that a token ends inside the input, and
 ; it is what lets the compiler PROVE `(src k)` rather than trust it: `k < b` and
 ; `b <= len src` is a relation between a loop and the scanner that produced `b`,
 ; which the refinement layer does not derive.
-(def copyr (fn (out op src a b)
+(def copyr (out op src a b)
   (loop ((out out) (k a) (o op))
     (>= k b)         out
     (>= k (len src)) out
-    else             (again (set out o (src k)) (+ k 1) (+ o 1)))))
+    else             (again (set out o (src k)) (+ k 1) (+ o 1))))
 
 ; --- pass 2: write it -------------------------------------------------------
 ;
 ; The same state machine, emitting instead of counting. Every clause pairs with
 ; the one above it and adds exactly the bytes that one counted.
 
-(def render (fn (src out)
+(def render (src out)
   (loop ((out out) (op 0) (i 0) (d 0) (fresh 0))
     (>= i (len src))  (put out op 10)
-    (>= d (dmax))     (put out op 10)
+    (>= d dmax)     (put out op 10)
     (space? (src i))  (again out op (+ i 1) d fresh)
 
     ; THE BRACKET IS NAMED, not echoed. `(src i)` here would be a byte the
@@ -196,9 +196,9 @@
         (again (copyr (if (= fresh 1) (nl out op d) out) (+ op p) src i ni)
                (+ op (+ p (- ni i))) ni d 0)))))
 
-    else (again out op (+ i 1) d fresh))))
+    else (again out op (+ i 1) d fresh)))
 
-(def format (fn (src) (build (outlen src) (fn (out) (render src out)))))
+(def format (src) (build (outlen src) (fn (out) (render src out))))
 
 ; --- the tool ---------------------------------------------------------------
 
@@ -208,15 +208,15 @@
 ; big a document this tool accepts turns 33 unprovable operations into zero,
 ; and it is the same move as `tree.oro`'s node cap: a capacity does not create
 ; the limit, it makes it visible.
-(def cap-in (fn () 65536))
+(def cap-in 65536)
 
-(def main (fn ()
+(def main ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
         (io.print-line "usage: jsonfmt FILE")
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
-              (if (>= (len src) (cap-in))
+              (if (>= (len src) cap-in)
                   (io.print-line "jsonfmt: file is larger than this tool accepts")
                   (io.print (os.text-of (format src))))
-              (io.print-line "jsonfmt: cannot read that file")))))))))
+              (io.print-line "jsonfmt: cannot read that file"))))))))

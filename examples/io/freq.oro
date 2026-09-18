@@ -49,9 +49,9 @@
 ; Without them the output length and the sort's pass count accumulate over an
 ; unbounded input, and nothing can bound an integer operation downstream.
 
-(def cap-in (fn () 65536))   ; bytes of input
-(def wmax   (fn () 32768))   ; words -- see below
-(def topn   (fn () 20))      ; lines of report
+(def cap-in 65536)   ; bytes of input
+(def wmax   32768)   ; words -- see below
+(def topn   20)      ; lines of report
 
 ; THE WORD CAP IS DERIVED FROM THE BYTE CAP, so it can never be reached, and
 ; that is the difference between a stated limit and a silent wrong answer. At
@@ -72,20 +72,20 @@
 ; mapping is locale dependent and versioned with Unicode, which
 ; string-operations.md §6 refuses to invent. A word here is a run of A-Za-z.
 
-(def upper? (fn (c) (and (>= c 65) (<= c 90))))
-(def alpha? (fn (c) (or (upper? c) (and (>= c 97) (<= c 122)))))
-(def fold   (fn (c) (if (upper? c) (+ c 32) c)))
+(def upper? (c) (and (>= c 65) (<= c 90)))
+(def alpha? (c) (or (upper? c) (and (>= c 97) (<= c 122))))
+(def fold   (c) (if (upper? c) (+ c 32) c))
 
 ; Where the word starting at `i` ends. Scanning starts PAST the byte the caller
 ; has already matched, which is monotone-2026-08-27's repair: starting at `i` a
 ; scanner may return `i`, so there is no strict descent and the loop cannot be
 ; proven to terminate.
-(def word-end (fn (src i)
+(def word-end (src i)
   (loop ((j (+ i 1)))
     (< j 0)          j
     (>= j (len src)) j
     (alpha? (src j)) (again (+ j 1))
-    else             j)))
+    else             j))
 
 ; --- pass 1: how many words -------------------------------------------------
 ;
@@ -93,12 +93,12 @@
 ; count-then-build for the third time in this repository, and the second time
 ; anyone has had to WRITE it rather than benchmark it.
 
-(def nwords (fn (src)
+(def nwords (src)
   (loop ((n 0) (i 0))
     (>= i (len src))  n
-    (>= n (wmax))     n
+    (>= n wmax)     n
     (alpha? (src i))  (let (word-end src i) (fn (ni) (again (+ n 1) ni)))
-    else              (again n (+ i 1)))))
+    else              (again n (+ i 1))))
 
 ; --- the span table ---------------------------------------------------------
 ;
@@ -107,18 +107,18 @@
 ; type; the compiler now generates the stride it used to be given, and proves
 ; the index it generates.
 
-(def sbeg (fn (sp w) ((sp w) 0)))
-(def send (fn (sp w) ((sp w) 1)))
+(def sbeg (sp w) ((sp w) 0))
+(def send (sp w) ((sp w) 1))
 ; A SPAN'S LENGTH IS CLAMPED, and the reason is the honest one. Both endpoints
 ; are values read out of a table, so their difference is unrelated to anything
 ; the analysis can see -- frozen-2026-08-28's `d`, in a program with no parser in
 ; it. What is true is that a span lies inside the file, so its length is under
 ; the stated input cap, and the program says so.
-(def slen (fn (sp w)
+(def slen (sp w)
   (let (- (send sp w) (sbeg sp w)) (fn (d)
-    (if (< d 0) 0 (if (>= d (cap-in)) 0 d))))))
+    (if (< d 0) 0 (if (>= d cap-in) 0 d)))))
 
-(def spans (fn (src nw)
+(def spans (src nw)
   (build nw (fn (sp)
     (loop ((sp sp) (i 0) (w 0))
       (>= i (len src))  sp
@@ -126,7 +126,7 @@
       (alpha? (src i))
         (let (word-end src i) (fn (ni)
           (again (set sp w (tuple i ni)) ni (+ w 1))))
-      else              (again sp (+ i 1) w))))))
+      else              (again sp (+ i 1) w)))))
 
 ; --- comparing two words ----------------------------------------------------
 ;
@@ -136,23 +136,23 @@
 ; It is a byte comparison and not a scalar one, and for the free monoid that is
 ; the same answer: UTF-8 preserves scalar order, so comparing bytes orders the
 ; scalar sequences. Case folding is what makes it ASCII-only, not the ordering.
-(def wbyte (fn (src sp w k) (fold (src (cl src (+ (sbeg sp w) k))))))
+(def wbyte (src sp w k) (fold (src (cl src (+ (sbeg sp w) k)))))
 
-(def wcmp (fn (src sp u v)
+(def wcmp (src sp u v)
   (loop ((k 0))
     (>= k (slen sp u))  (if (>= k (slen sp v)) 0 (- 0 1))
     (>= k (slen sp v))  1
     (= (wbyte src sp u k) (wbyte src sp v k))  (again (+ k 1))
     (< (wbyte src sp u k) (wbyte src sp v k))  (- 0 1)
-    else                                       1)))
+    else                                       1))
 
 ; A clamp, exactly as tree.oro uses one. An offset built out of two values read
 ; from a table is bounded by nothing the analysis can see, so the program says
 ; what happens when it is out of range rather than being told it cannot be
 ; proven. The compiler making the program say so is CLAUDE.md's best argument
 ; for ADR 0014, arriving in a sort.
-(def cl (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 i))))
-(def cli (fn (n i) (if (< i 0) 0 (if (>= i n) 0 i))))
+(def cl (t i) (if (< i 0) 0 (if (>= i (len t)) 0 i)))
+(def cli (n i) (if (< i 0) 0 (if (>= i n) 0 i)))
 
 ; A PERMUTATION ENTRY. `ord` holds indices, and the compiler now knows it: a
 ; table's contents are one abstract cell per buffer (array smashing), `iota`
@@ -161,7 +161,7 @@
 ; `(* 2 (ord k))` is bounded with no clamp on the value. It used to carry one,
 ; worth 319 unbounded operations to none; the index clamp stays, because WHICH
 ; slot is in range is a relation, not a bound.
-(def pat (fn (t n i) (t (cli n i))))
+(def pat (t n i) (t (cli n i)))
 
 ; --- the sort ---------------------------------------------------------------
 ;
@@ -180,27 +180,27 @@
 ; program has two comparators and therefore two copies of this loop, which is
 ; monomorphisation by reduction rather than by a pass.
 
-(def mmin (fn (a b) (if (< a b) a b)))
+(def mmin (a b) (if (< a b) a b))
 
 ; One merge of a[lo,mid) and a[mid,hi) into b. Stable: the left run wins ties,
 ; which is what makes the report's tie-break the alphabetical order established
 ; by the first sort rather than an accident of the merge.
-(def merge1 (fn (less a b n lo mid hi)
+(def merge1 (less a b n lo mid hi)
   (loop ((b b) (i lo) (j mid) (k lo))
     (>= k hi)   b
     (>= i mid)  (again (set b (cli n k) (a (cli n j))) i (+ j 1) (+ k 1))
     (>= j hi)   (again (set b (cli n k) (a (cli n i))) (+ i 1) j (+ k 1))
     (less (pat a n j) (pat a n i))
                 (again (set b (cli n k) (a (cli n j))) i (+ j 1) (+ k 1))
-    else        (again (set b (cli n k) (a (cli n i))) (+ i 1) j (+ k 1)))))
+    else        (again (set b (cli n k) (a (cli n i))) (+ i 1) j (+ k 1))))
 
 ; One pass at width w over the whole table.
-(def mpass (fn (less a b n w)
+(def mpass (less a b n w)
   (loop ((b b) (lo 0))
     (>= lo n)  b
     else (let (mmin n (+ lo w)) (fn (mid)
           (let (mmin n (+ lo (* 2 w))) (fn (hi)
-            (again (merge1 less a b n lo mid hi) hi))))))))
+            (again (merge1 less a b n lo mid hi) hi)))))))
 
 ; THE WORKSPACE, THREADED. Two buffers alternate: `a` is what is sorted so far
 ; and `b` is where this pass writes, and the `again` hands each one to the
@@ -209,35 +209,35 @@
 ;
 ; `a` is READ inside the pass and MOVED afterwards, in that order, which is
 ; exactly what ADR 0018's linearity permits: a read does not consume.
-(def msort (fn (less n)
+(def msort (less n)
   (build n (fn (a)
     (build n (fn (b)
       (loop ((a (iota a n)) (b b) (w 1))
         (>= w n)     a
-        (>= w (wmax)) a
-        else         (again (mpass less a b n w) a (* 2 w)))))))))
+        (>= w wmax) a
+        else         (again (mpass less a b n w) a (* 2 w))))))))
 
 ; `build` zero-fills, so the identity permutation has to be written.
-(def iota (fn (a n)
+(def iota (a n)
   (loop ((a a) (k 0))
     (>= k n)  a
-    else      (again (set a (cli n k) k) (+ k 1)))))
+    else      (again (set a (cli n k) k) (+ k 1))))
 
 ; --- distinct words and their counts ----------------------------------------
 ;
 ; With the words in order, equal ones are adjacent, so one pass counts runs.
 ; Count first, then build -- the same discipline a third time.
 
-(def new? (fn (src sp ord nw k)
+(def new? (src sp ord nw k)
   (or (= k 0)
-      (not (= (wcmp src sp (pat ord nw k) (pat ord nw (- k 1))) 0)))))
+      (not (= (wcmp src sp (pat ord nw k) (pat ord nw (- k 1))) 0))))
 
-(def ndist (fn (src sp ord nw)
+(def ndist (src sp ord nw)
   (loop ((n 0) (k 0))
     (>= k nw)             n
-    (>= n (wmax))         n
+    (>= n wmax)         n
     (new? src sp ord nw k)  (again (+ n 1) (+ k 1))
-    else                  (again n (+ k 1)))))
+    else                  (again n (+ k 1))))
 
 ; A PAIR AGAIN: distinct d is a word index, standing for the whole group, and
 ; how many times it occurred. This was stride 2 as well, with a `dslot` helper
@@ -246,7 +246,7 @@
 ;
 ; NEITHER READ CLAMPS ITS VALUE ANY MORE. These were VALUE clamps, on what a
 ; table read RETURNS — frozen-2026-08-28's stratum 0 — capping a word index and an
-; occurrence count at `(wmax)` so that `(* 2 (dword …))` and
+; occurrence count at `wmax` so that `(* 2 (dword …))` and
 ; `(pow10 (ndigits (dcount …)))` stayed in the window. The compiler derives both
 ; bounds now: a word index is a copy of `ord`'s cell, and a count starts at 1 and
 ; is incremented at most once per word, so it is at most 1 + nw (the
@@ -254,10 +254,10 @@
 ; A word index is still clamped INTO the span table it indexes. That clamp is not
 ; about arithmetic: the refinement layer needs w < len sp, a relation between
 ; what `dists` stored and what `spans` built (hex-2026-09-14 §4).
-(def dword  (fn (sp dt d) (cl sp ((dt d) 0))))
-(def dcount (fn (dt d) ((dt d) 1)))
+(def dword  (sp dt d) (cl sp ((dt d) 0)))
+(def dcount (dt d) ((dt d) 1))
 
-(def dists (fn (src sp ord nw nd)
+(def dists (src sp ord nw nd)
   (build nd (fn (dt)
     (loop ((dt dt) (k 0) (d 0))
       (>= k nw)   dt
@@ -282,7 +282,7 @@
           ; What bounds it is a count: this loop runs at most nw times and adds 1
           ; to one slot per trip, so no count exceeds 1 + nw — and the compiler
           ; proves exactly that (smashfd-2026-09-16).
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))))
 
 ; --- rendering the report ---------------------------------------------------
 ;
@@ -296,13 +296,13 @@
 ; without a cap `pow10` could iterate twenty times and 10^20 is outside the
 ; window -- the whole program refused because of a loop over a four-digit number.
 ; Eight covers any count this tool can produce by four orders of magnitude.
-(def digmax (fn () 8))
+(def digmax 8)
 
-(def ndigits (fn (v)
+(def ndigits (v)
   (loop ((d 1) (x v))
     (< x 10)        d
-    (>= d (digmax)) d
-    else            (again (+ d 1) (/ x 10)))))
+    (>= d digmax) d
+    else            (again (+ d 1) (/ x 10))))
 
 ; Digits are produced most significant first by dividing down from a power of
 ; ten, which needs no second buffer and no reversal.
@@ -310,37 +310,37 @@
 ; things: `k` gives the trip count, `p` gives the RANGE. A trip count bounds how
 ; many times `(* p 10)` runs and says nothing about how large it gets, which is
 ; ADR 0019 asking about the value rather than the loop.
-(def pow10 (fn (d)
+(def pow10 (d)
   (loop ((p 1) (k 1))
     (>= k d)          p
-    (>= k (digmax))   p
-    (>= p (digcap))   p
-    else              (again (* p 10) (+ k 1)))))
+    (>= k digmax)   p
+    (>= p digcap)   p
+    else              (again (* p 10) (+ k 1))))
 
 ; 10^digmax, written out because an endpoint is read by the analysis and `pow`
 ; is for a type's endpoints rather than for a term.
-(def digcap (fn () 100000000))
+(def digcap 100000000)
 
 ; How many bytes one report line takes: the count, a space, the word, a newline.
 ; ONE DEFINITION, called by both passes, which is jsonfmt's seam: count-then-build
 ; is safe exactly where the two passes cannot drift, and the way to guarantee that
 ; is to give them nothing of their own to disagree about.
-(def linelen (fn (sp dt d)
-  (+ (ndigits (dcount dt d)) (+ 2 (slen sp (dword sp dt d))))))
+(def linelen (sp dt d)
+  (+ (ndigits (dcount dt d)) (+ 2 (slen sp (dword sp dt d)))))
 
-(def rows (fn (nd) (mmin nd (topn))))
+(def rows (nd) (mmin nd topn))
 
 ; TWO GUARDS AND NOT `(rows nd)`. The rows are min(nd, topn), and a comparison
 ; against a conditional reaches the refinement layer as an opaque atom, so
 ; `r < nd` was never learned and `(pat ord2 nd r)` could not be shown to index a
 ; table of nd pairs (hex-2026-09-14 §4). Two clauses say the same thing, and
 ; each negation is a fact the layer reads.
-(def outlen (fn (sp dt ord2 nd)
+(def outlen (sp dt ord2 nd)
   (loop ((n 0) (r 0))
     (>= r nd)         n
-    (>= r (topn))     n
+    (>= r topn)     n
     (< (len sp) 1)    n
-    else              (again (+ n (linelen sp dt (pat ord2 nd r))) (+ r 1)))))
+    else              (again (+ n (linelen sp dt (pat ord2 nd r))) (+ r 1))))
 
 ; --- pass 2: write it -------------------------------------------------------
 ;
@@ -349,12 +349,12 @@
 ; in jsonfmt. `m` is the output length, carried only so the stores can be
 ; clamped into it.
 
-(def putnum (fn (out o v m)
+(def putnum (out o v m)
   (loop ((out out) (o o) (p (pow10 (ndigits v))) (x v))
     (< p 1)  out
-    else     (again (set out (cli m o) (+ 48 (% (/ x p) 10))) (cli m (+ o 1)) (/ p 10) x))))
+    else     (again (set out (cli m o) (+ 48 (% (/ x p) 10))) (cli m (+ o 1)) (/ p 10) x)))
 
-(def putword (fn (out o src sp w m)
+(def putword (out o src sp w m)
   (loop ((out out) (o o) (k 0))
     (>= k (slen sp w))  out
     ; THE REPORT SHOWS THE WORD AS WRITTEN, and folding here would be a bug the
@@ -369,30 +369,30 @@
     ;
     ; So the case fold belongs where it is needed -- in the COMPARISON -- and the
     ; report copies the source bytes. Which is what a reader wants anyway.
-    else (again (set out (cli m o) (src (cl src (+ (sbeg sp w) k)))) (cli m (+ o 1)) (+ k 1)))))
+    else (again (set out (cli m o) (src (cl src (+ (sbeg sp w) k)))) (cli m (+ o 1)) (+ k 1))))
 
-(def putline (fn (out o src sp dt d m)
+(def putline (out o src sp dt d m)
   (let (dcount dt d) (fn (c)
   (let (dword sp dt d) (fn (w)
     (set (putword (set (putnum out o c m) (cli m (+ o (ndigits c))) 32)
                   (+ o (+ (ndigits c) 1)) src sp w m)
          (cli m (+ o (- (linelen sp dt d) 1)))
-         10)))))))
+         10))))))
 
-(def report (fn (src sp dt ord2 nd)
+(def report (src sp dt ord2 nd)
   (let (outlen sp dt ord2 nd) (fn (m)
     (build m (fn (out)
       (loop ((out out) (o 0) (r 0))
         (>= r nd)         out
-        (>= r (topn))     out
+        (>= r topn)     out
         (< (len sp) 1)    out
         else (let (pat ord2 nd r) (fn (d)
                (again (putline out o src sp dt d m)
-                      (+ o (linelen sp dt d)) (+ r 1)))))))))))
+                      (+ o (linelen sp dt d)) (+ r 1))))))))))
 
 ; --- the tool ---------------------------------------------------------------
 
-(def freq (fn (src)
+(def freq (src)
   (let (nwords src) (fn (nw)
   (let (spans src nw) (fn (sp)
   ; A GUARD on each word index, which is a value read out of the sort's own
@@ -410,15 +410,15 @@
   (let (ndist src sp ord nw) (fn (nd)
   (let (dists src sp ord nw nd) (fn (dt)
   (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
-    (report src sp dt ord2 nd)))))))))))))))
+    (report src sp dt ord2 nd))))))))))))))
 
-(def main (fn ()
+(def main ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
         (io.print-line "usage: freq FILE")
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
-              (if (>= (len src) (cap-in))
+              (if (>= (len src) cap-in)
                   (io.print-line "freq: file is larger than this tool accepts")
                   (io.print (os.text-of (freq src))))
-              (io.print-line "freq: cannot read that file")))))))))
+              (io.print-line "freq: cannot read that file"))))))))

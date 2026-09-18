@@ -15,8 +15,8 @@
 
 (sig find-first ((a slice-float64) (k f64)) int)
 
-(def find-first (fn (a k)
+(def find-first (a k)
   (loop ((i 0))
     (go.>= i (go.len a))       -1
     (go.f> (go.at-float64 a i) k)  i
-    else                       (again (go.+ i 1)))))
+    else                       (again (go.+ i 1))))

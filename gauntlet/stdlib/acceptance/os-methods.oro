@@ -34,11 +34,11 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   ((gos.Open "go.mod") (fn (f e1)
     (if (gos.err-nil e1)
         (build 64 (fn (b)
           ((File.Read f b) (fn (n e2)
             (seq (File.Close f)
               (if (gos.err-nil e2) (io.print-int n) (io.print-int 0)))))))
-        (io.print-int 0))))))
+        (io.print-int 0)))))

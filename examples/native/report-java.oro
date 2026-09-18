@@ -7,16 +7,16 @@
 (use java/System as Sys)
 (export main)
 
-(def fill (fn (n) (alloc (table n (fn (i) (java.f64-of-int i))))))
+(def fill (n) (alloc (table n (fn (i) (java.f64-of-int i)))))
 
-(def dot (fn (a b)
+(def dot (a b)
   (loop ((acc 0.0) (i 0))
     (java.>= i (len a))  acc
     else                 (again (java.f+ acc (java.f* (a i) (b i)))
-                                (java.+ i 1)))))
+                                (java.+ i 1))))
 
-(def main (fn ()
+(def main ()
   (let (fill 1000) (fn (xs)
     (seq (Sys.out-println "report")
          (seq (Sys.out-println (len xs))
-              (Sys.out-println (dot xs xs))))))))
+              (Sys.out-println (dot xs xs)))))))

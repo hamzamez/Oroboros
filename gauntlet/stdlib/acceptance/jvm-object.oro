@@ -48,8 +48,8 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (seq
     (io.print-line
       (SJ.toString (SJ.add (SJ.add (SJ.add (ju.StringJoiner ", ") "a") "b") "c")))
-    (io.print-int (Random.nextInt2 (ju.Random2 42) 100)))))
+    (io.print-int (Random.nextInt2 (ju.Random2 42) 100))))

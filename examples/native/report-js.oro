@@ -12,20 +12,20 @@
 
 (export main)
 
-(def fill (fn (n)
+(def fill (n)
   (let (js.Float64Array n) (fn (dst)
     (loop ((d dst) (i 0))
       (js.>= i n)  d
-      else         (again (js.set d i i) (js.+ i 1)))))))
+      else         (again (js.set d i i) (js.+ i 1))))))
 
-(def dot (fn (a b)
+(def dot (a b)
   (loop ((acc 0.0) (i 0))
     (js.>= i (js.len a))  acc
     else                  (again (js.+ acc (js.* (js.at a i) (js.at b i)))
-                                 (js.+ i 1)))))
+                                 (js.+ i 1))))
 
-(def main (fn ()
+(def main ()
   (let (fill 1000) (fn (xs)
     (seq (console.log "report")
          (console.log (js.len xs))
-         (console.log (dot xs xs)))))))
+         (console.log (dot xs xs))))))

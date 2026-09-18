@@ -20,12 +20,12 @@
 
 (export smooth)
 
-(def window (fn (a j)
+(def window (a j)
   (f64.add (f64.add (aindex a j)
                     (aindex a (int.add j 1)))
-           (aindex a (int.add j 2)))))
+           (aindex a (int.add j 2))))
 
-(def smooth (fn (a)
+(def smooth (a)
   (vec.materialize
     (vec.vec (int.sub (alen a) 2)
-             (fn (j) (f64.div (window a j) 3.0))))))
+             (fn (j) (f64.div (window a j) 3.0)))))

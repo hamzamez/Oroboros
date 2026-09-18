@@ -24,10 +24,10 @@
 
 (sig tally ((text any)) any)
 
-(def bump (fn (o w) (js.put o w (js.+ (js.?? (js.get o w) 0) 1))))
+(def bump (o w) (js.put o w (js.+ (js.?? (js.get o w) 0) 1)))
 
-(def tally (fn (text)
+(def tally (text)
   (let (String.fields text) (fn (ws)
     (loop ((o (js.object)) (i 0))
       (js.>= i (js.len ws))  o
-      else                   (again (bump o (js.at ws i)) (js.+ i 1)))))))
+      else                   (again (bump o (js.at ws i)) (js.+ i 1))))))

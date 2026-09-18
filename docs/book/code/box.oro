@@ -8,4 +8,4 @@
 
 (export box)
 
-(def box (fn (w h) (geometry.area w h)))
+(def box (w h) (geometry.area w h))

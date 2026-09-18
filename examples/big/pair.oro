@@ -26,7 +26,7 @@
 
 (sig pair ((n (int 0 20))) (int 0 +inf))
 
-(def pair (fn (n)
+(def pair (n)
   (loop ((a 2) (b 1) (i 0))
     (>= i n)  b
-    else      (again (* a b) (+ b a) (+ i 1)))))
+    else      (again (* a b) (+ b a) (+ i 1))))

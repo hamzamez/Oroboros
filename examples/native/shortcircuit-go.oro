@@ -20,11 +20,11 @@
 
 (export main)
 
-(def small-ratio? (fn (n d)
-  (and (go.!= d 0) (go.< (go./ n d) 20))))
+(def small-ratio? (n d)
+  (and (go.!= d 0) (go.< (go./ n d) 20)))
 
-(def main (fn ()
+(def main ()
   (loop ((i 0))
     (go.>= i 2)  0
     else         (seq (fmt.Println (if (small-ratio? 10 i) 111 222))
-                      (again (go.+ i 1))))))
+                      (again (go.+ i 1)))))

@@ -12,9 +12,9 @@
 
 (sig step ((a int) (b int)) result)
 
-(def step (fn (a b)
+(def step (a b)
   (if (= b 0)
     (err 1)
     (if (go.> (go.% a b) 0)
       (err 2)
-      (ok (go./ a b))))))
+      (ok (go./ a b)))))

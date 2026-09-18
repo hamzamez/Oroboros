@@ -65,16 +65,16 @@
 ; latent bug the refinement layer found in `dot` and `centroid`. Two tables have
 ; the same length by construction and nothing can see that, so the program says
 ; what happens if they do not.
-(def at (fn (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))))
+(def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
 
 ; ---------------------------------------------------------------- of a word
 ;
 ; A machine word spread over `n` limbs, least significant first.
-(def bn-of (fn (n v)
+(def bn-of (n v)
   (build n (fn (b)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
 
 ; ---------------------------------------------------------------- addition
 ;
@@ -86,12 +86,12 @@
 ; The carry rides as an ordinary loop variable, which is what makes this
 ; expressible at all: `again` may sit under a `let`, so the sum can be named
 ; once and used for both the stored limb and the outgoing carry.
-(def bn-add (fn (n a b)
+(def bn-add (n a b)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 
 ; ------------------------------------------------------- multiply by a word
 ;
@@ -100,12 +100,12 @@
 ;
 ; `(at a i) * k` is under 2^48 and the carry under 2^25, so the sum is under
 ; 2^49 -- inside the window with four bits to spare.
-(def bn-mul-small (fn (n a k)
+(def bn-mul-small (n a k)
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let (+ (* (at a i) k) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 
 ; ---------------------------------------------------------------- factorial
 ;
@@ -117,10 +117,10 @@
 ; It allocates one buffer per iteration, which is what the reuse question is
 ; about and is deliberately left alone here: the question this file answers is
 ; whether the language can EXPRESS the arithmetic.
-(def bn-fact (fn (w n)
+(def bn-fact (w n)
   (loop ((acc (bn-of w 1)) (i 2))
     (> i n)  acc
-    else     (again (bn-mul-small w acc i) (+ i 1)))))
+    else     (again (bn-mul-small w acc i) (+ i 1))))
 
 ; ------------------------------------------------------------------ harness
 ;
@@ -128,4 +128,4 @@
 ; and `BigInteger` -- ORACLES rather than another implementation of ours -- by
 ; `gauntlet/differential/cases/big-limbs.oro`. 200! is about 1,245 bits, so 52
 ; limbs are significant and 64 is a comfortable buffer.
-(def limb (fn (k) (at (bn-fact 64 200) k)))
+(def limb (k) (at (bn-fact 64 200) k))

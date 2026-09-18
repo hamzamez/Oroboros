@@ -23,20 +23,20 @@
   (where (int.eq (alen xs) (alen ys))))
 
 
-(def point (fn (x y) (fn (sel) (sel x y))))
-(def px    (fn (p)   (p (fn (x y) x))))
-(def py    (fn (p)   (p (fn (x y) y))))
+(def point (x y) (fn (sel) (sel x y)))
+(def px    (p)   (p (fn (x y) x)))
+(def py    (p)   (p (fn (x y) y)))
 
 ; Read point i out of the two arrays, as a point.
-(def pat (fn (xs ys i) (point (aindex xs i) (aindex ys i))))
+(def pat (xs ys i) (point (aindex xs i) (aindex ys i)))
 
 ; One pass, two accumulators. The pair must be two scalars because compile-time
 ; reduction cannot cross a runtime loop boundary — see
 ; gauntlet/results/structs-2026-08-14.md.
-(def centroid (fn (xs ys)
+(def centroid (xs ys)
   (fold-range2 0.0 0.0 (alen xs)
     (fn (ax ay i) (f64.add ax (px (pat xs ys i))))
     (fn (ax ay i) (f64.add ay (py (pat xs ys i))))
     ; The finisher consumes both accumulators, so compound loop state never
     ; escapes the loop as a compound value.
-    (fn (ax ay) (f64.add ax ay)))))
+    (fn (ax ay) (f64.add ax ay))))

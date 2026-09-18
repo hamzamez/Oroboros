@@ -17,8 +17,8 @@
 
 (export main)
 
-(def main (fn ()
+(def main ()
   (seq (fmt.Println "hello from oroboros")
-       (fmt.Println (twice 21)))))
+       (fmt.Println (twice 21))))
 
-(def twice (fn (n) (go.+ n n)))
+(def twice (n) (go.+ n n))

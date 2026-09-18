@@ -172,7 +172,12 @@ spec to read before touching it.
 
 - **Terms.** Seven term kinds: name, integer, float, string, `true`/`false`, `fn` and application.
   `core.Term`'s `KBound` is internal.
-- **Reduction.** Three rules. `if`, `let`, `loop`, `=`, the integer operators, `the` and the table
+- **Definitions.** `(def f (x…) body)` is sugar for `(def f (fn (x…) body))`: a parameter list is a
+  list of NAMES, there is one body, and `(fn …)` stays legal
+  ([def.md §4](docs/spec/def.md), [program-surface.md](docs/program-surface.md)). **A constant is a
+  value** — `(def cap 65536)`; the `(fn () …)` wrapper is for a computation, whose effects unfolding
+  would repeat.
+- **Reduction.** Four rules, two with two clauses ([state.md](docs/spec/state.md)). `if`, `let`, `loop`, `=`, the integer operators, `the` and the table
   operations are **injected** into every target; declaring one is an error.
 - **Effects.** A declared purity bit per primitive, defaulting to impure. An impure argument is
   let-bound, never substituted, which denies contraction, weakening and exchange

@@ -11,7 +11,7 @@
 (sig gcd ((a int) (b int)) int
   (where (and (and (<= 0 a) (< a 1000000)) (and (<= 0 b) (< b 1000000)))))
 
-(def gcd (fn (a b)
+(def gcd (a b)
   (loop ((x a) (y b))
     (go.== y 0)  x
-    else         (again y (go.% x y)))))
+    else         (again y (go.% x y))))

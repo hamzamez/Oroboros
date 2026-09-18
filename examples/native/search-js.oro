@@ -9,8 +9,8 @@
 
 (sig find-first ((a any) (k any)) any)
 
-(def find-first (fn (a k)
+(def find-first (a k)
   (loop ((i 0))
     (js.>= i (js.len a))   -1
     (js.> (js.at a i) k)   i
-    else                   (again (js.+ i 1)))))
+    else                   (again (js.+ i 1))))

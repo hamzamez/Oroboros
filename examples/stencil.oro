@@ -15,10 +15,10 @@
 (use num/f64)
 (use num/int)
 
-(def window (fn (a j)
+(def window (a j)
   (f64.add (f64.add (aindex a j)
                     (aindex a (int.add j 1)))
-           (aindex a (int.add j 2)))))
+           (aindex a (int.add j 2))))
 
 (fn (a) (fold-range 0.0 (int.sub (alen a) 2)
           (fn (acc j) (f64.add acc (window a j)))))

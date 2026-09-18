@@ -20,23 +20,23 @@
 (sig smooth-into  ((dst double-array) (a (array f64))) double-array
   (where (and (java.> (len a) 2) (java.>= (len dst) (java.- (len a) 2)))))
 
-(def window (fn (a j)
-  (java.f+ (java.f+ (a j) (a (java.+ j 1))) (a (java.+ j 2)))))
+(def window (a j)
+  (java.f+ (java.f+ (a j) (a (java.+ j 1))) (a (java.+ j 2))))
 
-(def kernel (fn (a)
-  (table (java.- (len a) 2) (fn (j) (java.f/ (window a j) 3.0)))))
+(def kernel (a)
+  (table (java.- (len a) 2) (fn (j) (java.f/ (window a j) 3.0))))
 
-(def smooth-alloc (fn (a) (alloc (kernel a))))
+(def smooth-alloc (a) (alloc (kernel a)))
 
-(def smooth-build (fn (a)
+(def smooth-build (a)
   (let (kernel a) (fn (k)
     (build (len k) (fn (b)
       (loop ((b b) (i 0))
         (java.>= i (len k))  b
-        else                 (again (set b i (k i)) (java.+ i 1)))))))))
+        else                 (again (set b i (k i)) (java.+ i 1))))))))
 
-(def smooth-into (fn (dst a)
+(def smooth-into (dst a)
   (let (kernel a) (fn (k)
     (loop ((d dst) (i 0))
       (java.>= i (len k))  d
-      else                 (again (java.set-double d i (k i)) (java.+ i 1)))))))
+      else                 (again (java.set-double d i (k i)) (java.+ i 1))))))

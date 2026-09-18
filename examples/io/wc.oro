@@ -31,7 +31,7 @@
 ; accepts. jsonfmt and freq say the same thing for the same reason, and
 ; `tree.oro`'s node cap said it first: a capacity does not create the limit, it
 ; makes it VISIBLE.
-(def cap-in (fn () 16777216))
+(def cap-in 16777216)
 
 ; Count the newlines in a file, named on the command line.
 ;
@@ -44,7 +44,7 @@
 ; why `print-int` exists beside `print-line` at all.
 ;
 ; AND THE SECOND GUARD CANNOT FIRE. A file under the cap has fewer than that
-; many newlines, so `(< lines (cap-in))` is true at every iteration — it is there
+; many newlines, so `(< lines cap-in)` is true at every iteration — it is there
 ; because the ANALYSIS needs it, not the program: a counter incremented under a
 ; condition has no bound from the loop's own guard, and `(+ lines 1)` was the one
 ; operation of two this program could not prove. tree.oro's node cap, jsonfmt's
@@ -58,18 +58,18 @@
 ; The byte range is DECLARED on `ReadFile`, so `src` is a `[]byte` on Go, a
 ; packed array on V8 and a `short[]` on the JVM — where a file byte does not fit
 ; a signed `byte` — and `(src i)` may be compared without a refusal.
-(def main (fn ()
+(def main ()
   (let (os.Args) (fn (av)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
         ((os.ReadFile (av 1)) (fn (src err)
           (if (os.err-nil err)
-              (if (>= (len src) (cap-in))
+              (if (>= (len src) cap-in)
                   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
                   (loop ((i 0) (lines 0))
                     (>= i (len src)) (io.print-int lines)
                     else (again (+ i 1)
-                          (if (< lines (cap-in))
+                          (if (< lines cap-in)
                               (if (= (src i) 10) (+ lines 1) lines)
                               lines))))
-              (seq (io.print-line "wc: cannot read that file") 0)))))))))
+              (seq (io.print-line "wc: cannot read that file") 0))))))))

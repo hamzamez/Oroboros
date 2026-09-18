@@ -17,8 +17,8 @@
 
 (sig collatz ((n int)) int (where (and (<= 1 n) (< n 1000000))))
 
-(def collatz (fn (n)
+(def collatz (n)
   (loop ((x n) (steps 0))
     (go.<= x 1)            steps
     (go.== (go.% x 2) 0)   (again (go./ x 2) (go.+ steps 1))
-    else                   (again (go.+ (go.* 3 x) 1) (go.+ steps 1)))))
+    else                   (again (go.+ (go.* 3 x) 1) (go.+ steps 1))))

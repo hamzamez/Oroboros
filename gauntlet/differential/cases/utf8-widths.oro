@@ -24,6 +24,6 @@
 
 ; inputs: 0
 ; expect: Aé日🙂
-(def run (fn (n)
+(def run (n)
   (concat (concat (string-of 65) (string-of 233))
-          (concat (string-of 26085) (string-of 128578)))))
+          (concat (string-of 26085) (string-of 128578))))

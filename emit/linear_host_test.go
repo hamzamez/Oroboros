@@ -33,7 +33,8 @@ func hostBufferTarget(t *testing.T) *Target {
 func nm(s string) *core.Term { return core.Name(s) }
 
 // (fn (k) (build 4 (fn (b) ((x.encode b 26085) (fn (b2 m)
-//     ((x.encode b2 233) (fn (b3 m2) (let (b2 0) (fn (v) b3)))))))))
+//
+//	((x.encode b2 233) (fn (b3 m2) (let (b2 0) (fn (v) b3)))))))))
 func reborrowTerm(readDead bool) *core.Term {
 	var tail *core.Term
 	if readDead {
@@ -63,7 +64,8 @@ func TestABufferAHostCallHandsBackIsLinear(t *testing.T) {
 }
 
 // (fn (k) (build 1 (fn (h) (let (x.append h 233) (fn (base)
-//     (let (x.append base 26085) (fn (x) (let (x.append <base|x> 128578) (fn (y) y)))))))))
+//
+//	(let (x.append base 26085) (fn (x) (let (x.append <base|x> 128578) (fn (y) y)))))))))
 func appendTerm(twice bool) *core.Term {
 	second := nm("x")
 	if twice {

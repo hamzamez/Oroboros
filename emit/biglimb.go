@@ -109,14 +109,14 @@ const limbPrefix = "big/limb."
 var limbOf = map[string]string{
 	"big-of":       limbPrefix + "of",
 	"big-of-small": limbPrefix + "of",
-	"big+":   limbPrefix + "add",
-	"big-":   limbPrefix + "sub",
-	"big*":   limbPrefix + "mul",
-	"big<":   limbPrefix + "lt",
-	"big<=":  limbPrefix + "le",
-	"big>":   limbPrefix + "gt",
-	"big>=":  limbPrefix + "ge",
-	"big=":   limbPrefix + "eq",
+	"big+":         limbPrefix + "add",
+	"big-":         limbPrefix + "sub",
+	"big*":         limbPrefix + "mul",
+	"big<":         limbPrefix + "lt",
+	"big<=":        limbPrefix + "le",
+	"big>":         limbPrefix + "gt",
+	"big>=":        limbPrefix + "ge",
+	"big=":         limbPrefix + "eq",
 }
 
 // BigBound is the bound a program's declarations place on its

@@ -161,7 +161,7 @@ func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 // inside a `(target …)`.
 func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
 	for old, want := range map[string]string{
-		`(sig mk (int) slice-bool (length 0) (host expr "make([]bool, %s)"))`:                "(ensures (= (len result) n))",
+		`(sig mk (int) slice-bool (length 0) (host expr "make([]bool, %s)"))`:               "(ensures (= (len result) n))",
 		`(sig st (slice-bool int bool) slice-bool (length-of 0) (host stmt "%s[%s] = %s"))`: "(ensures (= (len result) (len c)))",
 	} {
 		dir := t.TempDir()

@@ -65,9 +65,9 @@ func TestTheTargetChoosesTheRepresentation(t *testing.T) {
 		dir   string
 		limbs bool
 	}{
-		{"../targets/go", false},   // math/big: 2,186 ns against 18,150 in limbs
-		{"../targets/js", false},   // BigInt: 5,290 against 528,334 — a factor of 100
-		{"../targets/java", false}, // BigInteger: 2,905 against 7,948
+		{"../targets/go", false},     // math/big: 2,186 ns against 18,150 in limbs
+		{"../targets/js", false},     // BigInt: 5,290 against 528,334 — a factor of 100
+		{"../targets/java", false},   // BigInteger: 2,905 against 7,948
 		{"../targets/windows", true}, // ships no bignum, so limbs or nothing
 	} {
 		tg, err := LoadTarget(c.dir)

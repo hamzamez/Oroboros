@@ -13,13 +13,13 @@ func TestFactAdmissionIsTheFBFragment(t *testing.T) {
 		t.Fatalf("lang's theory must load all eight facts, got %d", len(langFacts))
 	}
 	refused := map[string]string{
-		`(fact two ((x int) (y int)) (<= (% x 3) (% y 3)))`:           "F-C",
-		`(fact cover ((x int) (y int)) (<= 0 (len x)))`:               "condition 3",
-		`(fact nest ((x int)) (<= 0 (% (% x 3) 5)))`:                  "not flat",
-		`(fact fl ((x f64)) (<= 0 (sqrt x)))`:                         "float",
+		`(fact two ((x int) (y int)) (<= (% x 3) (% y 3)))`:          "F-C",
+		`(fact cover ((x int) (y int)) (<= 0 (len x)))`:              "condition 3",
+		`(fact nest ((x int)) (<= 0 (% (% x 3) 5)))`:                 "not flat",
+		`(fact fl ((x f64)) (<= 0 (sqrt x)))`:                        "float",
 		`(fact q ((a (array int))) (forall ((i int)) (<= 0 (a i))))`: "F-D",
-		`(lemma l ((x int)) (<= 0 x))`:                                "F-E",
-		`(fact lin ((x int)) (<= 0 x))`:                               "no trigger",
+		`(lemma l ((x int)) (<= 0 x))`:                               "F-E",
+		`(fact lin ((x int)) (<= 0 x))`:                              "no trigger",
 	}
 	for src, want := range refused {
 		_, err := readFacts(src)

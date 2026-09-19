@@ -443,6 +443,9 @@ go run ./cmd/intervals examples/native/sieve-go.oro go   # what the interval ana
   `cd` into them before running their tests.
 - `gauntlet/fmt/*.go` carry `//go:build ignore`; they are standalone scripts run with `go run`.
 - On Windows, Git Bash's `/tmp` is not visible to native tools; use the session scratchpad.
+- **Line endings are LF**, pinned by `.gitattributes` (`* text=auto eol=lf`), whatever a machine's
+  `core.autocrlf` says. The four Windows scripts are CRLF and the emission baseline is `-text`. So
+  `gofmt -l` means what it says; if it ever lists files nobody edited, check the endings first.
 - A **doctor**, which would report missing toolchains, is wanted and deliberately not built yet
   ([build.md §6](docs/spec/build.md)).
 

@@ -1,5 +1,24 @@
+# LINE ENDINGS ARE LF, EVERYWHERE, IN THE REPOSITORY AND IN THE WORKING TREE.
+#
+# The repository already stored LF in every one of its files; what varied was the
+# CHECKOUT, because `core.autocrlf=true` on a Windows machine rewrites a file to
+# CRLF while every tool here — gofmt, the emitters, the compiler's own writers —
+# produces LF. The result was a working tree of mixed endings: 242 of the tracked
+# files were CRLF and the rest LF, which made `gofmt -l` list files nobody had
+# touched and made `git add` warn on files that were already correct.
+#
+# `eol=lf` decides it for every machine rather than per developer's config.
+* text=auto eol=lf
+
+# The two Windows scripts a person runs by hand, where CRLF is the platform's own
+# convention. `cmd` tolerates LF today; a label or a `goto` split across a line
+# ending is the classic way that stops being true.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
 # The emission baseline is compared BYTE FOR BYTE (gauntlet/check/README.md), so git must
 # never convert its line endings on checkout: a Windows checkout would otherwise turn every
-# LF into CRLF and report every emitted file as changed.
+# LF into CRLF and report every emitted file as changed. These come AFTER the rule above,
+# because the last matching line wins.
 gauntlet/check/testdata/emitted/** -text
 gauntlet/check/outcomes.txt -text

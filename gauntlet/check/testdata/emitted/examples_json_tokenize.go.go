@@ -5,7 +5,7 @@ package gauntlet
 func GenRun(k int) int {
 	var t1 int
 	if (k == 0) {
-		src := []int{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
+		src := []byte{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
 		stk := make([]byte, 32)
 		stk2 := stk
 		var i int = 0
@@ -33,15 +33,15 @@ func GenRun(k int) int {
 				r2 = (nt * 1000)
 				break
 			}
-			var c int = src[i]
+			var c int = int(src[i])
 			if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
 				i = (i + 1)
 				continue
 			}
-			var c2 int = src[i]
+			var c2 int = int(src[i])
 			if ((c2 == 123) || (c2 == 91)) {
 				var t4 int
-				if (src[i] == 123) {
+				if (int(src[i]) == 123) {
 					t4 = 125
 				} else {
 					t4 = 93
@@ -56,7 +56,7 @@ func GenRun(k int) int {
 				i, nt, sp, mx = (i + 1), (nt + 1), (sp + 1), t5
 				continue
 			}
-			var c3 int = src[i]
+			var c3 int = int(src[i])
 			if ((c3 == 125) || (c3 == 93)) {
 				var t6 int
 				if (sp < 1) {
@@ -75,7 +75,7 @@ func GenRun(k int) int {
 						t8 = (sp - 1)
 					}
 					var t9 int
-					if (int(stk2[t8]) == src[i]) {
+					if (int(stk2[t8]) == int(src[i])) {
 						t9 = ok
 					} else {
 						t9 = 0
@@ -85,12 +85,12 @@ func GenRun(k int) int {
 				i, nt, sp, ok = (i + 1), (nt + 1), t6, t7
 				continue
 			}
-			var c4 int = src[i]
+			var c4 int = int(src[i])
 			if ((c4 == 58) || (c4 == 44)) {
 				i, nt = (i + 1), (nt + 1)
 				continue
 			}
-			if (src[i] == 34) {
+			if (int(src[i]) == 34) {
 				var j int = (i + 1)
 				var r10 int
 				for {
@@ -102,11 +102,11 @@ func GenRun(k int) int {
 						r10 = j
 						break
 					}
-					if (src[j] == 92) {
+					if (int(src[j]) == 92) {
 						j = (j + 2)
 						continue
 					}
-					if (src[j] == 34) {
+					if (int(src[j]) == 34) {
 						r10 = (j + 1)
 						break
 					}
@@ -116,7 +116,7 @@ func GenRun(k int) int {
 				i, nt = r10, (nt + 1)
 				continue
 			}
-			var c5 int = src[i]
+			var c5 int = int(src[i])
 			if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
 				var j2 int = (i + 1)
 				for ; ; j2 = (j2 + 1) {
@@ -126,7 +126,7 @@ func GenRun(k int) int {
 					if (j2 >= len(src)) {
 						break
 					}
-					var c6 int = src[j2]
+					var c6 int = int(src[j2])
 					if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
 						continue
 					}
@@ -135,7 +135,7 @@ func GenRun(k int) int {
 				i, nt = j2, (nt + 1)
 				continue
 			}
-			var c7 int = src[i]
+			var c7 int = int(src[i])
 			if ((c7 >= 97) && (c7 <= 122)) {
 				var j3 int = (i + 1)
 				for ; ; j3 = (j3 + 1) {
@@ -145,7 +145,7 @@ func GenRun(k int) int {
 					if (j3 >= len(src)) {
 						break
 					}
-					var c8 int = src[j3]
+					var c8 int = int(src[j3])
 					if ((c8 >= 97) && (c8 <= 122)) {
 						continue
 					}
@@ -161,7 +161,7 @@ func GenRun(k int) int {
 	} else {
 		var t11 int
 		if (k == 1) {
-			src2 := []int{91, 91, 91, 49, 93, 93, 93}
+			src2 := []byte{91, 91, 91, 49, 93, 93, 93}
 			stk3 := make([]byte, 32)
 			stk4 := stk3
 			var i2 int = 0
@@ -189,15 +189,15 @@ func GenRun(k int) int {
 					r12 = (nt2 * 1000)
 					break
 				}
-				var c9 int = src2[i2]
+				var c9 int = int(src2[i2])
 				if ((c9 == 32) || ((c9 == 9) || ((c9 == 10) || (c9 == 13)))) {
 					i2 = (i2 + 1)
 					continue
 				}
-				var c10 int = src2[i2]
+				var c10 int = int(src2[i2])
 				if ((c10 == 123) || (c10 == 91)) {
 					var t14 int
-					if (src2[i2] == 123) {
+					if (int(src2[i2]) == 123) {
 						t14 = 125
 					} else {
 						t14 = 93
@@ -212,7 +212,7 @@ func GenRun(k int) int {
 					i2, nt2, sp2, mx2 = (i2 + 1), (nt2 + 1), (sp2 + 1), t15
 					continue
 				}
-				var c11 int = src2[i2]
+				var c11 int = int(src2[i2])
 				if ((c11 == 125) || (c11 == 93)) {
 					var t16 int
 					if (sp2 < 1) {
@@ -231,7 +231,7 @@ func GenRun(k int) int {
 							t18 = (sp2 - 1)
 						}
 						var t19 int
-						if (int(stk4[t18]) == src2[i2]) {
+						if (int(stk4[t18]) == int(src2[i2])) {
 							t19 = ok2
 						} else {
 							t19 = 0
@@ -241,12 +241,12 @@ func GenRun(k int) int {
 					i2, nt2, sp2, ok2 = (i2 + 1), (nt2 + 1), t16, t17
 					continue
 				}
-				var c12 int = src2[i2]
+				var c12 int = int(src2[i2])
 				if ((c12 == 58) || (c12 == 44)) {
 					i2, nt2 = (i2 + 1), (nt2 + 1)
 					continue
 				}
-				if (src2[i2] == 34) {
+				if (int(src2[i2]) == 34) {
 					var j4 int = (i2 + 1)
 					var r20 int
 					for {
@@ -258,11 +258,11 @@ func GenRun(k int) int {
 							r20 = j4
 							break
 						}
-						if (src2[j4] == 92) {
+						if (int(src2[j4]) == 92) {
 							j4 = (j4 + 2)
 							continue
 						}
-						if (src2[j4] == 34) {
+						if (int(src2[j4]) == 34) {
 							r20 = (j4 + 1)
 							break
 						}
@@ -272,7 +272,7 @@ func GenRun(k int) int {
 					i2, nt2 = r20, (nt2 + 1)
 					continue
 				}
-				var c13 int = src2[i2]
+				var c13 int = int(src2[i2])
 				if (((c13 >= 48) && (c13 <= 57)) || ((c13 == 45) || ((c13 == 43) || ((c13 == 46) || ((c13 == 101) || (c13 == 69)))))) {
 					var j5 int = (i2 + 1)
 					for ; ; j5 = (j5 + 1) {
@@ -282,7 +282,7 @@ func GenRun(k int) int {
 						if (j5 >= len(src2)) {
 							break
 						}
-						var c14 int = src2[j5]
+						var c14 int = int(src2[j5])
 						if (((c14 >= 48) && (c14 <= 57)) || ((c14 == 45) || ((c14 == 43) || ((c14 == 46) || ((c14 == 101) || (c14 == 69)))))) {
 							continue
 						}
@@ -291,7 +291,7 @@ func GenRun(k int) int {
 					i2, nt2 = j5, (nt2 + 1)
 					continue
 				}
-				var c15 int = src2[i2]
+				var c15 int = int(src2[i2])
 				if ((c15 >= 97) && (c15 <= 122)) {
 					var j6 int = (i2 + 1)
 					for ; ; j6 = (j6 + 1) {
@@ -301,7 +301,7 @@ func GenRun(k int) int {
 						if (j6 >= len(src2)) {
 							break
 						}
-						var c16 int = src2[j6]
+						var c16 int = int(src2[j6])
 						if ((c16 >= 97) && (c16 <= 122)) {
 							continue
 						}
@@ -317,7 +317,7 @@ func GenRun(k int) int {
 		} else {
 			var t21 int
 			if (k == 2) {
-				src3 := []int{123, 34, 97, 34, 58, 49}
+				src3 := []byte{123, 34, 97, 34, 58, 49}
 				stk5 := make([]byte, 32)
 				stk6 := stk5
 				var i3 int = 0
@@ -345,15 +345,15 @@ func GenRun(k int) int {
 						r22 = (nt3 * 1000)
 						break
 					}
-					var c17 int = src3[i3]
+					var c17 int = int(src3[i3])
 					if ((c17 == 32) || ((c17 == 9) || ((c17 == 10) || (c17 == 13)))) {
 						i3 = (i3 + 1)
 						continue
 					}
-					var c18 int = src3[i3]
+					var c18 int = int(src3[i3])
 					if ((c18 == 123) || (c18 == 91)) {
 						var t24 int
-						if (src3[i3] == 123) {
+						if (int(src3[i3]) == 123) {
 							t24 = 125
 						} else {
 							t24 = 93
@@ -368,7 +368,7 @@ func GenRun(k int) int {
 						i3, nt3, sp3, mx3 = (i3 + 1), (nt3 + 1), (sp3 + 1), t25
 						continue
 					}
-					var c19 int = src3[i3]
+					var c19 int = int(src3[i3])
 					if ((c19 == 125) || (c19 == 93)) {
 						var t26 int
 						if (sp3 < 1) {
@@ -387,7 +387,7 @@ func GenRun(k int) int {
 								t28 = (sp3 - 1)
 							}
 							var t29 int
-							if (int(stk6[t28]) == src3[i3]) {
+							if (int(stk6[t28]) == int(src3[i3])) {
 								t29 = ok3
 							} else {
 								t29 = 0
@@ -397,12 +397,12 @@ func GenRun(k int) int {
 						i3, nt3, sp3, ok3 = (i3 + 1), (nt3 + 1), t26, t27
 						continue
 					}
-					var c20 int = src3[i3]
+					var c20 int = int(src3[i3])
 					if ((c20 == 58) || (c20 == 44)) {
 						i3, nt3 = (i3 + 1), (nt3 + 1)
 						continue
 					}
-					if (src3[i3] == 34) {
+					if (int(src3[i3]) == 34) {
 						var j7 int = (i3 + 1)
 						var r30 int
 						for {
@@ -414,11 +414,11 @@ func GenRun(k int) int {
 								r30 = j7
 								break
 							}
-							if (src3[j7] == 92) {
+							if (int(src3[j7]) == 92) {
 								j7 = (j7 + 2)
 								continue
 							}
-							if (src3[j7] == 34) {
+							if (int(src3[j7]) == 34) {
 								r30 = (j7 + 1)
 								break
 							}
@@ -428,7 +428,7 @@ func GenRun(k int) int {
 						i3, nt3 = r30, (nt3 + 1)
 						continue
 					}
-					var c21 int = src3[i3]
+					var c21 int = int(src3[i3])
 					if (((c21 >= 48) && (c21 <= 57)) || ((c21 == 45) || ((c21 == 43) || ((c21 == 46) || ((c21 == 101) || (c21 == 69)))))) {
 						var j8 int = (i3 + 1)
 						for ; ; j8 = (j8 + 1) {
@@ -438,7 +438,7 @@ func GenRun(k int) int {
 							if (j8 >= len(src3)) {
 								break
 							}
-							var c22 int = src3[j8]
+							var c22 int = int(src3[j8])
 							if (((c22 >= 48) && (c22 <= 57)) || ((c22 == 45) || ((c22 == 43) || ((c22 == 46) || ((c22 == 101) || (c22 == 69)))))) {
 								continue
 							}
@@ -447,7 +447,7 @@ func GenRun(k int) int {
 						i3, nt3 = j8, (nt3 + 1)
 						continue
 					}
-					var c23 int = src3[i3]
+					var c23 int = int(src3[i3])
 					if ((c23 >= 97) && (c23 <= 122)) {
 						var j9 int = (i3 + 1)
 						for ; ; j9 = (j9 + 1) {
@@ -457,7 +457,7 @@ func GenRun(k int) int {
 							if (j9 >= len(src3)) {
 								break
 							}
-							var c24 int = src3[j9]
+							var c24 int = int(src3[j9])
 							if ((c24 >= 97) && (c24 <= 122)) {
 								continue
 							}
@@ -471,7 +471,7 @@ func GenRun(k int) int {
 				}
 				t21 = r22
 			} else {
-				src4 := []int{93}
+				src4 := []byte{93}
 				stk7 := make([]byte, 32)
 				stk8 := stk7
 				var i4 int = 0
@@ -499,15 +499,15 @@ func GenRun(k int) int {
 						r31 = (nt4 * 1000)
 						break
 					}
-					var c25 int = src4[i4]
+					var c25 int = int(src4[i4])
 					if ((c25 == 32) || ((c25 == 9) || ((c25 == 10) || (c25 == 13)))) {
 						i4 = (i4 + 1)
 						continue
 					}
-					var c26 int = src4[i4]
+					var c26 int = int(src4[i4])
 					if ((c26 == 123) || (c26 == 91)) {
 						var t33 int
-						if (src4[i4] == 123) {
+						if (int(src4[i4]) == 123) {
 							t33 = 125
 						} else {
 							t33 = 93
@@ -522,7 +522,7 @@ func GenRun(k int) int {
 						i4, nt4, sp4, mx4 = (i4 + 1), (nt4 + 1), (sp4 + 1), t34
 						continue
 					}
-					var c27 int = src4[i4]
+					var c27 int = int(src4[i4])
 					if ((c27 == 125) || (c27 == 93)) {
 						var t35 int
 						if (sp4 < 1) {
@@ -541,7 +541,7 @@ func GenRun(k int) int {
 								t37 = (sp4 - 1)
 							}
 							var t38 int
-							if (int(stk8[t37]) == src4[i4]) {
+							if (int(stk8[t37]) == int(src4[i4])) {
 								t38 = ok4
 							} else {
 								t38 = 0
@@ -551,12 +551,12 @@ func GenRun(k int) int {
 						i4, nt4, sp4, ok4 = (i4 + 1), (nt4 + 1), t35, t36
 						continue
 					}
-					var c28 int = src4[i4]
+					var c28 int = int(src4[i4])
 					if ((c28 == 58) || (c28 == 44)) {
 						i4, nt4 = (i4 + 1), (nt4 + 1)
 						continue
 					}
-					if (src4[i4] == 34) {
+					if (int(src4[i4]) == 34) {
 						var j10 int = (i4 + 1)
 						var r39 int
 						for {
@@ -568,11 +568,11 @@ func GenRun(k int) int {
 								r39 = j10
 								break
 							}
-							if (src4[j10] == 92) {
+							if (int(src4[j10]) == 92) {
 								j10 = (j10 + 2)
 								continue
 							}
-							if (src4[j10] == 34) {
+							if (int(src4[j10]) == 34) {
 								r39 = (j10 + 1)
 								break
 							}
@@ -582,7 +582,7 @@ func GenRun(k int) int {
 						i4, nt4 = r39, (nt4 + 1)
 						continue
 					}
-					var c29 int = src4[i4]
+					var c29 int = int(src4[i4])
 					if (((c29 >= 48) && (c29 <= 57)) || ((c29 == 45) || ((c29 == 43) || ((c29 == 46) || ((c29 == 101) || (c29 == 69)))))) {
 						var j11 int = (i4 + 1)
 						for ; ; j11 = (j11 + 1) {
@@ -592,7 +592,7 @@ func GenRun(k int) int {
 							if (j11 >= len(src4)) {
 								break
 							}
-							var c30 int = src4[j11]
+							var c30 int = int(src4[j11])
 							if (((c30 >= 48) && (c30 <= 57)) || ((c30 == 45) || ((c30 == 43) || ((c30 == 46) || ((c30 == 101) || (c30 == 69)))))) {
 								continue
 							}
@@ -601,7 +601,7 @@ func GenRun(k int) int {
 						i4, nt4 = j11, (nt4 + 1)
 						continue
 					}
-					var c31 int = src4[i4]
+					var c31 int = int(src4[i4])
 					if ((c31 >= 97) && (c31 <= 122)) {
 						var j12 int = (i4 + 1)
 						for ; ; j12 = (j12 + 1) {
@@ -611,7 +611,7 @@ func GenRun(k int) int {
 							if (j12 >= len(src4)) {
 								break
 							}
-							var c32 int = src4[j12]
+							var c32 int = int(src4[j12])
 							if ((c32 >= 97) && (c32 <= 122)) {
 								continue
 							}

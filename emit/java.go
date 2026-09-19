@@ -42,9 +42,11 @@ type javaEmitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string
-	weak    map[string]string // `any`, used only if nothing else constrains the name
-	tmp     int
-	indent  int
+	// wantElem — see the Go emitter and docs/literal-elements.md §3.
+	wantElem string
+	weak     map[string]string // `any`, used only if nothing else constrains the name
+	tmp      int
+	indent   int
 	// rec is the record a multi-result method returns, set by multiFunc and
 	// read at every leaf multiTail returns from.
 	rec string
@@ -424,7 +426,7 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 					}
 				}
 				if p.Kind == "array" && len(t.Args()) > 0 {
-					return "array " + e.typeOf(t.Args()[0])
+					return "array " + LiteralElem(t, e.typeOf)
 				}
 				if p.Kind == "loop" {
 					return e.typeOf(t.Args()[0])
@@ -808,18 +810,22 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			}
 			return fmt.Sprintf("%s.length", a), nil
 		case p.Kind == "array":
+			// docs/literal-elements.md — the join of the elements' exact ranges,
+			// unless a declaration demands one, which `wantElem` carries.
+			want := e.wantElem
+			e.wantElem = ""
 			elems := t.Args()
 			out := make([]string, len(elems))
-			ty := ""
 			for i, x := range elems {
 				v, err := e.emit(x)
 				if err != nil {
 					return "", err
 				}
 				out[i] = v
-				if ty == "" {
-					ty = e.typeOf(x)
-				}
+			}
+			ty := want
+			if ty == "" {
+				ty = LiteralElem(t, e.typeOf)
 			}
 			return fmt.Sprintf("new %s{%s}", e.tgt.ty("array "+ty),
 				strings.Join(out, ", ")), nil
@@ -861,7 +867,13 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		}
 		vals := make([]any, len(args))
 		for i, a := range args {
+			el, err := declaredForLit(e.tgt, p.Args[i], a, e.typeOf)
+			if err != nil {
+				return "", err
+			}
+			e.wantElem = el
 			v, err := e.emit(a)
+			e.wantElem = ""
 			if err != nil {
 				return "", err
 			}
@@ -991,7 +1003,19 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 	if k.Kind != core.KFn || len(k.Params) != 1 {
 		return "", fmt.Errorf("let's continuation must be (fn (x) …), got %s", k)
 	}
+	if isArrayLiteral(e.tgt, args[0]) {
+		el := declaredElem(e.tgt, k.Body(), k.Params[0])
+		if el != "" {
+			if bad, ok := LiteralFits(el, args[0], e.typeOf); !ok {
+				return "", fmt.Errorf("a table written here holds %s, which is outside the "+
+					"declared element type (%s) of the call it is handed to "+
+					"(docs/literal-elements.md)", bad, el)
+			}
+			e.wantElem = el
+		}
+	}
 	val, err := e.emit(args[0])
+	e.wantElem = ""
 	if err != nil {
 		return "", err
 	}

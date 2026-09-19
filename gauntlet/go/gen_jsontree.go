@@ -300,7 +300,7 @@ func TreeMeasure(src []byte) int {
 func TreeRun(k int) int {
 	var t1 int
 	if (k == 0) {
-		src := []int{91, 49, 44, 50, 93}
+		src := []byte{91, 49, 44, 50, 93}
 		nodes := make([]int, (4 * 512))
 		stk := make([]int, (2 * 32))
 		nodes2 := nodes
@@ -341,20 +341,20 @@ func TreeRun(k int) int {
 				r2 = nodes2
 				break
 			}
-			var c int = src[i]
+			var c int = int(src[i])
 			if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
 				i = (i + 1)
 				continue
 			}
-			var c2 int = src[i]
+			var c2 int = int(src[i])
 			if ((c2 == 58) || (c2 == 44)) {
 				i = (i + 1)
 				continue
 			}
-			var c3 int = src[i]
+			var c3 int = int(src[i])
 			if ((c3 == 123) || (c3 == 91)) {
 				var t4 int
-				if (src[i] == 123) {
+				if (int(src[i]) == 123) {
 					t4 = 5
 				} else {
 					t4 = 4
@@ -390,7 +390,7 @@ func TreeRun(k int) int {
 				nodes2, stk2, i, nn, sp = t5, stk3, (i + 1), (nn + 1), (sp + 1)
 				continue
 			}
-			var c4 int = src[i]
+			var c4 int = int(src[i])
 			if ((c4 == 125) || (c4 == 93)) {
 				var t8 int
 				if (sp < 1) {
@@ -403,7 +403,7 @@ func TreeRun(k int) int {
 					t9 = 0
 				} else {
 					var t10 int
-					if (src[i] == 125) {
+					if (int(src[i]) == 125) {
 						t10 = 5
 					} else {
 						t10 = 4
@@ -419,13 +419,13 @@ func TreeRun(k int) int {
 				i, sp, ok = (i + 1), t8, t9
 				continue
 			}
-			var c5 int = src[i]
+			var c5 int = int(src[i])
 			if ((c5 == 34) || ((((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) || ((c5 >= 97) && (c5 <= 122)))) {
 				var t12 int
-				if (src[i] == 34) {
+				if (int(src[i]) == 34) {
 					t12 = 2
 				} else {
-					var c6 int = src[i]
+					var c6 int = int(src[i])
 					var t13 int
 					if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
 						t13 = 1
@@ -436,7 +436,7 @@ func TreeRun(k int) int {
 				}
 				var tg int = t12
 				var t14 int
-				if (src[i] == 34) {
+				if (int(src[i]) == 34) {
 					var j int = (i + 1)
 					var r15 int
 					for {
@@ -448,11 +448,11 @@ func TreeRun(k int) int {
 							r15 = j
 							break
 						}
-						if (src[j] == 92) {
+						if (int(src[j]) == 92) {
 							j = (j + 2)
 							continue
 						}
-						if (src[j] == 34) {
+						if (int(src[j]) == 34) {
 							r15 = (j + 1)
 							break
 						}
@@ -461,7 +461,7 @@ func TreeRun(k int) int {
 					}
 					t14 = r15
 				} else {
-					var c7 int = src[i]
+					var c7 int = int(src[i])
 					var t16 int
 					if (((c7 >= 48) && (c7 <= 57)) || ((c7 == 45) || ((c7 == 43) || ((c7 == 46) || ((c7 == 101) || (c7 == 69)))))) {
 						var j2 int = (i + 1)
@@ -472,7 +472,7 @@ func TreeRun(k int) int {
 							if (j2 >= len(src)) {
 								break
 							}
-							var c8 int = src[j2]
+							var c8 int = int(src[j2])
 							if (((c8 >= 48) && (c8 <= 57)) || ((c8 == 45) || ((c8 == 43) || ((c8 == 46) || ((c8 == 101) || (c8 == 69)))))) {
 								continue
 							}
@@ -488,7 +488,7 @@ func TreeRun(k int) int {
 							if (j3 >= len(src)) {
 								break
 							}
-							var c9 int = src[j3]
+							var c9 int = int(src[j3])
 							if ((c9 >= 97) && (c9 <= 122)) {
 								continue
 							}
@@ -596,7 +596,7 @@ func TreeRun(k int) int {
 	} else {
 		var t25 int
 		if (k == 1) {
-			src2 := []int{123, 34, 97, 34, 58, 49, 125}
+			src2 := []byte{123, 34, 97, 34, 58, 49, 125}
 			nodes6 := make([]int, (4 * 512))
 			stk4 := make([]int, (2 * 32))
 			nodes7 := nodes6
@@ -637,20 +637,20 @@ func TreeRun(k int) int {
 					r26 = nodes7
 					break
 				}
-				var c10 int = src2[i2]
+				var c10 int = int(src2[i2])
 				if ((c10 == 32) || ((c10 == 9) || ((c10 == 10) || (c10 == 13)))) {
 					i2 = (i2 + 1)
 					continue
 				}
-				var c11 int = src2[i2]
+				var c11 int = int(src2[i2])
 				if ((c11 == 58) || (c11 == 44)) {
 					i2 = (i2 + 1)
 					continue
 				}
-				var c12 int = src2[i2]
+				var c12 int = int(src2[i2])
 				if ((c12 == 123) || (c12 == 91)) {
 					var t28 int
-					if (src2[i2] == 123) {
+					if (int(src2[i2]) == 123) {
 						t28 = 5
 					} else {
 						t28 = 4
@@ -686,7 +686,7 @@ func TreeRun(k int) int {
 					nodes7, stk5, i2, nn2, sp3 = t29, stk6, (i2 + 1), (nn2 + 1), (sp3 + 1)
 					continue
 				}
-				var c13 int = src2[i2]
+				var c13 int = int(src2[i2])
 				if ((c13 == 125) || (c13 == 93)) {
 					var t32 int
 					if (sp3 < 1) {
@@ -699,7 +699,7 @@ func TreeRun(k int) int {
 						t33 = 0
 					} else {
 						var t34 int
-						if (src2[i2] == 125) {
+						if (int(src2[i2]) == 125) {
 							t34 = 5
 						} else {
 							t34 = 4
@@ -715,13 +715,13 @@ func TreeRun(k int) int {
 					i2, sp3, ok2 = (i2 + 1), t32, t33
 					continue
 				}
-				var c14 int = src2[i2]
+				var c14 int = int(src2[i2])
 				if ((c14 == 34) || ((((c14 >= 48) && (c14 <= 57)) || ((c14 == 45) || ((c14 == 43) || ((c14 == 46) || ((c14 == 101) || (c14 == 69)))))) || ((c14 >= 97) && (c14 <= 122)))) {
 					var t36 int
-					if (src2[i2] == 34) {
+					if (int(src2[i2]) == 34) {
 						t36 = 2
 					} else {
-						var c15 int = src2[i2]
+						var c15 int = int(src2[i2])
 						var t37 int
 						if (((c15 >= 48) && (c15 <= 57)) || ((c15 == 45) || ((c15 == 43) || ((c15 == 46) || ((c15 == 101) || (c15 == 69)))))) {
 							t37 = 1
@@ -732,7 +732,7 @@ func TreeRun(k int) int {
 					}
 					var tg2 int = t36
 					var t38 int
-					if (src2[i2] == 34) {
+					if (int(src2[i2]) == 34) {
 						var j4 int = (i2 + 1)
 						var r39 int
 						for {
@@ -744,11 +744,11 @@ func TreeRun(k int) int {
 								r39 = j4
 								break
 							}
-							if (src2[j4] == 92) {
+							if (int(src2[j4]) == 92) {
 								j4 = (j4 + 2)
 								continue
 							}
-							if (src2[j4] == 34) {
+							if (int(src2[j4]) == 34) {
 								r39 = (j4 + 1)
 								break
 							}
@@ -757,7 +757,7 @@ func TreeRun(k int) int {
 						}
 						t38 = r39
 					} else {
-						var c16 int = src2[i2]
+						var c16 int = int(src2[i2])
 						var t40 int
 						if (((c16 >= 48) && (c16 <= 57)) || ((c16 == 45) || ((c16 == 43) || ((c16 == 46) || ((c16 == 101) || (c16 == 69)))))) {
 							var j5 int = (i2 + 1)
@@ -768,7 +768,7 @@ func TreeRun(k int) int {
 								if (j5 >= len(src2)) {
 									break
 								}
-								var c17 int = src2[j5]
+								var c17 int = int(src2[j5])
 								if (((c17 >= 48) && (c17 <= 57)) || ((c17 == 45) || ((c17 == 43) || ((c17 == 46) || ((c17 == 101) || (c17 == 69)))))) {
 									continue
 								}
@@ -784,7 +784,7 @@ func TreeRun(k int) int {
 								if (j6 >= len(src2)) {
 									break
 								}
-								var c18 int = src2[j6]
+								var c18 int = int(src2[j6])
 								if ((c18 >= 97) && (c18 <= 122)) {
 									continue
 								}
@@ -892,7 +892,7 @@ func TreeRun(k int) int {
 		} else {
 			var t49 int
 			if (k == 2) {
-				src3 := []int{91, 91, 49, 93, 44, 50, 93}
+				src3 := []byte{91, 91, 49, 93, 44, 50, 93}
 				nodes11 := make([]int, (4 * 512))
 				stk7 := make([]int, (2 * 32))
 				nodes12 := nodes11
@@ -933,20 +933,20 @@ func TreeRun(k int) int {
 						r50 = nodes12
 						break
 					}
-					var c19 int = src3[i3]
+					var c19 int = int(src3[i3])
 					if ((c19 == 32) || ((c19 == 9) || ((c19 == 10) || (c19 == 13)))) {
 						i3 = (i3 + 1)
 						continue
 					}
-					var c20 int = src3[i3]
+					var c20 int = int(src3[i3])
 					if ((c20 == 58) || (c20 == 44)) {
 						i3 = (i3 + 1)
 						continue
 					}
-					var c21 int = src3[i3]
+					var c21 int = int(src3[i3])
 					if ((c21 == 123) || (c21 == 91)) {
 						var t52 int
-						if (src3[i3] == 123) {
+						if (int(src3[i3]) == 123) {
 							t52 = 5
 						} else {
 							t52 = 4
@@ -982,7 +982,7 @@ func TreeRun(k int) int {
 						nodes12, stk8, i3, nn3, sp5 = t53, stk9, (i3 + 1), (nn3 + 1), (sp5 + 1)
 						continue
 					}
-					var c22 int = src3[i3]
+					var c22 int = int(src3[i3])
 					if ((c22 == 125) || (c22 == 93)) {
 						var t56 int
 						if (sp5 < 1) {
@@ -995,7 +995,7 @@ func TreeRun(k int) int {
 							t57 = 0
 						} else {
 							var t58 int
-							if (src3[i3] == 125) {
+							if (int(src3[i3]) == 125) {
 								t58 = 5
 							} else {
 								t58 = 4
@@ -1011,13 +1011,13 @@ func TreeRun(k int) int {
 						i3, sp5, ok3 = (i3 + 1), t56, t57
 						continue
 					}
-					var c23 int = src3[i3]
+					var c23 int = int(src3[i3])
 					if ((c23 == 34) || ((((c23 >= 48) && (c23 <= 57)) || ((c23 == 45) || ((c23 == 43) || ((c23 == 46) || ((c23 == 101) || (c23 == 69)))))) || ((c23 >= 97) && (c23 <= 122)))) {
 						var t60 int
-						if (src3[i3] == 34) {
+						if (int(src3[i3]) == 34) {
 							t60 = 2
 						} else {
-							var c24 int = src3[i3]
+							var c24 int = int(src3[i3])
 							var t61 int
 							if (((c24 >= 48) && (c24 <= 57)) || ((c24 == 45) || ((c24 == 43) || ((c24 == 46) || ((c24 == 101) || (c24 == 69)))))) {
 								t61 = 1
@@ -1028,7 +1028,7 @@ func TreeRun(k int) int {
 						}
 						var tg3 int = t60
 						var t62 int
-						if (src3[i3] == 34) {
+						if (int(src3[i3]) == 34) {
 							var j7 int = (i3 + 1)
 							var r63 int
 							for {
@@ -1040,11 +1040,11 @@ func TreeRun(k int) int {
 									r63 = j7
 									break
 								}
-								if (src3[j7] == 92) {
+								if (int(src3[j7]) == 92) {
 									j7 = (j7 + 2)
 									continue
 								}
-								if (src3[j7] == 34) {
+								if (int(src3[j7]) == 34) {
 									r63 = (j7 + 1)
 									break
 								}
@@ -1053,7 +1053,7 @@ func TreeRun(k int) int {
 							}
 							t62 = r63
 						} else {
-							var c25 int = src3[i3]
+							var c25 int = int(src3[i3])
 							var t64 int
 							if (((c25 >= 48) && (c25 <= 57)) || ((c25 == 45) || ((c25 == 43) || ((c25 == 46) || ((c25 == 101) || (c25 == 69)))))) {
 								var j8 int = (i3 + 1)
@@ -1064,7 +1064,7 @@ func TreeRun(k int) int {
 									if (j8 >= len(src3)) {
 										break
 									}
-									var c26 int = src3[j8]
+									var c26 int = int(src3[j8])
 									if (((c26 >= 48) && (c26 <= 57)) || ((c26 == 45) || ((c26 == 43) || ((c26 == 46) || ((c26 == 101) || (c26 == 69)))))) {
 										continue
 									}
@@ -1080,7 +1080,7 @@ func TreeRun(k int) int {
 									if (j9 >= len(src3)) {
 										break
 									}
-									var c27 int = src3[j9]
+									var c27 int = int(src3[j9])
 									if ((c27 >= 97) && (c27 <= 122)) {
 										continue
 									}
@@ -1186,7 +1186,7 @@ func TreeRun(k int) int {
 				}
 				t49 = (((nodes15[0] - 1) * 1000000) + ((r68 * 10) + nodes15[1]))
 			} else {
-				src4 := []int{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
+				src4 := []byte{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
 				nodes16 := make([]int, (4 * 512))
 				stk10 := make([]int, (2 * 32))
 				nodes17 := nodes16
@@ -1227,20 +1227,20 @@ func TreeRun(k int) int {
 						r73 = nodes17
 						break
 					}
-					var c28 int = src4[i4]
+					var c28 int = int(src4[i4])
 					if ((c28 == 32) || ((c28 == 9) || ((c28 == 10) || (c28 == 13)))) {
 						i4 = (i4 + 1)
 						continue
 					}
-					var c29 int = src4[i4]
+					var c29 int = int(src4[i4])
 					if ((c29 == 58) || (c29 == 44)) {
 						i4 = (i4 + 1)
 						continue
 					}
-					var c30 int = src4[i4]
+					var c30 int = int(src4[i4])
 					if ((c30 == 123) || (c30 == 91)) {
 						var t75 int
-						if (src4[i4] == 123) {
+						if (int(src4[i4]) == 123) {
 							t75 = 5
 						} else {
 							t75 = 4
@@ -1276,7 +1276,7 @@ func TreeRun(k int) int {
 						nodes17, stk11, i4, nn4, sp7 = t76, stk12, (i4 + 1), (nn4 + 1), (sp7 + 1)
 						continue
 					}
-					var c31 int = src4[i4]
+					var c31 int = int(src4[i4])
 					if ((c31 == 125) || (c31 == 93)) {
 						var t79 int
 						if (sp7 < 1) {
@@ -1289,7 +1289,7 @@ func TreeRun(k int) int {
 							t80 = 0
 						} else {
 							var t81 int
-							if (src4[i4] == 125) {
+							if (int(src4[i4]) == 125) {
 								t81 = 5
 							} else {
 								t81 = 4
@@ -1305,13 +1305,13 @@ func TreeRun(k int) int {
 						i4, sp7, ok4 = (i4 + 1), t79, t80
 						continue
 					}
-					var c32 int = src4[i4]
+					var c32 int = int(src4[i4])
 					if ((c32 == 34) || ((((c32 >= 48) && (c32 <= 57)) || ((c32 == 45) || ((c32 == 43) || ((c32 == 46) || ((c32 == 101) || (c32 == 69)))))) || ((c32 >= 97) && (c32 <= 122)))) {
 						var t83 int
-						if (src4[i4] == 34) {
+						if (int(src4[i4]) == 34) {
 							t83 = 2
 						} else {
-							var c33 int = src4[i4]
+							var c33 int = int(src4[i4])
 							var t84 int
 							if (((c33 >= 48) && (c33 <= 57)) || ((c33 == 45) || ((c33 == 43) || ((c33 == 46) || ((c33 == 101) || (c33 == 69)))))) {
 								t84 = 1
@@ -1322,7 +1322,7 @@ func TreeRun(k int) int {
 						}
 						var tg4 int = t83
 						var t85 int
-						if (src4[i4] == 34) {
+						if (int(src4[i4]) == 34) {
 							var j10 int = (i4 + 1)
 							var r86 int
 							for {
@@ -1334,11 +1334,11 @@ func TreeRun(k int) int {
 									r86 = j10
 									break
 								}
-								if (src4[j10] == 92) {
+								if (int(src4[j10]) == 92) {
 									j10 = (j10 + 2)
 									continue
 								}
-								if (src4[j10] == 34) {
+								if (int(src4[j10]) == 34) {
 									r86 = (j10 + 1)
 									break
 								}
@@ -1347,7 +1347,7 @@ func TreeRun(k int) int {
 							}
 							t85 = r86
 						} else {
-							var c34 int = src4[i4]
+							var c34 int = int(src4[i4])
 							var t87 int
 							if (((c34 >= 48) && (c34 <= 57)) || ((c34 == 45) || ((c34 == 43) || ((c34 == 46) || ((c34 == 101) || (c34 == 69)))))) {
 								var j11 int = (i4 + 1)
@@ -1358,7 +1358,7 @@ func TreeRun(k int) int {
 									if (j11 >= len(src4)) {
 										break
 									}
-									var c35 int = src4[j11]
+									var c35 int = int(src4[j11])
 									if (((c35 >= 48) && (c35 <= 57)) || ((c35 == 45) || ((c35 == 43) || ((c35 == 46) || ((c35 == 101) || (c35 == 69)))))) {
 										continue
 									}
@@ -1374,7 +1374,7 @@ func TreeRun(k int) int {
 									if (j12 >= len(src4)) {
 										break
 									}
-									var c36 int = src4[j12]
+									var c36 int = int(src4[j12])
 									if ((c36 >= 97) && (c36 <= 122)) {
 										continue
 									}

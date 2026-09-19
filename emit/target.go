@@ -4246,3 +4246,67 @@ func (tg *Target) ShiftNames() (shr, and string, ok bool) {
 	and, okA := find("&", "and")
 	return shr, and, okS && okA
 }
+
+// LiteralElem is the element type of a table written as its GRAPH —
+// `(array e₁ … eₙ)` — and it is the JOIN of the elements' exact ranges
+// (docs/literal-elements.md).
+//
+//	V  =  ⨆_{i<n} [eᵢ, eᵢ]  =  [min eᵢ, max eᵢ]
+//
+// SOUND BY CONSTRUCTION, and for the reason elemwidth-2026-08-27 already gives:
+// a literal is its own exact range, so every element is inside the hull. That is
+// the opposite of a buffer's hazard, where the danger is a later `set` the
+// inference did not see — a literal table is an immutable value and has no later
+// store at all (ADR 0018).
+//
+// Unlike a buffer's, the hull does NOT start at zero: `build` zero-fills, so 0 is
+// always one of a buffer's elements, and a graph holds exactly what is written.
+//
+// Anything that is not an exact integer — a float, a string, a computed element —
+// falls back to the first element's type, which is what this was before.
+func LiteralElem(t *core.Term, typeOf func(*core.Term) string) string {
+	elems := t.Args()
+	if len(elems) == 0 {
+		return "int"
+	}
+	lo, hi, ok := int64(0), int64(0), true
+	for i, x := range elems {
+		l, h, exact := storedRange(x, typeOf, "")
+		if !exact {
+			ok = false
+			break
+		}
+		if i == 0 || l < lo {
+			lo = l
+		}
+		if i == 0 || h > hi {
+			hi = h
+		}
+	}
+	if !ok {
+		return typeOf(elems[0])
+	}
+	return fmt.Sprintf("int %d %d", lo, hi)
+}
+
+// LiteralFits reports whether a literal table's elements all lie inside a
+// DECLARED element type, which is the checking half of docs/literal-elements.md
+// §3: at a boundary the declaration decides the representation, and the literal
+// must fit it. A literal that does not fit is ours to refuse, naming the element
+// — before this, the Go compiler refused it with a type it never wrote.
+func LiteralFits(elem string, t *core.Term, typeOf func(*core.Term) string) (string, bool) {
+	lo, hi, ok := core.IntRange(elem)
+	if !ok {
+		return "", true
+	}
+	for _, x := range t.Args() {
+		l, h, exact := storedRange(x, typeOf, "")
+		if !exact {
+			return "", true // nothing exact to check against
+		}
+		if l < lo || h > hi {
+			return fmt.Sprintf("%d", l), false
+		}
+	}
+	return "", true
+}

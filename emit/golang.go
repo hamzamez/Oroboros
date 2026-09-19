@@ -53,6 +53,11 @@ type Emitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
+	// wantElem is the element type a literal table is about to be handed to,
+	// set for one emission by the two places that know it: an argument whose
+	// parameter declares one, and a `let` whose body passes the name to such a
+	// call (docs/literal-elements.md §3). Empty means "synthesise the hull".
+	wantElem string
 	// renamed maps a container to the narrowed copy that stands in for it inside
 	// the loop that narrowed it — see emitNarrow.
 	renamed map[string]string
@@ -262,21 +267,26 @@ func (e *Emitter) index(tab, i *core.Term) (string, error) {
 	return fmt.Sprintf("%s[%s]", a, idx), nil
 }
 
-// arrayLit emits a table given by its GRAPH. Its element type comes from the
-// elements, because a graph is data and the checker can read it off.
+// arrayLit emits a table given by its GRAPH. Its element type is the JOIN of its
+// elements' exact ranges (LiteralElem) — a graph is data, and the compiler can
+// read it off — unless the literal is going somewhere that DECLARES an element,
+// in which case the declaration decides and `want` carries it
+// (docs/literal-elements.md §3).
 func (e *Emitter) arrayLit(t *core.Term) (string, error) {
+	want := e.wantElem
+	e.wantElem = ""
 	elems := t.Args()
 	out := make([]string, len(elems))
-	ty := ""
 	for i, x := range elems {
 		v, err := e.emit(x)
 		if err != nil {
 			return "", err
 		}
 		out[i] = v
-		if ty == "" {
-			ty = e.typeOf(x)
-		}
+	}
+	ty := want
+	if ty == "" {
+		ty = LiteralElem(t, e.typeOf)
 	}
 	return fmt.Sprintf("%s{%s}", e.tgt.ty("array "+ty), strings.Join(out, ", ")), nil
 }
@@ -887,7 +897,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 					return "map int " + v
 				}
 				if p.Kind == "array" && len(t.Args()) > 0 {
-					return "array " + e.typeOf(t.Args()[0])
+					return "array " + LiteralElem(t, e.typeOf)
 				}
 				// A fold's type is its accumulator's type, not a fixed one,
 				// and a let's is its body's.
@@ -1140,7 +1150,13 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		}
 		vals := make([]any, len(args))
 		for i, a := range args {
+			if el, err := declaredForLit(e.tgt, p.Args[i], a, e.typeOf); err != nil {
+				return "", err
+			} else if el != "" {
+				e.wantElem = el
+			}
 			v, err := e.emit(a)
+			e.wantElem = ""
 			if err != nil {
 				return "", err
 			}
@@ -1444,7 +1460,22 @@ func (e *Emitter) emitLet(t *core.Term) (string, error) {
 		return "", fmt.Errorf("let's continuation must be (fn (x) …), got %s", k)
 	}
 	before := maps.Clone(e.bound)
+	// A LITERAL TABLE BOUND TO A NAME takes the element type of the call the body
+	// hands it to, which is `declaredElem`'s rule for a buffer read one binder
+	// further out (docs/literal-elements.md §3). Decided before the value is
+	// emitted, because the type is written into the literal itself.
+	if isArrayLiteral(e.tgt, args[0]) {
+		if el := declaredElem(e.tgt, k.Body(), k.Params[0]); el != "" {
+			if bad, ok := LiteralFits(el, args[0], e.typeOf); !ok {
+				return "", fmt.Errorf("a table written here holds %s, which is outside the "+
+					"declared element type (%s) of the call it is handed to "+
+					"(docs/literal-elements.md)", bad, el)
+			}
+			e.wantElem = el
+		}
+	}
 	val, err := e.emit(args[0])
+	e.wantElem = ""
 	if err != nil {
 		return "", err
 	}
@@ -2024,4 +2055,35 @@ func (e *Emitter) emitAgain(t *core.Term, raw, names []string, post map[int]*cor
 func isScalarRange(ty string) bool {
 	_, _, ok := core.IntRange(ty)
 	return ok
+}
+
+// declaredFor answers what element type a declared parameter demands of a
+// LITERAL table argument, and refuses a literal that does not fit it.
+//
+// The refusal is the point as much as the narrowing. Before this, a literal
+// handed to a `(array (int 0 255))` parameter was emitted as the host's widest
+// integer and the HOST compiler refused it — *"cannot use src (variable of type
+// []int) as []byte value"*, naming a type nobody wrote. A declaration is a claim
+// the compiler owns, so the mismatch is ours to report.
+func declaredForLit(tgt *Target, want string, a *core.Term,
+	typeOf func(*core.Term) string) (string, error) {
+	el := core.ArrayElem(want)
+	if el == "" || el == "int" || !isArrayLiteral(tgt, a) {
+		return "", nil
+	}
+	if bad, ok := LiteralFits(el, a, typeOf); !ok {
+		return "", fmt.Errorf("a table written here holds %s, which is outside the declared "+
+			"element type (%s): a literal table's elements must fit what the call declares "+
+			"(docs/literal-elements.md)", bad, el)
+	}
+	return el, nil
+}
+
+// isArrayLiteral reports whether a term is a table written as its graph.
+func isArrayLiteral(tgt *Target, t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return false
+	}
+	p, ok := tgt.Prims[t.Op().Name]
+	return ok && p.Kind == "array"
 }

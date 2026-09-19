@@ -185,7 +185,7 @@ All three print `455`, the same as `wc -l`.
 (export main)
 
 (def main ()
-  (let (build 3 (fn (b) (set (set (set b 0 104) 1 105) 2 33))) (fn (src)   ; "hi!"
+  (let (array 104 105 33) (fn (src)                    ; "hi!"
     (io.print-line
       (os.text-of
         (build (* 2 (len src)) (fn (dst)
@@ -202,6 +202,11 @@ destination to `(+ (len src) 1)` bytes and the program does not compile:
 ```
 build: main: go/encoding-hex.Encode requires -len(dst) + 2*len(src) <= 0, which does not follow
 ```
+
+The three bytes are written as a table's GRAPH, and `hex.Encode` declares a byte table, so the
+declaration decides the representation — `[]byte` on Go, `short[]` on the JVM, whose `byte` is signed
+([literal-elements.md](docs/literal-elements.md)). A literal holding 300 would be refused here, by us,
+naming the element.
 
 The declaration is plain data, written by hand from the package's source and checked against the real
 package:
@@ -308,9 +313,7 @@ package by package is the current work.
 - **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
 - **Maps take integer keys only.**
 - **Windows** is the least complete target, and large programs can exceed its register allocator.
-- **Rough edges found while writing this page:**
-  - an array *literal* passed to a byte-array host parameter passes our type checker and is then
-    rejected by the Go compiler;
+- **A rough edge found while writing this page:**
   - a buffer's length is not carried out of an inner loop, which is why the sieve guards `(len s)` as
     well as `n`.
 - **No packaging, no editor support**, and error messages written for the compiler's authors rather

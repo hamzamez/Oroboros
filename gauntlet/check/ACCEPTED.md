@@ -200,3 +200,14 @@ The initial baseline.
 1 change(s):
 
 - emitted text changed — `examples/json/tree.oro go`
+
+## 2026-09-19 — on ef27603, with uncommitted changes
+
+**Reason:** A literal table's element type is the JOIN of its elements' exact ranges, and at a boundary the DECLARED element decides (docs/literal-elements.md). The two JSON example programs' documents become []byte on Go, with int() on each read, which is what a narrowed buffer already emits; nothing else moves, and windows and JavaScript are untouched by design. Benchmarked: BenchmarkTreeGen 4747 -> 4688 ns median of five at 20000x, 1.3% and inside the noise floor, with TestTree still agreeing with both hand-written implementations. The declared-parameter path was already narrow, which is why the differential twins do not move.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `examples/json/tokenize.oro go`
+- emitted text changed — `examples/json/tree.oro go`

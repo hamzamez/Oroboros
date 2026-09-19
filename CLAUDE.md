@@ -202,6 +202,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 - **Tables.** `(array V)` is a function on `[0, len)` and indexing is application
   ([tables.md](docs/spec/tables.md)). `build` zero-fills (§14.3). A length is bounded by the window
   or by a target's `max-len` (§2.3.1).
+- **A table written as its GRAPH** — `(array 104 105 33)` — takes the JOIN of its elements' exact
+  ranges, and at a boundary the DECLARED element decides and the literal must fit it
+  ([literal-elements.md](docs/literal-elements.md)). windows keeps qwords by choice.
 - **Buffers and mutation.** Values are immutable. Mutation happens only inside
   `(build n (fn (b) …))`, whose buffer is linear, checked by `occurrences` on the residual
   (ADR 0018). `(buffer V)` is a nameable parameter type (ADR 0020):

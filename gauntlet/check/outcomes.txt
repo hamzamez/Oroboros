@@ -292,7 +292,7 @@
 == examples/io/wc.oro windows refused
    gen: examples/io/wc.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/json/tokenize.oro go emitted 9c5558a8a28116e61459e03869dd5dcd6e8f41597438523255340435d94ad6e2
+== examples/json/tokenize.oro go emitted 72cd624ac6c859764acabfbaa6f3176e66e95df7ce03321d8c09f7bdfcf7b0b4
    note: gen-tokens: 31 of 31 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-run: 124 of 124 integer operations bounded; 16 of 16 loop(s) proven terminating
 == examples/json/tokenize.oro js refused
@@ -304,7 +304,7 @@
 == examples/json/tokenize.oro windows refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted d31f5f5e21f943141f8a3a3f66d9112a30da867c6035e0beb17e05e4c5e76ad9
+== examples/json/tree.oro go emitted dfc4a0464a9c3658f2080056c8b27bcbfade446709306b6d9b15173bd2a5620e
    note: gen-measure: 101 of 101 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-run: 424 of 424 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused

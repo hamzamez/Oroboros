@@ -190,8 +190,8 @@ func TestALoopCarriedBufferHasOneElementType(t *testing.T) {
     else (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))))
 (def step (fn (a k) (build 8 (fn (o)
   (loop ((o o) (i 0) (c 0)) (>= i 8) o
-    else (let (+ (* (at a i) k) c) (fn (t)
-           (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))))
+    else (let t (+ (* (at a i) k) c)
+           (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
 (def f (fn (n) (at (loop ((acc (small 1)) (i 2)) (> i n) acc
                      else (again (step acc i) (+ i 1))) 0)))
 `

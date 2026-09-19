@@ -54,18 +54,18 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  o
-      else      (let (- (- (at a i) (at b i)) bw) (fn (t)
+      else      (let t (- (- (at a i) (at b i)) bw)
                   (again (set o i (if (< t 0) (+ t 16777216) t))
                          (+ i 1)
-                         (if (< t 0) 1 0))))))))
+                         (if (< t 0) 1 0)))))))
 
 (def bn-div-small (n a k)
   (build n (fn (o)
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
-      else     (let (+ (* r 16777216) (at a i)) (fn (cur)
-                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))))
+      else     (let cur (+ (* r 16777216) (at a i))
+                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))
 
 (def run (k)
-  (let (bn-div-small 3 (bn-sub 3 (bn-of 3 999999999999999) (bn-of 3 14000000)) 7) (fn (q)
-    (+ (at q k) (* (at q (+ k 1)) 100000000)))))
+  (let q (bn-div-small 3 (bn-sub 3 (bn-of 3 999999999999999) (bn-of 3 14000000)) 7)
+    (+ (at q k) (* (at q (+ k 1)) 100000000))))

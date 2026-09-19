@@ -91,11 +91,11 @@ const mapSrc = `
 	(use go)
 	(export run)
 	(def run (fn (n k)
-	  (let (build-map 8 (fn (m)
-	         (loop ((m m) (i 0))
-	           (go.>= i n)  m
-	           else         (again (insert m i (go.* i 10)) (go.+ i 1)))))
-	    (fn (m) (case (m k) (some v) v none -1)))))
+	  (let m (build-map 8 (fn (m)
+  	         (loop ((m m) (i 0))
+  	           (go.>= i n)  m
+  	           else         (again (insert m i (go.* i 10)) (go.+ i 1)))))
+     (case (m k) (some v) v none -1))))
 	(sig run ((n int) (k int)) int)
 `
 

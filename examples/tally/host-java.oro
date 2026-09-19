@@ -22,12 +22,12 @@
   ; nullable — a claim the host does not keep. `start(1)` is -1 exactly when the
   ; group took no part, so the binding asks that first, with generated
   ; declarations only, and both hosts answer "".
-  (def capture (r s) (let (pt.matcher r s) (fn (m)
-    (if (mt.find m)
-        (if (>= (mt.groupCount m) 1)
-            (if (>= (mt.start2 m 1) 0) (mt.group2 m 1) "")
-            (mt.group m))
-        ""))))
+  (def capture (r s) (let m (pt.matcher r s)
+                       (if (mt.find m)
+                           (if (>= (mt.groupCount m) 1)
+                               (if (>= (mt.start2 m 1) 0) (mt.group2 m 1) "")
+                               (mt.group m))
+                           "")))
   (def cmp     (a b) (js.compareTo a b))
   ; split2 with a NEGATIVE limit, because `split` drops trailing empty strings
   ; and Go's Split does not: the same file would have a different number of

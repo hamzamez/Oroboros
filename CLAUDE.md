@@ -177,6 +177,11 @@ spec to read before touching it.
   ([def.md §4](docs/spec/def.md), [program-surface.md](docs/program-surface.md)). **A constant is a
   value** — `(def cap 65536)`; the `(fn () …)` wrapper is for a computation, whose effects unfolding
   would repeat.
+- **Binding.** `(let x e … body)` is flat, sequential and n-ary, with a name or a `(tuple a b)`
+  pattern on the left ([binding.md](docs/spec/binding.md)). It erases to applications, so nothing
+  below the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it
+  declines to substitute — keeps its own spelling, and the old source spelling is refused.
+  `seq` is a binding whose name is discarded, and works only because ADR 0010 denies weakening.
 - **Reduction.** Four rules, two with two clauses ([state.md](docs/spec/state.md)). `if`, `let`, `loop`, `=`, the integer operators, `the` and the table
   operations are **injected** into every target; declaring one is an error.
 - **Effects.** A declared purity bit per primitive, defaulting to impure. An impure argument is

@@ -22,8 +22,7 @@
 ; and sums the rest. A host that leaves a buffer uninitialised, or sparse, or
 ; filled with `undefined`, cannot answer 0.
 (def run (n)
-  (let (build 16 (fn (b) (set b 0 7)))
-    (fn (t)
-      (loop ((acc 0) (i 1))
-        (>= i 16)  acc
-        else        (again (+ acc (t i)) (+ i 1))))))
+  (let t (build 16 (fn (b) (set b 0 7)))
+    (loop ((acc 0) (i 1))
+      (>= i 16)  acc
+      else        (again (+ acc (t i)) (+ i 1)))))

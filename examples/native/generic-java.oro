@@ -22,5 +22,5 @@
   (reduce-over (len a) (fn (i) (a i)) java.f+ 0.0))
 
 (def word-tally (text)
-  (let (Str.split text " ") (fn (ws)
-    (reduce-over (len ws) (fn (i) (ws i)) Map.merge (Map.new)))))
+  (let ws (Str.split text " ")
+    (reduce-over (len ws) (fn (i) (ws i)) Map.merge (Map.new))))

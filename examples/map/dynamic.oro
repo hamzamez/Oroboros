@@ -40,5 +40,5 @@
 (def look (m k) (case (m k) (some v) v none -1))
 
 (def main ()
-  (let (build3 5) (fn (m)
-    (fmt.Println (go.+ (go.* 100 (look m 3)) (look m 9))))))
+  (let m (build3 5)
+    (fmt.Println (go.+ (go.* 100 (look m 3)) (look m 9)))))

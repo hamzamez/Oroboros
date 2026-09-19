@@ -119,12 +119,12 @@
     (>= d dmax)     (+ n 1)
     (space? (src i))  (again n (+ i 1) d fresh)
     (opener? (src i)) (again (+ n (+ (pad-before fresh d) 1)) (+ i 1) (+ d 1) 1)
-    (closer? (src i)) (let (depth-out d) (fn (d1)
-                        (again (+ n (+ (pad-close fresh d1) 1)) (+ i 1) d1 0)))
+    (closer? (src i)) (let d1 (depth-out d)
+                        (again (+ n (+ (pad-close fresh d1) 1)) (+ i 1) d1 0))
     (= (src i) 44)    (again (+ n (+ 2 (* 2 d))) (+ i 1) d 0)
     (= (src i) 58)    (again (+ n 2) (+ i 1) d fresh)
-    (scalar? (src i)) (let (tok-end src i) (fn (ni)
-                        (again (+ n (+ (pad-before fresh d) (- ni i))) ni d 0)))
+    (scalar? (src i)) (let ni (tok-end src i)
+                        (again (+ n (+ (pad-before fresh d) (- ni i))) ni d 0))
     else              (again n (+ i 1) d fresh)))
 
 ; --- writing ----------------------------------------------------------------
@@ -171,17 +171,17 @@
     ; `[]int` rather than `[]byte`. Writing the literal the guard already
     ; established says what the formatter means anyway.
     (opener? (src i))
-      (let (pad-before fresh d) (fn (p)
+      (let p (pad-before fresh d)
         (again (put (if (= fresh 1) (nl out op d) out) (+ op p)
                     (if (= (src i) 123) 123 91))
-               (+ op (+ p 1)) (+ i 1) (+ d 1) 1)))
+               (+ op (+ p 1)) (+ i 1) (+ d 1) 1))
 
     (closer? (src i))
-      (let (depth-out d) (fn (d1)
-      (let (pad-close fresh d1) (fn (p)
+      (let d1 (depth-out d)
+           p  (pad-close fresh d1)
         (again (put (if (= fresh 0) (nl out op d1) out) (+ op p)
-                    (if (= (src i) 125) 125 93))
-               (+ op (+ p 1)) (+ i 1) d1 0)))))
+                      (if (= (src i) 125) 125 93))
+                 (+ op (+ p 1)) (+ i 1) d1 0))
 
     (= (src i) 44)
       (again (nl (put out op 44) (+ op 1) d)
@@ -191,10 +191,10 @@
       (again (put (put out op 58) (+ op 1) 32) (+ op 2) (+ i 1) d fresh)
 
     (scalar? (src i))
-      (let (tok-end src i) (fn (ni)
-      (let (pad-before fresh d) (fn (p)
+      (let ni (tok-end src i)
+           p  (pad-before fresh d)
         (again (copyr (if (= fresh 1) (nl out op d) out) (+ op p) src i ni)
-               (+ op (+ p (- ni i))) ni d 0)))))
+                 (+ op (+ p (- ni i))) ni d 0))
 
     else (again out op (+ i 1) d fresh)))
 
@@ -211,12 +211,12 @@
 (def cap-in 65536)
 
 (def main ()
-  (let (os.Args) (fn (av)
+  (let av (os.Args)
     (if (< (len av) 2)
         (io.print-line "usage: jsonfmt FILE")
-        ((os.ReadFile (av 1)) (fn (src err)
+        (let (tuple src err) (os.ReadFile (av 1))
           (if (os.err-nil err)
               (if (>= (len src) cap-in)
                   (io.print-line "jsonfmt: file is larger than this tool accepts")
                   (io.print (os.text-of (format src))))
-              (io.print-line "jsonfmt: cannot read that file"))))))))
+              (io.print-line "jsonfmt: cannot read that file"))))))

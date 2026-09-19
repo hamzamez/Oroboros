@@ -18,7 +18,8 @@ func TestIntervalsNeverOverclaim(t *testing.T) {
 		{"literals fold", `(use go) (fn () (go.+ (go.* 3 4) 5))`, 2, 2},
 		// Two operands that each fit comfortably, whose PRODUCT does not.
 		{"product escapes the window",
-			`(use go) (fn (a) (let (go.& a 1073741823) (fn (x) (go.* x x))))`, 0, 1},
+			`(use go) (fn (a) (let x (go.& a 1073741823)
+                   (go.* x x)))`, 0, 1},
 		// A counter bounded by its own guard.
 		{"guarded counter",
 			`(use go) (fn () (loop ((i 0)) (go.>= i 100) i else (again (go.+ i 1))))`, 1, 1},
@@ -68,7 +69,8 @@ func TestIntervalRewriteIsIdentityWithoutCheckedForms(t *testing.T) {
 	for _, src := range []string{
 		`(use num/int) (fn (a b) (int.add a b))`,
 		`(use num/int) (fn (n) (loop ((i 0) (s 0)) (int.ge i n) s else (again (int.add i 1) (int.add s i))))`,
-		`(use num/int) (fn (n) (let (int.mul n n) (fn (q) (if (int.lt q 10) q (int.sub q 1)))))`,
+		`(use num/int) (fn (n) (let q (int.mul n n)
+                        (if (int.lt q 10) q (int.sub q 1))))`,
 	} {
 		nf := reduce(t, src, "portable-go")
 		before := nf.String()

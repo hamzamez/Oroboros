@@ -90,8 +90,8 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
-      else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
+      else      (let t (+ (+ (at a i) (at b i)) c)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
 
 ; ------------------------------------------------------- multiply by a word
 ;
@@ -104,8 +104,8 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
-      else      (let (+ (* (at a i) k) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
+      else      (let t (+ (* (at a i) k) c)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
 
 ; ---------------------------------------------------------------- factorial
 ;

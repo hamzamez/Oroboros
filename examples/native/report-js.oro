@@ -13,10 +13,10 @@
 (export main)
 
 (def fill (n)
-  (let (js.Float64Array n) (fn (dst)
+  (let dst (js.Float64Array n)
     (loop ((d dst) (i 0))
       (js.>= i n)  d
-      else         (again (js.set d i i) (js.+ i 1))))))
+      else         (again (js.set d i i) (js.+ i 1)))))
 
 (def dot (a b)
   (loop ((acc 0.0) (i 0))
@@ -25,7 +25,7 @@
                                  (js.+ i 1))))
 
 (def main ()
-  (let (fill 1000) (fn (xs)
+  (let xs (fill 1000)
     (seq (console.log "report")
          (console.log (js.len xs))
-         (console.log (dot xs xs))))))
+         (console.log (dot xs xs)))))

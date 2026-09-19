@@ -13,7 +13,7 @@ import (
 // so `(b 0)` was judged pure and could be moved. The smallest program that
 // shows it is a SWAP:
 //
-//	(let (b 0) (fn (vx) (let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))
+//	(let vx (b 0) vy (b 1) (set (set b 0 vy) 1 vx))
 //
 // Both reads happen before either store and the program is correct. Both were
 // substituted into the store positions, and Go emitted
@@ -45,8 +45,8 @@ func TestATableReadDoesNotMoveIntoAnImpureBody(t *testing.T) {
 	// The swap. Both reads must survive as bindings rather than be inlined into
 	// the stores, so the property is about WHERE the reads are rather than about
 	// a count.
-	got := norm(t, prims+"(fn (b) (let (b 0) (fn (vx) (let (b 1) (fn (vy) "+
-		"(set (set b 0 vy) 1 vx))))))", "")
+	got := norm(t, prims+"(fn (b) (let vx (b 0) vy (b 1) "+
+		"(set (set b 0 vy) 1 vx)))", "")
 	i := strings.Index(got, "(set")
 	if i < 0 {
 		t.Fatalf("expected the stores to survive, got %s", got)
@@ -64,7 +64,7 @@ func TestATableReadStillMovesIntoAPureBody(t *testing.T) {
 	prims := "(prim add)\n(prim if)\n"
 	// ONE occurrence of x, deliberately: with two, call-by-need binds it
 	// whatever its purity, and the control would pass for the wrong reason.
-	got := norm(t, prims+"(fn (a) (let (a 0) (fn (x) (add x 1))))", "")
+	got := norm(t, prims+"(fn (a) (let x (a 0)\n          (add x 1)))", "")
 	if strings.Contains(got, "let") {
 		t.Errorf("a table read was bound rather than substituted into a PURE "+
 			"body; that is what un-fuses a rule-table:\n%s", got)
@@ -76,7 +76,7 @@ func TestATableReadStillMovesIntoAPureBody(t *testing.T) {
 // body.
 func TestAnOrdinaryArgumentIsUnaffected(t *testing.T) {
 	prims := "(prim !set)\n(prim add)\n(prim if)\n"
-	got := norm(t, prims+"(fn (b n) (let (add n 1) (fn (x) (set b 0 x))))", "")
+	got := norm(t, prims+"(fn (b n) (let x (add n 1)\n            (set b 0 x)))", "")
 	if strings.Contains(got, "let") {
 		t.Errorf("a pure arithmetic argument was bound rather than substituted "+
 			"into an impure body, so the rule is wider than it should be:\n%s", got)

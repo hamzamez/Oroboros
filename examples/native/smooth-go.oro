@@ -38,10 +38,10 @@
 ; If reduction fuses the index function into the store, this IS the hand-written
 ; loop, and the only thing left of the portable version's price is the `make`.
 (def materialize (v)
-  (let (go.make-float64 (vlen v)) (fn (dst)
+  (let dst (go.make-float64 (vlen v))
     (loop ((d dst) (i 0))
       (go.>= i (vlen v))  d
-      else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1))))))
+      else                (again (go.set-float64 d i (vindex v i)) (go.+ i 1)))))
 
 ; The same loop, over a destination the caller supplies. Nothing is allocated.
 (def fill-into (dst v)

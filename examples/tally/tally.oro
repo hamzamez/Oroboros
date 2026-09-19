@@ -78,9 +78,9 @@
 (def mpass (less a b n w)
   (loop ((b b) (lo 0))
     (>= lo n)  b
-    else (let (mmin n (+ lo w)) (fn (mid)
-          (let (mmin n (+ lo (* 2 w))) (fn (hi)
-            (again (merge1 less a b n lo mid hi) hi)))))))
+    else (let mid (mmin n (+ lo w))
+              hi  (mmin n (+ lo (* 2 w)))
+           (again (merge1 less a b n lo mid hi) hi))))
 
 (def iota (a n)
   (loop ((a a) (k 0))
@@ -151,8 +151,8 @@
       (new? cmp cs ord n k)
         (again (set dt (cli nd d) (tuple k 1)) (+ k 1) (+ d 1))
       else
-        (let (cli nd (- d 1)) (fn (s)
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))))
+        (let s (cli nd (- d 1))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))
 
 (def dvalue (cs ord n dt d) (at cs ord n ((dt d) 0)))
 
@@ -161,10 +161,10 @@
 (def report (show cs ord n dt ord2 nd)
   (loop ((out "") (r 0))
     (>= r nd) out
-    else (let (pat ord2 nd r) (fn (d)
+    else (let d (pat ord2 nd r)
            (again (concat out (concat (show (dcount dt d))
                                       (concat "\t" (concat (dvalue cs ord n dt d) "\n"))))
-                  (+ r 1))))))
+                  (+ r 1)))))
 
 ; THE HOST'S SIX OPERATIONS. They are DEFINED BY THE TARGET -- `D_T`,
 ; target-system.md §6.2 -- in `(provides TARGET tally/host …)`:
@@ -181,25 +181,25 @@
 ; file -- host-go.oro, host-java.oro -- so this is ONE program and the
 ; capability graph picks the binding, exactly as it picks a primitive.
 (def tally (p text)
-    (let (h.compile p) (fn (re)
-    (let (h.lines text) (fn (ls)
-    (let (nhits h.hit? re ls) (fn (n)
-    (let (captures h.hit? h.capture re ls n) (fn (cs)
-    (let (msort (fn (u v) (< (h.cmp (cs u) (cs v)) 0)) n) (fn (ord)
-    (let (ndist h.cmp cs ord n) (fn (nd)
-    (let (dists h.cmp cs ord n nd) (fn (dt)
-    (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
-      (report h.show cs ord n dt ord2 nd))))))))))))))))))
+    (let re   (h.compile p)
+         ls   (h.lines text)
+         n    (nhits h.hit? re ls)
+         cs   (captures h.hit? h.capture re ls n)
+         ord  (msort (fn (u v) (< (h.cmp (cs u) (cs v)) 0)) n)
+         nd   (ndist h.cmp cs ord n)
+         dt   (dists h.cmp cs ord n nd)
+         ord2 (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd)
+      (report h.show cs ord n dt ord2 nd)))
 
 (def run ()
-  (let (os.Args) (fn (av)
+  (let av (os.Args)
     (if (< (len av) 3)
         (io.print-line "usage: tally PATTERN FILE")
-        ((os.ReadFile (av 2)) (fn (src err)
+        (let (tuple src err) (os.ReadFile (av 2))
           (if (os.err-nil err)
               (if (>= (len src) cap-in)
                   (io.print-line "tally: file is larger than this tool accepts")
                   (io.print (tally (av 1) (os.text-of src))))
-              (io.print-line "tally: cannot read that file"))))))))
+              (io.print-line "tally: cannot read that file"))))))
 
 (def main () (run))

@@ -65,11 +65,11 @@ func TestLengthFromACount(t *testing.T) {
 		(export f)
 		(sig f ((n int)) bool (where (and (go.<= 0 n) (go.< n 1000))))
 		(def f (fn (n)
-		  (let (go.make-bool n) (fn (c)
-		    (loop ((i 0))
+		  (let c (go.make-bool n)
+      (loop ((i 0))
 		      (go.>= i n)      false
 		      (go.at-bool c i) true
-		      else             (again (go.+ i 1)))))))
+		      else             (again (go.+ i 1))))))
 	`); err != nil {
 		t.Errorf("an array built with a declared count must be indexable below it: %v", err)
 	}
@@ -141,11 +141,11 @@ func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 		(export f)
 		(sig f ((n int)) int (where (and (go.<= 0 n) (go.< n 1000))))
 		(def f (fn (n)
-		  (let (go.make-bool 4) (fn (c)
-		    (loop ((i 0))
+		  (let c (go.make-bool 4)
+      (loop ((i 0))
 		      (go.>= i n)      0
 		      (go.at-bool c i) 1
-		      else             (again (go.+ i 1)))))))
+		      else             (again (go.+ i 1))))))
 	`)
 	if err == nil {
 		t.Fatal("indexing a 4-long array under a bound of 1000 must not be provable")

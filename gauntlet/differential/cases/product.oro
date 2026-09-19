@@ -47,7 +47,7 @@
       else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1))))))
 
 (def run (s)
-  (let (mk s) (fn (t)
+  (let t (mk s)
     (loop ((acc 0) (r 0))
       (>= r cap)  acc
-      else (again (+ acc (* (+ r 1) (+ 14 (- ((t r) 1) ((t r) 0))))) (+ r 1))))))
+      else (again (+ acc (* (+ r 1) (+ 14 (- ((t r) 1) ((t r) 0))))) (+ r 1)))))

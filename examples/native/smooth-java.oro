@@ -29,14 +29,14 @@
 (def smooth-alloc (a) (alloc (kernel a)))
 
 (def smooth-build (a)
-  (let (kernel a) (fn (k)
+  (let k (kernel a)
     (build (len k) (fn (b)
       (loop ((b b) (i 0))
         (java.>= i (len k))  b
-        else                 (again (set b i (k i)) (java.+ i 1))))))))
+        else                 (again (set b i (k i)) (java.+ i 1)))))))
 
 (def smooth-into (dst a)
-  (let (kernel a) (fn (k)
+  (let k (kernel a)
     (loop ((d dst) (i 0))
       (java.>= i (len k))  d
-      else                 (again (java.set-double d i (k i)) (java.+ i 1))))))
+      else                 (again (java.set-double d i (k i)) (java.+ i 1)))))

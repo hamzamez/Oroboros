@@ -32,7 +32,8 @@ func TestLoopDesugars(t *testing.T) {
 		}
 	}
 	// `again` under a let IS allowed — let binds, if branches.
-	if _, err := ReadTerm(`(loop ((i 0)) (lt i 3) (let (f i) (fn (x) (again x))) else i)`); err != nil {
+	if _, err := ReadTerm(`(loop ((i 0)) (lt i 3) (let x (f i)
+                         (again x)) else i)`); err != nil {
 		t.Errorf("again under a let must be allowed: %v", err)
 	}
 }

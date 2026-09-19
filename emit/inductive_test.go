@@ -17,9 +17,10 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	  (fn (n)
 	    (loop ((lo 0) (w 1))
 	      (>= lo n) 0
-	      else (let (+ lo w) (fn (b)
-	           (let (if (< n b) n b) (fn (hi)
-	           (let (tgt.at lo) (fn (u) (again hi (* 2 w))))))))))`
+	      else (let b  (+ lo w)
+                 hi (if (< n b) n b)
+                 u  (tgt.at lo)
+              (again hi (* 2 w)))))`
 	if _, err := refineWith(t, tg, pass); err != nil {
 		t.Errorf("0 <= lo is inductive jointly with 0 <= w and must be derived: %v", err)
 	}
@@ -29,10 +30,11 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	// binds its operand first, so the join has to know `b = lo + w`.
 	for _, step := range []string{
 		`(if (< n (+ lo w)) n (+ lo w))`,
-		`(let (+ lo w) (fn (b) (if (< n b) n b)))`,
+		`(let b (+ lo w)
+  (if (< n b) n b))`,
 	} {
 		src := `(use tgt) (fn (n) (loop ((lo 0) (w 1)) (>= lo n) 0 else
-		  (let (tgt.at lo) (fn (u) (again ` + step + ` (* 2 w))))))`
+		  (let u (tgt.at lo) (again ` + step + ` (* 2 w)))))`
 		if _, err := refineWith(t, tg, src); err != nil {
 			t.Errorf("step %s: 0 <= lo must be derived: %v", step, err)
 		}
@@ -44,9 +46,10 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	  (fn (n)
 	    (loop ((lo 0) (w 1))
 	      (>= lo n) 0
-	      else (let (+ lo w) (fn (b)
-	           (let (if (< n b) n b) (fn (hi)
-	           (let (tgt.at lo) (fn (u) (again hi (- w 3))))))))))`
+	      else (let b  (+ lo w)
+                 hi (if (< n b) n b)
+                 u  (tgt.at lo)
+              (again hi (- w 3)))))`
 	if _, err := refineWith(t, tg, falls); err == nil {
 		t.Error("a lower bound was assumed for a variable whose step can go negative")
 	}
@@ -59,7 +62,8 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 	  (fn (n)
 	    (loop ((lo 0) (w 1) (m 0))
 	      (>= lo n) 0
-	      else (let (tgt.at m) (fn (u) (again (+ lo 1) (- w 3) (+ m w))))))`
+	      else (let u (tgt.at m)
+              (again (+ lo 1) (- w 3) (+ m w)))))`
 	if _, err := refineWith(t, tg, shrink); err == nil {
 		t.Error("m depends on a non-inductive w and must not be given 0 <= m")
 	}
@@ -128,7 +132,8 @@ func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 	// A `let` INSIDE the arithmetic: its binder becomes a fresh name, equal to the
 	// value when the value is linear.
 	const let = `(use tgt)
-	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (let (+ k 1) (fn (i) (if (< i 1) 0 (if (>= i 512) 0 i))))) 3)))))`
+	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (let i (+ k 1)
+                                            (if (< i 1) 0 (if (>= i 512) 0 i)))) 3)))))`
 	notes, err = refineWith(t, tg, let)
 	if err != nil {
 		t.Fatalf("a let-bound strided clamp was refused: %v", err)
@@ -148,8 +153,8 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	tg := tempTarget(t, ``)
 	const count = `(use tgt)
 	  (fn (a)
-	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1))) (fn (nw)
-	      (if (>= nw 1) (a (if (< nw 0) 0 0)) 0))))`
+	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1)))
+       (if (>= nw 1) (a (if (< nw 0) 0 0)) 0)))`
 	notes, err := refineWith(t, tg, count)
 	if err != nil {
 		t.Fatalf("a count bounded by its loop was refused: %v", err)
@@ -161,8 +166,8 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	// No single fact and no sum of two reaches it; eliminating u and nw does.
 	const three = `(use tgt)
 	  (fn (a u)
-	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1))) (fn (nw)
-	      (if (>= u 0) (if (< u nw) (a (if (< u 0) 0 0)) 0) 0))))`
+	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 1) (+ i 1)))
+       (if (>= u 0) (if (< u nw) (a (if (< u 0) 0 0)) 0) 0)))`
 	notes, err = refineWith(t, tg, three)
 	if err != nil {
 		t.Fatalf("a three-fact entailment was refused: %v", err)
@@ -174,8 +179,8 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	// summary relates it to the table, and the read stays propagated.
 	const twice = `(use tgt)
 	  (fn (a)
-	    (let (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 2) (+ i 1))) (fn (nw)
-	      (if (>= nw 1) (a (if (< nw 0) 0 0)) 0))))`
+	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 2) (+ i 1)))
+       (if (>= nw 1) (a (if (< nw 0) 0 0)) 0)))`
 	notes, err = refineWith(t, tg, twice)
 	if err != nil {
 		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)

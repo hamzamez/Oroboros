@@ -79,7 +79,8 @@ func propagated(notes string) bool {
 // result: it has no body, so nothing can derive it.
 func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
 	const prog = `(use tgt)
-		(fn (v) (let (tgt.size v) (fn (n) (tgt.need n))))`
+		(fn (v) (let n (tgt.size v)
+            (tgt.need n)))`
 	// `need` requires `0 <= k`, and nothing but the postcondition says so.
 	tg := tempTarget(t, `(sig size ((v any)) int pure (ensures (<= 0 result)) (host expr "size(%s)"))`)
 	notes, err := refineWith(t, tg, prog)
@@ -175,7 +176,8 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 	tg := tempTarget(t, `(sig ident ((x int)) int `+
 		`(where (< 0 (tgt.* x x))) (ensures (< 0 result)) (host expr "%s"))`)
 	const prog = `(use tgt)
-		(fn (n) (let (tgt.ident n) (fn (y) (tgt.need y))))`
+		(fn (n) (let y (tgt.ident n)
+            (tgt.need y)))`
 	notes, err := refineWith(t, tg, prog)
 	// `ident`'s own precondition is outside the fragment, so it is REPORTED
 	// rather than refused — the walk continues, which is what makes the
@@ -199,7 +201,8 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 	ok := tempTarget(t, `(sig ident ((x int)) int `+
 		`(where (< 0 x)) (ensures (< 0 result)) (host expr "%s"))`)
 	notes, err = refineWith(t, ok, `(use tgt)
-		(fn (n) (let (tgt.ident 7) (fn (y) (tgt.need y))))`)
+		(fn (n) (let y (tgt.ident 7)
+            (tgt.need y)))`)
 	if err != nil || propagated(notes) {
 		t.Errorf("with P discharged the guarantee holds: %v / %q", err, notes)
 	}
@@ -213,7 +216,8 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 func TestEnsuresAttachesToTheBinder(t *testing.T) {
 	tg := tempTarget(t, `(sig readc ((h int)) int (ensures (<= 0 result)) (host expr "readc(%s)"))`)
 	notes, err := refineWith(t, tg, `(use tgt)
-		(fn (h) (let (tgt.readc h) (fn (a) (tgt.need a))))`)
+		(fn (h) (let a (tgt.readc h)
+            (tgt.need a)))`)
 	if err != nil || propagated(notes) {
 		t.Errorf("an impure call's postcondition holds of the name it is bound to: "+
 			"%v / %q", err, notes)

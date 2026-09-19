@@ -127,10 +127,10 @@ func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
       (>= i n)  t
       else      (again (set t i (tuple i i)) (+ i 1)))))))
 (def use (fn (n)
-  (let (mk n) (fn (sp)
+  (let sp (mk n)
     (loop ((acc 0) (w 0))
       (>= w n)  acc
-      else      (again (+ acc ((sp w) 1)) (+ w 1)))))))`, "use")
+      else      (again (+ acc ((sp w) 1)) (+ w 1))))))`, "use")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -24,9 +24,9 @@
       (if (f.gt (a.at arr i) 0.0) arr (cross-from arr i n)))))))
 
 (def count-primes (fn (n)
-  (let (sieve n) (fn (composite)
+  (let composite (sieve n)
     (fold-range 0 n (fn (acc k)
       (if (int.lt k 2) acc
-        (if (f.gt (a.at composite k) 0.0) acc (int.add acc 1)))))))))
+        (if (f.gt (a.at composite k) 0.0) acc (int.add acc 1))))))))
 
 (def main (fn () (c.log (count-primes 20000))))

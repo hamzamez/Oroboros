@@ -46,20 +46,20 @@ comes from the test suite, which runs it on every target.
 (export main)
 
 (def count-primes (n)
-  (let (build n (fn (sieve)                   ; a buffer of n booleans, zero-filled
-         (loop ((s sieve) (i 2))
-           (>= (* i i) n)   s
-           (>= i (len s))   s
-           (s i)            (again s (+ i 1))  ; indexing is application
-           else             (again (loop ((s s) (j (* i i)))
-                                     (>= j n)  s
-                                     else      (again (set s j true) (+ j i)))
-                                   (+ i 1)))))
-    (fn (composite)                           ; frozen on the way out
-      (loop ((k 2) (count 0))
-        (>= k n)       count
-        (composite k)  (again (+ k 1) count)
-        else           (again (+ k 1) (+ count 1))))))
+  (let composite (build n (fn (sieve)            ; a buffer of n booleans, zero-filled
+                   (loop ((s sieve) (i 2))
+                     (>= (* i i) n)   s
+                     (>= i (len s))   s
+                     (s i)            (again s (+ i 1))  ; indexing is application
+                     else             (again (loop ((s s) (j (* i i)))
+                                               (>= j n)  s
+                                               else      (again (set s j true) (+ j i)))
+                                             (+ i 1)))))
+    ; `composite` is frozen on the way out
+    (loop ((k 2) (count 0))
+      (>= k n)       count
+      (composite k)  (again (+ k 1) count)
+      else           (again (+ k 1) (+ count 1)))))
 
 (def main () (io.print-int (count-primes 1000)))
 ```
@@ -145,10 +145,10 @@ the JVM, whose `byte` is signed. Above the machine word, the target picks the re
 (def cap-in 16777216)
 
 (def main ()
-  (let (os.Args) (fn (av)
+  (let av (os.Args)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
-        ((os.ReadFile (av 1)) (fn (src err)
+        (let (tuple src err) (os.ReadFile (av 1))
           (if (os.err-nil err)
               (if (>= (len src) cap-in)
                   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
@@ -158,7 +158,7 @@ the JVM, whose `byte` is signed. Above the machine word, the target picks the re
                           (if (< lines cap-in)
                               (if (= (src i) 10) (+ lines 1) lines)
                               lines))))
-              (seq (io.print-line "wc: cannot read that file") 0))))))))
+              (seq (io.print-line "wc: cannot read that file") 0))))))
 ```
 
 ```bash
@@ -168,7 +168,7 @@ go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-
 ```
 
 All three print `455`, the same as `wc -l`.
-- **A fallible call gives two results, `(fn (src err) …)`, on every host**, including the ones where
+- **A fallible call gives two results, bound by `(let (tuple src err) …)`, on every host**, including the ones where
   the platform throws. How each host fails is written once, in that target's declarations. On Go it
   compiles to `src, err := os.ReadFile(av[1])`.
 - **`cap-in` is a value, not a function.** A constant is a term the compiler unfolds; the
@@ -185,11 +185,11 @@ All three print `455`, the same as `wc -l`.
 (export main)
 
 (def main ()
-  (let (array 104 105 33) (fn (src)                    ; "hi!"
+  (let src (array 104 105 33)                          ; "hi!"
     (io.print-line
       (os.text-of
         (build (* 2 (len src)) (fn (dst)
-          ((hex.Encode dst src) (fn (dst n) dst)))))))))
+          (let (tuple dst n) (hex.Encode dst src) dst)))))))
 ```
 
 ```

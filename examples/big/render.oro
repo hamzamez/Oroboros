@@ -53,8 +53,8 @@
   (loop ((s "") (v x) (i 0))
     (= v 0)   s
     (>= i 32) s
-    else (let (/ v 100000000) (fn (nv)
-           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1))))))
+    else (let nv (/ v 100000000)
+           (again (concat (group (% v 100000000) (> nv 0)) s) nv (+ i 1)))))
 
 (sig render ((x (int 0 (pow 2 200)))) string)
 (def render (x) (if (= x 0) "0" (digits x)))

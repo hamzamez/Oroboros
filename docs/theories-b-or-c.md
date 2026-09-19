@@ -592,7 +592,7 @@ warned about. Because `MaxRune` has a definiens, `(int 0 utf8.MaxRune)` is a leg
   (def compile (fn (p) (re.MustCompile p)))
   (def matches (fn (r s) (re.Regexp.MatchString r s)))
   (def capture (fn (r s)
-    (let (re.Regexp.FindStringSubmatch r s) (fn (m)
+    (let m (re.Regexp.FindStringSubmatch r s)
       (if (>= (len m) 2) (m 1) (if (>= (len m) 1) (m 0) "")))))))
 
 ; examples/tally/tally.oro

@@ -26,13 +26,13 @@
 ; Tally i mod 97 over n values and report how many distinct keys landed. The
 ; scan cannot stop early, so every lookup costs the full capacity.
 (def tally (fn (n cap)
-  (let (a.make-int cap) (fn (keys)
+  (let keys (a.make-int cap)
     (fold-range 0 n (fn (acc i)
-      (let (int.add (ji.rem i 97) 1) (fn (k)
-        (let (slot keys cap k) (fn (s)
-          (if (int.ge s cap) acc
+      (let k (int.add (ji.rem i 97) 1)
+           s (slot keys cap k)
+        (if (int.ge s cap) acc
             (if (int.eq (a.iat keys s) 0)
                 (seq (a.iset keys s k) (int.add acc 1))
-                acc))))))))))))
+                acc))))))))
 
 (def main (fn () (sys.println (tally 20000 128))))

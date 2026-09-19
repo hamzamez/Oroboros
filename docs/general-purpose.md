@@ -288,7 +288,7 @@ and a program that uses it:
 (def with-page (fn (n k)
   (match (win.VirtualAlloc n)
     (none)   (fail "out of memory")
-    (some p) (let (k p) (fn (r) (seq (win.VirtualFree p) r))))))
+    (some p) (let r (k p) (seq (win.VirtualFree p) r)))))
 ```
 
 The checker's job, all of it from machinery that exists:

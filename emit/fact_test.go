@@ -34,7 +34,8 @@ const decodeTarget = `(sig / ((a int) (b int)) int pure (host expr "%s / %s"))
     (sig half ((dst (array int)) (src (array int))) int
       (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`
 
-const decodeQuery = `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let (tgt.half b a) (fn (u) b)))))`
+const decodeQuery = `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let u (tgt.half b a)
+                                                 b))))`
 
 // proves runs the Decode query under a theory and reports whether the
 // precondition is PROVEN — neither refused nor merely propagated.

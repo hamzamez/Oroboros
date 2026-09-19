@@ -709,11 +709,11 @@ one.
 Branches are emitted in place and are never hoisted, which is what preserves the guarding of an
 effect ([effects.md §4](effects.md)).
 
-### `let` — `(let value (fn (x) body))`
+### `let` — `(let value (fn (x) body))`, the RESIDUAL's spelling
 
 The continuation must be a one-parameter abstraction. A `let` reaches the emitter only in a
 residual the *reducer* produced, since a source-level `let` is erased by the reader
-([def.md](def.md)).
+([binding.md](binding.md), [def.md](def.md)).
 
 **If the binder is used zero times it is a sequencing point, not a binding**: the value is emitted
 for its effect and no variable is declared. That is what makes `seq` work, and Go would reject the
@@ -751,7 +751,7 @@ says what a call guarantees. Those spellings are now refused, naming the postcon
 every argument `any`.
 
 It is what lets the compiler prove an index is in range for an array the program built itself. The
-sieve's `(let (go.make-bool n) (fn (c) … (go.at-bool c i)))` has no other route: without the
+sieve's `(let c (go.make-bool n) … (go.at-bool c i))` has no other route: without the
 declaration `len(c)` is an opaque variable unrelated to `n`, and the bounds goal `i < len(c)` has
 nothing to resolve against. Lengths propagate through lets, loops and conditionals, and a threaded
 array's length is established as a **loop invariant** — taken from the initial value and verified

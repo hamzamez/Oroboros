@@ -213,7 +213,8 @@ func TestAsmCallNeedsNoSpill(t *testing.T) {
 	code := winEmit(t, `
 		(use x64)
 		(use windows/kernel32)
-		(fn (x) (let (kernel32.GetTickCount64) (fn (a) (x64.add a x))))
+		(fn (x) (let a (kernel32.GetTickCount64)
+            (x64.add a x)))
 	`)
 	if !strings.Contains(code, "call GetTickCount64") {
 		t.Fatalf("no call emitted:\n%s", code)

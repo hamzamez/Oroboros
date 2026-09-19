@@ -58,11 +58,10 @@
 ; "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,
 ; and an odd length after one.
 (def prefix ()
-  (seq (let (build 6 (fn (b) (set (set (set (set (set (set b 0 48) 1 49) 2 48) 3 50) 4 122) 5 122)))
-         (fn (bad)
-           (fmt.Println (build 3 (fn (b)
-             ((hex.Decode b bad) (fn (b2 n e)
-               (seq (fmt.Println n) (fmt.Println e) b2))))))))
+  (seq (let bad (build 6 (fn (b) (set (set (set (set (set (set b 0 48) 1 49) 2 48) 3 50) 4 122) 5 122)))
+         (fmt.Println (build 3 (fn (b)
+           ((hex.Decode b bad) (fn (b2 n e)
+             (seq (fmt.Println n) (fmt.Println e) b2)))))))
        ((hex.DecodeString "abcg12") (fn (x e) (seq (fmt.Println x) (fmt.Println e))))
        ((hex.DecodeString "abc") (fn (x e) (seq (fmt.Println x) (fmt.Println e))))))
 
@@ -92,19 +91,19 @@
       ; (targets/go/io.oro) — until companions existed there was no way to give an
       ; interface a method, and this dump was missing its last, partial line.
       ((gos.Create (concat dir "/dump")) (fn (f e6)
-        (seq (let (hex.Dumper f) (fn (d)
+        (seq (let d (hex.Dumper f)
                (seq ((gio.WriteString d (os.text-of src)) (fn (n e7)
                       (fmt.Println n)))
-                    (fmt.Println (gos.err-nil (wc.Close d))))))
+                    (fmt.Println (gos.err-nil (wc.Close d)))))
              (file.Close f))))
       ((gos.ReadFile (concat dir "/dump")) (fn (b e8)
         (fmt.Println (os.text-of b))))
       (gos.RemoveAll dir)))))
 
 (def main ()
-  (let (source 21) (fn (src)
-    (let (encode src) (fn (enc)
-      (seq (lengths src)
+  (let src (source 21)
+       enc (encode src)
+    (seq (lengths src)
            (fmt.Println (os.text-of enc))
            (fmt.Println (hex.EncodeToString src))
            (left src enc)
@@ -112,4 +111,4 @@
            (prefix)
            (append src enc)
            (fmt.Print (hex.Dump src))
-           (streams src)))))))
+           (streams src))))

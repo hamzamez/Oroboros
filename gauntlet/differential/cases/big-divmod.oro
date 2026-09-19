@@ -66,6 +66,6 @@
 
 (sig run ((n (int 0 50))) int)
 (def run (n)
-  (let (scaled n) (fn (x)
+  (let x (scaled n)
     (+ (% (/ x 100000000) 100000000)
-       (if (> x (scaled 4)) 1000000000000 0)))))
+       (if (> x (scaled 4)) 1000000000000 0))))

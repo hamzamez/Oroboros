@@ -249,6 +249,14 @@ have come from the reducer, so the two roles never collide.
 Three tests pin it: a source `let` is erased when sharing is pointless, a source `let` **cannot**
 block fusion, and the compiler still introduces one where sharing pays.
 
+### And the source spelling is flat — 2026-09-19
+
+The source half of that split is now `(let x VALUE … BODY)`, specified in
+[binding.md](binding.md): pairs of a left-hand side and a value, then one body, with a name or a
+`(tuple a b)` pattern on the left. The residual's spelling — `(let e (fn (x) b))`, the primitive the
+reducer produces — is **unchanged**, so the two roles this section records as once-conflated no
+longer even look alike. The old source spelling is refused naming the new one.
+
 ## 9. Recursion reduces correctly, cannot be compiled, and is therefore rejected
 
 > **Settled 2026-08-16 by [ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md).**

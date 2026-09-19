@@ -2,6 +2,10 @@
 
 Research, **no decision**. 2026-09-19, on hamza's four questions:
 
+> **Decided and built the same day**, for `let` and `seq`: [spec/binding.md](spec/binding.md) is the
+> specification and [letflat-2026-09-19](../gauntlet/results/letflat-2026-09-19.md) the result.
+> Recommendations 3 (use `cond`) and 4 (the reader should own arity) are **not** built.
+
 1. Shen's `(let v1 e1 v2 e2 … body)` against ours, `(let e (fn (x) b))`, which reads like F#'s and
    Elixir's `|>`;
 2. several results — `((os.ReadFile (av 1)) (fn (src err) …))` against a destructuring binding,

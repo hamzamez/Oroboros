@@ -17,12 +17,11 @@
 ; Each answer packs the keys base 100, so a wrong order is a different number
 ; rather than the same digits rearranged.
 (def run (n)
-  (let (build-map 8 (fn (m)
-         (loop ((m m) (i 0))
-           (>= i n)  m
-           else       (again (insert m (- 20 (* 3 i)) i) (+ i 1)))))
-    (fn (m)
-      (let (keys m) (fn (ks)
-        (loop ((acc 0) (j 0))
-          (>= j (len ks))  acc
-          else              (again (+ (* acc 100) (ks j)) (+ j 1))))))))
+  (let m  (build-map 8 (fn (m)
+            (loop ((m m) (i 0))
+              (>= i n)  m
+              else       (again (insert m (- 20 (* 3 i)) i) (+ i 1)))))
+       ks (keys m)
+    (loop ((acc 0) (j 0))
+        (>= j (len ks))  acc
+        else              (again (+ (* acc 100) (ks j)) (+ j 1)))))

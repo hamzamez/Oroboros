@@ -14,7 +14,7 @@
 (export main)
 
 (def puts (s)
-  (let (kernel32.GetStdHandle -11) (fn (h)
-    (kernel32.WriteFile h s (x64.strlen s)))))
+  (let h (kernel32.GetStdHandle -11)
+    (kernel32.WriteFile h s (x64.strlen s))))
 
 (def main () (puts "hello from oroboros\n"))

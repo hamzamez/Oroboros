@@ -30,8 +30,8 @@
 (export main)
 
 (def main ()
-  (let (w.GetFileInformationByHandleEx 0 0 (x.null) 0) (fn (ok)
+  (let ok (w.GetFileInformationByHandleEx 0 0 (x.null) 0)
     (seq (fmt.print-int ok)
          (fmt.print-int (k.GetLastError))
          (w.GetFileInformationByHandleEx 0 9999 (x.null) 0)
-         (fmt.print-int (k.GetLastError))))))
+         (fmt.print-int (k.GetLastError)))))

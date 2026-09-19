@@ -148,19 +148,18 @@ bytes, and nothing beneath it knows what a number is. Turning 2262 into the four
 a program, and on this target it is written in Oroboros:
 
 ```lisp
-(def print-int (fn (n)
+(def print-int (n)
   (if (x64.sete n 0)
       (print-str "0")
-      (let (x64.buf) (fn (b)
+      (let b (x64.buf)
         (seq (x64.movb b 24 10)
-             (let (loop ((m n) (i 24))
-                     (x64.setg m 0)
-                     (seq (x64.movb b (x64.sub i 1) (x64.add 48 (x64.irem m 10)))
-                          (again (x64.idiv m 10) (x64.sub i 1)))
-                     else i)
-                  (fn (start)
-                    (write-bytes (x64.lea b start)
-                                 (x64.add (x64.sub 24 start) 1))))))))))
+             (let start (loop ((m n) (i 24))
+                           (x64.setg m 0)
+                           (seq (x64.movb b (x64.sub i 1) (x64.add 48 (x64.irem m 10)))
+                                (again (x64.idiv m 10) (x64.sub i 1)))
+                           else i)
+               (write-bytes (x64.lea b start)
+                            (x64.add (x64.sub 24 start) 1)))))))
 ```
 
 `lib/win/fmt.oro`. Thirty lines where Go needs one declaration — and it still reduces away into

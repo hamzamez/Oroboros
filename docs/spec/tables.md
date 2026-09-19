@@ -994,12 +994,12 @@ is not a growable array; it is a linked list wearing one.
 ```lisp
 ;; filter, in two passes — count, then scatter. The parallel-array idiom.
 (def filter (fn (p a)
-  (let (count-matching p a) (fn (n)
+  (let n (count-matching p a)
     (build n (fn (b)
       (loop ((b b) (i 0) (k 0))
         (>= i (len a))  b
         (p (a i))       (again (set b k (a i)) (+ i 1) (+ k 1))
-        else            (again b (+ i 1) k))))))))
+        else            (again b (+ i 1) k)))))))
 ```
 
 Two passes over the input, one allocation of the exact size, no growth. This is how Futhark, ISPC

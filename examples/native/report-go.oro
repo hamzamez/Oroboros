@@ -27,10 +27,10 @@
 (export main)
 
 (def fill (n)
-  (let (go.make-float64 n) (fn (dst)
+  (let dst (go.make-float64 n)
     (loop ((d dst) (i 0))
       (go.>= i n)  d
-      else         (again (go.set-float64 d i (go.float64-of-int i)) (go.+ i 1))))))
+      else         (again (go.set-float64 d i (go.float64-of-int i)) (go.+ i 1)))))
 
 (def dot (a b)
   (loop ((acc 0.0) (i 0))
@@ -40,7 +40,7 @@
                                  (go.+ i 1))))
 
 (def main ()
-  (let (fill 1000) (fn (xs)
+  (let xs (fill 1000)
     (seq (fmt.Println "report")
          (fmt.Println (go.len xs))
-         (fmt.Println (dot xs xs))))))
+         (fmt.Println (dot xs xs)))))

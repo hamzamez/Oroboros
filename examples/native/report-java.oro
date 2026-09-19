@@ -16,7 +16,7 @@
                                 (java.+ i 1))))
 
 (def main ()
-  (let (fill 1000) (fn (xs)
+  (let xs (fill 1000)
     (seq (Sys.out-println "report")
          (seq (Sys.out-println (len xs))
-              (Sys.out-println (dot xs xs)))))))
+              (Sys.out-println (dot xs xs))))))

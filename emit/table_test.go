@@ -206,10 +206,10 @@ func TestBuildAndSetOnEveryTarget(t *testing.T) {
 		return `(use ` + u + `)
 			(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
 			(def f (fn (n)
-				(let (build n (fn (c)
+				(let b (build n (fn (c)
 					(loop ((c c) (i 0)) (` + ge + ` i n) c
 						else (again (set c i true) (` + add + ` i 1)))))
-					(fn (b) (if (b 0) 1 0)))))`
+					(if (b 0) 1 0))))`
 	}
 	cases := []struct{ target, src, want string }{
 		{"go", src("go", "go.>=", "go.+"), "c2[i] = true"},
@@ -243,8 +243,8 @@ func TestUsingABufferAfterItIsConsumed(t *testing.T) {
 		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
 		(def f (fn (n)
 			(build n (fn (c)
-				(let (set c 0 1) (fn (c2)
-					(seq (set c 1 (c 0)) c2)))))))
+				(let c2 (set c 0 1)
+      (seq (set c 1 (c 0)) c2))))))
 	`)
 	if err == nil {
 		t.Fatal("using a buffer after a store must be refused")
@@ -262,12 +262,12 @@ func TestReadingABufferIsFine(t *testing.T) {
 		(use go)
 		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 100))))
 		(def f (fn (n)
-			(let (build n (fn (c)
-				(loop ((c c) (i 0))
-					(go.>= i n)  c
-					(c i)        (again c (go.+ i 1))
-					else         (again (set c i true) (go.+ i 1)))))
-				(fn (b) (if (b 0) 1 0)))))
+			(let b (build n (fn (c)
+  				(loop ((c c) (i 0))
+  					(go.>= i n)  c
+  					(c i)        (again c (go.+ i 1))
+  					else         (again (set c i true) (go.+ i 1)))))
+     (if (b 0) 1 0))))
 	`); err != nil {
 		t.Errorf("a read must not consume the buffer: %v", err)
 	}
@@ -285,11 +285,11 @@ func TestAShadowingLoopVariableIsNotTheOuterBuffer(t *testing.T) {
 		(def inner (fn (c n)
 			(loop ((c c) (j 0)) (go.>= j n) c else (again (set c j true) (go.+ j 1)))))
 		(def f (fn (n)
-			(let (build n (fn (c)
-				(loop ((c c) (i 0))
-					(go.>= i n)  c
-					else         (again (inner c n) (go.+ i 1)))))
-				(fn (b) (if (b 0) 1 0)))))
+			(let b (build n (fn (c)
+  				(loop ((c c) (i 0))
+  					(go.>= i n)  c
+  					else         (again (inner c n) (go.+ i 1)))))
+     (if (b 0) 1 0))))
 	`); err != nil {
 		t.Errorf("a shadowing loop variable is its own buffer: %v", err)
 	}
@@ -327,10 +327,10 @@ func TestWindowsHasTables(t *testing.T) {
 		(use x64)
 		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
 		(def f (fn (n)
-			(let (alloc (table n (fn (i) (x64.imul i i)))) (fn (v)
-				(loop ((acc 0) (i 0))
-					(x64.setge i (len v))  acc
-					else                   (again (x64.add acc (v i)) (x64.add i 1)))))))
+			(let v (alloc (table n (fn (i) (x64.imul i i))))
+     (loop ((acc 0) (i 0))
+ 					(x64.setge i (len v))  acc
+ 					else                   (again (x64.add acc (v i)) (x64.add i 1))))))
 	`, "f")
 	if err != nil {
 		t.Fatal(err)
@@ -374,11 +374,11 @@ func TestWindowsSizesABooleanTableByTheByte(t *testing.T) {
 		(use x64)
 		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
 		(def f (fn (n)
-			(let (build n (fn (c)
-				(loop ((c c) (i 0))
-					(x64.setge i n)  c
-					else             (again (set c i true) (x64.add i 1)))))
-				(fn (b) (if (b 0) 1 0)))))
+			(let b (build n (fn (c)
+  				(loop ((c c) (i 0))
+  					(x64.setge i n)  c
+  					else             (again (set c i true) (x64.add i 1)))))
+     (if (b 0) 1 0))))
 	`, "f")
 	if err != nil {
 		t.Fatal(err)
@@ -401,7 +401,8 @@ func TestWindowsKeepsEightBytesForInts(t *testing.T) {
 		(use x64)
 		(export f) (sig f ((n int)) int (where (and (< 0 n) (< n 1000))))
 		(def f (fn (n)
-			(let (alloc (table n (fn (i) (x64.imul i i)))) (fn (v) (v 0)))))
+			(let v (alloc (table n (fn (i) (x64.imul i i))))
+     (v 0))))
 	`, "f")
 	if err != nil {
 		t.Fatal(err)
@@ -420,15 +421,14 @@ func TestTheElementWidthSurvivesABinder(t *testing.T) {
 		(use x64)
 		(export f) (sig f ((n int)) int (where (and (< 2 n) (< n 1000))))
 		(def f (fn (n)
-			(let (build n (fn (c)
-				(loop ((c c) (i 0))
-					(x64.setge i n)  c
-					else             (again (set c i true) (x64.add i 1)))))
-				(fn (b)
-					(loop ((acc 0) (k 0))
+			(let b (build n (fn (c)
+  				(loop ((c c) (i 0))
+  					(x64.setge i n)  c
+  					else             (again (set c i true) (x64.add i 1)))))
+     (loop ((acc 0) (k 0))
 						(x64.setge k (len b))  acc
 						(b k)                  (again (x64.add acc 1) (x64.add k 1))
-						else                   (again acc (x64.add k 1)))))))
+						else                   (again acc (x64.add k 1))))))
 	`, "f")
 	if err != nil {
 		t.Fatal(err)

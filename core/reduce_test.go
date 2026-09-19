@@ -372,7 +372,8 @@ func TestSelfCallIsBottomNotAnError(t *testing.T) {
 func TestSourceLetIsErasedWhenSharingIsPointless(t *testing.T) {
 	check(t, `
 		(prim add)
-		(let 5 (fn (x) (add x 1)))
+		(let x 5
+    (add x 1))
 	`, "default", "(add 5 1)")
 }
 
@@ -387,8 +388,8 @@ func TestSourceLetCannotBlockFusion(t *testing.T) {
 		(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
 		(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
 		; The let here is exactly what a programmer might write for clarity.
-		(def sum (fn (v) (let v (fn (w)
-		           (fold-range 0.0 (vlen w) (fn (acc i) (add acc (vindex w i))))))))
+		(def sum (fn (v) (let w v
+                     (fold-range 0.0 (vlen w) (fn (acc i) (add acc (vindex w i)))))))
 		(fn (a) (sum (of-array a)))
 	`, "go", "(fn (a) (fold-range 0.0 (alen a) (fn (acc i) (add acc (aindex a i)))))")
 }

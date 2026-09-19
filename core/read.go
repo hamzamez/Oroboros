@@ -416,9 +416,10 @@ func (r *reader) list() (*Term, error) {
 	if len(kids) == 0 {
 		return nil, fmt.Errorf("line %d: empty list is not a term", line)
 	}
-	// A source-level `let` is SUGAR for an application, and desugars here.
+	// A source-level `let` is SUGAR for an application, and desugars here
+	// (spec/binding.md).
 	//
-	//   (let e (fn (x) b))  ⟶  ((fn (x) b) e)
+	//   (let x e b)  ⟶  ((fn (x) b) e)
 	//
 	// This is the difference between the two designs we could have had. If `let`
 	// stayed a primitive in source, writing one would *prevent* substitution —
@@ -430,12 +431,10 @@ func (r *reader) list() (*Term, error) {
 	// compiler re-introduces sharing wherever β declines to substitute
 	// (gauntlet/results/callbyneed-2026-08-14.md). A `let` in a *residual* can
 	// therefore only have come from the reducer, which makes the two roles
-	// unambiguous despite sharing a name.
+	// unambiguous despite sharing a name — and since the source spelling became
+	// the flat one, they do not even look alike.
 	if kids[0].Kind == KName && kids[0].Name == "let" {
-		if len(kids) != 3 {
-			return nil, fmt.Errorf("line %d: let takes a value and a continuation", line)
-		}
-		return &Term{Kind: KApp, Kids: []*Term{kids[2], kids[1]}}, nil
+		return readLet(kids, line)
 	}
 
 	// `seq` is the same trick with the binder thrown away, and it is the whole
@@ -1435,7 +1434,7 @@ func checkClauseBody(t *Term, arity, line int) error {
 		}
 		return nil
 	}
-	// (let e (fn (x) k)) has already been desugared to ((fn (x) k) e).
+	// A one-name binding has already been desugared to ((fn (x) k) e).
 	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 {
 		if err := checkClauseBody(t.Kids[0].Body(), arity, line); err != nil {
 			return err

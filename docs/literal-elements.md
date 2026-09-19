@@ -18,8 +18,8 @@ compiler, measured below.
 ## 1. The symptom
 
 ```lisp
-(let (array 104 105 33) (fn (src)
-  (build (* 2 (len src)) (fn (dst) ((hex.Encode dst src) (fn (dst n) dst))))))
+(let src (array 104 105 33)
+  (build (* 2 (len src)) (fn (dst) (let (tuple dst n) (hex.Encode dst src) dst))))
 ```
 
 ```

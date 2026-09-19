@@ -65,11 +65,11 @@ func mapIntervals(t *testing.T, ins string) *IntervalReport {
 		t.Fatal(err)
 	}
 	src := "(use go)\n(export run)\n(def run (fn (n)\n" +
-		"  (let (build-map 8 (fn (m)\n" +
+		"  (let t (build-map 8 (fn (m)\n" +
 		"         (loop ((m m) (i 0))\n" +
 		"           (>= i n)  m\n" +
 		"           else      (again " + ins + " (+ i 1)))))\n" +
-		"    (fn (m) (* 100 (case (m 3) (some v) v none 0))))))\n" +
+		"    (* 100 (case (t 3) (some v) v none 0)))))\n" +
 		"(sig run ((n (int 0 8))) int)\n"
 	forms, err := core.Read(src)
 	if err != nil {

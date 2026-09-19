@@ -323,7 +323,8 @@ func TestANarrowedLoopInitialiserIsCast(t *testing.T) {
 (def scan (fn (s)
   (loop ((i 0) (n 0))
     (>= i (len s)) n
-    else (let (word-end s i) (fn (ni) (again ni (if (> ni i) 1 0)))))))`
+    else (let ni (word-end s i)
+           (again ni (if (> ni i) 1 0))))))`
 	forms, err := core.Read(src)
 	if err != nil {
 		t.Fatal(err)

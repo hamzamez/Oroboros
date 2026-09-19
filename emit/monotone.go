@@ -88,9 +88,9 @@ import (
 //
 // `(let v (fn (x) b))` is what the reducer leaves when call-by-need declines to
 // substitute, and `((fn (x) b) v)` is what the reader's desugaring produces —
-// core/read.go turns `(let v k)` into `(k v)`, so a term that has not been
-// through β wears the second shape. They are one construct and rule 5 applies
-// to either.
+// core/read.go turns `(let x v b)` into `((fn (x) b) v)`, so a term that has not
+// been through β wears the second shape. They are one construct and rule 5
+// applies to either.
 func asLet(tgt *Target, t *core.Term) (value *core.Term, lam *core.Term, ok bool) {
 	if t == nil || t.Kind != core.KApp {
 		return nil, nil, false

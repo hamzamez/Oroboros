@@ -19,8 +19,8 @@
 ; The longest word. A max-scan, which is a fold — no early exit needed here.
 (def longest (fn (ws)
   (fold-range "" (slen ws) (fn (best i)
-    (let (sat ws i) (fn (w)
-      (if (int.gt (s.len w) (s.len best)) w best)))))))
+    (let w (sat ws i)
+      (if (int.gt (s.len w) (s.len best)) w best))))))
 
 ; Total characters, as a fold over the word list.
 (def total-chars (fn (ws)
@@ -30,15 +30,15 @@
 ; object — the representation baseline R4 measured as 3.25x faster than Map.
 (def by-initial (fn (ws)
   (fold-range (o.empty) (slen ws) (fn (d i)
-    (let (s.lower (s.char-at (sat ws i) 0)) (fn (k)
-      (o.set d k (f.add (o.get d k) 1.0))))))))
+    (let k (s.lower (s.char-at (sat ws i) 0))
+      (o.set d k (f.add (o.get d k) 1.0)))))))
 
 (def main (fn ()
-  (let (split-words "the quick brown fox jumps over the lazy dog") (fn (ws)
+  (let ws (split-words "the quick brown fox jumps over the lazy dog")
     (seq (c.log (s.concat "words: " (js-num (slen ws))))
     (seq (c.log (s.concat "longest: " (longest ws)))
     (seq (c.log (s.concat "chars: " (js-num (total-chars ws))))
-         (c.log (json.stringify (by-initial ws))))))))))
+         (c.log (json.stringify (by-initial ws)))))))))
 
 ; Number to string, via the global String.
 (use js/global as g)

@@ -186,7 +186,8 @@ We add **no** sequencing construct, and **no** unit type.
 (seq a b)   ⟶   ((fn (_) b) a)
 ```
 
-reader sugar, the same shape as `let` ([def.md](def.md)). And it works only because of the
+reader sugar, and exactly `(let _ a b)` — a binding whose name is discarded ([binding.md §6](binding.md)).
+And it works only because of the
 weakening clause in §4: `_` occurs zero times, so a pure `a` is *correctly deleted*, and an impure
 `a` is *correctly kept*. The one hazard g5 did not list is the one that makes sequencing
 expressible at all.
@@ -273,7 +274,7 @@ variable, so `(b 0)` — an application whose operator is a `KBound` — was jud
 pure. The smallest program that shows it is a swap:
 
 ```lisp
-(let (b 0) (fn (vx) (let (b 1) (fn (vy) (set (set b 0 vy) 1 vx)))))
+(let vx (b 0) vy (b 1) (set (set b 0 vy) 1 vx))
 ```
 
 Both reads happen before either store and the program is correct. Both were

@@ -166,7 +166,7 @@ order in the emitter makes its output depend on something other than its input.
 | type | `(tuple T₀ … Tₙ₋₁)`, n ≥ 2 |
 | introduction | `(tuple e₀ … eₙ₋₁)` |
 | projection | `(t k)`, `k` an integer **literal** with `0 ≤ k < n` |
-| destructuring | `(t (fn (x₀ … xₙ₋₁) body))` |
+| destructuring | `(let (tuple x₀ … xₙ₋₁) t body)`, which reads as `(t (fn (x₀ … xₙ₋₁) body))` ([binding.md §5](binding.md)) |
 | update | `(with t (k e) …)` (§4.3) |
 
 `n = 1` is refused because `(tuple T)` ≅ `T` and the form would mean nothing. `n = 0` is refused
@@ -611,6 +611,7 @@ against the bug it exists for:
 | type `(array A B)` | `(tuple A B)` | §6 |
 | literal `(array a b)` with components of different types | `(tuple a b)` | §6 |
 | result list `(A B)` in a `sig` or host declaration | `(tuple A B)` | *"a result list is a tuple type"* |
+| `(let VALUE (fn (x) …))` | `(let x VALUE BODY)` | *"the old `(let VALUE (fn (x) …))` spelling is refused"* ([binding.md §7](binding.md)) |
 
 The old spellings are removed rather than kept as aliases. The rewrite is mechanical, and two
 spellings for one construct is the shape `merge` had before target-system.md separated its two

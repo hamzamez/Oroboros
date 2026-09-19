@@ -141,8 +141,8 @@ func TestPostDoesNotHoistOutOfALet(t *testing.T) {
 			(loop ((mx 0) (i 0))
 				(go.>= i (len a))  mx
 				else
-				  (let (go.+ i 1) (fn (d)
-					(again (if (go.> d mx) d mx) (go.+ i 1)))))))
+				  (let d (go.+ i 1)
+        (again (if (go.> d mx) d mx) (go.+ i 1))))))
 	`, "f")
 	if err != nil {
 		t.Fatal(err)
@@ -172,7 +172,8 @@ func TestPostDoesNotHoistOutOfALet(t *testing.T) {
 // introduced inside the body does not.
 func TestAnUpdateNamingAnInnerBindingIsNotHoisted(t *testing.T) {
 	raw := []string{"s", "v", "i"}
-	body := mustRead(t, `(let (go./ v 100) (fn (nv) (again s nv (go.+ i 1))))`)
+	body := mustRead(t, `(let nv (go./ v 100)
+  (again s nv (go.+ i 1)))`)
 	post := PostVars(body, raw, map[string]bool{})
 	if _, ok := post[1]; ok {
 		t.Error("`nv` is bound by the `let` INSIDE the loop body; an update " +

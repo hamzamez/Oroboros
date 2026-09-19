@@ -11,16 +11,15 @@
     else        c))
 
 (def sieve-count (n)
-  (let (js.ArrayFill n false) (fn (c)
-    (let (loop ((i 2))
-           (js.>= (js.* i i) n)  c
-           (js.at c i)           (again (js.+ i 1))
-           else                  (seq (cross c i n) (again (js.+ i 1))))
-      (fn (done)
-        (loop ((acc 0) (k 2))
-          (js.>= k n)   acc
-          (js.at c k)   (again acc (js.+ k 1))
-          else          (again (js.+ acc 1) (js.+ k 1))))))))
+  (let c    (js.ArrayFill n false)
+       done (loop ((i 2))
+              (js.>= (js.* i i) n)  c
+              (js.at c i)           (again (js.+ i 1))
+              else                  (seq (cross c i n) (again (js.+ i 1))))
+    (loop ((acc 0) (k 2))
+        (js.>= k n)   acc
+        (js.at c k)   (again acc (js.+ k 1))
+        else          (again (js.+ acc 1) (js.+ k 1)))))
 
 (def main ()
   (console.log (String.concat "primes: " (js.String (sieve-count 20000)))))

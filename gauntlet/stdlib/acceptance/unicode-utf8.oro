@@ -57,14 +57,14 @@
 ; A truncated four-byte sequence: not valid UTF-8, and no string literal can
 ; denote it, because a literal denotes scalar values (string-literals.md).
 (def invalid ()
-  (let (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153))) (fn (bad)
+  (let bad (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153)))
     (seq (fmt.Println (u.FullRune bad))
          (fmt.Println (u.Valid bad))
          (fmt.Println (u.RuneCount bad))
          ((u.DecodeRune bad) (fn (r n) (pair r n)))
          (fmt.Println (u.ValidString (os.text-of bad)))
          (fmt.Println (u.FullRuneInString (os.text-of bad)))
-         (fmt.Println (u.RuneCountInString (os.text-of bad)))))))
+         (fmt.Println (u.RuneCountInString (os.text-of bad))))))
 
 (def constants ()
   (seq (fmt.Println (u.MaxRune))
@@ -78,14 +78,13 @@
 ; by AppendRune once per rune, and frozen on the way out of `build` into the
 ; immutable text the readers see.
 (def main ()
-  (let (array 104 233 26085 128578 -1 55296 1114112) (fn (runes)
-  (let (build 1 (fn (b)
-         (loop ((i 0) (acc (set b 0 104)))
-           (>= i (len runes)) acc
-           else (seq (each-rune (runes i))
-                     (again (+ i 1) (u.AppendRune acc (runes i)))))))
-    (fn (text)
-      (seq (over-bytes text)
+  (let runes (array 104 233 26085 128578 -1 55296 1114112)
+       text  (build 1 (fn (b)
+               (loop ((i 0) (acc (set b 0 104)))
+                 (>= i (len runes)) acc
+                 else (seq (each-rune (runes i))
+                           (again (+ i 1) (u.AppendRune acc (runes i)))))))
+    (seq (over-bytes text)
            (over-string (os.text-of text))
            (invalid)
-           (constants)))))))
+           (constants))))

@@ -113,7 +113,8 @@ func TestALetInALoopGuardLeavesNoDeadBinding(t *testing.T) {
 (use go)
 (export run)
 (sig run ((n int)) int (where (and (<= 0 n) (<= n 100))))
-(def lim (fn (n) (let (- n 1) (fn (d) (if (< d 0) 0 d)))))
+(def lim (fn (n) (let d (- n 1)
+                   (if (< d 0) 0 d))))
 (def run (fn (n)
   (loop ((s 0) (k 0))
     (>= k (lim n))  s

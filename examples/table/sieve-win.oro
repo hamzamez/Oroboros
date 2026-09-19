@@ -24,11 +24,11 @@
       else                          (again (cross c i n) (x64.add i 1))))))
 
 (def count-primes (n)
-  (let (sieve n) (fn (c)
+  (let c (sieve n)
     (loop ((acc 0) (k 2))
       (x64.setge k n)  acc
       (c k)            (again acc (x64.add k 1))
-      else             (again (x64.add acc 1) (x64.add k 1))))))
+      else             (again (x64.add acc 1) (x64.add k 1)))))
 
 (def main ()
   (fmt.print-int

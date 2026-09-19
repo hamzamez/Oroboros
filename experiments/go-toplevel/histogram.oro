@@ -27,7 +27,7 @@
     (g.mset m "reached" (int.add (g.mat m "reached") (g.iat s i)))))))
 
 (def main (fn ()
-  (let (firsts 30) (fn (s)
+  (let s (firsts 30)
     (seq (fmt.println (g.len s))
     (seq (fmt.println (g.iat (g.islice s 0 5) 4))
-         (fmt.println (g.mat (tally s) "reached"))))))))
+         (fmt.println (g.mat (tally s) "reached")))))))

@@ -16,8 +16,8 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 		return `(use tgt)
 	  (fn (a n)
 	    (if (<= n (len a))
-	      (let (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c else (again (set c i ` + store + `) (+ i 1)))))
-	        (fn (t) (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k)))))))
+	      (let t (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c else (again (set c i ` + store + `) (+ i 1)))))
+	        (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
 	      0))`
 	}
 	notes, err := refineWith(t, tg, fill(`i`))
@@ -44,8 +44,8 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 	const zero = `(use tgt)
 	  (fn (a n m)
 	    (if (<= m (len a))
-	      (let (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c (< m 1) c else (again (set c i (- m 1)) (+ i 1)))))
-	        (fn (t) (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k)))))))
+	      (let t (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c (< m 1) c else (again (set c i (- m 1)) (+ i 1)))))
+         (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
 	      0))`
 	notes, err = refineWith(t, tg, zero)
 	if err != nil {
@@ -65,10 +65,10 @@ func TestSwappedBuffersKeepTheirContentJointly(t *testing.T) {
 		return `(use tgt)
 	  (fn (a n)
 	    (if (<= n (len a))
-	      (let (build n (fn (p) (build n (fn (q)
+	      (let t (build n (fn (p) (build n (fn (q)
 	             (loop ((x p) (y q) (i 0)) (>= i n) x else
 	               (again (set y i ` + store + `) x (+ i 1)))))))
-	        (fn (t) (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k)))))))
+	        (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
 	      0))`
 	}
 	notes, err := refineWith(t, tg, swap(`i`))
@@ -97,10 +97,10 @@ func TestAComponentFactHoldsOfItsResidueClass(t *testing.T) {
 		return `(use tgt)
 	  (fn (a n)
 	    (if (<= n (len a))
-	      (let (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
+	      (let t (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
 	             (again (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000) (+ i 1)))))
-	        (fn (t) (loop ((k 0) (s 0)) (>= k n) s else
-	          (again (+ k 1) (+ s (a ` + read + `))))))
+	        (loop ((k 0) (s 0)) (>= k n) s else
+	          (again (+ k 1) (+ s (a ` + read + `)))))
 	      0))`
 	}
 	notes, err := refineWith(t, tg, prog(`(t (+ (* 2 k) 0))`))
@@ -138,11 +138,11 @@ func TestAStoreOfUnknownResidueTouchesEveryComponent(t *testing.T) {
 	const src = `(use tgt)
 	  (fn (a n j)
 	    (if (<= n (len a))
-	      (let (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
-	             (again (set (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000)
-	                         (if (< j 0) 0 (if (>= j (* 2 n)) 0 j)) 1000000) (+ i 1)))))
-	        (fn (t) (loop ((k 0) (s 0)) (>= k n) s else
-	          (again (+ k 1) (+ s (a (t (+ (* 2 k) 0))))))))
+	      (let t (build (* 2 n) (fn (b) (loop ((c b) (i 0)) (>= i n) c else
+  	             (again (set (set (set c (+ (* 2 i) 0) i) (+ (* 2 i) 1) 1000000)
+  	                         (if (< j 0) 0 (if (>= j (* 2 n)) 0 j)) 1000000) (+ i 1)))))
+         (loop ((k 0) (s 0)) (>= k n) s else
+	          (again (+ k 1) (+ s (a (t (+ (* 2 k) 0)))))))
 	      0))`
 	notes, err := refineWith(t, tg, src)
 	if err == nil && !propagated(notes) {

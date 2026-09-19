@@ -63,8 +63,8 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | written | reads as | spec |
 |---|---|---|
 | `(def f (x…) body)` | `(def f (fn (x…) body))` — the equational shorthand; a parameter list is a list of NAMES, and one body | [def.md §4](def.md), [program-surface.md](../program-surface.md) |
-| `(let e (fn (x) b))` | `((fn (x) b) e)` | [def.md](def.md) |
-| `(seq a b)` | `((fn (_) b) a)` | [effects.md §5](effects.md) |
+| `(let x e … b)` | nested applications: `((fn (x) b) e)`, and `(e (fn (a b) body))` for a `(tuple a b)` left-hand side | [binding.md](binding.md) |
+| `(seq a b)` | `((fn (_) b) a)` — a binding whose name is discarded | [binding.md §6](binding.md), [effects.md §5](effects.md) |
 | `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if` | [booleans.md](booleans.md) |
 | `(tuple a b …)` | `(fn (k) (k a b …))` | [data.md](data.md), [values.md](values.md) |
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
@@ -75,7 +75,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 ([match.md §5b](match.md)).
 
 **Old spellings are refused naming the new one:** `sum` → `variant`, `values` → `tuple`
-([data.md §10](data.md)).
+([data.md §10](data.md)), and `(let VALUE (fn (x) …))` → `(let x VALUE BODY)` ([binding.md §7](binding.md)).
 
 ### Names the language owns
 
@@ -84,7 +84,7 @@ program; the backend implements each on each host.
 
 | names | what | spec |
 |---|---|---|
-| `if`, `let`, `loop` | control and binding | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [ADR 0015](../decisions/0015-loop-and-again.md) |
+| `if`, `let`, `loop` | control and binding | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md), [binding.md](binding.md), [ADR 0015](../decisions/0015-loop-and-again.md) |
 | `=` | integer equality | [match.md](match.md) |
 | `+ - * / % < <= > >=` | integer arithmetic and order, found per target by spelling | [integers.md §0a](integers.md) |
 | `array`, `table`, `len` | a table's graph, its rule and its domain bound; indexing is APPLICATION | [tables.md](tables.md) |

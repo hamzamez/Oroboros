@@ -132,7 +132,7 @@ the property Dijkstra's guarded commands have.
 and it already emits well. Today's `fold-range` body
 
 ```lisp
-(fn (acc i) (let (aindex a i) (fn (x) (f.add acc (f.mul x x)))))
+(fn (acc i) (let x (aindex a i) (f.add acc (f.mul x x))))
 ```
 ```go
 x := (a[i])
@@ -486,7 +486,7 @@ otherwise keep going.* That is what the guarded-command form buys.
 
 ```lisp
 (loop ((acc 0.0) (i 0))
-  (int.lt i (alen a))  (let (aindex a i) (fn (x) (again (f.add acc (f.mul x x)) (int.add i 1))))
+  (int.lt i (alen a))  (let x (aindex a i) (again (f.add acc (f.mul x x)) (int.add i 1)))
   else                 acc)
 ```
 

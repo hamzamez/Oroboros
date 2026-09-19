@@ -50,7 +50,8 @@ func TestLoopLowerBound(t *testing.T) {
 
 		// Rule 5, and ADR 0015's `again` under a `let`.
 		{"again under a let", `
-			(loop ((j i)) (go.>= j 10) j else (let (go.+ j 3) (fn (n) (again n))))`, "i"},
+			(loop ((j i)) (go.>= j 10) j else (let n (go.+ j 3)
+                                       (again n)))`, "i"},
 
 		// --- and what it must refuse ---
 

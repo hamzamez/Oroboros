@@ -45,10 +45,10 @@
 (def bump-inc (m w) (go.inc-map m w))
 
 (def count-with (step text)
-  (let (strings.Fields text) (fn (ws)
+  (let ws (strings.Fields text)
     (loop ((m (go.make-map)) (i 0))
       (go.>= i (go.len ws))  m
-      else                   (again (step m (go.at-string ws i)) (go.+ i 1))))))
+      else                   (again (step m (go.at-string ws i)) (go.+ i 1)))))
 
 (def tally     (text) (count-with bump     text))
 (def tally-inc (text) (count-with bump-inc text))

@@ -7,7 +7,7 @@
 ; built from; that was the third place the same sentence had to be applied and
 ; it was invisible until a stencil was written.
 (def run (n)
-  (let (alloc (table (+ n 1) (fn (i) (* i i)))) (fn (t)
+  (let t (alloc (table (+ n 1) (fn (i) (* i i))))
     (loop ((acc 0) (i 0))
       (>= i (len t))  acc
-      else             (again (+ acc (t i)) (+ i 1))))))
+      else             (again (+ acc (t i)) (+ i 1)))))

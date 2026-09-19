@@ -23,10 +23,10 @@
 (def bump-merge (m w) (Map.merge m w))
 
 (def count-with (step text)
-  (let (Str.split text " ") (fn (ws)
+  (let ws (Str.split text " ")
     (loop ((m (Map.new)) (i 0))
       (java.>= i (len ws))  m
-      else                  (again (step m (ws i)) (java.+ i 1))))))
+      else                  (again (step m (ws i)) (java.+ i 1)))))
 
 (def tally       (text) (count-with bump       text))
 (def tally-merge (text) (count-with bump-merge text))

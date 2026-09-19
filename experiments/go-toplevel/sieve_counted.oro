@@ -15,14 +15,14 @@
 
 ; How many multiples of i lie in [i*i, n).
 (def multiples (fn (i n)
-  (let (int.mul i i) (fn (start)
+  (let start (int.mul i i)
     (if (int.ge start n) 0
-      (g.quo (int.sub (int.add n i) (int.add start 1)) i))))))
+      (g.quo (int.sub (int.add n i) (int.add start 1)) i)))))
 
 (def cross-from (fn (composite i n)
-  (let (int.mul i i) (fn (start)
+  (let start (int.mul i i)
     (fold-range composite (multiples i n) (fn (c k)
-      (g.bset c (int.add start (int.mul k i)) (g.true))))))))
+      (g.bset c (int.add start (int.mul k i)) (g.true)))))))
 
 ; The OUTER loop only needs i up to sqrt(n): every composite below n has a
 ; factor there. Its trip count is computable too, so it needs no new primitive
@@ -31,13 +31,13 @@
 
 (def sieve (fn (n)
   (fold-range (g.make-bool n) (int.sub (isqrt n) 1) (fn (c k)
-    (let (int.add k 2) (fn (i)
-      (if (g.bat c i) c (cross-from c i n))))))))
+    (let i (int.add k 2)
+      (if (g.bat c i) c (cross-from c i n)))))))
 
 (def count-primes (fn (n)
-  (let (sieve n) (fn (composite)
+  (let composite (sieve n)
     (fold-range 0 n (fn (acc k)
       (if (int.lt k 2) acc
-        (if (g.bat composite k) acc (int.add acc 1)))))))))
+        (if (g.bat composite k) acc (int.add acc 1))))))))
 
 (def main (fn () (fmt.println (count-primes 20000))))

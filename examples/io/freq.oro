@@ -97,7 +97,8 @@
   (loop ((n 0) (i 0))
     (>= i (len src))  n
     (>= n wmax)     n
-    (alpha? (src i))  (let (word-end src i) (fn (ni) (again (+ n 1) ni)))
+    (alpha? (src i))  (let ni (word-end src i)
+                        (again (+ n 1) ni))
     else              (again n (+ i 1))))
 
 ; --- the span table ---------------------------------------------------------
@@ -115,8 +116,8 @@
 ; it. What is true is that a span lies inside the file, so its length is under
 ; the stated input cap, and the program says so.
 (def slen (sp w)
-  (let (- (send sp w) (sbeg sp w)) (fn (d)
-    (if (< d 0) 0 (if (>= d cap-in) 0 d)))))
+  (let d (- (send sp w) (sbeg sp w))
+    (if (< d 0) 0 (if (>= d cap-in) 0 d))))
 
 (def spans (src nw)
   (build nw (fn (sp)
@@ -124,8 +125,8 @@
       (>= i (len src))  sp
       (>= w nw)         sp
       (alpha? (src i))
-        (let (word-end src i) (fn (ni)
-          (again (set sp w (tuple i ni)) ni (+ w 1))))
+        (let ni (word-end src i)
+          (again (set sp w (tuple i ni)) ni (+ w 1)))
       else              (again sp (+ i 1) w)))))
 
 ; --- comparing two words ----------------------------------------------------
@@ -198,9 +199,9 @@
 (def mpass (less a b n w)
   (loop ((b b) (lo 0))
     (>= lo n)  b
-    else (let (mmin n (+ lo w)) (fn (mid)
-          (let (mmin n (+ lo (* 2 w))) (fn (hi)
-            (again (merge1 less a b n lo mid hi) hi)))))))
+    else (let mid (mmin n (+ lo w))
+              hi  (mmin n (+ lo (* 2 w)))
+           (again (merge1 less a b n lo mid hi) hi))))
 
 ; THE WORKSPACE, THREADED. Two buffers alternate: `a` is what is sorted so far
 ; and `b` is where this pass writes, and the `again` hands each one to the
@@ -276,13 +277,13 @@
       (new? src sp ord nw k)
         (again (set dt (cli nd d) (tuple (pat ord nw k) 1)) (+ k 1) (+ d 1))
       else
-        (let (cli nd (- d 1)) (fn (s)
+        (let s (cli nd (- d 1))
           ; THE ONE READ OF A BUFFER FROM INSIDE THE `build` THAT FILLS IT. It
           ; was clamped, because frozen-2026-08-28 refused an element range here.
           ; What bounds it is a count: this loop runs at most nw times and adds 1
           ; to one slot per trip, so no count exceeds 1 + nw — and the compiler
           ; proves exactly that (smashfd-2026-09-16).
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))
 
 ; --- rendering the report ---------------------------------------------------
 ;
@@ -372,53 +373,53 @@
     else (again (set out (cli m o) (src (cl src (+ (sbeg sp w) k)))) (cli m (+ o 1)) (+ k 1))))
 
 (def putline (out o src sp dt d m)
-  (let (dcount dt d) (fn (c)
-  (let (dword sp dt d) (fn (w)
+  (let c (dcount dt d)
+       w (dword sp dt d)
     (set (putword (set (putnum out o c m) (cli m (+ o (ndigits c))) 32)
-                  (+ o (+ (ndigits c) 1)) src sp w m)
-         (cli m (+ o (- (linelen sp dt d) 1)))
-         10))))))
+                    (+ o (+ (ndigits c) 1)) src sp w m)
+           (cli m (+ o (- (linelen sp dt d) 1)))
+           10)))
 
 (def report (src sp dt ord2 nd)
-  (let (outlen sp dt ord2 nd) (fn (m)
+  (let m (outlen sp dt ord2 nd)
     (build m (fn (out)
       (loop ((out out) (o 0) (r 0))
         (>= r nd)         out
         (>= r topn)     out
         (< (len sp) 1)    out
-        else (let (pat ord2 nd r) (fn (d)
+        else (let d (pat ord2 nd r)
                (again (putline out o src sp dt d m)
-                      (+ o (linelen sp dt d)) (+ r 1))))))))))
+                      (+ o (linelen sp dt d)) (+ r 1))))))))
 
 ; --- the tool ---------------------------------------------------------------
 
 (def freq (src)
-  (let (nwords src) (fn (nw)
-  (let (spans src nw) (fn (sp)
-  ; A GUARD on each word index, which is a value read out of the sort's own
-  ; permutation table: that it lies in [0, nw) is an invariant over the table's
-  ; slots, and no analysis here states one (frozen-2026-08-28). Unchecked until
-  ; hex-2026-09-14 §3, because this whole body sits in ReadFile's continuation.
-  ; A guard and not a clamp: a clamped value used twice is let-bound and the
-  ; refinement layer loses its bounds across the binding, while a guard's facts
-  ; hold in its branch.
-  (let (msort (fn (u v)
-                (if (and (<= 0 u) (and (< u nw) (and (<= 0 v) (< v nw))))
-                    (< (wcmp src sp u v) 0)
-                    false))
-              nw) (fn (ord)
-  (let (ndist src sp ord nw) (fn (nd)
-  (let (dists src sp ord nw nd) (fn (dt)
-  (let (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd) (fn (ord2)
-    (report src sp dt ord2 nd))))))))))))))
+  (let nw   (nwords src)
+       sp   (spans src nw)
+       ord  (msort (fn (u v)
+                     (if (and (<= 0 u) (and (< u nw) (and (<= 0 v) (< v nw))))
+                         (< (wcmp src sp u v) 0)
+                         false))
+                   nw)
+       nd   (ndist src sp ord nw)
+       dt   (dists src sp ord nw nd)
+       ord2 (msort (fn (u v) (> (dcount dt u) (dcount dt v))) nd)
+    ; A GUARD on each word index, which is a value read out of the sort's own
+    ; permutation table: that it lies in [0, nw) is an invariant over the table's
+    ; slots, and no analysis here states one (frozen-2026-08-28). Unchecked until
+    ; hex-2026-09-14 §3, because this whole body sits in ReadFile's continuation.
+    ; A guard and not a clamp: a clamped value used twice is let-bound and the
+    ; refinement layer loses its bounds across the binding, while a guard's facts
+    ; hold in its branch.
+    (report src sp dt ord2 nd)))
 
 (def main ()
-  (let (os.Args) (fn (av)
+  (let av (os.Args)
     (if (< (len av) 2)
         (io.print-line "usage: freq FILE")
-        ((os.ReadFile (av 1)) (fn (src err)
+        (let (tuple src err) (os.ReadFile (av 1))
           (if (os.err-nil err)
               (if (>= (len src) cap-in)
                   (io.print-line "freq: file is larger than this tool accepts")
                   (io.print (os.text-of (freq src))))
-              (io.print-line "freq: cannot read that file"))))))))
+              (io.print-line "freq: cannot read that file"))))))

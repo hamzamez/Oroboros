@@ -6,8 +6,8 @@
 ;
 ; `n` selects dynamically, so nothing folds and the table has to exist.
 (def run (n)
-  (let (array 10 20 30 40 50) (fn (a)
+  (let a (array 10 20 30 40 50)
     (loop ((acc 0) (i 0))
       (>= i (len a))  acc
       (>= i n)        acc
-      else             (again (+ acc (a i)) (+ i 1))))))
+      else             (again (+ acc (a i)) (+ i 1)))))

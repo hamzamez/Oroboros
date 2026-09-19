@@ -62,7 +62,9 @@ func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 	  (fn (n)
 	    (loop ((i 0))
 	      (>= i n) 0
-	      else (let (scan n i) (fn (ni) (let (tgt.at i) (fn (u) (again ni)))))))`
+	      else (let ni (scan n i)
+                 u  (tgt.at i)
+              (again ni))))`
 	if _, err := refineWith(t, tg, scanner); err != nil {
 		t.Errorf("0 <= i follows from monotonicity and must be derived: %v", err)
 	}
@@ -73,7 +75,9 @@ func TestAnIndexAssignedAScannersResultIsNonNegative(t *testing.T) {
 	  (fn (n)
 	    (loop ((i 0))
 	      (>= i n) 0
-	      else (let (scan n i) (fn (ni) (let (tgt.at i) (fn (u) (again ni)))))))`
+	      else (let ni (scan n i)
+                 u  (tgt.at i)
+              (again ni))))`
 	if _, err := refineWith(t, tg, falls); err == nil {
 		t.Error("a scanner whose exit subtracts was taken as non-decreasing")
 	}
@@ -93,7 +97,8 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 	// call left to check and both halves of this test pass vacuously.
 	// The call sits inside the build's binder, which is where `len b` is known —
 	// hex.Decode's own shape in encoding-hex.oro.
-	notes, err := refineWith(t, tg, `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let (tgt.half b a) (fn (u) b)))))`)
+	notes, err := refineWith(t, tg, `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let u (tgt.half b a)
+                                                 b))))`)
 	if err != nil {
 		t.Errorf("x <= 2·(x/2) + 1 must follow for a length x: %v", err)
 	}
@@ -101,7 +106,8 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 		t.Errorf("the precondition must be proven, not propagated: %s", notes)
 	}
 	// CONTROL: one element fewer is genuinely too small, and must be refused.
-	if _, err := refineWith(t, tg, `(use tgt) (fn (a) (build (- (/ (len a) 2) 1) (fn (b) (let (tgt.half b a) (fn (u) b)))))`); err == nil {
+	if _, err := refineWith(t, tg, `(use tgt) (fn (a) (build (- (/ (len a) 2) 1) (fn (b) (let u (tgt.half b a)
+                                                       b))))`); err == nil {
 		t.Error("a buffer one element short of ⌊x/2⌋ was accepted")
 	}
 }
@@ -117,15 +123,17 @@ func TestAFactAndAGoalAreRewrittenByTheSameEquations(t *testing.T) {
     (sig half ((dst (array int)) (src (array int))) int
       (where (<= (len src) (+ (* 2 (len dst)) 1))) (host expr "half(%s, %s)"))`)
 	const ok = `(use tgt)
-	  (fn (a) (let (build (* 2 (len a)) (fn (c) c)) (fn (enc)
-	    (build (/ (len enc) 2) (fn (b) (let (tgt.half b enc) (fn (u) b)))))))`
+	  (fn (a) (let enc (build (* 2 (len a)) (fn (c) c))
+             (build (/ (len enc) 2) (fn (b) (let u (tgt.half b enc)
+                                              b)))))`
 	if _, err := refineWith(t, tg, ok); err != nil {
 		t.Errorf("the axiom and the goal must agree after the let's equation: %v", err)
 	}
 	// CONTROL: one short is still refused.
 	const short = `(use tgt)
-	  (fn (a) (let (build (* 2 (len a)) (fn (c) c)) (fn (enc)
-	    (build (- (/ (len enc) 2) 1) (fn (b) (let (tgt.half b enc) (fn (u) b)))))))`
+	  (fn (a) (let enc (build (* 2 (len a)) (fn (c) c))
+             (build (- (/ (len enc) 2) 1) (fn (b) (let u (tgt.half b enc)
+                                                    b)))))`
 	if _, err := refineWith(t, tg, short); err == nil {
 		t.Error("a buffer one short was accepted once the equation was known")
 	}
@@ -139,13 +147,15 @@ func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
 	tg := tempTarget(t, `(sig at ((k int)) int (where (<= 0 k)) (host expr "at(%s)"))`)
 	const guarded = `(use tgt)
 	  (fn (n m) (if (< m 0) 0
-	    (loop ((k m)) (>= k n) 0 else (let (tgt.at k) (fn (u) (again (+ k 1)))))))`
+	    (loop ((k m)) (>= k n) 0 else (let u (tgt.at k)
+                                     (again (+ k 1))))))`
 	if _, err := refineWith(t, tg, guarded); err != nil {
 		t.Errorf("0 <= m on entry and k only grows, so 0 <= k: %v", err)
 	}
 	// CONTROL: with nothing known about m, k may start negative.
 	const bare = `(use tgt)
-	  (fn (n m) (loop ((k m)) (>= k n) 0 else (let (tgt.at k) (fn (u) (again (+ k 1))))))`
+	  (fn (n m) (loop ((k m)) (>= k n) 0 else (let u (tgt.at k)
+                                             (again (+ k 1)))))`
 	if _, err := refineWith(t, tg, bare); err == nil {
 		t.Error("a loop starting at an unconstrained value was taken as non-negative")
 	}
@@ -159,15 +169,17 @@ func TestALoopStartingAtAKnownNonNegativeValueStaysNonNegative(t *testing.T) {
 func TestAClampUsedTwiceKeepsItsBounds(t *testing.T) {
 	tg := tempTarget(t, `(sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
 	const clamp = `(use tgt)
-	  (fn (i) (let (if (< i 0) 0 (if (>= i 10) 0 i)) (fn (c)
-	    (let (tgt.at c) (fn (u) (tgt.at c))))))`
+	  (fn (i) (let c (if (< i 0) 0 (if (>= i 10) 0 i))
+                u (tgt.at c)
+             (tgt.at c)))`
 	if _, err := refineWith(t, tg, clamp); err != nil {
 		t.Errorf("every branch of the clamp is in [0, 10), so c is: %v", err)
 	}
 	// CONTROL: one branch outside the range, and the join must not claim it.
 	const leaky = `(use tgt)
-	  (fn (i) (let (if (< i 0) 0 (if (>= i 10) 11 i)) (fn (c)
-	    (let (tgt.at c) (fn (u) (tgt.at c))))))`
+	  (fn (i) (let c (if (< i 0) 0 (if (>= i 10) 11 i))
+                u (tgt.at c)
+             (tgt.at c)))`
 	if _, err := refineWith(t, tg, leaky); err == nil {
 		t.Error("a conditional with a branch at 11 was taken to be below 10")
 	}
@@ -182,13 +194,17 @@ func TestAClampOfAnOpaqueValueKeepsItsBounds(t *testing.T) {
     (sig at ((k int)) int (where (and (<= 0 k) (< k 10))) (host expr "at(%s)"))`)
 	const clamp = `(use tgt)
 	  (def cl (fn (i) (if (< i 0) 0 (if (>= i 10) 0 i))))
-	  (fn (j) (let (cl (tgt.rd j)) (fn (c) (let (tgt.at c) (fn (u) (tgt.at c))))))`
+	  (fn (j) (let c (cl (tgt.rd j))
+                u (tgt.at c)
+             (tgt.at c)))`
 	if _, err := refineWith(t, tg, clamp); err != nil {
 		t.Errorf("a clamp of an opaque host result is in [0, 10): %v", err)
 	}
 	// CONTROL: no clamp, and nothing is known about the host's result.
 	const bare = `(use tgt)
-	  (fn (j) (let (tgt.rd j) (fn (c) (let (tgt.at c) (fn (u) (tgt.at c))))))`
+	  (fn (j) (let c (tgt.rd j)
+                u (tgt.at c)
+             (tgt.at c)))`
 	if _, err := refineWith(t, tg, bare); err == nil {
 		t.Error("an unclamped host result was taken to be in range")
 	}

@@ -25,9 +25,9 @@
 
 ; Count the primes below n. The sieve is built ONCE, by `let`, and then read.
 (def count-primes (fn (n)
-  (let (sieve n) (fn (composite)
+  (let composite (sieve n)
     (fold-range 0 n (fn (acc k)
       (if (int.lt k 2) acc
-        (if (g.bat composite k) acc (int.add acc 1)))))))))
+        (if (g.bat composite k) acc (int.add acc 1))))))))
 
 (def main (fn () (fmt.println (count-primes 100))))

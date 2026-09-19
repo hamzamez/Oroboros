@@ -21,7 +21,7 @@
 ; `build` -- with a literal the whole division would fold at compile time and
 ; never reach a backend.
 (def run (n)
-  (let (build 2 (fn (b) (set (set b 0 (- 0 n)) 1 n))) (fn (t)
+  (let t (build 2 (fn (b) (set (set b 0 (- 0 n)) 1 n)))
     (if (= n 1) (/ (t 0) 2)
       (if (= n 2) (% (t 0) 2)
-        (/ (t 1) 2))))))
+        (/ (t 1) 2)))))

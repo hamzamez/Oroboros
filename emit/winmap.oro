@@ -79,12 +79,12 @@
 ;                         before a key it stored
 ;   the key            -> found
 (def wm-find (m k)
-  (let (wm-n m) (fn (n)
+  (let n (wm-n m)
     (loop ((i 0))
       (x64.setge i n)              -1
       (= (wm-used m n k i) 0)      -1
       (= (wm-key m n k i) k)       (wm-vi m n k i)
-      else                         (again (x64.add i 1))))))
+      else                         (again (x64.add i 1)))))
 
 ; INSERT. The same three-way probe, with the buffer threaded through so ADR
 ; 0018's linearity holds: every clause body either returns the buffer or hands
@@ -101,8 +101,8 @@
 ; Binding the indices first is not a workaround: it is the honest order, since
 ; every index depends only on n, k and i, and none of them on the stores.
 ; `n` IS READ OFF THE LOOP'S OWN BUFFER, not bound outside it, and that is
-; linearity again rather than a style choice. `(let (wm-n m) (fn (n) (loop ((m m)
-; …))))` uses the incoming buffer TWICE at the top -- once to measure it and
+; linearity again rather than a style choice. `(let n (wm-n m) (loop ((m m)
+; …)))` uses the incoming buffer TWICE at the top -- once to measure it and
 ; once to hand it to the loop -- and when the argument is itself a `wm-put`,
 ; call-by-need binds it and the second use is a use after hand-off. Reading it
 ; inside, where the loop variable is the buffer, is one use.
@@ -115,16 +115,17 @@
       (x64.setge i (wm-n m))          m
       ; A free slot: claim it.
       (= (wm-used m (wm-n m) k i) 0)
-        (let (wm-c m (x64.imul 3 (wm-s (wm-n m) k i))) (fn (u)
-          (let (wm-c m (x64.add (x64.imul 3 (wm-s (wm-n m) k i)) 1)) (fn (kc)
-            (let (wm-vi m (wm-n m) k i) (fn (vc)
-              (set (set (set m u 1) kc k) vc v)))))))
+        (let u  (wm-c m (x64.imul 3 (wm-s (wm-n m) k i)))
+             kc (wm-c m (x64.add (x64.imul 3 (wm-s (wm-n m) k i)) 1))
+             vc (wm-vi m (wm-n m) k i)
+          (set (set (set m u 1) kc k) vc v))
       ; The key is already here: overwrite, so an insert is idempotent in the
       ; domain. This is the clause that makes |dom m| an INTERVAL rather than an
       ; equation (growth.md §1.1) -- whether the key was present is a fact about
       ; the input, and here is where the program finds out.
       (= (wm-key m (wm-n m) k i) k)
-        (let (wm-vi m (wm-n m) k i) (fn (vc) (set m vc v)))
+        (let vc (wm-vi m (wm-n m) k i)
+          (set m vc v))
       else                     (again m (x64.add i 1))))
 
 ; HOW MANY KEYS ARE PRESENT. A scan, because nothing counts as it goes.
@@ -134,10 +135,10 @@
 ; Tier 2 disagreement, only a different price. A count in a reserved header cell
 ; would make it O(1) and is not done here because no program needs it yet.
 (def wm-len (m)
-  (let (wm-n m) (fn (n)
+  (let n (wm-n m)
     (loop ((c 0) (s 0))
       (x64.setge s n)  c
-      else             (again (x64.add c (m (wm-c m (x64.imul 3 s)))) (x64.add s 1))))))
+      else             (again (x64.add c (m (wm-c m (x64.imul 3 s)))) (x64.add s 1)))))
 
 ; THE SLOT COUNT FROM A CAPACITY: the least power of two that is at least twice
 ; the capacity, so the load factor never exceeds 1/2 and linear probing stays
@@ -207,11 +208,11 @@
 ; One pass over the slots, each occupied key written to its own rank. `out` is
 ; only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
 (def wm-keys (m)
-  (let (wm-len m) (fn (cnt)
+  (let cnt (wm-len m)
     (build cnt (fn (out)
       (loop ((out out) (s 0))
         (x64.setge s (wm-n m))   out
         (= (wm-used-at m s) 0)   (again out (x64.add s 1))
         else                     (again (set out (wm-c out (wm-rank m (wm-key-at m s)))
                                               (wm-key-at m s))
-                                        (x64.add s 1))))))))
+                                        (x64.add s 1)))))))

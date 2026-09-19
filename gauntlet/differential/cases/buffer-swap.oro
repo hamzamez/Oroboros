@@ -21,9 +21,9 @@
 ;
 ; [3,7] swapped is [7,3], printed as 73 plus the input so the three rows differ.
 (def run (n)
-  (let (build 2 (fn (b)
-         (let (set (set b 0 3) 1 7) (fn (b)
-           (let (b 0) (fn (vx)
-             (let (b 1) (fn (vy)
-               (set (set b 0 vy) 1 vx)))))))))
-    (fn (t) (+ (* 10 (t 0)) (+ (t 1) n)))))
+  (let t (build 2 (fn (b)
+           (let b  (set (set b 0 3) 1 7)
+                vx (b 0)
+                vy (b 1)
+             (set (set b 0 vy) 1 vx))))
+    (+ (* 10 (t 0)) (+ (t 1) n))))

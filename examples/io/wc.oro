@@ -59,10 +59,13 @@
 ; packed array on V8 and a `short[]` on the JVM — where a file byte does not fit
 ; a signed `byte` — and `(src i)` may be compared without a refusal.
 (def main ()
-  (let (os.Args) (fn (av)
+  (let av (os.Args)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
-        ((os.ReadFile (av 1)) (fn (src err)
+        ; SEVERAL RESULTS ARE BOUND, not passed to a continuation: `(tuple src
+        ; err)` on the left of a `let` is the product's eliminator written in
+        ; binding order (spec/binding.md §5), and it is the same term either way.
+        (let (tuple src err) (os.ReadFile (av 1))
           (if (os.err-nil err)
               (if (>= (len src) cap-in)
                   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
@@ -72,4 +75,4 @@
                           (if (< lines cap-in)
                               (if (= (src i) 10) (+ lines 1) lines)
                               lines))))
-              (seq (io.print-line "wc: cannot read that file") 0))))))))
+              (seq (io.print-line "wc: cannot read that file") 0))))))

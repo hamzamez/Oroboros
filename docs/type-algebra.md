@@ -253,8 +253,8 @@ explicit state, and the state is the loop variables.
 
 ;; ⟶
 (loop ((x s))
-  (== (tag x) 0)  (let (payload x) (fn (v) (use v)))
-  else            (let (payload x) (fn (e) (report e))))
+  (== (tag x) 0)  (let v (payload x) (use v))
+  else            (let e (payload x) (report e)))
 ```
 
 The pattern *bindings* become `let`s, and **`again` under a `let` already works** —

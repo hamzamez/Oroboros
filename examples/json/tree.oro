@@ -140,10 +140,10 @@
 
 (def link (nodes stk sp k)
   (if (go.< sp 1) nodes
-    (let (stk (ssl (go.- sp 1) 1)) (fn (lc)
+    (let lc (stk (ssl (go.- sp 1) 1))
       (if (= lc 0)
         (set nodes (nsl (stk (ssl (go.- sp 1) 0)) 2) k)
-        (set nodes (nsl lc 3) k))))))
+        (set nodes (nsl lc 3) k)))))
 
 (def mark (stk sp k)
   (if (go.< sp 1) stk (set stk (ssl (go.- sp 1) 1) k)))
@@ -203,18 +203,18 @@
         ; one copy. That is the rule choosing the better shape, and it was not
         ; the first thing tried.
         (scalar? (src i))
-          (let (if (= (src i) 34) 2 (if (numeric? (src i)) 1 3)) (fn (tg)
-          ; Scanning starts PAST the byte the guard already matched: identical
-          ; answers, and it is what makes the loop provable. Starting at `i` a
-          ; scanner may return `i`, so monotonicity gives only `i' >= i` and
-          ; there is no strict descent (monotone-2026-08-27).
-          (let (if (= (src i) 34) (scan-string src i)
-                (if (numeric? (src i)) (scan-run src (go.+ i 1) numeric?)
-                                       (scan-run src (go.+ i 1) alpha?))) (fn (ni)
+          (let tg (if (= (src i) 34) 2 (if (numeric? (src i)) 1 3))
+               ni (if (= (src i) 34) (scan-string src i)
+                   (if (numeric? (src i)) (scan-run src (go.+ i 1) numeric?)
+                                          (scan-run src (go.+ i 1) alpha?)))
+            ; Scanning starts PAST the byte the guard already matched: identical
+            ; answers, and it is what makes the loop provable. Starting at `i` a
+            ; scanner may return `i`, so monotonicity gives only `i' >= i` and
+            ; there is no strict descent (monotone-2026-08-27).
             (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (go.- ni i))
-                         stk sp nn)
-                   (mark stk sp nn)
-                   ni (go.+ nn 1) sp ok)))))
+                           stk sp nn)
+                     (mark stk sp nn)
+                     ni (go.+ nn 1) sp ok))
 
         else (again nodes stk (go.+ i 1) nn sp 0)))))))
 
@@ -245,18 +245,18 @@
       ; the program has to say what it does when the worklist fills.
       (go.>= sp nmax)              (go.+ (go.* seen 1000) acc)
       else
-        (let (wl (ssl2 (go.- sp 1) 0)) (fn (n)
-        (let (wl (ssl2 (go.- sp 1) 1)) (fn (d)
-        (let (nodes (nsl n 3)) (fn (sb)
-        (let (nodes (nsl n 2)) (fn (kd)
-        (let (go.- sp 1) (fn (s1)
-        (let (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d)) (fn (w1)
-        (let (if (= sb 0) s1 (go.+ s1 1)) (fn (s2)
-        (let (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (go.+ d 1))) (fn (w2)
-        (let (if (= kd 0) s2 (go.+ s2 1)) (fn (s3)
+        (let n  (wl (ssl2 (go.- sp 1) 0))
+             d  (wl (ssl2 (go.- sp 1) 1))
+             sb (nodes (nsl n 3))
+             kd (nodes (nsl n 2))
+             s1 (go.- sp 1)
+             w1 (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d))
+             s2 (if (= sb 0) s1 (go.+ s1 1))
+             w2 (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (go.+ d 1)))
+             s3 (if (= kd 0) s2 (go.+ s2 1))
           (again w2 s3 (go.+ seen 1)
                  (go.+ acc (go.* (nodes (nsl n 0)) d))
-                 (go.+ steps 1))))))))))))))))))))))))
+                 (go.+ steps 1)))))))
 
 ; --- documents --------------------------------------------------------------
 ;
@@ -279,10 +279,10 @@
 (def d3 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
 
 (def report (src)
-  (let (parse src) (fn (nodes)
+  (let nodes (parse src)
     (go.+ (go.* (go.- (nodes 0) 1) 1000000)
       (go.+ (go.* (walk nodes) 10)
-            (nodes 1))))))
+            (nodes 1)))))
 
 (def measure (src) (walk (parse src)))
 

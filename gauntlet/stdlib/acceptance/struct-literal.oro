@@ -53,6 +53,6 @@
 (export main)
 
 (def main ()
-  (let (img.Rectangle (img.Point 10 5) (img.Point 2 1)) (fn (r)
+  (let r (img.Rectangle (img.Point 10 5) (img.Point 2 1))
     (seq (io.print-int (Rect.Dx r))
-         (io.print-int (Rect.Dy r))))))
+         (io.print-int (Rect.Dy r)))))

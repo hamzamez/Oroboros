@@ -26,10 +26,10 @@
 (def vindex (v i) ((v (fn (n f) f)) i))
 
 (def materialize (v)
-  (let (js.Float64Array (vlen v)) (fn (dst)
+  (let dst (js.Float64Array (vlen v))
     (loop ((d dst) (i 0))
       (js.>= i (vlen v))  d
-      else                (again (js.set d i (vindex v i)) (js.+ i 1))))))
+      else                (again (js.set d i (vindex v i)) (js.+ i 1)))))
 
 (def fill-into (dst v)
   (loop ((d dst) (i 0))

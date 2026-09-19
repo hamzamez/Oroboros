@@ -65,9 +65,9 @@
 (def mpass (s a b w)
   (loop ((b b) (lo 0))
     (>= lo cap)  b
-    else (let (mmin cap (+ lo w)) (fn (mid)
-          (let (mmin cap (+ lo (* 2 w))) (fn (hi)
-            (again (merge1 s a b lo mid hi) hi)))))))
+    else (let mid (mmin cap (+ lo w))
+              hi  (mmin cap (+ lo (* 2 w)))
+           (again (merge1 s a b lo mid hi) hi))))
 
 ; THE WORKSPACE, THREADED. `a` is what is sorted so far and `b` is where this
 ; pass writes; the `again` hands each to the other's place. `a` is READ inside
@@ -81,7 +81,7 @@
         else          (again (mpass s a b w) a (* 2 w)))))))) 
 
 (def run (s)
-  (let (msort s) (fn (v)
+  (let v (msort s)
     (loop ((acc 0) (r 0))
       (>= r cap)  acc
-      else          (again (+ acc (* (+ r 1) (key s (pat v r)))) (+ r 1))))))
+      else          (again (+ acc (* (+ r 1) (key s (pat v r)))) (+ r 1)))))

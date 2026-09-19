@@ -383,7 +383,7 @@ The non-linear mistake, and its diagnostic:
 ```
 in sieve: `b` is used twice here, but a buffer may be used once.
   A store consumes the buffer and returns it, so thread it:
-      (let (set b 0 1.0) (fn (b) (set b 1 2.0)))
+      (let b (set b 0 1.0) (set b 1 2.0))
   or carry it as a loop variable.
 ```
 
@@ -447,7 +447,7 @@ which twenty-five years of practice suggest is the right friction.
 **A linearity error is reported on the residual**, so the diagnostic must carry source positions
 back through reduction. The refinement checker has the same problem and has not solved it well.
 
-**Threading is syntactically heavier than assignment.** `(let (set b 0 v) (fn (b) …))` against
+**Threading is syntactically heavier than assignment.** `(let b (set b 0 v) …)` against
 `b[0] = v`. `loop` absorbs most of it, and a `do`-style sugar that threads implicitly would absorb
 the rest — deliberately not specified here, because sugar should follow a real program's shape
 rather than precede it.

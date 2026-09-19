@@ -37,17 +37,17 @@
 (def composite? (c i) (x64.test-byte c i))
 
 (def sieve (n)
-  (let (kernel32.VirtualAlloc n) (fn (c)
+  (let c (kernel32.VirtualAlloc n)
     (loop ((i 2))
       (x64.setge (x64.imul i i) n)  c
       (composite? c i)              (again (x64.add i 1))
-      else                          (seq (cross c i n) (again (x64.add i 1)))))))
+      else                          (seq (cross c i n) (again (x64.add i 1))))))
 
 (def count-primes (n)
-  (let (sieve n) (fn (c)
+  (let c (sieve n)
     (loop ((acc 0) (k 2))
       (x64.setge k n)     acc
       (composite? c k)    (again acc (x64.add k 1))
-      else                (again (x64.add acc 1) (x64.add k 1))))))
+      else                (again (x64.add acc 1) (x64.add k 1)))))
 
 (def main () (fmt.print-int (count-primes 20000)))

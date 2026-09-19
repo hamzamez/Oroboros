@@ -121,8 +121,8 @@
 ; range, which is an inductive invariant over a buffer's own contents, and
 ; frozen-2026-08-28 says that is strictly stronger than an octagon.
 (def at (t i)
-  (let (if (< i 0) 0 (if (>= i (len t)) 0 (t i))) (fn (v)
-    (if (< v 0) 0 (% v 16777216)))))
+  (let v (if (< i 0) 0 (if (>= i (len t)) 0 (t i)))
+    (if (< v 0) 0 (% v 16777216))))
 
 ; THE BOUND CHECK, and it is why this rung is sound at all. `trap-if` returns 0
 ; when handed 0 and fails loudly otherwise; both branches of the conditional are
@@ -171,8 +171,8 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
-      else      (let (+ (+ (at a i) (at b i)) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
+      else      (let t (+ (+ (at a i) (at b i)) c)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
 
 ; ------------------------------------------------------- multiply by a word
 ;
@@ -186,8 +186,8 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
-      else      (let (+ (* (at a i) k) c) (fn (t)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))))
+      else      (let t (+ (* (at a i) k) c)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
 
 ; ------------------------------------------------------------ big by big
 ;
@@ -214,9 +214,9 @@
   (loop ((o o) (j 0) (c 0))
     (>= j n)          (guard n lim c o)
     (>= (+ i j) n)    (again (guard n lim (* (at a i) (at b j)) (guard n lim c o)) (+ j 1) 0)
-    else              (let (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c) (fn (t)
+    else              (let t (+ (+ (at o (+ i j)) (* (at a i) (at b j))) c)
                         (again (set o (+ i j) (% t 16777216))
-                               (+ j 1) (/ t 16777216))))))
+                               (+ j 1) (/ t 16777216)))))
 
 (def mul (n lim a b)
   (build n (fn (o)
@@ -241,10 +241,10 @@
   (build n (fn (o)
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  (guard n lim bw o)
-      else      (let (- (- (at a i) (at b i)) bw) (fn (t)
+      else      (let t (- (- (at a i) (at b i)) bw)
                   (again (set o i (if (< t 0) (+ t 16777216) t))
                          (+ i 1)
-                         (if (< t 0) 1 0))))))))
+                         (if (< t 0) 1 0)))))))
 
 ; --------------------------------------------------------- divide by a word
 ;
@@ -271,8 +271,8 @@
   (build n (fn (o)
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
-      else     (let (+ (* r 16777216) (at a i)) (fn (cur)
-                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))))
+      else     (let cur (+ (* r 16777216) (at a i))
+                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))
 
 ; ---------------------------------------------------------------- comparison
 ;
@@ -315,5 +315,5 @@
 (def rem-small (n lim a k)
   (loop ((i (- n 1)) (r 0))
     (< i 0)  r
-    else     (let (+ (* r 16777216) (at a i)) (fn (cur)
-               (again (- i 1) (% cur k))))))
+    else     (let cur (+ (* r 16777216) (at a i))
+               (again (- i 1) (% cur k)))))

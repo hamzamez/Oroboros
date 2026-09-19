@@ -190,7 +190,10 @@ spec to read before touching it.
   substituted into an impure body (§7c).
 - **Booleans and control.** `bool` is data and `if` is its eliminator; `and`/`or`/`not`/`cond` erase
   in the reader (ADR 0017, [booleans.md](docs/spec/booleans.md)). `(if true a b) → a` is the only
-  evaluation reduction performs.
+  evaluation reduction performs. The reader also builds `(if (not c) a b)` as `(if c b a)` — case-of-case
+  plus that evaluation, done eagerly — **unless a branch is a boolean literal**, where the term is a
+  connective a backend emits as an operator. That is what makes `cond` cost nothing
+  ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
 - **Iteration.** `(loop ((x z)…) c e … else e)` with `(again a…)` (ADR 0015). `again` is a jump; it may
   be a clause body or sit under a `let`, never under an `if`. `match` is reader sugar over `loop`
   ([match.md](docs/spec/match.md)).

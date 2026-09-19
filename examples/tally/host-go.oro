@@ -21,7 +21,10 @@
   (def hit?    (r s) (rx.MatchString r s))
   ; FindStringSubmatch is the whole match followed by every group, or empty.
   (def capture (r s) (let m (rx.FindStringSubmatch r s)
-                       (if (>= (len m) 2) (m 1) (if (>= (len m) 1) (m 0) ""))))
+                       (cond
+                         (>= (len m) 2)  (m 1)
+                         (>= (len m) 1)  (m 0)
+                         else            "")))
   (def cmp     (a b) (str.Compare a b))
   (def lines   (t) (str.Split t "\n"))
   (def show    (n) (conv.Itoa n)))

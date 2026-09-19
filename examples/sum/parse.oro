@@ -13,8 +13,7 @@
 (sig step ((a int) (b int)) result)
 
 (def step (a b)
-  (if (= b 0)
-    (err 1)
-    (if (go.> (go.% a b) 0)
-      (err 2)
-      (ok (go./ a b)))))
+  (cond
+    (= b 0)              (err 1)
+    (go.> (go.% a b) 0)  (err 2)
+    else                 (ok (go./ a b))))

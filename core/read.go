@@ -561,7 +561,57 @@ func (r *reader) list() (*Term, error) {
 		}
 		return Fn(params, kids[2]), nil
 	}
+	// A NEGATED CONDITION IS A SWAP, and the reader performs it here rather
+	// than leaving it for a backend (booleans.md §4.3).
+	if kids[0].Kind == KName && kids[0].Name == "if" && len(kids) == 4 {
+		return mkIf(kids[1], kids[2], kids[3]), nil
+	}
 	return &Term{Kind: KApp, Kids: kids}, nil
+}
+
+// mkIf builds `(if c a b)`, normalising a negated condition:
+//
+//	if (¬c) a b  =  if c b a
+//
+// It is not a new rule. `(not c)` reads as `(if c false true)`, and the
+// language already has case-of-case and `(if true a b) → a`; performing both
+// eagerly, at the one place an `if` is built, is what this is:
+//
+//	(if (if c false true) a b)
+//	  ⟶ (if c (if false a b) (if true a b))     case-of-case
+//	  ⟶ (if c b a)                              evaluation
+//
+// It matters because it is what makes `cond` FREE. A clause chain has to state
+// the negation to put a failure case first, and without this the emitted code
+// grows a `!` and its branches come out in the opposite order from the `if`
+// staircase the same program was before (letflat's successor, cond-2026-09-19).
+// The refinement layer also reads its facts off comparisons, and a comparison
+// wrapped in a negation is not one.
+//
+// A CONNECTIVE IS NOT A BRANCH SELECTOR. `(and a b)` is `(if a b false)` and
+// `(or a b)` is `(if a true b)`, so a boolean literal in either branch means
+// the term is an operator every backend emits as one (emit/connective.go), and
+// swapping it would lower it to a conditional — exactly the "never lower
+// further than the target requires" failure.
+func mkIf(c, a, b *Term) *Term {
+	for a.Kind != KBool && b.Kind != KBool {
+		inner, ok := negated(c)
+		if !ok {
+			break
+		}
+		c, a, b = inner, b, a
+	}
+	return &Term{Kind: KApp, Kids: []*Term{Name("if"), c, a, b}}
+}
+
+// negated recognises what `not` reads as.
+func negated(t *Term) (*Term, bool) {
+	if t.Kind == KApp && len(t.Kids) == 4 && t.Kids[0].Kind == KName && t.Kids[0].Name == "if" &&
+		t.Kids[2].Kind == KBool && !t.Kids[2].IsTrue() &&
+		t.Kids[3].Kind == KBool && t.Kids[3].IsTrue() {
+		return t.Kids[1], true
+	}
+	return nil, false
 }
 
 // paramList reads (a b c). The reader produced it as an application, so it is
@@ -1383,7 +1433,7 @@ func clauseChain(clauses []*Term, what string, line int, check func(*Term) error
 	// emitted for it.
 	body := clauses[len(clauses)-1]
 	for i := len(clauses) - 4; i >= 0; i -= 2 {
-		body = &Term{Kind: KApp, Kids: []*Term{Name("if"), clauses[i], clauses[i+1], body}}
+		body = mkIf(clauses[i], clauses[i+1], body)
 	}
 	return body, nil
 }

@@ -66,13 +66,16 @@
         ; err)` on the left of a `let` is the product's eliminator written in
         ; binding order (spec/binding.md §5), and it is the same term either way.
         (let (tuple src err) (os.ReadFile (av 1))
-          (if (os.err-nil err)
-              (if (>= (len src) cap-in)
-                  (seq (io.print-line "wc: file is larger than this tool accepts") 0)
-                  (loop ((i 0) (lines 0))
-                    (>= i (len src)) (io.print-int lines)
-                    else (again (+ i 1)
-                          (if (< lines cap-in)
-                              (if (= (src i) 10) (+ lines 1) lines)
-                              lines))))
-              (seq (io.print-line "wc: cannot read that file") 0))))))
+          ; THREE OUTCOMES, THREE CLAUSES. `cond` erases to the same nested `if`s
+          ; in the order written (ADR 0017), and the price of flatness is the one
+          ; `not`: a staircase tests `err-nil` once and uses both arms, while a
+          ; clause chain states the negation to put the failure first.
+          (cond
+            (not (os.err-nil err))  (seq (io.print-line "wc: cannot read that file") 0)
+            (>= (len src) cap-in)   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
+            else (loop ((i 0) (lines 0))
+                   (>= i (len src)) (io.print-int lines)
+                   else (again (+ i 1)
+                         (if (< lines cap-in)
+                             (if (= (src i) 10) (+ lines 1) lines)
+                             lines))))))))

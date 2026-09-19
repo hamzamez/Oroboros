@@ -22,6 +22,7 @@
 ; never reach a backend.
 (def run (n)
   (let t (build 2 (fn (b) (set (set b 0 (- 0 n)) 1 n)))
-    (if (= n 1) (/ (t 0) 2)
-      (if (= n 2) (% (t 0) 2)
-        (/ (t 1) 2)))))
+    (cond
+      (= n 1)  (/ (t 0) 2)
+      (= n 2)  (% (t 0) 2)
+      else     (/ (t 1) 2))))

@@ -65,7 +65,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | `(def f (x…) body)` | `(def f (fn (x…) body))` — the equational shorthand; a parameter list is a list of NAMES, and one body | [def.md §4](def.md), [program-surface.md](../program-surface.md) |
 | `(let x e … b)` | nested applications: `((fn (x) b) e)`, and `(e (fn (a b) body))` for a `(tuple a b)` left-hand side | [binding.md](binding.md) |
 | `(seq a b)` | `((fn (_) b) a)` — a binding whose name is discarded | [binding.md §6](binding.md), [effects.md §5](effects.md) |
-| `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if` | [booleans.md](booleans.md) |
+| `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if`; and `(if (not c) a b)` is built as `(if c b a)`, unless a branch is a boolean literal and the term is a connective | [booleans.md §4.2](booleans.md) |
 | `(tuple a b …)` | `(fn (k) (k a b …))` | [data.md](data.md), [values.md](values.md) |
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
 | `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md) |

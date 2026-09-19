@@ -148,6 +148,8 @@
 
 (sig run ((k int)) int)
 (def run (k)
-  (if (= k 0) (tokens d0)
-    (if (= k 1) (tokens d1)
-      (if (= k 2) (tokens d2) (tokens d3)))))
+  (cond
+    (= k 0)  (tokens d0)
+    (= k 1)  (tokens d1)
+    (= k 2)  (tokens d2)
+    else     (tokens d3)))

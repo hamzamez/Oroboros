@@ -91,9 +91,10 @@
 ; scanner may return `i`, so there is no strict descent and the loop cannot be
 ; proven to terminate.
 (def tok-end (src i)
-  (if (= (src i) 34) (scan-string src i)
-    (if (numeric? (src i)) (scan-run src (+ i 1) numeric?)
-                           (scan-run src (+ i 1) alpha?))))
+  (cond
+    (= (src i) 34)      (scan-string src i)
+    (numeric? (src i))  (scan-run src (+ i 1) numeric?)
+    else                (scan-run src (+ i 1) alpha?)))
 
 ; --- how many bytes each token contributes ----------------------------------
 ;

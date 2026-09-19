@@ -203,10 +203,14 @@
         ; one copy. That is the rule choosing the better shape, and it was not
         ; the first thing tried.
         (scalar? (src i))
-          (let tg (if (= (src i) 34) 2 (if (numeric? (src i)) 1 3))
-               ni (if (= (src i) 34) (scan-string src i)
-                   (if (numeric? (src i)) (scan-run src (go.+ i 1) numeric?)
-                                          (scan-run src (go.+ i 1) alpha?)))
+          (let tg (cond
+                    (= (src i) 34)      2
+                    (numeric? (src i))  1
+                    else                3)
+               ni (cond
+                    (= (src i) 34)      (scan-string src i)
+                    (numeric? (src i))  (scan-run src (go.+ i 1) numeric?)
+                    else                (scan-run src (go.+ i 1) alpha?))
             ; Scanning starts PAST the byte the guard already matched: identical
             ; answers, and it is what makes the loop provable. Starting at `i` a
             ; scanner may return `i`, so monotonicity gives only `i' >= i` and
@@ -288,6 +292,8 @@
 
 (sig run ((k int)) int)
 (def run (k)
-  (if (= k 0) (report d0)
-    (if (= k 1) (report d1)
-      (if (= k 2) (report d2) (report d3)))))
+  (cond
+    (= k 0)  (report d0)
+    (= k 1)  (report d1)
+    (= k 2)  (report d2)
+    else     (report d3)))

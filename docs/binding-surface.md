@@ -4,7 +4,9 @@ Research, **no decision**. 2026-09-19, on hamza's four questions:
 
 > **Decided and built the same day**, for `let` and `seq`: [spec/binding.md](spec/binding.md) is the
 > specification and [letflat-2026-09-19](../gauntlet/results/letflat-2026-09-19.md) the result.
-> Recommendations 3 (use `cond`) and 4 (the reader should own arity) are **not** built.
+> Recommendation 3 (use `cond`) followed on the same day: [cond-2026-09-19](../gauntlet/results/cond-2026-09-19.md),
+> which found §5 half right — `cond` is free only once a negated condition swaps its branches.
+> Recommendation 4 (the reader should own arity) is **not** built.
 
 1. Shen's `(let v1 e1 v2 e2 … body)` against ours, `(let e (fn (x) b))`, which reads like F#'s and
    Elixir's `|>`;
@@ -126,6 +128,12 @@ hamza's readability question, tested rather than argued. `wc.oro`'s body rewritt
 - **Same emitted code**, with the branches in the order the clauses are written.
 - **The cost of flatness is one `not`**: a nested `if` tests `err-nil` once and uses both arms; a flat
   clause chain has to state the negation to put the failure first.
+
+> **Corrected on building it** ([cond-2026-09-19](../gauntlet/results/cond-2026-09-19.md)). The
+> second bullet is wrong as measured here: the emitted code was **not** the same. It grew a `!` and
+> its branches came out in the opposite order, because the negation stayed in the condition. `cond`
+> became free only after the reader was taught to swap a negated condition's branches, which is
+> case-of-case plus `(if true a b) → a` performed eagerly. The first and third bullets stand.
 
 So `cond` is free, and the reason to prefer it is exactly hamza's: three outcomes read as three
 clauses instead of a staircase. **And the language already speaks that idiom twice** — `loop`'s

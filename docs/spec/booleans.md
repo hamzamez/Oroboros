@@ -312,6 +312,32 @@ written.
 **None of the four survives the reader**, exactly as `let` and `seq` do not. A residual contains
 `if`, `true` and `false` and nothing else new.
 
+### 4.2a A negated condition swaps its branches
+
+```
+(if (not c) a b)  ⟶  (if c b a)          a, b not boolean literals
+```
+
+**Not a fifth rule.** `(not c)` is `(if c false true)`, and the language already has case-of-case
+and §4.3's evaluation, which together give the identity:
+
+```
+(if (if c false true) a b)
+  ⟶ (if c (if false a b) (if true a b))     case-of-case
+  ⟶ (if c b a)                              evaluation
+```
+
+The reader performs both eagerly, at the one place it builds an `if` (`core/read.go`'s `mkIf`), and
+that is what makes `cond` **free**: a clause chain has to state the negation to put a failure case
+first, and without the swap the emitted code grows a `!` and its branches come out in the opposite
+order from the staircase the same program was before
+([cond-2026-09-19](../../gauntlet/results/cond-2026-09-19.md)). The refinement layer also reads its
+facts off comparisons, and a comparison wrapped in a negation is not one.
+
+**The side condition is what keeps a connective a connective.** `(and a b)` is `(if a b false)` and
+`(or a b)` is `(if a true b)`, so a boolean literal in either branch means the term is an operator
+every backend emits as one (`emit/connective.go`); swapping there would lower `!p && q` to a
+conditional, which is §4.4's whole objection.
 ### 4.3 Two reduction rules
 
 ```

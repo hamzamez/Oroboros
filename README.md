@@ -149,16 +149,15 @@ the JVM, whose `byte` is signed. Above the machine word, the target picks the re
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
         (let (tuple src err) (os.ReadFile (av 1))
-          (if (os.err-nil err)
-              (if (>= (len src) cap-in)
-                  (seq (io.print-line "wc: file is larger than this tool accepts") 0)
-                  (loop ((i 0) (lines 0))
-                    (>= i (len src)) (io.print-int lines)
-                    else (again (+ i 1)
-                          (if (< lines cap-in)
-                              (if (= (src i) 10) (+ lines 1) lines)
-                              lines))))
-              (seq (io.print-line "wc: cannot read that file") 0))))))
+          (cond
+            (not (os.err-nil err))  (seq (io.print-line "wc: cannot read that file") 0)
+            (>= (len src) cap-in)   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
+            else (loop ((i 0) (lines 0))
+                   (>= i (len src)) (io.print-int lines)
+                   else (again (+ i 1)
+                         (if (< lines cap-in)
+                             (if (= (src i) 10) (+ lines 1) lines)
+                             lines))))))))
 ```
 
 ```bash
@@ -167,7 +166,10 @@ go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro && node wc.mjs 
 go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-classes Main CLAUDE.md
 ```
 
-All three print `455`, the same as `wc -l`.
+All three print `471`, the same as `wc -l`.
+- **Three outcomes are three clauses.** `cond` erases to the nested `if`s it means, and a negated
+  condition swaps its branches — `if (¬c) a b = if c b a` — so this emits the same Go, byte for
+  byte, as the staircase it replaced.
 - **A fallible call gives two results, bound by `(let (tuple src err) …)`, on every host**, including the ones where
   the platform throws. How each host fails is written once, in that target's declarations. On Go it
   compiles to `src, err := os.ReadFile(av[1])`.

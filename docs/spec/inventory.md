@@ -20,6 +20,12 @@ against that standard.
 > The two previous audits (2026-08-25, and the portable layer's before it) were taken by hand, and each
 > was stale within a week.
 
+**What is not a word.** An `.oro` file also contains a lexical layer this audit cannot reach, because
+none of it is dispatched on: the token classes, and **comments**, which are gap rather than tokens.
+Comments were unspecified until 2026-09-20 and are now [comments.md](comments.md) and
+[ADR 0024](../decisions/0024-comments-are-erased.md). The mechanical check tests words; the lexical
+layer is tested by `core/comment_test.go`.
+
 **Result: 136 words.**
 
 | status | count |

@@ -25,6 +25,10 @@ term ::= name | integer | float | string | true | false
   variable stored as *"the parameter of the binder N levels out"*, the locally nameless representation.
   The names in `Params` are hints, kept so emitted code reads well.
 - **The entry point** is an export named `main` taking no arguments ([build.md §2](build.md)).
+- **A comment is `;` to the end of the line or of the input**, and it is **gap**, not a token: it is
+  erased by the lexer, so no pass below the reader can see one and no emitted file carries one. There
+  are no doc comments, no pragmas, no block comments and no `#;`
+  ([comments.md](comments.md), [ADR 0024](../decisions/0024-comments-are-erased.md)).
 - **`fn` is also spelled `λ`.**
 
 ### Top-level forms of a program

@@ -86,7 +86,7 @@ token.
 ### 1.2 Tokens
 
 ```
-comment    ::= ";" any* newline
+comment    ::= ";" (any but newline)* (newline | end-of-input)   ; spec/comments.md
 whitespace ::= space | tab | newline | return
 delimiter  ::= "(" | ")" | whitespace | ";"
 

@@ -137,6 +137,7 @@ rejected alternatives.
 | Declarations are theories, and the surface that follows — amends 0011's *reasoning* | [0021](docs/decisions/0021-declarations-are-theories.md) |
 | Host declarations are written by hand; the generator is their checker | [0022](docs/decisions/0022-host-declarations-are-written-by-hand.md) |
 | A generator does not make a claim it cannot justify | [0023](docs/decisions/0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) |
+| A comment never carries meaning; documentation is a term | [0024](docs/decisions/0024-comments-are-erased.md) |
 
 ## How this project is run
 
@@ -172,6 +173,12 @@ spec to read before touching it.
 
 - **Terms.** Seven term kinds: name, integer, float, string, `true`/`false`, `fn` and application.
   `core.Term`'s `KBound` is internal.
+- **Comments.** `;` to the end of the line or of the input, and **gap rather than a token**: erased by
+  the lexer, so nothing below the reader sees one and no emitted file carries one. No doc comments, no
+  pragmas, no block comments, no `#;` — which would let a comment change which grammar a form takes,
+  since `def`, `let` and every clause chain are discriminated by arity or parity
+  ([comments.md](docs/spec/comments.md), ADR 0024). **A tool that rewrites source preserves every gap
+  or refuses the edit**; two rewriters have lost comments the compiler could never have missed.
 - **Definitions.** `(def f (x…) body)` is sugar for `(def f (fn (x…) body))`: a parameter list is a
   list of NAMES, there is one body, and `(fn …)` stays legal
   ([def.md §4](docs/spec/def.md), [program-surface.md](docs/program-surface.md)). **A constant is a

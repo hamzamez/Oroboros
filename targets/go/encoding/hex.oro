@@ -102,11 +102,13 @@
           (host expr "hex.NewDecoder(%s)" (import "encoding/hex")))
     (sig Dumper ((w go/io.Writer)) go/io.WriteCloser
           (host expr "hex.Dumper(%s)" (import "encoding/hex")))
-  )
 
-  ; The error type's one method. The message is a pure function of the byte.
-  (module go/encoding/hex/InvalidByteError
-    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
-          (host expr "%s.Error()" (import "encoding/hex")))
+    ; THE ERROR TYPE'S ONE METHOD, and it is written INSIDE its package: a child
+    ; module's path is its parent's followed by its own, so this is
+    ; `go/encoding/hex/InvalidByteError` (spec/target-files.md §1a). A child
+    ; named like a type in its parent IS that type's method set.
+    (module InvalidByteError
+      (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+            (host expr "%s.Error()" (import "encoding/hex"))))
   )
 )

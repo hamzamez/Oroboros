@@ -287,7 +287,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 - **What is built:**
   - target files in the `(sig … (host …))` spelling ([target-files.md](docs/spec/target-files.md));
   - types owned by their module;
-  - companions and `include`, from which subtyping is derived;
+  - companions and `include`, from which subtyping is derived, written as child modules inside their package;
   - `const`, and constants as range endpoints;
   - manifest types unfolded by δ;
   - `D_T`, definitions inside `provides`.
@@ -298,7 +298,11 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `java/java/util/regex` — because `ι(p) = HOST ++ p` is injective and commutes with `lastSegment`,
   so an import's default alias is the host's own name and needs no `as` (ADR 0025,
   [modules.md §3.1](docs/spec/modules.md)). A type's companion is a child of its package. **The file
-  is the path**: `targets/go/encoding/hex.oro`, and the target loader walks.
+  is the path**: `targets/go/encoding/hex.oro`, and the target loader walks. **A module may contain a
+  module** — a child's path is its parent's followed by its own, so a companion is written inside its
+  package ([target-files.md §1a](docs/spec/target-files.md),
+  [nestmod-2026-09-20](gauntlet/results/nestmod-2026-09-20.md)). The absolute spelling stays legal,
+  because a fragment in another layer must be able to add to a module it does not enclose.
 - **Host declarations are written by hand**, by someone who read the host's source. The generator
   checks them (ADR 0022) and never claims what it cannot justify (ADR 0023).
 - **What a host call does to a buffer** is declared as a write-borrow or a consume, following

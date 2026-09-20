@@ -181,7 +181,7 @@ All three print `471`, the same as `wc -l`.
 ### 4. `encoding/hex`: a host package, with its preconditions
 
 ```lisp
-(use go/encoding-hex as hex)
+(use go/encoding/hex)
 (use os)
 (use io)
 (export main)
@@ -202,7 +202,7 @@ Go's `hex.Encode` panics if `dst` is too short. Here it cannot be called with on
 destination to `(+ (len src) 1)` bytes and the program does not compile:
 
 ```
-build: main: go/encoding-hex.Encode requires -len(dst) + 2*len(src) <= 0, which does not follow
+build: main: go/encoding/hex.Encode requires -len(dst) + 2*len(src) <= 0, which does not follow
 ```
 
 The three bytes are written as a table's GRAPH, and `hex.Encode` declares a byte table, so the
@@ -211,17 +211,24 @@ declaration decides the representation — `[]byte` on Go, `short[]` on the JVM,
 naming the element.
 
 The declaration is plain data, written by hand from the package's source and checked against the real
-package:
+package. A module's path is the **host's own path**, and a type's method set is a child module
+written inside it:
 
 ```lisp
-(sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-      (tuple (buffer (int 0 255)) (int 0 9007199254740990))
-      (where (<= (* 2 (len src)) (len dst)))
-      (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
-        (import "encoding/hex")))
+(module go/encoding/hex
+  (sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
+        (tuple (buffer (int 0 255)) (int 0 9007199254740990))
+        (where (<= (* 2 (len src)) (len dst)))
+        (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
+          (import "encoding/hex")))
+
+  ; `go/encoding/hex/InvalidByteError` — a child's path is its parent's and its own
+  (module InvalidByteError
+    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+          (host expr "%s.Error()" (import "encoding/hex")))))
 ```
 
-The same program built for JavaScript stops with `(use go/encoding-hex) matched no file`. That is
+The same program built for JavaScript stops with `(use go/encoding/hex) matched no file`. That is
 portability being computed: this program is a Go program, and the compiler says so.
 
 ### 5. Variants and `match`

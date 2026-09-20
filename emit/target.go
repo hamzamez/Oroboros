@@ -1531,42 +1531,8 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			frag.Prims[p.Name] = p
 			frag.Names = append(frag.Names, p.Name)
 		case "module":
-			// (module PATH (sig …) …) — the names this target provides
-			// NATIVELY from that module. A target may provide any subset,
-			// including none, which is what makes porting demand-driven
-			// (modules.md §4).
-			if len(f.Kids) < 2 || f.Kids[1].Kind != core.KName {
-				return nil, fmt.Errorf("%s: (module PATH (sig …)…), got %s", path, f)
-			}
-			for _, inner := range f.Kids[2:] {
-				// A TYPE IS A MEMBER OF ITS MODULE, named by the whole path
-				// (theories.md §3.2, §3.4). A module in a target is a signature
-				// Σ = (S, Ω), and its sorts belong to it: `go/io.Writer` has one
-				// owner, and a base name shared by two packages is two types.
-				if formWord(inner) == "include" {
-					if len(inner.Kids) < 2 {
-						return nil, fmt.Errorf("%s: (include COMPANION …), got %s", path, inner)
-					}
-					for _, k := range inner.Kids[1:] {
-						if k.Kind != core.KName {
-							return nil, fmt.Errorf("%s: (include …) takes module names, got %s", path, k)
-						}
-						if frag.Includes == nil {
-							frag.Includes = map[string][]string{}
-						}
-						frag.Includes[f.Kids[1].Name] = append(frag.Includes[f.Kids[1].Name], k.Name)
-					}
-					continue
-				}
-				if formWord(inner) == "type" {
-					if err := parseType(inner, frag, f.Kids[1].Name, path); err != nil {
-						return nil, err
-					}
-					continue
-				}
-				if err := frag.declare(inner, f.Kids[1].Name, path); err != nil {
-					return nil, err
-				}
+			if err := declareModule(frag, f, "", path); err != nil {
+				return nil, err
 			}
 		default:
 			return nil, fmt.Errorf("%s: unknown target form %q", path, f.Kids[0].Name)
@@ -2130,6 +2096,79 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 // parseStructural reads (structural NAME KIND [pure]). No argument types, no
 // result type, no template — a structural primitive's types and its emission
 // both live in the backend, which is the only place either can be expressed.
+
+// declareModule reads `(module PATH decl…)` into `frag`, where `prefix` is the
+// enclosing module's path, or "" at the top of a file.
+//
+// A MODULE MAY CONTAIN A MODULE (target-files.md §1a), and a child's path is
+// its parent's path followed by its own:
+//
+//	(module go/encoding/hex … (module InvalidByteError …))
+//	  ≡  (module go/encoding/hex …) and (module go/encoding/hex/InvalidByteError …)
+//
+// That is the trie written as a tree. A module path is a word in Seg* and a set
+// of paths ordered by prefix IS a trie, so nesting adds no structure — it names
+// the structure that was already there, and the loader erases it here by
+// concatenation. Nothing below sees a nested form, so `Target.Prims` is keyed by
+// the same fully qualified name either way.
+//
+// THE ABSOLUTE SPELLING STAYS LEGAL, and must: a target is the glue of its
+// fragments, so a file in another layer has to be able to add to
+// `go/io/Writer` without nesting inside a `go/io` it does not declare. This is
+// the `def` shorthand's shape — sugar with a unique expansion, the long form
+// still legal — and not two independent spellings of one construct.
+func declareModule(frag *Target, f *core.Term, prefix, path string) error {
+	if len(f.Kids) < 2 || f.Kids[1].Kind != core.KName {
+		return fmt.Errorf("%s: (module PATH (sig …)…), got %s", path, f)
+	}
+	mod := f.Kids[1].Name
+	if prefix != "" {
+		mod = prefix + "/" + mod
+	}
+	// An empty segment would make two paths that are not equal compare equal
+	// once joined, which is the one thing concatenation must not do.
+	for _, seg := range strings.Split(mod, "/") {
+		if seg == "" {
+			return fmt.Errorf("%s: module path %q has an empty segment; a child is written "+
+				"without a leading or trailing `/` (spec/target-files.md §1a)", path, mod)
+		}
+	}
+	for _, inner := range f.Kids[2:] {
+		switch formWord(inner) {
+		case "module":
+			if err := declareModule(frag, inner, mod, path); err != nil {
+				return err
+			}
+		case "include":
+			// A TYPE IS A MEMBER OF ITS MODULE, named by the whole path
+			// (theories.md §3.2, §3.4). A module in a target is a signature
+			// Σ = (S, Ω), and its sorts belong to it: `go/io.Writer` has one
+			// owner, and a base name shared by two packages is two types.
+			if len(inner.Kids) < 2 {
+				return fmt.Errorf("%s: (include COMPANION …), got %s", path, inner)
+			}
+			for _, k := range inner.Kids[1:] {
+				if k.Kind != core.KName {
+					return fmt.Errorf("%s: (include …) takes module names, got %s", path, k)
+				}
+				if frag.Includes == nil {
+					frag.Includes = map[string][]string{}
+				}
+				frag.Includes[mod] = append(frag.Includes[mod], k.Name)
+			}
+		case "type":
+			if err := parseType(inner, frag, mod, path); err != nil {
+				return err
+			}
+		default:
+			if err := frag.declare(inner, mod, path); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func parseStructural(f *core.Term, path string) (Prim, error) {
 	k := f.Kids[1:]
 	if len(k) < 2 || k[0].Kind != core.KName || k[1].Kind != core.KName {

@@ -48,7 +48,7 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (repr narrow (host "template"))  ; how this host restricts a container
               | (fact NAME ((a (array A))) (<= (len a) N))
               | (implements T I…)
-              | (module PATH (sig…|const…|type…))  ; declares into a module namespace
+              | (module PATH mdecl…)              ; declares into a module namespace
               | sig
               | const
               | structural
@@ -60,6 +60,9 @@ kind        ::= expr | stmt
 template    ::= "…%s…"
 sclause     ::= pure | index | (where φ) | (ensures φ)   ; a length is an ensures, §4 `length`
 hclause     ::= (import "…") | (lib "…") | (checked NAME) | (jump "cc" ["compare"])
+
+mdecl       ::= sig | const | (type …) | (include PATH…)
+              | (module NAME mdecl…)             ; a child, §1a
 
 structural  ::= (structural NAME skind [pure])
 skind       ::= let | cond | loop | loop2 | build
@@ -85,6 +88,54 @@ target. Two forms that disagree are refused in one file as they are across two.
 
 Duplicate names are an error. An unknown kind is an error. A `sig` whose kind is `expr` or `stmt`
 without a template is an error.
+
+## 1a. A module may contain a module
+
+```
+(module PATH decl… (module NAME decl…)…)
+```
+
+**A child's path is its parent's path followed by its own.**
+
+```lisp
+(module go/encoding/hex
+  (sig EncodeToString …)
+  (module InvalidByteError
+    (sig Error ((self go/encoding/hex.InvalidByteError)) string …)))
+```
+
+declares `go/encoding/hex` and `go/encoding/hex/InvalidByteError`, and is **the same target** as
+writing the two out. Nesting is erased in the loader by concatenation, so `Target.Prims` is keyed by
+the same fully qualified name either way.
+
+**It adds no structure.** A module path is a word in `Seg*` and a set of paths ordered by prefix is
+already a trie, so a node may have both members and children whatever the spelling. Nesting writes
+that trie as a tree; the flat form writes it as a list of words. Depth is unbounded because
+concatenation is associative, and a child may itself carry a path: `(module go (module encoding/hex …))`
+is `go/encoding/hex`.
+
+**The absolute spelling stays legal, and must.** A target is the glue of its fragments
+([target-system.md §2](target-system.md)), so a file in another layer has to be able to add to
+`go/io/Writer` without nesting inside a `go/io` it does not declare. This is the `def` shorthand's
+shape — sugar with a unique expansion, the long form still legal ([def.md §4](def.md)) — and not two
+independent spellings of one construct, which [data.md §10](data.md) refuses.
+
+**What it does not change.** Nesting abbreviates where a module is **declared**, never where one is
+**named**:
+
+- a type is named by its whole path, `(self go/encoding/hex.InvalidByteError)`, inside the nested
+  form as outside it;
+- `(include go/io/Writer go/io/Closer)` takes module paths and they stay absolute.
+
+Relative *names* are a question about resolution rather than about this sugar, and it is deliberately
+left open (the last section's list).
+
+**An empty segment is refused.** `(module a (module /b …))` would join to `a//b`, a path no `(use …)`
+can name, and concatenation must not silently produce one.
+
+A **companion** is the case this exists for: a child module named like a type in its parent is that
+type's method set ([theories.md §3.3](theories.md)), so nesting puts the operations inside the
+signature that owns the sort — which is what `Σ = (S, Ω)` says.
 
 ## 1b. `backend` — which code generator compiles this target
 
@@ -865,3 +916,7 @@ A declaration is believed. Nothing here is checked, so each line is an obligatio
   `gauntlet/results/`, not in a declaration.
 - **Conditional declarations.** A target either provides a name or does not; the conditional lives
   in `P_T ∩ D` ([modules.md §6](modules.md)) and needs no syntax.
+- **A name written relative to its module.** Nesting abbreviates a `(module …)` HEAD; a type is
+  still `go/encoding/hex.InvalidByteError` and an `include` still takes absolute paths (§1a). Making
+  a bare `InvalidByteError` resolve inside its own module is name RESOLUTION, not sugar: it would
+  change which type a name binds to when a declaration moves, and it wants its own decision.

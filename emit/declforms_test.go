@@ -3,6 +3,7 @@ package emit
 import (
 	"path/filepath"
 	"reflect"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -562,4 +563,103 @@ func TestATargetsDefinitionsGlueAndOverride(t *testing.T) {
 		!strings.Contains(err.Error(), "m.f is defined twice") {
 		t.Errorf("want a glue collision naming m.f, got %v", err)
 	}
+}
+
+// A MODULE MAY CONTAIN A MODULE (target-files.md §1a, ADR 0025's second half).
+//
+// A module path is a word in Seg* and a set of paths ordered by prefix IS a
+// trie, so nesting adds no structure: it writes the trie as a tree, and the
+// loader erases it by concatenation. The test is therefore a COMMUTING SQUARE —
+// the nested spelling and the flat one must load to the SAME target, not to
+// targets that behave alike.
+func TestANestedModuleIsItsParentsPathAndItsOwn(t *testing.T) {
+	nested := `(target x
+	  (type int (host "int"))
+	  (module go/io (type Writer (host "io.Writer")))
+	  (module go/encoding/hex
+	    (sig EncodeToString ((src (array int))) string pure (host expr "hex.EncodeToString(%s)"))
+	    (module InvalidByteError
+	      (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+	        (host expr "%s.Error()")))
+	    (module Dumper
+	      (sig Close ((self go/io.Writer)) int (host expr "%s.Close()")))))`
+	flat := `(target x
+	  (type int (host "int"))
+	  (module go/io (type Writer (host "io.Writer")))
+	  (module go/encoding/hex
+	    (sig EncodeToString ((src (array int))) string pure (host expr "hex.EncodeToString(%s)")))
+	  (module go/encoding/hex/InvalidByteError
+	    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+	      (host expr "%s.Error()")))
+	  (module go/encoding/hex/Dumper
+	    (sig Close ((self go/io.Writer)) int (host expr "%s.Close()"))))`
+	a, err := loadOne(t, nested)
+	if err != nil {
+		t.Fatalf("nested: %v", err)
+	}
+	b, err := loadOne(t, flat)
+	if err != nil {
+		t.Fatalf("flat: %v", err)
+	}
+	if !reflect.DeepEqual(a.Prims, b.Prims) {
+		t.Errorf("the two spellings must load to one target:\nnested %v\nflat   %v",
+			names(a.Prims), names(b.Prims))
+	}
+	if _, ok := a.Prims["go/encoding/hex/InvalidByteError.Error"]; !ok {
+		t.Errorf("a child's path is its parent's path and its own, got %v", names(a.Prims))
+	}
+}
+
+// DEPTH IS UNBOUNDED, because concatenation is associative: nesting three deep
+// is the same word as writing the three segments out.
+func TestNestingIsAssociative(t *testing.T) {
+	deep, err := loadOne(t, `(target x
+	  (type int (host "int"))
+	  (module go (module encoding (module hex
+	    (sig DecodedLen ((n int)) int pure (host expr "hex.DecodedLen(%s)"))))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := deep.Prims["go/encoding/hex.DecodedLen"]; !ok {
+		t.Errorf("three nested modules are one path, got %v", names(deep.Prims))
+	}
+	// and a child may itself carry a path, since `/` is the monoid's operation
+	wide, err := loadOne(t, `(target x
+	  (type int (host "int"))
+	  (module go (module encoding/hex
+	    (sig DecodedLen ((n int)) int pure (host expr "hex.DecodedLen(%s)")))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(deep.Prims, wide.Prims) {
+		t.Errorf("(a (b c)) and (a b/c) are one path:\n%v\n%v", names(deep.Prims), names(wide.Prims))
+	}
+}
+
+// AN EMPTY SEGMENT IS REFUSED, which is the one thing concatenation must not
+// silently do: `a` ++ "/" ++ "/b" would be a path no `use` can name.
+func TestANestedModuleRefusesAnEmptySegment(t *testing.T) {
+	for _, child := range []string{"/InvalidByteError", "InvalidByteError/"} {
+		_, err := loadOne(t, `(target x
+		  (type int (host "int"))
+		  (module go/encoding/hex (module `+child+`
+		    (sig Error ((n int)) int pure (host expr "%s")))))`)
+		if err == nil {
+			t.Errorf("%q: an empty segment must be refused", child)
+		} else if !strings.Contains(err.Error(), "empty segment") {
+			t.Errorf("%q: the refusal must name it, got %v", child, err)
+		}
+	}
+}
+
+// names is a target's primitive names, sorted, for a readable failure.
+func names(prims map[string]Prim) []string {
+	var out []string
+	for k := range prims {
+		if strings.Contains(k, "/") {
+			out = append(out, k)
+		}
+	}
+	sort.Strings(out)
+	return out
 }

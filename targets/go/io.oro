@@ -19,36 +19,45 @@
     (type Reader      (host "io.Reader"))
     (type Writer      (host "io.Writer"))
     (type Closer      (host "io.Closer"))
-    (type WriteCloser (host "io.WriteCloser")))
+    (type WriteCloser (host "io.WriteCloser"))
 
-  ; `Write(p []byte) (n int, err error)`. IMPURE: it is the whole point.
-  ;
-  ; p IS AN ARRAY AND NOT A BUFFER, which is a claim read off the documented
-  ; contract: "Implementations must not retain p", and Write does not modify it —
-  ; it consumes the bytes. A buffer would say the host writes into it, which is
-  ; `Read`'s claim and not this one.
-  ;
-  ; `n` is the count written, `0 ≤ n ≤ len p` by the contract; the range says the
-  ; lower half, which is what the analysis can use, and `Write must return a
-  ; non-nil error if it returns n < len(p)` is the caller's business.
-  (module go/io/Writer
-    (sig Write ((self go/io.Writer) (p (array (int 0 255)))) (tuple (int 0 9007199254740991) error)
-      (host expr "%s.Write(%s)")))
+    ; EACH METHOD SET IS WRITTEN INSIDE THE MODULE THAT OWNS THE TYPE. A child
+    ; module's path is its parent's followed by its own, so `Writer` here is
+    ; `go/io/Writer` (spec/target-files.md §1a), and the companion rule — a child
+    ; named like a type in its parent is that type's method set — is what the
+    ; nesting shows.
 
-  ; `Close() error`. Idempotence is NOT claimed: io.go says the behaviour of
-  ; Close after the first call is undefined, which is a precondition no type can
-  ; carry, so it is named here and not declared.
-  (module go/io/Closer
-    (sig Close ((self go/io.Closer)) error
-      (host expr "%s.Close()")))
+    ; `Write(p []byte) (n int, err error)`. IMPURE: it is the whole point.
+    ;
+    ; p IS AN ARRAY AND NOT A BUFFER, which is a claim read off the documented
+    ; contract: "Implementations must not retain p", and Write does not modify it —
+    ; it consumes the bytes. A buffer would say the host writes into it, which is
+    ; `Read`'s claim and not this one.
+    ;
+    ; `n` is the count written, `0 ≤ n ≤ len p` by the contract; the range says the
+    ; lower half, which is what the analysis can use, and `Write must return a
+    ; non-nil error if it returns n < len(p)` is the caller's business.
+    (module Writer
+      (sig Write ((self go/io.Writer) (p (array (int 0 255)))) (tuple (int 0 9007199254740991) error)
+        (host expr "%s.Write(%s)")))
 
-  ; `type WriteCloser interface { Writer; Closer }` — io.go's own definition, so
-  ; the inclusion is the declaration rather than a summary of it.
-  ;
-  ; AND THE SUBTYPING IS DERIVED FROM IT. `T ≤ I` iff methods(I) ⊆ methods(T)
-  ; (Cardelli's record subtyping with method sets, interfaces.md §2), and an
-  ; inclusion is exactly that containment — so `(implements go/io.WriteCloser
-  ; go/io.Writer)`, which this file carried until the companions existed, is now
-  ; a theorem about these declarations.
-  (module go/io/WriteCloser
-    (include go/io/Writer go/io/Closer)))
+    ; `Close() error`. Idempotence is NOT claimed: io.go says the behaviour of
+    ; Close after the first call is undefined, which is a precondition no type can
+    ; carry, so it is named here and not declared.
+    (module Closer
+      (sig Close ((self go/io.Closer)) error
+        (host expr "%s.Close()")))
+
+    ; `type WriteCloser interface { Writer; Closer }` — io.go's own definition, so
+    ; the inclusion is the declaration rather than a summary of it.
+    ;
+    ; AND THE SUBTYPING IS DERIVED FROM IT. `T ≤ I` iff methods(I) ⊆ methods(T)
+    ; (Cardelli's record subtyping with method sets, interfaces.md §2), and an
+    ; inclusion is exactly that containment — so `(implements go/io.WriteCloser
+    ; go/io.Writer)`, which this file carried until the companions existed, is now
+    ; a theorem about these declarations.
+    ;
+    ; The included names stay ABSOLUTE: `include` takes module paths, and nesting
+    ; abbreviates where a module is DECLARED, not where one is named.
+    (module WriteCloser
+      (include go/io/Writer go/io/Closer))))

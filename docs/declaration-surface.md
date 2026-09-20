@@ -77,7 +77,7 @@ is a **host convention**, not a property of our module system.
     `(use …)`;
   - *(an earlier version listed "the target loader reads one directory level, so it needs a
     recursive walk". That is wrong: a target file declares its module path inside the file,
-    `(module go/encoding-hex …)`, and the file name is not read. A library's `(use …)` is resolved
+    `(module go/encoding/hex …)`, and the file name is not read. A library's `(use …)` is resolved
     as a file path with `filepath.FromSlash` (`cmd/build/main.go:298`), which already descends
     directories.)*
   - nesting suggests containment and there is none: `go/unicode` does not contain
@@ -96,15 +96,21 @@ not have. C is the answer if that host arrives. §1.6 says why C may never be ne
 ### 1.6 Modules inside modules (hamza, 2026-09-14)
 
 The question: if a module may contain modules, is the problem solved, as
-`go/encoding-hex/InvalidByteError` seems to do already?
+`go/encoding/hex/InvalidByteError` seems to do already?
 
-**What the code does today.** Modules do not nest. `(module PATH …)` may contain only `(prim …)`
-(`emit/target.go:1488`). `go/encoding-hex/InvalidByteError` is a separate module whose *name* has
-`go/encoding-hex` as a prefix. Nothing relates the two except that string prefix.
+**What the code did until 2026-09-20.** Modules did not nest: `(module PATH …)` took declarations and
+nothing else, and `go/encoding/hex/InvalidByteError` was a separate module whose *name* had the
+package's as a prefix, with nothing relating the two but that string.
+
+> **Built** ([nestmod-2026-09-20](../gauntlet/results/nestmod-2026-09-20.md),
+> [target-files.md §1a](spec/target-files.md)): a module may now contain a module, and a child's path
+> is its parent's followed by its own. The absolute spelling stays legal, because a fragment in
+> another layer must be able to add to a module it does not enclose. The companion rule — the "rule
+> saying what a child is" this section asks for — arrived with owned types.
 
 **Nesting adds less structure than it seems, because the tree is already there.** `Seg*` ordered by
 prefix *is* a tree, the trie of all paths. So a set of module paths already forms a tree in which a
-node may have both members and children. `go/encoding-hex` has prims and a child today. What nesting
+node may have both members and children. `go/encoding/hex` has prims and a child today. What nesting
 adds is only this:
 - **a way to write it** — `(module go/os … (module File …))`, where a child's path is its parent's
   path, then `/`, then the child's name. This is reader sugar, pure resolution, so ADR 0011 holds.
@@ -260,7 +266,7 @@ A module in a target is meant to be a **signature**, and a many-sorted signature
 `Σ = (S, Ω)`: the **sorts** and the **operation symbols** typed over them (Goguen and Burstall's
 institutions; OBJ's modules, which declare `sort` beside `op`). Today a target module holds only
 `Ω`. Its sorts come from one pool shared by the whole target, `tg.Types`, a flat map from name to
-spelling (`emit/target.go:125`), glued across files. `go/encoding-hex` is therefore not a signature
+spelling (`emit/target.go:125`), glued across files. `go/encoding/hex` is therefore not a signature
 on its own: `InvalidByteError`, which is its own sort, is declared outside it.
 
 In ML's terms, a host type is an **abstract type component** of a structure: `type t` in a signature
@@ -281,7 +287,7 @@ types in Leroy 1994 and Harper and Lillibridge 1994). An opaque host token is ex
   about it by accident. Go refuses a file that confuses the first two, so no answer is silently
   wrong. It is still a false fact in our checker, the kind the coercion work was careful never to
   hold. [theories.md §2.2](theories.md) reads the three as two abstract types and one alias.
-- **A sort is re-declared by whoever needs it.** `targets/go/encoding-hex.oro` declares
+- **A sort is re-declared by whoever needs it.** `targets/go/encoding/hex.oro` declares
   `io-Reader`, `io-Writer` and `io-WriteCloser`, which belong to `io`. Glue accepts the repeat
   because the spelling matches. Nothing records that hex *depends* on io, and nothing stops a third
   file from declaring `io-Writer` with a different meaning in a layer that overrides.
@@ -301,7 +307,7 @@ types in Leroy 1994 and Harper and Lillibridge 1994). An opaque host token is ex
     a second declaration, and a declaration of a type in a module one does not own can be refused;
   - it is what makes §1.6's companion rule possible.
 - Costs:
-  - **type names enter name resolution.** A prim in `go/encoding-hex` taking an `io.Writer` must
+  - **type names enter name resolution.** A prim in `go/encoding/hex` taking an `io.Writer` must
     reach `go/io`, and the target format has no `use`. So either signatures in target files write
     the full path, `(w go/io.Writer)`, or target modules gain `(use …)`;
   - **program signatures that name a host type resolve through aliases**, as values do. The reader

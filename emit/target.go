@@ -1176,16 +1176,32 @@ func (tg *Target) ResolveBackend() (string, error) {
 		tg.Name, strings.Join(Backends, ", "))
 }
 
+// loadTargetDir glues every `.oro` file under `dir`, AT ANY DEPTH.
+//
+// It walks rather than reading one level because a module path is a word in the
+// free monoid over segments and the directory tree is that monoid's trie: the
+// declaration of `go/encoding/hex` belongs at `targets/go/encoding/hex.oro`, and
+// with a single-level read there was nowhere for it to live
+// (modpath-2026-09-20, ADR 0025). Nothing depends on the file NAME — a target
+// file declares its own module path inside — so the layout is a picture of the
+// trie rather than a mechanism, and the one mechanism this adds is that a
+// deeper file is found at all.
+//
+// `loadProvides` has always walked the library layer, so this also makes the two
+// halves of target loading agree.
 func loadTargetDir(dir string) (*Target, error) {
-	ents, err := os.ReadDir(dir)
+	var files []string
+	err := filepath.Walk(dir, func(fp string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && strings.HasSuffix(fp, ".oro") {
+			files = append(files, fp)
+		}
+		return nil
+	})
 	if err != nil {
 		return nil, err
-	}
-	var files []string
-	for _, e := range ents {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".oro") {
-			files = append(files, filepath.Join(dir, e.Name()))
-		}
 	}
 	sort.Strings(files) // deterministic diagnostics; merging is order-independent
 	if len(files) == 0 {

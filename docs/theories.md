@@ -580,8 +580,8 @@ acceptance test, in the order §8 gives.
 Each step is independent and has an acceptance test that could fail. The order is by demand already
 measured.
 
-1. **Types in theories, nesting, companions** (A). *Test*: `encoding-hex.oro` and
-   `unicode-utf8.oro` rewritten with no hand prefixes; the checker still agrees with the host; a
+1. **Types in theories, nesting, companions** (A). *Test*: `encoding/hex.oro` and
+   `unicode/utf8.oro` rewritten with no hand prefixes; the checker still agrees with the host; a
    theory naming `text/template.Template` and `html/template.Template` keeps them distinct; every
    emitted file byte-identical.
 2. **`const`**, the conditional cell for terms. *Test*: the 509 generated constants and utf8's four

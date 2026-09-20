@@ -41,9 +41,9 @@
 ; — a value the JVM specifies, so it is checkable against the host rather than
 ; against ourselves.
 
-(use java/java-util as ju)
-(use java/java-util/StringJoiner as SJ)
-(use java/java-util/Random as Random)
+(use java/java/util as ju)
+(use java/java/util/StringJoiner as SJ)
+(use java/java/util/Random as Random)
 (use io)
 
 (export main)

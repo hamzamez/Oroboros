@@ -1773,7 +1773,7 @@ func emit(dir string, syms []sym, raw []string) error {
 				// An integer is a CONSTANT, whose one written value is the exact
 				// range; anything else is a zero-argument sig, since its value is
 				// never read (emit.constSig says why).
-				buf := modBuf("go/" + strings.ReplaceAll(p, "/", "-"))
+				buf := modBuf("go/" + p)
 				if exact, isInt := strings.CutPrefix(res, "(int "); isInt {
 					fmt.Fprintf(buf, "    (const %s %s (host \"%s.%s\" (import %q)))\n",
 						s.name, strings.Fields(exact)[0], base, s.name, p)
@@ -1785,11 +1785,11 @@ func emit(dir string, syms []sym, raw []string) error {
 				continue
 			}
 			var args, holes []string
-			mod := "go/" + strings.ReplaceAll(p, "/", "-")
+			mod := "go/" + p
 			tmplRecv := ""
 			if s.recv != "" {
 				rt := strings.TrimPrefix(s.recv, "*")
-				mod = "go/" + strings.ReplaceAll(p, "/", "-") + "/" + spell(rt)
+				mod = "go/" + p + "/" + spell(rt)
 				args = append(args, "(self "+spellQ(s.recv)+")")
 				holes = append(holes, "%s")
 				tmplRecv = "%s."
@@ -1918,7 +1918,14 @@ func emit(dir string, syms []sym, raw []string) error {
 			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
 		}
 		b.WriteString(")\n")
-		out := filepath.Join(dir, strings.ReplaceAll(p, "/", "-")+".oro")
+		// THE FILE IS THE PATH. A module path is a word in Seg*, and a directory
+		// tree is that monoid's trie, so `encoding/hex` is written at
+		// `DIR/encoding/hex.oro` rather than flattened into one segment
+		// (ADR 0025). The loader walks, so depth costs nothing.
+		out := filepath.Join(dir, filepath.FromSlash(p)+".oro")
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
 		if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 			return err
 		}

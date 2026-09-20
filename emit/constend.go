@@ -20,7 +20,7 @@ import (
 //
 // IT IS WORTH HAVING BECAUSE A VALUE WRITTEN TWICE IS TWO CLAIMS THAT CAN
 // DISAGREE — constdecl-2026-09-15's own reason for `const`, one level up.
-// `unicode-utf8.oro` declared `MaxRune` and then wrote `(int 0 1114111)` in four
+// `unicode/utf8.oro` declared `MaxRune` and then wrote `(int 0 1114111)` in four
 // result types, with a comment saying "0..MaxRune" beside the digits.
 //
 // THE ENVIRONMENT IS THE WHOLE TARGET, WHICH IS WHY RESOLUTION IS DEFERRED. A

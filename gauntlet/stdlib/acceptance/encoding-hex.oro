@@ -1,5 +1,5 @@
 ; ACCEPTANCE: encoding/hex, THE WHOLE PACKAGE, declared BY HAND
-; (targets/go/encoding-hex.oro), every name called on bytes the program COMPUTED.
+; (targets/go/encoding/hex.oro), every name called on bytes the program COMPUTED.
 ;
 ; Each section is a LAW of the package's algebra (hex-2026-09-14 §1), and the
 ; host is the oracle: the expected output is hexReference in tooling_test.go,
@@ -15,7 +15,7 @@
 ;   streams     the encoder and decoder agree with H and G, and the dumper is
 ;               closed through the method set its companion includes
 
-(use go/encoding-hex as hex)
+(use go/encoding/hex)
 (use go/fmt as fmt)
 (use go/os as gos)
 (use go/os/File as file)

@@ -560,7 +560,7 @@ func acceptance() map[string]accept {
 		"tg/go/regexp-gen.oro": "regexp.oro", "tg/go/strings-gen.oro": "strings.oro",
 		"tg/go/strconv-gen.oro": "strconv.oro"})
 	jvmTally := tallyOn("jvm", "java", "host-java.oro", map[string]string{
-		"tg/java/regex-gen.oro": "java-util-regex.oro", "tg/java/lang-gen.oro": "java-lang.oro"})
+		"tg/java/regex-gen.oro": "java/util/regex.oro", "tg/java/lang-gen.oro": "java/lang.oro"})
 	return map[string]accept{
 		"tally-go":            goTally[0],
 		"tally-go-optional":   goTally[1],
@@ -594,7 +594,7 @@ func acceptance() map[string]accept {
 		// each called with a value the program computed rather than a literal
 		// (gostd-utf8-2026-09-13). The expected lines are computed by the real
 		// package, not copied from a run. Its declarations are written BY HAND
-		// in targets/go/unicode-utf8.oro, so no generated file is supplied; the
+		// in targets/go/unicode/utf8.oro, so no generated file is supplied; the
 		// survey still runs, because TestHandDeclarationsAgreeWithTheHost
 		// checks those declarations against what it spells.
 		"unicode-utf8": {host: "go", target: "go", layer: "tg", flags: checked, want: utf8Reference()},
@@ -619,11 +619,11 @@ func acceptance() map[string]accept {
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —
 		// the host's answer, not ours.
 		"jvm-object": {host: "jvm", target: "java", layer: "tg", want: []string{"a, b, c", "30"},
-			files: map[string]string{"tg/java/java-util-gen.oro": "java-util.oro", "tg/java/java-lang-gen.oro": "java-lang.oro"}},
+			files: map[string]string{"tg/java/java-util-gen.oro": "java/util.oro", "tg/java/java-lang-gen.oro": "java/lang.oro"}},
 		// JavaScript: the single dot is `path.join()`, all the generated
 		// declaration can call because the host reported arity 0.
 		"js-shape": {host: "js", target: "js", layer: "tg", want: []string{"7", "ABC", "."},
-			files: map[string]string{"tg/js/global-gen.oro": "globalThis.oro", "tg/js/path-gen.oro": "node-path.oro"}},
+			files: map[string]string{"tg/js/global-gen.oro": "global.oro", "tg/js/path-gen.oro": "path.oro"}},
 	}
 }
 
@@ -866,13 +866,13 @@ func hexReference() []string {
 // FAIL PROVES NOTHING — the mistakes a person could make writing it, each of
 // which must be caught. The mistakes are planted in the first module.
 var handDeclared = []struct {
-	host, file, generated string
-	modules               []string
-	mistakes              map[string]func(m map[string]emit.Prim)
+	host, dir, generated string
+	modules              []string
+	mistakes             map[string]func(m map[string]emit.Prim)
 }{
-	{"go", "targets/go/unicode-utf8.oro", "unicode-utf8.oro", []string{"go/unicode-utf8"}, utf8Mistakes},
-	{"go", "targets/go/encoding-hex.oro", "encoding-hex.oro",
-		[]string{"go/encoding-hex", "go/encoding-hex/InvalidByteError"}, hexMistakes},
+	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes},
+	{"go", "targets/go", "encoding/hex.oro",
+		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes},
 }
 
 var utf8Mistakes = map[string]func(m map[string]emit.Prim){
@@ -937,7 +937,10 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 			// is relative to the target it lives in — a target is the glue of its
 			// fragments — and since a type is owned by its module, hex's signatures
 			// name `go/io.Writer`, whose declaration is in targets/go/io.oro.
-			handTg, err := emit.LoadTarget(filepath.Dir(filepath.Join(root, filepath.FromSlash(h.file))))
+			// `dir` is the target, not the file's parent: since ADR 0025 a package
+			// lives at its own path, so hex.oro's parent is `targets/go/encoding`,
+			// which is a fragment of the target rather than the target itself.
+			handTg, err := emit.LoadTarget(filepath.Join(root, filepath.FromSlash(h.dir)))
 			if err != nil {
 				t.Fatal(err)
 			}

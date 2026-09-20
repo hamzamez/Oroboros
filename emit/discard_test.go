@@ -12,7 +12,7 @@ import (
 // it writes for a discarded value whenever that value was a bare name — right
 // for a parameter or a literal, wrong for the temporary a loop's result lands
 // in, which Go refuses as declared and not used. No program had put a loop
-// before another statement until unicode-utf8.oro (gostd-utf8-2026-09-13).
+// before another statement until unicode/utf8.oro (gostd-utf8-2026-09-13).
 func TestADiscardedLoopResultIsRead(t *testing.T) {
 	src := `
 		(use go/fmt as fmt)

@@ -878,7 +878,7 @@ func emit(dir string, syms []sym) error {
 			mods[name] = b
 			return b
 		}
-		pkgMod := "java/" + strings.ReplaceAll(p, ".", "-")
+		pkgMod := "java/" + strings.ReplaceAll(p, ".", "/") // the package path, not a flattened segment (ADR 0025)
 		for _, s := range list {
 			simple := s.owner
 			if i := strings.LastIndex(simple, "."); i >= 0 {
@@ -1065,7 +1065,11 @@ func emit(dir string, syms []sym) error {
 			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
 		}
 		b.WriteString(")\n")
-		out := filepath.Join(dir, strings.ReplaceAll(p, ".", "-")+".oro")
+		// THE FILE IS THE PATH (ADR 0025), with `.` the JVM's separator.
+		out := filepath.Join(dir, filepath.FromSlash(strings.ReplaceAll(p, ".", "/"))+".oro")
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
 		if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 			return err
 		}

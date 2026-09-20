@@ -175,7 +175,7 @@ lived in one flat pool per target, keyed by a hand-mangled base name. That key i
 **3 of Go's 1,270 exported type names collide by base name**, two of them distinct structs
 (`text/template.Template` and `html/template.Template`). Under this rule they are two declarations.
 
-It also gives a type ONE OWNER. `targets/go/encoding-hex.oro` declared `io.Reader`, `io.Writer` and
+It also gives a type ONE OWNER. `targets/go/encoding/hex.oro` declared `io.Reader`, `io.Writer` and
 `io.WriteCloser` itself, which recorded no dependency on `io` and left a third file free to declare
 one of them differently; they are `targets/go/io.oro`'s now.
 

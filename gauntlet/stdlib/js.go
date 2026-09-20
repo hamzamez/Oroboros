@@ -464,8 +464,14 @@ func emit(dir string, ms []member) error {
 			fmt.Fprintf(&b, "  (module %s\n%s  )\n", k, mods[k].String())
 		}
 		b.WriteString(")\n")
-		name := strings.NewReplacer(":", "-", "/", "-").Replace(r)
-		if err := os.WriteFile(filepath.Join(dir, name+".oro"), []byte(b.String()), 0o644); err != nil {
+		// THE FILE IS THE PATH (ADR 0025). A JS root is `node:fs/promises` or
+		// `globalThis`; `base` has already dropped the scheme, and what is left
+		// is the module path `js/fs/promises` without its host prefix.
+		out := filepath.Join(dir, filepath.FromSlash(base)+".oro")
+		if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(out, []byte(b.String()), 0o644); err != nil {
 			return err
 		}
 	}

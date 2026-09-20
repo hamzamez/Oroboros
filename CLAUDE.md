@@ -138,6 +138,7 @@ rejected alternatives.
 | Host declarations are written by hand; the generator is their checker | [0022](docs/decisions/0022-host-declarations-are-written-by-hand.md) |
 | A generator does not make a claim it cannot justify | [0023](docs/decisions/0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) |
 | A comment never carries meaning; documentation is a term | [0024](docs/decisions/0024-comments-are-erased.md) |
+| A module path is the host's path, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
 
 ## How this project is run
 
@@ -293,6 +294,11 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 - **A target is a chain of layers** `Δ_T = L₁ ▷ … ▷ Lₖ`: glue within a layer, override between layers.
   The source's own directory is the nearest layer ([target-system.md](docs/spec/target-system.md)).
   The backend is `(backend NAME)`, from a closed set.
+- **A host module's path is the HOST'S path**, prefixed by the host — `go/encoding/hex`,
+  `java/java/util/regex` — because `ι(p) = HOST ++ p` is injective and commutes with `lastSegment`,
+  so an import's default alias is the host's own name and needs no `as` (ADR 0025,
+  [modules.md §3.1](docs/spec/modules.md)). A type's companion is a child of its package. **The file
+  is the path**: `targets/go/encoding/hex.oro`, and the target loader walks.
 - **Host declarations are written by hand**, by someone who read the host's source. The generator
   checks them (ADR 0022) and never claims what it cannot justify (ADR 0023).
 - **What a host call does to a buffer** is declared as a write-borrow or a consume, following

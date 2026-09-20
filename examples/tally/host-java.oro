@@ -2,15 +2,15 @@
 ;
 ;   java gauntlet/stdlib/jdk/Dump.java > API
 ;   go run gauntlet/stdlib/jvm.go -api API -emit GEN
-;   cp GEN/java-util-regex.oro TG/java/regex-gen.oro
-;   cp GEN/java-lang.oro       TG/java/lang-gen.oro
+;   cp GEN/java/util/regex.oro TG/java/regex-gen.oro
+;   cp GEN/java/lang.oro       TG/java/lang-gen.oro
 ;   go run ./cmd/build -target=java -targets "TG;targets" -o tally examples/tally/tally.oro
 
 (provides java tally/host
-  (use java/java-util-regex/Pattern as pt)
-  (use java/java-util-regex/Matcher as mt)
-  (use java/java-lang/String as js)
-  (use java/java-lang/Long as jl)
+  (use java/java/util/regex/Pattern as pt)
+  (use java/java/util/regex/Matcher as mt)
+  (use java/java/lang/String as js)
+  (use java/java/lang/Long as jl)
 
   (def compile (p) (pt.compile p))
   ; A Matcher is STATEFUL -- `find` advances it -- so each question gets its own.

@@ -56,3 +56,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0022](0022-host-declarations-are-written-by-hand.md) | Host declarations are written by hand; the generator is their checker |
 | [0023](0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) | A generator does not make a claim it cannot justify |
 | [0024](0024-comments-are-erased.md) | A comment never carries meaning; documentation is a term |
+| [0025](0025-a-module-path-is-the-hosts.md) | A module path is the host's path, and the file is the path |

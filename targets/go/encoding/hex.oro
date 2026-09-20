@@ -1,7 +1,7 @@
 ; encoding/hex, DECLARED BY HAND. Every claim below was read off
 ; src/encoding/hex/hex.go in the Go 1.27 toolchain; the algebra is in
 ; gauntlet/results/hex-2026-09-14.md §1, and the kinds of claim are the ones
-; unicode-utf8.oro makes (pure, buffer, range, where), plus one it did not need:
+; unicode/utf8.oro makes (pure, buffer, range, where), plus one it did not need:
 ; a precondition that is LINEAR in two lengths.
 ;
 ; THE ALGEBRA IN FOUR LINES.
@@ -19,7 +19,7 @@
 ; missing.
 (target go
 
-  (module go/encoding-hex
+  (module go/encoding/hex
     ; THIS PACKAGE'S OWN SORT. `io`'s three live in targets/go/io.oro, because a
     ; type has one owner and this file declaring them recorded no dependency
     ; (declaration-surface.md §4.2).
@@ -105,8 +105,8 @@
   )
 
   ; The error type's one method. The message is a pure function of the byte.
-  (module go/encoding-hex/InvalidByteError
-    (sig Error ((self go/encoding-hex.InvalidByteError)) string pure
+  (module go/encoding/hex/InvalidByteError
+    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
           (host expr "%s.Error()" (import "encoding/hex")))
   )
 )

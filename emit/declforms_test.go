@@ -201,7 +201,7 @@ func TestATypeIsAMemberOfItsModule(t *testing.T) {
 	  (module go/io (type Writer (host "io.Writer")))
 	  (module go/text-template (type Template (host "template.Template")))
 	  (module go/html-template (type Template (host "template.Template")))
-	  (module go/encoding-hex
+	  (module go/encoding/hex
 	    (sig NewEncoder ((w go/io.Writer)) go/io.Writer (host expr "hex.NewEncoder(%s)"))))`)
 	if err != nil {
 		t.Fatal(err)
@@ -220,7 +220,7 @@ func TestATypeIsAMemberOfItsModule(t *testing.T) {
 	if _, flat := tg.Types["Template"]; flat {
 		t.Error("a module's type must not also land in the target's flat pool")
 	}
-	if p := tg.Prims["go/encoding-hex.NewEncoder"]; len(p.Args) != 1 || p.Args[0] != "go/io.Writer" {
+	if p := tg.Prims["go/encoding/hex.NewEncoder"]; len(p.Args) != 1 || p.Args[0] != "go/io.Writer" {
 		t.Errorf("a signature names another module's type by its path: %+v", p.Args)
 	}
 }

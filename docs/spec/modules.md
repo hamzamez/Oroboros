@@ -136,6 +136,35 @@ alternative — flat import — makes a program's meaning depend on import order
 target happens to provide, and both of those change under exactly the conditions this system is
 built to make cheap.
 
+
+### 3.1 A host module's path is the host's own
+
+> **[ADR 0025](../decisions/0025-a-module-path-is-the-hosts.md), 2026-09-20.**
+
+A path is a word in `Seg*` and a host package path is a word in the same monoid, so the embedding
+
+```
+ι(p) = HOST ++ p        go/encoding/hex,  java/java/util/regex,  js/fs/promises
+```
+
+is a monoid homomorphism, and an injective one. Two things follow, and both are why the flattened
+spelling (`go/encoding-hex`) was dropped:
+
+- **`lastSegment ∘ ι = lastSegment`**, so the default alias of an import *is* the host's own last
+  segment — `(use go/encoding/hex)` binds `hex`. Every `as` the flat spelling needed was a repair of
+  that equation.
+- **`flat` is not injective.** Joining segments with `-` collides `a/b` with a package literally
+  named `a-b`, which Go's import paths permit.
+
+A **companion** — a type's method set — is a child of its package, `go/encoding/hex/InvalidByteError`.
+A child module whose name matches a type in its parent is that type's companion; any other child is
+a nested package ([target-system.md](target-system.md)).
+
+**The file is the path.** `Seg*` ordered by prefix is a trie, and a directory tree is that trie, so
+the declaration of `go/encoding/hex` lives at `targets/go/encoding/hex.oro` and the target loader
+walks. Nothing reads a file's NAME — a target file declares its module path inside — so the layout
+is a picture of the trie rather than a mechanism.
+
 ## 4. What a target declares
 
 A target stops being one file and becomes a directory, in which each file says which names of one

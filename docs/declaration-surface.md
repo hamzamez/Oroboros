@@ -1,6 +1,6 @@
 # How a declaration reads: module paths, constants, and names for ranges
 
-Research, **no decision**. 2026-09-14, on hamza's three questions about how a hand-written host
+Research, **one section of it now decided**. 2026-09-14, on hamza's three questions about how a
 declaration looks (after [handdecl-2026-09-14](../gauntlet/results/handdecl-2026-09-14.md)):
 
 1. why `go/unicode-utf8` and not `go/unicode/utf8`;
@@ -8,8 +8,12 @@ declaration looks (after [handdecl-2026-09-14](../gauntlet/results/handdecl-2026
    and whether it wants sugar;
 3. whether a parameter should say `(r (int -2147483648 2147483647))` or `(r rune)`.
 
-Nothing here is built and nothing is changed. Each section says what the thing **is**, what the
-code does today and why, and what each alternative buys and costs.
+Each section says what the thing **is**, what the code does today and why, and what each
+alternative buys and costs. §2 and §3 are still research and nothing in them is built.
+
+> **§1 decided and built, 2026-09-20**: option B, the host's own path, plus "the file is the path".
+> [ADR 0025](decisions/0025-a-module-path-is-the-hosts.md) and
+> [modpath-2026-09-20](../gauntlet/results/modpath-2026-09-20.md). §2 and §3 are still research.
 
 ---
 

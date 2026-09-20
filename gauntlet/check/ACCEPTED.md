@@ -211,3 +211,13 @@ The initial baseline.
 
 - emitted text changed — `examples/json/tokenize.oro go`
 - emitted text changed — `examples/json/tree.oro go`
+
+## 2026-09-20 — on 569cafb, with uncommitted changes
+
+**Reason:** a refusal names the host's own module path: java/java-util-regex/Matcher.find becomes java/java/util/regex/Matcher.find (ADR 0025, modpath-2026-09-20). The text is the only change; no program's code moved.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+1 change(s):
+
+- compiler output changed — `examples/tally/tally.oro java`

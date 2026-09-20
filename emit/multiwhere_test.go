@@ -96,7 +96,7 @@ func TestBothHalvesOfDivisionByALiteralAreKnown(t *testing.T) {
 	// reduction (weakening is allowed for it, ADR 0010), and then there is no
 	// call left to check and both halves of this test pass vacuously.
 	// The call sits inside the build's binder, which is where `len b` is known —
-	// hex.Decode's own shape in encoding-hex.oro.
+	// hex.Decode's own shape in encoding/hex.oro.
 	notes, err := refineWith(t, tg, `(use tgt) (fn (a) (build (/ (len a) 2) (fn (b) (let u (tgt.half b a)
                                                  b))))`)
 	if err != nil {

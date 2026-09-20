@@ -17,7 +17,7 @@
 ;     through the loop and cannot alias — before, it took an immutable array and
 ;     two appends to one value could share its capacity.
 
-(use go/unicode-utf8 as u)
+(use go/unicode/utf8)
 (use go/fmt as fmt)
 (use os)
 
@@ -26,10 +26,10 @@
 ; One rune: its encoded length, whether it is a scalar value, and what EncodeRune
 ; writes into a four-byte buffer — the count, then the buffer it handed back.
 (def each-rune (r)
-  (seq (fmt.Println (u.RuneLen r))
-       (fmt.Println (u.ValidRune r))
+  (seq (fmt.Println (utf8.RuneLen r))
+       (fmt.Println (utf8.ValidRune r))
        (fmt.Println (build 4 (fn (b)
-         ((u.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2))))))))
+         ((utf8.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2))))))))
 
 ; A decoded rune and its width, and then their SUM, which is the witness that a
 ; range result is received into the language's integer (gostd-utf8-2026-09-13 §1)
@@ -38,41 +38,41 @@
 
 (def over-bytes (acc)
   (seq (fmt.Println acc)
-       (fmt.Println (u.RuneCount acc))
-       (fmt.Println (u.Valid acc))
-       (fmt.Println (u.FullRune acc))
-       ((u.DecodeRune acc) (fn (r n) (pair r n)))
-       ((u.DecodeLastRune acc) (fn (r n) (pair r n)))
+       (fmt.Println (utf8.RuneCount acc))
+       (fmt.Println (utf8.Valid acc))
+       (fmt.Println (utf8.FullRune acc))
+       ((utf8.DecodeRune acc) (fn (r n) (pair r n)))
+       ((utf8.DecodeLastRune acc) (fn (r n) (pair r n)))
        (loop ((j 0) (c 0))
          (>= j (len acc)) (fmt.Println c)
-         else (again (+ j 1) (if (u.RuneStart (acc j)) (+ c 1) c)))))
+         else (again (+ j 1) (if (utf8.RuneStart (acc j)) (+ c 1) c)))))
 
 (def over-string (s)
-  (seq (fmt.Println (u.RuneCountInString s))
-       (fmt.Println (u.ValidString s))
-       (fmt.Println (u.FullRuneInString s))
-       ((u.DecodeRuneInString s) (fn (r n) (pair r n)))
-       ((u.DecodeLastRuneInString s) (fn (r n) (pair r n)))))
+  (seq (fmt.Println (utf8.RuneCountInString s))
+       (fmt.Println (utf8.ValidString s))
+       (fmt.Println (utf8.FullRuneInString s))
+       ((utf8.DecodeRuneInString s) (fn (r n) (pair r n)))
+       ((utf8.DecodeLastRuneInString s) (fn (r n) (pair r n)))))
 
 ; A truncated four-byte sequence: not valid UTF-8, and no string literal can
 ; denote it, because a literal denotes scalar values (string-literals.md).
 (def invalid ()
   (let bad (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153)))
-    (seq (fmt.Println (u.FullRune bad))
-         (fmt.Println (u.Valid bad))
-         (fmt.Println (u.RuneCount bad))
-         ((u.DecodeRune bad) (fn (r n) (pair r n)))
-         (fmt.Println (u.ValidString (os.text-of bad)))
-         (fmt.Println (u.FullRuneInString (os.text-of bad)))
-         (fmt.Println (u.RuneCountInString (os.text-of bad))))))
+    (seq (fmt.Println (utf8.FullRune bad))
+         (fmt.Println (utf8.Valid bad))
+         (fmt.Println (utf8.RuneCount bad))
+         ((utf8.DecodeRune bad) (fn (r n) (pair r n)))
+         (fmt.Println (utf8.ValidString (os.text-of bad)))
+         (fmt.Println (utf8.FullRuneInString (os.text-of bad)))
+         (fmt.Println (utf8.RuneCountInString (os.text-of bad))))))
 
 (def constants ()
-  (seq (fmt.Println (u.MaxRune))
-       (fmt.Println (u.RuneError))
-       (fmt.Println (u.RuneSelf))
-       (fmt.Println (u.UTFMax))
-       (fmt.Println (u.ValidRune (+ (u.MaxRune) 1)))
-       (fmt.Println (u.RuneLen (u.RuneError)))))
+  (seq (fmt.Println (utf8.MaxRune))
+       (fmt.Println (utf8.RuneError))
+       (fmt.Println (utf8.RuneSelf))
+       (fmt.Println (utf8.UTFMax))
+       (fmt.Println (utf8.ValidRune (+ (utf8.MaxRune) 1)))
+       (fmt.Println (utf8.RuneLen (utf8.RuneError)))))
 
 ; The accumulator is a BUFFER from start to finish: born with one byte, extended
 ; by AppendRune once per rune, and frozen on the way out of `build` into the
@@ -83,7 +83,7 @@
                (loop ((i 0) (acc (set b 0 104)))
                  (>= i (len runes)) acc
                  else (seq (each-rune (runes i))
-                           (again (+ i 1) (u.AppendRune acc (runes i)))))))
+                           (again (+ i 1) (utf8.AppendRune acc (runes i)))))))
     (seq (over-bytes text)
            (over-string (os.text-of text))
            (invalid)

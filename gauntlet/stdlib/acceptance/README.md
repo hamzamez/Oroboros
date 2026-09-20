@@ -76,12 +76,15 @@ the convention Win32's `HANDLE` already used arriving on a host that has objects
 
 ## Go, whole packages declared by hand: `unicode-utf8.oro` and `encoding-hex.oro`
 
-Each is a WHOLE standard-library package, declared by hand in `targets/go/`
-(handdecl-2026-09-14, hex-2026-09-14) and called on values the program COMPUTED,
-with the expected output written as hand-written Go calling the real package
-(`utf8Reference` and `hexReference` in `tooling_test.go`), so the host is the oracle.
-`TestHandDeclarationsAgreeWithTheHost` checks every hand declaration against what
-the generator spells, and plants mistakes the check must catch.
+Each is a WHOLE standard-library package, declared by hand at the host's own path
+— `targets/go/unicode/utf8.oro` and `targets/go/encoding/hex.oro`, since
+[ADR 0025](../../../docs/decisions/0025-a-module-path-is-the-hosts.md) — and
+called on values the program COMPUTED, with the expected output written as
+hand-written Go calling the real package (`utf8Reference` and `hexReference` in
+`tooling_test.go`), so the host is the oracle (handdecl-2026-09-14,
+hex-2026-09-14). `TestHandDeclarationsAgreeWithTheHost` checks every hand
+declaration against what the generator spells, and plants mistakes the check must
+catch.
 
 ```bash
 go run gauntlet/stdlib/survey.go -emit /tmp/gostd

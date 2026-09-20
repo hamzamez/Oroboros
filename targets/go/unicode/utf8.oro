@@ -17,7 +17,7 @@
 ; checks that every declaration here agrees with them, and that none is missing.
 
 (target go
-  (module go/unicode-utf8
+  (module go/unicode/utf8
 
     ; ------------------------------------------------------------ constants
     (const MaxRune   1114111 (host "utf8.MaxRune"   (import "unicode/utf8")))

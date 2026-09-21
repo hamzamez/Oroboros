@@ -221,3 +221,12 @@ The initial baseline.
 1 change(s):
 
 - compiler output changed — `examples/tally/tally.oro java`
+
+## 2026-09-21 — on c1d6a0b, with uncommitted changes
+
+**Reason:** the initial compile-time baseline: CPU time of every gen process in the emission sweep, the minimum of two sweeps (compiletime-2026-09-21). Emission itself is unchanged.
+
+456 runs: 194 emitted, 262 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+
+The initial compile-time baseline, the minimum of two sweeps.

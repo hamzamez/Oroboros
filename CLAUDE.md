@@ -74,10 +74,11 @@ a wall that needs language work, stop and research it, then design it.
 **Next, from the current assessment:**
 1. Resume packages (`encoding/binary`, `strconv`). The analysis layer grows only for a refusal that
    has been named first.
-2. Gate compile time in `cmd/check` against the baseline. It regressed unnoticed:
-   - the tokeniser went 108 → 777 ms;
-   - freq went 4.2 → 7.0 s;
-   - both regressions trace to `7e36002`.
+2. ~~Gate compile time in `cmd/check` against the baseline.~~ **Done**
+   ([compiletime-2026-09-21](gauntlet/results/compiletime-2026-09-21.md)): a compile is slower at 1.5×
+   and +250 ms, measured to flag all six compiles `7e36002` slowed and none across identical sweeps.
+   The regression itself is **not** fixed — the tokeniser still compiles in ~700 ms serially, freq in
+   8.8 s on Go and 22 s on the JVM — and the baseline records today's costs, not the old ones.
 3. A Windows application.
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
@@ -390,7 +391,8 @@ Each of these has bitten more than once. The instances are in the results they n
   - V8 eliminating unused work;
   - two things changed at once;
   - a silently modified input;
-  - comparing against HEAD after a regression has landed.
+  - comparing against HEAD after a regression has landed;
+  - timing one job among many run in parallel, which inflates it unevenly (the tokeniser ~2.5×).
 
   Make a suspicious result explain itself before recording it.
 - **A refusal can hide a wrong answer.** Removing the refusal is often what finds it.
@@ -445,7 +447,12 @@ target's emitted code, outcome, proof counts and refusal text against the baseli
   and differential steps passing in the same run, and logs the reason in `gauntlet/check/ACCEPTED.md`;
 - **otherwise fix the code.**
 
-Compile time is **not** gated yet. Measure it per program against the baseline, not against HEAD.
+**Compile time is gated too** (gauntlet/check/README.md, "The rule for compile time"): a compile at
+1.5× its baseline time **and** 250 ms slower is a change for review, confirmed by a second sweep
+before it is reported, and kept only with `-accept`. The sweep's times are not serial times — the
+tokeniser costs ~2.5× its serial time among 16 parallel compiles — so **to say how long one program
+compiles, time its binary serially and warm, and compare against a binary built at the baseline's
+commit, not against HEAD**.
 
 ## Build commands
 

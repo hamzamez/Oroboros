@@ -11,12 +11,12 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 |---|---|
 | `vet` | `go vet ./...` |
 | `compiler` | `go test ./core/ ./emit/ ./cmd/...` |
-| `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory |
+| `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
 | `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |
 
 **Every step runs**, whatever the ones before it did, so one run reports everything. Exit codes:
-`0` all pass and emission is byte-identical, `1` a step failed, `2` emission changed and needs review.
+`0` all pass and emission is byte-identical, `1` a step failed, `2` emission changed or a compile got slower, and needs review.
 **Under `go run` a non-zero code shows as 1**, with the real one on the last line (`exit status 2`).
 The summary's `REVIEW` or `FAIL` is what to read; `go build ./cmd/check` gives a binary whose exit code
 is the real one.
@@ -54,9 +54,53 @@ Two conventions the sweep reads rather than guesses (ADR 0023):
 - **The differential cases are compiled with `-checked`**, because `run.go` builds them that way.
 - **An example compiled with `-checked`** says so on its first line: `; BUILT WITH \`-checked\``.
 
+## The rule for compile time
+
+**A compile is SLOWER than the baseline when it takes at least 1.5× the time and at least 250 ms
+more.** Either half alone is wrong, and both were measured rather than chosen
+([compiletime-2026-09-21](../results/compiletime-2026-09-21.md)):
+
+- the ratio **1.5** sits above the largest variation seen between three sweeps of one compiler for a
+  compile over 300 ms (1.21×), and below the smallest regression this gate exists for (freq, 1.67×);
+- the delta **250 ms** sits above what Windows' 15.6 ms CPU-time tick does to a small program, where
+  16 ms against 47 ms is one tick against three and a ratio of 2.9 means nothing.
+
+The delta is also what lets the rule catch a *small* program that became slow. A floor on the
+baseline would have been the obvious design, and it would have missed the tokeniser, whose baseline
+was 234 ms when it went to 2,109.
+
+**What is measured** is the CPU time of each `gen` process in the emission sweep — user plus system.
+It is not the time a person waits: the sweep runs 16 compilations at once, and the tokeniser costs
+about 2.5× its serial time there. It is **repeatable**, because the job order and so the contention
+are fixed, and repeatability against a baseline taken the same way is what a gate needs. This run's
+times, with wall time beside them, are in `.check/compiletime.txt`.
+
+**Noise only adds time** — an E-core, a cache miss, a neighbour's GC — so the minimum over repeated
+observations is the estimate (Chen & Revels, *Robust benchmarking in noisy environments*, 2016).
+Two consequences:
+
+- **the baseline is the minimum of two sweeps**, because one slow baseline would hide a regression;
+- **a suspect explains itself before it is reported**: the sweep runs again and the rule is applied
+  to the per-compile minimum. A clean run pays nothing for this. The second sweep also compares the
+  two sweeps' emission, which is the only place the check runs the emitter twice.
+
+**The machine moves too.** The same binary measured 7.0 s on 2026-09-17 and 8.8 s on 2026-09-21. So
+the verdict carries the **median ratio** over the compiles above 300 ms: one regression moves a few
+of them, the machine moves all of them. A median of 1.3× or more is reported as the machine being
+slower than when the baseline was taken, with the advice to re-run idle and on mains power.
+
+**A slower compile is a change for review**, like a changed output: exit code `2`, the compiles
+listed with their ratios, and kept only with `-accept "reason"`, which logs every accepted slower
+compile in [ACCEPTED.md](ACCEPTED.md).
+
+**What this does not catch**: a slowdown under 1.5× on one program (freq on the JVM moved 1.30× at
+7e36002 and would pass), and a uniform slowdown of the whole compiler under the machine's own drift.
+The median is printed on every run so that the second is at least visible.
+
 ## What this does not do, and the gap it found
 
-**It does not benchmark.** Performance is the second half of the rule and stays a person's measurement.
+**It does not benchmark the emitted code.** That is the second half of the emission rule and stays a
+person's measurement against hand-written code. It does gate what the COMPILER costs, above.
 
 **It cannot say which changed programs a benchmark covers.** The generated files the gauntlet benchmarks
 — `gauntlet/go/gen_*.go`, `gauntlet/js/gen_*.mjs`, `gauntlet/java/gen/*.java` — record nowhere which
@@ -72,5 +116,6 @@ source, target and flags in its header, so the check can regenerate it and repor
 |---|---|
 | `testdata/emitted/` | the baseline's emitted code, one file per source and target — under `testdata/` so the go tool never compiles it as a package |
 | `outcomes.txt` | every source × target outcome, hash and compiler output |
+| `compiletime.txt` | every source × target compile time in the sweep, the minimum of two sweeps, in milliseconds |
 | `ACCEPTED.md` | every accepted change, with its reason |
 | `../../.gitattributes` | keeps git from converting this directory's line endings |

@@ -46,6 +46,11 @@ type outcome struct {
 	Emitted bool
 	Hash    string   // hex SHA-256 of the emitted text; "" when refused
 	Lines   []string // everything the compiler printed on stderr, normalised
+
+	// What the compile COST, which is not part of an outcome: outcomes.txt must
+	// be byte-identical across runs, and a time never is. See compiletime.go.
+	CPU  time.Duration // user + system time of the gen process
+	Wall time.Duration
 }
 
 func (o outcome) key() string { return o.Source + " " + o.Target }
@@ -172,7 +177,12 @@ func (c *checker) compile(gen, dir, source, target string, checked bool) outcome
 	cmd.Dir = c.root
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
+	start := time.Now()
 	err := cmd.Run()
+	o.Wall = time.Since(start)
+	if cmd.ProcessState != nil {
+		o.CPU = cmd.ProcessState.UserTime() + cmd.ProcessState.SystemTime()
+	}
 	o.Lines = normalise(stderr.String(), c.root, dir)
 	if err != nil {
 		_ = os.Remove(file)
@@ -388,6 +398,14 @@ func (c *checker) emission() result {
 		len(outs), e, r, b, ops, p, loops)
 	c.summary = summary
 
+	// COMPILE TIME, before the outcomes: it has to leave c.times set for -accept
+	// whether or not an outcomes baseline exists yet.
+	note, slow, err := c.compileTime(baseDir, outs)
+	if err != nil {
+		return result{status: fail, detail: err.Error()}
+	}
+	c.timeNote, c.slow = note, slow
+
 	baseText, err := os.ReadFile(filepath.Join(baseDir, "outcomes.txt"))
 	switch {
 	case os.IsNotExist(err):
@@ -413,10 +431,25 @@ func (c *checker) emission() result {
 			fmt.Printf("   %-24s git diff --no-index gauntlet/check/testdata/emitted/%s .check/emitted/%s\n", "", name, name)
 		}
 	}
-	if len(c.changes) > 0 {
-		return result{status: review, detail: fmt.Sprintf("%s — %d change(s) against the baseline", summary, len(c.changes))}
+	fmt.Printf("   %s\n", note)
+	for _, s := range slow {
+		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx\n", "compiles SLOWER", s.key,
+			s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
 	}
-	return result{status: pass, detail: summary + " — byte-identical to the baseline"}
+	var why []string
+	if len(c.changes) > 0 {
+		why = append(why, fmt.Sprintf("%d change(s) against the baseline", len(c.changes)))
+	}
+	if len(slow) > 0 {
+		why = append(why, fmt.Sprintf("%d compile(s) slower than the baseline", len(slow)))
+	}
+	if c.noTimeBaseline {
+		why = append(why, "no compile-time baseline yet")
+	}
+	if len(why) > 0 {
+		return result{status: review, detail: summary + " — " + strings.Join(why, "; ")}
+	}
+	return result{status: pass, detail: summary + " — byte-identical to the baseline; " + note}
 }
 
 // acceptBaseline makes this run's emission the committed baseline and appends
@@ -450,6 +483,16 @@ func (c *checker) acceptBaseline(reason string, tooling status) error {
 	if err := os.WriteFile(filepath.Join(baseDir, "outcomes.txt"), []byte(formatOutcomes(c.emitted)), 0o644); err != nil {
 		return err
 	}
+	// THE COMPILE-TIME BASELINE IS A MINIMUM OF TWO SWEEPS. One sweep is an upper
+	// bound under positive noise, and a baseline that happens to be slow HIDES a
+	// regression: at the 1.21x noise measured between identical sweeps, a single
+	// slow baseline would let freq's 1.67x through the 1.5 rule.
+	if err := c.secondSweep(c.emitted); err != nil {
+		return err
+	}
+	if err := os.WriteFile(filepath.Join(baseDir, "compiletime.txt"), []byte(formatTimes(c.times)), 0o644); err != nil {
+		return err
+	}
 
 	head := "unknown"
 	if out, err := exec.Command("git", "-C", c.root, "rev-parse", "--short", "HEAD").Output(); err == nil {
@@ -466,10 +509,19 @@ func (c *checker) acceptBaseline(reason string, tooling status) error {
 		"compiler pass, differential pass, tooling %s.\n\n", len(c.emitted), e, r, bnd, ops, p, loops, tooling)
 	if c.noBaseline {
 		b.WriteString("The initial baseline.\n")
-	} else {
+	} else if len(c.changes) > 0 {
 		fmt.Fprintf(&b, "%d change(s):\n\n", len(c.changes))
 		for _, ch := range c.changes {
 			fmt.Fprintf(&b, "- %s — `%s`\n", ch.kind, ch.key)
+		}
+	}
+	switch {
+	case c.noTimeBaseline:
+		b.WriteString("\nThe initial compile-time baseline, the minimum of two sweeps.\n")
+	case len(c.slow) > 0:
+		fmt.Fprintf(&b, "\n%d compile(s) accepted SLOWER — %s:\n\n", len(c.slow), c.timeNote)
+		for _, s := range c.slow {
+			fmt.Fprintf(&b, "- `%s` %d → %d ms, %.2fx\n", s.key, s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
 		}
 	}
 	logPath := filepath.Join(baseDir, "ACCEPTED.md")

@@ -77,6 +77,13 @@ type checker struct {
 	summary     string // the sweep's counts, without any verdict
 	noBaseline  bool
 	emissionRan bool
+
+	// What the compile-time gate found (compiletime.go).
+	times          map[timeKey]time.Duration // the estimate -accept records
+	slow           []slowCompile
+	timeNote       string
+	noTimeBaseline bool
+	swept2         bool // a second sweep has run, so c.times is a minimum of two
 }
 
 var stepNames = []string{"vet", "compiler", "emission", "differential", "tooling"}
@@ -183,8 +190,8 @@ func (c *checker) acceptRun(reason string) {
 	case r.status == fail:
 		fmt.Println("\n── accept: refused — the emission step failed")
 		return
-	case len(c.changes) == 0 && !c.noBaseline:
-		fmt.Println("\n── accept: nothing to accept — emission is byte-identical to the baseline")
+	case len(c.changes) == 0 && !c.noBaseline && len(c.slow) == 0 && !c.noTimeBaseline:
+		fmt.Println("\n── accept: nothing to accept — emission is byte-identical to the baseline and no compile is slower")
 		return
 	}
 	for _, need := range []string{"compiler", "differential"} {
@@ -207,8 +214,13 @@ func (c *checker) acceptRun(reason string) {
 	}
 	fmt.Println("\n── accept: the baseline is this run's emission; logged in gauntlet/check/ACCEPTED.md")
 	what := fmt.Sprintf("ACCEPTED %d change(s)", len(c.changes))
+	if len(c.slow) > 0 {
+		what += fmt.Sprintf(" and %d slower compile(s)", len(c.slow))
+	}
 	if c.noBaseline {
 		what = "ACCEPTED as the initial baseline"
+	} else if c.noTimeBaseline && len(c.changes) == 0 {
+		what = "ACCEPTED the initial compile-time baseline"
 	}
 	c.results["emission"] = result{status: pass, detail: what + " — " + c.summary}
 }

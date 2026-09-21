@@ -73,7 +73,10 @@ a wall that needs language work, stop and research it, then design it.
 
 **Next, from the current assessment:**
 1. Resume packages (`encoding/binary`, `strconv`). The analysis layer grows only for a refusal that
-   has been named first.
+   has been named first. **Both hit the integer window first**: their 64-bit results can be printed
+   but not computed with, and declaring the true range today makes them bignums.
+   [what-an-int-is.md](docs/what-an-int-is.md) is the research — `int` as ℤ, with each target
+   realizing what it can natively — and it ends on a decision that is hamza's.
 2. ~~Gate compile time in `cmd/check` against the baseline.~~ **Done**
    ([compiletime-2026-09-21](gauntlet/results/compiletime-2026-09-21.md)): a compile is slower at 1.5×
    and +250 ms, measured to flag all six compiles `7e36002` slowed and none across identical sweeps.

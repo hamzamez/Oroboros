@@ -267,13 +267,13 @@ func eqI(a, b ival) bool {
 
 // IntervalReport is what the experiment produces.
 type IntervalReport struct {
-	Ops       int       // integer operations that would need an overflow check
-	Proven    int       // …of those, the ones provably inside the target's word
-	Target    string    // the target the report is about (ADR 0026: legality is per target)
-	Word      core.Word // …and its word
+	Ops    int       // integer operations that would need an overflow check
+	Proven int       // …of those, the ones provably inside the target's word
+	Target string    // the target the report is about (ADR 0026: legality is per target)
+	Word   core.Word // …and its word
 	// Outside is set when an unproven operation IS bounded, only not by this
 	// target's word — the case where declaring the range is the answer.
-	Outside bool
+	Outside   bool
 	Unproven  []string
 	ByOp      map[string][2]int // operation -> {proven, total}
 	LoopVars  int

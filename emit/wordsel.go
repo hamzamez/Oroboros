@@ -252,7 +252,8 @@ func wideRange(ty string) (ival, bool) {
 }
 
 // DeclaresWord reports whether U reaches a program BY DECLARATION: a signature
-// names a range in U, or the term calls a primitive whose result is one. It is
+// names a range in U, or the term calls a primitive with a parameter or a
+// result in U. It is
 // syntactic and costs nothing, which is the point — the selection is a whole
 // interval pass, and running it on every program doubled the compile time of
 // one that has nothing in U (json-tree, 95 → 235 ms serially).
@@ -287,8 +288,20 @@ func DeclaresWord(tgt *Target, sig *core.Sig, t *core.Term) bool {
 			return false
 		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
-			if pr, ok := tgt.Prims[t.Op().Name]; ok && tgt.ValueType(pr.Result) == core.U64Type {
-				return true
+			if pr, ok := tgt.Prims[t.Op().Name]; ok {
+				if tgt.ValueType(pr.Result) == core.U64Type {
+					return true
+				}
+				for _, r := range pr.Results {
+					if tgt.ValueType(r) == core.U64Type {
+						return true
+					}
+				}
+				for _, a := range pr.Args {
+					if tgt.ValueType(a) == core.U64Type {
+						return true // an argument must be converted into U
+					}
+				}
 			}
 		}
 		if t.Kind == core.KFn {

@@ -36,6 +36,7 @@ package stdlib
 
 import (
 	"bytes"
+	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -373,11 +374,10 @@ var published = map[string][]string{
 		"USABLE GOES 2710 -> 2978 (+268)",
 		// gostd-utf8-2026-09-13. A constant is a zero-argument pure prim whose
 		// result is its own exact range, and these are what refuses the rest.
-		"CONSTANTS: 2989 exported, 509 declarable",
+		"CONSTANTS: 2989 exported, 514 declarable", // +5 in the word or U: ADR 0026
 		"constant of a named type 2425",
 		"integer constant whose value is per-platform 50",
-		"integer constant outside the portable window 5",
-		"emitted 5282 primitives",
+		"emitted 5287 primitives",
 	},
 	"win32": { // win32-2026-09-08, win32enum-2026-09-11, structval-2026-09-12
 		"FLAT C API: 11575",
@@ -603,6 +603,14 @@ func acceptance() map[string]accept {
 		// streams need the generated os and io to obtain a file to write to.
 		"encoding-hex": {host: "go", target: "go", layer: "tg", flags: checked, want: hexReference(),
 			files: map[string]string{"tg/go/os-gen.oro": "os.oro", "tg/go/io-gen.oro": "io.oro"}},
+		// A THIRD, strconv, and the first whose integers are the host's own
+		// (ADR 0026): ParseUint's result is a uint64, and the program divides it
+		// and sums its digits in a machine word (strconv-2026-09-22).
+		"strconv": {host: "go", target: "go", layer: "tg", flags: checked, want: strconvReference()},
+		// encoding/binary's varint half: a prefix-free code over U and the
+		// zig-zag bijection, with a reader from the generated strings file.
+		"encoding-binary": {host: "go", target: "go", layer: "tg", flags: checked, want: binaryReference(),
+			files: map[string]string{"tg/go/strings-gen.oro": "strings.oro"}},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —
@@ -850,6 +858,137 @@ func hexReference() []string {
 	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
 }
 
+// strconvReference is strconv.oro's expected output, computed by the real
+// strconv in the order the program prints.
+func strconvReference() []string {
+	var b strings.Builder
+	p := func(v any) { fmt.Fprintln(&b, v) }
+	top := func(i int64) int64 { return 9223372036854775807 - i }
+	bottom := func(i int64) int64 { return -9223372036854775808 + i }
+	roundtrip := func(x int64, base int) {
+		y, e := strconv.ParseInt(strconv.FormatInt(x, base), base, 64)
+		p(strconv.FormatInt(x, base))
+		p(x == y)
+		p(e == nil)
+	}
+	roundtrip(top(0), 10)
+	roundtrip(top(0), 2)
+	roundtrip(bottom(0), 16)
+	roundtrip(bottom(5), 36)
+	roundtrip(0, 10)
+	digitsum := func(x uint64) int {
+		s := 0
+		for ; x != 0; x /= 10 {
+			s += int(x % 10)
+		}
+		return s
+	}
+	for _, i := range []uint64{0, 7} {
+		y, e := strconv.ParseUint(strconv.FormatUint(18446744073709551615-i, 10), 10, 64)
+		p(strconv.FormatUint(18446744073709551615-i, 16))
+		p(strconv.FormatUint(y, 10))
+		p(e == nil)
+		p(y / 1000000000000)
+		p(digitsum(y))
+	}
+	v, e := strconv.ParseInt("9223372036854775808", 10, 64)
+	p(v)
+	p(e)
+	v, e = strconv.ParseInt("-9223372036854775809", 10, 64)
+	p(v)
+	p(e)
+	u, e := strconv.ParseUint("18446744073709551616", 10, 64)
+	p(strconv.FormatUint(u, 10))
+	p(e)
+	n, e := strconv.Atoi(strconv.Itoa(int(top(12345))))
+	p(int64(n) == top(12345))
+	p(e == nil)
+	n, e = strconv.Atoi("12a")
+	p(n)
+	p(e)
+	p(strconv.Quote("tab\there, \"quoted\", é"))
+	p(strconv.QuoteToASCII("é"))
+	p(strconv.QuoteRune(900 + 45))
+	q, e := strconv.Unquote(strconv.Quote("a\nb"))
+	p(q)
+	p(e == nil)
+	r, m, tail, e := strconv.UnquoteChar("\\u00e9rest", 34)
+	p(r)
+	p(m)
+	p(tail)
+	p(e == nil)
+	p(strconv.CanBackquote("no `backquote`"))
+	p(strconv.IsPrint(7))
+	p(strconv.FormatBool(true))
+	t, e := strconv.ParseBool("T")
+	p(t)
+	p(e == nil)
+	f, e := strconv.ParseFloat("0.30000000000000004", 64)
+	p(strconv.FormatFloat(f, 'g', -1, 64))
+	p(strconv.FormatFloat(f, 'e', 3, 64))
+	p(e == nil)
+	buf := strconv.AppendUint(strconv.AppendInt(strconv.AppendQuote(strconv.AppendBool([]byte{91}, false), "x"),
+		bottom(0), 10), 18446744073709551615-1, 2)
+	p(buf)
+	_, e = strconv.ParseInt("99999999999999999999", 10, 64)
+	p((&strconv.NumError{Err: e, Func: "ParseInt", Num: "99999999999999999999"}).Error())
+	p((&strconv.NumError{Err: e, Func: "F", Num: "N"}).Unwrap())
+	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
+// binaryReference is encoding-binary.oro's expected output, computed by the
+// real encoding/binary in the order the program prints.
+func binaryReference() []string {
+	var b strings.Builder
+	p := func(v any) { fmt.Fprintln(&b, v) }
+	for _, x := range []uint64{0, 127, 128, 16383, 16384, 1<<63 - 1, 1 << 63, 1<<64 - 1} {
+		enc := make([]byte, 10)
+		n := binary.PutUvarint(enc, x)
+		p(n)
+		y, m := binary.Uvarint(enc)
+		p(x == y)
+		p(m)
+		p(enc)
+	}
+	for _, x := range []int64{0, -1, 1, -64, 64, 1<<63 - 1, -1 << 63} {
+		enc := make([]byte, 10)
+		n := binary.PutVarint(enc, x)
+		p(n)
+		y, m := binary.Varint(enc)
+		p(x == y)
+		p(m)
+		p(enc)
+	}
+	two := binary.AppendVarint(binary.AppendUvarint(nil, 300), -3)
+	x, n := binary.Uvarint(two)
+	p(two)
+	p(x)
+	p(n)
+	for _, buf := range [][]byte{
+		{128, 128},
+		{128, 128, 128, 128, 128, 128, 128, 128, 128, 2},
+		{128, 128, 128, 128, 128, 128, 128, 128, 128, 128, 1},
+		{255, 255, 255, 255, 255, 255, 255, 255, 255, 1},
+	} {
+		x, n := binary.Uvarint(buf)
+		p(x)
+		p(n)
+	}
+	u, err := binary.ReadUvarint(strings.NewReader("\u00ac\u0002"))
+	p(u)
+	p(err == nil)
+	v, err := binary.ReadVarint(strings.NewReader("\u0003"))
+	p(v)
+	p(err == nil)
+	enc := make([]byte, 10)
+	binary.PutUvarint(enc, 1<<64-1)
+	y, m := binary.Uvarint(enc)
+	p(y / 2)
+	p(y % 1000)
+	p(y/4 + uint64(m))
+	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
 // ---------------------------------------------------------------------------
 // 5. A declaration written by hand agrees with the host.
 //
@@ -873,6 +1012,48 @@ var handDeclared = []struct {
 	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes},
 	{"go", "targets/go", "encoding/hex.oro",
 		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes},
+	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes},
+	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes},
+}
+
+var binaryMistakes = map[string]func(m map[string]emit.Prim){
+	"Uvarint's value narrowed to the signed word": func(m map[string]emit.Prim) {
+		p := m["Uvarint"]
+		p.Results = []string{"int -9223372036854775808 9223372036854775807", p.Results[1]}
+		m["Uvarint"] = p
+	},
+	"PutVarint's argument declared unsigned": func(m map[string]emit.Prim) {
+		p := m["PutVarint"]
+		p.Args = []string{p.Args[0], "int 0 18446744073709551615"}
+		m["PutVarint"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["Uvarint"]
+		p.Form = strings.ReplaceAll(p.Form, "binary.Uvarint", "binary.Varint")
+		m["Uvarint"] = p
+	},
+	"a missing name": func(m map[string]emit.Prim) { delete(m, "ReadVarint") },
+}
+
+// strconvMistakes include the one ADR 0026 exists to prevent: a 64-bit result
+// declared narrower than the host returns — the survey's old `uint64 → int`.
+var strconvMistakes = map[string]func(m map[string]emit.Prim){
+	"ParseUint's result narrowed to the signed word": func(m map[string]emit.Prim) {
+		p := m["ParseUint"]
+		p.Results = []string{"int -9223372036854775808 9223372036854775807", p.Results[1]}
+		m["ParseUint"] = p
+	},
+	"FormatInt's argument narrowed to 32 bits": func(m map[string]emit.Prim) {
+		p := m["FormatInt"]
+		p.Args = []string{"int -2147483648 2147483647", p.Args[1]}
+		m["FormatInt"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["Atoi"]
+		p.Form = strings.ReplaceAll(p.Form, "strconv.Atoi", "strconv.Itoa")
+		m["Atoi"] = p
+	},
+	"a missing name": func(m map[string]emit.Prim) { delete(m, "QuotedPrefix") },
 }
 
 var utf8Mistakes = map[string]func(m map[string]emit.Prim){
@@ -949,7 +1130,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				if len(host) == 0 {
 					t.Fatalf("the survey declares nothing in %s, so nothing is checked", module)
 				}
-				for _, e := range agreeAll(hostTg.Word, hand, host, realization(handTg), realization(hostTg)) {
+				for _, e := range agreeAll(hostTg.Word, hand, host, realization(handTg), realizationOver(hostTg, handTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
 			}
@@ -961,7 +1142,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 					m[k] = v
 				}
 				mutate(m)
-				if errs := agreeAll(hostTg.Word, m, host, realization(handTg), realization(hostTg)); len(errs) == 0 {
+				if errs := agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg)); len(errs) == 0 {
 					t.Errorf("%s was not caught", what)
 				}
 			}
@@ -987,12 +1168,24 @@ func modulePrims(tg *emit.Target, module string) map[string]emit.Prim {
 // that names it: a type is a member of its module now, so a hand file says
 // `go/io.Writer` where the generator still says `io-Writer`, and both realize
 // "io.Writer" — which is the claim either one makes (theories.md §3.2).
-func realization(tg *emit.Target) func(string) string {
+func realization(tg *emit.Target) func(string) string { return realizationOver(tg, nil) }
+
+// realizationOver realizes a type in a FRAGMENT of a target: a generated file
+// declares its own package's types and none of the language's, so `f64` in it
+// is realized by the target it will be glued into — `float64` — and comparing
+// the unrealized name against the hand file's `float64` was a disagreement
+// about where a declaration lives, not about what it says. strconv, the first
+// hand-declared package with a float, is what met it.
+func realizationOver(tg, base *emit.Target) func(string) string {
 	return func(ty string) string {
 		parts := strings.Fields(ty)
 		for i, tok := range parts {
 			if s, ok := tg.Types[tok]; ok {
 				parts[i] = s
+			} else if base != nil {
+				if s, ok := base.Types[tok]; ok {
+					parts[i] = s
+				}
 			}
 		}
 		return strings.Join(parts, " ")

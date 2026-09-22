@@ -1,0 +1,129 @@
+; strconv, DECLARED BY HAND. Every claim below was read off src/strconv/number.go,
+; src/strconv/quote.go and src/internal/strconv/{itoa,atoi,ftoa}.go in the Go 1.27
+; toolchain; the algebra is in gauntlet/results/strconv-2026-09-22.md §1.
+;
+; THE ALGEBRA IN SIX LINES.
+;   N_b ⊂ A*   the numerals in base b, 2 ≤ b ≤ 36: an optional '-', then digits
+;              over "0123456789abcdefghijklmnopqrstuvwxyz"[:b], no leading zero.
+;   F_b : ℤ → N_b is FormatInt, an INJECTION (positional notation is unique), and
+;   P_b : A* ⇀ ℤ is ParseInt, a PARTIAL LEFT INVERSE: P_b ∘ F_b = id on the word,
+;              F_b ∘ P_b ≠ id (P_b accepts '+', uppercase, '_' with base 0, a
+;              prefix 0x…), but F_b ∘ P_b is IDEMPOTENT — a projection onto N_b.
+;   P_b's domain is the words over the digits whose value lies in the word; past
+;   it P_b returns the nearest bound and ErrRange: it SATURATES, never wraps.
+;
+; INTEGER TYPES ARE THE HOST'S (ADR 0026): `int64` is the target's signed word and
+; `uint64` is U = [0, 2^64−1], held natively in a `uint64`. So ParseUint's result
+; is what Go returns, and arithmetic on it is native — which was the point of
+; the decision: under ADR 0012 this result could be printed and not computed with.
+;
+; WHAT IS NOT SAID, named rather than hidden:
+;   - ParseInt(s, b, bitSize) lies in [−2^(bitSize−1), 2^(bitSize−1)−1], a range
+;     that DEPENDS ON AN ARGUMENT'S VALUE. The declaration states the widest,
+;     bitSize = 64, which contains every other — sound, and less than true.
+;   - FormatFloat and AppendFloat panic unless bitSize ∈ {32, 64}. A disjunction
+;     is outside the linear fragment, so the domain is narrowed to bitSize = 64:
+;     a parameter may promise to pass less (contravariance), and the language's
+;     only float is a float64.
+(target go
+  (module go/strconv
+    (type NumError (host "*strconv.NumError"))
+
+    ; ---------------------------------------------------------- booleans
+    ; {false, true} ↔ {"false", "true"}; ParseBool also accepts 1, t, T, TRUE,
+    ; True and their negations, so ParseBool ∘ FormatBool = id and not conversely.
+    (sig FormatBool ((b bool)) string pure (host expr "strconv.FormatBool(%s)" (import "strconv")))
+    (sig ParseBool ((s string)) (tuple bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
+    ; CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
+    (sig AppendBool ((dst (buffer (int 0 255))) (b bool)) (buffer (int 0 255))
+          (host expr "strconv.AppendBool(%s, %s)" (import "strconv")))
+
+    ; ---------------------------------------------------------- integers
+    ; F_b, on the word and on U. formatBits panics outside 2 ≤ base ≤ 36
+    ; ("strconv: illegal AppendInt/FormatInt base"), so that is the precondition.
+    (sig FormatInt ((i int64) (base int)) string pure
+          (where (and (<= 2 base) (<= base 36)))
+          (host expr "strconv.FormatInt(int64(%s), %s)" (import "strconv")))
+    (sig FormatUint ((i uint64) (base int)) string pure
+          (where (and (<= 2 base) (<= base 36)))
+          (host expr "strconv.FormatUint(uint64(%s), %s)" (import "strconv")))
+    ; F_10 on Go's int, which is the word.
+    (sig Itoa ((i int)) string pure (host expr "strconv.Itoa(%s)" (import "strconv")))
+    (sig AppendInt ((dst (buffer (int 0 255))) (i int64) (base int)) (buffer (int 0 255))
+          (where (and (<= 2 base) (<= base 36)))
+          (host expr "strconv.AppendInt(%s, int64(%s), %s)" (import "strconv")))
+    (sig AppendUint ((dst (buffer (int 0 255))) (i uint64) (base int)) (buffer (int 0 255))
+          (where (and (<= 2 base) (<= base 36)))
+          (host expr "strconv.AppendUint(%s, uint64(%s), %s)" (import "strconv")))
+
+    ; P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
+    ; The result is the host's int64 — the word — received as Go's int, which is
+    ; the same 64 bits on this target.
+    (sig ParseInt ((s string) (base int) (bitSize int)) (tuple int64 error) pure
+          (host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(%s, %s, %s)"
+            (import "strconv")))
+    ; …and over U, returned as the uint64 it is.
+    (sig ParseUint ((s string) (base int) (bitSize int)) (tuple uint64 error) pure
+          (host expr "strconv.ParseUint(%s, %s, %s)" (import "strconv")))
+    ; P_10 into Go's int.
+    (sig Atoi ((s string)) (tuple int error) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
+
+    ; ---------------------------------------------------------- floats
+    ; The shortest decimal that rounds back (prec −1), or a fixed precision; an
+    ; unknown fmt byte gives "%" followed by it, and does not panic.
+    (sig FormatFloat ((f f64) (fmt uint8) (prec int) (bitSize int)) string pure
+          (where (and (<= 64 bitSize) (<= bitSize 64)))
+          (host expr "strconv.FormatFloat(%s, uint8(%s), %s, %s)" (import "strconv")))
+    (sig AppendFloat ((dst (buffer (int 0 255))) (f f64) (fmt uint8) (prec int) (bitSize int)) (buffer (int 0 255))
+          (where (and (<= 64 bitSize) (<= bitSize 64)))
+          (host expr "strconv.AppendFloat(%s, %s, uint8(%s), %s, %s)" (import "strconv")))
+    (sig ParseFloat ((s string) (bitSize int)) (tuple f64 error) pure
+          (host expr "strconv.ParseFloat(%s, %s)" (import "strconv")))
+
+    ; ---------------------------------------------------------- quoting
+    ; Q : strings → Go string literals, an injection; Unquote is its partial
+    ; left inverse, and accepts backquoted and single-quoted literals too.
+    (sig Quote          ((s string)) string pure (host expr "strconv.Quote(%s)" (import "strconv")))
+    (sig QuoteToASCII   ((s string)) string pure (host expr "strconv.QuoteToASCII(%s)" (import "strconv")))
+    (sig QuoteToGraphic ((s string)) string pure (host expr "strconv.QuoteToGraphic(%s)" (import "strconv")))
+    (sig QuoteRune          ((r int32)) string pure (host expr "strconv.QuoteRune(int32(%s))" (import "strconv")))
+    (sig QuoteRuneToASCII   ((r int32)) string pure (host expr "strconv.QuoteRuneToASCII(int32(%s))" (import "strconv")))
+    (sig QuoteRuneToGraphic ((r int32)) string pure (host expr "strconv.QuoteRuneToGraphic(int32(%s))" (import "strconv")))
+    (sig AppendQuote ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuote(%s, %s)" (import "strconv")))
+    (sig AppendQuoteToASCII ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuoteToASCII(%s, %s)" (import "strconv")))
+    (sig AppendQuoteToGraphic ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuoteToGraphic(%s, %s)" (import "strconv")))
+    (sig AppendQuoteRune ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuoteRune(%s, int32(%s))" (import "strconv")))
+    (sig AppendQuoteRuneToASCII ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuoteRuneToASCII(%s, int32(%s))" (import "strconv")))
+    (sig AppendQuoteRuneToGraphic ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
+          (host expr "strconv.AppendQuoteRuneToGraphic(%s, int32(%s))" (import "strconv")))
+    (sig CanBackquote ((s string)) bool pure (host expr "strconv.CanBackquote(%s)" (import "strconv")))
+    (sig IsPrint   ((r int32)) bool pure (host expr "strconv.IsPrint(int32(%s))" (import "strconv")))
+    (sig IsGraphic ((r int32)) bool pure (host expr "strconv.IsGraphic(int32(%s))" (import "strconv")))
+    (sig Unquote      ((s string)) (tuple string error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
+    (sig QuotedPrefix ((s string)) (tuple string error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
+    ; ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
+    ; worst), a \x or octal escape (at most 255; octal past it is an error), or a
+    ; \u / \U escape the host checks with utf8.ValidRune — and 0 on an error — so
+    ; it lies in [0, MaxRune], narrower than the host's int32 and read off the
+    ; source rather than assumed.
+    (sig UnquoteChar ((s string) (quote uint8)) (tuple (int 0 1114111) bool string error) pure
+          (host expr "func(s string, q byte) (int, bool, string, error) { v, m, t, err := strconv.UnquoteChar(s, q); return int(v), m, t, err }(%s, uint8(%s))"
+            (import "strconv")))
+
+    ; ---------------------------------------------------------- the error
+    ; A struct literal, as the generator spells one: Func, Num and Err are all a
+    ; NumError holds.
+    (sig NumError ((err error) (func string) (num string)) go/strconv.NumError
+          (host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" (import "strconv")))
+
+    ; ITS METHOD SET, written inside the package: `go/strconv/NumError`.
+    (module NumError
+      (sig Error  ((self go/strconv.NumError)) string pure (host expr "%s.Error()" (import "strconv")))
+      (sig Unwrap ((self go/strconv.NumError)) error pure (host expr "%s.Unwrap()" (import "strconv"))))
+  )
+)

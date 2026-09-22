@@ -106,18 +106,23 @@ type verdict struct {
 // it emits `[]byte` on Go and `short[]` on the JVM, which is ADR 0003's ladder
 // doing the work (elemwidth-2026-08-27).
 //
-// `int64` and `uint64` stay `int`, and that is ADR 0012 rather than laziness: a
-// range past the portable window makes its own operations unprovable, which is
-// a compile error at the call site — the honest place for it — where a declared
-// `(int 0 (pow 2 64))` would promote the value to arbitrary precision and
-// silently stop being the host's word.
+// `int64`, `uint64` AND `uint` ARE THEIR OWN RANGES (ADR 0026). They were spelled
+// `int` under ADR 0012, and that was sound for a parameter — the declaration
+// promised to pass less than the host accepts — and a LIE for a result, which a
+// declaration must accept in full (contravariant arguments, covariant results).
+// Now `int64` is the signed word itself and `uint64` is U = [0, 2^64−1], which
+// the Go target realizes natively as `uint64`; neither is arbitrary precision.
+// A generator makes no claim it cannot justify (ADR 0023), and these it can.
 var scalar = map[string]string{
 	"bool": "bool", "string": "string",
-	"int": "int", "int64": "int", "uint": "int", "uint64": "int",
-	"int8":  "(int -128 127)",
-	"int16": "(int -32768 32767)",
-	"int32": "(int -2147483648 2147483647)",
-	"uint8": "(int 0 255)", "byte": "(int 0 255)",
+	"int":    "int",
+	"int64":  "(int -9223372036854775808 9223372036854775807)",
+	"uint":   "(int 0 18446744073709551615)",
+	"uint64": "(int 0 18446744073709551615)",
+	"int8":   "(int -128 127)",
+	"int16":  "(int -32768 32767)",
+	"int32":  "(int -2147483648 2147483647)",
+	"uint8":  "(int 0 255)", "byte": "(int 0 255)",
 	"uint16":  "(int 0 65535)",
 	"uint32":  "(int 0 4294967295)",
 	"rune":    "(int -2147483648 2147483647)",
@@ -1892,6 +1897,8 @@ func emit(dir string, syms []sym, raw []string) error {
 		// generator can justify (ADR 0023): Go's `int` is as wide as the build
 		// running the survey says it is.
 		fmt.Fprintf(&b, "  (repr (int %d %d) word)\n", math.MinInt, math.MaxInt)
+		// And U = [0, 2^64−1], which Go's `uint64` is on every platform.
+		b.WriteString("  (repr (int 0 18446744073709551615) word)\n")
 		var tn []string
 		for k := range types {
 			tn = append(tn, k)
@@ -1977,12 +1984,16 @@ func spell(t string) string {
 // `bits.OnesCount64(uint64(%s))` was verified in gostdlib-2026-09-06, rather
 // than inferred by the emitter.
 //
-// Only the narrow integer types are converted. `int64`, `uint` and `uint64` are
-// spelled `int` here and are the next package's question, because converting a
-// negative value to `uint64` wraps silently.
+// EVERY INTEGER TYPE THAT IS NOT GO'S `int` IS CONVERTED, including `int64`,
+// `uint` and `uint64` now that they are their own ranges (ADR 0026). The
+// conversion is exact on the declared range, which the call site must prove:
+// the range's lower end is an obligation, so a possibly-negative value never
+// reaches `uint64(%s)` — the silent wrap ADR 0012's note feared is refused
+// before it is emitted. `uint64(x)` of a value already held as `uint64` is the
+// identity.
 func hostArg(goType string) string {
 	switch goType {
-	case "int8", "int16", "int32", "rune", "uint8", "byte", "uint16", "uint32":
+	case "int8", "int16", "int32", "rune", "uint8", "byte", "uint16", "uint32", "int64", "uint", "uint64":
 		return goType + "(%s)"
 	}
 	return "%s"
@@ -2001,8 +2012,12 @@ func mergeConst(old, s sym) sym {
 	return s
 }
 
-// portableWindow is ADR 0012's: an `int` is exact within ±(2^53−1).
-var portableWindow = new(big.Int).SetUint64(1<<53 - 1)
+// THE TWO REALIZATIONS A CONSTANT MAY LIVE IN on the Go target (ADR 0026): the
+// signed word, [−2^63, 2^63−1], and U = [0, 2^64−1].
+var (
+	wordLo = new(big.Int).Lsh(big.NewInt(-1), 63)
+	uHi    = new(big.Int).SetUint64(1<<64 - 1)
+)
 
 // constResult spells a constant's result, or says why it cannot be declared.
 //
@@ -2034,8 +2049,8 @@ func constResult(s sym) (string, string) {
 		if !ok {
 			return "", "integer constant with no readable value"
 		}
-		if new(big.Int).Abs(v).Cmp(portableWindow) > 0 {
-			return "", "integer constant outside the portable window"
+		if v.Cmp(wordLo) < 0 || v.Cmp(uHi) > 0 {
+			return "", "integer constant outside the word and U"
 		}
 		return fmt.Sprintf("(int %s %s)", v, v), ""
 	case "ideal-float", "float64", "float32":

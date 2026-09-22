@@ -1,0 +1,68 @@
+; encoding/binary, THE VARINT HALF, DECLARED BY HAND. Every claim below was read off
+; src/encoding/binary/varint.go in the Go 1.27 toolchain; the algebra is in
+; gauntlet/results/strconv-2026-09-22.md §4.
+;
+; THE ALGEBRA.
+;   LEB128: C : U → B* writes x in base 128, least significant group first, the
+;   high bit of every byte but the last set. C is a PREFIX-FREE code — no
+;   codeword is a prefix of another, so a stream of them parses uniquely — with
+;   |C(x)| = max(1, ⌈bitlen(x)/7⌉) ≤ 10, and Kraft's inequality holds.
+;   Uvarint is its partial left inverse, reading the first codeword of a buffer.
+;   ZIG-ZAG: z : ℤ ∩ word → U, z(x) = 2x for x ≥ 0 and −2x − 1 otherwise, a
+;   BIJECTION onto U that sends small magnitudes to small codes (Protocol
+;   Buffers' encoding); Varint = z⁻¹ ∘ Uvarint and PutVarint = PutUvarint ∘ z.
+;
+; INTEGER TYPES ARE THE HOST'S (ADR 0026): a uvarint's value is a `uint64`, which
+; the Go target holds natively, and a varint's an `int64`, its word.
+;
+; WHAT IS NOT SAID, named rather than hidden:
+;   - |C(x)| depends on x's VALUE, not linearly, so PutUvarint's exact
+;     requirement len buf ≥ |C(x)| is outside the fragment. It is stated as
+;     len buf ≥ MaxVarintLen64 = 10 — stronger than needed, which is sound.
+;   - Uvarint's count is a THREE-WAY SUM ENCODED IN A SIGN: n > 0 bytes read,
+;     n = 0 the buffer ended first, n < 0 an overflow after −n bytes. Its honest
+;     type is a variant; declared here as the integer range it is, [−11, 10].
+;   - The ByteOrder half (BigEndian.Uint64 and the rest) hangs off unexported
+;     types reached through package variables, which the survey cannot declare,
+;     and the reflective half (Read, Write, Size) takes `any`.
+(target go
+  (module go/encoding/binary
+    (const MaxVarintLen16 3  (host "binary.MaxVarintLen16" (import "encoding/binary")))
+    (const MaxVarintLen32 5  (host "binary.MaxVarintLen32" (import "encoding/binary")))
+    (const MaxVarintLen64 10 (host "binary.MaxVarintLen64" (import "encoding/binary")))
+
+    ; C into a buffer: A WRITE-BORROW, B ⊸ B ⊗ int. The host writes buf[0 .. |C(x)|)
+    ; and checks nothing — past the end is a panic — and returns |C(x)| ∈ [1, 10].
+    (sig PutUvarint ((buf (buffer (int 0 255))) (x uint64)) (tuple (buffer (int 0 255)) (int 1 10))
+          (where (<= 10 (len buf))) ; MaxVarintLen64
+          (host expr "func(b []byte, x uint64) ([]byte, int) { return b, binary.PutUvarint(b, x) }(%s, uint64(%s))"
+            (import "encoding/binary")))
+    (sig PutVarint ((buf (buffer (int 0 255))) (x int64)) (tuple (buffer (int 0 255)) (int 1 10))
+          (where (<= 10 (len buf))) ; MaxVarintLen64
+          (host expr "func(b []byte, x int64) ([]byte, int) { return b, binary.PutVarint(b, x) }(%s, int64(%s))"
+            (import "encoding/binary")))
+
+    ; CONSUME AND RETURN, B ⊸ B: C(x) appended, growing buf when it must.
+    (sig AppendUvarint ((buf (buffer (int 0 255))) (x uint64)) (buffer (int 0 255))
+          (host expr "binary.AppendUvarint(%s, uint64(%s))" (import "encoding/binary")))
+    (sig AppendVarint ((buf (buffer (int 0 255))) (x int64)) (buffer (int 0 255))
+          (host expr "binary.AppendVarint(%s, int64(%s))" (import "encoding/binary")))
+
+    ; C⁻¹ on the first codeword: the value, in U, and the three-way count.
+    (sig Uvarint ((buf (array (int 0 255)))) (tuple uint64 (int -11 10)) pure
+          (host expr "binary.Uvarint(%s)" (import "encoding/binary")))
+    ; z⁻¹ ∘ C⁻¹: the value is the host's int64, received as Go's int (the same
+    ; 64 bits on this target), and the same count.
+    (sig Varint ((buf (array (int 0 255)))) (tuple int64 (int -11 10)) pure
+          (host expr "func(b []byte) (int, int) { x, n := binary.Varint(b); return int(x), n }(%s)"
+            (import "encoding/binary")))
+
+    ; FROM A STREAM, one byte at a time: IMPURE, each call consumes what it reads.
+    ; On an error the value is whatever was accumulated — still in U.
+    (sig ReadUvarint ((r go/io.ByteReader)) (tuple uint64 error)
+          (host expr "binary.ReadUvarint(%s)" (import "encoding/binary")))
+    (sig ReadVarint ((r go/io.ByteReader)) (tuple int64 error)
+          (host expr "func(r interface{ ReadByte() (byte, error) }) (int, error) { x, err := binary.ReadVarint(r); return int(x), err }(%s)"
+            (import "encoding/binary")))
+  )
+)

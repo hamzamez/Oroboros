@@ -20,6 +20,7 @@
     (type Writer      (host "io.Writer"))
     (type Closer      (host "io.Closer"))
     (type WriteCloser (host "io.WriteCloser"))
+    (type ByteReader  (host "io.ByteReader"))
 
     ; EACH METHOD SET IS WRITTEN INSIDE THE MODULE THAT OWNS THE TYPE. A child
     ; module's path is its parent's followed by its own, so `Writer` here is
@@ -60,4 +61,13 @@
     ; The included names stay ABSOLUTE: `include` takes module paths, and nesting
     ; abbreviates where a module is DECLARED, not where one is named.
     (module WriteCloser
-      (include go/io/Writer go/io/Closer))))
+      (include go/io/Writer go/io/Closer))
+
+    ; `ReadByte() (byte, error)`. IMPURE: each call consumes the byte it returns.
+    ; "If ReadByte returns an error, no input byte was consumed, and the returned
+    ; byte value is undefined" — so the byte is in [0, 255] and means nothing on
+    ; an error, which is the caller's to check. encoding/binary's varint readers
+    ; take one (added 2026-09-22 for them).
+    (module ByteReader
+      (sig ReadByte ((self go/io.ByteReader)) (tuple (int 0 255) error)
+        (host expr "%s.ReadByte()")))))

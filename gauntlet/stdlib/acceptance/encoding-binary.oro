@@ -1,0 +1,80 @@
+; ACCEPTANCE: encoding/binary's varint half, declared BY HAND
+; (targets/go/encoding/binary.oro), every value the program COMPUTED.
+;
+; Each section is a LAW of the code (strconv-2026-09-22 §4), and the host is the
+; oracle: the expected output is binaryReference in tooling_test.go.
+;
+;   code        C⁻¹ ∘ C = id on U, at its ends and at every length boundary, and
+;               |C(x)| = max(1, ⌈bitlen(x)/7⌉) — the count the host returns
+;   zigzag      the same through z, at both ends of the signed word
+;   prefix      appended codewords: the first parses alone, whatever follows it
+;   sum         the count's three cases — read, ended, overflowed — in its sign
+;   stream      C⁻¹ from an io.ByteReader
+;   native      a decoded uint64 computed with, in a machine word
+
+(use go/encoding/binary as bin)
+(use go/strings as gstr)
+(use go/fmt as fmt)
+(use go/os as gos)
+
+(export main)
+
+; C into a buffer of MaxVarintLen64, then C⁻¹ on the array the build returns —
+; a buffer the host may write is not handed to a reader while it is one.
+(def code-one (x)
+  (let enc (build 10 (fn (b) ((bin.PutUvarint b x) (fn (b2 n) (seq (fmt.Println n) b2)))))
+    ((bin.Uvarint enc) (fn (y m)
+      (seq (fmt.Println (= x y)) (fmt.Println m) (fmt.Println enc))))))
+
+(def code ()
+  (seq (code-one 0) (code-one 127) (code-one 128) (code-one 16383) (code-one 16384)
+       (code-one (- 9223372036854775807 0))
+       (code-one (+ 9223372036854775807 1))
+       (code-one (- 18446744073709551615 0))))
+
+(def zig-one (x)
+  (let enc (build 10 (fn (b) ((bin.PutVarint b x) (fn (b2 n) (seq (fmt.Println n) b2)))))
+    ((bin.Varint enc) (fn (y m)
+      (seq (fmt.Println (= x y)) (fmt.Println m) (fmt.Println enc))))))
+
+(def zigzag ()
+  (seq (zig-one 0) (zig-one -1) (zig-one 1) (zig-one -64) (zig-one 64)
+       (zig-one 9223372036854775807) (zig-one (- -9223372036854775807 1))))
+
+; Two codewords in one buffer: the first is read alone, and the count says
+; where the second begins.
+(def prefix ()
+  (let two (build 0 (fn (b) (bin.AppendVarint (bin.AppendUvarint b 300) -3)))
+    ((bin.Uvarint two) (fn (x n)
+      (seq (fmt.Println two) (fmt.Println x) (fmt.Println n))))))
+
+(def sum ()
+  (seq ((bin.Uvarint (array 128 128)) (fn (x n) (seq (fmt.Println x) (fmt.Println n))))
+       ((bin.Uvarint (array 128 128 128 128 128 128 128 128 128 2)) (fn (x n)
+         (seq (fmt.Println x) (fmt.Println n))))
+       ((bin.Uvarint (array 128 128 128 128 128 128 128 128 128 128 1)) (fn (x n)
+         (seq (fmt.Println x) (fmt.Println n))))
+       ((bin.Uvarint (array 255 255 255 255 255 255 255 255 255 1)) (fn (x n)
+         (seq (fmt.Println x) (fmt.Println n))))))
+
+; "\u{AC}\u{2}" is the bytes C2 AC 02 in UTF-8, which read as a uvarint are
+; 0x42 + 0x2C·2^7 + 2·2^14 = 38466 — one ReadByte at a time, from a reader the
+; generated strings file supplies (*strings.Reader ≤ io.ByteReader, an edge the
+; survey checked against the host).
+(def stream ()
+  (seq ((bin.ReadUvarint (gstr.NewReader "\u{AC}\u{2}")) (fn (x e)
+         (seq (fmt.Println x) (fmt.Println (gos.err-nil e)))))
+       ((bin.ReadVarint (gstr.NewReader "\u{3}")) (fn (x e)
+         (seq (fmt.Println x) (fmt.Println (gos.err-nil e)))))))
+
+; The top of U decoded, then halved and reduced — native uint64 arithmetic on a
+; host result, which under ADR 0012 could only have been printed.
+(def native ()
+  (let enc (build 10 (fn (b) ((bin.PutUvarint b 18446744073709551615) (fn (b2 n) b2))))
+    ((bin.Uvarint enc) (fn (y m)
+      (seq (fmt.Println (/ y 2))
+           (fmt.Println (% y 1000))
+           (fmt.Println (+ (/ y 4) m)))))))
+
+(def main ()
+  (seq (code) (zigzag) (prefix) (sum) (stream) (native)))

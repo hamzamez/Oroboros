@@ -1018,10 +1018,27 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 		return top, t, false
 	}
 	nargs := make([]*core.Term, len(args))
+	nvals := make([]ival, len(args))
 	for i, a := range args {
-		_, nargs[i] = p.evalR(a)
+		nvals[i], nargs[i] = p.evalR(a)
+	}
+	// Arguments in their parameters' representations, as `app` converts them.
+	if p.words {
+		for i := range nargs {
+			if i < len(pr.Args) {
+				switch p.tgt.ValueType(pr.Args[i]) {
+				case core.U64Type:
+					nargs[i] = p.toRep(nargs[i], true)
+				case "int":
+					if p.u64Term(nargs[i]) && p.inS(nvals[i]) {
+						nargs[i] = p.toRep(nargs[i], false)
+					}
+				}
+			}
+		}
 	}
 	body, raw, _ := openFresh(k, p.bound, asmIdent)
+	uOld := make([][2]bool, len(raw))
 	type saved struct {
 		v    ival
 		had  bool
@@ -1034,9 +1051,19 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 		old[i].e, old[i].hadE = p.elem[raw[i]]
 		delete(p.env, raw[i])
 		delete(p.elem, raw[i])
+		if p.words {
+			o, had := p.u64[raw[i]]
+			uOld[i] = [2]bool{o, had}
+			delete(p.u64, raw[i])
+		}
 		if i < len(pr.Results) {
 			if lo, hi, isR := core.IntRange(pr.Results[i]); isR {
 				p.env[raw[i]] = rng(lo, hi)
+			} else if v, ok := wideRange(pr.Results[i]); ok && p.tgt.ValueType(pr.Results[i]) == core.U64Type {
+				p.env[raw[i]] = v // `strconv.ParseUint`'s value, in U
+			}
+			if p.words && p.tgt.ValueType(pr.Results[i]) == core.U64Type {
+				p.u64[raw[i]] = true
 			}
 			if lo, hi, isR := core.IntRange(core.ArrayElem(pr.Results[i])); isR {
 				p.elem[raw[i]] = rng(lo, hi)
@@ -1047,6 +1074,13 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 	for i := range raw {
 		restoreVar(p.env, raw[i], old[i].v, old[i].had)
 		restoreVar(p.elem, raw[i], old[i].e, old[i].hadE)
+		if p.words {
+			if uOld[i][1] {
+				p.u64[raw[i]] = uOld[i][0]
+			} else {
+				delete(p.u64, raw[i])
+			}
+		}
 	}
 	p.releaseBound(raw)
 	op := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{t.Op().Op()}, nargs...)}
@@ -1251,6 +1285,24 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	if p.words && op.Name == "again" && p.wordLoop != nil {
 		for i := 1; i < len(kids) && i-1 < len(p.wordLoop); i++ {
 			kids[i] = p.toRep(kids[i], p.u64[p.wordLoop[i-1]])
+		}
+	}
+	// A HOST CALL TAKES EACH ARGUMENT IN ITS PARAMETER'S REPRESENTATION
+	// (wordsel.go). Into a parameter in U an `int` is converted — the range's
+	// lower end is an obligation the refinement layer discharges, so the value
+	// is non-negative and the conversion is the identity on it; into one in the
+	// signed word a u64 is converted only where its interval is inside the word.
+	// The language's own operators are selectWord's, not this.
+	if p.words && known && !langArith(op.Name) && !langCompare(op.Name) {
+		for i := 1; i < len(kids) && i-1 < len(prim.Args); i++ {
+			switch p.tgt.ValueType(prim.Args[i-1]) {
+			case core.U64Type:
+				kids[i] = p.toRep(kids[i], true)
+			case "int":
+				if p.u64Term(kids[i]) && p.inS(vals[i-1]) {
+					kids[i] = p.toRep(kids[i], false)
+				}
+			}
 		}
 	}
 	rebuilt := &core.Term{Kind: core.KApp, Kids: kids}

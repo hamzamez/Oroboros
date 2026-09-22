@@ -68,6 +68,8 @@
   (type uint8  (int 0 255))
   (type uint16 (int 0 65535))
   (type uint32 (int 0 4294967295))
+  ; U itself, which this target realizes natively as `uint64` (ADR 0026 (10)).
+  (type uint64 (int 0 18446744073709551615))
 
   (type slice-int     (host "[]int"))
   (type slice-int64   (host "[]int64"))

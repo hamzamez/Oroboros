@@ -1919,7 +1919,15 @@ func constSig(f *core.Term, path string) (*core.Term, error) {
 		return nil, fmt.Errorf("%s: (const NAME INTEGER (host \"spelling\" hclause…)), got %s", path, f)
 	}
 	name, v, host := f.Kids[1], f.Kids[2], f.Kids[3]
+	// A LITERAL PAST int64 IS STILL AN INTEGER: the reader spells one as a Horner
+	// spine (core/read.go, bigLiteral), and as a range endpoint it evaluates at
+	// full precision. `math.MaxUint64` and crc64's polynomials live in U, which
+	// the Go target realizes (ADR 0026), so they are constants like any other.
+	wide := false
 	if v.Kind != core.KInt {
+		_, _, wide = core.IntRangeBig(core.TypeName(&core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("int"), v, v}}))
+	}
+	if v.Kind != core.KInt && !wide {
 		return nil, fmt.Errorf("%s: const %s: %s is not an integer literal. A constant's value is a fact "+
 			"the analysis uses, and only an integer's is one; for any other value write "+
 			"(sig %s () TYPE pure (host expr \"spelling\"))", path, name.Name, v, name.Name)
@@ -2156,6 +2164,13 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			p.Index = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "import" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
+			// ONE IMPORT PER TEMPLATE, and a second is refused rather than
+			// replacing the first — the rule a repeated `where` already has, for
+			// the same reason: a clause the author wrote must not vanish.
+			if p.Import != "" {
+				return Prim{}, fmt.Errorf("%s: %s has a second (import …); a template names one package, "+
+					"so spell anything else structurally (an interface literal, not io.ByteReader)", path, p.Name)
+			}
 			p.Import = rest.Kids[1].Str
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "lib" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:

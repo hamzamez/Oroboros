@@ -271,6 +271,9 @@ type IntervalReport struct {
 	Proven    int       // …of those, the ones provably inside the target's word
 	Target    string    // the target the report is about (ADR 0026: legality is per target)
 	Word      core.Word // …and its word
+	// Outside is set when an unproven operation IS bounded, only not by this
+	// target's word — the case where declaring the range is the answer.
+	Outside bool
 	Unproven  []string
 	ByOp      map[string][2]int // operation -> {proven, total}
 	LoopVars  int
@@ -1543,6 +1546,9 @@ func (p *intervalPass) record(name string, out ival, t *core.Term) {
 			s = s[:61] + "..."
 		}
 		p.rep.Unproven = append(p.rep.Unproven, fmt.Sprintf("%s %s in %s", name, out, s))
+		if out.bounded() {
+			p.rep.Outside = true
+		}
 	}
 	p.rep.ByOp[name] = e
 }

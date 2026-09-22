@@ -44,6 +44,17 @@ func Unbounded(what string, rep *IntervalReport) error {
 		}
 		fmt.Fprintf(&b, "\n  %s", u)
 	}
+	// BOUNDED, BUT NOT BY THIS TARGET'S WORD: the program is not wrong, it is
+	// not portable to this target as written (ADR 0026). Declaring the range
+	// keeps it a machine word where one holds it and makes it arbitrary
+	// precision here — ADR 0019's third escape, and the one that fits.
+	if rep.Outside {
+		b.WriteString("\n  An operation above is BOUNDED, only not by this target's word: targets whose\n" +
+			"  word holds that interval accept the program, and this one refuses it. To compile it\n" +
+			"  here too, DECLARE THE RANGE — e.g. a result of `(int 0 N)` — which is arbitrary\n" +
+			"  precision on this target and a machine word where one holds it. `go run ./cmd/portable`\n" +
+			"  reports which targets accept the program.")
+	}
 	b.WriteString("\n" +
 		"  Outside its word a target's arithmetic does not compute the integer the\n" +
 		"  program means — Go, the JVM and x86 wrap, JavaScript loses precision — so\n" +

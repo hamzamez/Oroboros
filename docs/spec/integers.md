@@ -1,6 +1,15 @@
 # Integers
 
-**Status, 2026-08-20. Specification. §5 built while writing it; §11 and the rest of §13 are not.** Written before the code that is not yet
+**Status, 2026-08-20. Specification. §5 built while writing it; §11 and the rest of §13 are not.**
+
+> **Superseded in part, 2026-09-22, by [ADR 0026](../decisions/0026-an-int-is-an-integer.md).** The
+> measurements below stand, and so do the semantics: exact integers, truncating division, the
+> dividend's sign. What changed is that ±(2⁵³−1) is no longer the language's `int` on every target.
+> It is JavaScript's WORD. Each target declares its own, `(repr (int LO HI) word)`: int64 on Go, the
+> JVM and windows, and Go also realizes [0, 2⁶⁴−1] as `uint64`. Legality is per (program, target),
+> and the old window survives as W(S) = ⋂ word_T, a number `cmd/portable` reports. Where this
+> document says "the portable window" as a language constant, read "the target's word"
+> ([word-2026-09-22](../../gauntlet/results/word-2026-09-22.md)). Written before the code that is not yet
 written, which is the order [strings.md](strings.md) exists to enforce and the order booleans
 followed.
 

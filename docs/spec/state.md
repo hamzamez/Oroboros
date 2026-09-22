@@ -128,7 +128,7 @@ The representation is chosen by the target: `(repr (int LO HI) …)` below the w
 |---|---|
 | **β**, call-by-need | An impure argument is let-bound rather than substituted ([effects.md §4](effects.md)); a table read through a bound variable is not substituted into an impure body (§7c). **β-tab** is its second clause: a table or map written as a graph, applied to a literal, is looked up |
 | **δ** | unfolding a definition, declining a cycle; a target's native name wins over a library's (`▷`) |
-| **evaluation on literals** | `(if true a b) → a`; the language's integer operators and `=` on two integer literals, **only inside the portable window and never dividing by zero** ([ADR 0009](../decisions/0009-staging-preserves-results.md)). No float folds, and no primitive of a target is ever evaluated |
+| **evaluation on literals** | `(if true a b) → a`; the language's integer operators and `=` on two integer literals, **only inside the target's word (ADR 0026), checked against int64 overflow, and never dividing by zero** ([ADR 0009](../decisions/0009-staging-preserves-results.md)). No float folds, and no primitive of a target is ever evaluated |
 | **commuting conversion** | push an eliminator through `if` and `let` (case-of-case), only when every argument is pure |
 
 **No recursion** ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). A definition in
@@ -165,8 +165,10 @@ These are not language, but they decide what is legal.
   it had declared something.
 - **A program may not declare a language name** (§1's owned names), nor a variant colliding with
   `lang`'s in the main module.
-- **An integer operation not proven inside the window is a compile error.** It is cleared by
-  narrowing a range, declaring one above the window, or `-checked`
+- **An integer operation not proven inside its target's word is a compile error on that target**
+  (ADR 0026: the word is data, `(repr (int LO HI) word)`; Go also realizes [0, 2⁶⁴−1] as `uint64`,
+  emit/wordsel.go). It is cleared by narrowing a range, declaring one above the word, or `-checked`.
+  Portability across targets is computed and reported (`cmd/portable`), not assumed
   ([ADR 0019](../decisions/0019-precision-by-declaration.md)).
 - **A buffer may not be used after it is consumed**, and an immutable array may not reach a parameter
   declared a buffer.
@@ -187,7 +189,7 @@ These are not language, but they decide what is legal.
 | Mutation | only inside `build`, on a linear buffer, or on a `(buffer V)` parameter (ADR 0018, ADR 0020) |
 | Effect types, monads | none. Purity is one declared bit per primitive ([effects.md](effects.md)) |
 | General equality | none. `=` is integer equality; floats have NaN, and strings have no portable comparison |
-| Bitwise operators | not promoted to the language: V8 truncates them to int32 inside the window ([integers.md](integers.md)) |
+| Bitwise operators | not promoted to the language: V8 truncates them to int32, inside its own 2⁵³ word ([integers.md](integers.md)) |
 | String indexing, `length` | not in the language: three hosts give three answers, and three text programs needed neither ([strings.md](strings.md)) |
 | Records, symbols, `with`, views | specified ([data.md](data.md), [theories.md](theories.md)) and not built. def.md §5's refusal of *runtime* symbols stands; data.md's `'x` labels never survive staging |
 | Extensionality | none; η |

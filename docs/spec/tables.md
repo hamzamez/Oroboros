@@ -1,5 +1,9 @@
 # Tables — the primary data structure
 
+> **2026-09-22:** a length is bounded by the target's WORD (ADR 0026), not by one window for every
+> target — `(len t) ≤ Word.Hi` unless the target declares a tighter `max-len`. Read "the portable
+> window" below as that.
+
 **Status: the READ SIDE is built** — 2026-08-25,
 [tables-read-2026-08-25](../../gauntlet/results/tables-read-2026-08-25.md).
 `(array e…)`, `(table n f)`, `(len t)` and indexing by application are in the reducer and on all

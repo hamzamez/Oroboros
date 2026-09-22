@@ -53,7 +53,7 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **2,361 of 2,413** integer operations are proven inside the portable window. The 52 left are mostly
+- **2,361 of 2,413** integer operations are proven inside their target's word. The 52 left are mostly
   meant to be refused.
 - **345 of 382** loops are proven to terminate.
 - Both counts, and every emitted file, are pinned by `cmd/check`.
@@ -66,19 +66,22 @@ with no clamps.
   - JavaScript 100% declarable, a figure the survey itself calls vacuous.
 - **Supported, in the sense of [ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)**
   (declared by hand, checked against the host, exercised by a program): the Go packages
-  `unicode/utf8` and `encoding/hex`, plus `io`'s interfaces.
+  `unicode/utf8`, `encoding/hex`, **`strconv`** and **`encoding/binary`'s varints**, plus `io`'s
+  interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md)).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
 **Next, from the current assessment:**
-1. Resume packages (`encoding/binary`, `strconv`). The analysis layer grows only for a refusal that
-   has been named first. **Both hit the integer window first**, and hamza decided it on 2026-09-22:
-   **[ADR 0026](docs/decisions/0026-an-int-is-an-integer.md)** — `int` is ℤ, each target realizes a
-   sub-lattice of intervals with its own word, legality is per (program, target), and portability is
-   reported. The build, in order: exact bounds to 2⁶⁴ in the analysis; the window made each target's
-   word; honest host integer types; `uint64` (Go, windows; the JVM's unsigned `long` and V8's split
-   pair, chosen in [u64repr-2026-09-22](gauntlet/results/u64repr-2026-09-22.md)); then the packages.
+1. ~~Resume packages (`encoding/binary`, `strconv`), which hit the integer window first.~~ **Done.**
+   hamza decided it as **[ADR 0026](docs/decisions/0026-an-int-is-an-integer.md)**, and it is built
+   ([word-2026-09-22](gauntlet/results/word-2026-09-22.md)): `int` is ℤ, each target declares its
+   word, legality is per (program, target), portability is reported (`cmd/portable`), host integers
+   are the host's, and Go realizes [0, 2⁶⁴−1] natively. Then both packages, by hand. **Open from it:**
+   the JVM's realization of U (a `long` holding the residue, 60× over `BigInteger` in
+   [u64repr-2026-09-22](gauntlet/results/u64repr-2026-09-22.md)), windows' unsigned qword, V8's split
+   pair; and the walls the packages named — a result range that depends on an argument's value, a
+   three-way sum encoded in a sign, `ByteOrder`'s package variables.
 2. ~~Gate compile time in `cmd/check` against the baseline.~~ **Done**
    ([compiletime-2026-09-21](gauntlet/results/compiletime-2026-09-21.md)): a compile is slower at 1.5×
    and +250 ms, measured to flag all six compiles `7e36002` slowed and none across identical sweeps.
@@ -223,7 +226,7 @@ spec to read before touching it.
 Every data form is a function whose domain differs ([data.md](docs/spec/data.md)).
 
 - **Tables.** `(array V)` is a function on `[0, len)` and indexing is application
-  ([tables.md](docs/spec/tables.md)). `build` zero-fills (§14.3). A length is bounded by the window
+  ([tables.md](docs/spec/tables.md)). `build` zero-fills (§14.3). A length is bounded by the target's word
   or by a target's `max-len` (§2.3.1).
 - **A table written as its GRAPH** — `(array 104 105 33)` — takes the JOIN of its elements' exact
   ranges, and at a boundary the DECLARED element decides and the literal must fit it
@@ -250,16 +253,29 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 
 ### Integers
 
-- **What an `int` is.** Exact within ±(2⁵³−1) (ADR 0012). A range is a type: `(int LO HI)` means an
-  `int` for typing, a premise for the analyses, and a representation for storage (ADR 0003,
-  [integers.md](docs/spec/integers.md)). All four hosts agree inside the window. Bitwise operators are
-  deliberately not promoted to the language.
-- **Bounded by default** (ADR 0019). An operation not proven inside the window is a compile error,
-  cleared by one of:
+- **What an `int` is.** ℤ (ADR 0026). A range is a type: `(int LO HI)` means a set of integers for
+  typing, a premise for the analyses, and a representation for storage (ADR 0003,
+  [integers.md](docs/spec/integers.md)). Bitwise operators are deliberately not promoted to the
+  language.
+- **Each target realizes a sub-lattice of intervals, by containment.** Its **word** is data,
+  `(repr (int LO HI) word)`, required of every target, with no default in the compiler: int64 on Go,
+  the JVM and windows, ±(2⁵³−1) on JS, 32 bits on `blas`. Go also declares
+  `(repr (int 0 18446744073709551615) word)`: **U, held natively as `uint64`**, selected by
+  `emit/wordsel.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
+  residue map; `< = / %` only where one realization holds both operands). A binding is ρ of its
+  interval: `int` in S, `u64` in U∖S, `big` only past both and only by declaration.
+- **Legality is per (program, target).** Every target that accepts a program computes the same
+  integer; **portability is computed and reported**, and W(S) = ⋂ word_T is a derived number
+  (`go run ./cmd/portable SRC`). A language operation is proven only inside the signed word; a `u64`
+  primitive inside U.
+- **Bounded by default** (ADR 0019, amended by 0026). An operation not proven inside the target's word
+  is a compile error on that target, cleared by one of:
   - narrowing the range;
-  - declaring a range above the window, which promotes the value to arbitrary precision;
+  - declaring a range above the word, which is arbitrary precision there and a word where one holds it;
   - `-checked`, which asks for the trap.
-- **Above the window.** A target chooses `(big-repr host)` or `(big-repr limbs)`. The bound is
+- **At a host boundary an integer is the host's**: `go.int64` is the word, `go.uint64` is U, and a
+  host precondition is the host's own boundary (`hex.EncodedLen`: −2⁶² ≤ n ≤ 2⁶²−1).
+- **Above the word.** A target chooses `(big-repr host)` or `(big-repr limbs)`. The bound is
   enforced on both, so representation never changes which programs are legal
   ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)).
 - **Element width follows the range.** `(int-repr …)` picks the narrowest host type containing the
@@ -339,7 +355,7 @@ as black boxes with measured behaviour.
 runtime.
 - Force every compile-time float operation through explicit `float64`; Go's untyped constants fold
   `0.1+0.2` differently.
-- Integers fold only inside the window.
+- Integers fold only inside the target's word, and every fold is checked against int64 overflow.
 - Division by zero never folds.
 
 **Never make the core a superset of one host.**
@@ -478,6 +494,7 @@ go run ./cmd/oro -target=portable-go examples/dot.oro       # reduce to normal f
 go run ./cmd/gen -name tree examples/json/tree.oro go gauntlet/go/gen_jsontree.go   # emit into the gauntlet
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
 go run ./cmd/intervals examples/native/sieve-go.oro go   # what the interval analysis proves, per exported definition (a main-only program reports 0/0)
+go run ./cmd/portable examples/io/wc.oro                  # which targets accept a program, why the others refuse, and W(S) — ADR 0026
 ```
 
 - `gauntlet/go`, `gauntlet/js`, `gauntlet/java` and `experiments/legibility` are **separate modules**.
@@ -495,10 +512,10 @@ go run ./cmd/intervals examples/native/sieve-go.oro go   # what the interval ana
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
-| `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `smash`, `monotone`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
+| `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
-| `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals` |
+| `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, and `freq`, the largest program), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources) |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets), `conformance/` |
 | `gauntlet/stdlib/` | The four host surveys; `acceptance/`, thirteen programs, two of them whole packages declared by hand; `tooling_test.go`, which checks every hand declaration against the host |

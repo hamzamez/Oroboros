@@ -1,6 +1,6 @@
 # What an `int` is: the window, the target's word, and ℤ
 
-Research, **no decision**. 2026-09-21, on hamza's questions after `encoding/hex`'s `EncodedLen`
+Research. **Decided 2026-09-22: D, with portability reported — [ADR 0026](decisions/0026-an-int-is-an-integer.md).** Written 2026-09-21, on hamza's questions after `encoding/hex`'s `EncodedLen`
 turned out to carry a precondition, `|n| ≤ 2⁵² − 1`, that Go itself does not have:
 
 1. *why is `int` the portable window in a Go-only package?*

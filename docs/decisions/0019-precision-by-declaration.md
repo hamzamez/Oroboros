@@ -1,7 +1,7 @@
 # 0019 — Precision by declaration
 
 Date: 2026-08-28
-Status: Accepted — **provisionally**, with the reopening triggers in "What should reopen this"
+Status: Accepted — **provisionally**, with the reopening triggers in "What should reopen this". **Amended by [0026](0026-an-int-is-an-integer.md)**: `word` is the target's word, not the window
 
 Research: [precision-by-declaration.md](../precision-by-declaration.md),
 [precision-integers.md](../precision-integers.md).

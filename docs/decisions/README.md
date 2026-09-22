@@ -43,7 +43,7 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0009](0009-staging-preserves-results.md) | Staging must not change results |
 | [0010](0010-effects-as-structural-rules.md) | Effects are a side condition on β, not a feature |
 | [0011](0011-modules-add-nothing-to-the-reducer.md) | Modules are resolution, not reduction |
-| [0012](0012-portable-integer-range.md) | `int` is exact within ±(2⁵³−1) |
+| [0012](0012-portable-integer-range.md) | `int` is exact within ±(2⁵³−1) — partly superseded by 0026 |
 | [0013](0013-accept-the-allocation-price.md) | Accept the allocation price, provisionally |
 | [0014](0014-recursion-is-not-in-the-language.md) | Recursion is not in the language |
 | [0015](0015-loop-and-again.md) | `loop`/`again` — guarded clauses over n variables |
@@ -57,3 +57,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0023](0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) | A generator does not make a claim it cannot justify |
 | [0024](0024-comments-are-erased.md) | A comment never carries meaning; documentation is a term |
 | [0025](0025-a-module-path-is-the-hosts.md) | A module path is the host's path, and the file is the path |
+| [0026](0026-an-int-is-an-integer.md) | An `int` is an integer, and each target realizes what it can |

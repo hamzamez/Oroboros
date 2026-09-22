@@ -73,10 +73,12 @@ a wall that needs language work, stop and research it, then design it.
 
 **Next, from the current assessment:**
 1. Resume packages (`encoding/binary`, `strconv`). The analysis layer grows only for a refusal that
-   has been named first. **Both hit the integer window first**: their 64-bit results can be printed
-   but not computed with, and declaring the true range today makes them bignums.
-   [what-an-int-is.md](docs/what-an-int-is.md) is the research — `int` as ℤ, with each target
-   realizing what it can natively — and it ends on a decision that is hamza's.
+   has been named first. **Both hit the integer window first**, and hamza decided it on 2026-09-22:
+   **[ADR 0026](docs/decisions/0026-an-int-is-an-integer.md)** — `int` is ℤ, each target realizes a
+   sub-lattice of intervals with its own word, legality is per (program, target), and portability is
+   reported. The build, in order: exact bounds to 2⁶⁴ in the analysis; the window made each target's
+   word; honest host integer types; `uint64` (Go, windows; the JVM's unsigned `long` and V8's split
+   pair, chosen in [u64repr-2026-09-22](gauntlet/results/u64repr-2026-09-22.md)); then the packages.
 2. ~~Gate compile time in `cmd/check` against the baseline.~~ **Done**
    ([compiletime-2026-09-21](gauntlet/results/compiletime-2026-09-21.md)): a compile is slower at 1.5×
    and +250 ms, measured to flag all six compiles `7e36002` slowed and none across identical sweeps.
@@ -129,7 +131,7 @@ rejected alternatives.
 | Staging must not change results | [0009](docs/decisions/0009-staging-preserves-results.md) |
 | Effects are a side condition on β, not a feature | [0010](docs/decisions/0010-effects-as-structural-rules.md) |
 | Modules are resolution, not reduction | [0011](docs/decisions/0011-modules-add-nothing-to-the-reducer.md) |
-| `int` is exact within ±(2⁵³−1) | [0012](docs/decisions/0012-portable-integer-range.md) |
+| ~~`int` is exact within ±(2⁵³−1)~~ — the window part superseded by 0026 | [0012](docs/decisions/0012-portable-integer-range.md) |
 | ~~Accept the allocation price~~ — superseded by 0020 | [0013](docs/decisions/0013-accept-the-allocation-price.md) |
 | Recursion is not in the language | [0014](docs/decisions/0014-recursion-is-not-in-the-language.md) |
 | `loop`/`again` — guarded clauses over n variables | [0015](docs/decisions/0015-loop-and-again.md) |
@@ -143,6 +145,7 @@ rejected alternatives.
 | A generator does not make a claim it cannot justify | [0023](docs/decisions/0023-a-generator-does-not-make-a-claim-it-cannot-justify.md) |
 | A comment never carries meaning; documentation is a term | [0024](docs/decisions/0024-comments-are-erased.md) |
 | A module path is the host's path, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
+| An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
 
 ## How this project is run
 

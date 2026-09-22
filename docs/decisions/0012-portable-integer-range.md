@@ -1,7 +1,7 @@
 # 0012 — An `int` is exact within ±(2⁵³−1), and unspecified outside
 
 Date: 2026-08-15
-Status: Accepted
+Status: Accepted — **partly superseded by [0026](0026-an-int-is-an-integer.md)**: exact integers stand; the window as the language's `int` on every target does not
 
 > **A price, and its removal, 2026-08-25.** This decision met the one host where `int` is not the
 > natural index width. Java's array index is 32-bit and ours is 64, so an emitted loop counter was a

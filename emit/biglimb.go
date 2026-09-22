@@ -153,7 +153,7 @@ var limbOf = map[string]string{
 //
 // An UNBOUNDED range has no bound to enforce, which is the distinction
 // `(int 0 +inf)` was added to make expressible: ℤ is not an interval.
-func BigBound(sigs ...*core.Sig) (int, bool) {
+func BigBound(w core.Word, sigs ...*core.Sig) (int, bool) {
 	var tys []string
 	for _, sig := range sigs {
 		if sig == nil {
@@ -167,7 +167,7 @@ func BigBound(sigs ...*core.Sig) (int, bool) {
 	}
 	bits, any := 0, false
 	for _, ty := range tys {
-		if core.ValueType(ty) != core.BigType {
+		if w.ValueType(ty) != core.BigType {
 			continue
 		}
 		if core.UnboundedRange(ty) {
@@ -225,7 +225,7 @@ func bitsFor(lo, hi *big.Int) int {
 // operands and writes a third, and three different lengths would be three
 // different functions.
 func BigRepr(tgt *Target, sigs ...*core.Sig) (limbs bool, w, bits int) {
-	bits, bounded := BigBound(sigs...)
+	bits, bounded := BigBound(tgt.Word, sigs...)
 	if !bounded {
 		return false, 0, 0
 	}
@@ -554,7 +554,7 @@ func (l *limbLib) toHost(tgt *Target, x *core.Term, n *int) (*core.Term, error) 
 // checker at all — the representation is part of what the program MEANS. A body
 // that produces limbs would otherwise be refused against a signature that says
 // `big`, which is true of the declaration and false of the code.
-func LimbSig(sig *core.Sig, on bool) *core.Sig {
+func LimbSig(w core.Word, sig *core.Sig, on bool) *core.Sig {
 	if !on || sig == nil {
 		return sig
 	}
@@ -562,7 +562,7 @@ func LimbSig(sig *core.Sig, on bool) *core.Sig {
 	out.Params = append([]core.SigParam(nil), sig.Params...)
 	out.Results = append([]string(nil), sig.Results...)
 	limb := func(ty string) string {
-		if core.ValueType(ty) == core.BigType {
+		if w.ValueType(ty) == core.BigType {
 			return "array int"
 		}
 		return ty

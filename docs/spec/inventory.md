@@ -196,6 +196,7 @@ What a sig's `(host KIND …)` or a `(structural NAME KIND)` may say.
 | `library` | specified — `(repr map library)`: a map written in Oroboros | [target-files.md](target-files.md) |
 | `shift` | specified — `(repr shift N)` | [theories.md](theories.md) |
 | `narrow` | specified — `(repr narrow (host …))` | [theories.md](theories.md) |
+| `word` | specified — `(repr (int LO HI) word)`, the target's word | [ADR 0026](../decisions/0026-an-int-is-an-integer.md) |
 
 ### Backends
 

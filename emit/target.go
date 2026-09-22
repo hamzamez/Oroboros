@@ -189,13 +189,11 @@ type Target struct {
 	// MaxLen is the largest number of elements a table can have on this
 	// target, or 0 for "no tighter than the language's own bound".
 	//
-	// A LENGTH IS BOUNDED WITHOUT ANY DECLARATION, and that is a LANGUAGE fact
-	// rather than a host one. `(len t)` returns an `int`, and ADR 0012 says
-	// `int` is exact within ±(2^53−1); a table with more elements than that has
-	// a length this language cannot count exactly, so it is outside the
-	// language and every guarantee about indexing it has already failed. So the
-	// analysis may assume `(len t) ≤ 2^53−1` everywhere, assuming nothing ADR
-	// 0012 did not already require. See MaxLenOf and docs/spec/tables.md §2.3.
+	// A LENGTH IS BOUNDED WITHOUT ANY DECLARATION. `(len t)` returns an `int`,
+	// which this target holds in its word (ADR 0026); a table with more elements
+	// than the word holds has a length the target cannot count, so every
+	// guarantee about indexing it has already failed. So the analysis may assume
+	// `(len t) ≤ Word.Hi` everywhere. See MaxLenOf and docs/spec/tables.md §2.3.
 	//
 	// A target may say something TIGHTER, and one of them can: a Java array
 	// holds at most 2^31−1 elements because `arraylength` returns an `int`.
@@ -204,7 +202,7 @@ type Target struct {
 	MaxLen int64
 
 	// BigRepr is how this target stores a value whose declared range is above
-	// the portable window but FINITE — "limbs" or "host". Empty means the
+	// the target's word but FINITE — "limbs" or "host". Empty means the
 	// obvious default: the host's own bignum where it has one, fixed limbs
 	// where it does not.
 	//
@@ -252,6 +250,14 @@ type Target struct {
 	// language for. So JavaScript declares 31 and gets the rewrite on values
 	// that provably fit, rather than being excluded.
 	ShiftWidth int64
+
+	// Word is the widest interval this target's native integer arithmetic is
+	// exact on — ADR 0026, declared as `(repr (int LO HI) word)`. It is the
+	// realization of `int`, and it decides, ON THIS TARGET, what the window used
+	// to decide on all of them: which operations are proven, which declared
+	// ranges are arbitrary precision, and what folds. There is no default: a
+	// target that realizes `int` says what interval that realization holds.
+	Word core.Word
 
 	Reprs []IntRepr
 	Prims map[string]Prim
@@ -366,8 +372,33 @@ func LoadTarget(path string) (*Target, error) {
 	if err := tg.checkViews(); err != nil {
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
+	if err := tg.checkWord(); err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
+	}
 	return tg, nil
 }
+
+// checkWord holds a whole target to ADR 0026: a target says what interval its
+// integers hold, and a declared table bound is a length the word can count.
+func (tg *Target) checkWord() error {
+	// EVERY TARGET, typed or not: `int` and its operators are the language's and
+	// are injected into all of them, so every target computes integers and must
+	// say which ones it computes exactly.
+	if tg.Word == (core.Word{}) {
+		return fmt.Errorf("target %s does not say what interval its native integers hold exactly; "+
+			"declare it as (repr (int LO HI) word) — (repr (int -9223372036854775808 9223372036854775807) word) "+
+			"for a 64-bit two's-complement integer (ADR 0026)", tg.Name)
+	}
+	if tg.MaxLen > tg.Word.Hi && tg.Word != (core.Word{}) {
+		return fmt.Errorf("target %s: an array bound of %d is outside its word %s; a length the target "+
+			"cannot count is not a length (ADR 0026)", tg.Name, tg.MaxLen, tg.Word)
+	}
+	return nil
+}
+
+// ValueType is what a range means ON THIS TARGET: `int` inside the word,
+// arbitrary precision outside it (core.Word.ValueType).
+func (tg *Target) ValueType(ty string) string { return tg.Word.ValueType(ty) }
 
 // loadFragment is ONE LAYER: a directory whose `.oro` files are GLUED, or a
 // single file. It does not inject the core, because `addCore` resolves the
@@ -548,6 +579,9 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 	}
 	out.closeImplements()
 	if err := out.checkViews(); err != nil {
+		return nil, err
+	}
+	if err := out.checkWord(); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -1343,6 +1377,9 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 			return err
 		}
 	}
+	if err := combineOne(&tg.Word, o.Word, "word", from, how); err != nil {
+		return err
+	}
 	// ORDERED, so they append rather than folding by key — narrowest first is
 	// the whole selection rule for `int-repr`. Nearest layer first, so a nearer
 	// declaration is found before a built-in one.
@@ -1580,9 +1617,22 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		// cannot store 0..255 in its byte — the JVM, whose `byte` is signed —
 		// simply does not declare that range for it, and the range selects the
 		// next one up. The declaration says what the host CAN hold, and nothing else.
+		// THE TOP RUNG IS THE WORD: `(repr (int LO HI) word)` says the host type
+		// realizing `int` holds exactly [LO, HI], and native arithmetic is exact
+		// there (ADR 0026). It is a rung like the others — the interval a
+		// realization contains — and the one every scalar is stored in.
+		if subj.Kind == core.KApp && len(subj.Kids) == 3 && subj.Kids[1].Kind == core.KInt &&
+			subj.Kids[2].Kind == core.KInt && choice.Kind == core.KName && choice.Name == "word" {
+			lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
+			if lo > 0 || hi < 0 {
+				return fmt.Errorf("%s: a word must contain 0, got (int %d %d)", path, lo, hi)
+			}
+			frag.Word = core.Word{Lo: lo, Hi: hi}
+			return nil
+		}
 		if subj.Kind != core.KApp || len(subj.Kids) != 3 || subj.Kids[1].Kind != core.KInt ||
 			subj.Kids[2].Kind != core.KInt || !hosted {
-			return bad(`(repr (int LO HI) (host "spelling"))`)
+			return bad(`(repr (int LO HI) (host "spelling")) or (repr (int LO HI) word)`)
 		}
 		lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
 		if lo > hi {
@@ -1718,9 +1768,6 @@ func parseFact(f *core.Term, frag *Target, path string) error {
 			"target may state today is (fact NAME ((a (array A))) (<= (len a) N)), got %s", path, f)
 	case n < 1:
 		return fmt.Errorf("%s: an array bound must be at least 1, got %d", path, n)
-	case n > portableMaxLen:
-		return fmt.Errorf("%s: an array bound of %d is outside the portable window; a length this "+
-			"target cannot count exactly is not a length (ADR 0012)", path, n)
 	}
 	frag.MaxLen = n
 	return nil
@@ -2207,7 +2254,11 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 		Prim: map[string]bool{},
 		Pure: map[string]bool{},
 		Rec:  map[string]bool{},
+		Word: tg.Word,
 	}
+	// A DECLARED WIDENING IS A DIRECTIVE, and whether a range is one is this
+	// target's question: above its word, not above a window (ADR 0026).
+	p.AscribeWide(tg.Word)
 	e.SetUnresolved(p.Unresolved)
 	for _, n := range tg.Names {
 		e.Prim[n] = true
@@ -2256,10 +2307,6 @@ func fill(form string, vals []any) string {
 	return fmt.Sprintf(form, out...)
 }
 
-// portableMaxLen is ADR 0012's window, and it is the bound on every table's
-// length that needs no declaration at all. See Target.MaxLen.
-const portableMaxLen = 1<<53 - 1
-
 // MaxLenOf is the largest length a table can have on this target: what the
 // target declared, or the language's own bound when it declared nothing.
 //
@@ -2271,7 +2318,7 @@ func (tg *Target) MaxLenOf() int64 {
 	if tg.MaxLen != 0 {
 		return tg.MaxLen
 	}
-	return portableMaxLen
+	return tg.Word.Hi
 }
 
 // IntRepr is one integer representation a target can store.
@@ -2319,7 +2366,7 @@ func (tg *Target) NarrowedElem(ty string) (string, bool) {
 // boxed spells a type as an object where the target says one is needed, and as
 // itself everywhere else.
 func (tg *Target) boxed(name string) string {
-	if s, ok := tg.Boxed[core.ValueType(name)]; ok {
+	if s, ok := tg.Boxed[tg.ValueType(name)]; ok {
 		return s
 	}
 	return tg.ty(name)
@@ -2594,7 +2641,7 @@ func atomicValue(v string) bool {
 // Seeded by POSITION, not by name — the residual's parameter names are hints
 // (chapter 1 §1.6) and a signature's names exist for refinements to attach to.
 // Arity is already checked by CheckSignatures.
-func seedFromSig(types map[string]string, params []string, sig *core.Sig) {
+func seedFromSig(tg *Target, types map[string]string, params []string, sig *core.Sig) {
 	if sig == nil {
 		return
 	}
@@ -2615,7 +2662,7 @@ func seedFromSig(types map[string]string, params []string, sig *core.Sig) {
 		// `(array (int 0 255))` is untouched: ValueType strips only a top-level
 		// range, so an element width still reaches the emitter, which is what
 		// elemwidth built and what must keep working.
-		if ty := core.ValueType(sig.Params[i].Type); ty != "" && ty != "any" {
+		if ty := tg.ValueType(sig.Params[i].Type); ty != "" && ty != "any" {
 			types[p] = ty
 		}
 	}
@@ -3038,7 +3085,7 @@ func MapElemTypes(tgt *Target, lam, body *core.Term, name string,
 		if t.Kind == core.KApp {
 			if op := t.Op(); op.Kind == core.KName && op.Name == "insert" {
 				if a := t.Args(); len(a) == 3 && a[0].Kind == core.KName && a[0].Name == name {
-					if ty := core.ValueType(typeOf(a[2])); ty != "" && ty != "any" {
+					if ty := tgt.ValueType(typeOf(a[2])); ty != "" && ty != "any" {
 						if val == "" {
 							val = ty
 						} else if val != ty {

@@ -194,7 +194,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 // agree is the whole of conflict detection: two different CONCRETE demands on
 // the same thing. Unknown agrees with everything, and `any` demands nothing.
 func (c *checker) agree(what, got, want string) error {
-	if compatible(got, want) {
+	if compatible(c.tgt, got, want) {
 		return nil
 	}
 	// AND A DECLARED SUBSUMPTION EDGE, which is the ONE direction `compatible`
@@ -207,13 +207,13 @@ func (c *checker) agree(what, got, want string) error {
 	// ONE HOST TYPE, TWO KEYS. A type is owned by its module now, so a hand file
 	// and a generated one may name the same host type differently; what they
 	// realize is what they mean (Target.SameHostType).
-	if c.tgt.SameHostType(core.ValueType(got), core.ValueType(want)) {
+	if c.tgt.SameHostType(c.tgt.ValueType(got), c.tgt.ValueType(want)) {
 		return nil
 	}
-	if c.tgt.Subsumes(core.ValueType(got), core.ValueType(want)) {
+	if c.tgt.Subsumes(c.tgt.ValueType(got), c.tgt.ValueType(want)) {
 		return nil
 	}
-	// A RANGE WIDER THAN THE WINDOW gets its own message, because "but int is
+	// A RANGE WIDER THAN THE WORD gets its own message, because "but int is
 	// required here" is true and explains nothing. This is the rung above the
 	// host's word, and two different things can go wrong there.
 	//
@@ -224,14 +224,14 @@ func (c *checker) agree(what, got, want string) error {
 	// A FINITE range is served by the fixed-limb rung on EVERY target, including
 	// the one with no bignum — that is what the rung is for. Only ℤ needs the
 	// host's own, so only ℤ can be refused for its absence.
-	if core.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
+	if c.tgt.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
 		(core.UnboundedRange(want) || want == core.BigType) {
-		return fmt.Errorf("%s needs arbitrary precision — %s is above the portable "+
-			"window ±(2^53−1) — and target %s declares none.\n"+
+		return fmt.Errorf("%s needs arbitrary precision — %s is above the word of "+
+			"target %s, %s — and the target declares none.\n"+
 			"  Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three "+
 			"parasitize the host's own. A target without one needs a bignum WRITTEN, in "+
 			"Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).",
-			what, core.ShowType(want), c.tgt.Name)
+			what, core.ShowType(want), c.tgt.Name, c.tgt.Word)
 	}
 	// THE PROGRAM USED A BIGNUM WHERE A WORD IS REQUIRED. That refusal is the
 	// point rather than a wart: the promotion is a WIDENING, not a refinement, so
@@ -241,15 +241,15 @@ func (c *checker) agree(what, got, want string) error {
 	// The same claim arrives from three directions and all three have to be
 	// caught, or the one that is missed falls through to "but int is required
 	// here", which is true and explains nothing.
-	if (core.ExceedsWindow(got) || core.UnboundedRange(got) || got == core.BigType) &&
-		core.ValueType(want) == "int" {
-		return fmt.Errorf("%s is %s, which is WIDER than the portable window "+
-			"±(2^53−1), so it is not an `int` — it is arbitrary precision, "+
-			"a rung above the host's word (docs/unbounded-rung.md).\n"+
-			"  A range above the window is a WIDENING, not a refinement: a value that "+
+	if (c.tgt.Word.Exceeds(got) || core.UnboundedRange(got) || got == core.BigType) &&
+		c.tgt.ValueType(want) == "int" {
+		return fmt.Errorf("%s is %s, which is WIDER than the word of target %s, %s, so on "+
+			"this target it is not an `int` — it is arbitrary precision, a rung above "+
+			"the host's word (ADR 0026, docs/unbounded-rung.md).\n"+
+			"  A range above the word is a WIDENING, not a refinement: a value that "+
 			"may leave the machine word cannot silently be used where an `int` is "+
 			"required, and this refusal is where that is said. Widen the destination, "+
-			"or take the value to a string with `big-str`.", what, core.ShowType(got))
+			"or take the value to a string with `big-str`.", what, core.ShowType(got), c.tgt.Name, c.tgt.Word)
 	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
 }
@@ -369,7 +369,7 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 			// Same rule as `cond`: `any` demands nothing, so a host that
 			// declares everything `any` does not turn a loop with one known
 			// exit into a type error (json-2026-08-26).
-			if !compatible(a, b) {
+			if !compatible(c.tgt, a, b) {
 				return "", fmt.Errorf("a loop's exits are %s and %s", a, b)
 			}
 			if a == "" || a == "any" {
@@ -401,7 +401,7 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 	// makes `(if c (js.+ sp 1) mx)` a type error against a branch the checker
 	// happened to know more about. Found by the JSON tokeniser, whose depth
 	// counter is exactly that shape (json-2026-08-26).
-	if !compatible(a, b) {
+	if !compatible(c.tgt, a, b) {
 		return "", fmt.Errorf("the branches of a conditional are %s and %s", a, b)
 	}
 	// The more informative of the two survives, so a known branch still
@@ -507,7 +507,7 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			// Checking the declaration verbatim refuses a body that produces
 			// limbs, which is true of the declaration and false of the code.
 			onLimbs, _, _ := BigRepr(tgt, all...)
-			sig = LimbSig(sig, onLimbs)
+			sig = LimbSig(tgt.Word, sig, onLimbs)
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err
 			}
@@ -518,12 +518,12 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 				"but its signature declares %d", n, tgt.Name, len(p.Args), len(sig.Params))
 		}
 		for i, want := range sig.Params {
-			if got := p.Args[i]; !compatible(got, want.Type) {
+			if got := p.Args[i]; !compatible(tgt, got, want.Type) {
 				return fmt.Errorf("%s: argument %d is %s in target %s, but %s in its signature",
 					n, i+1, got, tgt.Name, want.Type)
 			}
 		}
-		if !compatible(p.Result, sig.Result) {
+		if !compatible(tgt, p.Result, sig.Result) {
 			return fmt.Errorf("%s: target %s returns %s, but its signature declares %s",
 				n, tgt.Name, p.Result, sig.Result)
 		}
@@ -549,8 +549,8 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 // rather than incidental: `array int 0 255` does not begin with `int ` and so
 // passes through unchanged, which keeps `(array (int 0 255))` and `(array int)`
 // distinct. A target that declares `[]byte` still refuses an `[]int` program.
-func compatible(a, b string) bool {
-	a, b = core.ValueType(a), core.ValueType(b)
+func compatible(tg *Target, a, b string) bool {
+	a, b = tg.ValueType(a), tg.ValueType(b)
 	return a == "" || b == "" || a == "any" || b == "any" || a == b
 }
 
@@ -581,8 +581,8 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		// `any` carries no information, and refusing it would mean a target
 		// that declares everything `any` — targets/js, on purpose — can never
 		// carry a `sig` with a concrete result (json-tree-2026-08-26).
-		if pass == 1 && !compatible(got, sig.Result) &&
-			!tgt.Subsumes(core.ValueType(got), core.ValueType(sig.Result)) {
+		if pass == 1 && !compatible(tgt, got, sig.Result) &&
+			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}

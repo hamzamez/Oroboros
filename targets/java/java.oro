@@ -27,6 +27,9 @@
   (repr (int -128 127) (host "byte"))
   (repr (int -32768 32767) (host "short"))
   (repr (int -2147483648 2147483647) (host "int"))
+  ; THE WORD (ADR 0026): `int` is realized as `long`, 64-bit two's complement
+  ; by the JLS, so native arithmetic is exact on this interval.
+  (repr (int -9223372036854775808 9223372036854775807) word)
 
   (type (array A) (host "%s[]"))
 

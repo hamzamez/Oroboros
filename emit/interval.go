@@ -28,11 +28,6 @@ import (
 // what a real analysis could prove. A lower bound is the honest thing to gate a
 // decision on.
 
-const (
-	iMin = -(1<<53 - 1) // the portable window, ADR 0012
-	iMax = 1<<53 - 1
-)
-
 // ival is [lo, hi] over the integers, with infinities. An empty interval is not
 // represented: unreachable code is not what this measures.
 type ival struct {
@@ -62,10 +57,12 @@ func rng(lo, hi int64) ival { return ival{lo: bi(lo), hi: bi(hi)} }
 
 func (v ival) bounded() bool { return !v.loInf && !v.hiInf }
 
-// fits reports whether every value in the interval is inside the portable
-// window, which is the condition under which no overflow check is needed.
-func (v ival) fits() bool {
-	return v.isBottom() || (v.bounded() && v.lo.ge(bi(iMin)) && v.hi.le(bi(iMax)))
+// fitsIn reports whether every value in the interval is inside a target's
+// word, which is the condition under which native arithmetic computes the
+// integer the language means and no overflow check is needed (ADR 0026: the
+// word is the target's, where it used to be one window for all of them).
+func (v ival) fitsIn(w core.Word) bool {
+	return v.isBottom() || (v.bounded() && v.lo.ge(bi(w.Lo)) && v.hi.le(bi(w.Hi)))
 }
 
 func (v ival) String() string {
@@ -270,8 +267,10 @@ func eqI(a, b ival) bool {
 
 // IntervalReport is what the experiment produces.
 type IntervalReport struct {
-	Ops       int // integer operations that would need an overflow check
-	Proven    int // …of those, the ones provably inside the portable window
+	Ops       int       // integer operations that would need an overflow check
+	Proven    int       // …of those, the ones provably inside the target's word
+	Target    string    // the target the report is about (ADR 0026: legality is per target)
+	Word      core.Word // …and its word
 	Unproven  []string
 	ByOp      map[string][2]int // operation -> {proven, total}
 	LoopVars  int
@@ -506,6 +505,13 @@ func bufferRangeSeeded(tgt *Target, lam *core.Term, sig *core.Sig,
 		return "", false
 	}
 	out = joinI(out, exact(0)) // the zero fill is an element
+	// A STORE OUTSIDE THE WORD narrows nothing: every rung of the ladder is
+	// inside the word, so the host's own width is the answer — the one an
+	// infinite endpoint gives, which is what such a store was while endpoints
+	// saturated at 2^62.
+	if !out.fitsIn(tgt.Word) {
+		return "", false
+	}
 	return fmt.Sprintf("int %d %d", out.lo, out.hi), true
 }
 
@@ -559,14 +565,24 @@ func CheckEnsures(tgt *Target, sig *core.Sig, t *core.Term) (bool, string) {
 	if sig == nil || sig.Ensures == nil {
 		return true, ""
 	}
+	// ABOVE THIS TARGET'S WORD a result's range is a representation
+	// declaration, not a contract (ADR 0026, and the reader's own comment on
+	// why): the value is arbitrary precision and the interval domain reports ⊤
+	// for it by construction. Only what the author wrote is checked.
+	ens := sig.Ensures
+	if tgt.ValueType(sig.Result) == core.BigType {
+		if ens = sig.Stated(); ens == nil {
+			return true, ""
+		}
+	}
 	rep, _ := Intervals(tgt, sig, t, 0)
-	ok, decided := entailsIval(tgt, sig.Ensures, rep.Result)
+	ok, decided := entailsIval(tgt, ens, rep.Result)
 	if !decided {
 		return true, "postcondition is outside the decidable fragment, " +
-			"propagated and not proven: " + sig.Ensures.String()
+			"propagated and not proven: " + ens.String()
 	}
 	if !ok {
-		return false, "the body does not establish " + sig.Ensures.String() +
+		return false, "the body does not establish " + ens.String() +
 			"; its result is " + rep.Result.String()
 	}
 	return true, ""
@@ -693,7 +709,7 @@ func Intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64) (*Interva
 func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 	seed map[string]ival, flags ...bool) (*IntervalReport, *core.Term) {
 
-	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}}
+	rep := &IntervalReport{ByOp: map[string][2]int{}, Stores: map[string]ival{}, Target: tgt.Name, Word: tgt.Word}
 	rep.MaxOp = bottom
 	p := &intervalPass{tgt: tgt, rep: rep, assume: assume, assumed: assume > 0,
 		bound: map[string]bool{}, big: map[string]bool{}, bigReads: map[string]bool{},
@@ -749,12 +765,12 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 	// other big value in the program is derived from one of them, which is ADR
 	// 0019's blast-radius claim made structural rather than asserted.
 	if p.bigOK() && sig != nil {
-		if core.ValueType(sig.Result) == core.BigType {
+		if tgt.ValueType(sig.Result) == core.BigType {
 			p.wantBig = true
 		}
 		if head != nil {
 			for i, n := range head.Params {
-				if i < len(sig.Params) && core.ValueType(sig.Params[i].Type) == core.BigType {
+				if i < len(sig.Params) && tgt.ValueType(sig.Params[i].Type) == core.BigType {
 					p.big[n] = true
 				}
 			}
@@ -1153,7 +1169,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 			// carry: `(the "int 0 …" e)` says e is in that set, and a set wider
 			// than the portable window is a request for arbitrary precision.
 			// This is where a declaration that reduction inlined away arrives.
-			p.demandBig = i == 1 && ascribedBig(args)
+			p.demandBig = i == 1 && ascribedBig(p.tgt.Word, args)
 		} else {
 			p.demandBig = known && i < len(prim.Args) && prim.Args[i] == core.BigType
 		}
@@ -1338,7 +1354,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// the target declares — and if it declares none, that target cannot do
 		// exact arithmetic and covering says so, which is the capability model
 		// answering rather than a special case.
-		if !out.fits() && prim.Checked != "" && !p.noChecked && !p.shiftOnly {
+		if !out.fitsIn(p.tgt.Word) && prim.Checked != "" && !p.noChecked && !p.shiftOnly {
 			kids[0] = core.Name(prim.Checked)
 			if p.count {
 				p.rep.Selected++
@@ -1518,7 +1534,7 @@ func (p *intervalPass) record(name string, out ival, t *core.Term) {
 	p.rep.Ops++
 	e := p.rep.ByOp[name]
 	e[1]++
-	if out.fits() {
+	if out.fitsIn(p.tgt.Word) {
 		p.rep.Proven++
 		e[0]++
 	} else {
@@ -2628,7 +2644,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 			p.bigReads = map[string]bool{}
 			step(cur)
 			for k, nm := range raw {
-				if p.bigReads[nm] && !cur[k].fits() {
+				if p.bigReads[nm] && !cur[k].fitsIn(p.tgt.Word) {
 					p.promote(nm)
 				}
 			}
@@ -2758,7 +2774,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 		p.env[nm] = cur[i]
 		if p.count {
 			p.rep.LoopVars++
-			if cur[i].fits() {
+			if cur[i].fitsIn(p.tgt.Word) {
 				p.rep.LoopBound++
 			}
 		}

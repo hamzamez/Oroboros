@@ -1,0 +1,30 @@
+; A RESULT PAST 2^53 AND INSIDE 2^63 — ADR 0026's witness.
+;
+; Under ADR 0012's window this program was refused on EVERY target, and not
+; for anything it does: the declared result `(int 0 (pow 2 60))` normalised to
+; `int` in the type checker while the representation solver promoted the body
+; to arbitrary precision, and the checker then refused a bignum where an `int`
+; was required — a contradiction the compiler made with itself.
+;
+; Under ADR 0026 the range is a word on Go, the JVM and windows, where the
+; analysis proves both multiplications inside [−2^63, 2^63−1] and native
+; arithmetic computes the cube; and it is arbitrary precision on JavaScript,
+; whose word is 2^53, where `n * n` stays a Number (it is under 10^12) and the
+; last multiplication is a BigInt with the declared bound enforced. Four
+; representations, one integer.
+;
+; `big-str` renders it on every target that has one, which converts from a word
+; where the value is one (Go, the JVM) — the solver reads a `big` parameter as a
+; demand. windows has no `big-str` (a limb table needs a string surface to be
+; rendered; see `big-select`), and it is covered by `word-wide-native`, which
+; prints the word with the host's own integer print.
+; skip: windows
+;
+; inputs: 0 1 7 1000000 999999 2097151
+; expect: 0 1 343 1000000000000000000 999997000002999999 9223358842721533951
+
+(sig cube ((n (int 0 2097151))) (int 0 9223372036854775807))
+
+(def cube (n) (* (* n n) n))
+
+(def run (n) (big-str (cube n)))

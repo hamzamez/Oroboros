@@ -17,8 +17,13 @@ func TestIntervalsNeverOverclaim(t *testing.T) {
 	}{
 		{"literals fold", `(use go) (fn () (go.+ (go.* 3 4) 5))`, 2, 2},
 		// Two operands that each fit comfortably, whose PRODUCT does not.
-		{"product escapes the window",
+		// ADR 0026: the word is the target's. (2^30)^2 is inside Go's int64,
+		// where it used to escape the 2^53 window; (2^32)^2 escapes Go's too.
+		{"product inside Go's word",
 			`(use go) (fn (a) (let x (go.& a 1073741823)
+                   (go.* x x)))`, 1, 1},
+		{"product escapes Go's word",
+			`(use go) (fn (a) (let x (go.& a 4294967295)
                    (go.* x x)))`, 0, 1},
 		// A counter bounded by its own guard.
 		{"guarded counter",

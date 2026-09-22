@@ -13,7 +13,7 @@ func writeTarget(t *testing.T, dir, name, body string) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, name+".oro"), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name+".oro"), []byte(withWord(body)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 }

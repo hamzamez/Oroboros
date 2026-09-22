@@ -1,6 +1,8 @@
 package emit
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -67,9 +69,9 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := tg.MaxLenOf(); got != portableMaxLen {
-		t.Fatalf("a target that declares no max-len gets the language's own "+
-			"bound; got %d, want %d", got, portableMaxLen)
+	if got := tg.MaxLenOf(); got != tg.Word.Hi || got != 9223372036854775807 {
+		t.Fatalf("a target that declares no max-len gets its word's bound (ADR 0026); "+
+			"got %d, want %d", got, tg.Word.Hi)
 	}
 	jv, err := LoadTarget("../targets/java")
 	if err != nil {
@@ -79,13 +81,17 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 		t.Fatalf("java declares max-len 2147483647; got %d", got)
 	}
 
-	form, err := core.ReadAll("(target bad (fact max-len ((a (array A))) (<= (len a) 9007199254740992)))")
-	if err != nil {
+	// A bound one past JavaScript's word, on a target whose word that is: a
+	// length the target cannot count is not a length (ADR 0026).
+	path := filepath.Join(t.TempDir(), "bad.oro")
+	src := "(target bad (repr (int -9007199254740991 9007199254740991) word) " +
+		"(fact max-len ((a (array A))) (<= (len a) 9007199254740992)))"
+	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := parseTarget(form[0], "bad.oro"); err == nil {
-		t.Fatal("a max-len past the portable window must be refused")
-	} else if !strings.Contains(err.Error(), "portable window") {
+	if _, err := LoadTarget(path); err == nil {
+		t.Fatal("a max-len past the target's word must be refused")
+	} else if !strings.Contains(err.Error(), "outside its word") {
 		t.Fatalf("the refusal should say why: %v", err)
 	}
 }

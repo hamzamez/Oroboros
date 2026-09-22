@@ -26,6 +26,10 @@
   ; and that mismatch is the whole reason js/builtin.oro declares arithmetic on
   ; `any` rather than on a numeric type.
   (type int     (host "number"))
+  ; THE WORD (ADR 0026): a Number is a binary64, whose integers are exact to
+  ; ±(2^53−1) and no further — the one host whose word is not 64 bits, and the
+  ; reason ADR 0012's window was 2^53 when it was one interval for every target.
+  (repr (int -9007199254740991 9007199254740991) word)
   (type f64     (host "number"))
   (type bool    (host "boolean"))
   (type string  (host "string"))

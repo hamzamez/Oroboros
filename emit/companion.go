@@ -191,12 +191,12 @@ func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 		if i == 0 {
 			continue // the receiver
 		}
-		if !compatible(want.Args[i], got.Args[i]) && !tg.SameHostType(want.Args[i], got.Args[i]) {
+		if !compatible(tg, want.Args[i], got.Args[i]) && !tg.SameHostType(want.Args[i], got.Args[i]) {
 			return fmt.Errorf("(implements %s %s): %s's argument %d is %q on %s and %q on %s",
 				sub, iface, local, i+1, want.Args[i], iface, got.Args[i], sub)
 		}
 	}
-	if !compatible(want.Result, got.Result) && !tg.SameHostType(want.Result, got.Result) {
+	if !compatible(tg, want.Result, got.Result) && !tg.SameHostType(want.Result, got.Result) {
 		return fmt.Errorf("(implements %s %s): %s returns %q on %s and %q on %s",
 			sub, iface, local, want.Result, iface, got.Result, sub)
 	}

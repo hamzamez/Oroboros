@@ -25,6 +25,9 @@ import (
 // host stores it.
 //
 // ℤ has no bound to enforce, which is what `+inf` is for.
+// goWord is the word the Go, JVM and windows target files declare (ADR 0026).
+var goWord = core.Word{Lo: -1 << 63, Hi: 1<<63 - 1}
+
 func TestAFiniteRangeGivesABoundAndInfinityDoesNot(t *testing.T) {
 	for _, c := range []struct {
 		result string
@@ -36,7 +39,7 @@ func TestAFiniteRangeGivesABoundAndInfinityDoesNot(t *testing.T) {
 		{"(int -inf +inf)", 0},
 		{"int", 0},
 	} {
-		bits, on := BigBound(resultSig(t, c.result))
+		bits, on := BigBound(goWord, resultSig(t, c.result))
 		if c.want == 0 {
 			if on {
 				t.Errorf("%s gave a bound of %d bits; ℤ is not an interval",
@@ -125,14 +128,14 @@ func TestBothRepresentationsAdmitTheSameValues(t *testing.T) {
 func TestTheBoundComesFromTheWholeProgram(t *testing.T) {
 	small := resultSig(t, "(int 0 (pow 2 100))")
 	wide := resultSig(t, "(int 0 (pow 2 1300))")
-	bits, on := BigBound(nil, small, wide)
+	bits, on := BigBound(goWord, nil, small, wide)
 	if !on || bits != 1301 {
 		t.Errorf("%d bits (on=%v) over two signatures, want the maximum, 1301", bits, on)
 	}
 	// One unbounded declaration anywhere takes the program to the host's bignum,
 	// because a program holds ONE representation and ℤ cannot be one of the
 	// fixed ones.
-	if _, on := BigBound(small, resultSig(t, "(int 0 +inf)")); on {
+	if _, on := BigBound(goWord, small, resultSig(t, "(int 0 +inf)")); on {
 		t.Error("an unbounded declaration did not veto the bound")
 	}
 }
@@ -142,13 +145,13 @@ func TestTheBoundComesFromTheWholeProgram(t *testing.T) {
 // code.
 func TestALimbSignatureIsATableOfLimbs(t *testing.T) {
 	sig := resultSig(t, "(int 0 (pow 2 300))")
-	got := LimbSig(sig, true)
+	got := LimbSig(goWord, sig, true)
 	if got.Result != "array int" {
 		t.Errorf("a limb result types as %q, want array int", got.Result)
 	}
 	// And off, it is untouched: the same signature means the host's bignum on
 	// the other rung.
-	if LimbSig(sig, false).Result == "array int" {
+	if LimbSig(goWord, sig, false).Result == "array int" {
 		t.Error("LimbSig rewrote a signature the limb rung was not selected for")
 	}
 }

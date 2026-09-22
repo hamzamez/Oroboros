@@ -6,6 +6,12 @@
 (target blas
   (type f64     (host "double"))
   (type int     (host "int"))
+  ; THE WORD (ADR 0026): C's `int`, 32 bits on every platform this spelling
+  ; targets. The narrowest word of any target here — the int32 target the
+  ; question "would a new target move the window?" asked about. It moves nothing:
+  ; a program is accepted here when its integers fit 32 bits, and on every other
+  ; target exactly as before.
+  (repr (int -2147483648 2147483647) word)
   (type vec-f64 (host "double*"))
 
   (module num/f64

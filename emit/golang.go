@@ -92,7 +92,7 @@ func Func(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, error)
 	// Parameter types come from the declared signature first, then from how the
 	// body uses them. Local propagation from primitive signatures — not
 	// inference, just reading the table.
-	seedFromSig(e.types, t.Params, sig)
+	seedFromSig(e.tgt, e.types, t.Params, sig)
 	// ONE ELEMENT TYPE PER LOOP-CARRIED BUFFER, computed once for the whole
 	// function because a `build` cannot see the variable it will be assigned to.
 	//
@@ -550,7 +550,7 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 	}
 	body, raw, out := openFresh(k, e.bound, mangle)
 	for i := range raw {
-		e.types[raw[i]] = core.ValueType(p.Results[i])
+		e.types[raw[i]] = e.tgt.ValueType(p.Results[i])
 	}
 	// A RESULT THE BODY NEVER READS still has to be RECEIVED, because Go's
 	// multiple assignment is positional and there is no way to take fewer — and
@@ -732,7 +732,7 @@ func (e *Emitter) inferFrom(t *core.Term) {
 			body, raw, _ := openFresh(k, map[string]bool{},
 				func(s string) string { return s })
 			for i := range raw {
-				e.types[raw[i]] = core.ValueType(p.Results[i])
+				e.types[raw[i]] = e.tgt.ValueType(p.Results[i])
 			}
 			e.inferFrom(body)
 			return
@@ -814,7 +814,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 			body, raw, _ := openFresh(k, map[string]bool{},
 				func(s string) string { return s })
 			for i := range raw {
-				e.types[raw[i]] = core.ValueType(p.Results[i])
+				e.types[raw[i]] = e.tgt.ValueType(p.Results[i])
 			}
 			return e.typeOf(body)
 		}
@@ -844,7 +844,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				// A RANGE is an integer wherever it is used. The width belongs
 				// to the storage and nowhere else, so a local reading a byte
 				// array is an `int` and cannot overflow at 255.
-				return core.ValueType(elem)
+				return e.tgt.ValueType(elem)
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// The write side's result types. A `build` yields the array
@@ -890,7 +890,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 					v := "int"
 					if rows := t.Args(); len(rows) > 0 && rows[0].Kind == core.KApp &&
 						len(rows[0].Kids) == 2 {
-						if ty := core.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
+						if ty := e.tgt.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
 							v = ty
 						}
 					}
@@ -963,7 +963,7 @@ func (e *Emitter) typeOf(t *core.Term) string {
 				// ValueType already says of every other range: the width a
 				// host call gives back belongs to the host, and the value is
 				// received into the language's integer (receiveInt).
-				return core.ValueType(p.Result)
+				return e.tgt.ValueType(p.Result)
 			}
 		}
 	}

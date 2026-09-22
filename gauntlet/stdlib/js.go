@@ -455,6 +455,8 @@ func emit(dir string, ms []member) error {
 		fmt.Fprintf(&b, "; `targets/js` declares and what the host knows. The consequence is that\n")
 		fmt.Fprintf(&b, "; nothing in this file can be checked, by us or by the host.\n")
 		b.WriteString("(target js\n")
+		// THE WORD (ADR 0026): a Number's exact integers, ±(2^53−1) by ECMA-262.
+		b.WriteString("  (repr (int -9007199254740991 9007199254740991) word)\n")
 		var mn []string
 		for k := range mods {
 			mn = append(mn, k)

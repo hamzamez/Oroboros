@@ -96,7 +96,7 @@ func JavaMethod(tgt *Target, name string, sig *core.Sig, t *core.Term) (string, 
 	for _, p := range t.Params {
 		e.bound[javaMangle(p)] = true
 	}
-	seedFromSig(e.types, t.Params, sig)
+	seedFromSig(e.tgt, e.types, t.Params, sig)
 	e.inferFrom(t.Body())
 	e.inferLet(t.Body())
 	e.inferFrom(t.Body())
@@ -377,7 +377,7 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 				// Latent because nothing had bound a name to a read of a
 				// NARROWED buffer until the syntactic element inference learned
 				// to see through a `let` (examples/io/jsonfmt.oro).
-				return core.ValueType(elem)
+				return e.tgt.ValueType(elem)
 			}
 			if p, ok := e.tgt.Prims[op.Name]; ok {
 				// The write side's result types. A `build` yields the array
@@ -411,7 +411,7 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 					v := "int"
 					if rows := t.Args(); len(rows) > 0 && rows[0].Kind == core.KApp &&
 						len(rows[0].Kids) == 2 {
-						if ty := core.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
+						if ty := e.tgt.ValueType(e.typeOf(rows[0].Kids[1])); ty != "" && ty != "any" {
 							v = ty
 						}
 					}

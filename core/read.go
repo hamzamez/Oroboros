@@ -75,6 +75,27 @@ type Sig struct {
 	// the call and the analysis sees the body at the site with the caller's own
 	// values (postconditions.md §3).
 	Ensures *Term
+	// ResultRange is the conjunct of Ensures that the RESULT'S RANGE
+	// contributed, kept apart because whether it is a contract depends on the
+	// target (ADR 0026): `(int 0 (pow 2 60))` is a word on Go, where the body
+	// must establish it, and arbitrary precision on JavaScript, where it is a
+	// representation declaration and the interval domain cannot bound the value
+	// at all. Stated returns Ensures without it.
+	ResultRange *Term
+}
+
+// Stated is the postcondition the author wrote, without the conjunct the
+// result's range contributed.
+func (s *Sig) Stated() *Term {
+	switch {
+	case s.ResultRange == nil:
+		return s.Ensures
+	case s.Ensures == s.ResultRange:
+		return nil
+	case s.Ensures != nil && s.Ensures.Kind == KApp && len(s.Ensures.Kids) == 4 && s.Ensures.Kids[2] == s.ResultRange:
+		return s.Ensures.Kids[1]
+	}
+	return s.Ensures
 }
 
 type SigParam struct{ Name, Type string }
@@ -1013,15 +1034,22 @@ func toForm(t *Term) (Form, error) {
 		// program would be refused for a claim nothing can discharge.
 		//
 		// That is the refusal-in-front-of-nothing shape, and this is where it is
-		// declined: above the window a range is a REPRESENTATION declaration and
+		// declined: above the word a range is a REPRESENTATION declaration and
 		// not a contract, which is the third of scalarrange-2026-08-31's three
 		// effects surviving alone.
-		if c := rangePremise(sig.Result, Name(ResultName)); c != nil &&
-			ValueType(sig.Result) == "int" {
-			if sig.Ensures == nil {
-				sig.Ensures = c
-			} else {
-				sig.Ensures = conj(sig.Ensures, c)
+		//
+		// This runs as the file is READ, before any target is known, so "the
+		// word" here is int64's — the widest any target declares (ADR 0026). A
+		// range with int64 endpoints is a contract; one beyond is a request for
+		// arbitrary precision on every target there is.
+		if _, _, isWord := IntRange(sig.Result); isWord {
+			if c := rangePremise(sig.Result, Name(ResultName)); c != nil {
+				sig.ResultRange = c
+				if sig.Ensures == nil {
+					sig.Ensures = c
+				} else {
+					sig.Ensures = conj(sig.Ensures, c)
+				}
 			}
 		}
 		// `result` NAMES THE RESULT in a postcondition, so a parameter may not
@@ -2079,24 +2107,6 @@ func prodHoldsBuffer(ty string) bool {
 	return false
 }
 
-// ExceedsWindow reports whether a range type names a set wider than ADR 0012's
-// portable window — the rung above the host's word.
-//
-// It is the test that separates a REFINEMENT from a WIDENING. Every range
-// inside the window satisfies `[LO,HI] ⊆ W`, which is why `ValueType`
-// normalises one to `int` and an `int` is accepted wherever it is wanted. A
-// range outside it does not, so it must be refused there instead — and that
-// refusal is the surface: it is where a programmer finds out a value has left
-// the machine word.
-func ExceedsWindow(ty string) bool {
-	lo, hi, ok := IntRangeBig(ty)
-	if !ok {
-		return false
-	}
-	w := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1))
-	return lo.CmpAbs(w) > 0 || hi.CmpAbs(w) > 0
-}
-
 func endpointStr(v *big.Int, inf int) string {
 	switch {
 	case inf > 0:
@@ -2247,35 +2257,7 @@ func IntRange(ty string) (int64, int64, bool) {
 	return lo, hi, true
 }
 
-// ValueType is what a range MEANS, as opposed to how it is stored. A range is an
-// integer; only a table's element slot ever consults the width.
-//
-// Keeping these apart is what stops a narrowed array from narrowing the LOCALS
-// that read it — a byte array read into a byte-wide counter would overflow at
-// 255 while the language says the value is an integer.
-func ValueType(ty string) string {
-	if _, _, ok := IntRange(ty); ok {
-		return "int"
-	}
-	// AND A RANGE ABOVE THE WINDOW IS NOT AN `int` AT ALL — it is the rung
-	// above the host's word (unbounded-rung.md §3). `IntRange` narrows to
-	// `int64` and so cannot read one, which is why the case below is reached at
-	// all; without it such a range normalised to ITSELF and every consumer that
-	// compares type strings saw a name no target declares.
-	//
-	// This is the FOURTH effect a range has, after the three
-	// scalarrange-2026-08-31 separated: a type, a premise, a representation —
-	// and now, above the window, a DIFFERENT type. The promotion is a widening,
-	// not a refinement, so `compatible` refuses it against `int` and that
-	// refusal is the surface where a programmer finds out a value became a
-	// bignum.
-	if ExceedsWindow(ty) || UnboundedRange(ty) {
-		return BigType
-	}
-	return ty
-}
-
-// BigType is what a range above the portable window means: arbitrary precision.
+// BigType is what a range above a target's word means: arbitrary precision.
 // It is the top of the representation ladder ADR 0003 opened — narrower than a
 // word, a word, and above it this — and a target spells it in its own file.
 const BigType = "big"

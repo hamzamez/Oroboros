@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math"
 	"math/big"
 	"testing"
 )
@@ -103,38 +104,59 @@ func TestEndpointGrammarRefusesTheRest(t *testing.T) {
 	}
 }
 
-// ExceedsWindow is the test that separates a REFINEMENT from a WIDENING, which
-// is the objection every candidate spelling had to face. A range inside the
-// window is an `int` that satisfies a bound; one outside it is not an `int` at
-// all, and must be refused where an `int` is required.
-func TestExceedsWindowSeparatesRefinementFromWidening(t *testing.T) {
+// Word.Exceeds is the test that separates a REFINEMENT from a WIDENING, which
+// is the objection every candidate spelling had to face. A range inside a
+// target's word is an `int` that satisfies a bound; one outside it is not an
+// `int` at all ON THAT TARGET, and must be refused where an `int` is required.
+//
+// AND THE LINE IS THE TARGET'S (ADR 0026): the same range is a word on Go and
+// arbitrary precision on JavaScript. The two words below are the ones the
+// target files declare.
+var (
+	testJS = Word{-(1<<53 - 1), 1<<53 - 1}
+	testGo = Word{math.MinInt64, math.MaxInt64}
+)
+
+func TestTheWordSeparatesRefinementFromWidening(t *testing.T) {
 	w := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 53), big.NewInt(1))
+	one := big.NewInt(1)
 	for _, c := range []struct {
-		ty   string
-		over bool
+		ty             string
+		overJS, overGo bool
 	}{
-		{"int 0 1000", false},
-		{"int 0 " + w.String(), false},                                 // exactly the window
-		{"int 0 " + new(big.Int).Add(w, big.NewInt(1)).String(), true}, // one past
-		{"int -" + new(big.Int).Add(w, big.NewInt(1)).String() + " 0", true},
-		{"int 0 1180591620717411303424", true},
-		{"int", false}, // not a range at all
-		{"f64", false},
-		{"array int", false},
+		{"int 0 1000", false, false},
+		{"int 0 " + w.String(), false, false},                       // exactly JavaScript's word
+		{"int 0 " + new(big.Int).Add(w, one).String(), true, false}, // one past it: a word on Go
+		{"int -" + new(big.Int).Add(w, one).String() + " 0", true, false},
+		{"int -9223372036854775808 9223372036854775807", true, false}, // exactly Go's
+		{"int 0 9223372036854775808", true, true},                     // one past
+		{"int 0 1180591620717411303424", true, true},
+		{"int", false, false}, // not a range at all
+		{"f64", false, false},
+		{"array int", false, false},
 	} {
-		if got := ExceedsWindow(c.ty); got != c.over {
-			t.Errorf("ExceedsWindow(%q) = %v, want %v", c.ty, got, c.over)
+		if got := testJS.Exceeds(c.ty); got != c.overJS {
+			t.Errorf("js: Exceeds(%q) = %v, want %v", c.ty, got, c.overJS)
+		}
+		if got := testGo.Exceeds(c.ty); got != c.overGo {
+			t.Errorf("go: Exceeds(%q) = %v, want %v", c.ty, got, c.overGo)
 		}
 	}
-	// And a range inside the window still normalises to `int`, or every existing
-	// program breaks.
-	if got := ValueType("int 0 1000"); got != "int" {
-		t.Errorf("an in-window range normalised to %q, want int", got)
+	// A range inside the word normalises to `int`, or every existing program
+	// breaks — and one outside it does NOT, which is what makes `compatible`
+	// refuse it.
+	for _, w := range []Word{testJS, testGo} {
+		if got := w.ValueType("int 0 1000"); got != "int" {
+			t.Errorf("%s: an in-word range normalised to %q, want int", w, got)
+		}
+		if got := w.ValueType("int 0 1180591620717411303424"); got != BigType {
+			t.Errorf("%s: a range wider than the word normalised to %q; as an int it would "+
+				"be accepted wherever an int is wanted and truncate silently", w, got)
+		}
 	}
-	// While one outside it does NOT, which is what makes `compatible` refuse it.
-	if got := ValueType("int 0 1180591620717411303424"); got == "int" {
-		t.Error("a range wider than the window normalised to `int`; it would then " +
-			"be accepted wherever an int is wanted and truncate silently")
+	// THE WITNESS: 2^60 is Go's integer and JavaScript's bignum.
+	if testGo.ValueType("int 0 1152921504606846976") != "int" || testJS.ValueType("int 0 1152921504606846976") != BigType {
+		t.Error("(int 0 2^60) must be a word on Go and arbitrary precision on JavaScript")
 	}
 }
 
@@ -177,11 +199,11 @@ func TestInfiniteEndpoints(t *testing.T) {
 		if !UnboundedRange(typeOf(t, c.src)) {
 			t.Errorf("%s is not recognised as unbounded", c.src)
 		}
-		// AND IT IS NOT AN `int`. Z is not inside the portable window, so the
+		// AND IT IS NOT AN `int`. Z is inside no target's word, so the
 		// promotion is a WIDENING and not a refinement — which is why
 		// `compatible` refuses it where an `int` is required, and why that
 		// refusal is the surface a programmer meets.
-		if got := ValueType(typeOf(t, c.src)); got != BigType {
+		if got := testGo.ValueType(typeOf(t, c.src)); got != BigType {
 			t.Errorf("ValueType(%s) = %q, want %q", c.src, got, BigType)
 		}
 	}

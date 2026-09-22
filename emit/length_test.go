@@ -168,7 +168,7 @@ func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
 		path := filepath.Join(dir, "bad.oro")
 		src := "(target bad\n  (type int (host \"int\"))\n  (type bool (host \"bool\"))\n" +
 			"  (type slice-bool (host \"[]bool\"))\n  " + old + ")\n"
-		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		if err := os.WriteFile(path, []byte(withWord(src)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		_, err := LoadTarget(path)

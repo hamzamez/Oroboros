@@ -24,7 +24,7 @@
    note: gen-fact: 1 operation(s) in arbitrary precision
    note: gen-fact: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fact.oro windows refused
-   gen: fact: acc needs arbitrary precision — int 0 +inf is above the portable window ±(2^53−1) — and target windows declares none.
+   gen: fact: acc needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/fib.oro go emitted 34d34da2cefb972908773494064b41f0c36b701897b2fd10fff034b6dba45608
    note: gen-fib: 1 operation(s) in arbitrary precision
@@ -36,7 +36,7 @@
    note: gen-fib: 1 operation(s) in arbitrary precision
    note: gen-fib: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/fib.oro windows refused
-   gen: fib: a needs arbitrary precision — int 0 +inf is above the portable window ±(2^53−1) — and target windows declares none.
+   gen: fib: a needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/limbs.oro go emitted b5bdb2c2e460ef0c6b3c299c75ea03811ec847c17556d209c1a3586909143cb3
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
@@ -60,7 +60,7 @@
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/pair.oro windows refused
-   gen: pair: b needs arbitrary precision — int 0 +inf is above the portable window ±(2^53−1) — and target windows declares none.
+   gen: pair: b needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/power.oro go emitted 24bbe26f3e4df366a30f654a0927f21bcb8c440738188a98fc7757406512497e
    note: gen-power: 3 operation(s) in arbitrary precision
@@ -72,7 +72,7 @@
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/big/power.oro windows refused
-   gen: power: acc needs arbitrary precision — int 0 +inf is above the portable window ±(2^53−1) — and target windows declares none.
+   gen: power: acc needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/render.oro go emitted 1567c950e6ffeda4221b75394a11948bae1c0492ae10c85937dccdba4bc1072e
    note: gen-render: 5 operation(s) in arbitrary precision
@@ -161,14 +161,14 @@
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/int/collatz.oro go refused
    note: gen-collatz: 0 of 4 integer operations bounded; 0 of 1 loop(s) proven terminating
-   gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+   gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
      go.* [-inf, +inf] in (go.* 3 x)
      go.+ [-inf, +inf] in (go.+ (go.* 3 x) 1)
      go.+ [1, +inf] in (go.+ steps 1)
      … and 1 more
-     Outside that window the four targets disagree silently — Go and the JVM
-     wrap, JavaScript loses precision — so this is refused rather than noted
-     (ADR 0012, ADR 0019).
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
        · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
          so the operation is provably in range;
@@ -196,11 +196,11 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/int/fib.oro go refused
    note: gen-fib: 1 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-   gen: gen-fib: 1 of 2 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+   gen: gen-fib: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
      go.+ [1, +inf] in (go.+ a b)
-     Outside that window the four targets disagree silently — Go and the JVM
-     wrap, JavaScript loses precision — so this is refused rather than noted
-     (ADR 0012, ADR 0019).
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
        · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
          so the operation is provably in range;
@@ -228,13 +228,13 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/int/power.oro go refused
    note: gen-power: 0 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
-   gen: gen-power: 3 of 3 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+   gen: gen-power: 3 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
      go.* [-inf, +inf] in (go.* acc x)
      go.* [-inf, +inf] in (go.* x x)
      go.* [-inf, +inf] in (go.* x x)
-     Outside that window the four targets disagree silently — Go and the JVM
-     wrap, JavaScript loses precision — so this is refused rather than noted
-     (ADR 0012, ADR 0019).
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
        · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
          so the operation is provably in range;
@@ -318,13 +318,13 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/kara/core.oro go refused
    note: gen-run: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
-   gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+   gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
      go.* [-inf, +inf] in (go.* acc 100)
      go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
      go.+ [0, +inf] in (go.+ (out3 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go....
-     Outside that window the four targets disagree silently — Go and the JVM
-     wrap, JavaScript loses precision — so this is refused rather than noted
-     (ADR 0012, ADR 0019).
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
        · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
          so the operation is provably in range;
@@ -364,11 +364,11 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/match/runs.oro go refused
    note: gen-runs: 0 of 1 integer operations bounded; 0 of 1 loop(s) proven terminating
-   gen: gen-runs: 1 of 1 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+   gen: gen-runs: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
      go.+ [1, +inf] in (go.+ #m2 1)
-     Outside that window the four targets disagree silently — Go and the JVM
-     wrap, JavaScript loses precision — so this is refused rather than noted
-     (ADR 0012, ADR 0019).
+     Outside its word a target's arithmetic does not compute the integer the
+     program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+     this is refused rather than noted (ADR 0019, ADR 0026).
      Clear it by saying one of:
        · NARROW THE RANGE — `(sig f ((n (int 0 1000))) …)`, or a `(where …)`,
          so the operation is provably in range;
@@ -1073,6 +1073,15 @@
 == gauntlet/differential/cases/values-product.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/values-product.oro java emitted 0138a4a39e9cd4cec01c08bf84df9e89ed0d0539663e2b74b5d7d457ac266c75
 == gauntlet/differential/cases/values-product.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/word-wide-native.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/word-wide-native.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/word-wide-native.oro java emitted 764d8dc34ed654c55b42cd8f3cf9c807e08696003f7f5a2561d22290706a76a2
+== gauntlet/differential/cases/word-wide-native.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/word-wide.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/word-wide.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/word-wide.oro java emitted 31ef65acaf74f666771af54aa8dbd8468fe35f64c0458c1d9200c5ca9ac95c57
+== gauntlet/differential/cases/word-wide.oro windows refused
+   gen: gauntlet/differential/cases/word-wide.oro: in run: big-str is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == lib/io/go.oro go refused
    gen: lib\io\go.oro: a target file begins with (target NAME …)
 == lib/io/go.oro js refused

@@ -16,6 +16,9 @@
 ; this target is for `oro`, which prints normal forms.
 
 (target tutorial-sloppy
+  ; The word (ADR 0026). This target emits nothing and only reduces, so the
+  ; integers it computes are the compiler's own int64s, folded at compile time.
+  (repr (int -9223372036854775808 9223372036854775807) word)
   (type num  (host "num"))
   (type bool (host "bool"))
 

@@ -168,7 +168,7 @@ func TestDeclaringALanguageConstructIsAnError(t *testing.T) {
 		dir := t.TempDir()
 		path := filepath.Join(dir, "t.oro")
 		src := "(target t\n  (type int (host \"int\"))\n  " + line + ")\n"
-		if err := os.WriteFile(path, []byte(src), 0o600); err != nil {
+		if err := os.WriteFile(path, []byte(withWord(src)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		_, err := LoadTarget(path)
@@ -210,10 +210,11 @@ func TestRangeSelectsRepresentation(t *testing.T) {
 // reading a byte array is an integer, or a counter over one would overflow at
 // 255 while the language says integers do not overflow.
 func TestRangeDoesNotNarrowAValue(t *testing.T) {
-	if got := core.ValueType("int 0 255"); got != "int" {
+	w := core.Word{Lo: -1 << 63, Hi: 1<<63 - 1}
+	if got := w.ValueType("int 0 255"); got != "int" {
 		t.Errorf("ValueType(range) = %q, want int", got)
 	}
-	if got := core.ValueType("f64"); got != "f64" {
+	if got := w.ValueType("f64"); got != "f64" {
 		t.Errorf("ValueType must pass non-ranges through, got %q", got)
 	}
 	if _, _, ok := core.IntRange("int"); ok {

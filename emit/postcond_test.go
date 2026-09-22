@@ -35,7 +35,7 @@ func tempTarget(t *testing.T, prim string) *Target {
     ` + prim + `
     (sig need ((k int)) int pure (where (<= 0 k)) (host expr "need(%s)"))))
 `
-	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(withWord(src)), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	tg, err := LoadTarget(path)

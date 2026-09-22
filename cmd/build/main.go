@@ -27,7 +27,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
-	bigRepr := flag.String("big-repr", "", "storage for a value above the portable window: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
+	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: build [-target=NAME] [-o ARTIFACT] SRC.oro\n\n")
 		flag.PrintDefaults()
@@ -160,8 +160,13 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}
+	// THE ERASED TERM IS KEPT EVEN WHEN NOTHING WAS PROMOTED. PromoteBig is
+	// also where every ascription is removed, and a body that folded to a
+	// literal under a declared wide range promotes nothing and still carries
+	// one: `(the "int 0 …" 1000000000000000000)`, which no backend emits. It was
+	// unreachable while folding stopped at 2^53 (ADR 0026 made it reachable).
+	nf = nb
 	if n > 0 {
-		nf = nb
 		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
 	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and

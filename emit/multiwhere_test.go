@@ -219,7 +219,7 @@ func TestARepeatedWhereOrEnsuresIsRefused(t *testing.T) {
 		path := filepath.Join(dir, "t.oro")
 		src := `(target tgt (type int (host "int")) (module tgt
   (sig f ((n int)) int pure (` + clause + ` (<= 0 n)) (` + clause + ` (<= n 9)) (host expr "f(%s)"))))`
-		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(withWord(src)), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		_, err := LoadTarget(path)

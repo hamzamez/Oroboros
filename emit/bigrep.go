@@ -144,7 +144,7 @@ func (p *intervalPass) bigTerm(t *core.Term) bool {
 		// result of a definition onto its body, and the term keeps it where the
 		// signature could not.
 		if op.Name == core.AscribeName {
-			return ascribedBig(t.Args())
+			return ascribedBig(p.tgt.Word, t.Args())
 		}
 		if isBigOp(op.Name) {
 			// TWO BIG OPERATIONS DO NOT PRODUCE A BIG VALUE, and both have to
@@ -374,20 +374,20 @@ func (p *intervalPass) exitDemand(t *core.Term) {
 // window, which is the only way a program can ask for arbitrary precision —
 // ADR 0019's blast-radius argument, that every source of `big` is a declaration
 // somebody wrote.
-func DeclaresBig(sig *core.Sig) bool {
+func DeclaresBig(w core.Word, sig *core.Sig) bool {
 	if sig == nil {
 		return false
 	}
-	if core.ValueType(sig.Result) == core.BigType {
+	if w.ValueType(sig.Result) == core.BigType {
 		return true
 	}
 	for _, r := range sig.Results {
-		if core.ValueType(r) == core.BigType {
+		if w.ValueType(r) == core.BigType {
 			return true
 		}
 	}
 	for _, sp := range sig.Params {
-		if core.ValueType(sp.Type) == core.BigType {
+		if w.ValueType(sp.Type) == core.BigType {
 			return true
 		}
 	}
@@ -434,7 +434,7 @@ func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 	if !limbs && !tgt.HasBig() {
 		return t, 0, nil
 	}
-	if bits == 0 && !DeclaresBig(sig) && !MentionsBig(t) {
+	if bits == 0 && !DeclaresBig(tgt.Word, sig) && !MentionsBig(tgt.Word, t) {
 		return t, 0, nil
 	}
 	rep, out := intervals(tgt, sig, t, 0, nil, true, limbs, limbs)
@@ -479,7 +479,7 @@ func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 // past 2^53 cannot be printed as an `int` on any of the four hosts, so the one
 // place a whole program must name arbitrary precision is exactly the one place
 // the demand can be read off the residual.
-func MentionsBig(t *core.Term) bool {
+func MentionsBig(w core.Word, t *core.Term) bool {
 	if t == nil {
 		return false
 	}
@@ -489,11 +489,11 @@ func MentionsBig(t *core.Term) bool {
 	// AND AN ASCRIPTION IS THE SECOND WAY, which is the whole point of it: a
 	// declaration reduction inlined away is a demand the residual still carries.
 	if t.Kind == core.KApp && t.Op().Kind == core.KName &&
-		t.Op().Name == core.AscribeName && ascribedBig(t.Args()) {
+		t.Op().Name == core.AscribeName && ascribedBig(w, t.Args()) {
 		return true
 	}
 	for _, k := range t.Kids {
-		if MentionsBig(k) {
+		if MentionsBig(w, k) {
 			return true
 		}
 	}
@@ -718,9 +718,9 @@ func (p *intervalPass) remByWord(t *core.Term) bool {
 // The payload is a STRING — the canonical spelling `TypeName` already produces
 // for a signature — so this is the same `ExceedsWindow` every other consumer of
 // a declared range uses. There is no second notion of a type here.
-func ascribedBig(args []*core.Term) bool {
+func ascribedBig(w core.Word, args []*core.Term) bool {
 	return len(args) == 2 && args[0] != nil && args[0].Kind == core.KStr &&
-		core.ExceedsWindow(args[0].Str)
+		w.Exceeds(args[0].Str)
 }
 
 // eraseAscriptions removes every `(the T e)`, leaving `e`.

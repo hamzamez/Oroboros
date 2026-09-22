@@ -20,7 +20,7 @@ func main() {
 	dir := flag.String("targets", "targets", "search path for target declarations; the source's own directory is always the nearest layer")
 	name := flag.String("name", "", "name for the emitted function (defaults to the source's stem)")
 	path := flag.String("path", "lib", "search path for imported modules")
-	bigRepr := flag.String("big-repr", "", "storage for a value above the portable window: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
+	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	flag.Usage = func() {
@@ -165,8 +165,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if err != nil {
 			return fmt.Errorf("%s: %w", fname, err)
 		}
+		// THE ERASED TERM IS KEPT EVEN WHEN NOTHING WAS PROMOTED: PromoteBig is
+		// also where every ascription is removed, and a body that folded to a
+		// literal under a declared wide range promotes nothing and still carries
+		// one — unreachable while folding stopped at 2^53 (ADR 0026).
+		nf = nb
 		if n > 0 {
-			nf = nb
 			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
 		}
 		// Check the residual before emitting it (docs/spec/types.md). On Go and

@@ -36,6 +36,8 @@
   ; guaranteed to be, and docs/spec/arithmetic.md §4 fixes the portable range
   ; at 2^53 on the assumption of a 64-bit integer underneath.
   (type int        (host "int64"))
+  ; The word: int64 (ADR 0026).
+  (repr (int -9223372036854775808 9223372036854775807) word)
   (type bool       (host "bool"))
   (type vec-f64    (host "[]float64"))
   (type string     (host "string"))

@@ -456,7 +456,7 @@ func TestAConcreteTypeGoesWhereAnInterfaceIsWanted(t *testing.T) {
 		if err := os.MkdirAll(filepath.Join(dir, "x"), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(filepath.Join(dir, "x", "x.oro"), []byte(src), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, "x", "x.oro"), []byte(withWord(src)), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		tg, err := LoadTargetLayers("x", []string{dir})

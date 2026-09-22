@@ -111,3 +111,49 @@ func TestNoFloatFolds(t *testing.T) {
 		t.Errorf("a float addition folded to %s; ADR 0009 forbids it", got)
 	}
 }
+
+// ON A 64-BIT WORD THE FOLD IS CHECKED, because the operands no longer leave
+// headroom: under the 2^53 window a sum of two in-window values could not wrap
+// int64, and under Go's word it can (ADR 0026). Each case is a place where the
+// wrapped int64 would itself lie inside the word and pass the range test.
+func TestFoldingOnAFullWordIsChecked(t *testing.T) {
+	fold := func(src string) string {
+		t.Helper()
+		prims := "(prim +)\n(prim -)\n(prim *)\n(prim /)\n(prim %)\n"
+		src, ps := splitPrims(prims+src, "")
+		forms, err := Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, terms, err := Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env := testEnv(prog, ps...)
+		env.Word = testGo
+		out, err := Normalize(terms[0], env, DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return out.String()
+	}
+	for _, c := range []struct {
+		src   string
+		folds bool
+	}{
+		{"(+ 9007199254740991 1)", true}, // past JavaScript's word, inside Go's
+		{"(* 3037000499 3037000499)", true},
+		{"(+ 9223372036854775807 1)", false},
+		{"(- -9223372036854775808 1)", false},
+		{"(- 0 -9223372036854775808)", false},
+		{"(* -9223372036854775808 -1)", false},
+		{"(* -1 -9223372036854775808)", false},
+		{"(/ -9223372036854775808 -1)", false},
+		{"(* 4294967296 4294967296)", false},
+	} {
+		got := fold(c.src)
+		if folded := got[0] != '('; folded != c.folds {
+			t.Errorf("%s gave %s, want folds=%v", c.src, got, c.folds)
+		}
+	}
+}

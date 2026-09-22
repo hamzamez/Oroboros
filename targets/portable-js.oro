@@ -21,6 +21,8 @@
 (target portable-js
   ; Which code generator compiles this target (target-system.md §1.1).
   (backend js)
+  ; The word: a binary64's exact integers (ADR 0026).
+  (repr (int -9007199254740991 9007199254740991) word)
 
 
   (module num/f64

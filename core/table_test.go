@@ -16,7 +16,7 @@ import (
 // These tests pin the reducer's half. The emitters' half is in emit/.
 
 func tableEnv() *Env {
-	e := &Env{Defs: map[string]*Term{}, Prim: map[string]bool{}, Pure: map[string]bool{}}
+	e := &Env{Defs: map[string]*Term{}, Prim: map[string]bool{}, Pure: map[string]bool{}, Word: testJS}
 	for _, n := range []string{"array", "table", "len", "if", "let", "loop", "=", "+"} {
 		e.Prim[n], e.Pure[n] = true, true
 	}

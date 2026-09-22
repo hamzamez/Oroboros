@@ -53,6 +53,8 @@
   ; `if` and a loop guard demand. The right-hand side is the machine
   ; representation, which on this host is all a type can be.
   (type int    (host "qword"))
+  ; THE WORD (ADR 0026): a qword, 64-bit two's complement.
+  (repr (int -9223372036854775808 9223372036854775807) word)
   (type f64    (host "real8"))
   (type bool   (host "qword"))
   (type string (host "qword"))   ; a pointer to NUL-terminated bytes

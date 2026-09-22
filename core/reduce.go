@@ -2,6 +2,7 @@ package core
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 )
@@ -26,8 +27,10 @@ import (
 // g5 §5 called the ordering discipline.
 
 type Program struct {
-	Defs  map[string]*Term
-	Order []string // definition order, for stable diagnostics
+	Defs map[string]*Term
+	// ascribed is set once AscribeWide has run — see there.
+	ascribed bool
+	Order    []string // definition order, for stable diagnostics
 
 	// Exports are the program's entry points, fully qualified, in declaration
 	// order. A backend emits one function per export, named after it — which is
@@ -65,6 +68,10 @@ type Env struct {
 	Pure map[string]bool // names whose APPLICATION is pure; see pureName
 	Rec  map[string]bool // recursive definitions are never δ-reduced
 
+	// Word is the target's word (ADR 0026): constant folding stays inside it,
+	// because that is where the target's run time computes the same integer.
+	Word Word
+
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
 }
@@ -74,6 +81,54 @@ func (e *Env) SetUnresolved(paths []string) {
 	e.unresolvedPaths = map[string]bool{}
 	for _, p := range paths {
 		e.unresolvedPaths[p] = true
+	}
+}
+
+// AscribeWide moves every declared widening onto its definition's body, for a
+// target whose word is w.
+func (p *Program) AscribeWide(w Word) {
+	// ONCE PER PROGRAM: a second Env over the same program must not wrap a body
+	// twice, and a program is only ever built for one target.
+	if p.ascribed {
+		return
+	}
+	p.ascribed = true
+	// ═══ A DECLARED WIDENING SURVIVES INLINING, BECAUSE IT IS A DIRECTIVE
+	//
+	// A range has three effects (scalarrange-2026-08-31): it is a type, it is a
+	// premise, and it is a representation. Reduction inlines every non-exported
+	// call, and the first two survive that — the checker re-derives the type,
+	// and dropping the premise is a STRENGTHENING, since the body's obligations
+	// then land on the caller's concrete values (refinements.md §6b).
+	//
+	// THE THIRD DOES NOT SURVIVE, and the difference is that it is not a fact.
+	// A range above the word does not assert something the compiler checks; it
+	// REQUESTS arbitrary precision. Inlining gives more information about values
+	// and none about intent, so removing the boundary removes the only record of
+	// the instruction — and the interval analysis cannot supply it, because a
+	// multiplicative loop widens to [-inf, +inf] and a factorial's bound is not
+	// expressible in the domain at all.
+	//
+	// So the declaration is moved onto the TERM, where reduction preserves it:
+	// `(the "int 0 …" body)`. `the` is a structural name the compiler injects
+	// into every target, exactly as `if`, `let` and `loop` are, and it is erased
+	// at emission — it carries a range and nothing else.
+	//
+	// Only a range ABOVE THE TARGET'S WORD is wrapped. Below it the analysis
+	// derives what it needs and an ascription would be noise; above it there is
+	// nothing to derive. That is the same line `Word.Exceeds` draws everywhere
+	// else: a refinement on one side, a widening on the other.
+	//
+	// IT RUNS WHEN THE TARGET IS KNOWN, not while modules are resolved, because
+	// under ADR 0026 the line is the target's: `(int 0 (pow 2 60))` is a word on
+	// Go and arbitrary precision on JavaScript. Loading is resolution (ADR 0011)
+	// and knows no target; the target's Env is where this belongs.
+	for q, sig := range p.Sigs {
+		body, ok := p.Defs[q]
+		if !ok || sig == nil || !w.Exceeds(sig.Result) {
+			continue
+		}
+		p.Defs[q] = ascribeResult(body, sig.Result)
 	}
 }
 
@@ -511,39 +566,6 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			p.Sigs[qualify(m.Path, n)] = sig
 		}
 	}
-	// ═══ A DECLARED WIDENING SURVIVES INLINING, BECAUSE IT IS A DIRECTIVE
-	//
-	// A range has three effects (scalarrange-2026-08-31): it is a type, it is a
-	// premise, and it is a representation. Reduction inlines every non-exported
-	// call, and the first two survive that — the checker re-derives the type,
-	// and dropping the premise is a STRENGTHENING, since the body's obligations
-	// then land on the caller's concrete values (refinements.md §6b).
-	//
-	// THE THIRD DOES NOT SURVIVE, and the difference is that it is not a fact.
-	// A range above the window does not assert something the compiler checks; it
-	// REQUESTS arbitrary precision. Inlining gives more information about values
-	// and none about intent, so removing the boundary removes the only record of
-	// the instruction — and the interval analysis cannot supply it, because a
-	// multiplicative loop widens to [-inf, +inf] and a factorial's bound is not
-	// expressible in the domain at all.
-	//
-	// So the declaration is moved onto the TERM, where reduction preserves it:
-	// `(the "int 0 …" body)`. `the` is a structural name the compiler injects
-	// into every target, exactly as `if`, `let` and `loop` are, and it is erased
-	// at emission — it carries a range and nothing else.
-	//
-	// Only a range ABOVE the window is wrapped. Below it the analysis derives
-	// what it needs and an ascription would be noise; above it there is nothing
-	// to derive. That is the same line `ExceedsWindow` draws everywhere else:
-	// a refinement on one side, a widening on the other.
-	for q, sig := range p.Sigs {
-		body, ok := p.Defs[q]
-		if !ok || sig == nil || !ExceedsWindow(sig.Result) {
-			continue
-		}
-		p.Defs[q] = ascribeResult(body, sig.Result)
-	}
-
 	for _, m := range mods {
 		if !entryPaths[m.Path] {
 			continue // a library's exports are not the program's entry points
@@ -1080,8 +1102,14 @@ var langFoldable = map[string]bool{
 // toward zero, and the remainder takes the DIVIDEND's sign. Go's own `/` and
 // `%` on int64 are exactly that, so the fold and the emission agree by
 // construction rather than by coincidence.
-func foldInt(op string, a, b int64) (*Term, bool) {
-	const lo, hi = -(1<<53 - 1), 1<<53 - 1
+func foldInt(op string, a, b int64, w Word) (*Term, bool) {
+	// AN ENV WITH NO WORD FOLDS NOTHING. A fold is a promise that compile time
+	// and run time agree, and without a target there is no run time to agree
+	// with (ADR 0009, per target since ADR 0026).
+	if w == (Word{}) {
+		return nil, false
+	}
+	lo, hi := w.Lo, w.Hi
 	if a < lo || a > hi || b < lo || b > hi {
 		return nil, false
 	}
@@ -1097,23 +1125,36 @@ func foldInt(op string, a, b int64) (*Term, bool) {
 	case "=":
 		return Bool(a == b), true
 	}
+	// EVERY OPERATION IS CHECKED, because a word can be all of int64: two
+	// operands inside [−2^63, 2^63−1] can sum, differ or multiply to something
+	// int64 cannot hold, and the range test below would then inspect a wrapped
+	// value and pass. The window's 2^53 used to make + and − safe by width; a
+	// target's word does not.
 	var v int64
 	switch op {
 	case "+":
 		v = a + b
+		if (b > 0 && v < a) || (b < 0 && v > a) {
+			return nil, false
+		}
 	case "-":
 		v = a - b
+		if (b < 0 && v < a) || (b > 0 && v > a) {
+			return nil, false
+		}
 	case "*":
-		// Checked by DIVIDING BACK rather than by a width argument: two
-		// in-window operands can multiply to something int64 itself cannot
-		// hold, and then the range test below would be inspecting a wrapped
-		// value and would pass.
+		// Checked by DIVIDING BACK, and MinInt64 · −1 separately: it is the one
+		// product dividing back cannot see, since MinInt64 / −1 wraps too.
 		v = a * b
-		if a != 0 && (v/a != b) {
+		if (a != 0 && (v/a != b)) || (a == -1 && b == math.MinInt64) || (b == -1 && a == math.MinInt64) {
 			return nil, false
 		}
 	case "/", "%":
 		if b == 0 {
+			return nil, false
+		}
+		// MinInt64 / −1 is 2^63, which no int64 holds.
+		if a == math.MinInt64 && b == -1 {
 			return nil, false
 		}
 		if op == "/" {
@@ -1472,7 +1513,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				return nil, err
 			}
 			if a.Kind == KInt && b.Kind == KInt {
-				if out, ok := foldInt(op.Name, a.Int, b.Int); ok {
+				if out, ok := foldInt(op.Name, a.Int, b.Int, e.Word); ok {
 					return out, nil
 				}
 			}

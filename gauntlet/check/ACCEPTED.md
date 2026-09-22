@@ -230,3 +230,29 @@ The initial baseline.
 
 
 The initial compile-time baseline, the minimum of two sweeps.
+
+## 2026-09-22 — on a9d5df6, with uncommitted changes
+
+**Reason:** ADR 0026: legality is per target. Refusal texts name the target's word instead of the portable window; two new differential cases (word-wide, word-wide-native) witness a result in (2^53, 2^63] that was refused on every target and is now a word on Go, the JVM and windows and a BigInt on JS. No compile changed legality; proof counts unchanged.
+
+464 runs: 201 emitted, 263 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+17 change(s):
+
+- compiler output changed — `examples/big/fact.oro windows`
+- compiler output changed — `examples/big/fib.oro windows`
+- compiler output changed — `examples/big/pair.oro windows`
+- compiler output changed — `examples/big/power.oro windows`
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/fib.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- compiler output changed — `examples/kara/core.oro go`
+- compiler output changed — `examples/match/runs.oro go`
+- new source — `gauntlet/differential/cases/word-wide-native.oro go`
+- new source — `gauntlet/differential/cases/word-wide-native.oro java`
+- new source — `gauntlet/differential/cases/word-wide-native.oro js`
+- new source — `gauntlet/differential/cases/word-wide-native.oro windows`
+- new source — `gauntlet/differential/cases/word-wide.oro go`
+- new source — `gauntlet/differential/cases/word-wide.oro java`
+- new source — `gauntlet/differential/cases/word-wide.oro js`
+- new source — `gauntlet/differential/cases/word-wide.oro windows`

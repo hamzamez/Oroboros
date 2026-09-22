@@ -29,6 +29,9 @@ func testEnv(p *Program, prims ...string) *Env {
 		Prim: map[string]bool{},
 		Pure: map[string]bool{},
 		Rec:  map[string]bool{},
+		// JavaScript's word, the narrowest a target declares, so a test that
+		// folds at all folds on every target (ADR 0026).
+		Word: testJS,
 	}
 	for _, n := range prims {
 		pure := !strings.HasPrefix(n, "!")

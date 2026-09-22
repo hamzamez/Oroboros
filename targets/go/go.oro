@@ -29,6 +29,12 @@
   (repr (int -32768 32767) (host "int16"))
   (repr (int 0 4294967295) (host "uint32"))
   (repr (int -2147483648 2147483647) (host "int32"))
+  ; THE WORD: what the host type realizing `int` holds, and where native
+  ; arithmetic is exact (ADR 0026). Go's `int` is 64 bits on every 64-bit
+  ; GOARCH, which is the platform this target models; a 32-bit GOARCH is a
+  ; different model with a different word, and adding it would move no program
+  ; on this one.
+  (repr (int -9223372036854775808 9223372036854775807) word)
 
   (type (array A) (host "[]%s"))
   (type (map K V) (host "map[%s]%s"))

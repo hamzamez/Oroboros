@@ -69,7 +69,7 @@
     (sig FullRune       ((p (array uint8))) bool pure
           (host expr "utf8.FullRune(%s)" (import "unicode/utf8")))
     ; Every rune, valid or not, is at least one byte.
-    (sig RuneCount      ((p (array uint8))) (int 0 9007199254740991) pure (ensures (<= result (len p)))
+    (sig RuneCount      ((p (array uint8))) (int 0 9223372036854775807) pure (ensures (<= result (len p)))
           (host expr "utf8.RuneCount(%s)" (import "unicode/utf8")))
     (sig Valid          ((p (array uint8))) bool pure
           (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
@@ -81,7 +81,7 @@
           (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
     (sig FullRuneInString       ((s string)) bool pure
           (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))
-    (sig RuneCountInString      ((s string)) (int 0 9007199254740991) pure
+    (sig RuneCountInString      ((s string)) (int 0 9223372036854775807) pure
           (host expr "utf8.RuneCountInString(%s)" (import "unicode/utf8")))
     (sig ValidString            ((s string)) bool pure
           (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))

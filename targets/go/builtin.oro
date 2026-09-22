@@ -154,6 +154,5 @@
     ; ---- conversions. Go spells these T(x); each is its own name here.
     (sig int-of-float64  (f64) int     pure       (host expr "int(%s)"))
     (sig float64-of-int  (int) f64 pure       (host expr "float64(%s)"))
-    (sig int64-of-int    (int) int64   pure         (host expr "int64(%s)"))
     (sig string-of-bytes (slice-byte) string  pure (host expr "string(%s)"))
     (sig bytes-of-string (string) slice-byte  pure (host expr "[]byte(%s)"))))

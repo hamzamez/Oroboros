@@ -26,16 +26,20 @@
     (type InvalidByteError (host "hex.InvalidByteError"))
 
     ; ---------------------------------------------------------- lengths
-    ; EncodedLen is the ℤ-linear map n ↦ 2n. The language's `int` window is NOT
-    ; closed under it, so the result is an `int` only on the PREIMAGE of the
-    ; window, |n| ≤ 2^52 − 1 — which is what the `where` says. The host needs
-    ; no precondition; ADR 0012 does.
+    ; EncodedLen is the ℤ-linear map n ↦ 2n on Go's `int`, which is this
+    ; target's word [−2^63, 2^63−1] (ADR 0026). The word is NOT closed under
+    ; doubling, so the result is Go's `int` exactly on the PREIMAGE of the word,
+    ; −2^62 ≤ n ≤ 2^62 − 1 — asymmetric because two's complement is. That is
+    ; Go's OWN overflow boundary: past it `hex.EncodedLen` wraps silently, and
+    ; this `where` is the one fact about the function Go leaves unchecked, which
+    ; the compiler now proves at every call. (Under ADR 0012's window it was
+    ; |n| ≤ 2^52 − 1, a precondition Go does not have.)
     (sig EncodedLen ((n int)) int pure
-          (where (and (<= -4503599627370495 n) (<= n 4503599627370495)))
+          (where (and (<= -4611686018427387904 n) (<= n 4611686018427387903)))
           (host expr "hex.EncodedLen(%s)"
             (import "encoding/hex")))
 
-    ; DecodedLen is x ↦ x/2, truncating, which the window IS closed under.
+    ; DecodedLen is x ↦ x/2, truncating, which the word IS closed under.
     (sig DecodedLen ((x int)) int pure
           (host expr "hex.DecodedLen(%s)" (import "encoding/hex")))
 
@@ -44,9 +48,10 @@
     ; dst[j] and dst[j+1] for every source byte and checks nothing — so the
     ; exact requirement is 2·len src ≤ len dst, which is LINEAR and therefore
     ; stated exactly rather than conservatively. The count is always 2|src|
-    ; ("this value is always EncodedLen(len(src))"), so it is at most 2^53 − 2.
+    ; ("this value is always EncodedLen(len(src))"), and 2|src| ≤ len dst ≤
+    ; 2^63 − 1 with 2|src| even, so it is at most 2^63 − 2.
     (sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-          (tuple (buffer (int 0 255)) (int 0 9007199254740990))
+          (tuple (buffer (int 0 255)) (int 0 9223372036854775806))
           (where (<= (* 2 (len src)) (len dst)))
           (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
             (import "encoding/hex")))
@@ -68,7 +73,7 @@
     ; ⌊s/2⌋ ≤ d, which over the integers is s ≤ 2d + 1 — linear again. The count
     ; is the number of whole pairs decoded before the first bad byte.
     (sig Decode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-          (tuple (buffer (int 0 255)) (int 0 4503599627370495) error)
+          (tuple (buffer (int 0 255)) (int 0 4611686018427387903) error)
           (where (<= (len src) (+ (* 2 (len dst)) 1)))
           (host expr "func(dst, src []byte) ([]byte, int, error) { n, err := hex.Decode(dst, src); return dst, n, err }(%s, %s)"
             (import "encoding/hex")))

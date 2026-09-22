@@ -38,7 +38,7 @@
     ; lower half, which is what the analysis can use, and `Write must return a
     ; non-nil error if it returns n < len(p)` is the caller's business.
     (module Writer
-      (sig Write ((self go/io.Writer) (p (array (int 0 255)))) (tuple (int 0 9007199254740991) error)
+      (sig Write ((self go/io.Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
         (host expr "%s.Write(%s)")))
 
     ; `Close() error`. Idempotence is NOT claimed: io.go says the behaviour of

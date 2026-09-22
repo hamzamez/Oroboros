@@ -913,7 +913,7 @@ var hexMistakes = map[string]func(m map[string]emit.Prim){
 	},
 	"a result range wider than the host's type": func(m map[string]emit.Prim) {
 		p := m["Decode"]
-		p.Results = []string{p.Results[0], "int 0 9007199254740992", p.Results[2]}
+		p.Results = []string{p.Results[0], "int 0 9223372036854775808", p.Results[2]} // one past Go's word
 		m["Decode"] = p
 	},
 	"a buffer where the host takes a string": func(m map[string]emit.Prim) {
@@ -949,7 +949,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				if len(host) == 0 {
 					t.Fatalf("the survey declares nothing in %s, so nothing is checked", module)
 				}
-				for _, e := range agreeAll(hand, host, realization(handTg), realization(hostTg)) {
+				for _, e := range agreeAll(hostTg.Word, hand, host, realization(handTg), realization(hostTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
 			}
@@ -961,7 +961,7 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 					m[k] = v
 				}
 				mutate(m)
-				if errs := agreeAll(m, host, realization(handTg), realization(hostTg)); len(errs) == 0 {
+				if errs := agreeAll(hostTg.Word, m, host, realization(handTg), realization(hostTg)); len(errs) == 0 {
 					t.Errorf("%s was not caught", what)
 				}
 			}
@@ -999,7 +999,7 @@ func realization(tg *emit.Target) func(string) string {
 	}
 }
 
-func agreeAll(hand, host map[string]emit.Prim, hres, gres func(string) string) []error {
+func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(string) string) []error {
 	var errs []error
 	var names []string
 	for n := range host {
@@ -1020,7 +1020,7 @@ func agreeAll(hand, host map[string]emit.Prim, hres, gres func(string) string) [
 		case !inHost:
 			errs = append(errs, fmt.Errorf("%s is declared by hand and the host has no such name", n))
 		default:
-			if err := agreeOne(n, h, g, hres, gres); err != nil {
+			if err := agreeOne(word, n, h, g, hres, gres); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -1036,7 +1036,7 @@ func agreeAll(hand, host map[string]emit.Prim, hres, gres func(string) string) [
 //     the host writes it;
 //   - a write-borrow's result list may BEGIN with the buffer it hands back;
 //   - an integer result may be a narrower RANGE inside the host's type.
-func agreeOne(name string, h, g emit.Prim, hres, gres func(string) string) error {
+func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(string) string) error {
 	if len(h.Args) != len(g.Args) {
 		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))
 	}
@@ -1058,7 +1058,7 @@ func agreeOne(name string, h, g emit.Prim, hres, gres func(string) string) error
 		return fmt.Errorf("%s returns %d value(s) by hand and %d on the host", name, len(hr), len(gr))
 	}
 	for i := range hr {
-		if !sameOrBuffer(hres(hr[i]), gres(gr[i])) && !rangeWithin(hres(hr[i]), gres(gr[i])) {
+		if !sameOrBuffer(hres(hr[i]), gres(gr[i])) && !rangeWithin(word, hres(hr[i]), gres(gr[i])) {
 			return fmt.Errorf("%s: result %d is %q by hand, which is not the host's %q or a range inside it",
 				name, i+1, hr[i], gr[i])
 		}
@@ -1090,14 +1090,14 @@ func sameOrBuffer(hand, host string) bool {
 	return hand == host || (core.IsBuffer(hand) && host == "array "+strings.TrimPrefix(hand, "buffer "))
 }
 
-// rangeWithin: `int` on the host is the language's integer, the portable window.
-func rangeWithin(hand, host string) bool {
+// rangeWithin: `int` on the host is the target's word (ADR 0026) — the host's
+// own integer, which is what a hand declaration may narrow.
+func rangeWithin(word core.Word, hand, host string) bool {
 	hl, hh, ok := core.IntRange(hand)
 	if !ok {
 		return false
 	}
-	const window = 1<<53 - 1
-	gl, gh := int64(-window), int64(window)
+	gl, gh := word.Lo, word.Hi
 	if host != "int" {
 		if gl, gh, ok = core.IntRange(host); !ok {
 			return false

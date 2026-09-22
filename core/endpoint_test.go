@@ -113,8 +113,8 @@ func TestEndpointGrammarRefusesTheRest(t *testing.T) {
 // arbitrary precision on JavaScript. The two words below are the ones the
 // target files declare.
 var (
-	testJS = Word{-(1<<53 - 1), 1<<53 - 1}
-	testGo = Word{math.MinInt64, math.MaxInt64}
+	testJS = Word{Lo: -(1<<53 - 1), Hi: 1<<53 - 1}
+	testGo = Word{Lo: math.MinInt64, Hi: math.MaxInt64}
 )
 
 func TestTheWordSeparatesRefinementFromWidening(t *testing.T) {
@@ -261,5 +261,34 @@ func TestAHalfOpenRangeIsStillAPremise(t *testing.T) {
 		Name("n"))
 	if p == nil || p.String() != "(<= 0 n)" {
 		t.Errorf("a 302-digit upper endpoint did not drop cleanly: %v", p)
+	}
+}
+
+// THE UNSIGNED REALIZATION (ADR 0026 (10)). On a target that realizes
+// U = [0, 2^64−1] as well as its signed word S, a range is `int` inside S,
+// `u64` inside U and outside S, and arbitrary precision only past both. S and U
+// are incomparable, so a range straddling them — negative AND past 2^63 — is in
+// neither and is big.
+func TestTheUnsignedRealizationIsItsOwnRung(t *testing.T) {
+	goU := testGo
+	goU.Unsigned = true
+	for _, c := range []struct{ ty, onGo, onGoU string }{
+		{"int 0 1000", "int", "int"},
+		{"int 0 9223372036854775807", "int", "int"}, // inside both: S is preferred
+		{"int 0 9223372036854775808", BigType, U64Type},
+		{"int 0 18446744073709551615", BigType, U64Type},
+		{"int 0 18446744073709551616", BigType, BigType}, // one past U
+		{"int -1 9223372036854775808", BigType, BigType}, // in neither S nor U
+		{"int 0 +inf", BigType, BigType},
+	} {
+		if got := testGo.ValueType(c.ty); got != c.onGo {
+			t.Errorf("signed only: ValueType(%q) = %q, want %q", c.ty, got, c.onGo)
+		}
+		if got := goU.ValueType(c.ty); got != c.onGoU {
+			t.Errorf("with U: ValueType(%q) = %q, want %q", c.ty, got, c.onGoU)
+		}
+		if got, want := goU.Exceeds(c.ty), c.onGoU == BigType && c.ty != "int 0 +inf"; got != want {
+			t.Errorf("with U: Exceeds(%q) = %v, want %v", c.ty, got, want)
+		}
 	}
 }

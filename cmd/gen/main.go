@@ -173,6 +173,24 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if n > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
 		}
+		// THE UNSIGNED WORD (ADR 0026 (10), emit/wordsel.go): a value proven in
+		// [0, 2^64−1] and outside the signed word is a machine word on a target
+		// that realizes U. Selected before the checker, for PromoteBig's reason,
+		// when U is DECLARED; when it is only COMPUTED, the legality pass below
+		// finds it and the checks run once more on the selected term.
+		worded := false
+		selectWords := func() {
+			worded = true
+			if nw, k := emit.SelectWords(tg, usig, nf); k > 0 {
+				nf = nw
+				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, k)
+			}
+		}
+		if emit.DeclaresWord(tg, usig, nf) {
+			selectWords()
+		}
+		sig := usig
+	checks:
 		// Check the residual before emitting it (docs/spec/types.md). On Go and
 		// Java the host would catch most of this; on JavaScript nothing would.
 		if err := emit.Check(tg, fname, nf); err != nil {
@@ -180,7 +198,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		}
 		// Refinements: the bounds obligation primitives.md §2 recorded and
 		// nothing checked (docs/spec/refinements.md).
-		sig := usig
 		// ADR 0018's linearity, checked on the residual rather than by a type.
 		if err := emit.CheckLinear(nf, tg, sig); err != nil {
 			return fmt.Errorf("%s: %w", fname, err)
@@ -208,6 +225,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			fmt.Fprintln(os.Stderr, "note:", fname+": "+note)
 		}
 		rep, sel := emit.Intervals(tg, sig, nf, 0)
+		// AN OPERATION THE UNSIGNED WORD WOULD HOLD, and the selection has not run:
+		// select it and check again, once.
+		if rep.InU && !worded {
+			selectWords()
+			goto checks
+		}
 		if rep.Ops > 0 || rep.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
 				"%d of %d loop(s) proven terminating\n",

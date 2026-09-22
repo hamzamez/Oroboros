@@ -1,0 +1,30 @@
+; A VALUE IN [0, 2^64) WALKED DOWN TO ITS DIGITS — ADR 0026 (10), emit/wordsel.go.
+;
+; `(- 18446744073709551615 n)` is proven in U = [0, 2^64−1] and outside the
+; signed word, so on Go it is a `uint64`: the literal's Horner spine and the
+; subtraction are `u64` operations, exact by the homomorphism ℤ → ℤ/2^64 because
+; each result is proven in U. The digit loop divides it by 10 — order and
+; division need BOTH operands in one realization, and both are in U — and each
+; remainder, proven in [0, 9], comes back to `int`. The loop is proven to
+; terminate (geometric descent through the conversions) and the sum bounded.
+;
+; Go only, for now: the JVM's realization of U (a `long` holding the residue,
+; u64repr-2026-09-22) and windows' unsigned qword are not built, and JavaScript
+; would hold the value as a BigInt. All three are named in the result.
+; skip: js
+; skip: java
+; skip: windows
+;
+; inputs: 0 1 7 13 99 100
+; expect: 87 86 89 83 87 86
+
+(sig near-top ((n (int 0 100))) (int 0 18446744073709551615))
+(def near-top (n) (- 18446744073709551615 n))
+
+(sig digitsum ((x (int 0 18446744073709551615))) int)
+(def digitsum (x)
+  (loop ((v x) (s 0))
+    (= v 0) s
+    else    (again (/ v 10) (+ s (% v 10)))))
+
+(def run (n) (digitsum (near-top n)))

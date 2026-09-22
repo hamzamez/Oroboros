@@ -169,6 +169,21 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if n > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
 	}
+	// THE UNSIGNED WORD (ADR 0026 (10), emit/wordsel.go): selected before the
+	// checker when U is declared, and after a refusal that found an operation U
+	// would hold — see cmd/gen for the note.
+	worded := false
+	selectWords := func() {
+		worded = true
+		if nw, k := emit.SelectWords(tg, esig, nf); k > 0 {
+			nf = nw
+			fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", k)
+		}
+	}
+	if emit.DeclaresWord(tg, esig, nf) {
+		selectWords()
+	}
+checks:
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would.
 	if err := emit.Check(tg, entry, nf); err != nil {
@@ -196,6 +211,10 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
 	}
 	rep, sel := emit.Intervals(tg, esig, nf, 0)
+	if rep.InU && !worded {
+		selectWords()
+		goto checks
+	}
 	if rep.Ops > 0 || rep.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
 			"%d of %d loop(s) proven terminating\n",

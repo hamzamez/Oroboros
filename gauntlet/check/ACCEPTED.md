@@ -256,3 +256,25 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `gauntlet/differential/cases/word-wide.oro java`
 - new source — `gauntlet/differential/cases/word-wide.oro js`
 - new source — `gauntlet/differential/cases/word-wide.oro windows`
+
+## 2026-09-22 — on 3d5ae83, with uncommitted changes
+
+**Reason:** ADR 0026 (10): Go realizes U = [0, 2^64-1] natively as uint64. Refusal texts on Go name both word realizations; two new differential cases (u64-digits: a declared u64 walked to its digits; u64-square: a product computed into U with nothing declared wide) run natively on Go and are skipped elsewhere until the JVM, windows and JS rungs exist.
+
+472 runs: 209 emitted, 263 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+13 change(s):
+
+- compiler output changed — `examples/int/collatz.oro go`
+- compiler output changed — `examples/int/fib.oro go`
+- compiler output changed — `examples/int/power.oro go`
+- compiler output changed — `examples/kara/core.oro go`
+- compiler output changed — `examples/match/runs.oro go`
+- new source — `gauntlet/differential/cases/u64-digits.oro go`
+- new source — `gauntlet/differential/cases/u64-digits.oro java`
+- new source — `gauntlet/differential/cases/u64-digits.oro js`
+- new source — `gauntlet/differential/cases/u64-digits.oro windows`
+- new source — `gauntlet/differential/cases/u64-square.oro go`
+- new source — `gauntlet/differential/cases/u64-square.oro java`
+- new source — `gauntlet/differential/cases/u64-square.oro js`
+- new source — `gauntlet/differential/cases/u64-square.oro windows`

@@ -251,6 +251,17 @@ func (c *checker) agree(what, got, want string) error {
 			"required, and this refusal is where that is said. Widen the destination, "+
 			"or take the value to a string with `big-str`.", what, core.ShowType(got), c.tgt.Name, c.tgt.Word)
 	}
+	// THE UNSIGNED WORD WHERE THE SIGNED ONE IS REQUIRED (ADR 0026 (10)). The
+	// value is a machine word on this target — just the other one, and the two
+	// agree only modulo 2^64, so the program has to say which integer it means.
+	if c.tgt.ValueType(got) == core.U64Type && c.tgt.ValueType(want) == "int" {
+		return fmt.Errorf("%s is %s, which is outside target %s's signed word [%d, %d] and inside "+
+			"[0, 18446744073709551615], so it is held in the UNSIGNED word, not an `int` (ADR 0026).\n"+
+			"  The two realizations agree only modulo 2^64: +, − and · convert freely where the result "+
+			"is proven in one of them, and nothing else does. Prove the value back inside the signed "+
+			"word (narrow it, or divide it down), or declare the destination (int 0 18446744073709551615).",
+			what, core.ShowType(got), c.tgt.Name, c.tgt.Word.Lo, c.tgt.Word.Hi)
+	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
 }
 
@@ -502,6 +513,12 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 				return fmt.Errorf("%s: %w", n, err)
 			}
 			nf = p
+			// AND THE UNSIGNED WORD (wordsel.go), for the same reason: a body
+			// whose value lives in U is `u64` once its representation is chosen,
+			// which is what a signature declaring [0, 2^64−1] says.
+			if DeclaresWord(tgt, sig, nf) {
+				nf, _ = SelectWords(tgt, sig, nf)
+			}
 			// ON THE FIXED-LIMB RUNG A BIG VALUE IS AN `array int`, so the
 			// claim is checked against the signature as that rung means it.
 			// Checking the declaration verbatim refuses a body that produces

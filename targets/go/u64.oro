@@ -1,0 +1,29 @@
+; THE UNSIGNED WORD ON GO — ADR 0026 (10), emit/wordsel.go.
+;
+; U = [0, 2^64−1] is realized natively by `uint64`, and `int` — the signed
+; word S = [−2^63, 2^63−1] — by Go's `int`. Both are sets of representatives of
+; ℤ/2^64, and the quotient ℤ → ℤ/2^64 is a ring homomorphism, so:
+;
+;   - `u64+`, `u64-` and `u64*` are Go's wrapping `+`, `-` and `*` on uint64,
+;     exact whenever the result is PROVEN in U, which is the only place the
+;     representation pass emits them;
+;   - `u64-of` and `int-of-u64` are Go's conversions, which ARE the residue map
+;     between the two sets of representatives;
+;   - order and truncating division do not commute with the quotient, so
+;     `u64<` … `u64=` and `u64/`, `u64%` are emitted only where BOTH operands
+;     are proven in U, where Go's unsigned comparison and division are the
+;     integers' own.
+(target go
+  (module go
+    (sig u64+  (u64 u64) u64 pure (host expr "(%s + %s)"))
+    (sig u64-  (u64 u64) u64 pure (host expr "(%s - %s)"))
+    (sig u64*  (u64 u64) u64 pure (host expr "(%s * %s)"))
+    (sig u64/  ((a u64) (b u64)) u64 pure (where (!= b 0)) (host expr "(%s / %s)"))
+    (sig u64%  ((a u64) (b u64)) u64 pure (where (!= b 0)) (host expr "(%s %% %s)"))
+    (sig u64<  (u64 u64) bool pure (host expr "(%s < %s)"))
+    (sig u64<= (u64 u64) bool pure (host expr "(%s <= %s)"))
+    (sig u64>  (u64 u64) bool pure (host expr "(%s > %s)"))
+    (sig u64>= (u64 u64) bool pure (host expr "(%s >= %s)"))
+    (sig u64=  (u64 u64) bool pure (host expr "(%s == %s)"))
+    (sig u64-of     (int) u64 pure (host expr "uint64(%s)"))
+    (sig int-of-u64 (u64) int pure (host expr "int(%s)"))))

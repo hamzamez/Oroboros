@@ -274,6 +274,8 @@ type IntervalReport struct {
 	// Outside is set when an unproven operation IS bounded, only not by this
 	// target's word — the case where declaring the range is the answer.
 	Outside   bool
+	Worded    int  // operations and conversions the unsigned-word pass rewrote
+	InU       bool // an unproven operation's interval lies in U (wordsel.go)
 	Unproven  []string
 	ByOp      map[string][2]int // operation -> {proven, total}
 	LoopVars  int
@@ -338,7 +340,17 @@ type intervalPass struct {
 	selecting  bool                // this pass SELECTS a representation, rather than reporting on one
 	noDest     bool                // …and not the mutable-bignum rewrite either
 	shiftOnly  bool                // …and nothing at all except division-to-shift
-	limbs      bool                // big is OUR representation, so the host need not have one
+
+	// THE UNSIGNED WORD (wordsel.go). `words` is the selection mode; u64 names
+	// the binders represented in U, u64Val the rebuilt terms that are, and
+	// wordLoop the variables of the loop whose final walk is under way — kept
+	// apart from loopRaw, which that walk has already restored to the outer
+	// loop's.
+	words    bool
+	u64      map[string]bool
+	u64Val   map[*core.Term]bool
+	wordLoop []string
+	limbs    bool // big is OUR representation, so the host need not have one
 
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
@@ -747,7 +759,13 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		shiftOnly: len(flags) > 3 && flags[3],
 		// NO ARRAY SMASHING, for the sub-pass whose stores decide a buffer's
 		// STORAGE width (smash.go): smashing bounds values, never representation.
-		noSmash: len(flags) > 4 && flags[4]}
+		noSmash: len(flags) > 4 && flags[4],
+		// THE UNSIGNED WORD'S SELECTION ONLY (wordsel.go): no checked forms, no
+		// bignum, no shifts — a representation is being chosen, not reported on.
+		words: len(flags) > 5 && flags[5]}
+	if p.words {
+		p.u64, p.u64Val = map[string]bool{}, map[*core.Term]bool{}
+	}
 	env := map[string]ival{}
 	for k, v := range seed {
 		env[k] = v
@@ -757,6 +775,23 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		head = t
 		for _, n := range t.Params {
 			env[n] = p.paramIval(n, sig)
+			// A RANGE NO TERM CAN STATE is still the parameter's premise: an
+			// export ASSUMES its parameters' types, and a premise reaches the
+			// analysis as a term — int64 endpoints — so [0, 2^64−1] would arrive
+			// as [0, +inf]. Read at full precision instead (ADR 0026).
+			if sig != nil {
+				for _, sp := range sig.Params {
+					if sp.Name != n {
+						continue
+					}
+					if v, ok := wideRange(sp.Type); ok && tgt.ValueType(sp.Type) == core.U64Type {
+						env[n] = intersect(env[n], v)
+					}
+					if p.words && tgt.ValueType(sp.Type) == core.U64Type {
+						p.u64[n] = true
+					}
+				}
+			}
 		}
 		p.sig, p.params = sig, t.Params
 		t = t.Body()
@@ -1210,6 +1245,14 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		kids = append(kids, na)
 	}
 	p.demandBig = outerDemand
+	// A BACK EDGE CARRIES EACH VALUE IN ITS LOOP VARIABLE'S REPRESENTATION
+	// (wordsel.go): the variable is ρ of its fixpoint interval, and the value's
+	// interval is inside it, so the conversion is the identity on it.
+	if p.words && op.Name == "again" && p.wordLoop != nil {
+		for i := 1; i < len(kids) && i-1 < len(p.wordLoop); i++ {
+			kids[i] = p.toRep(kids[i], p.u64[p.wordLoop[i-1]])
+		}
+	}
 	rebuilt := &core.Term{Kind: core.KApp, Kids: kids}
 
 	// THE RUNG ABOVE THE WORD (bigrep.go). Selected before `transfer`, because a
@@ -1320,7 +1363,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	// own fixed-limb factorial that correction is worth **2.39x**, the dominant
 	// cost in the program and larger than the clamp, the element mask and the
 	// buffer clear together (shiftdiv-2026-09-03).
-	if p.selecting {
+	if p.selecting && !p.words {
 		if k, m, ok := shiftFor(p.tgt, arithOp(op.Name, len(vals)), vals); ok {
 			if shr, and, have := p.tgt.ShiftNames(); have {
 				if m == 0 {
@@ -1339,6 +1382,11 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		}
 	}
 	out, checkable := p.transfer(op.Name, prim, vals)
+	if p.words {
+		if nt := p.selectWord(op.Name, kids, vals, out); nt != nil {
+			rebuilt = nt
+		}
+	}
 	// A BUILD'S VALUE IS ITS BODY'S. `(build n λb.e)` is `e` with b the zero-filled
 	// buffer, and `vals[1]` — the λ's interval — is e's. A body that hands the
 	// buffer back has a table value, whose interval says nothing either way; a
@@ -1413,6 +1461,22 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 	// decided here. Two layers, and only one of them was ever told.
 	if lo, hi, ok := core.IntRange(prim.Result); ok {
 		return rng(lo, hi), false
+	}
+	// A RESULT IN U (ADR 0026): `strconv.ParseUint` returns [0, 2^64−1], whose
+	// upper end no int64 holds.
+	if v, ok := wideRange(prim.Result); ok && p.tgt.ValueType(prim.Result) == core.U64Type {
+		return v, false
+	}
+	// THE UNSIGNED WORD'S OPERATIONS ARE THE LANGUAGE'S, on the integers they are
+	// proven to hold (wordsel.go), and its conversions are the identity on them.
+	if name == "u64-of" || name == "int-of-u64" {
+		if len(v) == 1 {
+			return v[0], false
+		}
+		return top, false
+	}
+	if lang, ok := wordLang(name); ok {
+		name, prim.Result = lang, "int"
 	}
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
@@ -1537,7 +1601,14 @@ func (p *intervalPass) record(name string, out ival, t *core.Term) {
 	p.rep.Ops++
 	e := p.rep.ByOp[name]
 	e[1]++
-	if out.fitsIn(p.tgt.Word) {
+	// A LANGUAGE OPERATION IS PROVEN ONLY INSIDE THE SIGNED WORD; one the
+	// unsigned-word pass rewrote is proven inside U. So an operation in U that
+	// the pass did not reach is refused rather than emitted as a wrapping `int`.
+	proven := out.fitsIn(p.tgt.Word)
+	if isWordOp(name) {
+		proven = p.tgt.Word.Unsigned && inU(out)
+	}
+	if proven {
 		p.rep.Proven++
 		e[0]++
 	} else {
@@ -1548,6 +1619,9 @@ func (p *intervalPass) record(name string, out ival, t *core.Term) {
 		p.rep.Unproven = append(p.rep.Unproven, fmt.Sprintf("%s %s in %s", name, out, s))
 		if out.bounded() {
 			p.rep.Outside = true
+		}
+		if p.tgt.Word.Unsigned && inU(out) {
+			p.rep.InU = true // the unsigned word would hold it: see DeclaresWord
 		}
 	}
 	p.rep.ByOp[name] = e
@@ -1576,6 +1650,16 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 			p.big[raw[0]] = true
 		} else {
 			delete(p.big, raw[0])
+		}
+	}
+	// A NAME BOUND TO A u64 IS ONE (wordsel.go) — the binder takes its value's
+	// representation, so nothing converts here.
+	oldU, hadU := p.u64[raw[0]]
+	if p.words {
+		if p.u64Term(nv) {
+			p.u64[raw[0]] = true
+		} else {
+			delete(p.u64, raw[0])
 		}
 	}
 	// A TABLE'S LENGTH SURVIVES THE BINDING. Call-by-need let-binds an argument
@@ -1614,6 +1698,14 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	}
 	out, nb := p.evalR(body)
 	wasBigBody := p.bigTerm(nb) // recorded before the binder goes out of scope
+	wasU64Body := p.u64Term(nb)
+	if p.words {
+		if hadU {
+			p.u64[raw[0]] = oldU
+		} else {
+			delete(p.u64, raw[0])
+		}
+	}
 	bodyE, bodyHasE := p.elemOf(nb)
 	bodyD, bodyHasD := p.deltaOf(nb)
 	p.unshadowDelta(raw[0], lvOld, lvHad, lvDid)
@@ -1646,6 +1738,9 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	// core.Fn closes an OPEN body, which is exactly what openFresh handed us.
 	rebuilt := core.App(t.Op(), nv, core.Fn(raw, nb))
 	p.markBig(rebuilt, wasBigBody)
+	if p.words && wasU64Body {
+		p.u64Val[rebuilt] = true
+	}
 	if bodyHasE {
 		p.setElemOf(rebuilt, bodyE)
 	}
@@ -1687,7 +1782,19 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 			na = core.App(core.Name("big-of"), na)
 		}
 	}
+	// THE ARMS AGREE ON ρ OF THE CONDITIONAL'S INTERVAL (wordsel.go). Each arm's
+	// interval is inside the join, so the conversion is the identity on it.
+	rebuiltU := false
+	if p.words {
+		if j := joinI(a, b); !j.isBottom() {
+			rebuiltU = p.wantU(j)
+			na, nb = p.toRep(na, rebuiltU), p.toRep(nb, rebuiltU)
+		}
+	}
 	rebuilt := core.App(t.Op(), nc, na, nb)
+	if rebuiltU {
+		p.u64Val[rebuilt] = true
+	}
 	if ea, ok := p.elemOf(na); ok {
 		if eb, ok := p.elemOf(nb); ok {
 			p.setElemOf(rebuilt, joinI(ea, eb))
@@ -2795,7 +2902,40 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// nothing was known about. It was the analysis lying about the program, in
 	// the direction that makes the headline number worse rather than better,
 	// which is the only reason it was not mistaken for a result.
+	// EACH LOOP VARIABLE IS ρ OF ITS FIXPOINT INTERVAL (wordsel.go), decided
+	// here where the interval is final, and every value entering it — the
+	// initialiser below, each `again` in the walk — is converted to it.
+	oldWordLoop := p.wordLoop
+	uSaved := map[string][2]bool{}
+	if p.words {
+		p.wordLoop = raw
+		for i, nm := range raw {
+			old, had := p.u64[nm]
+			uSaved[nm] = [2]bool{old, had}
+			if p.wantU(cur[i]) {
+				p.u64[nm] = true
+			} else {
+				delete(p.u64, nm)
+			}
+		}
+	}
 	out, nb := p.evalR(body)
+	loopU := p.words && p.u64Term(nb)
+	if p.words {
+		for i := range nInits {
+			if i < len(raw) {
+				nInits[i] = p.toRep(nInits[i], p.u64[raw[i]])
+			}
+		}
+		for nm, sv := range uSaved {
+			if sv[1] {
+				p.u64[nm] = sv[0]
+			} else {
+				delete(p.u64, nm)
+			}
+		}
+		p.wordLoop = oldWordLoop
+	}
 	loopE, loopHasE := p.elemOf(nb)
 	loopD, loopHasD := p.deltaOf(nb)
 	// Whether the loop RETURNS a bignum, recorded while its variables are still
@@ -2853,6 +2993,9 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	kids := append([]*core.Term{t.Op(), core.Fn(raw, nb)}, nInits...)
 	rebuiltLoop := &core.Term{Kind: core.KApp, Kids: kids}
 	p.markBig(rebuiltLoop, bigExit)
+	if loopU {
+		p.u64Val[rebuiltLoop] = true
+	}
 	if loopHasE {
 		p.setElemOf(rebuiltLoop, loopE)
 	}
@@ -3243,6 +3386,10 @@ func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstS
 		// this analysis can use.
 		return noArc, descent{}
 	}
+	// THE UNSIGNED WORD'S CONVERSIONS ARE THE IDENTITY on the values they see
+	// (wordsel.go), so a descent through one is the descent under it: a digit
+	// loop over a `uint64` is still `v ↦ v / 10`.
+	arg = peelWord(arg)
 	// μ' = μ, when the argument IS the source variable.
 	if arg.Kind == core.KName && arg.Name == src {
 		return downEq, descent{}

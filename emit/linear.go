@@ -815,6 +815,8 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		}
 		args := t.Args()
 		switch {
+		case (op.Name == "u64-of" || op.Name == "int-of-u64") && len(args) == 1:
+			return asLinearIn(pure, args[0]) // the identity on every value it converts
 		case isOp(op.Name, "add") && len(args) == 2:
 			a, ok1 := asLinearIn(pure, args[0])
 			b, ok2 := asLinearIn(pure, args[1])
@@ -961,6 +963,14 @@ var opAlias = map[string]string{
 	// written with them should not degrade to an opaque atom.
 	"andb": "and", "orb": "or", "notb": "not",
 	"f<": "flt", "f<=": "fle", "f>": "fgt", "f>=": "fge",
+	// THE UNSIGNED WORD'S OPERATIONS ARE THE LANGUAGE'S (wordsel.go): each is
+	// emitted only where its result — or, for order and division, both of its
+	// operands — is proven in U, and there it computes the integer itself. The
+	// fragment is over ℤ, so reading them as +, −, ·, /, % and the comparisons
+	// is exact, not an approximation. The two conversions are the identity on
+	// the values they see, and asLinearIn reads them so.
+	"u64+": "add", "u64-": "sub", "u64*": "mul", "u64/": "div", "u64%": "rem",
+	"u64<": "lt", "u64<=": "le", "u64>": "gt", "u64>=": "ge", "u64=": "eq",
 }
 
 func isOp(name, want string) bool {

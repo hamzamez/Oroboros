@@ -19,17 +19,43 @@ import (
 // Everything that used to ask "is this inside the portable window?" now asks
 // it of a Word: the reader's promotion of a declared range to arbitrary
 // precision, constant folding (ADR 0009), and the type a range normalises to.
-type Word struct{ Lo, Hi int64 }
+type Word struct {
+	Lo, Hi int64
+
+	// Unsigned says the target ALSO realizes U = [0, 2^64−1] natively, at word
+	// width (ADR 0026 (10)): Go's `uint64`. The two realizations are
+	// incomparable — neither interval contains the other — and both are sets of
+	// representatives of ℤ/2^64, which is the theorem their mixed arithmetic
+	// rests on (emit/wordsel.go). It is the one unsigned realization any 64-bit
+	// two's-complement host has, so it is a flag and not a second interval.
+	Unsigned bool
+}
+
+// U64Type is the language-level name of the unsigned realization: the type a
+// range inside U and outside the signed word has, on a target that realizes U.
+const U64Type = "u64"
+
+var maxU64 = new(big.Int).SetUint64(1<<64 - 1)
 
 // Contains reports [lo, hi] ⊆ w.
 func (w Word) Contains(lo, hi *big.Int) bool {
 	return lo.Cmp(big.NewInt(w.Lo)) >= 0 && hi.Cmp(big.NewInt(w.Hi)) <= 0
 }
 
+// ContainsU reports [lo, hi] ⊆ U, on a target that realizes U.
+func (w Word) ContainsU(lo, hi *big.Int) bool {
+	return w.Unsigned && lo.Sign() >= 0 && hi.Cmp(maxU64) <= 0
+}
+
 // Has reports v ∈ w.
 func (w Word) Has(v int64) bool { return w.Lo <= v && v <= w.Hi }
 
-func (w Word) String() string { return fmt.Sprintf("[%d, %d]", w.Lo, w.Hi) }
+func (w Word) String() string {
+	if w.Unsigned {
+		return fmt.Sprintf("[%d, %d] and [0, 18446744073709551615]", w.Lo, w.Hi)
+	}
+	return fmt.Sprintf("[%d, %d]", w.Lo, w.Hi)
+}
 
 // Exceeds reports whether a range type names a set the word does not contain —
 // the rung above the host's word on this target.
@@ -47,7 +73,7 @@ func (w Word) Exceeds(ty string) bool {
 	if !ok {
 		return false
 	}
-	return !w.Contains(lo, hi)
+	return !w.Contains(lo, hi) && !w.ContainsU(lo, hi)
 }
 
 // ValueType is what a range MEANS on this target, as opposed to how it is
@@ -61,6 +87,8 @@ func (w Word) Exceeds(ty string) bool {
 func (w Word) ValueType(ty string) string {
 	if lo, hi, ok := IntRangeBig(ty); ok && w.Contains(lo, hi) {
 		return "int"
+	} else if ok && w.ContainsU(lo, hi) {
+		return U64Type // outside the signed word, inside U
 	}
 	// ABOVE THE WORD A RANGE IS NOT AN `int` AT ALL — it is the rung above the
 	// host's word (unbounded-rung.md §3). The promotion is a widening, not a

@@ -1,0 +1,20 @@
+; A PRODUCT PAST 2^63 WITH NOTHING DECLARED WIDE — ADR 0026 (10).
+;
+; a is at most 2^32 − 1, so a·a is at most 2^64 − 2^33 + 1: past the signed word
+; and inside U. Nothing in the program names U — the parameter and the result
+; are ordinary ranges — so the value is COMPUTED into U, and the legality pass is
+; what finds it: the multiplication is unproven in the signed word with its
+; interval in U, and the driver selects the unsigned word and checks again. On Go
+; the product is `uint64(a) * uint64(a)`, and the quotient, proven under 2^63,
+; returns to `int`.
+; skip: js
+; skip: java
+; skip: windows
+;
+; inputs: 0 1 7 65535 4294967295 4294967294
+; expect: 0 0 16 1431612075 6148914688373205675 6148914685509894145
+
+(sig third-square ((a (int 0 4294967295))) int)
+(def third-square (a) (/ (* a a) 3))
+
+(def run (n) (third-square n))

@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"math/big"
 	"io/fs"
 	"math"
 	"os"
@@ -384,12 +385,12 @@ func (tg *Target) checkWord() error {
 	// EVERY TARGET, typed or not: `int` and its operators are the language's and
 	// are injected into all of them, so every target computes integers and must
 	// say which ones it computes exactly.
-	if tg.Word == (core.Word{}) {
+	if tg.Word.Lo == 0 && tg.Word.Hi == 0 {
 		return fmt.Errorf("target %s does not say what interval its native integers hold exactly; "+
 			"declare it as (repr (int LO HI) word) — (repr (int -9223372036854775808 9223372036854775807) word) "+
 			"for a 64-bit two's-complement integer (ADR 0026)", tg.Name)
 	}
-	if tg.MaxLen > tg.Word.Hi && tg.Word != (core.Word{}) {
+	if tg.MaxLen > tg.Word.Hi {
 		return fmt.Errorf("target %s: an array bound of %d is outside its word %s; a length the target "+
 			"cannot count is not a length (ADR 0026)", tg.Name, tg.MaxLen, tg.Word)
 	}
@@ -889,6 +890,19 @@ func (tg *Target) addCore() {
 	// `checked` primitive already gives on JavaScript, which declares none.
 	// windows declares none here, and ADR 0019 already says what it owes: a
 	// bignum written in Oroboros, the way win/map is.
+	// THE UNSIGNED WORD's operations (emit/wordsel.go), found by spelling the
+	// way the bignum's are: a target that realizes U says how its host computes
+	// on it, and nothing here learns that Go spells the conversion `uint64(x)`.
+	for _, op := range wordOps {
+		if _, have := tg.Prims[op]; have {
+			continue
+		}
+		if p, ok := tg.findBySpelling(op, wordOpArity(op)); ok {
+			p.Name, p.Pure = op, true
+			tg.Prims[op] = p
+			tg.Names = append(tg.Names, op)
+		}
+	}
 	for _, op := range bigOps {
 		if _, have := tg.Prims[op.name]; have {
 			continue
@@ -1377,9 +1391,15 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 			return err
 		}
 	}
-	if err := combineOne(&tg.Word, o.Word, "word", from, how); err != nil {
+	// THE SIGNED WORD GLUES LIKE ANY SCALAR; the unsigned realization is a
+	// member of a SET of realizations, so two fragments may each say what they
+	// know and the target realizes the union.
+	signed := [2]int64{tg.Word.Lo, tg.Word.Hi}
+	if err := combineOne(&signed, [2]int64{o.Word.Lo, o.Word.Hi}, "word", from, how); err != nil {
 		return err
 	}
+	tg.Word.Lo, tg.Word.Hi = signed[0], signed[1]
+	tg.Word.Unsigned = tg.Word.Unsigned || o.Word.Unsigned
 	// ORDERED, so they append rather than folding by key — narrowest first is
 	// the whole selection rule for `int-repr`. Nearest layer first, so a nearer
 	// declaration is found before a built-in one.
@@ -1621,13 +1641,23 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		// realizing `int` holds exactly [LO, HI], and native arithmetic is exact
 		// there (ADR 0026). It is a rung like the others — the interval a
 		// realization contains — and the one every scalar is stored in.
+		// AND [0, 2^64−1] AT WORD WIDTH: `(repr (int 0 18446744073709551615) word)`
+		// says the target realizes U too, natively (ADR 0026 (10)). Its upper
+		// endpoint is past int64, so it is read at full precision.
+		if choice.Kind == core.KName && choice.Name == "word" {
+			if lo, hi, ok := core.IntRangeBig(core.TypeName(subj)); ok && lo.Sign() == 0 &&
+				hi.Cmp(new(big.Int).SetUint64(1<<64-1)) == 0 {
+				frag.Word.Unsigned = true
+				return nil
+			}
+		}
 		if subj.Kind == core.KApp && len(subj.Kids) == 3 && subj.Kids[1].Kind == core.KInt &&
 			subj.Kids[2].Kind == core.KInt && choice.Kind == core.KName && choice.Name == "word" {
 			lo, hi := subj.Kids[1].Int, subj.Kids[2].Int
 			if lo > 0 || hi < 0 {
 				return fmt.Errorf("%s: a word must contain 0, got (int %d %d)", path, lo, hi)
 			}
-			frag.Word = core.Word{Lo: lo, Hi: hi}
+			frag.Word.Lo, frag.Word.Hi = lo, hi
 			return nil
 		}
 		if subj.Kind != core.KApp || len(subj.Kids) != 3 || subj.Kids[1].Kind != core.KInt ||
@@ -2375,6 +2405,10 @@ func (tg *Target) boxed(name string) string {
 func (tg *Target) ty(name string) string {
 	if s, ok := tg.Types[name]; ok {
 		return s
+	}
+	// A RANGE IN U AND OUTSIDE THE WORD is the unsigned realization (ADR 0026).
+	if tg.Word.ValueType(name) == core.U64Type && name != core.U64Type {
+		return tg.ty(core.U64Type)
 	}
 	// A RANGE spells itself as the representation that holds it, and falls back
 	// to the target's own integer when nothing narrower was declared.

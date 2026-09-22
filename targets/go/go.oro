@@ -35,6 +35,10 @@
   ; different model with a different word, and adding it would move no program
   ; on this one.
   (repr (int -9223372036854775808 9223372036854775807) word)
+  ; AND U = [0, 2^64−1], natively, in a `uint64` (ADR 0026 (10)): a value
+  ; proven there is a machine word here, and its operations are in u64.oro.
+  (repr (int 0 18446744073709551615) word)
+  (type u64 (host "uint64"))
 
   (type (array A) (host "[]%s"))
   (type (map K V) (host "map[%s]%s"))

@@ -161,7 +161,7 @@
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/int/collatz.oro go refused
    note: gen-collatz: 0 of 4 integer operations bounded; 0 of 1 loop(s) proven terminating
-   gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
+   gen: gen-collatz: 4 of 4 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.* [-inf, +inf] in (go.* 3 x)
      go.+ [-inf, +inf] in (go.+ (go.* 3 x) 1)
      go.+ [1, +inf] in (go.+ steps 1)
@@ -196,7 +196,7 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/int/fib.oro go refused
    note: gen-fib: 1 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-   gen: gen-fib: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
+   gen: gen-fib: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.+ [1, +inf] in (go.+ a b)
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
@@ -228,7 +228,7 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/int/power.oro go refused
    note: gen-power: 0 of 3 integer operations bounded; 1 of 1 loop(s) proven terminating
-   gen: gen-power: 3 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
+   gen: gen-power: 3 of 3 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.* [-inf, +inf] in (go.* acc x)
      go.* [-inf, +inf] in (go.* x x)
      go.* [-inf, +inf] in (go.* x x)
@@ -318,7 +318,7 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/kara/core.oro go refused
    note: gen-run: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
-   gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
+   gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.* [-inf, +inf] in (go.* acc 100)
      go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
      go.+ [0, +inf] in (go.+ (out3 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go....
@@ -364,7 +364,7 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/match/runs.oro go refused
    note: gen-runs: 0 of 1 integer operations bounded; 0 of 1 loop(s) proven terminating
-   gen: gen-runs: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807]
+   gen: gen-runs: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.+ [1, +inf] in (go.+ #m2 1)
      Outside its word a target's arithmetic does not compute the integer the
      program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
@@ -1063,6 +1063,14 @@
 == gauntlet/differential/cases/table-bool.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/table-bool.oro java emitted e6b80231e9e710bd48c323f0f134c67b9e452274aaf2206eab2f6af92e5f71ad
 == gauntlet/differential/cases/table-bool.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/u64-digits.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/u64-digits.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/u64-digits.oro java emitted 0b849a9640399b67648eedcb0362062262e217013422917d9e0b6f3a6e202f3d
+== gauntlet/differential/cases/u64-digits.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/u64-square.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/u64-square.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/u64-square.oro java emitted cd9c8e5e65cc66eb021822eaec144164237786fe5e2ce1e26a170c953266f42a
+== gauntlet/differential/cases/u64-square.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/utf8-widths.oro go refused
    gen: cannot determine a Go type for parameter "n"; it is never passed to a primitive whose signature would fix it
 == gauntlet/differential/cases/utf8-widths.oro js emitted b4fe4efd971f9a793d521c42e9365e435a2c40fd675a21a170e4bf7d08366b11

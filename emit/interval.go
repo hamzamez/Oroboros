@@ -2,7 +2,7 @@ package emit
 
 import (
 	"fmt"
-	"math"
+	"math/big"
 	"sort"
 	"strings"
 
@@ -36,7 +36,7 @@ const (
 // ival is [lo, hi] over the integers, with infinities. An empty interval is not
 // represented: unreachable code is not what this measures.
 type ival struct {
-	lo, hi       int64
+	lo, hi       bnd
 	loInf, hiInf bool
 }
 
@@ -50,22 +50,26 @@ var top = ival{loInf: true, hiInf: true}
 // primes, which the count loop bounds perfectly — and the bound was thrown away
 // on the way out because the loop's own value was joined with the branches that
 // do not produce one.
-var bottom = ival{lo: 1, hi: 0}
+var bottom = ival{lo: bOne, hi: bZero}
 
-func (v ival) isBottom() bool { return !v.loInf && !v.hiInf && v.lo > v.hi }
+func (v ival) isBottom() bool { return !v.loInf && !v.hiInf && v.lo.gt(v.hi) }
 
-func exact(v int64) ival { return ival{lo: v, hi: v} }
+func exact(v int64) ival { return ival{lo: bi(v), hi: bi(v)} }
+
+// rng is [lo, hi] from two int64 endpoints, which is how nearly every interval
+// the pass builds from a literal, a length or a table's range is written.
+func rng(lo, hi int64) ival { return ival{lo: bi(lo), hi: bi(hi)} }
 
 func (v ival) bounded() bool { return !v.loInf && !v.hiInf }
 
 // fits reports whether every value in the interval is inside the portable
 // window, which is the condition under which no overflow check is needed.
 func (v ival) fits() bool {
-	return v.isBottom() || (v.bounded() && v.lo >= iMin && v.hi <= iMax)
+	return v.isBottom() || (v.bounded() && v.lo.ge(bi(iMin)) && v.hi.le(bi(iMax)))
 }
 
 func (v ival) String() string {
-	l, h := fmt.Sprint(v.lo), fmt.Sprint(v.hi)
+	l, h := v.lo.String(), v.hi.String()
 	if v.loInf {
 		l = "-inf"
 	}
@@ -78,29 +82,22 @@ func (v ival) String() string {
 // ---------------------------------------------------------------- arithmetic
 //
 // Saturating, because the analysis must not overflow while reasoning about
-// overflow. Anything that saturates becomes infinite, which is sound.
-
-const sat = int64(1) << 62
-
-func clamp(v int64) (int64, bool) {
-	if v >= sat || v <= -sat {
-		return 0, false
-	}
-	return v, true
-}
+// overflow. Anything that saturates becomes infinite, which is sound. The
+// endpoint type (bound.go) holds ℤ exactly to 2^126 — enough for every
+// target's word, ADR 0026 — and says when a result has left it.
 
 func addI(a, b ival) ival {
 	out := ival{}
 	if a.loInf || b.loInf {
 		out.loInf = true
-	} else if v, ok := clamp(a.lo + b.lo); ok {
+	} else if v, ok := a.lo.add(b.lo); ok {
 		out.lo = v
 	} else {
 		out.loInf = true
 	}
 	if a.hiInf || b.hiInf {
 		out.hiInf = true
-	} else if v, ok := clamp(a.hi + b.hi); ok {
+	} else if v, ok := a.hi.add(b.hi); ok {
 		out.hi = v
 	} else {
 		out.hiInf = true
@@ -109,7 +106,7 @@ func addI(a, b ival) ival {
 }
 
 func negI(a ival) ival {
-	out := ival{lo: -a.hi, hi: -a.lo, loInf: a.hiInf, hiInf: a.loInf}
+	out := ival{lo: a.hi.neg(), hi: a.lo.neg(), loInf: a.hiInf, hiInf: a.loInf}
 	return out
 }
 
@@ -119,24 +116,24 @@ func mulI(a, b ival) ival {
 	if !a.bounded() || !b.bounded() {
 		// A product with an unbounded factor is unbounded, EXCEPT when the
 		// other factor is exactly zero.
-		if a.bounded() && a.lo == 0 && a.hi == 0 {
+		if a.bounded() && a.lo == bZero && a.hi == bZero {
 			return exact(0)
 		}
-		if b.bounded() && b.lo == 0 && b.hi == 0 {
+		if b.bounded() && b.lo == bZero && b.hi == bZero {
 			return exact(0)
 		}
 		return top
 	}
-	lo, hi := int64(1<<62), int64(-(1 << 62))
-	for _, p := range [4]struct{ x, y int64 }{{a.lo, b.lo}, {a.lo, b.hi}, {a.hi, b.lo}, {a.hi, b.hi}} {
-		v, ok := clamp(p.x * p.y)
-		if !ok || (p.x != 0 && v/p.x != p.y) { // the product itself overflowed
+	var lo, hi bnd
+	for i, p := range [4][2]bnd{{a.lo, b.lo}, {a.lo, b.hi}, {a.hi, b.lo}, {a.hi, b.hi}} {
+		v, ok := p[0].mul(p[1])
+		if !ok { // the product itself left the endpoints
 			return top
 		}
-		if v < lo {
+		if i == 0 || v.lt(lo) {
 			lo = v
 		}
-		if v > hi {
+		if i == 0 || v.gt(hi) {
 			hi = v
 		}
 	}
@@ -161,35 +158,29 @@ func divI(a, b ival) ival {
 	// and an abstract transfer function may not assume a precondition it does
 	// not check — so a divisor that might be 0 or +-1 contracts by 1, which is
 	// exactly the old behaviour.
-	d := int64(1)
+	d := bOne
 	switch {
-	case !b.loInf && b.lo >= 1:
+	case !b.loInf && b.lo.ge(bOne):
 		d = b.lo
-	case !b.hiInf && b.hi <= -1:
-		d = -b.hi
-	}
-	if d < 1 {
-		d = 1
+	case !b.hiInf && b.hi.le(bi(-1)):
+		d = b.hi.neg()
 	}
 	// A non-negative dividend and a positive divisor keep the sign, and keeping
 	// it matters: without this the decimal printer's `m / 10` lost m's floor,
 	// and with no floor there is no well-founded descent and the loop could not
 	// be shown to terminate.
-	if !a.loInf && a.lo >= 0 && !b.loInf && b.lo >= 1 {
-		out := ival{lo: 0, hiInf: a.hiInf}
+	if !a.loInf && a.lo.sign() >= 0 && !b.loInf && b.lo.ge(bOne) {
+		out := ival{lo: bZero, hiInf: a.hiInf}
 		if !a.hiInf {
-			out.hi = a.hi / d
+			out.hi = a.hi.quo(d)
 		}
 		return out
 	}
 	if !a.bounded() {
 		return top
 	}
-	m := a.hi
-	if -a.lo > m {
-		m = -a.lo
-	}
-	return ival{lo: -(m / d), hi: m / d}
+	m := maxB(a.hi, a.lo.neg())
+	return ival{lo: m.quo(d).neg(), hi: m.quo(d)}
 }
 
 // remI is the remainder's transfer, INDUCED from `lang`'s four remainder facts
@@ -208,28 +199,8 @@ func divI(a, b ival) ival {
 // said [−7, 7]. TestTheInducedRemainderIsNeverLessPrecise holds it to that.
 func remI(a, b ival) ival { return inducedTransfer(langFacts, "rem", []ival{a, b}, 1) }
 
-// maxAbs is the largest magnitude a BOUNDED interval contains, saturated so
-// that negating the most negative int64 cannot wrap.
-func maxAbs(v ival) int64 {
-	m := v.hi
-	if m < 0 {
-		m = -m
-	}
-	lo := v.lo
-	if lo == math.MinInt64 {
-		lo = math.MinInt64 + 1
-	}
-	if lo < 0 {
-		lo = -lo
-	}
-	if lo > m {
-		m = lo
-	}
-	if m < 0 {
-		m = math.MaxInt64
-	}
-	return m
-}
+// maxAbs is the largest magnitude a BOUNDED interval contains.
+func maxAbs(v ival) bnd { return maxB(v.hi.abs(), v.lo.abs()) }
 
 func joinI(a, b ival) ival {
 	if a.isBottom() {
@@ -239,10 +210,10 @@ func joinI(a, b ival) ival {
 		return a
 	}
 	out := ival{lo: a.lo, hi: a.hi, loInf: a.loInf || b.loInf, hiInf: a.hiInf || b.hiInf}
-	if b.lo < out.lo {
+	if b.lo.lt(out.lo) {
 		out.lo = b.lo
 	}
-	if b.hi > out.hi {
+	if b.hi.gt(out.hi) {
 		out.hi = b.hi
 	}
 	return out
@@ -252,10 +223,10 @@ func joinI(a, b ival) ival {
 // it a loop counter's fixpoint does not terminate.
 func widen(old, new ival) ival {
 	out := new
-	if new.loInf || (!old.loInf && new.lo < old.lo) {
+	if new.loInf || (!old.loInf && new.lo.lt(old.lo)) {
 		out.loInf = true
 	}
-	if new.hiInf || (!old.hiInf && new.hi > old.hi) {
+	if new.hiInf || (!old.hiInf && new.hi.gt(old.hi)) {
 		out.hiInf = true
 	}
 	return out
@@ -269,10 +240,10 @@ func within(a, b ival) bool {
 	if a.hiInf && !b.hiInf {
 		return false
 	}
-	if !b.loInf && !a.loInf && a.lo < b.lo {
+	if !b.loInf && !a.loInf && a.lo.lt(b.lo) {
 		return false
 	}
-	if !b.hiInf && !a.hiInf && a.hi > b.hi {
+	if !b.hiInf && !a.hiInf && a.hi.gt(b.hi) {
 		return false
 	}
 	return true
@@ -281,10 +252,10 @@ func within(a, b ival) bool {
 // intersect keeps only what both intervals allow. Sound when both are.
 func intersect(a, b ival) ival {
 	out := a
-	if !b.loInf && (a.loInf || b.lo > a.lo) {
+	if !b.loInf && (a.loInf || b.lo.gt(a.lo)) {
 		out.lo, out.loInf = b.lo, false
 	}
-	if !b.hiInf && (a.hiInf || b.hi < a.hi) {
+	if !b.hiInf && (a.hiInf || b.hi.lt(a.hi)) {
 		out.hi, out.hiInf = b.hi, false
 	}
 	return out
@@ -475,9 +446,9 @@ type intervalPass struct {
 // printer, and that loop is one of the two residues intervals-2026-08-19
 // reported.
 type descent struct {
-	kind  int   // 0 none, 1 linear, 2 geometric
-	delta int64 // linear: the least decrease per step, ≥ 1
-	base  int64 // geometric: the divisor, ≥ 2
+	kind  int // 0 none, 1 linear, 2 geometric
+	delta bnd // linear: the least decrease per step, ≥ 1
+	base  bnd // geometric: the divisor, ≥ 2
 }
 
 // Intervals runs the analysis over one residual and reports what it could prove.
@@ -549,17 +520,17 @@ func (r *IntervalReport) FitsIndex() bool {
 	if v.loInf || v.hiInf {
 		return false
 	}
-	if v.lo > v.hi { // bottom: no integer operation at all
+	if v.lo.gt(v.hi) { // bottom: no integer operation at all
 		return true
 	}
-	return v.lo >= -2147483648 && v.hi <= 2147483647
+	return v.lo.ge(bi(-2147483648)) && v.hi.le(bi(2147483647))
 }
 
 // MaxOpRange prints the join of every operation's interval, for the tool that
 // answers whether narrowing could fire at all.
 func (r *IntervalReport) MaxOpRange() string {
 	v := r.MaxOp
-	if v.lo > v.hi && !v.loInf && !v.hiInf {
+	if v.isBottom() {
 		return "none"
 	}
 	lo, hi := "-inf", "+inf"
@@ -637,13 +608,13 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 		}
 		switch {
 		case isOp(name, "le"):
-			return !v.hiInf && v.hi <= k, true
+			return !v.hiInf && v.hi.le(bi(k)), true
 		case isOp(name, "lt"):
-			return !v.hiInf && v.hi < k, true
+			return !v.hiInf && v.hi.lt(bi(k)), true
 		case isOp(name, "ge"):
-			return !v.loInf && v.lo >= k, true
+			return !v.loInf && v.lo.ge(bi(k)), true
 		case isOp(name, "gt"):
-			return !v.loInf && v.lo > k, true
+			return !v.loInf && v.lo.gt(bi(k)), true
 		}
 	case isResult(rhs):
 		k, ok := konst(lhs)
@@ -652,13 +623,13 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 		}
 		switch {
 		case isOp(name, "le"): // K <= result
-			return !v.loInf && v.lo >= k, true
+			return !v.loInf && v.lo.ge(bi(k)), true
 		case isOp(name, "lt"): // K < result
-			return !v.loInf && v.lo > k, true
+			return !v.loInf && v.lo.gt(bi(k)), true
 		case isOp(name, "ge"): // K >= result
-			return !v.hiInf && v.hi <= k, true
+			return !v.hiInf && v.hi.le(bi(k)), true
 		case isOp(name, "gt"): // K > result
-			return !v.hiInf && v.hi < k, true
+			return !v.hiInf && v.hi.lt(bi(k)), true
 		}
 	}
 	return false, false
@@ -799,7 +770,7 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 				break
 			}
 			if lo, hi, ok := core.IntRange(core.ArrayElem(sig.Params[i].Type)); ok {
-				p.elem[n] = ival{lo: lo, hi: hi}
+				p.elem[n] = rng(lo, hi)
 			}
 		}
 	}
@@ -871,12 +842,12 @@ func (p *intervalPass) paramIval(name string, sig *core.Sig) ival {
 	if sig != nil {
 		for _, sp := range sig.Params {
 			if sp.Name == name && sp.Type == "int" && p.assumed {
-				return ival{lo: 0, hi: p.assume}
+				return rng(0, p.assume)
 			}
 		}
 	}
 	if p.assumed {
-		return ival{lo: 0, hi: p.assume}
+		return rng(0, p.assume)
 	}
 	return top
 }
@@ -906,7 +877,7 @@ func (p *intervalPass) lookup(n string) ival {
 		return v
 	}
 	if p.assumed {
-		return ival{lo: 0, hi: p.assume}
+		return rng(0, p.assume)
 	}
 	return top
 }
@@ -1011,10 +982,10 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 		delete(p.elem, raw[i])
 		if i < len(pr.Results) {
 			if lo, hi, isR := core.IntRange(pr.Results[i]); isR {
-				p.env[raw[i]] = ival{lo: lo, hi: hi}
+				p.env[raw[i]] = rng(lo, hi)
 			}
 			if lo, hi, isR := core.IntRange(core.ArrayElem(pr.Results[i])); isR {
-				p.elem[raw[i]] = ival{lo: lo, hi: hi}
+				p.elem[raw[i]] = rng(lo, hi)
 			}
 		}
 	}
@@ -1053,7 +1024,7 @@ func (p *intervalPass) mapCase(t *core.Term) (ival, *core.Term, bool) {
 	body, raw, _ := openFresh(k, p.bound, asmIdent)
 	oldT, hadT := p.env[raw[0]]
 	oldP, hadP := p.env[raw[1]]
-	p.env[raw[0]] = ival{lo: 0, hi: 1}
+	p.env[raw[0]] = rng(0, 1)
 	p.env[raw[1]] = val
 	v, nb := p.evalR(body)
 	restoreVar(p.env, raw[0], oldT, hadT)
@@ -1091,9 +1062,9 @@ func (p *intervalPass) ruleTable(t *core.Term) (ival, *core.Term) {
 	body, raw, _ := openFresh(args[1], p.bound, asmIdent)
 	// `Fin n` is [0, n-1]. A length is non-negative and bounded (tables.md
 	// §2.3.1), so an unknown `n` still gives a non-negative index.
-	idx := ival{lo: 0, hi: n.hi, hiInf: n.hiInf}
-	if !n.hiInf && n.hi > 0 {
-		idx.hi = n.hi - 1
+	idx := ival{lo: bZero, hi: n.hi, hiInf: n.hiInf}
+	if !n.hiInf && n.hi.sign() > 0 {
+		idx.hi, _ = n.hi.sub(bOne)
 	}
 	old, had := p.env[raw[0]]
 	p.env[raw[0]] = idx
@@ -1289,9 +1260,9 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	// guard already bounds `i` by `len a` — non-relationally, in `refine` —
 	// and `len a` was the thing with no bound.
 	if len(vals) == 1 && isLenOp(op.Name) {
-		out := ival{lo: 0, hi: p.tgt.MaxLenOf()}
+		out := rng(0, p.tgt.MaxLenOf())
 		if p.assumed {
-			out = ival{lo: 0, hi: p.assume}
+			out = rng(0, p.assume)
 		}
 		// A LENGTH THAT IS KNOWN EXACTLY. A table given by its GRAPH has as
 		// many elements as it was written with, and one given by a rule or a
@@ -1422,7 +1393,7 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 	// because `ensures` feeds the refinement layer while being in-window is
 	// decided here. Two layers, and only one of them was ever told.
 	if lo, hi, ok := core.IntRange(prim.Result); ok {
-		return ival{lo: lo, hi: hi}, false
+		return rng(lo, hi), false
 	}
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
@@ -1895,7 +1866,7 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 			// over them decide.
 			noTypes := func(*core.Term) string { return "" }
 			if lo, hi, ok := core.IntRange(bufferElem(body, raw[0], noTypes)); ok {
-				return ival{lo: lo, hi: hi}, true
+				return rng(lo, hi), true
 			}
 			// A FROZEN BUFFER CARRIES WHAT WAS PUT IN IT, and this is where the
 			// interval analysis is allowed to say so.
@@ -1941,7 +1912,7 @@ func (p *intervalPass) elemRange(t *core.Term) (ival, bool) {
 				p.depth--
 				if ok {
 					if lo, hi, ok := core.IntRange(r); ok {
-						return ival{lo: lo, hi: hi}, true
+						return rng(lo, hi), true
 					}
 				}
 			}
@@ -2174,10 +2145,10 @@ func (p *intervalPass) narrowEq(t *core.Term, rel string, other ival) {
 		return
 	}
 	k := other.lo
-	if !v.loInf && v.lo == k {
-		v.lo = k + 1
-	} else if !v.hiInf && v.hi == k {
-		v.hi = k - 1
+	if k1, ok := k.add(bOne); ok && !v.loInf && v.lo == k {
+		v.lo = k1
+	} else if k1, ok := k.sub(bOne); ok && !v.hiInf && v.hi == k {
+		v.hi = k1
 	}
 	p.env[key] = v
 }
@@ -2191,19 +2162,19 @@ func (p *intervalPass) narrow(t *core.Term, rel string, other ival) {
 	v := p.lookup(key)
 	switch rel {
 	case "lt":
-		if !other.hiInf && (v.hiInf || other.hi-1 < v.hi) {
-			v.hi, v.hiInf = other.hi-1, false
+		if h, ok := other.hi.sub(bOne); ok && !other.hiInf && (v.hiInf || h.lt(v.hi)) {
+			v.hi, v.hiInf = h, false
 		}
 	case "le":
-		if !other.hiInf && (v.hiInf || other.hi < v.hi) {
+		if !other.hiInf && (v.hiInf || other.hi.lt(v.hi)) {
 			v.hi, v.hiInf = other.hi, false
 		}
 	case "gt":
-		if !other.loInf && (v.loInf || other.lo+1 > v.lo) {
-			v.lo, v.loInf = other.lo+1, false
+		if l, ok := other.lo.add(bOne); ok && !other.loInf && (v.loInf || l.gt(v.lo)) {
+			v.lo, v.loInf = l, false
 		}
 	case "ge":
-		if !other.loInf && (v.loInf || other.lo > v.lo) {
+		if !other.loInf && (v.loInf || other.lo.gt(v.lo)) {
 			v.lo, v.loInf = other.lo, false
 		}
 	}
@@ -2228,28 +2199,28 @@ func (p *intervalPass) narrowSquare(t *core.Term, rel string, other ival) {
 	if !ok {
 		return
 	}
-	if other.hiInf || other.hi < 0 {
+	if other.hiInf || other.hi.sign() < 0 {
 		return
 	}
 	s := isqrt(other.hi)
 	v := p.lookup(x)
-	if v.hiInf || s < v.hi {
+	if v.hiInf || s.lt(v.hi) {
 		v.hi, v.hiInf = s, false
 	}
-	if v.loInf || -s > v.lo {
-		v.lo, v.loInf = -s, false
+	if v.loInf || s.neg().gt(v.lo) {
+		v.lo, v.loInf = s.neg(), false
 	}
 	p.env[x] = v
 }
 
-func isqrt(n int64) int64 {
-	if n < 0 {
-		return 0
+// isqrt is ⌊√n⌋. It was a linear search capped at 2^31, which was exact only
+// because no endpoint exceeded 2^62; endpoints now reach 2^126, where the cap
+// would be an UNSOUND upper bound, so it is computed exactly.
+func isqrt(n bnd) bnd {
+	if n.sign() <= 0 {
+		return bZero
 	}
-	r := int64(0)
-	for (r+1)*(r+1) <= n && r < 1<<31 {
-		r++
-	}
+	r, _ := fromBig(new(big.Int).Sqrt(n.big()))
 	return r
 }
 
@@ -2729,9 +2700,9 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 		}
 	}
 	// THE BOUNDED-INCREMENT ROUND (smash.go), now that T is known.
-	if blockedByIncrement && haveTrip && !trip.hiInf && trip.hi >= 0 {
+	if t, ok := trip.hi.i64(); blockedByIncrement && haveTrip && !trip.hiInf && ok && t >= 0 {
 		before := append([]ival(nil), curE...)
-		deltaRounds(trip.hi)
+		deltaRounds(t)
 		narrowed := false
 		for k := range raw {
 			narrowed = narrowed || !eqI(before[k], curE[k])
@@ -3129,9 +3100,9 @@ func orient(steps []ival, known []bool) []int {
 			// guess: `relate` still has to PROVE the descent, and the floor is
 			// still demanded of the witness.
 			out[i] = +1
-		case !steps[i].hiInf && steps[i].hi <= 0:
+		case !steps[i].hiInf && steps[i].hi.sign() <= 0:
 			out[i] = +1 // never increases: v itself is the measure
-		case !steps[i].loInf && steps[i].lo >= 0:
+		case !steps[i].loInf && steps[i].lo.sign() >= 0:
 			out[i] = -1 // never decreases: −v is the measure
 		}
 	}
@@ -3162,7 +3133,7 @@ func (p *intervalPass) stepOfDerived(arg *core.Term, self string) (ival, bool) {
 	if !ok {
 		return top, false
 	}
-	return ival{lo: c, hiInf: true}, true
+	return ival{lo: bi(c), hiInf: true}, true
 }
 
 // stepOf reads the per-iteration change of variable `self` from the expression
@@ -3218,7 +3189,7 @@ func (p *intervalPass) stepOfLoop(arg *core.Term, self string) (ival, bool) {
 	if !ok {
 		return top, false
 	}
-	return ival{lo: c, hiInf: true}, true
+	return ival{lo: bi(c), hiInf: true}, true
 }
 
 // relate is the size-change abstraction: what is known about the value of
@@ -3266,7 +3237,7 @@ func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstS
 		if z := LoopLowerBound(p.tgt, arg); z != nil {
 			if c, ok := selfPlus(p.tgt, z, src); ok && srcSign < 0 {
 				if c >= 1 {
-					return down, descent{kind: 1, delta: c}
+					return down, descent{kind: 1, delta: bi(c)}
 				}
 				if c == 0 {
 					return downEq, descent{}
@@ -3290,9 +3261,9 @@ func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstS
 	// and the analysis could not see it until the corpus contained it.
 	if b.Kind == core.KName && b.Name == src && srcSign > 0 &&
 		(isOp(name, "rem") || name == "%") {
-		if v := p.lookup(src); !v.loInf && v.lo >= 1 {
-			if d := p.eval(a); !d.loInf && d.lo >= 0 {
-				return down, descent{kind: 1, delta: 1}
+		if v := p.lookup(src); !v.loInf && v.lo.ge(bOne) {
+			if d := p.eval(a); !d.loInf && d.lo.sign() >= 0 {
+				return down, descent{kind: 1, delta: bOne}
 			}
 		}
 	}
@@ -3305,33 +3276,33 @@ func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstS
 	case isOp(name, "add") || name == "+" || strings.HasSuffix(name, ".add"):
 		// μ = +v: v+e descends when e < 0.  μ = −v: it descends when e > 0.
 		if srcSign > 0 {
-			if !e.hiInf && e.hi < 0 {
-				return down, descent{kind: 1, delta: -e.hi}
+			if !e.hiInf && e.hi.sign() < 0 {
+				return down, descent{kind: 1, delta: e.hi.neg()}
 			}
-			if !e.hiInf && e.hi <= 0 {
+			if !e.hiInf && e.hi.sign() <= 0 {
 				return downEq, descent{}
 			}
 		} else {
-			if !e.loInf && e.lo > 0 {
+			if !e.loInf && e.lo.sign() > 0 {
 				return down, descent{kind: 1, delta: e.lo}
 			}
-			if !e.loInf && e.lo >= 0 {
+			if !e.loInf && e.lo.sign() >= 0 {
 				return downEq, descent{}
 			}
 		}
 	case isOp(name, "sub") || name == "-" || strings.HasSuffix(name, ".sub"):
 		if srcSign > 0 {
-			if !e.loInf && e.lo > 0 {
+			if !e.loInf && e.lo.sign() > 0 {
 				return down, descent{kind: 1, delta: e.lo}
 			}
-			if !e.loInf && e.lo >= 0 {
+			if !e.loInf && e.lo.sign() >= 0 {
 				return downEq, descent{}
 			}
 		} else {
-			if !e.hiInf && e.hi < 0 {
-				return down, descent{kind: 1, delta: -e.hi}
+			if !e.hiInf && e.hi.sign() < 0 {
+				return down, descent{kind: 1, delta: e.hi.neg()}
 			}
-			if !e.hiInf && e.hi <= 0 {
+			if !e.hiInf && e.hi.sign() <= 0 {
 				return downEq, descent{}
 			}
 		}
@@ -3339,8 +3310,8 @@ func (p *intervalPass) relateSyntactic(arg *core.Term, src string, srcSign, dstS
 		// v / k is strictly smaller than v when k ≥ 2 and v ≥ 1. The floor
 		// matters: 0/10 is 0, which does not descend, and a loop relying on it
 		// would not terminate.
-		if srcSign > 0 && !e.loInf && e.lo >= 2 {
-			if v := p.lookup(src); !v.loInf && v.lo >= 1 {
+		if srcSign > 0 && !e.loInf && e.lo.ge(bi(2)) {
+			if v := p.lookup(src); !v.loInf && v.lo.ge(bOne) {
 				return down, descent{kind: 2, base: e.lo}
 			}
 		}
@@ -3391,35 +3362,29 @@ func (p *intervalPass) tripCount(cur []ival) (ival, bool) {
 		if !v.bounded() {
 			continue
 		}
-		span := v.hi - v.lo
-		if span < 0 {
+		span, ok := v.hi.sub(v.lo)
+		if !ok || span.sign() < 0 {
 			continue
 		}
-		var t int64
+		var t bnd
 		switch d := p.scKind[j]; d.kind {
 		case 1:
-			if d.delta < 1 {
+			if d.delta.lt(bOne) {
 				continue
 			}
-			t = span/d.delta + 1
+			t, _ = span.quo(d.delta).add(bOne) // span/delta < 2^126 − 1
 		case 2:
-			m := v.hi
-			if -v.lo > m {
-				m = -v.lo
-			}
-			if m < 1 {
-				m = 1
-			}
-			t = 1
-			for m >= d.base {
-				m /= d.base
-				t++
+			m := maxB(maxB(v.hi, v.lo.neg()), bOne)
+			t = bOne
+			for m.ge(d.base) {
+				m = m.quo(d.base)
+				t, _ = t.add(bOne)
 			}
 		default:
 			continue
 		}
-		if !found || t < best.hi {
-			best, found = ival{lo: 0, hi: t}, true
+		if !found || t.lt(best.hi) {
+			best, found = ival{lo: bZero, hi: t}, true
 		}
 	}
 	return best, found
@@ -3453,26 +3418,30 @@ func shiftFor(tgt *Target, op string, v []ival) (shift, mask int64, ok bool) {
 	if op != "div" && op != "rem" {
 		return 0, 0, false
 	}
-	c := v[1]
-	if c.loInf || c.hiInf || c.lo != c.hi || c.lo < 2 || c.lo&(c.lo-1) != 0 {
+	cv, isExact := exactNonNeg(v[1])
+	if !isExact || cv < 2 || cv&(cv-1) != 0 {
 		return 0, 0, false
 	}
 	x := v[0]
-	if x.loInf || x.hiInf || x.lo < 0 {
+	if x.loInf || x.hiInf || x.lo.sign() < 0 {
+		return 0, 0, false
+	}
+	// A shift is emitted on the target's word, so the dividend must be one.
+	if _, ok := x.hi.i64(); !ok {
 		return 0, 0, false
 	}
 	// `1 << 63` OVERFLOWS AN int64 and comes back negative, so a target that
 	// shifts full-width would refuse every value it can hold. At 63 the test is
 	// vacuous — a non-negative int64 is already under 2^63 — which is why the
 	// bug was silent rather than wrong: nothing was rewritten anywhere.
-	if tgt.ShiftWidth < 63 && x.hi >= int64(1)<<uint(tgt.ShiftWidth) {
+	if tgt.ShiftWidth < 63 && x.hi.ge(bi(int64(1)<<uint(tgt.ShiftWidth))) {
 		return 0, 0, false
 	}
 	if op == "rem" {
-		return 0, c.lo - 1, true
+		return 0, cv - 1, true
 	}
 	k := int64(0)
-	for b := c.lo; b > 1; b >>= 1 {
+	for b := cv; b > 1; b >>= 1 {
 		k++
 	}
 	return k, 0, true
@@ -3534,22 +3503,23 @@ func andI(a, b ival) ival {
 }
 
 func exactNonNeg(v ival) (int64, bool) {
-	if v.loInf || v.hiInf || v.lo != v.hi || v.lo < 0 {
+	if v.loInf || v.hiInf || v.lo != v.hi || v.lo.sign() < 0 {
 		return 0, false
 	}
-	return v.lo, true
+	return v.lo.i64()
 }
 
 func shrI(a, b ival) ival {
-	if a.loInf || a.lo < 0 || b.loInf || b.hiInf || b.lo != b.hi || b.lo < 0 || b.lo > 62 {
+	kk, isExact := exactNonNeg(b)
+	if a.loInf || a.lo.sign() < 0 || !isExact || kk > 62 {
 		return top
 	}
-	k := uint(b.lo)
-	out := ival{lo: a.lo >> k}
+	k := uint(kk)
+	out := ival{lo: a.lo.shr(k)}
 	if a.hiInf {
 		out.hiInf = true
 		return out
 	}
-	out.hi = a.hi >> k
+	out.hi = a.hi.shr(k)
 	return out
 }

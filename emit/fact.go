@@ -477,6 +477,20 @@ func floorDiv(a, b int64) int64 {
 
 func ceilDiv(a, b int64) int64 { return -floorDiv(-a, b) }
 
+// floorDivB and ceilDivB are the same on endpoints. The quotient of two
+// endpoints is at most the dividend in magnitude, so it is always one, and the
+// correction by one cannot leave the interval either.
+func floorDivB(a, b bnd) bnd {
+	q := a.quo(b)
+	back, _ := q.mul(b)
+	if back != a && (a.sign() < 0) != (b.sign() < 0) {
+		q, _ = q.sub(bOne)
+	}
+	return q
+}
+
+func ceilDivB(a, b bnd) bnd { return floorDivB(a.neg(), b).neg() }
+
 // splitAt partitions an interval at every cut strictly inside it.
 func splitAt(v ival, cuts map[int64]bool) []ival {
 	if v.isBottom() {
@@ -494,13 +508,13 @@ func splitAt(v ival, cuts map[int64]bool) []ival {
 	var out []ival
 	cur := v
 	for _, t := range ts {
-		above := cur.loInf || t >= cur.lo
-		below := cur.hiInf || t < cur.hi
+		above := cur.loInf || bi(t).ge(cur.lo)
+		below := cur.hiInf || bi(t).lt(cur.hi)
 		if !above || !below {
 			continue
 		}
-		out = append(out, ival{lo: cur.lo, loInf: cur.loInf, hi: t})
-		cur = ival{lo: t + 1, hi: cur.hi, hiInf: cur.hiInf}
+		out = append(out, ival{lo: cur.lo, loInf: cur.loInf, hi: bi(t)})
+		cur = ival{lo: bi(t + 1), hi: cur.hi, hiInf: cur.hiInf}
 	}
 	return append(out, cur)
 }
@@ -527,13 +541,13 @@ func scaleI(c int64, x ival) ival {
 	if c == 0 {
 		return exact(0)
 	}
-	end := func(v int64, inf bool) (int64, bool) {
+	end := func(v bnd, inf bool) (bnd, bool) {
 		if inf {
-			return 0, true
+			return bZero, true
 		}
-		p, ok := clamp(c * v)
-		if !ok || p/c != v {
-			return 0, true // saturates to an infinity, which is sound
+		p, ok := bi(c).mul(v)
+		if !ok {
+			return bZero, true // saturates to an infinity, which is sound
 		}
 		return p, false
 	}
@@ -549,7 +563,7 @@ func scaleI(c int64, x ival) ival {
 func allHold(guards []*linear, cell []ival, pos map[string]int) bool {
 	for _, g := range guards {
 		v, ok := evalLinear(g, cell, pos)
-		if !ok || v.hiInf || v.hi > 0 {
+		if !ok || v.hiInf || v.hi.sign() > 0 {
 			return false
 		}
 	}
@@ -570,14 +584,14 @@ func tighten(v ival, b *linear, cell []ival, pos map[string]int) ival {
 	}
 	if c > 0 { // T ≤ −rest / c
 		if !r.loInf {
-			if hi := floorDiv(-r.lo, c); v.hiInf || hi < v.hi {
+			if hi := floorDivB(r.lo.neg(), bi(c)); v.hiInf || hi.lt(v.hi) {
 				v.hi, v.hiInf = hi, false
 			}
 		}
 		return v
 	}
 	if !r.loInf { // T ≥ rest / |c|
-		if lo := ceilDiv(r.lo, -c); v.loInf || lo > v.lo {
+		if lo := ceilDivB(r.lo, bi(-c)); v.loInf || lo.gt(v.lo) {
 			v.lo, v.loInf = lo, false
 		}
 	}
@@ -586,10 +600,10 @@ func tighten(v ival, b *linear, cell []ival, pos map[string]int) ival {
 
 func joinIval(a, b ival) ival {
 	out := a
-	if b.loInf || (!out.loInf && b.lo < out.lo) {
+	if b.loInf || (!out.loInf && b.lo.lt(out.lo)) {
 		out.lo, out.loInf = b.lo, b.loInf
 	}
-	if b.hiInf || (!out.hiInf && b.hi > out.hi) {
+	if b.hiInf || (!out.hiInf && b.hi.gt(out.hi)) {
 		out.hi, out.hiInf = b.hi, b.hiInf
 	}
 	return out

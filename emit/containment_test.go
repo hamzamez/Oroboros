@@ -622,7 +622,7 @@ func TestDivisionAndRemainderContain(t *testing.T) {
 		if lo > hi {
 			lo, hi = hi, lo
 		}
-		v := ival{lo: lo, hi: hi}
+		v := rng(lo, hi)
 		// One in eight is half-open, because an unbounded dividend divided by a
 		// bounded divisor is exactly the carry chain's shape before the fixpoint
 		// settles, and it is the case the contraction must NOT claim to bound.
@@ -666,7 +666,13 @@ func TestDivisionAndRemainderContain(t *testing.T) {
 // an infinite end is sampled at a large magnitude rather than skipped, because
 // the unbounded cases are the ones the contraction must handle.
 func sample(r *rand.Rand, v ival) (int64, bool) {
-	lo, hi := v.lo, v.hi
+	lo, hi := int64(0), int64(0)
+	if !v.loInf {
+		lo = v.lo.small()
+	}
+	if !v.hiInf {
+		hi = v.hi.small()
+	}
 	if v.loInf {
 		lo = -1 << 40
 	}
@@ -993,10 +999,10 @@ func fitsBytes(n int, v int64) bool {
 
 // holds is γ: is the concrete value in the abstract one?
 func holds(v ival, x int64) bool {
-	if !v.loInf && x < v.lo {
+	if !v.loInf && bi(x).lt(v.lo) {
 		return false
 	}
-	if !v.hiInf && x > v.hi {
+	if !v.hiInf && bi(x).gt(v.hi) {
 		return false
 	}
 	return true
@@ -1010,7 +1016,7 @@ func indentTerm(t *core.Term) string {
 // unsound claim proves nothing, so this feeds it one of each shape.
 func TestContainmentDetectsAnUnsoundClaim(t *testing.T) {
 	// A program whose operations reach 20, against a claim that stops at 5.
-	narrow := ival{lo: 0, hi: 5}
+	narrow := rng(0, 5)
 	for _, v := range []int64{0, 5, 6, 20} {
 		want := v <= 5
 		if holds(narrow, v) != want {
@@ -1019,7 +1025,7 @@ func TestContainmentDetectsAnUnsoundClaim(t *testing.T) {
 	}
 	// And the shape the fixpoint bug produced: a variable pinned at its initial
 	// value while the program advances it.
-	if holds(ival{lo: 0, hi: 0}, 1) {
+	if holds(rng(0, 0), 1) {
 		t.Fatal("a claim of [0,0] must not admit 1 — this is the fixpoint bug's " +
 			"signature, and the harness exists to see it")
 	}
@@ -1061,7 +1067,7 @@ func TestMaskAndShiftContain(t *testing.T) {
 		if lo > hi {
 			lo, hi = hi, lo
 		}
-		v := ival{lo: lo, hi: hi}
+		v := rng(lo, hi)
 		// An unbounded operand is the shape a read inside a `build` lambda has —
 		// the buffer is free there, so it is ⊤ — and it is precisely the case
 		// the constant-mask rule must still bound.

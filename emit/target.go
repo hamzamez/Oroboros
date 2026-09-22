@@ -2931,7 +2931,7 @@ func storedRange(v *core.Term, typeOf func(*core.Term) string, self string) (int
 			// exact range is Theorem T on a point interval, with the dividend ⊤.
 			if d := v.Kids[2]; d.Kind == core.KInt && d.Int != 0 && d.Int != math.MinInt64 {
 				if r := remI(top, exact(d.Int)); r.bounded() {
-					return r.lo, r.hi, true
+					return r.lo.small(), r.hi.small(), true // |r| < |d|, an int64
 				}
 			}
 		}

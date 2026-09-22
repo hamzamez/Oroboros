@@ -217,7 +217,7 @@ func (p *intervalPass) widenTo(orig, rebuilt *core.Term, vals []ival, i int) *co
 	// spelling of its widening.
 	if p.limbs && i < len(vals) {
 		v := vals[i]
-		if !v.loInf && !v.hiInf && v.lo >= 0 && v.hi < 1<<28 {
+		if !v.loInf && !v.hiInf && v.lo.sign() >= 0 && v.hi.lt(bi(1<<28)) {
 			return core.App(core.Name("big-of-small"), rebuilt)
 		}
 	}

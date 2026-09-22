@@ -71,10 +71,10 @@ func TestDeletingDivFloorsUpperHalfFailsTheDecodeWitness(t *testing.T) {
 func remIHand(a, b ival) ival {
 	m, have := int64(-1), false
 	if a.bounded() {
-		m, have = maxAbs(a), true
+		m, have = maxAbs(a).small(), true
 	}
 	if b.bounded() {
-		mb := maxAbs(b) - 1
+		mb := maxAbs(b).small() - 1
 		if mb < 0 {
 			mb = 0
 		}
@@ -86,12 +86,12 @@ func remIHand(a, b ival) ival {
 		return top
 	}
 	switch {
-	case !a.loInf && a.lo >= 0:
-		return ival{lo: 0, hi: m}
-	case !a.hiInf && a.hi <= 0:
-		return ival{lo: -m, hi: 0}
+	case !a.loInf && a.lo.sign() >= 0:
+		return rng(0, m)
+	case !a.hiInf && a.hi.sign() <= 0:
+		return rng(-m, 0)
 	}
-	return ival{lo: -m, hi: m}
+	return rng(-m, m)
 }
 
 func randomIval(r *rand.Rand) ival {
@@ -100,7 +100,7 @@ func randomIval(r *rand.Rand) ival {
 	if lo > hi {
 		lo, hi = hi, lo
 	}
-	v := ival{lo: lo, hi: hi}
+	v := rng(lo, hi)
 	switch r.Intn(8) {
 	case 0:
 		v.hiInf = true
@@ -112,7 +112,7 @@ func randomIval(r *rand.Rand) ival {
 
 // inside reports γ(a) ⊆ γ(b).
 func inside(a, b ival) bool {
-	return (b.loInf || (!a.loInf && a.lo >= b.lo)) && (b.hiInf || (!a.hiInf && a.hi <= b.hi))
+	return (b.loInf || (!a.loInf && a.lo.ge(b.lo))) && (b.hiInf || (!a.hiInf && a.hi.le(b.hi)))
 }
 
 // THE REFUTATION CONDITION OF theories.md §7.10, AS A TEST: an induced transfer
@@ -127,10 +127,10 @@ func TestTheInducedRemainderIsNeverLessPrecise(t *testing.T) {
 			t.Fatalf("induced remI(%s, %s) = %s is wider than the hand-written %s", a, b, got, bar)
 		}
 	}
-	if got := remI(ival{lo: -5, hi: 7}, exact(10)); got != (ival{lo: -5, hi: 7}) {
+	if got := remI(rng(-5, 7), exact(10)); got != (rng(-5, 7)) {
 		t.Errorf("[-5,7] %% 10 should be [-5,7] by case splitting on the dividend's sign, got %s", got)
 	}
-	if got := remI(top, ival{lo: -7, hi: 7}); got != (ival{lo: -6, hi: 6}) {
+	if got := remI(top, rng(-7, 7)); got != (rng(-6, 6)) {
 		t.Errorf("a %% [-7,7] should be [-6,6]: the divisor spans both sign guards and 0 is undefined, got %s", got)
 	}
 }
@@ -167,22 +167,22 @@ func TestWeakeningARemainderFactFailsContainment(t *testing.T) {
 // andIHand is the mask transfer andI replaced, kept as its precision bar.
 func andIHand(a, b ival) ival {
 	if m, ok := exactNonNeg(b); ok {
-		return ival{lo: 0, hi: m}
+		return rng(0, m)
 	}
 	if m, ok := exactNonNeg(a); ok {
-		return ival{lo: 0, hi: m}
+		return rng(0, m)
 	}
-	if a.loInf || b.loInf || a.lo < 0 || b.lo < 0 {
+	if a.loInf || b.loInf || a.lo.sign() < 0 || b.lo.sign() < 0 {
 		return top
 	}
 	hi := b
-	if a.hiInf || (!b.hiInf && a.hi < b.hi) {
+	if a.hiInf || (!b.hiInf && a.hi.lt(b.hi)) {
 		hi = a
 	}
 	if hi.hiInf {
-		return ival{lo: 0, hiInf: true}
+		return ival{lo: bi(0), hiInf: true}
 	}
-	return ival{lo: 0, hi: hi.hi}
+	return ival{lo: bZero, hi: hi.hi}
 }
 
 // The same refutation condition for F9: the induced mask transfer inside the
@@ -197,7 +197,7 @@ func TestTheInducedMaskIsNeverLessPrecise(t *testing.T) {
 	}
 	// A non-negative operand bounds the result though the other spans zero,
 	// where the old rule answered top.
-	if got := andI(ival{lo: 0, hi: 255}, ival{lo: -7, hi: 7}); got != (ival{lo: 0, hi: 255}) {
+	if got := andI(rng(0, 255), rng(-7, 7)); got != (rng(0, 255)) {
 		t.Errorf("[0,255] & [-7,7] should be [0,255], got %s", got)
 	}
 }
@@ -209,11 +209,11 @@ func TestTheInducedMaskIsNeverLessPrecise(t *testing.T) {
 // its cause (remfacts-2026-09-15 §6); it is pinned because the old transfers
 // never answered ⊥ and nothing has measured a consumer that must accept one.
 func TestABottomOperandIsReadAsUnknown(t *testing.T) {
-	if got := andI(bottom, exact(16777215)); got != (ival{lo: 0, hi: 16777215}) {
+	if got := andI(bottom, exact(16777215)); got != (rng(0, 16777215)) {
 		t.Errorf("⊥ & 16777215 must be [0, 16777215] — the mask bounds it whatever the other "+
 			"operand is — got %s", got)
 	}
-	if got := remI(bottom, exact(10)); got != (ival{lo: -9, hi: 9}) {
+	if got := remI(bottom, exact(10)); got != (rng(-9, 9)) {
 		t.Errorf("⊥ %% 10 must be [-9, 9], got %s", got)
 	}
 }

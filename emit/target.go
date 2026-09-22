@@ -2,9 +2,9 @@ package emit
 
 import (
 	"fmt"
-	"math/big"
 	"io/fs"
 	"math"
+	"math/big"
 	"os"
 	"path/filepath"
 	"sort"

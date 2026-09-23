@@ -130,3 +130,26 @@ func TestALibraryMayProvideANative(t *testing.T) {
 		t.Errorf("shout is %q; a (provides js …) must not reach the go target", got)
 	}
 }
+
+// A LAYER NAMED ON THE COMMAND LINE MUST EXIST (SearchPath), while the loader
+// keeps an absent layer as the identity: the refusal is the driver's, for what a
+// person typed, and the algebra is untouched.
+func TestANamedLayerThatDoesNotExistIsRefused(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "p.oro")
+	missing := filepath.Join(root, "nothing-here")
+	if _, err := SearchPath(src, missing); err == nil || !strings.Contains(err.Error(), "nothing-here") {
+		t.Errorf("a missing -targets layer must be refused, naming it; got %v", err)
+	}
+	empty := filepath.Join(root, "empty")
+	if err := os.MkdirAll(empty, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dirs, err := SearchPath(src, empty+string(filepath.ListSeparator)+root)
+	if err != nil {
+		t.Fatalf("existing layers, one without any target, must be accepted: %v", err)
+	}
+	if len(dirs) != 3 || dirs[0] != root {
+		t.Errorf("the chain is the source's directory, then the named layers, nearest first: %v", dirs)
+	}
+}

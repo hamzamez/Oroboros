@@ -497,6 +497,33 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 	return out, from, nil
 }
 
+// SearchPath is the layer chain a driver hands LoadTargetLayers — target-system.md
+// §7.2, and deliberately the same shape a module search path has. NEAREST FIRST:
+// the program's own directory, then the `-targets` entries.
+//
+// A LAYER NAMED ON THE COMMAND LINE MUST EXIST. The loader's rule is right for
+// the algebra — an absent layer is the identity of the override chain ▷, and
+// TestAnAbsentLayerIsTheIdentity keeps it so — but a directory a person TYPED
+// that does not exist is a mistake, and the loader cannot tell typed from
+// implied. It hid one (assessment-2026-09-23 §3.6): Git Bash converted only part
+// of `-targets a;b`, the first layer named nothing, and a missing binding was
+// diagnosed as an override bug that was not there. A layer that exists and lacks
+// the target still contributes nothing, as before.
+func SearchPath(entry, extra string) ([]string, error) {
+	dirs := []string{filepath.Dir(entry)}
+	for _, d := range filepath.SplitList(extra) {
+		if d == "" {
+			continue
+		}
+		if st, err := os.Stat(d); err != nil || !st.IsDir() {
+			return nil, fmt.Errorf("-targets names %q, which is not a directory; a layer named on the "+
+				"command line must exist (an absent one would be skipped silently)", d)
+		}
+		dirs = append(dirs, d)
+	}
+	return dirs, nil
+}
+
 // LoadTargetLayers builds `Δ_T = L₁ ▷ L₂ ▷ … ▷ Lₖ` — target-system.md §7.2.
 //
 // A target used to be ONE directory: `filepath.Join(dir, name)`, while modules

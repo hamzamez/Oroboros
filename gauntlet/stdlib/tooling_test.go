@@ -714,6 +714,11 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 				}
 			}
 			src := filepath.Join(proj, filepath.Base(srcs[0]))
+			// The layer is NAMED on the command line, so it must exist (emit.SearchPath)
+			// even for a program that supplies no generated file into it.
+			if err := os.MkdirAll(filepath.Join(proj, a.layer), 0o755); err != nil {
+				t.Fatal(err)
+			}
 			layers := filepath.Join(proj, a.layer) + string(os.PathListSeparator) + filepath.Join(root, "targets")
 			out := filepath.Join(proj, artifact[a.target].name)
 			argv := append([]string{bin}, a.flags...)

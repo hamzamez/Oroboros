@@ -1071,6 +1071,10 @@
 == gauntlet/differential/cases/u64-square.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/u64-square.oro java emitted cd9c8e5e65cc66eb021822eaec144164237786fe5e2ce1e26a170c953266f42a
 == gauntlet/differential/cases/u64-square.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/u64-values.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/u64-values.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/u64-values.oro java emitted 62d76809ab703d133044bda38bd0c2fc84508e9be596ffc481b88ee4d0d713f9
+== gauntlet/differential/cases/u64-values.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/utf8-widths.oro go refused
    gen: cannot determine a Go type for parameter "n"; it is never passed to a primitive whose signature would fix it
 == gauntlet/differential/cases/utf8-widths.oro js emitted b4fe4efd971f9a793d521c42e9365e435a2c40fd675a21a170e4bf7d08366b11

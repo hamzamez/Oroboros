@@ -51,7 +51,11 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 	}
 	// THE TARGET IS LOADED FIRST, because it may carry definitions of its own —
 	// `D_T`, target-system.md §6.2 — and those are part of the program.
-	tg, err := emit.LoadTargetLayers(target, targetDirs(src, targetDir), libDirs(src, path))
+	layers, err := emit.SearchPath(src, targetDir)
+	if err != nil {
+		return err
+	}
+	tg, err := emit.LoadTargetLayers(target, layers, libDirs(src, path))
 	if err != nil {
 		return err
 	}
@@ -141,20 +145,6 @@ func fileResolver(dirs []string) core.Resolver {
 // libDirs is the search path: the entry file's own directory first, so a
 // program can keep its modules beside it, then whatever -path adds.
 func libDirs(entry, extra string) []string {
-	dirs := []string{filepath.Dir(entry)}
-	for _, d := range filepath.SplitList(extra) {
-		if d != "" {
-			dirs = append(dirs, d)
-		}
-	}
-	return dirs
-}
-
-// targetDirs is the layer chain a target is glued and overridden from —
-// target-system.md §7.2, and deliberately the same shape `libDirs` already has
-// for modules. NEAREST FIRST: the program's own directory, then the `-targets`
-// entries. A layer that does not have the target contributes nothing.
-func targetDirs(entry, extra string) []string {
 	dirs := []string{filepath.Dir(entry)}
 	for _, d := range filepath.SplitList(extra) {
 		if d != "" {

@@ -1,0 +1,68 @@
+; THE UNSIGNED WORD, CHECKED ON THOUSANDS OF VALUES — ADR 0026 (10), word-2026-09-22.
+;
+; word-2026-09-22 checked the u64 rung on 100,010 values against math/big — in a
+; scratchpad, which nothing runs again (assessment-2026-09-23 §3.6). This is that
+; check where the check runs it: every run, through the real pipeline, against an
+; answer computed independently (math/big, in the result document's reference).
+;
+; Each input seeds two 32-bit linear congruential streams, s' = (1664525·s +
+; 1013904223) mod 2^32 — every intermediate under 2^53, so the generator is plain
+; signed-word arithmetic — and 4,000 values x = hi·2^32 + lo are built from them.
+; About half of them are past 2^63 (1,965 of 4,000 for seed 1), so both sides of the
+; boundary between the signed word and U are met, and each x exercises the
+; unsigned word's operation classes:
+;
+;   a product into U        hi·lo, up to (2^32−1)^2
+;   a difference in U       2^64−1−x, whose interval is exactly U
+;   division, remainder     x/3, x mod 1000003, digit sum — both operands in U
+;   order across 2^63       x < 2^63, against the literal's Horner spine
+;   Euclid                  x div 2^32 = hi and x mod 2^32 = lo, recovered exactly
+;
+; `x − hi·2^32 = lo` is true and was the first spelling of the last line, and it is
+; REFUSED: the interval analysis is not relational, so it sees x ∈ [0, 2^64) and
+; hi·2^32 apart and the difference may be negative — in neither realization. The
+; refusal is the right answer for what intervals know; Euclid says the same thing
+; in a form they can prove.
+;
+; folded into a checksum reduced modulo 1000000007, so it is provably bounded.
+; A wrong division on signed residues, or a comparison in the wrong realization,
+; changes the checksum.
+;
+; skip: js
+; skip: java
+; skip: windows
+; — U is realized natively on Go only; the JVM's `long`-residue rung, windows'
+; unsigned qword and V8's split pair are not built (assessment-2026-09-23 §4).
+;
+; inputs: 1 2 3 7
+; expect: 19426835 239748576 998107577 100404562
+
+(sig next ((s (int 0 4294967295))) (int 0 4294967295))
+(def next (s) (% (+ (* 1664525 s) 1013904223) 4294967296))
+
+(sig digitsum ((x (int 0 18446744073709551615))) (int 0 180))
+(def digitsum (x)
+  (loop ((v x) (d 0))
+    (= v 0) d
+    else    (again (/ v 10) (+ d (% v 10)))))
+
+(sig mix ((acc (int 0 1000000006)) (v (int 0 2000000000))) (int 0 1000000006))
+(def mix (acc v) (% (+ (* acc 31) v) 1000000007))
+
+(sig one ((hi (int 0 4294967295)) (lo (int 0 4294967295)) (acc (int 0 1000000006))) (int 0 1000000006))
+(def one (hi lo acc)
+  (let x (+ (* hi 4294967296) lo)
+    (mix (mix (mix (mix (mix (mix (mix (mix acc
+      (% (* hi lo) 1000003))
+      (% (/ x 3) 1000))
+      (% x 1000003))
+      (digitsum x))
+      (if (< x 9223372036854775808) 1 2))
+      (if (= (/ x 4294967296) hi) 3 4))
+      (if (= (% x 4294967296) lo) 5 6))
+      (% (- 18446744073709551615 x) 1000003))))
+
+(def run (n)
+  (loop ((k 0) (a (next n)) (b (next (+ n 1000))) (acc 0))
+    (>= k 4000) acc
+    else (again (+ k 1) (next (next a)) (next (next b)) (one a b acc))))

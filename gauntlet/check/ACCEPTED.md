@@ -291,3 +291,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/json/tokenize.oro go` 1593 → 781 ms, 0.49x
+
+## 2026-09-23 — on d37875e, with uncommitted changes
+
+**Reason:** The unsigned word's value check committed as a differential case (u64-values: 16,000 values across the 2^63 boundary against a math/big reference), Go only until the other targets' rungs exist.
+
+476 runs: 213 emitted, 263 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/u64-values.oro go`
+- new source — `gauntlet/differential/cases/u64-values.oro java`
+- new source — `gauntlet/differential/cases/u64-values.oro js`
+- new source — `gauntlet/differential/cases/u64-values.oro windows`

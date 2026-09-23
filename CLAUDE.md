@@ -82,9 +82,10 @@ application unstarted a fourth time):
    corpus could not provide, bought **720 → 405 ms** with emission byte-identical. The rest runs under
    genuinely different facts; stopped there. freq's cost is the interval pass (`restore` copying the
    environment per conditional), recorded, not chased.
-2. **Close this round's two checking gaps**: the unsigned word's 100,010-value check against
-   `math/big` as a committed test, shown to fail against a planted division; and a layer named on
-   `-targets` that does not exist refused, not silently skipped.
+2. ~~Close this round's two checking gaps.~~ **Done**
+   ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)): the unsigned word's value check
+   is the differential case `u64-values` (16,000 values across 2⁶³ against `math/big`, both planted
+   wrong operations caught), and a `-targets` layer that does not exist is refused by `emit.SearchPath`.
 3. **Packages, program-first: `math/bits` next** — the double-word ring on U (`Add64`'s carry law is
    linear and checkable as an `ensures`; `Mul64`'s is not, and is named) — then `bufio` or
    `sort`/`slices` (the first package callback). **For every two packages, one program that is not an

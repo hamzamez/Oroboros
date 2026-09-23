@@ -35,7 +35,7 @@ and loops.
 
 ## Where it stands
 
-As of 2026-09-17. The current assessment is [assessment-2026-09-17.md](docs/assessment-2026-09-17.md);
+As of 2026-09-23. The current assessment is [assessment-2026-09-23.md](docs/assessment-2026-09-23.md);
 read it before planning.
 
 **The compiler.**
@@ -72,35 +72,39 @@ with no clamps.
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment:**
-1. ~~Resume packages (`encoding/binary`, `strconv`), which hit the integer window first.~~ **Done.**
-   hamza decided it as **[ADR 0026](docs/decisions/0026-an-int-is-an-integer.md)**, and it is built
-   ([word-2026-09-22](gauntlet/results/word-2026-09-22.md)): `int` is ℤ, each target declares its
-   word, legality is per (program, target), portability is reported (`cmd/portable`), host integers
-   are the host's, and Go realizes [0, 2⁶⁴−1] natively. Then both packages, by hand. **Open from it:**
-   the JVM's realization of U (a `long` holding the residue, 60× over `BigInteger` in
-   [u64repr-2026-09-22](gauntlet/results/u64repr-2026-09-22.md)), windows' unsigned qword, V8's split
-   pair; and the walls the packages named — a result range that depends on an argument's value, a
-   three-way sum encoded in a sign, `ByteOrder`'s package variables.
-2. ~~Gate compile time in `cmd/check` against the baseline.~~ **Done**
-   ([compiletime-2026-09-21](gauntlet/results/compiletime-2026-09-21.md)): a compile is slower at 1.5×
-   and +250 ms, measured to flag all six compiles `7e36002` slowed and none across identical sweeps.
-   The regression itself is **not** fixed — the tokeniser still compiles in ~700 ms serially, freq in
-   8.8 s on Go and 22 s on the JVM — and the baseline records today's costs, not the old ones.
-3. A Windows application.
+**Next, from the current assessment** (09-23; the 09-17 plan scored two and a half of four — the
+packages and `CLAUDE.md` done, the compile-time gate built but the tokeniser never profiled, the Windows
+application unstarted a fourth time):
+1. **Profile the tokeniser's compile, and decide whether to buy back its 6.6×.** Still ~740 ms
+   serially; the gate will show a fix.
+2. **Close this round's two checking gaps**: the unsigned word's 100,010-value check against
+   `math/big` as a committed test, shown to fail against a planted division; and a layer named on
+   `-targets` that does not exist refused, not silently skipped.
+3. **Packages, program-first: `math/bits` next** — the double-word ring on U (`Add64`'s carry law is
+   linear and checkable as an `ensures`; `Mul64`'s is not, and is named) — then `bufio` or
+   `sort`/`slices` (the first package callback). **For every two packages, one program that is not an
+   acceptance program**, counted in the balance.
+4. **A Windows application: hamza's decision** — give it a scope and a round, or move it to
+   *deliberately not next*. The assessment recommends the second.
+
+Deliberately not next: the windows/V8/JVM unsigned rungs until a program needs U there; dependent
+result ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ — the wall
+`hash/fnv` will hit, named so it is met on purpose).
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
 in the language.
-- Last round: +7,892 lines of compiler against +3 lines in `examples/` + `lib/`.
-- `emit : core` is 4.42.
+- Last round: +2,942 lines of compiler (1,487 tests) against +8 lines in `examples/` + `lib/`:
+  368 : 1, or 7.0 : 1 counting hand declarations (+293) and acceptance programs (+118). The round
+  before was 2,631 : 1.
+- `emit : core` is 4.23.
 - The analysis layer (`interval`, `refine`, `linear`, `monotone`, plus `fact`, `content`, `smash`,
-  `component`) is 8,727 lines.
+  `component`, `sct`) is 8,942 lines, and 9,524 with `bound` and `wordsel`.
 
 The part that decides what is legal is the hardest to check. Write programs, and let them demand the
 analysis.
 
 Previous assessments:
-[09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).
@@ -414,7 +418,10 @@ Each of these has bitten more than once. The instances are in the results they n
   - two things changed at once;
   - a silently modified input;
   - comparing against HEAD after a regression has landed;
-  - timing one job among many run in parallel, which inflates it unevenly (the tokeniser ~2.5×).
+  - timing one job among many run in parallel, which inflates it unevenly (the tokeniser ~2.5×);
+  - a baseline binary built from `git stash` (untracked files stay behind, so it fails to build and
+    its "timings" are fast failures), or one reading the current commit's target files, which it
+    cannot parse. Time the baseline in a **worktree**, with its own targets.
 
   Make a suspicious result explain itself before recording it.
 - **A refusal can hide a wrong answer.** Removing the refusal is often what finds it.

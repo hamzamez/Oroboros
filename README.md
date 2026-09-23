@@ -111,15 +111,17 @@ The same loop, asked for `fib(100)` as an ordinary integer:
 ```
 
 ```
-build: main: 1 of 2 integer operation(s) cannot be proven to stay inside the portable window, ±(2^53−1)
+build: main: 1 of 2 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
   + [1, +inf] in (+ a b)
-  Outside that window the four targets disagree silently — Go and the JVM
-  wrap, JavaScript loses precision — so this is refused rather than noted
+  Outside its word a target's arithmetic does not compute the integer the
+  program means — Go, the JVM and x86 wrap, JavaScript loses precision — so
+  this is refused rather than noted (ADR 0019, ADR 0026).
 ```
 
 This refusal is the point. Compiled naively, that line gives `3736710778780434371` on Go and the JVM
-(wrapped) and `354224848179262000000` on Node (rounded): three wrong answers from one source. Say the
-result is unbounded instead:
+(wrapped) and `354224848179262000000` on Node (rounded): three wrong answers from one source. An `int`
+is an integer, and each target says which integers its machine word holds: int64 on Go and the JVM,
+plus `uint64` on Go, and ±(2⁵³−1) on Node. Say the result is unbounded instead:
 
 ```lisp
 (sig fib ((n (int 0 1000))) (int 0 +inf))
@@ -134,6 +136,28 @@ result is unbounded instead:
 Each host uses its own big integer: `*big.Int` on Go, `BigInt` on Node, `BigInteger` on the JVM. A
 range is part of a value's *type*: `(int 0 255)` is stored as a `[]byte` on Go and as a `short[]` on
 the JVM, whose `byte` is signed. Above the machine word, the target picks the representation.
+
+**So legality is per target, and the compiler reports it.** A product of two numbers up to 3·10⁹ fits
+a 64-bit word and not a JavaScript number:
+
+```lisp
+(sig area ((w (int 0 3000000000)) (h (int 0 3000000000))) int)
+(def area (w h) (* w h))
+```
+
+```
+$ go run ./cmd/portable area.oro
+  go       accepted
+  js       refused   gen-main: 1 of 1 integer operation(s) cannot be proven to stay inside the word of target js, [-9007199254740991, 9007199254740991]
+  java     accepted
+  windows  refused   area.oro: in main: io.print-int is not bound — it is not a parameter, not a definition, and not a primitive on this target
+portable to go, java — not js, windows
+W(go, java) = [-9223372036854775808, 9223372036854775807]   (the meet of their words: derived, not assumed — ADR 0026)
+```
+
+Go and the JVM both print `9000000000000000000`. Nothing is wrong on Node: it simply isn't a target
+this program runs on, and the compiler says so instead of rounding. (Windows refuses for a different
+reason: its `io` module has no `print-int`.)
 
 ### 3. A line counter: calling a host API that can fail
 
@@ -161,12 +185,12 @@ the JVM, whose `byte` is signed. Above the machine word, the target picks the re
 ```
 
 ```bash
-go run ./cmd/build -target=go   -o wc.exe     examples/io/wc.oro && ./wc.exe CLAUDE.md
-go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro && node wc.mjs CLAUDE.md
-go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-classes Main CLAUDE.md
+go run ./cmd/build -target=go   -o wc.exe     examples/io/wc.oro && ./wc.exe docs/decisions/0001-parasite-model.md
+go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro && node wc.mjs docs/decisions/0001-parasite-model.md
+go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-classes Main docs/decisions/0001-parasite-model.md
 ```
 
-All three print `471`, the same as `wc -l`.
+All three print `49`, the same as `wc -l`.
 - **Three outcomes are three clauses.** `cond` erases to the nested `if`s it means, and a negated
   condition swaps its branches — `if (¬c) a b = if c b a` — so this emits the same Go, byte for
   byte, as the staircase it replaced.
@@ -217,7 +241,7 @@ written inside it:
 ```lisp
 (module go/encoding/hex
   (sig Encode ((dst (buffer (int 0 255))) (src (array (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9007199254740990))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775806))
         (where (<= (* 2 (len src)) (len dst)))
         (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
           (import "encoding/hex")))
@@ -279,7 +303,7 @@ drift apart.
 | **Iteration** | `loop` and `again`. No recursion, and termination is checked |
 | **Data** | tables `(array V)`, maps `(map int V)`, tuples, variants with type arguments, strings as scalar sequences; `option` for a map read |
 | **Mutation** | only on a linear buffer, inside `build` or as a declared `(buffer V)` parameter |
-| **Integers** | exact within ±(2⁵³−1) on every host; a range `(int LO HI)` is a type; `(int 0 +inf)` is arbitrary precision |
+| **Integers** | an `int` is an integer; each target declares the word it holds (int64 on Go, the JVM and x86, plus `uint64` on Go; ±(2⁵³−1) on JS), an operation not proven inside it is refused on that target, and which targets accept a program is reported; a range `(int LO HI)` is a type; `(int 0 +inf)` is arbitrary precision |
 | **Functions** | fully higher-order at compile time; nothing that needs a closure at run time may survive to the output |
 | **Effects** | one purity bit per host call; an impure call runs exactly once, where it was written |
 | **Targets** | directories of declarations (`sig`, `type`, `repr`, `fact`, `const`), which are data and never compiler code |
@@ -289,10 +313,10 @@ drift apart.
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | largest gap **1.13×**, best **0.91×** over 19 comparisons ([gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md)); two programs compile to byte-identical machine code ([generics](gauntlet/results/generics-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md)) |
-| An integer never silently wraps or rounds | interval analysis; unproven means refused | **2,361 of 2,413** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) |
+| An integer never silently wraps or rounds | interval analysis against each target's word; unproven means refused on that target | **2,368 of 2,419** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
-| Loops terminate | size-change termination | **345 of 382** loops proven |
-| Every host agrees | 30 programs built and **run** on all four targets, required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
+| Loops terminate | size-change termination | **348 of 385** loops proven |
+| Every host agrees | 37 programs built and **run** on every target that accepts them (25 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
 
 ## How much of each platform it can reach
@@ -309,8 +333,10 @@ Surveys read each host's own API list and count what the declaration format can 
 "Declarable" is not "supported". A package is supported when every function is declared **by hand**,
 with its preconditions and what it does to buffers, and checked against the real package
 ([ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)). Today that is
-`unicode/utf8` and `encoding/hex`, plus `io`'s interfaces. Working through Go's standard library
-package by package is the current work.
+`unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints and `math/bits`, plus `io`'s
+interfaces. Working through Go's standard library package by package is the current work, and every
+two packages get a program written against them: [lib/num/u128.oro](lib/num/u128.oro), a 128-bit
+integer over `math/bits` and `strconv`, is the first.
 
 ## What doesn't work yet
 
@@ -356,7 +382,7 @@ cd gauntlet/differential && go run run.go           # every test program, on eve
 | [emit/](emit/) | the four backends, the type checker and the proofs |
 | [targets/](targets/) | what each host provides: declarations, never compiler code |
 | [lib/](lib/) | portable modules such as `os` and `io`, and each host's implementation of them |
-| [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `jsonfmt`, `freq`), [json/](examples/json/) and [tally/](examples/tally/) |
+| [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `jsonfmt`, `freq`), [json/](examples/json/), [tally/](examples/tally/) and [u128/](examples/u128/) |
 | [gauntlet/](gauntlet/) | hand-written references, benchmarks, the differential suite, and [results/](gauntlet/results/) |
 | [docs/decisions/](docs/decisions/) | every significant decision, with what was rejected and why |
 | [docs/spec/](docs/spec/) | the specifications; start with [state.md](docs/spec/state.md) |
@@ -370,7 +396,7 @@ cd gauntlet/differential && go run run.go           # every test program, on eve
   Then it is specified, and only then written.
 
 The current assessment of the project, including what is going badly, is
-[docs/assessment-2026-09-17.md](docs/assessment-2026-09-17.md).
+[docs/assessment-2026-09-23.md](docs/assessment-2026-09-23.md).
 
 ## The name
 

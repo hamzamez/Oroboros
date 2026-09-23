@@ -1,0 +1,88 @@
+; A 128-BIT UNSIGNED INTEGER, written in the language over Go's math/bits and strconv.
+;
+; THE ALGEBRA.
+;   V = [0, 2^128), represented by pairs (h, l) ∈ U × U through
+;       ι(h, l) = h·2^64 + l,
+;   a bijection: positional notation in base 2^64 with two digits. Every operation
+;   below is an operation on V computed digit by digit, and its law is stated on ι.
+;
+;   add   ι(s) + c·2^128 = ι(a) + ι(b),   c ∈ {0, 1}
+;         Two Add64 steps, the low carry feeding the high one — schoolbook addition
+;         in base 2^64 (Knuth, TAOCP vol. 2, §4.3.1, Algorithm A).
+;   mulw  ι(a)·w = ι(p) + k·2^128, and the result is exact iff k = 0
+;         The partial products Mul64(al, w) and Mul64(ah, w), the second shifted by
+;         one digit; it overflows iff the top word of the second is non-zero or the
+;         middle addition carries (Algorithm M with a one-digit multiplier).
+;   divw  ι(a) = ι(q)·y + r,   0 ≤ r < y,   for y ≥ 1
+;         Short division (§4.3.1, exercise 16): divide the high digit, then the low
+;         digit with the first remainder as its high word. Div64 needs that high word
+;         < y, which is a law of Div64's own tuple and cannot be stated — so the
+;         remainder is taken from Rem64, whose `ensures (< result y)` IS stated, and
+;         the precondition is PROVEN rather than guarded (mathbits-2026-09-23).
+;   decimal  V → strings, by repeated short division by 10^18: the base-10^18
+;         digits, the leading one through strconv, each lower one written as
+;         exactly 18 decimal digits.
+;
+; Go only: it is written over go/math/bits, whose U is native there
+; (ADR 0026 (10)); on a target without it the module does not resolve.
+
+(module num/u128)
+(use go/math/bits as b)
+(use go/strconv as sc)
+
+(export add mulw divw decimal)
+
+; ι(a) + ι(b) → (h, l, carry out of the top digit).
+(sig add ((ah (int 0 18446744073709551615)) (al (int 0 18446744073709551615)) (bh (int 0 18446744073709551615)) (bl (int 0 18446744073709551615))) (tuple (int 0 18446744073709551615) (int 0 18446744073709551615) (int 0 1)))
+(def add (ah al bh bl)
+  (let (tuple l c) (b.Add64 al bl 0)
+       (tuple h c2) (b.Add64 ah bh c)
+    (tuple h l c2)))
+
+; ι(a)·w → (h, l, overflow): overflow is 1 exactly when ι(a)·w ≥ 2^128.
+(sig mulw ((ah (int 0 18446744073709551615)) (al (int 0 18446744073709551615)) (w (int 0 18446744073709551615))) (tuple (int 0 18446744073709551615) (int 0 18446744073709551615) (int 0 1)))
+(def mulw (ah al w)
+  (let (tuple p1h p1l) (b.Mul64 al w)
+       (tuple p2h p2l) (b.Mul64 ah w)
+       (tuple h c) (b.Add64 p2l p1h 0)
+    (tuple h p1l (if (and (= p2h 0) (= c 0)) 0 1))))
+
+; ι(a) ÷ y → (qh, ql, r) with ι(a) = ι(qh, ql)·y + r and 0 ≤ r < y.
+(sig divw ((ah (int 0 18446744073709551615)) (al (int 0 18446744073709551615))
+           (y (int 1 18446744073709551615))) (tuple (int 0 18446744073709551615) (int 0 18446744073709551615) (int 0 18446744073709551614)))
+(def divw (ah al y)
+  (let (tuple qh rh) (b.Div64 0 ah y)
+       (tuple ql r) (b.Div64 (b.Rem64 0 ah y) al y)
+    (tuple qh ql r)))
+
+; A base-10^18 digit as exactly 18 decimal digits, most significant first.
+(sig digits18 ((g (int 0 999999999999999999))) string)
+(def digits18 (g)
+  (loop ((i 0) (v g) (s ""))
+    (>= i 18) s
+    else (again (+ i 1) (/ v 10) (concat (string-of (+ 48 (% v 10))) s))))
+
+; ι(h, l) in decimal, by repeated short division by G = 10^18.
+;
+; The loop's next state is divw's three results, and a tuple pattern may not wrap
+; an `again` (binding.md §7: the jump would sit inside a host call's
+; continuation). So each is written as what it is: the high quotient is h / G,
+; plain division in U; the low quotient is the first component of
+; Div64(h mod G, l, G); and the digit group is Rem64(h, l, G), whose `ensures`
+; gives digits18 exactly the bound it declares.
+;
+; Div64's precondition here is h mod G < G, the remainder law F6 at the literal G,
+; proven now that a remainder by a literal is an atom of the linear fragment. G is
+; 10^18 rather than 10^19, the largest power of ten in U, because a literal past
+; int64 is a Horner spine the fragment cannot read: its constants are int64.
+;
+; THE LOOP IS NOT PROVEN TO TERMINATE, and it does: ι(h, l) falls by a factor of G
+; each step, lexicographically — h to h / G, or with h = 0, l to l / G. The second
+; is a component of Div64's tuple, whose law cannot be stated, so size-change sees
+; nothing decrease (u128-2026-09-23).
+(def decimal (h l)
+  (loop ((h h) (l l) (s ""))
+    (and (= h 0) (< l 1000000000000000000)) (concat (sc.FormatUint l 10) s)
+    else (again (/ h 1000000000000000000)
+                ((b.Div64 (% h 1000000000000000000) l 1000000000000000000) (fn (q r) q))
+                (concat (digits18 (b.Rem64 h l 1000000000000000000)) s))))

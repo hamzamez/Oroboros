@@ -53,9 +53,9 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **2,361 of 2,413** integer operations are proven inside their target's word. The 52 left are mostly
+- **2,368 of 2,419** integer operations are proven inside their target's word. The 51 left are mostly
   meant to be refused.
-- **345 of 382** loops are proven to terminate.
+- **348 of 385** loops are proven to terminate.
 - Both counts, and every emitted file, are pinned by `cmd/check`.
 
 **Host APIs.**
@@ -87,10 +87,16 @@ application unstarted a fourth time):
    ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)): the unsigned word's value check
    is the differential case `u64-values` (16,000 values across 2⁶³ against `math/big`, both planted
    wrong operations caught), and a `-targets` layer that does not exist is refused by `emit.SearchPath`.
-3. **Packages, program-first: `math/bits` next** — the double-word ring on U (`Add64`'s carry law is
-   linear and checkable as an `ensures`; `Mul64`'s is not, and is named) — then `bufio` or
-   `sort`/`slices` (the first package callback). **For every two packages, one program that is not an
-   acceptance program**, counted in the balance.
+3. **Packages, program-first.** `math/bits` **done**
+   ([mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)), and its program with `strconv`
+   **done**: `lib/num/u128.oro`, a 128-bit integer in base 2⁶⁴, with `examples/u128/factorials.oro`
+   and two differential cases ([u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). It found four
+   compiler faults, all fixed: the missing n-ary let; a projection losing `u64`; the remainder facts
+   dead in the refiner; and a loop shadowing a parameter erasing its premise, which is why
+   `examples/match/runs.oro` had been refused. **It met one wall three times, which awaits hamza's
+   decision: no backend emits a tail position (`again`, or a multi-result return) inside a
+   multi-result host call's continuation.** The tuple-component law and int64 fragment constants
+   were demanded again. Next package: `bufio` or `sort`/`slices` (the first package callback).
 4. **A Windows application: hamza's decision** — give it a scope and a round, or move it to
    *deliberately not next*. The assessment recommends the second.
 
@@ -432,8 +438,9 @@ Each of these has bitten more than once. The instances are in the results they n
 
   Make a suspicious result explain itself before recording it.
 - **A refusal can hide a wrong answer.** Removing the refusal is often what finds it.
-- **A program finds what a construct suite cannot.** `tally`, `jsonfmt`, `freq` and `tree` each found
-  bugs in constructs the differential suite already covered; size and combination were what was new.
+- **A program finds what a construct suite cannot.** `tally`, `jsonfmt`, `freq`, `tree` and `u128` each
+  found bugs in constructs the differential suite already covered; size and combination were what was
+  new.
 
 ## Adding to the language
 

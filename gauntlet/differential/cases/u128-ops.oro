@@ -1,0 +1,42 @@
+; ADDITION AND SHORT DIVISION IN 128 BITS — num/u128's `add` and `divw`, which
+; u128-fact does not reach (u128-2026-09-23).
+;
+;   run n = q/r/c  where  2·n! = c·2^128 + s,  s = q·y + r,  0 ≤ r < y,
+;                         y = 999999999999999989, the largest prime below 10^18
+;
+; `add` is two Add64 steps with the low carry feeding the high one, and at 34 the
+; top carry is 1: 2·34! ≈ 5.9·10^38 > 2^128. `divw` is Knuth's short division,
+; two Div64 steps whose second high word is Rem64's, so its precondition is
+; proven. A prime divisor makes every remainder non-trivial; 33 is the first
+; input whose quotient needs its high digit's remainder, 34 the first with a
+; non-zero high quotient.
+;
+; No tuple crosses the loop: the factorial's exit clause calls `show`, whose
+; tuple patterns bind the results of `add` and `divw` with no `again` beneath
+; them (binding.md §7).
+;
+; Go only, as num/u128 is.
+; skip: js
+; skip: java
+; skip: windows
+;
+; prints: string
+; inputs: 0 20 21 33 34
+; expect: 0/2/0 4/865804016353280044/0 102/181884343418881122/0 17366635237623773182/69376416421505002/0 250183231158269820983/878154596239819357/1
+
+(use num/u128 as u)
+
+(sig show ((h (int 0 18446744073709551615)) (l (int 0 18446744073709551615))) string)
+(def show (h l)
+  (let (tuple sh sl c) (u.add h l h l)
+       (tuple qh ql r) (u.divw sh sl 999999999999999989)
+    (concat (u.decimal qh ql)
+            (concat "/" (concat (u.decimal 0 r) (concat "/" (u.decimal 0 c)))))))
+
+(sig run ((n (int 0 34))) string)
+(def run (n)
+  (loop ((k 0) (h 0) (l 1))
+    (>= k n) (show h l)
+    else (again (+ k 1)
+                ((u.mulw h l (+ k 1)) (fn (a b c) a))
+                ((u.mulw h l (+ k 1)) (fn (a b c) b)))))

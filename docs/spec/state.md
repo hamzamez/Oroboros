@@ -129,7 +129,7 @@ The representation is chosen by the target: `(repr (int LO HI) …)` below the w
 | **β**, call-by-need | An impure argument is let-bound rather than substituted ([effects.md §4](effects.md)); a table read through a bound variable is not substituted into an impure body (§7c). **β-tab** is its second clause: a table or map written as a graph, applied to a literal, is looked up |
 | **δ** | unfolding a definition, declining a cycle; a target's native name wins over a library's (`▷`) |
 | **evaluation on literals** | `(if true a b) → a`; the language's integer operators and `=` on two integer literals, **only inside the target's word (ADR 0026), checked against int64 overflow, and never dividing by zero** ([ADR 0009](../decisions/0009-staging-preserves-results.md)). No float folds, and no primitive of a target is ever evaluated |
-| **commuting conversion** | push an eliminator through `if` and `let` (case-of-case), only when every argument is pure |
+| **commuting conversion** | push an eliminator through `if`, `let` and a multi-result host call's continuation — the n-ary let, `(((p a…) (fn (x̄) M)) k…) → ((p a…) (fn (x̄) (M k…)))` — only when every argument is pure (u128-2026-09-23) |
 
 **No recursion** ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). A definition in
 terms of itself is an error, checked per target before reduction. δ still declines to unfold a cycle,

@@ -1,0 +1,30 @@
+; n! IN 128 BITS, 0 ≤ n ≤ 34, AND THE FIRST ONE THAT DOES NOT FIT.
+;
+; 34! ≈ 2.95·10^38 < 2^128 ≈ 3.40·10^38 < 35!, so the table ends at 34 and the
+; step to 35 reports the overflow num/u128's `mulw` detects: ι(a)·w ≥ 2^128.
+; Each factorial is printed in decimal by repeated short division by 10^18.
+;
+; The first program written against math/bits and strconv together rather than to
+; accept them (assessment-2026-09-23, item 3: one program per two packages).
+
+(use num/u128 as u)
+(use go/fmt as fmt)
+
+(export main)
+
+; mulw's three results are the loop's next state. A tuple pattern may not wrap an
+; `again` (binding.md §7): the jump would sit inside a host call's continuation,
+; which no backend emits. Binding the tuple and projecting (§7's other idiom)
+; binds a host call, which β will not duplicate, so the tuple stays a closure.
+; So each component is projected where it is used — three applications of mulw
+; per step, and the cost of the wall is written here, where it is paid
+; (u128-2026-09-23).
+(def main ()
+  (loop ((n 0) (h 0) (l 1) (over 0))
+    (= over 1) (fmt.Println2 n "overflows 128 bits")
+    (> n 40)   0
+    else (seq (fmt.Println2 n (u.decimal h l))
+              (again (+ n 1)
+                     ((u.mulw h l (+ n 1)) (fn (a b c) a))
+                     ((u.mulw h l (+ n 1)) (fn (a b c) b))
+                     ((u.mulw h l (+ n 1)) (fn (a b c) c))))))

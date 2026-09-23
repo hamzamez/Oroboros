@@ -304,3 +304,41 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/u64-values.oro java`
 - new source — `gauntlet/differential/cases/u64-values.oro js`
 - new source — `gauntlet/differential/cases/u64-values.oro windows`
+
+## 2026-09-23 — on 22f6cdc, with uncommitted changes
+
+**Reason:** num/u128, its factorial program and differential case: new sources; the n-ary let changes no existing emission (u128-2026-09-23)
+
+488 runs: 215 emitted, 273 refused; 2367 of 2419 integer operations bounded, 347 of 385 loops proven. compiler pass, differential pass, tooling skip.
+
+12 change(s):
+
+- new source — `examples/u128/factorials.oro go`
+- new source — `examples/u128/factorials.oro java`
+- new source — `examples/u128/factorials.oro js`
+- new source — `examples/u128/factorials.oro windows`
+- new source — `gauntlet/differential/cases/u128-fact.oro go`
+- new source — `gauntlet/differential/cases/u128-fact.oro java`
+- new source — `gauntlet/differential/cases/u128-fact.oro js`
+- new source — `gauntlet/differential/cases/u128-fact.oro windows`
+- new source — `lib/num/u128.oro go`
+- new source — `lib/num/u128.oro java`
+- new source — `lib/num/u128.oro js`
+- new source — `lib/num/u128.oro windows`
+
+## 2026-09-23 — on 22f6cdc, with uncommitted changes
+
+**Reason:** u128 round: the remainder is an atom (Div64 under % now proven; factorials' note gone); a loop that shadows a parameter restores it (examples/match/runs now proven and emitted, its answers checked against Python); num/u128 declares its tuple results; u128-ops is a new case
+
+492 runs: 217 emitted, 275 refused; 2368 of 2419 integer operations bounded, 348 of 385 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- now emits — `examples/match/runs.oro go`
+- emitted text changed — `examples/u128/factorials.oro go`
+- compiler output changed — `examples/u128/factorials.oro go`
+- new source — `gauntlet/differential/cases/u128-ops.oro go`
+- new source — `gauntlet/differential/cases/u128-ops.oro java`
+- new source — `gauntlet/differential/cases/u128-ops.oro js`
+- new source — `gauntlet/differential/cases/u128-ops.oro windows`
+- compiler output changed — `lib/num/u128.oro go`

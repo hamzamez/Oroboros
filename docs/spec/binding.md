@@ -153,6 +153,17 @@ inside a host call's continuation, which no backend emits. The refusal is the ex
 may be a clause body, or sit under a `let`"*, and the way to write it is to destructure outside the
 loop, or to bind the tuple and project inside.
 
+**Binding and projecting fails when the tuple is built under a host call**
+([u128-2026-09-23](../../gauntlet/results/u128-2026-09-23.md)). Suppose `(u.mulw h l k)` returns
+`(tuple …)` from inside `Mul64`'s continuation. Then `(let t (u.mulw h l k) (again (t …) …))` binds a
+host call, not a value. β declines to duplicate it, and the tuple survives as a closure the emitter
+refuses. Floating the binding inward by let-associativity would expose the tuple, but it puts the
+`again` back inside the continuation. What does work is **projecting at each use**, as in
+`(again ((u.mulw h l k) (fn (a b c) a)) …)`: each projection is an eliminator applied to the call, and
+the n-ary let conversion (core/reduce.go) moves it into the continuation. The price is one call per
+component. The general fix is a backend that emits a jump inside a multi-result call's continuation,
+and that is a design question, not an idiom.
+
 ## 8. What this costs the compiler
 
 **Nothing below the reader**, measured: the same terms, the same proof counts, the same emitted bytes

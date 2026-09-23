@@ -855,10 +855,21 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		// one quotient the same variable, exactly as `lengthVar` does for a
 		// length — and for the same reason: two spellings of one quantity must
 		// key alike or nothing composes.
-		case isOp(op.Name, "div") && len(args) == 2 &&
-			args[1].Kind == core.KInt && args[1].Int > 0:
-			if _, ok := asLinearIn(pure, args[0]); ok {
-				return variable(divVar(t)), true
+		case isOp(op.Name, "div") && len(args) == 2 && positiveLit(args[1]) > 0:
+			if a, ok := asLinearIn(pure, args[0]); ok {
+				return variable(quotVar("div", a, positiveLit(args[1]))), true
+			}
+
+		// AND SO IS A REMAINDER, for the same reason — and without it the
+		// language's remainder facts (F6–F8, lang-facts.oro) were dead here:
+		// seedFacts matched `(% a k)`, read the conclusion, found it outside the
+		// fragment, and assumed nothing. So `(< (% h k) k)`, which is F6's upper
+		// half, could not discharge a precondition — Div64's `hi < y`, with the
+		// high word reduced mod y, was noted "propagated, not proven" and emitted
+		// (u128-2026-09-23).
+		case isOp(op.Name, "rem") && len(args) == 2 && positiveLit(args[1]) > 0:
+			if a, ok := asLinearIn(pure, args[0]); ok {
+				return variable(quotVar("rem", a, positiveLit(args[1]))), true
 			}
 		}
 		// AN APPLICATION IN Σ IS AN ATOM — a pure host call, so its contract can
@@ -897,9 +908,30 @@ func isLenTerm(t *core.Term) bool {
 	return op.Kind == core.KName && isLenOp(op.Name) && len(t.Args()) == 1
 }
 
-// divVar names a quotient opaquely, keyed by the whole division term so that
-// two occurrences of one quotient are one variable.
-func divVar(t *core.Term) string { return "div" + t.String() }
+// quotVar names a quotient or a remainder by a positive literal k opaquely, keyed
+// by WHAT IT DENOTES: the operation, the dividend's linear form and k. Two
+// spellings of one quantity must key alike or nothing composes, and a quotient
+// has more spellings than one since the unsigned word (wordsel.go): the goal
+// says `(u64% h (u64-of k))` where the fact instantiated on it says
+// `(% h (u64-of k))`, and keyed by printed term those were two unknowns. Keying
+// by the linear form also makes `(/ (+ i 1) 2)` and `(/ (+ 1 i) 2)` one.
+func quotVar(kind string, a *linear, k int64) string {
+	return fmt.Sprintf("%s(%s, %d)", kind, a, k)
+}
+
+// positiveLit is t's value when t is a positive literal, seen through the
+// word conversions, which are the identity on the values they convert; 0
+// otherwise.
+func positiveLit(t *core.Term) int64 {
+	for t.Kind == core.KApp && len(t.Args()) == 1 && t.Op().Kind == core.KName &&
+		(t.Op().Name == "u64-of" || t.Op().Name == "int-of-u64") {
+		t = t.Args()[0]
+	}
+	if t.Kind == core.KInt && t.Int > 0 {
+		return t.Int
+	}
+	return 0
+}
 
 // lengthVar names a length term opaquely. Two occurrences of `(alen a)` must
 // produce the same variable or nothing is provable.

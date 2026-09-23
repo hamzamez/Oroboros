@@ -1071,6 +1071,10 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 		}
 	}
 	v, nb := p.evalR(body)
+	// THE ELIMINATOR'S VALUE IS ITS BODY'S, representation included: a projection
+	// `((Div64 …) (fn (q r) q))` is a u64 when q is. Read while the binders'
+	// representations are still in scope.
+	bodyU := p.words && p.u64Term(nb)
 	for i := range raw {
 		restoreVar(p.env, raw[i], old[i].v, old[i].had)
 		restoreVar(p.elem, raw[i], old[i].e, old[i].hadE)
@@ -1084,7 +1088,11 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 	}
 	p.releaseBound(raw)
 	op := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{t.Op().Op()}, nargs...)}
-	return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}, true
+	rebuilt := &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}
+	if bodyU {
+		p.u64Val[rebuilt] = true
+	}
+	return v, rebuilt, true
 }
 
 // mapCase evaluates a map read under its eliminator, binding what the two
@@ -3011,8 +3019,17 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	if p.tgt.HasBigDest() && !p.noDest && len(p.big) > 0 {
 		nb = p.reuseInLoop(nb, raw, nInits)
 	}
+	// THE NAMES GO OUT OF SCOPE, AND WHAT THEY SHADOWED COMES BACK. `openFresh`
+	// keeps a binder's spelling when p.bound does not hold it, and a PARAMETER
+	// is not in p.bound — so `(loop ((h h)) …)` in a function of h binds h
+	// again, and deleting it here deleted the parameter's premise with it. The
+	// next sweep over the same term then read h as ⊤: a U parameter lost its
+	// representation and `(= h 0)` was refused by type (u128-2026-09-23).
+	// `elem` and `u64` already restored what they shadowed; env is restored the
+	// same way, from the snapshot taken before the loop bound anything.
 	for _, nm := range raw {
-		delete(p.env, nm)
+		old, had := saved[nm]
+		restoreVar(p.env, nm, old, had)
 	}
 	if p.dmode {
 		for k, n := range raw {

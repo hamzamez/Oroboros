@@ -72,6 +72,10 @@ type Env struct {
 	// because that is where the target's run time computes the same integer.
 	Word Word
 
+	// fresh numbers the binders the n-ary let conversion introduces. Per Env,
+	// so a compile is deterministic.
+	fresh int
+
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
 }
@@ -130,6 +134,34 @@ func (p *Program) AscribeWide(w Word) {
 		}
 		p.Defs[q] = ascribeResult(body, sig.Result)
 	}
+}
+
+// freshNames returns n binder names free in none of avoid.
+//
+// FRESH FOR WHAT THE BINDERS WILL CLOSE OVER, not merely new: Fn abstracts every
+// free occurrence of its parameters, so a binder spelled like a free name of an
+// eliminator argument captures it. The prefix is the conversion's own — `#m` is
+// `match`'s loop variables (read.go), and the first spelling used here collided
+// with them — and the counter alone is not enough, because it restarts with each
+// Env while a residual carries its binders' spellings into the next reduction.
+func (e *Env) freshNames(n int, avoid ...*Term) []string {
+	free := map[string]bool{}
+	for _, t := range avoid {
+		for v := range freeVars(t) {
+			free[v] = true
+		}
+	}
+	out := make([]string, n)
+	for i := range out {
+		for {
+			e.fresh++
+			out[i] = fmt.Sprintf("#nl%d", e.fresh)
+			if !free[out[i]] {
+				break
+			}
+		}
+	}
+	return out
 }
 
 func NewProgram() *Program {
@@ -1332,13 +1364,39 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		//
 		// So the rule is not "case-of-case" so much as: PUSH AN ELIMINATOR
 		// THROUGH ANYTHING β CAN LEAVE IN OPERATOR POSITION, which in this
-		// language is exactly `if` and `let`.
+		// language is `if`, `let` — and a host call with several results,
+		// below, which was missed.
 		if isLetApp(op, e) && allPure(args, e) {
 			lam := op.Kids[2]
 			inner := lam.OpenWith([]*Term{Name("#c")})
 			app := append([]*Term{inner}, args...)
 			out := &Term{Kind: KApp, Kids: []*Term{op.Kids[0], op.Kids[1],
 				Fn([]string{"#c"}, &Term{Kind: KApp, Kids: app})}}
+			return normalize(out, e, fuel)
+		}
+
+		// THE N-ARY LET: a host call with several results, eliminated by its
+		// continuation (values.md, multiPrimCall), IS a let binding each result:
+		//
+		//	(((p a…) (fn (x̄) M)) k…)  ⟶  ((p a…) (fn (x̄) (M k…)))
+		//
+		// It is the let rule above at arity n, and it was missing, so a function
+		// that returned a tuple BUILT from such a call could not be taken apart by
+		// its caller: `(def split (x) (let (tuple h l) (b.Mul64 x 3) (tuple l h)))`
+		// left `(((Mul64 …) (fn (h l) (tuple l h))) (fn (a c) …))` stuck
+		// (u128-2026-09-23). The same conditions hold for the same reasons: the
+		// host call still runs once and first, the eliminator is pure so moving
+		// it inside reorders no effect (ADR 0010), and the binders are fresh.
+		if isMultiApp(op, e) && allPure(args, e) {
+			lam := op.Kids[1]
+			names := e.freshNames(len(lam.Params), append([]*Term{lam}, args...)...)
+			fresh := make([]*Term, len(lam.Params))
+			for i := range names {
+				fresh[i] = Name(names[i])
+			}
+			inner := lam.OpenWith(fresh)
+			app := append([]*Term{inner}, args...)
+			out := &Term{Kind: KApp, Kids: []*Term{op.Kids[0], Fn(names, &Term{Kind: KApp, Kids: app})}}
 			return normalize(out, e, fuel)
 		}
 
@@ -1995,6 +2053,14 @@ func modLabel(path string) string {
 func isIfApp(t *Term, e *Env) bool {
 	return t.Kind == KApp && len(t.Kids) == 4 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "if" && e.Prim["if"]
+}
+
+// isMultiApp recognises a host call with several results applied to its
+// continuation: ((p a…) (fn (x̄) M)) with p a primitive — the n-ary let.
+func isMultiApp(t *Term, e *Env) bool {
+	return t.Kind == KApp && len(t.Kids) == 2 && t.Kids[1].Kind == KFn &&
+		t.Kids[0].Kind == KApp && len(t.Kids[0].Kids) >= 1 &&
+		t.Kids[0].Kids[0].Kind == KName && e.Prim[t.Kids[0].Kids[0].Name]
 }
 
 // isLetApp reports whether t is a residual `let` — a binding β introduced

@@ -1,0 +1,33 @@
+; n! IN 128 BITS, THROUGH A MODULE WRITTEN IN THE LANGUAGE — lib/num/u128.oro.
+;
+; The module is positional notation in base 2^64 over Go's math/bits: a value is
+; ι(h, l) = h·2^64 + l, `mulw` is Algorithm M with a one-digit multiplier and
+; reports ι(a)·w ≥ 2^128, and `decimal` is repeated short division by 10^18
+; through Div64 and Rem64, the leading group through strconv (u128-2026-09-23).
+; Each input crosses a boundary the case must get right: 20! is the last in U,
+; 21! the first with a high digit, 25! the first with three base-10^18 groups,
+; 34! the last below 2^128, and 35! overflows.
+;
+; It also pins the n-ary let (core/reduce.go): each factor is a component of a
+; tuple mulw builds under host calls, projected by the caller.
+;
+; Go only: the module uses go/math/bits and go/strconv, which resolve on Go.
+; skip: js
+; skip: java
+; skip: windows
+;
+; prints: string
+; inputs: 0 1 20 21 25 34 35
+; expect: 1 1 2432902008176640000 51090942171709440000 15511210043330985984000000 295232799039604140847618609643520000000 overflow
+
+(use num/u128 as u)
+
+(sig run ((n (int 0 40))) string)
+(def run (n)
+  (loop ((k 0) (h 0) (l 1) (over 0))
+    (= over 1) "overflow"
+    (>= k n)   (u.decimal h l)
+    else (again (+ k 1)
+                ((u.mulw h l (+ k 1)) (fn (a b c) a))
+                ((u.mulw h l (+ k 1)) (fn (a b c) b))
+                ((u.mulw h l (+ k 1)) (fn (a b c) c)))))

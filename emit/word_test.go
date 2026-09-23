@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+
+	"oroboros/core"
 )
 
 // withWord gives a test fixture the word the Go, JVM and windows target files
@@ -86,5 +88,120 @@ func TestAnExtraArgumentIsRefusedNotDropped(t *testing.T) {
 	ok := reduce(t, `(use go/fmt as fmt) (fn () (fmt.Println2 1 2))`, "go")
 	if err := Check(tg, "t", ok); err != nil {
 		t.Errorf("an exactly-applied primitive must be accepted: %v", err)
+	}
+}
+
+// A REMAINDER BY A POSITIVE LITERAL IS AN ATOM of the fragment, as a quotient is,
+// so the language's remainder facts (lang-facts.oro, F6–F8) reach a precondition.
+// They were dead in the refiner: the fact matched, its conclusion was read, found
+// outside the fragment, and nothing was assumed. So `hi < y` for
+// `(b.Div64 (% h k) l k)` — the high word reduced mod the divisor, the step of
+// every short division — was "propagated, not proven" and emitted anyway
+// (u128-2026-09-23). Both spellings: h in the signed word, and h in U, where the
+// goal says `u64%` and the fact's instance `%`, and each divisor is `(u64-of k)`.
+func TestARemainderBoundsAPrecondition(t *testing.T) {
+	for _, hi := range []string{"1000000", "18446744073709551615"} {
+		notes, err := refineWorded(t, `(use go/math/bits as b)
+(export f)
+(sig f ((h (int 0 `+hi+`)) (l (int 0 18446744073709551615))) any)
+(def f (h l) ((b.Div64 (% h 1000000000000000000) l 1000000000000000000) (fn (q r) q)))`)
+		if err != nil || propagated(notes) {
+			t.Errorf("h ≤ %s: h mod k < k must be PROVEN: err %v, notes %s", hi, err, notes)
+		}
+	}
+	// ANTI-VACUITY: a remainder by a LARGER divisor bounds nothing useful, and
+	// the precondition is not proven.
+	notes, err := refineWorded(t, `(use go/math/bits as b)
+(export f)
+(sig f ((h (int 0 18446744073709551615)) (l (int 0 18446744073709551615))) any)
+(def f (h l) ((b.Div64 (% h 1000000000000000001) l 1000000000000000000) (fn (q r) q)))`)
+	if err == nil && !propagated(notes) {
+		t.Errorf("h mod (k+1) < k does not follow and must not be proven: %s", notes)
+	}
+}
+
+// refineWorded is refineGo with the unsigned word selected first and the type
+// checker run on the result, as cmd/gen does when a signature declares a range
+// in U.
+func refineWorded(t *testing.T, src string) (string, error) {
+	t.Helper()
+	tg := goNative(t)
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := prog.Exports[0]
+	sig := prog.Sigs[q]
+	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if nw, k := SelectWords(tg, sig, nf); k > 0 {
+		nf = nw
+	}
+	if err := Check(tg, "test", nf); err != nil {
+		return "", err
+	}
+	notes, err := Refine(tg, "test", sig, nf)
+	return strings.Join(notes, "; "), err
+}
+
+// A LOOP VARIABLE THAT SHADOWS A PARAMETER gives the parameter back when its
+// scope ends. `(loop ((h h)) …)` keeps the spelling — a parameter is not among
+// the names the pass has bound — and the loop's exit DELETED h from the
+// environment, taking the parameter's premise with it (u128-2026-09-23). Two
+// witnesses: after the loop the parameter still bounds `(* h h)`; and a U
+// parameter walked down by a loop of the same name keeps its representation,
+// where the next sweep had read it as ⊤ and left `(= h 0)` to be refused by type.
+func TestAShadowingLoopGivesTheParameterBack(t *testing.T) {
+	tg := goNative(t)
+	src := `(export f)
+(sig f ((h (int 0 100))) int)
+(def f (h) (+ (loop ((h h)) (= h 0) 1 else (again (/ h 10))) (* h h)))`
+	forms, err := core.Read(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rep, _ := Intervals(tg, prog.Sigs["f"], nf, 0); rep.Proven != rep.Ops {
+		t.Errorf("h ∈ [0, 100] after a loop that shadowed it: %d of %d proven, unproven %v",
+			rep.Proven, rep.Ops, rep.Unproven)
+	}
+	// Through CheckSignatures, where it was met: the claim is checked on the
+	// definition after the representation is chosen, and that pass sweeps the
+	// loop twice.
+	forms, err = core.Read(`(export f)
+(sig f ((h (int 0 18446744073709551615))) int)
+(def f (h) (loop ((h h)) (= h 0) 1 else (again (/ h 10))))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prog, _, err = core.Load(forms); err != nil {
+		t.Fatal(err)
+	}
+	if env, err = tg.Env(prog); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckSignatures(tg, prog, env); err != nil {
+		t.Errorf("a U parameter shadowed by its loop must stay in U: %v", err)
 	}
 }

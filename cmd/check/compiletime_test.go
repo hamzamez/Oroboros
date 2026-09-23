@@ -154,3 +154,41 @@ func TestTimesRoundTrip(t *testing.T) {
 		t.Error("the baseline must say what it is in a header")
 	}
 }
+
+// FASTER IS THE MIRROR, so a buy-back can be locked in. Run backwards, the
+// historical sweeps are a compiler that got faster: the same six compiles
+// must be called faster, and identical sweeps nothing.
+func TestTheGateSeesAFixAsWellAsARegression(t *testing.T) {
+	got := keys(faster(loadSweep(t, "sweep-7e36002.txt"), loadSweep(t, "sweep-80386e1.txt")))
+	want := keys(slower(loadSweep(t, "sweep-80386e1.txt"), loadSweep(t, "sweep-7e36002.txt")))
+	if !reflect.DeepEqual(got, want) || len(got) != 6 {
+		t.Errorf("the regression undone:\n got %v\nwant %v", got, want)
+	}
+	names := []string{"sweep-identical-1.txt", "sweep-identical-2.txt", "sweep-identical-3.txt"}
+	for _, a := range names {
+		for _, b := range names {
+			if a != b {
+				if f := faster(loadSweep(t, a), loadSweep(t, b)); len(f) > 0 {
+					t.Errorf("baseline %s, now %s: called faster %v", a, b, keys(f))
+				}
+			}
+		}
+	}
+	k := timeKey{"p.oro", "go"}
+	for _, c := range []struct {
+		base, now int64
+		fast      bool
+	}{
+		{2000, 1000, true},
+		{2109, 234, true},
+		{47, 16, false},   // one tick against three
+		{750, 500, true},  // at the ratio and at the delta
+		{747, 498, false}, // one millisecond under the delta
+		{1490, 1000, false},
+	} {
+		got := len(faster(map[timeKey]time.Duration{k: ms(c.base)}, map[timeKey]time.Duration{k: ms(c.now)})) > 0
+		if got != c.fast {
+			t.Errorf("%d → %d ms: faster = %v, want %v", c.base, c.now, got, c.fast)
+		}
+	}
+}

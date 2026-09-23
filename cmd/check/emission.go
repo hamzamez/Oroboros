@@ -436,6 +436,10 @@ func (c *checker) emission() result {
 		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx\n", "compiles SLOWER", s.key,
 			s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
 	}
+	for _, s := range c.fast {
+		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx\n", "compiles faster", s.key,
+			s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
+	}
 	var why []string
 	if len(c.changes) > 0 {
 		why = append(why, fmt.Sprintf("%d change(s) against the baseline", len(c.changes)))
@@ -518,9 +522,17 @@ func (c *checker) acceptBaseline(reason string, tooling status) error {
 	switch {
 	case c.noTimeBaseline:
 		b.WriteString("\nThe initial compile-time baseline, the minimum of two sweeps.\n")
+	case c.retime && len(c.slow) == 0:
+		fmt.Fprintf(&b, "\nThe compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — %s.\n", c.timeNote)
 	case len(c.slow) > 0:
 		fmt.Fprintf(&b, "\n%d compile(s) accepted SLOWER — %s:\n\n", len(c.slow), c.timeNote)
 		for _, s := range c.slow {
+			fmt.Fprintf(&b, "- `%s` %d → %d ms, %.2fx\n", s.key, s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
+		}
+	}
+	if len(c.fast) > 0 {
+		fmt.Fprintf(&b, "\n%d compile(s) recorded FASTER:\n\n", len(c.fast))
+		for _, s := range c.fast {
 			fmt.Fprintf(&b, "- `%s` %d → %d ms, %.2fx\n", s.key, s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
 		}
 	}

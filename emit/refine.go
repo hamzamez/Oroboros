@@ -58,6 +58,42 @@ type refiner struct {
 	// keyed by the loop's lambda, so a `let` summarising that loop's RESULT does
 	// not run the invariant fixpoint a second time.
 	bodyFacts map[string]*facts
+
+	// memo is SHARED by a root refiner and every dry walk under it — see
+	// refineMemo. bodyFacts is per refiner, and each Houdini round builds a
+	// fresh dry one, so without this a nested loop's fixpoint restarted from
+	// nothing in every round of the loop around it.
+	memo *refineMemo
+}
+
+// refineMemo holds what one Refine computes more than once and may reuse.
+//
+// houdini is loopInvariants' answer — the invariants that survived — keyed by
+// the loop, its initial values, BOTH fact sets and the probe depth. THEOREM:
+// loopInvariants is a function of exactly those inputs, up to renaming of the
+// dry walks' fresh binders. Its candidates are generated from lam, inits, f and
+// g; each is kept or dropped by entailments under facts derived from the same;
+// the depth decides where nested probes stop. The candidates mention only
+// lam's own parameters, which the key contains, so the answer does not depend
+// on the fresh names. So a hit returns exactly what recomputing would.
+//
+// Measured on the tokeniser (tokenize-compile-2026-09-23): 285 nested fixpoints
+// were 60 distinct computations, and 20 top-level ones were 5.
+type refineMemo struct {
+	houdini map[string][]*core.Term
+	// summary is summarizeNamed's answer for a loop it had to walk in a dry
+	// refiner: the facts about the bound name that survived, and the name they
+	// were computed for. THEOREM: summarizeLoop's candidates are 0 ≤ x, x ≤ s and
+	// s ≤ x over frames s of the loop, and each is kept iff it is proven at every
+	// exit with the exit's value SUBSTITUTED for x — so x occurs in the answer
+	// only as a name, and the answer is a function of the loop, the facts at the
+	// binding, the facts it is assumed into and the depth. A hit renames x.
+	summary map[string]summaryMemo
+}
+
+type summaryMemo struct {
+	x    string
+	kept []*core.Term
 }
 
 func (r *refiner) lin(t *core.Term) (*linear, bool) { return asLinearIn(r.pure, t) }
@@ -91,7 +127,8 @@ func pureAtoms(tgt *Target) atoms {
 // `sig` supplies the assumptions: a definition may assume its own `where`, and
 // that is how a precondition moves to the caller.
 func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, error) {
-	r := &refiner{tgt: tgt, pure: pureAtoms(tgt)}
+	r := &refiner{tgt: tgt, pure: pureAtoms(tgt), memo: &refineMemo{
+		houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 	f := newFacts()
 	f.pure = r.pure
 
@@ -1037,13 +1074,29 @@ func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts)
 				return
 			}
 		}
+		// THE MEMO (refineMemo.summary): a dry walk of the whole loop, repeated in
+		// every Houdini round around it, is the cost this avoids.
+		key := ""
+		if r.memo != nil {
+			key = fmt.Sprintf("%d:%s|%d:%s|%d:%s|%d", len(e.String()), e.String(),
+				len(at.fingerprint()), at.fingerprint(), len(into.fingerprint()), into.fingerprint(), r.probeDepth)
+			if m, hit := r.memo.summary[key]; hit {
+				for _, c := range m.kept {
+					assume(into, core.Rename2(c, map[string]*core.Term{m.x: core.Name(x)}))
+				}
+				return
+			}
+		}
 		bound := map[string]bool{}
 		for k, v := range r.bound {
 			bound[k] = v
 		}
-		d := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth}
+		d := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth, memo: r.memo}
 		_ = d.walk(e, at)
-		d.summarizeLoop(into, x, e)
+		kept := d.summarizeLoop(into, x, e)
+		if r.memo != nil {
+			r.memo.summary[key] = summaryMemo{x: x, kept: kept}
+		}
 		return
 	}
 	r.joinConditional(into, x, e, at)
@@ -1151,6 +1204,24 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 	if len(inits) < len(params) {
 		return
 	}
+	// THE MEMO (refineMemo). Keyed before g is touched; every exit below records
+	// what it assumed into g, which is the whole of the answer.
+	var key string
+	if r.memo != nil {
+		key = fmt.Sprintf("%s%d:%s|%d", loopKey(lam, inits, f), len(g.fingerprint()), g.fingerprint(), r.probeDepth)
+		if kept, hit := r.memo.houdini[key]; hit {
+			for _, c := range kept {
+				assume(g, c)
+			}
+			return
+		}
+	}
+	var kept []*core.Term
+	defer func() {
+		if r.memo != nil {
+			r.memo.houdini[key] = kept
+		}
+	}()
 	entry := map[string]*core.Term{}
 	for i, n := range params {
 		entry[n] = inits[i]
@@ -1205,7 +1276,7 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 		for k, v := range r.bound {
 			bound[k] = v
 		}
-		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth + 1}
+		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth + 1, memo: r.memo}
 		dry.onAgain = func(args []*core.Term, at *facts) {
 			sub := map[string]*core.Term{}
 			for i, n := range params {
@@ -1230,6 +1301,7 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 			for _, c := range cands {
 				assume(g, c)
 			}
+			kept = cands
 			return
 		}
 		var keep []*core.Term
@@ -1254,18 +1326,18 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 // initial value naming no loop variable, and `0 ≤ result` — the same finite
 // template set as the invariants, read at the exits. `nwords`' count is at most
 // `len src` this way: the invariants say n ≤ i ≤ len src, and both exits return n.
-func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) {
+func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) (kept []*core.Term) {
 	if loop.Kind != core.KApp || loop.Op().Kind != core.KName || !loopKinds[loop.Op().Name] {
-		return
+		return nil
 	}
 	args := loop.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
-		return
+		return nil
 	}
 	lam, inits := args[0], args[1:]
 	body, ok := r.bodyFacts[loopKey(lam, inits, inner)]
 	if !ok {
-		return
+		return nil
 	}
 	params := lam.Params
 	type exit struct {
@@ -1294,7 +1366,7 @@ func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) {
 	}
 	walk(lam.Body(), body)
 	if len(exits) == 0 {
-		return
+		return nil
 	}
 	res := core.Name(x)
 	zero := &core.Term{Kind: core.KInt}
@@ -1317,12 +1389,14 @@ func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) {
 			}
 		}
 		assume(inner, c)
+		kept = append(kept, c)
 	}
 	try(core.App(core.Name("<="), zero, res))
 	for _, sd := range frames {
 		try(core.App(core.Name("<="), res, sd))
 		try(core.App(core.Name("<="), sd, res))
 	}
+	return kept
 }
 
 // guardSides is the linear-arithmetic sides of every comparison guarding a clause

@@ -278,3 +278,16 @@ The initial compile-time baseline, the minimum of two sweeps.
 - new source — `gauntlet/differential/cases/u64-square.oro java`
 - new source — `gauntlet/differential/cases/u64-square.oro js`
 - new source — `gauntlet/differential/cases/u64-square.oro windows`
+
+## 2026-09-23 — on 4ece268, with uncommitted changes
+
+**Reason:** The refiner's memos (tokenize-compile-2026-09-23): the tokeniser compiles 1.78x faster serially, 1.48x in the sweep, below the rule's 1.5; re-recorded deliberately so a regression back to the old cost is caught. Emission is byte-identical.
+
+472 runs: 209 emitted, 263 refused; 2361 of 2413 integer operations bounded, 345 of 382 loops proven. compiler pass, differential pass, tooling skip.
+
+
+The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — compile time 1.00x the baseline (median of 12 compiles over 300 ms); 1 compile(s) FASTER than the baseline — -accept records them, so a regression back to the old time is caught.
+
+1 compile(s) recorded FASTER:
+
+- `examples/json/tokenize.oro go` 1593 → 781 ms, 0.49x

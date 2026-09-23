@@ -391,7 +391,7 @@ func (r *refiner) contentInvariants(lam *core.Term, inits []*core.Term, f, g *fa
 		for k, v := range r.bound {
 			bound[k] = v
 		}
-		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth + 1}
+		dry := &refiner{tgt: r.tgt, bound: bound, pure: r.pure, probe: true, probeDepth: r.probeDepth + 1, memo: r.memo}
 		changed := false
 		next := map[string][]*core.Term{}
 		for n, phis := range cands {

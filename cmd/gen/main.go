@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime/pprof"
 	"strings"
 
 	"oroboros/core"
@@ -23,6 +24,7 @@ func main() {
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
+	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: gen [-targets DIR] [-name N] SRC.oro TARGET OUT\n")
 		flag.PrintDefaults()
@@ -32,7 +34,22 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked, *bigRepr); err != nil {
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "gen:", err)
+			os.Exit(2)
+		}
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fmt.Fprintln(os.Stderr, "gen:", err)
+			os.Exit(2)
+		}
+	}
+	err := run(*dir, flag.Arg(0), flag.Arg(1), flag.Arg(2), *name, *path, *checked, *bigRepr)
+	if *cpuprofile != "" {
+		pprof.StopCPUProfile()
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "gen:", err)
 		os.Exit(1)
 	}

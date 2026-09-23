@@ -81,6 +81,8 @@ type checker struct {
 	// What the compile-time gate found (compiletime.go).
 	times          map[timeKey]time.Duration // the estimate -accept records
 	slow           []slowCompile
+	fast           []slowCompile // compiles faster than the baseline, which -accept records
+	retime         bool          // -retime: re-record the time baseline though nothing crossed the rule
 	timeNote       string
 	noTimeBaseline bool
 	swept2         bool // a second sweep has run, so c.times is a minimum of two
@@ -93,6 +95,11 @@ func main() {
 	onlyList := flag.String("only", "", "comma-separated steps to run, and no others")
 	accept := flag.String("accept", "", "keep this run's emission as the baseline; the argument is the reason, logged in gauntlet/check/ACCEPTED.md")
 	jobs := flag.Int("jobs", runtime.NumCPU(), "parallel compilations in the emission sweep")
+	// A GAIN BELOW THE GATE'S RESOLUTION CAN STILL BE LOCKED IN, deliberately.
+	// The rule is 1.5x either way, and in the sweep a real 1.78x serial speed-up
+	// measured 1.48x (tokenize-compile-2026-09-23). Left alone, the baseline would
+	// keep the old cost, and a regression all the way back would pass unflagged.
+	retime := flag.Bool("retime", false, "with -accept: re-record the compile-time baseline even when no compile crossed the rule")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: check [-skip S,…] [-only S,…] [-accept REASON]\n"+
 			"steps: %s\n", strings.Join(stepNames, ", "))
@@ -110,6 +117,7 @@ func main() {
 		work:    filepath.Join(root, ".check"),
 		jobs:    *jobs,
 		results: map[string]result{},
+		retime:  *retime,
 	}
 	if err := os.MkdirAll(filepath.Join(c.work, "logs"), 0o755); err != nil {
 		fmt.Fprintln(os.Stderr, "check:", err)
@@ -190,8 +198,8 @@ func (c *checker) acceptRun(reason string) {
 	case r.status == fail:
 		fmt.Println("\n── accept: refused — the emission step failed")
 		return
-	case len(c.changes) == 0 && !c.noBaseline && len(c.slow) == 0 && !c.noTimeBaseline:
-		fmt.Println("\n── accept: nothing to accept — emission is byte-identical to the baseline and no compile is slower")
+	case len(c.changes) == 0 && !c.noBaseline && len(c.slow) == 0 && len(c.fast) == 0 && !c.noTimeBaseline && !c.retime:
+		fmt.Println("\n── accept: nothing to accept — emission is byte-identical to the baseline and no compile is slower or faster")
 		return
 	}
 	for _, need := range []string{"compiler", "differential"} {
@@ -214,6 +222,9 @@ func (c *checker) acceptRun(reason string) {
 	}
 	fmt.Println("\n── accept: the baseline is this run's emission; logged in gauntlet/check/ACCEPTED.md")
 	what := fmt.Sprintf("ACCEPTED %d change(s)", len(c.changes))
+	if len(c.fast) > 0 {
+		what += fmt.Sprintf(" and %d faster compile(s)", len(c.fast))
+	}
 	if len(c.slow) > 0 {
 		what += fmt.Sprintf(" and %d slower compile(s)", len(c.slow))
 	}

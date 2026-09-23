@@ -75,8 +75,13 @@ a wall that needs language work, stop and research it, then design it.
 **Next, from the current assessment** (09-23; the 09-17 plan scored two and a half of four — the
 packages and `CLAUDE.md` done, the compile-time gate built but the tokeniser never profiled, the Windows
 application unstarted a fourth time):
-1. **Profile the tokeniser's compile, and decide whether to buy back its 6.6×.** Still ~740 ms
-   serially; the gate will show a fix.
+1. ~~Profile the tokeniser's compile, and decide.~~ **Done**
+   ([tokenize-compile-2026-09-23](gauntlet/results/tokenize-compile-2026-09-23.md)): Houdini
+   re-analysed nested loops in every round of the loop around them, and ~80% of it recomputed an
+   identical answer. Two memos, each licensed by a theorem and pinned by an exact-witness test the
+   corpus could not provide, bought **720 → 405 ms** with emission byte-identical. The rest runs under
+   genuinely different facts; stopped there. freq's cost is the interval pass (`restore` copying the
+   environment per conditional), recorded, not chased.
 2. **Close this round's two checking gaps**: the unsigned word's 100,010-value check against
    `math/big` as a committed test, shown to fail against a planted division; and a layer named on
    `-targets` that does not exist refused, not silently skipped.
@@ -478,7 +483,9 @@ target's emitted code, outcome, proof counts and refusal text against the baseli
 
 **Compile time is gated too** (gauntlet/check/README.md, "The rule for compile time"): a compile at
 1.5× its baseline time **and** 250 ms slower is a change for review, confirmed by a second sweep
-before it is reported, and kept only with `-accept`. The sweep's times are not serial times — the
+before it is reported, and kept only with `-accept`. **A faster compile is the mirror**, reported and
+recorded by `-accept`; a gain below the rule's resolution is locked in deliberately with
+`-accept "reason" -retime`. Profile one compile with `go run ./cmd/gen -cpuprofile FILE …`. The sweep's times are not serial times — the
 tokeniser costs ~2.5× its serial time among 16 parallel compiles — so **to say how long one program
 compiles, time its binary serially and warm, and compare against a binary built at the baseline's
 commit, not against HEAD**.

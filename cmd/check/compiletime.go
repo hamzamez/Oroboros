@@ -180,6 +180,34 @@ func slower(base, now map[timeKey]time.Duration) []slowCompile {
 	return out
 }
 
+// faster is slower's mirror: base ≥ 1.5·now AND base − now ≥ 250 ms.
+//
+// IT EXISTS BECAUSE THE BASELINE ONLY MOVED WHEN SOMETHING ELSE WAS ACCEPTED.
+// A compile that got faster was never recorded, so the gate could not lock in a
+// buy-back: the tokeniser went ~720 → ~405 ms (tokenize-compile-2026-09-23) and
+// could have drifted all the way back without one compile being called slower.
+// A gate is a ratchet, and it has to turn both ways to hold a gain. A faster
+// compile is not a failure; it is reported, and -accept records it.
+//
+// The same two thresholds, for the same reasons, applied from the other side.
+// Positive noise makes a faster observation MORE trustworthy than a slower one —
+// interference cannot make a compile quicker than it is — so no second sweep is
+// needed to believe it; -accept takes the per-compile minimum of two anyway.
+func faster(base, now map[timeKey]time.Duration) []slowCompile {
+	var out []slowCompile
+	for _, k := range sortedKeys(now) {
+		b, ok := base[k]
+		if !ok {
+			continue
+		}
+		n := now[k]
+		if float64(b) >= slowRatio*float64(n) && b-n >= slowDelta {
+			out = append(out, slowCompile{k, b, n})
+		}
+	}
+	return out
+}
+
 // drift is the median of now/base over the compiles heavy enough for a ratio to
 // mean something. A regression moves a few of them; the machine moves all of
 // them, so a median well above 1 says "the machine", and a list of slower
@@ -235,12 +263,17 @@ func (c *checker) compileTime(baseDir string, outs []outcome) (note string, slow
 		confirmed = "; a second sweep confirmed it"
 	}
 	slow = slower(base, now)
+	c.fast = faster(base, now)
 	med, n := drift(base, now)
 	note = fmt.Sprintf("compile time %.2fx the baseline (median of %d compiles over %d ms)%s",
 		med, n, gatedFloor/time.Millisecond, confirmed)
 	if med >= driftNote {
 		note += fmt.Sprintf(" — the median itself is %.2fx, so the MACHINE is slower than when the baseline was "+
 			"taken; re-run idle and on mains power before reading the list as regressions", med)
+	}
+	if len(c.fast) > 0 {
+		note += fmt.Sprintf("; %d compile(s) FASTER than the baseline — -accept records them, so a "+
+			"regression back to the old time is caught", len(c.fast))
 	}
 	return note, slow, nil
 }

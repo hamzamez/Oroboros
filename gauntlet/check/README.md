@@ -93,6 +93,13 @@ slower than when the baseline was taken, with the advice to re-run idle and on m
 listed with their ratios, and kept only with `-accept "reason"`, which logs every accepted slower
 compile in [ACCEPTED.md](ACCEPTED.md).
 
+**A FASTER compile is the mirror**: at most 1/1.5 of the baseline and at least 250 ms quicker. It is
+reported, not a failure, and `-accept` records it — the baseline used to move only when something
+else was accepted, so a buy-back could never be locked in and a regression all the way back would
+have passed ([tokenize-compile-2026-09-23](../results/tokenize-compile-2026-09-23.md)). A real gain
+below the rule's resolution — the memos' 1.78× serial measured 1.48× in the sweep — is recorded
+deliberately with `-accept "reason" -retime`, which re-records the time baseline from two sweeps.
+
 **What this does not catch**: a slowdown under 1.5× on one program (freq on the JVM moved 1.30× at
 7e36002 and would pass), and a uniform slowdown of the whole compiler under the machine's own drift.
 The median is printed on every run so that the second is at least visible.

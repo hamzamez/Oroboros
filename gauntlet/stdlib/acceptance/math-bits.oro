@@ -1,0 +1,98 @@
+; ACCEPTANCE: math/bits, THE WHOLE PACKAGE, declared BY HAND (targets/go/math/bits.oro),
+; every word the program COMPUTED.
+;
+; Each section is a LAW of the package's algebra (mathbits-2026-09-23 §1), and the
+; host is the oracle: the expected output is bitsReference in tooling_test.go.
+;
+;   measures    at x = 2^k: Len = k+1, TrailingZeros = k, OnesCount = 1, and
+;               LeadingZeros + Len = n on every x
+;   involutions Reverse ∘ Reverse = id, ReverseBytes ∘ ReverseBytes = id
+;   rotation    the action of ℤ/64: by a then b is by a+b, by 64 is id, by −k undoes k
+;   carries     a two-word sum, and Sub with the same borrow undoes Add with that carry
+;   product     Mul then Div recovers a factor, remainder 0 — the precondition hi < y is
+;               a law of the tuple the language cannot state, so it is GUARDED
+;   long div    a two-word number divided by a word, where Rem64's `ensures r < y`
+;               PROVES the next step's precondition, with no guard
+;   narrow      the 8-, 16- and 32-bit forms and the `uint` forms, on one word each
+
+(use go/math/bits as b)
+(use go/fmt as fmt)
+
+(export main)
+
+(def top (i) (- 18446744073709551615 i))
+
+; 2^k, as the rotation of 1 by k — the ℤ/64 action applied to the unit.
+(def pow2 (k) (b.RotateLeft64 1 k))
+
+(def measures ()
+  (seq (loop ((k 0))
+         (>= k 64) 0
+         else (seq (seq (fmt.Println (b.Len64 (pow2 k))) (fmt.Println (b.TrailingZeros64 (pow2 k))) (fmt.Println (b.OnesCount64 (pow2 k))) (fmt.Println (b.LeadingZeros64 (pow2 k))))
+                   (again (+ k 1))))
+       (fmt.Println (+ (b.LeadingZeros64 (top 12345)) (b.Len64 (top 12345))))
+       (seq (fmt.Println (b.OnesCount64 (top 12345))) (fmt.Println (b.Len64 0)) (fmt.Println (b.TrailingZeros64 0)))))
+
+(def involutions ()
+  (seq (fmt.Println (b.Reverse64 (top 7)))
+       (fmt.Println (= (b.Reverse64 (b.Reverse64 (top 7))) (top 7)))
+       (fmt.Println (b.ReverseBytes64 (top 1000000)))
+       (fmt.Println (= (b.ReverseBytes64 (b.ReverseBytes64 (top 1000000))) (top 1000000)))))
+
+(def rotation ()
+  (seq (fmt.Println (b.RotateLeft64 (top 3) 13))
+       (fmt.Println (= (b.RotateLeft64 (b.RotateLeft64 (top 3) 13) 29) (b.RotateLeft64 (top 3) 42)))
+       (fmt.Println (= (b.RotateLeft64 (top 3) 64) (top 3)))
+       (fmt.Println (= (b.RotateLeft64 (b.RotateLeft64 (top 3) 13) -13) (top 3)))))
+
+; (2^64 − 1, 2^64 − 1) + (0, 5): the low words carry out, the carry is 1, and it is
+; a legal carry-in for the high words because its range is {0, 1}.
+(def carries ()
+  ((b.Add64 (top 0) 5 0) (fn (s0 c0)
+    ((b.Add64 (top 0) 0 c0) (fn (s1 c1)
+      ((b.Sub64 s0 5 0) (fn (d0 b0)
+        (seq (seq (fmt.Println s0) (fmt.Println c0) (fmt.Println s1) (fmt.Println c1))
+             (seq (fmt.Println d0) (fmt.Println b0) (fmt.Println (= d0 (top 0))) (fmt.Println (= b0 c0)))))))))))
+
+; hi·2^64 + lo = x·y, and then (hi, lo) ÷ y = (x, 0). hi < y holds — x < 2^64 — but it
+; is a law relating Mul64's two results, which an `ensures` cannot state; so the
+; program checks it, and the else branch is the one the law says is never taken.
+(def product ()
+  ((b.Mul64 (top 99) (top 12345678)) (fn (hi lo)
+    (seq (seq (fmt.Println hi) (fmt.Println lo))
+         (if (< hi (top 12345678))
+             ((b.Div64 hi lo (top 12345678)) (fn (q r)
+               (seq (fmt.Println q) (fmt.Println r) (fmt.Println (= q (top 99))))))
+             (fmt.Println false)))))) ; never taken: the law says hi < y
+
+; (a1, a0) ÷ y, one word at a time, as a long division is. The first step's high
+; word is 0 < y. The second step's is the first step's remainder, and Div64's
+; remainder is not said to be < y — Rem64's is, by its `ensures`, so it is taken
+; from Rem64 and the precondition is PROVEN.
+(def longdiv (a1 a0 y)
+  ((b.Div64 0 a1 y) (fn (q1 r1x)
+    ((b.Div64 (b.Rem64 0 a1 y) a0 y) (fn (q0 r0)
+      (seq (fmt.Println q1) (fmt.Println q0) (fmt.Println r0)))))))
+
+(def narrow ()
+  (seq (seq (fmt.Println (b.Len32 4294967295)) (fmt.Println (b.Len16 256)) (fmt.Println (b.Len8 1)) (fmt.Println (b.OnesCount8 170)))
+       (seq (fmt.Println (b.Reverse32 1)) (fmt.Println (b.Reverse16 1)) (fmt.Println (b.Reverse8 1)) (fmt.Println (b.ReverseBytes32 16909060)) (fmt.Println (b.ReverseBytes16 258)))
+       (seq (fmt.Println (b.RotateLeft32 1 31)) (fmt.Println (b.RotateLeft16 1 -1)) (fmt.Println (b.RotateLeft8 128 1)))
+       ((b.Add32 4294967295 1 0) (fn (s c) (seq (fmt.Println s) (fmt.Println c))))
+       ((b.Sub32 0 1 0) (fn (d w) (seq (fmt.Println d) (fmt.Println w))))
+       ((b.Mul32 4294967295 4294967295) (fn (h l) (seq (fmt.Println h) (fmt.Println l))))
+       ((b.Div32 7 3 10) (fn (q r) (seq (fmt.Println q) (fmt.Println r))))
+       (fmt.Println (b.Rem32 7 3 10))
+       (seq (fmt.Println (b.Len (top 0))) (fmt.Println (b.OnesCount (top 0))) (fmt.Println (b.LeadingZeros 1)) (fmt.Println (b.TrailingZeros 8)))
+       (seq (fmt.Println (b.Reverse 1)) (fmt.Println (b.ReverseBytes 1)) (fmt.Println (b.RotateLeft 1 63)))
+       ((b.Add (top 0) 1 0) (fn (s c) (seq (fmt.Println s) (fmt.Println c))))
+       ((b.Sub 0 1 0) (fn (d w) (seq (fmt.Println d) (fmt.Println w))))
+       ((b.Mul (top 0) (top 0)) (fn (h l) (seq (fmt.Println h) (fmt.Println l))))
+       ((b.Div 1 0 3) (fn (q r) (seq (fmt.Println q) (fmt.Println r))))
+       (seq (fmt.Println (b.Rem 1 0 3)) (fmt.Println (b.Rem64 (top 0) (top 0) 1000000007)))
+       (seq (fmt.Println (b.LeadingZeros32 1)) (fmt.Println (b.LeadingZeros16 1)) (fmt.Println (b.LeadingZeros8 1)) (fmt.Println (b.TrailingZeros32 1024)) (fmt.Println (b.TrailingZeros16 0)) (fmt.Println (b.TrailingZeros8 64)) (fmt.Println (b.OnesCount32 4294967295)) (fmt.Println (b.OnesCount16 65535)) (fmt.Println (b.Len32 0)))))
+
+(def main ()
+  (seq (measures) (involutions) (rotation) (carries) (product)
+       (longdiv (top 5) (top 0) 1000000007)
+       (narrow)))

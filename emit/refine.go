@@ -373,6 +373,37 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 				return r.walk(t.Args()[0], f)
 			}
 		}
+		// A HOST CALL WITH SEVERAL RESULTS BINDS EACH ONE WITH ITS RANGE. A range in
+		// a result position IS an `ensures` (scalarrange-2026-08-31), and a single
+		// result's already reaches this layer as one; a tuple's components did not,
+		// so `(b.Add64 x y c)`'s carry, declared (int 0 1), was "known: nothing" at
+		// the next Add64's `carry ≤ 1` — a carry chain refused (mathbits-2026-09-23).
+		// Each endpoint a term can state is assumed of its binder.
+		if pr, _, k, ok := multiPrimCall(r.tgt, t); ok && k.Kind == core.KFn {
+			if err := r.walk(op, f); err != nil {
+				return err
+			}
+			g := f
+			for i, n := range k.Params {
+				if i >= len(pr.Results) {
+					break
+				}
+				lo, hi, haveLo, haveHi := core.RangeBounds(pr.Results[i])
+				if g == f && (haveLo || haveHi) {
+					g = f.clone()
+				}
+				if haveLo {
+					g.assumeLE(constant(lo).addScaled(variable(n), -1), fmt.Sprintf("%d <= %s", lo, n))
+				}
+				if haveHi {
+					g.assumeLE(variable(n).addScaled(constant(hi), -1), fmt.Sprintf("%s <= %d", n, hi))
+				}
+			}
+			for _, n := range k.Params {
+				r.markName(n)
+			}
+			return r.walk(k.Body(), g)
+		}
 		if err := r.walk(op, f); err != nil {
 			return err
 		}

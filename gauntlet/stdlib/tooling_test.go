@@ -41,6 +41,8 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"math/big"
+	"math/bits"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -611,6 +613,9 @@ func acceptance() map[string]accept {
 		// zig-zag bijection, with a reader from the generated strings file.
 		"encoding-binary": {host: "go", target: "go", layer: "tg", flags: checked, want: binaryReference(),
 			files: map[string]string{"tg/go/strings-gen.oro": "strings.oro"}},
+		// math/bits, the words ADR 0026 built: measures, permutations, and the
+		// double word, with long division proven through Rem64's ensures.
+		"math-bits": {host: "go", target: "go", layer: "tg", flags: checked, want: bitsReference()},
 		// Go: a method, a coercion to an interface, and a nested struct literal.
 		// The generated files go under tg/ and under a name that is not the
 		// module's, because the source's directory is also the LIBRARY path —
@@ -994,6 +999,113 @@ func binaryReference() []string {
 	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
 }
 
+// bitsReference is math-bits.oro's expected output, computed by the real
+// math/bits in the order the program prints, one value per line.
+func bitsReference() []string {
+	var b strings.Builder
+	p := func(v any) { fmt.Fprintln(&b, v) }
+	top := func(i uint64) uint64 { return 1<<64 - 1 - i }
+	for k := 0; k < 64; k++ {
+		x := bits.RotateLeft64(1, k)
+		p(bits.Len64(x))
+		p(bits.TrailingZeros64(x))
+		p(bits.OnesCount64(x))
+		p(bits.LeadingZeros64(x))
+	}
+	p(bits.LeadingZeros64(top(12345)) + bits.Len64(top(12345)))
+	p(bits.OnesCount64(top(12345)))
+	p(bits.Len64(0))
+	p(bits.TrailingZeros64(0))
+	p(bits.Reverse64(top(7)))
+	p(bits.Reverse64(bits.Reverse64(top(7))) == top(7))
+	p(bits.ReverseBytes64(top(1000000)))
+	p(bits.ReverseBytes64(bits.ReverseBytes64(top(1000000))) == top(1000000))
+	p(bits.RotateLeft64(top(3), 13))
+	p(bits.RotateLeft64(bits.RotateLeft64(top(3), 13), 29) == bits.RotateLeft64(top(3), 42))
+	p(bits.RotateLeft64(top(3), 64) == top(3))
+	p(bits.RotateLeft64(bits.RotateLeft64(top(3), 13), -13) == top(3))
+	s0, c0 := bits.Add64(top(0), 5, 0)
+	s1, c1 := bits.Add64(top(0), 0, c0)
+	d0, b0 := bits.Sub64(s0, 5, 0)
+	p(s0)
+	p(c0)
+	p(s1)
+	p(c1)
+	p(d0)
+	p(b0)
+	p(d0 == top(0))
+	p(b0 == c0)
+	hi, lo := bits.Mul64(top(99), top(12345678))
+	p(hi)
+	p(lo)
+	q, r := bits.Div64(hi, lo, top(12345678))
+	p(q)
+	p(r)
+	p(q == top(99))
+	a1, a0, y := top(5), top(0), uint64(1000000007)
+	q1, _ := bits.Div64(0, a1, y)
+	q0, r0 := bits.Div64(bits.Rem64(0, a1, y), a0, y)
+	p(q1)
+	p(q0)
+	p(r0)
+	p(bits.Len32(4294967295))
+	p(bits.Len16(256))
+	p(bits.Len8(1))
+	p(bits.OnesCount8(170))
+	p(bits.Reverse32(1))
+	p(bits.Reverse16(1))
+	p(bits.Reverse8(1))
+	p(bits.ReverseBytes32(16909060))
+	p(bits.ReverseBytes16(258))
+	p(bits.RotateLeft32(1, 31))
+	p(bits.RotateLeft16(1, -1))
+	p(bits.RotateLeft8(128, 1))
+	s32, c32 := bits.Add32(4294967295, 1, 0)
+	p(s32)
+	p(c32)
+	d32, w32 := bits.Sub32(0, 1, 0)
+	p(d32)
+	p(w32)
+	h32, l32 := bits.Mul32(4294967295, 4294967295)
+	p(h32)
+	p(l32)
+	qq, rr := bits.Div32(7, 3, 10)
+	p(qq)
+	p(rr)
+	p(bits.Rem32(7, 3, 10))
+	p(bits.Len(uint(top(0))))
+	p(bits.OnesCount(uint(top(0))))
+	p(bits.LeadingZeros(1))
+	p(bits.TrailingZeros(8))
+	p(bits.Reverse(1))
+	p(bits.ReverseBytes(1))
+	p(bits.RotateLeft(1, 63))
+	su, cu := bits.Add(uint(top(0)), 1, 0)
+	p(su)
+	p(cu)
+	du, wu := bits.Sub(0, 1, 0)
+	p(du)
+	p(wu)
+	hu, lu := bits.Mul(uint(top(0)), uint(top(0)))
+	p(hu)
+	p(lu)
+	qu, ru := bits.Div(1, 0, 3)
+	p(qu)
+	p(ru)
+	p(bits.Rem(1, 0, 3))
+	p(bits.Rem64(top(0), top(0), 1000000007))
+	p(bits.LeadingZeros32(1))
+	p(bits.LeadingZeros16(1))
+	p(bits.LeadingZeros8(1))
+	p(bits.TrailingZeros32(1024))
+	p(bits.TrailingZeros16(0))
+	p(bits.TrailingZeros8(64))
+	p(bits.OnesCount32(4294967295))
+	p(bits.OnesCount16(65535))
+	p(bits.Len32(0))
+	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
 // ---------------------------------------------------------------------------
 // 5. A declaration written by hand agrees with the host.
 //
@@ -1019,6 +1131,32 @@ var handDeclared = []struct {
 		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes},
 	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes},
 	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes},
+	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes},
+}
+
+// bitsMistakes are the mechanical errors the checker exists for. What it does NOT
+// catch, by design, is a narrowing too tight: Mul64's high word is at most
+// 2^64 − 2, and a declaration claiming 2^64 − 3 is inside the host's type, which
+// is the direction a hand declaration may go. That claim is the reader's to
+// justify from the source (ADR 0022), and it is what the header comment of
+// targets/go/math/bits.oro does.
+var bitsMistakes = map[string]func(m map[string]emit.Prim){
+	"Add64's carry-out widened past the host's type": func(m map[string]emit.Prim) {
+		p := m["Add64"]
+		p.Results = []string{p.Results[0], "int 0 18446744073709551616"}
+		m["Add64"] = p
+	},
+	"Len64 given a 32-bit argument": func(m map[string]emit.Prim) {
+		p := m["Len64"]
+		p.Args = []string{"int 0 4294967295"}
+		m["Len64"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["Mul64"]
+		p.Form = strings.ReplaceAll(p.Form, "bits.Mul64", "bits.Add64")
+		m["Mul64"] = p
+	},
+	"a missing name": func(m map[string]emit.Prim) { delete(m, "RotateLeft8") },
 }
 
 var binaryMistakes = map[string]func(m map[string]emit.Prim){
@@ -1289,17 +1427,20 @@ func sameOrBuffer(hand, host string) bool {
 }
 
 // rangeWithin: `int` on the host is the target's word (ADR 0026) — the host's
-// own integer, which is what a hand declaration may narrow.
+// own integer, which is what a hand declaration may narrow. Both ranges are read
+// at full precision, because a narrowing a person justified from the source may
+// lie in U: math/bits' Mul64 high word is at most 2^64 − 2, and a carry is in
+// {0, 1}, against the host's uint64.
 func rangeWithin(word core.Word, hand, host string) bool {
-	hl, hh, ok := core.IntRange(hand)
+	hl, hh, ok := core.IntRangeBig(hand)
 	if !ok {
 		return false
 	}
-	gl, gh := word.Lo, word.Hi
+	gl, gh := big.NewInt(word.Lo), big.NewInt(word.Hi)
 	if host != "int" {
-		if gl, gh, ok = core.IntRange(host); !ok {
+		if gl, gh, ok = core.IntRangeBig(host); !ok {
 			return false
 		}
 	}
-	return gl <= hl && hh <= gh
+	return gl.Cmp(hl) <= 0 && hh.Cmp(gh) <= 0
 }

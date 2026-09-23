@@ -1,0 +1,159 @@
+; math/bits, DECLARED BY HAND. Every claim below was read off src/math/bits/bits.go in
+; the Go 1.27 toolchain; the algebra is in gauntlet/results/mathbits-2026-09-23.md §1.
+;
+; THE ALGEBRA.
+;   W_n = [0, 2^n), n ∈ {8, 16, 32, 64}; `uint` is n = 64 on this model, so it is
+;   U, held as a uint64 (ADR 0026). Each x ∈ W_n is Σ b_i·2^i uniquely.
+;
+;   MEASURES of the expansion, each onto [0, n]:
+;     Len(x)            bit length:  2^(Len x − 1) ≤ x < 2^(Len x) for x > 0, Len 0 = 0
+;     LeadingZeros(x)   n − Len(x)
+;     TrailingZeros(x)  ν₂(x), the 2-adic valuation; n at 0
+;     OnesCount(x)      Hamming weight, ≤ Len(x)
+;
+;   PERMUTATIONS of the positions, bijections W_n → W_n:
+;     Reverse           i ↦ n−1−i, an involution
+;     ReverseBytes      the same on bytes, an involution
+;     RotateLeft(·, k)  the action of ℤ/n on positions: rotating by a, then by b,
+;                       is rotating by a + b; k may be negative
+;
+;   THE DOUBLE WORD, W_n × W_n ≅ [0, 2^2n) by (h, l) ↦ h·2^n + l:
+;     Add(x, y, c)  = (s, c′),   s + c′·2^n = x + y + c,       c, c′ ∈ {0, 1}
+;     Sub(x, y, b)  = (d, b′),   d − b′·2^n = x − y − b,       b, b′ ∈ {0, 1}
+;     Mul(x, y)     = (h, l),    h·2^n + l  = x·y,             h ≤ 2^n − 2
+;     Div(h, l, y)  = (q, r),    q·y + r    = h·2^n + l,  0 ≤ r < y, defined iff h < y
+;     Rem(h, l, y)  = (h·2^n + l) mod y, defined iff y ≥ 1
+;
+; WHAT IS SAID, AND WHAT CANNOT BE:
+;   - Every range above, and the three preconditions: c ≤ 1 (b ≤ 1) on the carry
+;     forms, h < y on Div — one linear inequality that excludes both of the host's
+;     panics, y = 0 and y ≤ h, because h ≥ 0 — and y ≥ 1 on Rem.
+;   - Rem's r < y, as an `ensures`: a single result, a linear bound.
+;   - NOT the double-word laws. Each relates the COMPONENTS of a tuple result, and an
+;     `ensures` names one `result`; and the 64-bit ones carry the coefficient 2^64,
+;     past the linear fragment's int64 coefficients. So Div's r < y — which a long
+;     division by a word needs, the remainder of one step being the high word of
+;     the next — is the wall this package names.
+;   - NOT Len's logarithm, OnesCount ≤ Len, or the rotation group law: none is linear.
+;
+; INTEGER TYPES ARE THE HOST'S: a `uint` or `uint64` is U. Go distinguishes `uint`
+; from `uint64` though both are 64 bits here, so every `uint` result is converted to
+; the `uint64` the target holds U in, and every narrow result to Go's `int`.
+(target go
+  (module go/math/bits
+
+    ; ---------------------------------------------------------- measures
+    (sig Len    ((x uint64)) (int 0 64) pure (host expr "bits.Len(uint(%s))"   (import "math/bits")))
+    (sig Len64  ((x uint64)) (int 0 64) pure (host expr "bits.Len64(uint64(%s))" (import "math/bits")))
+    (sig Len32  ((x uint32)) (int 0 32) pure (host expr "bits.Len32(uint32(%s))" (import "math/bits")))
+    (sig Len16  ((x uint16)) (int 0 16) pure (host expr "bits.Len16(uint16(%s))" (import "math/bits")))
+    (sig Len8   ((x uint8))  (int 0 8)  pure (host expr "bits.Len8(uint8(%s))"   (import "math/bits")))
+
+    (sig LeadingZeros   ((x uint64)) (int 0 64) pure (host expr "bits.LeadingZeros(uint(%s))"     (import "math/bits")))
+    (sig LeadingZeros64 ((x uint64)) (int 0 64) pure (host expr "bits.LeadingZeros64(uint64(%s))" (import "math/bits")))
+    (sig LeadingZeros32 ((x uint32)) (int 0 32) pure (host expr "bits.LeadingZeros32(uint32(%s))" (import "math/bits")))
+    (sig LeadingZeros16 ((x uint16)) (int 0 16) pure (host expr "bits.LeadingZeros16(uint16(%s))" (import "math/bits")))
+    (sig LeadingZeros8  ((x uint8))  (int 0 8)  pure (host expr "bits.LeadingZeros8(uint8(%s))"   (import "math/bits")))
+
+    (sig TrailingZeros   ((x uint64)) (int 0 64) pure (host expr "bits.TrailingZeros(uint(%s))"     (import "math/bits")))
+    (sig TrailingZeros64 ((x uint64)) (int 0 64) pure (host expr "bits.TrailingZeros64(uint64(%s))" (import "math/bits")))
+    (sig TrailingZeros32 ((x uint32)) (int 0 32) pure (host expr "bits.TrailingZeros32(uint32(%s))" (import "math/bits")))
+    (sig TrailingZeros16 ((x uint16)) (int 0 16) pure (host expr "bits.TrailingZeros16(uint16(%s))" (import "math/bits")))
+    (sig TrailingZeros8  ((x uint8))  (int 0 8)  pure (host expr "bits.TrailingZeros8(uint8(%s))"   (import "math/bits")))
+
+    (sig OnesCount   ((x uint64)) (int 0 64) pure (host expr "bits.OnesCount(uint(%s))"     (import "math/bits")))
+    (sig OnesCount64 ((x uint64)) (int 0 64) pure (host expr "bits.OnesCount64(uint64(%s))" (import "math/bits")))
+    (sig OnesCount32 ((x uint32)) (int 0 32) pure (host expr "bits.OnesCount32(uint32(%s))" (import "math/bits")))
+    (sig OnesCount16 ((x uint16)) (int 0 16) pure (host expr "bits.OnesCount16(uint16(%s))" (import "math/bits")))
+    (sig OnesCount8  ((x uint8))  (int 0 8)  pure (host expr "bits.OnesCount8(uint8(%s))"   (import "math/bits")))
+
+    ; ---------------------------------------------------------- permutations
+    (sig Reverse   ((x uint64)) uint64 pure (host expr "uint64(bits.Reverse(uint(%s)))" (import "math/bits")))
+    (sig Reverse64 ((x uint64)) uint64 pure (host expr "bits.Reverse64(uint64(%s))"     (import "math/bits")))
+    (sig Reverse32 ((x uint32)) uint32 pure (host expr "int(bits.Reverse32(uint32(%s)))" (import "math/bits")))
+    (sig Reverse16 ((x uint16)) uint16 pure (host expr "int(bits.Reverse16(uint16(%s)))" (import "math/bits")))
+    (sig Reverse8  ((x uint8))  uint8  pure (host expr "int(bits.Reverse8(uint8(%s)))"   (import "math/bits")))
+
+    (sig ReverseBytes   ((x uint64)) uint64 pure (host expr "uint64(bits.ReverseBytes(uint(%s)))" (import "math/bits")))
+    (sig ReverseBytes64 ((x uint64)) uint64 pure (host expr "bits.ReverseBytes64(uint64(%s))"     (import "math/bits")))
+    (sig ReverseBytes32 ((x uint32)) uint32 pure (host expr "int(bits.ReverseBytes32(uint32(%s)))" (import "math/bits")))
+    (sig ReverseBytes16 ((x uint16)) uint16 pure (host expr "int(bits.ReverseBytes16(uint16(%s)))" (import "math/bits")))
+
+    ; k is any int: the action is by k mod n, and a negative k rotates right.
+    (sig RotateLeft   ((x uint64) (k int)) uint64 pure (host expr "uint64(bits.RotateLeft(uint(%s), %s))" (import "math/bits")))
+    (sig RotateLeft64 ((x uint64) (k int)) uint64 pure (host expr "bits.RotateLeft64(uint64(%s), %s)"     (import "math/bits")))
+    (sig RotateLeft32 ((x uint32) (k int)) uint32 pure (host expr "int(bits.RotateLeft32(uint32(%s), %s))" (import "math/bits")))
+    (sig RotateLeft16 ((x uint16) (k int)) uint16 pure (host expr "int(bits.RotateLeft16(uint16(%s), %s))" (import "math/bits")))
+    (sig RotateLeft8  ((x uint8)  (k int)) uint8  pure (host expr "int(bits.RotateLeft8(uint8(%s), %s))"   (import "math/bits")))
+
+    ; ---------------------------------------------------------- the double word
+    ; ADD WITH CARRY. The carry out is the top bit of a word shifted down —
+    ; ((x & y) | ((x | y) &^ sum)) >> 63 — so it is in {0, 1}, narrower than the
+    ; host's type and read off the source; the carry in must be 0 or 1 ("otherwise
+    ; the behavior is undefined").
+    (sig Add64 ((x uint64) (y uint64) (carry uint64)) (tuple uint64 (int 0 1)) pure
+          (where (<= carry 1))
+          (host expr "func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(%s), uint64(%s), uint64(%s))"
+            (import "math/bits")))
+    (sig Add ((x uint64) (y uint64) (carry uint64)) (tuple uint64 (int 0 1)) pure
+          (where (<= carry 1))
+          (host expr "func(x, y, c uint) (uint64, int) { s, o := bits.Add(x, y, c); return uint64(s), int(o) }(uint(%s), uint(%s), uint(%s))"
+            (import "math/bits")))
+    (sig Add32 ((x uint32) (y uint32) (carry uint32)) (tuple uint32 (int 0 1)) pure
+          (where (<= carry 1))
+          (host expr "func(x, y, c uint32) (int, int) { s, o := bits.Add32(x, y, c); return int(s), int(o) }(uint32(%s), uint32(%s), uint32(%s))"
+            (import "math/bits")))
+
+    ; SUBTRACT WITH BORROW, the mirror.
+    (sig Sub64 ((x uint64) (y uint64) (borrow uint64)) (tuple uint64 (int 0 1)) pure
+          (where (<= borrow 1))
+          (host expr "func(x, y, b uint64) (uint64, int) { d, o := bits.Sub64(x, y, b); return d, int(o) }(uint64(%s), uint64(%s), uint64(%s))"
+            (import "math/bits")))
+    (sig Sub ((x uint64) (y uint64) (borrow uint64)) (tuple uint64 (int 0 1)) pure
+          (where (<= borrow 1))
+          (host expr "func(x, y, b uint) (uint64, int) { d, o := bits.Sub(x, y, b); return uint64(d), int(o) }(uint(%s), uint(%s), uint(%s))"
+            (import "math/bits")))
+    (sig Sub32 ((x uint32) (y uint32) (borrow uint32)) (tuple uint32 (int 0 1)) pure
+          (where (<= borrow 1))
+          (host expr "func(x, y, b uint32) (int, int) { d, o := bits.Sub32(x, y, b); return int(d), int(o) }(uint32(%s), uint32(%s), uint32(%s))"
+            (import "math/bits")))
+
+    ; THE FULL PRODUCT. hi ≤ ⌊(2^n − 1)^2 / 2^n⌋ = 2^n − 2.
+    (sig Mul64 ((x uint64) (y uint64)) (tuple (int 0 18446744073709551614) uint64) pure
+          (host expr "bits.Mul64(uint64(%s), uint64(%s))" (import "math/bits")))
+    (sig Mul ((x uint64) (y uint64)) (tuple (int 0 18446744073709551614) uint64) pure
+          (host expr "func(x, y uint) (uint64, uint64) { h, l := bits.Mul(x, y); return uint64(h), uint64(l) }(uint(%s), uint(%s))"
+            (import "math/bits")))
+    (sig Mul32 ((x uint32) (y uint32)) (tuple (int 0 4294967294) uint32) pure
+          (host expr "func(x, y uint32) (int, int) { h, l := bits.Mul32(x, y); return int(h), int(l) }(uint32(%s), uint32(%s))"
+            (import "math/bits")))
+
+    ; DIVISION OF A DOUBLE WORD BY A WORD. The host panics on y = 0 and on y ≤ hi;
+    ; hi < y excludes both, because hi ≥ 0. The remainder is < y, so it is at most
+    ; 2^n − 2 — its range says that much; r < y itself relates two components and
+    ; is not said (see the header).
+    (sig Div64 ((hi uint64) (lo uint64) (y uint64)) (tuple uint64 (int 0 18446744073709551614)) pure
+          (where (< hi y))
+          (host expr "bits.Div64(uint64(%s), uint64(%s), uint64(%s))" (import "math/bits")))
+    (sig Div ((hi uint64) (lo uint64) (y uint64)) (tuple uint64 (int 0 18446744073709551614)) pure
+          (where (< hi y))
+          (host expr "func(h, l, y uint) (uint64, uint64) { q, r := bits.Div(h, l, y); return uint64(q), uint64(r) }(uint(%s), uint(%s), uint(%s))"
+            (import "math/bits")))
+    (sig Div32 ((hi uint32) (lo uint32) (y uint32)) (tuple uint32 (int 0 4294967294)) pure
+          (where (< hi y))
+          (host expr "func(h, l, y uint32) (int, int) { q, r := bits.Div32(h, l, y); return int(q), int(r) }(uint32(%s), uint32(%s), uint32(%s))"
+            (import "math/bits")))
+
+    ; THE REMAINDER ALONE. It reduces hi mod y first (Rem64 is Div64(hi % y, lo, y)),
+    ; so only y ≥ 1 is required — and its one result is < y, which IS said.
+    (sig Rem64 ((hi uint64) (lo uint64) (y uint64)) (int 0 18446744073709551614) pure
+          (where (<= 1 y)) (ensures (< result y))
+          (host expr "bits.Rem64(uint64(%s), uint64(%s), uint64(%s))" (import "math/bits")))
+    (sig Rem ((hi uint64) (lo uint64) (y uint64)) (int 0 18446744073709551614) pure
+          (where (<= 1 y)) (ensures (< result y))
+          (host expr "uint64(bits.Rem(uint(%s), uint(%s), uint(%s)))" (import "math/bits")))
+    (sig Rem32 ((hi uint32) (lo uint32) (y uint32)) (int 0 4294967294) pure
+          (where (<= 1 y)) (ensures (< result y))
+          (host expr "int(bits.Rem32(uint32(%s), uint32(%s), uint32(%s)))" (import "math/bits")))
+  )
+)

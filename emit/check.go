@@ -158,6 +158,17 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return c.build(args, want)
 	}
 
+	// AN ORDINARY PRIMITIVE TAKES EXACTLY ITS DECLARED ARGUMENTS. An extra one had
+	// no declared type, so it was walked against nothing and then DROPPED by the
+	// template, which fills only its own holes: `(fmt.Println a b c d)` against
+	// `(sig Println (any) any)` emitted `fmt.Println(a)` — a program printing less
+	// than it says, found by math/bits' acceptance program (mathbits-2026-09-23).
+	// A missing one leaves a hole the template fills with a cycled operand.
+	if len(p.Args) > 0 && len(args) != len(p.Args) {
+		return "", fmt.Errorf("%s takes %d argument(s), given %d; a primitive is applied to "+
+			"exactly what it declares (an extra argument would be dropped by its template)",
+			op.Name, len(p.Args), len(args))
+	}
 	// An ordinary primitive: demand each declared argument type.
 	for i, a := range args {
 		d := ""

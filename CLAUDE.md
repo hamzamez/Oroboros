@@ -66,8 +66,9 @@ with no clamps.
   - JavaScript 100% declarable, a figure the survey itself calls vacuous.
 - **Supported, in the sense of [ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)**
   (declared by hand, checked against the host, exercised by a program): the Go packages
-  `unicode/utf8`, `encoding/hex`, **`strconv`** and **`encoding/binary`'s varints**, plus `io`'s
-  interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md)).
+  `unicode/utf8`, `encoding/hex`, **`strconv`**, **`encoding/binary`'s varints** and **`math/bits`**,
+  plus `io`'s interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md),
+  [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.

@@ -266,11 +266,44 @@ func eqI(a, b ival) bool {
 // ---------------------------------------------------------------- the pass
 
 // IntervalReport is what the experiment produces.
+// RequireResult is one measured argument (core.Env.Requires): the range its
+// parameter declares, the interval the analysis gives it at the call, and
+// whether the second lies inside the first.
+type RequireResult struct {
+	Def, Param, Type, Arg string
+	Got                   ival
+	Proven                bool
+}
+
+// inDeclared reports v ⊑ the declared range, at full precision.
+func inDeclared(v ival, ty string) bool {
+	if v.isBottom() {
+		return true // unreachable
+	}
+	if lo, hi, ok := core.IntRange(ty); ok {
+		return within(v, rng(lo, hi))
+	}
+	if w, ok := wideRange(ty); ok {
+		return within(v, w)
+	}
+	return false
+}
+
+// MeasureRequires decides every measurement mark left in a residual and returns
+// the residual with the marks erased, which is the term reduction gives without
+// them. It changes nothing downstream: the caller continues with the stripped
+// term exactly as it would have without measuring.
+func MeasureRequires(tgt *Target, sig *core.Sig, t *core.Term) ([]RequireResult, *core.Term) {
+	rep, _ := Intervals(tgt, sig, t, 0)
+	return rep.Requires, core.StripRequires(t)
+}
+
 type IntervalReport struct {
-	Ops    int       // integer operations that would need an overflow check
-	Proven int       // …of those, the ones provably inside the target's word
-	Target string    // the target the report is about (ADR 0026: legality is per target)
-	Word   core.Word // …and its word
+	Requires []RequireResult // measurement marks decided on the counted walk
+	Ops      int             // integer operations that would need an overflow check
+	Proven   int             // …of those, the ones provably inside the target's word
+	Target   string          // the target the report is about (ADR 0026: legality is per target)
+	Word     core.Word       // …and its word
 	// Outside is set when an unproven operation IS bounded, only not by this
 	// target's word — the case where declaring the range is the answer.
 	Outside   bool
@@ -1221,6 +1254,19 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	}
 	prim, known := p.tgt.Prims[op.Name]
 	args := t.Args()
+
+	// A MEASUREMENT MARK (core.Env.Requires): the argument's value, and whether
+	// it lies in the range its parameter declares, recorded on the counted walk.
+	// The mark is dropped from the rebuilt term.
+	if op.Name == core.RequireName && len(args) == 4 {
+		v, nv := p.evalR(args[3])
+		if p.count {
+			p.rep.Requires = append(p.rep.Requires, RequireResult{
+				Def: args[0].Str, Param: args[1].Str, Type: args[2].Str,
+				Arg: args[3].String(), Got: v, Proven: inDeclared(v, args[2].Str)})
+		}
+		return v, nv
+	}
 
 	if known {
 		switch prim.Kind {

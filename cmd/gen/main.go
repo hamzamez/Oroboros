@@ -25,6 +25,8 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
+	flag.BoolVar(&reportRequires, "report-requires", false,
+		"report, for each direct call of a definition with a ranged parameter, whether the argument is provably in range; changes nothing emitted (requires.go)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: gen [-targets DIR] [-name N] SRC.oro TARGET OUT\n")
 		flag.PrintDefaults()
@@ -122,6 +124,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err := emit.CheckSignatures(tg, prog, env); err != nil {
 		return err
 	}
+	// The measurement listens only while the EMITTED units reduce, below.
+	// CheckSignatures normalises every signed definition on its own, with its
+	// parameters free, and those are not calls the program makes.
+	if reportRequires {
+		defer installRequires(env, prog)()
+	}
 
 	// A program's entry points are its EXPORTS, and an emitted function is named
 	// after the export it came from. Naming by position — GenGeneric0,
@@ -165,6 +173,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
 		if err != nil {
 			return err
+		}
+		if reportRequires {
+			nf = measureResidual(tg, prog.Sigs[u.qual], nf)
 		}
 		fname := u.name
 		// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the

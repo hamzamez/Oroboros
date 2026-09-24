@@ -76,6 +76,20 @@ type Env struct {
 	// so a compile is deterministic.
 	fresh int
 
+	// Requires and OnRequire MEASURE what enforcing a definition's parameter
+	// ranges at its calls would refuse, before anything is enforced. For each
+	// definition named in Requires — its entry lists a declared range per
+	// parameter, "" for none — every direct call has each ranged argument wrapped
+	// in a mark, `(#req "def" "param" "type" a)`, whose value is a. A mark whose
+	// argument reduces to a literal is decided here, handed to OnRequire and
+	// dropped; the rest reach the residual, where the interval analysis decides
+	// them and a caller strips them before anything else runs
+	// (emit.MeasureRequires). The marks change no reduction decision: an argument
+	// is an integer, and the only rule that inspects one's shape — duplicable —
+	// looks through the mark.
+	Requires  map[string][]string
+	OnRequire func(def, param, ty string, arg *Term)
+
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
 }
@@ -134,6 +148,86 @@ func (p *Program) AscribeWide(w Word) {
 		}
 		p.Defs[q] = ascribeResult(body, sig.Result)
 	}
+}
+
+// RequireName marks an argument with the range its parameter declares — a
+// measurement, see Env.Requires. `#` is not an identifier character, so no
+// program can write one.
+const RequireName = "#req"
+
+// markRequires wraps each ranged argument of a direct call to a measured
+// definition. An argument already marked for the same range is left alone, so a
+// call reduced twice is marked once.
+func (e *Env) markRequires(t *Term) *Term {
+	def := t.Op().Name
+	tys, ok := e.Requires[def]
+	if !ok {
+		return t
+	}
+	kids := append([]*Term(nil), t.Kids...)
+	changed := false
+	for i, ty := range tys {
+		if ty == "" || i+1 >= len(kids) {
+			continue
+		}
+		a := kids[i+1]
+		if IsRequire(a) && a.Kids[3].Str == ty {
+			continue
+		}
+		kids[i+1] = &Term{Kind: KApp, Kids: []*Term{Name(RequireName), Str(def), Str(e.paramName(def, i)), Str(ty), a}}
+		changed = true
+	}
+	if !changed {
+		return t
+	}
+	return &Term{Kind: KApp, Kids: kids}
+}
+
+// paramName is a measured definition's i-th parameter, for the report.
+func (e *Env) paramName(def string, i int) string {
+	if d, ok := e.Defs[def]; ok && d.Kind == KFn && i < len(d.Params) {
+		return d.Params[i]
+	}
+	return fmt.Sprint(i)
+}
+
+// IsRequire recognises a measurement mark.
+func IsRequire(t *Term) bool {
+	return t != nil && t.Kind == KApp && len(t.Kids) == 5 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireName
+}
+
+// StripRequires erases every measurement mark, leaving the argument it wrapped.
+func StripRequires(t *Term) *Term {
+	if t == nil {
+		return nil
+	}
+	switch t.Kind {
+	case KApp:
+		if IsRequire(t) {
+			return StripRequires(t.Kids[4])
+		}
+		kids := make([]*Term, len(t.Kids))
+		changed := false
+		for i, k := range t.Kids {
+			kids[i] = StripRequires(k)
+			changed = changed || kids[i] != k
+		}
+		if !changed {
+			return t
+		}
+		c := *t
+		c.Kids = kids
+		return &c
+	case KFn:
+		b := StripRequires(t.Kids[0])
+		if b == t.Kids[0] {
+			return t
+		}
+		c := *t
+		c.Kids = []*Term{b}
+		return &c
+	}
+	return t
 }
 
 // freshNames returns n binder names free in none of avoid.
@@ -1301,6 +1395,20 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		return FnClosed(t.Params, b), nil
 
 	case KApp:
+		if e.OnRequire != nil && t.Op().Kind == KName {
+			if t.Op().Name == RequireName && len(t.Kids) == 5 {
+				a, err := normalize(t.Kids[4], e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				if a.Kind == KInt {
+					e.OnRequire(t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, a)
+					return a, nil
+				}
+				return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], t.Kids[2], t.Kids[3], a}}, nil
+			}
+			t = e.markRequires(t)
+		}
 		op, err := normalize(t.Op(), e, fuel)
 		if err != nil {
 			return nil, err
@@ -1636,6 +1744,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 // Everything else is an application of a primitive, which may allocate, and
 // allocation is what no host can hoist.
 func duplicable(t *Term) bool {
+	if IsRequire(t) {
+		return duplicable(t.Kids[4]) // a measurement mark is its argument
+	}
 	switch t.Kind {
 	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:
 		return true

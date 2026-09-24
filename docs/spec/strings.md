@@ -165,3 +165,75 @@ unnamed — if target files grow anything the language does not have, the split 
   `\U…` — which Java refuses and JavaScript silently reads as ten characters. The corpus
   uses exactly three escapes inside literals and no non-ASCII at all, so narrowing costs
   nothing.
+
+## 8. The host's string ([ADR 0030](../decisions/0030-a-hosts-string-is-the-hosts.md))
+
+§3's definition, a sequence of Unicode scalar values, is now true of **every value a program holds**,
+not only of literals. A host's string is the host's type, and it enters ours through one total decode.
+
+| | set | on Go |
+|---|---|---|
+| `string` | Σ*, Σ the scalar values | a Go `string` that is valid UTF-8 |
+| `go.bytestring` | B*, B the bytes | any Go `string` |
+| `string ≤ go.bytestring` | by enc, UTF-8 | the identity: no code is emitted |
+| `go.text : bytestring → string` | d, maximal-subpart substitution (Unicode §3.9) | a validity scan, then the substitution only if it fails |
+| `go.valid : bytestring → bool` | χ_V, V = enc(Σ*) | `utf8.ValidString` |
+
+**d, exactly.** Read the bytes left to right. A byte below 0x80 is its scalar. A byte in C2–DF, E0–EF
+or F0–F4 begins a sequence of 2, 3 or 4 bytes, whose continuation bytes must lie in the ranges of
+Unicode Table 3-7:
+- after E0, the second byte is A0–BF;
+- after ED, 80–9F;
+- after F0, 90–BF;
+- after F4, 80–8F;
+- otherwise 80–BF.
+
+A complete sequence is its scalar. **Any other byte, or the longest prefix of a sequence that cannot
+be completed, is one U+FFFD**, and reading resumes at the byte that broke it. So `E6 97 61` is FFFD a,
+`ED A0 80` is FFFD FFFD FFFD, and `80` is FFFD.
+
+**The laws**, from ADR 0030:
+- enc is an injective homomorphism, and V is a free submonoid of B*;
+- d ∘ enc = id, and enc ∘ d = id on V;
+- d is not a homomorphism;
+- Theorem 1 (synchronization) keeps searching, splitting, replacing, trimming and concatenation of
+  valid strings inside V.
+
+**The portable `os.text-of` is d on every host.**
+- **JS:** `TextDecoder` is d.
+- **Go:** implements d, with `utf8.Valid` as the fast path.
+- **Java:** implements d. Its fast path is the lenient decoder, whose answer is kept when it holds no
+  U+FFFD: the lenient decoder gives one U+FFFD for an encoded surrogate where d gives three, but a
+  U+FFFD in its answer marks every ill-formed input.
+
+The portable `os.Args` and `os.Getenv` on Go decode by d.
+
+**The 57 hand-declared Go results that mention `string`**, read against Go's source:
+
+| kept `string` (41) | why the result is in V |
+|---|---|
+| `big-str`, `hex.EncodeToString`, `hex.Dump`, `strconv.FormatBool`/`FormatInt`/`FormatUint`/`Itoa`/`FormatFloat`/`QuoteToASCII`/`QuoteRuneToASCII` (10) | the output is ASCII |
+| `strconv.Quote`/`QuoteToGraphic`/`QuoteRune`/`QuoteRuneToGraphic`, `strconv.NumError.Error`, `hex.InvalidByteError.Error` (6) | every byte that is not a printable scalar is escaped |
+| `strings.Fields`/`Split`/`SplitN`/`TrimSpace`/`Trim`/`TrimLeft`/`TrimRight`/`TrimPrefix`/`TrimSuffix`/`Replace`/`ReplaceAll`, `strconv.QuotedPrefix`, `UnquoteChar`'s tail (13) | a factor of a valid string cut at valid needles or at rune boundaries: Theorem 1 |
+| `concat`, `strings.Join`, `strings.Repeat`, `string-of` (4) | V·V ⊆ V, and a scalar's encoding is in V |
+| `strings.ToLower`/`ToUpper`/`ToTitle` (3) | a map Σ → Σ* applied rune by rune |
+| `append-string`, `make-string`, `at-string`, `set-string`, `slice-string` (5) | a `[]string` holds only values typed `string` |
+
+| now `go.bytestring` (11) | why the result may be outside V |
+|---|---|
+| `strconv.Unquote` | `\x` and octal escapes denote bytes |
+| `fmt.Sprint`/`Sprint2`/`Sprintln`/`Sprintf`/`Sprintf2`/`Sprintf3` (6) | an `any` argument may be host bytes, and `%s` prints a byte slice raw |
+| `go/os`'s `text-of`, `Args`, `Getenv` (3) | `string(b)` of arbitrary bytes, and the OS's own strings, which are bytes on Unix |
+| `string-of-bytes` | `string(b)` of arbitrary bytes |
+
+The remaining 5 are map types (`map-string-int`), which contain the word and are not strings.
+
+**Parameters.** A parameter declared `string` accepts ours only, which is sound. One declared
+`go.bytestring` accepts both, because ours is a subset. So a host function whose purpose is arbitrary
+bytes takes the host's string:
+- `unicode/utf8`'s `ValidString`, `FullRuneInString`, `RuneCountInString`, `DecodeRuneInString` and
+  `DecodeLastRuneInString`;
+- `strconv.Quote`, `QuoteToASCII` and `QuoteToGraphic`, whose result is in V whatever they are given.
+
+**Generated declarations** spell every Go `string` as `go.bytestring`, because the generator cannot read
+a body (ADR 0023). A string constant is `string` when its value is valid UTF-8.

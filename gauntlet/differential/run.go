@@ -201,21 +201,21 @@ func render(src, target string) string {
 	return b.String()
 }
 
-func build(caseName, src, target, bigRepr, work string, keep bool) (string, error) {
+func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool, error) {
 	dir := filepath.Join(work, caseName+"."+target+bigRepr)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
+		return "", false, err
 	}
 	if !keep {
 		defer func() { _ = os.RemoveAll(dir) }()
 	}
 	oro := filepath.Join(dir, "case.oro")
 	if err := os.WriteFile(oro, []byte(render(src, target)), 0o644); err != nil {
-		return "", err
+		return "", false, err
 	}
 	a, ok := artifact[target]
 	if !ok {
-		return "", fmt.Errorf("no artifact convention for %s", target)
+		return "", false, fmt.Errorf("no artifact convention for %s", target)
 	}
 	out := filepath.Join(dir, a.name)
 	// BUILT WITH `-checked`, and there are two reasons rather than one.
@@ -236,15 +236,25 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, erro
 	//
 	// It changes no ANSWER: the values are in range at run time, which is
 	// exactly what the suite then verifies on four targets.
+	//
+	// BUT IT MUST NOT CHANGE WHAT IS PROVEN WITHOUT SAYING SO. `-checked` turns
+	// an operation the compiler cannot bound into a trap, so a case written to
+	// be proven — u128's arithmetic, every refinement case — would pass here
+	// with its proof gone and nothing would notice; the emission sweep compiles
+	// a case without this `main` and saw an empty package. So the build reports
+	// each trap it took (cmd/build), and the case must declare it: see
+	// checkedFor.
 	args := []string{"run", "./cmd/build", "-checked", "-target=" + target}
 	if bigRepr != "" {
 		args = append(args, "-big-repr="+bigRepr)
 	}
 	cmd := exec.Command("go", append(args, "-o", out, oro)...)
 	cmd.Dir = repoRoot()
-	if b, err := cmd.CombinedOutput(); err != nil {
-		return "", fmt.Errorf("build: %v\n%s", err, indent(string(b)))
+	bout, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", false, fmt.Errorf("build: %v\n%s", err, indent(string(bout)))
 	}
+	traps := strings.Contains(string(bout), trapNote)
 	rc := a.run(out)
 	rc.Dir = dir
 	var stdout, stderr bytes.Buffer
@@ -256,11 +266,46 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, erro
 		// stops with the bound's own message answers what it printed, then
 		// `trap`, and `; expect: … trap` states it. Any other failure is one.
 		if strings.Contains(stderr.String(), boundMessage) {
-			return strings.TrimSpace(normalise(stdout.String()) + "\ntrap"), nil
+			return strings.TrimSpace(normalise(stdout.String()) + "\ntrap"), traps, nil
 		}
-		return "", fmt.Errorf("run: %v\n%s", err, indent(stdout.String()+stderr.String()))
+		return "", false, fmt.Errorf("run: %v\n%s", err, indent(stdout.String()+stderr.String()))
 	}
-	return normalise(stdout.String() + stderr.String()), nil
+	return normalise(stdout.String() + stderr.String()), traps, nil
+}
+
+// trapNote is what cmd/build says under `-checked` when it took a trap for an
+// operation it did not prove.
+const trapNote = "note: -checked: "
+
+// checkedFor reads a case's `; checked: TARGET… — reason`: the targets on
+// which the case is ALLOWED to be unproven, and why. Every other target must
+// prove every integer operation, and a declared target must still need it, so
+// the declaration is held in both directions and cannot go stale. A case with
+// no such line is proven everywhere it runs.
+func checkedFor(src string) (map[string]bool, error) {
+	for _, l := range strings.Split(src, "\n") {
+		l = strings.TrimSpace(l)
+		if !strings.HasPrefix(l, "; checked:") {
+			continue
+		}
+		rest := strings.TrimSpace(strings.TrimPrefix(l, "; checked:"))
+		ts, why, ok := strings.Cut(rest, "—")
+		if !ok || strings.TrimSpace(why) == "" {
+			return nil, fmt.Errorf("`; checked:` names its targets, then ` — ` and the reason: %q", l)
+		}
+		out := map[string]bool{}
+		for _, t := range strings.Fields(ts) {
+			if _, known := driver[t]; !known {
+				return nil, fmt.Errorf("`; checked:` names %q, which is not a target", t)
+			}
+			out[t] = true
+		}
+		if len(out) == 0 {
+			return nil, fmt.Errorf("`; checked:` names no target: %q", l)
+		}
+		return out, nil
+	}
+	return map[string]bool{}, nil
 }
 
 // boundMessage is what every host's `big-fit` and the limb rung's `trap-if`
@@ -364,6 +409,7 @@ func main() {
 		}
 
 		outs := map[string]string{}
+		trapped := map[string]bool{} // label -> -checked took a trap
 		var order []string
 		var errs []string
 		for _, t := range targets {
@@ -376,12 +422,13 @@ func main() {
 					label = t + "/" + rep
 				}
 				order = append(order, label)
-				o, err := build(name, src, t, rep, work, keep)
+				o, traps, err := build(name, src, t, rep, work, keep)
 				if err != nil {
 					errs = append(errs, fmt.Sprintf("  %s: %v", label, err))
 					continue
 				}
 				outs[label] = o
+				trapped[label] = traps
 			}
 		}
 		if len(errs) > 0 {
@@ -429,6 +476,29 @@ func main() {
 			fails++
 			fmt.Printf("FAIL %s — no `; expect:` line. Agreement is not correctness;\n"+
 				"  a bug in the reader or the reducer is shared by every backend.\n", name)
+			continue
+		}
+		// PROVEN, UNLESS SAID OTHERWISE, AND SAID ONLY WHERE TRUE.
+		allowed, err := checkedFor(src)
+		if err != nil {
+			fails++
+			fmt.Printf("FAIL %s — %v\n", name, err)
+			continue
+		}
+		var proof []string
+		for _, label := range order {
+			t, _, _ := strings.Cut(label, "/")
+			switch {
+			case trapped[label] && !allowed[t]:
+				proof = append(proof, fmt.Sprintf("  %s: an integer operation is a trap, not a proof (built with -checked).\n"+
+					"    Prove it (a signature on run, a narrower range), or declare `; checked: %s — why`.", label, t))
+			case !trapped[label] && allowed[t]:
+				proof = append(proof, fmt.Sprintf("  %s: `; checked:` names %s, and every operation there is proven. Remove it.", label, t))
+			}
+		}
+		if len(proof) > 0 {
+			fails++
+			fmt.Printf("FAIL %s — what is proven is not what the case says\n%s\n", name, strings.Join(proof, "\n"))
 			continue
 		}
 		var ran []string

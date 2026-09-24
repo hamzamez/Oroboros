@@ -421,7 +421,9 @@ A clamp in a program is a missing proof.
 Each of these has bitten more than once. The instances are in the results they name.
 
 - **A path nothing runs is a path nothing checks.** A `; skip:`, a rebuilt term discarded unless
-  `-checked` is on, a backend no target used: each hid a real bug for weeks.
+  `-checked` is on, a backend no target used: each hid a real bug for weeks. The mirror: an escape
+  taken everywhere checks nothing either — every differential case was built `-checked`, so a case's
+  lost proof became a trap and passed (bounds-2026-09-24).
 - **A harness that cannot fail proves nothing.**
   - Every soundness test must be shown to fail against a planted bug, including the bug that shipped.
   - Refusal-shaped properties need an anti-vacuity guard.
@@ -556,5 +558,5 @@ go run ./cmd/portable examples/io/wc.oro                  # which targets accept
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, and `freq`, the largest program), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources) |
-| `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets), `conformance/` |
+| `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/stdlib/` | The four host surveys; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

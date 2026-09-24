@@ -1,4 +1,5 @@
 ; `match` — reader sugar over `loop`, so the guards, the bindings and `again`
+; checked: go js java windows — the desugared guard `(and (= tag 0) (>= v 10))` does not narrow v, so the reset clause shows no descent and the counter has no trip bound (bounds-2026-09-24)
 ; expect: 0 0 0 0 0 0 1 1 2
 ; all have to survive to four backends identically.
 ;

@@ -1,5 +1,6 @@
 ; A MAP'S KEYS, ASCENDING (maps.md §7).
 ; inputs: 1 2 4
+; checked: go js java windows — `acc·100 + k` grows geometrically and the interval analysis widens it; on windows the map's own probe too (see map-len) (bounds-2026-09-24)
 ; expect: 20 1720 11141720
 ;
 ; The keys are inserted DESCENDING -- 20, 17, 14, 11 -- and must come back

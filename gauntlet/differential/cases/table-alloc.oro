@@ -1,4 +1,5 @@
 ; inputs: 0 1 4 9
+; checked: go js java windows — the elements of `(alloc (table n f))` get no bound, so their sum is a trip count times an unbounded element (bounds-2026-09-24)
 ; expect: 0 1 30 285
 ;
 ; `alloc` — the GATHER. A rule put in memory, pure and parallel by

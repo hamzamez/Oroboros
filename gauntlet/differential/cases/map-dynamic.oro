@@ -1,5 +1,6 @@
 ; A DYNAMIC MAP: built, inserted into, and read with a key nothing knows.
 ; inputs: 0 2 5 9
+; checked: windows — emit/winmap.oro's slot count, len/3, is not known to be at least 1, so the mask n − 1 may be −1 and the probe index is unbounded (bounds-2026-09-24)
 ; expect: 0 0 20 20
 ;
 ; Reads key 2. With n inserts of i -> i*10 for i < n, that is 20 when n > 2 and

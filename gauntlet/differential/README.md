@@ -41,6 +41,18 @@ backends can be wrong the same way, and the one bug a purely differential test c
 in the **reader** or the **reducer**, which all four share. A case without an `; expect:` line
 fails.
 
+**Proven, unless the case says otherwise.** Every case is built with `-checked`, which exercises
+the rebuild path, and `-checked` turns an operation the compiler cannot bound into a run-time trap.
+So `cmd/build` reports each trap it took, and the harness holds the case to what it declares:
+
+```lisp
+; checked: windows — why the analysis cannot bound it there
+```
+
+A target named there must still need it, or the case fails as stale. Every other target must prove
+every integer operation, or the case fails. The reason is required. Without this, a case written to
+be proven (u128's arithmetic) passed with its proofs gone ([bounds-2026-09-24](../results/bounds-2026-09-24.md)).
+
 **A declared bound's trap is an answer.** Above the word a range is enforced at run time, and the
 property is that every target traps on the same value (ADR 0029). A run that stops with the bound's
 own message (`bignum overflow: the declared range is too small`) answers what it printed, then

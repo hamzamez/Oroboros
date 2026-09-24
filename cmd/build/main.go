@@ -234,6 +234,14 @@ checks:
 	// the trap instead of the refusal.
 	if checked {
 		nf = sel
+		// SAID, NOT ONLY DONE: an operation `-checked` turned into a trap is one
+		// the compiler did not prove, and a caller that asked for the trap may
+		// still need to know it was taken — the differential harness holds every
+		// case to being proven unless it declares otherwise. The line is stable.
+		if rep.Proven < rep.Ops {
+			fmt.Fprintf(os.Stderr, "note: -checked: %d of %d integer operation(s) are traps, not proofs\n",
+				rep.Ops-rep.Proven, rep.Ops)
+		}
 	} else if err := emit.Unbounded(entry, rep); err != nil {
 		return err
 	}

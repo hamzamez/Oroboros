@@ -1,5 +1,6 @@
 ; A LENGTH IS BOUNDED WITHOUT BEING KNOWN (maxlen-2026-08-28).
 ; inputs: 0 3 8
+; checked: go js windows — the elements of a table built by a loop of `set`s get no bound, so their sum is a trip count times an unbounded element (bounds-2026-09-24)
 ; expect: 0 6 36
 ;
 ; The table is a `build` sized by a PARAMETER, so nothing knows how long it is

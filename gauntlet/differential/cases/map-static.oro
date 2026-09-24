@@ -1,6 +1,5 @@
 ; A STATIC MAP LEAVES NOTHING (maps.md §5.2).
 ; inputs: 1 2 5 9
-; checked: windows — emit/winmap.oro's slot count, len/3, is not known to be at least 1, so the mask n − 1 may be −1 and the probe index is unbounded (bounds-2026-09-24)
 ; expect: 10 20 50 0
 ;
 ; `((map (1 10) (2 20) (5 50)) k)` is beta-tab with a SUM in the result

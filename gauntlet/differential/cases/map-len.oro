@@ -1,6 +1,6 @@
 ; A MAP'S LENGTH IS |dom m| (maps.md §1).
 ; inputs: 0 1 5
-; checked: windows — emit/winmap.oro's slot count, len/3, is not known to be at least 1, so the mask n − 1 may be −1 and the probe index is unbounded (bounds-2026-09-24)
+; checked: windows — wm-len counts the map's `used` cells, which are 0 or 1, but the elements of the table the map is stored in get no bound, so the count is a trip count times an unbounded element (bounds-2026-09-24)
 ; expect: 0 1 5
 ;
 ; `len` is one construct with one meaning -- the cardinality of the index set --

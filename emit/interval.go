@@ -373,6 +373,11 @@ type intervalPass struct {
 	wordLoop  []string
 	limbs     bool // big is OUR representation, so the host need not have one
 
+	// THE LENGTH OF A `build`'s BUFFER (buflen.go): the lambda it is seeded for,
+	// recognised by pointer as the lambda case opens it, and the size's interval.
+	lenFor  *core.Term
+	lenForV ival
+
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
 	//
@@ -1001,7 +1006,28 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 				sh[i].v, sh[i].had, sh[i].did = p.shadowDelta(n, top)
 			}
 		}
+		// A PARAMETER'S LENGTH IS ITS OWN (buflen.go). `Body()` opens with the
+		// parameters' own spelling, so a length recorded for an outer name must
+		// not reach an inner binder of the same name — except a `build`'s buffer,
+		// whose length is the size, seeded for exactly this lambda.
+		lenKeys := make([]string, len(t.Params))
+		lenOld := make([]shadow, len(t.Params))
+		for i, n := range t.Params {
+			lenKeys[i] = "len(" + n + ")"
+			lenOld[i].v, lenOld[i].had = p.env[lenKeys[i]]
+			if p.lenFor == t && i == 0 {
+				p.env[lenKeys[i]] = p.lenForV
+			} else {
+				delete(p.env, lenKeys[i])
+			}
+		}
+		if p.lenFor == t {
+			p.lenFor = nil
+		}
 		v, b := p.evalR(t.Body())
+		for i := len(t.Params) - 1; i >= 0; i-- {
+			restoreVar(p.env, lenKeys[i], lenOld[i].v, lenOld[i].had)
+		}
 		fn := core.Fn(t.Params, b)
 		if e, ok := p.elemOf(b); ok { // while the body's names are still bound
 			p.setElemOf(fn, e)
@@ -1087,6 +1113,7 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 // the expression path reads them would be a second analysis of one term.
 func (p *intervalPass) bindMulti(pr Prim, k *core.Term) (*core.Term, []string, func()) {
 	body, raw, _ := openFresh(k, p.bound, asmIdent)
+	unLen := p.shadowLens(raw) // a result is the host's table, never the buffer (buflen.go)
 	uOld := make([][2]bool, len(raw))
 	type saved struct {
 		v    ival
@@ -1131,6 +1158,7 @@ func (p *intervalPass) bindMulti(pr Prim, k *core.Term) (*core.Term, []string, f
 				}
 			}
 		}
+		unLen()
 		p.releaseBound(raw)
 	}
 }
@@ -1322,6 +1350,10 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		// THE ZERO FILL (smash.go): inside `(build n λx.e)`, E(x) = [0,0].
 		zeroed, zOld, zHad := "", ival{}, false
 		dOld, dHad, dDid := ival{}, false, false
+		// AND ITS LENGTH IS THE SIZE IT WAS ASKED FOR (buflen.go): len(x) = n.
+		if known && prim.Kind == "table-build" && i == 1 && a.Kind == core.KFn && len(a.Params) == 1 {
+			p.lenFor, p.lenForV = a, intersect(vals[0], rng(0, p.tgt.MaxLenOf()))
+		}
 		if known && prim.Kind == "table-build" && i == 1 && a.Kind == core.KFn && len(a.Params) == 1 && !p.noSmash {
 			zeroed = a.Params[0]
 			zOld, zHad = p.elem[zeroed]
@@ -1607,7 +1639,25 @@ func (p *intervalPass) transfer(name string, prim Prim, v []ival) (ival, bool) {
 	if prim.Result != "int" && prim.Result != "" {
 		return top, false
 	}
-	switch arithOp(name, len(v)) {
+	op := arithOp(name, len(v))
+	// THE MASK AND THE SHIFT ARE STRICT IN ⊥. An operand with no value means
+	// the operation is never reached, so neither is its result. They were not:
+	// F9 (lang-facts.oro) has a clause for a non-negative operand and ⊥ is
+	// neither, so `and(⊥, ⊥)` came out ⊤, and every probe index in winmap's
+	// dead branches with it (bounds-2026-09-24, buflen.go).
+	//
+	// ONLY THESE TWO. The additive transfers already give an empty interval on
+	// ⊥, with crossed endpoints rather than the canonical ⊥, and the loop
+	// analysis reads those endpoints: making them canonical too cost
+	// `print-int`'s digit loop its lower bound on windows (measured).
+	if op == "and" || op == "shr" {
+		for _, x := range v {
+			if x.isBottom() {
+				return bottom, false
+			}
+		}
+	}
+	switch op {
 	case "add":
 		return addI(v[0], v[1]), true
 	case "sub":
@@ -1819,8 +1869,13 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	}
 	lenKey := "len(" + raw[0] + ")"
 	oldL, hadL := p.env[lenKey]
-	if n, ok := exactLen(p.tgt, args[0]); ok {
-		p.env[lenKey] = exact(n)
+	// Exactly, from a constructor, or through a store chain from a name whose
+	// length is known — a loop-carried buffer's included (buflen.go). A binder
+	// whose length is unknown must not inherit a stale one of the same spelling.
+	if L, ok := p.lenOf(args[0]); ok {
+		p.env[lenKey] = L
+	} else {
+		delete(p.env, lenKey)
 	}
 	out, nb := p.evalR(body)
 	wasBigBody := p.bigTerm(nb) // recorded before the binder goes out of scope
@@ -2501,6 +2556,10 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	copy(cur, initV)
 	body, raw, _ := openFresh(lam, p.bound, asmIdent)
 	p.loopRaw = raw // `again` reads this to know which arguments are bignums
+	// A LOOP-CARRIED BUFFER KEEPS ITS LENGTH (buflen.go): seeded before the
+	// snapshot below, so every restore of it keeps the seed, and removed when
+	// the loop is done.
+	defer p.seedLoopLens(body, raw, inits)()
 
 	// A LOOP VARIABLE THAT HOLDS A TABLE GETS AN ELEMENT RANGE, joined from its
 	// initialiser and from every `again` argument that is not a pass-through.

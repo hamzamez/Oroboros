@@ -503,6 +503,12 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			if len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1 {
 				inner := f.clone()
 				name := args[1].Params[0]
+				// AND A PURE CALL IN THE SIZE BRINGS ITS GUARANTEE. `len b = n` with
+				// n = (hex.EncodedLen (len src)) relates len b to an atom, and only the
+				// atom's `ensures` — result = 2n — says what that is. Without it the
+				// buffer Go's documentation allocates could not satisfy `Encode`'s
+				// 2·len src ≤ len dst (postconditions.md §5).
+				r.collectEnsures(args[0], inner)
 				if e, ok := f.lin(args[0]); ok {
 					r.assumeLengthEq(inner, name, e)
 				}
@@ -648,6 +654,11 @@ func (r *refiner) collectEnsures(t *core.Term, f *facts) {
 	if p, known := r.tgt.Prims[t.Op().Name]; known && p.Ensures != nil && p.Pure {
 		if q := r.ensuresOf(t, t, f); q != nil {
 			assume(f, q)
+			// AN INSTANCE MAKES ITS TERMS PRESENT, and a fact's trigger is a
+			// present term (facts.md §7). DecodedLen's result = x/2 names a
+			// quotient no program term contains, so the floor facts that give
+			// it meaning — 2q ≤ x < 2q + 2 for x ≥ 0 — are instantiated here.
+			seedFacts(f, q, langFacts)
 		}
 	}
 }

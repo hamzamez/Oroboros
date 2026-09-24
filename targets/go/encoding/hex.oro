@@ -34,13 +34,23 @@
     ; this `where` is the one fact about the function Go leaves unchecked, which
     ; the compiler now proves at every call. (Under ADR 0012's window it was
     ; |n| ≤ 2^52 − 1, a precondition Go does not have.)
+    ;
+    ; THE MAP ITSELF IS THE `ensures`, since a comment carries no meaning (ADR
+    ; 0024): with it, a buffer sized `(hex.EncodedLen (len src))` — the size Go's
+    ; own documentation allocates — satisfies Encode's 2·len src ≤ len dst.
+    ; Without it the call was an atom nothing related to 2n, and that idiom was
+    ; refused (postconditions.md §5).
     (sig EncodedLen ((n int)) int pure
           (where (and (<= -4611686018427387904 n) (<= n 4611686018427387903)))
+          (ensures (= result (* 2 n)))
           (host expr "hex.EncodedLen(%s)"
             (import "encoding/hex")))
 
-    ; DecodedLen is x ↦ x/2, truncating, which the word IS closed under.
+    ; DecodedLen is x ↦ x/2, truncating, which the word IS closed under; `/`
+    ; truncates as Go's does, so the `ensures` is the law exactly, and the
+    ; fragment reads the quotient as an atom with its floor facts.
     (sig DecodedLen ((x int)) int pure
+          (ensures (= result (/ x 2)))
           (host expr "hex.DecodedLen(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- H into a buffer

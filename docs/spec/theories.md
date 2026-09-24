@@ -551,9 +551,12 @@ function.
 
 A primitive's `ensures`, its result range and its `(length N)` are facts whose trigger is the
 application `(f x̄)` (facts.md §6). When a contract is of F-B's form, it is **consumed exactly as a
-`fact` is**. That extends contracts to **pure** calls, which today carry them only as an opaque atom.
-It is gated on the measurement facts.md §6 names: naming more atoms can turn *propagated, not
-proven* into a refusal.
+`fact` is**. That extends contracts to **pure** calls.
+
+**Built**: a pure host call is an atom of the linear fragment (`pureAtoms`). Its `ensures` is
+instantiated where the refinement layer reads the call: a primitive's arguments and a `build`'s size
+([postconditions.md §5](postconditions.md)). It is instantiated only where the
+call's own `where` is proven (Lemma 1).
 
 ### 7.10 Acceptance
 

@@ -40,13 +40,13 @@
 
 ; H into a buffer of exactly 2·len src: the precondition is linear and proven.
 (def encode (src)
-  (build (* 2 (len src)) (fn (b)
+  (build (hex.EncodedLen (len src)) (fn (b)
     ((hex.Encode b src) (fn (b2 n) (seq (fmt.Println n) b2))))))
 
 (def left (src enc)
   (seq ((hex.DecodeString (hex.EncodeToString src)) (fn (back e)
          (seq (fmt.Println back) (fmt.Println (gos.err-nil e)))))
-       (fmt.Println (build (/ (len enc) 2) (fn (b)
+       (fmt.Println (build (hex.DecodedLen (len enc)) (fn (b)
          ((hex.Decode b enc) (fn (b2 n e)
            (seq (fmt.Println n) (fmt.Println (gos.err-nil e)) b2))))))))
 

@@ -114,25 +114,46 @@ there because of a rule written for `print-line`.
 For a **pure** call the printed term is a sound key, by referential transparency in a closed
 residual.
 
-## 5. What this does not do, and the reason is Lemma 2
+## 5. A pure call: an atom, and where its guarantee holds
 
-A pure call is *substituted*, so it usually has no binder — and the linear fragment cannot name the
-value of a general application. It can name an integer literal, a parameter, and `alen(t)`; a call
-is not among them.
+A pure call is *substituted*, so it usually has no binder. **The linear fragment names it anyway, as an
+atom keyed by its printed form** ([theories.md §7.9](theories.md), `pureAtoms`): the same closed term
+denotes the same value, which is Lemma 2's condition for a pure call. So `(hex.EncodedLen (len src))`
+is a variable of the fragment, and a fact about it can discharge an obligation that mentions it.
 
-So for a pure primitive, `ensures` is carried as an **opaque atom** and discharges an obligation only
-when the two are syntactically identical. `(ensures (< 0 result))` will not discharge a downstream
-`(<= 0 k)`, because `0 < e` and `0 <= e` are different atoms and nothing relates them.
+Its `ensures` is that fact, instantiated about the call term **wherever the refinement layer reads
+the term**. There are two places:
 
-**The fix is real and is not built**: treat a pure application as an opaque linear *variable* keyed
-by its printed form. That is sound — same closed term, same value — but it moves terms out of the
-"outside the fragment, report it" path into the fragment, where a previously-reported obligation
-becomes a hard refusal. That is a behaviour change across every existing program and wants its own
-measurement.
+1. **A primitive's arguments**, before its `where` is decided: a call's arguments are evaluated before
+   it, so their guarantees are in scope for its precondition, and for everything after it in scope.
+2. **A `build`'s size.** `(build n (fn (b) …))` records `len b = n`. When n contains a pure call, the
+   call's guarantee is what gives that equation content. Without it, `len b = EncodedLen(len src)`
+   relates `len b` to an unknown and proves nothing. A `build` is a structural form, not a
+   primitive, so rule 1 never read its size.
 
-Until then the rule of thumb is exact: **`ensures` on an impure primitive works through the linear
-layer; on a pure one it works only by syntactic match.** The Win32 case — `_Ret_maybenull_` on
-`VirtualAlloc` — is impure, which is the case that works.
+**A `let` needs no rule of its own.** A pure value is substituted by β and leaves no binder. A pure
+call inside an impure value, such as an allocation sized by `(hex.EncodedLen (len src))`, is some
+primitive's argument, and rule 1 has already assumed its guarantee when the binder is recorded.
+
+**An instance makes its terms present.** A fact's trigger is a term present in the program (facts.md
+§7), and an `ensures` instance can name one that no program term contains. DecodedLen's
+`result = x/2` introduces the quotient `x/2`, whose floor facts, 2q ≤ x < 2q + 2 for x ≥ 0, are what
+give it meaning. So the lang facts are instantiated on each instance as it is assumed.
+
+The instance holds from the point the term is evaluated onward, in that scope, and **only where the
+call's own `where` is proven** (Lemma 1): a guarantee is conditional on its precondition, and a
+precondition merely propagated licenses nothing. At each of the three places the call's `where` is
+itself an obligation, decided in the same walk.
+
+**A declaration states its law as an `ensures` when the law is linear.** `EncodedLen` is the map
+n ↦ 2n, and its comment said so. But a comment carries no meaning (ADR 0024), so `Encode`'s
+precondition `2·len src ≤ len dst` could not be discharged by the buffer Go's own documentation
+allocates, `make([]byte, hex.EncodedLen(len(src)))`. It is now
+`(ensures (= result (* 2 n)))`, and DecodedLen's is `(ensures (= result (/ x 2)))`: the fragment
+reads a quotient by a positive literal as an atom, with its floor facts.
+
+What remains opaque is a **non-linear** guarantee, such as `Mul64`'s `hi·2⁶⁴ + lo = x·y`. That law is
+named in its declaration's comment, and nothing in the fragment can use it.
 
 ## 6. Checking the other direction
 

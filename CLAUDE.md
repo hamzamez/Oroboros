@@ -321,7 +321,10 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 
   It then erases the marks, so nothing downstream sees one.
 - **`ensures` is the exact swap** ([postconditions.md](docs/spec/postconditions.md)). A pure call is
-  an atom of the linear fragment.
+  an atom of the linear fragment, and its `ensures` holds where the term is read: a primitive's
+  arguments and a `build`'s size (§5). A declaration states a linear law as an `ensures`, not in a
+  comment: `EncodedLen`'s was missing, and Go's own idiom for sizing `Encode`'s buffer was refused
+  ([hexlen-2026-09-24](gauntlet/results/hexlen-2026-09-24.md)).
 - **Facts** are guarded boundedness axioms of a local theory extension, instantiated on present terms
   ([facts.md](docs/facts.md), [theories.md §7](docs/spec/theories.md), `emit/lang-facts.oro`). Only F-B
   is admitted; F-C, F-D and F-E are reserved. **Content facts (F-D₁) are derived, never declared**:

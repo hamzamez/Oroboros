@@ -64,12 +64,11 @@
 
 ; ι(h, l) in decimal, by repeated short division by G = 10^18.
 ;
-; The loop's next state is divw's three results, and a tuple pattern may not wrap
-; an `again` (binding.md §7: the jump would sit inside a host call's
-; continuation). So each is written as what it is: the high quotient is h / G,
-; plain division in U; the low quotient is the first component of
+; Each part of the next state is written as what it is: the high quotient is
+; h / G, plain division in U; the low quotient is the first component of
 ; Div64(h mod G, l, G); and the digit group is Rem64(h, l, G), whose `ensures`
-; gives digits18 exactly the bound it declares.
+; states the bound digits18 declares. `divw`'s own remainder would do the same
+; job, but its bound r < y is a law of Div64's tuple, which cannot be stated.
 ;
 ; Div64's precondition here is h mod G < G, the remainder law F6 at the literal G,
 ; proven now that a remainder by a literal is an atom of the linear fragment. G is

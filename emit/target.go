@@ -2864,6 +2864,19 @@ func soleExit(prims map[string]Prim, t *core.Term, raw, names []string,
 		if isAgain(t) {
 			return true
 		}
+		// A host call's continuation (ADR 0027): the exits inside it are the
+		// loop's too, and its binders are not in scope after the loop, so a leaf
+		// naming one correctly fails the `inScope` test below.
+		if t.Kind == core.KApp && len(t.Args()) == 1 && t.Op().Kind == core.KApp {
+			if op := t.Op().Op(); op.Kind == core.KName {
+				if p, ok := prims[op.Name]; ok && len(p.Results) >= 2 {
+					if k := t.Args()[0]; k.Kind == core.KFn && len(k.Params) == len(p.Results) {
+						body, _, _ := openFresh(k, map[string]bool{}, func(x string) string { return x })
+						return walk(body)
+					}
+				}
+			}
+		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
 			if p, ok := prims[t.Op().Name]; ok {
 				if p.Kind == "cond" && len(t.Args()) == 3 {

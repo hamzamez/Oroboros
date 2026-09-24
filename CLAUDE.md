@@ -55,7 +55,7 @@ with no clamps.
 **Provability.**
 - **2,368 of 2,419** integer operations are proven inside their target's word. The 51 left are mostly
   meant to be refused.
-- **348 of 385** loops are proven to terminate.
+- **349 of 387** loops are proven to terminate.
 - Both counts, and every emitted file, are pinned by `cmd/check`.
 
 **Host APIs.**
@@ -81,10 +81,12 @@ a wall that needs language work, stop and research it, then design it.
    ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)).
 3. **Packages, program-first.** `math/bits` and its program with `strconv`, `lib/num/u128.oro`, are
    done ([mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md),
-   [u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). **Awaiting hamza's decision:** no backend
-   emits a tail position (`again`, or a multi-result return) inside a multi-result host call's
-   continuation. The tuple-component law and int64 fragment constants were demanded again. Next
-   package: `bufio` or `sort`/`slices` (the first package callback).
+   [u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). The wall it met — no jump or
+   several-results return inside a host call's continuation — is decided as
+   [ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) and built
+   ([tailctx-2026-09-24](gauntlet/results/tailctx-2026-09-24.md)), so a loop can consume a fallible
+   host call per iteration. The tuple-component law and int64 fragment constants were demanded again.
+   Next package: `bufio` or `sort`/`slices` (the first package callback).
 4. **A Windows application: hamza's decision** — give it a scope and a round, or move it to
    *deliberately not next*. The assessment recommends the second.
 
@@ -154,6 +156,7 @@ rejected alternatives.
 | A comment never carries meaning; documentation is a term | [0024](docs/decisions/0024-comments-are-erased.md) |
 | A module path is the host's path, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
 | An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
+| A host call's continuation is a tail position: `again` may sit under a tuple binding | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 
 ## How this project is run
 
@@ -218,7 +221,11 @@ spec to read before touching it.
   connective a backend emits as an operator. That is what makes `cond` cost nothing
   ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
 - **Iteration.** `(loop ((x z)…) c e … else e)` with `(again a…)` (ADR 0015). `again` is a jump; it may
-  be a clause body or sit under a `let`, never under an `if`. `match` is reader sugar over `loop`
+  be a clause body or sit under a binding, never under an `if`. A binding is a `let` or a `(tuple …)`
+  pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
+  tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)). **Every
+  walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
+  and one that enumerates back edges and misses a form is unsound, not imprecise. `match` is reader sugar over `loop`
   ([match.md](docs/spec/match.md)).
 - **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
   Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).

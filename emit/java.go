@@ -161,9 +161,13 @@ var JavaRecords = map[string]string{}
 // still holds across a compilation-unit boundary is the open question this
 // build exists to answer.
 func (e *javaEmitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []string) (string, error) {
+	// EACH FIELD IN THE TYPE THAT HOLDS ITS VALUE, not its narrowest storage:
+	// `(int 0 1)` is a `long` to the expression that computes it, and javac
+	// refuses `(a > 0) ? 1 : 0` into a `byte` field as a lossy conversion. Found
+	// with ADR 0027's several-results return; the same as the Go signature.
 	tys := make([]string, len(sig.Results))
 	for i, r := range sig.Results {
-		tys[i] = e.tgt.ty(r)
+		tys[i] = e.tgt.ty(e.tgt.ValueType(r))
 	}
 	rec := javaRecordName(tys)
 	if _, have := JavaRecords[rec]; !have {
@@ -239,6 +243,14 @@ func (e *javaEmitter) multiTail(t *core.Term, n int, name string, sig *core.Sig)
 				return e.multiTail(body, n, name, sig)
 			}
 		}
+	}
+	// A HOST CALL WITH SEVERAL RESULTS is the third form, the n-ary let (ADR
+	// 0027): the call and its receiving statements, then the leaves inside.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.multiTail(body, n, name, sig)
 	}
 	return multiResultErr(name, sig, t)
 }
@@ -884,7 +896,7 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 	return "", fmt.Errorf("unhandled term: %s", t)
 }
 
-// emitMultiPrim is the elimination of a host call that gives back several
+// emitMultiPrimHead is the elimination of a host call that gives back several
 // results, on the host where the language's own multi-result function returns a
 // generated `record`.
 //
@@ -900,7 +912,10 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 // value carries the results, and on Java that value is a record with `f0()`,
 // `f1()` — the same convention `multiFunc` emits, so a prim may name one of our
 // own generated methods.
-func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+func (e *javaEmitter) emitMultiPrimHead(t *core.Term) (*core.Term, bool, error) {
+	if t == nil || t.Kind != core.KApp {
+		return nil, false, nil // a leaf; the loop and tail walkers ask of every term
+	}
 	p, args, k, ok := multiPrimCall(e.tgt, t)
 	if !ok {
 		if op := t.Op(); op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
@@ -909,10 +924,10 @@ func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 				if kk := t.Args()[0]; kk.Kind == core.KFn {
 					n = len(kk.Params)
 				}
-				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+				return nil, true, multiPrimArityErr(q.Name, len(q.Results), n)
 			}
 		}
-		return "", false, nil
+		return nil, false, nil
 	}
 	if p.Import != "" {
 		JavaImports[p.Import] = true
@@ -921,7 +936,7 @@ func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 	for i, a := range args {
 		v, err := e.emit(a)
 		if err != nil {
-			return "", true, err
+			return nil, true, err
 		}
 		vals[i] = v
 	}
@@ -948,6 +963,16 @@ func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 		for i, nm := range out {
 			e.line("final %s %s = %s.f%d();", e.tgt.ty(p.Results[i]), nm, tmp, i)
 		}
+	}
+	return body, true, nil
+}
+
+// emitMultiPrim is the host call with several results as an expression: the
+// call and its receiving statements, then the continuation's body as the value.
+func (e *javaEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	body, ok, err := e.emitMultiPrimHead(t)
+	if !ok || err != nil {
+		return "", ok, err
 	}
 	s, err := e.emit(body)
 	return s, true, err
@@ -1578,6 +1603,15 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
+	}
+	// A HOST CALL WITH SEVERAL RESULTS binds too — the n-ary let (ADR 0027). Its
+	// continuation runs once, now, in this block, so the call is emitted as it
+	// always is and the clause chain goes on inside it, `again` included.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.emitLoopBody(body, raw, names, result, post)
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)

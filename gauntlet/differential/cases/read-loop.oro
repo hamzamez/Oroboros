@@ -1,0 +1,27 @@
+; A FALLIBLE HOST CALL CONSUMED ONCE PER ITERATION — ADR 0027.
+;
+; `(let (tuple src err) (os.ReadFile p) (again …))` puts the jump inside the
+; host call's continuation. That continuation runs once, now, in the loop's own
+; block, so the jump is an ordinary back edge: Go receives the pair with `:=`,
+; while JS and Java assign it from a try/catch template, which is the other host
+; shape. Each iteration reads a file that exists (the harness writes case.oro
+; beside the binary) or one that does not, so both the value arm and the error
+; arm run on every host.
+;
+;   run n = the number of successful reads among n, alternating = ⌈n/2⌉
+;
+; windows declares no host call with several results, and `lib/os` has no
+; windows file.
+; skip: windows
+;
+; inputs: 0 1 2 7 10
+; expect: 0 1 1 4 5
+
+(use os)
+
+(sig run ((n (int 0 100))) int)
+(def run (n)
+  (loop ((k 0) (ok 0))
+    (>= k n) ok
+    else (let (tuple src err) (os.ReadFile (if (= (% k 2) 0) "case.oro" "missing.txt"))
+           (again (+ k 1) (+ ok (if (os.err-nil err) 1 0))))))

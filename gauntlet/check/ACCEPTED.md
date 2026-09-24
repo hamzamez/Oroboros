@@ -342,3 +342,19 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/u128-ops.oro js`
 - new source — `gauntlet/differential/cases/u128-ops.oro windows`
 - compiler output changed — `lib/num/u128.oro go`
+
+## 2026-09-24 — on d12817c, with uncommitted changes
+
+**Reason:** ADR 0027: a host call's continuation is a tail position. factorials' step binds mulw once (2 Mul64 + 1 Add64, was 6 + 3); lib/num/u128.oro compiles on its own (add/mulw/divw return from inside Add64/Mul64/Div64 continuations); read-loop is a new case on go/js/java. No existing emission moved.
+
+496 runs: 221 emitted, 275 refused; 2368 of 2419 integer operations bounded, 349 of 387 loops proven. compiler pass, differential pass, tooling skip.
+
+7 change(s):
+
+- emitted text changed — `examples/u128/factorials.oro go`
+- compiler output changed — `examples/u128/factorials.oro go`
+- new source — `gauntlet/differential/cases/read-loop.oro go`
+- new source — `gauntlet/differential/cases/read-loop.oro java`
+- new source — `gauntlet/differential/cases/read-loop.oro js`
+- new source — `gauntlet/differential/cases/read-loop.oro windows`
+- now emits — `lib/num/u128.oro go`

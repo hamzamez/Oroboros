@@ -892,9 +892,9 @@
 == examples/tally/tally.oro windows refused
    gen: examples/tally/tally.oro: in tally.run: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/u128/factorials.oro go emitted eeae6e335b8d67cb66d0b9bbefd72f8aa55de4be93c3f768ea2092ebf242a6af
-   note: gen-main: 28 operation(s) or conversion(s) in the unsigned word
-   note: gen-main: 6 of 6 integer operations bounded; 2 of 3 loop(s) proven terminating
+== examples/u128/factorials.oro go emitted bdfb1006b335178767d2f072029b8c1027ca79b7a218b2db6d0b4408d822c9f9
+   note: gen-main: 22 operation(s) or conversion(s) in the unsigned word
+   note: gen-main: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == examples/u128/factorials.oro js refused
    gen: examples/u128/factorials.oro: in main: go/fmt.Println2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
@@ -1027,6 +1027,12 @@
 == gauntlet/differential/cases/product.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/product.oro java emitted 0c414c59af9cd16a3d1af3de8452da2683fa9c8241c575e7bb6130b90540342c
 == gauntlet/differential/cases/product.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/read-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/read-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/read-loop.oro java emitted 2c615804f5a7f837419d164183a56ccc495300334ce2c96776998db46f9e8217
+== gauntlet/differential/cases/read-loop.oro windows refused
+   gen: gauntlet/differential/cases/read-loop.oro: in run: os.ReadFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use os) matched no file on the search path and this target provides no module os either, so every name from it is unbound. Check the path.
 == gauntlet/differential/cases/render.oro go emitted c560ef15ea5b84efdff87b61cb67f22bbe25efd76fce238e6623ef5a3056e006
    note: gen-run: 10 operation(s) in arbitrary precision
    note: gen-run: 3 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
@@ -1141,10 +1147,12 @@
    gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/js.oro windows refused
    gen: lib/io/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
-== lib/num/u128.oro go refused
+== lib/num/u128.oro go emitted cd62a44dc807e1bb53ace36a00261d07158e7d8b30560e40b1f3d109f6a7c6ce
    note: gen-add: 2 operation(s) or conversion(s) in the unsigned word
-   gen: gen-add declares 3 results but its definition does not produce them.
-     A function with several results must reduce to (values e1 … e3); got ((go/math/bits.Add64 al bl (u64-of 0)) (fn (l c) ((go/math/bits.Add64 ah bh (u64-of c)) (fn (h c2) (fn (#k) (#k h l c2))))))
+   note: gen-mulw: 3 operation(s) or conversion(s) in the unsigned word
+   note: gen-divw: 2 operation(s) or conversion(s) in the unsigned word
+   note: gen-decimal: 13 operation(s) or conversion(s) in the unsigned word
+   note: gen-decimal: 2 of 2 integer operations bounded; 1 of 2 loop(s) proven terminating
 == lib/num/u128.oro js refused
    gen: lib/num/u128.oro: in num/u128.add: go/math/bits.Add64 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/math/bits) matched no file on the search path and this target provides no module go/math/bits either, so every name from it is unbound. Check the path.

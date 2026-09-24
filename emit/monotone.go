@@ -107,6 +107,20 @@ func asLet(tgt *Target, t *core.Term) (value *core.Term, lam *core.Term, ok bool
 	return nil, nil, false
 }
 
+// multiLet recognises the n-ary let (ADR 0027) — a host call with several
+// results under its continuation — and returns the continuation's body, opened.
+// Every walker of a clause chain walks it as it walks a one-name `let`: an
+// `again` inside it is a back edge like any other, and a walker that passed over
+// it certified a loop whose edge it had not checked (monotoneStep, before this).
+func multiLet(tgt *Target, t *core.Term) (*core.Term, bool) {
+	_, _, k, ok := multiPrimCall(tgt, t)
+	if !ok {
+		return nil, false
+	}
+	body, _, _ := openFresh(k, map[string]bool{}, func(x string) string { return x })
+	return body, true
+}
+
 // atLeast decides `e ⊒ S`. It is the relation above and nothing more: every
 // case is one of the five rules, and anything unrecognised is false, because
 // refusing is the safe direction.
@@ -229,6 +243,10 @@ func monotoneAt(tgt *Target, body *core.Term, raw []string, k int) bool {
 			walk(lb, inner, tail)
 			return
 		}
+		if k, ok := multiLet(tgt, t); ok {
+			walk(k, s, tail) // a host call's results are not known ⊒ S
+			return
+		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
 			args := t.Args()
 			if t.Op().Name == "again" {
@@ -287,6 +305,10 @@ func monotoneStep(tgt *Target, lam *core.Term, k int) bool {
 			walk(lb, inner)
 			return
 		}
+		if lb, isMulti := multiLet(tgt, t); isMulti {
+			walk(lb, s) // a host call's results are not known ⊒ S
+			return
+		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
 			args := t.Args()
 			if t.Op().Name == "again" {
@@ -295,8 +317,9 @@ func monotoneStep(tgt *Target, lam *core.Term, k int) bool {
 				}
 				return
 			}
-			// An `again` is only ever a clause body or under a `let` (ADR 0015),
-			// so the branches of the clause chain are the only other places to look.
+			// An `again` is a clause body or sits under a binding — a `let`, or a
+			// host call's continuation (ADR 0015, ADR 0027) — so apart from those
+			// the branches of the clause chain are the only places to look.
 			if p, known := tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(args) == 3 {
 				walk(args[1], s)
 				walk(args[2], s)
@@ -455,6 +478,10 @@ func loopExitsFit(tgt *Target, loop *core.Term, raw []string) bool {
 			lb, lr, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
 			inner = append(inner, lr...)
 			walk(lb, tail)
+			return
+		}
+		if lb, isMulti := multiLet(tgt, t); isMulti {
+			walk(lb, tail) // a host call's results are not acceptable sources
 			return
 		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {

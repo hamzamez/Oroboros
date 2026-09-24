@@ -362,8 +362,39 @@ func (c *checker) iterate(args []*core.Term, want string) (string, error) {
 
 // loopBody walks the clause chain: `again` leaves check their arguments, other
 // leaves are the loop's value.
+//
+// A BINDING WRAPS A CLAUSE BODY, with one name or several (ADR 0015, ADR 0027),
+// and the clause chain goes on inside it. Before the two cases below, a `let`
+// sent its body to `walk`, where `again` is no primitive — so every `again`
+// under a `let` had its arguments go unchecked — and a host call's continuation
+// could not hold an `again` at all.
 func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (string, error) {
+	if p, as, k, ok := multiPrimCall(c.tgt, t); ok {
+		for i, a := range as {
+			d := ""
+			if i < len(p.Args) {
+				d = p.Args[i]
+			}
+			if _, err := c.walk(a, d); err != nil {
+				return "", fmt.Errorf("in %s's argument %d: %w", p.Name, i+1, err)
+			}
+		}
+		body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
+		defer c.bind(raw, p.Results[:len(raw)])()
+		return c.loopBody(body, params, tys, want)
+	}
 	if t.Kind == core.KApp && t.Op().Kind == core.KName {
+		if p, ok := c.tgt.Prims[t.Op().Name]; ok && p.Kind == "let" && len(t.Args()) == 2 {
+			if k := t.Args()[1]; k.Kind == core.KFn && len(k.Params) == 1 {
+				v, err := c.walk(t.Args()[0], "")
+				if err != nil {
+					return "", err
+				}
+				body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
+				defer c.bind(raw, []string{v})()
+				return c.loopBody(body, params, tys, want)
+			}
+		}
 		if t.Op().Name == "again" {
 			as := t.Args()
 			if len(as) != len(params) {

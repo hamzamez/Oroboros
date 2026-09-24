@@ -183,6 +183,7 @@ func Read(src string) ([]Form, error) {
 		if err != nil {
 			return nil, err
 		}
+		t = eraseTupleLets(t)
 		f, err := toForm(t)
 		if err != nil {
 			return nil, err
@@ -205,7 +206,7 @@ func ReadAll(src string) ([]*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, t)
+		out = append(out, eraseTupleLets(t))
 	}
 }
 
@@ -221,7 +222,7 @@ func ReadTerm(src string) (*Term, error) {
 	if !r.done() {
 		return nil, fmt.Errorf("line %d: trailing input after term", r.line)
 	}
-	return t, nil
+	return eraseTupleLets(t), nil
 }
 
 func (r *reader) done() bool { return r.pos >= len(r.src) }
@@ -1515,6 +1516,15 @@ func checkClauseBody(t *Term, arity, line int) error {
 	// A one-name binding has already been desugared to ((fn (x) k) e).
 	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 {
 		if err := checkClauseBody(t.Kids[0].Body(), arity, line); err != nil {
+			return err
+		}
+		return noAgain(t.Kids[1], line)
+	}
+	// AND A TUPLE PATTERN IS A BINDING TOO: it names a product's components and
+	// runs its body once, in tail position — let binds, if branches. It is known
+	// by the reader's mark, never by its shape (let.go, tupleLetMark).
+	if isTupleLet(t) && t.Kids[2].Kind == KFn {
+		if err := checkClauseBody(t.Kids[2].Body(), arity, line); err != nil {
 			return err
 		}
 		return noAgain(t.Kids[1], line)

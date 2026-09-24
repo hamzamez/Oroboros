@@ -156,9 +156,14 @@ func (e *Emitter) multiFunc(name string, sig *core.Sig, t *core.Term, params []s
 	if err := e.multiTail(t.Body(), len(sig.Results), name, sig); err != nil {
 		return "", err
 	}
+	// EACH RESULT IN THE TYPE THAT HOLDS ITS VALUE, not its narrowest storage:
+	// `(int 0 1)` is an `int` to every expression that computes it, and `byte` is
+	// how a TABLE stores one (elemwidth-2026-08-27). Spelled `byte` here, the
+	// carry `add` returns was an `int` handed to a `byte` result, which Go
+	// refuses (ADR 0027 made the return reachable).
 	tys := make([]string, len(sig.Results))
 	for i, r := range sig.Results {
-		tys[i] = e.tgt.ty(r)
+		tys[i] = e.tgt.ty(e.tgt.ValueType(r))
 	}
 	// Go has multiple return natively, in registers. Nothing is built.
 	var out strings.Builder
@@ -239,6 +244,14 @@ func (e *Emitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) err
 				return e.multiTail(body, n, name, sig)
 			}
 		}
+	}
+	// A HOST CALL WITH SEVERAL RESULTS is the third form, the n-ary let (ADR
+	// 0027): the call and its receiving statements, then the leaves inside.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.multiTail(body, n, name, sig)
 	}
 	return multiResultErr(name, sig, t)
 }
@@ -509,7 +522,7 @@ func (e *Emitter) emitMapCase(t *core.Term) (string, bool, error) {
 	return s, true, err
 }
 
-// emitMultiPrim emits the elimination of a host call giving back several
+// emitMultiPrimHead emits the elimination of a host call giving back several
 // results. On Go that is the host's own form and needs no product built:
 //
 //	f, err := os.Open(path)
@@ -519,7 +532,10 @@ func (e *Emitter) emitMapCase(t *core.Term) (string, bool, error) {
 // as the programmer wrote it, and their TYPES come from the primitive's declared
 // results — which is the only place they can come from, a primitive having no
 // body to infer from.
-func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+func (e *Emitter) emitMultiPrimHead(t *core.Term) (*core.Term, bool, error) {
+	if t == nil || t.Kind != core.KApp {
+		return nil, false, nil // a leaf; the loop and tail walkers ask of every term
+	}
 	p, args, k, ok := multiPrimCall(e.tgt, t)
 	if !ok {
 		// Distinguish "not this shape" from "this shape, wrong arity": an
@@ -532,10 +548,10 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 				if kk.Kind == core.KFn {
 					n = len(kk.Params)
 				}
-				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+				return nil, true, multiPrimArityErr(q.Name, len(q.Results), n)
 			}
 		}
-		return "", false, nil
+		return nil, false, nil
 	}
 	if p.Import != "" {
 		e.imports[p.Import] = true
@@ -544,7 +560,7 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 	for i, a := range args {
 		v, err := e.emit(a)
 		if err != nil {
-			return "", true, err
+			return nil, true, err
 		}
 		vals[i] = v
 	}
@@ -592,6 +608,16 @@ func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 		for _, c := range conv {
 			e.line("%s", c)
 		}
+	}
+	return body, true, nil
+}
+
+// emitMultiPrim is the host call with several results as an expression: the
+// call and its receiving statements, then the continuation's body as the value.
+func (e *Emitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	body, ok, err := e.emitMultiPrimHead(t)
+	if !ok || err != nil {
+		return "", ok, err
 	}
 	s, err := e.emit(body)
 	return s, true, err
@@ -1988,6 +2014,15 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string,
 				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
+	}
+	// A HOST CALL WITH SEVERAL RESULTS binds too — the n-ary let (ADR 0027). Its
+	// continuation runs once, now, in this block, so the call is emitted as it
+	// always is and the clause chain goes on inside it, `again` included.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.emitLoopBody(body, raw, names, result, post)
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)

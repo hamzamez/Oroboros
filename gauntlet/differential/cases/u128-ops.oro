@@ -11,9 +11,9 @@
 ; input whose quotient needs its high digit's remainder, 34 the first with a
 ; non-zero high quotient.
 ;
-; No tuple crosses the loop: the factorial's exit clause calls `show`, whose
-; tuple patterns bind the results of `add` and `divw` with no `again` beneath
-; them (binding.md §7).
+; The factorial's step binds mulw's results with a tuple pattern around the
+; `again` (ADR 0027); the exit clause calls `show`, whose tuple patterns bind the
+; results of `add` and `divw`.
 ;
 ; Go only, as num/u128 is.
 ; skip: js
@@ -37,6 +37,5 @@
 (def run (n)
   (loop ((k 0) (h 0) (l 1))
     (>= k n) (show h l)
-    else (again (+ k 1)
-                ((u.mulw h l (+ k 1)) (fn (a b c) a))
-                ((u.mulw h l (+ k 1)) (fn (a b c) b)))))
+    else (let (tuple h2 l2 over) (u.mulw h l (+ k 1))
+           (again (+ k 1) h2 l2))))

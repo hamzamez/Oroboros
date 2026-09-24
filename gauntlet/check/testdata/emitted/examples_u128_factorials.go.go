@@ -46,26 +46,18 @@ func GenMain() int {
 			continue
 		}
 		fmt.Println(n, r2)
-		var _c int = (n + 1)
-		_nl1, _ := bits.Mul64(uint64(l), uint64((uint64(_c))))
-		_, _nl4 := bits.Mul64(uint64(h), uint64((uint64(_c))))
-		_nl5, _ := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(_nl4), uint64(_nl1), uint64((uint64(0))))
-		var _c2 int = (n + 1)
-		_nl7, _nl8 := bits.Mul64(uint64(l), uint64((uint64(_c2))))
-		_, _nl10 := bits.Mul64(uint64(h), uint64((uint64(_c2))))
-		func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(_nl10), uint64(_nl7), uint64((uint64(0))))
-		var _c3 int = (n + 1)
-		_nl13, _ := bits.Mul64(uint64(l), uint64((uint64(_c3))))
-		_nl15, _nl16 := bits.Mul64(uint64(h), uint64((uint64(_c3))))
-		_, _nl18h3 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(_nl16), uint64(_nl13), uint64((uint64(0))))
-		_nl18 := int(_nl18h3)
+		var _c17 int = (n + 1)
+		_nl1, _nl2 := bits.Mul64(uint64(l), uint64((uint64(_c17))))
+		_nl3, _nl4 := bits.Mul64(uint64(h), uint64((uint64(_c17))))
+		_nl5, _nl6h3 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(_nl4), uint64(_nl1), uint64((uint64(0))))
+		_nl6 := int(_nl6h3)
 		var t4 int
-		if (((_nl15 == (uint64(0)))) && (_nl18 == 0)) {
+		if (((_nl3 == (uint64(0)))) && (_nl6 == 0)) {
 			t4 = 0
 		} else {
 			t4 = 1
 		}
-		n, h, l, over = (n + 1), _nl5, _nl8, t4
+		n, h, l, over = (n + 1), _nl5, _nl2, t4
 		continue
 	}
 	return r1

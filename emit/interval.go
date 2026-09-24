@@ -1037,6 +1037,31 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 			}
 		}
 	}
+	body, raw, unbind := p.bindMulti(pr, k)
+	v, nb := p.evalR(body)
+	// THE ELIMINATOR'S VALUE IS ITS BODY'S, representation included: a projection
+	// `((Div64 …) (fn (q r) q))` is a u64 when q is. Read while the binders'
+	// representations are still in scope.
+	bodyU := p.words && p.u64Term(nb)
+	unbind()
+	op := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{t.Op().Op()}, nargs...)}
+	rebuilt := &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}
+	if bodyU {
+		p.u64Val[rebuilt] = true
+	}
+	return v, rebuilt, true
+}
+
+// bindMulti opens a host call's continuation and binds each parameter to what
+// the call's declared result says: its interval, its element range, its
+// representation. It returns the opened body and the function that puts back
+// whatever the names meant before and hands them back to the pool.
+//
+// Shared by the two places a continuation is walked, as an expression
+// (multiPrim) and as a clause chain (collectAgain): ADR 0027 makes the second
+// one's `again` a back edge, and a back edge read under different facts than
+// the expression path reads them would be a second analysis of one term.
+func (p *intervalPass) bindMulti(pr Prim, k *core.Term) (*core.Term, []string, func()) {
 	body, raw, _ := openFresh(k, p.bound, asmIdent)
 	uOld := make([][2]bool, len(raw))
 	type saved struct {
@@ -1070,29 +1095,20 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 			}
 		}
 	}
-	v, nb := p.evalR(body)
-	// THE ELIMINATOR'S VALUE IS ITS BODY'S, representation included: a projection
-	// `((Div64 …) (fn (q r) q))` is a u64 when q is. Read while the binders'
-	// representations are still in scope.
-	bodyU := p.words && p.u64Term(nb)
-	for i := range raw {
-		restoreVar(p.env, raw[i], old[i].v, old[i].had)
-		restoreVar(p.elem, raw[i], old[i].e, old[i].hadE)
-		if p.words {
-			if uOld[i][1] {
-				p.u64[raw[i]] = uOld[i][0]
-			} else {
-				delete(p.u64, raw[i])
+	return body, raw, func() {
+		for i := range raw {
+			restoreVar(p.env, raw[i], old[i].v, old[i].had)
+			restoreVar(p.elem, raw[i], old[i].e, old[i].hadE)
+			if p.words {
+				if uOld[i][1] {
+					p.u64[raw[i]] = uOld[i][0]
+				} else {
+					delete(p.u64, raw[i])
+				}
 			}
 		}
+		p.releaseBound(raw)
 	}
-	p.releaseBound(raw)
-	op := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{t.Op().Op()}, nargs...)}
-	rebuilt := &core.Term{Kind: core.KApp, Kids: []*core.Term{op, core.Fn(raw, nb)}}
-	if bodyU {
-		p.u64Val[rebuilt] = true
-	}
-	return v, rebuilt, true
 }
 
 // mapCase evaluates a map read under its eliminator, binding what the two
@@ -3164,6 +3180,23 @@ func (p *intervalPass) updateIval(a *core.Term, self string) ival {
 }
 
 func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
+	// THE N-ARY LET IS A BINDING (ADR 0027): a host call with several results,
+	// under its continuation, may wrap an `again`, and that `again` is a BACK
+	// EDGE. Walked as the one-name `let` below is walked — the call's arguments
+	// evaluated, the continuation's parameters bound to the declared results —
+	// and not treated as an exit. Missing it left the fixpoint without the edge:
+	// a counter incremented inside the continuation stayed at its initial value,
+	// a product of it was "proven", and a loop that diverges for a negative bound
+	// was reported to terminate.
+	if pr, args, k, ok := multiPrimCall(p.tgt, t); ok {
+		for _, a := range args {
+			p.evalR(a)
+		}
+		body, _, unbind := p.bindMulti(pr, k)
+		p.collectAgain(body, raw, acc)
+		unbind()
+		return
+	}
 	// RULE (D) AT AN EXIT (bigrep.go). Everything this walker does not recurse
 	// into is a clause body that RETURNS, which is the loop's value — so when
 	// that value is the function's declared big result, a clause returning a

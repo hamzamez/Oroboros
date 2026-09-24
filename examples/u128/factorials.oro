@@ -12,19 +12,13 @@
 
 (export main)
 
-; mulw's three results are the loop's next state. A tuple pattern may not wrap an
-; `again` (binding.md §7): the jump would sit inside a host call's continuation,
-; which no backend emits. Binding the tuple and projecting (§7's other idiom)
-; binds a host call, which β will not duplicate, so the tuple stays a closure.
-; So each component is projected where it is used — three applications of mulw
-; per step, and the cost of the wall is written here, where it is paid
-; (u128-2026-09-23).
+; mulw's three results are the loop's next state, bound once by a tuple pattern:
+; the pattern's body is Mul64's and Add64's continuations, which run once, now,
+; so the `again` under it is a jump like any other (ADR 0027).
 (def main ()
   (loop ((n 0) (h 0) (l 1) (over 0))
     (= over 1) (fmt.Println2 n "overflows 128 bits")
     (> n 40)   0
     else (seq (fmt.Println2 n (u.decimal h l))
-              (again (+ n 1)
-                     ((u.mulw h l (+ n 1)) (fn (a b c) a))
-                     ((u.mulw h l (+ n 1)) (fn (a b c) b))
-                     ((u.mulw h l (+ n 1)) (fn (a b c) c))))))
+              (let (tuple h2 l2 over2) (u.mulw h l (+ n 1))
+                (again (+ n 1) h2 l2 over2)))))

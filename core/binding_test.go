@@ -84,23 +84,38 @@ func TestTheBindingFormRefusesWhatItCannotMean(t *testing.T) {
 
 // `again` UNDER A BINDING — ADR 0015 permits it under a `let`, and the flat
 // form is nested one-name lets, so the rule reaches through a chain of them.
-// Under a TUPLE pattern it is refused: that desugars to an application of the
-// producing call, so the jump would sit inside a host call's continuation, and
-// no backend emits that.
+// A TUPLE pattern is a binding too (ADR 0027), and the chain may mix the two.
+// What stays refused is the same SHAPE written as a call to a program's own
+// function, whose lambda may run twice or never: the reader knows the binding by
+// the mark it put on the pattern, not by the shape.
 func TestAgainReachesThroughAChainOfBindings(t *testing.T) {
-	ok := `(loop ((i 0))
-	         (< i 10) (let a (+ i 1) b (* a 2) (again b))
-	         else i)`
-	if _, err := ReadTerm(ok); err != nil {
-		t.Errorf("`again` under a chain of bindings must be legal: %v", err)
+	for _, ok := range []string{
+		`(loop ((i 0)) (< i 10) (let a (+ i 1) b (* a 2) (again b)) else i)`,
+		`(loop ((i 0)) (< i 10) (let (tuple a b) (f i) (again a)) else i)`,
+		`(loop ((i 0)) (< i 10) (let x (+ i 1) (tuple a b) (f x) y (* a 2) (again y)) else i)`,
+	} {
+		if _, err := ReadTerm(ok); err != nil {
+			t.Errorf("%s: `again` under a chain of bindings must be legal: %v", ok, err)
+		}
 	}
-	bad := `(loop ((i 0))
-	          (< i 10) (let (tuple a b) (f i) (again a))
-	          else i)`
-	if _, err := ReadTerm(bad); err == nil {
-		t.Error("`again` under a tuple binding must be refused (binding.md §7)")
-	} else if !strings.Contains(err.Error(), "sit under a `let`") {
-		t.Errorf("the refusal must be the existing one, got: %v", err)
+	for _, bad := range []string{
+		`(loop ((i 0)) (< i 10) (f i (fn (a b) (again a))) else i)`,
+		`(loop ((i 0)) (< i 10) ((f i) (fn (a b) (again a))) else i)`,
+		`(loop ((i 0)) (< i 10) (let (tuple a b) (f i) (if a (again a) b)) else i)`,
+	} {
+		if _, err := ReadTerm(bad); err == nil {
+			t.Errorf("%s: a jump inside a lambda the program wrote, or under an `if`, must be refused", bad)
+		} else if !strings.Contains(err.Error(), "sit under a `let`") {
+			t.Errorf("%s: the refusal must be the existing one, got: %v", bad, err)
+		}
+	}
+	// THE MARK DOES NOT LEAK: what leaves the reader is the plain eliminator.
+	got, err := ReadTerm(`(let (tuple a b) (f 1) (g a b))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(got.String(), "#tuple-let") {
+		t.Errorf("the reader's mark must be erased: %s", got)
 	}
 }
 

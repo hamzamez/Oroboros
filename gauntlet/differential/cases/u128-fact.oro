@@ -8,8 +8,8 @@
 ; 21! the first with a high digit, 25! the first with three base-10^18 groups,
 ; 34! the last below 2^128, and 35! overflows.
 ;
-; It also pins the n-ary let (core/reduce.go): each factor is a component of a
-; tuple mulw builds under host calls, projected by the caller.
+; It also pins ADR 0027: the loop's next state is mulw's three results, bound by
+; a tuple pattern whose body — the `again` — is Mul64's and Add64's continuations.
 ;
 ; Go only: the module uses go/math/bits and go/strconv, which resolve on Go.
 ; skip: js
@@ -27,7 +27,5 @@
   (loop ((k 0) (h 0) (l 1) (over 0))
     (= over 1) "overflow"
     (>= k n)   (u.decimal h l)
-    else (again (+ k 1)
-                ((u.mulw h l (+ k 1)) (fn (a b c) a))
-                ((u.mulw h l (+ k 1)) (fn (a b c) b))
-                ((u.mulw h l (+ k 1)) (fn (a b c) c)))))
+    else (let (tuple h2 l2 over2) (u.mulw h l (+ k 1))
+           (again (+ k 1) h2 l2 over2))))

@@ -73,7 +73,59 @@ func bindOne(lhs, value, body *Term, line int) (*Term, error) {
 	// currying — the universal property — and it is the term the multi-result
 	// continuation at a call site always was, so every backend's several-results
 	// path sees the shape it already handles.
-	return &Term{Kind: KApp, Kids: []*Term{value, Fn(ps, body)}}, nil
+	//
+	// It is built MARKED, `(#tuple-let t (fn (a b) body))`, and the mark lives
+	// only while the reader runs: a loop clause may end in an `again` under a
+	// tuple pattern — it BINDS and does not branch, iteration.md §2 — and the
+	// clause check (ADR 0027) must tell the pattern from a higher-order call that looks the
+	// same, `(f (fn (a b) …))`, whose lambda may run twice or never. Relaxing the
+	// check by shape miscompiled both silently (u128-2026-09-23). A name survives
+	// every rebuild of the enclosing terms; eraseTupleLets removes it before any
+	// form leaves the reader, so nothing below the reader knows (binding.md).
+	return &Term{Kind: KApp, Kids: []*Term{Name(tupleLetMark), value, Fn(ps, body)}}, nil
+}
+
+// tupleLetMark is the reader-internal operator of a tuple pattern's eliminator.
+// A program cannot write it: `#` names are the reader's.
+const tupleLetMark = "#tuple-let"
+
+func isTupleLet(t *Term) bool {
+	return t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == tupleLetMark
+}
+
+// eraseTupleLets turns every `(#tuple-let t k)` into `(t k)`. It changes no
+// binder, so a lambda's closed body is mapped as it stands.
+func eraseTupleLets(t *Term) *Term {
+	if t == nil {
+		return nil
+	}
+	switch t.Kind {
+	case KApp:
+		if isTupleLet(t) {
+			return &Term{Kind: KApp, Kids: []*Term{eraseTupleLets(t.Kids[1]), eraseTupleLets(t.Kids[2])}}
+		}
+		kids := make([]*Term, len(t.Kids))
+		changed := false
+		for i, k := range t.Kids {
+			kids[i] = eraseTupleLets(k)
+			changed = changed || kids[i] != k
+		}
+		if !changed {
+			return t
+		}
+		c := *t
+		c.Kids = kids
+		return &c
+	case KFn:
+		b := eraseTupleLets(t.Kids[0])
+		if b == t.Kids[0] {
+			return t
+		}
+		c := *t
+		c.Kids = []*Term{b}
+		return &c
+	}
+	return t
 }
 
 // patternNames recognises a tuple pattern, which has ALREADY been desugared by

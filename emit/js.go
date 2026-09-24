@@ -232,6 +232,14 @@ func (e *jsEmitter) multiTail(t *core.Term, n int, name string, sig *core.Sig) e
 			}
 		}
 	}
+	// A HOST CALL WITH SEVERAL RESULTS is the third form, the n-ary let (ADR
+	// 0027): the call and its receiving statements, then the leaves inside.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.multiTail(body, n, name, sig)
+	}
 	return multiResultErr(name, sig, t)
 }
 
@@ -279,7 +287,7 @@ func (e *jsEmitter) isMapName(t *core.Term) bool {
 // the language has `undefined` as a value. So `=== undefined` distinguishes
 // absent from present exactly. It is one lookup where `k in m` plus `m[k]`
 // would be two.
-// emitMultiPrim is the consumer side of a host call with several results, and
+// emitMultiPrimHead is the consumer side of a host call with several results, and
 // it exists on this backend for the reason it exists on Go: `values` is a
 // LANGUAGE construct (values.md), so a host call that produces several results
 // must work on every target or the construct is one two of four decline —
@@ -295,7 +303,10 @@ func (e *jsEmitter) isMapName(t *core.Term) bool {
 // host whose call IS the tuple is destructured; a host that signals failure out
 // of band assigns into destinations the emitter declares, because a try/catch
 // is not an expression yielding two values.
-func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+func (e *jsEmitter) emitMultiPrimHead(t *core.Term) (*core.Term, bool, error) {
+	if t == nil || t.Kind != core.KApp {
+		return nil, false, nil // a leaf; the loop and tail walkers ask of every term
+	}
 	p, args, k, ok := multiPrimCall(e.tgt, t)
 	if !ok {
 		if op := t.Op(); op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
@@ -304,10 +315,10 @@ func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 				if kk := t.Args()[0]; kk.Kind == core.KFn {
 					n = len(kk.Params)
 				}
-				return "", true, multiPrimArityErr(q.Name, len(q.Results), n)
+				return nil, true, multiPrimArityErr(q.Name, len(q.Results), n)
 			}
 		}
-		return "", false, nil
+		return nil, false, nil
 	}
 	if p.Import != "" {
 		JSImports[p.Import] = true
@@ -316,7 +327,7 @@ func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 	for i, a := range args {
 		v, err := e.emit(a)
 		if err != nil {
-			return "", true, err
+			return nil, true, err
 		}
 		vals[i] = v
 	}
@@ -340,6 +351,16 @@ func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
 			fields[i] = fmt.Sprintf("f%d: %s", i, n)
 		}
 		e.line("const {%s} = %s;", strings.Join(fields, ", "), fill(p.Form, vals))
+	}
+	return body, true, nil
+}
+
+// emitMultiPrim is the host call with several results as an expression: the
+// call and its receiving statements, then the continuation's body as the value.
+func (e *jsEmitter) emitMultiPrim(t *core.Term) (string, bool, error) {
+	body, ok, err := e.emitMultiPrimHead(t)
+	if !ok || err != nil {
+		return "", ok, err
 	}
 	s, err := e.emit(body)
 	return s, true, err
@@ -1160,6 +1181,15 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 				return e.emitLoopBody(kb, raw, names, result, post)
 			}
 		}
+	}
+	// A HOST CALL WITH SEVERAL RESULTS binds too — the n-ary let (ADR 0027). Its
+	// continuation runs once, now, in this block, so the call is emitted as it
+	// always is and the clause chain goes on inside it, `again` included.
+	if body, ok, err := e.emitMultiPrimHead(t); ok {
+		if err != nil {
+			return err
+		}
+		return e.emitLoopBody(body, raw, names, result, post)
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)

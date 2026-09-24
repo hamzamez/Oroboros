@@ -73,30 +73,18 @@ with no clamps.
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (09-23; the 09-17 plan scored two and a half of four — the
-packages and `CLAUDE.md` done, the compile-time gate built but the tokeniser never profiled, the Windows
-application unstarted a fourth time):
-1. ~~Profile the tokeniser's compile, and decide.~~ **Done**
-   ([tokenize-compile-2026-09-23](gauntlet/results/tokenize-compile-2026-09-23.md)): Houdini
-   re-analysed nested loops in every round of the loop around them, and ~80% of it recomputed an
-   identical answer. Two memos, each licensed by a theorem and pinned by an exact-witness test the
-   corpus could not provide, bought **720 → 405 ms** with emission byte-identical. The rest runs under
-   genuinely different facts; stopped there. freq's cost is the interval pass (`restore` copying the
-   environment per conditional), recorded, not chased.
-2. ~~Close this round's two checking gaps.~~ **Done**
-   ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)): the unsigned word's value check
-   is the differential case `u64-values` (16,000 values across 2⁶³ against `math/big`, both planted
-   wrong operations caught), and a `-targets` layer that does not exist is refused by `emit.SearchPath`.
-3. **Packages, program-first.** `math/bits` **done**
-   ([mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)), and its program with `strconv`
-   **done**: `lib/num/u128.oro`, a 128-bit integer in base 2⁶⁴, with `examples/u128/factorials.oro`
-   and two differential cases ([u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). It found four
-   compiler faults, all fixed: the missing n-ary let; a projection losing `u64`; the remainder facts
-   dead in the refiner; and a loop shadowing a parameter erasing its premise, which is why
-   `examples/match/runs.oro` had been refused. **It met one wall three times, which awaits hamza's
-   decision: no backend emits a tail position (`again`, or a multi-result return) inside a
-   multi-result host call's continuation.** The tuple-component law and int64 fragment constants
-   were demanded again. Next package: `bufio` or `sort`/`slices` (the first package callback).
+**Next, from the current assessment** (09-23):
+1. ~~Profile the tokeniser's compile~~ — done
+   ([tokenize-compile-2026-09-23](gauntlet/results/tokenize-compile-2026-09-23.md)). freq's compile
+   cost is the interval pass's `restore`, recorded and not chased.
+2. ~~Close this round's two checking gaps~~ — done
+   ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)).
+3. **Packages, program-first.** `math/bits` and its program with `strconv`, `lib/num/u128.oro`, are
+   done ([mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md),
+   [u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). **Awaiting hamza's decision:** no backend
+   emits a tail position (`again`, or a multi-result return) inside a multi-result host call's
+   continuation. The tuple-component law and int64 fragment constants were demanded again. Next
+   package: `bufio` or `sort`/`slices` (the first package callback).
 4. **A Windows application: hamza's decision** — give it a scope and a round, or move it to
    *deliberately not next*. The assessment recommends the second.
 
@@ -541,4 +529,4 @@ go run ./cmd/portable examples/io/wc.oro                  # which targets accept
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, and `freq`, the largest program), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources) |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets), `conformance/` |
-| `gauntlet/stdlib/` | The four host surveys; `acceptance/`, thirteen programs, two of them whole packages declared by hand; `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

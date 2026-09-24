@@ -452,17 +452,25 @@ func loadProvides(name string, libDirs []string) (*Target, []string, error) {
 			if err != nil || info.IsDir() || !strings.HasSuffix(fp, ".oro") {
 				return nil
 			}
+			// A FILE THAT CANNOT BE READ, OR A FRAGMENT THAT DOES NOT PARSE, IS
+			// REFUSED BY NAME. Both used to be skipped — "the loader's problem, not
+			// ours" — but the module loader never reads a `provides`, so nobody
+			// reported either, and the program was told `(use m)` matched no file.
+			// A bad escape in lib/os/java.oro made every Java program say `os` did
+			// not exist (hoststring-2026-09-24).
 			src, err := os.ReadFile(fp)
 			if err != nil {
-				return nil
+				return fmt.Errorf("%s: a library file on the search path cannot be read: %w", fp, err)
 			}
-			// Cheap reject before parsing: most library files have none.
+			// Cheap reject before parsing: most library files have none, and a file
+			// that declares no `provides` is the module loader's to read and judge.
 			if !strings.Contains(string(src), "(provides") {
 				return nil
 			}
 			terms, err := core.ReadAll(string(src))
 			if err != nil {
-				return nil // a library that does not parse is the loader's problem, not ours
+				return fmt.Errorf("%s: a library fragment does not parse, so nothing it provides "+
+					"exists: %w", fp, err)
 			}
 			for _, t := range terms {
 				if t.Kind != core.KApp || len(t.Kids) < 3 || t.Kids[0].Kind != core.KName ||

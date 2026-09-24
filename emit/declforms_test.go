@@ -191,6 +191,31 @@ func TestABrokenProvidesIsRefusedNotDropped(t *testing.T) {
 	}
 }
 
+// AND ONE THAT DOES NOT PARSE IS REFUSED, NAMING THE FILE. loadProvides skipped
+// a fragment the reader rejected — "the loader's problem, not ours" — but the
+// module loader never reads a `provides`, so nobody reported it: the program was
+// told `(use m)` matched no file. A bad escape in lib/os/java.oro made every Java
+// program say `os` did not exist (hoststring-2026-09-24). A library file that
+// says nothing about `provides` is still the module loader's to read.
+func TestAProvidesThatDoesNotParseIsRefusedNamingTheFile(t *testing.T) {
+	root := t.TempDir()
+	targets, lib := filepath.Join(root, "targets"), filepath.Join(root, "lib")
+	writeTarget(t, filepath.Join(targets, "x"), "a", `(target x (backend go))`)
+	writeTarget(t, filepath.Join(lib, "m"), "x", `(provides x m (sig f (int) int pure (host expr "F\q(%s)")))`)
+	_, err := LoadTargetLayers("x", []string{targets}, []string{lib})
+	if err == nil {
+		t.Fatal("a provides fragment that does not parse was skipped in silence")
+	}
+	if !strings.Contains(err.Error(), filepath.Join(lib, "m", "x.oro")) || !strings.Contains(err.Error(), `\q is not an escape`) {
+		t.Errorf("the refusal must name the file and the reader's message, got %v", err)
+	}
+	// A file with no `provides` in it is not this loader's to judge.
+	writeTarget(t, filepath.Join(lib, "m"), "x", `(def g (x) "F\q")`)
+	if _, err := LoadTargetLayers("x", []string{targets}, []string{lib}); err != nil {
+		t.Errorf("a library file that declares no provides is the module loader's business: %v", err)
+	}
+}
+
 // A TYPE IS A MEMBER OF ITS MODULE (theories.md §3.2, §3.4). A module in a
 // target is a signature Σ = (S, Ω), and its sorts belong to it — so the key is
 // the whole path, which is what makes resolution injective on types: a base name

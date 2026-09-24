@@ -134,8 +134,14 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		return fmt.Errorf("%s has no entry point: a program needs `(export main)` where main "+
 			"is `(fn () …)`", src)
 	}
+	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028): decided
+	// here, immediately after reduction, and erased before anything else runs.
+	reqs := emit.InstallRequires(env, prog)
 	nf, err := core.Normalize(prog.Defs[entry], env, core.DefaultFuel)
 	if err != nil {
+		return err
+	}
+	if nf, err = emit.DischargeRequires(reqs, tg, entry, prog.Sigs[entry], nf); err != nil {
 		return err
 	}
 	if nf.Kind != core.KFn || len(nf.Params) != 0 {

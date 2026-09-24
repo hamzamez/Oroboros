@@ -60,4 +60,8 @@
 (sig fact ((n (int 0 40))) (int 0 (pow 2 200)))
 (def fact (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1))))
 
+; The range is fact's domain, 0 ≤ 25 + n ≤ 40, stated where the export receives
+; n: a host caller may pass anything, and fact's declared range is an obligation
+; at this call (ADR 0028).
+(sig run ((n (int 0 15))) string)
 (def run (n) (render (fact (+ 25 n))))

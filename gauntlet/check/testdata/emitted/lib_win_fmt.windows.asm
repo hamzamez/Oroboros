@@ -12,6 +12,8 @@ LS7 db 00Ah,0
 LS7_len equ 1
 LS11 db 030h,0
 LS11_len equ 1
+LS18 db 02Dh,039h,032h,032h,033h,033h,037h,032h,030h,033h,036h,038h,035h,034h,037h,037h,035h,038h,030h,038h,0
+LS18_len equ 20
 
 .code
 gen_print_int proc
@@ -22,7 +24,7 @@ gen_print_int proc
         push r13
         push r14
         push r15
-        sub rsp, 64
+        sub rsp, 80
         mov rbx, rcx
         cmp rbx, 0
         jne Lelse9
@@ -59,55 +61,120 @@ gen_print_int proc
         mov rsi, rdi
         jmp Lend9
 Lelse9:
-        lea rdi, __buf
-        mov byte ptr [rdi+24], 10
-        mov r14, rbx
-        mov r12, 24
-Ltop18:
-        cmp r14, 0
-        jle Lnext19
-        mov r13, r12
+        mov rdi, -9223372036854775807
+        cmp rbx, rdi
+        jge Lelse16
+        mov rcx, -11
+        call GetStdHandle
+        mov r14, rax
+        lea r12, LS18
+        lea r13, LS18
+        mov rax, r13
+        Lstr19:
+        cmp byte ptr [rax], 0
+        je Lstrend19
+        inc rax
+        jmp Lstr19
+        Lstrend19:
+        sub rax, r13
+        mov r15, rax
+        mov rcx, r14
+        mov rdx, r12
+        mov r8, r15
+        lea r9, __written
+        mov qword ptr [rsp+32], 0
+        call WriteFile
+        mov rcx, -11
+        call GetStdHandle
+        mov r14, rax
+        lea r15, LS7
+        mov rcx, r14
+        mov rdx, r15
+        mov r8, 1
+        lea r9, __written
+        mov qword ptr [rsp+32], 0
+        call WriteFile
+        mov rdi, r14
+        jmp Lend16
+Lelse16:
+        lea r14, __buf
+        mov byte ptr [r14+24], 10
+        cmp rbx, 0
+        jge Lelse25
+        mov r12, 0
+        sub r12, rbx
+        mov r15, r12
+        jmp Lend25
+Lelse25:
+        mov r15, rbx
+Lend25:
+        mov r12, r15
+        mov r15, 24
+Ltop27:
+        cmp r12, 0
+        jle Lnext28
+        mov r13, r15
         sub r13, 1
-        mov rax, r14
+        mov rax, r12
         cqo
         mov rcx, 10
         idiv rcx
-        mov r15, rdx
-        mov rax, 48
-        add rax, r15
+        mov rax, rdx
         mov qword ptr [rsp+48], rax
         mov r10, qword ptr [rsp+48]
-        mov byte ptr [rdi+r13], r10b
-        mov rax, r14
+        mov rax, 48
+        add rax, r10
+        mov qword ptr [rsp+56], rax
+        mov r10, qword ptr [rsp+56]
+        mov byte ptr [r14+r13], r10b
+        mov rax, r12
         cqo
         mov rcx, 10
         idiv rcx
         mov r13, rax
-        mov r14, r13
-        sub r12, 1
-        jmp Ltop18
-Lnext19:
-Ldone18:
+        mov r12, r13
+        sub r15, 1
+        jmp Ltop27
+Lnext28:
+Ldone27:
+        cmp rbx, 0
+        jge Lelse35
+        mov r13, r15
+        sub r13, 1
+        mov byte ptr [r14+r13], 45
+        mov r13, r15
+        sub r13, 1
+        mov r12, r13
+        jmp Lend35
+Lelse35:
+        mov r12, r15
+Lend35:
         mov rcx, -11
         call GetStdHandle
-        mov r14, rax
-        lea r13, [rdi+r12]
-        mov r15, 24
-        sub r15, r12
-        mov rax, r15
-        add rax, 1
+        mov r13, rax
+        lea rax, [r14+r12]
+        mov qword ptr [rsp+56], rax
+        mov rax, 24
+        sub rax, r12
         mov qword ptr [rsp+48], rax
         mov r10, qword ptr [rsp+48]
-        mov rcx, r14
-        mov rdx, r13
-        mov r8, r10
+        mov rax, r10
+        add rax, 1
+        mov qword ptr [rsp+64], rax
+        mov r10, qword ptr [rsp+56]
+        mov r11, qword ptr [rsp+64]
+        mov rcx, r13
+        mov rdx, r10
+        mov r8, r11
         lea r9, __written
         mov qword ptr [rsp+32], 0
         call WriteFile
-        mov rsi, r14
+        mov rdi, r13
+Lend16:
+        mov rsi, rdi
 Lend9:
         mov rax, rsi
-        add rsp, 64
+        add rsp, 80
         pop r15
         pop r14
         pop r13

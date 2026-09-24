@@ -44,6 +44,11 @@ type refiner struct {
 	onAgain   func(args []*core.Term, f *facts)
 	loopDepth int
 
+	// requires collects the contract marks this walk cannot prove (ADR 0028,
+	// requires.go). Set only on DischargeRequires' top-level walk, so the dry
+	// walks a loop spawns decide nothing.
+	requires *[]requireFail
+
 	// splitFresh numbers the names provedBySplit gives a `let`'s binder, so a
 	// split never captures a name in the goal around it.
 	splitFresh int
@@ -344,6 +349,9 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 		return r.walk(t.Body(), f)
 	}
 
+	if core.IsRequire(t) || core.IsRequireWhere(t) {
+		return r.requireMark(t, f)
+	}
 	op := t.Op()
 	if op.Kind != core.KName {
 		// AN OPERATOR THAT IS NOT A NAME IS STILL A TERM WITH OBLIGATIONS IN IT.

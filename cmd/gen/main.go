@@ -26,7 +26,7 @@ func main() {
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
 	flag.BoolVar(&reportRequires, "report-requires", false,
-		"report, for each direct call of a definition with a ranged parameter, whether the argument is provably in range; changes nothing emitted (requires.go)")
+		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: gen [-targets DIR] [-name N] SRC.oro TARGET OUT\n")
 		flag.PrintDefaults()
@@ -124,12 +124,11 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err := emit.CheckSignatures(tg, prog, env); err != nil {
 		return err
 	}
-	// The measurement listens only while the EMITTED units reduce, below.
-	// CheckSignatures normalises every signed definition on its own, with its
-	// parameters free, and those are not calls the program makes.
-	if reportRequires {
-		defer installRequires(env, prog)()
-	}
+	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028), from here on:
+	// the units below are the program's calls. CheckSignatures, above, reduced
+	// every signed definition on its own with its parameters free, and those are
+	// not calls the program makes.
+	reqs := emit.InstallRequires(env, prog)
 
 	// A program's entry points are its EXPORTS, and an emitted function is named
 	// after the export it came from. Naming by position — GenGeneric0,
@@ -175,7 +174,10 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		if reportRequires {
-			nf = measureResidual(tg, prog.Sigs[u.qual], nf)
+			reportResidual(tg, prog.Sigs[u.qual], nf)
+		}
+		if nf, err = emit.DischargeRequires(reqs, tg, u.name, prog.Sigs[u.qual], nf); err != nil {
+			return err
 		}
 		fname := u.name
 		// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the

@@ -275,20 +275,6 @@ type RequireResult struct {
 	Proven                bool
 }
 
-// inDeclared reports v ⊑ the declared range, at full precision.
-func inDeclared(v ival, ty string) bool {
-	if v.isBottom() {
-		return true // unreachable
-	}
-	if lo, hi, ok := core.IntRange(ty); ok {
-		return within(v, rng(lo, hi))
-	}
-	if w, ok := wideRange(ty); ok {
-		return within(v, w)
-	}
-	return false
-}
-
 // MeasureRequires decides every measurement mark left in a residual and returns
 // the residual with the marks erased, which is the term reduction gives without
 // them. It changes nothing downstream: the caller continues with the stripped
@@ -379,11 +365,12 @@ type intervalPass struct {
 	// wordLoop the variables of the loop whose final walk is under way — kept
 	// apart from loopRaw, which that walk has already restored to the outer
 	// loop's.
-	words    bool
-	u64      map[string]bool
-	u64Val   map[*core.Term]bool
-	wordLoop []string
-	limbs    bool // big is OUR representation, so the host need not have one
+	words     bool
+	keepMarks bool
+	u64       map[string]bool
+	u64Val    map[*core.Term]bool
+	wordLoop  []string
+	limbs     bool // big is OUR representation, so the host need not have one
 
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
@@ -795,7 +782,10 @@ func intervals(tgt *Target, sig *core.Sig, t *core.Term, assume int64,
 		noSmash: len(flags) > 4 && flags[4],
 		// THE UNSIGNED WORD'S SELECTION ONLY (wordsel.go): no checked forms, no
 		// bignum, no shifts — a representation is being chosen, not reported on.
-		words: len(flags) > 5 && flags[5]}
+		words: len(flags) > 5 && flags[5],
+		// CONTRACT MARKS KEPT (requires.go): a range this pass cannot prove, and
+		// every `where`, stays in the rebuilt term for the refinement layer.
+		keepMarks: len(flags) > 6 && flags[6]}
 	if p.words {
 		p.u64, p.u64Val = map[string]bool{}, map[*core.Term]bool{}
 	}
@@ -1255,17 +1245,30 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	prim, known := p.tgt.Prims[op.Name]
 	args := t.Args()
 
-	// A MEASUREMENT MARK (core.Env.Requires): the argument's value, and whether
-	// it lies in the range its parameter declares, recorded on the counted walk.
-	// The mark is dropped from the rebuilt term.
+	// A CONTRACT MARK (requires.go, ADR 0028). A range: the argument's value, and
+	// whether it lies in the set its parameter declares, recorded on the counted
+	// walk; the mark is dropped when proven, and kept for the refinement layer
+	// when this pass cannot prove it and keepMarks is set. A `where` is not this
+	// pass's to decide: its body is evaluated and the mark kept or dropped alike.
 	if op.Name == core.RequireName && len(args) == 4 {
 		v, nv := p.evalR(args[3])
+		proven := provenIn(p.tgt.Word, v, args[2].Str, args[3])
 		if p.count {
 			p.rep.Requires = append(p.rep.Requires, RequireResult{
 				Def: args[0].Str, Param: args[1].Str, Type: args[2].Str,
-				Arg: args[3].String(), Got: v, Proven: inDeclared(v, args[2].Str)})
+				Arg: args[3].String(), Got: v, Proven: proven})
+		}
+		if p.keepMarks && !proven {
+			return v, residualRange(p.tgt.Word, v, args[0].Str, args[1].Str, args[2].Str, nv)
 		}
 		return v, nv
+	}
+	if op.Name == core.RequireWhereName && len(args) == 3 {
+		v, nb := p.evalR(args[2])
+		if p.keepMarks {
+			return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, args[0], args[1], nb}}
+		}
+		return v, nb
 	}
 
 	if known {

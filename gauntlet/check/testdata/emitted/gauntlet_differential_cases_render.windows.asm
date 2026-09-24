@@ -91,8 +91,7 @@ Ldone8:
 Ltop14:
         mov r14, 9
         mov r15, r14
-        add r15, 1
-        shl r15, 3
+        add r15, 8
         xor ecx, ecx
         mov rdx, r15
         mov r8, 3000h
@@ -104,9 +103,6 @@ Ltop14:
         mov qword ptr [r10], r14
         mov r14, 25
         add r14, rbx
-        jno Lok17
-        ud2
-        Lok17:
         mov r15, 0
         mov qword ptr [rsp+64], r14
 Ltop18:
@@ -114,20 +110,15 @@ Ltop18:
         jge Ldone18
 Lnext19:
         mov r10, qword ptr [rsp+64]
-        mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov r14, rdx
+        mov r14, r10
+        and r14, 16777215
         mov r10, qword ptr [rsp+56]
-        mov qword ptr [r10+r15*8+8], r14
+        mov byte ptr [r10+r15+8], r14b
         add r15, 1
         mov r10, qword ptr [rsp+64]
-        mov rax, r10
-        cqo
-        mov rcx, 16777216
-        idiv rcx
-        mov r14, rax
+        mov r14, r10
+        mov rcx, 24
+        shr r14, cl
         mov qword ptr [rsp+64], r14
         jmp Ltop18
 Ldone18:
@@ -186,7 +177,7 @@ Lelse30:
         mov qword ptr [rsp+88], 0
         jmp Lend31
 Lelse31:
-        mov r10, qword ptr [r15+r14*8+8]
+        movzx r10d, byte ptr [r15+r14+8]
         mov qword ptr [rsp+96], r10
         mov r10, qword ptr [rsp+96]
         mov qword ptr [rsp+88], r10
@@ -261,7 +252,7 @@ Lelse39:
         mov qword ptr [rsp+72], 0
         jmp Lend40
 Lelse40:
-        mov r10, qword ptr [r15+r14*8+8]
+        movzx r10d, byte ptr [r15+r14+8]
         mov qword ptr [rsp+96], r10
         mov r10, qword ptr [rsp+96]
         mov qword ptr [rsp+72], r10

@@ -69,6 +69,12 @@ type Sig struct {
 	// native form and it is not a tuple.
 	Results []string
 	Where   *Term // a boolean term over the parameter names, or nil
+	// Written is the `where` as the programmer wrote it, before each parameter's
+	// range was desugared into it. The two are one denotation; they are kept
+	// apart because ADR 0028 checks a finite range on the ARGUMENT (the set it
+	// denotes above the word is its enforcement's, not its conjunct's) and the
+	// rest on the call.
+	Written *Term
 	// Ensures is a POSTCONDITION: a boolean term over the parameter names and
 	// `result`. On an exported definition it is an obligation checked against
 	// the body; on an internal one it is redundant, because reduction inlines
@@ -931,6 +937,7 @@ func toForm(t *Term) (Form, error) {
 			if rest.Kind == KApp && rest.Kids[0].Kind == KName &&
 				rest.Kids[0].Name == "where" && len(rest.Kids) == 2 {
 				sig.Where = rest.Kids[1]
+				sig.Written = rest.Kids[1]
 				continue
 			}
 			if rest.Kind == KApp && rest.Kids[0].Kind == KName &&

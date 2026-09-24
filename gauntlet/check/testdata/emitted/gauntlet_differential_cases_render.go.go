@@ -8,7 +8,7 @@ func GenRun(n int) string {
 	acc := (big.NewInt(int64(1)))
 	i := (big.NewInt(int64(2)))
 	for {
-		if (i.Cmp((big.NewInt(int64((func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(25, n)))))) > 0) {
+		if (i.Cmp((big.NewInt(int64((25 + n))))) > 0) {
 			break
 		}
 		acc, i = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, i)), 201)), (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Add(i, (big.NewInt(int64(1))))), 201))

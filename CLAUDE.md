@@ -53,7 +53,7 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **2,368 of 2,419** integer operations are proven inside their target's word. The 51 left are mostly
+- **2,387 of 2,434** integer operations are proven inside their target's word. The 47 left are mostly
   meant to be refused.
 - **349 of 387** loops are proven to terminate.
 - Both counts, and every emitted file, are pinned by `cmd/check`.
@@ -157,6 +157,7 @@ rejected alternatives.
 | A module path is the host's path, and the file is the path | [0025](docs/decisions/0025-a-module-path-is-the-hosts.md) |
 | An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
 | A host call's continuation is a tail position: `again` may sit under a tuple binding | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
+| A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
 
 ## How this project is run
 
@@ -297,10 +298,22 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 
 - **The type checker** runs on the residual, which is monomorphic, first-order and closed
   ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions.
-- **`where` has three meanings** ([refinements.md §6b](docs/spec/refinements.md)):
-  - on a `prim`, an obligation;
-  - on an export, assumed;
-  - on an internal definition, dropped, because inlining is stronger.
+- **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
+  [refinements.md §6b](docs/spec/refinements.md)):
+  - on a `prim`, at every call site;
+  - on a definition, at every call it is inlined into, exported ones included when the call is inside
+    the program; the obligations inlining propagates are still checked too;
+  - on an export called from outside, assumed.
+
+  A parameter's range is the same claim as a `where` (the reader desugars one into the other), checked
+  on the argument, and **above the word it denotes the set its enforcement admits: `|x| < 2ᵇ`** (bit
+  length). The reducer marks each obligation, and `emit.DischargeRequires` decides it immediately
+  after reduction, in order:
+  1. a literal;
+  2. the interval analysis;
+  3. the refinement layer, `ensures` included.
+
+  It then erases the marks, so nothing downstream sees one.
 - **`ensures` is the exact swap** ([postconditions.md](docs/spec/postconditions.md)). A pure call is
   an atom of the linear fragment.
 - **Facts** are guarded boundedness axioms of a local theory extension, instantiated on present terms
@@ -393,7 +406,8 @@ function is the wrong place. Only structural constructs live in code.
 
 **Prefer deriving a fact over clamping around it or declaring it.**
 - A clamp hides the fact instead of establishing it.
-- An internal `where` is weaker than what inlining gives.
+- A declared `where` or range on a definition is checked at its calls (ADR 0028), but it is a duty
+  on the caller, not a proof: what the body needs is still derived at the inlined site.
 
 A clamp in a program is a missing proof.
 
@@ -417,6 +431,8 @@ Each of these has bitten more than once. The instances are in the results they n
 - **The emitter must be a function of its input.** Iterating a Go map without a total order made
   output vary between runs. Test it by running twice.
 - **A survey's first number describes the measurer.** Seven corrections so far, in both directions.
+  A measurement's *scope* does too: requires-2026-09-24 counted `where` only on non-exported
+  definitions and missed `win/fmt.print-int`, an export every Windows harness print calls.
   Read ten members of a figure one at a time before it becomes a plan item.
 - **Benchmark-method errors have many species:**
   - a closure inside the reference;

@@ -27,8 +27,7 @@
 ; what the last two milestones were for.
 ;
 ; LIMITS, STATED RATHER THAN FIXED:
-;   - print-int takes a NON-NEGATIVE integer. A sign is four more lines and
-;     would teach nothing this file does not already teach.
+;   - print-int takes ANY integer in the word, a negative one with its sign.
 ;   - the digits go into the target's single __buf, so two of these cannot run
 ;     at once. The same is true of the __written cell WriteFile writes through.
 
@@ -38,11 +37,27 @@
 
 (export print-str print-int write-bytes)
 
-; The precondition print-int has always had, now WRITTEN DOWN rather than left
-; in a comment. It is what makes the digit loop's termination provable: dividing
-; by ten from a bounded start reaches zero, and the trip count that falls out is
-; what bounds the buffer index (types-direction.md §6.6).
-(sig print-int ((n int)) any (where (and (<= 0 n) (< n 9007199254740991))))
+;
+; TOTAL, and so it declares no domain. It used to take a non-negative n below
+; 2^53 − 1, written as a `where`: the upper bound was ADR 0012's window, and the
+; lower was a meaning gap — `print-int -13` printed a blank line
+; (refinements.md §6b). ADR 0028 made that `where` an obligation at every call,
+; and no program printing a computed value could discharge it, so the function
+; now means what its name says.
+;
+; A negative n is printed as a sign and the digits of −n, which is positive for
+; every negative int64 but one: −2^63, whose negation is not in the word, and
+; which is its own clause. It is tested as `n < −(2^63 − 1)` rather than as an
+; equality, because an ordering narrows the interval of n in the clause after it
+; and an equality does not, and the negation below needs that narrowing. So the digit loop is the one it always was — a
+; positive value divided down to zero, the geometric descent size-change proves
+; — and its trip count, at most 19, still bounds the buffer index. Twenty
+; characters at most, "-9223372036854775808", in a field of 24.
+;
+; The declared range is the word, which is what every `int` on this target is.
+; As an export's premise it bounds the digit loop's start; as an obligation at a
+; call it is vacuous, because an `int` argument is held in the word (ADR 0026).
+(sig print-int ((n (int -9223372036854775808 9223372036854775807))) any)
 
 ; -11 is STD_OUTPUT_HANDLE. There is no constant in the language to name it
 ; with, so the number is the interface — see targets/windows/kernel32.oro.
@@ -61,14 +76,19 @@
 ; 48 is '0'. 10 is '\n'. The language has no character literals, and adding some
 ; would be the first thing here that is not already in it.
 (def print-int (n)
-  (if (x64.sete n 0)
-      (print-str "0")
+  (cond
+    (x64.sete n 0)                    (print-str "0")
+    (x64.setl n -9223372036854775807) (print-str "-9223372036854775808")
+    else
       (let b (x64.buf)
         (seq (x64.movb b 24 10)
-             (let start (loop ((m n) (i 24))
+             (let digits (loop ((m (if (x64.setl n 0) (x64.sub 0 n) n)) (i 24))
                            (x64.setg m 0)
                            (seq (x64.movb b (x64.sub i 1) (x64.add 48 (x64.irem m 10)))
                                 (again (x64.idiv m 10) (x64.sub i 1)))
                            else i)
+                  start (if (x64.setl n 0)
+                            (seq (x64.movb b (x64.sub digits 1) 45) (x64.sub digits 1))
+                            digits)
                (write-bytes (x64.lea b start)
                             (x64.add (x64.sub 24 start) 1)))))))

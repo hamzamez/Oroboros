@@ -90,8 +90,22 @@ type Env struct {
 	Requires  map[string][]string
 	OnRequire func(def, param, ty string, arg *Term)
 
+	// Wheres are the definitions whose `where` is an obligation at their calls
+	// (ADR 0028). At β the clause is instantiated with the arguments as β
+	// passes them — an impure one already bound to a name, so nothing is
+	// duplicated — and reduced: `true` leaves nothing, `false` is reported to
+	// OnRequire with the parameter "where", and anything else marks the call's
+	// result, `(#reqw "def" cond body)`, for the analyses to decide.
+	Wheres map[string]WhereContract
+
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
+}
+
+// WhereContract is a definition's `where`, over its signature's parameter names.
+type WhereContract struct {
+	Params []string
+	Cond   *Term
 }
 
 // SetUnresolved records the imports that found no file, for importHint.
@@ -167,7 +181,7 @@ func (e *Env) markRequires(t *Term) *Term {
 	kids := append([]*Term(nil), t.Kids...)
 	changed := false
 	for i, ty := range tys {
-		if ty == "" || i+1 >= len(kids) {
+		if ty == "" || i+1 >= len(kids) || e.coversWord(ty) {
 			continue
 		}
 		a := kids[i+1]
@@ -183,6 +197,15 @@ func (e *Env) markRequires(t *Term) *Term {
 	return &Term{Kind: KApp, Kids: kids}
 }
 
+// coversWord reports a declared range holding the whole signed word, which is
+// vacuous for an integer argument — every `int` is held in the word (ADR 0026) —
+// so a call is not marked for it, and a program whose only contracts are such
+// ranges pays nothing to check them.
+func (e *Env) coversWord(ty string) bool {
+	lo, hi, ok := IntRangeBig(ty)
+	return ok && lo.IsInt64() && hi.IsInt64() && lo.Int64() <= e.Word.Lo && hi.Int64() >= e.Word.Hi
+}
+
 // paramName is a measured definition's i-th parameter, for the report.
 func (e *Env) paramName(def string, i int) string {
 	if d, ok := e.Defs[def]; ok && d.Kind == KFn && i < len(d.Params) {
@@ -196,6 +219,74 @@ func IsRequire(t *Term) bool {
 	return t != nil && t.Kind == KApp && len(t.Kids) == 5 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireName
 }
 
+// RequireWhereName marks a call's result with its definition's instantiated
+// `where` (ADR 0028): `(#reqw "def" cond body)`, whose value is body.
+const RequireWhereName = "#reqw"
+
+// IsRequireWhere recognises a where-mark.
+func IsRequireWhere(t *Term) bool {
+	return t != nil && t.Kind == KApp && len(t.Kids) == 4 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireWhereName
+}
+
+// withWhere rebuilds a where-mark around a new body.
+func withWhere(mark, body *Term) *Term {
+	return &Term{Kind: KApp, Kids: []*Term{mark.Kids[0], mark.Kids[1], mark.Kids[2], body}}
+}
+
+// peelWheres strips the where-marks around a term, outermost first.
+func peelWheres(t *Term) (*Term, []*Term) {
+	var ms []*Term
+	for IsRequireWhere(t) {
+		ms = append(ms, t)
+		t = t.Kids[3]
+	}
+	return t, ms
+}
+
+// wrapWheres puts peeled marks back around a term, keeping their order.
+func wrapWheres(t *Term, ms []*Term) *Term {
+	for i := len(ms) - 1; i >= 0; i-- {
+		t = withWhere(ms[i], t)
+	}
+	return t
+}
+
+// markWhere instantiates def's `where` with the call's arguments, reduces it,
+// and either discharges it (a literal `true`), reports it refuted (`false`), or
+// marks body with it.
+//
+// A PURE argument goes in as itself, an impure one as the name β bound it to.
+// The condition is erased, so copying a pure term into it costs nothing and runs
+// nothing — and it is what lets `(len (array 123 …))` fold to 20 where β, seeing
+// a table used twice, bound it to a name whose length nothing knows.
+func (e *Env) markWhere(def string, subs, args []*Term, body *Term, fuel *int) (*Term, error) {
+	w := e.Wheres[def]
+	if len(w.Params) != len(subs) || len(args) != len(subs) {
+		return body, nil
+	}
+	m := make(map[string]*Term, len(subs))
+	// An argument's own range mark is not part of this obligation — its mark
+	// checks it — so the condition reads the argument without it.
+	for i, p := range w.Params {
+		if e.pureTerm(args[i], map[string]bool{}) {
+			m[p] = StripRequires(args[i])
+		} else {
+			m[p] = StripRequires(subs[i])
+		}
+	}
+	cond, err := normalize(subst(w.Cond, m), e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	if cond.Kind == KBool {
+		if !cond.IsTrue() && e.OnRequire != nil {
+			e.OnRequire(def, "where", "", subst(w.Cond, m))
+		}
+		return body, nil
+	}
+	return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(def), cond, body}}, nil
+}
+
 // StripRequires erases every measurement mark, leaving the argument it wrapped.
 func StripRequires(t *Term) *Term {
 	if t == nil {
@@ -205,6 +296,9 @@ func StripRequires(t *Term) *Term {
 	case KApp:
 		if IsRequire(t) {
 			return StripRequires(t.Kids[4])
+		}
+		if IsRequireWhere(t) {
+			return StripRequires(t.Kids[3])
 		}
 		kids := make([]*Term, len(t.Kids))
 		changed := false
@@ -1409,11 +1503,34 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			t = e.markRequires(t)
 		}
+		callee := ""
+		if e.Wheres != nil && t.Op().Kind == KName {
+			if _, ok := e.Wheres[t.Op().Name]; ok {
+				callee = t.Op().Name
+			}
+		}
+		if IsRequireWhere(t) {
+			b, err := normalize(t.Kids[3], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			return withWhere(t, b), nil
+		}
 		op, err := normalize(t.Op(), e, fuel)
 		if err != nil {
 			return nil, err
 		}
 		args := t.Args()
+		// A WHERE-MARK IN OPERATOR POSITION is hoisted: the mark has no value of
+		// its own, so `((#reqw d c M) a…)` is `(#reqw d c (M a…))`, and β, the
+		// commuting conversions and every other rule then see M.
+		if IsRequireWhere(op) {
+			inner, err := normalize(&Term{Kind: KApp, Kids: append([]*Term{op.Kids[3]}, args...)}, e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			return withWhere(op, inner), nil
+		}
 
 		// β-tab — THE SECOND CLAUSE OF β, not a fourth rule.
 		//
@@ -1628,6 +1745,11 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
+			if callee != "" {
+				if body, err = e.markWhere(callee, subs, args, body, fuel); err != nil {
+					return nil, err
+				}
+			}
 			// Wrap innermost-last so the bindings nest in source order.
 			for i := len(bound) - 1; i >= 0; i-- {
 				body = App(Name("let"), bound[i].val, Fn([]string{bound[i].name}, body))
@@ -1678,6 +1800,17 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
+			// A where-mark on an operand is hoisted, so the fold still sees the
+			// literal the mark wraps (ADR 0028).
+			if IsRequireWhere(a) || IsRequireWhere(b) {
+				ia, ma := peelWheres(a)
+				ib, mb := peelWheres(b)
+				inner, err := normalize(&Term{Kind: KApp, Kids: []*Term{op, ia, ib}}, e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				return wrapWheres(wrapWheres(inner, mb), ma), nil
+			}
 			if a.Kind == KInt && b.Kind == KInt {
 				if out, ok := foldInt(op.Name, a.Int, b.Int, e.Word); ok {
 					return out, nil
@@ -1694,6 +1827,14 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			if err != nil {
 				return nil, err
 			}
+			if IsRequireWhere(na) {
+				in, ms := peelWheres(na)
+				inner, err := normalize(&Term{Kind: KApp, Kids: []*Term{op, in}}, e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				return wrapWheres(inner, ms), nil
+			}
 			if n, ok := e.tableLen([]*Term{na}); ok {
 				return normalize(n, e, fuel)
 			}
@@ -1705,6 +1846,14 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			c, err := normalize(args[0], e, fuel)
 			if err != nil {
 				return nil, err
+			}
+			if IsRequireWhere(c) {
+				in, ms := peelWheres(c)
+				inner, err := normalize(&Term{Kind: KApp, Kids: []*Term{op, in, args[1], args[2]}}, e, fuel)
+				if err != nil {
+					return nil, err
+				}
+				return wrapWheres(inner, ms), nil
 			}
 			if c.Kind == KBool {
 				if c.IsTrue() {
@@ -1746,6 +1895,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 func duplicable(t *Term) bool {
 	if IsRequire(t) {
 		return duplicable(t.Kids[4]) // a measurement mark is its argument
+	}
+	if IsRequireWhere(t) {
+		return duplicable(t.Kids[3]) // a where-mark is its body
 	}
 	switch t.Kind {
 	case KInt, KFloat, KStr, KBool, KName, KFn, KBound:

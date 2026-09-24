@@ -358,3 +358,29 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/read-loop.oro js`
 - new source — `gauntlet/differential/cases/read-loop.oro windows`
 - now emits — `lib/num/u128.oro go`
+
+## 2026-09-24 — on 0d37fbf, with uncommitted changes
+
+**Reason:** ADR 0028: a definition's parameter ranges and where are obligations at its calls. win/fmt print-int made total (its stale where, 0<=n<2^53, was unprovable at every harness print, and a negative printed a blank line); sieve-win-bench runtime unchanged (median 90 ms vs 90 over 10 runs). render.oro's exported run declares (int 0 15), fact's domain, so (+ 25 n) is proven and loses its checked wrapper.
+
+496 runs: 221 emitted, 275 refused; 2387 of 2434 integer operations bounded, 349 of 387 loops proven. compiler pass, differential pass, tooling skip.
+
+17 change(s):
+
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- compiler output changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/sieve-win-bench.oro windows`
+- compiler output changed — `examples/native/sieve-win-bench.oro windows`
+- emitted text changed — `examples/native/sieve-win.oro windows`
+- compiler output changed — `examples/native/sieve-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- compiler output changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- compiler output changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- compiler output changed — `gauntlet/differential/cases/render.oro java`
+- compiler output changed — `gauntlet/differential/cases/render.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/fmt.oro windows`
+- compiler output changed — `lib/win/fmt.oro windows`

@@ -89,6 +89,13 @@ parameter and a declared scalar range.
 is something to be proven; inlining gives strictly more information, so a fact
 declared at a boundary is redundant once the boundary is gone.
 
+> **Refined by [ADR 0028](decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)
+> (2026-09-24).** That holds for a declaration read as a *premise*, which the body may rely on.
+> A declared parameter range or `where` is also an *obligation on the caller*, and inlining does not
+> make an obligation redundant. It removes the only place the obligation could be checked. Both
+> readings are now honoured: the propagated obligations still protect safety, and the declared one is
+> checked at every inlined call.
+
 **This one is about a DIRECTIVE, and the argument does not transfer.** A range
 above the window is not a claim the compiler checks — it is a choice the compiler
 makes on the programmer's instruction. Inlining gives more information about

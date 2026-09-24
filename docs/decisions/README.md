@@ -59,3 +59,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0025](0025-a-module-path-is-the-hosts.md) | A module path is the host's path, and the file is the path |
 | [0026](0026-an-int-is-an-integer.md) | An `int` is an integer, and each target realizes what it can |
 | [0027](0027-a-host-calls-continuation-is-a-tail.md) | A host call's continuation is a tail position; `again` may sit under a tuple binding |
+| [0028](0028-a-definitions-contract-is-checked-at-its-calls.md) | A definition's declared parameter range and `where` are obligations at its calls |

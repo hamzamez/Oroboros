@@ -121,35 +121,16 @@ And the softer case — a refinement that was *propagated* rather than *proven* 
 too, because [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) already established that a
 transformation which silently does not fire is indistinguishable from one that does.
 
-## 6b. A `where` on a DEFINITION is a different thing from one on a `prim`
+## 6b. A `where` on a DEFINITION, and a declared parameter range
 
-Found by the differential suite, 2026-08-26
-([differential-2026-08-26 §4](../../gauntlet/results/differential-2026-08-26.md)), and the answer
-is more interesting than the finding.
+**[ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md): both are obligations
+at every call the definition is inlined into.** This section recorded the opposite until
+2026-09-24, and the argument it made is kept because half of it still holds.
 
-**A primitive's `where` is discharged at every call site.** That is §5, it is what `aindex` and
-`go./` rest on, and it is unchanged.
-
-**A definition's is not — because there is no call site left.** Reduction inlines every
-non-exported call, so by the time the residual reaches `Refine` there is no `safe`, no `n`, and
-nothing to attach an obligation to:
-
-```lisp
-(sig safe ((n int)) int (where (<= 0 n)))
-(def safe (fn (n) (go.+ n 1)))
-(def f (fn (x) (safe (go.- 0 5))))        ; accepted
-```
-
-### The `where` is DROPPED, not assumed
-
-This is the difference between a missing check and an unsound one, and it is the first thing to
-establish. Nothing assumes `0 ≤ n` on the strength of the declaration; the clause simply does not
-participate. So a program is never *told* something false.
-
-### Inlining is the enforcement mechanism, and it is STRONGER than the declaration
-
-What actually protects the program is that the obligations *inside* the body land at the call site
-with the caller's own values:
+**A primitive's `where` is discharged at every call site** (§5). A definition's has no call site left
+by the time the residual reaches `Refine`, because reduction inlines every non-exported call. What
+protects the program's **safety** is that the obligations *inside* the body land at the call site with
+the caller's own values:
 
 ```lisp
 (sig safe ((a (array f64)) (n int)) f64 (where (and (<= 0 n) (< n (len a)))))
@@ -161,53 +142,44 @@ with the caller's own values:
 (a (go.- 0 5)) is an indexing, and (<= 0 (go.- 0 5)) does not follow
 ```
 
-Refused — not because of the `where`, but because `(a -5)` is in the residual.
+That half stands, and it is still how every obligation inside a body is checked. What it does not
+protect is **meaning**: a body that is *total* and merely wrong outside its domain fires nothing.
+`lib/win/fmt.oro`'s `print-int -13` printed a blank line, and `num/u128`'s `digits18` given a value
+past 10¹⁸ printed the low 18 digits. A range on a parameter is a type (ADR 0003), and a type is
+checked at application. So the declaration is now checked *as well as* the propagated obligations,
+never instead of them.
 
-And the declared clause is only ever a **summary**, so checking it instead would be *less* precise.
-A `where` of `(< n 100)` on a body that really needs `n < len a` rejects a legal `(get a 400)`
-against a 500-element array; the propagated obligation accepts it, because it is the truth rather
-than a conservative restatement of it.
+### How it is checked
 
-> **So a naive fix is a regression.** Enforcing a definition's `where` at call sites would reject
-> programs that are correct and currently compile. The declaration is documentation *plus* a
-> conservative summary; the check is the propagated obligation.
+- **A range** is marked on the argument when the call is reduced, as `(#req "def" "param" "type" a)`,
+  whose value is `a`. The mark reaches wherever the argument does: each use of the parameter, or the
+  binding when β binds the argument to a name. A parameter the body never uses carries no
+  obligation.
+- **A `where`** is marked on the call's result at β, `(#reqw "def" cond body)`, with the arguments as
+  β passes them substituted into it. Each reduction rule that inspects a result's shape hoists the mark
+  out first.
+- The marks are decided immediately after reduction and erased before anything else runs
+  (`emit.DischargeRequires`), in order:
+  1. a literal, decided when it reduces;
+  2. the interval analysis;
+  3. this layer, with every fact in scope, including a pure call's `ensures`.
 
-### Except where the precondition states MEANING rather than guarding an obligation
+  An obligation none of them proves is refused, naming the call.
+- **Above the target's word a range denotes the set its enforcement admits**: `|x| < 2ᵇ`, b the bit
+  length of max(|LO|, |HI|) (bigrepr-2026-09-03 §3a). A declared result above the word, carried as
+  `(the T e)`, is read as that fact.
 
-The one case inlining cannot reach is a body that is **total** and merely *wrong* outside its
-domain, because nothing fires. `lib/win/fmt.oro` is the instance:
-
-```lisp
-(sig print-int ((n int)) any (where (and (<= 0 n) (< n 9007199254740991))))
-```
-
-The digit loop exits immediately on `(x64.setg m 0)` for a negative `n` and writes the one byte it
-had already stored — so `print-int -13` prints a blank line. That is not a bug in the
-implementation: the declaration says it makes no claim there. It is a precondition with **no
-enforcement anywhere**, and the differential suite found it by printing a negative number.
-
-This is a real gap and a named one. It is the same shape as SAL's `_Success_` and
-`_Ret_maybenull_` — a contract about what a call *means*, not about what it may touch — which is
-the territory [general-purpose.md](../general-purpose.md) is already heading into for Win32. The
-difference is that SAL contracts sit on *primitives*, where `where` is enforced, and this one sits
-on a definition.
-
-### And an EXPORTED definition's `where` means a third thing
-
-For an exported function the caller is **outside the program**, so nothing in the program could
-check it. There it is *assumed*, and correctly: it is a published contract, exactly what SAL is
-for a C header. `Refine` assumes it so the body may rely on it.
-
-So one syntax carries three meanings, which nothing said until now:
+### One syntax, two meanings
 
 | on | meaning |
 |---|---|
 | a `prim` | an obligation, discharged at every call site |
-| an **exported** definition | a published contract, assumed; the caller is outside the program |
-| an **internal** definition | a summary — dropped, with the body's own obligations doing the work |
+| a definition, called from inside the program | an obligation at every call it is inlined into |
+| an **exported** definition, called from outside | a published contract, assumed: the caller is outside the program, exactly what SAL is for a C header. `Refine` assumes it so the body may rely on it |
 
-The third is sound for everything that guards an obligation and empty for everything that states a
-meaning, and telling those apart is the open question.
+**Not covered, and named** (ADR 0028): a definition passed as a value and applied later, which is not
+a direct call by name. A range with an infinite endpoint keeps its finite side, `(int 0 +inf)` as
+`0 <= n`, on the call's condition.
 
 ## 7. What this does not do
 

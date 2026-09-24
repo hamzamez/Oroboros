@@ -48,7 +48,10 @@ Six, all erased before reduction except `def`:
 - **`sig`** is a claim checked in two directions: against the definition's residual, and against a
   target that provides the name natively ([types.md](types.md)). In it:
   - a range in a parameter is a premise;
-  - `where` has three meanings ([refinements.md §6b](refinements.md));
+  - `where` is an obligation at every call a definition is inlined into, and assumed only at an
+    export's own boundary ([ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
+    [refinements.md §6b](refinements.md)). A range on a parameter is the same claim, checked on the
+    argument, at bit length above the word;
   - `ensures` is its exact swap ([postconditions.md](postconditions.md)).
 - **`variant`** is closed, finite and non-recursive ([sums.md](sums.md), [data.md §5](data.md)). Its
   declaration generates ordinary definitions: constructors and tag constants. A variant is its

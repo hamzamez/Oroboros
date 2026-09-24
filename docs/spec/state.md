@@ -99,6 +99,7 @@ program; the backend implements each on each host.
 | `alloc`, `build`, `set` | allocation and the scoped linear buffer | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
 | `map`, `build-map`, `insert`, `keys` | maps over `int` keys | [maps.md](maps.md) |
 | `concat`, `string-of` | the free monoid over scalars, and its generator | [string-operations.md](../string-operations.md) |
+| a host's string | its own type (`go.bytestring` on Go), with `string` a subtype of it; it enters `string` only through d, the maximal-subpart decode (`go.text`, and the portable `os.text-of` on every host) | [ADR 0030](../decisions/0030-a-hosts-string-is-the-hosts.md), [strings.md §8](strings.md) |
 | `the` | a range ascribed to a term, erased at emission | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md) (no spec yet) |
 
 **Indexing has no word at all.** `(a i)` is an application, because a table is a function with a known

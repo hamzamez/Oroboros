@@ -57,9 +57,20 @@
   ; twice. Once bound to a parameter it is evaluated once. This is callbacks.md
   ; tier 1 exactly: the lambda never becomes a value in our residual, the host
   ; closes over it, and C2 inlines it.
+  ;
+  ; IT IS d (ADR 0030), the Unicode Standard's maximal-subpart substitution, as
+  ; on every host. `new String(b, UTF_8)` is d except on an ENCODED SURROGATE:
+  ; `ED A0 80` gives one U+FFFD there and three under d, which is what
+  ; JavaScript's TextDecoder gives (measured). So the lenient decoder runs
+  ; first, and its answer is kept exactly when it contains no U+FFFD: it emits
+  ; one for every ill-formed sequence, and on valid input it IS d, so no U+FFFD
+  ; means valid input and d's answer. Otherwise — ill-formed input, or a U+FFFD
+  ; the input really held — d is written out. (The strict decoder was the first
+  ; fast path; it lacks the lenient one's ASCII intrinsic and cost 3.6× on 1 KB
+  ; of ASCII, measured.)
   (sig text-of ((b (array (int 0 255)))) string
     pure (host expr
-      "((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; return new String($oroB, StandardCharsets.UTF_8); }).apply(%s)" (import "java.nio.charset.StandardCharsets")))
+      "((java.util.function.Function<short[],String>) ($oroA) -> { final byte[] $oroB = new byte[$oroA.length]; for (int $oroI = 0; $oroI < $oroA.length; $oroI++) $oroB[$oroI] = (byte) $oroA[$oroI]; final String $oroT = new String($oroB, StandardCharsets.UTF_8); if ($oroT.indexOf('\\uFFFD') < 0) return $oroT; { final StringBuilder $oroS = new StringBuilder(); final int $oroN = $oroB.length; for (int $oroI = 0; $oroI < $oroN; ) { final int $oroC = $oroB[$oroI] & 0xFF; if ($oroC < 0x80) { $oroS.append((char) $oroC); $oroI++; continue; } int $oroK = 0, $oroLo = 0x80, $oroHi = 0xBF; if ($oroC >= 0xC2 && $oroC <= 0xDF) $oroK = 1; else if ($oroC == 0xE0) { $oroK = 2; $oroLo = 0xA0; } else if ($oroC == 0xED) { $oroK = 2; $oroHi = 0x9F; } else if ($oroC >= 0xE1 && $oroC <= 0xEF) $oroK = 2; else if ($oroC == 0xF0) { $oroK = 3; $oroLo = 0x90; } else if ($oroC == 0xF4) { $oroK = 3; $oroHi = 0x8F; } else if ($oroC >= 0xF1 && $oroC <= 0xF3) $oroK = 3; int $oroJ = $oroI + 1; int $oroCp = $oroC & (0x3F >> $oroK); boolean $oroOk = $oroK > 0; for (int $oroM = 0; $oroOk && $oroM < $oroK; $oroM++) { if ($oroJ >= $oroN) { $oroOk = false; break; } final int $oroD = $oroB[$oroJ] & 0xFF; if ($oroD < $oroLo || $oroD > $oroHi) { $oroOk = false; break; } $oroCp = ($oroCp << 6) | ($oroD & 0x3F); $oroJ++; $oroLo = 0x80; $oroHi = 0xBF; } if ($oroOk) $oroS.appendCodePoint($oroCp); else $oroS.append('\\uFFFD'); $oroI = $oroJ; } return $oroS.toString(); } }).apply(%s)" (import "java.nio.charset.StandardCharsets")))
 
   ; THE COMMAND LINE IS THE ONE THING A JVM PROGRAM CANNOT ASK FOR. Go has
   ; `os.Args` and Node has `process.argv`; the JVM hands its arguments to `main`

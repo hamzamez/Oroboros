@@ -46,6 +46,11 @@
   (type int      (host "int"))
   (type f64  (host "float64"))
   (type string   (host "string"))
+  ; The HOST'S string, `go.bytestring`, is owned by module `go` (builtin.oro):
+  ; this realization is OURS, Σ* stored as UTF-8 (ADR 0030).
+  ; Ours is a subset of the host's, and the one edge between them points that
+  ; way; the way back is the decode `go.text`, never a coercion.
+  (implements string go.bytestring)
   (type bool     (host "bool"))
   (type byte     (host "byte"))
   (type rune     (host "rune"))

@@ -75,15 +75,18 @@
           (host expr "utf8.Valid(%s)" (import "unicode/utf8")))
 
     ; ------------------------------------------------------------ reading strings
-    (sig DecodeRuneInString     ((s string)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
+    ; Each is defined on ANY byte sequence — deciding and decoding it is the
+    ; package's purpose — so each takes the host's string (ADR 0030); ours, Σ*
+    ; stored as UTF-8, flows in as it is.
+    (sig DecodeRuneInString     ((s go.bytestring)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeRuneInString(%s)" (import "unicode/utf8")))
-    (sig DecodeLastRuneInString ((s string)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
+    (sig DecodeLastRuneInString ((s go.bytestring)) (tuple (int 0 MaxRune) (int 0 UTFMax)) pure
           (host expr "utf8.DecodeLastRuneInString(%s)" (import "unicode/utf8")))
-    (sig FullRuneInString       ((s string)) bool pure
+    (sig FullRuneInString       ((s go.bytestring)) bool pure
           (host expr "utf8.FullRuneInString(%s)" (import "unicode/utf8")))
-    (sig RuneCountInString      ((s string)) (int 0 9223372036854775807) pure
+    (sig RuneCountInString      ((s go.bytestring)) (int 0 9223372036854775807) pure
           (host expr "utf8.RuneCountInString(%s)" (import "unicode/utf8")))
-    (sig ValidString            ((s string)) bool pure
+    (sig ValidString            ((s go.bytestring)) bool pure
           (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))
   )
 )

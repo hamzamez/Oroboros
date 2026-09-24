@@ -20,6 +20,7 @@
 (use go/unicode/utf8)
 (use go/fmt as fmt)
 (use os)
+(use go/os as gos)
 
 (export main)
 
@@ -56,15 +57,18 @@
 
 ; A truncated four-byte sequence: not valid UTF-8, and no string literal can
 ; denote it, because a literal denotes scalar values (string-literals.md).
+; Nor can OUR string hold it: it reaches the `...InString` functions as the
+; host's string, `go/os`'s raw text-of, because the portable one decodes
+; (ADR 0030).
 (def invalid ()
   (let bad (build 3 (fn (b) (set (set (set b 0 240) 1 159) 2 153)))
     (seq (fmt.Println (utf8.FullRune bad))
          (fmt.Println (utf8.Valid bad))
          (fmt.Println (utf8.RuneCount bad))
          ((utf8.DecodeRune bad) (fn (r n) (pair r n)))
-         (fmt.Println (utf8.ValidString (os.text-of bad)))
-         (fmt.Println (utf8.FullRuneInString (os.text-of bad)))
-         (fmt.Println (utf8.RuneCountInString (os.text-of bad))))))
+         (fmt.Println (utf8.ValidString (gos.text-of bad)))
+         (fmt.Println (utf8.FullRuneInString (gos.text-of bad)))
+         (fmt.Println (utf8.RuneCountInString (gos.text-of bad))))))
 
 (def constants ()
   (seq (fmt.Println (utf8.MaxRune))

@@ -10,15 +10,13 @@
 ;
 ; prints: string
 ;
-; skip: java
-; skip: js
-;
-; TWO TARGETS, and that is a limitation of PRINTING rather than of the encoder.
-; `System.out` on the JVM encodes in the platform charset, so a printed `é` is
-; one byte on a Windows console and two on Go — which is why `string-escapes` is
-; ASCII-only and says so. V8 is skipped for the same reason. What is left is the
-; comparison that matters here: windows' hand-written encoder against Go's own
-; `string(rune(c))`, byte for byte.
+; FOUR TARGETS since ADR 0030's build. It was two, and that was a limitation of
+; PRINTING rather than of the encoder: `System.out` on the JVM encodes in the
+; platform charset, so a printed `é` was one byte on a Windows console and two
+; on Go. The harness now runs the JVM with UTF-8 output, as Go and V8 already
+; write, and the four encoders are compared byte for byte: windows' hand-written
+; one against Go's `string(rune(c))`, `String.fromCodePoint` and
+; `Character.toChars`.
 
 (export run)
 

@@ -441,3 +441,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `gauntlet/differential/cases/render.oro go`
 - compiler output changed — `gauntlet/differential/cases/render.oro java`
 - compiler output changed — `gauntlet/differential/cases/render.oro js`
+
+## 2026-09-24 — on e2226b6, with uncommitted changes
+
+**Reason:** ADR 0030: the portable os.text-of is d (maximal-subpart substitution) on Go and Java, and os.Args decodes by d on Go; each changed file differs only by the decoder template. New differential case text-of
+
+508 runs: 230 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling pass.
+
+9 change(s):
+
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro go`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/wc.oro go`
+- new source — `gauntlet/differential/cases/text-of.oro go`
+- new source — `gauntlet/differential/cases/text-of.oro java`
+- new source — `gauntlet/differential/cases/text-of.oro js`
+- new source — `gauntlet/differential/cases/text-of.oro windows`

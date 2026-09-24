@@ -260,30 +260,30 @@
 == examples/int/sum-range.oro windows refused
    gen: examples/int/sum-range.oro: in sum-range: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/io/freq.oro go emitted 2bfe2599a0924b58401987ff796bcffc21f9321f86089f2f46ba73b2474cd521
+== examples/io/freq.oro go emitted 1b7ab5439ab24285a35c722444bd4e9caa58ec4d031bc5f19c80be280552abe8
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
 == examples/io/freq.oro js emitted 8648ba7b1d18885aa47f37faef77c8f0c97d9f1a9dc3a1879025e21709c95c77
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
-== examples/io/freq.oro java emitted f9a15bd68bddd9c476c99347835a4645e122c936d3f59bfb2d06bead79ac99ed
+== examples/io/freq.oro java emitted 5d589884b1b13c7ef53b780f65487eb53606ad312a9ef055c119267f36efd610
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
 == examples/io/freq.oro windows refused
    gen: examples/io/freq.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/jsonfmt.oro go emitted 663d681a24df164dba00eefb94dcac82dcd3844d11fe0a38ea475d82738657f4
+== examples/io/jsonfmt.oro go emitted fb86012e1140bc81a04757c3f2e0cd0bb2a1498092caa48d8a07f9f47542bd3e
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro js emitted 1b8a3d6c0330dc02d5d9b743e2682f7fcefaf92b4eb56fcae6058dbabe9b73d6
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro java emitted f7b8058adc883d9368db873b258bcc4d2963d793cf1ca04c3f4070f9c42169b6
+== examples/io/jsonfmt.oro java emitted 6881d12e33885b56897b105f6bf553a134670788bda1245585d937c69e569097
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/wc.oro go emitted 938ebf6802e65fb1128b861a5ed4792fe8696236c09804c527d34eadf397c197
+== examples/io/wc.oro go emitted 09ca5c8d8a798966f2cc41cbd03196892a324fe577c21a48f8bfe689303853ba
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro js emitted 957c897bf575dca99ca33ca531716a59ea9017991e99d608089e97a8e865e636
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -1088,6 +1088,12 @@
 == gauntlet/differential/cases/table-bool.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/table-bool.oro java emitted e6b80231e9e710bd48c323f0f134c67b9e452274aaf2206eab2f6af92e5f71ad
 == gauntlet/differential/cases/table-bool.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/text-of.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/text-of.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/text-of.oro java emitted 8e88511073a195d1f5869f40b97ca76bae26158bb1700689f1d9dd4042192e8f
+== gauntlet/differential/cases/text-of.oro windows refused
+   gen: gauntlet/differential/cases/text-of.oro: in run: os.text-of is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use os) matched no file on the search path and this target provides no module os either, so every name from it is unbound. Check the path.
 == gauntlet/differential/cases/u128-fact.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/u128-fact.oro js refused
    gen: gauntlet/differential/cases/u128-fact.oro: in num/u128.add: go/math/bits.Add64 is not bound — it is not a parameter, not a definition, and not a primitive on this target

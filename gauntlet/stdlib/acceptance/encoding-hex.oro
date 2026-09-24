@@ -15,6 +15,7 @@
 ;   streams     the encoder and decoder agree with H and G, and the dumper is
 ;               closed through the method set its companion includes
 
+(use go)
 (use go/encoding/hex)
 (use go/fmt as fmt)
 (use go/os as gos)
@@ -75,14 +76,14 @@
   ((gos.MkdirTemp "" "orohex") (fn (dir e0)
     (seq
       ; the encoder writes H(src)
-      ((gos.Create (concat dir "/enc")) (fn (f e1)
-        (seq ((gio.WriteString (hex.NewEncoder f) (os.text-of src)) (fn (n e2)
+      ((gos.Create (concat (go.text dir) "/enc")) (fn (f e1)
+        (seq ((gio.WriteString (hex.NewEncoder f) (gos.text-of src)) (fn (n e2)
                (fmt.Println n)))
              (file.Close f))))
-      ((gos.ReadFile (concat dir "/enc")) (fn (b e3)
+      ((gos.ReadFile (concat (go.text dir) "/enc")) (fn (b e3)
         (fmt.Println (os.text-of b))))
       ; the decoder reads G of it back
-      ((gos.Open (concat dir "/enc")) (fn (f e4)
+      ((gos.Open (concat (go.text dir) "/enc")) (fn (f e4)
         (seq ((gio.ReadAll (hex.NewDecoder f)) (fn (b e5)
                (seq (fmt.Println b) (fmt.Println (gos.err-nil e5)))))
              (file.Close f))))
@@ -90,13 +91,13 @@
       ; `io.WriteCloser` because that interface's companion INCLUDES Closer's
       ; (targets/go/io.oro) — until companions existed there was no way to give an
       ; interface a method, and this dump was missing its last, partial line.
-      ((gos.Create (concat dir "/dump")) (fn (f e6)
+      ((gos.Create (concat (go.text dir) "/dump")) (fn (f e6)
         (seq (let d (hex.Dumper f)
-               (seq ((gio.WriteString d (os.text-of src)) (fn (n e7)
+               (seq ((gio.WriteString d (gos.text-of src)) (fn (n e7)
                       (fmt.Println n)))
                     (fmt.Println (gos.err-nil (wc.Close d)))))
              (file.Close f))))
-      ((gos.ReadFile (concat dir "/dump")) (fn (b e8)
+      ((gos.ReadFile (concat (go.text dir) "/dump")) (fn (b e8)
         (fmt.Println (os.text-of b))))
       (gos.RemoveAll dir)))))
 

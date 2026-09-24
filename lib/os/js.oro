@@ -57,7 +57,9 @@
   (sig err-nil ((e error)) bool pure (host expr "%s === null"))
 
   ; Bytes to text, ONCE, at the boundary. `TextDecoder` is the platform's own
-  ; UTF-8 decode and needs no import.
+  ; UTF-8 decode and needs no import, and it IS d (ADR 0030): the WHATWG decoder
+  ; is the Unicode Standard's maximal-subpart substitution, which Go and Java
+  ; implement to match.
   (sig text-of ((b (array (int 0 255)))) string pure (host expr
       "new TextDecoder().decode(Uint8Array.from(%s))"))
 

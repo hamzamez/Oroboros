@@ -154,5 +154,26 @@
     ; ---- conversions. Go spells these T(x); each is its own name here.
     (sig int-of-float64  (f64) int     pure       (host expr "int(%s)"))
     (sig float64-of-int  (int) f64 pure       (host expr "float64(%s)"))
-    (sig string-of-bytes (slice-byte) string  pure (host expr "string(%s)"))
-    (sig bytes-of-string (string) slice-byte  pure (host expr "[]byte(%s)"))))
+    ; THE HOST'S STRING IS THE HOST'S (ADR 0030). A Go `string` is any byte
+    ; sequence, B*; ours is a sequence of scalar values, Σ*, stored as its UTF-8
+    ; encoding. So ours is a subset, and the edge is the identity on the
+    ; representation: no code, declared in go.oro as `(implements string
+    ; go.bytestring)`. The way back is `text` below, the decode d.
+    (type bytestring (host "string"))
+
+    (sig string-of-bytes (slice-byte) go.bytestring pure (host expr "string(%s)"))
+    (sig bytes-of-string (go.bytestring) slice-byte pure (host expr "[]byte(%s)"))
+
+    ; ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text` is
+    ; d, the Unicode Standard's maximal-subpart substitution (§3.9, Table 3-7):
+    ; a well-formed sequence is its scalar, and each byte that begins none, or
+    ; the longest prefix of a sequence that cannot be completed, is one U+FFFD.
+    ; It is total, d ∘ enc = id, and it is the identity on valid UTF-8, which is
+    ; the fast path. It is NOT a homomorphism — d(E6)·d(97 A5) is three U+FFFD
+    ; and d(E6 97 A5) is 日 — so it is applied once, to a whole value.
+    ; `valid` decides V = enc(Σ*); `(if (go.valid s) (go.text s) …)` is the
+    ; checked conversion, because d is the identity there.
+    (sig text ((s go.bytestring)) string pure
+          (host expr "func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(%s)" (import "unicode/utf8")))
+    (sig valid ((s go.bytestring)) bool pure
+          (host expr "utf8.ValidString(%s)" (import "unicode/utf8")))))

@@ -3549,10 +3549,24 @@ func (tg *Target) SameHostType(a, b string) bool {
 	if a == b {
 		return true
 	}
+	// A LANGUAGE TYPE IS NEVER A HOST TYPE BY REALIZATION (ADR 0030). `string` is
+	// Σ*, stored on Go as a Go `string`; `go.bytestring` is every Go `string`, B*.
+	// One spelling, one set inside another — so the identity by realization,
+	// right for an opaque host type named under two keys, would let host bytes
+	// pass as ours in both directions. The direction that holds is a declared
+	// edge (`implements`), and the way back is a decode, not a coercion.
+	if languageTypes[a] || languageTypes[b] {
+		return false
+	}
 	sa, oka := tg.Types[a]
 	sb, okb := tg.Types[b]
 	return oka && okb && sa != "" && sa == sb
 }
+
+// languageTypes are the types the language defines, which a target REALIZES and
+// does not own: their realization is their representation, not their identity
+// (ADR 0003).
+var languageTypes = map[string]bool{"string": true, "int": true, "f64": true, "bool": true}
 
 // BufferRoot follows a threaded buffer back to the name it came from.
 // `(set (set b i v) j w)` writes to `b`, and a program with two live buffers —

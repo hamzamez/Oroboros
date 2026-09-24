@@ -120,8 +120,14 @@ var artifact = map[string]struct {
 	"go":      {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
 	"windows": {"out.exe", func(o string) *exec.Cmd { return exec.Command(o) }},
 	"js":      {"out.mjs", func(o string) *exec.Cmd { return exec.Command("node", o) }},
+	// THE JVM PRINTS IN THE PLATFORM CHARSET unless told otherwise, so a U+FFFD
+	// came out as `?` on Windows (strings.md §5, a property of PRINTING, not of
+	// the program). The output is compared as bytes, so it is asked for in
+	// UTF-8, as Go and V8 already write it: `file.encoding` is what System.out
+	// uses on a pipe up to JDK 18, and `stdout.encoding` from JDK 19.
 	"java": {"classes", func(o string) *exec.Cmd {
-		return exec.Command("java", "-cp", o, "Main")
+		return exec.Command("java", "-Dfile.encoding=UTF-8", "-Dstdout.encoding=UTF-8",
+			"-Dsun.stdout.encoding=UTF-8", "-cp", o, "Main")
 	}},
 }
 

@@ -160,6 +160,7 @@ rejected alternatives.
 | A host call's continuation is a tail position: `again` may sit under a tuple binding | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 | A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
 | Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
+| At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
 
 ## How this project is run
 
@@ -264,6 +265,13 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `""` and `string-of`; three text programs needed nothing more
   ([string-literals.md](docs/spec/string-literals.md), [strings.md](docs/spec/strings.md),
   [string-operations.md](docs/string-operations.md)).
+  **Every value a program holds is one** ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md), strings.md §8):
+  - a host's string is the host's type: on Go `go.bytestring`, any byte sequence;
+  - `string ≤ go.bytestring`, and the coercion emits nothing;
+  - the only way back is d, `go.text`, the Unicode Standard's maximal-subpart substitution, and the
+    portable `os.text-of` is d on every host;
+  - a declared result is `string` only where the host provably maps Σ* into valid UTF-8, and the
+    generator spells every Go `string` as `go.bytestring`.
 - **Not built:** records, symbols, `with`.
 
 ### Integers

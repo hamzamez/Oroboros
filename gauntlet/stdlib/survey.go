@@ -40,7 +40,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // ---------------------------------------------------------------- the reasons
@@ -113,8 +115,15 @@ type verdict struct {
 // Now `int64` is the signed word itself and `uint64` is U = [0, 2^64−1], which
 // the Go target realizes natively as `uint64`; neither is arbitrary precision.
 // A generator makes no claim it cannot justify (ADR 0023), and these it can.
+//
+// A Go `string` IS THE HOST'S STRING, `go.bytestring` (ADR 0030): any byte
+// sequence. Ours is Σ*, a subset, so it still flows into every parameter spelled
+// this way; but a RESULT spelled `string` would claim the host returns only valid
+// UTF-8, which is a fact about each function's body that no signature states —
+// `strconv.Unquote("\xff")` is the byte 0xFF. A person who reads the body may
+// narrow a result to `string` (ADR 0022); the generator may not.
 var scalar = map[string]string{
-	"bool": "bool", "string": "string",
+	"bool": "bool", "string": "go.bytestring",
 	"int":    "int",
 	"int64":  "(int -9223372036854775808 9223372036854775807)",
 	"uint":   "(int 0 18446744073709551615)",
@@ -2056,7 +2065,13 @@ func constResult(s sym) (string, string) {
 	case "ideal-float", "float64", "float32":
 		return "f64", ""
 	case "ideal-string", "string":
-		return "string", ""
+		// A CONSTANT'S VALUE IS KNOWN, so here the generator CAN justify ours: a
+		// value that is valid UTF-8 is in Σ*. `debug/elf.ELFMAG` is "\x7fELF",
+		// which is; one that is not stays the host's string (ADR 0030).
+		if v, err := strconv.Unquote(s.value); err == nil && utf8.ValidString(v) {
+			return "string", ""
+		}
+		return "go.bytestring", ""
 	case "ideal-bool", "bool":
 		return "bool", ""
 	case "ideal-complex", "complex64", "complex128":

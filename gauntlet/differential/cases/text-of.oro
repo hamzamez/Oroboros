@@ -1,0 +1,46 @@
+; BYTES TO TEXT IS ONE FUNCTION ON EVERY HOST (ADR 0030).
+;
+; `os.text-of` is d, the Unicode Standard's maximal-subpart substitution (§3.9,
+; Table 3-7): a well-formed sequence is its scalar, and each byte that begins
+; none, or the longest prefix of a sequence that cannot be completed, is one
+; U+FFFD. The inputs are the classic ill-formed cases: a lone continuation, a
+; truncated 3- and 4-byte sequence, an overlong, an encoded surrogate, a scalar
+; past U+10FFFF, a byte that never begins one — and the scalars at the edges of
+; the ranges, which must survive.
+;
+; Before ADR 0030 the three hosts gave three answers. Go kept the raw bytes (a
+; value outside Σ* typed `string`); JavaScript's TextDecoder was d; Java's
+; decoder gave ONE U+FFFD for an encoded surrogate where d gives three. The
+; expected answer below was computed by an implementation of d written from the
+; table, and checked against TextDecoder, not taken from any host.
+;
+; skip: windows
+;
+; windows has no `os` cell: it has no file I/O yet, so nothing there decodes.
+
+(use os)
+
+; prints: string
+; inputs: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
+; expect: � �a �� ��� ���� � �a 日 ��� ���� ퟿ 􏿿 a�b ��� � � ��� �
+
+(def run (n)
+  (os.text-of (cond
+    (= n 0) (array 128)
+    (= n 1) (array 230 151 97)
+    (= n 2) (array 192 175)
+    (= n 3) (array 237 160 128)
+    (= n 4) (array 244 144 128 128)
+    (= n 5) (array 255)
+    (= n 6) (array 240 159 153 97)
+    (= n 7) (array 230 151 165)
+    (= n 8) (array 224 128 128)
+    (= n 9) (array 240 143 191 191)
+    (= n 10) (array 237 159 191)
+    (= n 11) (array 244 143 191 191)
+    (= n 12) (array 97 128 98)
+    (= n 13) (array 225 128 225 128 225)
+    (= n 14) (array 239 191 189)
+    (= n 15) (array 194)
+    (= n 16) (array 237 191 191)
+    else     (array 240 144 128))))

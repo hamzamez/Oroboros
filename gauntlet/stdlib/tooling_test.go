@@ -1371,7 +1371,12 @@ func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(s
 //   - a parameter or result the host spells as a slice may be a BUFFER, because
 //     the host writes it;
 //   - a write-borrow's result list may BEGIN with the buffer it hands back;
-//   - an integer result may be a narrower RANGE inside the host's type.
+//   - an integer result may be a narrower RANGE inside the host's type;
+//   - a string result may be OURS, `string`, where the host's type is
+//     `go.bytestring`: Σ* inside B*, which a person justifies by reading the
+//     body (ADR 0030). Both realize Go's `string`, so they agree here, and the
+//     claim is the declaration's own comment — exactly the claim ADR 0022 leaves
+//     to the person and ADR 0023 denies the generator.
 func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(string) string) error {
 	if len(h.Args) != len(g.Args) {
 		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))

@@ -378,6 +378,12 @@ type intervalPass struct {
 	lenFor  *core.Term
 	lenForV ival
 
+	// edgeArg is each `again` argument's interval at the back edge being graphed,
+	// as collectAgain just computed it for the fixpoint. The separated-interval
+	// arc reads it; evaluating it again inside relate, once per PAIR of
+	// variables, cost render on windows half a second (matchguard-2026-09-24).
+	edgeArg map[*core.Term]ival
+
 	// bound is every name this pass has already opened a binder with, shared by
 	// every `openFresh` call so that two binders never get the same fresh name.
 	//
@@ -477,7 +483,8 @@ type intervalPass struct {
 	scSteps  []ival    // per-variable change per back edge, joined over edges
 	scKnown  []bool    // …and whether that change is known at all
 	scSeen   []bool    // …and whether any edge has reported it yet
-	scKind   []descent // how variable j descends, per the LAST edge examined
+	scKind   []descent // how variable j descends on EVERY edge: the meet (meetDescent)
+	scKindOK []bool    // …and whether an edge has been met yet
 }
 
 // descent is how a measure shrinks: by a fixed amount, or by a factor.
@@ -1989,6 +1996,19 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 	return joinI(a, b), rebuilt
 }
 
+// joinEnv is the environment true on either of two paths: the join of each key
+// both know. A key only one knows is unconstrained on the other, which is ⊤, and
+// ⊤ joined with anything is ⊤ — so it is left out, which is how ⊤ is written.
+func joinEnv(a, b map[string]ival) map[string]ival {
+	out := make(map[string]ival, len(a))
+	for k, va := range a {
+		if vb, ok := b[k]; ok {
+			out[k] = joinI(va, vb)
+		}
+	}
+	return out
+}
+
 func (p *intervalPass) snapshot() map[string]ival {
 	m := make(map[string]ival, len(p.env))
 	for k, v := range p.env {
@@ -2345,6 +2365,45 @@ func (p *intervalPass) unbindElem(name string, old ival, had bool) {
 // loop counter bounded at all: `(< i n)` inside the taken branch says i < n,
 // and n's own bound carries across.
 func (p *intervalPass) refine(c *core.Term, taken bool) {
+	// NOTHING HERE IS COUNTED. `cond` evaluated — and counted — the whole
+	// condition before refining by it; what this evaluates again is an operand
+	// of it, to narrow the other side. Counted, `(>= i (- n 1))` reported its
+	// subtraction twice, and a connective, whose first operand is narrowed on
+	// both of its paths, three times (matchguard-2026-09-24).
+	defer func(was bool) { p.count = was }(p.count)
+	p.count = false
+	// A CONNECTIVE NARROWS BY ITS OPERANDS. `and`, `or` and `not` are reader
+	// sugar over `if` (ADR 0017), so a guard written `(and (= tag 0) (>= v 10))`
+	// arrives as `(if (= tag 0) (>= v 10) false)` — three arguments — and this
+	// used to return at once, narrowing nothing. Every `match` clause with a
+	// literal pattern and a `when` is that shape, so its guard bounded nothing:
+	// `match`'s loops were 0 of 9 proven terminating (bounds-2026-09-24).
+	//
+	// De Morgan decides each case:
+	//   a ∧ b holds, or a ∨ b fails     — narrow by both operands, in sequence;
+	//   a ∧ b fails: ¬a ∨ (a ∧ ¬b)       — the JOIN of the two narrowings;
+	//   a ∨ b holds:  a ∨ (¬a ∧ b)       — likewise;
+	//   ¬a                               — a, the other way.
+	// The second operand is narrowed after the first holds or fails, because
+	// that is the order the connective evaluates it in.
+	if cn, ok := connective(p.tgt, c); ok {
+		switch {
+		case cn.Op == "not":
+			p.refine(cn.Args[0], !taken)
+		case (cn.Op == "and") == taken:
+			p.refine(cn.Args[0], taken)
+			p.refine(cn.Args[1], taken)
+		default:
+			s := p.snapshot()
+			p.refine(cn.Args[0], taken)
+			first := p.snapshot()
+			p.restore(s)
+			p.refine(cn.Args[0], !taken)
+			p.refine(cn.Args[1], taken)
+			p.env = joinEnv(first, p.env)
+		}
+		return
+	}
 	if c.Kind != core.KApp || c.Op().Kind != core.KName || len(c.Args()) != 2 {
 		return
 	}
@@ -2656,8 +2715,8 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	// being recorded against the parent's variables — every arc empty, and the
 	// parent reported as possibly non-terminating on a cycle nothing was known
 	// about. Five edges where the loop has two.
-	oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn :=
-		p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn
+	oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn, oKo :=
+		p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn, p.scKindOK
 	p.scOn = false
 
 	// ASCENDING with widening, to reach a post-fixpoint in bounded time.
@@ -2968,7 +3027,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	p.scRaw, p.scOn = raw, true
 	p.scOrient = make([]int, n)
 	p.scSteps, p.scKnown, p.scSeen = make([]ival, n), make([]bool, n), make([]bool, n)
-	p.scKind = make([]descent, n)
+	p.scKind, p.scKindOK = make([]descent, n), make([]bool, n)
 	for i := range p.scKnown {
 		p.scKnown[i] = true
 	}
@@ -2976,6 +3035,9 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	step(cur) // sweep one: steps only, orientation still zero
 	p.scOrient = orient(p.scSteps, p.scKnown)
 	p.scEdges = nil
+	// The descents are met over sweep two's edges only: sweep one had no
+	// orientation, so every edge it saw descended by nothing.
+	p.scKind, p.scKindOK = make([]descent, n), make([]bool, n)
 	step(cur) // sweep two: the graphs, now that measures point the right way
 	p.scOn = false
 
@@ -3061,8 +3123,8 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 				fmt.Sprintf("loop(%s): %s", strings.Join(raw, ","), witness.Render(raw)))
 		}
 	}
-	p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn =
-		oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn
+	p.scRaw, p.scOrient, p.scEdges, p.scSteps, p.scKnown, p.scSeen, p.scKind, p.scOn, p.scKindOK =
+		oRaw, oOr, oEd, oSt, oKn, oSe, oKi, oOn, oKo
 	p.loopTail, p.loopRaw = outerLoopTail, outerLoopRaw
 
 	p.count = wasCounting
@@ -3395,6 +3457,20 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 			// duplicate of the rule in `app`; that one rebuilds the term and this
 			// one settles the fixpoint, and both walk the back edge.
 			outerDemand := p.demandBig
+			// A BACK EDGE THE GUARDS MAKE UNREACHABLE is never taken: some loop
+			// variable has no value here. It contributes nothing to the loop's
+			// state — a state with an empty component is empty (the smash
+			// product) — and it is no edge of the size-change graph. Joined, its
+			// arguments widened a counter the loop never advances, and recorded,
+			// it had no descent: `match` on 0, which exits at its first clause,
+			// was reported as possibly not terminating (matchguard-2026-09-24).
+			dead := false
+			for _, n := range raw {
+				if p.lookup(n).isBottom() {
+					dead = true
+				}
+			}
+			edgeVals := map[*core.Term]ival{}
 			for i, a := range args {
 				p.demandBig = i < len(raw) && p.big[raw[i]]
 				if i >= len(acc) {
@@ -3411,7 +3487,18 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 				smashing := len(raw) > 0 && len(p.smashRaw) == len(raw) && &p.smashRaw[0] == &raw[0] &&
 					i < len(p.smashTracked) && p.smashTracked[i]
 				if i < len(raw) && selfContained(p.tgt, a, raw[i]) {
-					acc[i] = joinI(acc[i], p.updateIval(a, raw[i]))
+					u := p.updateIval(a, raw[i])
+					if !dead {
+						acc[i] = joinI(acc[i], u)
+					}
+					// Its value: the update set when it never hands the variable
+					// back (updateIval then evaluated it whole), and otherwise the
+					// variable itself or an update.
+					if mentionsName(a, raw[i]) {
+						edgeVals[a] = joinI(p.lookup(raw[i]), u)
+					} else {
+						edgeVals[a] = u
+					}
 					if smashing {
 						_, na := p.evalR(a)
 						p.smashEdge(i, na)
@@ -3419,13 +3506,16 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 					continue
 				}
 				v, na := p.evalR(a)
-				acc[i] = joinI(acc[i], v)
+				if !dead {
+					acc[i] = joinI(acc[i], v)
+				}
+				edgeVals[a] = v
 				if smashing {
 					p.smashEdge(i, na)
 				}
 			}
 			p.demandBig = outerDemand
-			if p.scOn {
+			if p.scOn && !dead {
 				for j := range p.scRaw {
 					if j >= len(args) {
 						continue
@@ -3440,7 +3530,10 @@ func (p *intervalPass) collectAgain(t *core.Term, raw []string, acc []ival) {
 						p.scSteps[j] = joinI(p.scSteps[j], st)
 					}
 				}
+				outerVals := p.edgeArg
+				p.edgeArg = edgeVals
 				p.scEdges = append(p.scEdges, p.edgeGraph(args))
+				p.edgeArg = outerVals
 			}
 			return
 		}
@@ -3580,12 +3673,40 @@ func (p *intervalPass) relate(arg *core.Term, src string, srcSign, dstSign int) 
 	// increase when c = 0. Only for the ascending measure: a lower bound says
 	// nothing about descent when the measure is +src.
 	//
-	// It gives the arc and WITHHOLDS the measure. `descent{}` keeps the position
-	// out of `tripCount`, because `span / delta + 1` also needs `cur[src]`, and
-	// src's value here comes out of the same opaque loop the bound came from.
+	// Its MEASURE IS c, the least step. It used to be withheld — `descent{}`,
+	// "because span / delta + 1 also needs cur[src]" from the same opaque loop —
+	// and the withholding never took effect: tripCount read the LAST edge's
+	// descent, so the position was numbered by the other clauses' step anyway
+	// (fixpoint-2026-08-27 recorded exactly that). Now that the descent is the
+	// meet over every edge (meetDescent), withholding would really exclude it,
+	// and it is not needed: `cur` is the loop-head fixpoint, sound since that
+	// same result, and tripCount demands it bounded. c is what this edge
+	// guarantees, so the meet is honest where the old number was borrowed
+	// (matchguard-2026-09-24).
 	if srcSign < 0 && srcSign == dstSign {
 		if c, ok := DerivedStep(p.tgt, arg, src, p.unLet); ok && c >= 1 {
-			return down, descent{}
+			return down, descent{kind: 1, delta: bi(c)}
+		}
+	}
+	// SEPARATED INTERVALS. When every value the argument can take lies below
+	// every value src holds at this back edge — in the oriented measure — the
+	// edge descends, whatever the argument's shape, by at least the gap between
+	// them. `match`'s reset clause `(again 0 0 c)` is the case: its guards leave
+	// v ∈ [1, 9], and 0 < 1, so v descends there as it does on the clauses that
+	// subtract 10. The gap is the edge's own least decrease, which is what
+	// meetDescent needs to number the trips honestly.
+	if v, seen := p.edgeArg[arg]; seen && srcSign != 0 && srcSign == dstSign {
+		s := p.lookup(src)
+		if srcSign < 0 {
+			v, s = negI(v), negI(s)
+		}
+		if !v.hiInf && !s.loInf && !v.isBottom() && !s.isBottom() {
+			if gap, ok := s.lo.sub(v.hi); ok && gap.sign() > 0 {
+				return down, descent{kind: 1, delta: gap}
+			}
+			if !v.hi.gt(s.lo) {
+				return downEq, descent{}
+			}
 		}
 	}
 	return noArc, descent{}
@@ -3707,12 +3828,50 @@ func (p *intervalPass) edgeGraph(args []*core.Term) scGraph {
 		for i := 0; i < n; i++ {
 			a, d := p.relate(args[j], p.scRaw[i], p.scOrient[i], p.scOrient[j])
 			g.set(i, j, a)
-			if i == j && d.kind != 0 {
-				p.scKind[j] = d
+			if i == j && j < len(p.scKind) {
+				if a != down {
+					d = descent{} // no descent on this edge: j numbers no trips
+				}
+				if p.scKindOK[j] {
+					p.scKind[j] = meetDescent(p.scKind[j], d)
+				} else {
+					p.scKind[j], p.scKindOK[j] = d, true
+				}
 			}
 		}
 	}
 	return g
+}
+
+// meetDescent is the descent guaranteed on BOTH of two edges: the weaker one.
+//
+// A trip count divides a span by the least decrease per step, so the least
+// decrease has to hold on EVERY edge. It used to be the last edge's: a loop
+// stepping by 10 above 50 and by 1 below it was numbered as though every step
+// were 10 — 11 trips where 54 happen — and an accumulator bounded by that count
+// was PROVEN inside the word while it overflowed at run time
+// (matchguard-2026-09-24).
+//
+//	linear δ₁, linear δ₂       linear min(δ₁, δ₂)
+//	geometric b₁, geometric b₂ geometric min(b₁, b₂)
+//	linear, geometric          linear 1: v ≥ 1 and b ≥ 2 give v − ⌊v/b⌋ ≥ 1
+//	either with none           none
+func meetDescent(a, b descent) descent {
+	switch {
+	case a.kind == 0 || b.kind == 0:
+		return descent{}
+	case a.kind == 1 && b.kind == 1:
+		if b.delta.lt(a.delta) {
+			return b
+		}
+		return a
+	case a.kind == 2 && b.kind == 2:
+		if b.base.lt(a.base) {
+			return b
+		}
+		return a
+	}
+	return descent{kind: 1, delta: bOne}
 }
 
 // tripCount turns a proof of descent into a bound on the number of iterations.

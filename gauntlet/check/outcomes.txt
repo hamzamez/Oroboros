@@ -262,24 +262,24 @@
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/io/freq.oro go emitted 2bfe2599a0924b58401987ff796bcffc21f9321f86089f2f46ba73b2474cd521
    note: gen-main: 71 product access(es) flattened
-   note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
+   note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
 == examples/io/freq.oro js emitted 8648ba7b1d18885aa47f37faef77c8f0c97d9f1a9dc3a1879025e21709c95c77
    note: gen-main: 71 product access(es) flattened
-   note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
+   note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
 == examples/io/freq.oro java emitted f9a15bd68bddd9c476c99347835a4645e122c936d3f59bfb2d06bead79ac99ed
    note: gen-main: 71 product access(es) flattened
-   note: gen-main: 324 of 324 integer operations bounded; 27 of 31 loop(s) proven terminating
+   note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
 == examples/io/freq.oro windows refused
    gen: examples/io/freq.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/io/jsonfmt.oro go emitted 663d681a24df164dba00eefb94dcac82dcd3844d11fe0a38ea475d82738657f4
-   note: gen-main: 103 of 103 integer operations bounded; 13 of 13 loop(s) proven terminating
+   note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro js emitted 1b8a3d6c0330dc02d5d9b743e2682f7fcefaf92b4eb56fcae6058dbabe9b73d6
-   note: gen-main: 103 of 103 integer operations bounded; 13 of 13 loop(s) proven terminating
+   note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro java emitted f7b8058adc883d9368db873b258bcc4d2963d793cf1ca04c3f4070f9c42169b6
-   note: gen-main: 103 of 103 integer operations bounded; 13 of 13 loop(s) proven terminating
+   note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
@@ -293,8 +293,8 @@
    gen: examples/io/wc.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/json/tokenize.oro go emitted 72cd624ac6c859764acabfbaa6f3176e66e95df7ce03321d8c09f7bdfcf7b0b4
-   note: gen-tokens: 31 of 31 integer operations bounded; 4 of 4 loop(s) proven terminating
-   note: gen-run: 124 of 124 integer operations bounded; 16 of 16 loop(s) proven terminating
+   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
+   note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
 == examples/json/tokenize.oro js refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -305,8 +305,8 @@
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/json/tree.oro go emitted dfc4a0464a9c3658f2080056c8b27bcbfade446709306b6d9b15173bd2a5620e
-   note: gen-measure: 101 of 101 integer operations bounded; 5 of 5 loop(s) proven terminating
-   note: gen-run: 424 of 424 integer operations bounded; 20 of 20 loop(s) proven terminating
+   note: gen-measure: 99 of 99 integer operations bounded; 5 of 5 loop(s) proven terminating
+   note: gen-run: 416 of 416 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused
    gen: examples/json/tree.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -609,7 +609,7 @@
 == examples/native/shortcircuit-win.oro windows emitted 032d6261723be0b283f6e55a8866aba338daed64bb560d4c681f79703d62a0b1
    note: gen-main: 9 of 9 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/sieve-go-threaded.oro go emitted bca94d25d12b9c29bc0f4e79115ffcb8e1b5f37fa780e2250d27ff7d3117399a
-   note: gen-count-primes: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/native/sieve-go-threaded.oro js refused
    gen: examples/native/sieve-go-threaded.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -621,7 +621,7 @@
    gen: examples/native/sieve-go-threaded.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/native/sieve-go.oro go emitted bfeec088cde8a354c0843381436e02ed879faeb78409524f4e4c620726c83a84
-   note: gen-count-primes: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/native/sieve-go.oro js refused
    gen: examples/native/sieve-go.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -639,7 +639,7 @@
    gen: examples/native/sieve-java.oro: in cross: java.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
 == examples/native/sieve-java.oro java emitted 024435325962b43243c507ef520624a8012e500acf30abc569fbe8d59b949189
-   note: gen-sieve-count: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-sieve-count: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/native/sieve-java.oro windows refused
    gen: examples/native/sieve-java.oro: in cross: java.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
@@ -676,11 +676,11 @@
    gen: examples/native/sieve-win.oro: in composite?: x64.test-byte is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use x64) matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.
 == examples/native/sieve-win.oro windows emitted 5ff6efec97eb8a9f420138c7671739cfa7170168605e698404d21d523480189e
-   note: gen-count-primes: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
 == examples/native/smooth-go.oro go emitted bb41d06b6db4fc0fac232e44b299d29ec53809681b9ac1f9f8c13892ba1dba1d
-   note: gen-smooth: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: gen-smooth-into: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-go.oro js refused
    gen: examples/native/smooth-go.oro: in fill-into: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -698,8 +698,8 @@
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
 == examples/native/smooth-java.oro java emitted a063c1e857d64116362b1bf351be89889aadb99422f6f3a08fef863c9c0cd81e
    note: gen-smooth-alloc: 3 of 3 integer operations bounded; 0 of 0 loop(s) proven terminating
-   note: gen-smooth-build: 7 of 7 integer operations bounded; 1 of 1 loop(s) proven terminating
-   note: gen-smooth-into: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-build: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-java.oro windows refused
    gen: examples/native/smooth-java.oro: in kernel: java.- is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
@@ -856,7 +856,7 @@
 == examples/table/sieve-win.oro windows emitted f08b1d5eed67c1f0ad6b536a2e335217115a5a8f887bbba69c18607d61040382
    note: gen-main: 18 of 18 integer operations bounded; 5 of 5 loop(s) proven terminating
 == examples/table/sieve.oro go emitted da30b262dda504c8c11fa212626d16726cebf57cefac3a4612441bbdcf103172
-   note: gen-count-primes: 10 of 10 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/table/sieve.oro js refused
    gen: examples/table/sieve.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -917,13 +917,13 @@
 == gauntlet/differential/cases/array-literal.oro java emitted 620a2f0643d80ec4cb60a672fc1fbda290eb0b02b89484f400dfe9d0633acf77
 == gauntlet/differential/cases/array-literal.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/big-divmod.oro go emitted 8755a0b922da4a8f38e77e4078556688e28f129b0f7c76131c432530bc350221
-   note: gen-run: 7 operation(s) in arbitrary precision
+   note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/big-divmod.oro js emitted 72fc93ebf070033af62940f16d766a4b81542f638c81205d2ff44e2432920bc3
-   note: gen-run: 7 operation(s) in arbitrary precision
+   note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/big-divmod.oro java emitted b13270f739db8853e7a46db08c537702245a29d4c43c2ea81df306f93867df81
-   note: gen-run: 7 operation(s) in arbitrary precision
+   note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/big-divmod.oro windows emitted 7679185f5dfda87d8de62cbdb001470fef86c743cb0cf01e8406ed9be0f65bc1
    note: gen-run: 7 operation(s) in arbitrary precision
@@ -1050,13 +1050,13 @@
    gen: gauntlet/differential/cases/read-loop.oro: in run: os.ReadFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use os) matched no file on the search path and this target provides no module os either, so every name from it is unbound. Check the path.
 == gauntlet/differential/cases/render.oro go emitted bd390e8e5b545c6cffa65591dc418e54491e93344aa1479c47273783ebf6850a
-   note: gen-run: 10 operation(s) in arbitrary precision
+   note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/render.oro js emitted ee9a49bde279a6b994540a0165117bc1b8e3aad3953dc0fbc424663ffd1f9737
-   note: gen-run: 10 operation(s) in arbitrary precision
+   note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/render.oro java emitted ab947a4c67819068a0f70237385adeb9e72428b914edb357a5db41d79997dc5d
-   note: gen-run: 10 operation(s) in arbitrary precision
+   note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/render.oro windows emitted e07d46f2fbb995f532fdcc1ec32f7d3f5f0b8bb643c8e5e924aec10959892639
    note: gen-run: 15 operation(s) in arbitrary precision

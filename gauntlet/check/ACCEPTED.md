@@ -411,3 +411,33 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/big-subdiv.oro java`
 - emitted text changed — `gauntlet/differential/cases/render.oro go`
 - emitted text changed — `gauntlet/differential/cases/render.oro java`
+
+## 2026-09-24 — on 9eb6e11, with uncommitted changes
+
+**Reason:** matchguard: a guard's narrowing no longer counts what the condition already counted — 380 operations and 6 loops were counted more than once; unproven unchanged (47 and 38). Emission byte-identical. Also connective narrowing, the trip-count meet (a false proof closed), separated-interval arcs, dead back edges
+
+504 runs: 227 emitted, 277 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+21 change(s):
+
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/io/jsonfmt.oro go`
+- compiler output changed — `examples/io/jsonfmt.oro java`
+- compiler output changed — `examples/io/jsonfmt.oro js`
+- compiler output changed — `examples/json/tokenize.oro go`
+- compiler output changed — `examples/json/tree.oro go`
+- compiler output changed — `examples/native/sieve-go-threaded.oro go`
+- compiler output changed — `examples/native/sieve-go.oro go`
+- compiler output changed — `examples/native/sieve-java.oro java`
+- compiler output changed — `examples/native/sieve-win.oro windows`
+- compiler output changed — `examples/native/smooth-go.oro go`
+- compiler output changed — `examples/native/smooth-java.oro java`
+- compiler output changed — `examples/table/sieve.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro java`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro js`
+- compiler output changed — `gauntlet/differential/cases/render.oro go`
+- compiler output changed — `gauntlet/differential/cases/render.oro java`
+- compiler output changed — `gauntlet/differential/cases/render.oro js`

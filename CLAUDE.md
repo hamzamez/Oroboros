@@ -53,9 +53,12 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **2,387 of 2,434** integer operations are proven inside their target's word. The 47 left are mostly
+- **2,007 of 2,054** integer operations are proven inside their target's word. The 47 left are mostly
   meant to be refused.
-- **349 of 387** loops are proven to terminate.
+- **343 of 381** loops are proven to terminate.
+- Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
+  operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
+  inflated denominators.
 - Both counts, and every emitted file, are pinned by `cmd/check`.
 
 **Host APIs.**
@@ -440,7 +443,9 @@ Each of these has bitten more than once. The instances are in the results they n
 - **A survey's first number describes the measurer.** Seven corrections so far, in both directions.
   A measurement's *scope* does too: requires-2026-09-24 counted `where` only on non-exported
   definitions and missed `win/fmt.print-int`, an export every Windows harness print calls.
-  Read ten members of a figure one at a time before it becomes a plan item.
+  Read ten members of a figure one at a time before it becomes a plan item. And a *count* is a
+  measurement too: the corpus totals counted an operation in a guard three times, once per
+  evaluation, for as long as the figures have been quoted (matchguard-2026-09-24).
 - **Benchmark-method errors have many species:**
   - a closure inside the reference;
   - a fixed iteration count;

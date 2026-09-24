@@ -60,3 +60,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0026](0026-an-int-is-an-integer.md) | An `int` is an integer, and each target realizes what it can |
 | [0027](0027-a-host-calls-continuation-is-a-tail.md) | A host call's continuation is a tail position; `again` may sit under a tuple binding |
 | [0028](0028-a-definitions-contract-is-checked-at-its-calls.md) | A definition's declared parameter range and `where` are obligations at its calls |
+| [0029](0029-above-the-word-one-set-on-every-representation.md) | Above the word, a type denotes a set decided by sign and bit length, and every representation enforces the program's one set |

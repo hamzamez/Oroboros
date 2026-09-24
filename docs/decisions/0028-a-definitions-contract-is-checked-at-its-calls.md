@@ -4,7 +4,9 @@ Date: 2026-09-24
 Status: Accepted. **Reverses the decision recorded in [refinements.md §6b](../spec/refinements.md)**
 that a definition's `where` is dropped at its calls, and extends it to declared parameter ranges, which
 had been dropped silently. An export's contract is still *assumed* when its caller is outside the
-program, as §6b said.
+program, as §6b said. **Decision 4 amended by [ADR 0029](0029-above-the-word-one-set-on-every-representation.md)**: above the word a type denotes a
+set decided by sign and bit length, and a declared result there tells only the set the whole program
+enforces.
 
 Measurement: [requires-2026-09-24](../../gauntlet/results/requires-2026-09-24.md).
 

@@ -94,7 +94,13 @@
     ; not taken, because it would mean putting the bound FIRST in the
     ; primitive's arguments on all three hosts to get it into the template body.
     ; The check itself costs 1.32x over no check on this host.
+    ;
+    ; THE SIGN IS PART OF THE SET (ADR 0029). `big-fit` is [0, 2^k), and the
+    ; shift already says so: it floors, so a negative value shifts to -1n, never
+    ; 0n. `big-fit-signed` is (-2^k, 2^k), the same shift on the magnitude; the
+    ; negation allocates only for a negative value.
     (sig big-fit ((x big) (k int)) big (host expr "(function(oroZ, oroK){ if ((oroZ >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)"))
+    (sig big-fit-signed ((x big) (k int)) big (host expr "(function(oroZ, oroK){ if (((oroZ < 0n ? -oroZ : oroZ) >> BigInt(oroK)) !== 0n) throw new Error(\"bignum overflow: the declared range is too small\"); return oroZ; })(%s, %s)"))
     ; The fixed-limb rung's carry check -- see targets/go/bigint.oro for why a
     ; declared width has to fail loudly rather than truncate.
     (sig trap-if (int) int (host expr "(function(oroC){ if (oroC !== 0) throw new Error(\"bignum overflow: the declared range is too small\"); return 0; })(%s)"))))

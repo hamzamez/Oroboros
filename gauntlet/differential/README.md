@@ -41,6 +41,12 @@ backends can be wrong the same way, and the one bug a purely differential test c
 in the **reader** or the **reducer**, which all four share. A case without an `; expect:` line
 fails.
 
+**A declared bound's trap is an answer.** Above the word a range is enforced at run time, and the
+property is that every target traps on the same value (ADR 0029). A run that stops with the bound's
+own message (`bignum overflow: the declared range is too small`) answers what it printed, then
+`trap`, so `; expect: 5 5 trap` states it and a target that answers instead disagrees. Any other
+failure is a failure.
+
 ## Writing a case
 
 A case defines `run`, and nothing else. The harness supplies the `main` that prints, because

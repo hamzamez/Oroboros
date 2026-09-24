@@ -1012,7 +1012,11 @@ var bigOps = []struct {
 	// Bit length rather than the endpoint itself, because that is O(1) on all
 	// three hosts that have a bignum where a full comparison costs what the
 	// operation costs. See emit/biglimb.go's BigBound.
+	//
+	// The SIGN is part of the set (ADR 0029): `big-fit` is [0, 2ᵏ) and
+	// `big-fit-signed` is (−2ᵏ, 2ᵏ), each exactly, on every host.
 	{"big-fit", 2, false},
+	{"big-fit-signed", 2, false},
 
 	// THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). Every target has it,
 	// because every target can fail: `panic`, `throw`, `throw`, `ud2`. It is

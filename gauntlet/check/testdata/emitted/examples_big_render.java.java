@@ -16,7 +16,7 @@ public final class examples_big_render.java {
 				if ((i2 >= 32)) {
 					break;
 				}
-				final java.math.BigInteger nv192 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((v2.divide((java.math.BigInteger.valueOf(100000000)))), (long)(201)));
+				final java.math.BigInteger nv192 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((v2.divide((java.math.BigInteger.valueOf(100000000)))), (long)(201)));
 				String s22 = "";
 				int k2 = 0;
 				long r2 = (v2.remainder(java.math.BigInteger.valueOf(100000000)).longValue());

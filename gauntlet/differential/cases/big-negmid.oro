@@ -1,0 +1,35 @@
+; A NEGATIVE VALUE IN A NON-NEGATIVE RANGE ABOVE THE WORD TRAPS, EVERYWHERE
+; (ADR 0029).
+;
+; `(int 0 (pow 2 200))` denotes [0, 2^201). `d` is `a - b`, negative once b
+; passes a, and the answer `d + b` is `a` again, so the only thing wrong is the
+; intermediate: outside the declared range, and caught at the operation that
+; produced it.
+;
+; Before ADR 0029 the fixed limbs trapped (the final borrow of a subtraction) and
+; JavaScript trapped (its shift floors a negative to -1n), while Go's `BitLen`
+; and Java's `bitLength` read a magnitude and printed a. Whether a program
+; answered depended on where it ran and how its integers were stored.
+;
+; skip: windows
+;
+; windows is skipped for printing, as big-subdiv is: fixed limbs have no
+; decimal conversion there yet.
+;
+; big-repr: both
+
+; inputs: 0 5 6
+; prints: string
+; expect: 5000000000000000000000000000000 5000000000000000000000000000000 trap
+
+(export calc)
+
+(sig calc ((n (int 0 6))) (int 0 (pow 2 200)))
+
+(def calc (n)
+  (let a 5000000000000000000000000000000
+       b (* 1000000000000000000000000000000 n)
+       d (- a b)
+    (+ d b)))
+
+(def run (n) (big-str (calc n)))

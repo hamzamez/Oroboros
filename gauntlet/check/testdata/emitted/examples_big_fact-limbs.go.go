@@ -11,7 +11,7 @@ func GenFactLimbs(n int) *big.Int {
 		if (i > n) {
 			break
 		}
-		acc = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, (big.NewInt(int64(i))))), 1301))
+		acc = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, (big.NewInt(int64(i))))), 1301))
 		continue
 	}
 	return acc

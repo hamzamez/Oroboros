@@ -153,7 +153,23 @@ var limbOf = map[string]string{
 //
 // An UNBOUNDED range has no bound to enforce, which is the distinction
 // `(int 0 +inf)` was added to make expressible: ℤ is not an interval.
+//
+// ═══ AND ITS SIGN (ADR 0029)
+//
+// The set enforced is a member of H = {[0, 2ᵏ)} ∪ {(−2ᵏ, 2ᵏ)}: the sets a
+// sign-magnitude integer's two O(1) observables, its sign and the bit length of
+// its magnitude, decide. It is the JOIN of every declared type's least member of
+// H, so the program is signed when any type above the word admits a negative.
+// Before this the bits were one set and the sign was each host's own: Go
+// admitted (−2ᵇ, 2ᵇ), Java [−2ᵇ, 2ᵇ), JavaScript and the limbs [0, 2ᵇ).
 func BigBound(w core.Word, sigs ...*core.Sig) (int, bool) {
+	bits, _, ok := BigHull(w, sigs...)
+	return bits, ok
+}
+
+// BigHull is BigBound with the sign of the set: signed is true when the program
+// enforces (−2^bits, 2^bits), false when [0, 2^bits).
+func BigHull(w core.Word, sigs ...*core.Sig) (bits int, signed, bounded bool) {
 	var tys []string
 	for _, sig := range sigs {
 		if sig == nil {
@@ -171,24 +187,27 @@ func BigBound(w core.Word, sigs ...*core.Sig) (int, bool) {
 			continue
 		}
 		if core.UnboundedRange(ty) {
-			return 0, false // ℤ is not an interval
+			return 0, false, false // ℤ is not an interval
 		}
 		lo, hi, ok := core.IntRangeBig(ty)
 		if !ok {
-			return 0, false
+			return 0, false, false
 		}
 		any = true
 		if n := bitsFor(lo, hi); n > bits {
 			bits = n
+		}
+		if lo.Sign() < 0 {
+			signed = true
 		}
 	}
 	if !any || bits <= 2*limbBits {
 		// Under three limbs cannot happen for a range above the window — three
 		// base-2^24 limbs hold 2^72 — so this is a guard rather than a case,
 		// and it is what lets `of` skip its own overflow check.
-		return 0, false
+		return 0, false, false
 	}
-	return bits, true
+	return bits, signed, true
 }
 
 func bitsFor(lo, hi *big.Int) int {
@@ -224,8 +243,13 @@ func bitsFor(lo, hi *big.Int) int {
 // than declared — one width, because one function holds one: `add` reads two
 // operands and writes a third, and three different lengths would be three
 // different functions.
+//
+// LIMBS HOLD A MAGNITUDE, so they realize [0, 2ᵏ) and nothing signed (ADR 0029,
+// decision 4). A signed program takes the host's bignum where there is one, as
+// a program with an operation the limb library lacks already does; where there
+// is none it stays here and PromoteBig refuses it by name.
 func BigRepr(tgt *Target, sigs ...*core.Sig) (limbs bool, w, bits int) {
-	bits, bounded := BigBound(tgt.Word, sigs...)
+	bits, signed, bounded := BigHull(tgt.Word, sigs...)
 	if !bounded {
 		return false, 0, 0
 	}
@@ -235,6 +259,9 @@ func BigRepr(tgt *Target, sigs ...*core.Sig) (limbs bool, w, bits int) {
 		if !tgt.HasBig() {
 			kind = "limbs"
 		}
+	}
+	if signed && tgt.HasBig() {
+		kind = "host"
 	}
 	if kind == "host" && tgt.HasBig() {
 		return false, 0, bits

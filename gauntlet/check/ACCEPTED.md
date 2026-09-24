@@ -384,3 +384,30 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/fmt.oro windows`
 - compiler output changed — `lib/win/fmt.oro windows`
+
+## 2026-09-24 — on 904e958, with uncommitted changes
+
+**Reason:** ADR 0029: above the word the enforced set has a sign — big-fit tests it on Go and Java ([0, 2^k)), big-fit-signed for a signed range; two new differential cases (big-sign, big-negmid). Each change is only the sign test; bounded 200! 1.03x Go, 1.01x Java, within noise
+
+504 runs: 227 emitted, 277 refused; 2387 of 2434 integer operations bounded, 349 of 387 loops proven. compiler pass, differential pass, tooling skip.
+
+18 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro go`
+- emitted text changed — `examples/big/fact-limbs.oro java`
+- emitted text changed — `examples/big/render.oro go`
+- emitted text changed — `examples/big/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro java`
+- new source — `gauntlet/differential/cases/big-negmid.oro go`
+- new source — `gauntlet/differential/cases/big-negmid.oro java`
+- new source — `gauntlet/differential/cases/big-negmid.oro js`
+- new source — `gauntlet/differential/cases/big-negmid.oro windows`
+- new source — `gauntlet/differential/cases/big-sign.oro go`
+- new source — `gauntlet/differential/cases/big-sign.oro java`
+- new source — `gauntlet/differential/cases/big-sign.oro js`
+- new source — `gauntlet/differential/cases/big-sign.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`

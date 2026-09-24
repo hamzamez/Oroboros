@@ -158,6 +158,7 @@ rejected alternatives.
 | An `int` is an integer; each target realizes what it can; portability is reported | [0026](docs/decisions/0026-an-int-is-an-integer.md) |
 | A host call's continuation is a tail position: `again` may sit under a tuple binding | [0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 | A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
+| Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 
 ## How this project is run
 
@@ -290,7 +291,10 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   host precondition is the host's own boundary (`hex.EncodedLen`: −2⁶² ≤ n ≤ 2⁶²−1).
 - **Above the word.** A target chooses `(big-repr host)` or `(big-repr limbs)`. The bound is
   enforced on both, so representation never changes which programs are legal
-  ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)).
+  ([bigrepr-2026-09-03](gauntlet/results/bigrepr-2026-09-03.md)). It is ONE set per program, and it
+  has a sign: [0, 2ᵏ) or (−2ᵏ, 2ᵏ), checked by `big-fit` or `big-fit-signed`. Limbs hold a
+  magnitude, so a signed program takes the host's bignum or is refused
+  ([ADR 0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md), [bigsign-2026-09-24](gauntlet/results/bigsign-2026-09-24.md)).
 - **Element width follows the range.** `(int-repr …)` picks the narrowest host type containing the
   range ([elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md)).
 
@@ -306,8 +310,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - on an export called from outside, assumed.
 
   A parameter's range is the same claim as a `where` (the reader desugars one into the other), checked
-  on the argument, and **above the word it denotes the set its enforcement admits: `|x| < 2ᵇ`** (bit
-  length). The reducer marks each obligation, and `emit.DischargeRequires` decides it immediately
+  on the argument. **Above the word it denotes the least set a sign and a bit length decide** —
+  [0, 2ᵇ) when LO ≥ 0, (−2ᵇ, 2ᵇ) when LO < 0 ([ADR 0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md)) — and a declared
+  result there tells only the one set the whole program enforces. The reducer marks each obligation, and `emit.DischargeRequires` decides it immediately
   after reduction, in order:
   1. a literal;
   2. the interval analysis;

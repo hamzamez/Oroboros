@@ -165,9 +165,12 @@ never instead of them.
   3. this layer, with every fact in scope, including a pure call's `ensures`.
 
   An obligation none of them proves is refused, naming the call.
-- **Above the target's word a range denotes the set its enforcement admits**: `|x| < 2ᵇ`, b the bit
-  length of max(|LO|, |HI|) (bigrepr-2026-09-03 §3a). A declared result above the word, carried as
-  `(the T e)`, is read as that fact.
+- **Above the target's word a range denotes a set its enforcement can decide**
+  ([ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md)): [0, 2ᵇ) when LO ≥ 0 and (−2ᵇ, 2ᵇ) when LO < 0, b the
+  bit length of max(|LO|, |HI|): the least set containing the declaration that a sign and a bit
+  length decide. A declared result above the word, carried as `(the T e)`, tells only that its value
+  is in the ONE set the program enforces (the join of all its types' sets, since the bound is one per
+  program), so it proves a parameter's range only when that range is at least as wide.
 
 ### One syntax, two meanings
 

@@ -51,7 +51,8 @@ Six, all erased before reduction except `def`:
   - `where` is an obligation at every call a definition is inlined into, and assumed only at an
     export's own boundary ([ADR 0028](../decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
     [refinements.md §6b](refinements.md)). A range on a parameter is the same claim, checked on the
-    argument, at bit length above the word;
+    argument; above the word, as the set a sign and a bit length decide
+    ([ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md));
   - `ensures` is its exact swap ([postconditions.md](postconditions.md)).
 - **`variant`** is closed, finite and non-recursive ([sums.md](sums.md), [data.md §5](data.md)). Its
   declaration generates ordinary definitions: constructors and tag constants. A variant is its

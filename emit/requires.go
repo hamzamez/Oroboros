@@ -27,6 +27,11 @@ import (
 // literal ones, which arrive while a unit reduces.
 type RequireSet struct {
 	lits []requireFail
+	// enforced is E_P, the one set the program enforces above the word (ADR
+	// 0029): what a declared result there is known to be in. ok is false when
+	// nothing is enforced — no bound, or an unbounded type.
+	enforced   rangeSet
+	enforcedOK bool
 }
 
 type requireFail struct {
@@ -39,6 +44,13 @@ type requireFail struct {
 // export's contract is assumed, and a call from inside the program is a call.
 func InstallRequires(env *core.Env, prog *core.Program) *RequireSet {
 	set := &RequireSet{}
+	sigs := make([]*core.Sig, 0, len(prog.Sigs))
+	for _, sig := range prog.Sigs {
+		sigs = append(sigs, sig)
+	}
+	if bits, signed, ok := BigHull(env.Word, sigs...); ok {
+		set.enforced, set.enforcedOK = rangeSet{bits: bits, signed: signed}, true
+	}
 	env.Requires = map[string][]string{}
 	env.Wheres = map[string]core.WhereContract{}
 	env.Prim[core.RequireName], env.Pure[core.RequireName] = true, true
@@ -108,6 +120,7 @@ func conjTerm(a, b *core.Term) *core.Term {
 func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig, t *core.Term) (*core.Term, error) {
 	fails := set.lits
 	set.lits = nil
+	t, _ = set.decideAscribed(tgt.Word, t)
 	if hasRequireMarks(t) {
 		// The interval analysis decides the ranges it can and leaves every mark
 		// it cannot — and every `where` — in the term it rebuilds. It runs only
@@ -280,12 +293,13 @@ func hasRequireMarks(t *core.Term) bool {
 // ---------------------------------------------------------------- the set a range denotes
 
 // rangeSet is the set a declared range denotes on a target: exact within the
-// word, and ABOVE the word the set its enforcement admits, |x| < 2^bits
-// (bigrepr-2026-09-03 §3a) — so a type means one set as a result and as an
-// argument (ADR 0028, decision 4).
+// word, and ABOVE the word its least member of H, the sets a sign and a bit
+// length decide (ADR 0029): [0, 2^bits) for a range with no negative value,
+// (−2^bits, 2^bits) for one with, bits the bit length of max(|lo|, |hi|).
 type rangeSet struct {
 	lo, hi *big.Int // exact; nil when bitwise
 	bits   int      // above the word: |x| < 2^bits
+	signed bool     // above the word: negative values admitted
 }
 
 func setOf(w core.Word, ty string) (rangeSet, bool) {
@@ -300,7 +314,18 @@ func setOf(w core.Word, ty string) (rangeSet, bool) {
 	if a := new(big.Int).Abs(hi); a.Cmp(m) > 0 {
 		m = a
 	}
-	return rangeSet{bits: m.BitLen()}, true
+	return rangeSet{bits: m.BitLen(), signed: lo.Sign() < 0}, true
+}
+
+// has reports v in a set above the word.
+func (s rangeSet) has(v *big.Int) bool {
+	return (s.signed || v.Sign() >= 0) && new(big.Int).Abs(v).BitLen() <= s.bits
+}
+
+// within reports a ⊆ b for two sets above the word, H's order:
+// Nⱼ ⊆ Nₖ, Zⱼ ⊆ Zₖ and Nⱼ ⊆ Zₖ exactly when j ≤ k, and Zⱼ ⊄ Nₖ.
+func (a rangeSet) within(b rangeSet) bool {
+	return a.bits <= b.bits && (!a.signed || b.signed)
 }
 
 func literalIn(w core.Word, ty string, v *big.Int) bool {
@@ -311,35 +336,66 @@ func literalIn(w core.Word, ty string, v *big.Int) bool {
 	if s.lo != nil {
 		return v.Cmp(s.lo) >= 0 && v.Cmp(s.hi) <= 0
 	}
-	return new(big.Int).Abs(v).BitLen() <= s.bits
+	return s.has(v)
 }
 
-// subsetOf reports that everything a declared range t2 admits, t admits too.
-func subsetOf(w core.Word, t2, t string) bool {
-	a, ok1 := setOf(w, t2)
-	b, ok2 := setOf(w, t)
-	if !ok1 || !ok2 {
+// decideAscribed discharges every range mark whose argument is a declared result
+// above the word, `(the T e)`, and returns the term without them and how many.
+//
+// WHAT THE ASCRIPTION TELLS is not T's set but E_P, the program's, because that
+// is all that is enforced: the bound is one per program (BigBound), so a result
+// declared (int 0 2^100) in a program whose widest type is 2^200 is checked
+// against 2^201 and may be 2^150. ADR 0028 read it as T's own set, a false
+// proof ADR 0029 corrects. So the mark is discharged exactly when E_P lies in
+// the parameter's set; any other is left for the analyses, which know nothing
+// of a bignum's value, and is refused.
+func (set *RequireSet) decideAscribed(w core.Word, t *core.Term) (*core.Term, []RequireResult) {
+	if !set.enforcedOK || !hasRangeMarks(t) {
+		return t, nil
+	}
+	var proven []RequireResult
+	var walk func(*core.Term) *core.Term
+	walk = func(x *core.Term) *core.Term {
+		if x == nil || (x.Kind != core.KApp && x.Kind != core.KFn) {
+			return x
+		}
+		if x.Kind == core.KFn {
+			return core.FnClosed(x.Params, walk(x.Closed()))
+		}
+		if core.IsRequire(x) && len(x.Kids) == 5 {
+			def, param, ty, arg := x.Kids[1].Str, x.Kids[2].Str, x.Kids[3].Str, x.Kids[4]
+			if s, ok := setOf(w, ty); ok && s.lo == nil && ascribedAbove(w, arg) && set.enforced.within(s) {
+				proven = append(proven, RequireResult{Def: def, Param: param, Type: ty,
+					Arg: arg.String(), Got: top, Proven: true})
+				return walk(arg)
+			}
+		}
+		kids := make([]*core.Term, len(x.Kids))
+		for i, k := range x.Kids {
+			kids[i] = walk(k)
+		}
+		return &core.Term{Kind: core.KApp, Kids: kids}
+	}
+	out := walk(t)
+	if len(proven) == 0 {
+		return t, nil
+	}
+	return out, proven
+}
+
+// ascribedAbove reports `(the T e)` with T above the word.
+func ascribedAbove(w core.Word, t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || t.Op().Name != core.AscribeName ||
+		len(t.Args()) != 2 || t.Args()[0].Kind != core.KStr {
 		return false
 	}
-	switch {
-	case a.lo != nil && b.lo != nil:
-		return a.lo.Cmp(b.lo) >= 0 && a.hi.Cmp(b.hi) <= 0
-	case a.lo != nil:
-		return new(big.Int).Abs(a.lo).BitLen() <= b.bits && new(big.Int).Abs(a.hi).BitLen() <= b.bits
-	case b.lo != nil:
-		return false // a bitwise set is never inside an exact range within the word
-	}
-	return a.bits <= b.bits
+	s, ok := setOf(w, t.Args()[0].Str)
+	return ok && s.lo == nil
 }
 
-// provenIn decides a range mark on the interval analysis's evidence: the
-// argument's interval, or — for an argument that is a declared result above the
-// word, `(the T e)` — the fact that result's enforcement guarantees.
-func provenIn(w core.Word, v ival, ty string, arg *core.Term) bool {
-	if arg != nil && arg.Kind == core.KApp && arg.Op().Kind == core.KName && arg.Op().Name == core.AscribeName &&
-		len(arg.Args()) == 2 && arg.Args()[0].Kind == core.KStr && subsetOf(w, arg.Args()[0].Str, ty) {
-		return true
-	}
+// provenIn decides a range mark on the interval analysis's evidence, the
+// argument's interval.
+func provenIn(w core.Word, v ival, ty string) bool {
 	if v.isBottom() {
 		return true // unreachable
 	}
@@ -360,8 +416,12 @@ func provenIn(w core.Word, v ival, ty string, arg *core.Term) bool {
 		wr, ok := wideRange(ty)
 		return ok && within(v, wr)
 	}
-	// Bitwise: a finite interval is under 2^127, the bound's own headroom.
+	// Bitwise: a finite interval is under 2^127, the bound's own headroom. The
+	// set has no negative value unless the range declares one (ADR 0029).
 	if v.loInf || v.hiInf {
+		return false
+	}
+	if !s.signed && v.lo.sign() < 0 {
 		return false
 	}
 	if s.bits >= 127 {

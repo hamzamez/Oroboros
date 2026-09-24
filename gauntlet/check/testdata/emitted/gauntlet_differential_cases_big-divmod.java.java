@@ -8,7 +8,7 @@ public final class gauntlet_differential_cases_big-divmod.java {
 			if ((i >= 6)) {
 				break;
 			}
-			acc = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc.multiply((java.math.BigInteger.valueOf(999983)))), (long)(201)));
+			acc = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc.multiply((java.math.BigInteger.valueOf(999983)))), (long)(201)));
 			continue;
 		}
 		final java.math.BigInteger x = acc;
@@ -18,10 +18,10 @@ public final class gauntlet_differential_cases_big-divmod.java {
 			if ((i2 >= 6)) {
 				break;
 			}
-			acc2 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc2.multiply((java.math.BigInteger.valueOf(999983)))), (long)(201)));
+			acc2 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc2.multiply((java.math.BigInteger.valueOf(999983)))), (long)(201)));
 			continue;
 		}
-		return (((((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((x.divide((java.math.BigInteger.valueOf(100000000)))), (long)(201))).remainder(java.math.BigInteger.valueOf(100000000)).longValue()) + ((x.compareTo(acc2) > 0) ? 1000000000000L : 0));
+		return (((((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((x.divide((java.math.BigInteger.valueOf(100000000)))), (long)(201))).remainder(java.math.BigInteger.valueOf(100000000)).longValue()) + ((x.compareTo(acc2) > 0) ? 1000000000000L : 0));
 	}
 
 }

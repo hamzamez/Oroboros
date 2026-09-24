@@ -279,9 +279,10 @@ type RequireResult struct {
 // the residual with the marks erased, which is the term reduction gives without
 // them. It changes nothing downstream: the caller continues with the stripped
 // term exactly as it would have without measuring.
-func MeasureRequires(tgt *Target, sig *core.Sig, t *core.Term) ([]RequireResult, *core.Term) {
+func MeasureRequires(set *RequireSet, tgt *Target, sig *core.Sig, t *core.Term) ([]RequireResult, *core.Term) {
+	t, ascribed := set.decideAscribed(tgt.Word, t)
 	rep, _ := Intervals(tgt, sig, t, 0)
-	return rep.Requires, core.StripRequires(t)
+	return append(ascribed, rep.Requires...), core.StripRequires(t)
 }
 
 type IntervalReport struct {
@@ -1252,7 +1253,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	// pass's to decide: its body is evaluated and the mark kept or dropped alike.
 	if op.Name == core.RequireName && len(args) == 4 {
 		v, nv := p.evalR(args[3])
-		proven := provenIn(p.tgt.Word, v, args[2].Str, args[3])
+		proven := provenIn(p.tgt.Word, v, args[2].Str)
 		if p.count {
 			p.rep.Requires = append(p.rep.Requires, RequireResult{
 				Def: args[0].Str, Param: args[1].Str, Type: args[2].Str,

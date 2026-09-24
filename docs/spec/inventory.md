@@ -213,7 +213,8 @@ precision names the host rung needs: the target declares them, and the compiler 
 | word | status | where |
 |---|---|---|
 | `big+` | specified | [target-files.md](target-files.md) |
-| `big-fit` | specified — the bound enforced on a host bignum | [target-files.md](target-files.md) |
+| `big-fit` | specified — the bound enforced on a host bignum, [0, 2ᵏ) | [target-files.md](target-files.md), [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |
+| `big-fit-signed` | specified — the same for a signed range, (−2ᵏ, 2ᵏ) | [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | `big-`, `big*`, `big/`, `big%`, `big<`, `big<=`, `big>`, `big>=`, `big=`, `big-of`, `big-str` | recorded — "`big+` and the rest" in target-files.md §3 names the family, not these words | [bigrep-2026-09-02](../../gauntlet/results/bigrep-2026-09-02.md) |
 | `big+!`, `big-!`, `big*!`, `big/!`, `big%!`, `big-of!` | recorded — the in-place forms | [bigreuse-2026-09-02](../../gauntlet/results/bigreuse-2026-09-02.md) |
 | `big%-small` | recorded — a remainder by a machine word, whose result is a word | [subdiv-2026-09-03](../../gauntlet/results/subdiv-2026-09-03.md) |

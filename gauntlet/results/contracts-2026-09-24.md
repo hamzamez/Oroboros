@@ -20,7 +20,10 @@ downstream ever sees one. The order:
 2. **The interval analysis**, for ranges:
    - within the word, the set is exact;
    - above the word, the set is `|x| < 2ᵇ` (bit length), the set its enforcement admits;
-   - a declared result above the word, `(the T e)`, is read as that fact;
+   - a declared result above the word, `(the T e)`, is read as that fact. **Corrected by
+     [bigsign-2026-09-24](bigsign-2026-09-24.md): that fact was false** when a program has two
+     bounds, since the bound is enforced once per program at the widest. A declared result now tells
+     only the program's set (ADR 0029);
    - a range holding the whole signed word is vacuous and is not marked at all.
 
    What the interval analysis cannot finish it hands on as a `where` condition naming only the ends it
@@ -118,4 +121,5 @@ word, and there it is refused with the reason stated.
 - **Above the word, only the bit length is an obligation,** as it is the only thing enforced.
   `(int 0 (pow 2 200))` admits a negative value on Go, where `BitLen` reads |x|. JavaScript's check,
   `(x >> k) !== 0n`, refuses one. That difference is in bigrepr-2026-09-03's enforcement, not here,
-  and is named for whoever meets it.
+  and is named for whoever meets it. **Closed by [ADR 0029](../../docs/decisions/0029-above-the-word-one-set-on-every-representation.md)**
+  ([bigsign-2026-09-24](bigsign-2026-09-24.md)).

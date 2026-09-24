@@ -8,7 +8,7 @@ public final class GenBoundedFactLimbs {
 			if ((i > n)) {
 				break;
 			}
-			acc = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc.multiply((java.math.BigInteger.valueOf(i)))), (long)(1301)));
+			acc = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply((acc.multiply((java.math.BigInteger.valueOf(i)))), (long)(1301)));
 			continue;
 		}
 		return acc;

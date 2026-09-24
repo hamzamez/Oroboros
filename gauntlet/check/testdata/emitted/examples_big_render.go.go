@@ -19,7 +19,7 @@ func GenRender(x *big.Int) string {
 			if (i >= 32) {
 				break
 			}
-			nv19 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(v, (big.NewInt(int64(100000000))))), 201))
+			nv19 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(v, (big.NewInt(int64(100000000))))), 201))
 			s2 := ""
 			var k int = 0
 			var r int = (int(new(big.Int).Rem(v, big.NewInt(int64(100000000))).Int64()))

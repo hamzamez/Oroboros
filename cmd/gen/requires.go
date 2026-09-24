@@ -22,8 +22,8 @@ var reportRequires bool
 
 // reportResidual prints the verdict on each range mark in a unit's residual. It
 // changes nothing: the term it reads is discharged as usual.
-func reportResidual(tg *emit.Target, sig *core.Sig, nf *core.Term) {
-	res, _ := emit.MeasureRequires(tg, sig, nf)
+func reportResidual(reqs *emit.RequireSet, tg *emit.Target, sig *core.Sig, nf *core.Term) {
+	res, _ := emit.MeasureRequires(reqs, tg, sig, nf)
 	seen := map[string]bool{}
 	var lines []string
 	for _, r := range res {

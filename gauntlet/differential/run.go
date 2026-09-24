@@ -28,6 +28,7 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -246,12 +247,25 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, erro
 	}
 	rc := a.run(out)
 	rc.Dir = dir
-	b, err := rc.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("run: %v\n%s", err, indent(string(b)))
+	var stdout, stderr bytes.Buffer
+	rc.Stdout, rc.Stderr = &stdout, &stderr
+	if err := rc.Run(); err != nil {
+		// A DECLARED BOUND ENFORCED IS AN OUTCOME, not a failure of the harness:
+		// above the word a range is checked at run time (ADR 0029), and the
+		// property is that every target traps on the SAME value. So a run that
+		// stops with the bound's own message answers what it printed, then
+		// `trap`, and `; expect: … trap` states it. Any other failure is one.
+		if strings.Contains(stderr.String(), boundMessage) {
+			return strings.TrimSpace(normalise(stdout.String()) + "\ntrap"), nil
+		}
+		return "", fmt.Errorf("run: %v\n%s", err, indent(stdout.String()+stderr.String()))
 	}
-	return normalise(string(b)), nil
+	return normalise(stdout.String() + stderr.String()), nil
 }
+
+// boundMessage is what every host's `big-fit` and the limb rung's `trap-if`
+// say when a value leaves its declared range (targets/*/bigint.oro).
+const boundMessage = "bignum overflow: the declared range is too small"
 
 // Trailing whitespace and line endings are the host's, not the program's.
 func normalise(s string) string {

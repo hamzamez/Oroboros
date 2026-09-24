@@ -174,7 +174,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		if reportRequires {
-			reportResidual(tg, prog.Sigs[u.qual], nf)
+			reportResidual(reqs, tg, prog.Sigs[u.qual], nf)
 		}
 		if nf, err = emit.DischargeRequires(reqs, tg, u.name, prog.Sigs[u.qual], nf); err != nil {
 			return err

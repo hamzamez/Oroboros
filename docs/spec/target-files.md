@@ -399,6 +399,13 @@ legal — and selecting a representation would change an answer, which is
 [ADR 0009](../decisions/0009-staging-preserves-results.md) at the representation boundary. The
 compiler refuses rather than dropping the bound.
 
+**The bound is a set, and it has a sign** ([ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md)).
+A program enforces one set: [0, 2ᵏ) while every type above the word it declares is non-negative, and
+(−2ᵏ, 2ᵏ) once one admits a negative value. `big-fit` checks the first and `big-fit-signed` the
+second, and each host's template must say exactly that set: `BitLen` alone reads a magnitude, and
+Java's `bitLength` is two's complement. Fixed limbs hold a magnitude, so a signed program takes the
+host's bignum, or is refused on a target with none.
+
 `cmd/build` and `cmd/gen` take `-big-repr=limbs|host` to override this. It is for **measuring the
 alternative** before changing the declaration — not a knob a program should depend on, since the
 bound, and therefore the answer, is the same either way.

@@ -11,7 +11,7 @@ func GenRun(n int) int {
 		if (i >= 6) {
 			break
 		}
-		acc = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, (big.NewInt(int64(999983))))), 201))
+		acc = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, (big.NewInt(int64(999983))))), 201))
 		continue
 	}
 	x := acc
@@ -21,7 +21,7 @@ func GenRun(n int) int {
 		if (i2 >= 6) {
 			break
 		}
-		acc2 = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc2.Mul(acc2, (big.NewInt(int64(999983))))), 201))
+		acc2 = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc2.Mul(acc2, (big.NewInt(int64(999983))))), 201))
 		continue
 	}
 	var t1 int
@@ -30,6 +30,6 @@ func GenRun(n int) int {
 	} else {
 		t1 = 0
 	}
-	return ((int(new(big.Int).Rem((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(x, (big.NewInt(int64(100000000))))), 201)), big.NewInt(int64(100000000))).Int64())) + t1)
+	return ((int(new(big.Int).Rem((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(x, (big.NewInt(int64(100000000))))), 201)), big.NewInt(int64(100000000))).Int64())) + t1)
 }
 

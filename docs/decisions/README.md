@@ -58,3 +58,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0024](0024-comments-are-erased.md) | A comment never carries meaning; documentation is a term |
 | [0025](0025-a-module-path-is-the-hosts.md) | A module path is the host's path, and the file is the path |
 | [0026](0026-an-int-is-an-integer.md) | An `int` is an integer, and each target realizes what it can |
+| [0027](0027-a-host-calls-continuation-is-a-tail.md) | A host call's continuation is a tail position; `again` may sit under a tuple binding |

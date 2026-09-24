@@ -72,7 +72,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if`; and `(if (not c) a b)` is built as `(if c b a)`, unless a branch is a boolean literal and the term is a connective | [booleans.md §4.2](booleans.md) |
 | `(tuple a b …)` | `(fn (k) (k a b …))` | [data.md](data.md), [values.md](values.md) |
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
-| `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md) |
+| `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md); `again` may sit under a binding of one name or several, [ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 | `(case e (ctor x…) body …)` | `if` over a tag comparison, **in `Load`**, because the variant may be declared in another file | [sums.md](sums.md) |
 
 **A `loop` with no `again` is not a loop.** The name is dropped, and what remains is a β-redex

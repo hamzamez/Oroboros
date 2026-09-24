@@ -147,22 +147,25 @@ or more terms, and a `seq` of one is the term.
 
 **`again` under a binding.** [ADR 0015](../decisions/0015-loop-and-again.md) permits `again` to sit
 under a `let`, and the flat form changes nothing: `(let x e y f (again …))` is nested one-name
-bindings, which is the shape the rule already names. Under a **tuple** binding it is refused, because
-that desugars to an application of the producing call rather than to a β-redex — the jump would sit
-inside a host call's continuation, which no backend emits. The refusal is the existing one, *"`again`
-may be a clause body, or sit under a `let`"*, and the way to write it is to destructure outside the
-loop, or to bind the tuple and project inside.
+bindings, which is the shape the rule already names. **A tuple binding is a binding too**
+([ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md)):
 
-**Binding and projecting fails when the tuple is built under a host call**
-([u128-2026-09-23](../../gauntlet/results/u128-2026-09-23.md)). Suppose `(u.mulw h l k)` returns
-`(tuple …)` from inside `Mul64`'s continuation. Then `(let t (u.mulw h l k) (again (t …) …))` binds a
-host call, not a value. β declines to duplicate it, and the tuple survives as a closure the emitter
-refuses. Floating the binding inward by let-associativity would expose the tuple, but it puts the
-`again` back inside the continuation. What does work is **projecting at each use**, as in
-`(again ((u.mulw h l k) (fn (a b c) a)) …)`: each projection is an eliminator applied to the call, and
-the n-ary let conversion (core/reduce.go) moves it into the continuation. The price is one call per
-component. The general fix is a backend that emits a jump inside a multi-result call's continuation,
-and that is a design question, not an idiom.
+```lisp
+(let (tuple h l over) (u.mulw h l k)
+  (again (+ k 1) h l over))
+```
+
+After reduction its value is a host call with several results and its body is that call's
+continuation, which runs once, immediately, and which every backend emits as statements after the
+call. The reader recognises the binding by the mark it puts on the tuple pattern it desugars, never by
+the shape: `(f (fn (a b) (again …)))`, a lambda handed to one of the program's own functions,
+desugars to the same shape and is still refused with *"`again` may be a clause body, or sit under a
+`let`"*.
+
+Binding the whole tuple and projecting it, `(let t (u.mulw h l k) (again (t …) …))`, is still not the
+way to write it when the tuple is built under a host call. `t` then binds a host call, not a value,
+and β declines to duplicate it, so the tuple survives as a closure the emitter refuses. Destructure
+with a tuple pattern instead ([u128-2026-09-23](../../gauntlet/results/u128-2026-09-23.md)).
 
 ## 8. What this costs the compiler
 

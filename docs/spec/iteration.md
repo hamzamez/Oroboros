@@ -143,6 +143,37 @@ Forbidding `again` under `let` would mean an `again` could not share a subexpres
 arguments — and duplicating an allocating one costs
 [615×](../../gauntlet/results/wordcount-2026-08-14.md).
 
+**A binding of several names is a binding** ([ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md)).
+`(let (tuple b err) (r.ReadByte) (again …))` binds two names and runs its body once, so it may wrap
+an `again` exactly as a one-name `let` does:
+
+```lisp
+(loop ((count 0) (k 0))
+  (>= k 100) count
+  else (let (tuple b err) (gio.ByteReader.ReadByte r)
+         (again (+ count 1) (+ k 1))))
+```
+```go
+b, err := r.ReadByte()
+count, k = (count + 1), (k + 1)
+continue
+```
+
+After reduction the tuple binding's value is a host call with several results and its body is that
+call's continuation, the n-ary let. So the tail positions a jump may occupy are
+
+```
+E ::= []  |  let x = e in E  |  if c E E  |  (p a…) (λx̄. E)
+```
+
+The last line holds because a host call's continuation is second-class: it runs once, immediately,
+and never escapes. Every backend emits it as the call followed by the body in the same block.
+
+What stays refused is a jump inside a lambda handed to one of the program's own functions,
+`(f (fn (a b) (again …)))`. That desugars to the same shape as a tuple binding, but the lambda may run
+twice, never, or later. The reader tells the two apart by what was written, never by shape: it marks
+the tuple binding it builds and erases the mark before any form leaves it.
+
 ### Semantics
 
 ```

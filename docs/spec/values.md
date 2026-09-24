@@ -140,12 +140,29 @@ can leave between a function and its result, and exactly what the commuting conv
 `core/reduce.go` pushes an eliminator through ([state.md §1](state.md)). The same two forms, for
 the same reason, in the reducer and in four emitters.
 
-**There is a third, and so far only the reducer walks it.** A multi-result host call's continuation
-is an n-ary let, and the reducer pushes an eliminator into it too. The emitters do not walk it, so a
-several-results return inside one is refused: `(values …)` under `Add64`'s continuation gives *"declares
-3 results but its definition does not produce them"*. The same holds for an `again` inside one. This
-is the wall [u128-2026-09-23](../../gauntlet/results/u128-2026-09-23.md) §4 names, and the fix is a
-design decision.
+**There is a third: a multi-result host call's continuation**, the n-ary let
+([ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md)). The reducer pushes an
+eliminator into it, and `multiTail` walks into it and returns at its leaves:
+
+```go
+func UAdd(ah uint64, al uint64, bh uint64, bl uint64) (uint64, uint64, int) {
+	l, ch1 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(al), uint64(bl), uint64((uint64(0))))
+	c := int(ch1)
+	h, c2h2 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(ah), uint64(bh), uint64((uint64(c))))
+	c2 := int(c2h2)
+	return h, l, c2
+}
+```
+
+(`lib/num/u128.oro`'s `add`, as emitted. The wrapper is `targets/go/math/bits.oro`'s, which receives
+the carry as an `int` because its declared range is `(int 0 1)`. **Each result is returned in the type
+that holds its value**, `int` here, not the `byte` a table would store it in. Spelled with the storage
+type, the signature was a type error on Go and the record a type error on Java.)
+
+Before it, a several-results return inside one was refused with *"declares 3 results but its
+definition does not produce them"*, which is the wall
+[u128-2026-09-23](../../gauntlet/results/u128-2026-09-23.md) §4 names. The loop emitters walk the same
+third form for `again`.
 
 It is also [native-js-2026-08-20](../../gauntlet/results/native-js-2026-08-20.md)'s finding
 arriving a second time from a different direction: on V8 a tail `return` beat a result variable by

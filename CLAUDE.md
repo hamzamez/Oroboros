@@ -35,7 +35,7 @@ and loops.
 
 ## Where it stands
 
-As of 2026-09-23. The current assessment is [assessment-2026-09-23.md](docs/assessment-2026-09-23.md);
+As of 2026-09-24. The current assessment is [assessment-2026-09-24.md](docs/assessment-2026-09-24.md);
 read it before planning.
 
 **The compiler.**
@@ -71,46 +71,44 @@ with no clamps.
   (declared by hand, checked against the host, exercised by a program): the Go packages
   `unicode/utf8`, `encoding/hex`, **`strconv`**, **`encoding/binary`'s varints** and **`math/bits`**,
   plus `io`'s interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md),
-  [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)).
+  [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)). `lib/num/u128.oro` is the first
+  library written in the language over a package pair (`math/bits`, `strconv`).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (09-23):
-1. ~~Profile the tokeniser's compile~~ — done
-   ([tokenize-compile-2026-09-23](gauntlet/results/tokenize-compile-2026-09-23.md)). freq's compile
-   cost is the interval pass's `restore`, recorded and not chased.
-2. ~~Close this round's two checking gaps~~ — done
-   ([checkgaps-2026-09-23](gauntlet/results/checkgaps-2026-09-23.md)).
-3. **Packages, program-first.** `math/bits` and its program with `strconv`, `lib/num/u128.oro`, are
-   done ([mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md),
-   [u128-2026-09-23](gauntlet/results/u128-2026-09-23.md)). The wall it met — no jump or
-   several-results return inside a host call's continuation — is decided as
-   [ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md) and built
-   ([tailctx-2026-09-24](gauntlet/results/tailctx-2026-09-24.md)), so a loop can consume a fallible
-   host call per iteration. The tuple-component law and int64 fragment constants were demanded again.
-   Next package: `bufio` or `sort`/`slices` (the first package callback).
-4. **A Windows application: hamza's decision** — give it a scope and a round, or move it to
-   *deliberately not next*. The assessment recommends the second.
+**Next, from the current assessment** (09-24):
+1. **`bufio`, program-first.** ADR 0027 was built for it. Its algebra first; then a line tool over
+   standard input with `strconv` (number the lines, sum a column), written in the language and not an
+   acceptance program. **If the tuple-component law is met a fourth time, it becomes the next ADR.**
+2. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
+   from Win32 against what is declared, callable and linkable (31.0% callable and linkable today);
+   then spec first, with an ADR per wall.
+3. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
+   gets a witness that it is *sound*, not only one that it proves something — this round's two false
+   proofs were each described accurately by their own comments.
 
-Deliberately not next: the windows/V8/JVM unsigned rungs until a program needs U there; dependent
-result ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ — the wall
-`hash/fnv` will hit, named so it is met on purpose).
+Deliberately not next: element bounds for `alloc (table …)` and a map's cells, and geometric
+accumulation (bounds-2026-09-24); per-result enforcement above the word and signed limbs (ADR 0029);
+the higher-order contract gap (ADR 0028); a phase-wise trip count; the windows/V8/JVM unsigned rungs;
+dependent result ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ —
+the wall `hash/fnv` will hit, named so it is met on purpose).
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
 in the language.
-- Last round: +2,942 lines of compiler (1,487 tests) against +8 lines in `examples/` + `lib/`:
-  368 : 1, or 7.0 : 1 counting hand declarations (+293) and acceptance programs (+118). The round
-  before was 2,631 : 1.
-- `emit : core` is 4.23.
+- Last round: +3,101 lines of compiler (1,236 tests) against +47 lines in `examples/` + `lib/`:
+  66 : 1, or 10.8 : 1 counting hand declarations (+181) and acceptance programs (+60). The round
+  before was 368 : 1 (7.0 : 1). The largest program did not grow.
+- `emit : core` is 4.28.
 - The analysis layer (`interval`, `refine`, `linear`, `monotone`, plus `fact`, `content`, `smash`,
-  `component`, `sct`) is 8,942 lines, and 9,524 with `bound` and `wordsel`.
+  `component`, `sct`) is 9,432 lines, and 10,014 with `bound` and `wordsel`; `requires` (515) and
+  `buflen` (232) are new and belong to it.
 
 The part that decides what is legal is the hardest to check. Write programs, and let them demand the
 analysis.
 
 Previous assessments:
-[09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).
@@ -432,6 +430,10 @@ Each of these has bitten more than once. The instances are in the results they n
   - Refusal-shaped properties need an anti-vacuity guard.
   - Random search cannot test what over-approximation makes sound; pin those with exact witnesses.
 - **"Not refused" is not "proven".** A path that returns success with a note has checked nothing.
+- **A comment that states what code does is not a review of whether it should.** `scKind` was
+  documented "per the LAST edge examined", and a measure was documented as withheld that never was:
+  both sentences described a false proof exactly (matchguard-2026-09-24). Only a planted fault shows
+  whether a rule's conclusions are true.
 - **`Body()` and `openFresh` rebuild terms.**
   - A map keyed by a term pointer answers about a copy.
   - `FnClosed` does not close.

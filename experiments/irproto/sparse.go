@@ -34,8 +34,8 @@ type iv struct {
 var ivTop = iv{nlo: true, phi: true}
 var ivBot = iv{bot: true}
 
-func exactIV(n int64) iv        { return iv{lo: n, hi: n} }
-func rangeIV(lo, hi int64) iv   { return iv{lo: lo, hi: hi} }
+func exactIV(n int64) iv      { return iv{lo: n, hi: n} }
+func rangeIV(lo, hi int64) iv { return iv{lo: lo, hi: hi} }
 func (a iv) fits(w core.Word) bool {
 	return a.bot || (!a.nlo && !a.phi && a.lo >= w.Lo && a.hi <= w.Hi)
 }

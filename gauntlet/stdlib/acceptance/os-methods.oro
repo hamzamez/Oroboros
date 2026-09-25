@@ -37,8 +37,8 @@
 (def main ()
   ((gos.Open "go.mod") (fn (f e1)
     (if (gos.err-nil e1)
-        (build 64 (fn (b)
+        (build b 64
           ((File.Read f b) (fn (n e2)
             (seq (File.Close f)
-              (if (gos.err-nil e2) (io.print-int n) (io.print-int 0)))))))
+              (if (gos.err-nil e2) (io.print-int n) (io.print-int 0))))))
         (io.print-int 0)))))

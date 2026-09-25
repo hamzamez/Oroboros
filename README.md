@@ -46,7 +46,7 @@ comes from the test suite, which runs it on every target.
 (export main)
 
 (def count-primes (n)
-  (let composite (build n (fn (sieve)            ; a buffer of n booleans, zero-filled
+  (let composite (build sieve n                  ; a buffer of n booleans, zero-filled
                    (loop ((s sieve) (i 2))
                      (>= (* i i) n)   s
                      (>= i (len s))   s
@@ -54,7 +54,7 @@ comes from the test suite, which runs it on every target.
                      else             (again (loop ((s s) (j (* i i)))
                                                (>= j n)  s
                                                else      (again (set s j true) (+ j i)))
-                                             (+ i 1)))))
+                                             (+ i 1))))
     ; `composite` is frozen on the way out
     (loop ((k 2) (count 0))
       (>= k n)       count
@@ -214,8 +214,8 @@ All three print `49`, the same as `wc -l`.
   (let src (array 104 105 33)                          ; "hi!"
     (io.print-line
       (os.text-of
-        (build (* 2 (len src)) (fn (dst)
-          (let (tuple dst n) (hex.Encode dst src) dst)))))))
+        (build dst (* 2 (len src))
+          (let (tuple dst n) (hex.Encode dst src) dst))))))
 ```
 
 ```

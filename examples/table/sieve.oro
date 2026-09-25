@@ -19,11 +19,11 @@
     else        c))
 
 (def sieve (n)
-  (build n (fn (c)
+  (build c n
     (loop ((c c) (i 2))
       (go.>= (go.* i i) n)   c
       (c i)                  (again c (go.+ i 1))
-      else                   (again (cross c i n) (go.+ i 1))))))
+      else                   (again (cross c i n) (go.+ i 1)))))
 
 (def count-primes (n)
   (let c (sieve n)

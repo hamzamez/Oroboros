@@ -157,10 +157,10 @@
 ; bound is at least 54 bits, and a machine word is under 2^53. A word can
 ; therefore never exceed the bound it is being widened into.
 (def of (n lim v)
-  (build n (fn (b)
+  (build b n
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
 
 ; ---------------------------------------------------------------- addition
 ;
@@ -168,11 +168,11 @@
 ; expressible: ADR 0015 lets `again` sit under a `let`, so the column sum is
 ; named once and used for both the stored limb and the outgoing carry.
 (def add (n lim a b)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
       else      (let t (+ (+ (at a i) (at b i)) c)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
 
 ; ------------------------------------------------------- multiply by a word
 ;
@@ -183,11 +183,11 @@
 ; 2^48, and the lowering only chooses this form when the multiplier is a widened
 ; word whose range the analysis has bounded.
 (def mul-small (n lim a k)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0) (c 0))
       (>= i n)  (guard n lim c o)
       else      (let t (+ (* (at a i) k) c)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
 
 ; ------------------------------------------------------------ big by big
 ;
@@ -219,10 +219,10 @@
                                (+ j 1) (/ t 16777216)))))
 
 (def mul (n lim a b)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0))
       (>= i n)  o
-      else      (again (macrow n lim o a b i) (+ i 1))))))
+      else      (again (macrow n lim o a b i) (+ i 1)))))
 
 ; ---------------------------------------------------------------- subtraction
 ;
@@ -238,13 +238,13 @@
 ; alternative is a wrap, and then choosing a representation would change the
 ; answer (ADR 0009 at the representation boundary).
 (def sub (n lim a b)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  (guard n lim bw o)
       else      (let t (- (- (at a i) (at b i)) bw)
                   (again (set o i (if (< t 0) (+ t 16777216) t))
                          (+ i 1)
-                         (if (< t 0) 1 0)))))))
+                         (if (< t 0) 1 0))))))
 
 ; --------------------------------------------------------- divide by a word
 ;
@@ -268,11 +268,11 @@
 ; `splice` normalises this body against the caller's actual argument, so the
 ; same facts are in scope at the same goal.
 (def div-small (n lim a k)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
       else     (let cur (+ (* r 16777216) (at a i))
-                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))
+                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))
 
 ; ---------------------------------------------------------------- comparison
 ;

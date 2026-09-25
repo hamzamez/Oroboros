@@ -17,11 +17,11 @@
     else            c))
 
 (def sieve (n)
-  (build n (fn (c)
+  (build c n
     (loop ((c c) (i 2))
       (x64.setge (x64.imul i i) n)  c
       (c i)                         (again c (x64.add i 1))
-      else                          (again (cross c i n) (x64.add i 1))))))
+      else                          (again (cross c i n) (x64.add i 1)))))
 
 (def count-primes (n)
   (let c (sieve n)

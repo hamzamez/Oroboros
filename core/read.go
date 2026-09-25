@@ -574,6 +574,10 @@ func (r *reader) list() (*Term, error) {
 	if kids[0].Kind == KName && kids[0].Name == "loop" {
 		return readLoop(kids, line)
 	}
+	// (build b n body) — a scoped buffer is a binder (scope.go, tables.md §2.4).
+	if isScopeHead(kids[0]) && len(kids) >= 4 {
+		return readScope(kids, line)
+	}
 	if kids[0].Kind == KName && kids[0].Name == "match" {
 		return readMatch(kids, line)
 	}

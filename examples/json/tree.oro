@@ -153,74 +153,74 @@
 ; --- the parser -------------------------------------------------------------
 
 (def parse (src)
-  (build (go.* 4 nmax) (fn (nodes)
-    (build (go.* 2 dmax) (fn (stk)
-      (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
+  (build nodes (go.* 4 nmax)
+         stk (go.* 2 dmax)
+    (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
-        ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-        (go.< i 0)  (set (set nodes 0 nn) 1 0)
+      ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
+      (go.< i 0)  (set (set nodes 0 nn) 1 0)
 
-        (go.>= i (len src))
-          (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
+      (go.>= i (len src))
+        (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
 
-        ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
-        ; carries an obligation nothing can discharge, because both `nn` and
-        ; `sp` grow with the input — so the program has to say what happens when
-        ; a document has more nodes than the table, or nests deeper than the
-        ; stack. A recursive-descent parser has both limits too; the heap and
-        ; the C stack. It is never asked about either.
-        (go.>= nn nmax)  (set (set nodes 0 nn) 1 0)
-        (go.>= sp dmax)  (set (set nodes 0 nn) 1 0)
+      ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
+      ; carries an obligation nothing can discharge, because both `nn` and
+      ; `sp` grow with the input — so the program has to say what happens when
+      ; a document has more nodes than the table, or nests deeper than the
+      ; stack. A recursive-descent parser has both limits too; the heap and
+      ; the C stack. It is never asked about either.
+      (go.>= nn nmax)  (set (set nodes 0 nn) 1 0)
+      (go.>= sp dmax)  (set (set nodes 0 nn) 1 0)
 
-        (space? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
-        (punct? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
+      (space? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
+      (punct? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
 
-        ; An opener allocates a container, attaches it, and opens a level. The
-        ; order is forced: `mark` records it as the last child at the CURRENT
-        ; depth, and only then does `push` move down.
-        (opener? (src i))
-          (again (link (set (set nodes (nsl nn 0) (if (= (src i) 123) 5 4))
-                            (nsl nn 1) 0)
-                       stk sp nn)
-                 (push (mark stk sp nn) sp nn)
-                 (go.+ i 1) (go.+ nn 1) (go.+ sp 1) ok)
+      ; An opener allocates a container, attaches it, and opens a level. The
+      ; order is forced: `mark` records it as the last child at the CURRENT
+      ; depth, and only then does `push` move down.
+      (opener? (src i))
+        (again (link (set (set nodes (nsl nn 0) (if (= (src i) 123) 5 4))
+                          (nsl nn 1) 0)
+                     stk sp nn)
+               (push (mark stk sp nn) sp nn)
+               (go.+ i 1) (go.+ nn 1) (go.+ sp 1) ok)
 
-        ; A closer pops, and checks that what it closes is what was opened —
-        ; read back out of the node table, which is the first time the parser
-        ; reads a node it wrote earlier.
-        (closer? (src i))
-          (again nodes stk (go.+ i 1) nn
-                 (if (go.< sp 1) 0 (go.- sp 1))
-                 (if (go.< sp 1) 0
-                     (if (= (nodes (nsl (stk (ssl (go.- sp 1) 0)) 0))
-                            (if (= (src i) 125) 5 4))
-                         ok 0)))
+      ; A closer pops, and checks that what it closes is what was opened —
+      ; read back out of the node table, which is the first time the parser
+      ; reads a node it wrote earlier.
+      (closer? (src i))
+        (again nodes stk (go.+ i 1) nn
+               (if (go.< sp 1) 0 (go.- sp 1))
+               (if (go.< sp 1) 0
+                   (if (= (nodes (nsl (stk (ssl (go.- sp 1) 0)) 0))
+                          (if (= (src i) 125) 5 4))
+                       ok 0)))
 
-        ; ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
-        ; go under an `if`, so three clauses would each have to repeat the whole
-        ; link-and-allocate expression. Computing the tag and the next index
-        ; with `let` first — which ADR 0015 does permit above `again` — leaves
-        ; one copy. That is the rule choosing the better shape, and it was not
-        ; the first thing tried.
-        (scalar? (src i))
-          (let tg (cond
-                    (= (src i) 34)      2
-                    (numeric? (src i))  1
-                    else                3)
-               ni (cond
-                    (= (src i) 34)      (scan-string src i)
-                    (numeric? (src i))  (scan-run src (go.+ i 1) numeric?)
-                    else                (scan-run src (go.+ i 1) alpha?))
-            ; Scanning starts PAST the byte the guard already matched: identical
-            ; answers, and it is what makes the loop provable. Starting at `i` a
-            ; scanner may return `i`, so monotonicity gives only `i' >= i` and
-            ; there is no strict descent (monotone-2026-08-27).
-            (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (go.- ni i))
-                           stk sp nn)
-                     (mark stk sp nn)
-                     ni (go.+ nn 1) sp ok))
+      ; ONE CLAUSE FOR ALL THREE SCALARS, and ADR 0015 is why. `again` may not
+      ; go under an `if`, so three clauses would each have to repeat the whole
+      ; link-and-allocate expression. Computing the tag and the next index
+      ; with `let` first — which ADR 0015 does permit above `again` — leaves
+      ; one copy. That is the rule choosing the better shape, and it was not
+      ; the first thing tried.
+      (scalar? (src i))
+        (let tg (cond
+                  (= (src i) 34)      2
+                  (numeric? (src i))  1
+                  else                3)
+             ni (cond
+                  (= (src i) 34)      (scan-string src i)
+                  (numeric? (src i))  (scan-run src (go.+ i 1) numeric?)
+                  else                (scan-run src (go.+ i 1) alpha?))
+          ; Scanning starts PAST the byte the guard already matched: identical
+          ; answers, and it is what makes the loop provable. Starting at `i` a
+          ; scanner may return `i`, so monotonicity gives only `i' >= i` and
+          ; there is no strict descent (monotone-2026-08-27).
+          (again (link (set (set nodes (nsl nn 0) tg) (nsl nn 1) (go.- ni i))
+                         stk sp nn)
+                   (mark stk sp nn)
+                   ni (go.+ nn 1) sp ok))
 
-        else (again nodes stk (go.+ i 1) nn sp 0)))))))
+      else (again nodes stk (go.+ i 1) nn sp 0))))
 
 ; --- the walk ---------------------------------------------------------------
 ;
@@ -240,7 +240,7 @@
 (def ssl2 (k o) (go.+ (go.* 2 k) o))
 
 (def walk (nodes)
-  (build (go.* 2 nmax) (fn (wl)
+  (build wl (go.* 2 nmax)
     (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
       (go.>= steps (go.* 2 nmax))  (go.+ (go.* seen 1000) acc)
       (go.< sp 1)                    (go.+ (go.* seen 1000) acc)
@@ -260,7 +260,7 @@
              s3 (if (= kd 0) s2 (go.+ s2 1))
           (again w2 s3 (go.+ seen 1)
                  (go.+ acc (go.* (nodes (nsl n 0)) d))
-                 (go.+ steps 1)))))))
+                 (go.+ steps 1))))))
 
 ; --- documents --------------------------------------------------------------
 ;

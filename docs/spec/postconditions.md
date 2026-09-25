@@ -126,7 +126,7 @@ the term**. There are two places:
 
 1. **A primitive's arguments**, before its `where` is decided: a call's arguments are evaluated before
    it, so their guarantees are in scope for its precondition, and for everything after it in scope.
-2. **A `build`'s size.** `(build n (fn (b) …))` records `len b = n`. When n contains a pure call, the
+2. **A `build`'s size.** `(build b n …)` records `len b = n`. When n contains a pure call, the
    call's guarantee is what gives that equation content. Without it, `len b = EncodedLen(len src)`
    relates `len b` to an unknown and proves nothing. A `build` is a structural form, not a
    primitive, so rule 1 never read its size.

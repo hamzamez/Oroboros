@@ -93,12 +93,12 @@
 
 ; One buffer, begun with '[' and threaded through four appends.
 (def append ()
-  (fmt.Println (build 1 (fn (b)
+  (fmt.Println (build b 1
     (sc.AppendUint
       (sc.AppendInt
         (sc.AppendQuote (sc.AppendBool (set b 0 91) (= 1 2)) "x")
         (bottom 0) 10)
-      (- 18446744073709551615 1) 2)))))
+      (- 18446744073709551615 1) 2))))
 
 (def error ()
   ((sc.ParseInt "99999999999999999999" 10 64) (fn (v e)

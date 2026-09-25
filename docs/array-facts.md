@@ -210,7 +210,7 @@ invariant over every write through every alias, and the tools that do it pay for
 
 ### 4.1 A buffer's history is a word over its stores
 
-Within `(build n (fn (b) e))`, every write is a `set` on the buffer's current version, and linearity makes each
+Within `(build b n e)` (the core form `(build n (fn (b) e))`, tables.md §2.4), every write is a `set` on the buffer's current version, and linearity makes each
 version consumed exactly once. So the versions form a **chain**:
 
 ```

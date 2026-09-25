@@ -101,8 +101,8 @@ Landin's knot, and with [ADR 0018](decisions/0018-immutable-values-linear-buffer
 is writable:
 
 ```lisp
-(build 1 (fn (b)
-  (set b 0 (fn (x) (if (== x 0) 1 (* x ((b 0) (- x 1))))))))
+(build b 1
+  (set b 0 (fn (x) (if (== x 0) 1 (* x ((b 0) (- x 1)))))))
 ```
 
 The closure captures `b` and calls `(b 0)`, which is itself. That is factorial, by backpatching, and

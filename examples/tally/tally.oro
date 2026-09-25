@@ -88,12 +88,12 @@
     else      (again (set a (cli n k) k) (+ k 1))))
 
 (def msort (less n)
-  (build n (fn (a)
-    (build n (fn (b)
-      (loop ((a (iota a n)) (b b) (w 1))
-        (>= w n)      a
-        (>= w nmax) a
-        else          (again (mpass less a b n w) a (* 2 w))))))))
+  (build a n
+         b n
+    (loop ((a (iota a n)) (b b) (w 1))
+      (>= w n)      a
+      (>= w nmax) a
+      else          (again (mpass less a b n w) a (* 2 w)))))
 
 ; --- the tool ---------------------------------------------------------------
 
@@ -108,12 +108,12 @@
 ; THE CAPTURED VALUES, AS A TABLE OF THE HOST'S STRINGS. Nothing is copied into
 ; bytes: the host produced these strings and the host will compare them.
 (def captures (hit? capture re ls n)
-  (build n (fn (cs)
+  (build cs n
     (loop ((cs cs) (i 0) (k 0))
       (>= i (len ls))  cs
       (>= k n)         cs
       (hit? re (ls i)) (again (set cs k (capture re (ls i))) (+ i 1) (+ k 1))
-      else             (again cs (+ i 1) k)))))
+      else             (again cs (+ i 1) k))))
 
 ; A value at a sorted position. Clamped, because a permutation entry is a value
 ; read out of a table (frozen-2026-08-28's stratum 0).
@@ -139,7 +139,7 @@
 (def dcount (dt d) ((dt d) 1))
 
 (def dists (cmp cs ord n nd)
-  (build nd (fn (dt)
+  (build dt nd
     (loop ((dt dt) (k 0) (d 0))
       (>= k n)  dt
       ; NO GROUPS, NO TABLE: `nd >= 1` whenever a value exists is a relation
@@ -152,7 +152,7 @@
         (again (set dt (cli nd d) (tuple k 1)) (+ k 1) (+ d 1))
       else
         (let s (cli nd (- d 1))
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))
 
 (def dvalue (cs ord n dt d) (at cs ord n ((dt d) 0)))
 

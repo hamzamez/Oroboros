@@ -45,26 +45,26 @@
 (def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
 
 (def bn-of (n v)
-  (build n (fn (b)
+  (build b n
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
 
 (def bn-sub (n a b)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  o
       else      (let t (- (- (at a i) (at b i)) bw)
                   (again (set o i (if (< t 0) (+ t 16777216) t))
                          (+ i 1)
-                         (if (< t 0) 1 0)))))))
+                         (if (< t 0) 1 0))))))
 
 (def bn-div-small (n a k)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
       else     (let cur (+ (* r 16777216) (at a i))
-                 (again (set o i (/ cur k)) (- i 1) (% cur k)))))))
+                 (again (set o i (/ cur k)) (- i 1) (% cur k))))))
 
 (def run (k)
   (let q (bn-div-small 3 (bn-sub 3 (bn-of 3 999999999999999) (bn-of 3 14000000)) 7)

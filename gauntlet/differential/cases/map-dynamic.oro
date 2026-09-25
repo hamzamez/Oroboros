@@ -23,8 +23,8 @@
 ; inlining cannot reach). A -1 here made windows look like it had lost entries
 ; when it had computed them correctly and could not print them.
 (def run (n)
-  (let m (build-map 8 (fn (m)
+  (let m (build-map m 8
            (loop ((m m) (i 0))
              (>= i n)  m
-             else       (again (insert m i (* i 10)) (+ i 1)))))
+             else       (again (insert m i (* i 10)) (+ i 1))))
     (case (m 2) (some v) v none 0)))

@@ -74,11 +74,11 @@
 ; the pass and MOVED afterwards, in that order, which is exactly what ADR 0018's
 ; linearity permits -- a read does not consume.
 (def msort (s)
-  (build cap (fn (a)
-    (build cap (fn (b)
-      (loop ((a (iota a)) (b b) (w 1))
-        (>= w cap)  a
-        else          (again (mpass s a b w) a (* 2 w)))))))) 
+  (build a cap
+         b cap
+    (loop ((a (iota a)) (b b) (w 1))
+      (>= w cap)  a
+      else          (again (mpass s a b w) a (* 2 w))))) 
 
 (def run (s)
   (let v (msort s)

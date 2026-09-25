@@ -64,4 +64,4 @@
 ; function had to do before a buffer could be named.
 (sig mac-fresh ((a (array (int 0 255))) (b (array (int 0 255)))) (array (int 0 65535))
   (where (and (<= 65536 (len a)) (<= 65536 (len b)))))
-(def mac-fresh (a b) (build n (fn (w) (mac w a b))))
+(def mac-fresh (a b) (build w n (mac w a b)))

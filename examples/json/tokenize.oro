@@ -73,7 +73,7 @@
 ; --- the tokeniser ----------------------------------------------------------
 
 (def tokens (src)
-  (build cap (fn (stk)
+  (build stk cap
     (loop ((stk stk) (i 0) (nt 0) (sp 0) (mx 0) (ok 1))
 
       ; REFINEMENT 2. A scanner's result is opaque to the analysis -- it is a
@@ -133,7 +133,7 @@
       (numeric? (src i)) (again stk (scan-run src (go.+ i 1) numeric?) (go.+ nt 1) sp mx ok)
       (alpha? (src i))   (again stk (scan-run src (go.+ i 1) alpha?) (go.+ nt 1) sp mx ok)
 
-      else (again stk (go.+ i 1) nt sp mx 0)))))
+      else (again stk (go.+ i 1) nt sp mx 0))))
 
 ; --- documents, selected by k ----------------------------------------------
 

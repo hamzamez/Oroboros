@@ -324,7 +324,7 @@ machinery that exists, and they are discharged *better* under `match` than under
 
 ;; a state machine — the shape general purpose needs
 (def tokenize (fn (src)
-  (match ((build (len src) …) 0 top)
+  (match ((build b (len src) …) 0 top)
     b i (in-string)  (if (== (src i) 34) (again (emit b) (+ i 1) top)
                                          (again b (+ i 1) (in-string)))
     b i (top)        (again b (+ i 1) (classify (src i)))

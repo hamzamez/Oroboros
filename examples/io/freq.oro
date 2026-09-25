@@ -120,14 +120,14 @@
     (if (< d 0) 0 (if (>= d cap-in) 0 d))))
 
 (def spans (src nw)
-  (build nw (fn (sp)
+  (build sp nw
     (loop ((sp sp) (i 0) (w 0))
       (>= i (len src))  sp
       (>= w nw)         sp
       (alpha? (src i))
         (let ni (word-end src i)
           (again (set sp w (tuple i ni)) ni (+ w 1)))
-      else              (again sp (+ i 1) w)))))
+      else              (again sp (+ i 1) w))))
 
 ; --- comparing two words ----------------------------------------------------
 ;
@@ -211,12 +211,12 @@
 ; `a` is READ inside the pass and MOVED afterwards, in that order, which is
 ; exactly what ADR 0018's linearity permits: a read does not consume.
 (def msort (less n)
-  (build n (fn (a)
-    (build n (fn (b)
-      (loop ((a (iota a n)) (b b) (w 1))
-        (>= w n)     a
-        (>= w wmax) a
-        else         (again (mpass less a b n w) a (* 2 w))))))))
+  (build a n
+         b n
+    (loop ((a (iota a n)) (b b) (w 1))
+      (>= w n)     a
+      (>= w wmax) a
+      else         (again (mpass less a b n w) a (* 2 w)))))
 
 ; `build` zero-fills, so the identity permutation has to be written.
 (def iota (a n)
@@ -259,7 +259,7 @@
 (def dcount (dt d) ((dt d) 1))
 
 (def dists (src sp ord nw nd)
-  (build nd (fn (dt)
+  (build dt nd
     (loop ((dt dt) (k 0) (d 0))
       (>= k nw)   dt
       ; NO GROUPS, NO TABLE. `nd` is at least one whenever a word exists, and that
@@ -283,7 +283,7 @@
           ; What bounds it is a count: this loop runs at most nw times and adds 1
           ; to one slot per trip, so no count exceeds 1 + nw — and the compiler
           ; proves exactly that (smashfd-2026-09-16).
-          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d))))))
+          (again (set (dt s) 1 (+ ((dt s) 1) 1)) (+ k 1) d)))))
 
 ; --- rendering the report ---------------------------------------------------
 ;
@@ -382,14 +382,14 @@
 
 (def report (src sp dt ord2 nd)
   (let m (outlen sp dt ord2 nd)
-    (build m (fn (out)
+    (build out m
       (loop ((out out) (o 0) (r 0))
         (>= r nd)         out
         (>= r topn)     out
         (< (len sp) 1)    out
         else (let d (pat ord2 nd r)
                (again (putline out o src sp dt d m)
-                      (+ o (linelen sp dt d)) (+ r 1))))))))
+                      (+ o (linelen sp dt d)) (+ r 1)))))))
 
 ; --- the tool ---------------------------------------------------------------
 

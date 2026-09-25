@@ -199,7 +199,7 @@
 
     else (again out op (+ i 1) d fresh)))
 
-(def format (src) (build (outlen src) (fn (out) (render src out))))
+(def format (src) (build out (outlen src) (render src out)))
 
 ; --- the tool ---------------------------------------------------------------
 

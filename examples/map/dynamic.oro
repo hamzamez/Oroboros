@@ -32,10 +32,10 @@
 ; know. `(m k)` is `(option V)` and the `case` is what discharges the domain
 ; condition -- the only thing that can, since `k in dom m` is set membership.
 (def build3 (n)
-  (build-map 8 (fn (m)
+  (build-map m 8
     (loop ((m m) (i 0))
       (go.>= i n)  m
-      else         (again (insert m i (go.* i 10)) (go.+ i 1))))))
+      else         (again (insert m i (go.* i 10)) (go.+ i 1)))))
 
 (def look (m k) (case (m k) (some v) v none -1))
 

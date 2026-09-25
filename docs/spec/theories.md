@@ -634,7 +634,8 @@ instance `φ(b[t], x̄)`.
 
 #### 7.11.3 Derivation from a `build` (Theorem S)
 
-For `(build n (fn (b) e))`, a candidate `φ` holds of the result when
+For `(build n (fn (b) e))` — the core form, which is what the analyses see of every `(build b n e)`
+(tables.md §2.4) — a candidate `φ` holds of the result when
 
 1. `F ∧ n ≥ 1 ⊢ φ(0, x̄)` at the `build`, and
 2. at every `set` on `b`'s linear chain, reached under facts `P`, `P ∧ ∀s. φ(b′[s], x̄) ⊢ φ(v, x̄)`.

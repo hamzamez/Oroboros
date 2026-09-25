@@ -161,6 +161,7 @@ rejected alternatives.
 | A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
 | Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
+| A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law — **not built** | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
 
 ## How this project is run
 
@@ -248,8 +249,13 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   ranges, and at a boundary the DECLARED element decides and the literal must fit it
   ([literal-elements.md](docs/literal-elements.md)). windows keeps qwords by choice.
 - **Buffers and mutation.** Values are immutable. Mutation happens only inside
-  `(build n (fn (b) …))`, whose buffer is linear, checked by `occurrences` on the residual
-  (ADR 0018). `(buffer V)` is a nameable parameter type (ADR 0020):
+  `(build b n …)`, whose buffer is linear, checked by `occurrences` on the residual (ADR 0018).
+  **A scoped buffer is a binder**: `(build b n  c m  body)` is reader sugar for the nested core form
+  `(build n (fn (b) …))`, n-ary and sequential, one region, and `build-map` likewise
+  ([tables.md §2.4](docs/spec/tables.md)). Its value is the body's value; **a product result**
+  (frozen buffers plus buffer-free values, taken apart by a tuple pattern) is
+  [ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), **not built**: today a tuple out
+  of a `build` or a `loop` is refused with an internal error. `(buffer V)` is a nameable parameter type (ADR 0020):
   - uniqueness is *assumed* at an export;
   - linearity is *checked* through the body;
   - a buffer may not be an element type.

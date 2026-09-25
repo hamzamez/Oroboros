@@ -41,10 +41,10 @@
 ; Field 0 is a counter, field 1 is a residue, so the two differ and a projection
 ; that reads the wrong one is visible in the answer.
 (def mk (s)
-  (build cap (fn (t)
+  (build t cap
     (loop ((t t) (i 0))
       (>= i cap)  t
-      else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1))))))
+      else (again (set t i (tuple (+ i s) (% (* 7 (+ i s)) 13))) (+ i 1)))))
 
 (def run (s)
   (let t (mk s)

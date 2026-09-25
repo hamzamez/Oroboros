@@ -35,17 +35,17 @@
 (def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
 
 (def bn-of (n v)
-  (build n (fn (b)
+  (build b n
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
-      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216))))))
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
 
 (def bn-mul-small (n a k)
-  (build n (fn (o)
+  (build o n
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let t (+ (* (at a i) k) c)
-                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216)))))))
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
 
 (def bn-fact (w n)
   (loop ((acc (bn-of w 1)) (i 2))

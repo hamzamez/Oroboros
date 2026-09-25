@@ -123,12 +123,15 @@ independent spellings of one construct, which [data.md §10](data.md) refuses.
 **What it does not change.** Nesting abbreviates where a module is **declared**, never where one is
 **named**:
 
-- a type is named by its whole path, `(self go/encoding/hex.InvalidByteError)`, inside the nested
+- a type may be named by its whole path, `(self go/encoding/hex.InvalidByteError)`, inside the nested
   form as outside it;
 - `(include go/io/Writer go/io/Closer)` takes module paths and they stay absolute.
 
-Relative *names* are a question about resolution rather than about this sugar, and it is deliberately
-left open (the last section's list).
+**A bare type name resolves lexically** ([theories.md §3.4](theories.md), ADR 0021 item 2): first in
+the declaring module, then in each enclosing module by path, then at the root. So a companion writes
+`(self InvalidByteError)`, and a child of `go` writes `bytestring`. That is resolution, not this
+sugar. It is read off the path, so the nested and flat spellings still give one target, and a module
+type that would shadow an enclosing one is refused rather than rebinding its children's names.
 
 **An empty segment is refused.** `(module a (module /b …))` would join to `a//b`, a path no `(use …)`
 can name, and concatenation must not silently produce one.
@@ -923,7 +926,6 @@ A declaration is believed. Nothing here is checked, so each line is an obligatio
   `gauntlet/results/`, not in a declaration.
 - **Conditional declarations.** A target either provides a name or does not; the conditional lives
   in `P_T ∩ D` ([modules.md §6](modules.md)) and needs no syntax.
-- **A name written relative to its module.** Nesting abbreviates a `(module …)` HEAD; a type is
-  still `go/encoding/hex.InvalidByteError` and an `include` still takes absolute paths (§1a). Making
-  a bare `InvalidByteError` resolve inside its own module is name RESOLUTION, not sugar: it would
-  change which type a name binds to when a declaration moves, and it wants its own decision.
+- **A relative module path in `include`.** `include` takes module paths, and they stay absolute
+  (§1a). A bare TYPE name resolves in its module (theories.md §3.4, built names-2026-09-25). A
+  relative path to a module is a different question, and nothing has asked it.

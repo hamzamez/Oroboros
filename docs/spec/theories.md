@@ -120,6 +120,29 @@ name is already an error (JLS §7.1); here it is checked when the module is load
   per target (`tg.Types`). Resolving it makes `go/io.Writer` and `hex.Writer` different names, which
   is what removes the base-name collisions measured in theories.md §2.2.
 
+**Built for target files** (names-2026-09-25). A name written in a declaration of module `p`, whether
+a type in a signature, an alias's definiens, or a constant used as a range endpoint, resolves as
+follows:
+
+1. A name holding a `.` is **qualified**, and is taken as written.
+2. A bare name `N` is looked up as `p.N`, then in each **enclosing** module, then bare. An enclosing
+   module is a path prefix: inside `go/strconv/NumError`, bare `NumError` finds
+   `go/strconv.NumError`, and bare `bytestring` finds `go.bytestring`.
+
+   Enclosing is read off the **path**, not off the nesting, so the nested and flat spellings of one
+   target stay one target (target-files.md §1a).
+3. Resolution runs on the **glued** target: after every fragment of every layer is combined, next to
+   the constants. So a type declared in one file names correctly from another, and splitting a file
+   changes nothing (`load(F₁ ++ F₂) = load(F₁) ⊔ load(F₂)`).
+4. **A module type may not shadow** a type in an enclosing module, a root-level type, or a language
+   type. The refusal names both. Lexical scoping would otherwise let a declaration added to a parent
+   rebind, silently, every bare use in its children, which is the hazard nestmod-2026-09-20 named.
+   Siblings do not shadow: `go/io.Reader` and `go/bufio.Reader` are two names.
+
+Resolution produces the same qualified names the absolute spelling does, and nothing downstream sees a
+bare name. The absolute spelling stays legal, because a fragment in another layer must be able to
+name into a module it does not enclose.
+
 ### 3.5 Elaboration
 
 Resolution produces the flat qualified namespace the reducer receives today. Nothing about nesting,

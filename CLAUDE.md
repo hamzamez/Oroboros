@@ -74,6 +74,17 @@ with no clamps.
   [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)). `lib/num/u128.oro` is the first
   library written in the language over a package pair (`math/bits`, `strconv`).
 
+**The IR** ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](docs/spec/ir.md)) is
+specified and **not built**. It is structured SSA with π-parameters between the residual and every
+backend and analysis, and it realizes ADR 0006. The derivation is [ir-research.md](docs/ir-research.md).
+Three prototypes in `experiments/irproto` decided it:
+- lowering is nearly free (irp1);
+- a sparse interval analysis on it is 12–115× faster (irp3);
+- a Go printer from it is at parity on the gauntlet (irp2).
+
+**The migration is the current plan**: lowering and a verifier, then the Go printer, then the others,
+then the analyses one domain at a time. The language plan below waits for the Go printer.
+
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
@@ -162,6 +173,7 @@ rejected alternatives.
 | Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
 | A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
+| The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — specified, not built | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
 
 ## How this project is run
 

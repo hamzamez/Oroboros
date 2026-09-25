@@ -1,7 +1,9 @@
 # Research: the IR between the residual and everything that reads it
 
-2026-09-25. **Research, not a decision.** It precedes a specification (ADR 0006's file format) and an
-ADR (0032). It follows ADR 0007: candidates are named with the measurement that would kill each, and
+2026-09-25. **Research, not a decision.** The decision it led to is
+[ADR 0032](decisions/0032-the-ir-is-structured-ssa.md), and the specification is
+[spec/ir.md](spec/ir.md), which decides what §12 left open about the operation set, `build`, facts in
+the format and the migration order. It follows ADR 0007: candidates are named with the measurement that would kill each, and
 a prototype decides what argument cannot. hamza's framing: "eat our own tail". Not a rewrite of the
 compiler in Oroboros, but a refactor derived from what the language taught us, taking every win it
 offers in correctness, soundness, expressiveness, simplicity, emitted speed and compile speed. The
@@ -387,8 +389,8 @@ on C2 with π-parameters.
 - **Found:** `go.len` was not recognised as a length by P3's lowering (fixed; P3's counts did not
   move), and the committed `gen_*.go` files are stale.
 
-**C2 survives all three prototypes.** The next step is the specification: ADR 0006's format as C2,
-and ADR 0032.
+**C2 survives all three prototypes.** It is specified in [spec/ir.md](spec/ir.md) and decided in
+[ADR 0032](decisions/0032-the-ir-is-structured-ssa.md).
 
 ---
 

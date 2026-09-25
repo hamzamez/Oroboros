@@ -66,10 +66,51 @@ is a *fragment of the term language*, which is why parameters were named in
 
 Consequences, all of them wanted:
 
-- Nothing is rejected for being too expressive.
-- It is **always sound**: an undecided obligation is not assumed true. It can only be discharged by
-  an assumption that matches it, or by a runtime check at a boundary.
+- Nothing is rejected for being too expressive **as a declaration**: any boolean term may be
+  written in a `where`.
 - It **degrades gracefully**, and the fragment can grow later without any program changing.
+
+### 3a. An obligation is discharged, or the program is refused
+
+*Amended 2026-09-25 ([noprop-2026-09-25](../../gauntlet/results/noprop-2026-09-25.md)).* This section
+said an undecided obligation "can only be discharged by an assumption that matches it, **or by a
+runtime check at a boundary**", and the compiler read that as licence to emit the program with a note:
+*propagated, not proven*. No runtime check was ever emitted. An obligation is the **domain condition**
+of an application: `0 ≤ i < len t` for `(t i)` (tables.md §6), a primitive's `where` for a call.
+Outside its domain an application has no value, and each host then does something different:
+
+| out of domain | Go | Java | JavaScript | x86-64 |
+|---|---|---|---|---|
+| `(t i)` | panics | throws | **`undefined`**, silently | **reads past the table** |
+
+Measured on the witness below: an `int` function returned `undefined` on JavaScript.
+
+A program denotes only if every application in it is defined. So an obligation is **discharged**, by
+exactly one of these, or the program is **refused**, naming the obligation and what was known:
+
+1. **a proof in the fragment** (§4), including a proof by cases (joinConditional) and a content fact
+   about a table (array-facts.md);
+2. **an assumption that is the same term**: an opaque atom matched by name, the one thing an atom
+   outside the fragment can be matched against;
+3. **evaluation**, when the obligation is **closed**: a comparison between two literals. `(!= 3.0 0)`
+   is true, and comparing two literals is exact on every host, so it is decided at compile time
+   without folding any arithmetic (ADR 0009).
+
+There is no fourth route. "Propagated" survives in one sense only, the one §6b already has: an
+**exported** definition's own `where` is *assumed* inside it and is its caller's to discharge. The
+caller is outside the program, and the obligation is stated in its interface, not dropped.
+
+**`-checked` does not clear an index.** It asks for the host's checked arithmetic, which every target
+declares. A checked index would need every target to trap, and JavaScript and x86 do not. Not built,
+and named.
+
+The witness, accepted before this amendment and refused now:
+
+```lisp
+(let b (build b 8 (loop ((b b) (i 0)) (>= i 8) b else (again (set b i (% (+ i n) 10)) (+ i 1))))
+     t (build c 6 c)
+  (t (b 3)))             ; b's cells reach 9, t has six
+```
 
 ## 4. The fragment
 
@@ -94,7 +135,7 @@ constant offset in the right direction.
 
 Deliberately **incomplete**. It is not Fourier–Motzkin and it is not an SMT solver. It is the
 smallest thing that decides the obligations this language actually generates, and being incomplete
-is safe — an undischarged obligation is *reported*, never assumed.
+is safe: an undischarged obligation is *refused* (§3a), never assumed.
 
 ## 5. Where facts come from
 
@@ -117,9 +158,10 @@ smooth: (aindex a (int.add i 2)) requires i + 2 < alen a
   known: 0 <= i, i < alen a - 2
 ```
 
-And the softer case — a refinement that was *propagated* rather than *proven* — must be reportable
-too, because [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) already established that a
-transformation which silently does not fire is indistinguishable from one that does.
+There is no softer case. A refinement *propagated* rather than proven used to be a note, and the
+program was emitted (§3a). [bce-2026-08-15](../../gauntlet/results/bce-2026-08-15.md) had already
+established that a transformation which silently does not fire is indistinguishable from one that
+does, and a note beside an emitted program was exactly that silence.
 
 ## 6b. A `where` on a DEFINITION, and a declared parameter range
 

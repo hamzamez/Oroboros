@@ -667,7 +667,9 @@ So `(t i)` carries `i ∈ dom(t)`, discharged at every call site — which is no
 arrays but what applying a partial function means (§1.1). **In-bounds indexing is Tier 1.
 Out-of-bounds is not a behaviour the language has**, the same shape as division by zero
 ([integers.md §5](integers.md)) where three hosts trap and JavaScript keeps going with `Infinity`.
-An undischarged obligation is reported, never assumed.
+An undischarged obligation **refuses the program** ([refinements.md §3a](refinements.md)). It is
+never assumed, and never left to a host's check: JavaScript and x86 have none. Until 2026-09-25 an
+index outside the linear fragment was emitted with a note instead.
 
 This is strictly stronger than today, where `aindex`'s obligation is a `where` on a *target*
 primitive and a target author can omit it. On a language construct it cannot be omitted.

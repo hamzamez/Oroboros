@@ -2,6 +2,7 @@ package ir
 
 import (
 	"math"
+	"math/big"
 	"math/bits"
 
 	"oroboros/core"
@@ -164,7 +165,9 @@ func abs64(x int64) int64 {
 }
 
 // mulIV is the hull of the four corners; an infinite or overflowing corner
-// makes its side infinite.
+// makes its side infinite. Each corner is computed EXACTLY, in big.Int: a
+// magnitude through abs64 saturates |MinInt64| = 2⁶³ to 2⁶³−1, which put
+// 1·MinInt64 outside its own interval (found by the soundness table).
 func mulIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
@@ -179,26 +182,25 @@ func mulIV(a, b iv) iv {
 	out, first := iv{}, true
 	for _, x := range []int64{a.lo, a.hi} {
 		for _, y := range []int64{b.lo, b.hi} {
-			hi, lo := bits.Mul64(uint64(abs64(x)), uint64(abs64(y)))
-			neg := (x < 0) != (y < 0)
-			if hi != 0 || lo > math.MaxInt64 {
-				if neg {
+			p := new(big.Int).Mul(big.NewInt(x), big.NewInt(y))
+			if !p.IsInt64() {
+				if p.Sign() < 0 {
 					out.nlo = true
 				} else {
 					out.phi = true
 				}
 				continue
 			}
-			p := int64(lo)
-			if neg {
-				p = -p
-			}
+			v := p.Int64()
 			if first {
-				out.lo, out.hi, first = p, p, false
+				out.lo, out.hi, first = v, v, false
 			} else {
-				out.lo, out.hi = min(out.lo, p), max(out.hi, p)
+				out.lo, out.hi = min(out.lo, v), max(out.hi, v)
 			}
 		}
+	}
+	if first { // every corner overflowed: the finite ends are the word's
+		out.lo, out.hi = math.MinInt64, math.MaxInt64
 	}
 	return out
 }
@@ -234,25 +236,35 @@ func remIV(a, b iv) iv {
 		}
 		return ivTop
 	}
-	m := max(abs64(b.lo), abs64(b.hi))
-	if m == 0 {
+	// |r| ≤ |b| − 1, the magnitude taken unsigned: |MinInt64| = 2⁶³ is
+	// representable there and not in int64. The bound is at most 2⁶³ − 1, so it
+	// fits; and r has the dividend's sign (truncating remainder).
+	mag := func(x int64) uint64 {
+		if x < 0 {
+			return uint64(-(x + 1)) + 1
+		}
+		return uint64(x)
+	}
+	mu := max(mag(b.lo), mag(b.hi))
+	if mu == 0 {
 		return ivTop
 	}
+	bound := int64(mu - 1)
 	switch {
 	case !a.nlo && a.lo >= 0:
-		hi := m - 1
+		hi := bound
 		if !a.phi && a.hi < hi {
 			hi = a.hi
 		}
 		return rangeIV(0, hi)
 	case !a.phi && a.hi <= 0:
-		lo := -(m - 1)
+		lo := -bound
 		if !a.nlo && a.lo > lo {
 			lo = a.lo
 		}
 		return rangeIV(lo, 0)
 	}
-	return rangeIV(-(m - 1), m-1)
+	return rangeIV(-bound, bound)
 }
 
 // narrowIV is a π's fact: x where `x rel o` holds (Theorem E).

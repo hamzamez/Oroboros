@@ -3,12 +3,17 @@
 public final class examples_native_divmod-java.java {
 	public record Tup_long_long(long f0, long f1) {}
 
-	public static Tup_long_long genDivmod(long a, long b) {
-		return new Tup_long_long((a / b), (a % b));
+	public static Tup_long_long genDivmod(long v0, long v1) {
+		final long v4 = (v0 / v1);
+		final long v5 = (v0 % v1);
+		return new Tup_long_long(v4, v5);
 	}
 
-	public static long genDivmodSum(long a, long b) {
-		return ((a / b) + (a % b));
+	public static long genDivmodSum(long v0, long v1) {
+		final long v15 = (v0 / v1);
+		final long v16 = (v0 % v1);
+		final long v17 = (v15 + v16);
+		return v17;
 	}
 
 }

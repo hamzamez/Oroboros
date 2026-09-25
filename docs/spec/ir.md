@@ -7,7 +7,8 @@ printer reads the IR yet. **Step 2 is built**
 ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)): the Go backend is `ir/golang`,
 printing IR_P, at parity on the gauntlet. **Step 3 has begun**
 ([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)): the decisions every printer
-shares are `ir/plan`, and the JavaScript backend is `ir/js`. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+shares are `ir/plan`, and the JavaScript backend is `ir/js`. The Java backend is `ir/java`
+([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -333,6 +334,16 @@ from a fact:
   both it is the declared big representation (ADR 0026, 0029).
 - Inside a table, ρ_T picks the narrowest `int-repr` that holds the range (elemwidth-2026-08-27).
 - ρ_T is **monotone**: τ ≤ σ implies ρ_T(τ) is no wider than ρ_T(σ).
+- **A scalar's range is written in IR_P too** (irstep3java-2026-09-25). Finalize gives every
+  integer value that is not a function parameter the range of its interval fixpoint. A parameter
+  keeps its declared type, because callers were compiled against it. On Java, ρ picks between
+  two host types: `int` when the range lies within [−2³¹, 2³¹−1], `long` otherwise. So an index
+  proven small is Java's `int`, and no access takes a cast.
+- **An operation is computed in the join of its representations.** Let R be the widest of
+  ρ(operands) and ρ(result). The printer computes in R, then narrows to ρ(result). This is exact:
+  every operand and the true result lie in R, so the host's operation on R is ℤ's, and the result
+  lies in ρ(result). It holds for `div` and `rem` as well. The residue map ℤ → ℤ/2ᵏ covers only
+  `+ − ·`.
 
 So **the type on a value is the representation decision**, made by the analyses before printing and
 written into the file (research §6). A printer spells ρ_T(τ), which is a lookup.
@@ -647,11 +658,11 @@ hand-written code, and a change to it is re-measured.
 | **bounds-check re-slicing** | before a loop guarded by p against `len X`, a table Y read in the loop only at p's π is replaced in the loop by `restrict Y (len X)`, which Go prints `Y[:n]` | L13, **with `restrict`'s obligation `len X ≤ len Y` discharged at the loop's entry**. Today by an `assume` of the same term (refinements.md §3a's second route: dot's `where len p = len q`); no assumption, no rewrite (`ir/restrict.go`, `TestRestrictNeedsItsPremise`) | 1.96× on compute-bound loops (bce-2026-08-15) |
 | **connectives** | `(if c true E)` prints as `c \|\| E` and `(if c E false)` as `c && E`, when E's region is an expression tree: pure, every value read once, no loop | L10, and L6 lets a pure E run under the short circuit | irp2 §3: equal to today's backend, and ±5% for the alternative |
 | **JavaScript tail return** | a `break` from a loop whose results the function yields directly prints as `return` | L2: the join's continuation is the function's return | 1.31× on V8 (native-js-2026-08-20) |
-| **Java index narrowing** | an index whose type is inside Java's `int` is printed as `int` | ρ is a choice among representations containing the type (§4.2) | 1.04–1.45× (native-java-2026-08-25) |
+| **Java index narrowing** | a value whose range is inside Java's `int` is printed as `int`, and so an index takes no cast | ρ is a choice among the representations containing the type (§4.2). The range is the value's interval fixpoint, written into IR_P. A per-variable guess taken one inductive step failed here: the term backend answered 705032704 for 5·10⁹ (`narrow-from-wide`, irstep3java-2026-09-25) | 1.04–1.45× (native-java-2026-08-25) |
 | **several results** | a function's results print as an object on JavaScript, natively on Go and as a record on Java | products (§1.1) | multiresult-2026-08-22 |
 | **buffer reuse** | a `build` in a loop body whose buffer is dead at the `continue` alternates with a spare allocated once | W7: the old buffer has no later read or consumer | 2.5–2.7× (native-gauntlet-2026-08-20) |
 | **element width** | a table's element type is its class's join (Theorem D) | §4.3 | elemwidth-2026-08-27; a soundness question on x86 (wintables-2026-08-25) |
-| **β-inlining (JavaScript)** | a value read once, in the region that defines it, is written at its use instead of bound to a `const` | L1 (β for `let`) and L6. The value is pure and total, and is not moved into a nested region (a loop would repeat it). A read of a **buffer** is inlined only when no effect lies between it and its use, so no store can come between | with conditional expressions (next row), recovered the JSON tokeniser from 1.21× to 1.01× of the term backend (irstep3-2026-09-25) |
+| **β-inlining (JavaScript only)** | a value read once, in the region that defines it, is written at its use instead of bound to a `const`. **Not on Java**: inlining booleans measured ±10% in opposite directions on two programs, under the noise floor (irstep3java-2026-09-25 §3) | L1 (β for `let`) and L6. The value is pure and total, and is not moved into a nested region (a loop would repeat it). A read of a **buffer** is inlined only when no effect lies between it and its use, so no store can come between | with conditional expressions (next row), recovered the JSON tokeniser from 1.21× to 1.01× of the term backend (irstep3-2026-09-25) |
 | **conditional expressions (JavaScript)** | an `if`, or a branch terminator, whose arms are expression trees prints `c ? a : b` | the coproduct as a value (L2). Go has none (`Speller.Cond` answers ""), which keeps Go byte-identical | the same measurement |
 | **packed JavaScript arrays** | `build` of a numeric table prints `new Array(n).fill(0)` or a typed array | zero fill is `build`'s meaning (§5.3) | a sparse array is a dictionary on V8 |
 

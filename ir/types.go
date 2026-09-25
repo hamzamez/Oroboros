@@ -104,14 +104,16 @@ func sortOf(tg *emit.Target, ty string) string {
 	if k, v, ok := core.MapTypes(ty); ok {
 		return "map " + sortOf(tg, k) + " " + sortOf(tg, v)
 	}
-	if _, _, ok := core.IntRangeBig(ty); ok {
-		ty = tg.ValueType(ty)
-	}
-	if ty == core.BigType && tg.BigRepr == "limbs" {
-		// ρ_T realizes a value above the word as a TABLE OF LIMBS on this
-		// target (ADR 0029), so its sort is that table's: ρ_T's kernel, as for
-		// a host alias of `(array E)`. The limb's width is a range, IR_P's.
-		return "array int"
+	if lo, _, ok := core.IntRangeBig(ty); ok {
+		if tg.ValueType(ty) == core.BigType && tg.BigRepr == "limbs" && lo.Sign() >= 0 {
+			// A FINITE, non-negative range above the word is held as a TABLE OF
+			// LIMBS where the target chooses limbs (ADR 0029), so its sort is that
+			// table's: ρ_T's kernel, as for a host alias of `(array E)`. The atom
+			// `big` is different: an unbounded or signed value takes the host's
+			// bignum even then, since limbs hold a magnitude.
+			return "array int"
+		}
+		return tg.ValueType(ty)
 	}
 	return ty
 }
@@ -178,9 +180,6 @@ func ElemOf(tg *emit.Target, ty string) string {
 // involvesBig reports whether a type is above the word: `big`, or a range the
 // target realizes as one.
 func involvesBig(tg *emit.Target, ty string) bool {
-	if ty == core.BigType {
-		return true
-	}
 	if _, _, ok := core.IntRangeBig(ty); ok {
 		return tg.ValueType(ty) == core.BigType
 	}

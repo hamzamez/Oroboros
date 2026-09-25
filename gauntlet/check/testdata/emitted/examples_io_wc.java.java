@@ -5,44 +5,55 @@ import java.nio.file.*;
 
 public final class examples_io_wc.java {
 	public static long genMain() {
-		final String[] av = (oroArgs);
-		long t8;
-		if ((av.length < 2)) {
+		final String[] v0 = (oroArgs);
+		final int v1 = v0.length;
+		final boolean v3 = (v1 < 2);
+		if (v3) {
 			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("usage: wc FILE" + "\n");
-			t8 = 0;
-		} else {
-			short[] src2;
-			Exception err2;
-			try { final byte[] $oroB = Files.readAllBytes(Path.of(av[1])); src2 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) src2[$oroI] = (short) ($oroB[$oroI] & 0xFF); err2 = null; } catch (Exception $oroE) { src2 = null; err2 = $oroE; }
-			long t12;
-			if ((err2 == null)) {
-				long t14;
-				if ((src2.length >= 16777216)) {
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("wc: file is larger than this tool accepts" + "\n");
-					t14 = 0;
-				} else {
-					int i8 = 0;
-					int lines8 = 0;
-					long r15 = 0;
-					for (;; i8 = (i8 + 1)) {
-						if ((i8 >= src2.length)) {
-							((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(lines8 + "\n");
-							r15 = lines8;
-							break;
-						}
-						lines8 = (int) (((lines8 < 16777216) ? (((long) src2[i8] == 10) ? (lines8 + 1) : lines8) : lines8));
-						continue;
-					}
-					t14 = r15;
-				}
-				t12 = t14;
-			} else {
-				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("wc: cannot read that file" + "\n");
-				t12 = 0;
-			}
-			t8 = t12;
+			return 0;
 		}
-		return t8;
+		final String v10 = v0[1];
+		short[] v11;
+		Exception v12;
+		try { final byte[] $oroB = Files.readAllBytes(Path.of(v10)); v11 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v11[$oroI] = (short) ($oroB[$oroI] & 0xFF); v12 = null; } catch (Exception $oroE) { v11 = null; v12 = $oroE; }
+		final boolean v13 = (v12 == null);
+		if (v13) {
+			final int v14 = v11.length;
+			final boolean v16 = (v14 >= 16777216);
+			if (v16) {
+				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("wc: file is larger than this tool accepts" + "\n");
+				return 0;
+			}
+			int v25 = 0;
+			long v26 = 0;
+			for (;; v25 = (v25 + 1)) {
+				final int v27 = v11.length;
+				final boolean v28 = (v25 >= v27);
+				if (v28) {
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v26 + "\n");
+					break;
+				}
+				final boolean v37 = (v26 < 16777216);
+				long v38 = 0;
+				if (v37) {
+					final int v40 = v11[v25];
+					final boolean v42 = (v40 == 10);
+					if (v42) {
+						final int v44 = (int) ((v26 + 1));
+						v38 = v44;
+					} else {
+						v38 = v26;
+					}
+				} else {
+					v38 = v26;
+				}
+				v26 = v38;
+				continue;
+			}
+			return v26;
+		}
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("wc: cannot read that file" + "\n");
+		return 0;
 	}
 
 }

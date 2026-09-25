@@ -2,26 +2,34 @@
 
 public final class examples_native_report-java.java {
 	public static double genMain() {
-		final long n1 = 1000;
-		final double[] t2 = new double[(int) n1];
-		for (int i = 0; i < n1; i++) {
-			t2[i] = ((double) i);
+		final int n1 = 1000;
+		final double[] v1 = new double[n1];
+		for (int v2 = 0; v2 < n1; v2++) {
+			double e2 = 0.0;
+			final double v3 = ((double) v2);
+			e2 = v3;
+			v1[v2] = e2;
 		}
-		final double[] xs = t2;
 		System.out.println("report");
-		final var v3 = xs.length;
-		System.out.println(v3);
-		double acc = 0.0;
-		int i2 = 0;
-		for (;; i2 = (i2 + 1)) {
-			if ((i2 >= xs.length)) {
+		final int v6 = v1.length;
+		System.out.println(v6);
+		double v11 = 0.0;
+		int v12 = 0;
+		for (;; v12 = (v12 + 1)) {
+			final int v13 = v1.length;
+			final boolean v14 = (v12 >= v13);
+			if (v14) {
 				break;
 			}
-			acc = (acc + (xs[i2] * xs[i2]));
+			final double v19 = v1[v12];
+			final double v20 = v1[v12];
+			final double v21 = (v19 * v20);
+			final double v22 = (v11 + v21);
+			v11 = v22;
 			continue;
 		}
-		System.out.println(acc);
-		return acc;
+		System.out.println(v11);
+		return v11;
 	}
 
 }

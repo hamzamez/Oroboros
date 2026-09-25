@@ -1,0 +1,27 @@
+; Shapes the IR's Java printer must get right (ir/java/java_test.go).
+(use java)
+
+(export swap-sum square last)
+
+; A loop that SWAPS two parameters: a cycle in the back edge's parallel move,
+; which Java, having no tuple assignment, must break with a temporary.
+(sig swap-sum ((n (int 0 1000))) int)
+(def swap-sum (n)
+  (loop ((a 1) (b 2) (i 0))
+    (java.>= i n)  (java.+ a (java.* 10 b))
+    else            (again b a (java.+ i 1))))
+
+; The scalar ρ: n lies within Java's `int` and n·n does not, so the product is
+; a `long` and is COMPUTED in one — `(long) n * n`. In `int` it wraps:
+; 100000·100000 is 1410065408 there, and 10000000000 in ℤ.
+(sig square ((n (int 0 100000))) int)
+(def square (n) (java.* n n))
+
+; An index proven below 2³¹ is Java's `int`, so no access takes a cast
+; (1.04–1.45× against hand-written, native-java-2026-08-25).
+; `last` is the last element read before n.
+(sig last ((a (array (int 0 1000))) (n (int 0 1000))) int (where (java.<= n (len a))))
+(def last (a n)
+  (loop ((i 0) (s 0))
+    (java.>= i n)  s
+    else            (again (java.+ i 1) (a i))))

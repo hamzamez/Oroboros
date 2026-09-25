@@ -595,3 +595,49 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/shift-div.oro js`
 - emitted text changed — `gauntlet/differential/cases/string-escapes.oro js`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro js`
+
+## 2026-09-25 — on 5380b77, with uncommitted changes
+
+**Reason:** IR step 3, Java: the Java backend is the IR's printer (ir/java, irstep3java-2026-09-25). Every Java output re-printed; no outcome or proof count changed; two refusals reworded by the IR's untyped-parameter message; narrow-from-wide added (the Java term backend answered 705032704 for 5000000000). Java gauntlet 0.94-1.01x the term backend, JSON tree 0.86x; freq's Java compile 0.41x.
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+33 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro java`
+- emitted text changed — `examples/big/fact.oro java`
+- emitted text changed — `examples/big/fib.oro java`
+- emitted text changed — `examples/big/limbs.oro java`
+- emitted text changed — `examples/big/pair.oro java`
+- emitted text changed — `examples/big/power.oro java`
+- emitted text changed — `examples/big/render.oro java`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/io/wc.oro java`
+- emitted text changed — `examples/kara/workspace.oro java`
+- emitted text changed — `examples/native/centroid-java.oro java`
+- emitted text changed — `examples/native/divmod-java.oro java`
+- emitted text changed — `examples/native/dot-java.oro java`
+- emitted text changed — `examples/native/generic-java.oro java`
+- emitted text changed — `examples/native/report-java.oro java`
+- emitted text changed — `examples/native/search-java.oro java`
+- emitted text changed — `examples/native/sieve-java.oro java`
+- emitted text changed — `examples/native/smooth-java.oro java`
+- emitted text changed — `examples/native/wordcount-java.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro java`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- new source — `gauntlet/differential/cases/narrow-from-wide.oro go`
+- new source — `gauntlet/differential/cases/narrow-from-wide.oro java`
+- new source — `gauntlet/differential/cases/narrow-from-wide.oro js`
+- new source — `gauntlet/differential/cases/narrow-from-wide.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro java`
+- compiler output changed — `gauntlet/differential/cases/string-escapes.oro java`
+- compiler output changed — `gauntlet/differential/cases/utf8-widths.oro java`
+
+1 compile(s) recorded FASTER:
+
+- `examples/io/freq.oro java` 43984 → 14531 ms, 0.33x

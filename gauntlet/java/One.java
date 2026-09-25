@@ -5,6 +5,11 @@ public final class One {
     public static void main(String[] a) {
         double[] A = Gauntlet.makeVec(N, 1), B = Gauntlet.makeVec(N, 2);
         double[] sA = Gauntlet.makeVec(1024, 1), sB = Gauntlet.makeVec(1024, 2);
+        double[] dst = new double[N];
+        String text = Gauntlet.makeText(N, 5);
+        long[] tree = JsonTreeBench.longsOf(JsonTreeBench.makeDoc(20));
+        short[] treeS = JsonTreeBench.shortsOf(JsonTreeBench.makeDoc(20));
+        short[] tokS = JsonTokBench.shortsOf(JsonTokBench.makeDoc(64));
         java.util.function.Supplier<Object> f = switch (a[0]) {
             case "dot-hand"      -> () -> NativeBench.dotRef(A, B);
             case "dot-long"      -> () -> NativeBench.dotLongRef(A, B);
@@ -18,6 +23,20 @@ public final class One {
             case "late-gen"      -> () -> NatSearch.NatSearchFindFirst(A, 2.0);
             case "sten-hand"     -> () -> NativeBench2.smoothAllocRef(A);
             case "sten-gen"      -> () -> NatSm.NatSmSmoothAlloc(A);
+            case "early-hand"    -> () -> NativeBench.findFirstRef(A, 0.5);
+            case "early-gen"     -> () -> NatSearch.NatSearchFindFirst(A, 0.5);
+            case "wc-hand"       -> () -> NativeBench.wcRef(text);
+            case "wc-gen"        -> () -> NatWc.NatWcTally(text);
+            case "gtally-gen"    -> () -> NatGen.NatGenWordTally(text);
+            case "sum-hand"      -> () -> NativeBench2.sumRef(A);
+            case "sum-gen"       -> () -> NatGen.NatGenSumOf(A);
+            case "build-gen"     -> () -> NatSm.NatSmSmoothBuild(A);
+            case "into-hand"     -> () -> NativeBench2.smoothIntoRef(dst, A);
+            case "into-gen"      -> () -> NatSm.NatSmSmoothInto(dst, A);
+            case "tree-hand"     -> () -> JsonTreeBench.treeFlat(tree);
+            case "tree-gen"      -> () -> GenJsonTree.GenMeasure(treeS);
+            case "tok-hand"      -> () -> JsonTokBench.tokShorts(tokS);
+            case "tok-gen"       -> () -> GenJsonTok.GenTokens(tokS);
             default -> throw new IllegalArgumentException(a[0]);
         };
         long t = System.nanoTime();

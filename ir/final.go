@@ -69,7 +69,12 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			}
 		}
 	}
-	restrictLoops(f) // L13, where an assumption discharges its premise
+	// L13, where an assumption discharges its premise, and only on a target
+	// with a use for a view: one that declares `repr narrow` (Go). Elsewhere
+	// the restriction would print as its table and leave a dead length behind.
+	if tg.Narrow != "" {
+		restrictLoops(f)
+	}
 	nv := f.NV()
 	// The IR's own interval analysis, on the IR_A types (before any is
 	// rewritten): the second factor of the element range's reduced product.
@@ -367,6 +372,29 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			if rng.finite() && rng.lo >= tg.Word.Lo && rng.hi <= tg.Word.Hi {
 				f.Types[x] = prefix + fmt.Sprintf("int %d %d", rng.lo, rng.hi)
 			}
+		}
+	}
+	// SCALAR RANGES (IR_P): every integer value's type is the IR domain's
+	// interval, where it is finite and inside the word. A parameter keeps its
+	// declared type: a signature is a boundary callers were compiled against.
+	// Each loop parameter's fact is a post-fixpoint, so every argument flowing
+	// into it is contained in it, which W5 checks.
+	isParam := map[V]bool{}
+	for _, x := range f.Params {
+		isParam[x] = true
+	}
+	for v := 0; v < nv; v++ {
+		x := V(v)
+		ty := f.Types[x]
+		if isParam[x] || (ty != "int" && tg.ValueType(ty) != "int") {
+			continue
+		}
+		if _, _, isRange := core.IntRangeBig(ty); !isRange && ty != "int" {
+			continue
+		}
+		r := fs[x].v
+		if r.finite() && r.lo >= tg.Word.Lo && r.hi <= tg.Word.Hi {
+			f.Types[x] = fmt.Sprintf("int %d %d", r.lo, r.hi)
 		}
 	}
 	// `the` is erased: its result is renamed to its operand, and the statement

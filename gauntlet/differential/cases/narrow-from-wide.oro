@@ -1,0 +1,17 @@
+; A LOOP VARIABLE FED FROM A WIDE ONE IS WIDE (irstep3-2026-09-25, the Java part).
+; expect: 0 0 5000000000 7 7 7 7 7 7
+;
+; x takes y's previous value, and y reads the table. The Java term backend
+; narrowed each loop variable to Java's `int` separately: a source that is
+; ANOTHER loop variable counted as fitting by induction, even when that variable
+; had itself been refused. So x was `int` and y `long`, the assignment was
+; `x = (int) y`, and n = 2 answered 705032704, 5·10⁹ mod 2³². The induction
+; holds only over the set of variables that all narrow, which is a greatest
+; fixpoint. The IR's printer reads each range off its interval fixpoint, where
+; x's range includes the element's.
+(def run (n)
+  (let a (array 5000000000 7 9)
+    (loop ((i 0) (x 0) (y 0))
+      (>= i (len a))  x
+      (>= i n)        x
+      else             (again (+ i 1) y (a i)))))

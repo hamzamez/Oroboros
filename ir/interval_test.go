@@ -76,7 +76,7 @@ func domains() []iv {
 	}
 	out = append(out, ivTop,
 		rangeIV(math.MaxInt64-3, math.MaxInt64), rangeIV(math.MinInt64, math.MinInt64+3),
-		rangeIV(-1<<62, 1<<62), rangeIV(1<<32, 1<<33), rangeIV(-(1 << 33), -(1 << 32)))
+		rangeIV(-1<<62, 1<<62), rangeIV(1<<32, 1<<33), rangeIV(-(1<<33), -(1<<32)))
 	return out
 }
 

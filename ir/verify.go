@@ -139,7 +139,7 @@ func (v *verifier) run() {
 			break
 		}
 		for j, y := range ys {
-			v.flow(y, v.f.Results[j], "the function's result")
+			v.flowDeclared(y, v.f.Results[j], "the function's result")
 		}
 	}
 	// W7: linearity, path by path.
@@ -195,6 +195,20 @@ func (v *verifier) flow(x V, want, where string) {
 	if !v.agrees(v.ty(x), want) {
 		v.add("W5: %%%d is %s and flows into %s, which is %s", x, v.ty(x), where, want)
 	}
+}
+
+// flowDeclared is W5 on an edge into a DECLARED type: a primitive's argument
+// or the function's result. That a value lies in a declared range is an
+// obligation (ADR 0028) the pipeline discharged before IR_P; the IR's own
+// domain may be weaker and need not re-prove it, so the edge is checked by
+// sort in either stage. Edges between values, which the IR's domain wrote,
+// are checked by containment in IR_P.
+func (v *verifier) flowDeclared(x V, want, where string) {
+	got := v.ty(x)
+	if sortOf(v.tg, got) == sortOf(v.tg, want) || v.agrees(sortOf(v.tg, got), sortOf(v.tg, want)) {
+		return
+	}
+	v.flow(x, want, where)
 }
 
 func (v *verifier) agrees(got, want string) bool {
@@ -356,7 +370,7 @@ func (v *verifier) stmt(s *Stmt) {
 			}
 			for j, a := range s.Args {
 				if j < len(p.Args) {
-					v.flow(a, p.Args[j], fmt.Sprintf("%s's argument %d", s.Name, j+1))
+					v.flowDeclared(a, p.Args[j], fmt.Sprintf("%s's argument %d", s.Name, j+1))
 				}
 			}
 		}

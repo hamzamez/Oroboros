@@ -68,3 +68,13 @@ func JSMangle(s string) string { return jsMangle(s) }
 // tuple itself; FillDests writes those destinations in.
 func MultiPrimDests(form string, n int) bool       { return multiPrimDests(form, n) }
 func FillDests(form string, dests []string) string { return fillDests(form, dests) }
+
+// JavaMangle and JavaRecordName are the Java backend's spellings of a name
+// and of a several-results record, which the IR's Java printer uses so callers
+// see the same class.
+func JavaMangle(s string) string         { return javaMangle(s) }
+func JavaRecordName(tys []string) string { return javaRecordName(tys) }
+
+// Boxed spells a type as an object where the target says one is needed (a
+// JVM generic cannot take a primitive), and as itself elsewhere.
+func (tg *Target) BoxedType(name string) string { return tg.boxed(name) }

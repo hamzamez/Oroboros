@@ -357,6 +357,20 @@ written from what survives.
   (§4b). **P3 must therefore be the interval domain on C2 *with π-parameters*.**
 - `SelectShifts` reruns the whole interval analysis on every program.
 
+**P3, done** ([irp3-2026-09-25](../gauntlet/results/irp3-2026-09-25.md)): a sparse interval analysis
+on C2 with π-parameters.
+- **Cost:** on the same residuals, lowering included, it is **12–115× faster** and allocates
+  **17–96× less** than one run of `interval.go`. On `freq`: 70 ms / 56 MB against 1.94 s / 2.04 GB.
+- **Precision:** it is a floor, 60–75% of `interval.go`'s proofs. What is missing is named relational
+  theorems (monotone loops, trip-count accumulation, `x ≤ x·x`), which belong to the relational
+  factor of the product. The gate moves to the port: per-program proof counts that never fall.
+- **Soundness sanity:** its count never exceeds `interval.go`'s, and on the programs meant to be
+  refused it proves nothing extra.
+- **The next win it found:** nested fixpoints re-evaluate `freq`'s 1,464 operations 638,952 times,
+  and an inner loop can be memoised per input vector.
+- **C2's iteration order is its syntax**, which is evidence for C2 on the analysis side. P2 decides
+  the printing side.
+
 ---
 
 ## 12. What this document does not decide

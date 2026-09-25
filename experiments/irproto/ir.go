@@ -52,11 +52,73 @@ const (
 
 type Region struct {
 	Params     []V
+	Pis        []Pi // π-parameters: values this branch renames, each narrowed by a guard (research §4b)
 	Ops        []Op
 	T          TermKind
 	Args       []V
 	Cond       V
 	Then, Else *Region
+}
+
+// Pi is a π-node: V is Of renamed on one side of a branch, where `Of Rel Other`
+// holds. Each name then carries one fact, so an analysis never keeps a map per
+// program point (research §4b, irp1-2026-09-25 §4).
+type Pi struct {
+	V, Of, Other V
+	Rel          string
+	Len          bool // the guard is on Of's LENGTH, `(len Of) Rel Other`
+}
+
+// guard is a fact a branch establishes about a bound variable.
+type guard struct {
+	bound *core.Term // the KBound whose frame entry the branch renames
+	of    V
+	rel   string
+	other V
+	len   bool // a guard on the bound table's length
+}
+
+// lenOf recognises `(len X)` with X a bound variable, whose length a guard can
+// narrow by renaming X.
+func (l *lowerer) lenOf(t *core.Term) (*core.Term, bool) {
+	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[1].Kind == core.KBound {
+		if p, ok := l.prim(t.Kids[0].Name); ok && p.Kind == "len" {
+			return t.Kids[1], true
+		}
+	}
+	return nil, false
+}
+
+func flip(rel string) string {
+	switch rel {
+	case "lt":
+		return "gt"
+	case "le":
+		return "ge"
+	case "gt":
+		return "lt"
+	case "ge":
+		return "le"
+	}
+	return rel
+}
+
+func negate(rel string) string {
+	switch rel {
+	case "lt":
+		return "ge"
+	case "le":
+		return "gt"
+	case "gt":
+		return "le"
+	case "ge":
+		return "lt"
+	case "eq":
+		return "ne"
+	case "ne":
+		return "eq"
+	}
+	return rel
 }
 
 type Func struct {
@@ -200,10 +262,10 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.pop()
 		return out
 	case p.Kind == "cond" && len(args) == 3:
-		c := l.value(args[0], r)[0]
+		c, gt, ge := l.cond(args[0], r)
 		th, el := &Region{}, &Region{}
-		l.tail(args[1], th, false)
-		l.tail(args[2], el, false)
+		l.guarded(th, gt, func() { l.tail(args[1], th, false) })
+		l.guarded(el, ge, func() { l.tail(args[2], el, false) })
 		n := yieldArity(th)
 		if n < 0 {
 			n = yieldArity(el)
@@ -340,10 +402,10 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 		if p, ok := l.prim(op.Name); ok {
 			switch {
 			case p.Kind == "cond" && len(args) == 3:
-				c := l.value(args[0], r)[0]
+				c, gt, ge := l.cond(args[0], r)
 				th, el := &Region{}, &Region{}
-				l.tail(args[1], th, loop)
-				l.tail(args[2], el, loop)
+				l.guarded(th, gt, func() { l.tail(args[1], th, loop) })
+				l.guarded(el, ge, func() { l.tail(args[2], el, loop) })
 				r.T, r.Cond, r.Then, r.Else = TBranch, c, th, el
 				return
 			case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
@@ -626,4 +688,120 @@ func (fn *Func) String() string {
 	}
 	walk(fn.Body)
 	return fmt.Sprintf("%d values, %d ops, %d regions", fn.NV, ops, regs)
+}
+
+// ---------------------------------------------------------------- π-parameters
+
+// cond lowers a branch's condition and returns the guards each side establishes.
+// A comparison of two operands guards each operand that is a bound variable; a
+// connective, `(if a b false)` for and and `(if a true b)` for or, guards what
+// it implies on the side where it is decided, with operands that are bound
+// variables or literals (whose values dominate the branch).
+func (l *lowerer) cond(t *core.Term, r *Region) (V, []guard, []guard) {
+	if t.Kind == core.KApp && t.Kids[0].Kind == core.KName && len(t.Kids) == 3 {
+		if rel := emit.CmpOp(t.Kids[0].Name); rel != "" {
+			a := l.value(t.Kids[1], r)[0]
+			b := l.value(t.Kids[2], r)[0]
+			c := l.fresh()
+			l.emit(r, Op{Kind: OpPrim, Name: t.Kids[0].Name, Args: []V{a, b}, Res: []V{c}})
+			var th, el []guard
+			if t.Kids[1].Kind == core.KBound {
+				th = append(th, guard{t.Kids[1], a, rel, b, false})
+				el = append(el, guard{t.Kids[1], a, negate(rel), b, false})
+			} else if x, ok := l.lenOf(t.Kids[1]); ok {
+				th = append(th, guard{x, l.lookup(x), rel, b, true})
+				el = append(el, guard{x, l.lookup(x), negate(rel), b, true})
+			}
+			if t.Kids[2].Kind == core.KBound {
+				th = append(th, guard{t.Kids[2], b, flip(rel), a, false})
+				el = append(el, guard{t.Kids[2], b, negate(flip(rel)), a, false})
+			} else if x, ok := l.lenOf(t.Kids[2]); ok {
+				th = append(th, guard{x, l.lookup(x), flip(rel), a, true})
+				el = append(el, guard{x, l.lookup(x), negate(flip(rel)), a, true})
+			}
+			return c, th, el
+		}
+	}
+	th, el := l.implied(t, r)
+	c := l.value(t, r)[0]
+	return c, th, el
+}
+
+// implied reads the guards a connective establishes, from the term: the side a
+// conjunction is true on has both, the side a disjunction is false on has both
+// negations. Only operands that dominate the branch are used.
+func (l *lowerer) implied(t *core.Term, r *Region) (th, el []guard) {
+	if t.Kind != core.KApp || t.Kids[0].Kind != core.KName {
+		return nil, nil
+	}
+	if rel := emit.CmpOp(t.Kids[0].Name); rel != "" && len(t.Kids) == 3 {
+		dom := func(x *core.Term) (V, bool) {
+			switch x.Kind {
+			case core.KBound:
+				return l.lookup(x), true
+			case core.KInt:
+				return l.value(x, r)[0], true
+			}
+			return 0, false
+		}
+		a, okA := dom(t.Kids[1])
+		b, okB := dom(t.Kids[2])
+		if !okA || !okB {
+			return nil, nil
+		}
+		if t.Kids[1].Kind == core.KBound {
+			th = append(th, guard{t.Kids[1], a, rel, b, false})
+			el = append(el, guard{t.Kids[1], a, negate(rel), b, false})
+		}
+		if t.Kids[2].Kind == core.KBound {
+			th = append(th, guard{t.Kids[2], b, flip(rel), a, false})
+			el = append(el, guard{t.Kids[2], b, negate(flip(rel)), a, false})
+		}
+		return th, el
+	}
+	if p, ok := l.prim(t.Kids[0].Name); ok && p.Kind == "cond" && len(t.Kids) == 4 {
+		x, y, z := t.Kids[1], t.Kids[2], t.Kids[3]
+		if z.Kind == core.KBool && !z.IsTrue() { // and
+			tx, _ := l.implied(x, r)
+			ty, _ := l.implied(y, r)
+			return append(tx, ty...), nil
+		}
+		if y.Kind == core.KBool && y.IsTrue() { // or
+			_, ex := l.implied(x, r)
+			_, ez := l.implied(z, r)
+			return nil, append(ex, ez...)
+		}
+	}
+	return nil, nil
+}
+
+// guarded lowers one side of a branch with its guards as π-parameters: each
+// guarded binder is renamed, for this side only, by overriding its frame entry.
+func (l *lowerer) guarded(r *Region, gs []guard, body func()) {
+	type saved struct {
+		depth int
+		frame []V
+	}
+	var undo []saved
+	current := map[*core.Term]V{}
+	for _, g := range gs {
+		d := len(l.frames) - 1 - g.bound.Depth
+		of := g.of
+		if v, ok := current[g.bound]; ok {
+			of = v // a second guard on the same variable narrows the first π
+		} else if cur := l.frames[d][g.bound.Index]; cur != g.of {
+			of = cur
+		}
+		pi := l.fresh()
+		r.Pis = append(r.Pis, Pi{V: pi, Of: of, Other: g.other, Rel: g.rel, Len: g.len})
+		undo = append(undo, saved{d, l.frames[d]})
+		f := append([]V(nil), l.frames[d]...)
+		f[g.bound.Index] = pi
+		l.frames[d] = f
+		current[g.bound] = pi
+	}
+	body()
+	for i := len(undo) - 1; i >= 0; i-- {
+		l.frames[undo[i].depth] = undo[i].frame
+	}
 }

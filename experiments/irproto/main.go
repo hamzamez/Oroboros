@@ -53,6 +53,7 @@ func main() {
 	target := flag.String("target", "go", "target")
 	reps := flag.Int("reps", 20, "repetitions of the lowering, for a stable time")
 	memprofile := flag.String("memprofile", "", "write an allocation profile of today's pipeline to FILE")
+	verbose := flag.Bool("v", false, "list the operations each analysis leaves unproven")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "usage: irproto [-target T] SRC.oro")
@@ -62,7 +63,7 @@ func main() {
 	if *memprofile != "" {
 		runtime.MemProfileRate = 64 * 1024
 	}
-	residuals, tg := pipeline(src, *target)
+	residuals, sigs, tg := pipeline(src, *target)
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err == nil {
@@ -129,11 +130,57 @@ func main() {
 	fmt.Printf("%-34s %10s %10.3f MB\n", "residual -> C2 (structured)", c2, float64(c2B)/1e6)
 	fmt.Printf("%-34s %10s %10.3f MB   (%d blocks)\n", "C2 -> C1 (flatten)", c1, float64(c1B)/1e6, blocks)
 	fmt.Printf("%-34s %10s %10.3f MB\n", "C1: RPO + dominators (to print)", dom, float64(domB)/1e6)
+
+	// P3: the interval analysis, today's against the sparse prototype on C2, on
+	// the same residuals, each timed over the same number of repetitions.
+	fmt.Println()
+	var tOld, tNew time.Duration
+	var bOld, bNew uint64
+	var oldP, oldO, newP, newO, evals int
+	for i, rt := range residuals {
+		var rep *emit.IntervalReport
+		var a, b runtime.MemStats
+		runtime.ReadMemStats(&a)
+		t0 := time.Now()
+		for k := 0; k < *reps; k++ {
+			rep, _ = emit.Intervals(tg, sigs[i], rt, 0)
+		}
+		tOld += time.Since(t0) / time.Duration(*reps)
+		runtime.ReadMemStats(&b)
+		bOld += (b.TotalAlloc - a.TotalAlloc) / uint64(*reps)
+		oldP += rep.Proven
+		oldO += rep.Ops
+
+		var sp *Sparse
+		runtime.ReadMemStats(&a)
+		t0 = time.Now()
+		for k := 0; k < *reps; k++ {
+			fn, _ := Lower(tg, rt)
+			sp = Analyse(tg, fn, sigs[i])
+		}
+		tNew += time.Since(t0) / time.Duration(*reps)
+		runtime.ReadMemStats(&b)
+		bNew += (b.TotalAlloc - a.TotalAlloc) / uint64(*reps)
+		newP += sp.Proven
+		newO += sp.Ops
+		evals += sp.Evals
+		if *verbose {
+			fmt.Printf("-- export %d: interval.go %d of %d, sparse %d of %d\n", i, rep.Proven, rep.Ops, sp.Proven, sp.Ops)
+			for _, u := range rep.Unproven {
+				fmt.Println("   interval.go unproven:", u)
+			}
+			for _, u := range sp.Unproven {
+				fmt.Println("   sparse unproven:     ", u)
+			}
+		}
+	}
+	fmt.Printf("%-34s %10s %10.1f MB   %d of %d proven\n", "interval.go (one run)", tOld.Round(time.Microsecond), float64(bOld)/1e6, oldP, oldO)
+	fmt.Printf("%-34s %10s %10.3f MB   %d of %d proven, %d op evaluations\n", "lower + sparse on C2 with pi", tNew.Round(time.Microsecond), float64(bNew)/1e6, newP, newO, evals)
 }
 
 // pipeline is cmd/gen's run, stage by stage, returning each export's residual
 // as the emitter receives it.
-func pipeline(src, target string) ([]*core.Term, *emit.Target) {
+func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 	die := func(err error) {
 		fmt.Fprintln(os.Stderr, "irproto:", err)
 		os.Exit(1)
@@ -180,6 +227,7 @@ func pipeline(src, target string) ([]*core.Term, *emit.Target) {
 	exports := append([]string(nil), prog.Exports...)
 	sort.Strings(exports)
 	var out []*core.Term
+	var sigsOut []*core.Sig
 	for _, q := range exports {
 		name := "gen-" + q[strings.LastIndex(q, ".")+1:]
 		var nf *core.Term
@@ -227,6 +275,7 @@ func pipeline(src, target string) ([]*core.Term, *emit.Target) {
 			}
 		})
 		out = append(out, nf)
+		sigsOut = append(sigsOut, sig)
 		measure("emission ("+target+")", func() {
 			switch target {
 			case "go":
@@ -243,7 +292,7 @@ func pipeline(src, target string) ([]*core.Term, *emit.Target) {
 			die(err)
 		}
 	}
-	return out, tg
+	return out, sigsOut, tg
 }
 
 func fileResolver(dirs []string) core.Resolver {

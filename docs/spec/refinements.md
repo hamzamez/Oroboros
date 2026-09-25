@@ -91,7 +91,9 @@ exactly one of these, or the program is **refused**, naming the obligation and w
 1. **a proof in the fragment** (§4), including a proof by cases (joinConditional) and a content fact
    about a table (array-facts.md);
 2. **an assumption that is the same term**: an opaque atom matched by name, the one thing an atom
-   outside the fragment can be matched against;
+   outside the fragment can be matched against. A comparison is the same term when it is the same
+   **relation** on operands printed alike: `u64<` is `<` realised in U, emitted only where both
+   operands lie in U (ADR 0026), so a guard in one spelling discharges a `where` in the other;
 3. **evaluation**, when the obligation is **closed**: a comparison between two literals. `(!= 3.0 0)`
    is true, and comparing two literals is exact on every host, so it is decided at compile time
    without folding any arithmetic (ADR 0009).

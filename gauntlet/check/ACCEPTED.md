@@ -481,3 +481,13 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/prod-two.oro java`
 - new source — `gauntlet/differential/cases/prod-two.oro js`
 - new source — `gauntlet/differential/cases/prod-two.oro windows`
+
+## 2026-09-25 — on f208c97, with uncommitted changes
+
+**Reason:** refinements.md §3a: an undischarged obligation refuses the program. smooth-js on js loses its two 'refinement propagated' notes (js./ with 3.0 is decided by evaluating the closed comparison); emission otherwise byte-identical. Differential map cases on windows use a guarded read (wm-at); math-bits' Div64 guard matched by relation (opaqueKey).
+
+520 runs: 242 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling pass.
+
+1 change(s):
+
+- compiler output changed — `examples/native/smooth-js.oro js`

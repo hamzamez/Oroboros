@@ -281,7 +281,7 @@ silently produce a plausible number.
   the values are not portable anyway (§2).
 - On `f64`, equality is **IEEE-754** — because every host's `==` is. So `NaN == NaN` is false, float
   equality is not reflexive and not an equivalence relation, and any refinement mentioning it falls
-  outside the decidable fragment and is propagated as an opaque atom. That is already recorded in
+  outside the decidable fragment: an opaque atom, matched by name or refused (refinements.md §3a). That is already recorded in
   [ADR 0012](../decisions/0012-portable-integer-range.md) and is restated here because it is a
   consequence people forget.
 - **Never between the two** (§6).

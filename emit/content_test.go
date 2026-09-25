@@ -28,31 +28,25 @@ func TestAStoredBoundHoldsOfEveryRead(t *testing.T) {
 		t.Errorf("0 ≤ (t k) < n ≤ len a must be proven from the stores, got: %s", notes)
 	}
 	// CONTROL, THE STORE OFF BY ONE: `i + 1` reaches n, so `#e < n` is not
-	// preserved and the read must stay propagated — never proven.
-	notes, err = refineWith(t, tg, fill(`(+ i 1)`))
-	if err != nil {
-		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Error("a store reaching n was taken as preserving #e < n")
+	// preserved and the read must be refused — never proven (refinements.md §3a).
+	_, err = refineWith(t, tg, fill(`(+ i 1)`))
+	if !refusedUnproven(err) {
+		t.Errorf("a store reaching n was taken as preserving #e < n (refinements.md §3a: refused, not propagated): %v", err)
 	}
 	// CONTROL, THE ZERO FILL: every store is `m - 1`, taken only when `m ≥ 1`, so
 	// every store satisfies `#e < m`. A slot never written holds 0, which does not
 	// when `m ≤ 0` — and then the loop exits at once, every slot is 0, and
 	// `(a 0)` with `len a ≥ m` may be out of range. So the read must stay
-	// propagated: Theorem S's base case is a proof obligation, not a given.
+	// refused: Theorem S's base case is a proof obligation, not a given.
 	const zero = `(use tgt)
 	  (fn (a n m)
 	    (if (<= m (len a))
 	      (let t (build n (fn (b) (loop ((c b) (i 0)) (>= i n) c (< m 1) c else (again (set c i (- m 1)) (+ i 1)))))
          (loop ((k 0) (s 0)) (>= k (len t)) s else (again (+ k 1) (+ s (a (t k))))))
 	      0))`
-	notes, err = refineWith(t, tg, zero)
-	if err != nil {
-		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Error("the zero fill was taken as satisfying #e < m")
+	_, err = refineWith(t, tg, zero)
+	if !refusedUnproven(err) {
+		t.Errorf("the zero fill was taken as satisfying #e < m (refinements.md §3a: refused, not propagated): %v", err)
 	}
 }
 
@@ -78,12 +72,9 @@ func TestSwappedBuffersKeepTheirContentJointly(t *testing.T) {
 	if propagated(notes) {
 		t.Errorf("the pair's content must be proven jointly, got: %s", notes)
 	}
-	notes, err = refineWith(t, tg, swap(`n`))
-	if err != nil {
-		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Error("a store of n into one buffer was taken as preserving #e < n for the pair")
+	_, err = refineWith(t, tg, swap(`n`))
+	if !refusedUnproven(err) {
+		t.Errorf("a store of n into one buffer was taken as preserving #e < n for the pair (refinements.md §3a: refused, not propagated): %v", err)
 	}
 }
 

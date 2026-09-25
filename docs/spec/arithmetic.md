@@ -232,8 +232,9 @@ equality means:
 the host's comparison — the same refusal as everywhere else. The consequence is stated plainly
 because it will matter: **float equality is not reflexive, so it is not an equivalence relation,
 and a solver must not be allowed to assume it is.** Any `where` clause mentioning `num/f64.eq` is
-therefore **outside the decided fragment** and is propagated as an opaque atom
-([inventory §4b](inventory.md)), never used as an equality.
+therefore **outside the decided fragment**: an opaque atom, matched only by an assumption that is
+the same term and otherwise refused ([refinements.md §3a](refinements.md),
+[inventory §4b](inventory.md)), never used as an equality.
 
 `num/int.eq` and `text/string.eq` are ordinary equalities and are inside the fragment.
 

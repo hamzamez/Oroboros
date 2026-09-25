@@ -503,7 +503,7 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 	}
 	goals, ok := f.oblig(cond)
 	if !ok {
-		return f.entailsOpaque(cond.String())
+		return f.entailsOpaque(opaqueKey(cond))
 	}
 	for _, g := range goals {
 		if !f.entails(g) {

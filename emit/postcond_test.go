@@ -75,6 +75,13 @@ func propagated(notes string) bool {
 	return strings.Contains(notes, "propagated, not proven")
 }
 
+// refusedUnproven reports a refusal for an obligation that was not proven, which
+// is what an undischarged obligation is since refinements.md §3a.
+func refusedUnproven(err error) bool {
+	return err != nil && (strings.Contains(err.Error(), "is not proven") ||
+		strings.Contains(err.Error(), "does not follow"))
+}
+
 // A postcondition is the only way a PRIMITIVE can establish anything about its
 // result: it has no body, so nothing can derive it.
 func TestPrimEnsuresDischargesADownstreamObligation(t *testing.T) {
@@ -178,29 +185,22 @@ func TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven(t *testing.T) {
 	const prog = `(use tgt)
 		(fn (n) (let y (tgt.ident n)
             (tgt.need y)))`
-	notes, err := refineWith(t, tg, prog)
-	// `ident`'s own precondition is outside the fragment, so it is REPORTED
-	// rather than refused — the walk continues, which is what makes the
-	// downstream effect observable at all.
-	if !strings.Contains(notes, "tgt.ident") {
-		t.Errorf("the unproven precondition must be reported: %q", notes)
-	}
-	// And the guarantee must not have been believed. `need` requires
-	// `0 <= y`, and with `0 < y` unlicensed there is no other route to it, so
-	// the program is REFUSED. Believing the guarantee would accept it.
-	if err == nil {
-		t.Fatalf("with P unproven, Q must NOT be assumed — but the downstream "+
-			"obligation was discharged (notes %q)", notes)
-	}
-	if !strings.Contains(err.Error(), "tgt.need") {
-		t.Errorf("the refusal must be the downstream obligation: %v", err)
+	_, err := refineWith(t, tg, prog)
+	// `ident`'s precondition is outside the fragment, so the program is REFUSED
+	// there (refinements.md §3a). This test used to watch the walk continue past
+	// a merely REPORTED precondition and refuse the downstream obligation, which
+	// is how it showed that Q was not believed. Refusing at P is stronger: Q is
+	// never reached, let alone assumed. The bool that withholds Q still governs
+	// the speculative walks, which only report.
+	if err == nil || !strings.Contains(err.Error(), "tgt.ident") {
+		t.Fatalf("an unproven precondition must refuse the program at the call: %v", err)
 	}
 
 	// THE CONTROL. The same shapes with a precondition the fragment can prove:
 	// now the guarantee is licensed and the downstream obligation is proven.
 	ok := tempTarget(t, `(sig ident ((x int)) int `+
 		`(where (< 0 x)) (ensures (< 0 result)) (host expr "%s"))`)
-	notes, err = refineWith(t, ok, `(use tgt)
+	notes, err := refineWith(t, ok, `(use tgt)
 		(fn (n) (let y (tgt.ident 7)
             (tgt.need y)))`)
 	if err != nil || propagated(notes) {

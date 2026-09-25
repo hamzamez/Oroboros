@@ -168,8 +168,8 @@ func TestTheSameBufferTwiceIsRefused(t *testing.T) {
 // Both answers are exactly the one-result program's.
 //
 // An index outside the linear fragment — a table read, as here — that is not
-// proven is "propagated" with a note rather than refused (refine.go,
-// indexObligation), so the notes are what this test reads.
+// proven is refused (refinements.md §3a); before that it was a note, which is
+// why `proven` also reads the notes.
 func TestAFrozenComponentKeepsItsContent(t *testing.T) {
 	prog := func(g string) string {
 		return `(export f)

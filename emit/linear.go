@@ -137,6 +137,27 @@ func (f *facts) assumeOpaque(printed string) {
 
 // entailsOpaque discharges an obligation the fragment cannot decide, and only
 // by an assumption that is syntactically the same term.
+// opaqueKey is how an atom outside the fragment is matched: an assumption
+// discharges an obligation that is the SAME atom (refinements.md §3a, route 2).
+//
+// A COMPARISON IS KEYED BY ITS RELATION, not its spelling. The unsigned-word pass
+// rewrites `<` to `u64<` only where both operands lie in U (wordsel.go), where the
+// two are one relation. So a guard `(u64< hi y)` and a precondition `(< hi y)` are
+// one atom, and keyed apart the precondition went unmatched: math/bits' Div64,
+// guarded by exactly its own `where`, was refused (noprop-2026-09-25). Only the
+// head is canonical; the operands are compared as printed, which can only fail to
+// match, never match wrongly.
+func opaqueKey(t *core.Term) string {
+	if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName && len(t.Args()) == 2 {
+		for _, k := range []string{"eq", "ne", "lt", "le", "gt", "ge"} {
+			if isOp(t.Op().Name, k) {
+				return "(" + k + " " + t.Args()[0].String() + " " + t.Args()[1].String() + ")"
+			}
+		}
+	}
+	return t.String()
+}
+
 func (f *facts) entailsOpaque(printed string) bool {
 	for _, o := range f.opaque {
 		if o == printed {

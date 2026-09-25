@@ -707,9 +707,7 @@
    gen: examples/native/smooth-js.oro: in fill-into: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/smooth-js.oro js emitted 4455593b90fde054d1f718f0e95247d58fb8b6f3018e9aab940a44d669b96b57
-   note: js./: refinement propagated, not proven
    note: gen-smooth: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
-   note: js./: refinement propagated, not proven
    note: gen-smooth-into: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
 == examples/native/smooth-js.oro java refused
    gen: examples/native/smooth-js.oro: in fill-into: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target

@@ -85,17 +85,19 @@ Concretely, let `f = λx. x` with `P ≜ x > 0` and `Q ≜ result > 0`. `C(f)` h
 the fragment is a conjunction of linear inequalities, from which one false fact derives everything.
 ∎
 
-The subtlety is that in this compiler **"not refused" is not "proven"**. `discharge` has a path that
-reports *"refinement propagated, not proven"* and returns success, because an atom outside the
-decidable fragment is reported rather than assumed ([refinements.md §3](refinements.md)). Treating
-that as proof would license `Q` on an unproven `P`.
+The subtlety is that in this compiler **"not refused" is not "proven"**. `discharge` had a path that
+reported *"refinement propagated, not proven"* and returned success, because an atom outside the
+decidable fragment was reported rather than assumed. Treating that as proof would have licensed `Q`
+on an unproven `P`.
 
-> This is not hypothetical. The first implementation did exactly that, because the refactor that
-> gave `discharge` a *proven* result rewrote every `return nil` in it to `return true, nil` —
-> including the propagated path. `TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven` is what
-> caught it, and it is the reason the test exercises the **propagated** path specifically: a
-> precondition that is *refused* aborts the walk, so the downstream effect is never reached and
-> nothing is learned.
+> This was not hypothetical. The first implementation did exactly that, because the refactor that
+> gave `discharge` a *proven* result rewrote every `return nil` in it to `return true, nil`,
+> including the propagated path. `TestEnsuresIsNotAssumedWhenThePreconditionIsUnproven` caught it.
+
+**Since 2026-09-25 that path refuses the program** ([refinements.md §3a](refinements.md)), so a walk
+that reaches `Q` has proven `P`. The distinction survives in the **speculative** walks (Houdini, the
+proof-by-cases probes), which only report and never refuse. There `discharge` still returns *not
+proven*, and `Q` is still withheld.
 
 ### Lemma 2 — a postcondition attaches to the binder, not to the call
 
@@ -142,7 +144,8 @@ give it meaning. So the lang facts are instantiated on each instance as it is as
 
 The instance holds from the point the term is evaluated onward, in that scope, and **only where the
 call's own `where` is proven** (Lemma 1): a guarantee is conditional on its precondition, and a
-precondition merely propagated licenses nothing. At each of the three places the call's `where` is
+precondition not proven licenses nothing. Outside a speculative walk, it refuses the program
+(refinements.md §3a). At each of the three places the call's `where` is
 itself an obligation, decided in the same walk.
 
 **A declaration states its law as an `ensures` when the law is linear.** `EncodedLen` is the map

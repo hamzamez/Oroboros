@@ -70,9 +70,9 @@ func TestALowerBoundIsProvedByInduction(t *testing.T) {
 }
 
 // AN INDEX THAT IS A CONDITIONAL TERM IS PROVEN WHEN EVERY BRANCH IS IN RANGE,
-// and stays PROPAGATED — never refused, never proven — when one is not.
-// refine.go, provedThroughJoin: a proof attempt for a term outside the fragment,
-// so the proven set grows and nothing that built stops building.
+// and REFUSED when one is not (refinements.md §3a). It was "propagated" — never
+// refused, never proven — until an unproven index stopped being emitted.
+// refine.go, provedThroughJoin: a proof attempt for a term outside the fragment.
 func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 	tg := tempTarget(t, ``)
 	// A clamp, under a guard that makes the table non-empty: both bounds hold on
@@ -87,19 +87,16 @@ func TestAConditionalIndexIsProvenBranchByBranch(t *testing.T) {
 	}
 	// CONTROL: one branch is 5 and the table may be shorter, so the upper bound
 	// does not follow — and must be PROPAGATED, exactly as before, not proven.
-	notes, err = refineWith(t, tg, `(use tgt)
+	_, err = refineWith(t, tg, `(use tgt)
 	  (fn (a i) (if (>= (len a) 1) (a (if (< i 0) 0 5)) 0))`)
-	if err != nil {
-		t.Fatalf("an unprovable conditional index must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Errorf("a branch outside the table was taken as proven")
+	if !refusedUnproven(err) {
+		t.Errorf("a branch outside the table was taken as proven (refinements.md §3a: refused, not propagated): %v", err)
 	}
 	// AND WITHOUT THE GUARD the clamp's zero branch is out of range for an empty
-	// table, so it is not proven either — the case freq.oro and tally leave as a note.
-	notes, _ = refineWith(t, tg, `(use tgt) (fn (a i) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))))`)
-	if !propagated(notes) {
-		t.Errorf("a clamp into a possibly empty table was taken as proven")
+	// table, so it is not proven either, and it is refused (refinements.md §3a).
+	_, err = refineWith(t, tg, `(use tgt) (fn (a i) (a (if (< i 0) 0 (if (>= i (len a)) 0 i))))`)
+	if !refusedUnproven(err) {
+		t.Errorf("a clamp into a possibly empty table was taken as proven: %v", err)
 	}
 }
 
@@ -122,12 +119,9 @@ func TestAClampUnderArithmeticIsSplitOn(t *testing.T) {
 	// propagated, never proven.
 	const over = `(use tgt)
 	  (fn (k) (build 2048 (fn (a) (a (+ (* 4 (if (< k 0) 0 (if (>= k 512) 0 k))) 4)))))`
-	notes, err = refineWith(t, tg, over)
-	if err != nil {
-		t.Fatalf("an unprovable strided index must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Error("an index reaching past the table was taken as proven")
+	_, err = refineWith(t, tg, over)
+	if !refusedUnproven(err) {
+		t.Errorf("an index reaching past the table was taken as proven (refinements.md §3a: refused, not propagated): %v", err)
 	}
 	// A `let` INSIDE the arithmetic: its binder becomes a fresh name, equal to the
 	// value when the value is linear.
@@ -181,11 +175,8 @@ func TestALoopResultIsBoundedByItsExits(t *testing.T) {
 	  (fn (a)
 	    (let nw (loop ((n 0) (i 0)) (>= i (len a)) n else (again (+ n 2) (+ i 1)))
        (if (>= nw 1) (a (if (< nw 0) 0 0)) 0)))`
-	notes, err = refineWith(t, tg, twice)
-	if err != nil {
-		t.Fatalf("an unprovable read must be propagated, not refused: %v", err)
-	}
-	if !propagated(notes) {
-		t.Error("a count that can exceed the table's length was summarised as bounded by it")
+	_, err = refineWith(t, tg, twice)
+	if !refusedUnproven(err) {
+		t.Errorf("a count that can exceed the table's length was summarised as bounded by it (refinements.md §3a: refused, not propagated): %v", err)
 	}
 }

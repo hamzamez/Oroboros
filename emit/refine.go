@@ -286,7 +286,7 @@ func assume(f *facts, where *core.Term) {
 	// term is propagated and matched by name, and dropping it also made the
 	// diagnostic claim nothing was known when the program had declared a
 	// `where`.
-	f.assumeOpaque(where.String())
+	f.assumeOpaque(opaqueKey(where))
 }
 
 // squareBound reads `(< (* x x) e)` or `(<= (* x x) e)` and returns the linear
@@ -884,14 +884,32 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		// Outside the fragment: an opaque atom (refinements.md §3). It can be
 		// discharged only by an assumption that is the SAME term; otherwise it
 		// is propagated, never assumed, and the note says so.
-		if f.entailsOpaque(want.String()) {
+		if f.entailsOpaque(opaqueKey(want)) {
 			return true, nil
 		}
-		// PROPAGATED, NOT PROVEN — and the second half of that phrase is what a
-		// postcondition depends on. Reporting is not proving, so this returns
-		// false and the call's guarantee is not licensed (Lemma 1).
-		r.notes = append(r.notes, fmt.Sprintf("%s: refinement propagated, not proven", name))
-		return false, nil
+		// A CLOSED COMPARISON IS DECIDED BY EVALUATING IT: `(!= 3.0 0)` compares
+		// two literals, which is exact on every host (refinements.md §3a, route 3).
+		if v, closed := closedComparison(want); closed {
+			if v {
+				return true, nil
+			}
+			if r.probe {
+				return false, nil
+			}
+			return false, fmt.Errorf("%s requires %s, which is false", name, want)
+		}
+		// NOT DISCHARGED, SO REFUSED (refinements.md §3a). This was a note —
+		// "propagated, not proven" — and the program was emitted, relying on a
+		// runtime check at a boundary that nothing emitted. A speculative walk
+		// only reports that it did not prove.
+		if r.probe {
+			return false, nil
+		}
+		return false, fmt.Errorf("%s requires %s, which is outside the decided fragment and does "+
+			"not follow\n  known: %s\n  An obligation is discharged by a proof, by an assumption that "+
+			"is the same term, or by evaluating a comparison of literals; otherwise the call is not "+
+			"known to be defined, and the program is refused (docs/spec/refinements.md §3a).",
+			name, want, f.known())
 	}
 	for _, g := range goals {
 		if !f.entails(g) {
@@ -1910,9 +1928,22 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 			if r.provedBySplit(want, f, &budget) {
 				continue
 			}
-			r.notes = append(r.notes,
-				fmt.Sprintf("%s: index bound propagated, not proven", tab))
-			continue
+			// NOT PROVEN, SO REFUSED (refinements.md §3a, tables.md §6). This was
+			// "index bound propagated, not proven", a note beside an emitted
+			// program: out of range, JavaScript returns `undefined` and x86 reads
+			// past the table. A speculative walk only reports that it did not
+			// prove, as the fragment's own branch below does.
+			if r.probe {
+				continue
+			}
+			return fmt.Errorf("(%s %s) is an indexing, and %s is not proven\n"+
+				"  known: %s\n"+
+				"  The index is outside the linear fragment, and neither a proof by cases nor a\n"+
+				"  content fact about a table bounds it. A table is a function with a finite\n"+
+				"  domain, so 0 <= i < len is the condition for the application to be DEFINED,\n"+
+				"  and an application not known to be defined is refused (docs/spec/tables.md §6,\n"+
+				"  refinements.md §3a). A guard that tests the index against (len %s) is a proof.",
+				tab, idx, want, f.known(), tab)
 		}
 		for _, g := range goals {
 			if f.entails(g) || r.probe {
@@ -1946,4 +1977,75 @@ func (r *refiner) markName(n string) {
 		r.bound = map[string]bool{}
 	}
 	r.bound[n] = true
+}
+
+// closedComparison evaluates a comparison between two numeric LITERALS, and
+// reports whether the term is one (refinements.md §3a, route 3). Comparing two
+// literals is exact on every host and folds no arithmetic, so ADR 0009 has
+// nothing to say about it; an integer against a float is compared as float64,
+// which is exact for every integer literal a program can write below 2^53 and is
+// what every host does with the two.
+func closedComparison(t *core.Term) (value, closed bool) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || len(t.Args()) != 2 {
+		return false, false
+	}
+	a, b := t.Args()[0], t.Args()[1]
+	num := func(x *core.Term) (float64, int64, bool, bool) {
+		switch x.Kind {
+		case core.KInt:
+			return float64(x.Int), x.Int, true, true
+		case core.KFloat:
+			return x.Float, 0, false, true
+		}
+		return 0, 0, false, false
+	}
+	fa, ia, intA, okA := num(a)
+	fb, ib, intB, okB := num(b)
+	if !okA || !okB {
+		return false, false
+	}
+	cmp := 0
+	if intA && intB {
+		switch {
+		case ia < ib:
+			cmp = -1
+		case ia > ib:
+			cmp = 1
+		}
+	} else {
+		if fa != fa || fb != fb { // NaN compares false with everything, equal included
+			return isOp(t.Op().Name, "ne"), isComparison(t.Op().Name)
+		}
+		switch {
+		case fa < fb:
+			cmp = -1
+		case fa > fb:
+			cmp = 1
+		}
+	}
+	name := t.Op().Name
+	switch {
+	case isOp(name, "eq"):
+		return cmp == 0, true
+	case isOp(name, "ne"):
+		return cmp != 0, true
+	case isOp(name, "lt"):
+		return cmp < 0, true
+	case isOp(name, "le"):
+		return cmp <= 0, true
+	case isOp(name, "gt"):
+		return cmp > 0, true
+	case isOp(name, "ge"):
+		return cmp >= 0, true
+	}
+	return false, false
+}
+
+func isComparison(name string) bool {
+	for _, k := range []string{"eq", "ne", "lt", "le", "gt", "ge"} {
+		if isOp(name, k) {
+			return true
+		}
+	}
+	return false
 }

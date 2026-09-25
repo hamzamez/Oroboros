@@ -655,8 +655,10 @@ the analysis sees the body with the caller's own values.
 Two things a target author should know, and both are soundness rather than style.
 
 **A guarantee needs its requirement.** A contract is `P ⟹ Q`, so `ensures` is licensed only where
-`where` was *proven* — not merely not refused. An obligation outside the decidable fragment is
-reported as *propagated, not proven*, and that does not license the guarantee.
+`where` was *proven*. An obligation outside the decidable fragment is decided by evaluation when it
+compares two literals, matched when an assumption is the same term, and otherwise refuses the
+program ([refinements.md §3a](refinements.md)). It used to be reported as *propagated, not proven*,
+and even then it did not license the guarantee.
 
 **It attaches to the name the result takes.** Two occurrences of an impure call denote different
 values, so the anchor is the binder — which

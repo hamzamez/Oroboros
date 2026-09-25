@@ -264,14 +264,15 @@ func rewriteRead(tg *Target, defs map[string]*core.Term, env mapEnv, t *core.Ter
 	f := core.Name("#f")
 	miss := core.App(core.Name(tg.less()), f, core.Int(0))
 	tag := core.App(core.Name("if"), miss, core.Int(1), core.Int(0))
-	// CLAMPED, through the implementation's own clamp. `wm-find` returns an
-	// index it already clamped, or -1, so the fact is true — but it travelled
+	// A GUARDED READ, through the implementation's `wm-at`. `wm-find` returns an
+	// index already in range, or -1, so the fact is true — but it travelled
 	// through `x64.and`, which is not linear arithmetic, and the refinement
-	// layer is right to refuse what it cannot derive. Re-clamping turns a
-	// refusal into a note and makes the program say what happens if the
-	// impossible occurs, which is tree.oro's rule unchanged.
-	hit := core.App(core.Name(mapImplPrefix+"wm-c"), mv, f)
-	val := core.App(core.Name("if"), miss, core.Int(0), core.App(mv, hit))
+	// layer is right not to derive it. This read used to be at a CLAMPED index,
+	// which turned the refusal into a note: the clamp's 0 is outside an empty
+	// table, so it never proved. A note is a refusal now (refinements.md §3a),
+	// and the guard is a proof: on the path that reads, 0 <= #f < len #mv.
+	val := core.App(core.Name("if"), miss, core.Int(0),
+		core.App(core.Name(mapImplPrefix+"wm-at"), mv, f))
 	inner := core.App(core.Name("let"),
 		core.App(core.Name(mapImplPrefix+"wm-find"), mv, key),
 		core.Fn([]string{"#f"}, core.App(k, tag, val)))

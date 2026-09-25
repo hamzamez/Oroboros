@@ -61,6 +61,14 @@
 ; turns a refusal into a note and says what happens if the impossible occurs.
 (def wm-c (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 x)))
 
+; A GUARDED READ: the cell at x, or 0 when x is outside the table. Where a clamp's
+; 0 is itself outside an EMPTY table, so a read at a clamped index is never
+; proven, the guard here IS the proof of the read: on the path that reads,
+; 0 <= x < len m. A clamp turned a refusal into a note, and a note is a refusal
+; now (refinements.md §3a, noprop-2026-09-25); this says what happens if the
+; impossible occurs and is proven while saying it.
+(def wm-at (m x) (if (x64.setl x 0) 0 (if (x64.setge x (len m)) 0 (m x))))
+
 (def wm-used (m n k i) (m (wm-c m (x64.imul 3 (wm-s n k i)))))
 (def wm-key  (m n k i) (m (wm-c m (x64.add (x64.imul 3 (wm-s n k i)) 1))))
 
@@ -159,12 +167,12 @@
 (def wm-fill (m ks vs)
   (loop ((m m) (i 0))
     (x64.setge i (len ks))  m
-    ; THE VALUE INDEX IS CLAMPED, because the loop is bounded by `(len ks)` and
+    ; THE VALUE READ IS GUARDED, because the loop is bounded by `(len ks)` and
     ; indexes `vs` as well -- two arrays under one bound, which is exactly the
     ; latent bug the refinement layer found in `dot` and `centroid`. The two
     ; arrays have the same length by construction here and nothing can see that,
     ; so the program says what happens if they do not.
-    else                    (again (wm-put m (ks i) (vs (wm-c vs i))) (x64.add i 1))))
+    else                    (again (wm-put m (ks i) (wm-at vs i)) (x64.add i 1))))
 
 ; ---------------------------------------------------------------- keys
 ;

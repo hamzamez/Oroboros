@@ -339,6 +339,15 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   3. the refinement layer, `ensures` included.
 
   It then erases the marks, so nothing downstream sees one.
+- **An obligation is discharged, or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)).
+  It is the domain condition of an application, and a program denotes only if every application is
+  defined. Three routes discharge one:
+  - a proof in the fragment, by cases, or from a table's content facts;
+  - an assumption that is the same term;
+  - evaluation of a comparison of literals.
+
+  "Propagated, not proven" is gone: it emitted the program and relied on a host check that JavaScript
+  and x86 do not make. `-checked` does not clear an index.
 - **`ensures` is the exact swap** ([postconditions.md](docs/spec/postconditions.md)). A pure call is
   an atom of the linear fragment, and its `ensures` holds where the term is read: a primitive's
   arguments and a `build`'s size (§5). A declaration states a linear law as an `ensures`, not in a
@@ -459,6 +468,8 @@ Each of these has bitten more than once. The instances are in the results they n
   - Refusal-shaped properties need an anti-vacuity guard.
   - Random search cannot test what over-approximation makes sound; pin those with exact witnesses.
 - **"Not refused" is not "proven".** A path that returns success with a note has checked nothing.
+  The refinement layer's own was *"propagated, not proven"*: an index it could not bound was emitted,
+  and on JavaScript an `int` function returned `undefined` (noprop-2026-09-25).
 - **A comment that states what code does is not a review of whether it should.** `scKind` was
   documented "per the LAST edge examined", and a measure was documented as withheld that never was:
   both sentences described a false proof exactly (matchguard-2026-09-24). Only a planted fault shows
@@ -474,6 +485,9 @@ Each of these has bitten more than once. The instances are in the results they n
 - **A survey's first number describes the measurer.** Seven corrections so far, in both directions.
   A measurement's *scope* does too: requires-2026-09-24 counted `where` only on non-exported
   definitions and missed `win/fmt.print-int`, an export every Windows harness print calls.
+  And the emission sweep compiles EXPORTS: the differential cases' `run` and the acceptance programs'
+  `main` never pass through it, so "the baseline shows none" did not mean the corpus had none
+  (noprop-2026-09-25).
   Read ten members of a figure one at a time before it becomes a plan item. And a *count* is a
   measurement too: the corpus totals counted an operation in a guard three times, once per
   evaluation, for as long as the figures have been quoted (matchguard-2026-09-24).

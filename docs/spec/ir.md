@@ -294,7 +294,7 @@ from a fact:
 So **the type on a value is the representation decision**, made by the analyses before printing and
 written into the file (research §6). A printer spells ρ_T(τ), which is a lookup.
 
-### 4.3 The flow rule, and the least uniform typing
+### 4.3 The flow rule, and the narrowest uniform representation
 
 Along a flow edge from a value of type τ into a parameter or result of type σ (an initial value,
 `continue`, `break`, `yield`), the rule is τ ≤ σ, and:

@@ -545,3 +545,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `gauntlet/differential/cases/string-escapes.oro go`
 - compiler output changed — `gauntlet/differential/cases/utf8-widths.oro go`
 - emitted text changed — `lib/num/u128.oro go`
+
+## 2026-09-25 — on ee834bb, with uncommitted changes
+
+**Reason:** alloc of a non-rule table is the table of its contents (tables.md §2): the new differential case alloc-copies on four targets; every existing program byte-identical
+
+524 runs: 246 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/alloc-copies.oro go`
+- new source — `gauntlet/differential/cases/alloc-copies.oro java`
+- new source — `gauntlet/differential/cases/alloc-copies.oro js`
+- new source — `gauntlet/differential/cases/alloc-copies.oro windows`

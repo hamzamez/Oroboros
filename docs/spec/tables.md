@@ -127,6 +127,22 @@ why `DOMAIN` is primitive in TLA+.
 (t i)                     ; the element at i — APPLICATION
 ```
 
+**What `(alloc t)` means for a `t` that is not a rule.** It is the table of t's contents at that
+point, by definition:
+
+    (alloc t)  =  (alloc (table (len t) (fn (i) (t i))))
+
+- For an immutable table this equals t (η-tab; ir.md law L12), so an implementation may return t
+  itself, **provided it knows t is immutable**. A literal graph is: it is a fresh value no buffer can
+  be.
+- For a live **buffer** the copy *is* the meaning, because a later store must not show through
+  (linearity.go: "alloc copies the contents, so it is an ordinary read and must come first"). Every
+  backend returned the argument itself until 2026-09-25, so a store after the `alloc` showed through
+  (gauntlet/differential/cases/alloc-copies.oro; irstep1-2026-09-25 §4).
+- The term backends cannot tell a buffer from an immutable table reliably, so they copy every
+  non-rule, non-literal `alloc`. No program in the corpus writes one, so this costs nothing measured.
+  The IR's printers know from the type and keep η where it holds (ir.md §8.1).
+
 Seven names. Everything else — `zip`, `sum`, `dot`, `reverse`, `take`, the stencil — is a library
 written in the language, as it is today.
 

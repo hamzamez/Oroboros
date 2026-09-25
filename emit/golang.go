@@ -687,9 +687,13 @@ func (e *Emitter) emitAlloc(t *core.Term) (string, error) {
 	}
 	tab := args[0]
 	if !isTableRule(e.tgt, tab) {
-		// Allocating a graph is already memory; allocating a parameter is a
-		// copy nobody asked for. Only a RULE has something to compute.
-		return e.emit(tab)
+		// Not a rule: the table of its contents (tables.md §2). A graph is
+		// already memory and immutable, so it is itself; anything else may be a
+		// live buffer, whose later stores the result must not see. This said
+		// "allocating a parameter is a copy nobody asked for", which is η-tab,
+		// true only of an immutable table.
+		m, _ := allocMeaning(e.tgt, tab)
+		return e.emit(m)
 	}
 	rule := tab.Args()[1]
 	if rule.Kind != core.KFn || len(rule.Params) != 1 {

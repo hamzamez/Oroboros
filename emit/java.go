@@ -763,7 +763,17 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			}
 			tab := args[0]
 			if !isTableRule(e.tgt, tab) {
-				return e.emit(tab)
+				// Not a rule: the table of its contents (tables.md §2). Java's
+				// `clone` is exactly that, and keeps the array's element type,
+				// which a fill loop would re-infer from its body.
+				if isArrayLiteral(e.tgt, tab) {
+					return e.emit(tab)
+				}
+				src, err := e.emit(tab)
+				if err != nil {
+					return "", err
+				}
+				return "(" + src + ").clone()", nil
 			}
 			rule := tab.Args()[1]
 			if rule.Kind != core.KFn || len(rule.Params) != 1 {

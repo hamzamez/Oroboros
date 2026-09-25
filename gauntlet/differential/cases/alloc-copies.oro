@@ -1,0 +1,20 @@
+; `(alloc t)` OF A BUFFER IS THE TABLE OF ITS CONTENTS AT THAT POINT, and a store
+; after it must not show through (tables.md §2).
+; expect: 7 7
+; inputs: 0 1
+; checked: windows — the elements of `(alloc t)` get no bound, so the value win/fmt.print-int prints is unbounded and its digit arithmetic traps (bounds-2026-09-24)
+;
+; The meaning is (alloc t) = (alloc (table (len t) (fn (i) (t i)))). Every
+; backend returned t itself for a t that is not a rule — η-tab, which is true of
+; an immutable table and false of a buffer — so after `(set b1 0 9)` the table
+; allocated from b1 read 9, and every target answered 9 (found lowering `alloc`
+; to the IR, irstep1-2026-09-25 §4). Four targets agreeing on a wrong answer is
+; why a differential suite needs a hand-computed `expect`.
+(def run (n)
+  (let (tuple b2 v)
+       (build b 2
+         (let b1 (set b 0 7)
+              t  (alloc b1)
+              b2 (set b1 0 9)
+           (tuple b2 (if (< 0 (len t)) (t 0) 0))))
+    v))

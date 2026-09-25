@@ -910,6 +910,10 @@
    gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == examples/wordcount.oro windows refused
    gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
+== gauntlet/differential/cases/alloc-copies.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/alloc-copies.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/alloc-copies.oro java emitted 17fccb28f88bfaffa84cf9cd2b352ac93f4d563bde297cdf765ed7a7a90fa599
+== gauntlet/differential/cases/alloc-copies.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/array-literal.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/array-literal.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/array-literal.oro java emitted 620a2f0643d80ec4cb60a672fc1fbda290eb0b02b89484f400dfe9d0633acf77

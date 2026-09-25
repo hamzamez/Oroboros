@@ -2229,7 +2229,11 @@ func (e *asmEmitter) emitAlloc(t *core.Term) (place, error) {
 	}
 	tab := args[0]
 	if !isTableRule(e.tgt, tab) {
-		return e.emit(tab) // a graph is already memory; a parameter is not ours to copy
+		// Not a rule: the table of its contents (tables.md §2). A graph is
+		// already memory and immutable, so it is itself; anything else may be
+		// a live buffer, whose later stores the result must not see.
+		m, _ := allocMeaning(e.tgt, tab)
+		return e.emit(m)
 	}
 	rule := tab.Args()[1]
 	if rule.Kind != core.KFn || len(rule.Params) != 1 {

@@ -4529,3 +4529,21 @@ func LiteralFits(elem string, t *core.Term, typeOf func(*core.Term) string) (str
 	}
 	return "", true
 }
+
+// allocMeaning is `(alloc t)` for a t that is not a rule, as tables.md §2
+// defines it: the table of t's contents, (alloc (table (len t) (fn (i) (t i)))).
+// A literal graph is a fresh immutable value, so it is itself (η-tab); anything
+// else may be a live buffer, whose later stores the result must not see. t is
+// bound by a `let` first, so it sits outside both new binders and needs no
+// shift.
+func allocMeaning(tgt *Target, t *core.Term) (*core.Term, bool) {
+	if isArrayLiteral(tgt, t) {
+		return t, false
+	}
+	x := &core.Term{Kind: core.KBound, Depth: 0, Index: 0}
+	xi := &core.Term{Kind: core.KBound, Depth: 1, Index: 0}
+	i := &core.Term{Kind: core.KBound, Depth: 0, Index: 0}
+	rule := core.FnClosed([]string{"i"}, core.App(xi, i))
+	body := core.App(core.Name("alloc"), core.App(core.Name("table"), core.App(core.Name("len"), x), rule))
+	return core.App(core.Name("let"), t, core.FnClosed([]string{"x"}, body)), true
+}

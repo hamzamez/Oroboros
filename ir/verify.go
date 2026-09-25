@@ -158,7 +158,9 @@ func (v *verifier) run() {
 				}
 			}
 		})
-		for x := 0; x < nv; x++ {
+		// A type is final where the host types its values; on a host with no
+		// static types (JavaScript, x86) `any` is the faithful type.
+		for x := 0; x < nv && Typed(v.tg); x++ {
 			if v.defined[x] && strings.Contains(v.f.Types[x], "any") {
 				v.add("W9: %%%d's type %s is not final", x, v.f.Types[x])
 			}

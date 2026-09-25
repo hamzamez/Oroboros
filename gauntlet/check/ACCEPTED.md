@@ -558,3 +558,40 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/alloc-copies.oro java`
 - new source — `gauntlet/differential/cases/alloc-copies.oro js`
 - new source — `gauntlet/differential/cases/alloc-copies.oro windows`
+
+## 2026-09-25 — on 44dd368, with uncommitted changes
+
+**Reason:** ADR 0032 step 3: the JavaScript backend is the IR's printer (ir/js) on the shared plan (ir/plan). 28 JavaScript outputs re-printed; Go, Java and x86 byte-identical; no outcome changed; differential suite passes; JS gauntlet within 0.94-1.01x of the term backend (irstep3-2026-09-25).
+
+524 runs: 246 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+28 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro js`
+- emitted text changed — `examples/big/fact.oro js`
+- emitted text changed — `examples/big/fib.oro js`
+- emitted text changed — `examples/big/limbs.oro js`
+- emitted text changed — `examples/big/pair.oro js`
+- emitted text changed — `examples/big/power.oro js`
+- emitted text changed — `examples/big/render.oro js`
+- emitted text changed — `examples/io/freq.oro js`
+- emitted text changed — `examples/io/jsonfmt.oro js`
+- emitted text changed — `examples/io/wc.oro js`
+- emitted text changed — `examples/kara/workspace.oro js`
+- emitted text changed — `examples/native/centroid-js.oro js`
+- emitted text changed — `examples/native/dot-js.oro js`
+- emitted text changed — `examples/native/generic-js.oro js`
+- emitted text changed — `examples/native/report-js.oro js`
+- emitted text changed — `examples/native/search-js.oro js`
+- emitted text changed — `examples/native/sieve-js.oro js`
+- emitted text changed — `examples/native/smooth-js.oro js`
+- emitted text changed — `examples/native/wordcount-js.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro js`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro js`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro js`
+- emitted text changed — `gauntlet/differential/cases/string-escapes.oro js`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro js`

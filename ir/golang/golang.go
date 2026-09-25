@@ -650,6 +650,9 @@ func (p *printer) Call(s *ir.Stmt, args []string) string {
 func (p *printer) Or(a, b string) string  { return "(" + a + " || " + b + ")" }
 func (p *printer) And(a, b string) string { return "(" + a + " && " + b + ")" }
 
+// Cond: Go has no conditional expression.
+func (p *printer) Cond(c, a, b string) string { return "" }
+
 // FromResidual is the IR's whole path to Go for one definition: lower (L),
 // finalize (IR_A → IR_P), verify, print (docs/spec/ir.md §7–§9).
 func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {

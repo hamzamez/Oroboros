@@ -107,6 +107,9 @@ func Spellings(tg *emit.Target) map[ir.Op][2]string {
 			var ok bool
 			if a := emit.ArithOp(n, len(q.Args)); a != "" && (tg.ValueType(q.Result) == "int" || pass > 0 && open(q.Result)) {
 				o, ok = arith[a]
+				if ok && (o == ir.ODiv || o == ir.ORem) && !ir.IntegerDivision(tg, n, q) {
+					ok = false // JavaScript's `/` is division in the reals
+				}
 			} else if c := emit.CmpOp(n); c != "" && len(q.Args) == 2 && (q.Result == "bool" || pass == 2 && open(q.Result)) {
 				o, ok = cmp[c]
 			}
@@ -509,6 +512,9 @@ type Speller interface {
 	// Or and And spell the connectives.
 	Or(a, b string) string
 	And(a, b string) string
+	// Cond spells a conditional EXPRESSION, the coproduct as a value, or ""
+	// when the host has none (Go).
+	Cond(c, a, b string) string
 }
 
 // Connective prints a boolean `if` with a literal arm as the operator it is
@@ -595,7 +601,16 @@ func (p *Plan) ExprOf(r *ir.Region, outer func(ir.V) string, sp Speller) (string
 		case s.Op == ir.OIf:
 			var ok bool
 			if e, ok = p.Connective(s, arg, sp); !ok {
-				return "", false
+				// Not a connective: a conditional expression, where the host
+				// has one and both arms are expression trees.
+				a, okA := p.ExprOf(s.Sub[0], arg, sp)
+				b, okB := p.ExprOf(s.Sub[1], arg, sp)
+				if !okA || !okB {
+					return "", false
+				}
+				if e = sp.Cond(arg(s.Args[0]), a, b); e == "" {
+					return "", false
+				}
 			}
 		default:
 			return "", false
@@ -606,7 +621,20 @@ func (p *Plan) ExprOf(r *ir.Region, outer func(ir.V) string, sp Speller) (string
 		exprs[s.Res[0]] = e
 	}
 	if r.T == ir.TBranch {
-		return p.branchExpr(arg(r.Cond), r.Then, r.Else, arg, sp)
+		if e, ok := p.branchExpr(arg(r.Cond), r.Then, r.Else, arg, sp); ok {
+			return e, true
+		}
+		// A branch terminator whose arms are expression trees: a conditional
+		// expression, where the host has one.
+		a, okA := p.ExprOf(r.Then, arg, sp)
+		b, okB := p.ExprOf(r.Else, arg, sp)
+		if !okA || !okB {
+			return "", false
+		}
+		if e := sp.Cond(arg(r.Cond), a, b); e != "" {
+			return e, true
+		}
+		return "", false
 	}
 	return arg(r.Args[0]), true
 }
@@ -618,10 +646,13 @@ func (p *Plan) ExprOf(r *ir.Region, outer func(ir.V) string, sp Speller) (string
 // "Tilting at windmills with Coq: formal verification of a compilation
 // algorithm for parallel moves" (JAR 41, 2008), the algorithm CompCert uses.
 //
-// A move whose destination no remaining move reads is emitted; when every
-// remaining destination is also read, the remaining moves form cycles, and one
-// destination is saved into a temporary and its reads renamed, which breaks
-// its cycle. Self-moves are dropped. Destinations must be distinct.
+// A source is an EXPRESSION, not only a name (a printer may inline a value at
+// its use, β for let), so the dependency is on its READ SET: the identifiers
+// it mentions. A move whose destination no remaining source reads is emitted;
+// when every remaining destination is read by another move, the moves form
+// cycles, and one destination is saved into a temporary and renamed, as a
+// whole identifier, in the remaining sources. Self-moves are dropped.
+// Destinations must be distinct.
 func Moves(dst, src []string, fresh func() string) [][2]string {
 	type mv struct{ d, s string }
 	var pend []mv
@@ -633,7 +664,7 @@ func Moves(dst, src []string, fresh func() string) [][2]string {
 	var out [][2]string
 	read := func(x string, skip int) bool {
 		for k, m := range pend {
-			if k != skip && m.s == x {
+			if k != skip && mentions(m.s, x) {
 				return true
 			}
 		}
@@ -657,10 +688,142 @@ func Moves(dst, src []string, fresh func() string) [][2]string {
 		t := fresh()
 		out = append(out, [2]string{t, d})
 		for k := range pend {
-			if pend[k].s == d {
-				pend[k].s = t
-			}
+			pend[k].s = rename(pend[k].s, d, t)
 		}
 	}
+	return out
+}
+
+func identChar(c byte) bool {
+	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+// mentions reports whether the expression s contains x as a whole identifier.
+func mentions(s, x string) bool {
+	for i := 0; i+len(x) <= len(s); i++ {
+		if s[i:i+len(x)] == x && (i == 0 || !identChar(s[i-1])) && (i+len(x) == len(s) || !identChar(s[i+len(x)])) {
+			return true
+		}
+	}
+	return false
+}
+
+// rename replaces x by y wherever it occurs in s as a whole identifier.
+func rename(s, x, y string) string {
+	var b []byte
+	for i := 0; i < len(s); {
+		if i+len(x) <= len(s) && s[i:i+len(x)] == x && (i == 0 || !identChar(s[i-1])) && (i+len(x) == len(s) || !identChar(s[i+len(x)])) {
+			b = append(b, y...)
+			i += len(x)
+			continue
+		}
+		b = append(b, s[i])
+		i++
+	}
+	return string(b)
+}
+
+// ---------------------------------------------------------------- inlining (β for let)
+
+// Inlinable is the set of values a printer may write at their use instead of
+// binding them. Substituting a pure, total value at its unique use is β for
+// `let` (L1), and moving a central operation across others is L6, provided the
+// move crosses no store the value could observe and does not carry the
+// computation into a loop, which would repeat it. So v is inlinable when:
+//   - it is an integer operation not in mode trap, a comparison, a length, a
+//     read of a table that is not a buffer, or a pure host call with one result;
+//   - it is read exactly once;
+//   - that read is in the region that defines it (a statement's operand, a
+//     terminator's argument, a branch's condition), not in a nested region.
+//
+// A read of a BUFFER is inlined only when no effect lies between it and its
+// use: a store there would change what it reads (W7's order, carried by
+// position here).
+func (p *Plan) Inlinable() map[ir.V]bool {
+	out := map[ir.V]bool{}
+	isBuf := func(v ir.V) bool {
+		t := p.F.Types[p.Res(v)]
+		return len(t) >= 7 && t[:7] == "buffer "
+	}
+	p.F.Walk(func(r *ir.Region) {
+		local := map[ir.V]int{} // reads of each value within r itself
+		for i := range r.Stmts {
+			for _, a := range r.Stmts[i].Args {
+				local[p.Res(a)]++
+			}
+		}
+		for _, a := range r.Args {
+			local[p.Res(a)]++
+		}
+		if r.T == ir.TBranch {
+			local[p.Res(r.Cond)]++
+		}
+		// useAt[v] is the index of the statement in r that reads v, or
+		// len(r.Stmts) for the terminator.
+		useAt := map[ir.V]int{}
+		for i := range r.Stmts {
+			for _, a := range r.Stmts[i].Args {
+				useAt[p.Res(a)] = i
+			}
+		}
+		for _, a := range r.Args {
+			useAt[p.Res(a)] = len(r.Stmts)
+		}
+		if r.T == ir.TBranch {
+			useAt[p.Res(r.Cond)] = len(r.Stmts)
+		}
+		effect := func(s *ir.Stmt) bool {
+			switch s.Op {
+			case ir.OSet, ir.OInsert, ir.OLoop, ir.OBuild, ir.OBuildMap, ir.OTabulate:
+				return true
+			case ir.OCall:
+				q := p.Tg.Prims[s.Name]
+				return !q.Pure || q.Kind == "stmt"
+			case ir.OIf:
+				return !p.PureRegion(s.Sub[0]) || !p.PureRegion(s.Sub[1])
+			}
+			return false
+		}
+		// quiet: no statement strictly between i and j has an effect, so no
+		// store can come between a read defined at i and its use at j.
+		quiet := func(i, j int) bool {
+			for k := i + 1; k < j && k < len(r.Stmts); k++ {
+				if effect(&r.Stmts[k]) {
+					return false
+				}
+			}
+			return true
+		}
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if len(s.Res) != 1 || p.Res(s.Res[0]) != s.Res[0] {
+				continue
+			}
+			v := s.Res[0]
+			if p.Uses[v] != 1 || local[v] != 1 {
+				continue
+			}
+			ok := false
+			switch {
+			case s.Op.IsCmp(), s.Op.IsArith() && s.Mode != ir.MTrap, s.Op == ir.OLen:
+				ok = true
+			case s.Op == ir.OIndex:
+				// A table's read moves freely; a BUFFER's only where no effect
+				// lies between the read and its use, so no store can intervene.
+				ok = !isBuf(s.Args[0]) || quiet(i, useAt[v])
+			case s.Op == ir.OCall:
+				q := p.Tg.Prims[s.Name]
+				ok = q.Pure && q.Kind == "expr" && len(q.Results) < 2
+			case s.Op == ir.OIf:
+				// A pure, total `if` is central too; it is inlined only if the
+				// printer spells it as an expression (a connective or a
+				// conditional), which is where its definition calls define.
+				ok = p.PureRegion(s.Sub[0]) && p.PureRegion(s.Sub[1])
+			}
+			if ok {
+				out[v] = true
+			}
+		}
+	})
 	return out
 }

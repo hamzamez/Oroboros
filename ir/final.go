@@ -61,7 +61,7 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	// A PARAMETER NOTHING TYPES has no final type on a target that types its
 	// values: no signature declares it and no operation it reaches fixes it.
 	// Said here, in words, before W9 says it in a rule number.
-	if tg.HostType("int") != "" {
+	if Typed(tg) {
 		for i, x := range f.Params {
 			if f.Types[x] == "any" {
 				return fmt.Errorf("cannot determine a type for parameter %d: no signature declares it, "+

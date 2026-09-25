@@ -17,6 +17,7 @@ import (
 	"oroboros/emit"
 	"oroboros/ir"
 	"oroboros/ir/golang"
+	"oroboros/ir/js"
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
-	flag.StringVar(&printer, "printer", "ir", "the Go backend: `ir`, the IR's printer (ir/golang, ADR 0032), or `terms`, the term backend it replaced (emit/golang.go), kept for comparison")
+	flag.StringVar(&printer, "printer", "go,js", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -313,13 +314,17 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		var code string
 		switch backend {
 		case "js":
-			code, err = emit.JSFunc(tg, fname, sig, nf)
+			if printsIR("js") {
+				code, err = js.FromResidual(tg, fname, sig, nf)
+			} else {
+				code, err = emit.JSFunc(tg, fname, sig, nf)
+			}
 		case "java":
 			code, err = emit.JavaMethod(tg, fname, sig, nf)
 		case "x86-64":
 			code, err = emit.AsmProc(tg, fname, sig, nf)
 		case "go":
-			if printer == "ir" {
+			if printsIR("go") {
 				code, err = printGo(tg, fname, sig, nf)
 			} else {
 				code, err = emit.Func(tg, fname, sig, nf)
@@ -360,9 +365,18 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 // irOut is -ir's file.
 var irOut string
 
-// printer is -printer: `terms`, today's backend, or `ir`, the IR's Go printer
-// (ADR 0032's step 2), which prints IR_P.
+// printer is -printer: the set of backends printed from IR_P (ADR 0032).
 var printer string
+
+// printsIR reports whether -printer names a backend.
+func printsIR(backend string) bool {
+	for _, b := range strings.Split(printer, ",") {
+		if strings.TrimSpace(b) == backend || b == "ir" {
+			return true
+		}
+	}
+	return false
+}
 
 // printGo is the IR's path to Go (ir/golang.FromResidual).
 func printGo(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {

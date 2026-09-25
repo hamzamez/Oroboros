@@ -95,3 +95,49 @@ func cycles(dst, src []string) int {
 	}
 	return n
 }
+
+// TestMovesOfExpressions: sources that are expressions over the destinations,
+// as a printer that inlines produces them. Each sequence is evaluated by a tiny
+// interpreter of `name` and `(name + k)` and compared with the simultaneous
+// assignment, over every pairing of three variables.
+func TestMovesOfExpressions(t *testing.T) {
+	vars := []string{"a", "b", "c"}
+	forms := []func(string) string{
+		func(x string) string { return x },
+		func(x string) string { return "(" + x + " + 1)" },
+		func(x string) string { return "(" + x + " + 10)" },
+	}
+	eval := func(e string, env map[string]int) int {
+		var x string
+		k := 0
+		if _, err := fmt.Sscanf(e, "(%s + %d)", &x, &k); err == nil {
+			return env[x] + k
+		}
+		return env[e]
+	}
+	for s0 := 0; s0 < 3; s0++ {
+		for s1 := 0; s1 < 3; s1++ {
+			for s2 := 0; s2 < 3; s2++ {
+				for f := 0; f < 27; f++ {
+					src := []string{forms[f%3](vars[s0]), forms[f/3%3](vars[s1]), forms[f/9](vars[s2])}
+					dst := vars
+					tmp := 0
+					seq := Moves(dst, src, func() string { tmp++; return fmt.Sprintf("t%d", tmp) })
+					env := map[string]int{"a": 1, "b": 2, "c": 3}
+					want := map[string]int{}
+					for i := range dst {
+						want[dst[i]] = eval(src[i], env)
+					}
+					for _, m := range seq {
+						env[m[0]] = eval(m[1], env)
+					}
+					for d, w := range want {
+						if env[d] != w {
+							t.Fatalf("dst %v ← src %v: %v gives %s = %d, want %d", dst, src, seq, d, env[d], w)
+						}
+					}
+				}
+			}
+		}
+	}
+}

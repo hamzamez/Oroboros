@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
@@ -450,6 +451,9 @@ func classify(tg *emit.Target, name string, p emit.Prim, n int, opt Options) (Op
 	if open(p.Result) {
 		ops := map[string]Op{"add": OAdd, "sub": OSub, "mul": OMul, "neg": ONeg, "div": ODiv, "rem": ORem}
 		if o, ok := ops[emit.ArithOp(name, n)]; ok {
+			if (o == ODiv || o == ORem) && !IntegerDivision(tg, name, p) {
+				return 0, 0, false // a host's division in the reals is not ℤ's
+			}
 			mode := MNone
 			if opt.Decided {
 				mode = MExact
@@ -880,4 +884,29 @@ func (l *lowerer) guarded(r *Region, gs []guard, body func()) {
 	for i := len(undo) - 1; i >= 0; i-- {
 		l.frames[undo[i].depth] = undo[i].frame
 	}
+}
+
+// IntegerDivision reports whether a primitive the target classifies as `div` or
+// `rem` is ℤ's truncating division (integers.md §3). The same spelling means
+// different things on different hosts: Go's `/` on integers truncates, and
+// JavaScript's `/` is division in the reals, embedded in floats (7/2 is 3.5).
+// So it is ℤ's operation only where the declaration fixes integer operands, or
+// the target names it integer division (`idiv`, `irem`).
+func IntegerDivision(tg *emit.Target, name string, p emit.Prim) bool {
+	seg := name
+	if i := strings.LastIndex(seg, "."); i >= 0 {
+		seg = seg[i+1:]
+	}
+	if seg == "idiv" || seg == "irem" {
+		return true
+	}
+	if len(p.Args) == 0 {
+		return false
+	}
+	for _, a := range p.Args {
+		if tg.ValueType(a) != "int" {
+			return false
+		}
+	}
+	return true
 }

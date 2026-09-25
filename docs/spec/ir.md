@@ -5,7 +5,9 @@ Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structu
 the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified, and no
 printer reads the IR yet. **Step 2 is built**
 ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)): the Go backend is `ir/golang`,
-printing IR_P, at parity on the gauntlet. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+printing IR_P, at parity on the gauntlet. **Step 3 has begun**
+([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)): the decisions every printer
+shares are `ir/plan`, and the JavaScript backend is `ir/js`. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -532,7 +534,7 @@ its binder's frame, and `openFresh` is not called.
 | a bound variable | the value its binder is mapped to |
 | a free name bound to a constant graph | `(global g)` |
 | `(let e (fn (x) b))`, `((fn (x̄) b) ē)` | lower e (or ē), map x to its value, lower b |
-| `(p ā)`, p an integer operator or comparison of the target | `(ARITH MODE …)` or `(CMP …)`: the classification happens once, here |
+| `(p ā)`, p an integer operator or comparison of the target | `(ARITH MODE …)` or `(CMP …)`: the classification happens once, here. **Division and remainder are ℤ's only where the target says so**: its declaration fixes integer operands (Go's `/`), or it is named integer division (`idiv`, `irem`). JavaScript's `/` is division in the reals (7/2 is 3.5) and stays a `call` (`ir.IntegerDivision`). A primitive declared over `any` is a `call` until typing shows its operands are integers, then it is promoted |
 | `(p ā)`, p another primitive | `(call p …)`, one result |
 | `((p ā) (fn (x̄) b))`, p with several results (ADR 0027) | `(call p …)` with \|x̄\| results, then b |
 | `(t i)`, or a primitive declared `index` on a language table | `(index t i)` |
@@ -619,9 +621,18 @@ No row needs a label, because exits are single-level (§1.3).
 ### 9.3 Out of SSA
 
 `continue`'s arguments are a **parallel copy** into the loop's parameters, and so are `break`'s and
-`yield`'s into the results. Go and JavaScript have a parallel assignment. Java and x86 sequentialise
-it, with the fewest temporaries by Boissinot et al. (CGO 2009): copy along the copy graph's acyclic
-part, then break each cycle with one temporary. A copy of a value onto its own parameter is omitted.
+`yield`'s into the results.
+- **Go** has a parallel assignment.
+- **JavaScript, Java and x86** do not: the comma operator is not one, which the term backend was once
+  caught by. They sequentialise it with `plan.Moves`, Rideau, Serpette and Leroy's algorithm ("Tilting
+  at windmills with Coq", JAR 2008, CompCert's): emit a move whose destination no remaining source
+  reads, and when every remaining destination is read, save one into a temporary and rename it. That
+  is one temporary per cycle.
+- **A source may be an expression, not only a name**, when a printer inlines (§9.4). So the
+  dependency is on its **read set**, the identifiers it mentions, and a renaming replaces a whole
+  identifier. With name-equality instead, `a ← (a+1), c ← (a+1)` assigned a first and gave c the new
+  value; the exhaustive test over three variables finds that planted fault.
+- A copy of a value onto its own parameter is omitted.
 
 ### 9.4 The measured decisions, as rules on the IR
 
@@ -640,6 +651,8 @@ hand-written code, and a change to it is re-measured.
 | **several results** | a function's results print as an object on JavaScript, natively on Go and as a record on Java | products (§1.1) | multiresult-2026-08-22 |
 | **buffer reuse** | a `build` in a loop body whose buffer is dead at the `continue` alternates with a spare allocated once | W7: the old buffer has no later read or consumer | 2.5–2.7× (native-gauntlet-2026-08-20) |
 | **element width** | a table's element type is its class's join (Theorem D) | §4.3 | elemwidth-2026-08-27; a soundness question on x86 (wintables-2026-08-25) |
+| **β-inlining (JavaScript)** | a value read once, in the region that defines it, is written at its use instead of bound to a `const` | L1 (β for `let`) and L6. The value is pure and total, and is not moved into a nested region (a loop would repeat it). A read of a **buffer** is inlined only when no effect lies between it and its use, so no store can come between | with conditional expressions (next row), recovered the JSON tokeniser from 1.21× to 1.01× of the term backend (irstep3-2026-09-25) |
+| **conditional expressions (JavaScript)** | an `if`, or a branch terminator, whose arms are expression trees prints `c ? a : b` | the coproduct as a value (L2). Go has none (`Speller.Cond` answers ""), which keeps Go byte-identical | the same measurement |
 | **packed JavaScript arrays** | `build` of a numeric table prints `new Array(n).fill(0)` or a typed array | zero fill is `build`'s meaning (§5.3) | a sparse array is a dictionary on V8 |
 
 **Why bounds-check re-slicing has a side condition.** Today's Go backend applies the rule without one,

@@ -95,8 +95,14 @@ Three prototypes in `experiments/irproto` decided it:
 - a sparse interval analysis on it is 12–115× faster (irp3);
 - a Go printer from it is at parity on the gauntlet (irp2).
 
-**The migration is the current plan**: the JavaScript, Java and x86 printers next, then the analyses one
-domain at a time. The language plan below waits for the printers. Two soundness bugs in the term
+**Step 3 has begun** ([irstep3-2026-09-25](gauntlet/results/irstep3-2026-09-25.md)): the decisions every
+printer shares are `ir/plan`, and **the JavaScript backend is the IR's printer**, `ir/js`, at parity with
+the term backend (0.94–1.01×). `-printer` names the backends printed from the IR: `go,js` by default,
+`terms` for none.
+
+**The migration is the current plan**: the Java and x86 printers next (Java needs final scalar ranges,
+the first slice of the analysis port), then the analyses one domain at a time. The language plan below
+waits for the printers. Two soundness bugs in the term
 backends, found while writing the IR's rules, are queued. The IR's Go printer has neither:
 - bounds-check re-slicing without its premise (spec §9.4);
 - `alloc` of a live buffer aliasing it (irstep1 §4).
@@ -635,7 +641,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
-| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/golang` is the Go backend |
+| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/plan` is what every printer shares; `ir/golang` and `ir/js` are the Go and JavaScript backends |
 | `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |

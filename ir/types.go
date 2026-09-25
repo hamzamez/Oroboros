@@ -186,3 +186,12 @@ func involvesBig(tg *emit.Target, ty string) bool {
 	}
 	return false
 }
+
+// Typed reports whether a target's BACKEND spells a static type for every
+// value: Go and Java do; JavaScript and x86 do not, whatever types their
+// declarations document (JavaScript's `int` is "number"). On an untyped
+// backend `any` is a final type.
+func Typed(tg *emit.Target) bool {
+	b, err := tg.ResolveBackend()
+	return err == nil && (b == "go" || b == "java")
+}

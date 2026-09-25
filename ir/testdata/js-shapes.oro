@@ -1,0 +1,28 @@
+; Shapes the IR's JavaScript printer must get right (ir/js/js_test.go).
+(use js)
+
+(export swap-sum int-div real-div zero-fill)
+
+; A loop that SWAPS two parameters: a cycle in the back edge's parallel move,
+; which JavaScript, having no tuple assignment, must break with a temporary.
+(sig swap-sum ((n (int 0 1000))) int)
+(def swap-sum (n)
+  (loop ((a 1) (b 2) (i 0))
+    (js.>= i n)  (js.+ a (js.* 10 b))
+    else          (again b a (js.+ i 1))))
+
+; ℤ's truncating division is the target's `idiv`.
+(sig int-div ((a (int 0 1000)) (b (int 1 10))) int)
+(def int-div (a b) (js.idiv a b))
+
+; JavaScript's `/` is division in the reals: 7/2 is 3.5, and it must not be
+; printed as ℤ's division.
+(sig real-div ((a (int 0 1000)) (b (int 1 10))) any)
+(def real-div (a b) (js./ a b))
+
+; A build is PACKED on V8: `new Array(n).fill(0)`, which is also the zero fill
+; the language guarantees (tables.md §14.3). Reads the slot written and one not.
+(sig zero-fill ((n (int 0 1))) int)
+(def zero-fill (n)
+  (let t (build b 4 (set b 0 7))
+    (js.+ (t 0) (t 3))))

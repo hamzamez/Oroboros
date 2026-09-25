@@ -58,3 +58,13 @@ func (tg *Target) Agrees(got, want string) bool {
 // (`native-dot` → `NativeDot`), which the gauntlet's callers are written
 // against. The IR's Go printer spells names with it so the two agree.
 func ExportName(s string) string { return export(s) }
+
+// JSMangle is the JavaScript backend's spelling of a name, which the IR's
+// JavaScript printer uses so callers see the same exports.
+func JSMangle(s string) string { return jsMangle(s) }
+
+// MultiPrimDests reports whether a several-result template assigns into
+// destinations (a host that signals failure out of band) rather than being the
+// tuple itself; FillDests writes those destinations in.
+func MultiPrimDests(form string, n int) bool       { return multiPrimDests(form, n) }
+func FillDests(form string, dests []string) string { return fillDests(form, dests) }

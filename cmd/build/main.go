@@ -19,6 +19,7 @@ import (
 	"oroboros/emit"
 	"oroboros/ir"
 	"oroboros/ir/golang"
+	"oroboros/ir/js"
 )
 
 func main() {
@@ -29,7 +30,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
-	flag.StringVar(&printer, "printer", "ir", "the Go backend: `ir`, the IR's printer (ir/golang, ADR 0032), or `terms`, the term backend it replaced (emit/golang.go), kept for comparison")
+	flag.StringVar(&printer, "printer", "go,js", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`, or the reason to FILE.err; it changes nothing that is built")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
@@ -289,7 +290,11 @@ checks:
 	var code string
 	switch backend {
 	case "js":
-		code, err = emit.JSFunc(tg, "oro-main", esig, nf)
+		if printsIR("js") {
+			code, err = js.FromResidual(tg, "oro-main", esig, nf)
+		} else {
+			code, err = emit.JSFunc(tg, "oro-main", esig, nf)
+		}
 	case "java":
 		code, err = emit.JavaMethod(tg, "oro-main", esig, nf)
 	case "x86-64":
@@ -298,7 +303,7 @@ checks:
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
 	case "go":
-		if printer == "ir" {
+		if printsIR("go") {
 			code, err = golang.FromResidual(tg, "oro-main", esig, nf)
 		} else {
 			code, err = emit.Func(tg, "oro-main", esig, nf)
@@ -417,3 +422,13 @@ var irOut string
 
 // printer is -printer, as gen's.
 var printer string
+
+// printsIR reports whether -printer names a backend.
+func printsIR(backend string) bool {
+	for _, b := range strings.Split(printer, ",") {
+		if strings.TrimSpace(b) == backend || b == "ir" {
+			return true
+		}
+	}
+	return false
+}

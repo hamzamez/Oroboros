@@ -531,8 +531,11 @@ target's emitted code, outcome, proof counts and refusal text against the baseli
 - **otherwise fix the code.**
 
 **Compile time is gated too** (gauntlet/check/README.md, "The rule for compile time"): a compile at
-1.5× its baseline time **and** 250 ms slower is a change for review, confirmed by a second sweep
-before it is reported, and kept only with `-accept`. **A faster compile is the mirror**, reported and
+1.5× its baseline time **and** 250 ms slower is a change for review, kept only with `-accept`.
+Before it is reported it must survive a second sweep and then a **pair**: serial, interleaved runs
+against `gen` built from the commit that last wrote `compiletime.txt`, at `GOMAXPROCS=1`. A
+neighbour's load moves freq 1.6× in the sweep, and only a pair cancels it
+([compiletime-2026-09-25](gauntlet/results/compiletime-2026-09-25.md)). **A faster compile is the mirror**, reported and
 recorded by `-accept`; a gain below the rule's resolution is locked in deliberately with
 `-accept "reason" -retime`. Profile one compile with `go run ./cmd/gen -cpuprofile FILE …`. The sweep's times are not serial times — the
 tokeniser costs ~2.5× its serial time among 16 parallel compiles — so **to say how long one program

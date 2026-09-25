@@ -21,11 +21,15 @@ import (
 // WHAT IS MEASURED is the CPU time — user plus system — of each `gen` process in
 // the emission sweep. That is not the serial time a person waits for: the sweep
 // runs 16 compilations at once on a hybrid P/E-core machine, and the tokeniser
-// costs about 2.5x its serial time there. But it is REPEATABLE, because the job
-// order is fixed and so is the contention it meets: across three sweeps of one
-// compiler the heavy compiles varied by at most 1.21x (max/min), and the sweep's
-// total by 0.6%. A gate needs repeatability against a baseline taken the same
-// way, not an absolute truth.
+// costs about 2.5x its serial time there. It is REPEATABLE on a quiet machine,
+// because the job order is fixed and so is the contention it meets: across three
+// sweeps of one compiler the heavy compiles varied by at most 1.21x (max/min),
+// and the sweep's total by 0.6%. It is NOT repeatable against a neighbour's
+// load, which moves a long compile between P- and E-cores and changes how many
+// idle cores Go's collector soaks up: freq read 1.63x in two consecutive sweeps
+// with the compiler unchanged (compiletime-2026-09-25). So the sweep SCREENS,
+// and a suspect it keeps twice is decided by a pair against the baseline's own
+// binary (paired.go).
 //
 // THE NOISE MODEL. An observation is t·m·(1+ε), where m is the machine's speed
 // that day (the same binary measured 7.0 s on 2026-09-17 and 8.8 s on
@@ -154,6 +158,17 @@ func parseTimes(text string) (map[timeKey]time.Duration, error) {
 type slowCompile struct {
 	key       timeKey
 	base, now time.Duration
+
+	// The paired measurement (paired.go), when one was made: the minimum of the
+	// baseline's binary and of this one, timed alternately and serially.
+	pairBase, pairNow time.Duration
+}
+
+func (s slowCompile) pairRatio() float64 {
+	if s.pairBase <= 0 {
+		return 0
+	}
+	return float64(s.pairNow) / float64(s.pairBase)
 }
 
 func (s slowCompile) ratio() float64 {
@@ -174,7 +189,7 @@ func slower(base, now map[timeKey]time.Duration) []slowCompile {
 		}
 		n := now[k]
 		if float64(n) >= slowRatio*float64(b) && n-b >= slowDelta {
-			out = append(out, slowCompile{k, b, n})
+			out = append(out, slowCompile{key: k, base: b, now: n})
 		}
 	}
 	return out
@@ -202,7 +217,7 @@ func faster(base, now map[timeKey]time.Duration) []slowCompile {
 		}
 		n := now[k]
 		if float64(b) >= slowRatio*float64(n) && b-n >= slowDelta {
-			out = append(out, slowCompile{k, b, n})
+			out = append(out, slowCompile{key: k, base: b, now: n})
 		}
 	}
 	return out
@@ -252,7 +267,7 @@ func (c *checker) compileTime(baseDir string, outs []outcome) (note string, slow
 		return "", nil, err
 	}
 	confirmed := ""
-	if len(slower(base, now)) > 0 {
+	if first := len(slower(base, now)); first > 0 {
 		// A SUSPECT EXPLAINS ITSELF before it is recorded: the same sweep again, the
 		// per-compile minimum, and the rule applied to that. A real regression
 		// survives; a neighbour's GC does not.
@@ -260,9 +275,23 @@ func (c *checker) compileTime(baseDir string, outs []outcome) (note string, slow
 			return "", nil, err
 		}
 		now = c.times
-		confirmed = "; a second sweep confirmed it"
+		confirmed = fmt.Sprintf("; a second sweep kept %d of %d suspect(s)", len(slower(base, now)), first)
 	}
 	slow = slower(base, now)
+	if len(slow) > 0 {
+		// AND THEN AGAINST THE BASELINE'S OWN BINARY, PAIRED (paired.go). Both
+		// sweeps sample the same afternoon; a pair measures both compilers in it.
+		var cleared []slowCompile
+		var pnote string
+		slow, cleared, pnote = c.pairSuspects(slow)
+		confirmed += pnote
+		// A cleared compile keeps its baseline time. The sweep's was inflated by
+		// whatever the pair cancelled, and -accept recording it would widen the
+		// gate by exactly the noise it just refused to report.
+		for _, s := range cleared {
+			c.times[s.key] = s.base
+		}
+	}
 	c.fast = faster(base, now)
 	med, n := drift(base, now)
 	note = fmt.Sprintf("compile time %.2fx the baseline (median of %d compiles over %d ms)%s",

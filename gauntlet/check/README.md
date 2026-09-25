@@ -71,18 +71,42 @@ was 234 ms when it went to 2,109.
 
 **What is measured** is the CPU time of each `gen` process in the emission sweep — user plus system.
 It is not the time a person waits: the sweep runs 16 compilations at once, and the tokeniser costs
-about 2.5× its serial time there. It is **repeatable**, because the job order and so the contention
-are fixed, and repeatability against a baseline taken the same way is what a gate needs. This run's
-times, with wall time beside them, are in `.check/compiletime.txt`.
+about 2.5× its serial time there. It is **repeatable on a quiet machine**, because the job order and
+so the contention are fixed. It is **not repeatable against a neighbour's load**
+([compiletime-2026-09-25](../results/compiletime-2026-09-25.md)):
+- the same compile of freq costs 1.6× the CPU on an E-core as on a P-core;
+- Go's collector runs idle mark workers on every idle core, so a GC-heavy compile's CPU time also
+  grows with how many cores happen to be idle.
+
+Under load, freq read 1.63× in two consecutive sweeps with the compiler unchanged. So **the sweep
+screens, and a pair decides.** This run's times, with wall time beside them, are in
+`.check/compiletime.txt`.
 
 **Noise only adds time** — an E-core, a cache miss, a neighbour's GC — so the minimum over repeated
 observations is the estimate (Chen & Revels, *Robust benchmarking in noisy environments*, 2016).
-Two consequences:
+Three consequences:
 
 - **the baseline is the minimum of two sweeps**, because one slow baseline would hide a regression;
 - **a suspect explains itself before it is reported**: the sweep runs again and the rule is applied
   to the per-compile minimum. A clean run pays nothing for this. The second sweep also compares the
-  two sweeps' emission, which is the only place the check runs the emitter twice.
+  two sweeps' emission, which is the only place the check runs the emitter twice;
+- **a suspect both sweeps keep is PAIRED against the baseline's own binary.**
+  - That binary is `gen` built from the commit that last wrote `compiletime.txt`, in a tree extracted
+    with `git archive`, so it reads its own targets and sources.
+  - It and this run's `gen` compile the suspect alternately and serially, three pairs each, with
+    `GOMAXPROCS=1`. gen is single-threaded, so one P changes only how its collector is scheduled,
+    and CPU time becomes the compile's work.
+  - The rule is applied to the ratio of the two minima. Whatever the machine is doing, it does to
+    both.
+
+  A suspect the pair clears is **not reported** and **keeps its baseline time**, so `-accept` never
+  records the inflated one. A suspect it confirms is listed with both figures. When no pair can be
+  made, the suspect stands and the note says why: `compiletime.txt` has uncommitted changes, or the
+  baseline commit does not build.
+
+  **Serial alone would not do.** freq costs 0.68× its sweep time serially, so a serial time held
+  against the sweep's baseline would let a 1.47× regression through. The pair costs minutes (6 to 8
+  with freq's three targets), and only on a run the sweep flagged twice.
 
 **The machine moves too.** The same binary measured 7.0 s on 2026-09-17 and 8.8 s on 2026-09-21. So
 the verdict carries the **median ratio** over the compiles above 300 ms: one regression moves a few

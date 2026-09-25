@@ -433,8 +433,8 @@ func (c *checker) emission() result {
 	}
 	fmt.Printf("   %s\n", note)
 	for _, s := range slow {
-		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx\n", "compiles SLOWER", s.key,
-			s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
+		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx%s\n", "compiles SLOWER", s.key,
+			s.base/time.Millisecond, s.now/time.Millisecond, s.ratio(), s.pairedText())
 	}
 	for _, s := range c.fast {
 		fmt.Printf("   %-24s %s  %d → %d ms, %.2fx\n", "compiles faster", s.key,
@@ -527,7 +527,7 @@ func (c *checker) acceptBaseline(reason string, tooling status) error {
 	case len(c.slow) > 0:
 		fmt.Fprintf(&b, "\n%d compile(s) accepted SLOWER — %s:\n\n", len(c.slow), c.timeNote)
 		for _, s := range c.slow {
-			fmt.Fprintf(&b, "- `%s` %d → %d ms, %.2fx\n", s.key, s.base/time.Millisecond, s.now/time.Millisecond, s.ratio())
+			fmt.Fprintf(&b, "- `%s` %d → %d ms, %.2fx%s\n", s.key, s.base/time.Millisecond, s.now/time.Millisecond, s.ratio(), s.pairedText())
 		}
 	}
 	if len(c.fast) > 0 {

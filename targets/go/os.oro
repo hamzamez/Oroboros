@@ -70,9 +70,9 @@
     ; the whole sequence or not at all (string-operations.md §5).
     ; RAW, and so the host's string (ADR 0030): `string(b)` keeps every byte.
     ; The portable `os.text-of` (lib/os) decodes; this one does not.
-    (sig text-of ((b (array (int 0 255)))) go.bytestring pure (host expr "string(%s)"))
+    (sig text-of ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
 
     ; ---- the environment, so a program can be told what to open
     ; The OS's own strings: bytes on Unix, so the host's type (ADR 0030).
-    (sig Args () (array go.bytestring) (host expr "os.Args" (import "os")))
-    (sig Getenv ((k string)) go.bytestring pure (host expr "os.Getenv(%s)" (import "os")))))
+    (sig Args () (array bytestring) (host expr "os.Args" (import "os")))
+    (sig Getenv ((k string)) bytestring pure (host expr "os.Getenv(%s)" (import "os")))))

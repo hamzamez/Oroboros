@@ -367,7 +367,11 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   module** — a child's path is its parent's followed by its own, so a companion is written inside its
   package ([target-files.md §1a](docs/spec/target-files.md),
   [nestmod-2026-09-20](gauntlet/results/nestmod-2026-09-20.md)). The absolute spelling stays legal,
-  because a fragment in another layer must be able to add to a module it does not enclose.
+  because a fragment in another layer must be able to add to a module it does not enclose. **A bare
+  type name resolves lexically** — the declaring module, each enclosing module by path, then the root,
+  on the glued target, with shadowing refused — so a companion writes `(self NumError)` and a child of
+  `go` writes `bytestring` ([theories.md §3.4](docs/spec/theories.md), ADR 0021,
+  [names-2026-09-25](gauntlet/results/names-2026-09-25.md)).
 - **Host declarations are written by hand**, by someone who read the host's source. The generator
   checks them (ADR 0022) and never claims what it cannot justify (ADR 0023).
 - **What a host call does to a buffer** is declared as a write-borrow or a consume, following

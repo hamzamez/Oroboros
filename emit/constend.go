@@ -203,15 +203,11 @@ func (tg *Target) substIn(t *core.Term, mod, file string) (*core.Term, error) {
 // is `(int v v)` denotes v and can denote nothing else, so the type already says
 // what the value is. `const` is the sugar that writes it once instead of twice.
 //
-// Resolution is a term's: the module's own name first, then the bare one — the
-// rule theories.md §3.4 states for types, and the same one `Module.resolve`
-// applies inside a program.
+// Resolution is a term's, and one rule for every name (names.go): the module's
+// own, then each enclosing module's, then the bare one — theories.md §3.4.
 func (tg *Target) constValue(mod, name, file string) (int64, error) {
-	for _, q := range []string{qualify(mod, name), name} {
-		p, ok := tg.Prims[q]
-		if !ok {
-			continue
-		}
+	if q, ok := resolveIn(mod, name, func(k string) bool { _, ok := tg.Prims[k]; return ok }); ok {
+		p := tg.Prims[q]
 		lo, hi, ok := core.IntRange(p.Result)
 		if !ok || lo != hi || len(p.Args) > 0 || len(p.Results) > 0 || !p.Pure {
 			return 0, fmt.Errorf("%s: %s is a range endpoint, so it must be a CONSTANT — a pure "+

@@ -39,14 +39,14 @@
     ; lower half, which is what the analysis can use, and `Write must return a
     ; non-nil error if it returns n < len(p)` is the caller's business.
     (module Writer
-      (sig Write ((self go/io.Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+      (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
         (host expr "%s.Write(%s)")))
 
     ; `Close() error`. Idempotence is NOT claimed: io.go says the behaviour of
     ; Close after the first call is undefined, which is a precondition no type can
     ; carry, so it is named here and not declared.
     (module Closer
-      (sig Close ((self go/io.Closer)) error
+      (sig Close ((self Closer)) error
         (host expr "%s.Close()")))
 
     ; `type WriteCloser interface { Writer; Closer }` — io.go's own definition, so
@@ -69,5 +69,5 @@
     ; an error, which is the caller's to check. encoding/binary's varint readers
     ; take one (added 2026-09-22 for them).
     (module ByteReader
-      (sig ReadByte ((self go/io.ByteReader)) (tuple (int 0 255) error)
+      (sig ReadByte ((self ByteReader)) (tuple (int 0 255) error)
         (host expr "%s.ReadByte()")))))

@@ -168,15 +168,15 @@ func (tg *Target) unfoldAliases() error {
 	return nil
 }
 
-// alias resolves a type name the way a term name resolves: the module's own
-// first, then the bare one (theories.md §3.4).
+// alias resolves a type name the way a term name resolves, by the one rule
+// (names.go): the module's own, each enclosing module's, then the bare one
+// (theories.md §3.4).
 func (tg *Target) alias(mod, n string) (string, string, bool) {
-	for _, k := range []string{qualify(mod, n), n} {
-		if ty, ok := tg.Aliases[k]; ok {
-			return k, ty, true
-		}
+	k, ok := resolveIn(mod, n, func(k string) bool { _, ok := tg.Aliases[k]; return ok })
+	if !ok {
+		return "", "", false
 	}
-	return "", "", false
+	return k, tg.Aliases[k], true
 }
 
 // moduleOf and baseOf split a qualified name. A module path may contain `/` and

@@ -83,9 +83,9 @@
     ; ---------------------------------------------------------- quoting
     ; Q : strings → Go string literals, an injection; Unquote is its partial
     ; left inverse, and accepts backquoted and single-quoted literals too.
-    (sig Quote          ((s go.bytestring)) string pure (host expr "strconv.Quote(%s)" (import "strconv")))
-    (sig QuoteToASCII   ((s go.bytestring)) string pure (host expr "strconv.QuoteToASCII(%s)" (import "strconv")))
-    (sig QuoteToGraphic ((s go.bytestring)) string pure (host expr "strconv.QuoteToGraphic(%s)" (import "strconv")))
+    (sig Quote          ((s bytestring)) string pure (host expr "strconv.Quote(%s)" (import "strconv")))
+    (sig QuoteToASCII   ((s bytestring)) string pure (host expr "strconv.QuoteToASCII(%s)" (import "strconv")))
+    (sig QuoteToGraphic ((s bytestring)) string pure (host expr "strconv.QuoteToGraphic(%s)" (import "strconv")))
     (sig QuoteRune          ((r int32)) string pure (host expr "strconv.QuoteRune(int32(%s))" (import "strconv")))
     (sig QuoteRuneToASCII   ((r int32)) string pure (host expr "strconv.QuoteRuneToASCII(int32(%s))" (import "strconv")))
     (sig QuoteRuneToGraphic ((r int32)) string pure (host expr "strconv.QuoteRuneToGraphic(int32(%s))" (import "strconv")))
@@ -106,7 +106,7 @@
     (sig IsGraphic ((r int32)) bool pure (host expr "strconv.IsGraphic(int32(%s))" (import "strconv")))
     ; `\x` and octal escapes denote BYTES, so Unquote's result is the host's
     ; string: `Unquote("\xff")` is 0xFF, not a scalar (ADR 0030).
-    (sig Unquote      ((s string)) (tuple go.bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
+    (sig Unquote      ((s string)) (tuple bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
     (sig QuotedPrefix ((s string)) (tuple string error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
     ; ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
     ; worst), a \x or octal escape (at most 255; octal past it is an error), or a
@@ -120,12 +120,12 @@
     ; ---------------------------------------------------------- the error
     ; A struct literal, as the generator spells one: Func, Num and Err are all a
     ; NumError holds.
-    (sig NumError ((err error) (func string) (num string)) go/strconv.NumError
+    (sig NumError ((err error) (func string) (num string)) NumError
           (host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" (import "strconv")))
 
     ; ITS METHOD SET, written inside the package: `go/strconv/NumError`.
     (module NumError
-      (sig Error  ((self go/strconv.NumError)) string pure (host expr "%s.Error()" (import "strconv")))
-      (sig Unwrap ((self go/strconv.NumError)) error pure (host expr "%s.Unwrap()" (import "strconv"))))
+      (sig Error  ((self NumError)) string pure (host expr "%s.Error()" (import "strconv")))
+      (sig Unwrap ((self NumError)) error pure (host expr "%s.Unwrap()" (import "strconv"))))
   )
 )

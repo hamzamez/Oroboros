@@ -123,7 +123,7 @@
     ; `go/encoding/hex/InvalidByteError` (spec/target-files.md §1a). A child
     ; named like a type in its parent IS that type's method set.
     (module InvalidByteError
-      (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+      (sig Error ((self InvalidByteError)) string pure
             (host expr "%s.Error()" (import "encoding/hex"))))
   )
 )

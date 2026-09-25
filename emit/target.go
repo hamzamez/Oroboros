@@ -359,24 +359,42 @@ func LoadTarget(path string) (*Target, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := tg.resolveDeferred(); err != nil {
+	if err := tg.finish(func(err error) error { return fmt.Errorf("%s: %w", path, err) }); err != nil {
 		return nil, err
 	}
+	return tg, nil
+}
+
+// finish takes a glued target to the one the compiler uses: constants, then
+// names, then aliases, the core, companions and the checks. ONE SEQUENCE FOR
+// BOTH LOADERS. LoadTarget and LoadTargetLayers each carried a copy, and the
+// name resolution of names-2026-09-25 went into one and not the other — so a
+// target loaded by directory named `bytestring` bare and one loaded by layers
+// resolved it. `wrap` is how a loader labels an error; the constants' own
+// messages already name their file.
+func (tg *Target) finish(wrap func(error) error) error {
+	if err := tg.resolveDeferred(); err != nil {
+		return err
+	}
+	// A BARE TYPE NAME RESOLVES IN ITS MODULE, on the glued target (names.go).
+	if err := tg.resolveTypeNames(); err != nil {
+		return wrap(err)
+	}
 	if err := tg.unfoldAliases(); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return wrap(err)
 	}
 	tg.addCore()
 	if err := tg.expandCompanions(); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return wrap(err)
 	}
 	tg.closeImplements()
 	if err := tg.checkViews(); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return wrap(err)
 	}
 	if err := tg.checkWord(); err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return wrap(err)
 	}
-	return tg, nil
+	return nil
 }
 
 // checkWord holds a whole target to ADR 0026: a target says what interval its
@@ -603,21 +621,7 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 			name, strings.Join(dirs, string(filepath.ListSeparator)))
 	}
 	sort.Strings(out.Names)
-	if err := out.resolveDeferred(); err != nil {
-		return nil, err
-	}
-	if err := out.unfoldAliases(); err != nil {
-		return nil, err
-	}
-	out.addCore()
-	if err := out.expandCompanions(); err != nil {
-		return nil, err
-	}
-	out.closeImplements()
-	if err := out.checkViews(); err != nil {
-		return nil, err
-	}
-	if err := out.checkWord(); err != nil {
+	if err := out.finish(func(err error) error { return err }); err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -3563,18 +3567,16 @@ func (tg *Target) SameHostType(a, b string) bool {
 	// right for an opaque host type named under two keys, would let host bytes
 	// pass as ours in both directions. The direction that holds is a declared
 	// edge (`implements`), and the way back is a decode, not a coercion.
-	if languageTypes[a] || languageTypes[b] {
+	// langTypes (alias.go) are the types the language defines, which a target
+	// REALIZES and does not own: their realization is their representation, not
+	// their identity (ADR 0003).
+	if langTypes[a] || langTypes[b] {
 		return false
 	}
 	sa, oka := tg.Types[a]
 	sb, okb := tg.Types[b]
 	return oka && okb && sa != "" && sa == sb
 }
-
-// languageTypes are the types the language defines, which a target REALIZES and
-// does not own: their realization is their representation, not their identity
-// (ADR 0003).
-var languageTypes = map[string]bool{"string": true, "int": true, "f64": true, "bool": true}
 
 // BufferRoot follows a threaded buffer back to the name it came from.
 // `(set (set b i v) j w)` writes to `b`, and a program with two live buffers —

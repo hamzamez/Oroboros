@@ -36,12 +36,12 @@
     ; ---- formatting to a string. Pure: same operands, same string, no effect.
     ; The HOST's string (ADR 0030): an `any` argument may itself be host bytes,
     ; and `%s` prints a byte slice raw, so the result need not be valid UTF-8.
-    (sig Sprint    (any) go.bytestring            pure             (host expr "fmt.Sprint(%s)" (import "fmt")))
-    (sig Sprint2   (any any) go.bytestring        pure         (host expr "fmt.Sprint(%s, %s)" (import "fmt")))
-    (sig Sprintln  (any) go.bytestring          pure             (host expr "fmt.Sprintln(%s)" (import "fmt")))
-    (sig Sprintf   (string any) go.bytestring       pure      (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
-    (sig Sprintf2  (string any any) go.bytestring   pure  (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
-    (sig Sprintf3  (string any any any) go.bytestring pure
+    (sig Sprint    (any) bytestring            pure             (host expr "fmt.Sprint(%s)" (import "fmt")))
+    (sig Sprint2   (any any) bytestring        pure         (host expr "fmt.Sprint(%s, %s)" (import "fmt")))
+    (sig Sprintln  (any) bytestring          pure             (host expr "fmt.Sprintln(%s)" (import "fmt")))
+    (sig Sprintf   (string any) bytestring       pure      (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
+    (sig Sprintf2  (string any any) bytestring   pure  (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
+    (sig Sprintf3  (string any any any) bytestring pure
                     (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
 
     ; ---- errors

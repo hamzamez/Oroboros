@@ -15,6 +15,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
+	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
 	flag.Usage = func() {
@@ -168,6 +170,8 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	}
 
 	funcs := map[string]string{}
+	irProg := &ir.Program{Target: target, Stage: ir.StageA}
+	var irErrs []string
 	for _, u := range units {
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
 		if err != nil {
@@ -293,6 +297,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			nf = sh
 			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, k)
 		}
+		// THE IR (ADR 0032), lowered from exactly what the backend receives. It is
+		// written beside the code and changes nothing the backend does; cmd/check's
+		// `ir` step reads it (docs/spec/ir.md §11: lowering is total on the corpus).
+		if irOut != "" {
+			if f, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true}); err != nil {
+				irErrs = append(irErrs, err.Error())
+			} else {
+				irProg.Funcs = append(irProg.Funcs, f)
+			}
+		}
 		// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
 		var code string
 		switch backend {
@@ -330,8 +344,19 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	if err := os.WriteFile(out, []byte(text2), 0o644); err != nil {
 		return err
 	}
+	if irOut != "" {
+		writeIR(tg, irProg, irErrs)
+	}
 	fmt.Printf("wrote %s\n", out)
 	return nil
+}
+
+// irOut is -ir's file.
+var irOut string
+
+// writeIR is ir.WriteFile on -ir's file.
+func writeIR(tg *emit.Target, p *ir.Program, errs []string) {
+	_ = ir.WriteFile(irOut, tg, p, errs)
 }
 
 // fileResolver finds a module on a search path: `(use num/vec)` looks for

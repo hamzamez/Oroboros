@@ -111,6 +111,12 @@ func (c *checker) sweep(dir string) ([]outcome, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return nil, err
 	}
+	if err := os.RemoveAll(irDir(c.work)); err != nil {
+		return nil, err
+	}
+	if err := os.MkdirAll(irDir(c.work), 0o755); err != nil {
+		return nil, err
+	}
 	gen := filepath.Join(c.work, "bin", "gen")
 	if runtime.GOOS == "windows" {
 		gen += ".exe"
@@ -172,6 +178,7 @@ func (c *checker) compile(gen, dir, source, target string, checked bool) outcome
 	if checked {
 		args = append(args, "-checked")
 	}
+	args = append(args, "-ir", filepath.Join(irDir(c.work), irName(source, target)))
 	args = append(args, source, target, file)
 	cmd := exec.Command(gen, args...)
 	cmd.Dir = c.root

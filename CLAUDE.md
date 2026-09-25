@@ -75,15 +75,24 @@ with no clamps.
   library written in the language over a package pair (`math/bits`, `strconv`).
 
 **The IR** ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](docs/spec/ir.md)) is
-specified and **not built**. It is structured SSA with π-parameters between the residual and every
-backend and analysis, and it realizes ADR 0006. The derivation is [ir-research.md](docs/ir-research.md).
+structured SSA with π-parameters between the residual and every backend and analysis, and it realizes
+ADR 0006. **Step 1 is built** in `ir/` ([irstep1-2026-09-25](gauntlet/results/irstep1-2026-09-25.md)):
+- lowering, typing by unification, the verifier (W1–W10) and the canonical printer and reader;
+- `gen -ir` and `build -ir`;
+- `cmd/check`'s `ir` step, where all 242 emitted programs lower and verify;
+- the differential runner's check of its 169 builds.
+
+No printer reads the IR yet. The derivation is [ir-research.md](docs/ir-research.md).
 Three prototypes in `experiments/irproto` decided it:
 - lowering is nearly free (irp1);
 - a sparse interval analysis on it is 12–115× faster (irp3);
 - a Go printer from it is at parity on the gauntlet (irp2).
 
-**The migration is the current plan**: lowering and a verifier, then the Go printer, then the others,
-then the analyses one domain at a time. The language plan below waits for the Go printer.
+**The migration is the current plan**: the Go printer next, then the others, then the analyses one
+domain at a time. The language plan below waits for the Go printer. Two soundness bugs in the shipped
+backends, found while writing the IR's rules, are queued:
+- bounds-check re-slicing without its premise (spec §9.4);
+- `alloc` of a live buffer aliasing it (irstep1 §4).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
@@ -601,6 +610,7 @@ go run ./cmd/gen -name tree examples/json/tree.oro go gauntlet/go/gen_jsontree.g
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
 go run ./cmd/intervals examples/native/sieve-go.oro go   # what the interval analysis proves, per exported definition (a main-only program reports 0/0)
 go run ./cmd/portable examples/io/wc.oro                  # which targets accept a program, why the others refuse, and W(S) — ADR 0026
+go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   # also write the canonical IR (docs/spec/ir.md)
 ```
 
 - `gauntlet/go`, `gauntlet/js`, `gauntlet/java` and `experiments/legibility` are **separate modules**.
@@ -618,6 +628,7 @@ go run ./cmd/portable examples/io/wc.oro                  # which targets accept
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
+| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader |
 | `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |

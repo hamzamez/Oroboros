@@ -1,7 +1,9 @@
 # The IR: structured SSA with π-parameters
 
-Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)); **not yet built
-in the compiler.** It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)). **Step 1 is built**
+([irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)): lowering, typing, the verifier and
+the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified, and no
+printer reads the IR yet. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -146,6 +148,7 @@ because it is an instance of one of these equations. Each is named where it is u
 | **L9** π | a π-parameter equals its source | §6 |
 | **L10** connectives | `(if c true E)` is `c ∨ E`, and `(if c E false)` is `c ∧ E` | their definition (ADR 0017, booleans.md) |
 | **L11** tabulate | `tabulate n f` = `build n`, then store `f i` at every `i < n` | tables.md: a rule table's allocation |
+| **L12** η for tables | `tabulate (len t) (i ↦ t i)` = `t`, for an immutable table t | a table is a function on Fin (len t) (tables.md §3), and extensional equality. It does **not** hold for a live buffer, whose later stores the copy must not see |
 
 **What is not a law.** Weakening and contraction of an **impure** operation (ADR 0010), and either
 one for a **buffer** value (ADR 0018). No rewrite may copy, drop or reorder one.
@@ -157,7 +160,7 @@ one for a **buffer** value (ADR 0018). No rewrite may copy, drop or reorder one.
 ### 2.1 Grammar
 
 ```
-program  ::= (ir VERSION (target T) (ops OPNAME…) global… func…)
+program  ::= (ir VERSION (target T) (stage A|P) (ops OPNAME…) global… func…)
 global   ::= (global NAME τ const-graph)                      §2.4
 func     ::= (func NAME (params PARAM…) (results τ…) region)
 PARAM    ::= (%N τ)
@@ -168,7 +171,7 @@ REL      ::= eq | ne | lt | le | gt | ge
 stmt     ::= (val PARAM… op)                                   one or more results
            | (do op)                                           no result
 op       ::= (const LIT) | (global NAME)
-           | (ARITH MODE %a…) | (CMP %a %b)
+           | (ARITH [MODE] %a…) | (CMP %a %b)
            | (call NAME %a…)
            | (index %t %i) | (len %t) | (array %a…) | (map (%k %v)…)
            | (read %m %k) | (keys %m) | (set %b %i %x) | (insert %m %k %x)
@@ -179,7 +182,7 @@ op       ::= (const LIT) | (global NAME)
 term     ::= (yield %a…) | (break %a…) | (continue %a…) | (branch %c region region)
 ARITH    ::= add | sub | mul | neg | div | rem
 CMP      ::= eq | ne | lt | le | gt | ge
-MODE     ::= exact | trap                                      §4.4
+MODE     ::= exact | trap                                      §4.4; absent only in IR_A
 ```
 
 `%N` is a value: a decimal id, unique in its function. `τ` is a type (§4.1), and `LIT` an integer,
@@ -200,6 +203,23 @@ off.
 A parameter, a π and every result of a `val` carry their type. **A printer infers nothing.** P2's
 275 lines of unification (irp2 §6) are the compiler's job, done once, and their result is written into
 the file.
+
+**How lowering types IR_A** (`ir/typing.go`). The residual is monomorphic and first-order, so a
+value's *sort* is the **most general unifier** (Robinson) of a set of equations over the free algebra
+of type constructors: `int`, `f64`, `bool`, `string` and host atoms of arity 0, `table` of arity 1 and
+`map` of arity 2. Literals, signatures and each primitive's declared arguments and results seed the
+equations. The algebra is taken modulo two identifications:
+- **ρ_T's kernel on a declared alias.** Go's `slice-float64` is realized exactly as `(array f64)`, so
+  the two are one sort. The alias is inverted over a finite candidate set, and only when the inverse
+  is unique.
+- **`any` is the top of the language's type relation** (types.md), not a constructor: it satisfies
+  every equation and fixes nothing.
+
+A buffer and a table are one sort, and which one a value is, is the least solution of the flow rules
+of ADR 0018 and 0020. A range is written only where a definition **declares** one (a signature, a
+primitive's result, an ascription). Every other integer is `int`, the target's word, until the
+analyses write the final range (§7). A value no equation reaches is `any`, which IR_A allows and IR_P
+does not (W9).
 
 ### 2.3 Regions own their parameters
 
@@ -239,17 +259,26 @@ a verifier, run after lowering and after every pass that rewrites the IR.
   results match Σ, and a `call`'s match the primitive's declared results.
 - **W5 (typing).** Every operation is applied to operands of the types its rule requires (§4.3), and
   every value flowing along an edge (an operand, `yield`, `break` or `continue` into a parameter or
-  result) satisfies §4.3's flow rule.
+  result) satisfies the flow rule. Its reading depends on the stage:
+  - **in IR_A it compares sorts**. Every range is read as the representation ρ_T gives it (`int`,
+    `u64`, `big`), through tables and maps, and the relation is the type checker's own (types.md).
+    Whether a value lies in a declared range is an **obligation** (ADR 0028) that the analyses
+    discharge. It is not a typing question: an unranged `(array int)` flowing into `os.text-of`'s
+    `(array (int 0 255))` is well typed in IR_A, and its range is proven or the program is refused;
+  - **in IR_P it is containment**, τ ≤ σ iff ⟦τ⟧ ⊆ ⟦σ⟧ (§4.1), covariant in elements, with equal
+    element representations for tables (§4.3).
 - **W6 (π).** A π's type is contained in its source's type, and its source and other operand are in
   scope. A length π's source is a table or buffer.
 - **W7 (linearity).** A buffer-typed value is **consumed** (a `set`, an `insert`, a `yield` or
   `break` out of its scope, a `continue`, or a `call` declared to consume it, host-buffers.md) **at
-  most once on every path**. It is read (`index`, `len`, a borrowing `call`) only before it is
-  consumed. `set` and `insert` take a live buffer and never a frozen table (ADR 0031).
+  most once on every path**. It is read (`index`, a borrowing `call`) only before it is consumed.
+  **`len` is not a use**: `set` passes its buffer's length through, so len ∘ set = len ∘ π₁ and the
+  length of a consumed buffer is its successor's. The language's checker makes the same exemption
+  (`emit/linearity.go`), which the Windows map library needs. `set` and `insert` take a live buffer and never a frozen table (ADR 0031).
 - **W8 (effects).** Impure operations are ordered by their position in the region, and a rewrite
   keeps that order (L6 applies only to pure ones).
-- **W9 (the stage).** An IR_P program contains no `the` and no `require`, and every type in it is
-  final (§7).
+- **W9 (the stage).** An IR_P program contains no `the` and no `require`, every arithmetic
+  operation has a mode, and every type in it is final (§7): no `any`.
 - **W10 (covering).** Every operation used is in the header's `ops`, and every `call` names a
   primitive the target declares (ADR 0002).
 
@@ -260,12 +289,19 @@ a verifier, run after lowering and after every pass that rewrites the IR.
 ### 4.1 The types
 
 ```
-τ ::= (int LO HI) | f64 | bool | string | (host NAME)
+τ ::= (int LO HI) | int | f64 | bool | string | NAME
     | (array τ) | (buffer τ) | (map τ τ)
 ```
 
-These are the language's types (types.md), with the range written out. `string` is Σ* (ADR 0030),
-and `(host NAME)` is a host's own type (`go.bytestring`).
+These are the language's types (types.md), with the range written out. `string` is Σ* (ADR 0030).
+- A bare `int` abbreviates `(int LO_T HI_T)`, the target's word. It is what IR_A writes for an
+  integer whose range no definition declared.
+- A bare NAME is a type the target declares: a host's own type (`go.bytestring`, `slice-float64`), or
+  a representation above the word (`u64`, `big`).
+- `any` is written for a value no equation reached (§2.2), in IR_A only.
+
+Inside the compiler a type is its canonical spelling (`array int 0 255`), and `TypeText` and the
+reader are inverse bijections between the two spellings.
 
 Their sets:
 - ⟦(int LO HI)⟧ = { n ∈ ℤ | LO ≤ n ≤ HI };
@@ -481,7 +517,7 @@ its binder's frame, and `openFresh` is not called.
 | `(loop (fn (x̄) body) z̄)` | `(loop z̄ R)`: `again` becomes `continue`, and a leaf becomes `break` |
 | `(build n (fn (b) body))`, `build-map` | `(build n R)`, `(build-map n R)` |
 | `(alloc (table n (fn (i) e)))` | `(tabulate n R)` |
-| `(alloc t)`, t not a rule | t: η for an immutable table |
+| `(alloc t)`, t not a rule | `(tabulate (len t) R)` with R = i ↦ `(index t i)`: the table of t's contents now. For an immutable t this equals t (L12), and a printer drops the copy where t's type is not a buffer. For a buffer it is the meaning: today's backends emit the identity there, and a later store shows through (irstep1-2026-09-25) |
 | `(array ā)`, a map literal | `(array …)`, `(map …)` |
 | `(len t)`, and a primitive the target classifies as a length (`go.len`) | `(len t)` |
 | `(keys m)`, `(set b i x)`, `(insert m k x)` | the operation of the same name |
@@ -624,6 +660,7 @@ form is not specified (§12).
 
 ### 10.2 The header
 
+- **`(stage A)` or `(stage P)`** says which stage the file is (§0, §7). A printer reads only P.
 - **`(ir VERSION …)`.** VERSION is an integer. It changes only when **the meaning of an existing
   operation or the syntax changes**. Adding an operation does not change it, because covering (next)
   handles additions.
@@ -635,39 +672,47 @@ form is not specified (§12).
 
 ### 10.3 An example
 
-`examples/native/dot-go.oro`, lowered for Go, in IR_P. Its loop variable's range, (int 0 65535),
-comes from the `where` on `len p`.
+`examples/native/dot-go.oro`, lowered for Go, in IR_P. Lowering writes exactly this in IR_A
+(`gen -ir`), except for the ranges, which are `int` there: the loop variable's (int 0 65535) comes
+from the `where` on `len p`, and it is the analyses that write it. Each arm renames both the index
+(`%9`, `%11`) and the table whose length it was compared with (`%10`, `%12`).
 
 ```lisp
 (ir 1
   (target go)
-  (ops const len ge add index call loop branch break continue yield)
-  (func native-dot (params (%0 (array f64)) (%1 (array f64))) (results f64)
+  (stage P)
+  (ops const add ge call index len loop yield break continue branch)
+  (func native-dot (params (%0 slice-float64) (%1 slice-float64)) (results f64)
     (region
       (val (%2 f64) (const 0.0))
       (val (%3 (int 0 0)) (const 0))
       (val (%4 f64)
         (loop (init %2 %3)
-          (region (params (%5 f64) (%6 (int 0 65535)))
+          (region
+            (params (%5 f64) (%6 (int 0 65535)))
             (val (%7 (int 0 65535)) (len %0))
             (val (%8 bool) (ge %6 %7))
             (branch %8
-              (region (break %5))
               (region
-                (pi %9 (int 0 65534) (%6 lt %7))
-                (val (%10 f64) (index %0 %9))
-                (val (%11 f64) (index %1 %9))
-                (val (%12 f64) (call go.f* %10 %11))
-                (val (%13 f64) (call go.f+ %5 %12))
-                (val (%14 (int 1 1)) (const 1))
-                (val (%15 (int 1 65535)) (add exact %9 %14))
-                (continue %13 %15))))))
+                (pi %9 (int 0 65535) (%6 ge %7))
+                (pi %10 slice-float64 ((len %0) le %6))
+                (break %5))
+              (region
+                (pi %11 (int 0 65534) (%6 lt %7))
+                (pi %12 slice-float64 ((len %0) gt %6))
+                (val (%13 f64) (index %12 %11))
+                (val (%14 f64) (index %1 %11))
+                (val (%15 f64) (call go.f* %13 %14))
+                (val (%16 f64) (call go.f+ %5 %15))
+                (val (%17 (int 1 1)) (const 1))
+                (val (%18 (int 1 65535)) (add exact %11 %17))
+                (continue %16 %18))))))
       (yield %4))))
 ```
 
 What a Go printer does with it (irp2):
 - `%4` is `%5` by soleExit;
-- `%15` goes to the post clause by PostVars;
+- `%18`, the index plus one, goes to the post clause by PostVars;
 - `%1` is re-sliced to `len %0`, because `len %0 = len %1` is the `where`'s, discharged at the loop's
   entry.
 
@@ -680,8 +725,9 @@ The result is the loop `gen` emits today, one statement per value, at the same s
 
 | property | check |
 |---|---|
-| L is total on the corpus | lowering every source × target in `cmd/check`'s sweep refuses nothing it did not refuse before |
-| W1–W10 | a verifier, run after lowering and after every IR pass, with a planted-fault test per rule |
+| L is total on the corpus | `cmd/check`'s `ir` step: every program the sweep emits is lowered and verified |
+| W1–W10 | a verifier (`ir/verify.go`), run after lowering and after every IR pass, with a planted-fault test per rule (`ir/ir_test.go`) |
+| the printing is canonical | `cmd/check`'s `ir` step: print ∘ read ∘ print = print on every program |
 | Theorem C (L faithful) | the differential suite, on all four targets |
 | a printer is faithful | the differential suite and the gauntlet against hand-written code |
 | an analysis is sound | one planted-fault row per (domain, operation of Σ), and the programs meant to be refused |

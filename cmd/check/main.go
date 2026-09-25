@@ -10,9 +10,11 @@
 // run reports everything:
 //
 //	vet          go vet ./...
-//	compiler     go test ./core/ ./emit/ ./cmd/...
+//	compiler     go test ./core/ ./emit/ ./ir/ ./cmd/...
 //	emission     every .oro under examples/, lib/ and the differential cases, on
 //	             every target, compared with the baseline committed in gauntlet/check/
+//	ir           every program that emitted, lowered to the IR and verified; the
+//	             canonical printing round-trips (docs/spec/ir.md §11)
 //	differential gauntlet/differential: build, RUN and agree on four targets
 //	tooling      gauntlet/stdlib: the surveys twice, the pins, the acceptance programs
 //
@@ -88,7 +90,7 @@ type checker struct {
 	swept2         bool // a second sweep has run, so c.times is a minimum of two
 }
 
-var stepNames = []string{"vet", "compiler", "emission", "differential", "tooling"}
+var stepNames = []string{"vet", "compiler", "emission", "ir", "differential", "tooling"}
 
 func main() {
 	skipList := flag.String("skip", "", "comma-separated steps to skip")
@@ -127,9 +129,10 @@ func main() {
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
 		{"compiler", func(c *checker) result {
-			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./cmd/...")
+			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./ir/", "./cmd/...")
 		}},
 		{"emission", (*checker).emission},
+		{"ir", (*checker).ir},
 		{"differential", func(c *checker) result {
 			return c.command("differential", filepath.Join(c.root, "gauntlet", "differential"), "go", "run", "run.go")
 		}},

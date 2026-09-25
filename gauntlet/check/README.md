@@ -10,8 +10,9 @@ go run ./cmd/check -accept "reason"   # keep this run's emission as the baseline
 | step | what it runs |
 |---|---|
 | `vet` | `go vet ./...` |
-| `compiler` | `go test ./core/ ./emit/ ./cmd/...` |
+| `compiler` | `go test ./core/ ./emit/ ./ir/ ./cmd/...` |
 | `emission` | every `.oro` under `examples/`, `lib/` and `gauntlet/differential/cases/`, on every target, compared with the baseline in this directory — its output byte for byte, and what each compile cost |
+| `ir` | the IR ([docs/spec/ir.md](../../docs/spec/ir.md) §11): the sweep runs `gen -ir`, so every program that emits is also lowered, verified (W1–W10) and printed to `.check/ir/`. This step fails if a program that emitted has no IR, a refused one has one, or `print ∘ read ∘ print ≠ print`. It keeps no baseline of its own until a printer reads the IR |
 | `differential` | `gauntlet/differential/run.go`: build, **run** and agree on four targets |
 | `tooling` | `go test ./gauntlet/stdlib/`: the surveys twice, the pins, the acceptance programs, the hand declarations against the host |
 

@@ -146,37 +146,12 @@ type reader struct {
 	src  string
 	pos  int
 	line int
+	raw  bool // ReadRaw: lists are read as written, with no sugar
 }
 
 func Read(src string) ([]Form, error) {
-	if !utf8.ValidString(src) {
-		return nil, fmt.Errorf("source is not valid UTF-8")
-	}
-	// NFC, per core-0 §1.1. Rejected rather than normalised, for the same
-	// reason invalid UTF-8 is rejected rather than repaired: silently rewriting
-	// the input would mean the file on disk is not the file that was compiled.
-	//
-	// Without this, `é` as U+00E9 and as e+U+0301 are two DISTINCT identifiers
-	// that display identically — which is the same class of hazard as the
-	// bidirectional controls below, and was open from the first commit.
-	if !unicodenorm.NFC.IsNormalString(src) {
-		// Report the first prefix that is not normal, so the message points at
-		// the offending sequence rather than at the file.
-		at := len(src)
-		for j := range src {
-			if !unicodenorm.NFC.IsNormalString(src[:j]) {
-				at = j
-				break
-			}
-		}
-		return nil, fmt.Errorf("source is not NFC-normalised, at or before byte %d; "+
-			"two identifiers can look identical and not be equal. Save the file as NFC.", at)
-	}
-	for i, r := range src {
-		if isBidiControl(r) {
-			return nil, fmt.Errorf("byte %d: bidirectional control U+%04X is not permitted "+
-				"(source must display as it parses)", i, r)
-		}
+	if err := validSource(src); err != nil {
+		return nil, err
 	}
 	r := &reader{src: src, line: 1}
 	var forms []Form
@@ -195,6 +170,67 @@ func Read(src string) ([]Form, error) {
 			return nil, err
 		}
 		forms = append(forms, f)
+	}
+}
+
+// validSource is what every source must be before a byte of it is read: valid
+// UTF-8, NFC-normalised, and free of bidirectional controls.
+func validSource(src string) error {
+	if !utf8.ValidString(src) {
+		return fmt.Errorf("source is not valid UTF-8")
+	}
+	// NFC, per core-0 §1.1. Rejected rather than normalised, for the same
+	// reason invalid UTF-8 is rejected rather than repaired: silently rewriting
+	// the input would mean the file on disk is not the file that was compiled.
+	//
+	// Without this, `é` as U+00E9 and as e+U+0301 are two DISTINCT identifiers
+	// that display identically — which is the same class of hazard as the
+	// bidirectional controls below, and was open from the first commit.
+	if !unicodenorm.NFC.IsNormalString(src) {
+		// Report the first prefix that is not normal, so the message points at
+		// the offending sequence rather than at the file.
+		at := len(src)
+		for j := range src {
+			if !unicodenorm.NFC.IsNormalString(src[:j]) {
+				at = j
+				break
+			}
+		}
+		return fmt.Errorf("source is not NFC-normalised, at or before byte %d; "+
+			"two identifiers can look identical and not be equal. Save the file as NFC.", at)
+	}
+	for i, r := range src {
+		if isBidiControl(r) {
+			return fmt.Errorf("byte %d: bidirectional control U+%04X is not permitted "+
+				"(source must display as it parses)", i, r)
+		}
+	}
+	return nil
+}
+
+// ReadRaw reads s-expressions in the language's LEXICAL syntax — its atoms,
+// literals and strings, with `;` comments as gaps (ADR 0024), and the same
+// UTF-8, NFC and bidirectional-control checks as Read — and with the LIST
+// structure raw: a list is an application of its elements, and no form is
+// desugared. It is the IR's reader (docs/spec/ir.md §2.1): the IR's `loop` and
+// `let` are not the language's, so Read's dispatch would misread them. A list
+// may not be empty, which the IR's grammar never needs.
+func ReadRaw(src string) ([]*Term, error) {
+	if err := validSource(src); err != nil {
+		return nil, err
+	}
+	r := &reader{src: src, line: 1, raw: true}
+	var out []*Term
+	for {
+		r.skipSpace()
+		if r.done() {
+			return out, nil
+		}
+		t, err := r.term()
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
 	}
 }
 
@@ -443,6 +479,9 @@ func (r *reader) list() (*Term, error) {
 	}
 	if len(kids) == 0 {
 		return nil, fmt.Errorf("line %d: empty list is not a term", line)
+	}
+	if r.raw {
+		return &Term{Kind: KApp, Kids: kids}, nil
 	}
 	// A source-level `let` is SUGAR for an application, and desugars here
 	// (spec/binding.md).
@@ -1823,6 +1862,10 @@ func bigLiteral(text string) *Term {
 // 100/3 has named a different set than they wrote. Nothing is unsound about
 // admitting it; the rounded value can always be written directly, so the
 // grammar declines to make the choice.
+// EvalEndpoint is evalEndpoint for the IR's reader (docs/spec/ir.md §2.1),
+// where a range endpoint past int64 arrives as the reader's big literal.
+func EvalEndpoint(t *Term) (*big.Int, bool) { return evalEndpoint(t) }
+
 func evalEndpoint(t *Term) (*big.Int, bool) {
 	v, inf, ok := endpoint(t)
 	return v, ok && inf == 0

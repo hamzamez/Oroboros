@@ -17,6 +17,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
 func main() {
@@ -27,6 +28,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
+	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`, or the reason to FILE.err; it changes nothing that is built")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: build [-target=NAME] [-o ARTIFACT] SRC.oro\n\n")
@@ -261,6 +263,19 @@ checks:
 		nf = sh
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", k)
 	}
+	// THE IR (ADR 0032), lowered from exactly what the backend receives, as
+	// `gen -ir` does. The differential runner reads it: its cases' entry points
+	// are compiled here and never by the emission sweep.
+	if irOut != "" {
+		p := &ir.Program{Target: target, Stage: ir.StageA}
+		var errs []string
+		if f, err := ir.Lower(tg, "oro-main", esig, nf, ir.Options{Decided: true}); err != nil {
+			errs = append(errs, err.Error())
+		} else {
+			p.Funcs = append(p.Funcs, f)
+		}
+		_ = ir.WriteFile(irOut, tg, p, errs)
+	}
 	// THE BACKEND IS THE TARGET'S, NOT THE FLAG'S (target-system.md §1.1).
 	//
 	// This switch read the -target FLAG STRING and fell through to the Go
@@ -390,3 +405,6 @@ func allSigs(p *core.Program) []*core.Sig {
 	}
 	return out
 }
+
+// irOut is -ir's file.
+var irOut string

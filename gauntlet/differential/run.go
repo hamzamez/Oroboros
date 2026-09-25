@@ -35,6 +35,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"oroboros/ir"
 )
 
 // A case is written ONCE, with `@op` where a target-native name goes.
@@ -250,7 +252,11 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	// a case without this `main` and saw an empty package. So the build reports
 	// each trap it took (cmd/build), and the case must declare it: see
 	// checkedFor.
-	args := []string{"run", "./cmd/build", "-checked", "-target=" + target}
+	// AND LOWERED TO THE IR (docs/spec/ir.md §11): a case's entry point is
+	// compiled only here, never by the emission sweep, so this is where the
+	// IR's totality on these programs is checked. A case whose IR is refused
+	// fails, naming the rule.
+	args := []string{"run", "./cmd/build", "-checked", "-target=" + target, "-ir", out + ".ir"}
 	if bigRepr != "" {
 		args = append(args, "-big-repr="+bigRepr)
 	}
@@ -259,6 +265,9 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	bout, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", false, fmt.Errorf("build: %v\n%s", err, indent(string(bout)))
+	}
+	if msg, ok := ir.CheckFile(out + ".ir"); !ok {
+		return "", false, fmt.Errorf("ir: %s", msg)
 	}
 	traps := strings.Contains(string(bout), trapNote)
 	rc := a.run(out)

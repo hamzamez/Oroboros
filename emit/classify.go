@@ -36,3 +36,20 @@ func (tg *Target) IsLengthName(name string) bool {
 // `[]int16`, `map[int64]string`. It is the one table every printer reads, and it
 // is exported for the same prototype.
 func (tg *Target) HostType(name string) string { return tg.ty(name) }
+
+// IsCheckedName reports whether a primitive is a checked arithmetic form
+// (`add-exact`, `Math.addExact`): the operation, in mode `trap`
+// (docs/spec/ir.md §4.4). It is interval.go's uncheckedName, so the IR and the
+// analysis agree on what -checked produced.
+func IsCheckedName(name string) bool {
+	_, ok := uncheckedName(name)
+	return ok
+}
+
+// Agrees reports whether a value of type got may flow where want is required:
+// the type checker's own relation (docs/spec/types.md), which the IR's verifier
+// applies to every flow edge (docs/spec/ir.md W5) rather than defining its own.
+func (tg *Target) Agrees(got, want string) bool {
+	c := &checker{tgt: tg, types: map[string]string{}}
+	return c.agree("", got, want) == nil
+}

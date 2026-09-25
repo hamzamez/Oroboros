@@ -99,10 +99,9 @@ eliminates a *function*.
 | a `tuple` term, reached by β | substitutes it: nothing survives |
 | an `if` or a `let` | is pushed into it (case-of-case), then substitutes |
 | a host call | receives the call's results: the n-ary let (ADR 0027) |
-| a `build` | moves into the scope and receives the frozen components ([tables.md §2.5](tables.md)) |
-| a `loop`'s exits | is a **join point**: the exits assign the components, and the body runs once after the loop (ADR 0031) |
+| a `build`, or a `loop`'s exits | is a **join point**: the scope and the loop in it are one producer, whose tails assign the components; the body runs once after it, with the buffers frozen ([tables.md §2.5](tables.md), ADR 0031) |
 
-The last two were refused with an internal error before 2026-09-25. In every row, what the analyses know
+The last row was refused with an internal error before 2026-09-25. In every row, what the analyses know
 of a component they know of the name that binds it: the component law (ADR 0031 §3).
 
 **The line is refutability.** A product has **one** constructor, so its eliminator is total and

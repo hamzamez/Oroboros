@@ -154,15 +154,17 @@ type asmEmitter struct {
 	sig       *core.Sig
 	topParams []string
 
-	buf    strings.Builder
-	freeGP []string
-	freeX  []string
-	usedGP map[string]bool
-	usedX  map[string]bool
-	slots  int
-	spare  []int
-	bound  map[string]bool
-	where  map[string]place
+	buf strings.Builder
+	// loopInto is the join point whose loop is being emitted (asm_join.go).
+	loopInto *asmJoin
+	freeGP   []string
+	freeX    []string
+	usedGP   map[string]bool
+	usedX    map[string]bool
+	slots    int
+	spare    []int
+	bound    map[string]bool
+	where    map[string]place
 
 	// elem is how wide one element of the table a NAME holds is, in bytes.
 	//
@@ -559,6 +561,10 @@ func (e *asmEmitter) emit(t *core.Term) (place, error) {
 
 	case core.KApp:
 		op := t.Op()
+		// A TUPLE FROM A LOOP OR A SCOPE: a join point (asm_join.go).
+		if out, done, err := e.emitJoin(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return place{}, fmt.Errorf("application of a non-name: %s", t)
 		}
@@ -1262,7 +1268,15 @@ func (e *asmEmitter) isFloat(t *core.Term) bool {
 
 // ---------------------------------------------------------------- loop
 
-func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
+func (e *asmEmitter) emitLoop(t *core.Term) (place, error) { return e.emitLoopCtx(t, nil) }
+
+// emitLoopCtx emits a loop. With `into` set, the loop is a JOIN POINT's producer
+// (asm_join.go): its exits fill the join's places and jump to its end, and it
+// has no value of its own.
+func (e *asmEmitter) emitLoopCtx(t *core.Term, into *asmJoin) (place, error) {
+	outerInto := e.loopInto
+	e.loopInto = into // an inner loop's exits are its own values
+	defer func() { e.loopInto = outerInto }()
 	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return place{}, fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
@@ -1363,7 +1377,9 @@ func (e *asmEmitter) emitLoop(t *core.Term) (place, error) {
 	names := make([]string, len(raw))
 	copy(names, raw)
 	var result place
-	if n := soleExit(e.tgt.Prims, body, raw, names, e.bound, asmIdent); n != "" {
+	if into != nil {
+		// no value of its own: the exits fill the join's places
+	} else if n := soleExit(e.tgt.Prims, body, raw, names, e.bound, asmIdent); n != "" {
 		result = hold(e.where[n])
 	} else {
 		result = e.alloc(e.exitIsFloat(body))
@@ -1467,6 +1483,14 @@ func (e *asmEmitter) emitLoopBody(t *core.Term, raw []string, vars []place,
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, vars, top)
+	}
+	// AN EXIT OF A JOIN POINT'S LOOP fills the join's places (asm_join.go).
+	if into := e.loopInto; into != nil {
+		if err := e.emitIntoJoin(t, into); err != nil {
+			return err
+		}
+		e.line("jmp %s", end)
+		return nil
 	}
 	v, err := e.emit(t)
 	if err != nil {
@@ -2265,6 +2289,12 @@ func (e *asmEmitter) emitAlloc(t *core.Term) (place, error) {
 // same pointer-with-a-header — because linearity is what makes the freeze on
 // the way out free, and nothing has to change representation.
 func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
+	return e.emitBuildWith(t, e.emit)
+}
+
+// emitBuildWith emits a `build` and hands its opened body to `then`, which is
+// `emit` for a value and a join point's tail for a producer (asm_join.go).
+func (e *asmEmitter) emitBuildWith(t *core.Term, then func(*core.Term) (place, error)) (place, error) {
 	args := t.Args()
 	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
 		return place{}, fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
@@ -2295,7 +2325,7 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 		if width != 8 {
 			e.elem[raw[0]] = width
 		}
-		out, err := e.emit(body)
+		out, err := then(body)
 		delete(e.where, raw[0])
 		return out, err
 	}
@@ -2308,7 +2338,7 @@ func (e *asmEmitter) emitBuild(t *core.Term) (place, error) {
 	if width != 8 {
 		e.elem[raw[0]] = width
 	}
-	out, err := e.emit(body)
+	out, err := then(body)
 	delete(e.where, raw[0])
 	return out, err
 }

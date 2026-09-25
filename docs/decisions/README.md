@@ -62,4 +62,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0028](0028-a-definitions-contract-is-checked-at-its-calls.md) | A definition's declared parameter range and `where` are obligations at its calls |
 | [0029](0029-above-the-word-one-set-on-every-representation.md) | Above the word, a type denotes a set decided by sign and bit length, and every representation enforces the program's one set |
 | [0030](0030-a-hosts-string-is-the-hosts.md) | At a host boundary a string is the host's; ours is Σ*, entered by one total decode |
-| [0031](0031-a-builds-result-is-a-product.md) | A `build`'s result is a product, and each buffer in it is frozen — not built |
+| [0031](0031-a-builds-result-is-a-product.md) | A `build`'s result is a product, and each buffer in it is frozen |

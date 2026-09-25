@@ -1554,6 +1554,20 @@ func noAgain(t *Term, line int) error {
 			"not under an `if` or inside an expression — write another clause instead, so "+
 			"the clause list stays the loop's whole control flow", line)
 	}
+	// A NESTED LOOP'S BODY IS ITS OWN: an `again` there jumps to that loop, the
+	// nearest one around it (ADR 0015), and is checked where that loop was read.
+	// Only its initial values are in this position. Walking its body refused a
+	// literal loop used as a value in a clause that then went on, `(let (tuple q r)
+	// (loop …) (again …))`, for the inner loop's own `again`.
+	if t.Kind == KApp && len(t.Kids) >= 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "loop" &&
+		t.Kids[1].Kind == KFn {
+		for _, z := range t.Kids[2:] {
+			if err := noAgain(z, line); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	switch t.Kind {
 	case KFn:
 		return noAgain(t.Body(), line)

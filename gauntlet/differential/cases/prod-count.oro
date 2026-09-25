@@ -1,0 +1,36 @@
+; A BUILD RETURNS A PRODUCT: the table, and how much of it was written.
+; expect: 6307 8408 10809
+; inputs: 0 2 5
+;
+; tables.md §2.5, ADR 0031. "Build to a bound and return the count" was named in
+; tables.md §14.3 as the answer to accumulation whose size is not known first,
+; and could not be written: a `build` had one way out, so the count had none.
+; Here the scope's loop yields `(tuple b k)` from two exits, and the pattern
+; takes it apart AFTER the scope: `b` is the frozen table, and `k` how many of
+; its cells were stored.
+;
+; The analyses must carry both across the tuple (the component law): `len b` is
+; the scope's size, so `(b j)` is in bounds; `k` is at most `cap`, joined over
+; the two exits; and b's cells hold values below 20 + n. Every operation is
+; proven, and nothing is declared but the input's range.
+;
+; The multiples of 3 below 20 + n, summed, times 100, plus how many:
+;   n=0: 0 3 … 18, seven of them, sum 63   -> 6307
+;   n=2: 0 3 … 21, eight, sum 84           -> 8408
+;   n=5: 0 3 … 24, nine, sum 108           -> 10809
+
+(def cap 32)
+
+(sig run ((n (int 0 100))) int)
+(def run (n)
+  (let (tuple b k)
+       (build b cap
+         (loop ((b b) (i 0) (k 0))
+           (>= i (+ 20 n))  (tuple b k)
+           (>= k cap)       (tuple b k)
+           (= (% i 3) 0)    (again (set b k i) (+ i 1) (+ k 1))
+           else             (again b (+ i 1) k)))
+    (loop ((s 0) (j 0))
+      (>= j k)        (+ (* s 100) k)
+      (>= j (len b))  (+ (* s 100) k)
+      else            (again (+ s (b j)) (+ j 1)))))

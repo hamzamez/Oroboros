@@ -304,7 +304,7 @@
 == examples/json/tokenize.oro windows refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted dfc4a0464a9c3658f2080056c8b27bcbfade446709306b6d9b15173bd2a5620e
+== examples/json/tree.oro go emitted b66d0cf49c3c36ef5b452d0bf3a704a65b8f766017759d64da7f71eace95b4d7
    note: gen-measure: 99 of 99 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-run: 416 of 416 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused
@@ -1039,6 +1039,18 @@
 == gauntlet/differential/cases/negative-zero.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/negative-zero.oro java emitted 1c0f5a6826861b5554a4bdcf3ec0d016284874720d61da9b3fa5694da256ab6d
 == gauntlet/differential/cases/negative-zero.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/prod-count.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/prod-count.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/prod-count.oro java emitted 2443ffc1b8a0b1d3f5aa26784e16db16a2b04c7af0e545253ee996d954e0f4a2
+== gauntlet/differential/cases/prod-count.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/prod-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/prod-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/prod-loop.oro java emitted 20518f0e81563ed30488c66e864227f85dd392c7abbea4f9d3b048c9cd9c1135
+== gauntlet/differential/cases/prod-loop.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/prod-two.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/prod-two.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/prod-two.oro java emitted d648f172973fd9c4dff29ff2424ebe2eef36eddfad350c8744392a71cd09cfc6
+== gauntlet/differential/cases/prod-two.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/product.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/product.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/product.oro java emitted 0c414c59af9cd16a3d1af3de8452da2683fa9c8241c575e7bb6130b90540342c

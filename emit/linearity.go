@@ -138,8 +138,11 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 		return c.scan(body, env, taken)
 	}
 	switch {
-	case c.isKind(t, "table-build") && len(t.Kids) == 3 && t.Kids[2].Kind == core.KFn &&
-		len(t.Kids[2].Params) == 1:
+	// A MAP BUFFER IS A BUFFER (maps.md §3.3, tables.md §2.5). Its binder is
+	// checked by the same walk as `build`'s: no check looked at one before, and a
+	// map used twice leaked one `insert` into a map that never received it.
+	case (c.isKind(t, "table-build") || c.isKind(t, "map-build")) && len(t.Kids) == 3 &&
+		t.Kids[2].Kind == core.KFn && len(t.Kids[2].Params) == 1:
 		if err := c.scan(t.Kids[1], env, taken); err != nil {
 			return err
 		}
@@ -193,10 +196,38 @@ func (c *linChecker) scan(t *core.Term, env, taken map[string]bool) error {
 	}
 	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
 		if p, ok := c.tgt.Prims[t.Kids[0].Name]; ok {
+			if err := c.storeTarget(p, t.Kids[1:], env, taken); err != nil {
+				return err
+			}
 			return c.bufferArgs(p, t.Kids[1:], env, taken)
 		}
 	}
 	return nil
+}
+
+// storeTarget refuses a store into a value that is not a live buffer — S in
+// tables.md §2.5.
+//
+// `set` and `insert` are the language's own writes, and nothing asked what they
+// wrote INTO. A frozen table is immutable by ADR 0018, and every name that shares
+// it assumes so: `(let t (build b 4 (set b 0 n)) (let t2 (set t 1 n) (t 1)))` wrote
+// through `t2` and read the write back through `t`, whose element 1 is 0. That is
+// a wrong answer on every target (prodresult-2026-09-25). It is bufferArgs' rule
+// for a host call that may write, applied to the language's own stores; and it is
+// the hypothesis of ADR 0031's no-copy freeze, "no store can name a frozen value".
+func (c *linChecker) storeTarget(p Prim, args []*core.Term, env, taken map[string]bool) error {
+	if (p.Kind != "table-set" && p.Kind != "map-insert") || len(args) == 0 || c.isBuf(args[0], env, taken) {
+		return nil
+	}
+	what, scope := "table", "`(build b n …)`"
+	if p.Kind == "map-insert" {
+		what, scope = "map", "`(build-map m cap …)`"
+	}
+	return fmt.Errorf("%s stores into %s, which is a frozen %s, not a buffer.\n"+
+		"  A store writes a LIVE buffer, one a scope such as %s is still filling. A frozen\n"+
+		"  %s is immutable (ADR 0018), and every other name that shares it would see the\n"+
+		"  write (tables.md §2.5, S). For a changed copy, build one: copy the %s into a new\n"+
+		"  buffer inside a scope and store there.", p.Name, args[0], what, scope, what, what)
 }
 
 // bufferArgs refuses a value that is not a buffer where a primitive declares a
@@ -244,7 +275,7 @@ func (c *linChecker) isBuf(t *core.Term, env, taken map[string]bool) bool {
 		return false
 	}
 	switch p.Kind {
-	case "table-set":
+	case "table-set", "map-insert":
 		return true
 	case "cond":
 		return len(t.Kids) == 4 && (c.isBuf(t.Kids[2], env, taken) || c.isBuf(t.Kids[3], env, taken))
@@ -332,7 +363,7 @@ func (c *linChecker) walk(t *core.Term, name string, st *linState) error {
 		}
 		return c.walk(t.Kids[1], name, st)
 
-	case c.isKind(t, "table-set") && len(t.Kids) == 4 &&
+	case (c.isKind(t, "table-set") || c.isKind(t, "map-insert")) && len(t.Kids) == 4 &&
 		t.Kids[1].Kind == core.KName && t.Kids[1].Name == name:
 		// A STORE consumes the buffer. Its index and value are evaluated
 		// before the store happens, so they are walked first.

@@ -1,0 +1,24 @@
+; TWO BUFFERS FROM ONE SCOPE, both returned frozen.
+; expect: 784 924 1064
+; inputs: 0 1 2
+;
+; tables.md §2.4 law 3 and §2.5. `(build a 8 b 8 …)` is one region holding two
+; buffers; the loop threads both and yields `(tuple a b)`, and the pattern gets
+; two frozen tables. Their element ranges differ (a holds at most 9, b at most
+; 49), so on windows, where a table's width travels with its name, each of the
+; pattern's names must take its own table's width.
+;
+; a[j] = j + n and b[j] = j², so the answer is Σ (j + n)·j² over j < 8:
+; Σj³ + n·Σj² = 784 + 140n.
+
+(sig run ((n (int 0 2))) int)
+(def run (n)
+  (let (tuple a b)
+       (build a 8
+              b 8
+         (loop ((a a) (b b) (i 0))
+           (>= i 8)  (tuple a b)
+           else      (again (set a i (+ i n)) (set b i (* i i)) (+ i 1))))
+    (loop ((s 0) (j 0))
+      (>= j 8)  s
+      else      (again (+ s (* (a j) (b j))) (+ j 1)))))

@@ -285,7 +285,7 @@ func (r *refiner) loopContent(loop *core.Term, f *facts) []*core.Term {
 	// included, are cached by `iterate`. Re-walking a loop to summarise it made the
 	// whole emission sweep three times slower, and every caller either walks the
 	// loop first (`let`) or checks after its walk has reached it (a back edge).
-	body, ok := r.bodyFacts[loopKey(lam, args[1:], f)]
+	body, ok := r.bodyFacts[bodyKey(r.tgt, lam, args[1:], f)]
 	if !ok {
 		return nil
 	}
@@ -453,6 +453,23 @@ func (r *refiner) contentInvariants(lam *core.Term, inits []*core.Term, f, g *fa
 // And the facts are part of the key, because a loop's invariants depend on what
 // held on entry — the same text reached under different assumptions is a
 // different loop for this purpose, and reusing its facts would be unsound.
+// bodyKey keys a loop's HEAD facts, `bodyFacts`, by its back-edge skeleton: the
+// loop with every exit's value erased (prodresult.go). The facts at a loop's head
+// are invariants of the states it reaches there, and those come from its entry
+// and its back edges; what an exit hands out plays no part. So loops that differ
+// only in their exits reach the same states and may share them. That is what a
+// tuple's projections are (ADR 0031 §3): the producer is walked once, and Pⱼ's
+// loop, which is the same loop with its exits projected, finds its facts.
+//
+// Only head facts. A loop's SUMMARY is a fact about its value, which is exactly
+// what differs between the projections, and keeps loopKey.
+func bodyKey(tg *Target, lam *core.Term, inits []*core.Term, f *facts) string {
+	if lam != nil && lam.Kind == core.KFn {
+		lam = core.FnClosed(lam.Params, eraseExits(tg, lam.Closed()))
+	}
+	return loopKey(lam, inits, f)
+}
+
 func loopKey(lam *core.Term, inits []*core.Term, f *facts) string {
 	// Each part length-prefixed, so the encoding is injective whatever the parts
 	// contain — a string literal may hold any separator.

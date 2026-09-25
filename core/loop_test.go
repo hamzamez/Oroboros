@@ -70,3 +70,23 @@ func TestAgainIsNotResidual(t *testing.T) {
 		t.Error("an `again` with no enclosing loop should be residual")
 	}
 }
+
+// A NESTED LOOP'S `again` IS ITS OWN. A literal loop bound by a clause that then
+// jumps was refused for the inner loop's `again`, as if it jumped out of the
+// outer clause; an `again` that really is inside an expression still is.
+func TestANestedLoopsAgainIsItsOwn(t *testing.T) {
+	ok := `(loop ((s 0) (j 0))
+  (>= j 3)  s
+  else      (let x (loop ((i 0)) (>= i 2) i else (again (+ i 1)))
+              (again (+ s x) (+ j 1))))`
+	if _, err := ReadTerm(ok); err != nil {
+		t.Errorf("a nested loop bound by a clause: %v", err)
+	}
+	bad := `(loop ((s 0) (j 0))
+  (>= j 3)  s
+  else      (let x (+ 1 (again 0 0))
+              (again (+ s x) (+ j 1))))`
+	if _, err := ReadTerm(bad); err == nil {
+		t.Errorf("an again inside a let's value was accepted")
+	}
+}

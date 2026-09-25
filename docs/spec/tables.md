@@ -369,21 +369,48 @@ the components:
   and component facts the analyses derived for that buffer (array-facts.md);
 - **a value component:** its interval, joined over the exits that produce the tuple.
 
-**The lowering, ADR 0031 §4.** Two commuting conversions, and neither copies code:
+**How the analyses see it.** The j-th **projection** Pⱼ is the producer with every tail tuple replaced
+by its j-th component. It is case-of-case with the pure eliminator `(fn (x̄) xⱼ)`, so ⟦Pⱼ⟧ = πⱼ⟦P⟧, and
+whatever a `let` would learn of Pⱼ's value, `xⱼ` gets:
+- the type checker types `xⱼ` by walking Pⱼ;
+- the refinement layer binds it as a `let` binds Pⱼ (length, content facts);
+- the interval pass takes its element range and length from Pⱼ, and its interval from each exit's
+  j-th component, recorded where the exit stands and joined over the exits.
+
+Projections are analysed, never emitted: emitting m of them would run the producer's effects m times.
+The refiner caches a loop's head facts by its **back-edge skeleton**, the loop with its exits' values
+erased, since the producer and its projections are one loop with different exits and reach the same
+states at its head.
+
+**The lowering, ADR 0031 §4.** The producer is the whole nest of scopes, `let`s, `if`s and the loop
+that yields the tuples. Its tails assign the pattern's names, and the pattern's body runs **once,
+after it**: a **join point**, case-of-case with the continuation bound once instead of copied into
+every exit (Maurer, Downen, Ariola & Peyton Jones, *Compiling without continuations*, PLDI 2017).
 
 ```
-((build n (fn (b) M)) K)   ⟶   (build n (fn (b) (M K)))        K runs once, now, inside the scope
-((loop F z̄) K)             ⟶   a JOIN POINT                    the exits assign m result
-                                                                variables; K runs once, after the loop
+var nodes []int16; var nn, ok int            the pattern's own names, one per component read
+nodes2 := make([]int16, 2048) …              the scopes, then the loop
+for { … nodes, nn, ok = nodes3, nn2, 0; break … }
+…body…                                       once, after every scope has ended
 ```
 
-The first is valid because a scope's body runs once, now, and `K` is closed with respect to `b`. The
-components `M` passes to `K` have been moved, so `K` holds them **frozen**: a read is pure, and a store
-is refused by S. The second is case-of-case on a loop's exits, with `K` bound once instead of copied
-into each exit (Maurer, Downen, Ariola & Peyton Jones, PLDI 2017). Each backend already has what it
-needs: result variables assigned before a `break`.
+The body runs **outside** the scopes, where the source put it, so it holds the buffers frozen: a read
+is pure, and a store is refused by S. Moving it into the scope instead, the commute ADR 0031 first
+wrote, would put its reads of a table inside the scope that fills it, where they are deliberately
+unknown.
+
+Per backend:
+- **Go** declares what it reads, typed at the first tail. An unused component is discarded, since Go
+  refuses an unused local.
+- **JavaScript** uses `let`.
+- **Java** declares each with its zero, for definite assignment. An integer component is the host's
+  `int`, assigned through an exact cast, when the method's integers are narrowed.
+- **windows** uses a register or frame slot, allocated at the first tail. A table component's element
+  width travels with its name, and every tail must agree on it.
 
 **Not built, and refused naming the rule:**
+- a scope whose value is a function term: a variant or a closure, which could carry a buffer out
+  unfrozen (R1);
 - an `again` inside the continuation of a tuple-valued loop, a jump out of a join point. Every walker
   of a clause chain would need a fifth form (CLAUDE.md, "every walker walks four forms"), and no
   program needs one;

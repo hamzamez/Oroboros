@@ -141,6 +141,11 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if err != nil {
 		return err
 	}
+	// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
+	// pass walks a clause chain.
+	if err := emit.CheckJoins(tg, nf); err != nil {
+		return fmt.Errorf("%s: %w", entry, err)
+	}
 	if nf, err = emit.DischargeRequires(reqs, tg, entry, prog.Sigs[entry], nf); err != nil {
 		return err
 	}

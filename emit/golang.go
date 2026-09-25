@@ -53,6 +53,8 @@ type Emitter struct {
 	buf     strings.Builder
 	imports map[string]bool
 	types   map[string]string // variable -> inferred type
+	// loopInto is the join point whose loop is being emitted (golang_join.go).
+	loopInto *joinCtx
 	// wantElem is the element type a literal table is about to be handed to,
 	// set for one emission by the two places that know it: an argument whose
 	// parameter declares one, and a `let` whose body passes the name to such a
@@ -317,17 +319,28 @@ func (e *Emitter) arrayLit(t *core.Term) (string, error) {
 // cannot escape because closures are refused as values; and it is lexically
 // local in the residual because reduction is whole-program.
 func (e *Emitter) emitBuild(t *core.Term) (string, error) {
+	body, err := e.emitBuildHead(t)
+	if err != nil {
+		return "", err
+	}
+	return e.emit(body)
+}
+
+// emitBuildHead emits a `build`'s allocation and returns its opened body, which
+// is the build's value: shared by the expression path and a join point's
+// producer (golang_join.go).
+func (e *Emitter) emitBuildHead(t *core.Term) (*core.Term, error) {
 	args := t.Args()
 	if len(args) != 2 {
-		return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+		return nil, fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
 	}
 	lam := args[1]
 	if lam.Kind != core.KFn || len(lam.Params) != 1 {
-		return "", fmt.Errorf("build's body must be (fn (b) …), got %s", lam)
+		return nil, fmt.Errorf("build's body must be (fn (b) …), got %s", lam)
 	}
 	count, err := e.emit(args[0])
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	body, raw, out := openFresh(lam, e.bound, mangle)
 	elem := elemTypeFixed(e.tgt, lam, body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
@@ -339,10 +352,10 @@ func (e *Emitter) emitBuild(t *core.Term) (string, error) {
 	if sp, ok := e.bufReuse[lam]; ok {
 		e.line("clear(%s)", sp)
 		e.line("%s := %s", out[0], sp)
-		return e.emit(body)
+		return body, nil
 	}
 	e.line("%s := make(%s, %s)", out[0], e.tgt.ty("array "+elem), count)
-	return e.emit(body)
+	return body, nil
 }
 
 // mapLit emits a surviving map literal.
@@ -844,6 +857,16 @@ func (e *Emitter) typeOf(t *core.Term) string {
 			}
 			return e.typeOf(body)
 		}
+		// A JOIN POINT has the type of its body, with each name typed by the
+		// producer's component (golang_join.go).
+		if prod, k, ok := tupleElim(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for j, ty := range e.tailTypes(prod, len(raw)) {
+				e.types[raw[j]] = ty
+			}
+			return e.typeOf(body)
+		}
 		// A MAP READ UNDER ITS ELIMINATOR has the type of the clause bodies,
 		// which the continuation's own body reports. Without this the whole
 		// function came out `/*unknown*/`, because the operator of `((m k) …)`
@@ -1074,6 +1097,11 @@ func (e *Emitter) emit(t *core.Term) (string, error) {
 		// (fn (f err) …))`. Go has the shape natively, so this is one line and
 		// it is what a Go programmer writes (values.md, gostdlib §4a).
 		if out, done, err := e.emitMultiPrim(t); err != nil || done {
+			return out, err
+		}
+		// A TUPLE FROM A LOOP OR A SCOPE, being eliminated: a join point
+		// (golang_join.go, tables.md §2.5).
+		if out, done, err := e.emitJoin(t); err != nil || done {
 			return out, err
 		}
 		if op.Kind != core.KName {
@@ -1800,7 +1828,15 @@ func exitType(e *Emitter, t *core.Term) string {
 	return e.typeOf(t)
 }
 
-func (e *Emitter) emitLoop(t *core.Term) (string, error) {
+func (e *Emitter) emitLoop(t *core.Term) (string, error) { return e.emitLoopCtx(t, nil) }
+
+// emitLoopCtx emits a loop. With `into` set, the loop is a JOIN POINT's producer
+// (golang_join.go): its exits assign the join's result variables and break, and
+// it has no value of its own.
+func (e *Emitter) emitLoopCtx(t *core.Term, into *joinCtx) (string, error) {
+	outerInto := e.loopInto
+	e.loopInto = into // an inner loop's exits are its own values, never the join's
+	defer func() { e.loopInto = outerInto }()
 	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
@@ -1922,11 +1958,14 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	// `var r1 []bool` defeated Go's escape analysis on the sieve, turning a
 	// stack-allocated slice into a heap allocation — 20,480 B/op against
 	// hand-written's zero.
-	rty := exitType(e, body)
-	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, mangle)
-	if result == "" {
-		result = e.fresh("r")
-		e.line("var %s %s", result, e.tgt.ty(orAny(rty)))
+	rty, result := "", ""
+	if into == nil {
+		rty = exitType(e, body)
+		result = soleExit(e.tgt.Prims, body, raw, names, e.bound, mangle)
+		if result == "" {
+			result = e.fresh("r")
+			e.line("var %s %s", result, e.tgt.ty(orAny(rty)))
+		}
 	}
 	// A uniformly-updated loop variable moves into the `for` statement's post
 	// clause, which is what turns several back edges into one — see PostVars.
@@ -1953,6 +1992,9 @@ func (e *Emitter) emitLoop(t *core.Term) (string, error) {
 	}
 	e.indent--
 	e.line("}")
+	if into != nil {
+		return "", nil
+	}
 	e.types[result] = rty
 	return result, nil
 }
@@ -2026,6 +2068,14 @@ func (e *Emitter) emitLoopBody(t *core.Term, raw, names []string, result string,
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)
+	}
+	// AN EXIT OF A JOIN POINT'S LOOP assigns the join's variables (golang_join.go).
+	if into := e.loopInto; into != nil {
+		if err := e.emitInto(t, into); err != nil {
+			return err
+		}
+		e.line("break")
+		return nil
 	}
 	v, err := e.emit(t)
 	if err != nil {

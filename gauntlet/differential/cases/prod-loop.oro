@@ -1,0 +1,29 @@
+; A LOOP'S VALUE IS A TUPLE, taken apart by a pattern: a join point.
+; expect: 0 106 201402 1309906
+; inputs: 0 13 100 699
+;
+; tables.md §2.5, iteration.md §2, ADR 0031 §4. Before 2026-09-25 this was an
+; internal error on all four targets ("application of a non-name"): the
+; eliminator of a tuple made at a loop's exit had nowhere to go. Each backend now
+; binds the pattern's names once, before the loop, the exits assign them, and
+; the body runs once after it.
+;
+; Division by repeated subtraction, twice. The first pattern reads both
+; components; the second reads only the quotient, so its remainder is a
+; component nobody reads: not declared on Go, discarded on every target.
+;
+;   x   x/7, x%7   x/50   answer = 100000*(x/50) + 100*(x/7) + x%7
+;   0   0, 0       0      0
+;   13  1, 6       0      106
+;   100 14, 2      2      201402
+;   699 99, 6      13     1309906
+
+(sig run ((x (int 0 1000))) int)
+(def run (x)
+  (let (tuple q r) (loop ((q 0) (r x))
+                     (< r 7)  (tuple q r)
+                     else     (again (+ q 1) (- r 7)))
+       (tuple q2 r2) (loop ((q 0) (r x))
+                       (< r 50)  (tuple q r)
+                       else      (again (+ q 1) (- r 50)))
+    (+ (* 100000 q2) (+ (* q 100) r))))

@@ -1,11 +1,40 @@
 # 0031 — A `build`'s result is a product, and each buffer in it is frozen
 
 Date: 2026-09-25
-Status: Accepted — **not built**. **Completes [ADR 0018](0018-immutable-values-linear-buffers.md)**,
+Status: Accepted — **built 2026-09-25**, [prodresult-2026-09-25](../../gauntlet/results/prodresult-2026-09-25.md).
+**Completes [ADR 0018](0018-immutable-values-linear-buffers.md)**,
 whose `build` returns one table. **States the tuple-component law**, which
 [assessment-2026-09-24](../assessment-2026-09-24.md) said would become an ADR on its fourth meeting;
 this is that meeting. The surface is [tables.md §2.4](../spec/tables.md), and the escape argument
 this corrects is §14.1. Measured in [buildbind-2026-09-25](../../gauntlet/results/buildbind-2026-09-25.md).
+The specification is [tables.md §2.5](../spec/tables.md).
+
+> **Four corrections the build produced.**
+>
+> **The Theorem's hypothesis was false in the compiler.** "No store can name a frozen value" was not
+> checked: `(set t i v)` on a frozen table and `(insert m k v)` on a frozen map were accepted and
+> changed what the frozen value read, and **no check looked at a map buffer at all**, so a map used
+> twice leaked a key. Both gave wrong answers. They are now refused (tables.md §2.5, S), and the
+> corpus is byte-identical, so no program relied on either.
+>
+> **§4's first conversion is not performed as a commute.** Moving `K` into the scope would put `K`'s
+> reads of the frozen table *inside* the scope that built it, where a buffer's reads are deliberately
+> unknown (the frozen-read stratification): every fact the walk over the parser's node table needs
+> would be lost. So the whole `build`/`loop` nest is one producer, and the join point spans it: the
+> result variables are declared before the scope, the exits assign them, and `K` runs after the
+> scope has ended, which is where the source put it.
+>
+> **The component law runs on projections.** Pⱼ, the producer with each tail tuple replaced by its
+> j-th component, has ⟦Pⱼ⟧ = πⱼ⟦P⟧ (case-of-case with the pure eliminator `(fn (x̄) xⱼ)`), so what a
+> `let` would learn of Pⱼ is what `xⱼ` gets: its length, element range and content facts. Intervals
+> come from recording each exit's components where it stands and joining them. The refiner's cache of
+> a loop's head facts is keyed by the loop's back-edge skeleton, because the producer and its
+> projections are one loop with different exits and reach the same states.
+>
+> **Before this, two passes checked nothing inside the shape.** The interval pass returned ⊤ for
+> `((build …) K)` without evaluating either side, and the type checker returned "unknown" without
+> walking it: every operation in a tuple-valued producer and its continuation went uncounted and
+> unchecked, the hazard the host-call continuation had already shown once.
 
 ## Context
 

@@ -5,8 +5,14 @@
 ; The VALUE half of "recursive data is a flat table plus indices"
 ; (json-tree-2026-08-26). tokenize.oro settled the control half and produced
 ; counts; this produces a TREE -- stride-4 nodes, tag/val/kid/sib, node 0 the
-; `none` sentinel holding the header -- and then traverses it, because building
-; a tree and never walking it would prove nothing.
+; `none` sentinel -- and then traverses it, because building a tree and never
+; walking it would prove nothing.
+;
+; THE PARSE RETURNS A PRODUCT, `(tuple nodes nn ok)`: the node table frozen, the
+; node count and ok (tables.md §2.5, ADR 0031). The count and ok used to ride in
+; the sentinel's slots 0 and 1, because a `build` had one way out; on all four
+; targets this case is now also a tuple leaving a LOOP inside two SCOPES, taken
+; apart after them, which is the join point every backend has to emit.
 ;
 ; The packed answer is  nodes*1000000 + seen*10000 + tagdepth*10 + ok, and every
 ; one was computed by hand before the program was run. `seen == nodes` is the
@@ -112,10 +118,10 @@
     (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
       ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-      (< i 0)  (set (set nodes 0 nn) 1 0)
+      (< i 0)  (tuple nodes nn 0)
 
       (>= i (len src))
-        (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
+        (tuple nodes nn (if (= sp 0) ok 0))
 
       ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
       ; carries an obligation nothing can discharge, because both `nn` and
@@ -123,8 +129,8 @@
       ; a document has more nodes than the table, or nests deeper than the
       ; stack. A recursive-descent parser has both limits too; the heap and
       ; the C stack. It is never asked about either.
-      (>= nn nmax)  (set (set nodes 0 nn) 1 0)
-      (>= sp dmax)  (set (set nodes 0 nn) 1 0)
+      (>= nn nmax)  (tuple nodes nn 0)
+      (>= sp dmax)  (tuple nodes nn 0)
 
       (space? (src i))  (again nodes stk (+ i 1) nn sp ok)
       (punct? (src i))  (again nodes stk (+ i 1) nn sp ok)
@@ -238,12 +244,12 @@
 (def d3 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
 
 (def report (src)
-  (let nodes (parse src)
-    (+ (* (- (nodes 0) 1) 1000000)
+  (let (tuple nodes nn ok) (parse src)
+    (+ (* (- nn 1) 1000000)
       (+ (* (walk nodes) 10)
-            (nodes 1)))))
+            ok))))
 
-(def measure (src) (walk (parse src)))
+(def measure (src) (let (tuple nodes nn ok) (parse src) (walk nodes)))
 
 (sig run ((k int)) int)
 (def run (k)

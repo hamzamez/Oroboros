@@ -32,10 +32,16 @@
 ;   4k+2  kid    first child, 0 = none
 ;   4k+3  sib    next sibling, 0 = none
 ;
-; NODE 0 IS THE `none` SENTINEL, so its own four slots are free and hold the
-; header: slot 0 is the node count and slot 1 is ok. That is why `none` can be
-; 0 rather than -1, and why every index in the program is non-negative — which
-; the refinement layer cares about a great deal.
+; NODE 0 IS THE `none` SENTINEL. That is why `none` can be 0 rather than -1,
+; and why every index in the program is non-negative — which the refinement
+; layer cares about a great deal. Its four slots are unused.
+;
+; THE PARSE RETURNS THREE THINGS: the node table, the node count and ok. They
+; used to come back as ONE table, with the count and ok written into the
+; sentinel's slots 0 and 1, because a `build` had one way out. It now returns a
+; product, `(tuple nodes nn ok)`, frozen in its first position (ADR 0031,
+; tables.md §2.5): the count is an int with its own range, not a cell of the node
+; table that every reader had to prove held one.
 ;
 ; AND `build` ZERO-FILLS (tables.md §14.3), so `kid` and `sib` never need
 ; initialising: a leaf writes neither and reads 0 for both. That one guarantee
@@ -158,19 +164,19 @@
     (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
       ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
-      (go.< i 0)  (set (set nodes 0 nn) 1 0)
+      (go.< i 0)  (tuple nodes nn 0)
 
       (go.>= i (len src))
-        (set (set nodes 0 nn) 1 (if (= sp 0) ok 0))
+        (tuple nodes nn (if (= sp 0) ok 0))
 
-      ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. `(set nodes …)`
-      ; carries an obligation nothing can discharge, because both `nn` and
-      ; `sp` grow with the input — so the program has to say what happens when
+      ; THE TWO LIMITS THE COMPILER MAKES THE PARSER STATE. A store into
+      ; `nodes` carries an obligation nothing can discharge, because both `nn`
+      ; and `sp` grow with the input — so the program has to say what happens when
       ; a document has more nodes than the table, or nests deeper than the
       ; stack. A recursive-descent parser has both limits too; the heap and
       ; the C stack. It is never asked about either.
-      (go.>= nn nmax)  (set (set nodes 0 nn) 1 0)
-      (go.>= sp dmax)  (set (set nodes 0 nn) 1 0)
+      (go.>= nn nmax)  (tuple nodes nn 0)
+      (go.>= sp dmax)  (tuple nodes nn 0)
 
       (space? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
       (punct? (src i))  (again nodes stk (go.+ i 1) nn sp ok)
@@ -283,12 +289,12 @@
 (def d3 (array 123 34 97 34 58 91 49 44 50 93 44 34 98 34 58 116 114 117 101 125))
 
 (def report (src)
-  (let nodes (parse src)
-    (go.+ (go.* (go.- (nodes 0) 1) 1000000)
+  (let (tuple nodes nn ok) (parse src)
+    (go.+ (go.* (go.- nn 1) 1000000)
       (go.+ (go.* (walk nodes) 10)
-            (nodes 1)))))
+            ok))))
 
-(def measure (src) (walk (parse src)))
+(def measure (src) (let (tuple nodes nn ok) (parse src) (walk nodes)))
 
 (sig run ((k int)) int)
 (def run (k)

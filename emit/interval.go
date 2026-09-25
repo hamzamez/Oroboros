@@ -440,6 +440,7 @@ type intervalPass struct {
 	// noSmash turns it off, for the buffer sub-pass that chooses storage. The
 	// smash* fields are the enclosing loop's back-edge accumulator.
 	tabElem      map[*core.Term]ival
+	tupOf        map[*core.Term][]compFact // a tuple value's components (prodfacts.go)
 	noSmash      bool
 	smashRaw     []string
 	smashTracked []bool
@@ -992,6 +993,9 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 	case core.KName:
 		return p.lookup(t.Name), t
 	case core.KFn:
+		if _, isTuple := tupleArity(t); isTuple {
+			return p.tupleValue(t) // prodfacts.go
+		}
 		// `Body()` OPENS — it turns this lambda's KBound indices into KNames —
 		// so the rebuilt body has to be CLOSED again. `FnClosed` does not close;
 		// it takes a body whose indices are already intact, which is what the
@@ -1042,6 +1046,7 @@ func (p *intervalPass) evalR(t *core.Term) (ival, *core.Term) {
 		if d, ok := p.deltaOf(b); ok {
 			p.setDeltaOf(fn, d)
 		}
+		p.carryTup(fn, b)
 		for i, n := range t.Params {
 			p.unshadowDelta(n, sh[i].v, sh[i].had, sh[i].did)
 		}
@@ -1106,6 +1111,7 @@ func (p *intervalPass) multiPrim(t *core.Term) (ival, *core.Term, bool) {
 	if bodyU {
 		p.u64Val[rebuilt] = true
 	}
+	p.carryTup(rebuilt, nb)
 	return v, rebuilt, true
 }
 
@@ -1276,6 +1282,10 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		if v, nt, ok := p.multiPrim(t); ok {
 			return v, nt
 		}
+		// A TUPLE FROM A LOOP OR A SCOPE under its eliminator (prodfacts.go).
+		if v, nt, ok := p.tupleJoin(t); ok {
+			return v, nt
+		}
 		return top, t
 	}
 	prim, known := p.tgt.Prims[op.Name]
@@ -1302,7 +1312,9 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	if op.Name == core.RequireWhereName && len(args) == 3 {
 		v, nb := p.evalR(args[2])
 		if p.keepMarks {
-			return v, &core.Term{Kind: core.KApp, Kids: []*core.Term{op, args[0], args[1], nb}}
+			marked := &core.Term{Kind: core.KApp, Kids: []*core.Term{op, args[0], args[1], nb}}
+			p.carryTup(marked, nb)
+			return v, marked
 		}
 		return v, nb
 	}
@@ -1419,6 +1431,9 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 		}
 	}
 	rebuilt := &core.Term{Kind: core.KApp, Kids: kids}
+	if known && (prim.Kind == "table-build" || prim.Kind == "map-build") && len(kids) == 3 {
+		p.carryTup(rebuilt, kids[2]) // a scope's value is its body's (prodfacts.go)
+	}
 
 	// THE RUNG ABOVE THE WORD (bigrep.go). Selected before `transfer`, because a
 	// big operation is not an operation the window accounting sees: its result
@@ -1560,6 +1575,7 @@ func (p *intervalPass) app(t *core.Term) (ival, *core.Term) {
 	if known && prim.Kind == "table-build" && len(vals) == 2 {
 		out = intersect(out, vals[1])
 	}
+
 	if checkable {
 		if p.count {
 			p.record(op.Name, out, t)
@@ -1935,6 +1951,7 @@ func (p *intervalPass) let(t *core.Term) (ival, *core.Term) {
 	if bodyHasD {
 		p.setDeltaOf(rebuilt, bodyD)
 	}
+	p.carryTup(rebuilt, nb)
 	return out, rebuilt
 }
 
@@ -1993,6 +2010,7 @@ func (p *intervalPass) cond(t *core.Term) (ival, *core.Term) {
 			p.setDeltaOf(rebuilt, joinI(da, db))
 		}
 	}
+	p.joinTup(rebuilt, na, nb)
 	return joinI(a, b), rebuilt
 }
 
@@ -3258,6 +3276,7 @@ func (p *intervalPass) iterate(t *core.Term) (ival, *core.Term) {
 	if loopHasD {
 		p.setDeltaOf(rebuiltLoop, loopD)
 	}
+	p.carryTup(rebuiltLoop, nb)
 	return out, rebuiltLoop
 }
 

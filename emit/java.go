@@ -38,10 +38,12 @@ type javaEmitter struct {
 	bufReuse map[*core.Term]string
 	spareOf  map[int]string
 
-	tgt     *Target
-	buf     strings.Builder
-	imports map[string]bool
-	types   map[string]string
+	tgt *Target
+	buf strings.Builder
+	// loopInto is the join point whose loop is being emitted (java_join.go).
+	loopInto *joinCtx
+	imports  map[string]bool
+	types    map[string]string
 	// wantElem — see the Go emitter and docs/literal-elements.md §3.
 	wantElem string
 	weak     map[string]string // `any`, used only if nothing else constrains the name
@@ -362,6 +364,16 @@ func (e *javaEmitter) typeOf(t *core.Term) string {
 			}
 			return e.typeOf(body)
 		}
+		// A JOIN POINT has the type of its body, each name typed by the
+		// producer's component (java_join.go).
+		if prod, k, ok := tupleElim(e.tgt, t); ok {
+			body, raw, _ := openFresh(k, map[string]bool{},
+				func(s string) string { return s })
+			for j, ty := range e.tailTypes(prod, len(raw)) {
+				e.types[raw[j]] = ty
+			}
+			return e.typeOf(body)
+		}
 		// A MAP READ UNDER ITS ELIMINATOR has the type of its clause bodies.
 		// Without this a method whose value is a map read comes out
 		// `/*unknown*/`, because every case below assumes the operator is a
@@ -558,6 +570,10 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 		if out, done, err := e.emitMultiPrim(t); err != nil || done {
 			return out, err
 		}
+		// A TUPLE FROM A LOOP OR A SCOPE: a join point (java_join.go).
+		if out, done, err := e.emitJoin(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
@@ -700,29 +716,10 @@ func (e *javaEmitter) emit(t *core.Term) (string, error) {
 			return "java.util.Map.ofEntries(" + strings.Join(parts, ", ") + ")", nil
 		// THE WRITE SIDE — ADR 0018.
 		case p.Kind == "table-build":
-			args := t.Args()
-			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
-				return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
-			}
-			count, err := e.emit(args[0])
+			body, err := e.emitBuildHead(t)
 			if err != nil {
 				return "", err
 			}
-			body, raw, out := openFresh(args[1], e.bound, javaMangle)
-			elem := elemTypeFixed(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
-			e.types[raw[0]] = "array " + elem
-			// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `Arrays.fill`
-			// restores the zero fill `build` guarantees (tables.md §14.3), and
-			// the value needs the element type's own spelling: Java allows a
-			// constant to narrow in an ASSIGNMENT and not in a method call, so
-			// `fill(byteArray, 0)` does not compile.
-			if sp, ok := e.bufReuse[args[1]]; ok {
-				e.line("java.util.Arrays.fill(%s, %s);", sp, javaZero(e.tgt, elem))
-				e.line("final %s %s = %s;", e.tgt.ty("array "+elem), out[0], sp)
-				return e.emit(body)
-			}
-			e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
-				e.tgt.ty(elem), count)
 			return e.emit(body)
 		case p.Kind == "table-set":
 			args := t.Args()
@@ -1065,6 +1062,36 @@ func (e *javaEmitter) emitLet(t *core.Term) (string, error) {
 // exactly one of the three targets.
 // emitConnective emits the host's own operator for a conditional that is one
 // of the three boolean connectives (booleans.md §4.4).
+// emitBuildHead emits a `build`'s allocation and returns its opened body, which
+// is the build's value: shared by the expression path and a join point's
+// producer (java_join.go).
+func (e *javaEmitter) emitBuildHead(t *core.Term) (*core.Term, error) {
+	args := t.Args()
+	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+		return nil, fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+	}
+	count, err := e.emit(args[0])
+	if err != nil {
+		return nil, err
+	}
+	body, raw, out := openFresh(args[1], e.bound, javaMangle)
+	elem := elemTypeFixed(e.tgt, args[1], body, raw[0], e.typeOf, e.sig, e.topParams, e.elemFix)
+	e.types[raw[0]] = "array " + elem
+	// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `Arrays.fill`
+	// restores the zero fill `build` guarantees (tables.md §14.3), and
+	// the value needs the element type's own spelling: Java allows a
+	// constant to narrow in an ASSIGNMENT and not in a method call, so
+	// `fill(byteArray, 0)` does not compile.
+	if sp, ok := e.bufReuse[args[1]]; ok {
+		e.line("java.util.Arrays.fill(%s, %s);", sp, javaZero(e.tgt, elem))
+		e.line("final %s %s = %s;", e.tgt.ty("array "+elem), out[0], sp)
+		return body, nil
+	}
+	e.line("final %s %s = new %s[(int) %s];", e.tgt.ty("array "+elem), out[0],
+		e.tgt.ty(elem), count)
+	return body, nil
+}
+
 func (e *javaEmitter) emitConnective(c Connective) (string, error) {
 	vals := make([]string, len(c.Args))
 	for i, a := range c.Args {
@@ -1386,7 +1413,14 @@ func javaExitType(e *javaEmitter, t *core.Term) string {
 	return e.typeOf(t)
 }
 
-func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
+func (e *javaEmitter) emitLoop(t *core.Term) (string, error) { return e.emitLoopCtx(t, nil) }
+
+// emitLoopCtx emits a loop. With `into` set, the loop is a JOIN POINT's producer
+// (java_join.go): its exits assign the join's variables and break.
+func (e *javaEmitter) emitLoopCtx(t *core.Term, into *joinCtx) (string, error) {
+	outerInto := e.loopInto
+	e.loopInto = into // an inner loop's exits are its own values
+	defer func() { e.loopInto = outerInto }()
 	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
@@ -1481,12 +1515,15 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	}
 	e.spareOf = spares
 	defer func() { e.spareOf = outerSpares }()
-	rty := javaExitType(e, body)
-	if rty == "" {
-		rty = "any"
+	rty := "any"
+	result := ""
+	if into == nil {
+		if rty = javaExitType(e, body); rty == "" {
+			rty = "any"
+		}
+		result = soleExit(e.tgt.Prims, body, raw, names, e.bound, javaMangle)
 	}
-	result := soleExit(e.tgt.Prims, body, raw, names, e.bound, javaMangle)
-	if result == "" {
+	if result == "" && into == nil {
 		result = javaMangle(e.fresh("r"))
 		// THE RESULT VARIABLE NARROWS WITH THE REST. A loop whose exits all fit
 		// the host's index type produces a value that fits, and its result is
@@ -1541,6 +1578,9 @@ func (e *javaEmitter) emitLoop(t *core.Term) (string, error) {
 	}
 	e.indent--
 	e.line("}")
+	if into != nil {
+		return "", nil
+	}
 	e.types[result] = rty
 	return result, nil
 }
@@ -1615,6 +1655,14 @@ func (e *javaEmitter) emitLoopBody(t *core.Term, raw, names []string, result str
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)
+	}
+	// AN EXIT OF A JOIN POINT'S LOOP assigns the join's variables (java_join.go).
+	if into := e.loopInto; into != nil {
+		if err := e.emitInto(t, into); err != nil {
+			return err
+		}
+		e.line("break;")
+		return nil
 	}
 	v, err := e.emit(t)
 	if err != nil {

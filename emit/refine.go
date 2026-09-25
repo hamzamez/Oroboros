@@ -412,6 +412,24 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 			}
 			return r.walk(k.Body(), g)
 		}
+		// A TUPLE FROM A LOOP OR A SCOPE: each name is bound as a `let` binds
+		// the value of its projection Pⱼ, whose value is πⱼ of the producer's
+		// (prodresult.go). So a frozen table component carries its length and
+		// its content facts, and a count its linear facts, exactly as when the
+		// producer returned one value (ADR 0031 §3, the component law).
+		if prod, k, ok := tupleElim(r.tgt, t); ok {
+			if err := r.walk(prod, f); err != nil {
+				return err
+			}
+			g := f
+			for j, pj := range projections(r.tgt, prod, len(k.Params)) {
+				g = r.letInner(pj, k.Params[j], g)
+			}
+			for _, n := range k.Params {
+				r.markName(n)
+			}
+			return r.walk(k.Body(), g)
+		}
 		if err := r.walk(op, f); err != nil {
 			return err
 		}
@@ -974,7 +992,7 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	if r.bodyFacts == nil {
 		r.bodyFacts = map[string]*facts{}
 	}
-	r.bodyFacts[loopKey(lam, inits, f)] = g
+	r.bodyFacts[bodyKey(r.tgt, lam, inits, f)] = g
 	r.loopDepth++
 	defer func() { r.loopDepth-- }()
 	return r.clauses(lam.Body(), g)
@@ -1119,7 +1137,7 @@ func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts)
 	}
 	if e.Op().Kind == core.KName && loopKinds[e.Op().Name] {
 		if args := e.Args(); len(args) > 1 {
-			if _, done := r.bodyFacts[loopKey(args[0], args[1:], at)]; done {
+			if _, done := r.bodyFacts[bodyKey(r.tgt, args[0], args[1:], at)]; done {
 				r.summarizeLoop(into, x, e)
 				return
 			}
@@ -1385,7 +1403,7 @@ func (r *refiner) summarizeLoop(inner *facts, x string, loop *core.Term) (kept [
 		return nil
 	}
 	lam, inits := args[0], args[1:]
-	body, ok := r.bodyFacts[loopKey(lam, inits, inner)]
+	body, ok := r.bodyFacts[bodyKey(r.tgt, lam, inits, inner)]
 	if !ok {
 		return nil
 	}

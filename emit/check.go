@@ -135,6 +135,25 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			defer c.bind(raw, p.Results[:len(raw)])()
 			return c.walk(body, want)
 		}
+		// A TUPLE FROM A LOOP OR A SCOPE, under its eliminator (prodresult.go,
+		// tables.md §2.5). Each projection Pⱼ is walked: it is the producer with
+		// its tails replaced by their j-th components, so walking it checks the
+		// whole producer and types component j, and its type is xⱼ's. Walking the
+		// producer itself would check nothing past its tails, whose operator `#k`
+		// is no primitive.
+		if prod, k, ok := tupleElim(c.tgt, t); ok {
+			tys := make([]string, len(k.Params))
+			for j, pj := range projections(c.tgt, prod, len(k.Params)) {
+				ty, err := c.walk(pj, "")
+				if err != nil {
+					return "", err
+				}
+				tys[j] = ty
+			}
+			body, raw, _ := openFresh(k, map[string]bool{}, func(s string) string { return s })
+			defer c.bind(raw, tys)()
+			return c.walk(body, want)
+		}
 		return "", nil // the emitter reports this better than the checker can
 	}
 	p, ok := c.tgt.Prims[op.Name]

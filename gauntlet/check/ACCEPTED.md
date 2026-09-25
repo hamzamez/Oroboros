@@ -459,3 +459,25 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/text-of.oro java`
 - new source — `gauntlet/differential/cases/text-of.oro js`
 - new source — `gauntlet/differential/cases/text-of.oro windows`
+
+## 2026-09-25 — on 9b3a94e, with uncommitted changes
+
+**Reason:** ADR 0031 built: tree.oro's parser returns (tuple nodes nn ok) instead of writing count and ok into node 0's slots; proofs identical (99/99, 416/416); TreeGen at 1.04x hand-written, the 3-4% against the old emission shown to be code layout (prodresult-2026-09-25 §5). Three new differential cases (prod-count, prod-loop, prod-two).
+
+520 runs: 242 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling pass.
+
+13 change(s):
+
+- emitted text changed — `examples/json/tree.oro go`
+- new source — `gauntlet/differential/cases/prod-count.oro go`
+- new source — `gauntlet/differential/cases/prod-count.oro java`
+- new source — `gauntlet/differential/cases/prod-count.oro js`
+- new source — `gauntlet/differential/cases/prod-count.oro windows`
+- new source — `gauntlet/differential/cases/prod-loop.oro go`
+- new source — `gauntlet/differential/cases/prod-loop.oro java`
+- new source — `gauntlet/differential/cases/prod-loop.oro js`
+- new source — `gauntlet/differential/cases/prod-loop.oro windows`
+- new source — `gauntlet/differential/cases/prod-two.oro go`
+- new source — `gauntlet/differential/cases/prod-two.oro java`
+- new source — `gauntlet/differential/cases/prod-two.oro js`
+- new source — `gauntlet/differential/cases/prod-two.oro windows`

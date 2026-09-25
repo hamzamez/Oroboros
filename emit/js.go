@@ -45,6 +45,8 @@ func jsImportAlias(spec string) string {
 
 type jsEmitter struct {
 	tgt *Target
+	// loopInto is the join point whose loop is being emitted (js_join.go).
+	loopInto *joinCtx
 
 	// bufReuse and spareOf are LoopBufferReuse's answer: a back-edge `build`
 	// writes into storage the loop already owns. Keyed by the build's lambda
@@ -456,6 +458,10 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 		if out, done, err := e.emitMultiPrim(t); err != nil || done {
 			return out, err
 		}
+		// A TUPLE FROM A LOOP OR A SCOPE: a join point (js_join.go).
+		if out, done, err := e.emitJoin(t); err != nil || done {
+			return out, err
+		}
 		if op.Kind != core.KName {
 			return "", fmt.Errorf("application of a non-name: %s", t)
 		}
@@ -629,32 +635,10 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 			}
 			return "{" + strings.Join(parts, ", ") + "}", nil
 		case "table-build":
-			args := t.Args()
-			if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
-				return "", fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
-			}
-			count, err := e.emit(args[0])
+			body, err := e.emitBuildHead(t)
 			if err != nil {
 				return "", err
 			}
-			body, _, out := openFresh(args[1], e.bound, jsMangle)
-			// `new Array(n).fill(…)` rather than a bare `new Array(n)`: a
-			// sparse array on V8 is a dictionary, and every store into one is a
-			// map insert — which is `js.set`'s refusal (native-gauntlet §…)
-			// arriving here. Filling makes it a packed elements array.
-			// JavaScript declares no types, so there is nothing to read an
-			// element type off — and nothing that needs one. Zero fills both
-			// numeric and boolean buffers usefully enough, and what matters is
-			// that the array is PACKED rather than sparse.
-			// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `fill(0)` restores
-			// the zero fill `build` guarantees (tables.md §14.3) and keeps the
-			// array PACKED, which is the same reason the fresh one is filled.
-			if sp, ok := e.bufReuse[args[1]]; ok {
-				e.line("%s.fill(0);", sp)
-				e.line("const %s = %s;", out[0], sp)
-				return e.emit(body)
-			}
-			e.line("const %s = new Array(%s).fill(0);", out[0], count)
 			return e.emit(body)
 		case "table-set":
 			args := t.Args()
@@ -769,6 +753,39 @@ func (e *jsEmitter) emit(t *core.Term) (string, error) {
 // not a property of the language.
 // emitConnective emits the host's own operator for a conditional that is one
 // of the three boolean connectives (booleans.md §4.4).
+// emitBuildHead emits a `build`'s allocation and returns its opened body, which
+// is the build's value: shared by the expression path and a join point's
+// producer (js_join.go).
+func (e *jsEmitter) emitBuildHead(t *core.Term) (*core.Term, error) {
+	args := t.Args()
+	if len(args) != 2 || args[1].Kind != core.KFn || len(args[1].Params) != 1 {
+		return nil, fmt.Errorf("build takes a length and (fn (b) …), got %s", t)
+	}
+	count, err := e.emit(args[0])
+	if err != nil {
+		return nil, err
+	}
+	body, _, out := openFresh(args[1], e.bound, jsMangle)
+	// `new Array(n).fill(…)` rather than a bare `new Array(n)`: a
+	// sparse array on V8 is a dictionary, and every store into one is a
+	// map insert — which is `js.set`'s refusal (native-gauntlet §…)
+	// arriving here. Filling makes it a packed elements array.
+	// JavaScript declares no types, so there is nothing to read an
+	// element type off — and nothing that needs one. Zero fills both
+	// numeric and boolean buffers usefully enough, and what matters is
+	// that the array is PACKED rather than sparse.
+	// A BACK-EDGE BUILD WRITES INTO THE LOOP'S SPARE. `fill(0)` restores
+	// the zero fill `build` guarantees (tables.md §14.3) and keeps the
+	// array PACKED, which is the same reason the fresh one is filled.
+	if sp, ok := e.bufReuse[args[1]]; ok {
+		e.line("%s.fill(0);", sp)
+		e.line("const %s = %s;", out[0], sp)
+		return body, nil
+	}
+	e.line("const %s = new Array(%s).fill(0);", out[0], count)
+	return body, nil
+}
+
 func (e *jsEmitter) emitConnective(c Connective) (string, error) {
 	vals := make([]string, len(c.Args))
 	for i, a := range c.Args {
@@ -1045,6 +1062,15 @@ func (e *jsEmitter) emitMakeVec(t *core.Term) (string, error) {
 // already emits, and measured free.
 
 func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
+	return e.emitLoopCtx(t, tail, nil)
+}
+
+// emitLoopCtx emits a loop. With `into` set, the loop is a JOIN POINT's producer
+// (js_join.go): its exits assign the join's variables and break.
+func (e *jsEmitter) emitLoopCtx(t *core.Term, tail bool, into *joinCtx) (string, error) {
+	outerInto := e.loopInto
+	e.loopInto = into // an inner loop's exits are its own values
+	defer func() { e.loopInto = outerInto }()
 	args := t.Args()
 	if len(args) < 2 || args[0].Kind != core.KFn {
 		return "", fmt.Errorf("loop takes (fn (x…) body) and one initial value per variable")
@@ -1092,7 +1118,7 @@ func (e *jsEmitter) emitLoop(t *core.Term, tail bool) (string, error) {
 	e.spareOf = spares
 	defer func() { e.spareOf = outerSpares }()
 	result := ""
-	if !tail {
+	if !tail && into == nil {
 		result = soleExit(e.tgt.Prims, body, raw, names, e.bound, jsMangle)
 		if result == "" {
 			result = e.fresh("r")
@@ -1193,6 +1219,14 @@ func (e *jsEmitter) emitLoopBody(t *core.Term, raw, names []string, result strin
 	}
 	if isAgain(t) {
 		return e.emitAgain(t, raw, names, post)
+	}
+	// AN EXIT OF A JOIN POINT'S LOOP assigns the join's variables (js_join.go).
+	if into := e.loopInto; into != nil {
+		if err := e.emitInto(t, into); err != nil {
+			return err
+		}
+		e.line("break;")
+		return nil
 	}
 	v, err := e.emit(t)
 	if err != nil {

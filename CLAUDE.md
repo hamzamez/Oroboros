@@ -161,7 +161,7 @@ rejected alternatives.
 | A definition's declared parameter range and `where` are obligations at its calls | [0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md) |
 | Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
-| A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law — **not built** | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
+| A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
 
 ## How this project is run
 
@@ -252,10 +252,15 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `(build b n …)`, whose buffer is linear, checked by `occurrences` on the residual (ADR 0018).
   **A scoped buffer is a binder**: `(build b n  c m  body)` is reader sugar for the nested core form
   `(build n (fn (b) …))`, n-ary and sequential, one region, and `build-map` likewise
-  ([tables.md §2.4](docs/spec/tables.md)). Its value is the body's value; **a product result**
-  (frozen buffers plus buffer-free values, taken apart by a tuple pattern) is
-  [ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), **not built**: today a tuple out
-  of a `build` or a `loop` is refused with an internal error. `(buffer V)` is a nameable parameter type (ADR 0020):
+  ([tables.md §2.4](docs/spec/tables.md)). Its value is the body's value, and it may be **a product**
+  of frozen buffers and buffer-free values, taken apart by a tuple pattern
+  ([ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), [tables.md §2.5](docs/spec/tables.md)):
+  - the pattern is a **join point**, emitted once after the scope and the loop in it;
+  - each name knows what its **projection** Pⱼ (the producer with every tail tuple replaced by its j-th
+    component) would tell a `let`, because ⟦Pⱼ⟧ = πⱼ⟦P⟧;
+  - **a store needs a live buffer**: `set`/`insert` into a frozen table or map is refused, and a map
+    buffer is linear. Both were accepted before and gave wrong answers;
+  - not built: an `again` inside the pattern's body, and a variant out of a scope (R1). `(buffer V)` is a nameable parameter type (ADR 0020):
   - uniqueness is *assumed* at an export;
   - linearity is *checked* through the body;
   - a buffer may not be an element type.
@@ -445,7 +450,10 @@ Each of these has bitten more than once. The instances are in the results they n
 - **A path nothing runs is a path nothing checks.** A `; skip:`, a rebuilt term discarded unless
   `-checked` is on, a backend no target used: each hid a real bug for weeks. The mirror: an escape
   taken everywhere checks nothing either — every differential case was built `-checked`, so a case's
-  lost proof became a trap and passed (bounds-2026-09-24).
+  lost proof became a trap and passed (bounds-2026-09-24). And **a shape an analysis does not know is
+  a shape it does not check**: the interval pass returned ⊤ for a host call's continuation, and later
+  for a tuple from a `build`, without evaluating either side, and the type checker walked neither
+  (prodresult-2026-09-25).
 - **A harness that cannot fail proves nothing.**
   - Every soundness test must be shown to fail against a planted bug, including the bug that shipped.
   - Refusal-shaped properties need an anti-vacuity guard.

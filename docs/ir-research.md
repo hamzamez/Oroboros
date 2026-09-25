@@ -180,6 +180,24 @@ no mutable variables (ADR 0018: values are immutable, and a buffer is threaded a
 
 This is where the prediction of a large drop in compile time comes from. It has to be measured (P1).
 
+### 4b. Path-sensitive facts without copying: π-parameters (found by P1)
+
+P1 ([irp1-2026-09-25](../gauntlet/results/irp1-2026-09-25.md)) measured where `freq`'s 7.46 GB go.
+**57.7% is the interval pass copying its environment** at every branch: `snapshot` and `restore`. That
+cost exists because a fact is **path-sensitive**: `(if (< x n) A B)` narrows `x` in A only, so the
+pass keeps a whole map per program point.
+
+Unique names alone do not remove it: they move the per-point map from terms to values. What removes it
+is a representation in which **each name has exactly one fact**:
+- **e-SSA** (Bodík, Gupta and Sarkar, *ABCD*, PLDI 2000) and **SSI** (Ananian 1999) rename a tested
+  variable on each side of a branch, `x₁ = π(x)`, and the narrowed fact belongs to `x₁`;
+- an analysis over such a form is **sparse** (Tavares, Boissinot, Pereira and Rastello, CC 2014): the
+  abstract state at a point is the product of the facts of the values in scope, each computed once at
+  its definition. There is no environment per point, so there is nothing to copy.
+
+**In C2 a π-node is a parameter of the branch's region**, the device a loop's parameters already are,
+so the algebra gains no operation. **This is a requirement of the IR, whichever candidate wins.**
+
 ---
 
 ## 5. Question 3: the analyses as models, and their product
@@ -331,6 +349,14 @@ reasons for them.
 Each is a result document, and each is thrown away or kept by its numbers. The specification is
 written from what survives.
 
+**P1, done** ([irp1-2026-09-25](../gauntlet/results/irp1-2026-09-25.md)):
+- Lowering costs 0.1–0.4 ms and at most 0.7 MB on four real programs, with nothing left opaque.
+  Today's pipeline allocates 112 MB – 7.46 GB on the same residuals.
+- C2 is cheaper than C1 by ~0.3 ms, which is immaterial, so C1 against C2 moves to P2 and P3.
+- The refactor survives, but the largest cost it must remove is the path-sensitive environment
+  (§4b). **P3 must therefore be the interval domain on C2 *with π-parameters*.**
+- `SelectShifts` reruns the whole interval analysis on every program.
+
 ---
 
 ## 12. What this document does not decide
@@ -351,8 +377,10 @@ written from what survives.
 
 ## References
 
+- Ananian, C. S. *The Static Single Information Form*. MIT, 1999.
 - Appel, A. W. *Compiling with Continuations*. Cambridge, 1992. — "SSA is functional programming",
   *SIGPLAN Notices* 33(4), 1998.
+- Bodík, R., Gupta, R., Sarkar, V. "ABCD: eliminating array bounds checks on demand". PLDI 2000.
 - Blanchet, B., Cousot, P., Cousot, R., Feret, J., Mauborgne, L., Miné, A., Monniaux, D., Rival, X.
   "A static analyzer for large safety-critical software". PLDI 2003.
 - Bloom, S. L., Ésik, Z. *Iteration Theories: The Equational Logic of Iterative Processes*.
@@ -403,6 +431,8 @@ written from what survives.
 - Ramsey, N. "Beyond Relooper: recursive translation of unstructured control flow to structured
   control flow (functional pearl)". ICFP 2022.
 - Rust RFC 2094, "Non-lexical lifetimes" (the borrow checker on MIR). 2017.
+- Tavares, A., Boissinot, B., Pereira, F. M. Q., Rastello, F. "Parameterized construction of program
+  representations for sparse dataflow analyses". CC 2014.
 - Tate, R., Stepp, M., Tatlock, Z., Lerner, S. "Equality saturation: a new approach to
   optimization". POPL 2009.
 - V8 team. "Land ahoy: leaving the Sea of Nodes". v8.dev, 25 March 2025.

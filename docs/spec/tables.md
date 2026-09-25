@@ -266,8 +266,7 @@ source writes the binding and not the redex. The binder form does the same for `
    that as a move, so a later read or store through the old name is refused (probed 2026-09-25).
 4. **The value is the body's value.** When the body returns one of the scope's buffers, the result is
    that buffer frozen, and the others are dropped. The discipline is affine at the end of a scope, and
-   reclamation belongs to the target (ADR 0018). Which results are legal beyond one buffer is
-   [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md) (§14.1).
+   reclamation belongs to the target (ADR 0018). A body may return several things at once, §2.5.
 
 **Grammar**, discriminated by arity as `def` is:
 
@@ -315,6 +314,81 @@ at two index sets (arrays-revisited.md §6), so they have one surface.
 ```
 
 A tool that respells `build` preserves every comment or refuses the edit (comments.md).
+
+### 2.5 What a `build` returns: a product of frozen buffers and values
+
+Specified 2026-09-25, [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md),
+[prodresult-2026-09-25](../../gauntlet/results/prodresult-2026-09-25.md).
+
+**The rule.** For a scope binding `b₁ : Buf_{n₁} V₁ … bₖ : Buf_{nₖ} Vₖ`,
+
+```
+build : (n̄ : ℕᵏ) → (⊗ᵢ Buf_{nᵢ} Vᵢ  ⊸  F(Buf̄))  →  F(Arr̄)          F(X̄) = C₁ × … × Cₘ
+```
+
+where each component `Cⱼ` is **one of the scope's buffers**, frozen, **or a buffer-free value**. m = 1
+is the one-table `build` and a buffer-free result, which were already accepted. m ≥ 2 is a tuple, and
+it is taken apart by a tuple pattern:
+
+```lisp
+(let (tuple nodes nn ok)
+     (build nodes (* 4 nmax)
+            stk   (* 2 dmax)
+       (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
+         (>= i (len src))  (tuple nodes nn (if (= sp 0) ok 0))
+         …))
+  …)                          ; nodes : (array int), len nodes = (* 4 nmax); nn and ok are ints
+```
+
+The freeze is `F(φ)`: `φᵢ : Buf_{nᵢ} Vᵢ → Arr_{nᵢ} Vᵢ` in each buffer position and the identity
+elsewhere, and each `φᵢ` is the identity on representation (ADR 0018). This is `createT` from Haskell's
+`vector` package, restricted to products.
+
+**Theorem (no-copy freeze), ADR 0031 §2.** If at the scope's exit every buffer component is the only
+live reference to its storage, and no store can name a frozen value, then `F(φ)` copies nothing and no
+store is ever observed through the result. The hypothesis is four refusals, each decided on the
+residual:
+
+| | refused | why |
+|---|---|---|
+| **S** | a store into a value that is not a live buffer: `(set t i v)` or `(insert m k v)` where `t`/`m` is a frozen table or map | the store would be seen through every name of the frozen value. **It was accepted before this section**, and it gave wrong answers: `(set t 1 n)` on a frozen `t` changed what `(t 1)` read (prodresult §2) |
+| **R1** | a scope buffer anywhere but the top level of the result: in an array's element (ADR 0020 rule 6), a variant's payload, or a rule-table's rule | a buffer inside another value outlives the scope unfrozen. A rule-table's rule is refused by *a rule-table has no memory*, and `alloc` is the fix: it reads the buffer inside the scope |
+| **R2** | the same buffer in two components | two live references. Linearity refuses it, because forming the tuple moves the buffer |
+| **R3** | a read or store through a buffer an inner scope returned | the inner scope moved it. Linearity refuses it (probed, §2.4 law 3) |
+
+**A map buffer is linear too.** maps.md §3.3 says its discipline is identical to a table buffer's, and
+the check did not look at map buffers at all. A map buffer used twice was accepted, and it leaked one
+`insert` into a map that never received it (prodresult §2). `build-map`'s binder and `insert` are now
+checked by the same walk as `build`'s binder and `set`.
+
+**The component law.** `(let (tuple x₁ … xₘ) e body)`: every fact the analyses hold of `e`'s j-th
+component holds of `xⱼ` in `body` (ADR 0031 §3). For a scope, and for the loop inside it that computes
+the components:
+
+- **a buffer component** `bᵢ`, or a loop variable threading it: `len xⱼ = nᵢ`, and the element range
+  and component facts the analyses derived for that buffer (array-facts.md);
+- **a value component:** its interval, joined over the exits that produce the tuple.
+
+**The lowering, ADR 0031 §4.** Two commuting conversions, and neither copies code:
+
+```
+((build n (fn (b) M)) K)   ⟶   (build n (fn (b) (M K)))        K runs once, now, inside the scope
+((loop F z̄) K)             ⟶   a JOIN POINT                    the exits assign m result
+                                                                variables; K runs once, after the loop
+```
+
+The first is valid because a scope's body runs once, now, and `K` is closed with respect to `b`. The
+components `M` passes to `K` have been moved, so `K` holds them **frozen**: a read is pure, and a store
+is refused by S. The second is case-of-case on a loop's exits, with `K` bound once instead of copied
+into each exit (Maurer, Downen, Ariola & Peyton Jones, PLDI 2017). Each backend already has what it
+needs: result variables assigned before a `break`.
+
+**Not built, and refused naming the rule:**
+- an `again` inside the continuation of a tuple-valued loop, a jump out of a join point. Every walker
+  of a clause chain would need a fifth form (CLAUDE.md, "every walker walks four forms"), and no
+  program needs one;
+- a tuple-valued loop or scope as the result of an **export**, which would need each backend's
+  several-results return to walk a loop. The parser's result is consumed inside the program.
 
 ---
 
@@ -974,8 +1048,8 @@ Two things stop it, and both are needed:
    - forcing it with `alloc` reads the buffer inside the scope, which is the legal use below.
 
    So the escape is prevented, but not by the mechanism this section named. Which results a `build`
-   may have, and the check that states it, are
-   [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md).
+   may have, and the four refusals that make its freeze free, are §2.5
+   ([ADR 0031](../decisions/0031-a-builds-result-is-a-product.md)). This rule-table case is R1 there.
 2. **A lambda capturing the buffer cannot be stored or returned anywhere else**, because closures
    are refused as values.
 

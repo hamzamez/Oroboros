@@ -115,7 +115,10 @@ Identical in discipline to `(build b n …)` and for the reason arrays-revisited
 
 - a **frozen map** is an immutable value; `(map K V)` reads are **pure**;
 - a **map buffer** is linear and scoped; its reads are **impure**;
-- the linearity check is `occurrences` on the residual, not a type;
+- the linearity check is `occurrences` on the residual, not a type. **Until 2026-09-25 no check looked
+  at a map buffer**: a map used twice, and an `insert` into a frozen map, were both accepted and gave
+  wrong answers. Both are now refused, by the walk that checks `build` and `set`
+  ([tables.md §2.5](tables.md), S and linearity);
 - the freeze copies nothing.
 
 `wordcount` already has this shape on every target: it threads the map through the loop as a loop

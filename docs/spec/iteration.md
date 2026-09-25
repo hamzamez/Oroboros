@@ -209,6 +209,25 @@ they were [measured free](../../gauntlet/results/loop-encoding-2026-08-18.md) �
 typed arrays, 463 vs 464 on the JVM, both inside the noise floor. When the loop *is* the function's
 result, `break` collapses to `return` and the temp disappears.
 
+### A loop whose value is a tuple
+
+An exit may yield `(tuple e₁ … eₘ)`, and every exit of that loop then yields an m-tuple. Taken apart by
+a tuple pattern, the loop is a **join point** ([tables.md §2.5](tables.md), ADR 0031 §4):
+
+```go
+var r1 []int16; var r2, r3 int            // one result variable per component
+for {
+    if i >= len(src) { r1, r2, r3 = nodes, nn, ok; break }
+    …
+}
+// the pattern's body, once, with its names bound to r1, r2, r3
+```
+
+That is case-of-case on the loop's exits, `((loop F z̄) K)`, with `K` bound once after the loop
+instead of copied into each exit. What the analyses know of `eⱼ` at each exit, joined over the exits,
+is what they know of the pattern's j-th name. An `again` inside the pattern's body, which would jump
+out of the join point, is refused.
+
 ## 3. Why this beats a guard, and beats `fold-range2`
 
 **No product, for n variables.** `(again a b c)` is a multi-argument *application*, not a returned

@@ -2,20 +2,24 @@
 
 package gauntlet
 
-func GenFindFirst(a []float64, k float64) int {
-	var i int = 0
-	var r1 int
-	for ; ; i = (i + 1) {
-		if (i >= (len(a))) {
-			r1 = -1
+func GenFindFirst(v0 []float64, v1 float64) int {
+	var v4 int = 0
+	var v3 int
+	for ; ; v4 = (v4 + 1) {
+		v5 := len(v0)
+		v6 := (v4 >= v5)
+		if v6 {
+			v3 = -1
 			break
 		}
-		if ((a[i]) > k) {
-			r1 = i
+		v12 := v0[v4]
+		v13 := (v12 > v1)
+		if v13 {
+			v3 = v4
 			break
 		}
 		continue
 	}
-	return r1
+	return v3
 }
 

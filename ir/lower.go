@@ -30,7 +30,7 @@ type Options struct {
 
 // Lower lowers one exported definition's residual.
 func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Options) (f *Func, err error) {
-	l := &lowerer{tg: tg, decl: map[V]string{}, opt: opt}
+	l := &lowerer{tg: tg, decl: map[V]string{}, opt: opt, sig: sig}
 	defer func() {
 		if x := recover(); x != nil {
 			e, ok := x.(lowerError)
@@ -43,6 +43,7 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 	f = &Func{Name: name, Body: &Region{}}
 	body := t
 	if t.Kind == core.KFn {
+		l.top = t.Params
 		f.Params = l.freshN(len(t.Params))
 		for i, p := range f.Params {
 			if sig != nil && i < len(sig.Params) && sig.Params[i].Type != "" {
@@ -51,12 +52,28 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		}
 		l.push(f.Params)
 		body = t.Closed()
+		l.assumeWhere(sig, f)
 	}
 	l.tail(body, f.Body, false)
 	f.Types = make([]string, l.nv)
 	typeFunc(tg, f, l.decl)
 	for promote(tg, f, opt) {
 		typeFunc(tg, f, l.decl)
+	}
+	// A DECLARED RESULT is the signature's, not what the body's yields were
+	// typed as: it is a fixed member of its value's class (Theorem D′), and the
+	// host compiles the declaration.
+	if sig != nil {
+		switch {
+		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):
+			for j, r := range sig.Results {
+				if declaresTable(tg, r) {
+					f.Results[j] = r
+				}
+			}
+		case len(f.Results) == 1 && declaresTable(tg, sig.Result):
+			f.Results[0] = sig.Result
+		}
 	}
 	Canonicalize(f)
 	return f, nil
@@ -105,6 +122,8 @@ type lowerer struct {
 	nv     int
 	frames [][]V
 	decl   map[V]string // types a definition declares: a parameter's, a primitive's result, an ascription
+	sig    *core.Sig
+	top    []string // the function's parameter hints, which the interval analysis keys its signature by
 }
 
 func (l *lowerer) fail(format string, args ...any) {
@@ -285,6 +304,16 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case (p.Kind == "table-build" || p.Kind == "map-build") && len(args) == 2 && args[1].Kind == core.KFn:
 		n := l.value(args[0], r)[0]
 		body := &Region{Params: l.freshN(1)}
+		// A BUILD'S ELEMENT RANGE is what the interval analysis proves of its
+		// stores, joined with the zero fill, on the build's own λ: the fact
+		// Theorem D′ joins over the build's class (Finalize). The analyses still
+		// run on terms (ADR 0032's step 4 moves them); their conclusion is
+		// written into the IR here, where the λ is in hand.
+		if p.Kind == "table-build" && l.opt.Decided {
+			if rng, ok := emit.BufferRange(l.tg, args[1], l.sig, l.top); ok {
+				l.decl[body.Params[0]] = "buffer " + rng
+			}
+		}
 		l.push(body.Params)
 		l.tail(args[1].Closed(), body, false)
 		l.pop()
@@ -609,6 +638,67 @@ func breakArity(r *Region) int {
 		return breakArity(r.Else)
 	}
 	return -1
+}
+
+// assumeWhere lowers an export's `where` to `assume`s at the function's entry.
+// At an export the precondition is ASSUMED, since the callers are outside the
+// program (ADR 0028), and an assumption is what refinements.md §3a's second
+// route discharges an obligation with. The `where` names parameters; they are
+// read here as the entry frame's values. A `where` lowering does not know is
+// skipped: an assumption only ever adds facts, so dropping one is sound.
+func (l *lowerer) assumeWhere(sig *core.Sig, f *Func) {
+	if sig == nil || sig.Where == nil {
+		return
+	}
+	names := make([]string, len(sig.Params))
+	for i, p := range sig.Params {
+		names[i] = p.Name
+		// The `where` is the SOURCE's term, written before the representation
+		// passes (PromoteBig, SelectWords) moved a parameter above the word;
+		// its operations would not mean what they mean now. Not assumed.
+		if vt := l.tg.ValueType(p.Type); vt == core.BigType || vt == core.U64Type {
+			return
+		}
+	}
+	term := bindNames(sig.Where, names, 0)
+	r := f.Body
+	mark, nv := len(r.Stmts), l.nv
+	defer func() {
+		if x := recover(); x != nil {
+			if _, ok := x.(lowerError); !ok {
+				panic(x)
+			}
+			r.Stmts, l.nv = r.Stmts[:mark], nv // not lowered: no assumption
+		}
+	}()
+	c := l.value(term, r)[0]
+	l.emit(r, Stmt{Op: OAssume, Args: []V{c}})
+}
+
+// bindNames reads a signature's term, which names parameters, against the
+// entry frame: each name becomes that frame's slot.
+func bindNames(t *core.Term, names []string, depth int) *core.Term {
+	switch t.Kind {
+	case core.KName:
+		for i, n := range names {
+			if n == t.Name {
+				return &core.Term{Kind: core.KBound, Depth: depth, Index: i}
+			}
+		}
+		return t
+	case core.KFn:
+		out := *t
+		out.Kids = []*core.Term{bindNames(t.Closed(), names, depth+1)}
+		return &out
+	case core.KApp:
+		out := *t
+		out.Kids = make([]*core.Term, len(t.Kids))
+		for i, k := range t.Kids {
+			out.Kids[i] = bindNames(k, names, depth)
+		}
+		return &out
+	}
+	return t
 }
 
 // ---------------------------------------------------------------- π-parameters (spec §6)

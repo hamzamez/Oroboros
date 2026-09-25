@@ -7,418 +7,575 @@ import "os"
 import "unicode/utf8"
 
 func GenMain() string {
-	av := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
-	var t1 string
-	if (len(av) < 2) {
+	v0 := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
+	v1 := len(v0)
+	v3 := (v1 < 2)
+	if v3 {
 		fmt.Println("usage: jsonfmt FILE")
-		t1 = "usage: jsonfmt FILE"
-	} else {
-		src, err := os.ReadFile(av[1])
-		var t2 string
-		if (err == nil) {
-			var t3 string
-			if (len(src) >= 65536) {
-				fmt.Println("jsonfmt: file is larger than this tool accepts")
-				t3 = "jsonfmt: file is larger than this tool accepts"
-			} else {
-				var n int = 0
-				var i int = 0
-				var d int = 0
-				var fresh int = 0
-				var r4 int
-				for {
-					if (i >= len(src)) {
-						r4 = (n + 1)
-						break
-					}
-					if (d >= 64) {
-						r4 = (n + 1)
-						break
-					}
-					var c int = int(src[i])
-					if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
-						i = (i + 1)
-						continue
-					}
-					var c2 int = int(src[i])
-					if ((c2 == 123) || (c2 == 91)) {
-						var t5 int
-						if (fresh == 1) {
-							t5 = (1 + (2 * d))
-						} else {
-							t5 = 0
-						}
-						n, i, d, fresh = (n + (t5 + 1)), (i + 1), (d + 1), 1
-						continue
-					}
-					var c3 int = int(src[i])
-					if ((c3 == 125) || (c3 == 93)) {
-						var t6 int
-						if (d < 1) {
-							t6 = 0
-						} else {
-							t6 = (d - 1)
-						}
-						var d1 int = t6
-						var t7 int
-						if (fresh == 0) {
-							t7 = (1 + (2 * d1))
-						} else {
-							t7 = 0
-						}
-						n, i, d, fresh = (n + (t7 + 1)), (i + 1), d1, 0
-						continue
-					}
-					if (int(src[i]) == 44) {
-						n, i, fresh = (n + (2 + (2 * d))), (i + 1), 0
-						continue
-					}
-					if (int(src[i]) == 58) {
-						n, i = (n + 2), (i + 1)
-						continue
-					}
-					var c4 int = int(src[i])
-					if ((c4 == 34) || ((((c4 >= 48) && (c4 <= 57)) || ((c4 == 45) || ((c4 == 43) || ((c4 == 46) || ((c4 == 101) || (c4 == 69)))))) || ((c4 >= 97) && (c4 <= 122)))) {
-						var t8 int
-						if (int(src[i]) == 34) {
-							var j int = (i + 1)
-							var r9 int
-							for {
-								if (j < 0) {
-									r9 = j
-									break
-								}
-								if (j >= len(src)) {
-									r9 = j
-									break
-								}
-								if ((int(src[j]) == 92) && ((j + 1) >= len(src))) {
-									r9 = (j + 1)
-									break
-								}
-								if (int(src[j]) == 92) {
-									j = (j + 2)
-									continue
-								}
-								if (int(src[j]) == 34) {
-									r9 = (j + 1)
-									break
-								}
-								j = (j + 1)
-								continue
-							}
-							t8 = r9
-						} else {
-							var c5 int = int(src[i])
-							var t10 int
-							if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
-								var j2 int = (i + 1)
-								for ; ; j2 = (j2 + 1) {
-									if (j2 < 0) {
-										break
-									}
-									if (j2 >= len(src)) {
-										break
-									}
-									var c6 int = int(src[j2])
-									if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
-										continue
-									}
-									break
-								}
-								t10 = j2
-							} else {
-								var j3 int = (i + 1)
-								for ; ; j3 = (j3 + 1) {
-									if (j3 < 0) {
-										break
-									}
-									if (j3 >= len(src)) {
-										break
-									}
-									var c7 int = int(src[j3])
-									if ((c7 >= 97) && (c7 <= 122)) {
-										continue
-									}
-									break
-								}
-								t10 = j3
-							}
-							t8 = t10
-						}
-						var ni int = t8
-						var t11 int
-						if (fresh == 1) {
-							t11 = (1 + (2 * d))
-						} else {
-							t11 = 0
-						}
-						n, i, fresh = (n + (t11 + (ni - i))), ni, 0
-						continue
-					}
-					i = (i + 1)
-					continue
-				}
-				out := make([]byte, r4)
-				out2 := out
-				var op int = 0
-				var i2 int = 0
-				var d2 int = 0
-				var fresh2 int = 0
-				var r12 []byte
-				for {
-					if (i2 >= len(src)) {
-						out2[op] = byte(10)
-						r12 = out2
-						break
-					}
-					if (d2 >= 64) {
-						out2[op] = byte(10)
-						r12 = out2
-						break
-					}
-					var c8 int = int(src[i2])
-					if ((c8 == 32) || ((c8 == 9) || ((c8 == 10) || (c8 == 13)))) {
-						i2 = (i2 + 1)
-						continue
-					}
-					var c9 int = int(src[i2])
-					if ((c9 == 123) || (c9 == 91)) {
-						var t13 int
-						if (fresh2 == 1) {
-							t13 = (1 + (2 * d2))
-						} else {
-							t13 = 0
-						}
-						var p int = t13
-						var t14 []byte
-						if (fresh2 == 1) {
-							out2[op] = byte(10)
-							out3 := out2
-							out4 := out3
-							var k int = 0
-							var o int = (op + 1)
-							for ; ; k, o = (k + 1), (o + 1) {
-								if (k >= (2 * d2)) {
-									break
-								}
-								out4[o] = byte(32)
-								continue
-							}
-							t14 = out4
-						} else {
-							t14 = out2
-						}
-						out5 := t14
-						var t15 int
-						if (int(src[i2]) == 123) {
-							t15 = 123
-						} else {
-							t15 = 91
-						}
-						var c10 int = t15
-						out5[(op + p)] = byte(c10)
-						out2, op, i2, d2, fresh2 = out5, (op + (p + 1)), (i2 + 1), (d2 + 1), 1
-						continue
-					}
-					var c11 int = int(src[i2])
-					if ((c11 == 125) || (c11 == 93)) {
-						var t16 int
-						if (d2 < 1) {
-							t16 = 0
-						} else {
-							t16 = (d2 - 1)
-						}
-						var d12 int = t16
-						var t17 int
-						if (fresh2 == 0) {
-							t17 = (1 + (2 * d12))
-						} else {
-							t17 = 0
-						}
-						var p2 int = t17
-						var t18 []byte
-						if (fresh2 == 0) {
-							out2[op] = byte(10)
-							out6 := out2
-							out7 := out6
-							var k2 int = 0
-							var o2 int = (op + 1)
-							for ; ; k2, o2 = (k2 + 1), (o2 + 1) {
-								if (k2 >= (2 * d12)) {
-									break
-								}
-								out7[o2] = byte(32)
-								continue
-							}
-							t18 = out7
-						} else {
-							t18 = out2
-						}
-						out8 := t18
-						var t19 int
-						if (int(src[i2]) == 125) {
-							t19 = 125
-						} else {
-							t19 = 93
-						}
-						var c12 int = t19
-						out8[(op + p2)] = byte(c12)
-						out2, op, i2, d2, fresh2 = out8, (op + (p2 + 1)), (i2 + 1), d12, 0
-						continue
-					}
-					if (int(src[i2]) == 44) {
-						out2[op] = byte(44)
-						out9 := out2
-						var op2 int = (op + 1)
-						out9[op2] = byte(10)
-						out10 := out9
-						out11 := out10
-						var k3 int = 0
-						var o3 int = (op2 + 1)
-						for ; ; k3, o3 = (k3 + 1), (o3 + 1) {
-							if (k3 >= (2 * d2)) {
-								break
-							}
-							out11[o3] = byte(32)
-							continue
-						}
-						out2, op, i2, fresh2 = out11, (op + (2 + (2 * d2))), (i2 + 1), 0
-						continue
-					}
-					if (int(src[i2]) == 58) {
-						out2[op] = byte(58)
-						out12 := out2
-						out12[(op + 1)] = byte(32)
-						out2, op, i2 = out12, (op + 2), (i2 + 1)
-						continue
-					}
-					var c13 int = int(src[i2])
-					if ((c13 == 34) || ((((c13 >= 48) && (c13 <= 57)) || ((c13 == 45) || ((c13 == 43) || ((c13 == 46) || ((c13 == 101) || (c13 == 69)))))) || ((c13 >= 97) && (c13 <= 122)))) {
-						var t20 int
-						if (int(src[i2]) == 34) {
-							var j4 int = (i2 + 1)
-							var r21 int
-							for {
-								if (j4 < 0) {
-									r21 = j4
-									break
-								}
-								if (j4 >= len(src)) {
-									r21 = j4
-									break
-								}
-								if ((int(src[j4]) == 92) && ((j4 + 1) >= len(src))) {
-									r21 = (j4 + 1)
-									break
-								}
-								if (int(src[j4]) == 92) {
-									j4 = (j4 + 2)
-									continue
-								}
-								if (int(src[j4]) == 34) {
-									r21 = (j4 + 1)
-									break
-								}
-								j4 = (j4 + 1)
-								continue
-							}
-							t20 = r21
-						} else {
-							var c14 int = int(src[i2])
-							var t22 int
-							if (((c14 >= 48) && (c14 <= 57)) || ((c14 == 45) || ((c14 == 43) || ((c14 == 46) || ((c14 == 101) || (c14 == 69)))))) {
-								var j5 int = (i2 + 1)
-								for ; ; j5 = (j5 + 1) {
-									if (j5 < 0) {
-										break
-									}
-									if (j5 >= len(src)) {
-										break
-									}
-									var c15 int = int(src[j5])
-									if (((c15 >= 48) && (c15 <= 57)) || ((c15 == 45) || ((c15 == 43) || ((c15 == 46) || ((c15 == 101) || (c15 == 69)))))) {
-										continue
-									}
-									break
-								}
-								t22 = j5
-							} else {
-								var j6 int = (i2 + 1)
-								for ; ; j6 = (j6 + 1) {
-									if (j6 < 0) {
-										break
-									}
-									if (j6 >= len(src)) {
-										break
-									}
-									var c16 int = int(src[j6])
-									if ((c16 >= 97) && (c16 <= 122)) {
-										continue
-									}
-									break
-								}
-								t22 = j6
-							}
-							t20 = t22
-						}
-						var ni2 int = t20
-						var t23 int
-						if (fresh2 == 1) {
-							t23 = (1 + (2 * d2))
-						} else {
-							t23 = 0
-						}
-						var p3 int = t23
-						var t24 []byte
-						if (fresh2 == 1) {
-							out2[op] = byte(10)
-							out13 := out2
-							out14 := out13
-							var k4 int = 0
-							var o4 int = (op + 1)
-							for ; ; k4, o4 = (k4 + 1), (o4 + 1) {
-								if (k4 >= (2 * d2)) {
-									break
-								}
-								out14[o4] = byte(32)
-								continue
-							}
-							t24 = out14
-						} else {
-							t24 = out2
-						}
-						out15 := t24
-						out16 := out15
-						var k5 int = i2
-						var o5 int = (op + p3)
-						for ; ; k5, o5 = (k5 + 1), (o5 + 1) {
-							if (k5 >= ni2) {
-								break
-							}
-							if (k5 >= len(src)) {
-								break
-							}
-							out16[o5] = byte(int(src[k5]))
-							continue
-						}
-						out2, op, i2, fresh2 = out16, (op + (p3 + (ni2 - i2))), ni2, 0
-						continue
-					}
-					i2 = (i2 + 1)
-					continue
-				}
-				var v25 string = (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(r12)))
-				fmt.Print(v25)
-				t3 = v25
-			}
-			t2 = t3
-		} else {
-			fmt.Println("jsonfmt: cannot read that file")
-			t2 = "jsonfmt: cannot read that file"
-		}
-		t1 = t2
+		return "usage: jsonfmt FILE"
 	}
-	return t1
+	v9 := v0[1]
+	v10, v11 := os.ReadFile(v9)
+	v12 := (v11 == nil)
+	if v12 {
+		v13 := len(v10)
+		v15 := (v13 >= 65536)
+		if v15 {
+			fmt.Println("jsonfmt: file is larger than this tool accepts")
+			return "jsonfmt: file is larger than this tool accepts"
+		}
+		var v25 int = 0
+		var v26 int = 0
+		var v27 int = 0
+		var v28 int = 0
+		var v24 int
+		for {
+			v29 := len(v10)
+			v30 := (v26 >= v29)
+			if v30 {
+				v34 := (v25 + 1)
+				v24 = v34
+				break
+			}
+			v38 := (v27 >= 64)
+			if v38 {
+				v41 := (v25 + 1)
+				v24 = v41
+				break
+			}
+			v43 := int(v10[v26])
+			v45 := (v43 == 32)
+			v46 := (v45 || ((v43 == 9) || ((v43 == 10) || (v43 == 13))))
+			if v46 {
+				v63 := (v26 + 1)
+				v26 = v63
+				continue
+			}
+			v64 := int(v10[v26])
+			v66 := (v64 == 123)
+			v67 := (v66 || (v64 == 91))
+			if v67 {
+				v74 := (v28 == 1)
+				var v75 int
+				if v74 {
+					v79 := (2 * v27)
+					v80 := (1 + v79)
+					v75 = v80
+				} else {
+					v75 = 0
+				}
+				v84 := (v75 + 1)
+				v85 := (v25 + v84)
+				v87 := (v26 + 1)
+				v89 := (v27 + 1)
+				v25, v26, v27, v28 = v85, v87, v89, 1
+				continue
+			}
+			v91 := int(v10[v26])
+			v93 := (v91 == 125)
+			v94 := (v93 || (v91 == 93))
+			if v94 {
+				v101 := (v27 < 1)
+				var v102 int
+				if v101 {
+					v102 = 0
+				} else {
+					v107 := (v27 - 1)
+					v102 = v107
+				}
+				v109 := (v28 == 0)
+				var v110 int
+				if v109 {
+					v114 := (2 * v102)
+					v115 := (1 + v114)
+					v110 = v115
+				} else {
+					v110 = 0
+				}
+				v119 := (v110 + 1)
+				v120 := (v25 + v119)
+				v122 := (v26 + 1)
+				v25, v26, v27, v28 = v120, v122, v102, 0
+				continue
+			}
+			v124 := int(v10[v26])
+			v126 := (v124 == 44)
+			if v126 {
+				v129 := (2 * v27)
+				v130 := (2 + v129)
+				v131 := (v25 + v130)
+				v133 := (v26 + 1)
+				v25, v26, v28 = v131, v133, 0
+				continue
+			}
+			v135 := int(v10[v26])
+			v137 := (v135 == 58)
+			if v137 {
+				v139 := (v25 + 2)
+				v141 := (v26 + 1)
+				v25, v26 = v139, v141
+				continue
+			}
+			v142 := int(v10[v26])
+			v144 := (v142 == 34)
+			v145 := (v144 || ((((v142 >= 48) && (v142 <= 57)) || ((v142 == 45) || ((v142 == 43) || ((v142 == 46) || ((v142 == 101) || (v142 == 69)))))) || ((v142 >= 97) && (v142 <= 122))))
+			if v145 {
+				v205 := int(v10[v26])
+				v207 := (v205 == 34)
+				var v208 int
+				if v207 {
+					v210 := (v26 + 1)
+					var v212 int = v210
+					var v211 int
+					for {
+						v214 := (v212 < 0)
+						if v214 {
+							v211 = v212
+							break
+						}
+						v217 := len(v10)
+						v218 := (v212 >= v217)
+						if v218 {
+							v211 = v212
+							break
+						}
+						v224 := int(v10[v212])
+						v226 := (v224 == 92)
+						v227 := (v226 && ((v212 + 1) >= len(v10)))
+						if v227 {
+							v234 := (v212 + 1)
+							v211 = v234
+							break
+						}
+						v235 := int(v10[v212])
+						v237 := (v235 == 92)
+						if v237 {
+							v239 := (v212 + 2)
+							v212 = v239
+							continue
+						}
+						v240 := int(v10[v212])
+						v242 := (v240 == 34)
+						if v242 {
+							v244 := (v212 + 1)
+							v211 = v244
+							break
+						}
+						v246 := (v212 + 1)
+						v212 = v246
+						continue
+					}
+					v208 = v211
+				} else {
+					v247 := int(v10[v26])
+					v251 := (v247 >= 48)
+					v252 := (v251 && (v247 <= 57))
+					v258 := (v252 || ((v247 == 45) || ((v247 == 43) || ((v247 == 46) || ((v247 == 101) || (v247 == 69))))))
+					if v258 {
+						v285 := (v26 + 1)
+						var v287 int = v285
+						for ; ; v287 = (v287 + 1) {
+							v289 := (v287 < 0)
+							if v289 {
+								break
+							}
+							v292 := len(v10)
+							v293 := (v287 >= v292)
+							if v293 {
+								break
+							}
+							v298 := int(v10[v287])
+							v302 := (v298 >= 48)
+							v303 := (v302 && (v298 <= 57))
+							v309 := (v303 || ((v298 == 45) || ((v298 == 43) || ((v298 == 46) || ((v298 == 101) || (v298 == 69))))))
+							if v309 {
+								continue
+							}
+							break
+						}
+						v208 = v287
+					} else {
+						v338 := (v26 + 1)
+						var v340 int = v338
+						for ; ; v340 = (v340 + 1) {
+							v342 := (v340 < 0)
+							if v342 {
+								break
+							}
+							v345 := len(v10)
+							v346 := (v340 >= v345)
+							if v346 {
+								break
+							}
+							v351 := int(v10[v340])
+							v353 := (v351 >= 97)
+							v354 := (v353 && (v351 <= 122))
+							if v354 {
+								continue
+							}
+							break
+						}
+						v208 = v340
+					}
+				}
+				v363 := (v28 == 1)
+				var v364 int
+				if v363 {
+					v368 := (2 * v27)
+					v369 := (1 + v368)
+					v364 = v369
+				} else {
+					v364 = 0
+				}
+				v372 := (v208 - v26)
+				v373 := (v364 + v372)
+				v374 := (v25 + v373)
+				v25, v26, v28 = v374, v208, 0
+				continue
+			}
+			v377 := (v26 + 1)
+			v26 = v377
+			continue
+		}
+		v379 := make([]byte, v24)
+		var v378 []byte
+		v385 := v379
+		var v386 int = 0
+		var v387 int = 0
+		var v388 int = 0
+		var v389 int = 0
+		for {
+			v390 := len(v10)
+			v391 := (v387 >= v390)
+			if v391 {
+				v385[v386] = byte(10)
+				break
+			}
+			v399 := (v388 >= 64)
+			if v399 {
+				v385[v386] = byte(10)
+				break
+			}
+			v404 := int(v10[v387])
+			v406 := (v404 == 32)
+			v407 := (v406 || ((v404 == 9) || ((v404 == 10) || (v404 == 13))))
+			if v407 {
+				v424 := (v387 + 1)
+				v387 = v424
+				continue
+			}
+			v425 := int(v10[v387])
+			v427 := (v425 == 123)
+			v428 := (v427 || (v425 == 91))
+			if v428 {
+				v435 := (v389 == 1)
+				var v436 int
+				if v435 {
+					v440 := (2 * v388)
+					v441 := (1 + v440)
+					v436 = v441
+				} else {
+					v436 = 0
+				}
+				v445 := (v389 == 1)
+				var v446 []byte
+				if v445 {
+					v385[v386] = byte(10)
+					v452 := (v386 + 1)
+					v454 := v385
+					var v455 int = 0
+					var v456 int = v452
+					for ; ; v455, v456 = (v455 + 1), (v456 + 1) {
+						v458 := (2 * v388)
+						v459 := (v455 >= v458)
+						if v459 {
+							break
+						}
+						v454[v456] = byte(32)
+						continue
+					}
+					v446 = v454
+				} else {
+					v446 = v385
+				}
+				v469 := int(v10[v387])
+				v471 := (v469 == 123)
+				var v472 int
+				if v471 {
+					v472 = 123
+				} else {
+					v472 = 91
+				}
+				v475 := (v386 + v436)
+				v446[v475] = byte(v472)
+				v478 := (v436 + 1)
+				v479 := (v386 + v478)
+				v481 := (v387 + 1)
+				v483 := (v388 + 1)
+				v385, v386, v387, v388, v389 = v446, v479, v481, v483, 1
+				continue
+			}
+			v485 := int(v10[v387])
+			v487 := (v485 == 125)
+			v488 := (v487 || (v485 == 93))
+			if v488 {
+				v495 := (v388 < 1)
+				var v496 int
+				if v495 {
+					v496 = 0
+				} else {
+					v501 := (v388 - 1)
+					v496 = v501
+				}
+				v503 := (v389 == 0)
+				var v504 int
+				if v503 {
+					v508 := (2 * v496)
+					v509 := (1 + v508)
+					v504 = v509
+				} else {
+					v504 = 0
+				}
+				v513 := (v389 == 0)
+				var v514 []byte
+				if v513 {
+					v385[v386] = byte(10)
+					v520 := (v386 + 1)
+					v522 := v385
+					var v523 int = 0
+					var v524 int = v520
+					for ; ; v523, v524 = (v523 + 1), (v524 + 1) {
+						v526 := (2 * v496)
+						v527 := (v523 >= v526)
+						if v527 {
+							break
+						}
+						v522[v524] = byte(32)
+						continue
+					}
+					v514 = v522
+				} else {
+					v514 = v385
+				}
+				v537 := int(v10[v387])
+				v539 := (v537 == 125)
+				var v540 int
+				if v539 {
+					v540 = 125
+				} else {
+					v540 = 93
+				}
+				v543 := (v386 + v504)
+				v514[v543] = byte(v540)
+				v546 := (v504 + 1)
+				v547 := (v386 + v546)
+				v549 := (v387 + 1)
+				v385, v386, v387, v388, v389 = v514, v547, v549, v496, 0
+				continue
+			}
+			v551 := int(v10[v387])
+			v553 := (v551 == 44)
+			if v553 {
+				v385[v386] = byte(44)
+				v557 := (v386 + 1)
+				v385[v557] = byte(10)
+				v562 := (v557 + 1)
+				v564 := v385
+				var v565 int = 0
+				var v566 int = v562
+				for ; ; v565, v566 = (v565 + 1), (v566 + 1) {
+					v568 := (2 * v388)
+					v569 := (v565 >= v568)
+					if v569 {
+						break
+					}
+					v564[v566] = byte(32)
+					continue
+				}
+				v580 := (2 * v388)
+				v581 := (2 + v580)
+				v582 := (v386 + v581)
+				v584 := (v387 + 1)
+				v385, v386, v387, v389 = v564, v582, v584, 0
+				continue
+			}
+			v586 := int(v10[v387])
+			v588 := (v586 == 58)
+			if v588 {
+				v385[v386] = byte(58)
+				v592 := (v386 + 1)
+				v385[v592] = byte(32)
+				v596 := (v386 + 2)
+				v598 := (v387 + 1)
+				v386, v387 = v596, v598
+				continue
+			}
+			v599 := int(v10[v387])
+			v601 := (v599 == 34)
+			v602 := (v601 || ((((v599 >= 48) && (v599 <= 57)) || ((v599 == 45) || ((v599 == 43) || ((v599 == 46) || ((v599 == 101) || (v599 == 69)))))) || ((v599 >= 97) && (v599 <= 122))))
+			if v602 {
+				v662 := int(v10[v387])
+				v664 := (v662 == 34)
+				var v665 int
+				if v664 {
+					v667 := (v387 + 1)
+					var v669 int = v667
+					var v668 int
+					for {
+						v671 := (v669 < 0)
+						if v671 {
+							v668 = v669
+							break
+						}
+						v674 := len(v10)
+						v675 := (v669 >= v674)
+						if v675 {
+							v668 = v669
+							break
+						}
+						v681 := int(v10[v669])
+						v683 := (v681 == 92)
+						v684 := (v683 && ((v669 + 1) >= len(v10)))
+						if v684 {
+							v691 := (v669 + 1)
+							v668 = v691
+							break
+						}
+						v692 := int(v10[v669])
+						v694 := (v692 == 92)
+						if v694 {
+							v696 := (v669 + 2)
+							v669 = v696
+							continue
+						}
+						v697 := int(v10[v669])
+						v699 := (v697 == 34)
+						if v699 {
+							v701 := (v669 + 1)
+							v668 = v701
+							break
+						}
+						v703 := (v669 + 1)
+						v669 = v703
+						continue
+					}
+					v665 = v668
+				} else {
+					v704 := int(v10[v387])
+					v708 := (v704 >= 48)
+					v709 := (v708 && (v704 <= 57))
+					v715 := (v709 || ((v704 == 45) || ((v704 == 43) || ((v704 == 46) || ((v704 == 101) || (v704 == 69))))))
+					if v715 {
+						v742 := (v387 + 1)
+						var v744 int = v742
+						for ; ; v744 = (v744 + 1) {
+							v746 := (v744 < 0)
+							if v746 {
+								break
+							}
+							v749 := len(v10)
+							v750 := (v744 >= v749)
+							if v750 {
+								break
+							}
+							v755 := int(v10[v744])
+							v759 := (v755 >= 48)
+							v760 := (v759 && (v755 <= 57))
+							v766 := (v760 || ((v755 == 45) || ((v755 == 43) || ((v755 == 46) || ((v755 == 101) || (v755 == 69))))))
+							if v766 {
+								continue
+							}
+							break
+						}
+						v665 = v744
+					} else {
+						v795 := (v387 + 1)
+						var v797 int = v795
+						for ; ; v797 = (v797 + 1) {
+							v799 := (v797 < 0)
+							if v799 {
+								break
+							}
+							v802 := len(v10)
+							v803 := (v797 >= v802)
+							if v803 {
+								break
+							}
+							v808 := int(v10[v797])
+							v810 := (v808 >= 97)
+							v811 := (v810 && (v808 <= 122))
+							if v811 {
+								continue
+							}
+							break
+						}
+						v665 = v797
+					}
+				}
+				v820 := (v389 == 1)
+				var v821 int
+				if v820 {
+					v825 := (2 * v388)
+					v826 := (1 + v825)
+					v821 = v826
+				} else {
+					v821 = 0
+				}
+				v830 := (v389 == 1)
+				var v831 []byte
+				if v830 {
+					v385[v386] = byte(10)
+					v837 := (v386 + 1)
+					v839 := v385
+					var v840 int = 0
+					var v841 int = v837
+					for ; ; v840, v841 = (v840 + 1), (v841 + 1) {
+						v843 := (2 * v388)
+						v844 := (v840 >= v843)
+						if v844 {
+							break
+						}
+						v839[v841] = byte(32)
+						continue
+					}
+					v831 = v839
+				} else {
+					v831 = v385
+				}
+				v854 := (v386 + v821)
+				v856 := v831
+				var v857 int = v387
+				var v858 int = v854
+				for ; ; v857, v858 = (v857 + 1), (v858 + 1) {
+					v859 := (v857 >= v665)
+					if v859 {
+						break
+					}
+					v864 := len(v10)
+					v865 := (v857 >= v864)
+					if v865 {
+						break
+					}
+					v870 := int(v10[v857])
+					v856[v858] = byte(v870)
+					continue
+				}
+				v876 := (v665 - v387)
+				v877 := (v821 + v876)
+				v878 := (v386 + v877)
+				v385, v386, v387, v389 = v856, v878, v665, 0
+				continue
+			}
+			v881 := (v387 + 1)
+			v387 = v881
+			continue
+		}
+		v378 = v385
+		v882 := (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(v378)))
+		fmt.Print(v882)
+		return v882
+	}
+	fmt.Println("jsonfmt: cannot read that file")
+	return "jsonfmt: cannot read that file"
 }
 

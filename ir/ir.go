@@ -55,6 +55,8 @@ const (
 	OTabulate
 	OThe
 	ORequire
+	ORestrict
+	OAssume
 	numOps
 )
 
@@ -66,6 +68,7 @@ var opNames = [numOps]string{
 	ORead: "read", OKeys: "keys", OSet: "set", OInsert: "insert",
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
 	OThe: "the", ORequire: "require",
+	ORestrict: "restrict", OAssume: "assume",
 }
 
 func (o Op) String() string {

@@ -4,50 +4,80 @@ package gauntlet
 
 import "math/big"
 
-func GenRun(n int) string {
-	acc := (big.NewInt(int64(1)))
-	i := (big.NewInt(int64(2)))
+func GenRun(v0 int) string {
+	v10 := (big.NewInt(int64(1)))
+	v12 := (big.NewInt(int64(2)))
+	v14 := v10
+	v15 := v12
 	for {
-		if (i.Cmp((big.NewInt(int64((25 + n))))) > 0) {
+		v17 := (25 + v0)
+		v18 := (big.NewInt(int64(v17)))
+		v19 := (v15.Cmp(v18) > 0)
+		if v19 {
 			break
 		}
-		acc, i = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, i)), 201)), (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Add(i, (big.NewInt(int64(1))))), 201))
+		v20 := (v14.Mul(v14, v15))
+		v22 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v20, 201))
+		v24 := (big.NewInt(int64(1)))
+		v25 := (new(big.Int).Add(v15, v24))
+		v27 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v25, 201))
+		v14, v15 = v22, v27
 		continue
 	}
-	x := acc
-	var t1 string
-	if (x.Cmp((big.NewInt(int64(0)))) == 0) {
-		t1 = "0"
-	} else {
-		s := ""
-		v := x
-		var i2 int = 0
-		for ; ; i2 = (i2 + 1) {
-			if (v.Cmp((big.NewInt(int64(0)))) == 0) {
+	v29 := (big.NewInt(int64(0)))
+	v30 := (v14.Cmp(v29) == 0)
+	if v30 {
+		return "0"
+	}
+	var v35 string = ""
+	v36 := v14
+	var v37 int = 0
+	for ; ; v37 = (v37 + 1) {
+		v39 := (big.NewInt(int64(0)))
+		v40 := (v36.Cmp(v39) == 0)
+		if v40 {
+			break
+		}
+		v42 := (v37 >= 32)
+		if v42 {
+			break
+		}
+		v46 := (big.NewInt(int64(100000000)))
+		v47 := (new(big.Int).Quo(v36, v46))
+		v49 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v47, 201))
+		v53 := (int(new(big.Int).Rem(v36, big.NewInt(int64(100000000))).Int64()))
+		var v55 string = ""
+		var v56 int = 0
+		var v57 int = v53
+		for ; ; v56 = (v56 + 1) {
+			v59 := (v56 >= 8)
+			if v59 {
 				break
 			}
-			if (i2 >= 32) {
+			v65 := (big.NewInt(int64(0)))
+			v66 := (v49.Cmp(v65) > 0)
+			var v67 bool
+			if v66 {
+				v67 = false
+			} else {
+				v67 = true
+			}
+			v70 := (v67 && ((v57 == 0) && (v56 > 0)))
+			if v70 {
 				break
 			}
-			nv1917 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(v, (big.NewInt(int64(100000000))))), 201))
-			s2 := ""
-			var k int = 0
-			var r int = (int(new(big.Int).Rem(v, big.NewInt(int64(100000000))).Int64()))
-			for ; ; k, r = (k + 1), (r / 10) {
-				if (k >= 8) {
-					break
-				}
-				if ((!(nv1917.Cmp((big.NewInt(int64(0)))) > 0)) && ((r == 0) && (k > 0))) {
-					break
-				}
-				s2 = ((string(rune((48 + (r % 10))))) + s2)
-				continue
-			}
-			s, v = (s2 + s), nv1917
+			v83 := (v57 % 10)
+			v84 := (48 + v83)
+			v85 := (string(rune(v84)))
+			v86 := (v85 + v55)
+			v90 := (v57 / 10)
+			v55, v57 = v86, v90
 			continue
 		}
-		t1 = s
+		v91 := (v55 + v35)
+		v35, v36 = v91, v49
+		continue
 	}
-	return t1
+	return v35
 }
 

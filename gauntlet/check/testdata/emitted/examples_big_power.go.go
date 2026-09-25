@@ -4,21 +4,31 @@ package gauntlet
 
 import "math/big"
 
-func GenPower(b int, e int) *big.Int {
-	acc := (big.NewInt(int64(1)))
-	x := (big.NewInt(int64(b)))
-	var k int = e
-	for ; ; k = (k >> 1) {
-		if (k == 0) {
+func GenPower(v0 int, v1 int) *big.Int {
+	v24 := (big.NewInt(int64(1)))
+	v25 := (big.NewInt(int64(v0)))
+	v27 := v24
+	v28 := v25
+	var v29 int = v1
+	for {
+		v31 := (v29 == 0)
+		if v31 {
 			break
 		}
-		if ((k & 1) == 1) {
-			acc, x = (acc.Mul(acc, x)), (new(big.Int).Mul(x, x))
+		v35 := (v29 & 1)
+		v37 := (v35 == 1)
+		if v37 {
+			v38 := (v27.Mul(v27, v28))
+			v39 := (new(big.Int).Mul(v28, v28))
+			v41 := (v29 >> 1)
+			v27, v28, v29 = v38, v39, v41
 			continue
 		}
-		x = (x.Mul(x, x))
+		v42 := (v28.Mul(v28, v28))
+		v44 := (v29 >> 1)
+		v28, v29 = v42, v44
 		continue
 	}
-	return acc
+	return v27
 }
 

@@ -2,132 +2,166 @@
 
 package gauntlet
 
-func GenRun(k int) int {
-	b := make([]uint32, 3)
-	b22 := b
-	var i int = 0
-	var r int = 999999999999999
-	for ; ; i, r = (i + 1), (r >> 24) {
-		if (i >= 3) {
+func GenRun(v0 int) int {
+	v3 := make([]uint32, 3)
+	var v2 []uint32
+	v7 := v3
+	var v8 int = 0
+	var v9 int = 999999999999999
+	for ; ; v8 = (v8 + 1) {
+		v11 := (v8 >= 3)
+		if v11 {
 			break
 		}
-		b22[i] = uint32((r & 16777215))
+		v15 := (v9 & 16777215)
+		v7[v8] = uint32(v15)
+		v20 := (v9 >> 24)
+		v9 = v20
 		continue
 	}
-	a := b22
-	b2 := make([]uint32, 3)
-	b4 := b2
-	var i2 int = 0
-	var r2 int = 14000000
-	for ; ; i2, r2 = (i2 + 1), (r2 >> 24) {
-		if (i2 >= 3) {
+	v2 = v7
+	v23 := make([]uint32, 3)
+	var v22 []uint32
+	v27 := v23
+	var v28 int = 0
+	var v29 int = 14000000
+	for ; ; v28 = (v28 + 1) {
+		v31 := (v28 >= 3)
+		if v31 {
 			break
 		}
-		b4[i2] = uint32((r2 & 16777215))
+		v35 := (v29 & 16777215)
+		v27[v28] = uint32(v35)
+		v40 := (v29 >> 24)
+		v29 = v40
 		continue
 	}
-	b42 := b4
-	o := make([]int, 3)
-	o2 := o
-	var i3 int = 0
-	var bw int = 0
-	for ; ; i3 = (i3 + 1) {
-		if (i3 >= 3) {
+	v22 = v27
+	v43 := make([]int, 3)
+	var v42 []int
+	v47 := v43
+	var v48 int = 0
+	var v49 int = 0
+	for ; ; v48 = (v48 + 1) {
+		v51 := (v48 >= 3)
+		if v51 {
 			break
 		}
-		var t1 int
-		if (i3 < 0) {
-			t1 = 0
+		v55 := (v48 < 0)
+		var v56 int
+		if v55 {
+			v56 = 0
 		} else {
-			var t2 int
-			if (i3 >= len(a)) {
-				t2 = 0
+			v60 := len(v2)
+			v61 := (v48 >= v60)
+			if v61 {
+				v56 = 0
 			} else {
-				t2 = int(a[i3])
+				v67 := int(v2[v48])
+				v56 = v67
 			}
-			t1 = t2
 		}
-		var t3 int
-		if (i3 < 0) {
-			t3 = 0
+		v69 := (v48 < 0)
+		var v70 int
+		if v69 {
+			v70 = 0
 		} else {
-			var t4 int
-			if (i3 >= len(b42)) {
-				t4 = 0
+			v74 := len(v22)
+			v75 := (v48 >= v74)
+			if v75 {
+				v70 = 0
 			} else {
-				t4 = int(b42[i3])
+				v81 := int(v22[v48])
+				v70 = v81
 			}
-			t3 = t4
 		}
-		var t1717 int = ((t1 - t3) - bw)
-		var t5 int
-		if (t1717 < 0) {
-			t5 = (t1717 + 16777216)
+		v82 := (v56 - v70)
+		v83 := (v82 - v49)
+		v85 := (v83 < 0)
+		var v86 int
+		if v85 {
+			v89 := (v83 + 16777216)
+			v86 = v89
 		} else {
-			t5 = t1717
+			v86 = v83
 		}
-		o2[i3] = t5
-		var t6 int
-		if (t1717 < 0) {
-			t6 = 1
+		v47[v48] = v86
+		v95 := (v83 < 0)
+		var v96 int
+		if v95 {
+			v96 = 1
 		} else {
-			t6 = 0
+			v96 = 0
 		}
-		bw = t6
+		v49 = v96
 		continue
 	}
-	a2 := o2
-	o3 := make([]int, 3)
-	o4 := o3
-	var i4 int = 2
-	var r3 int = 0
-	for ; ; i4 = (i4 - 1) {
-		if (i4 < 0) {
+	v42 = v47
+	v103 := make([]int, 3)
+	var v102 []int
+	v107 := v103
+	var v108 int = 2
+	var v109 int = 0
+	for {
+		v111 := (v108 < 0)
+		if v111 {
 			break
 		}
-		var t7 int
-		if (i4 < 0) {
-			t7 = 0
+		v115 := (v109 * 16777216)
+		v117 := (v108 < 0)
+		var v118 int
+		if v117 {
+			v118 = 0
 		} else {
-			var t8 int
-			if (i4 >= len(a2)) {
-				t8 = 0
+			v122 := len(v42)
+			v123 := (v108 >= v122)
+			if v123 {
+				v118 = 0
 			} else {
-				t8 = a2[i4]
+				v129 := v42[v108]
+				v118 = v129
 			}
-			t7 = t8
 		}
-		var cur1717 int = ((r3 * 16777216) + t7)
-		o4[i4] = (cur1717 / 7)
-		r3 = (cur1717 % 7)
+		v130 := (v115 + v118)
+		v132 := (v130 / 7)
+		v107[v108] = v132
+		v135 := (v108 - 1)
+		v137 := (v130 % 7)
+		v108, v109 = v135, v137
 		continue
 	}
-	q := o4
-	var t9 int
-	if (k < 0) {
-		t9 = 0
+	v102 = v107
+	v139 := (v0 < 0)
+	var v140 int
+	if v139 {
+		v140 = 0
 	} else {
-		var t10 int
-		if (k >= len(q)) {
-			t10 = 0
+		v144 := len(v102)
+		v145 := (v0 >= v144)
+		if v145 {
+			v140 = 0
 		} else {
-			t10 = q[k]
+			v151 := v102[v0]
+			v140 = v151
 		}
-		t9 = t10
 	}
-	var i5 int = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(k, 1))
-	var t11 int
-	if (i5 < 0) {
-		t11 = 0
+	v153 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v0, 1))
+	v155 := (v153 < 0)
+	var v156 int
+	if v155 {
+		v156 = 0
 	} else {
-		var t12 int
-		if (i5 >= len(q)) {
-			t12 = 0
+		v160 := len(v102)
+		v161 := (v153 >= v160)
+		if v161 {
+			v156 = 0
 		} else {
-			t12 = q[i5]
+			v167 := v102[v153]
+			v156 = v167
 		}
-		t11 = t12
 	}
-	return (t9 + (t11 * 100000000))
+	v169 := (v156 * 100000000)
+	v170 := (v140 + v169)
+	return v170
 }
 

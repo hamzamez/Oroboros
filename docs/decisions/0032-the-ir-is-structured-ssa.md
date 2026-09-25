@@ -1,8 +1,9 @@
 # 0032 — The IR is structured SSA with π-parameters, and representation is a type
 
 Date: 2026-09-25
-Status: Accepted — **step 1 built** (lowering, verifier, canonical printer:
-[irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)); no printer reads it yet. **Realizes [ADR 0006](0006-ir-file-format.md)**, which
+Status: Accepted. **Step 1 built** (lowering, verifier, canonical printer:
+[irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)). **Step 2 built**: the Go backend
+is the IR's printer ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)). **Realizes [ADR 0006](0006-ir-file-format.md)**, which
 decided that the backend interface is a file format and never wrote one. The derivation is
 [docs/ir-research.md](../ir-research.md), and the specification is [docs/spec/ir.md](../spec/ir.md).
 Decided by three prototypes: [irp1](../../gauntlet/results/irp1-2026-09-25.md),

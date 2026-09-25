@@ -6,8 +6,8 @@ import "fmt"
 
 func GenMain() int {
 	fmt.Println("hello from oroboros")
-	var v1 int = (21 + 21)
-	fmt.Println(v1)
-	return v1
+	v4 := (21 + 21)
+	fmt.Println(v4)
+	return v4
 }
 

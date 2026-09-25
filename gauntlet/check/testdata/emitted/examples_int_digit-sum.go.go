@@ -2,16 +2,20 @@
 
 package gauntlet
 
-func GenDigitSum(n int) int {
-	var m int = n
-	var s int = 0
-	for ; ; m = (m / 10) {
-		if (m <= 0) {
+func GenDigitSum(v0 int) int {
+	var v11 int = v0
+	var v12 int = 0
+	for {
+		v14 := (v11 <= 0)
+		if v14 {
 			break
 		}
-		s = (s + (m % 10))
+		v18 := (v11 / 10)
+		v20 := (v11 % 10)
+		v21 := (v12 + v20)
+		v11, v12 = v18, v21
 		continue
 	}
-	return s
+	return v12
 }
 

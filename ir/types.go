@@ -162,3 +162,27 @@ func subtype(tg *emit.Target, a, b string) bool {
 	}
 	return false
 }
+
+// ElemOf is the element type of a table type: `(array τ)`, `(buffer τ)`, or a
+// host alias the target realizes as one (spec §4.1). "" when ty is no table.
+func ElemOf(tg *emit.Target, ty string) string {
+	if e := core.ArrayElem(ty); e != "" {
+		return e
+	}
+	if e, ok := newUnifier(tg).aliasOf(ty); ok {
+		return e
+	}
+	return ""
+}
+
+// involvesBig reports whether a type is above the word: `big`, or a range the
+// target realizes as one.
+func involvesBig(tg *emit.Target, ty string) bool {
+	if ty == core.BigType {
+		return true
+	}
+	if _, _, ok := core.IntRangeBig(ty); ok {
+		return tg.ValueType(ty) == core.BigType
+	}
+	return false
+}

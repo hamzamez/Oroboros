@@ -1,0 +1,17 @@
+; The witness of docs/spec/ir.md §9.4: every read of b is proven, by i < 10 and
+; len b >= 10, and nothing relates len b to len a. Re-slicing b to len a before
+; the loop panics when len a > len b, on a legal program whose answer is 10.
+; The IR's rewrite (L13) needs len a <= len b assumed, and must not fire here.
+(use go)
+
+(export count-zeros)
+
+(sig count-zeros ((a slice-int) (b slice-int)) int
+  (where (and (go.< (go.len a) 65536) (go.>= (go.len b) 10))))
+
+(def count-zeros (a b)
+  (loop ((i 0))
+    (go.>= i (go.len a))         i
+    (go.>= i 10)                 i
+    (go.!= (go.at-int b i) 0)    i
+    else                         (again (go.+ i 1))))

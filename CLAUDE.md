@@ -82,15 +82,22 @@ ADR 0006. **Step 1 is built** in `ir/` ([irstep1-2026-09-25](gauntlet/results/ir
 - `cmd/check`'s `ir` step, where all 242 emitted programs lower and verify;
 - the differential runner's check of its 169 builds.
 
-No printer reads the IR yet. The derivation is [ir-research.md](docs/ir-research.md).
+**Step 2 is built** ([irstep2-2026-09-25](gauntlet/results/irstep2-2026-09-25.md)): **the Go backend
+is the IR's printer**, `ir/golang`, which prints IR_P.
+- `emit/golang.go` remains as `gen -printer terms`, for comparison.
+- The gauntlet is at parity, within 2% of the term backend.
+- The differential suite, all 78 Go programs and the acceptance programs pass.
+- IR_P's element widths come from a reduced product: the term analysis and the IR's own interval
+  domain, which reads `assume`.
+- Bounds-check re-slicing is `restrict` by law L13, under its premise. The derivation is [ir-research.md](docs/ir-research.md).
 Three prototypes in `experiments/irproto` decided it:
 - lowering is nearly free (irp1);
 - a sparse interval analysis on it is 12–115× faster (irp3);
 - a Go printer from it is at parity on the gauntlet (irp2).
 
-**The migration is the current plan**: the Go printer next, then the others, then the analyses one
-domain at a time. The language plan below waits for the Go printer. Two soundness bugs in the shipped
-backends, found while writing the IR's rules, are queued:
+**The migration is the current plan**: the JavaScript, Java and x86 printers next, then the analyses one
+domain at a time. The language plan below waits for the printers. Two soundness bugs in the term
+backends, found while writing the IR's rules, are queued. The IR's Go printer has neither:
 - bounds-check re-slicing without its premise (spec §9.4);
 - `alloc` of a live buffer aliasing it (irstep1 §4).
 
@@ -628,7 +635,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
-| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader |
+| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/golang` is the Go backend |
 | `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |

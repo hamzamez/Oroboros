@@ -4,84 +4,100 @@ package gauntlet
 
 import "fmt"
 
-func GenCountPrimes(n int) int {
-	c := (make([]bool, n))
-	var i int = 2
-	for ; ; i = (i + 1) {
-		if ((i * i) >= n) {
+func GenCountPrimes(v0 int) int {
+	v9 := (make([]bool, v0))
+	v12 := v9
+	var v13 int = 2
+	for ; ; v13 = (v13 + 1) {
+		v14 := (v13 * v13)
+		v15 := (v14 >= v0)
+		if v15 {
 			break
 		}
-		if (c[i]) {
+		v18 := v12[v13]
+		if v18 {
 			continue
 		}
-		s := c
-		var j int = (i * i)
-		for ; ; j = (j + i) {
-			if (j < n) {
-				s[j] = true
+		v21 := (v13 * v13)
+		v23 := v12
+		var v24 int = v21
+		for {
+			v25 := (v24 < v0)
+			if v25 {
+				v23[v24] = true
+				v30 := (v24 + v13)
+				v24 = v30
 				continue
 			}
 			break
 		}
-		c = s
+		v12 = v23
 		continue
 	}
-	c2 := c
-	var acc int = 0
-	var k int = 2
-	var n1 int = n
-	s2 := c2[:n1]
-	for ; ; k = (k + 1) {
-		if (k >= n) {
+	var v38 int = 0
+	var v39 int = 2
+	for ; ; v39 = (v39 + 1) {
+		v40 := (v39 >= v0)
+		if v40 {
 			break
 		}
-		if (s2[k]) {
+		v45 := v12[v39]
+		if v45 {
 			continue
 		}
-		acc = (acc + 1)
+		v49 := (v38 + 1)
+		v38 = v49
 		continue
 	}
-	return acc
+	return v38
 }
 
 func GenMain() int {
-	c := (make([]bool, 20000))
-	var i int = 2
-	for ; ; i = (i + 1) {
-		if ((i * i) >= 20000) {
+	v1 := (make([]bool, 20000))
+	v4 := v1
+	var v5 int = 2
+	for ; ; v5 = (v5 + 1) {
+		v6 := (v5 * v5)
+		v8 := (v6 >= 20000)
+		if v8 {
 			break
 		}
-		if (c[i]) {
+		v9 := v4[v5]
+		if v9 {
 			continue
 		}
-		s := c
-		var j int = (i * i)
-		for ; ; j = (j + i) {
-			if (j < 20000) {
-				s[j] = true
+		v12 := (v5 * v5)
+		v14 := v4
+		var v15 int = v12
+		for {
+			v17 := (v15 < 20000)
+			if v17 {
+				v14[v15] = true
+				v21 := (v15 + v5)
+				v15 = v21
 				continue
 			}
 			break
 		}
-		c = s
+		v4 = v14
 		continue
 	}
-	c2 := c
-	var acc int = 0
-	var k int = 2
-	var n1 int = 20000
-	s2 := c2[:n1]
-	for ; ; k = (k + 1) {
-		if (k >= 20000) {
+	var v28 int = 0
+	var v29 int = 2
+	for ; ; v29 = (v29 + 1) {
+		v31 := (v29 >= 20000)
+		if v31 {
 			break
 		}
-		if (s2[k]) {
+		v34 := v4[v29]
+		if v34 {
 			continue
 		}
-		acc = (acc + 1)
+		v38 := (v28 + 1)
+		v28 = v38
 		continue
 	}
-	fmt.Println(acc)
-	return acc
+	fmt.Println(v28)
+	return v28
 }
 

@@ -2,16 +2,18 @@
 
 package gauntlet
 
-func GenGcd(a int, b int) int {
-	var x int = a
-	var y int = b
+func GenGcd(v0 int, v1 int) int {
+	var v24 int = v0
+	var v25 int = v1
 	for {
-		if (y == 0) {
+		v27 := (v25 == 0)
+		if v27 {
 			break
 		}
-		x, y = y, (x % y)
+		v30 := (v24 % v25)
+		v24, v25 = v25, v30
 		continue
 	}
-	return x
+	return v24
 }
 

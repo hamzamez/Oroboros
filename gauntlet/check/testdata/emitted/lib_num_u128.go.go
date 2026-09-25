@@ -5,58 +5,92 @@ package gauntlet
 import "math/bits"
 import "strconv"
 
-func GenAdd(ah uint64, al uint64, bh uint64, bl uint64) (uint64, uint64, int) {
-	l, ch1 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(al), uint64(bl), uint64((uint64(0))))
-	c := int(ch1)
-	h, c2h2 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(ah), uint64(bh), uint64((uint64(c))))
-	c2 := int(c2h2)
-	return h, l, c2
+func GenAdd(v0 uint64, v1 uint64, v2 uint64, v3 uint64) (uint64, uint64, int) {
+	v5 := (uint64(0))
+	v6, v7h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v1), uint64(v3), uint64(v5))
+	v7 := int(v7h)
+	v8 := (uint64(v7))
+	v9, v10h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v0), uint64(v2), uint64(v8))
+	v10 := int(v10h)
+	return v9, v6, v10
 }
 
-func GenDecimal(h int, l int) string {
-	var h2 int = h
-	var l2 int = l
-	s := ""
-	var r1 string
-	for ; ; h2 = (h2 / 1000000000000000000) {
-		if ((h2 == 0) && (l2 < 1000000000000000000)) {
-			r1 = ((strconv.FormatUint(uint64((uint64(l2))), 10)) + s)
+func GenDecimal(v0 int, v1 int) string {
+	var v4 int = v0
+	var v5 int = v1
+	var v6 string = ""
+	var v3 string
+	for {
+		v10 := (v4 == 0)
+		v11 := (v10 && (v5 < 1000000000000000000))
+		if v11 {
+			v19 := (uint64(v5))
+			v21 := (strconv.FormatUint(uint64(v19), 10))
+			v22 := (v21 + v6)
+			v3 = v22
 			break
 		}
-		q, _ := bits.Div64(uint64((uint64((h2 % 1000000000000000000)))), uint64((uint64(l2))), uint64((uint64(1000000000000000000))))
-		var i int = 0
-		v := (bits.Rem64(uint64((uint64(h2))), uint64((uint64(l2))), uint64((uint64(1000000000000000000)))))
-		s2 := ""
-		for ; ; i = (i + 1) {
-			if (i >= 18) {
+		v24 := (v4 / 1000000000000000000)
+		v26 := (v4 % 1000000000000000000)
+		v27 := (uint64(v26))
+		v28 := (uint64(v5))
+		v30 := (uint64(1000000000000000000))
+		v31, _ := bits.Div64(uint64(v27), uint64(v28), uint64(v30))
+		v33 := (int(v31))
+		v35 := (uint64(v4))
+		v36 := (uint64(v5))
+		v38 := (uint64(1000000000000000000))
+		v39 := (bits.Rem64(uint64(v35), uint64(v36), uint64(v38)))
+		var v42 int = 0
+		v43 := v39
+		var v44 string = ""
+		for ; ; v42 = (v42 + 1) {
+			v46 := (v42 >= 18)
+			if v46 {
 				break
 			}
-			v, s2 = ((v / (uint64(10)))), ((string(rune((48 + (int(((v % (uint64(10)))))))))) + s2)
+			v52 := (uint64(10))
+			v53 := ((v43 / v52))
+			v56 := (uint64(10))
+			v57 := ((v43 % v56))
+			v58 := (int(v57))
+			v59 := (48 + v58)
+			v60 := (string(rune(v59)))
+			v61 := (v60 + v44)
+			v43, v44 = v53, v61
 			continue
 		}
-		l2, s = (int(q)), (s2 + s)
+		v62 := (v44 + v6)
+		v4, v5, v6 = v24, v33, v62
 		continue
 	}
-	return r1
+	return v3
 }
 
-func GenDivw(ah uint64, al uint64, y uint64) (uint64, uint64, uint64) {
-	qh, _ := bits.Div64(uint64((uint64(0))), uint64(ah), uint64(y))
-	ql, r := bits.Div64(uint64((bits.Rem64(uint64((uint64(0))), uint64(ah), uint64(y)))), uint64(al), uint64(y))
-	return qh, ql, r
+func GenDivw(v0 uint64, v1 uint64, v2 uint64) (uint64, uint64, uint64) {
+	v4 := (uint64(0))
+	v5, _ := bits.Div64(uint64(v4), uint64(v0), uint64(v2))
+	v8 := (uint64(0))
+	v9 := (bits.Rem64(uint64(v8), uint64(v0), uint64(v2)))
+	v10, v11 := bits.Div64(uint64(v9), uint64(v1), uint64(v2))
+	return v5, v10, v11
 }
 
-func GenMulw(ah uint64, al uint64, w uint64) (uint64, uint64, int) {
-	p1h, p1l := bits.Mul64(uint64(al), uint64(w))
-	p2h, p2l := bits.Mul64(uint64(ah), uint64(w))
-	h, ch1 := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(p2l), uint64(p1h), uint64((uint64(0))))
-	c := int(ch1)
-	var t2 int
-	if (((p2h == (uint64(0)))) && (c == 0)) {
-		t2 = 0
+func GenMulw(v0 uint64, v1 uint64, v2 uint64) (uint64, uint64, int) {
+	v3, v4 := bits.Mul64(uint64(v1), uint64(v2))
+	v5, v6 := bits.Mul64(uint64(v0), uint64(v2))
+	v8 := (uint64(0))
+	v9, v10h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v6), uint64(v3), uint64(v8))
+	v10 := int(v10h)
+	v13 := (uint64(0))
+	v14 := ((v5 == v13))
+	v15 := (v14 && (v10 == 0))
+	var v19 int
+	if v15 {
+		v19 = 0
 	} else {
-		t2 = 1
+		v19 = 1
 	}
-	return h, p1l, t2
+	return v9, v4, v19
 }
 

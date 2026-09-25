@@ -2,44 +2,53 @@
 
 package gauntlet
 
-func GenCountPrimes(n int) int {
-	c := make([]bool, n)
-	c2 := c
-	var i int = 2
-	for ; ; i = (i + 1) {
-		if ((i * i) >= n) {
+func GenCountPrimes(v0 int) int {
+	v10 := make([]bool, v0)
+	var v9 []bool
+	v13 := v10
+	var v14 int = 2
+	for ; ; v14 = (v14 + 1) {
+		v15 := (v14 * v14)
+		v16 := (v15 >= v0)
+		if v16 {
 			break
 		}
-		if c2[i] {
+		v19 := v13[v14]
+		if v19 {
 			continue
 		}
-		c3 := c2
-		var j int = (i * i)
-		for ; ; j = (j + i) {
-			if (j < n) {
-				c3[j] = true
+		v22 := (v14 * v14)
+		v24 := v13
+		var v25 int = v22
+		for {
+			v26 := (v25 < v0)
+			if v26 {
+				v24[v25] = true
+				v31 := (v25 + v14)
+				v25 = v31
 				continue
 			}
 			break
 		}
-		c2 = c3
+		v13 = v24
 		continue
 	}
-	c4 := c2
-	var acc int = 0
-	var k int = 2
-	var n1 int = n
-	s2 := c4[:n1]
-	for ; ; k = (k + 1) {
-		if (k >= n) {
+	v9 = v13
+	var v39 int = 0
+	var v40 int = 2
+	for ; ; v40 = (v40 + 1) {
+		v41 := (v40 >= v0)
+		if v41 {
 			break
 		}
-		if s2[k] {
+		v46 := v9[v40]
+		if v46 {
 			continue
 		}
-		acc = (acc + 1)
+		v50 := (v39 + 1)
+		v39 = v50
 		continue
 	}
-	return acc
+	return v39
 }
 

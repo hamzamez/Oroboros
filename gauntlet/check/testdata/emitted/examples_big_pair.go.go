@@ -4,17 +4,22 @@ package gauntlet
 
 import "math/big"
 
-func GenPair(n int) *big.Int {
-	a := (big.NewInt(int64(2)))
-	b := (big.NewInt(int64(1)))
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= n) {
+func GenPair(v0 int) *big.Int {
+	v10 := (big.NewInt(int64(2)))
+	v12 := (big.NewInt(int64(1)))
+	v15 := v10
+	v16 := v12
+	var v17 int = 0
+	for ; ; v17 = (v17 + 1) {
+		v18 := (v17 >= v0)
+		if v18 {
 			break
 		}
-		a, b = (new(big.Int).Mul(a, b)), (new(big.Int).Add(b, a))
+		v23 := (new(big.Int).Mul(v15, v16))
+		v24 := (new(big.Int).Add(v16, v15))
+		v15, v16 = v23, v24
 		continue
 	}
-	return b
+	return v16
 }
 

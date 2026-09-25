@@ -2,12 +2,15 @@
 
 package gauntlet
 
-func GenSquares(n int) []int {
-	var n1 int = n
-	t2 := make([]int, n1)
-	for i := 0; i < n1; i++ {
-		t2[i] = (i * i)
+func GenSquares(v0 int) []int {
+	var n9 int = v0
+	v9 := make([]int, n9)
+	for v10 := 0; v10 < n9; v10++ {
+		var e9 int
+		v11 := (v10 * v10)
+		e9 = v11
+		v9[v10] = e9
 	}
-	return t2
+	return v9
 }
 

@@ -6,53 +6,52 @@ import "fmt"
 import "os"
 
 func GenMain() int {
-	av := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
-	var t1 int
-	if (len(av) < 2) {
+	v0 := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
+	v1 := len(v0)
+	v3 := (v1 < 2)
+	if v3 {
 		fmt.Println("usage: wc FILE")
-		t1 = 0
-	} else {
-		src, err := os.ReadFile(av[1])
-		var t2 int
-		if (err == nil) {
-			var t3 int
-			if (len(src) >= 16777216) {
-				fmt.Println("wc: file is larger than this tool accepts")
-				t3 = 0
-			} else {
-				var i int = 0
-				var lines int = 0
-				var r4 int
-				for ; ; i = (i + 1) {
-					if (i >= len(src)) {
-						fmt.Println(lines)
-						r4 = lines
-						break
-					}
-					var t5 int
-					if (lines < 16777216) {
-						var t6 int
-						if (int(src[i]) == 10) {
-							t6 = (lines + 1)
-						} else {
-							t6 = lines
-						}
-						t5 = t6
-					} else {
-						t5 = lines
-					}
-					lines = t5
-					continue
-				}
-				t3 = r4
-			}
-			t2 = t3
-		} else {
-			fmt.Println("wc: cannot read that file")
-			t2 = 0
-		}
-		t1 = t2
+		return 0
 	}
-	return t1
+	v10 := v0[1]
+	v11, v12 := os.ReadFile(v10)
+	v13 := (v12 == nil)
+	if v13 {
+		v14 := len(v11)
+		v16 := (v14 >= 16777216)
+		if v16 {
+			fmt.Println("wc: file is larger than this tool accepts")
+			return 0
+		}
+		var v25 int = 0
+		var v26 int = 0
+		for ; ; v25 = (v25 + 1) {
+			v27 := len(v11)
+			v28 := (v25 >= v27)
+			if v28 {
+				fmt.Println(v26)
+				break
+			}
+			v37 := (v26 < 16777216)
+			var v38 int
+			if v37 {
+				v40 := int(v11[v25])
+				v42 := (v40 == 10)
+				if v42 {
+					v44 := (v26 + 1)
+					v38 = v44
+				} else {
+					v38 = v26
+				}
+			} else {
+				v38 = v26
+			}
+			v26 = v38
+			continue
+		}
+		return v26
+	}
+	fmt.Println("wc: cannot read that file")
+	return 0
 }
 

@@ -2,11 +2,16 @@
 
 package gauntlet
 
-func GenDivmod(a int, b int) (int, int) {
-	return (a / b), (a % b)
+func GenDivmod(v0 int, v1 int) (int, int) {
+	v4 := (v0 / v1)
+	v5 := (v0 % v1)
+	return v4, v5
 }
 
-func GenDivmodSum(a int, b int) int {
-	return ((a / b) + (a % b))
+func GenDivmodSum(v0 int, v1 int) int {
+	v15 := (v0 / v1)
+	v16 := (v0 % v1)
+	v17 := (v15 + v16)
+	return v17
 }
 

@@ -2,16 +2,18 @@
 
 package gauntlet
 
-func GenSumRange(n int) int {
-	var i int = 0
-	var s int = 0
-	for ; ; i = (i + 1) {
-		if (i >= n) {
+func GenSumRange(v0 int) int {
+	var v12 int = 0
+	var v13 int = 0
+	for ; ; v12 = (v12 + 1) {
+		v14 := (v12 >= v0)
+		if v14 {
 			break
 		}
-		s = (s + i)
+		v21 := (v13 + v12)
+		v13 = v21
 		continue
 	}
-	return s
+	return v13
 }
 

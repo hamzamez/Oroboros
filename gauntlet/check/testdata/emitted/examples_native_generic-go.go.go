@@ -4,31 +4,38 @@ package gauntlet
 
 import "strings"
 
-func GenSumOf(a []float64) float64 {
-	acc := 0.0
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= (len(a))) {
+func GenSumOf(v0 []float64) float64 {
+	var v4 float64 = 0.0
+	var v5 int = 0
+	for ; ; v5 = (v5 + 1) {
+		v6 := len(v0)
+		v7 := (v5 >= v6)
+		if v7 {
 			break
 		}
-		acc = (acc + (a[i]))
+		v12 := v0[v5]
+		v13 := (v4 + v12)
+		v4 = v13
 		continue
 	}
-	return acc
+	return v4
 }
 
-func GenWordTally(text string) map[string]int {
-	ws := (strings.Fields(text))
-	init := (make(map[string]int))
-	acc := init
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= (len(ws))) {
+func GenWordTally(v0 string) map[string]int {
+	v1 := (strings.Fields(v0))
+	v2 := (make(map[string]int))
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := len(v1)
+		v8 := (v6 >= v7)
+		if v8 {
 			break
 		}
-		acc[(ws[i])]++
+		v13 := v1[v6]
+		v5[v13]++
 		continue
 	}
-	return acc
+	return v5
 }
 

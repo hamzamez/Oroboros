@@ -2,13 +2,17 @@
 
 package gauntlet
 
-func GenStep(a int, b int) (int, int) {
-	if (b == 0) {
+func GenStep(v0 int, v1 int) (int, int) {
+	v3 := (v1 == 0)
+	if v3 {
 		return 1, 1
 	}
-	if ((a % b) > 0) {
+	v8 := (v0 % v1)
+	v10 := (v8 > 0)
+	if v10 {
 		return 1, 2
 	}
-	return 0, (a / b)
+	v14 := (v0 / v1)
+	return 0, v14
 }
 

@@ -18,6 +18,7 @@ import (
 	"oroboros/core"
 	"oroboros/emit"
 	"oroboros/ir"
+	"oroboros/ir/golang"
 )
 
 func main() {
@@ -28,6 +29,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
+	flag.StringVar(&printer, "printer", "ir", "the Go backend: `ir`, the IR's printer (ir/golang, ADR 0032), or `terms`, the term backend it replaced (emit/golang.go), kept for comparison")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`, or the reason to FILE.err; it changes nothing that is built")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
@@ -296,7 +298,11 @@ checks:
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
 	case "go":
-		code, err = emit.Func(tg, "oro-main", esig, nf)
+		if printer == "ir" {
+			code, err = golang.FromResidual(tg, "oro-main", esig, nf)
+		} else {
+			code, err = emit.Func(tg, "oro-main", esig, nf)
+		}
 	default:
 		return fmt.Errorf("no code generator for backend %q", backend)
 	}
@@ -408,3 +414,6 @@ func allSigs(p *core.Program) []*core.Sig {
 
 // irOut is -ir's file.
 var irOut string
+
+// printer is -printer, as gen's.
+var printer string

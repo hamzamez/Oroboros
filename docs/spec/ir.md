@@ -3,7 +3,9 @@
 Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)). **Step 1 is built**
 ([irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)): lowering, typing, the verifier and
 the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified, and no
-printer reads the IR yet. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+printer reads the IR yet. **Step 2 is built**
+([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)): the Go backend is `ir/golang`,
+printing IR_P, at parity on the gauntlet. It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -93,6 +95,8 @@ central.
 | `tabulate` | 1 → 1 | as its body | 1 | the table `Fin n → V` given by its rule: `alloc (table n f)` |
 | `the τ` | 1 → 1 | yes | | ascription: the identity on ⟦τ⟧ (IR_A only, §7) |
 | `require` | 1 → 0 | yes | | an obligation: no runtime meaning (IR_A only, §7) |
+| `assume` | 1 → 0 | yes | | an assumption, the dual of `require`: `if c then skip else ⊥`. An export's `where` (ADR 0028). No runtime code; an analysis may use c after it |
+| `restrict` | 2 → 1 | yes | | the table t restricted to Fin n: `i ↦ t i` on i < n. Its domain condition, n ≤ len t, is an obligation (§7) |
 
 \* A read of a **buffer** is pure in the algebra, and its order is enforced by linearity: a buffer is
 read only before the store that consumes it (§3, W7). That is ADR 0018's "reads are impure so that
@@ -148,6 +152,7 @@ because it is an instance of one of these equations. Each is named where it is u
 | **L9** π | a π-parameter equals its source | §6 |
 | **L10** connectives | `(if c true E)` is `c ∨ E`, and `(if c E false)` is `c ∧ E` | their definition (ADR 0017, booleans.md) |
 | **L11** tabulate | `tabulate n f` = `build n`, then store `f i` at every `i < n` | tables.md: a rule table's allocation |
+| **L13** restriction | `index (restrict t n) i` = `index t i`, for i < n ≤ len t | the definition of restriction. It is what bounds-check re-slicing is (§9.4) |
 | **L12** η for tables | `tabulate (len t) (i ↦ t i)` = `t`, for an immutable table t | a table is a function on Fin (len t) (tables.md §3), and extensional equality. It does **not** hold for a live buffer, whose later stores the copy must not see |
 
 **What is not a law.** Weakening and contraction of an **impure** operation (ADR 0010), and either
@@ -178,7 +183,7 @@ op       ::= (const LIT) | (global NAME)
            | (if %c region region)
            | (loop (init %a…) region)
            | (build %n region) | (build-map %n region) | (tabulate %n region)
-           | (the τ %a) | (require %c)
+           | (the τ %a) | (require %c) | (assume %c) | (restrict %t %n)
 term     ::= (yield %a…) | (break %a…) | (continue %a…) | (branch %c region region)
 ARITH    ::= add | sub | mul | neg | div | rem
 CMP      ::= eq | ne | lt | le | gt | ge
@@ -366,6 +371,27 @@ Along an edge that is not on a cycle (an initial value into a loop parameter), t
 and the representation may not. That is why the theorem is about representations and not about
 ranges.
 
+**Theorem D′ (with fixed members).** A class that touches a **declared** representation takes it:
+a signature's parameter or result, or a primitive's argument or result. The host compiled that
+declaration, so no other representation is admissible. It is sound because every member's values lie
+in the declared set, which the analyses proved or the program was refused. Two different fixed
+representations in one class are a program the host cannot type, and are reported. A class with no
+fixed member takes ρ_T of its hull, as in Theorem D (`ir/final.go`).
+
+**The hull is a reduced product of two factors** (Cousot and Cousot 1979). Each factor is a sound
+over-approximation of the class's elements, so their meet is: γ(a ⊓ b) ⊇ γ(a) ∩ γ(b).
+- **The term factor** is the hull of the class's sources as the analyses on terms see them. For a
+  `build` it is the interval analysis on the build's own λ, written at lowering (`BufferRange`: its
+  stores joined with the zero fill). For a literal it is its constants. A source nothing bounds is the
+  word.
+- **The IR factor** is **array smashing, flow-insensitive** (Blanchet et al. 2003): the join of every
+  value ever placed in one of the class's tables. That means a build's zero fill, each stored value, a
+  literal's elements, a tabulation's yields, and what a declaration says of a table from outside. Each
+  value's fact comes from the IR's own interval domain (`ir/interval.go`), which reads `assume`s
+  (Theorem E's reasoning, applied at entry). A value read back out of the same table carries that
+  table's own fact, so a circular dependence is sound.
+- **A class a host may write** through an argument no declaration fixes takes the word.
+
 This is LoopOneJoin's rule and P2's "widths once per class" (irp2 §6), derived rather than
 special-cased. The analysis supplies each node's element range.
 
@@ -479,8 +505,9 @@ exactly when:
    product of the domains, an assumption that is the same term, or the evaluation of a closed
    comparison. Otherwise the program is refused, naming the obligation;
 2. every arithmetic operation's mode is decided (§4.4);
-3. every type is final: the analyses' ranges are written onto the values, and table classes are
-   joined (Theorem D);
+3. every type is final: the analyses' ranges are written onto the values, and table classes take
+   their representation (Theorem D′, the reduced product of §4.3). The rewrites the step makes, such
+   as bounds-check re-slicing by L13 (§9.4), happen here, where their premises are discharged;
 4. `require` and `the` are erased: a `require` is removed, and a `the`'s result is replaced by its
    operand.
 
@@ -523,6 +550,7 @@ its binder's frame, and `openFresh` is not called.
 | `(keys m)`, `(set b i x)`, `(insert m k x)` | the operation of the same name |
 | `(the τ e)` | `(the τ e)` |
 | a contract mark (ADR 0028) | `(require c)` |
+| an export's `where` | `(do (assume c))` at the function's entry: at an export the precondition is assumed, because its callers are outside the program (ADR 0028). Not lowered when a representation pass moved a parameter it names above the word (`big`, `u64`), since the source's term would no longer mean what it says; dropping an assumption is always sound |
 
 **Anything else is a compile error that names the term.** The IR has no opaque operation. P1's
 prototype counted opaque terms and found none on four programs, and the specification makes zero the
@@ -605,7 +633,7 @@ hand-written code, and a change to it is re-measured.
 |---|---|---|---|
 | **soleExit** (coalescing) | a loop result that every `break` passes as the same parameter p *is* p. Print no temporary | by §5.3, r = p on every exit | 20,480 B/op against 0 on Go (escape analysis) |
 | **PostVars** | a parameter that every `continue` passes as p + k, for one literal k and a value read nowhere else, is updated in Go's post clause | the body is rewritten and f† is kept (L4) | 1.4× on the sieve (loopshape-2026-08-25) |
-| **bounds-check re-slicing** | before a loop guarded by p against `len X`, a table Y read in the loop only at p's π is re-sliced to `len X` | **side condition: `len X ≤ len Y` is proven at the loop's entry**, which is an obligation of §7 (below) | 1.96× on compute-bound loops (bce-2026-08-15) |
+| **bounds-check re-slicing** | before a loop guarded by p against `len X`, a table Y read in the loop only at p's π is replaced in the loop by `restrict Y (len X)`, which Go prints `Y[:n]` | L13, **with `restrict`'s obligation `len X ≤ len Y` discharged at the loop's entry**. Today by an `assume` of the same term (refinements.md §3a's second route: dot's `where len p = len q`); no assumption, no rewrite (`ir/restrict.go`, `TestRestrictNeedsItsPremise`) | 1.96× on compute-bound loops (bce-2026-08-15) |
 | **connectives** | `(if c true E)` prints as `c \|\| E` and `(if c E false)` as `c && E`, when E's region is an expression tree: pure, every value read once, no loop | L10, and L6 lets a pure E run under the short circuit | irp2 §3: equal to today's backend, and ±5% for the alternative |
 | **JavaScript tail return** | a `break` from a loop whose results the function yields directly prints as `return` | L2: the join's continuation is the function's return | 1.31× on V8 (native-js-2026-08-20) |
 | **Java index narrowing** | an index whose type is inside Java's `int` is printed as `int` | ρ is a choice among representations containing the type (§4.2) | 1.04–1.45× (native-java-2026-08-25) |

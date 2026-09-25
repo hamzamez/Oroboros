@@ -5,41 +5,47 @@ package gauntlet
 import "fmt"
 
 func GenMain() int {
-	m := make(map[int]int, 8)
-	m2 := m
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= 5) {
+	v2 := make(map[int]int, 8)
+	var v1 map[int]int
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v8 := (v6 >= 5)
+		if v8 {
 			break
 		}
-		m2[i] = (i * 10)
+		v12 := (v6 * 10)
+		v5[v6] = v12
 		continue
 	}
-	m3 := m2
-	_p, _tok := m3[3]
-	_t := 1
-	if _tok {
-		_t = 0
+	v1 = v5
+	v19, ok18 := v1[3]
+	v18 := 1
+	if ok18 {
+		v18 = 0
 	}
-	var t1 int
-	if (_t == 0) {
-		t1 = _p
+	v21 := (v18 == 0)
+	var v22 int
+	if v21 {
+		v22 = v19
 	} else {
-		t1 = -1
+		v22 = -1
 	}
-	_p2, _t2ok := m3[9]
-	_t2 := 1
-	if _t2ok {
-		_t2 = 0
+	v26 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(100, v22))
+	v29, ok28 := v1[9]
+	v28 := 1
+	if ok28 {
+		v28 = 0
 	}
-	var t2 int
-	if (_t2 == 0) {
-		t2 = _p2
+	v31 := (v28 == 0)
+	var v32 int
+	if v31 {
+		v32 = v29
 	} else {
-		t2 = -1
+		v32 = -1
 	}
-	var v3 int = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(100, t1)), t2))
-	fmt.Println(v3)
-	return v3
+	v36 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v26, v32))
+	fmt.Println(v36)
+	return v36
 }
 

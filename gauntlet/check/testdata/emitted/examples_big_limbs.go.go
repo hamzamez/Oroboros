@@ -2,67 +2,79 @@
 
 package gauntlet
 
-func GenLimb(k int) int {
-	b := make([]uint32, 64)
-	b2 := b
-	var i2 int = 0
-	var r int = 1
-	for ; ; i2, r = (i2 + 1), (r >> 24) {
-		if (i2 >= 64) {
+func GenLimb(v0 int) int {
+	v3 := make([]uint32, 64)
+	var v2 []uint32
+	v7 := v3
+	var v8 int = 0
+	var v9 int = 1
+	for ; ; v8 = (v8 + 1) {
+		v11 := (v8 >= 64)
+		if v11 {
 			break
 		}
-		b2[i2] = uint32((r & 16777215))
+		v15 := (v9 & 16777215)
+		v7[v8] = uint32(v15)
+		v20 := (v9 >> 24)
+		v9 = v20
 		continue
 	}
-	acc := b2
-	var i int = 2
-	sp1 := make([]uint32, 64)
-	for ; ; i = (i + 1) {
-		if (i > 200) {
+	v2 = v7
+	v23 := v2
+	var v24 int = 2
+	sp23 := make([]uint32, 64)
+	for ; ; v24 = (v24 + 1) {
+		v26 := (v24 > 200)
+		if v26 {
 			break
 		}
-		clear(sp1)
-		o := sp1
-		o3 := o
-		var i1 int = 0
-		var c int = 0
-		for ; ; i1 = (i1 + 1) {
-			if (i1 >= 64) {
+		clear(sp23)
+		v31 := sp23
+		var v30 []uint32
+		v35 := v31
+		var v36 int = 0
+		var v37 int = 0
+		for ; ; v36 = (v36 + 1) {
+			v39 := (v36 >= 64)
+			if v39 {
 				break
 			}
-			var t2 int
-			if (i1 < 0) {
-				t2 = 0
+			v43 := (v36 < 0)
+			var v44 int
+			if v43 {
+				v44 = 0
 			} else {
-				var t3 int
-				if (i1 >= len(acc)) {
-					t3 = 0
+				v48 := len(v23)
+				v49 := (v36 >= v48)
+				if v49 {
+					v44 = 0
 				} else {
-					t3 = int(acc[i1])
+					v55 := int(v23[v36])
+					v44 = v55
 				}
-				t2 = t3
 			}
-			var t145 int = ((t2 * i) + c)
-			o3[i1] = uint32((t145 & 16777215))
-			c = (t145 >> 24)
+			v56 := (v44 * v24)
+			v57 := (v56 + v37)
+			v59 := (v57 & 16777215)
+			v35[v36] = uint32(v59)
+			v64 := (v57 >> 24)
+			v37 = v64
 			continue
 		}
-		acc, sp1 = o3, acc
+		v30 = v35
+		v23, sp23 = v30, v23
 		continue
 	}
-	t1452 := acc
-	var t4 int
-	if (k < 0) {
-		t4 = 0
-	} else {
-		var t5 int
-		if (k >= len(t1452)) {
-			t5 = 0
-		} else {
-			t5 = int(t1452[k])
-		}
-		t4 = t5
+	v68 := (v0 < 0)
+	if v68 {
+		return 0
 	}
-	return t4
+	v72 := len(v23)
+	v73 := (v0 >= v72)
+	if v73 {
+		return 0
+	}
+	v79 := int(v23[v0])
+	return v79
 }
 

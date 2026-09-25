@@ -491,3 +491,57 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 change(s):
 
 - compiler output changed — `examples/native/smooth-js.oro js`
+
+## 2026-09-25 — on 3cc5ab5, with uncommitted changes
+
+**Reason:** ADR 0032 step 2: the Go backend is the IR's printer (ir/golang). Every Go output is re-printed from IR_P; the differential suite (44 cases, four targets) and the gauntlet (parity within 2% of the term backend, irstep2-2026-09-25) pass, all 78 Go programs compile, and two refusals keep their outcome with the IR's message.
+
+520 runs: 242 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+45 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro go`
+- emitted text changed — `examples/big/fact.oro go`
+- emitted text changed — `examples/big/fib.oro go`
+- emitted text changed — `examples/big/limbs.oro go`
+- emitted text changed — `examples/big/pair.oro go`
+- emitted text changed — `examples/big/power.oro go`
+- emitted text changed — `examples/big/render.oro go`
+- emitted text changed — `examples/hello.oro go`
+- emitted text changed — `examples/int/digit-sum.oro go`
+- emitted text changed — `examples/int/gcd.oro go`
+- emitted text changed — `examples/int/sum-range.oro go`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/jsonfmt.oro go`
+- emitted text changed — `examples/io/wc.oro go`
+- emitted text changed — `examples/json/tokenize.oro go`
+- emitted text changed — `examples/json/tree.oro go`
+- emitted text changed — `examples/kara/workspace.oro go`
+- emitted text changed — `examples/map/dynamic.oro go`
+- emitted text changed — `examples/match/runs.oro go`
+- emitted text changed — `examples/native/centroid-go.oro go`
+- emitted text changed — `examples/native/divmod-go.oro go`
+- emitted text changed — `examples/native/dot-go.oro go`
+- emitted text changed — `examples/native/generic-go.oro go`
+- emitted text changed — `examples/native/report-go.oro go`
+- emitted text changed — `examples/native/search-go.oro go`
+- emitted text changed — `examples/native/shortcircuit-go.oro go`
+- emitted text changed — `examples/native/sieve-go-threaded.oro go`
+- emitted text changed — `examples/native/sieve-go.oro go`
+- emitted text changed — `examples/native/smooth-go.oro go`
+- emitted text changed — `examples/native/wordcount-go.oro go`
+- emitted text changed — `examples/sum/parse.oro go`
+- emitted text changed — `examples/table/alloc.oro go`
+- emitted text changed — `examples/table/dot.oro go`
+- emitted text changed — `examples/table/sieve.oro go`
+- emitted text changed — `examples/u128/factorials.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-negmid.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-sign.oro go`
+- emitted text changed — `gauntlet/differential/cases/big-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro go`
+- compiler output changed — `gauntlet/differential/cases/string-escapes.oro go`
+- compiler output changed — `gauntlet/differential/cases/utf8-widths.oro go`
+- emitted text changed — `lib/num/u128.oro go`

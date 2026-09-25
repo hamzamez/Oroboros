@@ -2,788 +2,1152 @@
 
 package gauntlet
 
-func GenRun(k int) int {
-	var t1 int
-	if (k == 0) {
-		src := []byte{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
-		stk := make([]byte, 32)
-		stk2 := stk
-		var i int = 0
-		var nt int = 0
-		var sp int = 0
-		var mx int = 0
-		var ok int = 1
-		var r2 int
+func GenRun(v0 int) int {
+	v2 := (v0 == 0)
+	if v2 {
+		v24 := []byte{123, 34, 97, 34, 58, 91, 49, 44, 50, 93, 44, 34, 98, 34, 58, 116, 114, 117, 101, 125}
+		v27 := make([]byte, 32)
+		var v26 int
+		v34 := v27
+		var v35 int = 0
+		var v36 int = 0
+		var v37 int = 0
+		var v38 int = 0
+		var v39 int = 1
+		var v33 int
 		for {
-			if (i < 0) {
-				r2 = 0
+			v41 := (v35 < 0)
+			if v41 {
+				v33 = 0
 				break
 			}
-			if (i >= len(src)) {
-				var t3 int
-				if (sp == 0) {
-					t3 = ok
+			v45 := len(v24)
+			v46 := (v35 >= v45)
+			if v46 {
+				v50 := (v36 * 1000)
+				v52 := (v38 * 10)
+				v54 := (v37 == 0)
+				var v55 int
+				if v54 {
+					v55 = v39
 				} else {
-					t3 = 0
+					v55 = 0
 				}
-				r2 = ((nt * 1000) + ((mx * 10) + t3))
+				v59 := (v52 + v55)
+				v60 := (v50 + v59)
+				v33 = v60
 				break
 			}
-			if (sp >= 32) {
-				r2 = (nt * 1000)
+			v64 := (v37 >= 32)
+			if v64 {
+				v67 := (v36 * 1000)
+				v33 = v67
 				break
 			}
-			var c int = int(src[i])
-			if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
-				i = (i + 1)
+			v69 := int(v24[v35])
+			v71 := (v69 == 32)
+			v72 := (v71 || ((v69 == 9) || ((v69 == 10) || (v69 == 13))))
+			if v72 {
+				v89 := (v35 + 1)
+				v35 = v89
 				continue
 			}
-			var c2 int = int(src[i])
-			if ((c2 == 123) || (c2 == 91)) {
-				var t4 int
-				if (int(src[i]) == 123) {
-					t4 = 125
+			v90 := int(v24[v35])
+			v92 := (v90 == 123)
+			v93 := (v92 || (v90 == 91))
+			if v93 {
+				v99 := int(v24[v35])
+				v101 := (v99 == 123)
+				var v102 int
+				if v101 {
+					v102 = 125
 				} else {
-					t4 = 93
+					v102 = 93
 				}
-				stk2[sp] = byte(t4)
-				var t5 int
-				if ((sp + 1) > mx) {
-					t5 = (sp + 1)
+				v34[v37] = byte(v102)
+				v107 := (v35 + 1)
+				v109 := (v36 + 1)
+				v111 := (v37 + 1)
+				v113 := (v37 + 1)
+				v114 := (v113 > v38)
+				var v115 int
+				if v114 {
+					v118 := (v37 + 1)
+					v115 = v118
 				} else {
-					t5 = mx
+					v115 = v38
 				}
-				i, nt, sp, mx = (i + 1), (nt + 1), (sp + 1), t5
+				v35, v36, v37, v38 = v107, v109, v111, v115
 				continue
 			}
-			var c3 int = int(src[i])
-			if ((c3 == 125) || (c3 == 93)) {
-				var t6 int
-				if (sp < 1) {
-					t6 = 0
+			v120 := int(v24[v35])
+			v122 := (v120 == 125)
+			v123 := (v122 || (v120 == 93))
+			if v123 {
+				v130 := (v35 + 1)
+				v132 := (v36 + 1)
+				v134 := (v37 < 1)
+				var v135 int
+				if v134 {
+					v135 = 0
 				} else {
-					t6 = (sp - 1)
+					v140 := (v37 - 1)
+					v135 = v140
 				}
-				var t7 int
-				if (sp < 1) {
-					t7 = 0
+				v142 := (v37 < 1)
+				var v143 int
+				if v142 {
+					v143 = 0
 				} else {
-					var t8 int
-					if (sp < 1) {
-						t8 = 0
+					v148 := (v37 < 1)
+					var v149 int
+					if v148 {
+						v149 = 0
 					} else {
-						t8 = (sp - 1)
+						v154 := (v37 - 1)
+						v149 = v154
 					}
-					var t9 int
-					if (int(stk2[t8]) == int(src[i])) {
-						t9 = ok
+					v155 := int(v34[v149])
+					v156 := int(v24[v35])
+					v157 := (v155 == v156)
+					if v157 {
+						v143 = v39
 					} else {
-						t9 = 0
+						v143 = 0
 					}
-					t7 = t9
 				}
-				i, nt, sp, ok = (i + 1), (nt + 1), t6, t7
+				v35, v36, v37, v39 = v130, v132, v135, v143
 				continue
 			}
-			var c4 int = int(src[i])
-			if ((c4 == 58) || (c4 == 44)) {
-				i, nt = (i + 1), (nt + 1)
+			v159 := int(v24[v35])
+			v161 := (v159 == 58)
+			v162 := (v161 || (v159 == 44))
+			if v162 {
+				v169 := (v35 + 1)
+				v171 := (v36 + 1)
+				v35, v36 = v169, v171
 				continue
 			}
-			if (int(src[i]) == 34) {
-				var j int = (i + 1)
-				var r10 int
+			v172 := int(v24[v35])
+			v174 := (v172 == 34)
+			if v174 {
+				v176 := (v35 + 1)
+				var v178 int = v176
+				var v177 int
 				for {
-					if (j < 0) {
-						r10 = j
+					v180 := (v178 < 0)
+					if v180 {
+						v177 = v178
 						break
 					}
-					if (j >= len(src)) {
-						r10 = j
+					v183 := len(v24)
+					v184 := (v178 >= v183)
+					if v184 {
+						v177 = v178
 						break
 					}
-					if (int(src[j]) == 92) {
-						j = (j + 2)
+					v189 := int(v24[v178])
+					v191 := (v189 == 92)
+					if v191 {
+						v193 := (v178 + 2)
+						v178 = v193
 						continue
 					}
-					if (int(src[j]) == 34) {
-						r10 = (j + 1)
+					v194 := int(v24[v178])
+					v196 := (v194 == 34)
+					if v196 {
+						v198 := (v178 + 1)
+						v177 = v198
 						break
 					}
-					j = (j + 1)
+					v200 := (v178 + 1)
+					v178 = v200
 					continue
 				}
-				i, nt = r10, (nt + 1)
+				v202 := (v36 + 1)
+				v35, v36 = v177, v202
 				continue
 			}
-			var c5 int = int(src[i])
-			if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
-				var j2 int = (i + 1)
-				for ; ; j2 = (j2 + 1) {
-					if (j2 < 0) {
+			v203 := int(v24[v35])
+			v207 := (v203 >= 48)
+			v208 := (v207 && (v203 <= 57))
+			v214 := (v208 || ((v203 == 45) || ((v203 == 43) || ((v203 == 46) || ((v203 == 101) || (v203 == 69))))))
+			if v214 {
+				v241 := (v35 + 1)
+				var v243 int = v241
+				for ; ; v243 = (v243 + 1) {
+					v245 := (v243 < 0)
+					if v245 {
 						break
 					}
-					if (j2 >= len(src)) {
+					v248 := len(v24)
+					v249 := (v243 >= v248)
+					if v249 {
 						break
 					}
-					var c6 int = int(src[j2])
-					if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
+					v254 := int(v24[v243])
+					v258 := (v254 >= 48)
+					v259 := (v258 && (v254 <= 57))
+					v265 := (v259 || ((v254 == 45) || ((v254 == 43) || ((v254 == 46) || ((v254 == 101) || (v254 == 69))))))
+					if v265 {
 						continue
 					}
 					break
 				}
-				i, nt = j2, (nt + 1)
+				v294 := (v36 + 1)
+				v35, v36 = v243, v294
 				continue
 			}
-			var c7 int = int(src[i])
-			if ((c7 >= 97) && (c7 <= 122)) {
-				var j3 int = (i + 1)
-				for ; ; j3 = (j3 + 1) {
-					if (j3 < 0) {
+			v295 := int(v24[v35])
+			v297 := (v295 >= 97)
+			v298 := (v297 && (v295 <= 122))
+			if v298 {
+				v305 := (v35 + 1)
+				var v307 int = v305
+				for ; ; v307 = (v307 + 1) {
+					v309 := (v307 < 0)
+					if v309 {
 						break
 					}
-					if (j3 >= len(src)) {
+					v312 := len(v24)
+					v313 := (v307 >= v312)
+					if v313 {
 						break
 					}
-					var c8 int = int(src[j3])
-					if ((c8 >= 97) && (c8 <= 122)) {
+					v318 := int(v24[v307])
+					v320 := (v318 >= 97)
+					v321 := (v320 && (v318 <= 122))
+					if v321 {
 						continue
 					}
 					break
 				}
-				i, nt = j3, (nt + 1)
+				v330 := (v36 + 1)
+				v35, v36 = v307, v330
 				continue
 			}
-			i, ok = (i + 1), 0
+			v332 := (v35 + 1)
+			v35, v39 = v332, 0
 			continue
 		}
-		t1 = r2
-	} else {
-		var t11 int
-		if (k == 1) {
-			src2 := []byte{91, 91, 91, 49, 93, 93, 93}
-			stk3 := make([]byte, 32)
-			stk4 := stk3
-			var i2 int = 0
-			var nt2 int = 0
-			var sp2 int = 0
-			var mx2 int = 0
-			var ok2 int = 1
-			var r12 int
-			for {
-				if (i2 < 0) {
-					r12 = 0
-					break
-				}
-				if (i2 >= len(src2)) {
-					var t13 int
-					if (sp2 == 0) {
-						t13 = ok2
-					} else {
-						t13 = 0
-					}
-					r12 = ((nt2 * 1000) + ((mx2 * 10) + t13))
-					break
-				}
-				if (sp2 >= 32) {
-					r12 = (nt2 * 1000)
-					break
-				}
-				var c9 int = int(src2[i2])
-				if ((c9 == 32) || ((c9 == 9) || ((c9 == 10) || (c9 == 13)))) {
-					i2 = (i2 + 1)
-					continue
-				}
-				var c10 int = int(src2[i2])
-				if ((c10 == 123) || (c10 == 91)) {
-					var t14 int
-					if (int(src2[i2]) == 123) {
-						t14 = 125
-					} else {
-						t14 = 93
-					}
-					stk4[sp2] = byte(t14)
-					var t15 int
-					if ((sp2 + 1) > mx2) {
-						t15 = (sp2 + 1)
-					} else {
-						t15 = mx2
-					}
-					i2, nt2, sp2, mx2 = (i2 + 1), (nt2 + 1), (sp2 + 1), t15
-					continue
-				}
-				var c11 int = int(src2[i2])
-				if ((c11 == 125) || (c11 == 93)) {
-					var t16 int
-					if (sp2 < 1) {
-						t16 = 0
-					} else {
-						t16 = (sp2 - 1)
-					}
-					var t17 int
-					if (sp2 < 1) {
-						t17 = 0
-					} else {
-						var t18 int
-						if (sp2 < 1) {
-							t18 = 0
-						} else {
-							t18 = (sp2 - 1)
-						}
-						var t19 int
-						if (int(stk4[t18]) == int(src2[i2])) {
-							t19 = ok2
-						} else {
-							t19 = 0
-						}
-						t17 = t19
-					}
-					i2, nt2, sp2, ok2 = (i2 + 1), (nt2 + 1), t16, t17
-					continue
-				}
-				var c12 int = int(src2[i2])
-				if ((c12 == 58) || (c12 == 44)) {
-					i2, nt2 = (i2 + 1), (nt2 + 1)
-					continue
-				}
-				if (int(src2[i2]) == 34) {
-					var j4 int = (i2 + 1)
-					var r20 int
-					for {
-						if (j4 < 0) {
-							r20 = j4
-							break
-						}
-						if (j4 >= len(src2)) {
-							r20 = j4
-							break
-						}
-						if (int(src2[j4]) == 92) {
-							j4 = (j4 + 2)
-							continue
-						}
-						if (int(src2[j4]) == 34) {
-							r20 = (j4 + 1)
-							break
-						}
-						j4 = (j4 + 1)
-						continue
-					}
-					i2, nt2 = r20, (nt2 + 1)
-					continue
-				}
-				var c13 int = int(src2[i2])
-				if (((c13 >= 48) && (c13 <= 57)) || ((c13 == 45) || ((c13 == 43) || ((c13 == 46) || ((c13 == 101) || (c13 == 69)))))) {
-					var j5 int = (i2 + 1)
-					for ; ; j5 = (j5 + 1) {
-						if (j5 < 0) {
-							break
-						}
-						if (j5 >= len(src2)) {
-							break
-						}
-						var c14 int = int(src2[j5])
-						if (((c14 >= 48) && (c14 <= 57)) || ((c14 == 45) || ((c14 == 43) || ((c14 == 46) || ((c14 == 101) || (c14 == 69)))))) {
-							continue
-						}
-						break
-					}
-					i2, nt2 = j5, (nt2 + 1)
-					continue
-				}
-				var c15 int = int(src2[i2])
-				if ((c15 >= 97) && (c15 <= 122)) {
-					var j6 int = (i2 + 1)
-					for ; ; j6 = (j6 + 1) {
-						if (j6 < 0) {
-							break
-						}
-						if (j6 >= len(src2)) {
-							break
-						}
-						var c16 int = int(src2[j6])
-						if ((c16 >= 97) && (c16 <= 122)) {
-							continue
-						}
-						break
-					}
-					i2, nt2 = j6, (nt2 + 1)
-					continue
-				}
-				i2, ok2 = (i2 + 1), 0
-				continue
-			}
-			t11 = r12
-		} else {
-			var t21 int
-			if (k == 2) {
-				src3 := []byte{123, 34, 97, 34, 58, 49}
-				stk5 := make([]byte, 32)
-				stk6 := stk5
-				var i3 int = 0
-				var nt3 int = 0
-				var sp3 int = 0
-				var mx3 int = 0
-				var ok3 int = 1
-				var r22 int
-				for {
-					if (i3 < 0) {
-						r22 = 0
-						break
-					}
-					if (i3 >= len(src3)) {
-						var t23 int
-						if (sp3 == 0) {
-							t23 = ok3
-						} else {
-							t23 = 0
-						}
-						r22 = ((nt3 * 1000) + ((mx3 * 10) + t23))
-						break
-					}
-					if (sp3 >= 32) {
-						r22 = (nt3 * 1000)
-						break
-					}
-					var c17 int = int(src3[i3])
-					if ((c17 == 32) || ((c17 == 9) || ((c17 == 10) || (c17 == 13)))) {
-						i3 = (i3 + 1)
-						continue
-					}
-					var c18 int = int(src3[i3])
-					if ((c18 == 123) || (c18 == 91)) {
-						var t24 int
-						if (int(src3[i3]) == 123) {
-							t24 = 125
-						} else {
-							t24 = 93
-						}
-						stk6[sp3] = byte(t24)
-						var t25 int
-						if ((sp3 + 1) > mx3) {
-							t25 = (sp3 + 1)
-						} else {
-							t25 = mx3
-						}
-						i3, nt3, sp3, mx3 = (i3 + 1), (nt3 + 1), (sp3 + 1), t25
-						continue
-					}
-					var c19 int = int(src3[i3])
-					if ((c19 == 125) || (c19 == 93)) {
-						var t26 int
-						if (sp3 < 1) {
-							t26 = 0
-						} else {
-							t26 = (sp3 - 1)
-						}
-						var t27 int
-						if (sp3 < 1) {
-							t27 = 0
-						} else {
-							var t28 int
-							if (sp3 < 1) {
-								t28 = 0
-							} else {
-								t28 = (sp3 - 1)
-							}
-							var t29 int
-							if (int(stk6[t28]) == int(src3[i3])) {
-								t29 = ok3
-							} else {
-								t29 = 0
-							}
-							t27 = t29
-						}
-						i3, nt3, sp3, ok3 = (i3 + 1), (nt3 + 1), t26, t27
-						continue
-					}
-					var c20 int = int(src3[i3])
-					if ((c20 == 58) || (c20 == 44)) {
-						i3, nt3 = (i3 + 1), (nt3 + 1)
-						continue
-					}
-					if (int(src3[i3]) == 34) {
-						var j7 int = (i3 + 1)
-						var r30 int
-						for {
-							if (j7 < 0) {
-								r30 = j7
-								break
-							}
-							if (j7 >= len(src3)) {
-								r30 = j7
-								break
-							}
-							if (int(src3[j7]) == 92) {
-								j7 = (j7 + 2)
-								continue
-							}
-							if (int(src3[j7]) == 34) {
-								r30 = (j7 + 1)
-								break
-							}
-							j7 = (j7 + 1)
-							continue
-						}
-						i3, nt3 = r30, (nt3 + 1)
-						continue
-					}
-					var c21 int = int(src3[i3])
-					if (((c21 >= 48) && (c21 <= 57)) || ((c21 == 45) || ((c21 == 43) || ((c21 == 46) || ((c21 == 101) || (c21 == 69)))))) {
-						var j8 int = (i3 + 1)
-						for ; ; j8 = (j8 + 1) {
-							if (j8 < 0) {
-								break
-							}
-							if (j8 >= len(src3)) {
-								break
-							}
-							var c22 int = int(src3[j8])
-							if (((c22 >= 48) && (c22 <= 57)) || ((c22 == 45) || ((c22 == 43) || ((c22 == 46) || ((c22 == 101) || (c22 == 69)))))) {
-								continue
-							}
-							break
-						}
-						i3, nt3 = j8, (nt3 + 1)
-						continue
-					}
-					var c23 int = int(src3[i3])
-					if ((c23 >= 97) && (c23 <= 122)) {
-						var j9 int = (i3 + 1)
-						for ; ; j9 = (j9 + 1) {
-							if (j9 < 0) {
-								break
-							}
-							if (j9 >= len(src3)) {
-								break
-							}
-							var c24 int = int(src3[j9])
-							if ((c24 >= 97) && (c24 <= 122)) {
-								continue
-							}
-							break
-						}
-						i3, nt3 = j9, (nt3 + 1)
-						continue
-					}
-					i3, ok3 = (i3 + 1), 0
-					continue
-				}
-				t21 = r22
-			} else {
-				src4 := []byte{93}
-				stk7 := make([]byte, 32)
-				stk8 := stk7
-				var i4 int = 0
-				var nt4 int = 0
-				var sp4 int = 0
-				var mx4 int = 0
-				var ok4 int = 1
-				var r31 int
-				for {
-					if (i4 < 0) {
-						r31 = 0
-						break
-					}
-					if (i4 >= len(src4)) {
-						var t32 int
-						if (sp4 == 0) {
-							t32 = ok4
-						} else {
-							t32 = 0
-						}
-						r31 = ((nt4 * 1000) + ((mx4 * 10) + t32))
-						break
-					}
-					if (sp4 >= 32) {
-						r31 = (nt4 * 1000)
-						break
-					}
-					var c25 int = int(src4[i4])
-					if ((c25 == 32) || ((c25 == 9) || ((c25 == 10) || (c25 == 13)))) {
-						i4 = (i4 + 1)
-						continue
-					}
-					var c26 int = int(src4[i4])
-					if ((c26 == 123) || (c26 == 91)) {
-						var t33 int
-						if (int(src4[i4]) == 123) {
-							t33 = 125
-						} else {
-							t33 = 93
-						}
-						stk8[sp4] = byte(t33)
-						var t34 int
-						if ((sp4 + 1) > mx4) {
-							t34 = (sp4 + 1)
-						} else {
-							t34 = mx4
-						}
-						i4, nt4, sp4, mx4 = (i4 + 1), (nt4 + 1), (sp4 + 1), t34
-						continue
-					}
-					var c27 int = int(src4[i4])
-					if ((c27 == 125) || (c27 == 93)) {
-						var t35 int
-						if (sp4 < 1) {
-							t35 = 0
-						} else {
-							t35 = (sp4 - 1)
-						}
-						var t36 int
-						if (sp4 < 1) {
-							t36 = 0
-						} else {
-							var t37 int
-							if (sp4 < 1) {
-								t37 = 0
-							} else {
-								t37 = (sp4 - 1)
-							}
-							var t38 int
-							if (int(stk8[t37]) == int(src4[i4])) {
-								t38 = ok4
-							} else {
-								t38 = 0
-							}
-							t36 = t38
-						}
-						i4, nt4, sp4, ok4 = (i4 + 1), (nt4 + 1), t35, t36
-						continue
-					}
-					var c28 int = int(src4[i4])
-					if ((c28 == 58) || (c28 == 44)) {
-						i4, nt4 = (i4 + 1), (nt4 + 1)
-						continue
-					}
-					if (int(src4[i4]) == 34) {
-						var j10 int = (i4 + 1)
-						var r39 int
-						for {
-							if (j10 < 0) {
-								r39 = j10
-								break
-							}
-							if (j10 >= len(src4)) {
-								r39 = j10
-								break
-							}
-							if (int(src4[j10]) == 92) {
-								j10 = (j10 + 2)
-								continue
-							}
-							if (int(src4[j10]) == 34) {
-								r39 = (j10 + 1)
-								break
-							}
-							j10 = (j10 + 1)
-							continue
-						}
-						i4, nt4 = r39, (nt4 + 1)
-						continue
-					}
-					var c29 int = int(src4[i4])
-					if (((c29 >= 48) && (c29 <= 57)) || ((c29 == 45) || ((c29 == 43) || ((c29 == 46) || ((c29 == 101) || (c29 == 69)))))) {
-						var j11 int = (i4 + 1)
-						for ; ; j11 = (j11 + 1) {
-							if (j11 < 0) {
-								break
-							}
-							if (j11 >= len(src4)) {
-								break
-							}
-							var c30 int = int(src4[j11])
-							if (((c30 >= 48) && (c30 <= 57)) || ((c30 == 45) || ((c30 == 43) || ((c30 == 46) || ((c30 == 101) || (c30 == 69)))))) {
-								continue
-							}
-							break
-						}
-						i4, nt4 = j11, (nt4 + 1)
-						continue
-					}
-					var c31 int = int(src4[i4])
-					if ((c31 >= 97) && (c31 <= 122)) {
-						var j12 int = (i4 + 1)
-						for ; ; j12 = (j12 + 1) {
-							if (j12 < 0) {
-								break
-							}
-							if (j12 >= len(src4)) {
-								break
-							}
-							var c32 int = int(src4[j12])
-							if ((c32 >= 97) && (c32 <= 122)) {
-								continue
-							}
-							break
-						}
-						i4, nt4 = j12, (nt4 + 1)
-						continue
-					}
-					i4, ok4 = (i4 + 1), 0
-					continue
-				}
-				t21 = r31
-			}
-			t11 = t21
-		}
-		t1 = t11
+		v26 = v33
+		return v26
 	}
-	return t1
-}
-
-func GenTokens(src []byte) int {
-	stk := make([]byte, 32)
-	stk2 := stk
-	var i int = 0
-	var nt int = 0
-	var sp int = 0
-	var mx int = 0
-	var ok int = 1
-	var r1 int
-	for {
-		if (i < 0) {
-			r1 = 0
-			break
-		}
-		if (i >= len(src)) {
-			var t2 int
-			if (sp == 0) {
-				t2 = ok
-			} else {
-				t2 = 0
+	v336 := (v0 == 1)
+	if v336 {
+		v345 := []byte{91, 91, 91, 49, 93, 93, 93}
+		v348 := make([]byte, 32)
+		var v347 int
+		v355 := v348
+		var v356 int = 0
+		var v357 int = 0
+		var v358 int = 0
+		var v359 int = 0
+		var v360 int = 1
+		var v354 int
+		for {
+			v362 := (v356 < 0)
+			if v362 {
+				v354 = 0
+				break
 			}
-			r1 = ((nt * 1000) + ((mx * 10) + t2))
-			break
-		}
-		if (sp >= 32) {
-			r1 = (nt * 1000)
-			break
-		}
-		var c int = int(src[i])
-		if ((c == 32) || ((c == 9) || ((c == 10) || (c == 13)))) {
-			i = (i + 1)
-			continue
-		}
-		var c2 int = int(src[i])
-		if ((c2 == 123) || (c2 == 91)) {
-			var t3 int
-			if (int(src[i]) == 123) {
-				t3 = 125
-			} else {
-				t3 = 93
-			}
-			stk2[sp] = byte(t3)
-			var t4 int
-			if ((sp + 1) > mx) {
-				t4 = (sp + 1)
-			} else {
-				t4 = mx
-			}
-			i, nt, sp, mx = (i + 1), (nt + 1), (sp + 1), t4
-			continue
-		}
-		var c3 int = int(src[i])
-		if ((c3 == 125) || (c3 == 93)) {
-			var t5 int
-			if (sp < 1) {
-				t5 = 0
-			} else {
-				t5 = (sp - 1)
-			}
-			var t6 int
-			if (sp < 1) {
-				t6 = 0
-			} else {
-				var t7 int
-				if (sp < 1) {
-					t7 = 0
+			v366 := len(v345)
+			v367 := (v356 >= v366)
+			if v367 {
+				v371 := (v357 * 1000)
+				v373 := (v359 * 10)
+				v375 := (v358 == 0)
+				var v376 int
+				if v375 {
+					v376 = v360
 				} else {
-					t7 = (sp - 1)
+					v376 = 0
 				}
-				var t8 int
-				if (int(stk2[t7]) == int(src[i])) {
-					t8 = ok
-				} else {
-					t8 = 0
-				}
-				t6 = t8
+				v380 := (v373 + v376)
+				v381 := (v371 + v380)
+				v354 = v381
+				break
 			}
-			i, nt, sp, ok = (i + 1), (nt + 1), t5, t6
-			continue
-		}
-		var c4 int = int(src[i])
-		if ((c4 == 58) || (c4 == 44)) {
-			i, nt = (i + 1), (nt + 1)
-			continue
-		}
-		if (int(src[i]) == 34) {
-			var j int = (i + 1)
-			var r9 int
-			for {
-				if (j < 0) {
-					r9 = j
-					break
-				}
-				if (j >= len(src)) {
-					r9 = j
-					break
-				}
-				if (int(src[j]) == 92) {
-					j = (j + 2)
-					continue
-				}
-				if (int(src[j]) == 34) {
-					r9 = (j + 1)
-					break
-				}
-				j = (j + 1)
+			v385 := (v358 >= 32)
+			if v385 {
+				v388 := (v357 * 1000)
+				v354 = v388
+				break
+			}
+			v390 := int(v345[v356])
+			v392 := (v390 == 32)
+			v393 := (v392 || ((v390 == 9) || ((v390 == 10) || (v390 == 13))))
+			if v393 {
+				v410 := (v356 + 1)
+				v356 = v410
 				continue
 			}
-			i, nt = r9, (nt + 1)
+			v411 := int(v345[v356])
+			v413 := (v411 == 123)
+			v414 := (v413 || (v411 == 91))
+			if v414 {
+				v420 := int(v345[v356])
+				v422 := (v420 == 123)
+				var v423 int
+				if v422 {
+					v423 = 125
+				} else {
+					v423 = 93
+				}
+				v355[v358] = byte(v423)
+				v428 := (v356 + 1)
+				v430 := (v357 + 1)
+				v432 := (v358 + 1)
+				v434 := (v358 + 1)
+				v435 := (v434 > v359)
+				var v436 int
+				if v435 {
+					v439 := (v358 + 1)
+					v436 = v439
+				} else {
+					v436 = v359
+				}
+				v356, v357, v358, v359 = v428, v430, v432, v436
+				continue
+			}
+			v441 := int(v345[v356])
+			v443 := (v441 == 125)
+			v444 := (v443 || (v441 == 93))
+			if v444 {
+				v451 := (v356 + 1)
+				v453 := (v357 + 1)
+				v455 := (v358 < 1)
+				var v456 int
+				if v455 {
+					v456 = 0
+				} else {
+					v461 := (v358 - 1)
+					v456 = v461
+				}
+				v463 := (v358 < 1)
+				var v464 int
+				if v463 {
+					v464 = 0
+				} else {
+					v469 := (v358 < 1)
+					var v470 int
+					if v469 {
+						v470 = 0
+					} else {
+						v475 := (v358 - 1)
+						v470 = v475
+					}
+					v476 := int(v355[v470])
+					v477 := int(v345[v356])
+					v478 := (v476 == v477)
+					if v478 {
+						v464 = v360
+					} else {
+						v464 = 0
+					}
+				}
+				v356, v357, v358, v360 = v451, v453, v456, v464
+				continue
+			}
+			v480 := int(v345[v356])
+			v482 := (v480 == 58)
+			v483 := (v482 || (v480 == 44))
+			if v483 {
+				v490 := (v356 + 1)
+				v492 := (v357 + 1)
+				v356, v357 = v490, v492
+				continue
+			}
+			v493 := int(v345[v356])
+			v495 := (v493 == 34)
+			if v495 {
+				v497 := (v356 + 1)
+				var v499 int = v497
+				var v498 int
+				for {
+					v501 := (v499 < 0)
+					if v501 {
+						v498 = v499
+						break
+					}
+					v504 := len(v345)
+					v505 := (v499 >= v504)
+					if v505 {
+						v498 = v499
+						break
+					}
+					v510 := int(v345[v499])
+					v512 := (v510 == 92)
+					if v512 {
+						v514 := (v499 + 2)
+						v499 = v514
+						continue
+					}
+					v515 := int(v345[v499])
+					v517 := (v515 == 34)
+					if v517 {
+						v519 := (v499 + 1)
+						v498 = v519
+						break
+					}
+					v521 := (v499 + 1)
+					v499 = v521
+					continue
+				}
+				v523 := (v357 + 1)
+				v356, v357 = v498, v523
+				continue
+			}
+			v524 := int(v345[v356])
+			v528 := (v524 >= 48)
+			v529 := (v528 && (v524 <= 57))
+			v535 := (v529 || ((v524 == 45) || ((v524 == 43) || ((v524 == 46) || ((v524 == 101) || (v524 == 69))))))
+			if v535 {
+				v562 := (v356 + 1)
+				var v564 int = v562
+				for ; ; v564 = (v564 + 1) {
+					v566 := (v564 < 0)
+					if v566 {
+						break
+					}
+					v569 := len(v345)
+					v570 := (v564 >= v569)
+					if v570 {
+						break
+					}
+					v575 := int(v345[v564])
+					v579 := (v575 >= 48)
+					v580 := (v579 && (v575 <= 57))
+					v586 := (v580 || ((v575 == 45) || ((v575 == 43) || ((v575 == 46) || ((v575 == 101) || (v575 == 69))))))
+					if v586 {
+						continue
+					}
+					break
+				}
+				v615 := (v357 + 1)
+				v356, v357 = v564, v615
+				continue
+			}
+			v616 := int(v345[v356])
+			v618 := (v616 >= 97)
+			v619 := (v618 && (v616 <= 122))
+			if v619 {
+				v626 := (v356 + 1)
+				var v628 int = v626
+				for ; ; v628 = (v628 + 1) {
+					v630 := (v628 < 0)
+					if v630 {
+						break
+					}
+					v633 := len(v345)
+					v634 := (v628 >= v633)
+					if v634 {
+						break
+					}
+					v639 := int(v345[v628])
+					v641 := (v639 >= 97)
+					v642 := (v641 && (v639 <= 122))
+					if v642 {
+						continue
+					}
+					break
+				}
+				v651 := (v357 + 1)
+				v356, v357 = v628, v651
+				continue
+			}
+			v653 := (v356 + 1)
+			v356, v360 = v653, 0
 			continue
 		}
-		var c5 int = int(src[i])
-		if (((c5 >= 48) && (c5 <= 57)) || ((c5 == 45) || ((c5 == 43) || ((c5 == 46) || ((c5 == 101) || (c5 == 69)))))) {
-			var j2 int = (i + 1)
-			for ; ; j2 = (j2 + 1) {
-				if (j2 < 0) {
+		v347 = v354
+		return v347
+	}
+	v657 := (v0 == 2)
+	if v657 {
+		v665 := []byte{123, 34, 97, 34, 58, 49}
+		v668 := make([]byte, 32)
+		var v667 int
+		v675 := v668
+		var v676 int = 0
+		var v677 int = 0
+		var v678 int = 0
+		var v679 int = 0
+		var v680 int = 1
+		var v674 int
+		for {
+			v682 := (v676 < 0)
+			if v682 {
+				v674 = 0
+				break
+			}
+			v686 := len(v665)
+			v687 := (v676 >= v686)
+			if v687 {
+				v691 := (v677 * 1000)
+				v693 := (v679 * 10)
+				v695 := (v678 == 0)
+				var v696 int
+				if v695 {
+					v696 = v680
+				} else {
+					v696 = 0
+				}
+				v700 := (v693 + v696)
+				v701 := (v691 + v700)
+				v674 = v701
+				break
+			}
+			v705 := (v678 >= 32)
+			if v705 {
+				v708 := (v677 * 1000)
+				v674 = v708
+				break
+			}
+			v710 := int(v665[v676])
+			v712 := (v710 == 32)
+			v713 := (v712 || ((v710 == 9) || ((v710 == 10) || (v710 == 13))))
+			if v713 {
+				v730 := (v676 + 1)
+				v676 = v730
+				continue
+			}
+			v731 := int(v665[v676])
+			v733 := (v731 == 123)
+			v734 := (v733 || (v731 == 91))
+			if v734 {
+				v740 := int(v665[v676])
+				v742 := (v740 == 123)
+				var v743 int
+				if v742 {
+					v743 = 125
+				} else {
+					v743 = 93
+				}
+				v675[v678] = byte(v743)
+				v748 := (v676 + 1)
+				v750 := (v677 + 1)
+				v752 := (v678 + 1)
+				v754 := (v678 + 1)
+				v755 := (v754 > v679)
+				var v756 int
+				if v755 {
+					v759 := (v678 + 1)
+					v756 = v759
+				} else {
+					v756 = v679
+				}
+				v676, v677, v678, v679 = v748, v750, v752, v756
+				continue
+			}
+			v761 := int(v665[v676])
+			v763 := (v761 == 125)
+			v764 := (v763 || (v761 == 93))
+			if v764 {
+				v771 := (v676 + 1)
+				v773 := (v677 + 1)
+				v775 := (v678 < 1)
+				var v776 int
+				if v775 {
+					v776 = 0
+				} else {
+					v781 := (v678 - 1)
+					v776 = v781
+				}
+				v783 := (v678 < 1)
+				var v784 int
+				if v783 {
+					v784 = 0
+				} else {
+					v789 := (v678 < 1)
+					var v790 int
+					if v789 {
+						v790 = 0
+					} else {
+						v795 := (v678 - 1)
+						v790 = v795
+					}
+					v796 := int(v675[v790])
+					v797 := int(v665[v676])
+					v798 := (v796 == v797)
+					if v798 {
+						v784 = v680
+					} else {
+						v784 = 0
+					}
+				}
+				v676, v677, v678, v680 = v771, v773, v776, v784
+				continue
+			}
+			v800 := int(v665[v676])
+			v802 := (v800 == 58)
+			v803 := (v802 || (v800 == 44))
+			if v803 {
+				v810 := (v676 + 1)
+				v812 := (v677 + 1)
+				v676, v677 = v810, v812
+				continue
+			}
+			v813 := int(v665[v676])
+			v815 := (v813 == 34)
+			if v815 {
+				v817 := (v676 + 1)
+				var v819 int = v817
+				var v818 int
+				for {
+					v821 := (v819 < 0)
+					if v821 {
+						v818 = v819
+						break
+					}
+					v824 := len(v665)
+					v825 := (v819 >= v824)
+					if v825 {
+						v818 = v819
+						break
+					}
+					v830 := int(v665[v819])
+					v832 := (v830 == 92)
+					if v832 {
+						v834 := (v819 + 2)
+						v819 = v834
+						continue
+					}
+					v835 := int(v665[v819])
+					v837 := (v835 == 34)
+					if v837 {
+						v839 := (v819 + 1)
+						v818 = v839
+						break
+					}
+					v841 := (v819 + 1)
+					v819 = v841
+					continue
+				}
+				v843 := (v677 + 1)
+				v676, v677 = v818, v843
+				continue
+			}
+			v844 := int(v665[v676])
+			v848 := (v844 >= 48)
+			v849 := (v848 && (v844 <= 57))
+			v855 := (v849 || ((v844 == 45) || ((v844 == 43) || ((v844 == 46) || ((v844 == 101) || (v844 == 69))))))
+			if v855 {
+				v882 := (v676 + 1)
+				var v884 int = v882
+				for ; ; v884 = (v884 + 1) {
+					v886 := (v884 < 0)
+					if v886 {
+						break
+					}
+					v889 := len(v665)
+					v890 := (v884 >= v889)
+					if v890 {
+						break
+					}
+					v895 := int(v665[v884])
+					v899 := (v895 >= 48)
+					v900 := (v899 && (v895 <= 57))
+					v906 := (v900 || ((v895 == 45) || ((v895 == 43) || ((v895 == 46) || ((v895 == 101) || (v895 == 69))))))
+					if v906 {
+						continue
+					}
 					break
 				}
-				if (j2 >= len(src)) {
+				v935 := (v677 + 1)
+				v676, v677 = v884, v935
+				continue
+			}
+			v936 := int(v665[v676])
+			v938 := (v936 >= 97)
+			v939 := (v938 && (v936 <= 122))
+			if v939 {
+				v946 := (v676 + 1)
+				var v948 int = v946
+				for ; ; v948 = (v948 + 1) {
+					v950 := (v948 < 0)
+					if v950 {
+						break
+					}
+					v953 := len(v665)
+					v954 := (v948 >= v953)
+					if v954 {
+						break
+					}
+					v959 := int(v665[v948])
+					v961 := (v959 >= 97)
+					v962 := (v961 && (v959 <= 122))
+					if v962 {
+						continue
+					}
 					break
 				}
-				var c6 int = int(src[j2])
-				if (((c6 >= 48) && (c6 <= 57)) || ((c6 == 45) || ((c6 == 43) || ((c6 == 46) || ((c6 == 101) || (c6 == 69)))))) {
+				v971 := (v677 + 1)
+				v676, v677 = v948, v971
+				continue
+			}
+			v973 := (v676 + 1)
+			v676, v680 = v973, 0
+			continue
+		}
+		v667 = v674
+		return v667
+	}
+	v977 := []byte{93}
+	v980 := make([]byte, 32)
+	var v979 int
+	v987 := v980
+	var v988 int = 0
+	var v989 int = 0
+	var v990 int = 0
+	var v991 int = 0
+	var v992 int = 1
+	var v986 int
+	for {
+		v994 := (v988 < 0)
+		if v994 {
+			v986 = 0
+			break
+		}
+		v998 := len(v977)
+		v999 := (v988 >= v998)
+		if v999 {
+			v1003 := (v989 * 1000)
+			v1005 := (v991 * 10)
+			v1007 := (v990 == 0)
+			var v1008 int
+			if v1007 {
+				v1008 = v992
+			} else {
+				v1008 = 0
+			}
+			v1012 := (v1005 + v1008)
+			v1013 := (v1003 + v1012)
+			v986 = v1013
+			break
+		}
+		v1017 := (v990 >= 32)
+		if v1017 {
+			v1020 := (v989 * 1000)
+			v986 = v1020
+			break
+		}
+		v1022 := int(v977[v988])
+		v1024 := (v1022 == 32)
+		v1025 := (v1024 || ((v1022 == 9) || ((v1022 == 10) || (v1022 == 13))))
+		if v1025 {
+			v1042 := (v988 + 1)
+			v988 = v1042
+			continue
+		}
+		v1043 := int(v977[v988])
+		v1045 := (v1043 == 123)
+		v1046 := (v1045 || (v1043 == 91))
+		if v1046 {
+			v1052 := int(v977[v988])
+			v1054 := (v1052 == 123)
+			var v1055 int
+			if v1054 {
+				v1055 = 125
+			} else {
+				v1055 = 93
+			}
+			v987[v990] = byte(v1055)
+			v1060 := (v988 + 1)
+			v1062 := (v989 + 1)
+			v1064 := (v990 + 1)
+			v1066 := (v990 + 1)
+			v1067 := (v1066 > v991)
+			var v1068 int
+			if v1067 {
+				v1071 := (v990 + 1)
+				v1068 = v1071
+			} else {
+				v1068 = v991
+			}
+			v988, v989, v990, v991 = v1060, v1062, v1064, v1068
+			continue
+		}
+		v1073 := int(v977[v988])
+		v1075 := (v1073 == 125)
+		v1076 := (v1075 || (v1073 == 93))
+		if v1076 {
+			v1083 := (v988 + 1)
+			v1085 := (v989 + 1)
+			v1087 := (v990 < 1)
+			var v1088 int
+			if v1087 {
+				v1088 = 0
+			} else {
+				v1093 := (v990 - 1)
+				v1088 = v1093
+			}
+			v1095 := (v990 < 1)
+			var v1096 int
+			if v1095 {
+				v1096 = 0
+			} else {
+				v1101 := (v990 < 1)
+				var v1102 int
+				if v1101 {
+					v1102 = 0
+				} else {
+					v1107 := (v990 - 1)
+					v1102 = v1107
+				}
+				v1108 := int(v987[v1102])
+				v1109 := int(v977[v988])
+				v1110 := (v1108 == v1109)
+				if v1110 {
+					v1096 = v992
+				} else {
+					v1096 = 0
+				}
+			}
+			v988, v989, v990, v992 = v1083, v1085, v1088, v1096
+			continue
+		}
+		v1112 := int(v977[v988])
+		v1114 := (v1112 == 58)
+		v1115 := (v1114 || (v1112 == 44))
+		if v1115 {
+			v1122 := (v988 + 1)
+			v1124 := (v989 + 1)
+			v988, v989 = v1122, v1124
+			continue
+		}
+		v1125 := int(v977[v988])
+		v1127 := (v1125 == 34)
+		if v1127 {
+			v1129 := (v988 + 1)
+			var v1131 int = v1129
+			var v1130 int
+			for {
+				v1133 := (v1131 < 0)
+				if v1133 {
+					v1130 = v1131
+					break
+				}
+				v1136 := len(v977)
+				v1137 := (v1131 >= v1136)
+				if v1137 {
+					v1130 = v1131
+					break
+				}
+				v1142 := int(v977[v1131])
+				v1144 := (v1142 == 92)
+				if v1144 {
+					v1146 := (v1131 + 2)
+					v1131 = v1146
+					continue
+				}
+				v1147 := int(v977[v1131])
+				v1149 := (v1147 == 34)
+				if v1149 {
+					v1151 := (v1131 + 1)
+					v1130 = v1151
+					break
+				}
+				v1153 := (v1131 + 1)
+				v1131 = v1153
+				continue
+			}
+			v1155 := (v989 + 1)
+			v988, v989 = v1130, v1155
+			continue
+		}
+		v1156 := int(v977[v988])
+		v1160 := (v1156 >= 48)
+		v1161 := (v1160 && (v1156 <= 57))
+		v1167 := (v1161 || ((v1156 == 45) || ((v1156 == 43) || ((v1156 == 46) || ((v1156 == 101) || (v1156 == 69))))))
+		if v1167 {
+			v1194 := (v988 + 1)
+			var v1196 int = v1194
+			for ; ; v1196 = (v1196 + 1) {
+				v1198 := (v1196 < 0)
+				if v1198 {
+					break
+				}
+				v1201 := len(v977)
+				v1202 := (v1196 >= v1201)
+				if v1202 {
+					break
+				}
+				v1207 := int(v977[v1196])
+				v1211 := (v1207 >= 48)
+				v1212 := (v1211 && (v1207 <= 57))
+				v1218 := (v1212 || ((v1207 == 45) || ((v1207 == 43) || ((v1207 == 46) || ((v1207 == 101) || (v1207 == 69))))))
+				if v1218 {
 					continue
 				}
 				break
 			}
-			i, nt = j2, (nt + 1)
+			v1247 := (v989 + 1)
+			v988, v989 = v1196, v1247
 			continue
 		}
-		var c7 int = int(src[i])
-		if ((c7 >= 97) && (c7 <= 122)) {
-			var j3 int = (i + 1)
-			for ; ; j3 = (j3 + 1) {
-				if (j3 < 0) {
+		v1248 := int(v977[v988])
+		v1250 := (v1248 >= 97)
+		v1251 := (v1250 && (v1248 <= 122))
+		if v1251 {
+			v1258 := (v988 + 1)
+			var v1260 int = v1258
+			for ; ; v1260 = (v1260 + 1) {
+				v1262 := (v1260 < 0)
+				if v1262 {
 					break
 				}
-				if (j3 >= len(src)) {
+				v1265 := len(v977)
+				v1266 := (v1260 >= v1265)
+				if v1266 {
 					break
 				}
-				var c8 int = int(src[j3])
-				if ((c8 >= 97) && (c8 <= 122)) {
+				v1271 := int(v977[v1260])
+				v1273 := (v1271 >= 97)
+				v1274 := (v1273 && (v1271 <= 122))
+				if v1274 {
 					continue
 				}
 				break
 			}
-			i, nt = j3, (nt + 1)
+			v1283 := (v989 + 1)
+			v988, v989 = v1260, v1283
 			continue
 		}
-		i, ok = (i + 1), 0
+		v1285 := (v988 + 1)
+		v988, v992 = v1285, 0
 		continue
 	}
-	return r1
+	v979 = v986
+	return v979
+}
+
+func GenTokens(v0 []byte) int {
+	v6 := make([]byte, 32)
+	var v5 int
+	v13 := v6
+	var v14 int = 0
+	var v15 int = 0
+	var v16 int = 0
+	var v17 int = 0
+	var v18 int = 1
+	var v12 int
+	for {
+		v20 := (v14 < 0)
+		if v20 {
+			v12 = 0
+			break
+		}
+		v24 := len(v0)
+		v25 := (v14 >= v24)
+		if v25 {
+			v29 := (v15 * 1000)
+			v31 := (v17 * 10)
+			v33 := (v16 == 0)
+			var v34 int
+			if v33 {
+				v34 = v18
+			} else {
+				v34 = 0
+			}
+			v38 := (v31 + v34)
+			v39 := (v29 + v38)
+			v12 = v39
+			break
+		}
+		v43 := (v16 >= 32)
+		if v43 {
+			v46 := (v15 * 1000)
+			v12 = v46
+			break
+		}
+		v48 := int(v0[v14])
+		v50 := (v48 == 32)
+		v51 := (v50 || ((v48 == 9) || ((v48 == 10) || (v48 == 13))))
+		if v51 {
+			v68 := (v14 + 1)
+			v14 = v68
+			continue
+		}
+		v69 := int(v0[v14])
+		v71 := (v69 == 123)
+		v72 := (v71 || (v69 == 91))
+		if v72 {
+			v78 := int(v0[v14])
+			v80 := (v78 == 123)
+			var v81 int
+			if v80 {
+				v81 = 125
+			} else {
+				v81 = 93
+			}
+			v13[v16] = byte(v81)
+			v86 := (v14 + 1)
+			v88 := (v15 + 1)
+			v90 := (v16 + 1)
+			v92 := (v16 + 1)
+			v93 := (v92 > v17)
+			var v94 int
+			if v93 {
+				v97 := (v16 + 1)
+				v94 = v97
+			} else {
+				v94 = v17
+			}
+			v14, v15, v16, v17 = v86, v88, v90, v94
+			continue
+		}
+		v99 := int(v0[v14])
+		v101 := (v99 == 125)
+		v102 := (v101 || (v99 == 93))
+		if v102 {
+			v109 := (v14 + 1)
+			v111 := (v15 + 1)
+			v113 := (v16 < 1)
+			var v114 int
+			if v113 {
+				v114 = 0
+			} else {
+				v119 := (v16 - 1)
+				v114 = v119
+			}
+			v121 := (v16 < 1)
+			var v122 int
+			if v121 {
+				v122 = 0
+			} else {
+				v127 := (v16 < 1)
+				var v128 int
+				if v127 {
+					v128 = 0
+				} else {
+					v133 := (v16 - 1)
+					v128 = v133
+				}
+				v134 := int(v13[v128])
+				v135 := int(v0[v14])
+				v136 := (v134 == v135)
+				if v136 {
+					v122 = v18
+				} else {
+					v122 = 0
+				}
+			}
+			v14, v15, v16, v18 = v109, v111, v114, v122
+			continue
+		}
+		v138 := int(v0[v14])
+		v140 := (v138 == 58)
+		v141 := (v140 || (v138 == 44))
+		if v141 {
+			v148 := (v14 + 1)
+			v150 := (v15 + 1)
+			v14, v15 = v148, v150
+			continue
+		}
+		v151 := int(v0[v14])
+		v153 := (v151 == 34)
+		if v153 {
+			v155 := (v14 + 1)
+			var v157 int = v155
+			var v156 int
+			for {
+				v159 := (v157 < 0)
+				if v159 {
+					v156 = v157
+					break
+				}
+				v162 := len(v0)
+				v163 := (v157 >= v162)
+				if v163 {
+					v156 = v157
+					break
+				}
+				v168 := int(v0[v157])
+				v170 := (v168 == 92)
+				if v170 {
+					v172 := (v157 + 2)
+					v157 = v172
+					continue
+				}
+				v173 := int(v0[v157])
+				v175 := (v173 == 34)
+				if v175 {
+					v177 := (v157 + 1)
+					v156 = v177
+					break
+				}
+				v179 := (v157 + 1)
+				v157 = v179
+				continue
+			}
+			v181 := (v15 + 1)
+			v14, v15 = v156, v181
+			continue
+		}
+		v182 := int(v0[v14])
+		v186 := (v182 >= 48)
+		v187 := (v186 && (v182 <= 57))
+		v193 := (v187 || ((v182 == 45) || ((v182 == 43) || ((v182 == 46) || ((v182 == 101) || (v182 == 69))))))
+		if v193 {
+			v220 := (v14 + 1)
+			var v222 int = v220
+			for ; ; v222 = (v222 + 1) {
+				v224 := (v222 < 0)
+				if v224 {
+					break
+				}
+				v227 := len(v0)
+				v228 := (v222 >= v227)
+				if v228 {
+					break
+				}
+				v233 := int(v0[v222])
+				v237 := (v233 >= 48)
+				v238 := (v237 && (v233 <= 57))
+				v244 := (v238 || ((v233 == 45) || ((v233 == 43) || ((v233 == 46) || ((v233 == 101) || (v233 == 69))))))
+				if v244 {
+					continue
+				}
+				break
+			}
+			v273 := (v15 + 1)
+			v14, v15 = v222, v273
+			continue
+		}
+		v274 := int(v0[v14])
+		v276 := (v274 >= 97)
+		v277 := (v276 && (v274 <= 122))
+		if v277 {
+			v284 := (v14 + 1)
+			var v286 int = v284
+			for ; ; v286 = (v286 + 1) {
+				v288 := (v286 < 0)
+				if v288 {
+					break
+				}
+				v291 := len(v0)
+				v292 := (v286 >= v291)
+				if v292 {
+					break
+				}
+				v297 := int(v0[v286])
+				v299 := (v297 >= 97)
+				v300 := (v299 && (v297 <= 122))
+				if v300 {
+					continue
+				}
+				break
+			}
+			v309 := (v15 + 1)
+			v14, v15 = v286, v309
+			continue
+		}
+		v311 := (v14 + 1)
+		v14, v18 = v311, 0
+		continue
+	}
+	v5 = v12
+	return v5
 }
 

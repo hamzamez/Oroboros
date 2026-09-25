@@ -4,7 +4,34 @@ package gauntlet
 
 import "math/big"
 
-func GenCalc(n int) *big.Int {
-	return (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Sub((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Mul((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Add((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Mul((big.NewInt(int64(123456789012345))), (big.NewInt(int64(1000000000000000))))), 301)), (big.NewInt(int64(678901234567890))))), 301)), (big.NewInt(int64((n + 7)))))), 301)), (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Mul((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Add((func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Mul((big.NewInt(int64(98765))), (big.NewInt(int64(1000000000000000))))), 301)), (big.NewInt(int64(432109876543210))))), 301)), (big.NewInt(int64((n + 3)))))), 301)))), 301)), (big.NewInt(int64(4))))), 301))
+func GenCalc(v0 int) *big.Int {
+	v10 := (big.NewInt(int64(123456789012345)))
+	v12 := (big.NewInt(int64(1000000000000000)))
+	v13 := (new(big.Int).Mul(v10, v12))
+	v15 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v13, 301))
+	v17 := (big.NewInt(int64(678901234567890)))
+	v18 := (new(big.Int).Add(v15, v17))
+	v20 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v18, 301))
+	v22 := (v0 + 7)
+	v23 := (big.NewInt(int64(v22)))
+	v24 := (new(big.Int).Mul(v20, v23))
+	v26 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v24, 301))
+	v28 := (big.NewInt(int64(98765)))
+	v30 := (big.NewInt(int64(1000000000000000)))
+	v31 := (new(big.Int).Mul(v28, v30))
+	v33 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v31, 301))
+	v35 := (big.NewInt(int64(432109876543210)))
+	v36 := (new(big.Int).Add(v33, v35))
+	v38 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v36, 301))
+	v40 := (v0 + 3)
+	v41 := (big.NewInt(int64(v40)))
+	v42 := (new(big.Int).Mul(v38, v41))
+	v44 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v42, 301))
+	v45 := (new(big.Int).Sub(v26, v44))
+	v47 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v45, 301))
+	v49 := (big.NewInt(int64(4)))
+	v50 := (new(big.Int).Quo(v47, v49))
+	v52 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v50, 301))
+	return v52
 }
 

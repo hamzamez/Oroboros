@@ -200,6 +200,13 @@ func (v *verifier) agrees(got, want string) bool {
 		if subtype(v.tg, got, want) {
 			return true
 		}
+		// A value above the word held as LIMBS is a table on this target
+		// (ρ_T's kernel, as in IR_A): a `big` and a limb table are compared as
+		// the sort they share. Its bound is enforced by big-fit (ADR 0029), not
+		// by a range on the table.
+		if v.tg.BigRepr == "limbs" && (involvesBig(v.tg, got) || involvesBig(v.tg, want)) {
+			got, want = sortOf(v.tg, got), sortOf(v.tg, want)
+		}
 	} else {
 		// IR_A: SORTS, not ranges. Whether a value lies in a declared range is
 		// an obligation (ADR 0028) the analyses discharge, not a typing
@@ -319,6 +326,7 @@ var sigma = map[Op][2]int{
 	OKeys: {1, 1}, OSet: {3, 1}, OInsert: {3, 1},
 	OIf: {1, -1}, OLoop: {-1, -1}, OBuild: {1, -1}, OBuildMap: {1, -1}, OTabulate: {1, 1},
 	OThe: {1, 1}, ORequire: {1, 0},
+	ORestrict: {2, 1}, OAssume: {1, 0},
 }
 
 var subs = map[Op]int{OIf: 2, OLoop: 1, OBuild: 1, OBuildMap: 1, OTabulate: 1}
@@ -383,8 +391,10 @@ func (v *verifier) stmt(s *Stmt) {
 		for _, a := range s.Args {
 			v.flow(a, "int", where)
 		}
-	case s.Op == OIf || s.Op == ORequire:
+	case s.Op == OIf || s.Op == ORequire || s.Op == OAssume:
 		v.flow(s.Args[0], "bool", where)
+	case s.Op == ORestrict:
+		v.flow(s.Args[1], "int", where+"'s length")
 	case s.Op == OIndex, s.Op == OSet:
 		if len(s.Args) >= 2 {
 			v.flow(s.Args[1], "int", where+"'s index")

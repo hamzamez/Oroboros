@@ -16,6 +16,13 @@ import (
 // stay undecided (IR_A).
 func compile(t *testing.T, src, target string) (*emit.Target, *Program) {
 	t.Helper()
+	return compileOpt(t, src, target, Options{})
+}
+
+// compileOpt lowers with the given options: Decided, as gen does after the
+// legality check, gives IR_A with every mode written, ready for Finalize.
+func compileOpt(t *testing.T, src, target string, opt Options) (*emit.Target, *Program) {
+	t.Helper()
 	src = filepath.Join("..", src)
 	layers, err := emit.SearchPath(src, filepath.Join("..", "targets"))
 	if err != nil {
@@ -64,7 +71,7 @@ func compile(t *testing.T, src, target string) (*emit.Target, *Program) {
 		if nf, _, err = emit.PromoteBig(tg, sig, nf); err != nil {
 			t.Fatal(err)
 		}
-		f, err := Lower(tg, name, sig, nf, Options{})
+		f, err := Lower(tg, name, sig, nf, opt)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -222,14 +229,15 @@ func TestDotIsTheSpecExample(t *testing.T) {
 	_, p := compile(t, "examples/native/dot-go.oro", "go")
 	text := Print(p)
 	for _, want := range []string{
-		"(loop (init %2 %3)",
-		"(val (%8 bool) (ge %6 %7))",
-		"(pi %11 int (%6 lt %7))",
-		"(pi %12 slice-float64 ((len %0) gt %6))",
-		"(val (%13 f64) (index %12 %11))",
-		"(call go.f* %13 %14)",
-		"(add %11 %17)",
-		"(continue %16 %18)",
+		"(do (assume %5))", // the export's `where`, assumed at entry (ADR 0028)
+		"(loop (init %14 %15)",
+		"(val (%20 bool) (ge %18 %19))",
+		"(pi %23 int (%18 lt %19))",
+		"(pi %24 slice-float64 ((len %0) gt %18))",
+		"(val (%25 f64) (index %24 %23))",
+		"(call go.f* %25 %26)",
+		"(add %23 %29)",
+		"(continue %28 %30)",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("missing %s in\n%s", want, text)
@@ -467,5 +475,37 @@ func TestLoweringRefusesWhatItDoesNotKnow(t *testing.T) {
 	_, err = Lower(tg, "closure", nil, term, Options{})
 	if err == nil || !strings.Contains(err.Error(), "closure") {
 		t.Fatalf("want a refusal naming the closure, got %v", err)
+	}
+}
+
+// TestRestrictNeedsItsPremise: L13's rewrite fires where an assumption
+// discharges len X ≤ len Y (dot's `where`), and not on the spec §9.4 witness,
+// where every read is proven and nothing relates the two lengths.
+func TestRestrictNeedsItsPremise(t *testing.T) {
+	count := func(src string) int {
+		tg, p := compileOpt(t, src, "go", Options{Decided: true})
+		if err := Finalize(tg, p); err != nil {
+			t.Fatal(err)
+		}
+		if err := Verify(tg, p); err != nil {
+			t.Fatalf("%s: IR_P does not verify: %v", src, err)
+		}
+		n := 0
+		for _, f := range p.Funcs {
+			f.Walk(func(r *Region) {
+				for i := range r.Stmts {
+					if r.Stmts[i].Op == ORestrict {
+						n++
+					}
+				}
+			})
+		}
+		return n
+	}
+	if n := count("examples/native/dot-go.oro"); n != 1 {
+		t.Errorf("dot: want 1 restriction (its `where` assumes len p = len q), got %d", n)
+	}
+	if n := count("ir/testdata/count-zeros.oro"); n != 0 {
+		t.Errorf("the §9.4 witness: want no restriction (len a ≤ len b is not assumed), got %d", n)
 	}
 }

@@ -4,40 +4,61 @@ package gauntlet
 
 import "math/big"
 
-func GenRender(x *big.Int) string {
-	var t1 string
-	if (x.Cmp((big.NewInt(int64(0)))) == 0) {
-		t1 = "0"
-	} else {
-		s := ""
-		v := x
-		var i int = 0
-		for ; ; i = (i + 1) {
-			if (v.Cmp((big.NewInt(int64(0)))) == 0) {
+func GenRender(v0 *big.Int) string {
+	v2 := (big.NewInt(int64(0)))
+	v3 := (v0.Cmp(v2) == 0)
+	if v3 {
+		return "0"
+	}
+	var v8 string = ""
+	v9 := v0
+	var v10 int = 0
+	for ; ; v10 = (v10 + 1) {
+		v12 := (big.NewInt(int64(0)))
+		v13 := (v9.Cmp(v12) == 0)
+		if v13 {
+			break
+		}
+		v15 := (v10 >= 32)
+		if v15 {
+			break
+		}
+		v19 := (big.NewInt(int64(100000000)))
+		v20 := (new(big.Int).Quo(v9, v19))
+		v22 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v20, 201))
+		v26 := (int(new(big.Int).Rem(v9, big.NewInt(int64(100000000))).Int64()))
+		var v28 string = ""
+		var v29 int = 0
+		var v30 int = v26
+		for ; ; v29 = (v29 + 1) {
+			v32 := (v29 >= 8)
+			if v32 {
 				break
 			}
-			if (i >= 32) {
+			v38 := (big.NewInt(int64(0)))
+			v39 := (v22.Cmp(v38) > 0)
+			var v40 bool
+			if v39 {
+				v40 = false
+			} else {
+				v40 = true
+			}
+			v43 := (v40 && ((v30 == 0) && (v29 > 0)))
+			if v43 {
 				break
 			}
-			nv19 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((new(big.Int).Quo(v, (big.NewInt(int64(100000000))))), 201))
-			s2 := ""
-			var k int = 0
-			var r int = (int(new(big.Int).Rem(v, big.NewInt(int64(100000000))).Int64()))
-			for ; ; k, r = (k + 1), (r / 10) {
-				if (k >= 8) {
-					break
-				}
-				if ((!(nv19.Cmp((big.NewInt(int64(0)))) > 0)) && ((r == 0) && (k > 0))) {
-					break
-				}
-				s2 = ((string(rune((48 + (r % 10))))) + s2)
-				continue
-			}
-			s, v = (s2 + s), nv19
+			v56 := (v30 % 10)
+			v57 := (48 + v56)
+			v58 := (string(rune(v57)))
+			v59 := (v58 + v28)
+			v63 := (v30 / 10)
+			v28, v30 = v59, v63
 			continue
 		}
-		t1 = s
+		v64 := (v28 + v8)
+		v8, v9 = v64, v22
+		continue
 	}
-	return t1
+	return v8
 }
 

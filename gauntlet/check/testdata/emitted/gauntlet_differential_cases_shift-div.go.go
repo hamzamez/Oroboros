@@ -2,8 +2,17 @@
 
 package gauntlet
 
-func GenRun(n int) int {
-	var m int = (func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic("int overflow") }; return t }(0, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(n, 1))))
-	return (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(1000000, (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }((m / 2), 100)), (m % 8))), ((func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(n, 300000000)) / 4)))))
+func GenRun(v0 int) int {
+	v3 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v0, 1))
+	v4 := (func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic("int overflow") }; return t }(0, v3))
+	v7 := (v4 / 2)
+	v9 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(v7, 100))
+	v11 := (v4 % 8)
+	v12 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v9, v11))
+	v14 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(v0, 300000000))
+	v16 := (v14 / 4)
+	v17 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v12, v16))
+	v18 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(1000000, v17))
+	return v18
 }
 

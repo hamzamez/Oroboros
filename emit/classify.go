@@ -53,3 +53,8 @@ func (tg *Target) Agrees(got, want string) bool {
 	c := &checker{tgt: tg, types: map[string]string{}}
 	return c.agree("", got, want) == nil
 }
+
+// ExportName is the Go backend's spelling of an exported function's name
+// (`native-dot` → `NativeDot`), which the gauntlet's callers are written
+// against. The IR's Go printer spells names with it so the two agree.
+func ExportName(s string) string { return export(s) }

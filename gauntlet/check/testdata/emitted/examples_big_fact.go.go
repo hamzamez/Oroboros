@@ -4,16 +4,20 @@ package gauntlet
 
 import "math/big"
 
-func GenFact(n int) *big.Int {
-	acc := (big.NewInt(int64(1)))
-	var i int = 2
-	for ; ; i = (i + 1) {
-		if (i > n) {
+func GenFact(v0 int) *big.Int {
+	v10 := (big.NewInt(int64(1)))
+	v13 := v10
+	var v14 int = 2
+	for ; ; v14 = (v14 + 1) {
+		v15 := (v14 > v0)
+		if v15 {
 			break
 		}
-		acc = (acc.Mul(acc, (big.NewInt(int64(i)))))
+		v20 := (big.NewInt(int64(v14)))
+		v21 := (v13.Mul(v13, v20))
+		v13 = v21
 		continue
 	}
-	return acc
+	return v13
 }
 

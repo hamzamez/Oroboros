@@ -2,25 +2,34 @@
 
 package gauntlet
 
-func GenRuns(n int) int {
-	var _m0 int = 0
-	var n2 int = n
-	var _m2 int = 0
-	for ; ; n2 = (n2 >> 1) {
-		if (n2 == 0) {
+func GenRuns(v0 int) int {
+	var v12 int = 0
+	var v13 int = v0
+	var v14 int = 0
+	for {
+		v16 := (v13 == 0)
+		if v16 {
 			break
 		}
-		if ((_m0 == 0) && ((n2 & 1) == 1)) {
-			_m0, _m2 = 1, (_m2 + 1)
+		v22 := (v12 == 0)
+		v23 := (v22 && ((v13 & 1) == 1))
+		if v23 {
+			v34 := (v13 >> 1)
+			v36 := (v14 + 1)
+			v12, v13, v14 = 1, v34, v36
 			continue
 		}
-		if ((n2 & 1) == 1) {
-			_m0 = 1
+		v38 := (v13 & 1)
+		v40 := (v38 == 1)
+		if v40 {
+			v43 := (v13 >> 1)
+			v12, v13 = 1, v43
 			continue
 		}
-		_m0 = 0
+		v46 := (v13 >> 1)
+		v12, v13 = 0, v46
 		continue
 	}
-	return _m2
+	return v14
 }
 

@@ -2,36 +2,40 @@
 
 package gauntlet
 
-func GenMacFresh(a []byte, b []byte) []uint16 {
-	w := make([]uint16, 65536)
-	w2 := w
-	var i int = 0
-	var n1 int = 65536
-	s2 := a[:n1]
-	s3 := b[:n1]
-	for ; ; i = (i + 1) {
-		if (i >= 65536) {
+func GenMacFresh(v0 []byte, v1 []byte) []uint16 {
+	v14 := make([]uint16, 65536)
+	var v13 []uint16
+	v17 := v14
+	var v18 int = 0
+	for ; ; v18 = (v18 + 1) {
+		v20 := (v18 >= 65536)
+		if v20 {
 			break
 		}
-		w2[i] = uint16((int(s2[i]) * int(s3[i])))
+		v23 := int(v0[v18])
+		v24 := int(v1[v18])
+		v25 := (v23 * v24)
+		v17[v18] = uint16(v25)
 		continue
 	}
-	return w2
+	v13 = v17
+	return v13
 }
 
-func GenMacInto(w []uint16, a []byte, b []byte) []uint16 {
-	w2 := w
-	var i int = 0
-	var n1 int = 65536
-	s2 := a[:n1]
-	s3 := b[:n1]
-	for ; ; i = (i + 1) {
-		if (i >= 65536) {
+func GenMacInto(v0 []uint16, v1 []byte, v2 []byte) []uint16 {
+	v21 := v0
+	var v22 int = 0
+	for ; ; v22 = (v22 + 1) {
+		v24 := (v22 >= 65536)
+		if v24 {
 			break
 		}
-		w2[i] = uint16((int(s2[i]) * int(s3[i])))
+		v27 := int(v1[v22])
+		v28 := int(v2[v22])
+		v29 := (v27 * v28)
+		v21[v22] = uint16(v29)
 		continue
 	}
-	return w2
+	return v21
 }
 

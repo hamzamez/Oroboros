@@ -4,16 +4,21 @@ package gauntlet
 
 import "math/big"
 
-func GenFactLimbs(n int) *big.Int {
-	acc := (big.NewInt(int64(1)))
-	var i int = 2
-	for ; ; i = (i + 1) {
-		if (i > n) {
+func GenFactLimbs(v0 int) *big.Int {
+	v10 := (big.NewInt(int64(1)))
+	v13 := v10
+	var v14 int = 2
+	for ; ; v14 = (v14 + 1) {
+		v15 := (v14 > v0)
+		if v15 {
 			break
 		}
-		acc = (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }((acc.Mul(acc, (big.NewInt(int64(i))))), 1301))
+		v20 := (big.NewInt(int64(v14)))
+		v21 := (v13.Mul(v13, v20))
+		v23 := (func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic("bignum overflow: the declared range is too small") }; return oroZ }(v21, 1301))
+		v13 = v23
 		continue
 	}
-	return acc
+	return v13
 }
 

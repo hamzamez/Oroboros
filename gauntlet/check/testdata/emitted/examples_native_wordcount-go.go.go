@@ -4,32 +4,41 @@ package gauntlet
 
 import "strings"
 
-func GenTally(text string) map[string]int {
-	ws := (strings.Fields(text))
-	m := (make(map[string]int))
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= (len(ws))) {
+func GenTally(v0 string) map[string]int {
+	v1 := (strings.Fields(v0))
+	v2 := (make(map[string]int))
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := len(v1)
+		v8 := (v6 >= v7)
+		if v8 {
 			break
 		}
-		w := (ws[i])
-		m[w] = (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }((m[w]), 1))
+		v13 := v1[v6]
+		v14 := (v5[v13])
+		v16 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v14, 1))
+		v5[v13] = v16
 		continue
 	}
-	return m
+	return v5
 }
 
-func GenTallyInc(text string) map[string]int {
-	ws := (strings.Fields(text))
-	m := (make(map[string]int))
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= (len(ws))) {
+func GenTallyInc(v0 string) map[string]int {
+	v1 := (strings.Fields(v0))
+	v2 := (make(map[string]int))
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := len(v1)
+		v8 := (v6 >= v7)
+		if v8 {
 			break
 		}
-		m[(ws[i])]++
+		v13 := v1[v6]
+		v5[v13]++
 		continue
 	}
-	return m
+	return v5
 }
 

@@ -5,22 +5,25 @@ package gauntlet
 import "fmt"
 
 func GenMain() int {
-	var i int = 0
-	var r1 int
-	for ; ; i = (i + 1) {
-		if (i >= 2) {
-			r1 = 0
+	var v2 int = 0
+	var v1 int
+	for ; ; v2 = (v2 + 1) {
+		v4 := (v2 >= 2)
+		if v4 {
+			v1 = 0
 			break
 		}
-		var t2 int
-		if ((i != 0) && ((10 / i) < 20)) {
-			t2 = 111
+		v11 := (v2 != 0)
+		v12 := (v11 && ((10 / v2) < 20))
+		var v20 int
+		if v12 {
+			v20 = 111
 		} else {
-			t2 = 222
+			v20 = 222
 		}
-		fmt.Println(t2)
+		fmt.Println(v20)
 		continue
 	}
-	return r1
+	return v1
 }
 

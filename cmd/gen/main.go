@@ -16,6 +16,7 @@ import (
 	"oroboros/core"
 	"oroboros/emit"
 	"oroboros/ir"
+	"oroboros/ir/golang"
 )
 
 func main() {
@@ -26,6 +27,7 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
+	flag.StringVar(&printer, "printer", "ir", "the Go backend: `ir`, the IR's printer (ir/golang, ADR 0032), or `terms`, the term backend it replaced (emit/golang.go), kept for comparison")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -317,7 +319,11 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		case "x86-64":
 			code, err = emit.AsmProc(tg, fname, sig, nf)
 		case "go":
-			code, err = emit.Func(tg, fname, sig, nf)
+			if printer == "ir" {
+				code, err = printGo(tg, fname, sig, nf)
+			} else {
+				code, err = emit.Func(tg, fname, sig, nf)
+			}
 		default:
 			return fmt.Errorf("no code generator for backend %q", backend)
 		}
@@ -353,6 +359,15 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 
 // irOut is -ir's file.
 var irOut string
+
+// printer is -printer: `terms`, today's backend, or `ir`, the IR's Go printer
+// (ADR 0032's step 2), which prints IR_P.
+var printer string
+
+// printGo is the IR's path to Go (ir/golang.FromResidual).
+func printGo(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {
+	return golang.FromResidual(tg, name, sig, nf)
+}
 
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {

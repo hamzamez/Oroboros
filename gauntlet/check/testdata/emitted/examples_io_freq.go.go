@@ -7,1633 +7,2046 @@ import "os"
 import "unicode/utf8"
 
 func GenMain() string {
-	av := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
-	var t1 string
-	if (len(av) < 2) {
+	v0 := (func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }())
+	v1 := len(v0)
+	v3 := (v1 < 2)
+	if v3 {
 		fmt.Println("usage: freq FILE")
-		t1 = "usage: freq FILE"
-	} else {
-		src, err := os.ReadFile(av[1])
-		var t2 string
-		if (err == nil) {
-			var t3 string
-			if (len(src) >= 65536) {
-				fmt.Println("freq: file is larger than this tool accepts")
-				t3 = "freq: file is larger than this tool accepts"
-			} else {
-				var n int = 0
-				var i int = 0
-				for {
-					if (i >= len(src)) {
-						break
-					}
-					if (n >= 32768) {
-						break
-					}
-					var c int = int(src[i])
-					if (((c >= 65) && (c <= 90)) || ((c >= 97) && (c <= 122))) {
-						var j int = (i + 1)
-						for ; ; j = (j + 1) {
-							if (j < 0) {
-								break
-							}
-							if (j >= len(src)) {
-								break
-							}
-							var c2 int = int(src[j])
-							if (((c2 >= 65) && (c2 <= 90)) || ((c2 >= 97) && (c2 <= 122))) {
-								continue
-							}
-							break
-						}
-						n, i = (n + 1), j
-						continue
-					}
-					i = (i + 1)
-					continue
-				}
-				var nw int = n
-				sp := make([]int, (2 * nw))
-				sp2 := sp
-				var i2 int = 0
-				var w int = 0
-				for {
-					if (i2 >= len(src)) {
-						break
-					}
-					if (w >= nw) {
-						break
-					}
-					var c3 int = int(src[i2])
-					if (((c3 >= 65) && (c3 <= 90)) || ((c3 >= 97) && (c3 <= 122))) {
-						var j2 int = (i2 + 1)
-						for ; ; j2 = (j2 + 1) {
-							if (j2 < 0) {
-								break
-							}
-							if (j2 >= len(src)) {
-								break
-							}
-							var c4 int = int(src[j2])
-							if (((c4 >= 65) && (c4 <= 90)) || ((c4 >= 97) && (c4 <= 122))) {
-								continue
-							}
-							break
-						}
-						var ni17 int = j2
-						sp2[(2 * w)] = i2
-						sp2[((2 * w) + 1)] = ni17
-						i2, w = ni17, (w + 1)
-						continue
-					}
-					i2 = (i2 + 1)
-					continue
-				}
-				sp3 := sp2
-				a := make([]int, nw)
-				b := make([]int, nw)
-				a32 := a
-				var k int = 0
-				for ; ; k = (k + 1) {
-					if (k >= nw) {
-						break
-					}
-					var t4 int
-					if (k < 0) {
-						t4 = 0
-					} else {
-						var t5 int
-						if (k >= nw) {
-							t5 = 0
-						} else {
-							t5 = k
-						}
-						t4 = t5
-					}
-					a32[t4] = k
-					continue
-				}
-				a3 := a32
-				b2 := b
-				var w2 int = 1
-				for ; ; w2 = (2 * w2) {
-					if (w2 >= nw) {
-						break
-					}
-					if (w2 >= 32768) {
-						break
-					}
-					b22 := b2
-					var lo int = 0
-					for {
-						if (lo >= nw) {
-							break
-						}
-						var b3 int = (lo + w2)
-						var t6 int
-						if (nw < b3) {
-							t6 = nw
-						} else {
-							t6 = b3
-						}
-						var mid163 int = t6
-						var b32 int = (lo + (2 * w2))
-						var t7 int
-						if (nw < b32) {
-							t7 = nw
-						} else {
-							t7 = b32
-						}
-						var hi163 int = t7
-						b33 := b22
-						var i3 int = lo
-						var j3 int = mid163
-						var k2 int = lo
-						for {
-							if (k2 >= hi163) {
-								break
-							}
-							if (i3 >= mid163) {
-								var t8 int
-								if (k2 < 0) {
-									t8 = 0
-								} else {
-									var t9 int
-									if (k2 >= nw) {
-										t9 = 0
-									} else {
-										t9 = k2
-									}
-									t8 = t9
-								}
-								var t10 int
-								if (j3 < 0) {
-									t10 = 0
-								} else {
-									var t11 int
-									if (j3 >= nw) {
-										t11 = 0
-									} else {
-										t11 = j3
-									}
-									t10 = t11
-								}
-								b33[t8] = a3[t10]
-								j3, k2 = (j3 + 1), (k2 + 1)
-								continue
-							}
-							if (j3 >= hi163) {
-								var t12 int
-								if (k2 < 0) {
-									t12 = 0
-								} else {
-									var t13 int
-									if (k2 >= nw) {
-										t13 = 0
-									} else {
-										t13 = k2
-									}
-									t12 = t13
-								}
-								var t14 int
-								if (i3 < 0) {
-									t14 = 0
-								} else {
-									var t15 int
-									if (i3 >= nw) {
-										t15 = 0
-									} else {
-										t15 = i3
-									}
-									t14 = t15
-								}
-								b33[t12] = a3[t14]
-								i3, k2 = (i3 + 1), (k2 + 1)
-								continue
-							}
-							var t16 int
-							if (j3 < 0) {
-								t16 = 0
-							} else {
-								var t17 int
-								if (j3 >= nw) {
-									t17 = 0
-								} else {
-									t17 = j3
-								}
-								t16 = t17
-							}
-							var u int = a3[t16]
-							var t18 int
-							if (i3 < 0) {
-								t18 = 0
-							} else {
-								var t19 int
-								if (i3 >= nw) {
-									t19 = 0
-								} else {
-									t19 = i3
-								}
-								t18 = t19
-							}
-							var v int = a3[t18]
-							var k22 int = 0
-							var r20 int
-							for ; ; k22 = (k22 + 1) {
-								var d9 int = (sp3[((2 * u) + 1)] - sp3[(2 * u)])
-								var t21 int
-								if (d9 < 0) {
-									t21 = 0
-								} else {
-									var t22 int
-									if (d9 >= 65536) {
-										t22 = 0
-									} else {
-										t22 = d9
-									}
-									t21 = t22
-								}
-								if (k22 >= t21) {
-									var d92 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
-									var t23 int
-									if (d92 < 0) {
-										t23 = 0
-									} else {
-										var t24 int
-										if (d92 >= 65536) {
-											t24 = 0
-										} else {
-											t24 = d92
-										}
-										t23 = t24
-									}
-									if (k22 >= t23) {
-										r20 = 0
-										break
-									}
-									r20 = -1
-									break
-								}
-								var d93 int = (sp3[((2 * v) + 1)] - sp3[(2 * v)])
-								var t25 int
-								if (d93 < 0) {
-									t25 = 0
-								} else {
-									var t26 int
-									if (d93 >= 65536) {
-										t26 = 0
-									} else {
-										t26 = d93
-									}
-									t25 = t26
-								}
-								if (k22 >= t25) {
-									r20 = 1
-									break
-								}
-								var i22 int = (sp3[(2 * u)] + k22)
-								var t27 int
-								if (i22 < 0) {
-									t27 = 0
-								} else {
-									var t28 int
-									if (i22 >= len(src)) {
-										t28 = 0
-									} else {
-										t28 = i22
-									}
-									t27 = t28
-								}
-								var c5 int = int(src[t27])
-								var t29 int
-								if ((c5 >= 65) && (c5 <= 90)) {
-									t29 = (c5 + 32)
-								} else {
-									t29 = c5
-								}
-								var i23 int = (sp3[(2 * v)] + k22)
-								var t30 int
-								if (i23 < 0) {
-									t30 = 0
-								} else {
-									var t31 int
-									if (i23 >= len(src)) {
-										t31 = 0
-									} else {
-										t31 = i23
-									}
-									t30 = t31
-								}
-								var c6 int = int(src[t30])
-								var t32 int
-								if ((c6 >= 65) && (c6 <= 90)) {
-									t32 = (c6 + 32)
-								} else {
-									t32 = c6
-								}
-								if (t29 == t32) {
-									continue
-								}
-								var i24 int = (sp3[(2 * u)] + k22)
-								var t33 int
-								if (i24 < 0) {
-									t33 = 0
-								} else {
-									var t34 int
-									if (i24 >= len(src)) {
-										t34 = 0
-									} else {
-										t34 = i24
-									}
-									t33 = t34
-								}
-								var c7 int = int(src[t33])
-								var t35 int
-								if ((c7 >= 65) && (c7 <= 90)) {
-									t35 = (c7 + 32)
-								} else {
-									t35 = c7
-								}
-								var i25 int = (sp3[(2 * v)] + k22)
-								var t36 int
-								if (i25 < 0) {
-									t36 = 0
-								} else {
-									var t37 int
-									if (i25 >= len(src)) {
-										t37 = 0
-									} else {
-										t37 = i25
-									}
-									t36 = t37
-								}
-								var c8 int = int(src[t36])
-								var t38 int
-								if ((c8 >= 65) && (c8 <= 90)) {
-									t38 = (c8 + 32)
-								} else {
-									t38 = c8
-								}
-								if (t35 < t38) {
-									r20 = -1
-									break
-								}
-								r20 = 1
-								break
-							}
-							if (((0 <= u) && ((u < nw) && ((0 <= v) && (v < nw)))) && (r20 < 0)) {
-								var t39 int
-								if (k2 < 0) {
-									t39 = 0
-								} else {
-									var t40 int
-									if (k2 >= nw) {
-										t40 = 0
-									} else {
-										t40 = k2
-									}
-									t39 = t40
-								}
-								var t41 int
-								if (j3 < 0) {
-									t41 = 0
-								} else {
-									var t42 int
-									if (j3 >= nw) {
-										t42 = 0
-									} else {
-										t42 = j3
-									}
-									t41 = t42
-								}
-								b33[t39] = a3[t41]
-								j3, k2 = (j3 + 1), (k2 + 1)
-								continue
-							}
-							var t43 int
-							if (k2 < 0) {
-								t43 = 0
-							} else {
-								var t44 int
-								if (k2 >= nw) {
-									t44 = 0
-								} else {
-									t44 = k2
-								}
-								t43 = t44
-							}
-							var t45 int
-							if (i3 < 0) {
-								t45 = 0
-							} else {
-								var t46 int
-								if (i3 >= nw) {
-									t46 = 0
-								} else {
-									t46 = i3
-								}
-								t45 = t46
-							}
-							b33[t43] = a3[t45]
-							i3, k2 = (i3 + 1), (k2 + 1)
-							continue
-						}
-						b22, lo = b33, hi163
-						continue
-					}
-					a3, b2 = b22, a3
-					continue
-				}
-				ord := a3
-				var n2 int = 0
-				var k3 int = 0
-				for {
-					if (k3 >= nw) {
-						break
-					}
-					if (n2 >= 32768) {
-						break
-					}
-					var t47 int
-					if (k3 < 0) {
-						t47 = 0
-					} else {
-						var t48 int
-						if (k3 >= nw) {
-							t48 = 0
-						} else {
-							t48 = k3
-						}
-						t47 = t48
-					}
-					var u2 int = ord[t47]
-					var i4 int = (k3 - 1)
-					var t49 int
-					if (i4 < 0) {
-						t49 = 0
-					} else {
-						var t50 int
-						if (i4 >= nw) {
-							t50 = 0
-						} else {
-							t50 = i4
-						}
-						t49 = t50
-					}
-					var v2 int = ord[t49]
-					var k23 int = 0
-					var r51 int
-					for ; ; k23 = (k23 + 1) {
-						var d94 int = (sp3[((2 * u2) + 1)] - sp3[(2 * u2)])
-						var t52 int
-						if (d94 < 0) {
-							t52 = 0
-						} else {
-							var t53 int
-							if (d94 >= 65536) {
-								t53 = 0
-							} else {
-								t53 = d94
-							}
-							t52 = t53
-						}
-						if (k23 >= t52) {
-							var d95 int = (sp3[((2 * v2) + 1)] - sp3[(2 * v2)])
-							var t54 int
-							if (d95 < 0) {
-								t54 = 0
-							} else {
-								var t55 int
-								if (d95 >= 65536) {
-									t55 = 0
-								} else {
-									t55 = d95
-								}
-								t54 = t55
-							}
-							if (k23 >= t54) {
-								r51 = 0
-								break
-							}
-							r51 = -1
-							break
-						}
-						var d96 int = (sp3[((2 * v2) + 1)] - sp3[(2 * v2)])
-						var t56 int
-						if (d96 < 0) {
-							t56 = 0
-						} else {
-							var t57 int
-							if (d96 >= 65536) {
-								t57 = 0
-							} else {
-								t57 = d96
-							}
-							t56 = t57
-						}
-						if (k23 >= t56) {
-							r51 = 1
-							break
-						}
-						var i5 int = (sp3[(2 * u2)] + k23)
-						var t58 int
-						if (i5 < 0) {
-							t58 = 0
-						} else {
-							var t59 int
-							if (i5 >= len(src)) {
-								t59 = 0
-							} else {
-								t59 = i5
-							}
-							t58 = t59
-						}
-						var c9 int = int(src[t58])
-						var t60 int
-						if ((c9 >= 65) && (c9 <= 90)) {
-							t60 = (c9 + 32)
-						} else {
-							t60 = c9
-						}
-						var i6 int = (sp3[(2 * v2)] + k23)
-						var t61 int
-						if (i6 < 0) {
-							t61 = 0
-						} else {
-							var t62 int
-							if (i6 >= len(src)) {
-								t62 = 0
-							} else {
-								t62 = i6
-							}
-							t61 = t62
-						}
-						var c10 int = int(src[t61])
-						var t63 int
-						if ((c10 >= 65) && (c10 <= 90)) {
-							t63 = (c10 + 32)
-						} else {
-							t63 = c10
-						}
-						if (t60 == t63) {
-							continue
-						}
-						var i7 int = (sp3[(2 * u2)] + k23)
-						var t64 int
-						if (i7 < 0) {
-							t64 = 0
-						} else {
-							var t65 int
-							if (i7 >= len(src)) {
-								t65 = 0
-							} else {
-								t65 = i7
-							}
-							t64 = t65
-						}
-						var c11 int = int(src[t64])
-						var t66 int
-						if ((c11 >= 65) && (c11 <= 90)) {
-							t66 = (c11 + 32)
-						} else {
-							t66 = c11
-						}
-						var i8 int = (sp3[(2 * v2)] + k23)
-						var t67 int
-						if (i8 < 0) {
-							t67 = 0
-						} else {
-							var t68 int
-							if (i8 >= len(src)) {
-								t68 = 0
-							} else {
-								t68 = i8
-							}
-							t67 = t68
-						}
-						var c12 int = int(src[t67])
-						var t69 int
-						if ((c12 >= 65) && (c12 <= 90)) {
-							t69 = (c12 + 32)
-						} else {
-							t69 = c12
-						}
-						if (t66 < t69) {
-							r51 = -1
-							break
-						}
-						r51 = 1
-						break
-					}
-					if ((k3 == 0) || (!(r51 == 0))) {
-						n2, k3 = (n2 + 1), (k3 + 1)
-						continue
-					}
-					k3 = (k3 + 1)
-					continue
-				}
-				var nd int = n2
-				dt := make([]int, (2 * nd))
-				dt2 := dt
-				var k4 int = 0
-				var d97 int = 0
-				for {
-					if (k4 >= nw) {
-						break
-					}
-					if (nd < 1) {
-						break
-					}
-					var t70 int
-					if (k4 < 0) {
-						t70 = 0
-					} else {
-						var t71 int
-						if (k4 >= nw) {
-							t71 = 0
-						} else {
-							t71 = k4
-						}
-						t70 = t71
-					}
-					var u3 int = ord[t70]
-					var i9 int = (k4 - 1)
-					var t72 int
-					if (i9 < 0) {
-						t72 = 0
-					} else {
-						var t73 int
-						if (i9 >= nw) {
-							t73 = 0
-						} else {
-							t73 = i9
-						}
-						t72 = t73
-					}
-					var v3 int = ord[t72]
-					var k24 int = 0
-					var r74 int
-					for ; ; k24 = (k24 + 1) {
-						var d10 int = (sp3[((2 * u3) + 1)] - sp3[(2 * u3)])
-						var t75 int
-						if (d10 < 0) {
-							t75 = 0
-						} else {
-							var t76 int
-							if (d10 >= 65536) {
-								t76 = 0
-							} else {
-								t76 = d10
-							}
-							t75 = t76
-						}
-						if (k24 >= t75) {
-							var d102 int = (sp3[((2 * v3) + 1)] - sp3[(2 * v3)])
-							var t77 int
-							if (d102 < 0) {
-								t77 = 0
-							} else {
-								var t78 int
-								if (d102 >= 65536) {
-									t78 = 0
-								} else {
-									t78 = d102
-								}
-								t77 = t78
-							}
-							if (k24 >= t77) {
-								r74 = 0
-								break
-							}
-							r74 = -1
-							break
-						}
-						var d103 int = (sp3[((2 * v3) + 1)] - sp3[(2 * v3)])
-						var t79 int
-						if (d103 < 0) {
-							t79 = 0
-						} else {
-							var t80 int
-							if (d103 >= 65536) {
-								t80 = 0
-							} else {
-								t80 = d103
-							}
-							t79 = t80
-						}
-						if (k24 >= t79) {
-							r74 = 1
-							break
-						}
-						var i10 int = (sp3[(2 * u3)] + k24)
-						var t81 int
-						if (i10 < 0) {
-							t81 = 0
-						} else {
-							var t82 int
-							if (i10 >= len(src)) {
-								t82 = 0
-							} else {
-								t82 = i10
-							}
-							t81 = t82
-						}
-						var c13 int = int(src[t81])
-						var t83 int
-						if ((c13 >= 65) && (c13 <= 90)) {
-							t83 = (c13 + 32)
-						} else {
-							t83 = c13
-						}
-						var i11 int = (sp3[(2 * v3)] + k24)
-						var t84 int
-						if (i11 < 0) {
-							t84 = 0
-						} else {
-							var t85 int
-							if (i11 >= len(src)) {
-								t85 = 0
-							} else {
-								t85 = i11
-							}
-							t84 = t85
-						}
-						var c14 int = int(src[t84])
-						var t86 int
-						if ((c14 >= 65) && (c14 <= 90)) {
-							t86 = (c14 + 32)
-						} else {
-							t86 = c14
-						}
-						if (t83 == t86) {
-							continue
-						}
-						var i12 int = (sp3[(2 * u3)] + k24)
-						var t87 int
-						if (i12 < 0) {
-							t87 = 0
-						} else {
-							var t88 int
-							if (i12 >= len(src)) {
-								t88 = 0
-							} else {
-								t88 = i12
-							}
-							t87 = t88
-						}
-						var c15 int = int(src[t87])
-						var t89 int
-						if ((c15 >= 65) && (c15 <= 90)) {
-							t89 = (c15 + 32)
-						} else {
-							t89 = c15
-						}
-						var i13 int = (sp3[(2 * v3)] + k24)
-						var t90 int
-						if (i13 < 0) {
-							t90 = 0
-						} else {
-							var t91 int
-							if (i13 >= len(src)) {
-								t91 = 0
-							} else {
-								t91 = i13
-							}
-							t90 = t91
-						}
-						var c16 int = int(src[t90])
-						var t92 int
-						if ((c16 >= 65) && (c16 <= 90)) {
-							t92 = (c16 + 32)
-						} else {
-							t92 = c16
-						}
-						if (t89 < t92) {
-							r74 = -1
-							break
-						}
-						r74 = 1
-						break
-					}
-					if (((k4 == 0) || (!(r74 == 0))) && (d97 >= nd)) {
-						break
-					}
-					var t93 int
-					if (k4 < 0) {
-						t93 = 0
-					} else {
-						var t94 int
-						if (k4 >= nw) {
-							t94 = 0
-						} else {
-							t94 = k4
-						}
-						t93 = t94
-					}
-					var u4 int = ord[t93]
-					var i14 int = (k4 - 1)
-					var t95 int
-					if (i14 < 0) {
-						t95 = 0
-					} else {
-						var t96 int
-						if (i14 >= nw) {
-							t96 = 0
-						} else {
-							t96 = i14
-						}
-						t95 = t96
-					}
-					var v4 int = ord[t95]
-					var k25 int = 0
-					var r97 int
-					for ; ; k25 = (k25 + 1) {
-						var d104 int = (sp3[((2 * u4) + 1)] - sp3[(2 * u4)])
-						var t98 int
-						if (d104 < 0) {
-							t98 = 0
-						} else {
-							var t99 int
-							if (d104 >= 65536) {
-								t99 = 0
-							} else {
-								t99 = d104
-							}
-							t98 = t99
-						}
-						if (k25 >= t98) {
-							var d105 int = (sp3[((2 * v4) + 1)] - sp3[(2 * v4)])
-							var t100 int
-							if (d105 < 0) {
-								t100 = 0
-							} else {
-								var t101 int
-								if (d105 >= 65536) {
-									t101 = 0
-								} else {
-									t101 = d105
-								}
-								t100 = t101
-							}
-							if (k25 >= t100) {
-								r97 = 0
-								break
-							}
-							r97 = -1
-							break
-						}
-						var d106 int = (sp3[((2 * v4) + 1)] - sp3[(2 * v4)])
-						var t102 int
-						if (d106 < 0) {
-							t102 = 0
-						} else {
-							var t103 int
-							if (d106 >= 65536) {
-								t103 = 0
-							} else {
-								t103 = d106
-							}
-							t102 = t103
-						}
-						if (k25 >= t102) {
-							r97 = 1
-							break
-						}
-						var i15 int = (sp3[(2 * u4)] + k25)
-						var t104 int
-						if (i15 < 0) {
-							t104 = 0
-						} else {
-							var t105 int
-							if (i15 >= len(src)) {
-								t105 = 0
-							} else {
-								t105 = i15
-							}
-							t104 = t105
-						}
-						var c17 int = int(src[t104])
-						var t106 int
-						if ((c17 >= 65) && (c17 <= 90)) {
-							t106 = (c17 + 32)
-						} else {
-							t106 = c17
-						}
-						var i16 int = (sp3[(2 * v4)] + k25)
-						var t107 int
-						if (i16 < 0) {
-							t107 = 0
-						} else {
-							var t108 int
-							if (i16 >= len(src)) {
-								t108 = 0
-							} else {
-								t108 = i16
-							}
-							t107 = t108
-						}
-						var c18 int = int(src[t107])
-						var t109 int
-						if ((c18 >= 65) && (c18 <= 90)) {
-							t109 = (c18 + 32)
-						} else {
-							t109 = c18
-						}
-						if (t106 == t109) {
-							continue
-						}
-						var i17 int = (sp3[(2 * u4)] + k25)
-						var t110 int
-						if (i17 < 0) {
-							t110 = 0
-						} else {
-							var t111 int
-							if (i17 >= len(src)) {
-								t111 = 0
-							} else {
-								t111 = i17
-							}
-							t110 = t111
-						}
-						var c19 int = int(src[t110])
-						var t112 int
-						if ((c19 >= 65) && (c19 <= 90)) {
-							t112 = (c19 + 32)
-						} else {
-							t112 = c19
-						}
-						var i18 int = (sp3[(2 * v4)] + k25)
-						var t113 int
-						if (i18 < 0) {
-							t113 = 0
-						} else {
-							var t114 int
-							if (i18 >= len(src)) {
-								t114 = 0
-							} else {
-								t114 = i18
-							}
-							t113 = t114
-						}
-						var c20 int = int(src[t113])
-						var t115 int
-						if ((c20 >= 65) && (c20 <= 90)) {
-							t115 = (c20 + 32)
-						} else {
-							t115 = c20
-						}
-						if (t112 < t115) {
-							r97 = -1
-							break
-						}
-						r97 = 1
-						break
-					}
-					if ((k4 == 0) || (!(r97 == 0))) {
-						var t116 int
-						if (d97 < 0) {
-							t116 = 0
-						} else {
-							var t117 int
-							if (d97 >= nd) {
-								t117 = 0
-							} else {
-								t117 = d97
-							}
-							t116 = t117
-						}
-						var t118 int
-						if (k4 < 0) {
-							t118 = 0
-						} else {
-							var t119 int
-							if (k4 >= nw) {
-								t119 = 0
-							} else {
-								t119 = k4
-							}
-							t118 = t119
-						}
-						dt2[(2 * t116)] = ord[t118]
-						var t120 int
-						if (d97 < 0) {
-							t120 = 0
-						} else {
-							var t121 int
-							if (d97 >= nd) {
-								t121 = 0
-							} else {
-								t121 = d97
-							}
-							t120 = t121
-						}
-						dt2[((2 * t120) + 1)] = 1
-						k4, d97 = (k4 + 1), (d97 + 1)
-						continue
-					}
-					var i19 int = (d97 - 1)
-					var t122 int
-					if (i19 < 0) {
-						t122 = 0
-					} else {
-						var t123 int
-						if (i19 >= nd) {
-							t123 = 0
-						} else {
-							t123 = i19
-						}
-						t122 = t123
-					}
-					var s19 int = t122
-					dt2[((2 * s19) + 1)] = (dt2[((2 * s19) + 1)] + 1)
-					k4 = (k4 + 1)
-					continue
-				}
-				dt3 := dt2
-				a2 := make([]int, nd)
-				b4 := make([]int, nd)
-				a42 := a2
-				var k5 int = 0
-				for ; ; k5 = (k5 + 1) {
-					if (k5 >= nd) {
-						break
-					}
-					var t124 int
-					if (k5 < 0) {
-						t124 = 0
-					} else {
-						var t125 int
-						if (k5 >= nd) {
-							t125 = 0
-						} else {
-							t125 = k5
-						}
-						t124 = t125
-					}
-					a42[t124] = k5
-					continue
-				}
-				a4 := a42
-				b5 := b4
-				var w3 int = 1
-				for ; ; w3 = (2 * w3) {
-					if (w3 >= nd) {
-						break
-					}
-					if (w3 >= 32768) {
-						break
-					}
-					b23 := b5
-					var lo2 int = 0
-					for {
-						if (lo2 >= nd) {
-							break
-						}
-						var b34 int = (lo2 + w3)
-						var t126 int
-						if (nd < b34) {
-							t126 = nd
-						} else {
-							t126 = b34
-						}
-						var mid217 int = t126
-						var b35 int = (lo2 + (2 * w3))
-						var t127 int
-						if (nd < b35) {
-							t127 = nd
-						} else {
-							t127 = b35
-						}
-						var hi217 int = t127
-						b36 := b23
-						var i20 int = lo2
-						var j4 int = mid217
-						var k6 int = lo2
-						for ; ; k6 = (k6 + 1) {
-							if (k6 >= hi217) {
-								break
-							}
-							if (i20 >= mid217) {
-								var t128 int
-								if (k6 < 0) {
-									t128 = 0
-								} else {
-									var t129 int
-									if (k6 >= nd) {
-										t129 = 0
-									} else {
-										t129 = k6
-									}
-									t128 = t129
-								}
-								var t130 int
-								if (j4 < 0) {
-									t130 = 0
-								} else {
-									var t131 int
-									if (j4 >= nd) {
-										t131 = 0
-									} else {
-										t131 = j4
-									}
-									t130 = t131
-								}
-								b36[t128] = a4[t130]
-								j4 = (j4 + 1)
-								continue
-							}
-							if (j4 >= hi217) {
-								var t132 int
-								if (k6 < 0) {
-									t132 = 0
-								} else {
-									var t133 int
-									if (k6 >= nd) {
-										t133 = 0
-									} else {
-										t133 = k6
-									}
-									t132 = t133
-								}
-								var t134 int
-								if (i20 < 0) {
-									t134 = 0
-								} else {
-									var t135 int
-									if (i20 >= nd) {
-										t135 = 0
-									} else {
-										t135 = i20
-									}
-									t134 = t135
-								}
-								b36[t132] = a4[t134]
-								i20 = (i20 + 1)
-								continue
-							}
-							var t136 int
-							if (j4 < 0) {
-								t136 = 0
-							} else {
-								var t137 int
-								if (j4 >= nd) {
-									t137 = 0
-								} else {
-									t137 = j4
-								}
-								t136 = t137
-							}
-							var t138 int
-							if (i20 < 0) {
-								t138 = 0
-							} else {
-								var t139 int
-								if (i20 >= nd) {
-									t139 = 0
-								} else {
-									t139 = i20
-								}
-								t138 = t139
-							}
-							if (dt3[((2 * a4[t136]) + 1)] > dt3[((2 * a4[t138]) + 1)]) {
-								var t140 int
-								if (k6 < 0) {
-									t140 = 0
-								} else {
-									var t141 int
-									if (k6 >= nd) {
-										t141 = 0
-									} else {
-										t141 = k6
-									}
-									t140 = t141
-								}
-								var t142 int
-								if (j4 < 0) {
-									t142 = 0
-								} else {
-									var t143 int
-									if (j4 >= nd) {
-										t143 = 0
-									} else {
-										t143 = j4
-									}
-									t142 = t143
-								}
-								b36[t140] = a4[t142]
-								j4 = (j4 + 1)
-								continue
-							}
-							var t144 int
-							if (k6 < 0) {
-								t144 = 0
-							} else {
-								var t145 int
-								if (k6 >= nd) {
-									t145 = 0
-								} else {
-									t145 = k6
-								}
-								t144 = t145
-							}
-							var t146 int
-							if (i20 < 0) {
-								t146 = 0
-							} else {
-								var t147 int
-								if (i20 >= nd) {
-									t147 = 0
-								} else {
-									t147 = i20
-								}
-								t146 = t147
-							}
-							b36[t144] = a4[t146]
-							i20 = (i20 + 1)
-							continue
-						}
-						b23, lo2 = b36, hi217
-						continue
-					}
-					a4, b5 = b23, a4
-					continue
-				}
-				ord2 := a4
-				var n3 int = 0
-				var r int = 0
-				for ; ; r = (r + 1) {
-					if (r >= nd) {
-						break
-					}
-					if (r >= 20) {
-						break
-					}
-					if ((len(sp3) >> 1) < 1) {
-						break
-					}
-					var t148 int
-					if (r < 0) {
-						t148 = 0
-					} else {
-						var t149 int
-						if (r >= nd) {
-							t149 = 0
-						} else {
-							t149 = r
-						}
-						t148 = t149
-					}
-					var d98 int = ord2[t148]
-					var d107 int = 1
-					var x int = dt3[((2 * d98) + 1)]
-					for ; ; d107, x = (d107 + 1), (x / 10) {
-						if (x < 10) {
-							break
-						}
-						if (d107 >= 8) {
-							break
-						}
-						continue
-					}
-					var i21 int = dt3[(2 * d98)]
-					var t150 int
-					if (i21 < 0) {
-						t150 = 0
-					} else {
-						var t151 int
-						if (i21 >= (len(sp3) >> 1)) {
-							t151 = 0
-						} else {
-							t151 = i21
-						}
-						t150 = t151
-					}
-					var w4 int = t150
-					var d108 int = (sp3[((2 * w4) + 1)] - sp3[(2 * w4)])
-					var t152 int
-					if (d108 < 0) {
-						t152 = 0
-					} else {
-						var t153 int
-						if (d108 >= 65536) {
-							t153 = 0
-						} else {
-							t153 = d108
-						}
-						t152 = t153
-					}
-					n3 = (n3 + (d107 + (2 + t152)))
-					continue
-				}
-				var m int = n3
-				out := make([]byte, m)
-				out2 := out
-				var o int = 0
-				var r2 int = 0
-				for ; ; r2 = (r2 + 1) {
-					if (r2 >= nd) {
-						break
-					}
-					if (r2 >= 20) {
-						break
-					}
-					if ((len(sp3) >> 1) < 1) {
-						break
-					}
-					var t154 int
-					if (r2 < 0) {
-						t154 = 0
-					} else {
-						var t155 int
-						if (r2 >= nd) {
-							t155 = 0
-						} else {
-							t155 = r2
-						}
-						t154 = t155
-					}
-					var d17 int = ord2[t154]
-					var c21 int = dt3[((2 * d17) + 1)]
-					var i26 int = dt3[(2 * d17)]
-					var t156 int
-					if (i26 < 0) {
-						t156 = 0
-					} else {
-						var t157 int
-						if (i26 >= (len(sp3) >> 1)) {
-							t157 = 0
-						} else {
-							t157 = i26
-						}
-						t156 = t157
-					}
-					var w5 int = t156
-					var p2 int = 1
-					var k7 int = 1
-					for {
-						var d18 int = 1
-						var x3 int = c21
-						for ; ; d18, x3 = (d18 + 1), (x3 / 10) {
-							if (x3 < 10) {
-								break
-							}
-							if (d18 >= 8) {
-								break
-							}
-							continue
-						}
-						if (k7 >= d18) {
-							break
-						}
-						if (k7 >= 8) {
-							break
-						}
-						if (p2 >= 100000000) {
-							break
-						}
-						p2, k7 = (p2 * 10), (k7 + 1)
-						continue
-					}
-					out22 := out2
-					var o2 int = o
-					var p int = p2
-					var x2 int = c21
-					for ; ; p = (p / 10) {
-						if (p < 1) {
-							break
-						}
-						var t158 int
-						if (o2 < 0) {
-							t158 = 0
-						} else {
-							var t159 int
-							if (o2 >= m) {
-								t159 = 0
-							} else {
-								t159 = o2
-							}
-							t158 = t159
-						}
-						out22[t158] = byte((48 + ((x2 / p) % 10)))
-						var i27 int = (o2 + 1)
-						var t160 int
-						if (i27 < 0) {
-							t160 = 0
-						} else {
-							var t161 int
-							if (i27 >= m) {
-								t161 = 0
-							} else {
-								t161 = i27
-							}
-							t160 = t161
-						}
-						o2 = t160
-						continue
-					}
-					var d182 int = 1
-					var x4 int = c21
-					for ; ; d182, x4 = (d182 + 1), (x4 / 10) {
-						if (x4 < 10) {
-							break
-						}
-						if (d182 >= 8) {
-							break
-						}
-						continue
-					}
-					var i28 int = (o + d182)
-					var t162 int
-					if (i28 < 0) {
-						t162 = 0
-					} else {
-						var t163 int
-						if (i28 >= m) {
-							t163 = 0
-						} else {
-							t163 = i28
-						}
-						t162 = t163
-					}
-					out22[t162] = 32
-					out23 := out22
-					var d183 int = 1
-					var x5 int = c21
-					for ; ; d183, x5 = (d183 + 1), (x5 / 10) {
-						if (x5 < 10) {
-							break
-						}
-						if (d183 >= 8) {
-							break
-						}
-						continue
-					}
-					out3 := out23
-					var o22 int = (o + (d183 + 1))
-					var k8 int = 0
-					for ; ; k8 = (k8 + 1) {
-						var d184 int = (sp3[((2 * w5) + 1)] - sp3[(2 * w5)])
-						var t164 int
-						if (d184 < 0) {
-							t164 = 0
-						} else {
-							var t165 int
-							if (d184 >= 65536) {
-								t165 = 0
-							} else {
-								t165 = d184
-							}
-							t164 = t165
-						}
-						if (k8 >= t164) {
-							break
-						}
-						var t166 int
-						if (o22 < 0) {
-							t166 = 0
-						} else {
-							var t167 int
-							if (o22 >= m) {
-								t167 = 0
-							} else {
-								t167 = o22
-							}
-							t166 = t167
-						}
-						var i29 int = (sp3[(2 * w5)] + k8)
-						var t168 int
-						if (i29 < 0) {
-							t168 = 0
-						} else {
-							var t169 int
-							if (i29 >= len(src)) {
-								t169 = 0
-							} else {
-								t169 = i29
-							}
-							t168 = t169
-						}
-						out3[t166] = byte(int(src[t168]))
-						var i30 int = (o22 + 1)
-						var t170 int
-						if (i30 < 0) {
-							t170 = 0
-						} else {
-							var t171 int
-							if (i30 >= m) {
-								t171 = 0
-							} else {
-								t171 = i30
-							}
-							t170 = t171
-						}
-						o22 = t170
-						continue
-					}
-					var d185 int = 1
-					var x6 int = dt3[((2 * d17) + 1)]
-					for ; ; d185, x6 = (d185 + 1), (x6 / 10) {
-						if (x6 < 10) {
-							break
-						}
-						if (d185 >= 8) {
-							break
-						}
-						continue
-					}
-					var i31 int = dt3[(2 * d17)]
-					var t172 int
-					if (i31 < 0) {
-						t172 = 0
-					} else {
-						var t173 int
-						if (i31 >= (len(sp3) >> 1)) {
-							t173 = 0
-						} else {
-							t173 = i31
-						}
-						t172 = t173
-					}
-					var w22 int = t172
-					var d186 int = (sp3[((2 * w22) + 1)] - sp3[(2 * w22)])
-					var t174 int
-					if (d186 < 0) {
-						t174 = 0
-					} else {
-						var t175 int
-						if (d186 >= 65536) {
-							t175 = 0
-						} else {
-							t175 = d186
-						}
-						t174 = t175
-					}
-					var i32 int = (o + ((d185 + (2 + t174)) - 1))
-					var t176 int
-					if (i32 < 0) {
-						t176 = 0
-					} else {
-						var t177 int
-						if (i32 >= m) {
-							t177 = 0
-						} else {
-							t177 = i32
-						}
-						t176 = t177
-					}
-					out3[t176] = 10
-					var d187 int = 1
-					var x7 int = dt3[((2 * d17) + 1)]
-					for ; ; d187, x7 = (d187 + 1), (x7 / 10) {
-						if (x7 < 10) {
-							break
-						}
-						if (d187 >= 8) {
-							break
-						}
-						continue
-					}
-					var i33 int = dt3[(2 * d17)]
-					var t178 int
-					if (i33 < 0) {
-						t178 = 0
-					} else {
-						var t179 int
-						if (i33 >= (len(sp3) >> 1)) {
-							t179 = 0
-						} else {
-							t179 = i33
-						}
-						t178 = t179
-					}
-					var w6 int = t178
-					var d188 int = (sp3[((2 * w6) + 1)] - sp3[(2 * w6)])
-					var t180 int
-					if (d188 < 0) {
-						t180 = 0
-					} else {
-						var t181 int
-						if (d188 >= 65536) {
-							t181 = 0
-						} else {
-							t181 = d188
-						}
-						t180 = t181
-					}
-					out2, o = out3, (o + (d187 + (2 + t180)))
-					continue
-				}
-				var v182 string = (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(out2)))
-				fmt.Print(v182)
-				t3 = v182
-			}
-			t2 = t3
-		} else {
-			fmt.Println("freq: cannot read that file")
-			t2 = "freq: cannot read that file"
-		}
-		t1 = t2
+		return "usage: freq FILE"
 	}
-	return t1
+	v9 := v0[1]
+	v10, v11 := os.ReadFile(v9)
+	v12 := (v11 == nil)
+	if v12 {
+		v13 := len(v10)
+		v15 := (v13 >= 65536)
+		if v15 {
+			fmt.Println("freq: file is larger than this tool accepts")
+			return "freq: file is larger than this tool accepts"
+		}
+		var v23 int = 0
+		var v24 int = 0
+		for {
+			v25 := len(v10)
+			v26 := (v24 >= v25)
+			if v26 {
+				break
+			}
+			v32 := (v23 >= 32768)
+			if v32 {
+				break
+			}
+			v35 := int(v10[v24])
+			v39 := (v35 >= 65)
+			v40 := (v39 && (v35 <= 90))
+			v46 := (v40 || ((v35 >= 97) && (v35 <= 122)))
+			if v46 {
+				v58 := (v23 + 1)
+				v60 := (v24 + 1)
+				var v62 int = v60
+				for ; ; v62 = (v62 + 1) {
+					v64 := (v62 < 0)
+					if v64 {
+						break
+					}
+					v67 := len(v10)
+					v68 := (v62 >= v67)
+					if v68 {
+						break
+					}
+					v73 := int(v10[v62])
+					v77 := (v73 >= 65)
+					v78 := (v77 && (v73 <= 90))
+					v84 := (v78 || ((v73 >= 97) && (v73 <= 122)))
+					if v84 {
+						continue
+					}
+					break
+				}
+				v23, v24 = v58, v62
+				continue
+			}
+			v98 := (v24 + 1)
+			v24 = v98
+			continue
+		}
+		v100 := (2 * v23)
+		v102 := make([]uint16, v100)
+		var v101 []uint16
+		v106 := v102
+		var v107 int = 0
+		var v108 int = 0
+		for {
+			v109 := len(v10)
+			v110 := (v107 >= v109)
+			if v110 {
+				break
+			}
+			v115 := (v108 >= v23)
+			if v115 {
+				break
+			}
+			v120 := int(v10[v107])
+			v124 := (v120 >= 65)
+			v125 := (v124 && (v120 <= 90))
+			v131 := (v125 || ((v120 >= 97) && (v120 <= 122)))
+			if v131 {
+				v143 := (v107 + 1)
+				var v145 int = v143
+				for ; ; v145 = (v145 + 1) {
+					v147 := (v145 < 0)
+					if v147 {
+						break
+					}
+					v150 := len(v10)
+					v151 := (v145 >= v150)
+					if v151 {
+						break
+					}
+					v156 := int(v10[v145])
+					v160 := (v156 >= 65)
+					v161 := (v160 && (v156 <= 90))
+					v167 := (v161 || ((v156 >= 97) && (v156 <= 122)))
+					if v167 {
+						continue
+					}
+					break
+				}
+				v181 := (2 * v108)
+				v106[v181] = uint16(v107)
+				v184 := (2 * v108)
+				v186 := (v184 + 1)
+				v106[v186] = uint16(v145)
+				v189 := (v108 + 1)
+				v107, v108 = v145, v189
+				continue
+			}
+			v191 := (v107 + 1)
+			v107 = v191
+			continue
+		}
+		v101 = v106
+		v193 := make([]int, v23)
+		var v192 []int
+		v195 := make([]int, v23)
+		var v194 []int
+		v198 := v193
+		var v199 int = 0
+		for ; ; v199 = (v199 + 1) {
+			v200 := (v199 >= v23)
+			if v200 {
+				break
+			}
+			v206 := (v199 < 0)
+			var v207 int
+			if v206 {
+				v207 = 0
+			} else {
+				v211 := (v199 >= v23)
+				if v211 {
+					v207 = 0
+				} else {
+					v207 = v199
+				}
+			}
+			v198[v207] = v199
+			continue
+		}
+		v222 := v198
+		v223 := v195
+		var v224 int = 1
+		for {
+			v225 := (v224 >= v23)
+			if v225 {
+				break
+			}
+			v231 := (v224 >= 32768)
+			if v231 {
+				break
+			}
+			v236 := v223
+			var v237 int = 0
+			for {
+				v238 := (v237 >= v23)
+				if v238 {
+					break
+				}
+				v243 := (v237 + v224)
+				v244 := (v23 < v243)
+				var v245 int
+				if v244 {
+					v245 = v23
+				} else {
+					v245 = v243
+				}
+				v251 := (2 * v224)
+				v252 := (v237 + v251)
+				v253 := (v23 < v252)
+				var v254 int
+				if v253 {
+					v254 = v23
+				} else {
+					v254 = v252
+				}
+				v260 := v236
+				var v261 int = v237
+				var v262 int = v245
+				var v263 int = v237
+				for ; ; v263 = (v263 + 1) {
+					v264 := (v263 >= v254)
+					if v264 {
+						break
+					}
+					v269 := (v261 >= v245)
+					if v269 {
+						v273 := (v263 < 0)
+						var v274 int
+						if v273 {
+							v274 = 0
+						} else {
+							v278 := (v263 >= v23)
+							if v278 {
+								v274 = 0
+							} else {
+								v274 = v263
+							}
+						}
+						v285 := (v262 < 0)
+						var v286 int
+						if v285 {
+							v286 = 0
+						} else {
+							v290 := (v262 >= v23)
+							if v290 {
+								v286 = 0
+							} else {
+								v286 = v262
+							}
+						}
+						v296 := v222[v286]
+						v260[v274] = v296
+						v299 := (v262 + 1)
+						v262 = v299
+						continue
+					}
+					v304 := (v262 >= v254)
+					if v304 {
+						v308 := (v263 < 0)
+						var v309 int
+						if v308 {
+							v309 = 0
+						} else {
+							v313 := (v263 >= v23)
+							if v313 {
+								v309 = 0
+							} else {
+								v309 = v263
+							}
+						}
+						v320 := (v261 < 0)
+						var v321 int
+						if v320 {
+							v321 = 0
+						} else {
+							v325 := (v261 >= v23)
+							if v325 {
+								v321 = 0
+							} else {
+								v321 = v261
+							}
+						}
+						v331 := v222[v321]
+						v260[v309] = v331
+						v334 := (v261 + 1)
+						v261 = v334
+						continue
+					}
+					v340 := (v262 < 0)
+					var v341 int
+					if v340 {
+						v341 = 0
+					} else {
+						v345 := (v262 >= v23)
+						if v345 {
+							v341 = 0
+						} else {
+							v341 = v262
+						}
+					}
+					v351 := v222[v341]
+					v353 := (v261 < 0)
+					var v354 int
+					if v353 {
+						v354 = 0
+					} else {
+						v358 := (v261 >= v23)
+						if v358 {
+							v354 = 0
+						} else {
+							v354 = v261
+						}
+					}
+					v364 := v222[v354]
+					v368 := (0 <= v351)
+					v369 := (v368 && ((v351 < v23) && ((0 <= v364) && (v364 < v23))))
+					var v385 bool
+					if v369 {
+						var v394 int = 0
+						var v393 int
+						for ; ; v394 = (v394 + 1) {
+							v396 := (2 * v351)
+							v398 := (v396 + 1)
+							v399 := int(v101[v398])
+							v401 := (2 * v351)
+							v402 := int(v101[v401])
+							v403 := (v399 - v402)
+							v405 := (v403 < 0)
+							var v406 int
+							if v405 {
+								v406 = 0
+							} else {
+								v411 := (v403 >= 65536)
+								if v411 {
+									v406 = 0
+								} else {
+									v406 = v403
+								}
+							}
+							v415 := (v394 >= v406)
+							if v415 {
+								v418 := (2 * v364)
+								v420 := (v418 + 1)
+								v421 := int(v101[v420])
+								v423 := (2 * v364)
+								v424 := int(v101[v423])
+								v425 := (v421 - v424)
+								v427 := (v425 < 0)
+								var v428 int
+								if v427 {
+									v428 = 0
+								} else {
+									v433 := (v425 >= 65536)
+									if v433 {
+										v428 = 0
+									} else {
+										v428 = v425
+									}
+								}
+								v437 := (v394 >= v428)
+								if v437 {
+									v393 = 0
+									break
+								}
+								v393 = -1
+								break
+							}
+							v444 := (2 * v364)
+							v446 := (v444 + 1)
+							v447 := int(v101[v446])
+							v449 := (2 * v364)
+							v450 := int(v101[v449])
+							v451 := (v447 - v450)
+							v453 := (v451 < 0)
+							var v454 int
+							if v453 {
+								v454 = 0
+							} else {
+								v459 := (v451 >= 65536)
+								if v459 {
+									v454 = 0
+								} else {
+									v454 = v451
+								}
+							}
+							v463 := (v394 >= v454)
+							if v463 {
+								v393 = 1
+								break
+							}
+							v468 := (2 * v351)
+							v469 := int(v101[v468])
+							v470 := (v469 + v394)
+							v472 := (v470 < 0)
+							var v473 int
+							if v472 {
+								v473 = 0
+							} else {
+								v477 := len(v10)
+								v478 := (v470 >= v477)
+								if v478 {
+									v473 = 0
+								} else {
+									v473 = v470
+								}
+							}
+							v484 := int(v10[v473])
+							v488 := (v484 >= 65)
+							v489 := (v488 && (v484 <= 90))
+							var v495 int
+							if v489 {
+								v499 := (v484 + 32)
+								v495 = v499
+							} else {
+								v495 = v484
+							}
+							v501 := (2 * v364)
+							v502 := int(v101[v501])
+							v503 := (v502 + v394)
+							v505 := (v503 < 0)
+							var v506 int
+							if v505 {
+								v506 = 0
+							} else {
+								v510 := len(v10)
+								v511 := (v503 >= v510)
+								if v511 {
+									v506 = 0
+								} else {
+									v506 = v503
+								}
+							}
+							v517 := int(v10[v506])
+							v521 := (v517 >= 65)
+							v522 := (v521 && (v517 <= 90))
+							var v528 int
+							if v522 {
+								v532 := (v517 + 32)
+								v528 = v532
+							} else {
+								v528 = v517
+							}
+							v533 := (v495 == v528)
+							if v533 {
+								continue
+							}
+							v537 := (2 * v351)
+							v538 := int(v101[v537])
+							v539 := (v538 + v394)
+							v541 := (v539 < 0)
+							var v542 int
+							if v541 {
+								v542 = 0
+							} else {
+								v546 := len(v10)
+								v547 := (v539 >= v546)
+								if v547 {
+									v542 = 0
+								} else {
+									v542 = v539
+								}
+							}
+							v553 := int(v10[v542])
+							v557 := (v553 >= 65)
+							v558 := (v557 && (v553 <= 90))
+							var v564 int
+							if v558 {
+								v568 := (v553 + 32)
+								v564 = v568
+							} else {
+								v564 = v553
+							}
+							v570 := (2 * v364)
+							v571 := int(v101[v570])
+							v572 := (v571 + v394)
+							v574 := (v572 < 0)
+							var v575 int
+							if v574 {
+								v575 = 0
+							} else {
+								v579 := len(v10)
+								v580 := (v572 >= v579)
+								if v580 {
+									v575 = 0
+								} else {
+									v575 = v572
+								}
+							}
+							v586 := int(v10[v575])
+							v590 := (v586 >= 65)
+							v591 := (v590 && (v586 <= 90))
+							var v597 int
+							if v591 {
+								v601 := (v586 + 32)
+								v597 = v601
+							} else {
+								v597 = v586
+							}
+							v602 := (v564 < v597)
+							if v602 {
+								v393 = -1
+								break
+							}
+							v393 = 1
+							break
+						}
+						v606 := (v393 < 0)
+						v385 = v606
+					} else {
+						v385 = false
+					}
+					if v385 {
+						v609 := (v263 < 0)
+						var v610 int
+						if v609 {
+							v610 = 0
+						} else {
+							v614 := (v263 >= v23)
+							if v614 {
+								v610 = 0
+							} else {
+								v610 = v263
+							}
+						}
+						v621 := (v262 < 0)
+						var v622 int
+						if v621 {
+							v622 = 0
+						} else {
+							v626 := (v262 >= v23)
+							if v626 {
+								v622 = 0
+							} else {
+								v622 = v262
+							}
+						}
+						v632 := v222[v622]
+						v260[v610] = v632
+						v635 := (v262 + 1)
+						v262 = v635
+						continue
+					}
+					v639 := (v263 < 0)
+					var v640 int
+					if v639 {
+						v640 = 0
+					} else {
+						v644 := (v263 >= v23)
+						if v644 {
+							v640 = 0
+						} else {
+							v640 = v263
+						}
+					}
+					v651 := (v261 < 0)
+					var v652 int
+					if v651 {
+						v652 = 0
+					} else {
+						v656 := (v261 >= v23)
+						if v656 {
+							v652 = 0
+						} else {
+							v652 = v261
+						}
+					}
+					v662 := v222[v652]
+					v260[v640] = v662
+					v665 := (v261 + 1)
+					v261 = v665
+					continue
+				}
+				v236, v237 = v260, v254
+				continue
+			}
+			v669 := (2 * v224)
+			v222, v223, v224 = v236, v222, v669
+			continue
+		}
+		v194 = v222
+		v192 = v194
+		var v673 int = 0
+		var v674 int = 0
+		for ; ; v674 = (v674 + 1) {
+			v675 := (v674 >= v23)
+			if v675 {
+				break
+			}
+			v681 := (v673 >= 32768)
+			if v681 {
+				break
+			}
+			v686 := (v674 == 0)
+			var v687 bool
+			if v686 {
+				v687 = true
+			} else {
+				v692 := (v674 < 0)
+				var v693 int
+				if v692 {
+					v693 = 0
+				} else {
+					v697 := (v674 >= v23)
+					if v697 {
+						v693 = 0
+					} else {
+						v693 = v674
+					}
+				}
+				v703 := v192[v693]
+				v705 := (v674 - 1)
+				v707 := (v705 < 0)
+				var v708 int
+				if v707 {
+					v708 = 0
+				} else {
+					v712 := (v705 >= v23)
+					if v712 {
+						v708 = 0
+					} else {
+						v708 = v705
+					}
+				}
+				v718 := v192[v708]
+				var v721 int = 0
+				var v720 int
+				for ; ; v721 = (v721 + 1) {
+					v723 := (2 * v703)
+					v725 := (v723 + 1)
+					v726 := int(v101[v725])
+					v728 := (2 * v703)
+					v729 := int(v101[v728])
+					v730 := (v726 - v729)
+					v732 := (v730 < 0)
+					var v733 int
+					if v732 {
+						v733 = 0
+					} else {
+						v738 := (v730 >= 65536)
+						if v738 {
+							v733 = 0
+						} else {
+							v733 = v730
+						}
+					}
+					v742 := (v721 >= v733)
+					if v742 {
+						v745 := (2 * v718)
+						v747 := (v745 + 1)
+						v748 := int(v101[v747])
+						v750 := (2 * v718)
+						v751 := int(v101[v750])
+						v752 := (v748 - v751)
+						v754 := (v752 < 0)
+						var v755 int
+						if v754 {
+							v755 = 0
+						} else {
+							v760 := (v752 >= 65536)
+							if v760 {
+								v755 = 0
+							} else {
+								v755 = v752
+							}
+						}
+						v764 := (v721 >= v755)
+						if v764 {
+							v720 = 0
+							break
+						}
+						v720 = -1
+						break
+					}
+					v771 := (2 * v718)
+					v773 := (v771 + 1)
+					v774 := int(v101[v773])
+					v776 := (2 * v718)
+					v777 := int(v101[v776])
+					v778 := (v774 - v777)
+					v780 := (v778 < 0)
+					var v781 int
+					if v780 {
+						v781 = 0
+					} else {
+						v786 := (v778 >= 65536)
+						if v786 {
+							v781 = 0
+						} else {
+							v781 = v778
+						}
+					}
+					v790 := (v721 >= v781)
+					if v790 {
+						v720 = 1
+						break
+					}
+					v795 := (2 * v703)
+					v796 := int(v101[v795])
+					v797 := (v796 + v721)
+					v799 := (v797 < 0)
+					var v800 int
+					if v799 {
+						v800 = 0
+					} else {
+						v804 := len(v10)
+						v805 := (v797 >= v804)
+						if v805 {
+							v800 = 0
+						} else {
+							v800 = v797
+						}
+					}
+					v811 := int(v10[v800])
+					v815 := (v811 >= 65)
+					v816 := (v815 && (v811 <= 90))
+					var v822 int
+					if v816 {
+						v826 := (v811 + 32)
+						v822 = v826
+					} else {
+						v822 = v811
+					}
+					v828 := (2 * v718)
+					v829 := int(v101[v828])
+					v830 := (v829 + v721)
+					v832 := (v830 < 0)
+					var v833 int
+					if v832 {
+						v833 = 0
+					} else {
+						v837 := len(v10)
+						v838 := (v830 >= v837)
+						if v838 {
+							v833 = 0
+						} else {
+							v833 = v830
+						}
+					}
+					v844 := int(v10[v833])
+					v848 := (v844 >= 65)
+					v849 := (v848 && (v844 <= 90))
+					var v855 int
+					if v849 {
+						v859 := (v844 + 32)
+						v855 = v859
+					} else {
+						v855 = v844
+					}
+					v860 := (v822 == v855)
+					if v860 {
+						continue
+					}
+					v864 := (2 * v703)
+					v865 := int(v101[v864])
+					v866 := (v865 + v721)
+					v868 := (v866 < 0)
+					var v869 int
+					if v868 {
+						v869 = 0
+					} else {
+						v873 := len(v10)
+						v874 := (v866 >= v873)
+						if v874 {
+							v869 = 0
+						} else {
+							v869 = v866
+						}
+					}
+					v880 := int(v10[v869])
+					v884 := (v880 >= 65)
+					v885 := (v884 && (v880 <= 90))
+					var v891 int
+					if v885 {
+						v895 := (v880 + 32)
+						v891 = v895
+					} else {
+						v891 = v880
+					}
+					v897 := (2 * v718)
+					v898 := int(v101[v897])
+					v899 := (v898 + v721)
+					v901 := (v899 < 0)
+					var v902 int
+					if v901 {
+						v902 = 0
+					} else {
+						v906 := len(v10)
+						v907 := (v899 >= v906)
+						if v907 {
+							v902 = 0
+						} else {
+							v902 = v899
+						}
+					}
+					v913 := int(v10[v902])
+					v917 := (v913 >= 65)
+					v918 := (v917 && (v913 <= 90))
+					var v924 int
+					if v918 {
+						v928 := (v913 + 32)
+						v924 = v928
+					} else {
+						v924 = v913
+					}
+					v929 := (v891 < v924)
+					if v929 {
+						v720 = -1
+						break
+					}
+					v720 = 1
+					break
+				}
+				v933 := (v720 == 0)
+				if v933 {
+					v687 = false
+				} else {
+					v687 = true
+				}
+			}
+			if v687 {
+				v937 := (v673 + 1)
+				v673 = v937
+				continue
+			}
+			continue
+		}
+		v944 := (2 * v673)
+		v946 := make([]int, v944)
+		var v945 []int
+		v950 := v946
+		var v951 int = 0
+		var v952 int = 0
+		for ; ; v951 = (v951 + 1) {
+			v953 := (v951 >= v23)
+			if v953 {
+				break
+			}
+			v959 := (v673 < 1)
+			if v959 {
+				break
+			}
+			v965 := (v951 == 0)
+			var v966 bool
+			if v965 {
+				v966 = true
+			} else {
+				v971 := (v951 < 0)
+				var v972 int
+				if v971 {
+					v972 = 0
+				} else {
+					v976 := (v951 >= v23)
+					if v976 {
+						v972 = 0
+					} else {
+						v972 = v951
+					}
+				}
+				v982 := v192[v972]
+				v984 := (v951 - 1)
+				v986 := (v984 < 0)
+				var v987 int
+				if v986 {
+					v987 = 0
+				} else {
+					v991 := (v984 >= v23)
+					if v991 {
+						v987 = 0
+					} else {
+						v987 = v984
+					}
+				}
+				v997 := v192[v987]
+				var v1000 int = 0
+				var v999 int
+				for ; ; v1000 = (v1000 + 1) {
+					v1002 := (2 * v982)
+					v1004 := (v1002 + 1)
+					v1005 := int(v101[v1004])
+					v1007 := (2 * v982)
+					v1008 := int(v101[v1007])
+					v1009 := (v1005 - v1008)
+					v1011 := (v1009 < 0)
+					var v1012 int
+					if v1011 {
+						v1012 = 0
+					} else {
+						v1017 := (v1009 >= 65536)
+						if v1017 {
+							v1012 = 0
+						} else {
+							v1012 = v1009
+						}
+					}
+					v1021 := (v1000 >= v1012)
+					if v1021 {
+						v1024 := (2 * v997)
+						v1026 := (v1024 + 1)
+						v1027 := int(v101[v1026])
+						v1029 := (2 * v997)
+						v1030 := int(v101[v1029])
+						v1031 := (v1027 - v1030)
+						v1033 := (v1031 < 0)
+						var v1034 int
+						if v1033 {
+							v1034 = 0
+						} else {
+							v1039 := (v1031 >= 65536)
+							if v1039 {
+								v1034 = 0
+							} else {
+								v1034 = v1031
+							}
+						}
+						v1043 := (v1000 >= v1034)
+						if v1043 {
+							v999 = 0
+							break
+						}
+						v999 = -1
+						break
+					}
+					v1050 := (2 * v997)
+					v1052 := (v1050 + 1)
+					v1053 := int(v101[v1052])
+					v1055 := (2 * v997)
+					v1056 := int(v101[v1055])
+					v1057 := (v1053 - v1056)
+					v1059 := (v1057 < 0)
+					var v1060 int
+					if v1059 {
+						v1060 = 0
+					} else {
+						v1065 := (v1057 >= 65536)
+						if v1065 {
+							v1060 = 0
+						} else {
+							v1060 = v1057
+						}
+					}
+					v1069 := (v1000 >= v1060)
+					if v1069 {
+						v999 = 1
+						break
+					}
+					v1074 := (2 * v982)
+					v1075 := int(v101[v1074])
+					v1076 := (v1075 + v1000)
+					v1078 := (v1076 < 0)
+					var v1079 int
+					if v1078 {
+						v1079 = 0
+					} else {
+						v1083 := len(v10)
+						v1084 := (v1076 >= v1083)
+						if v1084 {
+							v1079 = 0
+						} else {
+							v1079 = v1076
+						}
+					}
+					v1090 := int(v10[v1079])
+					v1094 := (v1090 >= 65)
+					v1095 := (v1094 && (v1090 <= 90))
+					var v1101 int
+					if v1095 {
+						v1105 := (v1090 + 32)
+						v1101 = v1105
+					} else {
+						v1101 = v1090
+					}
+					v1107 := (2 * v997)
+					v1108 := int(v101[v1107])
+					v1109 := (v1108 + v1000)
+					v1111 := (v1109 < 0)
+					var v1112 int
+					if v1111 {
+						v1112 = 0
+					} else {
+						v1116 := len(v10)
+						v1117 := (v1109 >= v1116)
+						if v1117 {
+							v1112 = 0
+						} else {
+							v1112 = v1109
+						}
+					}
+					v1123 := int(v10[v1112])
+					v1127 := (v1123 >= 65)
+					v1128 := (v1127 && (v1123 <= 90))
+					var v1134 int
+					if v1128 {
+						v1138 := (v1123 + 32)
+						v1134 = v1138
+					} else {
+						v1134 = v1123
+					}
+					v1139 := (v1101 == v1134)
+					if v1139 {
+						continue
+					}
+					v1143 := (2 * v982)
+					v1144 := int(v101[v1143])
+					v1145 := (v1144 + v1000)
+					v1147 := (v1145 < 0)
+					var v1148 int
+					if v1147 {
+						v1148 = 0
+					} else {
+						v1152 := len(v10)
+						v1153 := (v1145 >= v1152)
+						if v1153 {
+							v1148 = 0
+						} else {
+							v1148 = v1145
+						}
+					}
+					v1159 := int(v10[v1148])
+					v1163 := (v1159 >= 65)
+					v1164 := (v1163 && (v1159 <= 90))
+					var v1170 int
+					if v1164 {
+						v1174 := (v1159 + 32)
+						v1170 = v1174
+					} else {
+						v1170 = v1159
+					}
+					v1176 := (2 * v997)
+					v1177 := int(v101[v1176])
+					v1178 := (v1177 + v1000)
+					v1180 := (v1178 < 0)
+					var v1181 int
+					if v1180 {
+						v1181 = 0
+					} else {
+						v1185 := len(v10)
+						v1186 := (v1178 >= v1185)
+						if v1186 {
+							v1181 = 0
+						} else {
+							v1181 = v1178
+						}
+					}
+					v1192 := int(v10[v1181])
+					v1196 := (v1192 >= 65)
+					v1197 := (v1196 && (v1192 <= 90))
+					var v1203 int
+					if v1197 {
+						v1207 := (v1192 + 32)
+						v1203 = v1207
+					} else {
+						v1203 = v1192
+					}
+					v1208 := (v1170 < v1203)
+					if v1208 {
+						v999 = -1
+						break
+					}
+					v999 = 1
+					break
+				}
+				v1212 := (v999 == 0)
+				if v1212 {
+					v966 = false
+				} else {
+					v966 = true
+				}
+			}
+			v1215 := (v966 && (v952 >= v673))
+			if v1215 {
+				break
+			}
+			v1223 := (v951 == 0)
+			var v1224 bool
+			if v1223 {
+				v1224 = true
+			} else {
+				v1229 := (v951 < 0)
+				var v1230 int
+				if v1229 {
+					v1230 = 0
+				} else {
+					v1234 := (v951 >= v23)
+					if v1234 {
+						v1230 = 0
+					} else {
+						v1230 = v951
+					}
+				}
+				v1240 := v192[v1230]
+				v1242 := (v951 - 1)
+				v1244 := (v1242 < 0)
+				var v1245 int
+				if v1244 {
+					v1245 = 0
+				} else {
+					v1249 := (v1242 >= v23)
+					if v1249 {
+						v1245 = 0
+					} else {
+						v1245 = v1242
+					}
+				}
+				v1255 := v192[v1245]
+				var v1258 int = 0
+				var v1257 int
+				for ; ; v1258 = (v1258 + 1) {
+					v1260 := (2 * v1240)
+					v1262 := (v1260 + 1)
+					v1263 := int(v101[v1262])
+					v1265 := (2 * v1240)
+					v1266 := int(v101[v1265])
+					v1267 := (v1263 - v1266)
+					v1269 := (v1267 < 0)
+					var v1270 int
+					if v1269 {
+						v1270 = 0
+					} else {
+						v1275 := (v1267 >= 65536)
+						if v1275 {
+							v1270 = 0
+						} else {
+							v1270 = v1267
+						}
+					}
+					v1279 := (v1258 >= v1270)
+					if v1279 {
+						v1282 := (2 * v1255)
+						v1284 := (v1282 + 1)
+						v1285 := int(v101[v1284])
+						v1287 := (2 * v1255)
+						v1288 := int(v101[v1287])
+						v1289 := (v1285 - v1288)
+						v1291 := (v1289 < 0)
+						var v1292 int
+						if v1291 {
+							v1292 = 0
+						} else {
+							v1297 := (v1289 >= 65536)
+							if v1297 {
+								v1292 = 0
+							} else {
+								v1292 = v1289
+							}
+						}
+						v1301 := (v1258 >= v1292)
+						if v1301 {
+							v1257 = 0
+							break
+						}
+						v1257 = -1
+						break
+					}
+					v1308 := (2 * v1255)
+					v1310 := (v1308 + 1)
+					v1311 := int(v101[v1310])
+					v1313 := (2 * v1255)
+					v1314 := int(v101[v1313])
+					v1315 := (v1311 - v1314)
+					v1317 := (v1315 < 0)
+					var v1318 int
+					if v1317 {
+						v1318 = 0
+					} else {
+						v1323 := (v1315 >= 65536)
+						if v1323 {
+							v1318 = 0
+						} else {
+							v1318 = v1315
+						}
+					}
+					v1327 := (v1258 >= v1318)
+					if v1327 {
+						v1257 = 1
+						break
+					}
+					v1332 := (2 * v1240)
+					v1333 := int(v101[v1332])
+					v1334 := (v1333 + v1258)
+					v1336 := (v1334 < 0)
+					var v1337 int
+					if v1336 {
+						v1337 = 0
+					} else {
+						v1341 := len(v10)
+						v1342 := (v1334 >= v1341)
+						if v1342 {
+							v1337 = 0
+						} else {
+							v1337 = v1334
+						}
+					}
+					v1348 := int(v10[v1337])
+					v1352 := (v1348 >= 65)
+					v1353 := (v1352 && (v1348 <= 90))
+					var v1359 int
+					if v1353 {
+						v1363 := (v1348 + 32)
+						v1359 = v1363
+					} else {
+						v1359 = v1348
+					}
+					v1365 := (2 * v1255)
+					v1366 := int(v101[v1365])
+					v1367 := (v1366 + v1258)
+					v1369 := (v1367 < 0)
+					var v1370 int
+					if v1369 {
+						v1370 = 0
+					} else {
+						v1374 := len(v10)
+						v1375 := (v1367 >= v1374)
+						if v1375 {
+							v1370 = 0
+						} else {
+							v1370 = v1367
+						}
+					}
+					v1381 := int(v10[v1370])
+					v1385 := (v1381 >= 65)
+					v1386 := (v1385 && (v1381 <= 90))
+					var v1392 int
+					if v1386 {
+						v1396 := (v1381 + 32)
+						v1392 = v1396
+					} else {
+						v1392 = v1381
+					}
+					v1397 := (v1359 == v1392)
+					if v1397 {
+						continue
+					}
+					v1401 := (2 * v1240)
+					v1402 := int(v101[v1401])
+					v1403 := (v1402 + v1258)
+					v1405 := (v1403 < 0)
+					var v1406 int
+					if v1405 {
+						v1406 = 0
+					} else {
+						v1410 := len(v10)
+						v1411 := (v1403 >= v1410)
+						if v1411 {
+							v1406 = 0
+						} else {
+							v1406 = v1403
+						}
+					}
+					v1417 := int(v10[v1406])
+					v1421 := (v1417 >= 65)
+					v1422 := (v1421 && (v1417 <= 90))
+					var v1428 int
+					if v1422 {
+						v1432 := (v1417 + 32)
+						v1428 = v1432
+					} else {
+						v1428 = v1417
+					}
+					v1434 := (2 * v1255)
+					v1435 := int(v101[v1434])
+					v1436 := (v1435 + v1258)
+					v1438 := (v1436 < 0)
+					var v1439 int
+					if v1438 {
+						v1439 = 0
+					} else {
+						v1443 := len(v10)
+						v1444 := (v1436 >= v1443)
+						if v1444 {
+							v1439 = 0
+						} else {
+							v1439 = v1436
+						}
+					}
+					v1450 := int(v10[v1439])
+					v1454 := (v1450 >= 65)
+					v1455 := (v1454 && (v1450 <= 90))
+					var v1461 int
+					if v1455 {
+						v1465 := (v1450 + 32)
+						v1461 = v1465
+					} else {
+						v1461 = v1450
+					}
+					v1466 := (v1428 < v1461)
+					if v1466 {
+						v1257 = -1
+						break
+					}
+					v1257 = 1
+					break
+				}
+				v1470 := (v1257 == 0)
+				if v1470 {
+					v1224 = false
+				} else {
+					v1224 = true
+				}
+			}
+			if v1224 {
+				v1475 := (v952 < 0)
+				var v1476 int
+				if v1475 {
+					v1476 = 0
+				} else {
+					v1480 := (v952 >= v673)
+					if v1480 {
+						v1476 = 0
+					} else {
+						v1476 = v952
+					}
+				}
+				v1486 := (2 * v1476)
+				v1488 := (v951 < 0)
+				var v1489 int
+				if v1488 {
+					v1489 = 0
+				} else {
+					v1493 := (v951 >= v23)
+					if v1493 {
+						v1489 = 0
+					} else {
+						v1489 = v951
+					}
+				}
+				v1499 := v192[v1489]
+				v950[v1486] = v1499
+				v1503 := (v952 < 0)
+				var v1504 int
+				if v1503 {
+					v1504 = 0
+				} else {
+					v1508 := (v952 >= v673)
+					if v1508 {
+						v1504 = 0
+					} else {
+						v1504 = v952
+					}
+				}
+				v1514 := (2 * v1504)
+				v1516 := (v1514 + 1)
+				v950[v1516] = 1
+				v1522 := (v952 + 1)
+				v952 = v1522
+				continue
+			}
+			v1525 := (v952 - 1)
+			v1527 := (v1525 < 0)
+			var v1528 int
+			if v1527 {
+				v1528 = 0
+			} else {
+				v1532 := (v1525 >= v673)
+				if v1532 {
+					v1528 = 0
+				} else {
+					v1528 = v1525
+				}
+			}
+			v1539 := (2 * v1528)
+			v1541 := (v1539 + 1)
+			v1543 := (2 * v1528)
+			v1545 := (v1543 + 1)
+			v1546 := v950[v1545]
+			v1548 := (v1546 + 1)
+			v950[v1541] = v1548
+			continue
+		}
+		v945 = v950
+		v1553 := make([]int, v673)
+		var v1552 []int
+		v1555 := make([]int, v673)
+		var v1554 []int
+		v1558 := v1553
+		var v1559 int = 0
+		for ; ; v1559 = (v1559 + 1) {
+			v1560 := (v1559 >= v673)
+			if v1560 {
+				break
+			}
+			v1566 := (v1559 < 0)
+			var v1567 int
+			if v1566 {
+				v1567 = 0
+			} else {
+				v1571 := (v1559 >= v673)
+				if v1571 {
+					v1567 = 0
+				} else {
+					v1567 = v1559
+				}
+			}
+			v1558[v1567] = v1559
+			continue
+		}
+		v1582 := v1558
+		v1583 := v1555
+		var v1584 int = 1
+		for {
+			v1585 := (v1584 >= v673)
+			if v1585 {
+				break
+			}
+			v1591 := (v1584 >= 32768)
+			if v1591 {
+				break
+			}
+			v1596 := v1583
+			var v1597 int = 0
+			for {
+				v1598 := (v1597 >= v673)
+				if v1598 {
+					break
+				}
+				v1603 := (v1597 + v1584)
+				v1604 := (v673 < v1603)
+				var v1605 int
+				if v1604 {
+					v1605 = v673
+				} else {
+					v1605 = v1603
+				}
+				v1611 := (2 * v1584)
+				v1612 := (v1597 + v1611)
+				v1613 := (v673 < v1612)
+				var v1614 int
+				if v1613 {
+					v1614 = v673
+				} else {
+					v1614 = v1612
+				}
+				v1620 := v1596
+				var v1621 int = v1597
+				var v1622 int = v1605
+				var v1623 int = v1597
+				for ; ; v1623 = (v1623 + 1) {
+					v1624 := (v1623 >= v1614)
+					if v1624 {
+						break
+					}
+					v1629 := (v1621 >= v1605)
+					if v1629 {
+						v1633 := (v1623 < 0)
+						var v1634 int
+						if v1633 {
+							v1634 = 0
+						} else {
+							v1638 := (v1623 >= v673)
+							if v1638 {
+								v1634 = 0
+							} else {
+								v1634 = v1623
+							}
+						}
+						v1645 := (v1622 < 0)
+						var v1646 int
+						if v1645 {
+							v1646 = 0
+						} else {
+							v1650 := (v1622 >= v673)
+							if v1650 {
+								v1646 = 0
+							} else {
+								v1646 = v1622
+							}
+						}
+						v1656 := v1582[v1646]
+						v1620[v1634] = v1656
+						v1659 := (v1622 + 1)
+						v1622 = v1659
+						continue
+					}
+					v1664 := (v1622 >= v1614)
+					if v1664 {
+						v1668 := (v1623 < 0)
+						var v1669 int
+						if v1668 {
+							v1669 = 0
+						} else {
+							v1673 := (v1623 >= v673)
+							if v1673 {
+								v1669 = 0
+							} else {
+								v1669 = v1623
+							}
+						}
+						v1680 := (v1621 < 0)
+						var v1681 int
+						if v1680 {
+							v1681 = 0
+						} else {
+							v1685 := (v1621 >= v673)
+							if v1685 {
+								v1681 = 0
+							} else {
+								v1681 = v1621
+							}
+						}
+						v1691 := v1582[v1681]
+						v1620[v1669] = v1691
+						v1694 := (v1621 + 1)
+						v1621 = v1694
+						continue
+					}
+					v1701 := (v1622 < 0)
+					var v1702 int
+					if v1701 {
+						v1702 = 0
+					} else {
+						v1706 := (v1622 >= v673)
+						if v1706 {
+							v1702 = 0
+						} else {
+							v1702 = v1622
+						}
+					}
+					v1712 := v1582[v1702]
+					v1713 := (2 * v1712)
+					v1715 := (v1713 + 1)
+					v1716 := v945[v1715]
+					v1719 := (v1621 < 0)
+					var v1720 int
+					if v1719 {
+						v1720 = 0
+					} else {
+						v1724 := (v1621 >= v673)
+						if v1724 {
+							v1720 = 0
+						} else {
+							v1720 = v1621
+						}
+					}
+					v1730 := v1582[v1720]
+					v1731 := (2 * v1730)
+					v1733 := (v1731 + 1)
+					v1734 := v945[v1733]
+					v1735 := (v1716 > v1734)
+					if v1735 {
+						v1737 := (v1623 < 0)
+						var v1738 int
+						if v1737 {
+							v1738 = 0
+						} else {
+							v1742 := (v1623 >= v673)
+							if v1742 {
+								v1738 = 0
+							} else {
+								v1738 = v1623
+							}
+						}
+						v1749 := (v1622 < 0)
+						var v1750 int
+						if v1749 {
+							v1750 = 0
+						} else {
+							v1754 := (v1622 >= v673)
+							if v1754 {
+								v1750 = 0
+							} else {
+								v1750 = v1622
+							}
+						}
+						v1760 := v1582[v1750]
+						v1620[v1738] = v1760
+						v1763 := (v1622 + 1)
+						v1622 = v1763
+						continue
+					}
+					v1767 := (v1623 < 0)
+					var v1768 int
+					if v1767 {
+						v1768 = 0
+					} else {
+						v1772 := (v1623 >= v673)
+						if v1772 {
+							v1768 = 0
+						} else {
+							v1768 = v1623
+						}
+					}
+					v1779 := (v1621 < 0)
+					var v1780 int
+					if v1779 {
+						v1780 = 0
+					} else {
+						v1784 := (v1621 >= v673)
+						if v1784 {
+							v1780 = 0
+						} else {
+							v1780 = v1621
+						}
+					}
+					v1790 := v1582[v1780]
+					v1620[v1768] = v1790
+					v1793 := (v1621 + 1)
+					v1621 = v1793
+					continue
+				}
+				v1596, v1597 = v1620, v1614
+				continue
+			}
+			v1797 := (2 * v1584)
+			v1582, v1583, v1584 = v1596, v1582, v1797
+			continue
+		}
+		v1554 = v1582
+		v1552 = v1554
+		var v1801 int = 0
+		var v1802 int = 0
+		for ; ; v1802 = (v1802 + 1) {
+			v1803 := (v1802 >= v673)
+			if v1803 {
+				break
+			}
+			v1809 := (v1802 >= 20)
+			if v1809 {
+				break
+			}
+			v1812 := len(v101)
+			v1814 := (v1812 >> 1)
+			v1816 := (v1814 < 1)
+			if v1816 {
+				break
+			}
+			v1818 := (v1802 < 0)
+			var v1819 int
+			if v1818 {
+				v1819 = 0
+			} else {
+				v1823 := (v1802 >= v673)
+				if v1823 {
+					v1819 = 0
+				} else {
+					v1819 = v1802
+				}
+			}
+			v1829 := v1552[v1819]
+			v1832 := (2 * v1829)
+			v1834 := (v1832 + 1)
+			v1835 := v945[v1834]
+			var v1837 int = 1
+			var v1838 int = v1835
+			for ; ; v1837 = (v1837 + 1) {
+				v1840 := (v1838 < 10)
+				if v1840 {
+					break
+				}
+				v1844 := (v1837 >= 8)
+				if v1844 {
+					break
+				}
+				v1850 := (v1838 / 10)
+				v1838 = v1850
+				continue
+			}
+			v1853 := (2 * v1829)
+			v1854 := v945[v1853]
+			v1856 := (v1854 < 0)
+			var v1857 int
+			if v1856 {
+				v1857 = 0
+			} else {
+				v1861 := len(v101)
+				v1863 := (v1861 >> 1)
+				v1864 := (v1854 >= v1863)
+				if v1864 {
+					v1857 = 0
+				} else {
+					v1857 = v1854
+				}
+			}
+			v1869 := (2 * v1857)
+			v1871 := (v1869 + 1)
+			v1872 := int(v101[v1871])
+			v1874 := (2 * v1857)
+			v1875 := int(v101[v1874])
+			v1876 := (v1872 - v1875)
+			v1878 := (v1876 < 0)
+			var v1879 int
+			if v1878 {
+				v1879 = 0
+			} else {
+				v1884 := (v1876 >= 65536)
+				if v1884 {
+					v1879 = 0
+				} else {
+					v1879 = v1876
+				}
+			}
+			v1888 := (2 + v1879)
+			v1889 := (v1837 + v1888)
+			v1890 := (v1801 + v1889)
+			v1801 = v1890
+			continue
+		}
+		v1894 := make([]byte, v1801)
+		var v1893 []byte
+		v1898 := v1894
+		var v1899 int = 0
+		var v1900 int = 0
+		for ; ; v1900 = (v1900 + 1) {
+			v1901 := (v1900 >= v673)
+			if v1901 {
+				break
+			}
+			v1907 := (v1900 >= 20)
+			if v1907 {
+				break
+			}
+			v1910 := len(v101)
+			v1912 := (v1910 >> 1)
+			v1914 := (v1912 < 1)
+			if v1914 {
+				break
+			}
+			v1916 := (v1900 < 0)
+			var v1917 int
+			if v1916 {
+				v1917 = 0
+			} else {
+				v1921 := (v1900 >= v673)
+				if v1921 {
+					v1917 = 0
+				} else {
+					v1917 = v1900
+				}
+			}
+			v1927 := v1552[v1917]
+			v1929 := (2 * v1927)
+			v1931 := (v1929 + 1)
+			v1932 := v945[v1931]
+			v1934 := (2 * v1927)
+			v1935 := v945[v1934]
+			v1937 := (v1935 < 0)
+			var v1938 int
+			if v1937 {
+				v1938 = 0
+			} else {
+				v1942 := len(v101)
+				v1944 := (v1942 >> 1)
+				v1945 := (v1935 >= v1944)
+				if v1945 {
+					v1938 = 0
+				} else {
+					v1938 = v1935
+				}
+			}
+			var v1952 int = 1
+			var v1953 int = 1
+			for ; ; v1953 = (v1953 + 1) {
+				var v1956 int = 1
+				var v1957 int = v1932
+				for ; ; v1956 = (v1956 + 1) {
+					v1959 := (v1957 < 10)
+					if v1959 {
+						break
+					}
+					v1963 := (v1956 >= 8)
+					if v1963 {
+						break
+					}
+					v1969 := (v1957 / 10)
+					v1957 = v1969
+					continue
+				}
+				v1970 := (v1953 >= v1956)
+				if v1970 {
+					break
+				}
+				v1974 := (v1953 >= 8)
+				if v1974 {
+					break
+				}
+				v1978 := (v1952 >= 100000000)
+				if v1978 {
+					break
+				}
+				v1982 := (v1952 * 10)
+				v1952 = v1982
+				continue
+			}
+			v1986 := v1898
+			var v1987 int = v1899
+			var v1988 int = v1952
+			var v1989 int = v1932
+			for {
+				v1991 := (v1988 < 1)
+				if v1991 {
+					break
+				}
+				v1995 := (v1987 < 0)
+				var v1996 int
+				if v1995 {
+					v1996 = 0
+				} else {
+					v2000 := (v1987 >= v1801)
+					if v2000 {
+						v1996 = 0
+					} else {
+						v1996 = v1987
+					}
+				}
+				v2007 := (v1989 / v1988)
+				v2009 := (v2007 % 10)
+				v2010 := (48 + v2009)
+				v1986[v1996] = byte(v2010)
+				v2013 := (v1987 + 1)
+				v2015 := (v2013 < 0)
+				var v2016 int
+				if v2015 {
+					v2016 = 0
+				} else {
+					v2020 := (v2013 >= v1801)
+					if v2020 {
+						v2016 = 0
+					} else {
+						v2016 = v2013
+					}
+				}
+				v2027 := (v1988 / 10)
+				v1987, v1988 = v2016, v2027
+				continue
+			}
+			var v2030 int = 1
+			var v2031 int = v1932
+			for ; ; v2030 = (v2030 + 1) {
+				v2033 := (v2031 < 10)
+				if v2033 {
+					break
+				}
+				v2037 := (v2030 >= 8)
+				if v2037 {
+					break
+				}
+				v2043 := (v2031 / 10)
+				v2031 = v2043
+				continue
+			}
+			v2044 := (v1899 + v2030)
+			v2046 := (v2044 < 0)
+			var v2047 int
+			if v2046 {
+				v2047 = 0
+			} else {
+				v2051 := (v2044 >= v1801)
+				if v2051 {
+					v2047 = 0
+				} else {
+					v2047 = v2044
+				}
+			}
+			v1986[v2047] = byte(32)
+			var v2061 int = 1
+			var v2062 int = v1932
+			for ; ; v2061 = (v2061 + 1) {
+				v2064 := (v2062 < 10)
+				if v2064 {
+					break
+				}
+				v2068 := (v2061 >= 8)
+				if v2068 {
+					break
+				}
+				v2074 := (v2062 / 10)
+				v2062 = v2074
+				continue
+			}
+			v2076 := (v2061 + 1)
+			v2077 := (v1899 + v2076)
+			v2080 := v1986
+			var v2081 int = v2077
+			var v2082 int = 0
+			for ; ; v2082 = (v2082 + 1) {
+				v2084 := (2 * v1938)
+				v2086 := (v2084 + 1)
+				v2087 := int(v101[v2086])
+				v2089 := (2 * v1938)
+				v2090 := int(v101[v2089])
+				v2091 := (v2087 - v2090)
+				v2093 := (v2091 < 0)
+				var v2094 int
+				if v2093 {
+					v2094 = 0
+				} else {
+					v2099 := (v2091 >= 65536)
+					if v2099 {
+						v2094 = 0
+					} else {
+						v2094 = v2091
+					}
+				}
+				v2103 := (v2082 >= v2094)
+				if v2103 {
+					break
+				}
+				v2107 := (v2081 < 0)
+				var v2108 int
+				if v2107 {
+					v2108 = 0
+				} else {
+					v2112 := (v2081 >= v1801)
+					if v2112 {
+						v2108 = 0
+					} else {
+						v2108 = v2081
+					}
+				}
+				v2119 := (2 * v1938)
+				v2120 := int(v101[v2119])
+				v2121 := (v2120 + v2082)
+				v2123 := (v2121 < 0)
+				var v2124 int
+				if v2123 {
+					v2124 = 0
+				} else {
+					v2128 := len(v10)
+					v2129 := (v2121 >= v2128)
+					if v2129 {
+						v2124 = 0
+					} else {
+						v2124 = v2121
+					}
+				}
+				v2135 := int(v10[v2124])
+				v2080[v2108] = byte(v2135)
+				v2138 := (v2081 + 1)
+				v2140 := (v2138 < 0)
+				var v2141 int
+				if v2140 {
+					v2141 = 0
+				} else {
+					v2145 := (v2138 >= v1801)
+					if v2145 {
+						v2141 = 0
+					} else {
+						v2141 = v2138
+					}
+				}
+				v2081 = v2141
+				continue
+			}
+			v2155 := (2 * v1927)
+			v2157 := (v2155 + 1)
+			v2158 := v945[v2157]
+			var v2160 int = 1
+			var v2161 int = v2158
+			for ; ; v2160 = (v2160 + 1) {
+				v2163 := (v2161 < 10)
+				if v2163 {
+					break
+				}
+				v2167 := (v2160 >= 8)
+				if v2167 {
+					break
+				}
+				v2173 := (v2161 / 10)
+				v2161 = v2173
+				continue
+			}
+			v2176 := (2 * v1927)
+			v2177 := v945[v2176]
+			v2179 := (v2177 < 0)
+			var v2180 int
+			if v2179 {
+				v2180 = 0
+			} else {
+				v2184 := len(v101)
+				v2186 := (v2184 >> 1)
+				v2187 := (v2177 >= v2186)
+				if v2187 {
+					v2180 = 0
+				} else {
+					v2180 = v2177
+				}
+			}
+			v2192 := (2 * v2180)
+			v2194 := (v2192 + 1)
+			v2195 := int(v101[v2194])
+			v2197 := (2 * v2180)
+			v2198 := int(v101[v2197])
+			v2199 := (v2195 - v2198)
+			v2201 := (v2199 < 0)
+			var v2202 int
+			if v2201 {
+				v2202 = 0
+			} else {
+				v2207 := (v2199 >= 65536)
+				if v2207 {
+					v2202 = 0
+				} else {
+					v2202 = v2199
+				}
+			}
+			v2211 := (2 + v2202)
+			v2212 := (v2160 + v2211)
+			v2214 := (v2212 - 1)
+			v2215 := (v1899 + v2214)
+			v2217 := (v2215 < 0)
+			var v2218 int
+			if v2217 {
+				v2218 = 0
+			} else {
+				v2222 := (v2215 >= v1801)
+				if v2222 {
+					v2218 = 0
+				} else {
+					v2218 = v2215
+				}
+			}
+			v2080[v2218] = byte(10)
+			v2232 := (2 * v1927)
+			v2234 := (v2232 + 1)
+			v2235 := v945[v2234]
+			var v2237 int = 1
+			var v2238 int = v2235
+			for ; ; v2237 = (v2237 + 1) {
+				v2240 := (v2238 < 10)
+				if v2240 {
+					break
+				}
+				v2244 := (v2237 >= 8)
+				if v2244 {
+					break
+				}
+				v2250 := (v2238 / 10)
+				v2238 = v2250
+				continue
+			}
+			v2253 := (2 * v1927)
+			v2254 := v945[v2253]
+			v2256 := (v2254 < 0)
+			var v2257 int
+			if v2256 {
+				v2257 = 0
+			} else {
+				v2261 := len(v101)
+				v2263 := (v2261 >> 1)
+				v2264 := (v2254 >= v2263)
+				if v2264 {
+					v2257 = 0
+				} else {
+					v2257 = v2254
+				}
+			}
+			v2269 := (2 * v2257)
+			v2271 := (v2269 + 1)
+			v2272 := int(v101[v2271])
+			v2274 := (2 * v2257)
+			v2275 := int(v101[v2274])
+			v2276 := (v2272 - v2275)
+			v2278 := (v2276 < 0)
+			var v2279 int
+			if v2278 {
+				v2279 = 0
+			} else {
+				v2284 := (v2276 >= 65536)
+				if v2284 {
+					v2279 = 0
+				} else {
+					v2279 = v2276
+				}
+			}
+			v2288 := (2 + v2279)
+			v2289 := (v2237 + v2288)
+			v2290 := (v1899 + v2289)
+			v1898, v1899 = v2080, v2290
+			continue
+		}
+		v1893 = v1898
+		v2293 := (func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, "\uFFFD"...) }; i = j }; return string(b) }(string(v1893)))
+		fmt.Print(v2293)
+		return v2293
+	}
+	fmt.Println("freq: cannot read that file")
+	return "freq: cannot read that file"
 }
 

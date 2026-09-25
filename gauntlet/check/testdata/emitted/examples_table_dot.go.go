@@ -2,18 +2,24 @@
 
 package gauntlet
 
-func GenDot(a []float64, b []float64) float64 {
-	acc := 0.0
-	var i int = 0
-	var n1 int = len(a)
-	s2 := b[:n1]
-	for ; ; i = (i + 1) {
-		if (i >= len(a)) {
+func GenDot(v0 []float64, v1 []float64) float64 {
+	v16 := len(v0)
+	v17 := v1[:v16]
+	var v19 float64 = 0.0
+	var v20 int = 0
+	for ; ; v20 = (v20 + 1) {
+		v21 := len(v0)
+		v22 := (v20 >= v21)
+		if v22 {
 			break
 		}
-		acc = (acc + (a[i] * s2[i]))
+		v27 := v0[v20]
+		v28 := v17[v20]
+		v29 := (v27 * v28)
+		v30 := (v19 + v29)
+		v19 = v30
 		continue
 	}
-	return acc
+	return v19
 }
 

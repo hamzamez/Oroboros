@@ -348,8 +348,11 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 				u.unify(node[s.Res[0]], u.mk("table", e))
 			case OThe:
 				eq(s.Res[0], s.Args[0])
-			case ORequire:
+			case ORequire, OAssume:
 				is(s.Args[0], "bool")
+			case ORestrict:
+				eq(s.Res[0], s.Args[0])
+				is(s.Args[1], "int")
 			}
 		}
 	})

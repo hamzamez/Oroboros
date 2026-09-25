@@ -18,3 +18,21 @@ func CmpOp(name string) string {
 	}
 	return ""
 }
+
+// IsLengthName reports whether a primitive named `name` is a length: the
+// language's `len`, a primitive of kind "len", or a target's spelling of one
+// (`go.len`), exactly as isLength decides it.
+func (tg *Target) IsLengthName(name string) bool {
+	if name == "len" {
+		return true
+	}
+	if p, ok := tg.Prims[name]; ok && p.Kind == "len" {
+		return true
+	}
+	return isOp(name, "alen") || isOp(name, "slen")
+}
+
+// HostType is the host's spelling of a language type on this target: `int64`,
+// `[]int16`, `map[int64]string`. It is the one table every printer reads, and it
+// is exported for the same prototype.
+func (tg *Target) HostType(name string) string { return tg.ty(name) }

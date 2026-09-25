@@ -82,7 +82,7 @@ type guard struct {
 // narrow by renaming X.
 func (l *lowerer) lenOf(t *core.Term) (*core.Term, bool) {
 	if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && t.Kids[1].Kind == core.KBound {
-		if p, ok := l.prim(t.Kids[0].Name); ok && p.Kind == "len" {
+		if l.tg.IsLengthName(t.Kids[0].Name) {
 			return t.Kids[1], true
 		}
 	}

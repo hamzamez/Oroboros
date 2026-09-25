@@ -371,6 +371,25 @@ on C2 with π-parameters.
 - **C2's iteration order is its syntax**, which is evidence for C2 on the analysis side. P2 decides
   the printing side.
 
+**P2, done** ([irp2-2026-09-25](../gauntlet/results/irp2-2026-09-25.md)): a Go printer for C2.
+- **Parity:** every gauntlet program is at parity with hand-written Go and within ±2% of today's
+  backend, and allocation matches.
+- **The multi-exit criterion does not arise.** A non-loop region's leaves are yields, a loop's are
+  Go's `break` and `continue`, and no printed file has a label or a `goto`.
+- **The measured decisions are rules on regions:** soleExit, PostVars, bounds-check re-slicing, and
+  table widths by unification over values (LoopOneJoin's rule).
+- **One decision surfaced under measurement:** a connective printed as a boolean join instead of
+  `||` moves the tokeniser and the tree by ±5% in opposite directions. That is below the noise floor,
+  so the printer keeps the operator, as today's backend does.
+- **Size:** 1,104 lines, of which 383 (types, widths, liveness) belong in the IR, which leaves a
+  printer of about 700 lines. Printing takes 74–84 ms on `freq`, where today's emission stage takes
+  2.8 s.
+- **Found:** `go.len` was not recognised as a length by P3's lowering (fixed; P3's counts did not
+  move), and the committed `gen_*.go` files are stale.
+
+**C2 survives all three prototypes.** The next step is the specification: ADR 0006's format as C2,
+and ADR 0032.
+
 ---
 
 ## 12. What this document does not decide

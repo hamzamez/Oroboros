@@ -54,6 +54,9 @@ func main() {
 	reps := flag.Int("reps", 20, "repetitions of the lowering, for a stable time")
 	memprofile := flag.String("memprofile", "", "write an allocation profile of today's pipeline to FILE")
 	verbose := flag.Bool("v", false, "list the operations each analysis leaves unproven")
+	printName := flag.String("print", "", "P2: print a Go file with this name prefix instead of measuring")
+	out := flag.String("o", "", "P2: the file to print into (stdout if empty)")
+	pkg := flag.String("pkg", "gauntlet", "P2: the printed file's package")
 	flag.Parse()
 	if flag.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "usage: irproto [-target T] SRC.oro")
@@ -64,6 +67,34 @@ func main() {
 		runtime.MemProfileRate = 64 * 1024
 	}
 	residuals, sigs, tg := pipeline(src, *target)
+	if *printName != "" {
+		t0 := time.Now()
+		imps := map[string]bool{}
+		var funcs []string
+		for i, rt := range residuals {
+			fn, l := Lower(tg, rt)
+			if l.opaque > 0 {
+				fmt.Fprintf(os.Stderr, "irproto: %s: %d opaque terms\n", pipeNames[i], l.opaque)
+				os.Exit(1)
+			}
+			sp := Analyse(tg, fn, sigs[i])
+			f, err := PrintGo(tg, *printName+"-"+pipeNames[i], sigs[i], fn, sp, imps)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "irproto: %s: %v\n", pipeNames[i], err)
+				os.Exit(1)
+			}
+			funcs = append(funcs, f)
+		}
+		fmt.Fprintf(os.Stderr, "lower + analyse + print: %s; emission today: %s\n", time.Since(t0).Round(time.Microsecond), stages["emission ("+*target+")"].d.Round(time.Microsecond))
+		text := FileGo(*pkg, funcs, imps)
+		if *out == "" {
+			fmt.Print(text)
+		} else if err := os.WriteFile(*out, []byte(text), 0o644); err != nil {
+			fmt.Fprintln(os.Stderr, "irproto:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if *memprofile != "" {
 		f, err := os.Create(*memprofile)
 		if err == nil {
@@ -276,6 +307,7 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 		})
 		out = append(out, nf)
 		sigsOut = append(sigsOut, sig)
+		pipeNames = append(pipeNames, q[strings.LastIndex(q, ".")+1:])
 		measure("emission ("+target+")", func() {
 			switch target {
 			case "go":
@@ -294,6 +326,9 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 	}
 	return out, sigsOut, tg
 }
+
+// pipeNames are the exports' short names, in the order pipeline returns them.
+var pipeNames []string
 
 func fileResolver(dirs []string) core.Resolver {
 	return func(path string) (string, bool, error) {

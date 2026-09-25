@@ -414,7 +414,7 @@ func (a *Sparse) assumeWhere(w *core.Term, sig *core.Sig, fn *Func) {
 		}
 		if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[0].Kind == core.KName && emit.ArithOp(t.Kids[0].Name, 1) == "" &&
 			t.Kids[1].Kind == core.KName {
-			if p, ok := a.tg.Prims[t.Kids[0].Name]; ok && p.Kind == "len" {
+			if a.tg.IsLengthName(t.Kids[0].Name) {
 				for i, sp := range sig.Params {
 					if sp.Name == t.Kids[1].Name {
 						return i, true, true
@@ -656,7 +656,11 @@ func (a *Sparse) prim(op *Op) {
 		a.set(res, fs)
 		return
 	}
-	switch p.Kind {
+	kind := p.Kind
+	if a.tg.IsLengthName(op.Name) {
+		kind = "len"
+	}
+	switch kind {
 	case "len":
 		out := fact{v: rangeIV(0, a.maxLen)}
 		if len(args) == 1 && args[0].hasLn {

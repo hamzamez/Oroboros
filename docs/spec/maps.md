@@ -103,11 +103,14 @@ is refused.
 ### 3.3 The buffer — `build-map`
 
 ```
-(build-map cap (fn (m) body))     ; a mutable map, scoped. Returns an immutable map.
+(build-map m cap body)            ; a mutable map m, scoped. Returns an immutable map.
 (insert m k v)                    ; consumes m, returns m
 ```
 
-Identical in discipline to `(build n (fn (b) …))` and for the reason arrays-revisited.md §6 derives:
+`(build-map m cap body)` is sugar for the core form `(build-map cap (fn (m) body))`, n-ary and
+sequential, by the law of [tables.md §2.4](tables.md): a scoped buffer's λ is a binder.
+
+Identical in discipline to `(build b n …)` and for the reason arrays-revisited.md §6 derives:
 **the discipline is about aliasing, and aliasing does not care what the index set is.** So:
 
 - a **frozen map** is an immutable value; `(map K V)` reads are **pure**;
@@ -215,7 +218,7 @@ That is named here and not answered.
 ## 6. Capacity, and why all four targets agree because of it
 
 ```
-(build-map cap (fn (m) …))
+(build-map m cap …)
 ```
 
 **A map buffer has a declared capacity.** Inserting beyond it is a condition the program must handle,

@@ -120,7 +120,8 @@ why `DOMAIN` is primitive in TLA+.
 (array e₀ e₁ … eₙ₋₁)      ; a graph. n is static.
 (table n (fn (i) e))      ; a rule. n may be dynamic. NO MEMORY.
 (alloc t)                 ; the same table, in memory. GATHER — pure, parallel by construction.
-(build n (fn (b) …))      ; a scoped mutable buffer. SCATTER — sequential. Returns a table.
+(build b n …)             ; a scoped mutable buffer b of n elements. SCATTER — sequential.
+                          ;   Sugar for the core form (build n (fn (b) …)), §2.4.
 (set b i v)               ; a store. Consumes b, returns b.
 (len t)                   ; the domain bound
 (t i)                     ; the element at i — APPLICATION
@@ -227,6 +228,93 @@ counter be held in the host's own `int` rather than a `long`
 `N` must not exceed 2⁵³−1, and declaring more is an **error**: a length the target cannot count
 exactly is not a length. Declaring nothing is the common case and means "no tighter than the
 language's own bound".
+
+### 2.4 `build` is a binder, and it is written as one
+
+Specified 2026-09-25 ([buildbind-2026-09-25](../../gauntlet/results/buildbind-2026-09-25.md)).
+
+```
+(build b n body)                          ≡  (build n (fn (b) body))
+(build b₁ n₁  b₂ n₂  …  bₖ nₖ  body)        ≡  (build n₁ (fn (b₁) (build b₂ n₂ … bₖ nₖ body)))     k ≥ 2
+```
+
+The right-hand sides are the **core form**, and the left-hand sides erase to them in the reader, the
+way `let` does ([binding.md §1](binding.md)). Nothing below the reader knows the binder form exists.
+
+**What the λ in the core form is.** It is not a function value. §14.1 accepts a λ only in a position a
+backend consumes structurally, so this one can never be passed, stored, or applied twice. It is a
+*binding occurrence* written as a λ: higher-order abstract syntax, where the object language's binder
+is represented by the metalanguage's λ (Pfenning & Elliott, *Higher-order abstract syntax*, PLDI
+1988). `let` made the same move in the other direction. `(let x e b)` is `((fn (x) b) e)`, and the
+source writes the binding and not the redex. The binder form does the same for `build`.
+
+**The laws, each a consequence of the equation:**
+
+1. **It costs nothing.** The equation is a syntactic identity, and it respects α-equivalence, because
+   `bᵢ` is bound by exactly the λ it names. The reducer, the checker, the analyses and every backend
+   see the terms they saw before. Emission is byte-identical by construction. That was checked by
+   respelling all 67 scoped-buffer forms: 56 `build`s and 4 `build-map`s in programs, and 7 in the
+   compiler's own `.oro`. `cmd/check` is byte-identical.
+2. **Scoping is sequential**, `let*`'s rule: `nᵢ` is in the scope of `b₁ … bᵢ₋₁`. So
+   `(build a n  b (len a)  …)` is legal. The n-ary form is the right fold of the unary one, and it is
+   n-ary for binding.md §4's reason: nesting binders is associative.
+3. **Several buffers are one region, not an approximation of nesting.** Nested scopes that end at the
+   same point have equal lifetimes. So the flat form is equal to the nested one: a Tofte–Talpin
+   `letregion` holding k objects (Tofte & Talpin, *Region-based memory management*, 1997). In the
+   monoidal reading the scope holds `Buf_{n₁} V₁ ⊗ … ⊗ Buf_{nₖ} Vₖ`, and linearity is checked per
+   buffer, by the unchanged walk (ADR 0018). An inner scope may return an outer buffer. The walk treats
+   that as a move, so a later read or store through the old name is refused (probed 2026-09-25).
+4. **The value is the body's value.** When the body returns one of the scope's buffers, the result is
+   that buffer frozen, and the others are dropped. The discipline is affine at the end of a scope, and
+   reclamation belongs to the target (ADR 0018). Which results are legal beyond one buffer is
+   [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md) (§14.1).
+
+**Grammar**, discriminated by arity as `def` is:
+
+| elements after `build` | reading |
+|---|---|
+| 2 | the core form `(build n f)`; `f` is `(fn (b) …)` or reduces to one |
+| odd, ≥ 3 | the binder form. The `bᵢ` are **one parameter list**, under the rule a λ's obeys: simple, unqualified names, **no name twice**. The buffers are one region, alive together (law 3), so a repeated name would hide the first buffer, which is `(fn (x x) …)` |
+| even, ≥ 4 | refused: *NAME SIZE pairs and ONE body* |
+| 1 | not a program form. `(build "go build …")` is the target file's directive (§2.2) |
+
+A binder form with no pair, `(build body)`, would be the body itself, as `(let b)` is. It is not
+provided, because its arity is the target directive's and a scope with no buffer is not a scope.
+
+**The core form stays legal.** It is what the residual prints (`cmd/oro`) and what every backend
+consumes, and it is how a named filler `(build n fill)` is written. The corpus has no named filler:
+all 56 `build`s wrote the λ. So the binder form is the canonical spelling, and every program and
+document in this repository uses it.
+
+**`build-map` obeys the same law** ([maps.md §3.3](maps.md)):
+`(build-map m cap body) ≡ (build-map cap (fn (m) body))`, n-ary likewise. The two are one construct
+at two index sets (arrays-revisited.md §6), so they have one surface.
+
+**Why `build` and not `buffer`.** hamza asked whether `(buffer b n body)` would read better.
+1. **The form's value is a table, not a buffer.** The language names an introduction form after what
+   it produces: `(array …)`, `(tuple …)`, `(map …)` and `(table …)`. A buffer never leaves its scope.
+   `build` names the act (§2.2): a table built by writing into it.
+2. **`(buffer V)` is already a type** (ADR 0020), and the reader is context-free. It reads a type as
+   a term: a tuple type arrives as the tuple's term (respell-2026-09-15). `array` is a harmless pun,
+   because `(array 1 2 3)` is a value of type `(array int)`. A `buffer` term meaning a scope, beside a
+   `buffer` type meaning a value, would be a pun whose two readings disagree.
+3. The binder form already reads as a declaration: `(build b n …)` is "b, of n, in …", Go's
+   `b := make([]T, n)`.
+
+**Layout**, as a `let` aligns its names:
+
+```lisp
+(build sp nw
+  (loop ((sp sp) (i 0))
+    …))
+
+(build a n
+       b n
+  (loop ((a (iota a n)) (b b) (w 1))
+    …))
+```
+
+A tool that respells `build` preserves every comment or refuses the edit (comments.md).
 
 ---
 
@@ -639,7 +727,7 @@ q5b stands, and it is the container-morphism theorem.
 ## 9. The memory model — decided
 
 > **[ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), 2026-08-21.** Values are
-> immutable; mutation exists only inside `(build n (fn (b) …))`, whose buffer is **linear** and is
+> immutable; mutation exists only inside `(build b n …)`, whose buffer is **linear** and is
 > frozen on the way out. `(array V)` reads are pure; `(buffer V)` reads are impure. The linearity
 > check is `occurrences` on the residual, **not a type** — uniqueness never enters a signature.
 >
@@ -870,14 +958,24 @@ written into the ADR's triggers.
 position is allowed, so what stops this?
 
 ```lisp
-(build n (fn (b) (table m (fn (i) (b i)))))     ; a rule capturing the buffer
+(build b n (table m (fn (i) (b i))))     ; a rule capturing the buffer
 ```
 
 The rule is a lambda in a structural position, and the table it makes would outlive the buffer.
 Two things stop it, and both are needed:
 
-1. **`build`'s continuation must return the buffer** — its type is
-   `int → (buffer V → buffer V) → array V` — so a body whose value is a `table` is a type error.
+1. **A rule-table never leaves a `build`.** This section used to say the continuation's type,
+   `int → (buffer V → buffer V) → array V`, made such a body a type error. **No check enforced that
+   type** (probed 2026-09-25, [buildbind-2026-09-25](../../gauntlet/results/buildbind-2026-09-25.md)):
+   - a `build`'s value is its body's value, and a body returning an `int` is accepted on all four
+     targets. That is sound, because the buffer is dropped;
+   - the rule above is refused, but by a different rule: *a rule-table has no memory*. No clause of β
+     pushes an index into a `build`, so the rule reaches a backend unforced.
+   - forcing it with `alloc` reads the buffer inside the scope, which is the legal use below.
+
+   So the escape is prevented, but not by the mechanism this section named. Which results a `build`
+   may have, and the check that states it, are
+   [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md).
 2. **A lambda capturing the buffer cannot be stored or returned anywhere else**, because closures
    are refused as values.
 
@@ -909,16 +1007,16 @@ is most of the time.
 **O(1), inside a scope:**
 
 ```lisp
-(build (len a) (fn (b) (set (copy-from b a) i v)))
+(build b (len a) (set (copy-from b a) i v))
 ```
 
 still O(n) because of the copy-in — but *repeated* updates batch:
 
 ```lisp
-(build (len a) (fn (b)
+(build b (len a)
   (loop ((b (copy-from b a)) (k 0))
     (>= k (len updates))  b
-    else                  (again (set b (index-of updates k) (value-of updates k)) (+ k 1)))))
+    else                  (again (set b (index-of updates k) (value-of updates k)) (+ k 1))))
 ```
 
 one copy, m stores. That is exactly Haskell: `arr // [(i,v)]` on `Data.Array` is O(n), `writeArray`
@@ -934,7 +1032,7 @@ an optimisation with no source-level guarantee is a cliff you cannot see.
 
 ### 14.3 A `build` buffer is ZERO-FILLED
 
-`(build n (fn (b) …))` hands the body a buffer of `n` elements, every one of them **zero** — `0`
+`(build b n …)` hands the body a buffer of `n` elements, every one of them **zero** — `0`
 for an integer, `0.0` for a float, `false` for a boolean.
 
 This was true on all four targets from the day `build` was written, by four different mechanisms —
@@ -999,11 +1097,11 @@ is not a growable array; it is a linked list wearing one.
 ;; filter, in two passes — count, then scatter. The parallel-array idiom.
 (def filter (fn (p a)
   (let n (count-matching p a)
-    (build n (fn (b)
+    (build b n
       (loop ((b b) (i 0) (k 0))
         (>= i (len a))  b
         (p (a i))       (again (set b k (a i)) (+ i 1) (+ k 1))
-        else            (again b (+ i 1) k)))))))
+        else            (again b (+ i 1) k))))))
 ```
 
 Two passes over the input, one allocation of the exact size, no growth. This is how Futhark, ISPC

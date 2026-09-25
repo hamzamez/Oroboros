@@ -130,6 +130,19 @@ is why merging `seq` into `let` would be a loss: it would make the discarded bin
 `(seq a)` is refused. Unlike `let`'s empty case there is no identity to appeal to: `seq` sequences two
 or more terms, and a `seq` of one is the term.
 
+## 6b. `build` and `build-map` bind the same way
+
+```lisp
+(build b n  c m  body)      ⟶   (build n (fn (b) (build m (fn (c) body))))
+(build-map m cap  body)     ⟶   (build-map cap (fn (m) body))
+```
+
+A scoped buffer's λ is a binding occurrence, never a function value, so the source writes it as a
+binding: name, then what it binds, then one body, n-ary and sequential, exactly §2–§4. Unlike `let`,
+the right-hand side is not β's redex. It is the core form the backends consume, so the reader stops at
+that form and does not go further. The specification is [tables.md §2.4](tables.md). What a `build`
+may return is [ADR 0031](../decisions/0031-a-builds-result-is-a-product.md).
+
 ## 7. Edge cases, and what each says
 
 | written | why | answer |

@@ -586,8 +586,14 @@ The report also says:
 
 A refusal names each unproven operation by its source application (`Stmt.Src`, provenance kept in
 memory, spelled with the binders' names) and its interval, in program order. The decision runs on the
-term the backend prints, after the shift selection, and the step to IR_P reuses its facts unless a
-restriction was written since.
+term as written, and the step to IR_P reuses its facts unless a restriction was written since.
+
+Two more readings of the same facts follow the decision:
+- **an export's postcondition** (`CheckEnsures`). Its constant bounds denote a set S, and the join R of
+  the function's yields must satisfy R ⊆ S. A postcondition outside that fragment is refused;
+- **the shift selection** (`SelectShifts`). For a dividend in [0, 2ʷ) within the word,
+  x div 2ᵏ = x >> k and x rem 2ᵏ = x & (2ᵏ − 1), where w is the target's shift width. The rewrite leaves
+  every fact valid.
 
 ### 7.3 Termination (`ir/sct.go`)
 

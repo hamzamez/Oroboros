@@ -467,7 +467,7 @@ export function genMain() {
 			if ((v1802 >= 20)) {
 				break;
 			}
-			if ((((Math.trunc(v101.length / 2) + 0)) < 1)) {
+			if (((v101.length >> 1) < 1)) {
 				break;
 			}
 			const v1829 = v1552[((v1802 < 0) ? 0 : ((v1802 >= v673) ? 0 : v1802))];
@@ -484,7 +484,7 @@ export function genMain() {
 				continue;
 			}
 			const v1854 = v945[(2 * v1829)];
-			const v1857 = ((v1854 < 0) ? 0 : ((v1854 >= ((Math.trunc(v101.length / 2) + 0))) ? 0 : v1854));
+			const v1857 = ((v1854 < 0) ? 0 : ((v1854 >= (v101.length >> 1)) ? 0 : v1854));
 			const v1876 = (v101[((2 * v1857) + 1)] - v101[(2 * v1857)]);
 			v1801 = (v1801 + (v1837 + (2 + ((v1876 < 0) ? 0 : ((v1876 >= 65536) ? 0 : v1876)))));
 			continue;
@@ -501,13 +501,13 @@ export function genMain() {
 			if ((v1900 >= 20)) {
 				break;
 			}
-			if ((((Math.trunc(v101.length / 2) + 0)) < 1)) {
+			if (((v101.length >> 1) < 1)) {
 				break;
 			}
 			const v1927 = v1552[((v1900 < 0) ? 0 : ((v1900 >= v673) ? 0 : v1900))];
 			const v1932 = v945[((2 * v1927) + 1)];
 			const v1935 = v945[(2 * v1927)];
-			const v1938 = ((v1935 < 0) ? 0 : ((v1935 >= ((Math.trunc(v101.length / 2) + 0))) ? 0 : v1935));
+			const v1938 = ((v1935 < 0) ? 0 : ((v1935 >= (v101.length >> 1)) ? 0 : v1935));
 			let v1952 = 1;
 			let v1953 = 1;
 			for (;; v1953 = (v1953 + 1)) {
@@ -602,7 +602,7 @@ export function genMain() {
 				continue;
 			}
 			const v2177 = v945[(2 * v1927)];
-			const v2180 = ((v2177 < 0) ? 0 : ((v2177 >= ((Math.trunc(v101.length / 2) + 0))) ? 0 : v2177));
+			const v2180 = ((v2177 < 0) ? 0 : ((v2177 >= (v101.length >> 1)) ? 0 : v2177));
 			const v2199 = (v101[((2 * v2180) + 1)] - v101[(2 * v2180)]);
 			const v2215 = (v1899 + ((v2160 + (2 + ((v2199 < 0) ? 0 : ((v2199 >= 65536) ? 0 : v2199)))) - 1));
 			v2080[((v2215 < 0) ? 0 : ((v2215 >= v1801) ? 0 : v2215))] = 10;
@@ -619,7 +619,7 @@ export function genMain() {
 				continue;
 			}
 			const v2254 = v945[(2 * v1927)];
-			const v2257 = ((v2254 < 0) ? 0 : ((v2254 >= ((Math.trunc(v101.length / 2) + 0))) ? 0 : v2254));
+			const v2257 = ((v2254 < 0) ? 0 : ((v2254 >= (v101.length >> 1)) ? 0 : v2254));
 			const v2276 = (v101[((2 * v2257) + 1)] - v101[(2 * v2257)]);
 			v1898 = v2080;
 			v1899 = (v1899 + (v2237 + (2 + ((v2276 < 0) ? 0 : ((v2276 >= 65536) ? 0 : v2276)))));

@@ -364,16 +364,9 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case (p.Kind == "table-build" || p.Kind == "map-build") && len(args) == 2 && args[1].Kind == core.KFn:
 		n := l.value(args[0], r)[0]
 		body := &Region{Params: l.freshN(1)}
-		// A BUILD'S ELEMENT RANGE is what the interval analysis proves of its
-		// stores, joined with the zero fill, on the build's own λ: the fact
-		// Theorem D′ joins over the build's class (Finalize). The analyses still
-		// run on terms (ADR 0032's step 4 moves them); their conclusion is
-		// written into the IR here, where the λ is in hand.
-		if p.Kind == "table-build" && l.opt.Decided {
-			if rng, ok := emit.BufferRange(l.tg, args[1], l.sig, l.top); ok {
-				l.decl[body.Params[0]] = "buffer " + rng
-			}
-		}
+		// A BUILD'S ELEMENT RANGE is the IR's own class hull (Finalize, Theorem
+		// D′): its stores and its zero fill, with the loop theorems' bounds.
+		// The term analysis's answer, once written here, is no longer asked.
 		l.push(body.Params, args[1].Params)
 		l.tail(args[1].Closed(), body, false)
 		l.pop()

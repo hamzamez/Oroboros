@@ -3,6 +3,7 @@ package ir
 import (
 	"fmt"
 
+	"oroboros/core"
 	"oroboros/emit"
 )
 
@@ -221,4 +222,71 @@ func cloneRegion(r *Region) *Region {
 	}
 	out.Then, out.Else = cloneRegion(r.Then), cloneRegion(r.Else)
 	return &out
+}
+
+// CheckEnsures decides an exported definition's POSTCONDITION against its body
+// (postconditions.md §2): the caller is outside the program, so the body is
+// the only evidence. The postcondition's constant bounds denote a set S
+// (emit.EnsuresBounds); the body's result fact R is the join of the values the
+// function yields, from the decision's facts (Decide runs first). The
+// obligation is discharged iff R ⊆ S.
+//
+// A postcondition outside that fragment is REFUSED, not noted: an obligation
+// is discharged or the program is refused (refinements.md §3a). The term
+// analysis passed such a claim with "propagated and not proven", which is the
+// shape that rule removed everywhere else.
+func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
+	if sig == nil || sig.Ensures == nil {
+		return nil
+	}
+	// ABOVE THE WORD a result's range is a representation declaration, not a
+	// contract (ADR 0026): only what the author wrote is checked.
+	ens := sig.Ensures
+	if tg.ValueType(sig.Result) == core.BigType {
+		if ens = sig.Stated(); ens == nil {
+			return nil
+		}
+	}
+	lo, hi, decided := emit.EnsuresBounds(tg, ens)
+	if !decided {
+		return fmt.Errorf("the postcondition %s is outside what the compiler decides "+
+			"(constant bounds on the result, and their conjunctions); an obligation is "+
+			"discharged or the program is refused (refinements.md §3a)", ens)
+	}
+	fs := f.facts
+	if len(fs) != f.NV() {
+		fs = analyse(tg, f)
+	}
+	r := ivBot
+	for _, y := range exitsOf(f.Body, TYield) {
+		if len(y) > 0 {
+			r = joinIV(r, fs[y[0]].v)
+		}
+	}
+	// S's ends, exactly. A bound K past E on its own side is met by every
+	// finite end, so it is E's edge (which still asks R's end to be finite);
+	// one past E on the far side admits no end at all, only R = ⊥.
+	s, empty := ivTop, false
+	if lo != nil {
+		if e, ok := fromBig(lo); ok {
+			s.lo, s.nlo = e, false
+		} else if lo.Sign() < 0 {
+			s.lo, s.nlo = eMax.neg(), false
+		} else {
+			empty = true
+		}
+	}
+	if hi != nil {
+		if e, ok := fromBig(hi); ok {
+			s.hi, s.phi = e, false
+		} else if hi.Sign() > 0 {
+			s.hi, s.phi = eMax, false
+		} else {
+			empty = true
+		}
+	}
+	if !r.bot && (empty || meetIV(r, s) != r) {
+		return fmt.Errorf("the body does not establish %s; its result is %s", ens, termShow(r))
+	}
+	return nil
 }

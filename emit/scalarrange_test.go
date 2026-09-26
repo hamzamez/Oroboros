@@ -172,62 +172,8 @@ func TestAScalarRangeIsAnIntNotAWidth(t *testing.T) {
 	}
 }
 
-// A RANGE IN THE RESULT POSITION IS THE DUAL: a GUARANTEE, not a premise.
-//
-// postconditions.md's algebra is a swap, and this is that swap written in the
-// type language: `result : (int LO HI)` is `(and (<= LO result) (<= result HI))`,
-// desugared into `ensures` exactly as a parameter's range desugars into `where`.
-//
-// Before this, a range in the result position was a declaration NOBODY CHECKED.
-// `(sig sq ((n (int 0 100))) (int 0 5))` is false — the body reaches 10000 — and
-// was accepted in silence, while the identical claim spelled as an `ensures` was
-// refused with the interval that disproves it. Two spellings of one claim, one
-// enforced and one decorative.
-//
-// The false case is what makes this test discriminating: a test that only
-// checked the TRUE claim would pass against a compiler that ignored the range.
-func TestARangedResultIsChecked(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
-
-	for _, c := range []struct {
-		result string
-		refuse bool
-	}{
-		{"(int 0 10000)", false}, // true: n ≤ 100, so n*n ≤ 10000
-		{"(int 0 5)", true},      // false: the body reaches 10000
-	} {
-		sig := resultSigOf(t, "(int 0 100)", c.result)
-		if sig.Ensures == nil {
-			t.Fatalf("%s: a ranged result produced no postcondition, so it is "+
-				"a declaration nothing checks", c.result)
-		}
-		ok, note := CheckEnsures(tg, sig, body)
-		if c.refuse && ok {
-			t.Errorf("%s: a FALSE ranged result was accepted (%q); the same "+
-				"claim as an `ensures` is refused, and two spellings of one "+
-				"claim must not disagree", c.result, note)
-		}
-		if !c.refuse && !ok {
-			t.Errorf("%s: a true ranged result was refused: %s", c.result, note)
-		}
-		// And it must be DECIDED, not merely un-refused. `CheckEnsures` returns
-		// SUCCESS with a note when a claim is outside its fragment, so a
-		// conjunction synthesised as `(and …)` rather than the erased
-		// `(if a b false)` — which is what the connectives desugar to, and what
-		// nothing downstream has ever seen anything else of — passes both rows
-		// above while checking nothing. That was the first version of this.
-		if strings.Contains(note, "outside the decidable fragment") {
-			t.Errorf("%s: %s — a ranged result is a constant bound on the "+
-				"result, which is exactly what an interval decides; landing "+
-				"outside the fragment means it was built in the wrong form",
-				c.result, note)
-		}
-	}
-}
+// A RANGE IN THE RESULT POSITION IS THE DUAL, a guarantee: its test is
+// TestARangedResultIsChecked in ensures_ir_test.go, where the IR decides it.
 
 // sigOf reads a one-parameter signature THROUGH THE READER, which is the only
 // producer of a signature with named parameters and therefore the only place a

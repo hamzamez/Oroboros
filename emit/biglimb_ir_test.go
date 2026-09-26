@@ -7,6 +7,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 	"oroboros/ir/golang"
 )
 
@@ -99,12 +100,75 @@ func emitGo(t *testing.T, tg *emit.Target, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nf, _ = emit.SelectShifts(tg, prog.Sigs[name], nf)
-	code, err := golang.FromResidual(tg, name, prog.Sigs[name], nf)
+	f := decidedIR(t, tg, name, prog.Sigs[name], nf)
+	code, err := golang.FromFunc(tg, f)
 	if err != nil {
 		t.Fatal(err)
 	}
 	return code
+}
+
+// decidedIR is the drivers' pipeline from a promoted residual (cmd/gen): lower,
+// decide, and the IR's shift rewrite, which runs after the fixed-limb library
+// is spliced in, since its carry splits are what the rewrite is most for.
+func decidedIR(t *testing.T, tg *emit.Target, name string, sig *core.Sig, nf *core.Term) *ir.Func {
+	t.Helper()
+	f, err := ir.Lower(tg, name, sig, nf, ir.Options{Decided: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	ir.Decide(tg, f, false)
+	ir.SelectShifts(tg, f)
+	return f
+}
+
+// AND THE WIDTH IS THE TARGET'S. V8 coerces both operands of `>>` and `&` to
+// int32, so `targets/js` declares 31, and a value that provably fits gets the
+// rewrite there while one that does not keeps its division. Declaring the width
+// rather than excluding the host is what buys the first half.
+func TestTheShiftWidthIsTheTargets(t *testing.T) {
+	for _, c := range []struct {
+		dir   string
+		param string
+		want  bool
+	}{
+		{"../targets/js", "(int 0 1000)", true},
+		{"../targets/js", "(int 0 4000000000)", false}, // past 2^31
+		{"../targets/go", "(int 0 4000000000)", true},  // Go shifts 64-bit values
+	} {
+		tg, err := emit.LoadTarget(c.dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		src := "(export f)\n(sig f ((n " + c.param + ")) int)\n(def f (fn (n) (/ n 8)))\n"
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		prog, _, err := core.Load(forms)
+		if err != nil {
+			t.Fatal(err)
+		}
+		env, err := tg.Env(prog)
+		if err != nil {
+			t.Fatal(err)
+		}
+		nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
+		if err != nil {
+			t.Fatal(err)
+		}
+		f := decidedIR(t, tg, "f", prog.Sigs["f"], nf)
+		shr, _, _ := tg.ShiftNames()
+		got := false
+		f.Walk(func(r *ir.Region) {
+			for _, s := range r.Stmts {
+				got = got || (s.Op == ir.OCall && s.Name == shr)
+			}
+		})
+		if got != c.want {
+			t.Errorf("%s with %s: rewritten=%v, want %v", c.dir, c.param, got, c.want)
+		}
+	}
 }
 
 func TestADividendProvedNonNegativeBecomesAShift(t *testing.T) {

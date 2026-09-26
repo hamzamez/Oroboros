@@ -304,11 +304,6 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 			die(err)
 		}
 		measure("intervals (legality)", func() { emit.Intervals(tg, sig, nf, 0) })
-		measure("shifts", func() {
-			if sh, k := emit.SelectShifts(tg, sig, nf); k > 0 {
-				nf = sh
-			}
-		})
 		out = append(out, nf)
 		sigsOut = append(sigsOut, sig)
 		pipeNames = append(pipeNames, q[strings.LastIndex(q, ".")+1:])

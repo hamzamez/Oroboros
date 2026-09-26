@@ -141,9 +141,12 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
   generated programs and word- and shift-selected ones, and has a planted fault it catches. A
   termination law's fault is caught by a divergent program it would falsely prove.
 
-`gen` and `build` no longer run the term interval analysis; it runs behind `-irproof` as the shadow,
-and inside the passes not yet ported: `CheckEnsures`, `MeasureRequires`, `SelectShifts`,
-`BufferRange`, `PromoteBig` and `SelectWords`.
+Postconditions (`ir.CheckEnsures`, refusing what it cannot decide), build buffers' element ranges
+(the class hull alone) and the shift selection (`ir.SelectShifts`) are on the IR's facts too
+([irstep4e-2026-09-27](gauntlet/results/irstep4e-2026-09-27.md)). `gen` and `build` run no term
+interval analysis on the default path; it runs behind `-irproof` as the shadow, and inside the passes
+not yet ported: `MeasureRequires`, `PromoteBig` and `SelectWords` (and the refinement layer's loop
+invariants).
 
 **The migration is the current plan**: those passes and the refinement layer, one at a time, until
 `emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits

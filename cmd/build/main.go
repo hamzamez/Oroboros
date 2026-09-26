@@ -224,29 +224,19 @@ checks:
 		}
 	}
 	// REPRESENTATION SELECTION — see cmd/gen for the note.
-	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
-	// assumption: the caller is outside the program (postconditions.md §2).
-	if ok, note := emit.CheckEnsures(tg, esig, nf); !ok {
-		return fmt.Errorf("%s: %s", entry, note)
-	} else if note != "" {
-		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
-	}
-	// DIVISION BY A POWER OF TWO IS A SHIFT, before the decision, so the IR
-	// decides the term the backend prints (cmd/gen).
-	unshifted := nf
-	shifts := 0
-	if sh, k := emit.SelectShifts(tg, esig, nf); k > 0 {
-		nf, shifts = sh, k
-	}
 	fA, err := ir.Lower(tg, "oro-main", esig, nf, ir.Options{Decided: true})
 	if err != nil {
 		return err
 	}
 	leg := ir.Decide(tg, fA, checked)
 	if leg.InU && !worded {
-		nf = unshifted
 		selectWords()
 		goto checks
+	}
+	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
+	// assumption: the caller is outside the program (postconditions.md §2).
+	if err := ir.CheckEnsures(tg, fA, esig); err != nil {
+		return fmt.Errorf("%s: %v", entry, err)
 	}
 	if leg.Ops > 0 || leg.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
@@ -267,7 +257,8 @@ checks:
 	} else if err := leg.Refusal(entry, tg); err != nil {
 		return err
 	}
-	if shifts > 0 {
+	// DIVISION BY A POWER OF TWO IS A SHIFT (ir/shift.go, cmd/gen).
+	if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", shifts)
 	}
 	// THE IR (ADR 0032), the decided IR_A the backend receives, as `gen -ir`

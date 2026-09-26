@@ -264,29 +264,11 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		// nothing (sct-2026-08-19, data-model.md §1.5).
 		//
 		// A target declaring no checked form gets its term back unchanged.
-		// A POSTCONDITION on an exported definition is an OBLIGATION, not an
-		// assumption: the caller is outside the program, so the body is the
-		// only evidence there is (postconditions.md §2).
-		if ok, note := emit.CheckEnsures(tg, sig, nf); !ok {
-			return fmt.Errorf("%s: %s", fname, note)
-		} else if note != "" {
-			fmt.Fprintln(os.Stderr, "note:", fname+": "+note)
-		}
 		// THE TERM ANALYSIS, only as the shadow (-irproof): legality, modes and
 		// termination are the IR's (ir/decide.go, ir/sct.go).
 		var rep *emit.IntervalReport
 		if irProof {
 			rep, _ = emit.Intervals(tg, sig, nf, 0)
-		}
-		// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
-		// dividend non-negative and inside the target's declared shift width
-		// (shiftdiv-2026-09-03). BEFORE the decision, so the IR decides the term
-		// the backend prints, once: a rewrite of divisions only, whose mask and
-		// shift the IR's domain knows the laws of (andIV, shrIV).
-		unshifted := nf
-		shifts := 0
-		if sh, k := emit.SelectShifts(tg, sig, nf); k > 0 {
-			nf, shifts = sh, k
 		}
 		// THE DECISION (ADR 0032 step 4, spec §7): the IR's interval domain
 		// proves each counted operation inside its set or it does not, which
@@ -297,11 +279,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		}
 		leg := ir.Decide(tg, fA, checked)
 		// AN OPERATION THE UNSIGNED WORD WOULD HOLD, and the selection has not run:
-		// select it on the UNSHIFTED term, as it always was, and check again.
+		// select it and check again, once.
 		if leg.InU && !worded {
-			nf = unshifted
 			selectWords()
 			goto checks
+		}
+		// A POSTCONDITION on an exported definition is an OBLIGATION, not an
+		// assumption: the caller is outside the program, so the body is the
+		// only evidence there is (postconditions.md §2, ir.CheckEnsures).
+		if err := ir.CheckEnsures(tg, fA, sig); err != nil {
+			return fmt.Errorf("%s: %v", fname, err)
 		}
 		if leg.Ops > 0 || leg.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
@@ -327,7 +314,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				return err
 			}
 		}
-		if shifts > 0 {
+		// DIVISION BY A POWER OF TWO IS A SHIFT where the decision's facts put
+		// the dividend in [0, 2^shift-width) (shiftdiv-2026-09-03, ir/shift.go).
+		if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, shifts)
 		}
 		// THE IR (ADR 0032), the decided IR_A the backend receives. It is

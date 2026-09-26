@@ -757,3 +757,39 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/native/sieve-win-bench.oro windows` 781 → 453 ms, 0.58x
+
+## 2026-09-26 — on b13cded, with uncommitted changes
+
+**Reason:** IR step 4e: postconditions, buffer ranges and shifts on the IR's facts; shift-count notes are now the true count of rewritten operations (the term pass counted per fixpoint evaluation); freq on JS takes len >> 1 where the IR proves the length below 2^31; compile time 0.56x
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 359 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+17 change(s):
+
+- compiler output changed — `examples/big/fact-limbs.oro windows`
+- compiler output changed — `examples/big/limbs.oro go`
+- compiler output changed — `examples/big/limbs.oro java`
+- compiler output changed — `examples/big/limbs.oro js`
+- compiler output changed — `examples/big/limbs.oro windows`
+- compiler output changed — `examples/big/render.oro windows`
+- compiler output changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/match/runs.oro go`
+- compiler output changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro js`
+- compiler output changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows`
+
+7 compile(s) recorded FASTER:
+
+- `examples/io/freq.oro go` 24406 → 12937 ms, 0.53x
+- `examples/io/freq.oro js` 23000 → 12468 ms, 0.54x
+- `examples/io/freq.oro java` 24453 → 13171 ms, 0.54x
+- `examples/json/tree.oro go` 2218 → 1000 ms, 0.45x
+- `examples/kara/core.oro go` 312 → 46 ms, 0.15x
+- `examples/native/sieve-win-bench.oro windows` 406 → 93 ms, 0.23x
+- `gauntlet/differential/cases/render.oro windows` 2734 → 703 ms, 0.26x

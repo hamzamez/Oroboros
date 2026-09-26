@@ -250,11 +250,9 @@ func lowerOn(t *testing.T, tg *Target, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// THE SAME ORDER THE DRIVERS USE (cmd/build, cmd/gen): the shift rewrite
-	// runs last, after the fixed-limb library has been spliced in, because the
-	// library's own carry splits are what it is most for. A helper that stopped
-	// before it would be testing a pipeline nothing runs.
-	out, _ = SelectShifts(tg, prog.Sigs[name], out)
+	// The shift rewrite is the IR's now (ir/shift.go): what this returns is the
+	// promoted term, and the tests that ask for a shift run the IR's pipeline
+	// (biglimb_ir_test.go).
 	return out.String()
 }
 
@@ -277,32 +275,8 @@ func allProgSigs(p *core.Program) []*core.Sig {
 // general: nothing enters the language and any program with a provably
 // non-negative dividend gets it.
 
-// AND THE WIDTH IS THE TARGET'S. V8 coerces both operands of `>>` and `&` to
-// int32, so `targets/js` declares 31 — and a value that provably fits gets the
-// rewrite there while one that does not keeps its division. Declaring the width
-// rather than excluding the host is what buys the first half.
-func TestTheShiftWidthIsTheTargets(t *testing.T) {
-	for _, c := range []struct {
-		dir   string
-		param string
-		want  bool
-	}{
-		{"../targets/js", "(int 0 1000)", true},
-		{"../targets/js", "(int 0 4000000000)", false}, // past 2^31
-		{"../targets/go", "(int 0 4000000000)", true},  // Go shifts 64-bit values
-	} {
-		tg, err := LoadTarget(c.dir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		src := "(export f)\n(sig f ((n " + c.param + ")) int)\n(def f (fn (n) (/ n 8)))\n"
-		nf := lowerOn(t, tg, src, "f")
-		got := strings.Contains(nf, ">>")
-		if got != c.want {
-			t.Errorf("%s with %s: rewritten=%v, want %v\n%s", c.dir, c.param, got, c.want, nf)
-		}
-	}
-}
+// AND THE WIDTH IS THE TARGET'S: TestTheShiftWidthIsTheTargets, in
+// biglimb_ir_test.go, where the IR's rewrite runs.
 
 // ═══ THE LIMB LIBRARY'S SURFACE (subdiv-2026-09-03)
 //

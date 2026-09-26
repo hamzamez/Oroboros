@@ -351,9 +351,10 @@ func TestABigResultRangeSynthesisesNoGuarantee(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		nf, _, _ = PromoteBig(tg, prog.Sigs["fib"], nf)
-		if ok, note := CheckEnsures(tg, prog.Sigs["fib"], nf); !ok {
-			t.Errorf("%s: %s", result, note)
+		// That the promoted program is ACCEPTED by the postcondition check is
+		// TestABigResultRangeIsNotAnObligation (ensures_ir_test.go).
+		if _, _, err := PromoteBig(tg, prog.Sigs["fib"], nf); err != nil {
+			t.Errorf("%s: %v", result, err)
 		}
 	}
 	// THE PARAMETER SIDE STILL SAYS ITS HALF, which is what `+inf` is for: a

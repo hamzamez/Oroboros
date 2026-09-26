@@ -128,11 +128,11 @@ public final class examples_io_freq.java {
 				continue;
 			}
 			v101 = v106;
-			final long[] v193 = new long[v23];
-			long[] v192 = null;
-			final long[] v195 = new long[v23];
-			long[] v194 = null;
-			long[] v198 = v193;
+			final short[] v193 = new short[v23];
+			short[] v192 = null;
+			final short[] v195 = new short[v23];
+			short[] v194 = null;
+			short[] v198 = v193;
 			int v199 = 0;
 			for (;; v199 = (v199 + 1)) {
 				final boolean v200 = (v199 >= v23);
@@ -151,11 +151,11 @@ public final class examples_io_freq.java {
 						v207 = v199;
 					}
 				}
-				v198[v207] = v199;
+				v198[v207] = (short) (v199);
 				continue;
 			}
-			long[] v222 = v198;
-			long[] v223 = v195;
+			short[] v222 = v198;
+			short[] v223 = v195;
 			int v224 = 1;
 			for (;;) {
 				final boolean v225 = (v224 >= v23);
@@ -166,7 +166,7 @@ public final class examples_io_freq.java {
 				if (v231) {
 					break;
 				}
-				long[] v236 = v223;
+				short[] v236 = v223;
 				int v237 = 0;
 				for (;;) {
 					final boolean v238 = (v237 >= v23);
@@ -190,9 +190,9 @@ public final class examples_io_freq.java {
 					} else {
 						v254 = v252;
 					}
-					long[] v260 = v236;
+					short[] v260 = v236;
 					int v261 = v237;
-					long v262 = v245;
+					int v262 = v245;
 					int v263 = v237;
 					for (;; v263 = (v263 + 1)) {
 						final boolean v264 = (v263 >= v254);
@@ -222,12 +222,12 @@ public final class examples_io_freq.java {
 								if (v290) {
 									v286 = 0;
 								} else {
-									v286 = (int) (v262);
+									v286 = v262;
 								}
 							}
-							final long v296 = v222[v286];
-							v260[v274] = v296;
-							final long v299 = (v262 + 1);
+							final int v296 = v222[v286];
+							v260[v274] = (short) (v296);
+							final int v299 = (v262 + 1);
 							v262 = v299;
 							continue;
 						}
@@ -257,8 +257,8 @@ public final class examples_io_freq.java {
 									v321 = v261;
 								}
 							}
-							final long v331 = v222[v321];
-							v260[v309] = v331;
+							final int v331 = v222[v321];
+							v260[v309] = (short) (v331);
 							final int v334 = (v261 + 1);
 							v261 = v334;
 							continue;
@@ -272,10 +272,10 @@ public final class examples_io_freq.java {
 							if (v345) {
 								v341 = 0;
 							} else {
-								v341 = (int) (v262);
+								v341 = v262;
 							}
 						}
-						final long v351 = v222[v341];
+						final int v351 = v222[v341];
 						final boolean v353 = (v261 < 0);
 						int v354 = 0;
 						if (v353) {
@@ -288,7 +288,7 @@ public final class examples_io_freq.java {
 								v354 = v261;
 							}
 						}
-						final long v364 = v222[v354];
+						final int v364 = v222[v354];
 						final boolean v368 = (0 <= v351);
 						final boolean v369 = (v368 && ((v351 < v23) && ((0 <= v364) && (v364 < v23))));
 						boolean v385 = false;
@@ -296,10 +296,10 @@ public final class examples_io_freq.java {
 							int v394 = 0;
 							int v393 = 0;
 							for (;; v394 = (v394 + 1)) {
-								final int v396 = (int) ((2 * v351));
+								final int v396 = (2 * v351);
 								final int v398 = (v396 + 1);
 								final int v399 = v101[v398];
-								final int v401 = (int) ((2 * v351));
+								final int v401 = (2 * v351);
 								final int v402 = v101[v401];
 								final int v403 = (v399 - v402);
 								final boolean v405 = (v403 < 0);
@@ -316,10 +316,10 @@ public final class examples_io_freq.java {
 								}
 								final boolean v415 = (v394 >= v406);
 								if (v415) {
-									final int v418 = (int) ((2 * v364));
+									final int v418 = (2 * v364);
 									final int v420 = (v418 + 1);
 									final int v421 = v101[v420];
-									final int v423 = (int) ((2 * v364));
+									final int v423 = (2 * v364);
 									final int v424 = v101[v423];
 									final int v425 = (v421 - v424);
 									final boolean v427 = (v425 < 0);
@@ -342,10 +342,10 @@ public final class examples_io_freq.java {
 									v393 = -1;
 									break;
 								}
-								final int v444 = (int) ((2 * v364));
+								final int v444 = (2 * v364);
 								final int v446 = (v444 + 1);
 								final int v447 = v101[v446];
-								final int v449 = (int) ((2 * v364));
+								final int v449 = (2 * v364);
 								final int v450 = v101[v449];
 								final int v451 = (v447 - v450);
 								final boolean v453 = (v451 < 0);
@@ -365,7 +365,7 @@ public final class examples_io_freq.java {
 									v393 = 1;
 									break;
 								}
-								final int v468 = (int) ((2 * v351));
+								final int v468 = (2 * v351);
 								final int v469 = v101[v468];
 								final int v470 = (v469 + v394);
 								final boolean v472 = (v470 < 0);
@@ -391,7 +391,7 @@ public final class examples_io_freq.java {
 								} else {
 									v495 = v484;
 								}
-								final int v501 = (int) ((2 * v364));
+								final int v501 = (2 * v364);
 								final int v502 = v101[v501];
 								final int v503 = (v502 + v394);
 								final boolean v505 = (v503 < 0);
@@ -421,7 +421,7 @@ public final class examples_io_freq.java {
 								if (v533) {
 									continue;
 								}
-								final int v537 = (int) ((2 * v351));
+								final int v537 = (2 * v351);
 								final int v538 = v101[v537];
 								final int v539 = (v538 + v394);
 								final boolean v541 = (v539 < 0);
@@ -447,7 +447,7 @@ public final class examples_io_freq.java {
 								} else {
 									v564 = v553;
 								}
-								final int v570 = (int) ((2 * v364));
+								final int v570 = (2 * v364);
 								final int v571 = v101[v570];
 								final int v572 = (v571 + v394);
 								final boolean v574 = (v572 < 0);
@@ -508,12 +508,12 @@ public final class examples_io_freq.java {
 								if (v626) {
 									v622 = 0;
 								} else {
-									v622 = (int) (v262);
+									v622 = v262;
 								}
 							}
-							final long v632 = v222[v622];
-							v260[v610] = v632;
-							final int v635 = (int) ((v262 + 1));
+							final int v632 = v222[v622];
+							v260[v610] = (short) (v632);
+							final int v635 = (v262 + 1);
 							v262 = v635;
 							continue;
 						}
@@ -541,8 +541,8 @@ public final class examples_io_freq.java {
 								v652 = v261;
 							}
 						}
-						final long v662 = v222[v652];
-						v260[v640] = v662;
+						final int v662 = v222[v652];
+						v260[v640] = (short) (v662);
 						final int v665 = (v261 + 1);
 						v261 = v665;
 						continue;
@@ -587,7 +587,7 @@ public final class examples_io_freq.java {
 							v693 = v674;
 						}
 					}
-					final long v703 = v192[v693];
+					final int v703 = v192[v693];
 					final int v705 = (v674 - 1);
 					final boolean v707 = (v705 < 0);
 					int v708 = 0;
@@ -601,15 +601,15 @@ public final class examples_io_freq.java {
 							v708 = v705;
 						}
 					}
-					final long v718 = v192[v708];
+					final int v718 = v192[v708];
 					int v721 = 0;
 					int v720 = 0;
 					for (;; v721 = (v721 + 1)) {
-						final long v723 = (2 * v703);
-						final long v725 = (v723 + 1);
-						final int v726 = v101[(int) v725];
-						final long v728 = (2 * v703);
-						final int v729 = v101[(int) v728];
+						final int v723 = (2 * v703);
+						final int v725 = (v723 + 1);
+						final int v726 = v101[v725];
+						final int v728 = (2 * v703);
+						final int v729 = v101[v728];
 						final int v730 = (v726 - v729);
 						final boolean v732 = (v730 < 0);
 						int v733 = 0;
@@ -625,11 +625,11 @@ public final class examples_io_freq.java {
 						}
 						final boolean v742 = (v721 >= v733);
 						if (v742) {
-							final long v745 = (2 * v718);
-							final long v747 = (v745 + 1);
-							final int v748 = v101[(int) v747];
-							final long v750 = (2 * v718);
-							final int v751 = v101[(int) v750];
+							final int v745 = (2 * v718);
+							final int v747 = (v745 + 1);
+							final int v748 = v101[v747];
+							final int v750 = (2 * v718);
+							final int v751 = v101[v750];
 							final int v752 = (v748 - v751);
 							final boolean v754 = (v752 < 0);
 							int v755 = 0;
@@ -651,11 +651,11 @@ public final class examples_io_freq.java {
 							v720 = -1;
 							break;
 						}
-						final long v771 = (2 * v718);
-						final long v773 = (v771 + 1);
-						final int v774 = v101[(int) v773];
-						final long v776 = (2 * v718);
-						final int v777 = v101[(int) v776];
+						final int v771 = (2 * v718);
+						final int v773 = (v771 + 1);
+						final int v774 = v101[v773];
+						final int v776 = (2 * v718);
+						final int v777 = v101[v776];
 						final int v778 = (v774 - v777);
 						final boolean v780 = (v778 < 0);
 						int v781 = 0;
@@ -674,8 +674,8 @@ public final class examples_io_freq.java {
 							v720 = 1;
 							break;
 						}
-						final long v795 = (2 * v703);
-						final int v796 = v101[(int) v795];
+						final int v795 = (2 * v703);
+						final int v796 = v101[v795];
 						final int v797 = (v796 + v721);
 						final boolean v799 = (v797 < 0);
 						int v800 = 0;
@@ -700,8 +700,8 @@ public final class examples_io_freq.java {
 						} else {
 							v822 = v811;
 						}
-						final long v828 = (2 * v718);
-						final int v829 = v101[(int) v828];
+						final int v828 = (2 * v718);
+						final int v829 = v101[v828];
 						final int v830 = (v829 + v721);
 						final boolean v832 = (v830 < 0);
 						int v833 = 0;
@@ -730,8 +730,8 @@ public final class examples_io_freq.java {
 						if (v860) {
 							continue;
 						}
-						final long v864 = (2 * v703);
-						final int v865 = v101[(int) v864];
+						final int v864 = (2 * v703);
+						final int v865 = v101[v864];
 						final int v866 = (v865 + v721);
 						final boolean v868 = (v866 < 0);
 						int v869 = 0;
@@ -756,8 +756,8 @@ public final class examples_io_freq.java {
 						} else {
 							v891 = v880;
 						}
-						final long v897 = (2 * v718);
-						final int v898 = v101[(int) v897];
+						final int v897 = (2 * v718);
+						final int v898 = v101[v897];
 						final int v899 = (v898 + v721);
 						final boolean v901 = (v899 < 0);
 						int v902 = 0;
@@ -801,11 +801,11 @@ public final class examples_io_freq.java {
 				continue;
 			}
 			final int v944 = (2 * v673);
-			final long[] v946 = new long[v944];
-			long[] v945 = null;
-			long[] v950 = v946;
+			final int[] v946 = new int[v944];
+			int[] v945 = null;
+			int[] v950 = v946;
 			int v951 = 0;
-			long v952 = 0;
+			int v952 = 0;
 			for (;; v951 = (v951 + 1)) {
 				final boolean v953 = (v951 >= v23);
 				if (v953) {
@@ -832,7 +832,7 @@ public final class examples_io_freq.java {
 							v972 = v951;
 						}
 					}
-					final long v982 = v192[v972];
+					final int v982 = v192[v972];
 					final int v984 = (v951 - 1);
 					final boolean v986 = (v984 < 0);
 					int v987 = 0;
@@ -846,15 +846,15 @@ public final class examples_io_freq.java {
 							v987 = v984;
 						}
 					}
-					final long v997 = v192[v987];
+					final int v997 = v192[v987];
 					int v1000 = 0;
 					int v999 = 0;
 					for (;; v1000 = (v1000 + 1)) {
-						final long v1002 = (2 * v982);
-						final long v1004 = (v1002 + 1);
-						final int v1005 = v101[(int) v1004];
-						final long v1007 = (2 * v982);
-						final int v1008 = v101[(int) v1007];
+						final int v1002 = (2 * v982);
+						final int v1004 = (v1002 + 1);
+						final int v1005 = v101[v1004];
+						final int v1007 = (2 * v982);
+						final int v1008 = v101[v1007];
 						final int v1009 = (v1005 - v1008);
 						final boolean v1011 = (v1009 < 0);
 						int v1012 = 0;
@@ -870,11 +870,11 @@ public final class examples_io_freq.java {
 						}
 						final boolean v1021 = (v1000 >= v1012);
 						if (v1021) {
-							final long v1024 = (2 * v997);
-							final long v1026 = (v1024 + 1);
-							final int v1027 = v101[(int) v1026];
-							final long v1029 = (2 * v997);
-							final int v1030 = v101[(int) v1029];
+							final int v1024 = (2 * v997);
+							final int v1026 = (v1024 + 1);
+							final int v1027 = v101[v1026];
+							final int v1029 = (2 * v997);
+							final int v1030 = v101[v1029];
 							final int v1031 = (v1027 - v1030);
 							final boolean v1033 = (v1031 < 0);
 							int v1034 = 0;
@@ -896,11 +896,11 @@ public final class examples_io_freq.java {
 							v999 = -1;
 							break;
 						}
-						final long v1050 = (2 * v997);
-						final long v1052 = (v1050 + 1);
-						final int v1053 = v101[(int) v1052];
-						final long v1055 = (2 * v997);
-						final int v1056 = v101[(int) v1055];
+						final int v1050 = (2 * v997);
+						final int v1052 = (v1050 + 1);
+						final int v1053 = v101[v1052];
+						final int v1055 = (2 * v997);
+						final int v1056 = v101[v1055];
 						final int v1057 = (v1053 - v1056);
 						final boolean v1059 = (v1057 < 0);
 						int v1060 = 0;
@@ -919,8 +919,8 @@ public final class examples_io_freq.java {
 							v999 = 1;
 							break;
 						}
-						final long v1074 = (2 * v982);
-						final int v1075 = v101[(int) v1074];
+						final int v1074 = (2 * v982);
+						final int v1075 = v101[v1074];
 						final int v1076 = (v1075 + v1000);
 						final boolean v1078 = (v1076 < 0);
 						int v1079 = 0;
@@ -945,8 +945,8 @@ public final class examples_io_freq.java {
 						} else {
 							v1101 = v1090;
 						}
-						final long v1107 = (2 * v997);
-						final int v1108 = v101[(int) v1107];
+						final int v1107 = (2 * v997);
+						final int v1108 = v101[v1107];
 						final int v1109 = (v1108 + v1000);
 						final boolean v1111 = (v1109 < 0);
 						int v1112 = 0;
@@ -975,8 +975,8 @@ public final class examples_io_freq.java {
 						if (v1139) {
 							continue;
 						}
-						final long v1143 = (2 * v982);
-						final int v1144 = v101[(int) v1143];
+						final int v1143 = (2 * v982);
+						final int v1144 = v101[v1143];
 						final int v1145 = (v1144 + v1000);
 						final boolean v1147 = (v1145 < 0);
 						int v1148 = 0;
@@ -1001,8 +1001,8 @@ public final class examples_io_freq.java {
 						} else {
 							v1170 = v1159;
 						}
-						final long v1176 = (2 * v997);
-						final int v1177 = v101[(int) v1176];
+						final int v1176 = (2 * v997);
+						final int v1177 = v101[v1176];
 						final int v1178 = (v1177 + v1000);
 						final boolean v1180 = (v1178 < 0);
 						int v1181 = 0;
@@ -1059,7 +1059,7 @@ public final class examples_io_freq.java {
 							v1230 = v951;
 						}
 					}
-					final long v1240 = v192[v1230];
+					final int v1240 = v192[v1230];
 					final int v1242 = (v951 - 1);
 					final boolean v1244 = (v1242 < 0);
 					int v1245 = 0;
@@ -1073,15 +1073,15 @@ public final class examples_io_freq.java {
 							v1245 = v1242;
 						}
 					}
-					final long v1255 = v192[v1245];
+					final int v1255 = v192[v1245];
 					int v1258 = 0;
 					int v1257 = 0;
 					for (;; v1258 = (v1258 + 1)) {
-						final long v1260 = (2 * v1240);
-						final long v1262 = (v1260 + 1);
-						final int v1263 = v101[(int) v1262];
-						final long v1265 = (2 * v1240);
-						final int v1266 = v101[(int) v1265];
+						final int v1260 = (2 * v1240);
+						final int v1262 = (v1260 + 1);
+						final int v1263 = v101[v1262];
+						final int v1265 = (2 * v1240);
+						final int v1266 = v101[v1265];
 						final int v1267 = (v1263 - v1266);
 						final boolean v1269 = (v1267 < 0);
 						int v1270 = 0;
@@ -1097,11 +1097,11 @@ public final class examples_io_freq.java {
 						}
 						final boolean v1279 = (v1258 >= v1270);
 						if (v1279) {
-							final long v1282 = (2 * v1255);
-							final long v1284 = (v1282 + 1);
-							final int v1285 = v101[(int) v1284];
-							final long v1287 = (2 * v1255);
-							final int v1288 = v101[(int) v1287];
+							final int v1282 = (2 * v1255);
+							final int v1284 = (v1282 + 1);
+							final int v1285 = v101[v1284];
+							final int v1287 = (2 * v1255);
+							final int v1288 = v101[v1287];
 							final int v1289 = (v1285 - v1288);
 							final boolean v1291 = (v1289 < 0);
 							int v1292 = 0;
@@ -1123,11 +1123,11 @@ public final class examples_io_freq.java {
 							v1257 = -1;
 							break;
 						}
-						final long v1308 = (2 * v1255);
-						final long v1310 = (v1308 + 1);
-						final int v1311 = v101[(int) v1310];
-						final long v1313 = (2 * v1255);
-						final int v1314 = v101[(int) v1313];
+						final int v1308 = (2 * v1255);
+						final int v1310 = (v1308 + 1);
+						final int v1311 = v101[v1310];
+						final int v1313 = (2 * v1255);
+						final int v1314 = v101[v1313];
 						final int v1315 = (v1311 - v1314);
 						final boolean v1317 = (v1315 < 0);
 						int v1318 = 0;
@@ -1146,8 +1146,8 @@ public final class examples_io_freq.java {
 							v1257 = 1;
 							break;
 						}
-						final long v1332 = (2 * v1240);
-						final int v1333 = v101[(int) v1332];
+						final int v1332 = (2 * v1240);
+						final int v1333 = v101[v1332];
 						final int v1334 = (v1333 + v1258);
 						final boolean v1336 = (v1334 < 0);
 						int v1337 = 0;
@@ -1172,8 +1172,8 @@ public final class examples_io_freq.java {
 						} else {
 							v1359 = v1348;
 						}
-						final long v1365 = (2 * v1255);
-						final int v1366 = v101[(int) v1365];
+						final int v1365 = (2 * v1255);
+						final int v1366 = v101[v1365];
 						final int v1367 = (v1366 + v1258);
 						final boolean v1369 = (v1367 < 0);
 						int v1370 = 0;
@@ -1202,8 +1202,8 @@ public final class examples_io_freq.java {
 						if (v1397) {
 							continue;
 						}
-						final long v1401 = (2 * v1240);
-						final int v1402 = v101[(int) v1401];
+						final int v1401 = (2 * v1240);
+						final int v1402 = v101[v1401];
 						final int v1403 = (v1402 + v1258);
 						final boolean v1405 = (v1403 < 0);
 						int v1406 = 0;
@@ -1228,8 +1228,8 @@ public final class examples_io_freq.java {
 						} else {
 							v1428 = v1417;
 						}
-						final long v1434 = (2 * v1255);
-						final int v1435 = v101[(int) v1434];
+						final int v1434 = (2 * v1255);
+						final int v1435 = v101[v1434];
 						final int v1436 = (v1435 + v1258);
 						final boolean v1438 = (v1436 < 0);
 						int v1439 = 0;
@@ -1275,7 +1275,7 @@ public final class examples_io_freq.java {
 						if (v1480) {
 							v1476 = 0;
 						} else {
-							v1476 = (int) (v952);
+							v1476 = v952;
 						}
 					}
 					final int v1486 = (2 * v1476);
@@ -1291,7 +1291,7 @@ public final class examples_io_freq.java {
 							v1489 = v951;
 						}
 					}
-					final long v1499 = v192[v1489];
+					final int v1499 = v192[v1489];
 					v950[v1486] = v1499;
 					final boolean v1503 = (v952 < 0);
 					int v1504 = 0;
@@ -1302,17 +1302,17 @@ public final class examples_io_freq.java {
 						if (v1508) {
 							v1504 = 0;
 						} else {
-							v1504 = (int) (v952);
+							v1504 = v952;
 						}
 					}
 					final int v1514 = (2 * v1504);
 					final int v1516 = (v1514 + 1);
 					v950[v1516] = 1;
-					final long v1522 = (v952 + 1);
+					final int v1522 = (v952 + 1);
 					v952 = v1522;
 					continue;
 				}
-				final long v1525 = (v952 - 1);
+				final int v1525 = (v952 - 1);
 				final boolean v1527 = (v1525 < 0);
 				int v1528 = 0;
 				if (v1527) {
@@ -1322,24 +1322,24 @@ public final class examples_io_freq.java {
 					if (v1532) {
 						v1528 = 0;
 					} else {
-						v1528 = (int) (v1525);
+						v1528 = v1525;
 					}
 				}
 				final int v1539 = (2 * v1528);
 				final int v1541 = (v1539 + 1);
 				final int v1543 = (2 * v1528);
 				final int v1545 = (v1543 + 1);
-				final long v1546 = v950[v1545];
-				final long v1548 = (v1546 + 1);
+				final int v1546 = v950[v1545];
+				final int v1548 = (v1546 + 1);
 				v950[v1541] = v1548;
 				continue;
 			}
 			v945 = v950;
-			final long[] v1553 = new long[v673];
-			long[] v1552 = null;
-			final long[] v1555 = new long[v673];
-			long[] v1554 = null;
-			long[] v1558 = v1553;
+			final short[] v1553 = new short[v673];
+			short[] v1552 = null;
+			final short[] v1555 = new short[v673];
+			short[] v1554 = null;
+			short[] v1558 = v1553;
 			int v1559 = 0;
 			for (;; v1559 = (v1559 + 1)) {
 				final boolean v1560 = (v1559 >= v673);
@@ -1358,11 +1358,11 @@ public final class examples_io_freq.java {
 						v1567 = v1559;
 					}
 				}
-				v1558[v1567] = v1559;
+				v1558[v1567] = (short) (v1559);
 				continue;
 			}
-			long[] v1582 = v1558;
-			long[] v1583 = v1555;
+			short[] v1582 = v1558;
+			short[] v1583 = v1555;
 			int v1584 = 1;
 			for (;;) {
 				final boolean v1585 = (v1584 >= v673);
@@ -1373,7 +1373,7 @@ public final class examples_io_freq.java {
 				if (v1591) {
 					break;
 				}
-				long[] v1596 = v1583;
+				short[] v1596 = v1583;
 				int v1597 = 0;
 				for (;;) {
 					final boolean v1598 = (v1597 >= v673);
@@ -1397,9 +1397,9 @@ public final class examples_io_freq.java {
 					} else {
 						v1614 = v1612;
 					}
-					long[] v1620 = v1596;
+					short[] v1620 = v1596;
 					int v1621 = v1597;
-					long v1622 = v1605;
+					int v1622 = v1605;
 					int v1623 = v1597;
 					for (;; v1623 = (v1623 + 1)) {
 						final boolean v1624 = (v1623 >= v1614);
@@ -1429,12 +1429,12 @@ public final class examples_io_freq.java {
 								if (v1650) {
 									v1646 = 0;
 								} else {
-									v1646 = (int) (v1622);
+									v1646 = v1622;
 								}
 							}
-							final long v1656 = v1582[v1646];
-							v1620[v1634] = v1656;
-							final long v1659 = (v1622 + 1);
+							final int v1656 = v1582[v1646];
+							v1620[v1634] = (short) (v1656);
+							final int v1659 = (v1622 + 1);
 							v1622 = v1659;
 							continue;
 						}
@@ -1464,8 +1464,8 @@ public final class examples_io_freq.java {
 									v1681 = v1621;
 								}
 							}
-							final long v1691 = v1582[v1681];
-							v1620[v1669] = v1691;
+							final int v1691 = v1582[v1681];
+							v1620[v1669] = (short) (v1691);
 							final int v1694 = (v1621 + 1);
 							v1621 = v1694;
 							continue;
@@ -1479,13 +1479,13 @@ public final class examples_io_freq.java {
 							if (v1706) {
 								v1702 = 0;
 							} else {
-								v1702 = (int) (v1622);
+								v1702 = v1622;
 							}
 						}
-						final long v1712 = v1582[v1702];
-						final long v1713 = (2 * v1712);
-						final long v1715 = (v1713 + 1);
-						final long v1716 = v945[(int) v1715];
+						final int v1712 = v1582[v1702];
+						final int v1713 = (2 * v1712);
+						final int v1715 = (v1713 + 1);
+						final int v1716 = v945[v1715];
 						final boolean v1719 = (v1621 < 0);
 						int v1720 = 0;
 						if (v1719) {
@@ -1498,10 +1498,10 @@ public final class examples_io_freq.java {
 								v1720 = v1621;
 							}
 						}
-						final long v1730 = v1582[v1720];
-						final long v1731 = (2 * v1730);
-						final long v1733 = (v1731 + 1);
-						final long v1734 = v945[(int) v1733];
+						final int v1730 = v1582[v1720];
+						final int v1731 = (2 * v1730);
+						final int v1733 = (v1731 + 1);
+						final int v1734 = v945[v1733];
 						final boolean v1735 = (v1716 > v1734);
 						if (v1735) {
 							final boolean v1737 = (v1623 < 0);
@@ -1525,12 +1525,12 @@ public final class examples_io_freq.java {
 								if (v1754) {
 									v1750 = 0;
 								} else {
-									v1750 = (int) (v1622);
+									v1750 = v1622;
 								}
 							}
-							final long v1760 = v1582[v1750];
-							v1620[v1738] = v1760;
-							final int v1763 = (int) ((v1622 + 1));
+							final int v1760 = v1582[v1750];
+							v1620[v1738] = (short) (v1760);
+							final int v1763 = (v1622 + 1);
 							v1622 = v1763;
 							continue;
 						}
@@ -1558,8 +1558,8 @@ public final class examples_io_freq.java {
 								v1780 = v1621;
 							}
 						}
-						final long v1790 = v1582[v1780];
-						v1620[v1768] = v1790;
+						final int v1790 = v1582[v1780];
+						v1620[v1768] = (short) (v1790);
 						final int v1793 = (v1621 + 1);
 						v1621 = v1793;
 						continue;
@@ -1576,7 +1576,7 @@ public final class examples_io_freq.java {
 			}
 			v1554 = v1582;
 			v1552 = v1554;
-			long v1801 = 0;
+			int v1801 = 0;
 			int v1802 = 0;
 			for (;; v1802 = (v1802 + 1)) {
 				final boolean v1803 = (v1802 >= v673);
@@ -1605,12 +1605,12 @@ public final class examples_io_freq.java {
 						v1819 = v1802;
 					}
 				}
-				final long v1829 = v1552[v1819];
-				final long v1832 = (2 * v1829);
-				final long v1834 = (v1832 + 1);
-				final long v1835 = v945[(int) v1834];
+				final int v1829 = v1552[v1819];
+				final int v1832 = (2 * v1829);
+				final int v1834 = (v1832 + 1);
+				final int v1835 = v945[v1834];
 				int v1837 = 1;
-				long v1838 = v1835;
+				int v1838 = v1835;
 				for (;; v1837 = (v1837 + 1)) {
 					final boolean v1840 = (v1838 < 10);
 					if (v1840) {
@@ -1620,14 +1620,14 @@ public final class examples_io_freq.java {
 					if (v1844) {
 						break;
 					}
-					final long v1850 = (v1838 / 10);
+					final int v1850 = (v1838 / 10);
 					v1838 = v1850;
 					continue;
 				}
-				final long v1853 = (2 * v1829);
-				final long v1854 = v945[(int) v1853];
+				final int v1853 = (2 * v1829);
+				final int v1854 = v945[v1853];
 				final boolean v1856 = (v1854 < 0);
-				long v1857 = 0;
+				int v1857 = 0;
 				if (v1856) {
 					v1857 = 0;
 				} else {
@@ -1640,11 +1640,11 @@ public final class examples_io_freq.java {
 						v1857 = v1854;
 					}
 				}
-				final long v1869 = (2 * v1857);
-				final long v1871 = (v1869 + 1);
-				final int v1872 = v101[(int) v1871];
-				final long v1874 = (2 * v1857);
-				final int v1875 = v101[(int) v1874];
+				final int v1869 = (2 * v1857);
+				final int v1871 = (v1869 + 1);
+				final int v1872 = v101[v1871];
+				final int v1874 = (2 * v1857);
+				final int v1875 = v101[v1874];
 				final int v1876 = (v1872 - v1875);
 				final boolean v1878 = (v1876 < 0);
 				int v1879 = 0;
@@ -1660,14 +1660,14 @@ public final class examples_io_freq.java {
 				}
 				final int v1888 = (2 + v1879);
 				final int v1889 = (v1837 + v1888);
-				final long v1890 = (v1801 + v1889);
+				final int v1890 = (v1801 + v1889);
 				v1801 = v1890;
 				continue;
 			}
-			final short[] v1894 = new short[(int) v1801];
+			final short[] v1894 = new short[v1801];
 			short[] v1893 = null;
 			short[] v1898 = v1894;
-			long v1899 = 0;
+			int v1899 = 0;
 			int v1900 = 0;
 			for (;; v1900 = (v1900 + 1)) {
 				final boolean v1901 = (v1900 >= v673);
@@ -1696,14 +1696,14 @@ public final class examples_io_freq.java {
 						v1917 = v1900;
 					}
 				}
-				final long v1927 = v1552[v1917];
-				final long v1929 = (2 * v1927);
-				final long v1931 = (v1929 + 1);
-				final long v1932 = v945[(int) v1931];
-				final long v1934 = (2 * v1927);
-				final long v1935 = v945[(int) v1934];
+				final int v1927 = v1552[v1917];
+				final int v1929 = (2 * v1927);
+				final int v1931 = (v1929 + 1);
+				final int v1932 = v945[v1931];
+				final int v1934 = (2 * v1927);
+				final int v1935 = v945[v1934];
 				final boolean v1937 = (v1935 < 0);
-				long v1938 = 0;
+				int v1938 = 0;
 				if (v1937) {
 					v1938 = 0;
 				} else {
@@ -1720,7 +1720,7 @@ public final class examples_io_freq.java {
 				int v1953 = 1;
 				for (;; v1953 = (v1953 + 1)) {
 					int v1956 = 1;
-					long v1957 = v1932;
+					int v1957 = v1932;
 					for (;; v1956 = (v1956 + 1)) {
 						final boolean v1959 = (v1957 < 10);
 						if (v1959) {
@@ -1730,7 +1730,7 @@ public final class examples_io_freq.java {
 						if (v1963) {
 							break;
 						}
-						final long v1969 = (v1957 / 10);
+						final int v1969 = (v1957 / 10);
 						v1957 = v1969;
 						continue;
 					}
@@ -1751,16 +1751,16 @@ public final class examples_io_freq.java {
 					continue;
 				}
 				short[] v1986 = v1898;
-				long v1987 = v1899;
+				int v1987 = v1899;
 				int v1988 = v1952;
-				long v1989 = v1932;
+				int v1989 = v1932;
 				for (;;) {
 					final boolean v1991 = (v1988 < 1);
 					if (v1991) {
 						break;
 					}
 					final boolean v1995 = (v1987 < 0);
-					long v1996 = 0;
+					int v1996 = 0;
 					if (v1995) {
 						v1996 = 0;
 					} else {
@@ -1771,13 +1771,13 @@ public final class examples_io_freq.java {
 							v1996 = v1987;
 						}
 					}
-					final long v2007 = (v1989 / v1988);
-					final int v2009 = (int) ((v2007 % 10));
+					final int v2007 = (v1989 / v1988);
+					final int v2009 = (v2007 % 10);
 					final int v2010 = (48 + v2009);
-					v1986[(int) v1996] = (short) (v2010);
-					final long v2013 = (v1987 + 1);
+					v1986[v1996] = (short) (v2010);
+					final int v2013 = (v1987 + 1);
 					final boolean v2015 = (v2013 < 0);
-					long v2016 = 0;
+					int v2016 = 0;
 					if (v2015) {
 						v2016 = 0;
 					} else {
@@ -1794,7 +1794,7 @@ public final class examples_io_freq.java {
 					continue;
 				}
 				int v2030 = 1;
-				long v2031 = v1932;
+				int v2031 = v1932;
 				for (;; v2030 = (v2030 + 1)) {
 					final boolean v2033 = (v2031 < 10);
 					if (v2033) {
@@ -1804,13 +1804,13 @@ public final class examples_io_freq.java {
 					if (v2037) {
 						break;
 					}
-					final long v2043 = (v2031 / 10);
+					final int v2043 = (v2031 / 10);
 					v2031 = v2043;
 					continue;
 				}
-				final long v2044 = (v1899 + v2030);
+				final int v2044 = (v1899 + v2030);
 				final boolean v2046 = (v2044 < 0);
-				long v2047 = 0;
+				int v2047 = 0;
 				if (v2046) {
 					v2047 = 0;
 				} else {
@@ -1821,9 +1821,9 @@ public final class examples_io_freq.java {
 						v2047 = v2044;
 					}
 				}
-				v1986[(int) v2047] = (short) (32);
+				v1986[v2047] = (short) (32);
 				int v2061 = 1;
-				long v2062 = v1932;
+				int v2062 = v1932;
 				for (;; v2061 = (v2061 + 1)) {
 					final boolean v2064 = (v2062 < 10);
 					if (v2064) {
@@ -1833,21 +1833,21 @@ public final class examples_io_freq.java {
 					if (v2068) {
 						break;
 					}
-					final long v2074 = (v2062 / 10);
+					final int v2074 = (v2062 / 10);
 					v2062 = v2074;
 					continue;
 				}
 				final int v2076 = (v2061 + 1);
-				final long v2077 = (v1899 + v2076);
+				final int v2077 = (v1899 + v2076);
 				short[] v2080 = v1986;
-				long v2081 = v2077;
+				int v2081 = v2077;
 				int v2082 = 0;
 				for (;; v2082 = (v2082 + 1)) {
-					final long v2084 = (2 * v1938);
-					final long v2086 = (v2084 + 1);
-					final int v2087 = v101[(int) v2086];
-					final long v2089 = (2 * v1938);
-					final int v2090 = v101[(int) v2089];
+					final int v2084 = (2 * v1938);
+					final int v2086 = (v2084 + 1);
+					final int v2087 = v101[v2086];
+					final int v2089 = (2 * v1938);
+					final int v2090 = v101[v2089];
 					final int v2091 = (v2087 - v2090);
 					final boolean v2093 = (v2091 < 0);
 					int v2094 = 0;
@@ -1866,7 +1866,7 @@ public final class examples_io_freq.java {
 						break;
 					}
 					final boolean v2107 = (v2081 < 0);
-					long v2108 = 0;
+					int v2108 = 0;
 					if (v2107) {
 						v2108 = 0;
 					} else {
@@ -1877,8 +1877,8 @@ public final class examples_io_freq.java {
 							v2108 = v2081;
 						}
 					}
-					final long v2119 = (2 * v1938);
-					final int v2120 = v101[(int) v2119];
+					final int v2119 = (2 * v1938);
+					final int v2120 = v101[v2119];
 					final int v2121 = (v2120 + v2082);
 					final boolean v2123 = (v2121 < 0);
 					int v2124 = 0;
@@ -1894,10 +1894,10 @@ public final class examples_io_freq.java {
 						}
 					}
 					final int v2135 = v10[v2124];
-					v2080[(int) v2108] = (short) (v2135);
-					final long v2138 = (v2081 + 1);
+					v2080[v2108] = (short) (v2135);
+					final int v2138 = (v2081 + 1);
 					final boolean v2140 = (v2138 < 0);
-					long v2141 = 0;
+					int v2141 = 0;
 					if (v2140) {
 						v2141 = 0;
 					} else {
@@ -1911,11 +1911,11 @@ public final class examples_io_freq.java {
 					v2081 = v2141;
 					continue;
 				}
-				final long v2155 = (2 * v1927);
-				final long v2157 = (v2155 + 1);
-				final long v2158 = v945[(int) v2157];
+				final int v2155 = (2 * v1927);
+				final int v2157 = (v2155 + 1);
+				final int v2158 = v945[v2157];
 				int v2160 = 1;
-				long v2161 = v2158;
+				int v2161 = v2158;
 				for (;; v2160 = (v2160 + 1)) {
 					final boolean v2163 = (v2161 < 10);
 					if (v2163) {
@@ -1925,14 +1925,14 @@ public final class examples_io_freq.java {
 					if (v2167) {
 						break;
 					}
-					final long v2173 = (v2161 / 10);
+					final int v2173 = (v2161 / 10);
 					v2161 = v2173;
 					continue;
 				}
-				final long v2176 = (2 * v1927);
-				final long v2177 = v945[(int) v2176];
+				final int v2176 = (2 * v1927);
+				final int v2177 = v945[v2176];
 				final boolean v2179 = (v2177 < 0);
-				long v2180 = 0;
+				int v2180 = 0;
 				if (v2179) {
 					v2180 = 0;
 				} else {
@@ -1945,11 +1945,11 @@ public final class examples_io_freq.java {
 						v2180 = v2177;
 					}
 				}
-				final long v2192 = (2 * v2180);
-				final long v2194 = (v2192 + 1);
-				final int v2195 = v101[(int) v2194];
-				final long v2197 = (2 * v2180);
-				final int v2198 = v101[(int) v2197];
+				final int v2192 = (2 * v2180);
+				final int v2194 = (v2192 + 1);
+				final int v2195 = v101[v2194];
+				final int v2197 = (2 * v2180);
+				final int v2198 = v101[v2197];
 				final int v2199 = (v2195 - v2198);
 				final boolean v2201 = (v2199 < 0);
 				int v2202 = 0;
@@ -1966,9 +1966,9 @@ public final class examples_io_freq.java {
 				final int v2211 = (2 + v2202);
 				final int v2212 = (v2160 + v2211);
 				final int v2214 = (v2212 - 1);
-				final long v2215 = (v1899 + v2214);
+				final int v2215 = (v1899 + v2214);
 				final boolean v2217 = (v2215 < 0);
-				long v2218 = 0;
+				int v2218 = 0;
 				if (v2217) {
 					v2218 = 0;
 				} else {
@@ -1979,12 +1979,12 @@ public final class examples_io_freq.java {
 						v2218 = v2215;
 					}
 				}
-				v2080[(int) v2218] = (short) (10);
-				final long v2232 = (2 * v1927);
-				final long v2234 = (v2232 + 1);
-				final long v2235 = v945[(int) v2234];
+				v2080[v2218] = (short) (10);
+				final int v2232 = (2 * v1927);
+				final int v2234 = (v2232 + 1);
+				final int v2235 = v945[v2234];
 				int v2237 = 1;
-				long v2238 = v2235;
+				int v2238 = v2235;
 				for (;; v2237 = (v2237 + 1)) {
 					final boolean v2240 = (v2238 < 10);
 					if (v2240) {
@@ -1994,14 +1994,14 @@ public final class examples_io_freq.java {
 					if (v2244) {
 						break;
 					}
-					final long v2250 = (v2238 / 10);
+					final int v2250 = (v2238 / 10);
 					v2238 = v2250;
 					continue;
 				}
-				final long v2253 = (2 * v1927);
-				final long v2254 = v945[(int) v2253];
+				final int v2253 = (2 * v1927);
+				final int v2254 = v945[v2253];
 				final boolean v2256 = (v2254 < 0);
-				long v2257 = 0;
+				int v2257 = 0;
 				if (v2256) {
 					v2257 = 0;
 				} else {
@@ -2014,11 +2014,11 @@ public final class examples_io_freq.java {
 						v2257 = v2254;
 					}
 				}
-				final long v2269 = (2 * v2257);
-				final long v2271 = (v2269 + 1);
-				final int v2272 = v101[(int) v2271];
-				final long v2274 = (2 * v2257);
-				final int v2275 = v101[(int) v2274];
+				final int v2269 = (2 * v2257);
+				final int v2271 = (v2269 + 1);
+				final int v2272 = v101[v2271];
+				final int v2274 = (2 * v2257);
+				final int v2275 = v101[v2274];
 				final int v2276 = (v2272 - v2275);
 				final boolean v2278 = (v2276 < 0);
 				int v2279 = 0;
@@ -2034,7 +2034,7 @@ public final class examples_io_freq.java {
 				}
 				final int v2288 = (2 + v2279);
 				final int v2289 = (v2237 + v2288);
-				final long v2290 = (v1899 + v2289);
+				final int v2290 = (v1899 + v2289);
 				v1898 = v2080;
 				v1899 = v2290;
 				continue;

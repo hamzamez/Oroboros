@@ -30,6 +30,7 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
+	flag.BoolVar(&irProof, "irproof", false, "also count what the IR's interval domain proves, beside the term analysis (ADR 0032 step 4)")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -283,6 +284,22 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				"%d of %d loop(s) proven terminating\n",
 				fname, rep.Proven, rep.Ops, rep.Terminates, rep.Loops)
 		}
+		// THE SHADOW (ADR 0032 step 4): the IR's interval domain as a legality
+		// checker, on the same residual the count above is taken on.
+		if irProof {
+			if f, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true}); err != nil {
+				fmt.Fprintf(os.Stderr, "irproof: %s: lowering: %v\n", fname, err)
+			} else {
+				p, n, hp, h, miss := ir.ProofCount(tg, f)
+				fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d, host %d of %d\n", fname, rep.Proven, rep.Ops, p, n, hp, h)
+				for _, m := range miss {
+					fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
+				}
+				for _, m := range rep.Unproven {
+					fmt.Fprintf(os.Stderr, "termmiss: %s: %s\n", fname, m)
+				}
+			}
+		}
 		// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: it
 		// takes the trap instead of the refusal.
 		if checked {
@@ -357,6 +374,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 
 // irOut is -ir's file.
 var irOut string
+
+// irProof is -irproof: the IR's interval domain in shadow (ADR 0032 step 4).
+var irProof bool
 
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {

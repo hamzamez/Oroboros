@@ -9,7 +9,9 @@ built**: the shared plan `ir/plan`, with JavaScript on it
 ([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)) and x86
 ([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)): every backend prints
 from the IR. **Step 4 has begun**: the term backends are deleted
-([irstep4a-2026-09-26](../../gauntlet/results/irstep4a-2026-09-26.md)), and the analyses are next. **Realizes [ADR 0006](0006-ir-file-format.md)**, which
+([irstep4a-2026-09-26](../../gauntlet/results/irstep4a-2026-09-26.md)), and the IR's interval domain
+proves what the term analysis proves, in shadow
+([irstep4b-2026-09-26](../../gauntlet/results/irstep4b-2026-09-26.md)). **Realizes [ADR 0006](0006-ir-file-format.md)**, which
 decided that the backend interface is a file format and never wrote one. The derivation is
 [docs/ir-research.md](../ir-research.md), and the specification is [docs/spec/ir.md](../spec/ir.md).
 Decided by three prototypes: [irp1](../../gauntlet/results/irp1-2026-09-25.md),

@@ -57,24 +57,23 @@ func TestAComputedByteNarrowsItsBuffer(t *testing.T) {
 	}
 }
 
-// AND IT MUST STILL REFUSE TO NARROW ON ITS OWN CONTENTS.
+// A BUFFER NARROWS ON ITS OWN CONTENTS ONLY BY A PROOF.
 //
-// The circularity guard was written for a BARE read of the buffer and sat at
-// the top level of one store; arithmetic can bury one, and freq's run-length
-// counter is exactly `(+ (b s) 1)` — an increment of a slot, inside the `build`
-// that fills it. Deciding the element range from that is reasoning in a circle,
-// so the guard is now threaded through the recursion.
+// The circularity guard was written for a bare read of the buffer and then
+// threaded through arithmetic, because freq's run-length counter is `(+ (b s)
+// 1)`, an increment of a slot inside the `build` that fills it, and deciding
+// the element range from that on the term side was reasoning in a circle. It
+// was a policy test: with the guard removed no counterexample was found.
 //
-// THIS IS A POLICY TEST WITH A CONTROL, and it is labelled so because no
-// counterexample was found for it: with the guard removed, `typeOf` of the
-// buffer INSIDE its own lambda answers nothing useful, so the read rule refuses
-// anyway and the emitted type does not move. That is defence in depth rather
-// than a live bug — and elemwidth-2026-08-27 pinned the bare-read version of
-// this same rule the same way, for the same reason. A test whose passing case
-// and failing case look identical proves nothing, so the CONTROL is the same
-// program storing a literal in the same position: it must narrow.
-func TestABufferStillMayNotNarrowOnItsOwnContents(t *testing.T) {
-	prog := func(v string) string {
+// The IR's interval domain now DERIVES the range, by induction rather than
+// circularity: Theorem 3 of ir/trip.go (bounded increments) bounds every cell
+// by its zero fill plus one per back edge, so eight trips give [0, 8] and the
+// buffer is a []byte. That is the proof the guard was standing in for. What
+// must hold is that the proof is the only way in: the same increments over
+// 4000 trips reach 500, and that buffer must not be a []byte. The control
+// stores a literal, which narrows with no induction at all.
+func TestABufferNarrowsOnItsOwnContentsOnlyByAProof(t *testing.T) {
+	prog := func(trips, v string) string {
 		return `
 (use go)
 (export f)
@@ -82,23 +81,30 @@ func TestABufferStillMayNotNarrowOnItsOwnContents(t *testing.T) {
 (def f (fn (n)
   (let t (build 8 (fn (b)
            (loop ((b b) (k 0))
-             (>= k 8)  b
-             else      (again (set b k ` + v + `) (+ k 1)))))
+             (>= k ` + trips + `)  b
+             else      (again (set b (% k 8) ` + v + `) (+ k 1)))))
     (+ (t 0) (t 7)))))`
 	}
-	circular, err := genOn(t, "go", prog("(+ (b k) 1)"), "f")
+	proven, err := genOn(t, "go", prog("8", "(+ (b (% k 8)) 1)"), "f")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(circular, "[]byte") || strings.Contains(circular, "[]uint") {
-		t.Errorf("a buffer read back through arithmetic must not narrow it:\n%s", circular)
+	if !strings.Contains(proven, "make([]byte, 8)") {
+		t.Errorf("eight increments of one bound every cell by 8, so the buffer is a []byte:\n%s", proven)
 	}
-	control, err := genOn(t, "go", prog("(+ 48 1)"), "f")
+	wide, err := genOn(t, "go", prog("4000", "(+ (b (% k 8)) 1)"), "f")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(wide, "[]byte") {
+		t.Errorf("4000 increments over 8 cells reach 500, which a byte does not hold:\n%s", wide)
+	}
+	control, err := genOn(t, "go", prog("8", "(+ 48 1)"), "f")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(control, "make([]byte, 8)") {
-		t.Errorf("the control must still narrow, or the test above proves nothing:\n%s", control)
+		t.Errorf("the control must narrow:\n%s", control)
 	}
 }
 

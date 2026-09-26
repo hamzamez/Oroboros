@@ -130,7 +130,11 @@ func extractCommit(root, commit, dir string) error {
 	if err := os.RemoveAll(dir); err != nil {
 		return err
 	}
-	cmd := exec.Command("git", "-C", root, "archive", "--format=tar", commit)
+	return extractTar(exec.Command("git", "-C", root, "archive", "--format=tar", commit), dir)
+}
+
+// extractTar writes the tar that cmd prints into dir.
+func extractTar(cmd *exec.Cmd, dir string) error {
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -138,6 +142,17 @@ func extractCommit(root, commit, dir string) error {
 	if err := cmd.Start(); err != nil {
 		return err
 	}
+	// THE PIPE IS DRAINED BEFORE Wait, on every path. The tar reader stops at
+	// the end-of-archive marker, but git pads the archive to a 10 KiB record
+	// and blocks writing the rest into a pipe nobody reads; Wait then waits for
+	// git forever. os/exec says as much ("it is incorrect to call Wait before
+	// all reads from the pipe have completed"), and Windows' small pipe buffer
+	// made it happen: `check` sat idle for 53 minutes with every file already
+	// extracted (irstep4b-2026-09-26).
+	defer func() {
+		io.Copy(io.Discard, pipe)
+		cmd.Wait()
+	}()
 	tr := tar.NewReader(pipe)
 	for {
 		h, err := tr.Next()
@@ -167,6 +182,9 @@ func extractCommit(root, commit, dir string) error {
 				return err
 			}
 		}
+	}
+	if _, err := io.Copy(io.Discard, pipe); err != nil {
+		return err
 	}
 	return cmd.Wait()
 }

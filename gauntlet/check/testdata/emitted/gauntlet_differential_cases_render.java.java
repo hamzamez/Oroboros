@@ -43,10 +43,10 @@ public final class gauntlet_differential_cases_render.java {
 			final java.math.BigInteger v46 = (java.math.BigInteger.valueOf(100000000));
 			final java.math.BigInteger v47 = (v36.divide(v46));
 			final java.math.BigInteger v49 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v47, (long)(201)));
-			final long v53 = (v36.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+			final int v53 = (int) (v36.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
 			String v55 = "";
 			int v56 = 0;
-			long v57 = v53;
+			int v57 = v53;
 			for (;; v56 = (v56 + 1)) {
 				final boolean v59 = (v56 >= 8);
 				if (v59) {
@@ -59,11 +59,11 @@ public final class gauntlet_differential_cases_render.java {
 				if (v70) {
 					break;
 				}
-				final int v83 = (int) ((v57 % 10));
+				final int v83 = (v57 % 10);
 				final int v84 = (48 + v83);
 				final String v85 = (new String(Character.toChars((int) v84)));
 				final String v86 = (v85.concat(v55));
-				final long v90 = (v57 / 10);
+				final int v90 = (v57 / 10);
 				v55 = v86;
 				v57 = v90;
 				continue;

@@ -1,0 +1,161 @@
+(ir 1
+  (target go)
+  (stage A)
+  (ops const add mul lt le ge call index if loop assume yield break continue branch)
+  (func gen-count-primes (params (%0 int)) (results int)
+    (region
+      (val (%1 int) (const 0))
+      (val (%2 bool) (le %1 %0))
+      (val (%3 bool)
+        (if %2
+          (region
+            (pi %4 int (%0 ge %1))
+            (val (%5 int) (const 1048576))
+            (val (%6 bool) (lt %4 %5))
+            (yield %6))
+          (region
+            (pi %7 int (%0 lt %1))
+            (val (%8 bool) (const false))
+            (yield %8))))
+      (do (assume %3))
+      (val (%9 slice-bool) (call go.make-bool %0))
+      (val (%10 int) (const 2))
+      (val (%11 (array bool))
+        (loop (init %10)
+          (region
+            (params (%12 int))
+            (val (%13 int) (mul exact %12 %12))
+            (val (%14 bool) (ge %13 %0))
+            (branch %14
+              (region
+                (pi %15 int (%0 le %13))
+                (break %9))
+              (region
+                (pi %16 int (%0 gt %13))
+                (val (%17 bool) (index %9 %12))
+                (branch %17
+                  (region
+                    (val (%18 int) (const 1))
+                    (val (%19 int) (add exact %12 %18))
+                    (continue %19))
+                  (region
+                    (val (%20 int) (mul exact %12 %12))
+                    (val (%21 (array bool))
+                      (loop (init %20)
+                        (region
+                          (params (%22 int))
+                          (val (%23 bool) (lt %22 %16))
+                          (branch %23
+                            (region
+                              (pi %24 int (%22 lt %16))
+                              (pi %25 int (%16 gt %22))
+                              (val (%26 bool) (const true))
+                              (val (%27 (array bool)) (call go.set-bool %9 %24 %26))
+                              (val (%28 int) (add exact %24 %12))
+                              (continue %28))
+                            (region
+                              (pi %29 int (%22 ge %16))
+                              (pi %30 int (%16 le %22))
+                              (break %9))))))
+                    (val (%31 int) (const 1))
+                    (val (%32 int) (add exact %12 %31))
+                    (continue %32))))))))
+      (val (%33 int) (const 0))
+      (val (%34 int) (const 2))
+      (val (%35 int)
+        (loop (init %33 %34)
+          (region
+            (params (%36 int) (%37 int))
+            (val (%38 bool) (ge %37 %0))
+            (branch %38
+              (region
+                (pi %39 int (%37 ge %0))
+                (pi %40 int (%0 le %37))
+                (break %36))
+              (region
+                (pi %41 int (%37 lt %0))
+                (pi %42 int (%0 gt %37))
+                (val (%43 bool) (index %11 %41))
+                (branch %43
+                  (region
+                    (val (%44 int) (const 1))
+                    (val (%45 int) (add exact %41 %44))
+                    (continue %36 %45))
+                  (region
+                    (val (%46 int) (const 1))
+                    (val (%47 int) (add exact %36 %46))
+                    (val (%48 int) (const 1))
+                    (val (%49 int) (add exact %41 %48))
+                    (continue %47 %49))))))))
+      (yield %35)))
+  (func gen-main (params) (results int)
+    (region
+      (val (%0 int) (const 20000))
+      (val (%1 slice-bool) (call go.make-bool %0))
+      (val (%2 int) (const 2))
+      (val (%3 (array bool))
+        (loop (init %2)
+          (region
+            (params (%4 int))
+            (val (%5 int) (mul exact %4 %4))
+            (val (%6 int) (const 20000))
+            (val (%7 bool) (ge %5 %6))
+            (branch %7
+              (region
+                (break %1))
+              (region
+                (val (%8 bool) (index %1 %4))
+                (branch %8
+                  (region
+                    (val (%9 int) (const 1))
+                    (val (%10 int) (add exact %4 %9))
+                    (continue %10))
+                  (region
+                    (val (%11 int) (mul exact %4 %4))
+                    (val (%12 (array bool))
+                      (loop (init %11)
+                        (region
+                          (params (%13 int))
+                          (val (%14 int) (const 20000))
+                          (val (%15 bool) (lt %13 %14))
+                          (branch %15
+                            (region
+                              (pi %16 int (%13 lt %14))
+                              (val (%17 bool) (const true))
+                              (val (%18 (array bool)) (call go.set-bool %1 %16 %17))
+                              (val (%19 int) (add exact %16 %4))
+                              (continue %19))
+                            (region
+                              (pi %20 int (%13 ge %14))
+                              (break %1))))))
+                    (val (%21 int) (const 1))
+                    (val (%22 int) (add exact %4 %21))
+                    (continue %22))))))))
+      (val (%23 int) (const 0))
+      (val (%24 int) (const 2))
+      (val (%25 int)
+        (loop (init %23 %24)
+          (region
+            (params (%26 int) (%27 int))
+            (val (%28 int) (const 20000))
+            (val (%29 bool) (ge %27 %28))
+            (branch %29
+              (region
+                (pi %30 int (%27 ge %28))
+                (break %26))
+              (region
+                (pi %31 int (%27 lt %28))
+                (val (%32 bool) (index %3 %31))
+                (branch %32
+                  (region
+                    (val (%33 int) (const 1))
+                    (val (%34 int) (add exact %31 %33))
+                    (continue %26 %34))
+                  (region
+                    (val (%35 int) (const 1))
+                    (val (%36 int) (add exact %26 %35))
+                    (val (%37 int) (const 1))
+                    (val (%38 int) (add exact %31 %37))
+                    (continue %36 %38))))))))
+      (val (%39 int) (call go/fmt.Println %25))
+      (yield %39))))

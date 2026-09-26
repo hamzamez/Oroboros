@@ -4,7 +4,10 @@ import (
 	"math"
 	"math/big"
 	"math/rand"
+	"os"
 	"testing"
+
+	"oroboros/emit"
 )
 
 // THE SOUNDNESS TABLE OF THE INTERVAL DOMAIN (spec §7): one row per abstract
@@ -203,6 +206,178 @@ func TestLatticeLaws(t *testing.T) {
 				}
 				if (inA || inB) && !member(bx, w) {
 					t.Fatalf("widen: %d ∈ %s ∪ %s but ∉ %s", x, show(a), show(b), show(w))
+				}
+			}
+		}
+	}
+}
+
+// TestThresholdWideningIsAWidening: widenIVT's two laws, exhaustively over the
+// test domains and a threshold set with gaps. (1) It contains both arguments.
+// (2) An ascending chain of it stabilises: repeatedly widening against a
+// growing sequence changes each end at most |T| + 1 times.
+func TestThresholdWideningIsAWidening(t *testing.T) {
+	th := []int64{-5, -1, 0, 2, 3, 6, math.MaxInt64}
+	ds := domains()
+	for _, a := range ds {
+		for _, b := range ds {
+			w := widenIVT(a, b, th)
+			for _, x := range append(samples(a), samples(b)...) {
+				bx := big.NewInt(x)
+				if (member(bx, a) || member(bx, b)) && !member(bx, w) {
+					t.Fatalf("widen with thresholds: %d ∈ %s ∪ %s but ∉ %s", x, show(a), show(b), show(w))
+				}
+			}
+		}
+	}
+	// A counter growing by one forever: the chain must stabilise.
+	cur := rangeIV(0, 0)
+	for step := 0; ; step++ {
+		next := widenIVT(cur, joinIV(cur, rangeIV(0, int64(step)+1)), th)
+		if next == cur {
+			break
+		}
+		if step > len(th)+2 {
+			t.Fatalf("the chain did not stabilise within |T| + 2 steps: %s", show(cur))
+		}
+		cur = next
+	}
+}
+
+// TestAnAssumptionReachesThroughAPi: a conjunction's second conjunct reads its
+// operand through the first's π, and what `assume` narrows there it narrows in
+// the source, since the two names denote one value. count-primes' `where`,
+// (and (<= 0 n) (< n 1048576)), must leave n in [0, 1048575]; without the rule
+// it stayed [0, +∞] and none of the function's eight operations was proven.
+func TestAnAssumptionReachesThroughAPi(t *testing.T) {
+	src, err := os.ReadFile("testdata/assume-pi.ir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := Read(string(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg, err := emit.LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range p.Funcs {
+		if f.Name != "gen-count-primes" {
+			continue
+		}
+		n := analyse(tg, f)[f.Params[0]].v
+		if n != rangeIV(0, 1048575) {
+			t.Fatalf("n is %s after its where, want [0, 1048575]", show(n))
+		}
+		return
+	}
+	t.Fatal("gen-count-primes is not in the test data")
+}
+
+// TestTheBackwardRulesAreSound: each inverse the backward propagation uses,
+// checked against the forward operation on ℤ. For every x and every z the
+// operation lands in, x lies in what the inverse returns (Benhamou et al.'s
+// HC4-revise is sound exactly when each of these is).
+func TestTheBackwardRulesAreSound(t *testing.T) {
+	ds := domains()
+	for _, z := range ds {
+		for x := int64(-40); x <= 40; x++ {
+			if member(big.NewInt(x*x), z) {
+				r, ok := invSquare(z)
+				if ok && !member(big.NewInt(x), r) {
+					t.Fatalf("invSquare: %d² = %d ∈ %s but %d ∉ %s", x, x*x, show(z), x, show(r))
+				}
+			}
+			for _, c := range []int64{-7, -3, -2, -1, 1, 2, 3, 10} {
+				if member(big.NewInt(x*c), z) {
+					r, ok := invMulConst(z, c)
+					if ok && !member(big.NewInt(x), r) {
+						t.Fatalf("invMulConst: %d·%d ∈ %s but %d ∉ %s", x, c, show(z), x, show(r))
+					}
+				}
+			}
+		}
+	}
+	for _, n := range []int64{0, 1, 2, 3, 4, 15, 16, 17, 19999, 1<<62 - 1, math.MaxInt64} {
+		r := isqrt(n)
+		if r < 0 || new(big.Int).Mul(big.NewInt(r), big.NewInt(r)).Cmp(big.NewInt(n)) > 0 ||
+			new(big.Int).Mul(big.NewInt(r+1), big.NewInt(r+1)).Cmp(big.NewInt(n)) <= 0 {
+			t.Fatalf("isqrt(%d) = %d", n, r)
+		}
+	}
+}
+
+// TestTheUnsignedTransfersAreTheResidueMap: each u64 transfer against r, the
+// residue map ℤ → ℤ/2⁶⁴ with its representatives in U = [0, 2⁶⁴) or in
+// S = [−2⁶³, 2⁶³), over every sample of every domain, U's values past int64
+// included (an infinite top end holds them).
+func TestTheUnsignedTransfersAreTheResidueMap(t *testing.T) {
+	two64 := new(big.Int).Lsh(big.NewInt(1), 64)
+	two63 := new(big.Int).Lsh(big.NewInt(1), 63)
+	rU := func(x *big.Int) *big.Int { return new(big.Int).Mod(x, two64) }
+	rS := func(x *big.Int) *big.Int {
+		y := rU(x)
+		if y.Cmp(two63) >= 0 {
+			y.Sub(y, two64)
+		}
+		return y
+	}
+	inU := func(x *big.Int) bool { return x.Sign() >= 0 && x.Cmp(two64) < 0 }
+	wide := func(a iv) []*big.Int {
+		var out []*big.Int
+		for _, x := range samples(a) {
+			out = append(out, new(big.Int).SetInt64(x))
+		}
+		if a.phi && !a.bot {
+			out = append(out, new(big.Int).Set(two63), new(big.Int).Sub(two64, big.NewInt(1)), new(big.Int).Add(two63, big.NewInt(12345)))
+		}
+		return out
+	}
+	ds := domains()
+	for _, a := range ds {
+		for _, x := range samples(a) {
+			bx := new(big.Int).SetInt64(x)
+			if y := rU(bx); !member(y, u64Of(a)) {
+				t.Fatalf("u64-of %d = %s ∉ %s (x ∈ %s)", x, y, show(u64Of(a)), show(a))
+			}
+		}
+		for _, x := range wide(a) {
+			if inU(x) && !member(rS(x), intOfU64(a)) {
+				t.Fatalf("int-of-u64 %s = %s ∉ %s (x ∈ %s)", x, rS(x), show(intOfU64(a)), show(a))
+			}
+		}
+		for _, b := range ds {
+			for _, op := range []string{"u64+", "u64-", "u64*", "u64/", "u64%"} {
+				out := u64Arith(op, a, b)
+				for _, x := range wide(a) {
+					for _, y := range wide(b) {
+						if !inU(x) || !inU(y) {
+							continue
+						}
+						var z *big.Int
+						switch op {
+						case "u64+":
+							z = rU(new(big.Int).Add(x, y))
+						case "u64-":
+							z = rU(new(big.Int).Sub(x, y))
+						case "u64*":
+							z = rU(new(big.Int).Mul(x, y))
+						case "u64/":
+							if y.Sign() == 0 {
+								continue
+							}
+							z = new(big.Int).Quo(x, y)
+						default:
+							if y.Sign() == 0 {
+								continue
+							}
+							z = new(big.Int).Rem(x, y)
+						}
+						if !member(z, out) {
+							t.Fatalf("%s %s %s = %s ∉ %s (%s, %s)", op, x, y, z, show(out), show(a), show(b))
+						}
+					}
 				}
 			}
 		}

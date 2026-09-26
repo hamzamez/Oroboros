@@ -23,31 +23,40 @@ func compile(t *testing.T, src, target string) (*emit.Target, *Program) {
 // legality check, gives IR_A with every mode written, ready for Finalize.
 func compileOpt(t *testing.T, src, target string, opt Options) (*emit.Target, *Program) {
 	t.Helper()
-	src = filepath.Join("..", src)
-	layers, err := emit.SearchPath(src, filepath.Join("..", "targets"))
+	tg, p, err := compilePath(filepath.Join("..", src), target, opt)
 	if err != nil {
 		t.Fatal(err)
+	}
+	return tg, p
+}
+
+// compilePath is compileOpt on a path as given, reporting an error instead of
+// failing: a generated program the front end refuses is skipped, and counted.
+func compilePath(src, target string, opt Options) (*emit.Target, *Program, error) {
+	layers, err := emit.SearchPath(src, filepath.Join("..", "targets"))
+	if err != nil {
+		return nil, nil, err
 	}
 	dirs := []string{filepath.Dir(src), filepath.Join("..", "lib")}
 	tg, err := emit.LoadTargetLayers(target, layers, dirs)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 	text, err := os.ReadFile(src)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 	forms, err := core.Read(string(text))
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 	prog, _, err := core.LoadWithDefs(forms, resolver(dirs), tg.Defs)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 	env, err := tg.Env(prog)
 	if err != nil {
-		t.Fatal(err)
+		return nil, nil, err
 	}
 	reqs := emit.InstallRequires(env, prog)
 	exports := append([]string(nil), prog.Exports...)
@@ -57,27 +66,27 @@ func compileOpt(t *testing.T, src, target string, opt Options) (*emit.Target, *P
 		name := "t-" + q[strings.LastIndex(q, ".")+1:]
 		nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
 		if err != nil {
-			t.Fatal(err)
+			return nil, nil, err
 		}
 		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf); err != nil {
-			t.Fatal(err)
+			return nil, nil, err
 		}
 		sig := prog.Sigs[q]
 		if nfl, fsig, k, err := emit.FlattenProducts(tg, sig, nf); err != nil {
-			t.Fatal(err)
+			return nil, nil, err
 		} else if k > 0 {
 			nf, sig = nfl, fsig
 		}
 		if nf, _, err = emit.PromoteBig(tg, sig, nf); err != nil {
-			t.Fatal(err)
+			return nil, nil, err
 		}
 		f, err := Lower(tg, name, sig, nf, opt)
 		if err != nil {
-			t.Fatal(err)
+			return nil, nil, err
 		}
 		p.Funcs = append(p.Funcs, f)
 	}
-	return tg, p
+	return tg, p, nil
 }
 
 func resolver(dirs []string) core.Resolver {

@@ -3,24 +3,24 @@
 public final class examples_native_sieve-java.java {
 	public static long genSieveCount(long v0) {
 		final boolean[] v9 = (new boolean[(int) v0]);
-		long v12 = 2;
+		int v12 = 2;
 		for (;; v12 = (v12 + 1)) {
-			final long v13 = (v12 * v12);
+			final int v13 = (v12 * v12);
 			final boolean v14 = (v13 >= v0);
 			if (v14) {
 				break;
 			}
-			final boolean v17 = v9[(int) v12];
+			final boolean v17 = v9[v12];
 			if (v17) {
 				continue;
 			}
-			final long v20 = (v12 * v12);
-			long v22 = v20;
+			final int v20 = (v12 * v12);
+			int v22 = v20;
 			for (;;) {
 				final boolean v23 = (v22 < v0);
 				if (v23) {
 					v9[(int) v22] = true;
-					final long v28 = (v22 + v12);
+					final int v28 = (v22 + v12);
 					v22 = v28;
 					continue;
 				}
@@ -28,18 +28,18 @@ public final class examples_native_sieve-java.java {
 			}
 			continue;
 		}
-		long v36 = 0;
-		long v37 = 2;
+		int v36 = 0;
+		int v37 = 2;
 		for (;; v37 = (v37 + 1)) {
 			final boolean v38 = (v37 >= v0);
 			if (v38) {
 				break;
 			}
-			final boolean v43 = v9[(int) v37];
+			final boolean v43 = v9[v37];
 			if (v43) {
 				continue;
 			}
-			final long v47 = (v36 + 1);
+			final int v47 = (v36 + 1);
 			v36 = v47;
 			continue;
 		}

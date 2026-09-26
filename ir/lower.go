@@ -118,7 +118,13 @@ func promote(tg *emit.Target, f *Func, opt Options) bool {
 				}
 			}
 			if ok {
-				s.Op, s.Mode, s.Name = o, m, ""
+				// The host primitive is kept as PROVENANCE: JavaScript's `+` is
+				// ℤ's only inside ±(2⁵³−1), so a promoted operation is ℤ's under a
+				// premise, and outside it is still the host's, which is legal
+				// with no portability claim. The legality count (ProofCount)
+				// needs to know which is which; the canonical text does not
+				// print it, and no printer reads it.
+				s.Op, s.Mode = o, m
 				if o.IsCmp() {
 					s.Mode = MNone
 				}

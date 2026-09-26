@@ -121,12 +121,24 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
   - x86 lost its ordered back edges and threaded jumps;
   - Go and Java lost the tail connective.
 
-**The migration is the current plan**: the analyses next, one domain at a time, starting with the
-IR's interval domain as a legality checker in shadow beside the term analysis. The language plan
-below waits for it. Soundness bugs found while writing the IR's rules:
+**The IR's interval domain proves what the term analysis proves**
+([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md)):
+- 2,007 of 2,054 operations, in every one of the 148 functions, measured in shadow by `gen -irproof`;
+- the rules (spec/ir.md §7.1): widening with thresholds for 16 rounds, then the plain widening; the arm
+  conditions; backward propagation; trip bounds from a ranking parameter (Theorems 1–2); and bounded
+  increments into a buffer (Theorem 3);
+- each rule is checked against executions: a concrete interpreter over ℤ (`ir/interp_test.go`) runs
+  generated programs, one shape per rule, and every rule has a planted fault it catches;
+- its facts already meet the term analysis's in Finalize, so freq's counts and tree's worklist narrowed.
+
+**The migration is the current plan**: make the IR's domain the legality checker and retire
+`emit/interval.go`, then termination and the refinement layer, one at a time. The language plan below
+waits for it. Soundness bugs found while writing the IR's rules:
 - in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
   of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
   was not (`narrow-from-wide`);
+- the IR's `u64` transfers took the residue map as the identity (unreachable: only `wordsel` writes
+  them, on S ∩ U), now its exact image;
 - **queued**: a `build`'s size is not obliged to fit `max-len`, so `(len (build b 4294967297 …))` is
   1 on Java (irstep3java §3).
 

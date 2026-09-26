@@ -23,10 +23,10 @@ public final class examples_big_render.java {
 			final java.math.BigInteger v19 = (java.math.BigInteger.valueOf(100000000));
 			final java.math.BigInteger v20 = (v9.divide(v19));
 			final java.math.BigInteger v22 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v20, (long)(201)));
-			final long v26 = (v9.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+			final int v26 = (int) (v9.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
 			String v28 = "";
 			int v29 = 0;
-			long v30 = v26;
+			int v30 = v26;
 			for (;; v29 = (v29 + 1)) {
 				final boolean v32 = (v29 >= 8);
 				if (v32) {
@@ -39,11 +39,11 @@ public final class examples_big_render.java {
 				if (v43) {
 					break;
 				}
-				final int v56 = (int) ((v30 % 10));
+				final int v56 = (v30 % 10);
 				final int v57 = (48 + v56);
 				final String v58 = (new String(Character.toChars((int) v57)));
 				final String v59 = (v58.concat(v28));
-				final long v63 = (v30 / 10);
+				final int v63 = (v30 / 10);
 				v28 = v59;
 				v30 = v63;
 				continue;

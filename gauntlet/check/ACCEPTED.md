@@ -695,3 +695,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/render.oro js`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
 - emitted text changed — `lib/win/fmt.oro windows`
+
+## 2026-09-26 — on f8c07f2, with uncommitted changes
+
+**Reason:** IR interval domain at parity with the term analysis (irstep4b): Theorem 3 and trip bounds narrow freq's count tables (uint16/short) and tree's worklist (int16), and Java scalars proven in 32 bits become int; differential passes; tree on Go 1.02x hand-written
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/big/render.oro java`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/wc.oro java`
+- emitted text changed — `examples/json/tree.oro go`
+- emitted text changed — `examples/native/sieve-java.oro java`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`

@@ -126,10 +126,10 @@ func GenMain() string {
 			continue
 		}
 		v101 = v106
-		v193 := make([]int, v23)
-		var v192 []int
-		v195 := make([]int, v23)
-		var v194 []int
+		v193 := make([]uint16, v23)
+		var v192 []uint16
+		v195 := make([]uint16, v23)
+		var v194 []uint16
 		v198 := v193
 		var v199 int = 0
 		for ; ; v199 = (v199 + 1) {
@@ -149,7 +149,7 @@ func GenMain() string {
 					v207 = v199
 				}
 			}
-			v198[v207] = v199
+			v198[v207] = uint16(v199)
 			continue
 		}
 		v222 := v198
@@ -223,8 +223,8 @@ func GenMain() string {
 								v286 = v262
 							}
 						}
-						v296 := v222[v286]
-						v260[v274] = v296
+						v296 := int(v222[v286])
+						v260[v274] = uint16(v296)
 						v299 := (v262 + 1)
 						v262 = v299
 						continue
@@ -255,8 +255,8 @@ func GenMain() string {
 								v321 = v261
 							}
 						}
-						v331 := v222[v321]
-						v260[v309] = v331
+						v331 := int(v222[v321])
+						v260[v309] = uint16(v331)
 						v334 := (v261 + 1)
 						v261 = v334
 						continue
@@ -273,7 +273,7 @@ func GenMain() string {
 							v341 = v262
 						}
 					}
-					v351 := v222[v341]
+					v351 := int(v222[v341])
 					v353 := (v261 < 0)
 					var v354 int
 					if v353 {
@@ -286,7 +286,7 @@ func GenMain() string {
 							v354 = v261
 						}
 					}
-					v364 := v222[v354]
+					v364 := int(v222[v354])
 					v368 := (0 <= v351)
 					v369 := (v368 && ((v351 < v23) && ((0 <= v364) && (v364 < v23))))
 					var v385 bool
@@ -509,8 +509,8 @@ func GenMain() string {
 								v622 = v262
 							}
 						}
-						v632 := v222[v622]
-						v260[v610] = v632
+						v632 := int(v222[v622])
+						v260[v610] = uint16(v632)
 						v635 := (v262 + 1)
 						v262 = v635
 						continue
@@ -539,8 +539,8 @@ func GenMain() string {
 							v652 = v261
 						}
 					}
-					v662 := v222[v652]
-					v260[v640] = v662
+					v662 := int(v222[v652])
+					v260[v640] = uint16(v662)
 					v665 := (v261 + 1)
 					v261 = v665
 					continue
@@ -582,7 +582,7 @@ func GenMain() string {
 						v693 = v674
 					}
 				}
-				v703 := v192[v693]
+				v703 := int(v192[v693])
 				v705 := (v674 - 1)
 				v707 := (v705 < 0)
 				var v708 int
@@ -596,7 +596,7 @@ func GenMain() string {
 						v708 = v705
 					}
 				}
-				v718 := v192[v708]
+				v718 := int(v192[v708])
 				var v721 int = 0
 				var v720 int
 				for ; ; v721 = (v721 + 1) {
@@ -796,8 +796,8 @@ func GenMain() string {
 			continue
 		}
 		v944 := (2 * v673)
-		v946 := make([]int, v944)
-		var v945 []int
+		v946 := make([]uint32, v944)
+		var v945 []uint32
 		v950 := v946
 		var v951 int = 0
 		var v952 int = 0
@@ -827,7 +827,7 @@ func GenMain() string {
 						v972 = v951
 					}
 				}
-				v982 := v192[v972]
+				v982 := int(v192[v972])
 				v984 := (v951 - 1)
 				v986 := (v984 < 0)
 				var v987 int
@@ -841,7 +841,7 @@ func GenMain() string {
 						v987 = v984
 					}
 				}
-				v997 := v192[v987]
+				v997 := int(v192[v987])
 				var v1000 int = 0
 				var v999 int
 				for ; ; v1000 = (v1000 + 1) {
@@ -1054,7 +1054,7 @@ func GenMain() string {
 						v1230 = v951
 					}
 				}
-				v1240 := v192[v1230]
+				v1240 := int(v192[v1230])
 				v1242 := (v951 - 1)
 				v1244 := (v1242 < 0)
 				var v1245 int
@@ -1068,7 +1068,7 @@ func GenMain() string {
 						v1245 = v1242
 					}
 				}
-				v1255 := v192[v1245]
+				v1255 := int(v192[v1245])
 				var v1258 int = 0
 				var v1257 int
 				for ; ; v1258 = (v1258 + 1) {
@@ -1286,8 +1286,8 @@ func GenMain() string {
 						v1489 = v951
 					}
 				}
-				v1499 := v192[v1489]
-				v950[v1486] = v1499
+				v1499 := int(v192[v1489])
+				v950[v1486] = uint32(v1499)
 				v1503 := (v952 < 0)
 				var v1504 int
 				if v1503 {
@@ -1302,7 +1302,7 @@ func GenMain() string {
 				}
 				v1514 := (2 * v1504)
 				v1516 := (v1514 + 1)
-				v950[v1516] = 1
+				v950[v1516] = uint32(1)
 				v1522 := (v952 + 1)
 				v952 = v1522
 				continue
@@ -1324,16 +1324,16 @@ func GenMain() string {
 			v1541 := (v1539 + 1)
 			v1543 := (2 * v1528)
 			v1545 := (v1543 + 1)
-			v1546 := v950[v1545]
+			v1546 := int(v950[v1545])
 			v1548 := (v1546 + 1)
-			v950[v1541] = v1548
+			v950[v1541] = uint32(v1548)
 			continue
 		}
 		v945 = v950
-		v1553 := make([]int, v673)
-		var v1552 []int
-		v1555 := make([]int, v673)
-		var v1554 []int
+		v1553 := make([]uint16, v673)
+		var v1552 []uint16
+		v1555 := make([]uint16, v673)
+		var v1554 []uint16
 		v1558 := v1553
 		var v1559 int = 0
 		for ; ; v1559 = (v1559 + 1) {
@@ -1353,7 +1353,7 @@ func GenMain() string {
 					v1567 = v1559
 				}
 			}
-			v1558[v1567] = v1559
+			v1558[v1567] = uint16(v1559)
 			continue
 		}
 		v1582 := v1558
@@ -1427,8 +1427,8 @@ func GenMain() string {
 								v1646 = v1622
 							}
 						}
-						v1656 := v1582[v1646]
-						v1620[v1634] = v1656
+						v1656 := int(v1582[v1646])
+						v1620[v1634] = uint16(v1656)
 						v1659 := (v1622 + 1)
 						v1622 = v1659
 						continue
@@ -1459,8 +1459,8 @@ func GenMain() string {
 								v1681 = v1621
 							}
 						}
-						v1691 := v1582[v1681]
-						v1620[v1669] = v1691
+						v1691 := int(v1582[v1681])
+						v1620[v1669] = uint16(v1691)
 						v1694 := (v1621 + 1)
 						v1621 = v1694
 						continue
@@ -1477,10 +1477,10 @@ func GenMain() string {
 							v1702 = v1622
 						}
 					}
-					v1712 := v1582[v1702]
+					v1712 := int(v1582[v1702])
 					v1713 := (2 * v1712)
 					v1715 := (v1713 + 1)
-					v1716 := v945[v1715]
+					v1716 := int(v945[v1715])
 					v1719 := (v1621 < 0)
 					var v1720 int
 					if v1719 {
@@ -1493,10 +1493,10 @@ func GenMain() string {
 							v1720 = v1621
 						}
 					}
-					v1730 := v1582[v1720]
+					v1730 := int(v1582[v1720])
 					v1731 := (2 * v1730)
 					v1733 := (v1731 + 1)
-					v1734 := v945[v1733]
+					v1734 := int(v945[v1733])
 					v1735 := (v1716 > v1734)
 					if v1735 {
 						v1737 := (v1623 < 0)
@@ -1523,8 +1523,8 @@ func GenMain() string {
 								v1750 = v1622
 							}
 						}
-						v1760 := v1582[v1750]
-						v1620[v1738] = v1760
+						v1760 := int(v1582[v1750])
+						v1620[v1738] = uint16(v1760)
 						v1763 := (v1622 + 1)
 						v1622 = v1763
 						continue
@@ -1553,8 +1553,8 @@ func GenMain() string {
 							v1780 = v1621
 						}
 					}
-					v1790 := v1582[v1780]
-					v1620[v1768] = v1790
+					v1790 := int(v1582[v1780])
+					v1620[v1768] = uint16(v1790)
 					v1793 := (v1621 + 1)
 					v1621 = v1793
 					continue
@@ -1597,10 +1597,10 @@ func GenMain() string {
 					v1819 = v1802
 				}
 			}
-			v1829 := v1552[v1819]
+			v1829 := int(v1552[v1819])
 			v1832 := (2 * v1829)
 			v1834 := (v1832 + 1)
-			v1835 := v945[v1834]
+			v1835 := int(v945[v1834])
 			var v1837 int = 1
 			var v1838 int = v1835
 			for ; ; v1837 = (v1837 + 1) {
@@ -1617,7 +1617,7 @@ func GenMain() string {
 				continue
 			}
 			v1853 := (2 * v1829)
-			v1854 := v945[v1853]
+			v1854 := int(v945[v1853])
 			v1856 := (v1854 < 0)
 			var v1857 int
 			if v1856 {
@@ -1688,12 +1688,12 @@ func GenMain() string {
 					v1917 = v1900
 				}
 			}
-			v1927 := v1552[v1917]
+			v1927 := int(v1552[v1917])
 			v1929 := (2 * v1927)
 			v1931 := (v1929 + 1)
-			v1932 := v945[v1931]
+			v1932 := int(v945[v1931])
 			v1934 := (2 * v1927)
-			v1935 := v945[v1934]
+			v1935 := int(v945[v1934])
 			v1937 := (v1935 < 0)
 			var v1938 int
 			if v1937 {
@@ -1904,7 +1904,7 @@ func GenMain() string {
 			}
 			v2155 := (2 * v1927)
 			v2157 := (v2155 + 1)
-			v2158 := v945[v2157]
+			v2158 := int(v945[v2157])
 			var v2160 int = 1
 			var v2161 int = v2158
 			for ; ; v2160 = (v2160 + 1) {
@@ -1921,7 +1921,7 @@ func GenMain() string {
 				continue
 			}
 			v2176 := (2 * v1927)
-			v2177 := v945[v2176]
+			v2177 := int(v945[v2176])
 			v2179 := (v2177 < 0)
 			var v2180 int
 			if v2179 {
@@ -1973,7 +1973,7 @@ func GenMain() string {
 			v2080[v2218] = byte(10)
 			v2232 := (2 * v1927)
 			v2234 := (v2232 + 1)
-			v2235 := v945[v2234]
+			v2235 := int(v945[v2234])
 			var v2237 int = 1
 			var v2238 int = v2235
 			for ; ; v2237 = (v2237 + 1) {
@@ -1990,7 +1990,7 @@ func GenMain() string {
 				continue
 			}
 			v2253 := (2 * v1927)
-			v2254 := v945[v2253]
+			v2254 := int(v945[v2253])
 			v2256 := (v2254 < 0)
 			var v2257 int
 			if v2256 {

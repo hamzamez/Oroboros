@@ -20,7 +20,7 @@ public final class gauntlet_differential_cases_big-divmod.java {
 		final java.math.BigInteger v28 = (java.math.BigInteger.valueOf(100000000));
 		final java.math.BigInteger v29 = (v14.divide(v28));
 		final java.math.BigInteger v31 = (((java.util.function.BiFunction<java.math.BigInteger,Long,java.math.BigInteger>)((oro$z, oro$k) -> { if (oro$z.signum() < 0 || oro$z.bitLength() > oro$k) throw new ArithmeticException("bignum overflow: the declared range is too small"); return oro$z; })).apply(v29, (long)(201)));
-		final long v33 = (v31.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
+		final int v33 = (int) (v31.remainder(java.math.BigInteger.valueOf(100000000)).longValue());
 		final java.math.BigInteger v35 = (java.math.BigInteger.valueOf(11));
 		java.math.BigInteger v38 = v35;
 		int v39 = 0;

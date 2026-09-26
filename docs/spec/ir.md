@@ -536,6 +536,34 @@ is that each abstract operation over-approximates §5's concrete one, with π by
 a post-fixpoint reached by widening. So the planted-fault table of a domain has one row per operation
 of Σ, and an operation with no row is a gap by construction, not by oversight.
 
+### 7.1 The interval domain (`ir/interval.go`, `ir/trip.go`)
+
+One fact per value: an interval, and for a table its length and its element (smashed). An infinite end
+carries no number, so equal facts are equal values, which is how a loop recognises its fixpoint. The
+rules beyond the per-operation table, each with its soundness argument and its check:
+
+| rule | what it concludes | why it is sound |
+|---|---|---|
+| widening with thresholds | a loop's ends stop at the function's constants, k ± 1, 0 and the word's ends, for 16 rounds; the plain widening after them | Blanchet et al. 2003. Every chain is finite; the plain phase bounds its length when the thresholds are dense |
+| `assume` through π | narrowing a π narrows its source | the two names denote one value |
+| the other side of a π | `Of Rel Other` narrows Other by flip(Rel) | the same relation, read from its right |
+| the arm conditions | an arm of `if` or `branch` applies its guard, the false arm its negation; a ∧ b both on the true arm, a ∨ b both negations on the false arm | the arm runs only where the guard has that value |
+| backward propagation | a narrowed value narrows its operands through `+ − neg`, `·` by a literal, and squaring | HC4-revise (Benhamou et al. 1999): each inverse contains every preimage |
+| Theorem 1, trip bounds | p ∈ [z.lo + B·min(Δ.lo, 0), z.hi + B·max(Δ.hi, 0)] for B back edges and steps in Δ | induction on the back edges taken |
+| Theorem 2, the bound B | an increasing or decreasing ranking parameter, or one divided by c ≥ 2 | before the k-th back edge the ranking parameter has moved k − 1 steps |
+| the step Δ | read off the continue's argument: `+`, `−`, an `if`'s arms, an inner loop's result whose parameter never decreases | each clause is ℤ's arithmetic on the values |
+| Theorem 3, bounded increments | a buffer's cells stay in [min(z.lo, Zlo) + B·min(Δlo, 0), max(z.hi, Zhi) + B·max(Δhi, 0)] when every store is fresh (in Z) or a read of the buffer plus Δ | a read is a cell at the iteration's start, so one iteration raises the maximum by at most max(Δhi, 0) |
+| repetition | Theorems 1–3 repeat while they tighten | a narrowed cell narrows a step read from it; each round meets sound facts |
+| the unsigned word | `u64-of`, `int-of-u64` and `u64+ − ·` are the residue map ℤ → ℤ/2⁶⁴ into U or S; `u64/`, `u64%` are ℤ's on U | the exact image; the identity on S ∩ U, which is where wordsel places them |
+
+The domain is checked two ways:
+- **locally**, by the soundness table: every operation against ℤ, exhaustively on small intervals;
+- **at loops**, by executions: a concrete interpreter over ℤ (`ir/interp_test.go`) runs generated
+  programs, one shape per rule, and tree.oro's `run`. Every value it defines, and every cell of every
+  buffer, must lie in its fact.
+
+Each rule has a planted fault that one of the two checks catches.
+
 ---
 
 ## 8. Lowering: residual → IR
@@ -866,6 +894,7 @@ The result is the loop `gen` emits today, one statement per value, at the same s
 | Theorem C (L faithful) | the differential suite, on all four targets |
 | a printer is faithful | the differential suite and the gauntlet against hand-written code |
 | an analysis is sound | one planted-fault row per (domain, operation of Σ), and the programs meant to be refused |
+| a loop rule is sound | executions of generated programs, one shape per rule, contained in the facts (§7.1) |
 | proof counts never fall | `cmd/check`'s pinned counts, per domain as it is ported |
 | §9.4's rules keep their evidence | the gauntlet, re-timed when a rule's statement changes |
 | a printer is a function | print twice and compare |

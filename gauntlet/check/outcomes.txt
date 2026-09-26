@@ -80,7 +80,7 @@
 == examples/big/render.oro js emitted f29fcdad93674462acfae6a3f366ed1c0ade8417100b236dfc7af5e6850cda58
    note: gen-render: 5 operation(s) in arbitrary precision
    note: gen-render: 3 of 3 integer operations bounded; 2 of 2 loop(s) proven terminating
-== examples/big/render.oro java emitted 1ce37db2acbba32b132102b4d05abdcfa7a43e86fe2129cdb8cc71ea76bf7129
+== examples/big/render.oro java emitted 6c51d4198d4f6e3d3efcda13cab9b56185713b2332e65e18e93af929ce24395f
    note: gen-render: 5 operation(s) in arbitrary precision
    note: gen-render: 3 of 3 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/big/render.oro windows emitted ad849c1f037e949b89d4169a226bf87c82d02cfb9fe7752d558d14d1529f787a
@@ -260,14 +260,14 @@
 == examples/int/sum-range.oro windows refused
    gen: examples/int/sum-range.oro: in sum-range: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/io/freq.oro go emitted 2cbedfaf166d7366c7bdf5abf9086f21f16d335ffde979fc76e294dc1fa53636
+== examples/io/freq.oro go emitted 465c8a71c32963410fe73492cba483b217dd34ade08ae2204c678406c3ae132b
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
 == examples/io/freq.oro js emitted c854e34e75e0f80f0e218ec99c6a69ca84d6026fa1a6615e5a8e8e20a6ba5f1d
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
-== examples/io/freq.oro java emitted 8d3eb141e97423d1f4125e04f8d2c70f359716f506c968ed854c48de226c1376
+== examples/io/freq.oro java emitted 393fff7999ce0a28d35947bb13e03424e8b5eaf5454260bf3b7719bff1a9a7ca
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 274 division(s) became a shift or a mask
@@ -287,7 +287,7 @@
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro js emitted 34405ec116db4bf524f4c747cfe658248385f9a725dced72a2355ef7e4d672dd
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/wc.oro java emitted 97c25d9b0bd455daa570d3b203345ec38dd52bcd3a818e8f6168df0c2e77be99
+== examples/io/wc.oro java emitted 49092e1b7112cd3c1ecb7ac7d60d428a83a64021f580da69606dc65bb4794e56
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro windows refused
    gen: examples/io/wc.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -304,7 +304,7 @@
 == examples/json/tokenize.oro windows refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted bbfade8df9b5a79b60195221f3258348c0cc3fd073e39abf9b0a05c07c431338
+== examples/json/tree.oro go emitted 0de991e9f6a8cf3cc7524458f453e00897fc97059c968053d1ad873577edb2a4
    note: gen-measure: 99 of 99 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-run: 416 of 416 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused
@@ -638,7 +638,7 @@
 == examples/native/sieve-java.oro js refused
    gen: examples/native/sieve-java.oro: in cross: java.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
-== examples/native/sieve-java.oro java emitted 82f25210d5bb9b509fcf66f4674256a0f8aec527d86d9bbd8685ee3957d769b7
+== examples/native/sieve-java.oro java emitted 1affc815e13f0f9db879b6cd3122fbd9a57564ebd7a8326d54887cdbc694cac5
    note: gen-sieve-count: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/native/sieve-java.oro windows refused
    gen: examples/native/sieve-java.oro: in cross: java.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -924,7 +924,7 @@
 == gauntlet/differential/cases/big-divmod.oro js emitted 8bfbffe7c001393fb98a314563d79416c8fef6da2b7a06639d2211303ae34a75
    note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
-== gauntlet/differential/cases/big-divmod.oro java emitted 272426342f1499283a3d8ba31bd7ceeea90ad8f6620a78206789963cacbe934d
+== gauntlet/differential/cases/big-divmod.oro java emitted 4110c2ee2d520ca06a853b4794c156d12e72b95c664150154007c3eb1b7ea872
    note: gen-run: 5 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 2 loop(s) proven terminating
 == gauntlet/differential/cases/big-divmod.oro windows emitted e5a44f7481f9f652da3aeb09c431697ba47d7c41c3fe127a5f0405069a5901a5
@@ -1073,7 +1073,7 @@
 == gauntlet/differential/cases/render.oro js emitted 54e40af14cbc5669a2cb3218aacac5f6ad9596e25cc4a029eb147ee742900405
    note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
-== gauntlet/differential/cases/render.oro java emitted 62367a6d9847a6a030f00005dbd78d84f1f17d333b454f7b75e816b3c665dc4c
+== gauntlet/differential/cases/render.oro java emitted ef36c627440cdd788b3f89ec1aede77a928b041c4c4e62554616b975c8de4b37
    note: gen-run: 8 operation(s) in arbitrary precision
    note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/render.oro windows emitted fad157afc8e09cb2985724964aaa51606e5d28607557cc836823bd741dd9123a

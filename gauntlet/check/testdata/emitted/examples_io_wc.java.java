@@ -25,7 +25,7 @@ public final class examples_io_wc.java {
 				return 0;
 			}
 			int v25 = 0;
-			long v26 = 0;
+			int v26 = 0;
 			for (;; v25 = (v25 + 1)) {
 				final int v27 = v11.length;
 				final boolean v28 = (v25 >= v27);
@@ -34,12 +34,12 @@ public final class examples_io_wc.java {
 					break;
 				}
 				final boolean v37 = (v26 < 16777216);
-				long v38 = 0;
+				int v38 = 0;
 				if (v37) {
 					final int v40 = v11[v25];
 					final boolean v42 = (v40 == 10);
 					if (v42) {
-						final int v44 = (int) ((v26 + 1));
+						final int v44 = (v26 + 1);
 						v38 = v44;
 					} else {
 						v38 = v26;

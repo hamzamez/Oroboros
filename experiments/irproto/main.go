@@ -21,6 +21,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
 	"oroboros/ir/js"
@@ -271,7 +272,10 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 		if err != nil {
 			die(err)
 		}
-		measure("contracts (DischargeRequires)", func() { nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf) })
+		measure("contracts (DischargeRequires)", func() {
+			nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
+				func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[q], x) })
+		})
 		if err != nil {
 			die(err)
 		}

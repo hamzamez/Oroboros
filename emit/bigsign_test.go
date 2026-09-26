@@ -98,65 +98,6 @@ func TestTheLimbsHoldOnlyANonNegativeSet(t *testing.T) {
 	}
 }
 
-// THE SIGN IS PART OF A PARAMETER'S SET, as an obligation at a call: a negative
-// value is not in `(int 0 (pow 2 200))`, whether it arrives as a literal or as
-// an interval the analysis found.
-func TestTheSignIsPartOfAParametersSet(t *testing.T) {
-	const g = `(sig g ((x (int LO (pow 2 200)))) int)
-(def g (x) (if (= x 0) 0 1))
-(export f)
-(sig f ((n (int -5 5))) int)
-`
-	nat := strings.Replace(g, "LO", "0", 1)
-	zed := strings.Replace(g, "LO", "(- 0 (pow 2 200))", 1)
-	if _, err := dischargeGo(t, nat+`(def f (n) (g -5))`); err == nil || !strings.Contains(err.Error(), "a call passes -5") {
-		t.Errorf("-5 is not in [0, 2^201); got %v", err)
-	}
-	if _, err := dischargeGo(t, zed+`(def f (n) (g -5))`); err != nil {
-		t.Errorf("-5 is in (−2^201, 2^201): %v", err)
-	}
-	if _, err := dischargeGo(t, nat+`(def f (n) (g n))`); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
-		t.Errorf("n ∈ [−5, 5] is not in [0, 2^201); got %v", err)
-	}
-	if _, err := dischargeGo(t, nat+`(def f (n) (g (+ n 5)))`); err != nil {
-		t.Errorf("n + 5 ∈ [0, 10] is in [0, 2^201): %v", err)
-	}
-}
-
-// A DECLARED RESULT ABOVE THE WORD TELLS ONLY WHAT THE PROGRAM ENFORCES. The
-// bound is one per program, so `h`'s declared 2^100 is checked at the program's
-// 2^201, and h may return 2^150: read as its own type, the ascription proved
-// g's obligation falsely, and g received 2^150 (ADR 0028's reading, corrected
-// by ADR 0029). A result as wide as the program's widest type still proves one.
-func TestADeclaredResultIsAFactAboutTheProgramsSet(t *testing.T) {
-	const src = `(sig h ((n (int 0 1))) (int 0 (pow 2 100)))
-(def h (n) (* 1427247692705959881058285969449495136382746624 (+ n 1)))
-(sig g ((x (int 0 (pow 2 100)))) (int 0 (pow 2 200)))
-(def g (x) (+ x 0))
-(export calc)
-(sig calc ((n (int 0 1))) (int 0 (pow 2 WIDEST)))
-(def calc (n) (g (h n)))`
-	if _, err := dischargeGo(t, strings.Replace(src, "WIDEST", "200", 1)); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
-		t.Errorf("h's 2^100 is enforced only at the program's 2^201; got %v", err)
-	}
-	// With nothing wider than 2^100 in the program, E_P = [0, 2^101) = g's set.
-	one := strings.Replace(strings.Replace(src, "WIDEST", "100", 1),
-		"(int 0 (pow 2 200)))\n(def g", "(int 0 (pow 2 100)))\n(def g", 1)
-	if !strings.Contains(one, "(sig g ((x (int 0 (pow 2 100)))) (int 0 (pow 2 100)))") {
-		t.Fatal("the test did not narrow g's result")
-	}
-	if _, err := dischargeGo(t, one); err != nil {
-		t.Errorf("one bound in the program: the ascription is its set: %v", err)
-	}
-	// And the sign: once the program enforces (−2^101, 2^101), h's non-negative
-	// declaration is not enforced as non-negative, so it proves nothing about
-	// g's [0, 2^101).
-	signed := strings.Replace(one, "(sig calc ((n (int 0 1))) (int 0 (pow 2 100)))",
-		"(sig calc ((n (int 0 1))) (int (- 0 (pow 2 100)) (pow 2 100)))", 1)
-	if signed == one {
-		t.Fatal("the test did not sign calc's result")
-	}
-	if _, err := dischargeGo(t, signed); err == nil || !strings.Contains(err.Error(), "g's parameter x") {
-		t.Errorf("a signed program's ascription does not prove a non-negative set; got %v", err)
-	}
-}
+// THE SIGN IS PART OF A PARAMETER'S SET, and A DECLARED RESULT ABOVE THE WORD
+// TELLS ONLY WHAT THE PROGRAM ENFORCES: both are obligations at a call, decided
+// through the drivers' pipeline, so their tests are in requires_test.go.

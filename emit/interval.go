@@ -272,16 +272,6 @@ type RequireResult struct {
 	Proven                bool
 }
 
-// MeasureRequires decides every measurement mark left in a residual and returns
-// the residual with the marks erased, which is the term reduction gives without
-// them. It changes nothing downstream: the caller continues with the stripped
-// term exactly as it would have without measuring.
-func MeasureRequires(set *RequireSet, tgt *Target, sig *core.Sig, t *core.Term) ([]RequireResult, *core.Term) {
-	t, ascribed := set.decideAscribed(tgt.Word, t)
-	rep, _ := Intervals(tgt, sig, t, 0)
-	return append(ascribed, rep.Requires...), core.StripRequires(t)
-}
-
 type IntervalReport struct {
 	Requires []RequireResult // measurement marks decided on the counted walk
 	Ops      int             // integer operations that would need an overflow check

@@ -60,7 +60,8 @@ func lower(t *testing.T, src string) (*emit.Target, []*ir.Func) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf); err != nil {
+		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
+			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			t.Fatal(err)
 		}
 		f, err := ir.Lower(tg, name, prog.Sigs[q], nf, ir.Options{Decided: true})

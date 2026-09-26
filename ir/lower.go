@@ -90,6 +90,7 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 			f.Results[0] = sig.Result
 		}
 	}
+	f.marks = l.marks
 	Canonicalize(f)
 	return f, nil
 }
@@ -148,6 +149,7 @@ type lowerer struct {
 	decl  map[V]string // types a definition declares: a parameter's, a primitive's result, an ascription
 	sig   *core.Sig
 	top   []string // the function's parameter hints, which the interval analysis keys its signature by
+	marks map[*core.Term][]V
 }
 
 func (l *lowerer) fail(format string, args ...any) {
@@ -272,6 +274,21 @@ func mentions(t *core.Term, depth int) bool {
 // value lowers a term in value position and returns its values: several for a
 // tuple.
 func (l *lowerer) value(t *core.Term, r *Region) []V {
+	// A CONTRACT MARK IS ITS VALUE (core.IsRequire): `(#req d p τ a)` is a, and
+	// `(#reqw d c b)` is b. Lowering is transparent to both; a range mark's
+	// argument values are recorded, for the obligation ⟦a⟧ ∈ ⟦τ⟧
+	// (DischargeRanges).
+	if core.IsRequire(t) {
+		vs := l.value(t.Kids[4], r)
+		if l.marks == nil {
+			l.marks = map[*core.Term][]V{}
+		}
+		l.marks[t] = append(l.marks[t], vs...)
+		return vs
+	}
+	if core.IsRequireWhere(t) {
+		return l.value(t.Kids[3], r)
+	}
 	switch t.Kind {
 	case core.KInt, core.KFloat, core.KStr, core.KBool:
 		return []V{l.one(r, Stmt{Op: OConst, Lit: t})}
@@ -612,8 +629,12 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 			r.T = TYield
 		}
 	}
-	if t.Kind != core.KApp {
+	if t.Kind != core.KApp || core.IsRequire(t) {
 		leaf(l.value(t, r))
+		return
+	}
+	if core.IsRequireWhere(t) {
+		l.tail(t.Kids[3], r, loop)
 		return
 	}
 	op, args := t.Kids[0], t.Kids[1:]

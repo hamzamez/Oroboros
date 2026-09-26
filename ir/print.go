@@ -332,5 +332,15 @@ func Canonicalize(f *Func) {
 			r.Cond = m(r.Cond)
 		}
 	})
+	for t, vs := range f.marks {
+		out := make([]V, len(vs))
+		for i, v := range vs {
+			out[i] = -1
+			if v >= 0 && int(v) < len(pr.num) && pr.num[v] >= 0 {
+				out[i] = V(pr.num[v])
+			}
+		}
+		f.marks[t] = out
+	}
 	f.Types = types
 }

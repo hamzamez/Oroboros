@@ -7,11 +7,13 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
-// reportRequires is -report-requires: every contract obligation (ADR 0028) that
-// reduction left for the analyses, with the interval analysis's verdict, one
-// line per distinct (definition, parameter, argument):
+// reportRequires is -report-requires: every range obligation (ADR 0028) that
+// reduction left for the analyses, with the interval route's verdict (the
+// IR's facts, ir.MeasureRanges), one line per distinct (definition, parameter,
+// argument):
 //
 //	requires DEF PARAM TYPE proven|unproven ARG  got INTERVAL
 //
@@ -23,19 +25,25 @@ var reportRequires bool
 // reportResidual prints the verdict on each range mark in a unit's residual. It
 // changes nothing: the term it reads is discharged as usual.
 func reportResidual(reqs *emit.RequireSet, tg *emit.Target, sig *core.Sig, nf *core.Term) {
-	res, _ := emit.MeasureRequires(reqs, tg, sig, nf)
+	rest, ascribed := reqs.DecideAscribed(tg.Word, nf)
 	seen := map[string]bool{}
 	var lines []string
-	for _, r := range res {
+	add := func(def, param, ty, arg, got string, proven bool) {
 		class := "unproven"
-		if r.Proven {
+		if proven {
 			class = "proven"
 		}
-		line := fmt.Sprintf("requires %s %s %q %s %s  got %v", r.Def, r.Param, r.Type, class, r.Arg, r.Got)
+		line := fmt.Sprintf("requires %s %s %q %s %s  got %s", def, param, ty, class, arg, got)
 		if !seen[line] {
 			seen[line] = true
 			lines = append(lines, line)
 		}
+	}
+	for _, r := range ascribed {
+		add(r.Def, r.Param, r.Type, r.Arg, fmt.Sprint(r.Got), r.Proven)
+	}
+	for _, r := range ir.MeasureRanges(tg, sig, rest) {
+		add(r.Def, r.Param, r.Type, r.Arg, r.Got, r.Proven)
 	}
 	sort.Strings(lines)
 	for _, l := range lines {

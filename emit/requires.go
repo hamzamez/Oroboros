@@ -117,17 +117,23 @@ func conjTerm(a, b *core.Term) *core.Term {
 
 // DischargeRequires decides every contract mark in one unit's residual and
 // returns the residual without them, or the first obligation nothing proves.
-func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig, t *core.Term) (*core.Term, error) {
+//
+// ranges is the interval route: it returns the residual with every range mark
+// it proves replaced by its argument (ir.DischargeRanges, the IR's facts since
+// irstep4f). nil decides no range there, which is sound: the refinement route
+// still sees every mark.
+func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig, t *core.Term,
+	ranges func(*core.Term) *core.Term) (*core.Term, error) {
 	fails := set.lits
 	set.lits = nil
 	t, _ = set.decideAscribed(tgt.Word, t)
 	if hasRequireMarks(t) {
-		// The interval analysis decides the ranges it can and leaves every mark
-		// it cannot — and every `where` — in the term it rebuilds. It runs only
-		// when there is a range to decide: it has nothing to say about a `where`.
+		// The interval route decides the ranges it can and leaves every mark it
+		// cannot, and every `where`. It runs only when there is a range to
+		// decide: it has nothing to say about a `where`.
 		rest := t
-		if hasRangeMarks(t) {
-			_, rest = intervals(tgt, sig, t, 0, nil, false, false, false, false, false, false, true)
+		if hasRangeMarks(t) && ranges != nil {
+			rest = ranges(t)
 		}
 		// A CLOSED CONDITION NEEDS NO CONTEXT. `(go.< 20 1048576)` — a length
 		// that folded, against a literal — is decided with no facts at all, and
@@ -512,4 +518,39 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 		}
 	}
 	return true
+}
+
+// DecideRange is a range obligation ⟦a⟧ ∈ ⟦ty⟧ decided on an interval for a
+// whose ends are exact (nil for an open end; bot for no value): the sets are
+// this file's (setOf, provenIn, ADR 0026 and 0029), so one definition serves
+// every route. When it is not proven, residual is what the refinement route
+// still has to show (ResidualRange); for a range above the word, the mark
+// itself.
+func DecideRange(w core.Word, ty string, lo, hi *big.Int, bot bool, def, param string, arg *core.Term) (proven bool, residual *core.Term) {
+	v := top
+	if bot {
+		v = bottom
+	} else {
+		if lo != nil {
+			if e, ok := fromBig(lo); ok {
+				v.lo, v.loInf = e, false
+			}
+		}
+		if hi != nil {
+			if e, ok := fromBig(hi); ok {
+				v.hi, v.hiInf = e, false
+			}
+		}
+	}
+	if provenIn(w, v, ty) {
+		return true, nil
+	}
+	return false, residualRange(w, v, def, param, ty, arg)
+}
+
+// DecideAscribed is decideAscribed for a caller outside the package (gen's
+// -report-requires): the marks an ascription above the word discharges against
+// E_P, the program's enforced set.
+func (set *RequireSet) DecideAscribed(w core.Word, t *core.Term) (*core.Term, []RequireResult) {
+	return set.decideAscribed(w, t)
 }

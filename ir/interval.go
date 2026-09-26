@@ -672,7 +672,15 @@ func (a *intervals) stmt(s *Stmt) {
 	case OInsert:
 		one(args[0])
 	case OThe:
-		one(meetF(args[0], a.declared(s.Type)))
+		// ABOVE THE WORD an ascription tells only the one set the program
+		// enforces (ADR 0029), which this domain does not know: its own type
+		// would be a false premise (h declared 2¹⁰⁰ in a program enforcing
+		// 2²⁰¹ may return 2¹⁵⁰). Within the word it is the type.
+		if a.tg.Word.Exceeds(s.Type) {
+			one(args[0])
+		} else {
+			one(meetF(args[0], a.declared(s.Type)))
+		}
 	case ORequire:
 	case OAssume:
 		a.assume(s.Args[0])

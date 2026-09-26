@@ -183,6 +183,10 @@ type Func struct {
 	// step to IR_P does not recompute it when nothing between has changed a
 	// value (Finalize). Never printed.
 	facts []fact
+	// marks is, for each range mark the residual still carried when it was
+	// lowered, the values its argument became (DischargeRanges). In memory
+	// only; a value numbering dropped is −1, and decides nothing.
+	marks map[*core.Term][]V
 }
 
 // NV is the number of values the function defines.

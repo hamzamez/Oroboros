@@ -68,7 +68,8 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 		if err != nil {
 			return nil, nil, err
 		}
-		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf); err != nil {
+		if nf, err = emit.DischargeRequires(reqs, tg, name, prog.Sigs[q], nf,
+			func(x *core.Term) *core.Term { return DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			return nil, nil, err
 		}
 		sig := prog.Sigs[q]

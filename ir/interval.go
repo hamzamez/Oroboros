@@ -284,6 +284,11 @@ func narrowIV(x iv, rel string, o iv) iv {
 	case "eq":
 		return meetIV(x, o)
 	case "ne":
+		// x ≠ o for o a single value removes it: from an end of x, or all of
+		// x when x is that one value ({k} ∖ {k} = ∅).
+		if o.finite() && o.lo == o.hi && x.finite() && x.lo == x.hi && x.lo == o.lo {
+			return ivBot
+		}
 		if o.finite() && o.lo == o.hi && x.finite() && x.lo.lt(x.hi) {
 			if x.lo == o.lo {
 				l, _ := x.lo.add(one)
@@ -351,6 +356,9 @@ type intervals struct {
 	def    map[V]*Stmt
 	piOf   map[V]V // a π-parameter's source: the same value, renamed on an arm
 	thresh []ep    // the widening's thresholds (widenIVT)
+	// halts is each loop's termination verdict (sct.go), from its last
+	// evaluation, which is the one under the final facts.
+	halts map[*Stmt]bool
 }
 
 type exitFacts struct {
@@ -386,7 +394,14 @@ const (
 )
 
 func analyse(tg *emit.Target, f *Func) []fact {
-	a := &intervals{tg: tg, f: f, maxLen: tg.Word.Hi, fs: make([]fact, f.NV()), def: map[V]*Stmt{}, piOf: map[V]V{}}
+	a := newIntervals(tg, f)
+	a.region(f.Body)
+	return a.fs
+}
+
+// newIntervals prepares the analysis of f without running it.
+func newIntervals(tg *emit.Target, f *Func) *intervals {
+	a := &intervals{tg: tg, f: f, maxLen: tg.Word.Hi, fs: make([]fact, f.NV()), def: map[V]*Stmt{}, piOf: map[V]V{}, halts: map[*Stmt]bool{}}
 	f.Walk(func(r *Region) {
 		for _, pi := range r.Pis {
 			a.piOf[pi.V] = pi.Of
@@ -404,8 +419,7 @@ func analyse(tg *emit.Target, f *Func) []fact {
 	for _, x := range f.Params {
 		a.fs[x] = a.declared(f.Types[x])
 	}
-	a.region(f.Body)
-	return a.fs
+	return a
 }
 
 // declared is what a declared type says of a value: an integer range, or a
@@ -712,7 +726,18 @@ func (a *intervals) stmt(s *Stmt) {
 	case OLoop:
 		a.loop(s)
 	}
+	// A PROMOTED HOST OPERATION IS ℤ'S ONLY INSIDE THE WORD (lowering's
+	// promote): JavaScript's `+` is exact within ±(2⁵³ − 1) and rounds past it,
+	// where `x + 1` can be x. Where ℤ's result lies in the word the two agree
+	// and the transfer is exact; elsewhere the value is the host's, of which
+	// nothing is known.
+	if s.Name != "" && s.Op.IsArith() && len(s.Res) == 1 && !a.inWord(a.fs[s.Res[0]].v) {
+		a.fs[s.Res[0]] = topFact
+	}
 }
+
+// inWord reports x ⊆ the target's signed word (⊥ included).
+func (a *intervals) inWord(x iv) bool { return x.within(ei(a.tg.Word.Lo), ei(a.tg.Word.Hi)) }
 
 // loop is the Elgot iterate's abstraction: ascend with widening after three
 // rounds to a post-fixpoint, descend twice from it, then evaluate once more at
@@ -787,6 +812,7 @@ func (a *intervals) loop(s *Stmt) {
 		*lc = exitFacts{params: body.Params, at: map[*Region][2][]fact{}}
 		a.region(body)
 	}
+	a.halts[s] = a.terminates(s, cur, lc)
 	a.loops = a.loops[:len(a.loops)-1]
 	a.set(s.Res, lc.brk)
 }
@@ -796,24 +822,61 @@ func (a *intervals) loop(s *Stmt) {
 // a table's length, with another value narrows that value's fact. An `assume`
 // sits at the function's entry and values are immutable, so the narrowed fact
 // holds wherever the value is used.
-func (a *intervals) assume(c V) {
+func (a *intervals) assume(c V) { a.assumeAs(c, true) }
+
+// assumeAs is `assume` of c having the value holds. A conjunction's shape is
+// whatever case-of-case left: (if x y false) is x ∧ y, (if x false y) is
+// ¬x ∧ y, and y may be a region that YIELDS or one that BRANCHES again, so a
+// nested `where` reaches every conjunct (assumeRegion). A comparison assumed
+// false is its negation.
+func (a *intervals) assumeAs(c V, holds bool) {
 	d := a.def[c]
 	if d == nil {
 		return
 	}
 	switch {
-	case d.Op == OIf: // (if x y false) is x ∧ y (L10)
-		if y := firstYieldOf(d.Sub[1]); len(y) == 1 && isConst(a.def, y[0], false) {
-			a.assume(d.Args[0])
-			if y0 := firstYieldOf(d.Sub[0]); len(y0) == 1 {
-				a.assume(y0[0])
-			}
+	case d.Op == OIf && holds && len(d.Sub) == 2:
+		switch {
+		case a.yieldsConst(d.Sub[1], false):
+			a.assumeAs(d.Args[0], true)
+			a.assumeRegion(d.Sub[0])
+		case a.yieldsConst(d.Sub[0], false):
+			a.assumeAs(d.Args[0], false)
+			a.assumeRegion(d.Sub[1])
 		}
 	case d.Op.IsCmp():
 		rel := relOf(d.Op)
+		if !holds {
+			rel = negate(rel)
+		}
 		a.narrowAssumed(d.Args[0], rel, a.fs[d.Args[1]].v)
 		a.narrowAssumed(d.Args[1], flip(rel), a.fs[d.Args[0]].v)
 	}
+}
+
+// assumeRegion assumes that region r's one boolean result is true: every
+// execution past the assumption took the path through r that yields true.
+func (a *intervals) assumeRegion(r *Region) {
+	switch r.T {
+	case TYield:
+		if len(r.Args) == 1 {
+			a.assumeAs(r.Args[0], true)
+		}
+	case TBranch:
+		switch {
+		case a.yieldsConst(r.Else, false):
+			a.assumeAs(r.Cond, true)
+			a.assumeRegion(r.Then)
+		case a.yieldsConst(r.Then, false):
+			a.assumeAs(r.Cond, false)
+			a.assumeRegion(r.Else)
+		}
+	}
+}
+
+// yieldsConst reports whether r only yields the boolean literal b.
+func (a *intervals) yieldsConst(r *Region, b bool) bool {
+	return r != nil && r.T == TYield && len(r.Args) == 1 && isConst(a.def, r.Args[0], b)
 }
 
 // narrowAssumed narrows x, or the table whose length x is, by `x rel o`.
@@ -1144,6 +1207,9 @@ func (a *intervals) dead(r *Region) {
 		for i := range r.Stmts {
 			for _, v := range r.Stmts[i].Res {
 				a.fs[v] = bot
+			}
+			if r.Stmts[i].Op == OLoop {
+				a.halts[&r.Stmts[i]] = true // never entered: it halts vacuously
 			}
 			for _, sub := range r.Stmts[i].Sub {
 				walk(sub)

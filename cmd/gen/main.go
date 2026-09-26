@@ -272,9 +272,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		} else if note != "" {
 			fmt.Fprintln(os.Stderr, "note:", fname+": "+note)
 		}
-		// THE TERM ANALYSIS still counts loops (termination is not yet on the IR)
-		// and carries the passes that are not: legality and modes are the IR's.
-		rep, _ := emit.Intervals(tg, sig, nf, 0)
+		// THE TERM ANALYSIS, only as the shadow (-irproof): legality, modes and
+		// termination are the IR's (ir/decide.go, ir/sct.go).
+		var rep *emit.IntervalReport
+		if irProof {
+			rep, _ = emit.Intervals(tg, sig, nf, 0)
+		}
 		// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
 		// dividend non-negative and inside the target's declared shift width
 		// (shiftdiv-2026-09-03). BEFORE the decision, so the IR decides the term
@@ -300,15 +303,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			selectWords()
 			goto checks
 		}
-		if leg.Ops > 0 || rep.Loops > 0 {
+		if leg.Ops > 0 || leg.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
 				"%d of %d loop(s) proven terminating\n",
-				fname, leg.Proven, leg.Ops, rep.Terminates, rep.Loops)
+				fname, leg.Proven, leg.Ops, leg.Halts, leg.Loops)
 		}
 		// THE SHADOW, kept while the term analysis exists: its count beside the
 		// IR's, which decides.
 		if irProof {
 			fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d\n", fname, rep.Proven, rep.Ops, leg.Proven, leg.Ops)
+			fmt.Fprintf(os.Stderr, "irloops: %s: term %d of %d, IR %d of %d\n", fname, rep.Terminates, rep.Loops, leg.Halts, leg.Loops)
 			for _, m := range leg.Unproven {
 				fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
 			}

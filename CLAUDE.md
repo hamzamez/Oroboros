@@ -55,7 +55,7 @@ with no clamps.
 **Provability.**
 - **2,007 of 2,054** integer operations are proven inside their target's word. The 47 left are mostly
   meant to be refused.
-- **343 of 381** loops are proven to terminate.
+- **359 of 381** loops are proven to terminate (the IR's count since irstep4d; the term analysis had 343).
 - Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
   operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
   inflated denominators.
@@ -121,8 +121,10 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
   - x86 lost its ordered back edges and threaded jumps;
   - Go and Java lost the tail connective.
 
-**The IR decides legality and modes** ([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md),
-[irstep4c-2026-09-26](gauntlet/results/irstep4c-2026-09-26.md), spec/ir.md §7.1–7.2):
+**The IR decides legality and modes, and proves termination**
+([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md),
+[irstep4c-2026-09-26](gauntlet/results/irstep4c-2026-09-26.md),
+[irstep4d-2026-09-27](gauntlet/results/irstep4d-2026-09-27.md), spec/ir.md §7.1–7.3):
 - `ir.Decide` proves each counted operation inside its set or not. That decides the refusal, and under
   `-checked` each operation's `trap`. The printers print the decided function (`FromFunc`);
 - its domain is intervals over ℤ̄ with ends in (−2¹²⁶, 2¹²⁶), the term analysis's lattice, so U and
@@ -133,14 +135,18 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
 - the rules include: thresholds for 16 rounds, then the plain widening; the arm conditions; backward
   propagation; trip bounds (Theorems 1–2, and B = ∞); bounded increments into a buffer (Theorem 3);
   unreachable arms; the mask and the shift; the unsigned word as the residue map;
+- termination is size-change termination over the IR's steps (`ir/sct.go`): **359 of 381 loops**, where
+  the term analysis proved 343, never fewer in a function, on exports and on `build`'s entry points;
 - each rule is checked against executions, by a concrete interpreter over ℤ (`ir/interp_test.go`) on
-  generated programs and word- and shift-selected ones, and has a planted fault it catches.
+  generated programs and word- and shift-selected ones, and has a planted fault it catches. A
+  termination law's fault is caught by a divergent program it would falsely prove.
 
-The term interval analysis still runs, for termination and for the passes not yet ported:
-`CheckEnsures`, `MeasureRequires`, `SelectShifts`, `BufferRange`, `PromoteBig` and `SelectWords`.
+`gen` and `build` no longer run the term interval analysis; it runs behind `-irproof` as the shadow,
+and inside the passes not yet ported: `CheckEnsures`, `MeasureRequires`, `SelectShifts`,
+`BufferRange`, `PromoteBig` and `SelectWords`.
 
-**The migration is the current plan**: termination next (343 of 381 loops), then those passes and the
-refinement layer, one at a time, until `emit/interval.go` can be deleted. The language plan below waits
+**The migration is the current plan**: those passes and the refinement layer, one at a time, until
+`emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits
 for it. Soundness bugs found while writing the IR's rules:
 - in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
   of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that

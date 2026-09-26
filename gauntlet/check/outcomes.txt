@@ -64,13 +64,13 @@
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
 == examples/big/power.oro go emitted fb18b4ac0fbe6cf4f12687d7e5f02abb69635ce91f961b225cf96416dda7e143
    note: gen-power: 3 operation(s) in arbitrary precision
-   note: gen-power: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/power.oro js emitted 955dd4c8aa0a89e467e0b2e82ff72d92f1edf3bda76b80c37caeb4e0a40c0378
    note: gen-power: 3 operation(s) in arbitrary precision
-   note: gen-power: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/power.oro java emitted 7b95ed1512d5cbebffd0f291a6473ebb4804030aa86927b205f18fd3b41f8bdd
    note: gen-power: 3 operation(s) in arbitrary precision
-   note: gen-power: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/power.oro windows refused
    gen: power: acc needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
@@ -412,7 +412,7 @@
    gen: examples/native/centroid-js.oro: in centroid: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/centroid-js.oro js emitted 9443baa9d40f19392455004a0f32724561f15be2473b33dc7caf60c10eca6bb0
-   note: gen-centroid: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-centroid: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/centroid-js.oro java refused
    gen: examples/native/centroid-js.oro: in centroid: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -467,7 +467,7 @@
    gen: examples/native/dot-js.oro: in dot: js.* is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/dot-js.oro js emitted 48c329628630166d32f5086fb86c2d0279aaf94e1db7faad794d1f2e68964887
-   note: gen-dot: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-dot: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/dot-js.oro java refused
    gen: examples/native/dot-js.oro: in dot: js.* is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -502,8 +502,8 @@
    gen: examples/native/generic-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/generic-js.oro js emitted f3abd8b22a34fa888e3268e7abedac271212e01d3d1ebd28c1db717f6eaa8f21
-   note: gen-sum-of: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
-   note: gen-word-tally: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-sum-of: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-word-tally: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/generic-js.oro java refused
    gen: examples/native/generic-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -546,7 +546,7 @@
    gen: examples/native/report-js.oro: in dot: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/report-js.oro js emitted 8c2c1888afc8ccb586e8d47e5c0743f5155725ffd92b7fb34fd06be58bd35953
-   note: gen-main: 0 of 0 integer operations bounded; 0 of 2 loop(s) proven terminating
+   note: gen-main: 0 of 0 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/report-js.oro java refused
    gen: examples/native/report-js.oro: in dot: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -579,7 +579,7 @@
    gen: examples/native/search-js.oro: in find-first: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/search-js.oro js emitted e36d0fe5affff7643537818377f394f2a1bc1c047d1c40a877f7b1e654387890
-   note: gen-find-first: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-find-first: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/search-js.oro java refused
    gen: examples/native/search-js.oro: in find-first: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -648,7 +648,7 @@
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/sieve-js.oro js emitted 37eeba92aeab8839c6876f24d1d78ee65d8fc902efb12fa14ec4f34427daaada
    note: gen-sieve-count: 0 of 0 integer operations bounded; 0 of 3 loop(s) proven terminating
-   note: gen-main: 0 of 0 integer operations bounded; 0 of 3 loop(s) proven terminating
+   note: gen-main: 0 of 0 integer operations bounded; 3 of 3 loop(s) proven terminating
 == examples/native/sieve-js.oro java refused
    gen: examples/native/sieve-js.oro: in cross: js.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -707,8 +707,8 @@
    gen: examples/native/smooth-js.oro: in fill-into: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/smooth-js.oro js emitted 77cc55afbfe034b58a666d18a8b5cc1a0c70098f2d92af5624a3103bfd32f70c
-   note: gen-smooth: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
-   note: gen-smooth-into: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-smooth: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-smooth-into: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-js.oro java refused
    gen: examples/native/smooth-js.oro: in fill-into: js.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -743,7 +743,7 @@
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/wordcount-js.oro js emitted d6ad437b62fbe3b8dfb1cdeda61e48ea16bbd142f130826663ceb8141cadba65
-   note: gen-tally: 0 of 0 integer operations bounded; 0 of 1 loop(s) proven terminating
+   note: gen-tally: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/wordcount-js.oro java refused
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.

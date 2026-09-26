@@ -733,3 +733,27 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/io/jsonfmt.oro go` 625 → 375 ms, 0.60x
+
+## 2026-09-26 — on f4248d7, with uncommitted changes
+
+**Reason:** IR step 4d: termination is proven on the IR (359 of 381 loops, was 343): notes only, no emitted code changed; the JS native loops over promoted js.+ and power.oro's halving exponent are proven; gen no longer runs the term interval analysis
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 359 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+11 change(s):
+
+- compiler output changed — `examples/big/power.oro go`
+- compiler output changed — `examples/big/power.oro java`
+- compiler output changed — `examples/big/power.oro js`
+- compiler output changed — `examples/native/centroid-js.oro js`
+- compiler output changed — `examples/native/dot-js.oro js`
+- compiler output changed — `examples/native/generic-js.oro js`
+- compiler output changed — `examples/native/report-js.oro js`
+- compiler output changed — `examples/native/search-js.oro js`
+- compiler output changed — `examples/native/sieve-js.oro js`
+- compiler output changed — `examples/native/smooth-js.oro js`
+- compiler output changed — `examples/native/wordcount-js.oro js`
+
+1 compile(s) recorded FASTER:
+
+- `examples/native/sieve-win-bench.oro windows` 781 → 453 ms, 0.58x

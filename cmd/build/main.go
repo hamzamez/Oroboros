@@ -231,8 +231,6 @@ checks:
 	} else if note != "" {
 		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
 	}
-	// The term analysis counts loops; legality and modes are the IR's (cmd/gen).
-	rep, _ := emit.Intervals(tg, esig, nf, 0)
 	// DIVISION BY A POWER OF TWO IS A SHIFT, before the decision, so the IR
 	// decides the term the backend prints (cmd/gen).
 	unshifted := nf
@@ -250,10 +248,10 @@ checks:
 		selectWords()
 		goto checks
 	}
-	if leg.Ops > 0 || rep.Loops > 0 {
+	if leg.Ops > 0 || leg.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
 			"%d of %d loop(s) proven terminating\n",
-			leg.Proven, leg.Ops, rep.Terminates, rep.Loops)
+			leg.Proven, leg.Ops, leg.Halts, leg.Loops)
 	}
 	// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the IR
 	// has written `trap` where the proof failed.

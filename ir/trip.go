@@ -131,7 +131,9 @@ func (a *intervals) tripRefine(s *Stmt, init, cur []fact, lc *exitFacts) bool {
 			// step, and the difference of the two facts there, each under
 			// this arm's guards. The second is what a reset to a literal has:
 			// `(again 0 …)` under v ∈ [1, 9] steps by [−9, −1].
+			undo := a.atContinue(body.Params, rec[1])
 			d := meetIV(a.delta(cr.Args[j], q, 4), subIV(rec[0][j].v, rec[1][j].v))
+			undo()
 			steps[j] = joinIV(steps[j], d)
 		}
 	}
@@ -297,6 +299,9 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 	if d == nil {
 		return ivTop
 	}
+	if d.Name != "" && d.Op.IsArith() && !a.inWord(a.fs[v].v) {
+		return ivTop // a promoted host operation outside the word is the host's
+	}
 	switch d.Op {
 	case OAdd:
 		if x := a.deltaFrom(d.Args[0], base, depth-1); x != ivTop {
@@ -308,6 +313,32 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 	case OSub:
 		if x := a.deltaFrom(d.Args[0], base, depth-1); x != ivTop {
 			return subIV(x, a.fs[d.Args[1]].v)
+		}
+	case ODiv:
+		if base(d.Args[0]) {
+			return a.quotientStep(d.Args[0], a.fs[d.Args[1]].v)
+		}
+	case ORem:
+		if base(d.Args[1]) {
+			return a.remainderStep(d.Args[0], d.Args[1])
+		}
+	case OCall:
+		switch {
+		case len(d.Args) == 1 && (d.Name == "u64-of" || d.Name == "int-of-u64"):
+			// The residue map is the identity on S ∩ U = [0, 2⁶³): a step
+			// through a conversion of a value there is the step under it.
+			if a.fs[d.Args[0]].v.within(ep{}, ei(1<<63-1)) {
+				return a.deltaFrom(d.Args[0], base, depth-1)
+			}
+		case len(d.Args) == 2 && d.Name == "u64/" && base(d.Args[0]):
+			return a.quotientStep(d.Args[0], a.fs[d.Args[1]].v)
+		case len(d.Args) == 2 && d.Name == "u64%" && base(d.Args[1]):
+			return a.remainderStep(d.Args[0], d.Args[1])
+		case len(d.Args) == 2 && emit.ArithOp(d.Name, 2) == "shr" && base(d.Args[0]):
+			// x >> k = ⌊x / 2ᵏ⌋ for x ≥ 0: a quotient by 2ᵏ ≥ 2 when k ≥ 1.
+			if k, ok := a.constOf(d.Args[1]); ok && k >= 1 && k <= 62 {
+				return a.quotientStep(d.Args[0], exactIV(1<<k))
+			}
 		}
 	case OIf:
 		k := resIndex(d, v)
@@ -454,4 +485,60 @@ func exitRegions(r *Region, k Term) []*Region {
 	}
 	walk(r)
 	return out
+}
+
+// THE DESCENT LAWS OF DIVISION, as steps (size-change termination's
+// `v / k` and Euclid's `x mod y`, Lee, Jones and Ben-Amram 2001):
+//
+//	x ≥ 1, b ≥ 2:  0 ≤ ⌊x / b⌋ ≤ x − 1, so ⌊x / b⌋ − x ∈ [−x.hi, −1]
+//	x ≥ 0, y ≥ 1:  0 ≤ x mod y ≤ y − 1, so (x mod y) − y ∈ [−y.hi, −1]
+//
+// The first because x − ⌊x/b⌋ ≥ x − x/2 ≥ 1 for x ≥ 2, and ⌊1/b⌋ = 0; the
+// division is truncating, which is the floor on x ≥ 0 (integers.md §3). The
+// facts are the operands' where the step is taken, under that arm's guards.
+
+// quotientStep is ⌊x / b⌋ − x for the value x and divisor range b.
+func (a *intervals) quotientStep(x V, b iv) iv {
+	fx := a.fs[x].v
+	if fx.bot || b.bot || fx.nlo || fx.lo.sign() <= 0 || b.nlo || b.lo.lt(ei(2)) {
+		return ivTop
+	}
+	out := iv{hi: ei(-1), nlo: fx.phi}
+	if !fx.phi {
+		out.lo = fx.hi.neg()
+	}
+	return out.norm()
+}
+
+// remainderStep is (x mod y) − y for the dividend x and divisor y.
+func (a *intervals) remainderStep(x, y V) iv {
+	fx, fy := a.fs[x].v, a.fs[y].v
+	if fx.bot || fy.bot || fx.nlo || fx.lo.sign() < 0 || fy.nlo || fy.lo.sign() <= 0 {
+		return ivTop
+	}
+	out := iv{hi: ei(-1), nlo: fy.phi}
+	if !fy.phi {
+		out.lo = fy.hi.neg()
+	}
+	return out.norm()
+}
+
+// atContinue installs the parameters' facts AT one continue, under that arm's
+// guards (its record), for reading the steps taken there; the returned
+// function restores them. A guard with no π, such as `u64=`, narrows a
+// parameter only while its arm is evaluated (cond), and the steps are read
+// after: without this the quotient law saw v's fact without `v ≠ 0`.
+func (a *intervals) atContinue(params []V, pre []fact) func() {
+	saved := make([]fact, len(params))
+	for i, p := range params {
+		saved[i] = a.fs[p]
+		if i < len(pre) {
+			a.fs[p] = pre[i]
+		}
+	}
+	return func() {
+		for i, p := range params {
+			a.fs[p] = saved[i]
+		}
+	}
 }

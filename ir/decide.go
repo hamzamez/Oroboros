@@ -37,16 +37,32 @@ type Legality struct {
 	// would hold (wordsel.go): the pipeline selects words and decides again.
 	InU     bool
 	Trapped int // operations given `trap`
+	// Loops and Halts: the loops, and those size-change termination proves
+	// (sct.go). A count, not a refusal: termination is reported, as the term
+	// analysis reported it.
+	Loops, Halts int
 }
 
 // Decide analyses f, writes each counted operation's mode, and reports. With
 // checked false an unproven operation keeps `exact`, and the program is to be
 // refused (Refusal).
 func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
-	fs := analyse(tg, f)
-	f.facts = fs
-	spec := specOnly(f)
 	rep := &Legality{}
+	a := newIntervals(tg, f)
+	a.region(f.Body)
+	fs := a.fs
+	f.facts = fs
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == OLoop {
+				rep.Loops++
+				if h, seen := a.halts[s]; !seen || h {
+					rep.Halts++ // an unevaluated loop is never entered
+				}
+			}
+		}
+	})
+	spec := specOnly(f)
 	wLo, wHi := ei(tg.Word.Lo), ei(tg.Word.Hi)
 	inOrder(f, func(s *Stmt) {
 		if len(s.Res) != 1 || spec[s.Res[0]] {

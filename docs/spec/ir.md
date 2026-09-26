@@ -589,6 +589,27 @@ memory, spelled with the binders' names) and its interval, in program order. The
 term the backend prints, after the shift selection, and the step to IR_P reuses its facts unless a
 restriction was written since.
 
+### 7.3 Termination (`ir/sct.go`)
+
+Size-change termination over integer measures (Lee, Jones and Ben-Amram 2001), with the floor the
+integers lack supplied by the interval domain.
+- **The graphs.** For each back edge some execution takes, a graph over the loop's parameters. An arc
+  i → j is strict when μⱼ after < μᵢ before, and weak when ≤, where μ = σ·p with σ = +1 for a parameter
+  that never rises and −1 for one that never falls.
+- **One label, one quantity.** Each arc is read from the step aⱼ − pᵢ at that continue: the symbolic
+  step against base pᵢ, met with the difference of the two facts, under that continue's parameter
+  facts. So every step law is also a descent law: `x ± e`, an inner loop's monotone result, a reset
+  below the guard, and division's two laws.
+- **Division's laws.** For x ≥ 1 and b ≥ 2, ⌊x/b⌋ − x ∈ [−x.hi, −1]. For x ≥ 0 and y ≥ 1,
+  (x mod y) − y ∈ [−y.hi, −1]. They apply through `u64/`, `u64%`, the shift, and conversions of values
+  in S ∩ U.
+- **The theorem.** If every idempotent graph of the closure under composition has a strict arc j → j
+  whose measure is bounded at the loop head, the loop terminates. By Ramsey's theorem an infinite run
+  factors into segments with one idempotent graph, along which μⱼ falls without bound.
+
+A loop whose continues are all dead, or which is never entered, halts vacuously. Termination is
+reported, not required.
+
 ---
 
 ## 8. Lowering: residual → IR

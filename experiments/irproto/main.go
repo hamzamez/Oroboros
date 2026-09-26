@@ -289,11 +289,6 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 				die(e)
 			}
 			nf = nb
-			if emit.DeclaresWord(tg, sig, nf) {
-				if nw, k := emit.SelectWords(tg, sig, nf); k > 0 {
-					nf = nw
-				}
-			}
 		})
 		measure("type check", func() { err = emit.Check(tg, name, nf) })
 		if err != nil {

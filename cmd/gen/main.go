@@ -222,24 +222,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if n > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
 		}
-		// THE UNSIGNED WORD (ADR 0026 (10), emit/wordsel.go): a value proven in
-		// [0, 2^64−1] and outside the signed word is a machine word on a target
-		// that realizes U. Selected before the checker, for PromoteBig's reason,
-		// when U is DECLARED; when it is only COMPUTED, the legality pass below
-		// finds it and the checks run once more on the selected term.
-		worded := false
-		selectWords := func() {
-			worded = true
-			if nw, k := emit.SelectWords(tg, usig, nf); k > 0 {
-				nf = nw
-				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, k)
-			}
-		}
-		if emit.DeclaresWord(tg, usig, nf) {
-			selectWords()
-		}
 		sig := usig
-	checks:
 		// Check the residual before emitting it (docs/spec/types.md). On Go and
 		// Java the host would catch most of this; on JavaScript nothing would.
 		if err := emit.Check(tg, fname, nf); err != nil {
@@ -279,11 +262,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		leg := ir.Decide(tg, fA, checked)
-		// AN OPERATION THE UNSIGNED WORD WOULD HOLD, and the selection has not run:
-		// select it and check again, once.
-		if leg.InU && !worded {
-			selectWords()
-			goto checks
+		// THE UNSIGNED WORD (ADR 0033, ir/words.go): each integer value's
+		// realization is ρ of its fact, and a value in U outside the signed word
+		// is a machine word on a target that realizes U. Chosen on the decided
+		// function; the decision is taken again on the selected one, where each
+		// u64 operation is proven in U.
+		if changed, err := ir.SelectWords(tg, fA); err != nil {
+			return fmt.Errorf("%s: %v", fname, err)
+		} else if changed {
+			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, ir.WordOps(fA))
+			leg = ir.Decide(tg, fA, checked)
 		}
 		// A POSTCONDITION on an exported definition is an OBLIGATION, not an
 		// assumption: the caller is outside the program, so the body is the

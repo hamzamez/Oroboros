@@ -804,3 +804,15 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - emitted text changed — `examples/io/jsonfmt.oro java`
 - emitted text changed — `examples/json/tree.oro go`
+
+## 2026-09-26 — on 7a41137, with uncommitted changes
+
+**Reason:** IR step 4g: the unsigned word is chosen on the IR (ADR 0033); u128's decimal now declares its halves in U, so its loop runs in uint64 with fewer conversions and a negative half is refused rather than converted by the residue map
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 359 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+3 change(s):
+
+- emitted text changed — `examples/u128/factorials.oro go`
+- compiler output changed — `examples/u128/factorials.oro go`
+- emitted text changed — `lib/num/u128.oro go`

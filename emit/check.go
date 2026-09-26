@@ -243,6 +243,15 @@ func (c *checker) agree(what, got, want string) error {
 	if c.tgt.Subsumes(c.tgt.ValueType(got), c.tgt.ValueType(want)) {
 		return nil
 	}
+	// THE INTEGER SORT IS ℤ (ADR 0033). The signed word and the unsigned one are
+	// two realizations of integers, and which one a value is held in is a
+	// representation, chosen on the IR by ρ of its interval; that a value lies
+	// in U where U is declared, or in S where `int` is, is an obligation the
+	// IR's facts discharge or refuse (ir.SelectWords). Here there are no facts,
+	// only sorts, so the two agree.
+	if isWordSort(c.tgt, got) && isWordSort(c.tgt, want) {
+		return nil
+	}
 	// A RANGE WIDER THAN THE WORD gets its own message, because "but int is
 	// required here" is true and explains nothing. This is the rung above the
 	// host's word, and two different things can go wrong there.
@@ -574,12 +583,8 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 				return fmt.Errorf("%s: %w", n, err)
 			}
 			nf = p
-			// AND THE UNSIGNED WORD (wordsel.go), for the same reason: a body
-			// whose value lives in U is `u64` once its representation is chosen,
-			// which is what a signature declaring [0, 2^64−1] says.
-			if DeclaresWord(tgt, sig, nf) {
-				nf, _ = SelectWords(tgt, sig, nf)
-			}
+			// The unsigned word needs no selection here: the checker's integer
+			// sort is ℤ (ADR 0033), and representation is chosen on the IR.
 			// ON THE FIXED-LIMB RUNG A BIG VALUE IS AN `array int`, so the
 			// claim is checked against the signature as that rung means it.
 			// Checking the declaration verbatim refuses a body that produces
@@ -659,11 +664,24 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		// `any` carries no information, and refusing it would mean a target
 		// that declares everything `any` — targets/js, on purpose — can never
 		// carry a `sig` with a concrete result (json-tree-2026-08-26).
+		// The integer sort is ℤ (ADR 0033): a body typed `int` against a result
+		// declared in U is a membership claim the IR decides, not a mismatch.
 		if pass == 1 && !compatible(tgt, got, sig.Result) &&
-			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) {
+			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) &&
+			!(isWordSort(tgt, got) && isWordSort(tgt, sig.Result)) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}
 	}
 	return nil
+}
+
+// isWordSort reports an integer type realized at word width, in either
+// realization: `int`, a range inside the signed word, or one in U.
+func isWordSort(tg *Target, ty string) bool {
+	switch tg.ValueType(ty) {
+	case "int", core.U64Type:
+		return ty != "" && ty != core.BigType
+	}
+	return false
 }

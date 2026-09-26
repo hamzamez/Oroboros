@@ -2,6 +2,7 @@ package ir
 
 import (
 	"fmt"
+	"math/big"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,6 +74,46 @@ func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
 			got := Decide(tg, p.Funcs[0], true).SizeRefusal("run", tg) != nil
 			if got != want {
 				t.Errorf("%s on %s: refused = %v, want %v", c.name, target, got, want)
+			}
+		}
+	}
+}
+
+// A PRIMITIVE'S ENSURES BOUNDS ITS RESULT (ADR 0028): for sampled parameters,
+// a result the postcondition allows lies in ensuresBound's interval. Each row
+// is a postcondition and a function giving the results it allows at x.
+func TestAnEnsuresBoundsItsResult(t *testing.T) {
+	read := func(src string) *core.Term {
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return forms[0].Term
+	}
+	rows := []struct {
+		q      string
+		allows func(x int64) []int64
+	}{
+		{"(= result (* 2 n))", func(x int64) []int64 { return []int64{2 * x} }},
+		{"(= result (+ (* 3 n) 1))", func(x int64) []int64 { return []int64{3*x + 1} }},
+		{"(<= result n)", func(x int64) []int64 { return []int64{x, x - 5, -100} }},
+		{"(< result n)", func(x int64) []int64 { return []int64{x - 1, x - 9} }},
+		{"(>= result (- 0 n))", func(x int64) []int64 { return []int64{-x, 0, 50} }},
+		{"(if (<= 0 result) (<= result (/ n 2)) false)", func(x int64) []int64 { return []int64{0, x / 2} }},
+	}
+	for _, r := range rows {
+		q := read(r.q)
+		for _, a := range []iv{rangeIV(0, 10), rangeIV(-4, 7), rangeIV(100, 100)} {
+			b := ensuresBound(q, map[string]iv{"n": a})
+			for x := a.lo.big().Int64(); x <= a.hi.big().Int64(); x++ {
+				for _, y := range r.allows(x) {
+					if r.q == "(if (<= 0 result) (<= result (/ n 2)) false)" && (y < 0 || y > x/2) {
+						continue
+					}
+					if !member(big.NewInt(y), b) {
+						t.Fatalf("%s at n = %d allows %d, outside %s", r.q, x, y, show(b))
+					}
+				}
 			}
 		}
 	}

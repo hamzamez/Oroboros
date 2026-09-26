@@ -120,9 +120,10 @@ func TestARemainderBoundsAPrecondition(t *testing.T) {
 	}
 }
 
-// refineWorded is refineGo with the unsigned word selected first and the type
-// checker run on the result, as cmd/gen does when a signature declares a range
-// in U.
+// refineWorded is refineGo with the type checker run first, as cmd/gen does.
+// The unsigned word is no longer selected on the term (ADR 0033): the checker
+// and the refinement layer see the integers, and the IR chooses their
+// representation.
 func refineWorded(t *testing.T, src string) (string, error) {
 	t.Helper()
 	tg := goNative(t)
@@ -143,9 +144,6 @@ func refineWorded(t *testing.T, src string) (string, error) {
 	nf, err := core.Normalize(prog.Defs[q], env, core.DefaultFuel)
 	if err != nil {
 		t.Fatal(err)
-	}
-	if nw, k := SelectWords(tg, sig, nf); k > 0 {
-		nf = nw
 	}
 	if err := Check(tg, "test", nf); err != nil {
 		return "", err

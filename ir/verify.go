@@ -233,6 +233,14 @@ func (v *verifier) agrees(got, want string) bool {
 	if got == want || got == "any" || want == "any" || got == "" || want == "" {
 		return true
 	}
+	// THE TWO WORD REALIZATIONS DO NOT AGREE (ADR 0033). The term checker
+	// types both as ℤ, because it has no representation to check; W5 is where
+	// representation is checked, and a u64 flowing where an int is held (or
+	// the reverse) is a missing conversion, which a host would type-reject or
+	// compute in the wrong width.
+	if rg, rw := sortOf(v.tg, got), sortOf(v.tg, want); rg != rw && isWordRep(rg) && isWordRep(rw) {
+		return false
+	}
 	if v.tg.Agrees(got, want) {
 		return true
 	}
@@ -616,3 +624,6 @@ func union(a, b map[V]bool) map[V]bool {
 	}
 	return a
 }
+
+// isWordRep reports a word-width integer realization: the signed word or U.
+func isWordRep(sort string) bool { return sort == "int" || sort == "u64" }

@@ -891,8 +891,8 @@
 == examples/tally/tally.oro windows refused
    gen: examples/tally/tally.oro: in tally.run: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/u128/factorials.oro go emitted 53924c152cd94b81f25282d572f35b29ccbc669b63220cc6c8fa0f14ed583279
-   note: gen-main: 22 operation(s) or conversion(s) in the unsigned word
+== examples/u128/factorials.oro go emitted ff9a5895664ce54d01ad8778428206ba9ffebd1e72b4cf2806507080a4f09e87
+   note: gen-main: 20 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == examples/u128/factorials.oro js refused
    gen: examples/u128/factorials.oro: in main: go/fmt.Println2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -1188,7 +1188,7 @@
    gen: lib\io\java.oro: a target file begins with (target NAME …)
 == lib/io/js.oro windows refused
    gen: lib/io/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
-== lib/num/u128.oro go emitted 75c49b2598e3013dcc2b0e0275548148ced920e30df87e79cf5c1799d79a2e01
+== lib/num/u128.oro go emitted 41bc50aa7d35779ef08224c9a4871fe110126f55c9a7a8b8d2459a4823c44ae0
    note: gen-add: 2 operation(s) or conversion(s) in the unsigned word
    note: gen-mulw: 3 operation(s) or conversion(s) in the unsigned word
    note: gen-divw: 2 operation(s) or conversion(s) in the unsigned word

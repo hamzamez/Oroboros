@@ -191,21 +191,6 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if n > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
 	}
-	// THE UNSIGNED WORD (ADR 0026 (10), emit/wordsel.go): selected before the
-	// checker when U is declared, and after a refusal that found an operation U
-	// would hold — see cmd/gen for the note.
-	worded := false
-	selectWords := func() {
-		worded = true
-		if nw, k := emit.SelectWords(tg, esig, nf); k > 0 {
-			nf = nw
-			fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", k)
-		}
-	}
-	if emit.DeclaresWord(tg, esig, nf) {
-		selectWords()
-	}
-checks:
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would.
 	if err := emit.Check(tg, entry, nf); err != nil {
@@ -230,9 +215,12 @@ checks:
 		return err
 	}
 	leg := ir.Decide(tg, fA, checked)
-	if leg.InU && !worded {
-		selectWords()
-		goto checks
+	// THE UNSIGNED WORD, chosen on the decided function (ADR 0033, cmd/gen).
+	if changed, err := ir.SelectWords(tg, fA); err != nil {
+		return fmt.Errorf("%s: %v", entry, err)
+	} else if changed {
+		fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", ir.WordOps(fA))
+		leg = ir.Decide(tg, fA, checked)
 	}
 	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
 	// assumption: the caller is outside the program (postconditions.md §2).

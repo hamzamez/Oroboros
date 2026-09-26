@@ -639,6 +639,19 @@ func (a *intervals) stmt(s *Stmt) {
 			}
 			a.fs[v] = a.declared(ty)
 		}
+		// A PRIMITIVE'S `ensures` holds at every call the IR sees: it is assumed
+		// where the primitive's `where` was discharged (ADR 0028), and every one
+		// was, or the program was refused. `hex.EncodedLen`'s (= result (* 2 n))
+		// is what bounds a buffer sized by it.
+		if p.Ensures != nil && len(s.Res) == 1 {
+			env := map[string]iv{}
+			for j, nm := range p.Names {
+				if j < len(args) {
+					env[nm] = args[j].v
+				}
+			}
+			a.fs[s.Res[0]].v = meetIV(a.fs[s.Res[0]].v, ensuresBound(p.Ensures, env))
+		}
 	case OIndex:
 		t := args[0]
 		if t.hasEl {
@@ -820,6 +833,13 @@ func (a *intervals) loop(s *Stmt) {
 		*lc = exitFacts{params: body.Params, at: map[*Region][2][]fact{}}
 		a.region(body)
 	}
+	// A VALUE PASSED TO A RECEIVER IS THE RECEIVER'S VALUE: narrowed top-down
+	// from the parameters' post-fixpoint facts (exitsNarrow).
+	contRecv := make([]iv, len(cur))
+	for i := range cur {
+		contRecv[i] = cur[i].v
+	}
+	a.exitsNarrow(body, contRecv, nil)
 	a.halts[s] = a.terminates(s, cur, lc)
 	a.loops = a.loops[:len(a.loops)-1]
 	a.set(s.Res, lc.brk)
@@ -1539,4 +1559,129 @@ func (a *intervals) relSub(x, y V, r iv) iv {
 		r = meetIV(r, negIV(d))
 	}
 	return r
+}
+
+// ensuresBound is the set a postcondition allows its result, from the facts of
+// the parameters it names: `(= result E)` is ⟦E⟧, `(<= result E)` and the
+// other orders are half-lines, a conjunction is the meet, and anything else is
+// ⊤, which only weakens. ⟦E⟧ is interval arithmetic over + − · / % and
+// negation of names and literals.
+func ensuresBound(q *core.Term, env map[string]iv) iv {
+	if q.Kind != core.KApp || q.Op().Kind != core.KName {
+		return ivTop
+	}
+	args := q.Args()
+	// (if a b false): a conjunction, as the reader spells it
+	if q.Op().Name == "if" && len(args) == 3 && args[2].Kind == core.KBool && !args[2].IsTrue() {
+		return meetIV(ensuresBound(args[0], env), ensuresBound(args[1], env))
+	}
+	if len(args) != 2 {
+		return ivTop
+	}
+	rel := emit.CmpOp(q.Op().Name)
+	isResult := func(t *core.Term) bool { return t.Kind == core.KName && t.Name == core.ResultName }
+	var other *core.Term
+	switch {
+	case isResult(args[0]):
+		other = args[1]
+	case isResult(args[1]):
+		other, rel = args[0], flip(rel)
+	default:
+		return ivTop
+	}
+	e := evalTerm(other, env)
+	switch rel {
+	case "eq":
+		return e
+	case "le":
+		return iv{hi: e.hi, nlo: true, phi: e.phi}.norm()
+	case "lt":
+		return narrowIV(ivTop, "lt", e)
+	case "ge":
+		return iv{lo: e.lo, nlo: e.nlo, phi: true}.norm()
+	case "gt":
+		return narrowIV(ivTop, "gt", e)
+	}
+	return ivTop
+}
+
+// evalTerm is an integer term's interval over the names' facts.
+func evalTerm(t *core.Term, env map[string]iv) iv {
+	switch t.Kind {
+	case core.KInt:
+		return exactIV(t.Int)
+	case core.KName:
+		if v, ok := env[t.Name]; ok {
+			return v
+		}
+		return ivTop
+	case core.KApp:
+		if t.Op().Kind != core.KName {
+			return ivTop
+		}
+		xs := t.Args()
+		switch emit.ArithOp(t.Op().Name, len(xs)) {
+		case "add":
+			return addIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "sub":
+			return subIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "mul":
+			return mulIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "div":
+			return divIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "rem":
+			return remIV(evalTerm(xs[0], env), evalTerm(xs[1], env))
+		case "neg":
+			return negIV(evalTerm(xs[0], env))
+		}
+	}
+	return ivTop
+}
+
+// exitsNarrow meets each value a region passes to a receiver with the
+// receiver's fact, when the value is DEFINED in that region. A region is
+// straight-line up to its terminator, so every execution that defines such a
+// value reaches the terminator and hands it over: on that execution it IS the
+// receiver's value. A continue's receiver is the loop's parameter, whose
+// post-fixpoint fact holds at every head (the trip theorems' too, since a
+// continue's argument is a head value after one more back edge); a yield's is
+// the `if`'s result. The narrowing then descends into an `if` whose result it
+// narrowed. A value defined elsewhere may reach other receivers, and is left.
+// contRecv is for continues, yieldRecv for yields and breaks (nil: none).
+func (a *intervals) exitsNarrow(r *Region, contRecv, yieldRecv []iv) {
+	defined := map[V]bool{}
+	for i := range r.Stmts {
+		for _, v := range r.Stmts[i].Res {
+			defined[v] = true
+		}
+	}
+	var recv []iv
+	switch r.T {
+	case TContinue:
+		recv = contRecv
+	case TYield, TBreak:
+		recv = yieldRecv
+	case TBranch:
+		a.exitsNarrow(r.Then, contRecv, yieldRecv)
+		a.exitsNarrow(r.Else, contRecv, yieldRecv)
+	}
+	for j, x := range r.Args {
+		if j < len(recv) && defined[x] {
+			a.fs[x].v = meetIV(a.fs[x].v, recv[j])
+		}
+	}
+	// then into each `if` of this region, with its (possibly narrowed) results
+	for i := range r.Stmts {
+		st := &r.Stmts[i]
+		if st.Op != OIf {
+			continue
+		}
+		res := make([]iv, len(st.Res))
+		for j, v := range st.Res {
+			res[j] = a.fs[v].v
+		}
+		for _, sub := range st.Sub {
+			a.exitsNarrow(sub, nil, res)
+		}
+	}
 }

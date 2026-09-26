@@ -328,3 +328,30 @@ func contained(f *Func, fs []fact, seen map[V]*obs) error {
 	}
 	return nil
 }
+
+// runResult runs f and returns its (first) result, whatever region shape it
+// ends in.
+func runResult(f *Func, args []cval) (cval, error) {
+	in := &interp{f: f, env: make([]cval, f.NV()), seen: map[V]*obs{}}
+	for i, p := range f.Params {
+		in.bind(p, args[i])
+	}
+	var out cval
+	var err error
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if e, ok := r.(error); ok {
+					err = e
+					return
+				}
+				err = fmt.Errorf("%v", r)
+			}
+		}()
+		ex := in.region(f.Body)
+		if len(ex.args) > 0 {
+			out = ex.args[0]
+		}
+	}()
+	return out, err
+}

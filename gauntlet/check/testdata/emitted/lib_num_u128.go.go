@@ -15,53 +15,48 @@ func GenAdd(v0 uint64, v1 uint64, v2 uint64, v3 uint64) (uint64, uint64, int) {
 	return v9, v6, v10
 }
 
-func GenDecimal(v0 int, v1 int) string {
-	var v4 int = v0
-	var v5 int = v1
+func GenDecimal(v0 uint64, v1 uint64) string {
+	v4 := v0
+	v5 := v1
 	var v6 string = ""
 	var v3 string
 	for {
-		v10 := (v4 == 0)
-		v11 := (v10 && (v5 < 1000000000000000000))
-		if v11 {
-			v19 := (uint64(v5))
-			v21 := (strconv.FormatUint(uint64(v19), 10))
-			v22 := (v21 + v6)
-			v3 = v22
+		v10 := (uint64(0))
+		v11 := ((v4 == v10))
+		v12 := (v11 && ((v5 < (uint64(1000000000000000000)))))
+		if v12 {
+			v22 := (strconv.FormatUint(uint64(v5), 10))
+			v23 := (v22 + v6)
+			v3 = v23
 			break
 		}
-		v24 := (v4 / 1000000000000000000)
-		v26 := (v4 % 1000000000000000000)
-		v27 := (uint64(v26))
-		v28 := (uint64(v5))
-		v30 := (uint64(1000000000000000000))
-		v31, _ := bits.Div64(uint64(v27), uint64(v28), uint64(v30))
-		v33 := (int(v31))
-		v35 := (uint64(v4))
-		v36 := (uint64(v5))
+		v25 := (uint64(1000000000000000000))
+		v26 := ((v4 / v25))
+		v29 := (uint64(1000000000000000000))
+		v30 := ((v4 % v29))
+		v33 := (uint64(1000000000000000000))
+		v34, _ := bits.Div64(uint64(v30), uint64(v5), uint64(v33))
 		v38 := (uint64(1000000000000000000))
-		v39 := (bits.Rem64(uint64(v35), uint64(v36), uint64(v38)))
-		var v42 int = 0
-		v43 := v39
-		var v44 string = ""
-		for ; ; v42 = (v42 + 1) {
-			v46 := (v42 >= 18)
-			if v46 {
+		v39 := (bits.Rem64(uint64(v4), uint64(v5), uint64(v38)))
+		v41 := (int(v39))
+		var v43 int = 0
+		var v44 int = v41
+		var v45 string = ""
+		for ; ; v43 = (v43 + 1) {
+			v47 := (v43 >= 18)
+			if v47 {
 				break
 			}
-			v52 := (uint64(10))
-			v53 := ((v43 / v52))
-			v56 := (uint64(10))
-			v57 := ((v43 % v56))
-			v58 := (int(v57))
-			v59 := (48 + v58)
-			v60 := (string(rune(v59)))
-			v61 := (v60 + v44)
-			v43, v44 = v53, v61
+			v53 := (v44 / 10)
+			v56 := (v44 % 10)
+			v57 := (48 + v56)
+			v58 := (string(rune(v57)))
+			v59 := (v58 + v45)
+			v44, v45 = v53, v59
 			continue
 		}
-		v62 := (v44 + v6)
-		v4, v5, v6 = v24, v33, v62
+		v60 := (v45 + v6)
+		v4, v5, v6 = v26, v34, v60
 		continue
 	}
 	return v3
@@ -82,15 +77,15 @@ func GenMulw(v0 uint64, v1 uint64, v2 uint64) (uint64, uint64, int) {
 	v8 := (uint64(0))
 	v9, v10h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v6), uint64(v3), uint64(v8))
 	v10 := int(v10h)
-	v13 := (uint64(0))
-	v14 := ((v5 == v13))
-	v15 := (v14 && (v10 == 0))
-	var v19 int
-	if v15 {
-		v19 = 0
+	v14 := (uint64(0))
+	v15 := ((v5 == v14))
+	v16 := (v15 && (v10 == 0))
+	var v22 int
+	if v16 {
+		v22 = 0
 	} else {
-		v19 = 1
+		v22 = 1
 	}
-	return v9, v4, v19
+	return v9, v4, v22
 }
 

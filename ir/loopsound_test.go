@@ -186,6 +186,18 @@ var loopShapes = []func(r *rand.Rand) string{
                      (again (+ c (+ %d (- ni i))) (+ ni 1) (+ k (- i ni))))
     else (again (+ c %d) (+ i 1) k))`, r.Intn(5), 1+r.Intn(12), 1+r.Intn(12), r.Intn(4), r.Intn(3))
 	},
+	// The exit narrowing's premise: x is defined BEFORE the `if` that yields
+	// it on one arm, so it reaches other uses where that arm is not taken, and
+	// must not be narrowed by the `if`'s result (which the loop variable's
+	// fact bounds).
+	func(r *rand.Rand) string {
+		// x is read twice, so the reducer keeps it bound rather than
+		// substituting it into the arm.
+		return fmt.Sprintf(`(loop ((i 0) (m 0) (s 0))
+    (>= i (+ n %d)) (+ m s)
+    else (let x (+ i %d)
+           (again (+ i 1) (if (< i %d) x 0) (+ s x))))`, 3+r.Intn(8), 50+r.Intn(100), 1+r.Intn(3))
+	},
 	// B = ∞: a loop no parameter ranks (the walk advances j only on one arm),
 	// carrying a buffer given only fresh values, whose cells keep their hull
 	// however many times the loop goes round.
@@ -203,7 +215,7 @@ var loopShapes = []func(r *rand.Rand) string{
 func TestTheLoopRulesAreSound(t *testing.T) {
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(7))
-	const cases = 363
+	const cases = 396
 	compiled, ran := 0, 0
 	for c := 0; c < cases; c++ {
 		shape := loopShapes[c%len(loopShapes)](r)
@@ -312,5 +324,53 @@ func TestTheShiftedLoopIsContained(t *testing.T) {
 	}
 	if leg := Decide(tg, f.Clone(), false); leg.Proven != leg.Ops {
 		t.Fatalf("%d of %d proven: %v", leg.Proven, leg.Ops, leg.Unproven)
+	}
+}
+
+// THE EXIT NARROWING'S PREMISE, directly: a value defined OUTSIDE the arm that
+// yields it reaches other uses where that arm is not taken, so the `if`'s
+// result does not bound it; a value defined in the arm is narrowed. Loops
+// rarely exhibit the difference (their other receivers are bounded by the same
+// trip theorems), so the rule is tested on its own.
+func TestTheExitNarrowingKeepsItsPremise(t *testing.T) {
+	p, err := Read(`(ir 1
+  (target go)
+  (stage A)
+  (ops const add lt if yield)
+  (func f (params (%0 int)) (results int)
+    (region
+      (val (%1 int) (const 1))
+      (val (%2 int) (add exact %0 %1))
+      (val (%3 bool) (lt %0 %1))
+      (val (%4 int)
+        (if %3
+          (region
+            (yield %2))
+          (region
+            (val (%5 int) (add exact %0 %1))
+            (yield %5))))
+      (yield %4))))
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg, err := emit.LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := p.Funcs[0]
+	a := newIntervals(tg, f)
+	for v := range a.fs {
+		a.fs[v] = fact{v: rangeIV(0, 100)}
+	}
+	a.exitsNarrow(f.Body, nil, []iv{rangeIV(0, 5)})
+	if got := a.fs[4].v; got != rangeIV(0, 5) {
+		t.Errorf("the if's result, defined in the yielding region, is %s, want [0, 5]", show(got))
+	}
+	if got := a.fs[5].v; got != rangeIV(0, 5) {
+		t.Errorf("a value defined in the arm is %s, want [0, 5]", show(got))
+	}
+	if got := a.fs[2].v; got != rangeIV(0, 100) {
+		t.Errorf("a value defined outside the arm was narrowed to %s", show(got))
 	}
 }

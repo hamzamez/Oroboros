@@ -4,9 +4,11 @@ Date: 2026-09-25
 Status: Accepted. **Step 1 built** (lowering, verifier, canonical printer:
 [irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)). **Step 2 built**: the Go backend
 is the IR's printer ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)). **Step 3
-begun**: the shared plan `ir/plan`, with JavaScript on it
-([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)) and Java
-([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)). **Realizes [ADR 0006](0006-ir-file-format.md)**, which
+built**: the shared plan `ir/plan`, with JavaScript on it
+([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)), Java
+([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)) and x86
+([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)): every backend prints
+from the IR. **Realizes [ADR 0006](0006-ir-file-format.md)**, which
 decided that the backend interface is a file format and never wrote one. The derivation is
 [docs/ir-research.md](../ir-research.md), and the specification is [docs/spec/ir.md](../spec/ir.md).
 Decided by three prototypes: [irp1](../../gauntlet/results/irp1-2026-09-25.md),

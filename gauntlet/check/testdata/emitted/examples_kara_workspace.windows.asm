@@ -14,37 +14,36 @@ gen_mac_fresh proc
         push r12
         push r13
         push r14
-        push r15
-        sub rsp, 48
+        sub rsp, 56
         mov rbx, rcx
         mov rsi, rdx
-        mov rdi, 65536
-        mov r12, rdi
-        add r12, 1
-        shl r12, 3
+        mov r10, 65536
+        add r10, 1
+        shl r10, 3
         xor ecx, ecx
-        mov rdx, r12
+        mov rdx, r10
         mov r8, 3000h
         mov r9, 4
         call VirtualAlloc
-        mov r13, rax
-        mov qword ptr [r13], rdi
-        mov rdi, 0
-Ltop6:
-        cmp rdi, 65536
-        jge Ldone6
-Lnext7:
-        mov r12, qword ptr [rbx+rdi*8+8]
-        mov r14, qword ptr [rsi+rdi*8+8]
-        mov r15, r12
-        imul r15, r14
-        mov qword ptr [r13+rdi*8+8], r15
-        add rdi, 1
-        jmp Ltop6
-Ldone6:
-        mov rax, r13
-        add rsp, 48
-        pop r15
+        mov rdi, rax
+        mov qword ptr [rdi], 65536
+        mov r12, 0
+Ltop10:
+        cmp r12, 65536
+        jge Lexit11
+Lelse12:
+        movzx r13d, byte ptr [rbx+r12+8]
+        movzx r14d, byte ptr [rsi+r12+8]
+        imul r13, r14
+        mov qword ptr [rdi+r12*8+8], r13
+        add r12, 1
+        jmp Ltop10
+Lexit11:
+        mov rbx, rdi
+Lbuilt9:
+        mov rax, rbx
+Lret7:
+        add rsp, 56
         pop r14
         pop r13
         pop r12
@@ -61,27 +60,25 @@ gen_mac_into proc
         push r12
         push r13
         push r14
-        push r15
-        sub rsp, 48
+        sub rsp, 56
         mov rbx, rcx
         mov rsi, rdx
         mov rdi, r8
         mov r12, 0
-Ltop1:
+Ltop2:
         cmp r12, 65536
-        jge Ldone1
-Lnext2:
-        mov r13, qword ptr [rsi+r12*8+8]
-        mov r14, qword ptr [rdi+r12*8+8]
-        mov r15, r13
-        imul r15, r14
-        mov qword ptr [rbx+r12*8+8], r15
+        jge Lexit3
+Lelse4:
+        movzx r13d, byte ptr [rsi+r12+8]
+        movzx r14d, byte ptr [rdi+r12+8]
+        imul r13, r14
+        mov qword ptr [rbx+r12*8+8], r13
         add r12, 1
-        jmp Ltop1
-Ldone1:
+        jmp Ltop2
+Lexit3:
         mov rax, rbx
-        add rsp, 48
-        pop r15
+Lret1:
+        add rsp, 56
         pop r14
         pop r13
         pop r12

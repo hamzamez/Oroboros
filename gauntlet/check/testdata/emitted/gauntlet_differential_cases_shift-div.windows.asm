@@ -11,62 +11,57 @@ gen_run proc
         push rsi
         push rdi
         push r12
-        push r13
-        sub rsp, 48
+        sub rsp, 56
         mov rbx, rcx
         mov rsi, rbx
         add rsi, 1
-        jno Lok1
-        ud2
-        Lok1:
-        mov rdi, 0
-        sub rdi, rsi
         jno Lok2
         ud2
         Lok2:
+        mov rdi, 0
+        sub rdi, rsi
+        jno Lok3
+        ud2
+        Lok3:
         mov rax, rdi
         cqo
         mov rcx, 2
         idiv rcx
         mov rsi, rax
-        mov r12, rsi
-        imul r12, 100
-        jno Lok4
+        imul rsi, 100
+        jno Lok5
         ud2
-        Lok4:
+        Lok5:
         mov rax, rdi
         cqo
         mov rcx, 8
         idiv rcx
-        mov rsi, rdx
-        mov r13, r12
-        add r13, rsi
-        jno Lok6
-        ud2
-        Lok6:
-        mov rsi, rbx
-        imul rsi, 300000000
+        mov r12, rdx
+        add rsi, r12
         jno Lok7
         ud2
         Lok7:
-        mov rax, rsi
+        imul rbx, 300000000
+        jno Lok8
+        ud2
+        Lok8:
+        mov rax, rbx
         cqo
         mov rcx, 4
         idiv rcx
-        mov r12, rax
-        mov rsi, r13
-        add rsi, r12
-        jno Lok9
-        ud2
-        Lok9:
-        mov r12, 1000000
-        add r12, rsi
+        mov rdi, rax
+        add rsi, rdi
         jno Lok10
         ud2
         Lok10:
-        mov rax, r12
-        add rsp, 48
-        pop r13
+        mov rbx, 1000000
+        add rbx, rsi
+        jno Lok11
+        ud2
+        Lok11:
+        mov rax, rbx
+Lret1:
+        add rsp, 56
         pop r12
         pop rdi
         pop rsi

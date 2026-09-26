@@ -7,40 +7,37 @@ extern WriteFile: proc
 
 .data
 __written qword 0
-LS2 db 068h,065h,06Ch,06Ch,06Fh,020h,066h,072h,06Fh,06Dh,020h,06Fh,072h,06Fh,062h,06Fh,072h,06Fh,073h,00Ah,0
-LS2_len equ 20
+LS3 db 068h,065h,06Ch,06Ch,06Fh,020h,066h,072h,06Fh,06Dh,020h,06Fh,072h,06Fh,062h,06Fh,072h,06Fh,073h,00Ah,0
+LS3_len equ 20
 
 .code
 gen_main proc
         push rbx
         push rsi
-        push rdi
-        push r12
         sub rsp, 56
         mov rcx, -11
         call GetStdHandle
         mov rbx, rax
-        lea rsi, LS2
-        lea rdi, LS2
-        mov rax, rdi
-        Lstr3:
+        lea r10, LS3
+        mov rax, r10
+        Lstr4:
         cmp byte ptr [rax], 0
-        je Lstrend3
+        je Lstrend4
         inc rax
-        jmp Lstr3
-        Lstrend3:
-        sub rax, rdi
-        mov r12, rax
+        jmp Lstr4
+        Lstrend4:
+        sub rax, r10
+        mov rsi, rax
+        lea r10, LS3
         mov rcx, rbx
-        mov rdx, rsi
-        mov r8, r12
+        mov rdx, r10
+        mov r8, rsi
         lea r9, __written
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rbx
+Lret1:
         add rsp, 56
-        pop r12
-        pop rdi
         pop rsi
         pop rbx
         ret

@@ -372,6 +372,14 @@ type SpareBuild struct {
 // updates the plan's uses: the post clause computes the stepped value, so its
 // defining statement is no longer read.
 func (p *Plan) DecideLoop(s *ir.Stmt) Loop {
+	out := p.DecideExits(s)
+	p.decidePost(s, &out)
+	return out
+}
+
+// DecideExits is DecideLoop without PostVars, for a host with no post clause
+// (x86): soleExit and buffer reuse, which leave the plan's uses unchanged.
+func (p *Plan) DecideExits(s *ir.Stmt) Loop {
 	body := s.Sub[0]
 	out := Loop{Coalesced: make([]int, len(s.Res)), Post: map[int]*core.Term{}, Spare: map[int]SpareBuild{}}
 	// soleExit: result j is parameter k at every break.
@@ -398,8 +406,14 @@ func (p *Plan) DecideLoop(s *ir.Stmt) Loop {
 		}
 		out.Coalesced[j] = k
 	}
-	// PostVars: parameter j advanced by one literal step at every continue, by
-	// a value nothing else reads.
+	p.decideReuse(s, &out)
+	return out
+}
+
+// decidePost is PostVars: parameter j advanced by one literal step at every
+// continue, by a value nothing else reads.
+func (p *Plan) decidePost(s *ir.Stmt, out *Loop) {
+	body := s.Sub[0]
 	conts := Exits(body, ir.TContinue)
 	defs := map[ir.V]*ir.Stmt{}
 	var collect func(r *ir.Region)
@@ -439,8 +453,6 @@ func (p *Plan) DecideLoop(s *ir.Stmt) Loop {
 			}
 		}
 	}
-	p.decideReuse(s, &out)
-	return out
 }
 
 // decideReuse is Rule R (emit/target.go's LoopBufferReuse, 2.5–2.7× measured):

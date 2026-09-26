@@ -18,6 +18,7 @@ import (
 	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
+	"oroboros/ir/x86"
 	"oroboros/ir/js"
 )
 
@@ -29,7 +30,7 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
-	flag.StringVar(&printer, "printer", "go,js,java", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`; `terms` prints every backend from terms, as before the IR")
+	flag.StringVar(&printer, "printer", "go,js,java,x86", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`, `x86`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -327,7 +328,11 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 				code, err = emit.JavaMethod(tg, fname, sig, nf)
 			}
 		case "x86-64":
-			code, err = emit.AsmProc(tg, fname, sig, nf)
+			if printsIR("x86") {
+				code, err = x86.FromResidual(tg, fname, sig, nf)
+			} else {
+				code, err = emit.AsmProc(tg, fname, sig, nf)
+			}
 		case "go":
 			if printsIR("go") {
 				code, err = printGo(tg, fname, sig, nf)

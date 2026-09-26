@@ -5,10 +5,11 @@ Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structu
 the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified, and no
 printer reads the IR yet. **Step 2 is built**
 ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)): the Go backend is `ir/golang`,
-printing IR_P, at parity on the gauntlet. **Step 3 has begun**
+printing IR_P, at parity on the gauntlet. **Step 3 is built**
 ([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)): the decisions every printer
 shares are `ir/plan`, and the JavaScript backend is `ir/js`. The Java backend is `ir/java`
-([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
+([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)), and the x86 backend is
+`ir/x86` ([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -693,6 +694,69 @@ by the `where` `len p = len q`.
 A printer's output depends only on the IR_P file and the target's declarations. It iterates nothing
 in an order the host randomises (CLAUDE.md, "the emitter must be a function of its input"). Its test is
 the same: print twice and compare.
+
+### 9.6 The x86 printer: a value's place is a colour of an interval graph
+
+x86 is the one host with no variables, so its printer decides where each value lives: a callee-saved
+register (rbx, rsi, rdi, r12–r15; xmm6–xmm13 for `f64`), an immediate, or a frame slot. The other
+hosts' compilers make that decision themselves. Here the IR makes it, and the decision is a theorem,
+not a heuristic.
+
+**Program points.** Number the function in pre-order. Each statement s gets a point. One with
+sub-regions (`if`, `loop`, `build`) owns an interval [start s, end s] around its sub-regions' points,
+and so does a `branch` terminator. A region's parameters are defined at its entry. An `if`'s or a
+`loop`'s results are defined at `end s`.
+
+**Live sets.** The live set of a value v is the set of points on the paths from its definition to
+its reads, a union of ranges. For a read at q:
+- in v's own region, [def v, q];
+- into a statement or branch t that does not contain the definition, `start t` together with the
+  path through the one sub-region the read is in, not through its siblings;
+- **except a loop**, which is covered whole, since its back edge returns to every point.
+
+A loop parameter is defined at the body's entry and is live to its last read. A `continue` writes
+it: the parallel move of §9.3, which under Rule R also reads the spare and its parameter. Aliases
+(L9: a π, a store's value, a statement call's first argument, a build's frozen buffer) share one
+place, and a class's live set is the union of its members'. Merging them keeps the program strict
+SSA: a π is its source, and a store's value is its linear buffer.
+
+**The printer's own reads count.** An instruction the printer adds reads what it reads. The length
+header written after the allocator returns reads the size where the buffer is defined, and the swap
+at a `continue` reads the parameter. Both were missing at first, and each gave a wrong answer
+(`map-len`, and `big-limbs`): a register the numbering believed dead was reused.
+
+**Theorem (optimal colouring).** Two values interfere when their live sets meet. Colouring in order
+of definition, which in structured SSA is dominance order, each value taking a register no
+interfering value holds, uses exactly ω registers, the most values live at one point. Nothing uses
+fewer. For strict SSA the interference graph is chordal, and definition order reversed is a perfect
+elimination order (Hack, Grund and Goos 2006; Bouchez, Darte and Rastello 2007). Without the holes,
+every live set would be an interval, which is linear scan's model (Poletto and Sarkar 1999).
+Measured, the holes matter: an interval model kept the sieve's counter live through the sibling arm
+of its guard, which blocked the in-place `add` on the back edge.
+
+**Early clobber.** A template writes `%r` before it reads its operands (windows-target.md §2). So a
+result interferes with every operand: the result's live set begins at the statement's point, where
+each operand is read. There is one exception, the textual proof emit/asm.go already states. A
+template that begins `mov %r, %1` and names `%1` nowhere else may put its result in `%1`'s register
+when the two live sets meet only at that point: its first instruction is then a no-op, and no path
+reads the clobbered value. That is how `i + 1` on a back edge prints as `add rdi, 1`.
+
+**Spilling.** When ω exceeds the 7 general registers, a value goes to a frame slot for its whole
+life (spill everywhere). Either the value being coloured takes a slot, or the values blocking one
+register do, whichever weighs less. A value's weight is Σ 8^depth over its uses and its definition,
+where depth is loop nesting. A slot operand is loaded into r10 or r11 for the one instruction that
+reads it, which is the term backend's convention. A template operand beyond those two **borrows** a
+value register, one holding none of the instruction's operands and not its destination. The register
+is saved to a frame slot and restored after the template. It is callee-saved, so a call in the
+template preserves it, and a slot rather than a push keeps rsp's alignment for any callee.
+
+**Jumping code.** A boolean is not materialised when it is read once, as the condition of the
+`branch` or `if` that immediately follows its definition, and it is either:
+- a comparison with a `(jump cc)` form, which prints as the flag-setting instruction and `jcc`;
+- a pure `if` whose arms yield booleans, which prints as jumps to the two continuations
+  (Aho, Sethi and Ullman §8.4; booleans.md §2.7).
+
+Adjacency keeps the emission order the program's, so the lemma needs no change.
 
 ---
 

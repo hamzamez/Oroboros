@@ -13,77 +13,8 @@ gen_run proc
         push rsi
         push rdi
         push r12
-        push r13
-        sub rsp, 48
-        mov rbx, rcx
+        sub rsp, 56
         mov rax, 65
-        lea rcx, __sarena
-        add rcx, qword ptr [__stop]
-        mov r8, rcx
-        cmp rax, 128
-        jl Ls11
-        cmp rax, 2048
-        jl Ls21
-        cmp rax, 65536
-        jl Ls31
-        mov rdx, rax
-        shr rdx, 18
-        or dl, 0F0h
-        mov byte ptr [rcx], dl
-        mov rdx, rax
-        shr rdx, 12
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+1], dl
-        mov rdx, rax
-        shr rdx, 6
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+2], dl
-        mov rdx, rax
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+3], dl
-        add rcx, 4
-        jmp Lse1
-        Ls31:
-        mov rdx, rax
-        shr rdx, 12
-        or dl, 0E0h
-        mov byte ptr [rcx], dl
-        mov rdx, rax
-        shr rdx, 6
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+1], dl
-        mov rdx, rax
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+2], dl
-        add rcx, 3
-        jmp Lse1
-        Ls21:
-        mov rdx, rax
-        shr rdx, 6
-        or dl, 0C0h
-        mov byte ptr [rcx], dl
-        mov rdx, rax
-        and dl, 3Fh
-        or dl, 80h
-        mov byte ptr [rcx+1], dl
-        add rcx, 2
-        jmp Lse1
-        Ls11:
-        mov byte ptr [rcx], al
-        inc rcx
-        Lse1:
-        mov byte ptr [rcx], 0
-        inc rcx
-        lea rdx, __sarena
-        sub rcx, rdx
-        mov qword ptr [__stop], rcx
-        mov rsi, r8
-        mov rax, 233
         lea rcx, __sarena
         add rcx, qword ptr [__stop]
         mov r8, rcx
@@ -149,47 +80,17 @@ gen_run proc
         lea rdx, __sarena
         sub rcx, rdx
         mov qword ptr [__stop], rcx
-        mov rdi, r8
-        mov qword ptr [rsp+32], rdi
-        mov rcx, rsi
-        lea rax, __sarena
-        add rax, qword ptr [__stop]
-        mov rdx, rax
-        Lca3:
-        mov r8b, byte ptr [rcx]
-        test r8b, r8b
-        je Lcae3
-        mov byte ptr [rdx], r8b
-        inc rcx
-        inc rdx
-        jmp Lca3
-        Lcae3:
-        mov rcx, qword ptr [rsp+32]
-        Lcb3:
-        mov r8b, byte ptr [rcx]
-        test r8b, r8b
-        je Lcbe3
-        mov byte ptr [rdx], r8b
-        inc rcx
-        inc rdx
-        jmp Lcb3
-        Lcbe3:
-        mov byte ptr [rdx], 0
-        inc rdx
-        lea rcx, __sarena
-        sub rdx, rcx
-        mov qword ptr [__stop], rdx
-        mov r12, rax
-        mov rax, 26085
+        mov rbx, r8
+        mov rax, 233
         lea rcx, __sarena
         add rcx, qword ptr [__stop]
         mov r8, rcx
         cmp rax, 128
-        jl Ls14
+        jl Ls13
         cmp rax, 2048
-        jl Ls24
+        jl Ls23
         cmp rax, 65536
-        jl Ls34
+        jl Ls33
         mov rdx, rax
         shr rdx, 18
         or dl, 0F0h
@@ -209,8 +110,8 @@ gen_run proc
         or dl, 80h
         mov byte ptr [rcx+3], dl
         add rcx, 4
-        jmp Lse4
-        Ls34:
+        jmp Lse3
+        Ls33:
         mov rdx, rax
         shr rdx, 12
         or dl, 0E0h
@@ -225,8 +126,8 @@ gen_run proc
         or dl, 80h
         mov byte ptr [rcx+2], dl
         add rcx, 3
-        jmp Lse4
-        Ls24:
+        jmp Lse3
+        Ls23:
         mov rdx, rax
         shr rdx, 6
         or dl, 0C0h
@@ -236,18 +137,48 @@ gen_run proc
         or dl, 80h
         mov byte ptr [rcx+1], dl
         add rcx, 2
-        jmp Lse4
-        Ls14:
+        jmp Lse3
+        Ls13:
         mov byte ptr [rcx], al
         inc rcx
-        Lse4:
+        Lse3:
         mov byte ptr [rcx], 0
         inc rcx
         lea rdx, __sarena
         sub rcx, rdx
         mov qword ptr [__stop], rcx
-        mov rdi, r8
-        mov rax, 128578
+        mov rsi, r8
+        mov qword ptr [rsp+32], rsi
+        mov rcx, rbx
+        lea rax, __sarena
+        add rax, qword ptr [__stop]
+        mov rdx, rax
+        Lca4:
+        mov r8b, byte ptr [rcx]
+        test r8b, r8b
+        je Lcae4
+        mov byte ptr [rdx], r8b
+        inc rcx
+        inc rdx
+        jmp Lca4
+        Lcae4:
+        mov rcx, qword ptr [rsp+32]
+        Lcb4:
+        mov r8b, byte ptr [rcx]
+        test r8b, r8b
+        je Lcbe4
+        mov byte ptr [rdx], r8b
+        inc rcx
+        inc rdx
+        jmp Lcb4
+        Lcbe4:
+        mov byte ptr [rdx], 0
+        inc rdx
+        lea rcx, __sarena
+        sub rdx, rcx
+        mov qword ptr [__stop], rdx
+        mov rdi, rax
+        mov rax, 26085
         lea rcx, __sarena
         add rcx, qword ptr [__stop]
         mov r8, rcx
@@ -313,39 +244,76 @@ gen_run proc
         lea rdx, __sarena
         sub rcx, rdx
         mov qword ptr [__stop], rcx
+        mov rbx, r8
+        mov rax, 128578
+        lea rcx, __sarena
+        add rcx, qword ptr [__stop]
+        mov r8, rcx
+        cmp rax, 128
+        jl Ls16
+        cmp rax, 2048
+        jl Ls26
+        cmp rax, 65536
+        jl Ls36
+        mov rdx, rax
+        shr rdx, 18
+        or dl, 0F0h
+        mov byte ptr [rcx], dl
+        mov rdx, rax
+        shr rdx, 12
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+1], dl
+        mov rdx, rax
+        shr rdx, 6
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+2], dl
+        mov rdx, rax
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+3], dl
+        add rcx, 4
+        jmp Lse6
+        Ls36:
+        mov rdx, rax
+        shr rdx, 12
+        or dl, 0E0h
+        mov byte ptr [rcx], dl
+        mov rdx, rax
+        shr rdx, 6
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+1], dl
+        mov rdx, rax
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+2], dl
+        add rcx, 3
+        jmp Lse6
+        Ls26:
+        mov rdx, rax
+        shr rdx, 6
+        or dl, 0C0h
+        mov byte ptr [rcx], dl
+        mov rdx, rax
+        and dl, 3Fh
+        or dl, 80h
+        mov byte ptr [rcx+1], dl
+        add rcx, 2
+        jmp Lse6
+        Ls16:
+        mov byte ptr [rcx], al
+        inc rcx
+        Lse6:
+        mov byte ptr [rcx], 0
+        inc rcx
+        lea rdx, __sarena
+        sub rcx, rdx
+        mov qword ptr [__stop], rcx
         mov rsi, r8
         mov qword ptr [rsp+32], rsi
-        mov rcx, rdi
-        lea rax, __sarena
-        add rax, qword ptr [__stop]
-        mov rdx, rax
-        Lca6:
-        mov r8b, byte ptr [rcx]
-        test r8b, r8b
-        je Lcae6
-        mov byte ptr [rdx], r8b
-        inc rcx
-        inc rdx
-        jmp Lca6
-        Lcae6:
-        mov rcx, qword ptr [rsp+32]
-        Lcb6:
-        mov r8b, byte ptr [rcx]
-        test r8b, r8b
-        je Lcbe6
-        mov byte ptr [rdx], r8b
-        inc rcx
-        inc rdx
-        jmp Lcb6
-        Lcbe6:
-        mov byte ptr [rdx], 0
-        inc rdx
-        lea rcx, __sarena
-        sub rdx, rcx
-        mov qword ptr [__stop], rdx
-        mov r13, rax
-        mov qword ptr [rsp+32], r13
-        mov rcx, r12
+        mov rcx, rbx
         lea rax, __sarena
         add rax, qword ptr [__stop]
         mov rdx, rax
@@ -373,10 +341,40 @@ gen_run proc
         lea rcx, __sarena
         sub rdx, rcx
         mov qword ptr [__stop], rdx
-        mov rsi, rax
-        mov rax, rsi
-        add rsp, 48
-        pop r13
+        mov r12, rax
+        mov qword ptr [rsp+32], r12
+        mov rcx, rdi
+        lea rax, __sarena
+        add rax, qword ptr [__stop]
+        mov rdx, rax
+        Lca8:
+        mov r8b, byte ptr [rcx]
+        test r8b, r8b
+        je Lcae8
+        mov byte ptr [rdx], r8b
+        inc rcx
+        inc rdx
+        jmp Lca8
+        Lcae8:
+        mov rcx, qword ptr [rsp+32]
+        Lcb8:
+        mov r8b, byte ptr [rcx]
+        test r8b, r8b
+        je Lcbe8
+        mov byte ptr [rdx], r8b
+        inc rcx
+        inc rdx
+        jmp Lcb8
+        Lcbe8:
+        mov byte ptr [rdx], 0
+        inc rdx
+        lea rcx, __sarena
+        sub rdx, rcx
+        mov qword ptr [__stop], rdx
+        mov rbx, rax
+        mov rax, rbx
+Lret1:
+        add rsp, 56
         pop r12
         pop rdi
         pop rsi

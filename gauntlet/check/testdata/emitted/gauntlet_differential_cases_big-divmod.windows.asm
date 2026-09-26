@@ -15,724 +15,489 @@ gen_run proc
         push r13
         push r14
         push r15
-        sub rsp, 128
+        sub rsp, 64
         mov rbx, rcx
-        mov rsi, 9
-        mov rdi, rsi
-        add rdi, 1
-        shl rdi, 3
-        xor ecx, ecx
-        mov rdx, rdi
-        mov r8, 3000h
-        mov r9, 4
-        call VirtualAlloc
-        mov r12, rax
-        mov qword ptr [r12], rsi
-        mov rsi, rbx
-        add rsi, 7
-        mov rdi, 0
-        mov r13, rsi
-Ltop3:
-        cmp rdi, 9
-        jge Ldone3
-Lnext4:
-        mov rsi, r13
-        and rsi, 16777215
-        mov qword ptr [r12+rdi*8+8], rsi
-        add rdi, 1
-        mov rcx, 24
-        shr r13, cl
-        jmp Ltop3
-Ldone3:
-        mov r13, r12
-        mov rdi, 0
-        mov rsi, 9
-        mov r14, rsi
-        add r14, 1
-        shl r14, 3
-        xor ecx, ecx
-        mov rdx, r14
-        mov r8, 3000h
-        mov r9, 4
-        call VirtualAlloc
-        mov r15, rax
-        mov qword ptr [r15], rsi
-Ltop9:
-        cmp rdi, 6
-        jge Ldone9
-Lnext10:
-        mov rsi, r13
-        mov r14, 9
-        xor r14, r14
-        Lzc11:
-        cmp r14, 9
-        jge Lzd11
-        mov qword ptr [r15+r14*8+8], 0
-        inc r14
-        jmp Lzc11
-        Lzd11:
-        mov r14, 0
-        mov qword ptr [rsp+48], 0
-Ltop12:
-        cmp r14, 9
-        jl Lnext13
-        mov r10, 8
-        cmp r10, 0
-        jge Lelse16
-        mov qword ptr [rsp+56], 0
-        jmp Lend16
-Lelse16:
-        mov r10, qword ptr [r15]
-        mov qword ptr [rsp+64], r10
-        mov r10, 8
-        mov r11, qword ptr [rsp+64]
-        cmp r10, r11
-        jl Lelse17
-        mov qword ptr [rsp+64], 0
-        jmp Lend17
-Lelse17:
-        mov r10, qword ptr [r15+8*8+8]
-        mov qword ptr [rsp+72], r10
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+64], r10
-Lend17:
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [rsp+56], r10
-Lend16:
-        mov r10, qword ptr [rsp+56]
-        cmp r10, 0
-        jge Lelse18
-        mov qword ptr [rsp+64], 0
-        jmp Lend18
-Lelse18:
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+72], rax
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+64], r10
-Lend18:
-        mov r10, qword ptr [rsp+64]
-        cmp r10, 512
-        jge Lelse15
-        mov qword ptr [rsp+64], 0
-        jmp Lend15
-Lelse15:
-        mov qword ptr [rsp+64], 1
-Lend15:
-        mov r10, qword ptr [rsp+48]
-        mov r11, qword ptr [rsp+64]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+56], rax
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        test rax, rax
-        jz Ltz21
-        ud2
-        Ltz21:
-        xor rax, rax
-        mov qword ptr [rsp+64], rax
-        mov r10, qword ptr [rsp+64]
-        cmp r10, 0
-        je Ldone12
-Lnext14:
-        jmp Ldone12
-Lnext13:
-        cmp r14, 0
-        jge Lelse22
-        mov qword ptr [rsp+64], 0
-        jmp Lend22
-Lelse22:
-        mov r10, qword ptr [r13]
-        mov qword ptr [rsp+56], r10
-        mov r11, qword ptr [rsp+56]
-        cmp r14, r11
-        jl Lelse23
-        mov qword ptr [rsp+56], 0
-        jmp Lend23
-Lelse23:
-        mov r10, qword ptr [r13+r14*8+8]
-        mov qword ptr [rsp+72], r10
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+56], r10
-Lend23:
-        mov r10, qword ptr [rsp+56]
-        mov qword ptr [rsp+64], r10
-Lend22:
-        mov r10, qword ptr [rsp+64]
-        cmp r10, 0
-        jge Lelse24
-        mov qword ptr [rsp+56], 0
-        jmp Lend24
-Lelse24:
-        mov r10, qword ptr [rsp+64]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+72], rax
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+56], r10
-Lend24:
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        imul rax, 999983
-        mov qword ptr [rsp+64], rax
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rsp+48]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+56], rax
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+64], rax
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [r15+r14*8+8], r10
-        add r14, 1
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        mov rcx, 24
-        shr rax, cl
-        mov qword ptr [rsp+64], rax
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [rsp+48], r10
-        jmp Ltop12
-Ldone12:
-        mov r13, r15
-        add rdi, 1
-        mov r15, rsi
-        jmp Ltop9
-Ldone9:
-        mov rdi, 9
-        mov rsi, rdi
-        add rsi, 1
-        shl rsi, 3
-        xor ecx, ecx
-        mov rdx, rsi
-        mov r8, 3000h
-        mov r9, 4
-        call VirtualAlloc
-        mov r14, rax
-        mov qword ptr [r14], rdi
-        mov rdi, 8
-        mov rsi, 0
-Ltop33:
-        cmp rdi, 0
-        jl Ldone33
-Lnext34:
-        mov rax, rsi
-        imul rax, 16777216
-        mov qword ptr [rsp+48], rax
-        cmp rdi, 0
-        jge Lelse36
-        mov qword ptr [rsp+56], 0
-        jmp Lend36
-Lelse36:
-        mov r10, qword ptr [r13]
-        mov qword ptr [rsp+64], r10
-        mov r11, qword ptr [rsp+64]
-        cmp rdi, r11
-        jl Lelse37
-        mov qword ptr [rsp+64], 0
-        jmp Lend37
-Lelse37:
-        mov r10, qword ptr [r13+rdi*8+8]
-        mov qword ptr [rsp+72], r10
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+64], r10
-Lend37:
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [rsp+56], r10
-Lend36:
-        mov r10, qword ptr [rsp+56]
-        cmp r10, 0
-        jge Lelse38
-        mov qword ptr [rsp+64], 0
-        jmp Lend38
-Lelse38:
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+72], rax
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+64], r10
-Lend38:
-        mov r10, qword ptr [rsp+48]
-        mov r11, qword ptr [rsp+64]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+56], rax
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        cqo
-        mov rcx, 100000000
-        idiv rcx
-        mov rax, rax
-        mov qword ptr [rsp+64], rax
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [r14+rdi*8+8], r10
-        sub rdi, 1
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        cqo
-        mov rcx, 100000000
-        idiv rcx
-        mov rax, rdx
-        mov qword ptr [rsp+64], rax
-        mov rsi, qword ptr [rsp+64]
-        jmp Ltop33
-Ldone33:
-        mov rsi, r14
-        mov rdi, 8
-        mov qword ptr [rsp+56], 0
-Ltop44:
-        cmp rdi, 0
-        jl Ldone44
-Lnext45:
-        mov r10, qword ptr [rsp+56]
-        mov rax, r10
-        imul rax, 16777216
-        mov qword ptr [rsp+64], rax
-        cmp rdi, 0
-        jge Lelse47
-        mov qword ptr [rsp+48], 0
-        jmp Lend47
-Lelse47:
-        mov r10, qword ptr [rsi]
-        mov qword ptr [rsp+72], r10
-        mov r11, qword ptr [rsp+72]
-        cmp rdi, r11
-        jl Lelse48
-        mov qword ptr [rsp+72], 0
-        jmp Lend48
-Lelse48:
-        mov r10, qword ptr [rsi+rdi*8+8]
-        mov qword ptr [rsp+80], r10
-        mov r10, qword ptr [rsp+80]
-        mov qword ptr [rsp+72], r10
-Lend48:
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+48], r10
-Lend47:
-        mov r10, qword ptr [rsp+48]
-        cmp r10, 0
-        jge Lelse49
-        mov qword ptr [rsp+72], 0
-        jmp Lend49
-Lelse49:
-        mov r10, qword ptr [rsp+48]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+80], rax
-        mov r10, qword ptr [rsp+80]
-        mov qword ptr [rsp+72], r10
-Lend49:
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rsp+72]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+48], rax
-        mov r10, qword ptr [rsp+48]
-        mov rax, r10
-        cqo
-        mov rcx, 100000000
-        idiv rcx
-        mov rax, rdx
-        mov qword ptr [rsp+72], rax
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [rsp+56], r10
-        sub rdi, 1
-        jmp Ltop44
-Ldone44:
-        mov rsi, 9
-        mov rdi, rsi
-        add rdi, 1
-        shl rdi, 3
-        xor ecx, ecx
-        mov rdx, rdi
-        mov r8, 3000h
-        mov r9, 4
-        call VirtualAlloc
-        mov rax, rax
-        mov qword ptr [rsp+72], rax
-        mov r10, qword ptr [rsp+72]
-        mov qword ptr [r10], rsi
-        mov rsi, 0
-        mov rdi, 11
-Ltop56:
-        cmp rsi, 9
-        jge Ldone56
-Lnext57:
-        mov rax, rdi
-        and rax, 16777215
-        mov qword ptr [rsp+48], rax
-        mov r10, qword ptr [rsp+72]
-        mov r11, qword ptr [rsp+48]
-        mov qword ptr [r10+rsi*8+8], r11
-        add rsi, 1
-        mov rcx, 24
-        shr rdi, cl
-        jmp Ltop56
-Ldone56:
-        mov rdi, qword ptr [rsp+72]
-        mov rsi, 0
-        mov qword ptr [rsp+48], 9
-        mov r10, qword ptr [rsp+48]
-        mov qword ptr [rsp+64], r10
-        add qword ptr [rsp+64], 1
-        shl qword ptr [rsp+64], 3
-        mov r10, qword ptr [rsp+64]
+        mov r10, 9
+        add r10, 1
+        shl r10, 3
         xor ecx, ecx
         mov rdx, r10
         mov r8, 3000h
         mov r9, 4
         call VirtualAlloc
-        mov rax, rax
-        mov qword ptr [rsp+80], rax
-        mov r10, qword ptr [rsp+80]
-        mov r11, qword ptr [rsp+48]
-        mov qword ptr [r10], r11
-Ltop62:
-        cmp rsi, 6
-        jge Ldone62
-Lnext63:
-        mov qword ptr [rsp+48], rdi
-        mov qword ptr [rsp+64], 9
-        mov r10, qword ptr [rsp+80]
-        mov r11, qword ptr [rsp+64]
-        xor r11, r11
-        Lzc64:
-        cmp r11, 9
-        jge Lzd64
-        mov qword ptr [r10+r11*8+8], 0
-        inc r11
-        jmp Lzc64
-        Lzd64:
-        mov qword ptr [rsp+64], 0
-        mov qword ptr [rsp+88], 0
-Ltop65:
-        mov r10, qword ptr [rsp+64]
-        cmp r10, 9
-        jl Lnext66
-        mov r10, 8
-        cmp r10, 0
-        jge Lelse69
-        mov qword ptr [rsp+96], 0
-        jmp Lend69
-Lelse69:
-        mov r10, qword ptr [rsp+80]
-        mov r11, qword ptr [r10]
-        mov qword ptr [rsp+104], r11
-        mov r10, 8
-        mov r11, qword ptr [rsp+104]
-        cmp r10, r11
-        jl Lelse70
-        mov qword ptr [rsp+104], 0
-        jmp Lend70
-Lelse70:
-        mov r10, qword ptr [rsp+80]
-        mov r11, qword ptr [r10+8*8+8]
-        mov qword ptr [rsp+112], r11
-        mov r10, qword ptr [rsp+112]
-        mov qword ptr [rsp+104], r10
-Lend70:
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+96], r10
-Lend69:
-        mov r10, qword ptr [rsp+96]
-        cmp r10, 0
-        jge Lelse71
-        mov qword ptr [rsp+104], 0
-        jmp Lend71
-Lelse71:
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+112], rax
-        mov r10, qword ptr [rsp+112]
-        mov qword ptr [rsp+104], r10
-Lend71:
-        mov r10, qword ptr [rsp+104]
-        cmp r10, 512
-        jge Lelse68
-        mov qword ptr [rsp+104], 0
-        jmp Lend68
-Lelse68:
-        mov qword ptr [rsp+104], 1
-Lend68:
-        mov r10, qword ptr [rsp+88]
-        mov r11, qword ptr [rsp+104]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+96], rax
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        test rax, rax
-        jz Ltz74
-        ud2
-        Ltz74:
-        xor rax, rax
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        cmp r10, 0
-        je Ldone65
-Lnext67:
-        jmp Ldone65
-Lnext66:
-        mov r10, qword ptr [rsp+64]
-        cmp r10, 0
-        jge Lelse75
-        mov qword ptr [rsp+104], 0
-        jmp Lend75
-Lelse75:
-        mov r10, qword ptr [rdi]
-        mov qword ptr [rsp+96], r10
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rsp+96]
-        cmp r10, r11
-        jl Lelse76
-        mov qword ptr [rsp+96], 0
-        jmp Lend76
-Lelse76:
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rdi+r10*8+8]
-        mov qword ptr [rsp+112], r11
-        mov r10, qword ptr [rsp+112]
-        mov qword ptr [rsp+96], r10
-Lend76:
-        mov r10, qword ptr [rsp+96]
-        mov qword ptr [rsp+104], r10
-Lend75:
-        mov r10, qword ptr [rsp+104]
-        cmp r10, 0
-        jge Lelse77
-        mov qword ptr [rsp+96], 0
-        jmp Lend77
-Lelse77:
-        mov r10, qword ptr [rsp+104]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+112], rax
-        mov r10, qword ptr [rsp+112]
-        mov qword ptr [rsp+96], r10
-Lend77:
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        imul rax, 999983
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        mov r11, qword ptr [rsp+88]
-        mov rax, r10
-        add rax, r11
-        mov qword ptr [rsp+96], rax
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+80]
-        mov r11, qword ptr [rsp+64]
-        lea r10, [r10+r11*8+8]
-        mov r11, qword ptr [rsp+104]
-        mov qword ptr [r10], r11
-        mov r10, qword ptr [rsp+64]
-        mov rax, r10
-        add rax, 1
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+64], r10
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
+        mov rsi, rax
+        mov qword ptr [rsi], 9
+        add rbx, 7
+        mov rdi, rbx
+        mov rbx, 0
+Ltop5:
+        cmp rbx, 9
+        jl Lelse7
+        mov rbx, rsi
+        jmp Lexit6
+Lelse7:
+        mov r12, rdi
+        and r12, 16777215
+        mov qword ptr [rsi+rbx*8+8], r12
+        add rbx, 1
         mov rcx, 24
-        shr rax, cl
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+88], r10
-        jmp Ltop65
+        shr rdi, cl
+        jmp Ltop5
+Lexit6:
+Lbuilt3:
+        mov r10, 9
+        add r10, 1
+        shl r10, 3
+        xor ecx, ecx
+        mov rdx, r10
+        mov r8, 3000h
+        mov r9, 4
+        call VirtualAlloc
+        mov rsi, rax
+        mov qword ptr [rsi], 9
+        mov rdi, 0
+Ltop12:
+        cmp rdi, 6
+        jge Lexit13
+Lelse14:
+        xor r11d, r11d
+Lzc15:
+        cmp r11, 9
+        jge Lzd15
+        mov qword ptr [rsi+r11*8+8], 0
+        inc r11
+        jmp Lzc15
+Lzd15:
+        mov r12, rsi
+        mov r13, 0
+        mov r14, 0
+Ltop17:
+        cmp r13, 9
+        jl Lelse19
+        mov rax, 8
+        cmp rax, 0
+        jge Lelse20
+        mov r13, 0
+        jmp Ldone21
+Lelse20:
+        mov r13, qword ptr [r12]
+        mov rax, 8
+        cmp rax, r13
+        jl Lelse22
+        mov r13, 0
+        jmp Ldone21
+Lelse22:
+        mov r13, qword ptr [r12+8*8+8]
+Ldone21:
+        cmp r13, 0
+        jge Lelse23
+        mov r13, 0
+        jmp Ldone24
+Lelse23:
+        and r13, 16777215
+Ldone24:
+        cmp r13, 512
+        jge Lelse26
+        mov r13, 0
+        jmp Ldone27
+Lelse26:
+        mov r13, 1
+Ldone27:
+        add r14, r13
+        test r14, r14
+        jz Ltz29
+        ud2
+        Ltz29:
+        xor r14, r14
+        cmp r14, 0
+        je Lexit18
+Lelse30:
+        jmp Lexit18
+Lelse19:
+        cmp r13, 0
+        jge Lelse31
+        mov r15, 0
+        jmp Ldone32
+Lelse31:
+        mov r15, qword ptr [rbx]
+        cmp r13, r15
+        jl Lelse33
+        mov r15, 0
+        jmp Ldone32
+Lelse33:
+        mov r15, qword ptr [rbx+r13*8+8]
+Ldone32:
+        cmp r15, 0
+        jge Lelse34
+        mov r15, 0
+        jmp Ldone35
+Lelse34:
+        and r15, 16777215
+Ldone35:
+        imul r15, 999983
+        add r15, r14
+        mov r14, r15
+        and r14, 16777215
+        mov qword ptr [r12+r13*8+8], r14
+        add r13, 1
+        mov rcx, 24
+        shr r15, cl
+        mov r14, r15
+        jmp Ltop17
+Lexit18:
+Lbuilt16:
+        add rdi, 1
+        mov rsi, rbx
+        mov rbx, r12
+        jmp Ltop12
+Lexit13:
+        mov r10, 9
+        add r10, 1
+        shl r10, 3
+        xor ecx, ecx
+        mov rdx, r10
+        mov r8, 3000h
+        mov r9, 4
+        call VirtualAlloc
+        mov rsi, rax
+        mov qword ptr [rsi], 9
+        mov rdi, 8
+        mov r12, 0
+Ltop45:
+        cmp rdi, 0
+        jl Lexit46
+Lelse47:
+        imul r12, 16777216
+        cmp rdi, 0
+        jge Lelse49
+        mov r13, 0
+        jmp Ldone50
+Lelse49:
+        mov r13, qword ptr [rbx]
+        cmp rdi, r13
+        jl Lelse51
+        mov r13, 0
+        jmp Ldone50
+Lelse51:
+        mov r13, qword ptr [rbx+rdi*8+8]
+Ldone50:
+        cmp r13, 0
+        jge Lelse52
+        mov r13, 0
+        jmp Ldone53
+Lelse52:
+        and r13, 16777215
+Ldone53:
+        add r12, r13
+        mov rax, r12
+        cqo
+        mov rcx, 100000000
+        idiv rcx
+        mov r13, rax
+        mov qword ptr [rsi+rdi*8+8], r13
+        sub rdi, 1
+        mov rax, r12
+        cqo
+        mov rcx, 100000000
+        idiv rcx
+        mov r13, rdx
+        mov r12, r13
+        jmp Ltop45
+Lexit46:
+Lbuilt44:
+        mov rdi, 8
+        mov r12, 0
+Ltop59:
+        cmp rdi, 0
+        jge Lelse61
+        mov qword ptr [rsp+48], r12
+        jmp Lexit60
+Lelse61:
+        mov r13, rdi
+        sub r13, 1
+        imul r12, 16777216
+        cmp rdi, 0
+        jge Lelse64
+        mov rdi, 0
+        jmp Ldone65
+Lelse64:
+        mov r14, qword ptr [rsi]
+        cmp rdi, r14
+        jl Lelse66
+        mov rdi, 0
+        jmp Ldone65
+Lelse66:
+        mov r14, qword ptr [rsi+rdi*8+8]
+        mov rdi, r14
 Ldone65:
-        mov rdi, qword ptr [rsp+80]
-        add rsi, 1
-        mov r10, qword ptr [rsp+48]
-        mov qword ptr [rsp+80], r10
-        jmp Ltop62
-Ldone62:
-        mov rsi, 8
-Ltop85:
-        cmp rsi, 0
-        jge Lnext86
-        mov qword ptr [rsp+48], 0
-        jmp Ldone85
-Lnext86:
-        cmp rsi, 0
-        jge Lelse88
-        mov qword ptr [rsp+88], 0
-        jmp Lend88
-Lelse88:
-        mov r10, qword ptr [r13]
-        mov qword ptr [rsp+64], r10
-        mov r11, qword ptr [rsp+64]
-        cmp rsi, r11
-        jl Lelse89
-        mov qword ptr [rsp+64], 0
-        jmp Lend89
+        cmp rdi, 0
+        jge Lelse67
+        mov rdi, 0
+        jmp Ldone68
+Lelse67:
+        and rdi, 16777215
+Ldone68:
+        add r12, rdi
+        mov rax, r12
+        cqo
+        mov rcx, 100000000
+        idiv rcx
+        mov rdi, rdx
+        mov r12, rdi
+        mov rdi, r13
+        jmp Ltop59
+Lexit60:
+        mov r10, 9
+        add r10, 1
+        shl r10, 3
+        xor ecx, ecx
+        mov rdx, r10
+        mov r8, 3000h
+        mov r9, 4
+        call VirtualAlloc
+        mov rsi, rax
+        mov qword ptr [rsi], 9
+        mov r12, 0
+        mov r13, 11
+Ltop74:
+        cmp r12, 9
+        jge Lexit75
+Lelse76:
+        mov r14, r13
+        and r14, 16777215
+        mov qword ptr [rsi+r12*8+8], r14
+        add r12, 1
+        mov rcx, 24
+        shr r13, cl
+        jmp Ltop74
+Lexit75:
+Lbuilt73:
+        mov r10, 9
+        add r10, 1
+        shl r10, 3
+        xor ecx, ecx
+        mov rdx, r10
+        mov r8, 3000h
+        mov r9, 4
+        call VirtualAlloc
+        mov r12, rax
+        mov qword ptr [r12], 9
+        mov qword ptr [rsp+56], 0
+Ltop81:
+        mov rax, qword ptr [rsp+56]
+        cmp rax, 6
+        jge Lexit82
+Lelse83:
+        xor r11d, r11d
+Lzc84:
+        cmp r11, 9
+        jge Lzd84
+        mov qword ptr [r12+r11*8+8], 0
+        inc r11
+        jmp Lzc84
+Lzd84:
+        mov r14, r12
+        mov r15, 0
+        mov rdi, 0
+Ltop86:
+        cmp r15, 9
+        jl Lelse88
+        mov rax, 8
+        cmp rax, 0
+        jge Lelse89
+        mov r15, 0
+        jmp Ldone90
 Lelse89:
-        mov r10, qword ptr [r13+rsi*8+8]
-        mov qword ptr [rsp+96], r10
-        mov r10, qword ptr [rsp+96]
-        mov qword ptr [rsp+64], r10
-Lend89:
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [rsp+88], r10
-Lend88:
-        mov r10, qword ptr [rsp+88]
-        cmp r10, 0
-        jge Lelse90
-        mov qword ptr [rsp+64], 0
-        jmp Lend90
-Lelse90:
-        mov r10, qword ptr [rsp+88]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+96], rax
-        mov r10, qword ptr [rsp+96]
-        mov qword ptr [rsp+64], r10
-Lend90:
-        cmp rsi, 0
+        mov r15, qword ptr [r14]
+        mov rax, 8
+        cmp rax, r15
+        jl Lelse91
+        mov r15, 0
+        jmp Ldone90
+Lelse91:
+        mov r15, qword ptr [r14+8*8+8]
+Ldone90:
+        cmp r15, 0
         jge Lelse92
-        mov qword ptr [rsp+88], 0
-        jmp Lend92
+        mov r15, 0
+        jmp Ldone93
 Lelse92:
-        mov r10, qword ptr [rdi]
-        mov qword ptr [rsp+96], r10
-        mov r11, qword ptr [rsp+96]
-        cmp rsi, r11
-        jl Lelse93
-        mov qword ptr [rsp+96], 0
-        jmp Lend93
-Lelse93:
-        mov r10, qword ptr [rdi+rsi*8+8]
-        mov qword ptr [rsp+104], r10
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+96], r10
-Lend93:
-        mov r10, qword ptr [rsp+96]
-        mov qword ptr [rsp+88], r10
-Lend92:
-        mov r10, qword ptr [rsp+88]
-        cmp r10, 0
-        jge Lelse94
-        mov qword ptr [rsp+96], 0
-        jmp Lend94
-Lelse94:
-        mov r10, qword ptr [rsp+88]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+96], r10
-Lend94:
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rsp+96]
-        cmp r10, r11
-        jle Lnext87
-        mov qword ptr [rsp+48], 1
-        jmp Ldone85
-Lnext87:
-        cmp rsi, 0
-        jge Lelse97
-        mov qword ptr [rsp+96], 0
-        jmp Lend97
-Lelse97:
-        mov r10, qword ptr [r13]
-        mov qword ptr [rsp+64], r10
-        mov r11, qword ptr [rsp+64]
-        cmp rsi, r11
-        jl Lelse98
-        mov qword ptr [rsp+64], 0
-        jmp Lend98
-Lelse98:
-        mov r10, qword ptr [r13+rsi*8+8]
-        mov qword ptr [rsp+88], r10
-        mov r10, qword ptr [rsp+88]
-        mov qword ptr [rsp+64], r10
-Lend98:
-        mov r10, qword ptr [rsp+64]
-        mov qword ptr [rsp+96], r10
-Lend97:
-        mov r10, qword ptr [rsp+96]
-        cmp r10, 0
-        jge Lelse99
-        mov qword ptr [rsp+64], 0
-        jmp Lend99
+        and r15, 16777215
+Ldone93:
+        cmp r15, 512
+        jge Lelse95
+        mov r15, 0
+        jmp Ldone96
+Lelse95:
+        mov r15, 1
+Ldone96:
+        add rdi, r15
+        test rdi, rdi
+        jz Ltz98
+        ud2
+        Ltz98:
+        xor rdi, rdi
+        cmp rdi, 0
+        jne Lelse99
+        mov rdi, r14
+        jmp Lexit87
 Lelse99:
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+88], rax
-        mov r10, qword ptr [rsp+88]
-        mov qword ptr [rsp+64], r10
-Lend99:
-        cmp rsi, 0
-        jge Lelse101
-        mov qword ptr [rsp+96], 0
-        jmp Lend101
-Lelse101:
-        mov r10, qword ptr [rdi]
-        mov qword ptr [rsp+88], r10
-        mov r11, qword ptr [rsp+88]
-        cmp rsi, r11
+        mov rdi, r14
+        jmp Lexit87
+Lelse88:
+        cmp r15, 0
+        jge Lelse100
+        mov r13, 0
+        jmp Ldone101
+Lelse100:
+        mov r13, qword ptr [rsi]
+        cmp r15, r13
         jl Lelse102
-        mov qword ptr [rsp+88], 0
-        jmp Lend102
+        mov r13, 0
+        jmp Ldone101
 Lelse102:
-        mov r10, qword ptr [rdi+rsi*8+8]
-        mov qword ptr [rsp+104], r10
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+88], r10
-Lend102:
-        mov r10, qword ptr [rsp+88]
-        mov qword ptr [rsp+96], r10
-Lend101:
-        mov r10, qword ptr [rsp+96]
-        cmp r10, 0
+        mov r13, qword ptr [rsi+r15*8+8]
+Ldone101:
+        cmp r13, 0
         jge Lelse103
-        mov qword ptr [rsp+88], 0
-        jmp Lend103
+        mov r13, 0
+        jmp Ldone104
 Lelse103:
-        mov r10, qword ptr [rsp+96]
-        mov rax, r10
-        and rax, 16777215
-        mov qword ptr [rsp+104], rax
-        mov r10, qword ptr [rsp+104]
-        mov qword ptr [rsp+88], r10
-Lend103:
-        mov r10, qword ptr [rsp+64]
-        mov r11, qword ptr [rsp+88]
-        cmp r10, r11
-        jge Lnext96
-        mov qword ptr [rsp+48], -1
-        jmp Ldone85
-Lnext96:
-        sub rsi, 1
-        jmp Ltop85
-Ldone85:
+        and r13, 16777215
+Ldone104:
+        imul r13, 999983
+        add r13, rdi
+        mov rdi, r13
+        and rdi, 16777215
+        mov qword ptr [r14+r15*8+8], rdi
+        add r15, 1
+        mov rcx, 24
+        shr r13, cl
+        mov rdi, r13
+        jmp Ltop86
+Lexit87:
+Lbuilt85:
+        mov r10, qword ptr [rsp+56]
+        mov r13, r10
+        add r13, 1
+        mov qword ptr [rsp+56], r13
+        mov r12, rsi
+        mov rsi, rdi
+        jmp Ltop81
+Lexit82:
+        mov rdi, 8
+Ltop112:
+        cmp rdi, 0
+        jge Lelse114
+        mov rdi, 0
+        jmp Lexit113
+Lelse114:
+        cmp rdi, 0
+        jge Lelse115
+        mov r12, 0
+        jmp Ldone116
+Lelse115:
+        mov r12, qword ptr [rbx]
+        cmp rdi, r12
+        jl Lelse117
+        mov r12, 0
+        jmp Ldone116
+Lelse117:
+        mov r12, qword ptr [rbx+rdi*8+8]
+Ldone116:
+        cmp r12, 0
+        jge Lelse118
+        mov r12, 0
+        jmp Ldone119
+Lelse118:
+        and r12, 16777215
+Ldone119:
+        cmp rdi, 0
+        jge Lelse121
+        mov r13, 0
+        jmp Ldone122
+Lelse121:
+        mov r13, qword ptr [rsi]
+        cmp rdi, r13
+        jl Lelse123
+        mov r13, 0
+        jmp Ldone122
+Lelse123:
+        mov r13, qword ptr [rsi+rdi*8+8]
+Ldone122:
+        cmp r13, 0
+        jge Lelse124
+        mov r13, 0
+        jmp Ldone125
+Lelse124:
+        and r13, 16777215
+Ldone125:
+        cmp r12, r13
+        jle Lelse127
+        mov rdi, 1
+        jmp Lexit113
+Lelse127:
+        cmp rdi, 0
+        jge Lelse128
+        mov r12, 0
+        jmp Ldone129
+Lelse128:
+        mov r12, qword ptr [rbx]
+        cmp rdi, r12
+        jl Lelse130
+        mov r12, 0
+        jmp Ldone129
+Lelse130:
+        mov r12, qword ptr [rbx+rdi*8+8]
+Ldone129:
+        cmp r12, 0
+        jge Lelse131
+        mov r12, 0
+        jmp Ldone132
+Lelse131:
+        and r12, 16777215
+Ldone132:
+        cmp rdi, 0
+        jge Lelse134
+        mov r13, 0
+        jmp Ldone135
+Lelse134:
+        mov r13, qword ptr [rsi]
+        cmp rdi, r13
+        jl Lelse136
+        mov r13, 0
+        jmp Ldone135
+Lelse136:
+        mov r13, qword ptr [rsi+rdi*8+8]
+Ldone135:
+        cmp r13, 0
+        jge Lelse137
+        mov r13, 0
+        jmp Ldone138
+Lelse137:
+        and r13, 16777215
+Ldone138:
+        cmp r12, r13
+        jge Lelse140
+        mov rdi, -1
+        jmp Lexit113
+Lelse140:
+        sub rdi, 1
+        jmp Ltop112
+Lexit113:
+        cmp rdi, 0
+        jle Lelse142
+        mov rbx, 1000000000000
+        jmp Ldone143
+Lelse142:
+        mov rbx, 0
+Ldone143:
         mov r10, qword ptr [rsp+48]
         mov rsi, r10
-        cmp rsi, 0
-        setg sil
-        movzx esi, sil
-        cmp rsi, 0
-        je Lelse54
-        mov rdi, 1000000000000
-        mov rsi, rdi
-        jmp Lend54
-Lelse54:
-        mov rsi, 0
-Lend54:
-        mov r10, qword ptr [rsp+56]
-        mov rdi, r10
-        add rdi, rsi
-        mov rax, rdi
-        add rsp, 128
+        add rsi, rbx
+        mov rax, rsi
+Lret1:
+        add rsp, 64
         pop r15
         pop r14
         pop r13

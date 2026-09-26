@@ -1,0 +1,42 @@
+; Shapes the IR's x86 printer must get right (ir/x86/x86_test.go).
+(use x64)
+
+(export fact-limb count-keys sized)
+
+; RULE R: a 64-limb buffer rebuilt on every iteration, reading the old one
+; while writing the spare. The swap at the continue reads the parameter, so
+; the parameter may not share a register with the new buffer (big-limbs).
+(def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
+(def bn-of (n v)
+  (build b n
+    (loop ((b b) (i 0) (r v))
+      (>= i n)  b
+      else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
+(def bn-mul-small (n a k)
+  (build o n
+    (loop ((o o) (i 0) (c 0))
+      (>= i n)  o
+      else      (let t (+ (* (at a i) k) c)
+                  (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
+(sig fact-limb ((k (int 0 63))) int)
+(def fact-limb (k)
+  (at (loop ((acc (bn-of 64 1)) (i 2))
+        (> i 30)  acc
+        else      (again (bn-mul-small 64 acc i) (+ i 1)))
+      k))
+
+; A MAP, which is open addressing over a build buffer on this target.
+(sig count-keys ((n (int 0 8))) int)
+(def count-keys (n)
+  (let m (build-map m 8
+           (loop ((m m) (i 0))
+             (>= i n)  m
+             else       (again (insert m i 1) (+ i 1))))
+    (len m)))
+
+; A COMPUTED SIZE: the length header is written after the allocator returns,
+; so the size may not share a register with the buffer (map-len).
+(sig sized ((n (int 1 100))) int)
+(def sized (n)
+  (let t (build b (* n 3) (set b 0 n))
+    (+ (len t) (t 0))))

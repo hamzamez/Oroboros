@@ -78,3 +78,41 @@ func JavaRecordName(tys []string) string { return javaRecordName(tys) }
 // Boxed spells a type as an object where the target says one is needed (a
 // JVM generic cannot take a primitive), and as itself elsewhere.
 func (tg *Target) BoxedType(name string) string { return tg.boxed(name) }
+
+// The x86 backend's shared pieces, which the IR's x86 printer uses so the two
+// agree on templates, literals, labels and the frame (docs/spec/ir.md §9.6).
+
+// FillAsm expands one emission template with its destination and operands
+// spelled as text (a register, an immediate or a memory operand).
+func FillAsm(form, dst string, ops []string, u int) (string, error) {
+	ps := make([]place, len(ops))
+	for i, o := range ops {
+		ps[i] = place{text: o}
+	}
+	return fillAsm(form, place{text: dst}, ps, u)
+}
+
+// AsmUniq is the next number for a template's `%u` and a printer's labels,
+// shared with the term backend so two procedures in one file never collide.
+func AsmUniq() int { asmUniq++; return asmUniq }
+
+func AsmPeephole(src string) string         { return asmPeephole(src) }
+func AsmFloatLit(v float64) string          { return asmFloatLit(v) }
+func AsmStringLit(s string) string          { return asmStringLit(s) }
+func AsmNegate(cc string) string            { return asmNegate[cc] }
+func AsmByte(r string) string               { return asmByte(r) }
+func AsmElemAddr(b, i string, w int) string { return asmElemAddr(b, i, w) }
+
+// AsmShadowFloor is the outgoing-argument area every procedure reserves at
+// least (asmShadow), and AsmTableHeader the bytes before a table's elements.
+const (
+	AsmShadowFloor = asmShadow
+	AsmTableHeader = asmTableHeader
+)
+
+// FindAlloc is the target's allocator, which `build` asks for bytes.
+func (tg *Target) FindAlloc() (Prim, bool) { return tg.findAlloc() }
+
+// ReprBytes is how many bytes the declared representation holding [lo, hi]
+// occupies, or 0 if the target declares none.
+func (tg *Target) ReprBytes(lo, hi int64) int { return tg.reprBytes(lo, hi) }

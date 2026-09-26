@@ -641,3 +641,28 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/io/freq.oro java` 43984 → 14531 ms, 0.33x
+
+## 2026-09-26 — on 4bc5a46, with uncommitted changes
+
+**Reason:** IR step 3, x86: the x86 backend is the IR's printer (ir/x86, irstep3x86-2026-09-26); places are a colouring of exact live sets (spec 9.6). 16 windows outputs re-printed; no outcome or proof count changed; Go, JS and Java byte-identical. Windows sieve 0.98x hand-written, 1.00x the term backend; hello-win saves two callee-saved pushes.
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+16 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/render.oro windows`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/hello-win.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/sieve-win-bench.oro windows`
+- emitted text changed — `examples/native/sieve-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `gauntlet/differential/cases/shift-div.oro windows`
+- emitted text changed — `gauntlet/differential/cases/string-escapes.oro windows`
+- emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
+- emitted text changed — `lib/win/fmt.oro windows`

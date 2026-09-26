@@ -4,19 +4,16 @@ option casemap:none
 
 
 .data
-LS1 db 041h,009h,022h,05Ch,07Ah,0
-LS1_len equ 5
+LS2 db 041h,009h,022h,05Ch,07Ah,0
+LS2_len equ 5
 
 .code
 gen_run proc
         push rbx
-        push rsi
-        sub rsp, 56
-        mov rbx, rcx
-        lea rsi, LS1
-        mov rax, rsi
-        add rsp, 56
-        pop rsi
+        sub rsp, 48
+        lea rax, LS2
+Lret1:
+        add rsp, 48
         pop rbx
         ret
 gen_run endp

@@ -20,6 +20,7 @@ import (
 	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
+	"oroboros/ir/x86"
 	"oroboros/ir/js"
 )
 
@@ -31,7 +32,7 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
-	flag.StringVar(&printer, "printer", "go,js,java", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`; `terms` prints every backend from terms, as before the IR")
+	flag.StringVar(&printer, "printer", "go,js,java,x86", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`, `x86`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`, or the reason to FILE.err; it changes nothing that is built")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
@@ -303,7 +304,11 @@ checks:
 			code, err = emit.JavaMethod(tg, "oro-main", esig, nf)
 		}
 	case "x86-64":
-		code, err = emit.AsmProc(tg, "oro-main", esig, nf)
+		if printsIR("x86") {
+			code, err = x86.FromResidual(tg, "oro-main", esig, nf)
+		} else {
+			code, err = emit.AsmProc(tg, "oro-main", esig, nf)
+		}
 		if err == nil {
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}

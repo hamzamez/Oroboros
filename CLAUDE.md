@@ -104,9 +104,15 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
   representations;
 - at parity with the term backend, or better (the JSON tree is 0.86×).
 
-`-printer` names the backends printed from the IR: `go,js,java` by default, `terms` for none.
+**And so is x86**, `ir/x86` ([irstep3x86-2026-09-26](gauntlet/results/irstep3x86-2026-09-26.md)):
+- a value's place is a colouring of exact live sets, optimal by chordality (spec §9.6);
+- the Windows sieve is 0.98× hand-written and 1.00× the term backend.
 
-**The migration is the current plan**: the x86 printer next, then the analyses one domain at a time.
+**Step 3 is done: all four backends print from the IR.** `-printer` names the backends printed from
+the IR: `go,js,java,x86` by default, `terms` for none.
+
+**The migration is the current plan**: step 4 next, the analyses one domain at a time, and then the
+four term backends and the analyses only they need are deleted.
 The language plan below waits for the printers. Soundness bugs found while writing the IR's rules:
 - in the term backends, bounds-check re-slicing without its premise (spec §9.4), and `alloc` of a
   live buffer aliasing it (irstep1 §4). The IR's printers have neither;
@@ -203,7 +209,7 @@ rejected alternatives.
 | Above the word, a type denotes a set decided by sign and bit length; every representation enforces the program's one set | [0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
 | A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
-| The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — being built: Go, JavaScript and Java print from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
+| The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — steps 1–3 built: every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
 
 ## How this project is run
 
@@ -649,7 +655,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
-| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js` and `ir/java` are the Go, JavaScript and Java backends |
+| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
 | `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |

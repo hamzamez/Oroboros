@@ -196,9 +196,6 @@ func divI(a, b ival) ival {
 // said [−7, 7]. TestTheInducedRemainderIsNeverLessPrecise holds it to that.
 func remI(a, b ival) ival { return inducedTransfer(langFacts, "rem", []ival{a, b}, 1) }
 
-// maxAbs is the largest magnitude a BOUNDED interval contains.
-func maxAbs(v ival) bnd { return maxB(v.hi.abs(), v.lo.abs()) }
-
 func joinI(a, b ival) ival {
 	if a.isBottom() {
 		return b
@@ -698,29 +695,6 @@ func entailsIval(tgt *Target, q *core.Term, v ival) (bool, bool) {
 		}
 	}
 	return false, false
-}
-
-// intervalsAssuming analyses a subterm with the ENCLOSING function's
-// precondition in scope.
-//
-// A `build` lambda's free variables are the enclosing function's parameters,
-// and what bounds a buffer's stores is usually something the signature says
-// about them — examples/json/tree.oro stores a token length into its node
-// table, bounded by `len src` and by nothing inside the lambda.
-//
-// The alternative was to analyse the whole function once and look the answer up
-// per `build`, and it does not work: `openFresh` REBUILDS a term to substitute
-// its bound variables, so the build the backend holds is not the pointer the
-// analysis saw, and its printed form differs too because the parameters were
-// renamed. There is no key. Carrying the assumptions to the subterm is the same
-// information arriving by the one route that survives.
-//
-// SOUNDNESS. The `where` is a premise the program already relies on: on an
-// exported definition it is a published contract and is assumed, which is
-// refinements.md §6b's rule. Intervals taken with it are ⊑ the ones taken
-// without — tighter, and both sound.
-func intervalsAssuming(tgt *Target, lam *core.Term, sig *core.Sig, params []string) (*IntervalReport, *core.Term) {
-	return intervalsAssumingSeeded(tgt, lam, sig, params, nil, false)
 }
 
 func intervalsAssumingSeeded(tgt *Target, lam *core.Term, sig *core.Sig,

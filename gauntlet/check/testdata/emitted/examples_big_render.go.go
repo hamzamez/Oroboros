@@ -37,12 +37,7 @@ func GenRender(v0 *big.Int) string {
 			}
 			v38 := (big.NewInt(int64(0)))
 			v39 := (v22.Cmp(v38) > 0)
-			var v40 bool
-			if v39 {
-				v40 = false
-			} else {
-				v40 = true
-			}
+			v40 := (!v39)
 			v43 := (v40 && ((v30 == 0) && (v29 > 0)))
 			if v43 {
 				break

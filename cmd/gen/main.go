@@ -18,8 +18,8 @@ import (
 	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
-	"oroboros/ir/x86"
 	"oroboros/ir/js"
+	"oroboros/ir/x86"
 )
 
 func main() {
@@ -30,7 +30,6 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
-	flag.StringVar(&printer, "printer", "go,js,java,x86", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`, `x86`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -316,29 +315,13 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		var code string
 		switch backend {
 		case "js":
-			if printsIR("js") {
-				code, err = js.FromResidual(tg, fname, sig, nf)
-			} else {
-				code, err = emit.JSFunc(tg, fname, sig, nf)
-			}
+			code, err = js.FromResidual(tg, fname, sig, nf)
 		case "java":
-			if printsIR("java") {
-				code, err = java.FromResidual(tg, fname, sig, nf)
-			} else {
-				code, err = emit.JavaMethod(tg, fname, sig, nf)
-			}
+			code, err = java.FromResidual(tg, fname, sig, nf)
 		case "x86-64":
-			if printsIR("x86") {
-				code, err = x86.FromResidual(tg, fname, sig, nf)
-			} else {
-				code, err = emit.AsmProc(tg, fname, sig, nf)
-			}
+			code, err = x86.FromResidual(tg, fname, sig, nf)
 		case "go":
-			if printsIR("go") {
-				code, err = printGo(tg, fname, sig, nf)
-			} else {
-				code, err = emit.Func(tg, fname, sig, nf)
-			}
+			code, err = golang.FromResidual(tg, fname, sig, nf)
 		default:
 			return fmt.Errorf("no code generator for backend %q", backend)
 		}
@@ -374,24 +357,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 
 // irOut is -ir's file.
 var irOut string
-
-// printer is -printer: the set of backends printed from IR_P (ADR 0032).
-var printer string
-
-// printsIR reports whether -printer names a backend.
-func printsIR(backend string) bool {
-	for _, b := range strings.Split(printer, ",") {
-		if strings.TrimSpace(b) == backend || b == "ir" {
-			return true
-		}
-	}
-	return false
-}
-
-// printGo is the IR's path to Go (ir/golang.FromResidual).
-func printGo(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {
-	return golang.FromResidual(tg, name, sig, nf)
-}
 
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {

@@ -21,6 +21,10 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir/golang"
+	"oroboros/ir/java"
+	"oroboros/ir/js"
+	"oroboros/ir/x86"
 )
 
 type stage struct {
@@ -308,16 +312,18 @@ func pipeline(src, target string) ([]*core.Term, []*core.Sig, *emit.Target) {
 		out = append(out, nf)
 		sigsOut = append(sigsOut, sig)
 		pipeNames = append(pipeNames, q[strings.LastIndex(q, ".")+1:])
+		// Emission is the IR's printers since ADR 0032 step 3; the term
+		// backends P1 was measured against are gone (irstep4a-2026-09-26).
 		measure("emission ("+target+")", func() {
 			switch target {
 			case "go":
-				_, err = emit.Func(tg, name, sig, nf)
+				_, err = golang.FromResidual(tg, name, sig, nf)
 			case "js":
-				_, err = emit.JSFunc(tg, name, sig, nf)
+				_, err = js.FromResidual(tg, name, sig, nf)
 			case "java":
-				_, err = emit.JavaMethod(tg, name, sig, nf)
+				_, err = java.FromResidual(tg, name, sig, nf)
 			default:
-				_, err = emit.AsmProc(tg, name, sig, nf)
+				_, err = x86.FromResidual(tg, name, sig, nf)
 			}
 		})
 		if err != nil {

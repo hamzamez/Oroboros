@@ -260,3 +260,7 @@ func TestDivFloorNeedsLenNonneg(t *testing.T) {
 		t.Error("div-floor's guard was taken as true without len-nonneg to entail it")
 	}
 }
+
+// maxAbs is |v|'s bound: the larger of its ends' magnitudes. Kept here for
+// remIHand when interval.go's copy went with the term backends (irstep4a).
+func maxAbs(v ival) bnd { return maxB(v.hi.abs(), v.lo.abs()) }

@@ -22,7 +22,7 @@ export function genRender(v0) {
 			if ((v29 >= 8)) {
 				break;
 			}
-			if (((((v22 > (BigInt(0)))) ? false : true) && ((v30 === 0) && (v29 > 0)))) {
+			if (((!((v22 > (BigInt(0))))) && ((v30 === 0) && (v29 > 0)))) {
 				break;
 			}
 			v28 = ((String.fromCodePoint((48 + (((v30 % 10) + 0))))) + v28);

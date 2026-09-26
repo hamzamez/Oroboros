@@ -48,11 +48,10 @@ Lelse7:
         imul r12, rdi
 Ltop11:
         cmp r12, rbx
-        jge Lelse13
+        jge Lexit12
         mov byte ptr [rsi+r12], 1
         add r12, rdi
         jmp Ltop11
-Lelse13:
 Lexit12:
         add rdi, 1
         jmp Ltop3
@@ -62,7 +61,6 @@ Lexit4:
 Ltop17:
         cmp r12, rbx
         jge Lexit18
-Lelse19:
         cmp byte ptr [rdi+r12], 0
         je Lelse20
         add r12, 1
@@ -115,11 +113,10 @@ Lelse31:
         imul rdi, rsi
 Ltop35:
         cmp rdi, 20000
-        jge Lelse37
+        jge Lexit36
         mov byte ptr [rbx+rdi], 1
         add rdi, rsi
         jmp Ltop35
-Lelse37:
 Lexit36:
         add rsi, 1
         jmp Ltop27
@@ -129,7 +126,6 @@ Lexit28:
 Ltop41:
         cmp rdi, 20000
         jge Lexit42
-Lelse43:
         cmp byte ptr [rsi+rdi], 0
         je Lelse44
         add rdi, 1
@@ -244,7 +240,6 @@ Ltop69:
         jmp Ltop69
 Lelse71:
         mov rdi, r12
-Lexit70:
         cmp rbx, 0
         jge Lelse78
         mov rbx, rdi

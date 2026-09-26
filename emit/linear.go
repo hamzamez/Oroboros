@@ -919,16 +919,6 @@ func isLenOp(name string) bool {
 		name == "len" || strings.HasSuffix(name, ".len")
 }
 
-// isLenTerm reports whether a term IS a length, which is the cheapest source of
-// "this is non-negative" the fragment has.
-func isLenTerm(t *core.Term) bool {
-	if t == nil || t.Kind != core.KApp {
-		return false
-	}
-	op := t.Op()
-	return op.Kind == core.KName && isLenOp(op.Name) && len(t.Args()) == 1
-}
-
 // quotVar names a quotient or a remainder by a positive literal k opaquely, keyed
 // by WHAT IT DENOTES: the operation, the dividend's linear form and k. Two
 // spellings of one quantity must key alike or nothing composes, and a quotient

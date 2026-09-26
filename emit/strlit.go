@@ -68,28 +68,6 @@ func asciiPrintable(r rune) bool {
 	return r >= 0x20 && r <= 0x7E && r != 0x5C && r != 0x22
 }
 
-// GoStringLit renders a string as a Go literal.
-//
-// Go's string is UTF-8 and its escapes reach every scalar directly: \uHHHH in
-// the BMP and \UHHHHHHHH above it.
-func GoStringLit(s string) string {
-	var b strings.Builder
-	b.WriteByte(0x22)
-	for _, r := range s {
-		switch {
-		case escShared(&b, r):
-		case asciiPrintable(r):
-			b.WriteRune(r)
-		case r <= 0xFFFF:
-			fmt.Fprintf(&b, "\\u%04X", r)
-		default:
-			fmt.Fprintf(&b, "\\U%08X", r)
-		}
-	}
-	b.WriteByte(0x22)
-	return b.String()
-}
-
 // UTF16StringLit renders a string as a Java or JavaScript literal.
 //
 // Both store UTF-16 code units and neither has an eight-digit escape, so a
@@ -111,6 +89,28 @@ func UTF16StringLit(s string) string {
 			// UTF-16: subtract the BMP, then split the remaining twenty bits.
 			v := r - 0x10000
 			fmt.Fprintf(&b, "\\u%04X\\u%04X", 0xD800+(v>>10), 0xDC00+(v&0x3FF))
+		}
+	}
+	b.WriteByte(0x22)
+	return b.String()
+}
+
+// GoStringLit renders a string as a Go literal.
+//
+// Go's string is UTF-8 and its escapes reach every scalar directly: \uHHHH in
+// the BMP and \UHHHHHHHH above it.
+func GoStringLit(s string) string {
+	var b strings.Builder
+	b.WriteByte(0x22)
+	for _, r := range s {
+		switch {
+		case escShared(&b, r):
+		case asciiPrintable(r):
+			b.WriteRune(r)
+		case r <= 0xFFFF:
+			fmt.Fprintf(&b, "\\u%04X", r)
+		default:
+			fmt.Fprintf(&b, "\\U%08X", r)
 		}
 	}
 	b.WriteByte(0x22)

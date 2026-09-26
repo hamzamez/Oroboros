@@ -70,9 +70,8 @@ func headExpr(e ast.Expr, vars map[string]bool) bool {
 // than a word a source file can contain. Each must still be extracted, or the
 // entry is stale and the test says so.
 var notWords = map[string]string{
-	"term":        "core.Form's kind for a top-level term; no source spells it",
-	"table-build": "the kind the compiler gives the injected `build`; parseStructural refuses it in a target file",
-	"table-set":   "the kind the compiler gives the injected `set`; parseStructural refuses it in a target file",
+	"term":      "core.Form's kind for a top-level term; no source spells it",
+	"table-set": "the kind the compiler gives the injected `set`; parseStructural refuses it in a target file",
 }
 
 // dispatchWords collects the literal words a Go source compares a form against.

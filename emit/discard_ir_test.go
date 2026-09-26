@@ -1,10 +1,11 @@
-package emit
+package emit_test
 
 import (
-	"strings"
 	"testing"
 
 	"oroboros/core"
+	"oroboros/emit"
+	"oroboros/ir/golang"
 )
 
 // A LOOP WHOSE VALUE IS DISCARDED STILL DECLARES ITS RESULT. `seq` is a β-redex
@@ -27,7 +28,7 @@ func TestADiscardedLoopResultIsRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tg, err := LoadTarget("../targets/go")
+	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,30 +40,12 @@ func TestADiscardedLoopResultIsRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := Func(tg, "f", &core.Sig{Params: []core.SigParam{{Name: "n", Type: "int"}}, Result: "int"}, nf)
+	emit.Imports = map[string]bool{}
+	code, err := golang.FromResidual(tg, "f", &core.Sig{Params: []core.SigParam{{Name: "n", Type: "int"}}, Result: "int"}, nf)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Every declared result temporary must be read somewhere other than the
-	// line that assigns it.
-	for _, line := range strings.Split(code, "\n") {
-		f := strings.Fields(line)
-		if len(f) < 3 || f[0] != "var" || !strings.HasPrefix(f[1], "r") {
-			continue
-		}
-		name := f[1]
-		reads := 0
-		for _, l := range strings.Split(code, "\n") {
-			l = strings.TrimSpace(l)
-			if strings.Contains(l, name) && !strings.HasPrefix(l, "var "+name) && !strings.HasPrefix(l, name+" = ") {
-				reads++
-			}
-		}
-		if reads == 0 {
-			t.Errorf("%s is declared and never read, which Go refuses:\n%s", name, code)
-		}
-	}
-	if !strings.Contains(code, "var r") {
-		t.Fatalf("the loop was not emitted as a loop with a result, so this test checks nothing:\n%s", code)
-	}
+	// Go itself is the judge of "declared and not used", which is what the
+	// term backend got wrong; its IR printer declares only what is read (L7).
+	goBuilds(t, map[string]string{"f": code})
 }

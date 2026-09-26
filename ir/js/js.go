@@ -599,6 +599,7 @@ func (p *printer) Call(s *ir.Stmt, args []string) string {
 
 func (p *printer) Or(a, b string) string  { return "(" + a + " || " + b + ")" }
 func (p *printer) And(a, b string) string { return "(" + a + " && " + b + ")" }
+func (p *printer) Not(c string) string    { return "(!" + c + ")" }
 
 // Cond is JavaScript's conditional expression: the coproduct as a value.
 func (p *printer) Cond(c, a, b string) string { return "(" + c + " ? " + a + " : " + b + ")" }

@@ -148,7 +148,11 @@ func (p *printer) lit(d *core.Term) string {
 		}
 		return "false"
 	case core.KStr:
-		return strconv.Quote(d.Str)
+		// ASCII only, escapes for the rest (string-literals.md §6.1): the
+		// obligation every host's rendering meets, checked over every scalar
+		// in emit/strlit_test.go. strconv.Quote passes printable non-ASCII
+		// through raw, which this printer did from step 2 until irstep4a.
+		return emit.GoStringLit(d.Str)
 	}
 	return d.String()
 }
@@ -227,6 +231,16 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 		}
 		p.line("break")
 	case ir.TBranch:
+		// A boolean coproduct at a tail is its connective (L10): the shape
+		// case-of-case leaves when the continuation is copied into both arms.
+		if e, ok := p.pl.BranchConnective(r, p.ref, p); ok {
+			if top {
+				p.line("return %s", e)
+			} else if len(p.yieldTo) == 1 && p.yieldTo[0] != "" {
+				p.line("%s = %s", p.yieldTo[0], e)
+			}
+			return
+		}
 		p.line("if %s {", p.ref(r.Cond))
 		p.ind++
 		p.region(r.Then, lp, top)
@@ -649,6 +663,7 @@ func (p *printer) Call(s *ir.Stmt, args []string) string {
 
 func (p *printer) Or(a, b string) string  { return "(" + a + " || " + b + ")" }
 func (p *printer) And(a, b string) string { return "(" + a + " && " + b + ")" }
+func (p *printer) Not(c string) string    { return "(!" + c + ")" }
 
 // Cond: Go has no conditional expression.
 func (p *printer) Cond(c, a, b string) string { return "" }

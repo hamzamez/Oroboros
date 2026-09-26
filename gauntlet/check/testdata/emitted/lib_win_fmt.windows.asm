@@ -131,7 +131,6 @@ Ltop30:
         jmp Ltop30
 Lelse32:
         mov rdi, r12
-Lexit31:
         cmp rbx, 0
         jge Lelse39
         mov rbx, rdi

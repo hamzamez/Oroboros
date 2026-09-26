@@ -257,9 +257,6 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 	// IR's totality on these programs is checked. A case whose IR is refused
 	// fails, naming the rule.
 	args := []string{"run", "./cmd/build", "-checked", "-target=" + target, "-ir", out + ".ir"}
-	if p := os.Getenv("ORO_PRINTER"); p != "" {
-		args = append(args, "-printer="+p) // ADR 0032 step 2: run the suite through the IR's Go printer
-	}
 	if bigRepr != "" {
 		args = append(args, "-big-repr="+bigRepr)
 	}

@@ -101,13 +101,6 @@ func (a bnd) le(b bnd) bool { return a.cmp(b) <= 0 }
 func (a bnd) gt(b bnd) bool { return a.cmp(b) > 0 }
 func (a bnd) ge(b bnd) bool { return a.cmp(b) >= 0 }
 
-func minB(a, b bnd) bnd {
-	if a.lt(b) {
-		return a
-	}
-	return b
-}
-
 func maxB(a, b bnd) bnd {
 	if a.gt(b) {
 		return a

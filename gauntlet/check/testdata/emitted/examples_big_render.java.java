@@ -34,12 +34,7 @@ public final class examples_big_render.java {
 				}
 				final java.math.BigInteger v38 = (java.math.BigInteger.valueOf(0));
 				final boolean v39 = (v22.compareTo(v38) > 0);
-				boolean v40 = false;
-				if (v39) {
-					v40 = false;
-				} else {
-					v40 = true;
-				}
+				final boolean v40 = (!v39);
 				final boolean v43 = (v40 && ((v30 == 0) && (v29 > 0)));
 				if (v43) {
 					break;

@@ -31,7 +31,6 @@ gen_main proc
 Ltop2:
         cmp rsi, 100
         jge Lexit3
-Lelse4:
         mov r10, 200000
         add r10, 8
         xor ecx, ecx
@@ -46,8 +45,7 @@ Ltop7:
         mov r13, r12
         imul r13, r12
         cmp r13, 200000
-        jge Lexit8
-Lelse10:
+        jge Lbuilt6
         movzx r13d, byte ptr [rdi+r12+8]
         cmp r13, 0
         je Lelse11
@@ -58,22 +56,19 @@ Lelse11:
         imul r13, r12
 Ltop14:
         cmp r13, 200000
-        jge Lelse16
+        jge Lexit15
         mov byte ptr [rdi+r13+8], 1
         add r13, r12
         jmp Ltop14
-Lelse16:
 Lexit15:
         add r12, 1
         jmp Ltop7
-Lexit8:
 Lbuilt6:
         mov r12, 0
         mov r13, 2
 Ltop19:
         cmp r13, 200000
         jge Lexit20
-Lelse21:
         movzx r14d, byte ptr [rdi+r13+8]
         cmp r14, 0
         je Lelse22
@@ -193,7 +188,6 @@ Ltop48:
         jmp Ltop48
 Lelse50:
         mov rdi, r12
-Lexit49:
         cmp rbx, 0
         jge Lelse57
         mov rbx, rdi

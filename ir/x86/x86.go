@@ -199,6 +199,118 @@ func (p *printer) decide() {
 	p.pl.CountUses()
 }
 
+// schedule orders a loop body's back-edge updates so each can be in place
+// (windows-target.md §5 item 3). A `continue` is a parallel assignment
+// p_j ← e_j(p), and x86's destructive `add` computes p_j + k in place only if
+// nothing reads p_j afterwards. So an in-place candidate v = p_j ⊕ k whose value
+// is the continue's argument j moves after the last statement that reads p_j,
+// when none of those statements reads v. That is L6: the statement is pure
+// arithmetic, which reads no memory, so it commutes with every statement it
+// passes, stores included.
+func (p *printer) schedule(r *ir.Region, loop *ir.Stmt) {
+	for i := range r.Stmts {
+		s := &r.Stmts[i]
+		for _, sub := range s.Sub {
+			if s.Op == ir.OLoop {
+				p.schedule(sub, s)
+			} else {
+				p.schedule(sub, loop)
+			}
+		}
+	}
+	if r.T == ir.TBranch {
+		p.schedule(r.Then, loop)
+		p.schedule(r.Else, loop)
+		return
+	}
+	if r.T != ir.TContinue || loop == nil {
+		return
+	}
+	params := loop.Sub[0].Params
+	for j, a := range r.Args {
+		if j >= len(params) {
+			break
+		}
+		b := -1
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; len(s.Res) == 1 && s.Res[0] == a {
+				b = i
+			}
+		}
+		if b < 0 || !p.movable(&r.Stmts[b]) || p.pl.Res(r.Stmts[b].Args[0]) != p.pl.Res(params[j]) {
+			continue
+		}
+		last := -1
+		for i := b + 1; i < len(r.Stmts); i++ {
+			if reads(&r.Stmts[i], p.pl, params[j]) {
+				last = i
+			}
+		}
+		if last < 0 {
+			continue
+		}
+		clash := false
+		for i := b + 1; i <= last; i++ {
+			if reads(&r.Stmts[i], p.pl, a) {
+				clash = true
+			}
+		}
+		if clash {
+			continue
+		}
+		moved := r.Stmts[b]
+		copy(r.Stmts[b:last], r.Stmts[b+1:last+1])
+		r.Stmts[last] = moved
+	}
+}
+
+// movable: pure arithmetic with an in-place template, which may be delayed.
+func (p *printer) movable(s *ir.Stmt) bool {
+	switch s.Op {
+	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg:
+		return s.Mode != ir.MTrap && len(s.Args) > 0 && p.inPlace(s)
+	}
+	return false
+}
+
+// reads reports whether s reads v, in its operands or anywhere in its regions.
+func reads(s *ir.Stmt, pl *plan.Plan, v ir.V) bool {
+	v = pl.Res(v)
+	for _, a := range s.Args {
+		if pl.Res(a) == v {
+			return true
+		}
+	}
+	for _, sub := range s.Sub {
+		if regionReads(sub, pl, v) {
+			return true
+		}
+	}
+	return false
+}
+
+func regionReads(r *ir.Region, pl *plan.Plan, v ir.V) bool {
+	for _, pi := range r.Pis {
+		if pl.Res(pi.Of) == v || pl.Res(pi.Other) == v {
+			return true
+		}
+	}
+	for i := range r.Stmts {
+		if reads(&r.Stmts[i], pl, v) {
+			return true
+		}
+	}
+	for _, a := range r.Args {
+		if pl.Res(a) == v {
+			return true
+		}
+	}
+	if r.T == ir.TBranch {
+		return pl.Res(r.Cond) == v || regionReads(r.Then, pl, v) || regionReads(r.Else, pl, v)
+	}
+	return false
+}
+
 // fuse decides which booleans print as jumps: read once, as the condition of
 // the branch or `if` immediately after the definition, and a comparison with a
 // jump form or a pure `if` of booleans (§9.6).
@@ -530,6 +642,7 @@ func (p *printer) function() (string, error) {
 	if len(p.f.Params) > len(argGP) {
 		return "", fmt.Errorf("takes %d arguments; the Win64 convention passes four in registers and this printer does not read the fifth off the stack", len(p.f.Params))
 	}
+	p.schedule(p.f.Body, nil)
 	p.decide()
 	p.fuse(p.f.Body)
 	p.fuseArms(p.f.Body)
@@ -616,7 +729,7 @@ func (p *printer) frame() string {
 	for i, r := range savedX {
 		fmt.Fprintf(&out, "        movsd qword ptr [rsp+%d], %s\n", xbase+8*i, r)
 	}
-	out.WriteString(emit.AsmPeephole(p.b.String()))
+	out.WriteString(threadJumps(emit.AsmPeephole(threadJumps(p.b.String()))))
 	for i, r := range savedX {
 		fmt.Fprintf(&out, "        movsd %s, qword ptr [rsp+%d]\n", r, xbase+8*i)
 	}

@@ -1,10 +1,11 @@
-package emit
+package emit_test
 
 import (
 	"strings"
 	"testing"
 
 	"oroboros/core"
+	"oroboros/ir/golang"
 )
 
 // A RANGE RESULT IS RECEIVED INTO THE LANGUAGE'S INTEGER (target-files.md §3,
@@ -14,33 +15,13 @@ import (
 // `int32 + int`, which Go refuses. Printing `r` alone compiled, which is why a
 // program that only printed results could not have found it.
 
-func receiveTarget(t *testing.T) *Target {
-	t.Helper()
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tg.Prims["x.decode"] = Prim{Name: "x.decode", Args: []string{"string"},
-		Results: []string{"int -2147483648 2147483647", "int"},
-		Kind:    "expr", Form: "utf8.DecodeRuneInString(%s)", Import: "unicode/utf8"}
-	tg.Prims["x.rev8"] = Prim{Name: "x.rev8", Args: []string{"int 0 255"},
-		Result: "int 0 255", Kind: "expr", Form: "bits.Reverse8(uint8(%s))", Import: "math/bits"}
-	tg.Prims["x.count"] = Prim{Name: "x.count", Args: []string{"string"},
-		Result: "int", Kind: "expr", Form: "utf8.RuneCountInString(%s)", Import: "unicode/utf8"}
-	return tg
-}
-
-func strSig(p string) *core.Sig {
-	return &core.Sig{Params: []core.SigParam{{Name: p, Type: "string"}}, Result: "int"}
-}
-
 func TestSeveralRangeResultsAreReceivedAsInt(t *testing.T) {
 	tg := receiveTarget(t)
 	// (fn (s) ((x.decode s) (fn (r n) (go.+ r n))))
 	term := core.Fn([]string{"s"},
 		core.App(core.App(core.Name("x.decode"), core.Name("s")),
 			core.Fn([]string{"r", "n"}, core.App(core.Name("go.+"), core.Name("r"), core.Name("n")))))
-	got, err := Func(tg, "f", strSig("s"), term)
+	got, err := golang.FromResidual(tg, "f", strSig("s"), term)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +38,7 @@ func TestASingleRangeResultIsReceivedAsInt(t *testing.T) {
 	// (fn (x) (go.+ (x.rev8 x) 1))
 	term := core.Fn([]string{"x"},
 		core.App(core.Name("go.+"), core.App(core.Name("x.rev8"), core.Name("x")), core.Int(1)))
-	got, err := Func(tg, "f", &core.Sig{Params: []core.SigParam{{Name: "x", Type: "int 0 255"}}, Result: "int"}, term)
+	got, err := golang.FromResidual(tg, "f", &core.Sig{Params: []core.SigParam{{Name: "x", Type: "int 0 255"}}, Result: "int"}, term)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -68,7 +49,7 @@ func TestASingleRangeResultIsReceivedAsInt(t *testing.T) {
 	// and must be emitted exactly as before, or every existing program moves.
 	plain := core.Fn([]string{"s"},
 		core.App(core.Name("go.+"), core.App(core.Name("x.count"), core.Name("s")), core.Int(1)))
-	got, err = Func(tg, "g", strSig("s"), plain)
+	got, err = golang.FromResidual(tg, "g", strSig("s"), plain)
 	if err != nil {
 		t.Fatal(err)
 	}

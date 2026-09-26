@@ -84,7 +84,7 @@ ADR 0006. **Step 1 is built** in `ir/` ([irstep1-2026-09-25](gauntlet/results/ir
 
 **Step 2 is built** ([irstep2-2026-09-25](gauntlet/results/irstep2-2026-09-25.md)): **the Go backend
 is the IR's printer**, `ir/golang`, which prints IR_P.
-- `emit/golang.go` remains as `gen -printer terms`, for comparison.
+- `emit/golang.go` stayed as `gen -printer terms` for comparison until step 4a deleted it.
 - The gauntlet is at parity, within 2% of the term backend.
 - The differential suite, all 78 Go programs and the acceptance programs pass.
 - IR_P's element widths come from a reduced product: the term analysis and the IR's own interval
@@ -108,18 +108,27 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
 - a value's place is a colouring of exact live sets, optimal by chordality (spec §9.6);
 - the Windows sieve is 0.98× hand-written and 1.00× the term backend.
 
-**Step 3 is done: all four backends print from the IR.** `-printer` names the backends printed from
-the IR: `go,js,java,x86` by default, `terms` for none.
+**Step 3 is done: all four backends print from the IR.** **Step 4 has begun**
+([irstep4a-2026-09-26](gauntlet/results/irstep4a-2026-09-26.md)):
+- the four term backends are deleted, with the 47 helpers only they reached. Production code is
+  −8,858 lines net, and each backend has one printer, so `-printer` is gone;
+- their 51 test sites moved to external tests (`emit/*_ir_test.go`) against the IR's printers, and
+  reading every failing assertion found five gaps in the IR path, now closed:
+  - Theorem D′'s premise, a class holding only its declared element's values, was assumed, not
+    discharged;
+  - a signature's declared arity was dropped;
+  - Go's literals were not ASCII-only;
+  - x86 lost its ordered back edges and threaded jumps;
+  - Go and Java lost the tail connective.
 
-**The migration is the current plan**: step 4 next, the analyses one domain at a time, and then the
-four term backends and the analyses only they need are deleted.
-The language plan below waits for the printers. Soundness bugs found while writing the IR's rules:
-- in the term backends, bounds-check re-slicing without its premise (spec §9.4), and `alloc` of a
-  live buffer aliasing it (irstep1 §4). The IR's printers have neither;
-- in the Java term backend, a loop variable narrowed to `int` from a variable that was not, which
-  answered 705032704 for 5·10⁹ (`narrow-from-wide`). The IR's Java printer reads ranges off a fixpoint;
-- **in both Java printers, and queued**: a `build`'s size is not obliged to fit `max-len`, so
-  `(len (build b 4294967297 …))` is 1 on Java (irstep3java §3).
+**The migration is the current plan**: the analyses next, one domain at a time, starting with the
+IR's interval domain as a legality checker in shadow beside the term analysis. The language plan
+below waits for it. Soundness bugs found while writing the IR's rules:
+- in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
+  of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
+  was not (`narrow-from-wide`);
+- **queued**: a `build`'s size is not obliged to fit `max-len`, so `(len (build b 4294967297 …))` is
+  1 on Java (irstep3java §3).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
@@ -283,7 +292,8 @@ spec to read before touching it.
 - **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
   Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).
 - **Closures.** A closure may not survive staging ([closures-direction.md](docs/closures-direction.md)).
-  Host callbacks come in three tiers, and only tier 3, a manufactured closure that escapes, is refused
+  Host callbacks come in three tiers: tier 3, a manufactured closure that escapes, is refused, and
+  tiers 1 and 2 are specified and not built, on any backend (irstep4a §1)
   ([callbacks.md](docs/spec/callbacks.md)).
 
 ### Data
@@ -656,7 +666,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `emit/` | The four backends, type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
+| `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |

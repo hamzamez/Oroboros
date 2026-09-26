@@ -435,22 +435,3 @@ func TestFitsIndexSourceRefusesWhatMaxOpDidNotCount(t *testing.T) {
 		}
 	}
 }
-
-// And the whole-function gate: one unbounded operation anywhere refuses every
-// loop in the method. Coarse, and the safe coarseness.
-func TestNarrowByIntervalNeedsTheWholeFunctionToFit(t *testing.T) {
-	tg, err := LoadTarget("../targets/java")
-	if err != nil {
-		t.Fatal(err)
-	}
-	forms, _ := core.Read(`(again (java.+ i 1))`)
-	body := forms[0].Term
-	raw := []string{"i"}
-	inits := []*core.Term{{Kind: core.KInt, Int: 0}}
-	if nw := NarrowByInterval(tg, false, body, raw, inits); nw != nil {
-		t.Error("a method with an unbounded operation must narrow nothing")
-	}
-	if nw := NarrowByInterval(tg, true, body, raw, inits); nw == nil || !nw["i"] {
-		t.Error("a counter whose every value MaxOp bounded must narrow")
-	}
-}

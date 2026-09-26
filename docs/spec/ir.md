@@ -388,7 +388,13 @@ ranges.
 **Theorem D′ (with fixed members).** A class that touches a **declared** representation takes it:
 a signature's parameter or result, or a primitive's argument or result. The host compiled that
 declaration, so no other representation is admissible. It is sound because every member's values lie
-in the declared set, which the analyses proved or the program was refused. Two different fixed
+in the declared set. **That premise is an obligation Finalize discharges**: the class's proven element
+range (the reduced product below) must lie inside the declared element, or the program is refused,
+naming a literal element when one is at fault (literal-elements.md). Until irstep4a-2026-09-26 it was
+assumed: `(x.take (array 104 300 33))` against a declared `(array (int 0 255))` printed
+`[]byte{104, 300, 33}`. The term backends had checked it at emission. **A signature's declared arity is
+the same kind of boundary**: a body yielding a different number of values than the signature declares
+is refused in lowering. Two different fixed
 representations in one class are a program the host cannot type, and are reported. A class with no
 fixed member takes ρ_T of its hull, as in Theorem D (`ir/final.go`).
 
@@ -657,7 +663,7 @@ hand-written code, and a change to it is re-measured.
 | **soleExit** (coalescing) | a loop result that every `break` passes as the same parameter p *is* p. Print no temporary | by §5.3, r = p on every exit | 20,480 B/op against 0 on Go (escape analysis) |
 | **PostVars** | a parameter that every `continue` passes as p + k, for one literal k and a value read nowhere else, is updated in Go's post clause | the body is rewritten and f† is kept (L4) | 1.4× on the sieve (loopshape-2026-08-25) |
 | **bounds-check re-slicing** | before a loop guarded by p against `len X`, a table Y read in the loop only at p's π is replaced in the loop by `restrict Y (len X)`, which Go prints `Y[:n]` | L13, **with `restrict`'s obligation `len X ≤ len Y` discharged at the loop's entry**. Today by an `assume` of the same term (refinements.md §3a's second route: dot's `where len p = len q`); no assumption, no rewrite (`ir/restrict.go`, `TestRestrictNeedsItsPremise`) | 1.96× on compute-bound loops (bce-2026-08-15) |
-| **connectives** | `(if c true E)` prints as `c \|\| E` and `(if c E false)` as `c && E`, when E's region is an expression tree: pure, every value read once, no loop | L10, and L6 lets a pure E run under the short circuit | irp2 §3: equal to today's backend, and ±5% for the alternative |
+| **connectives** | `(if c true E)` prints as `c \|\| E` and `(if c E false)` as `c && E`, when E's region is an expression tree: pure, every value read once, no loop. The same holds for a `branch` **terminator** whose arms each yield one boolean, the shape case-of-case leaves at a tail (`plan.BranchConnective`), and `(if c false true)` is `!c` where a printer implements `Negator` | L10, and L6 lets a pure E run under the short circuit; negation is the coproduct's swap | irp2 §3: equal to today's backend, and ±5% for the alternative |
 | **JavaScript tail return** | a `break` from a loop whose results the function yields directly prints as `return` | L2: the join's continuation is the function's return | 1.31× on V8 (native-js-2026-08-20) |
 | **Java index narrowing** | a value whose range is inside Java's `int` is printed as `int`, and so an index takes no cast | ρ is a choice among the representations containing the type (§4.2). The range is the value's interval fixpoint, written into IR_P. A per-variable guess taken one inductive step failed here: the term backend answered 705032704 for 5·10⁹ (`narrow-from-wide`, irstep3java-2026-09-25) | 1.04–1.45× (native-java-2026-08-25) |
 | **several results** | a function's results print as an object on JavaScript, natively on Go and as a record on Java | products (§1.1) | multiresult-2026-08-22 |
@@ -757,6 +763,19 @@ template preserves it, and a slot rather than a push keeps rsp's alignment for a
   (Aho, Sethi and Ullman §8.4; booleans.md §2.7).
 
 Adjacency keeps the emission order the program's, so the lemma needs no change.
+
+**Ordered back edges** (windows-target.md §5 item 3). A `continue` is a parallel assignment
+pⱼ ← eⱼ(p), and x86's destructive `add` computes pⱼ ⊕ k in place only if nothing reads pⱼ afterwards.
+So before numbering, an in-place candidate v = pⱼ ⊕ k whose value is the continue's argument j moves
+after the last statement that reads pⱼ, when none of those reads v. That is L6: pure arithmetic reads
+no memory, so it commutes with every statement it passes, stores included. `(again (+ i 1) (+ acc i))`
+prints `add rdi, rsi` / `add rsi, 1`.
+
+**Jump threading.** A jump to a label whose first instruction is `jmp X` goes to X, and code after an
+unconditional `jmp` up to the next label something jumps to is reached by no path and is dropped.
+Both keep every path. Jumping code makes such trampolines by construction: an arm that yields a
+constant is one `jmp`. With threading, both failures of `and` in a guard leave for one label
+(booleans.md §2.7). A template's own labels are opaque and left alone (`ir/x86/thread.go`).
 
 ---
 

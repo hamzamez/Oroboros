@@ -566,7 +566,36 @@ func (p *Plan) branchExpr(c string, th, el *ir.Region, ref func(ir.V) string, sp
 			return sp.And(c, e), true
 		}
 	}
+	// (if c false true) is ¬c: the coproduct's swap, where the host has it.
+	if n, ok := sp.(Negator); ok {
+		if bt, ok := lit(th); ok && !bt {
+			if be, ok := lit(el); ok && be {
+				return n.Not(c), true
+			}
+		}
+	}
 	return "", false
+}
+
+// Negator is a Speller whose host has boolean negation.
+type Negator interface {
+	Not(c string) string
+}
+
+// BranchConnective is a branch TERMINATOR whose arms each yield one boolean,
+// as one expression: c || E, c && E or ¬c. It is Connective for the shape
+// case-of-case leaves at a tail, where the continuation was copied into both
+// arms and so there is no `if` statement to rewrite (L10).
+func (p *Plan) BranchConnective(r *ir.Region, ref func(ir.V) string, sp Speller) (string, bool) {
+	if r.T != ir.TBranch || !yieldsBool(p, r.Then) || !yieldsBool(p, r.Else) {
+		return "", false
+	}
+	return p.branchExpr(ref(r.Cond), r.Then, r.Else, ref, sp)
+}
+
+// yieldsBool: r yields exactly one boolean.
+func yieldsBool(p *Plan, r *ir.Region) bool {
+	return r.T == ir.TYield && len(r.Args) == 1 && p.F.Types[p.Res(r.Args[0])] == "bool"
 }
 
 // ExprOf is a region's value as one expression, when the region is an

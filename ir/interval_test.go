@@ -208,17 +208,3 @@ func TestLatticeLaws(t *testing.T) {
 		}
 	}
 }
-
-func show(a iv) string {
-	if a.bot {
-		return "⊥"
-	}
-	lo, hi := big.NewInt(a.lo).String(), big.NewInt(a.hi).String()
-	if a.nlo {
-		lo = "-∞"
-	}
-	if a.phi {
-		hi = "+∞"
-	}
-	return "[" + lo + ", " + hi + "]"
-}

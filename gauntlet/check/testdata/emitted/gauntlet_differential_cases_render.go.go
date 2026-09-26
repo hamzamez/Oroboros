@@ -56,12 +56,7 @@ func GenRun(v0 int) string {
 			}
 			v65 := (big.NewInt(int64(0)))
 			v66 := (v49.Cmp(v65) > 0)
-			var v67 bool
-			if v66 {
-				v67 = false
-			} else {
-				v67 = true
-			}
+			v67 := (!v66)
 			v70 := (v67 && ((v57 == 0) && (v56 > 0)))
 			if v70 {
 				break

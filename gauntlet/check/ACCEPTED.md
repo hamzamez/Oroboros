@@ -666,3 +666,32 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `gauntlet/differential/cases/string-escapes.oro windows`
 - emitted text changed — `gauntlet/differential/cases/utf8-widths.oro windows`
 - emitted text changed — `lib/win/fmt.oro windows`
+
+## 2026-09-26 — on b768da0, with uncommitted changes
+
+**Reason:** IR step 4a: the term backends are retired (irstep4a-2026-09-26). 20 outputs re-printed, no outcome or proof count changed: negation (if c false true) is !c on Go, JS and Java (freq, render); x86 orders back-edge updates in place and threads jumps (13 windows outputs). Windows sieve 1.01x hand-written, 1.03x the previous printer, same minimum.
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+20 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/big/render.oro go`
+- emitted text changed — `examples/big/render.oro java`
+- emitted text changed — `examples/big/render.oro js`
+- emitted text changed — `examples/big/render.oro windows`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- emitted text changed — `examples/native/shortcircuit-win.oro windows`
+- emitted text changed — `examples/native/sieve-win-bench.oro windows`
+- emitted text changed — `examples/native/sieve-win.oro windows`
+- emitted text changed — `examples/table/sieve-win.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- emitted text changed — `lib/win/fmt.oro windows`

@@ -31,8 +31,7 @@ gen_limb proc
         mov r12, 1
 Ltop4:
         cmp rdi, 64
-        jge Lexit5
-Lelse6:
+        jge Lbuilt3
         mov r13, r12
         and r13, 16777215
         mov qword ptr [rsi+rdi*8+8], r13
@@ -40,7 +39,6 @@ Lelse6:
         mov rcx, 24
         shr r12, cl
         jmp Ltop4
-Lexit5:
 Lbuilt3:
         mov r10, 64
         add r10, 1
@@ -74,7 +72,7 @@ Ltop16:
         cmp r14, 64
         jl Lelse18
         mov rbx, r13
-        jmp Lexit17
+        jmp Lbuilt15
 Lelse18:
         cmp r14, 0
         jge Lelse19
@@ -99,7 +97,6 @@ Ldone20:
         shr rbx, cl
         mov r15, rbx
         jmp Ltop16
-Lexit17:
 Lbuilt15:
         add r12, 1
         mov rdi, rsi

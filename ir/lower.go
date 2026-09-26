@@ -65,6 +65,20 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 	// typed as: it is a fixed member of its value's class (Theorem D′), and the
 	// host compiles the declaration.
 	if sig != nil {
+		// THE DECLARED ARITY IS THE BOUNDARY, as the types are: a caller is
+		// compiled against the signature, so a body yielding a different
+		// number of values is refused, not printed with its own. The term
+		// backends refused it at emission; the IR's printers took the body's
+		// arity and printed `func Three(a int) (int, int)` for a declared
+		// (tuple int int int) (irstep4a-2026-09-26).
+		declared := len(sig.Results)
+		if declared == 0 && sig.Result != "" {
+			declared = 1
+		}
+		if declared > 0 && declared != len(f.Results) {
+			return nil, fmt.Errorf("%s: declares %d result(s) and does not produce them: the body yields %d",
+				name, declared, len(f.Results))
+		}
 		switch {
 		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):
 			for j, r := range sig.Results {

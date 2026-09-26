@@ -20,8 +20,8 @@ import (
 	"oroboros/ir"
 	"oroboros/ir/golang"
 	"oroboros/ir/java"
-	"oroboros/ir/x86"
 	"oroboros/ir/js"
+	"oroboros/ir/x86"
 )
 
 func main() {
@@ -32,7 +32,6 @@ func main() {
 	checkedFlag := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	keep := flag.Bool("keep", false, "keep the emitted source and print where it is")
-	flag.StringVar(&printer, "printer", "go,js,java,x86", "the backends printed from the IR (ADR 0032), comma-separated: `go`, `js`, `java`, `x86`; `terms` prints every backend from terms, as before the IR")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`, or the reason to FILE.err; it changes nothing that is built")
 	bigRepr := flag.String("big-repr", "", "storage for a value above the target's word: `limbs` or `host`, overriding what the target declares. The BOUND is the declaration's either way, so this changes how a program is stored and not what it computes")
 	flag.Usage = func() {
@@ -292,32 +291,16 @@ checks:
 	var code string
 	switch backend {
 	case "js":
-		if printsIR("js") {
-			code, err = js.FromResidual(tg, "oro-main", esig, nf)
-		} else {
-			code, err = emit.JSFunc(tg, "oro-main", esig, nf)
-		}
+		code, err = js.FromResidual(tg, "oro-main", esig, nf)
 	case "java":
-		if printsIR("java") {
-			code, err = java.FromResidual(tg, "oro-main", esig, nf)
-		} else {
-			code, err = emit.JavaMethod(tg, "oro-main", esig, nf)
-		}
+		code, err = java.FromResidual(tg, "oro-main", esig, nf)
 	case "x86-64":
-		if printsIR("x86") {
-			code, err = x86.FromResidual(tg, "oro-main", esig, nf)
-		} else {
-			code, err = emit.AsmProc(tg, "oro-main", esig, nf)
-		}
+		code, err = x86.FromResidual(tg, "oro-main", esig, nf)
 		if err == nil {
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
 	case "go":
-		if printsIR("go") {
-			code, err = golang.FromResidual(tg, "oro-main", esig, nf)
-		} else {
-			code, err = emit.Func(tg, "oro-main", esig, nf)
-		}
+		code, err = golang.FromResidual(tg, "oro-main", esig, nf)
 	default:
 		return fmt.Errorf("no code generator for backend %q", backend)
 	}
@@ -429,16 +412,3 @@ func allSigs(p *core.Program) []*core.Sig {
 
 // irOut is -ir's file.
 var irOut string
-
-// printer is -printer, as gen's.
-var printer string
-
-// printsIR reports whether -printer names a backend.
-func printsIR(backend string) bool {
-	for _, b := range strings.Split(printer, ",") {
-		if strings.TrimSpace(b) == backend || b == "ir" {
-			return true
-		}
-	}
-	return false
-}

@@ -280,6 +280,17 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 		}
 		p.line("break;")
 	case ir.TBranch:
+		// A boolean coproduct at a tail is its connective (L10), as on Go.
+		if e, ok := p.pl.BranchConnective(r, p.ref, p); ok {
+			if top && p.rec == "" {
+				p.line("return %s;", e)
+			} else if !top && len(p.yieldTo) == 1 && p.yieldTo[0] != "" {
+				p.line("%s = %s;", p.yieldTo[0], e)
+			}
+			if top || len(p.yieldTo) == 1 {
+				return
+			}
+		}
 		p.line("if (%s) {", p.ref(r.Cond))
 		p.ind++
 		p.region(r.Then, lp, top)
@@ -735,6 +746,7 @@ func (p *printer) Call(s *ir.Stmt, args []string) string { return "" }
 
 func (p *printer) Or(a, b string) string      { return "(" + a + " || " + b + ")" }
 func (p *printer) And(a, b string) string     { return "(" + a + " && " + b + ")" }
+func (p *printer) Not(c string) string        { return "(!" + c + ")" }
 func (p *printer) Cond(c, a, b string) string { return "" }
 
 // FromResidual is the IR's whole path to Java for one definition.

@@ -119,54 +119,6 @@ var limbOf = map[string]string{
 	"big=":         limbPrefix + "eq",
 }
 
-// BigBound is the bound a program's declarations place on its
-// arbitrary-precision values, in BITS, and whether there is one at all.
-//
-// ═══ THIS IS SEMANTICS. THE REPRESENTATION IS DECIDED SEPARATELY.
-//
-// `(int 0 (pow 2 1300))` says the value is a mathematical integer in that
-// interval. That is a fact about the PROGRAM — true on every target, checkable,
-// teachable without naming a host — and ADR 0003 has said since the beginning
-// that mathematical semantics and machine representation are two different
-// things. Which storage a target picks for it is `BigRepr`'s business and this
-// function does not ask.
-//
-// It is the MAXIMUM over every big type in EVERY signature the program has, and
-// taking the whole program is not laziness. Reduction inlines every
-// non-exported call, so by the time the representation is selected a helper's
-// declared range is gone — the same structural limit refinements.md §6b records
-// for a `where`, arriving for the fourth time. `main` has no signature at all,
-// so a per-function bound would mean no whole program ever had one.
-//
-// ═══ THE BOUND IS ENFORCED AT ITS BIT LENGTH
-//
-// A value is refused when it needs MORE BITS than the declared maximum does, so
-// `(int 0 (pow 2 1300))` admits everything under 2^1301. That is slack of less
-// than a factor of two, and taking it is what makes the bound cost O(1) to
-// check on all four hosts and nothing at all on the limb rung, where it falls
-// out of the carry. Enforcing the endpoint exactly would need a full-width
-// comparison per operation, which is the cost of the operation itself.
-//
-// What matters is that BOTH representations enforce the SAME bound, because a
-// declaration that means one thing under limbs and another under the host's
-// bignum would be ADR 0009's rule broken at the representation boundary.
-//
-// An UNBOUNDED range has no bound to enforce, which is the distinction
-// `(int 0 +inf)` was added to make expressible: ℤ is not an interval.
-//
-// ═══ AND ITS SIGN (ADR 0029)
-//
-// The set enforced is a member of H = {[0, 2ᵏ)} ∪ {(−2ᵏ, 2ᵏ)}: the sets a
-// sign-magnitude integer's two O(1) observables, its sign and the bit length of
-// its magnitude, decide. It is the JOIN of every declared type's least member of
-// H, so the program is signed when any type above the word admits a negative.
-// Before this the bits were one set and the sign was each host's own: Go
-// admitted (−2ᵇ, 2ᵇ), Java [−2ᵇ, 2ᵇ), JavaScript and the limbs [0, 2ᵇ).
-func BigBound(w core.Word, sigs ...*core.Sig) (int, bool) {
-	bits, _, ok := BigHull(w, sigs...)
-	return bits, ok
-}
-
 // BigHull is BigBound with the sign of the set: signed is true when the program
 // enforces (−2^bits, 2^bits), false when [0, 2^bits).
 func BigHull(w core.Word, sigs ...*core.Sig) (bits int, signed, bounded bool) {

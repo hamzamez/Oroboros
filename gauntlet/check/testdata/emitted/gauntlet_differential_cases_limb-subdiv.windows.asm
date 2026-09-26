@@ -31,8 +31,7 @@ gen_run proc
         mov r12, 999999999999999
 Ltop4:
         cmp rdi, 3
-        jge Lexit5
-Lelse6:
+        jge Lbuilt3
         mov r13, r12
         and r13, 16777215
         mov qword ptr [rsi+rdi*8+8], r13
@@ -40,7 +39,6 @@ Lelse6:
         mov rcx, 24
         shr r12, cl
         jmp Ltop4
-Lexit5:
 Lbuilt3:
         mov r10, 3
         add r10, 1
@@ -56,8 +54,7 @@ Lbuilt3:
         mov r13, 14000000
 Ltop12:
         cmp r12, 3
-        jge Lexit13
-Lelse14:
+        jge Lbuilt11
         mov r14, r13
         and r14, 16777215
         mov qword ptr [rdi+r12*8+8], r14
@@ -65,7 +62,6 @@ Lelse14:
         mov rcx, 24
         shr r13, cl
         jmp Ltop12
-Lexit13:
 Lbuilt11:
         mov r10, 3
         add r10, 1
@@ -83,7 +79,7 @@ Ltop20:
         cmp r13, 3
         jl Lelse22
         mov rbx, r12
-        jmp Lexit21
+        jmp Lbuilt19
 Lelse22:
         cmp r13, 0
         jge Lelse23
@@ -126,12 +122,10 @@ Ldone32:
         cmp r15, 0
         jge Lelse35
         mov r14, 1
-        jmp Ldone36
+        jmp Ltop20
 Lelse35:
         mov r14, 0
-Ldone36:
         jmp Ltop20
-Lexit21:
 Lbuilt19:
         mov r10, 3
         add r10, 1
@@ -148,7 +142,6 @@ Lbuilt19:
 Ltop39:
         cmp rdi, 0
         jl Lexit40
-Lelse41:
         imul r12, 16777216
         cmp rdi, 0
         jge Lelse43
@@ -180,7 +173,6 @@ Ldone44:
         jmp Ltop39
 Lexit40:
         mov rbx, rsi
-Lbuilt38:
         mov rax, qword ptr [rsp+48]
         cmp rax, 0
         jge Lelse50

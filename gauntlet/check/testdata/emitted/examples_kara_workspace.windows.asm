@@ -31,7 +31,6 @@ gen_mac_fresh proc
 Ltop10:
         cmp r12, 65536
         jge Lexit11
-Lelse12:
         movzx r13d, byte ptr [rbx+r12+8]
         movzx r14d, byte ptr [rsi+r12+8]
         imul r13, r14
@@ -40,7 +39,6 @@ Lelse12:
         jmp Ltop10
 Lexit11:
         mov rbx, rdi
-Lbuilt9:
         mov rax, rbx
 Lret7:
         add rsp, 56
@@ -68,7 +66,6 @@ gen_mac_into proc
 Ltop2:
         cmp r12, 65536
         jge Lexit3
-Lelse4:
         movzx r13d, byte ptr [rsi+r12+8]
         movzx r14d, byte ptr [rdi+r12+8]
         imul r13, r14

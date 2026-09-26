@@ -269,10 +269,6 @@ func (r *refiner) mayBeTable(t *core.Term, f *facts) bool {
 	return false
 }
 
-func loopKindsOf(t *core.Term) bool {
-	return t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName && loopKinds[t.Op().Name]
-}
-
 // loopContent is what the loop term's EXIT values hold, under its content
 // invariants — the result summary (loopsum-2026-09-16) one index set over.
 func (r *refiner) loopContent(loop *core.Term, f *facts) []*core.Term {

@@ -786,11 +786,7 @@ func GenMain() string {
 					break
 				}
 				v933 := (v720 == 0)
-				if v933 {
-					v687 = false
-				} else {
-					v687 = true
-				}
+				v687 = (!v933)
 			}
 			if v687 {
 				v937 := (v673 + 1)
@@ -1035,11 +1031,7 @@ func GenMain() string {
 					break
 				}
 				v1212 := (v999 == 0)
-				if v1212 {
-					v966 = false
-				} else {
-					v966 = true
-				}
+				v966 = (!v1212)
 			}
 			v1215 := (v966 && (v952 >= v673))
 			if v1215 {
@@ -1266,11 +1258,7 @@ func GenMain() string {
 					break
 				}
 				v1470 := (v1257 == 0)
-				if v1470 {
-					v1224 = false
-				} else {
-					v1224 = true
-				}
+				v1224 = (!v1470)
 			}
 			if v1224 {
 				v1475 := (v952 < 0)

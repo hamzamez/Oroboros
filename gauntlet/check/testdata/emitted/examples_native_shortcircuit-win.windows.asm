@@ -159,14 +159,12 @@ Ltop32:
         jmp Ltop32
 Lelse34:
         mov rbx, r13
-Lexit33:
         cmp rsi, 0
-        jge Lelse41
+        jge Ldone42
         mov rsi, rbx
         sub rsi, 1
         mov byte ptr [rdi+rsi], 45
         sub rbx, 1
-Lelse41:
 Ldone42:
         mov rcx, -11
         call GetStdHandle

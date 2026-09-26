@@ -326,6 +326,70 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	if len(conflicts) > 0 {
 		return fmt.Errorf("Theorem D′: a table class with two fixed representations: %s", strings.Join(conflicts, "; "))
 	}
+	// proven is a class's element range: THE REDUCED PRODUCT of the two
+	// factors, each a sound over-approximation of the class's elements, so
+	// their meet is.
+	proven := func(r V, c *tclass) iv {
+		rng := ivTop
+		if c.sawAny && !c.unknown && c.lo != nil && c.lo.IsInt64() && c.hi.IsInt64() {
+			rng = rangeIV(c.lo.Int64(), c.hi.Int64())
+		}
+		if h, ok := irHull[r]; ok && !irUnknown[r] {
+			rng = meetIV(rng, h)
+		}
+		if rng.bot {
+			rng = exactIV(0) // no element ever stored or held: the zero fill's
+		}
+		return rng
+	}
+	// Theorem D′'s PREMISE, discharged rather than assumed: a class that takes
+	// a declared representation must hold, in every member, only values of the
+	// declared set. A literal outside it is refused (literal-elements.md), and
+	// so is a class whose range nothing proves inside it: the obligation is
+	// discharged, or the program is refused (refinements.md §3a). The term
+	// backends checked this at emission; the IR's printers assumed it, and
+	// `(x.take (array 104 300 33))` printed []byte{104, 300, 33}
+	// (irstep4a-2026-09-26).
+	var roots []V
+	for r := range classes {
+		roots = append(roots, r)
+	}
+	sort.Slice(roots, func(i, j int) bool { return roots[i] < roots[j] })
+	for _, r := range roots {
+		c := classes[r]
+		if c.fixed == "" {
+			continue
+		}
+		dlo, dhi, ok := core.IntRange(core.ArrayElem(c.fixed))
+		if !ok || taintedClass[r] {
+			continue // the word, a host alias, or a table a host writes: nothing narrower to prove
+		}
+		rng := proven(r, c)
+		if rng.finite() && rng.lo >= dlo && rng.hi <= dhi {
+			continue
+		}
+		var bad *core.Term
+		f.Walk(func(reg *Region) {
+			for i := range reg.Stmts {
+				d := &reg.Stmts[i]
+				if d.Op != OArray || find(d.Res[0]) != r {
+					continue
+				}
+				for _, a := range d.Args {
+					if k, ok := intConsts[a]; ok && bad == nil && (k.Int < dlo || k.Int > dhi) {
+						bad = k
+					}
+				}
+			}
+		})
+		if bad != nil {
+			return fmt.Errorf("a literal table's element %d lies outside its declared element (int %d %d), "+
+				"which decides at a boundary (literal-elements.md)", bad.Int, dlo, dhi)
+		}
+		return fmt.Errorf("a table takes the declared element (int %d %d), but its elements are only known "+
+			"to lie in %s: the declaration's premise is an obligation, and nothing discharges it "+
+			"(literal-elements.md, refinements.md §3a)", dlo, dhi, show(rng))
+	}
 	// Write the class's representation onto every member, keeping whether each
 	// is a buffer.
 	for v := 0; v < nv; v++ {
@@ -357,18 +421,7 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			if taintedClass[r] {
 				continue // a host may write anything: the word
 			}
-			// THE REDUCED PRODUCT of the two factors: each is a sound
-			// over-approximation of the class's elements, so their meet is.
-			rng := ivTop
-			if c.sawAny && !c.unknown && c.lo != nil && c.lo.IsInt64() && c.hi.IsInt64() {
-				rng = rangeIV(c.lo.Int64(), c.hi.Int64())
-			}
-			if h, ok := irHull[r]; ok && !irUnknown[r] {
-				rng = meetIV(rng, h)
-			}
-			if rng.bot {
-				rng = exactIV(0) // no element ever stored or held: the zero fill's
-			}
+			rng := proven(r, c)
 			if rng.finite() && rng.lo >= tg.Word.Lo && rng.hi <= tg.Word.Hi {
 				f.Types[x] = prefix + fmt.Sprintf("int %d %d", rng.lo, rng.hi)
 			}

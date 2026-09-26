@@ -728,3 +728,18 @@ func topOf(f fact) fact {
 	}
 	return out
 }
+
+// show spells an interval: [lo, hi], with -∞ and +∞ for an open end, and ⊥.
+func show(a iv) string {
+	if a.bot {
+		return "⊥"
+	}
+	lo, hi := big.NewInt(a.lo).String(), big.NewInt(a.hi).String()
+	if a.nlo {
+		lo = "-∞"
+	}
+	if a.phi {
+		hi = "+∞"
+	}
+	return "[" + lo + ", " + hi + "]"
+}

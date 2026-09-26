@@ -34,7 +34,7 @@ export function genRun(v0) {
 			if ((v56 >= 8)) {
 				break;
 			}
-			if (((((v49 > (BigInt(0)))) ? false : true) && ((v57 === 0) && (v56 > 0)))) {
+			if (((!((v49 > (BigInt(0))))) && ((v57 === 0) && (v56 > 0)))) {
 				break;
 			}
 			v55 = ((String.fromCodePoint((48 + (((v57 % 10) + 0))))) + v55);

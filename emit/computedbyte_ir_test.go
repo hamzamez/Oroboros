@@ -1,4 +1,4 @@
-package emit
+package emit_test
 
 import (
 	"regexp"
@@ -11,6 +11,10 @@ import (
 // is about emission having a side effect.
 
 // A PROGRAM THAT COMPUTES A BYTE MUST GET A BYTE BUFFER.
+//
+// Through the IR the table is consumed inside the function: a declared
+// `(array int)` RESULT is a boundary host code is compiled against, and fixes
+// the word (Theorem D′), which the term backend narrowed with the contents.
 //
 // The syntactic element inference was closed under nothing — a literal, an `if`
 // over literals, a read from an already-narrowed table — so `(+ 48 (% x 10))`
@@ -37,12 +41,13 @@ func TestAComputedByteNarrowsItsBuffer(t *testing.T) {
 	got, err := genOn(t, "go", `
 (use go)
 (export f)
-(sig f ((src (array (int 0 255)))) (array int) (where (<= 8 (len src))))
+(sig f ((src (array (int 0 255)))) int (where (<= 8 (len src))))
 (def f (fn (src)
-  (build 8 (fn (out)
-    (loop ((out out) (k 0))
-      (>= k 8)  out
-      else      (again (set out k (if (< k 4) (src k) (+ 48 (% (src k) 10)))) (+ k 1)))))))`,
+  (let t (build 8 (fn (out)
+           (loop ((out out) (k 0))
+             (>= k 8)  out
+             else      (again (set out k (if (< k 4) (src k) (+ 48 (% (src k) 10)))) (+ k 1)))))
+    (+ (t 0) (t 7)))))`,
 		"f")
 	if err != nil {
 		t.Fatal(err)
@@ -73,12 +78,13 @@ func TestABufferStillMayNotNarrowOnItsOwnContents(t *testing.T) {
 		return `
 (use go)
 (export f)
-(sig f ((n int)) (array int) (where (and (<= 0 n) (<= n 4))))
+(sig f ((n int)) int (where (and (<= 0 n) (<= n 4))))
 (def f (fn (n)
-  (build 8 (fn (b)
-    (loop ((b b) (k 0))
-      (>= k 8)  b
-      else      (again (set b k ` + v + `) (+ k 1)))))))`
+  (let t (build 8 (fn (b)
+           (loop ((b b) (k 0))
+             (>= k 8)  b
+             else      (again (set b k ` + v + `) (+ k 1)))))
+    (+ (t 0) (t 7)))))`
 	}
 	circular, err := genOn(t, "go", prog("(+ (b k) 1)"), "f")
 	if err != nil {

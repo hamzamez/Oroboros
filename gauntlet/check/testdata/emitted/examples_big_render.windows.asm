@@ -36,8 +36,7 @@ gen_render proc
         mov r12, 0
 Ltop4:
         cmp rdi, 9
-        jge Lexit5
-Lelse6:
+        jge Lbuilt3
         mov r13, r12
         and r13, 16777215
         mov byte ptr [rsi+rdi+8], r13b
@@ -45,7 +44,6 @@ Lelse6:
         mov rcx, 24
         shr r12, cl
         jmp Ltop4
-Lexit5:
 Lbuilt3:
         mov rdi, 8
 Ltop10:
@@ -180,8 +178,7 @@ Ltop43:
         mov r14, 0
 Ltop47:
         cmp r13, 9
-        jge Lexit48
-Lelse49:
+        jge Lbuilt46
         mov r15, r14
         and r15, 16777215
         mov byte ptr [r12+r13+8], r15b
@@ -189,7 +186,6 @@ Lelse49:
         mov rcx, 24
         shr r14, cl
         jmp Ltop47
-Lexit48:
 Lbuilt46:
         mov r13, 8
 Ltop53:
@@ -328,7 +324,7 @@ Ltop87:
         cmp r13, 0
         jge Lelse89
         mov rdi, r12
-        jmp Lexit88
+        jmp Lbuilt86
 Lelse89:
         imul r14, 16777216
         cmp r13, 0
@@ -370,7 +366,6 @@ Ldone95:
         mov rdi, rdx
         mov r14, rdi
         jmp Ltop87
-Lexit88:
 Lbuilt86:
         mov r12, 8
         mov r13, 0
@@ -380,43 +375,40 @@ Ltop101:
         mov r12, r13
         jmp Lexit102
 Lelse103:
-        mov r14, r12
-        sub r14, 1
         imul r13, 16777216
         cmp r12, 0
-        jge Lelse106
-        mov r12, 0
-        jmp Ldone107
-Lelse106:
-        mov r15, qword ptr [rsi]
-        cmp r12, r15
-        jl Lelse108
-        mov r12, 0
-        jmp Ldone107
-Lelse108:
-        mov r15, qword ptr [rsi+r12*8+8]
-        mov r12, r15
-Ldone107:
-        cmp r12, 0
+        jge Lelse105
+        mov r14, 0
+        jmp Ldone106
+Lelse105:
+        mov r14, qword ptr [rsi]
+        cmp r12, r14
+        jl Lelse107
+        mov r14, 0
+        jmp Ldone106
+Lelse107:
+        mov r14, qword ptr [rsi+r12*8+8]
+Ldone106:
+        sub r12, 1
+        cmp r14, 0
         jge Lelse109
-        mov r12, 0
+        mov r14, 0
         jmp Ldone110
 Lelse109:
-        mov rax, r12
+        mov rax, r14
         cqo
         mov rcx, 16777216
         idiv rcx
         mov r15, rdx
-        mov r12, r15
+        mov r14, r15
 Ldone110:
-        add r13, r12
+        add r13, r14
         mov rax, r13
         cqo
         mov rcx, 100000000
         idiv rcx
-        mov r12, rdx
-        mov r13, r12
-        mov r12, r14
+        mov r14, rdx
+        mov r13, r14
         jmp Ltop101
 Lexit102:
         lea rax, LS42
@@ -444,7 +436,7 @@ Ltop119:
         cmp r15, 9
         jl Lelse121
         mov rbx, r14
-        jmp Lexit120
+        jmp Lbuilt118
 Lelse121:
         mov rsi, rbx
         and rsi, 16777215
@@ -453,7 +445,6 @@ Lelse121:
         mov rcx, 24
         shr rbx, cl
         jmp Ltop119
-Lexit120:
 Lbuilt118:
         mov rsi, 8
 Ltop125:
@@ -556,20 +547,11 @@ Lelse153:
         jmp Ltop125
 Lexit126:
         cmp rsi, 0
-        jg Lje156
-Lje158:
-Ljd159:
+        jg Lelse155
         cmp r13, 0
-        jne Lje160
+        jne Lelse155
         cmp r12, 0
         jle Lelse155
-        jmp Ljd157
-Lje160:
-        jmp Lelse155
-        jmp Ljd157
-Lje156:
-        jmp Lelse155
-Ljd157:
         mov rbx, qword ptr [rsp+64]
         jmp Lexit115
 Lelse155:

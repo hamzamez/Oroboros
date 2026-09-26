@@ -42,20 +42,6 @@ func multiValue(t *core.Term, n int) ([]*core.Term, bool) {
 	return body.Args(), true
 }
 
-// multiResultErr is the one message every backend gives when a signature asks
-// for several results and the definition does not produce them.
-//
-// There is no "this target cannot" case. A construct promoted to the LANGUAGE
-// works on every target and the compiler finds the implementation; a target
-// neither declines it nor declares it. The first attempt at this feature got
-// that wrong — it carried a (multi-return "…" "…") declaration and refused on
-// Java and windows — and was reverted for it.
-func multiResultErr(name string, sig *core.Sig, t *core.Term) error {
-	return fmt.Errorf("%s declares %d results but its definition does not produce them.\n"+
-		"  A function with several results must reduce to (values e1 … e%d); got %s",
-		name, len(sig.Results), len(sig.Results), t)
-}
-
 // multiPrimCall recognises the ELIMINATION of a host call that gives back
 // several results: `((p a…) (fn (x y …) body))`, where `p` is a primitive
 // declaring more than one result and the continuation takes exactly that many.
@@ -155,14 +141,4 @@ func fillDests(form string, dests []string) string {
 		form = strings.ReplaceAll(form, fmt.Sprintf("%%r%d", i), d)
 	}
 	return form
-}
-
-// multiPrimArityErr is the message when the continuation does not take what the
-// primitive gives. It is worth its own error because the alternative diagnostic
-// is `application of a non-name`, which says nothing about the actual mistake.
-func multiPrimArityErr(name string, want, got int) error {
-	return fmt.Errorf("%s gives back %d results and is consumed by a function of %d.\n"+
-		"  A host call with several results is eliminated by applying it to a\n"+
-		"  continuation taking exactly that many: ((%s …) (fn (r1 … r%d) …)).",
-		name, want, got, name, want)
 }

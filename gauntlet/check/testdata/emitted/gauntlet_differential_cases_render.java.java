@@ -54,12 +54,7 @@ public final class gauntlet_differential_cases_render.java {
 				}
 				final java.math.BigInteger v65 = (java.math.BigInteger.valueOf(0));
 				final boolean v66 = (v49.compareTo(v65) > 0);
-				boolean v67 = false;
-				if (v66) {
-					v67 = false;
-				} else {
-					v67 = true;
-				}
+				final boolean v67 = (!v66);
 				final boolean v70 = (v67 && ((v57 == 0) && (v56 > 0)));
 				if (v70) {
 					break;

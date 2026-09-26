@@ -380,3 +380,31 @@ func firstSig(forms []core.Form) *core.Sig {
 	}
 	return &core.Sig{}
 }
+
+// A PROGRAM THE LIMB LIBRARY CANNOT SERVE takes the host's bignum, and its
+// signature is checked as that rung means it. Checked as limbs, the claim was
+// refused with "big-fit is big, but array int is required here", a message
+// naming two internal representations, and the fallback never ran.
+func TestTheLimbFallBackIsCheckedOnTheHostsRung(t *testing.T) {
+	src := `(export run)
+(sig run ((a (int 0 (pow 2 200))) (b (int 1 (pow 2 200)))) (int 0 (pow 2 200)))
+(def run (a b) (/ (* a 7) b))
+`
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg.BigRepr = "limbs"
+	forms, _ := core.Read(src)
+	prog, _, err := core.Load(forms)
+	if err != nil {
+		t.Fatal(err)
+	}
+	env, err := tg.Env(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckSignatures(tg, prog, env); err != nil {
+		t.Errorf("a bignum division on the limb rung: %v", err)
+	}
+}

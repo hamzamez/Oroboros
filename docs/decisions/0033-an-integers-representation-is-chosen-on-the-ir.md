@@ -1,8 +1,8 @@
 # 0033 — An integer's representation is chosen on the IR; the checker's integer sort is ℤ
 
 Date: 2026-09-27
-Status: Accepted. Realized for the unsigned word in irstep4g; the rung above the word (`PromoteBig`)
-follows.
+Status: Accepted. Realized for the unsigned word in irstep4g, and for the rung above the word on the
+host's bignum in irstep4h (ADR 0034); the fixed-limb rung follows.
 
 ## Context
 

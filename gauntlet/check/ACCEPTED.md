@@ -816,3 +816,23 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/u128/factorials.oro go`
 - compiler output changed — `examples/u128/factorials.oro go`
 - emitted text changed — `lib/num/u128.oro go`
+
+## 2026-09-26 — on 101c6b6, with uncommitted changes
+
+**Reason:** irstep4h: the rung above the word is chosen on the IR (ADR 0034). pair and power take one more bignum destination each on Go (0.92x and 0.89x, allocations 82->45 and 25->15); render's factorial counter is a word, proven by the IR's fact (+3 operations, +3 loops proven); power reports its shifts on JS and Java, emission identical
+
+528 runs: 250 emitted, 278 refused; 2010 of 2057 integer operations bounded, 362 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+11 change(s):
+
+- emitted text changed — `examples/big/pair.oro go`
+- emitted text changed — `examples/big/power.oro go`
+- compiler output changed — `examples/big/power.oro go`
+- compiler output changed — `examples/big/power.oro java`
+- compiler output changed — `examples/big/power.oro js`
+- emitted text changed — `gauntlet/differential/cases/render.oro go`
+- compiler output changed — `gauntlet/differential/cases/render.oro go`
+- emitted text changed — `gauntlet/differential/cases/render.oro java`
+- compiler output changed — `gauntlet/differential/cases/render.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro js`
+- compiler output changed — `gauntlet/differential/cases/render.oro js`

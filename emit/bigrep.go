@@ -416,14 +416,31 @@ func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 	// One pass rather than a case in each of four backends, and the same shape
 	// `LowerLimbs` uses to remove `big-of-small`: a marker written by one pass
 	// and removed by another, so no backend learns that it exists.
-	out, n, err := promoteBig(tgt, sig, t, all...)
+	out, n, err := promoteBig(tgt, sig, t, false, all...)
 	if err != nil {
 		return nil, 0, err
 	}
 	return eraseAscriptions(out), n, nil
 }
 
-func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
+// ErrLimbsFallBack says a program on the fixed-limb rung needs an operation
+// the limb library lacks, on a target with a bignum of its own: it takes the
+// host's bignum, which the IR selects (ir.SelectBig, ADR 0034).
+var ErrLimbsFallBack = fmt.Errorf("the limb library lacks an operation this program needs")
+
+// PromoteLimbs is PromoteBig for a driver: where the limb rung would fall back
+// to the host's bignum it returns ErrLimbsFallBack, so the host's rung is
+// chosen on the IR and not by the term pass's destination rule, whose
+// condition (4) checked only a loop variable's initialiser.
+func PromoteLimbs(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
+	out, n, err := promoteBig(tgt, sig, t, true, all...)
+	if err != nil {
+		return nil, 0, err
+	}
+	return eraseAscriptions(out), n, nil
+}
+
+func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, driver bool, all ...*core.Sig) (*core.Term, int, error) {
 	// THE FIXED-LIMB RUNG COMES FIRST, because it decides how the promotion
 	// itself runs: a limb value is a TABLE, so the mutable-bignum rewrite —
 	// which writes into a host bignum object — has nothing to say about it.
@@ -468,6 +485,9 @@ func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 				"  its own to fall back to either. What it does have is addition,\n"+
 				"  subtraction, multiplication, and division by a machine word\n"+
 				"  (emit/bignum.oro).", why, tgt.Name)
+		}
+		if driver {
+			return nil, 0, ErrLimbsFallBack
 		}
 		rep, out = intervals(tgt, sig, t, 0, nil, true)
 		out, err := fitBig(tgt, out, bits, signed)
@@ -738,7 +758,7 @@ func (p *intervalPass) remByWord(t *core.Term) bool {
 // a declared range uses. There is no second notion of a type here.
 func ascribedBig(w core.Word, args []*core.Term) bool {
 	return len(args) == 2 && args[0] != nil && args[0].Kind == core.KStr &&
-		w.Exceeds(args[0].Str)
+		w.ValueType(args[0].Str) == core.BigType // above the word, ℤ included
 }
 
 // eraseAscriptions removes every `(the T e)`, leaving `e`.
@@ -763,6 +783,67 @@ func eraseAscriptions(t *core.Term) *core.Term {
 	kids := make([]*core.Term, len(t.Kids))
 	for i, k := range t.Kids {
 		kids[i] = eraseAscriptions(k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
+
+// BigPlan is how one residual takes the rung above the word: not at all, on
+// the host's bignum, chosen on the IR (ir.SelectBig, ADR 0033), or on fixed
+// limbs, which PromoteBig still selects on the term. Bits and Signed are the
+// program's one set (ADR 0029); Bits 0 enforces nothing.
+type BigPlan struct {
+	Host, Limbs bool
+	Bits        int
+	Signed      bool
+}
+
+// PlanBig decides the rung, with promoteBig's refusals: a signed program on
+// limbs, and a finite bound the host's bignum cannot enforce.
+func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPlan, error) {
+	sigs := append([]*core.Sig{sig}, all...)
+	limbs, _, bits := BigRepr(tgt, sigs...)
+	if !limbs && !tgt.HasBig() {
+		return BigPlan{}, nil
+	}
+	_, signed, _ := BigHull(tgt.Word, sigs...)
+	if bits == 0 && !DeclaresBig(tgt.Word, sig) && !MentionsBig(tgt.Word, t) {
+		return BigPlan{}, nil
+	}
+	if limbs {
+		return BigPlan{Limbs: true, Bits: bits, Signed: signed}, nil
+	}
+	if bits > 0 {
+		if _, err := fitBig(tgt, nil, bits, signed); err != nil {
+			return BigPlan{}, err
+		}
+	}
+	return BigPlan{Host: true, Bits: bits, Signed: signed}, nil
+}
+
+// EraseAscriptions removes every `(the T e)`, leaving e.
+func EraseAscriptions(t *core.Term) *core.Term { return eraseAscriptions(t) }
+
+// EraseWordAscriptions removes every ascription except one above the word,
+// which is a DEMAND the IR's selection reads (ir.SelectBig) and then erases.
+// One within the word is erased exactly as before: the decision never read
+// it, and reading it would take a declared result for a proven one.
+func EraseWordAscriptions(w core.Word, t *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, EraseWordAscriptions(w, t.Closed()))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	if op := t.Op(); op.Kind == core.KName && op.Name == core.AscribeName &&
+		len(t.Args()) == 2 && !ascribedBig(w, t.Args()) {
+		return EraseWordAscriptions(w, t.Args()[1])
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = EraseWordAscriptions(w, k)
 	}
 	return &core.Term{Kind: core.KApp, Kids: kids}
 }

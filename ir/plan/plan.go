@@ -855,6 +855,17 @@ func (p *Plan) Inlinable() map[ir.V]bool {
 			case s.Op == ir.OCall:
 				q := p.Tg.Prims[s.Name]
 				ok = q.Pure && q.Kind == "expr" && len(q.Results) < 2
+				// A BIGNUM IS AN OBJECT a destination form writes into, where the
+				// target has them (ir/bigreuse.go), so a pure call reading one
+				// is central only across no effect, like a buffer's read: moved
+				// past `a.Add(b, a)`, `new(big.Int).Mul(a, b)` reads the new a.
+				if ok && p.Tg.HasBigDest() && !quiet(i, useAt[v]) {
+					for _, a := range s.Args {
+						if p.Tg.ValueType(p.F.Types[p.Res(a)]) == core.BigType {
+							ok = false
+						}
+					}
+				}
 			case s.Op == ir.OIf:
 				// A pure, total `if` is central too; it is inlined only if the
 				// printer spells it as an expression (a connective or a

@@ -267,6 +267,52 @@ func (in *interp) call(s *Stmt, a func(int) cval) cval {
 		}
 		return y
 	}
+	// ARBITRARY PRECISION is ℤ, and an object: a value is a *big.Int that
+	// π-renaming, binding and `big-fit` share, and a destination form writes
+	// INTO its receiver, as math/big does (d.Mul(a, b)). So a destination whose
+	// receiver is read later gives a different answer here, the way it would
+	// on Go.
+	bigOp := map[string]func(z, x, y *big.Int) *big.Int{
+		"+": (*big.Int).Add, "-": (*big.Int).Sub, "*": (*big.Int).Mul,
+		"/": (*big.Int).Quo, "%": (*big.Int).Rem,
+	}
+	if len(s.Name) > 3 && s.Name[:3] == "big" {
+		name := s.Name[3:]
+		if op, ok := bigOp[name]; ok && len(s.Args) == 2 {
+			if (name == "/" || name == "%") && a(1).i.Sign() == 0 {
+				panic(fmt.Errorf("division by zero"))
+			}
+			return cval{i: op(new(big.Int), a(0).i, a(1).i)}
+		}
+		if n := len(name); n > 1 && name[n-1] == '!' && len(s.Args) == 3 {
+			if op, ok := bigOp[name[:n-1]]; ok {
+				if (name[:n-1] == "/" || name[:n-1] == "%") && a(2).i.Sign() == 0 {
+					panic(fmt.Errorf("division by zero"))
+				}
+				d := a(0).i
+				op(d, a(1).i, a(2).i)
+				return cval{i: d}
+			}
+		}
+		switch name {
+		case "-of":
+			return cval{i: new(big.Int).Set(a(0).i)}
+		case "%-small":
+			if a(1).i.Sign() == 0 {
+				panic(fmt.Errorf("division by zero"))
+			}
+			return cval{i: new(big.Int).Rem(a(0).i, a(1).i)}
+		case "<", "<=", ">", ">=", "=":
+			c := a(0).i.Cmp(a(1).i)
+			return cval{b: map[string]bool{"<": c < 0, "<=": c <= 0, ">": c > 0, ">=": c >= 0, "=": c == 0}[name]}
+		case "-fit", "-fit-signed":
+			x, k := a(0).i, uint(a(1).i.Int64())
+			if x.BitLen() > int(k) || (name == "-fit" && x.Sign() < 0) {
+				panic(fmt.Errorf("bignum overflow: the declared range is too small"))
+			}
+			return cval{i: x}
+		}
+	}
 	switch s.Name {
 	case "u64-of":
 		return cval{i: rU(a(0).i)}

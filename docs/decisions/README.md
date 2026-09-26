@@ -65,3 +65,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0031](0031-a-builds-result-is-a-product.md) | A `build`'s result is a product, and each buffer in it is frozen |
 | [0032](0032-the-ir-is-structured-ssa.md) | The IR is structured SSA with π-parameters, and representation is a type |
 | [0033](0033-an-integers-representation-is-chosen-on-the-ir.md) | An integer's representation is chosen on the IR; the checker's integer sort is ℤ |
+| [0034](0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) | The rung above the word is a least fixed point on the IR, and a bignum destination needs ownership |

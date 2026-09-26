@@ -16,7 +16,7 @@ func GenPair(v0 int) *big.Int {
 			break
 		}
 		v23 := (new(big.Int).Mul(v15, v16))
-		v24 := (new(big.Int).Add(v16, v15))
+		v24 := (v15.Add(v16, v15))
 		v15, v16 = v23, v24
 		continue
 	}

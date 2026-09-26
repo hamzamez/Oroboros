@@ -157,7 +157,7 @@ func (p *Program) AscribeWide(w Word) {
 	// and knows no target; the target's Env is where this belongs.
 	for q, sig := range p.Sigs {
 		body, ok := p.Defs[q]
-		if !ok || sig == nil || !w.Exceeds(sig.Result) {
+		if !ok || sig == nil || w.ValueType(sig.Result) != BigType { // above the word, ℤ included
 			continue
 		}
 		p.Defs[q] = ascribeResult(body, sig.Result)

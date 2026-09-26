@@ -241,6 +241,12 @@ func (v *verifier) agrees(got, want string) bool {
 	if rg, rw := sortOf(v.tg, got), sortOf(v.tg, want); rg != rw && isWordRep(rg) && isWordRep(rw) {
 		return false
 	}
+	// NOR DO A WORD AND ARBITRARY PRECISION: an exact value where a word is
+	// held is a narrowing no one proved, and a word where an exact value is
+	// held is a missing `big-of` (ir/big.go).
+	if rg, rw := sortOf(v.tg, got), sortOf(v.tg, want); (rg == core.BigType && isWordRep(rw)) || (rw == core.BigType && isWordRep(rg)) {
+		return false
+	}
 	if v.tg.Agrees(got, want) {
 		return true
 	}

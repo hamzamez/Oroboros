@@ -50,7 +50,7 @@
 == examples/big/limbs.oro windows emitted 627f637b11ff530ee33abb81e8d060592d080b57f1d8972690d8f121d423cbdf
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
-== examples/big/pair.oro go emitted 32a4efc23547b66d7b5cdcedfaa4756012ba0c2d9d4546ea49966653a5e6c4ba
+== examples/big/pair.oro go emitted f5a25e5ef44a810ae47053b72a628bd44e5b7f097465f4477af527aee4f299e4
    note: gen-pair: 2 operation(s) in arbitrary precision
    note: gen-pair: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/big/pair.oro js emitted daf2d6100224b69eb5a2558d2bc9a3b036abdc366cfc5fa8e41de927c1f11571
@@ -62,15 +62,18 @@
 == examples/big/pair.oro windows refused
    gen: pair: b needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
-== examples/big/power.oro go emitted fb18b4ac0fbe6cf4f12687d7e5f02abb69635ce91f961b225cf96416dda7e143
+== examples/big/power.oro go emitted 7a15610ef53b8c1055c013e4ecaeff42edef2f2ab2a6fe6aa19b298e3538a840
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-power: 3 division(s) became a shift or a mask
 == examples/big/power.oro js emitted 955dd4c8aa0a89e467e0b2e82ff72d92f1edf3bda76b80c37caeb4e0a40c0378
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-power: 3 division(s) became a shift or a mask
 == examples/big/power.oro java emitted 7b95ed1512d5cbebffd0f291a6473ebb4804030aa86927b205f18fd3b41f8bdd
    note: gen-power: 3 operation(s) in arbitrary precision
    note: gen-power: 0 of 0 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-power: 3 division(s) became a shift or a mask
 == examples/big/power.oro windows refused
    gen: power: acc needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
@@ -1068,15 +1071,15 @@
 == gauntlet/differential/cases/read-loop.oro windows refused
    gen: gauntlet/differential/cases/read-loop.oro: in run: os.ReadFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use os) matched no file on the search path and this target provides no module os either, so every name from it is unbound. Check the path.
-== gauntlet/differential/cases/render.oro go emitted f2a41c26b9a6e94686a7c21a6d667442bfde8033384010f4ade7964ce6a5d9a6
-   note: gen-run: 8 operation(s) in arbitrary precision
-   note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
-== gauntlet/differential/cases/render.oro js emitted 54e40af14cbc5669a2cb3218aacac5f6ad9596e25cc4a029eb147ee742900405
-   note: gen-run: 8 operation(s) in arbitrary precision
-   note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
-== gauntlet/differential/cases/render.oro java emitted ef36c627440cdd788b3f89ec1aede77a928b041c4c4e62554616b975c8de4b37
-   note: gen-run: 8 operation(s) in arbitrary precision
-   note: gen-run: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
+== gauntlet/differential/cases/render.oro go emitted 631811c4e5a328be043cd94380e70b2a96c7339aefeead4f5f292f7557c2a40d
+   note: gen-run: 6 operation(s) in arbitrary precision
+   note: gen-run: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
+== gauntlet/differential/cases/render.oro js emitted 9acadabcac33a4c3e666401b0488ee3b0fd7ae8527bd7cf6808b82ecb90b7d39
+   note: gen-run: 6 operation(s) in arbitrary precision
+   note: gen-run: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
+== gauntlet/differential/cases/render.oro java emitted bda649462bade74d0a4428a47029f0d080697f2609b0f3d082fc6efd0c87424f
+   note: gen-run: 6 operation(s) in arbitrary precision
+   note: gen-run: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
 == gauntlet/differential/cases/render.oro windows emitted 79afbb84f9b83dfa39ab964b2bafe7825fe0fcb7298534a7e82973b3e3b5731e
    note: gen-run: 15 operation(s) in arbitrary precision
    note: gen-run: 38 of 38 integer operations bounded; 18 of 19 loop(s) proven terminating

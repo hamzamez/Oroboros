@@ -78,12 +78,31 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 		} else if k > 0 {
 			nf, sig = nfl, fsig
 		}
-		if nf, _, err = emit.PromoteBig(tg, sig, nf); err != nil {
+		// THE RUNG ABOVE THE WORD, as the drivers take it (cmd/gen): fixed limbs
+		// on the term, the host's bignum on the IR.
+		plan, err := emit.PlanBig(tg, sig, nf)
+		if err != nil {
 			return nil, nil, err
+		}
+		switch {
+		case plan.Limbs:
+			if nf, _, err = emit.PromoteBig(tg, sig, nf); err != nil {
+				return nil, nil, err
+			}
+		case plan.Host:
+			nf = emit.EraseWordAscriptions(tg.Word, nf)
+		default:
+			nf = emit.EraseAscriptions(nf)
 		}
 		f, err := Lower(tg, name, sig, nf, opt)
 		if err != nil {
 			return nil, nil, err
+		}
+		if plan.Host {
+			Decide(tg, f, false)
+			if _, err := SelectBig(tg, f, sig, plan.Bits, plan.Signed); err != nil {
+				return nil, nil, err
+			}
 		}
 		p.Funcs = append(p.Funcs, f)
 	}

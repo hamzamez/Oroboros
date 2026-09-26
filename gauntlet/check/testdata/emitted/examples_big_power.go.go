@@ -19,7 +19,7 @@ func GenPower(v0 int, v1 int) *big.Int {
 		v37 := (v35 == 1)
 		if v37 {
 			v38 := (v27.Mul(v27, v28))
-			v39 := (new(big.Int).Mul(v28, v28))
+			v39 := (v28.Mul(v28, v28))
 			v41 := (v29 >> 1)
 			v27, v28, v29 = v38, v39, v41
 			continue

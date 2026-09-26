@@ -8,6 +8,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -174,22 +175,34 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		nf, esig = nfl, fsig
 		fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", k)
 	}
-	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE (emit/bigrep.go). It runs
-	// BEFORE the checker because the promotion is part of what the program
-	// MEANS: the checker types `(* acc i)` as `int` and would refuse it against
-	// a value the program has said is bigger than a word.
-	nb, n, err := emit.PromoteBig(tg, esig, nf, allSigs(prog)...)
+	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE — see cmd/gen: on the
+	// host's bignum a representation chosen on the IR, on fixed limbs still
+	// PromoteBig before the checker.
+	plan, err := emit.PlanBig(tg, esig, nf, allSigs(prog)...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}
-	// THE ERASED TERM IS KEPT EVEN WHEN NOTHING WAS PROMOTED. PromoteBig is
-	// also where every ascription is removed, and a body that folded to a
-	// literal under a declared wide range promotes nothing and still carries
-	// one: `(the "int 0 …" 1000000000000000000)`, which no backend emits. It was
-	// unreachable while folding stopped at 2^53 (ADR 0026 made it reachable).
-	nf = nb
-	if n > 0 {
-		fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
+	switch {
+	case plan.Limbs:
+		nb, n, err := emit.PromoteLimbs(tg, esig, nf, allSigs(prog)...)
+		if errors.Is(err, emit.ErrLimbsFallBack) {
+			// the limb library lacks an operation: the host's bignum, on the IR
+			plan = emit.BigPlan{Host: true, Bits: plan.Bits, Signed: plan.Signed}
+			tg.BigRepr = "host" // the program holds the host's bignum from here (emit/bigrep.go)
+			nf = emit.EraseWordAscriptions(tg.Word, nf)
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("%s: %w", entry, err)
+		}
+		nf = nb
+		if n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
+		}
+	case plan.Host:
+		nf = emit.EraseWordAscriptions(tg.Word, nf)
+	default:
+		nf = emit.EraseAscriptions(nf)
 	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
 	// Java the host would catch most of this; on JavaScript nothing would.
@@ -215,6 +228,16 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		return err
 	}
 	leg := ir.Decide(tg, fA, checked)
+	// THE RUNG ABOVE THE WORD, chosen on the decided function (ir/big.go).
+	if plan.Host {
+		if _, err := ir.SelectBig(tg, fA, esig, plan.Bits, plan.Signed); err != nil {
+			return fmt.Errorf("%s: %v", entry, err)
+		}
+		if n := ir.BigOps(fA); n > 0 {
+			fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
+		}
+		leg = ir.Decide(tg, fA, checked)
+	}
 	// THE UNSIGNED WORD, chosen on the decided function (ADR 0033, cmd/gen).
 	if changed, err := ir.SelectWords(tg, fA); err != nil {
 		return fmt.Errorf("%s: %v", entry, err)

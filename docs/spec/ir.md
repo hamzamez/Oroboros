@@ -36,8 +36,9 @@ source ──read──▶ terms ──stage──▶ residual ──contracts, 
                                                                                     host code
 ```
 
-- **Staging stays on terms**, and so do the passes that rewrite terms before lowering (`FlattenProducts`,
-  `PromoteBig`, `SelectWords`). The residual that reaches L is closed, monomorphic and first-order
+- **Staging stays on terms**, and so do the passes that rewrite terms before lowering: `FlattenProducts`,
+  and `PromoteBig` for the fixed-limb rung only. The unsigned word and the host's bignum are chosen on
+  the IR (§7.2). The residual that reaches L is closed, monomorphic and first-order
   (research Theorem A).
 - **One format, two stages.** IR_A is what lowering produces and the analyses read. IR_P is what a
   printer reads. They share the syntax. IR_P is IR_A with two operations removed and every type final
@@ -604,6 +605,30 @@ realization by the homomorphism; / % and the orders in one holding both operands
 crossing is an obligation. The function is then decided again. W5 treats S and U as different
 representations.
 
+**The rung above the word** (`SelectBig`, ADR 0034), on a target holding it in the host's bignum, runs
+before the unsigned word. B, the values held exactly, is the least set closed under two rules.
+- **Supply.** A parameter declared above the word, a `big` result, and a language + − · / with an
+  operand in B. A remainder with its divisor in B. A join with an incoming value in B. A closed
+  constant term outside S.
+- **Demand.** These positions demand an exact value: a result declared above the word, a `big`
+  argument, an ascription above the word, the incoming values of a join in B, the operands of an
+  operation in B, and both operands of a comparison with one in B. A demanded value is in B iff its
+  fact is not inside S; otherwise it is widened by `big-of` where it is used.
+
+The rewrite follows. An operation in B becomes `big+ − · / %`, wrapped in `big-fit` or
+`big-fit-signed` when the program declares a finite set (ADR 0029). A remainder of a value in B by a
+word is `big%-small`, a word. A comparison with an operand in B becomes `big< … big=`, and its
+π-parameters are dropped, since it is no longer an IR comparison. A value of B at a position declared
+in the word is refused. Ascriptions are then erased, and the function is decided again, where nothing
+held exactly is counted. W5 treats a word and `big` as different representations.
+
+On a target whose bignum is written into (`big+!`, Go's), a loop parameter that is **owned** may be
+the destination of an arithmetic call reaching a continue, when the call reads it and nothing that
+may hold its object is read after the call in the iteration. Owned means every value bound to the
+parameter is either a fresh allocation read once, allocated in this iteration if on a continue, or
+another owned parameter's object, with no object bound twice. A printer may move a pure call reading
+a bignum only across no effect (§9.4).
+
 Two more readings of the same facts follow the decision:
 - **an export's postcondition** (`CheckEnsures`). Its constant bounds denote a set S, and the join R of
   the function's yields must satisfy R ⊆ S. A postcondition outside that fragment is refused;
@@ -765,7 +790,7 @@ hand-written code, and a change to it is re-measured.
 | **several results** | a function's results print as an object on JavaScript, natively on Go and as a record on Java | products (§1.1) | multiresult-2026-08-22 |
 | **buffer reuse** | a `build` in a loop body whose buffer is dead at the `continue` alternates with a spare allocated once | W7: the old buffer has no later read or consumer | 2.5–2.7× (native-gauntlet-2026-08-20) |
 | **element width** | a table's element type is its class's join (Theorem D) | §4.3 | elemwidth-2026-08-27; a soundness question on x86 (wintables-2026-08-25) |
-| **β-inlining (JavaScript only)** | a value read once, in the region that defines it, is written at its use instead of bound to a `const`. **Not on Java**: inlining booleans measured ±10% in opposite directions on two programs, under the noise floor (irstep3java-2026-09-25 §3) | L1 (β for `let`) and L6. The value is pure and total, and is not moved into a nested region (a loop would repeat it). A read of a **buffer** is inlined only when no effect lies between it and its use, so no store can come between | with conditional expressions (next row), recovered the JSON tokeniser from 1.21× to 1.01× of the term backend (irstep3-2026-09-25) |
+| **β-inlining (JavaScript only)** | a value read once, in the region that defines it, is written at its use instead of bound to a `const`. **Not on Java**: inlining booleans measured ±10% in opposite directions on two programs, under the noise floor (irstep3java-2026-09-25 §3) | L1 (β for `let`) and L6. The value is pure and total, and is not moved into a nested region (a loop would repeat it). A read of a **buffer** is inlined only when no effect lies between it and its use, so no store can come between, and so is a pure read of a **bignum** on a target that writes into one (ADR 0034) | with conditional expressions (next row), recovered the JSON tokeniser from 1.21× to 1.01× of the term backend (irstep3-2026-09-25) |
 | **conditional expressions (JavaScript)** | an `if`, or a branch terminator, whose arms are expression trees prints `c ? a : b` | the coproduct as a value (L2). Go has none (`Speller.Cond` answers ""), which keeps Go byte-identical | the same measurement |
 | **packed JavaScript arrays** | `build` of a numeric table prints `new Array(n).fill(0)` or a typed array | zero fill is `build`'s meaning (§5.3) | a sparse array is a dictionary on V8 |
 

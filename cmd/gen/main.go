@@ -6,6 +6,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -206,21 +207,36 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			nf, usig = nfl, fsig
 			fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, k)
 		}
-		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE (emit/bigrep.go). Before
-		// the checker, because the promotion is part of what the program MEANS:
-		// `(* acc i)` types as `int` and would be refused against a result the
-		// program has declared bigger than a machine word.
-		nb, n, err := emit.PromoteBig(tg, usig, nf, allSigs(prog)...)
+		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE. On the host's bignum it
+		// is a representation chosen on the IR (ir.SelectBig, ADR 0033), and
+		// the term keeps only the ascriptions above the word, which are its
+		// demands. On fixed limbs it is still PromoteBig, before the checker,
+		// because the limb library is spliced into the term.
+		plan, err := emit.PlanBig(tg, usig, nf, allSigs(prog)...)
 		if err != nil {
 			return fmt.Errorf("%s: %w", fname, err)
 		}
-		// THE ERASED TERM IS KEPT EVEN WHEN NOTHING WAS PROMOTED: PromoteBig is
-		// also where every ascription is removed, and a body that folded to a
-		// literal under a declared wide range promotes nothing and still carries
-		// one — unreachable while folding stopped at 2^53 (ADR 0026).
-		nf = nb
-		if n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
+		switch {
+		case plan.Limbs:
+			nb, n, err := emit.PromoteLimbs(tg, usig, nf, allSigs(prog)...)
+			if errors.Is(err, emit.ErrLimbsFallBack) {
+				// the limb library lacks an operation: the host's bignum, on the IR
+				plan = emit.BigPlan{Host: true, Bits: plan.Bits, Signed: plan.Signed}
+				tg.BigRepr = "host" // the program holds the host's bignum from here (emit/bigrep.go)
+				nf = emit.EraseWordAscriptions(tg.Word, nf)
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("%s: %w", fname, err)
+			}
+			nf = nb
+			if n > 0 {
+				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
+			}
+		case plan.Host:
+			nf = emit.EraseWordAscriptions(tg.Word, nf)
+		default:
+			nf = emit.EraseAscriptions(nf)
 		}
 		sig := usig
 		// Check the residual before emitting it (docs/spec/types.md). On Go and
@@ -262,6 +278,18 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		leg := ir.Decide(tg, fA, checked)
+		// THE RUNG ABOVE THE WORD (ir/big.go): the least set of values held
+		// exactly, on the decided function's facts; decided again after, where
+		// no operation held exactly is counted.
+		if plan.Host {
+			if _, err := ir.SelectBig(tg, fA, sig, plan.Bits, plan.Signed); err != nil {
+				return fmt.Errorf("%s: %v", fname, err)
+			}
+			if n := ir.BigOps(fA); n > 0 {
+				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
+			}
+			leg = ir.Decide(tg, fA, checked)
+		}
 		// THE UNSIGNED WORD (ADR 0033, ir/words.go): each integer value's
 		// realization is ρ of its fact, and a value in U outside the signed word
 		// is a machine word on a target that realizes U. Chosen on the decided

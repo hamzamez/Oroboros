@@ -252,6 +252,15 @@ func (c *checker) agree(what, got, want string) error {
 	if isWordSort(c.tgt, got) && isWordSort(c.tgt, want) {
 		return nil
 	}
+	// AND ABOVE THE WORD (ADR 0033, ir/big.go): that a value is held exactly is
+	// a representation too, chosen on the IR by its fact, and a value held
+	// exactly reaching a word position is refused there. Only the capability
+	// is a fact about sorts: a target with no bignum cannot hold ℤ at all.
+	if isIntSort(c.tgt, got) && isIntSort(c.tgt, want) &&
+		!(c.tgt.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
+			(core.UnboundedRange(want) || want == core.BigType)) {
+		return nil
+	}
 	// A RANGE WIDER THAN THE WORD gets its own message, because "but int is
 	// required here" is true and explains nothing. This is the rung above the
 	// host's word, and two different things can go wrong there.
@@ -271,24 +280,6 @@ func (c *checker) agree(what, got, want string) error {
 			"parasitize the host's own. A target without one needs a bignum WRITTEN, in "+
 			"Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).",
 			what, core.ShowType(want), c.tgt.Name, c.tgt.Word)
-	}
-	// THE PROGRAM USED A BIGNUM WHERE A WORD IS REQUIRED. That refusal is the
-	// point rather than a wart: the promotion is a WIDENING, not a refinement, so
-	// it may not happen silently in the narrowing direction.
-	// `got` is the declared range itself — finite-but-huge or INFINITE — or,
-	// once the representation has been selected, the `big` it normalises to.
-	// The same claim arrives from three directions and all three have to be
-	// caught, or the one that is missed falls through to "but int is required
-	// here", which is true and explains nothing.
-	if (c.tgt.Word.Exceeds(got) || core.UnboundedRange(got) || got == core.BigType) &&
-		c.tgt.ValueType(want) == "int" {
-		return fmt.Errorf("%s is %s, which is WIDER than the word of target %s, %s, so on "+
-			"this target it is not an `int` — it is arbitrary precision, a rung above "+
-			"the host's word (ADR 0026, docs/unbounded-rung.md).\n"+
-			"  A range above the word is a WIDENING, not a refinement: a value that "+
-			"may leave the machine word cannot silently be used where an `int` is "+
-			"required, and this refusal is where that is said. Widen the destination, "+
-			"or take the value to a string with `big-str`.", what, core.ShowType(got), c.tgt.Name, c.tgt.Word)
 	}
 	// THE UNSIGNED WORD WHERE THE SIGNED ONE IS REQUIRED (ADR 0026 (10)). The
 	// value is a machine word on this target — just the other one, and the two
@@ -590,6 +581,10 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			// Checking the declaration verbatim refuses a body that produces
 			// limbs, which is true of the declaration and false of the code.
 			onLimbs, _, _ := BigRepr(tgt, all...)
+			// AND ONLY IF IT STAYED THERE: a program needing an operation the
+			// limb library lacks was taken back to the host's bignum, whose
+			// operations the promoted term still names.
+			onLimbs = onLimbs && !MentionsBig(tgt.Word, nf)
 			sig = LimbSig(tgt.Word, sig, onLimbs)
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err
@@ -666,14 +661,40 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		// carry a `sig` with a concrete result (json-tree-2026-08-26).
 		// The integer sort is ℤ (ADR 0033): a body typed `int` against a result
 		// declared in U is a membership claim the IR decides, not a mismatch.
+		// A BIGNUM WHERE THE SIGNATURE DECLARES A WORD: this check runs on a
+		// residual whose representation PromoteBig has chosen, so here a sort
+		// IS a representation, and the promotion is a widening.
+		if pass == 1 && (tgt.Word.Exceeds(got) || core.UnboundedRange(got) || got == core.BigType) &&
+			isWordSort(tgt, sig.Result) {
+			return fmt.Errorf("%s: %w", name, WiderThanWord(tgt, "its result", got))
+		}
 		if pass == 1 && !compatible(tgt, got, sig.Result) &&
 			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) &&
-			!(isWordSort(tgt, got) && isWordSort(tgt, sig.Result)) {
+			!(isIntSort(tgt, got) && isIntSort(tgt, sig.Result)) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}
 	}
 	return nil
+}
+
+// WiderThanWord is the refusal of a value held above the word where a word is
+// required: the promotion is a WIDENING, not a refinement, so it may not
+// happen silently in the narrowing direction (unbounded-rung.md §3).
+func WiderThanWord(tg *Target, what, got string) error {
+	return fmt.Errorf("%s is %s, which is WIDER than the word of target %s, %s, so on "+
+		"this target it is not an `int` — it is arbitrary precision, a rung above "+
+		"the host's word (ADR 0026, docs/unbounded-rung.md).\n"+
+		"  A range above the word is a WIDENING, not a refinement: a value that "+
+		"may leave the machine word cannot silently be used where an `int` is "+
+		"required, and this refusal is where that is said. Widen the destination, "+
+		"or take the value to a string with `big-str`.", what, core.ShowType(got), tg.Name, tg.Word)
+}
+
+// isIntSort reports a type of the integer sort ℤ, in any realization: a word,
+// or above it (ADR 0033).
+func isIntSort(tg *Target, ty string) bool {
+	return isWordSort(tg, ty) || (ty != "" && tg.ValueType(ty) == core.BigType)
 }
 
 // isWordSort reports an integer type realized at word width, in either

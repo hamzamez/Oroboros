@@ -272,73 +272,77 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		} else if note != "" {
 			fmt.Fprintln(os.Stderr, "note:", fname+": "+note)
 		}
-		rep, sel := emit.Intervals(tg, sig, nf, 0)
+		// THE TERM ANALYSIS still counts loops (termination is not yet on the IR)
+		// and carries the passes that are not: legality and modes are the IR's.
+		rep, _ := emit.Intervals(tg, sig, nf, 0)
+		// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
+		// dividend non-negative and inside the target's declared shift width
+		// (shiftdiv-2026-09-03). BEFORE the decision, so the IR decides the term
+		// the backend prints, once: a rewrite of divisions only, whose mask and
+		// shift the IR's domain knows the laws of (andIV, shrIV).
+		unshifted := nf
+		shifts := 0
+		if sh, k := emit.SelectShifts(tg, sig, nf); k > 0 {
+			nf, shifts = sh, k
+		}
+		// THE DECISION (ADR 0032 step 4, spec §7): the IR's interval domain
+		// proves each counted operation inside its set or it does not, which
+		// decides legality and each operation's mode (ir/decide.go).
+		fA, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true})
+		if err != nil {
+			return err
+		}
+		leg := ir.Decide(tg, fA, checked)
 		// AN OPERATION THE UNSIGNED WORD WOULD HOLD, and the selection has not run:
-		// select it and check again, once.
-		if rep.InU && !worded {
+		// select it on the UNSHIFTED term, as it always was, and check again.
+		if leg.InU && !worded {
+			nf = unshifted
 			selectWords()
 			goto checks
 		}
-		if rep.Ops > 0 || rep.Loops > 0 {
+		if leg.Ops > 0 || rep.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
 				"%d of %d loop(s) proven terminating\n",
-				fname, rep.Proven, rep.Ops, rep.Terminates, rep.Loops)
+				fname, leg.Proven, leg.Ops, rep.Terminates, rep.Loops)
 		}
-		// THE SHADOW (ADR 0032 step 4): the IR's interval domain as a legality
-		// checker, on the same residual the count above is taken on.
+		// THE SHADOW, kept while the term analysis exists: its count beside the
+		// IR's, which decides.
 		if irProof {
-			if f, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true}); err != nil {
-				fmt.Fprintf(os.Stderr, "irproof: %s: lowering: %v\n", fname, err)
-			} else {
-				p, n, hp, h, miss := ir.ProofCount(tg, f)
-				fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d, host %d of %d\n", fname, rep.Proven, rep.Ops, p, n, hp, h)
-				for _, m := range miss {
-					fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
-				}
-				for _, m := range rep.Unproven {
-					fmt.Fprintf(os.Stderr, "termmiss: %s: %s\n", fname, m)
-				}
+			fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d\n", fname, rep.Proven, rep.Ops, leg.Proven, leg.Ops)
+			for _, m := range leg.Unproven {
+				fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
+			}
+			for _, m := range rep.Unproven {
+				fmt.Fprintf(os.Stderr, "termmiss: %s: %s\n", fname, m)
 			}
 		}
-		// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: it
-		// takes the trap instead of the refusal.
-		if checked {
-			nf = sel
-		} else if err := emit.Unbounded(fname, rep); err != nil {
-			return err
+		// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the
+		// IR has written `trap` where the proof failed.
+		if !checked {
+			if err := leg.Refusal(fname, tg); err != nil {
+				return err
+			}
 		}
-		// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
-		// dividend non-negative and inside the target's declared shift width
-		// (shiftdiv-2026-09-03). LAST, because the fixed-limb library's own
-		// carry splits are spliced in by the promotion above and are what this
-		// is most for; and its own pass, because `Intervals` below has the
-		// checked selection ON and using its rebuilt term by default would
-		// reverse ADR 0012 without an ADR.
-		if sh, k := emit.SelectShifts(tg, sig, nf); k > 0 {
-			nf = sh
-			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, k)
+		if shifts > 0 {
+			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, shifts)
 		}
-		// THE IR (ADR 0032), lowered from exactly what the backend receives. It is
-		// written beside the code and changes nothing the backend does; cmd/check's
-		// `ir` step reads it (docs/spec/ir.md §11: lowering is total on the corpus).
+		// THE IR (ADR 0032), the decided IR_A the backend receives. It is
+		// written beside the code; cmd/check's `ir` step reads it (docs/spec/
+		// ir.md §11: lowering is total on the corpus).
 		if irOut != "" {
-			if f, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true}); err != nil {
-				irErrs = append(irErrs, err.Error())
-			} else {
-				irProg.Funcs = append(irProg.Funcs, f)
-			}
+			irProg.Funcs = append(irProg.Funcs, fA.Clone())
 		}
 		// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
 		var code string
 		switch backend {
 		case "js":
-			code, err = js.FromResidual(tg, fname, sig, nf)
+			code, err = js.FromFunc(tg, fA)
 		case "java":
-			code, err = java.FromResidual(tg, fname, sig, nf)
+			code, err = java.FromFunc(tg, fA)
 		case "x86-64":
-			code, err = x86.FromResidual(tg, fname, sig, nf)
+			code, err = x86.FromFunc(tg, fA)
 		case "go":
-			code, err = golang.FromResidual(tg, fname, sig, nf)
+			code, err = golang.FromFunc(tg, fA)
 		default:
 			return fmt.Errorf("no code generator for backend %q", backend)
 		}

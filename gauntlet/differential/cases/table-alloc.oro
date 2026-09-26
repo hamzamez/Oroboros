@@ -1,5 +1,7 @@
 ; inputs: 0 1 4 9
-; checked: go js java windows — the elements of `(alloc (table n f))` get no bound, so their sum is a trip count times an unbounded element (bounds-2026-09-24)
+; Was built -checked: the term analysis gave these elements no bound
+; (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
+; is proven on every target (irstep4c-2026-09-26).
 ; expect: 0 1 30 285
 ;
 ; `alloc` — the GATHER. A rule put in memory, pure and parallel by

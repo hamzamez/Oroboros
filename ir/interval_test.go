@@ -27,59 +27,81 @@ func member(x *big.Int, a iv) bool {
 	if a.bot {
 		return false
 	}
-	if !a.nlo && x.Cmp(big.NewInt(a.lo)) < 0 {
+	if !a.nlo && x.Cmp(a.lo.big()) < 0 {
 		return false
 	}
-	if !a.phi && x.Cmp(big.NewInt(a.hi)) > 0 {
+	if !a.phi && x.Cmp(a.hi.big()) > 0 {
 		return false
 	}
 	return true
 }
 
-// samples are concrete members of a: its ends, a few inside, and far values
-// on an infinite side.
-func samples(a iv) []int64 {
-	var out []int64
+// samples are concrete members of a: its ends, a few inside, 0 and ±1 when
+// they are members, and far values on an infinite side (past every end, 2¹³⁰).
+func samples(a iv) []*big.Int {
 	if a.bot {
 		return nil
 	}
-	lo, hi := a.lo, a.hi
+	var out []*big.Int
+	add := func(x *big.Int) {
+		if member(x, a) {
+			out = append(out, x)
+		}
+	}
+	far := new(big.Int).Lsh(big.NewInt(1), 130)
 	if a.nlo {
-		lo = math.MinInt64
-		out = append(out, math.MinInt64, -1<<40, -7)
+		add(new(big.Int).Neg(far))
+		add(big.NewInt(math.MinInt64))
+		add(big.NewInt(-1 << 40))
+		add(big.NewInt(-7))
 	}
 	if a.phi {
-		hi = math.MaxInt64
-		out = append(out, math.MaxInt64, 1<<40, 7)
+		add(far)
+		add(big.NewInt(math.MaxInt64))
+		add(big.NewInt(1 << 40))
+		add(big.NewInt(7))
 	}
-	out = append(out, lo, hi)
-	if !a.nlo && !a.phi {
-		// count, not compare: x++ past MaxInt64 would wrap to a non-member
-		for k := int64(0); k < 20 && lo+k <= hi && lo+k >= lo; k++ {
-			out = append(out, lo+k)
+	if !a.nlo {
+		for k := int64(0); k < 20; k++ {
+			add(new(big.Int).Add(a.lo.big(), big.NewInt(k)))
+		}
+	}
+	if !a.phi {
+		for k := int64(0); k < 3; k++ {
+			add(new(big.Int).Sub(a.hi.big(), big.NewInt(k)))
 		}
 	}
 	for _, x := range []int64{0, 1, -1} {
-		if (a.nlo || x >= a.lo) && (a.phi || x <= a.hi) {
-			out = append(out, x)
-		}
+		add(big.NewInt(x))
 	}
 	return out
 }
 
 // domains: every closed interval inside [−6, 6], each with its half-open
-// variants, the boundary intervals, and ⊤.
+// variants, the boundary intervals of int64, of U and of E, and ⊤.
 func domains() []iv {
 	var out []iv
 	for lo := int64(-6); lo <= 6; lo++ {
 		for hi := lo; hi <= 6; hi++ {
 			out = append(out, rangeIV(lo, hi))
 		}
-		out = append(out, iv{lo: lo, phi: true}, iv{hi: lo, nlo: true})
+		out = append(out, iv{lo: ei(lo), phi: true}, iv{hi: ei(lo), nlo: true})
 	}
+	e := func(x *big.Int) ep {
+		v, ok := fromBig(x)
+		if !ok {
+			panic(x)
+		}
+		return v
+	}
+	p := func(k uint) *big.Int { return new(big.Int).Lsh(big.NewInt(1), k) }
+	d := func(x *big.Int, k int64) *big.Int { return new(big.Int).Add(x, big.NewInt(k)) }
 	out = append(out, ivTop,
 		rangeIV(math.MaxInt64-3, math.MaxInt64), rangeIV(math.MinInt64, math.MinInt64+3),
-		rangeIV(-1<<62, 1<<62), rangeIV(1<<32, 1<<33), rangeIV(-(1<<33), -(1<<32)))
+		rangeIV(-1<<62, 1<<62), rangeIV(1<<32, 1<<33), rangeIV(-(1<<33), -(1<<32)),
+		rangeE(two63, u64Max), rangeE(e(d(p(64), -3)), u64Max), ivU,
+		rangeE(e(d(p(126), -4)), eMax), rangeE(eMax.neg(), e(d(new(big.Int).Neg(p(126)), 4))),
+		rangeE(ep{}, e(p(100))), iv{lo: two64, phi: true}, iv{hi: two63.neg(), nlo: true})
 	return out
 }
 
@@ -109,9 +131,9 @@ var binRows = []binRow{
 
 func checkBin(t *testing.T, r binRow, a, b iv) {
 	out := r.abs(a, b)
-	for _, x := range samples(a) {
-		for _, y := range samples(b) {
-			bx, by := big.NewInt(x), big.NewInt(y)
+	for _, bx := range samples(a) {
+		for _, by := range samples(b) {
+			x, y := bx, by
 			c, ok := r.con(bx, by)
 			if !ok {
 				continue
@@ -119,6 +141,35 @@ func checkBin(t *testing.T, r binRow, a, b iv) {
 			if !member(c, out) {
 				t.Fatalf("%s: %d ∈ %s, %d ∈ %s gives %s, not in %s", r.name, x, show(a), y, show(b), c, show(out))
 			}
+		}
+	}
+}
+
+// maskShiftRows are the mask and the shift SelectShifts writes: two's
+// complement AND, and the right shift on a non-negative operand (where the
+// logical and the arithmetic shift agree), by a count in [0, 62]. Outside that
+// the transfer claims nothing, and the row checks only what it claims.
+var maskShiftRows = []binRow{
+	{"and", andIV, func(x, y *big.Int) (*big.Int, bool) { return new(big.Int).And(x, y), true }}, // big's And is two's complement
+	{"shr", shrIV, func(x, k *big.Int) (*big.Int, bool) {
+		if x.Sign() < 0 || !k.IsInt64() || k.Int64() < 0 || k.Int64() > 62 {
+			return nil, false
+		}
+		return new(big.Int).Rsh(x, uint(k.Int64())), true
+	}},
+}
+
+// TestTheMaskAndTheShiftAreSound: andIV and shrIV against ℤ's operations,
+// exhaustively on the test domains and on shift counts up to 62.
+func TestTheMaskAndTheShiftAreSound(t *testing.T) {
+	ds := domains()
+	ks := []iv{rangeIV(0, 0), rangeIV(1, 1), rangeIV(0, 3), rangeIV(5, 62), rangeIV(62, 62), rangeIV(2, 6)}
+	for _, a := range ds {
+		for _, b := range ds {
+			checkBin(t, maskShiftRows[0], a, b)
+		}
+		for _, k := range append(ks, ds...) {
+			checkBin(t, maskShiftRows[1], a, k)
 		}
 	}
 }
@@ -135,7 +186,7 @@ func TestIntervalSoundnessExhaustive(t *testing.T) {
 	for _, a := range ds {
 		out := negIV(a)
 		for _, x := range samples(a) {
-			c := new(big.Int).Neg(big.NewInt(x))
+			c := new(big.Int).Neg(x)
 			if !member(c, out) {
 				t.Fatalf("neg: %d ∈ %s gives %s, not in %s", x, show(a), c, show(out))
 			}
@@ -166,10 +217,10 @@ func TestIntervalSoundnessRandom(t *testing.T) {
 // TestNarrowIsSound: a π's fact (Theorem E). For x ∈ a and o ∈ b with
 // `x rel o`, x ∈ narrow(a, rel, b).
 func TestNarrowIsSound(t *testing.T) {
-	rels := map[string]func(x, o int64) bool{
-		"lt": func(x, o int64) bool { return x < o }, "le": func(x, o int64) bool { return x <= o },
-		"gt": func(x, o int64) bool { return x > o }, "ge": func(x, o int64) bool { return x >= o },
-		"eq": func(x, o int64) bool { return x == o }, "ne": func(x, o int64) bool { return x != o },
+	rels := map[string]func(c int) bool{
+		"lt": func(c int) bool { return c < 0 }, "le": func(c int) bool { return c <= 0 },
+		"gt": func(c int) bool { return c > 0 }, "ge": func(c int) bool { return c >= 0 },
+		"eq": func(c int) bool { return c == 0 }, "ne": func(c int) bool { return c != 0 },
 	}
 	ds := domains()
 	for rel, holds := range rels {
@@ -178,7 +229,7 @@ func TestNarrowIsSound(t *testing.T) {
 				out := narrowIV(a, rel, b)
 				for _, x := range samples(a) {
 					for _, o := range samples(b) {
-						if holds(x, o) && !member(big.NewInt(x), out) {
+						if holds(x.Cmp(o)) && !member(x, out) {
 							t.Fatalf("narrow %s: %d ∈ %s with %d ∈ %s holds, but %d ∉ %s", rel, x, show(a), o, show(b), x, show(out))
 						}
 					}
@@ -196,7 +247,7 @@ func TestLatticeLaws(t *testing.T) {
 		for _, b := range ds {
 			j, m, w := joinIV(a, b), meetIV(a, b), widenIV(a, b)
 			for _, x := range append(samples(a), samples(b)...) {
-				bx := big.NewInt(x)
+				bx := x
 				inA, inB := member(bx, a), member(bx, b)
 				if (inA || inB) && !member(bx, j) {
 					t.Fatalf("join: %d ∈ %s ∪ %s but ∉ %s", x, show(a), show(b), show(j))
@@ -217,13 +268,13 @@ func TestLatticeLaws(t *testing.T) {
 // (2) An ascending chain of it stabilises: repeatedly widening against a
 // growing sequence changes each end at most |T| + 1 times.
 func TestThresholdWideningIsAWidening(t *testing.T) {
-	th := []int64{-5, -1, 0, 2, 3, 6, math.MaxInt64}
+	th := []ep{ei(-5), ei(-1), ei(0), ei(2), ei(3), ei(6), ei(math.MaxInt64), u64Max}
 	ds := domains()
 	for _, a := range ds {
 		for _, b := range ds {
 			w := widenIVT(a, b, th)
 			for _, x := range append(samples(a), samples(b)...) {
-				bx := big.NewInt(x)
+				bx := x
 				if (member(bx, a) || member(bx, b)) && !member(bx, w) {
 					t.Fatalf("widen with thresholds: %d ∈ %s ∪ %s but ∉ %s", x, show(a), show(b), show(w))
 				}
@@ -326,18 +377,18 @@ func TestTheUnsignedTransfersAreTheResidueMap(t *testing.T) {
 	inU := func(x *big.Int) bool { return x.Sign() >= 0 && x.Cmp(two64) < 0 }
 	wide := func(a iv) []*big.Int {
 		var out []*big.Int
-		for _, x := range samples(a) {
-			out = append(out, new(big.Int).SetInt64(x))
-		}
-		if a.phi && !a.bot {
-			out = append(out, new(big.Int).Set(two63), new(big.Int).Sub(two64, big.NewInt(1)), new(big.Int).Add(two63, big.NewInt(12345)))
+		out = append(out, samples(a)...)
+		for _, x := range []*big.Int{new(big.Int).Set(two63), new(big.Int).Sub(two64, big.NewInt(1)), new(big.Int).Add(two63, big.NewInt(12345))} {
+			if member(x, a) {
+				out = append(out, x)
+			}
 		}
 		return out
 	}
 	ds := domains()
 	for _, a := range ds {
 		for _, x := range samples(a) {
-			bx := new(big.Int).SetInt64(x)
+			bx := x
 			if y := rU(bx); !member(y, u64Of(a)) {
 				t.Fatalf("u64-of %d = %s ∉ %s (x ∈ %s)", x, y, show(u64Of(a)), show(a))
 			}

@@ -91,8 +91,7 @@ Lbuilt11:
         mov qword ptr [rax], 9
 Ltop20:
         mov r10, 9
-        add r10, 1
-        shl r10, 3
+        add r10, 8
         xor ecx, ecx
         mov rdx, r10
         mov r8, 3000h
@@ -113,7 +112,7 @@ Ltop25:
 Lelse27:
         mov r12, rbx
         and r12, 16777215
-        mov qword ptr [r14+r15*8+8], r12
+        mov byte ptr [r14+r15+8], r12b
         add r15, 1
         mov rcx, 24
         shr rbx, cl
@@ -157,7 +156,7 @@ Lelse40:
         mov r15, 0
         jmp Ldone41
 Lelse42:
-        mov r15, qword ptr [rbx+r12*8+8]
+        movzx r15d, byte ptr [rbx+r12+8]
 Ldone41:
         cmp r15, 0
         jge Lelse43
@@ -202,7 +201,7 @@ Lelse53:
         mov r15, 0
         jmp Ldone54
 Lelse55:
-        mov r15, qword ptr [rbx+r12*8+8]
+        movzx r15d, byte ptr [rbx+r12+8]
 Ldone54:
         cmp r15, 0
         jge Lelse56

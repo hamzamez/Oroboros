@@ -3,6 +3,8 @@ package emit
 import (
 	"fmt"
 	"strings"
+
+	"oroboros/core"
 )
 
 // BOUNDED BY DEFAULT — ADR 0019's decision, made real.
@@ -33,13 +35,23 @@ func Unbounded(what string, rep *IntervalReport) error {
 	if rep == nil || rep.Proven == rep.Ops {
 		return nil
 	}
-	n := rep.Ops - rep.Proven
+	return fmt.Errorf("%s", unboundedText(what, rep.Ops, rep.Proven, rep.Target, rep.Word, rep.Outside, rep.Unproven))
+}
+
+// UnboundedText is the refusal's text for a decision made elsewhere: the IR's
+// (ir.Decide, ADR 0032 step 4) says the sentence the term analysis said.
+func UnboundedText(what string, ops, proven int, tg *Target, outside bool, unproven []string) string {
+	return unboundedText(what, ops, proven, tg.Name, tg.Word, outside, unproven)
+}
+
+func unboundedText(what string, ops, proven int, target string, word core.Word, outside bool, unproven []string) string {
+	n := ops - proven
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s: %d of %d integer operation(s) cannot be proven to stay "+
-		"inside the word of target %s, %s", what, n, rep.Ops, rep.Target, rep.Word)
-	for i, u := range rep.Unproven {
+		"inside the word of target %s, %s", what, n, ops, target, word)
+	for i, u := range unproven {
 		if i == 3 {
-			fmt.Fprintf(&b, "\n  … and %d more", len(rep.Unproven)-3)
+			fmt.Fprintf(&b, "\n  … and %d more", len(unproven)-3)
 			break
 		}
 		fmt.Fprintf(&b, "\n  %s", u)
@@ -48,7 +60,7 @@ func Unbounded(what string, rep *IntervalReport) error {
 	// not portable to this target as written (ADR 0026). Declaring the range
 	// keeps it a machine word where one holds it and makes it arbitrary
 	// precision here — ADR 0019's third escape, and the one that fits.
-	if rep.Outside {
+	if outside {
 		b.WriteString("\n  An operation above is BOUNDED, only not by this target's word: targets whose\n" +
 			"  word holds that interval accept the program, and this one refuses it. To compile it\n" +
 			"  here too, DECLARE THE RANGE — e.g. a result of `(int 0 N)` — which is arbitrary\n" +
@@ -64,5 +76,5 @@ func Unbounded(what string, rep *IntervalReport) error {
 		"      so the operation is provably in range;\n" +
 		"    · ASK FOR THE TRAP — build with `-checked`, which emits the target's\n" +
 		"      own checked arithmetic and fails at run time instead.")
-	return fmt.Errorf("%s", b.String())
+	return b.String()
 }

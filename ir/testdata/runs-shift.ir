@@ -1,0 +1,77 @@
+(ir 1
+  (target go)
+  (stage A)
+  (ops const add eq lt le call if loop assume yield break continue branch)
+  (func runs-runs (params (%0 int)) (results int)
+    (region
+      (val (%1 int) (const 0))
+      (val (%2 bool) (le %1 %0))
+      (val (%3 bool)
+        (if %2
+          (region
+            (pi %4 int (%0 ge %1))
+            (val (%5 int) (const 4294967296))
+            (val (%6 bool) (lt %4 %5))
+            (yield %6))
+          (region
+            (pi %7 int (%0 lt %1))
+            (val (%8 bool) (const false))
+            (yield %8))))
+      (do (assume %3))
+      (val (%9 int) (const 0))
+      (val (%10 int) (const 0))
+      (val (%11 int)
+        (loop (init %9 %0 %10)
+          (region
+            (params (%12 int) (%13 int) (%14 int))
+            (val (%15 int) (const 0))
+            (val (%16 bool) (eq %13 %15))
+            (branch %16
+              (region
+                (pi %17 int (%13 eq %15))
+                (break %14))
+              (region
+                (pi %18 int (%13 ne %15))
+                (val (%19 int) (const 0))
+                (val (%20 int) (const 1))
+                (val (%21 int) (const 0))
+                (val (%22 bool) (eq %12 %21))
+                (val (%23 bool)
+                  (if %22
+                    (region
+                      (pi %24 int (%12 eq %21))
+                      (val (%25 int) (const 1))
+                      (val (%26 int) (call go.& %18 %25))
+                      (val (%27 int) (const 1))
+                      (val (%28 bool) (eq %26 %27))
+                      (yield %28))
+                    (region
+                      (pi %29 int (%12 ne %21))
+                      (val (%30 bool) (const false))
+                      (yield %30))))
+                (branch %23
+                  (region
+                    (pi %31 int (%12 eq %19))
+                    (val (%32 int) (const 1))
+                    (val (%33 int) (const 1))
+                    (val (%34 int) (call go.>> %18 %33))
+                    (val (%35 int) (const 1))
+                    (val (%36 int) (add exact %14 %35))
+                    (continue %32 %34 %36))
+                  (region
+                    (val (%37 int) (const 1))
+                    (val (%38 int) (call go.& %18 %37))
+                    (val (%39 int) (const 1))
+                    (val (%40 bool) (eq %38 %39))
+                    (branch %40
+                      (region
+                        (val (%41 int) (const 1))
+                        (val (%42 int) (const 1))
+                        (val (%43 int) (call go.>> %18 %42))
+                        (continue %41 %43 %14))
+                      (region
+                        (val (%44 int) (const 0))
+                        (val (%45 int) (const 1))
+                        (val (%46 int) (call go.>> %18 %45))
+                        (continue %44 %46 %14))))))))))
+      (yield %11))))

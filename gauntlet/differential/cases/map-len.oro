@@ -1,6 +1,8 @@
 ; A MAP'S LENGTH IS |dom m| (maps.md §1).
 ; inputs: 0 1 5
-; checked: windows — wm-len counts the map's `used` cells, which are 0 or 1, but the elements of the table the map is stored in get no bound, so the count is a trip count times an unbounded element (bounds-2026-09-24)
+; Was built -checked: the term analysis gave these elements no bound
+; (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
+; is proven on every target (irstep4c-2026-09-26).
 ; expect: 0 1 5
 ;
 ; `len` is one construct with one meaning -- the cardinality of the index set --

@@ -712,3 +712,24 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/native/sieve-java.oro java`
 - emitted text changed — `gauntlet/differential/cases/big-divmod.oro java`
 - emitted text changed — `gauntlet/differential/cases/render.oro java`
+
+## 2026-09-26 — on 4ab3f4e, with uncommitted changes
+
+**Reason:** IR step 4c: the IR decides legality and modes; its mask/shift laws narrow Java scalars (limbs, power, limb-subdiv) to int, limb-subdiv's limbs to uint32 on Go and render's digits to bytes on windows; refusal lines in source order with source names; no benchmark covers the changed outputs
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 343 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/big/limbs.oro java`
+- emitted text changed — `examples/big/power.oro java`
+- compiler output changed — `examples/int/collatz.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/kara/core.oro go`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro go`
+- emitted text changed — `gauntlet/differential/cases/limb-subdiv.oro java`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `examples/io/jsonfmt.oro go` 625 → 375 ms, 0.60x

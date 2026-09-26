@@ -1,6 +1,10 @@
 package ir
 
-import "math/big"
+import (
+	"math/big"
+
+	"oroboros/emit"
+)
 
 // TRIP-BOUNDED PARAMETERS (docs/spec/ir.md §7). The interval of a counter a
 // loop only ever advances is bounded by how many times the loop goes round,
@@ -40,11 +44,11 @@ func rankBound(z, pre, step iv) (*big.Int, bool) {
 	}
 	one := big.NewInt(1)
 	switch {
-	case !step.nlo && step.lo >= 1 && !pre.phi && !z.nlo:
-		b := new(big.Int).Sub(big.NewInt(pre.hi), big.NewInt(z.lo))
+	case !step.nlo && step.lo.sign() > 0 && !pre.phi && !z.nlo:
+		b := new(big.Int).Sub(pre.hi.big(), z.lo.big())
 		return nonNeg(b.Add(b, one)), true
-	case !step.phi && step.hi <= -1 && !pre.nlo && !z.phi:
-		b := new(big.Int).Sub(big.NewInt(z.hi), big.NewInt(pre.lo))
+	case !step.phi && step.hi.sign() < 0 && !pre.nlo && !z.phi:
+		b := new(big.Int).Sub(z.hi.big(), pre.lo.big())
 		return nonNeg(b.Add(b, one)), true
 	}
 	return nil, false
@@ -53,10 +57,10 @@ func rankBound(z, pre, step iv) (*big.Int, bool) {
 // geoBound is Theorem 2's geometric bound: r divided by c ≥ 2 at every
 // continue, r ≥ 1 there, and r starting in z.
 func geoBound(z, pre iv, c int64) (*big.Int, bool) {
-	if c < 2 || z.bot || pre.bot || pre.nlo || pre.lo < 1 || z.phi || z.hi < 1 {
+	if c < 2 || z.bot || pre.bot || pre.nlo || pre.lo.sign() <= 0 || z.phi || z.hi.sign() <= 0 {
 		return nil, false
 	}
-	return big.NewInt(floorLog(z.hi, c) + 1), true
+	return big.NewInt(floorLog(z.hi.big(), c) + 1), true
 }
 
 func nonNeg(b *big.Int) *big.Int {
@@ -68,25 +72,40 @@ func nonNeg(b *big.Int) *big.Int {
 
 // tripInterval is Theorem 1's interval for a parameter starting in z and
 // stepping by Δ = step on each of at most b back edges. An end it cannot
-// bound, or that leaves int64, is infinite.
+// bound, or that leaves E, is infinite.
+//
+// b = nil is B = ∞, which is still an argument: a side whose step is zero
+// (Δ.lo ≥ 0 below, Δ.hi ≤ 0 above) stays at its initial end on every
+// iteration, because the induction step p_{k+1} ≥ p_k (or ≤) needs no count.
+// It is what bounds a buffer that is only ever given fresh values, in a loop
+// no parameter ranks.
 func tripInterval(z, step iv, b *big.Int) iv {
 	out := iv{nlo: true, phi: true}
 	if z.bot || step.bot {
 		return out
 	}
+	if b == nil {
+		if !step.nlo && step.lo.sign() >= 0 && !z.nlo {
+			out.lo, out.nlo = z.lo, false
+		}
+		if !step.phi && step.hi.sign() <= 0 && !z.phi {
+			out.hi, out.phi = z.hi, false
+		}
+		return out.norm()
+	}
 	if !step.nlo && !z.nlo {
-		lo := new(big.Int).Mul(b, big.NewInt(min(step.lo, 0)))
-		if v, ok := fits(lo.Add(lo, big.NewInt(z.lo))); ok {
+		lo := new(big.Int).Mul(b, minE(step.lo, ep{}).big())
+		if v, ok := fromBig(lo.Add(lo, z.lo.big())); ok {
 			out.lo, out.nlo = v, false
 		}
 	}
 	if !step.phi && !z.phi {
-		hi := new(big.Int).Mul(b, big.NewInt(max(step.hi, 0)))
-		if v, ok := fits(hi.Add(hi, big.NewInt(z.hi))); ok {
+		hi := new(big.Int).Mul(b, maxE(step.hi, ep{}).big())
+		if v, ok := fromBig(hi.Add(hi, z.hi.big())); ok {
 			out.hi, out.phi = v, false
 		}
 	}
-	return out
+	return out.norm()
 }
 
 // tripRefine meets each parameter's post-fixpoint fact with Theorem 1's
@@ -99,14 +118,21 @@ func (a *intervals) tripRefine(s *Stmt, init, cur []fact, lc *exitFacts) bool {
 		return false
 	}
 	steps := make([]iv, len(body.Params))
-	for j, q := range body.Params {
-		for k, c := range conts {
-			d := a.delta(c[j], q, 4)
-			if k == 0 {
-				steps[j] = d
-			} else {
-				steps[j] = joinIV(steps[j], d)
-			}
+	for j := range steps {
+		steps[j] = ivBot
+	}
+	for _, cr := range exitRegions(body, TContinue) {
+		rec, taken := lc.at[cr]
+		if !taken {
+			continue // a dead arm's continue is never taken: it adds no step
+		}
+		for j, q := range body.Params {
+			// Two sound bounds on v − p at this continue, met: the symbolic
+			// step, and the difference of the two facts there, each under
+			// this arm's guards. The second is what a reset to a literal has:
+			// `(again 0 …)` under v ∈ [1, 9] steps by [−9, −1].
+			d := meetIV(a.delta(cr.Args[j], q, 4), subIV(rec[0][j].v, rec[1][j].v))
+			steps[j] = joinIV(steps[j], d)
 		}
 	}
 	var best *big.Int
@@ -121,9 +147,7 @@ func (a *intervals) tripRefine(s *Stmt, init, cur []fact, lc *exitFacts) bool {
 			consider(geoBound(init[j].v, lc.pre[j].v, c))
 		}
 	}
-	if best == nil {
-		return false
-	}
+	// best stays nil when no parameter ranks the loop: B = ∞ (tripInterval).
 	refined := false
 	for j, q := range body.Params {
 		if m := meetIV(cur[j].v, tripInterval(init[j].v, steps[j], best)); m != cur[j].v {
@@ -186,7 +210,7 @@ func (a *intervals) elemInterval(conts [][]V, j int, p V, z iv, b *big.Int) iv {
 		case !f.phi:
 			hi = joinIV(hi, iv{lo: f.hi, hi: f.hi})
 		case !d.phi && !d.bot:
-			step.hi = max(step.hi, d.hi)
+			step.hi = maxE(step.hi, d.hi)
 		default:
 			return ivTop
 		}
@@ -194,7 +218,7 @@ func (a *intervals) elemInterval(conts [][]V, j int, p V, z iv, b *big.Int) iv {
 		case !f.nlo:
 			lo = joinIV(lo, iv{lo: f.lo, hi: f.lo})
 		case !d.nlo && !d.bot:
-			step.lo = min(step.lo, d.lo)
+			step.lo = minE(step.lo, d.lo)
 		default:
 			return ivTop
 		}
@@ -259,6 +283,13 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 	if depth < 0 || v < 0 {
 		return ivTop
 	}
+	// A VALUE NO EXECUTION DEFINES has no differences: its step is ⊥, the
+	// identity of every join and minimum below. It is a dead arm's yield or a
+	// dead exit's argument (the dead-arm rule, interval.go), and without this
+	// it read as ⊤ and spoiled the join it sat in (tree.oro's scanner).
+	if int(v) < len(a.fs) && a.fs[v].v.bot {
+		return ivBot
+	}
 	if base(v) {
 		return exactIV(0)
 	}
@@ -307,14 +338,15 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 		k := resIndex(d, v)
 		inner := d.Sub[0]
 		breaks := exitsOf(inner, TBreak)
-		best, found := int64(0), false
+		best, found := ep{}, false
 		for qi, q := range inner.Params {
 			if qi >= len(d.Args) || len(breaks) == 0 {
 				continue
 			}
 			ok := true
 			for _, c := range exitsOf(inner, TContinue) {
-				if st := a.delta(c[qi], q, depth-1); st.bot || st.nlo || st.lo < 0 {
+				// A ⊥ step is a continue no execution takes: it constrains nothing.
+				if st := a.delta(c[qi], q, depth-1); !st.bot && (st.nlo || st.lo.sign() < 0) {
 					ok = false
 				}
 			}
@@ -322,26 +354,29 @@ func (a *intervals) deltaFrom(v V, base func(V) bool, depth int) iv {
 			if !ok || d0.bot || d0.nlo {
 				continue
 			}
-			m, have := int64(0), false
+			m, have := ep{}, false
 			for _, b := range breaks {
 				if k >= len(b) {
 					ok = false
 					break
 				}
 				db := a.delta(b[k], q, depth-1)
-				if db.bot || db.nlo {
+				if db.bot {
+					continue // a break no execution takes: the minimum's identity
+				}
+				if db.nlo {
 					ok = false
 					break
 				}
-				if !have || db.lo < m {
+				if !have || db.lo.lt(m) {
 					m, have = db.lo, true
 				}
 			}
 			if !ok || !have {
 				continue
 			}
-			lo, fit := fits(new(big.Int).Add(big.NewInt(m), big.NewInt(d0.lo)))
-			if fit && (!found || lo > best) {
+			lo, fit := m.add(d0.lo)
+			if fit && (!found || best.lt(lo)) {
 				best, found = lo, true
 			}
 		}
@@ -358,10 +393,22 @@ func (a *intervals) geometric(conts [][]V, j int, p V) (int64, bool) {
 	c := int64(0)
 	for _, args := range conts {
 		d := a.def[args[j]]
-		if d == nil || d.Op != ODiv || a.pl(d.Args[0]) != a.pl(p) {
+		if d == nil || len(d.Args) != 2 || a.pl(d.Args[0]) != a.pl(p) {
 			return 0, false
 		}
 		k, ok := a.constOf(d.Args[1])
+		switch {
+		case d.Op == ODiv:
+		case d.Op == OCall && d.Name == "u64/":
+			// ℤ's truncating division on U ⊆ [0, ∞): ⌊r / c⌋, the same law.
+		case d.Op == OCall && emit.ArithOp(d.Name, 2) == "shr" && ok && k >= 1 && k <= 62:
+			// r >> k is ⌊r / 2ᵏ⌋ where r ≥ 0, which Theorem 2's geometric case
+			// already requires (r ≥ 1 at every continue): SelectShifts' form of
+			// the same division.
+			k = 1 << k
+		default:
+			return 0, false
+		}
 		if !ok || k < 2 {
 			return 0, false
 		}
@@ -373,10 +420,10 @@ func (a *intervals) geometric(conts [][]V, j int, p V) (int64, bool) {
 }
 
 // floorLog is ⌊log_c n⌋ for n ≥ 1, c ≥ 2, in integers.
-func floorLog(n, c int64) int64 {
-	k := int64(0)
-	for n >= c {
-		n /= c
+func floorLog(n *big.Int, c int64) int64 {
+	k, m, bc := int64(0), new(big.Int).Set(n), big.NewInt(c)
+	for m.Cmp(bc) >= 0 {
+		m.Quo(m, bc)
 		k++
 	}
 	return k
@@ -391,10 +438,20 @@ func resIndex(s *Stmt, v V) int {
 	return 0
 }
 
-// fits is a big integer as an int64, if it is one.
-func fits(b *big.Int) (int64, bool) {
-	if b.IsInt64() {
-		return b.Int64(), true
+// exitRegions is the regions of r's branch chain ending in terminator k: the
+// continues of a loop body, by region (exitsOf gives their arguments).
+func exitRegions(r *Region, k Term) []*Region {
+	var out []*Region
+	var walk func(r *Region)
+	walk = func(r *Region) {
+		if r.T == k {
+			out = append(out, r)
+		}
+		if r.T == TBranch {
+			walk(r.Then)
+			walk(r.Else)
+		}
 	}
-	return 0, false
+	walk(r)
+	return out
 }

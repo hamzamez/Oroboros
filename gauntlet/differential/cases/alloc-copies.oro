@@ -2,7 +2,9 @@
 ; after it must not show through (tables.md §2).
 ; expect: 7 7
 ; inputs: 0 1
-; checked: windows — the elements of `(alloc t)` get no bound, so the value win/fmt.print-int prints is unbounded and its digit arithmetic traps (bounds-2026-09-24)
+; Was built -checked: the term analysis gave these elements no bound
+; (bounds-2026-09-24). The IR's interval domain bounds them, and every operation
+; is proven on every target (irstep4c-2026-09-26).
 ;
 ; The meaning is (alloc t) = (alloc (table (len t) (fn (i) (t i)))). Every
 ; backend returned t itself for a t that is not a rule — η-tab, which is true of

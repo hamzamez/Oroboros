@@ -610,12 +610,15 @@ func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (s
 	if err != nil {
 		return "", err
 	}
-	p := &ir.Program{Target: tg.Name, Funcs: []*ir.Func{f}}
-	if err := ir.Finalize(tg, p); err != nil {
+	return FromFunc(tg, f)
+}
+
+// FromFunc prints a lowered and DECIDED function (ir.Decide): the step to
+// IR_P, the verifier, and the printer. It is what the pipeline calls, so the
+// modes the IR decided are the ones printed.
+func FromFunc(tg *emit.Target, f *ir.Func) (string, error) {
+	if err := ir.ToP(tg, f); err != nil {
 		return "", err
-	}
-	if err := ir.Verify(tg, p); err != nil {
-		return "", fmt.Errorf("%s: IR_P does not verify:\n%v", name, err)
 	}
 	return Func(tg, f)
 }

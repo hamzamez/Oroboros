@@ -37,8 +37,8 @@ func GenRun(v0 int) int {
 		continue
 	}
 	v22 = v27
-	v43 := make([]int, 3)
-	var v42 []int
+	v43 := make([]uint32, 3)
+	var v42 []uint32
 	v47 := v43
 	var v48 int = 0
 	var v49 int = 0
@@ -85,7 +85,7 @@ func GenRun(v0 int) int {
 		} else {
 			v86 = v83
 		}
-		v47[v48] = v86
+		v47[v48] = uint32(v86)
 		v95 := (v83 < 0)
 		var v96 int
 		if v95 {
@@ -97,8 +97,8 @@ func GenRun(v0 int) int {
 		continue
 	}
 	v42 = v47
-	v103 := make([]int, 3)
-	var v102 []int
+	v103 := make([]uint32, 3)
+	var v102 []uint32
 	v107 := v103
 	var v108 int = 2
 	var v109 int = 0
@@ -118,13 +118,13 @@ func GenRun(v0 int) int {
 			if v123 {
 				v118 = 0
 			} else {
-				v129 := v42[v108]
+				v129 := int(v42[v108])
 				v118 = v129
 			}
 		}
 		v130 := (v115 + v118)
 		v132 := (v130 / 7)
-		v107[v108] = v132
+		v107[v108] = uint32(v132)
 		v135 := (v108 - 1)
 		v137 := (v130 % 7)
 		v108, v109 = v135, v137
@@ -141,7 +141,7 @@ func GenRun(v0 int) int {
 		if v145 {
 			v140 = 0
 		} else {
-			v151 := v102[v0]
+			v151 := int(v102[v0])
 			v140 = v151
 		}
 	}
@@ -156,7 +156,7 @@ func GenRun(v0 int) int {
 		if v161 {
 			v156 = 0
 		} else {
-			v167 := v102[v153]
+			v167 := int(v102[v153])
 			v156 = v167
 		}
 	}

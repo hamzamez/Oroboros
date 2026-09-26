@@ -231,54 +231,53 @@ checks:
 	} else if note != "" {
 		fmt.Fprintln(os.Stderr, "note:", entry+": "+note)
 	}
-	rep, sel := emit.Intervals(tg, esig, nf, 0)
-	if rep.InU && !worded {
+	// The term analysis counts loops; legality and modes are the IR's (cmd/gen).
+	rep, _ := emit.Intervals(tg, esig, nf, 0)
+	// DIVISION BY A POWER OF TWO IS A SHIFT, before the decision, so the IR
+	// decides the term the backend prints (cmd/gen).
+	unshifted := nf
+	shifts := 0
+	if sh, k := emit.SelectShifts(tg, esig, nf); k > 0 {
+		nf, shifts = sh, k
+	}
+	fA, err := ir.Lower(tg, "oro-main", esig, nf, ir.Options{Decided: true})
+	if err != nil {
+		return err
+	}
+	leg := ir.Decide(tg, fA, checked)
+	if leg.InU && !worded {
+		nf = unshifted
 		selectWords()
 		goto checks
 	}
-	if rep.Ops > 0 || rep.Loops > 0 {
+	if leg.Ops > 0 || rep.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+
 			"%d of %d loop(s) proven terminating\n",
-			rep.Proven, rep.Ops, rep.Terminates, rep.Loops)
+			leg.Proven, leg.Ops, rep.Terminates, rep.Loops)
 	}
-	// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: it takes
-	// the trap instead of the refusal.
+	// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the IR
+	// has written `trap` where the proof failed.
 	if checked {
-		nf = sel
 		// SAID, NOT ONLY DONE: an operation `-checked` turned into a trap is one
 		// the compiler did not prove, and a caller that asked for the trap may
 		// still need to know it was taken — the differential harness holds every
 		// case to being proven unless it declares otherwise. The line is stable.
-		if rep.Proven < rep.Ops {
+		if leg.Proven < leg.Ops {
 			fmt.Fprintf(os.Stderr, "note: -checked: %d of %d integer operation(s) are traps, not proofs\n",
-				rep.Ops-rep.Proven, rep.Ops)
+				leg.Ops-leg.Proven, leg.Ops)
 		}
-	} else if err := emit.Unbounded(entry, rep); err != nil {
+	} else if err := leg.Refusal(entry, tg); err != nil {
 		return err
 	}
-	// DIVISION BY A POWER OF TWO IS A SHIFT where the analysis can prove the
-	// dividend non-negative and inside the target's declared shift width
-	// (shiftdiv-2026-09-03). LAST, because the fixed-limb library's own carry
-	// splits are spliced in by the promotion above and are what this is most
-	// for; and its own pass, because `Intervals` above has the checked
-	// selection ON and using its rebuilt term by default would reverse ADR 0012
-	// without an ADR.
-	if sh, k := emit.SelectShifts(tg, esig, nf); k > 0 {
-		nf = sh
-		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", k)
+	if shifts > 0 {
+		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", shifts)
 	}
-	// THE IR (ADR 0032), lowered from exactly what the backend receives, as
-	// `gen -ir` does. The differential runner reads it: its cases' entry points
-	// are compiled here and never by the emission sweep.
+	// THE IR (ADR 0032), the decided IR_A the backend receives, as `gen -ir`
+	// writes it. The differential runner reads it: its cases' entry points are
+	// compiled here and never by the emission sweep.
 	if irOut != "" {
-		p := &ir.Program{Target: target, Stage: ir.StageA}
-		var errs []string
-		if f, err := ir.Lower(tg, "oro-main", esig, nf, ir.Options{Decided: true}); err != nil {
-			errs = append(errs, err.Error())
-		} else {
-			p.Funcs = append(p.Funcs, f)
-		}
-		_ = ir.WriteFile(irOut, tg, p, errs)
+		p := &ir.Program{Target: target, Stage: ir.StageA, Funcs: []*ir.Func{fA.Clone()}}
+		_ = ir.WriteFile(irOut, tg, p, nil)
 	}
 	// THE BACKEND IS THE TARGET'S, NOT THE FLAG'S (target-system.md §1.1).
 	//
@@ -291,16 +290,16 @@ checks:
 	var code string
 	switch backend {
 	case "js":
-		code, err = js.FromResidual(tg, "oro-main", esig, nf)
+		code, err = js.FromFunc(tg, fA)
 	case "java":
-		code, err = java.FromResidual(tg, "oro-main", esig, nf)
+		code, err = java.FromFunc(tg, fA)
 	case "x86-64":
-		code, err = x86.FromResidual(tg, "oro-main", esig, nf)
+		code, err = x86.FromFunc(tg, fA)
 		if err == nil {
 			code = emit.AsmFile(tg, map[string]string{"oro-main": code}, "oro-main")
 		}
 	case "go":
-		code, err = golang.FromResidual(tg, "oro-main", esig, nf)
+		code, err = golang.FromFunc(tg, fA)
 	default:
 		return fmt.Errorf("no code generator for backend %q", backend)
 	}

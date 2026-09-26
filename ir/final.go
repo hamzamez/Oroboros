@@ -12,9 +12,10 @@ import (
 
 // THE STEP FROM IR_A TO IR_P (spec §7), for what a printer needs.
 //
-// Obligations and modes are already decided when gen lowers (Options.Decided:
-// the residual passed the legality and refinement checks on terms), so what
-// remains is to make every TYPE final:
+// Obligations and modes are already decided when this runs: obligations by the
+// refinement checks on terms (Options.Decided), and each operation's mode by
+// the IR's own decision (decide.go, spec §7.2). What remains is to make every
+// TYPE final:
 //
 //   - `the` is erased: its result is its operand (L9's reading of an
 //     ascription, spec §7 item 4); `require` never reaches L after discharge;
@@ -72,13 +73,19 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	// L13, where an assumption discharges its premise, and only on a target
 	// with a use for a view: one that declares `repr narrow` (Go). Elsewhere
 	// the restriction would print as its table and leave a dead length behind.
+	rewrites := 0
 	if tg.Narrow != "" {
-		restrictLoops(f)
+		rewrites = restrictLoops(f)
 	}
 	nv := f.NV()
 	// The IR's own interval analysis, on the IR_A types (before any is
 	// rewritten): the second factor of the element range's reduced product.
-	fs := analyse(tg, f)
+	// Decide's facts are the same computation on the same function unless a
+	// restriction was written since, which adds values.
+	fs := f.facts
+	if rewrites > 0 || len(fs) != nv {
+		fs = analyse(tg, f)
+	}
 	tainted := map[V]bool{} // a table a host call may write through an unfixed argument
 	parent := make([]V, nv)
 	for i := range parent {
@@ -331,8 +338,12 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	// their meet is.
 	proven := func(r V, c *tclass) iv {
 		rng := ivTop
-		if c.sawAny && !c.unknown && c.lo != nil && c.lo.IsInt64() && c.hi.IsInt64() {
-			rng = rangeIV(c.lo.Int64(), c.hi.Int64())
+		if c.sawAny && !c.unknown && c.lo != nil {
+			if l, ok := fromBig(c.lo); ok {
+				if h, ok := fromBig(c.hi); ok {
+					rng = rangeE(l, h)
+				}
+			}
 		}
 		if h, ok := irHull[r]; ok && !irUnknown[r] {
 			rng = meetIV(rng, h)
@@ -365,7 +376,7 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			continue // the word, a host alias, or a table a host writes: nothing narrower to prove
 		}
 		rng := proven(r, c)
-		if rng.finite() && rng.lo >= dlo && rng.hi <= dhi {
+		if rng.within(ei(dlo), ei(dhi)) && !rng.bot {
 			continue
 		}
 		var bad *core.Term
@@ -422,7 +433,7 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 				continue // a host may write anything: the word
 			}
 			rng := proven(r, c)
-			if rng.finite() && rng.lo >= tg.Word.Lo && rng.hi <= tg.Word.Hi {
+			if rng.finite() && rng.within(ei(tg.Word.Lo), ei(tg.Word.Hi)) {
 				f.Types[x] = prefix + fmt.Sprintf("int %d %d", rng.lo, rng.hi)
 			}
 		}
@@ -446,7 +457,7 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 			continue
 		}
 		r := fs[x].v
-		if r.finite() && r.lo >= tg.Word.Lo && r.hi <= tg.Word.Hi {
+		if r.finite() && r.within(ei(tg.Word.Lo), ei(tg.Word.Hi)) {
 			f.Types[x] = fmt.Sprintf("int %d %d", r.lo, r.hi)
 		}
 	}

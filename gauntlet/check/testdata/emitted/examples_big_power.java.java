@@ -6,25 +6,25 @@ public final class examples_big_power.java {
 		final java.math.BigInteger v25 = (java.math.BigInteger.valueOf(v0));
 		java.math.BigInteger v27 = v24;
 		java.math.BigInteger v28 = v25;
-		long v29 = v1;
+		int v29 = v1;
 		for (;;) {
 			final boolean v31 = (v29 == 0);
 			if (v31) {
 				break;
 			}
-			final long v35 = (v29 & 1);
+			final int v35 = (int) (v29 & 1);
 			final boolean v37 = (v35 == 1);
 			if (v37) {
 				final java.math.BigInteger v38 = (v27.multiply(v28));
 				final java.math.BigInteger v39 = (v28.multiply(v28));
-				final long v41 = (v29 >> 1);
+				final int v41 = (int) (v29 >> 1);
 				v27 = v38;
 				v28 = v39;
 				v29 = v41;
 				continue;
 			}
 			final java.math.BigInteger v42 = (v28.multiply(v28));
-			final long v44 = (v29 >> 1);
+			final int v44 = (int) (v29 >> 1);
 			v28 = v42;
 			v29 = v44;
 			continue;

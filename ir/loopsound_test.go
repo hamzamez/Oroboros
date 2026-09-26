@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"oroboros/emit"
 )
 
 // THE LOOP RULES, CHECKED AGAINST EXECUTIONS. Each rule the interval domain
@@ -47,8 +49,8 @@ func TestTreeRunIsContained(t *testing.T) {
 	// budget ended and the loop took ⊤ (thresholdRounds).
 	for _, f := range p.Funcs {
 		if f.Name == "t-run" {
-			if proven, total, _, _, miss := ProofCount(tg, f); proven != total {
-				t.Fatalf("t-run: %d of %d proven; first unproven: %s", proven, total, miss[0])
+			if leg := Decide(tg, f.Clone(), false); leg.Proven != leg.Ops {
+				t.Fatalf("t-run: %d of %d proven; first unproven: %s", leg.Proven, leg.Ops, leg.Unproven[0])
 			}
 		}
 	}
@@ -160,12 +162,34 @@ var loopShapes = []func(r *rand.Rand) string{
            (if %s (+ acc (+ (* i %d) (* m 2))) (- acc (+ (* i %d) m)))))`,
 			k(0, 6), k(-3, 3), k(0, 6), c, k(-3, 3), k(-3, 3))
 	},
+	// The step at ONE continue, from its own facts: a counter reset to a
+	// literal below its guard (match.oro's shape) still decreases, since the
+	// reset is taken only where the counter exceeds the literal.
+	func(r *rand.Rand) string {
+		d := 2 + r.Intn(9)
+		return fmt.Sprintf(`(loop ((v (+ n %d)) (c 0) (k 0))
+    (= v 0) (+ c k)
+    (>= v %d) (again (- v %d) (+ c 1) (+ k 1))
+    else (again 0 c (+ k 1)))`, r.Intn(30), d, d)
+	},
+	// B = ∞: a loop no parameter ranks (the walk advances j only on one arm),
+	// carrying a buffer given only fresh values, whose cells keep their hull
+	// however many times the loop goes round.
+	func(r *rand.Rand) string {
+		l := 1 + r.Intn(5)
+		return fmt.Sprintf(`(let t (build b %d
+          (loop ((b b) (i 0) (j 0) (m 0))
+            (>= j (+ n %d)) (set b 0 (+ (b 0) m))
+            (= (%% i 3) 0) (again (set b (%% i %d) %d) (+ i 1) j (- m 1))
+            else (again (set b (%% j %d) (%% i %d)) (+ i 1) (+ j 1) m)))
+    (+ (t 0) (t %d)))`, l, r.Intn(9), l, r.Intn(21)-10, l, 2+r.Intn(5), l-1)
+	},
 }
 
 func TestTheLoopRulesAreSound(t *testing.T) {
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(7))
-	const cases = 280
+	const cases = 330
 	compiled, ran := 0, 0
 	for c := 0; c < cases; c++ {
 		shape := loopShapes[c%len(loopShapes)](r)
@@ -201,4 +225,78 @@ func TestTheLoopRulesAreSound(t *testing.T) {
 		t.Fatalf("only %d of %d cases compiled and %d runs completed", compiled, cases, ran)
 	}
 	t.Logf("%d of %d cases compiled, %d runs checked", compiled, cases, ran)
+}
+
+// TestTheUnsignedLoopIsContained: the unsigned word's rules at a loop, on a
+// program wordsel selected (testdata/u64-digits.oro, compiled by `gen -ir`).
+// digitsum's v is in U: its guard `u64=` narrows v on each arm only because
+// the domain reads U's order as ℤ's, and it ranks the loop only because
+// `u64/` by a literal is a geometric step. Without either, `s + digit` is
+// unproven. Every value of a run must lie in its fact, the answers must be
+// the case's, and every operation must be proven.
+func TestTheUnsignedLoopIsContained(t *testing.T) {
+	src, err := os.ReadFile("testdata/u64-digits.ir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := Read(string(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg, err := emit.LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := p.Funcs[0]
+	fs := analyse(tg, f)
+	want := map[int64]int64{0: 87, 1: 86, 7: 89, 13: 83, 99: 87, 100: 86}
+	for n, w := range want {
+		seen, err := runFunc(f, []cval{intv(n)})
+		if err != nil {
+			t.Fatalf("run(%d): %v", n, err)
+		}
+		if err := contained(f, fs, seen); err != nil {
+			t.Fatalf("run(%d): %v", n, err)
+		}
+		if got := seen[f.Body.Args[0]]; got == nil || got.ints[len(got.ints)-1].Int64() != w {
+			t.Fatalf("run(%d) is not %d", n, w)
+		}
+	}
+	if leg := Decide(tg, f.Clone(), false); leg.Proven != leg.Ops {
+		t.Fatalf("%d of %d proven: %v", leg.Proven, leg.Ops, leg.Unproven)
+	}
+}
+
+// TestTheShiftedLoopIsContained: the shift as Theorem 2's geometric step, on
+// runs.oro as SelectShifts left it (testdata/runs-shift.oro, by `gen -ir`):
+// `(go./ v 2)` is `v >> 1` and `(go.% v 2)` is `v & 1`. The run counter is
+// proven only because v >> 1 ranks the loop. Every value of a run must lie in
+// its fact, and every operation must be proven.
+func TestTheShiftedLoopIsContained(t *testing.T) {
+	src, err := os.ReadFile("testdata/runs-shift.ir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := Read(string(src))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tg, err := emit.LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := p.Funcs[0]
+	fs := analyse(tg, f)
+	for _, n := range []int64{0, 1, 2, 5, 0b1011_0111, 1<<32 - 1, 0xAAAAAAAA} {
+		seen, err := runFunc(f, []cval{intv(n)})
+		if err != nil {
+			t.Fatalf("runs(%d): %v", n, err)
+		}
+		if err := contained(f, fs, seen); err != nil {
+			t.Fatalf("runs(%d): %v", n, err)
+		}
+	}
+	if leg := Decide(tg, f.Clone(), false); leg.Proven != leg.Ops {
+		t.Fatalf("%d of %d proven: %v", leg.Proven, leg.Ops, leg.Unproven)
+	}
 }

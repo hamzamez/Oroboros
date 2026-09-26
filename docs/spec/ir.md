@@ -538,9 +538,12 @@ of Σ, and an operation with no row is a gap by construction, not by oversight.
 
 ### 7.1 The interval domain (`ir/interval.go`, `ir/trip.go`)
 
-One fact per value: an interval, and for a table its length and its element (smashed). An infinite end
-carries no number, so equal facts are equal values, which is how a loop recognises its fixpoint. The
-rules beyond the per-operation table, each with its soundness argument and its check:
+One fact per value: an interval, and for a table its length and its element (smashed). The intervals are
+over ℤ̄ with finite ends in E = (−2¹²⁶, 2¹²⁶), the term analysis's lattice; an end a computation takes
+outside E becomes the infinity on its side, which only enlarges γ. E makes U = [0, 2⁶⁴) exact and tells
+"bounded, not by this word" from unbounded, which the decision needs. An infinite end carries no number,
+so equal facts are equal values, which is how a loop recognises its fixpoint. The rules beyond the
+per-operation table, each with its soundness argument and its check:
 
 | rule | what it concludes | why it is sound |
 |---|---|---|
@@ -554,7 +557,11 @@ rules beyond the per-operation table, each with its soundness argument and its c
 | the step Δ | read off the continue's argument: `+`, `−`, an `if`'s arms, an inner loop's result whose parameter never decreases | each clause is ℤ's arithmetic on the values |
 | Theorem 3, bounded increments | a buffer's cells stay in [min(z.lo, Zlo) + B·min(Δlo, 0), max(z.hi, Zhi) + B·max(Δhi, 0)] when every store is fresh (in Z) or a read of the buffer plus Δ | a read is a cell at the iteration's start, so one iteration raises the maximum by at most max(Δhi, 0) |
 | repetition | Theorems 1–3 repeat while they tighten | a narrowed cell narrows a step read from it; each round meets sound facts |
-| the unsigned word | `u64-of`, `int-of-u64` and `u64+ − ·` are the residue map ℤ → ℤ/2⁶⁴ into U or S; `u64/`, `u64%` are ℤ's on U | the exact image; the identity on S ∩ U, which is where wordsel places them |
+| the unsigned word | `u64-of`, `int-of-u64` and `u64+ − ·` are the residue map ℤ → ℤ/2⁶⁴ into U or S; `u64/`, `u64%` are ℤ's on U; `u64< … u64=` are ℤ's order on U | the exact image; the identity on S ∩ U, which is where wordsel places them |
+| the mask and the shift | x & m ∈ [0, m] for m ≥ 0; x >> k = ⌊x / 2ᵏ⌋ for x ≥ 0, k ∈ [0, 62] | two's complement AND; the logical and arithmetic shifts agree on x ≥ 0 |
+| an unreachable arm | a ⊥ π, or a guard that narrows a value to ⊥, makes every value of the arm ⊥ and its exits contribute nothing | the π is its source restricted to the guard (Theorem E), and nothing satisfies it |
+| the step at one continue | Δ ⊆ fact(v) − fact(p), both at that continue, met with the symbolic step; a dead continue adds none | p is narrowed by the arm's guards there; a reset to a literal below the guard is a decrease |
+| B = ∞ | with no ranking parameter, a side whose step is zero keeps its initial end (Theorems 1 and 3) | the induction step p_{k+1} ≥ p_k (or ≤) needs no count |
 
 The domain is checked two ways:
 - **locally**, by the soundness table: every operation against ℤ, exhaustively on small intervals;
@@ -563,6 +570,24 @@ The domain is checked two ways:
   buffer, must lie in its fact.
 
 Each rule has a planted fault that one of the two checks catches.
+
+### 7.2 The decision (`ir/decide.go`)
+
+Item 2 of the step from IR_A to IR_P is made by this domain. The counted operations are `add`, `sub`,
+`mul` and `neg` in the language, proven inside the signed word W, and `u64+ − ·`, proven inside U. A
+promoted host operation is not counted, and neither is a value only an `assume` reads. Each counted
+operation is `exact` if proven. Otherwise the program is refused, or, under `-checked`, the operation is
+`trap` where its primitive declares a checked form.
+
+The report also says:
+- whether an unproven operation is bounded, only not by W, so the answer is to declare the range;
+- whether one lies in U, so the answer is the unsigned word, and the pipeline selects words and decides
+  again.
+
+A refusal names each unproven operation by its source application (`Stmt.Src`, provenance kept in
+memory, spelled with the binders' names) and its interval, in program order. The decision runs on the
+term the backend prints, after the shift selection, and the step to IR_P reuses its facts unless a
+restriction was written since.
 
 ---
 

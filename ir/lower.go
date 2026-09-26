@@ -51,7 +51,7 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 				l.decl[p] = sig.Params[i].Type
 			}
 		}
-		l.push(f.Params)
+		l.push(f.Params, t.Params)
 		body = t.Closed()
 		l.assumeWhere(sig, f)
 	}
@@ -121,7 +121,7 @@ func promote(tg *emit.Target, f *Func, opt Options) bool {
 				// The host primitive is kept as PROVENANCE: JavaScript's `+` is
 				// ℤ's only inside ±(2⁵³−1), so a promoted operation is ℤ's under a
 				// premise, and outside it is still the host's, which is legal
-				// with no portability claim. The legality count (ProofCount)
+				// with no portability claim. The decision (Decide)
 				// needs to know which is which; the canonical text does not
 				// print it, and no printer reads it.
 				s.Op, s.Mode = o, m
@@ -142,9 +142,12 @@ type lowerer struct {
 	opt    Options
 	nv     int
 	frames [][]V
-	decl   map[V]string // types a definition declares: a parameter's, a primitive's result, an ascription
-	sig    *core.Sig
-	top    []string // the function's parameter hints, which the interval analysis keys its signature by
+	// names parallels frames: each binder's name hints, so provenance can be
+	// printed with the names the source used (named).
+	names [][]string
+	decl  map[V]string // types a definition declares: a parameter's, a primitive's result, an ascription
+	sig   *core.Sig
+	top   []string // the function's parameter hints, which the interval analysis keys its signature by
 }
 
 func (l *lowerer) fail(format string, args ...any) {
@@ -161,8 +164,44 @@ func (l *lowerer) freshN(n int) []V {
 	return out
 }
 
-func (l *lowerer) push(vs []V) { l.frames = append(l.frames, vs) }
-func (l *lowerer) pop()        { l.frames = l.frames[:len(l.frames)-1] }
+func (l *lowerer) push(vs []V, hints []string) {
+	l.frames = append(l.frames, vs)
+	l.names = append(l.names, hints)
+}
+
+func (l *lowerer) pop() {
+	l.frames = l.frames[:len(l.frames)-1]
+	l.names = l.names[:len(l.names)-1]
+}
+
+// named is t with every bound variable the enclosing binders own replaced by
+// its binder's name hint: the source application as the program spelled it,
+// for a diagnostic (Stmt.Src). A binder inside t keeps its own λ.
+func (l *lowerer) named(t *core.Term) *core.Term {
+	var walk func(t *core.Term, depth int) *core.Term
+	walk = func(t *core.Term, depth int) *core.Term {
+		switch t.Kind {
+		case core.KBound:
+			if d := t.Depth - depth; d >= 0 && d < len(l.names) {
+				hs := l.names[len(l.names)-1-d]
+				if t.Index < len(hs) && hs[t.Index] != "" {
+					return core.Name(hs[t.Index])
+				}
+			}
+			return t
+		case core.KFn:
+			return &core.Term{Kind: core.KFn, Params: t.Params, Kids: []*core.Term{walk(t.Kids[0], depth+1)}}
+		case core.KApp:
+			kids := make([]*core.Term, len(t.Kids))
+			for i, k := range t.Kids {
+				kids[i] = walk(k, depth)
+			}
+			return &core.Term{Kind: core.KApp, Kids: kids}
+		}
+		return t
+	}
+	return walk(t, 0)
+}
 
 func (l *lowerer) lookup(t *core.Term) V {
 	if t.Depth >= len(l.frames) {
@@ -247,7 +286,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.fail("the free name %s is not a value the IR has: a global (spec §2.4) is not produced by staging, and a primitive used as a value is a closure", t.Name)
 	case core.KFn:
 		if isTupleLam(t) {
-			l.push([]V{-1})
+			l.push([]V{-1}, t.Params)
 			comps := t.Closed().Kids[1:]
 			out := make([]V, 0, len(comps))
 			for _, c := range comps {
@@ -265,7 +304,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		for _, a := range args {
 			vs = append(vs, l.value(a, r)[0])
 		}
-		l.push(vs)
+		l.push(vs, op.Params)
 		out := l.value(op.Closed(), r)
 		l.pop()
 		return out
@@ -295,7 +334,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	switch {
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
 		vs := l.value(args[0], r)
-		l.push(vs[:1])
+		l.push(vs[:1], args[1].Params)
 		out := l.value(args[1].Closed(), r)
 		l.pop()
 		return out
@@ -316,7 +355,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			l.fail("a loop with %d variables and %d initial values", len(args[0].Params), len(inits))
 		}
 		body := &Region{Params: l.freshN(len(args[0].Params))}
-		l.push(body.Params)
+		l.push(body.Params, args[0].Params)
 		l.tail(args[0].Closed(), body, true)
 		l.pop()
 		res := l.freshN(arity(breakArity(body), -1))
@@ -335,7 +374,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 				l.decl[body.Params[0]] = "buffer " + rng
 			}
 		}
-		l.push(body.Params)
+		l.push(body.Params, args[1].Params)
 		l.tail(args[1].Closed(), body, false)
 		l.pop()
 		res := l.freshN(arity(yieldArity(body), -1))
@@ -349,7 +388,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		if rule, n, ok := l.tableRule(args[0]); ok {
 			nv := l.value(n, r)[0]
 			body := &Region{Params: l.freshN(1)}
-			l.push(body.Params)
+			l.push(body.Params, rule.Params)
 			l.tail(rule.Closed(), body, false)
 			l.pop()
 			return []V{l.one(r, Stmt{Op: OTabulate, Args: []V{nv}, Sub: []*Region{body}})}
@@ -397,9 +436,13 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return []V{l.one(r, Stmt{Op: OIndex, Args: l.values(args, r)})}
 	}
 	if o, mode, ok := l.integerOp(op.Name, p, len(args)); ok {
-		return []V{l.one(r, Stmt{Op: o, Mode: mode, Args: l.values(args, r)})}
+		return []V{l.one(r, Stmt{Op: o, Mode: mode, Args: l.values(args, r), Src: l.named(t)})}
 	}
-	return []V{l.call(r, op.Name, p, l.values(args, r))}
+	v := l.call(r, op.Name, p, l.values(args, r))
+	if st := &r.Stmts[len(r.Stmts)-1]; st.Op == OCall && len(st.Res) > 0 && st.Res[0] == v {
+		st.Src = l.named(t) // an overloaded operator promoted after typing keeps it too
+	}
+	return []V{v}
 }
 
 func (l *lowerer) values(ts []*core.Term, r *Region) []V {
@@ -533,7 +576,7 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 			vs := l.values(op.Kids[1:], r)
 			l.call(r, op.Kids[0].Name, p, vs)
 			res := r.Stmts[len(r.Stmts)-1].Res
-			l.push(res)
+			l.push(res, k.Params)
 			out := then(k.Closed())
 			l.pop()
 			return out, true
@@ -545,7 +588,7 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 		key := l.value(op.Kids[1], r)[0]
 		res := l.freshN(2)
 		l.emit(r, Stmt{Op: ORead, Args: []V{m, key}, Res: res})
-		l.push(res)
+		l.push(res, k.Params)
 		out := then(k.Closed())
 		l.pop()
 		return out, true
@@ -557,7 +600,7 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 		if len(vs) != len(k.Params) {
 			l.fail("a producer of %d values bound to %d names", len(vs), len(k.Params))
 		}
-		l.push(vs)
+		l.push(vs, k.Params)
 		out := then(k.Closed())
 		l.pop()
 		return out, true
@@ -600,7 +643,7 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 				return
 			case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn:
 				vs := l.value(args[0], r)
-				l.push(vs[:1])
+				l.push(vs[:1], args[1].Params)
 				l.tail(args[1].Closed(), r, loop)
 				l.pop()
 				return
@@ -612,7 +655,7 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 		for _, a := range args {
 			vs = append(vs, l.value(a, r)[0])
 		}
-		l.push(vs)
+		l.push(vs, op.Params)
 		l.tail(op.Closed(), r, loop)
 		l.pop()
 		return

@@ -121,19 +121,27 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
   - x86 lost its ordered back edges and threaded jumps;
   - Go and Java lost the tail connective.
 
-**The IR's interval domain proves what the term analysis proves**
-([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md)):
-- 2,007 of 2,054 operations, in every one of the 148 functions, measured in shadow by `gen -irproof`;
-- the rules (spec/ir.md §7.1): widening with thresholds for 16 rounds, then the plain widening; the arm
-  conditions; backward propagation; trip bounds from a ranking parameter (Theorems 1–2); and bounded
-  increments into a buffer (Theorem 3);
-- each rule is checked against executions: a concrete interpreter over ℤ (`ir/interp_test.go`) runs
-  generated programs, one shape per rule, and every rule has a planted fault it catches;
-- its facts already meet the term analysis's in Finalize, so freq's counts and tree's worklist narrowed.
+**The IR decides legality and modes** ([irstep4b-2026-09-26](gauntlet/results/irstep4b-2026-09-26.md),
+[irstep4c-2026-09-26](gauntlet/results/irstep4c-2026-09-26.md), spec/ir.md §7.1–7.2):
+- `ir.Decide` proves each counted operation inside its set or not. That decides the refusal, and under
+  `-checked` each operation's `trap`. The printers print the decided function (`FromFunc`);
+- its domain is intervals over ℤ̄ with ends in (−2¹²⁶, 2¹²⁶), the term analysis's lattice, so U and
+  "bounded, not by this word" are exact;
+- it proves 2,007 of 2,054, the term analysis's count, function by function. It also bounds what the
+  term analysis could not: `alloc (table …)` elements and a map's cells, so three differential cases
+  dropped `; checked:`;
+- the rules include: thresholds for 16 rounds, then the plain widening; the arm conditions; backward
+  propagation; trip bounds (Theorems 1–2, and B = ∞); bounded increments into a buffer (Theorem 3);
+  unreachable arms; the mask and the shift; the unsigned word as the residue map;
+- each rule is checked against executions, by a concrete interpreter over ℤ (`ir/interp_test.go`) on
+  generated programs and word- and shift-selected ones, and has a planted fault it catches.
 
-**The migration is the current plan**: make the IR's domain the legality checker and retire
-`emit/interval.go`, then termination and the refinement layer, one at a time. The language plan below
-waits for it. Soundness bugs found while writing the IR's rules:
+The term interval analysis still runs, for termination and for the passes not yet ported:
+`CheckEnsures`, `MeasureRequires`, `SelectShifts`, `BufferRange`, `PromoteBig` and `SelectWords`.
+
+**The migration is the current plan**: termination next (343 of 381 loops), then those passes and the
+refinement layer, one at a time, until `emit/interval.go` can be deleted. The language plan below waits
+for it. Soundness bugs found while writing the IR's rules:
 - in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
   of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
   was not (`narrow-from-wide`);
@@ -156,8 +164,7 @@ a wall that needs language work, stop and research it, then design it.
    gets a witness that it is *sound*, not only one that it proves something — this round's two false
    proofs were each described accurately by their own comments.
 
-Deliberately not next: element bounds for `alloc (table …)` and a map's cells, and geometric
-accumulation (bounds-2026-09-24); per-result enforcement above the word and signed limbs (ADR 0029);
+Deliberately not next: geometric accumulation (bounds-2026-09-24); per-result enforcement above the word and signed limbs (ADR 0029);
 the higher-order contract gap (ADR 0028); a phase-wise trip count; the windows/V8/JVM unsigned rungs;
 dependent result ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ —
 the wall `hash/fnv` will hit, named so it is met on purpose).

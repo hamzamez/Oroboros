@@ -1,0 +1,16 @@
+; THE UNSIGNED WORD IN A LOOP, for the interval domain's u64 rules (irstep4c-2026-09-26):
+; gauntlet/differential/cases/u64-digits.oro with run exported. digitsum's v is
+; selected into U, so its guard is u64= and its step u64/.
+(export run)
+
+(sig near-top ((n (int 0 100))) (int 0 18446744073709551615))
+(def near-top (n) (- 18446744073709551615 n))
+
+(sig digitsum ((x (int 0 18446744073709551615))) int)
+(def digitsum (x)
+  (loop ((v x) (s 0))
+    (= v 0) s
+    else    (again (/ v 10) (+ s (% v 10)))))
+
+(sig run ((n (int 0 100))) int)
+(def run (n) (digitsum (near-top n)))

@@ -12,9 +12,9 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			if (v11) {
 				break;
 			}
-			final long v15 = (v9 & 16777215);
-			v7[v8] = (int) (v15);
-			final long v20 = (v9 >> 24);
+			final int v15 = (int) (v9 & 16777215);
+			v7[v8] = v15;
+			final int v20 = (int) (v9 >> 24);
 			v9 = v20;
 			continue;
 		}
@@ -23,22 +23,22 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 		int[] v22 = null;
 		int[] v27 = v23;
 		int v28 = 0;
-		long v29 = 14000000;
+		int v29 = 14000000;
 		for (;; v28 = (v28 + 1)) {
 			final boolean v31 = (v28 >= 3);
 			if (v31) {
 				break;
 			}
-			final long v35 = (v29 & 16777215);
-			v27[v28] = (int) (v35);
-			final long v40 = (v29 >> 24);
+			final int v35 = (int) (v29 & 16777215);
+			v27[v28] = v35;
+			final int v40 = (int) (v29 >> 24);
 			v29 = v40;
 			continue;
 		}
 		v22 = v27;
-		final long[] v43 = new long[3];
-		long[] v42 = null;
-		long[] v47 = v43;
+		final int[] v43 = new int[3];
+		int[] v42 = null;
+		int[] v47 = v43;
 		int v48 = 0;
 		int v49 = 0;
 		for (;; v48 = (v48 + 1)) {
@@ -47,39 +47,39 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 				break;
 			}
 			final boolean v55 = (v48 < 0);
-			long v56 = 0;
+			int v56 = 0;
 			if (v55) {
-				v56 = 0;
+				v56 = (int) (0);
 			} else {
 				final int v60 = v2.length;
 				final boolean v61 = (v48 >= v60);
 				if (v61) {
-					v56 = 0;
+					v56 = (int) (0);
 				} else {
-					final long v67 = v2[v48];
+					final int v67 = v2[v48];
 					v56 = v67;
 				}
 			}
 			final boolean v69 = (v48 < 0);
-			long v70 = 0;
+			int v70 = 0;
 			if (v69) {
-				v70 = 0;
+				v70 = (int) (0);
 			} else {
 				final int v74 = v22.length;
 				final boolean v75 = (v48 >= v74);
 				if (v75) {
-					v70 = 0;
+					v70 = (int) (0);
 				} else {
-					final long v81 = v22[v48];
+					final int v81 = v22[v48];
 					v70 = v81;
 				}
 			}
-			final long v82 = (v56 - v70);
-			final long v83 = (v82 - v49);
+			final int v82 = (v56 - v70);
+			final int v83 = (v82 - v49);
 			final boolean v85 = (v83 < 0);
-			long v86 = 0;
+			int v86 = 0;
 			if (v85) {
-				final long v89 = (v83 + 16777216);
+				final int v89 = (v83 + 16777216);
 				v86 = v89;
 			} else {
 				v86 = v83;
@@ -96,9 +96,9 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			continue;
 		}
 		v42 = v47;
-		final long[] v103 = new long[3];
-		long[] v102 = null;
-		long[] v107 = v103;
+		final int[] v103 = new int[3];
+		int[] v102 = null;
+		int[] v107 = v103;
 		int v108 = 2;
 		int v109 = 0;
 		for (;;) {
@@ -108,31 +108,31 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			}
 			final int v115 = (v109 * 16777216);
 			final boolean v117 = (v108 < 0);
-			long v118 = 0;
+			int v118 = 0;
 			if (v117) {
-				v118 = 0;
+				v118 = (int) (0);
 			} else {
 				final int v122 = v42.length;
 				final boolean v123 = (v108 >= v122);
 				if (v123) {
-					v118 = 0;
+					v118 = (int) (0);
 				} else {
-					final long v129 = v42[v108];
+					final int v129 = v42[v108];
 					v118 = v129;
 				}
 			}
-			final long v130 = (v115 + v118);
-			final long v132 = (v130 / 7);
+			final int v130 = (v115 + v118);
+			final int v132 = (v130 / 7);
 			v107[v108] = v132;
 			final int v135 = (v108 - 1);
-			final int v137 = (int) ((v130 % 7));
+			final int v137 = (v130 % 7);
 			v108 = v135;
 			v109 = v137;
 			continue;
 		}
 		v102 = v107;
 		final boolean v139 = (v0 < 0);
-		long v140 = 0;
+		int v140 = 0;
 		if (v139) {
 			v140 = 0;
 		} else {
@@ -141,13 +141,13 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			if (v145) {
 				v140 = 0;
 			} else {
-				final long v151 = v102[(int) v0];
+				final int v151 = v102[(int) v0];
 				v140 = v151;
 			}
 		}
 		final long v153 = (Math.addExact(v0, 1));
 		final boolean v155 = (v153 < 0);
-		long v156 = 0;
+		int v156 = 0;
 		if (v155) {
 			v156 = 0;
 		} else {
@@ -156,11 +156,11 @@ public final class gauntlet_differential_cases_limb-subdiv.java {
 			if (v161) {
 				v156 = 0;
 			} else {
-				final long v167 = v102[(int) v153];
+				final int v167 = v102[(int) v153];
 				v156 = v167;
 			}
 		}
-		final long v169 = (v156 * 100000000);
+		final long v169 = (((long) v156) * 100000000);
 		final long v170 = (v140 + v169);
 		return v170;
 	}

@@ -142,7 +142,7 @@ public final class examples_io_freq.java {
 				final boolean v206 = (v199 < 0);
 				int v207 = 0;
 				if (v206) {
-					v207 = 0;
+					v207 = (int) (0);
 				} else {
 					final boolean v211 = (v199 >= v23);
 					if (v211) {
@@ -204,7 +204,7 @@ public final class examples_io_freq.java {
 							final boolean v273 = (v263 < 0);
 							int v274 = 0;
 							if (v273) {
-								v274 = 0;
+								v274 = (int) (0);
 							} else {
 								final boolean v278 = (v263 >= v23);
 								if (v278) {
@@ -216,7 +216,7 @@ public final class examples_io_freq.java {
 							final boolean v285 = (v262 < 0);
 							int v286 = 0;
 							if (v285) {
-								v286 = 0;
+								v286 = (int) (0);
 							} else {
 								final boolean v290 = (v262 >= v23);
 								if (v290) {
@@ -236,7 +236,7 @@ public final class examples_io_freq.java {
 							final boolean v308 = (v263 < 0);
 							int v309 = 0;
 							if (v308) {
-								v309 = 0;
+								v309 = (int) (0);
 							} else {
 								final boolean v313 = (v263 >= v23);
 								if (v313) {
@@ -248,7 +248,7 @@ public final class examples_io_freq.java {
 							final boolean v320 = (v261 < 0);
 							int v321 = 0;
 							if (v320) {
-								v321 = 0;
+								v321 = (int) (0);
 							} else {
 								final boolean v325 = (v261 >= v23);
 								if (v325) {
@@ -266,7 +266,7 @@ public final class examples_io_freq.java {
 						final boolean v340 = (v262 < 0);
 						int v341 = 0;
 						if (v340) {
-							v341 = 0;
+							v341 = (int) (0);
 						} else {
 							final boolean v345 = (v262 >= v23);
 							if (v345) {
@@ -279,7 +279,7 @@ public final class examples_io_freq.java {
 						final boolean v353 = (v261 < 0);
 						int v354 = 0;
 						if (v353) {
-							v354 = 0;
+							v354 = (int) (0);
 						} else {
 							final boolean v358 = (v261 >= v23);
 							if (v358) {
@@ -309,7 +309,7 @@ public final class examples_io_freq.java {
 								} else {
 									final boolean v411 = (v403 >= 65536);
 									if (v411) {
-										v406 = 0;
+										v406 = (int) (0);
 									} else {
 										v406 = v403;
 									}
@@ -329,7 +329,7 @@ public final class examples_io_freq.java {
 									} else {
 										final boolean v433 = (v425 >= 65536);
 										if (v433) {
-											v428 = 0;
+											v428 = (int) (0);
 										} else {
 											v428 = v425;
 										}
@@ -355,7 +355,7 @@ public final class examples_io_freq.java {
 								} else {
 									final boolean v459 = (v451 >= 65536);
 									if (v459) {
-										v454 = 0;
+										v454 = (int) (0);
 									} else {
 										v454 = v451;
 									}
@@ -371,7 +371,7 @@ public final class examples_io_freq.java {
 								final boolean v472 = (v470 < 0);
 								int v473 = 0;
 								if (v472) {
-									v473 = 0;
+									v473 = (int) (0);
 								} else {
 									final int v477 = v10.length;
 									final boolean v478 = (v470 >= v477);
@@ -397,7 +397,7 @@ public final class examples_io_freq.java {
 								final boolean v505 = (v503 < 0);
 								int v506 = 0;
 								if (v505) {
-									v506 = 0;
+									v506 = (int) (0);
 								} else {
 									final int v510 = v10.length;
 									final boolean v511 = (v503 >= v510);
@@ -427,7 +427,7 @@ public final class examples_io_freq.java {
 								final boolean v541 = (v539 < 0);
 								int v542 = 0;
 								if (v541) {
-									v542 = 0;
+									v542 = (int) (0);
 								} else {
 									final int v546 = v10.length;
 									final boolean v547 = (v539 >= v546);
@@ -453,7 +453,7 @@ public final class examples_io_freq.java {
 								final boolean v574 = (v572 < 0);
 								int v575 = 0;
 								if (v574) {
-									v575 = 0;
+									v575 = (int) (0);
 								} else {
 									final int v579 = v10.length;
 									final boolean v580 = (v572 >= v579);
@@ -490,7 +490,7 @@ public final class examples_io_freq.java {
 							final boolean v609 = (v263 < 0);
 							int v610 = 0;
 							if (v609) {
-								v610 = 0;
+								v610 = (int) (0);
 							} else {
 								final boolean v614 = (v263 >= v23);
 								if (v614) {
@@ -502,7 +502,7 @@ public final class examples_io_freq.java {
 							final boolean v621 = (v262 < 0);
 							int v622 = 0;
 							if (v621) {
-								v622 = 0;
+								v622 = (int) (0);
 							} else {
 								final boolean v626 = (v262 >= v23);
 								if (v626) {
@@ -520,7 +520,7 @@ public final class examples_io_freq.java {
 						final boolean v639 = (v263 < 0);
 						int v640 = 0;
 						if (v639) {
-							v640 = 0;
+							v640 = (int) (0);
 						} else {
 							final boolean v644 = (v263 >= v23);
 							if (v644) {
@@ -532,7 +532,7 @@ public final class examples_io_freq.java {
 						final boolean v651 = (v261 < 0);
 						int v652 = 0;
 						if (v651) {
-							v652 = 0;
+							v652 = (int) (0);
 						} else {
 							final boolean v656 = (v261 >= v23);
 							if (v656) {
@@ -578,7 +578,7 @@ public final class examples_io_freq.java {
 					final boolean v692 = (v674 < 0);
 					int v693 = 0;
 					if (v692) {
-						v693 = 0;
+						v693 = (int) (0);
 					} else {
 						final boolean v697 = (v674 >= v23);
 						if (v697) {
@@ -592,7 +592,7 @@ public final class examples_io_freq.java {
 					final boolean v707 = (v705 < 0);
 					int v708 = 0;
 					if (v707) {
-						v708 = 0;
+						v708 = (int) (0);
 					} else {
 						final boolean v712 = (v705 >= v23);
 						if (v712) {
@@ -618,7 +618,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v738 = (v730 >= 65536);
 							if (v738) {
-								v733 = 0;
+								v733 = (int) (0);
 							} else {
 								v733 = v730;
 							}
@@ -638,7 +638,7 @@ public final class examples_io_freq.java {
 							} else {
 								final boolean v760 = (v752 >= 65536);
 								if (v760) {
-									v755 = 0;
+									v755 = (int) (0);
 								} else {
 									v755 = v752;
 								}
@@ -664,7 +664,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v786 = (v778 >= 65536);
 							if (v786) {
-								v781 = 0;
+								v781 = (int) (0);
 							} else {
 								v781 = v778;
 							}
@@ -680,7 +680,7 @@ public final class examples_io_freq.java {
 						final boolean v799 = (v797 < 0);
 						int v800 = 0;
 						if (v799) {
-							v800 = 0;
+							v800 = (int) (0);
 						} else {
 							final int v804 = v10.length;
 							final boolean v805 = (v797 >= v804);
@@ -706,7 +706,7 @@ public final class examples_io_freq.java {
 						final boolean v832 = (v830 < 0);
 						int v833 = 0;
 						if (v832) {
-							v833 = 0;
+							v833 = (int) (0);
 						} else {
 							final int v837 = v10.length;
 							final boolean v838 = (v830 >= v837);
@@ -736,7 +736,7 @@ public final class examples_io_freq.java {
 						final boolean v868 = (v866 < 0);
 						int v869 = 0;
 						if (v868) {
-							v869 = 0;
+							v869 = (int) (0);
 						} else {
 							final int v873 = v10.length;
 							final boolean v874 = (v866 >= v873);
@@ -762,7 +762,7 @@ public final class examples_io_freq.java {
 						final boolean v901 = (v899 < 0);
 						int v902 = 0;
 						if (v901) {
-							v902 = 0;
+							v902 = (int) (0);
 						} else {
 							final int v906 = v10.length;
 							final boolean v907 = (v899 >= v906);
@@ -823,7 +823,7 @@ public final class examples_io_freq.java {
 					final boolean v971 = (v951 < 0);
 					int v972 = 0;
 					if (v971) {
-						v972 = 0;
+						v972 = (int) (0);
 					} else {
 						final boolean v976 = (v951 >= v23);
 						if (v976) {
@@ -837,7 +837,7 @@ public final class examples_io_freq.java {
 					final boolean v986 = (v984 < 0);
 					int v987 = 0;
 					if (v986) {
-						v987 = 0;
+						v987 = (int) (0);
 					} else {
 						final boolean v991 = (v984 >= v23);
 						if (v991) {
@@ -863,7 +863,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v1017 = (v1009 >= 65536);
 							if (v1017) {
-								v1012 = 0;
+								v1012 = (int) (0);
 							} else {
 								v1012 = v1009;
 							}
@@ -883,7 +883,7 @@ public final class examples_io_freq.java {
 							} else {
 								final boolean v1039 = (v1031 >= 65536);
 								if (v1039) {
-									v1034 = 0;
+									v1034 = (int) (0);
 								} else {
 									v1034 = v1031;
 								}
@@ -909,7 +909,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v1065 = (v1057 >= 65536);
 							if (v1065) {
-								v1060 = 0;
+								v1060 = (int) (0);
 							} else {
 								v1060 = v1057;
 							}
@@ -925,7 +925,7 @@ public final class examples_io_freq.java {
 						final boolean v1078 = (v1076 < 0);
 						int v1079 = 0;
 						if (v1078) {
-							v1079 = 0;
+							v1079 = (int) (0);
 						} else {
 							final int v1083 = v10.length;
 							final boolean v1084 = (v1076 >= v1083);
@@ -951,7 +951,7 @@ public final class examples_io_freq.java {
 						final boolean v1111 = (v1109 < 0);
 						int v1112 = 0;
 						if (v1111) {
-							v1112 = 0;
+							v1112 = (int) (0);
 						} else {
 							final int v1116 = v10.length;
 							final boolean v1117 = (v1109 >= v1116);
@@ -981,7 +981,7 @@ public final class examples_io_freq.java {
 						final boolean v1147 = (v1145 < 0);
 						int v1148 = 0;
 						if (v1147) {
-							v1148 = 0;
+							v1148 = (int) (0);
 						} else {
 							final int v1152 = v10.length;
 							final boolean v1153 = (v1145 >= v1152);
@@ -1007,7 +1007,7 @@ public final class examples_io_freq.java {
 						final boolean v1180 = (v1178 < 0);
 						int v1181 = 0;
 						if (v1180) {
-							v1181 = 0;
+							v1181 = (int) (0);
 						} else {
 							final int v1185 = v10.length;
 							final boolean v1186 = (v1178 >= v1185);
@@ -1050,7 +1050,7 @@ public final class examples_io_freq.java {
 					final boolean v1229 = (v951 < 0);
 					int v1230 = 0;
 					if (v1229) {
-						v1230 = 0;
+						v1230 = (int) (0);
 					} else {
 						final boolean v1234 = (v951 >= v23);
 						if (v1234) {
@@ -1064,7 +1064,7 @@ public final class examples_io_freq.java {
 					final boolean v1244 = (v1242 < 0);
 					int v1245 = 0;
 					if (v1244) {
-						v1245 = 0;
+						v1245 = (int) (0);
 					} else {
 						final boolean v1249 = (v1242 >= v23);
 						if (v1249) {
@@ -1090,7 +1090,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v1275 = (v1267 >= 65536);
 							if (v1275) {
-								v1270 = 0;
+								v1270 = (int) (0);
 							} else {
 								v1270 = v1267;
 							}
@@ -1110,7 +1110,7 @@ public final class examples_io_freq.java {
 							} else {
 								final boolean v1297 = (v1289 >= 65536);
 								if (v1297) {
-									v1292 = 0;
+									v1292 = (int) (0);
 								} else {
 									v1292 = v1289;
 								}
@@ -1136,7 +1136,7 @@ public final class examples_io_freq.java {
 						} else {
 							final boolean v1323 = (v1315 >= 65536);
 							if (v1323) {
-								v1318 = 0;
+								v1318 = (int) (0);
 							} else {
 								v1318 = v1315;
 							}
@@ -1152,7 +1152,7 @@ public final class examples_io_freq.java {
 						final boolean v1336 = (v1334 < 0);
 						int v1337 = 0;
 						if (v1336) {
-							v1337 = 0;
+							v1337 = (int) (0);
 						} else {
 							final int v1341 = v10.length;
 							final boolean v1342 = (v1334 >= v1341);
@@ -1178,7 +1178,7 @@ public final class examples_io_freq.java {
 						final boolean v1369 = (v1367 < 0);
 						int v1370 = 0;
 						if (v1369) {
-							v1370 = 0;
+							v1370 = (int) (0);
 						} else {
 							final int v1374 = v10.length;
 							final boolean v1375 = (v1367 >= v1374);
@@ -1208,7 +1208,7 @@ public final class examples_io_freq.java {
 						final boolean v1405 = (v1403 < 0);
 						int v1406 = 0;
 						if (v1405) {
-							v1406 = 0;
+							v1406 = (int) (0);
 						} else {
 							final int v1410 = v10.length;
 							final boolean v1411 = (v1403 >= v1410);
@@ -1234,7 +1234,7 @@ public final class examples_io_freq.java {
 						final boolean v1438 = (v1436 < 0);
 						int v1439 = 0;
 						if (v1438) {
-							v1439 = 0;
+							v1439 = (int) (0);
 						} else {
 							final int v1443 = v10.length;
 							final boolean v1444 = (v1436 >= v1443);
@@ -1269,7 +1269,7 @@ public final class examples_io_freq.java {
 					final boolean v1475 = (v952 < 0);
 					int v1476 = 0;
 					if (v1475) {
-						v1476 = 0;
+						v1476 = (int) (0);
 					} else {
 						final boolean v1480 = (v952 >= v673);
 						if (v1480) {
@@ -1282,11 +1282,11 @@ public final class examples_io_freq.java {
 					final boolean v1488 = (v951 < 0);
 					int v1489 = 0;
 					if (v1488) {
-						v1489 = 0;
+						v1489 = (int) (0);
 					} else {
 						final boolean v1493 = (v951 >= v23);
 						if (v1493) {
-							v1489 = 0;
+							v1489 = (int) (0);
 						} else {
 							v1489 = v951;
 						}
@@ -1296,7 +1296,7 @@ public final class examples_io_freq.java {
 					final boolean v1503 = (v952 < 0);
 					int v1504 = 0;
 					if (v1503) {
-						v1504 = 0;
+						v1504 = (int) (0);
 					} else {
 						final boolean v1508 = (v952 >= v673);
 						if (v1508) {
@@ -1349,7 +1349,7 @@ public final class examples_io_freq.java {
 				final boolean v1566 = (v1559 < 0);
 				int v1567 = 0;
 				if (v1566) {
-					v1567 = 0;
+					v1567 = (int) (0);
 				} else {
 					final boolean v1571 = (v1559 >= v673);
 					if (v1571) {
@@ -1411,7 +1411,7 @@ public final class examples_io_freq.java {
 							final boolean v1633 = (v1623 < 0);
 							int v1634 = 0;
 							if (v1633) {
-								v1634 = 0;
+								v1634 = (int) (0);
 							} else {
 								final boolean v1638 = (v1623 >= v673);
 								if (v1638) {
@@ -1423,7 +1423,7 @@ public final class examples_io_freq.java {
 							final boolean v1645 = (v1622 < 0);
 							int v1646 = 0;
 							if (v1645) {
-								v1646 = 0;
+								v1646 = (int) (0);
 							} else {
 								final boolean v1650 = (v1622 >= v673);
 								if (v1650) {
@@ -1443,7 +1443,7 @@ public final class examples_io_freq.java {
 							final boolean v1668 = (v1623 < 0);
 							int v1669 = 0;
 							if (v1668) {
-								v1669 = 0;
+								v1669 = (int) (0);
 							} else {
 								final boolean v1673 = (v1623 >= v673);
 								if (v1673) {
@@ -1455,7 +1455,7 @@ public final class examples_io_freq.java {
 							final boolean v1680 = (v1621 < 0);
 							int v1681 = 0;
 							if (v1680) {
-								v1681 = 0;
+								v1681 = (int) (0);
 							} else {
 								final boolean v1685 = (v1621 >= v673);
 								if (v1685) {
@@ -1473,7 +1473,7 @@ public final class examples_io_freq.java {
 						final boolean v1701 = (v1622 < 0);
 						int v1702 = 0;
 						if (v1701) {
-							v1702 = 0;
+							v1702 = (int) (0);
 						} else {
 							final boolean v1706 = (v1622 >= v673);
 							if (v1706) {
@@ -1489,7 +1489,7 @@ public final class examples_io_freq.java {
 						final boolean v1719 = (v1621 < 0);
 						int v1720 = 0;
 						if (v1719) {
-							v1720 = 0;
+							v1720 = (int) (0);
 						} else {
 							final boolean v1724 = (v1621 >= v673);
 							if (v1724) {
@@ -1507,7 +1507,7 @@ public final class examples_io_freq.java {
 							final boolean v1737 = (v1623 < 0);
 							int v1738 = 0;
 							if (v1737) {
-								v1738 = 0;
+								v1738 = (int) (0);
 							} else {
 								final boolean v1742 = (v1623 >= v673);
 								if (v1742) {
@@ -1519,7 +1519,7 @@ public final class examples_io_freq.java {
 							final boolean v1749 = (v1622 < 0);
 							int v1750 = 0;
 							if (v1749) {
-								v1750 = 0;
+								v1750 = (int) (0);
 							} else {
 								final boolean v1754 = (v1622 >= v673);
 								if (v1754) {
@@ -1537,7 +1537,7 @@ public final class examples_io_freq.java {
 						final boolean v1767 = (v1623 < 0);
 						int v1768 = 0;
 						if (v1767) {
-							v1768 = 0;
+							v1768 = (int) (0);
 						} else {
 							final boolean v1772 = (v1623 >= v673);
 							if (v1772) {
@@ -1549,7 +1549,7 @@ public final class examples_io_freq.java {
 						final boolean v1779 = (v1621 < 0);
 						int v1780 = 0;
 						if (v1779) {
-							v1780 = 0;
+							v1780 = (int) (0);
 						} else {
 							final boolean v1784 = (v1621 >= v673);
 							if (v1784) {
@@ -1588,7 +1588,7 @@ public final class examples_io_freq.java {
 					break;
 				}
 				final int v1812 = v101.length;
-				final long v1814 = (v1812 >> 1);
+				final int v1814 = (int) (v1812 >> 1);
 				final boolean v1816 = (v1814 < 1);
 				if (v1816) {
 					break;
@@ -1596,7 +1596,7 @@ public final class examples_io_freq.java {
 				final boolean v1818 = (v1802 < 0);
 				int v1819 = 0;
 				if (v1818) {
-					v1819 = 0;
+					v1819 = (int) (0);
 				} else {
 					final boolean v1823 = (v1802 >= v673);
 					if (v1823) {
@@ -1629,10 +1629,10 @@ public final class examples_io_freq.java {
 				final boolean v1856 = (v1854 < 0);
 				int v1857 = 0;
 				if (v1856) {
-					v1857 = 0;
+					v1857 = (int) (0);
 				} else {
 					final int v1861 = v101.length;
-					final long v1863 = (v1861 >> 1);
+					final int v1863 = (int) (v1861 >> 1);
 					final boolean v1864 = (v1854 >= v1863);
 					if (v1864) {
 						v1857 = 0;
@@ -1653,7 +1653,7 @@ public final class examples_io_freq.java {
 				} else {
 					final boolean v1884 = (v1876 >= 65536);
 					if (v1884) {
-						v1879 = 0;
+						v1879 = (int) (0);
 					} else {
 						v1879 = v1876;
 					}
@@ -1679,7 +1679,7 @@ public final class examples_io_freq.java {
 					break;
 				}
 				final int v1910 = v101.length;
-				final long v1912 = (v1910 >> 1);
+				final int v1912 = (int) (v1910 >> 1);
 				final boolean v1914 = (v1912 < 1);
 				if (v1914) {
 					break;
@@ -1687,7 +1687,7 @@ public final class examples_io_freq.java {
 				final boolean v1916 = (v1900 < 0);
 				int v1917 = 0;
 				if (v1916) {
-					v1917 = 0;
+					v1917 = (int) (0);
 				} else {
 					final boolean v1921 = (v1900 >= v673);
 					if (v1921) {
@@ -1705,10 +1705,10 @@ public final class examples_io_freq.java {
 				final boolean v1937 = (v1935 < 0);
 				int v1938 = 0;
 				if (v1937) {
-					v1938 = 0;
+					v1938 = (int) (0);
 				} else {
 					final int v1942 = v101.length;
-					final long v1944 = (v1942 >> 1);
+					final int v1944 = (int) (v1942 >> 1);
 					final boolean v1945 = (v1935 >= v1944);
 					if (v1945) {
 						v1938 = 0;
@@ -1762,7 +1762,7 @@ public final class examples_io_freq.java {
 					final boolean v1995 = (v1987 < 0);
 					int v1996 = 0;
 					if (v1995) {
-						v1996 = 0;
+						v1996 = (int) (0);
 					} else {
 						final boolean v2000 = (v1987 >= v1801);
 						if (v2000) {
@@ -1779,7 +1779,7 @@ public final class examples_io_freq.java {
 					final boolean v2015 = (v2013 < 0);
 					int v2016 = 0;
 					if (v2015) {
-						v2016 = 0;
+						v2016 = (int) (0);
 					} else {
 						final boolean v2020 = (v2013 >= v1801);
 						if (v2020) {
@@ -1812,7 +1812,7 @@ public final class examples_io_freq.java {
 				final boolean v2046 = (v2044 < 0);
 				int v2047 = 0;
 				if (v2046) {
-					v2047 = 0;
+					v2047 = (int) (0);
 				} else {
 					final boolean v2051 = (v2044 >= v1801);
 					if (v2051) {
@@ -1856,7 +1856,7 @@ public final class examples_io_freq.java {
 					} else {
 						final boolean v2099 = (v2091 >= 65536);
 						if (v2099) {
-							v2094 = 0;
+							v2094 = (int) (0);
 						} else {
 							v2094 = v2091;
 						}
@@ -1868,7 +1868,7 @@ public final class examples_io_freq.java {
 					final boolean v2107 = (v2081 < 0);
 					int v2108 = 0;
 					if (v2107) {
-						v2108 = 0;
+						v2108 = (int) (0);
 					} else {
 						final boolean v2112 = (v2081 >= v1801);
 						if (v2112) {
@@ -1883,7 +1883,7 @@ public final class examples_io_freq.java {
 					final boolean v2123 = (v2121 < 0);
 					int v2124 = 0;
 					if (v2123) {
-						v2124 = 0;
+						v2124 = (int) (0);
 					} else {
 						final int v2128 = v10.length;
 						final boolean v2129 = (v2121 >= v2128);
@@ -1899,7 +1899,7 @@ public final class examples_io_freq.java {
 					final boolean v2140 = (v2138 < 0);
 					int v2141 = 0;
 					if (v2140) {
-						v2141 = 0;
+						v2141 = (int) (0);
 					} else {
 						final boolean v2145 = (v2138 >= v1801);
 						if (v2145) {
@@ -1934,10 +1934,10 @@ public final class examples_io_freq.java {
 				final boolean v2179 = (v2177 < 0);
 				int v2180 = 0;
 				if (v2179) {
-					v2180 = 0;
+					v2180 = (int) (0);
 				} else {
 					final int v2184 = v101.length;
-					final long v2186 = (v2184 >> 1);
+					final int v2186 = (int) (v2184 >> 1);
 					final boolean v2187 = (v2177 >= v2186);
 					if (v2187) {
 						v2180 = 0;
@@ -1958,7 +1958,7 @@ public final class examples_io_freq.java {
 				} else {
 					final boolean v2207 = (v2199 >= 65536);
 					if (v2207) {
-						v2202 = 0;
+						v2202 = (int) (0);
 					} else {
 						v2202 = v2199;
 					}
@@ -1970,7 +1970,7 @@ public final class examples_io_freq.java {
 				final boolean v2217 = (v2215 < 0);
 				int v2218 = 0;
 				if (v2217) {
-					v2218 = 0;
+					v2218 = (int) (0);
 				} else {
 					final boolean v2222 = (v2215 >= v1801);
 					if (v2222) {
@@ -2003,10 +2003,10 @@ public final class examples_io_freq.java {
 				final boolean v2256 = (v2254 < 0);
 				int v2257 = 0;
 				if (v2256) {
-					v2257 = 0;
+					v2257 = (int) (0);
 				} else {
 					final int v2261 = v101.length;
-					final long v2263 = (v2261 >> 1);
+					final int v2263 = (int) (v2261 >> 1);
 					final boolean v2264 = (v2254 >= v2263);
 					if (v2264) {
 						v2257 = 0;
@@ -2027,7 +2027,7 @@ public final class examples_io_freq.java {
 				} else {
 					final boolean v2284 = (v2276 >= 65536);
 					if (v2284) {
-						v2279 = 0;
+						v2279 = (int) (0);
 					} else {
 						v2279 = v2276;
 					}

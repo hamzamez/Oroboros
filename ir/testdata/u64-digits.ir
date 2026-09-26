@@ -1,0 +1,52 @@
+(ir 1
+  (target go)
+  (stage A)
+  (ops const add le call if loop assume yield break continue branch)
+  (func u64d-run (params (%0 (int 0 100))) (results int)
+    (region
+      (val (%1 int) (const 0))
+      (val (%2 bool) (le %1 %0))
+      (val (%3 bool)
+        (if %2
+          (region
+            (pi %4 (int 0 100) (%0 ge %1))
+            (val (%5 int) (const 100))
+            (val (%6 bool) (le %4 %5))
+            (yield %6))
+          (region
+            (pi %7 (int 0 100) (%0 lt %1))
+            (val (%8 bool) (const false))
+            (yield %8))))
+      (do (assume %3))
+      (val (%9 int) (const 18446))
+      (val (%10 u64) (call u64-of %9))
+      (val (%11 int) (const 1000000000000000))
+      (val (%12 u64) (call u64-of %11))
+      (val (%13 u64) (call u64* %10 %12))
+      (val (%14 int) (const 744073709551615))
+      (val (%15 u64) (call u64-of %14))
+      (val (%16 u64) (call u64+ %13 %15))
+      (val (%17 u64) (call u64-of %0))
+      (val (%18 u64) (call u64- %16 %17))
+      (val (%19 int) (const 0))
+      (val (%20 int)
+        (loop (init %18 %19)
+          (region
+            (params (%21 u64) (%22 int))
+            (val (%23 int) (const 0))
+            (val (%24 u64) (call u64-of %23))
+            (val (%25 bool) (call u64= %21 %24))
+            (branch %25
+              (region
+                (break %22))
+              (region
+                (val (%26 int) (const 10))
+                (val (%27 u64) (call u64-of %26))
+                (val (%28 u64) (call u64/ %21 %27))
+                (val (%29 int) (const 10))
+                (val (%30 u64) (call u64-of %29))
+                (val (%31 u64) (call u64% %21 %30))
+                (val (%32 int) (call int-of-u64 %31))
+                (val (%33 int) (add exact %22 %32))
+                (continue %28 %33))))))
+      (yield %20))))

@@ -132,6 +132,11 @@ type Stmt struct {
 	Args []V
 	Res  []V
 	Sub  []*Region
+	// Src is PROVENANCE: the application this statement lowers, which a
+	// diagnostic names (a refusal says which source operation it could not
+	// prove). It is in memory only, like the facts: never printed, never read,
+	// and nothing a printer or a pass decides reads it (spec §12).
+	Src *core.Term
 }
 
 // Term is a region's terminator (spec §1.3).
@@ -174,6 +179,10 @@ type Func struct {
 	Results []string // canonical types
 	Body    *Region
 	Types   []string // every value's type, canonical spelling, indexed by V
+	// facts is the interval domain's answer from Decide, kept in memory so the
+	// step to IR_P does not recompute it when nothing between has changed a
+	// value (Finalize). Never printed.
+	facts []fact
 }
 
 // NV is the number of values the function defines.

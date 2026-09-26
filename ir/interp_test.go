@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"oroboros/core"
+	"oroboros/emit"
 )
 
 // A CONCRETE INTERPRETER OF THE IR, for testing the analyses against
@@ -240,9 +241,64 @@ func (in *interp) stmt(s *Stmt) {
 			out.arr = append(out.arr, ex.args[0].i)
 		}
 		one(out)
+	case OCall:
+		one(in.call(s, a))
 	default:
 		panic(errUnsupported)
 	}
+}
+
+var (
+	two64Big = new(big.Int).Lsh(big.NewInt(1), 64)
+	two63Big = new(big.Int).Lsh(big.NewInt(1), 63)
+)
+
+// call runs the primitives whose meaning is the language's: the unsigned
+// word's, as the residue map ℤ → ℤ/2⁶⁴ with representatives in U or S
+// (targets/go/u64.oro), and the mask and the shift SelectShifts writes, as
+// two's complement AND and the arithmetic right shift. Anything else is a
+// host's, which the interpreter does not run.
+func (in *interp) call(s *Stmt, a func(int) cval) cval {
+	rU := func(x *big.Int) *big.Int { return new(big.Int).Mod(x, two64Big) }
+	rS := func(x *big.Int) *big.Int {
+		y := rU(x)
+		if y.Cmp(two63Big) >= 0 {
+			y.Sub(y, two64Big)
+		}
+		return y
+	}
+	switch s.Name {
+	case "u64-of":
+		return cval{i: rU(a(0).i)}
+	case "int-of-u64":
+		return cval{i: rS(a(0).i)}
+	case "u64+":
+		return cval{i: rU(new(big.Int).Add(a(0).i, a(1).i))}
+	case "u64-":
+		return cval{i: rU(new(big.Int).Sub(a(0).i, a(1).i))}
+	case "u64*":
+		return cval{i: rU(new(big.Int).Mul(a(0).i, a(1).i))}
+	case "u64/", "u64%":
+		if a(1).i.Sign() == 0 {
+			panic(fmt.Errorf("division by zero"))
+		}
+		if s.Name == "u64/" {
+			return cval{i: new(big.Int).Quo(a(0).i, a(1).i)}
+		}
+		return cval{i: new(big.Int).Rem(a(0).i, a(1).i)}
+	case "u64<", "u64<=", "u64>", "u64>=", "u64=":
+		c := a(0).i.Cmp(a(1).i)
+		return cval{b: map[string]bool{"u64<": c < 0, "u64<=": c <= 0, "u64>": c > 0, "u64>=": c >= 0, "u64=": c == 0}[s.Name]}
+	}
+	if len(s.Args) == 2 {
+		switch emit.ArithOp(s.Name, 2) {
+		case "and":
+			return cval{i: new(big.Int).And(a(0).i, a(1).i)}
+		case "shr":
+			return cval{i: new(big.Int).Rsh(a(0).i, uint(a(1).i.Int64()))}
+		}
+	}
+	panic(errUnsupported)
 }
 
 // contained checks every recorded value of f against its fact, and returns

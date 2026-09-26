@@ -1,10 +1,7 @@
 package ir
 
 import (
-	"fmt"
 	"math"
-	"math/big"
-	"math/bits"
 	"sort"
 
 	"oroboros/core"
@@ -31,7 +28,7 @@ import (
 // is sound, γ(a ⊓ b) ⊇ γ(a) ∩ γ(b).
 
 type iv struct {
-	lo, hi   int64
+	lo, hi   ep
 	nlo, phi bool // lo is −∞, hi is +∞
 	bot      bool
 }
@@ -39,10 +36,17 @@ type iv struct {
 var ivTop = iv{nlo: true, phi: true}
 var ivBot = iv{bot: true}
 
-func exactIV(n int64) iv      { return iv{lo: n, hi: n} }
-func rangeIV(lo, hi int64) iv { return iv{lo: lo, hi: hi} }
+func exactIV(n int64) iv      { return iv{lo: ei(n), hi: ei(n)} }
+func rangeIV(lo, hi int64) iv { return iv{lo: ei(lo), hi: ei(hi)} }
+func rangeE(lo, hi ep) iv     { return iv{lo: lo, hi: hi} }
+
+// ivU is U = [0, 2⁶⁴ − 1], the unsigned word.
+var ivU = rangeE(ep{}, u64Max)
 
 func (a iv) finite() bool { return !a.bot && !a.nlo && !a.phi }
+
+// within reports a ⊆ [lo, hi]: ⊥ is inside everything.
+func (a iv) within(lo, hi ep) bool { return a.bot || (a.finite() && lo.le(a.lo) && a.hi.le(hi)) }
 
 // norm is an interval's CANONICAL form: an infinite end carries no number.
 // Equality of facts is how a loop's iteration recognises its fixpoint, so two
@@ -54,10 +58,10 @@ func (a iv) norm() iv {
 		return ivBot
 	}
 	if a.nlo {
-		a.lo = 0
+		a.lo = ep{}
 	}
 	if a.phi {
-		a.hi = 0
+		a.hi = ep{}
 	}
 	return a
 }
@@ -70,7 +74,7 @@ func joinIV(a, b iv) iv {
 		return a
 	}
 	out := iv{nlo: a.nlo || b.nlo, phi: a.phi || b.phi}
-	out.lo, out.hi = min(a.lo, b.lo), max(a.hi, b.hi)
+	out.lo, out.hi = minE(a.lo, b.lo), maxE(a.hi, b.hi)
 	return out.norm()
 }
 
@@ -79,13 +83,13 @@ func meetIV(a, b iv) iv {
 		return ivBot
 	}
 	out := a
-	if !b.nlo && (out.nlo || b.lo > out.lo) {
+	if !b.nlo && (out.nlo || out.lo.lt(b.lo)) {
 		out.lo, out.nlo = b.lo, false
 	}
-	if !b.phi && (out.phi || b.hi < out.hi) {
+	if !b.phi && (out.phi || b.hi.lt(out.hi)) {
 		out.hi, out.phi = b.hi, false
 	}
-	if !out.nlo && !out.phi && out.lo > out.hi {
+	if !out.nlo && !out.phi && out.hi.lt(out.lo) {
 		return ivBot
 	}
 	return out.norm()
@@ -99,100 +103,61 @@ func widenIV(old, nw iv) iv {
 		return old
 	}
 	out := old
-	if nw.nlo || nw.lo < old.lo {
+	if nw.nlo || nw.lo.lt(old.lo) {
 		out.nlo = true
 	}
-	if nw.phi || nw.hi > old.hi {
+	if nw.phi || old.hi.lt(nw.hi) {
 		out.phi = true
 	}
 	return out.norm()
 }
 
-// addE adds two endpoints, saturating: an overflow becomes the infinite end,
-// which only loses precision.
-func addE(x, y int64) (int64, int) {
-	s, _ := bits.Add64(uint64(x), uint64(y), 0)
-	r := int64(s)
-	if (x >= 0) == (y >= 0) && (r >= 0) != (x >= 0) {
-		if x >= 0 {
-			return math.MaxInt64, 1
-		}
-		return math.MinInt64, -1
-	}
-	return r, 0
-}
-
+// addIV adds ends; a sum outside E is the infinity on its side. A low end past
+// +2¹²⁶ keeps E's greatest end as its low end, which is sound (it says less)
+// and leaves the high end infinite.
 func addIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
 	out := iv{nlo: a.nlo || b.nlo, phi: a.phi || b.phi}
 	if !out.nlo {
-		lo, o := addE(a.lo, b.lo)
-		out.lo = lo
-		if o < 0 {
+		if lo, ok := a.lo.add(b.lo); ok {
+			out.lo = lo
+		} else if lo.sign() < 0 {
 			out.nlo = true
-		}
-		if o > 0 {
-			out.phi = true
+		} else {
+			out.lo, out.phi = eMax, true
 		}
 	}
 	if !out.phi {
-		hi, o := addE(a.hi, b.hi)
-		out.hi = hi
-		if o > 0 {
+		if hi, ok := a.hi.add(b.hi); ok {
+			out.hi = hi
+		} else if hi.sign() > 0 {
 			out.phi = true
-		}
-		if o < 0 {
-			out.nlo = true
+		} else {
+			out.hi, out.nlo = eMax.neg(), true
 		}
 	}
-	return out
+	return out.norm()
 }
 
 func negIV(a iv) iv {
 	if a.bot {
 		return ivBot
 	}
-	out := iv{nlo: a.phi, phi: a.nlo}
-	if !a.phi {
-		if a.hi == math.MinInt64 {
-			out.phi = true
-		} else {
-			out.lo = -a.hi
-		}
-	}
-	if !a.nlo {
-		if a.lo == math.MinInt64 {
-			out.phi = true
-		} else {
-			out.hi = -a.lo
-		}
-	}
-	return out
+	return iv{lo: a.hi.neg(), hi: a.lo.neg(), nlo: a.phi, phi: a.nlo}.norm()
 }
 
 func subIV(a, b iv) iv { return addIV(a, negIV(b)) }
 
-func abs64(x int64) int64 {
-	if x < 0 {
-		if x == math.MinInt64 {
-			return math.MaxInt64
-		}
-		return -x
-	}
-	return x
-}
-
-// mulIV is the hull of the four corners; an infinite or overflowing corner
-// makes its side infinite. Each corner is computed EXACTLY, in big.Int: a
-// magnitude through abs64 saturates |MinInt64| = 2⁶³ to 2⁶³−1, which put
-// 1·MinInt64 outside its own interval (found by the soundness table).
+// mulIV is the hull of the four corners; a corner outside E makes its side
+// infinite, and an infinite factor makes the product unbounded unless the
+// other is exactly 0.
 func mulIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
-	zero := func(x iv) bool { return x.finite() && x.lo == 0 && x.hi == 0 }
+	zero := func(x iv) bool { return x.finite() && x.lo.sign() == 0 && x.hi.sign() == 0 }
 	if !a.finite() || !b.finite() {
 		if zero(a) || zero(b) {
 			return exactIV(0)
@@ -200,108 +165,93 @@ func mulIV(a, b iv) iv {
 		return ivTop
 	}
 	out, first := iv{}, true
-	for _, x := range []int64{a.lo, a.hi} {
-		for _, y := range []int64{b.lo, b.hi} {
-			p := new(big.Int).Mul(big.NewInt(x), big.NewInt(y))
-			if !p.IsInt64() {
-				if p.Sign() < 0 {
+	for _, x := range []ep{a.lo, a.hi} {
+		for _, y := range []ep{b.lo, b.hi} {
+			p, ok := x.mul(y)
+			if !ok {
+				if (x.sign() < 0) != (y.sign() < 0) {
 					out.nlo = true
 				} else {
 					out.phi = true
 				}
 				continue
 			}
-			v := p.Int64()
 			if first {
-				out.lo, out.hi, first = v, v, false
+				out.lo, out.hi, first = p, p, false
 			} else {
-				out.lo, out.hi = min(out.lo, v), max(out.hi, v)
+				out.lo, out.hi = minE(out.lo, p), maxE(out.hi, p)
 			}
 		}
 	}
-	if first { // every corner overflowed: the finite ends are the word's
-		out.lo, out.hi = math.MinInt64, math.MaxInt64
+	if first { // every corner left E: the finite ends are E's
+		out.lo, out.hi = eMax.neg(), eMax
 	}
-	return out
+	return out.norm()
 }
 
-// divIV is truncating division (integers.md §3). Only a strictly positive
-// divisor is modelled; anything else is ⊤, which is sound.
+// divIV is truncating division (integers.md §3). A strictly positive divisor
+// with a finite dividend takes the corners; otherwise the dividend bound.
 func divIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
-	if !b.finite() || b.lo <= 0 || !a.finite() {
-		if !b.nlo && b.lo >= 1 && !a.nlo && a.lo >= 0 { // a ≥ 0, b ≥ 1: 0 ≤ a/b ≤ a
-			return iv{lo: 0, hi: a.hi, phi: a.phi}
+	if !b.finite() || b.lo.sign() <= 0 || !a.finite() {
+		if !b.nlo && b.lo.sign() > 0 && !a.nlo && a.lo.sign() >= 0 { // a ≥ 0, b ≥ 1: 0 ≤ a/b ≤ a
+			return iv{hi: a.hi, phi: a.phi}.norm()
 		}
 		// |a/b| ≤ |a| for every divisor b ≠ 0, and b ≠ 0 at every division
 		// that runs: it is `div`'s domain condition, an obligation discharged
 		// or the program refused (refinements.md §3a).
 		return dividendBound(a)
 	}
-	c := []int64{a.lo / b.lo, a.lo / b.hi, a.hi / b.lo, a.hi / b.hi}
-	out := exactIV(c[0])
+	c := []ep{a.lo.quo(b.lo), a.lo.quo(b.hi), a.hi.quo(b.lo), a.hi.quo(b.hi)}
+	out := rangeE(c[0], c[0])
 	for _, x := range c[1:] {
-		out.lo, out.hi = min(out.lo, x), max(out.hi, x)
+		out.lo, out.hi = minE(out.lo, x), maxE(out.hi, x)
 	}
 	return out
 }
 
-// remIV: |a rem b| < |b|, with the dividend's sign (truncating remainder).
+// remIV: |a rem b| < |b|, with the dividend's sign (truncating remainder), and
+// |a rem b| ≤ |a| whatever the divisor.
 func remIV(a, b iv) iv {
 	if a.bot || b.bot {
 		return ivBot
 	}
-	// The remainder lies between 0 and the dividend, whatever the divisor:
-	// |a % b| ≤ |a| with a's sign (truncating remainder, integers.md §3).
-	between := iv{lo: min(a.lo, 0), hi: max(a.hi, 0), nlo: a.nlo, phi: a.phi}
+	between := iv{lo: minE(a.lo, ep{}), hi: maxE(a.hi, ep{}), nlo: a.nlo, phi: a.phi}.norm()
 	if !b.finite() {
 		return between
 	}
-	// |r| ≤ |b| − 1, the magnitude taken unsigned: |MinInt64| = 2⁶³ is
-	// representable there and not in int64. The bound is at most 2⁶³ − 1, so it
-	// fits; and r has the dividend's sign (truncating remainder).
-	mag := func(x int64) uint64 {
-		if x < 0 {
-			return uint64(-(x + 1)) + 1
-		}
-		return uint64(x)
-	}
-	mu := max(mag(b.lo), mag(b.hi))
-	if mu == 0 {
+	mu := maxE(b.lo.abs(), b.hi.abs())
+	if mu.sign() == 0 {
 		return between
 	}
-	bound := int64(mu - 1)
+	bound, _ := mu.sub(ei(1))
 	switch {
-	case !a.nlo && a.lo >= 0:
+	case !a.nlo && a.lo.sign() >= 0:
 		hi := bound
-		if !a.phi && a.hi < hi {
+		if !a.phi && a.hi.lt(hi) {
 			hi = a.hi
 		}
-		return rangeIV(0, hi)
-	case !a.phi && a.hi <= 0:
-		lo := -bound
-		if !a.nlo && a.lo > lo {
+		return rangeE(ep{}, hi)
+	case !a.phi && a.hi.sign() <= 0:
+		lo := bound.neg()
+		if !a.nlo && lo.lt(a.lo) {
 			lo = a.lo
 		}
-		return rangeIV(lo, 0)
+		return rangeE(lo, ep{})
 	}
-	return meetIV(rangeIV(-bound, bound), between)
+	return meetIV(rangeE(bound.neg(), bound), between)
 }
 
 // dividendBound is what |q| ≤ |a| says of a quotient: q ∈ [−M, M] for M the
-// dividend's largest magnitude, an infinite end where a has one. M = 2⁶³ (a
-// reaching MinInt64) is past int64, so that side is open.
+// dividend's largest magnitude, which is an end since E is symmetric.
 func dividendBound(a iv) iv {
 	if a.nlo || a.phi {
 		return ivTop
 	}
-	if a.lo == math.MinInt64 {
-		return iv{lo: math.MinInt64, phi: true}
-	}
-	m := max(abs64(a.lo), abs64(a.hi))
-	return rangeIV(-m, m)
+	m := maxE(a.lo.abs(), a.hi.abs())
+	return rangeE(m.neg(), m)
 }
 
 // narrowIV is a π's fact: x where `x rel o` holds (Theorem E).
@@ -309,10 +259,11 @@ func narrowIV(x iv, rel string, o iv) iv {
 	if x.bot || o.bot {
 		return ivBot
 	}
+	one := ei(1)
 	switch rel {
 	case "lt":
 		if !o.phi {
-			if h, ov := addE(o.hi, -1); ov == 0 {
+			if h, ok := o.hi.sub(one); ok {
 				return meetIV(x, iv{hi: h, nlo: true})
 			}
 		}
@@ -322,7 +273,7 @@ func narrowIV(x iv, rel string, o iv) iv {
 		}
 	case "gt":
 		if !o.nlo {
-			if l, ov := addE(o.lo, 1); ov == 0 {
+			if l, ok := o.lo.add(one); ok {
 				return meetIV(x, iv{lo: l, phi: true})
 			}
 		}
@@ -333,12 +284,14 @@ func narrowIV(x iv, rel string, o iv) iv {
 	case "eq":
 		return meetIV(x, o)
 	case "ne":
-		if o.finite() && o.lo == o.hi && x.finite() && x.lo < x.hi {
+		if o.finite() && o.lo == o.hi && x.finite() && x.lo.lt(x.hi) {
 			if x.lo == o.lo {
-				return rangeIV(x.lo+1, x.hi)
+				l, _ := x.lo.add(one)
+				return rangeE(l, x.hi)
 			}
 			if x.hi == o.lo {
-				return rangeIV(x.lo, x.hi-1)
+				h, _ := x.hi.sub(one)
+				return rangeE(x.lo, h)
 			}
 		}
 	}
@@ -397,7 +350,7 @@ type intervals struct {
 	loops  []*exitFacts
 	def    map[V]*Stmt
 	piOf   map[V]V // a π-parameter's source: the same value, renamed on an arm
-	thresh []int64 // the widening's thresholds (widenIVT)
+	thresh []ep    // the widening's thresholds (widenIVT)
 }
 
 type exitFacts struct {
@@ -409,6 +362,10 @@ type exitFacts struct {
 	params []V
 	pre    []fact
 	hasPre bool
+	// at is each continue's own record, from the last evaluation: its
+	// arguments' facts and the parameters' facts there, under that arm's
+	// guards. A continue with no record was not evaluated: its arm is dead.
+	at map[*Region][2][]fact
 }
 
 // loopBudget bounds a loop's ascending iteration. Widening after round 3 makes
@@ -455,17 +412,28 @@ func analyse(tg *emit.Target, f *Func) []fact {
 // table's length and element range.
 func (a *intervals) declared(ty string) fact {
 	out := topFact
-	if lo, hi, ok := core.IntRange(ty); ok {
-		out.v = rangeIV(lo, hi)
-	}
+	out.v = a.rangeOf(ty)
 	if e := ElemOf(a.tg, unbuffer(ty)); e != "" {
 		out.hasLn, out.ln = true, rangeIV(0, a.maxLen)
-		out.hasEl, out.el = true, ivTop
-		if lo, hi, ok := core.IntRange(e); ok {
-			out.el = rangeIV(lo, hi)
-		}
+		out.hasEl, out.el = true, a.rangeOf(e)
 	}
 	return out
+}
+
+// rangeOf is the interval a type denotes: its declared range read exactly
+// (U's top, 2⁶⁴ − 1, included), the realization's own range for a u64, and ⊤
+// otherwise.
+func (a *intervals) rangeOf(ty string) iv {
+	if lo, hi, ok := core.IntRangeBig(ty); ok {
+		l, okl := fromBig(lo)
+		h, okh := fromBig(hi)
+		out := iv{lo: l, hi: h, nlo: !okl, phi: !okh}
+		return out.norm()
+	}
+	if a.tg.ValueType(ty) == core.U64Type {
+		return ivU
+	}
+	return ivTop
 }
 
 func (a *intervals) facts(vs []V) []fact {
@@ -521,6 +489,13 @@ func (a *intervals) region(r *Region) ([]fact, bool) {
 			}
 		}
 		a.fs[pi.V] = x
+		// AN ARM WHOSE π IS EMPTY IS NEVER TAKEN: the π is its source
+		// restricted to the guard (Theorem E), and no value satisfies it.
+		if (!pi.Len && x.v.bot) || (pi.Len && x.hasLn && x.ln.bot) {
+			a.restore(saved)
+			a.dead(r)
+			return nil, false
+		}
 	}
 	defer a.restore(saved)
 	for i := range r.Stmts {
@@ -537,16 +512,16 @@ func (a *intervals) region(r *Region) ([]fact, bool) {
 		} else {
 			lc.cont, lc.hasCont = joinAll(lc.cont, lc.hasCont, fs), true
 			if lc.params != nil {
-				lc.pre, lc.hasPre = joinAll(lc.pre, lc.hasPre, a.facts(lc.params)), true
+				pre := a.facts(lc.params)
+				lc.pre, lc.hasPre = joinAll(lc.pre, lc.hasPre, pre), true
+				if lc.at != nil {
+					lc.at[r] = [2][]fact{fs, pre}
+				}
 			}
 		}
 	case TBranch:
-		sv := a.cond(r.Cond, true, nil, 3)
-		y1, ok1 := a.region(r.Then)
-		a.restore(sv)
-		sv = a.cond(r.Cond, false, nil, 3)
-		y2, ok2 := a.region(r.Else)
-		a.restore(sv)
+		y1, ok1 := a.arm(r.Cond, true, r.Then)
+		y2, ok2 := a.arm(r.Cond, false, r.Else)
 		switch {
 		case ok1 && ok2:
 			return joinAll(y1, true, y2), true
@@ -608,6 +583,19 @@ func (a *intervals) stmt(s *Stmt) {
 		// operands. The conversions are the identity. A big value's remainder
 		// by a word is bounded by the word (`big%-small`, |r| < |b|).
 		if len(s.Res) == 1 {
+			// THE MASK AND THE SHIFT, which SelectShifts writes for a division
+			// and a remainder by 2ᵏ (shiftdiv-2026-09-03): their laws, or every
+			// value computed from a split carry is ⊤ (irstep4c).
+			if len(args) == 2 {
+				switch emit.ArithOp(s.Name, 2) {
+				case "and":
+					one(fact{v: andIV(args[0].v, args[1].v)})
+					return
+				case "shr":
+					one(fact{v: shrIV(args[0].v, args[1].v)})
+					return
+				}
+			}
 			switch s.Name {
 			case "u64-of", "int-of-u64":
 				if len(args) == 1 {
@@ -681,12 +669,8 @@ func (a *intervals) stmt(s *Stmt) {
 		}
 		one(out)
 	case OIf:
-		sv := a.cond(s.Args[0], true, nil, 3)
-		y1, ok1 := a.region(s.Sub[0])
-		a.restore(sv)
-		sv = a.cond(s.Args[0], false, nil, 3)
-		y2, ok2 := a.region(s.Sub[1])
-		a.restore(sv)
+		y1, ok1 := a.arm(s.Args[0], true, s.Sub[0])
+		y2, ok2 := a.arm(s.Args[0], false, s.Sub[1])
 		switch {
 		case ok1 && ok2:
 			a.set(s.Res, joinAll(y1, true, y2))
@@ -712,9 +696,10 @@ func (a *intervals) stmt(s *Stmt) {
 		n := meetIV(args[0].v, rangeIV(0, a.maxLen))
 		i := ivBot
 		if !n.bot {
-			i = iv{lo: 0, hi: n.hi - 1, phi: n.phi}
-			if n.finite() && n.hi == 0 {
-				i = ivBot
+			i = ivBot
+			if n.phi || n.hi.sign() > 0 {
+				h, _ := n.hi.sub(ei(1))
+				i = iv{hi: h, phi: n.phi}.norm() // [0, n − 1]
 			}
 		}
 		a.fs[body.Params[0]] = fact{v: i}
@@ -742,7 +727,7 @@ func (a *intervals) loop(s *Stmt) {
 		for i, q := range body.Params {
 			a.fs[q] = cur[i]
 		}
-		*lc = exitFacts{params: body.Params}
+		*lc = exitFacts{params: body.Params, at: map[*Region][2][]fact{}}
 		a.region(body)
 		if !lc.hasCont {
 			return append([]fact(nil), init...)
@@ -788,7 +773,7 @@ func (a *intervals) loop(s *Stmt) {
 	for i, q := range body.Params {
 		a.fs[q] = cur[i]
 	}
-	*lc = exitFacts{params: body.Params}
+	*lc = exitFacts{params: body.Params, at: map[*Region][2][]fact{}}
 	a.region(body)
 	// Trip-bounded parameters (trip.go): met into the post-fixpoint, and the
 	// body evaluated once more under the tighter facts.
@@ -799,7 +784,7 @@ func (a *intervals) loop(s *Stmt) {
 		for i, q := range body.Params {
 			a.fs[q] = cur[i]
 		}
-		*lc = exitFacts{params: body.Params}
+		*lc = exitFacts{params: body.Params, at: map[*Region][2][]fact{}}
 		a.region(body)
 	}
 	a.loops = a.loops[:len(a.loops)-1]
@@ -825,7 +810,7 @@ func (a *intervals) assume(c V) {
 			}
 		}
 	case d.Op.IsCmp():
-		rel := map[Op]string{OEq: "eq", ONe: "ne", OLt: "lt", OLe: "le", OGt: "gt", OGe: "ge"}[d.Op]
+		rel := relOf(d.Op)
 		a.narrowAssumed(d.Args[0], rel, a.fs[d.Args[1]].v)
 		a.narrowAssumed(d.Args[1], flip(rel), a.fs[d.Args[0]].v)
 	}
@@ -869,7 +854,7 @@ func show(a iv) string {
 	if a.bot {
 		return "⊥"
 	}
-	lo, hi := big.NewInt(a.lo).String(), big.NewInt(a.hi).String()
+	lo, hi := a.lo.String(), a.hi.String()
 	if a.nlo {
 		lo = "-∞"
 	}
@@ -877,77 +862,6 @@ func show(a iv) string {
 		hi = "+∞"
 	}
 	return "[" + lo + ", " + hi + "]"
-}
-
-// ProofCount is the IR's interval domain used as a LEGALITY checker: the
-// integer operations `add`, `sub`, `mul` and `neg` (the population the term
-// analysis counts, emit/interval.go's `record`) and how many the domain proves
-// inside the target's signed word. An unreachable one (⊥) is proven. A u64
-// operation the unsigned-word pass selected is counted too, and proven inside
-// U = [0, 2⁶⁴−1]. It is the shadow measurement of ADR 0032 step 4: the
-// analysis moves to the IR when these counts do not fall below the term
-// analysis's on any program. unproven describes each operation not proven.
-//
-// An operation PROMOTED from an overloaded host primitive (lowering's
-// `promote`, which keeps the primitive's name) is not in the population: it is
-// ℤ's only under the premise of being inside the word, and otherwise the
-// host's, which is legal. Those are counted apart, in host and hostProven.
-//
-// Nor is an operation whose value only feeds assumptions: an export's `where`,
-// lowered to statements an `assume` reads. That is specification, a claim in ℤ
-// about the arguments at the boundary, which no printer emits and the term
-// analysis never counted.
-func ProofCount(tg *emit.Target, f *Func) (proven, total, hostProven, host int, unproven []string) {
-	fs := analyse(tg, f)
-	spec := specOnly(f)
-	f.Walk(func(r *Region) {
-		for i := range r.Stmts {
-			s := &r.Stmts[i]
-			if len(s.Res) != 1 || spec[s.Res[0]] {
-				continue
-			}
-			v := fs[s.Res[0]].v
-			inWord := v.bot || (v.finite() && v.lo >= tg.Word.Lo && v.hi <= tg.Word.Hi)
-			arith := s.Op == OAdd || s.Op == OSub || s.Op == OMul || s.Op == ONeg
-			if arith && s.Name != "" {
-				host++
-				if inWord {
-					hostProven++
-				}
-				continue
-			}
-			var ok bool
-			switch {
-			case arith:
-				ok = inWord
-			case s.Op == OCall && (s.Name == "u64+" || s.Name == "u64-" || s.Name == "u64*"):
-				// U's top end is past int64, which this domain's endpoints are,
-				// so only a finite non-negative interval is known inside U.
-				ok = v.bot || (v.finite() && v.lo >= 0)
-			default:
-				continue
-			}
-			total++
-			if ok {
-				proven++
-			} else {
-				ops := ""
-				for _, a := range s.Args {
-					ops += fmt.Sprintf(" %%%d%s", a, show(fs[a].v))
-				}
-				unproven = append(unproven, fmt.Sprintf("%s %s ←%s", describe(s), show(v), ops))
-			}
-		}
-	})
-	return proven, total, hostProven, host, unproven
-}
-
-// describe names a statement for a report.
-func describe(s *Stmt) string {
-	if s.Op == OCall {
-		return s.Name
-	}
-	return s.Op.String()
 }
 
 // specOnly is the set of values read only by assumptions, directly or through
@@ -1044,7 +958,7 @@ func allIn(in map[V]bool, vs []V) bool {
 // mx` under `sp < 32` is in [0, 32] on every iteration, and the plain widening
 // sent it to +∞ on the third round, where the descending iterations cannot
 // recover it because one arm yields mx itself.
-func widenIVT(old, nw iv, t []int64) iv {
+func widenIVT(old, nw iv, t []ep) iv {
 	if old.bot {
 		return nw
 	}
@@ -1054,9 +968,9 @@ func widenIVT(old, nw iv, t []int64) iv {
 	out := old
 	if nw.nlo {
 		out.nlo = true
-	} else if nw.lo < old.lo {
+	} else if nw.lo.lt(old.lo) {
 		// the greatest threshold at or below the new low end
-		i := sort.Search(len(t), func(k int) bool { return t[k] > nw.lo })
+		i := sort.Search(len(t), func(k int) bool { return nw.lo.lt(t[k]) })
 		if i == 0 {
 			out.nlo = true
 		} else {
@@ -1065,9 +979,9 @@ func widenIVT(old, nw iv, t []int64) iv {
 	}
 	if nw.phi {
 		out.phi = true
-	} else if nw.hi > old.hi {
+	} else if old.hi.lt(nw.hi) {
 		// the least threshold at or above the new high end
-		i := sort.Search(len(t), func(k int) bool { return t[k] >= nw.hi })
+		i := sort.Search(len(t), func(k int) bool { return nw.hi.le(t[k]) })
 		if i == len(t) {
 			out.phi = true
 		} else {
@@ -1077,7 +991,7 @@ func widenIVT(old, nw iv, t []int64) iv {
 	return out.norm()
 }
 
-func widenFT(old, nw fact, t []int64) fact {
+func widenFT(old, nw fact, t []ep) fact {
 	out := fact{v: widenIVT(old.v, nw.v, t)}
 	if old.hasLn && nw.hasLn {
 		out.ln, out.hasLn = widenIVT(old.ln, nw.ln, t), true
@@ -1089,29 +1003,33 @@ func widenFT(old, nw fact, t []int64) fact {
 }
 
 // thresholds is the sorted set of a function's integer constants and their
-// neighbours, and the ends of the target's word.
-func thresholds(tg *emit.Target, f *Func) []int64 {
-	set := map[int64]bool{tg.Word.Lo: true, tg.Word.Hi: true, 0: true}
+// neighbours, 0, the ends of the target's word, and U's top where the target
+// realizes U.
+func thresholds(tg *emit.Target, f *Func) []ep {
+	set := map[ep]bool{ei(tg.Word.Lo): true, ei(tg.Word.Hi): true, {}: true}
+	if tg.Word.Unsigned {
+		set[u64Max] = true
+	}
 	f.Walk(func(r *Region) {
 		for i := range r.Stmts {
 			s := &r.Stmts[i]
 			if s.Op == OConst && s.Lit.Kind == core.KInt {
-				k := s.Lit.Int
+				k := ei(s.Lit.Int)
 				set[k] = true
-				if k > math.MinInt64 {
-					set[k-1] = true
+				if d, ok := k.sub(ei(1)); ok {
+					set[d] = true
 				}
-				if k < math.MaxInt64 {
-					set[k+1] = true
+				if u, ok := k.add(ei(1)); ok {
+					set[u] = true
 				}
 			}
 		}
 	})
-	out := make([]int64, 0, len(set))
+	out := make([]ep, 0, len(set))
 	for k := range set {
 		out = append(out, k)
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i] < out[j] })
+	sort.Slice(out, func(i, j int) bool { return out[i].lt(out[j]) })
 	return out
 }
 
@@ -1191,6 +1109,54 @@ func (a *intervals) back(v V, z iv, saved []savedFact, depth int) []savedFact {
 	return saved
 }
 
+// arm evaluates one arm of a branch or an `if` under its guard's value. When
+// the guard, applied, empties a value's fact (cond's narrowing reached ⊥), no
+// execution takes the arm: it is dead, as it is when a π of it is empty.
+func (a *intervals) arm(c V, holds bool, r *Region) ([]fact, bool) {
+	sv := a.cond(c, holds, nil, 3)
+	defer a.restore(sv)
+	for _, x := range sv {
+		if a.fs[x.v].v.bot {
+			a.dead(r)
+			return nil, false
+		}
+	}
+	return a.region(r)
+}
+
+// dead gives every value an unreachable region defines the fact ⊥, which is
+// exact: no execution defines one. Its exits contribute nothing, since the
+// region is not evaluated; and an operation in it is proven (⊥ is inside
+// every set), as the term analysis counts one.
+func (a *intervals) dead(r *Region) {
+	// ⊥ in every component, a table's length and elements included: a dead
+	// table holds nothing, so it adds nothing to its class's hull (a missing
+	// component would read as ⊤, and did: read-loop's bytes, irstep4c).
+	bot := fact{v: ivBot, ln: ivBot, el: ivBot, hasLn: true, hasEl: true}
+	var walk func(r *Region)
+	walk = func(r *Region) {
+		for _, p := range r.Params {
+			a.fs[p] = bot
+		}
+		for _, pi := range r.Pis {
+			a.fs[pi.V] = bot
+		}
+		for i := range r.Stmts {
+			for _, v := range r.Stmts[i].Res {
+				a.fs[v] = bot
+			}
+			for _, sub := range r.Stmts[i].Sub {
+				walk(sub)
+			}
+		}
+		if r.T == TBranch {
+			walk(r.Then)
+			walk(r.Else)
+		}
+	}
+	walk(r)
+}
+
 // pl is a value's π-source, so x·x through two π-renamings is still a square.
 func (a *intervals) pl(v V) V {
 	for {
@@ -1203,8 +1169,17 @@ func (a *intervals) pl(v V) V {
 }
 
 func (a *intervals) constOf(v V) (int64, bool) {
-	if d := a.def[v]; d != nil && d.Op == OConst && d.Lit.Kind == core.KInt {
+	d := a.def[v]
+	switch {
+	case d == nil:
+	case d.Op == OConst && d.Lit.Kind == core.KInt:
 		return d.Lit.Int, true
+	case d.Op == OCall && (d.Name == "u64-of" || d.Name == "int-of-u64") && len(d.Args) == 1:
+		// The residue map is the identity on S ∩ U = [0, 2⁶³): a literal
+		// there converts to itself, as `(u64-of 10)` does.
+		if k, ok := a.constOf(d.Args[0]); ok && k >= 0 {
+			return k, true
+		}
 	}
 	return 0, false
 }
@@ -1212,11 +1187,11 @@ func (a *intervals) constOf(v V) (int64, bool) {
 // invSquare is what x·x ∈ z says of x: |x| ≤ ⌊√z.hi⌋, and nothing when z has
 // no finite, non-negative upper end.
 func invSquare(z iv) (iv, bool) {
-	if z.bot || z.phi || z.hi < 0 {
+	if z.bot || z.phi || z.hi.sign() < 0 {
 		return iv{}, false
 	}
-	r := isqrt(z.hi)
-	return rangeIV(-r, r), true
+	r := isqrtE(z.hi)
+	return rangeE(r.neg(), r), true
 }
 
 // invMulConst is what x·c ∈ z says of x, for a constant c ≠ 0: x = z/c exactly,
@@ -1227,26 +1202,26 @@ func invMulConst(z iv, c int64) (iv, bool) {
 		return iv{}, false
 	}
 	out := iv{nlo: true, phi: true}
-	lo, hi := z.lo, z.hi
+	lo, hi, k := z.lo, z.hi, ei(c)
 	if c > 0 {
 		if !z.nlo {
-			out.lo, out.nlo = ceilDiv(lo, c), false
+			out.lo, out.nlo = ceilDivE(lo, k), false
 		}
 		if !z.phi {
-			out.hi, out.phi = floorDiv(hi, c), false
+			out.hi, out.phi = floorDivE(hi, k), false
 		}
 	} else {
 		if !z.phi {
-			out.lo, out.nlo = ceilDiv(hi, c), false
+			out.lo, out.nlo = ceilDivE(hi, k), false
 		}
 		if !z.nlo {
-			out.hi, out.phi = floorDiv(lo, c), false
+			out.hi, out.phi = floorDivE(lo, k), false
 		}
 	}
-	if !out.nlo && !out.phi && out.lo > out.hi {
+	if !out.nlo && !out.phi && out.hi.lt(out.lo) {
 		return iv{bot: true}, true // no x times c lies in z: the arm is unreachable
 	}
-	return out, true
+	return out.norm(), true
 }
 
 // isqrt is ⌊√n⌋ for n ≥ 0, exact: the float estimate is corrected in integers,
@@ -1295,13 +1270,25 @@ func (a *intervals) cond(c V, holds bool, saved []savedFact, depth int) []savedF
 	}
 	switch {
 	case d.Op.IsCmp() && len(d.Args) == 2:
-		rel := map[Op]string{OEq: "eq", ONe: "ne", OLt: "lt", OLe: "le", OGt: "gt", OGe: "ge"}[d.Op]
+		rel := relOf(d.Op)
 		if !holds {
 			rel = negate(rel)
 		}
 		x, y := d.Args[0], d.Args[1]
 		saved = a.back(x, narrowIV(a.fs[x].v, rel, a.fs[y].v), saved, 3)
 		saved = a.back(y, narrowIV(a.fs[y].v, flip(rel), a.fs[x].v), saved, 3)
+	case d.Op == OCall && u64Rel[d.Name] != "" && len(d.Args) == 2:
+		// THE UNSIGNED WORD'S ORDER IS ℤ'S ON U (targets/go/u64.oro): wordsel
+		// emits these only where both operands are in U, and a u64 value is in
+		// U, so each operand is met with U and the comparison read as ℤ's.
+		rel := u64Rel[d.Name]
+		if !holds {
+			rel = negate(rel)
+		}
+		x, y := d.Args[0], d.Args[1]
+		fx, fy := meetIV(a.fs[x].v, ivU), meetIV(a.fs[y].v, ivU)
+		saved = a.back(x, narrowIV(fx, rel, fy), saved, 3)
+		saved = a.back(y, narrowIV(fy, flip(rel), fx), saved, 3)
 	case d.Op == OIf && len(d.Sub) == 2:
 		y0, y1 := firstYieldOf(d.Sub[0]), firstYieldOf(d.Sub[1])
 		if len(y0) != 1 || len(y1) != 1 {
@@ -1319,35 +1306,54 @@ func (a *intervals) cond(c V, holds bool, saved []savedFact, depth int) []savedF
 	return saved
 }
 
+// u64Rel is the relation each unsigned comparison is, on U.
+var u64Rel = map[string]string{"u64<": "lt", "u64<=": "le", "u64>": "gt", "u64>=": "ge", "u64=": "eq"}
+
 // THE UNSIGNED WORD'S TRANSFERS (targets/go/u64.oro). U = [0, 2⁶⁴) and the
 // signed word S = [−2⁶³, 2⁶³) are two sets of representatives of ℤ/2⁶⁴, and
 // the primitives are the residue map r between them: `u64-of` is r_U, the
 // representative in U; `int-of-u64` is r_S; `u64+ − ·` are r_U of ℤ's result;
 // `u64/` and `u64%` are ℤ's on U, where neither wraps. Each transfer is the
-// exact image under r, so it is sound for every argument, not only for the
-// ones wordsel produces (on S ∩ U, which is all it produces, r is the
-// identity and nothing is lost). This domain's ends are int64, so a value in
-// [2⁶³, 2⁶⁴) is past the top end: it has hi = +∞.
-var ivU = iv{lo: 0, phi: true}
+// exact image under r of an interval inside one period, and U otherwise, so it
+// is sound for every argument and not only for the ones wordsel produces (on
+// S ∩ U, which is all it produces, r is the identity and nothing is lost).
+
+// shiftIV is x + k for an end k, x finite.
+func shiftIV(x iv, k ep) iv {
+	if x.bot {
+		return x
+	}
+	return addIV(x, rangeE(k, k))
+}
 
 func u64Of(x iv) iv {
 	if x.bot {
 		return x
 	}
+	// r_U(x) = x on [0, 2⁶⁴), and x + 2⁶⁴ on [−2⁶⁴, 0): each piece is an exact
+	// image; x reaching outside [−2⁶⁴, 2⁶⁴) wraps more than once, and is U.
+	if !x.within(two64.neg(), u64Max) {
+		return ivU
+	}
 	out := meetIV(x, ivU)
-	if x.nlo || x.lo < 0 { // a negative x is x + 2⁶⁴ ≥ 2⁶³
-		out = joinIV(out, iv{lo: math.MaxInt64, phi: true})
+	if neg := meetIV(x, iv{hi: ei(-1), nlo: true}); !neg.bot {
+		out = joinIV(out, shiftIV(neg, two64))
 	}
 	return out
 }
 
 func intOfU64(x iv) iv {
 	x = meetIV(x, ivU) // a u64 is in U
-	if x.bot || !x.phi {
+	if x.bot {
 		return x
 	}
-	// a value in [2⁶³, 2⁶⁴) is itself − 2⁶⁴, in [−2⁶³, −1]
-	return joinIV(x, rangeIV(math.MinInt64, -1))
+	// r_S(x) = x on [0, 2⁶³), and x − 2⁶⁴ on [2⁶³, 2⁶⁴)
+	top, _ := two63.sub(ei(1))
+	out := meetIV(x, rangeE(ep{}, top))
+	if hi := meetIV(x, rangeE(two63, u64Max)); !hi.bot {
+		out = joinIV(out, shiftIV(hi, two64.neg()))
+	}
+	return out
 }
 
 func u64Arith(op string, x, y iv) iv {
@@ -1365,10 +1371,79 @@ func u64Arith(op string, x, y iv) iv {
 	default:
 		return remIV(x, y)
 	}
-	// r_U is the identity where ℤ's result is in U. Below 0 it wraps up, and
-	// past +∞ (an infinite end here) it may wrap down: then only U is known.
-	if r.bot || (!r.nlo && r.lo >= 0 && (op == "u64-" || !r.phi)) {
+	// r_U is the identity where ℤ's result is in U; elsewhere only U is known.
+	if r.within(ep{}, u64Max) {
 		return r
 	}
 	return ivU
+}
+
+// andIV is the mask's law, in two's complement: a NON-NEGATIVE operand m
+// bounds x & m to [0, m] whatever x is (every bit of the result is a bit of m,
+// and its sign bit is m's, 0), so with both non-negative the result is in
+// [0, min]. With neither non-negative nothing is said. These are `and-left`
+// and `and-right` (emit/lang-facts.oro, F9), each applied where its premise
+// holds on the whole interval.
+func andIV(a, b iv) iv {
+	if a.bot || b.bot {
+		return ivBot
+	}
+	nonNeg := func(x iv) bool { return !x.nlo && x.lo.sign() >= 0 }
+	switch {
+	case nonNeg(a) && nonNeg(b):
+		if a.phi && b.phi {
+			return iv{phi: true}
+		}
+		if a.phi {
+			return rangeE(ep{}, b.hi)
+		}
+		if b.phi {
+			return rangeE(ep{}, a.hi)
+		}
+		return rangeE(ep{}, minE(a.hi, b.hi))
+	case nonNeg(a):
+		return iv{hi: a.hi, phi: a.phi}.norm()
+	case nonNeg(b):
+		return iv{hi: b.hi, phi: b.phi}.norm()
+	}
+	return ivTop
+}
+
+// shrIV is the right shift on a NON-NEGATIVE x, where the logical and the
+// arithmetic shift agree: x >> k = ⌊x / 2ᵏ⌋, increasing in x and decreasing in
+// k, so for k ∈ [kl, kh] ⊆ [0, 62] it lies in [⌊x.lo / 2^kh⌋, ⌊x.hi / 2^kl⌋].
+// Anything else is ⊤, as the term analysis's rule is.
+func shrIV(a, k iv) iv {
+	if a.bot || k.bot {
+		return ivBot
+	}
+	kl, okl := k.lo.i64()
+	kh, okh := k.hi.i64()
+	if a.nlo || a.lo.sign() < 0 || !k.finite() || !okl || !okh || kl < 0 || kh > 62 {
+		return ivTop
+	}
+	out := iv{lo: floorDivE(a.lo, ei(1<<kh)), phi: a.phi}
+	if !a.phi {
+		out.hi = floorDivE(a.hi, ei(1<<kl))
+	}
+	return out.norm()
+}
+
+// relOf is the relation a comparison operation is.
+func relOf(o Op) string {
+	switch o {
+	case OEq:
+		return "eq"
+	case ONe:
+		return "ne"
+	case OLt:
+		return "lt"
+	case OLe:
+		return "le"
+	case OGt:
+		return "gt"
+	case OGe:
+		return "ge"
+	}
+	return ""
 }

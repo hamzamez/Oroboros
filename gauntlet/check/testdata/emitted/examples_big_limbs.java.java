@@ -6,15 +6,15 @@ public final class examples_big_limbs.java {
 		int[] v2 = null;
 		int[] v7 = v3;
 		int v8 = 0;
-		long v9 = 1;
+		int v9 = 1;
 		for (;; v8 = (v8 + 1)) {
 			final boolean v11 = (v8 >= 64);
 			if (v11) {
 				break;
 			}
-			final long v15 = (v9 & 16777215);
-			v7[v8] = (int) (v15);
-			final long v20 = (v9 >> 24);
+			final int v15 = (int) (v9 & 16777215);
+			v7[v8] = v15;
+			final int v20 = (int) (v9 >> 24);
 			v9 = v20;
 			continue;
 		}
@@ -32,31 +32,31 @@ public final class examples_big_limbs.java {
 			int[] v30 = null;
 			int[] v35 = v31;
 			int v36 = 0;
-			long v37 = 0;
+			int v37 = 0;
 			for (;; v36 = (v36 + 1)) {
 				final boolean v39 = (v36 >= 64);
 				if (v39) {
 					break;
 				}
 				final boolean v43 = (v36 < 0);
-				long v44 = 0;
+				int v44 = 0;
 				if (v43) {
-					v44 = 0;
+					v44 = (int) (0);
 				} else {
 					final int v48 = v23.length;
 					final boolean v49 = (v36 >= v48);
 					if (v49) {
-						v44 = 0;
+						v44 = (int) (0);
 					} else {
-						final long v55 = v23[v36];
+						final int v55 = v23[v36];
 						v44 = v55;
 					}
 				}
-				final long v56 = (v44 * v24);
+				final long v56 = (((long) v44) * v24);
 				final long v57 = (v56 + v37);
-				final long v59 = (v57 & 16777215);
-				v35[v36] = (int) (v59);
-				final long v64 = (v57 >> 24);
+				final int v59 = (int) (v57 & 16777215);
+				v35[v36] = v59;
+				final int v64 = (int) (v57 >> 24);
 				v37 = v64;
 				continue;
 			}
@@ -74,7 +74,7 @@ public final class examples_big_limbs.java {
 		if (v73) {
 			return 0;
 		}
-		final long v79 = v23[(int) v0];
+		final int v79 = v23[(int) v0];
 		return v79;
 	}
 

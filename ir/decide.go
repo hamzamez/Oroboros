@@ -42,6 +42,11 @@ type Legality struct {
 	// (sct.go). A count, not a refusal: termination is reported, as the term
 	// analysis reported it.
 	Loops, Halts int
+	// Sizes and SizeUnproven: the tables a function allocates (`build`,
+	// `tabulate`), and those whose size is not proven in [0, max-len_T], the
+	// domain of allocation (tables.md §2.3.1): below 0 on either end's side.
+	Sizes        int
+	SizeUnproven []string
 }
 
 // Decide analyses f, writes each counted operation's mode, and reports. With
@@ -60,6 +65,32 @@ func Decide(tg *emit.Target, f *Func, checked bool) *Legality {
 				if h, seen := a.halts[s]; !seen || h {
 					rep.Halts++ // an unevaluated loop is never entered
 				}
+			}
+		}
+	})
+	// THE SIZE OF AN ALLOCATION is in [0, max-len_T]: a table's length is
+	// exactly its size, and a target realizes lengths up to max-len (Java's
+	// `new T[n]` takes an int, so 2³¹ − 1). Measured here, per end.
+	maxLen := ei(tg.MaxLenOf())
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if (s.Op != OBuild && s.Op != OTabulate) || len(s.Args) == 0 {
+				continue
+			}
+			rep.Sizes++
+			n := fs[s.Args[0]].v
+			switch {
+			case n.bot || n.within(ep{}, maxLen):
+			default:
+				ends := ""
+				if n.nlo || n.lo.sign() < 0 {
+					ends += " below 0"
+				}
+				if n.phi || maxLen.lt(n.hi) {
+					ends += " above max-len"
+				}
+				rep.SizeUnproven = append(rep.SizeUnproven, fmt.Sprintf("%s size %s:%s", s.Op, termShow(n), ends))
 			}
 		}
 	})
@@ -289,4 +320,20 @@ func CheckEnsures(tg *emit.Target, f *Func, sig *core.Sig) error {
 		return fmt.Errorf("the body does not establish %s; its result is %s", ens, termShow(r))
 	}
 	return nil
+}
+
+// SizeRefusal refuses an allocation whose size is not proven in
+// [0, max-len_T]: `build` and `tabulate` make a table whose length is exactly
+// the size, and a target realizes lengths up to max-len (tables.md §2.3.1).
+// It is the allocation's domain condition, so `-checked` does not clear it,
+// as it does not clear an index (refinements.md §3a). Java realized a size
+// past 2³¹ − 1 as `new T[(int) n]`, of length n mod 2³² (irstep3java §3).
+func (l *Legality) SizeRefusal(what string, tg *emit.Target) error {
+	if len(l.SizeUnproven) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s: %d table allocation(s) cannot be proven to have a size in [0, %d], the lengths target %s holds\n  %s\n"+
+		"  A table's length is exactly its size (tables.md §2.3.1), and outside that range the host allocates\n"+
+		"  a different length or traps. Narrow the size, or declare the range it is computed from.",
+		what, len(l.SizeUnproven), tg.MaxLenOf(), tg.Name, l.SizeUnproven[0])
 }

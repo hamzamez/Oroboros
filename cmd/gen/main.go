@@ -301,6 +301,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if irProof {
 			fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d\n", fname, rep.Proven, rep.Ops, leg.Proven, leg.Ops)
 			fmt.Fprintf(os.Stderr, "irloops: %s: term %d of %d, IR %d of %d\n", fname, rep.Terminates, rep.Loops, leg.Halts, leg.Loops)
+			for _, u := range leg.SizeUnproven {
+				fmt.Fprintf(os.Stderr, "irsize: %s: %s\n", fname, u)
+			}
 			for _, m := range leg.Unproven {
 				fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
 			}
@@ -314,6 +317,9 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			if err := leg.Refusal(fname, tg); err != nil {
 				return err
 			}
+		}
+		if err := leg.SizeRefusal(fname, tg); err != nil {
+			return err
 		}
 		// DIVISION BY A POWER OF TWO IS A SHIFT where the decision's facts put
 		// the dividend in [0, 2^shift-width) (shiftdiv-2026-09-03, ir/shift.go).

@@ -24,22 +24,22 @@ public final class examples_io_jsonfmt.java {
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("jsonfmt: file is larger than this tool accepts" + "\n");
 				return "jsonfmt: file is larger than this tool accepts";
 			}
-			long v25 = 0;
+			int v25 = 0;
 			int v26 = 0;
 			int v27 = 0;
 			int v28 = 0;
-			long v24 = 0;
+			int v24 = 0;
 			for (;;) {
 				final int v29 = v10.length;
 				final boolean v30 = (v26 >= v29);
 				if (v30) {
-					final long v34 = (v25 + 1);
+					final int v34 = (v25 + 1);
 					v24 = v34;
 					break;
 				}
 				final boolean v38 = (v27 >= 64);
 				if (v38) {
-					final long v41 = (v25 + 1);
+					final int v41 = (v25 + 1);
 					v24 = v41;
 					break;
 				}
@@ -65,7 +65,7 @@ public final class examples_io_jsonfmt.java {
 						v75 = 0;
 					}
 					final int v84 = (v75 + 1);
-					final long v85 = (v25 + v84);
+					final int v85 = (v25 + v84);
 					final int v87 = (v26 + 1);
 					final int v89 = (v27 + 1);
 					v25 = v85;
@@ -96,7 +96,7 @@ public final class examples_io_jsonfmt.java {
 						v110 = 0;
 					}
 					final int v119 = (v110 + 1);
-					final long v120 = (v25 + v119);
+					final int v120 = (v25 + v119);
 					final int v122 = (v26 + 1);
 					v25 = v120;
 					v26 = v122;
@@ -109,7 +109,7 @@ public final class examples_io_jsonfmt.java {
 				if (v126) {
 					final int v129 = (2 * v27);
 					final int v130 = (2 + v129);
-					final long v131 = (v25 + v130);
+					final int v131 = (v25 + v130);
 					final int v133 = (v26 + 1);
 					v25 = v131;
 					v26 = v133;
@@ -119,7 +119,7 @@ public final class examples_io_jsonfmt.java {
 				final int v135 = v10[v26];
 				final boolean v137 = (v135 == 58);
 				if (v137) {
-					final long v139 = (v25 + 2);
+					final int v139 = (v25 + 2);
 					final int v141 = (v26 + 1);
 					v25 = v139;
 					v26 = v141;
@@ -246,7 +246,7 @@ public final class examples_io_jsonfmt.java {
 					}
 					final int v372 = (v208 - v26);
 					final int v373 = (v364 + v372);
-					final long v374 = (v25 + v373);
+					final int v374 = (v25 + v373);
 					v25 = v374;
 					v26 = v208;
 					v28 = 0;
@@ -256,10 +256,10 @@ public final class examples_io_jsonfmt.java {
 				v26 = v377;
 				continue;
 			}
-			final short[] v379 = new short[(int) v24];
+			final short[] v379 = new short[v24];
 			short[] v378 = null;
 			short[] v385 = v379;
-			long v386 = 0;
+			int v386 = 0;
 			int v387 = 0;
 			int v388 = 0;
 			int v389 = 0;
@@ -267,12 +267,12 @@ public final class examples_io_jsonfmt.java {
 				final int v390 = v10.length;
 				final boolean v391 = (v387 >= v390);
 				if (v391) {
-					v385[(int) v386] = (short) (10);
+					v385[v386] = (short) (10);
 					break;
 				}
 				final boolean v399 = (v388 >= 64);
 				if (v399) {
-					v385[(int) v386] = (short) (10);
+					v385[v386] = (short) (10);
 					break;
 				}
 				final int v404 = v10[v387];
@@ -299,18 +299,18 @@ public final class examples_io_jsonfmt.java {
 					final boolean v445 = (v389 == 1);
 					short[] v446 = null;
 					if (v445) {
-						v385[(int) v386] = (short) (10);
-						final long v452 = (v386 + 1);
+						v385[v386] = (short) (10);
+						final int v452 = (v386 + 1);
 						short[] v454 = v385;
 						int v455 = 0;
-						long v456 = v452;
+						int v456 = v452;
 						for (;; v455 = (v455 + 1), v456 = (v456 + 1)) {
 							final int v458 = (2 * v388);
 							final boolean v459 = (v455 >= v458);
 							if (v459) {
 								break;
 							}
-							v454[(int) v456] = (short) (32);
+							v454[v456] = (short) (32);
 							continue;
 						}
 						v446 = v454;
@@ -325,10 +325,10 @@ public final class examples_io_jsonfmt.java {
 					} else {
 						v472 = 91;
 					}
-					final long v475 = (v386 + v436);
-					v446[(int) v475] = (short) (v472);
+					final int v475 = (v386 + v436);
+					v446[v475] = (short) (v472);
 					final int v478 = (v436 + 1);
-					final long v479 = (v386 + v478);
+					final int v479 = (v386 + v478);
 					final int v481 = (v387 + 1);
 					final int v483 = (v388 + 1);
 					v385 = v446;
@@ -362,18 +362,18 @@ public final class examples_io_jsonfmt.java {
 					final boolean v513 = (v389 == 0);
 					short[] v514 = null;
 					if (v513) {
-						v385[(int) v386] = (short) (10);
-						final long v520 = (v386 + 1);
+						v385[v386] = (short) (10);
+						final int v520 = (v386 + 1);
 						short[] v522 = v385;
 						int v523 = 0;
-						long v524 = v520;
+						int v524 = v520;
 						for (;; v523 = (v523 + 1), v524 = (v524 + 1)) {
 							final int v526 = (2 * v496);
 							final boolean v527 = (v523 >= v526);
 							if (v527) {
 								break;
 							}
-							v522[(int) v524] = (short) (32);
+							v522[v524] = (short) (32);
 							continue;
 						}
 						v514 = v522;
@@ -388,10 +388,10 @@ public final class examples_io_jsonfmt.java {
 					} else {
 						v540 = 93;
 					}
-					final long v543 = (v386 + v504);
-					v514[(int) v543] = (short) (v540);
+					final int v543 = (v386 + v504);
+					v514[v543] = (short) (v540);
 					final int v546 = (v504 + 1);
-					final long v547 = (v386 + v546);
+					final int v547 = (v386 + v546);
 					final int v549 = (v387 + 1);
 					v385 = v514;
 					v386 = v547;
@@ -403,25 +403,25 @@ public final class examples_io_jsonfmt.java {
 				final int v551 = v10[v387];
 				final boolean v553 = (v551 == 44);
 				if (v553) {
-					v385[(int) v386] = (short) (44);
-					final long v557 = (v386 + 1);
-					v385[(int) v557] = (short) (10);
-					final long v562 = (v557 + 1);
+					v385[v386] = (short) (44);
+					final int v557 = (v386 + 1);
+					v385[v557] = (short) (10);
+					final int v562 = (v557 + 1);
 					short[] v564 = v385;
 					int v565 = 0;
-					long v566 = v562;
+					int v566 = v562;
 					for (;; v565 = (v565 + 1), v566 = (v566 + 1)) {
 						final int v568 = (2 * v388);
 						final boolean v569 = (v565 >= v568);
 						if (v569) {
 							break;
 						}
-						v564[(int) v566] = (short) (32);
+						v564[v566] = (short) (32);
 						continue;
 					}
 					final int v580 = (2 * v388);
 					final int v581 = (2 + v580);
-					final long v582 = (v386 + v581);
+					final int v582 = (v386 + v581);
 					final int v584 = (v387 + 1);
 					v385 = v564;
 					v386 = v582;
@@ -432,10 +432,10 @@ public final class examples_io_jsonfmt.java {
 				final int v586 = v10[v387];
 				final boolean v588 = (v586 == 58);
 				if (v588) {
-					v385[(int) v386] = (short) (58);
-					final long v592 = (v386 + 1);
-					v385[(int) v592] = (short) (32);
-					final long v596 = (v386 + 2);
+					v385[v386] = (short) (58);
+					final int v592 = (v386 + 1);
+					v385[v592] = (short) (32);
+					final int v596 = (v386 + 2);
 					final int v598 = (v387 + 1);
 					v386 = v596;
 					v387 = v598;
@@ -563,28 +563,28 @@ public final class examples_io_jsonfmt.java {
 					final boolean v830 = (v389 == 1);
 					short[] v831 = null;
 					if (v830) {
-						v385[(int) v386] = (short) (10);
-						final long v837 = (v386 + 1);
+						v385[v386] = (short) (10);
+						final int v837 = (v386 + 1);
 						short[] v839 = v385;
 						int v840 = 0;
-						long v841 = v837;
+						int v841 = v837;
 						for (;; v840 = (v840 + 1), v841 = (v841 + 1)) {
 							final int v843 = (2 * v388);
 							final boolean v844 = (v840 >= v843);
 							if (v844) {
 								break;
 							}
-							v839[(int) v841] = (short) (32);
+							v839[v841] = (short) (32);
 							continue;
 						}
 						v831 = v839;
 					} else {
 						v831 = v385;
 					}
-					final long v854 = (v386 + v821);
+					final int v854 = (v386 + v821);
 					short[] v856 = v831;
 					int v857 = v387;
-					long v858 = v854;
+					int v858 = v854;
 					for (;; v857 = (v857 + 1), v858 = (v858 + 1)) {
 						final boolean v859 = (v857 >= v665);
 						if (v859) {
@@ -596,12 +596,12 @@ public final class examples_io_jsonfmt.java {
 							break;
 						}
 						final int v870 = v10[v857];
-						v856[(int) v858] = (short) (v870);
+						v856[v858] = (short) (v870);
 						continue;
 					}
 					final int v876 = (v665 - v387);
 					final int v877 = (v821 + v876);
-					final long v878 = (v386 + v877);
+					final int v878 = (v386 + v877);
 					v385 = v856;
 					v386 = v878;
 					v387 = v665;

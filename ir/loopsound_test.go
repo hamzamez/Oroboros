@@ -172,6 +172,20 @@ var loopShapes = []func(r *rand.Rand) string{
     (>= v %d) (again (- v %d) (+ c 1) (+ k 1))
     else (again 0 c (+ k 1)))`, r.Intn(30), d, d)
 	},
+	// The relational difference and Theorem 1 on a difference (jsonfmt's
+	// shape): a counter grows by a pad plus (ni − i) for a scanner ni started at
+	// i, and i jumps to ni + 1, so c − i moves by the pad alone; and the mirror
+	// (i − ni) ≤ 0.
+	func(r *rand.Rand) string {
+		return fmt.Sprintf(`(loop ((c %d) (i 0) (k 0))
+    (>= i (+ n %d)) (+ c k)
+    (= (%% i 3) 0) (let ni (loop ((j i))
+                             (>= j (+ n %d)) j
+                             (= (%% j 5) 4) j
+                             else (again (+ j 1)))
+                     (again (+ c (+ %d (- ni i))) (+ ni 1) (+ k (- i ni))))
+    else (again (+ c %d) (+ i 1) k))`, r.Intn(5), 1+r.Intn(12), 1+r.Intn(12), r.Intn(4), r.Intn(3))
+	},
 	// B = ∞: a loop no parameter ranks (the walk advances j only on one arm),
 	// carrying a buffer given only fresh values, whose cells keep their hull
 	// however many times the loop goes round.
@@ -189,7 +203,7 @@ var loopShapes = []func(r *rand.Rand) string{
 func TestTheLoopRulesAreSound(t *testing.T) {
 	dir := t.TempDir()
 	r := rand.New(rand.NewSource(7))
-	const cases = 330
+	const cases = 363
 	compiled, ran := 0, 0
 	for c := 0; c < cases; c++ {
 		shape := loopShapes[c%len(loopShapes)](r)

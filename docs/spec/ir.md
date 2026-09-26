@@ -562,6 +562,8 @@ per-operation table, each with its soundness argument and its check:
 | an unreachable arm | a ⊥ π, or a guard that narrows a value to ⊥, makes every value of the arm ⊥ and its exits contribute nothing | the π is its source restricted to the guard (Theorem E), and nothing satisfies it |
 | the step at one continue | Δ ⊆ fact(v) − fact(p), both at that continue, met with the symbolic step; a dead continue adds none | p is narrowed by the arm's guards there; a reset to a literal below the guard is a decrease |
 | B = ∞ | with no ranking parameter, a side whose step is zero keeps its initial end (Theorems 1 and 3) | the induction step p_{k+1} ≥ p_k (or ≤) needs no count |
+| the relational difference | `(- x y)` ∈ Δ(x against y), and the mirror | the step is the exact difference; the interval difference forgets the relation |
+| Theorem 1 on a difference | p − q ∈ (z_p − z_q) + B·Δ, with Δ from linear forms, so atoms cancel; p ∈ that + fact(q) | a difference of parameters is a function of them, and Theorem 1's induction applies |
 
 The domain is checked two ways:
 - **locally**, by the soundness table: every operation against ℤ, exhaustively on small intervals;
@@ -587,6 +589,12 @@ The report also says:
 A refusal names each unproven operation by its source application (`Stmt.Src`, provenance kept in
 memory, spelled with the binders' names) and its interval, in program order. The decision runs on the
 term as written, and the step to IR_P reuses its facts unless a restriction was written since.
+
+The same facts discharge obligations. A contract's range mark (ADR 0028) is transparent to lowering,
+which records the values its argument became; the obligation is decided on their join by the sets of
+`emit.DecideRange`. An end left unproven goes to the refinement route as a residual `where`. An
+allocation's size (`build`, `tabulate`) must lie in [0, max-len_T], the lengths the target holds, and
+is refused otherwise, whatever the build mode.
 
 Two more readings of the same facts follow the decision:
 - **an export's postcondition** (`CheckEnsures`). Its constant bounds denote a set S, and the join R of

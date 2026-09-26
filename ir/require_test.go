@@ -1,6 +1,9 @@
 package ir
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"oroboros/core"
@@ -39,5 +42,38 @@ func TestARangeObligationIsOnEveryValueAndBothEnds(t *testing.T) {
 	}
 	if _, ok := argumentFact([]fact{in}, []V{-1}); ok {
 		t.Errorf("a value numbering dropped is known")
+	}
+}
+
+// AN ALLOCATION'S SIZE IS IN [0, max-len_T] (tables.md §2.3.1), the queued
+// wrong answer of irstep3java §3: `(len (build b 4294967297 …))` was 1 on
+// Java, which allocates `new T[(int) n]`. Refused there, accepted on Go whose
+// max-len is its word, and a size that may be negative is refused on both.
+func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
+	dir := t.TempDir()
+	cases := []struct {
+		name, body string
+		refused    map[string]bool
+	}{
+		{"past 2^31", "(len (build b 4294967297 b))", map[string]bool{"java": true, "go": false}},
+		{"a size that may be negative", "(len (build b (- n 6) b))", map[string]bool{"java": true, "go": true}},
+		{"a proven size", "(len (build b (+ n 1) b))", map[string]bool{"java": false, "go": false}},
+	}
+	for k, c := range cases {
+		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n) %s)\n", c.body)
+		path := filepath.Join(dir, fmt.Sprintf("z%d.oro", k))
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		for target, want := range c.refused {
+			tg, p, err := compilePath(path, target, Options{Decided: true})
+			if err != nil {
+				t.Fatalf("%s on %s: %v", c.name, target, err)
+			}
+			got := Decide(tg, p.Funcs[0], true).SizeRefusal("run", tg) != nil
+			if got != want {
+				t.Errorf("%s on %s: refused = %v, want %v", c.name, target, got, want)
+			}
+		}
 	}
 }

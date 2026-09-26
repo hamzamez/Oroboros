@@ -143,10 +143,13 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
 
 Postconditions (`ir.CheckEnsures`, refusing what it cannot decide), build buffers' element ranges
 (the class hull alone) and the shift selection (`ir.SelectShifts`) are on the IR's facts too
-([irstep4e-2026-09-27](gauntlet/results/irstep4e-2026-09-27.md)). `gen` and `build` run no term
-interval analysis on the default path; it runs behind `-irproof` as the shadow, and inside the passes
-not yet ported: `MeasureRequires`, `PromoteBig` and `SelectWords` (and the refinement layer's loop
-invariants).
+([irstep4e-2026-09-27](gauntlet/results/irstep4e-2026-09-27.md)), and so is the interval route of a
+contract's range obligation (`ir.DischargeRanges`, with a one-ended proof handed to the refinement
+route). **An allocation's size is an obligation**, in [0, max-len_T], refused whatever the build mode
+([irstep4f-2026-09-27](gauntlet/results/irstep4f-2026-09-27.md)). The domain gained the relational
+difference and Theorem 1 on a difference, over linear forms. `gen` and `build` run no term interval
+analysis on the default path; it runs behind `-irproof` as the shadow, and inside the passes not yet
+ported: `PromoteBig` and `SelectWords` (and the refinement layer's loop invariants).
 
 **The migration is the current plan**: those passes and the refinement layer, one at a time, until
 `emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits
@@ -156,8 +159,8 @@ for it. Soundness bugs found while writing the IR's rules:
   was not (`narrow-from-wide`);
 - the IR's `u64` transfers took the residue map as the identity (unreachable: only `wordsel` writes
   them, on S ∩ U), now its exact image;
-- **queued**: a `build`'s size is not obliged to fit `max-len`, so `(len (build b 4294967297 …))` is
-  1 on Java (irstep3java §3).
+- a `build`'s size was not obliged to fit `max-len`, so `(len (build b 4294967297 …))` was 1 on Java
+  (irstep3java §3); now an obligation (irstep4f).
 
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.

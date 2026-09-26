@@ -163,7 +163,148 @@ func (a *intervals) tripRefine(s *Stmt, init, cur []fact, lc *exitFacts) bool {
 			}
 		}
 	}
+	if a.pairRefine(body, init, cur, lc, best) {
+		refined = true
+	}
 	return refined
+}
+
+// THEOREM 1 ON A DIFFERENCE. φ = p − q is a function of the parameters, so
+// Theorem 1 applies to it as to a parameter: φ ∈ [φ₀.lo + B·min(Δφ.lo, 0),
+// φ₀.hi + B·max(Δφ.hi, 0)], where φ₀ = z_p − z_q and Δφ is the join over the
+// continues of (p′ − p) − (q′ − q). Then p = φ + q gives p ∈ φ + fact(q).
+//
+// The step is computed on LINEAR FORMS (linForm), so atoms cancel before any
+// interval is taken: jsonfmt's scanner continue has n′ = n + pad + (ni − i)
+// and i′ = ni, so (n′ − n) − (i′ − i) = pad, where interval arithmetic would
+// see pad + [−65536, 65536] − [1, 65536]. It is the relational counter the term
+// analysis had: n ≤ i + 128·B, where the parameter alone gave n ≤ 65663·B.
+// Each atom left after cancelling is evaluated by its fact at that continue,
+// which is sound; the rest is ℤ's arithmetic on the forms.
+func (a *intervals) pairRefine(body *Region, init, cur []fact, lc *exitFacts, best *big.Int) bool {
+	var taken []*Region
+	for _, cr := range exitRegions(body, TContinue) {
+		if _, ok := lc.at[cr]; ok {
+			taken = append(taken, cr)
+		}
+	}
+	if len(taken) == 0 {
+		return false
+	}
+	ps := body.Params
+	refined := false
+	for j := range ps {
+		for k := range ps {
+			if j == k || init[j].hasEl || init[k].hasEl {
+				continue
+			}
+			step, ok := ivBot, true
+			for _, cr := range taken {
+				undo := a.atContinue(ps, lc.at[cr][1])
+				d, dok := a.formStep(cr.Args[j], ps[j], cr.Args[k], ps[k])
+				undo()
+				if !dok {
+					ok = false
+					break
+				}
+				step = joinIV(step, d)
+			}
+			if !ok || step.bot {
+				continue
+			}
+			phi := tripInterval(subIV(init[j].v, init[k].v), step, best)
+			if m := meetIV(cur[j].v, addIV(phi, cur[k].v)); m != cur[j].v {
+				cur[j].v = m
+				refined = true
+			}
+		}
+	}
+	return refined
+}
+
+// formStep is (aⱼ − pⱼ) − (aₖ − pₖ) on lform forms, evaluated by the facts:
+// the step of pⱼ − pₖ across one continue.
+func (a *intervals) formStep(aj, pj, ak, pk V) (iv, bool) {
+	fj, ok1 := a.linForm(aj, 6)
+	fk, ok2 := a.linForm(ak, 6)
+	if !ok1 || !ok2 {
+		return iv{}, false
+	}
+	d := fj.sub(fk)
+	d.add(a.pl(pj), -1)
+	d.add(a.pl(pk), +1)
+	return d.eval(a), true
+}
+
+// lform is Σ cₐ·a + k: an integer-coefficient combination of atoms (values,
+// by their π-source) plus an interval constant.
+type lform struct {
+	terms map[V]int64
+	k     iv
+}
+
+func (l lform) sub(m lform) lform {
+	out := lform{terms: map[V]int64{}, k: subIV(l.k, m.k)}
+	for v, c := range l.terms {
+		out.terms[v] += c
+	}
+	for v, c := range m.terms {
+		out.terms[v] -= c
+	}
+	return out
+}
+
+func (l *lform) add(v V, c int64) { l.terms[v] += c }
+
+// eval is the form's interval: each atom with a nonzero coefficient by its
+// fact, times the coefficient.
+func (l lform) eval(a *intervals) iv {
+	out := l.k
+	for v, c := range l.terms {
+		if c == 0 {
+			continue
+		}
+		out = addIV(out, mulIV(exactIV(c), a.fs[v].v))
+	}
+	return out
+}
+
+// linForm reads a value as a lform form: a literal is a constant, `+` and
+// `−` combine forms, `·` by a literal scales one, and anything else (a
+// parameter, a loop's result, a read, a promoted host operation outside the
+// word) is an atom. Depth bounds the walk; past it the value is an atom too,
+// which is exact, only less cancelling.
+func (a *intervals) linForm(v V, depth int) (lform, bool) {
+	atom := lform{terms: map[V]int64{a.pl(v): 1}, k: exactIV(0)}
+	d := a.def[v]
+	if depth < 0 || d == nil || (d.Name != "" && d.Op.IsArith() && !a.inWord(a.fs[v].v)) {
+		return atom, true
+	}
+	switch d.Op {
+	case OConst:
+		if c, ok := a.constOf(v); ok {
+			return lform{terms: map[V]int64{}, k: exactIV(c)}, true
+		}
+	case OAdd, OSub:
+		x, _ := a.linForm(d.Args[0], depth-1)
+		y, _ := a.linForm(d.Args[1], depth-1)
+		if d.Op == OAdd {
+			y = lform{terms: map[V]int64{}, k: exactIV(0)}.sub(y)
+		}
+		return x.sub(y), true
+	case OMul:
+		for _, pr := range [][2]V{{d.Args[0], d.Args[1]}, {d.Args[1], d.Args[0]}} {
+			if c, ok := a.constOf(pr[1]); ok && c > -1<<31 && c < 1<<31 {
+				x, _ := a.linForm(pr[0], depth-1)
+				out := lform{terms: map[V]int64{}, k: mulIV(exactIV(c), x.k)}
+				for u, cu := range x.terms {
+					out.terms[u] = cu * c
+				}
+				return out, true
+			}
+		}
+	}
+	return atom, true
 }
 
 // THEOREM 3 (bounded increments; smashfd-2026-09-16's, on the IR). Let a

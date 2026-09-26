@@ -793,3 +793,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - `examples/kara/core.oro go` 312 → 46 ms, 0.15x
 - `examples/native/sieve-win-bench.oro windows` 406 → 93 ms, 0.23x
 - `gauntlet/differential/cases/render.oro windows` 2734 → 703 ms, 0.26x
+
+## 2026-09-26 — on a05b3b7, with uncommitted changes
+
+**Reason:** IR step 4f: the relational difference and Theorem 1 on a difference narrow jsonfmt's output counter to int on Java and tree's node table to uint16 on Go (1.02x hand-written, no slower than before); allocation sizes are now an obligation, proven everywhere in the corpus
+
+528 runs: 250 emitted, 278 refused; 2007 of 2054 integer operations bounded, 359 of 381 loops proven. compiler pass, differential pass, tooling skip.
+
+2 change(s):
+
+- emitted text changed — `examples/io/jsonfmt.oro java`
+- emitted text changed — `examples/json/tree.oro go`

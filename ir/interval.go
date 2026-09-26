@@ -563,7 +563,7 @@ func (a *intervals) stmt(s *Stmt) {
 	case OAdd:
 		one(fact{v: addIV(args[0].v, args[1].v)})
 	case OSub:
-		one(fact{v: subIV(args[0].v, args[1].v)})
+		one(fact{v: a.relSub(s.Args[0], s.Args[1], subIV(args[0].v, args[1].v))})
 	case OMul:
 		one(fact{v: mulIV(args[0].v, args[1].v)})
 	case ONeg:
@@ -1520,4 +1520,23 @@ func relOf(o Op) string {
 		return "ge"
 	}
 	return ""
+}
+
+// relSub is the difference x − y, met with what x's step against y says of it
+// (and the mirror): if x − y ∈ Δ(x, base y) then so is the value of `(- x y)`.
+// The interval difference fact(x) − fact(y) forgets that x was computed from
+// y; the step keeps it. jsonfmt's `(- ni i)` for a scanner ni = tok-end(src, i)
+// started at i is ≥ 0 this way, and not by intervals.
+func (a *intervals) relSub(x, y V, r iv) iv {
+	if r.bot || (r.finite() && r.lo == r.hi) {
+		return r // nothing to tighten
+	}
+	px, py := a.pl(x), a.pl(y)
+	if d := a.deltaFrom(x, func(v V) bool { return a.pl(v) == py }, 4); !d.bot && d != ivTop {
+		r = meetIV(r, d)
+	}
+	if d := a.deltaFrom(y, func(v V) bool { return a.pl(v) == px }, 4); !d.bot && d != ivTop {
+		r = meetIV(r, negIV(d))
+	}
+	return r
 }

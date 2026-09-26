@@ -258,6 +258,9 @@ checks:
 	} else if err := leg.Refusal(entry, tg); err != nil {
 		return err
 	}
+	if err := leg.SizeRefusal(entry, tg); err != nil {
+		return err
+	}
 	// DIVISION BY A POWER OF TWO IS A SHIFT (ir/shift.go, cmd/gen).
 	if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", shifts)

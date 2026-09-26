@@ -279,7 +279,7 @@
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro js emitted 2c70d4e29b77c8b9a9a4a9168b24863602ad1a0fb3b7547cac6edb77c095cf61
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
-== examples/io/jsonfmt.oro java emitted e7a44c4e16c8e035c359fb9f9f668a58c306e197581d742aec83e4742b2dd6e2
+== examples/io/jsonfmt.oro java emitted 149e5d1cf3f34cd61b73b265b7dcea2317224d89d7f8b23fc054ba43c511f2b1
    note: gen-main: 95 of 95 integer operations bounded; 13 of 13 loop(s) proven terminating
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -305,7 +305,7 @@
 == examples/json/tokenize.oro windows refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/json/tree.oro go emitted 0de991e9f6a8cf3cc7524458f453e00897fc97059c968053d1ad873577edb2a4
+== examples/json/tree.oro go emitted 463215b7c4de24a006fa7eac8e75f63234c79c25d34e11967eaa847d0d634379
    note: gen-measure: 99 of 99 integer operations bounded; 5 of 5 loop(s) proven terminating
    note: gen-run: 416 of 416 integer operations bounded; 20 of 20 loop(s) proven terminating
 == examples/json/tree.oro js refused

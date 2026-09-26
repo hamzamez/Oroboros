@@ -14,7 +14,8 @@ proves what the term analysis proves
 ([irstep4b-2026-09-26](../../gauntlet/results/irstep4b-2026-09-26.md)), decides legality and modes
 ([irstep4c-2026-09-26](../../gauntlet/results/irstep4c-2026-09-26.md)) and proves termination
 ([irstep4d-2026-09-27](../../gauntlet/results/irstep4d-2026-09-27.md)); postconditions, buffer ranges and
-shifts follow ([irstep4e-2026-09-27](../../gauntlet/results/irstep4e-2026-09-27.md)). **Realizes [ADR 0006](0006-ir-file-format.md)**, which
+shifts follow ([irstep4e-2026-09-27](../../gauntlet/results/irstep4e-2026-09-27.md)), and range and
+allocation obligations ([irstep4f-2026-09-27](../../gauntlet/results/irstep4f-2026-09-27.md)). **Realizes [ADR 0006](0006-ir-file-format.md)**, which
 decided that the backend interface is a file format and never wrote one. The derivation is
 [docs/ir-research.md](../ir-research.md), and the specification is [docs/spec/ir.md](../spec/ir.md).
 Decided by three prototypes: [irp1](../../gauntlet/results/irp1-2026-09-25.md),

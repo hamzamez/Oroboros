@@ -147,9 +147,12 @@ Postconditions (`ir.CheckEnsures`, refusing what it cannot decide), build buffer
 contract's range obligation (`ir.DischargeRanges`, with a one-ended proof handed to the refinement
 route). **An allocation's size is an obligation**, in [0, max-len_T], refused whatever the build mode
 ([irstep4f-2026-09-27](gauntlet/results/irstep4f-2026-09-27.md)). The domain gained the relational
-difference and Theorem 1 on a difference, over linear forms. `gen` and `build` run no term interval
-analysis on the default path; it runs behind `-irproof` as the shadow, and inside the passes not yet
-ported: `PromoteBig` and `SelectWords` (and the refinement layer's loop invariants).
+difference and Theorem 1 on a difference, over linear forms. **The unsigned word is chosen on the
+IR** ([ADR 0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md),
+[irstep4g-2026-09-27](gauntlet/results/irstep4g-2026-09-27.md)). The term checker's integer sort is
+ℤ, and a value crossing between S and U is an obligation the IR discharges, with W5 strict on
+realizations. `gen` and `build` run no term interval analysis on the default path; it runs behind
+`-irproof` as the shadow, and inside `PromoteBig` and the refinement layer's loop invariants.
 
 **The migration is the current plan**: those passes and the refinement layer, one at a time, until
 `emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits
@@ -250,6 +253,7 @@ rejected alternatives.
 | At a host boundary a string is the host's (`go.bytestring`); ours is Σ*, entered by one total decode | [0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md) |
 | A `build`'s result is a product of its frozen buffers and buffer-free values; the tuple-component law | [0031](docs/decisions/0031-a-builds-result-is-a-product.md) |
 | The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — steps 1–3 built: every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
+| An integer's representation is chosen on the IR; the checker's integer sort is ℤ, and crossing S and U is an obligation | [0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md) |
 
 ## How this project is run
 

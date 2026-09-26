@@ -563,6 +563,8 @@ per-operation table, each with its soundness argument and its check:
 | the step at one continue | Δ ⊆ fact(v) − fact(p), both at that continue, met with the symbolic step; a dead continue adds none | p is narrowed by the arm's guards there; a reset to a literal below the guard is a decrease |
 | B = ∞ | with no ranking parameter, a side whose step is zero keeps its initial end (Theorems 1 and 3) | the induction step p_{k+1} ≥ p_k (or ≤) needs no count |
 | the relational difference | `(- x y)` ∈ Δ(x against y), and the mirror | the step is the exact difference; the interval difference forgets the relation |
+| a value passed to a receiver | a value defined in a region that hands it to a receiver (a continue's parameter, a yield's result) meets the receiver's fact, top-down | regions are straight-line to their terminator, so on every execution that defines it, it is the receiver's value |
+| a primitive's `ensures` | `(= result E)` and its half-lines bound the call's result, E over the arguments' facts | assumed where the primitive's `where` was discharged, and every one was (ADR 0028) |
 | Theorem 1 on a difference | p − q ∈ (z_p − z_q) + B·Δ, with Δ from linear forms, so atoms cancel; p ∈ that + fact(q) | a difference of parameters is a function of them, and Theorem 1's induction applies |
 
 The domain is checked two ways:
@@ -595,6 +597,12 @@ which records the values its argument became; the obligation is decided on their
 `emit.DecideRange`. An end left unproven goes to the refinement route as a residual `where`. An
 allocation's size (`build`, `tabulate`) must lie in [0, max-len_T], the lengths the target holds, and
 is refused otherwise, whatever the build mode.
+
+**The unsigned word** (`SelectWords`, ADR 0033): on a target realizing U, each integer value's
+representation is ρ of its fact, S preferred, or a declaration's. + − · compute in their result's
+realization by the homomorphism; / % and the orders in one holding both operands; every other
+crossing is an obligation. The function is then decided again. W5 treats S and U as different
+representations.
 
 Two more readings of the same facts follow the decision:
 - **an export's postcondition** (`CheckEnsures`). Its constant bounds denote a set S, and the join R of

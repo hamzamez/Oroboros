@@ -313,6 +313,13 @@ func (in *interp) call(s *Stmt, a func(int) cval) cval {
 			return cval{i: x}
 		}
 	}
+	// THE TRAP a limb instance's guard raises when a value leaves the set.
+	if s.Name == "trap-if" && len(s.Args) == 1 {
+		if a(0).i.Sign() != 0 {
+			panic(fmt.Errorf("trap: a value left the declared set"))
+		}
+		return cval{i: new(big.Int)}
+	}
 	switch s.Name {
 	case "u64-of":
 		return cval{i: rU(a(0).i)}

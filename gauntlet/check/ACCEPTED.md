@@ -836,3 +836,19 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `gauntlet/differential/cases/render.oro java`
 - emitted text changed — `gauntlet/differential/cases/render.oro js`
 - compiler output changed — `gauntlet/differential/cases/render.oro js`
+
+## 2026-09-27 — on 70085f5, with uncommitted changes
+
+**Reason:** irstep4i: the fixed-limb rung is chosen on the IR and the limb library is inlined as checked instances (ADR 0035). fact-limbs, render and big-limbs are byte-identical on windows; big-divmod moves one prologue add; render's factorial counter is a word, not limbs (-16 operations and -6 loops, all 13 remaining loops proven, 1322 -> 830 lines)
+
+528 runs: 250 emitted, 278 refused; 1994 of 2041 integer operations bounded, 357 of 375 loops proven. compiler pass, differential pass, tooling skip.
+
+3 change(s):
+
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`
+- compiler output changed — `gauntlet/differential/cases/render.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `gauntlet/differential/cases/render.oro windows` 578 → 281 ms, 0.49x

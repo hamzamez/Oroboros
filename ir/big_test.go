@@ -24,6 +24,12 @@ type bigUnit struct {
 // lowerUnselected is compilePath up to the selection: the term keeps its
 // ascriptions above the word, and the IR is decided but not selected.
 func lowerUnselected(src, target string) (*emit.Target, []bigUnit, error) {
+	return lowerUnselectedAs(src, target, "")
+}
+
+// lowerUnselectedAs is lowerUnselected with the rung above the word chosen:
+// "host", "limbs", or "" for the target's own.
+func lowerUnselectedAs(src, target, repr string) (*emit.Target, []bigUnit, error) {
 	layers, err := emit.SearchPath(src, filepath.Join("..", "targets"))
 	if err != nil {
 		return nil, nil, err
@@ -32,6 +38,9 @@ func lowerUnselected(src, target string) (*emit.Target, []bigUnit, error) {
 	tg, err := emit.LoadTargetLayers(target, layers, dirs)
 	if err != nil {
 		return nil, nil, err
+	}
+	if repr != "" {
+		tg.BigRepr = repr
 	}
 	text, err := os.ReadFile(src)
 	if err != nil {
@@ -72,8 +81,8 @@ func lowerUnselected(src, target string) (*emit.Target, []bigUnit, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if !plan.Host {
-			return nil, nil, fmt.Errorf("%s: not on the host's rung", name)
+		if !plan.Host && !plan.Limbs {
+			return nil, nil, fmt.Errorf("%s: not above the word", name)
 		}
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
 		if err := emit.Check(tg, name, nf); err != nil {

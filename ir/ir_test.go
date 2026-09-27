@@ -84,23 +84,18 @@ func compilePath(src, target string, opt Options) (*emit.Target, *Program, error
 		if err != nil {
 			return nil, nil, err
 		}
-		switch {
-		case plan.Limbs:
-			if nf, _, err = emit.PromoteBig(tg, sig, nf); err != nil {
-				return nil, nil, err
-			}
-		case plan.Host:
+		if plan.Host || plan.Limbs {
 			nf = emit.EraseWordAscriptions(tg.Word, nf)
-		default:
+		} else {
 			nf = emit.EraseAscriptions(nf)
 		}
 		f, err := Lower(tg, name, sig, nf, opt)
 		if err != nil {
 			return nil, nil, err
 		}
-		if plan.Host {
+		if plan.Host || plan.Limbs {
 			Decide(tg, f, false)
-			if _, err := SelectBig(tg, f, sig, plan.Bits, plan.Signed); err != nil {
+			if _, err := SelectRung(tg, f, sig, plan); err != nil {
 				return nil, nil, err
 			}
 		}

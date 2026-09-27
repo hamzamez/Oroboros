@@ -17,6 +17,7 @@ gen_run proc
         push r15
         sub rsp, 64
         mov rbx, rcx
+        add rbx, 7
         mov r10, 9
         add r10, 1
         shl r10, 3
@@ -27,14 +28,13 @@ gen_run proc
         call VirtualAlloc
         mov rsi, rax
         mov qword ptr [rsi], 9
-        add rbx, 7
         mov rdi, rbx
         mov rbx, 0
 Ltop5:
         cmp rbx, 9
         jl Lelse7
         mov rbx, rsi
-        jmp Lbuilt3
+        jmp Lbuilt4
 Lelse7:
         mov r12, rdi
         and r12, 16777215
@@ -43,7 +43,7 @@ Lelse7:
         mov rcx, 24
         shr rdi, cl
         jmp Ltop5
-Lbuilt3:
+Lbuilt4:
         mov r10, 9
         add r10, 1
         shl r10, 3

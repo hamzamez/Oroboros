@@ -6,7 +6,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -207,35 +206,16 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			nf, usig = nfl, fsig
 			fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, k)
 		}
-		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE. On the host's bignum it
-		// is a representation chosen on the IR (ir.SelectBig, ADR 0033), and
-		// the term keeps only the ascriptions above the word, which are its
-		// demands. On fixed limbs it is still PromoteBig, before the checker,
-		// because the limb library is spliced into the term.
+		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE, chosen on the IR on both
+		// rungs (ir.SelectRung, ADR 0034 and 0035). The term keeps only the
+		// ascriptions above the word, which are its demands.
 		plan, err := emit.PlanBig(tg, usig, nf, allSigs(prog)...)
 		if err != nil {
 			return fmt.Errorf("%s: %w", fname, err)
 		}
-		switch {
-		case plan.Limbs:
-			nb, n, err := emit.PromoteLimbs(tg, usig, nf, allSigs(prog)...)
-			if errors.Is(err, emit.ErrLimbsFallBack) {
-				// the limb library lacks an operation: the host's bignum, on the IR
-				plan = emit.BigPlan{Host: true, Bits: plan.Bits, Signed: plan.Signed}
-				tg.BigRepr = "host" // the program holds the host's bignum from here (emit/bigrep.go)
-				nf = emit.EraseWordAscriptions(tg.Word, nf)
-				break
-			}
-			if err != nil {
-				return fmt.Errorf("%s: %w", fname, err)
-			}
-			nf = nb
-			if n > 0 {
-				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
-			}
-		case plan.Host:
+		if plan.Host || plan.Limbs {
 			nf = emit.EraseWordAscriptions(tg.Word, nf)
-		default:
+		} else {
 			nf = emit.EraseAscriptions(nf)
 		}
 		sig := usig
@@ -281,11 +261,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		// THE RUNG ABOVE THE WORD (ir/big.go): the least set of values held
 		// exactly, on the decided function's facts; decided again after, where
 		// no operation held exactly is counted.
-		if plan.Host {
-			if _, err := ir.SelectBig(tg, fA, sig, plan.Bits, plan.Signed); err != nil {
+		if plan.Host || plan.Limbs {
+			n, err := ir.SelectRung(tg, fA, sig, plan)
+			if err != nil {
 				return fmt.Errorf("%s: %v", fname, err)
 			}
-			if n := ir.BigOps(fA); n > 0 {
+			if n > 0 {
 				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
 			}
 			leg = ir.Decide(tg, fA, checked)

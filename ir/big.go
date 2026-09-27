@@ -103,7 +103,9 @@ func SelectBig(tg *emit.Target, f *Func, sig *core.Sig, bits int, signed bool) (
 	}
 	g.stripPis()
 	eraseThe(f)
-	if tg.HasBigDest() {
+	// Destinations are the host's bignum's: on the fixed-limb rung a value is a
+	// table the instances build, and `big*!` has no instance.
+	if tg.HasBigDest() && tg.BigRepr != "limbs" {
 		reuseBig(tg, f)
 	}
 	Canonicalize(f)

@@ -416,31 +416,14 @@ func PromoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*co
 	// One pass rather than a case in each of four backends, and the same shape
 	// `LowerLimbs` uses to remove `big-of-small`: a marker written by one pass
 	// and removed by another, so no backend learns that it exists.
-	out, n, err := promoteBig(tgt, sig, t, false, all...)
+	out, n, err := promoteBig(tgt, sig, t, all...)
 	if err != nil {
 		return nil, 0, err
 	}
 	return eraseAscriptions(out), n, nil
 }
 
-// ErrLimbsFallBack says a program on the fixed-limb rung needs an operation
-// the limb library lacks, on a target with a bignum of its own: it takes the
-// host's bignum, which the IR selects (ir.SelectBig, ADR 0034).
-var ErrLimbsFallBack = fmt.Errorf("the limb library lacks an operation this program needs")
-
-// PromoteLimbs is PromoteBig for a driver: where the limb rung would fall back
-// to the host's bignum it returns ErrLimbsFallBack, so the host's rung is
-// chosen on the IR and not by the term pass's destination rule, whose
-// condition (4) checked only a loop variable's initialiser.
-func PromoteLimbs(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
-	out, n, err := promoteBig(tgt, sig, t, true, all...)
-	if err != nil {
-		return nil, 0, err
-	}
-	return eraseAscriptions(out), n, nil
-}
-
-func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, driver bool, all ...*core.Sig) (*core.Term, int, error) {
+func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (*core.Term, int, error) {
 	// THE FIXED-LIMB RUNG COMES FIRST, because it decides how the promotion
 	// itself runs: a limb value is a TABLE, so the mutable-bignum rewrite —
 	// which writes into a host bignum object — has nothing to say about it.
@@ -485,9 +468,6 @@ func promoteBig(tgt *Target, sig *core.Sig, t *core.Term, driver bool, all ...*c
 				"  its own to fall back to either. What it does have is addition,\n"+
 				"  subtraction, multiplication, and division by a machine word\n"+
 				"  (emit/bignum.oro).", why, tgt.Name)
-		}
-		if driver {
-			return nil, 0, ErrLimbsFallBack
 		}
 		rep, out = intervals(tgt, sig, t, 0, nil, true)
 		out, err := fitBig(tgt, out, bits, signed)
@@ -810,7 +790,17 @@ func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPla
 		return BigPlan{}, nil
 	}
 	if limbs {
-		return BigPlan{Limbs: true, Bits: bits, Signed: signed}, nil
+		if signed {
+			// BigRepr keeps a signed program on limbs only when the target has
+			// no bignum to take it to (ADR 0029, decision 4).
+			return BigPlan{}, fmt.Errorf("this program declares a range above the word that "+
+				"admits NEGATIVE values.\n"+
+				"  Target %s stores such a value as fixed limbs, which hold a magnitude:\n"+
+				"  they realize [0, 2^k) and nothing signed, and it declares no bignum of\n"+
+				"  its own. Refused here rather than trapping on a declared value at run\n"+
+				"  time (ADR 0029).", tgt.Name)
+		}
+		return BigPlan{Limbs: true, Bits: bits}, nil
 	}
 	if bits > 0 {
 		if _, err := fitBig(tgt, nil, bits, signed); err != nil {

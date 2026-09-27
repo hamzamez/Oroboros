@@ -36,9 +36,8 @@ source ──read──▶ terms ──stage──▶ residual ──contracts, 
                                                                                     host code
 ```
 
-- **Staging stays on terms**, and so do the passes that rewrite terms before lowering: `FlattenProducts`,
-  and `PromoteBig` for the fixed-limb rung only. The unsigned word and the host's bignum are chosen on
-  the IR (§7.2). The residual that reaches L is closed, monomorphic and first-order
+- **Staging stays on terms**, and so does `FlattenProducts`, which rewrites terms before lowering. The
+  unsigned word and both rungs above it are chosen on the IR (§7.2). The residual that reaches L is closed, monomorphic and first-order
   (research Theorem A).
 - **One format, two stages.** IR_A is what lowering produces and the analyses read. IR_P is what a
   printer reads. They share the syntax. IR_P is IR_A with two operations removed and every type final
@@ -628,6 +627,24 @@ may hold its object is read after the call in the iteration. Owned means every v
 parameter is either a fresh allocation read once, allocated in this iteration if on a continue, or
 another owned parameter's object, with no object bound twice. A printer may move a pure call reading
 a bignum only across no effect (§9.4).
+
+**The fixed-limb rung** (`SelectRung`, `LowerLimbs`, ADR 0035), where the target holds a value above
+the word as n limbs in base 2²⁴. `SelectBig` writes the host's shape with no `big-fit` and no
+destinations. Then each operation is replaced by an **instance** of the limb library
+(`emit/bignum.oro`), inlined:
+- The library is checked once per (n, lim) as a theory: types, linearity, and every index and divisor
+  obligation, under the precondition k ≠ 0 of short division and remainder, which at a use is the
+  program's own division obligation.
+- Inlining binds the instance's parameters to the arguments. A body ending in a yield hands over its
+  values by renaming; one ending in a branch becomes an `if` with the branch's arms.
+- A product or quotient by a widened word in [0, 2²⁸) is one pass (`mul-small`, `div-small`), and a
+  widening nothing else reads is dropped.
+- `big-of v` requires v ≥ 0, since limbs hold a magnitude, and is refused otherwise.
+- A quotient or remainder by a bignum has no instance. It takes the host's bignum where the target has
+  one, and is refused by name where it has none.
+
+The function is then decided again, which decides each instance's word arithmetic under the site's
+facts. Every value held exactly is then a limb table, `array int`.
 
 Two more readings of the same facts follow the decision:
 - **an export's postcondition** (`CheckEnsures`). Its constant bounds denote a set S, and the join R of

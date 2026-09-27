@@ -1,8 +1,8 @@
 # 0034 — The rung above the word is a least fixed point on the IR, and a bignum destination needs ownership
 
 Date: 2026-09-27
-Status: Accepted. Realized for the host's bignum (Go, JavaScript, Java) in irstep4h. The fixed-limb
-rung is still selected on terms by `PromoteBig`.
+Status: Accepted. Realized for the host's bignum (Go, JavaScript, Java) in irstep4h, and for the
+fixed-limb rung in irstep4i (ADR 0035).
 
 ## Context
 

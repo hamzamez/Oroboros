@@ -35,7 +35,7 @@ and loops.
 
 ## Where it stands
 
-As of 2026-09-27. The current assessment is [assessment-2026-09-24.md](docs/assessment-2026-09-24.md);
+As of 2026-09-28. The current assessment is [assessment-2026-09-24.md](docs/assessment-2026-09-24.md);
 read it before planning.
 
 **The compiler.**
@@ -53,10 +53,11 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **2,010 of 2,057** integer operations are proven inside their target's word. The 47 left are mostly
+- **1,994 of 2,041** integer operations are proven inside their target's word. The 47 left are mostly
   meant to be refused.
-- **362 of 381** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
-  343). irstep4h added three of each: render's factorial counter became a word.
+- **357 of 375** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
+  343). render's factorial counter became a word on the host's bignum (irstep4h, +3 of each) and on
+  limbs (irstep4i, where the counter's own limb operations disappeared: −16 operations, −6 loops).
 - Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
   operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
   inflated denominators.
@@ -160,9 +161,14 @@ realizations. **So is the rung above the word on the host's bignum**
 - a Go bignum destination needs ownership and liveness, which caught an aliasing rule R missed and
   found two destinations it declined.
 
+**And so is the fixed-limb rung**
+([ADR 0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md),
+[irstep4i-2026-09-28](gauntlet/results/irstep4i-2026-09-28.md)). The limb library is a theory checked
+once per width, and each bignum operation is an instance of it, inlined on the IR.
+
 `gen` and `build` run no term interval analysis on the default path. It runs behind `-irproof` as
-the shadow, inside `PromoteBig` for the fixed-limb rung only, and in the refinement layer's loop
-invariants.
+the shadow, in `CheckSignatures`' claim check (through `PromoteBig`), and in the refinement layer's
+loop invariants.
 
 **The migration is the current plan**: those passes and the refinement layer, one at a time, until
 `emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits
@@ -265,6 +271,7 @@ rejected alternatives.
 | The IR is structured SSA with π-parameters; representation is a type; realizes 0006 — steps 1–3 built: every backend prints from it | [0032](docs/decisions/0032-the-ir-is-structured-ssa.md) |
 | An integer's representation is chosen on the IR; the checker's integer sort is ℤ, and crossing S and U is an obligation | [0033](docs/decisions/0033-an-integers-representation-is-chosen-on-the-ir.md) |
 | The rung above the word is a least fixed point on the IR, demand gated by facts; a bignum destination needs ownership and liveness | [0034](docs/decisions/0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) |
+| A compiler library is a theory checked once per specialisation; a use is an instance, inlined on the IR (the limb rung) | [0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md) |
 
 ## How this project is run
 
@@ -419,8 +426,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   has a sign: [0, 2ᵏ) or (−2ᵏ, 2ᵏ), checked by `big-fit` or `big-fit-signed`. Limbs hold a
   magnitude, so a signed program takes the host's bignum or is refused
   ([ADR 0029](docs/decisions/0029-above-the-word-one-set-on-every-representation.md), [bigsign-2026-09-24](gauntlet/results/bigsign-2026-09-24.md)).
-  Which values are held exactly is chosen on the IR for the host's bignum (`ir/big.go`, ADR 0034),
-  and by `PromoteBig` on terms for limbs.
+  Which values are held exactly is chosen on the IR (`ir/big.go`, ADR 0034), and on limbs each
+  operation is an inlined instance of the limb library, checked once per width (`ir/limbs.go`,
+  ADR 0035).
 - **Element width follows the range.** `(int-repr …)` picks the narrowest host type containing the
   range ([elemwidth-2026-08-27](gauntlet/results/elemwidth-2026-08-27.md)).
 

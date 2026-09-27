@@ -8,7 +8,6 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -175,33 +174,15 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		nf, esig = nfl, fsig
 		fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", k)
 	}
-	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE — see cmd/gen: on the
-	// host's bignum a representation chosen on the IR, on fixed limbs still
-	// PromoteBig before the checker.
+	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE — see cmd/gen: chosen on
+	// the IR on both rungs.
 	plan, err := emit.PlanBig(tg, esig, nf, allSigs(prog)...)
 	if err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}
-	switch {
-	case plan.Limbs:
-		nb, n, err := emit.PromoteLimbs(tg, esig, nf, allSigs(prog)...)
-		if errors.Is(err, emit.ErrLimbsFallBack) {
-			// the limb library lacks an operation: the host's bignum, on the IR
-			plan = emit.BigPlan{Host: true, Bits: plan.Bits, Signed: plan.Signed}
-			tg.BigRepr = "host" // the program holds the host's bignum from here (emit/bigrep.go)
-			nf = emit.EraseWordAscriptions(tg.Word, nf)
-			break
-		}
-		if err != nil {
-			return fmt.Errorf("%s: %w", entry, err)
-		}
-		nf = nb
-		if n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
-		}
-	case plan.Host:
+	if plan.Host || plan.Limbs {
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
-	default:
+	} else {
 		nf = emit.EraseAscriptions(nf)
 	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
@@ -229,11 +210,12 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	}
 	leg := ir.Decide(tg, fA, checked)
 	// THE RUNG ABOVE THE WORD, chosen on the decided function (ir/big.go).
-	if plan.Host {
-		if _, err := ir.SelectBig(tg, fA, esig, plan.Bits, plan.Signed); err != nil {
+	if plan.Host || plan.Limbs {
+		n, err := ir.SelectRung(tg, fA, esig, plan)
+		if err != nil {
 			return fmt.Errorf("%s: %v", entry, err)
 		}
-		if n := ir.BigOps(fA); n > 0 {
+		if n > 0 {
 			fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
 		}
 		leg = ir.Decide(tg, fA, checked)

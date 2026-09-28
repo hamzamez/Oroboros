@@ -35,7 +35,7 @@ and loops.
 
 ## Where it stands
 
-As of 2026-09-28. The current assessment is [assessment-2026-09-24.md](docs/assessment-2026-09-24.md);
+As of 2026-09-28. The current assessment is [assessment-2026-09-28.md](docs/assessment-2026-09-28.md);
 read it before planning.
 
 **The compiler.**
@@ -174,7 +174,8 @@ once per width, and each bignum operation is an instance of it, inlined on the I
 - the drivers and the tests share one pipeline, `ir.Entry`;
 - the IR's domain gained a map's cell fact, the one claim it lacked.
 
-Every analysis and every representation choice is on the IR. The migration's assessment is next.
+Every analysis and every representation choice is on the IR. `freq`'s compile went from 7,991 to
+5,257 ms and from 15.5 to 7.2 s of CPU (assessment-2026-09-28 §3.2).
 Soundness bugs found while writing the IR's rules:
 - in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
   of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
@@ -187,37 +188,45 @@ Soundness bugs found while writing the IR's rules:
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (09-24), after the migration's assessment:
-1. **`bufio`, program-first.** ADR 0027 was built for it. Its algebra first; then a line tool over
-   standard input with `strconv` (number the lines, sum a column), written in the language and not an
-   acceptance program. **If the tuple-component law is met a fourth time, it becomes the next ADR.**
-2. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
+**Next, from the current assessment** (09-28):
+1. **The gauntlet, in full, on the IR's printers.** Its last full run (09-07) predates every IR
+   printer; each migration step measured only its own changes against the term backend. One run of
+   all seven programs on three targets against the references, first.
+2. **`bufio`, program-first.** Its algebra first; then a line tool over standard input with `strconv`
+   (number the lines, sum a column), written in the language, counted, and not an acceptance program.
+   ADR 0027 was built for its loop shape.
+3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
    from Win32 against what is declared, callable and linkable (31.0% callable and linkable today);
    then spec first, with an ADR per wall.
-3. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
-   gets a witness that it is *sound*, not only one that it proves something — this round's two false
-   proofs were each described accurately by their own comments.
+4. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
+   gets a witness that it is *sound*: an execution the interpreter runs, and a planted fault that
+   fails.
 
-Deliberately not next: geometric accumulation (bounds-2026-09-24); per-result enforcement above the word and signed limbs (ADR 0029);
-the higher-order contract gap (ADR 0028); a phase-wise trip count; the windows/V8/JVM unsigned rungs;
-dependent result ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ —
-the wall `hash/fnv` will hit, named so it is met on purpose).
+Deliberately not next: optimising the compile (`ir.Decide` is 31% of `freq`'s, and the gate reads
+0.95×); host callbacks, tiers 1 and 2; a limb instance emitted once as a function; hoisting or CSE on
+the IR, which would make reachable two premises witnessed only on hand-built IR; geometric
+accumulation; per-result enforcement above the word and signed limbs (ADR 0029); the higher-order
+contract gap (ADR 0028); a phase-wise trip count; the windows/V8/JVM unsigned rungs; dependent result
+ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ — the wall
+`hash/fnv` will hit, named so it is met on purpose).
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
 in the language.
-- Last round: +3,101 lines of compiler (1,236 tests) against +47 lines in `examples/` + `lib/`:
-  66 : 1, or 10.8 : 1 counting hand declarations (+181) and acceptance programs (+60). The round
-  before was 368 : 1 (7.0 : 1). The largest program did not grow.
-- `emit : core` is 4.28.
-- The analysis layer (`interval`, `refine`, `linear`, `monotone`, plus `fact`, `content`, `smash`,
-  `component`, `sct`) is 9,432 lines, and 10,014 with `bound` and `wordsel`; `requires` (515) and
-  `buflen` (232) are new and belong to it.
+- Last round, the migration: +2,017 lines of compiler (`core`, `emit` and, newly counted, `ir`)
+  against +4 lines in `examples/` + `lib/`: **504 : 1**, or 38.8 : 1 counting hand declarations (+46)
+  and acceptance programs (+2). The round before was 66 : 1 (10.8 : 1). The largest program did not
+  grow, and `bufio` has been first on the list twice.
+- The compiler is 53,563 lines: `core` + `emit` 34,787, `ir` 18,776. `emit : core` is 2.48, and
+  (`emit` + `ir`) : `core` is 4.36.
+- What decides legality is the IR's analysis (`interval`, `trip`, `endpoint`, `sct`, `decide`,
+  `require`): 3,328 lines, against the 10,014 of the term analysis layer it replaced. `emit`'s
+  analysis layer is now the refinement layer, 4,617 lines.
 
 The part that decides what is legal is the hardest to check. Write programs, and let them demand the
 analysis.
 
 Previous assessments:
-[09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).
@@ -584,6 +593,10 @@ Each of these has bitten more than once. The instances are in the results they n
   - Every soundness test must be shown to fail against a planted bug, including the bug that shipped.
   - Refusal-shaped properties need an anti-vacuity guard.
   - Random search cannot test what over-approximation makes sound; pin those with exact witnesses.
+- **A relation relaxed for one check weakens every check that reads it.** ADR 0033 made the checker's
+  integer sort ℤ, and the verifier's representation rule (W5) read the same relation: it stopped
+  telling `int` from `u64` (irstep4g) and then from `big` (irstep4h), and each time a planted fault
+  passed. When a relation is relaxed, audit every consumer of it.
 - **"Not refused" is not "proven".** A path that returns success with a note has checked nothing.
   The refinement layer's own was *"propagated, not proven"*: an index it could not bound was emitted,
   and on JavaScript an `int` function returned `undefined` (noprop-2026-09-25).

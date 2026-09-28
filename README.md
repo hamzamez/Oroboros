@@ -192,9 +192,12 @@ reason: its `io` module has no `print-int`.)
 ```
 
 ```bash
-go run ./cmd/build -target=go   -o wc.exe     examples/io/wc.oro && ./wc.exe docs/decisions/0001-parasite-model.md
-go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro && node wc.mjs docs/decisions/0001-parasite-model.md
-go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro && java -cp wc-classes Main docs/decisions/0001-parasite-model.md
+go run ./cmd/build -target=go   -o wc.exe     examples/io/wc.oro
+go run ./cmd/build -target=js   -o wc.mjs     examples/io/wc.oro
+go run ./cmd/build -target=java -o wc-classes examples/io/wc.oro
+./wc.exe docs/decisions/0001-parasite-model.md
+node wc.mjs docs/decisions/0001-parasite-model.md
+java -cp wc-classes Main docs/decisions/0001-parasite-model.md
 ```
 
 All three print `49`, the same as `wc -l`.
@@ -369,8 +372,13 @@ integer over `math/bits` and `strconv`, is the first.
 You need Go 1.26 or newer (checked with 1.27). For the other targets you need Node (checked with 26)
 and a JDK (checked with 17), and Visual Studio's MASM for Windows.
 
+The commands on this page are one per line, with no `&&`, and a built program is named `.exe`, so
+they run unchanged in bash, zsh, Windows PowerShell and PowerShell 7. (Windows will not run a file
+without the extension, and a file named `.exe` runs fine on Linux and macOS.)
+
 ```bash
-go run ./cmd/build -target=go -o hello examples/hello.oro && ./hello
+go run ./cmd/build -target=go -o hello.exe examples/hello.oro
+./hello.exe
 ```
 
 ```
@@ -379,9 +387,15 @@ hello from oroboros
 ```
 
 ```bash
-go run ./cmd/check                                  # every check: tests, emission baseline, all targets
+go run ./cmd/check                                      # every check: tests, emission baseline, all targets
 go run ./cmd/oro -target=portable-go examples/dot.oro   # what a program reduces to
-cd gauntlet/differential && go run run.go           # every test program, on every target
+```
+
+The differential suite runs from its own directory:
+
+```bash
+cd gauntlet/differential
+go run run.go                                           # every test program, on every target
 ```
 
 ## Where things are

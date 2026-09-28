@@ -3,6 +3,14 @@
 Status: **working direction**. Revised 2026-08-13 after the Parasite reframing.
 Individual decisions are recorded as ADRs in `docs/decisions/`.
 
+> **Status, 2026-09-28.** This is the founding argument, and it is kept as written: why the parasite
+> model, why Shen hit its wall, what the capability graph is, and what was rejected. Its direction
+> held. Much of its detail has since been decided, sometimes differently, and each section that a
+> later decision settled or overturned carries a dated note. **The language as it is** is
+> [spec/state.md](spec/state.md) and CLAUDE.md's "The language today"; **what was decided** is the
+> ADRs; **what is next** is the current assessment. §8's open questions are now a table of what
+> settled each.
+
 ---
 
 ## 1. What Oroboros is
@@ -153,6 +161,23 @@ conformance test suite; a target's implementation is valid when it passes.
 
 ## 4. Type system
 
+> **Note, 2026-09-28.** The principle held: mathematical semantics, machine representation, a range
+> in the type ([ADR 0003](decisions/0003-range-typed-integers.md)). What changed:
+> - **An `int` is an integer**, ℤ, and each target declares the word it realizes: int64 on Go, the JVM
+>   and x86, plus `uint64` on Go, and ±(2⁵³−1) on JavaScript. Legality is per target, and portability
+>   is computed ([ADR 0026](decisions/0026-an-int-is-an-integer.md)). The "(int 0 2^31) on a JS
+>   double" line below is superseded by that.
+> - **Overflow is refused, not trapped, where it is not proven** ([ADR 0019](decisions/0019-precision-by-declaration.md)):
+>   a trap is asked for with `-checked`. Wrapping operations are not built; modular arithmetic as a
+>   type (ℤ/2ⁿ) is named and deliberately not next.
+> - **Arbitrary precision is a declaration**, not a package: a range above the word is held exactly,
+>   in the host's bignum or in fixed limbs, and enforced as one set per program
+>   ([ADR 0029](decisions/0029-above-the-word-one-set-on-every-representation.md)).
+> - **Representation is chosen by the compiler from facts, on the IR**
+>   ([ADR 0033](decisions/0033-an-integers-representation-is-chosen-on-the-ir.md)): a table's element
+>   width from its range, a scalar's host type from its interval. `i32`/`u8` sugar is not built; a
+>   range is written as a range.
+
 **Mathematical semantics, machine representation, range declared in the type.**
 
 Neither of the two obvious options works:
@@ -241,6 +266,13 @@ Later, by demand: C (iOS, embedded, desktop native), WASM, Win32, .NET, Swift.
 
 ## 6. Implementation
 
+> **Note, 2026-09-28.** The IR was written, seven weeks late: structured SSA with π-parameters
+> ([ADR 0032](decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](spec/ir.md)). It is close to
+> the mitigation below: a statement is a tagged struct with an operation enum and index-based values,
+> and it owns regions for structured control. The file format exists too: a canonical printer and
+> reader (`gen -ir`), so a backend outside Go is possible, as §6's second half wanted. Every backend
+> and every analysis reads it.
+
 **The compiler is written in Go.**
 
 For: single-binary distribution, which matters more than it sounds for a tool people are
@@ -282,6 +314,13 @@ Shen's wall restated. First-class closures require captured environments, which 
 allocation. Closures belong above the core, lowered by defunctionalization or explicit
 environment structs — never a core primitive.
 
+> **Note, 2026-09-28.** Half overturned, and the half that held is the reason. The atom *is* lambda
+> calculus, with the normal form as a parameter ([the-atom.md](the-atom.md)): the language is
+> two-level, higher-order at compile time and erased by staging, and **a closure may not survive to
+> run time** ([closures-direction.md](closures-direction.md)). What was rejected here, closures
+> allocated at run time, stays rejected; lambda calculus as the language of the static level did not
+> have that cost.
+
 ### TLA+ / state machines as the core
 TLA+'s model is nondeterministic action selection over global state, built for model checking,
 not for lowering to fast code. Two things are worth taking: **refinement** (each layer
@@ -307,47 +346,23 @@ achievable — the output *is* what hand-written code would contain.
 
 ## 8. Decisions still open
 
-1. **Memory model.** No GC in core; manual plus arena/region allocators passed explicitly. On
-   GC'd hosts (Go, JS, JVM) `free` lowers to a no-op, preserving target parity. Needs
-   confirming against the capability model — allocation may itself be a capability. **Note:**
-   no target in the initial set has manual memory, so this stays untested until C arrives.
-2. **Error model.** No exceptions; result values and error enums. But Go, JS, and Java all
-   have native error idioms, and Tier 2 bindings will surface them. Interop story needed.
-3. **Concurrency.** Deferred. Note that Go's goroutines are a major reason to target Go at
-   all, so "deferred" cannot mean "forever."
-4. **Strings.** Bytes in core, Unicode in a library. But every one of the three initial
-   targets has a native string type, and the Parasite rule says use it. Likely a Tier 1
-   capability rather than a core type.
-5. **Module and package format.** Required before Tier 2 bindings can be written.
-6. **Naming translation.** Whether `fmt.Println` is called as-is or mapped to a house
-   convention, and whether that mapping is per-binding or per-target.
-7. ~~**Substructural discipline.**~~ **Resolved** by [s1](derivations/s1-substructural.md) and
-   [s2](derivations/s2-multiplicity-inference.md). Two axes: **multiplicity** (0/1/ω) for copy
-   and delete, **ordering** (pure/stateful) for reorder. Capture is not structural — handled by
-   a locally-nameless term representation. Uniqueness is not multiplicity either — value-typed
-   accumulators get it free from value semantics, heap-typed ones need liveness. Grade 0 is the
-   staging annotation, and it is *observed* in the residual rather than inferred. **Zero
-   annotations are required in application code**; the one unavoidable declaration is extern
-   purity, in binding files, defaulting safely to stateful.
-   **Still open:** mutation through an aliased slice, where uniqueness stops being free.
-8. **Sequence-of-struct representation.** `(slice T)` for a struct `T` cannot share one
-   representation across targets — but the problem is smaller than
-   [g2](derivations/g2-structs.md) assumed: measurement puts the array-of-objects penalty at
-   2.86× on **JS only**, and 1.05× on Java. Leading option is target-chosen representation with
-   explicit layouts available for interop.
-9. ~~**Specialization versus binary size.**~~ **Resolved by measurement** —
-   [size baseline](../gauntlet/results/size-2026-08-13.md). **Outline above the host's inlining
-   budget; specialize below it.** Below the budget the host inlines anyway, so specialization is
-   26% *cheaper* than an outlined copy; above it, specialization costs up to 14.4× for a win the
-   host was declining to take. The crossover is a sharp discontinuity at Go's cost budget of 80 —
-   the same number that appeared in the performance baseline. Also: Go's binary floor is 1.43 MB,
-   so on GC'd hosts requirement 6 is dominated by a runtime we do not control, and on JS gzip
-   erases ~95% of the difference.
+> **Status, 2026-09-28.** Eight of the nine are settled. The questions as they were posed on
+> 2026-08-13, and what answered each:
 
-Items 2 and 4 are where the Parasite model exerts the most pressure on the "small core"
-requirement. Item 7 is where the most interesting unexplored structure is.
+| | the question | status |
+|---|---|---|
+| 1 | **Memory model**: manual plus arena allocators, `free` a no-op on GC'd hosts | **Settled differently.** Values are immutable, and the one allocating construct, `build`, has a scoped linear buffer ([ADR 0018](decisions/0018-immutable-values-linear-buffers.md)); a buffer is a nameable parameter type, unique by assumption at an export and linear by check inside ([ADR 0020](decisions/0020-uniqueness-on-parameters.md)). No `free`, no arenas |
+| 2 | **Error model**: result values, and each host's error idiom | **Settled in part.** A fallible host call gives two results bound by `(let (tuple v err) …)` on every host, however the host fails, and its continuation is a tail position ([ADR 0027](decisions/0027-a-host-calls-continuation-is-a-tail.md)). Variants give result sums ([sums.md](spec/sums.md)). No exceptions |
+| 3 | **Concurrency** | **Open.** Deferred, and still not "forever": goroutines remain a reason to target Go |
+| 4 | **Strings**: bytes in core, Unicode in a library, or the host's type | **Settled.** A string is an element of the free monoid over Unicode scalar values; a host's string is the host's type (`go.bytestring`), entered only by the standard's decode ([ADR 0030](decisions/0030-a-hosts-string-is-the-hosts.md), [strings.md](spec/strings.md)) |
+| 5 | **Module and package format** | **Settled.** Modules are resolution, not reduction ([ADR 0011](decisions/0011-modules-add-nothing-to-the-reducer.md)); declarations are theories and a target is a model ([ADR 0021](decisions/0021-declarations-are-theories.md)); host declarations are written by hand and checked ([ADR 0022](decisions/0022-host-declarations-are-written-by-hand.md)) |
+| 6 | **Naming translation**: `fmt.Println` as is, or a house convention | **Settled: as is.** A host module's path is the host's own path, and its default alias the host's own name ([ADR 0025](decisions/0025-a-module-path-is-the-hosts.md)) |
+| 7 | **Substructural discipline** | **Settled** by [s1](derivations/s1-substructural.md) and [s2](derivations/s2-multiplicity-inference.md), and its open end (mutation through an aliased slice) by the linear buffer (ADRs 0018, 0020) |
+| 8 | **Sequence-of-struct representation** | **Settled.** A table of tuples is flattened by currying before the checker runs, so no backend knows products exist ([products.md](spec/products.md)); a `build`'s result may be a product ([ADR 0031](decisions/0031-a-builds-result-is-a-product.md)) |
+| 9 | **Specialization versus binary size** | **Settled by measurement** ([size baseline](../gauntlet/results/size-2026-08-13.md)): outline above the host's inlining budget, specialize below it |
 
----
+Items 2 and 4 were where the parasite model pressed hardest on the small core, and both were settled
+by the same move: the host's own type or idiom at the boundary, and one portable meaning inside.
 
 ## 9. Prior art worth reading
 
@@ -370,6 +385,12 @@ requirement. Item 7 is where the most interesting unexplored structure is.
 ---
 
 ## 10. Milestones
+
+> **Note, 2026-09-28.** Every milestone below was reached: the substructural thread (3), the size
+> measurement and the check gate (4, `cmd/check`), staging soundness (5), the reader (6), the front
+> end (7), the Go, JavaScript and Java backends (8, 9, 11), declarations validated on real packages
+> (10), and the IR file format (12, ADR 0032), which was indeed designed once it was known what
+> flows through it. Plans are now set by each round's assessment.
 
 Revised by [ADR 0007](decisions/0007-exploration-over-specification.md) — the core is not
 frozen up front — and by what the first baseline run actually taught.

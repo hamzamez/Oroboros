@@ -3,6 +3,20 @@
 Go has `var`, `func`, `const`, `type`. Scheme's `define` does several jobs at once. This settles
 what ours does, what the literature already calls it, and what we should refuse to inherit.
 
+> **Status, 2026-09-28.** §1, §2, §4 and §5 hold as written. What changed since this was drafted
+> (2026-08-14):
+> - **Recursion is not in the language** ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)),
+>   so the `def`/`rec` split of §3 is withdrawn and a recursive definition is an error (§9).
+> - **Iteration is `loop` and `again`** ([ADR 0015](../decisions/0015-loop-and-again.md)), not
+>   `fold-range`, which was the retired portable layer's primitive.
+> - **`(def f (x…) body)` is adopted as sugar** for `(def f (fn (x…) body))` (§4, 2026-09-18), and a
+>   **constant is a value**: `(def cap 65536)`.
+> - **`let` is flat and n-ary in the source** (§6, 2026-09-19), and erases to applications.
+> - **A stuck application is refused by lowering to the IR** ([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)),
+>   not by the term backends, which are deleted (§4, decision 4).
+> - **ι has arrived in part**: variants, `case` and case-of-case ([sums.md](sums.md)), so §8's first
+>   item is no longer missing.
+
 ---
 
 ## 1. `def` is not a term
@@ -163,10 +177,12 @@ the two apart. Three rules come with it, and each is refused by name:
 - **one body form** — an implicit `seq` would delete a pure leading expression in silence;
 - the shorthand does not curry: `(def c (fn (a) (fn (b) …)))` stays written out.
 
-**Stuck terms need a well-formedness check.** ~~and we do not have one~~ — the emitters now
-refuse: *"application of a non-name: the operator must be a primitive or a recursive definition."*
-So the error is ours rather than the host's, which was the point. A type checker
-([types.md](types.md)) sits in front of it and catches most of this earlier.
+**Stuck terms need a well-formedness check.** ~~and we do not have one~~ — lowering to the IR
+refuses one: `(name)` above is *"lowering: an application of "hamza""*. So the error is ours rather
+than the host's, which was the point. (Until 2026-09-26 the term backends refused it, with *"the
+operator must be a primitive or a recursive definition"*; they are deleted, and recursion was never
+compiled.) The type checker ([types.md](types.md)) does not catch this shape first: a string's
+application has no declared type to disagree with.
 
 ## 5. Literals: which ones, and one refusal
 
@@ -287,8 +303,8 @@ definition "stays in the residual as a target function", so `Residual` deliberat
 report it — while the emitter reported `no Go form for primitive "countdown"`, a message about a
 primitive nobody ever declared. The commands now say the true thing instead.
 
-**This is why no gauntlet program is recursive.** Iteration here is `fold-range`, which is a
-primitive and compiles to a `for`. Recursion is the fallback for shapes a fold cannot express, and
+**This is why no gauntlet program is recursive.** Iteration here was `fold-range`, a primitive that
+compiled to a `for`; it is now `loop` and `again` (ADR 0015), which compile to one too. Recursion is the fallback for shapes a fold cannot express, and
 that fallback does not exist yet — which is what made rejecting it affordable. Nothing was using
 it.
 
@@ -390,20 +406,20 @@ general.
 ## 7. Decisions
 
 1. **`def` is a context extension, not a term** — a definitional equality, unfolded by δ.
-2. **Split `def` from `rec`.** `def` is δ-unfoldable and must not be recursive; `rec` takes a
-   mutually recursive group and is never unfolded. This makes the grade readable at the
-   definition site.
+2. ~~**Split `def` from `rec`.**~~ **Withdrawn 2026-08-16** (§3): recursion is not in the language
+   (ADR 0014), so `rec` would opt in to something that does not exist. `def` is δ-unfoldable, and a
+   recursive one is an error.
 3. **`def` binds a term, not a function.** `(def name "hamza")` makes `name` the string;
    `(name)` applies it and is an error, and a constant is therefore a VALUE. The shorthand
    `(def f (x…) body)` was adopted 2026-09-18 and is sugar for `(def f (fn (x…) body))` — §4.
-4. **Add a well-formedness check on the residual:** an application's operator must be a λ, a
-   primitive, or a recursive definition.
+4. **Add a well-formedness check on the residual:** an application's operator must be a λ or a
+   primitive. Lowering to the IR enforces it (§4).
 5. **Numbers yes, strings yes-with-caveats, symbols no.** Symbols exist to serve a runtime
    reader and `eval`; we have neither, and adding them means interning tables on every target for
    a motivation that does not apply.
 6. **Recursion is rejected, and tail calls are not guaranteed** — §9, §10, ADR 0014. Iteration is
-   `fold-range`. Emitting recursion would ship a construct whose stack depth differs per target
-   with no specification, so it fails at the definition instead.
+   `loop` and `again` (ADR 0015). Emitting recursion would ship a construct whose stack depth differs
+   per target with no specification, so it fails at the definition instead.
 6b. **A definition the target overrides is a note; a binder that shadows is not reported** — §11.
 7. **`let` is a primitive taking a continuation, not a term former.** No new syntax, no weakening
    of the normal form, and the reducer's choice to emit it is the binding-time decision.
@@ -412,9 +428,10 @@ general.
 
 Coq's conversion is βδιζη. We have β and δ, and §6 plans ζ.
 
-- **ι** — pattern matching / case analysis. Nothing in the core matches on data yet; `if` is a
-  primitive, so branching is currently opaque to reduction. This is where
-  [q5b §6](q5b-filter.md)'s case-of-case problem will arrive.
+- ~~**ι** — pattern matching / case analysis.~~ **Arrived in part**: `variant` and `case`, with
+  case-of-case, make a constructor known at compile time disappear ([sums.md](sums.md)), and
+  `(if true a b) → a` is the one evaluation reduction performs ([booleans.md](booleans.md)). What is
+  still missing is ι on data known only at run time, which is the IR's business, not reduction's.
 - **η** — extensionality, `f ≡ (fn (x) (f x))`. Not needed yet; it will matter if uncurrying or
   arity adjustment is ever done as a reduction rather than a representation choice.
 

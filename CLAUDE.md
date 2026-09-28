@@ -234,7 +234,8 @@ Previous assessments:
 ## Read first
 
 1. [README.md](README.md)
-2. [docs/design-direction.md](docs/design-direction.md). Its section 8 lists the open questions.
+2. [docs/design-direction.md](docs/design-direction.md), the founding argument. Its section 8 records how its
+   open questions were settled; concurrency is the one still open.
 3. The ADRs in [docs/decisions/](docs/decisions/).
 4. [docs/spec/state.md](docs/spec/state.md), which is the language read off the code.
 5. The current assessment.

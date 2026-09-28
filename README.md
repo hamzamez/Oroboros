@@ -69,20 +69,27 @@ comes from the test suite, which runs it on every target.
 ```
 
 It prints the same on Go, Node and the JVM. The emitted Go has a `[]bool`, three plain `for` loops, no
-bounds-check helpers and no wrapper:
+bounds-check helpers and no wrapper. Values are numbered, not named: the code is written for Go's
+compiler, and only its speed against hand-written code is held to a standard.
 
 ```go
-sieve := make([]bool, 1000)
-s := sieve
-var i int = 2
-for ; ; i = (i + 1) {
-	if ((i * i) >= 1000) {
+v2 := make([]bool, 1000)
+var v1 []bool
+v5 := v2
+var v6 int = 2
+for ; ; v6 = (v6 + 1) {
+	v7 := (v6 * v6)
+	v9 := (v7 >= 1000)
+	if v9 {
 		break
 	}
-	if (i >= len(s)) {
+	v10 := len(v5)
+	v11 := (v6 >= v10)
+	if v11 {
 		break
 	}
-	if s[i] {
+	v16 := v5[v6]
+	if v16 {
 		continue
 	}
 	…
@@ -252,7 +259,7 @@ written inside it:
           (host expr "%s.Error()" (import "encoding/hex")))))
 ```
 
-The same program built for JavaScript stops with `(use go/encoding/hex) matched no file`. That is
+The same program built for JavaScript stops with `go/encoding/hex.Encode is not bound`. That is
 portability being computed: this program is a Go program, and the compiler says so.
 
 ### 5. Variants and `match`
@@ -313,12 +320,12 @@ drift apart.
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | largest gap **1.13×**, best **0.91×** over 19 comparisons ([gauntlet-2026-09-07](gauntlet/results/gauntlet-2026-09-07.md)); two programs compile to byte-identical machine code ([generics](gauntlet/results/generics-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md)) |
-| An integer never silently wraps or rounds | interval analysis against each target's word; unproven means refused on that target | **2,007 of 2,054** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **1,996 of 2,041** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `string` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text-of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
-| Loops terminate | size-change termination | **343 of 381** loops proven |
-| Every host agrees | 37 programs built and **run** on every target that accepts them (25 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
+| Loops terminate | size-change termination on the IR | **357 of 375** loops proven |
+| Every host agrees | 46 programs built and **run** on every target that accepts them (29 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
 
 ## How much of each platform it can reach
@@ -349,7 +356,8 @@ integer over `math/bits` and `strconv`, is the first.
   a host interface is wanted; you cannot build one.
 - **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
 - **Maps take integer keys only.**
-- **Windows** is the least complete target, and large programs can exceed its register allocator.
+- **Windows** is the least complete target: its `io` has no `print-line`, it has no floats and no host
+  bignum, and fixed-limb arithmetic cannot yet be printed there.
 - **A rough edge found while writing this page:**
   - a buffer's length is not carried out of an inner loop, which is why the sieve guards `(len s)` as
     well as `n`.
@@ -381,7 +389,8 @@ cd gauntlet/differential && go run run.go           # every test program, on eve
 | | |
 |---|---|
 | [core/](core/) | reader, terms, reducer |
-| [emit/](emit/) | the four backends, the type checker and the proofs |
+| [ir/](ir/) | the IR, the analyses that decide what is legal, the representation choices, and the four backends ([spec](docs/spec/ir.md)) |
+| [emit/](emit/) | the type checker, the refinement layer (bounds and preconditions), contracts, and the target loader |
 | [targets/](targets/) | what each host provides: declarations, never compiler code |
 | [lib/](lib/) | portable modules such as `os` and `io`, and each host's implementation of them |
 | [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `jsonfmt`, `freq`), [json/](examples/json/), [tally/](examples/tally/) and [u128/](examples/u128/) |
@@ -391,6 +400,10 @@ cd gauntlet/differential && go run run.go           # every test program, on eve
 
 ## How it is built
 
+- **One structure, read by everything.** The reducer's output, a closed first-order program, is
+  lowered to a structured SSA IR ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md)). Every
+  analysis reads it: legality, termination, preconditions, and each value's representation. Every
+  backend prints it. Nothing rediscovers the program's shape from the terms.
 - **Measure, don't assert.** Every performance or design claim is benchmarked against hand-written code,
   with the expected loser in the benchmark too. Unmeasured claims here have been wrong about half the
   time, and the corrections are kept.
@@ -398,7 +411,7 @@ cd gauntlet/differential && go run run.go           # every test program, on eve
   Then it is specified, and only then written.
 
 The current assessment of the project, including what is going badly, is
-[docs/assessment-2026-09-23.md](docs/assessment-2026-09-23.md).
+[docs/assessment-2026-09-28.md](docs/assessment-2026-09-28.md).
 
 ## The name
 

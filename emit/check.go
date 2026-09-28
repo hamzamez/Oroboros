@@ -570,6 +570,7 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 			if err != nil {
 				continue // reduction already reports this better
 			}
+			nf = EtaTails(tgt, nf) // η for products (tables.md §2.5)
 			// THE CLAIM'S TYPING is checked on the residual as written: the
 			// integer sort is ℤ (ADR 0033), so a range, the unsigned word and
 			// the rung above it agree. Whether a value is HELD in the word the

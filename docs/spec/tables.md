@@ -385,6 +385,30 @@ the components:
   and component facts the analyses derived for that buffer (array-facts.md);
 - **a value component:** its interval, joined over the exits that produce the tuple.
 
+**A tail is any term of the product's type, and η makes it a tuple** (2026-09-28). The rule above
+types the scope's value, not its spelling: an exit gives C₁ × … × Cₘ, however it is written. The only
+exit of that type that is not a `(tuple …)` is **a host call with m declared results**, such as
+`(hex.Encode buf src)`, which gives the buffer it borrowed and a count. η for products says a
+term of a product type is the tuple of its projections, p = ⟨π₁ p, …, πₘ p⟩. For a call eliminated
+by its continuation (ADR 0027) that is
+
+```
+(p ā)  =  ((p ā) (fn (x₁ … xₘ) (tuple x₁ … xₘ)))          when p declares m results
+```
+
+So after reduction, before any pass reads a clause chain, every such exit of a producer that a tuple
+pattern of m names takes apart is rewritten to the right-hand side (`emit.EtaTails`). Then every pass
+that finds components by their tail tuples (the projections, the refinement layer, the checker,
+lowering) sees one. The rewrite is sound, because the call is still evaluated once, where it was, and
+its continuation runs once (ADR 0027). S and R1–R3 are decided after it, on the tuple, as for one written
+out. An exit that is neither a tuple of m components nor such a call is refused by name, before any
+pass reads it.
+
+```lisp
+(let (tuple dst n) (build buf (* 2 (len src)) (hex.Encode buf src))
+  …)
+```
+
 **How the analyses see it.** The j-th **projection** Pⱼ is the producer with every tail tuple replaced
 by its j-th component. It is case-of-case with the pure eliminator `(fn (x̄) xⱼ)`, so ⟦Pⱼ⟧ = πⱼ⟦P⟧, and
 whatever a `let` would learn of Pⱼ's value, `xⱼ` gets:

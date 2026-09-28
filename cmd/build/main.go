@@ -149,6 +149,8 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	}
 	// A JOIN POINT IS NOT JUMPED OUT OF (tables.md §2.5): refused before any
 	// pass walks a clause chain.
+	// η FOR PRODUCTS (tables.md §2.5), as cmd/gen.
+	nf = emit.EtaTails(tg, nf)
 	if err := emit.CheckJoins(tg, nf); err != nil {
 		return fmt.Errorf("%s: %w", entry, err)
 	}

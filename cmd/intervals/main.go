@@ -91,6 +91,7 @@ func run(targetDir, src, target, path string, verbose bool) error {
 			return fmt.Errorf("%s: %w", u.name, err)
 		}
 		sig := u.sig
+		nf = emit.EtaTails(tg, nf)
 		if nf, err = emit.DischargeRequires(reqs, tg, u.name, sig, nf,
 			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, sig, x) }); err != nil {
 			return err

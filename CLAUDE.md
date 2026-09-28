@@ -378,7 +378,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `(build n (fn (b) …))`, n-ary and sequential, one region, and `build-map` likewise
   ([tables.md §2.4](docs/spec/tables.md)). Its value is the body's value, and it may be **a product**
   of frozen buffers and buffer-free values, taken apart by a tuple pattern
-  ([ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), [tables.md §2.5](docs/spec/tables.md)):
+  ([ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), [tables.md §2.5](docs/spec/tables.md)).
+  An exit may be any term of the product's type: a host call declaring m results is a tuple by η for
+  products, `emit.EtaTails` ([eta-2026-09-28](gauntlet/results/eta-2026-09-28.md)):
   - the pattern is a **join point**, emitted once after the scope and the loop in it;
   - each name knows what its **projection** Pⱼ (the producer with every tail tuple replaced by its j-th
     component) would tell a `let`, because ⟦Pⱼ⟧ = πⱼ⟦P⟧;

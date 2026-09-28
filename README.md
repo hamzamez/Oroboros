@@ -222,21 +222,24 @@ All three print `49`, the same as `wc -l`.
 
 (def main ()
   (let src (array 104 105 33)                          ; "hi!"
-    (io.print-line
-      (os.text-of
-        (build dst (* 2 (len src))
-          (let (tuple dst n) (hex.Encode dst src) dst))))))
+       (tuple dst n) (build buf (* 2 (len src)) (hex.Encode buf src))
+    (io.print-line (os.text-of dst))))
 ```
 
 ```
 686921
 ```
 
-Go's `hex.Encode` panics if `dst` is too short. Here it cannot be called with one. Change the
-destination to `(+ (len src) 1)` bytes and the program does not compile:
+`build` gives a buffer to fill, `buf`, and the scope's value is whatever its body gives: here both of
+`hex.Encode`'s results, the filled buffer frozen as `dst` and the count `n`. A host call with two
+results is a pair, so a tuple pattern takes it apart like any other
+([tables.md §2.5](docs/spec/tables.md)).
+
+Go's `hex.Encode` panics if its destination is too short. Here it cannot be called with one. Change
+the buffer to `(+ (len src) 1)` bytes and the program does not compile:
 
 ```
-build: main: go/encoding/hex.Encode requires -len(dst) + 2*len(src) <= 0, which does not follow
+build: main: go/encoding/hex.Encode requires -len(buf) + 2*len(src) <= 0, which does not follow
 ```
 
 The three bytes are written as a table's GRAPH, and `hex.Encode` declares a byte table, so the

@@ -72,6 +72,7 @@ func lowerUnselectedAs(src, target, repr string) (*emit.Target, []bigUnit, error
 		if err != nil {
 			return nil, nil, err
 		}
+		nf = emit.EtaTails(tg, nf)
 		sig := prog.Sigs[q]
 		if nf, err = emit.DischargeRequires(reqs, tg, name, sig, nf,
 			func(x *core.Term) *core.Term { return DischargeRanges(tg, sig, x) }); err != nil {

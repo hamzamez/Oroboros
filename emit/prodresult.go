@@ -214,6 +214,24 @@ func CheckJoins(tg *Target, t *core.Term) error {
 				return
 			}
 		}
+		// A TUPLE PATTERN OVER A SCOPE OR A LOOP needs every exit to give m
+		// values: a tuple of them, or, by η, a host call declaring m results,
+		// which EtaTails has already expanded. Anything else would reach
+		// lowering with no components to bind.
+		if t.Kind == core.KApp && len(t.Kids) == 2 && t.Kids[1].Kind == core.KFn &&
+			len(t.Kids[1].Params) >= 2 && isProducer(tg, t.Kids[0]) {
+			if _, _, _, host := multiPrimCall(tg, t); !host {
+				m := len(t.Kids[1].Params)
+				if _, ok := projectTail(tg, t.Kids[0], 0, m); !ok {
+					err = fmt.Errorf("a tuple pattern of %d names takes apart a `build` or a `loop`, so "+
+						"every exit must give %d values: a (tuple …) of them, or a host call that "+
+						"declares %d results (tables.md §2.5). An exit gives something else: a single "+
+						"value, a tuple of another size, or a call declaring another number of results.",
+						m, m, m)
+					return
+				}
+			}
+		}
 		if _, k, ok := tupleElim(tg, t); ok && jumpsOut(tg, k.Closed()) {
 			err = fmt.Errorf("an `again` sits inside the body of a tuple pattern whose value comes " +
 				"from a loop or a `build`.\n  That body is a JOIN POINT: it runs once, after the " +
@@ -283,6 +301,18 @@ func eraseExits(tg *Target, t *core.Term) *core.Term {
 var exitMark = core.Name("#exit")
 
 // isScopeTerm recognises `(build n (fn (b) …))` and `build-map`'s.
+// isProducer is a scope or a loop: a term whose value only its exits give.
+func isProducer(tg *Target, t *core.Term) bool {
+	if isScopeTerm(tg, t) {
+		return true
+	}
+	if t.Kind != core.KApp || len(t.Kids) < 2 || t.Kids[0].Kind != core.KName {
+		return false
+	}
+	p, ok := tg.Prims[t.Kids[0].Name]
+	return ok && p.Kind == "iterate"
+}
+
 func isScopeTerm(tg *Target, t *core.Term) bool {
 	if t.Kind != core.KApp || len(t.Kids) != 3 || t.Kids[0].Kind != core.KName ||
 		t.Kids[2].Kind != core.KFn || len(t.Kids[2].Params) != 1 {
@@ -337,4 +367,143 @@ func badTail(tg *Target, t *core.Term) *core.Term {
 		return badTail(tg, t.Kids[2].Closed())
 	}
 	return nil
+}
+
+// ═══ η FOR PRODUCTS (tables.md §2.5, "A tail is any term of the product's
+// type")
+//
+// A producer's exit gives C₁ × … × Cₘ however it is spelled. The only exit of
+// that type that is not a tail tuple is a host call with m declared results,
+// and η for products, p = ⟨π₁ p, …, πₘ p⟩, rewrites it to one:
+//
+//	(p ā)  =  ((p ā) (fn (x₁ … xₘ) (tuple x₁ … xₘ)))
+//
+// The call is evaluated once, where it was, and its continuation runs once
+// (ADR 0027), so the rewrite changes no effect. It runs after reduction and
+// before any pass reads a clause chain, on the producers a tuple pattern takes
+// apart, so that every pass that finds components by their tail tuples
+// (projectTail and its readers, lowering) sees one.
+
+// EtaTails rewrites every host-call exit of a producer that a tuple pattern of
+// m ≥ 2 names eliminates into its η-expanded tuple.
+func EtaTails(tg *Target, t *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, EtaTails(tg, t.Closed()))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = EtaTails(tg, k)
+	}
+	out := &core.Term{Kind: core.KApp, Kids: kids}
+	if len(kids) == 2 && kids[1].Kind == core.KFn && len(kids[1].Params) >= 2 && kids[0].Kind == core.KApp {
+		if _, _, _, isHost := multiPrimCall(tg, out); !isHost {
+			m := len(kids[1].Params)
+			if prod, changed := etaTail(tg, kids[0], m); changed {
+				if _, ok := projectTail(tg, prod, 0, m); ok {
+					return core.App(prod, kids[1])
+				}
+			}
+		}
+	}
+	return out
+}
+
+// hostTuple is `(p ā)` for a primitive p declaring exactly m results, applied
+// to its declared arguments: a term of an m-fold product with no tail tuple.
+func hostTuple(tg *Target, t *core.Term, m int) bool {
+	if t == nil || t.Kind != core.KApp || len(t.Kids) == 0 || t.Kids[0].Kind != core.KName {
+		return false
+	}
+	p, ok := tg.Prims[t.Kids[0].Name]
+	return ok && len(p.Results) == m && len(t.Kids)-1 == len(p.Args)
+}
+
+// etaExpand is the right-hand side of η: `((p ā) (fn (#r0 … #rₘ₋₁) (tuple …)))`.
+// The continuation is closed apart from its own binders, so it may stand under
+// any binder the call does.
+func etaExpand(t *core.Term, m int) *core.Term {
+	names := make([]string, m)
+	comps := []*core.Term{core.Name("#k")}
+	for i := range names {
+		names[i] = fmt.Sprintf("#r%d", i)
+		comps = append(comps, core.Name(names[i]))
+	}
+	tuple := core.Fn([]string{"#k"}, &core.Term{Kind: core.KApp, Kids: comps})
+	return core.App(t, core.Fn(names, tuple))
+}
+
+// etaTail rewrites t's tails, walked as projectTail walks them, and reports
+// whether any changed.
+func etaTail(tg *Target, t *core.Term, m int) (*core.Term, bool) {
+	if hostTuple(tg, t, m) {
+		return etaExpand(t, m), true
+	}
+	if _, ok := tupleArity(t); ok || t.Kind != core.KApp || len(t.Kids) == 0 {
+		return t, false
+	}
+	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+		nb, ch := etaTail(tg, kk.Closed(), m)
+		return core.App(t.Kids[0], core.FnClosed(kk.Params, nb)), ch
+	}
+	op := t.Kids[0]
+	if op.Kind != core.KName {
+		return t, false
+	}
+	if op.Name == core.RequireWhereName && len(t.Kids) == 4 {
+		inner, ch := etaTail(tg, t.Kids[3], m)
+		return withKid(t, 3, inner), ch
+	}
+	p, known := tg.Prims[op.Name]
+	if !known {
+		return t, false
+	}
+	body := func(i int, walk func(*core.Term, int) (*core.Term, bool)) (*core.Term, bool) {
+		lam := t.Kids[i]
+		nb, ch := walk(lam.Closed(), m)
+		return withKid(t, i, core.FnClosed(lam.Params, nb)), ch
+	}
+	switch {
+	case (p.Kind == "table-build" || p.Kind == "map-build" || p.Kind == "let") && len(t.Kids) == 3 &&
+		t.Kids[2].Kind == core.KFn && len(t.Kids[2].Params) == 1:
+		return body(2, func(x *core.Term, m int) (*core.Term, bool) { return etaTail(tg, x, m) })
+	case p.Kind == "cond" && len(t.Kids) == 4:
+		a, c1 := etaTail(tg, t.Kids[2], m)
+		b, c2 := etaTail(tg, t.Kids[3], m)
+		return withKid(withKid(t, 2, a), 3, b), c1 || c2
+	case p.Kind == "iterate" && len(t.Kids) >= 3 && t.Kids[1].Kind == core.KFn:
+		return body(1, func(x *core.Term, m int) (*core.Term, bool) { return etaExits(tg, x, m) })
+	}
+	return t, false
+}
+
+// etaExits rewrites a loop body's exits, walked as projectExits walks them.
+func etaExits(tg *Target, t *core.Term, m int) (*core.Term, bool) {
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		if t.Kids[0].Name == "again" {
+			return t, false
+		}
+		if p, ok := tg.Prims[t.Kids[0].Name]; ok {
+			switch {
+			case p.Kind == "cond" && len(t.Kids) == 4:
+				a, c1 := etaExits(tg, t.Kids[2], m)
+				b, c2 := etaExits(tg, t.Kids[3], m)
+				return withKid(withKid(t, 2, a), 3, b), c1 || c2
+			case p.Kind == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == core.KFn:
+				lam := t.Kids[2]
+				nb, ch := etaExits(tg, lam.Closed(), m)
+				return withKid(t, 2, core.FnClosed(lam.Params, nb)), ch
+			}
+		}
+	}
+	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+		nb, ch := etaExits(tg, kk.Closed(), m)
+		return core.App(t.Kids[0], core.FnClosed(kk.Params, nb)), ch
+	}
+	return etaTail(tg, t, m)
 }

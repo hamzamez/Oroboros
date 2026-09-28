@@ -367,3 +367,28 @@ func SelectRung(tg *emit.Target, f *Func, sig *core.Sig, plan emit.BigPlan) (int
 	}
 	return BigOps(f), nil
 }
+
+// CheckClaim is the representation half of a signature's claim, for
+// emit.CheckSignatures: the definition, lowered on its own and decided, has
+// its values held exactly chosen (SelectBig), which refuses a value held
+// exactly where the claim declares a word. That is all a claim says. Whether
+// the target's rung has a form for each operation is the program's question,
+// asked where the definition is used, and so is not asked here: windows has no
+// limb form for a quotient by 2³², and a helper that divides by it is refused
+// only by a program that calls it there.
+func CheckClaim(tg *emit.Target, all []*core.Sig) func(string, *core.Sig, *core.Term) error {
+	return func(name string, sig *core.Sig, nf *core.Term) error {
+		plan, err := emit.PlanBig(tg, sig, nf, all...)
+		if err != nil || (!plan.Host && !plan.Limbs) {
+			return err
+		}
+		nf = emit.EraseWordAscriptions(tg.Word, nf)
+		f, err := Lower(tg, name, sig, nf, Options{Decided: true})
+		if err != nil {
+			return err
+		}
+		Decide(tg, f, false)
+		_, err = SelectBig(tg, f, sig, 0, false)
+		return err
+	}
+}

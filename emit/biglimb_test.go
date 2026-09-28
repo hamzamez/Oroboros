@@ -92,22 +92,6 @@ func TestBothRepresentationsAdmitTheSameValues(t *testing.T) {
 	}
 }
 
-// A LIMB VALUE IS A TABLE, and the signature has to say so or the checker
-// refuses a body that produces one — true of the declaration and false of the
-// code.
-func TestALimbSignatureIsATableOfLimbs(t *testing.T) {
-	sig := resultSig(t, "(int 0 (pow 2 300))")
-	got := LimbSig(goWord, sig, true)
-	if got.Result != "array int" {
-		t.Errorf("a limb result types as %q, want array int", got.Result)
-	}
-	// And off, it is untouched: the same signature means the host's bignum on
-	// the other rung.
-	if LimbSig(goWord, sig, false).Result == "array int" {
-		t.Error("LimbSig rewrote a signature the limb rung was not selected for")
-	}
-}
-
 // EVERY TARGET CAN FAIL, AND THAT IS WHAT MAKES A FIXED WIDTH SOUND.
 //
 // The host's bignum is exact whatever the declaration says, so an
@@ -146,79 +130,6 @@ func TestEveryTargetDeclaresTheCarryTrap(t *testing.T) {
 	}
 }
 
-// THE LIMB RUNG NEEDS NO HOST BIGNUM, which is the whole reason it exists on
-// windows — the one target that ships nothing to fall back to, and the one ADR
-// 0019 item 4 names.
-func TestWindowsTakesTheLimbRung(t *testing.T) {
-	tg, err := LoadTarget("../targets/windows")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tg.HasBig() {
-		t.Skip("windows now declares a bignum; this test has done its job")
-	}
-	src := `(export fact)
-(sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
-(def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
-`
-	out := lowerOn(t, tg, src, "fact")
-	if !strings.Contains(out, "build 13") {
-		t.Errorf("windows did not get a 13-limb buffer:\n%s", out)
-	}
-	if !strings.Contains(out, "trap-if") {
-		t.Errorf("windows got limbs with no carry check, so an under-declared "+
-			"bound would truncate silently:\n%s", out)
-	}
-}
-
-// A MULTIPLY BY A WIDENED WORD IS A DIFFERENT ALGORITHM, worth a factor of w:
-// `mul-small` is one pass where `mul` is w passes, and a factorial is nothing
-// but this.
-//
-// It has to be recognised BEFORE the operand is spliced — once `(big-of i)` is
-// a `build`, nothing distinguishes it from any other limb table — and getting
-// that wrong is a correct program that does 55 times the work.
-func TestAMultiplyByAWordIsOnePass(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// GO'S OWN ANSWER IS `math/big` (targets/go/bigint.oro), so the rung under
-	// test is asked for rather than assumed. That is the separation working:
-	// the program is the same either way.
-	tg.BigRepr = "limbs"
-	src := `(export fact)
-(sig fact ((n (int 0 50))) (int 0 (pow 2 300)))
-(def fact (fn (n) (loop ((acc 1) (i 2)) (> i n) acc else (again (* acc i) (+ i 1)))))
-`
-	out := lowerOn(t, tg, src, "fact")
-	// THREE loops: the factorial's own, the one that spreads `1` over the limbs,
-	// and ONE pass for the multiply. `mul` nests a second pass inside its own,
-	// so counting is what tells the two algorithms apart -- and getting this
-	// wrong is a correct program that does w times the work.
-	if n := strings.Count(out, "(loop "); n != 3 {
-		t.Errorf("the factorial has %d loops, want 3 — a word multiply is ONE "+
-			"pass and `mul` would nest a second:\n%s", n, out)
-	}
-}
-
-// AND A PROGRAM WITH NO DECLARATION ABOVE THE WINDOW IS UNTOUCHED, which is the
-// containment property for this pass.
-func TestNoBigRangeMeansNoLimbs(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	tg.BigRepr = "limbs"
-	src := `(export f)
-(sig f ((n (int 0 1000))) int)
-(def f (fn (n) (loop ((acc 0) (i 0)) (>= i n) acc else (again (+ acc i) (+ i 1)))))
-`
-	if out := lowerOn(t, tg, src, "f"); strings.Contains(out, "16777216") {
-		t.Errorf("a program with no big range was given limbs:\n%s", out)
-	}
-}
-
 func resultSig(t *testing.T, result string) *core.Sig {
 	t.Helper()
 	forms, err := core.Read("(sig f ((n int)) " + result + ")")
@@ -226,34 +137,6 @@ func resultSig(t *testing.T, result string) *core.Sig {
 		t.Fatalf("read result %s: %v", result, err)
 	}
 	return forms[0].Sig
-}
-
-func lowerOn(t *testing.T, tg *Target, src, name string) string {
-	t.Helper()
-	forms, err := core.Read(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	prog, _, err := core.Load(forms)
-	if err != nil {
-		t.Fatal(err)
-	}
-	env, err := tg.Env(prog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	nf, err := core.Normalize(prog.Defs[name], env, core.DefaultFuel)
-	if err != nil {
-		t.Fatal(err)
-	}
-	out, _, err := PromoteBig(tg, prog.Sigs[name], nf, allProgSigs(prog)...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The shift rewrite is the IR's now (ir/shift.go): what this returns is the
-	// promoted term, and the tests that ask for a shift run the IR's pipeline
-	// (biglimb_ir_test.go).
-	return out.String()
 }
 
 func allProgSigs(p *core.Program) []*core.Sig {
@@ -285,106 +168,6 @@ func allProgSigs(p *core.Program) []*core.Sig {
 // had addition and multiplication and nothing else, which is ADR 0019 item 4
 // half delivered: a host that could add two bignums and not subtract them.
 
-func TestWindowsCanSubtractCompareAndDivideByAWord(t *testing.T) {
-	tg, err := LoadTarget("../targets/windows")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tg.HasBig() {
-		t.Skip("windows now declares a bignum; this test has done its job")
-	}
-	for _, c := range []struct {
-		body, result string
-		build        bool
-	}{
-		// An arithmetic result is a new limb table. A comparison yields a bool
-		// and `(% a k)` yields a machine WORD — `a % k` is under k — so neither
-		// allocates one, and saying which is which is the point of `big%-small`.
-		{"(- a b)", "(int 0 (pow 2 200))", true},
-		{"(/ a 4)", "(int 0 (pow 2 200))", true},
-		{"(% a 4)", "int", false},
-		{"(if (< a b) a b)", "(int 0 (pow 2 200))", false},
-	} {
-		src := "(export f)\n" +
-			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) " + c.result + ")\n" +
-			"(def f (fn (a b) " + c.body + "))\n"
-		out := lowerOn(t, tg, src, "f")
-		for _, leftover := range []string{"big-", "big/", "big%", "big<"} {
-			if strings.Contains(out, leftover) {
-				t.Errorf("%s kept %s on windows, which declares no bignum:\n%s",
-					c.body, leftover, out)
-			}
-		}
-		if got := strings.Contains(out, "build"); got != c.build {
-			t.Errorf("%s: allocates a limb table = %v, want %v:\n%s",
-				c.body, got, c.build, out)
-		}
-	}
-}
-
-// AND WHAT IS STILL MISSING IS REFUSED BY NAME, which is the whole of what a
-// programmer is told on a target with no bignum to fall back to.
-//
-// What is missing is now exactly the two operations that need a QUOTIENT
-// ESTIMATE — division and remainder by another arbitrary-precision value.
-// Dividing by a machine word is one pass and is implemented, and so is the
-// remainder, whose result is a word.
-//
-// The message used to be a fixed list — "subtraction, division or a comparison"
-// — which was wrong about subtraction the moment subtraction existed and named
-// none of the three for the program in hand. Worse, it was UNREACHABLE: the
-// signature checker dropped `PromoteBig`'s error and then type-checked the
-// un-promoted body against the limb signature, so `(- a b)` came back as
-// "a is array int, but int is required here" — a type error naming an internal
-// representation.
-func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
-	tg, err := LoadTarget("../targets/windows")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if tg.HasBig() {
-		t.Skip("windows now declares a bignum; this test has done its job")
-	}
-	for _, c := range []struct{ body, want string }{
-		{"(% a b)", "the remainder by another arbitrary-precision value"},
-		{"(/ a b)", "division by another arbitrary-precision value"},
-	} {
-		src := "(export f)\n" +
-			"(sig f ((a (int 0 (pow 2 200))) (b (int 0 (pow 2 200)))) (int 0 (pow 2 200)))\n" +
-			"(def f (fn (a b) " + c.body + "))\n"
-		forms, err := core.Read(src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		prog, _, err := core.Load(forms)
-		if err != nil {
-			t.Fatal(err)
-		}
-		env, err := tg.Env(prog)
-		if err != nil {
-			t.Fatal(err)
-		}
-		nf, err := core.Normalize(prog.Defs["f"], env, core.DefaultFuel)
-		if err != nil {
-			t.Fatal(err)
-		}
-		_, _, err = PromoteBig(tg, prog.Sigs["f"], nf, allProgSigs(prog)...)
-		if err == nil {
-			t.Errorf("%s was accepted on windows, which cannot do it", c.body)
-			continue
-		}
-		if !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%s: refusal does not name the operation (want %q):\n%s",
-				c.body, c.want, err)
-		}
-		// AND IT SAYS WHAT IS AVAILABLE, so the answer to "then what can I do"
-		// is in the same message.
-		if !strings.Contains(err.Error(), "division by a machine word") {
-			t.Errorf("%s: refusal does not say what the library does have:\n%s", c.body, err)
-		}
-	}
-}
-
 // ═══ A DECLARATION SURVIVES INLINING (inlining-and-declarations.md)
 //
 // A range has three effects: a type, a premise and a representation. Reduction
@@ -395,49 +178,6 @@ func TestAnUnsupportedLimbOperationIsRefusedByName(t *testing.T) {
 // THE THIRD IS NOT A FACT. A range above the window does not assert something
 // the compiler checks; it REQUESTS arbitrary precision. So `core.LoadWith` moves
 // it onto the term, where reduction preserves it.
-
-// AND THE ANALYSIS CANNOT SUPPLY WHAT THE DECLARATION DOES, which is why this
-// is intent rather than a precision gap. The same loop with the declaration
-// removed is refused, and the interval reported is ⊤ — not a large finite bound
-// the compiler could have used, even though the trip count is a constant 6.
-func TestWithoutTheDeclarationTheMagnitudeIsNotDerivable(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := `(export run)
-(sig run ((n (int 0 50))) int)
-(def run (fn (n) (% (loop ((acc (+ n 7)) (i 0)) (>= i 6) acc else (again (* acc 999983) (+ i 1))) 100000000)))
-`
-	forms, err := core.Read(src)
-	if err != nil {
-		t.Fatal(err)
-	}
-	prog, _, err := core.Load(forms)
-	if err != nil {
-		t.Fatal(err)
-	}
-	env, err := tg.Env(prog)
-	if err != nil {
-		t.Fatal(err)
-	}
-	nf, err := core.Normalize(prog.Defs["run"], env, core.DefaultFuel)
-	if err != nil {
-		t.Fatal(err)
-	}
-	nf, _, err = PromoteBig(tg, prog.Sigs["run"], nf, allProgSigs(prog)...)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rep, _ := Intervals(tg, prog.Sigs["run"], nf, 0)
-	if err := Unbounded("run", rep); err == nil {
-		t.Fatal("the multiply was proven in-window without any declaration; " +
-			"if the analysis can now derive it, this test has done its job and " +
-			"the ascription may be unnecessary for this shape")
-	} else if !strings.Contains(err.Error(), "[-inf, +inf]") {
-		t.Errorf("expected the multiply to be unbounded, got:\n%s", err)
-	}
-}
 
 // AND A TARGET MAY NOT DECLARE IT, for the same reason it may not declare `if`.
 func TestNoTargetDeclaresTheAscription(t *testing.T) {

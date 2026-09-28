@@ -7,8 +7,6 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
-
-	"oroboros/core"
 )
 
 // Imports accumulates what emitted functions need. A package-level sink is
@@ -21,22 +19,6 @@ func contains(xs []string, s string) bool {
 	for _, x := range xs {
 		if x == s {
 			return true
-		}
-	}
-	return false
-}
-
-func mentions(t *core.Term, names []string) bool {
-	switch t.Kind {
-	case core.KName:
-		return contains(names, t.Name)
-	case core.KFn:
-		return mentions(t.Body(), names)
-	case core.KApp:
-		for _, k := range t.Kids {
-			if mentions(k, names) {
-				return true
-			}
 		}
 	}
 	return false
@@ -391,8 +373,6 @@ type place struct {
 	slot  int  // >0 when spilled to the frame
 	owned bool // this emitter allocated it and may free it
 }
-
-func (p place) reg() bool { return !p.imm && p.slot == 0 && p.text != "" }
 
 func asmLabel(stem string) string {
 	asmUniq++

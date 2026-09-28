@@ -508,7 +508,14 @@ func (p *printer) read(s *ir.Stmt) {
 		p.line("final %s %s = %s == null ? 1 : 0;", p.tyOf(s.Res[0]), p.name(s.Res[0]), box)
 	}
 	if p.pl.Read(s.Res[1]) {
-		p.line("final %s %s = %s == null ? %s : %s;", p.tyOf(s.Res[1]), p.name(s.Res[1]), box, zeroOf(vt), coerce(box, vt, p.tyOf(s.Res[1])))
+		// A PAYLOAD NARROWER THAN THE MAP'S VALUES (its fact is the hull of the
+		// inserted values) is unboxed before it is narrowed: `(int)` of a `Long`
+		// is not Java, `(int) ((long) b)` is.
+		ty, val := p.tyOf(s.Res[1]), box
+		if coerce(box, vt, ty) != box {
+			val = "(" + vt + ") " + box
+		}
+		p.line("final %s %s = %s == null ? %s : %s;", ty, p.name(s.Res[1]), box, zeroOf(vt), coerce(val, vt, ty))
 	}
 }
 

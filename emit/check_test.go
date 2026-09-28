@@ -130,7 +130,7 @@ func TestSignatureCheckedAgainstTargetNative(t *testing.T) {
 		(def dot (fn (a b) (dot a b)))
 	`
 	tg, prog, env := loadWithSigs(t, "blas", src)
-	err := CheckSignatures(tg, prog, env)
+	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil {
 		t.Fatal("a signature disagreeing with the target's native declaration must be caught")
 	}
@@ -145,7 +145,7 @@ func TestSignatureAcceptedWhenItAgrees(t *testing.T) {
 		(def dot (fn (a b) (dot a b)))
 	`
 	tg, prog, env := loadWithSigs(t, "blas", src)
-	if err := CheckSignatures(tg, prog, env); err != nil {
+	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("an agreeing signature must pass: %v", err)
 	}
 }
@@ -159,7 +159,7 @@ func TestSignatureCheckedAgainstDefinition(t *testing.T) {
 		(def bad (fn (a) (make-vec (alen a) (fn (i) (aindex a i)))))
 	`
 	tg, prog, env := loadWithSigs(t, "portable-go", src)
-	err := CheckSignatures(tg, prog, env)
+	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil {
 		t.Fatal("a definition disagreeing with its own signature must be caught")
 	}
@@ -175,7 +175,7 @@ func TestSignatureArityIsChecked(t *testing.T) {
 		(def two (fn (a) a))
 	`
 	tg, prog, env := loadWithSigs(t, "portable-go", src)
-	if err := CheckSignatures(tg, prog, env); err == nil {
+	if err := CheckSignatures(tg, prog, env, nil); err == nil {
 		t.Fatal("an arity mismatch must be caught")
 	}
 }

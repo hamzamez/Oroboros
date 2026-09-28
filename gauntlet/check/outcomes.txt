@@ -355,8 +355,8 @@
 == examples/kara/workspace.oro windows emitted f9882ca520f9324fa3aaa0250f9933a6638de71fb12dadd12cfbcdb79f9cf87e
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/map/dynamic.oro go emitted 415820665b50c98eee849cb96d043ef9ab6a2c9d79a058741d54b0eca2a29c31
-   note: gen-main: 2 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/map/dynamic.oro go emitted 98d2b9d05cc45a214bc295440a2426f37c86b0aa1088423efa3c0124c3548098
+   note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/dynamic.oro js refused
    gen: examples/map/dynamic.oro: in build3: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.

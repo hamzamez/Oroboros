@@ -123,7 +123,7 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	// A signature is checked against the TARGET's native implementation as
 	// well as against the definition — the one job no host compiler can do,
 	// since the two live on different targets (docs/spec/types.md).
-	if err := emit.CheckSignatures(tg, prog, env); err != nil {
+	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, allSigs(prog))); err != nil {
 		return err
 	}
 
@@ -163,74 +163,22 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 		return fmt.Errorf("not in normal form for target %q: %s", target, strings.Join(left, ", "))
 	}
 
-	// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the term
-	// is exactly what a hand-strided program is — ordinary tables and ordinary
-	// index arithmetic — so nothing below this line, and no backend, learns that
-	// products exist.
-	esig := prog.Sigs[entry]
-	if nfl, fsig, k, err := emit.FlattenProducts(tg, esig, nf); err != nil {
-		return fmt.Errorf("%s: %w", entry, err)
-	} else if k > 0 {
-		nf, esig = nfl, fsig
-		fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", k)
-	}
-	// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE — see cmd/gen: chosen on
-	// the IR on both rungs.
-	plan, err := emit.PlanBig(tg, esig, nf, allSigs(prog)...)
-	if err != nil {
-		return fmt.Errorf("%s: %w", entry, err)
-	}
-	if plan.Host || plan.Limbs {
-		nf = emit.EraseWordAscriptions(tg.Word, nf)
-	} else {
-		nf = emit.EraseAscriptions(nf)
-	}
-	// Check the residual before emitting it (docs/spec/types.md). On Go and
-	// Java the host would catch most of this; on JavaScript nothing would.
-	if err := emit.Check(tg, entry, nf); err != nil {
-		return err
-	}
-	// Refinements: the bounds obligation primitives.md §2 recorded and
-	// nothing checked (docs/spec/refinements.md).
-	// ADR 0018's linearity, checked on the residual rather than by a type.
-	if err := emit.CheckLinear(nf, tg, esig); err != nil {
-		return fmt.Errorf("%s: %w", entry, err)
-	}
-	if notes, err := emit.Refine(tg, entry, esig, nf); err != nil {
-		return err
-	} else {
-		for _, n := range notes {
-			fmt.Fprintln(os.Stderr, "note:", n)
-		}
-	}
-	// REPRESENTATION SELECTION — see cmd/gen for the note.
-	fA, err := ir.Lower(tg, "oro-main", esig, nf, ir.Options{Decided: true})
+	// THE PIPELINE (ir.Entry) — see cmd/gen.
+	fA, leg, err := ir.Entry(tg, entry, "oro-main", prog.Sigs[entry], nf, allSigs(prog), checked,
+		func(n ir.Note) {
+			switch n.Kind {
+			case ir.NoteFlattened:
+				fmt.Fprintf(os.Stderr, "note: %d product access(es) flattened\n", n.N)
+			case ir.NoteRefine:
+				fmt.Fprintln(os.Stderr, "note:", n.Text)
+			case ir.NoteBig:
+				fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n.N)
+			case ir.NoteWord:
+				fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", n.N)
+			}
+		})
 	if err != nil {
 		return err
-	}
-	leg := ir.Decide(tg, fA, checked)
-	// THE RUNG ABOVE THE WORD, chosen on the decided function (ir/big.go).
-	if plan.Host || plan.Limbs {
-		n, err := ir.SelectRung(tg, fA, esig, plan)
-		if err != nil {
-			return fmt.Errorf("%s: %v", entry, err)
-		}
-		if n > 0 {
-			fmt.Fprintf(os.Stderr, "note: %d operation(s) in arbitrary precision\n", n)
-		}
-		leg = ir.Decide(tg, fA, checked)
-	}
-	// THE UNSIGNED WORD, chosen on the decided function (ADR 0033, cmd/gen).
-	if changed, err := ir.SelectWords(tg, fA); err != nil {
-		return fmt.Errorf("%s: %v", entry, err)
-	} else if changed {
-		fmt.Fprintf(os.Stderr, "note: %d operation(s) or conversion(s) in the unsigned word\n", ir.WordOps(fA))
-		leg = ir.Decide(tg, fA, checked)
-	}
-	// A POSTCONDITION on an exported definition is an OBLIGATION, not an
-	// assumption: the caller is outside the program (postconditions.md §2).
-	if err := ir.CheckEnsures(tg, fA, esig); err != nil {
-		return fmt.Errorf("%s: %v", entry, err)
 	}
 	if leg.Ops > 0 || leg.Loops > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d of %d integer operations bounded; "+

@@ -64,13 +64,14 @@ func print(t *testing.T, src string, checked bool) string {
 			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, prog.Sigs[q], x) }); err != nil {
 			t.Fatal(err)
 		}
-		sig := prog.Sigs[q]
-		if checked {
-			if _, sel := emit.Intervals(tg, sig, nf, 0); sel != nil {
-				nf = sel
-			}
+		// THE DECIDED PATH, as the drivers take it: under -checked the decision
+		// writes `trap` where an operation is not proven.
+		f, err := ir.Lower(tg, name, prog.Sigs[q], nf, ir.Options{Decided: true})
+		if err != nil {
+			t.Fatal(err)
 		}
-		code, err := FromResidual(tg, name, sig, nf)
+		ir.Decide(tg, f, checked)
+		code, err := FromFunc(tg, f)
 		if err != nil {
 			t.Fatal(err)
 		}

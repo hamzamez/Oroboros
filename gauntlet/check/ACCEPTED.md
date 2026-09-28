@@ -852,3 +852,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `gauntlet/differential/cases/render.oro windows` 578 → 281 ms, 0.49x
+
+## 2026-09-28 — on d8d7f16, with uncommitted changes
+
+**Reason:** irstep4j: the term interval analysis is deleted; the IR's domain gains a map's cell fact (a read's payload is the hull of the inserted values), which proves map/dynamic's two operations on Go, so its -checked traps become plain operations
+
+528 runs: 250 emitted, 278 refused; 1996 of 2041 integer operations bounded, 357 of 375 loops proven. compiler pass, differential pass, tooling skip.
+
+2 change(s):
+
+- emitted text changed — `examples/map/dynamic.oro go`
+- compiler output changed — `examples/map/dynamic.oro go`

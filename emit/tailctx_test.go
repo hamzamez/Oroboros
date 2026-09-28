@@ -39,37 +39,6 @@ func normGo(t *testing.T, src string) (*Target, *core.Term, *core.Sig) {
 	return tg, nf, prog.Sigs[q]
 }
 
-// THE INTERVAL ANALYSIS SEES THE BACK EDGE. `x` is incremented only inside
-// Add64's continuation. Missing that edge, the fixpoint kept x at 0: the product
-// was "proven" and a loop that diverges for a negative n was reported to
-// terminate — both emitted, before collectAgain walked the continuation.
-func TestABackEdgeInAHostContinuationIsSeen(t *testing.T) {
-	const hidden = `(use go/math/bits as b)
-(export f)
-(sig f ((n int)) int)
-(def f (n)
-  (let r (loop ((x 0)) (= x n) x
-          else (let (tuple s c) (b.Add64 5 6 0) (again (+ x 1))))
-    (* r 3037000500)))`
-	tg, nf, sig := normGo(t, hidden)
-	rep, _ := Intervals(tg, sig, nf, 0)
-	if rep.Proven == rep.Ops {
-		t.Errorf("x grows without bound, so nothing about it is proven: %d of %d proven", rep.Proven, rep.Ops)
-	}
-	if rep.Terminates != 0 {
-		t.Errorf("the loop diverges for a negative n and must not be proven to terminate")
-	}
-	// The same loop with the `again` bare, which every walker always saw, is the
-	// answer the continuation must give.
-	tg, nf, sig = normGo(t, strings.Replace(hidden,
-		"(let (tuple s c) (b.Add64 5 6 0) (again (+ x 1)))", "(again (+ x 1))", 1))
-	bare, _ := Intervals(tg, sig, nf, 0)
-	if bare.Proven != rep.Proven || bare.Ops != rep.Ops || bare.Terminates != rep.Terminates {
-		t.Errorf("under a continuation %d/%d ops, %d terminating; bare %d/%d, %d",
-			rep.Proven, rep.Ops, rep.Terminates, bare.Proven, bare.Ops, bare.Terminates)
-	}
-}
-
 // THE MONOTONICITY THEOREM CHECKS THE BACK EDGE. `v` falls inside the
 // continuation, so `0 <= v` does not hold and the index must be refused.
 // monotoneStep passed over the continuation and certified v non-decreasing, and

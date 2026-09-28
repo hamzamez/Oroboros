@@ -1,9 +1,7 @@
 package emit
 
 import (
-	"strings"
 	"testing"
-	"time"
 
 	"oroboros/core"
 )
@@ -40,36 +38,5 @@ func TestABindersTypeDoesNotOutliveItsBody(t *testing.T) {
 	bad := core.Fn([]string{"t", "u"}, let(first, "x", second(core.Int(5))))
 	if err := Check(tg, "t", bad); err == nil {
 		t.Errorf("an int passed where a string is required was accepted")
-	}
-}
-
-// NESTED CONDITIONS ANALYSE IN LINEAR TIME. The interval pass evaluated both
-// operands of every comparison once per branch as well as the condition as a
-// whole, five evaluations per `if`, and an operand containing an `if` paid that
-// again: exponential in how deeply conditions nest inside conditions. tally.oro's
-// build did not finish in five minutes. Forty levels is 5^40 under the old rule
-// and forty evaluations under the new one.
-func TestNestedConditionsAnalyseInLinearTime(t *testing.T) {
-	x := "i"
-	for k := 0; k < 40; k++ {
-		x = "(if (= " + x + " 0) 1 0)"
-	}
-	nf := reduce(t, "(use go) (fn (i) "+x+")", "go")
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	done := make(chan struct{})
-	go func() {
-		Intervals(tg, nil, nf, 0)
-		close(done)
-	}()
-	select {
-	case <-done:
-	case <-time.After(20 * time.Second):
-		t.Fatal("the interval pass did not finish on forty nested conditions")
-	}
-	if !strings.Contains(nf.String(), "(= (if") {
-		t.Errorf("the term did not keep its nesting, so it tests nothing: %s", nf)
 	}
 }

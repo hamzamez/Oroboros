@@ -91,8 +91,9 @@ domain, with the domains ordered by precision:
 ```
 
 Termination on an infinite-height lattice comes from **widening ∇**, and precision is recovered by
-**narrowing Δ**. `emit/interval.go` is intervals with both — and the first run reported 10–20%
-because the narrowing phase was missing, which is the lattice theory biting in practice.
+**narrowing Δ**. `emit/interval.go` was intervals with both — and its first run reported 10–20%
+because the narrowing phase was missing, which is the lattice theory biting in practice. Its successor
+on the IR (`ir/interval.go`) keeps both.
 
 ### 2.2 Proof — a logical theory with a decision procedure
 

@@ -173,7 +173,7 @@ These are not language, but they decide what is legal.
   `lang`'s in the main module.
 - **An integer operation not proven inside its target's word is a compile error on that target**
   (ADR 0026: the word is data, `(repr (int LO HI) word)`; Go also realizes [0, 2⁶⁴−1] as `uint64`,
-  emit/wordsel.go). It is cleared by narrowing a range, declaring one above the word, or `-checked`.
+  ir/words.go). It is cleared by narrowing a range, declaring one above the word, or `-checked`.
   Portability across targets is computed and reported (`cmd/portable`), not assumed
   ([ADR 0019](../decisions/0019-precision-by-declaration.md)).
 - **A buffer may not be used after it is consumed**, and an immutable array may not reach a parameter

@@ -37,16 +37,6 @@ func instance(phi, elem *core.Term) *core.Term {
 	return core.Rename2(phi, map[string]*core.Term{elemVar: elem})
 }
 
-// readInstances returns the content facts about a read `(t i)`, instantiated, or
-// nothing when t has none or the read is not proven in range.
-func (r *refiner) readInstances(read *core.Term, f *facts) []*core.Term {
-	var out []*core.Term
-	for _, phi := range r.readFacts(read, f) {
-		out = append(out, instance(phi, read))
-	}
-	return out
-}
-
 // readFacts is the φ that hold of the value a read `(t i)` produces: the facts
 // about t whose component the index is proven to lie in (component.go), and only
 // when the read is proven in range.

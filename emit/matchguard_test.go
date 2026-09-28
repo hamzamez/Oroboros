@@ -1,4 +1,4 @@
-package emit
+package emit_test
 
 import (
 	"strings"
@@ -11,7 +11,7 @@ import (
 // (matchguard-2026-09-24). Each test pins one rule by an operation whose proof
 // depends on it, or a loop whose termination does.
 
-func reportGo(t *testing.T, src string) *IntervalReport {
+func reportGo(t *testing.T, src string) decision {
 	t.Helper()
 	tg := goNative(t)
 	forms, err := core.Read(src)
@@ -31,8 +31,7 @@ func reportGo(t *testing.T, src string) *IntervalReport {
 	if err != nil {
 		t.Fatal(err)
 	}
-	rep, _ := Intervals(tg, prog.Sigs[q], nf, 0)
-	return rep
+	return decideOn(t, tg, prog.Sigs[q], nf)
 }
 
 // `a ∧ b` HOLDING narrows by both: v ≥ 10 bounds v − 10 from below, and only

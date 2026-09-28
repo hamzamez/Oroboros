@@ -30,7 +30,6 @@ func main() {
 	checked := flag.Bool("checked", false,
 		"rewrite integer operations the compiler cannot bound to the target's checked form")
 	cpuprofile := flag.String("cpuprofile", "", "write a CPU profile of this compile to `FILE` (go tool pprof)")
-	flag.BoolVar(&irProof, "irproof", false, "also count what the IR's interval domain proves, beside the term analysis (ADR 0032 step 4)")
 	flag.StringVar(&irOut, "ir", "", "also lower what the backend receives to the IR (docs/spec/ir.md), verify it, and write its canonical text to `FILE`; a lowering or verification failure is written to FILE.err and changes nothing that is emitted")
 	flag.BoolVar(&reportRequires, "report-requires", false,
 		"print the interval analysis's verdict on every contract obligation reduction left (ADR 0028, requires.go)")
@@ -128,7 +127,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 	// A signature is checked against the TARGET's native implementation as
 	// well as against the definition — the one job no host compiler can do,
 	// since the two live on different targets (docs/spec/types.md).
-	if err := emit.CheckSignatures(tg, prog, env); err != nil {
+	if err := emit.CheckSignatures(tg, prog, env, ir.CheckClaim(tg, allSigs(prog))); err != nil {
 		return err
 	}
 	// A DEFINITION'S CONTRACT IS CHECKED AT ITS CALLS (ADR 0028), from here on:
@@ -195,118 +194,29 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		fname := u.name
-		// THE PRODUCT, FLATTENED (emit/product.go). FIRST, because after it the
-		// term is exactly what a hand-strided program is — ordinary tables and
-		// ordinary index arithmetic — so nothing below this line, and no
-		// backend, learns that products exist.
-		usig := prog.Sigs[u.qual]
-		if nfl, fsig, k, err := emit.FlattenProducts(tg, usig, nf); err != nil {
-			return fmt.Errorf("%s: %w", fname, err)
-		} else if k > 0 {
-			nf, usig = nfl, fsig
-			fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, k)
-		}
-		// ARBITRARY PRECISION, ADR 0019's THIRD ESCAPE, chosen on the IR on both
-		// rungs (ir.SelectRung, ADR 0034 and 0035). The term keeps only the
-		// ascriptions above the word, which are its demands.
-		plan, err := emit.PlanBig(tg, usig, nf, allSigs(prog)...)
-		if err != nil {
-			return fmt.Errorf("%s: %w", fname, err)
-		}
-		if plan.Host || plan.Limbs {
-			nf = emit.EraseWordAscriptions(tg.Word, nf)
-		} else {
-			nf = emit.EraseAscriptions(nf)
-		}
-		sig := usig
-		// Check the residual before emitting it (docs/spec/types.md). On Go and
-		// Java the host would catch most of this; on JavaScript nothing would.
-		if err := emit.Check(tg, fname, nf); err != nil {
-			return err
-		}
-		// Refinements: the bounds obligation primitives.md §2 recorded and
-		// nothing checked (docs/spec/refinements.md).
-		// ADR 0018's linearity, checked on the residual rather than by a type.
-		if err := emit.CheckLinear(nf, tg, sig); err != nil {
-			return fmt.Errorf("%s: %w", fname, err)
-		}
-		if notes, err := emit.Refine(tg, fname, sig, nf); err != nil {
-			return err
-		} else {
-			for _, n := range notes {
-				fmt.Fprintln(os.Stderr, "note:", n)
-			}
-		}
-		// REPRESENTATION SELECTION. Every integer operation whose result is
-		// not provably inside the portable window is rewritten to the checked
-		// primitive the target declares — and one that IS provable keeps the
-		// host's own operator, so a program the compiler can bound costs
-		// nothing (sct-2026-08-19, data-model.md §1.5).
-		//
-		// A target declaring no checked form gets its term back unchanged.
-		// THE TERM ANALYSIS, only as the shadow (-irproof): legality, modes and
-		// termination are the IR's (ir/decide.go, ir/sct.go).
-		var rep *emit.IntervalReport
-		if irProof {
-			rep, _ = emit.Intervals(tg, sig, nf, 0)
-		}
-		// THE DECISION (ADR 0032 step 4, spec §7): the IR's interval domain
-		// proves each counted operation inside its set or it does not, which
-		// decides legality and each operation's mode (ir/decide.go).
-		fA, err := ir.Lower(tg, fname, sig, nf, ir.Options{Decided: true})
+		// THE PIPELINE (ir.Entry): products, the rung above the word, the checks
+		// on terms, the decision, the unsigned word and the postcondition, as
+		// every driver takes them.
+		fA, leg, err := ir.Entry(tg, fname, fname, prog.Sigs[u.qual], nf, allSigs(prog), checked,
+			func(n ir.Note) {
+				switch n.Kind {
+				case ir.NoteFlattened:
+					fmt.Fprintf(os.Stderr, "note: %s: %d product access(es) flattened\n", fname, n.N)
+				case ir.NoteRefine:
+					fmt.Fprintln(os.Stderr, "note:", n.Text)
+				case ir.NoteBig:
+					fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n.N)
+				case ir.NoteWord:
+					fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, n.N)
+				}
+			})
 		if err != nil {
 			return err
-		}
-		leg := ir.Decide(tg, fA, checked)
-		// THE RUNG ABOVE THE WORD (ir/big.go): the least set of values held
-		// exactly, on the decided function's facts; decided again after, where
-		// no operation held exactly is counted.
-		if plan.Host || plan.Limbs {
-			n, err := ir.SelectRung(tg, fA, sig, plan)
-			if err != nil {
-				return fmt.Errorf("%s: %v", fname, err)
-			}
-			if n > 0 {
-				fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) in arbitrary precision\n", fname, n)
-			}
-			leg = ir.Decide(tg, fA, checked)
-		}
-		// THE UNSIGNED WORD (ADR 0033, ir/words.go): each integer value's
-		// realization is ρ of its fact, and a value in U outside the signed word
-		// is a machine word on a target that realizes U. Chosen on the decided
-		// function; the decision is taken again on the selected one, where each
-		// u64 operation is proven in U.
-		if changed, err := ir.SelectWords(tg, fA); err != nil {
-			return fmt.Errorf("%s: %v", fname, err)
-		} else if changed {
-			fmt.Fprintf(os.Stderr, "note: %s: %d operation(s) or conversion(s) in the unsigned word\n", fname, ir.WordOps(fA))
-			leg = ir.Decide(tg, fA, checked)
-		}
-		// A POSTCONDITION on an exported definition is an OBLIGATION, not an
-		// assumption: the caller is outside the program, so the body is the
-		// only evidence there is (postconditions.md §2, ir.CheckEnsures).
-		if err := ir.CheckEnsures(tg, fA, sig); err != nil {
-			return fmt.Errorf("%s: %v", fname, err)
 		}
 		if leg.Ops > 0 || leg.Loops > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d of %d integer operations bounded; "+
 				"%d of %d loop(s) proven terminating\n",
 				fname, leg.Proven, leg.Ops, leg.Halts, leg.Loops)
-		}
-		// THE SHADOW, kept while the term analysis exists: its count beside the
-		// IR's, which decides.
-		if irProof {
-			fmt.Fprintf(os.Stderr, "irproof: %s: term %d of %d, IR %d of %d\n", fname, rep.Proven, rep.Ops, leg.Proven, leg.Ops)
-			fmt.Fprintf(os.Stderr, "irloops: %s: term %d of %d, IR %d of %d\n", fname, rep.Terminates, rep.Loops, leg.Halts, leg.Loops)
-			for _, u := range leg.SizeUnproven {
-				fmt.Fprintf(os.Stderr, "irsize: %s: %s\n", fname, u)
-			}
-			for _, m := range leg.Unproven {
-				fmt.Fprintf(os.Stderr, "irmiss: %s: %s\n", fname, m)
-			}
-			for _, m := range rep.Unproven {
-				fmt.Fprintf(os.Stderr, "termmiss: %s: %s\n", fname, m)
-			}
 		}
 		// BOUNDED BY DEFAULT (ADR 0019). `-checked` is the second escape: the
 		// IR has written `trap` where the proof failed.
@@ -375,9 +285,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 
 // irOut is -ir's file.
 var irOut string
-
-// irProof is -irproof: the IR's interval domain in shadow (ADR 0032 step 4).
-var irProof bool
 
 // writeIR is ir.WriteFile on -ir's file.
 func writeIR(tg *emit.Target, p *ir.Program, errs []string) {

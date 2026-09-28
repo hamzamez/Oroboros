@@ -175,6 +175,17 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return c.let(args, want)
 	case "build":
 		return c.build(args, want)
+	case "ascribe":
+		// `(the T e)` says e is in T (core.AscribeName): e is checked against
+		// T, and the term has type T. Typed as unknown, a declared result of ℤ
+		// agreed with a target that cannot hold ℤ at all.
+		if len(args) == 2 && args[0].Kind == core.KStr {
+			ty := args[0].Str
+			if _, err := c.walk(args[1], ty); err != nil {
+				return "", err
+			}
+			return ty, c.agree(op.Name, ty, want)
+		}
 	}
 
 	// AN ORDINARY PRIMITIVE TAKES EXACTLY ITS DECLARED ARGUMENTS. An extra one had
@@ -256,9 +267,7 @@ func (c *checker) agree(what, got, want string) error {
 	// a representation too, chosen on the IR by its fact, and a value held
 	// exactly reaching a word position is refused there. Only the capability
 	// is a fact about sorts: a target with no bignum cannot hold ℤ at all.
-	if isIntSort(c.tgt, got) && isIntSort(c.tgt, want) &&
-		!(c.tgt.ValueType(want) == core.BigType && !c.tgt.HasBig() &&
-			(core.UnboundedRange(want) || want == core.BigType)) {
+	if intSortsAgree(c.tgt, got, want) {
 		return nil
 	}
 	// A RANGE WIDER THAN THE WORD gets its own message, because "but int is
@@ -473,6 +482,15 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 	// makes `(if c (js.+ sp 1) mx)` a type error against a branch the checker
 	// happened to know more about. Found by the JSON tokeniser, whose depth
 	// counter is exactly that shape (json-2026-08-26).
+	// TWO INTEGER BRANCHES JOIN in ℤ (ADR 0033): which realization holds the
+	// value is the IR's choice, and the rung above the word absorbs, so the
+	// wider branch types the conditional.
+	if isIntSort(c.tgt, a) && isIntSort(c.tgt, b) && !compatible(c.tgt, a, b) {
+		if c.tgt.ValueType(b) == core.BigType {
+			a = b
+		}
+		return a, c.agree("a conditional", a, want)
+	}
 	if !compatible(c.tgt, a, b) {
 		return "", fmt.Errorf("the branches of a conditional are %s and %s", a, b)
 	}
@@ -528,7 +546,8 @@ func (c *checker) build(args []*core.Term, want string) (string, error) {
 // It is modules.md T2's substitution soundness becoming machine-checked instead
 // of asserted — and until now the only evidence for it was a conformance suite
 // that runs the code.
-func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
+func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
+	claim func(name string, sig *core.Sig, nf *core.Term) error) error {
 	names := make([]string, 0, len(prog.Sigs))
 	for n := range prog.Sigs {
 		names = append(names, n)
@@ -551,43 +570,19 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env) error {
 			if err != nil {
 				continue // reduction already reports this better
 			}
-			// THE CLAIM IS CHECKED AGAINST THE PROGRAM THE EMITTER WILL EMIT,
-			// which for a declared range above the portable window means after
-			// the representation is selected (emit/bigrep.go). Checking the
-			// un-promoted residual refuses every one of them: `(+ a b)` types as
-			// `int` and the signature says the result is bigger than a word,
-			// which is exactly the disagreement the promotion resolves.
-			all := make([]*core.Sig, 0, len(prog.Sigs))
-			for _, sg := range prog.Sigs {
-				all = append(all, sg)
-			}
-			p, _, err := PromoteBig(tgt, sig, nf, all...)
-			if err != nil {
-				// A REFUSAL IS REPORTED, NOT SWALLOWED. This used to drop the
-				// error and check the UN-promoted term against the limb
-				// signature, so `(- a b)` on two values declared above the
-				// window came back as "a is array int, but int is required
-				// here" — a type error naming an internal representation, from
-				// a program whose only fault is that the fixed-limb rung has no
-				// subtraction. The honest message was already written and
-				// nothing could reach it.
-				return fmt.Errorf("%s: %w", n, err)
-			}
-			nf = p
-			// The unsigned word needs no selection here: the checker's integer
-			// sort is ℤ (ADR 0033), and representation is chosen on the IR.
-			// ON THE FIXED-LIMB RUNG A BIG VALUE IS AN `array int`, so the
-			// claim is checked against the signature as that rung means it.
-			// Checking the declaration verbatim refuses a body that produces
-			// limbs, which is true of the declaration and false of the code.
-			onLimbs, _, _ := BigRepr(tgt, all...)
-			// AND ONLY IF IT STAYED THERE: a program needing an operation the
-			// limb library lacks was taken back to the host's bignum, whose
-			// operations the promoted term still names.
-			onLimbs = onLimbs && !MentionsBig(tgt.Word, nf)
-			sig = LimbSig(tgt.Word, sig, onLimbs)
+			// THE CLAIM'S TYPING is checked on the residual as written: the
+			// integer sort is ℤ (ADR 0033), so a range, the unsigned word and
+			// the rung above it agree. Whether a value is HELD in the word the
+			// claim declares is representation, chosen on the IR: `claim`,
+			// when given, lowers the definition and takes its rung, refusing a
+			// value held exactly where the claim says a word (ADR 0034, 0035).
 			if err := CheckAgainstSig(tgt, n, sig, nf); err != nil {
 				return err
+			}
+			if claim != nil {
+				if err := claim(n, sig, nf); err != nil {
+					return fmt.Errorf("%s: %w", n, err)
+				}
 			}
 			continue
 		}
@@ -670,7 +665,7 @@ func CheckAgainstSig(tgt *Target, name string, sig *core.Sig, t *core.Term) erro
 		}
 		if pass == 1 && !compatible(tgt, got, sig.Result) &&
 			!tgt.Subsumes(tgt.ValueType(got), tgt.ValueType(sig.Result)) &&
-			!(isIntSort(tgt, got) && isIntSort(tgt, sig.Result)) {
+			!intSortsAgree(tgt, got, sig.Result) {
 			return fmt.Errorf("%s returns %s, but its signature declares %s",
 				name, got, sig.Result)
 		}
@@ -689,6 +684,16 @@ func WiderThanWord(tg *Target, what, got string) error {
 		"may leave the machine word cannot silently be used where an `int` is "+
 		"required, and this refusal is where that is said. Widen the destination, "+
 		"or take the value to a string with `big-str`.", what, core.ShowType(got), tg.Name, tg.Word)
+}
+
+// intSortsAgree is the integer sort's agreement (ADR 0033): two integer types
+// agree, since which realization holds a value is chosen on the IR, except
+// where the target cannot hold the wanted one at all: ℤ on a target with no
+// bignum, which is a capability and not a representation.
+func intSortsAgree(tg *Target, got, want string) bool {
+	return isIntSort(tg, got) && isIntSort(tg, want) &&
+		!(tg.ValueType(want) == core.BigType && !tg.HasBig() &&
+			(core.UnboundedRange(want) || want == core.BigType))
 }
 
 // isIntSort reports a type of the integer sort ℤ, in any realization: a word,

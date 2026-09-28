@@ -11,7 +11,8 @@ shares are `ir/plan`, and the JavaScript backend is `ir/js`. The Java backend is
 ([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)), and the x86 backend is
 `ir/x86` ([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
 backend interface is a file format and never wrote the format. The derivation is
-[docs/ir-research.md](../ir-research.md). The prototypes are in `experiments/irproto`, and their
+[docs/ir-research.md](../ir-research.md). The prototypes were in `experiments/irproto`, deleted with
+the term analysis they measured against (irstep4j; in git before it), and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
 [irp3](../../gauntlet/results/irp3-2026-09-25.md) (a sparse analysis) and
 [irp2](../../gauntlet/results/irp2-2026-09-25.md) (a Go printer).
@@ -1026,7 +1027,8 @@ The result is the loop `gen` emits today, one statement per value, at the same s
   specified.
 - **The retired portable layer's kinds** (`loop`, `loop2`, `build` as a vector constructor). They
   stay on the old path with the old benchmarks and never reach L.
-- **What moves off terms later**: `PromoteBig`, `SelectWords`, `FlattenProducts`.
+- **What stays on terms**: `FlattenProducts`, which rewrites a residual's products before lowering.
+  Every representation choice and every analysis is on the IR (§7).
 
 ## References
 

@@ -1244,15 +1244,6 @@ func replaceTerm(t, old, new *core.Term) *core.Term {
 	return &out
 }
 
-// nonNegative reports whether facts f prove 0 <= e. A back-edge argument is
-// often a CONDITIONAL rather than a name — β substitutes a let-bound clamp used
-// once straight into the `again` — so the goal is split on it (provedBySplit).
-func (r *refiner) nonNegative(e *core.Term, f *facts) bool {
-	budget := splitBudget
-	goal := &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("<="), &core.Term{Kind: core.KInt}, e}}
-	return r.provedBySplit(goal, f, &budget)
-}
-
 // loopInvariants assumes every candidate linear inequality over a loop's
 // variables that is an INDUCTIVE INVARIANT, decided by the fragment rather than by
 // the shape of the step (inductive-2026-09-16, generalised).

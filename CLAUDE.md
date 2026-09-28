@@ -92,7 +92,7 @@ is the IR's printer**, `ir/golang`, which prints IR_P.
 - IR_P's element widths come from a reduced product: the term analysis and the IR's own interval
   domain, which reads `assume`.
 - Bounds-check re-slicing is `restrict` by law L13, under its premise. The derivation is [ir-research.md](docs/ir-research.md).
-Three prototypes in `experiments/irproto` decided it:
+Three prototypes decided it (in `experiments/irproto`, deleted with the term analysis in irstep4j):
 - lowering is nearly free (irp1);
 - a sparse interval analysis on it is 12–115× faster (irp3);
 - a Go printer from it is at parity on the gauntlet (irp2).
@@ -110,7 +110,7 @@ the term backend (0.94–1.01×). **So is Java**, `ir/java`
 - a value's place is a colouring of exact live sets, optimal by chordality (spec §9.6);
 - the Windows sieve is 0.98× hand-written and 1.00× the term backend.
 
-**Step 3 is done: all four backends print from the IR.** **Step 4 has begun**
+**Step 3 is done: all four backends print from the IR.** **Step 4 is done**
 ([irstep4a-2026-09-26](gauntlet/results/irstep4a-2026-09-26.md)):
 - the four term backends are deleted, with the 47 helpers only they reached. Production code is
   −8,858 lines net, and each backend has one printer, so `-printer` is gone;
@@ -166,17 +166,20 @@ realizations. **So is the rung above the word on the host's bignum**
 [irstep4i-2026-09-28](gauntlet/results/irstep4i-2026-09-28.md)). The limb library is a theory checked
 once per width, and each bignum operation is an instance of it, inlined on the IR.
 
-`gen` and `build` run no term interval analysis on the default path. It runs behind `-irproof` as
-the shadow, in `CheckSignatures`' claim check (through `PromoteBig`), and in the refinement layer's
-loop invariants.
+**The term interval analysis is deleted**
+([irstep4j-2026-09-28](gauntlet/results/irstep4j-2026-09-28.md)):
+- `emit/interval.go` and seven files around it, the term promotion and its limb splice: production
+  code −7,222 lines net;
+- `CheckSignatures`' representation half is `ir.CheckClaim`;
+- the drivers and the tests share one pipeline, `ir.Entry`;
+- the IR's domain gained a map's cell fact, the one claim it lacked.
 
-**The migration is the current plan**: those passes and the refinement layer, one at a time, until
-`emit/interval.go` and `emit/sct.go` can be deleted. The language plan below waits
-for it. Soundness bugs found while writing the IR's rules:
+Every analysis and every representation choice is on the IR. The migration's assessment is next.
+Soundness bugs found while writing the IR's rules:
 - in the (now deleted) term backends: bounds-check re-slicing without its premise (spec §9.4), `alloc`
   of a live buffer aliasing it (irstep1 §4), and a Java loop variable narrowed to `int` from one that
   was not (`narrow-from-wide`);
-- the IR's `u64` transfers took the residue map as the identity (unreachable: only `wordsel` writes
+- the IR's `u64` transfers took the residue map as the identity (unreachable: only the word selection writes
   them, on S ∩ U), now its exact image;
 - a `build`'s size was not obliged to fit `max-len`, so `(len (build b 4294967297 …))` was 1 on Java
   (irstep3java §3); now an obligation (irstep4f).
@@ -184,7 +187,7 @@ for it. Soundness bugs found while writing the IR's rules:
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (09-24):
+**Next, from the current assessment** (09-24), after the migration's assessment:
 1. **`bufio`, program-first.** ADR 0027 was built for it. Its algebra first; then a line tool over
    standard input with `strconv` (number the lines, sum a column), written in the language and not an
    acceptance program. **If the tuple-component law is met a fourth time, it becomes the next ADR.**
@@ -406,7 +409,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   `(repr (int LO HI) word)`, required of every target, with no default in the compiler: int64 on Go,
   the JVM and windows, ±(2⁵³−1) on JS, 32 bits on `blas`. Go also declares
   `(repr (int 0 18446744073709551615) word)`: **U, held natively as `uint64`**, selected by
-  `emit/wordsel.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
+  `ir/words.go` on the ring homomorphism ℤ → ℤ/2⁶⁴ (`+ − ·` in either 64-bit type after the
   residue map; `< = / %` only where one realization holds both operands). A binding is ρ of its
   interval: `int` in S, `u64` in U∖S, `big` only past both and only by declaration.
 - **Legality is per (program, target).** Every target that accepts a program computes the same
@@ -701,7 +704,7 @@ go run ./cmd/build -target=go -o hello examples/hello.oro   # a real binary
 go run ./cmd/oro -target=portable-go examples/dot.oro       # reduce to normal form
 go run ./cmd/gen -name tree examples/json/tree.oro go gauntlet/go/gen_jsontree.go   # emit into the gauntlet
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
-go run ./cmd/intervals examples/native/sieve-go.oro go   # what the interval analysis proves, per exported definition (a main-only program reports 0/0)
+go run ./cmd/intervals -v examples/native/sieve-go.oro go   # what the IR's decision proves: operations in the word, loops terminating, and each unproven one
 go run ./cmd/portable examples/io/wc.oro                  # which targets accept a program, why the others refuse, and W(S) — ADR 0026
 go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   # also write the canonical IR (docs/spec/ir.md)
 ```
@@ -721,8 +724,8 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | | |
 |---|---|
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
-| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`), interval analysis (`interval`, `bound`, `smash`, `monotone`), the unsigned word (`wordsel`), termination, target loader (`target`, `companion`, `alias`, `constend`), linearity, big-integer representation (`bigrep`, `biglimb`, `bigreuse`), products |
+| `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
+| `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |

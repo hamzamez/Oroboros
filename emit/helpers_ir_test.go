@@ -6,6 +6,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
 func winTarget(t *testing.T) *emit.Target {
@@ -252,4 +253,25 @@ func normGo(t *testing.T, src string) (*emit.Target, *core.Term, *core.Sig) {
 		t.Fatal(err)
 	}
 	return tg, nf, prog.Sigs[q]
+}
+
+// decision is what the IR's decision says of a residual (ir.Decide, spec §7):
+// the counted integer operations and the proven ones, the loops and the ones
+// proven to terminate, and each unproven operation with its interval.
+type decision struct {
+	Ops, Proven, Loops, Terminates int
+	Unproven                       []string
+}
+
+// decideOn lowers a residual and decides it, as the drivers do before the
+// representation selections. It is the instrument for a test that pins what the
+// compiler proves of a shape.
+func decideOn(t *testing.T, tg *emit.Target, sig *core.Sig, nf *core.Term) decision {
+	t.Helper()
+	f, err := ir.Lower(tg, "t", sig, emit.EraseAscriptions(nf), ir.Options{Decided: true})
+	if err != nil {
+		t.Fatalf("lowering: %v", err)
+	}
+	leg := ir.Decide(tg, f, false)
+	return decision{Ops: leg.Ops, Proven: leg.Proven, Loops: leg.Loops, Terminates: leg.Halts, Unproven: leg.Unproven}
 }

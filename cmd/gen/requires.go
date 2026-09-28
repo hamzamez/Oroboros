@@ -40,7 +40,7 @@ func reportResidual(reqs *emit.RequireSet, tg *emit.Target, sig *core.Sig, nf *c
 		}
 	}
 	for _, r := range ascribed {
-		add(r.Def, r.Param, r.Type, r.Arg, fmt.Sprint(r.Got), r.Proven)
+		add(r.Def, r.Param, r.Type, r.Arg, r.Got, r.Proven)
 	}
 	for _, r := range ir.MeasureRanges(tg, sig, rest) {
 		add(r.Def, r.Param, r.Type, r.Arg, r.Got, r.Proven)

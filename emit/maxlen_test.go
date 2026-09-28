@@ -1,4 +1,4 @@
-package emit
+package emit_test
 
 import (
 	"os"
@@ -7,32 +7,23 @@ import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/emit"
 )
 
-// A LENGTH IS BOUNDED AT BOTH ENDS, and there are two separate claims in that.
-//
-//	(1) THE LANGUAGE'S OWN BOUND, needing no declaration. `(len t)` returns an
-//	    `int` and ADR 0012 says `int` is exact within ±(2^53−1), so a table with
-//	    more elements has a length this language cannot count. Assuming
-//	    `(len t) ≤ 2^53−1` assumes nothing ADR 0012 did not already require.
-//
-//	(2) A TARGET'S TIGHTER BOUND. A Java array holds at most 2^31−1 elements,
-//	    because `arraylength` returns an `int`.
-//
-// The two do different work and a test for one would pass without the other, so
-// this pins both on the same program: the counter is BOUNDED on every target,
-// and it FITS AN INDEX only where a target said something tighter. Before this,
-// `(len a)` was `[0, +inf)` and the counter was unbounded everywhere — 32 of
-// the corpus's unproven operations, every one of them this exact shape.
+// A LENGTH IS BOUNDED AT BOTH ENDS: by max-len_T, which is the word's bound
+// where a target declares nothing (ADR 0026) and 2^31−1 on Java, whose
+// `arraylength` returns an `int`. So a counter under a `len` guard is bounded
+// on every target. Before lengths were bounded, `(len a)` was `[0, +inf)` and
+// this exact shape was 32 of the corpus's unproven operations. (Which host type
+// the counter then takes is ρ of its range, the printer's: an `int` on Java.)
 func TestLengthIsBounded(t *testing.T) {
 	for _, c := range []struct {
-		dir, op   string
-		fitsIndex bool
+		dir, op string
 	}{
-		{"../targets/go", "go", false},    // the language's bound: 2^53−1
-		{"../targets/java", "java", true}, // declared: 2^31−1
+		{"../targets/go", "go"},     // the word's bound
+		{"../targets/java", "java"}, // declared: 2^31−1
 	} {
-		tg, err := LoadTarget(c.dir)
+		tg, err := emit.LoadTarget(c.dir)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -42,7 +33,7 @@ func TestLengthIsBounded(t *testing.T) {
 		if err != nil || len(terms) != 1 {
 			t.Fatalf("%s: read: %v", c.op, err)
 		}
-		rep, _ := Intervals(tg, nil, terms[0], 0)
+		rep := decideOn(t, tg, nil, terms[0])
 
 		if rep.Ops == 0 {
 			t.Fatalf("%s: nothing was counted, so this test proves nothing", c.op)
@@ -52,12 +43,6 @@ func TestLengthIsBounded(t *testing.T) {
 				"counter under a `len` guard is bounded because a LENGTH is",
 				c.op, rep.Proven, rep.Ops)
 		}
-		if got := rep.FitsIndex(); got != c.fitsIndex {
-			t.Fatalf("%s: FitsIndex is %v, want %v (MaxOp %s). The language's "+
-				"own bound is 2^53−1, which does NOT fit a 32-bit index; only a "+
-				"target that declared something tighter gets one",
-				c.op, got, c.fitsIndex, rep.MaxOpRange())
-		}
 	}
 }
 
@@ -65,7 +50,7 @@ func TestLengthIsBounded(t *testing.T) {
 // claiming it can hold more elements than an `int` can count is claiming a
 // length the language cannot represent, which is not a length.
 func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
+	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +58,7 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 		t.Fatalf("a target that declares no max-len gets its word's bound (ADR 0026); "+
 			"got %d, want %d", got, tg.Word.Hi)
 	}
-	jv, err := LoadTarget("../targets/java")
+	jv, err := emit.LoadTarget("../targets/java")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +74,7 @@ func TestMaxLenBeyondTheWindowIsRefused(t *testing.T) {
 	if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadTarget(path); err == nil {
+	if _, err := emit.LoadTarget(path); err == nil {
 		t.Fatal("a max-len past the target's word must be refused")
 	} else if !strings.Contains(err.Error(), "outside its word") {
 		t.Fatalf("the refusal should say why: %v", err)

@@ -19,7 +19,7 @@ it against the next two packages (`strconv`, `encoding/binary`) before anything 
 | layer | today | where |
 |---|---|---|
 | **semantics** | a mathematical integer; arithmetic is exact | [ADR 0003](decisions/0003-range-typed-integers.md), [ADR 0012](decisions/0012-portable-integer-range.md) |
-| **legality** | every operation must be *proven* to stay in **W = ±(2⁵³−1)**, or the program is refused | [ADR 0019](decisions/0019-precision-by-declaration.md); one predicate, `emit/interval.go:64` |
+| **legality** | every operation must be *proven* to stay in **W = ±(2⁵³−1)**, or the program is refused | [ADR 0019](decisions/0019-precision-by-declaration.md); decided on the IR, `ir.Decide` (spec/ir.md §7.2) |
 | **representation** | the proven range picks a host type from the target's ladder, `(repr (int LO HI) (host "…"))`; above W there is exactly one rung, `big` | `targets/go/go.oro:26–31`, `emit/bigrep.go` |
 
 W appears in three places in the compiler: the analysis's fits-test (`interval.go:64`), the

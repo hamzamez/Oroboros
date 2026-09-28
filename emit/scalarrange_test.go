@@ -36,36 +36,6 @@ import (
 // ranged parameter must not narrow a counter that reads it, or the counter
 // overflows at 255 while the language says integers do not.
 
-// The premise half, with a control. A range must be BELIEVED, and the only way
-// to know a test of that proves anything is to run the same program without it:
-// `(go.* n n)` is 0 of 1 operations bounded with nothing declared and 1 of 1
-// with the range, so the passing case and the failing case genuinely differ.
-func TestScalarRangeIsAPremise(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := mustRead(t, "(fn (n) (go.* n n))")
-
-	for _, c := range []struct {
-		what   string
-		sig    *core.Sig
-		proven int
-	}{
-		{"nothing declared", sigOf(t, "int"), 0},
-		{"a declared range", sigOf(t, "(int 0 1000)"), 1},
-	} {
-		rep, _ := Intervals(tg, c.sig, body, 0)
-		if rep.Ops != 1 {
-			t.Fatalf("%s: %d operations counted, want 1", c.what, rep.Ops)
-		}
-		if rep.Proven != c.proven {
-			t.Errorf("%s: %d of %d bounded, want %d of 1 (MaxOp %s)",
-				c.what, rep.Proven, rep.Ops, c.proven, rep.MaxOpRange())
-		}
-	}
-}
-
 // The type half. This is the refusal ADR 0019 recorded, and it is a refusal of
 // a LEGAL program: the syntax parses and then every use of the parameter is a
 // type error.
@@ -79,56 +49,6 @@ func TestScalarRangeIsAnInt(t *testing.T) {
 		t.Fatalf("a declared range was refused where `int` is required: %v\n"+
 			"A range IS an int (core.ValueType). It says what the value is, not "+
 			"what operations accept it.", err)
-	}
-}
-
-// THE THEOREM, STATED AS A TEST: a range and the `where` it means are the same
-// declaration. `(n (int LO HI))` and `(n int) (where (and (<= LO n) (<= n HI)))`
-// have the same denotation — γ(int LO HI) = {k | LO ≤ k ≤ HI} is exactly the
-// satisfying set of that conjunct — so every analysis must reach the same
-// answer, not merely a good enough one.
-//
-// Checked on a program where the declaration does work in three separate
-// places: the multiply is bounded only if the range is believed, the loop
-// terminates only if its bound is finite, and the buffer's element range comes
-// out of the stores.
-func TestScalarRangeAndWhereAgree(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := mustRead(t, "(fn (n) (loop ((i 0) (s 0)) (go.>= i n) s "+
-		"else (again (go.+ i 1) (go.+ s (go.* i 3)))))")
-
-	ranged := sigOf(t, "(int 0 1000)")
-	whered := sigOf(t, "int")
-	whered.Where = mustRead(t, "(and (<= 0 n) (<= n 1000))")
-
-	a, _ := Intervals(tg, ranged, body, 0)
-	b, _ := Intervals(tg, whered, body, 0)
-
-	if a.Ops == 0 || a.Loops == 0 {
-		t.Fatal("nothing was counted, so this test proves nothing")
-	}
-	if a.Proven != b.Proven || a.Ops != b.Ops {
-		t.Errorf("range says %d of %d bounded, `where` says %d of %d — a range "+
-			"and the `where` it means must be the same declaration",
-			a.Proven, a.Ops, b.Proven, b.Ops)
-	}
-	if a.Terminates != b.Terminates {
-		t.Errorf("range proves %d of %d loops, `where` proves %d of %d",
-			a.Terminates, a.Loops, b.Terminates, b.Loops)
-	}
-	if a.MaxOpRange() != b.MaxOpRange() {
-		t.Errorf("MaxOp differs: range %s, `where` %s", a.MaxOpRange(), b.MaxOpRange())
-	}
-	// The control: without either, the same program must do WORSE. A test whose
-	// two sides agree because neither learned anything proves nothing.
-	c, _ := Intervals(tg, sigOf(t, "int"), body, 0)
-	if c.Proven == a.Proven && c.Terminates == a.Terminates {
-		t.Errorf("the undeclared program is as provable as the declared one "+
-			"(%d of %d, %d of %d loops), so this test is vacuous",
-			c.Proven, c.Ops, c.Terminates, c.Loops)
 	}
 }
 

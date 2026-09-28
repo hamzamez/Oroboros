@@ -57,7 +57,7 @@ direction*, blocked on two things.
 | §8 blocker | status |
 |---|---|
 | **the product**, needed for "a bignum with an inline fast path" | **built** — [values.md](spec/values.md), measured Go 0.99× / Java 0.97× with zero allocations ([multiresult-2026-08-22](../gauntlet/results/multiresult-2026-08-22.md)) |
-| **interval analysis**, "what hamza's preferred integer design turns on" | **built** — `emit/interval.go`, plus size-change termination and, as of today, one Farkas multiplier |
+| **interval analysis**, "what hamza's preferred integer design turns on" | **built** — on the IR since ADR 0032 step 4 (`ir/interval.go`, `ir/trip.go`, size-change termination in `ir/sct.go`); the term analysis this row first named, `emit/interval.go`, was deleted in irstep4j. The Farkas multiplier is the refinement layer's (`emit/linear.go`) |
 | *(not on the graph, but needed)* an error result | **sums built** — [sums.md](spec/sums.md), 1.00× against hand-written Go |
 
 So the question is no longer *"is the machinery there"*. It is **"how much does the machinery

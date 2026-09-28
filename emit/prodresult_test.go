@@ -66,31 +66,6 @@ func TestAMapBufferIsLinear(t *testing.T) {
 	}
 }
 
-// THE COMPONENT LAW, WITNESSED SOUND (ADR 0031 §3). The two components of one
-// tuple have different ranges, and each name must get its OWN: `a` ≤ 11, so
-// a·10¹⁵ is inside int64; `b` ≤ 1.1·10¹³, so b·10⁶ is not. Exactly that one
-// operation is unproven (the `%` keeps it out of the sum). Binding every name to
-// the first component's facts proves the overflow; binding none loses a·10¹⁵.
-//
-// The back edge is a `let` whose body jumps, which is what a clause chain looks
-// like after reduction, and the join over the exits must see that it yields no
-// value (prodfacts.go, noValue) or it loses the exit it does have.
-func TestEachComponentHasItsOwnFacts(t *testing.T) {
-	src := `(export f)
-(sig f ((n (int 0 10))) int)
-(def f (n)
-  (let (tuple a b) (loop ((i 0) (s 0))
-                     (>= i n)  (tuple i (* i 1000000000000))
-                     else      (let j (if (< i 5) (+ i 1) (+ i 2))
-                                 (again j j)))
-    (+ (* a 1000000000000000) (% (* b 1000000) 7))))`
-	rep := reportGo(t, src)
-	if rep.Proven != 5 || rep.Ops != 6 || len(rep.Unproven) != 1 ||
-		!strings.Contains(rep.Unproven[0], "(* b 1000000)") {
-		t.Errorf("%d of %d proven, unproven %v; want 5 of 6, only b·10⁶", rep.Proven, rep.Ops, rep.Unproven)
-	}
-}
-
 // A FROZEN COMPONENT KEEPS ITS SCOPE'S LENGTH: `(b 7)` is in bounds because
 // len b = 8 crossed the tuple, and `(b 8)` is refused, which is the anti-vacuity
 // half — a layer that proved everything would pass the first.

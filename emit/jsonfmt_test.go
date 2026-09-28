@@ -1,9 +1,10 @@
-package emit
+package emit_test
 
 import (
 	"testing"
 
 	"oroboros/core"
+	"oroboros/emit"
 )
 
 // BOUNDED-BY-DEFAULT MUST NOT BE VACUOUS INSIDE A MULTI-RESULT CONTINUATION.
@@ -20,7 +21,7 @@ import (
 // CONSTRUCT this time instead of at a target. Found by writing a tool
 // (jsonfmt-2026-09-07), one day after the construct shipped.
 func TestBoundedByDefaultReachesIntoAContinuation(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
+	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +40,7 @@ func TestBoundedByDefaultReachesIntoAContinuation(t *testing.T) {
 		if err != nil || len(terms) != 1 {
 			t.Fatalf("%s: read: %v", c.what, err)
 		}
-		rep, _ := Intervals(tg, nil, terms[0], 0)
+		rep := decideOn(t, tg, nil, terms[0])
 		if rep.Ops == 0 {
 			t.Fatalf("%s: NOTHING WAS COUNTED. The walk never reached the "+
 				"arithmetic, so ADR 0019 is vacuous here and any program "+

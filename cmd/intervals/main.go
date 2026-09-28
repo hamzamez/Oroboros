@@ -1,10 +1,12 @@
-// Command intervals answers the question that gates the integer design:
-// how often can the compiler prove an integer stays in a machine word?
+// Command intervals reports what the IR's interval domain proves about a
+// program on one target: how many integer operations it proves inside their
+// word, and how many loops it proves terminate, per exported definition
+// (ir.Decide, docs/spec/ir.md §7). With -v it lists each operation it could not
+// prove, by its source application and its interval.
 //
-// docs/spec/data-model.md §8. Run over the gauntlet and the sieves, with and
-// without simulated range declarations, it produces the number that decides
-// whether "exact by default, ranges choose the representation" is a design or a
-// trap.
+// It runs the pipeline the drivers run up to the decision: reduction, the
+// contracts, the product flattening, the rung above the word and the unsigned
+// word. A main-only program reports its top-level terms.
 package main
 
 import (
@@ -12,20 +14,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/ir"
 )
 
 func main() {
 	targets := flag.String("targets", "targets", "directory holding target declarations")
 	path := flag.String("path", "lib", "search path for imported modules")
-	assume := flag.Int64("assume", 0, "simulate a declared range [0,N] on every parameter and length")
 	verbose := flag.Bool("v", false, "list every operation that could not be proven")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "usage: intervals [-assume N] [-v] SRC.oro TARGET\n")
+		fmt.Fprintf(os.Stderr, "usage: intervals [-v] SRC.oro TARGET\n")
 		flag.PrintDefaults()
 	}
 	flag.Parse()
@@ -33,14 +33,19 @@ func main() {
 		flag.Usage()
 		os.Exit(2)
 	}
-	if err := run(*targets, flag.Arg(0), flag.Arg(1), *path, *assume, *verbose); err != nil {
+	if err := run(*targets, flag.Arg(0), flag.Arg(1), *path, *verbose); err != nil {
 		fmt.Fprintln(os.Stderr, "intervals:", err)
 		os.Exit(1)
 	}
 }
 
-func run(targetDir, src, target, path string, assume int64, verbose bool) error {
-	tg, err := emit.LoadTarget(filepath.Join(targetDir, target+".oro"))
+func run(targetDir, src, target, path string, verbose bool) error {
+	layers, err := emit.SearchPath(src, targetDir)
+	if err != nil {
+		return err
+	}
+	ds := dirs(src, path)
+	tg, err := emit.LoadTargetLayers(target, layers, ds)
 	if err != nil {
 		return err
 	}
@@ -52,13 +57,18 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 	if err != nil {
 		return err
 	}
-	prog, terms, err := core.LoadWithDefs(forms, resolver(dirs(src, path)), tg.Defs)
+	prog, terms, err := core.LoadWithDefs(forms, resolver(ds), tg.Defs)
 	if err != nil {
 		return err
 	}
 	env, err := tg.Env(prog)
 	if err != nil {
 		return err
+	}
+	reqs := emit.InstallRequires(env, prog)
+	var all []*core.Sig
+	for _, s := range prog.Sigs {
+		all = append(all, s)
 	}
 	type unit struct {
 		name string
@@ -74,40 +84,29 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 			units = append(units, unit{fmt.Sprintf("%s#%d", filepath.Base(src), i), nil, t})
 		}
 	}
-
-	maxOp, fitsIdx := "none", " FITS"
-	total, proven, lv, lb := 0, 0, 0, 0
-	loops, term, trips := 0, 0, 0
-	byOp := map[string][2]int{}
+	total, proven, loops, halts := 0, 0, 0, 0
 	for _, u := range units {
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
 		if err != nil {
 			return fmt.Errorf("%s: %w", u.name, err)
 		}
-		r, _ := emit.Intervals(tg, u.sig, nf, assume)
-		maxOp = r.MaxOpRange()
-		if !r.FitsIndex() {
-			fitsIdx = ""
+		sig := u.sig
+		if nf, err = emit.DischargeRequires(reqs, tg, u.name, sig, nf,
+			func(x *core.Term) *core.Term { return ir.DischargeRanges(tg, sig, x) }); err != nil {
+			return err
 		}
-		total += r.Ops
-		proven += r.Proven
-		lv += r.LoopVars
-		lb += r.LoopBound
-		loops += r.Loops
-		term += r.Terminates
-		trips += r.Trips
+		_, leg, err := ir.Entry(tg, u.name, u.name, sig, nf, all, false, nil)
+		if err != nil {
+			return err
+		}
+		total += leg.Ops
+		proven += leg.Proven
+		loops += leg.Loops
+		halts += leg.Halts
 		if verbose {
-			for _, d := range r.Diverging {
-				fmt.Printf("    %s: no descent on the cycle %s\n", u.name, d)
-			}
-		}
-		for k, v := range r.ByOp {
-			e := byOp[k]
-			byOp[k] = [2]int{e[0] + v[0], e[1] + v[1]}
-		}
-		if verbose {
-			for _, n := range r.Unproven {
-				fmt.Printf("    %s: %s\n", u.name, n)
+			fmt.Printf("  %-24s %3d/%-3d ops  %d/%d loops\n", u.name, leg.Proven, leg.Ops, leg.Halts, leg.Loops)
+			for _, m := range leg.Unproven {
+				fmt.Printf("      %s\n", m)
 			}
 		}
 	}
@@ -115,23 +114,8 @@ func run(targetDir, src, target, path string, assume int64, verbose bool) error 
 	if total > 0 {
 		pct = 100 * float64(proven) / float64(total)
 	}
-	lpct := 0.0
-	if lv > 0 {
-		lpct = 100 * float64(lb) / float64(lv)
-	}
-	var ops []string
-	for k := range byOp {
-		ops = append(ops, k)
-	}
-	sort.Strings(ops)
-	var parts []string
-	for _, k := range ops {
-		parts = append(parts, fmt.Sprintf("%s %d/%d", k, byOp[k][0], byOp[k][1]))
-	}
-	_ = lpct
-	fmt.Printf("%-24s %3d/%-3d ops (%5.1f%%)  term %d/%d  idx %-24s%-6s %s\n",
-		filepath.Base(src), proven, total, pct, term, loops,
-		maxOp, fitsIdx, strings.Join(parts, "  "))
+	fmt.Printf("%-24s %3d/%-3d ops (%5.1f%%)  loops %d/%d terminate\n",
+		filepath.Base(src), proven, total, pct, halts, loops)
 	return nil
 }
 
@@ -150,9 +134,9 @@ func resolver(ds []string) core.Resolver {
 	}
 }
 
-func dirs(entry, extra string) []string {
-	out := []string{filepath.Dir(entry)}
-	for _, d := range filepath.SplitList(extra) {
+func dirs(src, path string) []string {
+	out := []string{filepath.Dir(src)}
+	for _, d := range filepath.SplitList(path) {
 		if d != "" {
 			out = append(out, d)
 		}

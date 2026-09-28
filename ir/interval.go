@@ -674,8 +674,16 @@ func (a *intervals) stmt(s *Stmt) {
 	case OMap, OKeys:
 		one(a.declared(a.f.Types[s.Res[0]]))
 	case ORead:
+		// A MAP'S CELLS are its inserted values: `build-map` is the only
+		// allocator and starts empty, `insert` the only store, and the buffer is
+		// linear (ADR 0018), so every value a read can return was inserted. An
+		// absent key's payload is a value the program cannot observe (spec §5.3),
+		// so the hull bounds every payload that is read.
 		a.fs[s.Res[0]] = fact{v: rangeIV(0, 1)}
 		a.fs[s.Res[1]] = topFact
+		if args[0].hasEl {
+			a.fs[s.Res[1]] = fact{v: args[0].el}
+		}
 	case OSet:
 		out := args[0]
 		if out.hasEl {
@@ -683,7 +691,11 @@ func (a *intervals) stmt(s *Stmt) {
 		}
 		one(out)
 	case OInsert:
-		one(args[0])
+		out := args[0]
+		if out.hasEl && len(args) > 2 {
+			out.el = joinIV(out.el, args[2].v) // a weak update, as a store's
+		}
+		one(out)
 	case OThe:
 		// ABOVE THE WORD an ascription tells only the one set the program
 		// enforces (ADR 0029), which this domain does not know: its own type
@@ -723,7 +735,7 @@ func (a *intervals) stmt(s *Stmt) {
 		y, _ := a.region(body)
 		a.set(s.Res, y)
 	case OBuildMap:
-		a.fs[s.Sub[0].Params[0]] = topFact
+		a.fs[s.Sub[0].Params[0]] = fact{v: ivTop, el: ivBot, hasEl: true} // empty: no cells
 		y, _ := a.region(s.Sub[0])
 		a.set(s.Res, y)
 	case OTabulate:

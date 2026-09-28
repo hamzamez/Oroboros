@@ -340,35 +340,6 @@ func isLoopTerm(tgt *Target, t *core.Term) bool {
 	return known && p.Kind == "iterate"
 }
 
-// selfPlus reports the constant `c` when `e` is `self + c` or `self - (-c)`,
-// which is the shape a step has to be in for the caller to use a lower bound.
-func selfPlus(tgt *Target, e *core.Term, self string) (int64, bool) {
-	if e == nil {
-		return 0, false
-	}
-	if e.Kind == core.KName && e.Name == self {
-		return 0, true
-	}
-	if e.Kind != core.KApp || e.Op().Kind != core.KName || len(e.Args()) != 2 {
-		return 0, false
-	}
-	a, b := e.Args()[0], e.Args()[1]
-	switch arithOp(e.Op().Name, 2) {
-	case "add":
-		if a.Kind == core.KName && a.Name == self && b.Kind == core.KInt {
-			return b.Int, true
-		}
-		if b.Kind == core.KName && b.Name == self && a.Kind == core.KInt {
-			return a.Int, true
-		}
-	case "sub":
-		if a.Kind == core.KName && a.Name == self && b.Kind == core.KInt {
-			return -b.Int, true
-		}
-	}
-	return 0, false
-}
-
 // ---------------------------------------------------------------- extremum
 //
 // A RUNNING EXTREMUM — `mx = max(mx, sp+1)` — and why the fixpoint could not
@@ -403,36 +374,6 @@ func selfPlus(tgt *Target, e *core.Term, self string) (int64, bool) {
 // The recurrence is not `v' = f(v)` where f can grow. It is `v' ∈ {v} ∪ U`, so
 // the reachable set is closed after one step and a fixpoint was never needed.
 
-// selfContained decides the definition above, syntactically and with no
-// evaluation, so the caller can choose which way to evaluate without
-// double-counting operations.
-func selfContained(tgt *Target, a *core.Term, self string) bool {
-	if a == nil {
-		return false
-	}
-	if a.Kind == core.KName && a.Name == self {
-		return true // the pass-through: contributes nothing new
-	}
-	if !mentionsName(a, self) {
-		return true // a leaf of the update set
-	}
-	if v, lam, ok := asLet(tgt, a); ok {
-		if mentionsName(v, self) {
-			return false
-		}
-		body, _, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-		return selfContained(tgt, body, self)
-	}
-	if a.Kind == core.KApp && a.Op().Kind == core.KName {
-		if p, known := tgt.Prims[a.Op().Name]; known && p.Kind == "cond" && len(a.Args()) == 3 {
-			// The CONDITION may mention self freely — it produces no value.
-			return selfContained(tgt, a.Args()[1], self) &&
-				selfContained(tgt, a.Args()[2], self)
-		}
-	}
-	return false
-}
-
 // mentionsName reports whether a term refers to a name.
 func mentionsName(t *core.Term, name string) bool {
 	if t == nil {
@@ -447,110 +388,4 @@ func mentionsName(t *core.Term, name string) bool {
 		}
 	}
 	return false
-}
-
-// loopExitsFit reports whether every value a loop can produce is one the
-// enclosing method's index type can hold.
-//
-// A loop's value is one of its EXIT expressions — the tail positions of its
-// clause chain that are not `again`. Its own variables count as acceptable
-// sources: they are narrowed by the same whole-method gate that is asking this
-// question, so either all of them are held in the host's index type or none is.
-func loopExitsFit(tgt *Target, loop *core.Term, raw []string) bool {
-	args := loop.Args()
-	if len(args) < 2 || args[0].Kind != core.KFn {
-		return false
-	}
-	body, lraw, _ := openFresh(args[0], map[string]bool{}, func(x string) string { return x })
-	for _, z := range args[1:] {
-		if !fitsIndexSource(tgt, z, raw) {
-			return false
-		}
-	}
-	inner := append(append([]string{}, raw...), lraw...)
-	ok := true
-	var walk func(t *core.Term, tail bool)
-	walk = func(t *core.Term, tail bool) {
-		if !ok || t == nil {
-			return
-		}
-		if _, lam, isLet := asLet(tgt, t); isLet {
-			lb, lr, _ := openFresh(lam, map[string]bool{}, func(x string) string { return x })
-			inner = append(inner, lr...)
-			walk(lb, tail)
-			return
-		}
-		if lb, isMulti := multiLet(tgt, t); isMulti {
-			walk(lb, tail) // a host call's results are not acceptable sources
-			return
-		}
-		if t.Kind == core.KApp && t.Op().Kind == core.KName {
-			if t.Op().Name == "again" {
-				return // a back edge is not a value
-			}
-			if p, known := tgt.Prims[t.Op().Name]; known &&
-				p.Kind == "cond" && len(t.Args()) == 3 && tail {
-				walk(t.Args()[1], true)
-				walk(t.Args()[2], true)
-				return
-			}
-		}
-		if tail && !fitsIndexSource(tgt, t, inner) {
-			ok = false
-		}
-	}
-	walk(body, true)
-	return ok
-}
-
-// DerivedStep is the amount a value is guaranteed to exceed `self` by, when
-// that can be derived rather than read off a `self ± c` shape.
-//
-// It lifts the corollary of loop monotonicity through the two forms a residual
-// wraps a scanner call in:
-//
-//	self             → 0
-//	self + c         → c        (c a literal)
-//	a loop L         → c, where ⟦L⟧ ≥ self + c    (the corollary)
-//	(if _ p q)       → min(step p, step q)        (rule 4)
-//	a let-bound name → the step of what it was bound to
-//
-// The conditional case is what examples/json/tree.oro needs: ADR 0015 permits
-// `again` under a `let` and the tree uses it, binding ONE name to a choice of
-// THREE scanners and advancing the index with that name — so neither a loop nor
-// a `self ± c` shape is visible at the `again`. Taking the MINIMUM is forced:
-// either branch may be the one evaluated.
-//
-// It is strictly weaker than a syntactic step — a lower bound rather than an
-// exact one — so every caller must use it as a FALLBACK. Using it where an
-// exact step exists turns `[1,1]` into `[1,+∞)` and costs every trip count that
-// depended on it.
-func DerivedStep(tgt *Target, t *core.Term, self string, unLet func(*core.Term) *core.Term) (int64, bool) {
-	if unLet != nil {
-		t = unLet(t)
-	}
-	if t == nil {
-		return 0, false
-	}
-	if c, ok := selfPlus(tgt, t, self); ok {
-		return c, true
-	}
-	if isLoopTerm(tgt, t) {
-		z := LoopLowerBound(tgt, t)
-		if z == nil {
-			return 0, false
-		}
-		return selfPlus(tgt, z, self)
-	}
-	if t.Kind == core.KApp && t.Op().Kind == core.KName && len(t.Args()) == 3 {
-		if p, known := tgt.Prims[t.Op().Name]; known && p.Kind == "cond" {
-			a, aok := DerivedStep(tgt, t.Args()[1], self, unLet)
-			b, bok := DerivedStep(tgt, t.Args()[2], self, unLet)
-			if !aok || !bok {
-				return 0, false
-			}
-			return min64(a, b), true
-		}
-	}
-	return 0, false
 }

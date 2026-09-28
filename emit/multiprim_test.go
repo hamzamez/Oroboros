@@ -2,8 +2,6 @@ package emit
 
 import (
 	"testing"
-
-	"oroboros/core"
 )
 
 // A HOST CALL MAY GIVE BACK SEVERAL RESULTS, and the language needed nothing.
@@ -41,47 +39,6 @@ func TestAPrimMayGiveBackSeveralResults(t *testing.T) {
 		if len(q.Results) != 0 {
 			t.Errorf("%s: %q was read as %d results; a compound type is ONE result",
 				n, q.Result, len(q.Results))
-		}
-	}
-}
-
-// AND A DECLARED RESULT RANGE IS READ BY THE INTERVAL LAYER.
-//
-// The other half of the same problem, and it was measured on two independent
-// ecosystems before it was built: `emit/interval.go` returned ⊤ for an
-// application of any primitive it did not structurally recognise, so ADR 0019's
-// bounded-by-default refused arithmetic on EVERY host result in EVERY ecosystem
-// and `-checked` was the only way through (gostdlib §4b, win32 §5).
-//
-// A primitive has no body, so a declaration is the only source there can be —
-// the same reason `ensures` belongs on a `prim` and is redundant on an internal
-// definition.
-func TestADeclaredResultRangeIsRead(t *testing.T) {
-	tg, err := LoadTarget("../targets/go")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// Two primitives, identical but for the declared result.
-	wide := Prim{Name: "h.wide", Args: []string{"int"}, Result: "int", Kind: "expr", Form: "h(%s)"}
-	narrow := Prim{Name: "h.narrow", Args: []string{"int"}, Result: "int 0 64", Kind: "expr", Form: "h(%s)"}
-	tg.Prims[wide.Name], tg.Prims[narrow.Name] = wide, narrow
-	tg.Names = append(tg.Names, wide.Name, narrow.Name)
-
-	for _, c := range []struct {
-		name  string
-		bound bool
-	}{{"h.wide", false}, {"h.narrow", true}} {
-		terms, err := core.ReadAll(`(fn (n) (go.+ (` + c.name + ` n) 1))`)
-		if err != nil {
-			t.Fatal(err)
-		}
-		rep, _ := Intervals(tg, nil, terms[0], 0)
-		got := rep.Proven == rep.Ops && rep.Ops > 0
-		if got != c.bound {
-			t.Errorf("%s: %d of %d operations bounded; want bounded=%v.\n"+
-				"  A declared result range is the only fact a primitive can offer,\n"+
-				"  and without it every host call in every ecosystem is unprovable.",
-				c.name, rep.Proven, rep.Ops, c.bound)
 		}
 	}
 }

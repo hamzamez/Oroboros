@@ -96,11 +96,13 @@ func emitGo(t *testing.T, tg *emit.Target, src, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nf, _, err = emit.PromoteBig(tg, prog.Sigs[name], nf, allProgSigs(prog)...)
+	// THE DRIVERS' PIPELINE (ir.Entry): the rung above the word, the decision,
+	// and the shift rewrite after it, as cmd/gen runs them.
+	f, _, err := ir.Entry(tg, name, name, prog.Sigs[name], nf, allProgSigs(prog), false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f := decidedIR(t, tg, name, prog.Sigs[name], nf)
+	ir.SelectShifts(tg, f)
 	code, err := golang.FromFunc(tg, f)
 	if err != nil {
 		t.Fatal(err)

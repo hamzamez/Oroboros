@@ -31,7 +31,7 @@ func GenMain() int {
 	} else {
 		v22 = -1
 	}
-	v26 := (func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic("int overflow") }; return t }(100, v22))
+	v26 := (100 * v22)
 	v29, ok28 := v1[9]
 	v28 := 1
 	if ok28 {
@@ -44,7 +44,7 @@ func GenMain() int {
 	} else {
 		v32 = -1
 	}
-	v36 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v26, v32))
+	v36 := (v26 + v32)
 	fmt.Println(v36)
 	return v36
 }

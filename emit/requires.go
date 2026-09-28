@@ -355,6 +355,14 @@ func literalIn(w core.Word, ty string, v *big.Int) bool {
 // proof ADR 0029 corrects. So the mark is discharged exactly when E_P lies in
 // the parameter's set; any other is left for the analyses, which know nothing
 // of a bignum's value, and is refused.
+// RequireResult is one decided range obligation, for a report: the argument,
+// the interval it was decided on, and whether it was proven.
+type RequireResult struct {
+	Def, Param, Type, Arg string
+	Got                   string
+	Proven                bool
+}
+
 func (set *RequireSet) decideAscribed(w core.Word, t *core.Term) (*core.Term, []RequireResult) {
 	if !set.enforcedOK || !hasRangeMarks(t) {
 		return t, nil
@@ -372,7 +380,7 @@ func (set *RequireSet) decideAscribed(w core.Word, t *core.Term) (*core.Term, []
 			def, param, ty, arg := x.Kids[1].Str, x.Kids[2].Str, x.Kids[3].Str, x.Kids[4]
 			if s, ok := setOf(w, ty); ok && s.lo == nil && ascribedAbove(w, arg) && set.enforced.within(s) {
 				proven = append(proven, RequireResult{Def: def, Param: param, Type: ty,
-					Arg: arg.String(), Got: top, Proven: true})
+					Arg: arg.String(), Got: "[-inf, +inf]", Proven: true})
 				return walk(arg)
 			}
 		}
@@ -399,10 +407,22 @@ func ascribedAbove(w core.Word, t *core.Term) bool {
 	return ok && s.lo == nil
 }
 
-// provenIn decides a range mark on the interval analysis's evidence, the
-// argument's interval.
-func provenIn(w core.Word, v ival, ty string) bool {
-	if v.isBottom() {
+// span is an interval of ℤ̄ with exact ends: a nil end is infinite, and bot is
+// the empty interval (no value reaches the point).
+type span struct {
+	lo, hi *big.Int
+	bot    bool
+}
+
+// inside reports span ⊆ [lo, hi], where lo and hi are finite.
+func (v span) inside(lo, hi *big.Int) bool {
+	return v.bot || (v.lo != nil && v.hi != nil && v.lo.Cmp(lo) >= 0 && v.hi.Cmp(hi) <= 0)
+}
+
+// provenIn decides a range obligation on the evidence of an interval: the
+// argument's values all lie in the set ⟦ty⟧ the obligation names (setOf).
+func provenIn(w core.Word, v span, ty string) bool {
+	if v.bot {
 		return true // unreachable
 	}
 	s, ok := setOf(w, ty)
@@ -416,50 +436,37 @@ func provenIn(w core.Word, v ival, ty string) bool {
 		return true
 	}
 	if s.lo != nil {
-		if s.lo.IsInt64() && s.hi.IsInt64() {
-			return within(v, rng(s.lo.Int64(), s.hi.Int64()))
-		}
-		wr, ok := wideRange(ty)
-		return ok && within(v, wr)
+		return v.inside(s.lo, s.hi)
 	}
-	// Bitwise: a finite interval is under 2^127, the bound's own headroom. The
-	// set has no negative value unless the range declares one (ADR 0029).
-	if v.loInf || v.hiInf {
-		return false
-	}
-	if !s.signed && v.lo.sign() < 0 {
-		return false
-	}
-	if s.bits >= 127 {
-		return true
-	}
+	// Above the word the set is bitwise: [0, 2^b) or (−2^b, 2^b) (ADR 0029).
 	lim := new(big.Int).Lsh(big.NewInt(1), uint(s.bits))
 	lim.Sub(lim, big.NewInt(1))
-	l, okl := fromBig(new(big.Int).Neg(lim))
-	h, okh := fromBig(lim)
-	return okl && okh && within(v, ival{lo: l, hi: h})
+	lo := new(big.Int).Neg(lim)
+	if !s.signed {
+		lo = new(big.Int)
+	}
+	return v.inside(lo, lim)
 }
 
-// residualRange is what the interval analysis hands the refinement layer for a
-// range it could not prove: within the word, a condition naming only the ends
-// it did not establish — each layer proves what it can, and `0 <= Rem64(…)`
+// residualRange is what a range obligation the interval could not prove hands
+// the refinement layer: within the word, a condition naming only the ends it
+// did not establish, so that each layer proves what it can. `0 <= Rem64(…)`
 // from the interval with `Rem64(…) <= 10^18 − 1` from Rem64's `ensures` is a
 // proof neither has alone. The condition rides a where-mark labelled with the
 // parameter, so a refusal still names it. Above the word the set is bitwise,
 // which the linear fragment cannot state, and the range mark stays as it is.
-func residualRange(w core.Word, v ival, def, param, ty string, arg *core.Term) *core.Term {
+func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *core.Term {
 	s, ok := setOf(w, ty)
 	if !ok || s.lo == nil || !s.lo.IsInt64() || !s.hi.IsInt64() {
 		return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireName),
 			core.Str(def), core.Str(param), core.Str(ty), arg}}
 	}
-	lo, hi := s.lo.Int64(), s.hi.Int64()
 	var cond *core.Term
-	if v.loInf || v.lo.lt(bi(lo)) {
-		cond = core.App(core.Name("<="), core.Int(lo), arg)
+	if v.lo == nil || v.lo.Cmp(s.lo) < 0 {
+		cond = core.App(core.Name("<="), core.Int(s.lo.Int64()), arg)
 	}
-	if v.hiInf || v.hi.gt(bi(hi)) {
-		cond = conjTerm(cond, core.App(core.Name("<="), arg, core.Int(hi)))
+	if v.hi == nil || v.hi.Cmp(s.hi) > 0 {
+		cond = conjTerm(cond, core.App(core.Name("<="), arg, core.Int(s.hi.Int64())))
 	}
 	label := fmt.Sprintf("%s's parameter %s, declared (%s),", def, param, ty)
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(label), cond, arg}}
@@ -527,21 +534,7 @@ func (r *refiner) proveCond(cond *core.Term, f *facts) bool {
 // still has to show (ResidualRange); for a range above the word, the mark
 // itself.
 func DecideRange(w core.Word, ty string, lo, hi *big.Int, bot bool, def, param string, arg *core.Term) (proven bool, residual *core.Term) {
-	v := top
-	if bot {
-		v = bottom
-	} else {
-		if lo != nil {
-			if e, ok := fromBig(lo); ok {
-				v.lo, v.loInf = e, false
-			}
-		}
-		if hi != nil {
-			if e, ok := fromBig(hi); ok {
-				v.hi, v.hiInf = e, false
-			}
-		}
-	}
+	v := span{lo: lo, hi: hi, bot: bot}
 	if provenIn(w, v, ty) {
 		return true, nil
 	}

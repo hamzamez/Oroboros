@@ -133,8 +133,8 @@ func TestABigResultRangeIsNotAnObligation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	nf, _, _ = emit.PromoteBig(tg, prog.Sigs["fib"], nf)
-	if err := ensuresOn(t, tg, prog.Sigs["fib"], nf); err != nil {
+	// The drivers' pipeline, which ends in the postcondition's check.
+	if _, _, err := ir.Entry(tg, "fib", "fib", prog.Sigs["fib"], nf, nil, false, nil); err != nil {
 		t.Errorf("a big result was refused: %v", err)
 	}
 }

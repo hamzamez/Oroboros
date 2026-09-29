@@ -132,7 +132,13 @@ public final class NativeBench {
      * seventeen minutes. One second is past C2's compilation thresholds for
      * everything measured here.
      */
+    // ONE CASE PER JVM when a name is given: every case shares this call site,
+    // and after a few lambdas it is megamorphic, so later cases pay for earlier
+    // ones (gauntlet-2026-09-29).
+    static String only;
+
     static void bench(String name, Runnable fn, int iters) {
+        if (only != null && !name.equals(only)) return;
         long warm = System.nanoTime();
         int w = 0;
         while (System.nanoTime() - warm < 1_000_000_000L && w < 200_000) { fn.run(); w++; }
@@ -152,51 +158,52 @@ public final class NativeBench {
     }
 
     public static void main(String[] args) {
+        only = args.length > 0 ? args[0] : null;
         double[] A = Gauntlet.makeVec(NVEC, 1);
         double[] B = Gauntlet.makeVec(NVEC, 2);
         double[] sA = Gauntlet.makeVec(NSMALL, 1);
         double[] sB = Gauntlet.makeVec(NSMALL, 2);
 
         // Correctness first. A benchmark of a wrong program is not a result.
-        eq(NatDot.NatDotDot(A, B), dotRef(A, B), "dot");
-        eq(NatCentroid.NatCentroidCentroidX(A, B), centroidRef(A, B), "centroid");
-        if (NatSearch.NatSearchFindFirst(A, 0.5) != findFirstRef(A, 0.5))
+        eq(NatDot.natDotDot(A, B), dotRef(A, B), "dot");
+        eq(NatCentroid.natCentroidCentroidX(A, B), centroidRef(A, B), "centroid");
+        if (NatSearch.natSearchFindFirst(A, 0.5) != findFirstRef(A, 0.5))
             throw new AssertionError("search");
-        if (NatSearch.NatSearchFindFirst(A, 2.0) != findFirstRef(A, 2.0))
+        if (NatSearch.natSearchFindFirst(A, 2.0) != findFirstRef(A, 2.0))
             throw new AssertionError("search late");
         System.out.println("agreement: ok\n");
 
         bench("dot  n=65536  hand-written", () -> sink = dotRef(A, B), 500);
         bench("dot  n=65536  hand, long counter", () -> sink = dotLongRef(A, B), 500);
-        bench("dot  n=65536  GENERATED", () -> sink = NatDot.NatDotDot(A, B), 500);
+        bench("dot  n=65536  GENERATED", () -> sink = NatDot.natDotDot(A, B), 500);
         System.out.println();
         bench("dot  n=1024   hand-written", () -> sink = dotRef(sA, sB), 50000);
         bench("dot  n=1024   hand, long counter", () -> sink = dotLongRef(sA, sB), 50000);
-        bench("dot  n=1024   GENERATED", () -> sink = NatDot.NatDotDot(sA, sB), 50000);
+        bench("dot  n=1024   GENERATED", () -> sink = NatDot.natDotDot(sA, sB), 50000);
         System.out.println();
         bench("centroid      hand-written", () -> sink = centroidRef(A, B), 500);
         bench("centroid      hand, long counter", () -> sink = centroidLongRef(A, B), 500);
         bench("centroid      GENERATED",
-                () -> sink = NatCentroid.NatCentroidCentroidX(A, B), 500);
+                () -> sink = NatCentroid.natCentroidCentroidX(A, B), 500);
         System.out.println();
         String text = Gauntlet.makeText(NVEC, 5);
-        if (!NatWc.NatWcTally(text).equals(wcRef(text))) throw new AssertionError("wordcount");
+        if (!NatWc.natWcTally(text).equals(wcRef(text))) throw new AssertionError("wordcount");
         if (!wcMergeRef(text).equals(wcRef(text))) throw new AssertionError("wordcount merge");
         bench("wordcount     hand, unfused", () -> sink = wcRef(text).size(), 200);
         bench("wordcount     hand, FUSED merge", () -> sink = wcMergeRef(text).size(), 200);
         bench("wordcount     hand, long counter", () -> sink = wcLongRef(text).size(), 200);
         bench("wordcount     hand, Integer unfused", () -> sink = wcIntUnfusedRef(text).size(), 200);
         bench("wordcount     hand, Integer MERGE", () -> sink = wcIntMergeRef(text).size(), 200);
-        bench("wordcount     GENERATED", () -> sink = NatWc.NatWcTally(text).size(), 200);
+        bench("wordcount     GENERATED", () -> sink = NatWc.natWcTally(text).size(), 200);
         System.out.println();
         bench("search early  hand-written", () -> lsink = findFirstRef(A, 0.5), 200000);
         bench("search early  hand, long counter", () -> lsink = findFirstLongRef(A, 0.5), 200000);
         bench("search early  GENERATED",
-                () -> lsink = NatSearch.NatSearchFindFirst(A, 0.5), 200000);
+                () -> lsink = NatSearch.natSearchFindFirst(A, 0.5), 200000);
         bench("search late   hand-written", () -> lsink = findFirstRef(A, 2.0), 2000);
         bench("search late   hand, long counter", () -> lsink = findFirstLongRef(A, 2.0), 2000);
         bench("search late   hand, result+break", () -> lsink = findFirstResultRef(A, 2.0), 2000);
         bench("search late   GENERATED",
-                () -> lsink = NatSearch.NatSearchFindFirst(A, 2.0), 2000);
+                () -> lsink = NatSearch.natSearchFindFirst(A, 2.0), 2000);
     }
 }

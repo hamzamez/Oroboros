@@ -2,18 +2,24 @@
 
 package gauntlet
 
-func NativeDot(a []float64, b []float64) float64 {
-	acc := 0.0
-	var i int = 0
-	var n1 int = (len(a))
-	b = b[:n1]
-	for {
-		if (i >= (len(a))) {
+func NativeDot(v0 []float64, v1 []float64) float64 {
+	v16 := len(v0)
+	v17 := v1[:v16]
+	var v19 float64 = 0.0
+	var v20 int = 0
+	for ; ; v20 = (v20 + 1) {
+		v21 := len(v0)
+		v22 := (v20 >= v21)
+		if v22 {
 			break
 		}
-		acc, i = (acc + ((a[i]) * (b[i]))), (i + 1)
+		v27 := v0[v20]
+		v28 := v17[v20]
+		v29 := (v27 * v28)
+		v30 := (v19 + v29)
+		v19 = v30
 		continue
 	}
-	return acc
+	return v19
 }
 

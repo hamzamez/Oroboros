@@ -35,7 +35,11 @@ public final class NativeBench2 {
         return dst;
     }
 
+    // ONE CASE PER JVM when a name is given (gauntlet-2026-09-29).
+    static String only;
+
     static double run(String what, java.util.function.Supplier<Object> f, int warm, int iters) {
+        if (only != null && !what.equals(only)) return 0;
         for (int i = 0; i < warm; i++) sink = f.get();
         double best = Double.MAX_VALUE;
         for (int r = 0; r < 9; r++) {
@@ -49,35 +53,36 @@ public final class NativeBench2 {
     }
 
     public static void main(String[] args) {
+        only = args.length > 0 ? args[0] : null;
         double[] A = Gauntlet.makeVec(N, 1);
         double[] dst = new double[N];
         String text = Gauntlet.makeText(N, 5);
 
         // Correctness before timing.
-        if (Math.abs(NatGen.NatGenSumOf(A) - sumRef(A)) > 1e-9)
+        if (Math.abs(NatGen.natGenSumOf(A) - sumRef(A)) > 1e-9)
             throw new AssertionError("generic sum");
-        if (!NatGen.NatGenWordTally(text).equals(NatWc.NatWcTallyMerge(text)))
+        if (!NatGen.natGenWordTally(text).equals(NatWc.natWcTallyMerge(text)))
             throw new AssertionError("generic dict");
-        double[] r1 = NatSm.NatSmSmoothAlloc(A), r2 = smoothAllocRef(A);
-        double[] r3 = NatSm.NatSmSmoothBuild(A);
+        double[] r1 = NatSm.natSmSmoothAlloc(A), r2 = smoothAllocRef(A);
+        double[] r3 = NatSm.natSmSmoothBuild(A);
         if (!java.util.Arrays.equals(r1, r2)) throw new AssertionError("stencil alloc");
         if (!java.util.Arrays.equals(r3, r2)) throw new AssertionError("stencil build");
-        NatSm.NatSmSmoothInto(dst, A);
+        NatSm.natSmSmoothInto(dst, A);
         for (int i = 0; i < A.length - 2; i++)
             if (Math.abs(dst[i] - r2[i]) > 1e-12) throw new AssertionError("stencil into");
         System.out.println("agreement: ok\n");
 
         System.out.println("-- generic: ONE definition, two element types --");
         run("sum-of      hand-written", () -> sumRef(A), 20000, 2000);
-        run("sum-of      GENERATED", () -> NatGen.NatGenSumOf(A), 20000, 2000);
+        run("sum-of      GENERATED", () -> NatGen.natGenSumOf(A), 20000, 2000);
         System.out.println();
 
         System.out.println("-- stencil (ADR 0013) --");
         run("alloc       hand-written", () -> smoothAllocRef(A), 3000, 500);
-        run("alloc       GENERATED", () -> NatSm.NatSmSmoothAlloc(A), 3000, 500);
-        run("build       GENERATED", () -> NatSm.NatSmSmoothBuild(A), 3000, 500);
+        run("alloc       GENERATED", () -> NatSm.natSmSmoothAlloc(A), 3000, 500);
+        run("build       GENERATED", () -> NatSm.natSmSmoothBuild(A), 3000, 500);
         System.out.println();
         run("into (reuse) hand-written", () -> smoothIntoRef(dst, A), 3000, 500);
-        run("into (reuse) GENERATED", () -> NatSm.NatSmSmoothInto(dst, A), 3000, 500);
+        run("into (reuse) GENERATED", () -> NatSm.natSmSmoothInto(dst, A), 3000, 500);
     }
 }

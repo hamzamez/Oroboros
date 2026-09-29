@@ -293,7 +293,11 @@ public final class JsonTreeBench {
         return out;
     }
 
+    // ONE CASE PER JVM when a name is given (gauntlet-2026-09-29).
+    static String only;
+
     static void run(String what, java.util.function.Supplier<Object> f, int warm, int iters) {
+        if (only != null && !what.equals(only)) return;
         for (int i = 0; i < warm; i++) sink = f.get();
         double best = Double.MAX_VALUE;
         for (int r = 0; r < 9; r++) {
@@ -306,6 +310,7 @@ public final class JsonTreeBench {
     }
 
     public static void main(String[] args) {
+        only = args.length > 0 ? args[0] : null;
         for (int n : new int[]{0, 1, 2, 5, 20}) check(makeDoc(n));
         for (String s : new String[]{"[1,2]", "{\"a\":1}", "[[1],2]",
                 "{\"a\":[1,2],\"b\":true}", "[]", "{}", "[[[[1]]]]"}) check(s);
@@ -316,15 +321,15 @@ public final class JsonTreeBench {
         run("T  tree recursive     hand", () -> treeRec(doc), 50000, 2000);
         run("T  tree flat          hand", () -> treeFlat(doc), 50000, 2000);
         run("T  tree flat int[]    hand", () -> treeFlatInt(doc), 50000, 2000);
-        run("T  tree flat          GEN ", () -> GenJsonTree.GenMeasure(ds), 50000, 2000);
+        run("T  tree flat          GEN ", () -> GenJsonTree.genMeasure(ds), 50000, 2000);
     }
 
     static void check(String s) {
         long[] a = longsOf(s);
         long want = treeRec(a);
-        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.GenMeasure(shortsOf(s)) != want) {
+        if (treeFlat(a) != want || treeFlatInt(a) != want || GenJsonTree.genMeasure(shortsOf(s)) != want) {
             throw new AssertionError(s + ": rec=" + want + " flat=" + treeFlat(a)
-                    + " gen=" + GenJsonTree.GenMeasure(shortsOf(s)));
+                    + " gen=" + GenJsonTree.genMeasure(shortsOf(s)));
         }
     }
 }

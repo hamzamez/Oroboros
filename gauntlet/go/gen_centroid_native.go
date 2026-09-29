@@ -2,21 +2,28 @@
 
 package gauntlet
 
-func NativeCentroid(xs []float64, ys []float64) float64 {
-	ax := 0.0
-	ay := 0.0
-	var i int = 0
-	var n1 int = (len(xs))
-	ys = ys[:n1]
-	var r2 float64
-	for {
-		if (i >= (len(xs))) {
-			r2 = (ax + ay)
+func NativeCentroid(v0 []float64, v1 []float64) float64 {
+	v8 := len(v0)
+	v9 := v1[:v8]
+	var v11 float64 = 0.0
+	var v12 float64 = 0.0
+	var v13 int = 0
+	var v10 float64
+	for ; ; v13 = (v13 + 1) {
+		v14 := len(v0)
+		v15 := (v13 >= v14)
+		if v15 {
+			v18 := (v11 + v12)
+			v10 = v18
 			break
 		}
-		ax, ay, i = (ax + (xs[i])), (ay + (ys[i])), (i + 1)
+		v21 := v0[v13]
+		v22 := (v11 + v21)
+		v23 := v9[v13]
+		v24 := (v12 + v23)
+		v11, v12 = v22, v24
 		continue
 	}
-	return r2
+	return v10
 }
 

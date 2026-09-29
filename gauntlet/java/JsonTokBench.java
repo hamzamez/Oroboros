@@ -328,7 +328,11 @@ public final class JsonTokBench {
 
     // ---- harness ------------------------------------------------------------
 
+    // ONE CASE PER JVM when a name is given (gauntlet-2026-09-29).
+    static String only;
+
     static void run(String what, java.util.function.Supplier<Object> f, int warm, int iters) {
+        if (only != null && !what.equals(only)) return;
         for (int i = 0; i < warm; i++) sink = f.get();
         double best = Double.MAX_VALUE;
         for (int r = 0; r < 9; r++) {
@@ -341,6 +345,7 @@ public final class JsonTokBench {
     }
 
     public static void main(String[] args) {
+        only = args.length > 0 ? args[0] : null;
         // Agreement first: a benchmark of four programs that disagree measures
         // nothing. The malformed inputs matter more than the well-formed ones.
         for (int n : new int[]{0, 1, 3, 17}) check(makeDoc(n));
@@ -357,14 +362,14 @@ public final class JsonTokBench {
         run("J  tokenize long[]     hand", () -> tokLongs(dl), 50000, 2000);
         run("J  tokenize long[]/long idx hand", () -> tokLongsIdx(dl), 50000, 2000);
         run("J  tokenize short[]    hand", () -> tokShorts(ds), 50000, 2000);
-        run("J  tokenize short[]    GEN ", () -> GenJsonTok.GenTokens(ds), 50000, 2000);
+        run("J  tokenize short[]    GEN ", () -> GenJsonTok.genTokens(ds), 50000, 2000);
     }
 
     static void check(String s) {
         long want = tokString(s);
         long[] l = longsOf(s);
         if (tokBytes(bytesOf(s)) != want || tokLongs(l) != want || tokLongsIdx(l) != want
-                || tokShorts(shortsOf(s)) != want || GenJsonTok.GenTokens(shortsOf(s)) != want) {
+                || tokShorts(shortsOf(s)) != want || GenJsonTok.genTokens(shortsOf(s)) != want) {
             throw new AssertionError(s + ": " + want + " " + tokBytes(bytesOf(s))
                     + " " + tokLongs(l) + " " + tokShorts(shortsOf(s)));
         }

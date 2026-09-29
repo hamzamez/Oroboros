@@ -5,8 +5,8 @@ public final class WcOne {
         java.util.function.Supplier<Object> f = switch (a[0]) {
             case "hand-unfused" -> () -> MergeCheck.unfused(text.split(" "));
             case "hand-fused"   -> () -> MergeCheck.fused(text.split(" "));
-            case "gen-unfused"  -> () -> NatWc.NatWcTally(text);
-            case "gen-fused"    -> () -> NatWc.NatWcTallyMerge(text);
+            case "gen-unfused"  -> () -> NatWc.natWcTally(text);
+            case "gen-fused"    -> () -> NatWc.natWcTallyMerge(text);
             default -> throw new IllegalArgumentException(a[0]);
         };
         for (int i = 0; i < 2000; i++) f.get();

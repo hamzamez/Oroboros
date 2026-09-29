@@ -4,34 +4,41 @@ package gauntlet
 
 import "strings"
 
-func NativeTally(text string) map[string]int {
-	ws := (strings.Fields(text))
-	m := (make(map[string]int))
-	var i int = 0
-	for {
-		if (i >= (len(ws))) {
+func NativeTally(v0 string) map[string]int {
+	v1 := (strings.Fields(v0))
+	v2 := (make(map[string]int))
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := len(v1)
+		v8 := (v6 >= v7)
+		if v8 {
 			break
 		}
-		w := (ws[i])
-		m[w] = ((m[w]) + 1)
-		i = (i + 1)
+		v13 := v1[v6]
+		v14 := (v5[v13])
+		v16 := (func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic("int overflow") }; return t }(v14, 1))
+		v5[v13] = v16
 		continue
 	}
-	return m
+	return v5
 }
 
-func NativeTallyInc(text string) map[string]int {
-	ws := (strings.Fields(text))
-	m := (make(map[string]int))
-	var i int = 0
-	for {
-		if (i >= (len(ws))) {
+func NativeTallyInc(v0 string) map[string]int {
+	v1 := (strings.Fields(v0))
+	v2 := (make(map[string]int))
+	v5 := v2
+	var v6 int = 0
+	for ; ; v6 = (v6 + 1) {
+		v7 := len(v1)
+		v8 := (v6 >= v7)
+		if v8 {
 			break
 		}
-		m[(ws[i])]++
-		i = (i + 1)
+		v13 := v1[v6]
+		v5[v13]++
 		continue
 	}
-	return m
+	return v5
 }
 

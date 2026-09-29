@@ -5,30 +5,37 @@ package gauntlet
 import "fmt"
 
 func GenMain() float64 {
-	dst := (make([]float64, 1000))
-	d := dst
-	var i int = 0
-	for ; ; i = (i + 1) {
-		if (i >= 1000) {
+	v1 := (make([]float64, 1000))
+	v4 := v1
+	var v5 int = 0
+	for ; ; v5 = (v5 + 1) {
+		v7 := (v5 >= 1000)
+		if v7 {
 			break
 		}
-		d[i] = (float64(i))
+		v10 := (float64(v5))
+		v4[v5] = v10
 		continue
 	}
-	xs := d
 	fmt.Println("report")
-	var v1 int = (len(xs))
-	fmt.Println(v1)
-	acc := 0.0
-	var i2 int = 0
-	for ; ; i2 = (i2 + 1) {
-		if (i2 >= (len(xs))) {
+	v16 := len(v4)
+	fmt.Println(v16)
+	var v21 float64 = 0.0
+	var v22 int = 0
+	for ; ; v22 = (v22 + 1) {
+		v23 := len(v4)
+		v24 := (v22 >= v23)
+		if v24 {
 			break
 		}
-		acc = (acc + ((xs[i2]) * (xs[i2])))
+		v29 := v4[v22]
+		v30 := v4[v22]
+		v31 := (v29 * v30)
+		v32 := (v21 + v31)
+		v21 = v32
 		continue
 	}
-	fmt.Println(acc)
-	return acc
+	fmt.Println(v21)
+	return v21
 }
 

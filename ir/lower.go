@@ -79,6 +79,19 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 			return nil, fmt.Errorf("%s: declares %d result(s) and does not produce them: the body yields %d",
 				name, declared, len(f.Results))
 		}
+		// AND THE DECLARED SORTS ARE THE BOUNDARY: each yield meets its
+		// declared result, by sort (claim.go). The override below makes W5 check
+		// a table result; this checks every other one, which W5 could not.
+		claims := sig.Results
+		if len(claims) == 0 && sig.Result != "" {
+			claims = []string{sig.Result}
+		}
+		for j, r := range claims {
+			if !claimSorts(tg, f.Results[j], r) {
+				return nil, fmt.Errorf("%s: its signature declares result %s, and the body yields %s",
+					name, core.ShowType(r), core.ShowType(f.Results[j]))
+			}
+		}
 		switch {
 		case len(sig.Results) > 0 && len(sig.Results) == len(f.Results):
 			for j, r := range sig.Results {

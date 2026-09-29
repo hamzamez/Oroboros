@@ -158,6 +158,12 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	}
 	p, ok := c.tgt.Prims[op.Name]
 	if !ok {
+		// AN APPLICATION OF A TABLE IS A READ, (a i) : σ (types.md §3.1).
+		if ty, bound := c.types[op.Name]; bound && len(t.Args()) == 1 {
+			if e, table := c.tgt.tableElem(ty); table {
+				return c.read(op.Name, e, t.Args()[0], want)
+			}
+		}
 		return "", nil // not a primitive, so no signature fixes the type
 	}
 	args := t.Args()
@@ -176,7 +182,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	case "build":
 		return c.build(args, want)
 	case "array", "table", "table-alloc", "table-build", "table-set",
-		"map", "map-build", "map-insert", "map-keys":
+		"map", "map-build", "map-insert", "map-keys", "len":
 		if ty, handled, err := c.tableForm(p.Kind, args, want); handled {
 			return ty, err
 		}
@@ -306,7 +312,7 @@ func (c *checker) agree(what, got, want string) error {
 			"word (narrow it, or divide it down), or declare the destination (int 0 18446744073709551615).",
 			what, core.ShowType(got), c.tgt.Name, c.tgt.Word.Lo, c.tgt.Word.Hi)
 	}
-	if unknownTable(got) {
+	if openTable(got) {
 		return fmt.Errorf("%s is a %s, but %s is required here", what, constructorWord(got), want)
 	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
@@ -631,10 +637,15 @@ func compatible(tg *Target, a, b string) bool {
 	if a == "" || b == "" || a == "any" || b == "any" || a == b {
 		return true
 	}
-	// A TABLE WHOSE ELEMENT IS UNKNOWN agrees with its own constructor, and
-	// with nothing else (types.md §3.1, tabletype.go). The IR's types never
-	// carry the unknown element, so W5, which reads this relation, is unchanged.
-	return unknownTable(a) && tg.sameConstructor(a, b) || unknownTable(b) && tg.sameConstructor(b, a)
+	// A TABLE WHOSE ELEMENT IS OPEN agrees with its own constructor, element
+	// by element, and with nothing else; a language table agrees with a host
+	// type that realizes it (types.md §3.1, tabletype.go). The IR's types never
+	// carry an open element, and W5 compares host types itself, so W5, which
+	// reads this relation, is unchanged.
+	if openTable(a) || openTable(b) {
+		return tg.openAgrees(a, b)
+	}
+	return tg.realizesTable(a, b) || tg.realizesTable(b, a)
 }
 
 // CheckAgainstSig checks a residual against its declared signature: the

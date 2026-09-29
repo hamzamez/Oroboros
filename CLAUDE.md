@@ -454,11 +454,13 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 ### Types, contracts and facts
 
 - **The type checker** runs on the residual, which is monomorphic, first-order and closed
-  ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions. A table or map form
-  is typed by its constructor, `array ?`, `buffer ?` or `map ? ?`, where its element is unknown, and
-  agrees only with its own constructor or a host type realizing it (types.md §3.1,
-  [tabletype-2026-09-29](gauntlet/results/tabletype-2026-09-29.md)); indexing and `len` are still
-  unknown.
+  ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions. **Table(σ) has its
+  three kinds of rule** (types.md §3.1, [tabletype](gauntlet/results/tabletype-2026-09-29.md),
+  [tableelim](gauntlet/results/tableelim-2026-09-29.md)): introduction by its constructor;
+  elimination, `(a i) : σ` and `len : int`; and the store, `set` at σ. An element may be open, a
+  unification variable solved by the first store or read: `?`, or `?int`, the sort ℤ with its
+  realization left to the IR (ADR 0033). A map's read is not typed. The IR checks each yield against
+  the declared result by sort too (`ir/claim.go`); W5 could not, for a non-table result.
 - **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
   [refinements.md §6b](docs/spec/refinements.md)):
   - on a `prim`, at every call site;

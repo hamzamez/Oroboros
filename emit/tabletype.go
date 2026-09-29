@@ -8,7 +8,7 @@ import (
 	"oroboros/core"
 )
 
-// A TABLE'S CONSTRUCTOR IS TYPED WHERE ITS ELEMENT MAY NOT BE (types.md §3.1).
+// THE TABLE TYPE: INTRODUCTION, ELIMINATION AND STORE (types.md §3.1).
 //
 // The checker's types are the scalars, the declared names, and two
 // constructors: Table(σ), spelled `array σ` or `buffer σ`, and Map(κ, σ),
@@ -23,12 +23,25 @@ import (
 // host type that realizes one; Map(?, ?) with every map. A known element is
 // compared as it always was, invariantly.
 //
-// `?` never reaches the IR. The IR types tables by unification and W5 reads
-// this relation over the IR's types, which name each element or say `any`, so
-// the relation W5 reads is unchanged on every input it sees — the lesson of
-// ADR 0033, where relaxing a relation for one check weakened the verifier.
+// THE ELIMINATOR AND THE STORE (tableelim-2026-09-29). A read (a i) has type σ
+// and (len a) has type int; a store demands its value at σ. An open element is
+// a UNIFICATION VARIABLE, not a wildcard: the first store or read solves it, on
+// the buffer's root name. Two open elements: `?`, nothing known, and `?int`,
+// the element sort ℤ with its realization open — which realization holds an
+// integer is the IR's (ADR 0033), so a store of 104 must not make a buffer that
+// hex.Encode's (buffer (int 0 255)) then refuses.
+//
+// Open elements never reach the IR. The IR types tables by unification and W5
+// reads this relation over the IR's types, which name each element or say
+// `any`, so the relation W5 reads is unchanged on every input it sees — the
+// lesson of ADR 0033, where relaxing a relation for one check weakened the
+// verifier. The one rule for KNOWN elements, a language table against a host
+// type that realizes it, compares host types, which W5's last step already does.
 
-const unknownElem = "?"
+const (
+	unknownElem = "?"
+	openInt     = "?int" // the sort ℤ, realization open
+)
 
 var (
 	arrayOfUnknown  = "array " + unknownElem
@@ -36,9 +49,132 @@ var (
 	mapOfUnknown    = "map " + unknownElem + " " + unknownElem
 )
 
-// unknownTable reports a table or map type whose element is unknown.
-func unknownTable(ty string) bool {
-	return ty == arrayOfUnknown || ty == bufferOfUnknown || ty == mapOfUnknown
+// isOpen reports an open element: a unification variable.
+func isOpen(e string) bool { return e == unknownElem || e == openInt }
+
+// tableParts splits a language table type into its constructor and element.
+func tableParts(ty string) (cons, elem string, ok bool) {
+	for _, c := range []string{"array ", "buffer "} {
+		if strings.HasPrefix(ty, c) {
+			return c[:len(c)-1], ty[len(c):], true
+		}
+	}
+	return "", "", false
+}
+
+// openTable reports a table or map type whose element is open.
+func openTable(ty string) bool {
+	if ty == mapOfUnknown {
+		return true
+	}
+	_, e, ok := tableParts(ty)
+	return ok && isOpen(e)
+}
+
+// elemAgrees is the relation on elements where one may be open: `?` agrees
+// with anything, `?int` with any element of the integer sort.
+func (tg *Target) elemAgrees(x, y string) bool {
+	switch {
+	case x == unknownElem || y == unknownElem || x == "" || y == "":
+		return true
+	case x == openInt:
+		return y == openInt || isIntSort(tg, y)
+	case y == openInt:
+		return isIntSort(tg, x)
+	}
+	return compatible(tg, x, y)
+}
+
+// openAgrees is compatible's rule for a type with an open element: it agrees
+// with its own constructor, element by element, and with nothing else.
+func (tg *Target) openAgrees(a, b string) bool {
+	if a == mapOfUnknown || b == mapOfUnknown {
+		return isMapType(a) && isMapType(b)
+	}
+	ea, oka := tg.tableElem(a)
+	eb, okb := tg.tableElem(b)
+	return oka && okb && tg.elemAgrees(ea, eb)
+}
+
+// realizesTable reports that host is a host type that ρ_T gives the same
+// realization as the language table lang: Go's `slice-float64` and `(array
+// f64)` are both []float64. It compares host types, as W5's last step does.
+func (tg *Target) realizesTable(lang, host string) bool {
+	_, e, ok := tableParts(lang)
+	if !ok || isOpen(e) || core.ArrayElem(host) != "" {
+		return false
+	}
+	h := tg.HostType(host)
+	return h != "" && !strings.HasPrefix(h, "/*") && tg.HostType("array "+e) == h
+}
+
+// elemDemand is what an element asks of a value: nothing for `?`, the sort
+// for `?int`.
+func elemDemand(e string) string {
+	switch e {
+	case unknownElem:
+		return ""
+	case openInt:
+		return "int"
+	}
+	return e
+}
+
+// joinElems is the join of a graph's entries or a rule's body (types.md §3.1):
+// their common type, `?int` if all are integers, `?` if they disagree.
+func (c *checker) joinElems(tys []string) string {
+	j := ""
+	for _, t := range tys {
+		switch {
+		case t == "" || t == "any":
+			return unknownElem
+		case isIntSort(c.tgt, t):
+			t = openInt
+		}
+		if j == "" {
+			j = t
+		} else if j != t {
+			return unknownElem
+		}
+	}
+	if j == "" {
+		return unknownElem
+	}
+	return j
+}
+
+// solve fixes an open element of name's table type by a type learned for it:
+// a store's value or a read's demand. An integer solves `?` to `?int`, never
+// to a realization; `?int` is not solved further.
+func (c *checker) solve(name, learned string) {
+	if name == "" || learned == "" || learned == "any" || isOpen(learned) {
+		return
+	}
+	cons, e, ok := tableParts(c.types[name])
+	if !ok || e != unknownElem {
+		return
+	}
+	if isIntSort(c.tgt, learned) {
+		learned = openInt
+	}
+	c.types[name] = cons + " " + learned
+}
+
+// read types an application of a table, (a i) : σ (types.md §3.1). An open
+// `?` is solved by the read's demand; `?int` reads as the sort.
+func (c *checker) read(name, e string, idx *core.Term, want string) (string, error) {
+	if _, err := c.walk(idx, "int"); err != nil {
+		return "", fmt.Errorf("in an index of %s: %w", name, err)
+	}
+	what := "(" + name + " …)"
+	switch e {
+	case "", unknownElem:
+		c.solve(name, want)
+		return "", nil
+	case openInt:
+		return "int", c.agree(what, "int", want)
+	}
+	return e, c.agree(what, e, want)
 }
 
 // isMapType reports a map type.
@@ -91,22 +227,22 @@ func (tg *Target) elemCandidates() []string {
 	return append(out, hosts...)
 }
 
-// sameConstructor reports that other is of the constructor u, a type with an
-// unknown element, names: a map for a map, a table or table alias otherwise.
+// sameConstructor reports that other is of the constructor u names: a map for
+// a map, a table or table alias otherwise.
 func (tg *Target) sameConstructor(u, other string) bool {
-	if u == mapOfUnknown {
+	if isMapType(u) {
 		return isMapType(other)
 	}
 	_, ok := tg.tableElem(other)
 	return ok
 }
 
-// constructorWord names an unknown-element type's constructor in a refusal.
+// constructorWord names an open type's constructor in a refusal.
 func constructorWord(ty string) string {
-	switch ty {
-	case bufferOfUnknown:
+	switch {
+	case strings.HasPrefix(ty, "buffer "):
 		return "buffer"
-	case mapOfUnknown:
+	case isMapType(ty):
 		return "map"
 	}
 	return "table"
@@ -121,21 +257,18 @@ func (c *checker) demandedElem(want string, isMap bool) string {
 	} else {
 		e, _ = c.tgt.tableElem(want)
 	}
-	if e == unknownElem {
-		return ""
-	}
-	return e
+	return elemDemand(e)
 }
 
 // formValue is a table or map form's type against a demand: the demand
 // itself when it is of the form's constructor — its entries were checked
-// against the demand's element — and otherwise the constructor with an
-// unknown element, which agrees only with its own constructor.
-func (c *checker) formValue(what, unknown, want string) (string, error) {
-	if want != "" && want != "any" && c.tgt.sameConstructor(unknown, want) {
+// against the demand's element — and otherwise the form's own type, which
+// agrees only with its own constructor.
+func (c *checker) formValue(what, own, want string) (string, error) {
+	if want != "" && want != "any" && c.tgt.sameConstructor(own, want) {
 		return want, nil
 	}
-	return unknown, c.agree(what, unknown, want)
+	return own, c.agree(what, own, want)
 }
 
 // tableForm types the language's table and map forms (types.md §3.1). It
@@ -147,12 +280,15 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 	case "array": // a graph: every entry at the demanded element
 		what := "(array …)"
 		elem := c.demandedElem(want, false)
+		tys := make([]string, len(args))
 		for i, a := range args {
-			if _, err := c.walk(a, elem); err != nil {
+			t, err := c.walk(a, elem)
+			if err != nil {
 				return "", true, fmt.Errorf("in entry %d of a table: %w", i+1, err)
 			}
+			tys[i] = t
 		}
-		ty, err := c.formValue(what, arrayOfUnknown, want)
+		ty, err := c.formValue(what, "array "+c.joinElems(tys), want)
 		return ty, true, err
 
 	case "table": // a rule: its body at the demanded element, for every i
@@ -164,12 +300,12 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 			return "", true, fmt.Errorf("in a table's length: %w", err)
 		}
 		restore := c.bind(args[1].Params, []string{"int"})
-		_, err := c.walk(args[1].Body(), c.demandedElem(want, false))
+		body, err := c.walk(args[1].Body(), c.demandedElem(want, false))
 		restore()
 		if err != nil {
 			return "", true, fmt.Errorf("in a table's rule: %w", err)
 		}
-		ty, err := c.formValue(what, arrayOfUnknown, want)
+		ty, err := c.formValue(what, "array "+c.joinElems([]string{body}), want)
 		return ty, true, err
 
 	case "table-alloc":
@@ -224,14 +360,27 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 			if k, v, ok := core.MapTypes(buf); ok && k != unknownElem {
 				key, val = k, v
 			}
-		} else if e, ok := c.tgt.tableElem(buf); ok && e != unknownElem {
-			val = e
+		} else if e, ok := c.tgt.tableElem(buf); ok {
+			val = elemDemand(e)
 		}
 		if _, err := c.walk(args[1], key); err != nil {
 			return "", true, fmt.Errorf("in a store's key: %w", err)
 		}
-		if _, err := c.walk(args[2], val); err != nil {
+		vt, err := c.walk(args[2], val)
+		if err != nil {
 			return "", true, fmt.Errorf("in a store's value: %w", err)
+		}
+		// THE STORE SOLVES AN OPEN ELEMENT, on the buffer's root name, so the
+		// next store is checked against this one (types.md §3.1).
+		if kind == "table-set" {
+			if root := BufferRoot(args[0]); root != "" {
+				c.solve(root, vt)
+				if t := c.types[root]; t != "" {
+					if _, _, ok := tableParts(t); ok {
+						buf = t
+					}
+				}
+			}
 		}
 		return buf, true, c.agree(store, buf, want)
 
@@ -243,6 +392,15 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		}
 		ty, err := c.formValue("(map …)", mapOfUnknown, want)
 		return ty, true, err
+
+	case "len": // the domain bound: len : Table(σ) → int
+		if len(args) != 1 {
+			return "", false, nil
+		}
+		if _, err := c.walk(args[0], ""); err != nil {
+			return "", true, err
+		}
+		return "int", true, c.agree("(len …)", "int", want)
 
 	case "map-keys":
 		if len(args) != 1 {
@@ -271,7 +429,7 @@ func frozen(ty string) string {
 // joinOf is the more informative of two agreeing branch types: a known one
 // over unknown or `any`, and a table with a known element over one without.
 func joinOf(a, b string) string {
-	if a == "" || a == "any" || unknownTable(a) && b != "" && b != "any" {
+	if a == "" || a == "any" || openTable(a) && b != "" && b != "any" {
 		return b
 	}
 	return a

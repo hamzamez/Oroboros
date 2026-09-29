@@ -209,15 +209,15 @@ func claimErr(t *testing.T, result, body string) error {
 
 func TestATableFormIsNotAScalar(t *testing.T) {
 	for _, c := range []struct{ result, body, is string }{
-		{"f64", "(array 1.0 2.0)", "is a table"},
-		{"f64", "(table 3 (fn (i) 1.0))", "is a table"},
+		{"f64", "(array 1.0 2.0)", "is array f64"},
+		{"f64", "(table 3 (fn (i) 1.0))", "is array f64"},
 		{"f64", "(alloc (table 3 (fn (i) 1.0)))", "is a buffer"},
 		{"f64", "(build b 3 b)", "is a buffer"},
-		{"f64", "(build b 3 (set b 0 1.5))", "is a buffer"},
+		{"f64", "(build b 3 (set b 0 1.5))", "is buffer f64"},
 		{"f64", "(build-map m 4 m)", "is a map"},
 		// and a constructor is not another constructor
 		{"(array f64)", "(build-map m 4 m)", "is a map"},
-		{"(map int f64)", "(array 1.0)", "is a table"},
+		{"(map int f64)", "(array 1.0)", "is array f64"},
 	} {
 		err := claimErr(t, c.result, c.body)
 		if err == nil || !strings.Contains(err.Error(), c.is+", but") {
@@ -282,5 +282,56 @@ func TestAScopesBufferIsFrozenAsItLeaves(t *testing.T) {
 	`)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("a frozen buffer is a table: %v", err)
+	}
+}
+
+// THE ELIMINATOR (types.md §3.1, tableelim-2026-09-29): a read (a i) has the
+// element's type, and (len a) is an int. Without it a read was unknown, which
+// agrees with every demand, and `(len a)` under a result declared `string`
+// printed `func F(a []float64) int`.
+func TestATablesReadAndLengthAreTyped(t *testing.T) {
+	for _, c := range []struct{ target, src, is string }{
+		{"go", `(use go) (sig f ((a (array string))) f64 (where (< 0 (len a)))) (def f (a) (go.f+ (a 0) 1.0))`, "(a …) is string, but f64"},
+		{"js", `(use js) (sig f ((a (array string))) any (where (< 0 (len a)))) (def f (a) (+ (a 0) 1))`, "(a …) is string, but int"},
+		{"go", `(sig f ((a (array f64))) string) (def f (a) (len a))`, "(len …) is int, but string"},
+		{"go", `(sig f () string) (def f () (let t (build b 2 (set b 0 1.5)) (t 0)))`, "(t …) is f64, but string"},
+	} {
+		tg, prog, env := loadWithSigs(t, c.target, c.src)
+		err := CheckSignatures(tg, prog, env, nil)
+		if err == nil || !strings.Contains(err.Error(), c.is) {
+			t.Errorf("%s: want %q, got %v", c.src, c.is, err)
+		}
+	}
+}
+
+// THE STORE SOLVES AN OPEN ELEMENT, so a second store is checked against the
+// first. On JavaScript the program stored the string "x" into a table of f64
+// and ran; on Go it reached Go's compiler as generated code.
+func TestAStoreSolvesTheElement(t *testing.T) {
+	for _, target := range []string{"go", "js"} {
+		tg, prog, env := loadWithSigs(t, target, `(sig f () any) (def f () (build b 2 (set (set b 0 1.5) 1 "x")))`)
+		err := CheckSignatures(tg, prog, env, nil)
+		if err == nil || !strings.Contains(err.Error(), "in a store's value") {
+			t.Errorf("%s: two stores of different types: want a refusal, got %v", target, err)
+		}
+	}
+}
+
+// AN INTEGER SOLVES THE SORT, NOT A REALIZATION (ADR 0033): a store of 104
+// makes a table of integers that meets (array (int 0 255)), and still refuses
+// a float.
+func TestAnIntegerStoreLeavesTheRealizationOpen(t *testing.T) {
+	tg, prog, env := loadWithSigs(t, "go", `(sig f () (array (int 0 255))) (def f () (build b 2 (set b 0 104)))`)
+	if err := CheckSignatures(tg, prog, env, nil); err != nil {
+		t.Errorf("a stored integer fixed a realization: %v", err)
+	}
+	tg, prog, env = loadWithSigs(t, "go", `(sig f () any) (def f () (build b 2 (set (set b 0 104) 1 1.5)))`)
+	if err := CheckSignatures(tg, prog, env, nil); err == nil || !strings.Contains(err.Error(), "in a store's value") {
+		t.Errorf("a float stored after an integer: want a refusal, got %v", err)
+	}
+	// and a table of integers, realization open, is still not a table of f64
+	tg, prog, env = loadWithSigs(t, "go", `(sig f () (array f64)) (def f () (build b 2 (set b 0 104)))`)
+	if err := CheckSignatures(tg, prog, env, nil); err == nil {
+		t.Error("a table of integers met a declared (array f64)")
 	}
 }

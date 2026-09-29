@@ -111,53 +111,95 @@ a value satisfies it is not a question of sorts:
 declares no bignum cannot be held at all. That disagreement stays here, and says so: *"… needs
 arbitrary precision — … and the target declares none."*
 
-### 3.1 A table's constructor, and an element that may be unknown
+### 3.1 The table type: introduction, elimination, store
 
 Two type constructors join the scalars and the declared names: **Table(σ)**, spelled `array σ` or
-`buffer σ`, and **Map(κ, σ)**, spelled `map κ σ`. An element may be the **unknown element** `?`.
-A table form's type is fixed by its constructor even where its element is not:
+`buffer σ`, and **Map(κ, σ)**, spelled `map κ σ`. A type former is its rules, and a table's are
+three kinds (built 2026-09-29: [tabletype](../../gauntlet/results/tabletype-2026-09-29.md) the first,
+[tableelim](../../gauntlet/results/tableelim-2026-09-29.md) the other two).
+
+**The element may be open.** An element is a type, or one of two **open elements**, which are
+unification variables, not wildcards:
+- `?`, the unknown element: nothing is known yet;
+- `?int`, the element **sort ℤ with its realization open**. Which realization holds an integer is
+  the IR's choice (ADR 0033), so learning that a table holds integers fixes the sort and nothing
+  more. `(set b 0 104)` must not make `b` a table of `int` that `hex.Encode`'s
+  `(buffer (int 0 255))` then refuses.
+
+A variable is **solved** by the first thing that fixes it: a store's value, or the demand on an
+element that is read. A value of the integer sort solves `?` to `?int`, and any other type solves
+it to that type. `?int` is not solved further. Solving is monotone: an element, once known, is only
+checked against after that.
+
+**Introduction.**
 
 ```
-type((array e…))            = array ?        a graph
-type((table n (fn (i) e)))  = array ?        a rule
+type((array e₁ … eₙ))       = array ⊔eᵢ      the join of the entries: their common type; ?int if
+                                              all are integers; ? if they disagree or n = 0
+type((table n (fn (i) e)))  = array type(e)   with i : int, joined the same way
 type((alloc t))             = buffer ?
-type(b) in (build n (fn (b) e))   = buffer ?  the scope's buffer
+type(b) in (build n (fn (b) e))   = buffer ?  the scope's buffer, solved by its stores
 type((build n (fn (b) e)))  = type(e), frozen: buffer σ becomes array σ (ADR 0031);
                               a table demand is checked on the frozen value, at the exit
-type((set c i x))           = type(c)        a store gives back its buffer
 type((map …)), type(m) in (build-map k (fn (m) e))  = map ? ?
-type((insert m k v))        = type(m)
 type((keys m))              = array ?
 ```
 
 When a table form is **demanded** at a table type, the demand is its type, and each element it
-states (a graph's entries, a rule's body, a store's value) is demanded at the element type. That is
-how `(array 104 105 33)` meets `hex.Encode`'s `(array (int 0 255))`: each literal is an integer,
-and the integer sort is ℤ.
+states (a graph's entries, a rule's body) is demanded at the element type. That is how
+`(array 104 105 33)` meets `hex.Encode`'s `(array (int 0 255))`: each literal is an integer, and the
+integer sort is ℤ.
 
-**The relation gains one rule**, for the unknown element only:
+**Elimination.** A table is a function on `[0, len)` (tables.md), and its eliminators are
+application and its domain bound:
+
+```
+a : Table(σ),  i : int   ⊢   (a i) : σ        an open ? is solved by the read's demand;
+                                              ?int reads as int, the sort
+a : Table(σ)             ⊢   (len a) : int
+```
+
+This is what makes the type system close under its own reductions. `((table n f) i)` reduces to
+`(f i)`, whose type is the rule's σ, so the application must have type σ too. That is subject
+reduction (Wright and Felleisen, 1994), and without the elimination rule a read was *unknown*, which
+agrees with every demand.
+
+**Store.** `set : Table(σ) × int × σ → Table(σ)`: the index is demanded at `int` and the value at σ,
+and the result is the buffer's type. When σ is open, the store's value solves it on the buffer's
+root name (`(set (set b i x) j y)` writes to `b`), so a second store is checked against the first:
+`(set (set b 0 1.5) 1 "x")` is refused. `insert` is typed the same way, and its map's elements are
+not solved: a map's value type is not yet read anywhere a solution could be used.
+
+**The relation**, for open elements and host aliases:
 
 | | |
 |---|---|
-| `array ?` or `buffer ?` against a table type, or a host type that realizes one (`slice-float64`, which Go realizes as `[]float64` = ρ(`array f64`)) | agrees |
+| a table whose element is open, against a table type or a host type that realizes one (`slice-float64`, which Go realizes as `[]float64` = ρ(`array f64`)) | the elements agree: `?` with anything, `?int` with any integer element |
+| a language table against a host type that realizes it | agrees, when ρ gives both the same host type |
 | `map ? ?` against a map type | agrees |
-| either against anything else concrete | **error**: *"… is a table, but f64 is required here"* |
+| an open table against anything else concrete | **error**: *"… is a table, but f64 is required here"* |
 
-The unknown element's rule does not tell a table from a buffer: which tables may be written is
-linearity's question (ADR 0018, ADR 0020), not a type's. Two **known** types are compared as before,
-invariantly and constructor by constructor, so a target that declares `[]byte` still refuses an
-`[]int` program. That is why a scope's value is frozen as it leaves: `hex.Encode` gives back
-`buffer (int 0 255)`, and the scope's value is the `array (int 0 255)` that `os.text-of` reads.
+Open elements do not tell a table from a buffer: which tables may be written is linearity's question
+(ADR 0018, ADR 0020), not a type's. Two **known** language tables are compared as before, invariantly
+and constructor by constructor, so a target that declares `[]byte` still refuses an `[]int` program.
+That is why a scope's value is frozen as it leaves: `hex.Encode` gives back `buffer (int 0 255)`, and
+the scope's value is the `array (int 0 255)` that `os.text-of` reads.
 
-**Why this is sound and loses nothing.** Every term whose value is a table is introduced by one of
-the forms above or by a declaration, so its type is Table(σ) for some σ, possibly `?`, and the
-relation never equates a table with a scalar. The rule is monotone in what it accepts where the
-element is unknown, and the unknown element never reaches the IR: the IR types tables by
-unification (`ir/typing.go`), and W5 reads this relation over the IR's types, which name every
-element or say `any`. So the relation W5 reads is unchanged on every input it sees.
+**Why this is sound and loses nothing.**
+- *Sound.* Every term whose value is a table is introduced by one of the forms above or by a
+  declaration, so its type is Table(σ). The relation never equates a table with a scalar, and every
+  read and store is typed at σ.
+- *Loses nothing.* An open element agrees with every element the old unknown agreed with, until a
+  store or a read fixes it, and a program whose stores disagree was never correct. An integer never
+  fixes a realization.
+- *The IR is untouched.* Open elements never reach the IR, which types tables by unification
+  (`ir/typing.go`). W5 reads this relation over the IR's types, which name every element or say
+  `any`. The alias rule compares host types, which W5's last step already does. So the relation W5
+  reads is unchanged on every input it sees.
 
-**Not built: the eliminator.** Application of a table, `(a i)`, and `len` are still typed unknown,
-so a table's element is checked where it is demanded, not where it is read.
+**Not built.** A map's eliminator: a read gives `(option V)` (maps.md), and the checker does not type
+options. And an element is not solved through a copy: `(let t b …)` gives `t` the type `b` had when
+bound.
 
 ## 4. The structural forms
 
@@ -172,7 +214,7 @@ Their types are the language's, not a target file's ([target-files.md §4](targe
 | **a tuple from a loop or a scope** | each projection Pⱼ is walked, and its type is the j-th name's (ADR 0031, [tables.md §2.5](tables.md)) |
 | **`(the T e)`** | e is checked against T, and the term has type T. It is how a declared result above the word survives inlining |
 | **the language's integer operators** | `+ − · / %` take `(int, int)` and give `int`; the orders and `=` give `bool` |
-| **tables and maps** | their constructor, by §3.1; a store's value and a demanded table's entries at the element type. Indexing and `len` are unknown. The IR types every element, by unification (`ir/typing.go`); their domains are the refinement layer's and their linearity is linear.go's |
+| **tables and maps** | by §3.1: introduced with their constructor and an element that may be open, eliminated by application (at σ) and `len` (at `int`), stored into at σ, which solves an open element. A map's read is not typed. The IR types every element, by unification (`ir/typing.go`); their domains are the refinement layer's and their linearity is linear.go's |
 
 ## 5. What this deliberately does not do
 
@@ -220,6 +262,12 @@ machine-checked.
 ```
 num/vec.dot: argument 2 is int in target blas, but vec-f64 in its signature
 ```
+
+**And the IR checks the claim's sorts, as a second line** (`ir/claim.go`, 2026-09-29). Each yield
+meets its declared result by sort: the relation above, with ℤ one sort, lifted through tables and
+maps element by element and reading a host alias as the table it realizes. Before, W5 compared a
+yield with the function's result, which lowering sets to the declaration only for a table, so for
+every other declaration it compared the yield with its own type and could not fail.
 
 **The claim's representation half is the IR's** (`ir.CheckClaim`). With the integer sort ℤ, a body
 the checker types `int` agrees with a result declared `int`, even where the value is held exactly. So

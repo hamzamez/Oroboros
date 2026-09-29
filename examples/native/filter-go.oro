@@ -1,0 +1,29 @@
+; Sum of the positive elements, on the NATIVE Go target, written as a pipeline
+; over a push collection: a collection represented as its own fold, λ step z.
+; A filter is a stage that wraps `step` in a test, so the pipeline is a
+; composition of higher-order functions that staging must erase into one loop
+; with the test inside it (docs/spec/q5b-filter.md).
+;
+; Ported from examples/filter.oro, which was written against the retired
+; portable layer's `fold-range` (portable-2026-09-29). It is the one program
+; that shows the PUSH direction; dot and smooth are pull vectors. The read
+; `(go.at-float64 a i)` is shared between the test and the sum by call-by-need,
+; where the portable original duplicated it.
+
+(use go)
+
+(export sum-positive)
+
+(sig sum-positive ((a slice-float64)) f64)
+
+(def push-of-array (a)
+  (fn (step z)
+    (loop ((acc z) (i 0))
+      (>= i (go.len a))  acc
+      else               (again (step acc (go.at-float64 a i)) (+ i 1)))))
+
+(def push-filter (p c) (fn (step z) (c (fn (acc x) (if (p x) (step acc x) acc)) z)))
+(def push-sum    (c)   (c (fn (acc x) (go.f+ acc x)) 0.0))
+(def positive    (x)   (go.f> x 0.0))
+
+(def sum-positive (a) (push-sum (push-filter positive (push-of-array a))))

@@ -42,18 +42,6 @@ func allProgSigs(p *core.Program) []*core.Sig {
 	return out
 }
 
-// These tests exercise the PORTABLE layer — num/f64, fold-range, io — which now
-// lives in targets/portable-go.oro. targets/go/ is the target-native one and
-// declares none of it (docs/spec/target-native.md).
-func goTarget(t *testing.T) *emit.Target {
-	t.Helper()
-	tg, err := emit.LoadTarget("../targets/portable-go.oro")
-	if err != nil {
-		t.Fatalf("load target: %v", err)
-	}
-	return tg
-}
-
 func reduce(t *testing.T, src, target string) *core.Term {
 	t.Helper()
 	forms, err := core.Read(src)
@@ -79,25 +67,10 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	return out
 }
 
-const dotSrc = `
-	(use num/f64)
-
-	(def vec      (fn (n f) (fn (sel) (sel n f))))
-	(def vlen     (fn (v)   (v (fn (n f) n))))
-	(def vindex   (fn (v i) ((v (fn (n f) f)) i)))
-	(def of-array (fn (a)   (vec (alen a) (fn (i) (aindex a i)))))
-
-	(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-	(def sum (fn (v)     (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
-	(def dot (fn (a b)   (sum (zip f64.mul (of-array a) (of-array b)))))
-
-	(fn (p q) (dot p q))
-`
-
-// goNative is the NATIVE Go target — targets/go/, not the portable layer.
-// goTarget loads portable-go.oro, whose primitives are not the `go.` names
-// these tests use, and a target that does not know a name raises no obligation
-// for it: the first draft of these tests passed vacuously against it.
+// goNative is the NATIVE Go target, targets/go/. A target that does not know
+// a name raises no obligation for it: the first draft of these tests ran on
+// the portable layer, whose names were not the `go.` ones, and passed
+// vacuously.
 func goNative(t *testing.T) *emit.Target {
 	t.Helper()
 	tg, err := emit.LoadTarget("../targets/go")

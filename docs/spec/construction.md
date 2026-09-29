@@ -2,8 +2,8 @@
 
 Written before the code, per [state.md §6](state.md).
 
-> **Status, 2026-08-15. Built, on all three targets.** `examples/build-vec.oro` constructs an
-> array and prints its length, identically from Go, node and java.
+> **Status, 2026-08-15. Built, on all three targets.** `examples/build-vec.oro` (deleted with the portable layer in portable-2026-09-29; in git at 870de46) constructed an
+> array and printed its length, identically from Go, node and java.
 >
 > Two things fell out. `int → f64` was added, because §7's example needs it and the answer was
 > already decided: the conversion is **exactly lossless inside the portable range**, since that

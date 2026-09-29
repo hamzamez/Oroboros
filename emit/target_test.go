@@ -25,43 +25,31 @@ func TestLoadTargets(t *testing.T) {
 	}
 }
 
-// JS declares no types at all, which is the point.
-func TestJSTargetIsUntyped(t *testing.T) {
-	tg, err := LoadTarget("../targets/portable-js.oro")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(tg.Types) != 0 {
-		t.Errorf("JS should declare no types, got %v", tg.Types)
-	}
-}
-
 // The acceptance test for requirement 4: a host function is added by editing a
-// target file and nothing else. `sqrt` exists in all three targets and in no Go
-// source — if this fails, primitives have leaked back into the compiler.
-//
-// The name is qualified since arithmetic.md §5 moved it into num/f64, which is
-// itself part of what this test asserts: a primitive moving between modules is
-// a target-file edit and nothing more.
+// target file and nothing else. Each name below exists in its target's files
+// and in no Go source — if this fails, primitives have leaked back into the
+// compiler. Go's declaration carries its import; the others need none.
 func TestHostFunctionIsDeclaredNotCompiledIn(t *testing.T) {
-	for _, name := range []string{"portable-go", "portable-js", "portable-java"} {
-		tg, err := LoadTarget("../targets/" + name + ".oro")
+	for _, c := range []struct{ dir, name, imp string }{
+		{"go", "go/strings.Fields", "strings"},
+		{"js", "js/Math.sqrt", ""},
+		{"java", "java/Math.sqrt", ""},
+	} {
+		tg, err := LoadTarget("../targets/" + c.dir)
 		if err != nil {
 			t.Fatal(err)
 		}
-		p, ok := tg.Prims["num/f64.sqrt"]
+		p, ok := tg.Prims[c.name]
 		if !ok {
-			t.Errorf("%s does not declare sqrt", name)
+			t.Errorf("%s does not declare %s", c.dir, c.name)
 			continue
 		}
 		if p.Kind != "expr" || p.Form == "" {
-			t.Errorf("%s: sqrt should be an expression with a template, got %+v", name, p)
+			t.Errorf("%s: %s should be an expression with a template, got %+v", c.dir, c.name, p)
 		}
-	}
-	// Go's declaration carries the import; the others need none.
-	tg, _ := LoadTarget("../targets/portable-go.oro")
-	if tg.Prims["num/f64.sqrt"].Import != "math" {
-		t.Errorf("Go's sqrt should declare import math, got %q", tg.Prims["num/f64.sqrt"].Import)
+		if p.Import != c.imp {
+			t.Errorf("%s: %s should declare import %q, got %q", c.dir, c.name, c.imp, p.Import)
+		}
 	}
 }
 
@@ -138,7 +126,6 @@ func TestNativeTargetsAreThreeStructural(t *testing.T) {
 // library with a portability claim rather than part of the language.
 func TestEveryTargetHasTheLanguagesConstructs(t *testing.T) {
 	for _, name := range []string{"go", "js", "java", "windows", "blas.oro",
-		"portable-go.oro", "portable-js.oro", "portable-java.oro",
 		"tutorial.oro", "tutorial-native.oro", "tutorial-sloppy.oro"} {
 		tg, err := LoadTarget("../targets/" + name)
 		if err != nil {

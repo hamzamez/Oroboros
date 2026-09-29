@@ -1,6 +1,8 @@
 package gauntlet
 
 // Hand-written reference for examples/stencil.oro — the three-point window sum.
+// The source was deleted with the portable layer (portable-2026-09-29; in git
+// at 870de46); generated_stencil.go is its last emission.
 //
 // This is the first gauntlet entry the language could not express before
 // integer arithmetic existed (docs/spec/inventory.md §1.2), so it is also the

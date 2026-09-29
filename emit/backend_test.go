@@ -28,9 +28,6 @@ func TestTheTargetSaysWhichBackendCompilesIt(t *testing.T) {
 		{"../targets/js", "js"},
 		{"../targets/java", "java"},
 		{"../targets/windows", "x86-64"},
-		{"../targets/portable-go.oro", "go"},
-		{"../targets/portable-js.oro", "js"},
-		{"../targets/portable-java.oro", "java"},
 	} {
 		tg, err := LoadTarget(c.dir)
 		if err != nil {

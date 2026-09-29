@@ -6,18 +6,6 @@ import (
 	"oroboros/core"
 )
 
-// These tests exercise the PORTABLE layer — num/f64, fold-range, io — which now
-// lives in targets/portable-go.oro. targets/go/ is the target-native one and
-// declares none of it (docs/spec/target-native.md).
-func goTarget(t *testing.T) *Target {
-	t.Helper()
-	tg, err := LoadTarget("../targets/portable-go.oro")
-	if err != nil {
-		t.Fatalf("load target: %v", err)
-	}
-	return tg
-}
-
 func reduce(t *testing.T, src, target string) *core.Term {
 	t.Helper()
 	forms, err := core.Read(src)

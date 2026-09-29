@@ -6,7 +6,8 @@
 ; there is no monomorphization pass. `reduce-over` is used once at f64 elements
 ; with an f64 accumulator and once at string elements with a map accumulator.
 ;
-; The portable form is examples/generic.oro. Moving it asks a question that form
+; The portable form was examples/generic.oro, deleted with the portable layer
+; (portable-2026-09-29; in git at 870de46). Moving it asked a question that form
 ; could not: on the portable layer `aindex` and `sat` are DIFFERENT NAMES for
 ; the same shape, so matching could plausibly have been keying on the name. Here
 ; the two instantiations reach `go.at-float64` and `go.at-string`, whose Go types

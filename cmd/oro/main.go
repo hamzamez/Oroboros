@@ -1,10 +1,10 @@
 // Command oro reduces a program to normal form against a target.
 //
-// The whole thesis is visible from the command line: the same file, two
-// targets, two normal forms.
+// The whole thesis is visible from the command line: a target decides where
+// reduction stops.
 //
-//	oro -target=blas examples/dot.oro
-//	oro -target=go   examples/dot.oro
+//	oro -target=blas examples/dot.oro           # stops at blas's own dot
+//	oro -target=go   examples/native/dot-go.oro # reduces to one loop
 package main
 
 import (

@@ -8,7 +8,7 @@ Written before the code, per [state.md §6](state.md). Decision recorded as
 > migrated to qualified names and **emit byte-identical source on every target**; three tests
 > named old unqualified primitives and were updated.
 >
-> `examples/stencil.oro` is the first program the language could not previously express.
+> `examples/stencil.oro` (deleted with the portable layer in portable-2026-09-29; in git at 870de46) is the first program the language could not previously express.
 > Measured, and then corrected by reading the machine code:
 >
 > | | ns/op | |

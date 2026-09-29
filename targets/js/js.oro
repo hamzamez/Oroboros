@@ -7,8 +7,8 @@
 ; This file is the header: types and the deliverable.
 ; The surface is one file per JavaScript namespace, merged by LoadTarget.
 ;
-; The portable layer it replaced is targets/portable-js.oro, kept because the
-; gauntlet is written against it. See docs/spec/target-native.md.
+; The portable layer it replaced, targets/portable-js.oro, was deleted in
+; portable-2026-09-29. See docs/spec/target-native.md.
 
 (target js
   ; JavaScript has no types at run time, and the emitter writes none. These

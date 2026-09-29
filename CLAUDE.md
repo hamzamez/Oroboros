@@ -53,11 +53,12 @@ the largest win 0.91×. Program 7's tree walk was re-measured in
 with no clamps.
 
 **Provability.**
-- **1,994 of 2,041** integer operations are proven inside their target's word. The 47 left are mostly
+- **1,997 of 2,042** integer operations are proven inside their target's word. The 45 left are mostly
   meant to be refused.
-- **357 of 375** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
+- **358 of 376** loops are proven to terminate (the IR's count since irstep4d; the term analysis had
   343). render's factorial counter became a word on the host's bignum (irstep4h, +3 of each) and on
   limbs (irstep4i, where the counter's own limb operations disappeared: −16 operations, −6 loops).
+  The last +1 of each is `examples/native/filter-go.oro` (portable-2026-09-29).
 - Counted once each since matchguard-2026-09-24. Before, the narrowing of a guard re-evaluated its
   operands with counting on, so the totals were 2,434 and 387: the same 47 and 38 unproven, over
   inflated denominators.
@@ -717,7 +718,7 @@ go vet ./...
 
 ```bash
 go run ./cmd/build -target=go -o hello examples/hello.oro   # a real binary
-go run ./cmd/oro -target=portable-go examples/dot.oro       # reduce to normal form
+go run ./cmd/oro -target=go examples/native/dot-go.oro      # reduce to normal form
 go run ./cmd/gen -name tree examples/json/tree.oro go gauntlet/go/gen_jsontree.go   # emit into the gauntlet
 cd gauntlet/go && go test -bench='TreeGen|TreeFlat$' -benchtime=20000x -count=5   # generated vs hand-written
 go run ./cmd/intervals -v examples/native/sieve-go.oro go   # what the IR's decision proves: operations in the word, loops terminating, and each unproven one
@@ -742,9 +743,9 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
-| `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories. The `portable-*.oro` files are the retired portable layer, kept for the old benchmarks |
+| `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
-| `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, and `freq`, the largest program), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources) |
+| `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, and `freq`, the largest program), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/stdlib/` | The four host surveys; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

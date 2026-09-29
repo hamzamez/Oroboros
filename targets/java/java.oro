@@ -6,7 +6,8 @@
 ; renamed so three hosts can agree.
 ;
 ; The surface is one file per Java package or class, merged by LoadTarget.
-; The portable layer it replaced is targets/portable-java.oro.
+; The portable layer it replaced, targets/portable-java.oro, was deleted in
+; portable-2026-09-29.
 
 (target java
   ; THREE OF THESE NAMES ARE RESERVED BY THE LANGUAGE, not chosen here:

@@ -9,7 +9,8 @@
 ;
 ; Gauntlet program 4 — word frequency — on the NATIVE Go target.
 ;
-; The portable form is examples/wordcount.oro, and its pass condition was never
+; The portable form was examples/wordcount.oro, deleted with the portable layer
+; (portable-2026-09-29; in git at 870de46), and its pass condition was never
 ; a number: the Go output must use Go's own map[string]int, and the JS output a
 ; null-prototype object. On the portable layer that took `dict-empty`,
 ; `dict-inc` and `split-words` — three names whose whole job was to hide which

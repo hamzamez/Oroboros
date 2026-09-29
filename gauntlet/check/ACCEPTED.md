@@ -863,3 +863,56 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - emitted text changed — `examples/map/dynamic.oro go`
 - compiler output changed — `examples/map/dynamic.oro go`
+
+## 2026-09-29 — on 870de46, with uncommitted changes
+
+**Reason:** Retire the portable layer (portable-2026-09-29): 10 portable-layer examples deleted, refused on every real target; examples/native/filter-go.oro added, the push-stream pipeline ported
+
+492 runs: 251 emitted, 241 refused; 1997 of 2042 integer operations bounded, 358 of 376 loops proven. compiler pass, differential pass, tooling skip.
+
+44 change(s):
+
+- source removed — `examples/build-vec.oro go`
+- source removed — `examples/build-vec.oro java`
+- source removed — `examples/build-vec.oro js`
+- source removed — `examples/build-vec.oro windows`
+- source removed — `examples/centroid.oro go`
+- source removed — `examples/centroid.oro java`
+- source removed — `examples/centroid.oro js`
+- source removed — `examples/centroid.oro windows`
+- source removed — `examples/converge.oro go`
+- source removed — `examples/converge.oro java`
+- source removed — `examples/converge.oro js`
+- source removed — `examples/converge.oro windows`
+- source removed — `examples/filter.oro go`
+- source removed — `examples/filter.oro java`
+- source removed — `examples/filter.oro js`
+- source removed — `examples/filter.oro windows`
+- source removed — `examples/generic.oro go`
+- source removed — `examples/generic.oro java`
+- source removed — `examples/generic.oro js`
+- source removed — `examples/generic.oro windows`
+- new source — `examples/native/filter-go.oro go`
+- new source — `examples/native/filter-go.oro java`
+- new source — `examples/native/filter-go.oro js`
+- new source — `examples/native/filter-go.oro windows`
+- source removed — `examples/norm.oro go`
+- source removed — `examples/norm.oro java`
+- source removed — `examples/norm.oro js`
+- source removed — `examples/norm.oro windows`
+- source removed — `examples/report.oro go`
+- source removed — `examples/report.oro java`
+- source removed — `examples/report.oro js`
+- source removed — `examples/report.oro windows`
+- source removed — `examples/search.oro go`
+- source removed — `examples/search.oro java`
+- source removed — `examples/search.oro js`
+- source removed — `examples/search.oro windows`
+- source removed — `examples/stencil.oro go`
+- source removed — `examples/stencil.oro java`
+- source removed — `examples/stencil.oro js`
+- source removed — `examples/stencil.oro windows`
+- source removed — `examples/wordcount.oro go`
+- source removed — `examples/wordcount.oro java`
+- source removed — `examples/wordcount.oro js`
+- source removed — `examples/wordcount.oro windows`

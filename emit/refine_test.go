@@ -7,16 +7,21 @@ import (
 	"oroboros/core"
 )
 
-// docs/spec/refinements.md. `aindex` is Tier 1 only WITHIN BOUNDS
-// (primitives.md §2); this is the check that makes the condition real.
+// docs/spec/refinements.md. A table's application is defined only WITHIN
+// BOUNDS (primitives.md §2); this is the check that makes the condition real.
+//
+// The programs are on the native Go target and use the language's own table
+// operations — application, `len`, `loop` — so what they test is the
+// refinement layer, not a target's spelling. Until portable-2026-09-29 they
+// were written against the portable layer's `aindex` and `fold-range`.
 
 func refineSrc(t *testing.T, src string) error {
 	t.Helper()
-	tg, err := LoadTarget("../targets/portable-go.oro")
+	tg, err := LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read(src)
+	forms, err := core.Read("(use go)\n" + src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,23 +49,44 @@ func refineSrc(t *testing.T, src string) error {
 	return err
 }
 
-// §5 — a loop index is in bounds for the array that bounds it.
-func TestRefineProvesTheLoopIndex(t *testing.T) {
-	if err := refineSrc(t, `
-		(use num/f64)
-		(fn (a) (fold-range 0.0 (alen a) (fn (acc i) (f64.add acc (aindex a i)))))
-	`); err != nil {
-		t.Errorf("the bounding array's own index must be provable: %v", err)
+// refused asserts that err is a refusal of a table's index, not of anything
+// else. A refusal test on a target that does not know a name passes for the
+// wrong reason: pointed at the native target unchanged, all but one of this
+// file's refusal tests still passed.
+func refused(t *testing.T, err error, what string) {
+	t.Helper()
+	if err == nil {
+		t.Fatalf("%s must be refused", what)
+	}
+	if !strings.Contains(err.Error(), "is an indexing") || !strings.Contains(err.Error(), "does not follow") {
+		t.Errorf("%s must be refused as an index obligation, got %v", what, err)
 	}
 }
 
-// §4 — the stencil: j+2 < alen a follows from j < alen a - 2, which needs the
+// §5 — a loop index is in bounds for the table that bounds it.
+func TestRefineProvesTheLoopIndex(t *testing.T) {
+	if err := refineSrc(t, `
+		(export f)
+		(sig f ((a (array f64))) f64)
+		(def f (a)
+		  (loop ((acc 0.0) (i 0))
+		    (>= i (len a))  acc
+		    else            (again (go.f+ acc (a i)) (+ i 1))))
+	`); err != nil {
+		t.Errorf("the bounding table's own index must be provable: %v", err)
+	}
+}
+
+// §4 — the stencil: j+2 < len a follows from j < len a - 2, which needs the
 // constant offsets to be compared in the right direction.
 func TestRefineProvesTheStencilWindow(t *testing.T) {
 	if err := refineSrc(t, `
-		(use num/f64) (use num/int)
-		(fn (a) (fold-range 0.0 (int.sub (alen a) 2)
-		          (fn (acc j) (f64.add acc (aindex a (int.add j 2))))))
+		(export f)
+		(sig f ((a (array f64))) f64)
+		(def f (a)
+		  (loop ((acc 0.0) (j 0))
+		    (>= j (- (len a) 2))  acc
+		    else                  (again (go.f+ acc (a (+ j 2))) (+ j 1))))
 	`); err != nil {
 		t.Errorf("the stencil window must be provable: %v", err)
 	}
@@ -69,39 +95,44 @@ func TestRefineProvesTheStencilWindow(t *testing.T) {
 // The negative case: one past the end.
 func TestRefineRejectsOutOfBounds(t *testing.T) {
 	err := refineSrc(t, `
-		(use num/f64) (use num/int)
-		(fn (a) (fold-range 0.0 (alen a)
-		          (fn (acc i) (f64.add acc (aindex a (int.add i 1))))))
+		(export f)
+		(sig f ((a (array f64))) f64)
+		(def f (a)
+		  (loop ((acc 0.0) (i 0))
+		    (>= i (len a))  acc
+		    else            (again (go.f+ acc (a (+ i 1))) (+ i 1))))
 	`)
-	if err == nil {
-		t.Fatal("indexing one past the end must be rejected")
-	}
-	if !strings.Contains(err.Error(), "known:") {
+	refused(t, err, "indexing one past the end")
+	if err != nil && !strings.Contains(err.Error(), "known:") {
 		t.Errorf("the diagnostic should say what was known, got %v", err)
 	}
 }
 
-// §5 — a second array is NOT in bounds without a precondition. This is the
+// §5 — a second table is NOT in bounds without a precondition. This is the
 // latent bug the checker found in dot.oro and centroid.oro on the day it was
 // written.
 func TestRefineRejectsASecondArray(t *testing.T) {
-	if err := refineSrc(t, `
-		(use num/f64)
-		(fn (p q) (fold-range 0.0 (alen p) (fn (acc i) (f64.add acc (aindex q i)))))
-	`); err == nil {
-		t.Fatal("a second array with an unrelated length must not be assumed in bounds")
-	}
+	refused(t, refineSrc(t, `
+		(export two)
+		(sig two ((p (array f64)) (q (array f64))) f64)
+		(def two (p q)
+		  (loop ((acc 0.0) (i 0))
+		    (>= i (len p))  acc
+		    else            (again (go.f+ acc (q i)) (+ i 1))))
+	`), "a second table with an unrelated length")
 }
 
 // …and the precondition discharges it, by becoming a substitution rather than
 // two inequalities.
 func TestRefineAcceptsASecondArrayGivenAPrecondition(t *testing.T) {
 	if err := refineSrc(t, `
-		(use num/f64) (use num/int)
 		(export two)
-		(sig two ((p vec-f64) (q vec-f64)) f64
-		  (where (int.eq (alen p) (alen q))))
-		(def two (fn (p q) (fold-range 0.0 (alen p) (fn (acc i) (f64.add acc (aindex q i))))))
+		(sig two ((p (array f64)) (q (array f64))) f64
+		  (where (= (len p) (len q))))
+		(def two (p q)
+		  (loop ((acc 0.0) (i 0))
+		    (>= i (len p))  acc
+		    else            (again (go.f+ acc (q i)) (+ i 1))))
 	`); err != nil {
 		t.Errorf("the precondition should discharge it: %v", err)
 	}
@@ -110,55 +141,55 @@ func TestRefineAcceptsASecondArrayGivenAPrecondition(t *testing.T) {
 // §3 — an assumption OUTSIDE the fragment must be kept, not dropped. It cannot
 // decide a linear obligation, and the diagnostic must still say it was there:
 // `known: nothing` was a lie whenever a program declared a `where` the solver
-// could not read.
+// could not read. A product of two variables is outside the linear fragment.
 func TestOpaqueAssumptionIsKept(t *testing.T) {
 	err := refineSrc(t, `
-		(use num/f64)
-		(use num/int)
 		(export f)
-		(sig f ((a vec-f64) (k int)) f64
-		  (where (ascii? k)))
-		(def f (fn (a k) (aindex a k)))
+		(sig f ((a (array f64)) (k (int 0 1000))) f64
+		  (where (< (len a) (* k k))))
+		(def f (a k) (a k))
 	`)
-	if err == nil {
-		t.Fatal("an opaque assumption must not discharge a bounds obligation")
-	}
-	if !strings.Contains(err.Error(), "assumed (ascii? k)") {
+	refused(t, err, "an index under an opaque assumption")
+	if err != nil && !strings.Contains(err.Error(), "assumed (lt (len a) (* k k))") {
 		t.Errorf("the diagnostic must report what was assumed; got %v", err)
 	}
 }
 
+// And one before the start: `0 <= i - 1` does not follow from `0 <= i`.
+func TestRefineRejectsBeforeTheStart(t *testing.T) {
+	refused(t, refineSrc(t, `
+		(export f)
+		(sig f ((a (array f64))) f64)
+		(def f (a)
+		  (loop ((acc 0.0) (i 0))
+		    (>= i (len a))  acc
+		    else            (again (go.f+ acc (a (- i 1))) (+ i 1))))
+	`), "indexing one before the start")
+}
+
 // iteration.md §6: a loop's guard is written down, so the refinement checker
-// gets `0 <= i` and `i < alen a` from the clauses themselves — MORE than
-// fold-range offers, where the bound is implied by the primitive.
+// gets `0 <= i` and `i < len a` from the clauses themselves.
 func TestLoopGuardsDischargeBounds(t *testing.T) {
 	if err := refineSrc(t, `
-		(use num/f64 as f)
-		(use num/int as int)
 		(export find)
-		(sig find ((a vec-f64) (k f64)) int)
-		(def find (fn (a k)
+		(sig find ((a (array f64)) (k f64)) int)
+		(def find (a k)
 		  (loop ((i 0))
-		    (int.ge i (alen a))    -1
-		    (f.gt (aindex a i) k)  i
-		    else                   (again (int.add i 1)))))
+		    (>= i (len a))       -1
+		    (go.f> (a i) k)      i
+		    else                 (again (+ i 1))))
 	`); err != nil {
 		t.Errorf("a loop's own guards should prove its index in bounds: %v", err)
 	}
 	// And without the range guard it must NOT be discharged.
-	err := refineSrc(t, `
-		(use num/f64 as f)
-		(use num/int as int)
+	refused(t, refineSrc(t, `
 		(export find)
-		(sig find ((a vec-f64) (k f64)) int)
-		(def find (fn (a k)
+		(sig find ((a (array f64)) (k f64)) int)
+		(def find (a k)
 		  (loop ((i 0))
-		    (f.gt (aindex a i) k)  i
-		    else                   (again (int.add i 1)))))
-	`)
-	if err == nil {
-		t.Error("with no range guard the index is unproven and must be reported")
-	}
+		    (go.f> (a i) k)      i
+		    else                 (again (+ i 1))))
+	`), "an index with no range guard")
 }
 
 // A ZERO DIVISOR IS A PRECONDITION (integers.md §5), and `d ≠ 0` is a
@@ -220,26 +251,50 @@ func TestNegateHandlesOperatorSpellings(t *testing.T) {
 func TestStridedIndexIsProvable(t *testing.T) {
 	for _, e := range []struct{ name, src string }{
 		{"stride 4", `
-			(use num/vec)
-			(use num/int)
-			(fn (a)
+			(export f)
+			(sig f ((a (array int))) int)
+			(def f (a)
 			  (loop ((k 0) (acc 0))
-			    (int.ge (int.mul 4 k) (vec.alen a))  acc
-			    else (again (int.add k 1) (int.add acc (vec.aindex a (int.mul 4 k))))))`},
+			    (>= (* 4 k) (len a))  acc
+			    else (again (+ k 1) (+ acc (a (* 4 k))))))`},
+		// The guard bounds k, not 4k: `k < n` gives `4k < 4n = len a` by the
+		// multiplier 4. Two routes find that certificate, scaleTo and the
+		// Farkas elimination, and each proves every case here alone; with both
+		// disabled `0 <= 4k` fails (portable-2026-09-29 §3).
+		{"stride 4, guard on k", `
+			(export f)
+			(sig f ((a (array int)) (n (int 0 1000))) int
+			  (where (= (len a) (* 4 n))))
+			(def f (a n)
+			  (loop ((k 0) (acc 0))
+			    (>= k n)  acc
+			    else (again (+ k 1) (+ acc (a (* 4 k))))))`},
 		{"stride 2, offset 1", `
-			(use num/vec)
-			(use num/int)
-			(fn (a)
+			(export f)
+			(sig f ((a (array int))) int)
+			(def f (a)
 			  (loop ((k 1) (acc 0))
-			    (int.ge (int.add (int.mul 2 k) 1) (vec.alen a))  acc
-			    else (again (int.add k 1)
-			                (int.add acc (vec.aindex a (int.add (int.mul 2 k) 1))))))`},
+			    (>= (+ (* 2 k) 1) (len a))  acc
+			    else (again (+ k 1) (+ acc (a (+ (* 2 k) 1))))))`},
 	} {
 		if err := refineSrc(t, e.src); err != nil {
 			t.Errorf("%s: a strided index bounded by its own guard must be provable: %v",
 				e.name, err)
 		}
 	}
+}
+
+// And a stride its guard does not bound is refused: `4k < len a` says nothing
+// about `4k + 4`.
+func TestStridedIndexPastItsGuardIsRefused(t *testing.T) {
+	refused(t, refineSrc(t, `
+		(export f)
+		(sig f ((a (array int))) int)
+		(def f (a)
+		  (loop ((k 0) (acc 0))
+		    (>= (* 4 k) (len a))  acc
+		    else (again (+ k 1) (+ acc (a (+ (* 4 k) 4))))))
+	`), "a strided index one stride past its guard")
 }
 
 // The multiplier must be POSITIVE and must divide exactly: scaling by a

@@ -90,35 +90,6 @@
    note: gen-render: 8 operation(s) in arbitrary precision
    note: gen-render: 15 of 15 integer operations bounded; 10 of 10 loop(s) proven terminating
    note: gen-render: 14 division(s) became a shift or a mask
-== examples/build-vec.oro go refused
-   gen: examples/build-vec.oro: in main: alen is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/build-vec.oro js refused
-   gen: examples/build-vec.oro: in main: alen is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/build-vec.oro java refused
-   gen: examples/build-vec.oro: in main: alen is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/build-vec.oro windows refused
-   gen: examples/build-vec.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/centroid.oro go refused
-   gen: examples/centroid.oro: in centroid: fold-range2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/centroid.oro js refused
-   gen: examples/centroid.oro: in centroid: fold-range2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/centroid.oro java refused
-   gen: examples/centroid.oro: in centroid: fold-range2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/centroid.oro windows refused
-   gen: examples/centroid.oro: in centroid: fold-range2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/converge.oro go refused
-   gen: examples/converge.oro: in sqrt-newton: num/f64.le is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/converge.oro js refused
-   gen: examples/converge.oro: in sqrt-newton: num/f64.le is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/converge.oro java refused
-   gen: examples/converge.oro: in sqrt-newton: num/f64.le is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/converge.oro windows refused
-   gen: examples/converge.oro: in sqrt-newton: num/f64.le is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
 == examples/dot.oro go refused
    gen: examples/dot.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -131,26 +102,6 @@
 == examples/dot.oro windows refused
    gen: examples/dot.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/filter.oro go refused
-   gen: examples/filter.oro: in positive: num/f64.gt is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/filter.oro js refused
-   gen: examples/filter.oro: in positive: num/f64.gt is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/filter.oro java refused
-   gen: examples/filter.oro: in positive: num/f64.gt is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/filter.oro windows refused
-   gen: examples/filter.oro: in positive: num/f64.gt is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/generic.oro go refused
-   gen: examples/generic.oro: in reduce-over: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/generic.oro js refused
-   gen: examples/generic.oro: in reduce-over: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/generic.oro java refused
-   gen: examples/generic.oro: in reduce-over: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/generic.oro windows refused
-   gen: examples/generic.oro: in reduce-over: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == examples/hello.oro go emitted 77bebcce3fe9fae5ef82f4a6a650587858f867aee19f4b9998ff75a50d255ca5
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hello.oro js refused
@@ -478,6 +429,17 @@
 == examples/native/dot-js.oro windows refused
    gen: examples/native/dot-js.oro: in dot: js.* is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/native/filter-go.oro go emitted 2c02bae9b20fbbeeb5c7a81858e8032a1929db70ba5ab4a2b2dba1fbba87823f
+   note: gen-sum-positive: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/native/filter-go.oro js refused
+   gen: examples/native/filter-go.oro: in positive: go.f> is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/native/filter-go.oro java refused
+   gen: examples/native/filter-go.oro: in positive: go.f> is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
+== examples/native/filter-go.oro windows refused
+   gen: examples/native/filter-go.oro: in positive: go.f> is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/native/generic-go.oro go emitted cbb12cd527d73c3e2927422688349a7d050b241108213e91cb74f35d575edbbf
    note: gen-sum-of: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-word-tally: 1 of 1 integer operations bounded; 1 of 1 loop(s) proven terminating
@@ -754,42 +716,6 @@
 == examples/native/wordcount-js.oro windows refused
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
-== examples/norm.oro go refused
-   gen: examples/norm.oro: in square: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/norm.oro js refused
-   gen: examples/norm.oro: in square: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/norm.oro java refused
-   gen: examples/norm.oro: in square: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/norm.oro windows refused
-   gen: examples/norm.oro: in square: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/report.oro go refused
-   gen: examples/report.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/report.oro js refused
-   gen: examples/report.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/report.oro java refused
-   gen: examples/report.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/report.oro windows refused
-   gen: examples/report.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/search.oro go refused
-   gen: examples/search.oro: in find-first: num/int.ge is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/int) matched no file on the search path and this target provides no module num/int either, so every name from it is unbound. Check the path.
-== examples/search.oro js refused
-   gen: examples/search.oro: in find-first: num/int.ge is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/int) matched no file on the search path and this target provides no module num/int either, so every name from it is unbound. Check the path.
-== examples/search.oro java refused
-   gen: examples/search.oro: in find-first: num/int.ge is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/int) matched no file on the search path and this target provides no module num/int either, so every name from it is unbound. Check the path.
-== examples/search.oro windows refused
-   gen: examples/search.oro: in find-first: num/int.ge is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/int) matched no file on the search path and this target provides no module num/int either, so every name from it is unbound. Check the path.
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
@@ -801,18 +727,6 @@
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
 == examples/smooth.oro windows refused
    gen: examples/smooth.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/stencil.oro go refused
-   gen: examples/stencil.oro: in window: num/f64.add is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/stencil.oro js refused
-   gen: examples/stencil.oro: in window: num/f64.add is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/stencil.oro java refused
-   gen: examples/stencil.oro: in window: num/f64.add is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
-== examples/stencil.oro windows refused
-   gen: examples/stencil.oro: in window: num/f64.add is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
 == examples/sum/parse.oro go emitted a198265067d9b168751297ea06990c5f84a465b8b9ce8996dee87d49313e2c21
 == examples/sum/parse.oro js refused
@@ -906,14 +820,6 @@
 == examples/u128/factorials.oro windows refused
    gen: examples/u128/factorials.oro: in main: go/fmt.Println2 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
-== examples/wordcount.oro go refused
-   gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/wordcount.oro js refused
-   gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/wordcount.oro java refused
-   gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
-== examples/wordcount.oro windows refused
-   gen: examples/wordcount.oro: in tally: fold-range is not bound — it is not a parameter, not a definition, and not a primitive on this target
 == gauntlet/differential/cases/alloc-copies.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/alloc-copies.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/alloc-copies.oro java emitted 17fccb28f88bfaffa84cf9cd2b352ac93f4d563bde297cdf765ed7a7a90fa599

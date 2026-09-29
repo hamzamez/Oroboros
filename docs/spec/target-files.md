@@ -165,7 +165,8 @@ not one, so it cannot emit code.
 There is no default because a wrong one is a **silent miscompilation**, which is
 what it was: `cmd/build` and `cmd/gen` switched on the `-target` *flag string* and
 fell through to the Go backend for any name they did not recognise, so
-`targets/portable-js.oro` emitted `package gauntlet` and a Go function
+`targets/portable-js.oro` (deleted in [portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md))
+emitted `package gauntlet` and a Go function
 ([backend-2026-09-06](../../gauntlet/results/backend-2026-09-06.md)).
 
 **Declaring none is legitimate.** A target is a capability set first, and one that

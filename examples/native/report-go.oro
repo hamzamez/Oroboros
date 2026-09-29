@@ -16,7 +16,8 @@
 ; is doing the work here: `fmt.Println` declares no `pure`, so its result — used
 ; zero times — cannot be dropped.
 ;
-; The portable form is examples/report.oro and takes its array as a parameter,
+; The portable form was examples/report.oro, deleted with the portable layer
+; (portable-2026-09-29; in git at 870de46). It took its array as a parameter,
 ; which `main` cannot do. Construction is why: a program could not build data at
 ; all until 2026-08-15, and on a native target it is `go.make-float64` plus a
 ; fill loop rather than `make-vec` (construction.md).

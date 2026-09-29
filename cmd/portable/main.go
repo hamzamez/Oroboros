@@ -16,8 +16,8 @@
 // line of its refusal, which names the target's word when the reason is an
 // integer (emit/bounded.go).
 //
-//	go run ./cmd/portable examples/dot.oro
-//	go run ./cmd/portable -require go,js examples/dot.oro   # exit 1 unless portable to both
+//	go run ./cmd/portable examples/io/wc.oro
+//	go run ./cmd/portable -require go,js examples/io/wc.oro   # exit 1 unless portable to both
 package main
 
 import (

@@ -13,7 +13,7 @@ Written before the code, per [state.md §6](state.md).
 > **Files, 2026-08-15.** `(use PATH)` now resolves against a search path — `PATH.oro` under the
 > entry file's directory, then `-path` (default `lib`). A path with no file is not an error: it is
 > a module the *target* provides. `lib/num/vec.oro` is the first library, and `examples/dot.oro`
-> and `examples/report.oro` share it instead of duplicating it, with byte-identical output.
+> and `examples/report.oro` (deleted with the portable layer in portable-2026-09-29; in git at 870de46) shared it instead of duplicating it, with byte-identical output.
 > Crucially, `P_T ∩ D` still decides **across the file boundary**.
 >
 > **One file, one module, 2026-08-16.** A library file declares exactly the module its path names.

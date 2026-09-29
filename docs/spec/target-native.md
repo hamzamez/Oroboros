@@ -7,9 +7,10 @@ what Go does. Nothing is renamed so that three hosts can agree, because nothing 
 The point is to see the language with the portability layer taken away — to find out **which
 limitations are the language's and which were the layer's**.
 
-The layers they replaced are preserved as `targets/portable-go.oro`, `portable-js.oro` and
-`portable-java.oro`, because the gauntlet's seven programs are written against them and are the
-record of what parity was measured on.
+The layers they replaced, `targets/portable-go.oro`, `portable-js.oro` and `portable-java.oro`,
+were **deleted on 2026-09-29** ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)),
+and the last commit holding them is `870de46`. By then the gauntlet read `examples/native/`, and the
+layer could no longer compile its own programs (§5).
 
 ---
 
@@ -231,22 +232,25 @@ Worth stating, because most of it did.
   lean on.
 - **Targets as directories.** One file per host package, merged. `fmt.oro` is 30 lines.
 
-## 5. What is deliberately still on the shelf
+## 5. The portable layer, shelved and then deleted
 
-`targets/portable-go.oro` holds the layer: `num/f64`, `num/int`, `logic`, `io`, `alen`/`aindex`,
-`dict-*`, `split-words`, `fold-range`, `fold-range2`. The gauntlet's seven programs and every
-`examples/*.oro` outside `examples/native/` still build against it, and every parity number in
-`gauntlet/results/` was measured on it.
+`targets/portable-go.oro` held the layer: `num/f64`, `num/int`, `logic`, `io`, `alen`/`aindex`,
+`dict-*`, `split-words`, `fold-range`, `fold-range2`. Parity numbers in `gauntlet/results/` before
+the native migration were measured on it. What it cost was never visible while it was the only thing
+there: **it made the language look larger than it is.** Half of what read as core — arithmetic,
+comparison, arrays, dictionaries, printing — was a target file all along.
 
-Nothing about it is deleted, and reaching for it again is `-target=portable-go`. What it cost was
-never visible while it was the only thing there: **it made the language look larger than it is.**
-Half of what read as core — arithmetic, comparison, arrays, dictionaries, printing — was a target
-file all along.
+It was shelved here and deleted on 2026-09-29, when it could no longer compile 11 of its own 14
+examples. The reason is a signature, not a bug: `fold-range` takes a step function
+(S × ℕ → S), a second-order symbol, and the IR's Σ is first-order (the dynamic level is tables and
+loops), so no backend interprets it, and every program using it is refused at lowering as a closure
+in value position. What replaced it is §1's host-native targets, with `lib/`'s `provides` cells for
+the names a program wants portable, and portability computed per program (ADR 0026).
 
 ## 6. What is not done
 
-- **The gauntlet is not migrated.** Its seven programs still use the portable layer. Migrating them
-  is what would let `portable-go` be deleted rather than shelved.
+- ~~**The gauntlet is not migrated.**~~ Done: its programs are `examples/native/`, and the portable
+  layer is deleted (§5).
 - **`make-vec` was removed**, which makes the native target's structural set exactly **three**:
   `let`, `if`, `loop`. It had to go: it is hardcoded to the portable layer's type names, producing
   `vec-f64` and demanding `f64` elements, so on a target whose types are Go's it could not be called

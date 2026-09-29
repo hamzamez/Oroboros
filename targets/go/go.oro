@@ -9,8 +9,8 @@
 ; toolchain. The rest of the surface is one file per Go package, merged by
 ; LoadTarget — targets are directories (docs/spec/target-files.md).
 ;
-; What the portable layer used to provide lives in targets/portable-go.oro,
-; kept for the gauntlet. See docs/spec/portability-layer.md for what it cost.
+; The portable layer it replaced, targets/portable-go.oro, was deleted in
+; portable-2026-09-29. See docs/spec/target-native.md §5 for what it cost.
 
 (target go
   ; Go's own type names, except where our type language cannot spell them.

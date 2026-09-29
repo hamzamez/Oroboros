@@ -13,10 +13,10 @@ import (
 // HOST call, so the tests that matter are the ones pinning what it does and
 // does not license.
 
-// goNative is the NATIVE Go target — targets/go/, not the portable layer.
-// goTarget loads portable-go.oro, whose primitives are not the `go.` names
-// these tests use, and a target that does not know a name raises no obligation
-// for it: the first draft of these tests passed vacuously against it.
+// goNative is the NATIVE Go target, targets/go/. A target that does not know
+// a name raises no obligation for it: the first draft of these tests ran on
+// the portable layer, whose names were not the `go.` ones, and passed
+// vacuously.
 func goNative(t *testing.T) *Target {
 	t.Helper()
 	tg, err := LoadTarget("../targets/go")

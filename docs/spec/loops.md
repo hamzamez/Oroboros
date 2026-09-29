@@ -181,7 +181,7 @@ That is our mechanism, not an analogy. Their findings that bear on us:
 - **pull** streams are required for `zip`, because `zip` must advance two sources independently;
 - supporting both, plus early termination, is where the complexity lives.
 
-We currently have push (`examples/filter.oro`) and a delayed pull vector (`lib/num/vec.oro`) as
+We currently have push (`examples/native/filter-go.oro`) and a delayed pull vector (`lib/num/vec.oro`) as
 *library encodings*, discovered rather than designed. This paper is the map of the territory we have
 been walking around in, and it says `zip` and `takeWhile` are where the encoding starts to bite.
 

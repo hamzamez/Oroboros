@@ -141,7 +141,7 @@ storey and omitted the ground floor.
 The reason for skipping is still real: this architecture already has HM's two headline features
 by other means.
 
-**Parametric polymorphism, by specialisation.** `examples/generic.oro` uses one definition,
+**Parametric polymorphism, by specialisation.** `examples/generic.oro` (deleted with the portable layer in portable-2026-09-29; in git at 870de46) used one definition,
 `reduce-over`, at f64→f64 and at string→dictionary. The residual is two monomorphic loops — no
 type parameters, no dictionary, no monomorphisation pass, and
 [measured](../gauntlet/results/generics-2026-08-14.md) as byte-identical machine code to

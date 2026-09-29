@@ -175,6 +175,11 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return c.let(args, want)
 	case "build":
 		return c.build(args, want)
+	case "array", "table", "table-alloc", "table-build", "table-set",
+		"map", "map-build", "map-insert", "map-keys":
+		if ty, handled, err := c.tableForm(p.Kind, args, want); handled {
+			return ty, err
+		}
 	case "ascribe":
 		// `(the T e)` says e is in T (core.AscribeName): e is checked against
 		// T, and the term has type T. Typed as unknown, a declared result of ℤ
@@ -300,6 +305,9 @@ func (c *checker) agree(what, got, want string) error {
 			"is proven in one of them, and nothing else does. Prove the value back inside the signed "+
 			"word (narrow it, or divide it down), or declare the destination (int 0 18446744073709551615).",
 			what, core.ShowType(got), c.tgt.Name, c.tgt.Word.Lo, c.tgt.Word.Hi)
+	}
+	if unknownTable(got) {
+		return fmt.Errorf("%s is a %s, but %s is required here", what, constructorWord(got), want)
 	}
 	return fmt.Errorf("%s is %s, but %s is required here", what, got, want)
 }
@@ -453,10 +461,7 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 			if !compatible(c.tgt, a, b) {
 				return "", fmt.Errorf("a loop's exits are %s and %s", a, b)
 			}
-			if a == "" || a == "any" {
-				return b, nil
-			}
-			return a, nil
+			return joinOf(a, b), nil
 		}
 	}
 	return c.walk(t, want)
@@ -496,9 +501,7 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 	}
 	// The more informative of the two survives, so a known branch still
 	// constrains what the conditional is used as.
-	if a == "" || a == "any" {
-		a = b
-	}
+	a = joinOf(a, b)
 	return a, c.agree("a conditional", a, want)
 }
 
@@ -625,7 +628,13 @@ func CheckSignatures(tgt *Target, prog *core.Program, env *core.Env,
 // distinct. A target that declares `[]byte` still refuses an `[]int` program.
 func compatible(tg *Target, a, b string) bool {
 	a, b = tg.ValueType(a), tg.ValueType(b)
-	return a == "" || b == "" || a == "any" || b == "any" || a == b
+	if a == "" || b == "" || a == "any" || b == "any" || a == b {
+		return true
+	}
+	// A TABLE WHOSE ELEMENT IS UNKNOWN agrees with its own constructor, and
+	// with nothing else (types.md §3.1, tabletype.go). The IR's types never
+	// carry the unknown element, so W5, which reads this relation, is unchanged.
+	return unknownTable(a) && tg.sameConstructor(a, b) || unknownTable(b) && tg.sameConstructor(b, a)
 }
 
 // CheckAgainstSig checks a residual against its declared signature: the

@@ -451,7 +451,11 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
 ### Types, contracts and facts
 
 - **The type checker** runs on the residual, which is monomorphic, first-order and closed
-  ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions.
+  ([types.md](docs/spec/types.md)). `sig` is a claim checked in two directions. A table or map form
+  is typed by its constructor, `array ?`, `buffer ?` or `map ? ?`, where its element is unknown, and
+  agrees only with its own constructor or a host type realizing it (types.md §3.1,
+  [tabletype-2026-09-29](gauntlet/results/tabletype-2026-09-29.md)); indexing and `len` are still
+  unknown.
 - **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
   [refinements.md §6b](docs/spec/refinements.md)):
   - on a `prim`, at every call site;

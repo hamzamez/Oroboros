@@ -14,7 +14,11 @@ Written before the code, per [state.md §6](state.md). The argument is in
 >   declared precondition are obligations the refinement layer discharges or refuses.
 > - **The structural forms are the language's**: `loop`/`again`, `if`, `let`, a host call's
 >   continuation, a tuple from a loop or a scope, and an ascription. `fold-range`, `loop2` and
->   `make-vec`, which §4 once listed, belong to the retired portable layer and are checked only there.
+>   `make-vec`, which §4 once listed, belong to the retired portable layer; they remain on `blas` and
+>   the book's `tutorial*` targets and are checked there.
+> - **A table's constructor is typed** (2026-09-29, §3.1, [tabletype-2026-09-29](../../gauntlet/results/tabletype-2026-09-29.md)).
+>   Until then every table and map form was *unknown*, which agrees with everything, so
+>   `(array 1.0 2.0)` under a result declared `f64` compiled to a Go function returning `[]float64`.
 
 ---
 
@@ -107,6 +111,54 @@ a value satisfies it is not a question of sorts:
 declares no bignum cannot be held at all. That disagreement stays here, and says so: *"… needs
 arbitrary precision — … and the target declares none."*
 
+### 3.1 A table's constructor, and an element that may be unknown
+
+Two type constructors join the scalars and the declared names: **Table(σ)**, spelled `array σ` or
+`buffer σ`, and **Map(κ, σ)**, spelled `map κ σ`. An element may be the **unknown element** `?`.
+A table form's type is fixed by its constructor even where its element is not:
+
+```
+type((array e…))            = array ?        a graph
+type((table n (fn (i) e)))  = array ?        a rule
+type((alloc t))             = buffer ?
+type(b) in (build n (fn (b) e))   = buffer ?  the scope's buffer
+type((build n (fn (b) e)))  = type(e), frozen: buffer σ becomes array σ (ADR 0031);
+                              a table demand is checked on the frozen value, at the exit
+type((set c i x))           = type(c)        a store gives back its buffer
+type((map …)), type(m) in (build-map k (fn (m) e))  = map ? ?
+type((insert m k v))        = type(m)
+type((keys m))              = array ?
+```
+
+When a table form is **demanded** at a table type, the demand is its type, and each element it
+states (a graph's entries, a rule's body, a store's value) is demanded at the element type. That is
+how `(array 104 105 33)` meets `hex.Encode`'s `(array (int 0 255))`: each literal is an integer,
+and the integer sort is ℤ.
+
+**The relation gains one rule**, for the unknown element only:
+
+| | |
+|---|---|
+| `array ?` or `buffer ?` against a table type, or a host type that realizes one (`slice-float64`, which Go realizes as `[]float64` = ρ(`array f64`)) | agrees |
+| `map ? ?` against a map type | agrees |
+| either against anything else concrete | **error**: *"… is a table, but f64 is required here"* |
+
+The unknown element's rule does not tell a table from a buffer: which tables may be written is
+linearity's question (ADR 0018, ADR 0020), not a type's. Two **known** types are compared as before,
+invariantly and constructor by constructor, so a target that declares `[]byte` still refuses an
+`[]int` program. That is why a scope's value is frozen as it leaves: `hex.Encode` gives back
+`buffer (int 0 255)`, and the scope's value is the `array (int 0 255)` that `os.text-of` reads.
+
+**Why this is sound and loses nothing.** Every term whose value is a table is introduced by one of
+the forms above or by a declaration, so its type is Table(σ) for some σ, possibly `?`, and the
+relation never equates a table with a scalar. The rule is monotone in what it accepts where the
+element is unknown, and the unknown element never reaches the IR: the IR types tables by
+unification (`ir/typing.go`), and W5 reads this relation over the IR's types, which name every
+element or say `any`. So the relation W5 reads is unchanged on every input it sees.
+
+**Not built: the eliminator.** Application of a table, `(a i)`, and `len` are still typed unknown,
+so a table's element is checked where it is demanded, not where it is read.
+
 ## 4. The structural forms
 
 Their types are the language's, not a target file's ([target-files.md §4](target-files.md)):
@@ -120,7 +172,7 @@ Their types are the language's, not a target file's ([target-files.md §4](targe
 | **a tuple from a loop or a scope** | each projection Pⱼ is walked, and its type is the j-th name's (ADR 0031, [tables.md §2.5](tables.md)) |
 | **`(the T e)`** | e is checked against T, and the term has type T. It is how a declared result above the word survives inlining |
 | **the language's integer operators** | `+ − · / %` take `(int, int)` and give `int`; the orders and `=` give `bool` |
-| **tables and maps** | `build`, `set`, `len`, indexing, `build-map`, `insert`, `keys` declare no argument types here. The IR types them, by unification (`ir/typing.go`); their domains are the refinement layer's and their linearity is linear.go's |
+| **tables and maps** | their constructor, by §3.1; a store's value and a demanded table's entries at the element type. Indexing and `len` are unknown. The IR types every element, by unification (`ir/typing.go`); their domains are the refinement layer's and their linearity is linear.go's |
 
 ## 5. What this deliberately does not do
 

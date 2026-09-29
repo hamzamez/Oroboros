@@ -196,3 +196,91 @@ func TestSignatureArityIsChecked(t *testing.T) {
 		t.Errorf("the refusal should be the arity's, got %v", err)
 	}
 }
+
+// A TABLE FORM HAS A TABLE'S TYPE (types.md §3.1, tabletype-2026-09-29). Every
+// table and map form was typed unknown, which agrees with everything, so a
+// signature was never checked against a table-valued body: `(array 1.0 2.0)`
+// under a result declared f64 compiled to a Go function returning []float64.
+func claimErr(t *testing.T, result, body string) error {
+	t.Helper()
+	tg, prog, env := loadWithSigs(t, "go", "(use go)\n(sig bad ((a slice-float64)) "+result+")\n(def bad (a) "+body+")\n")
+	return CheckSignatures(tg, prog, env, nil)
+}
+
+func TestATableFormIsNotAScalar(t *testing.T) {
+	for _, c := range []struct{ result, body, is string }{
+		{"f64", "(array 1.0 2.0)", "is a table"},
+		{"f64", "(table 3 (fn (i) 1.0))", "is a table"},
+		{"f64", "(alloc (table 3 (fn (i) 1.0)))", "is a buffer"},
+		{"f64", "(build b 3 b)", "is a buffer"},
+		{"f64", "(build b 3 (set b 0 1.5))", "is a buffer"},
+		{"f64", "(build-map m 4 m)", "is a map"},
+		// and a constructor is not another constructor
+		{"(array f64)", "(build-map m 4 m)", "is a map"},
+		{"(map int f64)", "(array 1.0)", "is a table"},
+	} {
+		err := claimErr(t, c.result, c.body)
+		if err == nil || !strings.Contains(err.Error(), c.is+", but") {
+			t.Errorf("%s under %s: want a refusal that it %s, got %v", c.body, c.result, c.is, err)
+		}
+	}
+}
+
+// …and one with an unknown element meets every table: the language's, a
+// buffer, and a host type that realizes one. A known element is still
+// compared, invariantly.
+func TestATableFormMeetsATableDemand(t *testing.T) {
+	for _, c := range []struct{ result, body string }{
+		{"(array f64)", "(array 1.0 2.0)"},
+		{"(array f64)", "(build b 3 b)"},
+		{"(array f64)", "(alloc (table 3 (fn (i) 1.0)))"},
+		{"(array (int 0 255))", "(array 104 105 33)"},
+		{"slice-float64", "(array 1.0 2.0)"},
+		{"slice-float64", "(build b 3 (set b 0 1.5))"},
+		{"(map int f64)", "(build-map m 4 m)"},
+		{"int", "(len (array 1.0 2.0))"},
+	} {
+		if err := claimErr(t, c.result, c.body); err != nil {
+			t.Errorf("%s under %s: %v", c.body, c.result, err)
+		}
+	}
+}
+
+// A DEMANDED TABLE'S ENTRIES ARE DEMANDED AT ITS ELEMENT: a graph's entries, a
+// rule's body, and a store's value into a buffer whose element is known.
+func TestATableFormsEntriesAreDemanded(t *testing.T) {
+	for _, c := range []struct{ result, body, in string }{
+		{"(array f64)", `(array 1.0 "a")`, "in entry 2 of a table"},
+		{"(array f64)", `(table 3 (fn (i) "a"))`, "in a table's rule"},
+	} {
+		err := claimErr(t, c.result, c.body)
+		if err == nil || !strings.Contains(err.Error(), c.in) || !strings.Contains(err.Error(), "string") {
+			t.Errorf("%s under %s: want a refusal %q, got %v", c.body, c.result, c.in, err)
+		}
+	}
+	tg, prog, env := loadWithSigs(t, "go", `
+		(sig put ((b (buffer f64))) (buffer f64))
+		(def put (b) (set b 0 "x"))
+	`)
+	err := CheckSignatures(tg, prog, env, nil)
+	if err == nil || !strings.Contains(err.Error(), "in a store's value") {
+		t.Errorf("a string stored into a buffer of f64: want a refusal, got %v", err)
+	}
+}
+
+// A SCOPE'S VALUE IS FROZEN AS IT LEAVES (ADR 0031): a host call that gives
+// back `buffer σ` makes the scope an `array σ`, which is what an `(array σ)`
+// result or parameter reads. Without it the encoding/hex acceptance program
+// was refused, "enc is buffer int 0 255, but array int 0 255 is required" —
+// found by running the acceptance programs, which the emission sweep does not
+// compile (tabletype-2026-09-29 §5).
+func TestAScopesBufferIsFrozenAsItLeaves(t *testing.T) {
+	tg, prog, env := loadWithSigs(t, "go", `
+		(use go/encoding/binary)
+		(sig enc ((x (int 0 1000))) (array (int 0 255)))
+		(def enc (x) (build b 0 (binary.AppendUvarint b x)))
+	`)
+	if err := CheckSignatures(tg, prog, env, nil); err != nil {
+		t.Errorf("a frozen buffer is a table: %v", err)
+	}
+}

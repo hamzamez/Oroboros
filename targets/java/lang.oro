@@ -41,7 +41,13 @@
     ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
     ; `toChars` yields the surrogate PAIR above the BMP, which is UTF-16's
     ; representation of that one scalar and not two of anything.
-    (sig string-of (int) string pure (host expr "new String(Character.toChars((int) %s))"))
+    ; ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md §7),
+    ; a disjunction, which the refinement layer decides by case split. Outside it
+    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
+    ; surrogate or a RangeError, Java an exception or a lone char — so the
+    ; language's operation states one domain on every target
+    ; (gotarget-2026-09-30).
+    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "new String(Character.toChars((int) %s))"))
 
     (sig +  (int int) int  pure (host expr "%s + %s" (checked addExact)))
     (sig -  (int int) int  pure (host expr "%s - %s" (checked subtractExact)))

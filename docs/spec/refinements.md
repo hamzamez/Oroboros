@@ -114,6 +114,26 @@ The witness, accepted before this amendment and refused now:
   (t (b 3)))             ; b's cells reach 9, t has six
 ```
 
+### 3b. A disjunction in a goal (2026-09-30)
+
+The fragment is conjunctions of linear inequalities (§4), and a disjunction reaches it only as a
+**goal**, never as a fact the layer reasons from. `d ≠ 0` was the first, and it was proven by proving
+one side. Scalar's precondition on `string-of` needed the general rule:
+0 ≤ c ≤ 10FFFF and (c ≤ D7FF or c ≥ E000) (string-operations.md §7, gotarget-2026-09-30).
+
+A goal built from linear atoms by ∧ and ∨ is decided by the right-hand rules of Gentzen's sequent
+calculus (1935):
+
+```
+Γ ⊢ A ∧ B   iff  Γ ⊢ A  and  Γ ⊢ B
+Γ ⊢ A ∨ B   if   Γ ⊢ A,  or  Γ ⊢ B,  or  A ∨ B ∈ Γ        (an assumption that is the same term)
+```
+
+It is **sound**, and **incomplete** in one named way: a disjunctive fact is never split. So a guard
+`(if (or (<= c 55295) (>= c 57344)) (string-of c) …)` proves the call, because the guard is the same
+term as the goal's disjunction, but Γ = {c ≤ 5 ∨ c ≥ 9} does not prove c ≠ 7. The rule applies only to
+a goal containing a disjunction, so every other obligation is decided as before.
+
 ## 4. The fragment
 
 **Linear integer arithmetic over difference constraints**, which is what every bounds obligation

@@ -1149,6 +1149,10 @@ var handDeclared = []handEntry{
 		"go/os.Stdout": "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stderr": "a package VARIABLE; the survey generates functions, methods and constants",
 	}},
+	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader"},
+		stringsMistakes, true, map[string]string{
+			"go/strings.NewBuilder": "new(strings.Builder): Go's zero value is a construct, not a name",
+		}},
 	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/Writer", "go/io/Closer", "go/io/WriteCloser", "go/io/ByteReader"},
 		nil, true, map[string]string{
 			"go/io/Writer":      "an INTERFACE's methods; the generator declares none",
@@ -1156,6 +1160,32 @@ var handDeclared = []handEntry{
 			"go/io/WriteCloser": "an INTERFACE's methods; the generator declares none",
 			"go/io/ByteReader":  "an INTERFACE's methods; the generator declares none",
 		}},
+}
+
+// stringsMistakes: the four disagreements this file had (a host alias for the
+// host's own table), and the mechanical ones.
+var stringsMistakes = map[string]func(m map[string]emit.Prim){
+	"Fields as the old host alias slice-string": func(m map[string]emit.Prim) {
+		p := m["Fields"]
+		p.Result = "slice-string"
+		m["Fields"] = p
+	},
+	"an index wider than the host's int": func(m map[string]emit.Prim) {
+		p := m["Index"]
+		p.Result = "int -1 18446744073709551615"
+		m["Index"] = p
+	},
+	"IndexByte's argument declared as a rune": func(m map[string]emit.Prim) {
+		p := m["IndexByte"]
+		p.Args = []string{p.Args[0], "int -2147483648 2147483647"}
+		m["IndexByte"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["Contains"]
+		p.Form = strings.ReplaceAll(p.Form, "strings.Contains(", "strings.ContainsAny(")
+		m["Contains"] = p
+	},
+	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Contains"] },
 }
 
 // osMistakes: the one this file had, a perm wider than FileMode's set, and the

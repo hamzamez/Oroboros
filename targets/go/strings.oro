@@ -1,81 +1,204 @@
-; Go's `strings`, under Go's own names.
+; Go's `strings`: functions on Go's strings, under Go's names.
 ;
 ;   (use go/strings)
-;   (strings.Fields text)   (strings.ToLower s)   (strings.Contains s sub)
+;   (strings.Fields text)   ((strings.Cut s ":") (fn (before after found) …))
 ;
-; Written because gauntlet program 4 — word frequency — could not move to the
-; native target without it. The native Go target had NO string surface at all:
-; `builtin.oro` declares `s<` and `string-of-bytes` and nothing else, so a
-; program that wanted to split text had to stay on the portable layer.
+; THE ALGEBRA, BEFORE THE NAMES. A Go string is a byte sequence: the free
+; monoid B* over bytes, with concatenation and "". Ours is Σ*, the free monoid
+; over Unicode scalar values, held as its UTF-8 encoding V = enc(Σ*) ⊆ B*
+; (ADR 0030). So every parameter here is the host's `bytestring`, and ours is
+; accepted for nothing (`string ≤ bytestring`). A result is ours only where the
+; host maps EVERY input into V, and that was measured, not assumed.
 ;
-; The pass condition for g4 was never a number. It is that the Go output uses
-; Go's own `map[string]int` and Go's own splitting, which is what this file is
-; for (docs/gauntlet.md).
+; - PREDICATES are subsets of B* × B*: Contains s t ⇔ ∃u v. s = u·t·v,
+;   HasPrefix s p ⇔ ∃v. s = p·v, HasSuffix symmetrically. EqualFold is Unicode's
+;   simple case folding, an equivalence relation.
+; - INDEXES are byte offsets: Index s t = min { i : s[i, i+|t|) = t }, or −1.
+;   So every index is in [−1, |s|] ⊆ [−1, 2^63 − 1], which is declared.
+; - CUT is the factorisation s = before·sep·after at sep's first occurrence:
+;   found ⇒ s = before ++ sep ++ after, and ¬found ⇒ (s, "", false). CutPrefix
+;   and CutSuffix are the one-sided halves, CutLast the last occurrence.
+; - SPLIT AND JOIN: Join (Split s sep) sep = s for sep ≠ "", so Split is a
+;   section and Join its retraction. Fields splits on maximal runs of
+;   unicode.IsSpace, which is GO's definition of space, and yields no empty field.
+; - THE CASE MAPS ToLower, ToUpper, ToTitle and Title go through strings.Map,
+;   which re-encodes an invalid byte as U+FFFD, so each is a map B* → V: its
+;   result is ours, `string`. Measured on 1,011,155 inputs (every string of up to
+;   three bytes over an alphabet of invalid and case-mapped bytes, and a million
+;   random ones): no invalid output, where the control, TrimSpace, gave 832,506
+;   (gotarget-2026-09-30). ToValidUTF8 s r is in V exactly when r is, so its
+;   replacement is declared ours.
+; - Everything else can hand back invalid bytes it was given — Trim cuts at a
+;   byte, Split at a separator — so its result is the host's.
+; - A BUILDER is a monoid accumulator: after writes w₁ … wₙ, String() is
+;   w₁·…·wₙ. It is a mutable host object, so its methods are impure and their
+;   order is the program's order (ADR 0010). A READER is a cursor over a fixed
+;   string: io.Reader's contract, 0 ≤ n ≤ len p.
 ;
-; What this package could NOT express, recorded rather than worked around:
-;
-;   - `strings.Cut` returns (before, after, found) — three results. The fourth,
-;     fifth and sixth demand for a product; see target-native.md.
-;   - `strings.Builder` is a mutable struct with methods. There is no way to
-;     name a struct type or call a method, so the whole Builder API is absent
-;     and `Join` is what replaces it.
-;   - `SplitN`, `Replace` and friends taking a count are fine; the ones taking
-;     a `func(rune) bool` — `FieldsFunc`, `TrimFunc`, `IndexFunc` — are not,
-;     because a surviving lambda is an escaping closure (derivation s6, and
-;     docs/spec/callbacks.md for what that does and does not cost) and the
-;     core does not have one.
-;
-; `Fields` splits on runs of white space as defined by `unicode.IsSpace`. That
-; is GO's definition, not a portable one, which is exactly the point of a
-; target-native module: `split-words` on the portable layer passed every check
-; for two months while returning different answers on different targets
-; (primitives.md). Here there is no claim to break.
+; WHAT IS NOT DECLARED, of the 66 names the survey can declare:
+;   - ToLowerSpecial, ToUpperSpecial, ToTitleSpecial take a unicode.SpecialCase,
+;     and the only ones are package VARIABLES of `unicode` (TurkishCase), which
+;     no file here declares yet;
+;   - Replacer's two methods: its constructor, NewReplacer(oldnew ...string), is
+;     VARIADIC, so no Replacer can be obtained. That is the variadic wall
+;     (gostdlib's 171 names), and the one thing in this package it blocks.
+; Not in the survey at all: the functions taking a func(rune) bool (FieldsFunc,
+; TrimFunc, IndexFunc, Map, …), which are callbacks, tiers 1 and 2, not built.
 
 (target go
   (module go/strings
-    ; ---- splitting and joining
-    ; ---- the free monoid (string-operations.md §1)
-    ;
-    ; CONCATENATION is the monoid's operation and `""` its unit. Found by
-    ; spelling, so this file says how Go does it and nothing in the compiler
-    ; learns that Go spells it `+`.
-    (sig concat (string string) string pure (host expr "%s + %s"))
+    (type Builder (host "*strings.Builder"))
+    (type Reader (host "*strings.Reader"))
 
-    ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
-    ; With `concat` and `""` it builds any string, which is what "free" means.
-    (sig string-of (int) string pure (host expr "string(rune(%s))"))
+    ; ---------------------------------------------------------------- predicates
+    (sig Contains ((s bytestring) (substr bytestring)) bool pure
+      (host expr "strings.Contains(%s, %s)" (import "strings")))
+    (sig ContainsAny ((s bytestring) (chars bytestring)) bool pure
+      (host expr "strings.ContainsAny(%s, %s)" (import "strings")))
+    (sig ContainsRune ((s bytestring) (r (int -2147483648 2147483647))) bool pure
+      (host expr "strings.ContainsRune(%s, int32(%s))" (import "strings")))
+    (sig HasPrefix ((s bytestring) (prefix bytestring)) bool pure
+      (host expr "strings.HasPrefix(%s, %s)" (import "strings")))
+    (sig HasSuffix ((s bytestring) (suffix bytestring)) bool pure
+      (host expr "strings.HasSuffix(%s, %s)" (import "strings")))
+    (sig EqualFold ((s bytestring) (t bytestring)) bool pure
+      (host expr "strings.EqualFold(%s, %s)" (import "strings")))
+    ; Lexicographic order on bytes, as a sign: {−1, 0, 1}.
+    (sig Compare ((a bytestring) (b bytestring)) (int -1 1) pure
+      (host expr "strings.Compare(%s, %s)" (import "strings")))
 
-    (sig Fields   (string) slice-string      pure          (host expr "strings.Fields(%s)" (import "strings")))
-    (sig Split    (string string) slice-string   pure   (host expr "strings.Split(%s, %s)" (import "strings")))
-    (sig SplitN   (string string int) slice-string pure
-                   (host expr "strings.SplitN(%s, %s, %s)" (import "strings")))
-    (sig Join     (slice-string string) string    pure   (host expr "strings.Join(%s, %s)" (import "strings")))
+    ; ------------------------------------------------------------------ indexes
+    ; Byte offsets in [−1, |s|]; −1 is absence, so each is total.
+    (sig Index ((s bytestring) (substr bytestring)) (int -1 9223372036854775807) pure
+      (host expr "strings.Index(%s, %s)" (import "strings")))
+    (sig IndexAny ((s bytestring) (chars bytestring)) (int -1 9223372036854775807) pure
+      (host expr "strings.IndexAny(%s, %s)" (import "strings")))
+    (sig IndexByte ((s bytestring) (c (int 0 255))) (int -1 9223372036854775807) pure
+      (host expr "strings.IndexByte(%s, uint8(%s))" (import "strings")))
+    (sig IndexRune ((s bytestring) (r (int -2147483648 2147483647))) (int -1 9223372036854775807) pure
+      (host expr "strings.IndexRune(%s, int32(%s))" (import "strings")))
+    (sig LastIndex ((s bytestring) (substr bytestring)) (int -1 9223372036854775807) pure
+      (host expr "strings.LastIndex(%s, %s)" (import "strings")))
+    (sig LastIndexAny ((s bytestring) (chars bytestring)) (int -1 9223372036854775807) pure
+      (host expr "strings.LastIndexAny(%s, %s)" (import "strings")))
+    (sig LastIndexByte ((s bytestring) (c (int 0 255))) (int -1 9223372036854775807) pure
+      (host expr "strings.LastIndexByte(%s, uint8(%s))" (import "strings")))
+    ; Non-overlapping occurrences; of "" it is the rune count plus one.
+    (sig Count ((s bytestring) (substr bytestring)) (int 0 9223372036854775807) pure
+      (host expr "strings.Count(%s, %s)" (import "strings")))
 
-    ; ---- searching. Index returns -1 when absent, which is a total function
-    ; and needs no product.
-    (sig Contains  (string string) bool  pure  (host expr "strings.Contains(%s, %s)" (import "strings")))
-    (sig HasPrefix (string string) bool pure  (host expr "strings.HasPrefix(%s, %s)" (import "strings")))
-    (sig HasSuffix (string string) bool pure  (host expr "strings.HasSuffix(%s, %s)" (import "strings")))
-    (sig Index     (string string) int     pure   (host expr "strings.Index(%s, %s)" (import "strings")))
-    (sig LastIndex (string string) int pure   (host expr "strings.LastIndex(%s, %s)" (import "strings")))
-    (sig Count     (string string) int     pure   (host expr "strings.Count(%s, %s)" (import "strings")))
-    (sig EqualFold (string string) bool pure  (host expr "strings.EqualFold(%s, %s)" (import "strings")))
+    ; -------------------------------------------------------------- factorising
+    (sig Cut ((s bytestring) (sep bytestring)) (tuple bytestring bytestring bool) pure
+      (host expr "strings.Cut(%s, %s)" (import "strings")))
+    (sig CutLast ((s bytestring) (sep bytestring)) (tuple bytestring bytestring bool) pure
+      (host expr "strings.CutLast(%s, %s)" (import "strings")))
+    (sig CutPrefix ((s bytestring) (prefix bytestring)) (tuple bytestring bool) pure
+      (host expr "strings.CutPrefix(%s, %s)" (import "strings")))
+    (sig CutSuffix ((s bytestring) (suffix bytestring)) (tuple bytestring bool) pure
+      (host expr "strings.CutSuffix(%s, %s)" (import "strings")))
 
-    ; ---- transforming
-    (sig ToLower   (string) string        pure         (host expr "strings.ToLower(%s)" (import "strings")))
-    (sig ToUpper   (string) string        pure         (host expr "strings.ToUpper(%s)" (import "strings")))
-    (sig ToTitle   (string) string        pure         (host expr "strings.ToTitle(%s)" (import "strings")))
-    (sig TrimSpace (string) string      pure         (host expr "strings.TrimSpace(%s)" (import "strings")))
-    (sig Trim      (string string) string       pure  (host expr "strings.Trim(%s, %s)" (import "strings")))
-    (sig TrimLeft  (string string) string   pure  (host expr "strings.TrimLeft(%s, %s)" (import "strings")))
-    (sig TrimRight (string string) string  pure  (host expr "strings.TrimRight(%s, %s)" (import "strings")))
-    (sig TrimPrefix (string string) string pure (host expr "strings.TrimPrefix(%s, %s)" (import "strings")))
-    (sig TrimSuffix (string string) string pure (host expr "strings.TrimSuffix(%s, %s)" (import "strings")))
-    (sig Repeat    (string int) string     pure     (host expr "strings.Repeat(%s, %s)" (import "strings")))
-    (sig Replace   (string string string int) string  pure
-                    (host expr "strings.Replace(%s, %s, %s, %s)" (import "strings")))
-    (sig ReplaceAll (string string string) string   pure
-                    (host expr "strings.ReplaceAll(%s, %s, %s)" (import "strings")))
+    ; --------------------------------------------------------- splitting, joining
+    ; SplitN's n: n > 0 at most n pieces, n = 0 none, n < 0 all. Every int is
+    ; meaningful, so there is no precondition.
+    (sig Split ((s bytestring) (sep bytestring)) (array bytestring) pure
+      (host expr "strings.Split(%s, %s)" (import "strings")))
+    (sig SplitN ((s bytestring) (sep bytestring) (n int)) (array bytestring) pure
+      (host expr "strings.SplitN(%s, %s, %s)" (import "strings")))
+    (sig SplitAfter ((s bytestring) (sep bytestring)) (array bytestring) pure
+      (host expr "strings.SplitAfter(%s, %s)" (import "strings")))
+    (sig SplitAfterN ((s bytestring) (sep bytestring) (n int)) (array bytestring) pure
+      (host expr "strings.SplitAfterN(%s, %s, %s)" (import "strings")))
+    (sig Fields ((s bytestring)) (array bytestring) pure
+      (host expr "strings.Fields(%s)" (import "strings")))
+    (sig Join ((elems (array bytestring)) (sep bytestring)) bytestring pure
+      (host expr "strings.Join(%s, %s)" (import "strings")))
 
-    ; ---- comparison. Go's Compare is -1/0/+1 and total.
-    (sig Compare (string string) int pure (host expr "strings.Compare(%s, %s)" (import "strings")))))
+    ; --------------------------------------------------------------- the case maps
+    ; Maps B* → V (the header): the result is ours.
+    (sig ToLower ((s bytestring)) string pure (host expr "strings.ToLower(%s)" (import "strings")))
+    (sig ToUpper ((s bytestring)) string pure (host expr "strings.ToUpper(%s)" (import "strings")))
+    (sig ToTitle ((s bytestring)) string pure (host expr "strings.ToTitle(%s)" (import "strings")))
+    ; Deprecated by Go (it does not handle Unicode punctuation), and still Go's.
+    (sig Title ((s bytestring)) string pure (host expr "strings.Title(%s)" (import "strings")))
+    (sig ToValidUTF8 ((s bytestring) (replacement string)) string pure
+      (host expr "strings.ToValidUTF8(%s, %s)" (import "strings")))
+
+    ; ----------------------------------------------------------------- trimming
+    (sig TrimSpace ((s bytestring)) bytestring pure (host expr "strings.TrimSpace(%s)" (import "strings")))
+    (sig Trim ((s bytestring) (cutset bytestring)) bytestring pure
+      (host expr "strings.Trim(%s, %s)" (import "strings")))
+    (sig TrimLeft ((s bytestring) (cutset bytestring)) bytestring pure
+      (host expr "strings.TrimLeft(%s, %s)" (import "strings")))
+    (sig TrimRight ((s bytestring) (cutset bytestring)) bytestring pure
+      (host expr "strings.TrimRight(%s, %s)" (import "strings")))
+    (sig TrimPrefix ((s bytestring) (prefix bytestring)) bytestring pure
+      (host expr "strings.TrimPrefix(%s, %s)" (import "strings")))
+    (sig TrimSuffix ((s bytestring) (suffix bytestring)) bytestring pure
+      (host expr "strings.TrimSuffix(%s, %s)" (import "strings")))
+
+    ; -------------------------------------------------------------- rewriting
+    ; Repeat panics on a negative count, which is a precondition; it also panics
+    ; when |s|·count overflows an int, which is a product of two variables and
+    ; outside the linear fragment, so that half is named here and not checked.
+    (sig Repeat ((s bytestring) (count int)) bytestring pure (where (>= count 0))
+      (host expr "strings.Repeat(%s, %s)" (import "strings")))
+    (sig Replace ((s bytestring) (old bytestring) (new bytestring) (n int)) bytestring pure
+      (host expr "strings.Replace(%s, %s, %s, %s)" (import "strings")))
+    (sig ReplaceAll ((s bytestring) (old bytestring) (new bytestring)) bytestring pure
+      (host expr "strings.ReplaceAll(%s, %s, %s)" (import "strings")))
+    ; A copy: the identity on values, with fresh storage.
+    (sig Clone ((s bytestring)) bytestring pure (host expr "strings.Clone(%s)" (import "strings")))
+
+    ; ------------------------------------------------------------- constructors
+    (sig NewReader ((s bytestring)) Reader (host expr "strings.NewReader(%s)" (import "strings")))
+    ; A Builder's zero value is ready to use, and Go makes one with new(T) — a
+    ; construct, not a name, so the survey does not generate it.
+    (sig NewBuilder () Builder (host expr "new(strings.Builder)" (import "strings")))
+
+    ; ------------------------------------------------------------------ Builder
+    (module Builder
+      (sig Len ((self Builder)) (int 0 9223372036854775807) (host expr "%s.Len()" (import "strings")))
+      (sig Cap ((self Builder)) (int 0 9223372036854775807) (host expr "%s.Cap()" (import "strings")))
+      ; Grow panics on a negative n.
+      (sig Grow ((self Builder) (n int)) Builder (where (>= n 0)) (host stmt "%s.Grow(%s)" (import "strings")))
+      (sig Reset ((self Builder)) Builder (host stmt "%s.Reset()" (import "strings")))
+      ; w₁·…·wₙ, as bytes: WriteByte can write any byte, so the host's string.
+      (sig String ((self Builder)) bytestring (host expr "%s.String()" (import "strings")))
+      ; The error is always nil and the count is what was written (Go's source).
+      (sig Write ((self Builder) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.Write(%s)" (import "strings")))
+      (sig WriteByte ((self Builder) (c (int 0 255))) error (host expr "%s.WriteByte(uint8(%s))" (import "strings")))
+      (sig WriteRune ((self Builder) (r (int -2147483648 2147483647))) (tuple (int 1 4) error)
+        (host expr "%s.WriteRune(int32(%s))" (import "strings")))
+      (sig WriteString ((self Builder) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.WriteString(%s)" (import "strings"))))
+
+    ; ------------------------------------------------------------------- Reader
+    (module Reader
+      (sig Len ((self Reader)) (int 0 9223372036854775807) (host expr "%s.Len()" (import "strings")))
+      (sig Size ((self Reader)) (int 0 9223372036854775807) (host expr "%s.Size()" (import "strings")))
+      ; Write-borrows, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
+      (sig Read ((self Reader) (b (buffer (int 0 255))))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (host expr "func(b []byte) ([]byte, int, error) { n, err := %s.Read(b); return b, n, err }(%s)"
+          (import "strings")))
+      (sig ReadAt ((self Reader) (b (buffer (int 0 255))) (off (int -9223372036854775808 9223372036854775807)))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (host expr "func(b []byte, off int64) ([]byte, int, error) { n, err := %s.ReadAt(b, off); return b, n, err }(%s, int64(%s))"
+          (import "strings")))
+      (sig ReadByte ((self Reader)) (tuple (int 0 255) error) (host expr "%s.ReadByte()" (import "strings")))
+      ; A scalar value or U+FFFD, and its width, 0 at the end.
+      (sig ReadRune ((self Reader)) (tuple (int 0 1114111) (int 0 4) error) (host expr "%s.ReadRune()" (import "strings")))
+      (sig UnreadByte ((self Reader)) error (host expr "%s.UnreadByte()" (import "strings")))
+      (sig UnreadRune ((self Reader)) error (host expr "%s.UnreadRune()" (import "strings")))
+      (sig Reset ((self Reader) (s bytestring)) Reader (host stmt "%s.Reset(%s)" (import "strings")))
+      ; whence is io.SeekStart, SeekCurrent or SeekEnd; anything else is an
+      ; error the host returns, not a panic, so no precondition.
+      (sig Seek ((self Reader) (offset (int -9223372036854775808 9223372036854775807)) (whence int))
+        (tuple (int -9223372036854775808 9223372036854775807) error)
+        (host expr "%s.Seek(int64(%s), %s)" (import "strings")))
+      (sig WriteTo ((self Reader) (w go/io.Writer)) (tuple (int -9223372036854775808 9223372036854775807) error)
+        (host expr "%s.WriteTo(%s)" (import "strings")))))
+
+  (implements go/strings.Builder go/io.Writer)
+  (implements go/strings.Reader go/io.Reader go/io.ByteReader))

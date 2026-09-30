@@ -863,6 +863,21 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		}
 	}
 	want := core.Rename2(p.Where, sub)
+	// A GOAL WITH A DISJUNCTION IN IT is decided by the sequent calculus's
+	// right-hand rules (goalHolds). Scalar's precondition on `string-of` is the
+	// first: 0 ≤ c ≤ 10FFFF and (c ≤ D7FF or c ≥ E000) (gotarget-2026-09-30).
+	if hasDisjunction(want) {
+		if r.goalHolds(want, f) {
+			return true, nil
+		}
+		if r.probe {
+			return false, nil
+		}
+		return false, fmt.Errorf("%s requires %s, which does not follow\n  known: %s\n"+
+			"  A disjunction is proven by proving one side, or by an assumption that is the same "+
+			"term; a case split over a disjunctive fact is not attempted (docs/spec/refinements.md §3b).",
+			name, want, f.known())
+	}
 	// A DISEQUALITY is a disjunction, so the conjunctive fragment cannot hold
 	// the goal — but it can hold each side. `d ≠ 0` is `d < 0 ∨ d > 0`, and
 	// proving either proves it (integers.md §5).
@@ -921,6 +936,84 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		}
 	}
 	return true, nil
+}
+
+// A GOAL BUILT FROM LINEAR ATOMS BY ∧ AND ∨ is decided by the right-hand rules
+// of Gentzen's sequent calculus (1935):
+//
+//	Γ ⊢ A ∧ B   iff  Γ ⊢ A  and  Γ ⊢ B
+//	Γ ⊢ A ∨ B   if   Γ ⊢ A,  or  Γ ⊢ B,  or  A ∨ B ∈ Γ  (an assumption, the same term)
+//
+// Sound, and incomplete in one named way: a disjunctive FACT is never split, so
+// Γ = {c ≤ 5 ∨ c ≥ 9} proves c ≠ 7 only if the goal is that same term. The
+// fragment the layer decides is conjunctions of linear inequalities (§3), and
+// a disjunction reaches it only as a goal: `d ≠ 0` was the one case, handled
+// the same way (entailsEither), before Scalar needed the general rule.
+
+// conjParts and disjParts read the reader's erased spellings (booleans.md):
+// `(and a b)` is `(if a b false)` and `(or a b)` is `(if a true b)`.
+func conjParts(t *core.Term) (*core.Term, *core.Term, bool) {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return nil, nil, false
+	}
+	a := t.Args()
+	switch {
+	case isOp(t.Op().Name, "and") && len(a) == 2:
+		return a[0], a[1], true
+	case isOp(t.Op().Name, "if") && len(a) == 3 && a[2].Kind == core.KBool && !a[2].IsTrue():
+		return a[0], a[1], true
+	}
+	return nil, nil, false
+}
+
+func disjParts(t *core.Term) (*core.Term, *core.Term, bool) {
+	if t.Kind != core.KApp || t.Op().Kind != core.KName {
+		return nil, nil, false
+	}
+	a := t.Args()
+	switch {
+	case isOp(t.Op().Name, "or") && len(a) == 2:
+		return a[0], a[1], true
+	case isOp(t.Op().Name, "if") && len(a) == 3 && a[1].Kind == core.KBool && a[1].IsTrue():
+		return a[0], a[2], true
+	}
+	return nil, nil, false
+}
+
+// hasDisjunction reports a disjunction under the goal's conjunctions.
+func hasDisjunction(t *core.Term) bool {
+	if a, b, ok := conjParts(t); ok {
+		return hasDisjunction(a) || hasDisjunction(b)
+	}
+	_, _, ok := disjParts(t)
+	return ok
+}
+
+// goalHolds decides a goal by the rules above; an atom by the fragment, by an
+// assumption that is the same term, or by evaluating a closed comparison.
+func (r *refiner) goalHolds(t *core.Term, f *facts) bool {
+	if a, b, ok := conjParts(t); ok {
+		return r.goalHolds(a, f) && r.goalHolds(b, f)
+	}
+	if a, b, ok := disjParts(t); ok {
+		return f.entailsOpaque(opaqueKey(t)) || r.goalHolds(a, f) || r.goalHolds(b, f)
+	}
+	if lo, hi, isNe := disequality(t); isNe {
+		return f.entailsEither(lo, hi)
+	}
+	if goals, ok := f.oblig(t); ok {
+		for _, g := range goals {
+			if !f.entails(g) {
+				return false
+			}
+		}
+		return true
+	}
+	if f.entailsOpaque(opaqueKey(t)) {
+		return true
+	}
+	v, closed := closedComparison(t)
+	return closed && v
 }
 
 // ensured is the postcondition a call GUARANTEES, with the arguments

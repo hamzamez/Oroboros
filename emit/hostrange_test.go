@@ -94,3 +94,31 @@ func TestStdinCanBeRead(t *testing.T) {
 		t.Errorf("reading standard input: %v", err)
 	}
 }
+
+// string-of's DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md
+// §7), the same on every target, because it is the language's operation and the
+// hosts disagree outside it. A disjunction, decided by the sequent calculus's
+// right-hand rules (refinements.md §3b): one side proven, or an assumption that
+// is the same term.
+func TestStringOfsDomainIsScalar(t *testing.T) {
+	for _, c := range []struct {
+		src string
+		ok  bool
+	}{
+		{"(export f) (sig f ((d (int 0 9))) string) (def f (d) (string-of (+ 48 d)))", true},
+		{"(export f) (sig f () string) (def f () (string-of 65))", true},
+		{"(export f) (sig f ((c (int 57344 1114111))) string) (def f (c) (string-of c))", true},
+		{`(export f) (sig f ((c (int 0 1114111))) string) (def f (c) (if (or (<= c 55295) (>= c 57344)) (string-of c) ""))`, true},
+		{"(export f) (sig f () string) (def f () (string-of 55296))", false},
+		{"(export f) (sig f ((c int)) string) (def f (c) (string-of c))", false},
+		{"(export f) (sig f ((c (int 0 1114111))) string) (def f (c) (string-of c))", false},
+	} {
+		_, err := entryGo(t, c.src)
+		if c.ok && err != nil {
+			t.Errorf("%s: %v", c.src, err)
+		}
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "string-of requires")) {
+			t.Errorf("%s: want Scalar's precondition refused, got %v", c.src, err)
+		}
+	}
+}

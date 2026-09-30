@@ -45,7 +45,13 @@
     ; η : Scalar → Scalar*, the generator injection — the string of one scalar.
     ; `fromCodePoint` and NOT `fromCharCode`, which takes a UTF-16 code unit and
     ; would truncate every scalar above the BMP.
-    (sig string-of (int) string pure (host expr "String.fromCodePoint(%s)"))
+    ; ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md §7),
+    ; a disjunction, which the refinement layer decides by case split. Outside it
+    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
+    ; surrogate or a RangeError, Java an exception or a lone char — so the
+    ; language's operation states one domain on every target
+    ; (gotarget-2026-09-30).
+    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "String.fromCodePoint(%s)"))
 
     (sig +   (any any) any  pure (host expr "%s + %s"))
     (sig -   (any any) any  pure (host expr "%s - %s"))

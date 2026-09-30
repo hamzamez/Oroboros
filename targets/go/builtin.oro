@@ -101,7 +101,7 @@
     ; append may write into the argument's backing array, so it is NOT pure.
     (sig append-int     (slice-int int) slice-int             (host expr "append(%s, %s)"))
     (sig append-float64 (slice-float64 f64) slice-float64 (host expr "append(%s, %s)"))
-    (sig append-string  (slice-string string) slice-string    (host expr "append(%s, %s)"))
+    (sig append-string  (slice-string bytestring) slice-string    (host expr "append(%s, %s)"))
 
     ; make: the element type is part of Go's syntax, so one name per type. Each
     ; result is n long, a postcondition (theories.md §7.9, §8.4).
@@ -114,32 +114,36 @@
 
     (sig copy-float64 (slice-float64 slice-float64) int       (host expr "copy(%s, %s)"))
     (sig clear-map    (map-string-int) map-string-int         (host stmt "clear(%s)"))
-    (sig delete       (map-string-int string) map-string-int  (host stmt "delete(%s, %s)"))
+    (sig delete       (map-string-int bytestring) map-string-int  (host stmt "delete(%s, %s)"))
     (sig panic        (any) any (host stmt "panic(%s)"))
     (sig print        (any) any (host stmt "print(%s)"))
     (sig println      (any) any (host stmt "println(%s)"))
 
+    ; A GO []string AND A GO map[string]int HOLD GO STRINGS, B* (ADR 0030): their
+    ; elements and keys are `bytestring`. They were declared ours, Σ*, until
+    ; strings.Fields told the truth about its result and the claim failed
+    ; (gotarget-2026-09-30 §10).
     ; ---- indexing and slicing. Go's own, with Go's own panic outside bounds,
     ; which is why the refinement is carried rather than assumed.
     (sig at-int     ((v slice-int) (i int)) int pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v))))         (host expr "%s[%s]"))
     (sig at-float64 ((v slice-float64) (i int)) f64 pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v)))) (host expr "%s[%s]"))
-    (sig at-string  ((v slice-string) (i int)) string pure index
+    (sig at-string  ((v slice-string) (i int)) bytestring pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v))))   (host expr "%s[%s]"))
     (sig at-bool    ((v slice-bool) (i int)) bool pure index
       (where (go.&& (go.<= 0 i) (go.< i (go.len v))))       (host expr "%s[%s]"))
-    (sig at-map     (map-string-int string) int pure         (host expr "%s[%s]"))
+    (sig at-map     (map-string-int bytestring) int pure         (host expr "%s[%s]"))
 
     (sig set-int ((c slice-int) (i int) (x int)) slice-int (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
     (sig set-float64 ((c slice-float64) (i int) (x f64)) slice-float64 (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
-    (sig set-string ((c slice-string) (i int) (x string)) slice-string (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
+    (sig set-string ((c slice-string) (i int) (x bytestring)) slice-string (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
     (sig set-bool ((c slice-bool) (i int) (x bool)) slice-bool (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
     ; NO length postcondition here, and the omission is the point. An array store leaves
     ; the length alone, so `set-float64` passes its container's length through;
     ; a map INSERT can add a key, so `len(m)` after is not `len(m)` before.
     ; The two read identically in Go and are opposite facts.
-    (sig set-map (map-string-int string int) map-string-int (host stmt "%s[%s] = %s"))
+    (sig set-map (map-string-int bytestring int) map-string-int (host stmt "%s[%s] = %s"))
 
     ; Go's fused increment. `m[k]++` is ONE mapassign returning a value pointer;
     ; `m[k] = m[k] + 1` is a mapaccess AND a mapassign — the same key hashed
@@ -150,10 +154,24 @@
     ; layer the target natively provides. And it is the OPPOSITE of Java, where
     ; the fused `merge` loses 2.6x to unfused getOrDefault+put — which is why
     ; this is a per-target declaration and not a principle (ADR 0008).
-    (sig inc-map (map-string-int string) map-string-int (host stmt "%s[%s]++"))
+    (sig inc-map (map-string-int bytestring) map-string-int (host stmt "%s[%s]++"))
 
     (sig slice-float64 (slice-float64 int int) slice-float64 pure (host expr "%s[%s:%s]"))
     (sig slice-string  (slice-string int int) slice-string pure   (host expr "%s[%s:%s]"))
+
+    ; ---- THE LANGUAGE'S STRING MONOID ON GO (string-operations.md §1), found by
+    ; spelling: concatenation, the monoid's operation, is Go's `+`, and V·V ⊆ V,
+    ; so ours stays ours. They lived in go/strings until gotarget-2026-09-30,
+    ; which is Go's package and not the language's.
+    (sig concat ((a string) (b string)) string pure (host expr "%s + %s"))
+    ; η : Scalar → Σ*, the string of one scalar value.
+    ; ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md §7),
+    ; a disjunction, which the refinement layer decides by case split. Outside it
+    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
+    ; surrogate or a RangeError, Java an exception or a lone char — so the
+    ; language's operation states one domain on every target
+    ; (gotarget-2026-09-30).
+    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "string(rune(%s))"))
 
     ; ---- conversions. Go spells these T(x); each is its own name here.
     (sig int-of-float64  (f64) int     pure       (host expr "int(%s)"))

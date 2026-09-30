@@ -13,6 +13,26 @@
 ;                prove arithmetic on a result instead of refusing it.
 ;   a where    — what the host requires, checked at every call site.
 ;
+; THE ALGEBRA.
+;   Σ = [0, 0xD7FF] ∪ [0xE000, 0x10FFFF], the scalar values, and B = [0, 255].
+;   ValidRune is Σ's characteristic function on `rune`.
+;   e : Σ → B⁺ is the shortest encoding of one scalar, in RuneLen(c) ∈ {1..4}
+;   bytes by the thresholds 2^7, 2^11, 2^16. Its image is a PREFIX-FREE code:
+;   the lead byte fixes the length, and every later byte is 10xxxxxx, which is
+;   what RuneStart tests.
+;   enc : Σ* → B* is the monoid homomorphism e generates, injective because the
+;   code is prefix-free. Its image V is ADR 0030's valid UTF-8, and Valid is
+;   V's characteristic function.
+;   DecodeRune reads the first codeword: (c, RuneLen c) when p begins with e(c),
+;   (RuneError, 1) when it begins with no codeword, (RuneError, 0) when p is
+;   empty. It is total on B*, and on Σ it inverts e: DecodeRune(e(c)) =
+;   (c, RuneLen c). RuneCount counts the codewords and the bytes that begin
+;   none, each at least one byte wide, so RuneCount p ≤ len p.
+;
+; WHAT IS NOT SAID: DecodeRune's size ≤ len p relates a component of a tuple
+; result, and an `ensures` names one `result` (math/bits.oro meets the same
+; wall); and EncodeRune's exact requirement is a disjunction (below).
+;
 ; The generator still spells the host's types; gauntlet/stdlib/tooling_test.go
 ; checks that every declaration here agrees with them, and that none is missing.
 

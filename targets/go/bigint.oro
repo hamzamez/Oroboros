@@ -1,148 +1,136 @@
-; ARBITRARY PRECISION ON GO, WHICH IS `math/big`.
+; THE RUNG ABOVE THE WORD ON GO, WHICH IS `math/big`.
 ;
-; ADR 0019's third escape: an integer operation the compiler cannot prove stays
-; inside the portable window is a compile error, and one of the three ways to
-; clear it is to declare a range ABOVE the window, which promotes that value to
-; arbitrary precision. This file is what that promotion lands on here.
+; THE ALGEBRA. The set is ℤ, a `*big.Int` holding one integer exactly, and the
+; operations are the language's own on it:
 ;
-; It is a TARGET DECLARATION and not a runtime we ship, which is the whole
-; parasite model: three of the four hosts already have a bignum, so the bar
-; general-purpose.md set — "beyond the window they cost what they would cost if
-; we implemented them on the target" — is met by construction on those three.
-; windows ships none and declares none, and covering says so.
+;   big+ big- big*       the ring (ℤ, +, ·);
+;   big/ big%            TRUNCATED division: for b ≠ 0, a = b·q + r with
+;                        |r| < |b| and r = 0 or sign r = sign a (Boute 1992,
+;                        "The Euclidean definition of the functions div and
+;                        mod"; Leijen 2001 names it T-division). `math/big`'s
+;                        Quo and Rem are T-division. Its Div and Mod are
+;                        Euclidean, and would make the SAME source disagree
+;                        with itself either side of the word, because every
+;                        host's word divides by truncation (integers.md §4).
+;                        This is the one place a bignum could silently change
+;                        an answer, and it is chosen here, not inherited;
+;   big< … big=          ℤ's order, by Cmp;
+;   big-of               the inclusion S ↪ ℤ of the signed word;
+;   big%-small           a % k with k a word: |r| < |k|, so r ∈ S whatever a
+;                        is, a fact of the arithmetic, not of this host;
+;   big-fit[-signed]     the program's one declared set, enforced (ADR 0029);
+;   big-str              the decimal numeral, ASCII, so our `string` (ADR 0030).
 ;
-; THE SEMANTICS MUST BE THE LANGUAGE'S, not Go's convenience. `Quo`/`Rem`
-; truncate toward zero and take the dividend's sign, which is what
-; integers.md §4 measured all four hosts agreeing on inside the window;
-; `Div`/`Mod` are Euclidean and would make the SAME source disagree with itself
-; either side of 2^53. That is the one place a bignum can silently change an
-; answer, and it is chosen here rather than inherited.
+; WHICH VALUES LAND HERE IS NOT THIS FILE'S DECISION. A range declared above the
+; word is ADR 0019's third escape, and ir/big.go chooses the values held
+; exactly as a least fixed point of supply and demand (ADR 0034): a value
+; proven inside S stays in the word and is widened by `big-of` where it is
+; used. The other direction is refused by the IR (ir/big.go's `word`): a range
+; above the word is a WIDENING, not a refinement (unbounded-rung.md §3).
 ;
-; A KNOWN COST, recorded rather than discovered later: `new(big.Int).Add(a, b)`
-; allocates a fresh receiver per operation, which is exactly the naive form
-; bigarith-2026-08-28 measured at 4-5x worse than a careful one, and 3.97x worse
-; than a fixed-limb `build`. That is the rung ABOVE this one -- a finite range
-; gives a limb count, which gives a `build` of known length, which gives zero
-; allocations -- and it is not built here. What is built here is correctness at
-; the host's own price, which is the bar this target has to clear first.
-
+; IT IS A TARGET DECLARATION, not a runtime we ship, which is the parasite
+; model: three of the four hosts have a bignum, so general-purpose.md's bar,
+; "beyond the window they cost what they would cost if we implemented them on
+; the target", is met by construction there. windows ships none, and stores
+; every value above its word in fixed limbs (emit/bignum.oro).
 (target go
   ; ═══ HOW THIS TARGET STORES A BOUNDED BIG VALUE
   ;
-  ; A range is SEMANTICS -- `(int 0 (pow 2 1300))` says the value is a
-  ; mathematical integer in that interval, which is true on every target and
-  ; is what a programmer is taught. How it is STORED is this file's business,
-  ; exactly as `int-repr` decides one rung down that 0..255 is a `[]byte` here
-  ; and a `short[]` on the JVM.
+  ; A range is SEMANTICS: `(int 0 (pow 2 1300))` says the value is an integer
+  ; in that interval, on every target. How it is STORED is this file's
+  ; business, as `int-repr` decides one rung down that 0..255 is a `[]byte`
+  ; here and a `short[]` on the JVM.
   ;
-  ; `math/big`, because ours does not win here today: the same 200! is
-  ; 18,150 ns in limbs against 2,186 through `math/big`, at 200
-  ; allocations against 6 (biglimb-2026-09-02). bigarith-2026-08-28
-  ; measured the limb form winning by 3.97x, and that was HAND-WRITTEN Go
-  ; with 64-bit limbs and a shift-and-mask carry -- two things a portable
-  ; library cannot have, since ADR 0012 forces 2W < 53 and bitwise
-  ; operators are Tier 2. When the library gets a target-declared limb
-  ; width, this line changes and no program moves.
+  ; `math/big`, measured: 200! (examples/big/fact-limbs.oro) is 5.1 µs through
+  ; `math/big` against 17.8 µs on limbs, at 6 allocations against 2
+  ; (gotarget-2026-09-30 §14, today's compiler, `-big-repr` both ways). The
+  ; limb library is written once for every target, so its base is 2^24 and
+  ; its product fits W(S), JavaScript's ±(2^53−1) (emit/bignum.oro), where
+  ; `math/big` uses 64-bit words and assembly. biglimb-2026-09-02 measured the
+  ; same order, 18,150 ns against 2,186. `-big-repr=limbs` asks for the other.
   (repr big host)
 
-  ; Not `(type big …)` by accident: `big` is the type language's name for the
-  ; top of the representation ladder, and `*big.Int` is Go's spelling of it. The
-  ; pointer is part of the spelling because `big.Int` is a struct whose zero
-  ; value is usable but whose methods take a receiver.
+  ; `big` is the type language's name for the top of the representation
+  ; ladder, and `*big.Int` is Go's spelling of it. The pointer is part of the
+  ; spelling because `big.Int`'s methods take a pointer receiver.
   (type big (host "*big.Int"))
 
   (module go
-    (sig big+ (big big) big pure (host expr "new(big.Int).Add(%s, %s)" (import "math/big")))
-    (sig big- (big big) big pure (host expr "new(big.Int).Sub(%s, %s)" (import "math/big")))
-    (sig big* (big big) big pure (host expr "new(big.Int).Mul(%s, %s)" (import "math/big")))
-    ; Quo and Rem, NOT Div and Mod -- see the header.
-    (sig big/ ((a big) (b big)) big pure (host expr "new(big.Int).Quo(%s, %s)" (import "math/big")))
-    (sig big% ((a big) (b big)) big pure (host expr "new(big.Int).Rem(%s, %s)" (import "math/big")))
+    (sig big+ ((a big) (b big)) big pure (host expr "new(big.Int).Add(%s, %s)" (import "math/big")))
+    (sig big- ((a big) (b big)) big pure (host expr "new(big.Int).Sub(%s, %s)" (import "math/big")))
+    (sig big* ((a big) (b big)) big pure (host expr "new(big.Int).Mul(%s, %s)" (import "math/big")))
+    ; Quo and Rem, NOT Div and Mod: see the header. Both panic on a zero
+    ; divisor, which is the `where`.
+    (sig big/ ((a big) (b big)) big pure (where (!= b 0)) (host expr "new(big.Int).Quo(%s, %s)" (import "math/big")))
+    (sig big% ((a big) (b big)) big pure (where (!= b 0)) (host expr "new(big.Int).Rem(%s, %s)" (import "math/big")))
 
-    (sig big<  (big big) bool  pure (host expr "%s.Cmp(%s) < 0"))
-    (sig big<= (big big) bool pure (host expr "%s.Cmp(%s) <= 0"))
-    (sig big>  (big big) bool  pure (host expr "%s.Cmp(%s) > 0"))
-    (sig big>= (big big) bool pure (host expr "%s.Cmp(%s) >= 0"))
-    (sig big=  (big big) bool pure (host expr "%s.Cmp(%s) == 0"))
+    (sig big<  ((a big) (b big)) bool pure (host expr "%s.Cmp(%s) < 0"))
+    (sig big<= ((a big) (b big)) bool pure (host expr "%s.Cmp(%s) <= 0"))
+    (sig big>  ((a big) (b big)) bool pure (host expr "%s.Cmp(%s) > 0"))
+    (sig big>= ((a big) (b big)) bool pure (host expr "%s.Cmp(%s) >= 0"))
+    (sig big=  ((a big) (b big)) bool pure (host expr "%s.Cmp(%s) == 0"))
 
-    ; WIDENING IS THE ONLY DIRECTION. A word value entering a big computation is
-    ; converted here; the other way round is refused by the type checker, which
-    ; is unbounded-rung.md §3 -- the promotion is a WIDENING, not a refinement,
-    ; so it may not happen silently.
-    (sig big-of (int) big pure (host expr "big.NewInt(int64(%s))" (import "math/big")))
-    (sig big-str (big) string pure (host expr "%s.String()"))
+    ; THE INCLUSION S ↪ ℤ, the only conversion there is. The identity on
+    ; integers, so a widening never changes an answer.
+    (sig big-of ((x int)) big pure (host expr "big.NewInt(int64(%s))" (import "math/big")))
+    (sig big-str ((x big)) string pure (host expr "%s.String()"))
 
+    ; THE REMAINDER BY A WORD IS A WORD. ir/big.go selects it for a % k with a
+    ; held exactly and k proven in S, and its result is in S because |r| < |k|
+    ; (ir/interval.go transfers it so). Without it a signature declaring an
+    ; `int` result over `(% a 100000000)` was accepted on the limb rung and
+    ; refused on this one, so SELECTING a representation changed which
+    ; programs are legal (ADR 0009 at the representation boundary). It is also
+    ; what decimal rendering is made of.
+    (sig big%-small ((a big) (k int)) int pure (where (!= k 0)) (host expr "int(new(big.Int).Rem(%s, big.NewInt(int64(%s))).Int64())" (import "math/big")))
 
-    ; THE REMAINDER BY A MACHINE WORD, WHOSE RESULT IS A WORD. `a % k` with
-    ; 0 <= a and 0 < k <= 2^53 is under k, so the answer fits the portable
-    ; window whatever a's magnitude -- a fact about the arithmetic, not about
-    ; this host, so every representation has to agree with it.
+    ; THE DECLARED BOUND, ENFORCED (ADR 0029). `(big-fit x k)` is x when
+    ; 0 ≤ x < 2^k and a trap otherwise; `(big-fit-signed x k)` is x when
+    ; |x| < 2^k. BitLen is ⌈log₂(|x| + 1)⌉, so BitLen x ≤ k ⇔ |x| < 2^k, and
+    ; the unsigned set adds the sign test.
     ;
-    ; Without it the fixed-limb rung and this one disagreed about which programs
-    ; type-check: a signature declaring an `int` result over `(% a 100000000)`
-    ; was accepted there and refused here, so SELECTING a representation would
-    ; change which programs are legal (ADR 0009 at the representation boundary).
+    ; It exists because the limb rung traps when a value passes its bound (a
+    ; fixed width would otherwise truncate) and `math/big` is exact whatever
+    ; the declaration says. Without it the two representations would disagree
+    ; about a legal program, and `(repr big host)` would be a choice of answer,
+    ; not of storage. BitLen and not Cmp: O(1), where a comparison against 2^k
+    ; costs what the operation costs (emit/biglimb.go's BigBound).
     ;
-    ; It is also what decimal rendering is made of: printing needs each digit
-    ; group as a word.
-    (sig big%-small ((a big) (k int)) int pure (host expr "int(new(big.Int).Rem(%s, big.NewInt(int64(%s))).Int64())" (import "math/big")))
-
-    ; THE DECLARED BOUND, ENFORCED. `(big-fit x k)` is x when x needs at most k
-    ; bits and a panic otherwise.
-    ;
-    ; It exists because the fixed-limb rung traps when a value passes its
-    ; declared bound -- a fixed width has no choice, it would otherwise truncate
-    ; -- and `math/big` is exact whatever the declaration says. Without this the
-    ; two representations would DISAGREE about a legal program, and `(big-repr
-    ; host)` would stop being a choice of storage and become a choice of answer.
-    ;
-    ; `BitLen` and not `Cmp`, because the bound is enforced at its bit length
-    ; (emit/biglimb.go's BigBound): O(1) against a full-width comparison, which
-    ; would cost what the operation costs.
-    ;
-    ; THE SIGN IS PART OF THE SET (ADR 0029). `big-fit` is [0, 2^k), what the
-    ; limbs' borrow and JavaScript's shift admit, so it tests the sign as well:
-    ; `BitLen` reads the magnitude and alone would admit (-2^k, 2^k).
-    ; `big-fit-signed` is (-2^k, 2^k), for a program declaring a negative bound,
-    ; and that is `BitLen` exactly.
+    ; IMPURE, because a trap is an effect: declared pure, the reducer could
+    ; substitute the check, dropping it where the value goes unused or moving
+    ; it past another effect (ADR 0010 denies weakening and exchange only to
+    ; impure terms).
     (sig big-fit ((x big) (k int)) big (host expr "func(oroZ *big.Int, oroK int) *big.Int { if oroZ.Sign() < 0 || oroZ.BitLen() > oroK { panic(\"bignum overflow: the declared range is too small\") }; return oroZ }(%s, %s)" (import "math/big")))
     (sig big-fit-signed ((x big) (k int)) big (host expr "func(oroZ *big.Int, oroK int) *big.Int { if oroZ.BitLen() > oroK { panic(\"bignum overflow: the declared range is too small\") }; return oroZ }(%s, %s)" (import "math/big")))
 
-    ; ---- THE DESTINATION FORMS, and Go is the only one of the four hosts that
-    ; can have them.
+    ; ═══ THE DESTINATION FORMS, a Go capability (ADR 0034).
     ;
-    ; `math/big` operations WRITE INTO THEIR RECEIVER and return it, so a caller
-    ; that owns its temporaries allocates nothing per step. Java's `BigInteger`
-    ; is immutable and the JDK's mutable version is package-private;
-    ; JavaScript's `BigInt` is a primitive. So this is not a Go optimisation we
-    ; could port -- it is a Go CAPABILITY, and the other two hosts declare
-    ; nothing here because there is nothing to declare.
+    ; `math/big` writes into its receiver and returns it, so a caller that
+    ; owns its temporaries allocates nothing per step. Java's `BigInteger` is
+    ; immutable and JavaScript's `BigInt` is a primitive, so the other hosts
+    ; declare nothing here because there is nothing to declare.
     ;
-    ; The first argument is the DESTINATION. `%s.Add(%s, %s)` is `z.Add(x, y)`,
-    ; and `math/big`'s contract explicitly permits `z` to alias `x` or `y` --
-    ; every operation reads its operands before writing the receiver. That
-    ; guarantee is what makes `acc.Mul(acc, k)` legal, and it is the host fact
-    ; the reuse rule in emit/bigreuse.go rests on.
+    ; `(big+! z x y)` is `z.Add(x, y)`: the first argument is the DESTINATION,
+    ; and the result is x + y, with z's old value lost. `math/big`'s contract
+    ; permits z to alias x or y (every operation reads its operands before
+    ; writing), which is what makes `acc.Mul(acc, k)` legal and is the host
+    ; fact ir/bigreuse.go's rule rests on; the rule adds ownership and
+    ; liveness, that nothing reads z's old value afterwards.
     ;
-    ; They are IMPURE, and that is load-bearing rather than pedantic: an
-    ; operation that writes into an object it was handed is exactly what ADR
-    ; 0010's effect discipline exists to keep in order. Declaring one pure would
-    ; let the reducer substitute a destination form into two places.
-    (sig big+! (big big big) big (host expr "%s.Add(%s, %s)"))
-    (sig big-! (big big big) big (host expr "%s.Sub(%s, %s)"))
-    (sig big*! (big big big) big (host expr "%s.Mul(%s, %s)"))
-    (sig big/! (big big big) big (host expr "%s.Quo(%s, %s)"))
-    (sig big%! (big big big) big (host expr "%s.Rem(%s, %s)"))
-    ; Widening into an object that already exists, which is what removes the
-    ; other allocation in a loop: `acc.Mul(acc, big.NewInt(int64(i)))` still
-    ; allocates once an iteration for the multiplicand.
-    (sig big-of! (big int) big (host expr "%s.SetInt64(int64(%s))"))
-    ; THE FIXED-LIMB RUNG'S CARRY CHECK (emit/bignum.oro). A declared width
-    ; TRUNCATES where the host's bignum stays exact, so selecting a
-    ; representation would change the answer -- ADR 0009's rule at a different
-    ; boundary. `trap-if` returns 0 when handed 0 and fails loudly otherwise.
-    ;
-    ; A func literal called immediately, exactly as the checked arithmetic in
-    ; builtin.oro is written, so each operand appears once and Go's inliner sees
-    ; straight-line code with a never-taken branch.
-    (sig trap-if (int) int (host expr "func(oroC int) int { if oroC != 0 { panic(\"bignum overflow: the declared range is too small\") }; return 0 }(%s)"))))
+    ; IMPURE, and load-bearing: an operation that writes into an object it was
+    ; handed is what ADR 0010's discipline keeps in order. Declared pure, the
+    ; reducer could substitute one into two places.
+    (sig big+! ((z big) (a big) (b big)) big (host expr "%s.Add(%s, %s)"))
+    (sig big-! ((z big) (a big) (b big)) big (host expr "%s.Sub(%s, %s)"))
+    (sig big*! ((z big) (a big) (b big)) big (host expr "%s.Mul(%s, %s)"))
+    (sig big/! ((z big) (a big) (b big)) big (where (!= b 0)) (host expr "%s.Quo(%s, %s)"))
+    (sig big%! ((z big) (a big) (b big)) big (where (!= b 0)) (host expr "%s.Rem(%s, %s)"))
+    ; The inclusion into an object that already exists.
+    (sig big-of! ((z big) (x int)) big (host expr "%s.SetInt64(int64(%s))"))
+
+    ; THE LIMB RUNG'S CARRY CHECK (emit/bignum.oro). `(trap-if c)` is 0 when
+    ; c = 0 and a trap otherwise. It is here and not in the library because a
+    ; trap is the host's: a panic on Go. A func literal called at once, so the
+    ; operand appears once and Go's inliner sees straight-line code with a
+    ; never-taken branch. Impure, as big-fit is.
+    (sig trap-if ((c int)) int (host expr "func(oroC int) int { if oroC != 0 { panic(\"bignum overflow: the declared range is too small\") }; return 0 }(%s)"))))

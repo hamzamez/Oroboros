@@ -135,3 +135,54 @@ func TestAFileIsAReaderAndEOFIsAValue(t *testing.T) {
 		t.Errorf("io.ReadAll over os.Stdin: %v", err)
 	}
 }
+
+// A PROGRAM'S OWN `go.u64+` IS ℤ/2⁶⁴'S SUM, NOT ℤ'S (u64.oro). The compiler
+// writes the unqualified `u64+` only where ir.Decide proves ℤ's sum inside U,
+// so there the two agree; a program that names the host's operation gets the
+// host's, total on U × U, and its result's fact is the set U the declaration
+// states. Both operands are at least 2⁶³, so ℤ's sum is at least 2⁶⁴ and the
+// first arm is unreachable in ℤ; Go's sum wraps into it (2⁶³ + 2⁶³ is 0). A
+// fact taken from ℤ reads [2⁶⁴, 2⁶⁵ − 2], outside every realization, and the
+// program is refused or the arm lost; the host's fact keeps both.
+func TestAProgramsU64SumIsTheHostsModularSum(t *testing.T) {
+	src := `(use go) (export f)
+(sig f ((a (int 9223372036854775808 18446744073709551615)) (b (int 9223372036854775808 18446744073709551615))) (int 0 100))
+(def f (a b) (if (< (go.u64+ a b) 9223372036854775808) 1 2))`
+	out, err := entryGo(t, src)
+	if err != nil {
+		t.Fatalf("the host's sum is in U, and the comparison holds both operands: %v", err)
+	}
+	if !strings.Contains(out, "return 1") || !strings.Contains(out, "return 2") {
+		t.Errorf("an arm the wrapped sum reaches was pruned:\n%s", out)
+	}
+}
+
+// math/big's Quo and Rem panic on a zero divisor, and so does big%-small's
+// Rem: each declares b ≠ 0 (bigint.oro), decided at a program's own call as
+// `/`'s is. big%-small's divisor is a word, so the fragment decides it. A
+// `big` operand is outside the fragment, so a direct big/ or big% is refused
+// even at a nonzero literal (gotarget-2026-09-30 §14): sound, and no program
+// in the corpus names one, since the language's `/` carries its own
+// obligation.
+func TestABignumDivisorIsNonZero(t *testing.T) {
+	head := "(use go) (export f) (sig f ((n int)) int) "
+	for _, c := range []struct {
+		body string
+		ok   bool
+	}{
+		{"(def f (n) (go.big%-small (go.big-of 7) 3))", true},
+		{"(def f (n) (go.big%-small (go.big-of 7) 0))", false},
+		{"(def f (n) (go.big%-small (go.big-of 7) n))", false},
+		{"(def f (n) (if (= n 0) 0 (go.big%-small (go.big-of 7) n)))", true},
+		{"(def f (n) (go.big%-small (go.big/ (go.big-of 7) (go.big-of 0)) 3))", false},
+		{"(def f (n) (go.big%-small (go.big% (go.big-of 7) (go.big-of n)) 3))", false},
+	} {
+		_, err := entryGo(t, head+c.body)
+		if c.ok && err != nil {
+			t.Errorf("%s: %v", c.body, err)
+		}
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "requires")) {
+			t.Errorf("%s: want the divisor refused, got %v", c.body, err)
+		}
+	}
+}

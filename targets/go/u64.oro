@@ -1,29 +1,61 @@
-; THE UNSIGNED WORD ON GO — ADR 0026 (10), emit/wordsel.go.
+; THE UNSIGNED WORD ON GO — ADR 0026 and ADR 0033, chosen by ir/words.go.
 ;
-; U = [0, 2^64−1] is realized natively by `uint64`, and `int` — the signed
-; word S = [−2^63, 2^63−1] — by Go's `int`. Both are sets of representatives of
-; ℤ/2^64, and the quotient ℤ → ℤ/2^64 is a ring homomorphism, so:
+; THE ALGEBRA. Three sets of integers and one ring:
 ;
-;   - `u64+`, `u64-` and `u64*` are Go's wrapping `+`, `-` and `*` on uint64,
-;     exact whenever the result is PROVEN in U, which is the only place the
-;     representation pass emits them;
-;   - `u64-of` and `int-of-u64` are Go's conversions, which ARE the residue map
-;     between the two sets of representatives;
-;   - order and truncating division do not commute with the quotient, so
-;     `u64<` … `u64=` and `u64/`, `u64%` are emitted only where BOTH operands
-;     are proven in U, where Go's unsigned comparison and division are the
-;     integers' own.
+;   S = [−2^63, 2^63)   the signed word, Go's `int`;
+;   U = [0, 2^64)       the unsigned word, Go's `uint64` (go.oro's `u64`);
+;   r : ℤ → ℤ/2^64      the residue map, a surjective ring homomorphism.
+;
+; r restricted to S and r restricted to U are each a bijection onto ℤ/2^64, so
+; both are sets of representatives, and a 64-bit machine operation computes
+; r of ℤ's result on either. Write r_U and r_S for the representative in U and
+; in S. On S ∩ U = [0, 2^63) both are the identity.
+;
+; THE NAMES, as the functions on ℤ they compute:
+;
+;   u64+ u64- u64*    (a, b) ↦ r_U(a ∘ b), ℤ/2^64's ring operations on their
+;                     representatives in U: total on U × U, and equal to ℤ's
+;                     a ∘ b iff a ∘ b ∈ U. Where ir/words.go writes one, it is
+;                     a COUNTED operation: ir.Decide proves the result inside U
+;                     or refuses the program (decide.go), so there it IS ℤ's.
+;                     A program may also name one, `(go.u64+ a b)`, and then it
+;                     gets the modular operation it named: uncounted, with the
+;                     set U as its result's fact, which is all the declaration
+;                     claims (TestAProgramsU64SumIsTheHostsModularSum). That is
+;                     a target-native name, and the language's ℤ/2^n is not
+;                     built (the wall hash/fnv will hit).
+;   u64/ u64%         ℤ's truncating division on U. For a, b ∈ U and b ≠ 0 the
+;                     quotient and remainder are in U and neither wraps, so the
+;                     only precondition is the divisor's, declared below. Order
+;                     and division do NOT commute with r, which is why these
+;                     and the comparisons are selected only where both operands
+;                     are proven in U.
+;   u64< … u64=       ℤ's order and equality on U, which is Go's unsigned
+;                     comparison.
+;   u64-of            r_U on S, Go's `uint64(x)`: the identity on [0, 2^63),
+;                     x + 2^64 below it.
+;   int-of-u64        r_S on U, Go's `int(x)`: the identity on [0, 2^63),
+;                     x − 2^64 above it.
+;
+; WHY A SELECTED FUNCTION COMPUTES THE LANGUAGE'S INTEGERS (ir/words.go). An
+; operand of + − · is converted by r freely, even where that changes its
+; integer, because r is a homomorphism and the result is proven in its own
+; realization. Every other conversion — an operand of / % or a comparison, a
+; value flowing into a declared position — is at a value proven in S ∩ U,
+; where it is the identity, or the program is refused naming the interval.
+; ir/interval.go transfers each name by its exact image under r
+; (irstep4b §3, irstep4c).
 (target go
   (module go
-    (sig u64+  (u64 u64) u64 pure (host expr "(%s + %s)"))
-    (sig u64-  (u64 u64) u64 pure (host expr "(%s - %s)"))
-    (sig u64*  (u64 u64) u64 pure (host expr "(%s * %s)"))
+    (sig u64+  ((a u64) (b u64)) u64 pure (host expr "(%s + %s)"))
+    (sig u64-  ((a u64) (b u64)) u64 pure (host expr "(%s - %s)"))
+    (sig u64*  ((a u64) (b u64)) u64 pure (host expr "(%s * %s)"))
     (sig u64/  ((a u64) (b u64)) u64 pure (where (!= b 0)) (host expr "(%s / %s)"))
     (sig u64%  ((a u64) (b u64)) u64 pure (where (!= b 0)) (host expr "(%s %% %s)"))
-    (sig u64<  (u64 u64) bool pure (host expr "(%s < %s)"))
-    (sig u64<= (u64 u64) bool pure (host expr "(%s <= %s)"))
-    (sig u64>  (u64 u64) bool pure (host expr "(%s > %s)"))
-    (sig u64>= (u64 u64) bool pure (host expr "(%s >= %s)"))
-    (sig u64=  (u64 u64) bool pure (host expr "(%s == %s)"))
-    (sig u64-of     (int) u64 pure (host expr "uint64(%s)"))
-    (sig int-of-u64 (u64) int pure (host expr "int(%s)"))))
+    (sig u64<  ((a u64) (b u64)) bool pure (host expr "(%s < %s)"))
+    (sig u64<= ((a u64) (b u64)) bool pure (host expr "(%s <= %s)"))
+    (sig u64>  ((a u64) (b u64)) bool pure (host expr "(%s > %s)"))
+    (sig u64>= ((a u64) (b u64)) bool pure (host expr "(%s >= %s)"))
+    (sig u64=  ((a u64) (b u64)) bool pure (host expr "(%s == %s)"))
+    (sig u64-of     ((x int)) u64 pure (host expr "uint64(%s)"))
+    (sig int-of-u64 ((x u64)) int pure (host expr "int(%s)"))))

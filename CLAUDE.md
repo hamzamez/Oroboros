@@ -81,6 +81,10 @@ target, source, name and output. Until that run all 26 were term-backend copies 
   plus `io`'s interfaces ([strconv-2026-09-22](gauntlet/results/strconv-2026-09-22.md),
   [mathbits-2026-09-23](gauntlet/results/mathbits-2026-09-23.md)). `lib/num/u128.oro` is the first
   library written in the language over a package pair (`math/bits`, `strconv`).
+- **Partial and checked** ([gotarget-2026-09-30](gauntlet/results/gotarget-2026-09-30.md) §15):
+  `os`, `strings`, `io` and `fmt`. Every name declared is checked against the host: interface
+  methods against the manifest, and a variadic as its restrictions f|Aⁿ. Each header names the rest
+  and what stops it. Every file in `targets/go` states its algebra and names its parameters.
 
 **The IR** ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](docs/spec/ir.md)) is
 structured SSA with π-parameters between the residual and every backend and analysis, and it realizes

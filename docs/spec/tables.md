@@ -876,8 +876,9 @@ q5b stands, and it is the container-morphism theorem.
 >
 > What decided it was **expressiveness, not the 2.7×**: `(table n f)` is a *gather* and cannot
 > express a *scatter*, so the sieve, in-place sorting, histograms, union-find and general dynamic
-> programming are inexpressible portably at any speed. `examples/native/sieve-go.oro` is in this
-> repository and could not be written portably.
+> programming are inexpressible portably at any speed. `examples/native/sieve-go.oro` was in this
+> repository and could not be written portably. It is `examples/table/sieve.oro` now, written with
+> `build`; the native one was deleted in gotarget-2026-09-30, when Go's per-type stores were.
 >
 > It costs almost nothing to build because every mechanism already exists: the heap is acyclic
 > (ADR 0014), a buffer cannot escape (closures are refused — the only thing Haskell's rank-2
@@ -911,8 +912,11 @@ is the closest existing language to this one — no recursion, arrays primary, s
 chose exactly this. Clean and Mercury too. Cost: uniqueness is visible to the programmer in a way
 `pure` is not, and [ADR 0013](../decisions/0013-accept-the-allocation-price.md) declined it once.
 
-**(c) Mutable, target-native only** — where we are today. `go.set-float64` is at 0.999×, carries no
-portability claim, and a portable program simply pays the allocating shape.
+**(c) Mutable, target-native only** — where we were when this was written. `go.set-float64` was
+at 0.999×, carried no portability claim, and a portable program simply paid the allocating shape.
+Go's per-type stores were removed in gotarget-2026-09-30: a read declared pure beside a store into
+the same slice was reordered by reduction, and the language's buffer, whose reads are impure, says
+the same thing correctly.
 
 Three things that should feed the decision when it is made, all already measured or written:
 

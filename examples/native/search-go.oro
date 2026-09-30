@@ -7,17 +7,17 @@
 ; measured on the portable layer and not since re-checked on a native one.
 ;
 ; No `sig` refinement is needed. The first clause IS the bound: reaching the
-; second means `i < go.len(a)` was false to fail, which is where the index
+; second means `i < (len a)` was false to fail, which is where the index
 ; obligation discharges from (refinements.md — the other half of Hoare logic).
 
 (use go)
 
 (export find-first)
 
-(sig find-first ((a slice-float64) (k f64)) int)
+(sig find-first ((a (array f64)) (k f64)) int)
 
 (def find-first (a k)
   (loop ((i 0))
-    (go.>= i (go.len a))       -1
-    (go.f> (go.at-float64 a i) k)  i
+    (go.>= i (len a))   -1
+    (go.f> (a i) k)     i
     else                       (again (go.+ i 1))))

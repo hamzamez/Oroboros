@@ -10,9 +10,10 @@
 ; (portable-2026-09-29; in git at 870de46). Moving it asked a question that form
 ; could not: on the portable layer `aindex` and `sat` are DIFFERENT NAMES for
 ; the same shape, so matching could plausibly have been keying on the name. Here
-; the two instantiations reach `go.at-float64` and `go.at-string`, whose Go types
-; are `[]float64` and `[]string` and whose result types are `float64` and
-; `string` — genuinely different host functions, chosen by nothing but which
+; the two instantiations read `(array f64)` and `(array bytestring)` — Go's
+; `[]float64` and `[]string`, whose elements are `float64` and `string` — through
+; the one language operation, application, at two element types, chosen by
+; nothing but which
 ; argument arrived.
 ;
 ; And `combine` is `go.f+` in one and a two-statement map update in the other,
@@ -24,7 +25,7 @@
 
 (export sum-of word-tally)
 
-(sig sum-of     ((a slice-float64)) f64)
+(sig sum-of     ((a (array f64))) f64)
 (sig word-tally ((text string)) map-string-int)
 
 ; The generic operation. n is a count, get reads element i, combine folds it in.
@@ -38,11 +39,11 @@
 
 ; Instantiation 1 — f64 elements, f64 accumulator.
 (def sum-floats (a)
-  (reduce-over (go.len a) (fn (i) (go.at-float64 a i)) go.f+ 0.0))
+  (reduce-over (len a) (fn (i) (a i)) go.f+ 0.0))
 
 ; Instantiation 2 — string elements, map accumulator.
 (def tally-words (ws)
-  (reduce-over (go.len ws) (fn (i) (go.at-string ws i)) go.inc-map (go.make-map)))
+  (reduce-over (len ws) (fn (i) (ws i)) go.inc-map (go.make-map)))
 
 (def sum-of     (a)    (sum-floats a))
 (def word-tally (text) (tally-words (strings.Fields text)))

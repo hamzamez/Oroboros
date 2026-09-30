@@ -48,8 +48,8 @@
 (def count-with (step text)
   (let ws (strings.Fields text)
     (loop ((m (go.make-map)) (i 0))
-      (go.>= i (go.len ws))  m
-      else                   (again (step m (go.at-string ws i)) (go.+ i 1)))))
+      (go.>= i (len ws))  m
+      else                (again (step m (ws i)) (go.+ i 1)))))
 
 (def tally     (text) (count-with bump     text))
 (def tally-inc (text) (count-with bump-inc text))

@@ -13,12 +13,6 @@
 ; portable-2026-09-29. See docs/spec/target-native.md §5 for what it cost.
 
 (target go
-  ; Go's own type names, except where our type language cannot spell them.
-  ; It has NO CONSTRUCTORS: `[]T` is not a type applied to an argument, so each
-  ; instantiation needs a name of its own. That is the first thing this target
-  ; cannot say, and it is recorded rather than worked around.
-  ; How this target spells an array of something. ONE declaration replaces an
-  ; entry per element type — see docs/spec/tables.md §10.
   ; WHAT THIS TARGET CAN STORE AN INTEGER IN, narrowest first (ADR 0003).
   ; A range type selects the first one that CONTAINS it, and a table is the only
   ; place the width is consulted -- a value read out of a byte array is an
@@ -40,6 +34,10 @@
   (repr (int 0 18446744073709551615) word)
   (type u64 (host "uint64"))
 
+  ; How this target spells a table and a map: ONE declaration each, a type
+  ; constructor, where there used to be an entry per element type (tables.md
+  ; §10). `(array f64)` is Go's []float64, and every table a program holds is
+  ; one of these.
   (type (array A) (host "[]%s"))
   (type (map K V) (host "map[%s]%s"))
 
@@ -76,15 +74,12 @@
   ; U itself, which this target realizes natively as `uint64` (ADR 0026 (10)).
   (type uint64 (int 0 18446744073709551615))
 
-  (type slice-int     (host "[]int"))
-  (type slice-int64   (host "[]int64"))
-  (type slice-float64 (host "[]float64"))
-  (type slice-string  (host "[]string"))
-  (type slice-bool    (host "[]bool"))
-  (type slice-byte    (host "[]byte"))
-  (type slice-any     (host "[]any"))
+  ; A GO map[string]int, which the language's map cannot be: its keys are
+  ; integers (maps.md), and these are Go's strings. The host type builtin.oro's
+  ; map operations take. The per-element-type slice names that stood here
+  ; (slice-int … slice-any) were removed in gotarget-2026-09-30: `(array V)`
+  ; above is every one of them.
   (type map-string-int    (host "map[string]int"))
-  (type map-string-string (host "map[string]string"))
 
   ; Restricting a container to a known length, so Go's own bounds-check
   ; elimination has a proof (bce-2026-08-15.md).
@@ -98,11 +93,6 @@
   ; language works on every target and the compiler finds the form.
   ;
   ; `fold-range` and `fold-range2` are absent because `loop` subsumes both
-  ; (ADR 0015). `make-vec` is absent for two reasons: a `loop` over
-  ; `go.make-float64` and `go.set-float64` emits the same `make` plus fill loop,
-  ; and `make-vec` is hardcoded to the PORTABLE layer's type names — it produces
-  ; `vec-f64` and demands `f64` elements, so on a target whose types are Go's it
-  ; cannot be called at all.
-  ;
-  ; So a program here is: fn, def, module, literals, and let / if / loop.
+  ; (ADR 0015), and the language's tables — `(array V)`, application, `len`,
+  ; `build`, `set` — are injected like the rest (tables.md).
 )

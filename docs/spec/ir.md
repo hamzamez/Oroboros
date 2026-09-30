@@ -219,7 +219,7 @@ value's *sort* is the **most general unifier** (Robinson) of a set of equations 
 of type constructors: `int`, `f64`, `bool`, `string` and host atoms of arity 0, `table` of arity 1 and
 `map` of arity 2. Literals, signatures and each primitive's declared arguments and results seed the
 equations. The algebra is taken modulo two identifications:
-- **ρ_T's kernel on a declared alias.** Go's `slice-float64` is realized exactly as `(array f64)`, so
+- **ρ_T's kernel on a declared alias.** Java's `double-array` is realized exactly as `(array f64)`, so
   the two are one sort. The alias is inverted over a finite candidate set, and only when the inverse
   is unique.
 - **`any` is the top of the language's type relation** (types.md), not a constructor: it satisfies
@@ -306,7 +306,7 @@ a verifier, run after lowering and after every pass that rewrites the IR.
 These are the language's types (types.md), with the range written out. `string` is Σ* (ADR 0030).
 - A bare `int` abbreviates `(int LO_T HI_T)`, the target's word. It is what IR_A writes for an
   integer whose range no definition declared.
-- A bare NAME is a type the target declares: a host's own type (`go.bytestring`, `slice-float64`), or
+- A bare NAME is a type the target declares: a host's own type (`go.bytestring`, `go/os.File`), or
   a representation above the word (`u64`, `big`).
 - `any` is written for a value no equation reached (§2.2), in IR_A only.
 
@@ -816,13 +816,13 @@ hand-written code, and a change to it is re-measured.
 and the rule is unsound. The witness (found while writing this section, 2026-09-25):
 
 ```lisp
-(sig count-zeros ((a slice-int) (b slice-int)) int
-  (where (and (go.< (go.len a) 65536) (go.>= (go.len b) 10))))
+(sig count-zeros ((a (array int)) (b (array int))) int
+  (where (and (go.< (len a) 65536) (go.>= (len b) 10))))
 (def count-zeros (a b)
   (loop ((i 0))
-    (go.>= i (go.len a))         i
+    (go.>= i (len a))            i
     (go.>= i 10)                 i
-    (go.!= (go.at-int b i) 0)    i
+    (go.!= (b i) 0)              i
     else                         (again (go.+ i 1))))
 ```
 
@@ -956,7 +956,7 @@ from the `where` on `len p`, and it is the analyses that write it. Each arm rena
   (target go)
   (stage P)
   (ops const add ge call index len loop yield break continue branch)
-  (func native-dot (params (%0 slice-float64) (%1 slice-float64)) (results f64)
+  (func native-dot (params (%0 (array f64)) (%1 (array f64))) (results f64)
     (region
       (val (%2 f64) (const 0.0))
       (val (%3 (int 0 0)) (const 0))
@@ -969,11 +969,11 @@ from the `where` on `len p`, and it is the analyses that write it. Each arm rena
             (branch %8
               (region
                 (pi %9 (int 0 65535) (%6 ge %7))
-                (pi %10 slice-float64 ((len %0) le %6))
+                (pi %10 (array f64) ((len %0) le %6))
                 (break %5))
               (region
                 (pi %11 (int 0 65534) (%6 lt %7))
-                (pi %12 slice-float64 ((len %0) gt %6))
+                (pi %12 (array f64) ((len %0) gt %6))
                 (val (%13 f64) (index %12 %11))
                 (val (%14 f64) (index %1 %11))
                 (val (%15 f64) (call go.f* %13 %14))

@@ -66,7 +66,7 @@ func TestALetBoundAllocationSizedByEncodedLen(t *testing.T) {
 (export f)
 (sig f ((src (array (int 0 255))) (i int)) int
   (where (and (<= (len src) 1000) (and (<= 0 i) (< i (* K (len src)))))))
-(def f (src i) (let a (go.make-int (hex.EncodedLen (len src))) (go.at-int a i)))`
+(def f (src i) (let (tuple a x) (build b (hex.EncodedLen (len src)) (tuple b (b i))) x))`
 	if err := refineGo(t, strings.Replace(src, "K", "2", 1)); err != nil {
 		t.Errorf("i < 2·len src = len a: %v", err)
 	}
@@ -83,7 +83,7 @@ func TestDecodedLenIsHalfNotMore(t *testing.T) {
 (export f)
 (sig f ((src (array (int 0 255))) (i int)) int
   (where (and (<= (len src) 1000) (and (<= 0 i) (< i (len src))))))
-(def f (src i) (let a (go.make-int (hex.DecodedLen (len src))) (go.at-int a i)))`)
+(def f (src i) (let (tuple a x) (build b (hex.DecodedLen (len src)) (tuple b (b i))) x))`)
 	if err == nil {
 		t.Error("i may reach len src − 1, past ⌊len src / 2⌋")
 	}

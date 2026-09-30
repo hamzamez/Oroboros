@@ -830,7 +830,8 @@ says what a call guarantees. Those spellings are now refused, naming the postcon
 every argument `any`.
 
 It is what lets the compiler prove an index is in range for an array the program built itself. The
-sieve's `(let c (go.make-bool n) … (go.at-bool c i))` has no other route: without the
+sieve's `(build c n … (c i))` (it was `(let c (go.make-bool n) … (go.at-bool c i))` until
+gotarget-2026-09-30) has no other route: without the
 declaration `len(c)` is an opaque variable unrelated to `n`, and the bounds goal `i < len(c)` has
 nothing to resolve against. Lengths propagate through lets, loops and conditionals, and a threaded
 array's length is established as a **loop invariant** — taken from the initial value and verified

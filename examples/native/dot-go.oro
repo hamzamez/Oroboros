@@ -7,9 +7,11 @@
 ;
 ; The delayed vector is the same three lines it always was. It is a LIBRARY
 ; written in the language, not a primitive, so moving targets moves only the
-; names it calls: `alen` becomes `go.len`, `aindex` becomes `go.at-float64`, and
-; `fold-range` becomes a `loop`. Whether the fusion survives that is the whole
-; question, and it is what this file exists to answer.
+; names it calls: `alen` became `len` and `aindex` became application, the
+; language's own table (tables.md; until gotarget-2026-09-30, Go's per-type
+; `go.at-float64`, which emitted the same Go), and `fold-range` became a
+; `loop`. Whether the fusion survives that is the whole question, and it is
+; what this file exists to answer.
 
 (use go)
 
@@ -21,16 +23,16 @@
 ; is what lets the interval analysis bound `(+ i 1)` and prove the loop
 ; terminates, and with it this program goes from 0 of 1 operations provable to
 ; 1 of 1 (selection-2026-08-19).
-(sig dot ((p slice-float64) (q slice-float64)) f64
-  (where (and (go.== (go.len p) (go.len q))
-              (go.< (go.len p) 65536))))
+(sig dot ((p (array f64)) (q (array f64))) f64
+  (where (and (= (len p) (len q))
+              (< (len p) 65536))))
 
 ; A vector is a length paired with an index function. It has no runtime
 ; existence and reduces away entirely (inventory §4a).
 (def vec      (n f) (fn (sel) (sel n f)))
 (def vlen     (v)   (v (fn (n f) n)))
 (def vindex   (v i) ((v (fn (n f) f)) i))
-(def of-array (a)   (vec (go.len a) (fn (i) (go.at-float64 a i))))
+(def of-array (a)   (vec (len a) (fn (i) (a i))))
 
 (def zip (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i)))))
 

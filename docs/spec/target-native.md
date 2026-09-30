@@ -1,5 +1,13 @@
 # Target-native modules, and the prices
 
+> **Status, 2026-09-30.** §1's per-element-type names (`go.at-float64`, `go.make-bool`,
+> `go.set-int`, …) and their `slice-*` types were **removed** from the Go target
+> ([gotarget-2026-09-30](../../gauntlet/results/gotarget-2026-09-30.md)): the language's own table,
+> `(array V)` with application, `len`, `build` and `set`, is every one of them and emits the same Go.
+> §4's "Mutation" and "`again` under a `let`" describe a shape found to be **unsound**: a read of a
+> mutable host slice was declared pure, and reduction moved it past a store into the same slice.
+> This document records the experiment as it was run.
+
 **What this is.** `targets/go/`, `targets/js/` and `targets/java/` declare each host's own names with Go's own semantics and **makes no
 portability claim at all**. `go.+` is Go's `+`; `go./` truncates and panics on zero because that is
 what Go does. Nothing is renamed so that three hosts can agree, because nothing here claims they do.
@@ -196,7 +204,8 @@ here as an open price rather than a solved one.
 
 ### 2.9 The three hosts, side by side
 
-The same sieve, written natively for each — `examples/native/sieve-go.oro`, `sieve-js.oro`,
+The same sieve, written natively for each — `examples/native/sieve-go.oro` (now
+`examples/table/sieve.oro`, on the language's table, since gotarget-2026-09-30), `sieve-js.oro`,
 `sieve-java.oro` — all producing 2262 and checked against a hand-written reference on their own
 host.
 
@@ -223,9 +232,12 @@ Worth stating, because most of it did.
 - **Operators as names.** `go.+`, `go.<<`, `go.&^` are ordinary qualified names; nothing in the
   reader, reducer, checker or emitter needed to know they are operators.
 - **Mutation.** A `stmt` primitive yields its first argument, so `go.set-bool` threads through a
-  loop or sequences with `seq`. No new mechanism.
+  loop or sequences with `seq`. No new mechanism. *(Unsound as declared, and removed: see the
+  status note. A pure read of the slice could be reordered past the store.)*
 - **`again` under a `let`.** The rule that looked like a concession is what lets a program mutate
   and continue without threading the container — `(seq (go.set-bool c j (go.true)) (again …))`.
+  *(The rule stands, for a host call's continuation, ADR 0027; this use of it went with the
+  stores.)*
 - **Effects.** `go.println` and `go.panic` are impure by default; `fmt.Sprintf` is declared `pure`
   and is correctly duplicated and dropped. The one declared bit still does the whole job.
 - **The type checker.** It works on a target whose types are Go's, with no portability layer to

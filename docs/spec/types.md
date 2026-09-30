@@ -174,7 +174,7 @@ not solved: a map's value type is not yet read anywhere a solution could be used
 
 | | |
 |---|---|
-| a table whose element is open, against a table type or a host type that realizes one (`slice-float64`, which Go realizes as `[]float64` = ρ(`array f64`)) | the elements agree: `?` with anything, `?int` with any integer element |
+| a table whose element is open, against a table type or a host type that realizes one (`double-array`, which Java realizes as `double[]` = ρ(`array f64`)) | the elements agree: `?` with anything, `?int` with any integer element |
 | a language table against a host type that realizes it | agrees, when ρ gives both the same host type |
 | `map ? ?` against a map type | agrees |
 | an open table against anything else concrete | **error**: *"… is a table, but f64 is required here"* |

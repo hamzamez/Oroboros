@@ -486,7 +486,7 @@
    gen: examples/native/hello-win.oro: in puts: windows/kernel32.WriteFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use windows/kernel32) matched no file on the search path and this target provides no module windows/kernel32 either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro windows emitted 3a235646ebee6b63bcb1ea6fb47ebbed031fb6c73b89a365494c0e36686cc41a
-== examples/native/report-go.oro go emitted a404e6e29c9e4b436fc0c958229e0222ec30d9ee5ed8f469ac96329ba51631d6
+== examples/native/report-go.oro go emitted dd0bad18cd0d7346c84899456f049875056419d2581d6b81faac7dcee122addc
    note: gen-main: 2 of 2 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/report-go.oro js refused
    gen: examples/native/report-go.oro: in dot: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -574,30 +574,6 @@
      (use x64) matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.
 == examples/native/shortcircuit-win.oro windows emitted c12e44556b3662662ded0af0c7c8bc49ac6b726309d648375e9d76b7dfb4410a
    note: gen-main: 9 of 9 integer operations bounded; 2 of 2 loop(s) proven terminating
-== examples/native/sieve-go-threaded.oro go emitted 26a39e9dc101126f483aae162bfac192e0c4dee70c8dec0655cb2e782a8daa18
-   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
-   note: gen-main: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
-== examples/native/sieve-go-threaded.oro js refused
-   gen: examples/native/sieve-go-threaded.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/sieve-go-threaded.oro java refused
-   gen: examples/native/sieve-go-threaded.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/sieve-go-threaded.oro windows refused
-   gen: examples/native/sieve-go-threaded.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/sieve-go.oro go emitted 05cdbed20617b35231855f702cfeccb9a13ba6d74ffd2e0f2c68bcc20444c564
-   note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
-   note: gen-main: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
-== examples/native/sieve-go.oro js refused
-   gen: examples/native/sieve-go.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/sieve-go.oro java refused
-   gen: examples/native/sieve-go.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/native/sieve-go.oro windows refused
-   gen: examples/native/sieve-go.oro: in count-primes: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
-     (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/native/sieve-java.oro go refused
    gen: examples/native/sieve-java.oro: in cross: java.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use java) matched no file on the search path and this target provides no module java either, so every name from it is unbound. Check the path.
@@ -644,7 +620,7 @@
 == examples/native/sieve-win.oro windows emitted be53c1ef4d1fd70383582258bca99244da06e9e3de184e045190222bc8ea8e72
    note: gen-count-primes: 8 of 8 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-main: 16 of 16 integer operations bounded; 4 of 4 loop(s) proven terminating
-== examples/native/smooth-go.oro go emitted 23b93fe4c7d1aebf489b5785de23446f9f046d653ca75b163d14dcfd58d3326a
+== examples/native/smooth-go.oro go emitted 4a5a34b69021c0d2adfb4cf497fdd9eaa6f6ec0cca5005b0890c224af7478fa8
    note: gen-smooth: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-smooth-into: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/native/smooth-go.oro js refused

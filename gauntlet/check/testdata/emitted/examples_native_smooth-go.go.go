@@ -3,53 +3,55 @@
 package gauntlet
 
 func GenSmooth(v0 []float64) []float64 {
-	v1 := len(v0)
-	v3 := (v1 - 2)
-	v4 := (make([]float64, v3))
-	v7 := v4
-	var v8 int = 0
-	for ; ; v8 = (v8 + 1) {
-		v9 := len(v0)
-		v11 := (v9 - 2)
-		v12 := (v8 >= v11)
-		if v12 {
+	v4 := len(v0)
+	v6 := (v4 - 2)
+	v8 := make([]float64, v6)
+	var v7 []float64
+	v11 := v8
+	var v12 int = 0
+	for ; ; v12 = (v12 + 1) {
+		v13 := len(v0)
+		v15 := (v13 - 2)
+		v16 := (v12 >= v15)
+		if v16 {
 			break
 		}
-		v15 := v0[v8]
-		v17 := (v8 + 1)
-		v18 := v0[v17]
-		v19 := (v15 + v18)
-		v21 := (v8 + 2)
+		v19 := v0[v12]
+		v21 := (v12 + 1)
 		v22 := v0[v21]
 		v23 := (v19 + v22)
-		v25 := (v23 / 3.0)
-		v7[v8] = v25
+		v25 := (v12 + 2)
+		v26 := v0[v25]
+		v27 := (v23 + v26)
+		v29 := (v27 / 3.0)
+		v11[v12] = v29
 		continue
 	}
+	v7 = v11
 	return v7
 }
 
 func GenSmoothInto(v0 []float64, v1 []float64) []float64 {
-	v7 := v0
-	var v8 int = 0
-	for ; ; v8 = (v8 + 1) {
-		v9 := len(v1)
-		v11 := (v9 - 2)
-		v12 := (v8 >= v11)
-		if v12 {
+	v14 := v0
+	var v15 int = 0
+	for ; ; v15 = (v15 + 1) {
+		v16 := len(v1)
+		v18 := (v16 - 2)
+		v19 := (v15 >= v18)
+		if v19 {
 			break
 		}
-		v15 := v1[v8]
-		v17 := (v8 + 1)
-		v18 := v1[v17]
-		v19 := (v15 + v18)
-		v21 := (v8 + 2)
-		v22 := v1[v21]
-		v23 := (v19 + v22)
-		v25 := (v23 / 3.0)
-		v7[v8] = v25
+		v22 := v1[v15]
+		v24 := (v15 + 1)
+		v25 := v1[v24]
+		v26 := (v22 + v25)
+		v28 := (v15 + 2)
+		v29 := v1[v28]
+		v30 := (v26 + v29)
+		v32 := (v30 / 3.0)
+		v14[v15] = v32
 		continue
 	}
-	return v7
+	return v14
 }
 

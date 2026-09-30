@@ -6,7 +6,8 @@ import "testing"
 //
 // ADR 0018 was decided on this program: a gather cannot express a scatter, so
 // the sieve was inexpressible portably at any speed. `PlainCountPrimes` is the
-// same program emitted from examples/native/sieve-go.oro, which names
+// same program emitted from examples/native/sieve-go.oro (deleted in
+// gotarget-2026-09-30; gen_sieve_plain.go is its last emission), which named
 // go.make-bool, go.set-bool and go.at-bool; the table version names none of
 // them and uses `build`, `set` and indexing by application.
 //

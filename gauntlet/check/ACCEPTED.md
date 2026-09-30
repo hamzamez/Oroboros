@@ -916,3 +916,22 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - source removed — `examples/wordcount.oro java`
 - source removed — `examples/wordcount.oro js`
 - source removed — `examples/wordcount.oro windows`
+
+## 2026-09-30 — on c6fc635, with uncommitted changes
+
+**Reason:** Go target, builtin step (gotarget-2026-09-30 13): per-type table names retired onto the language's table (their pure reads beside stores were reordered by reduction); report and smooth now use build, measured unchanged (new/old 1.04, 0.99, 0.94; drift 0.95-1.05); the two sieve-go variants deleted, examples/table/sieve.oro is their program
+
+484 runs: 249 emitted, 235 refused; 1965 of 2010 integer operations bounded, 346 of 364 loops proven. compiler pass, differential pass, tooling pass.
+
+10 change(s):
+
+- emitted text changed — `examples/native/report-go.oro go`
+- source removed — `examples/native/sieve-go-threaded.oro go`
+- source removed — `examples/native/sieve-go-threaded.oro java`
+- source removed — `examples/native/sieve-go-threaded.oro js`
+- source removed — `examples/native/sieve-go-threaded.oro windows`
+- source removed — `examples/native/sieve-go.oro go`
+- source removed — `examples/native/sieve-go.oro java`
+- source removed — `examples/native/sieve-go.oro js`
+- source removed — `examples/native/sieve-go.oro windows`
+- emitted text changed — `examples/native/smooth-go.oro go`

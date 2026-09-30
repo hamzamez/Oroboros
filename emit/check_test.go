@@ -45,12 +45,12 @@ func TestCheckerRejectsTheMeasuredBug(t *testing.T) {
 func TestCheckerRejectsConflictingUse(t *testing.T) {
 	err := checkSrc(t, "go", `
 		(use go)
-		(fn (a) (go.f+ (go.at-float64 a 0) (go.float64-of-int (go.len (go.at-string a 0)))))
+		(fn (a) (if (go.s< a "x") (go.string-of-bytes a) "y"))
 	`)
 	if err == nil {
-		t.Fatal("a used as both slice-float64 and slice-string should conflict")
+		t.Fatal("a used as both a host string and a table of bytes should conflict")
 	}
-	if !strings.Contains(err.Error(), "slice-float64") || !strings.Contains(err.Error(), "slice-string") {
+	if !strings.Contains(err.Error(), "bytestring") || !strings.Contains(err.Error(), "array int 0 255") {
 		t.Errorf("the conflict should name both types, got %v", err)
 	}
 }
@@ -166,18 +166,18 @@ func TestSignatureAcceptedWhenItAgrees(t *testing.T) {
 
 func TestSignatureCheckedAgainstDefinition(t *testing.T) {
 	// go does not provide `bad`, so the claim is about the definition — which
-	// here returns a slice rather than the declared f64.
+	// here returns a host call's table rather than the declared f64.
 	src := `
 		(use go)
-		(sig bad ((a slice-float64)) f64)
-		(def bad (a) (go.make-float64 (go.len a)))
+		(sig bad ((a (array f64))) f64)
+		(def bad (a) (go.bytes-of-string "x"))
 	`
 	tg, prog, env := loadWithSigs(t, "go", src)
 	err := CheckSignatures(tg, prog, env, nil)
 	if err == nil {
 		t.Fatal("a definition disagreeing with its own signature must be caught")
 	}
-	if !strings.Contains(err.Error(), "slice-float64") {
+	if !strings.Contains(err.Error(), "array int 0 255") {
 		t.Errorf("the error should name the actual type, got %v", err)
 	}
 }
@@ -203,7 +203,7 @@ func TestSignatureArityIsChecked(t *testing.T) {
 // under a result declared f64 compiled to a Go function returning []float64.
 func claimErr(t *testing.T, result, body string) error {
 	t.Helper()
-	tg, prog, env := loadWithSigs(t, "go", "(use go)\n(sig bad ((a slice-float64)) "+result+")\n(def bad (a) "+body+")\n")
+	tg, prog, env := loadWithSigs(t, "go", "(use go)\n(sig bad ((a (array f64))) "+result+")\n(def bad (a) "+body+")\n")
 	return CheckSignatures(tg, prog, env, nil)
 }
 
@@ -235,13 +235,20 @@ func TestATableFormMeetsATableDemand(t *testing.T) {
 		{"(array f64)", "(build b 3 b)"},
 		{"(array f64)", "(alloc (table 3 (fn (i) 1.0)))"},
 		{"(array (int 0 255))", "(array 104 105 33)"},
-		{"slice-float64", "(array 1.0 2.0)"},
-		{"slice-float64", "(build b 3 (set b 0 1.5))"},
 		{"(map int f64)", "(build-map m 4 m)"},
 		{"int", "(len (array 1.0 2.0))"},
 	} {
 		if err := claimErr(t, c.result, c.body); err != nil {
 			t.Errorf("%s under %s: %v", c.body, c.result, err)
+		}
+	}
+	// A HOST TYPE REALIZING A TABLE: Java's double-array is double[], which is
+	// ρ(array f64). Go has none left since gotarget-2026-09-30 removed its
+	// per-element slice names, so the witness is Java's.
+	for _, body := range []string{"(array 1.0 2.0)", "(build b 3 (set b 0 1.5))"} {
+		tg, prog, env := loadWithSigs(t, "java", "(use java)\n(sig bad ((a (array f64))) double-array)\n(def bad (a) "+body+")\n")
+		if err := CheckSignatures(tg, prog, env, nil); err != nil {
+			t.Errorf("%s under double-array: %v", body, err)
 		}
 	}
 }

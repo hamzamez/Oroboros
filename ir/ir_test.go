@@ -258,7 +258,7 @@ func TestDotIsTheSpecExample(t *testing.T) {
 		"(loop (init %14 %15)",
 		"(val (%20 bool) (ge %18 %19))",
 		"(pi %23 int (%18 lt %19))",
-		"(pi %24 slice-float64 ((len %0) gt %18))",
+		"(pi %24 (array f64) ((len %0) gt %18))",
 		"(val (%25 f64) (index %24 %23))",
 		"(call go.f* %25 %26)",
 		"(add %23 %29)",

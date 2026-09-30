@@ -19,8 +19,9 @@
 ; The portable form was examples/report.oro, deleted with the portable layer
 ; (portable-2026-09-29; in git at 870de46). It took its array as a parameter,
 ; which `main` cannot do. Construction is why: a program could not build data at
-; all until 2026-08-15, and on a native target it is `go.make-float64` plus a
-; fill loop rather than `make-vec` (construction.md).
+; all until 2026-08-15, and here it is the language's `build` with a fill loop
+; (construction.md; `go.make-float64` and `go.set-float64` until
+; gotarget-2026-09-30).
 
 (use go)
 (use go/fmt)
@@ -28,20 +29,19 @@
 (export main)
 
 (def fill (n)
-  (let dst (go.make-float64 n)
-    (loop ((d dst) (i 0))
+  (build d n
+    (loop ((d d) (i 0))
       (go.>= i n)  d
-      else         (again (go.set-float64 d i (go.float64-of-int i)) (go.+ i 1)))))
+      else         (again (set d i (go.float64-of-int i)) (go.+ i 1)))))
 
 (def dot (a b)
   (loop ((acc 0.0) (i 0))
-    (go.>= i (go.len a))  acc
-    else                  (again (go.f+ acc (go.f* (go.at-float64 a i)
-                                                   (go.at-float64 b i)))
+    (go.>= i (len a))     acc
+    else                  (again (go.f+ acc (go.f* (a i) (b i)))
                                  (go.+ i 1))))
 
 (def main ()
   (let xs (fill 1000)
     (seq (fmt.Println "report")
-         (fmt.Println (go.len xs))
+         (fmt.Println (len xs))
          (fmt.Println (dot xs xs)))))

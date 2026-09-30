@@ -103,10 +103,12 @@ func TestAMapStoreClaimsNoLength(t *testing.T) {
 	} else if _, _, declared := lengthContract(p); declared {
 		t.Errorf("set-map must claim no length: a map insert can add a key")
 	}
-	if p, ok := tg.Prims["go.set-bool"]; !ok {
-		t.Fatal("go target must declare set-bool")
+	// The array store is the LANGUAGE's `set` since gotarget-2026-09-30, which
+	// removed Go's per-element-type stores.
+	if p, ok := tg.Prims["set"]; !ok {
+		t.Fatal("the language's set must be injected")
 	} else if count, at, declared := lengthContract(p); !declared || count || at != 0 {
-		t.Errorf("set-bool must pass its container's length through: count=%v at=%d declared=%v",
+		t.Errorf("set must pass its container's length through: count=%v at=%d declared=%v",
 			count, at, declared)
 	}
 }
@@ -138,19 +140,20 @@ func TestAJavaScriptArrayStoreClaimsNoLength(t *testing.T) {
 func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 	err := refineGo(t, `
 		(use go)
+		(use go/os)
 		(export f)
 		(sig f ((n int)) int (where (and (go.<= 0 n) (go.< n 1000))))
 		(def f (fn (n)
-		  (let c (go.make-bool 4)
-      (loop ((i 0))
-		      (go.>= i n)      0
-		      (go.at-bool c i) 1
-		      else             (again (go.+ i 1))))))
+		  ((os.ReadFile "f") (fn (c err)
+		    (loop ((i 0))
+		      (go.>= i n)          0
+		      (go.!= (c i) 0)      1
+		      else                 (again (go.+ i 1)))))))
 	`)
 	if err == nil {
 		t.Fatal("indexing a 4-long array under a bound of 1000 must not be provable")
 	}
-	if !strings.Contains(err.Error(), "at-bool") {
+	if !strings.Contains(err.Error(), "is an indexing") {
 		t.Errorf("the refusal must name the operation, got %v", err)
 	}
 }
@@ -175,5 +178,20 @@ func TestLengthAttributesAreRespelledAsEnsures(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), want) {
 			t.Errorf("%s must be refused naming %s, got %v", old, want, err)
 		}
+	}
+}
+
+// A READ OF A MUTABLE HOST MAP IS NOT PURE (targets/go/builtin.oro,
+// gotarget-2026-09-30 §13): bound before a store into the same map, it must be
+// evaluated before it. Declared pure, reduction substituted the read after the
+// store — the same program over Go's per-type slice read printed the stored
+// value instead of the one read.
+func TestAMapReadStaysBeforeAStore(t *testing.T) {
+	nf := reduce(t, `(use go) (fn (k) (let m (go.make-map)
+		(let x (go.at-map m k) (seq (go.set-map m k 5) x))))`, "go")
+	out := nf.String()
+	read, store := strings.Index(out, "go.at-map"), strings.Index(out, "go.set-map")
+	if read < 0 || store < 0 || read > store {
+		t.Errorf("the read must stay before the store:\n%s", out)
 	}
 }

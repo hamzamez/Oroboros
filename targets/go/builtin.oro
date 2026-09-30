@@ -1,208 +1,161 @@
-; Go's predeclared identifiers and operators, under Go's own names.
+; Go's predeclared identifiers and operators, under Go's names.
 ;
 ;   (use go)
-;   (go.+ x y)   (go./ a b)   (go.len s)   (go.delete m k)
+;   (go.+ x y)   (go./ a b)   (go.len s)   (go.err-nil err)
 ;
-; Nothing here is portable and nothing here claims to be. `go./` on ints
-; truncates toward zero and panics on division by zero; `go.+` wraps at the
-; width of its type. That is Go, and a program using it is a Go program.
+; Nothing here is portable and nothing claims to be: `go./` truncates toward
+; zero, `go.+` wraps at its type's width. A program using them is a Go program.
 ;
-; Where a Go name is polymorphic and our type table is not, the name is
-; suffixed with the type it operates on — `go.at-float64`, `go.make-int`. Those
-; suffixes are the type language's limitation showing through, and they are the
-; main thing this experiment found. See docs/spec/target-native.md.
+; THE ALGEBRA, BEFORE THE NAMES.
+;
+; - INTEGERS. `+ − ·` are the ring ℤ/2⁶⁴ on Go's int, exact wherever the result
+;   is proven in the word (the IR decides it, and `checked` names the trapping
+;   form it selects otherwise). `/` and `%` truncate, and their domain is b ≠ 0;
+;   the shifts' is b ≥ 0. Each domain is a `where`, an obligation at every call.
+; - FLOATS are IEEE 754 binary64, Go's float64: no domain, NaN and ±Inf included.
+; - GO'S STRING is B*, any bytes; ours is Σ* (ADR 0030). `string-of-bytes` and
+;   `bytes-of-string` are Go's conversions, the identity on bytes; `text` is the
+;   decode d back into ours, and `valid` decides V = enc(Σ*).
+; - (T, error) IS A SUM T + E, and `err-nil` is its discriminant.
+; - A MAP[STRING]INT is a mutable finite map M : B* ⇀ int with Go's default:
+;   `at-map m k` is M(k), or 0 when k is absent — total, and unable to tell
+;   absent from 0. Its stores mutate it in place, so its READ IS NOT PURE: a pure
+;   read may be moved across a store (ADR 0010 orders only impure calls), and
+;   reduction did move one (gotarget-2026-09-30 §13).
+; - THE LANGUAGE'S STRING MONOID on Go: `concat` is `+`, and `string-of` is η on
+;   scalar values, with Scalar's domain.
+;
+; TABLES ARE THE LANGUAGE'S, not this file's. `(array V)`, application, `len`,
+; `build` and `set` work on every target (tables.md). Until gotarget-2026-09-30
+; this file declared Go's slices once per element type — at-float64, set-int,
+; make-string, append-*, copy-float64 — the "suffix explosion" tables.md §10
+; records the type constructor deleting. They were removed, with the host types
+; slice-int … slice-any: every program here now uses the language's table, which
+; emits the same Go. And their reads were declared pure beside stores into the
+; same slice, which reduction reordered.
+;
+; A map[string]int is not the language's map, which is keyed by integers
+; (maps.md), so it stays a host type, `map-string-int`, declared in go.oro.
 
 (target go
   ; ═══ HOW WIDE A SHIFT IS EXACT HERE
   ;
   ; `x / 2^k` on a SIGNED value is not a shift -- truncation toward zero needs
   ; a rounding correction -- so the compiler rewrites it into one wherever it
-  ; can PROVE the dividend is non-negative and fits this many bits. Worth
-  ; **2.39x** on our fixed-limb factorial (shiftdiv-2026-09-03).
-  ;
-  ; This does NOT promote bitwise operators to the language, and integers.md
-  ; §0a's reason for keeping them out stands. It lets the COMPILER use this
-  ; host's own shift where it has proved the rewrite changes no answer.
-  ;
-  ; Go's `>>` on an `int` is a 64-bit arithmetic shift, exact on every value
-  ; the language can hold.
+  ; can PROVE the dividend is non-negative and fits this many bits
+  ; (shiftdiv-2026-09-03). Go's `>>` on an `int` is a 64-bit arithmetic shift.
   (repr shift 63)
 
   (module go
-    ; ---- arithmetic. One declaration per Go type, because the type language
-    ; cannot say "any numeric T".
-    ; The plain operators, and the CHECKED forms a declared range selects when
-    ; the compiler cannot prove the result stays in the window (sct-2026-08-19).
-    ;
-    ; Go has NO overflow intrinsic — which is why overflow-2026-08-19 measured it
-    ; at 2.61x against Java's 1.31x. The check is written as a func literal
-    ; called immediately, so each operand appears ONCE and Go's inliner sees
-    ; straight-line code. No runtime, no prelude, no support library.
-    (sig +   (int int) int  pure             (host expr "%s + %s" (checked add-exact)))
-    (sig -   (int int) int  pure             (host expr "%s - %s" (checked sub-exact)))
-    (sig *   (int int) int  pure             (host expr "%s * %s" (checked mul-exact)))
-    (sig add-exact (int int) int pure (host expr
+    ; ---- integer arithmetic. The plain operators, and the CHECKED forms a
+    ; declared range selects when the compiler cannot prove the result stays in
+    ; the word. Go has no overflow intrinsic; each check is a func literal called
+    ; once, so every operand appears once (overflow-2026-08-19).
+    (sig +   ((a int) (b int)) int pure (host expr "%s + %s" (checked add-exact)))
+    (sig -   ((a int) (b int)) int pure (host expr "%s - %s" (checked sub-exact)))
+    (sig *   ((a int) (b int)) int pure (host expr "%s * %s" (checked mul-exact)))
+    (sig add-exact ((a int) (b int)) int pure (host expr
         "func(a, b int) int { t := a + b; if (t > a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
-    (sig sub-exact (int int) int pure (host expr
+    (sig sub-exact ((a int) (b int)) int pure (host expr
         "func(a, b int) int { t := a - b; if (t < a) != (b > 0) { panic(\"int overflow\") }; return t }(%s, %s)"))
-    (sig mul-exact (int int) int pure (host expr
+    (sig mul-exact ((a int) (b int)) int pure (host expr
         "func(a, b int) int { t := a * b; if a != 0 && t/a != b { panic(\"int overflow\") }; return t }(%s, %s)"))
-    ; A ZERO DIVISOR IS A PRECONDITION, NOT A BEHAVIOUR (integers.md §5). Go
-    ; panics, Java throws, x86 raises #DE — and JavaScript returns Infinity and
-    ; keeps going, which is why specifying a value would mean emulating one
-    ; everywhere. `d != 0` is a DISJUNCTION, discharged by case split against
-    ; the conjunctive fragment that already exists.
-    (sig /   ((a int) (b int)) int  pure (where (!= b 0))     (host expr "%s / %s"))
-    (sig %   ((a int) (b int)) int pure (where (!= b 0))     (host expr "%s %% %s"))
-    (sig f+  (f64 f64) f64  pure (host expr "%s + %s"))
-    (sig f-  (f64 f64) f64  pure (host expr "%s - %s"))
-    (sig f*  (f64 f64) f64  pure (host expr "%s * %s"))
-    (sig f/  (f64 f64) f64  pure (host expr "%s / %s"))
+    ; A zero divisor is a precondition, not a behaviour (integers.md §5): Go
+    ; panics, Java throws, x86 raises #DE, and JavaScript returns Infinity.
+    (sig /   ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s / %s"))
+    (sig %   ((a int) (b int)) int pure (where (!= b 0)) (host expr "%s %% %s"))
 
-    ; ---- bitwise
-    (sig &   (int int) int  pure (host expr "%s & %s"))
-    (sig |   (int int) int  pure (host expr "%s | %s"))
-    (sig ^   (int int) int  pure (host expr "%s ^ %s"))
-    (sig &^  (int int) int pure (host expr "%s &^ %s"))
-    ; A SHIFT'S DOMAIN IS b ≥ 0 (the Go specification, "Operators": the count
-    ; must be non-negative, and a negative count panics at run time). A count of
-    ; 64 or more is defined: x << b is 0, and x >> b is 0 or -1 by x's sign. The
-    ; same kind of claim as `/`'s b ≠ 0, and until gotarget-2026-09-30 missing.
+    ; ---- bitwise, on Go's int. A shift's count must be non-negative (the Go
+    ; specification: a negative count panics); a count of 64 or more is defined.
+    (sig &   ((a int) (b int)) int pure (host expr "%s & %s"))
+    (sig |   ((a int) (b int)) int pure (host expr "%s | %s"))
+    (sig ^   ((a int) (b int)) int pure (host expr "%s ^ %s"))
+    (sig &^  ((a int) (b int)) int pure (host expr "%s &^ %s"))
     (sig <<  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s << %s"))
     (sig >>  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s >> %s"))
 
-    ; ---- comparison. Go's == is defined on every comparable type, which a
-    ; monomorphic table cannot say, so `any` stands where Go is polymorphic.
-    (sig ==  (any any) bool pure (host expr "%s == %s"))
-    (sig !=  (any any) bool pure (host expr "%s != %s"))
-    (sig <   (int int) bool  pure (host expr "%s < %s"))
-    (sig <=  (int int) bool pure (host expr "%s <= %s"))
-    (sig >   (int int) bool  pure (host expr "%s > %s"))
-    (sig >=  (int int) bool pure (host expr "%s >= %s"))
-    (sig f<  (f64 f64) bool  pure (host expr "%s < %s"))
-    (sig f<= (f64 f64) bool pure (host expr "%s <= %s"))
-    (sig f>  (f64 f64) bool  pure (host expr "%s > %s"))
-    (sig f>= (f64 f64) bool pure (host expr "%s >= %s"))
-    (sig s<  (string string) bool  pure   (host expr "%s < %s"))
+    ; ---- float arithmetic and order: IEEE 754 binary64.
+    (sig f+  ((a f64) (b f64)) f64 pure (host expr "%s + %s"))
+    (sig f-  ((a f64) (b f64)) f64 pure (host expr "%s - %s"))
+    (sig f*  ((a f64) (b f64)) f64 pure (host expr "%s * %s"))
+    (sig f/  ((a f64) (b f64)) f64 pure (host expr "%s / %s"))
+    (sig f<  ((a f64) (b f64)) bool pure (host expr "%s < %s"))
+    (sig f<= ((a f64) (b f64)) bool pure (host expr "%s <= %s"))
+    (sig f>  ((a f64) (b f64)) bool pure (host expr "%s > %s"))
+    (sig f>= ((a f64) (b f64)) bool pure (host expr "%s >= %s"))
+
+    ; ---- integer order, and Go's comparable ==. `any` stands where Go is
+    ; polymorphic over comparable types; on two errors == is identity.
+    (sig ==  ((a any) (b any)) bool pure (host expr "%s == %s"))
+    (sig !=  ((a any) (b any)) bool pure (host expr "%s != %s"))
+    (sig <   ((a int) (b int)) bool pure (host expr "%s < %s"))
+    (sig <=  ((a int) (b int)) bool pure (host expr "%s <= %s"))
+    (sig >   ((a int) (b int)) bool pure (host expr "%s > %s"))
+    (sig >=  ((a int) (b int)) bool pure (host expr "%s >= %s"))
+    ; Lexicographic order on bytes.
+    (sig s<  ((a bytestring) (b bytestring)) bool pure (host expr "%s < %s"))
 
     ; ---- boolean
-    (sig &&  (bool bool) bool pure (host expr "%s && %s"))
-    (sig ||  (bool bool) bool pure (host expr "%s || %s"))
-    (sig !   (bool) bool      pure      (host expr "!%s"))
+    (sig &&  ((a bool) (b bool)) bool pure (host expr "%s && %s"))
+    (sig ||  ((a bool) (b bool)) bool pure (host expr "%s || %s"))
+    (sig !   ((a bool)) bool pure (host expr "!%s"))
 
-    ; ---- predeclared constants
+    ; ---- predeclared functions. len and cap take any Go value they apply to
+    ; (a slice, a string's bytes, a map's keys); min and max are Go's generic
+    ; builtins at int, their restriction to one type.
+    (sig len ((v any)) int pure (host expr "len(%s)"))
+    (sig cap ((v any)) int pure (host expr "cap(%s)"))
+    (sig min ((a int) (b int)) int pure (host expr "min(%s, %s)"))
+    (sig max ((a int) (b int)) int pure (host expr "max(%s, %s)"))
+    (sig panic   ((v any)) any (host stmt "panic(%s)"))
+    (sig print   ((v any)) any (host stmt "print(%s)"))
+    (sig println ((v any)) any (host stmt "println(%s)"))
 
-    ; ---- predeclared functions
-    (sig len (any) int pure (host expr "len(%s)"))
-    (sig cap (any) int pure (host expr "cap(%s)"))
-    (sig min (int int) int pure (host expr "min(%s, %s)"))
-    (sig max (int int) int pure (host expr "max(%s, %s)"))
+    ; ---- map[string]int, a host map (the header). Mutated in place; every
+    ; read is impure so that no store is reordered past one.
+    (sig make-map () map-string-int (host expr "make(map[string]int)"))
+    (sig at-map ((m map-string-int) (k bytestring)) int (host expr "%s[%s]"))
+    (sig set-map ((m map-string-int) (k bytestring) (v int)) map-string-int (host stmt "%s[%s] = %s"))
+    ; Go's fused increment: one mapassign where `m[k] = m[k] + 1` hashes twice,
+    ; worth 1.21x (native-gauntlet-2026-08-20 §4). The parasite rule.
+    (sig inc-map ((m map-string-int) (k bytestring)) map-string-int (host stmt "%s[%s]++"))
+    (sig delete ((m map-string-int) (k bytestring)) map-string-int (host stmt "delete(%s, %s)"))
+    (sig clear-map ((m map-string-int)) map-string-int (host stmt "clear(%s)"))
 
-    ; append may write into the argument's backing array, so it is NOT pure.
-    (sig append-int     (slice-int int) slice-int             (host expr "append(%s, %s)"))
-    (sig append-float64 (slice-float64 f64) slice-float64 (host expr "append(%s, %s)"))
-    (sig append-string  (slice-string bytestring) slice-string    (host expr "append(%s, %s)"))
+    ; ---- conversions. Go spells these T(x). int(x) of a float truncates toward
+    ; zero, and outside int's range or at NaN it is implementation-defined in
+    ; Go; floats are outside the decided fragment, so that domain is named here
+    ; and not checked.
+    (sig int-of-float64 ((x f64)) int pure (host expr "int(%s)"))
+    (sig float64-of-int ((n int)) f64 pure (host expr "float64(%s)"))
 
-    ; make: the element type is part of Go's syntax, so one name per type. Each
-    ; result is n long, a postcondition (theories.md §7.9, §8.4).
-    (sig make-int ((n int)) slice-int (ensures (= (len result) n)) (host expr "make([]int, %s)"))
-    (sig make-int64 ((n int)) slice-int64 (ensures (= (len result) n)) (host expr "make([]int64, %s)"))
-    (sig make-float64 ((n int)) slice-float64 (ensures (= (len result) n)) (host expr "make([]float64, %s)"))
-    (sig make-string ((n int)) slice-string (ensures (= (len result) n)) (host expr "make([]string, %s)"))
-    (sig make-bool ((n int)) slice-bool (ensures (= (len result) n)) (host expr "make([]bool, %s)"))
-    (sig make-map     () map-string-int (host expr "make(map[string]int)"))
-
-    (sig copy-float64 (slice-float64 slice-float64) int       (host expr "copy(%s, %s)"))
-    (sig clear-map    (map-string-int) map-string-int         (host stmt "clear(%s)"))
-    (sig delete       (map-string-int bytestring) map-string-int  (host stmt "delete(%s, %s)"))
-    (sig panic        (any) any (host stmt "panic(%s)"))
-    (sig print        (any) any (host stmt "print(%s)"))
-    (sig println      (any) any (host stmt "println(%s)"))
-
-    ; A GO []string AND A GO map[string]int HOLD GO STRINGS, B* (ADR 0030): their
-    ; elements and keys are `bytestring`. They were declared ours, Σ*, until
-    ; strings.Fields told the truth about its result and the claim failed
-    ; (gotarget-2026-09-30 §10).
-    ; ---- indexing and slicing. Go's own, with Go's own panic outside bounds,
-    ; which is why the refinement is carried rather than assumed.
-    (sig at-int     ((v slice-int) (i int)) int pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))         (host expr "%s[%s]"))
-    (sig at-float64 ((v slice-float64) (i int)) f64 pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v)))) (host expr "%s[%s]"))
-    (sig at-string  ((v slice-string) (i int)) bytestring pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))   (host expr "%s[%s]"))
-    (sig at-bool    ((v slice-bool) (i int)) bool pure index
-      (where (go.&& (go.<= 0 i) (go.< i (go.len v))))       (host expr "%s[%s]"))
-    (sig at-map     (map-string-int bytestring) int pure         (host expr "%s[%s]"))
-
-    (sig set-int ((c slice-int) (i int) (x int)) slice-int (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
-    (sig set-float64 ((c slice-float64) (i int) (x f64)) slice-float64 (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
-    (sig set-string ((c slice-string) (i int) (x bytestring)) slice-string (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
-    (sig set-bool ((c slice-bool) (i int) (x bool)) slice-bool (ensures (= (len result) (len c))) (host stmt "%s[%s] = %s"))
-    ; NO length postcondition here, and the omission is the point. An array store leaves
-    ; the length alone, so `set-float64` passes its container's length through;
-    ; a map INSERT can add a key, so `len(m)` after is not `len(m)` before.
-    ; The two read identically in Go and are opposite facts.
-    (sig set-map (map-string-int bytestring int) map-string-int (host stmt "%s[%s] = %s"))
-
-    ; Go's fused increment. `m[k]++` is ONE mapassign returning a value pointer;
-    ; `m[k] = m[k] + 1` is a mapaccess AND a mapassign — the same key hashed
-    ; twice. The g4 derivation claimed that and never measured it; it is worth
-    ; 1.21x (native-gauntlet-2026-08-20 §4).
-    ;
-    ; Declaring it is the parasite rule, not a special case: emit at the highest
-    ; layer the target natively provides. And it is the OPPOSITE of Java, where
-    ; the fused `merge` loses 2.6x to unfused getOrDefault+put — which is why
-    ; this is a per-target declaration and not a principle (ADR 0008).
-    (sig inc-map (map-string-int bytestring) map-string-int (host stmt "%s[%s]++"))
-
-    (sig slice-float64 (slice-float64 int int) slice-float64 pure (host expr "%s[%s:%s]"))
-    (sig slice-string  (slice-string int int) slice-string pure   (host expr "%s[%s:%s]"))
-
-    ; ---- THE LANGUAGE'S STRING MONOID ON GO (string-operations.md §1), found by
-    ; spelling: concatenation, the monoid's operation, is Go's `+`, and V·V ⊆ V,
-    ; so ours stays ours. They lived in go/strings until gotarget-2026-09-30,
-    ; which is Go's package and not the language's.
-    (sig concat ((a string) (b string)) string pure (host expr "%s + %s"))
-    ; η : Scalar → Σ*, the string of one scalar value.
-    ; ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF] (string-operations.md §7),
-    ; a disjunction, which the refinement layer decides by case split. Outside it
-    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
-    ; surrogate or a RangeError, Java an exception or a lone char — so the
-    ; language's operation states one domain on every target
-    ; (gotarget-2026-09-30).
-    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "string(rune(%s))"))
-
-    ; ---- conversions. Go spells these T(x); each is its own name here.
-    (sig int-of-float64  (f64) int     pure       (host expr "int(%s)"))
-    (sig float64-of-int  (int) f64 pure       (host expr "float64(%s)"))
-    ; THE HOST'S STRING IS THE HOST'S (ADR 0030). A Go `string` is any byte
-    ; sequence, B*; ours is a sequence of scalar values, Σ*, stored as its UTF-8
-    ; encoding. So ours is a subset, and the edge is the identity on the
-    ; representation: no code, declared in go.oro as `(implements string
-    ; go.bytestring)`. The way back is `text` below, the decode d.
+    ; ---- the host's string (ADR 0030). string ≤ bytestring is declared in
+    ; go.oro as `(implements string go.bytestring)`, the identity on bytes.
     (type bytestring (host "string"))
-
-    ; Go's conversions between its string and its byte slice: the identity on
-    ; the bytes, and a copy. Bytes to B* is total; to OUR string is `text`
-    ; below, the decode, which is not the identity.
     (sig string-of-bytes ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
     (sig bytes-of-string ((s bytestring)) (array (int 0 255)) pure (host expr "[]byte(%s)"))
-    ; (T, error) IS GO'S ENCODING OF A SUM T + E, and this is its discriminant:
-    ; the error side is empty exactly when err is nil. It belongs to the type
-    ; `error`, which is the target's, and not to any package (it lived in go/os
-    ; until gotarget-2026-09-30).
+    ; (T, error)'s discriminant: the error side is empty exactly when err is nil.
     (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
 
-    ; ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text` is
-    ; d, the Unicode Standard's maximal-subpart substitution (§3.9, Table 3-7):
-    ; a well-formed sequence is its scalar, and each byte that begins none, or
-    ; the longest prefix of a sequence that cannot be completed, is one U+FFFD.
-    ; It is total, d ∘ enc = id, and it is the identity on valid UTF-8, which is
-    ; the fast path. It is NOT a homomorphism — d(E6)·d(97 A5) is three U+FFFD
-    ; and d(E6 97 A5) is 日 — so it is applied once, to a whole value.
-    ; `valid` decides V = enc(Σ*); `(if (go.valid s) (go.text s) …)` is the
-    ; checked conversion, because d is the identity there.
+    ; ---- the language's string monoid on Go (string-operations.md §1), found by
+    ; spelling. V·V ⊆ V, so ours stays ours.
+    (sig concat ((a string) (b string)) string pure (host expr "%s + %s"))
+    ; η : Scalar → Σ*. ITS DOMAIN IS Scalar = [0, D7FF] ∪ [E000, 10FFFF]
+    ; (string-operations.md §7), a disjunction decided by case split. Outside it
+    ; the hosts disagree observably — Go gives U+FFFD, JavaScript a lone
+    ; surrogate or a RangeError, Java an exception or a lone char — so the
+    ; language's operation states one domain on every target.
+    (sig string-of ((c int)) string pure (where (and (>= c 0) (<= c 1114111) (or (<= c 55295) (>= c 57344)))) (host expr "string(rune(%s))"))
+
+    ; ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text`
+    ; is d, the Unicode Standard's maximal-subpart substitution (§3.9, Table
+    ; 3-7): a well-formed sequence is its scalar, and each byte that begins
+    ; none, or the longest prefix of a sequence that cannot be completed, is one
+    ; U+FFFD. It is total, d ∘ enc = id, and the identity on valid UTF-8, which
+    ; is the fast path. It is NOT a homomorphism — d(E6)·d(97 A5) is three
+    ; U+FFFD and d(E6 97 A5) is 日 — so it is applied once, to a whole value.
+    ; `valid` decides V; `(if (go.valid s) (go.text s) …)` is the checked
+    ; conversion, because d is the identity there.
     (sig text ((s bytestring)) string pure
           (host expr "func(s string) string { if utf8.ValidString(s) { return s }; b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(%s)" (import "unicode/utf8")))
     (sig valid ((s bytestring)) bool pure

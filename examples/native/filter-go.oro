@@ -7,20 +7,20 @@
 ; Ported from examples/filter.oro, which was written against the retired
 ; portable layer's `fold-range` (portable-2026-09-29). It is the one program
 ; that shows the PUSH direction; dot and smooth are pull vectors. The read
-; `(go.at-float64 a i)` is shared between the test and the sum by call-by-need,
-; where the portable original duplicated it.
+; `(a i)` is shared between the test and the sum by call-by-need, where the
+; portable original duplicated it.
 
 (use go)
 
 (export sum-positive)
 
-(sig sum-positive ((a slice-float64)) f64)
+(sig sum-positive ((a (array f64))) f64)
 
 (def push-of-array (a)
   (fn (step z)
     (loop ((acc z) (i 0))
-      (>= i (go.len a))  acc
-      else               (again (step acc (go.at-float64 a i)) (+ i 1)))))
+      (>= i (len a))  acc
+      else            (again (step acc (a i)) (+ i 1)))))
 
 (def push-filter (p c) (fn (step z) (c (fn (acc x) (if (p x) (step acc x) acc)) z)))
 (def push-sum    (c)   (c (fn (acc x) (go.f+ acc x)) 0.0))

@@ -12,11 +12,16 @@ import (
 // through the type checker, so what it shows is the IR's own claim edge.
 func lowerClaimed(t *testing.T, src string) error {
 	t.Helper()
-	tg, err := emit.LoadTarget("../targets/go")
+	return lowerClaimedOn(t, "go", src)
+}
+
+func lowerClaimedOn(t *testing.T, target, src string) error {
+	t.Helper()
+	tg, err := emit.LoadTarget("../targets/" + target)
 	if err != nil {
 		t.Fatal(err)
 	}
-	forms, err := core.Read("(use go)\n" + src)
+	forms, err := core.Read("(use " + target + ")\n" + src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,7 +68,6 @@ func TestTheIRsClaimEdgeAdmitsWhatTheSortAdmits(t *testing.T) {
 	for _, c := range []struct{ result, body string }{
 		{"(int 0 255)", "(len a)"},
 		{"(int 0 18446744073709551615)", "(len a)"},
-		{"slice-float64", "(array 1.0 2.0)"},
 		{"(array (int 0 255))", "(array 104 105 33)"},
 		{"f64", "(let t (build b 2 (set b 0 1.5)) (t 0))"},
 	} {
@@ -71,5 +75,9 @@ func TestTheIRsClaimEdgeAdmitsWhatTheSortAdmits(t *testing.T) {
 		if err := lowerClaimed(t, src); err != nil {
 			t.Errorf("%s under %s: %v", c.body, c.result, err)
 		}
+	}
+	// A host alias of a table: Java's double-array is ρ(array f64).
+	if err := lowerClaimedOn(t, "java", "(export f)\n(sig f ((a (array f64))) double-array)\n(def f (a) (array 1.0 2.0))\n"); err != nil {
+		t.Errorf("(array 1.0 2.0) under double-array: %v", err)
 	}
 }

@@ -180,6 +180,18 @@ func (tg *Target) checkViews() error {
 	return nil
 }
 
+// sameSlice reports a buffer and a table of one element: the same host slice,
+// declared once as written and once as read. Which is which is a claim about
+// what the host does to it (host-buffers.md) that a hand file makes and a
+// generated one cannot (ADR 0023), so a generated method taking an array meets
+// a hand interface's buffer: the hand-declaration checker accepts the same
+// difference (gotarget-2026-09-30 §11).
+func sameSlice(a, b string) bool {
+	ca, ea, oka := tableParts(a)
+	cb, eb, okb := tableParts(b)
+	return oka && okb && ca != cb && ea == eb
+}
+
 // viewAgrees compares one method of the interface with the subject's, ignoring
 // the receiver, which is the one argument the two are REQUIRED to differ in.
 func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
@@ -191,7 +203,8 @@ func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 		if i == 0 {
 			continue // the receiver
 		}
-		if !compatible(tg, want.Args[i], got.Args[i]) && !tg.SameHostType(want.Args[i], got.Args[i]) {
+		if !compatible(tg, want.Args[i], got.Args[i]) && !tg.SameHostType(want.Args[i], got.Args[i]) &&
+			!sameSlice(want.Args[i], got.Args[i]) {
 			return fmt.Errorf("(implements %s %s): %s's argument %d is %q on %s and %q on %s",
 				sub, iface, local, i+1, want.Args[i], iface, got.Args[i], sub)
 		}

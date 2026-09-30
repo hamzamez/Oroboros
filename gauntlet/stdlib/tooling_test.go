@@ -1134,32 +1134,40 @@ type handEntry struct {
 	mistakes             map[string]func(m map[string]emit.Prim)
 	partial              bool
 	exempt               map[string]string // "module.name" or a whole "module": why the generator lacks it
+	// ifaces are INTERFACE companions: the generator declares no interface
+	// methods, and the manifest lists every one (`pkg io, type Writer interface,
+	// Write([]uint8) (int, error)`), so these are checked against it instead.
+	ifaces []string
 }
 
 var handDeclared = []handEntry{
-	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil},
+	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil, nil},
 	{"go", "targets/go", "encoding/hex.oro",
-		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil},
-	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil},
-	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil},
-	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil},
+		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil, nil},
+	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil, nil},
+	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil, nil},
+	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil, nil},
 	{"go", "targets/go", "os.oro", []string{"go/os", "go/os/File"}, osMistakes, true, map[string]string{
 		"go/os.Args":   "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stdin":  "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stdout": "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stderr": "a package VARIABLE; the survey generates functions, methods and constants",
-	}},
+	}, nil},
 	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader"},
 		stringsMistakes, true, map[string]string{
 			"go/strings.NewBuilder": "new(strings.Builder): Go's zero value is a construct, not a name",
-		}},
-	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/Writer", "go/io/Closer", "go/io/WriteCloser", "go/io/ByteReader"},
+		}, nil},
+	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/PipeReader", "go/io/PipeWriter"},
 		nil, true, map[string]string{
-			"go/io/Writer":      "an INTERFACE's methods; the generator declares none",
-			"go/io/Closer":      "an INTERFACE's methods; the generator declares none",
-			"go/io/WriteCloser": "an INTERFACE's methods; the generator declares none",
-			"go/io/ByteReader":  "an INTERFACE's methods; the generator declares none",
-		}},
+			"go/io.EOF":              "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.ErrUnexpectedEOF": "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.ErrShortBuffer":   "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.ErrShortWrite":    "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.ErrClosedPipe":    "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.ErrNoProgress":    "a package VARIABLE; the survey generates functions, methods and constants",
+			"go/io.Discard":          "a package VARIABLE; the survey generates functions, methods and constants",
+		}, []string{"go/io/Reader", "go/io/Writer", "go/io/Closer", "go/io/ReadCloser", "go/io/WriteCloser",
+			"go/io/ReadWriter", "go/io/ByteReader", "go/io/ByteWriter", "go/io/StringWriter"}},
 }
 
 // stringsMistakes: the four disagreements this file had (a host alias for the
@@ -1371,6 +1379,41 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				}
 			}
 
+			for _, module := range h.ifaces {
+				if len(modulePrims(hostTg, module)) != 0 {
+					t.Errorf("%s: the survey now declares an interface's methods; check it as a module", module)
+				}
+				hand := modulePrims(handTg, module)
+				if len(hand) == 0 {
+					t.Errorf("%s declares no methods, so nothing is checked", module)
+				}
+				for _, e := range agreeInterface(hostTg.Word, module, hand, realization(handTg)) {
+					t.Errorf("%s: %v", module, e)
+				}
+			}
+			// …and the interface check can fail: a method the interface lacks, and
+			// one whose result count differs.
+			if len(h.ifaces) > 0 {
+				module := h.ifaces[0]
+				hand := modulePrims(handTg, module)
+				bogus := map[string]emit.Prim{}
+				for k, v := range hand {
+					bogus[k] = v
+					bogus["Bogus"] = v
+				}
+				if len(agreeInterface(hostTg.Word, module, bogus, realization(handTg))) == 0 {
+					t.Errorf("%s: a method the interface lacks was not caught", module)
+				}
+				short := map[string]emit.Prim{}
+				for k, v := range hand {
+					v.Results = v.Results[:len(v.Results)-1]
+					short[k] = v
+				}
+				if len(agreeInterface(hostTg.Word, module, short, realization(handTg))) == 0 {
+					t.Errorf("%s: a result dropped was not caught", module)
+				}
+			}
+
 			hand, host := modulePrims(handTg, h.modules[0]), modulePrims(hostTg, h.modules[0])
 			check := func(m map[string]emit.Prim) []error {
 				return h.judge(h.modules[0], agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg), hostTg))
@@ -1425,6 +1468,111 @@ func (h handEntry) judge(module string, errs []error) []error {
 		out = append(out, e)
 	}
 	return out
+}
+
+// agreeInterface checks an interface companion's hand methods against the
+// manifest's interface lines, with each Go type read into the hand file's
+// vocabulary, and then by agreeOne: a buffer where the host takes a slice, a
+// write-borrow's buffer handed back first, a result range inside the host's.
+func agreeInterface(word core.Word, module string, hand map[string]emit.Prim, hres func(string) string) []error {
+	methods := manifestInterfaces()
+	var errs []error
+	var names []string
+	for n := range hand {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		g, ok := methods[module+"."+n]
+		if !ok {
+			errs = append(errs, fmt.Errorf("%s is declared by hand and the interface has no such method", n))
+			continue
+		}
+		h := hand[n]
+		g.Import = h.Import
+		if err := agreeOne(word, n, h, g, hres, func(t string) string { return t }, nil); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+var (
+	manifestOnce sync.Once
+	manifestIf   map[string]emit.Prim
+)
+
+// manifestInterfaces reads `pkg P, type T interface, M(args) results` from the
+// toolchain's api manifest into declarations keyed "go/P/T.M", in the hand
+// files' vocabulary. A Go type this cannot read makes the method unreadable,
+// and a hand declaration of it then fails the comparison, which is the safe side.
+func manifestInterfaces() map[string]emit.Prim {
+	manifestOnce.Do(func() {
+		manifestIf = map[string]emit.Prim{}
+		out, err := exec.Command("go", "env", "GOROOT").Output()
+		if err != nil {
+			return
+		}
+		files, _ := filepath.Glob(filepath.Join(strings.TrimSpace(string(out)), "api", "go1*.txt"))
+		re := regexp.MustCompile(`^pkg ([^, ]+), type (\w+) interface, (\w+)\((.*?)\) ?(.*)$`)
+		for _, f := range files {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(string(b), "\n") {
+				m := re.FindStringSubmatch(strings.TrimSpace(line))
+				if m == nil {
+					continue
+				}
+				pkg, typ, meth := m[1], m[2], m[3]
+				base := pkg
+				if i := strings.LastIndex(pkg, "/"); i >= 0 {
+					base = pkg[i+1:]
+				}
+				p := emit.Prim{Name: meth, Form: "%s." + meth + "("}
+				p.Args = []string{base + "." + typ}
+				for _, a := range splitGoList(m[4]) {
+					p.Args = append(p.Args, goToHand(a))
+				}
+				for _, r := range splitGoList(strings.Trim(m[5], "()")) {
+					p.Results = append(p.Results, goToHand(r))
+				}
+				manifestIf["go/"+pkg+"/"+typ+"."+meth] = p
+			}
+		}
+	})
+	return manifestIf
+}
+
+func splitGoList(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	for i := range parts {
+		parts[i] = strings.TrimSpace(parts[i])
+	}
+	return parts
+}
+
+// goToHand reads a manifest's Go type into the hand files' vocabulary, as the
+// realization spells it.
+func goToHand(t string) string {
+	switch t {
+	case "[]uint8":
+		return "array int 0 255"
+	case "uint8":
+		return "int 0 255"
+	case "int32":
+		return "int -2147483648 2147483647"
+	case "int64":
+		return "int -9223372036854775808 9223372036854775807"
+	case "int", "error", "string", "bool":
+		return t
+	}
+	return "unreadable " + t
 }
 
 // modulePrims is a target's declarations in one module, by unqualified name.

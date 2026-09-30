@@ -1,73 +1,150 @@
-; io, DECLARED BY HAND — the sorts, and the two method sets a hand file has read.
+; Go's `io`: byte streams, under Go's names.
 ;
-; A module in a target is a signature Σ = (S, Ω): its sorts and the operations
-; typed over them. These three are S for `io`, and they live here because a type
-; has ONE OWNER — `encoding/hex` declared them until 2026-09-16, which recorded no
-; dependency and let a second file declare `io.Writer` to mean something else
-; (declaration-surface.md §4.2, theories.md §3.2).
+;   (use go/io)
+;   ((io.ReadAll r) (fn (bytes err) …))    ((io.Copy w r) (fn (n err) …))
 ;
-; Ω IS DECLARED IN A COMPANION: the child module sharing a type's name holds the
-; operations on it (theories.md §3.3). That is the only way an INTERFACE gets a
-; method set, and its absence was the wall hex recorded — a value of
-; `io.WriteCloser` could be written to and never closed, so the acceptance
-; program's dump was missing exactly what `Close` would write (hex-2026-09-14 §6).
+; A module is a signature Σ = (S, Ω), its sorts and the operations over them. A
+; type has ONE owner (theories.md §3.2): `io`'s interfaces are declared here and
+; nowhere else, and an interface's method set is its COMPANION, the child module
+; of its name (theories.md §3.3). `include` is inclusion of those theories: a
+; WriteCloser has a Writer's operations and a Closer's.
 ;
-; Every claim below was read off src/io/io.go in the Go 1.27 toolchain.
+; THE ALGEBRA, BEFORE THE NAMES. Every claim was read off src/io/io.go.
+;
+; - A READER is a stream consumed in pieces. Read p fills p[0, n) with
+;   0 ≤ n ≤ len p, and n > 0 delivers bytes even when an error comes with them;
+;   EOF is the one error that means the stream ended, not that it failed.
+; - A WRITER writes b and reports n, with n < len b ⇒ err ≠ nil.
+; - ReadFull fills EXACTLY len p or fails (ErrUnexpectedEOF after some bytes, EOF
+;   after none); ReadAtLeast r p min reads until n ≥ min, and gives
+;   ErrShortBuffer, not a panic, when min > len p. So neither needs a
+;   precondition.
+; - Copy w r is the fold of Read into Write until EOF, whose count is every byte
+;   written and whose error is never EOF. CopyN w r n copies exactly n, or fails.
+; - LimitReader, TeeReader and NopCloser are stream TRANSFORMERS: a Reader of at
+;   most n bytes, a Reader that writes what it reads to w, a ReadCloser whose
+;   Close does nothing.
+; - Pipe is a synchronous channel: a Write blocks until Reads consume it.
+;
+; EOF and the other errors are package VARIABLES, which the survey does not
+; generate; they are declared here, as values, since a program tests
+; `(go.== err (io.EOF))` — Go's == on two error values, identity.
+;
+; WHAT IS NOT DECLARED, of the 32 declarations the survey generates for io:
+;   - CopyBuffer: its buffer is scratch the host may overwrite, a write-borrow
+;     whose contents afterwards mean nothing; left until a program needs it;
+;   - SectionReader and NewSectionReader, OffsetWriter and NewOffsetWriter,
+;     LimitedReader's literal, and their 9 methods: they need ReaderAt and
+;     WriterAt, not declared;
+;   - MultiReader and MultiWriter are not in the survey: they are VARIADIC.
+; And not surveyed at all: the interfaces' methods, which a generated file
+; never declares. They are checked against the manifest's own interface lines
+; instead (gauntlet/stdlib/tooling_test.go).
 
 (target go
   (module go/io
+    ; ---------------------------------------------------------------- the sorts
     (type Reader      (host "io.Reader"))
     (type Writer      (host "io.Writer"))
     (type Closer      (host "io.Closer"))
+    (type ReadCloser  (host "io.ReadCloser"))
     (type WriteCloser (host "io.WriteCloser"))
+    (type ReadWriter  (host "io.ReadWriter"))
     (type ByteReader  (host "io.ByteReader"))
+    (type ByteWriter  (host "io.ByteWriter"))
+    (type StringWriter (host "io.StringWriter"))
+    (type PipeReader  (host "*io.PipeReader"))
+    (type PipeWriter  (host "*io.PipeWriter"))
 
-    ; EACH METHOD SET IS WRITTEN INSIDE THE MODULE THAT OWNS THE TYPE. A child
-    ; module's path is its parent's followed by its own, so `Writer` here is
-    ; `go/io/Writer` (spec/target-files.md §1a), and the companion rule — a child
-    ; named like a type in its parent is that type's method set — is what the
-    ; nesting shows.
-
-    ; `Write(p []byte) (n int, err error)`. IMPURE: it is the whole point.
-    ;
-    ; p IS AN ARRAY AND NOT A BUFFER, which is a claim read off the documented
-    ; contract: "Implementations must not retain p", and Write does not modify it —
-    ; it consumes the bytes. A buffer would say the host writes into it, which is
-    ; `Read`'s claim and not this one.
-    ;
-    ; `n` is the count written, `0 ≤ n ≤ len p` by the contract; the range says the
-    ; lower half, which is what the analysis can use, and `Write must return a
-    ; non-nil error if it returns n < len(p)` is the caller's business.
+    ; ------------------------------------------------------ the interfaces' Ω
+    ; A write-borrow, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
+    (module Reader
+      (sig Read ((self Reader) (p (buffer (int 0 255))))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)")))
     (module Writer
       (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
         (host expr "%s.Write(%s)")))
-
-    ; `Close() error`. Idempotence is NOT claimed: io.go says the behaviour of
-    ; Close after the first call is undefined, which is a precondition no type can
-    ; carry, so it is named here and not declared.
     (module Closer
       (sig Close ((self Closer)) error
         (host expr "%s.Close()")))
-
-    ; `type WriteCloser interface { Writer; Closer }` — io.go's own definition, so
-    ; the inclusion is the declaration rather than a summary of it.
-    ;
-    ; AND THE SUBTYPING IS DERIVED FROM IT. `T ≤ I` iff methods(I) ⊆ methods(T)
-    ; (Cardelli's record subtyping with method sets, interfaces.md §2), and an
-    ; inclusion is exactly that containment — so `(implements go/io.WriteCloser
-    ; go/io.Writer)`, which this file carried until the companions existed, is now
-    ; a theorem about these declarations.
-    ;
-    ; The included names stay ABSOLUTE: `include` takes module paths, and nesting
-    ; abbreviates where a module is DECLARED, not where one is named.
+    (module ReadCloser
+      (include go/io/Reader go/io/Closer))
     (module WriteCloser
       (include go/io/Writer go/io/Closer))
-
-    ; `ReadByte() (byte, error)`. IMPURE: each call consumes the byte it returns.
-    ; "If ReadByte returns an error, no input byte was consumed, and the returned
-    ; byte value is undefined" — so the byte is in [0, 255] and means nothing on
-    ; an error, which is the caller's to check. encoding/binary's varint readers
-    ; take one (added 2026-09-22 for them).
+    (module ReadWriter
+      (include go/io/Reader go/io/Writer))
     (module ByteReader
       (sig ReadByte ((self ByteReader)) (tuple (int 0 255) error)
-        (host expr "%s.ReadByte()")))))
+        (host expr "%s.ReadByte()")))
+    (module ByteWriter
+      (sig WriteByte ((self ByteWriter) (c (int 0 255))) error
+        (host expr "%s.WriteByte(uint8(%s))")))
+    (module StringWriter
+      (sig WriteString ((self StringWriter) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.WriteString(%s)")))
+
+    ; ------------------------------------------------------------- the errors
+    (sig EOF () error pure (host expr "io.EOF" (import "io")))
+    (sig ErrUnexpectedEOF () error pure (host expr "io.ErrUnexpectedEOF" (import "io")))
+    (sig ErrShortBuffer () error pure (host expr "io.ErrShortBuffer" (import "io")))
+    (sig ErrShortWrite () error pure (host expr "io.ErrShortWrite" (import "io")))
+    (sig ErrClosedPipe () error pure (host expr "io.ErrClosedPipe" (import "io")))
+    (sig ErrNoProgress () error pure (host expr "io.ErrNoProgress" (import "io")))
+    ; A Writer that accepts everything and keeps nothing.
+    (sig Discard () Writer pure (host expr "io.Discard" (import "io")))
+
+    ; ---------------------------------------------------------------- whence
+    (const SeekStart 0 (host "io.SeekStart" (import "io")))
+    (const SeekCurrent 1 (host "io.SeekCurrent" (import "io")))
+    (const SeekEnd 2 (host "io.SeekEnd" (import "io")))
+
+    ; ------------------------------------------------------------ the folds
+    ; Copy's count is every byte written, never negative.
+    (sig Copy ((dst Writer) (src Reader)) (tuple (int 0 9223372036854775807) error)
+      (host expr "io.Copy(%s, %s)" (import "io")))
+    (sig CopyN ((dst Writer) (src Reader) (n (int -9223372036854775808 9223372036854775807)))
+      (tuple (int 0 9223372036854775807) error)
+      (host expr "io.CopyN(%s, %s, int64(%s))" (import "io")))
+    (sig ReadAll ((r Reader)) (tuple (array (int 0 255)) error)
+      (host expr "io.ReadAll(%s)" (import "io")))
+    ; Write-borrows: the host fills buf and returns the count.
+    (sig ReadFull ((r Reader) (buf (buffer (int 0 255))))
+      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+      (host expr "func(buf []byte) ([]byte, int, error) { n, err := io.ReadFull(%s, buf); return buf, n, err }(%s)"
+        (import "io")))
+    (sig ReadAtLeast ((r Reader) (buf (buffer (int 0 255))) (min int))
+      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+      (host expr "func(buf []byte, min int) ([]byte, int, error) { n, err := io.ReadAtLeast(%s, buf, min); return buf, n, err }(%s, %s)"
+        (import "io")))
+    (sig WriteString ((w Writer) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+      (host expr "io.WriteString(%s, %s)" (import "io")))
+
+    ; ------------------------------------------------------- the transformers
+    (sig LimitReader ((r Reader) (n (int -9223372036854775808 9223372036854775807))) Reader
+      (host expr "io.LimitReader(%s, int64(%s))" (import "io")))
+    (sig TeeReader ((r Reader) (w Writer)) Reader
+      (host expr "io.TeeReader(%s, %s)" (import "io")))
+    (sig NopCloser ((r Reader)) ReadCloser
+      (host expr "io.NopCloser(%s)" (import "io")))
+
+    ; ------------------------------------------------------------------ Pipe
+    (sig Pipe () (tuple PipeReader PipeWriter) (host expr "io.Pipe()" (import "io")))
+    (module PipeReader
+      (sig Read ((self PipeReader) (p (buffer (int 0 255))))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
+          (import "io")))
+      (sig Close ((self PipeReader)) error (host expr "%s.Close()" (import "io")))
+      (sig CloseWithError ((self PipeReader) (err error)) error (host expr "%s.CloseWithError(%s)" (import "io"))))
+    (module PipeWriter
+      (sig Write ((self PipeWriter) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.Write(%s)" (import "io")))
+      (sig Close ((self PipeWriter)) error (host expr "%s.Close()" (import "io")))
+      (sig CloseWithError ((self PipeWriter) (err error)) error (host expr "%s.CloseWithError(%s)" (import "io")))))
+
+  (implements go/io.PipeReader go/io.Reader go/io.Closer go/io.ReadCloser)
+  (implements go/io.PipeWriter go/io.Writer go/io.Closer go/io.WriteCloser)
+  (implements go/io.ReadCloser go/io.Reader go/io.Closer)
+  (implements go/io.WriteCloser go/io.Writer go/io.Closer)
+  (implements go/io.ReadWriter go/io.Reader go/io.Writer))

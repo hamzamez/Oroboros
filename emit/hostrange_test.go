@@ -122,3 +122,16 @@ func TestStringOfsDomainIsScalar(t *testing.T) {
 		}
 	}
 }
+
+// A *File IS AN io.Reader, and EOF is a value a program compares with: the
+// subsumption edge os.oro declares, read by io.ReadAll, and io's package
+// variables (gotarget-2026-09-30 §11).
+func TestAFileIsAReaderAndEOFIsAValue(t *testing.T) {
+	src := `(use go) (use go/os) (use go/io)
+		(export f) (sig f () int)
+		(def f () ((io.ReadAll (os.Stdin)) (fn (b err)
+		  (if (go.== err (io.EOF)) -1 (len b)))))`
+	if _, err := entryGo(t, src); err != nil {
+		t.Errorf("io.ReadAll over os.Stdin: %v", err)
+	}
+}

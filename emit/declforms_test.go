@@ -347,6 +347,28 @@ func TestAFalseImplementsEdgeIsRefused(t *testing.T) {
 	}
 }
 
+// A BUFFER AND A TABLE OF ONE ELEMENT ARE ONE HOST SLICE in a view (§6.1,
+// gotarget-2026-09-30 §11): a hand interface declares Read as a write-borrow,
+// and a generated implementation, which cannot know the host writes, takes an
+// array. The element must still agree.
+func TestAViewMeetsABufferWithATableOfItsElement(t *testing.T) {
+	decls := func(implArg string) string {
+		return `(target x
+		  (type error (host "error"))
+		  (module go/io (type Reader (host "io.Reader")) (type R (host "*R")))
+		  (module go/io/Reader (sig Read ((self go/io.Reader) (p (buffer (int 0 255))))
+		    (tuple (buffer (int 0 255)) int error) (host expr "%s.Read(%s)")))
+		  (module go/io/R (sig Read ((self go/io.R) (p ` + implArg + `)) (tuple int error) (host expr "%s.Read(%s)")))
+		  (implements go/io.R go/io.Reader))`
+	}
+	if _, err := loadOne(t, decls("(array (int 0 255))")); err != nil {
+		t.Errorf("a generated array meets a hand buffer of the same element: %v", err)
+	}
+	if _, err := loadOne(t, decls("(array int)")); err == nil || !strings.Contains(err.Error(), "argument 2") {
+		t.Errorf("an array of another element must not meet the buffer, got %v", err)
+	}
+}
+
 func TestIncludeIsRefusedOffACompanion(t *testing.T) {
 	for body, want := range map[string]string{
 		`(target x (module go/io (include go/io/Writer)))`:                                                      "not a companion",

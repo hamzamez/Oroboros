@@ -1138,25 +1138,30 @@ type handEntry struct {
 	// methods, and the manifest lists every one (`pkg io, type Writer interface,
 	// Write([]uint8) (int, error)`), so these are checked against it instead.
 	ifaces []string
+	// variadics are modules whose names are RESTRICTIONS of the manifest's
+	// variadic functions: B or Bk is B's family member at arity k (k = 1 when
+	// there is no suffix), f|Aᵏ. A statement may discard the host's results.
+	variadics []string
 }
 
 var handDeclared = []handEntry{
-	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil, nil},
+	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil, nil, nil},
 	{"go", "targets/go", "encoding/hex.oro",
-		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil, nil},
-	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil, nil},
-	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil, nil},
-	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil, nil},
+		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil, nil, nil},
+	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil, nil, nil},
+	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil, nil, nil},
+	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil, nil, nil},
 	{"go", "targets/go", "os.oro", []string{"go/os", "go/os/File"}, osMistakes, true, map[string]string{
 		"go/os.Args":   "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stdin":  "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stdout": "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stderr": "a package VARIABLE; the survey generates functions, methods and constants",
-	}, nil},
+	}, nil, nil},
 	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader"},
 		stringsMistakes, true, map[string]string{
 			"go/strings.NewBuilder": "new(strings.Builder): Go's zero value is a construct, not a name",
-		}, nil},
+		}, nil, nil},
+	{"go", "targets/go", "fmt.oro", nil, nil, true, nil, []string{"go/fmt/Stringer"}, []string{"go/fmt"}},
 	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/PipeReader", "go/io/PipeWriter"},
 		nil, true, map[string]string{
 			"go/io.EOF":              "a package VARIABLE; the survey generates functions, methods and constants",
@@ -1167,7 +1172,7 @@ var handDeclared = []handEntry{
 			"go/io.ErrNoProgress":    "a package VARIABLE; the survey generates functions, methods and constants",
 			"go/io.Discard":          "a package VARIABLE; the survey generates functions, methods and constants",
 		}, []string{"go/io/Reader", "go/io/Writer", "go/io/Closer", "go/io/ReadCloser", "go/io/WriteCloser",
-			"go/io/ReadWriter", "go/io/ByteReader", "go/io/ByteWriter", "go/io/StringWriter"}},
+			"go/io/ReadWriter", "go/io/ByteReader", "go/io/ByteWriter", "go/io/StringWriter"}, nil},
 }
 
 // stringsMistakes: the four disagreements this file had (a host alias for the
@@ -1334,7 +1339,11 @@ var hexMistakes = map[string]func(m map[string]emit.Prim){
 
 func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 	for _, h := range handDeclared {
-		t.Run(h.modules[0], func(t *testing.T) {
+		name := strings.TrimSuffix(h.generated, ".oro")
+		if len(h.modules) > 0 {
+			name = h.modules[0]
+		}
+		t.Run(name, func(t *testing.T) {
 			s := surveyOf(t, h.host)
 			hostTg, err := emit.LoadTarget(filepath.Join(s.runs[0].emit, h.generated))
 			if err != nil {
@@ -1390,6 +1399,44 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				for _, e := range agreeInterface(hostTg.Word, module, hand, realization(handTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
+			}
+			for _, module := range h.variadics {
+				hand := modulePrims(handTg, module)
+				if len(hand) == 0 {
+					t.Errorf("%s declares nothing, so nothing is checked", module)
+				}
+				for _, e := range agreeRestriction(hostTg.Word, module, hand, realization(handTg)) {
+					t.Errorf("%s: %v", module, e)
+				}
+				// …and the restriction check can fail: an arity that is not the
+				// suffix's, and a name that restricts nothing.
+				for what, mutate := range map[string]func(m map[string]emit.Prim){
+					"an arity not the suffix's": func(m map[string]emit.Prim) {
+						for k, v := range m {
+							v.Args = append(append([]string(nil), v.Args...), "any")
+							m[k] = v
+							return
+						}
+					},
+					"a name that restricts nothing": func(m map[string]emit.Prim) {
+						for _, v := range m {
+							m["Bogus"] = v
+							return
+						}
+					},
+				} {
+					m := map[string]emit.Prim{}
+					for k, v := range hand {
+						m[k] = v
+					}
+					mutate(m)
+					if len(agreeRestriction(hostTg.Word, module, m, realization(handTg))) == 0 {
+						t.Errorf("%s: %s was not caught", module, what)
+					}
+				}
+			}
+			if len(h.modules) == 0 {
+				return
 			}
 			// …and the interface check can fail: a method the interface lacks, and
 			// one whose result count differs.
@@ -1497,6 +1544,100 @@ func agreeInterface(word core.Word, module string, hand map[string]emit.Prim, hr
 	return errs
 }
 
+// agreeRestriction checks a module's names as restrictions of the manifest's
+// variadic functions (the header of targets/go/fmt.oro).
+func agreeRestriction(word core.Word, module string, hand map[string]emit.Prim, hres func(string) string) []error {
+	funcs := manifestFuncs()
+	var errs []error
+	var names []string
+	for n := range hand {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		base, k := n, 1
+		if i := strings.LastIndexFunc(n, func(r rune) bool { return r < '0' || r > '9' }); i < len(n)-1 {
+			base = n[:i+1]
+			fmt.Sscan(n[i+1:], &k)
+		}
+		f, ok := funcs[module+"."+base]
+		if !ok || f.variadic == "" {
+			errs = append(errs, fmt.Errorf("%s is not a restriction of a variadic function the host exports", n))
+			continue
+		}
+		h := hand[n]
+		g := emit.Prim{Name: n, Import: h.Import, Form: f.pkg + "." + base + "("}
+		g.Args = append(g.Args, f.fixed...)
+		for i := 0; i < k; i++ {
+			g.Args = append(g.Args, f.variadic)
+		}
+		g.Results = f.results
+		if h.Kind == "stmt" {
+			g.Results, g.Result = h.Results, h.Result // the results, discarded
+		}
+		if err := agreeOne(word, n, h, g, hres, func(t string) string { return t }, nil); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
+}
+
+type goFunc struct {
+	pkg            string
+	fixed, results []string
+	variadic       string
+}
+
+var (
+	funcsOnce sync.Once
+	funcsAll  map[string]goFunc
+)
+
+// manifestFuncs reads `pkg P, func F(args) results` into the hand files'
+// vocabulary, keyed "go/P.F", with a final `...T` kept apart as the variadic
+// element.
+func manifestFuncs() map[string]goFunc {
+	funcsOnce.Do(func() {
+		funcsAll = map[string]goFunc{}
+		out, err := exec.Command("go", "env", "GOROOT").Output()
+		if err != nil {
+			return
+		}
+		files, _ := filepath.Glob(filepath.Join(strings.TrimSpace(string(out)), "api", "go1*.txt"))
+		re := regexp.MustCompile(`^pkg ([^, ]+), func (\w+)\((.*?)\) ?(.*?)( #\d+)?$`)
+		for _, f := range files {
+			b, err := os.ReadFile(f)
+			if err != nil {
+				continue
+			}
+			for _, line := range strings.Split(string(b), "\n") {
+				m := re.FindStringSubmatch(strings.TrimSpace(line))
+				if m == nil {
+					continue
+				}
+				pkg := m[1]
+				base := pkg
+				if i := strings.LastIndex(pkg, "/"); i >= 0 {
+					base = pkg[i+1:]
+				}
+				g := goFunc{pkg: base}
+				for _, a := range splitGoList(m[3]) {
+					if v, ok := strings.CutPrefix(a, "..."); ok {
+						g.variadic = goToHand(v)
+						continue
+					}
+					g.fixed = append(g.fixed, goToHand(a))
+				}
+				for _, r := range splitGoList(strings.Trim(m[4], "()")) {
+					g.results = append(g.results, goToHand(r))
+				}
+				funcsAll["go/"+pkg+"."+m[2]] = g
+			}
+		}
+	})
+	return funcsAll
+}
+
 var (
 	manifestOnce sync.Once
 	manifestIf   map[string]emit.Prim
@@ -1571,6 +1712,11 @@ func goToHand(t string) string {
 		return "int -9223372036854775808 9223372036854775807"
 	case "int", "error", "string", "bool":
 		return t
+	case "interface{}", "any":
+		return "any"
+	}
+	if strings.Contains(t, ".") && !strings.ContainsAny(t, "[]*(") {
+		return t // a named host type, as the realization spells it
 	}
 	return "unreadable " + t
 }

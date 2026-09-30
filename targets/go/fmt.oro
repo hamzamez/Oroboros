@@ -1,53 +1,102 @@
-; The whole of Go's `fmt`, under Go's own names.
+; Go's `fmt`: formatting and printing, under Go's names.
 ;
 ;   (use go/fmt)
-;   (fmt.Println x)   (fmt.Sprintf "%d items" n)   (fmt.Errorf …)
+;   (fmt.Println x)   (fmt.Sprintf2 "%d of %d" i n)   ((fmt.Fprintln w x) (fn (n err) …))
 ;
-; Names are Go's exactly, capital letters included — the reader keeps case and
-; case never assigns meaning (core-0 §1.1), so `fmt.Println` is a name like any
-; other and needs no translation table.
+; THE ALGEBRA, BEFORE THE NAMES. fmt is one function and three uses of it:
 ;
-; This is the first target module written to cover a whole host package rather
-; than the one function a program happened to need. What it could not express
-; is the finding, and it is recorded in docs/spec/target-native.md:
+;   F : Format × Value* → B*        the formatting (Sprintf; Sprint is F with the
+;                                   default verb, Sprintln with spaces and "\n")
+;   Print  = write stdout ∘ F       Fprint = write w ∘ F       Errorf = error ∘ F
 ;
-;   - VARIADICS. Every Print/Sprint/Errorf in Go is `(a ...any)`. Our arity is
-;     fixed, so each is declared at the arities programs use — 1, 2 and 3 — and
-;     `Printf` with four operands cannot be called at all.
-;   - MULTIPLE RETURNS. Fprintf returns (int, error) and Sscan returns
-;     (int, error); both are declared for their first result only, so the error
-;     is unreachable. That is the fourth demand for a product.
-;   - io.Writer. Fprint* take one, and there is no way to name an interface, so
-;     the whole F-family is absent.
+; Every one is VARIADIC, f : A* → B, and the declaration format has no variadic
+; (gostdlib's 171 names; 22 of fmt's 23). A variadic function is a family
+; (fₙ : Aⁿ → B), one per arity, and each member is a sound declaration of part
+; of the host function: the RESTRICTION f|Aⁿ. So each is declared at the arities
+; 1, 2 and 3, named B, B2, B3 — f|A¹ keeps Go's own name — and the checker
+; compares each with the manifest's variadic signature at that arity
+; (gauntlet/stdlib/tooling_test.go). A call with four operands has no
+; declaration: the wall, stated, not a claim made about it.
+;
+; PRINT, PRINTLN AND PRINTF ARE STATEMENTS: their value is their first argument,
+; and Go's (n int, err error) are discarded — the restriction composed with the
+; projection that forgets them. So a failed write to standard output is not
+; observable through them; a program that must see it writes with
+; (fmt.Fprintln (os.Stdout) …), which hands the pair back.
+;
+; SPRINT'S RESULT IS THE HOST'S STRING (ADR 0030): a value may itself be host
+; bytes and %s prints them raw. It is pure: equal operands, equal strings, and
+; strings compare by content.
+;
+; ERRORF IS NOT PURE, which it was declared until gotarget-2026-09-30. Each call
+; allocates a new error, and Go's == on errors is identity: with e bound once,
+; (== e e) is true, and with the call duplicated, (== (Errorf …) (Errorf …)) is
+; false. Purity licenses duplication (ADR 0010), so a value with identity is
+; not pure, which is why `alloc` and `build` are not either.
+;
+; WHAT IS NOT DECLARED, and why:
+;   - the SCAN family (Scan, Scanln, Scanf, Sscan…, Fscan…): each stores what it
+;     reads through a POINTER, and the language has none. A declaration taking
+;     `any` compiled and could do nothing, so Scanln was removed. That is a wall;
+;   - Append, Appendf, Appendln: a consume-and-return buffer, B ⊸ B, as
+;     hex.AppendEncode; left until a program needs it;
+;   - FormatString, and the Formatter, GoStringer and State interfaces, which
+;     only a callback could implement.
 
 (target go
   (module go/fmt
-    ; ---- printing to stdout. Impure, and `stmt` because the value is a count
-    ; nobody uses.
-    (sig Println  (any) any         (host stmt "fmt.Println(%s)" (import "fmt")))
-    (sig Println2 (any any) any     (host stmt "fmt.Println(%s, %s)" (import "fmt")))
-    (sig Println3 (any any any) any (host stmt "fmt.Println(%s, %s, %s)" (import "fmt")))
-    (sig Print    (any) any         (host stmt "fmt.Print(%s)" (import "fmt")))
-    (sig Print2   (any any) any     (host stmt "fmt.Print(%s, %s)" (import "fmt")))
-    (sig Printf   (string any) any  (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
-    (sig Printf2  (string any any) any     (host stmt "fmt.Printf(%s, %s, %s)" (import "fmt")))
-    (sig Printf3  (string any any any) any (host stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt")))
+    (type Stringer (host "fmt.Stringer"))
+    (module Stringer
+      (sig String ((self Stringer)) bytestring (host expr "%s.String()")))
 
-    ; ---- formatting to a string. Pure: same operands, same string, no effect.
-    ; The HOST's string (ADR 0030): an `any` argument may itself be host bytes,
-    ; and `%s` prints a byte slice raw, so the result need not be valid UTF-8.
-    (sig Sprint    (any) bytestring            pure             (host expr "fmt.Sprint(%s)" (import "fmt")))
-    (sig Sprint2   (any any) bytestring        pure         (host expr "fmt.Sprint(%s, %s)" (import "fmt")))
-    (sig Sprintln  (any) bytestring          pure             (host expr "fmt.Sprintln(%s)" (import "fmt")))
-    (sig Sprintf   (string any) bytestring       pure      (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
-    (sig Sprintf2  (string any any) bytestring   pure  (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
-    (sig Sprintf3  (string any any any) bytestring pure
-                    (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
+    ; ---------------------------------------------------------- to standard output
+    (sig Print    ((a any)) any                 (host stmt "fmt.Print(%s)" (import "fmt")))
+    (sig Print2   ((a any) (b any)) any         (host stmt "fmt.Print(%s, %s)" (import "fmt")))
+    (sig Print3   ((a any) (b any) (c any)) any (host stmt "fmt.Print(%s, %s, %s)" (import "fmt")))
+    (sig Println  ((a any)) any                 (host stmt "fmt.Println(%s)" (import "fmt")))
+    (sig Println2 ((a any) (b any)) any         (host stmt "fmt.Println(%s, %s)" (import "fmt")))
+    (sig Println3 ((a any) (b any) (c any)) any (host stmt "fmt.Println(%s, %s, %s)" (import "fmt")))
+    (sig Printf   ((format string) (a any)) any                 (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
+    (sig Printf2  ((format string) (a any) (b any)) any         (host stmt "fmt.Printf(%s, %s, %s)" (import "fmt")))
+    (sig Printf3  ((format string) (a any) (b any) (c any)) any (host stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt")))
 
-    ; ---- errors
-    (sig Errorf   (string any) error     pure      (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
-    (sig Errorf2  (string any any) error pure  (host expr "fmt.Errorf(%s, %s, %s)" (import "fmt")))
+    ; ------------------------------------------------------------- to a string
+    (sig Sprint    ((a any)) bytestring pure                 (host expr "fmt.Sprint(%s)" (import "fmt")))
+    (sig Sprint2   ((a any) (b any)) bytestring pure         (host expr "fmt.Sprint(%s, %s)" (import "fmt")))
+    (sig Sprint3   ((a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprint(%s, %s, %s)" (import "fmt")))
+    (sig Sprintln  ((a any)) bytestring pure                 (host expr "fmt.Sprintln(%s)" (import "fmt")))
+    (sig Sprintln2 ((a any) (b any)) bytestring pure         (host expr "fmt.Sprintln(%s, %s)" (import "fmt")))
+    (sig Sprintln3 ((a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprintln(%s, %s, %s)" (import "fmt")))
+    (sig Sprintf   ((format string) (a any)) bytestring pure                 (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
+    (sig Sprintf2  ((format string) (a any) (b any)) bytestring pure         (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
+    (sig Sprintf3  ((format string) (a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
 
-    ; ---- scanning from stdin. Go returns (n, err); only n is reachable.
-    (sig Scanln (any) int (host expr "func() int { n, _ := fmt.Scanln(%s); return n }()"
-                   (import "fmt")))))
+    ; ------------------------------------------------------------- to a Writer
+    ; The pair is handed back: n, the bytes written, and the write's error.
+    (sig Fprint    ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprint(%s, %s)" (import "fmt")))
+    (sig Fprint2   ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprint(%s, %s, %s)" (import "fmt")))
+    (sig Fprint3   ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprint(%s, %s, %s, %s)" (import "fmt")))
+    (sig Fprintln  ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintln(%s, %s)" (import "fmt")))
+    (sig Fprintln2 ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintln(%s, %s, %s)" (import "fmt")))
+    (sig Fprintln3 ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintln(%s, %s, %s, %s)" (import "fmt")))
+    (sig Fprintf   ((w go/io.Writer) (format string) (a any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintf(%s, %s, %s)" (import "fmt")))
+    (sig Fprintf2  ((w go/io.Writer) (format string) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintf(%s, %s, %s, %s)" (import "fmt")))
+    (sig Fprintf3  ((w go/io.Writer) (format string) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+      (host expr "fmt.Fprintf(%s, %s, %s, %s, %s)" (import "fmt")))
+
+    ; ------------------------------------------------------------------ errors
+    ; Not pure: each call is a new error, and == on errors is identity.
+    (sig Errorf  ((format string) (a any)) error                 (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
+    (sig Errorf2 ((format string) (a any) (b any)) error         (host expr "fmt.Errorf(%s, %s, %s)" (import "fmt")))
+    (sig Errorf3 ((format string) (a any) (b any) (c any)) error (host expr "fmt.Errorf(%s, %s, %s, %s)" (import "fmt"))))
+
+  ; A Builder's String is fmt.Stringer's method (Go's method set).
+  (implements go/strings.Builder go/fmt.Stringer))

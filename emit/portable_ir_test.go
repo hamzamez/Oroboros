@@ -304,7 +304,7 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	got, err := golang.FromResidual(tg, "f", nil, body(`
 (use os)
 (export f)
-(def f (fn () (build 8 (fn (b) (os.WriteFile "x" b 420)))))`))
+(def f (fn () (build 8 (fn (b) (os.WriteFile "x" b)))))`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -321,7 +321,7 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	_, err = golang.FromResidual(tg, "g", nil, body(`
 (use os)
 (export f)
-(def f (fn () (build 8 (fn (b) (os.WriteFile "x" (set b 0 100000) 420)))))`))
+(def f (fn () (build 8 (fn (b) (os.WriteFile "x" (set b 0 100000))))))`))
 	if err == nil || !strings.Contains(err.Error(), "int 0 255") {
 		t.Errorf("a byte buffer storing 100000 must be refused, naming the declared element; got %v", err)
 	}

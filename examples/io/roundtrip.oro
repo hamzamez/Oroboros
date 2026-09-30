@@ -1,0 +1,36 @@
+; THE STORE'S LAW, ON EVERY HOST THAT HAS THE PORTABLE `os`.
+;
+; ReadFile and WriteFile are get and put on the store F : Path ⇀ B*, and after
+; a put succeeds, a get of the same path gives what was put: the put-get law of
+; a lens (Foster et al., 2007). This program states the law once and prints its
+; evidence. It writes a file named on the command line, reads it back, and
+; prints the text, the variable ORO_ROUNDTRIP, and the length in bytes.
+;
+; IT CALLS EVERY NAME `os` AND `io` DECLARE, and cmd/build's
+; TestEveryPortableNameRunsOnEveryHost builds it on Go, JavaScript and Java,
+; runs each, and requires one output, byte for byte. Until it existed nothing
+; ran WriteFile off Go, and it compiled on neither other host
+; (libos-2026-09-30). The three tools beside it never write a file.
+;
+; The bytes are `hi €` and a newline: ASCII and one three-byte scalar, so the
+; JVM's widening on the way in and narrowing on the way out both meet a byte
+; above 127.
+(use os)
+(use io)
+
+(export main)
+
+(def main ()
+  (let av (os.Args)
+    (if (< (len av) 2)
+        (seq (io.print-line "usage: roundtrip FILE") 1)
+        (let path (av 1)
+             err (os.WriteFile path (array 104 105 32 226 130 172 10))
+          (if (not (os.err-nil err))
+              (seq (io.print-line "roundtrip: cannot write that file") 1)
+              (let (tuple src err2) (os.ReadFile path)
+                (if (not (os.err-nil err2))
+                    (seq (io.print-line "roundtrip: cannot read that file") 1)
+                    (seq (io.print (os.text-of src))
+                      (seq (io.print-line (os.Getenv "ORO_ROUNDTRIP"))
+                        (seq (io.print-int (len src)) 0))))))))))

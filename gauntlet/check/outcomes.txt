@@ -238,6 +238,12 @@
 == examples/io/jsonfmt.oro windows refused
    gen: examples/io/jsonfmt.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
+== examples/io/roundtrip.oro go emitted acb241ee69b40fc31a22f11fe9b7f976bf069f17a370827b779551da4387c2f8
+== examples/io/roundtrip.oro js emitted abb889dc6be595f2ba13a2e3f642de9c7a5570ea2f1b4594a474493bdfd776a4
+== examples/io/roundtrip.oro java emitted 2027b8df2fb6b4d3d8ba03f7ba8a236d6294ad4214dfb7fea2e72416925cbfde
+== examples/io/roundtrip.oro windows refused
+   gen: examples/io/roundtrip.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/io/wc.oro go emitted 4128f5f943ad24a4c024a2434263b0d4ffce81004ded9beef723a5bbcc7214d5
    note: gen-main: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/wc.oro js emitted 34405ec116db4bf524f4c747cfe658248385f9a725dced72a2355ef7e4d672dd

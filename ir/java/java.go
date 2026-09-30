@@ -562,6 +562,17 @@ func (p *printer) call(s *ir.Stmt) {
 				p.line("final %s %s = %s.f%d();", p.tyOf(v), out[i], tmp, i)
 			}
 		}
+	case emit.MultiPrimDests(q.Form, 1):
+		// THE DESTINATION SHAPE AT ONE RESULT: a host that signals failure out
+		// of band assigns even a single result from a statement, so it is given
+		// a destination to write, as at several (lib/os's WriteFile).
+		n := p.name(s.Res[0])
+		p.line("%s %s;", p.jty(q.Result), n)
+		for _, l := range strings.Split(emit.Fill(emit.FillDests(q.Form, []string{n}), args...), "\n") {
+			if t := strings.TrimSpace(l); t != "" {
+				p.line("%s", t)
+			}
+		}
 	default:
 		e := "(" + expr + ")"
 		if p.tg.ValueType(q.Result) == "int" && p.tyOf(s.Res[0]) == p.int32 {

@@ -48,8 +48,10 @@
       "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
       (import "node:fs")))
 
-  (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
-      "try { fs.writeFileSync(%s, Buffer.from(%s), { mode: %s }); %r0 = null; } catch (e) { %r0 = e; }"
+  ; Put on the store (lib/os/go.oro). `writeFileSync`'s default mode is 0o666,
+  ; before the umask, which is the one every host shares.
+  (sig WriteFile ((path string) (data (array (int 0 255)))) error (host expr
+      "try { fs.writeFileSync(%s, Buffer.from(%s)); %r0 = null; } catch (e) { %r0 = e; }"
       (import "node:fs")))
 
   ; The discriminator. `null` because that is what the templates above put
@@ -68,4 +70,5 @@
   ; is the parasite model doing its job: the difference is stated once, in the
   ; cell that knows about it, and no program learns the hosts disagree.
   (sig Args () (array string) (host expr "process.argv.slice(1)"))
-  (sig Getenv ((k string)) string pure (host expr "(process.env[%s] ?? \"\")")))
+  ; Impure, as on every host: a read of the environment (lib/os/go.oro).
+  (sig Getenv ((k string)) string (host expr "(process.env[%s] ?? \"\")")))

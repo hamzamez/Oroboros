@@ -413,6 +413,17 @@ func (p *printer) call(s *ir.Stmt) {
 			fields[i] = fmt.Sprintf("f%d: %s", i, n)
 		}
 		p.line("const {%s} = %s;", strings.Join(fields, ", "), emit.Fill(q.Form, args...))
+	case emit.MultiPrimDests(q.Form, 1):
+		// THE DESTINATION SHAPE AT ONE RESULT, as at several: a `try` is a
+		// statement, so a single result is given a destination too (lib/os's
+		// WriteFile).
+		n := p.name(s.Res[0])
+		p.line("let %s;", n)
+		for _, l := range strings.Split(emit.Fill(emit.FillDests(q.Form, []string{n}), args...), "\n") {
+			if t := strings.TrimSpace(l); t != "" {
+				p.line("%s", t)
+			}
+		}
 	default:
 		expr := "(" + emit.Fill(q.Form, args...) + ")"
 		if !p.pl.Read(s.Res[0]) {

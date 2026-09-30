@@ -42,8 +42,12 @@
       "try { final byte[] $oroB = Files.readAllBytes(Path.of(%s)); %r0 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) %r0[$oroI] = (short) ($oroB[$oroI] & 0xFF); %r1 = null; } catch (Exception $oroE) { %r0 = null; %r1 = $oroE; }"
       (import "java.nio.file.*")))
 
-  (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
-      "try { final short[] $oroS = %s; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write(Path.of(%s), $oroB); %r0 = null; } catch (Exception $oroE) { %r0 = $oroE; }"
+  ; Put on the store (lib/os/go.oro). The holes are filled in the ARGUMENT
+  ; order, so the path is named first: this template once named the data
+  ; first, took the path as a short[], and never compiled. `Files.write`
+  ; creates with 0666 before the umask, as the other two hosts do.
+  (sig WriteFile ((path string) (data (array (int 0 255)))) error (host expr
+      "try { final Path $oroP = Path.of(%s); final short[] $oroS = %s; final byte[] $oroB = new byte[$oroS.length]; for (int $oroI = 0; $oroI < $oroS.length; $oroI++) $oroB[$oroI] = (byte) $oroS[$oroI]; Files.write($oroP, $oroB); %r0 = null; } catch (Exception $oroE) { %r0 = $oroE; }"
       (import "java.nio.file.*")))
 
   ; The discriminator.
@@ -78,4 +82,7 @@
   ; implementation needs the program's LAYOUT to cooperate — `oroArgs` is emitted
   ; by the Java program writer, and only when something reads it.
   (sig Args () (array string) (host expr "oroArgs"))
-  (sig Getenv ((k string)) string pure (host expr "System.getenv().getOrDefault(%s, \"\")")))
+  ; Impure, as on every host: a read of the environment (lib/os/go.oro). The
+  ; JVM's environment is fixed for the process, so here the bit is the
+  ; interface's, not the host's.
+  (sig Getenv ((k string)) string (host expr "System.getenv().getOrDefault(%s, \"\")")))

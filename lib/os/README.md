@@ -47,9 +47,26 @@ months while returning different answers on different targets.
   the same names at the same argument and result types, **in both directions**. A
   target may not quietly *add* to a shared interface either, because a program
   written against the richer cell would look portable and not be.
-- **Behaviourally** — `examples/io/{wc,jsonfmt,freq}.oro` build on Go, JavaScript
-  and Java and produce byte-identical output on all three, error paths included
+- **Behaviourally** — `examples/io/roundtrip.oro` calls every name of Σ, and
+  `cmd/build`'s `TestEveryPortableNameRunsOnEveryHost` builds it on Go,
+  JavaScript and Java, runs it and requires one output, byte for byte. A name
+  added to `os` or `io` and not called there fails the test. Before it
+  ([libos-2026-09-30](../../gauntlet/results/libos-2026-09-30.md)), this was
+  the three tools `examples/io/{wc,jsonfmt,freq}.oro`, measured byte-identical
+  once, by hand
   ([portableio-2026-09-09](../../gauntlet/results/portableio-2026-09-09.md)).
+  None of them wrote a file, and `WriteFile` compiled on Go only.
+
+## Σ, and the law each name states
+
+| name | what it is |
+|---|---|
+| `ReadFile`, `WriteFile` | get and put on the store F : Path ⇀ B\*, with put-get: after a put of d succeeds, a get of the same path gives d. No mode: the hosts share only "create with 0666 before the umask". |
+| `err-nil` | the discriminator of the sum B + E each host encodes differently: a second result, or a throw that a template catches |
+| `text-of` | d, the one total decode B\* → Σ\* (ADR 0030), the same function on every host |
+| `Args` | the command line, [program, arguments…], the same shape on every host |
+| `Getenv` | a read of the environment, absent ↦ `""`. Impure, because `go/os.Setenv` writes what it reads |
+| `io.print-line`, `io.print`, `io.print-int` | UTF-8 bytes to standard output, LF on every host |
 
 ## What is missing
 

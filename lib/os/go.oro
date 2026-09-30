@@ -20,8 +20,14 @@
   (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
       "os.ReadFile(%s)" (import "os")))
 
-  (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
-      "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
+  ; PUT ON THE STORE F : Path ⇀ B*, beside ReadFile's get: after it succeeds,
+  ; ReadFile p gives data (the lenses' put-get law). NO MODE, because the hosts
+  ; share none: Java's Files.write takes no permissions, and on Windows a mode is
+  ; one read-only bit. What all three do is create with 0666 before the umask
+  ; and truncate an existing file without changing its mode, so that is the
+  ; cell. A program that wants a mode names `go/os.WriteFile`, which is Go's.
+  (sig WriteFile ((path string) (data (array (int 0 255)))) error (host expr
+      "os.WriteFile(%s, %s, 0o666)" (import "os")))
 
   ; The discriminator that totalises the pair above. `nil` is not a value this
   ; language has, so it is a primitive rather than something derived.
@@ -45,4 +51,8 @@
   ; JVM already do to theirs. The loop alone, with no `utf8` fast path: a
   ; template names one package, and this is called once.
   (sig Args () (array string) (host expr "func() []string { d := func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }; a := make([]string, len(os.Args)); for i, s := range os.Args { a[i] = d(s) }; return a }()" (import "os")))
-  (sig Getenv ((k string)) string pure (host expr "func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(os.Getenv(%s))" (import "os"))))
+  ; A READ OF THE ENVIRONMENT, NOT A FUNCTION OF k: `go/os.Setenv` writes what
+  ; this reads, and a program may load both. Declared pure, reduction moved a
+  ; read past a store (gotarget-2026-09-30 §13, at-map), so it is impure on
+  ; every host: the interface is one claim.
+  (sig Getenv ((k string)) string (host expr "func(s string) string { b := make([]byte, 0, len(s)+8); for i := 0; i < len(s); { c := s[i]; if c < 0x80 { b = append(b, c); i++; continue }; n, lo, hi := 0, byte(0x80), byte(0xBF); switch { case c >= 0xC2 && c <= 0xDF: n = 1; case c == 0xE0: n, lo = 2, 0xA0; case c == 0xED: n, hi = 2, 0x9F; case c >= 0xE1 && c <= 0xEF: n = 2; case c == 0xF0: n, lo = 3, 0x90; case c == 0xF4: n, hi = 3, 0x8F; case c >= 0xF1 && c <= 0xF3: n = 3 }; j := i + 1; ok := n > 0; for k := 0; ok && k < n; k++ { if j >= len(s) || s[j] < lo || s[j] > hi { ok = false; break }; j++; lo, hi = 0x80, 0xBF }; if ok { b = append(b, s[i:j]...) } else { b = append(b, \"\\uFFFD\"...) }; i = j }; return string(b) }(os.Getenv(%s))" (import "os"))))

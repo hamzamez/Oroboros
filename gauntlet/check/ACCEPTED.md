@@ -935,3 +935,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - source removed — `examples/native/sieve-go.oro js`
 - source removed — `examples/native/sieve-go.oro windows`
 - emitted text changed — `examples/native/smooth-go.oro go`
+
+## 2026-09-30 — on d5db79f, with uncommitted changes
+
+**Reason:** libos: examples/io/roundtrip.oro, the witness that every portable os/io name builds and runs on Go, JavaScript and Java (refused on windows, which has no os cell)
+
+488 runs: 252 emitted, 236 refused; 1965 of 2010 integer operations bounded, 346 of 364 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/io/roundtrip.oro go`
+- new source — `examples/io/roundtrip.oro java`
+- new source — `examples/io/roundtrip.oro js`
+- new source — `examples/io/roundtrip.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `examples/io/jsonfmt.oro js` 578 → 281 ms, 0.49x

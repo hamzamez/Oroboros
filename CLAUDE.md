@@ -463,7 +463,8 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   the declared result by sort too (`ir/claim.go`); W5 could not, for a non-table result.
 - **A declared precondition is an obligation at every call** ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md),
   [refinements.md §6b](docs/spec/refinements.md)):
-  - on a `prim`, at every call site;
+  - on a `prim`, at every call site — its `where` and, since gotarget-2026-09-30, its parameters'
+    declared ranges, which a template's conversion used to truncate silently;
   - on a definition, at every call it is inlined into, exported ones included when the call is inside
     the program; the obligations inlining propagates are still checked too;
   - on an export called from outside, assumed.

@@ -2353,6 +2353,7 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// judgement reads through.
 	e.Prim["let"] = true
 	e.Pure["let"] = true
+	tg.hostRequires(e)
 	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before
 	// reduction so that nothing downstream learns maps exist (winmap.go).
 	if err := lowerMaps(tg, p); err != nil {
@@ -2361,6 +2362,46 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	e.Defs = p.Defs
 	e.MarkRecursive()
 	return e, e.CheckDefs()
+}
+
+// hostRequires makes a host function's declared parameter ranges obligations at
+// its calls (ADR 0028, refinements.md §6b). A declaration f : A → B with A an
+// integer range claims the host's domain: bits.Len32's argument is a uint32,
+// [0, 2^32 − 1], and its template converts with `uint32(%s)`, which WRAPS
+// anything outside. The range was read as a type and nothing more, so
+// (bits.Len32 x) with x : int compiled to uint32(x) and answered 32 for −1
+// (gotarget-2026-09-30). Each ranged parameter is now marked at every call,
+// exactly as a definition's is, and decided by the same route: a literal, the
+// IR's intervals, the refinement layer. A range holding the whole signed word
+// is vacuous for an `int` and is not marked (core.Env.coversWord).
+func (tg *Target) hostRequires(e *core.Env) {
+	e.Requires, e.ReqParams = map[string][]string{}, map[string][]string{}
+	for _, n := range tg.Names {
+		p := tg.Prims[n]
+		if p.Kind != "expr" && p.Kind != "stmt" {
+			continue
+		}
+		tys := make([]string, len(p.Args))
+		ranged := false
+		for i, a := range p.Args {
+			if _, _, ok := core.IntRangeBig(a); ok {
+				tys[i], ranged = a, true
+			}
+		}
+		if !ranged {
+			continue
+		}
+		e.Requires[n] = tys
+		names := make([]string, len(p.Args))
+		for i := range names {
+			if i < len(p.Names) && p.Names[i] != "" {
+				names[i] = p.Names[i]
+			} else {
+				names[i] = fmt.Sprintf("argument %d", i+1)
+			}
+		}
+		e.ReqParams[n] = names
+	}
 }
 
 // fill applies a template to operands, cycling them to cover however many holes

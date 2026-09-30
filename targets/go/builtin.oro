@@ -64,8 +64,12 @@
     (sig |   (int int) int  pure (host expr "%s | %s"))
     (sig ^   (int int) int  pure (host expr "%s ^ %s"))
     (sig &^  (int int) int pure (host expr "%s &^ %s"))
-    (sig <<  (int int) int pure (host expr "%s << %s"))
-    (sig >>  (int int) int pure (host expr "%s >> %s"))
+    ; A SHIFT'S DOMAIN IS b ≥ 0 (the Go specification, "Operators": the count
+    ; must be non-negative, and a negative count panics at run time). A count of
+    ; 64 or more is defined: x << b is 0, and x >> b is 0 or -1 by x's sign. The
+    ; same kind of claim as `/`'s b ≠ 0, and until gotarget-2026-09-30 missing.
+    (sig <<  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s << %s"))
+    (sig >>  ((a int) (b int)) int pure (where (>= b 0)) (host expr "%s >> %s"))
 
     ; ---- comparison. Go's == is defined on every comparable type, which a
     ; monomorphic table cannot say, so `any` stands where Go is polymorphic.

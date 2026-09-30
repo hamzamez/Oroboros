@@ -45,7 +45,10 @@
     (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
         "os.ReadFile(%s)" (import "os")))
 
-    (sig WriteFile ((path string) (data (array (int 0 255))) (perm int)) error (host expr
+    ; perm is a FileMode, a uint32: [0, 2^32 − 1]. Declared `int`, the
+    ; conversion below truncated anything outside that set silently
+    ; (gotarget-2026-09-30 §3); the range makes it an obligation.
+    (sig WriteFile ((path string) (data (array (int 0 255))) (perm (int 0 4294967295))) error (host expr
         "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
 
     ; ---- the error, which is a value we can test and not one we can read

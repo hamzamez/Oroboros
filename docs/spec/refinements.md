@@ -193,6 +193,16 @@ past 10¹⁸ printed the low 18 digits. A range on a parameter is a type (ADR 00
 checked at application. So the declaration is now checked *as well as* the propagated obligations,
 never instead of them.
 
+### And on a host function, the same (2026-09-30)
+
+A host declaration's parameter range is the same claim: `bits.Len32 ((x uint32))` says the host's
+domain is [0, 2³² − 1]. Until [gotarget-2026-09-30](../../gauntlet/results/gotarget-2026-09-30.md) it
+was read as a type and nothing more, and a template's conversion made the claim false without a
+word: `(bits.Len32 x)` with `x : int` compiled to `bits.Len32(uint32(x))` and answered 32 for −1. So a
+host function's ranged parameters are marked at every call, exactly as a definition's are
+(`Target.Env`, `hostRequires`), and decided by the same route below. A range holding the whole signed
+word is vacuous for an `int` and is not marked.
+
 ### How it is checked
 
 - **A range** is marked on the argument when the call is reduced, as `(#req "def" "param" "type" a)`,

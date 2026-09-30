@@ -51,7 +51,11 @@ func InstallRequires(env *core.Env, prog *core.Program) *RequireSet {
 	if bits, signed, ok := BigHull(env.Word, sigs...); ok {
 		set.enforced, set.enforcedOK = rangeSet{bits: bits, signed: signed}, true
 	}
-	env.Requires = map[string][]string{}
+	// A HOST FUNCTION'S RANGES are already here (Target.Env, hostRequires);
+	// the program's definitions join them.
+	if env.Requires == nil {
+		env.Requires = map[string][]string{}
+	}
 	env.Wheres = map[string]core.WhereContract{}
 	env.Prim[core.RequireName], env.Pure[core.RequireName] = true, true
 	env.Prim[core.RequireWhereName], env.Pure[core.RequireWhereName] = true, true

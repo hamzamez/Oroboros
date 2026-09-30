@@ -89,6 +89,11 @@ type Env struct {
 	// looks through the mark.
 	Requires  map[string][]string
 	OnRequire func(def, param, ty string, arg *Term)
+	// ReqParams names the parameters of a name in Requires that is not a
+	// definition — a host function, whose declared parameter ranges are
+	// obligations at its calls as a definition's are (ADR 0028,
+	// gotarget-2026-09-30) — for the report.
+	ReqParams map[string][]string
 
 	// Wheres are the definitions whose `where` is an obligation at their calls
 	// (ADR 0028). At β the clause is instantiated with the arguments as β
@@ -210,6 +215,9 @@ func (e *Env) coversWord(ty string) bool {
 func (e *Env) paramName(def string, i int) string {
 	if d, ok := e.Defs[def]; ok && d.Kind == KFn && i < len(d.Params) {
 		return d.Params[i]
+	}
+	if ns := e.ReqParams[def]; i < len(ns) && ns[i] != "" {
+		return ns[i]
 	}
 	return fmt.Sprint(i)
 }

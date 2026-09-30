@@ -1711,6 +1711,37 @@ func pct(a, b int) float64 {
 // precisely so that an author's omission costs speed rather than correctness
 // (effects.md); a generator cannot justify the claim for 1,007 functions, so it
 // does not make it. A target author adding `pure` by hand is how it comes back.
+// intTypeRange is a basic integer type's set as a range, or false. `int` and
+// `uint` are this build's width; `uintptr` is left out, being an address.
+func intTypeRange(t string) (string, bool) {
+	switch t {
+	case "int8":
+		return "(int -128 127)", true
+	case "int16":
+		return "(int -32768 32767)", true
+	case "int32", "rune":
+		return "(int -2147483648 2147483647)", true
+	case "int64":
+		return "(int -9223372036854775808 9223372036854775807)", true
+	case "int":
+		return fmt.Sprintf("(int %d %d)", math.MinInt, math.MaxInt), true
+	case "uint8", "byte":
+		return "(int 0 255)", true
+	case "uint16":
+		return "(int 0 65535)", true
+	case "uint32":
+		return "(int 0 4294967295)", true
+	case "uint64":
+		return "(int 0 18446744073709551615)", true
+	case "uint":
+		if uint64(math.MaxUint) == math.MaxUint64 {
+			return "(int 0 18446744073709551615)", true
+		}
+		return "(int 0 4294967295)", true
+	}
+	return "", false
+}
+
 func emit(dir string, syms []sym, raw []string) error {
 	// The relation was computed and HOST-VERIFIED once, in main: the usable
 	// number and the emitted edges must rest on the same accepted facts.
@@ -1721,6 +1752,32 @@ func emit(dir string, syms []sym, raw []string) error {
 	byPkg := map[string][]sym{}
 	for _, s := range syms {
 		byPkg[s.pkg] = append(byPkg[s.pkg], s)
+	}
+	// A NAMED TYPE OVER AN INTEGER, as the manifest writes it: `type FileMode
+	// uint32`. Emitted as `(underlying fs-FileMode (int 0 4294967295))`, a fact
+	// this generator can justify (ADR 0023), so the hand-declaration checker can
+	// confirm a hand file that reads the type's value as an integer of its set
+	// (gotarget-2026-09-30). Keyed by the qualified spelling; two packages that
+	// give one spelling different underlying types keep neither.
+	underlying := map[string]string{}
+	clash := map[string]bool{}
+	for _, line := range raw { // the type lines: `syms` holds only what is emitted
+		s, ok := parseLine(line)
+		if !ok || s.kind != "type" || len(s.results) != 1 {
+			continue
+		}
+		r, ok := intTypeRange(s.results[0])
+		if !ok {
+			continue
+		}
+		q := qual(s.pkg, s.name)
+		if prev, seen := underlying[q]; seen && prev != r {
+			clash[q] = true
+		}
+		underlying[q] = r
+	}
+	for q := range clash {
+		delete(underlying, q)
 	}
 	var pkgs []string
 	for p := range byPkg {
@@ -1915,6 +1972,11 @@ func emit(dir string, syms []sym, raw []string) error {
 		sort.Strings(tn)
 		for _, k := range tn {
 			fmt.Fprintf(&b, "  (type %s (host %q))\n", k, types[k])
+		}
+		for _, k := range tn {
+			if r, ok := underlying[types[k]]; ok {
+				fmt.Fprintf(&b, "  (underlying %s %s)\n", k, r)
+			}
 		}
 		if len(tn) > 0 {
 			b.WriteString("\n")

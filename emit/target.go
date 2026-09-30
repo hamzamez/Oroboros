@@ -132,6 +132,15 @@ type Target struct {
 	// (*os.File)(nil)` is one line per edge and `go build` decides.
 	Implements map[string][]string
 
+	// Underlying records a named host type whose underlying type is an integer:
+	// `(underlying fs-FileMode (int 0 4294967295))`, Go's `type FileMode uint32`.
+	// A fact about the host, which the generator justifies from the manifest
+	// (ADR 0023) and which lets the hand-declaration checker confirm a hand file
+	// that takes such a type's value as an integer of its set and converts it
+	// in the template (target-files.md §2a, gotarget-2026-09-30). The compiler
+	// reads nothing from it.
+	Underlying map[string]string
+
 	// Includes is theory inclusion between COMPANIONS (theories.md §6.2), by
 	// companion module path: `go/io/WriteCloser` includes `go/io/Writer` and
 	// `go/io/Closer`, which is how an interface defined as `interface { Writer;
@@ -429,6 +438,14 @@ func loadFragment(path string) (*Target, error) {
 	// `targets/blas.oro` is a file, and nothing above here should have to know
 	// which.
 	base := strings.TrimSuffix(path, ".oro")
+	// AN EXPLICIT EXTENSION NAMES THE FILE when both exist. A generated host
+	// has `io.oro` beside `io/` (io/fs, io/ioutil), and loading "io.oro" gave
+	// the directory — so an audit compared the wrong package (gotarget-2026-09-30).
+	if base != path {
+		if info, err := os.Stat(path); err == nil && !info.IsDir() {
+			return loadTargetFile(path)
+		}
+	}
 	for _, d := range []string{path, base} {
 		if info, err := os.Stat(d); err == nil && info.IsDir() {
 			return loadTargetDir(d)
@@ -1461,6 +1478,12 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 		}
 		tg.Implements[sub] = append(tg.Implements[sub], ifs...)
 	}
+	for name, u := range o.Underlying {
+		if tg.Underlying == nil {
+			tg.Underlying = map[string]string{}
+		}
+		tg.Underlying[name] = u
+	}
 	tg.Reprs = append(tg.Reprs, o.Reprs...)
 	tg.Data = append(tg.Data, o.Data...)
 	// A deferred declaration is a declaration that has not been read yet, so it
@@ -1558,6 +1581,20 @@ func parseTarget(t *core.Term, path string) (*Target, error) {
 			for _, k := range f.Kids[2:] {
 				frag.Implements[sub] = append(frag.Implements[sub], k.Name)
 			}
+		case "underlying":
+			// (underlying TYPE (int LO HI)) -- a named host type over an integer set.
+			if len(f.Kids) != 3 || f.Kids[1].Kind != core.KName {
+				return nil, fmt.Errorf("%s: (underlying TYPE (int LO HI)), got %s", path, f)
+			}
+			u := core.TypeName(f.Kids[2])
+			if _, _, ok := core.IntRangeBig(u); !ok {
+				return nil, fmt.Errorf("%s: (underlying %s …) names an integer range, got %s",
+					path, f.Kids[1].Name, f.Kids[2])
+			}
+			if frag.Underlying == nil {
+				frag.Underlying = map[string]string{}
+			}
+			frag.Underlying[f.Kids[1].Name] = u
 		case "repr":
 			if err := parseRepr(f, frag, path); err != nil {
 				return nil, err

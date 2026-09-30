@@ -1121,17 +1121,61 @@ func bitsReference() []string {
 // generated file each is checked against, and — because A CHECKER THAT CANNOT
 // FAIL PROVES NOTHING — the mistakes a person could make writing it, each of
 // which must be caught. The mistakes are planted in the first module.
-var handDeclared = []struct {
+//
+// A PARTIAL FILE (gotarget-2026-09-30) declares part of a package. Its check is
+// dom H ⊆ dom G ∪ E and H(n) agrees with G(n) on dom H ∩ dom G, where E is the
+// exemptions: a name the generator cannot produce, each with its reason. An
+// exemption for a name the host DOES declare is refused, so none goes stale;
+// and a partial file's anti-vacuity runs both ways — its planted mistakes are
+// caught, and a name removed is not an error.
+type handEntry struct {
 	host, dir, generated string
 	modules              []string
 	mistakes             map[string]func(m map[string]emit.Prim)
-}{
-	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes},
+	partial              bool
+	exempt               map[string]string // "module.name" or a whole "module": why the generator lacks it
+}
+
+var handDeclared = []handEntry{
+	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil},
 	{"go", "targets/go", "encoding/hex.oro",
-		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes},
-	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes},
-	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes},
-	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes},
+		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil},
+	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil},
+	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil},
+	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil},
+	{"go", "targets/go", "os.oro", []string{"go/os"}, osMistakes, true, map[string]string{
+		"go/os.Args":    "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/os.err-nil": "a helper, not a Go name: `err == nil`; moves out of go/os in the os step",
+		"go/os.text-of": "a helper, not a Go name: string(b); moves out of go/os in the os step",
+	}},
+	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/Writer", "go/io/Closer", "go/io/WriteCloser", "go/io/ByteReader"},
+		nil, true, map[string]string{
+			"go/io/Writer":      "an INTERFACE's methods; the generator declares none",
+			"go/io/Closer":      "an INTERFACE's methods; the generator declares none",
+			"go/io/WriteCloser": "an INTERFACE's methods; the generator declares none",
+			"go/io/ByteReader":  "an INTERFACE's methods; the generator declares none",
+		}},
+}
+
+// osMistakes: the one this file had, a perm wider than FileMode's set, and the
+// mechanical ones.
+var osMistakes = map[string]func(m map[string]emit.Prim){
+	"WriteFile's perm wider than FileMode's uint32": func(m map[string]emit.Prim) {
+		p := m["WriteFile"]
+		p.Args = []string{p.Args[0], p.Args[1], "int -1 4294967295"}
+		m["WriteFile"] = p
+	},
+	"WriteFile's perm without the conversion to FileMode": func(m map[string]emit.Prim) {
+		p := m["WriteFile"]
+		p.Form = strings.ReplaceAll(p.Form, "os.FileMode(%s)", "%s")
+		m["WriteFile"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["ReadFile"]
+		p.Form = strings.ReplaceAll(p.Form, "os.ReadFile", "os.Remove")
+		m["ReadFile"] = p
+	},
+	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["Getenv"] },
 }
 
 // bitsMistakes are the mechanical errors the checker exists for. What it does NOT
@@ -1270,27 +1314,82 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 			}
 			for _, module := range h.modules {
 				host, hand := modulePrims(hostTg, module), modulePrims(handTg, module)
+				if why, whole := h.exempt[module]; whole {
+					if len(host) != 0 {
+						t.Errorf("%s is exempt (%s), and the survey declares %d names in it: the exemption is stale",
+							module, why, len(host))
+					}
+					continue
+				}
 				if len(host) == 0 {
 					t.Fatalf("the survey declares nothing in %s, so nothing is checked", module)
 				}
-				for _, e := range agreeAll(hostTg.Word, hand, host, realization(handTg), realizationOver(hostTg, handTg)) {
+				for n := range h.exempt {
+					if strings.HasPrefix(n, module+".") {
+						if _, has := host[strings.TrimPrefix(n, module+".")]; has {
+							t.Errorf("%s is exempt (%s), and the host declares it: the exemption is stale", n, h.exempt[n])
+						}
+					}
+				}
+				for _, e := range h.judge(module, agreeAll(hostTg.Word, hand, host, realization(handTg), realizationOver(hostTg, handTg), hostTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
 			}
 
 			hand, host := modulePrims(handTg, h.modules[0]), modulePrims(hostTg, h.modules[0])
+			check := func(m map[string]emit.Prim) []error {
+				return h.judge(h.modules[0], agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg), hostTg))
+			}
 			for what, mutate := range h.mistakes {
 				m := map[string]emit.Prim{}
 				for k, v := range hand {
 					m[k] = v
 				}
 				mutate(m)
-				if errs := agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg)); len(errs) == 0 {
+				if errs := check(m); len(errs) == 0 {
 					t.Errorf("%s was not caught", what)
+				}
+			}
+			// A PARTIAL FILE MAY OMIT: removing a declared name is not an error.
+			if h.partial && len(hand) > 0 {
+				m := map[string]emit.Prim{}
+				var drop string
+				for k, v := range hand {
+					m[k] = v
+					if _, gen := host[k]; gen && (drop == "" || k < drop) {
+						drop = k
+					}
+				}
+				delete(m, drop)
+				if errs := check(m); len(errs) != 0 {
+					t.Errorf("a partial file without %s was refused: %v", drop, errs)
 				}
 			}
 		})
 	}
+}
+
+// judge applies a partial file's rule to agreeAll's findings: a host name not
+// declared by hand is allowed, and a hand name the host lacks is allowed only
+// when it is exempt, with its reason.
+func (h handEntry) judge(module string, errs []error) []error {
+	if !h.partial {
+		return errs
+	}
+	var out []error
+	for _, e := range errs {
+		msg := e.Error()
+		if strings.Contains(msg, "is exported by the host and not declared by hand") {
+			continue
+		}
+		if i := strings.Index(msg, " is declared by hand and the host has no such name"); i > 0 {
+			if _, ok := h.exempt[module+"."+msg[:i]]; ok {
+				continue
+			}
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 // modulePrims is a target's declarations in one module, by unqualified name.
@@ -1335,7 +1434,7 @@ func realizationOver(tg, base *emit.Target) func(string) string {
 	}
 }
 
-func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(string) string) []error {
+func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(string) string, hostTg *emit.Target) []error {
 	var errs []error
 	var names []string
 	for n := range host {
@@ -1356,7 +1455,7 @@ func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(s
 		case !inHost:
 			errs = append(errs, fmt.Errorf("%s is declared by hand and the host has no such name", n))
 		default:
-			if err := agreeOne(word, n, h, g, hres, gres); err != nil {
+			if err := agreeOne(word, n, h, g, hres, gres, hostTg); err != nil {
 				errs = append(errs, err)
 			}
 		}
@@ -1377,12 +1476,12 @@ func agreeAll(word core.Word, hand, host map[string]emit.Prim, hres, gres func(s
 //     body (ADR 0030). Both realize Go's `string`, so they agree here, and the
 //     claim is the declaration's own comment — exactly the claim ADR 0022 leaves
 //     to the person and ADR 0023 denies the generator.
-func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(string) string) error {
+func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(string) string, hostTg *emit.Target) error {
 	if len(h.Args) != len(g.Args) {
 		return fmt.Errorf("%s takes %d argument(s) by hand and %d on the host", name, len(h.Args), len(g.Args))
 	}
 	for i := range h.Args {
-		if !sameOrBuffer(hres(h.Args[i]), gres(g.Args[i])) {
+		if !sameOrBuffer(hres(h.Args[i]), gres(g.Args[i])) && !underlyingWithin(word, hostTg, h, i, g.Args[i], hres) {
 			return fmt.Errorf("%s: argument %d is %q by hand and %q on the host", name, i+1, h.Args[i], g.Args[i])
 		}
 	}
@@ -1415,6 +1514,27 @@ func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(strin
 		return fmt.Errorf("%s imports %q by hand and %q on the host", name, h.Import, g.Import)
 	}
 	return nil
+}
+
+// underlyingWithin is the fourth justified difference: the host's parameter is
+// a NAMED integer type T — Go's `type FileMode uint32` — and the hand file takes
+// its value as an integer of a range R ⊆ T's set and converts it in the
+// template, T(…). The generator states T's set as `(underlying T (int LO HI))`
+// (gotarget-2026-09-30); the conversion is checked in the template, since
+// without it the host would be handed an int where it wants a T.
+func underlyingWithin(word core.Word, hostTg *emit.Target, h emit.Prim, i int, host string, hres func(string) string) bool {
+	if hostTg == nil {
+		return false
+	}
+	u, ok := hostTg.Underlying[host]
+	if !ok || !rangeWithin(word, hres(h.Args[i]), u) {
+		return false
+	}
+	spelled := hostTg.Types[host]
+	if j := strings.LastIndex(spelled, "."); j >= 0 {
+		spelled = spelled[j+1:]
+	}
+	return spelled != "" && strings.Contains(h.Form, spelled+"(")
 }
 
 func resultsOf(p emit.Prim) []string {

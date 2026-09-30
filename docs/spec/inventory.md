@@ -156,6 +156,7 @@ From `emit/target.go`, `emit/fact.go` and `emit/constend.go`. The whole grammar 
 | `repr` | specified | [target-files.md](target-files.md), [theories.md](theories.md) |
 | `fact` | specified — `(fact max-len …)` in a target, and `lang`'s facts | [target-files.md](target-files.md), [theories.md](theories.md) |
 | `implements` | specified — checked as a view | [target-files.md](target-files.md), [theories.md](theories.md) |
+| `underlying` | specified — a host fact the hand-declaration checker reads; the compiler ignores it | [target-files.md §2a](target-files.md) |
 | `include` | specified — theory inclusion between companions | [theories.md](theories.md) |
 | `structural` | specified | [target-files.md](target-files.md) |
 | `backend` | specified | [target-files.md](target-files.md) |

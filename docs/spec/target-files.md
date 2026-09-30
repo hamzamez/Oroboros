@@ -48,6 +48,7 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (repr narrow (host "template"))  ; how this host restricts a container
               | (fact NAME ((a (array A))) (<= (len a) N))
               | (implements T I…)
+              | (underlying T (int LO HI))       ; a named host type over an integer set, §2a
               | (module PATH mdecl…)              ; declares into a module namespace
               | sig
               | const
@@ -300,6 +301,20 @@ one line per edge, and `go build` decides. `gauntlet/stdlib/survey.go` generates
 exactly that file and **emits only the edges the Go compiler accepted** — 182 of
 1,651 candidates were false, because the api manifest lists the exported API and
 an interface sealed by an unexported method looks satisfied by everything.
+
+### `(underlying T (int LO HI))` — a named host type over an integer set
+
+```lisp
+(underlying fs-FileMode (int 0 4294967295))   ; Go's `type FileMode uint32`
+```
+
+A fact about the host: T is a named type whose underlying type is an integer with that set. The
+generator states it from the manifest (`pkg io/fs, type FileMode uint32`), which is a claim it can
+justify (ADR 0023), and the compiler reads nothing from it. What reads it is the hand-declaration
+checker: a hand file may take a T's value as an integer of a range R ⊆ the set and convert it in the
+template, `os.FileMode(%s)`, and the checker confirms both halves, the containment and the conversion
+(gotarget-2026-09-30). The value's range at a call is then an obligation like any other parameter's
+(refinements.md §6b).
 
 ## 2b. `(type (array A) …)` and `(repr (int …) …)` — how the target stores a table
 

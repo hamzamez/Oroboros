@@ -165,8 +165,16 @@
     ; go.bytestring)`. The way back is `text` below, the decode d.
     (type bytestring (host "string"))
 
-    (sig string-of-bytes (slice-byte) bytestring pure (host expr "string(%s)"))
-    (sig bytes-of-string (bytestring) slice-byte pure (host expr "[]byte(%s)"))
+    ; Go's conversions between its string and its byte slice: the identity on
+    ; the bytes, and a copy. Bytes to B* is total; to OUR string is `text`
+    ; below, the decode, which is not the identity.
+    (sig string-of-bytes ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
+    (sig bytes-of-string ((s bytestring)) (array (int 0 255)) pure (host expr "[]byte(%s)"))
+    ; (T, error) IS GO'S ENCODING OF A SUM T + E, and this is its discriminant:
+    ; the error side is empty exactly when err is nil. It belongs to the type
+    ; `error`, which is the target's, and not to any package (it lived in go/os
+    ; until gotarget-2026-09-30).
+    (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
 
     ; ---- THE HOST'S STRING INTO OURS, ONCE, AT THE BOUNDARY (ADR 0030). `text` is
     ; d, the Unicode Standard's maximal-subpart substitution (§3.9, Table 3-7):

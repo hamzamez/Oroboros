@@ -1,81 +1,157 @@
-; os — the host's file system.
+; Go's `os`: the process, its environment, and the file system, under Go's names.
 ;
-; THE FIRST TARGET FILE THAT COULD NOT BE WRITTEN BEFORE. Every name here gives
-; back `(T, error)`, which is Go's constructor idiom and which `Prim.Result`, a
-; single string, refused — 19.8% of Go's callable standard library, more than
-; every language-level limitation combined (gostdlib-2026-09-06 §4a).
+;   (use go/os)
+;   ((os.ReadFile path) (fn (bytes err) …))    ((os.Open path) (fn (f err) …))
 ;
-; The language needed nothing: `(values a b)` has been the negative product
-; since values.md and is eliminated by applying it to a continuation. What was
-; missing was the ability for a TARGET to say that a host call has that shape.
+; This is the HOST's API and nothing more (ADR 0001, the `go/` prefix). The
+; portable `os` is lib/os, a different object: a claim that several hosts agree.
 ;
-;   ((os.ReadFile path) (fn (bytes err) …))
+; THE ALGEBRA, BEFORE THE NAMES.
 ;
-; `error` is opaque here and that is honest: a program can hold one, compare it
-; to nothing, and hand it back. Making it inspectable is sums.md's job and needs
-; an interface, which callbacks.md tier 3 refuses. What a program CAN do today
-; is test it — see `err-nil` — which is the fallible-read shape maps.md already
-; established and enough to write real code against.
+; - (T, error) is Go's encoding of a SUM T + E: by the package's convention
+;   exactly one side is meaningful. Its discriminant is `go.err-nil` (builtin),
+;   which belongs to the type `error` and not to this package.
+; - The FILE SYSTEM is a store F : Path ⇀ B*. `ReadFile p` reads F(p) or fails;
+;   `WriteFile p d m` sets F := F[p ↦ d]. Its law is read-after-write — a
+;   successful WriteFile p d, then ReadFile p, gives d when nothing else writes
+;   p — the store law of lenses (Foster et al. 2007). The language cannot check
+;   it; it is what the pair of declarations means.
+; - A FILE is a handle to a byte stream. `Read` is io.Reader's contract,
+;   0 ≤ n ≤ len p, and writes p[0, n); `Write` is io.Writer's, n = len b exactly
+;   when err is nil. `Stdin`, `Stdout` and `Stderr` are three of them, fixed for
+;   the process.
+; - The ENVIRONMENT is a map E : Name ⇀ B*. `LookupEnv` is the exact read,
+;   (E(k), true) or ("", false); `Getenv` is it composed with absent ↦ "" and so
+;   cannot tell unset from empty. `Setenv` and `Unsetenv` write E, which is why
+;   no read of E is `pure` here: a pure read could be moved across a write.
+; - A path, a name, a key and a value are the HOST's strings, `bytestring` (B*),
+;   in both directions (ADR 0030): Go's file system does not promise UTF-8. Ours,
+;   Σ*, is accepted wherever B* is, for nothing: `string ≤ bytestring`.
 ;
-; AND THE `go/` PREFIX IS THE CLAIM THIS FILE MAKES, WHICH IS A NARROW ONE.
+; A FileMode is Go's `type FileMode uint32`. A parameter of that type is taken
+; as an integer of its set, [0, 2^32 − 1], and converted in the template, so the
+; range is an obligation at every call (refinements.md §6b) rather than a
+; truncation (gotarget-2026-09-30). The checker confirms both halves against the
+; host (`underlying`, target-files.md §2a).
 ;
-; Every module in this directory is named after a HOST NAMESPACE: `go/fmt` is
-; Go's `fmt` package, `go/strings` is its `strings`. A prefixed name says *this
-; is that host's API and nothing more* — no portability, no shared meaning, and
-; no obligation on any other target. That is ADR 0001, and it is the layer this
-; file belongs to.
-;
-; A PORTABLE `os` is a different object and lives in `lib/os/`, as
-; `(provides go os …)` — a target FRAGMENT written where the library lives
-; (target-system.md §8, modules.md §6). The distinction is not bookkeeping: the
-; host's API is what this project claims it can PARASITIZE, and a portable name
-; over it is a claim about several hosts agreeing. Writing the second before the
-; first inverts the order — you cannot know what the shared `Σ` should be until
-; you know what each host's actually is.
+; WHAT IS NOT DECLARED, of the 130 names Go's `os` has that the survey can
+; declare. Nothing below is a wall; each is work, left until a program needs it:
+;   - the rest of *File: ReadAt, WriteAt, Seek, Stat, Sync, Truncate, Chmod,
+;     Chown, Chdir, ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
+;   - Stat, Lstat, ReadDir and FileInfo, which return interfaces;
+;   - Chmod, Chown, Lchown, Chtimes (time.Time), Link, Symlink, Readlink,
+;     Truncate, SameFile, CopyFS, DirFS;
+;   - OpenFile and its flag constants; CreateTemp;
+;   - the process API: StartProcess, FindProcess, Process, ProcessState, ProcAttr;
+;   - Root and OpenRoot, OpenInRoot;
+;   - the ids and the rest: Getuid and its family, Getpagesize, Getppid,
+;     Getgroups, ExpandEnv, UserHomeDir, UserCacheDir, UserConfigDir,
+;     IsPathSeparator, IsTimeout, NewSyscallError, and the error types' methods.
+; The survey declares every one of them, so each is checked against the host
+; the moment it is written here (gauntlet/stdlib/tooling_test.go, a partial
+; file).
 
 (target go
   (module go/os
-    ; ---- reading and writing whole files
-    ;
-    ; The element range is DECLARED — a file is bytes — which is what gives the
-    ; emitted `[]byte` and what lets `(src i)` be used in arithmetic without a
-    ; refusal (elemwidth-2026-08-27). The LENGTH is not declared and does not
-    ; need to be: `len` is bounded at both ends without any declaration
-    ; (tables.md §2.3.1).
-    (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
-        "os.ReadFile(%s)" (import "os")))
+    (type File (host "*os.File"))
 
-    ; perm is a FileMode, a uint32: [0, 2^32 − 1]. Declared `int`, the
-    ; conversion below truncated anything outside that set silently
-    ; (gotarget-2026-09-30 §3); the range makes it an obligation.
-    (sig WriteFile ((path string) (data (array (int 0 255))) (perm (int 0 4294967295))) error (host expr
-        "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
+    ; ---------------------------------------------------------------- files
+    ; A file is bytes: the element range is declared, which is what gives the
+    ; emitted []byte (elemwidth-2026-08-27). The length needs no declaration:
+    ; `len` is bounded at both ends (tables.md §2.3.1).
+    (sig ReadFile ((name bytestring)) (tuple (array (int 0 255)) error)
+      (host expr "os.ReadFile(%s)" (import "os")))
+    (sig WriteFile ((name bytestring) (data (array (int 0 255))) (perm (int 0 4294967295))) error
+      (host expr "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
+    (sig Open ((name bytestring)) (tuple File error)
+      (host expr "os.Open(%s)" (import "os")))
+    (sig Create ((name bytestring)) (tuple File error)
+      (host expr "os.Create(%s)" (import "os")))
+    (sig Remove ((name bytestring)) error
+      (host expr "os.Remove(%s)" (import "os")))
+    (sig RemoveAll ((path bytestring)) error
+      (host expr "os.RemoveAll(%s)" (import "os")))
+    (sig Rename ((oldpath bytestring) (newpath bytestring)) error
+      (host expr "os.Rename(%s, %s)" (import "os")))
 
-    ; ---- the error, which is a value we can test and not one we can read
-    ;
-    ; `err != nil` is the whole of what this language can do with a Go error,
-    ; and it is also the whole of what most Go code does with one at the point
-    ; of the call. Declared as a PRIMITIVE rather than derived, because `nil`
-    ; is not a value the language has.
-    (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
+    ; ---------------------------------------------------------- directories
+    (sig Mkdir ((name bytestring) (perm (int 0 4294967295))) error
+      (host expr "os.Mkdir(%s, os.FileMode(%s))" (import "os")))
+    (sig MkdirAll ((path bytestring) (perm (int 0 4294967295))) error
+      (host expr "os.MkdirAll(%s, os.FileMode(%s))" (import "os")))
+    (sig MkdirTemp ((dir bytestring) (pattern bytestring)) (tuple bytestring error)
+      (host expr "os.MkdirTemp(%s, %s)" (import "os")))
+    (sig TempDir () bytestring
+      (host expr "os.TempDir()" (import "os")))
+    (sig Getwd () (tuple bytestring error)
+      (host expr "os.Getwd()" (import "os")))
+    (sig Chdir ((dir bytestring)) error
+      (host expr "os.Chdir(%s)" (import "os")))
 
-    ; ---- bytes to text, ONCE, at the boundary
-    ;
-    ; `string-of-bytes` in builtin.oro takes `slice-byte`, which is the RETIRED
-    ; enumerated array type from before `(array V)` existed, so a buffer frozen
-    ; out of a `build` — which is `(array (int 0 255))` — cannot reach it. Same
-    ; three characters of Go, two type languages that never met.
-    ;
-    ; It is declared here rather than renamed there because a text-producing
-    ; program wants exactly this shape: work in bytes, convert once at the end.
-    ; `string-of` is η over SCALARS, so copying a token's raw UTF-8 bytes
-    ; through it would turn 0xC3 into U+00C3; the conversion has to happen on
-    ; the whole sequence or not at all (string-operations.md §5).
-    ; RAW, and so the host's string (ADR 0030): `string(b)` keeps every byte.
-    ; The portable `os.text-of` (lib/os) decodes; this one does not.
-    (sig text-of ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
+    ; ---------------------------------------------------- the standard streams
+    ; Package VARIABLES, which the survey does not generate: fixed for the
+    ; process, since no program in this language can assign one, so a read of
+    ; one is pure.
+    (sig Stdin  () File pure (host expr "os.Stdin" (import "os")))
+    (sig Stdout () File pure (host expr "os.Stdout" (import "os")))
+    (sig Stderr () File pure (host expr "os.Stderr" (import "os")))
 
-    ; ---- the environment, so a program can be told what to open
-    ; The OS's own strings: bytes on Unix, so the host's type (ADR 0030).
+    ; --------------------------------------------------------- the environment
+    ; Not pure: Setenv and Unsetenv are declared, and they write what these read.
+    (sig Getenv ((key bytestring)) bytestring
+      (host expr "os.Getenv(%s)" (import "os")))
+    (sig LookupEnv ((key bytestring)) (tuple bytestring bool)
+      (host expr "os.LookupEnv(%s)" (import "os")))
+    (sig Setenv ((key bytestring) (value bytestring)) error
+      (host expr "os.Setenv(%s, %s)" (import "os")))
+    (sig Unsetenv ((key bytestring)) error
+      (host expr "os.Unsetenv(%s)" (import "os")))
+    (sig Environ () (array bytestring)
+      (host expr "os.Environ()" (import "os")))
+
+    ; ------------------------------------------------------------- the process
+    ; Args is a package variable too.
+    ;
+    ; EXIT takes Go's `int`, and its PRECONDITION is 0 ≤ code ≤ 255: on POSIX
+    ; the status a parent sees is the code mod 256, so Exit(256) exits 0, a
+    ; silent truncation. [0, 255] is the set on which every system Go runs on
+    ; reports the code unchanged; Go's documentation asks for [0, 125] for
+    ; portability, since shells give 126 and above their own meanings. Written
+    ; as a `where`, not a narrowed type: the type states the host's domain, and
+    ; this is a claim beyond it. It does not return; a statement's value is its
+    ; argument.
     (sig Args () (array bytestring) (host expr "os.Args" (import "os")))
-    (sig Getenv ((k string)) bytestring pure (host expr "os.Getenv(%s)" (import "os")))))
+    (sig Exit ((code int)) int (where (and (>= code 0) (<= code 255)))
+      (host stmt "os.Exit(%s)" (import "os")))
+    (sig Getpid () int (host expr "os.Getpid()" (import "os")))
+    (sig Hostname () (tuple bytestring error)
+      (host expr "os.Hostname()" (import "os")))
+    (sig Executable () (tuple bytestring error)
+      (host expr "os.Executable()" (import "os")))
+
+    ; ------------------------------------------------------------------ errors
+    ; Pure functions of the error value: each inspects what it is handed.
+    (sig IsExist ((err error)) bool pure (host expr "os.IsExist(%s)" (import "os")))
+    (sig IsNotExist ((err error)) bool pure (host expr "os.IsNotExist(%s)" (import "os")))
+    (sig IsPermission ((err error)) bool pure (host expr "os.IsPermission(%s)" (import "os")))
+
+    ; ------------------------------------------------------------- a file's methods
+    (module File
+      ; A WRITE-BORROW, B ⊸ B ⊗ int ⊗ error: the host writes p[0, n) with
+      ; 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does.
+      (sig Read ((self File) (p (buffer (int 0 255))))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
+          (import "os")))
+      ; io.Writer's contract: n = len b exactly when err is nil.
+      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.Write(%s)" (import "os")))
+      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.WriteString(%s)" (import "os")))
+      (sig Close ((self File)) error (host expr "%s.Close()" (import "os")))
+      ; The name Open was given: fixed for the handle, so pure.
+      (sig Name ((self File)) bytestring pure (host expr "%s.Name()" (import "os")))))
+
+  ; A *File is each of io's interfaces it implements (Go's method sets; the
+  ; survey's edge set, which the Go compiler verified, has them).
+  (implements go/os.File go/io.Reader go/io.Writer go/io.Closer go/io.WriteCloser))

@@ -46,10 +46,10 @@
 
 (def left (src enc)
   (seq ((hex.DecodeString (hex.EncodeToString src)) (fn (back e)
-         (seq (fmt.Println back) (fmt.Println (gos.err-nil e)))))
+         (seq (fmt.Println back) (fmt.Println (go.err-nil e)))))
        (fmt.Println (build b (hex.DecodedLen (len enc))
          ((hex.Decode b enc) (fn (b2 n e)
-           (seq (fmt.Println n) (fmt.Println (gos.err-nil e)) b2)))))))
+           (seq (fmt.Println n) (fmt.Println (go.err-nil e)) b2)))))))
 
 (def projection ()
   ((hex.DecodeString "DEADbeef00FF") (fn (x e)
@@ -70,14 +70,14 @@
 (def append (src enc)
   (fmt.Println (build b 1
     ((hex.AppendDecode (hex.AppendEncode (set b 0 62) src) enc) (fn (b2 e)
-      (seq (fmt.Println (gos.err-nil e)) b2))))))
+      (seq (fmt.Println (go.err-nil e)) b2))))))
 
 (def streams (src)
   ((gos.MkdirTemp "" "orohex") (fn (dir e0)
     (seq
       ; the encoder writes H(src)
       ((gos.Create (concat (go.text dir) "/enc")) (fn (f e1)
-        (seq ((gio.WriteString (hex.NewEncoder f) (gos.text-of src)) (fn (n e2)
+        (seq ((gio.WriteString (hex.NewEncoder f) (go.string-of-bytes src)) (fn (n e2)
                (fmt.Println n)))
              (file.Close f))))
       ((gos.ReadFile (concat (go.text dir) "/enc")) (fn (b e3)
@@ -85,7 +85,7 @@
       ; the decoder reads G of it back
       ((gos.Open (concat (go.text dir) "/enc")) (fn (f e4)
         (seq ((gio.ReadAll (hex.NewDecoder f)) (fn (b e5)
-               (seq (fmt.Println b) (fmt.Println (gos.err-nil e5)))))
+               (seq (fmt.Println b) (fmt.Println (go.err-nil e5)))))
              (file.Close f))))
       ; the dumper, CLOSED. `Close` is `io.Closer`'s, and it reaches a
       ; `io.WriteCloser` because that interface's companion INCLUDES Closer's
@@ -93,9 +93,9 @@
       ; interface a method, and this dump was missing its last, partial line.
       ((gos.Create (concat (go.text dir) "/dump")) (fn (f e6)
         (seq (let d (hex.Dumper f)
-               (seq ((gio.WriteString d (gos.text-of src)) (fn (n e7)
+               (seq ((gio.WriteString d (go.string-of-bytes src)) (fn (n e7)
                       (fmt.Println n)))
-                    (fmt.Println (gos.err-nil (wc.Close d)))))
+                    (fmt.Println (go.err-nil (wc.Close d)))))
              (file.Close f))))
       ((gos.ReadFile (concat (go.text dir) "/dump")) (fn (b e8)
         (fmt.Println (os.text-of b))))

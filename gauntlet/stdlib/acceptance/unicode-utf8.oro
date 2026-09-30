@@ -17,6 +17,7 @@
 ;     through the loop and cannot alias — before, it took an immutable array and
 ;     two appends to one value could share its capacity.
 
+(use go)
 (use go/unicode/utf8)
 (use go/fmt as fmt)
 (use os)
@@ -66,9 +67,9 @@
          (fmt.Println (utf8.Valid bad))
          (fmt.Println (utf8.RuneCount bad))
          ((utf8.DecodeRune bad) (fn (r n) (pair r n)))
-         (fmt.Println (utf8.ValidString (gos.text-of bad)))
-         (fmt.Println (utf8.FullRuneInString (gos.text-of bad)))
-         (fmt.Println (utf8.RuneCountInString (gos.text-of bad))))))
+         (fmt.Println (utf8.ValidString (go.string-of-bytes bad)))
+         (fmt.Println (utf8.FullRuneInString (go.string-of-bytes bad)))
+         (fmt.Println (utf8.RuneCountInString (go.string-of-bytes bad))))))
 
 (def constants ()
   (seq (fmt.Println (utf8.MaxRune))

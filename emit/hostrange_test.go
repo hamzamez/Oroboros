@@ -16,7 +16,7 @@ func TestAHostParametersRangeIsAnObligation(t *testing.T) {
 			"go/math/bits.Len32's parameter x, declared (int 0 4294967295), requires"},
 		{`(use go/math/bits) (export f) (sig f () int) (def f () (bits.Len32 -1))`,
 			"go/math/bits.Len32's parameter x is declared (int 0 4294967295), and a call passes -1"},
-		{`(use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (os.err-nil (os.WriteFile "p" d -1)))`,
+		{`(use go) (use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (go.err-nil (os.WriteFile "p" d -1)))`,
 			"go/os.WriteFile's parameter perm is declared (int 0 4294967295), and a call passes -1"},
 	} {
 		_, err := dischargeGo(t, c.src)
@@ -27,7 +27,7 @@ func TestAHostParametersRangeIsAnObligation(t *testing.T) {
 	// …and a value the program's own facts keep inside the range passes.
 	for _, src := range []string{
 		`(use go/math/bits) (export f) (sig f ((x (int 0 5))) int) (def f (x) (bits.Len32 x))`,
-		`(use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (os.err-nil (os.WriteFile "p" d 420)))`,
+		`(use go) (use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (go.err-nil (os.WriteFile "p" d 420)))`,
 	} {
 		if _, err := dischargeGo(t, src); err != nil {
 			t.Errorf("%s: %v", src, err)
@@ -56,5 +56,41 @@ func TestAGoShiftCountMustBeNonNegative(t *testing.T) {
 		if !c.ok && (err == nil || !strings.Contains(err.Error(), "requires")) {
 			t.Errorf("%s: want the shift's domain refused, got %v", c.body, err)
 		}
+	}
+}
+
+// os.Exit's PRECONDITION is 0 ≤ code ≤ 255 (targets/go/os.oro): on POSIX the
+// status is the code mod 256, so Exit(256) would exit 0. Declared as a `where`
+// beyond the host's `int`, and so an obligation at every call.
+func TestExitsCodeIsAStatus(t *testing.T) {
+	head := "(use go/os) (export f) (sig f ((c int)) int) "
+	for _, c := range []struct {
+		body string
+		ok   bool
+	}{
+		{"(def f (c) (os.Exit 0))", true},
+		{"(def f (c) (os.Exit 255))", true},
+		{"(def f (c) (os.Exit 256))", false},
+		{"(def f (c) (os.Exit c))", false},
+		{"(def f (c) (if (and (>= c 0) (<= c 255)) (os.Exit c) 0))", true},
+	} {
+		_, err := entryGo(t, head+c.body)
+		if c.ok && err != nil {
+			t.Errorf("%s: %v", c.body, err)
+		}
+		if !c.ok && err == nil {
+			t.Errorf("%s: an exit status outside [0, 255] was accepted", c.body)
+		}
+	}
+}
+
+// THE STANDARD STREAMS ARE DECLARED, and a *File's Read is a write-borrow into
+// a scope's buffer: what bufio needs from os (gotarget-2026-09-30 §5).
+func TestStdinCanBeRead(t *testing.T) {
+	src := `(use go) (use go/os) (use go/os/File as File)
+		(export f) (sig f () int)
+		(def f () (let (tuple p n) (build b 16 ((File.Read (os.Stdin) b) (fn (q k e) (tuple q k)))) n))`
+	if _, err := entryGo(t, src); err != nil {
+		t.Errorf("reading standard input: %v", err)
 	}
 }

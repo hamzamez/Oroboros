@@ -1143,10 +1143,11 @@ var handDeclared = []handEntry{
 	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil},
 	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil},
 	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil},
-	{"go", "targets/go", "os.oro", []string{"go/os"}, osMistakes, true, map[string]string{
-		"go/os.Args":    "a package VARIABLE; the survey generates functions, methods and constants",
-		"go/os.err-nil": "a helper, not a Go name: `err == nil`; moves out of go/os in the os step",
-		"go/os.text-of": "a helper, not a Go name: string(b); moves out of go/os in the os step",
+	{"go", "targets/go", "os.oro", []string{"go/os", "go/os/File"}, osMistakes, true, map[string]string{
+		"go/os.Args":   "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/os.Stdin":  "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/os.Stdout": "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/os.Stderr": "a package VARIABLE; the survey generates functions, methods and constants",
 	}},
 	{"go", "targets/go", "io.oro", []string{"go/io", "go/io/Writer", "go/io/Closer", "go/io/WriteCloser", "go/io/ByteReader"},
 		nil, true, map[string]string{
@@ -1326,8 +1327,12 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				}
 				for n := range h.exempt {
 					if strings.HasPrefix(n, module+".") {
-						if _, has := host[strings.TrimPrefix(n, module+".")]; has {
+						short := strings.TrimPrefix(n, module+".")
+						if _, has := host[short]; has {
 							t.Errorf("%s is exempt (%s), and the host declares it: the exemption is stale", n, h.exempt[n])
+						}
+						if _, has := hand[short]; !has {
+							t.Errorf("%s is exempt (%s), and the hand file no longer declares it: the exemption is dead", n, h.exempt[n])
 						}
 					}
 				}

@@ -26,6 +26,7 @@
 ;
 ; It prints the size of `go.mod`, which is `wc -c`.
 
+(use go)
 (use go/os as gos)
 (use go/io as gio)
 (use io)
@@ -34,7 +35,7 @@
 
 (def main ()
   ((gos.Open "go.mod") (fn (f e1)
-    (if (gos.err-nil e1)
+    (if (go.err-nil e1)
         ((gio.ReadAll f) (fn (b e2)
-          (if (gos.err-nil e2) (io.print-int (len b)) (io.print-int 0))))
+          (if (go.err-nil e2) (io.print-int (len b)) (io.print-int 0))))
         (io.print-int 0)))))

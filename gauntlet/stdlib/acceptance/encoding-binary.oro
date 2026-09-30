@@ -12,6 +12,7 @@
 ;   stream      C⁻¹ from an io.ByteReader
 ;   native      a decoded uint64 computed with, in a machine word
 
+(use go)
 (use go/encoding/binary as bin)
 (use go/strings as gstr)
 (use go/fmt as fmt)
@@ -63,9 +64,9 @@
 ; survey checked against the host).
 (def stream ()
   (seq ((bin.ReadUvarint (gstr.NewReader "\u{AC}\u{2}")) (fn (x e)
-         (seq (fmt.Println x) (fmt.Println (gos.err-nil e)))))
+         (seq (fmt.Println x) (fmt.Println (go.err-nil e)))))
        ((bin.ReadVarint (gstr.NewReader "\u{3}")) (fn (x e)
-         (seq (fmt.Println x) (fmt.Println (gos.err-nil e)))))))
+         (seq (fmt.Println x) (fmt.Println (go.err-nil e)))))))
 
 ; The top of U decoded, then halved and reduced — native uint64 arithmetic on a
 ; host result, which under ADR 0012 could only have been printed.

@@ -17,7 +17,7 @@ func TestSeveralResultsEmitTheHostsOwnForm(t *testing.T) {
 		t.Fatal(err)
 	}
 	src := `(fn () ((go/os.ReadFile "f") (fn (src err)
-	           (if (go/os.err-nil err) (go.len src) 0))))`
+	           (if (go.err-nil err) (go.len src) 0))))`
 	terms, err := core.ReadAll(src)
 	if err != nil || len(terms) != 1 {
 		t.Fatalf("read: %v", err)

@@ -50,6 +50,7 @@ func main() {
 }
 
 func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr string) error {
+	emit.ResetImports()
 	layers, err := emit.SearchPath(src, targetDir)
 	if err != nil {
 		return err

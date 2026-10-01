@@ -15,6 +15,18 @@ import (
 // emitter by need rather than by design.
 var Imports = map[string]bool{}
 
+// ResetImports empties the three import sets a program's printing fills. They
+// are process-wide, and nothing cleared them: a command builds one program, so
+// it never showed, but a process that builds two gave the second the first's
+// imports, and Go refuses an import nothing uses (bufio-2026-10-01). A driver
+// calls this before each program, so that what it emits is a function of that
+// program alone.
+func ResetImports() {
+	clear(Imports)
+	clear(JSImports)
+	clear(JavaImports)
+}
+
 func contains(xs []string, s string) bool {
 	for _, x := range xs {
 		if x == s {

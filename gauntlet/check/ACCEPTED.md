@@ -952,3 +952,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/io/jsonfmt.oro js` 578 → 281 ms, 0.49x
+
+## 2026-10-01 — on cc48e96, with uncommitted changes
+
+**Reason:** bufio: examples/lines/lines.oro, the line tool over bufio (new, four targets); kara's refusal prints a binder as out3 because a residual's binders are now named apart along the scope chain. Every emitted file is byte-identical, so no benchmark is affected; paired compile time freq 0.99x, tree 1.04x, jsonfmt 1.05x
+
+492 runs: 253 emitted, 239 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- compiler output changed — `examples/kara/core.oro go`
+- new source — `examples/lines/lines.oro go`
+- new source — `examples/lines/lines.oro java`
+- new source — `examples/lines/lines.oro js`
+- new source — `examples/lines/lines.oro windows`

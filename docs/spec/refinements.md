@@ -171,6 +171,92 @@ is safe: an undischarged obligation is *refused* (§3a), never assumed.
 
 That last one is free and worth having: a length is never negative on any target.
 
+### 5a. A name bound to a value is bounded by the value's tails (2026-10-01)
+
+`(let x V …)` gives x what holds of **every tail** of V. The tails are the terms whose value V's can
+be, through the four forms of a clause chain (ADR 0015, ADR 0027) and the loop they sit in:
+
+```
+tails(if c a b)             = tails(a) ∪ tails(b), under c and under ¬c
+tails(let v (fn (y) b))     = tails(b)
+tails((p a…) (fn (ys) b))   = tails(b)        a host call's continuation runs once, now
+tails(loop (fn (vs) b) z…)  = tails(b) without `again`
+tails(again …)              = ∅               a jump has no value
+tails(t)                    = {t}             otherwise
+```
+
+**The rule.** Let ℓⱼ be V's tails, each linear, reached under path facts Pⱼ: the facts in scope and
+the guards on the way. For an inequality φ, if Pⱼ ⊢ φ(ℓⱼ) for every j, then φ(x).
+
+*Proof.* Exactly one tail is evaluated, on a path whose guards hold, and x is its value. A loop has a
+value only at an exit, in some iteration, where the guards on that path hold of that iteration's
+variables. The loop's variables are binders: the path assumes nothing of them but those guards, not
+even their initial values, which hold on the first iteration only. (Partial correctness: a loop that
+does not end has no value to be wrong about.) ∎
+
+**A loop's tail that names one of the loop's variables is not used**, and the rule gives x nothing.
+That tail's value is the variable's at the exit, and what bounds it is the loop's invariants, which
+the loop-summary rule has and this walk has not. This is a limit, not a soundness condition: the
+walk is sound on such a tail and proves almost nothing of it. It is also what keeps the rule off
+every scanner loop a program binds, whose exit is its index: without it the rule cost 60 ms of a
+450 ms compile (`examples/json/tree.oro`, paired against the commit before).
+
+The φ tried are a finite template set: x compared with each side of each guard, with 0, and with
+each tail itself, when the side names no binder of V. Over constant tails that last template is the
+interval hull [min ℓⱼ, max ℓⱼ]. It is the join of template constraint domains (Sankaranarayanan,
+Sipma & Manna, VMCAI 2005).
+
+Until bufio-2026-10-01 the walk knew `if` and `let` only. `examples/lines/lines.oro` binds its exit
+status to a conditional over a loop whose exits are 0 or 1, some under a host call's continuation,
+and `os.Exit`'s 0 ≤ code ≤ 255 was refused.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| a continuation's tails are the call's | the continuation not walked | `TestAStatusIsBoundedByItsExits` |
+| a loop variable's initial value is not assumed on a tail's path | it is assumed | `TestATailsPathDoesNotAssumeALoopVariablesStart`: with i = 0 on the path, a guard i ≥ m gives m ≤ 0, and an index of −m was accepted |
+
+### 5b. A loop variable that threads a buffer has the buffer's length (2026-10-01)
+
+**The law.** `set` preserves length, len (set c i x) = len c: it is `set`'s declared postcondition,
+as passing a table on unchanged trivially is. For a loop variable v with initial value z,
+
+```
+every back edge passes, at v's position, a term of length len v
+  ⟹  len v = len z   at every iteration
+```
+
+by induction on the iterations: v = z on entry, and each step keeps the length.
+
+**What is tried, and what is kept** (`threadLengths`). Every variable whose initial value has a
+length starts with the equation len v = len z. A call with a length contract has one (a `build` of
+n, a `set` on something that has one); so does a plain name, the quantity len(z). A position some
+back edge does not preserve is dropped and the rest are re-checked under what remains, until nothing
+changes: the **greatest inductive subset** (Houdini; Flanagan & Leino, FME 2001). Each equation kept
+is preserved by every back edge assuming only the kept ones, which is the induction step.
+
+**Two lengths are equal when the facts at the loop's entry say so**, not only when they are spelled
+alike. A merge sort swaps two buffers on its back edge; len a and len b are both the n of their
+`build`. Every name a length mentions is bound outside the loop and immutable, so what the entry
+facts prove of it holds at every iteration.
+
+**The walk to a back edge carries the lengths of names bound on the way**: `(let w (set u i x) (again
+w …))` passes w, which has u's length. A binder with no known length is bound to *unknown*, and a
+name bound inside the value never falls back to its own length variable: that variable would outlive
+its scope, and two sibling loops' variables may share a name.
+
+Until bufio-2026-10-01 a plain name had no length here and the check was all or nothing. The rule
+never fired on `(loop ((c c) …))`, the idiom it exists for, and the programs were accepted because the
+loop variable was spelled like its buffer.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| the equation is verified at every back edge | the back edge not checked | `TestALoopVariableHasItsBuffersLength` |
+| lengths are equal under the entry facts | any two lengths equal | the same test |
+
+**The facts are keyed by name, so the residual's names must be apart.** A binder that reused an
+enclosing binder's name entered a scope whose facts were about another variable
+([state.md](state.md), the residual's naming invariant).
+
 ## 6. The diagnostic
 
 An obligation that cannot be discharged is an **error**, naming the obligation and what was known:

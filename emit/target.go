@@ -2835,6 +2835,36 @@ func (tg *Target) closeImplements() {
 //
 // The emitted text is unchanged either way -- see the Implements field. This
 // answers a question the type checker asks and nothing else.
+// JoinSameRepr is the join of two types under the declared subsumption, taken
+// only where they are COMPARABLE and have ONE REPRESENTATION: A ≤ B with
+// ρ(A) = ρ(B) gives B. It is what a value has when either of two values flows
+// into it, a conditional's result or a function's (types.md §3.2), and the
+// checker and the IR's typing both read it here.
+//
+// Comparable, because a least upper bound of two incomparable types need not
+// exist or be unique, and choosing one would be inference the relation does
+// not license. One representation, because the coercion is then the identity
+// on the stored value as well as in meaning: ADR 0030's string ≤ bytestring,
+// both Go's `string`. A concrete type below its interface is a different host
+// type, and holding the join there is not built.
+func (tg *Target) JoinSameRepr(a, b string) (string, bool) {
+	va, vb := tg.ValueType(a), tg.ValueType(b)
+	if ha, hb := tg.Types[va], tg.Types[vb]; ha == "" || ha != hb {
+		return "", false
+	}
+	// STRICTLY below: two names of one host type subsume each other, and a
+	// join that picked either would have a fixed point iteration swap them
+	// forever.
+	up, down := tg.Subsumes(va, vb), tg.Subsumes(vb, va)
+	switch {
+	case up && !down:
+		return b, true
+	case down && !up:
+		return a, true
+	}
+	return "", false
+}
+
 func (tg *Target) Subsumes(got, want string) bool {
 	if tg == nil || got == "" || want == "" || got == want {
 		return got == want && got != ""

@@ -24,6 +24,13 @@ term ::= name | integer | float | string | true | false
 - **`KBound` is not an eighth.** `core.Term` has a further kind that no program can write: a bound
   variable stored as *"the parameter of the binder N levels out"*, the locally nameless representation.
   The names in `Params` are hints, kept so emitted code reads well.
+- **A residual's hints are apart** (`core/hygiene.go`), by two invariants on what reduction returns:
+  no binder's hint equals a name its body refers to past it, so opening a body by its hints captures
+  nothing; and **no binder's hint equals an enclosing binder's**, whether or not its body mentions
+  that variable. The second is the variable convention (Barendregt 1984, 2.1.13) along the scope
+  chain, and it is what a consumer carrying a context keyed by name needs: the refinement layer's
+  facts about a parameter `n` were read as facts about a loop variable `n`, and an index of 101 into
+  a table of 6 was accepted on every target (bufio-2026-10-01). Sibling binders keep their names.
 - **The entry point** is an export named `main` taking no arguments ([build.md §2](build.md)).
 - **A comment is `;` to the end of the line or of the input**, and it is **gap**, not a token: it is
   erased by the lexer, so no pass below the reader can see one and no emitted file carries one. There

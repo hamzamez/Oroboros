@@ -67,3 +67,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0033](0033-an-integers-representation-is-chosen-on-the-ir.md) | An integer's representation is chosen on the IR; the checker's integer sort is ℤ |
 | [0034](0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) | The rung above the word is a least fixed point on the IR, and a bignum destination needs ownership |
 | [0035](0035-a-compiler-library-is-a-theory-checked-once.md) | A compiler library is a theory checked once; a use is an instance, inlined on the IR |
+| [0036](0036-a-residuals-binders-are-named-apart.md) | A residual's binders are named apart along the scope chain |

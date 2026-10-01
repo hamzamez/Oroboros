@@ -11,6 +11,11 @@
 ;              prefix 0x…), but F_b ∘ P_b is IDEMPOTENT — a projection onto N_b.
 ;   P_b's domain is the words over the digits whose value lies in the word; past
 ;   it P_b returns the nearest bound and ErrRange: it SATURATES, never wraps.
+;   The parses are TOTAL ON B*, with an error off their domain, so their
+;   argument is the host's string, `bytestring` (ADR 0030): a field of a line
+;   read from a file goes to ParseInt as it is. It was declared `string`, a
+;   narrower domain than the host's, until the first program that held a host
+;   string met it (bufio-2026-10-01). Our `string` still passes: Σ* ⊆ B*.
 ;
 ; INTEGER TYPES ARE THE HOST'S (ADR 0026): `int64` is the target's signed word and
 ; `uint64` is U = [0, 2^64−1], held natively in a `uint64`. So ParseUint's result
@@ -33,7 +38,7 @@
     ; {false, true} ↔ {"false", "true"}; ParseBool also accepts 1, t, T, TRUE,
     ; True and their negations, so ParseBool ∘ FormatBool = id and not conversely.
     (sig FormatBool ((b bool)) string pure (host expr "strconv.FormatBool(%s)" (import "strconv")))
-    (sig ParseBool ((s string)) (tuple bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
+    (sig ParseBool ((s bytestring)) (tuple bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
     ; CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
     (sig AppendBool ((dst (buffer (int 0 255))) (b bool)) (buffer (int 0 255))
           (host expr "strconv.AppendBool(%s, %s)" (import "strconv")))
@@ -59,14 +64,14 @@
     ; P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
     ; The result is the host's int64 — the word — received as Go's int, which is
     ; the same 64 bits on this target.
-    (sig ParseInt ((s string) (base int) (bitSize int)) (tuple int64 error) pure
+    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 error) pure
           (host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(%s, %s, %s)"
             (import "strconv")))
     ; …and over U, returned as the uint64 it is.
-    (sig ParseUint ((s string) (base int) (bitSize int)) (tuple uint64 error) pure
+    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 error) pure
           (host expr "strconv.ParseUint(%s, %s, %s)" (import "strconv")))
     ; P_10 into Go's int.
-    (sig Atoi ((s string)) (tuple int error) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
+    (sig Atoi ((s bytestring)) (tuple int error) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
 
     ; ---------------------------------------------------------- floats
     ; The shortest decimal that rounds back (prec −1), or a fixed precision; an
@@ -77,7 +82,7 @@
     (sig AppendFloat ((dst (buffer (int 0 255))) (f f64) (fmt uint8) (prec int) (bitSize int)) (buffer (int 0 255))
           (where (and (<= 64 bitSize) (<= bitSize 64)))
           (host expr "strconv.AppendFloat(%s, %s, uint8(%s), %s, %s)" (import "strconv")))
-    (sig ParseFloat ((s string) (bitSize int)) (tuple f64 error) pure
+    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 error) pure
           (host expr "strconv.ParseFloat(%s, %s)" (import "strconv")))
 
     ; ---------------------------------------------------------- quoting

@@ -31,6 +31,17 @@ import "strconv"
 // the binders that violate it and no others, so a program with no latent
 // capture keeps every name it had and emits byte-identical code. Renaming a
 // hint cannot change meaning: the indices are untouched.
+//
+// AND NO BINDER'S HINT EQUALS AN ENCLOSING BINDER'S, whether or not its body
+// refers to that variable (bufio-2026-10-01). The first invariant keeps a TERM
+// from capturing. A consumer may also carry a CONTEXT keyed by name: the
+// refinement layer's facts are assumptions about names, Γ ⊢ φ, and a binder
+// that reuses a name in Γ enters a scope whose assumptions are about another
+// variable. With a parameter n declared in [0, 5] and a loop variable n, the
+// loop's exit value was given 0 ≤ n ≤ 5 and an index of 101 into a table of 6
+// was accepted, on every target. That is the variable convention (Barendregt
+// 1984, 2.1.13) along the scope chain, and it is what makes weakening Γ by a
+// binder sound without α-renaming the context.
 func hygienic(t *Term) *Term { return hyg(t, nil) }
 
 func hyg(t *Term, scope [][]string) *Term {
@@ -39,6 +50,11 @@ func hyg(t *Term, scope [][]string) *Term {
 		body := t.Kids[0]
 		params := t.Params
 		taken := refsPast(body, scope)
+		for _, ps := range scope {
+			for _, q := range ps {
+				taken[q] = true
+			}
+		}
 		var np []string
 		for i, p := range params {
 			if !taken[p] {

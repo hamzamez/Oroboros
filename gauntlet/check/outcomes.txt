@@ -280,7 +280,7 @@
 == examples/kara/core.oro go refused
    note: gen-run: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
    gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
-     go.+ [0, +inf] in (go.+ (out (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go.>...
+     go.+ [0, +inf] in (go.+ (out3 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go....
      go.* [-inf, +inf] in (go.* acc 100)
      go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
      Outside its word a target's arithmetic does not compute the integer the
@@ -312,6 +312,17 @@
 == examples/kara/workspace.oro windows emitted f9882ca520f9324fa3aaa0250f9933a6638de71fb12dadd12cfbcdb79f9cf87e
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/lines.oro go emitted db1a061f38edd12ee252ea4a56ca68832888834f768763490199cf887a6f2659
+   note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/lines.oro js refused
+   gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
+== examples/lines/lines.oro java refused
+   gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
+== examples/lines/lines.oro windows refused
+   gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/map/dynamic.oro go emitted 98d2b9d05cc45a214bc295440a2426f37c86b0aa1088423efa3c0124c3548098
    note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/dynamic.oro js refused

@@ -734,6 +734,26 @@ func (r *refiner) let(args []*core.Term, f *facts) error {
 // For the clamp `(if (< i 0) 0 (if (>= i n) 0 i))` it gives 0 <= x, and x < n
 // whenever the facts in scope already give 0 < n — which a caller indexing a
 // table it is iterating over always has (hex-2026-09-14 §4).
+//
+// THE LEAVES ARE THE VALUE'S TAILS, through all four forms of a clause chain
+// and the loop they sit in (bufio-2026-10-01):
+//
+//	tails(if c a b)             = tails(a) ∪ tails(b), under c and under ¬c
+//	tails(let v (fn (y) b))     = tails(b)
+//	tails((p a…) (fn (ys) b))   = tails(b)    a host call's continuation runs
+//	                                          once, now (ADR 0027)
+//	tails(loop (fn (vs) b) z…)  = tails(b) without `again`
+//	tails(again …)              = ∅           a jump has no value
+//	tails(t)                    = {t}         otherwise
+//
+// The proof is unchanged. A loop has a value only at an exit, in some
+// iteration, where the guards on the path hold of that iteration's variables;
+// the loop's variables are binders, about which the path says nothing but
+// those guards (partial correctness, as summarizeLoop). So an exit status that
+// is 0 or 1 on every path of a loop and its error arms is in [0, 1].
+//
+// The leaves themselves are templates too, when they name no binder: over
+// constant leaves that is the interval hull [min ℓⱼ, max ℓⱼ].
 func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *facts) {
 	type leaf struct {
 		e    *linear
@@ -756,6 +776,29 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			ok = false
 			return
 		}
+		// A HOST CALL'S CONTINUATION: its body's tails are the call's.
+		if _, _, k, isCall := multiPrimCall(r.tgt, t); isCall {
+			for _, y := range k.Params {
+				binders[y] = true
+			}
+			walk(k.Body(), path, depth)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			// A JUMP HAS NO VALUE.
+			if t.Op().Name == "again" {
+				return
+			}
+			// A LOOP'S TAILS are its exits. Its variables are binders, and a
+			// tail naming one never reaches here (tailsLinear).
+			if a := t.Args(); loopKinds[t.Op().Name] && len(a) >= 1 && a[0].Kind == core.KFn {
+				for _, y := range a[0].Params {
+					binders[y] = true
+				}
+				walk(a[0].Body(), path, depth)
+				return
+			}
+		}
 		if v, lam, isLet := asLet(r.tgt, t); isLet {
 			binders[lam.Params[0]] = true
 			// A NAME BOUND TO A LINEAR VALUE IS THAT VALUE, so the equation holds on
@@ -766,7 +809,7 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 				path = path.clone()
 				path.assumeEQ(lam.Params[0], e)
 			}
-			walk(lam.Body(), path, depth+1)
+			walk(lam.Body(), path, depth) // a binding does not branch
 			return
 		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
@@ -795,9 +838,25 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 		}
 		leaves = append(leaves, leaf{e, path})
 	}
+	// A CHEAP LOOK FIRST. The walk clones the facts at every conditional, and
+	// it runs at every `let`; most values end in a table or a call, which no
+	// template can bound. So the tails are collected without the facts, and
+	// the walk is run only when every one of them is linear.
+	if !r.tailsLinear(value, f) {
+		return
+	}
 	walk(value, f.clone(), 0)
 	if !ok || len(leaves) < 2 {
 		return
+	}
+	// The CONSTANT tails are templates too: over them the join is the
+	// interval hull [min ℓⱼ, max ℓⱼ].
+	seenK := map[string]bool{}
+	for _, l := range leaves {
+		if len(l.e.coef) == 0 && !seenK[l.e.String()] {
+			seenK[l.e.String()] = true
+			sides = append(sides, l.e)
+		}
 	}
 	sides = append(sides, constant(0))
 	xv := variable(x)
@@ -842,6 +901,63 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			inner.assumeLE(fact, fmt.Sprintf("%s joined over its branches", x))
 		}
 	}
+}
+
+// tailsLinear reports whether a value has at least two tails and every one is a
+// linear term: joinConditional's tails (its comment), walked without path
+// facts. It is the same recursion, so the two agree on what a tail is.
+func (r *refiner) tailsLinear(value *core.Term, f *facts) bool {
+	n, ok := 0, true
+	// A LOOP'S TAIL THAT NAMES ONE OF THE LOOP'S VARIABLES IS NOT USED. Its
+	// value is that variable's at the exit, and what bounds it is the loop's
+	// invariants, which summarizeLoop has and this walk has not. Stopping here
+	// also keeps the walk off every scanner loop a program binds, whose exit
+	// is its index (bufio-2026-10-01: 60 ms of a 450 ms compile otherwise).
+	var loopVars []string
+	var walk func(t *core.Term, depth int)
+	walk = func(t *core.Term, depth int) {
+		if !ok {
+			return
+		}
+		if depth > 8 {
+			ok = false
+			return
+		}
+		if _, _, k, isCall := multiPrimCall(r.tgt, t); isCall {
+			walk(k.Body(), depth)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if t.Op().Name == "again" {
+				return
+			}
+			if a := t.Args(); loopKinds[t.Op().Name] && len(a) >= 1 && a[0].Kind == core.KFn {
+				held := len(loopVars)
+				loopVars = append(loopVars, a[0].Params...)
+				walk(a[0].Body(), depth)
+				loopVars = loopVars[:held]
+				return
+			}
+		}
+		if _, lam, isLet := asLet(r.tgt, t); isLet {
+			walk(lam.Body(), depth)
+			return
+		}
+		if t.Kind == core.KApp && t.Op().Kind == core.KName {
+			if p, known := r.tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+				walk(t.Args()[1], depth+1)
+				walk(t.Args()[2], depth+1)
+				return
+			}
+		}
+		if _, isLin := f.lin(t); !isLin || mentionsAny(t, loopVars) {
+			ok = false
+			return
+		}
+		n++
+	}
+	walk(value, 0)
+	return ok && n >= 2
 }
 
 // discharge proves a primitive's `where` at this call site, with the arguments
@@ -1082,20 +1198,10 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	// are inside the loop. Establish its length the same way valueLength does —
 	// from the initial value, verified against every back edge — and record the
 	// equation so `i < len(c)` has something to resolve against.
-	env := map[string]*linear{}
-	lens := make([]*linear, len(lam.Params))
+	lens, _ := r.threadLengths(lam, inits, map[string]*linear{}, 0, f)
 	for i, n := range lam.Params {
-		if i < len(inits) {
-			if e, ok := r.valueLength(inits[i], map[string]*linear{}, 0); ok {
-				lens[i], env[n] = e, e
-			}
-		}
-	}
-	if r.againAgree(lam.Body(), lens, env, 0) {
-		for i, n := range lam.Params {
-			if lens[i] != nil {
-				r.assumeLengthEq(g, n, lens[i])
-			}
+		if lens[i] != nil {
+			r.assumeLengthEq(g, n, lens[i])
 		}
 	}
 	r.loopInvariants(lam, inits, f, g)
@@ -1844,8 +1950,22 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 	}
 	switch t.Kind {
 	case core.KName:
-		e, ok := env[t.Name]
-		return e, ok
+		// A NAME BOUND INSIDE THE VALUE has the length the walk found for it, or
+		// none (nil): its own length variable would outlive its scope, and two
+		// sibling loops' variables may share a name. A name bound OUTSIDE is in
+		// scope where the result is used, and its length is the quantity
+		// len(z), whatever that is. Until bufio-2026-10-01 such a name had no
+		// length here, and a loop variable threading a buffer got the buffer's
+		// only by being spelled like it.
+		if e, inside := env[t.Name]; inside {
+			return e, e != nil
+		}
+		if r.bound[t.Name] {
+			if _, isPrim := r.tgt.Prims[t.Name]; !isPrim {
+				return variable(lengthVar("len", t)), true
+			}
+		}
+		return nil, false
 	case core.KApp:
 	default:
 		return nil, false
@@ -1879,7 +1999,7 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 		if e, ok := r.valueLength(args[0], env, depth+1); ok {
 			inner[args[1].Params[0]] = e
 		} else {
-			delete(inner, args[1].Params[0])
+			inner[args[1].Params[0]] = nil // bound here, length unknown
 		}
 		return r.valueLength(args[1].Body(), inner, depth+1)
 	case p.Kind == "cond" && len(args) == 3:
@@ -1915,41 +2035,112 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 			return nil, false
 		}
 		lam, inits := args[0], args[1:]
-		inner := map[string]*linear{}
-		for k, v := range env {
-			inner[k] = v
-		}
-		lens := make([]*linear, len(lam.Params))
-		for i, n := range lam.Params {
-			delete(inner, n)
-			if i < len(inits) {
-				if e, ok := r.valueLength(inits[i], env, depth+1); ok {
-					lens[i], inner[n] = e, e
-				}
-			}
-		}
-		if !r.againAgree(lam.Body(), lens, inner, depth+1) {
-			for _, n := range lam.Params {
-				delete(inner, n)
-			}
-		}
+		_, inner := r.threadLengths(lam, inits, env, depth+1, nil)
 		return r.valueLength(lam.Body(), inner, depth+1)
 	}
 	return nil, false
 }
 
-// againAgree checks that every back edge of THIS loop passes, at each position
-// whose length was established from the initial value, something of that same
-// length. A nested loop owns its own `again` and is skipped — the same rule
+// threadLengths gives each variable of a loop the length it has at EVERY
+// iteration, where one can be established.
+//
+// THE LAW. `set` preserves length, len (set c i x) = len c (its declared
+// postcondition), and so does passing a table on unchanged. So for a loop
+// variable v with initial value z,
+//
+//	every back edge passes at v's position a term of length len v
+//	  ⟹  len v = len z at every iteration,
+//
+// by induction on the iterations: v = z on entry, and each step keeps it.
+//
+// THE SET KEPT is the greatest one that is inductive. Every variable whose
+// initial value has a length starts with the equation len v = len z; a
+// position some back edge does not preserve is dropped, with the others
+// re-checked under what remains, until nothing changes (Houdini; Flanagan &
+// Leino, FME 2001). Each equation kept is preserved by every back edge
+// ASSUMING only the kept ones, which is the induction step.
+//
+// It was all or nothing, and a loop counter breaks no buffer's equation, so
+// that only bit once an initial value that is a plain NAME had a length: an
+// integer variable starting at a name is then tried, and dropped.
+//
+// TWO LENGTHS ARE COMPARED UNDER THE FACTS AT THE LOOP'S ENTRY, when the caller
+// has them (at). A merge sort swaps two buffers on its back edge, so the edge
+// passes a table of length len b where len a is wanted; they are equal because
+// both are the n of their `build`, which the entry facts say and their
+// spellings do not. Every name in a length is bound outside the loop and
+// immutable, so what the entry facts prove of it holds at every iteration.
+//
+// lens[i] is variable i's length or nil; inner is env with every variable bound,
+// to its length or to nil.
+func (r *refiner) threadLengths(lam *core.Term, inits []*core.Term, env map[string]*linear, depth int, at *facts) ([]*linear, map[string]*linear) {
+	inner := map[string]*linear{}
+	for k, v := range env {
+		inner[k] = v
+	}
+	lens := make([]*linear, len(lam.Params))
+	for i, n := range lam.Params {
+		inner[n] = nil
+		if i < len(inits) {
+			if e, ok := r.valueLength(inits[i], env, depth+1); ok {
+				lens[i], inner[n] = e, e
+			}
+		}
+	}
+	for {
+		bad := r.againDisagrees(lam.Body(), lens, inner, depth+1, at)
+		if bad < 0 {
+			return lens, inner
+		}
+		lens[bad], inner[lam.Params[bad]] = nil, nil
+	}
+}
+
+// againDisagrees finds a back edge of THIS loop that passes, at a position whose
+// length was established from the initial value, something not of that length,
+// and returns the position; -1 when every back edge agrees at every such
+// position. A nested loop owns its own `again` and is skipped — the same rule
 // `nonDecreasing` needs, and for the same reason.
-func (r *refiner) againAgree(t *core.Term, lens []*linear, env map[string]*linear, depth int) bool {
+func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env map[string]*linear, depth int, at *facts) int {
+	same := func(got, want *linear) bool {
+		if got.String() == want.String() {
+			return true
+		}
+		return at != nil && at.entails(got.addScaled(want, -1)) && at.entails(want.addScaled(got, -1))
+	}
+	bad := -1
 	if t == nil || depth > 16 {
-		return false
+		// Too deep to check: nothing is established, so every position goes.
+		for i, want := range lens {
+			if want != nil {
+				return i
+			}
+		}
+		return -1
 	}
 	ok := true
-	var walk func(*core.Term)
-	walk = func(t *core.Term) {
+	// THE WALK CARRIES THE LENGTHS OF THE NAMES BOUND ON ITS WAY DOWN. A back
+	// edge often passes a name bound in the body, `(let (set w i x) (fn (w2)
+	// (again w2 …)))`, and w2 has the length of what it is bound to. A binder
+	// with no known length is bound to nil, so it cannot be read as the free
+	// name it may share a spelling with.
+	var walk func(*core.Term, map[string]*linear)
+	walk = func(t *core.Term, env map[string]*linear) {
 		if t == nil || !ok {
+			return
+		}
+		if v, lam, isLet := asLet(r.tgt, t); isLet {
+			walk(v, env)
+			inner := map[string]*linear{}
+			for k, e := range env {
+				inner[k] = e
+			}
+			if e, have := r.valueLength(v, env, depth+1); have {
+				inner[lam.Params[0]] = e
+			} else {
+				inner[lam.Params[0]] = nil
+			}
+			walk(lam.Body(), inner)
 			return
 		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
@@ -1960,8 +2151,8 @@ func (r *refiner) againAgree(t *core.Term, lens []*linear, env map[string]*linea
 						continue
 					}
 					got, have := r.valueLength(t.Args()[i], env, depth+1)
-					if !have || got.String() != want.String() {
-						ok = false
+					if !have || !same(got, want) {
+						ok, bad = false, i
 						return
 					}
 				}
@@ -1973,15 +2164,22 @@ func (r *refiner) againAgree(t *core.Term, lens []*linear, env map[string]*linea
 		}
 		switch t.Kind {
 		case core.KFn:
-			walk(t.Body())
+			inner := map[string]*linear{}
+			for k, e := range env {
+				inner[k] = e
+			}
+			for _, y := range t.Params {
+				inner[y] = nil
+			}
+			walk(t.Body(), inner)
 		case core.KApp:
 			for _, k := range t.Kids {
-				walk(k)
+				walk(k, env)
 			}
 		}
 	}
-	walk(t)
-	return ok
+	walk(t, env)
+	return bad
 }
 
 // isTable reports whether a name in operator position is a table rather than an

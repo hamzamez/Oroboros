@@ -1,0 +1,93 @@
+; lines: NUMBER THE LINES OF STANDARD INPUT AND SUM ONE COLUMN.
+;
+;   lines [COLUMN] < FILE
+;
+; It prints every line with its number, as `nl` does, then one summary line:
+; how many lines, and the sum of the integers in the given whitespace-separated
+; column (the first, by default).
+;
+; WHAT IT IS. bufio.oro gives the line split λ : B* → (B*)*, and a Scanner is a
+; cursor into λ(x). This program is ONE FOLD over λ(x), with the state
+;
+;     (n, sum, used) ∈ ℕ × ℤ × ℕ
+;
+; and the step  (n, sum, used), ℓ ↦ (n + 1, sum + v(ℓ), used + 1)  when the
+; column of ℓ holds a numeral v(ℓ) in range, and (n + 1, sum, used) otherwise.
+; The fold is driven by the host, one Scan per step, so it runs in constant
+; space on an input of any length: the line is the only thing held.
+;
+; THE LIMITS ARE STATED, and they are what make its arithmetic provable. The
+; input is unbounded, so nothing bounds a count or a sum of it. The tool
+; accepts at most 2^24 lines and sums values of magnitude at most 10^11, so
+; |sum| ≤ 2^24 · 10^11 ≈ 1.68 · 10^18 < 2^63 ≈ 9.22 · 10^18. A value outside
+; that is not summed and not counted in `used`, which the summary shows; a
+; longer input stops with a message. A capacity does not create a limit, it
+; makes it visible (wc.oro).
+;
+; The first draft said 10^12 and claimed the same inequality. It is false,
+; 2^24 · 10^12 ≈ 1.68 · 10^19, and the compiler refused `(+ sum v)` naming
+; that interval (bufio-2026-10-01).
+;
+; A FIELD THAT IS NOT THERE IS THE EMPTY WORD, which is not a numeral, so
+; ParseInt answers it with an error like any other non-number. That is the
+; partial function's own domain doing the work, with no second test.
+;
+; OUTPUT IS BUFFERED, and an error on it is sticky (bufio.oro), so the writes'
+; results are not tested one by one: Flush reports the first failure.
+(use go)
+(use go/os as gos)
+(use go/bufio as bufio)
+(use go/bufio/Scanner as Scanner)
+(use go/bufio/Writer as Writer)
+(use go/strings as strings)
+(use go/strconv as strconv)
+(use go/fmt as fmt)
+
+(export main)
+
+(def cap-lines 16777216)
+(def cap-value 100000000000)
+(def cap-column 65536)
+
+; A message on standard error, and the status of a failed run.
+(def fail (msg)
+  (let (tuple w e) (fmt.Fprintln (gos.Stderr) msg)
+    1))
+
+; The end of the input, or the first error reading it. The summary goes out
+; only when every line was read.
+(def finish (in out col n sum used)
+  (if (not (go.err-nil (Scanner.Err in)))
+      (seq (Writer.Flush out) (fail "lines: cannot read standard input"))
+      (let (tuple w1 e1) (fmt.Fprintf3 out "%d lines; column %d: %d values, sum " n col used)
+           (tuple w2 e2) (fmt.Fprintln out sum)
+        (if (go.err-nil (Writer.Flush out))
+            0
+            (fail "lines: cannot write standard output")))))
+
+; Whether a parse gave a value this tool sums.
+(def summed (pe v)
+  (and (go.err-nil pe) (>= v (- 0 cap-value)) (<= v cap-value)))
+
+(def run (col)
+  (let in  (bufio.NewScanner (gos.Stdin))
+       out (bufio.NewWriter (gos.Stdout))
+    (loop ((n 0) (sum 0) (used 0))
+      (not (Scanner.Scan in))  (finish in out col n sum used)
+      (>= n cap-lines)         (seq (Writer.Flush out) (fail "lines: more than 16777216 lines"))
+      else
+        (let line (Scanner.Text in)
+             fs   (strings.Fields line)
+             (tuple w e)  (fmt.Fprintf2 out "%6d\t%s\n" (+ n 1) line)
+             (tuple v pe) (strconv.ParseInt (if (< (len fs) col) "" (fs (- col 1))) 10 64)
+          (again (+ n 1)
+                 (if (summed pe v) (+ sum v) sum)
+                 (if (summed pe v) (+ used 1) used))))))
+
+(def main ()
+  (let av (gos.Args)
+       (tuple col e) (strconv.Atoi (if (< (len av) 2) "1" (av 1)))
+       status (if (and (go.err-nil e) (>= col 1) (<= col cap-column))
+                  (run col)
+                  (fail "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)"))
+    (gos.Exit status)))

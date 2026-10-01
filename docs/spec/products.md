@@ -147,6 +147,14 @@ when the pass landed, the one exception being the program whose source was rewri
 itself with products — because ADR 0018's threading means a buffer's name changes at every binder,
 and detection must follow the same aliasing the rewrite does.
 
+**Through a loop it did not, until bufio-2026-10-01.** The pass recognised a loop by a primitive
+kind, `loop`, that nothing has: the language's `loop` is declared with kind `iterate`. Its two loop
+branches never ran. The arity reached a loop variable only when the variable was spelled like the
+buffer, `(loop ((t t) …))`, through the generic descent matching names; `(loop ((u t) …))` was
+refused as a store into a frozen table. The kind is the real one now, and
+`TestTheArityFollowsADifferentlyNamedLoopVariable` holds it. It surfaced when the residual's binders
+were named apart ([state.md](state.md)), which took the coincidence away.
+
 ## 6. What the compiler must prove, and the three facts it needed
 
 A projection becomes `(t (+ (* k i) j))`, whose bounds obligation is `k·i + j < len t` — and the

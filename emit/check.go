@@ -502,7 +502,13 @@ func (c *checker) cond(args []*core.Term, want string) (string, error) {
 		}
 		return a, c.agree("a conditional", a, want)
 	}
+	// TWO COMPARABLE BRANCHES OF ONE REPRESENTATION JOIN AT THE LARGER
+	// (types.md §3.2, Target.JoinSameRepr): by subsumption each branch has the
+	// larger type, so the conditional does.
 	if !compatible(c.tgt, a, b) {
+		if j, ok := c.tgt.JoinSameRepr(a, b); ok {
+			return j, c.agree("a conditional", j, want)
+		}
 		return "", fmt.Errorf("the branches of a conditional are %s and %s", a, b)
 	}
 	// The more informative of the two survives, so a known branch still

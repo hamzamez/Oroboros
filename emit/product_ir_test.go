@@ -138,3 +138,26 @@ func TestTheArityTravelsThroughLoopAndLet(t *testing.T) {
 		t.Errorf("the arity did not reach the reader through the let:\n%s", got)
 	}
 }
+
+// THE ARITY FOLLOWS THE BUFFER, NOT ITS NAME (bufio-2026-10-01). The loop that
+// fills a product buffer rebinds it, here as `u`. The pass tested for a kind,
+// "loop", that no primitive has (the language's loop is "iterate"), so its
+// propagation never ran: it found the stores only where the loop variable was
+// spelled like the buffer, which the hygiene pass no longer allows.
+func TestTheArityFollowsADifferentlyNamedLoopVariable(t *testing.T) {
+	got, err := genFlat(t, `
+(use go)
+(export mk)
+(sig mk ((n (int 1 100))) (array int))
+(def mk (fn (n)
+  (build n (fn (t)
+    (loop ((u t) (i 0))
+      (>= i n)  (set (u 0) 1 7)
+      else      (again (set u i (tuple i 0)) (+ i 1)))))))`, "mk")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`:= \(2 \* v\d+\)\n\tv\d+ := make\(\[\]int, v\d+\)`).MatchString(got) {
+		t.Errorf("the capacity is in slots, two per element:\n%s", got)
+	}
+}

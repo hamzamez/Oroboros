@@ -78,17 +78,32 @@ func TestAResidualCanBeOpenedByItsHints(t *testing.T) {
 	}
 }
 
-// AND IT RENAMES NOTHING THAT DOES NOT NEED IT. A shadowing binder whose body
-// never mentions the outer variable is harmless by name as well as by index, and
-// renaming it would change emitted code for no reason — which is what keeps
-// every program without a latent capture byte-identical.
-func TestHygieneLeavesHarmlessShadowingAlone(t *testing.T) {
+// A BINDER NEVER REUSES AN ENCLOSING BINDER'S NAME, even when its body never
+// mentions the outer variable (bufio-2026-10-01). The term is faithful either
+// way; what is not is a CONTEXT keyed by name. The refinement layer's facts
+// about an outer `i` were read as facts about an inner `i`, and a loop
+// variable that shadowed a parameter declared in [0, 5] was given that range.
+// This test once pinned the opposite, as "harmless shadowing".
+func TestHygieneRenamesABinderThatShadows(t *testing.T) {
 	in := Fn([]string{"i"}, App(Name("let"), App(Name("f"), Name("i")),
 		Fn([]string{"i"}, App(Name("g"), Name("i")))))
-	if out := hygienic(in); out.String() != in.String() {
-		t.Errorf("renamed a binder that captured nothing:\n  in:  %s\n  out: %s", in, out)
+	want := "(fn (i) (let (f i) (fn (i1) (g i1))))"
+	if out := hygienic(in); out.String() != want {
+		t.Errorf("a shadowing binder kept its name:\n  in:   %s\n  out:  %s\n  want: %s", in, out, want)
 	}
 	if _, ok := faithful(in); !ok {
 		t.Errorf("the control is itself unfaithful, so it controls nothing")
+	}
+}
+
+// AND IT RENAMES NOTHING ELSE. Two binders that are not nested are in no
+// common scope, so no context holds both, and they keep their names: a program
+// with no shadowing keeps every name it had.
+func TestHygieneLeavesSiblingBindersAlone(t *testing.T) {
+	in := Fn([]string{"n"}, App(Name("pair"),
+		App(Name("let"), App(Name("f"), Name("n")), Fn([]string{"i"}, App(Name("g"), Name("i")))),
+		App(Name("let"), App(Name("h"), Name("n")), Fn([]string{"i"}, App(Name("g"), Name("i"))))))
+	if out := hygienic(in); out.String() != in.String() {
+		t.Errorf("renamed a binder that shadows nothing:\n  in:  %s\n  out: %s", in, out)
 	}
 }

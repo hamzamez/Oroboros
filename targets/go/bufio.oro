@@ -1,0 +1,87 @@
+; bufio, DECLARED BY HAND, PROGRAM FIRST. Every claim below was read off
+; src/bufio/scan.go and src/bufio/bufio.go in the Go 1.27 toolchain. What is
+; declared is what examples/lines/lines.oro calls; the header names the rest.
+;
+; THE ALGEBRA.
+;   B = [0, 255], and LF = 10, CR = 13.
+;
+;   THE LINES OF A STREAM. Every x ∈ B* factors UNIQUELY as
+;       x = u₀ LF u₁ LF … LF u_k      with no LF in any uᵢ,
+;   because B* is free and LF is one letter: k is the number of LFs. The line
+;   split is
+;       λ(x) = (c(u₀), …, c(u_{k−1}))            when u_k = ε,
+;       λ(x) = (c(u₀), …, c(u_{k−1}), c(u_k))    otherwise,
+;   where c drops one trailing CR. So |λ(x)| = k + [u_k ≠ ε], a final LF ends a
+;   line and does not begin one, and a token never contains LF. λ is not
+;   injective: it forgets CRs before LFs and whether the last line was ended.
+;
+;   A SCANNER is a cursor into λ(x), read once, forward. Scan advances it and
+;   answers whether a token is there; Text is the token under it. So the loop
+;       while Scan() { … Text() … }
+;   is the fold of its body over λ(x), an unfold driven by the host: a stream
+;   in Gibbons's sense (origami programming), consumed as it is produced.
+;   Scan is false exactly when the tokens ran out or reading failed, and Err
+;   then tells which: nil at the end of the input, the first error otherwise.
+;
+;   THE BOUND. A token is under MaxScanTokenSize bytes: a line of 65,536 or
+;   more fills the buffer before its LF is seen, and Scan stops with
+;   ErrTooLong. So a program's line is at most 65,535 bytes, a fact of this
+;   file as long as it does not declare Scanner.Buffer, which moves the bound.
+;   cmd/build's TestLinesFoldsTheLineSplit runs both sides of it: a token of
+;   65,535 bytes is read and one of 65,536 ends the scan.
+;
+;   A WRITER is a monoid action made lazy. Writing w₁, …, wₙ and then Flush
+;   puts w₁·…·wₙ on the underlying writer: the same bytes the unbuffered
+;   writes would put, in fewer, larger writes. Before Flush a suffix of them
+;   is still in the buffer, so a program that exits without Flush loses it.
+;   A write error is STICKY: "no more data will be accepted and all subsequent
+;   writes, and Flush, will return the error". So a program need not test
+;   every write; Flush reports the first failure.
+;
+; PURITY. Nothing here is pure. Scan moves the cursor, Text and Err read what
+; Scan wrote (the law at-map broke, gotarget-2026-09-30 §13), and a
+; constructor's result has identity.
+;
+; WHAT IS NOT DECLARED, and what stops it:
+;   - Scanner.Bytes: its slice aliases the scanner's buffer and "may be
+;     overwritten by a subsequent call to Scan". An `(array …)` is immutable,
+;     so this is a BORROW that ends at the next Scan, and the language has no
+;     borrow that a later call ends. Text copies, and is declared.
+;   - Scanner.Split and the SplitFunc type: a callback, tiers 1 and 2, not
+;     built. ScanLines, ScanWords, ScanRunes and ScanBytes are split functions,
+;     callable directly but useful only through Split.
+;   - Scanner.Buffer: declarable, and it would make the bound above false.
+;   - Reader and ReadWriter, 30 methods: work, not walls, except ReadSlice,
+;     ReadLine and Peek, which return the same kind of borrow as Bytes.
+;   - the rest of Writer (Write, WriteByte, WriteRune, Available, Buffered,
+;     Size, Reset, ReadFrom, AvailableBuffer): work.
+;   - the error variables (ErrTooLong, …): package variables, as io.EOF is.
+(target go
+  (module go/bufio
+    (type Scanner (host "*bufio.Scanner"))
+    (type Writer  (host "*bufio.Writer"))
+
+    (const MaxScanTokenSize 65536 (host "bufio.MaxScanTokenSize" (import "bufio")))
+
+    ; The split function is ScanLines until Split says otherwise, and Split is
+    ; not declared, so every Scanner a program holds splits lines.
+    (sig NewScanner ((r go/io.Reader)) Scanner (host expr "bufio.NewScanner(%s)" (import "bufio")))
+    ; The default size, 4096 bytes.
+    (sig NewWriter ((w go/io.Writer)) Writer (host expr "bufio.NewWriter(%s)" (import "bufio")))
+
+    (module Scanner
+      (sig Scan ((self Scanner)) bool (host expr "%s.Scan()" (import "bufio")))
+      ; The token as a new string of its bytes. Any bytes: a line of a file is
+      ; not text until it is decoded (ADR 0030).
+      (sig Text ((self Scanner)) bytestring (host expr "%s.Text()" (import "bufio")))
+      (sig Err ((self Scanner)) error (host expr "%s.Err()" (import "bufio"))))
+
+    (module Writer
+      ; n < len p exactly when err is not nil, on both: io.Writer's law.
+      (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.Write(%s)" (import "bufio")))
+      (sig WriteString ((self Writer) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+        (host expr "%s.WriteString(%s)" (import "bufio")))
+      (sig Flush ((self Writer)) error (host expr "%s.Flush()" (import "bufio")))))
+
+  (implements go/bufio.Writer go/io.Writer go/io.StringWriter))

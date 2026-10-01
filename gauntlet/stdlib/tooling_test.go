@@ -1173,6 +1173,33 @@ var handDeclared = []handEntry{
 			"go/io.Discard":          "a package VARIABLE; the survey generates functions, methods and constants",
 		}, []string{"go/io/Reader", "go/io/Writer", "go/io/Closer", "go/io/ReadCloser", "go/io/WriteCloser",
 			"go/io/ReadWriter", "go/io/ByteReader", "go/io/ByteWriter", "go/io/StringWriter"}, nil},
+	// PROGRAM FIRST (bufio-2026-10-01): what examples/lines/lines.oro calls,
+	// and Writer.Write, which the io.Writer edge demands.
+	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer"},
+		bufioMistakes, true, nil, nil, nil},
+}
+
+// bufioMistakes: a token as OUR string (a line of a file is bytes until it is
+// decoded, ADR 0030, and the checker cannot see that, so this one is the
+// mechanical neighbour: a byte table), Scan with a result it does not have,
+// and the mechanical ones.
+var bufioMistakes = map[string]func(m map[string]emit.Prim){
+	"NewScanner over a File, not an io.Reader": func(m map[string]emit.Prim) {
+		p := m["NewScanner"]
+		p.Args = []string{"go/os.File"}
+		m["NewScanner"] = p
+	},
+	"NewWriter returning a Scanner": func(m map[string]emit.Prim) {
+		p := m["NewWriter"]
+		p.Result = "go/bufio.Scanner"
+		m["NewWriter"] = p
+	},
+	"a template calling the wrong host function": func(m map[string]emit.Prim) {
+		p := m["NewScanner"]
+		p.Form = strings.ReplaceAll(p.Form, "bufio.NewScanner(", "bufio.NewReader(")
+		m["NewScanner"] = p
+	},
+	"a name the host lacks": func(m map[string]emit.Prim) { m["Bogus"] = m["NewWriter"] },
 }
 
 // stringsMistakes: the four disagreements this file had (a host alias for the

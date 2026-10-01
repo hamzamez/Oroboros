@@ -201,6 +201,48 @@ the scope's value is the `array (int 0 255)` that `os.text-of` reads.
 options. And an element is not solved through a copy: `(let t b …)` gives `t` the type `b` had when
 bound.
 
+### 3.2 Subsumption at a join (2026-10-01)
+
+A target declares a subsumption A ≤ B with `implements`: a value of type A may stand where a B is
+wanted, and the coercion is the identity (ADR 0030's `string ≤ go.bytestring`; a concrete type below
+its interface). At an argument the direction is plain: the value flows into the parameter.
+
+A conditional is a **join point**: either branch's value flows into its result. So its type is
+constrained from below by both, ty(a) ≤ ty(if) and ty(b) ≤ ty(if), and the least solution is the
+join:
+
+```
+Γ ⊢ c : bool    Γ ⊢ a : A    Γ ⊢ b : B    A ≤ B    ρ(A) = ρ(B)
+──────────────────────────────────────────────────────────────
+Γ ⊢ (if c a b) : B
+```
+
+and the mirror with B ≤ A. So `(if (< (len fs) col) "" (fs i))`, a literal on one side and a host
+string on the other, is a host string. It is not a `string`: the way back is a decode (ADR 0030),
+and a signature declaring one is refused.
+
+Two side conditions, each a limit and stated as one:
+- **A and B are comparable, strictly.** A least upper bound of two incomparable types need not exist
+  or be unique (`*os.File` and `*strings.Builder` are both an `io.Writer` and an `io.StringWriter`),
+  and choosing one would be inference the declared relation does not license. Two names of one host
+  type subsume each other and are equal already.
+- **ρ(A) = ρ(B): one host representation.** The IR types a join by the same rule (below), and its
+  value is held in one host variable. With `string` and `go.bytestring`, both Go's `string`, nothing
+  is converted. A concrete type and its interface are two host types; holding their join at the
+  interface is **not built**, and the checker refuses it with *"the branches of a conditional are …"*
+  so that W5 does not refuse it later with a worse message.
+
+The relation is `emit.Target.JoinSameRepr`, one definition. **The IR reads the same one**
+(`ir/typing.go`, `joinFlows`): unification solves equations, and a join is an inequality, so after
+unifying, each value that several values flow into (an `if`'s result, a loop's parameter and result,
+a function's result) is raised to the join of its sources' types while one is strictly larger. Types
+only move up a finite order, so it ends. A source keeps its own type.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| the join is the larger | the smaller returned | `TestAConditionalJoinsAtTheLarger` |
+| the IR raises a function's result | the first yield's type kept | the same test |
+
 ## 4. The structural forms
 
 Their types are the language's, not a target file's ([target-files.md §4](target-files.md)):
@@ -208,7 +250,7 @@ Their types are the language's, not a target file's ([target-files.md §4](targe
 | | |
 |---|---|
 | **`loop`/`again`** | each variable takes its initial value's type (walked outside the loop's scope); each `again` argument agrees with the variable it feeds; each exit agrees with the loop's type. A clause body may sit under a `let` or a host call's continuation, and the chain is walked through both (ADR 0015, ADR 0027) |
-| **`if`** — `(if c t e)` | `c : bool`; the branches agree. Two integer branches **join in ℤ**, and the wider types the conditional |
+| **`if`** — `(if c t e)` | `c : bool`; the branches agree. Two integer branches **join in ℤ**, and the wider types the conditional. Two branches comparable under a declared subsumption, of one representation, join at the larger (§3.2) |
 | **`let`** | the binder takes the value's type, for the body |
 | **a host call with several results** | its arguments are demanded as declared; the continuation's parameters take the declared results, and the term has its body's type |
 | **a tuple from a loop or a scope** | each projection Pⱼ is walked, and its type is the j-th name's (ADR 0031, [tables.md §2.5](tables.md)) |

@@ -382,6 +382,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 			f.Types[pi.V] = f.Types[pi.Of]
 		}
 	})
+	joinFlows(tg, f)
 	// The function's results are the types of what its body yields.
 	f.Results = nil
 	var first func(r *Region) []V
@@ -399,6 +400,98 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 	}
 	for _, v := range first(f.Body) {
 		f.Results = append(f.Results, f.Types[v])
+	}
+	// A result is what EVERY yield flows into, so it is their join where they
+	// are comparable (joinFlows); the first yield's type otherwise, and W5
+	// judges the others against it.
+	var all func(r *Region)
+	all = func(r *Region) {
+		switch r.T {
+		case TYield:
+			for j, v := range r.Args {
+				if j < len(f.Results) {
+					if t, ok := tg.JoinSameRepr(f.Results[j], f.Types[v]); ok {
+						f.Results[j] = t
+					}
+				}
+			}
+		case TBranch:
+			all(r.Then)
+			all(r.Else)
+		}
+	}
+	all(f.Body)
+}
+
+// joinFlows raises each value that several values flow into to the join of
+// their types (emit.Target.JoinSameRepr, types.md §3.2).
+//
+// Unification solves EQUATIONS, and a join point is not one: into an `if`'s
+// result, a loop's parameter or its result, the incoming values FLOW, and the
+// constraint is ty(source) ≤ ty(join). Where two sources' atoms clash,
+// unification leaves the join with whichever it met first, and W5 then judges
+// the other against it. With string ≤ go.bytestring that refused
+// `(if c "" b)` as a result whenever the literal came first.
+//
+// So the least solution of the flow inequalities is taken over the declared
+// order: each join starts at its unified type and is raised while a source is
+// strictly larger. Types only move up a finite order, so the iteration ends.
+// Nothing is lowered, and a source keeps its own type: the literal is still a
+// `string`.
+func joinFlows(tg *emit.Target, f *Func) {
+	for changed := true; changed; {
+		changed = false
+		raise := func(dst, src V) {
+			if dst < 0 || src < 0 || f.Types[dst] == f.Types[src] {
+				return
+			}
+			if t, ok := tg.JoinSameRepr(f.Types[dst], f.Types[src]); ok && t != f.Types[dst] {
+				f.Types[dst], changed = t, true
+			}
+		}
+		flowTo := func(r *Region, k Term, res []V) {
+			var walk func(r *Region)
+			walk = func(r *Region) {
+				if r.T == k {
+					for j, a := range r.Args {
+						if j < len(res) {
+							raise(res[j], a)
+						}
+					}
+				}
+				if r.T == TBranch {
+					walk(r.Then)
+					walk(r.Else)
+				}
+			}
+			walk(r)
+		}
+		f.Walk(func(r *Region) {
+			for _, pi := range r.Pis {
+				raise(pi.V, pi.Of)
+			}
+			for i := range r.Stmts {
+				s := &r.Stmts[i]
+				switch s.Op {
+				case OIf:
+					flowTo(s.Sub[0], TYield, s.Res)
+					flowTo(s.Sub[1], TYield, s.Res)
+				case OLoop:
+					body := s.Sub[0]
+					for j, p := range body.Params {
+						if j < len(s.Args) {
+							raise(p, s.Args[j])
+						}
+					}
+					flowTo(body, TContinue, body.Params)
+					flowTo(body, TBreak, s.Res)
+				case OThe, ORestrict:
+					if len(s.Res) == 1 && len(s.Args) >= 1 {
+						raise(s.Res[0], s.Args[0])
+					}
+				}
+			}
+		})
 	}
 }
 

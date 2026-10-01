@@ -368,7 +368,7 @@ func (f *flattener) walk(t *core.Term) (*core.Term, error) {
 	// that fills it, so without propagation the arity is known for exactly one
 	// term and lost immediately. ADR 0018's threaded buffer travels through
 	// `loop` variables and `let`s, and the arity travels with it.
-	if f.isKind(t, "loop") && len(t.Kids) >= 2 && t.Kids[1].Kind == core.KFn {
+	if f.isKind(t, "iterate") && len(t.Kids) >= 2 && t.Kids[1].Kind == core.KFn {
 		lam := t.Kids[1]
 		inits := t.Kids[2:]
 		body, raw, _ := openFresh(lam, map[string]bool{}, mangle)
@@ -502,7 +502,7 @@ func (f *flattener) storedArity(body *core.Term, name string) int {
 		if t == nil || found < 0 {
 			return
 		}
-		if f.isKind(t, "loop") && len(t.Kids) >= 2 && t.Kids[1].Kind == core.KFn {
+		if f.isKind(t, "iterate") && len(t.Kids) >= 2 && t.Kids[1].Kind == core.KFn {
 			b, raw, _ := openFresh(t.Kids[1], map[string]bool{}, mangle)
 			for i, z := range t.Kids[2:] {
 				if i < len(raw) && alias[rootOf(z)] {

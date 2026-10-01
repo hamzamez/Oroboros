@@ -225,6 +225,13 @@ equations. The algebra is taken modulo two identifications:
 - **`any` is the top of the language's type relation** (types.md), not a constructor: it satisfies
   every equation and fixes nothing.
 
+**A join is an inequality, not an equation.** Into an `if`'s result, a loop's parameter or result,
+and the function's result, values *flow*: ty(source) ≤ ty(join) under the target's declared
+subsumption. Unification leaves such a value with whichever source it met first. So after solving,
+`joinFlows` raises each one to the join of its sources' types, where they are strictly comparable and
+of one representation (types.md §3.2, `emit.Target.JoinSameRepr`). `(if c "" b)` with b a
+`go.bytestring` is a `go.bytestring`, whichever branch comes first.
+
 A buffer and a table are one sort, and which one a value is, is the least solution of the flow rules
 of ADR 0018 and 0020. A range is written only where a definition **declares** one (a signature, a
 primitive's result, an ascription). Every other integer is `int`, the target's word, until the

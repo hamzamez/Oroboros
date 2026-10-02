@@ -209,6 +209,14 @@ func termShow(a iv) string {
 // ToP is the step from IR_A to IR_P for one decided function: Finalize, then
 // the verifier (W1–W10).
 func ToP(tg *emit.Target, f *Func) error {
+	// NOTHING IS PRINTED FROM A RESIDUAL THAT STILL CARRIES AN OBLIGATION. Every
+	// printer comes through here, so this is where "decided" is required and
+	// not assumed (hazard-2026-10-02).
+	if f.undecided > 0 {
+		return fmt.Errorf("%s: %d contract obligation(s) reached the printer undecided: the residual was "+
+			"lowered with its marks, so nothing proved them. Decide them first (ir.DecideMarks, which "+
+			"ir.Entry and every FromResidual call)", f.Name, f.undecided)
+	}
 	p := &Program{Target: tg.Name, Funcs: []*Func{f}}
 	if err := Finalize(tg, p); err != nil {
 		return err

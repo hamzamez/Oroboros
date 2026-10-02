@@ -53,6 +53,11 @@ func refineGo(t *testing.T, src string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// THIS HELPER TESTS THE REFINEMENT LAYER ALONE, which requires its residual's
+	// contract marks decided (Undecided). Their decision is the pipeline's
+	// (ir.DecideMarks, which this package cannot import) and is tested through
+	// it; here they are erased, on purpose and in sight.
+	nf = core.StripRequires(nf)
 	_, err = Refine(tg, "test", sig, nf)
 	return err
 }

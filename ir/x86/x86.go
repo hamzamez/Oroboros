@@ -40,6 +40,10 @@ var (
 // FromResidual lowers a residual, finalises it to IR_P, verifies it and
 // prints it: the whole of step 3 for one exported definition.
 func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {
+	nf, err := ir.DecideMarks(tg, name, sig, nf, nil)
+	if err != nil {
+		return "", err
+	}
 	f, err := ir.Lower(tg, name, sig, nf, ir.Options{Decided: true})
 	if err != nil {
 		return "", err

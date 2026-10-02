@@ -76,19 +76,24 @@ type Env struct {
 	// so a compile is deterministic.
 	fresh int
 
-	// Requires and OnRequire MEASURE what enforcing a definition's parameter
-	// ranges at its calls would refuse, before anything is enforced. For each
-	// definition named in Requires — its entry lists a declared range per
-	// parameter, "" for none — every direct call has each ranged argument wrapped
-	// in a mark, `(#req "def" "param" "type" a)`, whose value is a. A mark whose
-	// argument reduces to a literal is decided here, handed to OnRequire and
-	// dropped; the rest reach the residual, where the interval analysis decides
-	// them and a caller strips them before anything else runs
-	// (emit.MeasureRequires). The marks change no reduction decision: an argument
-	// is an integer, and the only rule that inspects one's shape — duplicable —
-	// looks through the mark.
-	Requires  map[string][]string
-	OnRequire func(def, param, ty string, arg *Term)
+	// Requires are the contracts whose parameter ranges are obligations at
+	// their calls (ADR 0028). For each name in it — its entry lists a declared
+	// range per parameter, "" for none — every direct call has each ranged
+	// argument wrapped in a mark, `(#req "def" "param" "type" a)`, whose value
+	// is a. The marks change no reduction decision: an argument is an integer,
+	// and the only rule that inspects one's shape — duplicable — looks through
+	// the mark.
+	//
+	// THE OBLIGATIONS OF A PROGRAM ARE IN ITS RESIDUAL, and nowhere else
+	// (hazard-2026-10-02). A mark whose argument reduces to a literal is
+	// decided here by InRange: one inside the range is dropped, and one outside
+	// it STAYS, a mark no decider can prove. It used to go to a callback that
+	// only a driver installed, and with no callback there were no marks at all,
+	// so which obligations a program had depended on who compiled it.
+	Requires map[string][]string
+	// InRange decides a literal against a declared range. nil decides nothing,
+	// and every literal mark stays.
+	InRange func(ty string, v int64) bool
 	// ReqParams names the parameters of a name in Requires that is not a
 	// definition — a host function, whose declared parameter ranges are
 	// obligations at its calls as a definition's are (ADR 0028,
@@ -98,9 +103,10 @@ type Env struct {
 	// Wheres are the definitions whose `where` is an obligation at their calls
 	// (ADR 0028). At β the clause is instantiated with the arguments as β
 	// passes them — an impure one already bound to a name, so nothing is
-	// duplicated — and reduced: `true` leaves nothing, `false` is reported to
-	// OnRequire with the parameter "where", and anything else marks the call's
-	// result, `(#reqw "def" cond body)`, for the analyses to decide.
+	// duplicated — and reduced: `true` leaves nothing, and anything else marks
+	// the call's result, `(#reqw "def" cond body)`, for the analyses to decide.
+	// A clause that reduced to `false` is marked with the clause as written, so
+	// the refusal can show it.
 	Wheres map[string]WhereContract
 
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
@@ -227,6 +233,19 @@ func IsRequire(t *Term) bool {
 	return t != nil && t.Kind == KApp && len(t.Kids) == 5 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireName
 }
 
+// RequireFalseName wraps the condition of a where-mark that reduced to false:
+// `(#false cond)`, where cond is the clause as instantiated, kept for the
+// refusal. It is not a primitive of any target, so no prover reads through it.
+const RequireFalseName = "#false"
+
+// IsRequireFalse recognises that condition, and returns the clause.
+func IsRequireFalse(t *Term) (*Term, bool) {
+	if t != nil && t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == RequireFalseName {
+		return t.Kids[1], true
+	}
+	return nil, false
+}
+
 // RequireWhereName marks a call's result with its definition's instantiated
 // `where` (ADR 0028): `(#reqw "def" cond body)`, whose value is body.
 const RequireWhereName = "#reqw"
@@ -287,10 +306,13 @@ func (e *Env) markWhere(def string, subs, args []*Term, body *Term, fuel *int) (
 		return nil, err
 	}
 	if cond.Kind == KBool {
-		if !cond.IsTrue() && e.OnRequire != nil {
-			e.OnRequire(def, "where", "", subst(w.Cond, m))
+		if cond.IsTrue() {
+			return body, nil
 		}
-		return body, nil
+		// FALSE AT THIS CALL. The mark carries the false literal, which nothing
+		// proves, and the instantiated clause for the message.
+		return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(def),
+			App(Name(RequireFalseName), subst(w.Cond, m)), body}}, nil
 	}
 	return &Term{Kind: KApp, Kids: []*Term{Name(RequireWhereName), Str(def), cond, body}}, nil
 }
@@ -1497,14 +1519,15 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		return FnClosed(t.Params, b), nil
 
 	case KApp:
-		if e.OnRequire != nil && t.Op().Kind == KName {
+		if e.Requires != nil && t.Op().Kind == KName {
 			if t.Op().Name == RequireName && len(t.Kids) == 5 {
 				a, err := normalize(t.Kids[4], e, fuel)
 				if err != nil {
 					return nil, err
 				}
-				if a.Kind == KInt {
-					e.OnRequire(t.Kids[1].Str, t.Kids[2].Str, t.Kids[3].Str, a)
+				// A LITERAL IN ITS RANGE is the obligation discharged, by
+				// evaluation. One outside it keeps its mark.
+				if a.Kind == KInt && e.InRange != nil && e.InRange(t.Kids[3].Str, a.Int) {
 					return a, nil
 				}
 				return &Term{Kind: KApp, Kids: []*Term{t.Kids[0], t.Kids[1], t.Kids[2], t.Kids[3], a}}, nil

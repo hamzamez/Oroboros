@@ -103,7 +103,7 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 			f.Results[0] = sig.Result
 		}
 	}
-	f.marks = l.marks
+	f.marks, f.undecided = l.marks, l.undecided
 	Canonicalize(f)
 	return f, nil
 }
@@ -163,6 +163,8 @@ type lowerer struct {
 	sig   *core.Sig
 	top   []string // the function's parameter hints, which the interval analysis keys its signature by
 	marks map[*core.Term][]V
+	// undecided counts the contract marks met (Func.undecided).
+	undecided int
 }
 
 func (l *lowerer) fail(format string, args ...any) {
@@ -292,6 +294,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	// argument values are recorded, for the obligation ⟦a⟧ ∈ ⟦τ⟧
 	// (DischargeRanges).
 	if core.IsRequire(t) {
+		l.undecided++
 		vs := l.value(t.Kids[4], r)
 		if l.marks == nil {
 			l.marks = map[*core.Term][]V{}
@@ -300,6 +303,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return vs
 	}
 	if core.IsRequireWhere(t) {
+		l.undecided++
 		return l.value(t.Kids[3], r)
 	}
 	switch t.Kind {
@@ -647,6 +651,7 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 		return
 	}
 	if core.IsRequireWhere(t) {
+		l.undecided++
 		l.tail(t.Kids[3], r, loop)
 		return
 	}

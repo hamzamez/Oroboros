@@ -303,6 +303,7 @@ rejected alternatives.
 | The rung above the word is a least fixed point on the IR, demand gated by facts; a bignum destination needs ownership and liveness | [0034](docs/decisions/0034-the-rung-above-the-word-is-a-least-fixed-point-on-the-ir.md) |
 | A compiler library is a theory checked once per specialisation; a use is an instance, inlined on the IR (the limb rung) | [0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md) |
 | A residual's binders are named apart along the scope chain: no binder reuses an enclosing binder's name, so a context keyed by name is sound | [0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md) |
+| A program's obligations are in its residual: every environment installs the contracts, one procedure decides the marks, and the refiner and the printers refuse a residual that still carries one | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
 
 ## How this project is run
 
@@ -502,6 +503,14 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   3. the refinement layer, `ensures` included.
 
   It then erases the marks, so nothing downstream sees one.
+
+  **The obligations are in the residual, in every pipeline**
+  ([ADR 0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md),
+  [hazard-2026-10-02](gauntlet/results/hazard-2026-10-02.md)): `Target.Env` installs every contract,
+  so reduction always marks; a literal outside its range and a false `where` stay as marks; deciding
+  is one procedure, `ir.DecideMarks`, which `ir.Entry` and each `FromResidual` call; and `emit.Refine`
+  and `ir.ToP` refuse a residual that still carries a mark. Until then only the three drivers marked
+  at all, and `(digit 12)` compiled through any other path.
 - **An obligation is discharged, or the program is refused** ([refinements.md §3a](docs/spec/refinements.md)).
   It is the domain condition of an application, and a program denotes only if every application is
   defined. Three routes discharge one:
@@ -644,7 +653,10 @@ Each of these has bitten more than once. The instances are in the results they n
   passed. When a relation is relaxed, audit every consumer of it.
 - **"Not refused" is not "proven".** A path that returns success with a note has checked nothing.
   The refinement layer's own was *"propagated, not proven"*: an index it could not bound was emitted,
-  and on JavaScript an `int` function returned `undefined` (noprop-2026-09-25).
+  and on JavaScript an `int` function returned `undefined` (noprop-2026-09-25). And **a check that
+  runs only where a caller remembers to ask is not a property of the program**: the contract marks
+  existed only where a driver installed them, and every pass after reduction read an undecided one
+  as its value (hazard-2026-10-02). State a precondition on the consumer, and have it refuse.
 - **A comment that states what code does is not a review of whether it should.** `scKind` was
   documented "per the LAST edge examined", and a measure was documented as withheld that never was:
   both sentences described a false proof exactly (matchguard-2026-09-24). Only a planted fault shows

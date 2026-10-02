@@ -187,6 +187,11 @@ type Func struct {
 	// lowered, the values its argument became (DischargeRanges). In memory
 	// only; a value numbering dropped is −1, and decides nothing.
 	marks map[*core.Term][]V
+	// undecided counts the contract marks, of either kind, the residual still
+	// carried when it was lowered. A function with one is not printed (ToP):
+	// lowering is transparent to a mark, so without this an obligation nothing
+	// decided would be emitted as if it had been (hazard-2026-10-02).
+	undecided int
 }
 
 // NV is the number of values the function defines.

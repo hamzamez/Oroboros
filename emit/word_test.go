@@ -148,6 +148,11 @@ func refineWorded(t *testing.T, src string) (string, error) {
 	if err := Check(tg, "test", nf); err != nil {
 		return "", err
 	}
+	// THIS HELPER TESTS THE REFINEMENT LAYER ALONE, which requires its residual's
+	// contract marks decided (Undecided). Their decision is the pipeline's
+	// (ir.DecideMarks, which this package cannot import) and is tested through
+	// it; here they are erased, on purpose and in sight.
+	nf = core.StripRequires(nf)
 	notes, err := Refine(tg, "test", sig, nf)
 	return strings.Join(notes, "; "), err
 }

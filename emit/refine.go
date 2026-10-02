@@ -132,6 +132,9 @@ func pureAtoms(tgt *Target) atoms {
 // `sig` supplies the assumptions: a definition may assume its own `where`, and
 // that is how a precondition moves to the caller.
 func Refine(tgt *Target, what string, sig *core.Sig, t *core.Term) ([]string, error) {
+	if err := Undecided(what, t); err != nil {
+		return nil, err
+	}
 	r := &refiner{tgt: tgt, pure: pureAtoms(tgt), memo: &refineMemo{
 		houdini: map[string][]*core.Term{}, summary: map[string]summaryMemo{}}}
 	f := newFacts()

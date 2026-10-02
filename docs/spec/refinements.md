@@ -325,6 +325,25 @@ word is vacuous for an `int` and is not marked.
   3. this layer, with every fact in scope, including a pure call's `ensures`.
 
   An obligation none of them proves is refused, naming the call.
+- **The obligations of a program are in its residual, and nowhere else**
+  ([ADR 0037](../decisions/0037-a-programs-obligations-are-in-its-residual.md)). O(P, T), the domain
+  conditions of P's applications on T, is a function of P and T:
+  - `Target.Env` installs every contract, the host functions' and the program's, so reduction under
+    a target marks every one. There is no environment without them;
+  - a literal inside its range is the obligation discharged by evaluation, and leaves nothing. A
+    literal outside it **stays as its mark**, and a `where` that reduced to false stays as
+    `(#reqw "def" (#false clause) body)`: marks nothing proves, read from the term by whoever
+    decides it;
+  - **deciding is one procedure**, `ir.DecideMarks`, the three routes above. `ir.Entry` and each
+    backend's `FromResidual` call it; the drivers call `emit.DischargeRequires` themselves, to report
+    on the way, and then there is nothing left for it;
+  - **a consumer that is transparent to a mark requires the marks decided.** `emit.Refine` refuses a
+    residual that carries one, and `ir.ToP`, which all four printers come through, refuses a function
+    lowered with one.
+
+  Until hazard-2026-10-02 reduction marked only when a driver had installed the tables, and reported
+  a failed literal to a callback only that driver held. `build`, `gen` and `intervals` did; any other
+  path from a program to emitted text had no obligations.
 - **Above the target's word a range denotes a set its enforcement can decide**
   ([ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md)): [0, 2ᵇ) when LO ≥ 0 and (−2ᵇ, 2ᵇ) when LO < 0, b the
   bit length of max(|LO|, |HI|): the least set containing the declaration that a sign and a bit

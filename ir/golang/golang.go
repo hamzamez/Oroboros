@@ -671,6 +671,10 @@ func (p *printer) Cond(c, a, b string) string { return "" }
 // FromResidual is the IR's whole path to Go for one definition: lower (L),
 // finalize (IR_A → IR_P), verify, print (docs/spec/ir.md §7–§9).
 func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {
+	nf, err := ir.DecideMarks(tg, name, sig, nf, nil)
+	if err != nil {
+		return "", err
+	}
 	f, err := ir.Lower(tg, name, sig, nf, ir.Options{Decided: true})
 	if err != nil {
 		return "", err

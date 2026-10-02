@@ -7,11 +7,13 @@ import (
 	"oroboros/emit"
 )
 
-// THE PIPELINE EVERY DRIVER RUNS, from an entry point's residual (its contracts
-// discharged) to its decided IR: `gen`, `build`, `cmd/intervals` and the tests
-// take a program through the same steps in the same order, so what one of them
-// proves or refuses is what the others do.
+// THE PIPELINE EVERY DRIVER RUNS, from an entry point's residual to its decided
+// IR: `gen`, `build`, `cmd/intervals` and the tests take a program through the
+// same steps in the same order, so what one of them proves or refuses is what
+// the others do.
 //
+//  0. the contract marks decided (DecideMarks, ADR 0037): a driver has done it
+//     already, to report, and a caller that has not has it done here;
 //  1. products flattened (emit/product.go);
 //  2. the plan for the rung above the word (ADR 0034, 0035); the term keeps
 //     only the ascriptions above the word, which are its demands;
@@ -24,6 +26,24 @@ import (
 // The refusal of an unproven operation, the size refusal and the shift
 // selection follow in the driver, which knows whether `-checked` was asked for
 // and how it reports.
+
+// DecideMarks decides every contract mark in a unit's residual (ADR 0028) and
+// returns the residual without them, or the first obligation nothing proves:
+// a literal by evaluation, a range on the IR's intervals, and what is left in
+// the refinement layer. A residual with no mark is returned as it is.
+//
+// It is the one place the three routes are put together. Every path from a
+// residual to emitted text goes through it: ir.Entry, each backend's
+// FromResidual, and the drivers, which call emit.DischargeRequires themselves
+// to report on the way. all is the program's signatures, for the one set it
+// enforces above the word; nil enforces none, which proves less.
+func DecideMarks(tg *emit.Target, name string, sig *core.Sig, nf *core.Term, all []*core.Sig) (*core.Term, error) {
+	if !emit.HasRequireMarks(nf) {
+		return nf, nil
+	}
+	return emit.DischargeRequires(emit.RequiresOf(tg.Word, all...), tg, name, sig, nf,
+		func(x *core.Term) *core.Term { return DischargeRanges(tg, sig, x) })
+}
 
 // NoteKind is which step a note comes from, so a driver can phrase it.
 type NoteKind int
@@ -49,6 +69,13 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	checked bool, note func(Note)) (*Func, *Legality, error) {
 	if note == nil {
 		note = func(Note) {}
+	}
+	// AN OBLIGATION IS DECIDED BEFORE ANYTHING ELSE READS THE RESIDUAL. A driver
+	// that reports on the marks decides them itself, first, and then there are
+	// none here; any other caller's are decided now, by the same routes.
+	nf, err := DecideMarks(tg, name, sig, nf, all)
+	if err != nil {
+		return nil, nil, err
 	}
 	if nfl, fsig, k, err := emit.FlattenProducts(tg, sig, nf); err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", name, err)

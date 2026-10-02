@@ -2391,6 +2391,7 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	e.Prim["let"] = true
 	e.Pure["let"] = true
 	tg.hostRequires(e)
+	installContracts(e, p, tg.Word)
 	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before
 	// reduction so that nothing downstream learns maps exist (winmap.go).
 	if err := lowerMaps(tg, p); err != nil {

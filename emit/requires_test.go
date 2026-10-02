@@ -188,7 +188,10 @@ func TestTheMarksLeaveTheResidualUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The plain residual: the same reduction with no contract in the
+	// environment, so no mark is ever placed.
 	plain, _ := tg.Env(prog)
+	plain.Requires, plain.Wheres = nil, nil
 	want, err := core.Normalize(prog.Defs["f"], plain, core.DefaultFuel)
 	if err != nil {
 		t.Fatal(err)

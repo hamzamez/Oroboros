@@ -617,6 +617,10 @@ func (p *printer) Cond(c, a, b string) string { return "(" + c + " ? " + a + " :
 
 // FromResidual is the IR's whole path to JavaScript for one definition.
 func FromResidual(tg *emit.Target, name string, sig *core.Sig, nf *core.Term) (string, error) {
+	nf, err := ir.DecideMarks(tg, name, sig, nf, nil)
+	if err != nil {
+		return "", err
+	}
 	f, err := ir.Lower(tg, name, sig, nf, ir.Options{Decided: true})
 	if err != nil {
 		return "", err

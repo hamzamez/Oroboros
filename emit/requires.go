@@ -23,10 +23,8 @@ import (
 // reducer as it reduces), then the interval analysis, then the refinement layer
 // with every fact in scope; an obligation none of them proves is refused.
 
-// RequireSet carries one program's contracts and the reducer's verdicts on the
-// literal ones, which arrive while a unit reduces.
+// RequireSet carries what deciding a program's marks needs beyond the marks.
 type RequireSet struct {
-	lits []requireFail
 	// enforced is E_P, the one set the program enforces above the word (ADR
 	// 0029): what a declared result there is known to be in. ok is false when
 	// nothing is enforced — no bound, or an unbounded type.
@@ -39,26 +37,47 @@ type requireFail struct {
 	literal                         bool
 }
 
-// InstallRequires fills env's contract tables from the program's signatures.
-// Every signed definition is covered, exported ones included: from outside an
-// export's contract is assumed, and a call from inside the program is a call.
+// InstallRequires is the program's RequireSet: E_P, the one set it enforces
+// above the word. The contract tables themselves are the environment's, put
+// there by Target.Env for every caller (installContracts): a driver that
+// forgot this call used to compile a program with no obligations at all.
 func InstallRequires(env *core.Env, prog *core.Program) *RequireSet {
-	set := &RequireSet{}
 	sigs := make([]*core.Sig, 0, len(prog.Sigs))
 	for _, sig := range prog.Sigs {
 		sigs = append(sigs, sig)
 	}
-	if bits, signed, ok := BigHull(env.Word, sigs...); ok {
+	return RequiresOf(env.Word, sigs...)
+}
+
+// RequiresOf is the RequireSet of a program given by its signatures.
+func RequiresOf(w core.Word, sigs ...*core.Sig) *RequireSet {
+	set := &RequireSet{}
+	if bits, signed, ok := BigHull(w, sigs...); ok {
 		set.enforced, set.enforcedOK = rangeSet{bits: bits, signed: signed}, true
 	}
-	// A HOST FUNCTION'S RANGES are already here (Target.Env, hostRequires);
-	// the program's definitions join them.
+	return set
+}
+
+// installContracts puts a program's contracts in its environment: every signed
+// definition's parameter ranges and `where`, exported ones included (from
+// outside an export's contract is assumed, and a call from inside the program
+// is a call). The host functions' ranges are there already (hostRequires).
+//
+// THE OBLIGATIONS OF (P, T) ARE A FUNCTION OF P AND T (hazard-2026-10-02). An
+// obligation is the domain condition of an application, f : A → B applied to a
+// needs ⟦a⟧ ∈ A, so which ones a program has cannot depend on who compiles it.
+// This is called by Target.Env, the only way an environment for a target is
+// made, so reduction marks every one, and each stays in the residual until
+// something decides it: there is no side table a caller could fail to read.
+func installContracts(env *core.Env, prog *core.Program, w core.Word) {
 	if env.Requires == nil {
 		env.Requires = map[string][]string{}
 	}
 	env.Wheres = map[string]core.WhereContract{}
-	env.Prim[core.RequireName], env.Pure[core.RequireName] = true, true
-	env.Prim[core.RequireWhereName], env.Pure[core.RequireWhereName] = true, true
+	for _, m := range []string{core.RequireName, core.RequireWhereName, core.RequireFalseName} {
+		env.Prim[m], env.Pure[m] = true, true
+	}
+	env.InRange = func(ty string, v int64) bool { return literalIn(w, ty, big.NewInt(v)) }
 	for name, sig := range prog.Sigs {
 		if sig == nil {
 			continue
@@ -98,16 +117,35 @@ func InstallRequires(env *core.Env, prog *core.Program) *RequireSet {
 			env.Wheres[name] = core.WhereContract{Params: ps, Cond: cond}
 		}
 	}
-	env.OnRequire = func(def, param, ty string, arg *core.Term) {
-		if param == "where" {
-			set.lits = append(set.lits, requireFail{def: def, param: param, arg: arg.String(), literal: true})
+}
+
+// literalFails are the marks reduction decided against: a range mark whose
+// argument is a literal outside the range, and a where-mark whose clause
+// reduced to false. Both stay in the residual so that no caller can miss them.
+func literalFails(w core.Word, t *core.Term) []requireFail {
+	var out []requireFail
+	var walk func(*core.Term)
+	walk = func(x *core.Term) {
+		if x == nil {
 			return
 		}
-		if arg.Kind == core.KInt && !literalIn(env.Word, ty, big.NewInt(arg.Int)) {
-			set.lits = append(set.lits, requireFail{def: def, param: param, ty: ty, arg: arg.String(), literal: true})
+		switch {
+		case core.IsRequire(x):
+			if a := x.Kids[4]; a.Kind == core.KInt && !literalIn(w, x.Kids[3].Str, big.NewInt(a.Int)) {
+				out = append(out, requireFail{def: x.Kids[1].Str, param: x.Kids[2].Str, ty: x.Kids[3].Str,
+					arg: a.String(), literal: true})
+			}
+		case core.IsRequireWhere(x):
+			if clause, isFalse := core.IsRequireFalse(x.Kids[2]); isFalse {
+				out = append(out, requireFail{def: x.Kids[1].Str, param: "where", arg: clause.String(), literal: true})
+			}
+		}
+		for _, k := range x.Kids {
+			walk(k)
 		}
 	}
-	return set
+	walk(t)
+	return out
 }
 
 // conjTerm is a conjunction in the reader's erased spelling, `(if a b false)`,
@@ -128,8 +166,10 @@ func conjTerm(a, b *core.Term) *core.Term {
 // still sees every mark.
 func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig, t *core.Term,
 	ranges func(*core.Term) *core.Term) (*core.Term, error) {
-	fails := set.lits
-	set.lits = nil
+	if set == nil {
+		set = &RequireSet{}
+	}
+	fails := literalFails(tgt.Word, t)
 	t, _ = set.decideAscribed(tgt.Word, t)
 	if hasRequireMarks(t) {
 		// The interval route decides the ranges it can and leaves every mark it
@@ -281,6 +321,9 @@ func closedCond(tgt *Target, t *core.Term) bool {
 	}
 	return true
 }
+
+// HasRequireMarks reports a contract mark that nothing has decided yet.
+func HasRequireMarks(t *core.Term) bool { return hasRequireMarks(t) }
 
 func hasRequireMarks(t *core.Term) bool {
 	if t == nil {
@@ -487,6 +530,11 @@ func (r *refiner) requireMark(t *core.Term, f *facts) error {
 	// nothing after it.
 	if core.IsRequireWhere(t) {
 		cond := t.Kids[2]
+		if _, isFalse := core.IsRequireFalse(cond); isFalse {
+			// Reduction decided it false, and DischargeRequires reports it from
+			// the term (literalFails).
+			return r.walk(t.Kids[3], f)
+		}
 		g := f.clone()
 		r.collectEnsures(cond, g)
 		if r.requires != nil && !r.proveCond(cond, g) {
@@ -550,4 +598,18 @@ func DecideRange(w core.Word, ty string, lo, hi *big.Int, bot bool, def, param s
 // E_P, the program's enforced set.
 func (set *RequireSet) DecideAscribed(w core.Word, t *core.Term) (*core.Term, []RequireResult) {
 	return set.decideAscribed(w, t)
+}
+
+// Undecided is the error a consumer returns for a residual that still carries a
+// contract mark, or nil. The refinement layer and the printers are transparent
+// to a mark, so reading a marked residual would let "not refused" stand for
+// "proven"; each requires the marks decided first, and says so with this
+// (hazard-2026-10-02).
+func Undecided(what string, t *core.Term) error {
+	if !hasRequireMarks(t) {
+		return nil
+	}
+	return fmt.Errorf("%s: the residual carries a contract obligation nothing has decided (ADR 0028). "+
+		"Decide its marks first: ir.DecideMarks, which ir.Entry and every FromResidual call, or "+
+		"emit.DischargeRequires", what)
 }

@@ -538,6 +538,9 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   [0, 1]. **A loop variable that threads a buffer has the buffer's length** (§5b): `set` preserves
   length, each variable's equation is verified at every back edge, and the greatest inductive subset
   is kept. Until bufio-2026-10-01 that was known only where the variable was spelled like its buffer.
+- **The facts' equations are a solved form** (refinements.md §4): an equation is added by Gaussian
+  elimination, never assigned. Until lengtheq-2026-10-03 a second equation under the same key
+  overwrote the first, so the orientation of a true precondition decided whether a program compiled.
 
 ### Declarations and targets
 

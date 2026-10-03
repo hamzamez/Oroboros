@@ -223,8 +223,61 @@ func (f *facts) assumeLE(e *linear, why string) {
 // assumeEQ records `name = e`, which is what makes a let-bound loop count
 // usable: the stencil's `n1 = alen a - 2` is the fact that discharges
 // `i + 2 < alen a`.
+//
+// THE EQUATIONS ARE A SOLVED FORM, and an equation is ADDED to it, never
+// assigned (lengtheq-2026-10-03). eq is a substitution σ, x ↦ eₓ, and a
+// conjunction of linear equations kept that way is Gaussian elimination. To
+// add s = t, rewrite L = σ(s − t), which mentions no eliminated variable:
+//   - L = 0 is redundant;
+//   - L = c with c ≠ 0 is a contradiction, and the facts entail everything,
+//     which is right for a path that cannot be taken;
+//   - otherwise solve L = 0 for a variable whose coefficient is ±1, so the
+//     solution is integral, and add it to σ. The variable named is preferred,
+//     so an equation about a fresh name is stored as it always was;
+//   - with no unit coefficient it is kept as L ≤ 0 and −L ≤ 0, which the
+//     inequalities' entailment reads.
+//
+// This was `eq[name] = e`. With `len a = len c` and then `len b = len c`, both
+// stored under len c, the second overwrote the first: a true fact assumed lost
+// another, and `len b = len a` stopped following. The order of a conjunction's
+// halves decided whether a program compiled.
+//
+// It needs a key to name one variable wherever the facts reach, which ADR 0036
+// gives: no binder reuses an enclosing binder's name, and every binder's
+// equation is assumed on its own scope's copy of the facts.
 func (f *facts) assumeEQ(name string, e *linear) {
-	f.eq[name] = f.substitute(e)
+	l := f.substitute(variable(name).addScaled(e, -1))
+	if len(l.coef) == 0 {
+		if l.konst != 0 {
+			f.assumeLE(constant(1), fmt.Sprintf("%s = %s is false here", name, e))
+		}
+		return
+	}
+	v := ""
+	if c := l.coef[name]; c == 1 || c == -1 {
+		v = name
+	} else {
+		keys := make([]string, 0, len(l.coef))
+		for k, c := range l.coef {
+			if c == 1 || c == -1 {
+				keys = append(keys, k)
+			}
+		}
+		sort.Strings(keys)
+		if len(keys) > 0 {
+			v = keys[0]
+		}
+	}
+	if v == "" {
+		f.assumeLE(l, fmt.Sprintf("assumed %s = %s", name, e))
+		f.assumeLE(constant(0).addScaled(l, -1), fmt.Sprintf("assumed %s = %s", name, e))
+		return
+	}
+	// c·v + rest = 0, c = ±1, so v = −c·rest.
+	c := l.coef[v]
+	rest := l.clone()
+	delete(rest.coef, v)
+	f.eq[v] = constant(0).addScaled(rest, -c)
 	f.eqVer++
 }
 

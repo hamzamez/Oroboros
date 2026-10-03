@@ -159,6 +159,17 @@ Deliberately **incomplete**. It is not Fourier–Motzkin and it is not an SMT so
 smallest thing that decides the obligations this language actually generates, and being incomplete
 is safe: an undischarged obligation is *refused* (§3a), never assumed.
 
+**The equalities are a solved form** (`facts.assumeEQ`, 2026-10-03). They are kept as a substitution
+σ, x ↦ eₓ, with no eliminated variable on a right side: Gaussian elimination over the variables. An
+equation s = t is **added**: L = σ(s − t) is redundant when it is 0, a contradiction when it is a
+nonzero constant (the facts then entail everything, which is right for a path that cannot be taken),
+and otherwise solved for a variable of coefficient ±1, so the solution is integral. An equation with
+no unit coefficient is kept as two inequalities. Until then it was an assignment: `len a = len out`
+and `len b = len out`, both keyed under `len out`, kept only the second, so `len b = len a` followed
+from one orientation of a precondition and not from the other
+([lengtheq-2026-10-03](../../gauntlet/results/lengtheq-2026-10-03.md)). A key names one variable
+wherever the facts reach because a residual's binders are named apart (ADR 0036).
+
 ## 5. Where facts come from
 
 | | fact |

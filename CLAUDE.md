@@ -35,7 +35,7 @@ and loops.
 
 ## Where it stands
 
-As of 2026-09-28. The current assessment is [assessment-2026-09-28.md](docs/assessment-2026-09-28.md);
+As of 2026-10-03. The current assessment is [assessment-2026-10-03.md](docs/assessment-2026-10-03.md);
 read it before planning.
 
 **The compiler.**
@@ -205,45 +205,47 @@ Soundness bugs found while writing the IR's rules:
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (09-28):
-1. ~~**The gauntlet, in full, on the IR's printers.**~~ Done: gauntlet-2026-09-29, at parity on all
-   three.
-2. ~~**`bufio`, program-first.**~~ Done: bufio-2026-10-01. The program asked for a conditional's
-   join, a value's tails and `strconv`'s parses on the host's string. Looking at the second found
-   that **the refinement layer's facts leaked across a shadowing binder** (an index of 101 into a
-   table of 6 accepted on every target) and that the corpus's buffer proofs had rested on that leak.
+**Next, from the current assessment** (10-03):
+1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
+   thing is (set, operation, law), where the literature settled it, what a measurement decides, and the
+   decision, with an ADR where it settles one. The assessment's starting list, for hamza to replace or
+   extend: the IR's text as a format others read and write (ADR 0006); concurrency (design-direction
+   §8); a borrow a later call ends (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one
+   prover or two (the refinement layer's terms or the IR's values); what an unsatisfiable contract
+   should do; which Go package next, and in what order.
+2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
+   algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
 3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
    from Win32 against what is declared, callable and linkable (31.0% callable and linkable today);
    then spec first, with an ADR per wall.
 4. **The analysis grows only for a refusal one of those programs names**, and every rule it relies on
-   gets a witness that it is *sound*: an execution the interpreter runs, and a planted fault that
-   fails.
+   gets a witness that it is *sound* and a planted fault that fails, planted before the witness is
+   trusted.
 
-Deliberately not next: optimising the compile (`ir.Decide` is 31% of `freq`'s, and the gate reads
-0.95×); host callbacks, tiers 1 and 2; a limb instance emitted once as a function; hoisting or CSE on
-the IR, which would make reachable two premises witnessed only on hand-built IR; geometric
-accumulation; per-result enforcement above the word and signed limbs (ADR 0029); the higher-order
-contract gap (ADR 0028); a phase-wise trip count; the windows/V8/JVM unsigned rungs; dependent result
-ranges, a sum in a sign, `ByteOrder`'s values; modular arithmetic as a type (ℤ/2ⁿ — the wall
-`hash/fnv` will hit, named so it is met on purpose).
+Deliberately not next: optimising the compile (flat this round, measured by pairs); a host `where` on
+the IR's intervals, a join across representations and a boolean-carried guard (each ready, none asked
+for); reporting an unsatisfiable contract, until item 1 decides; hoisting or CSE on the IR, which would
+make reachable two premises witnessed only on hand-built IR; host callbacks, until item 1; a limb
+instance emitted once as a function; geometric accumulation; per-result enforcement above the word and
+signed limbs (ADR 0029); the higher-order contract gap (ADR 0028); a phase-wise trip count; the
+windows/V8/JVM unsigned rungs; dependent result ranges, a sum in a sign, `ByteOrder`'s values; records,
+`with` and named views.
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
-in the language.
-- Last round, the migration: +2,017 lines of compiler (`core`, `emit` and, newly counted, `ir`)
-  against +4 lines in `examples/` + `lib/`: **504 : 1**, or 38.8 : 1 counting hand declarations (+46)
-  and acceptance programs (+2). The round before was 66 : 1 (10.8 : 1). The largest program did not
-  grow, and `bufio` has been first on the list twice.
-- The compiler is 53,563 lines: `core` + `emit` 34,787, `ir` 18,776. `emit : core` is 2.48, and
-  (`emit` + `ir`) : `core` is 4.36.
-- What decides legality is the IR's analysis (`interval`, `trip`, `endpoint`, `sct`, `decide`,
-  `require`): 3,328 lines, against the 10,014 of the term analysis layer it replaced. `emit`'s
-  analysis layer is now the refinement layer, 4,617 lines.
+in the language. Counted as assessment-2026-10-03 §3.1 defines it (code lines of `.oro` in `examples/`
+and `lib/`; raw lines of `.go` in `core/`, `emit/`, `ir/`, tests included):
+- This round: +2,498 lines of compiler against +75 written in the language, **33 : 1**, the best of
+  the five rounds recorded (504 : 1 and 66 : 1 before it); 16 : 1 in its last phase. The net in the
+  language is −45: the portable layer's programs and the threaded sieves were deleted.
+- The compiler is 56,061 lines: `core` + `emit` 36,962, `ir` 19,099. `emit : core` is 2.68, and
+  (`emit` + `ir`) : `core` is 4.58. The refinement layer is 4,964 lines, the IR's analysis 3,336.
+- The largest program, `freq`, has been 164 lines for three assessments.
 
 The part that decides what is legal is the hardest to check. Write programs, and let them demand the
 analysis.
 
 Previous assessments:
-[09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).

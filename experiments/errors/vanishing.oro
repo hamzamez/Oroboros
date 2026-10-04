@@ -1,0 +1,9 @@
+; A PURE DECLARATION OF A PARTIAL CALL (errors-2026-10-04 §1). Long.parseLong is
+; declared pure and total, and throws. Unused, reduction drops it: this prints 7.
+; With n printed instead, the same call throws NumberFormatException.
+(use java/Long)
+(use io)
+(export main)
+(def main ()
+  (let n (Long.parseLong "abc")
+    (seq (io.print-int 7) 0)))

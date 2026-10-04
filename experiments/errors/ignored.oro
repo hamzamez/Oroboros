@@ -1,0 +1,9 @@
+; THE PRODUCT ENCODING LEAKS (errors-2026-10-04 §1). The value of a failed read,
+; used without testing the error. Accepted on Go, JavaScript and Java; Go prints
+; 0 and exits 0, JavaScript throws TypeError, Java throws NullPointerException.
+(use os)
+(use io)
+(export main)
+(def main ()
+  (let (tuple src err) (os.ReadFile "no-such-file.txt")
+    (seq (io.print-int (len src)) 0)))

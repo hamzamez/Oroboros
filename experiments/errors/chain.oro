@@ -1,0 +1,26 @@
+; A RESULT SUM PROPAGATED THROUGH THREE LEVELS (errors-2026-10-04 §2). After
+; reduction no tag, constructor or tuple is left: each error path is a branch to
+; the handler, with its code folded to a constant.
+(use os)
+(use io)
+(export main)
+(variant (result T) (ok T) (err int))
+
+(def read (p)
+  (let (tuple src e) (os.ReadFile p)
+    (if (os.err-nil e) (ok src) (err 1))))
+
+(def first (p)
+  (case (read p)
+    (ok s)  (if (> (len s) 0) (ok (s 0)) (err 2))
+    (err c) (err c)))
+
+(def plus1 (p)
+  (case (first p)
+    (ok b)  (ok (+ b 1))
+    (err c) (err c)))
+
+(def main ()
+  (case (plus1 "case.oro")
+    (ok v)  (seq (io.print-int v) 0)
+    (err c) (seq (io.print-int (- 0 c)) c)))

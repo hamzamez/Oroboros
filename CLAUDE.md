@@ -219,9 +219,11 @@ a wall that needs language work, stop and research it, then design it.
    thing is (set, operation, law), where the literature settled it, what a measurement decides, and the
    decision, with an ADR where it settles one. **Answered:** the IR's text as a format others read and
    write (ADR 0038, irtext-2026-10-04: read, yes; written, once the IR proves indices). **Researched,
-   awaiting hamza's six decisions:** concurrency, the Erlang model and "let it crash"
-   ([concurrency-research.md](docs/concurrency-research.md), conc-ring-2026-10-04). The rest of the
-   assessment's starting list, for hamza to replace or extend: a borrow a later call ends
+   six decisions each for hamza, taken when a program meets them:** concurrency, the Erlang model and
+   "let it crash" ([concurrency-research.md](docs/concurrency-research.md), conc-ring-2026-10-04);
+   errors, three kinds with three algebras, the product's leak measured
+   ([errors-research.md](docs/errors-research.md), errors-2026-10-04). The rest of the assessment's
+   starting list, for hamza to replace or extend: a borrow a later call ends
    (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one prover or two (the refinement
    layer's terms or the IR's values); what an unsatisfiable contract should do; which Go package
    next, and in what order.

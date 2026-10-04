@@ -2,15 +2,18 @@
 
 Status: **specified 2026-09-25** ([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)). **Step 1 is built**
 ([irstep1-2026-09-25](../../gauntlet/results/irstep1-2026-09-25.md)): lowering, typing, the verifier and
-the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified, and no
-printer reads the IR yet. **Step 2 is built**
+the canonical printer and reader, in `ir/`. Every program that emits is lowered and verified. **Step 2 is built**
 ([irstep2-2026-09-25](../../gauntlet/results/irstep2-2026-09-25.md)): the Go backend is `ir/golang`,
 printing IR_P, at parity on the gauntlet. **Step 3 is built**
 ([irstep3-2026-09-25](../../gauntlet/results/irstep3-2026-09-25.md)): the decisions every printer
 shares are `ir/plan`, and the JavaScript backend is `ir/js`. The Java backend is `ir/java`
 ([irstep3java-2026-09-25](../../gauntlet/results/irstep3java-2026-09-25.md)), and the x86 backend is
 `ir/x86` ([irstep3x86-2026-09-26](../../gauntlet/results/irstep3x86-2026-09-26.md)). It realizes [ADR 0006](../decisions/0006-ir-file-format.md), which decided that the
-backend interface is a file format and never wrote the format. The derivation is
+backend interface is a file format and never wrote the format. **Every printer factors through the
+text** ([ADR 0038](../decisions/0038-the-irs-text-is-read-not-written.md),
+[irtext-2026-10-04](../../gauntlet/results/irtext-2026-10-04.md)): the IR_P file and the target's
+declarations reproduce every emitted file byte for byte, and `cmd/check` holds it (§10.4). Others
+may read the file; nobody else writes one until the IR proves index obligations. The derivation is
 [docs/ir-research.md](../ir-research.md). The prototypes were in `experiments/irproto`, deleted with
 the term analysis they measured against (irstep4j; in git before it), and their
 measurements are [irp1](../../gauntlet/results/irp1-2026-09-25.md) (lowering),
@@ -936,8 +939,8 @@ The format is the s-expression text of §2.1, in the language's lexical syntax (
 - regions indented;
 - globals and functions sorted by name.
 
-The canonical printing is what a test compares and what `cmd/check`'s baseline would hold. A binary
-form is not specified (§12).
+The canonical printing is what a test compares. `cmd/check` holds no baseline of the text itself:
+the emission baseline is the text's, through §10.4's law. A binary form is not specified (§12).
 
 ### 10.2 The header
 
@@ -1000,6 +1003,28 @@ What a Go printer does with it (irp2):
 The result is the loop `gen` emits today, one statement per value, at the same speed (irp2 §2:
 0.99× of `gen`).
 
+### 10.4 Who reads the file, and who may write it
+
+Let p be the canonical printer and r the reader, with r ∘ p = id, and e_T a printer. **The text is the
+printer's whole input** when e_T factors through p: e_T = e_T ∘ r ∘ p, that is, ker p ⊆ ker e_T. Two
+programs with one text print to one file.
+
+- **The published file is IR_P**, what `gen -ir` and `build -ir` write: the program the printer read.
+  The decided IR_A before it is not a printer's input, because the step to IR_P is an analysis (§7):
+  `Finalize` reruns the interval domain and rewrites by L13.
+- **The printer's input is the pair**: the file, and T's declarations (`Prims`, the type spellings of
+  `repr`, `ReprBytes`, the allocation and length names). Those are the backend's own data (ADR 0006).
+  A program whose own directory declares a primitive (a `provides` fragment) needs that fragment too.
+  Carrying it in the file is the next step, not built: no swept program has one.
+- **An emitted file is a function of the text**, and the text is a set of functions sorted by name, so
+  `gen` prints them in that order. x86 numbers its labels and literals across the file.
+- **Others may read it**: a printer outside the repository, a diff, a reviewer.
+- **Nobody else writes it yet** (ADR 0038). A P file's claims are its modes, its final ranges and
+  every index in range. §9.1 lets every printer trust them, and W1–W10 check none. A written file is
+  admissible only at stage A, through the decision, and only once the IR proves every obligation a
+  printer assumes. Index obligations are proven on terms today, by the refinement layer, so an A
+  file's unbounded index would be printed.
+
 ---
 
 ## 11. What checks this specification
@@ -1009,6 +1034,7 @@ The result is the loop `gen` emits today, one statement per value, at the same s
 | L is total on the corpus | `cmd/check`'s `ir` step: every program the sweep emits is lowered and verified |
 | W1–W10 | a verifier (`ir/verify.go`), run after lowering and after every IR pass, with a planted-fault test per rule (`ir/ir_test.go`) |
 | the printing is canonical | `cmd/check`'s `ir` step: print ∘ read ∘ print = print on every program |
+| every printer factors through the text (§10.4) | `cmd/check`'s `ir` step: printing what the reader makes of the IR_P file, with T's declarations and nothing else, writes the emitted file byte for byte, on every program; three planted faults fail it (irtext-2026-10-04) |
 | Theorem C (L faithful) | the differential suite, on all four targets |
 | a printer is faithful | the differential suite and the gauntlet against hand-written code |
 | an analysis is sound | one planted-fault row per (domain, operation of Σ), and the programs meant to be refused |
@@ -1022,6 +1048,8 @@ The result is the loop `gen` emits today, one statement per value, at the same s
 ## 12. Not specified here
 
 - **A binary form.** Text is enough until a measurement says otherwise.
+- **A file written outside the compiler** (§10.4, ADR 0038). No tool takes one as input until the IR
+  proves index obligations.
 - **Facts in the format.** The file carries types, which are the decisions, and not the facts that
   justified them. A printer needs a representation, not its reason (ADR 0032, "Why not"). An analysis
   consumer that wants facts recomputes them from IR_A, which is cheap (irp3).

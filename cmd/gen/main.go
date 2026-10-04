@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/pprof"
+	"sort"
 	"strings"
 
 	"oroboros/core"
@@ -173,8 +174,14 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		}
 	}
 
+	// A PROGRAM IS A SET OF FUNCTIONS, and its IR's text lists them by name
+	// (spec §10.1). They are printed in that order too, so the emitted file is
+	// what a printer reading the text would write: x86's labels and literals are
+	// numbered across the file, and in export order two programs' files were not
+	// a function of their IR (irtext-2026-10-04).
+	sort.SliceStable(units, func(i, j int) bool { return units[i].name < units[j].name })
 	funcs := map[string]string{}
-	irProg := &ir.Program{Target: target, Stage: ir.StageA}
+	irProg := &ir.Program{Target: target, Stage: ir.StageP}
 	var irErrs []string
 	for _, u := range units {
 		nf, err := core.Normalize(u.term, env, core.DefaultFuel)
@@ -236,12 +243,6 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
 			fmt.Fprintf(os.Stderr, "note: %s: %d division(s) became a shift or a mask\n", fname, shifts)
 		}
-		// THE IR (ADR 0032), the decided IR_A the backend receives. It is
-		// written beside the code; cmd/check's `ir` step reads it (docs/spec/
-		// ir.md §11: lowering is total on the corpus).
-		if irOut != "" {
-			irProg.Funcs = append(irProg.Funcs, fA.Clone())
-		}
 		// The BACKEND, not the flag — see cmd/build and target-system.md §1.1.
 		var code string
 		switch backend {
@@ -260,6 +261,12 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 			return err
 		}
 		funcs[fname] = code
+		// THE IR (ADR 0032, ADR 0038): the IR_P the printer just read, which is
+		// the published contract. It is written beside the code; cmd/check's
+		// `ir` step reads it and prints it again (docs/spec/ir.md §10, §11).
+		if irOut != "" {
+			irProg.Funcs = append(irProg.Funcs, fA.Clone())
+		}
 	}
 
 	var text2 string

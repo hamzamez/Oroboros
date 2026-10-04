@@ -20,11 +20,16 @@ var Imports = map[string]bool{}
 // it never showed, but a process that builds two gave the second the first's
 // imports, and Go refuses an import nothing uses (bufio-2026-10-01). A driver
 // calls this before each program, so that what it emits is a function of that
-// program alone.
+// program alone. It empties every sink, not only the imports: Java's records
+// and the assembly's data, externs and libraries are the same kind of state,
+// and the first program's record and literals reached the second's file when
+// only the imports were cleared (irtext-2026-10-04).
 func ResetImports() {
 	clear(Imports)
 	clear(JSImports)
 	clear(JavaImports)
+	clear(JavaRecords)
+	ResetAsm()
 }
 
 func contains(xs []string, s string) bool {

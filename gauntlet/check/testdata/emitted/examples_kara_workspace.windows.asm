@@ -28,19 +28,19 @@ gen_mac_fresh proc
         mov rdi, rax
         mov qword ptr [rdi], 65536
         mov r12, 0
-Ltop10:
+Ltop4:
         cmp r12, 65536
-        jge Lexit11
+        jge Lexit5
         movzx r13d, byte ptr [rbx+r12+8]
         movzx r14d, byte ptr [rsi+r12+8]
         imul r13, r14
         mov qword ptr [rdi+r12*8+8], r13
         add r12, 1
-        jmp Ltop10
-Lexit11:
+        jmp Ltop4
+Lexit5:
         mov rbx, rdi
         mov rax, rbx
-Lret7:
+Lret1:
         add rsp, 56
         pop r14
         pop r13
@@ -63,18 +63,18 @@ gen_mac_into proc
         mov rsi, rdx
         mov rdi, r8
         mov r12, 0
-Ltop2:
+Ltop10:
         cmp r12, 65536
-        jge Lexit3
+        jge Lexit11
         movzx r13d, byte ptr [rsi+r12+8]
         movzx r14d, byte ptr [rdi+r12+8]
         imul r13, r14
         mov qword ptr [rbx+r12*8+8], r13
         add r12, 1
-        jmp Ltop2
-Lexit3:
+        jmp Ltop10
+Lexit11:
         mov rax, rbx
-Lret1:
+Lret9:
         add rsp, 56
         pop r14
         pop r13

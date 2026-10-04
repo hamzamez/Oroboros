@@ -7,7 +7,12 @@ import (
 	"sort"
 	"strings"
 
+	"oroboros/emit"
 	"oroboros/ir"
+	"oroboros/ir/golang"
+	"oroboros/ir/java"
+	"oroboros/ir/js"
+	"oroboros/ir/x86"
 )
 
 // THE IR STEP (docs/spec/ir.md §11, ADR 0032).
@@ -22,9 +27,15 @@ import (
 //     on what a backend receives.
 //   - THE PRINTING IS CANONICAL: read ∘ print is the identity on the text, so
 //     print ∘ read ∘ print = print for every file.
+//   - EVERY PRINTER FACTORS THROUGH THE TEXT (ADR 0038, spec §10.4): the file is
+//     the IR_P the printer read, and printing what the reader makes of it, with
+//     the target's declarations and nothing else, writes the emitted file byte
+//     for byte. emit_T = printer_T ∘ read ∘ print on every program, so the text
+//     is the whole interface ADR 0006 promised, and a printer that read anything
+//     the text does not carry would fail here.
 //
 // It needs the sweep and runs after it. It records no baseline of its own: the
-// IR's text is not a gate until a printer reads it (ADR 0032, "Consequences").
+// emission baseline is the text's, through this law.
 
 func irDir(work string) string { return filepath.Join(work, "ir") }
 
@@ -35,7 +46,8 @@ func (c *checker) ir() result {
 		return result{status: skip, detail: "needs the emission sweep"}
 	}
 	dir := irDir(c.work)
-	var missing, stray, failed, drift []string
+	var missing, stray, failed, drift, unfactored []string
+	targets := map[string]*emit.Target{}
 	lowered, funcs, stmts, empty := 0, 0, 0, 0
 	for _, o := range c.emitted {
 		file := filepath.Join(dir, irName(o.Source, o.Target))
@@ -63,6 +75,20 @@ func (c *checker) ir() result {
 				drift = append(drift, o.Source+" "+o.Target)
 				continue
 			}
+			want, err := os.ReadFile(filepath.Join(c.work, "emitted", emittedName(o.Source, o.Target)))
+			if err != nil {
+				failed = append(failed, fmt.Sprintf("%s %s: %v", o.Source, o.Target, err))
+				continue
+			}
+			got, err := printText(targets, o.Source, o.Target, p)
+			if err != nil {
+				unfactored = append(unfactored, fmt.Sprintf("%s %s: %s", o.Source, o.Target, firstLines(err.Error(), 2)))
+				continue
+			}
+			if got != string(want) {
+				unfactored = append(unfactored, o.Source+" "+o.Target+": the printer writes a different file from the text")
+				continue
+			}
 			lowered++
 			funcs += len(p.Funcs)
 			if len(p.Funcs) == 0 {
@@ -77,7 +103,7 @@ func (c *checker) ir() result {
 	// the differential cases' `run` is compiled by their own runner. The sweep's
 	// scope, named rather than counted as coverage (CLAUDE.md: "the emission
 	// sweep compiles EXPORTS").
-	summary := fmt.Sprintf("%d of %d emitted programs lowered and verified (%d of them emit no function): %d functions, %d operations; round trip exact",
+	summary := fmt.Sprintf("%d of %d emitted programs lowered and verified (%d of them emit no function): %d functions, %d operations; round trip exact; every printer reproduces its file from the text",
 		lowered, countEmittedN(c.emitted), empty, funcs, stmts)
 	var bad []string
 	for _, g := range []struct {
@@ -88,6 +114,7 @@ func (c *checker) ir() result {
 		{"emitted but no IR was written", missing},
 		{"refused but an IR was written", stray},
 		{"print ∘ read ∘ print ≠ print", drift},
+		{"the printer does not factor through the text", unfactored},
 	} {
 		if len(g.list) == 0 {
 			continue
@@ -127,4 +154,63 @@ func firstLines(s string, n int) string {
 		ls = append(ls[:n], "…")
 	}
 	return strings.Join(ls, " | ")
+}
+
+// printText prints a program read from its IR_P text with its target's printer,
+// and wraps it as gen does. The target is loaded as gen loads it, once per
+// layer set; the printer is handed the reader's program and nothing else.
+func printText(targets map[string]*emit.Target, source, target string, p *ir.Program) (string, error) {
+	if p.Stage != ir.StageP {
+		return "", fmt.Errorf("the file is stage %s; a printer reads only P", p.Stage)
+	}
+	layers, err := emit.SearchPath(source, "targets")
+	if err != nil {
+		return "", err
+	}
+	libs := []string{filepath.Dir(source), "lib"}
+	key := target + "|" + strings.Join(layers, "|") + "|" + strings.Join(libs, "|")
+	tg := targets[key]
+	if tg == nil {
+		if tg, err = emit.LoadTargetLayers(target, layers, libs); err != nil {
+			return "", err
+		}
+		targets[key] = tg
+	}
+	backend, err := tg.ResolveBackend()
+	if err != nil {
+		return "", err
+	}
+	if err := ir.Verify(tg, p); err != nil {
+		return "", err
+	}
+	emit.ResetImports()
+	funcs := map[string]string{}
+	for _, f := range p.Funcs {
+		var code string
+		switch backend {
+		case "js":
+			code, err = js.Func(tg, f)
+		case "java":
+			code, err = java.Func(tg, f)
+		case "x86-64":
+			code, err = x86.Func(tg, f)
+		case "go":
+			code, err = golang.Func(tg, f)
+		default:
+			return "", fmt.Errorf("no printer for backend %q", backend)
+		}
+		if err != nil {
+			return "", err
+		}
+		funcs[f.Name] = code
+	}
+	switch backend {
+	case "js":
+		return emit.JSFile(funcs), nil
+	case "java":
+		return emit.JavaFile(strings.TrimSuffix(emittedName(source, target), ".java"), funcs), nil
+	case "x86-64":
+		return emit.AsmFile(tg, funcs, ""), nil
+	}
+	return emit.File("gauntlet", funcs), nil
 }

@@ -8,12 +8,12 @@ extern WriteFile: proc
 .data
 __written qword 0
 __buf     db 256 dup(0)
+LS4 db 030h,0
+LS4_len equ 1
 LS8 db 00Ah,0
 LS8_len equ 1
-LS13 db 030h,0
-LS13_len equ 1
-LS20 db 02Dh,039h,032h,032h,033h,033h,037h,032h,030h,033h,036h,038h,035h,034h,037h,037h,035h,038h,030h,038h,0
-LS20_len equ 20
+LS12 db 02Dh,039h,032h,032h,033h,033h,037h,032h,030h,033h,036h,038h,035h,034h,037h,037h,035h,038h,030h,038h,0
+LS12_len equ 20
 
 .code
 gen_print_int proc
@@ -27,21 +27,21 @@ gen_print_int proc
         sub rsp, 48
         mov rbx, rcx
         cmp rbx, 0
-        jne Lelse11
+        jne Lelse2
         mov rcx, -11
         call GetStdHandle
         mov rbx, rax
-        lea r10, LS13
+        lea r10, LS4
         mov rax, r10
-        Lstr14:
+        Lstr5:
         cmp byte ptr [rax], 0
-        je Lstrend14
+        je Lstrend5
         inc rax
-        jmp Lstr14
-        Lstrend14:
+        jmp Lstr5
+        Lstrend5:
         sub rax, r10
         mov rsi, rax
-        lea r10, LS13
+        lea r10, LS4
         mov rcx, rbx
         mov rdx, r10
         mov r8, rsi
@@ -59,25 +59,25 @@ gen_print_int proc
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rbx
-        jmp Lret10
-Lelse11:
+        jmp Lret1
+Lelse2:
         mov r11, -9223372036854775807
         cmp rbx, r11
-        jge Lelse18
+        jge Lelse10
         mov rcx, -11
         call GetStdHandle
         mov rbx, rax
-        lea r10, LS20
+        lea r10, LS12
         mov rax, r10
-        Lstr21:
+        Lstr13:
         cmp byte ptr [rax], 0
-        je Lstrend21
+        je Lstrend13
         inc rax
-        jmp Lstr21
-        Lstrend21:
+        jmp Lstr13
+        Lstrend13:
         sub rax, r10
         mov rsi, rax
-        lea r10, LS20
+        lea r10, LS12
         mov rcx, rbx
         mov rdx, r10
         mov r8, rsi
@@ -95,22 +95,22 @@ Lelse11:
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rbx
-        jmp Lret10
-Lelse18:
+        jmp Lret1
+Lelse10:
         lea rsi, __buf
         mov byte ptr [rsi+24], 10
         cmp rbx, 0
-        jge Lelse27
+        jge Lelse19
         mov rdi, 0
         sub rdi, rbx
-        jmp Ldone28
-Lelse27:
+        jmp Ldone20
+Lelse19:
         mov rdi, rbx
-Ldone28:
+Ldone20:
         mov r12, 24
-Ltop30:
+Ltop22:
         cmp rdi, 0
-        jle Lelse32
+        jle Lelse24
         mov r13, r12
         sub r13, 1
         mov rax, rdi
@@ -128,20 +128,20 @@ Ltop30:
         mov r13, rax
         sub r12, 1
         mov rdi, r13
-        jmp Ltop30
-Lelse32:
+        jmp Ltop22
+Lelse24:
         mov rdi, r12
         cmp rbx, 0
-        jge Lelse39
+        jge Lelse31
         mov rbx, rdi
         sub rbx, 1
         mov byte ptr [rsi+rbx], 45
         sub rdi, 1
         mov rbx, rdi
-        jmp Ldone40
-Lelse39:
+        jmp Ldone32
+Lelse31:
         mov rbx, rdi
-Ldone40:
+Ldone32:
         mov rcx, -11
         call GetStdHandle
         mov rdi, rax
@@ -156,7 +156,7 @@ Ldone40:
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rdi
-Lret10:
+Lret1:
         add rsp, 48
         pop r15
         pop r14
@@ -195,7 +195,7 @@ gen_print_str proc
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rbx
-Lret4:
+Lret41:
         add rsp, 48
         pop rdi
         pop rsi
@@ -220,7 +220,7 @@ gen_write_bytes proc
         mov qword ptr [rsp+32], 0
         call WriteFile
         mov rax, rdi
-Lret1:
+Lret46:
         add rsp, 48
         pop rdi
         pop rsi

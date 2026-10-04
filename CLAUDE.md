@@ -101,6 +101,15 @@ ADR 0006. **Step 1 is built** in `ir/` ([irstep1-2026-09-25](gauntlet/results/ir
 - `cmd/check`'s `ir` step, where all 242 emitted programs lower and verify;
 - the differential runner's check of its 169 builds.
 
+**The IR's text is the printers' whole input**
+([ADR 0038](docs/decisions/0038-the-irs-text-is-read-not-written.md),
+[irtext-2026-10-04](gauntlet/results/irtext-2026-10-04.md), spec/ir.md §10.4):
+- `gen -ir` writes IR_P, and `cmd/check`'s `ir` step reprints every program from that text and the
+  target's declarations alone, byte for byte: e_T = e_T ∘ read ∘ print;
+- others may read it. Nobody else writes it: at P every printer trusts the claims (modes, final
+  ranges, indices), and at A the decision re-derives the arithmetic but not an index, which is
+  proven only on terms.
+
 **Step 2 is built** ([irstep2-2026-09-25](gauntlet/results/irstep2-2026-09-25.md)): **the Go backend
 is the IR's printer**, `ir/golang`, which prints IR_P.
 - `emit/golang.go` stayed as `gen -printer terms` for comparison until step 4a deleted it.
@@ -208,8 +217,9 @@ a wall that needs language work, stop and research it, then design it.
 **Next, from the current assessment** (10-03):
 1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
    thing is (set, operation, law), where the literature settled it, what a measurement decides, and the
-   decision, with an ADR where it settles one. The assessment's starting list, for hamza to replace or
-   extend: the IR's text as a format others read and write (ADR 0006); concurrency (design-direction
+   decision, with an ADR where it settles one. **Answered:** the IR's text as a format others read and
+   write (ADR 0038, irtext-2026-10-04: read, yes; written, once the IR proves indices). The rest of the
+   assessment's starting list, for hamza to replace or extend: concurrency (design-direction
    §8); a borrow a later call ends (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one
    prover or two (the refinement layer's terms or the IR's values); what an unsatisfiable contract
    should do; which Go package next, and in what order.
@@ -306,6 +316,7 @@ rejected alternatives.
 | A compiler library is a theory checked once per specialisation; a use is an instance, inlined on the IR (the limb rung) | [0035](docs/decisions/0035-a-compiler-library-is-a-theory-checked-once.md) |
 | A residual's binders are named apart along the scope chain: no binder reuses an enclosing binder's name, so a context keyed by name is sound | [0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md) |
 | A program's obligations are in its residual: every environment installs the contracts, one procedure decides the marks, and the refiner and the printers refuse a residual that still carries one | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
+| The IR's text (IR_P) is the printers' whole input, checked on every program; others may read it, and nobody else writes it until the IR proves index obligations | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
 
 ## How this project is run
 
@@ -676,7 +687,9 @@ Each of these has bitten more than once. The instances are in the results they n
     about a parameter `n` were read as facts about a loop variable `n` (bufio-2026-10-01). When a
     proof holds, ask what would make it false: here, renaming one variable.
 - **The emitter must be a function of its input.** Iterating a Go map without a total order made
-  output vary between runs. Test it by running twice.
+  output vary between runs. Test it by running twice. Its input is the IR's text, and `cmd/check`
+  reprints every file from it: that found process-wide sinks a reset missed and an x86 file that
+  depended on the order of the export list (irtext-2026-10-04).
 - **A survey's first number describes the measurer.** Seven corrections so far, in both directions.
   A measurement's *scope* does too: requires-2026-09-24 counted `where` only on non-exported
   definitions and missed `win/fmt.print-int`, an export every Windows harness print calls.

@@ -69,3 +69,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0035](0035-a-compiler-library-is-a-theory-checked-once.md) | A compiler library is a theory checked once; a use is an instance, inlined on the IR |
 | [0036](0036-a-residuals-binders-are-named-apart.md) | A residual's binders are named apart along the scope chain |
 | [0037](0037-a-programs-obligations-are-in-its-residual.md) | A program's obligations are in its residual, and nothing reads one undecided |
+| [0038](0038-the-irs-text-is-read-not-written.md) | The IR's text is the printers' whole input (IR_P, checked on every program); others may read it, and nobody else writes it until the IR proves index obligations |

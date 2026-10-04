@@ -966,3 +966,22 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/lines/lines.oro java`
 - new source — `examples/lines/lines.oro js`
 - new source — `examples/lines/lines.oro windows`
+
+## 2026-10-04 — on 137e9c6, with uncommitted changes
+
+**Reason:** irtext-2026-10-04: gen prints a program's functions in name order, the order of its IR text (ADR 0038), so x86's file-wide label and literal numbers are a function of the IR: lib/win/fmt and kara/workspace on windows renumber labels only; six programs' notes reorder; kara/core names gen-main before gen-run in an identical refusal
+
+492 runs: 253 emitted, 239 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+10 change(s):
+
+- compiler output changed — `examples/json/tokenize.oro go`
+- compiler output changed — `examples/kara/core.oro go`
+- compiler output changed — `examples/kara/workspace.oro go`
+- compiler output changed — `examples/kara/workspace.oro java`
+- compiler output changed — `examples/kara/workspace.oro js`
+- emitted text changed — `examples/kara/workspace.oro windows`
+- compiler output changed — `examples/kara/workspace.oro windows`
+- compiler output changed — `examples/native/sieve-js.oro js`
+- compiler output changed — `lib/num/u128.oro go`
+- emitted text changed — `lib/win/fmt.oro windows`

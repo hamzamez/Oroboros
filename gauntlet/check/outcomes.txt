@@ -254,8 +254,8 @@
    gen: examples/io/wc.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
 == examples/json/tokenize.oro go emitted 2832e34e080fc7845f5083c93ea2c55d6d6d1f98dbdf9c8e28fc7c6b6fb237c5
-   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
    note: gen-run: 116 of 116 integer operations bounded; 16 of 16 loop(s) proven terminating
+   note: gen-tokens: 29 of 29 integer operations bounded; 4 of 4 loop(s) proven terminating
 == examples/json/tokenize.oro js refused
    gen: examples/json/tokenize.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
@@ -278,8 +278,8 @@
    gen: examples/json/tree.oro: in alpha?: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/kara/core.oro go refused
-   note: gen-run: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
-   gen: gen-run: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
+   note: gen-main: 9 of 12 integer operations bounded; 4 of 4 loop(s) proven terminating
+   gen: gen-main: 3 of 12 integer operation(s) cannot be proven to stay inside the word of target go, [-9223372036854775808, 9223372036854775807] and [0, 18446744073709551615]
      go.+ [0, +inf] in (go.+ (out3 (let (go.+ i j) (fn (k) (if (go.< k 0) 0 (if (go....
      go.* [-inf, +inf] in (go.* acc 100)
      go.+ [-inf, +inf] in (go.+ (go.* acc 100) (p i))
@@ -301,17 +301,17 @@
    gen: examples/kara/core.oro: in c4: go.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
 == examples/kara/workspace.oro go emitted 24ddab0a7c26e62960ec25029a336104e7fa2fc0b50d142ac60029e29ddf8b4f
-   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/kara/workspace.oro js emitted bd600ce38addadb57c2bc39ca1bc4bb30d308a9ec4d155cd138bb4882f2e4876
-   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/kara/workspace.oro java emitted 91b4407b4beac00f6615e6539c620983b19a9509c7ccb2a9e805f0a17d3f229b
-   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/kara/workspace.oro windows emitted f9882ca520f9324fa3aaa0250f9933a6638de71fb12dadd12cfbcdb79f9cf87e
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/kara/workspace.oro windows emitted c00ae60b2f657f131ac8361f968fcbdf69d13d472b941e42b747f449b5cf66d3
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+   note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/lines.oro go emitted db1a061f38edd12ee252ea4a56ca68832888834f768763490199cf887a6f2659
    note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/lines.oro js refused
@@ -606,8 +606,8 @@
    gen: examples/native/sieve-js.oro: in cross: js.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
 == examples/native/sieve-js.oro js emitted 37eeba92aeab8839c6876f24d1d78ee65d8fc902efb12fa14ec4f34427daaada
-   note: gen-sieve-count: 0 of 0 integer operations bounded; 0 of 3 loop(s) proven terminating
    note: gen-main: 0 of 0 integer operations bounded; 3 of 3 loop(s) proven terminating
+   note: gen-sieve-count: 0 of 0 integer operations bounded; 0 of 3 loop(s) proven terminating
 == examples/native/sieve-js.oro java refused
    gen: examples/native/sieve-js.oro: in cross: js.< is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
@@ -1092,10 +1092,10 @@
    gen: lib/io/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == lib/num/u128.oro go emitted 41bc50aa7d35779ef08224c9a4871fe110126f55c9a7a8b8d2459a4823c44ae0
    note: gen-add: 2 operation(s) or conversion(s) in the unsigned word
-   note: gen-mulw: 3 operation(s) or conversion(s) in the unsigned word
-   note: gen-divw: 2 operation(s) or conversion(s) in the unsigned word
    note: gen-decimal: 13 operation(s) or conversion(s) in the unsigned word
    note: gen-decimal: 2 of 2 integer operations bounded; 1 of 2 loop(s) proven terminating
+   note: gen-divw: 2 operation(s) or conversion(s) in the unsigned word
+   note: gen-mulw: 3 operation(s) or conversion(s) in the unsigned word
 == lib/num/u128.oro js refused
    gen: lib/num/u128.oro: in num/u128.add: go/math/bits.Add64 is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/math/bits) matched no file on the search path and this target provides no module go/math/bits either, so every name from it is unbound. Check the path.
@@ -1150,5 +1150,5 @@
 == lib/win/fmt.oro java refused
    gen: lib/win/fmt.oro: in win/fmt.print-int: x64.sete is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use x64) matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.
-== lib/win/fmt.oro windows emitted 31a54d1f4fff49cb563ba7c5c992f3f4b477901245ac24a36f78e65b7f7b3209
+== lib/win/fmt.oro windows emitted 724aebb4753a43035b034f1a6983e9718fe7f47f9d6c4f616fbceaf9d788c50e
    note: gen-print-int: 8 of 8 integer operations bounded; 1 of 1 loop(s) proven terminating

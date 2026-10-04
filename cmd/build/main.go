@@ -209,13 +209,6 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	if shifts := ir.SelectShifts(tg, fA); shifts > 0 {
 		fmt.Fprintf(os.Stderr, "note: %d division(s) became a shift or a mask\n", shifts)
 	}
-	// THE IR (ADR 0032), the decided IR_A the backend receives, as `gen -ir`
-	// writes it. The differential runner reads it: its cases' entry points are
-	// compiled here and never by the emission sweep.
-	if irOut != "" {
-		p := &ir.Program{Target: target, Stage: ir.StageA, Funcs: []*ir.Func{fA.Clone()}}
-		_ = ir.WriteFile(irOut, tg, p, nil)
-	}
 	// THE BACKEND IS THE TARGET'S, NOT THE FLAG'S (target-system.md §1.1).
 	//
 	// This switch read the -target FLAG STRING and fell through to the Go
@@ -242,6 +235,13 @@ func run(targetDir, src, target, out, path string, keep, checked bool, bigRepr s
 	}
 	if err != nil {
 		return err
+	}
+	// THE IR (ADR 0032, ADR 0038), the IR_P the printer read, as `gen -ir`
+	// writes it. The differential runner reads it: its cases' entry points are
+	// compiled here and never by the emission sweep.
+	if irOut != "" {
+		p := &ir.Program{Target: target, Stage: ir.StageP, Funcs: []*ir.Func{fA.Clone()}}
+		_ = ir.WriteFile(irOut, tg, p, nil)
 	}
 
 	if out == "" {

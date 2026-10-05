@@ -2,9 +2,11 @@
 
 // The ring: N processes, T tokens, each token passed M times round the ring.
 // Two lowerings of one process (receive an integer, send it to the next):
-//   native    — a goroutine per process, a buffered channel as its mailbox;
-//   stackless — a step function per process, run by one scheduler over a run
-//               queue, each mailbox a fixed ring buffer (no stack per process).
+//
+//	native    — a goroutine per process, a buffered channel as its mailbox;
+//	stackless — a step function per process, run by one scheduler over a run
+//	            queue, each mailbox a fixed ring buffer (no stack per process).
+//
 // Usage: go run ring.go MODE N T M
 package main
 

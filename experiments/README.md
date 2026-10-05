@@ -10,6 +10,8 @@ deliverable; several of these will be deleted, and when they are, what they foun
 | [js-toplevel](js-toplevel/) | everything Node and the browser both provide with no import | yes, and more easily than Go |
 | [java-toplevel](java-toplevel/) | `java.lang` | yes, but `java.lang` has **no collections** |
 | [legibility](legibility/) | (earlier) | see its own notes |
+| [console](console/) | how does text reach a Windows console? | `WriteConsoleW` on a console, `WriteFile` off one; UTF-8 through `WriteFile` is garbled at code page 850; `conpty.go` runs a program in a real pseudo-console ([win32org-2026-10-05](../gauntlet/results/win32org-2026-10-05.md)) |
+| [floatprint](floatprint/) | does each host print a double the same way? | no: the digits differ on JDK 17 and ART, the notation everywhere, and JavaScript prints −0 as `0` (win32org §3) |
 | [android](android/) | does a class file with no stack maps reach ART? | yes: version 50, no `StackMapTable`, accepted by D8 and run by ART ([android-2026-10-05](../gauntlet/results/android-2026-10-05.md)) |
 | [errors](errors/) | how do host failures behave today, and what would a sum cost? | the product leaks (one program, three behaviours), a `pure` throw vanishes under reduction, and a propagated sum reduces to one branch ([errors-2026-10-04](../gauntlet/results/errors-2026-10-04.md)) |
 | [concurrency](concurrency/) | what does a process cost on each host, natively and as a step function? | stackless is 4–600× cheaper per hop and 76–152 B per process ([conc-ring-2026-10-04](../gauntlet/results/conc-ring-2026-10-04.md)) |

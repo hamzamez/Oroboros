@@ -30,6 +30,7 @@
 //	go run gauntlet/stdlib/win32.go
 //	go run gauntlet/stdlib/win32.go -emit DIR
 //	go run gauntlet/stdlib/win32.go -sig CreateFileA          one signature
+//	go run gauntlet/stdlib/win32.go -org                      the partitions by header and by DLL
 //	go run gauntlet/stdlib/win32.go -check-enums              needs MSVC
 //	go run gauntlet/stdlib/win32.go -sizes gauntlet/stdlib/win32-sizes.txt
 package main
@@ -538,6 +539,7 @@ func main() {
 	sizes := flag.String("sizes", "", "ask MSVC for each blocking aggregate's size and write it to FILE")
 	checkEnums := flag.Bool("check-enums", false, "ask MSVC to confirm every enum a declaration relies on is an integer type")
 	sizeTab := flag.String("sizetable", sizeTableFile, "read aggregate sizes from FILE")
+	org := flag.Bool("org", false, "report how the SDK's functions partition by header and by DLL, and stop")
 	flag.Parse()
 	readSizes(*sizeTab)
 
@@ -605,6 +607,16 @@ func main() {
 		uniq = append(uniq, f)
 	}
 	fns = uniq
+
+	if *org {
+		lk, err := loadLinkage(dir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		reportOrganization(fns, lk)
+		return
+	}
 
 	// -sig prints ONE entry point as this tool sees it. It exists because every
 	// number here is a sum over 11,575 signatures, and a sum cannot say that a
@@ -2096,3 +2108,128 @@ if not defined VCV (echo probe: no MSVC toolchain was found & exit /b 1)
 call "!VCV!" >nul || exit /b 1
 cl -nologo -W0 -c probe.c
 `
+
+// reportOrganization measures two partitions of the SDK's entry points, BY
+// HEADER (what a C program includes, and what the documentation's URLs are
+// keyed by: learn.microsoft.com/…/api/fileapi/nf-fileapi-readfile) and BY DLL
+// (what the loader binds, through the import libraries), and how far each is a
+// refinement of the other (win32org-2026-10-05). A name whose libraries bind it
+// to one real DLL has that DLL; one reachable only through an API set, or bound
+// to several, or to none, is counted apart, since it has no DLL to file it under.
+func reportOrganization(fns []fn, lk *linkage) {
+	dllOf := map[string]string{}
+	why := map[string]int{}
+	for _, f := range fns {
+		real := map[string]bool{}
+		viaAPI := false
+		for _, x := range lk.bind[f.name] {
+			if apiSet(x.dll) {
+				viaAPI = true
+				continue
+			}
+			real[strings.ToLower(x.dll)] = true
+		}
+		switch {
+		case len(real) == 1:
+			for d := range real {
+				dllOf[f.name] = d
+			}
+			why["one DLL"]++
+		case len(real) > 1:
+			why["several DLLs"]++
+		case viaAPI:
+			why["an API set only"]++
+		default:
+			why["no import"]++
+		}
+	}
+	byHdr := map[string]map[string]int{}
+	byDLL := map[string]map[string]int{}
+	hdrN := map[string]int{}
+	for _, f := range fns {
+		hdrN[f.hdr]++
+		d, ok := dllOf[f.name]
+		if !ok {
+			continue
+		}
+		if byHdr[f.hdr] == nil {
+			byHdr[f.hdr] = map[string]int{}
+		}
+		byHdr[f.hdr][d]++
+		if byDLL[d] == nil {
+			byDLL[d] = map[string]int{}
+		}
+		byDLL[d][f.hdr]++
+	}
+	fmt.Printf("ENTRY POINTS: %d, in %d headers\n", len(fns), len(hdrN))
+	for _, k := range []string{"one DLL", "several DLLs", "an API set only", "no import"} {
+		fmt.Printf("  %-18s %6d  %5.1f%%\n", k, why[k], pct(why[k], len(fns)))
+	}
+	pure := func(m map[string]map[string]int) (parts, pureParts, fnsIn, fnsPure int) {
+		for _, inner := range m {
+			parts++
+			n := 0
+			for _, c := range inner {
+				n += c
+			}
+			fnsIn += n
+			if len(inner) == 1 {
+				pureParts++
+				fnsPure += n
+			}
+		}
+		return
+	}
+	hp, hpp, hf, hfp := pure(byHdr)
+	dp, dpp, df, dfp := pure(byDLL)
+	fmt.Printf("\nOF THE %d NAMES WITH ONE DLL:\n", hf)
+	fmt.Printf("  headers: %4d, of which %4d bind ONE DLL (%5.1f%% of the names)\n", hp, hpp, pct(hfp, hf))
+	fmt.Printf("  DLLs:    %4d, of which %4d come from ONE header (%5.1f%% of the names)\n", dp, dpp, pct(dfp, df))
+	type kv struct {
+		k string
+		n int
+	}
+	top := func(m map[string]map[string]int, title string) {
+		var xs []kv
+		for k, inner := range m {
+			n := 0
+			for _, c := range inner {
+				n += c
+			}
+			xs = append(xs, kv{k, n})
+		}
+		sort.Slice(xs, func(i, j int) bool { return byCount(xs[i].n, xs[j].n, xs[i].k, xs[j].k) })
+		fmt.Printf("\nTHE LARGEST %s:\n", title)
+		for i, x := range xs {
+			if i == 12 {
+				break
+			}
+			var parts []kv
+			for k, c := range m[x.k] {
+				parts = append(parts, kv{k, c})
+			}
+			sort.Slice(parts, func(i, j int) bool { return byCount(parts[i].n, parts[j].n, parts[i].k, parts[j].k) })
+			var ps []string
+			for j, p := range parts {
+				if j == 4 {
+					ps = append(ps, fmt.Sprintf("… %d more", len(parts)-4))
+					break
+				}
+				ps = append(ps, fmt.Sprintf("%s %d", p.k, p.n))
+			}
+			fmt.Printf("  %-28s %5d  %s\n", x.k, x.n, strings.Join(ps, ", "))
+		}
+	}
+	top(byDLL, "DLLs, AND THE HEADERS THEIR NAMES COME FROM")
+	top(byHdr, "HEADERS, AND THE DLLs THEIR NAMES BIND")
+	fmt.Printf("\nTHE CONSOLE'S NAMES:\n")
+	for _, n := range []string{"GetStdHandle", "WriteFile", "ReadFile", "WriteConsoleW", "ReadConsoleW",
+		"GetConsoleMode", "SetConsoleMode", "SetConsoleOutputCP", "GetConsoleOutputCP", "SetConsoleCP",
+		"OutputDebugStringW", "MultiByteToWideChar", "WideCharToMultiByte", "ExitProcess"} {
+		for _, f := range fns {
+			if f.name == n {
+				fmt.Printf("  %-22s %-16s %s\n", n, f.hdr, dllOf[n])
+			}
+		}
+	}
+}

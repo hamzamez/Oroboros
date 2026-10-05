@@ -233,7 +233,10 @@ a wall that needs language work, stop and research it, then design it.
    errors, three kinds with three algebras, the product's leak measured
    ([errors-research.md](docs/errors-research.md), errors-2026-10-04); how to reach Android — Java
    source, frameless class files, DEX or Kotlin, with the UI's toolkit the bigger fork
-   ([android-research.md](docs/android-research.md), android-2026-10-05). The rest of the assessment's
+   ([android-research.md](docs/android-research.md), android-2026-10-05); printing — rendering,
+   layout and sinks as three algebras, the Windows console, and Win32 organized by header
+   ([printing-research.md](docs/printing-research.md), win32org-2026-10-05; `lib/win/fmt` garbles
+   non-ASCII text on a console). The rest of the assessment's
    starting list, for hamza to replace or extend: a borrow a later call ends
    (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one prover or two (the refinement
    layer's terms or the IR's values); what an unsatisfiable contract should do; which Go package

@@ -58,9 +58,9 @@ func main() {
 	loop := c.Len()
 	c.Write([]byte{0x1c, 0x10, 10}) // iload_2 bipush 10
 	ifAt := c.Len()
-	c.Write([]byte{0xa2, 0, 0})                   // if_icmpge END (patched)
-	c.Write([]byte{0x1b, 0x1c, 0x60, 0x3c})       // iload_1 iload_2 iadd istore_1
-	c.Write([]byte{0x84, 2, 1})                   // iinc 2 1
+	c.Write([]byte{0xa2, 0, 0})             // if_icmpge END (patched)
+	c.Write([]byte{0x1b, 0x1c, 0x60, 0x3c}) // iload_1 iload_2 iadd istore_1
+	c.Write([]byte{0x84, 2, 1})             // iinc 2 1
 	gotoAt := c.Len()
 	c.Write([]byte{0xa7, 0, 0}) // goto LOOP (patched)
 	end := c.Len()
@@ -83,9 +83,9 @@ func main() {
 	u2(&f, 0x0021) // public super
 	u2(&f, this)
 	u2(&f, super)
-	u2(&f, 0) // interfaces
-	u2(&f, 0) // fields
-	u2(&f, 1) // methods
+	u2(&f, 0)      // interfaces
+	u2(&f, 0)      // fields
+	u2(&f, 1)      // methods
 	u2(&f, 0x0009) // public static
 	u2(&f, mname)
 	u2(&f, mdesc)

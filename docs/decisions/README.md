@@ -70,3 +70,4 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0036](0036-a-residuals-binders-are-named-apart.md) | A residual's binders are named apart along the scope chain |
 | [0037](0037-a-programs-obligations-are-in-its-residual.md) | A program's obligations are in its residual, and nothing reads one undecided |
 | [0038](0038-the-irs-text-is-read-not-written.md) | The IR's text is the printers' whole input (IR_P, checked on every program); others may read it, and nobody else writes it until the IR proves index obligations |
+| [0039](0039-the-targets-are-go-windows-android-and-the-browser.md) | The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list |

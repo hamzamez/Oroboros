@@ -1,7 +1,7 @@
 # 0004 — Go, JavaScript, and Java/Android first; C deferred
 
 Date: 2026-08-13
-Status: Accepted
+Status: Superseded in part by [0039](0039-the-targets-are-go-windows-android-and-the-browser.md) (the target list); its Android emission choice is reopened by [android-research.md](../android-research.md)
 
 ## Context
 

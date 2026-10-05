@@ -22,7 +22,16 @@ The governing rule is **emit at the highest layer the target natively provides**
 far as necessary.
 
 It is a **general-purpose language** ([general-purpose.md](docs/general-purpose.md)): apps on Windows
-and Android, websites, cloud backends. The four targets are application platforms.
+and Android, websites, cloud backends. **The four primary targets are Go, Windows, Android and the
+browser** ([ADR 0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)):
+- the JavaScript backend's host is **the browser**, and its supported API is the Web platform's.
+  Node is not a primary target; a third party may add it as a layer;
+- the Java backend exists for **Android**, and ART is its runtime of record, tested by `dalvikvm64`
+  in the emulator ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)).
+
+Until 2026-10-05 the JavaScript target was built and tested under Node (its portable `os` is
+`node:fs` and `process`), and the Java target on HotSpot. Moving each to its platform is the
+consequence ADR 0039 names.
 
 **The atom** ([the-atom.md](docs/the-atom.md)) is **lambda calculus in which the normal form is a
 parameter**:
@@ -222,7 +231,9 @@ a wall that needs language work, stop and research it, then design it.
    six decisions each for hamza, taken when a program meets them:** concurrency, the Erlang model and
    "let it crash" ([concurrency-research.md](docs/concurrency-research.md), conc-ring-2026-10-04);
    errors, three kinds with three algebras, the product's leak measured
-   ([errors-research.md](docs/errors-research.md), errors-2026-10-04). The rest of the assessment's
+   ([errors-research.md](docs/errors-research.md), errors-2026-10-04); how to reach Android — Java
+   source, frameless class files, DEX or Kotlin, with the UI's toolkit the bigger fork
+   ([android-research.md](docs/android-research.md), android-2026-10-05). The rest of the assessment's
    starting list, for hamza to replace or extend: a borrow a later call ends
    (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one prover or two (the refinement
    layer's terms or the IR's values); what an unsatisfiable contract should do; which Go package
@@ -286,7 +297,7 @@ rejected alternatives.
 | Targets are ecosystems; portability is a program property | [0001](docs/decisions/0001-parasite-model.md) |
 | Capability graph, not a fixed layer tower | [0002](docs/decisions/0002-capability-graph.md) |
 | Range-typed integers, mathematical semantics, machine representation | [0003](docs/decisions/0003-range-typed-integers.md) |
-| Go, JavaScript, Java/Android first; C deferred | [0004](docs/decisions/0004-first-targets.md) |
+| ~~Go, JavaScript, Java/Android first~~ — the list superseded by 0039; C deferred | [0004](docs/decisions/0004-first-targets.md) |
 | Compiler written in Go | [0005](docs/decisions/0005-implementation-language.md) |
 | Backend interface is a file format, not a Go interface | [0006](docs/decisions/0006-ir-file-format.md) |
 | Explore candidates against a fixed test; do not specify the core first | [0007](docs/decisions/0007-exploration-over-specification.md) |
@@ -321,6 +332,7 @@ rejected alternatives.
 | A residual's binders are named apart along the scope chain: no binder reuses an enclosing binder's name, so a context keyed by name is sound | [0036](docs/decisions/0036-a-residuals-binders-are-named-apart.md) |
 | A program's obligations are in its residual: every environment installs the contracts, one procedure decides the marks, and the refiner and the printers refuse a residual that still carries one | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
 | The IR's text (IR_P) is the printers' whole input, checked on every program; others may read it, and nobody else writes it until the IR proves index obligations | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
+| The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
 
 ## How this project is run
 

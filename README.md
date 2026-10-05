@@ -45,21 +45,28 @@ comes from the test suite, which runs it on every target.
 (use io)
 (export main)
 
-(def count-primes (n)
-  (let composite (build sieve n                  ; a buffer of n booleans, zero-filled
-                   (loop ((s sieve) (i 2))
-                     (>= (* i i) n)   s
-                     (>= i (len s))   s
-                     (s i)            (again s (+ i 1))  ; indexing is application
-                     else             (again (loop ((s s) (j (* i i)))
-                                               (>= j n)  s
-                                               else      (again (set s j true) (+ j i)))
-                                             (+ i 1))))
-    ; `composite` is frozen on the way out
-    (loop ((k 2) (count 0))
-      (>= k n)       count
-      (composite k)  (again (+ k 1) count)
-      else           (again (+ k 1) (+ count 1)))))
+; Mark i², i² + i, i² + 2i, … below n as composite.
+(def mark-multiples (s i n)
+  (loop ((s s) (j (* i i)))
+    (>= j n)  s
+    else      (again (set s j true) (+ j i))))  ; `set` consumes s and hands it back
+
+; A table of n booleans: k is marked exactly when k ≥ 2 is not prime.
+(def sieve (n)
+  (build s n                                   ; a buffer of n booleans, zero-filled
+    (loop ((s s) (i 2))
+      (>= (* i i) n)  s
+      (s i)           (again s (+ i 1))        ; indexing is application
+      else            (again (mark-multiples s i n) (+ i 1)))))
+
+; How many k in [2, n) are not marked.
+(def count-unmarked (t n)
+  (loop ((k 2) (count 0))
+    (>= k n)  count
+    (t k)     (again (+ k 1) count)
+    else      (again (+ k 1) (+ count 1))))
+
+(def count-primes (n) (count-unmarked (sieve n) n))   ; the buffer froze on the way out of `build`
 
 (def main () (io.print-int (count-primes 1000)))
 ```
@@ -68,9 +75,12 @@ comes from the test suite, which runs it on every target.
 168
 ```
 
-It prints the same on Go, Node and the JVM. The emitted Go has a `[]bool`, three plain `for` loops, no
-bounds-check helpers and no wrapper. Values are numbered, not named: the code is written for Go's
-compiler, and only its speed against hand-written code is held to a standard.
+It prints the same on Go, on JavaScript, on the JVM, and on Android's runtime (ART, in the emulator).
+The four definitions cost nothing: reduction inlines every function a program does not export, so
+the emitted Go is byte for byte what the same program written as one function gives. It has a
+`[]bool`, three plain `for` loops, no bounds-check helpers and no wrapper, and `mark-multiples` is the
+inner loop. Values are numbered, not named: the code is written for Go's compiler, and only its speed
+against hand-written code is held to a standard.
 
 ```go
 v2 := make([]bool, 1000)
@@ -83,16 +93,27 @@ for ; ; v6 = (v6 + 1) {
 	if v9 {
 		break
 	}
-	v10 := len(v5)
-	v11 := (v6 >= v10)
-	if v11 {
-		break
-	}
-	v16 := v5[v6]
-	if v16 {
+	v10 := v5[v6]
+	if v10 {
 		continue
 	}
-	…
+	v13 := (v6 * v6)
+	v15 := v5
+	var v16 int = v13
+	for {
+		v18 := (v16 >= 1000)
+		if v18 {
+			break
+		}
+		v15[v16] = true
+		v23 := (v16 + v6)
+		v16 = v23
+		continue
+	}
+	v5 = v15
+	continue
+}
+…
 ```
 
 The language's whole character is in there:
@@ -364,9 +385,6 @@ integer over `math/bits` and `strconv`, is the first.
 - **Maps take integer keys only.**
 - **Windows** is the least complete target: its `io` has no `print-line`, it has no floats and no host
   bignum, and fixed-limb arithmetic cannot yet be printed there.
-- **A rough edge found while writing this page:**
-  - a buffer's length is not carried out of an inner loop, which is why the sieve guards `(len s)` as
-    well as `n`.
 - **No packaging, no editor support**, and error messages written for the compiler's authors rather
   than for newcomers.
 

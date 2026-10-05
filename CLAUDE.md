@@ -241,6 +241,16 @@ a wall that needs language work, stop and research it, then design it.
    (`Scanner.Bytes`); callbacks, tiers 1 and 2; ℤ/2ⁿ as a type; one prover or two (the refinement
    layer's terms or the IR's values); what an unsatisfiable contract should do; which Go package
    next, and in what order.
+
+   **To do, named by these questions** (built when a program needs it, not specified yet):
+   - **One integer rendering in the language**, render : ℤ → Σ*, injected on every target, with its
+     implementation chosen on the IR per representation: the word (`strconv.FormatInt`,
+     `Long.toString`, `String(n)`, `lib/win/fmt`'s digit loop), `u64`, the host's bignum, and limbs
+     by repeated `div-small`. It replaces `big-str`, which is not language surface: it is declared on
+     three targets (Windows refuses a limb rendering), it doubles as the demand signal for the rung
+     above the word (`emit.MentionsBig`), and on a value that fits the word it renders through a
+     host bignum (`big.NewInt(v).String()`), a hidden allocation. It is the integer half of
+     printing-research's P3.
 2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
    algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
 3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs

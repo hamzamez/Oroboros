@@ -1,8 +1,8 @@
 # Oroboros
 
-A small language that compiles to **Go, JavaScript, Java and x86-64 assembly**. The output is the code
-a good programmer on that platform would have written, and it calls the platform's own libraries
-directly.
+A small language for four platforms: **Go, the browser, Android and Windows**. It compiles to Go,
+JavaScript, Java and x86-64 assembly. The output is the code a good programmer on that platform would
+have written, and it calls the platform's own libraries directly.
 
 ```lisp
 (def main ()
@@ -10,7 +10,7 @@ directly.
 ```
 
 ```
-354224848179261915075          ; on Go, on Node, and on the JVM
+354224848179261915075          ; on Go, on JavaScript, on the JVM, and on Android
 ```
 
 > **Status: a working compiler, not a release.** Every claim on this page was measured or run, and the
@@ -147,9 +147,9 @@ build: main: 1 of 2 integer operation(s) cannot be proven to stay inside the wor
 ```
 
 This refusal is the point. Compiled naively, that line gives `3736710778780434371` on Go and the JVM
-(wrapped) and `354224848179262000000` on Node (rounded): three wrong answers from one source. An `int`
+(wrapped) and `354224848179262000000` on JavaScript (rounded): three wrong answers from one source. An `int`
 is an integer, and each target says which integers its machine word holds: int64 on Go and the JVM,
-plus `uint64` on Go, and ±(2⁵³−1) on Node. Say the result is unbounded instead:
+plus `uint64` on Go, and ±(2⁵³−1) on JavaScript. Say the result is unbounded instead:
 
 ```lisp
 (sig fib ((n (int 0 1000))) (int 0 +inf))
@@ -161,7 +161,8 @@ plus `uint64` on Go, and ±(2⁵³−1) on Node. Say the result is unbounded ins
 354224848179261915075
 ```
 
-Each host uses its own big integer: `*big.Int` on Go, `BigInt` on Node, `BigInteger` on the JVM. A
+Each host uses its own big integer: `*big.Int` on Go, `BigInt` on JavaScript, `BigInteger` on the JVM
+and on Android. A
 range is part of a value's *type*: `(int 0 255)` is stored as a `[]byte` on Go and as a `short[]` on
 the JVM, whose `byte` is signed. Above the machine word, the target picks the representation.
 
@@ -183,7 +184,7 @@ portable to go, java — not js, windows
 W(go, java) = [-9223372036854775808, 9223372036854775807]   (the meet of their words: derived, not assumed — ADR 0026)
 ```
 
-Go and the JVM both print `9000000000000000000`. Nothing is wrong on Node: it simply isn't a target
+Go and the JVM both print `9000000000000000000`. Nothing is wrong on JavaScript: it simply isn't a target
 this program runs on, and the compiler says so instead of rounding. (Windows refuses for a different
 reason: its `io` module has no `print-int`.)
 
@@ -221,7 +222,15 @@ node wc.mjs docs/decisions/0001-parasite-model.md
 java -cp wc-classes Main docs/decisions/0001-parasite-model.md
 ```
 
-All three print `49`, the same as `wc -l`.
+All three print `49`, the same as `wc -l`, and so does the JVM build on Android, converted by `d8` and
+run by ART in the emulator.
+
+**On JavaScript, `os` is Node's for now**: `ReadFile` is `fs.readFileSync` and `Args` is `process.argv`.
+A browser has no files and no command line, so this program will not be portable to the browser, and
+the compiler will say so. The browser is the JavaScript target; Node is a layer a third party can add
+([ADR 0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)), and these
+declarations move to it.
+
 - **Three outcomes are three clauses.** `cond` erases to the nested `if`s it means, and a negated
   condition swaps its branches — `if (¬c) a b = if c b a` — so this emits the same Go, byte for
   byte, as the staircase it replaced.
@@ -364,7 +373,7 @@ Surveys read each host's own API list and count what the declaration format can 
 | Go standard library | 87.8% | 60.4% |
 | JVM (JDK) | 81.4% | 60.9% |
 | Win32 | 90.5% | 31.0% callable *and* linkable |
-| Node | 100% | not a meaningful number: every value has one type |
+| JavaScript (Node's `globalThis`) | 100% | not a meaningful number: every value has one type. The browser's Web APIs are not surveyed yet |
 
 "Declarable" is not "supported". A package is supported when every function is declared **by hand**,
 with its preconditions and what it does to buffers, and checked against the real package
@@ -383,6 +392,8 @@ integer over `math/bits` and `strconv`, is the first.
   a host interface is wanted; you cannot build one.
 - **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
 - **Maps take integer keys only.**
+- **The browser's own API**, the Web platform, is not declared yet, and the JavaScript output is
+  tested under Node, as an engine. Moving the tests into a browser is ADR 0039's next step.
 - **Windows** is the least complete target: its `io` has no `print-line`, it has no floats and no host
   bignum, and fixed-limb arithmetic cannot yet be printed there.
 - **No packaging, no editor support**, and error messages written for the compiler's authors rather
@@ -390,8 +401,10 @@ integer over `math/bits` and `strconv`, is the first.
 
 ## Try it
 
-You need Go 1.26 or newer (checked with 1.27). For the other targets you need Node (checked with 26)
-and a JDK (checked with 17), and Visual Studio's MASM for Windows.
+You need Go 1.26 or newer (checked with 1.27). For the other targets you need:
+- Node (checked with 26), which runs the JavaScript output in the tests until they run in a browser;
+- a JDK (checked with 17), and for Android the SDK's `d8` and an emulator or a device;
+- Visual Studio's MASM, for Windows.
 
 The commands on this page are one per line, with no `&&`, and a built program is named `.exe`, so
 they run unchanged in bash, zsh, Windows PowerShell and PowerShell 7. (Windows will not run a file

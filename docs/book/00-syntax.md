@@ -711,21 +711,39 @@ the absences are deliberate:
 
 | Lisp has | we do not | why |
 |---|---|---|
-| `'x`, `` `x ``, `,x` — quote and quasiquote | no quote of any kind | the rest of this section |
+| `'x`, `` `x ``, `,x` — the quote **operator** | none; `'` is a read error | the rest of this section |
 | macros, `defmacro` | none | the rest of this section |
 | reader macros (`#(`, `#'`, `#\`) | none; the reader is fixed and context-free | a program may not change how a program is read |
 | dotted pairs, improper lists, `cons` cells | a form is a flat list; there is no pair | nothing in the calculus is built from pairs |
 | `[]`, `{}`, `#{}` (Clojure) | parentheses only | one delimiter pair, so §0.7's grammar stays three lines |
-| symbols as run-time values | not built | there is nothing to quote them with |
+| symbols as run-time values | not built | nothing suppresses evaluation, so there is no way to make one |
 | `nil` as false, `()` as a value | `()` is not a term; `bool` is data with `if` as its eliminator | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) |
+
+> **First, a disambiguation, because "quote" is three things.** We have **quotation marks**: `"a;b"`
+> is a string literal, one of §0.7's four token classes, scanned by its own rule that the gap never
+> enters (§0.9). We have **`Quote` as a host function**: `strconv.Quote` and `strconv.Unquote` are
+> declared names on the Go target ([targets/go/strconv.oro](../../targets/go/strconv.oro) lines
+> 91–128), so `(sc.Quote s)` is an ordinary call that escapes a string's bytes. What we do not have
+> is the **quote operator** — Lisp's `'x`, the special form that suppresses evaluation and hands back
+> the datum. `'` is not an identifier character, so it is a read error:
+>
+> ```lisp
+> '(1 2)
+> ;; line 1: "'" is not a valid identifier or number
+> ```
+>
+> Only the third sense is the one this section is about, and the three are unrelated: the first
+> delimits a literal, the second is a function on strings, and the third would be a way for a program
+> to hold a program.
 
 **And this is the one that matters.** The usual argument for s-expressions is *homoiconicity* — the
 word is generally traced to Kay's 1969 thesis, describing TRAC — meaning that code and data share a
-representation, so a program can construct a program. That is what quote and macros are for, and it
-is the single most-cited advantage of the notation.
+representation, so a program can construct a program. That is what the quote operator and macros are
+for, and it is the single most-cited advantage of the notation.
 
-**We do not claim it, and we do not use it.** There is no quote, so a program cannot build a program;
-there are no macros, so nothing extends the syntax. We use s-expressions for the grammar alone.
+**We do not claim it, and we do not use it.** Nothing suppresses evaluation, so a program cannot
+build a program; there are no macros, so nothing extends the syntax. We use s-expressions for the
+grammar alone.
 
 The reason we can get away with that is a finding, not a preference
 ([q5](../spec/q5-do-we-need-rules.md)). The question was whether this language needs a `rule`
@@ -937,7 +955,8 @@ a rewrite rule and a `def` are the same object, so δ does the work a macro syst
   preserve every gap or refuse the edit.
 - **No `#;`**, because our forms are discriminated by arity and parity, and a comment that changes
   which grammar a form takes is not a comment.
-- **We use s-expressions for the grammar, not for homoiconicity.** No quote, no macros: δ over `def`
+- **We use s-expressions for the grammar, not for homoiconicity.** No quote *operator* (`"…"` is a
+  string literal and `strconv.Quote` is a host function — different things), and no macros: δ over `def`
   already is a rewrite rule.
 - **The real cost is that the head is not visually marked.** Indentation carries it. Configure your
   editor and stop counting parentheses.

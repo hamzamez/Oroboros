@@ -830,6 +830,15 @@ algebra: state the law, make the declaration say as much of it as the language c
 the part it cannot. Deriving what a construct is and measuring whether it is good are different jobs.
 Do the first before the second, and never substitute a list of cases for a derivation.
 
+**Follow the derivation where it leads, even into a rewrite** (hamza, 2026-10-06). This rule covers
+the language and the implementation alike. When the mathematics, the algebra or a derivation points to
+a better design, propose it. "Better" means better in any way: simpler, more uniform, more general,
+sounder, faster, smaller. Propose it even when it means rewriting a lot of code. Rewriting is not a cost
+to avoid: this is Oroboros, and it eats its own tail. Never keep a design because changing it is work,
+and never present the cheaper option as the recommendation when the algebra says otherwise. Say what
+the derivation shows, what it would replace, and what the rewrite costs, and we discuss it. When the
+algebra leads to the recommendation and the question is already in front of hamza, take it.
+
 **Every significant decision gets an ADR** in `docs/decisions/`, using the template in its README.
 The "Why not" section is the point. Reversing a decision means a new ADR that supersedes the old one.
 Do not edit decision history.

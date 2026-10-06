@@ -21,7 +21,7 @@ func checkGo(t *testing.T, src string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, terms, err := core.Load(forms)
+	prog, terms, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +46,8 @@ func checkGo(t *testing.T, src string) error {
 // declared `string` — without the decode. Before, it did: the realizations are
 // one Go `string`, and identity by realization let the bytes through.
 func TestTheHostsStringIsNotOurs(t *testing.T) {
-	err := checkGo(t, `(use go/strconv as sc)
-(fn (q) ((sc.Unquote q) (fn (s e) (concat s "x"))))`)
+	err := checkGo(t, `(use go/strconv as sc) (use result)
+(fn (q) (case (sc.Unquote q) (result.ok s) (concat s "x") (result.err e) ""))`)
 	if err == nil || !strings.Contains(err.Error(), "bytestring") {
 		t.Errorf("a host string was accepted as ours; got %v", err)
 	}
@@ -69,8 +69,8 @@ func TestOursIsAHostString(t *testing.T) {
 
 // THE WAY BACK IS THE DECODE, and after it the value is ours.
 func TestTheWayBackIsTheDecode(t *testing.T) {
-	if err := checkGo(t, `(use go) (use go/strconv as sc)
-(fn (q) ((sc.Unquote q) (fn (s e) (concat (go.text s) "x"))))`); err != nil {
+	if err := checkGo(t, `(use go) (use go/strconv as sc) (use result)
+(fn (q) (case (sc.Unquote q) (result.ok s) (concat (go.text s) "x") (result.err e) ""))`); err != nil {
 		t.Errorf("d gives a value of Σ*: %v", err)
 	}
 }

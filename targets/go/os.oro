@@ -63,33 +63,33 @@
     ; A file is bytes: the element range is declared, which is what gives the
     ; emitted []byte (elemwidth-2026-08-27). The length needs no declaration:
     ; `len` is bounded at both ends (tables.md §2.3.1).
-    (sig ReadFile ((name bytestring)) (tuple (array (int 0 255)) error)
+    (sig ReadFile ((name bytestring)) (result.result (array (int 0 255)) error)
       (host expr "os.ReadFile(%s)" (import "os")))
-    (sig WriteFile ((name bytestring) (data (array (int 0 255))) (perm (int 0 4294967295))) error
+    (sig WriteFile ((name bytestring) (data (array (int 0 255))) (perm (int 0 4294967295))) (result.result (tuple) error)
       (host expr "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
     (sig Open ((name bytestring)) (result.result File error)
       (host expr "os.Open(%s)" (import "os")))
-    (sig Create ((name bytestring)) (tuple File error)
+    (sig Create ((name bytestring)) (result.result File error)
       (host expr "os.Create(%s)" (import "os")))
-    (sig Remove ((name bytestring)) error
+    (sig Remove ((name bytestring)) (result.result (tuple) error)
       (host expr "os.Remove(%s)" (import "os")))
-    (sig RemoveAll ((path bytestring)) error
+    (sig RemoveAll ((path bytestring)) (result.result (tuple) error)
       (host expr "os.RemoveAll(%s)" (import "os")))
-    (sig Rename ((oldpath bytestring) (newpath bytestring)) error
+    (sig Rename ((oldpath bytestring) (newpath bytestring)) (result.result (tuple) error)
       (host expr "os.Rename(%s, %s)" (import "os")))
 
     ; ---------------------------------------------------------- directories
-    (sig Mkdir ((name bytestring) (perm (int 0 4294967295))) error
+    (sig Mkdir ((name bytestring) (perm (int 0 4294967295))) (result.result (tuple) error)
       (host expr "os.Mkdir(%s, os.FileMode(%s))" (import "os")))
-    (sig MkdirAll ((path bytestring) (perm (int 0 4294967295))) error
+    (sig MkdirAll ((path bytestring) (perm (int 0 4294967295))) (result.result (tuple) error)
       (host expr "os.MkdirAll(%s, os.FileMode(%s))" (import "os")))
-    (sig MkdirTemp ((dir bytestring) (pattern bytestring)) (tuple bytestring error)
+    (sig MkdirTemp ((dir bytestring) (pattern bytestring)) (result.result bytestring error)
       (host expr "os.MkdirTemp(%s, %s)" (import "os")))
     (sig TempDir () bytestring
       (host expr "os.TempDir()" (import "os")))
-    (sig Getwd () (tuple bytestring error)
+    (sig Getwd () (result.result bytestring error)
       (host expr "os.Getwd()" (import "os")))
-    (sig Chdir ((dir bytestring)) error
+    (sig Chdir ((dir bytestring)) (result.result (tuple) error)
       (host expr "os.Chdir(%s)" (import "os")))
 
     ; ---------------------------------------------------- the standard streams
@@ -106,9 +106,9 @@
       (host expr "os.Getenv(%s)" (import "os")))
     (sig LookupEnv ((key bytestring)) (tuple bytestring bool)
       (host expr "os.LookupEnv(%s)" (import "os")))
-    (sig Setenv ((key bytestring) (value bytestring)) error
+    (sig Setenv ((key bytestring) (value bytestring)) (result.result (tuple) error)
       (host expr "os.Setenv(%s, %s)" (import "os")))
-    (sig Unsetenv ((key bytestring)) error
+    (sig Unsetenv ((key bytestring)) (result.result (tuple) error)
       (host expr "os.Unsetenv(%s)" (import "os")))
     (sig Environ () (array bytestring)
       (host expr "os.Environ()" (import "os")))
@@ -128,9 +128,9 @@
     (sig Exit ((code int)) int (where (and (>= code 0) (<= code 255)))
       (host stmt "os.Exit(%s)" (import "os")))
     (sig Getpid () int (host expr "os.Getpid()" (import "os")))
-    (sig Hostname () (tuple bytestring error)
+    (sig Hostname () (result.result bytestring error)
       (host expr "os.Hostname()" (import "os")))
-    (sig Executable () (tuple bytestring error)
+    (sig Executable () (result.result bytestring error)
       (host expr "os.Executable()" (import "os")))
 
     ; ------------------------------------------------------------------ errors
@@ -151,9 +151,9 @@
         (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
           (import "os")))
       ; io.Writer's contract: n = len b exactly when err is nil.
-      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
         (host expr "%s.Write(%s)" (import "os")))
-      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))
         (host expr "%s.WriteString(%s)" (import "os")))
       ; Succeeds with nothing: 1 + E, the unit beside the error (data.md §3.6).
       (sig Close ((self File)) (result.result (tuple) error) (host expr "%s.Close()" (import "os")))

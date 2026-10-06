@@ -22,7 +22,7 @@ func TestSeveralResultsEmitTheHostsOwnForm(t *testing.T) {
 	if err != nil || len(terms) != 1 {
 		t.Fatalf("read: %v", err)
 	}
-	out, err := golang.FromResidual(tg, "gen-read", nil, terms[0])
+	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(terms[0]))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -48,11 +48,18 @@ func TestAnUnreadResultBecomesBlank(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out, err := golang.FromResidual(tg, "gen-read", nil, terms[0])
+	out, err := golang.FromResidual(tg, "gen-read", nil, rawReadFile(terms[0]))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !regexp.MustCompile(`v\d+, _ := os\.ReadFile`).MatchString(out) {
 		t.Fatalf("the unread result must be `_`, or Go refuses the file:\n%s", out)
 	}
+}
+
+// rawReadFile names the host's own os.ReadFile in a residual these tests write
+// by hand: since fallible declarations became definitions (retract.go), the
+// multi-result host call is the raw one, whose name no source can spell.
+func rawReadFile(t *core.Term) *core.Term {
+	return core.Rename(t, map[string]string{"go/os.ReadFile": emit.RawName("go/os.ReadFile")})
 }

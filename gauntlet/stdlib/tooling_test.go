@@ -1756,6 +1756,13 @@ func goToHand(t string) string {
 func modulePrims(tg *emit.Target, module string) map[string]emit.Prim {
 	out := map[string]emit.Prim{}
 	for k, p := range tg.Prims {
+		// A FALLIBLE DECLARATION'S RAW CALL is the host's own declaration, so it is
+		// compared under the name it was declared with (emit/retract.go). Keyed by
+		// its raw name it fell out of the module, and a partial file's coverage
+		// let it go unchecked from step 4 until this was noticed (oskinds-2026-10-06).
+		if d, ok := emit.DeclaredName(k); ok {
+			k = d
+		}
 		if strings.HasPrefix(k, module+".") {
 			out[strings.TrimPrefix(k, module+".")] = p
 		}

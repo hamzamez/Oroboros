@@ -23,9 +23,11 @@ func TestAPrimMayGiveBackSeveralResults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, ok := tg.Prims["go/os.ReadFile"]
+	// The host's (bytes, error), now the raw call behind the fallible
+	// declaration (retract.go): the host call with several results is it.
+	p, ok := tg.Prims[RawName("go/os.ReadFile")]
 	if !ok {
-		t.Fatal("targets/go declares no go/os.ReadFile")
+		t.Fatal("targets/go declares no raw go/os.ReadFile")
 	}
 	if len(p.Results) != 2 {
 		t.Fatalf("ReadFile has %d declared results, want 2: %v", len(p.Results), p.Results)

@@ -74,23 +74,23 @@
 
     ; ------------------------------------------------------------- to a Writer
     ; The pair is handed back: n, the bytes written, and the write's error.
-    (sig Fprint    ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprint    ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprint(%s, %s)" (import "fmt")))
-    (sig Fprint2   ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprint2   ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprint(%s, %s, %s)" (import "fmt")))
-    (sig Fprint3   ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprint3   ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprint(%s, %s, %s, %s)" (import "fmt")))
-    (sig Fprintln  ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintln  ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintln(%s, %s)" (import "fmt")))
-    (sig Fprintln2 ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintln2 ((w go/io.Writer) (a any) (b any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintln(%s, %s, %s)" (import "fmt")))
-    (sig Fprintln3 ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintln3 ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintln(%s, %s, %s, %s)" (import "fmt")))
-    (sig Fprintf   ((w go/io.Writer) (format bytestring) (a any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf   ((w go/io.Writer) (format bytestring) (a any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintf(%s, %s, %s)" (import "fmt")))
-    (sig Fprintf2  ((w go/io.Writer) (format bytestring) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf2  ((w go/io.Writer) (format bytestring) (a any) (b any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintf(%s, %s, %s, %s)" (import "fmt")))
-    (sig Fprintf3  ((w go/io.Writer) (format bytestring) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf3  ((w go/io.Writer) (format bytestring) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) (option error))
       (host expr "fmt.Fprintf(%s, %s, %s, %s, %s)" (import "fmt")))
 
     ; ------------------------------------------------------------------ errors

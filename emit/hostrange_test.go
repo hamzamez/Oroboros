@@ -16,7 +16,7 @@ func TestAHostParametersRangeIsAnObligation(t *testing.T) {
 			"go/math/bits.Len32's parameter x, declared (int 0 4294967295), requires"},
 		{`(use go/math/bits) (export f) (sig f () int) (def f () (bits.Len32 -1))`,
 			"go/math/bits.Len32's parameter x is declared (int 0 4294967295), and a call passes -1"},
-		{`(use go) (use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (go.err-nil (os.WriteFile "p" d -1)))`,
+		{`(use go) (use go/os) (use result) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (case (os.WriteFile "p" d -1) (result.ok u) true (result.err e) false))`,
 			"go/os.WriteFile's parameter perm is declared (int 0 4294967295), and a call passes -1"},
 	} {
 		_, err := dischargeGo(t, c.src)
@@ -27,7 +27,7 @@ func TestAHostParametersRangeIsAnObligation(t *testing.T) {
 	// …and a value the program's own facts keep inside the range passes.
 	for _, src := range []string{
 		`(use go/math/bits) (export f) (sig f ((x (int 0 5))) int) (def f (x) (bits.Len32 x))`,
-		`(use go) (use go/os) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (go.err-nil (os.WriteFile "p" d 420)))`,
+		`(use go) (use go/os) (use result) (export f) (sig f ((d (array (int 0 255)))) bool) (def f (d) (case (os.WriteFile "p" d 420) (result.ok u) true (result.err e) false))`,
 	} {
 		if _, err := dischargeGo(t, src); err != nil {
 			t.Errorf("%s: %v", src, err)

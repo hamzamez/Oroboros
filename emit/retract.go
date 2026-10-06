@@ -118,9 +118,26 @@ func (tg *Target) retract(q string) error {
 	if i := strings.LastIndex(q, "."); i >= 0 {
 		mod, local = q[:i], q[i+1:]
 	}
-	sh, err := tg.shapeOf(p.Retract, mod)
+	// The result's variant resolves where the declaration was written; an
+	// included copy lives in another module, which then needs that module's
+	// `use` for the definition core will resolve.
+	home := p.RetractIn
+	if home == "" {
+		home = mod
+	}
+	sh, err := tg.shapeOf(p.Retract, home)
 	if err != nil {
 		return err
+	}
+	if home != mod {
+		for _, f := range tg.Defs[home] {
+			if f.Kind == "use" && !hasUse(tg.Defs[mod], f) {
+				if tg.Defs == nil {
+					tg.Defs = map[string][]core.Form{}
+				}
+				tg.Defs[mod] = append(tg.Defs[mod], f)
+			}
+		}
 	}
 	// The types derived from the result as written resolve in its module, as
 	// every declaration's do (names.go); the declaration's own were resolved
@@ -196,8 +213,28 @@ func (tg *Target) retract(q string) error {
 // from writing them, and they contain no `.`, because core reads a dotted name
 // as an import's alias and any other name a module does not define as a
 // primitive (core/reduce.go, resolve).
-func RawName(q string) string    { return "#raw:" + strings.ReplaceAll(q, ".", ":") }
+func RawName(q string) string { return "#raw:" + strings.ReplaceAll(q, ".", ":") }
+func hasUse(fs []core.Form, u core.Form) bool {
+	for _, f := range fs {
+		if f.Kind == "use" && f.Name == u.Name && f.Alias == u.Alias {
+			return true
+		}
+	}
+	return false
+}
+
 func nicheName(ty string) string { return "#niche:" + strings.ReplaceAll(ty, ".", ":") }
+
+// DeclaredName inverts RawName: the name a raw call was declared under, which is
+// the host's own declaration and is checked against the host under that name
+// (gauntlet/stdlib, TestHandDeclarationsAgreeWithTheHost). A module path has no
+// `.`, so every `:` after the prefix was one.
+func DeclaredName(raw string) (string, bool) {
+	if !strings.HasPrefix(raw, "#raw:") {
+		return "", false
+	}
+	return strings.ReplaceAll(strings.TrimPrefix(raw, "#raw:"), ":", "."), true
+}
 
 func replaceName(names []string, from, to string) []string {
 	out := names[:0]

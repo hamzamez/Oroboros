@@ -42,6 +42,7 @@
 (use go/strings as strings)
 (use go/strconv as strconv)
 (use go/fmt as fmt)
+(use result)
 
 (export main)
 
@@ -54,27 +55,40 @@
   (let (tuple w e) (fmt.Fprintln (gos.Stderr) msg)
     1))
 
+; Whether an (option error) is absent: a partial success's error, such as a
+; parse's or Scanner.Err's (spec/errors.md §4.3).
+(def ok? (o) (case o none true (some e) false))
+
 ; The end of the input, or the first error reading it. The summary goes out
-; only when every line was read.
+; only when every line was read. A Flush on the way to a failure is made and
+; its own outcome set aside: the run fails either way.
 (def finish (in out col n sum used)
-  (if (not (go.err-nil (Scanner.Err in)))
-      (seq (Writer.Flush out) (fail "lines: cannot read standard input"))
+  (case (Scanner.Err in)
+    (some e)
+      (case (Writer.Flush out)
+        (result.ok u)  (fail "lines: cannot read standard input")
+        (result.err f) (fail "lines: cannot read standard input"))
+    none
       (let (tuple w1 e1) (fmt.Fprintf3 out "%d lines; column %d: %d values, sum " n col used)
            (tuple w2 e2) (fmt.Fprintln out sum)
-        (if (go.err-nil (Writer.Flush out))
-            0
-            (fail "lines: cannot write standard output")))))
+        (case (Writer.Flush out)
+          (result.ok u)  0
+          (result.err f) (fail "lines: cannot write standard output")))))
 
-; Whether a parse gave a value this tool sums.
+; Whether a parse gave a value this tool sums. ParseInt is a partial success:
+; its value comes with the error (0, or saturated at the word), so the value
+; is summed only when the error is absent.
 (def summed (pe v)
-  (and (go.err-nil pe) (>= v (- 0 cap-value)) (<= v cap-value)))
+  (and (ok? pe) (>= v (- 0 cap-value)) (<= v cap-value)))
 
 (def run (col)
   (let in  (bufio.NewScanner (gos.Stdin))
        out (bufio.NewWriter (gos.Stdout))
     (loop ((n 0) (sum 0) (used 0))
       (not (Scanner.Scan in))  (finish in out col n sum used)
-      (>= n cap-lines)         (seq (Writer.Flush out) (fail "lines: more than 16777216 lines"))
+      (>= n cap-lines)         (case (Writer.Flush out)
+                                 (result.ok u)  (fail "lines: more than 16777216 lines")
+                                 (result.err f) (fail "lines: more than 16777216 lines"))
       else
         (let line (Scanner.Text in)
              fs   (strings.Fields line)
@@ -87,7 +101,7 @@
 (def main ()
   (let av (gos.Args)
        (tuple col e) (strconv.Atoi (if (< (len av) 2) "1" (av 1)))
-       status (if (and (go.err-nil e) (>= col 1) (<= col cap-column))
+       status (if (and (ok? e) (>= col 1) (<= col cap-column))
                   (run col)
                   (fail "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)"))
     (gos.Exit status)))

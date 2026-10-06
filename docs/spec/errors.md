@@ -442,9 +442,10 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
    (niche-2026-10-06), with `os.Open`, `File.Read` and `File.Close` declared in the model. JavaScript's
    and Java's niches come with the portable `os` in step 5, where a program calls a declaration that
    reads them; `(fails …)` with the first Win32 declaration that needs it.
-5. **The migration**. **The portable `os` is built** (oskinds-2026-10-06): kinds on three hosts, the
-   JavaScript and Java niches, and the six corpus programs that called it, of which `wc`, `jsonfmt`
-   and `freq` emit byte-identical code. Remaining:
+5. **The migration**. **Built** (oskinds-2026-10-06, gomigrate-2026-10-06): the portable `os` with
+   kinds on three hosts, the JavaScript and Java niches, the six corpus programs that called it (of
+   which `wc`, `jsonfmt` and `freq` emit byte-identical code), and every fallible declaration in
+   `targets/go` with its shape. As planned:
    - the 69 fallible Go declarations, each with its shape (sum, or partial product), read from Go's
      documentation (gocoverage-2026-10-06);
    - the portable `os` and `io` with kinds and classifications;

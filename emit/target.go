@@ -113,6 +113,9 @@ type Prim struct {
 	// with the raw host call and a definition applying the retraction
 	// (retract.go), so no printer sees it.
 	Retract *core.Term
+	// RetractIn is the module that declared Retract, where its variant's alias
+	// resolves: an included copy of the declaration lives in another module.
+	RetractIn string
 }
 
 type Target struct {
@@ -434,11 +437,6 @@ func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.resolveTypeNames(); err != nil {
 		return wrap(err)
 	}
-	// A FALLIBLE DECLARATION BECOMES ITS RAW CALL AND A DEFINITION (retract.go),
-	// its derived types resolved in the declaration's module.
-	if err := tg.retractions(); err != nil {
-		return wrap(err)
-	}
 	if err := tg.unfoldAliases(); err != nil {
 		return wrap(err)
 	}
@@ -447,6 +445,18 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	if err := tg.expandCompanions(); err != nil {
+		return wrap(err)
+	}
+	// A FALLIBLE DECLARATION BECOMES ITS RAW CALL AND A DEFINITION (retract.go),
+	// AFTER INCLUSION, so a companion that includes a fallible method gets its
+	// own raw call and definition; and before the views, which compare the
+	// host's methods, the raw calls.
+	if err := tg.retractions(); err != nil {
+		return wrap(err)
+	}
+	// The raw calls' derived types name manifest types (`go.int64`) the earlier
+	// pass unfolded everywhere else; it is idempotent, so it runs again.
+	if err := tg.unfoldAliases(); err != nil {
 		return wrap(err)
 	}
 	tg.closeImplements()
@@ -2022,6 +2032,9 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 	p, err := parseSig(f, file)
 	if err != nil {
 		return err
+	}
+	if p.Retract != nil {
+		p.RetractIn = modPath
 	}
 	// A MODULE may declare `and` — that is `logic.and`, a qualified name like
 	// any other. Only an unqualified declaration collides with the language.

@@ -308,8 +308,11 @@ a wall that needs language work, stop and research it, then design it.
       tuple with one as a factor becomes the raw host call and a target-library definition applying
       the retraction, compositionally (H and r, errors.md §4.2). `os.Open`, `File.Read` and
       `File.Close` are declared in the model, and `acceptance/errors-os.oro` runs them. Generated
-      declarations stay the host's product (ADR 0023). **Step 5 has begun**: the portable `os` returns
-      kinds on three hosts (oskinds-2026-10-06); the fallible Go declarations remain;
+      declarations stay the host's product (ADR 0023). **Step 5 is built**: the portable `os` returns
+      kinds on three hosts (oskinds-2026-10-06), and every fallible Go declaration states its shape
+      (sum, unit + E, partial success, option) from Go's documentation
+      ([gomigrate-2026-10-06](gauntlet/results/gomigrate-2026-10-06.md)). Next is step 6, relevance
+      and `ignore`;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;

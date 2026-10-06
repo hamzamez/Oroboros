@@ -32,13 +32,14 @@
 ;     only float is a float64.
 (target go
   (module go/strconv
+    (use result)
     (type NumError (host "*strconv.NumError"))
 
     ; ---------------------------------------------------------- booleans
     ; {false, true} ↔ {"false", "true"}; ParseBool also accepts 1, t, T, TRUE,
     ; True and their negations, so ParseBool ∘ FormatBool = id and not conversely.
     (sig FormatBool ((b bool)) string pure (host expr "strconv.FormatBool(%s)" (import "strconv")))
-    (sig ParseBool ((s bytestring)) (tuple bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
+    (sig ParseBool ((s bytestring)) (result.result bool error) pure (host expr "strconv.ParseBool(%s)" (import "strconv")))
     ; CONSUME AND RETURN, B ⊸ B: appends, growing dst when it must.
     (sig AppendBool ((dst (buffer (int 0 255))) (b bool)) (buffer (int 0 255))
           (host expr "strconv.AppendBool(%s, %s)" (import "strconv")))
@@ -64,14 +65,14 @@
     ; P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
     ; The result is the host's int64 — the word — received as Go's int, which is
     ; the same 64 bits on this target.
-    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 error) pure
+    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 (option error)) pure
           (host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(%s, %s, %s)"
             (import "strconv")))
     ; …and over U, returned as the uint64 it is.
-    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 error) pure
+    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 (option error)) pure
           (host expr "strconv.ParseUint(%s, %s, %s)" (import "strconv")))
     ; P_10 into Go's int.
-    (sig Atoi ((s bytestring)) (tuple int error) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
+    (sig Atoi ((s bytestring)) (tuple int (option error)) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
 
     ; ---------------------------------------------------------- floats
     ; The shortest decimal that rounds back (prec −1), or a fixed precision; an
@@ -82,7 +83,7 @@
     (sig AppendFloat ((dst (buffer (int 0 255))) (f f64) (fmt uint8) (prec int) (bitSize int)) (buffer (int 0 255))
           (where (and (<= 64 bitSize) (<= bitSize 64)))
           (host expr "strconv.AppendFloat(%s, %s, uint8(%s), %s, %s)" (import "strconv")))
-    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 error) pure
+    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 (option error)) pure
           (host expr "strconv.ParseFloat(%s, %s)" (import "strconv")))
 
     ; ---------------------------------------------------------- quoting
@@ -117,15 +118,15 @@
     ; takes a stray byte as RuneError. So on B* it can hand back invalid bytes,
     ; and its result is the host's. It maps V into V, which one `sig` cannot
     ; also say.
-    (sig Unquote      ((s bytestring)) (tuple bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
-    (sig QuotedPrefix ((s bytestring)) (tuple bytestring error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
+    (sig Unquote      ((s bytestring)) (result.result bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
+    (sig QuotedPrefix ((s bytestring)) (result.result bytestring error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
     ; ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
     ; worst), a \x or octal escape (at most 255; octal past it is an error), or a
     ; \u / \U escape the host checks with utf8.ValidRune — and 0 on an error — so
     ; it lies in [0, MaxRune], narrower than the host's int32 and read off the
     ; source rather than assumed. The tail is a factor of s, so it is the host's
     ; string, as s is.
-    (sig UnquoteChar ((s bytestring) (quote uint8)) (tuple (int 0 1114111) bool bytestring error) pure
+    (sig UnquoteChar ((s bytestring) (quote uint8)) (result.result (tuple (int 0 1114111) bool bytestring) error) pure
           (host expr "func(s string, q byte) (int, bool, string, error) { v, m, t, err := strconv.UnquoteChar(s, q); return int(v), m, t, err }(%s, uint8(%s))"
             (import "strconv")))
 

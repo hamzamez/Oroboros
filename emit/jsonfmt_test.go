@@ -40,7 +40,9 @@ func TestBoundedByDefaultReachesIntoAContinuation(t *testing.T) {
 		if err != nil || len(terms) != 1 {
 			t.Fatalf("%s: read: %v", c.what, err)
 		}
-		rep := decideOn(t, tg, nil, terms[0])
+		// The host call with several results is the raw one (retract.go).
+		term := core.Rename(terms[0], map[string]string{"go/os.ReadFile": emit.RawName("go/os.ReadFile")})
+		rep := decideOn(t, tg, nil, term)
 		if rep.Ops == 0 {
 			t.Fatalf("%s: NOTHING WAS COUNTED. The walk never reached the "+
 				"arithmetic, so ADR 0019 is vacuous here and any program "+

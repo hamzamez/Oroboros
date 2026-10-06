@@ -82,3 +82,22 @@ func TestTheCrashAbsorbsItsContext(t *testing.T) {
 		}
 	}
 }
+
+// TWO LAWS OF THE CONDITIONAL (oskinds-2026-10-06): η on bool, and idempotence
+// for a condition with no effect. Each refusal row is a term the law must not
+// touch: a min, whose branches are two different bound variables, which
+// Term.Equal called equal until it compared indices; and an impure condition,
+// whose evaluation is an effect that weakening may not drop (ADR 0010).
+func TestTheConditionalsLaws(t *testing.T) {
+	for _, c := range []struct{ body, want string }{
+		{`(if (go.> n 0) true false)`, `(go.> n 0)`},
+		{`(if (go.> n 0) 7 7)`, `7`},
+		{`(if (go.> n m) n m)`, `(if (go.> n m) n m)`},
+		{`(if (go.read) 7 7)`, `(if (go.read) 7 7)`},
+	} {
+		got := reduceWith(t, `(use go) (def f (fn (n m) `+c.body+`))`, "f", "go.>", "if", "!go.read")
+		if want := "(fn (n m) " + c.want + ")"; got != want {
+			t.Errorf("%s:\n got  %s\n want %s", c.body, got, want)
+		}
+	}
+}

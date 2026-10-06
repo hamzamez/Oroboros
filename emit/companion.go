@@ -130,6 +130,11 @@ func (tg *Target) expandCompanions() error {
 func namesUnder(tg *Target, mod string) []string {
 	var out []string
 	for n := range tg.Prims {
+		// A fallible declaration's raw call is the host's method, under the name
+		// it was declared with (retract.go).
+		if d, ok := DeclaredName(n); ok {
+			n = d
+		}
 		if strings.HasPrefix(n, mod+".") && !strings.Contains(n[len(mod)+1:], ".") {
 			out = append(out, n)
 		}
@@ -178,7 +183,11 @@ func (tg *Target) checkViews() error {
 						"(theories.md §6.1). An edge is a view, and a view is checked",
 						sub, iface, iface, local, sub)
 				}
-				if err := tg.viewAgrees(sub, iface, local, tg.Prims[m], got); err != nil {
+				want, ok := tg.Prims[m]
+				if !ok {
+					want = tg.Prims[RawName(m)]
+				}
+				if err := tg.viewAgrees(sub, iface, local, want, got); err != nil {
 					return err
 				}
 			}
@@ -220,5 +229,35 @@ func (tg *Target) viewAgrees(sub, iface, local string, want, got Prim) error {
 		return fmt.Errorf("(implements %s %s): %s returns %q on %s and %q on %s",
 			sub, iface, local, want.Result, iface, got.Result, sub)
 	}
+	// AND SEVERAL RESULTS, which were never compared: a fallible method's raw
+	// call has two or more, and a view compares the host's methods. A
+	// write-borrow, B ⊸ B ⊗ R, hands its buffer back as a leading result the
+	// host's method does not have (host-buffers.md), so the host's results are
+	// compared: R on both sides.
+	wr, gr := hostResults(want), hostResults(got)
+	if len(wr) != len(gr) {
+		return fmt.Errorf("(implements %s %s): %s returns %d results on %s and %d on %s",
+			sub, iface, local, len(wr), iface, len(gr), sub)
+	}
+	for i := range wr {
+		if !compatible(tg, wr[i], gr[i]) && !tg.SameHostType(wr[i], gr[i]) && !sameSlice(wr[i], gr[i]) {
+			return fmt.Errorf("(implements %s %s): %s's result %d is %q on %s and %q on %s",
+				sub, iface, local, i+1, wr[i], iface, gr[i], sub)
+		}
+	}
 	return nil
+}
+
+// hostResults are a declaration's results as its host method has them: a
+// write-borrow's leading buffer, which is the borrowed argument handed back,
+// is not one of them.
+func hostResults(p Prim) []string {
+	rs := p.Results
+	if len(rs) == 0 {
+		return nil
+	}
+	if strings.HasPrefix(rs[0], "buffer ") {
+		rs = rs[1:]
+	}
+	return rs
 }

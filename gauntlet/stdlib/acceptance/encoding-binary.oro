@@ -17,6 +17,7 @@
 (use go/strings as gstr)
 (use go/fmt as fmt)
 (use go/os as gos)
+(use result)
 
 (export main)
 
@@ -63,10 +64,14 @@
 ; generated strings file supplies (*strings.Reader ≤ io.ByteReader, an edge the
 ; survey checked against the host).
 (def stream ()
-  (seq ((bin.ReadUvarint (gstr.NewReader "\u{AC}\u{2}")) (fn (x e)
-         (seq (fmt.Println x) (fmt.Println (go.err-nil e)))))
-       ((bin.ReadVarint (gstr.NewReader "\u{3}")) (fn (x e)
-         (seq (fmt.Println x) (fmt.Println (go.err-nil e)))))))
+  ; ReadUvarint is a SUM (spec/errors.md §4): its value means nothing beside an
+  ; error, so a `case` binds it only on success.
+  (seq (case (bin.ReadUvarint (gstr.NewReader "\u{AC}\u{2}"))
+         (result.ok x)  (seq (fmt.Println x) (fmt.Println true))
+         (result.err e) (seq (fmt.Println e) (fmt.Println false)))
+       (case (bin.ReadVarint (gstr.NewReader "\u{3}"))
+         (result.ok x)  (seq (fmt.Println x) (fmt.Println true))
+         (result.err e) (seq (fmt.Println e) (fmt.Println false)))))
 
 ; The top of U decoded, then halved and reduced — native uint64 arithmetic on a
 ; host result, which under ADR 0012 could only have been printed.

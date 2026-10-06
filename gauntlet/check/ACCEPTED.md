@@ -1090,3 +1090,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `lib/os.oro java`
 - new source — `lib/os.oro js`
 - new source — `lib/os.oro windows`
+
+## 2026-10-06 — on 535c11d, with uncommitted changes
+
+**Reason:** step 5b, the fallible Go declarations in the error model (gomigrate-2026-10-06): lines.oro migrated, the niche test shared and summed's range test at each use; one more operation bounded
+
+524 runs: 277 emitted, 247 refused; 1975 of 2020 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- emitted text changed — `examples/lines/lines.oro go`
+- compiler output changed — `examples/lines/lines.oro go`

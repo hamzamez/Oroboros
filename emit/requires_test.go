@@ -23,7 +23,7 @@ func dischargeGo(t *testing.T, src string) (*core.Term, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}

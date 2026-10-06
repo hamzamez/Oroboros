@@ -1862,7 +1862,10 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				// η FOR PRODUCTS: a value whose every tail is an n-tuple is
 				// taken apart where it is bound, so each `(r k)` in the body is
 				// a β-redex rather than an eliminator applied to a variable.
-				if n, ok := e.tupleTails(bound[i].val, false); ok && n >= 2 && occurrences(body, bound[i].name) > 0 {
+				// Read or not: r = (π₁ r, …, πₙ r) holds of every r, so an
+				// unread binding keeps its value's effects and drops its
+				// components, where it reached lowering as a closure.
+				if n, ok := e.tupleTails(bound[i].val, false); ok && n >= 2 {
 					cs := e.freshNames(n, body, bound[i].val)
 					comps := []*Term{Name("#k")}
 					for _, c := range cs {
@@ -2010,6 +2013,25 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 		}
 		if ab, ok := e.absorb(out); ok {
 			return ab, nil
+		}
+		// TWO LAWS OF THE CONDITIONAL, on bool = 1 + 1 (ADR 0017):
+		//
+		//	(if c true false)  ⟶  c       η: the eliminator applied to the
+		//	                               constructors is the identity
+		//	(if c a a)         ⟶  a       idempotence, for a c with no effect
+		//
+		// The second needs c pure: dropping its evaluation is weakening, which
+		// ADR 0010 allows only for a pure term. Both arrive with the error model,
+		// where `(case o none true (some e) false)` and a discard that fails
+		// the same way on both arms reduce to exactly these (oskinds-2026-10-06).
+		if cond != nil && len(out) == 4 {
+			a, b := out[2], out[3]
+			if a.Kind == KBool && b.Kind == KBool && a.IsTrue() && !b.IsTrue() {
+				return cond, nil
+			}
+			if a.Equal(b) && e.pureTerm(cond, map[string]bool{}) {
+				return a, nil
+			}
 		}
 		return &Term{Kind: KApp, Kids: out}, nil
 	}

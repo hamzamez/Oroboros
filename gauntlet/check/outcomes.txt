@@ -332,8 +332,8 @@
 == examples/kara/workspace.oro windows emitted c00ae60b2f657f131ac8361f968fcbdf69d13d472b941e42b747f449b5cf66d3
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/lines/lines.oro go emitted db1a061f38edd12ee252ea4a56ca68832888834f768763490199cf887a6f2659
-   note: gen-main: 5 of 5 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/lines.oro go emitted 772b256b18b8db38c2b8009ee9e0c45e54d2f3feb84340f18656932dbad72a3e
+   note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/lines.oro js refused
    gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.

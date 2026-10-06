@@ -27,6 +27,7 @@
 ;     and the reflective half (Read, Write, Size) takes `any`.
 (target go
   (module go/encoding/binary
+    (use result)
     (const MaxVarintLen16 3  (host "binary.MaxVarintLen16" (import "encoding/binary")))
     (const MaxVarintLen32 5  (host "binary.MaxVarintLen32" (import "encoding/binary")))
     (const MaxVarintLen64 10 (host "binary.MaxVarintLen64" (import "encoding/binary")))
@@ -59,9 +60,9 @@
 
     ; FROM A STREAM, one byte at a time: IMPURE, each call consumes what it reads.
     ; On an error the value is whatever was accumulated — still in U.
-    (sig ReadUvarint ((r go/io.ByteReader)) (tuple uint64 error)
+    (sig ReadUvarint ((r go/io.ByteReader)) (result.result uint64 error)
           (host expr "binary.ReadUvarint(%s)" (import "encoding/binary")))
-    (sig ReadVarint ((r go/io.ByteReader)) (tuple int64 error)
+    (sig ReadVarint ((r go/io.ByteReader)) (result.result int64 error)
           (host expr "func(r interface{ ReadByte() (byte, error) }) (int, error) { x, err := binary.ReadVarint(r); return int(x), err }(%s)"
             (import "encoding/binary")))
   )

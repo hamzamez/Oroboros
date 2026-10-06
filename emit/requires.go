@@ -215,6 +215,11 @@ func DischargeRequires(set *RequireSet, tgt *Target, what string, sig *core.Sig,
 
 func (f requireFail) message(n int) string {
 	var b strings.Builder
+	// A diagnostic names what the program wrote: a fallible declaration's raw
+	// call by the name it was declared under (retract.go).
+	if d, ok := DeclaredName(f.def); ok {
+		f.def = d
+	}
 	switch {
 	case f.param == "where" && f.literal:
 		fmt.Fprintf(&b, "%s's `where` is false at a call: %s", f.def, f.arg)
@@ -514,6 +519,9 @@ func residualRange(w core.Word, v span, def, param, ty string, arg *core.Term) *
 	}
 	if v.hi == nil || v.hi.Cmp(s.hi) > 0 {
 		cond = conjTerm(cond, core.App(core.Name("<="), arg, core.Int(s.hi.Int64())))
+	}
+	if d, ok := DeclaredName(def); ok {
+		def = d // the name the program wrote (retract.go)
 	}
 	label := fmt.Sprintf("%s's parameter %s, declared (%s),", def, param, ty)
 	return &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name(core.RequireWhereName), core.Str(label), cond, arg}}

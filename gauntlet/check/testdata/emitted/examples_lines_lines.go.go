@@ -59,53 +59,57 @@ func GenMain() int {
 				}
 				v69h, v70 := func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(v58, 10, 64)
 				v69 := int(v69h)
-				v75 := (v70 == nil)
-				v76 := (v75 && ((v69 >= -100000000000) && (v69 <= 100000000000)))
-				var v85 int
-				if v76 {
-					v88 := (v36 + v69)
-					v85 = v88
-				} else {
-					v85 = v36
+				v71 := (v70 == nil)
+				if v71 {
+					v77 := (v69 >= -100000000000)
+					v78 := (v77 && (v69 <= 100000000000))
+					var v84 int
+					if v78 {
+						v87 := (v36 + v69)
+						v84 = v87
+					} else {
+						v84 = v36
+					}
+					v91 := (v69 >= -100000000000)
+					v92 := (v91 && (v69 <= 100000000000))
+					var v98 int
+					if v92 {
+						v102 := (v37 + 1)
+						v98 = v102
+					} else {
+						v98 = v37
+					}
+					v36, v37 = v84, v98
+					continue
 				}
-				v91 := (v70 == nil)
-				v92 := (v91 && ((v69 >= -100000000000) && (v69 <= 100000000000)))
-				var v101 int
-				if v92 {
-					v105 := (v37 + 1)
-					v101 = v105
-				} else {
-					v101 = v37
-				}
-				v36, v37 = v85, v101
 				continue
 			}
-			v106 := (v28.Err())
-			v107 := (v106 == nil)
-			if v107 {
+			v105 := (v28.Err())
+			v106 := (v105 == nil)
+			if v106 {
 				fmt.Fprintf(v30, "%d lines; column %d: %d values, sum ", v35, v10, v37)
 				fmt.Fprintln(v30, v36)
-				v113 := (v30.Flush())
-				v114 := (v113 == nil)
-				if v114 {
+				v112 := (v30.Flush())
+				v113 := (v112 == nil)
+				if v113 {
 					v34 = 0
 					break
 				}
-				v116 := (os.Stderr)
-				fmt.Fprintln(v116, "lines: cannot write standard output")
+				v115 := (os.Stderr)
+				fmt.Fprintln(v115, "lines: cannot write standard output")
 				v34 = 1
 				break
 			}
 			v30.Flush()
-			v122 := (os.Stderr)
-			fmt.Fprintln(v122, "lines: cannot read standard input")
+			v121 := (os.Stderr)
+			fmt.Fprintln(v121, "lines: cannot read standard input")
 			v34 = 1
 			break
 		}
 		v24 = v34
 	} else {
-		v127 := (os.Stderr)
-		fmt.Fprintln(v127, "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)")
+		v126 := (os.Stderr)
+		fmt.Fprintln(v126, "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)")
 		v24 = 1
 	}
 	os.Exit(v24)

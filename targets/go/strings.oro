@@ -157,6 +157,7 @@
 
     ; ------------------------------------------------------------------ Builder
     (module Builder
+      (use result)
       (sig Len ((self Builder)) (int 0 9223372036854775807) (host expr "%s.Len()" (import "strings")))
       (sig Cap ((self Builder)) (int 0 9223372036854775807) (host expr "%s.Cap()" (import "strings")))
       ; Grow panics on a negative n.
@@ -165,39 +166,40 @@
       ; w₁·…·wₙ, as bytes: WriteByte can write any byte, so the host's string.
       (sig String ((self Builder)) bytestring (host expr "%s.String()" (import "strings")))
       ; The error is always nil and the count is what was written (Go's source).
-      (sig Write ((self Builder) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) error)
+      (sig Write ((self Builder) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
         (host expr "%s.Write(%s)" (import "strings")))
-      (sig WriteByte ((self Builder) (c (int 0 255))) error (host expr "%s.WriteByte(uint8(%s))" (import "strings")))
-      (sig WriteRune ((self Builder) (r (int -2147483648 2147483647))) (tuple (int 1 4) error)
+      (sig WriteByte ((self Builder) (c (int 0 255))) (result.result (tuple) error) (host expr "%s.WriteByte(uint8(%s))" (import "strings")))
+      (sig WriteRune ((self Builder) (r (int -2147483648 2147483647))) (tuple (int 1 4) (option error))
         (host expr "%s.WriteRune(int32(%s))" (import "strings")))
-      (sig WriteString ((self Builder) (s bytestring)) (tuple (int 0 9223372036854775807) error)
+      (sig WriteString ((self Builder) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))
         (host expr "%s.WriteString(%s)" (import "strings"))))
 
     ; ------------------------------------------------------------------- Reader
     (module Reader
+      (use result)
       (sig Len ((self Reader)) (int 0 9223372036854775807) (host expr "%s.Len()" (import "strings")))
       (sig Size ((self Reader)) (int 0 9223372036854775807) (host expr "%s.Size()" (import "strings")))
       ; Write-borrows, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
       (sig Read ((self Reader) (b (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
         (host expr "func(b []byte) ([]byte, int, error) { n, err := %s.Read(b); return b, n, err }(%s)"
           (import "strings")))
       (sig ReadAt ((self Reader) (b (buffer (int 0 255))) (off (int -9223372036854775808 9223372036854775807)))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
         (host expr "func(b []byte, off int64) ([]byte, int, error) { n, err := %s.ReadAt(b, off); return b, n, err }(%s, int64(%s))"
           (import "strings")))
-      (sig ReadByte ((self Reader)) (tuple (int 0 255) error) (host expr "%s.ReadByte()" (import "strings")))
+      (sig ReadByte ((self Reader)) (result.result (int 0 255) error) (host expr "%s.ReadByte()" (import "strings")))
       ; A scalar value or U+FFFD, and its width, 0 at the end.
-      (sig ReadRune ((self Reader)) (tuple (int 0 1114111) (int 0 4) error) (host expr "%s.ReadRune()" (import "strings")))
-      (sig UnreadByte ((self Reader)) error (host expr "%s.UnreadByte()" (import "strings")))
-      (sig UnreadRune ((self Reader)) error (host expr "%s.UnreadRune()" (import "strings")))
+      (sig ReadRune ((self Reader)) (result.result (tuple (int 0 1114111) (int 0 4)) error) (host expr "%s.ReadRune()" (import "strings")))
+      (sig UnreadByte ((self Reader)) (result.result (tuple) error) (host expr "%s.UnreadByte()" (import "strings")))
+      (sig UnreadRune ((self Reader)) (result.result (tuple) error) (host expr "%s.UnreadRune()" (import "strings")))
       (sig Reset ((self Reader) (s bytestring)) Reader (host stmt "%s.Reset(%s)" (import "strings")))
       ; whence is io.SeekStart, SeekCurrent or SeekEnd; anything else is an
       ; error the host returns, not a panic, so no precondition.
       (sig Seek ((self Reader) (offset (int -9223372036854775808 9223372036854775807)) (whence int))
-        (tuple (int -9223372036854775808 9223372036854775807) error)
+        (result.result (int -9223372036854775808 9223372036854775807) error)
         (host expr "%s.Seek(int64(%s), %s)" (import "strings")))
-      (sig WriteTo ((self Reader) (w go/io.Writer)) (tuple (int -9223372036854775808 9223372036854775807) error)
+      (sig WriteTo ((self Reader) (w go/io.Writer)) (tuple (int -9223372036854775808 9223372036854775807) (option error))
         (host expr "%s.WriteTo(%s)" (import "strings")))))
 
   (implements go/strings.Builder go/io.Writer)

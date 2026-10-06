@@ -146,14 +146,17 @@ func TestAnUndeclaredLengthProvesNothing(t *testing.T) {
 	err := refineGo(t, `
 		(use go)
 		(use go/os)
+		(use result)
 		(export f)
 		(sig f ((n int)) int (where (and (go.<= 0 n) (go.< n 1000))))
 		(def f (fn (n)
-		  ((os.ReadFile "f") (fn (c err)
-		    (loop ((i 0))
-		      (go.>= i n)          0
-		      (go.!= (c i) 0)      1
-		      else                 (again (go.+ i 1)))))))
+		  (case (os.ReadFile "f")
+		    (result.ok c)
+		      (loop ((i 0))
+		        (go.>= i n)          0
+		        (go.!= (c i) 0)      1
+		        else                 (again (go.+ i 1)))
+		    (result.err e) 0)))
 	`)
 	if err == nil {
 		t.Fatal("indexing a 4-long array under a bound of 1000 must not be provable")

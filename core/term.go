@@ -158,14 +158,19 @@ func (t *Term) Equal(u *Term) bool {
 		return t.Str == u.Str
 	case KBool:
 		return t.Int == u.Int
+	case KBound:
+		// A BOUND VARIABLE IS ITS INDEX. Without this case two leaves with no
+		// kids compared equal, so any two bound variables were "equal", and
+		// `(if (< n m) n m)` passed for `(if c a a)` the first time a law asked
+		// (oskinds-2026-10-06).
+		return t.Depth == u.Depth && t.Index == u.Index
 	}
+	// α-EQUIVALENCE. A binder's parameters are hints, and meaning is in the
+	// indices (locally nameless), so two abstractions are equal when they bind
+	// as many and their closed bodies are equal: the hygiene that names binders
+	// apart (ADR 0036) made two copies of one definition unequal by hint alone.
 	if len(t.Params) != len(u.Params) || len(t.Kids) != len(u.Kids) {
 		return false
-	}
-	for i := range t.Params {
-		if t.Params[i] != u.Params[i] {
-			return false
-		}
 	}
 	for i := range t.Kids {
 		if !t.Kids[i].Equal(u.Kids[i]) {

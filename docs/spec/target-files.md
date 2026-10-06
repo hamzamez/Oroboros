@@ -46,6 +46,7 @@ decl        ::= (backend NAME)                   ; which code generator compiles
               | (repr map host) | (repr map library)
               | (repr shift N)
               | (repr narrow (host "template"))  ; how this host restricts a container
+              | (repr TYPE (niche (host expr "template")))  ; TYPE is 1 + E: its absent point (errors.md §4.1)
               | (fact NAME ((a (array A))) (<= (len a) N))
               | (implements T I…)
               | (underlying T (int LO HI))       ; a named host type over an integer set, §2a

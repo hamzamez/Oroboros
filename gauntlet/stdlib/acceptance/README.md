@@ -1,12 +1,18 @@
-# Thirteen programs that check the surveys are not paper
+# Seventeen programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These thirteen check that a
+A survey reports what the target format can DECLARE. These seventeen check that a
 declaration can be BUILT AND RUN, which is the only thing that makes a percentage
 a measurement. They live here rather than in `examples/` because each is tied to a
-host's declarations — generated ones, or, for the two whole packages, ones written
-by hand and checked against the generator.
+host's declarations — generated ones, or, for the whole packages, ones written by
+hand and checked against the generator.
 
-Six are Win32's, five are Go's, one is the JVM's and one is JavaScript's.
+Six are Win32's, nine are Go's, one is the JVM's and one is JavaScript's.
+
+**`errors-os` runs the error model** (spec/errors.md §4, ADR 0040) against the HAND
+os, with no generated layer: `Open` a sum, `Read` a partial success, `Close`
+succeeding with nothing. A generated declaration keeps Go's `(T, error)` as the
+host's product, because which shape a call has is a claim about its documentation,
+which a generator cannot read (ADR 0023); `os-methods` and `io-reader` test those.
 
 ```bash
 go run gauntlet/stdlib/win32.go -emit /tmp/win32gen

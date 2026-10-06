@@ -108,7 +108,9 @@ func TestALibraryMayProvideANative(t *testing.T) {
 	writeTarget(t, lib, "words-go",
 		`(provides go std/words (sig shout (string) string pure (host expr "UP(%s)")))`)
 
-	tg, err := LoadTargetLayers("go", []string{"../targets"}, []string{lib})
+	// ../lib too: the Go target reads lib/result for its fallible declarations
+	// (retract.go), so its library path must hold that module.
+	tg, err := LoadTargetLayers("go", []string{"../targets"}, []string{lib, "../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +124,7 @@ func TestALibraryMayProvideANative(t *testing.T) {
 	// A `provides` for a DIFFERENT target must not leak into this one.
 	writeTarget(t, lib, "words-js",
 		`(provides js std/words (sig shout (string) string pure (host expr "JS(%s)")))`)
-	tg2, err := LoadTargetLayers("go", []string{"../targets"}, []string{lib})
+	tg2, err := LoadTargetLayers("go", []string{"../targets"}, []string{lib, "../lib"})
 	if err != nil {
 		t.Fatal(err)
 	}

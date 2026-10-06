@@ -299,7 +299,13 @@ a wall that needs language work, stop and research it, then design it.
       1 + E is `(result (tuple) E)` ([unit-2026-10-06](gauntlet/results/unit-2026-10-06.md)). **A
       variant's value is its tag and its slots** wherever it must exist as data (ADR 0042,
       [sumrep-2026-10-06](gauntlet/results/sumrep-2026-10-06.md)): a read loop over two payload
-      types, an enum with a string payload and `(result (tuple) E)` at a signature all build;
+      types, an enum with a string payload and `(result (tuple) E)` at a signature all build.
+      **Step 4 is built on Go** ([niche-2026-10-06](gauntlet/results/niche-2026-10-06.md)):
+      `(repr error (niche …))`, and a declaration whose result is a marked sum, an option or a
+      tuple with one as a factor becomes the raw host call and a target-library definition applying
+      the retraction, compositionally (H and r, errors.md §4.2). `os.Open`, `File.Read` and
+      `File.Close` are declared in the model, and `acceptance/errors-os.oro` runs them. Generated
+      declarations stay the host's product (ADR 0023). Next is step 5, the migration;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -926,4 +932,4 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
-| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, seventeen programs, including one per supported package and `errors-os`, the error model on the hand `os` (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

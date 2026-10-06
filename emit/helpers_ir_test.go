@@ -48,13 +48,13 @@ func reduce(t *testing.T, src, target string) *core.Term {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	prog, terms, err := core.Load(forms)
-	if err != nil {
-		t.Fatalf("load: %v", err)
-	}
 	tg, err := emit.LoadTarget("../targets/" + target + ".oro")
 	if err != nil {
 		t.Fatalf("target: %v", err)
+	}
+	prog, terms, err := tg.LoadProgram(forms)
+	if err != nil {
+		t.Fatalf("load: %v", err)
 	}
 	env, err := tg.Env(prog)
 	if err != nil {
@@ -186,7 +186,7 @@ func refineOn(t *testing.T, target, src, name string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func normGo(t *testing.T, src string) (*emit.Target, *core.Term, *core.Sig) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}

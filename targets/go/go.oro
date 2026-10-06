@@ -53,6 +53,12 @@
   (type byte     (host "byte"))
   (type rune     (host "rune"))
   (type error    (host "error"))
+  ; GO'S error IS 1 + E: nil, the absent point, lives in the type's own values.
+  ; That is a NICHE, declared once for the type (spec/errors.md §4.1), and every
+  ; fallible declaration reads its failure through it: a result declared
+  ; (result.result T error) is Go's (T, error) composed with the retraction
+  ; r(t, nil) = ok t, r(t, e) = err e (emit/retract.go).
+  (repr error (niche (host expr "%s == nil")))
   (type any      (host "any"))
 
   ; ═══ GO'S INTEGER TYPES ARE RANGES — ADR 0003, said in the type language

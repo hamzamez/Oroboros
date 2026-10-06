@@ -334,6 +334,10 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 		}
 		return s, nil
 	case OGlobal, OCall:
+		// A primitive the loader made is named by a string (print.go, primText).
+		if len(args) >= 1 && args[0].Kind == core.KStr && o == OCall {
+			args = append([]*core.Term{core.Name(args[0].Str)}, args[1:]...)
+		}
 		if len(args) < 1 || args[0].Kind != core.KName {
 			return s, fmt.Errorf("(%s NAME …)", h)
 		}

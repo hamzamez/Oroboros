@@ -156,6 +156,33 @@ A definition in a target is `D_T` (target-system.md §6.2), unfolded by δ like 
 the sum needs no new pass, no new term kind and no backend change. Where the sum is eliminated in the
 same program, reduction removes it and the host's own test is what remains (§11).
 
+**Built for Go** (niche-2026-10-06, `emit/retract.go`). The construction is compositional. Write H(R)
+for the host values behind a declared result R, and r for the term that rebuilds R from them:
+
+```
+H(T) = [T]                          H((tuple)) = []
+H((option E)) = [E]                 r(e) = none if niche(e), else (some e)
+H((V T E)) = H(T) ++ [E]            r(t̄, e) = s (r t̄) if niche(e), else c e
+H((tuple R₁ … Rₙ)) = H(R₁) ++ … ++ H(Rₙ)
+```
+
+H is a functor on result shapes and r is natural in each factor, so one rule covers a sum, the unit with
+an error, a partial product and their composites. What the build fixed in detail:
+- the raw call is `#raw:MODULE:NAME` and a niche's test `#niche:TYPE`. A `#` keeps a program from
+  writing them, and they contain no `.`, because core reads a dotted name as an import's alias;
+- the module declaring a fallible call `(use result)`s, and the loader reads the variant from the
+  library path, which a target loaded by directory takes from the `lib` beside its `targets`;
+- a target library's `use` joins its module's imports, so core closes the imports again after gluing
+  `D_T` in (core/reduce.go, `closeImports`);
+- a view (`implements`) is a fact about the host's methods, so it finds a fallible method under its raw
+  name;
+- **a generated declaration stays the host's product.** Whether a call is a sum or a partial success is
+  a claim about its documentation, which a generator cannot read (ADR 0023), so the survey keeps
+  `(T, error)` and the hand file states the shape.
+
+`gauntlet/stdlib/acceptance/errors-os.oro` runs all three shapes on Go, and what Go runs is
+`f, err := os.Open(…); if err == nil { … }`.
+
 ### 4.3 A partial success is a product with an option
 
 Some host calls succeed in part. `io.Reader.Read` returns n bytes **and** an error, and Go's
@@ -403,7 +430,10 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
 3. **`try`, `expect`, `abandon`**: the expansions into `case`, and `abandon` on the four targets, with
    its three rules (§8). **Built** (sumofsums-2026-10-06, expect-2026-10-06). `ignore` moves to step 6,
    where relevance gives it something to do.
-4. **The niche** in target files and the loader's δ (§4.2); `(fails …)` for Win32 (§4.4).
+4. **The niche** in target files and the loader's δ (§4.2); `(fails …)` for Win32 (§4.4). **Built on Go**
+   (niche-2026-10-06), with `os.Open`, `File.Read` and `File.Close` declared in the model. JavaScript's
+   and Java's niches come with the portable `os` in step 5, where a program calls a declaration that
+   reads them; `(fails …)` with the first Win32 declaration that needs it.
 5. **The migration**:
    - the 69 fallible Go declarations, each with its shape (sum, or partial product), read from Go's
      documentation (gocoverage-2026-10-06);

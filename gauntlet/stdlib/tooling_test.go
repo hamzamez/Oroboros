@@ -627,6 +627,10 @@ func acceptance() map[string]accept {
 			files: map[string]string{"tg/go/os-gen.oro": "os.oro"}},
 		"io-reader": {host: "go", target: "go", layer: "tg", want: []string{size},
 			files: map[string]string{"tg/go/os-gen.oro": "os.oro", "tg/go/io-gen.oro": "io.oro"}},
+		// THE ERROR MODEL against the HAND os, with no generated layer: Open a
+		// sum, Read a partial success, Close succeeding with nothing
+		// (spec/errors.md §4, sumrep-2026-10-06).
+		"errors-os": {host: "go", target: "go", layer: "tg", want: []string{"64"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —

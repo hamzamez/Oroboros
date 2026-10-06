@@ -53,6 +53,10 @@
 
 (target go
   (module go/os
+    ; THE ERROR MODEL (spec/errors.md, ADR 0040): a fallible call's result is a
+    ; value of lib/result's marked sum, read off Go's (T, error) through error's
+    ; niche. The raw call stays the host's, under a name no program can write.
+    (use result)
     (type File (host "*os.File"))
 
     ; ---------------------------------------------------------------- files
@@ -63,7 +67,7 @@
       (host expr "os.ReadFile(%s)" (import "os")))
     (sig WriteFile ((name bytestring) (data (array (int 0 255))) (perm (int 0 4294967295))) error
       (host expr "os.WriteFile(%s, %s, os.FileMode(%s))" (import "os")))
-    (sig Open ((name bytestring)) (tuple File error)
+    (sig Open ((name bytestring)) (result.result File error)
       (host expr "os.Open(%s)" (import "os")))
     (sig Create ((name bytestring)) (tuple File error)
       (host expr "os.Create(%s)" (import "os")))
@@ -137,10 +141,13 @@
 
     ; ------------------------------------------------------------- a file's methods
     (module File
-      ; A WRITE-BORROW, B ⊸ B ⊗ int ⊗ error: the host writes p[0, n) with
-      ; 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does.
+      (use result)
+      ; A WRITE-BORROW, B ⊸ B ⊗ int ⊗ (1 + E): the host writes p[0, n) with
+      ; 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does. A PARTIAL
+      ; SUCCESS: n bytes arrive WITH the error, and io.Reader says to use them
+      ; first, so the error is an option beside them, not a sum (errors.md §4.3).
       (sig Read ((self File) (p (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) error)
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
         (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
           (import "os")))
       ; io.Writer's contract: n = len b exactly when err is nil.
@@ -148,7 +155,8 @@
         (host expr "%s.Write(%s)" (import "os")))
       (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) error)
         (host expr "%s.WriteString(%s)" (import "os")))
-      (sig Close ((self File)) error (host expr "%s.Close()" (import "os")))
+      ; Succeeds with nothing: 1 + E, the unit beside the error (data.md §3.6).
+      (sig Close ((self File)) (result.result (tuple) error) (host expr "%s.Close()" (import "os")))
       ; The name Open was given: fixed for the handle, so pure.
       (sig Name ((self File)) bytestring pure (host expr "%s.Name()" (import "os")))))
 

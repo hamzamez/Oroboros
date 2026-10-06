@@ -107,6 +107,12 @@ type Prim struct {
 	// Names are the parameter names, which a Where refers to. Empty unless the
 	// declaration used the named form.
 	Names []string
+	// Retract is a declared result that is the host's product composed with a
+	// retraction (spec/errors.md §4): a marked variant, an option, or a tuple
+	// with one of them as a factor. The loader replaces such a declaration
+	// with the raw host call and a definition applying the retraction
+	// (retract.go), so no printer sees it.
+	Retract *core.Term
 }
 
 type Target struct {
@@ -283,6 +289,13 @@ type Target struct {
 	// in loops (bce-2026-08-15.md); one that does not simply gets none, which
 	// is right for JS (no bounds checks) and Java (fixed-length arrays).
 	Narrow string
+	// Niches are the types whose host values encode an absence in their own
+	// value space, `(repr error (niche (host expr "%s == nil")))`: the
+	// template tests for the absent point (spec/errors.md §4.1).
+	Niches map[string]string
+	// LibDirs are the library directories this target was loaded with, where
+	// a retraction finds the variant a declaration names (retract.go).
+	LibDirs []string
 
 	// Backend names the CODE GENERATOR that compiles this target — the `B` of
 	// target-system.md's `T = (B, Δ)`, made explicit.
@@ -373,10 +386,37 @@ func LoadTarget(path string) (*Target, error) {
 	if err != nil {
 		return nil, err
 	}
+	tg.LibDirs = siblingLib(path)
 	if err := tg.finish(func(err error) error { return fmt.Errorf("%s: %w", path, err) }); err != nil {
 		return nil, err
 	}
 	return tg, nil
+}
+
+// siblingLib is the library path a target loaded with none is given: the `lib`
+// directory beside the `targets` directory the path lies in, the layout the
+// drivers' own default (`-path lib`, from the repository's root) assumes. A
+// fallible declaration reads its variant there (retract.go). Empty when the
+// path is in no such tree.
+func siblingLib(path string) []string {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return nil
+	}
+	for d := abs; ; {
+		parent := filepath.Dir(d)
+		if parent == d {
+			return nil
+		}
+		if filepath.Base(d) == "targets" {
+			lib := filepath.Join(parent, "lib")
+			if st, err := os.Stat(lib); err == nil && st.IsDir() {
+				return []string{lib}
+			}
+			return nil
+		}
+		d = parent
+	}
 }
 
 // finish takes a glued target to the one the compiler uses: constants, then
@@ -392,6 +432,11 @@ func (tg *Target) finish(wrap func(error) error) error {
 	}
 	// A BARE TYPE NAME RESOLVES IN ITS MODULE, on the glued target (names.go).
 	if err := tg.resolveTypeNames(); err != nil {
+		return wrap(err)
+	}
+	// A FALLIBLE DECLARATION BECOMES ITS RAW CALL AND A DEFINITION (retract.go),
+	// its derived types resolved in the declaration's module.
+	if err := tg.retractions(); err != nil {
 		return wrap(err)
 	}
 	if err := tg.unfoldAliases(); err != nil {
@@ -646,6 +691,17 @@ func LoadTargetLayers(name string, dirs []string, libDirs ...[]string) (*Target,
 			name, strings.Join(dirs, string(filepath.ListSeparator)))
 	}
 	sort.Strings(out.Names)
+	for _, lds := range libDirs {
+		out.LibDirs = append(out.LibDirs, lds...)
+	}
+	// And with none given, the `lib` beside a layer's `targets`, as LoadTarget
+	// does: the library path only feeds a retraction here, since a library's
+	// own (provides …) fragments are read from the directories the caller named.
+	if len(out.LibDirs) == 0 {
+		for _, d := range dirs {
+			out.LibDirs = append(out.LibDirs, siblingLib(d)...)
+		}
+	}
 	if err := out.finish(func(err error) error { return err }); err != nil {
 		return nil, err
 	}
@@ -1439,6 +1495,12 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	if err := combineMap(tg.Boxed, o.Boxed, "boxed", from, how); err != nil {
 		return err
 	}
+	if tg.Niches == nil && len(o.Niches) > 0 {
+		tg.Niches = map[string]string{}
+	}
+	if err := combineMap(tg.Niches, o.Niches, "niche", from, how); err != nil {
+		return err
+	}
 	for _, f := range []struct {
 		dst  *string
 		src  string
@@ -1720,6 +1782,26 @@ func parseRepr(f *core.Term, frag *Target, path string) error {
 		return bad("(repr SUBJECT CHOICE)")
 	}
 	subj, choice := f.Kids[1], f.Kids[2]
+	// A NICHE: `(repr error (niche (host expr "%s == nil")))`. The host's type
+	// is 1 + E, its absent point inside its own values (spec/errors.md §4.1).
+	if formWord(choice) == "niche" {
+		if subj.Kind != core.KName || len(choice.Kids) != 2 {
+			return bad(`(repr TYPE (niche (host expr "TEMPLATE")))`)
+		}
+		h := choice.Kids[1]
+		if formWord(h) != "host" || len(h.Kids) != 3 || h.Kids[1].Kind != core.KName ||
+			h.Kids[1].Name != "expr" || h.Kids[2].Kind != core.KStr {
+			return bad(`(repr TYPE (niche (host expr "TEMPLATE")))`)
+		}
+		if frag.Niches == nil {
+			frag.Niches = map[string]string{}
+		}
+		if _, dup := frag.Niches[subj.Name]; dup {
+			return fmt.Errorf("%s: %s has a second niche", path, subj.Name)
+		}
+		frag.Niches[subj.Name] = h.Kids[2].Str
+		return nil
+	}
 	spelling, hosted := hostSpelling(choice)
 	word := func(options ...string) (string, bool) {
 		for _, o := range options {
@@ -2187,6 +2269,11 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 	// Java program indexed the result of `split`. And several results are a
 	// TUPLE, `(tuple ptr error)`, exactly as in a program's sig (spec/data.md §3.3).
 	switch rt := core.TypeName(k[2]); {
+	case needsRetraction(k[2]):
+		// A FALLIBLE HOST CALL (spec/errors.md §4): the result as written is
+		// kept, and retract.go turns the declaration into the raw call and a
+		// definition before anything reads it.
+		p.Retract = k[2]
 	case core.IsProd(rt):
 		p.Results = core.ProdTypes(rt)
 	case rt != "":
@@ -3073,4 +3160,25 @@ func (tg *Target) checkExterns() error {
 		}
 	}
 	return nil
+}
+
+// LoadProgram loads a program for this target as the drivers do: its imports
+// resolved in dirs and the target's library directories, and the target's own
+// definitions (D_T) glued in. Since fallible declarations became definitions
+// (retract.go), a program loaded without D_T no longer sees them.
+func (tg *Target) LoadProgram(forms []core.Form, dirs ...string) (*core.Program, []*core.Term, error) {
+	all := append(append([]string(nil), dirs...), tg.LibDirs...)
+	resolve := func(path string) (string, bool, error) {
+		for _, d := range all {
+			b, err := os.ReadFile(filepath.Join(d, filepath.FromSlash(path)+".oro"))
+			if err == nil {
+				return string(b), true, nil
+			}
+			if !os.IsNotExist(err) {
+				return "", false, err
+			}
+		}
+		return "", false, nil
+	}
+	return core.LoadWithDefs(forms, resolve, tg.Defs)
 }

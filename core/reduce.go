@@ -517,11 +517,18 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	var unresolved []string
 
 	// Fixpoint over imports. A module already in scope is never re-read, which
-	// is also what terminates on a cycle.
-	if resolve != nil {
-		seen := map[string]bool{}
-		for _, m := range mods {
-			seen[m.Path] = true
+	// is also what terminates on a cycle. It is a closure, called again once
+	// D_T is glued in: a target's library may `use` a library module itself
+	// (retract.go's definitions use `result`), and a module's imports are
+	// those of the module WITH its target library, so the closure is taken
+	// after the gluing. A second call finds nothing new where nothing was added.
+	seen := map[string]bool{}
+	for _, m := range mods {
+		seen[m.Path] = true
+	}
+	closeImports := func() error {
+		if resolve == nil {
+			return nil
 		}
 		for {
 			var want string
@@ -537,12 +544,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				}
 			}
 			if want == "" {
-				break
+				return nil
 			}
 			seen[want] = true
 			src, found, err := resolve(want)
 			if err != nil {
-				return nil, nil, fmt.Errorf("use %s: %w", want, err)
+				return fmt.Errorf("use %s: %w", want, err)
 			}
 			if !found {
 				unresolved = append(unresolved, want)
@@ -550,11 +557,11 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			}
 			sub, err := Read(src)
 			if err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", want, err)
+				return fmt.Errorf("%s: %w", want, err)
 			}
 			subMods, _, err := partition(sub)
 			if err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", want, err)
+				return fmt.Errorf("%s: %w", want, err)
 			}
 			declared := false
 			var extra []string
@@ -563,7 +570,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 					continue // the empty anonymous scope every file starts with
 				}
 				if m.Path == "" {
-					return nil, nil, fmt.Errorf(
+					return fmt.Errorf(
 						"%s: a library file must declare (module %s) before its definitions", want, want)
 				}
 				// A library file declares exactly the module its path names.
@@ -582,17 +589,20 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			}
 			switch {
 			case !declared && len(extra) == 1:
-				return nil, nil, fmt.Errorf("%s declares (module %s); a library file's module "+
+				return fmt.Errorf("%s declares (module %s); a library file's module "+
 					"must be the path that imports it", want, extra[0])
 			case !declared:
-				return nil, nil, fmt.Errorf("%s does not declare (module %s)", want, want)
+				return fmt.Errorf("%s does not declare (module %s)", want, want)
 			case len(extra) > 0:
-				return nil, nil, fmt.Errorf("%s also declares (module %s); a library file declares "+
+				return fmt.Errorf("%s also declares (module %s); a library file declares "+
 					"one module, and it is the one its path names — put %s in its own file, or its "+
 					"members are reachable only after something else has imported this one",
 					want, strings.Join(extra, ", "), extra[0])
 			}
 		}
+	}
+	if err := closeImports(); err != nil {
+		return nil, nil, err
 	}
 	// `D_T` — the target's own definitions, injected once every library the
 	// program uses has been read.
@@ -602,8 +612,15 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// primitive shadowing a definition. A module the program never uses gets
 	// nothing — covering is demand-driven, and a `provides` for a module nobody
 	// imports contributes no more than a `prim` for one does.
+	// GLUING AND CLOSING ALTERNATE TO A JOINT FIXPOINT. A target's library may
+	// `use` a module, which closing the imports then reads or finds provided by
+	// the target, and that module may have a target library of its own to glue.
+	// Each pass glues every module present or wanted that is not yet glued, then
+	// closes the imports; it stops when a pass glues nothing, which it must,
+	// since each pass glues at least one of finitely many paths.
 	var overridden []string
-	if len(dt) > 0 {
+	glued := map[string]bool{}
+	for len(dt) > 0 {
 		byPath := map[string]*Module{}
 		for _, m := range mods {
 			byPath[m.Path] = m
@@ -617,7 +634,11 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			paths = append(paths, path)
 		}
 		sort.Strings(paths)
+		progress := false
 		for _, path := range paths {
+			if glued[path] {
+				continue
+			}
 			m, ok := byPath[path]
 			if !ok {
 				// A TARGET-PROVIDED MODULE: no file declares it, so the target's
@@ -637,6 +658,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				mods = append(mods, m)
 				byPath[path] = m
 			}
+			glued[path] = true
+			progress = true
 			for _, f := range dt[path] {
 				switch f.Kind {
 				case "use":
@@ -657,6 +680,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 						"(def …); got a %s", path, f.Kind)
 				}
 			}
+		}
+		if !progress {
+			break
+		}
+		if err := closeImports(); err != nil {
+			return nil, nil, err
 		}
 	}
 

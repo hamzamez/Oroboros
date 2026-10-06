@@ -1,0 +1,36 @@
+; ACCEPTANCE: THE ERROR MODEL ON A HOST (spec/errors.md §4, ADR 0040).
+;
+; The hand-declared os, not the survey's: a declaration's shape is a claim about
+; the host's documentation, which a generator cannot read (ADR 0023), so the
+; generated files keep Go's (T, error) as the host's product and os-methods
+; tests them. Here each of the three shapes errors.md §4 names:
+;
+;   os.Open        (result File error): a sum, read off Go's (*File, error)
+;                  through error's niche, `nil` the absent point
+;   (*File).Read   (tuple buffer n (option error)): a partial success, n bytes
+;                  arriving WITH the error, which io.Reader says to use first
+;   (*File).Close  (result (tuple) error): succeeds with nothing, 1 + E, and is
+;                  `expect`ed, because a file that fails to close lost a write
+;
+; What Go runs is its own `f, err := os.Open(…); if err == nil { … }`: the sum,
+; the option and the unit all reduce away (sumrep-2026-10-06). The answer is the
+; number of bytes read, `head -c 64` of go.mod.
+
+(use go)
+(use go/os as gos)
+(use go/os/File as File)
+(use result)
+(use io)
+
+(export main)
+
+(def main ()
+  (case (gos.Open "go.mod")
+    (result.ok f)
+      (build b 64
+        (let (tuple b2 n e2) (File.Read f b)
+          (expect (result.ok _) (File.Close f) "closing go.mod"
+            (case e2
+              none     (io.print-int n)
+              (some e) (io.print-int 0)))))
+    (result.err e) (io.print-int 0)))

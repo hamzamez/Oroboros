@@ -1060,3 +1060,14 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/sum-slots.oro js`
 - new source — `gauntlet/differential/cases/sum-slots.oro windows`
 - compiler output changed — `lib/result.oro windows`
+
+## 2026-10-06 — on 9605545, with uncommitted changes
+
+**Reason:** the error model's niche (errors.md §4, step 4): tally's refusal on go and java gains an accurate import hint, because a target library's use is now closed over; every emitted file byte-identical
+
+520 runs: 277 emitted, 243 refused; 1974 of 2019 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+2 change(s):
+
+- compiler output changed — `examples/tally/tally.oro go`
+- compiler output changed — `examples/tally/tally.oro java`

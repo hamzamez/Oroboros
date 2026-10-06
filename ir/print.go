@@ -201,7 +201,7 @@ func (pr *printer) op(s *Stmt) []string {
 	case OGlobal:
 		return []string{"(global " + s.Name + ")"}
 	case OCall:
-		return []string{"(call " + s.Name + lead([]string{pr.vs(s.Args)}) + ")"}
+		return []string{"(call " + primText(s.Name) + lead([]string{pr.vs(s.Args)}) + ")"}
 	case OAdd, OSub, OMul, ONeg, ODiv, ORem:
 		m := ""
 		if s.Mode == MExact || s.Mode == MTrap {
@@ -227,6 +227,17 @@ func (pr *printer) op(s *Stmt) []string {
 		return []string{"(" + name + ")"}
 	}
 	return []string{"(" + name + " " + pr.vs(s.Args) + ")"}
+}
+
+// primText is a primitive's name as the reader reads it: the name, or a string
+// when the name is one no program can write. The loader makes such names, the
+// raw call behind a fallible declaration (`#raw:go/os:Open`) and a niche's test,
+// precisely so that a program cannot reach them (emit/retract.go).
+func primText(n string) string {
+	if strings.ContainsRune(n, '#') {
+		return quote(n)
+	}
+	return n
 }
 
 // litText is a literal as the language's reader reads it.

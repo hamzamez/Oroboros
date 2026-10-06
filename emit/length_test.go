@@ -33,7 +33,7 @@ func refineGo(t *testing.T, src string) error {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, terms, err := core.Load(forms)
+	prog, terms, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}

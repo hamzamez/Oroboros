@@ -813,11 +813,13 @@
    gen: examples/tally/host-java.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
 == examples/tally/tally.oro go refused
    gen: examples/tally/tally.oro: in tally/host.capture: go/regexp/Regexp.FindStringSubmatch is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/regexp/Regexp) matched no file on the search path and this target provides no module go/regexp/Regexp either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro js refused
    gen: examples/tally/tally.oro: in tally.tally: tally/host.show is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use tally/host) matched no file on the search path and this target provides no module tally/host either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro java refused
    gen: examples/tally/tally.oro: in tally/host.capture: java/java/util/regex/Matcher.find is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use java/java/util/regex/Matcher) matched no file on the search path and this target provides no module java/java/util/regex/Matcher either, so every name from it is unbound. Check the path.
 == examples/tally/tally.oro windows refused
    gen: examples/tally/tally.oro: in tally.run: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.

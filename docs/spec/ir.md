@@ -186,7 +186,7 @@ stmt     ::= (val PARAM… op)                                   one or more res
            | (do op)                                           no result
 op       ::= (const LIT) | (global NAME)
            | (ARITH [MODE] %a…) | (CMP %a %b)
-           | (call NAME %a…)
+           | (call NAME %a…)                  ; NAME a string when no program can write it (below)
            | (index %t %i) | (len %t) | (array %a…) | (map (%k %v)…)
            | (read %m %k) | (keys %m) | (set %b %i %x) | (insert %m %k %x)
            | (if %c region region)
@@ -1006,6 +1006,11 @@ What a Go printer does with it (irp2):
 
 The result is the loop `gen` emits today, one statement per value, at the same speed (irp2 §2:
 0.99× of `gen`).
+
+**A primitive the loader made is named by a string.** A fallible declaration becomes a raw call,
+`#raw:go/os:Open`, and a niche's test, `#niche:error` (errors.md §4.2). A `#` keeps a program from
+writing either, and the reader reads no `#` in a name, so the text writes `(call "#raw:go/os:Open" …)`
+and the reader accepts a string where the name goes.
 
 ### 10.4 Who reads the file, and who may write it
 

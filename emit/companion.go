@@ -166,6 +166,13 @@ func (tg *Target) checkViews() error {
 			for _, m := range namesUnder(tg, ifComp) {
 				local := m[len(ifComp)+1:]
 				got, have := tg.Prims[subComp+"."+local]
+				// A VIEW IS A FACT ABOUT THE HOST'S METHOD SETS, and a method
+				// declared fallible is the host's method under its raw name: the
+				// retraction changed what a program sees, not the host's method
+				// (emit/retract.go).
+				if !have {
+					got, have = tg.Prims[RawName(subComp+"."+local)]
+				}
 				if !have {
 					return fmt.Errorf("(implements %s %s) is false: %s declares %s and %s does not "+
 						"(theories.md §6.1). An edge is a view, and a view is checked",

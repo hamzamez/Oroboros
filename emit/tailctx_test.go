@@ -23,7 +23,7 @@ func normGo(t *testing.T, src string) (*Target, *core.Term, *core.Sig) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}

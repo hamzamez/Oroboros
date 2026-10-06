@@ -132,6 +132,13 @@ type Sum struct {
 	Name     string
 	Params   []string // type parameters: the declaration is a constructor Typeⁿ → Type
 	Variants []Variant
+	// THE ROLES a variant may declare (spec/errors.md §2, ADR 0040). Success
+	// names the constructor that is the value of the exception monad A + R;
+	// `try` and `expect` continue on it. Relevant denies weakening for the
+	// type's values: one must be used. The compiler knows these two roles and
+	// no error type.
+	Success  string
+	Relevant bool
 }
 
 // Variant is one summand. Payload is "" for a variant that carries nothing —
@@ -1665,6 +1672,32 @@ func readSum(t *Term) (*Sum, error) {
 	}
 	seen := map[string]bool{}
 	for _, k := range t.Kids[2:] {
+		// THE ROLE MARKERS, (success c) and (relevant). `success` and `relevant`
+		// are reserved as constructor names, so `(success ok)` is never a
+		// constructor `success` carrying an `ok`.
+		if k.Kind == KApp && len(k.Kids) > 0 && k.Kids[0].Kind == KName {
+			switch k.Kids[0].Name {
+			case "success":
+				if len(k.Kids) != 2 || k.Kids[1].Kind != KName {
+					return nil, fmt.Errorf("variant %s: (success c) names one constructor; got %s", sum.Name, k)
+				}
+				if sum.Success != "" {
+					return nil, fmt.Errorf("variant %s: a variant has one success constructor, and "+
+						"declares %s and %s", sum.Name, sum.Success, k.Kids[1].Name)
+				}
+				sum.Success = k.Kids[1].Name
+				continue
+			case "relevant":
+				if len(k.Kids) != 1 {
+					return nil, fmt.Errorf("variant %s: (relevant) takes nothing; got %s", sum.Name, k)
+				}
+				if sum.Relevant {
+					return nil, fmt.Errorf("variant %s: (relevant) is declared twice", sum.Name)
+				}
+				sum.Relevant = true
+				continue
+			}
+		}
 		var v Variant
 		switch {
 		case k.Kind == KName:
@@ -1679,6 +1712,10 @@ func readSum(t *Term) (*Sum, error) {
 		if seen[v.Name] {
 			return nil, fmt.Errorf("variant %s: %s is declared twice", sum.Name, v.Name)
 		}
+		if v.Name == "success" || v.Name == "relevant" {
+			return nil, fmt.Errorf("variant %s: %s is reserved for a role marker, (success c) or "+
+				"(relevant), and is not a constructor name (spec/errors.md §2)", sum.Name, v.Name)
+		}
 		if v.Name == sum.Name {
 			return nil, fmt.Errorf("variant %s: a constructor may not have the type's own name, "+
 				"because the constructor and the type would be one name", sum.Name)
@@ -1689,6 +1726,10 @@ func readSum(t *Term) (*Sum, error) {
 	if len(sum.Variants) < 2 {
 		return nil, fmt.Errorf("variant %s: a variant type has two or more constructors; one "+
 			"is just the payload", sum.Name)
+	}
+	if sum.Success != "" && !seen[sum.Success] {
+		return nil, fmt.Errorf("variant %s: (success %s) names no constructor of the variant",
+			sum.Name, sum.Success)
 	}
 	used := map[string]bool{}
 	for _, v := range sum.Variants {

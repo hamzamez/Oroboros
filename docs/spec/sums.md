@@ -49,6 +49,18 @@ determine its type, which is why every language without runtime types went nomin
 A variant with no payload is the **degenerate case**, not a separate concept — so an enum needed
 nothing added.
 
+**Two role markers** may follow the constructors (errors.md §2, ADR 0040):
+
+```lisp
+(variant (result T E) (ok T) (err E) (success ok) (relevant))
+```
+
+`(success c)` names the constructor that is the value of the exception monad A + R: `try`, the monad's
+bind, continues on it and returns every other constructor unchanged. `(relevant)` denies weakening for
+the type's values: one must be used. They are declaration syntax and nothing else, so no term kind,
+reduction rule or backend changes, and `success` and `relevant` are reserved as constructor names.
+`option` marks `some`.
+
 ## 3. What it cost the compiler
 
 | | before | after |

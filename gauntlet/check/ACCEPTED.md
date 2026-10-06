@@ -985,3 +985,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/native/sieve-js.oro js`
 - compiler output changed — `lib/num/u128.oro go`
 - emitted text changed — `lib/win/fmt.oro windows`
+
+## 2026-10-06 — on be89946, with uncommitted changes
+
+**Reason:** lib/result.oro, the result variant and err-map (spec/errors.md §3, ADR 0040): a new library source, refused on every target because the sweep compiles it with lib/ as its own nearest layer, so lib/io's and lib/os's provides fragments load twice ("io.print-line is declared twice"); a loader quirk no file directly under lib/ had met (corrected after the run)
+
+496 runs: 253 emitted, 243 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `lib/result.oro go`
+- new source — `lib/result.oro java`
+- new source — `lib/result.oro js`
+- new source — `lib/result.oro windows`

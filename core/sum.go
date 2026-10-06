@@ -42,6 +42,14 @@ func expandCase(t *Term, look ctorLookup) (*Term, error) {
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "case" {
 		return caseForm(t, look)
 	}
+	if t.Kind == KApp && len(t.Kids) > 0 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "try" {
+		c, err := tryForm(t, look)
+		if err != nil {
+			return nil, err
+		}
+		return caseForm(c, look)
+	}
 	if len(t.Kids) == 0 {
 		return t, nil
 	}
@@ -291,4 +299,66 @@ func (s *Sum) uniformPayload() (string, bool) {
 		ty = "int" // an enum: the tag alone, with an unused payload slot
 	}
 	return ty, true
+}
+
+// `try` IS THE BIND OF THE EXCEPTION MONAD (spec/errors.md §5, ADR 0040).
+//
+//	(try (s x) e body)  ⟶  (case e (s x) body (c₁ y) (c₁ y) … (cₙ y) (cₙ y))
+//
+// A variant marked (success s) is a model of A + R, the exception monad with
+// E = R: return is s, and bind continues on s and returns every other
+// constructor unchanged. The pattern names s because the language types a sum
+// by the constructors a program writes, as `case` does: it resolves the
+// variant here, where the program is loaded, and s is checked to be the
+// variant's marked success. Then the term is an ordinary exhaustive `case`,
+// which reduction fuses with the constructor it meets, so `try` costs nothing
+// inside a program (errors-2026-10-04 §3).
+//
+// The monad laws hold in every model, because they depend only on that shape:
+// (try (s x) (s v) M) = M[v/x]; (try (s x) e (s x)) = e; and nested binds
+// reassociate.
+func tryForm(t *Term, look ctorLookup) (*Term, error) {
+	if len(t.Kids) != 4 {
+		return nil, fmt.Errorf("try takes a success pattern, a value and a body, "+
+			"(try (ok x) e body); got %s", t)
+	}
+	pat := t.Kids[1]
+	var spelling string
+	switch {
+	case pat.Kind == KApp && len(pat.Kids) == 2 && pat.Kids[0].Kind == KName && pat.Kids[1].Kind == KName:
+		spelling = pat.Kids[0].Name
+	case pat.Kind == KName:
+		spelling = pat.Name
+	default:
+		return nil, fmt.Errorf("try: the pattern is the success constructor, (ok x), or a bare "+
+			"constructor that carries nothing; got %s", pat)
+	}
+	ref, err := look(spelling)
+	if err != nil {
+		return nil, fmt.Errorf("try: %w", err)
+	}
+	s := ref.ref.sum
+	if s.Success == "" {
+		return nil, fmt.Errorf("try: variant %s declares no (success …) constructor, so it is "+
+			"not a model of the exception monad and has no bind (spec/errors.md §2)", s.Name)
+	}
+	if ref.local != s.Success {
+		return nil, fmt.Errorf("try: %s is not the success constructor of variant %s, which is %s: "+
+			"try continues on success and returns every other constructor unchanged", ref.local, s.Name, s.Success)
+	}
+	prefix := strings.TrimSuffix(spelling, ref.local)
+	kids := []*Term{Name("case"), t.Kids[2], pat, t.Kids[3]}
+	for _, v := range s.Variants {
+		if v.Name == s.Success {
+			continue
+		}
+		c := Name(prefix + v.Name)
+		if v.Payload == "" {
+			kids = append(kids, c, c)
+			continue
+		}
+		y := Name("#e")
+		kids = append(kids, &Term{Kind: KApp, Kids: []*Term{c, y}}, &Term{Kind: KApp, Kids: []*Term{Name(prefix + v.Name), y}})
+	}
+	return &Term{Kind: KApp, Kids: kids}, nil
 }

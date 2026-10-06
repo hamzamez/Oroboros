@@ -867,10 +867,12 @@ type entry struct {
 // needed, because reduction inlines the constructor and the checker sees the
 // payload's own type.
 func OptionSum() *Sum {
+	// `some` is the success constructor (spec/errors.md §2), so `try` reads a
+	// map: (try (some v) (m k) …). Not relevant: a read may be ignored.
 	return &Sum{Name: "option", Params: []string{"T"}, Variants: []Variant{
 		{Name: "some", Payload: "T"},
 		{Name: "none"},
-	}}
+	}, Success: "some"}
 }
 
 // langSums are `lang`'s variant types, by key. The key of a `lang` declaration

@@ -1,0 +1,31 @@
+; result: a computation that may fail, as a value (spec/errors.md §3, ADR 0040).
+;
+;   (use result)
+;   (case (result.ok 3) (result.ok v) v (result.err e) 0)
+;   (try (result.ok v) e body)        ; continue on ok, return any err unchanged
+;
+; THE ALGEBRA. (result T E) is the coproduct T + E: exactly one of a T or an E,
+; eliminated by `case`, the copairing [f, g]. Marked (success ok) it is a model
+; of the exception monad A + R with E = R: return is `ok`, and `try` is its bind.
+; Marked (relevant), a result may not be dropped: the structural rule of
+; weakening is denied for it, and (ignore r) writes a discard down.
+;
+; IT IS A LIBRARY, not part of the language. The compiler knows the two roles,
+; `success` and `relevant`, and reads them off whatever variant declares them;
+; `option` in `lang` marks `some`, and a program's own flat sum may mark its own.
+;
+; err-map IS FUNCTORIALITY in E. result is a bifunctor (T, E) ↦ T + E, and
+; err-map f = id + f moves a result between error types where one module's
+; errors meet another's:
+;
+;   err-map id = id                  err-map (g ∘ f) = err-map g ∘ err-map f
+(module result)
+
+(export ok err err-map)
+
+(variant (result T E) (ok T) (err E) (success ok) (relevant))
+
+(def err-map (f r)
+  (case r
+    (ok v)  (ok v)
+    (err e) (err (f e))))

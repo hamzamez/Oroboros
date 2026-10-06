@@ -64,6 +64,8 @@ Everything a *program* may write. From `core/read.go`'s form and special-form di
 | `ensures` | specified — a postcondition | [postconditions.md](postconditions.md) |
 | `result` | specified — the value, named only inside `ensures` | [postconditions.md](postconditions.md) |
 | `variant` | specified — closed, finite, non-recursive, with type arguments | [sums.md](sums.md), [data.md](data.md) |
+| `success` | specified — a variant's role marker, `(success c)`: the constructor `try` continues on; reserved as a constructor name | [errors.md](errors.md) §2 |
+| `relevant` | specified — a variant's role marker, `(relevant)`: a value of the type must be used; reserved as a constructor name | [errors.md](errors.md) §2, §7 |
 | `module`, `use`, `export` | specified — in a program, and `module` in a target | [modules.md](modules.md) |
 | `as` | specified — `(use PATH as ALIAS)` | [state.md](state.md) |
 | `provides` | specified — a target fragment written where a library lives, which may hold `def`s | [target-system.md](target-system.md), [theories.md](theories.md) |
@@ -84,6 +86,7 @@ and so expands in `Load` ([state.md](state.md)).
 | `match`, `when`, `else` | specified — sugar for `loop` | [match.md](match.md) |
 | `_` | specified — a pattern that binds nothing, and `seq`'s binder | [match.md](match.md) |
 | `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |
+| `try` | specified — the exception monad's bind, `(try (ok x) e body)`; expands to `case` in `Load`, on a variant marked `success` | [errors.md](errors.md) |
 | `loop`, `again` | specified — also the retired layer's structural kind `loop` | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
 | `true`, `false` | specified — the boolean literals | [booleans.md](booleans.md) |
 

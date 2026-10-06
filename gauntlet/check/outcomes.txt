@@ -1141,6 +1141,20 @@
    gen: lib\os\java.oro: a target file begins with (target NAME …)
 == lib/os/js.oro windows refused
    gen: lib/os/js.oro is a target fragment — it declares (provides …) and nothing else, so there is no program here to build
+== lib/result.oro go refused
+   gen: lib\io\go.oro: io.print-line is declared twice
+== lib/result.oro js refused
+   gen: lib\io\js.oro: io.print-line is declared twice
+== lib/result.oro java refused
+   gen: lib\io\java.oro: io.print-line is declared twice
+== lib/result.oro windows refused
+   gen: gen-err-map: (r (fn (#t #p) (if (= #t 0) (fn (#x) (#x 0 #p)) (fn (#x) (#x 1 (f #p)))))) is an indexing, and (<= 0 (fn (#t #p) (if (= #t 0) (fn (#x) (#x 0 #p)) (fn (#x) (#x 1 (f #p)))))) is not proven
+     known: nothing
+     The index is outside the linear fragment, and neither a proof by cases nor a
+     content fact about a table bounds it. A table is a function with a finite
+     domain, so 0 <= i < len is the condition for the application to be DEFINED,
+     and an application not known to be defined is refused (docs/spec/tables.md §6,
+     refinements.md §3a). A guard that tests the index against (len r) is a proof.
 == lib/win/fmt.oro go refused
    gen: lib/win/fmt.oro: in win/fmt.print-int: x64.sete is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use x64) matched no file on the search path and this target provides no module x64 either, so every name from it is unbound. Check the path.

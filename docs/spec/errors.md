@@ -45,7 +45,7 @@ a propagated sum costs nothing) and [sumofsums-2026-10-06](../../gauntlet/result
 
 ## 2. The theory the compiler knows: a sum with a success summand
 
-The compiler knows no error type. It knows a **theory**: a variant whose first constructor is marked
+The compiler knows no error type. It knows a **theory**: a variant with one constructor marked
 `success`, A + R, where A is the success constructor's payload and R the sum of the others. Any variant
 that declares the role is a **model** of it (ADR 0021: a declaration is a theory, a module a model).
 
@@ -57,10 +57,12 @@ Two markers join the variant declaration (sums.md §2):
   (relevant))         ; a value of this type must be used (§7)
 ```
 
-- **`(success c)`** names the declaration's **first** constructor, so its tag is 0. A `success` naming
-  any other constructor is refused. Fixing the position is what lets `try` and `expect` expand with no
-  type in hand (§5). A variant has at most one `success`.
+- **`(success c)`** names one of the declaration's constructors, the value of the monad. A variant has
+  at most one `success`.
 - **`(relevant)`** says the structural rule of weakening is denied for this type's values (§7).
+
+`success` and `relevant` are therefore **reserved as constructor names** in a variant declaration, so
+that `(success ok)` cannot be read as a constructor `success` carrying an `ok`.
 
 A + R is the **exception monad** with E = R: return is the success constructor, and bind is `try`. The
 monad laws (§5) depend on nothing but this shape, so they hold for every model.
@@ -73,7 +75,7 @@ The models today:
 | `(option T)`: `some`, `none` | `lang` | `some` | no: a map read may be ignored |
 | any program's own variant, such as `(read T)`: `got`, `not-found`, `denied`, `failed` | the program | as declared | as declared |
 
-So `try` works on a map read, `(try v (m k) …)`, and on a flat sum per operation. A sum of sums and a flat
+So `try` works on a map read, `(try (some v) (m k) …)`, and on a flat sum per operation. A sum of sums and a flat
 sum are the same set, A + (K₁ + K₂) ≅ A + K₁ + K₂, and both are models.
 
 ---
@@ -139,10 +141,11 @@ The target loader turns such a declaration into two things:
   ```lisp
   (def ReadFile (name)
     ((ReadFile#raw name) (fn (t e)
-      (if (niche-test e) (fn (#x) (#x 0 t)) (fn (#x) (#x 1 e))))))
+      (if (niche-test e) (fn (#x) (#x s# t)) (fn (#x) (#x c# e))))))
   ```
 
-  The success constructor's tag is 0 (§2), and the one other constructor's is 1.
+  where s# and c# are the tags of the success constructor and of the one other constructor, which the
+  loader reads off the declared variant.
 
 A definition in a target is `D_T` (target-system.md §6.2), unfolded by δ like any other. So building
 the sum needs no new pass, no new term kind and no backend change. Where the sum is eliminated in the
@@ -189,26 +192,28 @@ them comes with the browser and Android `os` (ADR 0039, §12).
 ## 5. Passing failure on: `try`
 
 ```
-(try x e body)  ⟶  (e (fn (#t #p) (if (= #t 0) body[x := #p] (fn (#x) (#x #t #p)))))
+(try (s x) e body)  ⟶  (case e  (s x) body  (c₁ y₁) (c₁ y₁)  …  (cₙ yₙ) (cₙ yₙ))
 ```
 
-`try` is the **bind** of the exception monad. On the success summand (tag 0, §2) it runs the body with
-the payload. On any other it rebuilds the same value: `(fn (#x) (#x #t #p))` is the constructor applied
-to its payload, whatever its type. So the expansion needs no type, and it happens with `case`'s, when
-the program is loaded. Typing: e : A + R and body : B + R with x : A, give B + R.
+`try` is the **bind** of the exception monad. Its pattern names the success constructor s, which is
+how the language types a sum: by the constructors a program writes, as `case` does (sums.md). So the
+variant is resolved where the program is loaded, s is checked to be its marked `success` (a `try` on an
+unmarked variant, or naming another constructor, is refused), and the `try` expands to an ordinary,
+exhaustive `case`: on s it runs the body with the payload, and every other constructor cᵢ is rebuilt
+unchanged. Typing: e : A + R and body : B + R with x : A, give B + R.
 
 **The monad laws are the refactorings** a program relies on:
 
 ```
-(try x (success v) body)       =  body[v/x]                                left identity
-(try x e (success x))          =  e                                        right identity
-(try y (try x e M) N)          =  (try x e (try y M N))    x ∉ fv(N)        associativity
+(try (s x) (s v) body)         =  body[v/x]                                  left identity
+(try (s x) e (s x))            =  e                                          right identity
+(try (s y) (try (s x) e M) N)  =  (try (s x) e (try (s y) M N))   x ∉ fv(N)    associativity
 ```
 
 Inlining a helper, splitting one, and reassociating a chain of fallible steps change nothing.
 
 **It costs nothing inside a program.** Every call is inlined, and case-of-case fuses each `try` with the
-constructor it meets, folding `(= #t 0)` on the known tag. Measured over three levels: one branch per
+constructor it meets, folding the test on the known tag. Measured over three levels: one branch per
 error path, no tag (errors-2026-10-04 §3).
 
 **One error type per chain.** Every `try` in a chain shares R. Moving between error types is
@@ -282,13 +287,13 @@ that matter come from host calls, which are impure and so always bound.
 ## 8. Giving up on purpose: `expect`
 
 ```
-(expect e why)  ⟶  (e (fn (#t #p) (if (= #t 0) #p (abandon why))))
+(expect (s x) e why body)  ⟶  (case e  (s x) body  (c₁ y₁) (abandon why)  …  (cₙ yₙ) (abandon why))
 ```
 
-`expect` is total: on the success summand it is the payload, and on any other it is crash : R → 0,
-ending the process with the reason. Nothing is proven, and the source says so. Erlang's
-`{ok, Bin} = file:read_file(F)` and Rust's `.expect("…")` are this. It expands, like `try`, with no type
-in hand.
+`expect` is total: on the success summand it binds the payload and runs the body, and on any other it
+is crash : R → 0, ending the process with the reason. Nothing is proven, and the source says so.
+Erlang's `{ok, Bin} = file:read_file(F)` and Rust's `.expect("…")` are this. Its pattern names the
+success constructor, checked as `try`'s is.
 
 **`abandon`** is the crash. It is a language name every target realizes (§9), of type string → ⊥, and
 impure, so it is never moved or dropped.
@@ -349,7 +354,8 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
 1. **The markers** `success` and `relevant` in variant declarations, with their checks; `option` marks
    `some`.
 2. **`lib/result`**: the variant and `err-map`.
-3. **`try`, `expect`, `ignore`, `abandon`**: the expansions, and `abandon` on the four targets.
+3. **`try`, `expect`, `ignore`, `abandon`**: the expansions into `case`, and `abandon` on the four
+   targets.
 4. **The niche** in target files and the loader's δ (§4.2); `(fails …)` for Win32 (§4.4).
 5. **The migration**:
    - the 69 fallible Go declarations, each with its shape (sum, or partial product), read from Go's

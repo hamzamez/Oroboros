@@ -26,11 +26,12 @@ per error path. gocoverage-2026-10-06 found 142 declarations that depend on the 
 1. **Three kinds of error, three algebras.** A domain condition is an obligation, proven or refused
    (unchanged). Abandonment is crash : E → 0, only where the source says `expect` or the build says
    `-checked`. The environment's failure is a value, a summand of a coproduct.
-2. **The compiler knows a theory, not a type.** A variant may mark its first constructor
-   `(success c)` and itself `(relevant)`. A marked variant is A + R, the exception monad with E = R.
-   `try` (its bind) and `expect` expand generically through the Church encoding, because the success
-   tag is 0. Relevance is checked for any relevant type. Every model obeys the monad laws, because they
-   depend only on that shape.
+2. **The compiler knows a theory, not a type.** A variant may mark a constructor `(success c)` and
+   itself `(relevant)`. A marked variant is A + R, the exception monad with E = R. `try` (its bind) and
+   `expect` name the success constructor as a pattern, `(try (ok x) e body)`, because the language types
+   a sum by the constructors a program writes; the pattern is checked to be the marked success, and both
+   expand to an ordinary exhaustive `case`. Relevance is checked for any relevant type. Every model obeys
+   the monad laws, because they depend only on that shape.
 3. **`(result T E)` is a library**, `lib/result`, with `err-map` as its functoriality in E. `option`
    marks `some`, so `try` also works on a map read, and a program's own flat sum is a model too.
 4. **The host's encoding is a niche of its error type**, declared once per target:
@@ -81,7 +82,7 @@ per error path. gocoverage-2026-10-06 found 142 declarations that depend on the 
   arm. The measured leak becomes unrepresentable.
 - **Errors carry portable content**, the kinds, checked across hosts by a program.
 - **Nothing new reaches the reducer, the IR or the printers.** The markers are declaration syntax, the
-  expansions are applications of a value, and the boundary is δ. The emitted code is the host's own
+  expansions are `case`, and the boundary is δ. The emitted code is the host's own
   `if err != nil` (sumofsums-2026-10-06).
 - **The migration touches every fallible declaration and call site**: 69 Go declarations, the portable
   `os` and `io`, and 16 call sites in the corpus. Where a program tested only `err-nil`, the gate expects

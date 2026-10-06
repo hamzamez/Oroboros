@@ -270,6 +270,28 @@ a wall that needs language work, stop and research it, then design it.
      a `strings` call.**
 2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
    algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
+   **Where it stands** ([gocoverage-2026-10-06](gauntlet/results/gocoverage-2026-10-06.md),
+   `go run gauntlet/stdlib/coverage.go`): of the 590 exported names in the ten packages with a file,
+   284 are declared (48.1%). The missing 306, by cause:
+   - **L, work** (205): declarable today. 73 of its 122 functions return an error, as do 69 declared;
+   - **K, a package with no file** (33): `time`, `io/fs`, `unicode`, `syscall`, `iter`;
+   - **A, callbacks** (21) and **B, implementing a host interface** (6): tiers 1 and 2, not built;
+   - **C, a borrow a later call ends** (9): `Scanner.Bytes`, `Peek`, `ReadSlice`;
+   - **closable without language work, measured**: G, a variadic over one type, as Go's spread
+     `f(xs...)` over a table (6); H, over `any`, as restrictions (3); I, out-parameters, as templates
+     that own the pointer (9). strings.oro, fmt.oro and io.oro call two of these walls;
+   - D, reflection (8); E, complex numbers (2); F, `uintptr` handles (2); J, scratch write-borrows (2).
+
+   Declarable today with K's packages: 88.5%, matching the survey's 87.8%; with G, H and I, 91.5%.
+   **The order to close it:**
+   1. the error model for host declarations, decided and built (errors-research questions 1–4),
+      because 142 declarations depend on it and the product leaks;
+   2. G, H and I, and the three headers corrected;
+   3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
+      (27). The process API waits for concurrency-research's decisions;
+   4. K's packages, program first: `io/fs`, `time`, `unicode`;
+   5. the walls by what they unlock: callbacks tier 1 (A and B, 27 names, and concurrency's entry
+      point), then borrows (C), then D, E, F and J when a program asks.
 3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs
    from Win32 against what is declared, callable and linkable (31.0% callable and linkable today);
    then spec first, with an ADR per wall.
@@ -872,4 +894,4 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
-| `gauntlet/stdlib/` | The four host surveys; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, sixteen programs, including one per supported package (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

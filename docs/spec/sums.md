@@ -213,9 +213,10 @@ func SumStep(a int, b int) (int, int) {
 **Measured at 1.00× against hand-written, zero allocations** —
 [sums-2026-08-22](../../gauntlet/results/sums-2026-08-22.md).
 
-**A sum crossing a boundary needs a uniform payload type**, because the payload gets one slot.
-Inside a program a mixed sum is fine, since reduction removes it — so the refusal is on the
-*signature*, not the declaration.
+**A sum crossing a boundary is its tag and its slots** ([ADR 0042](../decisions/0042-a-variants-value-is-its-tag-and-its-slots.md)):
+one slot per distinct payload type of the declaration, each constructor writing `#any`, the zero of the
+slot's type, into the slots its tag does not select. The same holds at a loop's exit and a scope's.
+Until sumrep-2026-10-06 a mixed sum at a signature was refused, and at a loop's exit too.
 
 ## 7. Exhaustiveness, and what it buys
 

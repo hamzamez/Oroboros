@@ -72,8 +72,22 @@ func TestTypeArgumentsAreWrittenAndCounted(t *testing.T) {
 		"not a parameterised variant type in scope")
 	mustLoadFail(t, decl+"(sig g ((r (result int int))) int)\n(def g (fn (r) 0))",
 		"not built")
-	// k > 1 is Theorem R's encoding, specified and named as a limitation.
-	mustLoadFail(t, decl+"(sig f ((n int)) (result int string))", "compiler limitation")
+	// k > 1 is Theorem R's encoding: the declaration's slots under the
+	// substitution, which stay two when the instance makes them equal.
+	for ty, want := range map[string][]string{
+		"(result int string)":  {"int", "int", "string"},
+		"(result int int)":     {"int", "int", "int"},
+		"(result (tuple) int)": {"int", "int", "int"}, // 1 is represented by {0} ⊂ int
+	} {
+		p, err := loadSrc(t, decl+"(sig f ((n int)) "+ty+")")
+		if err != nil {
+			t.Errorf("%s: %v", ty, err)
+			continue
+		}
+		if got := p.Sigs["f"].Results; !reflect.DeepEqual(got, want) {
+			t.Errorf("%s returns %v, want %v", ty, got, want)
+		}
+	}
 }
 
 // §5.5.4, each rule the consequence of one stated elsewhere.

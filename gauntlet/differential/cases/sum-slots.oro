@@ -1,0 +1,38 @@
+; A SUM WITH PAYLOADS OF SEVERAL TYPES AT A JOIN POINT (data.md §5.5.5,
+; Theorem R): a loop's exits are an integer, a table and nothing, so the sum
+; leaves the loop as its tag and one slot per payload type, each constructor
+; writing #any, the zero of the slot's type, into the slots its tag does not
+; select. Only the selected slot is ever read (sumrep-2026-10-06).
+;
+; Then `try` in a loop over two payload types, the error model's read loop:
+; the success arm goes round, and a failure leaves with its table.
+;
+; inputs: 0 1 2 3 4 5 7 8 10
+; expect: -1 1101 2 1103 4 1105 1092 -7 -15
+(variant (found R) (at int) (rows R) nothing)
+
+(def scan (n)
+  (loop ((i 0))
+    (> i 9)              nothing
+    (= i n)              (if (= (% n 2) 0) (at n) (rows (array n 100 (+ 100 n))))
+    else                 (again (+ i 1))))
+
+(variant (outcome T E) (fine T) (failed E) (success fine))
+
+(def step (i n)
+  (if (< i n) (fine i) (failed (array i (+ 1000 i)))))
+
+(def walk (n)
+  (loop ((i 0) (acc 0))
+    (> i 5)   (fine acc)
+    else      (try (fine x) (step i n)
+                (again (+ i 1) (+ acc x)))))
+
+(def run (n)
+  (+ (case (scan n)
+       (at v)    (if (= v 0) -1 v)
+       (rows t)  (+ 1000 (t 2))
+       nothing   0)
+     (case (walk n)
+       (fine s)   (- 0 s)
+       (failed t) (+ 0 (- (t 1) (+ 1000 (t 0)))))))

@@ -112,7 +112,30 @@ func (p *printer) ref(v ir.V) string {
 	if d := p.pl.Const[v]; d != nil {
 		return p.lit(d)
 	}
+	if p.pl.Zero[v] {
+		return goZero(p.typeOf(v))
+	}
 	return p.name(v)
+}
+
+// goZero is Go's zero value of a type, spelled as a programmer would: nil for
+// the reference kinds and an error, and `*new(T)` for anything else, which is
+// T's zero by the language's definition.
+func goZero(t string) string {
+	switch {
+	case t == "string":
+		return `""`
+	case t == "bool":
+		return "false"
+	case t == "error" || t == "any" || strings.HasPrefix(t, "[]") || strings.HasPrefix(t, "map[") ||
+		strings.HasPrefix(t, "*") || strings.HasPrefix(t, "func") || strings.HasPrefix(t, "chan") ||
+		strings.HasPrefix(t, "interface"):
+		return "nil"
+	case strings.HasPrefix(t, "int") || strings.HasPrefix(t, "uint") || strings.HasPrefix(t, "float") ||
+		t == "byte" || t == "rune":
+		return "0"
+	}
+	return "*new(" + t + ")"
 }
 
 func (p *printer) refs(vs []ir.V) []string {
@@ -308,7 +331,7 @@ func (p *printer) stmt(s *ir.Stmt) {
 		return
 	}
 	switch s.Op {
-	case ir.OConst:
+	case ir.OConst, ir.OZero:
 		// inline at every read
 	case ir.OGlobal:
 		p.define(s.Res[0], emit.ExportName(s.Name))
@@ -343,7 +366,21 @@ func (p *printer) stmt(s *ir.Stmt) {
 	case ir.OLen:
 		p.define(s.Res[0], "len("+p.ref(s.Args[0])+")")
 	case ir.OArray:
-		p.define(s.Res[0], fmt.Sprintf("%s{%s}", p.typeOf(s.Res[0]), strings.Join(p.refs(s.Args), ", ")))
+		// AN ELEMENT IS STORED IN THE TABLE'S STORAGE TYPE, as a store's is
+		// (OSet): a variable is converted to a narrow element, and a constant,
+		// untyped in Go, needs nothing. A literal of variables in a narrow range
+		// was emitted unconverted and Go refused it; it had been unreachable,
+		// because a literal's length was not known to the refiner, which
+		// refused the program first (sumrep-2026-10-06).
+		elems := p.refs(s.Args)
+		if h, narrow := p.storage(s.Res[0]); narrow {
+			for j, a := range s.Args {
+				if p.pl.Const[p.pl.Res(a)] == nil {
+					elems[j] = h + "(" + elems[j] + ")"
+				}
+			}
+		}
+		p.define(s.Res[0], fmt.Sprintf("%s{%s}", p.typeOf(s.Res[0]), strings.Join(elems, ", ")))
 	case ir.OMap:
 		rows := make([]string, 0, len(s.Args)/2)
 		for j := 0; j+1 < len(s.Args); j += 2 {

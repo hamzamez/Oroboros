@@ -162,6 +162,17 @@ func (p *printer) ref(v ir.V) string {
 	if d := p.pl.Const[v]; d != nil {
 		return lit(d)
 	}
+	if p.pl.Zero[v] {
+		switch t := p.tyOf(v); t {
+		case "long", "int", "short", "byte", "char":
+			return "0"
+		case "double":
+			return "0.0"
+		case "boolean":
+			return "false"
+		}
+		return "null"
+	}
 	return p.name(v)
 }
 
@@ -391,7 +402,7 @@ func (p *printer) stmt(s *ir.Stmt) {
 		return
 	}
 	switch s.Op {
-	case ir.OConst, ir.OAssume:
+	case ir.OConst, ir.OAssume, ir.OZero:
 	case ir.OGlobal:
 		p.define(s.Res[0], emit.JavaMangle(s.Name))
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:

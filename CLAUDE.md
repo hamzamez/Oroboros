@@ -296,11 +296,10 @@ a wall that needs language work, stop and research it, then design it.
       region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). A loop
       yields a sum, and `again` may sit in a success arm (ADR 0041,
       [sumloop-2026-10-06](gauntlet/results/sumloop-2026-10-06.md)). `(tuple)` is the unit, so
-      1 + E is `(result (tuple) E)` ([unit-2026-10-06](gauntlet/results/unit-2026-10-06.md)). **Proposed,
-      for hamza** (unit-2026-10-06 §4): a sum typed as a sum where it must exist as data, Theorem R
-      at every join point with an unconstrained `#any` in the slots its tag does not select. A read loop
-      over two payload types, an enum with a string payload and `(result (tuple) E)` at a signature
-      are each refused until then;
+      1 + E is `(result (tuple) E)` ([unit-2026-10-06](gauntlet/results/unit-2026-10-06.md)). **A
+      variant's value is its tag and its slots** wherever it must exist as data (ADR 0042,
+      [sumrep-2026-10-06](gauntlet/results/sumrep-2026-10-06.md)): a read loop over two payload
+      types, an enum with a string payload and `(result (tuple) E)` at a signature all build;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -402,6 +401,7 @@ rejected alternatives.
 | The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
 | A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, `(result T E)` is a library, the host's encoding is a niche, `expect` is the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
 | A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload), so a loop yields a sum — extends 0015 | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
+| A variant's value is its tag and one slot per payload type of its declaration, wherever it must exist as data; an unselected slot holds `#any`, the zero of its type (Theorem R) | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
 
 ## How this project is run
 
@@ -519,8 +519,10 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   the unit, the terminal object 1 ([data.md §3.6](docs/spec/data.md)). A table of tuples
   is flattened by currying before the checker runs, so no backend knows products exist
   ([products.md](docs/spec/products.md), [values.md](docs/spec/values.md)).
-- **Variants.** `variant` is closed, finite and non-recursive, and takes type arguments. At a boundary
-  it lowers to tag plus payload. `case`-of-case makes both levels free
+- **Variants.** `variant` is closed, finite and non-recursive, and takes type arguments. Where it must
+  exist as data (a boundary, a loop's exit, a scope's) it is its tag and one slot per payload type of
+  its declaration, an unselected slot holding `#any`, the zero of its type (ADR 0042). `case`-of-case
+  makes both levels free
   ([sums.md](docs/spec/sums.md), data.md §5.5). `option` is one declaration, in `lang`.
 - **Maps.** `(map int V)`. A read gives `(option V)`, every map has a declared capacity, and iteration
   is `keys` in ascending order ([maps.md](docs/spec/maps.md)).

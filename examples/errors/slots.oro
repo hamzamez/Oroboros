@@ -1,0 +1,24 @@
+; A SUM AT A BOUNDARY IS ITS TAG AND ITS SLOTS (data.md §5.5.5, Theorem R).
+;
+;   go run ./cmd/gen examples/errors/slots.oro go out.go
+;
+; A variant crossing an export is transmitted as its tag and one slot per
+; distinct payload type of its declaration, in declaration order. A constructor
+; writes its payload into its own slot and #any, the zero of the slot's type,
+; into every other: `case` reads only the slot its tag selects. So each of these
+; returns what a programmer would: (int, string), (int, int, string), and for
+; the unit, whose one value is represented by 0, (int, int, int).
+(use result)
+
+(export label parse save)
+
+(variant msg (text string) quiet)
+
+(sig label ((n (int 0 10))) msg)
+(def label (n) (if (> n 5) (text "big") quiet))
+
+(sig parse ((n (int 0 100))) (result.result int string))
+(def parse (n) (if (< n 50) (result.ok (* n 2)) (result.err "too large")))
+
+(sig save ((n (int 0 100))) (result.result (tuple) int))
+(def save (n) (if (= (% n 2) 0) (result.ok (tuple)) (result.err n)))

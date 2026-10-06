@@ -364,7 +364,7 @@ var sigma = map[Op][2]int{
 	OKeys: {1, 1}, OSet: {3, 1}, OInsert: {3, 1},
 	OIf: {1, -1}, OLoop: {-1, -1}, OBuild: {1, -1}, OBuildMap: {1, -1}, OTabulate: {1, 1},
 	OThe: {1, 1}, ORequire: {1, 0},
-	ORestrict: {2, 1}, OAssume: {1, 0},
+	ORestrict: {2, 1}, OAssume: {1, 0}, OZero: {0, 1},
 }
 
 var subs = map[Op]int{OIf: 2, OLoop: 1, OBuild: 1, OBuildMap: 1, OTabulate: 1}

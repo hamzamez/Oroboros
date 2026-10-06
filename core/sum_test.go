@@ -1,6 +1,7 @@
 package core
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -136,20 +137,27 @@ func TestCaseRefusesBindingOnAnEmptyVariant(t *testing.T) {
 		"carries no payload")
 }
 
-// A sum crossing a boundary is transmitted as its tag and its payload, so the
-// payload needs one type. Inside a program a mixed sum is fine, because
-// reduction removes it — which is why the refusal is on the SIGNATURE.
-func TestMixedPayloadsRefusedOnlyAtABoundary(t *testing.T) {
-	if _, err := loadSrc(t, `
-		(variant mixed (num int) (name string))
-		(def f (fn (r) (case r (num v) v (name s) 0)))`); err != nil {
-		t.Errorf("a mixed sum is fine inside a program: %v", err)
-	}
-	mustLoadFail(t, `
-		(variant mixed (num int) (name string))
+// A SUM CROSSING A BOUNDARY IS ITS TAG AND ITS SLOTS (Theorem R, data.md
+// §5.5.5): one slot per distinct payload type, in declaration order, and a
+// constructor writes `#any` into the slots its tag does not select. Until
+// sumrep-2026-10-06 a mixed sum was refused here as a compiler limitation.
+func TestAMixedSumAtABoundaryIsItsTagAndItsSlots(t *testing.T) {
+	p, err := loadSrc(t, `
+		(variant mixed (num int) (name string) nothing)
 		(sig f ((a int)) mixed)
-		(def f (fn (a) (num a)))`,
-		"different payload types")
+		(def f (fn (a) (num a)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := p.Sigs["f"].Results, []string{"int", "int", "string"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("f returns %v, want %v", got, want)
+	}
+	if got := p.Defs["name"].String(); got != "(fn (#p) (fn (#k) (#k 1 #any #p)))" {
+		t.Errorf("name writes its own slot and #any into the other: %s", got)
+	}
+	if got := p.Defs["nothing"].String(); got != "(fn (#k) (#k 2 #any #any))" {
+		t.Errorf("a nullary constructor writes #any into every slot: %s", got)
+	}
 }
 
 // And a sum in a signature IS the product of its tag and its payload — which is

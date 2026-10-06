@@ -15,7 +15,7 @@ import (
 
 func (p *printer) stmt(s *ir.Stmt) {
 	switch s.Op {
-	case ir.OConst, ir.OAssume:
+	case ir.OConst, ir.OAssume, ir.OZero:
 		// A literal is an operand where it is read; an assumption is a fact.
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem,
 		ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:

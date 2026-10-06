@@ -57,6 +57,11 @@ const (
 	ORequire
 	ORestrict
 	OAssume
+	// OZero is the zero of its result's type: what a constructor writes into a
+	// slot its tag does not select (Theorem R, data.md §5.5.5). Its type is the
+	// slot's, solved by typing; a scalar one becomes an OConst after typing, so
+	// only a non-scalar zero (a host's nil, null) reaches a printer.
+	OZero
 	numOps
 )
 
@@ -67,7 +72,7 @@ var opNames = [numOps]string{
 	OCall: "call", OIndex: "index", OLen: "len", OArray: "array", OMap: "map",
 	ORead: "read", OKeys: "keys", OSet: "set", OInsert: "insert",
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
-	OThe: "the", ORequire: "require",
+	OThe: "the", ORequire: "require", OZero: "zero",
 	ORestrict: "restrict", OAssume: "assume",
 }
 

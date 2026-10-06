@@ -510,6 +510,9 @@ func (p *printer) formOf(s *ir.Stmt) string {
 // float) is "", and materialise loads it.
 func (p *printer) opnd(v ir.V) string {
 	c := p.cls(v)
+	if p.pl.Zero[c] { // a qword: the zero of every type is 0
+		return "0"
+	}
 	if d := p.pl.Const[c]; d != nil && int(c) < p.f.NV() {
 		switch d.Kind {
 		case core.KInt:
@@ -530,6 +533,10 @@ func (p *printer) opnd(v ir.V) string {
 // load writes an instruction that puts v into register r.
 func (p *printer) load(r string, v ir.V) {
 	c := p.cls(v)
+	if p.pl.Zero[c] {
+		p.line("mov %s, 0", r)
+		return
+	}
 	if d := p.pl.Const[c]; d != nil && int(c) < p.f.NV() {
 		switch d.Kind {
 		case core.KInt:

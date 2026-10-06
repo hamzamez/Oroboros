@@ -855,11 +855,26 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 	// The CONSTANT tails are templates too: over them the join is the
 	// interval hull [min ℓⱼ, max ℓⱼ].
 	seenK := map[string]bool{}
+	var values []int64
+	allK := true
 	for _, l := range leaves {
-		if len(l.e.coef) == 0 && !seenK[l.e.String()] {
+		if len(l.e.coef) != 0 {
+			allK = false
+			continue
+		}
+		if !seenK[l.e.String()] {
 			seenK[l.e.String()] = true
 			sides = append(sides, l.e)
+			values = append(values, l.e.konst)
 		}
+	}
+	// AND WHEN EVERY TAIL IS A CONSTANT, the value set itself, which the hull
+	// over-approximates: x ∈ {ℓ₁, …, ℓₘ} exactly. guard reads it.
+	if allK {
+		if inner.finite == nil {
+			inner.finite = map[string][]int64{}
+		}
+		inner.finite[x] = values
 	}
 	sides = append(sides, constant(0))
 	xv := variable(x)
@@ -1307,6 +1322,27 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 // β puts a scanner used once straight into the guard that tests it, so
 // `(< u (loop …))` is a comparison the fragment could never read before.
 func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
+	// A GUARD x = c WITH c OUTSIDE x's EXACT VALUE SET holds on no execution,
+	// so the path it opens is infeasible: assume 1 ≤ 0, from which the
+	// fragment entails anything, as it should on a path no run takes.
+	if holds && c != nil && c.Kind == core.KApp && c.Op().Kind == core.KName && len(c.Args()) == 2 &&
+		(c.Op().Name == "=" || isOp(c.Op().Name, "eq")) {
+		a, b := c.Args()[0], c.Args()[1]
+		if a.Kind == core.KInt {
+			a, b = b, a
+		}
+		if a.Kind == core.KName && b.Kind == core.KInt {
+			if set, ok := f.finite[a.Name]; ok {
+				in := false
+				for _, v := range set {
+					in = in || v == b.Int
+				}
+				if !in {
+					f.assumeLE(constant(1), fmt.Sprintf("%s = %d, outside %s's values %v", a.Name, b.Int, a.Name, set))
+				}
+			}
+		}
+	}
 	if c != nil && c.Kind == core.KApp && c.Op().Kind == core.KName && len(c.Args()) == 2 {
 		if _, _, isLet := asLet(r.tgt, c); !isLet {
 			if p, known := r.tgt.Prims[c.Op().Name]; !known || p.Kind != "cond" {
@@ -1979,6 +2015,15 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 	op, args := t.Op().Name, t.Args()
 	if op == "again" {
 		return nil, false // a jump, not a value
+	}
+	// A TABLE WRITTEN AS ITS GRAPH, `(array e₀ … eₙ₋₁)`, is a function on
+	// [0, n) (tables.md §1), so its length is the number of its elements. It
+	// reached a binding's length only through a `let` until a table literal
+	// left a loop in a sum's slot (sumrep-2026-10-06).
+	if op == "array" {
+		if _, lang := r.tgt.Prims[op]; lang {
+			return constant(int64(len(args))), true
+		}
 	}
 	p, known := r.tgt.Prims[op]
 	if !known {

@@ -84,6 +84,10 @@ func expandCase(t *Term, look ctorLookup) (*Term, error) {
 type sumRef struct {
 	key string // the declaration's qualified name; the language's `option` is "option"
 	sum *Sum
+	// slots are the instance's slot types, the DECLARATION's slots under the
+	// substitution: two slots stay two when an instance makes their types
+	// equal, because the constructors' terms are built from the declaration.
+	slots []string
 }
 
 // ctorRef is a constructor after resolution: the variant type it belongs to,
@@ -182,23 +186,37 @@ func caseForm(t *Term, look ctorLookup) (*Term, error) {
 	}
 
 	// Innermost first: the LAST clause is unconditional, which is what
-	// exhaustiveness earns — see the comment on expandCase.
-	body := renameFree(cls[len(cls)-1].body, bindOf(cls[len(cls)-1].bind))
+	// exhaustiveness earns — see the comment on expandCase. Each clause binds
+	// the slot ITS constructor writes, and no other: Theorem R's decoder, which
+	// is what makes an unselected slot's `#any` unobservable.
+	slotOf := func(c clause) int {
+		if c.variant == "" {
+			return -1
+		}
+		ctor, _ := look(c.variant)
+		return on.sum.SlotOf(ctor.local)
+	}
+	last := cls[len(cls)-1]
+	body := renameFree(last.body, bindOf(last.bind, slotOf(last)))
 	for i := len(cls) - 2; i >= 0; i-- {
 		c := cls[i]
 		test := &Term{Kind: KApp, Kids: []*Term{
 			Name("="), Name("#t"), Name(c.tag)}}
 		body = &Term{Kind: KApp, Kids: []*Term{
-			Name("if"), test, renameFree(c.body, bindOf(c.bind)), body}}
+			Name("if"), test, renameFree(c.body, bindOf(c.bind, slotOf(c))), body}}
 	}
-	return &Term{Kind: KApp, Kids: []*Term{scrut, Fn([]string{"#t", "#p"}, body)}}, nil
+	params := []string{"#t"}
+	for j := range on.sum.Slots() {
+		params = append(params, SlotName(j))
+	}
+	return &Term{Kind: KApp, Kids: []*Term{scrut, Fn(params, body)}}, nil
 }
 
-func bindOf(name string) map[string]string {
-	if name == "" {
+func bindOf(name string, slot int) map[string]string {
+	if name == "" || slot < 0 {
 		return nil
 	}
-	return map[string]string{name: "#p"}
+	return map[string]string{name: SlotName(slot)}
 }
 
 // instantiate is σ = [A⃗/T⃗] applied to a declaration: every payload that names a
@@ -227,6 +245,31 @@ func (s *Sum) has(variant string) bool {
 		}
 	}
 	return false
+}
+
+// SlotTypes are the declaration's slots under σ = [args/Params], the types a
+// value of the instance carries after its tag (data.md §5.5.5). A slot no
+// constructor writes, an enum's, and a slot of the unit, are represented by
+// the integer 0, so their type at a boundary is `int` (data.md §3.6: 1 is
+// represented by {0} ⊂ int).
+func (s *Sum) SlotTypes(args []string) []string {
+	sigma := map[string]string{}
+	for i, p := range s.Params {
+		if i < len(args) {
+			sigma[p] = args[i]
+		}
+	}
+	var out []string
+	for _, ty := range s.Slots() {
+		if a, ok := sigma[ty]; ok {
+			ty = a
+		}
+		if ty == "" || ty == UnitType {
+			ty = "int"
+		}
+		out = append(out, ty)
+	}
+	return out
 }
 
 func (s *Sum) payloadOf(variant string) string {
@@ -272,33 +315,6 @@ func plural(n int, one, many string) string {
 		return one
 	}
 	return many
-}
-
-// uniformPayload is the condition for a sum to CROSS A BOUNDARY: its variants
-// must agree on a payload type, because the value transmitted is a tag and a
-// payload and the payload gets one slot.
-//
-// A variant carrying nothing agrees with anything — it uses the slot and
-// ignores it, which is what a niche encoding does with the space it does not
-// need. Inside a program a mixed sum is fine, because reduction removes it.
-func (s *Sum) uniformPayload() (string, bool) {
-	ty := ""
-	for _, v := range s.Variants {
-		if v.Payload == "" {
-			continue
-		}
-		if ty == "" {
-			ty = v.Payload
-			continue
-		}
-		if ty != v.Payload {
-			return "", false
-		}
-	}
-	if ty == "" {
-		ty = "int" // an enum: the tag alone, with an unused payload slot
-	}
-	return ty, true
 }
 
 // `try` AND `expect` ELIMINATE A MODEL OF THE EXCEPTION MONAD (spec/errors.md

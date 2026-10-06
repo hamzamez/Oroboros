@@ -272,12 +272,12 @@ product has a representation:
 **Built** (unit-2026-10-06): the term, the type `prod()`, a type argument, and a payload eliminated
 within the program, where reduction removes the unit with the sum (`cases/unit.oro`, on four targets).
 An array or map of units is refused as a type. **Not built**, each refused by name:
-- **a payload of type 1 at a boundary or a join point**, the "no slot" row above. It is Theorem R's
-  unconstrained slot, and so is a nullary constructor's payload, which is the unit in all but spelling
-  (`quiet ≅ (quiet (tuple))`). Today a nullary payload is the literal 0, which fits only an `int` slot:
-  `(variant msg (text string) quiet)` returned at a boundary is refused by W5. Both wait on Theorem R
-  at every join point (unit-2026-10-06 §4, a proposal);
 - **zero results** at a function boundary.
+
+**A payload of type 1 at a boundary or a join point is built** (ADR 0042): its value is represented by
+0, so `(result (tuple) E)` at a signature is `(int, int, E)`, its unit slot an `int` that holds 0. The
+"no slot" row above is the representation's ideal, and dropping the slot is the sharing optimisation
+§5.5.5 names.
 
 **What builds on it.** `(result (tuple) error)` is the type of a host call that succeeds with nothing,
 `os.WriteFile`, `File.Close`, `Writer.Flush`, read through the niche (errors.md §4). `try` on it is
@@ -535,6 +535,15 @@ Each rule is the consequence of one stated elsewhere:
 - **Every parameter occurs in some payload.** A phantom parameter is refused until a program needs one.
 
 #### 5.5.5 At a boundary: one slot per distinct payload type
+
+> **Built 2026-10-06, at every join point** ([ADR 0042](../decisions/0042-a-variants-value-is-its-tag-and-its-slots.md),
+> [sumrep-2026-10-06](../../gauntlet/results/sumrep-2026-10-06.md)). One amendment to the encoding
+> below: the slots are the **declaration's** distinct payload types, in declaration order, and an
+> instance substitutes into them. A constructor's term is built before any instance exists, so it
+> must have one shape in all of them. `(result int int)` is therefore `(tag, int, int)`, and merging
+> the two is the sharing corollary below, an optimisation not yet taken. An unselected slot holds
+> `#any`, the zero of its type. A loop's exit, a scope's and a signature are all places where a sum
+> must exist as data, and the encoding is the same at each. The unit's payload is 0 (§3.6).
 
 This is the representation question, and it is answered from what a variant **is**, not from what
 any target can hold.

@@ -113,6 +113,13 @@ type facts struct {
 	content map[string][]*core.Term
 	zero    map[string]bool
 
+	// finite is a name's EXACT value set, where every tail of its value is an
+	// integer constant: the join in the lattice of finite sets, of which the
+	// interval hull the inequalities hold is the over-approximation. A sum's
+	// tag is the case: its value is one of the tags its producer's exits carry,
+	// and a `case` arm whose tag is not among them is dead (sumrep-2026-10-06).
+	finite map[string][]int64
+
 	// sub caches le rewritten by eq, which entails needs on every call: sub[i] is
 	// substitute(le[i]) under the equations as they stood at version subEq. An
 	// equation invalidates it (eqVer moves); a new inequality only extends it.
@@ -171,7 +178,11 @@ func (f *facts) clone() *facts {
 	c := &facts{le: append([]*linear(nil), f.le...), eq: make(map[string]*linear, len(f.eq)),
 		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...), pure: f.pure,
 		content: make(map[string][]*core.Term, len(f.content)), zero: make(map[string]bool, len(f.zero)),
-		sub: f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
+		finite: make(map[string][]int64, len(f.finite)),
+		sub:    f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
+	for k, v := range f.finite {
+		c.finite[k] = v
+	}
 	for k, v := range f.eq {
 		c.eq[k] = v
 	}
@@ -489,6 +500,18 @@ func scaleTo(fact, g *linear) (int64, bool) {
 }
 
 func (f *facts) entails(goal *linear) bool {
+	// EX FALSO, FIRST: a fact with no variable, c ≤ 0 with c > 0, is false, so
+	// the path these facts describe is taken by no execution and every goal
+	// holds on it, a goal with no variable left included. assumeEQ's
+	// contradiction and guard's dead arm are recorded this way, and assumeEQ
+	// said "the facts entail everything" for as long as nothing here read it
+	// (sumrep-2026-10-06). Checked after the goal's own shape, it missed a
+	// dead arm whose goal the equations had already reduced to a constant.
+	for _, fact := range f.substituted() {
+		if len(fact.coef) == 0 && fact.konst > 0 {
+			return true
+		}
+	}
 	g := f.substitute(goal)
 	if len(g.coef) == 0 {
 		return g.konst <= 0

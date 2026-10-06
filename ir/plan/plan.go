@@ -31,13 +31,16 @@ type Plan struct {
 	Alias []ir.V // a π is its source; a store's or statement's value is its buffer
 	Uses  []int  // reads of each value (after aliasing), the least fixpoint of liveness
 	Const map[ir.V]*core.Term
+	// Zero holds each value that is the zero of a non-scalar type (ir.OZero):
+	// a slot its tag does not select. A printer spells its host's zero there.
+	Zero  map[ir.V]bool
 	Spell map[ir.Op][2]string // an integer operation's form: exact, and trap
 }
 
 // NewPlan computes the aliases, the constants, the spellings and liveness.
 func New(tg *emit.Target, f *ir.Func) *Plan {
 	nv := f.NV()
-	p := &Plan{Tg: tg, F: f, Alias: make([]ir.V, nv), Const: map[ir.V]*core.Term{}}
+	p := &Plan{Tg: tg, F: f, Alias: make([]ir.V, nv), Const: map[ir.V]*core.Term{}, Zero: map[ir.V]bool{}}
 	for i := range p.Alias {
 		p.Alias[i] = -1
 	}
@@ -50,6 +53,8 @@ func New(tg *emit.Target, f *ir.Func) *Plan {
 			switch s.Op {
 			case ir.OConst:
 				p.Const[s.Res[0]] = s.Lit
+			case ir.OZero:
+				p.Zero[s.Res[0]] = true
 			case ir.OSet, ir.OInsert:
 				p.Alias[s.Res[0]] = s.Args[0]
 			case ir.OCall:

@@ -100,6 +100,9 @@ func (p *printer) ref(v ir.V) string {
 	if d := p.pl.Const[v]; d != nil {
 		return lit(d)
 	}
+	if p.pl.Zero[v] {
+		return "null" // a non-scalar's zero: no case reads it
+	}
 	return p.name(v)
 }
 
@@ -303,7 +306,7 @@ func (p *printer) stmt(s *ir.Stmt) {
 		return
 	}
 	switch s.Op {
-	case ir.OConst, ir.OAssume:
+	case ir.OConst, ir.OAssume, ir.OZero:
 	case ir.OGlobal:
 		p.define(s.Res[0], emit.JSMangle(s.Name))
 	case ir.OAdd, ir.OSub, ir.OMul, ir.ONeg, ir.ODiv, ir.ORem, ir.OEq, ir.ONe, ir.OLt, ir.OLe, ir.OGt, ir.OGe:

@@ -764,16 +764,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 			if inst == nil {
 				continue
 			}
-			payload, uniform := inst.sum.uniformPayload()
-			if !uniform {
-				return nil, nil, fmt.Errorf("%s returns %s, whose variants carry different "+
-					"payload types. A sum CROSSING A BOUNDARY is transmitted as its tag and one "+
-					"slot per distinct payload type (data.md §5.5.5); more than one slot is a "+
-					"compiler limitation, not yet built. Inside a program a mixed sum is fine, "+
-					"because reduction removes it", q, inst.key)
-			}
+			// A SUM CROSSING A BOUNDARY is its tag and its slots (data.md
+			// §5.5.5), one result each: the representation every constructor
+			// already builds, with a slot its tag does not select holding the
+			// zero of that slot's type.
 			sig.Result = ""
-			sig.Results = []string{"int", payload}
+			sig.Results = append([]string{"int"}, inst.slots...)
 		}
 	}
 
@@ -1083,10 +1079,11 @@ func (m *Module) instance(q, ty string, byPath map[string]*Module) (*sumRef, err
 			q, ty, ref.key, len(ref.sum.Params), plural(len(ref.sum.Params), "", "s"), len(args))
 	}
 	if !applied {
+		ref.slots = ref.sum.SlotTypes(nil)
 		return &ref, nil
 	}
 	return &sumRef{key: ref.key + "(" + strings.Join(args, ", ") + ")",
-		sum: ref.sum.instantiate(args)}, nil
+		sum: ref.sum.instantiate(args), slots: ref.sum.SlotTypes(args)}, nil
 }
 
 // sumType is ρ_m on a type spelling that may name a variant type: `result` in
@@ -2266,7 +2263,9 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 	case KInt, KFloat, KStr, KBool, KBound:
 		return nil
 	case KName:
-		if bound[t.Name] || e.Prim[t.Name] {
+		// `#any`, the unconstrained value, is the language's own (Theorem R,
+		// data.md §5.5.5), on every target, and no source can write it.
+		if bound[t.Name] || e.Prim[t.Name] || t.Name == AnyName {
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {

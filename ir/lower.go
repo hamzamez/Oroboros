@@ -112,6 +112,16 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 			f.Results[0] = sig.Result
 		}
 	}
+	// A ZERO THAT IS A RESULT takes the declared result's type: a function's
+	// yields carry no equation (typing.go), so the signature is what types it.
+	var declared []string
+	if sig != nil {
+		declared = sig.Results
+		if len(declared) == 0 && sig.Result != "" {
+			declared = []string{sig.Result}
+		}
+	}
+	settleZeros(f, declared)
 	f.marks, f.undecided = l.marks, l.undecided
 	Canonicalize(f)
 	return f, nil
@@ -321,6 +331,11 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case core.KBound:
 		return []V{l.lookup(t)}
 	case core.KName:
+		// THE UNCONSTRAINED VALUE (data.md §5.5.5): the zero of whatever slot
+		// it fills, which typing decides.
+		if t.Name == core.AnyName {
+			return []V{l.one(r, Stmt{Op: OZero})}
+		}
 		// A primitive of no arguments is a call; a constant (a host's `nil`,
 		// `math.Pi`) is one.
 		if p, ok := l.prim(t.Name); ok && len(p.Args) == 0 && p.Kind != "cond" && p.Kind != "let" {
@@ -328,6 +343,14 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		}
 		l.fail("the free name %s is not a value the IR has: a global (spec §2.4) is not produced by staging, and a primitive used as a value is a closure", t.Name)
 	case core.KFn:
+		// THE UNIT, `(tuple)` = (fn (#k) (#k)), as a value: 1 has one element,
+		// and its representation is the singleton {0} ⊂ int (data.md §3.6), so
+		// it is the constant 0. It reaches here only as a payload in a slot,
+		// which the boundary declares `int` (core.Sum.SlotTypes).
+		if b := t.Closed(); len(t.Params) == 1 && strings.HasPrefix(t.Params[0], "#k") && b.Kind == core.KApp &&
+			len(b.Kids) == 1 && b.Kids[0].Kind == core.KBound && b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
+			return []V{l.one(r, Stmt{Op: OConst, Lit: &core.Term{Kind: core.KInt}})}
+		}
 		if isTupleLam(t) {
 			l.push([]V{-1}, t.Params)
 			comps := t.Closed().Kids[1:]
@@ -1022,4 +1045,67 @@ func IntegerDivision(tg *emit.Target, name string, p emit.Prim) bool {
 		}
 	}
 	return true
+}
+
+// settleZeros makes each zero (OZero) concrete once typing has given it the
+// type of the slot it fills. A scalar's zero is a literal, so it becomes the
+// constant every printer already inlines: 0, false, 0.0, "". An integer is the
+// common case, an enum's slot or a unit's (data.md §3.6: 1 is represented by
+// {0} ⊂ int), and it is exactly the literal 0 a nullary constructor wrote
+// before Theorem R's encoding existed. A zero no flow typed fills a slot no
+// constructor of this program writes, and is that integer. A non-scalar zero
+// stays OZero, and each printer spells its host's.
+func settleZeros(f *Func, declared []string) {
+	zero := map[V]bool{}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			if r.Stmts[i].Op == OZero {
+				zero[r.Stmts[i].Res[0]] = true
+			}
+		}
+	})
+	var yields func(r *Region)
+	yields = func(r *Region) {
+		switch r.T {
+		case TYield:
+			for j, a := range r.Args {
+				if zero[a] && j < len(declared) && (f.Types[a] == "" || f.Types[a] == "any") {
+					f.Types[a] = declared[j]
+				}
+			}
+		case TBranch:
+			yields(r.Then)
+			yields(r.Else)
+		}
+	}
+	yields(f.Body)
+	// And the function's own result: typing read it off the first yield, whose
+	// component may be a zero it had not typed. The signature's is the type.
+	for j := range f.Results {
+		if (f.Results[j] == "" || f.Results[j] == "any") && j < len(declared) && declared[j] != "" {
+			f.Results[j] = declared[j]
+		}
+	}
+	f.Walk(func(r *Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != OZero {
+				continue
+			}
+			v := s.Res[0]
+			switch ty := f.Types[v]; {
+			case ty == "" || ty == "any" || ty == "int" || strings.HasPrefix(ty, "int "):
+				if ty == "" || ty == "any" {
+					f.Types[v] = "int"
+				}
+				s.Op, s.Lit = OConst, &core.Term{Kind: core.KInt}
+			case ty == "bool":
+				s.Op, s.Lit = OConst, core.Bool(false)
+			case ty == "f64":
+				s.Op, s.Lit = OConst, &core.Term{Kind: core.KFloat}
+			case ty == "string":
+				s.Op, s.Lit = OConst, core.Str("")
+			}
+		}
+	})
 }

@@ -110,6 +110,18 @@
    note: gen-quarter: 4 division(s) became a shift or a mask
 == examples/errors/expect.oro windows emitted 1c3a57469412135d5949810dae7594cd9629ef2a3c64ffad57a14d1197515e7f
    note: gen-quarter: 4 division(s) became a shift or a mask
+== examples/errors/slots.oro go emitted 38678077ae4a9e9f9c9802bea6e1a3c2ada5e51caf0fd920304d55cc281a1fa3
+   note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-save: 1 division(s) became a shift or a mask
+== examples/errors/slots.oro js emitted 943fc46303c988825af0d8b9ca9909321c8ab479b05332071f8b9dc1c2c03657
+   note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-save: 1 division(s) became a shift or a mask
+== examples/errors/slots.oro java emitted d60b6e52140470e38714a02e9b2fc22b2121646bbbbfa209f219c1105a12a3c8
+   note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-save: 1 division(s) became a shift or a mask
+== examples/errors/slots.oro windows emitted 1efe1630b4e397210779822be30bcac2ed265f14ac3bd7fec17f295bc66aac36
+   note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
+   note: gen-save: 1 division(s) became a shift or a mask
 == examples/hello.oro go emitted 77bebcce3fe9fae5ef82f4a6a650587858f867aee19f4b9998ff75a50d255ca5
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hello.oro js refused
@@ -1013,6 +1025,10 @@
 == gauntlet/differential/cases/sum-case.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/sum-case.oro java emitted 48c7cd49194dafa3d9f891efb57f239b571cc88458da96372d52e0f7a4c0aa6e
 == gauntlet/differential/cases/sum-case.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/sum-slots.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/sum-slots.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/sum-slots.oro java emitted bfb26be538b3c36e48424303ff1893f66a7af784e4428b5b515e7f930c1f2c6d
+== gauntlet/differential/cases/sum-slots.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/table-alloc.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/table-alloc.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/table-alloc.oro java emitted 751ffbfcec0e1d4724de8089728553fa61c70dea12db4561719877b2fd5689af
@@ -1168,7 +1184,7 @@
 == lib/result.oro java refused
    gen: lib\io\java.oro: io.print-line is declared twice
 == lib/result.oro windows refused
-   gen: gen-err-map: (r (fn (#t #p) (if (= #t 0) (fn (#k) (#k 0 #p)) (fn (#k) (#k 1 (f #p)))))) is an indexing, and (<= 0 (fn (#t #p) (if (= #t 0) (fn (#k) (#k 0 #p)) (fn (#k) (#k 1 (f #p)))))) is not proven
+   gen: gen-err-map: (r (fn (#t #p #p1) (if (= #t 0) (fn (#k) (#k 0 #p #any)) (fn (#k) (#k 1 #any (f #p1)))))) is an indexing, and (<= 0 (fn (#t #p #p1) (if (= #t 0) (fn (#k) (#k 0 #p #any)) (fn (#k) (#k 1 #any (f #p1)))))) is not proven
      known: nothing
      The index is outside the linear fragment, and neither a proof by cases nor a
      content fact about a table bounds it. A table is a function with a finite

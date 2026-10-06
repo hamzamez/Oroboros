@@ -1796,22 +1796,82 @@ func readSum(t *Term) (*Sum, error) {
 //
 // A payload-less variant is the constant `(values i 0)` rather than a bare `i`,
 // so that every variant of a sum has ONE shape and `case` need not ask which.
+// AnyName is the unconstrained value: what a constructor writes into a slot
+// its tag does not select (Theorem R, data.md §5.5.5). It is unwritable, pure,
+// and the compiler's alone, and every target realizes it as the zero of the
+// slot's type, which no `case` reads.
+const AnyName = "#any"
+
+// Slots are a variant's payload slots: one per distinct payload type of the
+// declaration, in declaration order, and at least one, so that every value of
+// every variant is a tuple of at least two components and an enum keeps the
+// (tag, slot) shape it has always had. Two constructors with the same payload
+// type share a slot, since the tag tells them apart (Theorem R's sharing).
+func (s *Sum) Slots() []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, v := range s.Variants {
+		if v.Payload != "" && !seen[v.Payload] {
+			seen[v.Payload] = true
+			out = append(out, v.Payload)
+		}
+	}
+	if len(out) == 0 {
+		out = []string{""}
+	}
+	return out
+}
+
+// SlotOf is the slot a constructor writes, or -1 for one that carries nothing.
+func (s *Sum) SlotOf(variant string) int {
+	for _, v := range s.Variants {
+		if v.Name != variant || v.Payload == "" {
+			continue
+		}
+		for j, ty := range s.Slots() {
+			if ty == v.Payload {
+				return j
+			}
+		}
+	}
+	return -1
+}
+
+// SlotName is the binder `case` gives slot j: `#p` for the first, so a sum of
+// one slot reads exactly as it always has.
+func SlotName(j int) string {
+	if j == 0 {
+		return "#p"
+	}
+	return fmt.Sprintf("#p%d", j)
+}
+
 func (s *Sum) Defs() ([]string, map[string]*Term) {
 	order := make([]string, 0, 2*len(s.Variants))
 	defs := map[string]*Term{}
 	for i, v := range s.Variants {
 		tag := &Term{Kind: KInt, Int: int64(i)}
-		// A CONSTRUCTOR IS THE TUPLE (tag, payload), the same term `tuple`
-		// reads as, binder and all: sums.md §1's representation is a product,
-		// and every pass that knows a tuple then knows a sum's value. Spelled
-		// apart (`#x`), a loop whose exits were constructors was refused as a
-		// tuple pattern with no tuple in it (sumloop-2026-10-06).
+		// A CONSTRUCTOR IS THE TUPLE (tag, s₁ … sₙ), the term `tuple` reads as,
+		// binder and all (ADR 0041): Theorem R's encoding (data.md §5.5.5),
+		// one slot per distinct payload type of the declaration. The
+		// constructor writes its payload into its own slot and `#any` into
+		// every other, the unconstrained value: `case` reads only the slot its
+		// tag selects, so whatever an unselected slot holds is never observed.
+		// A nullary constructor writes `#any` everywhere (sumrep-2026-10-06).
+		slots := s.Slots()
+		mine := s.SlotOf(v.Name)
+		kids := []*Term{Name("#k"), tag}
+		for j := range slots {
+			if j == mine {
+				kids = append(kids, Name("#p"))
+			} else {
+				kids = append(kids, Name(AnyName))
+			}
+		}
 		if v.Payload == "" {
-			defs[v.Name] = Fn([]string{"#k"},
-				&Term{Kind: KApp, Kids: []*Term{Name("#k"), tag, &Term{Kind: KInt}}})
+			defs[v.Name] = Fn([]string{"#k"}, &Term{Kind: KApp, Kids: kids})
 		} else {
-			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#k"},
-				&Term{Kind: KApp, Kids: []*Term{Name("#k"), tag, Name("#p")}}))
+			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#k"}, &Term{Kind: KApp, Kids: kids}))
 		}
 		defs[v.Name+"#tag"] = tag
 		order = append(order, v.Name, v.Name+"#tag")

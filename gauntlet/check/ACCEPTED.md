@@ -1042,3 +1042,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/unit.oro java`
 - new source — `gauntlet/differential/cases/unit.oro js`
 - new source — `gauntlet/differential/cases/unit.oro windows`
+
+## 2026-10-06 — on 8568c14, with uncommitted changes
+
+**Reason:** ADR 0042, a variant's value is its tag and its slots: new sources examples/errors/slots.oro and cases/sum-slots.oro on four targets; lib/result.oro's windows refusal prints the slots; every other file byte-identical
+
+520 runs: 277 emitted, 243 refused; 1974 of 2019 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+9 change(s):
+
+- new source — `examples/errors/slots.oro go`
+- new source — `examples/errors/slots.oro java`
+- new source — `examples/errors/slots.oro js`
+- new source — `examples/errors/slots.oro windows`
+- new source — `gauntlet/differential/cases/sum-slots.oro go`
+- new source — `gauntlet/differential/cases/sum-slots.oro java`
+- new source — `gauntlet/differential/cases/sum-slots.oro js`
+- new source — `gauntlet/differential/cases/sum-slots.oro windows`
+- compiler output changed — `lib/result.oro windows`

@@ -33,7 +33,7 @@ func TestMapLiteralReduces(t *testing.T) {
 	// function that a `case` consumes and erases.
 	for _, c := range []struct{ src, want string }{
 		{"((map (1 10) (2 20) (5 50)) 2)", "(fn (#k) (#k 0 20))"},
-		{"((map (1 10) (2 20) (5 50)) 9)", "(fn (#k) (#k 1 0))"},
+		{"((map (1 10) (2 20) (5 50)) 9)", "(fn (#k) (#k 1 #any))"},
 		{"((map (1 10)) 1)", "(fn (#k) (#k 0 10))"},
 		{"(len (map (1 10) (2 20) (5 50)))", "3"},
 		{"(len (map))", "0"},
@@ -72,7 +72,7 @@ func TestAStaticMapLeavesNothing(t *testing.T) {
 // because `k ∈ dom m` is set membership and nothing decides it (maps.md §1.1).
 // So `none` is the answer here and a diagnostic there.
 func TestAbsenceIsAResultAndOutOfRangeIsNot(t *testing.T) {
-	if got := mapNorm(t, "((map (1 10)) 7)"); got != "(fn (#k) (#k 1 0))" {
+	if got := mapNorm(t, "((map (1 10)) 7)"); got != "(fn (#k) (#k 1 #any))" {
 		t.Errorf("a missing key gave %s, want none's encoding (tag 1)", got)
 	}
 	// The control, and it must NOT fold. If this ever starts returning a sum,

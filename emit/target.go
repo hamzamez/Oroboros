@@ -2416,6 +2416,11 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// judgement reads through.
 	e.Prim["let"] = true
 	e.Pure["let"] = true
+	// `#any`, the value a constructor writes into a slot its tag does not
+	// select (data.md §5.5.5): a pure constant on every target, the zero of the
+	// slot's type, which the IR chooses once the slot is typed.
+	e.Prim[core.AnyName] = true
+	e.Pure[core.AnyName] = true
 	tg.hostRequires(e)
 	installContracts(e, p, tg.Word)
 	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before

@@ -45,20 +45,24 @@ The bit is attached to the **name**, in the target file, and a term never carrie
 Two programs, differing only in which primitive they call.
 
 ```lisp
-((fn (n) (+ 1 2)) (f 9))
+((fn (n) (h 1 2)) (f 9))
 ```
 
 ```lisp
-⟶   (+ 1 2)
+⟶   (h 1 2)
 ```
 
 ```lisp
-((fn (n) (+ 1 2)) (shout 9))
+((fn (n) (h 1 2)) (shout 9))
 ```
 
 ```lisp
-⟶   (let (shout 9) (fn (n) (+ 1 2)))
+⟶   (let (shout 9) (fn (n) (h 1 2)))
 ```
+
+(`h` rather than `+` throughout this chapter wherever the body would otherwise fold to a number —
+see [chapter 1 §1.2](01-fn.md). The chapter is about what happens to the *argument*, so the body
+is kept visible.)
 
 `n` is used **zero** times in both. In the first, `(f 9)` vanished — it was never going to be
 needed and it does nothing, so the compiler dropped it. In the second, `(shout 9)` was kept,
@@ -128,8 +132,8 @@ Now look at a *pure* argument with the same shape:
 The difference shows when copying is free. Literals and names are copied without hesitation:
 
 ```lisp
-((fn (n) (+ n n)) 5)        ⟶   (+ 5 5)
-((fn (n) (+ n n)) x)        ⟶   (+ x x)
+((fn (n) (h n n)) 5)        ⟶   (h 5 5)
+((fn (n) (h n n)) x)        ⟶   (h x x)
 ```
 
 `x` is a primitive — a value from outside — and duplicating it is fine. `(shout 9)` will *never*
@@ -155,7 +159,7 @@ be treated that way no matter how cheap it looks, and `(f 9)` might be, if the c
 anyway. Against the pure version, which does not survive at all:
 
 ```lisp
-((fn (n) (+ 1 2)) (f 9))    ⟶   (+ 1 2)
+((fn (n) (h 1 2)) (f 9))    ⟶   (h 1 2)
 ```
 
 This clause is the one that makes dead-code elimination *conditional*. A compiler that drops
@@ -233,11 +237,11 @@ conditional. Put the effect where `x` is *used* and you have moved it.
 Watch it not move:
 
 ```lisp
-((fn (n) (if (< 1 2) n 0)) (shout 5))
+((fn (n) (if (< (x) 2) n 0)) (shout 5))
 ```
 
 ```lisp
-⟶   (let (shout 5) (fn (n) (if (< 1 2) n 0)))
+⟶   (let (shout 5) (fn (n) (if (< (x) 2) n 0)))
 ```
 
 `n` is used in one arm only. Binding at the *use* site would put `shout` inside the `if`, and it
@@ -259,12 +263,17 @@ One shout, outside the loop. Substituting `n` would have given ten.
 ### And the reverse: an effect written *inside* stays inside
 
 ```lisp
-(if (< 1 2) (shout 1) (whisper 2))
+(if (< (x) 2) (shout 1) (whisper 2))
 ```
 
 ```lisp
-⟶   (if (< 1 2) (shout 1) (whisper 2))
+⟶   (if (< (x) 2) (shout 1) (whisper 2))
 ```
+
+(The guard is `(< (x) 2)` rather than `(< 1 2)` on purpose. Written with two literals the
+comparison folds, `(if true a b) → a` fires — the one evaluation reduction performs
+([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)) — and the whole term becomes
+`(shout 1)`, which is correct and demonstrates nothing.)
 
 Nothing was hoisted. This is not a special case for conditionals — `if` is a **primitive
 application**, not a β-redex, so there is no substitution to guard and its arguments are normalised
@@ -299,11 +308,11 @@ which reaches the emitter as an escaping closure and refuses to compile.
 Unused, it disappears entirely:
 
 ```lisp
-((fn (k) (+ 1 2)) (fn (n) (shout n)))
+((fn (k) (h 1 2)) (fn (n) (shout n)))
 ```
 
 ```lisp
-⟶   (+ 1 2)
+⟶   (h 1 2)
 ```
 
 Weakening on a λ with an impure body — allowed, because nothing applied it, so no effect existed
@@ -324,7 +333,8 @@ Chapter 2 §2.3 showed this error without explaining it:
 
 ```
 the body of noisy is a computation, not a value, so unfolding it would repeat its effects
-  Wrap it in (fn () …) and apply it, or bind it with let at the point of use.
+  Give it an empty parameter list — (def noisy () …) — and apply it,
+  or bind it with let at the point of use.
 ```
 
 δ copies a definition's body to every occurrence. That is contraction, unguarded — there is no
@@ -336,11 +346,11 @@ Take the repair the message offers:
 
 ```lisp
 (def later (fn () (shout 1)))
-(+ (later) (later))
+(h (later) (later))
 ```
 
 ```lisp
-⟶   (+ (shout 1) (shout 1))
+⟶   (h (shout 1) (shout 1))
 ```
 
 Two shouts, and correctly so — the source contains two applications. The λ was duplicated; the
@@ -353,11 +363,11 @@ You never declare a definition pure. It is computed:
 
 ```lisp
 (def sh (fn (n) (shout n)))
-((fn (a) (+ 1 2)) (sh 5))
+((fn (a) (h 1 2)) (sh 5))
 ```
 
 ```lisp
-⟶   (let (shout 5) (fn (a) (+ 1 2)))
+⟶   (let (shout 5) (fn (a) (h 1 2)))
 ```
 
 `sh` is impure because applying it reaches `shout`, so `(sh 5)` is an impure argument and survives
@@ -365,11 +375,11 @@ its unused binder. A definition that reaches only pure primitives stays pure:
 
 ```lisp
 (def pure-one (fn (n) (f n)))
-((fn (a) (+ 1 2)) (pure-one 5))
+((fn (a) (h 1 2)) (pure-one 5))
 ```
 
 ```lisp
-⟶   (+ 1 2)
+⟶   (h 1 2)
 ```
 
 One declared bit per primitive; everything else is inferred by reachability.
@@ -401,14 +411,18 @@ It chains:
 ```
 
 ```lisp
-⟶   (let (shout 1) (fn (_) (let (whisper 2) (fn (_) (tick)))))
+⟶   (let (shout 1) (fn (_) (let (whisper 2) (fn (_1) (tick)))))
 ```
+
+(Two discarded binders, and the inner one came back `_1`: the residual's binders are named apart
+([chapter 1 §1.5](01-fn.md), [ADR 0036](../decisions/0036-a-residuals-binders-are-named-apart.md)),
+and `_` is a name like any other.)
 
 And it is honest about doing nothing when there is nothing to sequence:
 
 ```lisp
-(seq (f 1) (+ 1 2))         ⟶   (+ 1 2)
-(seq (shout 1) (+ 1 2))     ⟶   (let (shout 1) (fn (_) (+ 1 2)))
+(seq (f 1) (h 1 2))         ⟶   (h 1 2)
+(seq (shout 1) (h 1 2))     ⟶   (let (shout 1) (fn (_) (h 1 2)))
 ```
 
 Sequencing a *pure* computation is a no-op, because there was no effect to order. Surprising the
@@ -422,25 +436,34 @@ A third party writes a target file and forgets the word `pure`. What happens?
 mistake — `pure` deleted from `*`, nothing else changed. Same program, two targets:
 
 ```lisp
-((fn (n) 7) (* 3 4))
+((fn (n) 7) (* (x) 4))
 ```
 
 ```bash
 -target=tutorial          ⟶   7
--target=tutorial-sloppy   ⟶   (let (* 3 4) (fn (n) 7))
+-target=tutorial-sloppy   ⟶   (let (* (x) 4) (fn (n) 7))
 ```
 
 ```lisp
-((fn (a b) (+ b a)) (* 1 2) (* 3 4))
+((fn (a b) (+ b a)) (* (x) 2) (* (y) 4))
 ```
 
 ```bash
--target=tutorial          ⟶   (+ (* 3 4) (* 1 2))
--target=tutorial-sloppy   ⟶   (let (* 1 2) (fn (a) (let (* 3 4) (fn (b) (+ b a)))))
+-target=tutorial          ⟶   (+ (* (y) 4) (* (x) 2))
+-target=tutorial-sloppy   ⟶   (let (* (x) 2) (fn (a) (let (* (y) 4) (fn (b) (+ b a)))))
 ```
 
 Dead code not eliminated; arithmetic pinned in place. The program is **slower**. It is not wrong,
 and the damage is visible in the emitted source.
+
+> **One thing these examples deliberately avoid, and it is a question rather than a lesson.** Write
+> them with *literal* operands and the two decisions disagree: `(* 1 2)` on `tutorial-sloppy` comes
+> back as `2`, and `((fn (n) 7) (* 3 4))` as `(let 12 (fn (n) 7))` — the binding kept, because the
+> primitive is impure, and the call itself **folded away**, because §1.2's fold is a property of the
+> language's integer operators and does not consult a target's purity bit. The `let` left behind
+> binds a constant. Nothing in the corpus depends on it, since no real target declares arithmetic
+> impure; it is recorded here because the chapter's own rule — an impure primitive is never copied,
+> dropped or reordered — is the rule it sits across.
 
 Now imagine the default the other way. A target author forgets `effect` on their logging function,
 and the compiler silently duplicates it, drops it, and reorders it. The program is **wrong**, and

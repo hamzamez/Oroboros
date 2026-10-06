@@ -1,0 +1,17 @@
+; Chapter 3 §3.1: a library with terms lying around at the top level, to show
+; what a library file CANNOT contribute to a program.
+;
+;   go run ./cmd/oro -target=tutorial docs/book/code/noisy-prog.oro
+;
+; `(+ 1 2)` and `(* 9 9)` below are reduced by nobody and printed by nobody:
+; bare top-level terms in a LIBRARY are discarded (modules.md §5). And this
+; file's `(export k)` is visibility only — it is not the program's entry point.
+
+(module noisy-lib)
+
+(export k)
+
+(def k (n) (* n 3))
+
+(+ 1 2)
+(* 9 9)

@@ -19,6 +19,14 @@ go run ./cmd/oro -target=tutorial docs/book/code/box.oro
 Two targets appear: `tutorial` from chapters 1 and 2, and `tutorial-native`, which is the same file
 plus **one capability**. §3.10 is what that line does.
 
+## 3.0 One thing to keep in mind
+
+As in [chapter 2](02-def.md), **integer arithmetic on two literals folds**
+([ADR 0009](../decisions/0009-staging-preserves-results.md)), so an example applied to `3` and `4`
+comes back as a number and shows nothing about where the definition came from. This chapter is about
+*resolution*, so most examples below are applied to `(x)` and `(y)` — the target's opaque values —
+and what comes back is the shape the import produced.
+
 ---
 
 ## Two kinds of file
@@ -50,21 +58,26 @@ The last three are worth seeing rather than reading. A library with terms lying 
 level:
 
 ```lisp
-;; noisy-lib.oro
+;; code/noisy-lib.oro
 (module noisy-lib)
 (export k)
-(def k (fn (n) (* n 3)))
+(def k (n) (* n 3))
 (+ 1 2)
 (* 9 9)
 ```
 
 ```lisp
+;; code/noisy-prog.oro
 (use noisy-lib)
-(noisy-lib.k 2)
+(noisy-lib.k (x))
+```
+
+```bash
+go run ./cmd/oro -target=tutorial docs/book/code/noisy-prog.oro
 ```
 
 ```lisp
-⟶   (* 2 3)
+⟶   (* (x) 3)
 ```
 
 `(+ 1 2)` and `(* 9 9)` produced nothing, and neither did `noisy-lib`'s export of `k` — only the
@@ -72,11 +85,11 @@ entry file's own term was reduced. Compare with the same import and no use of it
 
 ```lisp
 (use noisy-lib)
-(* 1 1)
+(h 1 1)
 ```
 
 ```lisp
-⟶   (* 1 1)
+⟶   (h 1 1)
 ```
 
 That is what makes `(use …)` a **dependency** rather than a textual inclusion. `#include` pastes a
@@ -119,22 +132,22 @@ Here is a library file, [code/geometry.oro](code/geometry.oro):
 
 (export area perimeter scale)
 
-(def area      (fn (w h) (* w h)))
-(def perimeter (fn (w h) (* 2 (+ w h))))
-(def scale     (fn (k w h) (area (* k w) (* k h))))
+(def area      (w h) (* w h))
+(def perimeter (w h) (* 2 (+ w h)))
+(def scale     (k w h) (area (* k w) (* k h)))
 
-(def twice (fn (n) (* 2 n)))
+(def twice (n) (* 2 n))
 ```
 
 And a program that uses it:
 
 ```lisp
 (use geometry)
-(geometry.area 3 4)
+(geometry.area (x) (y))
 ```
 
 ```lisp
-⟶   (* 3 4)
+⟶   (* (x) (y))
 ```
 
 Three things happened. `(use geometry)` found the file. `geometry.area` named a member of it. And
@@ -143,11 +156,11 @@ another file.
 
 ```lisp
 (use geometry)
-(geometry.perimeter 3 4)
+(geometry.perimeter (x) (y))
 ```
 
 ```lisp
-⟶   (* 2 (+ 3 4))
+⟶   (* 2 (+ (x) (y)))
 ```
 
 Definitions inside a module see each other unqualified. `scale` calls `area` by its plain name, and
@@ -155,11 +168,11 @@ both unfold:
 
 ```lisp
 (use geometry)
-(geometry.scale 2 3 4)
+(geometry.scale 2 (x) (y))
 ```
 
 ```lisp
-⟶   (* (* 2 3) (* 2 4))
+⟶   (* (* 2 (x)) (* 2 (y)))
 ```
 
 ## 3.2 `.` and `/` are different characters, and the difference is the whole grammar
@@ -175,8 +188,11 @@ member comes after the dot:
 ```
 
 ```lisp
-⟶   (* 3 (* 2 2))
+⟶   12
 ```
+
+(Applied to a literal, so the unfolded `(* 3 (* 2 2))` folds — see §3.0's note. Apply it to `(x)`
+instead and the shape stays, at the cost of a `let`, because `r` appears twice in `area`'s body.)
 
 A path maps to a file the obvious way: `shapes/circle` is found at `shapes/circle.oro` under a
 search-path root. Nesting is directories; the language has none of its own.
@@ -202,11 +218,11 @@ is the identity.
 
 ```lisp
 (use geometry as g)
-(g.area 3 4)
+(g.area (x) (y))
 ```
 
 ```lisp
-⟶   (* 3 4)
+⟶   (* (x) (y))
 ```
 
 **Imports stay qualified.** There is no `from geometry import area`, no wildcard, no way to make
@@ -230,11 +246,11 @@ Two aliases for the same module are fine, if a little pointless:
 ```lisp
 (use geometry)
 (use geometry as geo)
-(+ (geometry.area 1 2) (geo.perimeter 1 2))
+(h (geometry.area (x) (y)) (geo.perimeter (x) (y)))
 ```
 
 ```lisp
-⟶   (+ (* 1 2) (* 2 (+ 1 2)))
+⟶   (h (* (x) (y)) (* 2 (+ (x) (y))))
 ```
 
 Two modules under **one** alias is not:
@@ -426,7 +442,7 @@ can produce.
 (module cyc/a)
 (use cyc/b)
 (export f)
-(def f (fn (n) (b.g n)))
+(def f (n) (b.g n))
 ```
 
 ```lisp
@@ -434,16 +450,16 @@ can produce.
 (module cyc/b)
 (use cyc/a)
 (export g)
-(def g (fn (n) (* n 2)))
+(def g (n) (* n 2))
 ```
 
 ```lisp
 (use cyc/a)
-(a.f 5)
+(a.f (x))
 ```
 
 ```lisp
-⟶   (* 5 2)
+⟶   (* (x) 2)
 ```
 
 Imports are followed to a fixpoint and a module already in scope is never re-read, so a cycle
@@ -637,15 +653,15 @@ chapter 2 again. That is a function returning a record. And a record is a functi
 (def accumulate (fn (combine unit)
   (fn (a b c) (combine (combine (combine unit a) b) c))))
 
-((accumulate + 0) 1 2 3)
-((accumulate * 1) 1 2 3)
-((accumulate h 0) 1 2 3)
+((accumulate + 0) (x) (y) (z))
+((accumulate * 1) (x) (y) (z))
+((accumulate h 0) (x) (y) (z))
 ```
 
 ```lisp
-⟶   (+ (+ (+ 0 1) 2) 3)
-⟶   (* (* (* 1 1) 2) 3)
-⟶   (h (h (h 0 1) 2) 3)
+⟶   (+ (+ (+ 0 (x)) (y)) (z))
+⟶   (* (* (* 1 (x)) (y)) (z))
+⟶   (h (h (h 0 (x)) (y)) (z))
 ```
 
 One definition, instantiated at addition, at multiplication, and at an operation the compiler knows
@@ -657,18 +673,18 @@ you like:
 
 ```lisp
 (def make-vec2 (fn (add mul)
-  (fn (x yy) (fn (sel) (sel x yy add mul)))))
+  (fn (xx yy) (fn (sel) (sel xx yy add mul)))))
 
 (def dot2 (fn (v w)
   (v (fn (a b add mul) (w (fn (c d _ __) (add (mul a c) (mul b d))))))))
 
-(dot2 ((make-vec2 + *) 1 2) ((make-vec2 + *) 3 4))
-(dot2 ((make-vec2 h *) 1 2) ((make-vec2 h *) 3 4))
+(dot2 ((make-vec2 + *) (x) (y)) ((make-vec2 + *) (z) 4))
+(dot2 ((make-vec2 h *) (x) (y)) ((make-vec2 h *) (z) 4))
 ```
 
 ```lisp
-⟶   (+ (* 1 3) (* 2 4))
-⟶   (h (* 1 3) (* 2 4))
+⟶   (+ (* (x) (z)) (* (y) 4))
+⟶   (h (* (x) (z)) (* (y) 4))
 ```
 
 `make-vec2` is a functor: it takes an addition and a multiplication and returns a vector structure

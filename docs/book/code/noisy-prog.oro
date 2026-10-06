@@ -1,0 +1,6 @@
+; Chapter 3 §3.1. The entry file beside noisy-lib.oro: its own bare term IS
+; reduced and printed, where the library's were not.
+
+(use noisy-lib)
+
+(noisy-lib.k (x))

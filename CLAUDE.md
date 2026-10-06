@@ -285,7 +285,12 @@ a wall that needs language work, stop and research it, then design it.
    Declarable today with K's packages: 88.5%, matching the survey's 87.8%; with G, H and I, 91.5%.
    **The order to close it:**
    1. the error model for host declarations, decided and built (errors-research questions 1–4),
-      because 142 declarations depend on it and the product leaks;
+      because 142 declarations depend on it and the product leaks. **Decided** (ADR 0040,
+      [errors.md](docs/spec/errors.md), candidate E4): the compiler knows the roles `success` and
+      `relevant`, not a type; `(result T E)` is `lib/result`; `try` is the exception monad's bind;
+      the host's encoding is a niche of its error type; `expect` is the one way to give up; one error
+      type per chain with `err-map`; the portable `os` returns `not-found | exists | permission |
+      other`. Built in errors.md §12's order;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -385,6 +390,7 @@ rejected alternatives.
 | A program's obligations are in its residual: every environment installs the contracts, one procedure decides the marks, and the refiner and the printers refuse a residual that still carries one | [0037](docs/decisions/0037-a-programs-obligations-are-in-its-residual.md) |
 | The IR's text (IR_P) is the printers' whole input, checked on every program; others may read it, and nobody else writes it until the IR proves index obligations | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
 | The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
+| A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, `(result T E)` is a library, the host's encoding is a niche, `expect` is the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
 
 ## How this project is run
 

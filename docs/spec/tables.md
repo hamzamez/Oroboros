@@ -368,7 +368,7 @@ residual:
 | | refused | why |
 |---|---|---|
 | **S** | a store into a value that is not a live buffer: `(set t i v)` or `(insert m k v)` where `t`/`m` is a frozen table or map | the store would be seen through every name of the frozen value. **It was accepted before this section**, and it gave wrong answers: `(set t 1 n)` on a frozen `t` changed what `(t 1)` read (prodresult §2) |
-| **R1** | a scope buffer anywhere but the top level of the result: in an array's element (ADR 0020 rule 6), a variant's payload, or a rule-table's rule | a buffer inside another value outlives the scope unfrozen. A rule-table's rule is refused by *a rule-table has no memory*, and `alloc` is the fix: it reads the buffer inside the scope |
+| **R1** | a scope buffer anywhere but the top level of the result: in an array's element (ADR 0020 rule 6), a closure, or a rule-table's rule | a buffer inside another value outlives the scope unfrozen. A rule-table's rule is refused by *a rule-table has no memory*, and `alloc` is the fix: it reads the buffer inside the scope. **A variant's payload is not this** since sumloop-2026-10-06: a constructor is the tuple (tag, payload) (ADR 0041), so `(some (set b 0 n))` out of a scope is a product whose buffer component is frozen by the tuple-component law, and η for products binds it. Two constructors whose payload slot would hold a buffer in one arm and another type in the other are refused by the type checker, as two branches of different types |
 | **R2** | the same buffer in two components | two live references. Linearity refuses it, because forming the tuple moves the buffer |
 | **R3** | a read or store through a buffer an inner scope returned | the inner scope moved it. Linearity refuses it (probed, §2.4 law 3) |
 

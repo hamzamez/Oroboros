@@ -116,9 +116,23 @@ func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
 (def f (n)
   (let o (build b 4 (some (set b 0 n)))
     (case o (some t) 7 none 0)))`
+	// A VARIANT OUT OF A SCOPE IS A PRODUCT OUT OF A SCOPE since a constructor
+	// is the tuple (tag, payload) (ADR 0041): the payload buffer is a component,
+	// frozen by ADR 0031's law, and η for products binds it as a tuple pattern.
+	// R1 is a buffer INSIDE another value; this one is at the top.
 	tg, nf, _ = normGo(t, variant)
+	if err := CheckJoins(tg, nf); err != nil {
+		t.Errorf("a variant out of a scope is ADR 0031's product: %v", err)
+	}
+	// A closure out of a scope is still R1: its body may hold the buffer.
+	closure := `(export f)
+(sig f ((n (int 0 3))) int)
+(def f (n)
+  (let g (build b 4 (fn (i) (set b i n)))
+    (g 0)))`
+	tg, nf, _ = normGo(t, closure)
 	if err := CheckJoins(tg, nf); err == nil || !strings.Contains(err.Error(), "(R1)") {
-		t.Errorf("a variant out of a scope: got %v", err)
+		t.Errorf("a closure out of a scope: got %v", err)
 	}
 }
 

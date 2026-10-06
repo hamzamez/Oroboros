@@ -16,8 +16,8 @@ import (
 //     occurrences and let-bound the conditional payload; folding the known tag
 //     then removed one arm, and the binding was left in the way. The recount
 //     substitutes a pure binding whose variable now occurs once.
-//   - ARMS WITH EFFECTS: a constructor is `(fn (#x) (#x tag payload))`, and its
-//     `(#x …)` read as a table read through a bound variable, which may not move
+//   - ARMS WITH EFFECTS: a constructor is `(fn (#k) (#k tag payload))`, and its
+//     `(#k …)` read as a table read through a bound variable, which may not move
 //     into a body with effects. A read under a λ runs where the λ is applied, so
 //     the check now stops at a λ.
 //
@@ -66,8 +66,13 @@ func TestASumOfSumsReducesWithArmsThatHaveEffects(t *testing.T) {
 // THE RECOUNT MOVES ONLY A PURE VALUE. An impure payload is bound at the
 // application, where the program wrote it (ADR 0010), and it stays there even
 // when its variable occurs once: substituting it would move the effect into an
-// arm, after whatever the arm's test runs. So this sum stays stuck, which the
-// emitter reports, and the impure call stays in binding position.
+// arm, after whatever the arm's test runs.
+//
+// Until sumloop-2026-10-06 the sum then stayed stuck, an eliminator applied to
+// the bound variable. η for products takes the binding apart where it is: the
+// payload's tails are constructors, which are tuples, so the inner case meets
+// them. The call still runs once, at the point the program wrote it, as the
+// condition that chooses `small` or `big`.
 func TestTheRecountDoesNotMoveAnImpureValue(t *testing.T) {
 	got := reduceWith(t, `
 		(use go)
@@ -76,8 +81,8 @@ func TestTheRecountDoesNotMoveAnImpureValue(t *testing.T) {
 		(def g (fn (n) (if (go.> 5 n) (ok n) (err (if (go.> (go.roll) n) small big)))))
 		(def f (fn (n) (case (g n) (ok v) v (err k) (case k small 1000 big 2000))))`,
 		"f", "go.>", "if", "=", "!go.roll")
-	if !strings.Contains(got, "(let (if (go.> (go.roll) n)") {
-		t.Errorf("the impure call must stay bound where the program wrote it:\n%s", got)
+	if want := "(fn (n) (if (go.> 5 n) n (if (go.> (go.roll) n) 1000 2000)))"; got != want {
+		t.Errorf("the impure call must run where the program wrote it, and the sum must go:\n got  %s\n want %s", got, want)
 	}
 	if strings.Count(got, "go.roll") != 1 {
 		t.Errorf("the impure call must run once:\n%s", got)

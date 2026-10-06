@@ -47,7 +47,7 @@ func TestSumGeneratesConstructors(t *testing.T) {
 			t.Errorf("%s should be a definition; got %v", n, p.Order)
 		}
 	}
-	if got := p.Defs["ok"].String(); got != "(fn (#p) (fn (#x) (#x 0 #p)))" {
+	if got := p.Defs["ok"].String(); got != "(fn (#p) (fn (#k) (#k 0 #p)))" {
 		t.Errorf("a constructor is the tag/payload product: %s", got)
 	}
 	if got := p.Defs["err#tag"].String(); got != "1" {
@@ -223,10 +223,10 @@ func TestEliminatorCommutesThroughLet(t *testing.T) {
 		(def step (fn (r k)
 			(case r (ok v) (if (go.> v k) (ok (go.- v k)) (err v)) (err e) (err e))))
 		(def f (fn (a b) (case (step (step (ok a) b) b) (ok v) v (err e) (go.- 0 e))))`, "f")
-	// `#x` is the product's SELECTOR. Its absence is the whole claim: no
+	// `#k` is the product's SELECTOR. Its absence is the whole claim: no
 	// closure and no tag survive. The `(fn (#c) …)` that remain are `let`
 	// binders, which is β doing what it always did.
-	if strings.Contains(got, "#x") {
+	if strings.Contains(got, "#k") {
 		t.Errorf("no product may survive a nested sum: %s", got)
 	}
 	if !strings.HasPrefix(got, "(fn (a b) (if (go.> a b)") {

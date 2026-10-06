@@ -193,8 +193,8 @@ func withKid(t *core.Term, i int, k *core.Term) *core.Term {
 }
 
 // CheckJoins refuses what tables.md §2.5 names as not built: a scope whose value
-// is a function term (R1: a variant or a closure, which could carry a buffer out
-// unfrozen), and an `again` inside a join point's body, which would jump out of it. Every walker of a clause chain
+// is a function term (R1: a closure, which could carry a buffer out unfrozen; a
+// variant is the tuple (tag, payload), ADR 0041, and is ADR 0031's product), and an `again` inside a join point's body, which would jump out of it. Every walker of a clause chain
 // would need it as a fifth form, and one that missed it would be unsound, not
 // imprecise. It runs on the residual before any pass reads a clause chain.
 func CheckJoins(tg *Target, t *core.Term) error {
@@ -207,10 +207,11 @@ func CheckJoins(tg *Target, t *core.Term) error {
 		if isScopeTerm(tg, t) {
 			if bad := badTail(tg, t.Kids[2].Closed()); bad != nil {
 				err = fmt.Errorf("a `build`'s value is a table, a value with no buffer in it, or a " +
-					"tuple of them (tables.md §2.5); this one is a function term, which is how a " +
-					"variant or a closure is represented.\n  A variant made inside a scope may hold a " +
-					"buffer that outlives it unfrozen, so it is not built (R1). Return the payload " +
-					"and its tag as a tuple, and build the variant after the scope.")
+					"tuple of them (tables.md §2.5); this one is a function term: a closure, or a " +
+					"tuple component that is one.\n  A closure made inside a scope may hold a buffer " +
+					"that outlives it unfrozen, so it is not built (R1). Return what the closure " +
+					"would read, as a tuple, and build the closure after the scope. A variant is " +
+					"not this: its value is the tuple (tag, payload) (ADR 0041).")
 				return
 			}
 		}

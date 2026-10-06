@@ -135,7 +135,7 @@ var corpus = []struct{ src, target string }{
 	{"gauntlet/differential/cases/prod-loop.oro", "go"},
 	{"gauntlet/differential/cases/build-zero.oro", "js"},
 	// Three the first full sweep refused, each pinning a fix:
-	{"examples/sum/parse.oro", "go"},       // a variant at a boundary, (fn (#x) (#x tag payload)): a product by structure
+	{"examples/sum/parse.oro", "go"},       // a variant at a boundary, (fn (#k) (#k tag payload)): a product by structure
 	{"examples/native/dot-js.oro", "js"},   // JavaScript's `+` over `any`: ℤ's add only on integer operands
 	{"examples/big/render.oro", "windows"}, // `len` of a big integer, which the limb representation has
 }

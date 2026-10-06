@@ -1586,6 +1586,23 @@ func checkClauseBody(t *Term, arity, line int) error {
 		}
 		return noAgain(t.Kids[1], line)
 	}
+	// AND SO IS `try`'S OR `expect`'S SUCCESS ARM (spec/errors.md §5, §8): it
+	// binds the payload and runs once, now, a binding's tail as a host call's
+	// continuation is (ADR 0027). Its other arms leave the loop, `try` with the
+	// failure as the loop's value and `expect` into 0, so neither goes round
+	// and the clause list is still every back edge. Only the body may jump.
+	if isMonadForm(t) {
+		last := len(t.Kids) - 1
+		if err := checkClauseBody(t.Kids[last], arity, line); err != nil {
+			return err
+		}
+		for _, k := range t.Kids[1:last] {
+			if err := noAgain(k, line); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 	return noAgain(t, line)
 }
 
@@ -1778,12 +1795,17 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 	defs := map[string]*Term{}
 	for i, v := range s.Variants {
 		tag := &Term{Kind: KInt, Int: int64(i)}
+		// A CONSTRUCTOR IS THE TUPLE (tag, payload), the same term `tuple`
+		// reads as, binder and all: sums.md §1's representation is a product,
+		// and every pass that knows a tuple then knows a sum's value. Spelled
+		// apart (`#x`), a loop whose exits were constructors was refused as a
+		// tuple pattern with no tuple in it (sumloop-2026-10-06).
 		if v.Payload == "" {
-			defs[v.Name] = Fn([]string{"#x"},
-				&Term{Kind: KApp, Kids: []*Term{Name("#x"), tag, &Term{Kind: KInt}}})
+			defs[v.Name] = Fn([]string{"#k"},
+				&Term{Kind: KApp, Kids: []*Term{Name("#k"), tag, &Term{Kind: KInt}}})
 		} else {
-			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#x"},
-				&Term{Kind: KApp, Kids: []*Term{Name("#x"), tag, Name("#p")}}))
+			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#k"},
+				&Term{Kind: KApp, Kids: []*Term{Name("#k"), tag, Name("#p")}}))
 		}
 		defs[v.Name+"#tag"] = tag
 		order = append(order, v.Name, v.Name+"#tag")
@@ -2491,4 +2513,11 @@ func at(line int) string {
 		return ""
 	}
 	return fmt.Sprintf("line %d: ", line)
+}
+
+// isMonadForm recognises `(try (s x) e body)` and `(expect (s x) e why body)`
+// as written, before Load expands them; Load checks their arity and pattern.
+func isMonadForm(t *Term) bool {
+	return t.Kind == KApp && len(t.Kids) >= 4 && t.Kids[0].Kind == KName &&
+		(t.Kids[0].Name == "try" || t.Kids[0].Name == "expect")
 }

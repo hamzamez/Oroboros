@@ -20,7 +20,7 @@ import (
 //	                       body2[e := #p])))
 //
 // `r` is the tag/payload PRODUCT that a constructor builds — `(values 0 x)`,
-// which is `(fn (#x) (#x 0 x))` — so applying it to a two-parameter function is
+// which is `(fn (#k) (#k 0 x))` — so applying it to a two-parameter function is
 // just the product's own elimination, already built on all four targets
 // (values.md). Nothing new reaches the reducer: no term kind, no rule.
 //

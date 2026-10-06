@@ -259,7 +259,7 @@ func (l *lowerer) prim(name string) (emit.Prim, bool) {
 // n ≥ 2: a tuple, which in the IR is a list of values (spec §1.1). It is
 // recognised by STRUCTURE — the binder occurs as the head and nowhere else —
 // and not by its name hint: the reader spells a tuple's binder `#k`, and a
-// variant crossing a boundary is `(fn (#x) (#x tag payload))` (sums.md), the
+// variant crossing a boundary is `(fn (#k) (#k tag payload))` (sums.md), the
 // same product under another hint.
 func isTupleLam(t *core.Term) bool {
 	if t.Kind != core.KFn || len(t.Params) != 1 {

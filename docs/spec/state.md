@@ -84,7 +84,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if`; and `(if (not c) a b)` is built as `(if c b a)`, unless a branch is a boolean literal and the term is a connective | [booleans.md §4.2](booleans.md) |
 | `(tuple a b …)` | `(fn (k) (k a b …))` | [data.md](data.md), [values.md](values.md) |
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
-| `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md); `again` may sit under a binding of one name or several, [ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md) |
+| `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md); `again` may sit under a binding of one name or several, [ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md), and in a `try` or `expect` success arm, [ADR 0041](../decisions/0041-a-success-arm-is-a-tail.md) |
 | `(case e (ctor x…) body …)` | `if` over a tag comparison, **in `Load`**, because the variant may be declared in another file | [sums.md](sums.md) |
 | `(try (s x) e body)`, `(expect (s x) e why body)` | a `case` in `Load`, on a variant marking `s` as `(success s)`: `try` returns every other constructor unchanged, `expect` crashes with `why` through `abandon` | [errors.md](errors.md) §5, §8 |
 
@@ -137,13 +137,14 @@ The representation is chosen by the target: `(repr (int LO HI) …)` below the w
 
 ### Reduction
 
-**Four rules**, two of them with two clauses.
+**Four rules**, two of them with two clauses, and η for products, the extensionality law that lets β see a bound product (sumloop-2026-10-06).
 
 | | |
 |---|---|
 | **β**, call-by-need | An impure argument is let-bound rather than substituted ([effects.md §4](effects.md)); a table read through a bound variable is not substituted into an impure body (§7c). **β-tab** is its second clause: a table or map written as a graph, applied to a literal, is looked up |
 | **δ** | unfolding a definition, declining a cycle; a target's native name wins over a library's (`▷`) |
 | **evaluation on literals** | `(if true a b) → a`; the language's integer operators and `=` on two integer literals, **only inside the target's word (ADR 0026), checked against int64 overflow, and never dividing by zero** ([ADR 0009](../decisions/0009-staging-preserves-results.md)). No float folds, and no primitive of a target is ever evaluated |
+| **η for products** | a binding whose value has every tail an n-tuple is taken apart where it stands, `(let V (fn (r) B)) → (V (fn (c̄) B[r := (tuple c̄)]))`, so each `(r k)` is a β-redex; tails through `if`, `let`, a host call's continuation, a scope and a loop's exits, and anything else is left bound ([ADR 0041](../decisions/0041-a-success-arm-is-a-tail.md), sumloop-2026-10-06). It is β's extensionality for products, the companion of the commuting conversion below |
 | **commuting conversion** | push an eliminator through `if`, `let` and a multi-result host call's continuation — the n-ary let, `(((p a…) (fn (x̄) M)) k…) → ((p a…) (fn (x̄) (M k…)))` — only when every argument is pure (u128-2026-09-23). **At arity 0** it is the crash's absorption: `abandon w` is a term of the empty sum, whose eliminator is the empty copairing, and K ∘ [] = [], so a primitive's application with a crash in a strict position (an argument not a λ, an `if`'s condition) is the crash, after the impure arguments before it, kept in order ([errors.md §8](errors.md)) |
 
 **No recursion** ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). A definition in

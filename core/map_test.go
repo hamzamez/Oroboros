@@ -32,9 +32,9 @@ func TestMapLiteralReduces(t *testing.T) {
 	// more informative test: it shows there is no sum VALUE anywhere, only a
 	// function that a `case` consumes and erases.
 	for _, c := range []struct{ src, want string }{
-		{"((map (1 10) (2 20) (5 50)) 2)", "(fn (#x) (#x 0 20))"},
-		{"((map (1 10) (2 20) (5 50)) 9)", "(fn (#x) (#x 1 0))"},
-		{"((map (1 10)) 1)", "(fn (#x) (#x 0 10))"},
+		{"((map (1 10) (2 20) (5 50)) 2)", "(fn (#k) (#k 0 20))"},
+		{"((map (1 10) (2 20) (5 50)) 9)", "(fn (#k) (#k 1 0))"},
+		{"((map (1 10)) 1)", "(fn (#k) (#k 0 10))"},
 		{"(len (map (1 10) (2 20) (5 50)))", "3"},
 		{"(len (map))", "0"},
 	} {
@@ -54,7 +54,7 @@ func TestAStaticMapLeavesNothing(t *testing.T) {
 	if got != "21" {
 		t.Errorf("a static map read left %s, want the constant 21", got)
 	}
-	for _, gone := range []string{"map", "#x", "case"} {
+	for _, gone := range []string{"map", "#k", "case"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("%q survived a static map read: %s. Free where it is used "+
 				"to THINK is the whole argument for F2; if a map, a tag or a "+
@@ -72,14 +72,14 @@ func TestAStaticMapLeavesNothing(t *testing.T) {
 // because `k ∈ dom m` is set membership and nothing decides it (maps.md §1.1).
 // So `none` is the answer here and a diagnostic there.
 func TestAbsenceIsAResultAndOutOfRangeIsNot(t *testing.T) {
-	if got := mapNorm(t, "((map (1 10)) 7)"); got != "(fn (#x) (#x 1 0))" {
+	if got := mapNorm(t, "((map (1 10)) 7)"); got != "(fn (#k) (#k 1 0))" {
 		t.Errorf("a missing key gave %s, want none's encoding (tag 1)", got)
 	}
 	// The control, and it must NOT fold. If this ever starts returning a sum,
 	// the two constructs have been conflated and the refinement layer has lost
 	// a diagnostic that only it can give.
 	got := mapNorm(t, "((array 1 2 3) 7)")
-	if strings.Contains(got, "#x") || !strings.Contains(got, "array") {
+	if strings.Contains(got, "#k") || !strings.Contains(got, "array") {
 		t.Errorf("an out-of-range ARRAY read gave %s; it must stay stuck so the "+
 			"refinement layer can report it with the bound and the call site", got)
 	}
@@ -91,7 +91,7 @@ func TestAbsenceIsAResultAndOutOfRangeIsNot(t *testing.T) {
 // application costs nothing: `(m k)` is the same text either way.
 func TestADynamicKeyDoesNotReduce(t *testing.T) {
 	got := mapNorm(t, "(fn (k) ((map (1 10) (2 20)) k))")
-	if strings.Contains(got, "#x") {
+	if strings.Contains(got, "#k") {
 		t.Fatalf("a dynamic key decided the domain condition: %s", got)
 	}
 	if !strings.Contains(got, "map (1 10) (2 20)") {
@@ -105,7 +105,7 @@ func TestADynamicKeyDoesNotReduce(t *testing.T) {
 // would be a silent wrong answer, because `(j 10)` might BE the row for 2.
 func TestANonLiteralKeyInTheGraphDoesNotReduce(t *testing.T) {
 	got := mapNorm(t, "(fn (j) ((map (j 10) (2 20)) 2))")
-	if strings.Contains(got, "#x") {
+	if strings.Contains(got, "#k") {
 		t.Errorf("a graph with an unknown key was decided anyway: %s", got)
 	}
 }

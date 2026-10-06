@@ -293,8 +293,9 @@ a wall that needs language work, stop and research it, then design it.
       other`. Built in errors.md §12's order. **Steps 1–3 are built**: the markers, `lib/result`,
       `try`, and `expect` with `abandon` on all four targets, a crash whose value is in 0: it absorbs
       every strict context (the commuting conversion at arity 0), types as anything, and ends its IR
-      region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). Named
-      for step 5: a loop cannot yield a sum yet, and `again` may not sit under `try`;
+      region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). A loop
+      yields a sum, and `again` may sit in a success arm (ADR 0041,
+      [sumloop-2026-10-06](gauntlet/results/sumloop-2026-10-06.md));
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -395,6 +396,7 @@ rejected alternatives.
 | The IR's text (IR_P) is the printers' whole input, checked on every program; others may read it, and nobody else writes it until the IR proves index obligations | [0038](docs/decisions/0038-the-irs-text-is-read-not-written.md) |
 | The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list | [0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md) |
 | A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, `(result T E)` is a library, the host's encoding is a niche, `expect` is the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
+| A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload), so a loop yields a sum — extends 0015 | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
 
 ## How this project is run
 
@@ -464,9 +466,11 @@ spec to read before touching it.
   connective a backend emits as an operator. That is what makes `cond` cost nothing
   ([cond-2026-09-19](gauntlet/results/cond-2026-09-19.md)).
 - **Iteration.** `(loop ((x z)…) c e … else e)` with `(again a…)` (ADR 0015). `again` is a jump; it may
-  be a clause body or sit under a binding, never under an `if`. A binding is a `let` or a `(tuple …)`
+  be a clause body or sit under a binding, never under an `if`. A binding is a `let`, a `(tuple …)`
   pattern, whose body after reduction is a host call's continuation, which runs once, now, and is a
-  tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)). **Every
+  tail position ([ADR 0027](docs/decisions/0027-a-host-calls-continuation-is-a-tail.md)), or a `try` or
+  `expect` success arm, whose other arms leave the loop
+  ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **Every
   walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
   and one that enumerates back edges and misses a form is unsound, not imprecise. `match` is reader sugar over `loop`
   ([match.md](docs/spec/match.md)).
@@ -501,7 +505,8 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
     component) would tell a `let`, because ⟦Pⱼ⟧ = πⱼ⟦P⟧;
   - **a store needs a live buffer**: `set`/`insert` into a frozen table or map is refused, and a map
     buffer is linear. Both were accepted before and gave wrong answers;
-  - not built: an `again` inside the pattern's body, and a variant out of a scope (R1). `(buffer V)` is a nameable parameter type (ADR 0020):
+  - not built: an `again` inside the pattern's body. A variant out of a scope is built: a constructor is
+    the tuple (tag, payload), so it is a product, and η for products binds it (ADR 0041, sumloop-2026-10-06). `(buffer V)` is a nameable parameter type (ADR 0020):
   - uniqueness is *assumed* at an export;
   - linearity is *checked* through the body;
   - a buffer may not be an element type.

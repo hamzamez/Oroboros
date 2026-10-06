@@ -141,7 +141,7 @@ The target loader turns such a declaration into two things:
   ```lisp
   (def ReadFile (name)
     ((ReadFile#raw name) (fn (t e)
-      (if (niche-test e) (fn (#x) (#x s# t)) (fn (#x) (#x c# e))))))
+      (if (niche-test e) (fn (#k) (#k s# t)) (fn (#k) (#k c# e))))))
   ```
 
   where s# and c# are the tags of the success constructor and of the one other constructor, which the
@@ -317,11 +317,18 @@ from the one arrow 0 → Y that exists for every Y (built in expect-2026-10-06):
   verifier's W3 refuses one whose region does not end in it. Such a region yields nothing, so a function
   whose every path crashes takes its declared results: 0 → R exists.
 
-**Inside a loop, `try` and `expect` do not carry `again` yet.** ADR 0015 lets `again` sit under a
-binding, and the success arm is one: it binds the payload and runs once, now, as a host call's
-continuation does (ADR 0027). But a loop cannot yet yield a sum, `try`'s exit, with or without `try`: a
-`case` on a loop whose exits are constructors is refused as a tuple pattern with the wrong arity
-(expect-2026-10-06 §4). Both are needed by the first read loop of §12's step 5, and are decided there.
+**Inside a loop, a success arm may hold `again`** ([ADR 0041](../decisions/0041-a-success-arm-is-a-tail.md)).
+It binds the payload and runs once, now, so it is a binding's tail, as a host call's continuation is
+(ADR 0027). The other arms leave the loop: `try`'s with the failure as the loop's value, `expect`'s into 0.
+So the clause list is still every back edge. A loop yields the sum `try` leaves as two results, because a
+constructor is the tuple (tag, payload) (sums.md §1):
+
+```lisp
+(loop ((i 0) (acc 0))
+  (>= i n)  (result.ok acc)
+  else      (try (result.ok h) (half (* 2 i))
+              (again (+ i 1) (+ acc h))))
+```
 
 **So abandonment is never implicit.** It happens at an `expect`, at an operation `-checked` turned into a
 trap, or at a host failure declared abandoning. Each is visible in the source or the build line.

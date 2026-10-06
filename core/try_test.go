@@ -20,7 +20,7 @@ func TestTryIsBindAndLeavesNoTag(t *testing.T) {
 		(def quarter (fn (n) (try (ok h) (half n) (half h))))
 		(def f (fn (n) (case (quarter n) (ok v) v (err e) (go.- 0 e))))`,
 		"f", "go.>", "go.%", "go./", "go.-", "if", "=")
-	if strings.Contains(got, "#x") || strings.Contains(got, "#t") {
+	if strings.Contains(got, "#k") || strings.Contains(got, "#t") {
 		t.Errorf("a tag or a constructor survived the chain: %s", got)
 	}
 	if !strings.HasPrefix(got, "(fn (n) (if (go.> (go.% n 2) 0) (go.- 0 n)") {
@@ -59,6 +59,29 @@ func TestTryIsOnlyForASuccessConstructor(t *testing.T) {
 		_, err := loadSrc(t, c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("want an error saying %q, got %v", c.want, err)
+		}
+	}
+}
+
+// `again` MAY SIT IN A SUCCESS ARM (spec/errors.md §5): the arm binds the
+// payload and runs once, now, a binding's tail. Nowhere else in the form: the
+// value, the pattern and expect's reason are expressions.
+func TestAgainMaySitInASuccessArmOnly(t *testing.T) {
+	const ok = `(def f (fn (n) (loop ((i 0)) (>= i n) i else (try (r.ok x) (r.g i) (again (+ i x))))))`
+	if _, err := Read(ok); err != nil {
+		t.Errorf("again in try's success arm is a binding's tail: %v", err)
+	}
+	const okExpect = `(def f (fn (n) (loop ((i 0)) (>= i n) i else (expect (r.ok x) (r.g i) "why" (seq (p x) (again (+ i 1)))))))`
+	if _, err := Read(okExpect); err != nil {
+		t.Errorf("again in expect's success arm, under a seq: %v", err)
+	}
+	for _, bad := range []string{
+		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (try (r.ok x) (again i) x))))`,
+		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (expect (r.ok x) (r.g i) (again i) x))))`,
+		`(def f (fn (n) (loop ((i 0)) (>= i n) i else (try (r.ok x) (r.g i) (+ 1 (again i))))))`,
+	} {
+		if _, err := Read(bad); err == nil || !strings.Contains(err.Error(), "again") {
+			t.Errorf("want again refused in %s, got %v", bad, err)
 		}
 	}
 }

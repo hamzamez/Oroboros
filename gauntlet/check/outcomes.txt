@@ -1027,6 +1027,10 @@
 == gauntlet/differential/cases/text-of.oro windows refused
    gen: gauntlet/differential/cases/text-of.oro: in run: os.text-of is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use os) matched no file on the search path and this target provides no module os either, so every name from it is unbound. Check the path.
+== gauntlet/differential/cases/try-loop.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/try-loop.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/try-loop.oro java emitted 0d2df652fd04367563a95b0f092084f9880180667dd3303f18b15171dedc0b05
+== gauntlet/differential/cases/try-loop.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/u128-fact.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/u128-fact.oro js refused
    gen: gauntlet/differential/cases/u128-fact.oro: in num/u128.add: go/math/bits.Add64 is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -1160,7 +1164,7 @@
 == lib/result.oro java refused
    gen: lib\io\java.oro: io.print-line is declared twice
 == lib/result.oro windows refused
-   gen: gen-err-map: (r (fn (#t #p) (if (= #t 0) (fn (#x) (#x 0 #p)) (fn (#x) (#x 1 (f #p)))))) is an indexing, and (<= 0 (fn (#t #p) (if (= #t 0) (fn (#x) (#x 0 #p)) (fn (#x) (#x 1 (f #p)))))) is not proven
+   gen: gen-err-map: (r (fn (#t #p) (if (= #t 0) (fn (#k) (#k 0 #p)) (fn (#k) (#k 1 (f #p)))))) is an indexing, and (<= 0 (fn (#t #p) (if (= #t 0) (fn (#k) (#k 0 #p)) (fn (#k) (#k 1 (f #p)))))) is not proven
      known: nothing
      The index is outside the linear fragment, and neither a proof by cases nor a
      content fact about a table bounds it. A table is a function with a finite

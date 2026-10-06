@@ -1,0 +1,31 @@
+; A LOOP THAT GOES ROUND UNDER `try` AND YIELDS A SUM (spec/errors.md §5).
+;
+; `try`'s success arm binds the payload and runs once, now: a binding's tail, so
+; `again` may sit under it, as under a host call's continuation (ADR 0027). Its
+; other arm leaves the loop with the failure as the loop's value, so the loop
+; yields a sum: a constructor is the tuple (tag, payload), and the loop's two
+; results are its components (sumloop-2026-10-06).
+;
+; run n sums half(2i) for i < n, all successes, then half(n + 1) once more:
+; a success when n is odd, n(n−1)/2 + (n+1)/2, and a failure, n + 1 negated,
+; when n is even.
+;
+; inputs: 0 1 2 3 4 9 10
+; expect: -1 1 -3 5 -5 41 -11
+(use result)
+
+(sig half ((n (int 0 1000))) (result.result int int))
+(def half (n)
+  (if (= (% n 2) 0) (result.ok (/ n 2)) (result.err n)))
+
+(sig sum-halves ((n (int 0 100))) (result.result int int))
+(def sum-halves (n)
+  (loop ((i 0) (acc 0))
+    (>= i n)  (try (result.ok h) (half (+ n 1)) (result.ok (+ acc h)))
+    else      (try (result.ok h) (half (* 2 i))
+                (again (+ i 1) (+ acc h)))))
+
+(def run (n)
+  (case (sum-halves n)
+    (result.ok v)  v
+    (result.err e) (- 0 e)))

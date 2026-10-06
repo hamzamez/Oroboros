@@ -1015,3 +1015,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/expect.oro java`
 - new source — `gauntlet/differential/cases/expect.oro js`
 - new source — `gauntlet/differential/cases/expect.oro windows`
+
+## 2026-10-06 — on 0946092, with uncommitted changes
+
+**Reason:** constructor spelled as the tuple it is, and eta for products: lib/result.oro's windows refusal prints #k; new differential case try-loop.oro on four targets; every other file byte-identical
+
+508 runs: 265 emitted, 243 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- new source — `gauntlet/differential/cases/try-loop.oro go`
+- new source — `gauntlet/differential/cases/try-loop.oro java`
+- new source — `gauntlet/differential/cases/try-loop.oro js`
+- new source — `gauntlet/differential/cases/try-loop.oro windows`
+- compiler output changed — `lib/result.oro windows`

@@ -73,14 +73,19 @@ reduction rule or backend changes, and `success` and `relevant` are reserved as 
 A sum declaration generates **definitions**:
 
 ```
-ok      = (fn (#p) (fn (#x) (#x 0 #p)))     ; = (values 0 p)
+ok      = (fn (#p) (fn (#k) (#k 0 #p)))     ; = (tuple 0 p)
 ok#tag  = 0
-err     = (fn (#p) (fn (#x) (#x 1 #p)))
+err     = (fn (#p) (fn (#k) (#k 1 #p)))
 err#tag = 1
 ```
 
 So a constructor is an ordinary definition, and qualification, imports, δ and the occurrence
 counter all apply to it without any of them learning that sums exist.
+
+**A constructor's value is the tuple (tag, payload)**, the very term `(tuple tag p)` reads as,
+binder included (ADR 0041). Until sumloop-2026-10-06 it was spelled with `#x`, and the passes that
+recognise a tuple by its binder did not recognise a sum's value: a loop whose exits were constructors
+was refused as a tuple pattern with no tuple in it. One term, one spelling.
 
 `case` expands in **`Load`**, not in the reader — the one structural difference from `match`. The
 reader sees one file, and an error type is declared in another; `Load` sees every module. It also
@@ -161,8 +166,8 @@ an error model has, `(err not-found)`, and it stopped reducing:
   substituted and the body normalised again, which puts the `if` back in operator position. None left:
   it is dropped. This is β's own one-occurrence rule applied after the fact, and only to pure values
   (ADR 0010);
-- **a read under a λ is not a table read.** A constructor is `(fn (#x) (#x tag payload))`, and the guard
-  that keeps a table read out of a body with effects read its `(#x …)` as one, so the payload was bound
+- **a read under a λ is not a table read.** A constructor is `(fn (#k) (#k tag payload))`, and the guard
+  that keeps a table read out of a body with effects read its `(#k …)` as one, so the payload was bound
   wherever an arm had an effect. A read inside a λ runs where the λ is applied, which substitution does
   not move: the reason β already exempts an argument that is a λ.
 

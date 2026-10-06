@@ -1263,7 +1263,7 @@ func readsBoundTable(t *Term) bool {
 	// NOT UNDER A λ. A read inside a λ runs where the λ is APPLIED, and
 	// substituting the term moves no application, which is why β exempts an
 	// argument that IS a λ. The same holds for a λ nested inside one: a sum's
-	// constructor is `(fn (#x) (#x tag payload))`, whose `(#x …)` applies its
+	// constructor is `(fn (#k) (#k tag payload))`, whose `(#k …)` applies its
 	// own parameter, and reading it as a table read let-bound every
 	// conditional sum flowing into an arm with effects (sumofsums-2026-10-06).
 	if t.Kind == KFn {
@@ -1833,6 +1833,22 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			// Wrap innermost-last so the bindings nest in source order.
 			for i := len(bound) - 1; i >= 0; i-- {
+				// η FOR PRODUCTS: a value whose every tail is an n-tuple is
+				// taken apart where it is bound, so each `(r k)` in the body is
+				// a β-redex rather than an eliminator applied to a variable.
+				if n, ok := e.tupleTails(bound[i].val, false); ok && n >= 2 && occurrences(body, bound[i].name) > 0 {
+					cs := e.freshNames(n, body, bound[i].val)
+					comps := []*Term{Name("#k")}
+					for _, c := range cs {
+						comps = append(comps, Name(c))
+					}
+					tup := Fn([]string{"#k"}, &Term{Kind: KApp, Kids: comps})
+					k := Fn(cs, subst(body, map[string]*Term{bound[i].name: tup}))
+					if body, err = normalize(App(bound[i].val, k), e, fuel); err != nil {
+						return nil, err
+					}
+					continue
+				}
 				body = App(Name("let"), bound[i].val, Fn([]string{bound[i].name}, body))
 				if out, ok := e.absorb(body.Kids); ok {
 					body = out
@@ -2058,61 +2074,45 @@ func occurrences(t *Term, name string) int {
 // is emitted anyway.
 func Occurs(t *Term, name string) bool { return occurrences(t, name) > 0 }
 
-// subst is capture-avoiding. core-0 specifies a locally nameless representation,
-// which makes capture unrepresentable; this uses names with freshening, which
-// makes it merely impossible. The stronger version belongs with the IR format.
+// subst replaces FREE NAMES, in the locally nameless representation (core-0,
+// concerns.md §1.3): a binder holds indices, so inside a closed body every name
+// is free, and substitution needs no opening, no shadowing test and no
+// freshening. Capture is unrepresentable, not merely avoided.
+//
+// A substituend may itself hold indices: a value normalised inside a λ's closed
+// body refers to that λ's parameters, and to every binder around it, by depth.
+// Put under k more binders, each such index must count k more, so it is shifted
+// by the depth it lands at, as openWith shifts β's arguments. That is the whole
+// difference from the substitution this replaced, which opened each λ it passed
+// and put the value in unshifted: sound only for a value with no index in it.
+// β's recount handed it one, a loop variable inside a `try`'s payload, and the
+// result referred to a binder one level out (sumloop-2026-10-06).
+//
+// It rests on the representation's invariant (CLAUDE.md, "Body() and openFresh
+// rebuild terms"): a λ's closed body never contains a free name equal to its own
+// parameter. So no binder below can mean a name in m.
 func subst(t *Term, m map[string]*Term) *Term {
 	if len(m) == 0 {
 		return t
 	}
+	return substAt(t, m, 0)
+}
+
+func substAt(t *Term, m map[string]*Term, depth int) *Term {
 	switch t.Kind {
 	case KName:
 		if r, ok := m[t.Name]; ok {
-			return r
+			return shift(r, 0, depth)
 		}
 		return t
 	case KInt, KFloat, KStr, KBool, KBound:
 		return t
 	case KFn:
-		inner := make(map[string]*Term, len(m))
-		for k, v := range m {
-			inner[k] = v
-		}
-		for _, p := range t.Params {
-			delete(inner, p) // shadowed
-		}
-		if len(inner) == 0 {
-			return t
-		}
-		// Freshen any parameter that would capture a free variable of a
-		// substituend.
-		danger := map[string]bool{}
-		for _, v := range inner {
-			for n := range freeVars(v) {
-				danger[n] = true
-			}
-		}
-		params := t.Params
-		body := t.Body()
-		for i, p := range t.Params {
-			if !danger[p] {
-				continue
-			}
-			fresh := p + "'"
-			for occupied(fresh, danger, params) {
-				fresh += "'"
-			}
-			if &params[0] == &t.Params[0] {
-				params = append([]string(nil), t.Params...)
-			}
-			params[i] = fresh
-			body = subst(body, map[string]*Term{p: Name(fresh)})
-		}
-		return Fn(params, subst(body, inner))
+		return &Term{Kind: KFn, Params: t.Params, Kids: []*Term{substAt(t.Kids[0], m, depth+1)}}
 	case KApp:
 		kids := make([]*Term, len(t.Kids))
 		for i, k := range t.Kids {
-			kids[i] = subst(k, m)
+			kids[i] = substAt(k, m, depth)
 		}
 		return &Term{Kind: KApp, Kids: kids}
 	}
@@ -2483,6 +2483,79 @@ func (e *Env) absorb(kids []*Term) (*Term, bool) {
 		return out, true
 	}
 	return nil, false
+}
+
+// tupleTails reports n when every tail of t is an n-tuple, `(fn (#k) (#k c₁ … cₙ))`:
+// the value of a product, and of a sum, whose constructor is the tuple (tag,
+// payload) (ADR 0041). It is what η for products needs: r = (π₁ r, …, πₙ r) for
+// any r of a product type, so a binding of such a value may be taken apart,
+// `(let V (fn (r) B))` ⟶ `(V (fn (c̄) B[r := (tuple c̄)]))`, which is ADR 0031's
+// tuple pattern (a join point over a scope or a loop), and each `(r k)` in B is
+// then a β-redex. Without it an eliminator applied to the variable was stuck:
+// a sum read twice, and a variant out of a scope (sumloop-2026-10-06).
+//
+// The tails are walked through the forms a value's tails can sit under: `if`,
+// a residual `let`, a host call's continuation, a `build` or `build-map` scope,
+// a where-mark, and a `loop`'s exits, where an `again` is no tail. Any other
+// shape answers no, so a form this walk does not know leaves the binding as it
+// was: imprecise, never unsound. inLoop is set while walking a loop body, where
+// `again` is a back edge.
+func (e *Env) tupleTails(t *Term, inLoop bool) (int, bool) {
+	const none = -1 // a subterm with no tail: an `again`
+	join := func(a, b int, oka, okb bool) (int, bool) {
+		switch {
+		case !oka || !okb:
+			return 0, false
+		case a == none:
+			return b, true
+		case b == none || a == b:
+			return a, true
+		}
+		return 0, false
+	}
+	if t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
+		b := t.Closed()
+		if b.Kind == KApp && len(b.Kids) >= 3 && b.Kids[0].Kind == KBound &&
+			b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
+			return len(b.Kids) - 1, true
+		}
+		return 0, false
+	}
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return 0, false
+	}
+	// A host call's continuation: ((p a…) (fn (x̄) M)), which runs once, now.
+	if op := t.Kids[0]; op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
+		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		return e.tupleTails(t.Kids[1].Closed(), inLoop)
+	}
+	op := t.Kids[0]
+	if op.Kind != KName {
+		return 0, false
+	}
+	switch {
+	case op.Name == "again" && inLoop:
+		return none, true
+	case op.Name == RequireWhereName && len(t.Kids) == 4:
+		return e.tupleTails(t.Kids[3], inLoop)
+	case !e.Prim[op.Name]:
+		return 0, false
+	case op.Name == "if" && len(t.Kids) == 4:
+		a, oka := e.tupleTails(t.Kids[2], inLoop)
+		b, okb := e.tupleTails(t.Kids[3], inLoop)
+		return join(a, b, oka, okb)
+	case op.Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return e.tupleTails(t.Kids[2].Closed(), inLoop)
+	case (op.Name == "build" || op.Name == "build-map") && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return e.tupleTails(t.Kids[2].Closed(), inLoop)
+	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
+		n, ok := e.tupleTails(t.Kids[1].Closed(), true)
+		if !ok || n == none {
+			return 0, false // a loop with no exit has no value to take apart
+		}
+		return n, true
+	}
+	return 0, false
 }
 
 // isAbandon reports whether t is an application of the language's crash.

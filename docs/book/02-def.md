@@ -14,6 +14,12 @@ The `tutorial` target is the one from chapter 1 ([targets/tutorial.oro](../../ta
 `+ - * /` and `<` are arithmetic, `f`, `g`, `h` are opaque functions, `x`, `y`, `z` are opaque
 values, `shout` is the one impure primitive, and `if`, `let` and `fold-range` are structural.
 
+One thing from [chapter 1](01-fn.md) to keep in mind throughout, because it is visible in almost
+every output below: **integer arithmetic on two literals folds**, inside the target's word
+([ADR 0009](../decisions/0009-staging-preserves-results.md)). So `(* 7 7)` comes back as `49`, and
+where a lesson is about the *shape* of what reduction leaves rather than about a number, this chapter
+reaches for `h`, `x` and `y` — which never fold, because only the host knows what they do.
+
 ---
 
 ## 2.1 Naming a term
@@ -24,10 +30,11 @@ values, `shout` is the one impure primitive, and `if`, `let` and `fold-range` ar
 ```
 
 ```lisp
-⟶   (* 7 7)
+⟶   49
 ```
 
-`(def NAME TERM)` associates a name with a term. Using the name is the same as writing the term.
+`(def NAME TERM)` associates a name with a term. Using the name is the same as writing the term — so
+that line is `((fn (n) (* n n)) 7)`, which β turns into `(* 7 7)`, which folds.
 
 A definition whose term is a function is so common that it has a shorthand, which is the way
 mathematics writes an equation — `f(n) = n²`:
@@ -48,7 +55,7 @@ The term does not have to be a function:
 ```
 
 ```lisp
-⟶   (* 2 2)
+⟶   4
 ```
 
 A `def` on its own prints nothing, because a `def` **is not a computation**. It contributes a name
@@ -62,7 +69,7 @@ to a scope. Only terms get reduced.
 ```
 
 ```lisp
-⟶   (* 7 7)
+⟶   49
 ```
 
 Definitions are a set, not a sequence. Use a name before you define it, define things in whatever
@@ -77,7 +84,7 @@ Definitions may refer to each other in any direction:
 ```
 
 ```lisp
-⟶   (* 4 3)
+⟶   12
 ```
 
 ## 2.3 A `def` is unfolded, not stored
@@ -86,14 +93,17 @@ This is the one that surprises people, so here it is early.
 
 ```lisp
 (def one 1)
-(def two  (+ one one))
-(def four (+ two two))
+(def two  (h one one))
+(def four (h two two))
 four
 ```
 
 ```lisp
-⟶   (+ (+ 1 1) (+ 1 1))
+⟶   (h (h 1 1) (h 1 1))
 ```
+
+(`h` rather than `+` precisely so the shape survives — written with `+` the whole thing folds to
+`4` and there is nothing to look at.)
 
 `two` appeared **twice** in the output. A definition is not a variable holding a value; it is a
 name for a term, and every use is replaced by that term. That step is called **δ** — the second of
@@ -134,11 +144,12 @@ duplicating it would duplicate the effect, so it is refused outright:
 
 ```
 the body of noisy is a computation, not a value, so unfolding it would repeat its effects
-  Wrap it in (fn () …) and apply it, or bind it with let at the point of use.
+  Give it an empty parameter list — (def noisy () …) — and apply it,
+  or bind it with let at the point of use.
 ```
 
-The error names both repairs. `(fn () …)` makes it a function, and a function may be duplicated
-freely because duplicating it does not run it.
+The error names both repairs. An empty parameter list makes it a function, and a function may be
+duplicated freely because duplicating it does not run it.
 
 ## 2.4 What can be a name
 
@@ -198,8 +209,10 @@ half-Δ
 ```
 
 ```lisp
-⟶   (/ 3 2)
+⟶   1
 ```
+
+(Integer division, folded — `(/ 3 2)` is `1`.)
 
 ## 2.5 Free names inside a definition
 
@@ -270,8 +283,6 @@ The third rule is the interesting one. It runs the other way, and it *is* report
 
 ```
 note: f is defined here and provided natively by target "tutorial"; the target's is used
-```
-```lisp
 ⟶   (f 5)
 ```
 
@@ -279,41 +290,77 @@ The definition was **ignored**. δ does not unfold a name the target declares pr
 note is the compiler saying so.
 
 That looks like a trap and is in fact the central mechanism of the language. Here it is doing real
-work. [examples/modules.oro](../../examples/modules.oro) defines a dot product out of small pieces,
-none of which the target knows about:
+work, on a pair of targets kept for exactly this
+([targets/tutorial.oro](../../targets/tutorial.oro) and
+[targets/tutorial-native.oro](../../targets/tutorial-native.oro), which differ by **one line**).
+
+A library defines `geometry.area` out of arithmetic the target does know
+([code/geometry.oro](code/geometry.oro)):
 
 ```lisp
-(def zip (fn (g a b) (vec (vlen a) (fn (i) (g (vindex a i) (vindex b i))))))
-(def sum (fn (v)   (fold-range 0.0 (vlen v) (fn (acc i) (f64.add acc (vindex v i))))))
-(def dot (fn (a b) (sum (zip f64.mul (of-array a) (of-array b)))))
+(module geometry)
+(export area perimeter scale)
+(def area (w h) (* w h))
 ```
 
-On a target that has no `dot`, the definitions unfold and fuse into a loop:
+A program names only the library ([code/box.oro](code/box.oro)) — never a target:
+
+```lisp
+(use geometry)
+(export box)
+(def box (w h) (geometry.area w h))
+```
+
+On a target that has no `geometry.area`, the definition unfolds:
 
 ```bash
-go run ./cmd/oro -target=go examples/modules.oro
+go run ./cmd/oro -target=tutorial docs/book/code/box.oro
 ```
 
 ```lisp
-(fn (p q) (fold-range 0.0 (alen p) (fn (acc i)
-  (num/f64.add acc (num/f64.mul (aindex p i) (aindex q i))))))
+box =
+(fn (w h) (* w h))
 ```
 
-On a target that declares `dot` primitive — a machine with BLAS — the *same source file* stops
-one step earlier:
+On a target that declares `geometry.area` natively, the *same two files* stop one step earlier:
+
+```bash
+go run ./cmd/oro -target=tutorial-native docs/book/code/box.oro
+```
+
+```
+note: geometry.area is defined here and provided natively by target "tutorial-native"; the target's is used
+```
+```lisp
+box =
+(fn (w h) (geometry.area w h))
+```
+
+One line of difference between the two target files decides between code the compiler assembles and a
+call into the target's own implementation. **A definition is a fallback lowering for targets that
+lack the name**, and "primitive beats definition" is how the compiler reaches for the target's
+version when there is one.
+
+The same mechanism on something less toy: [targets/blas.oro](../../targets/blas.oro) declares
+`num/vec.dot`, so [lib/num/vec.oro](../../lib/num/vec.oro)'s definition of it — a fused loop over
+`f64.add` and `f64.mul` — is never unfolded there, and the program calls the tuned library instead:
 
 ```bash
 go run ./cmd/oro -target=blas examples/modules.oro
 ```
 
 ```lisp
+note: num/vec.dot is defined here and provided natively by target "blas"; the target's is used
 (fn (p q) (num/vec.dot p q))
 ```
 
-One line of difference between the two target files decides between a hand-rolled loop and a call
-into a tuned library. **A definition is a fallback lowering for targets that lack the name**, and
-"primitive beats definition" is how the compiler reaches for the target's own implementation when
-there is one.
+> **A note on that file.** `examples/modules.oro` used to show the other arm too, on `-target=go`.
+> It no longer does, and the reason is a real event rather than a bug: the **portable layer was
+> deleted** ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), so `num/f64` is
+> a module only `blas` provides and the file is now *refused* on Go, JavaScript, Java and `windows`
+> alike — a refusal the emission baseline pins
+> ([gauntlet/check/outcomes.txt](../../gauntlet/check/outcomes.txt)). The book's demonstration moved
+> to the tutorial pair above, which the repository maintains for the book and which runs.
 
 So it is not a shadowing hazard, it is the point. It becomes a hazard only when the collision is
 accidental — and because the file that decides it is one your program never names, this is the one
@@ -458,20 +505,20 @@ Signatures are chapter 5's subject; what matters here is that `sig` and `export`
 
 ```lisp
 (def def 1)
-(+ def def)
+(h def def)
 ```
 
 ```lisp
-⟶   (+ 1 1)
+⟶   (h 1 1)
 ```
 
 ```lisp
 (def fn 1)
-(+ fn fn)
+(h fn fn)
 ```
 
 ```lisp
-⟶   (+ 1 1)
+⟶   (h 1 1)
 ```
 
 Both reduce. Neither should be written.
@@ -483,24 +530,25 @@ Both reduce. Neither should be written.
 (+ 10 1)
 ```
 
-```lisp
-⟶   (+ 10 1)
+```
+note: + is defined here and provided natively by target "tutorial"; the target's is used
+⟶   11
 ```
 
-`+` is a name, so it can be defined — and on this target it is also a primitive, so §2.7 applies
-and the definition is dead. On a target without `+` it would be live, and addition would mean
-subtraction.
+`+` is a name, so it can be defined — and on this target it is also a primitive, so §2.7 applies,
+the definition is dead, the note says so, and `11` is addition's answer rather than subtraction's.
+On a target without `+` the definition would be live, and addition would mean subtraction.
 
 **Aliasing.** A definition's body can be a bare name:
 
 ```lisp
-(def square (fn (n) (* n n)))
+(def square (fn (n) (h n n)))
 (def area square)
 (area 3)
 ```
 
 ```lisp
-⟶   (* 3 3)
+⟶   (h 3 3)
 ```
 
 Free, since δ unfolds both. Also invisible in the output, so a reader of the generated code has no
@@ -522,27 +570,36 @@ can be *encoded* as a function. Nearly a century of people have been finding out
 We have `fn` and `def`. That is enough to try it. And there is a reason to try it here rather than
 on paper, which the last example in this section is about.
 
+> **A note on the names below, which is a lesson about the language rather than about Church.** The
+> textbook spellings are mostly taken. `true` and `false` are **literals** now, not names
+> ([ADR 0017](../decisions/0017-booleans-are-in-the-language.md)), so `(def true …)` is refused
+> outright: *"def takes a name and one term"*. `and`, `or`, `not` and `cond` are **reader sugar**, so
+> defining them collides. `sum` is how the reader used to spell `variant` and is reserved. And `map`
+> is injected into every target, so a definition of it is overridden with a note (§2.7). So the
+> encodings below are spelled `yes`/`no`, `conj`/`disj`/`inv`/`excl`, `total` and `mapl`. The shapes
+> are what Church's are; only the spellings moved.
+
 ### Booleans
 
 A boolean is a choice between two things. So *be* the choice:
 
 ```lisp
-(def true  (fn (t e) t))
-(def false (fn (t e) e))
+(def yes (fn (t e) t))
+(def no  (fn (t e) e))
 ```
 
-`true` takes two arguments and returns the first. `false` returns the second. Now conditionals are
-just application, and the logical operators are three-line definitions:
+`yes` takes two arguments and returns the first. `no` returns the second. Now conditionals are
+just application, and the logical operators are one-line definitions:
 
 ```lisp
-(def not (fn (b)   (b false true)))
-(def and (fn (p q) (p q false)))
-(def or  (fn (p q) (p true q)))
-(def xor (fn (p q) (p (q false true) q)))
+(def inv  (fn (b)   (b no yes)))
+(def conj (fn (p q) (p q no)))
+(def disj (fn (p q) (p yes q)))
+(def excl (fn (p q) (p (q no yes) q)))
 
-((xor true true)  (x) (y))
-((xor true false) (x) (y))
-((or  false false) (x) (y))
+((excl yes yes) (x) (y))
+((excl yes no)  (x) (y))
+((disj no  no)  (x) (y))
 ```
 
 ```lisp
@@ -551,9 +608,9 @@ just application, and the logical operators are three-line definitions:
 ⟶   (y)
 ```
 
-Those are correct answers to `true xor true = false`, `true xor false = true`,
-`false or false = false` — computed with no boolean type anywhere, by a language whose target
-declares `bool` and never used it.
+Those are correct answers to `yes xor yes = no`, `yes xor no = yes`, `no or no = no` — computed with
+no boolean type anywhere, by a language whose target declares `bool`, and which has `true`, `false`
+and `if` of its own, none of which was used.
 
 ### Pairs
 
@@ -596,15 +653,18 @@ A Church numeral is "apply this function *n* times":
 To see what one *is*, apply it to a real successor and a real zero:
 
 ```lisp
-(def inc (fn (n) (+ n 1)))
+(def inc (fn (n) (g n)))
 (three inc 0)
 (zero  inc 0)
 ```
 
 ```lisp
-⟶   (+ (+ (+ 0 1) 1) 1)
+⟶   (g (g (g 0)))
 ⟶   0
 ```
+
+(`g`, the opaque successor, rather than `(+ n 1)` — written with `+` the whole composition folds to
+a number and there is nothing left to count.)
 
 Arithmetic on them is arithmetic on function composition:
 
@@ -617,11 +677,11 @@ Arithmetic on them is arithmetic on function composition:
 ```
 
 ```lisp
-⟶   (+ (+ (+ (+ (+ 0 1) 1) 1) 1) 1)
-⟶   (+ (+ (+ (+ (+ (+ 0 1) 1) 1) 1) 1) 1)
+⟶   (g (g (g (g (g 0)))))
+⟶   (g (g (g (g (g (g 0))))))
 ```
 
-Five `+`s and six `+`s. `2 + 3 = 5` and `2 × 3 = 6`, done by a compiler that has not been told what
+Five `g`s and six `g`s. `2 + 3 = 5` and `2 × 3 = 6`, done by a compiler that has not been told what
 addition is.
 
 ### Lists
@@ -631,26 +691,26 @@ Böhm–Berarducci encoding; the numerals above are its special case for a type 
 constructors.)
 
 ```lisp
-(def nil  (fn (c n) n))
-(def cons (fn (hd tl) (fn (c n) (c hd (tl c n)))))
-(def sum  (fn (l) (l (fn (a b) (+ a b)) 0)))
+(def nil   (fn (c n) n))
+(def cons  (fn (hd tl) (fn (c n) (c hd (tl c n)))))
+(def total (fn (l) (l (fn (a b) (h a b)) 0)))
 
-(sum (cons 1 (cons 2 (cons 3 nil))))
+(total (cons 1 (cons 2 (cons 3 nil))))
 ```
 
 ```lisp
-⟶   (+ 1 (+ 2 (+ 3 0)))
+⟶   (h 1 (h 2 (h 3 0)))
 ```
 
-`map` is a wrapper that changes what the fold sees:
+`mapl` is a wrapper that changes what the fold sees:
 
 ```lisp
-(def map (fn (k l) (fn (c n) (l (fn (a b) (c (k a) b)) n))))
-(sum (map g (cons (x) (cons (y) nil))))
+(def mapl (fn (k l) (fn (c n) (l (fn (a b) (c (k a) b)) n))))
+(total (mapl g (cons (x) (cons (y) nil))))
 ```
 
 ```lisp
-⟶   (+ (g (x)) (+ (g (y)) 0))
+⟶   (h (g (x)) (h (g (y)) 0))
 ```
 
 **Look at what is not there.** No list. No cons cells. No intermediate list between `map` and
@@ -719,13 +779,14 @@ Kleene's predecessor, famously the hard one, works too:
 
 ```lisp
 (def three (fn (s) (fn (z) (s (s (s z))))))
+(def inc (fn (n) (g n)))
 (def pred (fn (n) (fn (s) (fn (z)
   (((n (fn (gg) (fn (hh) (hh (gg s))))) (fn (u) z)) (fn (u) u))))))
 (((pred three) inc) 0)
 ```
 
 ```lisp
-⟶   (+ (+ 0 1) 1)
+⟶   (g (g 0))
 ```
 
 Two. Currying is a representation choice, not a semantic one — but it is a choice you have to
@@ -767,10 +828,13 @@ Here is why this section is not a curiosity. Look again at the pair from earlier
 [lib/num/vec.oro](../../lib/num/vec.oro), which is real, shipped library code:
 
 ```lisp
-(def vec    (fn (n f) (fn (sel) (sel n f))))
-(def vlen   (fn (v)   (v (fn (n f) n))))
-(def vindex (fn (v i) ((v (fn (n f) f)) i)))
+(def vec      (n f) (fn (sel) (sel n f)))
+(def vlen     (v)   (v (fn (n f) n)))
+(def vindex   (v i) ((v (fn (n f) f)) i))
 ```
+
+(Verbatim, lines 23–25 — and written in §2.1's shorthand, which is how the corpus writes a
+definition whose term is a function.)
 
 **That is a Church pair.** `vec` holds a length and an index function, and the language's entire
 vector type is those three lines and nothing else. Give it a use:

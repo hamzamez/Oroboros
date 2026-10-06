@@ -1,5 +1,49 @@
 # 5. Types
 
+> ## ⚠ Status, 2026-10-06: this chapter's examples do not run
+>
+> Every example below is written against the **portable layer** — `num/f64`, `num/int`, `logic.and`,
+> `aindex`, `alen`, `fold-range`. That layer was **deleted**
+> ([portable-2026-09-29](../../gauntlet/results/portable-2026-09-29.md)), and `fold-range` is gone
+> from the Go target too, where `loop` subsumes it
+> ([targets/go/go.oro](../../targets/go/go.oro)). So the fifty-odd fragments here name things no
+> target provides, and each one is refused before the checker this chapter is about ever runs:
+>
+> ```
+> gen: in main: num/f64.add is not bound — it is not a parameter, not a definition,
+>      and not a primitive on this target
+>   (use num/f64) matched no file on the search path and this target provides no
+>   module num/f64 either, so every name from it is unbound. Check the path.
+> ```
+>
+> **Everything the chapter says about the checker is still true** — the type rules, the two
+> directions of a `sig`, the refinement layer, Presburger, what does and does not transfer. What is
+> stale is the *spelling* of every example. §5.1's opening program, written against today's targets,
+> is this:
+>
+> ```lisp
+> (use io)
+> (export main)
+> (def main () (io.print-line (+ "hello" 1)))
+> ```
+>
+> ```bash
+> go run ./cmd/gen -path lib FILE.oro go OUT.go
+> ```
+>
+> ```
+> gen: u-main: in argument 1 of io.print-line: in argument 1 of +:
+>      a string literal is string, but int is required here
+> ```
+>
+> — the same refusal, from the same checker, and identical on Go, JavaScript and Java. Rewriting the
+> rest against `loop`, the language's `+ - * / < =` and `go.*` is a job of its own, because several
+> examples' *outputs* change with them and each needs re-measuring. Until then, read this chapter
+> for what the checker does and not for what to type.
+>
+> This banner is here rather than nothing because a stale document that looks current is worse than
+> one that says so ([CLAUDE.md](../../CLAUDE.md)).
+
 Four chapters in, and nothing has had a type. `fn` takes any argument, `def` names any term, β and
 δ never ask what anything is. That was not an oversight — the calculus genuinely does not need
 types to reduce.
@@ -72,7 +116,11 @@ gen: gen-main: in argument 1 of io.print-line: in argument 1 of num/f64.add:
      a string literal is string, but f64 is required here
 ```
 
-One checker, three targets, including the one with no type layer at all.
+One checker, three targets, including the one with no type layer at all. There are **four** backends
+now — `windows` joined them, and it prints x86-64 assembly with no type layer whatsoever
+([ADR 0032](../decisions/0032-the-ir-is-structured-ssa.md)) — and it does not appear in the table
+above only because it has no `io` to print with. The argument is unchanged and stronger: of four
+hosts, exactly one would have caught this for us.
 
 > A bug from building it is worth recording. The first version skipped `KFn`, reasoning that a bare
 > abstraction is an escaping closure the emitter rejects anyway. But **the top-level term of every

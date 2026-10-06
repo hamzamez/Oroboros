@@ -29,13 +29,13 @@ func TestJavaScriptEmitsTheTotalisationAndItsImport(t *testing.T) {
 	}
 	forms, err := core.Read(`
 (use os)
+(use result)
 (export main)
-(def main (fn () ((os.ReadFile "f") (fn (src err)
-  (if (os.err-nil err) (len src) 0)))))`)
+(def main (fn () (case (os.ReadFile "f") (result.ok src) (len src) (result.err k) 0)))`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,13 +143,13 @@ func TestJavaEmitsDeclaredDestinationsAndTheWidening(t *testing.T) {
 	}
 	forms, err := core.Read(`
 (use os)
+(use result)
 (export main)
-(def main (fn () ((os.ReadFile "f") (fn (src err)
-  (if (os.err-nil err) (len src) 0)))))`)
+(def main (fn () (case (os.ReadFile "f") (result.ok src) (len src) (result.err k) 0)))`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestANarrowedLoopInitialiserIsCast(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +287,7 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, _, err := core.Load(forms)
+		prog, _, err := tg.LoadProgram(forms)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -303,8 +303,9 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	}
 	got, err := golang.FromResidual(tg, "f", nil, body(`
 (use os)
+(use result)
 (export f)
-(def f (fn () (build 8 (fn (b) (os.WriteFile "x" b)))))`))
+(def f (fn () (build 8 (fn (b) (case (os.WriteFile "x" b) (result.ok u) 0 (result.err k) 1)))))`))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,8 +321,9 @@ func TestAnUnwrittenBufferTakesTheHostsDeclaredElement(t *testing.T) {
 	// passed because the linearity check is not on this path.
 	_, err = golang.FromResidual(tg, "g", nil, body(`
 (use os)
+(use result)
 (export f)
-(def f (fn () (build 8 (fn (b) (os.WriteFile "x" (set b 0 100000))))))`))
+(def f (fn () (build 8 (fn (b) (case (os.WriteFile "x" (set b 0 100000)) (result.ok u) 0 (result.err k) 1)))))`))
 	if err == nil || !strings.Contains(err.Error(), "int 0 255") {
 		t.Errorf("a byte buffer storing 100000 must be refused, naming the declared element; got %v", err)
 	}

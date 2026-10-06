@@ -1071,3 +1071,22 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - compiler output changed — `examples/tally/tally.oro go`
 - compiler output changed — `examples/tally/tally.oro java`
+
+## 2026-10-06 — on 5783c8f, with uncommitted changes
+
+**Reason:** step 5a, the portable os returns kinds (oskinds-2026-10-06): roundtrip rewritten in the model with the kinds' cross-host line; windows refusals name os/host; lib/os.oro a new library module; wc, jsonfmt and freq byte-identical
+
+524 runs: 277 emitted, 247 refused; 1974 of 2019 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+10 change(s):
+
+- emitted text changed — `examples/io/roundtrip.oro go`
+- emitted text changed — `examples/io/roundtrip.oro java`
+- emitted text changed — `examples/io/roundtrip.oro js`
+- compiler output changed — `examples/tally/tally.oro windows`
+- compiler output changed — `gauntlet/differential/cases/read-loop.oro windows`
+- compiler output changed — `gauntlet/differential/cases/text-of.oro windows`
+- new source — `lib/os.oro go`
+- new source — `lib/os.oro java`
+- new source — `lib/os.oro js`
+- new source — `lib/os.oro windows`

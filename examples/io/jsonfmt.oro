@@ -33,6 +33,7 @@
 
 (use os)
 (use io)
+(use result)
 
 (export main)
 
@@ -215,9 +216,9 @@
   (let av (os.Args)
     (if (< (len av) 2)
         (io.print-line "usage: jsonfmt FILE")
-        (let (tuple src err) (os.ReadFile (av 1))
-          (if (os.err-nil err)
-              (if (>= (len src) cap-in)
-                  (io.print-line "jsonfmt: file is larger than this tool accepts")
-                  (io.print (os.text-of (format src))))
-              (io.print-line "jsonfmt: cannot read that file"))))))
+        (case (os.ReadFile (av 1))
+          (result.ok src)
+            (if (>= (len src) cap-in)
+                (io.print-line "jsonfmt: file is larger than this tool accepts")
+                (io.print (os.text-of (format src))))
+          (result.err k) (io.print-line "jsonfmt: cannot read that file")))))

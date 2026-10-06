@@ -23,7 +23,7 @@ func TestAnEnvironmentReadStaysBeforeASetenv(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, terms, err := core.Load(forms)
+	prog, terms, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestAnEnvironmentReadStaysBeforeASetenv(t *testing.T) {
 		t.Fatal(err)
 	}
 	out := nf.String()
-	read, store := strings.Index(out, "os.Getenv"), strings.Index(out, "Setenv")
+	read, store := strings.Index(out, "host.Getenv"), strings.Index(out, "Setenv")
 	if read < 0 || store < 0 || read > store {
 		t.Errorf("the read must stay before the store:\n%s", out)
 	}

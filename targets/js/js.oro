@@ -34,6 +34,12 @@
   (type bool    (host "boolean"))
   (type string  (host "string"))
   (type any     (host "any"))
+  ; WHAT A CAUGHT EXCEPTION IS, and the try/catch templates' second result: the
+  ; caught value, or null when nothing was thrown. So the type is 1 + E, null the
+  ; absent point, a NICHE (spec/errors.md §4.1), and a fallible declaration's
+  ; failure is read through it.
+  (type error   (host "any"))
+  (repr error (niche (host expr "%s === null")))
 
   ; No `narrow`: JavaScript has no bounds checks to eliminate.
 

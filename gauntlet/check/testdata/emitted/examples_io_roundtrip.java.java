@@ -29,12 +29,75 @@ public final class examples_io_roundtrip.java {
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v27 + "\n");
 				final int v29 = v21.length;
 				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v29 + "\n");
+				final String v32 = (v10.concat(".missing"));
+				short[] v33;
+				Exception v34;
+				try { final byte[] $oroB = Files.readAllBytes(Path.of(v32)); v33 = new short[$oroB.length]; for (int $oroI = 0; $oroI < $oroB.length; $oroI++) v33[$oroI] = (short) ($oroB[$oroI] & 0xFF); v34 = null; } catch (Exception $oroE) { v33 = null; v34 = $oroE; }
+				final boolean v35 = (v34 == null);
+				String v36 = null;
+				if (v35) {
+					v36 = "found";
+				} else {
+					final boolean v38 = ((v34 instanceof java.nio.file.NoSuchFileException));
+					if (v38) {
+						v36 = "not-found";
+					} else {
+						final boolean v40 = ((v34 instanceof java.nio.file.FileAlreadyExistsException));
+						if (v40) {
+							v36 = "exists";
+						} else {
+							final boolean v42 = ((v34 instanceof java.nio.file.AccessDeniedException));
+							if (v42) {
+								v36 = "permission";
+							} else {
+								v36 = "other";
+							}
+						}
+					}
+				}
+				((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v36 + "\n");
 				return 0;
 			}
-			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("roundtrip: cannot read that file" + "\n");
+			final boolean v48 = ((v22 instanceof java.nio.file.NoSuchFileException));
+			String v49 = null;
+			if (v48) {
+				v49 = "not-found";
+			} else {
+				final boolean v51 = ((v22 instanceof java.nio.file.FileAlreadyExistsException));
+				if (v51) {
+					v49 = "exists";
+				} else {
+					final boolean v53 = ((v22 instanceof java.nio.file.AccessDeniedException));
+					if (v53) {
+						v49 = "permission";
+					} else {
+						v49 = "other";
+					}
+				}
+			}
+			final String v56 = ("roundtrip: cannot read that file: ".concat(v49));
+			((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v56 + "\n");
 			return 1;
 		}
-		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept("roundtrip: cannot write that file" + "\n");
+		final boolean v60 = ((v19 instanceof java.nio.file.NoSuchFileException));
+		String v61 = null;
+		if (v60) {
+			v61 = "not-found";
+		} else {
+			final boolean v63 = ((v19 instanceof java.nio.file.FileAlreadyExistsException));
+			if (v63) {
+				v61 = "exists";
+			} else {
+				final boolean v65 = ((v19 instanceof java.nio.file.AccessDeniedException));
+				if (v65) {
+					v61 = "permission";
+				} else {
+					v61 = "other";
+				}
+			}
+		}
+		final String v68 = ("roundtrip: cannot write that file: ".concat(v61));
+		((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v68 + "\n");
 		return 1;
 	}
 

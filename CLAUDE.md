@@ -98,9 +98,12 @@ target, source, name and output. Until that run all 26 were term-backend copies 
   **`bufio`** joined them program first ([bufio-2026-10-01](gauntlet/results/bufio-2026-10-01.md)):
   the 9 names `examples/lines/lines.oro` calls, a line tool over standard input whose output is
   checked against the line split written from its definition.
-- **The portable `os` and `io`** (`lib/`) are nine names, and `examples/io/roundtrip.oro` calls every
-  one: `cmd/build` builds and runs it on Go, JavaScript and Java and requires one output
-  ([libos-2026-09-30](gauntlet/results/libos-2026-09-30.md)). `WriteFile` had compiled on Go only.
+- **The portable `os` and `io`** (`lib/`): `os` is a library module, `lib/os.oro`, one definition over
+  each host's cell `os/host`, its failures classified once into kinds, `not-found | exists |
+  permission | other` ([oskinds-2026-10-06](gauntlet/results/oskinds-2026-10-06.md));
+  `examples/io/roundtrip.oro` calls every name, and `cmd/build` builds and runs it on Go, JavaScript
+  and Java and requires one output, a missing path's `not-found` included
+  ([libos-2026-09-30](gauntlet/results/libos-2026-09-30.md)).
 
 **The IR** ([ADR 0032](docs/decisions/0032-the-ir-is-structured-ssa.md), [spec/ir.md](docs/spec/ir.md)) is
 structured SSA with π-parameters between the residual and every backend and analysis, and it realizes
@@ -305,7 +308,8 @@ a wall that needs language work, stop and research it, then design it.
       tuple with one as a factor becomes the raw host call and a target-library definition applying
       the retraction, compositionally (H and r, errors.md §4.2). `os.Open`, `File.Read` and
       `File.Close` are declared in the model, and `acceptance/errors-os.oro` runs them. Generated
-      declarations stay the host's product (ADR 0023). Next is step 5, the migration;
+      declarations stay the host's product (ADR 0023). **Step 5 has begun**: the portable `os` returns
+      kinds on three hosts (oskinds-2026-10-06); the fallible Go declarations remain;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;

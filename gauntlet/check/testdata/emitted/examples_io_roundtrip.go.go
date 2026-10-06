@@ -28,12 +28,73 @@ func GenMain() int {
 			fmt.Println(v27)
 			v29 := len(v21)
 			fmt.Println(v29)
+			v32 := (v10 + ".missing")
+			_, v34 := os.ReadFile(v32)
+			v35 := (v34 == nil)
+			var v36 string
+			if v35 {
+				v36 = "found"
+			} else {
+				v38 := (os.IsNotExist(v34))
+				if v38 {
+					v36 = "not-found"
+				} else {
+					v40 := (os.IsExist(v34))
+					if v40 {
+						v36 = "exists"
+					} else {
+						v42 := (os.IsPermission(v34))
+						if v42 {
+							v36 = "permission"
+						} else {
+							v36 = "other"
+						}
+					}
+				}
+			}
+			fmt.Println(v36)
 			return 0
 		}
-		fmt.Println("roundtrip: cannot read that file")
+		v48 := (os.IsNotExist(v22))
+		var v49 string
+		if v48 {
+			v49 = "not-found"
+		} else {
+			v51 := (os.IsExist(v22))
+			if v51 {
+				v49 = "exists"
+			} else {
+				v53 := (os.IsPermission(v22))
+				if v53 {
+					v49 = "permission"
+				} else {
+					v49 = "other"
+				}
+			}
+		}
+		v56 := ("roundtrip: cannot read that file: " + v49)
+		fmt.Println(v56)
 		return 1
 	}
-	fmt.Println("roundtrip: cannot write that file")
+	v60 := (os.IsNotExist(v19))
+	var v61 string
+	if v60 {
+		v61 = "not-found"
+	} else {
+		v63 := (os.IsExist(v19))
+		if v63 {
+			v61 = "exists"
+		} else {
+			v65 := (os.IsPermission(v19))
+			if v65 {
+				v61 = "permission"
+			} else {
+				v61 = "other"
+			}
+		}
+	}
+	v68 := ("roundtrip: cannot write that file: " + v61)
+	fmt.Println(v68)
 	return 1
 }
 

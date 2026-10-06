@@ -1,0 +1,64 @@
+; os: the portable operating system, one definition over each host's cell
+; (spec/errors.md §6, ADR 0040, oskinds-2026-10-06).
+;
+;   (use os)
+;   (case (os.ReadFile path)
+;     (result.ok bytes)             …
+;     (result.err os.not-found)     …
+;     (result.err (os.other e))     …)
+;
+; THE ALGEBRA. A host's file call is partial, Path ⇀ B*, and its failure is the
+; host's error. A portable call is the host's call composed with err-map h:
+;
+;   os.ReadFile = (id + h) ∘ host.ReadFile          h : E_host → K
+;
+; where K is the kinds a program can act on, with the host's error kept as the
+; residue. err-map is result's functoriality in E (lib/result), so the laws come
+; with it: err-map id = id and err-map (g ∘ f) = err-map g ∘ err-map f.
+;
+; h IS A SURJECTION WRITTEN ONCE, here, as a case analysis over three host
+; predicates. What differs by host is only the raw call and the predicates,
+; and those are each host's cell, `os/host` (lib/os/go.oro, js.oro, java.oro):
+; Go's os.IsNotExist, Node's error codes, Java's exception classes. The three
+; kinds are the portable sentinels Go's io/fs declares, each with a counterpart
+; on the other hosts (errors.md §6). That the same failure lands in the same kind
+; on every host is a claim, checked by examples/io/roundtrip.oro on three hosts.
+;
+; Left out, as errors.md §6 says: is-directory, which Go has no portable sentinel
+; for, and ErrInvalid and ErrClosed, which are bugs, handled as obligations and
+; linearity.
+(module os)
+
+(use os/host as host)
+(use result)
+
+(export ReadFile WriteFile text-of Args Getenv
+        not-found exists permission other)
+
+; K + E_host: three kinds, and the host's error as the residue.
+(variant os-error not-found exists permission (other error))
+
+; h, the classification. The predicates are each host's; the order is the
+; kinds' and fixes nothing, because the three host sentinels are disjoint.
+(def classify (e)
+  (cond (host.not-found? e)   not-found
+        (host.exists? e)      exists
+        (host.permission? e)  permission
+        else                  (other e)))
+
+; GET on the store F : Path ⇀ B*.
+(def ReadFile (path)
+  (result.err-map classify (host.ReadFile path)))
+
+; PUT on the store: after it succeeds, ReadFile path gives data (the lens law
+; roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
+(def WriteFile (path data)
+  (result.err-map classify (host.WriteFile path data)))
+
+; Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
+; decode, on every host (ADR 0030).
+(def text-of (b) (host.text-of b))
+
+; The environment, so a program can be told what to open.
+(def Args () (host.Args))
+(def Getenv (k) (host.Getenv k))

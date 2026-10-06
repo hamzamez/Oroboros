@@ -50,7 +50,7 @@ func TestTheUnprefixedModulesShareOneInterface(t *testing.T) {
 		}
 		return out
 	}
-	for _, mod := range []string{"os", "io"} {
+	for _, mod := range []string{"os/host", "io"} {
 		ref := sigsOf(loaded["go"], mod)
 		if len(ref) == 0 {
 			t.Fatalf("targets/go declares no module %q", mod)

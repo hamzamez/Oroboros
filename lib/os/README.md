@@ -57,12 +57,33 @@ months while returning different answers on different targets.
   ([portableio-2026-09-09](../../gauntlet/results/portableio-2026-09-09.md)).
   None of them wrote a file, and `WriteFile` compiled on Go only.
 
+## `os` is one definition over `os/host`
+
+Since oskinds-2026-10-06, `os` is a library module, `lib/os.oro`, and the cells in this directory
+are **`os/host`**, each host's declarations alone. A portable call is the host's call composed with
+the classification of its failure:
+
+```
+os.ReadFile = (id + h) ∘ os/host.ReadFile          h : E_host → K
+```
+
+`id + h` is `result.err-map h`, lib/result's functoriality in its error. K is the kinds a program can
+act on, `os.not-found | os.exists | os.permission | (os.other e)`, the three portable sentinels of
+Go's io/fs with the host's error as the residue (spec/errors.md §6). h is written **once**, in
+lib/os.oro, as a case analysis over three predicates each cell declares: Go's `os.IsNotExist`,
+Node's error codes, Java's exception classes. So the only things that differ by host are the raw call
+and the predicates, and the structural check compares exactly those, `os/host`'s interface.
+
+A fallible call's result is a value of lib/result's sum, read off the host through its `error` type's
+niche (`nil` on Go, `null` from the try/catch templates on JavaScript and Java). `err-nil` is gone: a
+failed call's value is bound only in its success arm.
+
 ## Σ, and the law each name states
 
 | name | what it is |
 |---|---|
-| `ReadFile`, `WriteFile` | get and put on the store F : Path ⇀ B\*, with put-get: after a put of d succeeds, a get of the same path gives d. No mode: the hosts share only "create with 0666 before the umask". |
-| `err-nil` | the discriminator of the sum B + E each host encodes differently: a second result, or a throw that a template catches |
+| `ReadFile`, `WriteFile` | get and put on the store F : Path ⇀ B\*, with put-get: after a put of d succeeds, a get of the same path gives d. No mode: the hosts share only "create with 0666 before the umask". `ReadFile` gives `(result (array (int 0 255)) os-error)`, `WriteFile` `(result (tuple) os-error)` |
+| `not-found`, `exists`, `permission`, `other` | the kinds of a failure, `os-error`, and the same failure lands in the same kind on every host: `roundtrip.oro` reads a missing path and prints `not-found` on Go, JavaScript and Java |
 | `text-of` | d, the one total decode B\* → Σ\* (ADR 0030), the same function on every host |
 | `Args` | the command line, [program, arguments…], the same shape on every host |
 | `Getenv` | a read of the environment, absent ↦ `""`. Impure, because `go/os.Setenv` writes what it reads |

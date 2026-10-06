@@ -282,9 +282,17 @@ Left out: **`is-directory`**, because Go has no portable sentinel for it and Jav
 `IOException`; **`fs.ErrInvalid` and `ErrClosed`**, because they are bugs, which the language handles as
 obligations and linearity.
 
-**Classification is a surjection** h : E_host → K, the kinds plus the residue, written once per host
-where the host's errors enter `os`. That the same failure lands in the same kind on every host is a
-claim, checked by a program (errors-research M3) as `os` is checked by `roundtrip`.
+**Classification is a surjection** h : E_host → K, the kinds plus the residue. That the same failure
+lands in the same kind on every host is a claim, checked by a program (errors-research M3) as `os` is
+checked by `roundtrip`.
+
+**Built** (oskinds-2026-10-06). A portable call is (id + h) ∘ raw, where `id + h` is
+`result.err-map h`. So `os` is a library module, `lib/os.oro`, that declares `os-error` and defines
+each name once over `os/host`, each host's cell. **h is written once**, as a case analysis over three
+predicates each cell declares (`os.IsNotExist`, Node's `code`, Java's exception classes): what
+differs by host is the raw call and the predicates, and nothing else. The variant is
+`(variant os-error not-found exists permission (other error))`, `error` being each target's own. On
+Go, JavaScript and Java, `examples/io/roundtrip.oro` reads a missing path and prints `not-found`.
 
 ---
 
@@ -434,7 +442,9 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
    (niche-2026-10-06), with `os.Open`, `File.Read` and `File.Close` declared in the model. JavaScript's
    and Java's niches come with the portable `os` in step 5, where a program calls a declaration that
    reads them; `(fails …)` with the first Win32 declaration that needs it.
-5. **The migration**:
+5. **The migration**. **The portable `os` is built** (oskinds-2026-10-06): kinds on three hosts, the
+   JavaScript and Java niches, and the six corpus programs that called it, of which `wc`, `jsonfmt`
+   and `freq` emit byte-identical code. Remaining:
    - the 69 fallible Go declarations, each with its shape (sum, or partial product), read from Go's
      documentation (gocoverage-2026-10-06);
    - the portable `os` and `io` with kinds and classifications;

@@ -39,6 +39,7 @@
 
 (use os)
 (use io)
+(use result)
 
 (export main)
 
@@ -417,9 +418,9 @@
   (let av (os.Args)
     (if (< (len av) 2)
         (io.print-line "usage: freq FILE")
-        (let (tuple src err) (os.ReadFile (av 1))
-          (if (os.err-nil err)
-              (if (>= (len src) cap-in)
-                  (io.print-line "freq: file is larger than this tool accepts")
-                  (io.print (os.text-of (freq src))))
-              (io.print-line "freq: cannot read that file"))))))
+        (case (os.ReadFile (av 1))
+          (result.ok src)
+            (if (>= (len src) cap-in)
+                (io.print-line "freq: file is larger than this tool accepts")
+                (io.print (os.text-of (freq src))))
+          (result.err k) (io.print-line "freq: cannot read that file")))))

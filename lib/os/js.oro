@@ -30,7 +30,13 @@
 ; through. So the totalising form IS the binding, which is why nothing simpler
 ; sits underneath this in `targets/js/`.
 
-(provides js os
+(provides js os/host
+  ; THIS IS os/host, ONE HOST'S CELL (oskinds-2026-10-06). `os` itself is a
+  ; library module, lib/os.oro, one definition over every host: each portable
+  ; call is (id + h) ∘ this cell's call, with h the classification written once
+  ; there over the three predicates below. A fallible call's result is a value of
+  ; lib/result's sum, read off the host through `error`'s niche (errors.md §4).
+  (use result)
   ; THE TEMPLATE ASSIGNS ITS RESULTS rather than being them, and that is the
   ; second of the two multi-result shapes the format has (`%r0`, `%r1`). A host
   ; whose call IS the tuple is destructured; a host that signals failure out of
@@ -44,19 +50,22 @@
   ; reads their width and lets `(src i)` be used in arithmetic without a refusal
   ; (elemwidth-2026-08-27). `readFileSync` gives a Buffer, which is a
   ; Uint8Array, and indexes 0..255 exactly as the declaration says.
-  (sig ReadFile ((path string)) (tuple (array (int 0 255)) error) (host expr
+  (sig ReadFile ((path string)) (result.result (array (int 0 255)) error) (host expr
       "try { %r0 = fs.readFileSync(%s); %r1 = null; } catch (e) { %r0 = null; %r1 = e; }"
       (import "node:fs")))
 
   ; Put on the store (lib/os/go.oro). `writeFileSync`'s default mode is 0o666,
   ; before the umask, which is the one every host shares.
-  (sig WriteFile ((path string) (data (array (int 0 255)))) error (host expr
+  (sig WriteFile ((path string) (data (array (int 0 255)))) (result.result (tuple) error) (host expr
       "try { fs.writeFileSync(%s, Buffer.from(%s)); %r0 = null; } catch (e) { %r0 = e; }"
       (import "node:fs")))
 
   ; The discriminator. `null` because that is what the templates above put
   ; there — one file says both halves, so the two cannot disagree.
-  (sig err-nil ((e error)) bool pure (host expr "%s === null"))
+  ; THE KINDS' PREDICATES: Node's error codes for io/fs's three sentinels.
+  (sig not-found? ((e error)) bool pure (host expr "(%s.code === \"ENOENT\")"))
+  (sig exists? ((e error)) bool pure (host expr "(%s.code === \"EEXIST\")"))
+  (sig permission? ((e error)) bool pure (host expr "[\"EACCES\", \"EPERM\"].includes(%s.code)"))
 
   ; Bytes to text, ONCE, at the boundary. `TextDecoder` is the platform's own
   ; UTF-8 decode and needs no import, and it IS d (ADR 0030): the WHATWG decoder

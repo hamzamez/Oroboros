@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
 
+	"oroboros/core"
 	"oroboros/emit"
 )
 
@@ -34,10 +36,28 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// Σ IS os's EXPORTS AND io's PRIMITIVES. `os` is a library module, one
+	// definition over each host's cell os/host (oskinds-2026-10-06), so its
+	// names are what lib/os.oro exports; `io` is still a cell per host.
 	var sigma []string
 	for name := range tg.Prims {
-		if strings.HasPrefix(name, "os.") || strings.HasPrefix(name, "io.") {
+		if strings.HasPrefix(name, "io.") {
 			sigma = append(sigma, name)
+		}
+	}
+	osSrc, err := os.ReadFile("../../lib/os.oro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	osForms, err := core.Read(string(osSrc))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range osForms {
+		if f.Kind == "export" {
+			for _, n := range f.Names {
+				sigma = append(sigma, "os."+n)
+			}
 		}
 	}
 	sort.Strings(sigma)
@@ -45,12 +65,17 @@ func TestEveryPortableNameRunsOnEveryHost(t *testing.T) {
 		t.Fatalf("Σ has %d names, %v; the loader lost the library layer", len(sigma), sigma)
 	}
 	for _, name := range sigma {
-		if !strings.Contains(string(text), "("+name+" ") && !strings.Contains(string(text), "("+name+")") {
+		// A NAME IS EXERCISED WHERE IT OCCURS AS A WORD: a function called, or a
+		// nullary constructor of os's kinds matched as a `case` pattern, which is
+		// how a sum is eliminated.
+		if !regexp.MustCompile(`(^|[\s(])` + regexp.QuoteMeta(name) + `([\s)]|$)`).MatchString(string(text)) {
 			t.Errorf("%s is in Σ and roundtrip.oro does not call it, so no host runs it", name)
 		}
 	}
 
-	const want = "hi €\nok\n7\n"
+	// The last line is the kinds' claim: a missing path is not-found on every
+	// host (spec/errors.md §6).
+	const want = "hi €\nok\n7\nnot-found\n"
 	hosts := []struct {
 		target, artifact string
 		tools            []string

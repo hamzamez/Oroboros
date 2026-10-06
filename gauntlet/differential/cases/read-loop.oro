@@ -1,10 +1,11 @@
-; A FALLIBLE HOST CALL CONSUMED ONCE PER ITERATION — ADR 0027.
+; A FALLIBLE HOST CALL CONSUMED ONCE PER ITERATION — ADR 0027, ADR 0040.
 ;
-; `(let (tuple src err) (os.ReadFile p) (again …))` puts the jump inside the
-; host call's continuation. That continuation runs once, now, in the loop's own
-; block, so the jump is an ordinary back edge: Go receives the pair with `:=`,
-; while JS and Java assign it from a try/catch template, which is the other host
-; shape. Each iteration reads a file that exists (the harness writes case.oro
+; The read is a value of lib/result's sum, eliminated by a `case` inside the
+; back edge's argument: both outcomes go round, so the `case` counts and the
+; `again` jumps. Reduction leaves the host's own shape: Go receives the pair
+; with `:=` and tests `err == nil`, while JS and Java assign it from a
+; try/catch template and test null, each through its error type's niche
+; (oskinds-2026-10-06). Each iteration reads a file that exists (the harness writes case.oro
 ; beside the binary) or one that does not, so both the value arm and the error
 ; arm run on every host.
 ;
@@ -18,10 +19,13 @@
 ; expect: 0 1 1 4 5
 
 (use os)
+(use result)
 
 (sig run ((n (int 0 100))) int)
 (def run (n)
   (loop ((k 0) (ok 0))
     (>= k n) ok
-    else (let (tuple src err) (os.ReadFile (if (= (% k 2) 0) "case.oro" "missing.txt"))
-           (again (+ k 1) (+ ok (if (os.err-nil err) 1 0))))))
+    else (again (+ k 1)
+                (+ ok (case (os.ReadFile (if (= (% k 2) 0) "case.oro" "missing.txt"))
+                        (result.ok src) 1
+                        (result.err e)  0)))))

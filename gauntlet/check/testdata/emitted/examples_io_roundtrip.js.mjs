@@ -18,12 +18,15 @@ export function genMain() {
 			const v27 = ((process.env["ORO_ROUNDTRIP"] ?? ""));
 			console.log(v27);
 			console.log(v21.length);
+			let v33, v34;
+			try { v33 = fs.readFileSync((v10 + ".missing")); v34 = null; } catch (e) { v33 = null; v34 = e; }
+			console.log(((v34 === null) ? "found" : (((v34.code === "ENOENT")) ? "not-found" : (((v34.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v34.code)) ? "permission" : "other")))));
 			return 0;
 		}
-		console.log("roundtrip: cannot read that file");
+		console.log(("roundtrip: cannot read that file: " + (((v22.code === "ENOENT")) ? "not-found" : (((v22.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v22.code)) ? "permission" : "other")))));
 		return 1;
 	}
-	console.log("roundtrip: cannot write that file");
+	console.log(("roundtrip: cannot write that file: " + (((v19.code === "ENOENT")) ? "not-found" : (((v19.code === "EEXIST")) ? "exists" : ((["EACCES", "EPERM"].includes(v19.code)) ? "permission" : "other")))));
 	return 1;
 }
 

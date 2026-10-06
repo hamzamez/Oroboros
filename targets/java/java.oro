@@ -72,6 +72,10 @@
   ; needs an interface, which callbacks.md tier 3 refuses) -- so a narrower name
   ; would be a claim about which calls may produce one.
   (type error   (host "Exception"))
+  ; The try/catch templates' second result: the caught Exception, or null when
+  ; nothing was thrown. 1 + E with null the absent point, a NICHE (spec/errors.md
+  ; §4.1), through which a fallible declaration's failure is read.
+  (repr error (niche (host expr "%s == null")))
 
   (type jint    (host "int"))
   (type char    (host "char"))

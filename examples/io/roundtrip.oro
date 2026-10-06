@@ -15,22 +15,43 @@
 ; The bytes are `hi €` and a newline: ASCII and one three-byte scalar, so the
 ; JVM's widening on the way in and narrowing on the way out both meet a byte
 ; above 127.
+;
+; AND THE KINDS AGREE (spec/errors.md §6): a path that is not there fails as
+; `not-found` on every host, through Go's os.IsNotExist, Node's ENOENT and Java's
+; NoSuchFileException, each classified by the one h in lib/os.oro. A failure is
+; a value of lib/result's sum (ADR 0040), so each call is a `case`, and no value
+; of a failed call can be read (oskinds-2026-10-06).
 (use os)
 (use io)
+(use result)
 
 (export main)
+
+(def kind-name (k)
+  (case k
+    os.not-found   "not-found"
+    os.exists      "exists"
+    os.permission  "permission"
+    (os.other e)   "other"))
 
 (def main ()
   (let av (os.Args)
     (if (< (len av) 2)
         (seq (io.print-line "usage: roundtrip FILE") 1)
         (let path (av 1)
-             err (os.WriteFile path (array 104 105 32 226 130 172 10))
-          (if (not (os.err-nil err))
-              (seq (io.print-line "roundtrip: cannot write that file") 1)
-              (let (tuple src err2) (os.ReadFile path)
-                (if (not (os.err-nil err2))
-                    (seq (io.print-line "roundtrip: cannot read that file") 1)
-                    (seq (io.print (os.text-of src))
-                      (seq (io.print-line (os.Getenv "ORO_ROUNDTRIP"))
-                        (seq (io.print-int (len src)) 0))))))))))
+          (case (os.WriteFile path (array 104 105 32 226 130 172 10))
+            (result.err k)
+              (seq (io.print-line (concat "roundtrip: cannot write that file: " (kind-name k))) 1)
+            (result.ok _)
+              (case (os.ReadFile path)
+                (result.err k)
+                  (seq (io.print-line (concat "roundtrip: cannot read that file: " (kind-name k))) 1)
+                (result.ok src)
+                  (seq (io.print (os.text-of src))
+                       (io.print-line (os.Getenv "ORO_ROUNDTRIP"))
+                       (io.print-int (len src))
+                       (io.print-line
+                         (case (os.ReadFile (concat path ".missing"))
+                           (result.ok b)  "found"
+                           (result.err k) (kind-name k)))
+                       0)))))))

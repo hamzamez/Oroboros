@@ -21,6 +21,7 @@
 
 (use os)
 (use io)
+(use result)
 
 (export main)
 
@@ -62,16 +63,15 @@
   (let av (os.Args)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
-        ; SEVERAL RESULTS ARE BOUND, not passed to a continuation: `(tuple src
-        ; err)` on the left of a `let` is the product's eliminator written in
-        ; binding order (spec/binding.md §5), and it is the same term either way.
-        (let (tuple src err) (os.ReadFile (av 1))
-          ; THREE OUTCOMES, THREE CLAUSES. `cond` erases to the same nested `if`s
-          ; in the order written (ADR 0017), and the price of flatness is the one
-          ; `not`: a staircase tests `err-nil` once and uses both arms, while a
-          ; clause chain states the negation to put the failure first.
+        ; A FAILURE IS A VALUE OF A SUM (ADR 0040): the read is a `case`, and the
+        ; bytes exist only in its success arm, so a failed read's value cannot
+        ; be counted. What each host runs is its own `if err == nil`.
+        (case (os.ReadFile (av 1))
+          (result.err k) (seq (io.print-line "wc: cannot read that file") 0)
+          (result.ok src)
+          ; TWO OUTCOMES, TWO CLAUSES. `cond` erases to the same nested `if`s in
+          ; the order written (ADR 0017).
           (cond
-            (not (os.err-nil err))  (seq (io.print-line "wc: cannot read that file") 0)
             (>= (len src) cap-in)   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
             else (loop ((i 0) (lines 0))
                    (>= i (len src)) (io.print-int lines)

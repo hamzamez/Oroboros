@@ -127,16 +127,19 @@ every other arity mismatch.
 ## 6. `seq` is a binding whose name is discarded
 
 ```lisp
-(seq a b c)   ⟶   ((fn (_) ((fn (_) c) b)) a)
+(seq a b c)   ⟶   ((fn (#_) ((fn (#_1) c) b)) a)
 ```
 
-which is `(let _ a (let _ b c))`. Both spellings exist because `_` is an ordinary name and §2's rule
-applies to it; **`seq` is the word to use**, it is n-ary, and it says *sequence* where `let _` says
-*bind nothing*.
+which is `(let _ a (let _ b c))`: **a binder written `_` binds nothing**, so the reader spells it `#_`,
+which no source can write, as `tuple`'s `#k`. Until 2026-10-06 it was spelled `_`, and a `_` pattern in
+a `case` or `try` inside the sequence, which Load expands after this λ is closed, was captured by it
+(unit-2026-10-06). A tuple pattern that discards several components gets one such name per component.
+**`seq` is the word to use**: it is n-ary, and it says *sequence* where `let _` says *bind nothing*.
 
 It works **only** because β denies weakening to an impure term ([effects.md §4–5](effects.md)): `_`
 occurs zero times, so a pure `a` is correctly deleted and an impure `a` is correctly kept. That is the
-whole of the sequencing story — no statement form, no unit type — and the rule is load-bearing, which
+whole of the sequencing story, with no statement form. The unit type exists now (data.md §3.6), but
+sequencing does not need it. The rule is load-bearing, which
 is why merging `seq` into `let` would be a loss: it would make the discarded binder invisible.
 
 `(seq a)` is refused. Unlike `let`'s empty case there is no identity to appeal to: `seq` sequences two

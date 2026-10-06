@@ -1029,3 +1029,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/try-loop.oro js`
 - new source — `gauntlet/differential/cases/try-loop.oro windows`
 - compiler output changed — `lib/result.oro windows`
+
+## 2026-10-06 — on f4993f4, with uncommitted changes
+
+**Reason:** the unit (tuple) and seq's unwritable binder: new differential case unit.oro on four targets; every other file byte-identical
+
+512 runs: 269 emitted, 243 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/unit.oro go`
+- new source — `gauntlet/differential/cases/unit.oro java`
+- new source — `gauntlet/differential/cases/unit.oro js`
+- new source — `gauntlet/differential/cases/unit.oro windows`

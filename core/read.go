@@ -524,9 +524,12 @@ func (r *reader) list() (*Term, error) {
 		if len(kids) < 3 {
 			return nil, fmt.Errorf("line %d: seq takes two or more terms", line)
 		}
+		// THE BINDER IS UNWRITABLE, `#_`, as `tuple`'s `#k` is: spelled `_`, it
+		// captured a `_` pattern in a `case` or `try` inside the sequence, which
+		// Load expands after this λ is closed (unit-2026-10-06).
 		t := kids[len(kids)-1]
 		for i := len(kids) - 2; i >= 1; i-- {
-			t = &Term{Kind: KApp, Kids: []*Term{Fn([]string{"_"}, t), kids[i]}}
+			t = &Term{Kind: KApp, Kids: []*Term{Fn([]string{"#_"}, t), kids[i]}}
 		}
 		return t, nil
 	}
@@ -590,9 +593,12 @@ func (r *reader) list() (*Term, error) {
 			// Scheme's `values` and Common Lisp's are deliberately not data
 			// structures, for the same reason: an implementation should return
 			// several results in registers rather than box them to unbox them.
-			if len(kids) < 3 {
-				return nil, fmt.Errorf("line %d: tuple takes two or more terms; "+
-					"a tuple of one is just the value", line)
+			// THE UNIT, n = 0 (data.md §3.6): the terminal object 1, whose one
+			// value answers any observation with nothing. n = 1 stays refused:
+			// (tuple T) ≅ T.
+			if len(kids) == 2 {
+				return nil, fmt.Errorf("line %d: tuple takes no terms, the unit, or two or "+
+					"more; a tuple of one is just the value", line)
 			}
 			// The binder's name starts with `#`, which is not isIdentStart, so
 			// no source term can contain a free occurrence of it and `Fn`
@@ -2014,7 +2020,7 @@ func TypeName(t *Term) string {
 	// a term here, so this is where that reading is inverted — the one place both
 	// meet — and `#k` cannot be written in source, so nothing else has this shape.
 	if t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
-		if b := t.Body(); b.Kind == KApp && len(b.Kids) >= 3 &&
+		if b := t.Body(); b.Kind == KApp && (len(b.Kids) >= 3 || len(b.Kids) == 1) &&
 			b.Kids[0].Kind == KName && b.Kids[0].Name == "#k" {
 			return TypeName(&Term{Kind: KApp, Kids: append([]*Term{Name("tuple")}, b.Kids[1:]...)})
 		}
@@ -2026,7 +2032,8 @@ func TypeName(t *Term) string {
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "array" {
 		// A BUFFER MAY NOT BE AN ELEMENT — ADR 0020 rule 6, and it is enforced
 		// here because this is the one place a compound type is built.
-		if elem := TypeName(t.Kids[1]); elem != "" && !IsBuffer(elem) && !prodHoldsBuffer(elem) {
+		// NOR THE UNIT (data.md §3.6): a table of units is its length alone.
+		if elem := TypeName(t.Kids[1]); elem != "" && elem != UnitType && !IsBuffer(elem) && !prodHoldsBuffer(elem) {
 			return "array " + elem
 		}
 	}
@@ -2054,6 +2061,11 @@ func TypeName(t *Term) string {
 	// was read as two results, so arity was carrying a meaning a NAME should. A
 	// buffer may be a component — several results may hand one back — and may
 	// not be inside an array's element, which the `array` case above refuses.
+	// `(tuple)`, THE UNIT (data.md §3.6): the product of no factors.
+	if t.Kind == KApp && len(t.Kids) == 1 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "tuple" {
+		return UnitType
+	}
 	if t.Kind == KApp && len(t.Kids) >= 3 &&
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "tuple" {
 		parts := make([]string, 0, len(t.Kids)-1)
@@ -2467,6 +2479,10 @@ func BufferElem(ty string) string {
 // IsProd reports whether a type is the n-ary product, and ProdTypes reads its
 // components back. The canonical form is `prod(A, B, …)`; a component never
 // contains a comma, because a type never does.
+// UnitType is the canonical spelling of `(tuple)`, the terminal object 1: the
+// product spelling with no components (data.md §3.6).
+const UnitType = "prod()"
+
 func IsProd(ty string) bool {
 	return strings.HasPrefix(ty, "prod(") && strings.HasSuffix(ty, ")")
 }

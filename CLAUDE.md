@@ -295,7 +295,12 @@ a wall that needs language work, stop and research it, then design it.
       every strict context (the commuting conversion at arity 0), types as anything, and ends its IR
       region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). A loop
       yields a sum, and `again` may sit in a success arm (ADR 0041,
-      [sumloop-2026-10-06](gauntlet/results/sumloop-2026-10-06.md));
+      [sumloop-2026-10-06](gauntlet/results/sumloop-2026-10-06.md)). `(tuple)` is the unit, so
+      1 + E is `(result (tuple) E)` ([unit-2026-10-06](gauntlet/results/unit-2026-10-06.md)). **Proposed,
+      for hamza** (unit-2026-10-06 §4): a sum typed as a sum where it must exist as data, Theorem R
+      at every join point with an unconstrained `#any` in the slots its tag does not select. A read loop
+      over two payload types, an enum with a string payload and `(result (tuple) E)` at a signature
+      are each refused until then;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -510,7 +515,8 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   - uniqueness is *assumed* at an export;
   - linearity is *checked* through the body;
   - a buffer may not be an element type.
-- **Tuples and products.** `tuple` is one object for products and several results. A table of tuples
+- **Tuples and products.** `tuple` is one object for products and several results, and `(tuple)` is
+  the unit, the terminal object 1 ([data.md §3.6](docs/spec/data.md)). A table of tuples
   is flattened by currying before the checker runs, so no backend knows products exist
   ([products.md](docs/spec/products.md), [values.md](docs/spec/values.md)).
 - **Variants.** `variant` is closed, finite and non-recursive, and takes type arguments. At a boundary

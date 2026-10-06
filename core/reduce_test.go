@@ -473,7 +473,7 @@ func TestSeqPreservesOrder(t *testing.T) {
 		(prim !print)
 		(seq (print 1) (print 2) (print 3))
 	`, "default",
-		"(let (print 1) (fn (_) (let (print 2) (fn (_1) (print 3)))))")
+		"(let (print 1) (fn (#_) (let (print 2) (fn (#_1) (print 3)))))")
 }
 
 // §3 — a λ is a value in argument position, so an effectful callback still

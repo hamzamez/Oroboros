@@ -85,3 +85,32 @@ func TestAgainMaySitInASuccessArmOnly(t *testing.T) {
 		}
 	}
 }
+
+// THE UNIT, and a pattern that binds nothing (data.md §3.6). `(tuple)` is the
+// terminal object, `(fn (#k) (#k))`, typed prod(). `_` in a try pattern inside
+// a `seq` is not captured by seq's binder, which is the unwritable `#_`.
+func TestTheUnitAndADiscardInsideASequence(t *testing.T) {
+	forms, err := Read(`(def u (tuple))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := forms[0].Term.String(); got != "(fn (#k) (#k))" {
+		t.Errorf("(tuple) reads as %s", got)
+	}
+	if ty := TypeName(forms[0].Term); ty != UnitType {
+		t.Errorf("the unit's type is %q, want %q", ty, UnitType)
+	}
+	arr, _ := Read(`(def a (array (tuple)))`)
+	if ty := TypeName(arr[0].Term); ty != "" {
+		t.Errorf("a table of units is its length alone and is refused as a type; got %q", ty)
+	}
+	if _, err := Read(`(def x (tuple 1))`); err == nil {
+		t.Error("a tuple of one is just the value, and is refused")
+	}
+	got := reduceWith(t, resultDecl+`
+		(def f (fn (n) (seq (go.print n) (case (try (ok _) (half n) (ok (tuple))) (ok _) 1 (err e) e))))`,
+		"f", "go.>", "go.%", "go./", "if", "=", "!go.print")
+	if want := "(fn (n) (let (go.print n) (fn (#_) (if (go.> (go.% n 2) 0) n 1))))"; got != want {
+		t.Errorf("a discard inside a sequence:\n got  %s\n want %s", got, want)
+	}
+}

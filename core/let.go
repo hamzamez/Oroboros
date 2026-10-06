@@ -50,7 +50,7 @@ func bindOne(lhs, value, body *Term, line int) (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &Term{Kind: KApp, Kids: []*Term{Fn(ps, body), value}}, nil
+		return &Term{Kind: KApp, Kids: []*Term{Fn(discards(ps), body), value}}, nil
 	}
 	names, ok := patternNames(lhs)
 	if !ok {
@@ -82,7 +82,30 @@ func bindOne(lhs, value, body *Term, line int) (*Term, error) {
 	// check by shape miscompiled both silently (u128-2026-09-23). A name survives
 	// every rebuild of the enclosing terms; eraseTupleLets removes it before any
 	// form leaves the reader, so nothing below the reader knows (binding.md).
-	return &Term{Kind: KApp, Kids: []*Term{Name(tupleLetMark), value, Fn(ps, body)}}, nil
+	return &Term{Kind: KApp, Kids: []*Term{Name(tupleLetMark), value, Fn(discards(ps), body)}}, nil
+}
+
+// discards respells a binder written `_` as an unwritable one, `#_`, the name
+// `seq` binds (binding.md §6): `_` binds nothing, so no `_` written later, a
+// pattern in a `case` or `try` that Load expands, may be captured by it. Two
+// discards in one tuple pattern get two names.
+func discards(ps []string) []string {
+	out := ps
+	n := 0
+	for i, p := range ps {
+		if p != "_" {
+			continue
+		}
+		if &out[0] == &ps[0] {
+			out = append([]string(nil), ps...)
+		}
+		out[i] = "#_"
+		if n > 0 {
+			out[i] = fmt.Sprintf("#_%d", n)
+		}
+		n++
+	}
+	return out
 }
 
 // tupleLetMark is the reader-internal operator of a tuple pattern's eliminator.

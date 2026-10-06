@@ -95,6 +95,11 @@ sum are the same set, A + (K₁ + K₂) ≅ A + K₁ + K₂, and both are models
 `(result T E)` is the coproduct T + E. **It is not in `lang`**: hamza chose a library, and the compiler
 needs none, because everything it does reads the markers (§2), not the name.
 
+**A call that succeeds with nothing is `(result (tuple) E)`**, 1 + E: `(tuple)` is the unit, the
+terminal object (data.md §3.6), so one `result` serves every fallible call. Its payload occupies no
+slot, so the representation is `(tag, E)`. hamza chose this over a second variant for 1 + E, because
+the algebra has one type here, not two.
+
 **`err-map` is functoriality**: err-map id = id, and err-map (g ∘ f) = err-map g ∘ err-map f. It moves a
 result between error types, where one module's errors meet another's (§5).
 

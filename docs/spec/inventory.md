@@ -82,7 +82,7 @@ and so expands in `Load` ([state.md](state.md)).
 | `let` | specified — the flat binding form, sugar for nested applications; injected, and a structural kind | [binding.md](binding.md), [def.md](def.md) |
 | `seq` | specified — a binding whose name is discarded, `((fn (_) b) a)` | [binding.md §6](binding.md), [effects.md](effects.md) |
 | `and`, `or`, `not`, `cond` | specified — sugar for `if`; `cond` is also a structural kind | [booleans.md](booleans.md) |
-| `tuple` | specified — sugar for `(fn (k) (k a b …))`, the tuple type, and a `let`'s left-hand side | [data.md](data.md), [binding.md §5](binding.md) |
+| `tuple` | specified — sugar for `(fn (k) (k a b …))`, the tuple type, and a `let`'s left-hand side; `(tuple)` is the unit, the terminal object 1, typed `prod()` | [data.md](data.md) §3.6, [binding.md §5](binding.md) |
 | `match`, `when`, `else` | specified — sugar for `loop` | [match.md](match.md) |
 | `_` | specified — a pattern that binds nothing, and `seq`'s binder | [match.md](match.md) |
 | `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |

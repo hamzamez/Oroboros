@@ -163,15 +163,15 @@ order in the emitter makes its output depend on something other than its input.
 
 | | |
 |---|---|
-| type | `(tuple T₀ … Tₙ₋₁)`, n ≥ 2 |
+| type | `(tuple T₀ … Tₙ₋₁)`, n ≥ 2, or `(tuple)`, the unit (§3.6) |
 | introduction | `(tuple e₀ … eₙ₋₁)` |
 | projection | `(t k)`, `k` an integer **literal** with `0 ≤ k < n` |
 | destructuring | `(let (tuple x₀ … xₙ₋₁) t body)`, which reads as `(t (fn (x₀ … xₙ₋₁) body))` ([binding.md §5](binding.md)) |
 | update | `(with t (k e) …)` (§4.3) |
 
-`n = 1` is refused because `(tuple T)` ≅ `T` and the form would mean nothing. `n = 0` is refused
-because `bool`, `true` and `false` already give the language its finite types and nothing has asked
-for a unit value.
+`n = 1` is refused because `(tuple T)` ≅ `T` and the form would mean nothing. **`n = 0` is the unit**,
+§3.6. It was refused until 2026-10-06 because nothing had asked for a unit value. The error model did:
+a host call whose success carries nothing has the type 1 + E (errors.md §3).
 
 ### 3.2 Two eliminators, both of them the product's
 
@@ -234,6 +234,54 @@ For a tuple `t = (tuple e₀ … eₙ₋₁)`:
 The second law holds only for pure components, for effects.md's reason. An impure component is
 evaluated once at the tuple's construction, and duplicating it into several projections would
 evaluate it several times.
+
+The η law is built in the reducer (state.md, sumloop-2026-10-06): a binding whose value has every tail
+an n-tuple is taken apart where it stands, so each elimination of the bound name is a β-redex.
+
+### 3.6 The unit: `(tuple)`, the terminal object 1
+
+**What it is.** The product of no factors, 1 = Π_{i∈∅} Vᵢ: a set with exactly one element, written
+`(tuple)`. It is the **terminal object**: for every type A there is exactly one function A → 1, and
+the empty tuple is the dual of `abandon`'s 0, the empty coproduct with exactly one function 0 → A
+(errors.md §8). Its laws are the semiring's units, as type isomorphisms (type-algebra.md):
+
+```
+A × 1 ≅ A          1 × A ≅ A          |1| = 1
+A + E at A = 1  is  1 + E,  the exception monad's value type for a computation with no result
+```
+
+**The term** is the Church tuple at n = 0, `(tuple)` ⟶ `(fn (#k) (#k))`: it answers whichever
+observation it is given, with nothing. Destructuring is β at arity 0, `((tuple) (fn () b)) → b`.
+**η at n = 0** says every t : 1 equals `(tuple)`: a value of the unit carries no information, so no
+program can tell two apart, and a binder of type 1 may always be replaced by `(tuple)`.
+
+**The type** is `(tuple)`, canonically `prod()`, the product spelling with no components.
+
+**Representation: zero components, everywhere.** This follows from A × 1 ≅ A at every position a
+product has a representation:
+
+| position | 1 is |
+|---|---|
+| consumed within one reduction | nothing: it reduces away, as every tuple does |
+| a variant's payload | **no slot.** §5.5.5's encoding has one slot per distinct payload type, and a payload of type 1 adds none: `dec` applies its constructor to `(tuple)` without reading a slot (Theorem R holds, since it reads only the selected slot and here selects none). So `(result (tuple) E)` is `(tag, E)`, k = 1 |
+| a type argument | a type like any other: `(result (tuple) error)` |
+| a function's result | **zero results**: Go `func f(…)`, Java `void`, JavaScript no value, x86 no result register |
+| an element of `(array …)` | **refused**: a table of units is its length alone, and `(array (tuple))` would store nothing at a cost. Write the length |
+| a value in a `(map K …)` | **refused**, for the same reason: a map to units is a set of keys, which `keys` already gives |
+
+**Built** (unit-2026-10-06): the term, the type `prod()`, a type argument, and a payload eliminated
+within the program, where reduction removes the unit with the sum (`cases/unit.oro`, on four targets).
+An array or map of units is refused as a type. **Not built**, each refused by name:
+- **a payload of type 1 at a boundary or a join point**, the "no slot" row above. It is Theorem R's
+  unconstrained slot, and so is a nullary constructor's payload, which is the unit in all but spelling
+  (`quiet ≅ (quiet (tuple))`). Today a nullary payload is the literal 0, which fits only an `int` slot:
+  `(variant msg (text string) quiet)` returned at a boundary is refused by W5. Both wait on Theorem R
+  at every join point (unit-2026-10-06 §4, a proposal);
+- **zero results** at a function boundary.
+
+**What builds on it.** `(result (tuple) error)` is the type of a host call that succeeds with nothing,
+`os.WriteFile`, `File.Close`, `Writer.Flush`, read through the niche (errors.md §4). `try` on it is
+written with a pattern that binds nothing, `(try (result.ok _) (os.WriteFile p d) body)`.
 
 ---
 

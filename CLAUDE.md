@@ -251,6 +251,17 @@ a wall that needs language work, stop and research it, then design it.
      above the word (`emit.MentionsBig`), and on a value that fits the word it renders through a
      host bignum (`big.NewInt(v).String()`), a hidden allocation. It is the integer half of
      printing-research's P3.
+   - **A representation as an instance of a type's signature**: one declaration per representation
+     (carrier, held set, relation to the abstract type, operation templates, conversions), read by one
+     selection rule, in place of the four mechanisms integers use today (`builtin.oro` found by name,
+     `u64.oro`'s mangled names with `words.go`'s `wordOp`, `bigOps` with `big.go`, and the limb
+     library) and their hand-written name tables. Data refinement (Hoare 1972; Isabelle's code
+     generator, Haftmann et al. 2013). Conversions would compose (U has no conversion into the bignum
+     today), transfers would follow the relation's kind, and new representations would be target data:
+     ℤ/2ⁿ, the JVM's unsigned rung, Java's `int`, strings' encodings (UTF-8, UTF-16, WTF-16), and table
+     elements by functoriality. Floats are excluded by algebra: `f32` is no representation of `f64`.
+     **Trigger: the first program that needs a fifth integer representation** (ℤ/2ⁿ for `hash/fnv`,
+     most likely) **or a second string encoding** (Win32's `W` functions).
 2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
    algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
 3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs

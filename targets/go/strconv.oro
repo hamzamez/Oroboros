@@ -94,11 +94,11 @@
     (sig QuoteRune          ((r int32)) string pure (host expr "strconv.QuoteRune(int32(%s))" (import "strconv")))
     (sig QuoteRuneToASCII   ((r int32)) string pure (host expr "strconv.QuoteRuneToASCII(int32(%s))" (import "strconv")))
     (sig QuoteRuneToGraphic ((r int32)) string pure (host expr "strconv.QuoteRuneToGraphic(int32(%s))" (import "strconv")))
-    (sig AppendQuote ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+    (sig AppendQuote ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
           (host expr "strconv.AppendQuote(%s, %s)" (import "strconv")))
-    (sig AppendQuoteToASCII ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+    (sig AppendQuoteToASCII ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
           (host expr "strconv.AppendQuoteToASCII(%s, %s)" (import "strconv")))
-    (sig AppendQuoteToGraphic ((dst (buffer (int 0 255))) (s string)) (buffer (int 0 255))
+    (sig AppendQuoteToGraphic ((dst (buffer (int 0 255))) (s bytestring)) (buffer (int 0 255))
           (host expr "strconv.AppendQuoteToGraphic(%s, %s)" (import "strconv")))
     (sig AppendQuoteRune ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
           (host expr "strconv.AppendQuoteRune(%s, int32(%s))" (import "strconv")))
@@ -106,26 +106,38 @@
           (host expr "strconv.AppendQuoteRuneToASCII(%s, int32(%s))" (import "strconv")))
     (sig AppendQuoteRuneToGraphic ((dst (buffer (int 0 255))) (r int32)) (buffer (int 0 255))
           (host expr "strconv.AppendQuoteRuneToGraphic(%s, int32(%s))" (import "strconv")))
-    (sig CanBackquote ((s string)) bool pure (host expr "strconv.CanBackquote(%s)" (import "strconv")))
+    (sig CanBackquote ((s bytestring)) bool pure (host expr "strconv.CanBackquote(%s)" (import "strconv")))
     (sig IsPrint   ((r int32)) bool pure (host expr "strconv.IsPrint(int32(%s))" (import "strconv")))
     (sig IsGraphic ((r int32)) bool pure (host expr "strconv.IsGraphic(int32(%s))" (import "strconv")))
     ; `\x` and octal escapes denote BYTES, so Unquote's result is the host's
     ; string: `Unquote("\xff")` is 0xFF, not a scalar (ADR 0030).
-    (sig Unquote      ((s string)) (tuple bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
-    (sig QuotedPrefix ((s string)) (tuple string error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
+    ; QuotedPrefix's result is a FACTOR of its argument, and the host does not
+    ; verify the bytes it cuts: a backquoted literal is "not verified … as valid
+    ; UTF-8" (strconv/quote.go), and inside a double-quoted one UnquoteChar
+    ; takes a stray byte as RuneError. So on B* it can hand back invalid bytes,
+    ; and its result is the host's. It maps V into V, which one `sig` cannot
+    ; also say.
+    (sig Unquote      ((s bytestring)) (tuple bytestring error) pure (host expr "strconv.Unquote(%s)" (import "strconv")))
+    (sig QuotedPrefix ((s bytestring)) (tuple bytestring error) pure (host expr "strconv.QuotedPrefix(%s)" (import "strconv")))
     ; ONE STEP of Unquote. The rune is a decoded UTF-8 scalar (RuneError at
     ; worst), a \x or octal escape (at most 255; octal past it is an error), or a
     ; \u / \U escape the host checks with utf8.ValidRune — and 0 on an error — so
     ; it lies in [0, MaxRune], narrower than the host's int32 and read off the
-    ; source rather than assumed.
-    (sig UnquoteChar ((s string) (quote uint8)) (tuple (int 0 1114111) bool string error) pure
+    ; source rather than assumed. The tail is a factor of s, so it is the host's
+    ; string, as s is.
+    (sig UnquoteChar ((s bytestring) (quote uint8)) (tuple (int 0 1114111) bool bytestring error) pure
           (host expr "func(s string, q byte) (int, bool, string, error) { v, m, t, err := strconv.UnquoteChar(s, q); return int(v), m, t, err }(%s, uint8(%s))"
             (import "strconv")))
 
     ; ---------------------------------------------------------- the error
     ; A struct literal, as the generator spells one: Func, Num and Err are all a
-    ; NumError holds.
-    (sig NumError ((err error) (func string) (num string)) NumError
+    ; NumError holds. NUM IS THE HOST'S STRING, the input that failed to parse:
+    ; Error() prints it through Quote, which is in V whatever it is given. FUNC
+    ; IS OURS, deliberately narrower than the host's: Error() is
+    ; "strconv." + Func + ": parsing " + Quote(Num) + …, with Func unquoted, and
+    ; Error's result is declared `string`. A parameter is narrower than the
+    ; host's domain only where a result's claim depends on it.
+    (sig NumError ((err error) (func string) (num bytestring)) NumError
           (host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" (import "strconv")))
 
     ; ITS METHOD SET, written inside the package: `go/strconv/NumError`.

@@ -25,7 +25,8 @@
 ; (fmt.Fprintln (os.Stdout) …), which hands the pair back.
 ;
 ; SPRINT'S RESULT IS THE HOST'S STRING (ADR 0030): a value may itself be host
-; bytes and %s prints them raw. It is pure: equal operands, equal strings, and
+; bytes and %s prints them raw. THE FORMAT IS THE HOST'S STRING TOO: Go reads
+; any bytes as a format, and no result's claim depends on it being ours. It is pure: equal operands, equal strings, and
 ; strings compare by content.
 ;
 ; ERRORF IS NOT PURE, which it was declared until gotarget-2026-09-30. Each call
@@ -56,9 +57,9 @@
     (sig Println  ((a any)) any                 (host stmt "fmt.Println(%s)" (import "fmt")))
     (sig Println2 ((a any) (b any)) any         (host stmt "fmt.Println(%s, %s)" (import "fmt")))
     (sig Println3 ((a any) (b any) (c any)) any (host stmt "fmt.Println(%s, %s, %s)" (import "fmt")))
-    (sig Printf   ((format string) (a any)) any                 (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
-    (sig Printf2  ((format string) (a any) (b any)) any         (host stmt "fmt.Printf(%s, %s, %s)" (import "fmt")))
-    (sig Printf3  ((format string) (a any) (b any) (c any)) any (host stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt")))
+    (sig Printf   ((format bytestring) (a any)) any                 (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
+    (sig Printf2  ((format bytestring) (a any) (b any)) any         (host stmt "fmt.Printf(%s, %s, %s)" (import "fmt")))
+    (sig Printf3  ((format bytestring) (a any) (b any) (c any)) any (host stmt "fmt.Printf(%s, %s, %s, %s)" (import "fmt")))
 
     ; ------------------------------------------------------------- to a string
     (sig Sprint    ((a any)) bytestring pure                 (host expr "fmt.Sprint(%s)" (import "fmt")))
@@ -67,9 +68,9 @@
     (sig Sprintln  ((a any)) bytestring pure                 (host expr "fmt.Sprintln(%s)" (import "fmt")))
     (sig Sprintln2 ((a any) (b any)) bytestring pure         (host expr "fmt.Sprintln(%s, %s)" (import "fmt")))
     (sig Sprintln3 ((a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprintln(%s, %s, %s)" (import "fmt")))
-    (sig Sprintf   ((format string) (a any)) bytestring pure                 (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
-    (sig Sprintf2  ((format string) (a any) (b any)) bytestring pure         (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
-    (sig Sprintf3  ((format string) (a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
+    (sig Sprintf   ((format bytestring) (a any)) bytestring pure                 (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
+    (sig Sprintf2  ((format bytestring) (a any) (b any)) bytestring pure         (host expr "fmt.Sprintf(%s, %s, %s)" (import "fmt")))
+    (sig Sprintf3  ((format bytestring) (a any) (b any) (c any)) bytestring pure (host expr "fmt.Sprintf(%s, %s, %s, %s)" (import "fmt")))
 
     ; ------------------------------------------------------------- to a Writer
     ; The pair is handed back: n, the bytes written, and the write's error.
@@ -85,18 +86,18 @@
       (host expr "fmt.Fprintln(%s, %s, %s)" (import "fmt")))
     (sig Fprintln3 ((w go/io.Writer) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
       (host expr "fmt.Fprintln(%s, %s, %s, %s)" (import "fmt")))
-    (sig Fprintf   ((w go/io.Writer) (format string) (a any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf   ((w go/io.Writer) (format bytestring) (a any)) (tuple (int 0 9223372036854775807) error)
       (host expr "fmt.Fprintf(%s, %s, %s)" (import "fmt")))
-    (sig Fprintf2  ((w go/io.Writer) (format string) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf2  ((w go/io.Writer) (format bytestring) (a any) (b any)) (tuple (int 0 9223372036854775807) error)
       (host expr "fmt.Fprintf(%s, %s, %s, %s)" (import "fmt")))
-    (sig Fprintf3  ((w go/io.Writer) (format string) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
+    (sig Fprintf3  ((w go/io.Writer) (format bytestring) (a any) (b any) (c any)) (tuple (int 0 9223372036854775807) error)
       (host expr "fmt.Fprintf(%s, %s, %s, %s, %s)" (import "fmt")))
 
     ; ------------------------------------------------------------------ errors
     ; Not pure: each call is a new error, and == on errors is identity.
-    (sig Errorf  ((format string) (a any)) error                 (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
-    (sig Errorf2 ((format string) (a any) (b any)) error         (host expr "fmt.Errorf(%s, %s, %s)" (import "fmt")))
-    (sig Errorf3 ((format string) (a any) (b any) (c any)) error (host expr "fmt.Errorf(%s, %s, %s, %s)" (import "fmt"))))
+    (sig Errorf  ((format bytestring) (a any)) error                 (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
+    (sig Errorf2 ((format bytestring) (a any) (b any)) error         (host expr "fmt.Errorf(%s, %s, %s)" (import "fmt")))
+    (sig Errorf3 ((format bytestring) (a any) (b any) (c any)) error (host expr "fmt.Errorf(%s, %s, %s, %s)" (import "fmt"))))
 
   ; A Builder's String is fmt.Stringer's method (Go's method set).
   (implements go/strings.Builder go/fmt.Stringer))

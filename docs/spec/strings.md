@@ -208,32 +208,49 @@ be completed, is one U+FFFD**, and reading resumes at the byte that broke it. So
 
 The portable `os.Args` and `os.Getenv` on Go decode by d.
 
-**The 57 hand-declared Go results that mention `string`**, read against Go's source:
+**The rule is variance.** `string ≤ go.bytestring`, and a function type is contravariant in its
+parameters and covariant in its result:
+- **a parameter** is the host's string unless a result's claim depends on it. A Go function accepts
+  any bytes, and a `go.bytestring` parameter accepts both kinds of string, ours by the free coercion.
+  Declaring `string` would claim the host requires valid UTF-8, and refuse programs that hold a host
+  string. `strconv.ParseInt` did, until `lines.oro` passed it a field from `Scanner.Text`
+  (bufio-2026-10-01);
+- **a result** is ours only where the host maps every input into V, read against Go's source.
 
-| kept `string` (41) | why the result is in V |
+**The 70 hand-declared Go results that mention a string** (checked 2026-10-06):
+
+| `string` (24) | why the result is in V |
 |---|---|
 | `big-str`, `hex.EncodeToString`, `hex.Dump`, `strconv.FormatBool`/`FormatInt`/`FormatUint`/`Itoa`/`FormatFloat`/`QuoteToASCII`/`QuoteRuneToASCII` (10) | the output is ASCII |
-| `strconv.Quote`/`QuoteToGraphic`/`QuoteRune`/`QuoteRuneToGraphic`, `strconv.NumError.Error`, `hex.InvalidByteError.Error` (6) | every byte that is not a printable scalar is escaped |
-| `strings.Fields`/`Split`/`SplitN`/`TrimSpace`/`Trim`/`TrimLeft`/`TrimRight`/`TrimPrefix`/`TrimSuffix`/`Replace`/`ReplaceAll`, `strconv.QuotedPrefix`, `UnquoteChar`'s tail (13) | a factor of a valid string cut at valid needles or at rune boundaries: Theorem 1 |
-| `concat`, `strings.Join`, `strings.Repeat`, `string-of` (4) | V·V ⊆ V, and a scalar's encoding is in V |
-| `strings.ToLower`/`ToUpper`/`ToTitle` (3) | a map Σ → Σ* applied rune by rune |
-| `append-string`, `make-string`, `at-string`, `set-string`, `slice-string` (5) | a `[]string` holds only values typed `string` |
+| `strconv.Quote`/`QuoteToGraphic`/`QuoteRune`/`QuoteRuneToGraphic`, `strconv.NumError.Error`, `hex.InvalidByteError.Error` (6) | every byte that is not a printable scalar is escaped; `NumError.Error` prints its `Func` unquoted, which is why that field is declared ours |
+| `concat`, `string-of`, `go.text` (3) | by construction: V·V ⊆ V, a scalar's encoding is in V, and d maps B* into Σ* |
+| `strings.ToLower`/`ToUpper`/`ToTitle`/`Title`, `strings.ToValidUTF8` (5) | a map B* → V: the case maps go through `strings.Map`, which re-encodes an invalid byte as U+FFFD (measured on 1,011,155 inputs, gotarget-2026-09-30); `ToValidUTF8` replaces with a replacement declared ours |
 
-| now `go.bytestring` (11) | why the result may be outside V |
+| `go.bytestring` (46) | why the result may be outside V |
 |---|---|
-| `strconv.Unquote` | `\x` and octal escapes denote bytes |
-| `fmt.Sprint`/`Sprint2`/`Sprintln`/`Sprintf`/`Sprintf2`/`Sprintf3` (6) | an `any` argument may be host bytes, and `%s` prints a byte slice raw |
-| `go/os`'s `text-of`, `Args`, `Getenv` (3) | `string(b)` of arbitrary bytes, and the OS's own strings, which are bytes on Unix |
-| `string-of-bytes` | `string(b)` of arbitrary bytes |
+| `strings.Cut`/`CutLast`/`CutPrefix`/`CutSuffix`, `Split`/`SplitN`/`SplitAfter`/`SplitAfterN`, `Fields`, `TrimSpace`/`Trim`/`TrimLeft`/`TrimRight`/`TrimPrefix`/`TrimSuffix`, `strconv.QuotedPrefix`, `UnquoteChar`'s tail (17) | a factor of the argument, which may be any bytes. A backquoted literal is "not verified … as valid UTF-8" (strconv/quote.go) |
+| `strings.Join`, `Repeat`, `Replace`, `ReplaceAll`, `Clone` (5) | built from the arguments' bytes |
+| `strconv.Unquote` (1) | `\x` and octal escapes denote bytes |
+| `fmt.Sprint`/`Sprint2`/`Sprint3`, `Sprintln`/`Sprintln2`/`Sprintln3`, `Sprintf`/`Sprintf2`/`Sprintf3`, `fmt.Stringer.String` (10) | an `any` argument may be host bytes, and `%s` prints a byte slice raw |
+| `os.Args`, `Getenv`, `LookupEnv`, `Environ`, `Getwd`, `Hostname`, `Executable`, `TempDir`, `MkdirTemp`, `File.Name` (10) | the operating system's own strings, which are bytes on Unix |
+| `string-of-bytes`, `bufio.Scanner.Text`, `strings.Builder.String` (3) | `string(b)` of arbitrary bytes: a conversion, data read, or bytes accumulated |
 
-The remaining 5 are map types (`map-string-int`), which contain the word and are not strings.
+**What one signature cannot say.** Most of the factor functions are two facts at once: Fields maps B*
+into (B*)*, and it also maps V into V*, since splitting a valid string at whitespace leaves valid
+pieces (Theorem 1). A `sig` states one type, so a program that passes ours to `strings.Fields` gets
+`(array bytestring)` back, and recovers ours only through `go.text`, a validity scan at run time for a
+fact that was known statically. The precise type is an intersection, (B* → (B*)*) ∧ (V → V*): datasort
+refinements carried through functions by intersection types (Freeman and Pfenning, "Refinement types
+for ML", PLDI 1991). Not built; CLAUDE.md names its trigger.
 
-**Parameters.** A parameter declared `string` accepts ours only, which is sound. One declared
-`go.bytestring` accepts both, because ours is a subset. So a host function whose purpose is arbitrary
-bytes takes the host's string:
-- `unicode/utf8`'s `ValidString`, `FullRuneInString`, `RuneCountInString`, `DecodeRuneInString` and
-  `DecodeLastRuneInString`;
-- `strconv.Quote`, `QuoteToASCII` and `QuoteToGraphic`, whose result is in V whatever they are given.
+**Parameters.** Of 141 string parameters, 137 are `go.bytestring`. The 4 that are ours are each
+narrowed because a result's claim depends on them: `concat`'s two (the language's monoid), `strings.ToValidUTF8`'s
+replacement (its result is in V exactly when the replacement is), and `strconv.NumError`'s `Func`
+(printed unquoted by `Error`). Until 2026-10-06, 21 more were ours with no such reason: `fmt`'s 12
+format parameters, `strconv.AppendQuote`'s three, `CanBackquote`, `Unquote`, `QuotedPrefix`,
+`UnquoteChar`, `NumError`'s `Num` and `hex.DecodeString`. Widening them accepted more programs and
+changed no emitted code; `QuotedPrefix`'s result and `UnquoteChar`'s tail became the host's, as factors
+of a host string.
 
 **Generated declarations** spell every Go `string` as `go.bytestring`, because the generator cannot read
 a body (ADR 0023). A string constant is `string` when its value is valid UTF-8.

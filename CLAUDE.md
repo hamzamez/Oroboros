@@ -262,6 +262,12 @@ a wall that needs language work, stop and research it, then design it.
      elements by functoriality. Floats are excluded by algebra: `f32` is no representation of `f64`.
      **Trigger: the first program that needs a fifth integer representation** (ℤ/2ⁿ for `hash/fnv`,
      most likely) **or a second string encoding** (Win32's `W` functions).
+   - **Validity carried through functions that preserve it**: most Go string functions map B* into
+     B* and also V into V (Theorem 1), but a `sig` states one type, so ours passed to
+     `strings.Fields` comes back `(array bytestring)` and is recovered only by `go.text`, a run-time
+     scan. The type is an intersection, (B* → (B*)*) ∧ (V → V*): refinement sorts (Freeman and
+     Pfenning 1991). strings.md §8. **Trigger: the first program that pays for `go.text` right after
+     a `strings` call.**
 2. **The Go standard library, package by package, program first**: the package item 1 chooses, its
    algebra, a program in the language that needs it, and exactly the declarations it calls, checked.
 3. **The Windows application — hamza's**, when he hands it over. First a measurement of what it needs

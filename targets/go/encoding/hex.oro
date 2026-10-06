@@ -96,7 +96,7 @@
             (import "encoding/hex")))
 
     ; G from text into fresh storage: the prefix it decoded, and the error.
-    (sig DecodeString ((s string)) (tuple (array (int 0 255)) error) pure
+    (sig DecodeString ((s bytestring)) (tuple (array (int 0 255)) error) pure
           (host expr "hex.DecodeString(%s)" (import "encoding/hex")))
 
     ; ---------------------------------------------------------- hexdump -C

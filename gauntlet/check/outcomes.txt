@@ -102,6 +102,14 @@
 == examples/dot.oro windows refused
    gen: examples/dot.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
+== examples/errors/expect.oro go emitted 6a54c8469b0a2c954b3fb2c9db96ffe1be796f102ce548d3abbdd08bf3fbd677
+   note: gen-quarter: 4 division(s) became a shift or a mask
+== examples/errors/expect.oro js emitted df310ea61b40d9bd2ab5840389021f39a2e54a529ab4c5a8e5eab6ee9f2bf322
+   note: gen-quarter: 4 division(s) became a shift or a mask
+== examples/errors/expect.oro java emitted b11e1f6c751ecf716f412f2c279060f09cf87a4e91bbc469afa98842f49e732e
+   note: gen-quarter: 4 division(s) became a shift or a mask
+== examples/errors/expect.oro windows emitted 1c3a57469412135d5949810dae7594cd9629ef2a3c64ffad57a14d1197515e7f
+   note: gen-quarter: 4 division(s) became a shift or a mask
 == examples/hello.oro go emitted 77bebcce3fe9fae5ef82f4a6a650587858f867aee19f4b9998ff75a50d255ca5
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hello.oro js refused
@@ -888,6 +896,10 @@
 == gauntlet/differential/cases/build-zero.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/build-zero.oro java emitted dbdd7aecf8474b6e3a4efa0f0a9aa26e8161c44d08606482c64c4caa2bd2a2eb
 == gauntlet/differential/cases/build-zero.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/expect.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/expect.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/expect.oro java emitted 3e354c0252083e4f9aff69215d1684e7809177f1e33397aa62893fa755477736
+== gauntlet/differential/cases/expect.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/json-tokenize.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/json-tokenize.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/json-tokenize.oro java emitted c1da358348d4706072b906ded86469c965cd23b8b3aff4461fd9d979468f77f6

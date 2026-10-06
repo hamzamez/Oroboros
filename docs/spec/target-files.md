@@ -60,7 +60,7 @@ param       ::= type | (NAME type)               ; `()` is arity zero
 kind        ::= expr | stmt
 template    ::= "…%s…"
 sclause     ::= pure | index | (where φ) | (ensures φ)   ; a length is an ensures, §4 `length`
-hclause     ::= (import "…") | (lib "…") | (checked NAME) | (jump "cc" ["compare"])
+hclause     ::= (import "…" "…"*) | (lib "…") | (checked NAME) | (jump "cc" ["compare"])
 
 mdecl       ::= sig | const | (type …) | (include PATH…)
               | (module NAME mdecl…)             ; a child, §1a
@@ -867,6 +867,12 @@ slow, not wrong.**
 
 An opaque string handed to the backend's import mechanism, collected across every primitive the
 emitted file actually uses. Go and Java emit it; JavaScript ignores it.
+
+**One clause, and on x86-64 several names.** A Go, JavaScript or Java template names one package or
+module, so a second name is refused there, as a second clause is everywhere: a printer that read only
+the first would drop the rest. An assembly template calls functions, and on Win32 each is its own
+extern, so it may name every one it calls: `abandon` writes its reason with
+`(import "GetStdHandle" "WriteFile" "ExitProcess")` (errors.md §9).
 
 ## 6a. `lib` and `link` — what the linker must be handed
 

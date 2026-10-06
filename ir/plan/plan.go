@@ -327,7 +327,7 @@ func FirstYield(r *ir.Region) []ir.V {
 // when r is in the function's tail.
 func Terminates(r *ir.Region, top bool) bool {
 	switch r.T {
-	case ir.TBreak, ir.TContinue:
+	case ir.TBreak, ir.TContinue, ir.TUnreachable:
 		return true
 	case ir.TYield:
 		return top
@@ -340,6 +340,8 @@ func Terminates(r *ir.Region, top bool) bool {
 // YieldsOnly: every yield of r is exactly v (a build that IS its buffer).
 func (p *Plan) YieldsOnly(r *ir.Region, v ir.V) bool {
 	switch r.T {
+	case ir.TUnreachable:
+		return true // no yield at all
 	case ir.TYield:
 		return len(r.Args) == 1 && p.Res(r.Args[0]) == p.Res(v)
 	case ir.TBranch:

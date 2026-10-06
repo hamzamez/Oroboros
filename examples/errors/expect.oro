@@ -1,0 +1,31 @@
+; `expect`, the one way to give up (spec/errors.md §8, ADR 0040).
+;
+;   go run ./cmd/gen examples/errors/expect.oro go out.go
+;
+; (expect (ok x) e why body) continues on the success constructor and, on any
+; other, is crash : R → 0, the language's `abandon`, which each target realizes
+; as its own crash with the reason: panic, an uncaught Error, an
+; IllegalStateException, and on Windows the reason on standard error, then
+; ExitProcess(1). It expands to an exhaustive `case`, so `half`'s constructor
+; meets it and no tag is left: what is emitted is the host's own test.
+;
+; `quarter` chains two. `always-crashes` has no path that returns, so its value
+; is in 0, and the one arrow 0 → int gives it the declared result.
+(use result)
+
+(export quarter always-crashes)
+
+(sig half ((n (int 0 1000000))) (result.result int int))
+(def half (n)
+  (if (= (% n 2) 0) (result.ok (/ n 2)) (result.err n)))
+
+(sig quarter ((n (int 0 1000000))) int)
+(def quarter (n)
+  (expect (result.ok h) (half n) "an even number is expected"
+    (expect (result.ok q) (half h) "a multiple of four is expected"
+      q)))
+
+(sig always-crashes ((n (int 0 10))) int)
+(def always-crashes (n)
+  (expect (result.ok x) (result.err n) "the value is never a success"
+    x))

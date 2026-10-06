@@ -290,7 +290,11 @@ a wall that needs language work, stop and research it, then design it.
       `relevant`, not a type; `(result T E)` is `lib/result`; `try` is the exception monad's bind;
       the host's encoding is a niche of its error type; `expect` is the one way to give up; one error
       type per chain with `err-map`; the portable `os` returns `not-found | exists | permission |
-      other`. Built in errors.md §12's order;
+      other`. Built in errors.md §12's order. **Steps 1–3 are built**: the markers, `lib/result`,
+      `try`, and `expect` with `abandon` on all four targets, a crash whose value is in 0: it absorbs
+      every strict context (the commuting conversion at arity 0), types as anything, and ends its IR
+      region with `unreachable` ([expect-2026-10-06](gauntlet/results/expect-2026-10-06.md)). Named
+      for step 5: a loop cannot yield a sum yet, and `again` may not sit under `try`;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;

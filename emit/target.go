@@ -40,6 +40,12 @@ type Prim struct {
 	Kind    string // expr | stmt | loop | loop2 | cond | let
 	Form    string // template with %s holes; empty for structural kinds
 	Import  string
+	// Externs are the further names an assembly template calls, written in the
+	// same clause, `(import "GetStdHandle" "WriteFile" "ExitProcess")`. A Go,
+	// JavaScript or Java template names one package or module, so only the x86
+	// backend accepts more than one name (finish refuses it elsewhere): on Win32
+	// each function is its own extern.
+	Externs []string
 	// Lib is the import library that RESOLVES Import on a host that links —
 	// `(lib "user32")`. Collected exactly as Import is, from primitives the
 	// program uses, so the link line is computed rather than a constant that
@@ -392,6 +398,9 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	tg.addCore()
+	if err := tg.checkExterns(); err != nil {
+		return wrap(err)
+	}
 	if err := tg.expandCompanions(); err != nil {
 		return wrap(err)
 	}
@@ -956,6 +965,20 @@ func (tg *Target) addCore() {
 			p.Name, p.Pure = op, true
 			tg.Prims[op] = p
 			tg.Names = append(tg.Names, op)
+		}
+	}
+	// THE CRASH, `abandon` (spec/errors.md §8): crash : E → 0, which `expect`
+	// expands into. Found by spelling like everything above, so each target
+	// says how its host ends a process: panic, throw, ExitProcess. Impure, so
+	// it is never moved, duplicated or dropped (ADR 0010).
+	if _, have := tg.Prims["abandon"]; !have {
+		for _, p := range tg.spelled("abandon") {
+			if len(p.Args) == 1 {
+				p.Name, p.Pure = "abandon", false
+				tg.Prims["abandon"] = p
+				tg.Names = append(tg.Names, "abandon")
+				break
+			}
 		}
 	}
 	for _, op := range bigOps {
@@ -2238,8 +2261,8 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			}
 			p.Index = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
-			rest.Kids[0].Name == "import" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
-			// ONE IMPORT PER TEMPLATE, and a second is refused rather than
+			rest.Kids[0].Name == "import" && len(rest.Kids) >= 2 && allStrings(rest.Kids[1:]):
+			// ONE IMPORT CLAUSE PER TEMPLATE, and a second is refused rather than
 			// replacing the first — the rule a repeated `where` already has, for
 			// the same reason: a clause the author wrote must not vanish.
 			if p.Import != "" {
@@ -2247,6 +2270,9 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 					"so spell anything else structurally (an interface literal, not io.ByteReader)", path, p.Name)
 			}
 			p.Import = rest.Kids[1].Str
+			for _, k := range rest.Kids[2:] {
+				p.Externs = append(p.Externs, k.Str)
+			}
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "lib" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Lib = rest.Kids[1].Str
@@ -3011,4 +3037,35 @@ func (tg *Target) ShiftNames() (shr, and string, ok bool) {
 	shr, okS := find(">>", "shr", "sar")
 	and, okA := find("&", "and")
 	return shr, and, okS && okA
+}
+
+func allStrings(ts []*core.Term) bool {
+	for _, t := range ts {
+		if t.Kind != core.KStr {
+			return false
+		}
+	}
+	return true
+}
+
+// checkExterns refuses an (import …) of several names outside the x86 backend:
+// a Go, JavaScript or Java template names one package or module, and a printer
+// that read only the first would drop the rest silently.
+func (tg *Target) checkExterns() error {
+	b, err := tg.ResolveBackend()
+	if err != nil || b == "x86-64" {
+		return nil
+	}
+	names := make([]string, 0, len(tg.Prims))
+	for n := range tg.Prims {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		if p := tg.Prims[n]; len(p.Externs) > 0 {
+			return fmt.Errorf("%s: (import …) names %d things; on backend %s a template names one "+
+				"package, and only an assembly template calls several externs", n, 1+len(p.Externs), b)
+		}
+	}
+	return nil
 }

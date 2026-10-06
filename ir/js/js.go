@@ -237,7 +237,7 @@ func (p *printer) region(r *ir.Region, lp *loopCtx, top bool) {
 // returns: every leaf of r leaves by a break of a tail loop, which returns.
 func returns(r *ir.Region) bool {
 	switch r.T {
-	case ir.TBreak, ir.TContinue:
+	case ir.TBreak, ir.TContinue, ir.TUnreachable:
 		return true
 	case ir.TBranch:
 		return returns(r.Then) && returns(r.Else)

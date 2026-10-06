@@ -283,9 +283,29 @@ func build(caseName, src, target, bigRepr, work string, keep bool) (string, bool
 		if strings.Contains(stderr.String(), boundMessage) {
 			return strings.TrimSpace(normalise(stdout.String()) + "\ntrap"), traps, nil
 		}
+		// AND SO IS AN ABANDONMENT (spec/errors.md §8): `expect` crashes with its
+		// reason on any constructor but the success, through `abandon`, and the
+		// property is that every target crashes at the SAME point with the same
+		// reason. A case names the reason, `; abandons: REASON`; a run that stops
+		// with it on standard error answers what it printed, then `abandon`.
+		if why := abandonsFor(src); why != "" && strings.Contains(stderr.String(), why) {
+			return strings.TrimSpace(normalise(stdout.String()) + "\nabandon"), traps, nil
+		}
 		return "", false, fmt.Errorf("run: %v\n%s", err, indent(stdout.String()+stderr.String()))
 	}
 	return normalise(stdout.String() + stderr.String()), traps, nil
+}
+
+// abandonsFor reads a case's `; abandons: REASON`, the reason its `expect`
+// crashes with; empty when it declares none.
+func abandonsFor(src string) string {
+	for _, l := range strings.Split(src, "\n") {
+		l = strings.TrimSpace(l)
+		if strings.HasPrefix(l, "; abandons:") {
+			return strings.TrimSpace(strings.TrimPrefix(l, "; abandons:"))
+		}
+	}
+	return ""
 }
 
 // trapNote is what cmd/build says under `-checked` when it took a trap for an

@@ -295,8 +295,33 @@ is crash : R → 0, ending the process with the reason. Nothing is proven, and t
 Erlang's `{ok, Bin} = file:read_file(F)` and Rust's `.expect("…")` are this. Its pattern names the
 success constructor, checked as `try`'s is.
 
-**`abandon`** is the crash. It is a language name every target realizes (§9), of type string → ⊥, and
-impure, so it is never moved or dropped.
+**`abandon`** is the crash. It is a language name every target realizes (§9), of type string → 0, and
+impure, so it is never moved or dropped. Its value is in 0, the initial object, and three rules follow
+from the one arrow 0 → Y that exists for every Y (built in expect-2026-10-06):
+
+- **it absorbs its context.** k ∘ abandon = abandon for every continuation k, since any two arrows out
+  of 0 are equal. It is the commuting conversion at arity 0: 0 is the empty coproduct, its eliminator is
+  the empty copairing [], and K ∘ [g₁, …, gₙ] = [K ∘ g₁, …, K ∘ gₙ] at n = 0 is K ∘ [] = []. So an
+  application with a crash in a strict position, an argument that is not a λ or an `if`'s condition,
+  reduces to the crash, keeping the effects evaluated before it in order (ADR 0010):
+
+  ```
+  (f a₁ … aₖ₋₁ (abandon w) …)  ⟶  (let aᵢ (fn (_) … (abandon w)))   for each impure aᵢ, i < k
+  ```
+
+  `(let (abandon w) k)` and `(seq (abandon w) k)` are instances. A crash in an `if`'s branch or under a
+  λ is not evaluated there and stays;
+- **it types as anything.** The checker gives it no type of its own, so it agrees with every demand, and
+  a conditional with a crashing branch has the other branch's type;
+- **it ends its region.** The IR's terminator `unreachable` (spec/ir.md §1.3) follows the call, and the
+  verifier's W3 refuses one whose region does not end in it. Such a region yields nothing, so a function
+  whose every path crashes takes its declared results: 0 → R exists.
+
+**Inside a loop, `try` and `expect` do not carry `again` yet.** ADR 0015 lets `again` sit under a
+binding, and the success arm is one: it binds the payload and runs once, now, as a host call's
+continuation does (ADR 0027). But a loop cannot yet yield a sum, `try`'s exit, with or without `try`: a
+`case` on a loop whose exits are constructors is refused as a tuple pattern with the wrong arity
+(expect-2026-10-06 §4). Both are needed by the first read loop of §12's step 5, and are decided there.
 
 **So abandonment is never implicit.** It happens at an `expect`, at an operation `-checked` turned into a
 trap, or at a host failure declared abandoning. Each is visible in the source or the build line.
@@ -314,7 +339,16 @@ the `case` already reduces it away. It would be a construct the compiler nearly 
 | Go | `panic(why)` |
 | JavaScript | `throw new Error(why)` |
 | Java | `throw new IllegalStateException(why)` |
-| Windows | `why` to standard error (printing-research §1), then `ExitProcess(1)` |
+| Windows | `why`'s bytes and a newline to standard error, `WriteFile(GetStdHandle(-12), …)`, then `ExitProcess(1)` |
+
+Every target writes the reason. Windows writes its bytes as they are, which a console shows in its code
+page (printing-research §1's open question, as for every string there). Its template is the one
+assembly template that calls several functions, `(import "GetStdHandle" "WriteFile" "ExitProcess")`
+(target-files.md), and it may use any register, because nothing after it reads one.
+
+The differential suite checks the property that matters: every target prints the same answers and
+then crashes at the same point with the same reason. A case names it, `; abandons: REASON`, and a run
+that stops with it on standard error answers `abandon` (gauntlet/differential/cases/expect.oro).
 
 The status and the message's spelling differ by host, and the difference is observable, so a crash's
 text carries no portability claim: it is Tier 2, as an arithmetic trap's already is.
@@ -354,8 +388,9 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
 1. **The markers** `success` and `relevant` in variant declarations, with their checks; `option` marks
    `some`.
 2. **`lib/result`**: the variant and `err-map`.
-3. **`try`, `expect`, `ignore`, `abandon`**: the expansions into `case`, and `abandon` on the four
-   targets.
+3. **`try`, `expect`, `abandon`**: the expansions into `case`, and `abandon` on the four targets, with
+   its three rules (§8). **Built** (sumofsums-2026-10-06, expect-2026-10-06). `ignore` moves to step 6,
+   where relevance gives it something to do.
 4. **The niche** in target files and the loader's δ (§4.2); `(fails …)` for Win32 (§4.4).
 5. **The migration**:
    - the 69 fallible Go declarations, each with its shape (sum, or partial product), read from Go's
@@ -365,7 +400,7 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
 
    Where a program tested only `err-nil`, the emitted code should not change, and the emission gate
    checks it.
-6. **Relevance** (§7), with a planted fault.
+6. **Relevance** (§7) and `ignore`, with a planted fault.
 7. **Later, with the browser and Android `os`** (ADR 0039): the audit of JavaScript and Java declarations
    that throw while declared total or `pure`.
 

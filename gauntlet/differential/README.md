@@ -59,6 +59,11 @@ own message (`bignum overflow: the declared range is too small`) answers what it
 `trap`, so `; expect: 5 5 trap` states it and a target that answers instead disagrees. Any other
 failure is a failure.
 
+**So is an abandonment** (spec/errors.md §8). `expect` crashes with its reason on any constructor but
+the success, and every target writes the reason to standard error. A case names it,
+`; abandons: REASON`, and a run that stops with it answers what it printed, then `abandon`:
+`; expect: 0 1 2 abandon` (cases/expect.oro).
+
 ## Writing a case
 
 A case defines `run`, and nothing else. The harness supplies the `main` that prints, because

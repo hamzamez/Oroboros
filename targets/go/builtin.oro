@@ -137,6 +137,11 @@
     ; (T, error)'s discriminant: the error side is empty exactly when err is nil.
     (sig err-nil ((e error)) bool pure (host expr "%s == nil"))
 
+    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
+    ; with the reason. The language's `abandon`, found by spelling; it never
+    ; returns, so the IR ends its region with `unreachable`.
+    (sig abandon ((why string)) any (host stmt "panic(%s)"))
+
     ; ---- the language's string monoid on Go (string-operations.md §1), found by
     ; spelling. V·V ⊆ V, so ours stays ours.
     (sig concat ((a string) (b string)) string pure (host expr "%s + %s"))

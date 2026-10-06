@@ -233,6 +233,13 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 			return "", fmt.Errorf("in argument %d of %s: %w", i+1, op.Name, err)
 		}
 	}
+	// ABANDON HAS NO VALUE (spec/errors.md §8): crash : E → 0, and 0 is the
+	// initial object, with exactly one arrow 0 → Y into every Y. So its type is
+	// the unknown, which agrees with every demand, and a conditional's other
+	// branch types it.
+	if op.Name == "abandon" {
+		return "", nil
+	}
 	// A statement's value is argument 0 (target-files.md §3).
 	res := p.Result
 	if p.Kind == "stmt" && len(args) > 0 {

@@ -42,9 +42,9 @@ func expandCase(t *Term, look ctorLookup) (*Term, error) {
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "case" {
 		return caseForm(t, look)
 	}
-	if t.Kind == KApp && len(t.Kids) > 0 &&
-		t.Kids[0].Kind == KName && t.Kids[0].Name == "try" {
-		c, err := tryForm(t, look)
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName &&
+		(t.Kids[0].Name == "try" || t.Kids[0].Name == "expect") {
+		c, err := monadForm(t, look)
 		if err != nil {
 			return nil, err
 		}
@@ -301,26 +301,35 @@ func (s *Sum) uniformPayload() (string, bool) {
 	return ty, true
 }
 
-// `try` IS THE BIND OF THE EXCEPTION MONAD (spec/errors.md §5, ADR 0040).
+// `try` AND `expect` ELIMINATE A MODEL OF THE EXCEPTION MONAD (spec/errors.md
+// §5, §8, ADR 0040).
 //
-//	(try (s x) e body)  ⟶  (case e (s x) body (c₁ y) (c₁ y) … (cₙ y) (cₙ y))
+//	(try (s x) e body)         ⟶  (case e (s x) body  (c₁ y) (c₁ y)          … )
+//	(expect (s x) e why body)  ⟶  (case e (s x) body  (c₁ y) (abandon why)   … )
 //
 // A variant marked (success s) is a model of A + R, the exception monad with
-// E = R: return is s, and bind continues on s and returns every other
-// constructor unchanged. The pattern names s because the language types a sum
-// by the constructors a program writes, as `case` does: it resolves the
-// variant here, where the program is loaded, and s is checked to be the
-// variant's marked success. Then the term is an ordinary exhaustive `case`,
-// which reduction fuses with the constructor it meets, so `try` costs nothing
+// E = R. `try` is its bind: it continues on s and returns every other
+// constructor unchanged. `expect` is total: it continues on s, and on any other
+// constructor it is crash : R → 0, the language's `abandon`, which ends the
+// process with the reason. The pattern names s because the language types a sum
+// by the constructors a program writes, as `case` does: it resolves the variant
+// here, where the program is loaded, and s is checked to be the variant's
+// marked success. Then the term is an ordinary exhaustive `case`, which
+// reduction fuses with the constructor it meets, so neither costs anything
 // inside a program (errors-2026-10-04 §3).
 //
 // The monad laws hold in every model, because they depend only on that shape:
 // (try (s x) (s v) M) = M[v/x]; (try (s x) e (s x)) = e; and nested binds
 // reassociate.
-func tryForm(t *Term, look ctorLookup) (*Term, error) {
-	if len(t.Kids) != 4 {
-		return nil, fmt.Errorf("try takes a success pattern, a value and a body, "+
-			"(try (ok x) e body); got %s", t)
+func monadForm(t *Term, look ctorLookup) (*Term, error) {
+	form := t.Kids[0].Name
+	want, shape := 4, "(try (ok x) e body)"
+	if form == "expect" {
+		want, shape = 5, "(expect (ok x) e \"why\" body)"
+	}
+	if len(t.Kids) != want {
+		return nil, fmt.Errorf("%s takes a success pattern, a value%s and a body, %s; got %s",
+			form, map[bool]string{true: ", a reason", false: ""}[form == "expect"], shape, t)
 	}
 	pat := t.Kids[1]
 	var spelling string
@@ -330,35 +339,46 @@ func tryForm(t *Term, look ctorLookup) (*Term, error) {
 	case pat.Kind == KName:
 		spelling = pat.Name
 	default:
-		return nil, fmt.Errorf("try: the pattern is the success constructor, (ok x), or a bare "+
-			"constructor that carries nothing; got %s", pat)
+		return nil, fmt.Errorf("%s: the pattern is the success constructor, (ok x), or a bare "+
+			"constructor that carries nothing; got %s", form, pat)
 	}
 	ref, err := look(spelling)
 	if err != nil {
-		return nil, fmt.Errorf("try: %w", err)
+		return nil, fmt.Errorf("%s: %w", form, err)
 	}
 	s := ref.ref.sum
 	if s.Success == "" {
-		return nil, fmt.Errorf("try: variant %s declares no (success …) constructor, so it is "+
-			"not a model of the exception monad and has no bind (spec/errors.md §2)", s.Name)
+		return nil, fmt.Errorf("%s: variant %s declares no (success …) constructor, so it is "+
+			"not a model of the exception monad (spec/errors.md §2)", form, s.Name)
 	}
 	if ref.local != s.Success {
-		return nil, fmt.Errorf("try: %s is not the success constructor of variant %s, which is %s: "+
-			"try continues on success and returns every other constructor unchanged", ref.local, s.Name, s.Success)
+		return nil, fmt.Errorf("%s: %s is not the success constructor of variant %s, which is %s: "+
+			"%s continues on success alone", form, ref.local, s.Name, s.Success, form)
 	}
 	prefix := strings.TrimSuffix(spelling, ref.local)
-	kids := []*Term{Name("case"), t.Kids[2], pat, t.Kids[3]}
+	value, body := t.Kids[2], t.Kids[3]
+	var why *Term
+	if form == "expect" {
+		why, body = t.Kids[3], t.Kids[4]
+	}
+	kids := []*Term{Name("case"), value, pat, body}
 	for _, v := range s.Variants {
 		if v.Name == s.Success {
 			continue
 		}
 		c := Name(prefix + v.Name)
+		var lhs, rhs *Term
 		if v.Payload == "" {
-			kids = append(kids, c, c)
-			continue
+			lhs, rhs = c, c
+		} else {
+			y := Name("#e")
+			lhs = &Term{Kind: KApp, Kids: []*Term{c, y}}
+			rhs = &Term{Kind: KApp, Kids: []*Term{Name(prefix + v.Name), y}}
 		}
-		y := Name("#e")
-		kids = append(kids, &Term{Kind: KApp, Kids: []*Term{c, y}}, &Term{Kind: KApp, Kids: []*Term{Name(prefix + v.Name), y}})
+		if form == "expect" {
+			rhs = &Term{Kind: KApp, Kids: []*Term{Name("abandon"), why}}
+		}
+		kids = append(kids, lhs, rhs)
 	}
 	return &Term{Kind: KApp, Kids: kids}, nil
 }

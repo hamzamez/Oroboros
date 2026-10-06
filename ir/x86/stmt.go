@@ -37,6 +37,9 @@ func (p *printer) stmt(s *ir.Stmt) {
 		}
 		if q.Import != "" {
 			emit.AsmExterns[q.Import] = true
+			for _, x := range q.Externs {
+				emit.AsmExterns[x] = true
+			}
 			if q.Lib != "" {
 				emit.AsmLibs[q.Lib] = true
 			}
@@ -239,6 +242,9 @@ func (p *printer) tableOf(dst ir.V, n func(r string), nOpnd func() string, w int
 	}
 	if q.Import != "" {
 		emit.AsmExterns[q.Import] = true
+		for _, x := range q.Externs {
+			emit.AsmExterns[x] = true
+		}
 		if q.Lib != "" {
 			emit.AsmLibs[q.Lib] = true
 		}
@@ -523,6 +529,8 @@ func (p *printer) regionJump(r *ir.Region, l string, when bool, done string) {
 		p.regionJump(r.Then, l, when, done)
 		p.label(els)
 		p.regionJump(r.Else, l, when, done)
+	case ir.TUnreachable:
+		// the abandon call above never returns
 	default:
 		p.fail("a boolean `if` arm ends in %s", r.T)
 	}

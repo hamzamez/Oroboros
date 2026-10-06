@@ -27,6 +27,11 @@
   (repr shift 31)
 
   (module js
+    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
+    ; with the reason. The language's `abandon`, found by spelling; it never
+    ; returns, so the IR ends its region with `unreachable`.
+    (sig abandon ((why string)) any (host stmt "throw new Error(%s)"))
+
     ; ---- arithmetic, declared on `any`.
     ;
     ; Not laziness. JavaScript has ONE number type; our language has two, `int`

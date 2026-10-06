@@ -1834,6 +1834,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			// Wrap innermost-last so the bindings nest in source order.
 			for i := len(bound) - 1; i >= 0; i-- {
 				body = App(Name("let"), bound[i].val, Fn([]string{bound[i].name}, body))
+				if out, ok := e.absorb(body.Kids); ok {
+					body = out
+				}
 			}
 			return body, nil
 		}
@@ -1897,6 +1900,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 					return out, nil
 				}
 			}
+			if out, ok := e.absorb([]*Term{op, a, b}); ok {
+				return out, nil
+			}
 			return &Term{Kind: KApp, Kids: []*Term{op, a, b}}, nil
 		}
 		// `len` on a table whose length is known. See tableLen.
@@ -1918,6 +1924,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			}
 			if n, ok := e.tableLen([]*Term{na}); ok {
 				return normalize(n, e, fuel)
+			}
+			if out, ok := e.absorb([]*Term{op, na}); ok {
+				return out, nil
 			}
 			return &Term{Kind: KApp, Kids: []*Term{op, na}}, nil
 		}
@@ -1956,6 +1965,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				return nil, err
 			}
 			out = append(out, na)
+		}
+		if ab, ok := e.absorb(out); ok {
+			return ab, nil
 		}
 		return &Term{Kind: KApp, Kids: out}, nil
 	}
@@ -2426,6 +2438,57 @@ func allPure(ts []*Term, e *Env) bool {
 		}
 	}
 	return true
+}
+
+// THE CRASH ABSORBS ITS CONTEXT (spec/errors.md §8).
+//
+//	(f a₁ … aₖ₋₁ (abandon w) …)  ⟶  (let aᵢ (fn (_) … (abandon w)))   for each impure aᵢ, i < k
+//
+// `abandon` is crash : E → 0, and 0 is the initial object: there is exactly one
+// arrow 0 → Y, so k ∘ abandon = abandon for every continuation k. It is the
+// commuting conversion at arity 0: 0 is the empty coproduct, its eliminator the
+// empty copairing, and K ∘ [g₁…gₙ] = [K∘g₁…K∘gₙ] at n = 0 is K ∘ [] = []. An application
+// of a primitive evaluates its arguments in order, each one not a λ, and an
+// `if` only its condition; so a crash in such a position is the whole
+// application's value, after the effects evaluated before it, which stay, in
+// order (ADR 0010). A pure one before it is dropped: it has no effect, and an
+// unused pure term is weakened as β weakens it. `let` is a primitive whose
+// value is its strict argument, so `(let (abandon w) k)` ⟶ `(abandon w)`, which
+// is also `seq`'s case. A λ argument is a value and is never run here, so a
+// crash inside one, and in an `if`'s branch, stays where it is.
+//
+// Without the rule the crash's "value", argument 0 by the statement rule, reached
+// what followed it: a string flowed into the integer a driver printed (W5), and
+// javac refused the statement after the throw as unreachable.
+func (e *Env) absorb(kids []*Term) (*Term, bool) {
+	if len(kids) < 2 || kids[0].Kind != KName || !e.Prim[kids[0].Name] {
+		return nil, false
+	}
+	strict := kids[1:]
+	if kids[0].Name == "if" {
+		strict = strict[:1]
+	}
+	for i, a := range strict {
+		if !isAbandon(a, e) {
+			continue
+		}
+		out := a
+		for j := i - 1; j >= 0; j-- {
+			b := strict[j]
+			if b.Kind == KFn || e.pureTerm(b, map[string]bool{}) {
+				continue
+			}
+			out = App(Name("let"), b, Fn(e.freshNames(1, out, b), out))
+		}
+		return out, true
+	}
+	return nil, false
+}
+
+// isAbandon reports whether t is an application of the language's crash.
+func isAbandon(t *Term, e *Env) bool {
+	return t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName &&
+		t.Kids[0].Name == "abandon" && e.Prim["abandon"]
 }
 
 // normalizeLater builds the application case-of-case pushes into one branch.

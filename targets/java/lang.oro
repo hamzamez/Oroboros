@@ -25,6 +25,12 @@
   (repr shift 63)
 
   (module java
+    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process
+    ; with the reason. The language's `abandon`, found by spelling; it never
+    ; returns, so the IR ends its region with `unreachable`, and nothing is
+    ; printed after the throw, which Java would refuse as unreachable.
+    (sig abandon ((why string)) any (host stmt "throw new IllegalStateException(%s)"))
+
     ; ---- arithmetic on long, which is our `int`
     ; The plain operators, and the CHECKED forms a declared range selects when
     ; the compiler cannot prove the result stays in the portable window

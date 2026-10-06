@@ -1,6 +1,8 @@
 package emit
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -119,6 +121,34 @@ func TestSpellingLookupIsDeterministic(t *testing.T) {
 		if !ok || got.Name != first.Name || got.Form != first.Form {
 			t.Fatalf("run %d resolved `concat` to %q %q, first run gave %q %q",
 				i, got.Name, got.Form, first.Name, first.Form)
+		}
+	}
+}
+
+// AN ASSEMBLY TEMPLATE CALLS SEVERAL EXTERNS, and any other names ONE package.
+// On Win32 each function is its own extern, so `abandon` writes its reason with
+// (import "GetStdHandle" "WriteFile" "ExitProcess"); a Go printer reads only the
+// first name, so on any backend but x86-64 a second is refused, not dropped.
+func TestSeveralImportsOnlyInAnAssemblyTemplate(t *testing.T) {
+	for _, c := range []struct{ backend, want string }{
+		{"go", "names 2 things"},
+		{"x86-64", ""},
+	} {
+		path := filepath.Join(t.TempDir(), "t.oro")
+		src := `(target t (backend ` + c.backend + `)
+		  (repr (int -9223372036854775808 9223372036854775807) word)
+		  (sig f (int) int (host expr "f(%s)" (import "a" "b"))))`
+		if err := os.WriteFile(path, []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		tg, err := LoadTarget(path)
+		switch {
+		case c.want == "" && err != nil:
+			t.Errorf("%s: %v", c.backend, err)
+		case c.want == "" && strings.Join(tg.Prims["f"].Externs, " ") != "b":
+			t.Errorf("%s: the second name is lost: %+v", c.backend, tg.Prims["f"])
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: want a refusal mentioning %q, got %v", c.backend, c.want, err)
 		}
 	}
 }

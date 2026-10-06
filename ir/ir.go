@@ -147,9 +147,15 @@ const (
 	TBreak
 	TContinue
 	TBranch
+	// TUnreachable ends a region that control never leaves: its last statement
+	// is a call to `abandon`, crash : E → 0, a morphism into the initial object
+	// (spec/errors.md §8). It yields nothing, and 0 → Y exists for every Y, so
+	// an `if` with results may have an arm that ends here.
+	TUnreachable
 )
 
-var termNames = [...]string{TYield: "yield", TBreak: "break", TContinue: "continue", TBranch: "branch"}
+var termNames = [...]string{TYield: "yield", TBreak: "break", TContinue: "continue", TBranch: "branch",
+	TUnreachable: "unreachable"}
 
 func (t Term) String() string { return termNames[t] }
 
@@ -232,7 +238,7 @@ type Program struct {
 // the header's `ops` (spec §10.2), which covering reads.
 func (p *Program) Ops() []string {
 	var used [numOps]bool
-	var terms [4]bool
+	var terms [len(termNames)]bool
 	var walk func(r *Region)
 	walk = func(r *Region) {
 		for i := range r.Stmts {

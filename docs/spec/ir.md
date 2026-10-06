@@ -129,6 +129,7 @@ A **region** is a list of parameters, a list of π-parameters (§6), a sequence 
 | `break v̄` | leave the innermost loop with v̄: the left injection | a loop body |
 | `continue v̄` | go round the innermost loop with v̄: the right injection | a loop body |
 | `branch c R₁ R₂` | continue in R₁ if c, else in R₂. R₁ and R₂ end in terminators of the same kind | anywhere |
+| `unreachable` | control never leaves: the region's last operation is a `call` of `abandon`, crash : E → 0 (errors.md §8). It passes nothing, and since 0 → Y exists for every Y it may end any arm of any tree, whatever the others pass | anywhere |
 
 `branch` and `if` are the **two readings of one coproduct**. `if` composes the copairing with what
 follows it, which is a join point. `branch` copies what follows into each arm, which is a tail.
@@ -274,6 +275,9 @@ a verifier, run after lowering and after every pass that rewrites the IR.
     region's terminator tree.
   - A region nested in an operation (`if`, `build`, `tabulate` and the rest) cannot `break` out of an
     enclosing loop (§1.3).
+  - `unreachable` ends only a region whose last operation is a `call` of `abandon`, so control cannot
+    fall out of it. It contributes no values to W4's arity or to its owner's results; a function body
+    with no other exit takes its declared results.
 - **W4 (arities).** Every terminator of one region's tree passes the same number of values: its
   owner's results for `yield` and `break`, and the loop's parameters for `continue`. An operation's
   results match Σ, and a `call`'s match the primitive's declared results.

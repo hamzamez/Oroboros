@@ -998,3 +998,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `lib/result.oro java`
 - new source — `lib/result.oro js`
 - new source — `lib/result.oro windows`
+
+## 2026-10-06 — on 472825e, with uncommitted changes
+
+**Reason:** expect and abandon (errors.md §12 step 3): two new sources, examples/errors/expect.oro and the differential case expect.oro, on four targets; every existing file byte-identical
+
+504 runs: 261 emitted, 243 refused; 1970 of 2015 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- new source — `examples/errors/expect.oro go`
+- new source — `examples/errors/expect.oro java`
+- new source — `examples/errors/expect.oro js`
+- new source — `examples/errors/expect.oro windows`
+- new source — `gauntlet/differential/cases/expect.oro go`
+- new source — `gauntlet/differential/cases/expect.oro java`
+- new source — `gauntlet/differential/cases/expect.oro js`
+- new source — `gauntlet/differential/cases/expect.oro windows`

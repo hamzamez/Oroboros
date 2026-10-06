@@ -75,6 +75,15 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		if declared == 0 && sig.Result != "" {
 			declared = 1
 		}
+		// A BODY THAT NEVER YIELDS ends every path in `unreachable` (the crash,
+		// spec/errors.md §8): its value is in 0, the initial object, and the
+		// one arrow 0 → R exists for every R, so it has the declared results.
+		if declared > 0 && len(f.Results) == 0 && yieldArity(f.Body) < 0 {
+			f.Results = append([]string(nil), sig.Results...)
+			if len(f.Results) == 0 {
+				f.Results = []string{sig.Result}
+			}
+		}
 		if declared > 0 && declared != len(f.Results) {
 			return nil, fmt.Errorf("%s: declares %d result(s) and does not produce them: the body yields %d",
 				name, declared, len(f.Results))
@@ -663,6 +672,15 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 			}
 			r.T, r.Args = TContinue, l.values(args, r)
 			return
+		}
+		// ABANDON ENDS THE PROCESS (spec/errors.md §8): crash : E → 0. The call
+		// is the region's last statement, and the region has no successor.
+		if op.Name == "abandon" {
+			if p, ok := l.prim(op.Name); ok {
+				l.call(r, op.Name, p, l.values(args, r))
+				r.T, r.Args = TUnreachable, nil
+				return
+			}
 		}
 		if p, ok := l.prim(op.Name); ok {
 			switch {

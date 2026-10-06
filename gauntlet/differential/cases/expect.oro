@@ -1,0 +1,22 @@
+; `expect` IS TOTAL (spec/errors.md §8): on the success constructor it
+; continues, and on any other it is crash : R → 0, the language's `abandon`,
+; which every target realizes as its own crash with the reason. So the property
+; is that every target prints the same answers and then crashes at the SAME
+; input with the same reason: 0 1 2 for the even inputs, and 3 is odd.
+;
+; The reason is written on all four targets: Go's panic, JavaScript's uncaught
+; Error, Java's IllegalStateException, and on Windows the bytes to standard
+; error and ExitProcess(1).
+;
+; inputs: 0 2 4 3 6
+; expect: 0 1 2 abandon
+; abandons: an even number is expected
+(use result)
+
+(sig half ((n (int 0 1000))) (result.result int int))
+(def half (n)
+  (if (= (% n 2) 0) (result.ok (/ n 2)) (result.err n)))
+
+(def run (n)
+  (expect (result.ok h) (half n) "an even number is expected"
+    h))

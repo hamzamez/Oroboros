@@ -73,7 +73,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 
 ### Reader sugar
 
-**None survives the reader**, except `case`.
+**None survives the reader**, except `case` and the two forms that expand into it.
 
 | written | reads as | spec |
 |---|---|---|
@@ -86,6 +86,7 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
 | `(loop ((x z)…) clauses… else e)` with `again` | `(loop (fn (x…) …) z…)` | [iteration.md](iteration.md), [ADR 0015](../decisions/0015-loop-and-again.md); `again` may sit under a binding of one name or several, [ADR 0027](../decisions/0027-a-host-calls-continuation-is-a-tail.md) |
 | `(case e (ctor x…) body …)` | `if` over a tag comparison, **in `Load`**, because the variant may be declared in another file | [sums.md](sums.md) |
+| `(try (s x) e body)`, `(expect (s x) e why body)` | a `case` in `Load`, on a variant marking `s` as `(success s)`: `try` returns every other constructor unchanged, `expect` crashes with `why` through `abandon` | [errors.md](errors.md) §5, §8 |
 
 **A `loop` with no `again` is not a loop.** The name is dropped, and what remains is a β-redex
 ([match.md §5b](match.md)).
@@ -108,6 +109,7 @@ program; the backend implements each on each host.
 | `map`, `build-map`, `insert`, `keys` | maps over `int` keys | [maps.md](maps.md) |
 | `concat`, `string-of` | the free monoid over scalars, and its generator | [string-operations.md](../string-operations.md) |
 | a host's string | its own type (`go.bytestring` on Go), with `string` a subtype of it; it enters `string` only through d, the maximal-subpart decode (`go.text`, and the portable `os.text-of` on every host) | [ADR 0030](../decisions/0030-a-hosts-string-is-the-hosts.md), [strings.md §8](strings.md) |
+| `abandon` | crash : E → 0, a statement taking the reason; found per target by spelling, and impure. Its value is in 0 | [errors.md](errors.md) §8–9 |
 | `the` | a range ascribed to a term, erased at emission | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md) (no spec yet) |
 
 **Indexing has no word at all.** `(a i)` is an application, because a table is a function with a known
@@ -142,7 +144,7 @@ The representation is chosen by the target: `(repr (int LO HI) …)` below the w
 | **β**, call-by-need | An impure argument is let-bound rather than substituted ([effects.md §4](effects.md)); a table read through a bound variable is not substituted into an impure body (§7c). **β-tab** is its second clause: a table or map written as a graph, applied to a literal, is looked up |
 | **δ** | unfolding a definition, declining a cycle; a target's native name wins over a library's (`▷`) |
 | **evaluation on literals** | `(if true a b) → a`; the language's integer operators and `=` on two integer literals, **only inside the target's word (ADR 0026), checked against int64 overflow, and never dividing by zero** ([ADR 0009](../decisions/0009-staging-preserves-results.md)). No float folds, and no primitive of a target is ever evaluated |
-| **commuting conversion** | push an eliminator through `if`, `let` and a multi-result host call's continuation — the n-ary let, `(((p a…) (fn (x̄) M)) k…) → ((p a…) (fn (x̄) (M k…)))` — only when every argument is pure (u128-2026-09-23) |
+| **commuting conversion** | push an eliminator through `if`, `let` and a multi-result host call's continuation — the n-ary let, `(((p a…) (fn (x̄) M)) k…) → ((p a…) (fn (x̄) (M k…)))` — only when every argument is pure (u128-2026-09-23). **At arity 0** it is the crash's absorption: `abandon w` is a term of the empty sum, whose eliminator is the empty copairing, and K ∘ [] = [], so a primitive's application with a crash in a strict position (an argument not a λ, an `if`'s condition) is the crash, after the impure arguments before it, kept in order ([errors.md §8](errors.md)) |
 
 **No recursion** ([ADR 0014](../decisions/0014-recursion-is-not-in-the-language.md)). A definition in
 terms of itself is an error, checked per target before reduction. δ still declines to unfold a cycle,

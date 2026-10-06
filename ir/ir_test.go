@@ -534,3 +534,42 @@ func TestRestrictNeedsItsPremise(t *testing.T) {
 		t.Errorf("the §9.4 witness: want no restriction (len a ≤ len b is not assumed), got %d", n)
 	}
 }
+
+// THE CRASH ENDS ITS REGION (spec/errors.md §8): `abandon` is crash : E → 0,
+// so the region it ends has no exit, `unreachable`, and contributes nothing to
+// its owner's results. A body with no exit at all takes its declared results,
+// by the one arrow 0 → R. The text round-trips (the corpus test reads every
+// program back); here each claim is pinned on the example, and the verifier's
+// rule has a planted fault in each direction.
+func TestTheCrashEndsItsRegion(t *testing.T) {
+	const src = "examples/errors/expect.oro"
+	tg, p := compile(t, src, "go")
+	if err := Verify(tg, p); err != nil {
+		t.Fatal(err)
+	}
+	text := Print(p)
+	if n := strings.Count(text, "(unreachable)"); n != 3 {
+		t.Errorf("want three unreachable regions, two in quarter and one in always-crashes, got %d in\n%s", n, text)
+	}
+	for _, f := range p.Funcs {
+		if len(f.Results) != 1 || f.Results[0] != "int" {
+			t.Errorf("%s: the declared result is int, got %v", f.Name, f.Results)
+		}
+	}
+	t.Run("W3 unreachable without the crash", func(t *testing.T) {
+		expect(t, plant(t, src, func(p *Program) {
+			for _, f := range p.Funcs {
+				f.Walk(func(r *Region) {
+					if r.T == TUnreachable {
+						r.Stmts = r.Stmts[:len(r.Stmts)-1]
+					}
+				})
+			}
+		}), "W3")
+	})
+	t.Run("W3 a yielding region marked unreachable", func(t *testing.T) {
+		expect(t, plant(t, "examples/native/dot-go.oro", func(p *Program) {
+			p.Funcs[0].Body.T = TUnreachable
+		}), "W3")
+	})
+}

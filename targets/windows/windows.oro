@@ -77,6 +77,7 @@
   (data "__read    qword 0")
   (data "__qpc     qword 0")
   (data "__buf     db 256 dup(0)")
+  (data "__nl      db 10")
 
   ; THE LINK LINE IS DATA. These five were a constant in emit/target.go, which is a
   ; host fact living in Go: kernel32 for ExitProcess, which the backend itself

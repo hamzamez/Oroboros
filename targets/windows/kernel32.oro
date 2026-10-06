@@ -55,6 +55,18 @@
     (sig ExitProcess (int) int (host stmt
         "mov rcx, %1\ncall ExitProcess" (import "ExitProcess")))
 
+    ; ---- THE CRASH (spec/errors.md §8, §9): crash : E → 0, ending the process.
+    ; The language's `abandon`, found by spelling; it never returns, so the IR
+    ; ends its region with `unreachable`, and the template may use any register:
+    ; nothing after it reads one. It writes the reason's bytes to standard error
+    ; (-12), measuring the NUL-terminated string first, then a newline, and
+    ; exits with status 1, as an uncaught throw does (Go's panic exits with 2).
+    ; The bytes go out as they are: a console shows them in its code page,
+    ; printing-research's open question, the same as every string here.
+    (sig abandon ((why string)) any (host stmt
+        "mov r12, %1\nmov rcx, -12\ncall GetStdHandle\nmov r13, rax\nxor r8d, r8d\n@@:\ncmp byte ptr [r12+r8], 0\nje @F\ninc r8\njmp @B\n@@:\nmov rcx, r13\nmov rdx, r12\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, r13\nlea rdx, __nl\nmov r8, 1\nlea r9, __written\nmov qword ptr [rsp+32], 0\ncall WriteFile\nmov rcx, 1\ncall ExitProcess"
+        (import "GetStdHandle" "WriteFile" "ExitProcess")))
+
     ; ---- memory. VirtualAlloc(NULL, size, MEM_COMMIT|MEM_RESERVE, PAGE_READWRITE)
     ; is the platform allocator, and the three constants are baked in because
     ; there is nowhere else to put them.

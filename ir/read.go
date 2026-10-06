@@ -217,6 +217,11 @@ func (rd *reader) region(t *core.Term) (*Region, error) {
 		}
 		r.Args = vs
 		r.T = map[string]Term{"yield": TYield, "break": TBreak, "continue": TContinue}[head(last)]
+	case "unreachable":
+		if len(last.Kids) != 1 {
+			return nil, fmt.Errorf("(unreachable) takes nothing")
+		}
+		r.T = TUnreachable
 	case "branch":
 		if len(last.Kids) != 4 {
 			return nil, fmt.Errorf("(branch %%c REGION REGION)")

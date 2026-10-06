@@ -87,6 +87,7 @@ and so expands in `Load` ([state.md](state.md)).
 | `_` | specified — a pattern that binds nothing, and `seq`'s binder | [match.md](match.md) |
 | `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |
 | `try` | specified — the exception monad's bind, `(try (ok x) e body)`; expands to `case` in `Load`, on a variant marked `success` | [errors.md](errors.md) |
+| `expect` | specified — total, `(expect (ok x) e why body)`: continues on the marked success and crashes with `why` on every other constructor, through `abandon`; expands to `case` in `Load` | [errors.md](errors.md) §8 |
 | `loop`, `again` | specified — also the retired layer's structural kind `loop` | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
 | `true`, `false` | specified — the boolean literals | [booleans.md](booleans.md) |
 
@@ -211,11 +212,12 @@ What a sig's `(host KIND …)` or a `(structural NAME KIND)` may say.
 
 ### Names a target declares for the compiler to find
 
-The integer operators and `=` above are found by spelling in the same way. These are the arbitrary-
+The integer operators and `=` above are found by spelling in the same way. These are `abandon`, and the arbitrary-
 precision names the host rung needs: the target declares them, and the compiler selects and emits them.
 
 | word | status | where |
 |---|---|---|
+| `abandon` | specified — crash : E → 0, which `expect` expands into: a statement taking the reason, injected unqualified and impure; each target's own crash (panic, throw, ExitProcess after the reason on standard error). Its value is in 0: it absorbs every strict context, and the IR ends its region with `unreachable` | [errors.md](errors.md) §8–9 |
 | `big+` | specified | [target-files.md](target-files.md) |
 | `big-fit` | specified — the bound enforced on a host bignum, [0, 2ᵏ) | [target-files.md](target-files.md), [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |
 | `big-fit-signed` | specified — the same for a signed range, (−2ᵏ, 2ᵏ) | [ADR 0029](../decisions/0029-above-the-word-one-set-on-every-representation.md) |

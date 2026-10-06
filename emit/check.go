@@ -399,7 +399,20 @@ func (c *checker) iterate(args []*core.Term, want string) (string, error) {
 	// loop's scope, and binding each variable before the next init was checked
 	// let a loop variable's type leak into its sibling's initialiser.
 	defer c.bind(lam.Params, tys)()
-	return c.loopBody(lam.Body(), lam.Params, tys, want)
+	ty, err := c.loopBody(lam.Body(), lam.Params, tys, want)
+	// A LOOP VARIABLE'S TYPE IS ONE THING ACROSS THE LOOP. Its open element is
+	// solved by a store, and a clause chain lists its exits first, so an exit
+	// returning the variable was typed before the store that solved it, and
+	// the loop's value left with the element still open: a `build` filling a
+	// buffer froze to `array ?`, and the table was then typed by whichever of
+	// its reads the checker met first (tally, sumofsums-2026-10-06). Walking
+	// the chain again, with the variables' solved types in scope, gives the
+	// exits those types. Typing is idempotent, so the second walk only reads
+	// what the first learned, and it runs only when the value is still open.
+	if err == nil && openTable(ty) {
+		ty, err = c.loopBody(lam.Body(), lam.Params, tys, want)
+	}
+	return ty, err
 }
 
 // loopBody walks the clause chain: `again` leaves check their arguments, other

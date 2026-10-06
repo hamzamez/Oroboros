@@ -97,7 +97,8 @@ Also nothing — no tag, no closure, no allocation, and no dispatch the `if` was
 That is **case-of-case**, §5.
 
 **Nested** — three sums deep, each with a runtime tag, reduces to plain control flow with no
-struct, no interface and no allocation.
+struct, no interface and no allocation. That is nesting **in sequence**; a sum **inside** another's
+payload reduces too, since sumofsums-2026-10-06 (§5).
 
 ## 5. The two reduction additions, both narrow
 
@@ -137,6 +138,23 @@ eliminated, so it is purely additive.
 
 The known hazard is code growth: `k` appears twice, so nested cases multiply. GHC's answer is join
 points and **`again` is one**, which is the direction if it ever bites. It has not yet.
+
+**A sum of sums, A + (K₁ + K₂), needed two more narrow rules** (sumofsums-2026-10-06). The nested test
+above nests sums in sequence, each payload an integer. A sum inside another sum's payload is the shape
+an error model has, `(err not-found)`, and it stopped reducing:
+- **the recount.** An eliminator names its payload in every arm, so β counts two occurrences and
+  let-binds a conditional payload. Folding the known tag then removes all arms but one, and the binding
+  is left between the inner constructor and its eliminator. So a binding made only because a pure value
+  occurred more than once is counted again in the normalised body. One occurrence left: it is
+  substituted and the body normalised again, which puts the `if` back in operator position. None left:
+  it is dropped. This is β's own one-occurrence rule applied after the fact, and only to pure values
+  (ADR 0010);
+- **a read under a λ is not a table read.** A constructor is `(fn (#x) (#x tag payload))`, and the guard
+  that keeps a table read out of a body with effects read its `(#x …)` as one, so the payload was bound
+  wherever an arm had an effect. A read inside a λ runs where the λ is applied, which substitution does
+  not move: the reason β already exempts an argument that is a λ.
+
+The residual is the flat sum's, as associativity of the coproduct says it must be.
 
 ## 6. Crossing a boundary
 

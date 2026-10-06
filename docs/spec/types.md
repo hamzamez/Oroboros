@@ -131,6 +131,22 @@ element that is read. A value of the integer sort solves `?` to `?int`, and any 
 it to that type. `?int` is not solved further. Solving is monotone: an element, once known, is only
 checked against after that.
 
+**The two constraints are bounds, not equations** (sumofsums-2026-10-06). A store of τ says τ ≤ σ, a
+lower bound. A read whose value goes where ω is demanded says σ ≤ ω, an upper bound. A solution exists
+when ⋁ stores ≤ ⋀ reads, and the principal one is the **least**, the join of what is stored. Solving at
+a read takes an upper bound for the answer, so the order of the residual decided the type: `tally`'s
+captures are `string`, read first by `strings.Compare`, whose parameter is `bytestring`. Two rules keep
+the stores first where they can be:
+- **a loop's exits are typed with its variables' solved types.** A clause chain lists its exits first,
+  so a buffer filled in a loop was returned before its store solved it. When the loop's value still has
+  an open element after one walk, the chain is walked again, with the solutions in scope;
+- **the IR's unifier applies a call's parameter demands last**, after every defining constraint
+  (constants, results, stores, a build's buffer). They fill only what is unknown, and a known type meets
+  its demand at W5, by subsumption.
+
+Not built: a table whose first constraint is a read and second a store, on one name, is still solved by
+the read. No program has that shape.
+
 **Introduction.**
 
 ```

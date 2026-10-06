@@ -200,6 +200,19 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 			u.unify(node[v], u.node(ty))
 		}
 	}
+	// A PARAMETER'S TYPE IS AN UPPER BOUND on its argument, σ ≤ ω, and the
+	// unifier has only equality. Taken as one where it is met, the first call
+	// walked fixed a table's element: a read handed to strings.Compare, whose
+	// parameter is `bytestring`, made a table of `string`s a table of
+	// `bytestring`s, which then could not go to `concat` (sumofsums-2026-10-06).
+	// So the demands wait until every defining constraint (constants, results,
+	// stores, a build's buffer) has given its lower bound, and then fill only
+	// what is still unknown; a known type meets its demand at W5, which judges
+	// the flow by subsumption.
+	var demands []struct {
+		v  V
+		ty string
+	}
 	elem := func(t V) int {
 		e := u.fresh()
 		u.unify(node[t], u.mk("table", e))
@@ -262,7 +275,10 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 				p := tg.Prims[s.Name]
 				for j, a := range s.Args {
 					if j < len(p.Args) {
-						is(a, p.Args[j])
+						demands = append(demands, struct {
+							v  V
+							ty string
+						}{a, p.Args[j]})
 					}
 				}
 				switch {
@@ -357,6 +373,9 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 		}
 	})
 	yields(f.Body, TYield, nil) // the function's own results carry no equation
+	for _, d := range demands {
+		is(d.v, d.ty)
+	}
 	// Retry the clashes once more: a variable below one may be known now.
 	for round := 0; round < 2 && len(u.pending) > 0; round++ {
 		p := u.pending

@@ -1258,6 +1258,15 @@ func readsBoundTable(t *Term) bool {
 	if t == nil {
 		return false
 	}
+	// NOT UNDER A λ. A read inside a λ runs where the λ is APPLIED, and
+	// substituting the term moves no application, which is why β exempts an
+	// argument that IS a λ. The same holds for a λ nested inside one: a sum's
+	// constructor is `(fn (#x) (#x tag payload))`, whose `(#x …)` applies its
+	// own parameter, and reading it as a table read let-bound every
+	// conditional sum flowing into an arm with effects (sumofsums-2026-10-06).
+	if t.Kind == KFn {
+		return false
+	}
 	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KBound {
 		return true
 	}
@@ -1675,6 +1684,10 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				name string
 				val  *Term
 			}
+			// recount marks the bindings made ONLY because a pure value occurred
+			// more than once: the impure and the table-read bindings are not in
+			// it, and never will be substituted.
+			recount := map[string]bool{}
 			// Names already chosen for bindings of THIS application, so two
 			// parameters cannot be renamed onto each other.
 			used := map[string]bool{}
@@ -1766,6 +1779,7 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				}
 				nm := e.bindName(p, op.Params, used)
 				used[nm] = true
+				recount[nm] = true
 				bound = append(bound, struct {
 					name string
 					val  *Term
@@ -1775,6 +1789,40 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			body, err := normalize(op.OpenWith(subs), e, fuel)
 			if err != nil {
 				return nil, err
+			}
+			// THE RECOUNT. The occurrences above were counted in the body BEFORE
+			// it was normalised, and normalising can remove some: a sum's
+			// eliminator names its payload in every arm, and folding the known
+			// tag keeps one arm. So a pure value bound for occurring twice may
+			// occur once, or not at all, in the body that is left. Then binding
+			// it serves nothing, and it is in the way: with the payload a
+			// conditional, `(let (if c A B) (fn (p) (p k…)))` leaves an
+			// eliminator applied to a VARIABLE, which neither commuting
+			// conversion reaches, and a sum of sums stops reducing
+			// (sumofsums-2026-10-06). So substitute it, which is β's own
+			// one-occurrence rule applied after the fact, and normalise again so
+			// the conversions see the `if` in operator position. Sound for the
+			// reason that rule is: the value is pure, and one occurrence
+			// duplicates nothing (ADR 0010).
+			again := map[string]*Term{}
+			kept := bound[:0]
+			for _, b := range bound {
+				if recount[b.name] {
+					switch occurrences(body, b.name) {
+					case 0:
+						continue // pure and unread: dropped, as β drops an unused pure argument
+					case 1:
+						again[b.name] = b.val
+						continue
+					}
+				}
+				kept = append(kept, b)
+			}
+			bound = kept
+			if len(again) > 0 {
+				if body, err = normalize(subst(body, again), e, fuel); err != nil {
+					return nil, err
+				}
 			}
 			if callee != "" {
 				if body, err = e.markWhere(callee, subs, args, body, fuel); err != nil {

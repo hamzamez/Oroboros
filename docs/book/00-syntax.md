@@ -743,7 +743,7 @@ separating, because three of them exist:
 | | |
 |---|---|
 | **quotation marks** | `"a;b"` is a string literal, one of §0.7's four token classes, scanned by its own rule that the gap never enters (§0.9). We have these |
-| **`Quote` the host function** | `strconv.Quote`, `Unquote`, `QuoteRune`, three `Append` forms, `QuotedPrefix`, `UnquoteChar` are declared on the Go target ([targets/go/strconv.oro](../../targets/go/strconv.oro) lines 91–128). `(sc.Quote s)` emits `strconv.Quote(v0)`. An ordinary function on bytes |
+| **`Quote` the host function** | `Quote`, `QuoteToASCII`, `QuoteToGraphic`, `QuoteRune` and its two variants, six `AppendQuote…` forms, `Unquote`, `QuotedPrefix`, `UnquoteChar` — all declared on the Go target ([targets/go/strconv.oro](../../targets/go/strconv.oro)). `(sc.Quote s)` emits `strconv.Quote(v0)`. An ordinary function on bytes |
 | **a quoted identifier, `'x`** | **Specified** ([spec/data.md §2](../spec/data.md)) as a *symbol*, and not built |
 | **quote over any datum** | `'(1 2)`, `` `(a ,b) `` — what macros need. Specified as an **error**, deliberately |
 

@@ -25,11 +25,11 @@
 (use os)
 (use result)
 
-; THE ERROR MODEL (spec/errors.md §4, oskinds-2026-10-06): a partial success's
-; error is an option beside its value, and `ok?` and `print-err` read it as Go
-; prints an error, a nil one `<nil>`.
-(def ok? (o) (case o none true (some e) false))
-(def print-err (o) (case o none (seq (fmt.Println "<nil>") 0) (some e) (seq (fmt.Println e) 0)))
+; THE ERROR MODEL (spec/errors.md §4.3): a partial success's error is the
+; relevant 1 + E, (result (tuple) error), beside its value, and `ok?` and
+; `print-err` read it as Go prints an error, a nil one `<nil>`.
+(def ok? (r) (case r (result.ok u) true (result.err e) false))
+(def print-err (r) (case r (result.ok u) (seq (fmt.Println "<nil>") 0) (result.err e) (seq (fmt.Println e) 0)))
 
 (export main)
 
@@ -58,9 +58,12 @@
          ((hex.Decode b enc) (fn (b2 n e)
            (seq (fmt.Println n) (fmt.Println (ok? e)) b2)))))))
 
+; The input is a valid encoding, mixed case, so the error is absent: ignored,
+; and said so (spec/errors.md §7).
 (def projection ()
   ((hex.DecodeString "DEADbeef00FF") (fn (x e)
-    (seq (fmt.Println x)
+    (seq (ignore e)
+         (fmt.Println x)
          (fmt.Println (hex.EncodeToString x))))))
 
 ; "0102zz", "abcg12", "abc": a bad byte after two pairs, a bad byte after one,

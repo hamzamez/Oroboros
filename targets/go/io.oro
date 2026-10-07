@@ -43,6 +43,7 @@
 
 (target go
   (module go/io
+    (use result)
     ; ---------------------------------------------------------------- the sorts
     (type Reader      (host "io.Reader"))
     (type Writer      (host "io.Writer"))
@@ -59,11 +60,13 @@
     ; ------------------------------------------------------ the interfaces' Ω
     ; A write-borrow, B ⊸ B ⊗ int ⊗ error, as os's File.Read.
     (module Reader
+      (use result)
       (sig Read ((self Reader) (p (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)")))
     (module Writer
-      (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
+      (use result)
+      (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "%s.Write(%s)")))
     (module Closer
       (use result)
@@ -84,7 +87,8 @@
       (sig WriteByte ((self ByteWriter) (c (int 0 255))) (result.result (tuple) error)
         (host expr "%s.WriteByte(uint8(%s))")))
     (module StringWriter
-      (sig WriteString ((self StringWriter) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))
+      (use result)
+      (sig WriteString ((self StringWriter) (s bytestring)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "%s.WriteString(%s)")))
 
     ; ------------------------------------------------------------- the errors
@@ -104,23 +108,23 @@
 
     ; ------------------------------------------------------------ the folds
     ; Copy's count is every byte written, never negative.
-    (sig Copy ((dst Writer) (src Reader)) (tuple (int 0 9223372036854775807) (option error))
+    (sig Copy ((dst Writer) (src Reader)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
       (host expr "io.Copy(%s, %s)" (import "io")))
     (sig CopyN ((dst Writer) (src Reader) (n (int -9223372036854775808 9223372036854775807)))
-      (tuple (int 0 9223372036854775807) (option error))
+      (tuple (int 0 9223372036854775807) (result.result (tuple) error))
       (host expr "io.CopyN(%s, %s, int64(%s))" (import "io")))
-    (sig ReadAll ((r Reader)) (tuple (array (int 0 255)) (option error))
+    (sig ReadAll ((r Reader)) (tuple (array (int 0 255)) (result.result (tuple) error))
       (host expr "io.ReadAll(%s)" (import "io")))
     ; Write-borrows: the host fills buf and returns the count.
     (sig ReadFull ((r Reader) (buf (buffer (int 0 255))))
-      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
+      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
       (host expr "func(buf []byte) ([]byte, int, error) { n, err := io.ReadFull(%s, buf); return buf, n, err }(%s)"
         (import "io")))
     (sig ReadAtLeast ((r Reader) (buf (buffer (int 0 255))) (min int))
-      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
+      (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
       (host expr "func(buf []byte, min int) ([]byte, int, error) { n, err := io.ReadAtLeast(%s, buf, min); return buf, n, err }(%s, %s)"
         (import "io")))
-    (sig WriteString ((w Writer) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))
+    (sig WriteString ((w Writer) (s bytestring)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
       (host expr "io.WriteString(%s, %s)" (import "io")))
 
     ; ------------------------------------------------------- the transformers
@@ -136,14 +140,14 @@
     (module PipeReader
       (use result)
       (sig Read ((self PipeReader) (p (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
           (import "io")))
       (sig Close ((self PipeReader)) (result.result (tuple) error) (host expr "%s.Close()" (import "io")))
       (sig CloseWithError ((self PipeReader) (err error)) (result.result (tuple) error) (host expr "%s.CloseWithError(%s)" (import "io"))))
     (module PipeWriter
       (use result)
-      (sig Write ((self PipeWriter) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
+      (sig Write ((self PipeWriter) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "%s.Write(%s)" (import "io")))
       (sig Close ((self PipeWriter)) (result.result (tuple) error) (host expr "%s.Close()" (import "io")))
       (sig CloseWithError ((self PipeWriter) (err error)) (result.result (tuple) error) (host expr "%s.CloseWithError(%s)" (import "io")))))

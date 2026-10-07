@@ -2842,9 +2842,16 @@ func programBinder(p string) bool {
 
 // relevanceError names what was discarded and how.
 func relevanceError(p string, arg *Term) error {
-	what := head(arg)
-	if arg.Kind == KApp {
-		what = "the result of " + what
+	// A call is named by what the program called; a value that reached the
+	// binder already reduced (a conversion's `if`, a tuple's component) by
+	// the binder it reached.
+	what := "the value bound to " + p
+	if strings.HasPrefix(p, "#_") {
+		what = "a value"
+	}
+	if h := head(arg); arg.Kind == KApp && arg.Op().Kind == KName && !strings.HasPrefix(h, "#") &&
+		h != "if" && h != "let" && h != "loop" && h != "build" && h != "build-map" {
+		what = "the result of " + h
 	}
 	how := "the binder " + p + " is not used on every path"
 	if strings.HasPrefix(p, "#_") {

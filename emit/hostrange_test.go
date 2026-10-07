@@ -89,7 +89,7 @@ func TestExitsCodeIsAStatus(t *testing.T) {
 func TestStdinCanBeRead(t *testing.T) {
 	src := `(use go) (use go/os) (use go/os/File as File)
 		(export f) (sig f () int)
-		(def f () (let (tuple p n) (build b 16 ((File.Read (os.Stdin) b) (fn (q k e) (tuple q k)))) n))`
+		(def f () (let (tuple p n) (build b 16 ((File.Read (os.Stdin) b) (fn (q k e) (seq (ignore e) (tuple q k))))) n))`
 	if _, err := entryGo(t, src); err != nil {
 		t.Errorf("reading standard input: %v", err)
 	}

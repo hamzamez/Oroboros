@@ -145,15 +145,15 @@
       ; A WRITE-BORROW, B ⊸ B ⊗ int ⊗ (1 + E): the host writes p[0, n) with
       ; 0 ≤ n ≤ len p (io.Reader) and returns p, as hex.Decode does. A PARTIAL
       ; SUCCESS: n bytes arrive WITH the error, and io.Reader says to use them
-      ; first, so the error is an option beside them, not a sum (errors.md §4.3).
+      ; first, so the error is a relevant 1 + E beside them, not a sum (errors.md §4.3).
       (sig Read ((self File) (p (buffer (int 0 255))))
-        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (option error))
+        (tuple (buffer (int 0 255)) (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "func(p []byte) ([]byte, int, error) { n, err := %s.Read(p); return p, n, err }(%s)"
           (import "os")))
       ; io.Writer's contract: n = len b exactly when err is nil.
-      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
+      (sig Write ((self File) (b (array (int 0 255)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "%s.Write(%s)" (import "os")))
-      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))
+      (sig WriteString ((self File) (s bytestring)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
         (host expr "%s.WriteString(%s)" (import "os")))
       ; Succeeds with nothing: 1 + E, the unit beside the error (data.md §3.6).
       (sig Close ((self File)) (result.result (tuple) error) (host expr "%s.Close()" (import "os")))

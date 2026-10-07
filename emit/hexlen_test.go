@@ -26,7 +26,7 @@ func TestABufferSizedByEncodedLenHoldsTheEncoding(t *testing.T) {
 
 func TestABufferSizedByDecodedLenHoldsTheDecoding(t *testing.T) {
 	if err := refineGo(t, hexHead+`(def f (src)
-  (build (hex.DecodedLen (len src)) (fn (b) ((hex.Decode b src) (fn (b2 n e) b2)))))`); err != nil {
+  (build (hex.DecodedLen (len src)) (fn (b) ((hex.Decode b src) (fn (b2 n e) (seq (ignore e) b2))))))`); err != nil {
 		t.Errorf("len src ≤ 2·⌊len src / 2⌋ + 1: %v", err)
 	}
 }

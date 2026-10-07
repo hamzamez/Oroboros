@@ -315,10 +315,12 @@ a wall that needs language work, stop and research it, then design it.
       ([ADR 0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md),
       [relevance-2026-10-07](gauntlet/results/relevance-2026-10-07.md)): a relevant value is used on
       every path or refused, checked at β on the term as written, and `(ignore e)` is the discard.
-      Step 7, the audit of JavaScript's and Java's throwing declarations, waits for the browser and
-      Android `os`. **Open for hamza:** whether a partial success's error factor becomes the
-      relevant 1 + E (relevance-2026-10-07 §6), since `(option error)` lets a dropped `Write` error
-      pass;
+      **A partial success's error is relevant**
+      ([ADR 0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md),
+      [partial-2026-10-07](gauntlet/results/partial-2026-10-07.md)): its factor is `(result (tuple)
+      error)`, and `(option error)` stays only on `strings.Builder`'s and `bufio.Writer`'s writes, with
+      the reason in the file. Step 7, the audit of JavaScript's and Java's throwing declarations,
+      waits for the browser and Android `os`;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -422,6 +424,7 @@ rejected alternatives.
 | A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload), so a loop yields a sum — extends 0015 | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
 | A variant's value is its tag and one slot per payload type of its declaration, wherever it must exist as data; an unselected slot holds `#any`, the zero of its type (Theorem R) | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
 | Relevance is checked at β, where a binder meets its value, on every path; usage inference through definitions; `ignore` is !_A : A → 1 | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
+| A partial success's error is the relevant 1 + E, `(result (tuple) E)`; `(option error)` only where the host makes it ignorable, with the reason | [0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md) |
 
 ## How this project is run
 

@@ -65,14 +65,14 @@
     ; P_b. No precondition: a bad base or bitSize is an ERROR value, not a panic.
     ; The result is the host's int64 — the word — received as Go's int, which is
     ; the same 64 bits on this target.
-    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 (option error)) pure
+    (sig ParseInt ((s bytestring) (base int) (bitSize int)) (tuple int64 (result.result (tuple) error)) pure
           (host expr "func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(%s, %s, %s)"
             (import "strconv")))
     ; …and over U, returned as the uint64 it is.
-    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 (option error)) pure
+    (sig ParseUint ((s bytestring) (base int) (bitSize int)) (tuple uint64 (result.result (tuple) error)) pure
           (host expr "strconv.ParseUint(%s, %s, %s)" (import "strconv")))
     ; P_10 into Go's int.
-    (sig Atoi ((s bytestring)) (tuple int (option error)) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
+    (sig Atoi ((s bytestring)) (tuple int (result.result (tuple) error)) pure (host expr "strconv.Atoi(%s)" (import "strconv")))
 
     ; ---------------------------------------------------------- floats
     ; The shortest decimal that rounds back (prec −1), or a fixed precision; an
@@ -83,7 +83,7 @@
     (sig AppendFloat ((dst (buffer (int 0 255))) (f f64) (fmt uint8) (prec int) (bitSize int)) (buffer (int 0 255))
           (where (and (<= 64 bitSize) (<= bitSize 64)))
           (host expr "strconv.AppendFloat(%s, %s, uint8(%s), %s, %s)" (import "strconv")))
-    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 (option error)) pure
+    (sig ParseFloat ((s bytestring) (bitSize int)) (tuple f64 (result.result (tuple) error)) pure
           (host expr "strconv.ParseFloat(%s, %s)" (import "strconv")))
 
     ; ---------------------------------------------------------- quoting

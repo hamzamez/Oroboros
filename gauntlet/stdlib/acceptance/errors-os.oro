@@ -31,6 +31,6 @@
         (let (tuple b2 n e2) (File.Read f b)
           (expect (result.ok _) (File.Close f) "closing go.mod"
             (case e2
-              none     (io.print-int n)
-              (some e) (io.print-int 0)))))
+              (result.ok u)  (io.print-int n)
+              (result.err e) (io.print-int 0)))))
     (result.err e) (io.print-int 0)))

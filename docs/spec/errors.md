@@ -19,7 +19,7 @@ a propagated sum costs nothing) and [sumofsums-2026-10-06](../../gauntlet/result
 
 | | today | this specification |
 |---|---|---|
-| a fallible host call | returns a product `(tuple T error)`, with an unwritten rule: when the error is not nil, the value means nothing | returns a **sum** `(result T E)`, built at the boundary from the host's encoding; or, where the host succeeds in part, a product carrying an **option** (§4.3) |
+| a fallible host call | returns a product `(tuple T error)`, with an unwritten rule: when the error is not nil, the value means nothing | returns a **sum** `(result T E)`, built at the boundary from the host's encoding; or, where the host succeeds in part, a product carrying a relevant **1 + E**, `(result (tuple) E)` (§4.3) |
 | reading the value after a failure | compiles; Go gives 0, JavaScript and Java crash (errors-2026-10-04 §2) | impossible: the value is bound only in the success arm |
 | which failure | nothing portable | a **kind**, matched by `case` (§6) |
 | a dropped error | silent | **refused**, unless discarded in so many words (§7) |
@@ -183,21 +183,39 @@ an error, a partial product and their composites. What the build fixed in detail
 `gauntlet/stdlib/acceptance/errors-os.oro` runs all three shapes on Go, and what Go runs is
 `f, err := os.Open(…); if err == nil { … }`.
 
-### 4.3 A partial success is a product with an option
+### 4.3 A partial success is a product with a relevant 1 + E
 
 Some host calls succeed in part. `io.Reader.Read` returns n bytes **and** an error, and Go's
 documentation says to process the n bytes first. Its honest type is ℕ × (1 + E), and the niche gives it
 directly:
 
 ```lisp
-(sig Read ((r Reader) (p (buffer (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
+(sig Read ((r Reader) (p (buffer (int 0 255))))
+     (tuple (int 0 9223372036854775807) (result.result (tuple) error))
      (host expr "%s.Read(%s)"))
 ```
 
-An `(option E)` component of a host result is read through the niche: `none` when it is absent,
-`(some e)` otherwise. The declaration states which shape the host has, from the host's documentation:
-`ReadFile` is a sum, `Read` a partial product, and `ParseInt` a sum of products (`ErrRange` comes with
-the saturated value). That is ADR 0022's rule for every claim a declaration makes.
+**The 1 + E is `(result (tuple) E)`, not `(option E)`.** As sets they are one, 1 + E, and the
+retraction is the same: H((result (tuple) E)) = [E], so the raw call is Go's `(n, err)`, and the error
+factor is `ok ()` when the niche holds and `err e` otherwise. What separates them is the **role**:
+`option` is the absence of a value, a map read, which may be ignored; `result` is the presence of a
+failure, which may not (§7). A partial success's error is a failure, so it is relevant, and dropping
+`File.Write`'s is refused like dropping `os.WriteFile`'s (hamza, relevance-2026-10-07 §6;
+partial-2026-10-07). `Scanner.Err`, "the first non-EOF error", is the same 1 + E alone.
+
+**`(option error)` is kept where the host's algebra makes the error ignorable**, and the declaration
+says why, as §7 asks:
+- `strings.Builder.Write`, `WriteRune`, `WriteString`: the documentation gives "a nil error" always,
+  so the honest factor is 1, and the option is the host's spelling of it;
+- `bufio.Writer.Write`, `WriteString`: the writer's errors are sticky, the first is kept and `Flush`
+  returns it, so a write's error is subsumed by `Flush`'s.
+
+A write through an interface (`fmt.Fprintf` to an `io.Writer`) does not know its receiver, so its error
+is relevant even when the receiver is a `bufio.Writer`; the program writes `(ignore …)` and says why.
+
+The declaration states which shape the host has, from the host's documentation: `ReadFile` is a sum,
+`Read` a partial product, and `ParseInt` a sum of products (`ErrRange` comes with the saturated value).
+That is ADR 0022's rule for every claim a declaration makes.
 
 ### 4.4 A sentinel that varies by function
 

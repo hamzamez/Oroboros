@@ -75,7 +75,7 @@ func TestAStatusIsBoundedByItsExits(t *testing.T) {
 (def f (k)
   (let s (loop ((i 0))
            (>= i k)  ` + exit0 + `
-           (= i 50)  (let (tuple w e) (fmt.Fprintln (gos.Stderr) "x") ` + exit1 + `)
+           (= i 50)  (let (tuple w e) (fmt.Fprintln (gos.Stderr) "x") (seq (ignore e) ` + exit1 + `))
            else      (again (+ i 1)))
     (gos.Exit s)))`
 	}

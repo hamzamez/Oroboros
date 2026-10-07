@@ -26,12 +26,12 @@
 
 ; THE ERROR MODEL (spec/errors.md §4, oskinds-2026-10-06). ParseInt, ParseUint,
 ; Atoi and ParseFloat are PARTIAL SUCCESSES: Go documents the value that comes
-; with the error (0, or saturated at the word, or ±Inf), so the error is an
-; option beside it. ParseBool, Unquote and UnquoteChar are SUMS: a value only
-; without an error. `ok?` and `print-err` read an option as Go prints an error:
-; a nil one is `<nil>`.
-(def ok? (o) (case o none true (some e) false))
-(def print-err (o) (case o none (seq (fmt.Println "<nil>") 0) (some e) (seq (fmt.Println e) 0)))
+; with the error (0, or saturated at the word, or ±Inf), so the error is the
+; relevant 1 + E beside it (spec/errors.md §4.3). ParseBool, Unquote and
+; UnquoteChar are SUMS: a value only without an error. `ok?` and `print-err`
+; read the 1 + E as Go prints an error: a nil one is `<nil>`.
+(def ok? (r) (case r (result.ok u) true (result.err e) false))
+(def print-err (r) (case r (result.ok u) (seq (fmt.Println "<nil>") 0) (result.err e) (seq (fmt.Println e) 0)))
 
 ; The ends of the signed word, computed: 2^63 − 1 − i and −2^63 + i.
 (def top (i) (- 9223372036854775807 i))
@@ -119,10 +119,10 @@
 (def error ()
   ((sc.ParseInt "99999999999999999999" 10 64) (fn (v o)
     (case o
-      (some e) (seq (fmt.Println (ne.Error (sc.NumError e "ParseInt" "99999999999999999999")))
-                    (fmt.Println (ne.Unwrap (sc.NumError e "F" "N")))
-                    0)
-      none     (seq (fmt.Println "<nil>") 0)))))
+      (result.err e) (seq (fmt.Println (ne.Error (sc.NumError e "ParseInt" "99999999999999999999")))
+                          (fmt.Println (ne.Unwrap (sc.NumError e "F" "N")))
+                          0)
+      (result.ok u)  (seq (fmt.Println "<nil>") 0)))))
 
 (def main ()
   (seq (word) (unsigned) (saturate) (decimal) (quote) (bools-floats) (append) (error)))

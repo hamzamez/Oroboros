@@ -70,15 +70,20 @@
     (sig NewWriter ((w go/io.Writer)) Writer (host expr "bufio.NewWriter(%s)" (import "bufio")))
 
     (module Scanner
+      (use result)
       (sig Scan ((self Scanner)) bool (host expr "%s.Scan()" (import "bufio")))
       ; The token as a new string of its bytes. Any bytes: a line of a file is
       ; not text until it is decoded (ADR 0030).
       (sig Text ((self Scanner)) bytestring (host expr "%s.Text()" (import "bufio")))
-      (sig Err ((self Scanner)) (option error) (host expr "%s.Err()" (import "bufio"))))
+      (sig Err ((self Scanner)) (result.result (tuple) error) (host expr "%s.Err()" (import "bufio"))))
 
     (module Writer
       (use result)
-      ; n < len p exactly when err is not nil, on both: io.Writer's law.
+      ; n < len p exactly when err is not nil, on both: io.Writer's law. The
+      ; errors are STICKY: the first is kept, every later call returns it, and
+      ; Flush reports it. A write's error is subsumed by Flush's, so the two
+      ; writes keep (option error), which may be ignored, and Flush has the
+      ; relevant 1 + E: the obligation is where the host reports (errors.md §7).
       (sig Write ((self Writer) (p (array (int 0 255)))) (tuple (int 0 9223372036854775807) (option error))
         (host expr "%s.Write(%s)" (import "bufio")))
       (sig WriteString ((self Writer) (s bytestring)) (tuple (int 0 9223372036854775807) (option error))

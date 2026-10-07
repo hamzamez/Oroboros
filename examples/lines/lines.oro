@@ -52,25 +52,29 @@
 
 ; A message on standard error, and the status of a failed run.
 (def fail (msg)
-  (let (tuple w e) (fmt.Fprintln (gos.Stderr) msg)
+  ; Ignored: the run is failing already, and standard error is the last
+  ; channel there is to report that it could not be written.
+  (seq (ignore (fmt.Fprintln (gos.Stderr) msg))
     1))
 
-; Whether an (option error) is absent: a partial success's error, such as a
-; parse's or Scanner.Err's (spec/errors.md §4.3).
-(def ok? (o) (case o none true (some e) false))
+; Whether a partial success's error is absent, a parse's or Scanner.Err's: the
+; relevant 1 + E, (result (tuple) error) (spec/errors.md §4.3).
+(def ok? (r) (case r (result.ok u) true (result.err e) false))
 
 ; The end of the input, or the first error reading it. The summary goes out
 ; only when every line was read. A Flush on the way to a failure is made and
 ; its own outcome set aside: the run fails either way.
 (def finish (in out col n sum used)
   (case (Scanner.Err in)
-    (some e)
+    (result.err e)
       (case (Writer.Flush out)
         (result.ok u)  (fail "lines: cannot read standard input")
         (result.err f) (fail "lines: cannot read standard input"))
-    none
-      (let (tuple w1 e1) (fmt.Fprintf3 out "%d lines; column %d: %d values, sum " n col used)
-           (tuple w2 e2) (fmt.Fprintln out sum)
+    (result.ok u)
+      ; Ignored: out is a bufio.Writer, whose errors are sticky, and the Flush
+      ; below reports the first (spec/errors.md §7).
+      (seq (ignore (fmt.Fprintf3 out "%d lines; column %d: %d values, sum " n col used))
+           (ignore (fmt.Fprintln out sum))
         (case (Writer.Flush out)
           (result.ok u)  0
           (result.err f) (fail "lines: cannot write standard output")))))
@@ -92,7 +96,7 @@
       else
         (let line (Scanner.Text in)
              fs   (strings.Fields line)
-             (tuple w e)  (fmt.Fprintf2 out "%6d\t%s\n" (+ n 1) line)
+             _            (ignore (fmt.Fprintf2 out "%6d\t%s\n" (+ n 1) line)) ; sticky, as above
              (tuple v pe) (strconv.ParseInt (if (< (len fs) col) "" (fs (- col 1))) 10 64)
           (again (+ n 1)
                  (if (summed pe v) (+ sum v) sum)

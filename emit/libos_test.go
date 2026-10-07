@@ -19,7 +19,7 @@ func TestAnEnvironmentReadStaysBeforeASetenv(t *testing.T) {
 		t.Fatal(err)
 	}
 	forms, err := core.Read(`(use os) (use go/os as gos)
-(fn (k) (let x (os.Getenv k) (seq (gos.Setenv k "v") x)))`)
+(fn (k) (let x (os.Getenv k) (seq (ignore (gos.Setenv k "v")) x)))`)
 	if err != nil {
 		t.Fatal(err)
 	}

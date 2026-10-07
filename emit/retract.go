@@ -236,6 +236,15 @@ func DeclaredName(raw string) (string, bool) {
 	return strings.ReplaceAll(strings.TrimPrefix(raw, "#raw:"), ":", "."), true
 }
 
+// spelled is how a diagnostic names a primitive: a raw call by the declaration
+// the program wrote, since `#raw:…` is the compiler's own name for it.
+func spelled(name string) string {
+	if d, ok := DeclaredName(name); ok {
+		return d
+	}
+	return name
+}
+
 func replaceName(names []string, from, to string) []string {
 	out := names[:0]
 	for _, n := range names {

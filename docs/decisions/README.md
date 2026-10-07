@@ -73,4 +73,5 @@ What this makes easy, what it makes hard, and what it commits us to.
 | [0039](0039-the-targets-are-go-windows-android-and-the-browser.md) | The targets are Go, Windows, Android and the browser; Node is a third-party layer; supersedes 0004's list |
 | [0040](0040-a-failure-is-a-value-of-a-marked-sum.md) | A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, the host's encoding is a niche, `expect` is the one way to give up |
 | [0042](0042-a-variants-value-is-its-tag-and-its-slots.md) | A variant's value is its tag and one slot per payload type of its declaration, everywhere it must exist as data; an unselected slot holds `#any`, the zero of its type |
+| [0043](0043-relevance-is-checked-where-a-binder-meets-its-value.md) | Relevance is checked at β, where a binder meets its value, on every path (the eliminators are additive), with usage inference through definitions; `ignore` is !_A : A → 1, and η extends to the unit |
 | [0041](0041-a-success-arm-is-a-tail.md) | A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload) — extends 0015 |

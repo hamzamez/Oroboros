@@ -33,7 +33,7 @@ import (
 // tupleArity recognises a tuple term, `(fn (#k) (#k c₁ … cₘ))`, and returns m.
 // `#k` is the reader's binder for a tuple and no program can write it.
 func tupleArity(t *core.Term) (int, bool) {
-	if t == nil || t.Kind != core.KFn || len(t.Params) != 1 || t.Params[0] != "#k" {
+	if t == nil || t.Kind != core.KFn || len(t.Params) != 1 || !core.IsTupleBinder(t.Params[0]) {
 		return 0, false
 	}
 	b := t.Closed()

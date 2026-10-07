@@ -102,6 +102,15 @@
 == examples/dot.oro windows refused
    gen: examples/dot.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.
+== examples/errors/discard.oro go refused
+   gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with (ignore …)
+== examples/errors/discard.oro js refused
+   gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with (ignore …)
+== examples/errors/discard.oro java refused
+   gen: the result of os.WriteFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with (ignore …)
+== examples/errors/discard.oro windows refused
+   gen: examples/errors/discard.oro: in os.Args: os/host.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use os/host) matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
 == examples/errors/expect.oro go emitted 6a54c8469b0a2c954b3fb2c9db96ffe1be796f102ce548d3abbdd08bf3fbd677
    note: gen-quarter: 4 division(s) became a shift or a mask
 == examples/errors/expect.oro js emitted df310ea61b40d9bd2ab5840389021f39a2e54a529ab4c5a8e5eab6ee9f2bf322
@@ -110,6 +119,12 @@
    note: gen-quarter: 4 division(s) became a shift or a mask
 == examples/errors/expect.oro windows emitted 1c3a57469412135d5949810dae7594cd9629ef2a3c64ffad57a14d1197515e7f
    note: gen-quarter: 4 division(s) became a shift or a mask
+== examples/errors/ignore.oro go emitted 8884519c312e32db6c0cd9bbcd2dd117d3c623efac1601f4d377b8c523d99367
+== examples/errors/ignore.oro js emitted 07572c03a3c589d17ab47468b8b6f6a4435bf914e4d0fc3c04f490d87f5df75d
+== examples/errors/ignore.oro java emitted f85074f8c9775549b322d88800d17e288eb9b11771c4a5de4faf0513eca10a72
+== examples/errors/ignore.oro windows refused
+   gen: examples/errors/ignore.oro: in os.Args: os/host.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use os/host) matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
 == examples/errors/slots.oro go emitted 38678077ae4a9e9f9c9802bea6e1a3c2ada5e51caf0fd920304d55cc281a1fa3
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-save: 1 division(s) became a shift or a mask
@@ -1195,7 +1210,7 @@
 == lib/result.oro java refused
    gen: lib\io\java.oro: io.print-line is declared twice
 == lib/result.oro windows refused
-   gen: gen-err-map: (r (fn (#t #p #p1) (if (= #t 0) (fn (#k) (#k 0 #p #any)) (fn (#k) (#k 1 #any (f #p1)))))) is an indexing, and (<= 0 (fn (#t #p #p1) (if (= #t 0) (fn (#k) (#k 0 #p #any)) (fn (#k) (#k 1 #any (f #p1)))))) is not proven
+   gen: gen-err-map: (r (fn (#t #p #p1) (if (= #t 0) (fn (#k!) (#k! 0 #p #any)) (fn (#k!) (#k! 1 #any (f #p1)))))) is an indexing, and (<= 0 (fn (#t #p #p1) (if (= #t 0) (fn (#k!) (#k! 0 #p #any)) (fn (#k!) (#k! 1 #any (f #p1)))))) is not proven
      known: nothing
      The index is outside the linear fragment, and neither a proof by cases nor a
      content fact about a table bounds it. A table is a function with a finite

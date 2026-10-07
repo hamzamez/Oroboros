@@ -1101,3 +1101,21 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 
 - emitted text changed — `examples/lines/lines.oro go`
 - compiler output changed — `examples/lines/lines.oro go`
+
+## 2026-10-07 — on 859df81, with uncommitted changes
+
+**Reason:** step 6, relevance: lib/result.oro alone is refused with the same reason, its term now printing a relevant constructor's binder #k!; examples/errors/discard.oro is refused on every host by the relevance rule and ignore.oro emits what discard.oro emitted before
+
+532 runs: 280 emitted, 252 refused; 1975 of 2020 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+9 change(s):
+
+- new source — `examples/errors/discard.oro go`
+- new source — `examples/errors/discard.oro java`
+- new source — `examples/errors/discard.oro js`
+- new source — `examples/errors/discard.oro windows`
+- new source — `examples/errors/ignore.oro go`
+- new source — `examples/errors/ignore.oro java`
+- new source — `examples/errors/ignore.oro js`
+- new source — `examples/errors/ignore.oro windows`
+- compiler output changed — `lib/result.oro windows`

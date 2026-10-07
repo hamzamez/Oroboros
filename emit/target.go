@@ -727,6 +727,8 @@ var coreNames = map[string]bool{
 	// not declare `if`: it is the language's, and the compiler finds what it
 	// means on each host — which here is nothing, since it is erased.
 	core.AscribeName: true,
+	// The discard, which the reducer erases (spec/errors.md §7.3).
+	core.IgnoreName: true,
 	// `let` and `loop` for the same reason `if` is here, generalised late.
 	// A construct promoted to the LANGUAGE works on every target and the
 	// compiler finds the implementation; a target neither declines it nor
@@ -2521,6 +2523,11 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// slot's type, which the IR chooses once the slot is typed.
 	e.Prim[core.AnyName] = true
 	e.Pure[core.AnyName] = true
+	// `ignore`, !_A : A → 1 (spec/errors.md §7.3): the reducer erases it, so
+	// like `let` it is primitive without being declared. Pure: the purity of
+	// `(ignore e)` is e's, which the judgement reads through.
+	e.Prim[core.IgnoreName] = true
+	e.Pure[core.IgnoreName] = true
 	tg.hostRequires(e)
 	installContracts(e, p, tg.Word)
 	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before

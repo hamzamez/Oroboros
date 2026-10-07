@@ -302,25 +302,118 @@ Go, JavaScript and Java, `examples/io/roundtrip.oro` reads a missing path and pr
 it is refused:
 
 ```lisp
-(seq (os.write-file path data) …)            ; refused: the result is never looked at
-(seq (ignore (os.write-file path data)) …)   ; accepted: the discard is written down
+(seq (os.WriteFile path data) …)            ; refused: the result is never looked at
+(seq (ignore (os.WriteFile path data)) …)   ; accepted: the discard is written down
 ```
 
-This is the structural rule of weakening, denied for one declared type: relevant, used at least once,
-not affine. ADR 0010 already denies weakening for impure terms, which are let-bound and never dropped,
-so a fallible host call's result is a binder in the residual, and **its binder must occur**. It is
-checked on the residual by occurrence counting, as a buffer's linearity is (ADR 0018), at every binder
-of a host call whose declared result is a relevant model. `ignore` is a language name for the discard:
-its argument's effects run, and nothing reads its value.
+### 7.1 The rule: weakening, denied for one type
+
+The structural rules of a context are weakening (a variable may go unused), contraction (used twice)
+and exchange. A type without weakening is **relevant**: used at least once, not affine (Anderson and
+Belnap's relevance logic; Walker, *Substructural Type Systems*, ATTAPL ch. 1, 2005). For x : A with A
+relevant,
+
+```
+Γ, x : A ⊢ M : B      only if  x is used in M on every path
+```
+
+**On every path**, because the eliminators are additive. A coproduct's elimination [f, g] : A + B → C
+takes f and g in ONE context Γ (that is its universal property), so a variable of Γ is used by
+`(if c a b)` when c uses it, or when a and b both do. `bool = 1 + 1`, so `if` is that rule, and `case`,
+`try`, `and` and `cond` are built from it. Two forms use every variable vacuously:
+
+- **`(abandon w)`**, whose type is 0, the initial object. A path that reaches it never returns, and
+  the reducer already says so: a crash absorbs every strict context (§8), the commuting conversion at
+  arity 0. In linear logic, 0 on the left proves any sequent, whatever its context.
+- **`(again a…)`**, a back edge. A path around a loop continues into the next iteration, and every
+  terminating execution leaves by an exit, so a loop uses x when each of its exits does (or each
+  iteration before its `again`). A divergent path uses nothing, vacuously, as a crash does.
+
+So `(if verbose (print-err r) 0)` is refused, because on the quiet path the error goes unread: the
+program writes `(if verbose (print-err r) (ignore r))`. And `(let w (os.WriteFile a d) (try (ok u)
+(os.WriteFile b d) (check w)))` is refused, because when the second write fails, `try` returns its
+error and the first one's is lost.
+
+### 7.2 Where it is checked: where a binder meets its value
+
+The reducer is untyped, and the type checker sees only the residual, where a relevant value no longer
+exists: η for products has taken it apart, and the laws of the conditional (state.md) have erased tests
+whose arms agree. Relevance is not invariant under those equations, `(seq r B)` and
+`(seq (case r (ok _) 0 (err _) 0) B)` being equal and only one of them written by someone who looked.
+So it is checked on the term as written, at the one moment the binder and its value are both in hand:
+**β**, when `((fn (x…) M) a…)` is reduced and each aᵢ is known.
+
+- **What is relevant is a value, by its constructors.** A constructor of a `(relevant)` variant builds
+  its tuple with the binder `#k!` where every other tuple has `#k` (ADR 0041's encoding, the same term
+  otherwise). A term is relevant when one of its tails is such a tuple; in a typed program every tail
+  has the one type, so one suffices. The tails are walked through the forms η for products walks:
+  `if`, a residual `let`, a host call's continuation, a scope, a loop's exits. A fallible host
+  declaration's retraction (§4.2) builds its result with the model's constructors, so a host call is
+  relevant exactly when its declared result is a relevant model, and so is every definition over one,
+  such as the portable `os`.
+- **An impure argument** is normalised before it is bound (ADR 0010: let-bound, never substituted), so
+  its value's tails are known. **A pure one** is substituted unnormalised, and is relevant only when it
+  is a constructor's tuple, or tails into one, as written: `(seq (result.ok 1) B)` is refused, and a
+  pure computation whose relevance shows only after reduction is not checked (§7.4).
+- **The binder is the program's**: a name it wrote, or `seq`'s and a pattern's `_` (`#_`, `#_N`,
+  binding.md). The binders the compiler makes, a `case`'s slots, η's components, a conversion's
+  continuation, bind values whose use the program already wrote.
+- **Its body is the λ as written**: the literal λ of a `let` or `seq`, or a definition's body before
+  reduction. The body after reduction is not the program's: the conditional's laws erase tests.
+- **Handing it on is a use exactly when the receiver uses it.** Passed bare to a λ or a definition,
+  `(drop r)`, the variable is used when that parameter is used on every path of the receiver's body as
+  written. A definition's parameter is read off its body once, and the inference terminates because no
+  definition reaches itself (ADR 0014). It is needed because reduction is normal order under binders:
+  a λ's body is reduced before the λ meets its argument, so `drop`'s β has already turned `(drop r)`
+  into `0` while `r` was still abstract. Passed to a host call, or to a function computed at run time,
+  the value escapes, and that counts as a use.
+
+Relevance therefore flows through definitions with no annotation. A definition's parameter is checked
+at each call that hands it a relevant value, where the type is known: the residual is monomorphic, and
+this is its pre-image. This is usage inference, the analysis Linear Haskell's multiplicities make
+explicit (Bernardy et al., POPL 2018).
+
+### 7.3 `ignore` is the map to the terminal object
+
+`(ignore e)` evaluates e and has the unit as its value: it is !_A : A → 1, the unique arrow into the
+terminal object (data.md §3.6). The language must have it as a constant, because a relevant calculus
+cannot define it: `(fn (x) (tuple))` is exactly the λ the rule refuses.
+
+Its reduction is the universal property. Any two arrows into 1 are equal, so on a product or a sum,
+whose value is a tuple, ! is its eliminator with a constant body:
+
+```
+(ignore e)  ⟶  (e (fn (x̄) (tuple)))      e's tails are n-tuples, relevant or not
+(ignore e)  ⟶  (tuple)                   e pure, of any other type
+(ignore e)  ⟶  (let e (fn (_) (tuple)))  e impure, of any other type: its effects stay (ADR 0010)
+```
+
+On a host call's result the eliminator then reduces as a `case` does: case-of-case pushes it into the
+niche test's arms, and the test, whose arms now agree, goes by idempotence. Nothing is emitted for it.
+The unit is then bound by `seq`, and **η for the terminal object** takes that binding apart into no
+components: r = () for every r : 1, the n = 0 case of η for products. So
+`(seq (ignore (f.Close)) B)` emits what `(seq (f.Close) B)` emitted before this step. `ignore` never
+reaches a target: it is the language's, like `let`, and a target may not declare it.
+
+### 7.4 Not checked, named
+
+- **A relevant value produced by a pure computation** and passed unnormalised: `(seq (pick c) B)` with
+  `pick` returning `(ok 1)` or `(err 2)`. β substitutes a pure argument without reducing it, and
+  reducing a dropped one only to find its type would compile terms the program never runs. Every value
+  that matters comes from a host call, which is impure, so is normalised, so is checked.
+- **A relevant payload** left unread in a `case` arm, a result of results. The pattern's binder becomes
+  a slot, which the compiler made.
+- **A hand-off to a function computed at run time**, or to a function parameter: the receiver's body is
+  not known where the value is bound, so the value is taken to escape. A closure may not survive
+  staging, so such a receiver is rare in a residual, and the case is named rather than solved.
+- **A loop variable** holding a relevant value: `loop` binds its variables itself, not by β.
+- **A λ never applied**: a use inside it counts. A closure may not survive staging, so a λ that is
+  never applied is a pure value, which β drops.
 
 **Where the host's algebra makes an error redundant, the declaration says so.** A `bufio.Writer`'s
 errors are sticky: the first is kept, and `Flush` returns it. The errors form a monoid in which the
 first absorbs the rest, so a write's error is subsumed by `Flush`'s. Such a write is declared **not**
 fallible, and `Flush` fallible, which moves the obligation to where the host reports it.
-
-**Not checked, named:** a relevant value made by a **pure** definition and then dropped. β drops an
-unused pure argument before the checker runs, and the reducer does not see types. The fallible values
-that matter come from host calls, which are impure and so always bound.
 
 ---
 
@@ -410,7 +503,8 @@ text carries no portability claim: it is Tier 2, as an arithmetic trap's already
 | the monad laws for `try`, in every model of §2 | always | refactoring fallible code is safe |
 | associativity, A + (K₁ + K₂) ≅ A + K₁ + K₂ | always | a result of kinds costs what a flat sum costs |
 | functoriality of `err-map` | always | moving between error types composes |
-| relevance: a relevant binder occurs | checked | no silent discard of a host's error |
+| relevance: a relevant binder is used on every path (§7.1) | checked at β, on the term as written | no silent discard of a host's error |
+| `ignore` is !_A, the unique arrow into 1 | its reduction is the universal property | a discard costs nothing, and is written down |
 | classification h : E_host → K is total | per host, checked by a program | the portable `os`'s kinds mean one thing |
 
 ---
@@ -453,7 +547,9 @@ A model's value crossing an export's boundary is a tag and a payload, as every s
 
    Where a program tested only `err-nil`, the emitted code should not change, and the emission gate
    checks it.
-6. **Relevance** (§7) and `ignore`, with a planted fault.
+6. **Relevance** (§7) and `ignore`, with a planted fault. **Built** (relevance-2026-10-07): the
+   check at β, additive over the eliminators, with usage inference through definitions; `ignore` as
+   !_A; η for the terminal object. Nine planted faults, one per rule, each caught.
 7. **Later, with the browser and Android `os`** (ADR 0039): the audit of JavaScript and Java declarations
    that throw while declared total or `pure`.
 

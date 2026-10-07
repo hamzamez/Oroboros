@@ -1,0 +1,16 @@
+; A DISCARD WRITTEN DOWN (spec/errors.md §7.3).
+;
+;   go run ./cmd/gen examples/errors/ignore.oro go out.go
+;
+; `(ignore e)` is !_A : A → 1, the one arrow into the terminal object, so on a
+; result it is the eliminator with a constant body: the arms agree, the niche
+; test goes by idempotence, and η for the unit takes `seq`'s binding apart. What
+; is emitted is the write and nothing else, which is what discard.oro emitted
+; before relevance refused it.
+(use os)
+
+(export save)
+
+(sig save ((path string) (data (array (int 0 255)))) int)
+(def save (path data)
+  (seq (ignore (os.WriteFile path data)) 0))

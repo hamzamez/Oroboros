@@ -1802,6 +1802,30 @@ func readSum(t *Term) (*Sum, error) {
 // slot's type, which no `case` reads.
 const AnyName = "#any"
 
+// A TUPLE'S BINDER. `(tuple a b)` reads as `(fn (#k) (#k a b))`, and a
+// constructor builds the same term (ADR 0041). A constructor of a `(relevant)`
+// variant builds it with `#k!` instead (spec/errors.md §7.2): the same value,
+// whose binder says that weakening is denied for it. α-equivalence ignores a
+// binder's name, so the mark changes no equation; it is read by the relevance
+// check at β. Neither name can be written in source, since `#` starts no
+// identifier.
+const (
+	TupleBinder    = "#k"
+	RelevantBinder = "#k!"
+)
+
+// IsTupleBinder reports whether p is a tuple's binder, relevant or not.
+func IsTupleBinder(p string) bool { return p == TupleBinder || IsRelevantBinder(p) }
+
+// IsRelevantBinder reports whether p is a relevant constructor's binder. A
+// prefix, since hygiene may number a nested one apart.
+func IsRelevantBinder(p string) bool { return strings.HasPrefix(p, RelevantBinder) }
+
+// Unit is the term `(tuple)` reads as: 1's one value (data.md §3.6).
+func Unit() *Term {
+	return Fn([]string{TupleBinder}, &Term{Kind: KApp, Kids: []*Term{Name(TupleBinder)}})
+}
+
 // Slots are a variant's payload slots: one per distinct payload type of the
 // declaration, in declaration order, and at least one, so that every value of
 // every variant is a tuple of at least two components and an enum keeps the
@@ -1860,7 +1884,11 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 		// A nullary constructor writes `#any` everywhere (sumrep-2026-10-06).
 		slots := s.Slots()
 		mine := s.SlotOf(v.Name)
-		kids := []*Term{Name("#k"), tag}
+		k := TupleBinder
+		if s.Relevant {
+			k = RelevantBinder
+		}
+		kids := []*Term{Name(k), tag}
 		for j := range slots {
 			if j == mine {
 				kids = append(kids, Name("#p"))
@@ -1869,9 +1897,9 @@ func (s *Sum) Defs() ([]string, map[string]*Term) {
 			}
 		}
 		if v.Payload == "" {
-			defs[v.Name] = Fn([]string{"#k"}, &Term{Kind: KApp, Kids: kids})
+			defs[v.Name] = Fn([]string{k}, &Term{Kind: KApp, Kids: kids})
 		} else {
-			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{"#k"}, &Term{Kind: KApp, Kids: kids}))
+			defs[v.Name] = Fn([]string{"#p"}, Fn([]string{k}, &Term{Kind: KApp, Kids: kids}))
 		}
 		defs[v.Name+"#tag"] = tag
 		order = append(order, v.Name, v.Name+"#tag")

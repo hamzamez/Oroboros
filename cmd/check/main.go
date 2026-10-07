@@ -10,7 +10,7 @@
 // run reports everything:
 //
 //	vet          go vet ./...
-//	compiler     go test ./core/ ./emit/ ./ir/ ./cmd/...
+//	compiler     go test ./core/ ./emit/ ./ir/... ./cmd/...
 //	emission     every .oro under examples/, lib/ and the differential cases, on
 //	             every target, compared with the baseline committed in gauntlet/check/
 //	ir           every program that emitted, lowered to the IR and verified; the
@@ -129,7 +129,7 @@ func main() {
 	steps := []step{
 		{"vet", func(c *checker) result { return c.command("vet", c.root, "go", "vet", "./...") }},
 		{"compiler", func(c *checker) result {
-			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./ir/", "./cmd/...")
+			return c.command("compiler", c.root, "go", "test", "-count=1", "./core/", "./emit/", "./ir/...", "./cmd/...")
 		}},
 		{"emission", (*checker).emission},
 		{"ir", (*checker).ir},

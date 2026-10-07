@@ -38,7 +38,7 @@ func TestABignumReadIsNotMovedPastAWriteIntoIt(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	tg, err := emit.LoadTargetLayers("go", layers, []string{filepath.Dir(fact)})
+	tg, err := emit.LoadTargetLayers("go", layers, []string{filepath.Dir(fact), filepath.Join("..", "..", "lib")})
 	if err != nil {
 		t.Fatal(err)
 	}

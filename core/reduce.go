@@ -76,6 +76,10 @@ type Env struct {
 	// so a compile is deterministic.
 	fresh int
 
+	// consumed caches consumes for a definition's parameter (spec/errors.md
+	// §7.2).
+	consumed map[string]bool
+
 	// Requires are the contracts whose parameter ranges are obligations at
 	// their calls (ADR 0028). For each name in it — its entry lists a declared
 	// range per parameter, "" for none — every direct call has each ranged
@@ -1621,6 +1625,38 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			return normalize(idx, e, fuel)
 		}
 
+		// `ignore` IS !_A : A → 1, the unique arrow into the terminal object
+		// (spec/errors.md §7.3). A relevant calculus cannot define it, since
+		// `(fn (x) (tuple))` is the λ relevance refuses, so the language has it
+		// as a constant, and its reduction is the universal property: any two
+		// arrows into 1 are equal, so on a value whose tails are tuples it is
+		// the eliminator with a constant body, and otherwise the value's
+		// effects followed by the unit.
+		//
+		//	(ignore e)  ⟶  (e (fn (x̄) (tuple)))      e's tails n-tuples
+		//	(ignore e)  ⟶  (tuple)                   e pure
+		//	(ignore e)  ⟶  (let e (fn (_) (tuple)))  e impure (ADR 0010)
+		if op.Kind == KName && op.Name == IgnoreName && e.Prim[IgnoreName] {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("ignore takes one term, the value it discards; got %d", len(args))
+			}
+			v, err := normalize(args[0], e, fuel)
+			if err != nil {
+				return nil, err
+			}
+			if n, ok := e.tupleTails(v, false); ok {
+				return normalize(App(v, Fn(e.freshNames(n, v), Unit())), e, fuel)
+			}
+			if e.pureTerm(v, map[string]bool{}) {
+				return Unit(), nil
+			}
+			out := App(Name("let"), v, Fn(e.freshNames(1, v), Unit()))
+			if ab, ok := e.absorb(out.Kids); ok {
+				return ab, nil
+			}
+			return out, nil
+		}
+
 		// CASE-OF-CASE, and it is what makes a DYNAMIC sum cost nothing.
 		//
 		//	((if c A B) k…)  ⟶  (if c (A k…) (B k…))
@@ -1719,7 +1755,30 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			// Names already chosen for bindings of THIS application, so two
 			// parameters cannot be renamed onto each other.
 			used := map[string]bool{}
+			// RELEVANCE (spec/errors.md §7.2): a program's binder that meets a
+			// value of a relevant type must use it on every path of the body
+			// as written, which is the λ before reduction.
+			src := t.Op()
+			if src.Kind == KName && e.unfoldable(src.Name) {
+				src = e.Defs[src.Name]
+			}
+			if src.Kind != KFn || len(src.Params) != len(op.Params) {
+				src = op
+			}
+			relevant := func(i int, val *Term) error {
+				p := op.Params[i]
+				if !programBinder(p) || !e.relevant(val, false) ||
+					e.usedOnEveryPath(src.Closed(), 0, i) {
+					return nil
+				}
+				return relevanceError(p, args[i])
+			}
 			for i, p := range op.Params {
+				if e.pureTerm(args[i], map[string]bool{}) {
+					if err := relevant(i, args[i]); err != nil {
+						return nil, err
+					}
+				}
 				// Impure: never substituted. Bound here, at the application
 				// site, which is where the programmer wrote it — at its
 				// original loop depth and under its original guards. Binding
@@ -1778,6 +1837,9 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				if !e.pureTerm(args[i], map[string]bool{}) {
 					na, err := normalize(args[i], e, fuel)
 					if err != nil {
+						return nil, err
+					}
+					if err := relevant(i, na); err != nil {
 						return nil, err
 					}
 					nm := e.bindName(p, op.Params, used)
@@ -1865,13 +1927,17 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				// Read or not: r = (π₁ r, …, πₙ r) holds of every r, so an
 				// unread binding keeps its value's effects and drops its
 				// components, where it reached lowering as a closure.
-				if n, ok := e.tupleTails(bound[i].val, false); ok && n >= 2 {
+				//
+				// n = 0 is η FOR THE TERMINAL OBJECT: r = () for every r : 1,
+				// so a binding of a unit, `ignore`'s value under `seq`, is
+				// taken apart into no components (spec/errors.md §7.3).
+				if n, ok := e.tupleTails(bound[i].val, false); ok && n != 1 {
 					cs := e.freshNames(n, body, bound[i].val)
-					comps := []*Term{Name("#k")}
+					comps := []*Term{Name(TupleBinder)}
 					for _, c := range cs {
 						comps = append(comps, Name(c))
 					}
-					tup := Fn([]string{"#k"}, &Term{Kind: KApp, Kids: comps})
+					tup := Fn([]string{TupleBinder}, &Term{Kind: KApp, Kids: comps})
 					k := Fn(cs, subst(body, map[string]*Term{bound[i].name: tup}))
 					if body, err = normalize(App(bound[i].val, k), e, fuel); err != nil {
 						return nil, err
@@ -2563,9 +2629,11 @@ func (e *Env) tupleTails(t *Term, inLoop bool) (int, bool) {
 		}
 		return 0, false
 	}
-	if t.Kind == KFn && len(t.Params) == 1 && t.Params[0] == "#k" {
+	if t.Kind == KFn && len(t.Params) == 1 && IsTupleBinder(t.Params[0]) {
+		// n = 0 is the unit, `(fn (#k) (#k))`; n = 1 does not exist,
+		// (tuple T) ≅ T (data.md §3.6).
 		b := t.Closed()
-		if b.Kind == KApp && len(b.Kids) >= 3 && b.Kids[0].Kind == KBound &&
+		if b.Kind == KApp && len(b.Kids) != 2 && b.Kids[0].Kind == KBound &&
 			b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
 			return len(b.Kids) - 1, true
 		}
@@ -2612,6 +2680,178 @@ func (e *Env) tupleTails(t *Term, inLoop bool) (int, bool) {
 func isAbandon(t *Term, e *Env) bool {
 	return t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KName &&
 		t.Kids[0].Name == "abandon" && e.Prim["abandon"]
+}
+
+// IgnoreName is the language's discard, !_A : A → 1 (spec/errors.md §7.3).
+// Like `let`, it is the language's, never reaches a target, and a target may
+// not declare it.
+const IgnoreName = "ignore"
+
+// relevant reports whether a tail of t is a value of a relevant type: a tuple
+// built by a relevant variant's constructor, binder `#k!`, or a tuple with
+// such a component, since a product discarded discards its components
+// (spec/errors.md §7.2). In a typed program every tail has the one type, so
+// one tail decides. The tails are walked through the forms tupleTails walks;
+// on a term as written, a constructor applied, `(result.ok 1)`, is one too.
+func (e *Env) relevant(t *Term, inLoop bool) bool {
+	ctor := func(d *Term, args int) bool { // a constructor's definition
+		for ; args > 0 && d.Kind == KFn && len(d.Params) == 1; args-- {
+			d = d.Kids[0]
+		}
+		return args == 0 && d.Kind == KFn && len(d.Params) == 1 && IsRelevantBinder(d.Params[0])
+	}
+	switch t.Kind {
+	case KFn:
+		if len(t.Params) != 1 || !IsTupleBinder(t.Params[0]) {
+			return false
+		}
+		if IsRelevantBinder(t.Params[0]) {
+			return true
+		}
+		b := t.Closed()
+		if b.Kind != KApp {
+			return false
+		}
+		for _, c := range b.Kids[1:] {
+			if e.relevant(c, false) {
+				return true
+			}
+		}
+		return false
+	case KName:
+		return e.unfoldable(t.Name) && ctor(e.Defs[t.Name], 0)
+	case KApp:
+	default:
+		return false
+	}
+	op := t.Kids[0]
+	if op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
+		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		return e.relevant(t.Kids[1].Closed(), inLoop) // a host call's continuation
+	}
+	if op.Kind != KName {
+		return false
+	}
+	switch {
+	case !e.Prim[op.Name]:
+		return e.unfoldable(op.Name) && ctor(e.Defs[op.Name], len(t.Kids)-1)
+	case op.Name == RequireWhereName && len(t.Kids) == 4:
+		return e.relevant(t.Kids[3], inLoop)
+	case op.Name == "if" && len(t.Kids) == 4:
+		return e.relevant(t.Kids[2], inLoop) || e.relevant(t.Kids[3], inLoop)
+	case (op.Name == "let" || op.Name == "build" || op.Name == "build-map") &&
+		len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return e.relevant(t.Kids[2].Closed(), inLoop)
+	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
+		return e.relevant(t.Kids[1].Closed(), true)
+	}
+	return false
+}
+
+// usedOnEveryPath reports whether the variable bound at (depth, index) is used
+// on every path of t (spec/errors.md §7.1). The eliminators are additive: [f, g]
+// takes f and g in one context, so `(if c a b)` uses it when c does or both a
+// and b do. `(abandon w)` uses it vacuously: 0 is initial, and a crash absorbs
+// its context (§8). So does `(again …)`: a path around a loop continues into
+// the next iteration, every terminating execution leaves by an exit, and a
+// divergent one, like a crash, never returns. Everything else is strict in all
+// it contains, a λ's body included: an eliminator runs its λ once, and a λ
+// never applied is not checked (§7.4).
+//
+// HANDING IT ON is a use exactly when the receiver uses it: the variable passed
+// bare to a λ, or to a definition, is used when that parameter is used on every
+// path of the receiver's body as written (consumes). That is usage inference,
+// a definition's parameter read off its body, and it terminates because no
+// definition reaches itself (ADR 0014). It is needed because reduction under a
+// λ runs a definition's β before the λ meets its argument, with the variable
+// still abstract, so `(drop r)` has already become 0 when r is bound.
+func (e *Env) usedOnEveryPath(t *Term, depth, index int) bool {
+	switch t.Kind {
+	case KBound:
+		return t.Depth == depth && t.Index == index
+	case KFn:
+		return e.usedOnEveryPath(t.Kids[0], depth+1, index)
+	case KApp:
+	default:
+		return false
+	}
+	if isIfApp(t, e) {
+		return e.usedOnEveryPath(t.Kids[1], depth, index) ||
+			e.usedOnEveryPath(t.Kids[2], depth, index) && e.usedOnEveryPath(t.Kids[3], depth, index)
+	}
+	if isAbandon(t, e) || t.Kids[0].Kind == KName && t.Kids[0].Name == "again" {
+		return true
+	}
+	op, args := t.Kids[0], t.Kids[1:]
+	var fn *Term // the receiver, when its parameters are known
+	switch {
+	case op.Kind == KFn:
+		fn = op
+	case op.Kind == KName && e.unfoldable(op.Name) && e.Defs[op.Name].Kind == KFn:
+		fn = e.Defs[op.Name]
+	}
+	if fn == nil || len(fn.Params) != len(args) {
+		for _, k := range t.Kids {
+			if e.usedOnEveryPath(k, depth, index) {
+				return true
+			}
+		}
+		return false
+	}
+	for j, a := range args {
+		if a.Kind == KBound && a.Depth == depth && a.Index == index {
+			if e.consumes(op, fn, j) {
+				return true
+			}
+			continue
+		}
+		if e.usedOnEveryPath(a, depth, index) {
+			return true
+		}
+	}
+	// a λ written in place sees the variable itself; a definition is closed
+	return op.Kind == KFn && e.usedOnEveryPath(op, depth, index)
+}
+
+// consumes reports whether fn uses its parameter j on every path of its body
+// as written: whether handing it a relevant value uses the value. A
+// definition's answer is kept, per Env, since it is read at every call.
+func (e *Env) consumes(op, fn *Term, j int) bool {
+	if op.Kind != KName {
+		return e.usedOnEveryPath(fn.Closed(), 0, j)
+	}
+	key := fmt.Sprintf("%s/%d", op.Name, j)
+	if v, ok := e.consumed[key]; ok {
+		return v
+	}
+	if e.consumed == nil {
+		e.consumed = map[string]bool{}
+	}
+	v := e.usedOnEveryPath(fn.Closed(), 0, j)
+	e.consumed[key] = v
+	return v
+}
+
+// programBinder reports whether the program wrote p: a name, or `seq`'s and a
+// pattern's `_` (binding.md). The binders the compiler makes, `case`'s slots,
+// η's components and a conversion's continuation, bind values whose use the
+// program already wrote.
+func programBinder(p string) bool {
+	return !strings.HasPrefix(p, "#") || strings.HasPrefix(p, "#_")
+}
+
+// relevanceError names what was discarded and how.
+func relevanceError(p string, arg *Term) error {
+	what := head(arg)
+	if arg.Kind == KApp {
+		what = "the result of " + what
+	}
+	how := "the binder " + p + " is not used on every path"
+	if strings.HasPrefix(p, "#_") {
+		how = "it is discarded"
+	}
+	return fmt.Errorf("%s is a value of a relevant type (spec/errors.md §7), and %s: use it, or "+
+		"discard it with (ignore …)", what, how)
 }
 
 // normalizeLater builds the application case-of-case pushes into one branch.

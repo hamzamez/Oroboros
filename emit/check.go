@@ -230,7 +230,7 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 					"`go.==`, `js.===`, `java.==`, `x64.sete` — that is target-native "+
 					"and carries no portability claim", i+1, err)
 			}
-			return "", fmt.Errorf("in argument %d of %s: %w", i+1, op.Name, err)
+			return "", fmt.Errorf("in argument %d of %s: %w", i+1, spelled(op.Name), err)
 		}
 	}
 	// ABANDON HAS NO VALUE (spec/errors.md §8): crash : E → 0, and 0 is the

@@ -88,6 +88,7 @@ and so expands in `Load` ([state.md](state.md)).
 | `case` | specified — sugar, expanded in `Load` | [sums.md](sums.md) |
 | `try` | specified — the exception monad's bind, `(try (ok x) e body)`; expands to `case` in `Load`, on a variant marked `success` | [errors.md](errors.md) |
 | `expect` | specified — total, `(expect (ok x) e why body)`: continues on the marked success and crashes with `why` on every other constructor, through `abandon`; expands to `case` in `Load` | [errors.md](errors.md) §8 |
+| `ignore` | specified — !_A : A → 1, `(ignore e)`: runs e's effects and has the unit as its value, the one way to discard a value of a `(relevant)` type; erased by the reducer (the eliminator with a constant body, by the terminal object's universal property), so no target sees it | [errors.md](errors.md) §7.3 |
 | `loop`, `again` | specified — also the retired layer's structural kind `loop` | [ADR 0015](../decisions/0015-loop-and-again.md), [iteration.md](iteration.md) |
 | `true`, `false` | specified — the boolean literals | [booleans.md](booleans.md) |
 

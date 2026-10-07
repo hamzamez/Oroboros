@@ -311,8 +311,14 @@ a wall that needs language work, stop and research it, then design it.
       declarations stay the host's product (ADR 0023). **Step 5 is built**: the portable `os` returns
       kinds on three hosts (oskinds-2026-10-06), and every fallible Go declaration states its shape
       (sum, unit + E, partial success, option) from Go's documentation
-      ([gomigrate-2026-10-06](gauntlet/results/gomigrate-2026-10-06.md)). Next is step 6, relevance
-      and `ignore`;
+      ([gomigrate-2026-10-06](gauntlet/results/gomigrate-2026-10-06.md)). **Step 6 is built**
+      ([ADR 0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md),
+      [relevance-2026-10-07](gauntlet/results/relevance-2026-10-07.md)): a relevant value is used on
+      every path or refused, checked at β on the term as written, and `(ignore e)` is the discard.
+      Step 7, the audit of JavaScript's and Java's throwing declarations, waits for the browser and
+      Android `os`. **Open for hamza:** whether a partial success's error factor becomes the
+      relevant 1 + E (relevance-2026-10-07 §6), since `(option error)` lets a dropped `Write` error
+      pass;
    2. G, H and I, and the three headers corrected;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
@@ -415,6 +421,7 @@ rejected alternatives.
 | A failure is a value of a marked sum: the compiler knows `success` and `relevant`, `try` is bind, `(result T E)` is a library, the host's encoding is a niche, `expect` is the one way to give up | [0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md) |
 | A success arm is a tail: `again` may sit under `try` and `expect`; a constructor is the tuple (tag, payload), so a loop yields a sum — extends 0015 | [0041](docs/decisions/0041-a-success-arm-is-a-tail.md) |
 | A variant's value is its tag and one slot per payload type of its declaration, wherever it must exist as data; an unselected slot holds `#any`, the zero of its type (Theorem R) | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
+| Relevance is checked at β, where a binder meets its value, on every path; usage inference through definitions; `ignore` is !_A : A → 1 | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
 
 ## How this project is run
 
@@ -466,6 +473,10 @@ spec to read before touching it.
   below the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it
   declines to substitute — keeps its own spelling, and the old source spelling is refused.
   `seq` is a binding whose name is discarded, and works only because ADR 0010 denies weakening.
+- **Relevance** ([errors.md §7](docs/spec/errors.md), ADR 0043): a value of a `(relevant)` variant,
+  `lib/result`'s, must be used on every path of its binder's scope, the eliminators being additive;
+  checked at β on the λ as written, through definitions by usage inference. `(ignore e)` is the
+  discard, !_A : A → 1, erased by the reducer, and η for products includes the unit.
 - **A residual's binders are named apart** (`core/hygiene.go`, state.md): no binder's hint equals a
   name its body refers to past it, **nor any enclosing binder's**. The second is what a context keyed
   by name needs, and the refinement layer's facts are one

@@ -1,0 +1,16 @@
+; A RELEVANT VALUE MAY NOT BE DROPPED (spec/errors.md §7). Meant to be refused,
+; on every target that compiles it:
+;
+;   go run ./cmd/gen examples/errors/discard.oro go out.go
+;
+; os.WriteFile returns (result (tuple) os-error), and `result` declares
+; (relevant): weakening is denied for its values. `seq` binds the result to a
+; name nothing reads, so the error would go unseen. ignore.oro is the same
+; program with the discard written down.
+(use os)
+
+(export save)
+
+(sig save ((path string) (data (array (int 0 255)))) int)
+(def save (path data)
+  (seq (os.WriteFile path data) 0))

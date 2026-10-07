@@ -393,11 +393,16 @@ Sequencing looks like a language feature and is not:
 ```
 
 ```lisp
-⟶   (let (shout 1) (fn (_) (whisper 2)))
+⟶   (let (shout 1) (fn (#_) (whisper 2)))
 ```
 
-`(seq a b)` is read as `((fn (_) b) a)` — an application whose binder is **never used**. That is
+`(seq a b)` is read as `((fn (#_) b) a)` — an application whose binder is **never used**. That is
 it. The reader rewrites it and nothing downstream has heard of `seq`.
+
+The binder's spelling is `#_`, and the `#` is deliberate: `#` is not an identifier character, so **no
+source term can contain one** ([chapter 0 §0.10](00-syntax.md)). The reader uses the prefix for the
+binders it manufactures — this one, and the `#k` a tuple pattern desugars to — which is what
+guarantees the name it invents cannot capture a name you wrote.
 
 And it works **only because weakening is denied**. An unused binder is exactly the case §4.5 is
 about: if effects could be dropped at zero uses, `(seq a b)` would reduce to `b` and sequencing
@@ -411,18 +416,18 @@ It chains:
 ```
 
 ```lisp
-⟶   (let (shout 1) (fn (_) (let (whisper 2) (fn (_1) (tick)))))
+⟶   (let (shout 1) (fn (#_) (let (whisper 2) (fn (#_1) (tick)))))
 ```
 
-(Two discarded binders, and the inner one came back `_1`: the residual's binders are named apart
+(Two discarded binders, and the inner one came back `#_1`: the residual's binders are named apart
 ([chapter 1 §1.5](01-fn.md), [ADR 0036](../decisions/0036-a-residuals-binders-are-named-apart.md)),
-and `_` is a name like any other.)
+and `#_` is a name you could not have written, which is the point.)
 
 And it is honest about doing nothing when there is nothing to sequence:
 
 ```lisp
 (seq (f 1) (h 1 2))         ⟶   (h 1 2)
-(seq (shout 1) (h 1 2))     ⟶   (let (shout 1) (fn (_) (h 1 2)))
+(seq (shout 1) (h 1 2))     ⟶   (let (shout 1) (fn (#_) (h 1 2)))
 ```
 
 Sequencing a *pure* computation is a no-op, because there was no effect to order. Surprising the

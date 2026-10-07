@@ -369,7 +369,7 @@ A name is one or more `idchar`s. Beyond the letters and digits of
 [UAX #31](https://www.unicode.org/reports/tr31/), these are name characters:
 
 ```
-- + * / < > = ! ? _
+- + * / < > = ! ? _ % & | ^ ~
 ```
 
 So each of these is **a single name**, one token, nothing special about it:
@@ -391,6 +391,22 @@ the `/` is an ordinary name character, which is what makes a module path a singl
 **Hyphens are letters.** `sub-total` is one name, not `sub` minus `total`, because `-` is an idchar
 and the subtraction would have been written `(- sub total)`. This is the single most common
 first-day surprise, and it is free: with no infix operators there is no ambiguity to resolve.
+
+**Two characters are reserved**, and each has its own diagnostic rather than the generic one, which
+is how you can tell a reservation from an oversight:
+
+```lisp
+(fn (x') x')
+;; line 1: "x'" contains '\'', which is not an identifier character
+
+(fn (a:b) a:b)
+;; line 1: "a:b" contains ':', which is not an identifier character
+```
+
+`'` is held for symbols and `:` is held for whatever a later design wants
+([spec/data.md §2.2](../spec/data.md)); §0.14 is what `'` is being held *for*. Keeping `'` out also
+leaves the door open to mathematical primes — `x'` — which a reader would otherwise have to
+disambiguate from a symbol.
 
 **`.` is the one punctuation character inside a name**, and it is a *separator*, not an idchar:
 
@@ -711,21 +727,93 @@ the absences are deliberate:
 
 | Lisp has | we do not | why |
 |---|---|---|
-| `'x`, `` `x ``, `,x` — quote and quasiquote | no quote of any kind | the rest of this section |
+| `'x`, `` `x ``, `,x` — quote and quasiquote over any datum | `'x` is **specified**, restricted to one identifier, and not built | the rest of this section |
 | macros, `defmacro` | none | the rest of this section |
 | reader macros (`#(`, `#'`, `#\`) | none; the reader is fixed and context-free | a program may not change how a program is read |
 | dotted pairs, improper lists, `cons` cells | a form is a flat list; there is no pair | nothing in the calculus is built from pairs |
 | `[]`, `{}`, `#{}` (Clojure) | parentheses only | one delimiter pair, so §0.7's grammar stays three lines |
-| symbols as run-time values | not built | there is nothing to quote them with |
+| symbols as run-time values | a symbol exists only at compile time, by design | [spec/data.md §2.4](../spec/data.md) |
 | `nil` as false, `()` as a value | `()` is not a term; `bool` is data with `if` as its eliminator | [ADR 0017](../decisions/0017-booleans-are-in-the-language.md) |
 
-**And this is the one that matters.** The usual argument for s-expressions is *homoiconicity* — the
-word is generally traced to Kay's 1969 thesis, describing TRAC — meaning that code and data share a
-representation, so a program can construct a program. That is what quote and macros are for, and it
-is the single most-cited advantage of the notation.
+### `'` is taken, and what it is taken for
 
-**We do not claim it, and we do not use it.** There is no quote, so a program cannot build a program;
-there are no macros, so nothing extends the syntax. We use s-expressions for the grammar alone.
+"Quote" is four different things here, and the table's row is only about the fourth. Worth
+separating, because three of them exist:
+
+| | |
+|---|---|
+| **quotation marks** | `"a;b"` is a string literal, one of §0.7's four token classes, scanned by its own rule that the gap never enters (§0.9). We have these |
+| **`Quote` the host function** | `Quote`, `QuoteToASCII`, `QuoteToGraphic`, `QuoteRune` and its two variants, six `AppendQuote…` forms, `Unquote`, `QuotedPrefix`, `UnquoteChar` — all declared on the Go target ([targets/go/strconv.oro](../../targets/go/strconv.oro)). `(sc.Quote s)` emits `strconv.Quote(v0)`. An ordinary function on bytes |
+| **a quoted identifier, `'x`** | **Specified** ([spec/data.md §2](../spec/data.md)) as a *symbol*, and not built |
+| **quote over any datum** | `'(1 2)`, `` `(a ,b) `` — what macros need. Specified as an **error**, deliberately |
+
+The third is the interesting one, and it is narrower than Lisp's on purpose:
+
+```
+symbol ::= ' identifier
+```
+
+A **symbol** is a name used as data rather than as a reference: `'x` means *the name x*, where `x`
+means *the value bound to x*. That is the use–mention distinction, and it is what a record label is —
+`(p 'x)` asks for the component named `x`, not for one whose index is the value of a variable `x`.
+
+Four things about it are worth having, and each is a decision rather than a convenience:
+
+**It reads as sugar, so the term language does not grow.** `'x` and `(quote x)` read to the same
+thing: an application of an injected name `quote` to **the string literal of the spelling**. So the
+spelling is never resolved as a variable — it is a string inside the reader's output, not a name —
+and §0.7's seven term kinds stay seven. `quote` would join `if`, `let` and `loop` as a name the
+compiler injects and a target may not declare (§0.17's rule, running the other way).
+
+**It is not a string value**, even though its spelling is "identifier characters, no whitespace". A
+string is an element of Σ\* that exists at run time; **a symbol exists only at compile time**, may
+appear only as a record label, and anywhere else in the residual is refused with the same diagnostic
+shape as a closure that survives — callbacks.md's *free at the static level, refused at the dynamic
+one*, applied to the smallest possible value. A later design may give a surviving symbol a
+representation; none is given, because no program has needed one.
+
+**`'` and not `:`, and the reason is about readers rather than parsers.** Neither is an identifier
+character, so they cost the same. But `:x` is a *keyword* in Clojure, Elixir and Ruby, where it is a
+run-time value — interned, comparable, storable — and a label here never exists at run time, so that
+reading would be the wrong one. `'x` is `(quote x)` in Lisp and Scheme, which is the use–mention
+reading we want, in the syntax family we already belong to. `:` stays free, and ascription is already
+`(the T e)`.
+
+**Quoting a general datum is refused, and that is the line.** `'` is to be followed directly by an
+identifier, and the spec makes `'(…)`, `'3` and `'"s"` errors that say so. The reason is the thesis:
+
+> **Quoting a general datum would be staging, and staging in this language is reduction, not
+> quotation** ([the-atom.md](../the-atom.md)).
+
+So the thing we decline is precisely the thing a macro system is built on, and we decline it for a
+stated reason rather than for want of a character.
+
+> **Neither of the last two senses is implemented, and the reservation is.** `'` is kept out of the
+> identifier charset with its own diagnostic (§0.8), but nothing reads a symbol yet and `quote` is
+> not injected:
+>
+> ```lisp
+> 'x          ;; line 1: "'x" is not a valid identifier or number
+> (quote x)   ;; at the top level: quote is not bound — it is not a parameter,
+>             ;;                   not a definition, and not a primitive on this target
+> ```
+>
+> Today those four refusals are the lexer's generic one rather than the specific messages §2.2
+> describes, which is what "not built" looks like from outside. Symbols sit in
+> [CLAUDE.md](../../CLAUDE.md)'s *"Not built: records, symbols, `with`"* — specified because records
+> need labels, unbuilt because records are. Read data.md §2 for what `'x` will mean, not for what it
+> does.
+
+### Homoiconicity, which we decline
+
+The usual argument for s-expressions is *homoiconicity* — the word is generally traced to Kay's 1969
+thesis, describing TRAC — meaning that code and data share a representation, so a program can
+construct a program. That is what quote-over-any-datum and macros are for, and it is the
+single most-cited advantage of the notation.
+
+**We do not claim it, and we do not use it.** The one quotation we specify reaches exactly one
+identifier and dies at staging; nothing can hold a program; there are no macros, so nothing extends
+the syntax. We use s-expressions for the grammar alone.
 
 The reason we can get away with that is a finding, not a preference
 ([q5](../spec/q5-do-we-need-rules.md)). The question was whether this language needs a `rule`
@@ -937,8 +1025,10 @@ a rewrite rule and a `def` are the same object, so δ does the work a macro syst
   preserve every gap or refuse the edit.
 - **No `#;`**, because our forms are discriminated by arity and parity, and a comment that changes
   which grammar a form takes is not a comment.
-- **We use s-expressions for the grammar, not for homoiconicity.** No quote, no macros: δ over `def`
-  already is a rewrite rule.
+- **We use s-expressions for the grammar, not for homoiconicity.** `'` is reserved and specified for
+  **symbols** — `'x`, one identifier, a compile-time record label, not built — and quote over a
+  general datum is refused, because that would be staging and staging here is reduction. No macros
+  either: δ over `def` already is a rewrite rule.
 - **The real cost is that the head is not visually marked.** Indentation carries it. Configure your
   editor and stop counting parentheses.
 - **The notation does not survive compilation.** `(* n n)` ships as `v0 * v0` and as `imul`.

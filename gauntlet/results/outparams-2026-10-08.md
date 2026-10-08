@@ -90,7 +90,25 @@ Not measured by survey; read from the platforms' documentation.
 - **The browser**: Web APIs return results (`TextEncoder.encodeInto` returns `{read, written}`) and
   fill typed arrays (`crypto.getRandomValues`). Neither needs a value cell.
 
-## 6. Not measured
+## 6. Go: callbacks that can only change state (for mutscope-research.md)
+
+Method: the manifest's `func` and `method` lines with a `func(` parameter (`syscall`, `runtime`,
+`unsafe`, `cmd` excluded): 120, by a single-line pattern, so a lower bound. 36 match a callback with
+no result. Read one by one, 31 do (the rest return a value, `func() $0`). Of the 31:
+
+| kind | names |
+|---|---|
+| **synchronous, for their effect on the program's own state (11)** | `container/ring.(*Ring).Do`; `expvar.Do`, `(*Map).Do`; `flag.Visit`, `VisitAll`, `(*FlagSet).Visit`, `VisitAll`; `math/rand.Shuffle`, `(*Rand).Shuffle`, `math/rand/v2.Shuffle`, `(*Rand).Shuffle` |
+| concurrency | `net/http.HandleFunc` (2), `SetStateHook`, `RegisterOnShutdown`, `sync.(*Once).Do`, `OnceFunc`, `(*WaitGroup).Go`, `time.AfterFunc` |
+| testing | `testing` (9), `testing/synctest.Test` |
+| crypto modes, process | `fips140.WithoutEnforcement`, `subtle.WithDataIndependentTiming`, `os.(*Process).WithHandle` |
+
+A callback that returns nothing communicates only by changing state, so the first row needs a cell or
+a buffer in scope for the callback to change: no out-result can carry it. `filepath.WalkDir` and
+range-over-func iterators (`iter.Seq`), whose callbacks return a status, accumulate through the
+closure in the same way. Their packages have no file yet (K).
+
+## 7. Not measured
 
 - The JVM's methods taking a single-element holder array: no class-file survey reads parameter names.
 - How many Win32 cells sit beside an `_Inout_` length (in-out, outparams-research §5.6).

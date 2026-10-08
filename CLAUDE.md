@@ -337,7 +337,11 @@ a wall that needs language work, stop and research it, then design it.
       [outparams-2026-10-08](gauntlet/results/outparams-2026-10-08.md)): an out-parameter is a result,
       and the caller-typed ones (the Scan family, `errors.As`, `json.Unmarshal`, `binary.Read`,
       `sql.Rows.Scan`, about 25 in 8 packages) need typed out-cells `(out τ)` and type variables in
-      host declarations; Win32 has 3,461 functions with fixed-type cells. Six decisions for hamza;
+      host declarations; Win32 has 3,461 functions with fixed-type cells. **Weighed against hamza's
+      mutation scope** ([mutscope-research.md](docs/mutscope-research.md)): `build` with cells (a cell
+      is a buffer of one; ST, Idealized Algol's `new`) is the more general primitive (callbacks over
+      scope state, thaw, in-out), and `(out τ)` its one-call derived form, which keeps typed shapes
+      and needs no type pack. Six decisions for hamza;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;

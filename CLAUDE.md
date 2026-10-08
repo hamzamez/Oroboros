@@ -328,9 +328,11 @@ a wall that needs language work, stop and research it, then design it.
       manifest's `...T`; a host `where` on literals is decided by evaluation. **H is closed**
       ([ADR 0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md)): Go's `any` is a host
       type, `go.Value`, the empty interface, below which every one-value type is derived; a variadic
-      over it is a table of boxes, so `fmt` declares one value under Go's name and any number as
-      NAME-All (`PrintlnAll`, `AppendAll`), with no wall at three. 293 of 590 declared (49.7%). I is
-      next;
+      over it is a table of boxes. **A variadic is one declaration under the host's name**
+      ([ADR 0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md),
+      [variadic.md](docs/spec/variadic.md)): marked `variadic`, its last parameter the list; a
+      call's trailing arguments are the list, as Go's spec defines a variadic call, `(spread xs)`
+      passes a table, and the printer writes Go's own call. 293 of 590 declared (49.7%). I is next;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
@@ -435,6 +437,7 @@ rejected alternatives.
 | Relevance is checked at β, where a binder meets its value, on every path; usage inference through definitions; `ignore` is !_A : A → 1 | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
 | A partial success's error is the relevant 1 + E, `(result (tuple) E)`; `(option error)` only where the host makes it ignorable, with the reason | [0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md) |
 | A host's empty interface is a type every one-value type is below, derived; a variadic over it is a table of boxes, spread; the language's `any` is unchanged | [0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md) |
+| A variadic is one declaration under the host's name; a call's trailing arguments are the list, `(spread xs)` passes a table; a variadic statement's value is the unit | [0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md) |
 
 ## How this project is run
 
@@ -486,6 +489,10 @@ spec to read before touching it.
   below the reader knows it; the RESIDUAL's `let` — `(let e (fn (x) b))`, what β leaves when it
   declines to substitute — keeps its own spelling, and the old source spelling is refused.
   `seq` is a binding whose name is discarded, and works only because ADR 0010 denies weakening.
+- **Variadic calls** ([variadic.md](docs/spec/variadic.md), ADR 0046): a declaration marked
+  `variadic` takes a list as its last parameter; the loader rewrites a call's trailing arguments
+  into the table, or passes `(spread xs)`'s table, once, from the target's forms, and a target's Env
+  refuses a program loaded without them.
 - **Relevance** ([errors.md §7](docs/spec/errors.md), ADR 0043): a value of a `(relevant)` variant,
   `lib/result`'s, must be used on every path of its binder's scope, the eliminators being additive;
   checked at β on the λ as written, through definitions by usage inference. `(ignore e)` is the

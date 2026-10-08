@@ -43,75 +43,73 @@ func GenMain() int {
 					v34 = 1
 					break
 				}
-				v49 := (v28.Text())
-				v50 := (strings.Fields(v49))
-				v53 := (v35 + 1)
-				v54 := []any{v53, v49}
-				fmt.Fprintf(v30, "%6d\t%s\n", v54...)
-				v57 := len(v50)
-				v58 := (v57 < v10)
-				var v59 string
-				if v58 {
-					v59 = ""
+				v50 := (v28.Text())
+				v51 := (strings.Fields(v50))
+				v54 := (v35 + 1)
+				fmt.Fprintf(v30, "%6d\t%s\n", v54, v50)
+				v58 := len(v51)
+				v59 := (v58 < v10)
+				var v60 string
+				if v59 {
+					v60 = ""
 				} else {
-					v66 := (v10 - 1)
-					v67 := v50[v66]
-					v59 = v67
+					v67 := (v10 - 1)
+					v68 := v51[v67]
+					v60 = v68
 				}
-				v70h, v71 := func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(v59, 10, 64)
-				v70 := int(v70h)
-				v72 := (v71 == nil)
-				if v72 {
-					v78 := (v70 >= -100000000000)
-					v79 := (v78 && (v70 <= 100000000000))
-					var v85 int
-					if v79 {
-						v88 := (v36 + v70)
-						v85 = v88
+				v71h, v72 := func(s string, b, n int) (int, error) { x, err := strconv.ParseInt(s, b, n); return int(x), err }(v60, 10, 64)
+				v71 := int(v71h)
+				v73 := (v72 == nil)
+				if v73 {
+					v79 := (v71 >= -100000000000)
+					v80 := (v79 && (v71 <= 100000000000))
+					var v86 int
+					if v80 {
+						v89 := (v36 + v71)
+						v86 = v89
 					} else {
-						v85 = v36
+						v86 = v36
 					}
-					v92 := (v70 >= -100000000000)
-					v93 := (v92 && (v70 <= 100000000000))
-					var v99 int
-					if v93 {
-						v103 := (v37 + 1)
-						v99 = v103
+					v93 := (v71 >= -100000000000)
+					v94 := (v93 && (v71 <= 100000000000))
+					var v100 int
+					if v94 {
+						v104 := (v37 + 1)
+						v100 = v104
 					} else {
-						v99 = v37
+						v100 = v37
 					}
-					v36, v37 = v85, v99
+					v36, v37 = v86, v100
 					continue
 				}
 				continue
 			}
-			v106 := (v28.Err())
-			v107 := (v106 == nil)
-			if v107 {
-				v109 := []any{v35, v10, v37}
-				fmt.Fprintf(v30, "%d lines; column %d: %d values, sum ", v109...)
+			v107 := (v28.Err())
+			v108 := (v107 == nil)
+			if v108 {
+				fmt.Fprintf(v30, "%d lines; column %d: %d values, sum ", v35, v10, v37)
 				fmt.Fprintln(v30, v36)
-				v114 := (v30.Flush())
-				v115 := (v114 == nil)
-				if v115 {
+				v116 := (v30.Flush())
+				v117 := (v116 == nil)
+				if v117 {
 					v34 = 0
 					break
 				}
-				v117 := (os.Stderr)
-				fmt.Fprintln(v117, "lines: cannot write standard output")
+				v119 := (os.Stderr)
+				fmt.Fprintln(v119, "lines: cannot write standard output")
 				v34 = 1
 				break
 			}
 			v30.Flush()
-			v123 := (os.Stderr)
-			fmt.Fprintln(v123, "lines: cannot read standard input")
+			v126 := (os.Stderr)
+			fmt.Fprintln(v126, "lines: cannot read standard input")
 			v34 = 1
 			break
 		}
 		v24 = v34
 	} else {
-		v128 := (os.Stderr)
-		fmt.Fprintln(v128, "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)")
+		v132 := (os.Stderr)
+		fmt.Fprintln(v132, "usage: lines [COLUMN] < FILE    (COLUMN is 1 to 65536)")
 		v24 = 1
 	}
 	os.Exit(v24)

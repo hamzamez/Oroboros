@@ -4,7 +4,7 @@ package gauntlet
 
 import "fmt"
 
-func GenMain() float64 {
+func GenMain() int {
 	v2 := make([]float64, 1000)
 	var v1 []float64
 	v5 := v2
@@ -20,24 +20,24 @@ func GenMain() float64 {
 	}
 	v1 = v5
 	fmt.Println("report")
-	v17 := len(v1)
-	fmt.Println(v17)
-	var v22 float64 = 0.0
-	var v23 int = 0
-	for ; ; v23 = (v23 + 1) {
-		v24 := len(v1)
-		v25 := (v23 >= v24)
-		if v25 {
+	v19 := len(v1)
+	fmt.Println(v19)
+	var v26 float64 = 0.0
+	var v27 int = 0
+	for ; ; v27 = (v27 + 1) {
+		v28 := len(v1)
+		v29 := (v27 >= v28)
+		if v29 {
 			break
 		}
-		v30 := v1[v23]
-		v31 := v1[v23]
-		v32 := (v30 * v31)
-		v33 := (v22 + v32)
-		v22 = v33
+		v34 := v1[v27]
+		v35 := v1[v27]
+		v36 := (v34 * v35)
+		v37 := (v26 + v36)
+		v26 = v37
 		continue
 	}
-	fmt.Println(v22)
-	return v22
+	fmt.Println(v26)
+	return 0
 }
 

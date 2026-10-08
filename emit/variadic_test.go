@@ -19,15 +19,15 @@ func TestAHostPreconditionOnLiteralsIsDecidedByEvaluation(t *testing.T) {
 		body, want string // want "" when accepted
 	}{
 		{`(sig f ((s go.bytestring)) go/strings.Replacer)
-(def f (s) (strings.NewReplacer (array "a" s "b" "2")))`, ""},
+(def f (s) (strings.NewReplacer "a" s "b" "2"))`, ""},
 		{`(sig f () go/strings.Replacer)
-(def f () (strings.NewReplacer (array)))`, ""},
+(def f () (strings.NewReplacer))`, ""},
 		{`(sig f ((s go.bytestring)) go/strings.Replacer)
-(def f (s) (strings.NewReplacer (array "a" s "b")))`, "which is false at this call"},
+(def f (s) (strings.NewReplacer "a" s "b"))`, "which is false at this call"},
 		{`(sig f ((xs (array go.bytestring))) go/strings.Replacer)
-(def f (xs) (strings.NewReplacer xs))`, "which does not follow"},
+(def f (xs) (strings.NewReplacer (spread xs)))`, "which does not follow"},
 		{`(sig f ((xs (array go.bytestring))) go/strings.Replacer (where (= (% (len xs) 2) 0)))
-(def f (xs) (strings.NewReplacer xs))`, ""},
+(def f (xs) (strings.NewReplacer (spread xs)))`, ""},
 	} {
 		err := refineGo(t, head+c.body)
 		switch {

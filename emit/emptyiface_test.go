@@ -20,15 +20,17 @@ func TestEveryOneValueTypeEntersTheEmptyInterface(t *testing.T) {
 		why  string // the refusal that must fire, when it is the box's own
 	}{
 		// an integer, a string, a boolean, a host type, a frozen table
-		{`(def f (n s xs) (seq (fmt.PrintlnAll (array n s true (gos.Stdout) xs)) 0))`, true, ""},
+		{`(def f (n s xs) (seq (fmt.Println n s true (gos.Stdout) xs) 0))`, true, ""},
+		// a scope's value is the frozen table, checked at the exit
+		{`(def f (n s xs) (seq (fmt.Println (build b 2 (set (set b 0 n) 1 n))) 0))`, true, ""},
 		// none, and one
-		{`(def f (n s xs) (seq (fmt.PrintlnAll (array)) (fmt.PrintlnAll (array n)) 0))`, true, ""},
+		{`(def f (n s xs) (seq (fmt.Println) (fmt.Println n) 0))`, true, ""},
 		// a tuple is several values at a boundary
-		{`(def f (n s xs) (seq (fmt.PrintlnAll (array (tuple n n))) 0))`, false, ""},
+		{`(def f (n s xs) (seq (fmt.Println (tuple n n)) 0))`, false, ""},
 		// a live buffer would be aliased by the host while the program writes it
-		{`(def f (n s xs) (len (build b 4 (seq (fmt.PrintlnAll (array b)) b))))`, false, "go.Value is required here"},
+		{`(def f (n s xs) (len (build b 4 (seq (fmt.Println b) b))))`, false, "go.Value is required here"},
 		// only the declared box is the top: an integer is no io.Writer
-		{`(def f (n s xs) (seq (gio.MultiWriter (array 7)) 0))`, false, "go/io.Writer is required here"},
+		{`(def f (n s xs) (seq (gio.MultiWriter 7) 0))`, false, "go/io.Writer is required here"},
 	} {
 		_, err := entryGo(t, head+c.body)
 		switch {
@@ -40,12 +42,13 @@ func TestEveryOneValueTypeEntersTheEmptyInterface(t *testing.T) {
 			t.Errorf("%s: refused, but not by the box's rule (%q): %v", c.body, c.why, err)
 		}
 	}
-	// what Go is handed: the table of boxes, spread
-	out, err := entryGo(t, head+`(def f (n s xs) (seq (fmt.PrintlnAll (array n s true)) 0))`)
+	// what Go is handed: the list written at the call is Go's own call, its
+	// boxes inserted by Go (spec/variadic.md §4)
+	out, err := entryGo(t, head+`(def f (n s xs) (seq (fmt.Println n s true) 0))`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(out, "[]any{") || !strings.Contains(out, "fmt.Println(") || !strings.Contains(out, "...)") {
-		t.Errorf("want a table of boxes spread into fmt.Println:\n%s", out)
+	if !strings.Contains(out, "fmt.Println(v0, v1, true)") || strings.Contains(out, "[]any") {
+		t.Errorf("want Go's own variadic call:\n%s", out)
 	}
 }

@@ -1133,3 +1133,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/u128/factorials.oro java`
 - compiler output changed — `examples/u128/factorials.oro js`
 - compiler output changed — `examples/u128/factorials.oro windows`
+
+## 2026-10-08 — on 26679e0, with uncommitted changes
+
+**Reason:** ADR 0046: a variadic is one declaration under Go's name, a call's arguments its list; Go's own call printed where the []any spread was; a variadic print's value is the unit (return 0 where a function's value was a print); IR value names shifted by the list and the unit
+
+532 runs: 280 emitted, 252 refused; 1975 of 2020 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+8 change(s):
+
+- emitted text changed — `examples/hello.oro go`
+- emitted text changed — `examples/lines/lines.oro go`
+- emitted text changed — `examples/map/dynamic.oro go`
+- emitted text changed — `examples/native/report-go.oro go`
+- emitted text changed — `examples/u128/factorials.oro go`
+- compiler output changed — `examples/u128/factorials.oro java`
+- compiler output changed — `examples/u128/factorials.oro js`
+- compiler output changed — `examples/u128/factorials.oro windows`

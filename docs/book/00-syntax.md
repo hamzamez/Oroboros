@@ -192,18 +192,19 @@ format has no variadic, so until 2026-10-08 [targets/go/fmt.oro](../../targets/g
 (sig Println3 ((a any) (b any) (c any)) any (host stmt "fmt.Println(%s, %s, %s)" …))
 ```
 
-The arity moved into the name, and stopped at three. It was replaced by the second repair: Go's
-`...any` is a list of boxes, so the operands are a table, and the table's own parentheses are the
-delimiter that says where they stop ([variadic-2026-10-08](../../gauntlet/results/variadic-2026-10-08.md)):
+The arity moved into the name, and stopped at three. It was replaced by the second repair: a variadic
+is a function of a list, so the declaration takes a table, and the delimiter is the call's own
+parenthesis ([variadic-2026-10-08](../../gauntlet/results/variadic-2026-10-08.md),
+[spec/variadic.md](../spec/variadic.md)):
 
 ```lisp
-(sig PrintlnAll ((a (array go.Value))) any (host stmt "fmt.Println(%s...)" …))
+(sig Println ((a (array go.Value))) any variadic (host stmt "fmt.Println(%s...)" …))
 
-(fmt.PrintlnAll (array "n =" n "of" total))
+(fmt.Println "n =" n "of" total)
 ```
 
-One value keeps Go's own name, `(fmt.Println x)`, because 220 of the corpus's 231 print calls pass
-one. Either way the price of a variadic is a delimiter somewhere: in the name, or in the call.
+The call's closing parenthesis says where the list stops, which is exactly what prefix notation gives
+for free and postfix cannot. The arity left the name, and the name is Go's again.
 
 So the objection is exactly right, and it is worth stating as the rule it is:
 

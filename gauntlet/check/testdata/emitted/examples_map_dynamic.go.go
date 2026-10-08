@@ -46,6 +46,6 @@ func GenMain() int {
 	}
 	v36 := (v26 + v32)
 	fmt.Println(v36)
-	return v36
+	return 0
 }
 

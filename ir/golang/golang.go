@@ -35,6 +35,7 @@ import (
 func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	p := &printer{tg: tg, f: f, imps: map[string]bool{}, rename: map[ir.V]string{}}
 	p.pl = plan.New(tg, f)
+	p.words = variadicWords(tg, f, p.pl)
 	out, err := p.function()
 	if err != nil {
 		return "", fmt.Errorf("%s: %w", f.Name, err)
@@ -57,6 +58,38 @@ type printer struct {
 	yieldTo []string
 	rename  map[ir.V]string
 	spare   map[*ir.Stmt]string // a back-edge build that writes into its loop's spare (reuse)
+	words   map[ir.V]*ir.Stmt   // a table literal written only as a variadic call's list
+}
+
+// variadicWords are the table literals a variadic call's list reads and
+// nothing else does (spec/variadic.md §4). Go's spec builds a variadic call's
+// slice from its arguments, so `f(a, b)` and `f([]T{a, b}...)` pass one value,
+// and such a table is printed as Go's own call, at the call: the literal is
+// pure and its elements are defined before it, so moving it to its one reader
+// moves no effect.
+func variadicWords(tg *emit.Target, f *ir.Func, pl *plan.Plan) map[ir.V]*ir.Stmt {
+	lits := map[ir.V]*ir.Stmt{}
+	f.Walk(func(r *ir.Region) {
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; s.Op == ir.OArray {
+				lits[s.Res[0]] = s
+			}
+		}
+	})
+	out := map[ir.V]*ir.Stmt{}
+	f.Walk(func(r *ir.Region) {
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			if s.Op != ir.OCall || !tg.Prims[s.Name].Variadic || len(s.Args) == 0 {
+				continue
+			}
+			w := s.Args[len(s.Args)-1]
+			if lit := lits[w]; lit != nil && pl.Uses[pl.Res(w)] == 1 {
+				out[w] = lit
+			}
+		}
+	})
+	return out
 }
 
 // ---------------------------------------------------------------- types
@@ -372,15 +405,10 @@ func (p *printer) stmt(s *ir.Stmt) {
 		// was emitted unconverted and Go refused it; it had been unreachable,
 		// because a literal's length was not known to the refiner, which
 		// refused the program first (sumrep-2026-10-06).
-		elems := p.refs(s.Args)
-		if h, narrow := p.storage(s.Res[0]); narrow {
-			for j, a := range s.Args {
-				if p.pl.Const[p.pl.Res(a)] == nil {
-					elems[j] = h + "(" + elems[j] + ")"
-				}
-			}
+		if p.words[s.Res[0]] != nil {
+			return // printed as the variadic call's arguments (variadicWords)
 		}
-		p.define(s.Res[0], fmt.Sprintf("%s{%s}", p.typeOf(s.Res[0]), strings.Join(elems, ", ")))
+		p.define(s.Res[0], fmt.Sprintf("%s{%s}", p.typeOf(s.Res[0]), strings.Join(p.elements(s), ", ")))
 	case ir.OMap:
 		rows := make([]string, 0, len(s.Args)/2)
 		for j := 0; j+1 < len(s.Args); j += 2 {
@@ -418,6 +446,19 @@ func (p *printer) stmt(s *ir.Stmt) {
 	}
 }
 
+// elements are a table literal's elements, each in the table's storage type.
+func (p *printer) elements(s *ir.Stmt) []string {
+	elems := p.refs(s.Args)
+	if h, narrow := p.storage(s.Res[0]); narrow {
+		for j, a := range s.Args {
+			if p.pl.Const[p.pl.Res(a)] == nil {
+				elems[j] = h + "(" + elems[j] + ")"
+			}
+		}
+	}
+	return elems
+}
+
 func (p *printer) call(s *ir.Stmt) {
 	q, ok := p.tg.Prims[s.Name]
 	if !ok {
@@ -428,6 +469,22 @@ func (p *printer) call(s *ir.Stmt) {
 		p.imps[q.Import] = true
 	}
 	expr := emit.Fill(q.Form, p.refs(s.Args)...)
+	// GO'S OWN VARIADIC CALL for a list written at the call (variadicWords):
+	// the elements in the spread's place, `f(x, a, b)` for `f(x, []T{a, b}...)`.
+	if q.Variadic && len(s.Args) > 0 && p.words[s.Args[len(s.Args)-1]] != nil {
+		lit := p.words[s.Args[len(s.Args)-1]]
+		refs := p.refs(s.Args[:len(s.Args)-1])
+		form := q.Form
+		if elems := p.elements(lit); len(elems) > 0 {
+			form = strings.Replace(form, "%s...", "%s", 1)
+			refs = append(refs, strings.Join(elems, ", "))
+		} else if strings.Contains(form, ", %s...") {
+			form = strings.Replace(form, ", %s...", "", 1)
+		} else {
+			form = strings.Replace(form, "%s...", "", 1)
+		}
+		expr = emit.Fill(form, refs...)
+	}
 	switch {
 	case q.Kind == "stmt":
 		p.line("%s", expr)

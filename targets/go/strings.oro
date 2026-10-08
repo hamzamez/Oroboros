@@ -164,7 +164,7 @@
     ; ------------------------------------------------------------- constructors
     (sig NewReader ((s bytestring)) Reader (host expr "strings.NewReader(%s)" (import "strings")))
     ; A spread: the pairs, flattened, in a table (the header).
-    (sig NewReplacer ((oldnew (array bytestring))) Replacer pure
+    (sig NewReplacer ((oldnew (array bytestring))) Replacer pure variadic
       (where (= (% (len oldnew) 2) 0))
       (host expr "strings.NewReplacer(%s...)" (import "strings")))
     ; A Builder's zero value is ready to use, and Go makes one with new(T) — a

@@ -73,7 +73,7 @@
     (result.ok u)
       ; Ignored: out is a bufio.Writer, whose errors are sticky, and the Flush
       ; below reports the first (spec/errors.md §7).
-      (seq (ignore (fmt.FprintfAll out "%d lines; column %d: %d values, sum " (array n col used)))
+      (seq (ignore (fmt.Fprintf out "%d lines; column %d: %d values, sum " n col used))
            (ignore (fmt.Fprintln out sum))
         (case (Writer.Flush out)
           (result.ok u)  0
@@ -96,7 +96,7 @@
       else
         (let line (Scanner.Text in)
              fs   (strings.Fields line)
-             _            (ignore (fmt.FprintfAll out "%6d\t%s\n" (array (+ n 1) line))) ; sticky, as above
+             _            (ignore (fmt.Fprintf out "%6d\t%s\n" (+ n 1) line)) ; sticky, as above
              (tuple v pe) (strconv.ParseInt (if (< (len fs) col) "" (fs (- col 1))) 10 64)
           (again (+ n 1)
                  (if (summed pe v) (+ sum v) sum)

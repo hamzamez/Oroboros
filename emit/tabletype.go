@@ -334,8 +334,11 @@ func (c *checker) tableForm(kind string, args []*core.Term, want string) (ty str
 		// body gives back a live `buffer σ`, or a buffer-free table, and the
 		// freeze is what makes the first an `array σ`. Any other demand is
 		// passed in, since freezing does not change it.
+		// So is a demand with a type below it, an interface or the empty
+		// interface (types.md §3.3): what meets it is the frozen table, not
+		// the live buffer inside, so it is checked at the exit.
 		inner := want
-		if _, table := c.tgt.tableElem(want); table {
+		if _, table := c.tgt.tableElem(want); table || c.tgt.HasSubtypes(c.tgt.ValueType(want)) {
 			inner = ""
 		}
 		ty, err := c.walk(args[1].Body(), inner)

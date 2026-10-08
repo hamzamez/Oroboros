@@ -501,6 +501,13 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	if st := &r.Stmts[len(r.Stmts)-1]; st.Op == OCall && len(st.Res) > 0 && st.Res[0] == v {
 		st.Src = l.named(t) // an overloaded operator promoted after typing keeps it too
 	}
+	// A VARIADIC STATEMENT'S VALUE IS THE UNIT (spec/variadic.md §3): the
+	// host's results are forgotten, and a statement's convention, "its value is
+	// argument 0", would make it the list, which means nothing. The call's own
+	// result is then never read.
+	if p.Kind == "stmt" && p.Variadic {
+		return []V{l.one(r, Stmt{Op: OConst, Lit: &core.Term{Kind: core.KInt}})}
+	}
 	return []V{v}
 }
 

@@ -24,11 +24,13 @@ func TestADiscardedLoopResultIsRead(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, _, err := core.Load(forms)
+	tg, err := emit.LoadTarget("../targets/go")
 	if err != nil {
 		t.Fatal(err)
 	}
-	tg, err := emit.LoadTarget("../targets/go")
+	// Loaded with the target, whose forms say Println is variadic
+	// (spec/variadic.md §3).
+	prog, _, err := tg.LoadProgram(forms)
 	if err != nil {
 		t.Fatal(err)
 	}

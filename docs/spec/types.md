@@ -281,7 +281,10 @@ empty interface, `(implements any go.Value)`, and the relation is then derived:
 ```
 
 **One host value**, because a box holds one (`Target.oneHostValue`): an integer, a float, a boolean,
-a string, a host type, or a frozen table of such. **Not** a tuple or a sum, which are several values
+a string, a host type, or a frozen table, whose elements are one value by construction (a table of
+tuples is flattened before the checker runs, a buffer may not be an element, a function cannot be
+stored). A scope's value is frozen at its exit, so a box demand on a `build` is checked there, not on
+the live buffer inside it (`tabletype.go`), as a table demand already was. **Not** a tuple or a sum, which are several values
 at a boundary; **not** a live buffer, which a box would let the host alias while the program still
 writes it (ADR 0018); **not** a function, which may not escape staging; **not** `any`, which is no
 type. As for every interface, ⟦coerce⟧ is the identity in meaning and the host inserts the box: a

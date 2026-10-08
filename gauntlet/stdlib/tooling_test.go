@@ -638,7 +638,7 @@ func acceptance() map[string]accept {
 		"variadic": {host: "go", target: "go", layer: "tg", want: []string{
 			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
 			"concat true", "0 true", "twice", "twice", "6 true",
-			"1+2=3", "7-x-true", "1 2 3 4 5", "line"}},
+			"1+2=3", "7-x-true", "1 2 3 4 5", "line", "12z"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —
@@ -1475,15 +1475,21 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 						}
 					},
 					"a spread of the wrong element": func(m map[string]emit.Prim) {
-						if v, ok := m["PrintlnAll"]; ok {
+						if v, ok := m["Println"]; ok {
 							v.Args = []string{"array int"}
-							m["PrintlnAll"] = v
+							m["Println"] = v
+						}
+					},
+					"a spread not declared variadic": func(m map[string]emit.Prim) {
+						if v, ok := m["Println"]; ok {
+							v.Variadic = false
+							m["Println"] = v
 						}
 					},
 					"a spread calling another function": func(m map[string]emit.Prim) {
-						if v, ok := m["PrintlnAll"]; ok {
+						if v, ok := m["Println"]; ok {
 							v.Form = strings.ReplaceAll(v.Form, "fmt.Println(", "fmt.Print(")
-							m["PrintlnAll"] = v
+							m["Println"] = v
 						}
 					},
 				} {
@@ -1676,11 +1682,14 @@ func agreeRestriction(word core.Word, module string, hand map[string]emit.Prim, 
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		// NAME-All IS THE FUNCTION ITSELF, its ...any a table of boxes spread
-		// into the call (fmt.oro's header): compared with the manifest's line as
-		// a spread, not as a restriction.
-		if base, ok := strings.CutSuffix(n, "All"); ok && isSpread(hand[n]) {
-			if err := agreeSpread(word, module, base, hand[n], hres); err != nil {
+		// A VARIADIC DECLARATION IS THE FUNCTION ITSELF, under Go's name, its
+		// ...any a table of boxes spread into the call (spec/variadic.md):
+		// compared with the manifest's line as a spread, not as a restriction.
+		if isSpread(hand[n]) {
+			if !hand[n].Variadic {
+				errs = append(errs, fmt.Errorf("%s spreads a table and is not declared variadic", n))
+			}
+			if err := agreeSpread(word, module, n, hand[n], hres); err != nil {
 				errs = append(errs, err)
 			}
 			continue

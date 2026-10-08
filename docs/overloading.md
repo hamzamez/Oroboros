@@ -144,11 +144,12 @@ this repository has asked for it, and §3(b) covers every case strings raise.
 **Arity overloading** is worth separating out, because it had exactly one live
 instance: `targets/go/fmt.oro` declared `Println`, `Println2`, `Println3` because
 `tg.Prims` is keyed by name alone. It was closed on 2026-10-08 without overloading
-([variadic-2026-10-08](../gauntlet/results/variadic-2026-10-08.md)): Go's `...any` is
-a list of boxes, Go's empty interface being a type (spec/types.md §3.3), so the
-operands are one table, spread into Go's call, and each function is one declaration
-for one value under Go's name and one for any number under NAME-All. The algebra
-removed the need for (name, arity) keys; nothing in this repository asks for them now.
+([variadic-2026-10-08](../gauntlet/results/variadic-2026-10-08.md),
+[spec/variadic.md](spec/variadic.md)): a variadic is a function of a list, and Go's
+`...any` is a list of boxes, Go's empty interface being a type (spec/types.md §3.3).
+So each Go function is one declaration under Go's name, marked `variadic`, and a
+call's trailing arguments are the list. The algebra removed the need for
+(name, arity) keys; nothing in this repository asks for them now.
 
 ## 4. So the overloading question is the representation question
 

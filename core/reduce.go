@@ -28,6 +28,11 @@ import (
 
 type Program struct {
 	Defs map[string]*Term
+	// Variadic are the variadic declarations whose calls the loader read as
+	// variadic, by qualified name (spec/variadic.md §3). A target's Env refuses
+	// a program that mentions a variadic declaration not in it: loaded without
+	// the target's forms, a call's arguments were never read as the list.
+	Variadic map[string]int
 	// ascribed is set once AscribeWide has run — see there.
 	ascribed bool
 	Order    []string // definition order, for stable diagnostics
@@ -624,6 +629,9 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// since each pass glues at least one of finitely many paths.
 	var overridden []string
 	glued := map[string]bool{}
+	// A VARIADIC DECLARATION's fixed parameter count, by the qualified name a
+	// call resolves to (spec/variadic.md §3): the target's `variadic` forms.
+	variadic := map[string]int{}
 	for len(dt) > 0 {
 		byPath := map[string]*Module{}
 		for _, m := range mods {
@@ -679,6 +687,8 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 						m.Order = append(m.Order, f.Name)
 					}
 					m.Defs[f.Name] = f.Term
+				case "variadic":
+					variadic[qualify(path, f.Name)] = int(f.Term.Int)
 				default:
 					return nil, nil, fmt.Errorf("a target's (provides … %s …) may hold (use …) and "+
 						"(def …); got a %s", path, f.Kind)
@@ -863,7 +873,115 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 		terms = append(terms, t)
 	}
+	// VARIADIC CALLS, once, after resolution (spec/variadic.md §3): a call's
+	// trailing arguments become the list. Every definition and every entry term.
+	for _, m := range mods {
+		if _, ok := m.Defs[SpreadName]; ok {
+			return nil, nil, fmt.Errorf("%s defines %s, which is the language's: (spread xs) passes a "+
+				"table as a variadic call's arguments (spec/variadic.md)", modLabel(m.Path), SpreadName)
+		}
+	}
+	p.Variadic = variadic
+	for _, q := range p.Order {
+		t, err := variadicCalls(p.Defs[q], variadic, false)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", q, err)
+		}
+		p.Defs[q] = t
+	}
+	for i, t := range terms {
+		out, err := variadicCalls(t, variadic, false)
+		if err != nil {
+			return nil, nil, err
+		}
+		terms[i] = out
+	}
 	return p, terms, nil
+}
+
+// SpreadName is the form that passes a table as a variadic call's list, Go's
+// `xs...` (spec/variadic.md).
+const SpreadName = "spread"
+
+// variadicCalls rewrites every call of a variadic declaration in t, whose
+// fixed parameter counts v holds by qualified name (spec/variadic.md §3):
+//
+//	(f x₁ … xₖ a₁ … aₙ)      ⟶  (f x₁ … xₖ (array a₁ … aₙ))     the word a₁⋯aₙ
+//	(f x₁ … xₖ (spread xs))  ⟶  (f x₁ … xₖ xs)                  a word one has
+//
+// A variadic f is a function of a list, f : X × T* → B, and a call with
+// arguments is f applied to the word they spell: Go's spec builds "a new slice
+// … whose successive elements are the actual arguments". `spread` stands only
+// as a variadic call's sole list argument; mayspread says this term is one.
+func variadicCalls(t *Term, v map[string]int, mayspread bool) (*Term, error) {
+	if t == nil {
+		return t, nil
+	}
+	isSpread := func(x *Term) bool {
+		return x.Kind == KApp && len(x.Kids) > 0 && x.Kids[0].Kind == KName && x.Kids[0].Name == SpreadName
+	}
+	if isSpread(t) {
+		if !mayspread {
+			return nil, fmt.Errorf("%s: (spread xs) passes a table as a variadic call's list, and stands "+
+				"only as that call's argument after its fixed ones (spec/variadic.md)", t)
+		}
+		if len(t.Kids) != 2 {
+			return nil, fmt.Errorf("%s: spread takes one table", t)
+		}
+		return variadicCalls(t.Kids[1], v, false)
+	}
+	if len(t.Kids) == 0 {
+		return t, nil
+	}
+	k, variadic := -1, false
+	if t.Kind == KApp && t.Kids[0].Kind == KName {
+		k, variadic = v[t.Kids[0].Name]
+	}
+	if !variadic {
+		out := *t
+		out.Kids = make([]*Term, len(t.Kids))
+		for i, c := range t.Kids {
+			x, err := variadicCalls(c, v, false)
+			if err != nil {
+				return nil, err
+			}
+			out.Kids[i] = x
+		}
+		return &out, nil
+	}
+	name, args := t.Kids[0].Name, t.Kids[1:]
+	if len(args) < k {
+		return nil, fmt.Errorf("%s takes %d argument(s) before its list, and is given %d", name, k, len(args))
+	}
+	kids := []*Term{t.Kids[0]}
+	for _, a := range args[:k] {
+		x, err := variadicCalls(a, v, false)
+		if err != nil {
+			return nil, err
+		}
+		kids = append(kids, x)
+	}
+	rest := args[k:]
+	if len(rest) == 1 && isSpread(rest[0]) {
+		x, err := variadicCalls(rest[0], v, true)
+		if err != nil {
+			return nil, err
+		}
+		return &Term{Kind: KApp, Kids: append(kids, x)}, nil
+	}
+	word := []*Term{Name("array")}
+	for _, a := range rest {
+		if isSpread(a) {
+			return nil, fmt.Errorf("%s: (spread xs) is the whole list of %s, so it stands alone after "+
+				"the fixed arguments (spec/variadic.md)", t, name)
+		}
+		x, err := variadicCalls(a, v, false)
+		if err != nil {
+			return nil, err
+		}
+		word = append(word, x)
+	}
+	return &Term{Kind: KApp, Kids: append(kids, &Term{Kind: KApp, Kids: word})}, nil
 }
 
 type entry struct {

@@ -1,10 +1,12 @@
-; ACCEPTANCE: A VARIADIC OVER ONE TYPE IS A FUNCTION OF A TABLE
-; (variadic-2026-10-08, strings.oro's and io.oro's headers).
+; ACCEPTANCE: A VARIADIC IS A FUNCTION OF A LIST, CALLED AS THE HOST CALLS IT
+; (variadic-2026-10-08, spec/variadic.md, ADR 0046).
 ;
 ; Go's ...T is the free monoid on T, a list of any length. Inside the function
-; its value is a []T, and Go's own spread f(s...) passes one unchanged, so each
-; declaration here is ONE function of a table, spread into the call: every
-; length at once, the empty one included, and no copy at the call.
+; its value is a []T, a call's arguments are the list, and f(xs...) passes one
+; unchanged. So each declaration here is ONE function of a table under Go's
+; name, marked variadic: `(strings.NewReplacer "a" "1")` is Go's call, every
+; length at once, the empty one included, and `(spread pairs)` is Go's
+; `pairs...`.
 ;
 ;   strings.NewReplacer  the pairs (oldᵢ, newᵢ), flattened, an even count: a
 ;                        precondition, discharged here by evaluation on literals
@@ -30,30 +32,39 @@
 (def ok? (r) (case r (result.ok u) true (result.err e) false))
 
 (def replacing ()
-  (let esc (strings.NewReplacer (array "&" "&amp;" "<" "&lt;" ">" "&gt;"))
+  (let esc (strings.NewReplacer "&" "&amp;" "<" "&lt;" ">" "&gt;")
     (seq (fmt.Println (Replacer.Replace esc "a<b & c>d"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer (array "a" "1" "aa" "2")) "aaa"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer (array "aa" "2" "a" "1")) "aaa"))
-         (fmt.Println (Replacer.Replace (strings.NewReplacer (array)) "unchanged"))
+         (fmt.Println (Replacer.Replace (strings.NewReplacer "a" "1" "aa" "2") "aaa"))
+         (fmt.Println (Replacer.Replace (strings.NewReplacer "aa" "2" "a" "1") "aaa"))
+         (fmt.Println (Replacer.Replace (strings.NewReplacer) "unchanged"))
          ((Replacer.WriteString esc (gos.Stdout) "x<y\n") (fn (n e)
-           (fmt.PrintlnAll (array n (ok? e))))))))
+           (fmt.Println n (ok? e)))))))
 
 (def streams ()
-  (seq ((gio.ReadAll (gio.MultiReader (array (strings.NewReader "con") (strings.NewReader "cat"))))
-        (fn (b e) (fmt.PrintlnAll (array (go.string-of-bytes b) (ok? e)))))
-       ((gio.ReadAll (gio.MultiReader (array))) (fn (b e)
-         (fmt.PrintlnAll (array (len b) (ok? e)))))
-       ((gio.WriteString (gio.MultiWriter (array (gos.Stdout) (gos.Stdout))) "twice\n") (fn (n e)
-         (fmt.PrintlnAll (array n (ok? e)))))))
+  (seq ((gio.ReadAll (gio.MultiReader (strings.NewReader "con") (strings.NewReader "cat")))
+        (fn (b e) (fmt.Println (go.string-of-bytes b) (ok? e))))
+       ((gio.ReadAll (gio.MultiReader)) (fn (b e)
+         (fmt.Println (len b) (ok? e))))
+       ((gio.WriteString (gio.MultiWriter (gos.Stdout) (gos.Stdout)) "twice\n") (fn (n e)
+         (fmt.Println n (ok? e))))))
 
 ; GO'S `any` IS A BOX, go.Value (fmt.oro, spec/types.md §3.3): a variadic over
-; it is a table of boxes, spread, at any length; the one-value forms keep Go's
-; names. Five values is past the old restrictions' wall at three.
+; it is a list of boxes, at any length. Five values is past the old
+; restrictions' wall at three.
 (def formatting ()
-  (seq (fmt.Println (go.string-of-bytes (build b 0 (fmt.AppendAll b (array 1 "+" 2 "=" 3)))))
-       (fmt.Println (fmt.SprintfAll "%d-%s-%v" (array 7 "x" true)))
-       (fmt.PrintlnAll (array 1 2 3 4 5))
+  (seq (fmt.Println (go.string-of-bytes (build b 0 (fmt.Append b 1 "+" 2 "=" 3))))
+       (fmt.Println (fmt.Sprintf "%d-%s-%v" 7 "x" true))
+       (fmt.Println 1 2 3 4 5)
        (fmt.Print (go.string-of-bytes (build b 0 (fmt.Appendln b "line"))))))
 
+; A TABLE ONE HAS IS PASSED WITH spread, Go's `pairs...`. The even count is
+; NewReplacer's precondition, so a definition that hands its own table on
+; declares it, and its caller discharges it (ADR 0028).
+(sig replacer ((pairs (array go.bytestring))) go/strings.Replacer (where (= (% (len pairs) 2) 0)))
+(def replacer (pairs) (strings.NewReplacer (spread pairs)))
+
+(def spreading ()
+  (fmt.Println (Replacer.Replace (replacer (array "x" "1" "y" "2")) "xyz")))
+
 (def main ()
-  (seq (replacing) (streams) (formatting) 0))
+  (seq (replacing) (streams) (formatting) (spreading) 0))

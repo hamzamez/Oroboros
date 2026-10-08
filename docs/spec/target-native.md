@@ -77,7 +77,8 @@ Every `fmt.Print*` in Go is `(a ...any)`. Our arity is fixed, so `fmt.oro` decla
 arities programs use — `Println`, `Println2`, `Println3`, `Printf`, `Printf2`, `Printf3` — and a
 `Printf` with four operands could not be called at all. **Resolved** (variadic-2026-10-08): a variadic
 over one type is a function of a table spread into the call, and Go's `any` is a type, the empty
-interface (types.md §3.3), so `(fmt.PrintfAll f (array a b c d))` takes any number.
+interface (types.md §3.3), and a call's trailing arguments are the list (variadic.md), so
+`(fmt.Printf f a b c d)` takes any number, as Go's does.
 
 This is the first place a *whole host package* was attempted rather than the one function a program
 needed, and it is what the attempt found.

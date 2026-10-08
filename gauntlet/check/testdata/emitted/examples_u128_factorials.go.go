@@ -17,79 +17,77 @@ func GenMain() int {
 	for ; ; v7 = (v7 + 1) {
 		v12 := (v10 == 1)
 		if v12 {
-			v15 := []any{v7, "overflows 128 bits"}
-			fmt.Println(v15...)
+			fmt.Println(v7, "overflows 128 bits")
 			v6 = v7
 			break
 		}
-		v19 := (v7 > 40)
-		if v19 {
+		v20 := (v7 > 40)
+		if v20 {
 			v6 = 0
 			break
 		}
-		v25 := v8
-		v26 := v9
-		var v27 string = ""
-		var v24 string
+		v26 := v8
+		v27 := v9
+		var v28 string = ""
+		var v25 string
 		for {
-			v31 := (uint64(0))
-			v32 := ((v25 == v31))
-			v33 := (v32 && ((v26 < (uint64(1000000000000000000)))))
-			if v33 {
-				v43 := (strconv.FormatUint(uint64(v26), 10))
-				v44 := (v43 + v27)
-				v24 = v44
+			v32 := (uint64(0))
+			v33 := ((v26 == v32))
+			v34 := (v33 && ((v27 < (uint64(1000000000000000000)))))
+			if v34 {
+				v44 := (strconv.FormatUint(uint64(v27), 10))
+				v45 := (v44 + v28)
+				v25 = v45
 				break
 			}
-			v46 := (uint64(1000000000000000000))
-			v47 := ((v25 / v46))
-			v50 := (uint64(1000000000000000000))
-			v51 := ((v25 % v50))
-			v54 := (uint64(1000000000000000000))
-			v55, _ := bits.Div64(uint64(v51), uint64(v26), uint64(v54))
-			v59 := (uint64(1000000000000000000))
-			v60 := (bits.Rem64(uint64(v25), uint64(v26), uint64(v59)))
-			v62 := (int(v60))
-			var v64 int = 0
-			var v65 int = v62
-			var v66 string = ""
-			for ; ; v64 = (v64 + 1) {
-				v68 := (v64 >= 18)
-				if v68 {
+			v47 := (uint64(1000000000000000000))
+			v48 := ((v26 / v47))
+			v51 := (uint64(1000000000000000000))
+			v52 := ((v26 % v51))
+			v55 := (uint64(1000000000000000000))
+			v56, _ := bits.Div64(uint64(v52), uint64(v27), uint64(v55))
+			v60 := (uint64(1000000000000000000))
+			v61 := (bits.Rem64(uint64(v26), uint64(v27), uint64(v60)))
+			v63 := (int(v61))
+			var v65 int = 0
+			var v66 int = v63
+			var v67 string = ""
+			for ; ; v65 = (v65 + 1) {
+				v69 := (v65 >= 18)
+				if v69 {
 					break
 				}
-				v74 := (v65 / 10)
-				v77 := (v65 % 10)
-				v78 := (48 + v77)
-				v79 := (string(rune(v78)))
-				v80 := (v79 + v66)
-				v65, v66 = v74, v80
+				v75 := (v66 / 10)
+				v78 := (v66 % 10)
+				v79 := (48 + v78)
+				v80 := (string(rune(v79)))
+				v81 := (v80 + v67)
+				v66, v67 = v75, v81
 				continue
 			}
-			v81 := (v66 + v27)
-			v25, v26, v27 = v47, v55, v81
+			v82 := (v67 + v28)
+			v26, v27, v28 = v48, v56, v82
 			continue
 		}
-		v82 := []any{v7, v24}
-		fmt.Println(v82...)
-		v85 := (v7 + 1)
-		v86 := (uint64(v85))
-		v87, v88 := bits.Mul64(uint64(v9), uint64(v86))
-		v89 := (uint64(v85))
-		v90, v91 := bits.Mul64(uint64(v8), uint64(v89))
-		v93 := (uint64(0))
-		v94, v95h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v91), uint64(v87), uint64(v93))
-		v95 := int(v95h)
-		v101 := (uint64(0))
-		v102 := ((v90 == v101))
-		v103 := (v102 && (v95 == 0))
-		var v109 int
-		if v103 {
-			v109 = 0
+		fmt.Println(v7, v25)
+		v87 := (v7 + 1)
+		v88 := (uint64(v87))
+		v89, v90 := bits.Mul64(uint64(v9), uint64(v88))
+		v91 := (uint64(v87))
+		v92, v93 := bits.Mul64(uint64(v8), uint64(v91))
+		v95 := (uint64(0))
+		v96, v97h := func(x, y, c uint64) (uint64, int) { s, o := bits.Add64(x, y, c); return s, int(o) }(uint64(v93), uint64(v89), uint64(v95))
+		v97 := int(v97h)
+		v103 := (uint64(0))
+		v104 := ((v92 == v103))
+		v105 := (v104 && (v97 == 0))
+		var v111 int
+		if v105 {
+			v111 = 0
 		} else {
-			v109 = 1
+			v111 = 1
 		}
-		v8, v9, v10 = v94, v88, v109
+		v8, v9, v10 = v96, v90, v111
 		continue
 	}
 	return v6

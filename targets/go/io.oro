@@ -143,9 +143,9 @@
     ; ------------------------------------------------------- the transformers
     ; Spreads: the streams in a table (the header). Each returns a new stateful
     ; stream, so neither is pure.
-    (sig MultiReader ((readers (array Reader))) Reader
+    (sig MultiReader ((readers (array Reader))) Reader variadic
       (host expr "io.MultiReader(%s...)" (import "io")))
-    (sig MultiWriter ((writers (array Writer))) Writer
+    (sig MultiWriter ((writers (array Writer))) Writer variadic
       (host expr "io.MultiWriter(%s...)" (import "io")))
     (sig LimitReader ((r Reader) (n (int -9223372036854775808 9223372036854775807))) Reader
       (host expr "io.LimitReader(%s, int64(%s))" (import "io")))

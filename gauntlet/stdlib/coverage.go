@@ -5,8 +5,8 @@
 // The universe is Go's own API manifest, $GOROOT/api/go1*.txt: every exported
 // function, method, type, variable and constant, as survey.go reads it. The
 // declared set is every `sig`, `type` and `const` in targets/go, read with the
-// language's own reader. A variadic counts as declared under Go's name: fmt.oro
-// declares it for one value there, and for any number as NAME-All.
+// language's own reader. A variadic is one declaration under Go's name, marked
+// `variadic` (spec/variadic.md).
 //
 // A name that is not declared gets a CAUSE. Most are read off its signature
 // (`func(` is a callback, `...` a variadic). But some walls do not show in a Go

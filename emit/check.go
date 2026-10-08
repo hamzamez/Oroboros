@@ -91,8 +91,13 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	case core.KName:
 		got := c.types[t.Name]
 		if got == "" {
-			if want != "" && want != "any" {
-				c.types[t.Name] = want // the inference half
+			// THE INFERENCE HALF: an unknown name takes the demanded type, which
+			// is sound only where nothing else may stand there. A demand with a
+			// type below it (an interface, or the empty interface every
+			// one-value type enters, types.md §3.3) says nothing about the
+			// name's own type, so nothing is learned.
+			if want != "" && want != "any" && !c.tgt.HasSubtypes(c.tgt.ValueType(want)) {
+				c.types[t.Name] = want
 			}
 			return want, nil
 		}
@@ -240,9 +245,13 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 	if op.Name == "abandon" {
 		return "", nil
 	}
-	// A statement's value is argument 0 (target-files.md §3).
+	// A statement's value is argument 0 (target-files.md §3), except a
+	// variadic one's, which is the unit: its argument 0 is the list
+	// (spec/variadic.md §3).
 	res := p.Result
-	if p.Kind == "stmt" && len(args) > 0 {
+	if p.Kind == "stmt" && p.Variadic {
+		res = core.UnitType
+	} else if p.Kind == "stmt" && len(args) > 0 {
 		if ty, _ := c.walk(args[0], ""); ty != "" {
 			res = ty
 		}

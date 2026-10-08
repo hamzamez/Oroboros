@@ -3,6 +3,7 @@
 Date: 2026-10-08
 Status: Accepted (hamza: "go with c, it is more honest"; the language's `any` kept as it is). Extends
 ADR 0021's interfaces with the one derived subsumption edge, and closes gocoverage-2026-10-06's H.
+Decision 3's NAME-All names are superseded by ADR 0046: one declaration under Go's name.
 
 ## Context
 

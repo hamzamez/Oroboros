@@ -1,7 +1,7 @@
 ; Go's `fmt`: formatting and printing, under Go's names.
 ;
 ;   (use go/fmt)
-;   (fmt.Println x)   (fmt.SprintfAll "%d of %d" (array i n))   ((fmt.Fprintln w x) (fn (n err) …))
+;   (fmt.Println x)   (fmt.Sprintf "%d of %d" i n)   ((fmt.Fprintln w x) (fn (n err) …))
 ;
 ; THE ALGEBRA, BEFORE THE NAMES. fmt is one function and four uses of it:
 ;
@@ -12,26 +12,20 @@
 ;
 ; Every one is VARIADIC over Go's `any`, f : Value* → B, and Go's `any` is the
 ; EMPTY INTERFACE, ∃X. X, a box holding a value and its type (go.oro, and
-; spec/types.md §3.3). That is a type, as the language's `any` is not: ours is
-; the absence of a claim, filled in at each call. So each function is declared
-; twice, each declaration exact:
+; spec/types.md §3.3). That is a type, as the language's `any` is not, so the
+; list is a table of boxes, `(array go.Value)`, and each function is ONE
+; declaration under Go's own name, marked `variadic` (spec/variadic.md). A call's
+; trailing arguments are the list, as Go's spec defines a variadic call:
 ;
-;   - UNDER GO'S NAME, ONE VALUE: the restriction f|Value¹, with the operand
-;     `any`, filled in at the call, which Go boxes at its own call. 220 of the
-;     corpus's 231 print calls pass one value, and they read `(fmt.Println x)`.
-;   - UNDER NAME-All, ANY NUMBER: f itself, the free monoid Value* as a table of
-;     boxes, `(array go.Value)`, spread into Go's call, `fmt.Println(v...)`, as
-;     a variadic over one type is (strings.oro's NewReplacer). Every type held
-;     as one host value enters a box (types.md §3.3), so `(array 42 "x" true)`
-;     written at the call is Go's `[]any{42, "x", true}`; `-gcflags=-m` shows Go
-;     treating it as its own call's table, which does not escape
-;     (variadic-2026-10-08). The empty table is the empty call.
+;   (fmt.Println x)                 Go's fmt.Println(x)
+;   (fmt.Println "n =" n "of" t)    Go's fmt.Println("n =", n, "of", t)
+;   (fmt.Println (spread xs))       Go's fmt.Println(xs...)
 ;
-; The checker compares the first with the manifest's variadic at arity 1 and the
-; second with its `...any` as a table (gauntlet/stdlib/tooling_test.go). The
-; restrictions at 2 and 3, named B2 and B3, stood here until variadic-2026-10-08,
-; with a wall at four operands.
-;
+; Every type held as one host value enters a box (types.md §3.3), so the
+; arguments are Go's `[]any{…}`, which the printer writes as Go's own call when
+; it is written at the call. The per-arity restrictions B2 and B3 stood here
+; until variadic-2026-10-08.
+
 ; WHAT A BOX SHOWS: formatting through it sees the host value, so a verb that
 ; tells representations apart tells ours apart (`%x` on a table whose element
 ; width the compiler chose). Println's default verb does not. Tier 2.
@@ -70,54 +64,35 @@
       (sig String ((self Stringer)) bytestring (host expr "%s.String()")))
 
     ; ---------------------------------------------------------- to standard output
-    (sig Print      ((a any)) any                                    (host stmt "fmt.Print(%s)" (import "fmt")))
-    (sig PrintAll   ((a (array go.Value))) any                       (host stmt "fmt.Print(%s...)" (import "fmt")))
-    (sig Println    ((a any)) any                                    (host stmt "fmt.Println(%s)" (import "fmt")))
-    (sig PrintlnAll ((a (array go.Value))) any                       (host stmt "fmt.Println(%s...)" (import "fmt")))
-    (sig Printf     ((format bytestring) (a any)) any                (host stmt "fmt.Printf(%s, %s)" (import "fmt")))
-    (sig PrintfAll  ((format bytestring) (a (array go.Value))) any   (host stmt "fmt.Printf(%s, %s...)" (import "fmt")))
+    (sig Print   ((a (array go.Value))) any variadic                      (host stmt "fmt.Print(%s...)" (import "fmt")))
+    (sig Println ((a (array go.Value))) any variadic                      (host stmt "fmt.Println(%s...)" (import "fmt")))
+    (sig Printf  ((format bytestring) (a (array go.Value))) any variadic  (host stmt "fmt.Printf(%s, %s...)" (import "fmt")))
 
     ; ------------------------------------------------------------- to a string
-    (sig Sprint      ((a any)) bytestring pure                                  (host expr "fmt.Sprint(%s)" (import "fmt")))
-    (sig SprintAll   ((a (array go.Value))) bytestring pure                     (host expr "fmt.Sprint(%s...)" (import "fmt")))
-    (sig Sprintln    ((a any)) bytestring pure                                  (host expr "fmt.Sprintln(%s)" (import "fmt")))
-    (sig SprintlnAll ((a (array go.Value))) bytestring pure                     (host expr "fmt.Sprintln(%s...)" (import "fmt")))
-    (sig Sprintf     ((format bytestring) (a any)) bytestring pure              (host expr "fmt.Sprintf(%s, %s)" (import "fmt")))
-    (sig SprintfAll  ((format bytestring) (a (array go.Value))) bytestring pure (host expr "fmt.Sprintf(%s, %s...)" (import "fmt")))
+    (sig Sprint   ((a (array go.Value))) bytestring pure variadic                      (host expr "fmt.Sprint(%s...)" (import "fmt")))
+    (sig Sprintln ((a (array go.Value))) bytestring pure variadic                      (host expr "fmt.Sprintln(%s...)" (import "fmt")))
+    (sig Sprintf  ((format bytestring) (a (array go.Value))) bytestring pure variadic  (host expr "fmt.Sprintf(%s, %s...)" (import "fmt")))
 
     ; ------------------------------------------------------------- to a buffer
-    (sig Append      ((b (buffer (int 0 255))) (a any)) (buffer (int 0 255))
-      (host expr "fmt.Append(%s, %s)" (import "fmt")))
-    (sig AppendAll   ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255))
+    (sig Append   ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255)) variadic
       (host expr "fmt.Append(%s, %s...)" (import "fmt")))
-    (sig Appendln    ((b (buffer (int 0 255))) (a any)) (buffer (int 0 255))
-      (host expr "fmt.Appendln(%s, %s)" (import "fmt")))
-    (sig AppendlnAll ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255))
+    (sig Appendln ((b (buffer (int 0 255))) (a (array go.Value))) (buffer (int 0 255)) variadic
       (host expr "fmt.Appendln(%s, %s...)" (import "fmt")))
-    (sig Appendf     ((b (buffer (int 0 255))) (format bytestring) (a any)) (buffer (int 0 255))
-      (host expr "fmt.Appendf(%s, %s, %s)" (import "fmt")))
-    (sig AppendfAll  ((b (buffer (int 0 255))) (format bytestring) (a (array go.Value))) (buffer (int 0 255))
+    (sig Appendf  ((b (buffer (int 0 255))) (format bytestring) (a (array go.Value))) (buffer (int 0 255)) variadic
       (host expr "fmt.Appendf(%s, %s, %s...)" (import "fmt")))
 
     ; ------------------------------------------------------------- to a Writer
     ; The pair is handed back: n, the bytes written, and the write's error.
-    (sig Fprint      ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
-      (host expr "fmt.Fprint(%s, %s)" (import "fmt")))
-    (sig FprintAll   ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
+    (sig Fprint   ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
       (host expr "fmt.Fprint(%s, %s...)" (import "fmt")))
-    (sig Fprintln    ((w go/io.Writer) (a any)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
-      (host expr "fmt.Fprintln(%s, %s)" (import "fmt")))
-    (sig FprintlnAll ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
+    (sig Fprintln ((w go/io.Writer) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
       (host expr "fmt.Fprintln(%s, %s...)" (import "fmt")))
-    (sig Fprintf     ((w go/io.Writer) (format bytestring) (a any)) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
-      (host expr "fmt.Fprintf(%s, %s, %s)" (import "fmt")))
-    (sig FprintfAll  ((w go/io.Writer) (format bytestring) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error))
+    (sig Fprintf  ((w go/io.Writer) (format bytestring) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
       (host expr "fmt.Fprintf(%s, %s, %s...)" (import "fmt")))
 
     ; ------------------------------------------------------------------ errors
     ; Not pure: each call is a new error, and == on errors is identity.
-    (sig Errorf    ((format bytestring) (a any)) error                (host expr "fmt.Errorf(%s, %s)" (import "fmt")))
-    (sig ErrorfAll ((format bytestring) (a (array go.Value))) error   (host expr "fmt.Errorf(%s, %s...)" (import "fmt"))))
+    (sig Errorf ((format bytestring) (a (array go.Value))) error variadic (host expr "fmt.Errorf(%s, %s...)" (import "fmt"))))
 
   ; A Builder's String is fmt.Stringer's method (Go's method set).
   (implements go/strings.Builder go/fmt.Stringer))

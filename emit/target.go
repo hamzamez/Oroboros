@@ -50,9 +50,14 @@ type Prim struct {
 	// `(lib "user32")`. Collected exactly as Import is, from primitives the
 	// program uses, so the link line is computed rather than a constant that
 	// silently reached 666 of 4,093 callable Win32 names (target-files.md §6a).
-	Lib   string
-	Pure  bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
-	Index bool // declared `index`: argument 0 is a container indexed by argument 1
+	Lib  string
+	Pure bool // declared `pure`; DEFAULTS TO FALSE, deliberately — see below
+	// Variadic is declared `variadic`: the host function takes a LIST as its
+	// last parameter, f : X × T* → B, the parameter a table and the template
+	// spreading it (`%s...`). A call's trailing arguments are the list, and
+	// `(spread xs)` passes one (spec/variadic.md).
+	Variadic bool
+	Index    bool // declared `index`: argument 0 is a container indexed by argument 1
 
 	// A CONTAINER'S LENGTH IS A POSTCONDITION, `(ensures (= (len result) n))` for
 	// a count and `(ensures (= (len result) (len c)))` for a pass-through
@@ -466,7 +471,94 @@ func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.checkWord(); err != nil {
 		return wrap(err)
 	}
+	tg.variadicForms()
 	return nil
+}
+
+// variadicsRead refuses a program that mentions a variadic declaration whose
+// calls the loader did not read as variadic (spec/variadic.md §3). That is a
+// program loaded without the target's forms, and there a table passed as one
+// value of ...any would be taken for the list and print its elements: a wrong
+// answer where the rule gives a refusal. Every driver loads with the target;
+// this makes forgetting a refusal rather than a convention.
+func (tg *Target) variadicsRead(p *core.Program) error {
+	want := map[string]bool{}
+	for n, q := range tg.Prims {
+		if q.Variadic {
+			if d, ok := DeclaredName(n); ok {
+				n = d
+			}
+			want[n] = true
+		}
+	}
+	if len(want) == 0 {
+		return nil
+	}
+	var missed string
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || missed != "" {
+			return
+		}
+		if t.Kind == core.KName && want[t.Name] {
+			if _, read := p.Variadic[t.Name]; !read {
+				missed = t.Name
+			}
+			return
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	for _, q := range sortedDefs(p.Defs) {
+		walk(p.Defs[q])
+	}
+	if missed != "" {
+		return fmt.Errorf("%s is variadic, and this program was loaded without the target's "+
+			"declarations, so its calls' arguments were never read as the list: load it with the "+
+			"target (core.LoadWithDefs with Target.Defs, or Target.LoadProgram; spec/variadic.md §3)", missed)
+	}
+	return nil
+}
+
+func sortedDefs(m map[string]*core.Term) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// variadicForms hands the loader one `variadic` form per variadic declaration,
+// with its number of fixed parameters, in the module that declares it
+// (spec/variadic.md §3). The loader rewrites each call by the name the program
+// wrote, which for a fallible declaration is the definition the retraction
+// made, not its raw call.
+func (tg *Target) variadicForms() {
+	var names []string
+	for n, p := range tg.Prims {
+		if p.Variadic {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		declared := n
+		if d, ok := DeclaredName(n); ok {
+			declared = d
+		}
+		i := strings.LastIndex(declared, ".")
+		if i < 0 {
+			continue
+		}
+		mod, local := declared[:i], declared[i+1:]
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "variadic", Name: local,
+			Term: core.Int(int64(len(tg.Prims[n].Args) - 1))})
+	}
 }
 
 // checkWord holds a whole target to ADR 0026: a target says what interval its
@@ -2090,7 +2182,7 @@ var respelled = map[string]string{
 // about, one host (theories.md §5.2). Keeping the second set inside `(host …)` is
 // what makes "no host clause" mean "no claim about any host".
 var (
-	sigWords  = map[string]bool{"pure": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true}
+	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true}
 	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true}
 )
 
@@ -2317,6 +2409,8 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 			p.Form = rest.Str
 		case rest.Kind == core.KName && rest.Name == "pure":
 			p.Pure = true
+		case rest.Kind == core.KName && rest.Name == "variadic":
+			p.Variadic = true
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "where" && len(rest.Kids) == 2:
 			// A second clause used to REPLACE the first, so a precondition the
@@ -2385,7 +2479,30 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 	if !structuralKinds[p.Kind] && p.Form == "" {
 		return Prim{}, fmt.Errorf("%s: %s is %s and needs an emission template", path, p.Name, p.Kind)
 	}
+	if err := checkVariadic(p, path); err != nil {
+		return Prim{}, err
+	}
 	return p, nil
+}
+
+// checkVariadic is a variadic declaration's shape (spec/variadic.md §2): its
+// last parameter is the list, a table, and its template spreads the last hole.
+// A spread is how a host spells a variadic call, so a template that spreads is
+// declared variadic, and one without the other is refused.
+func checkVariadic(p Prim, path string) error {
+	spreads := strings.Contains(p.Form, "%s...")
+	switch {
+	case p.Variadic && (len(p.Args) == 0 || !strings.HasPrefix(p.Args[len(p.Args)-1], "array ")):
+		return fmt.Errorf("%s: %s is variadic, so its last parameter is the list, a table (array T); "+
+			"got %v (spec/variadic.md)", path, p.Name, p.Args)
+	case p.Variadic && !spreads:
+		return fmt.Errorf("%s: %s is variadic, so its template spreads the list into the host's call, "+
+			"%%s... (spec/variadic.md)", path, p.Name)
+	case !p.Variadic && spreads:
+		return fmt.Errorf("%s: %s's template spreads its last argument, %%s..., which is the host's "+
+			"variadic call: declare it variadic (spec/variadic.md)", path, p.Name)
+	}
+	return nil
 }
 
 // parseStructural reads (structural NAME KIND [pure]). No argument types, no
@@ -2507,6 +2624,9 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// A DECLARED WIDENING IS A DIRECTIVE, and whether a range is one is this
 	// target's question: above its word, not above a window (ADR 0026).
 	p.AscribeWide(tg.Word)
+	if err := tg.variadicsRead(p); err != nil {
+		return nil, err
+	}
 	e.SetUnresolved(p.Unresolved)
 	for _, n := range tg.Names {
 		e.Prim[n] = true
@@ -3041,9 +3161,22 @@ func (tg *Target) Subsumes(got, want string) bool {
 	return false
 }
 
+// HasSubtypes reports whether some type stands below t by a declared or derived
+// subsumption: t is an interface something implements, or the empty interface.
+func (tg *Target) HasSubtypes(t string) bool {
+	for _, ifs := range tg.Implements {
+		for _, i := range ifs {
+			if i == t || tg.SameHostType(i, t) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // oneHostValue reports whether a value of type t is ONE host value, which is
 // what the empty interface boxes (spec/types.md §3.3): an integer, a float, a
-// boolean, a string, a host type, or a frozen table of such. Not a tuple or a
+// boolean, a string, a host type, or a frozen table. Not a tuple or a
 // sum, which are several values at a boundary; not a live buffer, which a box
 // would let the host alias while the program still writes it (ADR 0018); not a
 // function, which may not escape staging; not `any`, which is no type.
@@ -3057,8 +3190,12 @@ func (tg *Target) oneHostValue(t string) bool {
 	if _, _, ok := core.IntRangeBig(t); ok {
 		return true
 	}
-	if elem, ok := strings.CutPrefix(t, "array "); ok {
-		return tg.oneHostValue(tg.ValueType(elem))
+	// A FROZEN TABLE IS ONE HOST VALUE, whatever its element, open included:
+	// an element is one value by construction, since a table of tuples is
+	// flattened before the checker runs (products.md), a buffer may not be an
+	// element (ADR 0020), and a function cannot be stored.
+	if strings.HasPrefix(t, "array ") {
+		return true
 	}
 	_, host := tg.Types[t]
 	return host

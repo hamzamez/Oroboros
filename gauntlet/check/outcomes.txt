@@ -137,7 +137,7 @@
 == examples/errors/slots.oro windows emitted 1efe1630b4e397210779822be30bcac2ed265f14ac3bd7fec17f295bc66aac36
    note: gen-parse: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
    note: gen-save: 1 division(s) became a shift or a mask
-== examples/hello.oro go emitted 77bebcce3fe9fae5ef82f4a6a650587858f867aee19f4b9998ff75a50d255ca5
+== examples/hello.oro go emitted 4253337bb028043a77dae438338113454d3ba311208574d916d1ca0bff961b27
    note: gen-main: 1 of 1 integer operations bounded; 0 of 0 loop(s) proven terminating
 == examples/hello.oro js refused
    gen: examples/hello.oro: in main: go/fmt.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -347,7 +347,7 @@
 == examples/kara/workspace.oro windows emitted c00ae60b2f657f131ac8361f968fcbdf69d13d472b941e42b747f449b5cf66d3
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/lines/lines.oro go emitted 4c38e9cf0cae918121efc13990ef6d6caf65b9e783015f231f1a7f568c34026d
+== examples/lines/lines.oro go emitted dfedbfc16cc0380817880a087fe915595eaf2171109f7f10fdda60a866c3c3af
    note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/lines.oro js refused
    gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -358,7 +358,7 @@
 == examples/lines/lines.oro windows refused
    gen: examples/lines/lines.oro: in fail: go/fmt.Fprintln is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
-== examples/map/dynamic.oro go emitted 98d2b9d05cc45a214bc295440a2426f37c86b0aa1088423efa3c0124c3548098
+== examples/map/dynamic.oro go emitted 68a285373ab475814232f7296a0841e91d332c5a653b699e4a8e60c98b496d7a
    note: gen-main: 4 of 4 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/map/dynamic.oro js refused
    gen: examples/map/dynamic.oro: in build3: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -538,7 +538,7 @@
    gen: examples/native/hello-win.oro: in puts: windows/kernel32.WriteFile is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use windows/kernel32) matched no file on the search path and this target provides no module windows/kernel32 either, so every name from it is unbound. Check the path.
 == examples/native/hello-win.oro windows emitted 3a235646ebee6b63bcb1ea6fb47ebbed031fb6c73b89a365494c0e36686cc41a
-== examples/native/report-go.oro go emitted dd0bad18cd0d7346c84899456f049875056419d2581d6b81faac7dcee122addc
+== examples/native/report-go.oro go emitted d20fcea9a90548711be8d181d8cc99165c27f9d554ccfd355bac6014344d37e0
    note: gen-main: 2 of 2 integer operations bounded; 2 of 2 loop(s) proven terminating
 == examples/native/report-go.oro js refused
    gen: examples/native/report-go.oro: in dot: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
@@ -838,17 +838,17 @@
 == examples/tally/tally.oro windows refused
    gen: examples/tally/tally.oro: in os.Args: os/host.Args is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use os/host) matched no file on the search path and this target provides no module os/host either, so every name from it is unbound. Check the path.
-== examples/u128/factorials.oro go emitted bf4bbba6aef39e52e94be7d5e1fddcd7891288529bcae7faf553387d55d4a40f
+== examples/u128/factorials.oro go emitted f04f04d3dc075e217961d8dc69de73e63c6c8028056ad27f4a6b5d177fc1246c
    note: gen-main: 20 operation(s) or conversion(s) in the unsigned word
    note: gen-main: 4 of 4 integer operations bounded; 2 of 3 loop(s) proven terminating
 == examples/u128/factorials.oro js refused
-   gen: examples/u128/factorials.oro: in main: go/fmt.PrintlnAll is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/u128/factorials.oro: in main: go/fmt.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/u128/factorials.oro java refused
-   gen: examples/u128/factorials.oro: in main: go/fmt.PrintlnAll is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/u128/factorials.oro: in main: go/fmt.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == examples/u128/factorials.oro windows refused
-   gen: examples/u128/factorials.oro: in main: go/fmt.PrintlnAll is not bound — it is not a parameter, not a definition, and not a primitive on this target
+   gen: examples/u128/factorials.oro: in main: go/fmt.Println is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/fmt) matched no file on the search path and this target provides no module go/fmt either, so every name from it is unbound. Check the path.
 == gauntlet/differential/cases/alloc-copies.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/alloc-copies.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0

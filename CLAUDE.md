@@ -332,7 +332,12 @@ a wall that needs language work, stop and research it, then design it.
       ([ADR 0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md),
       [variadic.md](docs/spec/variadic.md)): marked `variadic`, its last parameter the list; a
       call's trailing arguments are the list, as Go's spec defines a variadic call, `(spread xs)`
-      passes a table, and the printer writes Go's own call. 293 of 590 declared (49.7%). I is next;
+      passes a table, and the printer writes Go's own call. 293 of 590 declared (49.7%). **I is
+      researched** ([outparams-research.md](docs/outparams-research.md),
+      [outparams-2026-10-08](gauntlet/results/outparams-2026-10-08.md)): an out-parameter is a result,
+      and the caller-typed ones (the Scan family, `errors.As`, `json.Unmarshal`, `binary.Read`,
+      `sql.Rows.Scan`, about 25 in 8 packages) need typed out-cells `(out τ)` and type variables in
+      host declarations; Win32 has 3,461 functions with fixed-type cells. Six decisions for hamza;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;

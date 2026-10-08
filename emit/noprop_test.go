@@ -18,11 +18,11 @@ func TestAnIndexOutsideTheFragmentIsRefused(t *testing.T) {
 		return `(export f)
 (sig f ((n (int 0 100))) int)
 (def f (n)
-  (let b (build b 8
+  (let b (local b (table 8 0)
            (loop ((b b) (i 0))
              (>= i 8)  b
              else      (again (set b i (% (+ i n) 10)) (+ i 1))))
-       t (build c 6 c)
+       t (local c (table 6 0) c)
     ` + read + `))`
 	}
 	err := refineGo(t, prog(`(t (b 3))`))

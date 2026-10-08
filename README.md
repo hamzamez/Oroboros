@@ -252,7 +252,7 @@ declarations move to it.
 
 (def main ()
   (let src (array 104 105 33)                          ; "hi!"
-       (tuple dst n) (build buf (* 2 (len src)) (hex.Encode buf src))
+       (tuple dst n) (local buf (table (* 2 (len src)) 0) (hex.Encode buf src))
     (io.print-line (os.text-of dst))))
 ```
 

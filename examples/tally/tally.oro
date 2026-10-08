@@ -89,8 +89,8 @@
     else      (again (set a (cli n k) k) (+ k 1))))
 
 (def msort (less n)
-  (build a n
-         b n
+  (local a (table n 0)
+         b (table n 0)
     (loop ((a (iota a n)) (b b) (w 1))
       (>= w n)      a
       (>= w nmax) a
@@ -109,7 +109,7 @@
 ; THE CAPTURED VALUES, AS A TABLE OF THE HOST'S STRINGS. Nothing is copied into
 ; bytes: the host produced these strings and the host will compare them.
 (def captures (hit? capture re ls n)
-  (build cs n
+  (local cs (table n 0)
     (loop ((cs cs) (i 0) (k 0))
       (>= i (len ls))  cs
       (>= k n)         cs
@@ -140,7 +140,7 @@
 (def dcount (dt d) ((dt d) 1))
 
 (def dists (cmp cs ord n nd)
-  (build dt nd
+  (local dt (table nd 0)
     (loop ((dt dt) (k 0) (d 0))
       (>= k n)  dt
       ; NO GROUPS, NO TABLE: `nd >= 1` whenever a value exists is a relation

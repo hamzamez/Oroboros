@@ -159,8 +159,8 @@
 ; --- the parser -------------------------------------------------------------
 
 (def parse (src)
-  (build nodes (go.* 4 nmax)
-         stk (go.* 2 dmax)
+  (local nodes (table (go.* 4 nmax) 0)
+         stk (table (go.* 2 dmax) 0)
     (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
 
       ; A scanner's result is opaque to the analysis (json-2026-08-26 §2).
@@ -246,7 +246,7 @@
 (def ssl2 (k o) (go.+ (go.* 2 k) o))
 
 (def walk (nodes)
-  (build wl (go.* 2 nmax)
+  (local wl (table (go.* 2 nmax) 0)
     (loop ((wl (set (set wl 0 1) 1 1)) (sp 1) (seen 0) (acc 0) (steps 0))
       (go.>= steps (go.* 2 nmax))  (go.+ (go.* seen 1000) acc)
       (go.< sp 1)                    (go.+ (go.* seen 1000) acc)

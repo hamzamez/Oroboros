@@ -22,13 +22,13 @@ func TestEveryOneValueTypeEntersTheEmptyInterface(t *testing.T) {
 		// an integer, a string, a boolean, a host type, a frozen table
 		{`(def f (n s xs) (seq (fmt.Println n s true (gos.Stdout) xs) 0))`, true, ""},
 		// a scope's value is the frozen table, checked at the exit
-		{`(def f (n s xs) (seq (fmt.Println (build b 2 (set (set b 0 n) 1 n))) 0))`, true, ""},
+		{`(def f (n s xs) (seq (fmt.Println (local b (table 2 0) (set (set b 0 n) 1 n))) 0))`, true, ""},
 		// none, and one
 		{`(def f (n s xs) (seq (fmt.Println) (fmt.Println n) 0))`, true, ""},
 		// a tuple is several values at a boundary
 		{`(def f (n s xs) (seq (fmt.Println (tuple n n)) 0))`, false, ""},
 		// a live buffer would be aliased by the host while the program writes it
-		{`(def f (n s xs) (len (build b 4 (seq (fmt.Println b) b))))`, false, "go.Value is required here"},
+		{`(def f (n s xs) (len (local b (table 4 0) (seq (fmt.Println b) b))))`, false, "go.Value is required here"},
 		// only the declared box is the top: an integer is no io.Writer
 		{`(def f (n s xs) (seq (gio.MultiWriter 7) 0))`, false, "go/io.Writer is required here"},
 	} {

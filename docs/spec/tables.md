@@ -120,7 +120,7 @@ why `DOMAIN` is primitive in TLA+.
 (array e₀ e₁ … eₙ₋₁)      ; a graph. n is static.
 (table n (fn (i) e))      ; a rule. n may be dynamic. NO MEMORY.
 (alloc t)                 ; the same table, in memory. GATHER — pure, parallel by construction.
-(build b n …)             ; a scoped mutable buffer b of n elements. SCATTER — sequential.
+(local b (table n 0) …)             ; a scoped mutable buffer b of n elements. SCATTER — sequential.
                           ;   Sugar for the core form (build n (fn (b) …)), §2.4.
 (set b i v)               ; a store. Consumes b, returns b.
 (len t)                   ; the domain bound
@@ -248,10 +248,13 @@ language's own bound".
 ### 2.4 `build` is a binder, and it is written as one
 
 Specified 2026-09-25 ([buildbind-2026-09-25](../../gauntlet/results/buildbind-2026-09-25.md)).
+**Respelled 2026-10-08 as `local`** ([local.md](local.md), ADR 0047): the binder's initializer is
+the table it starts as, `(table n 0)` for the zero buffer, and the same scope holds cells. The laws
+below hold of it unchanged; `(build b n body)` is refused naming `local`, and the core form stays.
 
 ```
-(build b n body)                          ≡  (build n (fn (b) body))
-(build b₁ n₁  b₂ n₂  …  bₖ nₖ  body)        ≡  (build n₁ (fn (b₁) (build b₂ n₂ … bₖ nₖ body)))     k ≥ 2
+(local b (table n 0) body)                                  ≡  (build n (fn (b) body))
+(local b₁ (table n₁ 0)  …  bₖ (table nₖ 0)  body)           ≡  (build n₁ (fn (b₁) (local b₂ (table n₂ 0) … body)))     k ≥ 2
 ```
 
 The right-hand sides are the **core form**, and the left-hand sides erase to them in the reader, the
@@ -272,7 +275,7 @@ source writes the binding and not the redex. The binder form does the same for `
    respelling all 67 scoped-buffer forms: 56 `build`s and 4 `build-map`s in programs, and 7 in the
    compiler's own `.oro`. `cmd/check` is byte-identical.
 2. **Scoping is sequential**, `let*`'s rule: `nᵢ` is in the scope of `b₁ … bᵢ₋₁`. So
-   `(build a n  b (len a)  …)` is legal. The n-ary form is the right fold of the unary one, and it is
+   `(local a (table n 0)  b (table (len a) 0)  …)` is legal. The n-ary form is the right fold of the unary one, and it is
    n-ary for binding.md §4's reason: nesting binders is associative.
 3. **Several buffers are one region, not an approximation of nesting.** Nested scopes that end at the
    same point have equal lifetimes. So the flat form is equal to the nested one: a Tofte–Talpin
@@ -313,18 +316,18 @@ at two index sets (arrays-revisited.md §6), so they have one surface.
    a term: a tuple type arrives as the tuple's term (respell-2026-09-15). `array` is a harmless pun,
    because `(array 1 2 3)` is a value of type `(array int)`. A `buffer` term meaning a scope, beside a
    `buffer` type meaning a value, would be a pun whose two readings disagree.
-3. The binder form already reads as a declaration: `(build b n …)` is "b, of n, in …", Go's
+3. The binder form already reads as a declaration: `(local b (table n 0) …)` is "b, of n, in …", Go's
    `b := make([]T, n)`.
 
 **Layout**, as a `let` aligns its names:
 
 ```lisp
-(build sp nw
+(local sp (table nw 0)
   (loop ((sp sp) (i 0))
     …))
 
-(build a n
-       b n
+(local a (table n 0)
+       b (table n 0)
   (loop ((a (iota a n)) (b b) (w 1))
     …))
 ```
@@ -348,8 +351,8 @@ it is taken apart by a tuple pattern:
 
 ```lisp
 (let (tuple nodes nn ok)
-     (build nodes (* 4 nmax)
-            stk   (* 2 dmax)
+     (local nodes (table (* 4 nmax) 0)
+            stk   (table (* 2 dmax) 0)
        (loop ((nodes nodes) (stk stk) (i 0) (nn 1) (sp 0) (ok 1))
          (>= i (len src))  (tuple nodes nn (if (= sp 0) ok 0))
          …))
@@ -405,7 +408,7 @@ out. An exit that is neither a tuple of m components nor such a call is refused 
 pass reads it.
 
 ```lisp
-(let (tuple dst n) (build buf (* 2 (len src)) (hex.Encode buf src))
+(let (tuple dst n) (local buf (table (* 2 (len src)) 0) (hex.Encode buf src))
   …)
 ```
 
@@ -870,7 +873,7 @@ q5b stands, and it is the container-morphism theorem.
 ## 9. The memory model — decided
 
 > **[ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), 2026-08-21.** Values are
-> immutable; mutation exists only inside `(build b n …)`, whose buffer is **linear** and is
+> immutable; mutation exists only inside `(local b (table n 0) …)`, whose buffer is **linear** and is
 > frozen on the way out. `(array V)` reads are pure; `(buffer V)` reads are impure. The linearity
 > check is `occurrences` on the residual, **not a type** — uniqueness never enters a signature.
 >
@@ -1105,7 +1108,7 @@ written into the ADR's triggers.
 position is allowed, so what stops this?
 
 ```lisp
-(build b n (table m (fn (i) (b i))))     ; a rule capturing the buffer
+(local b (table n 0) (table m (fn (i) (b i))))     ; a rule capturing the buffer
 ```
 
 The rule is a lambda in a structural position, and the table it makes would outlive the buffer.
@@ -1154,13 +1157,13 @@ is most of the time.
 **O(1), inside a scope:**
 
 ```lisp
-(build b (len a) (set (copy-from b a) i v))
+(local b (table (len a) 0) (set (copy-from b a) i v))
 ```
 
 still O(n) because of the copy-in — but *repeated* updates batch:
 
 ```lisp
-(build b (len a)
+(local b (table (len a) 0)
   (loop ((b (copy-from b a)) (k 0))
     (>= k (len updates))  b
     else                  (again (set b (index-of updates k) (value-of updates k)) (+ k 1))))
@@ -1179,7 +1182,7 @@ an optimisation with no source-level guarantee is a cliff you cannot see.
 
 ### 14.3 A `build` buffer is ZERO-FILLED
 
-`(build b n …)` hands the body a buffer of `n` elements, every one of them **zero** — `0`
+`(local b (table n 0) …)` hands the body a buffer of `n` elements, every one of them **zero** — `0`
 for an integer, `0.0` for a float, `false` for a boolean.
 
 This was true on all four targets from the day `build` was written, by four different mechanisms —
@@ -1244,7 +1247,7 @@ is not a growable array; it is a linked list wearing one.
 ;; filter, in two passes — count, then scatter. The parallel-array idiom.
 (def filter (fn (p a)
   (let n (count-matching p a)
-    (build b n
+    (local b (table n 0)
       (loop ((b b) (i 0) (k 0))
         (>= i (len a))  b
         (p (a i))       (again (set b k (a i)) (+ i 1) (+ k 1))

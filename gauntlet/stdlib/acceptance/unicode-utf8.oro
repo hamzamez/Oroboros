@@ -30,7 +30,7 @@
 (def each-rune (r)
   (seq (fmt.Println (utf8.RuneLen r))
        (fmt.Println (utf8.ValidRune r))
-       (fmt.Println (build b 4
+       (fmt.Println (local b (table 4 0)
          ((utf8.EncodeRune b r) (fn (b2 n) (seq (fmt.Println n) b2)))))))
 
 ; A decoded rune and its width, and then their SUM, which is the witness that a
@@ -62,7 +62,7 @@
 ; host's string, `go/os`'s raw text-of, because the portable one decodes
 ; (ADR 0030).
 (def invalid ()
-  (let bad (build b 3 (set (set (set b 0 240) 1 159) 2 153))
+  (let bad (local b (table 3 0) (set (set (set b 0 240) 1 159) 2 153))
     (seq (fmt.Println (utf8.FullRune bad))
          (fmt.Println (utf8.Valid bad))
          (fmt.Println (utf8.RuneCount bad))
@@ -84,7 +84,7 @@
 ; immutable text the readers see.
 (def main ()
   (let runes (array 104 233 26085 128578 -1 55296 1114112)
-       text  (build b 1
+       text  (local b (table 1 0)
                (loop ((i 0) (acc (set b 0 104)))
                  (>= i (len runes)) acc
                  else (seq (each-rune (runes i))

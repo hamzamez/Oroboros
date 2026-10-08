@@ -85,7 +85,7 @@ var loopShapes = []func(r *rand.Rand) string{
 	// fresh store on one arm.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(5)
-		return fmt.Sprintf(`(let t (build b %d
+		return fmt.Sprintf(`(let t (local b (table %d 0)
           (loop ((b b) (i 0))
             (>= i (+ n %d)) b
             (< i %d) (again (set b (%% i %d) %d) (+ i 1))
@@ -96,7 +96,7 @@ var loopShapes = []func(r *rand.Rand) string{
 	// Theorem 3 on two buffers: a copy between them, and an increment.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(4)
-		return fmt.Sprintf(`(let t (build a %d  c %d
+		return fmt.Sprintf(`(let t (local a (table %d 0)  c (table %d 0)
           (loop ((a a) (c c) (i 0))
             (>= i (+ n %d)) a
             else (again (set a (%% i %d) (+ (c (%% i %d)) %d)) (set c (%% (+ i 1) %d) (a (%% i %d))) (+ i 1))))
@@ -203,7 +203,7 @@ var loopShapes = []func(r *rand.Rand) string{
 	// however many times the loop goes round.
 	func(r *rand.Rand) string {
 		l := 1 + r.Intn(5)
-		return fmt.Sprintf(`(let t (build b %d
+		return fmt.Sprintf(`(let t (local b (table %d 0)
           (loop ((b b) (i 0) (j 0) (m 0))
             (>= j (+ n %d)) (set b 0 (+ (b 0) m))
             (= (%% i 3) 0) (again (set b (%% i %d) %d) (+ i 1) j (- m 1))

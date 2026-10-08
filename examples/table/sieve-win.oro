@@ -17,7 +17,7 @@
     else            c))
 
 (def sieve (n)
-  (build c n
+  (local c (table n 0)
     (loop ((c c) (i 2))
       (x64.setge (x64.imul i i) n)  c
       (c i)                         (again c (x64.add i 1))

@@ -89,7 +89,17 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		return "string", c.agree("a string literal", "string", want)
 
 	case core.KName:
+		// THE UNCONSTRAINED VALUE, a constructor's unselected slot, is a value
+		// of every type, ∀α. α (ADR 0042, Theorem R): like abandon's 0 it
+		// agrees with every demand, and learns nothing. Taken for a name, it
+		// took its first demand's type for every later slot of the program.
+		if t.Name == core.AnyName {
+			return "", nil
+		}
 		got := c.types[t.Name]
+		if got == bottom {
+			return "", nil
+		}
 		if got == "" {
 			// THE INFERENCE HALF: an unknown name takes the demanded type, which
 			// is sound only where nothing else may stand there. A demand with a
@@ -152,6 +162,11 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 				ty, err := c.walk(pj, "")
 				if err != nil {
 					return "", err
+				}
+				if ty == "" && unselected(c.tgt, pj, false) {
+					// a component no tail selects: xⱼ is never the value an
+					// arm reads, and has every type
+					ty = bottom
 				}
 				tys[j] = ty
 			}
@@ -257,6 +272,53 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		}
 	}
 	return res, c.agree(op.Name, res, want)
+}
+
+// bottom is the type of a binder no tail gives a value: a component every tail
+// fills with the unconstrained value (or leaves by a crash or a back edge).
+// It agrees with every demand and learns nothing, so a conditional's other
+// branch types it, as abandon's 0 is typed. A name the checker knows nothing of
+// is another thing: a parameter, whose demand is its type.
+const bottom = "#0"
+
+// unselected reports whether every tail of t is the unconstrained value, a
+// crash, or (inLoop) a back edge, through the forms projectTail walks.
+func unselected(tg *Target, t *core.Term, inLoop bool) bool {
+	if t.Kind == core.KName {
+		return t.Name == core.AnyName
+	}
+	if t.Kind != core.KApp || len(t.Kids) == 0 {
+		return false
+	}
+	if _, _, kk, ok := multiPrimCall(tg, t); ok {
+		return unselected(tg, kk.Closed(), inLoop)
+	}
+	op := t.Kids[0]
+	if op.Kind != core.KName {
+		return false
+	}
+	switch {
+	case op.Name == "again":
+		return inLoop
+	case op.Name == "abandon":
+		return true
+	case op.Name == core.RequireWhereName && len(t.Kids) == 4:
+		return unselected(tg, t.Kids[3], inLoop)
+	}
+	p, known := tg.Prims[op.Name]
+	if !known {
+		return false
+	}
+	switch {
+	case p.Kind == "cond" && len(t.Kids) == 4:
+		return unselected(tg, t.Kids[2], inLoop) && unselected(tg, t.Kids[3], inLoop)
+	case (p.Kind == "let" || p.Kind == "table-build" || p.Kind == "map-build") &&
+		len(t.Kids) == 3 && t.Kids[2].Kind == core.KFn:
+		return unselected(tg, t.Kids[2].Closed(), inLoop)
+	case p.Kind == "iterate" && len(t.Kids) >= 3 && t.Kids[1].Kind == core.KFn:
+		return unselected(tg, t.Kids[1].Closed(), true)
+	}
+	return false
 }
 
 // agree is the whole of conflict detection: two different CONCRETE demands on

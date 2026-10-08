@@ -214,6 +214,9 @@ func codeWords(t *testing.T) map[string]bool {
 	w[core.AscribeName] = true
 	// The loader's: a variadic call's list passed as a table (spec/variadic.md).
 	w[core.SpreadName] = true
+	// The reader's: a scope of local state (spec/local.md), dispatched by a
+	// constant the comparisons above do not see as a literal.
+	w[core.LocalName] = true
 	// The boolean literals are tokens the reader recognises before any form is
 	// built, so no comparison of the shapes above sees them; they are admitted
 	// here only after the reader is asked and says they are literals.

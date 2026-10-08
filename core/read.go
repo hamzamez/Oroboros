@@ -626,8 +626,18 @@ func (r *reader) list() (*Term, error) {
 	if kids[0].Kind == KName && kids[0].Name == "loop" {
 		return readLoop(kids, line)
 	}
-	// (build b n body) — a scoped buffer is a binder (scope.go, tables.md §2.4).
+	// (local x e … body) — a scope of local state (scope.go, spec/local.md).
+	if kids[0].Kind == KName && kids[0].Name == LocalName {
+		return readLocal(kids, line)
+	}
+	// (build-map m cap body) — a scoped map buffer is a binder (scope.go).
+	// `build`'s binder form is `local`'s now: the core form is unchanged.
 	if isScopeHead(kids[0]) && len(kids) >= 4 {
+		if kids[0].Name == "build" {
+			return nil, fmt.Errorf("line %d: a scope of local state is `local`, whose binder takes its "+
+				"initial value: (local b (table n 0) body) for a buffer of n zeros (spec/local.md); "+
+				"the core form (build n (fn (b) body)) is unchanged", line)
+		}
 		return readScope(kids, line)
 	}
 	if kids[0].Kind == KName && kids[0].Name == "match" {

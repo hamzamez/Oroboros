@@ -148,7 +148,7 @@ or more terms, and a `seq` of one is the term.
 ## 6b. `build` and `build-map` bind the same way
 
 ```lisp
-(build b n  c m  body)      ⟶   (build n (fn (b) (build m (fn (c) body))))
+(local b (table n 0)  c (table m 0)  body)      ⟶   (build n (fn (b) (build m (fn (c) body))))
 (build-map m cap  body)     ⟶   (build-map cap (fn (m) body))
 ```
 

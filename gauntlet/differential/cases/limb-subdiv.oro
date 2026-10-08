@@ -45,13 +45,13 @@
 (def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
 
 (def bn-of (n v)
-  (build b n
+  (local b (table n 0)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
       else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
 
 (def bn-sub (n a b)
-  (build o n
+  (local o (table n 0)
     (loop ((o o) (i 0) (bw 0))
       (>= i n)  o
       else      (let t (- (- (at a i) (at b i)) bw)
@@ -60,7 +60,7 @@
                          (if (< t 0) 1 0))))))
 
 (def bn-div-small (n a k)
-  (build o n
+  (local o (table n 0)
     (loop ((o o) (i (- n 1)) (r 0))
       (< i 0)  o
       else     (let cur (+ (* r 16777216) (at a i))

@@ -80,7 +80,8 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 | `(def f (x…) body)` | `(def f (fn (x…) body))` — the equational shorthand; a parameter list is a list of NAMES, and one body | [def.md §4](def.md), [program-surface.md](../program-surface.md) |
 | `(let x e … b)` | nested applications: `((fn (x) b) e)`, and `(e (fn (a b) body))` for a `(tuple a b)` left-hand side | [binding.md](binding.md) |
 | `(seq a b)` | `((fn (_) b) a)` — a binding whose name is discarded | [binding.md §6](binding.md), [effects.md §5](effects.md) |
-| `(build b n  c m … body)`, `(build-map m cap … body)` | the core form `(build n (fn (b) (build m (fn (c) body))))`: a scoped buffer's λ is a binder; n-ary, sequential, names distinct. The core form stays legal | [tables.md §2.4](tables.md), [binding.md §6b](binding.md) |
+| `(local b (table n 0)  c (table m f)  d (array e…)  x e … body)` | per binder, by its initializer's value: a table makes a buffer, the core form `(build n (fn (b) …))` (filled by a loop over `f`, or by stores of the graph); anything else makes a **cell**, `(#cell e (fn (x) …))`, which the loader translates into loop variables after `case` expands (S⟦·⟧, the state-passing translation), so nothing below it learns cells exist; each elimination the translation assumes is marked `((#elim op) λ)` and decided by the reducer on op's normal form. n-ary, sequential, names distinct. `build`'s binder form is refused naming `local`; the core form stays legal | [local.md](local.md), [ADR 0047](../decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md), [tables.md §2.4](tables.md) |
+| `(build-map m cap … body)` | the core form `(build-map cap (fn (m) body))`, as before | [maps.md](maps.md), [binding.md §6b](binding.md) |
 | `(and a b)`, `(or a b)`, `(not a)`, `cond` | `if`; and `(if (not c) a b)` is built as `(if c b a)`, unless a branch is a boolean literal and the term is a connective | [booleans.md §4.2](booleans.md) |
 | `(tuple a b …)` | `(fn (k) (k a b …))` | [data.md](data.md), [values.md](values.md) |
 | `(match (e…) pats body … else body)`, with `when` guards and `_` | a `loop` | [match.md](match.md) |
@@ -105,7 +106,7 @@ program; the backend implements each on each host.
 | `=` | integer equality | [match.md](match.md) |
 | `+ - * / % < <= > >=` | integer arithmetic and order, found per target by spelling | [integers.md §0a](integers.md) |
 | `array`, `table`, `len` | a table's graph, its rule and its domain bound; indexing is APPLICATION | [tables.md](tables.md) |
-| `alloc`, `build`, `set` | allocation and the scoped linear buffer | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
+| `alloc`, `build`, `set`, `local` | allocation, the scoped linear buffer, and a scope of local state, whose `(set c v)` writes a cell | [tables.md](tables.md), [local.md](local.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md), [ADR 0047](../decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
 | `map`, `build-map`, `insert`, `keys` | maps over `int` keys | [maps.md](maps.md) |
 | `concat`, `string-of` | the free monoid over scalars, and its generator | [string-operations.md](../string-operations.md) |
 | a host's string | its own type (`go.bytestring` on Go), with `string` a subtype of it; it enters `string` only through d, the maximal-subpart decode (`go.text`, and the portable `os.text-of` on every host) | [ADR 0030](../decisions/0030-a-hosts-string-is-the-hosts.md), [strings.md §8](strings.md) |
@@ -205,7 +206,7 @@ These are not language, but they decide what is legal.
 | Unbounded iteration | **built**, `loop`/`again`; termination is a computed program property |
 | Tail-call optimisation | not guaranteed, and moot |
 | Escaping closures | refused; three tiers of what that costs are in [callbacks.md](callbacks.md) |
-| Mutation | only inside `build`, on a linear buffer, or on a `(buffer V)` parameter (ADR 0018, ADR 0020) |
+| Mutation | only inside a `local` scope, on a linear buffer or a cell, or on a `(buffer V)` parameter (ADR 0018, ADR 0020, ADR 0047). A cell is a loop variable after translation; a closure over one is refused |
 | Effect types, monads | none. Purity is one declared bit per primitive ([effects.md](effects.md)) |
 | General equality | none. `=` is integer equality; floats have NaN, and strings have no portable comparison |
 | Bitwise operators | not promoted to the language: V8 truncates them to int32, inside its own 2⁵³ word ([integers.md](integers.md)) |

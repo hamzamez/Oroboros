@@ -81,6 +81,8 @@ type Env struct {
 	// so a compile is deterministic.
 	fresh int
 
+	// depth is how deep reduction has recursed (MaxDepth).
+	depth int
 	// consumed caches consumes for a definition's parameter (spec/errors.md
 	// §7.2).
 	consumed map[string]bool
@@ -775,6 +777,24 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		m := entries[i].mod
 		look := func(sp string) (ctorRef, error) { return m.constructor(sp, byPath, mods) }
 		x, err := expandCase(entries[i].term, look)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
+		}
+		entries[i].term = x
+	}
+	// CELLS, after the arms they flow through exist (core/cell.go, spec/local.md
+	// §3): every definition and every entry term.
+	for _, m := range mods {
+		for n, body := range m.Defs {
+			x, err := translateCells(body)
+			if err != nil {
+				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
+			}
+			m.Defs[n] = x
+		}
+	}
+	for i := range entries {
+		x, err := translateCells(entries[i].term)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
 		}
@@ -1676,10 +1696,56 @@ func Normalize(t *Term, e *Env, fuel int) (*Term, error) {
 	}
 	// Every consumer opens the residual by its hints, so the hints must be a
 	// faithful naming of the indices — see hygiene.go.
-	return hygienic(nf), nil
+	return hygienic(stripElim(nf)), nil
 }
 
+// stripElim removes the elimination marks left over a variable (see the
+// #elim rule in normalizeStep): ((#elim x) a…) ⟶ (x a…).
+func stripElim(t *Term) *Term {
+	if t == nil || len(t.Kids) == 0 {
+		return t
+	}
+	var kids []*Term
+	for i, k := range t.Kids {
+		n := stripElim(k)
+		if i == 0 && t.Kind == KApp && isElimMark(n) {
+			n = n.Kids[1]
+		}
+		if n != k && kids == nil {
+			kids = append([]*Term(nil), t.Kids...)
+		}
+		if kids != nil {
+			kids[i] = n
+		}
+	}
+	if kids == nil {
+		return t
+	}
+	c := *t
+	c.Kids = kids
+	return &c
+}
+
+// MaxDepth bounds how deep reduction recurses. Fuel bounds the number of
+// steps, not their depth, and depth is what the stack pays for: Ω under a
+// binder recursed about 210,000 frames before its fuel ran out, at the edge of
+// Go's 1 GB stack, so 256 bytes more in normalize's frame overflowed it
+// (local-2026-10-08). Exceeding the depth is the fuel's diagnosis, a reduction
+// that does not end, and it bounds the stack whatever the frame's size.
+var MaxDepth = 100_000
+
 func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
+	e.depth++
+	if e.depth > MaxDepth {
+		e.depth--
+		return nil, &FuelError{Term: t}
+	}
+	out, err := normalizeStep(t, e, fuel)
+	e.depth--
+	return out, err
+}
+
+func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 	if *fuel <= 0 {
 		return nil, &FuelError{Term: t}
 	}
@@ -1751,6 +1817,36 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 				return nil, err
 			}
 			return withWhere(op, inner), nil
+		}
+
+		// AN ELIMINATION A CELL'S TRANSLATION CLAIMED, ((#elim op) λ): op's
+		// normal form must be data, so that λ runs once, now (core/cell.go).
+		// A function instead is a closure over the scope's cells, refused.
+		if isElimMark(op) {
+			// A VARIABLE IS NOT DECIDED YET: a λ's body is normalized before
+			// the λ is applied, and β renormalizes it once the variable has a
+			// value. One left at the end is a parameter or an impure let's
+			// value, which a first-order residual holds only as data, and
+			// Normalize strips its mark (stripElim).
+			if v := op.Kids[1]; v.Kind == KBound || (v.Kind == KName && !e.Prim[v.Name]) {
+				kids := []*Term{op}
+				for _, a := range args {
+					na, err := normalize(a, e, fuel)
+					if err != nil {
+						return nil, err
+					}
+					kids = append(kids, na)
+				}
+				return &Term{Kind: KApp, Kids: kids}, nil
+			}
+			if !e.isData(op.Kids[1]) {
+				return nil, fmt.Errorf("a function that mentions a cell is passed to %s, which is "+
+					"a function and may run it any number of times, or later, so the cell's order "+
+					"would not be the program's. A cell may be read and written in the scope, a case "+
+					"arm, a loop and the elimination of a value; callbacks over a scope's cells are "+
+					"tier 1, not built (spec/local.md §3)", op.Kids[1])
+			}
+			return normalize(&Term{Kind: KApp, Kids: append([]*Term{op.Kids[1]}, args...)}, e, fuel)
 		}
 
 		// β-tab — THE SECOND CLAUSE OF β, not a fourth rule.
@@ -1886,6 +1982,35 @@ func normalize(t *Term, e *Env, fuel *int) (*Term, error) {
 			out := &Term{Kind: KApp, Kids: []*Term{
 				op.Kids[0], op.Kids[1], br(op.Kids[2]), br(op.Kids[3])}}
 			return normalize(out, e, fuel)
+		}
+
+		// A RESIDUAL LET OF A DUPLICABLE VALUE IS β: (let v k) is (k v), and a
+		// residual `let` exists only to keep an effect in place or to share a
+		// computation (ADR 0010). A literal, a name or a λ needs neither. The
+		// commuting conversions build a `let` directly, so a value that folds
+		// afterwards, (+ 1 1) to 2, was left bound (local-2026-10-08).
+		// (Each rule below is a function of its own, so normalize's frame does
+		// not grow: reduction recurses as deep as its fuel.)
+		if isResidualLet(op, args, e) {
+			return e.reduceLet(op, args, fuel)
+		}
+		// A PROJECTION OF A LOOP: ((loop F z…) (fn (x₁ … xₙ) xⱼ)) ⟶ the loop
+		// with πⱼ at each exit. A loop's value is its taken exit's, so
+		// πⱼ ∘ loop = loop with πⱼ at its exits. Only a projection moves: its
+		// body is a variable, so it holds no `again` the loop would capture
+		// and no code the loop would repeat; any other eliminator stays where
+		// it is, ADR 0031's join point. A cell's translation projects its state
+		// off a loop this way, and the loop then yields its value alone
+		// (spec/local.md §4).
+		if len(args) == 1 && isLoopTerm(op, e) {
+			if j, n, ok := projection(args[0]); ok {
+				if body, ok := e.projectTails(op.Kids[1].Closed(), j, n); ok {
+					lam := op.Kids[1]
+					loop := &Term{Kind: KApp, Kids: append([]*Term{op.Kids[0],
+						{Kind: KFn, Params: lam.Params, Kids: []*Term{body}}}, op.Kids[2:]...)}
+					return normalize(loop, e, fuel)
+				}
+			}
 		}
 
 		if op.Kind == KFn { // β
@@ -2676,6 +2801,38 @@ func isIfApp(t *Term, e *Env) bool {
 		t.Kids[0].Kind == KName && t.Kids[0].Name == "if" && e.Prim["if"]
 }
 
+// isResidualLet reports a residual `(let v (fn (x) b))`.
+func isResidualLet(op *Term, args []*Term, e *Env) bool {
+	return op.Kind == KName && op.Name == "let" && e.Prim["let"] && len(args) == 2 &&
+		args[1].Kind == KFn && len(args[1].Params) == 1
+}
+
+// reduceLet is a residual let's whole rule: β when its value is duplicable
+// (see normalize), and otherwise the generic application's.
+func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
+	v, err := normalize(args[0], e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	if duplicable(v) && !IsRequire(v) && !IsRequireWhere(v) {
+		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
+	}
+	k, err := normalize(args[1], e, fuel)
+	if err != nil {
+		return nil, err
+	}
+	// THE RIGHT UNIT LAW, m >>= return = m: `(let v (fn (x) x))` is v,
+	// whatever v's effects, since they run once, in place, either way.
+	if b := k.Closed(); b.Kind == KBound && b.Depth == 0 && b.Index == 0 {
+		return v, nil
+	}
+	out := []*Term{op, v, k}
+	if ab, ok := e.absorb(out); ok {
+		return ab, nil
+	}
+	return &Term{Kind: KApp, Kids: out}, nil
+}
+
 // isMultiApp recognises a host call with several results applied to its
 // continuation: ((p a…) (fn (x̄) M)) with p a primitive — the n-ary let.
 func isMultiApp(t *Term, e *Env) bool {
@@ -2823,6 +2980,99 @@ func (e *Env) tupleTails(t *Term, inLoop bool) (int, bool) {
 		return n, true
 	}
 	return 0, false
+}
+
+// projection reports πⱼ of an n-tuple, (fn (x₁ … xₙ) xⱼ), with n ≥ 2.
+func projection(f *Term) (j, n int, ok bool) {
+	if f.Kind != KFn || len(f.Params) < 2 {
+		return 0, 0, false
+	}
+	if b := f.Closed(); b.Kind == KBound && b.Depth == 0 {
+		return b.Index, len(f.Params), true
+	}
+	return 0, 0, false
+}
+
+func isLoopTerm(t *Term, e *Env) bool {
+	return t.Kind == KApp && len(t.Kids) >= 2 && t.Kids[0].Kind == KName &&
+		t.Kids[0].Name == "loop" && e.Prim["loop"] && t.Kids[1].Kind == KFn
+}
+
+// projectTails replaces every tail of a loop body t, each an n-tuple, by its
+// j-th component; an `again` is a back edge and stays. It walks the forms
+// tupleTails walks, under the binders it meets without opening them, since a
+// component is a term of the tuple's own scope. Any other tail answers no, and
+// the projection stays outside.
+func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
+	with := func(i int, k *Term) *Term {
+		kids := append([]*Term(nil), t.Kids...)
+		kids[i] = k
+		return &Term{Kind: KApp, Kids: kids}
+	}
+	under := func(i int) (*Term, bool) { // t.Kids[i] is a λ whose body holds tails
+		lam := t.Kids[i]
+		b, ok := e.projectTails(lam.Closed(), j, n)
+		if !ok {
+			return nil, false
+		}
+		return with(i, &Term{Kind: KFn, Params: lam.Params, Kids: []*Term{b}}), true
+	}
+	if t.Kind == KFn && len(t.Params) == 1 && IsTupleBinder(t.Params[0]) {
+		b := t.Closed()
+		if b.Kind == KApp && len(b.Kids) == n+1 && b.Kids[0].Kind == KBound &&
+			b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
+			// the component lives under the tuple's binder #k, which it does
+			// not mention: opening drops that binder
+			return t.OpenWith([]*Term{Name("#k")}).Kids[j+1], true
+		}
+		return nil, false
+	}
+	if t.Kind != KApp || len(t.Kids) == 0 {
+		return nil, false
+	}
+	op := t.Kids[0]
+	if op.Kind == KApp && len(op.Kids) > 0 && op.Kids[0].Kind == KName &&
+		e.Prim[op.Kids[0].Name] && len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		return under(1) // a host call's continuation
+	}
+	if op.Kind != KName {
+		return nil, false
+	}
+	switch {
+	case op.Name == "again":
+		return t, true
+	case op.Name == "abandon" && e.Prim["abandon"] && len(t.Kids) == 2:
+		return t, true // π(abandon w) = abandon w: a crash absorbs a strict context
+	case op.Name == RequireWhereName && len(t.Kids) == 4:
+		k, ok := e.projectTails(t.Kids[3], j, n)
+		if !ok {
+			return nil, false
+		}
+		return with(3, k), true
+	case !e.Prim[op.Name]:
+		return nil, false
+	case op.Name == "if" && len(t.Kids) == 4:
+		a, oka := e.projectTails(t.Kids[2], j, n)
+		b, okb := e.projectTails(t.Kids[3], j, n)
+		if !oka || !okb {
+			return nil, false
+		}
+		return with(3, b).withKid(2, a), true
+	case op.Name == "let" && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return under(2)
+	case (op.Name == "build" || op.Name == "build-map") && len(t.Kids) == 3 && t.Kids[2].Kind == KFn:
+		return under(2)
+	case op.Name == "loop" && len(t.Kids) >= 2 && t.Kids[1].Kind == KFn:
+		return under(1) // an inner loop's exits are this loop's; its agains are its own
+	}
+	return nil, false
+}
+
+// withKid returns a copy of the application t with kid i replaced.
+func (t *Term) withKid(i int, k *Term) *Term {
+	kids := append([]*Term(nil), t.Kids...)
+	kids[i] = k
+	return &Term{Kind: KApp, Kids: kids}
 }
 
 // isAbandon reports whether t is an application of the language's crash.

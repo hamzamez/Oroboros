@@ -20,12 +20,12 @@ func mustRead(t *testing.T, src string) *Term {
 
 func TestTheBinderFormIsTheCoreForm(t *testing.T) {
 	for _, c := range []struct{ sugar, core string }{
-		{`(build b n (set b 0 1))`, `(build n (fn (b) (set b 0 1)))`},
-		{`(build a n  b m  (g a b))`, `(build n (fn (a) (build m (fn (b) (g a b)))))`},
-		{`(build a n  b (len a)  c 3  (h a b c))`,
+		{`(local b (table n 0) (set b 0 1))`, `(build n (fn (b) (set b 0 1)))`},
+		{`(local a (table n 0)  b (table m 0)  (g a b))`, `(build n (fn (a) (build m (fn (b) (g a b)))))`},
+		{`(local a (table n 0)  b (table (len a) 0)  c (table 3 0)  (h a b c))`,
 			`(build n (fn (a) (build (len a) (fn (b) (build 3 (fn (c) (h a b c)))))))`},
 		{`(build-map m cap (insert m 1 2))`, `(build-map cap (fn (m) (insert m 1 2)))`},
-		{`(build b n ; a comment is a gap
+		{`(local b (table n 0) ; a comment is a gap
 		    (set b 0 1))`, `(build n (fn (b) (set b 0 1)))`},
 	} {
 		if got, want := mustRead(t, c.sugar).String(), mustRead(t, c.core).String(); got != want {
@@ -36,10 +36,10 @@ func TestTheBinderFormIsTheCoreForm(t *testing.T) {
 
 // SEQUENTIAL, checked on the structure and not on the print: a printed term
 // shows `a` whether or not a binder holds it (CLAUDE.md, "Printing hides an
-// unbound binder"). In `(build a n b (len a) body)` the second size's `a` must
+// unbound binder"). In `(local a (table n 0) b (table (len a) 0) body)` the second size's `a` must
 // be BOUND by the first scope's λ.
 func TestTheScopeIsSequential(t *testing.T) {
-	outer := mustRead(t, `(build a n  b (len a)  (g a b))`)
+	outer := mustRead(t, `(local a (table n 0)  b (table (len a) 0)  (g a b))`)
 	lam := outer.Kids[2]
 	if lam.Kind != KFn {
 		t.Fatalf("the outer scope's body is %s, want a λ", lam)
@@ -71,11 +71,13 @@ func TestTheCoreFormAndTheDirectiveAreUntouched(t *testing.T) {
 
 func TestTheBinderFormsRefusals(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
-		{`(build a n b m)`, "NAME SIZE pairs and ONE body"},
+		{`(local a (table n 0) b (table m 0))`, "binds NAME VALUE pairs and ONE body"},
 		{`(build-map m cap k 4)`, "NAME SIZE pairs and ONE body"},
-		{`(build (f x) n body)`, "must be a name"},
-		{`(build go.b n body)`, "a binder is a simple name"},
-		{`(build a n  a m  body)`, "binds a twice"},
+		{`(local (f x) (table n 0) body)`, "must be a name"},
+		{`(local go.b (table n 0) body)`, "a binder is a simple name"},
+		// build's binder form is local's now, and says so
+		{`(build b n body)`, "a scope of local state is `local`"},
+		{`(local a (table n 0)  a (table m 0)  body)`, "binds a twice"},
 	} {
 		_, err := ReadTerm(c.src)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

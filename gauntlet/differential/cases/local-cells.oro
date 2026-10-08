@@ -1,0 +1,14 @@
+; CELLS ARE LOCAL VARIABLES IN PROGRAM ORDER (spec/local.md §3): two cells, one
+; written only on some iterations. The loader translates them into loop
+; variables, so every target computes what a loop variable would.
+; expect: 0 1 1003 4505
+; inputs: 0 1 5 10
+; total = 0 + 1 + … + (n−1), evens = the even i below n; the answer packs both,
+; total·100 + evens: n = 5 gives 10 and 3, n = 10 gives 45 and 5.
+(def run (n)
+  (local total 0
+         evens 0
+    (loop ((i 0)) (>= i n) (+ (* total 100) evens)
+      else (seq (set total (+ total i))
+                (if (= (% i 2) 0) (set evens (+ evens 1)) (tuple))
+                (again (+ i 1))))))

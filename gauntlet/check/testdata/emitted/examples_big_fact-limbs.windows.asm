@@ -71,69 +71,63 @@ Lzd14:
 Ltop16:
         cmp r14, 55
         jl Lelse18
-        mov rax, 54
-        cmp rax, 0
-        jge Lelse19
-        mov r14, 0
-        jmp Ldone20
-Lelse19:
         mov r14, qword ptr [r13]
         mov rax, 54
         cmp rax, r14
-        jl Lelse21
+        jl Lelse19
         mov r14, 0
         jmp Ldone20
-Lelse21:
+Lelse19:
         mov r14, qword ptr [r13+54*8+8]
 Ldone20:
         cmp r14, 0
-        jge Lelse22
+        jge Lelse21
         mov r14, 0
-        jmp Ldone23
-Lelse22:
+        jmp Ldone22
+Lelse21:
         and r14, 16777215
-Ldone23:
+Ldone22:
         cmp r14, 32
-        jge Lelse25
+        jge Lelse24
         mov r14, 0
-        jmp Ldone26
-Lelse25:
+        jmp Ldone25
+Lelse24:
         mov r14, 1
-Ldone26:
+Ldone25:
         add r15, r14
         test r15, r15
-        jz Ltz28
+        jz Ltz27
         ud2
-        Ltz28:
+        Ltz27:
         xor r15, r15
         cmp r15, 0
-        jne Lelse29
+        jne Lelse28
         mov rbx, r13
         jmp Lbuilt15
-Lelse29:
+Lelse28:
         mov rbx, r13
         jmp Lbuilt15
 Lelse18:
         cmp r14, 0
-        jge Lelse30
+        jge Lelse29
         mov rbx, 0
-        jmp Ldone31
-Lelse30:
+        jmp Ldone30
+Lelse29:
         mov rbx, qword ptr [rsi]
         cmp r14, rbx
-        jl Lelse32
+        jl Lelse31
         mov rbx, 0
-        jmp Ldone31
-Lelse32:
+        jmp Ldone30
+Lelse31:
         mov rbx, qword ptr [rsi+r14*8+8]
-Ldone31:
+Ldone30:
         cmp rbx, 0
-        jge Lelse33
+        jge Lelse32
         mov rbx, 0
-        jmp Ldone34
-Lelse33:
+        jmp Ldone33
+Lelse32:
         and rbx, 16777215
-Ldone34:
+Ldone33:
         imul rbx, r12
         add rbx, r15
         mov r15, rbx

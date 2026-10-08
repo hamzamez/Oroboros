@@ -14,7 +14,7 @@
 ; why a differential suite needs a hand-computed `expect`.
 (def run (n)
   (let (tuple b2 v)
-       (build b 2
+       (local b (table 2 0)
          (let b1 (set b 0 7)
               t  (alloc b1)
               b2 (set b1 0 9)

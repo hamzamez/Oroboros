@@ -16,7 +16,7 @@ func TestABuildCarriesTheElementItsStoresSolved(t *testing.T) {
 (export f)
 (sig f ((n (int 1 10))) string)
 (def f (n)
-  (let cs (build b n (loop ((b b) (i 0))
+  (let cs (local b (table n 0) (loop ((b b) (i 0))
                        (>= i n) b
                        else     (again (set b i "x") (+ i 1))))
     (if (= (strings.Compare (cs 0) (cs 0)) 0) (concat (cs 0) "!") "")))`)

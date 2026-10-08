@@ -71,7 +71,7 @@
 ;
 ; A machine word spread over `n` limbs, least significant first.
 (def bn-of (n v)
-  (build b n
+  (local b (table n 0)
     (loop ((b b) (i 0) (r v))
       (>= i n)  b
       else      (again (set b i (% r 16777216)) (+ i 1) (/ r 16777216)))))
@@ -87,7 +87,7 @@
 ; expressible at all: `again` may sit under a `let`, so the sum can be named
 ; once and used for both the stored limb and the outgoing carry.
 (def bn-add (n a b)
-  (build o n
+  (local o (table n 0)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let t (+ (+ (at a i) (at b i)) c)
@@ -101,7 +101,7 @@
 ; `(at a i) * k` is under 2^48 and the carry under 2^25, so the sum is under
 ; 2^49 -- inside the window with four bits to spare.
 (def bn-mul-small (n a k)
-  (build o n
+  (local o (table n 0)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
       else      (let t (+ (* (at a i) k) c)

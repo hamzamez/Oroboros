@@ -110,7 +110,7 @@ is refused.
 `(build-map m cap body)` is sugar for the core form `(build-map cap (fn (m) body))`, n-ary and
 sequential, by the law of [tables.md §2.4](tables.md): a scoped buffer's λ is a binder.
 
-Identical in discipline to `(build b n …)` and for the reason arrays-revisited.md §6 derives:
+Identical in discipline to `(local b (table n 0) …)` and for the reason arrays-revisited.md §6 derives:
 **the discipline is about aliasing, and aliasing does not care what the index set is.** So:
 
 - a **frozen map** is an immutable value; `(map K V)` reads are **pure**;

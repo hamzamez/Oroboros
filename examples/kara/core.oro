@@ -22,10 +22,10 @@
 
 ; the descriptor table: ao=0, bo=2, ln=2
 (def descs (u)
-  (build d 3 (set (set (set d 0 0) 1 2) 2 2)))
+  (local d (table 3 0) (set (set (set d 0 0) 1 2) 2 2)))
 
 (def limbs (u)
-  (build ar 4 (set (set (set (set ar 0 1) 1 2) 2 3) 3 4)))
+  (local ar (table 4 0) (set (set (set (set ar 0 1) 1 2) 2 3) 3 4)))
 
 ; The inner accumulation: out[i+j] += arena[ao+i] * arena[bo+j].
 ; `out` crosses a binder here, which reduction inlines away.
@@ -52,7 +52,7 @@
 ; taken. If it holds, the 1.66x measured for a fresh workspace is a cost at an
 ; EXPORTED boundary only, which is what the ADR says the remaining gap is.
 (def mulat (arena desc)
-  (build out 4
+  (local out (table 4 0)
     (loop ((out out) (r 0))
       (go.>= r 2)  out
       else (again (mulpass out arena desc) (go.+ r 1)))))

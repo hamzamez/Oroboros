@@ -385,6 +385,16 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		if vs, ok := l.eliminator(t, r, func(body *core.Term) []V { return l.value(body, r) }); ok {
 			return vs
 		}
+		// A TABLE WRITTEN AS ITS GRAPH, INDEXED: ((array e…) i). Indexing is
+		// application (tables.md §3), and a literal is a table, so it is the
+		// literal's value indexed. β-tab folds a literal index; a run-time one
+		// reaches here, as a constant table's definition unfolded at its use
+		// does (local-2026-10-08, a buffer initialized from one).
+		if p, ok := l.prim(opName(op)); ok && p.Kind == "array" && len(args) == 1 {
+			tab := l.single(op, r)
+			i := l.single(args[0], r)
+			return []V{l.one(r, Stmt{Op: OIndex, Args: []V{tab, i}})}
+		}
 		l.fail("an application whose operator is an application, and not an eliminator: %s", t)
 	case core.KName:
 	default:
@@ -1130,4 +1140,12 @@ func settleZeros(f *Func, declared []string) {
 			}
 		}
 	})
+}
+
+// opName is the name an application's head calls, or "".
+func opName(t *core.Term) string {
+	if t.Kind == core.KApp && len(t.Kids) > 0 && t.Kids[0].Kind == core.KName {
+		return t.Kids[0].Name
+	}
+	return ""
 }

@@ -109,7 +109,7 @@
 
 ; One buffer, begun with '[' and threaded through four appends.
 (def append ()
-  (fmt.Println (build b 1
+  (fmt.Println (local b (table 1 0)
     (sc.AppendUint
       (sc.AppendInt
         (sc.AppendQuote (sc.AppendBool (set b 0 91) (= 1 2)) "x")

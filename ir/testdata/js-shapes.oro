@@ -24,5 +24,5 @@
 ; the language guarantees (tables.md §14.3). Reads the slot written and one not.
 (sig zero-fill ((n (int 0 1))) int)
 (def zero-fill (n)
-  (let t (build b 4 (set b 0 7))
+  (let t (local b (table 4 0) (set b 0 7))
     (js.+ (t 0) (t 3))))

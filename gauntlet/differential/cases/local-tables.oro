@@ -1,0 +1,18 @@
+; A BUFFER'S CONTENTS ARE A TABLE, so a table initializes it (spec/local.md §1):
+; the zero table, a rule, a constant (K v), a graph, and a table one has, which
+; is thaw and COPIES: storing into the copy leaves the source unchanged.
+; expect: 124 125
+; inputs: 0 1
+; z[2] = 0, sq[3] = 9, k[1] = 7, lit[2] = 7: 23. The copy's element 0 becomes
+; 100 and the source's stays 1: 101. 23 + 101 + n.
+(def src (array 1 2 3))
+(def run (n)
+  (let (tuple s t)
+       (local z   (table 3 0)
+              sq  (table 4 (fn (i) (* i i)))
+              k   (table 2 7)
+              lit (array 5 6 7)
+              cp  (table (len src) src)
+         (let cp2 (set cp 0 100)
+           (tuple (+ (+ (z 2) (sq 3)) (+ (k 1) (lit 2))) (+ (cp2 0) (src 0)))))
+    (+ (+ s t) n)))

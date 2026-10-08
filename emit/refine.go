@@ -356,6 +356,23 @@ func (r *refiner) walk(t *core.Term, f *facts) error {
 		return r.requireMark(t, f)
 	}
 	op := t.Op()
+	// A TABLE WRITTEN AS ITS GRAPH, INDEXED: ((array e…) i) is an indexing,
+	// whatever the table's spelling, so its domain condition 0 ≤ i < len is
+	// owed as a name's is. δ and β put a literal where a name stood (a
+	// constant table unfolded at its use); lowering refused that shape until
+	// local-2026-10-08, and the refusal hid that no obligation was ever made
+	// for it.
+	if op.Kind == core.KApp && op.Op().Kind == core.KName && len(t.Args()) == 1 {
+		if p, isPrim := r.tgt.Prims[op.Op().Name]; isPrim && p.Kind == "array" {
+			if err := r.indexObligation(op, t.Args()[0], f); err != nil {
+				return err
+			}
+			if err := r.walk(op, f); err != nil {
+				return err
+			}
+			return r.walk(t.Args()[0], f)
+		}
+	}
 	if op.Kind != core.KName {
 		// AN OPERATOR THAT IS NOT A NAME IS STILL A TERM WITH OBLIGATIONS IN IT.
 		// A host call with several results is eliminated by applying it to its

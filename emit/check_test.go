@@ -212,8 +212,8 @@ func TestATableFormIsNotAScalar(t *testing.T) {
 		{"f64", "(array 1.0 2.0)", "is array f64"},
 		{"f64", "(table 3 (fn (i) 1.0))", "is array f64"},
 		{"f64", "(alloc (table 3 (fn (i) 1.0)))", "is a buffer"},
-		{"f64", "(build b 3 b)", "is a buffer"},
-		{"f64", "(build b 3 (set b 0 1.5))", "is buffer f64"},
+		{"f64", "(local b (table 3 0) b)", "is a buffer"},
+		{"f64", "(local b (table 3 0) (set b 0 1.5))", "is buffer f64"},
 		{"f64", "(build-map m 4 m)", "is a map"},
 		// and a constructor is not another constructor
 		{"(array f64)", "(build-map m 4 m)", "is a map"},
@@ -232,7 +232,7 @@ func TestATableFormIsNotAScalar(t *testing.T) {
 func TestATableFormMeetsATableDemand(t *testing.T) {
 	for _, c := range []struct{ result, body string }{
 		{"(array f64)", "(array 1.0 2.0)"},
-		{"(array f64)", "(build b 3 b)"},
+		{"(array f64)", "(local b (table 3 0) b)"},
 		{"(array f64)", "(alloc (table 3 (fn (i) 1.0)))"},
 		{"(array (int 0 255))", "(array 104 105 33)"},
 		{"(map int f64)", "(build-map m 4 m)"},
@@ -245,7 +245,7 @@ func TestATableFormMeetsATableDemand(t *testing.T) {
 	// A HOST TYPE REALIZING A TABLE: Java's double-array is double[], which is
 	// ρ(array f64). Go has none left since gotarget-2026-09-30 removed its
 	// per-element slice names, so the witness is Java's.
-	for _, body := range []string{"(array 1.0 2.0)", "(build b 3 (set b 0 1.5))"} {
+	for _, body := range []string{"(array 1.0 2.0)", "(local b (table 3 0) (set b 0 1.5))"} {
 		tg, prog, env := loadWithSigs(t, "java", "(use java)\n(sig bad ((a (array f64))) double-array)\n(def bad (a) "+body+")\n")
 		if err := CheckSignatures(tg, prog, env, nil); err != nil {
 			t.Errorf("%s under double-array: %v", body, err)
@@ -285,7 +285,7 @@ func TestAScopesBufferIsFrozenAsItLeaves(t *testing.T) {
 	tg, prog, env := loadWithSigs(t, "go", `
 		(use go/encoding/binary)
 		(sig enc ((x (int 0 1000))) (array (int 0 255)))
-		(def enc (x) (build b 0 (binary.AppendUvarint b x)))
+		(def enc (x) (local b (table 0 0) (binary.AppendUvarint b x)))
 	`)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("a frozen buffer is a table: %v", err)
@@ -301,7 +301,7 @@ func TestATablesReadAndLengthAreTyped(t *testing.T) {
 		{"go", `(use go) (sig f ((a (array string))) f64 (where (< 0 (len a)))) (def f (a) (go.f+ (a 0) 1.0))`, "(a …) is string, but f64"},
 		{"js", `(use js) (sig f ((a (array string))) any (where (< 0 (len a)))) (def f (a) (+ (a 0) 1))`, "(a …) is string, but int"},
 		{"go", `(sig f ((a (array f64))) string) (def f (a) (len a))`, "(len …) is int, but string"},
-		{"go", `(sig f () string) (def f () (let t (build b 2 (set b 0 1.5)) (t 0)))`, "(t …) is f64, but string"},
+		{"go", `(sig f () string) (def f () (let t (local b (table 2 0) (set b 0 1.5)) (t 0)))`, "(t …) is f64, but string"},
 	} {
 		tg, prog, env := loadWithSigs(t, c.target, c.src)
 		err := CheckSignatures(tg, prog, env, nil)
@@ -316,7 +316,7 @@ func TestATablesReadAndLengthAreTyped(t *testing.T) {
 // and ran; on Go it reached Go's compiler as generated code.
 func TestAStoreSolvesTheElement(t *testing.T) {
 	for _, target := range []string{"go", "js"} {
-		tg, prog, env := loadWithSigs(t, target, `(sig f () any) (def f () (build b 2 (set (set b 0 1.5) 1 "x")))`)
+		tg, prog, env := loadWithSigs(t, target, `(sig f () any) (def f () (local b (table 2 0) (set (set b 0 1.5) 1 "x")))`)
 		err := CheckSignatures(tg, prog, env, nil)
 		if err == nil || !strings.Contains(err.Error(), "in a store's value") {
 			t.Errorf("%s: two stores of different types: want a refusal, got %v", target, err)
@@ -328,17 +328,35 @@ func TestAStoreSolvesTheElement(t *testing.T) {
 // makes a table of integers that meets (array (int 0 255)), and still refuses
 // a float.
 func TestAnIntegerStoreLeavesTheRealizationOpen(t *testing.T) {
-	tg, prog, env := loadWithSigs(t, "go", `(sig f () (array (int 0 255))) (def f () (build b 2 (set b 0 104)))`)
+	tg, prog, env := loadWithSigs(t, "go", `(sig f () (array (int 0 255))) (def f () (local b (table 2 0) (set b 0 104)))`)
 	if err := CheckSignatures(tg, prog, env, nil); err != nil {
 		t.Errorf("a stored integer fixed a realization: %v", err)
 	}
-	tg, prog, env = loadWithSigs(t, "go", `(sig f () any) (def f () (build b 2 (set (set b 0 104) 1 1.5)))`)
+	tg, prog, env = loadWithSigs(t, "go", `(sig f () any) (def f () (local b (table 2 0) (set (set b 0 104) 1 1.5)))`)
 	if err := CheckSignatures(tg, prog, env, nil); err == nil || !strings.Contains(err.Error(), "in a store's value") {
 		t.Errorf("a float stored after an integer: want a refusal, got %v", err)
 	}
 	// and a table of integers, realization open, is still not a table of f64
-	tg, prog, env = loadWithSigs(t, "go", `(sig f () (array f64)) (def f () (build b 2 (set b 0 104)))`)
+	tg, prog, env = loadWithSigs(t, "go", `(sig f () (array f64)) (def f () (local b (table 2 0) (set b 0 104)))`)
 	if err := CheckSignatures(tg, prog, env, nil); err == nil {
 		t.Error("a table of integers met a declared (array f64)")
+	}
+}
+
+// THE UNCONSTRAINED VALUE IS OF EVERY TYPE, ∀α. α (ADR 0042, Theorem R): two
+// unselected slots of two types in one function each agree with their own
+// demand. Taken for a name, `#any` took its first demand's type, int here,
+// and the second, a string, conflicted with it (local-2026-10-08).
+func TestTheUnconstrainedValueIsOfEveryType(t *testing.T) {
+	tg, err := LoadTarget("../targets/go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	any := core.Name(core.AnyName)
+	term := core.Fn([]string{"x"}, core.App(core.Name("let"),
+		core.App(core.Name("+"), any, core.Int(1)),
+		core.Fn([]string{"a"}, core.App(core.Name("concat"), any, core.Str("s")))))
+	if err := Check(tg, "test", term); err != nil {
+		t.Errorf("%s: %v", term, err)
 	}
 }

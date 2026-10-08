@@ -115,8 +115,8 @@ and named.
 The witness, accepted before this amendment and refused now:
 
 ```lisp
-(let b (build b 8 (loop ((b b) (i 0)) (>= i 8) b else (again (set b i (% (+ i n) 10)) (+ i 1))))
-     t (build c 6 c)
+(let b (local b (table 8 0) (loop ((b b) (i 0)) (>= i 8) b else (again (set b i (% (+ i n) 10)) (+ i 1))))
+     t (local c (table 6 0) c)
   (t (b 3)))             ; b's cells reach 9, t has six
 ```
 

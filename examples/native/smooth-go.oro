@@ -47,7 +47,7 @@
 ; If reduction fuses the index function into the store, this IS the hand-written
 ; loop, and the only thing left of the portable version's price is the `make`.
 (def materialize (v)
-  (build d (vlen v)
+  (local d (table (vlen v) 0)
     (loop ((d d) (i 0))
       (go.>= i (vlen v))  d
       else                (again (set d i (vindex v i)) (go.+ i 1)))))

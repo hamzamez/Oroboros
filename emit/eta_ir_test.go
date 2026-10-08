@@ -53,11 +53,11 @@ const etaHead = "(use go/encoding/hex)\n(export f)\n(sig f ((n (int 0 100))) int
 func TestAHostCallsResultsAreAProductByEta(t *testing.T) {
 	short := etaHead + `(def f (n)
   (let src (array 104 105 33)
-       (tuple dst k) (build buf (* 2 (len src)) (hex.Encode buf src))
+       (tuple dst k) (local buf (table (* 2 (len src)) 0) (hex.Encode buf src))
     (if (> k 2) (len dst) 0)))`
 	long := etaHead + `(def f (n)
   (let src (array 104 105 33)
-       (tuple dst k) (build buf (* 2 (len src)) (let (tuple d c) (hex.Encode buf src) (tuple d c)))
+       (tuple dst k) (local buf (table (* 2 (len src)) 0) (let (tuple d c) (hex.Encode buf src) (tuple d c)))
     (if (> k 2) (len dst) 0)))`
 	a, err := entryGo(t, short)
 	if err != nil {
@@ -79,9 +79,9 @@ func TestAHostCallsResultsAreAProductByEta(t *testing.T) {
 // each giving the call's two results or a tuple.
 func TestEtaReachesArmsAndLoopExits(t *testing.T) {
 	for _, body := range []string{
-		`(build buf (* 2 (len src)) (if (> n 50) (hex.Encode buf src) (tuple buf 0)))`,
-		`(build buf (* 2 (len src)) (if (> n 50) (tuple buf 0) (hex.Encode buf src)))`,
-		`(build buf (* 2 (len src)) (loop ((i 0)) (>= i 2) (hex.Encode buf src) else (again (+ i 1))))`,
+		`(local buf (table (* 2 (len src)) 0) (if (> n 50) (hex.Encode buf src) (tuple buf 0)))`,
+		`(local buf (table (* 2 (len src)) 0) (if (> n 50) (tuple buf 0) (hex.Encode buf src)))`,
+		`(local buf (table (* 2 (len src)) 0) (loop ((i 0)) (>= i 2) (hex.Encode buf src) else (again (+ i 1))))`,
 	} {
 		src := etaHead + `(def f (n)
   (let src (array 104 105 33)
@@ -97,8 +97,8 @@ func TestEtaReachesArmsAndLoopExits(t *testing.T) {
 // applies to a call declaring exactly as many results as the pattern has names.
 func TestAnExitThatIsNotAnMTupleIsRefused(t *testing.T) {
 	for _, c := range []struct{ pattern, body string }{
-		{"(tuple dst k j)", `(build buf 6 (hex.Encode buf src))`},
-		{"(tuple dst k)", `(build buf 6 buf)`},
+		{"(tuple dst k j)", `(local buf (table 6 0) (hex.Encode buf src))`},
+		{"(tuple dst k)", `(local buf (table 6 0) buf)`},
 	} {
 		src := etaHead + `(def f (n)
   (let src (array 104 105 33)

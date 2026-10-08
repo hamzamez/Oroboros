@@ -110,21 +110,21 @@ func TestALoopVariableHasItsBuffersLength(t *testing.T) {
 		{"a variable threading a buffer under another name", `
 (sig f ((n (int 1 100))) (array int))
 (def f (n)
-  (build t n
+  (local t (table n 0)
     (loop ((u t) (i 0))
       (>= i n) u
       else (again (set u i (+ (u i) i)) (+ i 1)))))`, true},
 		{"two buffers that swap on the back edge, both of length n", `
 (sig f ((n (int 1 100))) int)
 (def f (n)
-  (build a n  b n
+  (local a (table n 0)  b (table n 0)
     (loop ((x a) (y b) (i 0))
       (>= i n) (x 0)
       else (again (set y i (+ (x i) 1)) x (+ i 1)))))`, true},
 		{"a back edge through a let", `
 (sig f ((n (int 1 100))) (array int))
 (def f (n)
-  (build t n
+  (local t (table n 0)
     (loop ((u t) (i 0))
       (>= i n) u
       else (let w (set u i 7)
@@ -142,7 +142,7 @@ func TestALoopVariableHasItsBuffersLength(t *testing.T) {
 		{"two buffers of different lengths that swap", `
 (sig f ((n (int 2 100))) int)
 (def f (n)
-  (build a n  b 1
+  (local a (table n 0)  b (table 1 0)
     (loop ((x a) (y b) (i 0))
       (>= i n) (x 0)
       else (again (set y 0 (+ (x i) 1)) x (+ i 1)))))`, false},

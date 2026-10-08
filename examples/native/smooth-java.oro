@@ -30,7 +30,7 @@
 
 (def smooth-build (a)
   (let k (kernel a)
-    (build b (len k)
+    (local b (table (len k) 0)
       (loop ((b b) (i 0))
         (java.>= i (len k))  b
         else                 (again (set b i (k i)) (java.+ i 1))))))

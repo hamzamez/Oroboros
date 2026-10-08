@@ -217,7 +217,7 @@
 ; only ever WRITTEN here and `m` only ever READ, so no store can shadow a read.
 (def wm-keys (m)
   (let cnt (wm-len m)
-    (build out cnt
+    (local out (table cnt 0)
       (loop ((out out) (s 0))
         (x64.setge s (wm-n m))   out
         (= (wm-used-at m s) 0)   (again out (x64.add s 1))

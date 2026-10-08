@@ -219,15 +219,16 @@ func (c *linChecker) storeTarget(p Prim, args []*core.Term, env, taken map[strin
 	if (p.Kind != "table-set" && p.Kind != "map-insert") || len(args) == 0 || c.isBuf(args[0], env, taken) {
 		return nil
 	}
-	what, scope := "table", "`(build b n …)`"
+	what, scope := "table", "`(local b (table n 0) …)`"
 	if p.Kind == "map-insert" {
 		what, scope = "map", "`(build-map m cap …)`"
 	}
 	return fmt.Errorf("%s stores into %s, which is a frozen %s, not a buffer.\n"+
 		"  A store writes a LIVE buffer, one a scope such as %s is still filling. A frozen\n"+
 		"  %s is immutable (ADR 0018), and every other name that shares it would see the\n"+
-		"  write (tables.md §2.5, S). For a changed copy, build one: copy the %s into a new\n"+
-		"  buffer inside a scope and store there.", p.Name, args[0], what, scope, what, what)
+		"  write (tables.md §2.5, S). For a changed copy, copy the %s into a new buffer and\n"+
+		"  store there: a buffer initialized from a table, (local c (table (len t) t) …)\n"+
+		"  (spec/local.md §1).", p.Name, args[0], what, scope, what, what)
 }
 
 // bufferArgs refuses a value that is not a buffer where a primitive declares a

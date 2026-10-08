@@ -28,7 +28,7 @@
 (def main ()
   (case (gos.Open "go.mod")
     (result.ok f)
-      (build b 64
+      (local b (table 64 0)
         (let (tuple b2 n e2) (File.Read f b)
           (expect (result.ok _) (File.Close f) "closing go.mod"
             (case e2

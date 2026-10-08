@@ -29,7 +29,7 @@
 (export main)
 
 (def fill (n)
-  (build d n
+  (local d (table n 0)
     (loop ((d d) (i 0))
       (go.>= i n)  d
       else         (again (set d i (go.float64-of-int i)) (go.+ i 1)))))

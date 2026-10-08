@@ -16,7 +16,7 @@ func TestAStoreIntoAFrozenValueIsRefused(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
 		{`(export f)
 (def f (n)
-  (let t (build b 4 (set b 0 n))
+  (let t (local b (table 4 0) (set b 0 n))
        t2 (set t 1 n)
     (+ (t2 0) (t 1))))`, "set stores into t, which is a frozen table"},
 		{`(export f)
@@ -32,7 +32,7 @@ func TestAStoreIntoAFrozenValueIsRefused(t *testing.T) {
 	}
 	for _, ok := range []string{
 		`(export f)
-(def f (n) (let t (build b 4 (set (set b 0 n) 1 n)) (t 1)))`,
+(def f (n) (let t (local b (table 4 0) (set (set b 0 n) 1 n)) (t 1)))`,
 		`(export f)
 (def f (n) (len (build-map m 8 (insert (insert m 1 n) 2 n))))`,
 	} {
@@ -74,7 +74,7 @@ func TestAFrozenComponentKeepsItsLength(t *testing.T) {
 		return `(export f)
 (sig f ((n (int 0 100))) int)
 (def f (n)
-  (let (tuple b k) (build b 8
+  (let (tuple b k) (local b (table 8 0)
                      (loop ((b b) (i 0))
                        (>= i 8)  (tuple b i)
                        else      (again (set b i n) (+ i 1))))
@@ -114,7 +114,7 @@ func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
 	variant := `(export f)
 (sig f ((n (int 0 3))) int)
 (def f (n)
-  (let o (build b 4 (some (set b 0 n)))
+  (let o (local b (table 4 0) (some (set b 0 n)))
     (case o (some t) 7 none 0)))`
 	// A VARIANT OUT OF A SCOPE IS A PRODUCT OUT OF A SCOPE since a constructor
 	// is the tuple (tag, payload) (ADR 0041): the payload buffer is a component,
@@ -128,7 +128,7 @@ func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
 	closure := `(export f)
 (sig f ((n (int 0 3))) int)
 (def f (n)
-  (let g (build b 4 (fn (i) (set b i n)))
+  (let g (local b (table 4 0) (fn (i) (set b i n)))
     (g 0)))`
 	tg, nf, _ = normGo(t, closure)
 	if err := CheckJoins(tg, nf); err == nil || !strings.Contains(err.Error(), "(R1)") {
@@ -141,7 +141,7 @@ func TestAJoinPointAndAScopeRefuseWhatIsNotBuilt(t *testing.T) {
 func TestTheSameBufferTwiceIsRefused(t *testing.T) {
 	src := `(export f)
 (def f (n)
-  (let (tuple p q) (build b 4 (loop ((b b) (i 0)) (>= i 4) (tuple b b) else (again (set b i n) (+ i 1))))
+  (let (tuple p q) (local b (table 4 0) (loop ((b b) (i 0)) (>= i 4) (tuple b b) else (again (set b i n) (+ i 1))))
     (+ (p 0) (q 0))))`
 	if err := linearOn(t, src); err == nil || !strings.Contains(err.Error(), "handed on") {
 		t.Errorf("(tuple b b): want the linearity refusal, got %v", err)
@@ -164,11 +164,11 @@ func TestAFrozenComponentKeepsItsContent(t *testing.T) {
 		return `(export f)
 (sig f ((n (int 0 100))) int)
 (def f (n)
-  (let (tuple b k) (build b 8
+  (let (tuple b k) (local b (table 8 0)
                      (loop ((b b) (i 0))
                        (>= i ` + g + `)  (tuple b i)
                        else      (again (set b i i) (+ i 1))))
-       t (build c 6 c)
+       t (local c (table 6 0) c)
     (+ (t (b 3)) k)))`
 	}
 	proven := func(src string) bool {

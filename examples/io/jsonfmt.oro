@@ -200,7 +200,7 @@
 
     else (again out op (+ i 1) d fresh)))
 
-(def format (src) (build out (outlen src) (render src out)))
+(def format (src) (local out (table (outlen src) 0) (render src out)))
 
 ; --- the tool ---------------------------------------------------------------
 

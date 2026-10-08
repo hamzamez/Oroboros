@@ -129,7 +129,8 @@ A target may not declare one, and declaring one is an **error**.
 | `+`, `-`, `*`, `/`, `%`, `<`, `<=`, `>`, `>=` | specified — found per target by spelling | [integers.md](integers.md) |
 | `table`, `len` | specified | [tables.md](tables.md) |
 | `alloc`, `set` | specified | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
-| `build` | specified — the scoped buffer; also a target file's `(build "cmd")` and a retired structural kind | [tables.md](tables.md), [build.md](build.md) |
+| `local` | specified — a scope of local state: a binder initialized by a table, `(table n f)` or `(array …)`, is a buffer; by anything else, a cell, written by `(set c v)` in program order and translated into loop variables at load, so nothing below the loader sees one | [local.md](local.md) |
+| `build` | specified — the scoped buffer's core form `(build n (fn (b) …))`; its binder spelling is `local`'s now, and refused; also a target file's `(build "cmd")` and a retired structural kind | [tables.md](tables.md), [build.md](build.md) |
 | `build-map`, `insert`, `keys` | specified | [maps.md](maps.md) |
 | `concat`, `string-of` | recorded — the free monoid's operation and its generator; derived in research and built, and no spec in `docs/spec/` states them | [string-operations.md](../string-operations.md), [render-2026-09-04](../../gauntlet/results/render-2026-09-04.md) |
 | `the` | recorded — a range ascribed to a term, erased at emission; the construct owes a spec | [ascribe-2026-09-03](../../gauntlet/results/ascribe-2026-09-03.md), [inlining-and-declarations.md](../inlining-and-declarations.md) |

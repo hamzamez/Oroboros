@@ -52,10 +52,10 @@
 ; it is a list of boxes, at any length. Five values is past the old
 ; restrictions' wall at three.
 (def formatting ()
-  (seq (fmt.Println (go.string-of-bytes (build b 0 (fmt.Append b 1 "+" 2 "=" 3))))
+  (seq (fmt.Println (go.string-of-bytes (local b (table 0 0) (fmt.Append b 1 "+" 2 "=" 3))))
        (fmt.Println (fmt.Sprintf "%d-%s-%v" 7 "x" true))
        (fmt.Println 1 2 3 4 5)
-       (fmt.Print (go.string-of-bytes (build b 0 (fmt.Appendln b "line"))))))
+       (fmt.Print (go.string-of-bytes (local b (table 0 0) (fmt.Appendln b "line"))))))
 
 ; A TABLE ONE HAS IS PASSED WITH spread, Go's `pairs...`. The even count is
 ; NewReplacer's precondition, so a definition that hands its own table on

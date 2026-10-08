@@ -1150,3 +1150,31 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/u128/factorials.oro java`
 - compiler output changed — `examples/u128/factorials.oro js`
 - compiler output changed — `examples/u128/factorials.oro windows`
+
+## 2026-10-08 — on f5fe4bb, with uncommitted changes
+
+**Reason:** local (ADR 0047): the differential cases local-cells, local-tables, local-case and examples/io/count.oro are new; fact-limbs, big-divmod and render on windows lose a dead (< literal 0) test, folded once a residual let's duplicable value is substituted
+
+548 runs: 295 emitted, 253 refused; 2023 of 2068 integer operations bounded, 350 of 368 loops proven. compiler pass, differential pass, tooling pass.
+
+19 change(s):
+
+- emitted text changed — `examples/big/fact-limbs.oro windows`
+- new source — `examples/io/count.oro go`
+- new source — `examples/io/count.oro java`
+- new source — `examples/io/count.oro js`
+- new source — `examples/io/count.oro windows`
+- emitted text changed — `gauntlet/differential/cases/big-divmod.oro windows`
+- new source — `gauntlet/differential/cases/local-case.oro go`
+- new source — `gauntlet/differential/cases/local-case.oro java`
+- new source — `gauntlet/differential/cases/local-case.oro js`
+- new source — `gauntlet/differential/cases/local-case.oro windows`
+- new source — `gauntlet/differential/cases/local-cells.oro go`
+- new source — `gauntlet/differential/cases/local-cells.oro java`
+- new source — `gauntlet/differential/cases/local-cells.oro js`
+- new source — `gauntlet/differential/cases/local-cells.oro windows`
+- new source — `gauntlet/differential/cases/local-tables.oro go`
+- new source — `gauntlet/differential/cases/local-tables.oro java`
+- new source — `gauntlet/differential/cases/local-tables.oro js`
+- new source — `gauntlet/differential/cases/local-tables.oro windows`
+- emitted text changed — `gauntlet/differential/cases/render.oro windows`

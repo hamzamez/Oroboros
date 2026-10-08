@@ -50,7 +50,7 @@ func TestTheIRChecksADeclaredResultsSort(t *testing.T) {
 	for _, c := range []struct{ result, body string }{
 		{"string", "(len a)"},
 		{"f64", "(array 1.0 2.0)"},
-		{"string", "(let t (build b 2 (set b 0 1.5)) (t 0))"},
+		{"string", "(let t (local b (table 2 0) (set b 0 1.5)) (t 0))"},
 		{"(array string)", "(array 1.0 2.0)"},
 	} {
 		src := "(export f)\n(sig f ((a (array f64))) " + c.result + ")\n(def f (a) " + c.body + ")\n"
@@ -69,7 +69,7 @@ func TestTheIRsClaimEdgeAdmitsWhatTheSortAdmits(t *testing.T) {
 		{"(int 0 255)", "(len a)"},
 		{"(int 0 18446744073709551615)", "(len a)"},
 		{"(array (int 0 255))", "(array 104 105 33)"},
-		{"f64", "(let t (build b 2 (set b 0 1.5)) (t 0))"},
+		{"f64", "(let t (local b (table 2 0) (set b 0 1.5)) (t 0))"},
 	} {
 		src := "(export f)\n(sig f ((a (array f64))) " + c.result + ")\n(def f (a) " + c.body + ")\n"
 		if err := lowerClaimed(t, src); err != nil {

@@ -39,7 +39,7 @@
 (def main ()
   ((gos.Open "go.mod") (fn (f e1)
     (if (go.err-nil e1)
-        (build b 64
+        (local b (table 64 0)
           ((File.Read f b) (fn (n e2)
             (seq (File.Close f)
               (if (go.err-nil e2) (io.print-int n) (io.print-int 0))))))

@@ -1,0 +1,69 @@
+; count: THE LINES, WORDS AND BYTES OF A FILE, as POSIX defines wc's.
+;
+;   count FILE
+;
+; WHAT IT IS. One pass over the bytes x ∈ B*, a fold with the state
+;
+;     (lines, words, in-word) ∈ ℕ × ℕ × 2
+;
+; and the step on a byte b:  lines + [b = 10];  and, writing s(b) for "b is
+; white space", in-word' = ¬s(b) and words + [¬in-word ∧ ¬s(b)]. A word is a
+; maximal run of non-space bytes, so it is counted where it starts: at a
+; non-space byte after a space or at the beginning. The bytes are len(x).
+;
+; That is POSIX's word, "a non-zero-length string of characters delimited by
+; white space". GNU wc 8.32 counts only runs holding a printable character, so
+; a dash written in UTF-8 between two spaces is a word here and not there:
+; measured, the two definitions account for the whole difference on three files
+; of this repository (local-2026-10-08).
+;
+; THE STATE IS THREE CELLS (spec/local.md). Each is written where the step
+; says, in program order, and read where the fold ends; the loader translates
+; them into loop variables, so every target runs a loop over three more loop
+; variables, each branch of a write going round with its own state
+; (TestACellReducesToTheLoopVariableItMeans). What a cell adds is the spelling:
+; a write under a condition is a statement, not a conditional value threaded
+; through every clause.
+;
+; THE LIMIT IS STATED, as wc's and freq's are: a file under 2^24 bytes has
+; fewer lines and words than that, and the guards say so to the analysis,
+; which cannot bound a counter incremented under a condition by its loop's own
+; guard (wc.oro).
+
+(use os)
+(use io)
+(use result)
+
+(export main)
+
+(def cap-in 16777216)
+
+; s(b): the bytes C's isspace accepts in the C locale, which wc uses.
+(def space? (b) (or (= b 32) (and (>= b 9) (<= b 13))))
+
+(def main ()
+  (let av (os.Args)
+    (if (< (len av) 2)
+        (seq (io.print-line "usage: count FILE") 0)
+        (case (os.ReadFile (av 1))
+          (result.err k) (seq (io.print-line "count: cannot read that file") 0)
+          (result.ok src)
+          (if (>= (len src) cap-in)
+              (seq (io.print-line "count: file is larger than this tool accepts") 0)
+              (local lines   0
+                     words   0
+                     in-word false
+                (loop ((i 0))
+                  (>= i (len src))
+                    (seq (io.print-int lines)
+                         (io.print-int words)
+                         (io.print-int (len src)))
+                  else
+                    (let b (src i)
+                      (seq (if (and (= b 10) (< lines cap-in)) (set lines (+ lines 1)) (tuple))
+                           (cond
+                             (space? b)                  (set in-word false)
+                             in-word                     (tuple)
+                             (< words cap-in)            (seq (set in-word true) (set words (+ words 1)))
+                             else                        (tuple))
+                           (again (+ i 1)))))))))))

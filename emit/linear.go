@@ -939,6 +939,13 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 				}
 			}
 		case isLenOp(op.Name) && len(args) == 1:
+			// A TABLE WRITTEN AS ITS GRAPH has its element count as its
+			// length, a constant (tables.md §2); a buffer initialized from one
+			// indexes it in its fill loop (local-2026-10-08).
+			if a := args[0]; a.Kind == core.KApp && len(a.Kids) > 0 && a.Kids[0].Kind == core.KName &&
+				a.Kids[0].Name == "array" {
+				return constant(int64(len(a.Kids) - 1)), true
+			}
 			return variable(lengthVar(op.Name, args[0])), true
 
 		// A DIVISION BY A POSITIVE LITERAL IS AN ATOM, and it was outside the

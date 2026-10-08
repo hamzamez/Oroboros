@@ -121,7 +121,7 @@
     (if (< d 0) 0 (if (>= d cap-in) 0 d))))
 
 (def spans (src nw)
-  (build sp nw
+  (local sp (table nw 0)
     (loop ((sp sp) (i 0) (w 0))
       (>= i (len src))  sp
       (>= w nw)         sp
@@ -212,8 +212,8 @@
 ; `a` is READ inside the pass and MOVED afterwards, in that order, which is
 ; exactly what ADR 0018's linearity permits: a read does not consume.
 (def msort (less n)
-  (build a n
-         b n
+  (local a (table n 0)
+         b (table n 0)
     (loop ((a (iota a n)) (b b) (w 1))
       (>= w n)     a
       (>= w wmax) a
@@ -260,7 +260,7 @@
 (def dcount (dt d) ((dt d) 1))
 
 (def dists (src sp ord nw nd)
-  (build dt nd
+  (local dt (table nd 0)
     (loop ((dt dt) (k 0) (d 0))
       (>= k nw)   dt
       ; NO GROUPS, NO TABLE. `nd` is at least one whenever a word exists, and that
@@ -383,7 +383,7 @@
 
 (def report (src sp dt ord2 nd)
   (let m (outlen sp dt ord2 nd)
-    (build out m
+    (local out (table m 0)
       (loop ((out out) (o 0) (r 0))
         (>= r nd)         out
         (>= r topn)     out

@@ -47,7 +47,7 @@ func TestARangeObligationIsOnEveryValueAndBothEnds(t *testing.T) {
 }
 
 // AN ALLOCATION'S SIZE IS IN [0, max-len_T] (tables.md §2.3.1), the queued
-// wrong answer of irstep3java §3: `(len (build b 4294967297 …))` was 1 on
+// wrong answer of irstep3java §3: `(len (local b (table 4294967297 0) …))` was 1 on
 // Java, which allocates `new T[(int) n]`. Refused there, accepted on Go whose
 // max-len is its word, and a size that may be negative is refused on both.
 func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
@@ -56,9 +56,9 @@ func TestAnAllocationsSizeIsAnObligation(t *testing.T) {
 		name, body string
 		refused    map[string]bool
 	}{
-		{"past 2^31", "(len (build b 4294967297 b))", map[string]bool{"java": true, "go": false}},
-		{"a size that may be negative", "(len (build b (- n 6) b))", map[string]bool{"java": true, "go": true}},
-		{"a proven size", "(len (build b (+ n 1) b))", map[string]bool{"java": false, "go": false}},
+		{"past 2^31", "(len (local b (table 4294967297 0) b))", map[string]bool{"java": true, "go": false}},
+		{"a size that may be negative", "(len (local b (table (- n 6) 0) b))", map[string]bool{"java": true, "go": true}},
+		{"a proven size", "(len (local b (table (+ n 1) 0) b))", map[string]bool{"java": false, "go": false}},
 	}
 	for k, c := range cases {
 		src := fmt.Sprintf("(export run)\n(sig run ((n (int 0 12))) int)\n(def run (n) %s)\n", c.body)

@@ -1,6 +1,9 @@
 package core
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
 // A SCOPED BUFFER IS A BINDER — docs/spec/tables.md §2.4.
 //
@@ -93,6 +96,18 @@ func readLocal(kids []*Term, line int) (*Term, error) {
 }
 
 // localBinder is one binder of a `local` around its body.
+// zeroSort reports a literal that is the zero of one sort, and the sort:
+// `false` of bool, positive `0.0` of f64.
+func zeroSort(f *Term) (string, bool) {
+	switch {
+	case f.Kind == KBool && f.Int == 0:
+		return "bool", true
+	case f.Kind == KFloat && f.Float == 0 && !math.Signbit(f.Float):
+		return "f64", true
+	}
+	return "", false
+}
+
 func localBinder(x string, e, body *Term) *Term {
 	head := func(t *Term, name string) bool {
 		return t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && t.Kids[0].Name == name
@@ -103,8 +118,17 @@ func localBinder(x string, e, body *Term) *Term {
 	switch {
 	case head(e, "table") && len(e.Kids) == 3:
 		n, f := e.Kids[1], e.Kids[2]
+		// THE ZERO OF A TYPE is what a fresh buffer holds (tables.md §14.3), so
+		// a table of it is build's own zero-filled form, with no fill loop.
+		// `0` names the zero of every numeric and boolean element, as build's
+		// buffers always took it, and leaves the element to the stores; `false`
+		// and `0.0` name the zero of one sort, and that claim stays checked by
+		// ascribing the buffer. -0.0 is not a fresh buffer's zero.
 		if f.Kind == KInt && f.Int == 0 {
 			return App(Name("build"), n, Fn([]string{x}, body)) // zero-filled: build's own form
+		}
+		if elem, ok := zeroSort(f); ok {
+			return App(Name("build"), n, Fn([]string{x}, rebind(App(Name(AscribeName), Str("buffer "+elem), Name(x)))))
 		}
 		// A FILL LOOP: element i is (f i), or v for a literal v (the constant
 		// table K v). The size is bound once, since the loop reads it again.

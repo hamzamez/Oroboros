@@ -2,6 +2,7 @@ package emit
 
 import (
 	"fmt"
+	"strings"
 
 	"oroboros/core"
 )
@@ -294,6 +295,36 @@ func PlanBig(tgt *Target, sig *core.Sig, t *core.Term, all ...*core.Sig) (BigPla
 
 // EraseAscriptions removes every `(the T e)`, leaving e.
 func EraseAscriptions(t *core.Term) *core.Term { return eraseAscriptions(t) }
+
+// KeepSortAscriptions is the residual the type checker reads: ranges erased as
+// EraseAscriptions and EraseWordAscriptions erase them, and a buffer's sort
+// kept, `(the "buffer bool" b)`, which `(table n false)` writes (spec/local.md
+// §1). The zero-filled buffer is build's core form, whose element is open; the
+// ascription keeps the literal's sort a checked claim. It is read only by the
+// checker, and every pass after it reads the residual with it erased.
+func KeepSortAscriptions(w core.Word, big bool, t *core.Term) *core.Term {
+	if t == nil {
+		return nil
+	}
+	if t.Kind == core.KFn {
+		return core.FnClosed(t.Params, KeepSortAscriptions(w, big, t.Closed()))
+	}
+	if t.Kind != core.KApp {
+		return t
+	}
+	if op := t.Op(); op.Kind == core.KName && op.Name == core.AscribeName && len(t.Args()) == 2 {
+		a := t.Args()
+		sort := a[0].Kind == core.KStr && strings.HasPrefix(a[0].Str, "buffer ")
+		if !sort && !(big && ascribedBig(w, a)) {
+			return KeepSortAscriptions(w, big, a[1])
+		}
+	}
+	kids := make([]*core.Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = KeepSortAscriptions(w, big, k)
+	}
+	return &core.Term{Kind: core.KApp, Kids: kids}
+}
 
 // EraseWordAscriptions removes every ascription except one above the word,
 // which is a DEMAND the IR's selection reads (ir.SelectBig) and then erases.

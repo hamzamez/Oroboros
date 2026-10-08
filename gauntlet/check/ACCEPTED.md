@@ -1178,3 +1178,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `gauntlet/differential/cases/local-tables.oro js`
 - new source — `gauntlet/differential/cases/local-tables.oro windows`
 - emitted text changed — `gauntlet/differential/cases/render.oro windows`
+
+## 2026-10-08 — on 387da9f, with uncommitted changes
+
+**Reason:** local-zero: a table of a sort's zero is build's zero-filled form, its sort ascribed for the checker alone
+
+552 runs: 299 emitted, 253 refused; 2023 of 2068 integer operations bounded, 350 of 368 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `gauntlet/differential/cases/local-zero.oro go`
+- new source — `gauntlet/differential/cases/local-zero.oro java`
+- new source — `gauntlet/differential/cases/local-zero.oro js`
+- new source — `gauntlet/differential/cases/local-zero.oro windows`
+
+1 compile(s) recorded FASTER:
+
+- `examples/io/freq.oro go` 16468 → 10734 ms, 0.65x

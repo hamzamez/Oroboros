@@ -1,0 +1,16 @@
+; A TABLE OF A SORT'S ZERO IS BUILD'S ZERO-FILLED BUFFER (spec/local.md §1,
+; tables.md §14.3): `(table n false)` reads as the core form with no fill
+; loop, and every slot nobody writes is false on every target.
+; expect: 0 0 3 6
+; inputs: 0 1 5 10
+; run n marks the multiples of 3 in [3, n) and counts the slots of [1, n) left
+; false, n − 1 − ⌊(n−1)/3⌋ for n ≥ 1: n = 5 leaves 1, 2, 4, and n = 10 leaves six.
+(def run (n)
+  (let marks (local b (table n false)
+               (loop ((b b) (k 3))
+                 (>= k n) b
+                 else (again (set b k true) (+ k 3))))
+    (loop ((k 1) (c 0))
+      (>= k n) c
+      (marks k) (again (+ k 1) c)
+      else (again (+ k 1) (+ c 1)))))

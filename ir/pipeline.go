@@ -87,14 +87,16 @@ func Entry(tg *emit.Target, name, irName string, sig *core.Sig, nf *core.Term, a
 	if err != nil {
 		return nil, nil, fmt.Errorf("%s: %w", name, err)
 	}
+	checking := emit.KeepSortAscriptions(tg.Word, plan.Host || plan.Limbs, nf)
 	if plan.Host || plan.Limbs {
 		nf = emit.EraseWordAscriptions(tg.Word, nf)
 	} else {
 		nf = emit.EraseAscriptions(nf)
 	}
 	// Check the residual before emitting it (docs/spec/types.md). On Go and
-	// Java the host would catch most of this; on JavaScript nothing would.
-	if err := emit.Check(tg, name, nf); err != nil {
+	// Java the host would catch most of this; on JavaScript nothing would. It
+	// reads the residual with a buffer's declared sort still on it.
+	if err := emit.Check(tg, name, checking); err != nil {
 		return nil, nil, err
 	}
 	// ADR 0018's linearity, checked on the residual rather than by a type.

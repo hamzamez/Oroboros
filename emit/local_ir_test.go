@@ -39,3 +39,17 @@ func TestALiteralIndexedAtRunTimeOwesItsBound(t *testing.T) {
 		t.Errorf("the control, an index in [0, 2], was refused: %v", err)
 	}
 }
+
+// A TABLE OF A SORT'S ZERO KEEPS ITS SORT. `(table 3 false)` is build's
+// zero-filled form, whose element is open, and the buffer is ascribed
+// `buffer bool` for the checker alone: a store of an int is refused, as the
+// fill loop's store of false made it before the fast path.
+func TestAZeroTableKeepsItsSort(t *testing.T) {
+	_, err := entryGo(t, `(use go) (export f) (sig f () int) (def f () (len (local b (table 3 false) (set b 0 5))))`)
+	if err == nil || !strings.Contains(err.Error(), "bool is required here") {
+		t.Errorf("an int stored into a table of false was accepted: %v", err)
+	}
+	if _, err := entryGo(t, `(use go) (export f) (sig f () int) (def f () (len (local b (table 3 false) (set b 0 true))))`); err != nil {
+		t.Errorf("the control, a bool stored, was refused: %v", err)
+	}
+}

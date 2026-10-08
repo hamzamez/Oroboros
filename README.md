@@ -53,7 +53,7 @@ sixth comes from the test suite, which runs it on every target.
 
 ; A table of n booleans: k is marked exactly when k ≥ 2 is not prime.
 (def sieve (n)
-  (local s (table n 0)                         ; a buffer of n booleans, zero-filled
+  (local s (table n false)                     ; a buffer of n booleans, all false
     (loop ((s s) (i 2))
       (>= (* i i) n)  s
       (s i)           (again s (+ i 1))        ; indexing is application
@@ -120,7 +120,8 @@ The language's whole character is in there:
 - **`loop` names its variables and `again` jumps back** with new values. There is no recursion, and no
   other iteration.
 - **Mutation happens only inside a `local` scope.** A binder whose initial value is a table, here
-  `(table n 0)`, is a buffer. A buffer is *linear*: every `set` consumes it and hands it back, so no
+  `(table n false)`, is a buffer: a fresh buffer is already zero, so this one costs a `make` and no
+  loop. A buffer is *linear*: every `set` consumes it and hands it back, so no
   two parts of a program can write the same memory. On the way out it freezes into an ordinary
   immutable table.
 - **`(s i)` is an application.** A table is a function with a known, finite domain, and the compiler

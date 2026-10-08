@@ -1183,7 +1183,9 @@ an optimisation with no source-level guarantee is a cliff you cannot see.
 ### 14.3 A `build` buffer is ZERO-FILLED
 
 `(local b (table n 0) …)` hands the body a buffer of `n` elements, every one of them **zero** — `0`
-for an integer, `0.0` for a float, `false` for a boolean.
+for an integer, `0.0` for a float, `false` for a boolean. So `(table n false)` and `(table n 0.0)`
+are the same buffer, with no fill loop, their sort ascribed for the type checker
+([local.md](local.md) §1).
 
 This was true on all four targets from the day `build` was written, by four different mechanisms —
 Go's `make`, the JVM's `new long[n]`, `new Array(n).fill(0)` on JavaScript, and `VirtualAlloc`

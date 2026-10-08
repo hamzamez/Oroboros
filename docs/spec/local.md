@@ -28,8 +28,13 @@ Jones, 1994). The language's earlier `build` was its restriction to buffers (ADR
 | anything else | a **cell** holding that value | a cell is a buffer of length one: Ref τ ≅ Buffer τ 1 |
 
 So there is no separate form for a buffer or a thaw:
-- `(table n 0)`, a constant rule, is the zero-filled buffer `build` made (tables.md §14.3), and reads as
-  exactly its core form;
+- **a table of a zero is the zero-filled buffer** `build` made (tables.md §14.3), read as exactly its
+  core form, with no fill loop, since a fresh buffer already holds the zero. `(table n 0)` names the
+  zero of every numeric and boolean element, as `build`'s buffers always took it, and leaves the
+  element to the stores. `(table n false)` and `(table n 0.0)` name the zero of one sort, and that
+  claim stays checked: the reader ascribes the buffer, `(the "buffer bool" b)`, the type checker reads
+  the ascription, and every pass after it reads the residual without it
+  (`emit.KeepSortAscriptions`). `-0.0` is not a fresh buffer's zero, so it fills;
 - `(table n f)` with f a function fills element i with `(f i)`;
 - `(table n v)` with v a **literal** is the constant table: a constant is the constant function K v, and
   the reading is unambiguous because a table's elements are never functions (closures do not survive

@@ -974,6 +974,10 @@
 == gauntlet/differential/cases/local-tables.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/local-tables.oro java emitted 0a1b0cf777625dc72f1e73390f0b28cc2d448f02111a6226c926af21ca6731bb
 == gauntlet/differential/cases/local-tables.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
+== gauntlet/differential/cases/local-zero.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
+== gauntlet/differential/cases/local-zero.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
+== gauntlet/differential/cases/local-zero.oro java emitted 7f43fd09ccb9670d0da6f738f0cc456bc214b50850c744eb2073638a762a546f
+== gauntlet/differential/cases/local-zero.oro windows emitted daad5877717312aa1df1ce5474f2fa11e69d6a86c2d106b8676e2f2f64b9c388
 == gauntlet/differential/cases/loop-counter.oro go emitted 7e48a66c0e7b2d0347a029e0f6e4f984d52bd1a7118f954c2cad1f448a016dd9
 == gauntlet/differential/cases/loop-counter.oro js emitted 7183ddc06254eae11ef20c29b26be775d32c7c816a7e5fa4b0bfad29be6744b0
 == gauntlet/differential/cases/loop-counter.oro java emitted 6cf51be0872d52b4c869bf5b9ce5919e3a7941eb811c6b5d5707577a3fbfbdb3

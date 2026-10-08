@@ -34,10 +34,10 @@ have written, and it calls the platform's own libraries directly.
 
 ---
 
-## A tour, in five programs
+## A tour, in six programs
 
-The first four were compiled and run for this page, and each output shown is what they printed. The fifth
-comes from the test suite, which runs it on every target.
+The first five were compiled and run for this page, and each output shown is what they printed. The
+sixth comes from the test suite, which runs it on every target.
 
 ### 1. A sieve: tables, loops and buffers
 
@@ -53,7 +53,7 @@ comes from the test suite, which runs it on every target.
 
 ; A table of n booleans: k is marked exactly when k ≥ 2 is not prime.
 (def sieve (n)
-  (build s n                                   ; a buffer of n booleans, zero-filled
+  (local s (table n 0)                         ; a buffer of n booleans, zero-filled
     (loop ((s s) (i 2))
       (>= (* i i) n)  s
       (s i)           (again s (+ i 1))        ; indexing is application
@@ -66,7 +66,7 @@ comes from the test suite, which runs it on every target.
     (t k)     (again (+ k 1) count)
     else      (again (+ k 1) (+ count 1))))
 
-(def count-primes (n) (count-unmarked (sieve n) n))   ; the buffer froze on the way out of `build`
+(def count-primes (n) (count-unmarked (sieve n) n))   ; the buffer froze on the way out of `local`
 
 (def main () (io.print-int (count-primes 1000)))
 ```
@@ -119,9 +119,10 @@ for ; ; v6 = (v6 + 1) {
 The language's whole character is in there:
 - **`loop` names its variables and `again` jumps back** with new values. There is no recursion, and no
   other iteration.
-- **Mutation happens only on a `build` buffer.** A buffer is *linear*: every `set` consumes it and
-  hands it back, so no two parts of a program can write the same memory. On the way out it freezes
-  into an ordinary immutable table.
+- **Mutation happens only inside a `local` scope.** A binder whose initial value is a table, here
+  `(table n 0)`, is a buffer. A buffer is *linear*: every `set` consumes it and hands it back, so no
+  two parts of a program can write the same memory. On the way out it freezes into an ordinary
+  immutable table.
 - **`(s i)` is an application.** A table is a function with a known, finite domain, and the compiler
   proved `i` is inside it.
 
@@ -193,6 +194,7 @@ reason: its `io` module has no `print-int`.)
 ```lisp
 (use os)
 (use io)
+(use result)
 (export main)
 
 (def cap-in 16777216)
@@ -201,9 +203,10 @@ reason: its `io` module has no `print-int`.)
   (let av (os.Args)
     (if (< (len av) 2)
         (seq (io.print-line "usage: wc FILE") 0)
-        (let (tuple src err) (os.ReadFile (av 1))
+        (case (os.ReadFile (av 1))
+          (result.err k) (seq (io.print-line "wc: cannot read that file") 0)
+          (result.ok src)
           (cond
-            (not (os.err-nil err))  (seq (io.print-line "wc: cannot read that file") 0)
             (>= (len src) cap-in)   (seq (io.print-line "wc: file is larger than this tool accepts") 0)
             else (loop ((i 0) (lines 0))
                    (>= i (len src)) (io.print-int lines)
@@ -222,8 +225,27 @@ node wc.mjs docs/decisions/0001-parasite-model.md
 java -cp wc-classes Main docs/decisions/0001-parasite-model.md
 ```
 
-All three print `49`, the same as `wc -l`, and so does the JVM build on Android, converted by `d8` and
-run by ART in the emulator.
+All three print `49`, the same as `wc -l`. (Its JVM build also ran on Android's runtime, ART, in the
+emulator, before the error model below reached it: [android-2026-10-05](gauntlet/results/android-2026-10-05.md).)
+
+- **A failure is a value.** `os.ReadFile` returns a `result`, and the bytes exist only in its `ok` arm,
+  so a failed read cannot be counted. Its error is a *kind* a program can act on, `not-found`,
+  `exists`, `permission` or `(other e)`, the same kind on every host however that host fails
+  ([ADR 0040](docs/decisions/0040-a-failure-is-a-value-of-a-marked-sum.md)). On Go the `case` compiles
+  to `src, err := os.ReadFile(av[1])` and `if err == nil`, with no result value built.
+- **An error cannot be dropped.** A `result` is *relevant*: every path must use it. Write
+  `(seq (os.ReadFile "go.mod") …)` and the program does not compile:
+
+  ```
+  build: the result of os.ReadFile is a value of a relevant type (spec/errors.md §7), and it is discarded: use it, or discard it with (ignore …)
+  ```
+
+  `case` takes a result apart, `try` passes its failure on, `expect` gives up with a reason, and
+  `ignore` discards it on purpose
+  ([ADR 0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md)).
+- **Two outcomes are two clauses.** `cond` erases to the nested `if`s it means, so it costs nothing.
+- **`cap-in` is a value, not a function**, and it is not decoration: a count over an unbounded file
+  cannot be proven to stay in range, so the program states how large a file it accepts.
 
 **On JavaScript, `os` is Node's for now**: `ReadFile` is `fs.readFileSync` and `Args` is `process.argv`.
 A browser has no files and no command line, so this program will not be portable to the browser, and
@@ -231,18 +253,50 @@ the compiler will say so. The browser is the JavaScript target; Node is a layer 
 ([ADR 0039](docs/decisions/0039-the-targets-are-go-windows-android-and-the-browser.md)), and these
 declarations move to it.
 
-- **Three outcomes are three clauses.** `cond` erases to the nested `if`s it means, and a negated
-  condition swaps its branches — `if (¬c) a b = if c b a` — so this emits the same Go, byte for
-  byte, as the staircase it replaced.
-- **A fallible call gives two results, bound by `(let (tuple src err) …)`, on every host**, including the ones where
-  the platform throws. How each host fails is written once, in that target's declarations. On Go it
-  compiles to `src, err := os.ReadFile(av[1])`.
-- **`cap-in` is a value, not a function.** A constant is a term the compiler unfolds; the
-  `(fn () …)` wrapper is for a *computation*, whose effects unfolding would repeat. And it is not
-  decoration: a count over an unbounded file cannot be proven to stay in range, so
-  the program states how large a file it accepts. The compiler made it say what happens at the limit.
+### 4. Local variables: cells
 
-### 4. `encoding/hex`: a host package, with its preconditions
+The same pass over a file, counting lines, words and bytes as POSIX defines `wc`'s
+([examples/io/count.oro](examples/io/count.oro)). The state is three local variables:
+
+```lisp
+(local lines   0
+       words   0
+       in-word false
+  (loop ((i 0))
+    (>= i (len src))
+      (seq (io.print-int lines)
+           (io.print-int words)
+           (io.print-int (len src)))
+    else
+      (let b (src i)
+        (seq (if (and (= b 10) (< lines cap-in)) (set lines (+ lines 1)) (tuple))
+             (cond
+               (space? b)        (set in-word false)
+               in-word           (tuple)
+               (< words cap-in)  (seq (set in-word true) (set words (+ words 1)))
+               else              (tuple))
+             (again (+ i 1))))))
+```
+
+```
+49
+403
+2562
+```
+
+A binder of `local` whose initial value is not a table is a **cell**: read by its name, written by
+`(set c v)`, in program order. It is Idealized Algol's `new` and Haskell's `runST`: state nothing
+outside the scope can see, so the scope is still a function of its inputs. The compiler translates
+every cell into loop variables before anything else sees the program, so a cell costs exactly what a
+loop variable costs, and the same loop written with loop variables reduces to the same term
+([ADR 0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md),
+[local.md](docs/spec/local.md)).
+
+Go, JavaScript and the JVM print the same. GNU `wc` says 398 words here, not 403: it counts only runs
+holding a printable byte, and the five it skips are UTF-8 punctuation between spaces. Both definitions,
+computed over the bytes, give the two counts exactly.
+
+### 5. `encoding/hex`: a host package, with its preconditions
 
 ```lisp
 (use go/encoding/hex)
@@ -260,7 +314,7 @@ declarations move to it.
 686921
 ```
 
-`build` gives a buffer to fill, `buf`, and the scope's value is whatever its body gives: here both of
+`local` gives a buffer to fill, `buf`, and the scope's value is whatever its body gives: here both of
 `hex.Encode`'s results, the filled buffer frozen as `dst` and the count `n`. A host call with two
 results is a pair, so a tuple pattern takes it apart like any other
 ([tables.md §2.5](docs/spec/tables.md)).
@@ -289,16 +343,17 @@ written inside it:
         (host expr "func(dst, src []byte) ([]byte, int) { return dst, hex.Encode(dst, src) }(%s, %s)"
           (import "encoding/hex")))
 
-  ; `go/encoding/hex/InvalidByteError` — a child's path is its parent's and its own
+  ; `go/encoding/hex/InvalidByteError`: a child's path is its parent's and its own,
+  ; and a bare type name resolves to the nearest enclosing module's
   (module InvalidByteError
-    (sig Error ((self go/encoding/hex.InvalidByteError)) string pure
+    (sig Error ((self InvalidByteError)) string pure
           (host expr "%s.Error()" (import "encoding/hex")))))
 ```
 
 The same program built for JavaScript stops with `go/encoding/hex.Encode is not bound`. That is
 portability being computed: this program is a Go program, and the compiler says so.
 
-### 5. Variants and `match`
+### 6. Variants and `match`
 
 From the test suite, where each runs on all four targets:
 
@@ -342,13 +397,15 @@ drift apart.
 |---|---|
 | **Terms** | seven kinds: name, integer, float, string, `true`/`false`, `(fn (x…) e)`, application |
 | **Top level** | `def`, `sig` (with `where`, `ensures`), `variant`, `module`, `use`, `export` |
-| **Sugar** | `(def f (x…) body)` for a λ, `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`; all gone after reading |
+| **Sugar** | `(def f (x…) body)` for a λ, `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`, `try`/`expect`; all gone before reduction |
 | **Iteration** | `loop` and `again`. No recursion, and termination is checked |
 | **Data** | tables `(array V)`, maps `(map int V)`, tuples, variants with type arguments, strings as scalar sequences; `option` for a map read |
-| **Mutation** | only on a linear buffer, inside `build` or as a declared `(buffer V)` parameter |
+| **Local state** | `local`: a binder initialized by a table, `(table n f)` or `(array …)`, is a linear buffer; one initialized by anything else is a cell, a local variable in program order. Thaw is `(table (len xs) xs)`. A declared `(buffer V)` parameter is a buffer too |
+| **Failures** | a value of a sum: `lib/result`'s `(result T E)`, met by `case`, `try`, `expect` or `ignore`, and *relevant*, so it cannot be dropped silently. A host's own encoding (Go's `(T, error)`, a throw) is translated once, at its declaration |
 | **Integers** | an `int` is an integer; each target declares the word it holds (int64 on Go, the JVM and x86, plus `uint64` on Go; ±(2⁵³−1) on JS), an operation not proven inside it is refused on that target, and which targets accept a program is reported; a range `(int LO HI)` is a type; `(int 0 +inf)` is arbitrary precision |
 | **Functions** | fully higher-order at compile time; nothing that needs a closure at run time may survive to the output |
 | **Effects** | one purity bit per host call; an impure call runs exactly once, where it was written |
+| **Host calls** | under the host's own names: `(fmt.Println a b)` is Go's variadic call, and `(spread xs)` passes a table as its list. A host's string is the host's type, and a `string` is always valid text |
 | **Targets** | directories of declarations (`sig`, `type`, `repr`, `fact`, `const`), which are data and never compiler code |
 
 ## What the compiler guarantees
@@ -356,12 +413,13 @@ drift apart.
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | geometric mean of generated over hand-written **0.990** on Go, **0.977** on JavaScript, **0.987** on Java, over 35 comparisons from **0.87×** to **1.21×**; the three above 1.10× each explained, the largest a JavaScript module boundary ([gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md)). On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)); two programs compile to byte-identical machine code ([generics](gauntlet/results/generics-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **1,970 of 2,015** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **2,023 of 2,068** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `string` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text-of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
-| Loops terminate | size-change termination on the IR | **347 of 365** loops proven |
-| Every host agrees | 46 programs built and **run** on every target that accepts them (29 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
+| Loops terminate | size-change termination on the IR | **350 of 368** loops proven |
+| Every host agrees | 53 programs built and **run** on every target that accepts them (38 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
+| Each rule that decides legality is tested against a broken copy of itself | a fault is planted in the rule, and its test must fail | each result in [gauntlet/results/](gauntlet/results/) lists its faults and the test that caught each |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
 
 ## How much of each platform it can reach
@@ -379,9 +437,11 @@ Surveys read each host's own API list and count what the declaration format can 
 with its preconditions and what it does to buffers, and checked against the real package
 ([ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)). Today that is
 `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints and `math/bits`, plus `io`'s
-interfaces. Working through Go's standard library package by package is the current work, and every
-two packages get a program written against them: [lib/num/u128.oro](lib/num/u128.oro), a 128-bit
-integer over `math/bits` and `strconv`, is the first.
+interfaces; `os`, `strings`, `io`, `fmt` and `bufio` are partly declared, every name checked. Of the
+590 exported names in the ten Go packages with a file, 293 are declared (49.7%), and every missing one
+has a recorded cause (`go run gauntlet/stdlib/coverage.go`). Working through Go's standard library
+package by package is the current work, and each package gets a program written against it:
+[lib/num/u128.oro](lib/num/u128.oro), a 128-bit integer over `math/bits` and `strconv`, was the first.
 
 ## What doesn't work yet
 
@@ -389,9 +449,13 @@ integer over `math/bits` and `strconv`, is the first.
 - **No recursion.** Balanced divide-and-conquer (merge sort, Karatsuba) is a loop over levels, and
   recursive data is a flat table with indices. It is fast, and it is more to write.
 - **No runtime closures, no concurrency, no interfaces you implement.** You can pass a host object where
-  a host interface is wanted; you cannot build one.
+  a host interface is wanted; you cannot build one. Callbacks are specified and not built, so a
+  function that reads or writes a cell cannot be passed anywhere either.
+- **A host cannot write a cell yet.** Out-parameters, Go's `fmt.Sscan(s, &x)` and `errors.As` and
+  Win32's thousands, are the next step: a cell passed where the host wants a pointer, and `(out τ)`
+  for a cell that lives for one call.
 - **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
-- **Maps take integer keys only.**
+- **Maps take integer keys only**, and there are no records yet.
 - **The browser's own API**, the Web platform, is not declared yet, and the JavaScript output is
   tested under Node, as an engine. Moving the tests into a browser is ADR 0039's next step.
 - **Windows** is the least complete target: its `io` has no `print-line`, it has no floats and no host
@@ -441,7 +505,7 @@ go run run.go                                           # every test program, on
 | [emit/](emit/) | the type checker, the refinement layer (bounds and preconditions), contracts, and the target loader |
 | [targets/](targets/) | what each host provides: declarations, never compiler code |
 | [lib/](lib/) | portable modules such as `os` and `io`, and each host's implementation of them |
-| [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `jsonfmt`, `freq`), [json/](examples/json/), [tally/](examples/tally/) and [u128/](examples/u128/) |
+| [examples/](examples/) | the programs, including [io/](examples/io/) (`wc`, `count`, `jsonfmt`, `freq`), [lines/](examples/lines/), [json/](examples/json/), [tally/](examples/tally/) and [u128/](examples/u128/) |
 | [gauntlet/](gauntlet/) | hand-written references, benchmarks, the differential suite, and [results/](gauntlet/results/) |
 | [docs/decisions/](docs/decisions/) | every significant decision, with what was rejected and why |
 | [docs/spec/](docs/spec/) | the specifications; start with [state.md](docs/spec/state.md) |
@@ -459,7 +523,7 @@ go run run.go                                           # every test program, on
   Then it is specified, and only then written.
 
 The current assessment of the project, including what is going badly, is
-[docs/assessment-2026-09-28.md](docs/assessment-2026-09-28.md).
+[docs/assessment-2026-10-03.md](docs/assessment-2026-10-03.md).
 
 ## The name
 

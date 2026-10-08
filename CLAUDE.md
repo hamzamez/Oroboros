@@ -346,8 +346,11 @@ a wall that needs language work, stop and research it, then design it.
       ([ADR 0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md),
       [local.md](docs/spec/local.md), [local-2026-10-08](gauntlet/results/local-2026-10-08.md)):
       `local`, its initializer deciding buffer or cell, the 137 `build` sites migrated byte for byte,
-      and cells as loop variables by the state-passing translation. Next: stage B, a host call
-      writing a cell (the Scan family, Win32's out-cells), then stage C, `(out τ)` and `errors.As`;
+      and cells as loop variables by the state-passing translation. **Next, Go first** (hamza,
+      2026-10-08): Go's out-cells are all caller-typed through `any` (its 49 pointer parameters
+      are atomics and flags, which keep the address), so stages B and C come together, around
+      `fmt.Sscan`'s cells in a variadic `...any` list; then `errors.As`, then Win32's fixed-type
+      cells on x86;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
@@ -570,7 +573,7 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
     costs a loop variable. **Each elimination the translation assumes is marked `((#elim op) λ)`**
     and decided by the reducer on op's normal form, since a static function could run λ twice;
     a closure over a cell is refused.
-  - **The scope's value** is the body's. Its value is the body's value, and it may be **a product**
+- **A scope's value** is its body's, and it may be **a product**
   of frozen buffers and buffer-free values, taken apart by a tuple pattern
   ([ADR 0031](docs/decisions/0031-a-builds-result-is-a-product.md), [tables.md §2.5](docs/spec/tables.md)).
   An exit may be any term of the product's type: a host call declaring m results is a tuple by η for
@@ -994,6 +997,6 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
-| `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
+| `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, eighteen programs, including one per supported package, `errors-os`, the error model on the hand `os`, and `variadic` (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

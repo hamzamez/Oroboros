@@ -25,6 +25,20 @@
 ;   most n bytes, a Reader that writes what it reads to w, a ReadCloser whose
 ;   Close does nothing.
 ; - Pipe is a synchronous channel: a Write blocks until Reads consume it.
+; - MultiReader r₁ … rₙ is the CONCATENATION of streams, the monoid on readers
+;   whose unit is the empty reader (n = 0 gives EOF at once): it reads r₁ to EOF,
+;   then r₂, and so on. MultiWriter w₁ … wₙ is the FAN-OUT: each Write goes to
+;   every wᵢ in order, and the first error stops it (ErrShortWrite on a short
+;   count). Both are variadic over one type, ...Reader and ...Writer, the free
+;   monoid on the interface, so each is ONE declaration over a table, spread
+;   into Go's call (strings.oro's NewReplacer, variadic-2026-10-08). The table
+;   is shared: Go copies it into its own (`make` and `copy`; MultiWriter builds a
+;   new slice, flattening nested ones) and never writes it. A table of concrete
+;   readers is NOT a table of Readers: Go's slices are not covariant, since a
+;   pointer and an interface value are represented differently, so the element
+;   conversion would be a copy. A table written at the call is built at the
+;   declared element; one bound to a name keeps its elements' type, and is
+;   refused here.
 ;
 ; EOF and the other errors are package VARIABLES, which the survey does not
 ; generate; they are declared here, as values, since a program tests
@@ -36,7 +50,6 @@
 ;   - SectionReader and NewSectionReader, OffsetWriter and NewOffsetWriter,
 ;     LimitedReader's literal, and their 9 methods: they need ReaderAt and
 ;     WriterAt, not declared;
-;   - MultiReader and MultiWriter are not in the survey: they are VARIADIC.
 ; And not surveyed at all: the interfaces' methods, which a generated file
 ; never declares. They are checked against the manifest's own interface lines
 ; instead (gauntlet/stdlib/tooling_test.go).
@@ -128,6 +141,12 @@
       (host expr "io.WriteString(%s, %s)" (import "io")))
 
     ; ------------------------------------------------------- the transformers
+    ; Spreads: the streams in a table (the header). Each returns a new stateful
+    ; stream, so neither is pure.
+    (sig MultiReader ((readers (array Reader))) Reader
+      (host expr "io.MultiReader(%s...)" (import "io")))
+    (sig MultiWriter ((writers (array Writer))) Writer
+      (host expr "io.MultiWriter(%s...)" (import "io")))
     (sig LimitReader ((r Reader) (n (int -9223372036854775808 9223372036854775807))) Reader
       (host expr "io.LimitReader(%s, int64(%s))" (import "io")))
     (sig TeeReader ((r Reader) (w Writer)) Reader

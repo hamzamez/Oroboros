@@ -30,6 +30,20 @@
 ;   replacement is declared ours.
 ; - Everything else can hand back invalid bytes it was given — Trim cuts at a
 ;   byte, Split at a separator — so its result is the host's.
+; - A REPLACER is a finite rewriting system: a list of pairs (oldᵢ, newᵢ),
+;   applied left to right at each position, the first pair that matches
+;   winning (Go's documentation), with no rewrite of what a rewrite produced.
+;   NewReplacer takes the pairs FLATTENED, old₁ new₁ old₂ new₂ …, as a variadic,
+;   ...string, which is the free monoid B** on strings: inside the function its
+;   value is a []string, and Go's own spread f(s...) passes one unchanged. So
+;   it is ONE declaration over a table, (array bytestring), every length at
+;   once, and not a family of restrictions as fmt's ...any needs
+;   (variadic-2026-10-08). The table is shared, not copied, and that is sound
+;   because Go copies it and never writes it (`append([]string(nil),
+;   oldnew...)`). Its precondition is the flattening's: an even count, or Go
+;   panics. A Replacer is immutable after construction and has no declared
+;   equality, so its construction and Replace are pure; WriteString is a write,
+;   io.Writer's partial success.
 ; - A BUILDER is a monoid accumulator: after writes w₁ … wₙ, String() is
 ;   w₁·…·wₙ. It is a mutable host object, so its methods are impure and their
 ;   order is the program's order (ADR 0010). A READER is a cursor over a fixed
@@ -39,9 +53,6 @@
 ;   - ToLowerSpecial, ToUpperSpecial, ToTitleSpecial take a unicode.SpecialCase,
 ;     and the only ones are package VARIABLES of `unicode` (TurkishCase), which
 ;     no file here declares yet;
-;   - Replacer's two methods: its constructor, NewReplacer(oldnew ...string), is
-;     VARIADIC, so no Replacer can be obtained. That is the variadic wall
-;     (gostdlib's 171 names), and the one thing in this package it blocks.
 ; Not in the survey at all: the functions taking a func(rune) bool (FieldsFunc,
 ; TrimFunc, IndexFunc, Map, …), which are callbacks, tiers 1 and 2, not built.
 
@@ -49,6 +60,7 @@
   (module go/strings
     (type Builder (host "*strings.Builder"))
     (type Reader (host "*strings.Reader"))
+    (type Replacer (host "*strings.Replacer"))
 
     ; ---------------------------------------------------------------- predicates
     (sig Contains ((s bytestring) (substr bytestring)) bool pure
@@ -151,6 +163,10 @@
 
     ; ------------------------------------------------------------- constructors
     (sig NewReader ((s bytestring)) Reader (host expr "strings.NewReader(%s)" (import "strings")))
+    ; A spread: the pairs, flattened, in a table (the header).
+    (sig NewReplacer ((oldnew (array bytestring))) Replacer pure
+      (where (= (% (len oldnew) 2) 0))
+      (host expr "strings.NewReplacer(%s...)" (import "strings")))
     ; A Builder's zero value is ready to use, and Go makes one with new(T) — a
     ; construct, not a name, so the survey does not generate it.
     (sig NewBuilder () Builder (host expr "new(strings.Builder)" (import "strings")))
@@ -178,6 +194,13 @@
         (host expr "%s.WriteString(%s)" (import "strings"))))
 
     ; ------------------------------------------------------------------- Reader
+    (module Replacer
+      (use result)
+      (sig Replace ((self Replacer) (s bytestring)) bytestring pure (host expr "%s.Replace(%s)" (import "strings")))
+      (sig WriteString ((self Replacer) (w go/io.Writer) (s bytestring))
+        (tuple (int 0 9223372036854775807) (result.result (tuple) error))
+        (host expr "%s.WriteString(%s, %s)" (import "strings"))))
+
     (module Reader
       (use result)
       (sig Len ((self Reader)) (int 0 9223372036854775807) (host expr "%s.Len()" (import "strings")))

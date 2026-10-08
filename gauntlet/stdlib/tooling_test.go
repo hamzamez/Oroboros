@@ -631,6 +631,13 @@ func acceptance() map[string]accept {
 		// sum, Read a partial success, Close succeeding with nothing
 		// (spec/errors.md §4, sumrep-2026-10-06).
 		"errors-os": {host: "go", target: "go", layer: "tg", want: []string{"64"}},
+		// A VARIADIC OVER ONE TYPE as one function of a table, spread into Go's
+		// call: strings.NewReplacer, io.MultiReader, io.MultiWriter, each at a
+		// non-empty and the empty length. The lines are what the same calls
+		// print from hand-written Go (variadic-2026-10-08).
+		"variadic": {host: "go", target: "go", layer: "tg", want: []string{
+			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
+			"concat true", "0 true", "twice", "twice", "6 true"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —
@@ -1161,7 +1168,7 @@ var handDeclared = []handEntry{
 		"go/os.Stdout": "a package VARIABLE; the survey generates functions, methods and constants",
 		"go/os.Stderr": "a package VARIABLE; the survey generates functions, methods and constants",
 	}, nil, nil},
-	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader"},
+	{"go", "targets/go", "strings.oro", []string{"go/strings", "go/strings/Builder", "go/strings/Reader", "go/strings/Replacer"},
 		stringsMistakes, true, map[string]string{
 			"go/strings.NewBuilder": "new(strings.Builder): Go's zero value is a construct, not a name",
 		}, nil, nil},
@@ -1218,6 +1225,16 @@ var stringsMistakes = map[string]func(m map[string]emit.Prim){
 		p := m["Index"]
 		p.Result = "int -1 18446744073709551615"
 		m["Index"] = p
+	},
+	"NewReplacer spreading a table of the wrong element": func(m map[string]emit.Prim) {
+		p := m["NewReplacer"]
+		p.Args = []string{"array int"}
+		m["NewReplacer"] = p
+	},
+	"NewReplacer's template not spreading its table": func(m map[string]emit.Prim) {
+		p := m["NewReplacer"]
+		p.Form = strings.ReplaceAll(p.Form, "...)", ")")
+		m["NewReplacer"] = p
 	},
 	"IndexByte's argument declared as a rune": func(m map[string]emit.Prim) {
 		p := m["IndexByte"]
@@ -1414,7 +1431,8 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 						}
 					}
 				}
-				for _, e := range h.judge(module, agreeAll(hostTg.Word, hand, host, realization(handTg), realizationOver(hostTg, handTg), hostTg)) {
+				for _, e := range h.judgeSpreads(hostTg.Word, module, hand, host, realization(handTg),
+					agreeAll(hostTg.Word, hand, host, realization(handTg), realizationOver(hostTg, handTg), hostTg)) {
 					t.Errorf("%s: %v", module, e)
 				}
 			}
@@ -1494,7 +1512,8 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 
 			hand, host := modulePrims(handTg, h.modules[0]), modulePrims(hostTg, h.modules[0])
 			check := func(m map[string]emit.Prim) []error {
-				return h.judge(h.modules[0], agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg), hostTg))
+				return h.judgeSpreads(hostTg.Word, h.modules[0], m, host, realization(handTg),
+					agreeAll(hostTg.Word, m, host, realization(handTg), realizationOver(hostTg, handTg), hostTg))
 			}
 			for what, mutate := range h.mistakes {
 				m := map[string]emit.Prim{}
@@ -1546,6 +1565,61 @@ func (h handEntry) judge(module string, errs []error) []error {
 		out = append(out, e)
 	}
 	return out
+}
+
+// A SPREAD is one declaration of a host variadic over one type, f : A* → B
+// (strings.oro's header, variadic-2026-10-08). Go's ...T is the free monoid on
+// T, whose value inside the function is a []T, and a call f(s...) passes the
+// slice unchanged (the Go spec, "Passing arguments to ... parameters"), so the
+// declaration takes a table as its last parameter and its template spreads it.
+// The survey declares no variadic, so a spread is a hand name it lacks; it is
+// checked against the manifest's own line instead, as fixed parameters
+// followed by `array T`.
+func isSpread(p emit.Prim) bool {
+	return len(p.Args) > 0 && strings.HasPrefix(p.Args[len(p.Args)-1], "array ") &&
+		strings.HasSuffix(strings.TrimSpace(p.Form), "...)")
+}
+
+func agreeSpread(word core.Word, module, n string, h emit.Prim, hres func(string) string) error {
+	f, ok := manifestFuncs()[module+"."+n]
+	if !ok || f.variadic == "" {
+		return fmt.Errorf("%s spreads a table, and the host exports no variadic %s", n, n)
+	}
+	g := emit.Prim{Name: n, Import: h.Import, Form: f.pkg + "." + n + "("}
+	g.Args = append(append([]string(nil), f.fixed...), "array "+f.variadic)
+	g.Results = f.results
+	return agreeOne(word, n, h, g, hres, func(t string) string { return t }, nil)
+}
+
+// judgeSpreads is judge, with every spread checked against the manifest: a
+// spread the survey lacks is not "declared by hand and the host has no such
+// name", it is compared with the host's variadic line.
+func (h handEntry) judgeSpreads(word core.Word, module string, hand, host map[string]emit.Prim,
+	hres func(string) string, errs []error) []error {
+	spread := map[string]bool{}
+	var extra []error
+	var names []string
+	for n := range hand {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		if _, gen := host[n]; gen || !isSpread(hand[n]) {
+			continue
+		}
+		spread[n] = true
+		if err := agreeSpread(word, module, n, hand[n], hres); err != nil {
+			extra = append(extra, err)
+		}
+	}
+	var out []error
+	for _, e := range h.judge(module, errs) {
+		if i := strings.Index(e.Error(), " is declared by hand and the host has no such name"); i > 0 && spread[e.Error()[:i]] {
+			continue
+		}
+		out = append(out, e)
+	}
+	return append(out, extra...)
 }
 
 // agreeInterface checks an interface companion's hand methods against the
@@ -1654,13 +1728,13 @@ func manifestFuncs() map[string]goFunc {
 				g := goFunc{pkg: base}
 				for _, a := range splitGoList(m[3]) {
 					if v, ok := strings.CutPrefix(a, "..."); ok {
-						g.variadic = goToHand(v)
+						g.variadic = goToHandIn(base, v)
 						continue
 					}
-					g.fixed = append(g.fixed, goToHand(a))
+					g.fixed = append(g.fixed, goToHandIn(base, a))
 				}
 				for _, r := range splitGoList(strings.Trim(m[4], "()")) {
-					g.results = append(g.results, goToHand(r))
+					g.results = append(g.results, goToHandIn(base, r))
 				}
 				funcsAll["go/"+pkg+"."+m[2]] = g
 			}
@@ -1731,6 +1805,20 @@ func splitGoList(s string) []string {
 
 // goToHand reads a manifest's Go type into the hand files' vocabulary, as the
 // realization spells it.
+// goToHandIn reads a Go type written inside package base: the manifest spells
+// the package's own types unqualified, `*Replacer` and `Reader`, and the hand
+// files' realizations spell them `*strings.Replacer` and `io.Reader`.
+func goToHandIn(base, t string) string {
+	star, name := "", t
+	if n, ok := strings.CutPrefix(t, "*"); ok {
+		star, name = "*", n
+	}
+	if name != "" && name[0] >= 'A' && name[0] <= 'Z' && !strings.ContainsAny(name, ".[]*(") {
+		return star + base + "." + name
+	}
+	return goToHand(t)
+}
+
 func goToHand(t string) string {
 	switch t {
 	case "[]uint8":

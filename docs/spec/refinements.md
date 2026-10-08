@@ -96,7 +96,13 @@ exactly one of these, or the program is **refused**, naming the obligation and w
    operands lie in U (ADR 0026), so a guard in one spelling discharges a `where` in the other;
 3. **evaluation**, when the obligation is **closed**: a comparison between two literals. `(!= 3.0 0)`
    is true, and comparing two literals is exact on every host, so it is decided at compile time
-   without folding any arithmetic (ADR 0009).
+   without folding any arithmetic (ADR 0009). **A host declaration's `where` is evaluated too**
+   (`core.Evaluate`, variadic-2026-10-08): the goal with its arguments substituted is reduced by the
+   reducer's own folding, `len` of a table written as its graph and the language's integer operators
+   inside the word, before the fragment is asked. A definition's `where` already had this through
+   reduction; a host's went to the fragment alone, so `strings.NewReplacer`'s even count,
+   `(= (% (len oldnew) 2) 0)`, was refused on a six-element literal. A goal that does not reduce to a
+   literal goes to routes 1 and 2 unchanged: evaluation decides only what it evaluates.
 
 There is no fourth route. "Propagated" survives in one sense only, the one §6b already has: an
 **exported** definition's own `where` is *assumed* inside it and is its caller's to discharge. The

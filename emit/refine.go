@@ -997,6 +997,18 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 		}
 	}
 	want := core.Rename2(p.Where, sub)
+	// EVALUATION FIRST, the third route (refinements.md §3a): a goal closed
+	// over literals is decided by reducing it, `(= (% (len (array …)) 2) 0)`
+	// included, which the linear fragment cannot express.
+	if v, ok := core.Evaluate(want, r.tgt.Word); ok {
+		if v {
+			return true, nil
+		}
+		if r.probe {
+			return false, nil
+		}
+		return false, fmt.Errorf("%s requires %s, which is false at this call", name, want)
+	}
 	// A GOAL WITH A DISJUNCTION IN IT is decided by the sequent calculus's
 	// right-hand rules (goalHolds). Scalar's precondition on `string-of` is the
 	// first: 0 ≤ c ≤ 10FFFF and (c ≤ D7FF or c ≥ E000) (gotarget-2026-09-30).

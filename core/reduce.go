@@ -1371,6 +1371,37 @@ var langFoldable = map[string]bool{
 	"<": true, "<=": true, ">": true, ">=": true, "=": true,
 }
 
+// Evaluate decides a closed obligation by evaluation, the third route an
+// obligation has (refinements.md §3a): the goal with its arguments
+// substituted, reduced by the reducer's own folding and nothing else — `len`
+// of a table written as its graph, the language's integer operators on
+// literals inside the word w (ADR 0009), `=`, `if`, and the connectives. It
+// answers (value, true) when the goal reduces to a boolean literal, and
+// (false, false) when it does not, which leaves the goal to the prover.
+//
+// A host declaration's `where` is decided on the residual by the refinement
+// layer, whose fragment is linear: until this route it never saw
+// `(len (array …))` as 6, nor `(% 6 2)` as 0, so NewReplacer's even count was
+// refused on a literal (variadic-2026-10-08). A definition's `where` already
+// had the route, through markWhere's normalisation.
+func Evaluate(goal *Term, w Word) (bool, bool) {
+	e := &Env{Defs: map[string]*Term{}, Prim: map[string]bool{}, Pure: map[string]bool{}, Word: w}
+	for n := range langFoldable {
+		e.Prim[n], e.Pure[n] = true, true
+	}
+	for _, n := range []string{"if", "len", "array", "let"} {
+		e.Prim[n], e.Pure[n] = true, true
+	}
+	if !e.pureTerm(goal, map[string]bool{}) {
+		return false, false
+	}
+	v, err := Normalize(goal, e, DefaultFuel)
+	if err != nil || v.Kind != KBool {
+		return false, false
+	}
+	return v.IsTrue(), true
+}
+
 // foldInt evaluates one of the language's integer operators on two literals,
 // reporting whether it was safe to do so at all.
 //

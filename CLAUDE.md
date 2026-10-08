@@ -321,7 +321,12 @@ a wall that needs language work, stop and research it, then design it.
       error)`, and `(option error)` stays only on `strings.Builder`'s and `bufio.Writer`'s writes, with
       the reason in the file. Step 7, the audit of JavaScript's and Java's throwing declarations,
       waits for the browser and Android `os`;
-   2. G, H and I, and the three headers corrected;
+   2. G, H and I, and the three headers corrected. **G is closed**
+      ([variadic-2026-10-08](gauntlet/results/variadic-2026-10-08.md)): a variadic over one type is
+      ONE declaration over a table, spread into Go's call, `f(xs...)` — `strings.NewReplacer` and
+      its `Replacer`, `io.MultiReader`, `io.MultiWriter`; the host check reads a spread against the
+      manifest's `...T`; a host `where` on literals is decided by evaluation. 290 of 590 declared
+      (49.2%). H and I are next;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
@@ -953,4 +958,4 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
-| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, seventeen programs, including one per supported package and `errors-os`, the error model on the hand `os` (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, eighteen programs, including one per supported package, `errors-os`, the error model on the hand `os`, and `variadic` (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

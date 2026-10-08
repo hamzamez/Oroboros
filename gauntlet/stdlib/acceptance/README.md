@@ -1,12 +1,17 @@
-# Seventeen programs that check the surveys are not paper
+# Eighteen programs that check the surveys are not paper
 
-A survey reports what the target format can DECLARE. These seventeen check that a
+A survey reports what the target format can DECLARE. These eighteen check that a
 declaration can be BUILT AND RUN, which is the only thing that makes a percentage
 a measurement. They live here rather than in `examples/` because each is tied to a
 host's declarations — generated ones, or, for the whole packages, ones written by
 hand and checked against the generator.
 
-Six are Win32's, nine are Go's, one is the JVM's and one is JavaScript's.
+Six are Win32's, ten are Go's, one is the JVM's and one is JavaScript's.
+
+**`variadic` runs a variadic over one type as one function of a table**
+(variadic-2026-10-08): `strings.NewReplacer`, `io.MultiReader` and `io.MultiWriter`, each at a
+non-empty length and the empty one, spread into Go's call as `f(xs...)`. Its lines are what the
+same calls print from hand-written Go.
 
 **`errors-os` runs the error model** (spec/errors.md §4, ADR 0040) against the HAND
 os, with no generated layer: `Open` a sum, `Read` a partial success, `Close`

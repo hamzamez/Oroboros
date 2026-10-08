@@ -1119,3 +1119,17 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/errors/ignore.oro js`
 - new source — `examples/errors/ignore.oro windows`
 - compiler output changed — `lib/result.oro windows`
+
+## 2026-10-08 — on 4d2fcea, with uncommitted changes
+
+**Reason:** ADR 0045: fmt's ...any as a table of Go's boxes; lines.oro and u128/factorials.oro spread []any into Fprintf and Println (measured equal to Go's own call); factorials' refusal text on other targets names PrintlnAll
+
+532 runs: 280 emitted, 252 refused; 1975 of 2020 integer operations bounded, 347 of 365 loops proven. compiler pass, differential pass, tooling pass.
+
+5 change(s):
+
+- emitted text changed — `examples/lines/lines.oro go`
+- emitted text changed — `examples/u128/factorials.oro go`
+- compiler output changed — `examples/u128/factorials.oro java`
+- compiler output changed — `examples/u128/factorials.oro js`
+- compiler output changed — `examples/u128/factorials.oro windows`

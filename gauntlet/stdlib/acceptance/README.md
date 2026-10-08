@@ -10,8 +10,9 @@ Six are Win32's, ten are Go's, one is the JVM's and one is JavaScript's.
 
 **`variadic` runs a variadic over one type as one function of a table**
 (variadic-2026-10-08): `strings.NewReplacer`, `io.MultiReader` and `io.MultiWriter`, each at a
-non-empty length and the empty one, spread into Go's call as `f(xs...)`. Its lines are what the
-same calls print from hand-written Go.
+non-empty length and the empty one, spread into Go's call as `f(xs...)`; and `fmt`'s `...any` as a
+table of Go's boxes (ADR 0045), past the old wall at three operands. Its lines are what the same
+calls print from hand-written Go.
 
 **`errors-os` runs the error model** (spec/errors.md §4, ADR 0040) against the HAND
 os, with no generated layer: `Open` a sum, `Read` a partial success, `Close`

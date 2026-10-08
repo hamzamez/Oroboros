@@ -141,11 +141,14 @@ user-defined `area` on a circle and on a square. That needs resolution rules, an
 in a language with subtyping or inference it needs a great deal more. Nothing in
 this repository has asked for it, and §3(b) covers every case strings raise.
 
-**Arity overloading** is worth separating out, because it has exactly one live
-instance: `targets/go/fmt.oro` declares `Println`, `Println2`, `Println3` because
-`tg.Prims` is keyed by name alone. That is a wart in a **target file**, which is
-data, and it is a convenience question rather than a language one. Fixing it means
-keying primitives by (name, arity) — small, contained, and it changes no program.
+**Arity overloading** is worth separating out, because it had exactly one live
+instance: `targets/go/fmt.oro` declared `Println`, `Println2`, `Println3` because
+`tg.Prims` is keyed by name alone. It was closed on 2026-10-08 without overloading
+([variadic-2026-10-08](../gauntlet/results/variadic-2026-10-08.md)): Go's `...any` is
+a list of boxes, Go's empty interface being a type (spec/types.md §3.3), so the
+operands are one table, spread into Go's call, and each function is one declaration
+for one value under Go's name and one for any number under NAME-All. The algebra
+removed the need for (name, arity) keys; nothing in this repository asks for them now.
 
 ## 4. So the overloading question is the representation question
 

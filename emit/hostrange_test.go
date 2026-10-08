@@ -127,10 +127,15 @@ func TestStringOfsDomainIsScalar(t *testing.T) {
 // subsumption edge os.oro declares, read by io.ReadAll, and io's package
 // variables (gotarget-2026-09-30 §11).
 func TestAFileIsAReaderAndEOFIsAValue(t *testing.T) {
-	src := `(use go) (use go/os) (use go/io)
+	// ReadAll's error is the relevant 1 + E (ADR 0044), so the error compared
+	// with EOF is the one inside it. Compared whole, the tag was compared and
+	// the emitted Go did not compile; nothing compiled it (variadic-2026-10-08).
+	src := `(use go) (use go/os) (use go/io) (use result)
 		(export f) (sig f () int)
 		(def f () ((io.ReadAll (os.Stdin)) (fn (b err)
-		  (if (go.== err (io.EOF)) -1 (len b)))))`
+		  (case err
+		    (result.ok u)  (len b)
+		    (result.err e) (if (go.== e (io.EOF)) -1 (len b))))))`
 	if _, err := entryGo(t, src); err != nil {
 		t.Errorf("io.ReadAll over os.Stdin: %v", err)
 	}

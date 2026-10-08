@@ -325,8 +325,12 @@ a wall that needs language work, stop and research it, then design it.
       ([variadic-2026-10-08](gauntlet/results/variadic-2026-10-08.md)): a variadic over one type is
       ONE declaration over a table, spread into Go's call, `f(xs...)` — `strings.NewReplacer` and
       its `Replacer`, `io.MultiReader`, `io.MultiWriter`; the host check reads a spread against the
-      manifest's `...T`; a host `where` on literals is decided by evaluation. 290 of 590 declared
-      (49.2%). H and I are next;
+      manifest's `...T`; a host `where` on literals is decided by evaluation. **H is closed**
+      ([ADR 0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md)): Go's `any` is a host
+      type, `go.Value`, the empty interface, below which every one-value type is derived; a variadic
+      over it is a table of boxes, so `fmt` declares one value under Go's name and any number as
+      NAME-All (`PrintlnAll`, `AppendAll`), with no wall at three. 293 of 590 declared (49.7%). I is
+      next;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
@@ -430,6 +434,7 @@ rejected alternatives.
 | A variant's value is its tag and one slot per payload type of its declaration, wherever it must exist as data; an unselected slot holds `#any`, the zero of its type (Theorem R) | [0042](docs/decisions/0042-a-variants-value-is-its-tag-and-its-slots.md) |
 | Relevance is checked at β, where a binder meets its value, on every path; usage inference through definitions; `ignore` is !_A : A → 1 | [0043](docs/decisions/0043-relevance-is-checked-where-a-binder-meets-its-value.md) |
 | A partial success's error is the relevant 1 + E, `(result (tuple) E)`; `(option error)` only where the host makes it ignorable, with the reason | [0044](docs/decisions/0044-a-partial-successs-error-is-relevant.md) |
+| A host's empty interface is a type every one-value type is below, derived; a variadic over it is a table of boxes, spread; the language's `any` is unchanged | [0045](docs/decisions/0045-a-hosts-empty-interface-is-a-type.md) |
 
 ## How this project is run
 

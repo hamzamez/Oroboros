@@ -637,7 +637,8 @@ func acceptance() map[string]accept {
 		// print from hand-written Go (variadic-2026-10-08).
 		"variadic": {host: "go", target: "go", layer: "tg", want: []string{
 			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
-			"concat true", "0 true", "twice", "twice", "6 true"}},
+			"concat true", "0 true", "twice", "twice", "6 true",
+			"1+2=3", "7-x-true", "1 2 3 4 5", "line"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —
@@ -1473,6 +1474,18 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 							return
 						}
 					},
+					"a spread of the wrong element": func(m map[string]emit.Prim) {
+						if v, ok := m["PrintlnAll"]; ok {
+							v.Args = []string{"array int"}
+							m["PrintlnAll"] = v
+						}
+					},
+					"a spread calling another function": func(m map[string]emit.Prim) {
+						if v, ok := m["PrintlnAll"]; ok {
+							v.Form = strings.ReplaceAll(v.Form, "fmt.Println(", "fmt.Print(")
+							m["PrintlnAll"] = v
+						}
+					},
 				} {
 					m := map[string]emit.Prim{}
 					for k, v := range hand {
@@ -1588,6 +1601,9 @@ func agreeSpread(word core.Word, module, n string, h emit.Prim, hres func(string
 	g := emit.Prim{Name: n, Import: h.Import, Form: f.pkg + "." + n + "("}
 	g.Args = append(append([]string(nil), f.fixed...), "array "+f.variadic)
 	g.Results = f.results
+	if h.Kind == "stmt" {
+		g.Results, g.Result = h.Results, h.Result // the results, discarded
+	}
 	return agreeOne(word, n, h, g, hres, func(t string) string { return t }, nil)
 }
 
@@ -1660,6 +1676,15 @@ func agreeRestriction(word core.Word, module string, hand map[string]emit.Prim, 
 	}
 	sort.Strings(names)
 	for _, n := range names {
+		// NAME-All IS THE FUNCTION ITSELF, its ...any a table of boxes spread
+		// into the call (fmt.oro's header): compared with the manifest's line as
+		// a spread, not as a restriction.
+		if base, ok := strings.CutSuffix(n, "All"); ok && isSpread(hand[n]) {
+			if err := agreeSpread(word, module, base, hand[n], hres); err != nil {
+				errs = append(errs, err)
+			}
+			continue
+		}
 		base, k := n, 1
 		if i := strings.LastIndexFunc(n, func(r rune) bool { return r < '0' || r > '9' }); i < len(n)-1 {
 			base = n[:i+1]

@@ -14,7 +14,8 @@
 ; The order of the pairs matters, and Go's answer says how: the first pair that
 ; matches wins, so (a→1, aa→2) turns "aaa" into "111" and (aa→2, a→1) into "21".
 ; A table of writers is written at the call, so it is built at the declared
-; element, io.Writer: Go's slices are not covariant (io.oro's header).
+; element, io.Writer: Go's slices are not covariant (io.oro's header). And Go's
+; ...any is the same thing over Go's box (formatting, below).
 
 (use go)
 (use result)
@@ -35,15 +36,24 @@
          (fmt.Println (Replacer.Replace (strings.NewReplacer (array "aa" "2" "a" "1")) "aaa"))
          (fmt.Println (Replacer.Replace (strings.NewReplacer (array)) "unchanged"))
          ((Replacer.WriteString esc (gos.Stdout) "x<y\n") (fn (n e)
-           (fmt.Println2 n (ok? e)))))))
+           (fmt.PrintlnAll (array n (ok? e))))))))
 
 (def streams ()
   (seq ((gio.ReadAll (gio.MultiReader (array (strings.NewReader "con") (strings.NewReader "cat"))))
-        (fn (b e) (fmt.Println2 (go.string-of-bytes b) (ok? e))))
+        (fn (b e) (fmt.PrintlnAll (array (go.string-of-bytes b) (ok? e)))))
        ((gio.ReadAll (gio.MultiReader (array))) (fn (b e)
-         (fmt.Println2 (len b) (ok? e))))
+         (fmt.PrintlnAll (array (len b) (ok? e)))))
        ((gio.WriteString (gio.MultiWriter (array (gos.Stdout) (gos.Stdout))) "twice\n") (fn (n e)
-         (fmt.Println2 n (ok? e))))))
+         (fmt.PrintlnAll (array n (ok? e)))))))
+
+; GO'S `any` IS A BOX, go.Value (fmt.oro, spec/types.md §3.3): a variadic over
+; it is a table of boxes, spread, at any length; the one-value forms keep Go's
+; names. Five values is past the old restrictions' wall at three.
+(def formatting ()
+  (seq (fmt.Println (go.string-of-bytes (build b 0 (fmt.AppendAll b (array 1 "+" 2 "=" 3)))))
+       (fmt.Println (fmt.SprintfAll "%d-%s-%v" (array 7 "x" true)))
+       (fmt.PrintlnAll (array 1 2 3 4 5))
+       (fmt.Print (go.string-of-bytes (build b 0 (fmt.Appendln b "line"))))))
 
 (def main ()
-  (seq (replacing) (streams) 0))
+  (seq (replacing) (streams) (formatting) 0))

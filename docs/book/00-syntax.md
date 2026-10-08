@@ -182,9 +182,9 @@ Write `(array 1 2 3)` in postfix and you must say *how many*:
 1 2 3 ( array )        ; or a delimiter has come back
 ```
 
-And that first repair is not hypothetical — it is in this repository. Go's `fmt.Println` is variadic,
-the declaration format has no variadic, so [targets/go/fmt.oro](../../targets/go/fmt.oro) declares a
-**family**, one member per arity:
+And both repairs are in this repository's history. Go's `fmt.Println` is variadic, and the declaration
+format has no variadic, so until 2026-10-08 [targets/go/fmt.oro](../../targets/go/fmt.oro) declared a
+**family**, one member per arity — the first repair:
 
 ```lisp
 (sig Println  ((a any)) any                 (host stmt "fmt.Println(%s)" …))
@@ -192,8 +192,18 @@ the declaration format has no variadic, so [targets/go/fmt.oro](../../targets/go
 (sig Println3 ((a any) (b any) (c any)) any (host stmt "fmt.Println(%s, %s, %s)" …))
 ```
 
-The arity moved into the name. That is the price of giving up a delimiter *at a declaration*, paid
-deliberately and in one place; paying it at every call site is what postfix would ask for.
+The arity moved into the name, and stopped at three. It was replaced by the second repair: Go's
+`...any` is a list of boxes, so the operands are a table, and the table's own parentheses are the
+delimiter that says where they stop ([variadic-2026-10-08](../../gauntlet/results/variadic-2026-10-08.md)):
+
+```lisp
+(sig PrintlnAll ((a (array go.Value))) any (host stmt "fmt.Println(%s...)" …))
+
+(fmt.PrintlnAll (array "n =" n "of" total))
+```
+
+One value keeps Go's own name, `(fmt.Println x)`, because 220 of the corpus's 231 print calls pass
+one. Either way the price of a variadic is a delimiter somewhere: in the name, or in the call.
 
 So the objection is exactly right, and it is worth stating as the rule it is:
 

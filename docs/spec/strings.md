@@ -231,7 +231,7 @@ parameters and covariant in its result:
 | `strings.Cut`/`CutLast`/`CutPrefix`/`CutSuffix`, `Split`/`SplitN`/`SplitAfter`/`SplitAfterN`, `Fields`, `TrimSpace`/`Trim`/`TrimLeft`/`TrimRight`/`TrimPrefix`/`TrimSuffix`, `strconv.QuotedPrefix`, `UnquoteChar`'s tail (17) | a factor of the argument, which may be any bytes. A backquoted literal is "not verified … as valid UTF-8" (strconv/quote.go) |
 | `strings.Join`, `Repeat`, `Replace`, `ReplaceAll`, `Clone` (5) | built from the arguments' bytes |
 | `strconv.Unquote` (1) | `\x` and octal escapes denote bytes |
-| `fmt.Sprint`/`Sprint2`/`Sprint3`, `Sprintln`/`Sprintln2`/`Sprintln3`, `Sprintf`/`Sprintf2`/`Sprintf3`, `fmt.Stringer.String` (10) | an `any` argument may be host bytes, and `%s` prints a byte slice raw |
+| `fmt.Sprint`/`SprintAll`, `Sprintln`/`SprintlnAll`, `Sprintf`/`SprintfAll`, `fmt.Stringer.String` (7) | an `any` argument may be host bytes, and `%s` prints a byte slice raw |
 | `os.Args`, `Getenv`, `LookupEnv`, `Environ`, `Getwd`, `Hostname`, `Executable`, `TempDir`, `MkdirTemp`, `File.Name` (10) | the operating system's own strings, which are bytes on Unix |
 | `string-of-bytes`, `bufio.Scanner.Text`, `strings.Builder.String` (3) | `string(b)` of arbitrary bytes: a conversion, data read, or bytes accumulated |
 

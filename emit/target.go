@@ -3008,10 +3008,27 @@ func (tg *Target) Subsumes(got, want string) bool {
 	if tg == nil || got == "" || want == "" || got == want {
 		return got == want && got != ""
 	}
+	// THE EMPTY INTERFACE, `(implements any I)`: an interface with no methods
+	// is satisfied by every type, since methods(I) = ∅ ⊆ methods(T) holds
+	// vacuously, so it is the top of the host's interface order (Go's `any`,
+	// ∃X. X). Every type, that is, whose value is ONE host value, which is what
+	// a box holds (oneHostValue). It is the one edge whose subject is not a
+	// ground name, and the derivation the Implements field declines is trivial
+	// here: there is no method signature to compare (spec/types.md §3.3).
+	if ifs, ok := tg.Implements["any"]; ok && tg.oneHostValue(got) {
+		for _, i := range ifs {
+			if i == want || tg.SameHostType(i, want) {
+				return true
+			}
+		}
+	}
 	// BY REALIZATION ON BOTH ENDS, because a type owned by its module means one
 	// host type may have two keys — a hand file's `go/io.Writer` and a generated
 	// `io-Writer` (SameHostType).
 	for subj, ifs := range tg.Implements {
+		if subj == "any" {
+			continue
+		}
 		if subj != got && !tg.SameHostType(subj, got) {
 			continue
 		}
@@ -3022,6 +3039,29 @@ func (tg *Target) Subsumes(got, want string) bool {
 		}
 	}
 	return false
+}
+
+// oneHostValue reports whether a value of type t is ONE host value, which is
+// what the empty interface boxes (spec/types.md §3.3): an integer, a float, a
+// boolean, a string, a host type, or a frozen table of such. Not a tuple or a
+// sum, which are several values at a boundary; not a live buffer, which a box
+// would let the host alias while the program still writes it (ADR 0018); not a
+// function, which may not escape staging; not `any`, which is no type.
+func (tg *Target) oneHostValue(t string) bool {
+	switch {
+	case t == "" || t == "any" || core.IsBuffer(t):
+		return false
+	case t == "int" || t == "bool" || t == "f64" || t == "string":
+		return true
+	}
+	if _, _, ok := core.IntRangeBig(t); ok {
+		return true
+	}
+	if elem, ok := strings.CutPrefix(t, "array "); ok {
+		return tg.oneHostValue(tg.ValueType(elem))
+	}
+	_, host := tg.Types[t]
+	return host
 }
 
 // SameHostType reports whether two of OUR names denote ONE host type: they

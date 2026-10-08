@@ -303,8 +303,8 @@ they land in three different places, only one of which is `def`'s surface.
   under-report it (`Math.max.length` is 2, and it is variadic). Win32 has the `printf` family.
 - **O is mostly the JVM, and also a host fact:** **4,948 overloads, 16.0%** of the emitted surface,
   because `nextInt()` and `nextInt(int)` are one entry in a table keyed by name
-  ([surveys](../gauntlet/results/surveys-2026-09-10.md)). Our own target files carry the same wart by
-  hand: `Println`, `Println2`, `Println3`.
+  ([surveys](../gauntlet/results/surveys-2026-09-10.md)). Our own target files carried the same wart by
+  hand, `Println`, `Println2`, `Println3`, until variadic-2026-10-08 made `...any` a table of Go's boxes.
 - **D and program-level O have no demand at all.** No program in the corpus has asked for either, and
   a second definition of one name is refused today: *"f is defined twice"* (`core/reduce.go`).
 
@@ -315,7 +315,8 @@ So the live pressure is on **declarations**, which the shorthand does not touch.
 **V — nothing in the term language.** A call site has a fixed arity after reduction, so what is
 missing is a declaration that can say *"any number of these"*: either `tg.Prims` keyed by
 `(name, arity)` — the small version, which deletes `Println2`/`Println3` — or a template with a
-repeating hole. No `def`, no `fn`, no reader change.
+repeating hole. **Built as the second, without a new hole** (variadic-2026-10-08): a variadic is a
+function of a table, and the template spreads it, `fmt.Println(%s...)`. No `def`, no `fn`, no reader change.
 
 **D — one marker in `fn`'s parameter list, which the shorthand inherits verbatim**, because the
 shorthand's parameter list *is* `fn`'s. Whatever `(fn (a … r) …)` comes to mean, `(def f (a … r) …)`

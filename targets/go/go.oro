@@ -60,6 +60,17 @@
   ; r(t, nil) = ok t, r(t, e) = err e (emit/retract.go).
   (repr error (niche (host expr "%s == nil")))
   (type any      (host "any"))
+  ; GO'S `any` IS A TYPE; OURS IS NOT. The line above spells the language's
+  ; `any`, which is no type but the absence of a claim (target-files.md §2):
+  ; `(a any)` is filled in at each call by the argument's own type, and Go boxes
+  ; it at its own call. Go's `any` is the EMPTY INTERFACE, ∃X. X, a box holding
+  ; a value and its type, and a value of it is ONE type, so a table of them is
+  ; an ordinary table: `[]any{42, "x"}`. It is `Value` here. An interface with
+  ; no methods is satisfied by every type, vacuously, so every type held as
+  ; one host value stands where it is wanted, and Go inserts the box
+  ; (spec/types.md §3.3). `fmt`'s ...any is a table of them, spread (fmt.oro).
+  ; The type is owned by module `go` (builtin.oro), as `go.bytestring` is.
+  (implements any go.Value)
 
   ; ═══ GO'S INTEGER TYPES ARE RANGES — ADR 0003, said in the type language
   ;

@@ -132,6 +132,9 @@
     ; ---- the host's string (ADR 0030). string ≤ bytestring is declared in
     ; go.oro as `(implements string go.bytestring)`, the identity on bytes.
     (type bytestring (host "string"))
+    ; ---- Go's `any`, the empty interface ∃X. X (go.oro, and its
+    ; `(implements any go.Value)`): a box, and a type, as ours is not.
+    (type Value (host "any"))
     (sig string-of-bytes ((b (array (int 0 255)))) bytestring pure (host expr "string(%s)"))
     (sig bytes-of-string ((s bytestring)) (array (int 0 255)) pure (host expr "[]byte(%s)"))
     ; (T, error)'s discriminant: the error side is empty exactly when err is nil.

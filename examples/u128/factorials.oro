@@ -17,8 +17,8 @@
 ; so the `again` under it is a jump like any other (ADR 0027).
 (def main ()
   (loop ((n 0) (h 0) (l 1) (over 0))
-    (= over 1) (fmt.Println2 n "overflows 128 bits")
+    (= over 1) (seq (fmt.PrintlnAll (array n "overflows 128 bits")) n)
     (> n 40)   0
-    else (seq (fmt.Println2 n (u.decimal h l))
+    else (seq (fmt.PrintlnAll (array n (u.decimal h l)))
               (let (tuple h2 l2 over2) (u.mulw h l (+ n 1))
                 (again (+ n 1) h2 l2 over2)))))

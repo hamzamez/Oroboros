@@ -259,6 +259,51 @@ only move up a finite order, so it ends. A source keeps its own type.
 | the join is the larger | the smaller returned | `TestAConditionalJoinsAtTheLarger` |
 | the IR raises a function's result | the first yield's type kept | the same test |
 
+### 3.3 The empty interface: a box every one-value type enters (2026-10-08)
+
+**Our `any` is not a type and a host's `any` may be one.** The language's `any` is the absence of a
+claim (target-files.md §2): consistent with every type in both directions, gradual typing's dynamic
+type (Siek and Taha 2006). `(a any)` is filled in at each call by the argument's own type, so a
+declaration over it is a template with a fixed number of holes. Go's `any` is the **empty
+interface**: an existential ∃X. X (an interface is ∃X. X × Πᵢ(X → Tᵢ), target-files.md §2a, here
+with no methods), a box holding a value and its type. A value of it has one type, so a table of them
+is an ordinary table, and Go represents `...any` as exactly that, `[]any`.
+
+**Every type is below it, vacuously.** T ≤ I iff methods(I) ⊆ methods(T), and methods(I) = ∅, so the
+derivation target-files.md §2a declines for an interface in general (recursive method signatures,
+coinduction) is trivial here: there is no signature to compare. A target says which type is its
+empty interface, `(implements any go.Value)`, and the relation is then derived:
+
+```
+Γ ⊢ e : T    T is one host value
+──────────────────────────────────      for I declared by (implements any I)
+Γ ⊢ e : I
+```
+
+**One host value**, because a box holds one (`Target.oneHostValue`): an integer, a float, a boolean,
+a string, a host type, or a frozen table of such. **Not** a tuple or a sum, which are several values
+at a boundary; **not** a live buffer, which a box would let the host alias while the program still
+writes it (ADR 0018); **not** a function, which may not escape staging; **not** `any`, which is no
+type. As for every interface, ⟦coerce⟧ is the identity in meaning and the host inserts the box: a
+table written at the call is built at the declared element, `[]any{42, "x"}`. Go's own variadic call
+builds the same table, and `-gcflags=-m` shows the two treated alike (variadic-2026-10-08): the
+table does not escape, and each boxed value escapes in both.
+
+**What a box shows.** Formatting through it sees the host value, so a verb that distinguishes
+representations distinguishes ours: `%x` prints a `[]uint8` table differently from a `[]int64` one,
+and the element width is the compiler's choice (elemwidth-2026-08-27). `Println`'s default format
+agrees for both. It is Tier 2, as host formatting always was through `(a any)`.
+
+It is not the language's: a target realizes a box where its host has one (Go's `any`, Java's
+`Object`, any JavaScript value), and Windows, whose x86 has no box without one in the core, declares
+none.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| a one-value type enters the box | `oneHostValue` false | `TestEveryOneValueTypeEntersTheEmptyInterface` |
+| a tuple, a buffer and a table of tuples do not | `oneHostValue` true | the same test |
+| only the declared box is the top | the rule for every interface | the same test |
+
 ## 4. The structural forms
 
 Their types are the language's, not a target file's ([target-files.md §4](target-files.md)):

@@ -288,6 +288,11 @@ recursive and wants coinduction (Amadio & Cardelli 1993). Declared, it is a
 relation on GROUND names decided by lookup. Pierce's undecidable F<: is about
 BOUNDED QUANTIFICATION, and after staging nothing is quantified.
 
+**The empty interface is the one derived edge**: `(implements any I)` says that I has no
+methods, so every type held as one host value is below it, vacuously (types.md §3.3). `any` in the
+subject's place is read as "every such type", not as the absence of a claim, and Go declares
+`(implements any go.Value)`, `go.Value` being Go's own `any`.
+
 **Glue and override are the same operation here**, unlike every other field: a
 relation is a set, so two layers both knowing that `*os.File` reads is not a
 collision and there is no disagreement expressible.

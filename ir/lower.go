@@ -356,7 +356,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			comps := t.Closed().Kids[1:]
 			out := make([]V, 0, len(comps))
 			for _, c := range comps {
-				out = append(out, l.value(c, r)[0])
+				out = append(out, l.single(c, r))
 			}
 			l.pop()
 			return out
@@ -368,7 +368,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case core.KFn: // a β-redex the reducer left: a binding
 		var vs []V
 		for _, a := range args {
-			vs = append(vs, l.value(a, r)[0])
+			vs = append(vs, l.single(a, r))
 		}
 		l.push(vs, op.Params)
 		out := l.value(op.Closed(), r)
@@ -377,7 +377,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case core.KBound: // indexing is application (tables.md §3)
 		if len(args) == 1 {
 			tab := l.lookup(op)
-			i := l.value(args[0], r)[0]
+			i := l.single(args[0], r)
 			return []V{l.one(r, Stmt{Op: OIndex, Args: []V{tab, i}})}
 		}
 		l.fail("a bound variable applied to %d arguments: %s", len(args), t)
@@ -415,7 +415,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case p.Kind == "iterate" && len(args) >= 2 && args[0].Kind == core.KFn:
 		var inits []V
 		for _, z := range args[1:] {
-			inits = append(inits, l.value(z, r)[0])
+			inits = append(inits, l.single(z, r))
 		}
 		if len(inits) != len(args[0].Params) {
 			l.fail("a loop with %d variables and %d initial values", len(args[0].Params), len(inits))
@@ -428,7 +428,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		l.emit(r, Stmt{Op: OLoop, Args: inits, Res: res, Sub: []*Region{body}})
 		return res
 	case (p.Kind == "table-build" || p.Kind == "map-build") && len(args) == 2 && args[1].Kind == core.KFn:
-		n := l.value(args[0], r)[0]
+		n := l.single(args[0], r)
 		body := &Region{Params: l.freshN(1)}
 		// A BUILD'S ELEMENT RANGE is the IR's own class hull (Finalize, Theorem
 		// D′): its stores and its zero fill, with the loop theorems' bounds.
@@ -445,7 +445,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return res
 	case p.Kind == "table-alloc" && len(args) == 1:
 		if rule, n, ok := l.tableRule(args[0]); ok {
-			nv := l.value(n, r)[0]
+			nv := l.single(n, r)
 			body := &Region{Params: l.freshN(1)}
 			l.push(body.Params, rule.Params)
 			l.tail(rule.Closed(), body, false)
@@ -458,7 +458,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		// says t is immutable. For a live buffer the copy IS the meaning: a
 		// later store must not show through (linearity.go: "alloc copies the
 		// contents, so it is an ordinary read and must come first").
-		t := l.value(args[0], r)[0]
+		t := l.single(args[0], r)
 		n := l.one(r, Stmt{Op: OLen, Args: []V{t}})
 		body := &Region{Params: l.freshN(1)}
 		e := l.fresh()
@@ -468,7 +468,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	case p.Kind == "table":
 		l.fail("a table rule that was never allocated (tables.md §2): %s", t)
 	case p.Kind == "ascribe" && len(args) == 2 && args[0].Kind == core.KStr:
-		a := l.value(args[1], r)[0]
+		a := l.single(args[1], r)
 		v := l.one(r, Stmt{Op: OThe, Type: args[0].Str, Args: []V{a}})
 		l.decl[v] = args[0].Str
 		return []V{v}
@@ -480,7 +480,7 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 			if row.Kind != core.KApp || len(row.Kids) != 2 {
 				l.fail("a map literal's row is (key value), got %s", row)
 			}
-			kv = append(kv, l.value(row.Kids[0], r)[0], l.value(row.Kids[1], r)[0])
+			kv = append(kv, l.single(row.Kids[0], r), l.single(row.Kids[1], r))
 		}
 		return []V{l.one(r, Stmt{Op: OMap, Args: kv})}
 	case p.Kind == "len" || l.tg.IsLengthName(op.Name) && len(args) == 1:
@@ -504,10 +504,25 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 	return []V{v}
 }
 
+// single lowers a term in a position that holds ONE value, and refuses a term
+// that yields several. A tuple is several values, so a tuple where one value
+// is wanted has no representation there: a table of tuples handed to a host
+// as one table, `(strings.Join (array (tuple "a" "1") …) "-")`, was lowered as
+// the table of first components, `[]string{"a", …}`, and printed a wrong
+// answer (variadic-2026-10-08). Taking the first value silently was the bug.
+func (l *lowerer) single(t *core.Term, r *Region) V {
+	vs := l.value(t, r)
+	if len(vs) != 1 {
+		l.fail("%s is %d values where one is wanted: a tuple has no representation in this position "+
+			"(a table of tuples is flattened only where the program builds it, products.md)", t, len(vs))
+	}
+	return vs[0]
+}
+
 func (l *lowerer) values(ts []*core.Term, r *Region) []V {
 	out := make([]V, len(ts))
 	for i, a := range ts {
-		out[i] = l.value(a, r)[0]
+		out[i] = l.single(a, r)
 	}
 	return out
 }
@@ -643,8 +658,8 @@ func (l *lowerer) eliminator(t *core.Term, r *Region, then func(*core.Term) []V)
 	}
 	// A map read under its eliminator: `((m k) (fn (#t #p) b))`.
 	if op.Kind == core.KApp && len(op.Kids) == 2 && len(k.Params) == 2 && op.Kids[0].Kind != core.KName {
-		m := l.value(op.Kids[0], r)[0]
-		key := l.value(op.Kids[1], r)[0]
+		m := l.single(op.Kids[0], r)
+		key := l.single(op.Kids[1], r)
 		res := l.freshN(2)
 		l.emit(r, Stmt{Op: ORead, Args: []V{m, key}, Res: res})
 		l.push(res, k.Params)
@@ -726,7 +741,7 @@ func (l *lowerer) tail(t *core.Term, r *Region, loop bool) {
 	if op.Kind == core.KFn {
 		var vs []V
 		for _, a := range args {
-			vs = append(vs, l.value(a, r)[0])
+			vs = append(vs, l.single(a, r))
 		}
 		l.push(vs, op.Params)
 		l.tail(op.Closed(), r, loop)
@@ -811,7 +826,7 @@ func (l *lowerer) assumeWhere(sig *core.Sig, f *Func) {
 			r.Stmts, l.nv = r.Stmts[:mark], nv // not lowered: no assumption
 		}
 	}()
-	c := l.value(term, r)[0]
+	c := l.single(term, r)
 	l.emit(r, Stmt{Op: OAssume, Args: []V{c}})
 }
 
@@ -903,8 +918,8 @@ func (l *lowerer) cond(t *core.Term, r *Region) (V, []guard, []guard) {
 		if p, ok := l.prim(t.Kids[0].Name); ok {
 			if o, _, ok := classify(l.tg, t.Kids[0].Name, p, 2, l.opt); ok && o.IsCmp() {
 				rel := cmpRel[o]
-				a := l.value(t.Kids[1], r)[0]
-				b := l.value(t.Kids[2], r)[0]
+				a := l.single(t.Kids[1], r)
+				b := l.single(t.Kids[2], r)
 				// The comparison is the language's where its operands are
 				// declared integers, and a call otherwise (promote decides it
 				// once they are typed). Its guards are π-parameters either
@@ -936,7 +951,7 @@ func (l *lowerer) cond(t *core.Term, r *Region) (V, []guard, []guard) {
 		}
 	}
 	th, el := l.implied(t, r)
-	c := l.value(t, r)[0]
+	c := l.single(t, r)
 	return c, th, el
 }
 
@@ -958,7 +973,7 @@ func (l *lowerer) implied(t *core.Term, r *Region) (th, el []guard) {
 			case core.KBound:
 				return l.lookup(x), true
 			case core.KInt:
-				return l.value(x, r)[0], true
+				return l.single(x, r), true
 			}
 			return 0, false
 		}

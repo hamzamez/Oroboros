@@ -103,6 +103,9 @@ func (u *unifier) node(ty string) int {
 	if k, v, ok := core.MapTypes(ty); ok {
 		return u.mk("map", u.node(k), u.node(v))
 	}
+	if e := core.CellElem(ty); e != "" {
+		return u.mk("cell", u.node(e))
+	}
 	if e, ok := u.aliasOf(ty); ok {
 		return u.mk("table", u.node(e))
 	}
@@ -149,7 +152,7 @@ func (u *unifier) unify(a, b int) {
 	case cb == "":
 		u.n[b].parent = a
 		return
-	case ca == cb && len(u.n[a].kids) == len(u.n[b].kids):
+	case ca == cb && len(u.n[a].kids) == len(u.n[b].kids) && u.unifiable(a, b):
 		u.n[b].parent = a
 		ka, kb := u.n[a].kids, u.n[b].kids
 		for i := range ka {
@@ -161,6 +164,31 @@ func (u *unifier) unify(a, b int) {
 	// relation (W5). Recorded so a second round can retry it once a variable
 	// under it is known.
 	u.pending = append(u.pending, [2]int{a, b})
+}
+
+// unifiable reports whether a and b have a unifier: no two constructors
+// below them differ. Merging first and unifying the arguments after made a
+// clash among the arguments corrupt one side: the list (array r₁ r₂) of a
+// `cell int` and a `cell string` typed the second `cell int`
+// (outcells-2026-10-09).
+func (u *unifier) unifiable(a, b int) bool {
+	a, b = u.find(a), u.find(b)
+	if a == b {
+		return true
+	}
+	na, nb := u.n[a], u.n[b]
+	if na.con == "" || nb.con == "" || na.con == "any" || nb.con == "any" {
+		return true
+	}
+	if na.con != nb.con || len(na.kids) != len(nb.kids) {
+		return false
+	}
+	for i := range na.kids {
+		if !u.unifiable(na.kids[i], nb.kids[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 // render is a node's canonical type; buffer says whether a table is one.
@@ -178,6 +206,8 @@ func (u *unifier) render(i int, buffer bool) string {
 		return "array " + e
 	case "map":
 		return "map " + u.render(nd.kids[0], false) + " " + u.render(nd.kids[1], false)
+	case "cell":
+		return "cell " + u.render(nd.kids[0], false)
 	}
 	return strings.TrimPrefix(nd.con, "@")
 }
@@ -364,6 +394,12 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 				u.unify(node[s.Res[0]], u.mk("table", e))
 			case OThe:
 				eq(s.Res[0], s.Args[0])
+			case OCellRef:
+				u.unify(node[s.Res[0]], u.mk("cell", node[s.Args[0]]))
+			case OCellFresh:
+				is(s.Res[0], "cell "+s.Type)
+			case OCellGet:
+				u.unify(node[s.Args[0]], u.mk("cell", node[s.Res[0]]))
 			case ORequire, OAssume:
 				is(s.Args[0], "bool")
 			case ORestrict:

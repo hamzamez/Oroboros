@@ -696,6 +696,12 @@ func (a *intervals) stmt(s *Stmt) {
 			out.el = joinIV(out.el, args[2].v) // a weak update, as a store's
 		}
 		one(out)
+	case OCellRef, OCellFresh:
+		one(topFact) // an address: no integer
+	case OCellGet:
+		// WHAT THE HOST WROTE (spec/local.md §5): a value of the cell's type,
+		// and nothing more is known of it.
+		one(a.declared(a.f.Types[s.Res[0]]))
 	case OThe:
 		// ABOVE THE WORD an ascription tells only the one set the program
 		// enforces (ADR 0029), which this domain does not know: its own type

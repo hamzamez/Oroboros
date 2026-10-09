@@ -1,0 +1,75 @@
+; ages: HOW MANY PEOPLE, THEIR MEAN AGE, AND THE OLDEST.
+;
+;   ages < FILE        each line: NAME AGE, separated by white space
+;
+; It prints one line, `N people, mean age M, oldest NAME (AGE)`, then how many
+; lines it skipped: a line is skipped when it does not scan as a name and an
+; integer, or its age is outside 0 … 150.
+;
+; WHAT IT IS. One fold over the lines ℓ₁ … ℓₖ, with the state
+;
+;     (n, sum, best, skipped) ∈ ℕ × ℕ × (Σ* × ℕ + 1) × ℕ
+;
+; and the step on a line that scans as (name, a) with a ∈ [0, 150]:
+; n + 1, sum + a, and best ← (name, a) when a exceeds best's age (the first of
+; equals is kept); on any other line, skipped + 1. The mean is ⌊sum / n⌋ for
+; n ≥ 1. best's 1 is the age −1, which every age exceeds.
+;
+; THE STATE IS FIVE CELLS (spec/local.md §3), each written where the step says,
+; in program order. THE PARSE IS GO'S fmt.Sscan into two cells for the one call,
+; (out go.bytestring) and (out int) (spec/local.md §6): Go stores through their
+; addresses, and the call's value is the two cells' values, then Sscan's own
+; result, a partial success (fmt.oro): how many items scanned, and the error
+; that says why it was fewer than two.
+;
+; THE LIMITS ARE STATED, as wc's and lines' are: at most 2^24 lines, so n and
+; skipped stay below 2^24 and sum below 2^24 · 150 < 2^32.
+(use go)
+(use go/os as gos)
+(use go/bufio as bufio)
+(use go/bufio/Scanner as Scanner)
+(use go/fmt as fmt)
+(use result)
+
+(export main)
+
+(def cap-lines 16777216)
+(def cap-age 150)
+
+; Whether a partial success's error is absent.
+(def ok? (r) (case r (result.ok u) true (result.err e) false))
+
+(def report (in n sum best-name best-age skipped)
+  (case (Scanner.Err in)
+    (result.err e) (seq (fmt.Println "ages: cannot read standard input") 1)
+    (result.ok u)
+      (seq (if (= n 0)
+               (fmt.Println "no people")
+               (fmt.Printf "%d people, mean age %d, oldest %s (%d)\n" n (/ sum n) best-name best-age))
+           (fmt.Printf "%d lines skipped\n" skipped)
+           0)))
+
+(def run ()
+  (let in (bufio.NewScanner (gos.Stdin))
+    (local n         0
+           sum       0
+           best-name ""
+           best-age  -1
+           skipped   0
+      (loop ((k 0))
+        (not (Scanner.Scan in)) (report in n sum best-name best-age skipped)
+        (>= k cap-lines)        (seq (fmt.Println "ages: more than 16777216 lines") 1)
+        else
+          (let (tuple name age got e) (fmt.Sscan (Scanner.Text in) (out go.bytestring) (out int))
+            (seq (if (and (ok? e) (>= age 0) (<= age cap-age) (< n cap-lines))
+                     (seq (set n (+ n 1))
+                          (set sum (+ sum age))
+                          (if (> age best-age)
+                              (seq (set best-name name) (set best-age age))
+                              (tuple)))
+                     (if (< skipped cap-lines) (set skipped (+ skipped 1)) (tuple)))
+                 (again (+ k 1))))))))
+
+(def main ()
+  (let status (run)
+    (gos.Exit status)))

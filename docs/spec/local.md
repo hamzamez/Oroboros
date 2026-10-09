@@ -1,6 +1,7 @@
 # `local`: a scope of local state
 
-Status: built 2026-10-08 (local-2026-10-08, ADR 0047). Supersedes the binder form of `build`
+Status: built 2026-10-08 (local-2026-10-08, ADR 0047); a host writing a cell, and `(out τ)`, §5–6,
+2026-10-09 (outcells-2026-10-09, ADR 0048). Supersedes the binder form of `build`
 (tables.md §2.4), which it generalizes; the core form `(build n (fn (b) …))` is unchanged.
 
 ## 1. What it is
@@ -147,11 +148,93 @@ loop stays outside it, ADR 0031's join point. With it, a cell's loop yields its 
 program written with a cell reduces to the program written with a loop variable
 (`TestACellReducesToTheLoopVariableItMeans`, α-equivalence where the surface can spell the second).
 
-## 5. Not here
+## 5. A host writing a cell
 
-- **Host calls writing a cell** (Go's `&x`, Win32's out-cells): a write-borrow or consume of a cell,
-  host-buffers.md at length one, and `(out τ)` as a fresh consumed cell (mutscope-research.md §7). The
-  next steps.
+Specified 2026-10-09 (outcells-2026-10-09, ADR 0048).
+
+```lisp
+(local age 0 name ""
+  ((fmt.Sscan "42 ana" age name) (fn (n e) …)))     ; age and name hold what Go stored
+```
+
+**What it is.** An out-parameter is a result: a host function f : X × Ref T → R that writes its
+cell and keeps no address is, observably, f' : X × T → R × T (outparams-research.md §1.1), valid
+because a cell the compiler owns is unaliased. Inside the call the cell is a **reference**, the
+address of a fresh copy of its value, and after it the cell holds what the copy holds. That is
+Reynolds' `new x in C` read operationally, and it is exactly what hand-written Go does with
+`fmt.Sscan(s, &age)`.
+
+**A declaration says which parameters are cells.** `(p (cell T))`: the host receives the address of
+a T, may read and write it during the call, and does not keep the address after the call returns.
+`(cell go.Value)` is a cell of any type, its address entering Go's box, which is what Go's `...any`
+operands of the Scan family are. A variadic list of them, `(a (array (cell go.Value)))`, makes every
+argument after the fixed ones a cell. The target hands the loader one `cells` form per such
+declaration, `(cells ARITY LIST i…)`, as it hands it `variadic` ones, and a program loaded without
+them is refused. A pointer the host *keeps* (`flag.IntVar`, `sync/atomic`) is
+not a cell (outparams-research.md §5.7) and has no declaration of this kind.
+
+**A call passes a cell where its declaration says so, and nothing else there.** At a cell parameter
+the argument is a cell in scope, or `(out τ)` (§6). A value there is refused: a host that writes
+through the address of a value the program cannot see again has written into nothing. At every
+other parameter a cell is read, as anywhere else.
+
+**What it means: the translation, extended.** With r a fresh reference and `#ref`, `#deref` the
+reference's introduction and elimination,
+
+```
+S⟦(f a… c …)⟧              = let r = (#ref c) in let y = (f a… r …) in let c = (#deref r) in (y, state)
+S⟦((f a… c …) (fn (ȳ) M))⟧ = let r = (#ref c) in ((f a… r …) (fn (ȳ) let c = (#deref r) in S⟦M⟧))
+```
+
+The arguments are evaluated left to right as before, a cell's reference made where the cell stands,
+then the call, then each cell read back in order. `#ref` and `#deref` are impure, so the effect
+discipline (ADR 0010) keeps them where they are written: never duplicated, never moved across the
+call. The reference is an ordinary argument value, so it passes unchanged through what stands between
+the program and the host: a fallible declaration's retraction (errors.md §4.2), a variadic call's list
+(variadic.md), and Go's box. After the call the cell is again a loop variable, and nothing below the
+loader learns it was passed.
+
+**Types.** `(#ref v) : cell T` for v : T, and `(#deref r) : T` for r : cell T. A `cell T` is one
+host value, so it enters the box, and `cell go.Value` accepts a `cell T` of any T. The value read
+back is a T the program knows nothing more about: the interval analysis gives it its type's whole
+range, and no fact holds of it.
+
+**On each target.** Go: a variable per call site, declared once at the function's top as a
+programmer declares the variable whose address a loop passes, assigned at the call, `vC = v; r :=
+&vC`, and `*r` after it. Declared where it is used, Go moved a fresh copy to the heap on every loop
+iteration, one allocation per call more than hand-written Go (outcells-2026-10-09); declared once,
+the counts are equal. Windows: a stack slot, not built yet. Android and the
+browser: no host declaration takes a cell (Java and JavaScript have no pointers; their out-parameters
+are arrays and objects, already buffers and handles), so no program reaches one there, and the
+printers refuse a reference.
+
+## 6. `(out τ)`: a cell for one call
+
+```lisp
+((fmt.Sscan "42 ana" (out int) (out go.bytestring)) (fn (age name n e) …))
+```
+
+**What it is.** The scope of §5 restricted to one call, `runST` around a single action
+(mutscope-research.md §2): `(out τ)` at a cell parameter is a fresh cell holding τ's zero, and the
+call's value is **the cells' values, then the declared result's components**, the order a buffer's
+write-borrow returns (`EncodeRune`'s buffer, then its count), which hamza chose for cells
+(mutscope-research.md §9, decision 4):
+
+```
+(f a… (out τ₁) … (out τₘ))  ≡  let rᵢ = (#fresh "τᵢ") in ((f a… r₁ … rₘ) (fn (ȳ) (tuple (#deref r₁) … (#deref rₘ) ȳ…)))
+```
+
+`(#fresh "τ")` is a reference to a fresh cell holding τ's zero, Go's `new(T)`. The zero is never a
+value the program mistakes for an answer where the host's documentation says the cell means nothing:
+the declared result's shape says so (`Sscan`'s cells past `n` keep their zero, and `n` is in the
+tuple). It is sugar with a unique expansion, so it needs no soundness argument of its own: it is §5's.
+`out` is recognized only at a cell parameter; anywhere else `(out x)` is an ordinary application.
+
+## 7. Not here
+
+- **A declaration whose result names its cell's type**: `errors.As`'s `(option T)`, which needs a
+  type variable bound by the cell parameter (mutscope-research.md §7.2). Next.
+- **Windows' fixed-type cells** (`GetConsoleMode`'s `LPDWORD`): a stack slot on x86.
 - **`build-map`**: a map buffer keeps its own form until a map value carries its capacity.
 - **Thaw in place**, §1.
 - **A declared range on a cell**, `(c (int 0 200) 0)`.

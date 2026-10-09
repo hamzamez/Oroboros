@@ -639,6 +639,12 @@ func acceptance() map[string]accept {
 			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
 			"concat true", "0 true", "twice", "twice", "6 true",
 			"1+2=3", "7-x-true", "1 2 3 4 5", "line", "12z"}},
+		// GO STORES THROUGH A CELL'S ADDRESS: Sscan, Sscanln and Sscanf into
+		// (out τ) cells and into cells in scope, a short scan leaving a cell
+		// as it was. The lines are what the same calls print from hand-written
+		// Go (outcells-2026-10-09).
+		"fmt-scan": {host: "go", target: "go", layer: "tg", want: []string{
+			"42 ana 7 3 true", "42 ana 0 2 false", "3 -4 2 true", "9 keep 1 false"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —

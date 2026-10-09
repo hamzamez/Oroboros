@@ -2204,6 +2204,15 @@ func TypeName(t *Term) string {
 			return "buffer " + elem
 		}
 	}
+	// `(cell T)` — A CELL A HOST WRITES (spec/local.md §5): in a declaration's
+	// parameter, the address of a T the host may read and write during the
+	// call and does not keep. A cell holds a value, so not a buffer or a cell.
+	if t.Kind == KApp && len(t.Kids) == 2 &&
+		t.Kids[0].Kind == KName && t.Kids[0].Name == "cell" {
+		if elem := TypeName(t.Kids[1]); elem != "" && !IsBuffer(elem) && !IsCell(elem) {
+			return "cell " + elem
+		}
+	}
 	// `(int LO HI)` — a RANGE is a type, which is ADR 0003's "mathematical
 	// semantics, machine representation" written in the type language. The
 	// range says what the value IS; the target says how wide it is stored.
@@ -2303,7 +2312,7 @@ func TypeTerm(t *Term) string {
 // typeFormers are the heads the type language owns; any other head applied to
 // arguments is a declared type constructor.
 var typeFormers = map[string]bool{
-	"array": true, "tuple": true, "buffer": true, "map": true, "int": true,
+	"array": true, "tuple": true, "buffer": true, "map": true, "int": true, "cell": true,
 	"fn": true, "record": true, "prod": true,
 }
 
@@ -2605,6 +2614,17 @@ func ProdTypes(ty string) []string {
 
 // IsBuffer reports whether a declared type is ADR 0020's unique, linear table.
 func IsBuffer(ty string) bool { return strings.HasPrefix(ty, "buffer ") }
+
+// IsCell reports a cell type, `cell T` (spec/local.md §5), and CellElem its T.
+func IsCell(ty string) bool { return strings.HasPrefix(ty, "cell ") }
+
+// CellElem is a cell type's element, or "".
+func CellElem(ty string) string {
+	if IsCell(ty) {
+		return ty[len("cell "):]
+	}
+	return ""
+}
 
 // allNames reports whether a term is a list of names — a parameter list, and
 // nothing else. `(a b)` is one; `((a b) c)`, `(a 1)` and a bare name are not.

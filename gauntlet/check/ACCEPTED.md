@@ -1195,3 +1195,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 1 compile(s) recorded FASTER:
 
 - `examples/io/freq.oro go` 16468 → 10734 ms, 0.65x
+
+## 2026-10-09 — on 4fdf21a, with uncommitted changes
+
+**Reason:** outcells (ADR 0048): examples/lines/ages.oro is new; nothing else changed through the cell translation's move, the unifier's check and the purity fix
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling pass.
+
+4 change(s):
+
+- new source — `examples/lines/ages.oro go`
+- new source — `examples/lines/ages.oro java`
+- new source — `examples/lines/ages.oro js`
+- new source — `examples/lines/ages.oro windows`

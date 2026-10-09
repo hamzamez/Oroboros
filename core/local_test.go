@@ -34,7 +34,7 @@ func TestACellIsALocalVariableInProgramOrder(t *testing.T) {
 func TestACellIsRefusedWhereItsOrderWouldNotBeTheProgramsOrder(t *testing.T) {
 	for _, c := range []struct{ src, want string }{
 		// a closure could run any number of times, or later
-		{`(def f (fn (xs) (local c 0 (seq (go.each xs (fn (i) (set c i))) c))))`, "a function that mentions a cell (c)"},
+		{`(def f (fn (xs) (local c 0 (seq (each xs (fn (i) (set c i))) c))))`, "a function that mentions a cell (c)"},
 		// a primitive passed a λ: a host callback
 		{`(def f (fn (p) (local c 0 (seq (each (fn (i) (set c i))) c))))`, "a function that mentions a cell"},
 		// a binder hiding the cell
@@ -226,5 +226,22 @@ func TestAZeroOfASortIsBuildsFormAscribed(t *testing.T) {
 	}
 	if got := forms[0].Term.String(); !strings.Contains(got, "loop") {
 		t.Errorf("-0.0 is not a fresh buffer's zero, and it was not filled: %s", got)
+	}
+}
+
+// AN EFFECT UNDER A λ THAT IS APPLIED IS RUN, so a term holding one is not pure
+// and is not weakened. A λ argument may be called by the head it is passed to:
+// ((fn (k) (k 1)) (fn (x) (eff x))) runs (eff 1). Taken for a value, it was
+// pure, and a discarded cell scope, whose state tuple carries the body's value
+// as such a λ's component, lost its effect (outcells-2026-10-09).
+func TestAnAppliedLambdasEffectIsKept(t *testing.T) {
+	for _, src := range []string{
+		`(def f (fn (p) (seq ((fn (k) (k p)) (fn (x) (eff x))) 0)))`,
+		`(def f (fn (p) (seq (local a p (eff a)) 0)))`,
+	} {
+		got := reduceWith(t, src, "f", "!eff")
+		if !strings.Contains(got, "(eff p)") {
+			t.Errorf("%s: the effect was weakened away: %s", src, got)
+		}
 	}
 }

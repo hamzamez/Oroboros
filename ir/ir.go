@@ -62,6 +62,13 @@ const (
 	// slot's, solved by typing; a scalar one becomes an OConst after typing, so
 	// only a non-scalar zero (a host's nil, null) reaches a printer.
 	OZero
+	// A CELL A HOST WRITES (spec/local.md §5): OCellRef is a reference to a
+	// fresh copy of its operand, OCellFresh one to its Type's zero, and
+	// OCellGet the value a reference holds. Each is ordered where it stands:
+	// the call between a reference and its read writes through it.
+	OCellRef
+	OCellFresh
+	OCellGet
 	numOps
 )
 
@@ -73,6 +80,7 @@ var opNames = [numOps]string{
 	ORead: "read", OKeys: "keys", OSet: "set", OInsert: "insert",
 	OIf: "if", OLoop: "loop", OBuild: "build", OBuildMap: "build-map", OTabulate: "tabulate",
 	OThe: "the", ORequire: "require", OZero: "zero",
+	OCellRef: "cell-ref", OCellFresh: "cell-fresh", OCellGet: "cell-get",
 	ORestrict: "restrict", OAssume: "assume",
 }
 
@@ -133,7 +141,7 @@ type Stmt struct {
 	Mode Mode       // integer arithmetic only
 	Name string     // OCall: the primitive; OGlobal: the global
 	Lit  *core.Term // OConst: the literal
-	Type string     // OThe: the ascribed type (canonical spelling)
+	Type string     // OThe: the ascribed type; OCellFresh: the cell's (canonical spelling)
 	Args []V
 	Res  []V
 	Sub  []*Region

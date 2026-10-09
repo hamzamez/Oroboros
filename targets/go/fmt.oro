@@ -50,9 +50,22 @@
 ; APPEND CONSUMES ITS BUFFER AND RETURNS IT, B ⊸ B: b grown when it must, and
 ; dead either way, as hex.AppendEncode's.
 ;
+; THE SCAN FAMILY IS THE INVERSE DIRECTION: it parses operands and stores each
+; through the pointer it is given, so its operands are CELLS (spec/local.md
+; §5): `(a (array (cell go.Value)))` makes every argument after the fixed ones
+; a cell of any type, its address in Go's box. A program passes cells in scope,
+; or (out τ) for a cell that lives for the one call:
+;
+;   ((fmt.Sscan line (out int) (out go.bytestring)) (fn (age name n e) …))
+;
+; Its result is a PARTIAL SUCCESS, ADR 0044's shape, read off Go's documentation:
+; "returns the number of items successfully scanned. If that is less than the
+; number of arguments, err will report why", so n means something beside the
+; error, and a cell past n keeps the value it had (its zero, for (out τ)). Not
+; pure: each stores through its operands, and Scan, Scanln, Scanf and Fscan…
+; read their input.
+;
 ; WHAT IS NOT DECLARED, and why:
-;   - the SCAN family (Scan, Scanln, Scanf, Sscan…, Fscan…): each stores what it
-;     reads through a pointer; out-parameters, I in gocoverage-2026-10-06, next;
 ;   - FormatString, and the Formatter, GoStringer and State interfaces, which
 ;     only a callback could implement.
 
@@ -89,6 +102,26 @@
       (host expr "fmt.Fprintln(%s, %s...)" (import "fmt")))
     (sig Fprintf  ((w go/io.Writer) (format bytestring) (a (array go.Value))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
       (host expr "fmt.Fprintf(%s, %s, %s...)" (import "fmt")))
+
+    ; ---------------------------------------------------- scanning, into cells
+    (sig Scan    ((a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Scan(%s...)" (import "fmt")))
+    (sig Scanln  ((a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Scanln(%s...)" (import "fmt")))
+    (sig Scanf   ((format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Scanf(%s, %s...)" (import "fmt")))
+    (sig Sscan   ((str bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Sscan(%s, %s...)" (import "fmt")))
+    (sig Sscanln ((str bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Sscanln(%s, %s...)" (import "fmt")))
+    (sig Sscanf  ((str bytestring) (format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Sscanf(%s, %s, %s...)" (import "fmt")))
+    (sig Fscan   ((r go/io.Reader) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Fscan(%s, %s...)" (import "fmt")))
+    (sig Fscanln ((r go/io.Reader) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Fscanln(%s, %s...)" (import "fmt")))
+    (sig Fscanf  ((r go/io.Reader) (format bytestring) (a (array (cell go.Value)))) (tuple (int 0 9223372036854775807) (result.result (tuple) error)) variadic
+      (host expr "fmt.Fscanf(%s, %s, %s...)" (import "fmt")))
 
     ; ------------------------------------------------------------------ errors
     ; Not pure: each call is a new error, and == on errors is identity.

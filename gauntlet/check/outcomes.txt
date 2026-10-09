@@ -356,6 +356,17 @@
 == examples/kara/workspace.oro windows emitted c00ae60b2f657f131ac8361f968fcbdf69d13d472b941e42b747f449b5cf66d3
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/ages.oro go emitted caf6744daab009f50b55bcc07c97658ad7f2482e898a7554a8699208669ce2f2
+   note: gen-main: 16 of 16 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/ages.oro js refused
+   gen: examples/lines/ages.oro: in main: go/os.Exit is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/os) matched no file on the search path and this target provides no module go/os either, so every name from it is unbound. Check the path.
+== examples/lines/ages.oro java refused
+   gen: examples/lines/ages.oro: in main: go/os.Exit is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/os) matched no file on the search path and this target provides no module go/os either, so every name from it is unbound. Check the path.
+== examples/lines/ages.oro windows refused
+   gen: examples/lines/ages.oro: in main: go/os.Exit is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/os) matched no file on the search path and this target provides no module go/os either, so every name from it is unbound. Check the path.
 == examples/lines/lines.oro go emitted dfedbfc16cc0380817880a087fe915595eaf2171109f7f10fdda60a866c3c3af
    note: gen-main: 6 of 6 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/lines.oro js refused

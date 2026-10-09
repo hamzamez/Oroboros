@@ -1,0 +1,35 @@
+; ACCEPTANCE: GO STORES THROUGH A CELL'S ADDRESS (outcells-2026-10-09,
+; spec/local.md §5–6, ADR 0048).
+;
+; The Scan family parses operands and stores each through the pointer it is
+; given. Its operands are cells: (out τ) for a cell that lives for one call, or
+; a cell in scope. Each call's value is a partial success (fmt.oro): how many
+; operands were stored, and the error that says why it was fewer; a cell past
+; that count keeps what it held.
+;
+;   Sscan     operands across white space, a newline counting as a space
+;   Sscanln   the same, stopping at a newline
+;   Sscanf    operands by a format
+;
+; The lines are what the same calls print from hand-written Go.
+
+(use go)
+(use result)
+(use go/fmt as fmt)
+
+(export main)
+
+(def ok? (r) (case r (result.ok u) true (result.err e) false))
+
+(def main ()
+  (seq
+    ((fmt.Sscan "42 ana\n7" (out int) (out go.bytestring) (out int))
+     (fn (a b c n e) (fmt.Println a b c n (ok? e))))
+    ((fmt.Sscanln "42 ana\n7" (out int) (out go.bytestring) (out int))
+     (fn (a b c n e) (fmt.Println a b c n (ok? e))))
+    ((fmt.Sscanf "x=3,y=-4" "x=%d,y=%d" (out int) (out int))
+     (fn (x y n e) (fmt.Println x y n (ok? e))))
+    (local a 5
+           b "keep"
+      ((fmt.Sscan "9 " a b) (fn (n e) (fmt.Println a b n (ok? e)))))
+    0))

@@ -23,6 +23,9 @@ import (
 type checker struct {
 	tgt   *Target
 	types map[string]string // name -> the type demanded of it
+	// widened is set when an `again` passed a value larger than its loop
+	// variable's type, which then takes the join (iterate).
+	widened bool
 }
 
 // bind gives a binder's names their types for the walk of ITS body, and returns
@@ -205,6 +208,31 @@ func (c *checker) walk(t *core.Term, want string) (string, error) {
 		"map", "map-build", "map-insert", "map-keys", "len":
 		if ty, handled, err := c.tableForm(p.Kind, args, want); handled {
 			return ty, err
+		}
+	case "cell-ref", "cell-get":
+		// A CELL A HOST WRITES (spec/local.md §5): (#ref v) : cell T for
+		// v : T, and (#deref r) : T for r : cell T.
+		if len(args) == 1 {
+			ty, err := c.walk(args[0], "")
+			if err != nil {
+				return "", err
+			}
+			res := ""
+			switch {
+			case p.Kind == "cell-ref" && ty != "":
+				res = "cell " + c.tgt.ValueType(ty)
+			case p.Kind == "cell-get":
+				res = core.CellElem(ty)
+			}
+			if res == "" {
+				return "", nil
+			}
+			return res, c.agree(op.Name, res, want)
+		}
+	case "cell-fresh":
+		if len(args) == 1 && args[0].Kind == core.KStr {
+			res := "cell " + args[0].Str
+			return res, c.agree(op.Name, res, want)
 		}
 	case "ascribe":
 		// `(the T e)` says e is in T (core.AscribeName): e is checked against
@@ -476,8 +504,32 @@ func (c *checker) iterate(args []*core.Term, want string) (string, error) {
 	// Bound only once every initial value is walked: the inits are OUTSIDE the
 	// loop's scope, and binding each variable before the next init was checked
 	// let a loop variable's type leak into its sibling's initialiser.
+	//
+	// A LOOP VARIABLE'S TYPE IS THE JOIN OF ITS INITIAL VALUE AND EVERY VALUE
+	// ITS BACK EDGES PASS, the least fixed point, as a conditional's is the
+	// join of its branches (types.md §3.2) and as the IR's typing raises it:
+	// a cell started with "" and written a host string is a host string
+	// (spec/local.md §3, outcells-2026-10-09). The joins of one representation
+	// have finite height, so the walk is repeated only while one widens.
+	// One binding for the whole loop: a store solves an open element on the
+	// variable's name, and the walks after it read what it solved.
 	defer c.bind(lam.Params, tys)()
-	ty, err := c.loopBody(lam.Body(), lam.Params, tys, want)
+	var ty string
+	var err error
+	for round := 0; ; round++ {
+		c.widened = false
+		ty, err = c.loopBody(lam.Body(), lam.Params, tys, want)
+		if err != nil || !c.widened || round == 8 {
+			break
+		}
+		for i, p := range lam.Params {
+			if j, ok := c.tgt.JoinSameRepr(c.types[p], tys[i]); ok {
+				c.types[p] = j
+			} else if c.types[p] == "" {
+				c.types[p] = tys[i]
+			}
+		}
+	}
 	// A LOOP VARIABLE'S TYPE IS ONE THING ACROSS THE LOOP. Its open element is
 	// solved by a store, and a clause chain lists its exits first, so an exit
 	// returning the variable was typed before the store that solved it, and
@@ -534,6 +586,11 @@ func (c *checker) loopBody(t *core.Term, params, tys []string, want string) (str
 				return "", fmt.Errorf("again takes %d argument(s), given %d", len(params), len(as))
 			}
 			for i, a := range as {
+				if got, err := c.walk(a, ""); err == nil && got != "" {
+					if j, ok := c.tgt.JoinSameRepr(tys[i], got); ok && j != tys[i] {
+						tys[i], c.widened = j, true
+					}
+				}
 				if _, err := c.walk(a, tys[i]); err != nil {
 					return "", fmt.Errorf("in again's argument %d: %w", i+1, err)
 				}

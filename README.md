@@ -401,7 +401,7 @@ drift apart.
 | **Sugar** | `(def f (x…) body)` for a λ, `let`, `seq`, `and`/`or`/`not`/`cond`, `tuple`, `match`/`when`, `case`, `try`/`expect`; all gone before reduction |
 | **Iteration** | `loop` and `again`. No recursion, and termination is checked |
 | **Data** | tables `(array V)`, maps `(map int V)`, tuples, variants with type arguments, strings as scalar sequences; `option` for a map read |
-| **Local state** | `local`: a binder initialized by a table, `(table n f)` or `(array …)`, is a linear buffer; one initialized by anything else is a cell, a local variable in program order. Thaw is `(table (len xs) xs)`. A declared `(buffer V)` parameter is a buffer too |
+| **Local state** | `local`: a binder initialized by a table, `(table n f)` or `(array …)`, is a linear buffer; one initialized by anything else is a cell, a local variable in program order. Thaw is `(table (len xs) xs)`. A declared `(buffer V)` parameter is a buffer too. A host may write a cell where its declaration says `(cell T)`, and `(out τ)` is a cell for one call |
 | **Failures** | a value of a sum: `lib/result`'s `(result T E)`, met by `case`, `try`, `expect` or `ignore`, and *relevant*, so it cannot be dropped silently. A host's own encoding (Go's `(T, error)`, a throw) is translated once, at its declaration |
 | **Integers** | an `int` is an integer; each target declares the word it holds (int64 on Go, the JVM and x86, plus `uint64` on Go; ±(2⁵³−1) on JS), an operation not proven inside it is refused on that target, and which targets accept a program is reported; a range `(int LO HI)` is a type; `(int 0 +inf)` is arbitrary precision |
 | **Functions** | fully higher-order at compile time; nothing that needs a closure at run time may survive to the output |
@@ -414,11 +414,11 @@ drift apart.
 | | how | measured |
 |---|---|---|
 | Emitted code is as fast as hand-written | seven benchmark programs held against hand-written Go, JavaScript and Java | geometric mean of generated over hand-written **0.990** on Go, **0.977** on JavaScript, **0.987** on Java, over 35 comparisons from **0.87×** to **1.21×**; the three above 1.10× each explained, the largest a JavaScript module boundary ([gauntlet-2026-09-29](gauntlet/results/gauntlet-2026-09-29.md)). On Android's runtime, in the emulator, 9 of 10 pairs are at parity and the stencil is 1.17–1.19× ([android-2026-10-05](gauntlet/results/android-2026-10-05.md)); two programs compile to byte-identical machine code ([generics](gauntlet/results/generics-2026-08-14.md), [structs](gauntlet/results/structs-2026-08-14.md)) |
-| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **2,023 of 2,068** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
+| An integer never silently wraps or rounds | an interval analysis on the IR, against each target's word; unproven means refused on that target | **2,039 of 2,084** operations proven across the corpus; the rest are refused by design ([examples/int/](examples/int/)) or proven where the test harness builds them |
 | Array indices and host preconditions hold | linear-arithmetic proofs, including facts about what a table holds | the JSON tree walker runs with **no bounds clamps** at 1.06× of hand-written unclamped Go ([compfacts](gauntlet/results/compfacts-2026-09-17.md)) |
 | A function is only called inside its declared domain | every declared parameter range and `where` is proven at every call, above the machine word as the set its enforcement decides, by sign and bit length ([ADR 0028](docs/decisions/0028-a-definitions-contract-is-checked-at-its-calls.md)) | 346 range obligations in the corpus measured before it was switched on; one program was missing a declaration ([requires](gauntlet/results/requires-2026-09-24.md), [contracts](gauntlet/results/contracts-2026-09-24.md)) |
 | A string is always text | every value typed `string` is a sequence of Unicode scalar values: a host's string is its own type (`go.bytestring`), entered only by the standard's decode, which is the same function on every host ([ADR 0030](docs/decisions/0030-a-hosts-string-is-the-hosts.md)) | 57 Go declarations read one at a time; `text-of` agrees on Go, JS and Java over 18 ill-formed sequences ([hoststring](gauntlet/results/hoststring-2026-09-24.md)) |
-| Loops terminate | size-change termination on the IR | **350 of 368** loops proven |
+| Loops terminate | size-change termination on the IR | **351 of 369** loops proven |
 | Every host agrees | 53 programs built and **run** on every target that accepts them (38 on all four), required to print the same, correct answer | [gauntlet/differential/](gauntlet/differential/) |
 | Each rule that decides legality is tested against a broken copy of itself | a fault is planted in the rule, and its test must fail | each result in [gauntlet/results/](gauntlet/results/) lists its faults and the test that caught each |
 | The compiler's output never drifts by accident | every emitted file, proof count and error message compared with a committed baseline | `go run ./cmd/check` |
@@ -439,7 +439,7 @@ with its preconditions and what it does to buffers, and checked against the real
 ([ADR 0022](docs/decisions/0022-host-declarations-are-written-by-hand.md)). Today that is
 `unicode/utf8`, `encoding/hex`, `strconv`, `encoding/binary`'s varints and `math/bits`, plus `io`'s
 interfaces; `os`, `strings`, `io`, `fmt` and `bufio` are partly declared, every name checked. Of the
-590 exported names in the ten Go packages with a file, 293 are declared (49.7%), and every missing one
+590 exported names in the ten Go packages with a file, 302 are declared (51.2%), and every missing one
 has a recorded cause (`go run gauntlet/stdlib/coverage.go`). Working through Go's standard library
 package by package is the current work, and each package gets a program written against it:
 [lib/num/u128.oro](lib/num/u128.oro), a 128-bit integer over `math/bits` and `strconv`, was the first.
@@ -452,9 +452,10 @@ package by package is the current work, and each package gets a program written 
 - **No runtime closures, no concurrency, no interfaces you implement.** You can pass a host object where
   a host interface is wanted; you cannot build one. Callbacks are specified and not built, so a
   function that reads or writes a cell cannot be passed anywhere either.
-- **A host cannot write a cell yet.** Out-parameters, Go's `fmt.Sscan(s, &x)` and `errors.As` and
-  Win32's thousands, are the next step: a cell passed where the host wants a pointer, and `(out τ)`
-  for a cell that lives for one call.
+- **Out-parameters on Go only, and not yet typed by the call.** Go's Scan family stores through
+  cells (`((fmt.Sscan line (out int) (out go.bytestring)) (fn (age name n e) …))`), but
+  `errors.As`, whose result names its cell's type, needs a type variable, and Win32's out-cells need
+  a stack slot on x86.
 - **Strings are thin:** concatenation and conversion at a boundary. Text programs so far work in bytes.
 - **Maps take integer keys only**, and there are no records yet.
 - **The browser's own API**, the Web platform, is not declared yet, and the JavaScript output is

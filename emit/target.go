@@ -121,6 +121,13 @@ type Prim struct {
 	// RetractIn is the module that declared Retract, where its variant's alias
 	// resolves: an included copy of the declaration lives in another module.
 	RetractIn string
+	// CellParams are the parameters the host writes through, `(cell T)`
+	// (spec/local.md §5), and CellList the index a variadic list of cells
+	// starts at, -1 when none; Arity is the declared result's, which `(out τ)`
+	// spreads after the cells. Read before the retraction (cellParams).
+	CellParams []int
+	CellList   int
+	Arity      int
 }
 
 type Target struct {
@@ -172,6 +179,10 @@ type Target struct {
 	// `%s[]` on Java. One declaration replaces an entry per element type.
 	// Empty means the target has no types to spell (JavaScript, windows).
 	ArrayType string
+	// CellType spells `(cell T)`, the address a host writes through
+	// (spec/local.md §5): `*%s` on Go. Empty on a target no host of which takes
+	// one.
+	CellType string
 
 	// MapType is how this target spells a map from something to something —
 	// `map[%s]%s` on Go, `java.util.HashMap<%s,%s>` on Java. One declaration
@@ -456,6 +467,11 @@ func (tg *Target) finish(wrap func(error) error) error {
 	// AFTER INCLUSION, so a companion that includes a fallible method gets its
 	// own raw call and definition; and before the views, which compare the
 	// host's methods, the raw calls.
+	// CELL PARAMETERS are read off the declaration as written, before the
+	// retraction replaces its result by the host's (spec/local.md §5).
+	if err := tg.cellParams(); err != nil {
+		return wrap(err)
+	}
 	if err := tg.retractions(); err != nil {
 		return wrap(err)
 	}
@@ -472,6 +488,7 @@ func (tg *Target) finish(wrap func(error) error) error {
 		return wrap(err)
 	}
 	tg.variadicForms()
+	tg.cellForms()
 	return nil
 }
 
@@ -521,6 +538,50 @@ func (tg *Target) variadicsRead(p *core.Program) error {
 	return nil
 }
 
+// cellsRead refuses a program that mentions a declaration with cell parameters
+// the loader did not read as one (spec/local.md §5): loaded without the
+// target's forms, a cell passed there was read as its value, and the host's
+// write went into a copy nobody reads.
+func (tg *Target) cellsRead(p *core.Program) error {
+	want := map[string]bool{}
+	for n, q := range tg.Prims {
+		if len(q.CellParams) > 0 || q.CellList >= 0 && q.Arity > 0 {
+			if d, ok := DeclaredName(n); ok {
+				n = d
+			}
+			want[n] = true
+		}
+	}
+	if len(want) == 0 {
+		return nil
+	}
+	var missed string
+	var walk func(t *core.Term)
+	walk = func(t *core.Term) {
+		if t == nil || missed != "" {
+			return
+		}
+		if t.Kind == core.KName && want[t.Name] {
+			if _, read := p.Cells[t.Name]; !read {
+				missed = t.Name
+			}
+			return
+		}
+		for _, k := range t.Kids {
+			walk(k)
+		}
+	}
+	for _, q := range sortedDefs(p.Defs) {
+		walk(p.Defs[q])
+	}
+	if missed != "" {
+		return fmt.Errorf("%s takes cells the host writes, and this program was loaded without the "+
+			"target's declarations, so a cell passed to it was read as its value: load it with the "+
+			"target (core.LoadWithDefs with Target.Defs, or Target.LoadProgram; spec/local.md §5)", missed)
+	}
+	return nil
+}
+
 func sortedDefs(m map[string]*core.Term) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
@@ -528,6 +589,95 @@ func sortedDefs(m map[string]*core.Term) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// cellParams reads each declaration's cell parameters (spec/local.md §5). A
+// `(cell X)` whose X is a box, `(cell go.Value)`, is a cell of any type passed
+// in the box: the position is a cell parameter and its type is X, below which
+// every `cell T` is derived (types.md §3.3). Any other `(cell T)` keeps its
+// type, which the target must be able to spell.
+func (tg *Target) cellParams() error {
+	var names []string
+	for n := range tg.Prims {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		p := tg.Prims[n]
+		p.CellList = -1
+		any := false
+		for i, a := range p.Args {
+			list := p.Variadic && i == len(p.Args)-1
+			elem := a
+			if list {
+				elem = core.ArrayElem(a)
+			}
+			x := core.CellElem(elem)
+			if x == "" {
+				continue
+			}
+			any = true
+			if list {
+				p.CellList = i
+			} else {
+				p.CellParams = append(p.CellParams, i)
+			}
+			switch {
+			case tg.HasSubtypes(x):
+				if list {
+					p.Args[i] = "array " + x
+				} else {
+					p.Args[i] = x
+				}
+			case tg.CellType == "":
+				return fmt.Errorf("%s: a parameter of type %s is the address of a cell, and this target "+
+					"spells no cell type: (type (cell A) (host \"…\")) (spec/local.md §5)", n, elem)
+			}
+		}
+		if !any {
+			continue
+		}
+		p.Arity = 1
+		switch {
+		case p.Retract != nil:
+			if cs, ok := tupleComponents(p.Retract); ok {
+				p.Arity = len(cs)
+			}
+		case len(p.Results) > 0:
+			p.Arity = len(p.Results)
+		}
+		tg.Prims[n] = p
+	}
+	return nil
+}
+
+// cellForms hands the loader one `cells` form per declaration with cell
+// parameters, under the name a program calls, as variadicForms does.
+func (tg *Target) cellForms() {
+	var names []string
+	for n, p := range tg.Prims {
+		if len(p.CellParams) > 0 || p.CellList >= 0 && p.Arity > 0 {
+			names = append(names, n)
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		p := tg.Prims[n]
+		declared := n
+		if d, ok := DeclaredName(n); ok {
+			declared = d
+		}
+		i := strings.LastIndex(declared, ".")
+		if i < 0 {
+			continue
+		}
+		mod, local := declared[:i], declared[i+1:]
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
+			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity})})
+	}
 }
 
 // variadicForms hands the loader one `variadic` form per variadic declaration,
@@ -915,6 +1065,14 @@ var coreStructural = []Prim{
 	// `guard`, both of which already exist. Pure, because it is the identity on
 	// every value it accepts.
 	{Name: core.AscribeName, Kind: "ascribe", Args: []string{"string", "any"}, Pure: true},
+	// A CELL A HOST WRITES (spec/local.md §5): a reference to a fresh copy of a
+	// value, or to a type's zero, and the value a reference holds. IMPURE, so
+	// the effect discipline keeps each on its side of the call that writes
+	// through it (ADR 0010); the cell translation is the only thing that
+	// writes them, and a program cannot (a `#` name).
+	{Name: core.RefName, Kind: "cell-ref", Args: []string{"any"}},
+	{Name: core.FreshName, Kind: "cell-fresh", Args: []string{"string"}},
+	{Name: core.DerefName, Kind: "cell-get", Args: []string{"any"}},
 	// A table's two presentations and its domain bound (tables.md §2). Pure:
 	// a table is a value, and reading one has no effect — which is what
 	// separates `(array V)` from ADR 0018's `(buffer V)`, whose reads are impure
@@ -1612,6 +1770,7 @@ func (tg *Target) combine(o *Target, from string, how combiner) error {
 	}{
 		{&tg.MapRepr, o.MapRepr, "map representation"},
 		{&tg.ArrayType, o.ArrayType, "array-type"},
+		{&tg.CellType, o.CellType, "cell-type"},
 		{&tg.MapType, o.MapType, "map-type"},
 		{&tg.Backend, o.Backend, "backend"},
 		{&tg.BigRepr, o.BigRepr, "big-repr"},
@@ -2042,6 +2201,8 @@ func parseType(f *core.Term, frag *Target, modPath, path string) error {
 			path, n, modPath)
 	case formWord(n) == "array" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
 		frag.ArrayType = s
+	case formWord(n) == "cell" && len(n.Kids) == 2 && n.Kids[1].Kind == core.KName:
+		frag.CellType = s
 	case formWord(n) == "map" && len(n.Kids) == 3 &&
 		n.Kids[1].Kind == core.KName && n.Kids[2].Kind == core.KName:
 		frag.MapType = s
@@ -2624,6 +2785,9 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// A DECLARED WIDENING IS A DIRECTIVE, and whether a range is one is this
 	// target's question: above its word, not above a window (ADR 0026).
 	p.AscribeWide(tg.Word)
+	if err := tg.cellsRead(p); err != nil {
+		return nil, err
+	}
 	if err := tg.variadicsRead(p); err != nil {
 		return nil, err
 	}
@@ -2811,6 +2975,15 @@ func (tg *Target) ty(name string) string {
 		}
 		// A target with no types — JavaScript, windows — spells a map nothing
 		// at all, which is why neither declares one.
+		return ""
+	}
+	// `(cell T)` resolves through ONE declaration too, `(type (cell A) (host
+	// "*%s"))` on Go: the address a host writes through (spec/local.md §5). A
+	// target that declares none has no host that takes one.
+	if elem := core.CellElem(name); elem != "" {
+		if tg.CellType != "" {
+			return Fill(tg.CellType, tg.ty(elem))
+		}
 		return ""
 	}
 	if elem := core.ArrayElem(name); elem != "" {
@@ -3185,6 +3358,8 @@ func (tg *Target) oneHostValue(t string) bool {
 	case t == "" || t == "any" || core.IsBuffer(t):
 		return false
 	case t == "int" || t == "bool" || t == "f64" || t == "string":
+		return true
+	case core.IsCell(t): // an address
 		return true
 	}
 	if _, _, ok := core.IntRangeBig(t); ok {

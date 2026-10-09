@@ -251,6 +251,20 @@ func (p *printer) function() (string, error) {
 			p.line("_ = %s", p.name(v))
 		}
 	}
+	// A CELL'S COPY IS DECLARED ONCE, at the top, as a programmer declares
+	// the variable whose address a loop passes (spec/local.md §5): the copy
+	// lives from its reference to its read, and the host keeps no address, so
+	// one variable per call site is the same function. Declared where it is
+	// used, Go moved a fresh copy to the heap on every iteration: one
+	// allocation per call more than hand-written Go (outcells-2026-10-09).
+	p.f.Walk(func(r *ir.Region) {
+		for i := range r.Stmts {
+			if s := &r.Stmts[i]; (s.Op == ir.OCellRef || s.Op == ir.OCellFresh) && p.pl.Live(s) &&
+				p.pl.Uses[p.pl.Res(s.Res[0])] > 0 {
+				p.line("var %sc %s", p.name(s.Res[0]), p.hostTy(core.CellElem(p.f.Types[s.Res[0]])))
+			}
+		}
+	})
 	p.region(p.f.Body, nil, true)
 	p.ind--
 	p.line("}")
@@ -443,6 +457,20 @@ func (p *printer) stmt(s *ir.Stmt) {
 		// An assumption: its caller guarantees it (ADR 0028). Nothing to run.
 	case ir.OThe, ir.ORequire:
 		p.fail("(%s …) in IR_P", s.Op)
+	case ir.OCellRef:
+		// THE ADDRESS OF A FRESH COPY (spec/local.md §5), as hand-written Go
+		// takes &age: Go moves the copy to the heap when the address escapes.
+		c := p.name(s.Res[0]) + "c" // declared at the function's top (function)
+		p.line("%s = %s", c, p.ref(s.Args[0]))
+		p.define(s.Res[0], "&"+c)
+	case ir.OCellFresh:
+		// A FRESH CELL HOLDS ITS TYPE'S ZERO at each call: the copy declared at
+		// the top is reset here, Go's `new(T)` without its allocation.
+		c := p.name(s.Res[0]) + "c"
+		p.line("%s = %s", c, goZero(p.hostTy(s.Type)))
+		p.define(s.Res[0], "&"+c)
+	case ir.OCellGet:
+		p.define(s.Res[0], "*"+p.ref(s.Args[0]))
 	}
 }
 

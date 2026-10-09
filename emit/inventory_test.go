@@ -217,6 +217,8 @@ func codeWords(t *testing.T) map[string]bool {
 	// The reader's: a scope of local state (spec/local.md), dispatched by a
 	// constant the comparisons above do not see as a literal.
 	w[core.LocalName] = true
+	// The cell translation's sugar, recognized at a cell parameter (local.md §6).
+	w[core.OutName] = true
 	// The boolean literals are tokens the reader recognises before any form is
 	// built, so no comparison of the shapes above sees them; they are admitted
 	// here only after the reader is asked and says they are literals.

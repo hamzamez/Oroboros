@@ -104,6 +104,7 @@ and so expands in `Load` ([state.md](state.md)).
 | `array` | specified — a table type, and the injected graph constructor | [tables.md](tables.md) |
 | `map` | specified — a type, the injected constructor, and `(repr map …)` | [maps.md](maps.md) |
 | `buffer` | specified — a linear parameter type | [ADR 0020](../decisions/0020-uniqueness-on-parameters.md) |
+| `cell` | specified — `(cell T)` in a declaration's parameter: the address of a T the host may read and write during the call and does not keep; `(cell go.Value)` a cell of any type in Go's box. Also a target's `(type (cell A) (host …))` | [local.md](local.md) §5 |
 | `record` | reserved — a type former in `core/read.go`, specified in data.md and not built | [data.md](data.md) |
 | `prod` | recorded — the internal spelling of a tuple type (`prod(A, B)`), reserved as a type former so no variant can take the name | `core/read.go` `TypeName` |
 
@@ -130,6 +131,8 @@ A target may not declare one, and declaring one is an **error**.
 | `table`, `len` | specified | [tables.md](tables.md) |
 | `alloc`, `set` | specified | [tables.md](tables.md), [ADR 0018](../decisions/0018-immutable-values-linear-buffers.md) |
 | `local` | specified — a scope of local state: a binder initialized by a table, `(table n f)` or `(array …)`, is a buffer; by anything else, a cell, written by `(set c v)` in program order and translated into loop variables at load, so nothing below the loader sees one | [local.md](local.md) |
+| `out` | specified — `(out τ)` at a cell parameter: a cell for that one call, holding τ's zero; the call's value is the cells' values, then the declared result's components. Anywhere else an ordinary application | [local.md](local.md) §6 |
+| `#ref`, `#fresh`, `#deref` | specified — the cell translation's own: a reference to a fresh copy of a value, one to a type's zero, and the value a reference holds; impure, injected into every target, and out of a program's reach | [local.md](local.md) §5 |
 | `build` | specified — the scoped buffer's core form `(build n (fn (b) …))`; its binder spelling is `local`'s now, and refused; also a target file's `(build "cmd")` and a retired structural kind | [tables.md](tables.md), [build.md](build.md) |
 | `build-map`, `insert`, `keys` | specified | [maps.md](maps.md) |
 | `concat`, `string-of` | recorded — the free monoid's operation and its generator; derived in research and built, and no spec in `docs/spec/` states them | [string-operations.md](../string-operations.md), [render-2026-09-04](../../gauntlet/results/render-2026-09-04.md) |
@@ -177,6 +180,7 @@ From `emit/target.go`, `emit/fact.go` and `emit/constend.go`. The whole grammar 
 |---|---|---|
 | `pure` | specified | [effects.md](effects.md) |
 | `variadic` | specified — the host function takes a list as its last parameter, f : X × T* → B: the parameter a table, the template spreading it (`%s...`); a call's trailing arguments are the list | [variadic.md](variadic.md) |
+| `cells` | specified — the loader's form for a declaration's cell parameters, `(cells ARITY LIST i…)`, handed from the target as `variadic` is | [local.md](local.md) §5 |
 | `index` | specified | [target-files.md](target-files.md) |
 | `import` | specified | [target-files.md](target-files.md) |
 | `lib` | specified | [target-files.md](target-files.md) |

@@ -40,6 +40,8 @@
   ; one of these.
   (type (array A) (host "[]%s"))
   (type (map K V) (host "map[%s]%s"))
+  ; A cell a host writes is its address (spec/local.md §5): Go's pointer.
+  (type (cell A) (host "*%s"))
 
   (type int      (host "int"))
   (type f64  (host "float64"))

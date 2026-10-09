@@ -28,17 +28,32 @@ import (
 // `case`, `try` and `expect` expand (expandCase), because their implicit arms
 // are terms too and must carry the cells.
 
-// translateCells translates every outermost `(#cell e (fn (x) body))` in t.
-func translateCells(t *Term) (*Term, error) {
+// translateCells translates every outermost `(#cell e (fn (x) body))` in t,
+// then every call of a declaration with cell parameters the scopes did not
+// reach: one outside any scope, or inside a λ a scope passes as a value
+// (spec/local.md §5, §6). decls holds those declarations by qualified name.
+func translateCells(t *Term, decls map[string]CellDecl) (*Term, error) {
+	t, err := translateScopes(t, decls)
+	if err != nil {
+		return nil, err
+	}
+	if len(decls) == 0 {
+		return t, nil
+	}
+	c := &cellTr{locals: map[string]bool{}, decls: decls}
+	return c.calls(t)
+}
+
+func translateScopes(t *Term, decls map[string]CellDecl) (*Term, error) {
 	if t == nil || len(t.Kids) == 0 {
 		return t, nil
 	}
 	if isCellScope(t) {
-		c := &cellTr{locals: map[string]bool{}}
+		c := &cellTr{locals: map[string]bool{}, decls: decls}
 		return c.st(t, false) // with no cell in scope, a scope's tuple is its value alone
 	}
 	if t.Kind == KFn {
-		body, err := translateCells(t.Body())
+		body, err := translateScopes(t.Body(), decls)
 		if err != nil {
 			return nil, err
 		}
@@ -46,7 +61,49 @@ func translateCells(t *Term) (*Term, error) {
 	}
 	kids := make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := translateCells(k)
+		x, err := translateScopes(k, decls)
+		if err != nil {
+			return nil, err
+		}
+		kids[i] = x
+	}
+	return &Term{Kind: t.Kind, Kids: kids}, nil
+}
+
+// calls translates the calls of a declaration with cell parameters that are
+// still as written: outside any scope there is no cell, so each cell parameter
+// must hold `(out τ)`. A call the scope pass translated holds compiler names
+// (`#…`) there, which a program cannot write, and is left alone.
+func (c *cellTr) calls(t *Term) (*Term, error) {
+	if t == nil || len(t.Kids) == 0 {
+		return t, nil
+	}
+	if t.Kind == KFn {
+		body, err := c.calls(t.Body())
+		if err != nil {
+			return nil, err
+		}
+		return Fn(t.Params, body), nil
+	}
+	if op := t.Kids[0]; len(t.Kids) == 2 && t.Kids[1].Kind == KFn {
+		if d, ok := c.cellCall(op); ok && c.asWritten(op, d) {
+			x, err := c.translateCall(op, d, t.Kids[1], false, nil)
+			if err != nil {
+				return nil, err
+			}
+			return c.calls(x)
+		}
+	}
+	if d, ok := c.cellCall(t); ok && c.asWritten(t, d) {
+		x, err := c.translateCall(t, d, nil, false, nil)
+		if err != nil {
+			return nil, err
+		}
+		return c.calls(x)
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		x, err := c.calls(k)
 		if err != nil {
 			return nil, err
 		}
@@ -87,6 +144,7 @@ type cellTr struct {
 	xs     []string        // the cells in scope, outermost first
 	n      int             // fresh names
 	locals map[string]bool // names bound inside the scope to a non-function value
+	decls  map[string]CellDecl
 }
 
 func (c *cellTr) fresh() string {
@@ -135,7 +193,26 @@ func (c *cellTr) isCell(n string) bool {
 // mentions reports whether t reads or writes a cell in scope, holds a scope of
 // its own, or, inside a loop that carries cells, jumps back.
 func (c *cellTr) mentions(t *Term, inLoop bool) bool {
-	return c.mentionsCells(t) || containsCellScope(t) || inLoop && hasOwnAgain(t)
+	return c.mentionsCells(t) || containsCellScope(t) || inLoop && hasOwnAgain(t) || c.hasCellCall(t)
+}
+
+// hasCellCall reports a call of a declaration with cell parameters in t.
+func (c *cellTr) hasCellCall(t *Term) bool {
+	if len(c.decls) == 0 || t == nil {
+		return false
+	}
+	if _, ok := c.cellCall(t); ok {
+		return true
+	}
+	if t.Kind == KFn {
+		return c.hasCellCall(t.Kids[0])
+	}
+	for _, k := range t.Kids {
+		if c.hasCellCall(k) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *cellTr) mentionsCells(t *Term) bool {
@@ -372,6 +449,17 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		})
 	}
 
+	// A HOST WRITING A CELL (spec/local.md §5): a call of a declaration with
+	// cell parameters, eliminated or as a value.
+	if len(args) == 1 && args[0].Kind == KFn {
+		if d, ok := c.cellCall(op); ok {
+			return c.translateCall(op, d, args[0], inLoop, carried)
+		}
+	}
+	if d, ok := c.cellCall(t); ok {
+		return c.translateCall(t, d, nil, inLoop, carried)
+	}
+
 	// AN ELIMINATION, (h (fn (y…) body)): a `case` arm (its parameters begin
 	// #t), a tuple pattern or a host call's continuation over a computed value.
 	// Its λ runs once, now, so the state flows into it as into a let.
@@ -424,6 +512,12 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if a.Kind == KFn && c.mentionsCells(a) {
 			return nil, c.closure(a)
 		}
+	}
+	// A HEAD THAT IS A NAME STAYS WHERE IT IS, unless it is a cell (a table
+	// held in a cell, indexed): its value does not depend on the state, and
+	// the loader's variadic rewrite reads a call by its declaration's name.
+	if h := t.Kids[0]; h.Kind == KName && !c.isCell(h.Name) {
+		return c.thread(t.Kids[1:], inLoop, carried, false, func(vs []*Term) *Term { return App(h, vs...) })
 	}
 	return c.thread(t.Kids, inLoop, carried, false, func(vs []*Term) *Term { return App(vs[0], vs[1:]...) })
 }

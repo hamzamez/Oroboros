@@ -468,6 +468,11 @@ func (p *printer) stmt(s *ir.Stmt) {
 		p.body(s, buf)
 	case ir.OTabulate:
 		p.tabulate(s)
+	case ir.OCellRef, ir.OCellFresh, ir.OCellGet:
+		// No host of this target takes a cell (spec/local.md §5): Java and
+		// JavaScript have no pointers, and their out-parameters are arrays
+		// and objects, already buffers and handles.
+		p.fail("(%s …): a cell a host writes is not built on this target (spec/local.md §5)", s.Op)
 	case ir.OThe, ir.ORequire:
 		p.fail("(%s …) in IR_P", s.Op)
 	}

@@ -33,6 +33,10 @@ type Program struct {
 	// a program that mentions a variadic declaration not in it: loaded without
 	// the target's forms, a call's arguments were never read as the list.
 	Variadic map[string]int
+	// Cells are the declarations with cell parameters, by qualified name
+	// (spec/local.md §5). A target's Env refuses a program that mentions one
+	// not in it, as it does a variadic declaration.
+	Cells map[string]CellDecl
 	// ascribed is set once AscribeWide has run — see there.
 	ascribed bool
 	Order    []string // definition order, for stable diagnostics
@@ -634,6 +638,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// A VARIADIC DECLARATION's fixed parameter count, by the qualified name a
 	// call resolves to (spec/variadic.md §3): the target's `variadic` forms.
 	variadic := map[string]int{}
+	cells := map[string]CellDecl{}
 	for len(dt) > 0 {
 		byPath := map[string]*Module{}
 		for _, m := range mods {
@@ -691,6 +696,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 					m.Defs[f.Name] = f.Term
 				case "variadic":
 					variadic[qualify(path, f.Name)] = int(f.Term.Int)
+				case "cells":
+					d, err := readCellDecl(f.Term)
+					if err != nil {
+						return nil, nil, fmt.Errorf("%s: %w", qualify(path, f.Name), err)
+					}
+					cells[qualify(path, f.Name)] = d
 				default:
 					return nil, nil, fmt.Errorf("a target's (provides … %s …) may hold (use …) and "+
 						"(def …); got a %s", path, f.Kind)
@@ -777,24 +788,6 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		m := entries[i].mod
 		look := func(sp string) (ctorRef, error) { return m.constructor(sp, byPath, mods) }
 		x, err := expandCase(entries[i].term, look)
-		if err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
-		}
-		entries[i].term = x
-	}
-	// CELLS, after the arms they flow through exist (core/cell.go, spec/local.md
-	// §3): every definition and every entry term.
-	for _, m := range mods {
-		for n, body := range m.Defs {
-			x, err := translateCells(body)
-			if err != nil {
-				return nil, nil, fmt.Errorf("%s: %w", qualify(m.Path, n), err)
-			}
-			m.Defs[n] = x
-		}
-	}
-	for i := range entries {
-		x, err := translateCells(entries[i].term)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", modLabel(entries[i].mod.Path), err)
 		}
@@ -902,6 +895,25 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		}
 	}
 	p.Variadic = variadic
+	// CELLS, after the arms they flow through exist and after resolution,
+	// where a call names the declaration whose cell parameters it fills
+	// (core/cell.go, spec/local.md §3, §5); before the variadic rewrite, which
+	// then gathers a call's references into its list like any arguments.
+	p.Cells = cells
+	for _, q := range p.Order {
+		t, err := translateCells(p.Defs[q], cells)
+		if err != nil {
+			return nil, nil, fmt.Errorf("%s: %w", q, err)
+		}
+		p.Defs[q] = t
+	}
+	for i, t := range terms {
+		out, err := translateCells(t, cells)
+		if err != nil {
+			return nil, nil, err
+		}
+		terms[i] = out
+	}
 	for _, q := range p.Order {
 		t, err := variadicCalls(p.Defs[q], variadic, false)
 		if err != nil {
@@ -1455,11 +1467,16 @@ func (e *Env) pureTerm(t *Term, seen map[string]bool) bool {
 	case KApp:
 		op := t.Op()
 		for _, a := range t.Args() {
+			// A λ ARGUMENT MAY BE APPLIED, by a primitive or by a λ head that
+			// calls its parameter, so its body counts as run, through every λ
+			// it returns. Taken for a value under a λ head, ((fn (k) (k a a))
+			// (fn (s a) (fn (#k) (#k (Println s) a)))) was pure: calling the
+			// variable k is "a value, not a call", and the redex a discarded
+			// cell scope reduces to was weakened, its Println with it
+			// (outcells-2026-10-09).
 			b := a
-			if op.Kind != KFn {
-				for b.Kind == KFn { // applied by the primitive; look through
-					b = b.Body()
-				}
+			for b.Kind == KFn {
+				b = b.Body()
 			}
 			if !e.pureTerm(b, seen) {
 				return false
@@ -2655,8 +2672,9 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 		return nil
 	case KName:
 		// `#any`, the unconstrained value, is the language's own (Theorem R,
-		// data.md §5.5.5), on every target, and no source can write it.
-		if bound[t.Name] || e.Prim[t.Name] || t.Name == AnyName {
+		// data.md §5.5.5), on every target, and no source can write it; so is
+		// `#elim`, the cell translation's claim the reducer decides.
+		if bound[t.Name] || e.Prim[t.Name] || t.Name == AnyName || t.Name == ElimName {
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {

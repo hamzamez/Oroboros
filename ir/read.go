@@ -370,6 +370,12 @@ func (rd *reader) op(t *core.Term) (Stmt, error) {
 			s.Args = append(s.Args, kv...)
 		}
 		return s, nil
+	case OCellFresh:
+		if len(args) != 1 {
+			return s, fmt.Errorf("(cell-fresh τ)")
+		}
+		s.Type, err = typeOf(args[0])
+		return s, err
 	case OThe:
 		if len(args) != 2 {
 			return s, fmt.Errorf("(the τ %%a)")

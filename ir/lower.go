@@ -477,6 +477,14 @@ func (l *lowerer) value(t *core.Term, r *Region) []V {
 		return []V{l.one(r, Stmt{Op: OTabulate, Args: []V{n}, Sub: []*Region{body}})}
 	case p.Kind == "table":
 		l.fail("a table rule that was never allocated (tables.md §2): %s", t)
+	case p.Kind == "cell-ref" && len(args) == 1:
+		return []V{l.one(r, Stmt{Op: OCellRef, Args: []V{l.single(args[0], r)}})}
+	case p.Kind == "cell-fresh" && len(args) == 1 && args[0].Kind == core.KStr:
+		v := l.one(r, Stmt{Op: OCellFresh, Type: args[0].Str})
+		l.decl[v] = "cell " + args[0].Str
+		return []V{v}
+	case p.Kind == "cell-get" && len(args) == 1:
+		return []V{l.one(r, Stmt{Op: OCellGet, Args: []V{l.single(args[0], r)}})}
 	case p.Kind == "ascribe" && len(args) == 2 && args[0].Kind == core.KStr:
 		a := l.single(args[1], r)
 		v := l.one(r, Stmt{Op: OThe, Type: args[0].Str, Args: []V{a}})
@@ -546,6 +554,12 @@ func (l *lowerer) values(ts []*core.Term, r *Region) []V {
 
 // call emits a primitive call with its declared number of results.
 func (l *lowerer) call(r *Region, name string, p emit.Prim, args []V) V {
+	// A HOST CALL HAS A TEMPLATE. A primitive with none is a structural kind
+	// this lowering does not know, and printing it as a call printed `()`:
+	// the cell forms did, before their lowering existed (outcells-2026-10-09).
+	if p.Form == "" {
+		l.fail("%s has no template and no lowering: a %s is not a host call", name, p.Kind)
+	}
 	n := 1
 	if len(p.Results) >= 2 {
 		n = len(p.Results)

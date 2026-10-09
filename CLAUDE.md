@@ -354,8 +354,13 @@ a wall that needs language work, stop and research it, then design it.
       retraction, the variadic list and Go's box; `(cell T)` and `(cell go.Value)` in declarations;
       `(out τ)` a cell for one call, its value the cells' then the result's. The nine Scan functions
       are declared (302 of 590, 51.2%), and **I is closed** for Go. Next: `errors.As`, whose result
-      names its cell's type (a type variable bound by the cell parameter), then Win32's fixed-type
-      cells on x86;
+      names its cell's type. **Type variables in declarations are researched**
+      ([typevars-research.md](docs/typevars-research.md), `gauntlet/stdlib/generics.go`): a type is
+      a set, a variable ranges over a set of types, a bound is membership (an interface I denotes
+      ↓I), TLA+'s binder-with-its-set as the uniform shape; `(sig (AsType (E error)) …)`, a head
+      binding as a variant's does, instantiated by application or inference. Go has 88 generic
+      functions and methods, 51 without a callback, and `errors.AsType` (Go 1.26), As as a function.
+      Five decisions for hamza. Then Win32's fixed-type cells on x86;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;

@@ -1,9 +1,12 @@
 # Types are sets: a logic above the computation
 
+**Decided 2026-10-10: [ADR 0049](decisions/0049-types-are-sets-and-the-logic-never-prints.md)
+accepts §9's six recommendations. A primary document in CLAUDE.md until everything here is built.**
+
 Research, 2026-10-10, on hamza's request (quoted in full in §0.1). It reworks
 [typevars-research.md](typevars-research.md), which mirrored Go's generics, from first principles,
 and it answers [types-direction.md](types-direction.md) (2026-08), whose two layers it keeps and whose
-ceiling it raises. Nothing here is built.
+ceiling it raises. Nothing here is built yet.
 
 ## 0. The answer, in brief
 

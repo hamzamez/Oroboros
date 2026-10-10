@@ -42,6 +42,23 @@ It is a **two-level language** ([closures-direction.md](docs/closures-direction.
 level is unrestricted higher-order and is erased by staging. The dynamic level is first-order tables
 and loops.
 
+## Primary documents
+
+**Read these before planning anything that touches types, claims or the surface. They stay here until
+everything in them is built** (hamza, 2026-10-10: "we do not want to lose what we arrived at").
+
+- **[settypes-research.md](docs/settypes-research.md), decided by
+  [ADR 0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md).** The language is two
+  languages: a computation that reduces and prints, and a logic whose types are sets of values and
+  whose claims are formulas about the computation, which never prints. The one bridge is ρ, a
+  representation chosen from proven sets. Types form a Boolean algebra (∪ ∩ ∖, singletons,
+  comprehension, ×, tagged +, tables, maps, ∀ over sets) and are static values; the partition
+  theorem makes a union within a sort free and a union across sorts ADR 0042's variant. The ceiling
+  of automation is the decidability map (§5): Presburger and semilinear sets, regular strings with
+  lengths, float intervals, semantic subtyping, the array property fragment, BAPA, congruence
+  closure, Nelson–Oppen; above the cliff a programmer climbs by assertions, invariants and lemmas,
+  each decided. Own complete procedures, no SMT. **Built: nothing yet. Next: §8's measurement.**
+
 ## Where it stands
 
 As of 2026-10-03. The current assessment is [assessment-2026-10-03.md](docs/assessment-2026-10-03.md);
@@ -412,6 +429,7 @@ Previous assessments:
 
 ## Read first
 
+0. The primary documents, above.
 1. [README.md](README.md)
 2. [docs/design-direction.md](docs/design-direction.md), the founding argument. Its section 8 records how its
    open questions were settled; concurrency is the one still open.
@@ -477,6 +495,7 @@ rejected alternatives.
 | A variadic is one declaration under the host's name; a call's trailing arguments are the list, `(spread xs)` passes a table; a variadic statement's value is the unit | [0046](docs/decisions/0046-a-variadic-call-is-its-declaration-applied-to-a-word.md) |
 | `local` is a scope of local state; its initializer decides buffer or cell; a cell is a loop variable by the state-passing translation, and an elimination it assumes is decided on a normal form | [0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
 | A host writes a cell through a reference to a fresh copy, `#ref`/`#deref` around the call; `(cell T)` in declarations; `(out τ)` is a cell for one call, its value the cells' then the result's | [0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md) |
+| Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 
 ## How this project is run
 

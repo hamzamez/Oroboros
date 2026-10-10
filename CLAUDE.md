@@ -65,6 +65,13 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   every symbol, comments as gaps. The semantics unchanged; five unifications (one `CASE`, buffers in
   program order, tables and maps one finite function, claims in the header, membership as a test);
   a translator carrying every comment. Six decisions for hamza.
+- **[syntax-research.md](docs/syntax-research.md), not yet decided.** The same eight programs in six
+  notations side by side: mathematical, F# with F\*'s refinements, and four S-expression flavors (pure,
+  today's, Clojure's, Shen's), measured for size and nesting. The untyped λ is kept, and ADR 0049 makes
+  it structural (Curry-style, extrinsic types): Church encodings reduce at compile time; a
+  fixed-point combinator diverges (ADR 0014 at the static level). The LLM side ranks S-expressions
+  first for writing (one shape, errors caught by the reader) and mathematics first for reading
+  claims, and proposes one source and two renderings, with an experiment to measure it.
 
 ## Where it stands
 

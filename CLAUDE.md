@@ -72,6 +72,14 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   fixed-point combinator diverges (ADR 0014 at the static level). The LLM side ranks S-expressions
   first for writing (one shape, errors caught by the reader) and mathematics first for reading
   claims, and proposes one source and two renderings, with an experiment to measure it.
+- **[fit-research.md](docs/fit-research.md), not yet decided.** Which syntax is the most faithful
+  image of the semantics: a syntax fits when its abstract syntax is the initial algebra of the
+  semantic signature (Montague; Goguen et al. 1977), and misfits are countable (synonyms, homonyms,
+  hidden binders, missing distinctions, checked invariants). Most of the fit is in the abstract
+  syntax, not prefix against infix. β's textual substitution measured 6 of 1,590 occurrences. Every
+  notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
+  the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds. Seven
+  decisions, five of them independent of the surface.
 
 ## Where it stands
 

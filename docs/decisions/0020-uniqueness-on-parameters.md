@@ -9,6 +9,9 @@ measurement taken at four times the workspace size
 ([freq-2026-09-08](../../gauntlet/results/freq-2026-09-08.md) §8). Supersedes [0013](0013-accept-the-allocation-price.md);
 amends consequence 3 of [0018](0018-immutable-values-linear-buffers.md), on ADR 0018's own trigger.
 
+Amended (surface only) by [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md): uniqueness is the usage
+mode `linear` on a parameter, not the type former `(buffer V)`, whose values are a table's. Not built.
+
 Research: [uniqueness.md](../uniqueness.md).
 Build: [uniqueness-2026-09-07](../../gauntlet/results/uniqueness-2026-09-07.md).
 

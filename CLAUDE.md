@@ -58,37 +58,39 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   lengths, float intervals, semantic subtyping, the array property fragment, BAPA, congruence
   closure, Nelson–Oppen; above the cliff a programmer climbs by assertions, invariants and lemmas,
   each decided. Own complete procedures, no SMT. **Built: nothing yet. Next: §8's measurement.**
-- **[notation-research.md](docs/notation-research.md), not yet decided.** The language as the
+- **[notation-research.md](docs/notation-research.md), surface not yet decided** (its abstract syntax is, ADR 0050). The language as the
   executable subset of a mathematical notation, TLA+'s with PlusCal's state and Dijkstra's guarded
   commands (Abrial's B0 the precedent for compiling mathematics): `f(x ∈ S) ∈ T == e`, `0..255`,
   `Seq(S)`, `t[i]`, `CASE`, `LOOP … AGAIN`, `LOCAL x := e IN`, capitals for reserved words, ASCII for
   every symbol, comments as gaps. The semantics unchanged; five unifications (one `CASE`, buffers in
   program order, tables and maps one finite function, claims in the header, membership as a test);
   a translator carrying every comment. Six decisions for hamza.
-- **[syntax-research.md](docs/syntax-research.md), not yet decided.** The same eight programs in six
+- **[syntax-research.md](docs/syntax-research.md), surface not yet decided.** The same eight programs in six
   notations side by side: mathematical, F# with F\*'s refinements, and four S-expression flavors (pure,
   today's, Clojure's, Shen's), measured for size and nesting. The untyped λ is kept, and ADR 0049 makes
   it structural (Curry-style, extrinsic types): Church encodings reduce at compile time; a
   fixed-point combinator diverges (ADR 0014 at the static level). The LLM side ranks S-expressions
   first for writing (one shape, errors caught by the reader) and mathematics first for reading
-  claims, and proposes one source and two renderings, with an experiment to measure it.
-- **[fit-research.md](docs/fit-research.md), not yet decided.** Which syntax is the most faithful
+  claims, and proposes one source and two renderings, with an experiment to measure it. Whichever
+  notation wins is a rendering of spec/abstract.md (ADR 0050).
+- **[fit-research.md](docs/fit-research.md), decisions 1–6 decided by
+  [ADR 0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md); 7, the surface, open.** Which syntax is the most faithful
   image of the semantics: a syntax fits when its abstract syntax is the initial algebra of the
   semantic signature (Montague; Goguen et al. 1977), and misfits are countable (synonyms, homonyms,
   hidden binders, missing distinctions, checked invariants). Most of the fit is in the abstract
   syntax, not prefix against infix. β's textual substitution measured 6 of 1,590 occurrences. Every
   notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
-  the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds. Seven
-  decisions, five of them independent of the surface.
-- **[spec/abstract.md](docs/spec/abstract.md), draft, not built.** Abstract Oroboros, fit-research's
-  decision 1 written out: the language as the initial algebra of a many-sorted binding signature
+  the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds.
+- **[spec/abstract.md](docs/spec/abstract.md), decided (ADR 0050), not built.** Abstract Oroboros: the language as the initial algebra of a many-sorted binding signature
   (thirteen primitive expression operators, six derived ones each with its equation, three binder
-  kinds, modes), eleven well-formedness conditions (the tail rule and the logic's boundary become
+  kinds; usage and passing modes on binders, `linear`, `inout`, `out`, in place of `(buffer V)` and
+  `(cell T)`; one definition carrying its claims, a Z schema, in place of `sig` beside `def`; sets
+  formed explicitly; one guarded choice; indexing its own operator), eleven well-formedness conditions (the tail rule and the logic's boundary become
   sorts), and its meanings as homomorphisms. These are erasure ε, a retraction, so ⟦P⟧ := ⟦D(ε(P))⟧
   and claims are inert by construction; desugaring D into today's core; obligations 𝒪, a VC generator;
   and usage 𝒰 on an interval semiring. A notation is a rendering with two round-trip laws, comments
-  decorating positions. Today's notation maps in by μ. The first build step is D ∘ ε ∘ μ = today's
-  reader, checked byte-identical.
+  decorating positions. Today's notation maps in by μ. **Built: nothing yet. Next: the first build
+  step, D ∘ ε ∘ μ = today's reader, checked byte-identical (§13).**
 
 ## Where it stands
 
@@ -416,8 +418,11 @@ a wall that needs language work, stop and research it, then design it.
       variant); a decidability map (Presburger, semilinear sets, regular strings, the array
       property fragment, BAPA, congruence closure, Nelson–Oppen) with the cliff at nonlinearity,
       quantifier alternation and induction, climbed by decided assertions, invariants and lemmas;
-      TLA+, Shen and Coq each one principle; own complete procedures, no SMT. Six decisions for
-      hamza, the first step a measurement. Then Win32's fixed-type cells on x86;
+      TLA+, Shen and Coq each one principle; own complete procedures, no SMT. Decided (ADR 0049),
+      the first step a measurement. **The abstract syntax that fits it is decided**
+      ([ADR 0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md),
+      [spec/abstract.md](docs/spec/abstract.md)); the surface notation is open. Then Win32's
+      fixed-type cells on x86;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;
@@ -527,6 +532,7 @@ rejected alternatives.
 | `local` is a scope of local state; its initializer decides buffer or cell; a cell is a loop variable by the state-passing translation, and an elimination it assumes is decided on a normal form | [0047](docs/decisions/0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md) |
 | A host writes a cell through a reference to a fresh copy, `#ref`/`#deref` around the call; `(cell T)` in declarations; `(out τ)` is a cell for one call, its value the cells' then the result's | [0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md) |
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
+| The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 
 ## How this project is run
 

@@ -5,7 +5,9 @@ Status: Accepted (hamza: "I love it, and I agree to all the recommendations"). D
 [settypes-research.md](../settypes-research.md), which stays a primary document until everything in
 it is built. Supersedes [typevars-research.md](../typevars-research.md)'s framing (its surface
 survives as a special case, §6.2 of the research), and raises the ceiling
-[types-direction.md](../types-direction.md) §3.5 set on its Layer 2.
+[types-direction.md](../types-direction.md) §3.5 set on its Layer 2. The spelling of decision 5 (a literal as
+its singleton, `not` as a complement) is amended by
+[ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md): sets are formed explicitly.
 
 ## Context
 

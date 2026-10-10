@@ -8,7 +8,9 @@ better than others. research and discuss and if necessary research."*
 It follows [settypes-research.md](settypes-research.md) (decided, ADR 0049),
 [notation-research.md](notation-research.md) and [syntax-research.md](syntax-research.md). Those two
 asked which notation reads and writes best. This one asks which notation is the most faithful image of
-the meaning. Nothing is decided.
+the meaning. **Decisions 1–6 are decided** (hamza, 2026-10-10: "specify", then "decided. agreed to
+recommendation"), by [ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md), and specified in
+[spec/abstract.md](spec/abstract.md). Decision 7, the surface, stays with syntax-research.
 
 ## 0. The answer, in brief
 
@@ -610,32 +612,35 @@ abstract syntax into another concrete one, so it fits exactly as well as the sou
 strongest reason to fix the abstract syntax first: then the physical notations, one or two, are
 renderings of one fitted algebra.
 
-## 7. Decisions for hamza
+## 7. Decisions
+
+Decided 2026-10-10, as recommended: 1–6 by [ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md).
+7 is open with syntax-research.
+
 
 1. **Specify "abstract Oroboros" before choosing a surface**: the signature of §2 as an abstract
    grammar, its three binder kinds, Formula ⊇ Expr, and the tail rule as grammar (§3.10). It is
    spec-first, it is shared by every candidate surface, and the translator notation-research §8
-   proposes would be a homomorphism out of it. *Recommended.*
+   proposes would be a homomorphism out of it. **Decided**: [spec/abstract.md](spec/abstract.md).
 2. **Usage as modes on binders** (§3.2): `linear` and `inout`/`out` on a binder, in place of the type
    formers `(buffer V)` and `(cell T)`; `relevant` as a variant's default mode; `pure` on a
    declaration. The semantics is unchanged, and it would need an ADR for the surface of ADR 0020 and
-   ADR 0048. *Recommended.*
+   ADR 0048. **Decided.**
 3. **One definition form carrying its claims** (§3.4): declarations then a predicate, the Z schema
    shape, merging `sig`, `def`, `where`, `ensures` and `requires`; a host declaration is the same form
-   with a host body. *Recommended.*
+   with a host body. **Decided.**
 4. **An explicit set former and difference** (§3.5), amending settypes §7.2's spelling: `{…}` or
    `(set …)`, and `S ∖ T` or `(minus S T)`. A literal is never its own singleton, and `or`/`and`/`not`
-   stay connectives. *Recommended.*
+   stay connectives. **Decided.**
 5. **Pairs as pairs** (§3.6) and **one guarded choice** (§3.7) in whichever notation is chosen. The
    datum comment then becomes safe, which a successor to ADR 0024 could allow while keeping its
-   principle. *Recommended.*
+   principle. **Decided**; admitting `#;` is not, and would be a successor to ADR 0024.
 6. **Mark data application** (§3.8): `t[i]` (or `(at t i)`) for a table or map, `f(x)` for an operator.
-   The measurement shows the uniformity unused. *Recommended, weakly*: it is the one change that
-   departs from data.md's "indexing is application" as a reading of the source, though not as
-   semantics.
+   The measurement shows the uniformity unused. **Decided.** It is the one change that departs from
+   data.md's "indexing is application" as a reading of the source, though not as semantics.
 7. **The surface stays syntax-research's decision**, with two constraints from here: no separate type
    grammar (§3.1), and no binding-time marks (§3.9). On the remaining question, prefix or mathematics,
    the semantics leans to mathematics for claims only (§3.14), which is what the two-renderings
-   synthesis already gives.
+   synthesis already gives. **Open.**
 
-Decisions 2–6 hold in any notation, so they can be taken now, before the surface is chosen.
+Decisions 2–6 hold in any notation, which is why they could be taken before the surface is chosen.

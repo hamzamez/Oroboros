@@ -1,9 +1,9 @@
 # Abstract Oroboros
 
-Status: **draft specification, not built, not decided.** Written 2026-10-10 on hamza's request
-("specify. always mathematical and algebraic"), after [fit-research.md](../fit-research.md) §7
-decision 1. Where it takes one of fit-research's pending decisions (2–6) it says so, and §13 lists
-what changes if a decision goes the other way. The semantics is the language's as it stands,
+Status: **decided, not built.** Written 2026-10-10 on hamza's request ("specify. always mathematical
+and algebraic"); [ADR 0050](../decisions/0050-the-abstract-syntax-fits-the-semantics.md) decides it
+with [fit-research.md](../fit-research.md) §7 decisions 1–6, as recommended. The surface notation is
+not decided (syntax-research.md), and §9.4's spellings are illustrations. The semantics is the language's as it stands,
 ADR 0049's included. Only the presentation is new, except where §11 names a change.
 
 The language is specified here as an algebra of trees, with no notation. A notation (§9) is a
@@ -123,7 +123,7 @@ Bind ::= p = e            definitional:  p denotes e's value           (let, a b
        | p        [μ]      ranging, no claim: p ∈ V with no obligation   (settypes §10: "no claim" ≠ V)
 ```
 
-**Modes** μ (fit-research §3.2, decision 2, pending):
+**Modes** μ (fit-research §3.2, decision 2, ADR 0050):
 
 | mode | kind | meaning | where |
 |---|---|---|---|
@@ -160,7 +160,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | `x`, `k` | variable, literal | |
 | **lam**(b̄; e) | (Bind*. Expr) → Expr | the λ; its binders are ranging, with an optional set and mode. Static: erased by staging (closures-direction.md) |
 | **app**(e; ā) | (Expr, Arg*) → Expr | application, of a definition, a host name, a λ, or an owned name |
-| **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, pending) |
+| **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, ADR 0050) |
 | **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e |
 | **case**(e; ā) | (Expr, Arm*) → Expr | choice: the first arm whose pattern matches e's value and whose guard holds |
 | **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: state binders s̄, invariant I, arms with Tail bodies (ADR 0015) |
@@ -722,8 +722,8 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
 - a comment is a decoration on a position (§9);
 - the homonym `set` is split into two operators (§10).
 
-**New constructs, each pending its decision or not built:**
-- index as its own operator (decision 6);
+**New constructs, not built:**
+- index as its own operator (ADR 0050, decision 6);
 - arm guards on case (today only `match` has `when`);
 - set patterns `x ∈ S` and mem tests (settypes §6.4, after Theorem P is built);
 - spec, lemma, assert and invariant (settypes §8 step 4);
@@ -742,15 +742,9 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
 4. **A rendering**, once syntax-research decides the notation: print_R and parse_R, laws R1 and R2
    checked by printing and reparsing the corpus, and the translator, which carries every comment.
 
-**What changes if fit-research's decisions go the other way:**
-
-| decision | if declined |
-|---|---|
-| 2, modes | `linear` and `inout` become set operators `buffer(S)` and `cell(S)`, and W9 must refuse `Seq(buffer(S))`, as ADR 0020 does today |
-| 3, one def | a separate operator sig(f; b̄; U; φ; ψ) beside def, and an agreement condition W12 between the two |
-| 4, explicit set former | a literal in a set position is its singleton, and W-conditions decide which positions are set positions |
-| 5, pairs and one choice | nothing here: an abstract syntax has no parity, and cond is already derived |
-| 6, index | index is deleted, and D(app(e; a)) covers it: data application is unmarked |
+The alternatives to decisions 2–6 (usage as set formers, `sig` beside `def`, literal singletons by
+position, structure by parity, uniform application) and why each was rejected are in ADR 0050's
+"Why not".
 
 ## 14. Not here
 

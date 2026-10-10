@@ -2,7 +2,8 @@
 
 Date: 2026-10-09
 Status: Accepted (hamza: "go first", then "go ahead"). Extends ADR 0047; closes cause I of
-gocoverage-2026-10-06 for Go.
+gocoverage-2026-10-06 for Go. Its surface `(cell T)` becomes the passing mode `inout` on a binder by
+[ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md), when the surface changes; the meaning is unchanged.
 
 ## Context
 

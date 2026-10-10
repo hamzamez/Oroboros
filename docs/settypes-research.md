@@ -2,6 +2,9 @@
 
 **Decided 2026-10-10: [ADR 0049](decisions/0049-types-are-sets-and-the-logic-never-prints.md)
 accepts §9's six recommendations. A primary document in CLAUDE.md until everything here is built.**
+**§7's spelling is amended by [ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md)**: a set is
+formed explicitly (a literal is never its own singleton by position), a complement is an explicit
+difference, and usage (`buffer`, `cell`) is a mode on a binder, not a set ([fit-research.md](fit-research.md) §3.2, §3.5).
 
 Research, 2026-10-10, on hamza's request (quoted in full in §0.1). It reworks
 [typevars-research.md](typevars-research.md), which mirrored Go's generics, from first principles,
@@ -516,6 +519,10 @@ procedures come later, each when a program needs it. This is an estimate, not a 
 first step is the measurement that would correct it.
 
 ## 7. The syntax: pleasant and uniform
+
+*Amended by ADR 0050: `(or "GET" "POST")` becomes a set former over the two literals, and `(not 0)`
+becomes the difference of `int` and the singleton of 0. The forms below are kept as written in this
+research.*
 
 ### 7.1 Principles
 

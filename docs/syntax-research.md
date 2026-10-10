@@ -11,7 +11,10 @@ untyped lambda, I know we kept staging, but did we loose that? answer in the res
 
 It follows [notation-research.md](notation-research.md), whose semantics (the five unifications,
 settypes-research's logic, ADR 0049) every notation here writes the same. Only the spelling differs.
-Nothing is decided.
+The surface notation is not decided. **The abstract syntax beneath every candidate is**
+([ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md), [spec/abstract.md](spec/abstract.md)), and
+it amends every column of example 6: `Buffer`/`Cell` become modes on a binder, and `sig` beside `def`
+becomes one definition. Whichever notation is chosen is a rendering of that algebra (spec/abstract.md §9).
 
 ## 0. The answer, in brief
 

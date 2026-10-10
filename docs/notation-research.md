@@ -9,8 +9,11 @@ if we have to rewrite all the examples and target files … show it to me in a r
 we decide how to proceed."*
 
 It builds on [settypes-research.md](settypes-research.md) and
-[ADR 0049](decisions/0049-types-are-sets-and-the-logic-never-prints.md). Nothing here is built, and
-nothing is decided.
+[ADR 0049](decisions/0049-types-are-sets-and-the-logic-never-prints.md). Nothing here is built. The surface
+is not decided (syntax-research.md). **[ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md)
+decides the abstract syntax beneath it**, [spec/abstract.md](spec/abstract.md). Three of this document's forms
+are amended by it: `Buffer(Byte)` and `Cell(…)` become modes on a binder (`LINEAR`, `INOUT`), and data
+application `t[i]` is confirmed as its own operator.
 
 ## 0. The answer, in brief
 

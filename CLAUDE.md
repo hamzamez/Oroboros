@@ -360,7 +360,16 @@ a wall that needs language work, stop and research it, then design it.
       ↓I), TLA+'s binder-with-its-set as the uniform shape; `(sig (AsType (E error)) …)`, a head
       binding as a variant's does, instantiated by application or inference. Go has 88 generic
       functions and methods, 51 without a callback, and `errors.AsType` (Go 1.26), As as a function.
-      Five decisions for hamza. Then Win32's fixed-type cells on x86;
+      Five decisions for hamza. **Reworked from first principles**
+      ([settypes-research.md](docs/settypes-research.md)): two languages, a computation that
+      prints and a logic of sets that reasons about it and never prints, ρ from proven sets the only
+      bridge; types a Boolean algebra (∪ ∩ ∖, singletons, comprehension, ×, tagged +, tables, maps,
+      ∀ over sets) and static values; the partition theorem (a union across sorts ≅ ADR 0042's
+      variant); a decidability map (Presburger, semilinear sets, regular strings, the array
+      property fragment, BAPA, congruence closure, Nelson–Oppen) with the cliff at nonlinearity,
+      quantifier alternation and induction, climbed by decided assertions, invariants and lemmas;
+      TLA+, Shen and Coq each one principle; own complete procedures, no SMT. Six decisions for
+      hamza, the first step a measurement. Then Win32's fixed-type cells on x86;
    3. the work, program first, in the new model: `os` (118), then `bufio`'s `Reader` (50) and `io`
       (27). The process API waits for concurrency-research's decisions;
    4. K's packages, program first: `io/fs`, `time`, `unicode`;

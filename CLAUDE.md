@@ -80,6 +80,15 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
   the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds. Seven
   decisions, five of them independent of the surface.
+- **[spec/abstract.md](docs/spec/abstract.md), draft, not built.** Abstract Oroboros, fit-research's
+  decision 1 written out: the language as the initial algebra of a many-sorted binding signature
+  (thirteen primitive expression operators, six derived ones each with its equation, three binder
+  kinds, modes), eleven well-formedness conditions (the tail rule and the logic's boundary become
+  sorts), and its meanings as homomorphisms. These are erasure ε, a retraction, so ⟦P⟧ := ⟦D(ε(P))⟧
+  and claims are inert by construction; desugaring D into today's core; obligations 𝒪, a VC generator;
+  and usage 𝒰 on an interval semiring. A notation is a rendering with two round-trip laws, comments
+  decorating positions. Today's notation maps in by μ. The first build step is D ∘ ε ∘ μ = today's
+  reader, checked byte-identical.
 
 ## Where it stands
 

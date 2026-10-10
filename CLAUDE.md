@@ -58,6 +58,13 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   lengths, float intervals, semantic subtyping, the array property fragment, BAPA, congruence
   closure, Nelson–Oppen; above the cliff a programmer climbs by assertions, invariants and lemmas,
   each decided. Own complete procedures, no SMT. **Built: nothing yet. Next: §8's measurement.**
+- **[notation-research.md](docs/notation-research.md), not yet decided.** The language as the
+  executable subset of a mathematical notation, TLA+'s with PlusCal's state and Dijkstra's guarded
+  commands (Abrial's B0 the precedent for compiling mathematics): `f(x ∈ S) ∈ T == e`, `0..255`,
+  `Seq(S)`, `t[i]`, `CASE`, `LOOP … AGAIN`, `LOCAL x := e IN`, capitals for reserved words, ASCII for
+  every symbol, comments as gaps. The semantics unchanged; five unifications (one `CASE`, buffers in
+  program order, tables and maps one finite function, claims in the header, membership as a test);
+  a translator carrying every comment. Six decisions for hamza.
 
 ## Where it stands
 

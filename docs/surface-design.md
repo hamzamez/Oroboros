@@ -193,13 +193,17 @@ admits exactly two levels above V, sets of values and sets of sets of values, an
 - **If not**, the λ must section its claims (candidates B, B′), and §2.6's `Π` stays a thing the
   specification says about a `def` rather than a set the program names.
 
-**This is prior to the spelling, and it is a question for hamza.**
+**hamza decided it: yes, there are function set formers, and it is related to callbacks.** §1.8 is
+the derivation, and the short version is that the link is not an analogy — a callback declaration is
+the *only* place the arrow has a job, and no allowed callback tier makes a λ a value of V, so the
+arrow costs W9 a clause rather than a relaxation.
 
-### 1.5 The nine candidates
+### 1.5 Ten candidates, and a synthesis
 
 The same three programs in each. They are chosen to exercise the holes: a claimed binary operation
 with a precondition and a postcondition; an unclaimed higher-order λ (where claims are meaningless);
-and a λ applied immediately (where the spelling meets application).
+and a λ applied immediately (where the spelling meets application). Several candidates also show a
+host body, a static parameter and a callback parameter, which are where the remaining slots land.
 
 Program 1, `div`: integer division, divisor nonzero, result bounded by the dividend.
 Program 2, `compose`, and a Church numeral: no claims anywhere.
@@ -341,7 +345,16 @@ Encode == λ(dst ∈ Seq(Byte) LINEAR, src ∈ Seq(Byte)) n ∈ Nat
   needs the reader to know where the body ends. TLA+ lives with it; it is the mathematical notation's
   one real cost, and it can produce a program that parses and means something else.
 
-#### E — the signature as one term, claimed with `the` (no λ syntax at all)
+#### E — the signature as one term, claimed with `the` — **dropped by hamza**
+
+> *"and I think I should drop E, just a matter of taste, push back if you think otherwise."*
+
+**No push-back, and the reason is better than taste: given hamza's answer to §1.9's first question,
+dropping E costs nothing.** E's one unique capability was claiming an *already-written* λ from
+outside it. The arrow is now decided in (§1.8) — but where callbacks actually need it is **a
+binder's set inside a declaration**, which B′, D, F and J all already have a place for. So the arrow
+survives E, and nothing is left that only E could say. The derivation is kept below because it is
+what established that the arrow is wanted at all.
 
 If an arrow set former exists, slots 3–5 need nothing new:
 
@@ -368,6 +381,13 @@ The last pair is E's real character: it **does not** merge `def` and the claim, 
 satisfied — but it does not need to be, because the claim is no longer a *form*. It is a sentence,
 and sentences already compose.
 
+**Why that is not enough to keep it.** A claim-as-sentence can be written anywhere, including far
+from the thing it claims, and nothing in the notation holds the two together. For a `def` that is a
+regression: ADR 0028 checks a declared precondition at *every call*, so the declaration and its
+contract are read as one thing by the compiler and should be one thing on the page. E makes them two
+sentences that happen to share a name — which is `sig`-and-`def` again, the very split §1.1 opened by
+calling a hole. **Dropped.**
+
 - **H: 0** — *if* the arrow exists. **U: 0 new shapes** — `the` and `fn` both already exist.
 - **F:** the best fit on paper: a claim about a λ is a claim, written the way every other claim is.
 - **The blocking question, stated precisely.** The obvious objection — "V has no functions" — is
@@ -379,24 +399,58 @@ and sentences already compose.
   is. **Cannot be chosen until that is answered.** Kept on the shortlist, because the question is
   small and the prize is a construct removed rather than added.
 
-#### F — F#'s shape
+#### F — ML, F#-inspired (corrected: *inspired*, not copied)
+
+**My first draft dropped this candidate and was wrong to.** It read fit-research §3.1 as an argument
+against F#'s *shape*, when §3.1's argument is against F#'s **type grammar** — `'T list`,
+`Result<'T,'E>`, `when 'E :> error` — which is a second grammar and so Church-style stratification.
+hamza's correction: *"nothing says that F# syntax has to dictate the semantics. rather let's call it,
+F# inspired."* That is right. The shape and the type grammar are separable, and separating them is
+exactly what this installment is for.
+
+So: the ML shape, with ADR 0049's types-as-terms. Three rules make it fit, and they are the whole of
+the correction:
+
+| F# has | F#-inspired has | why |
+|---|---|---|
+| `'T list`, `Result<'T,'E>` | `Seq(T)`, `Result(T, E)` — ordinary application | ADR 0049: a set expression is an expression |
+| `<'E when 'E :> error>` | `(E: subsets(error))` — an ordinary binder | a bound is membership (typevars-research) |
+| `x: T` read as "x has type T" | `x: T` read as `x ∈ T` | Curry, not Church (§1.3) |
+
+Only the third is a reading rather than a change, and it is the one that matters: `:` is a spelling
+of `∈`, not of "has type".
 
 ```fsharp
-let div (a: Int) (b: Int) : Int =
-    requires (b <> 0)
-    ensures  (fun r -> abs r <= abs a)
-    a / b
+// 1 — claimed; the result is a named binder, as Finding 2 wants
+let div (a: Int) (b: Int) : (r: Int)
+    where  b <> 0
+    ensure abs r <= abs a
+    = a / b
 
+// 2 — unclaimed
 let compose f g = fun x -> f (g x)
+let two = fun s -> fun z -> s (s z)
+
+// 3 — applied at once
+(fun (a: Int) (b: NonZero) : (r: Int) -> a / b) 6 3
+
+// a static parameter is a binder over a set of sets, not an angle bracket
+let asType (E: subsets(error)) (err: error) : (r: Option(E))
+    = host expr "errors.AsType[%t1](%s)" import "errors"
+
+// a callback parameter's set is an arrow (§1.8)
+let sortSlice (a: Seq(Value)) (less: (Int, Int) -> Bool) : Unit
+    = host stmt "sort.Slice(%s, %s)" import "sort"
 ```
 
-- **H: 0.** **S:** 736 tokens, close to M's. **Pleasantness: highest**, per syntax-research §5.4.
-- **F: F4′, and it is fatal.** fit-research §3.1: F#'s types are a *second grammar* (`'T list`,
-  `Result<'T,'E>`, `when 'E :> error`), which is Church-style stratification. ADR 0049 says a type is
-  an ordinary term. F\* fixes this; plain F# cannot, and taking F\*'s refinements without its
-  term-level types is taking the shape without the thing that makes it fit.
-- **Drop**, with the note that the *claims* half (`requires`/`ensures` as labelled clauses) is what
-  B/B′ borrow.
+- **H: 0. U: 1 shape** once `:` is `∈` and a set is a term. **S: 34 tokens, depth 1** (§1.6), a third
+  shorter than B′.
+- **F: fits**, with the three substitutions above. Without them it is F4′, which is what my first
+  draft measured.
+- **The hazard is unchanged and is the reason it is not kept alone**: syntax-research §5.2 — a nested
+  `match` swallowing the cases after it, because the offside rule cannot tell where the inner one
+  ends. That failure can produce a program that parses, type-checks and means something else, which
+  is the kind of error this project trades size to avoid.
 
 #### G — curried, one binder per λ, claims on each (invented)
 
@@ -430,6 +484,66 @@ Claims belong where a value is produced, so put the result set at the call:
 - **Drop.** But note it is already *legal* and sometimes right: `the` on an application is how a
   caller narrows a result it knows more about than the declaration does.
 
+#### J — Go-inspired: braces delimit the body (hamza's missing candidate)
+
+hamza: *"and I don't see the go inspired syntax: `fn(x ∈ S, y) r ∈ S { e }`. it should be included."*
+It was missing and it should not have been — it is the shape his first message proposed, and it has a
+precedent worth naming.
+
+**Go already writes the result as a binder.** `func f(a, b int) (r int) { … }` — Go's *named result
+parameters* are Finding 2's result-binder, in a shipped language, and `r` is in scope in the body
+exactly as abstract.md §2.6 has it. So this candidate is not a borrowed shape with a claim bolted on;
+Go's own form is already two binder groups.
+
+```go
+// 1 — claimed; claims in the header, body in the braces
+fn div(a ∈ Int, b ∈ Int) (r ∈ Int)
+  where  b ≠ 0
+  ensure |r| ≤ |a|
+{
+  a ÷ b
+}
+
+// 2 — unclaimed, anonymous
+fn(f, g) { fn(x) { f(g(x)) } }
+fn(s) { fn(z) { s(s(z)) } }
+
+// 3 — applied at once, and the braces make the extent unambiguous
+fn(a ∈ Int, b ∈ NonZero) (r ∈ Int) { a ÷ b }(6, 3)
+
+// several results: the result group is a group, so this needs nothing new
+fn divmod(a ∈ Int, b ∈ Int) (q ∈ Int, m ∈ 0..b-1)
+  where b > 0
+{
+  (a ÷ b, a % b)
+}
+
+// a host body
+fn Encode(dst ∈ Seq(Byte) linear, src ∈ Seq(Byte)) (n ∈ Nat) pure
+  = host expr "hex.Encode(%s, %s)" import "encoding/hex"
+
+// a callback parameter (§1.8)
+fn sortSlice(a ∈ Seq(Value), less ∈ (Int, Int) -> Bool) ()
+  = host stmt "sort.Slice(%s, %s)" import "sort"
+```
+
+- **H: 0. U: 1 shape**, used for both binder groups. **S: 33 tokens, depth 1** (§1.6) — the second
+  shortest, within one token of D.
+- **F: fits.** Nothing here is a second grammar: `Seq(Byte)` is an application, `0..b-1` a range
+  expression, `(Int, Int) -> Bool` an arrow set (§1.8).
+- **E: good** — everything between the result group and the `{` is a claim, so erasure deletes a
+  contiguous region and the braces mark where it stops.
+
+**And it fixes D's one dangerous failure.** D's hazard is that `λ` extends as far right as it can, so
+`λ(x) : f(x) + 1` needs the reader to know where the body ends, and getting it wrong produces a
+program that parses and means something else (syntax-research §5.2). **A brace cannot be
+ambiguous about extent.** `fn(x) { f(x) } + 1` reads one way only. That is a real advantage over both
+D and F, and it costs two tokens against D.
+
+The cost: a second delimiter pair, and `{` `}` do nothing else in the language, so they are two tokens
+whose only job is delimiting a body. Against that, they are the two most-trained delimiters in
+existence, which is the LLM-side argument syntax-research §5.1 makes about shape.
+
 #### I — two spellings, one tree: S-expressions to write, mathematics to read
 
 Not a ninth shape but a choice about which of the above is *the source*. syntax-research §6's
@@ -456,94 +570,233 @@ of nine**, which is this project's own lesson about unmeasured claims arriving o
 | **B′** | **sectioned, result a binder** | **0** | **1** | 48 | 4 | 3 | **fits** |
 | C | claims as sets | 0 | **1** | 61 | 6 | 5 | fits |
 | **D** | **mathematical** | **0** | **1** | **29** | **1** | **1** | **fits** |
-| E | arrow + `the` | 0* | **0** | 30 | 4 | 3 | fits* |
-| F | F# | 0 | 3 | 38 | **1** | **1** | **F4′** |
+| E | arrow + `the` | 0 | 0 | 30 | 4 | 3 | fits |
+| **F** | **ML, F#-inspired** | **0** | **1** | 34 | **1** | **1** | **fits** |
 | G | curried | **1** | 1 | 23 | 4 | 4 | **F4′** |
 | H | result at the call | **1** | 1 | 26 | 5 | 2 | **F5** |
-
-\* E's zero holes and perfect fit are conditional on the arrow existing (§1.4's open question).
+| **J** | **Go-inspired, braced** | **0** | **1** | 33 | **1** | **1** | **fits** |
 
 What the numbers say, beyond the counts:
 
-- **D is 40% shorter than B′ and nests a quarter as deep** (29 tokens against 48; depth 1 against 4).
-  That is syntax-research §4's ~20% gap, wider here, because this program is nothing but claims and
-  claims are where infix wins most.
+- **The four shortest with zero holes and a clean fit are D (29), J (33), F (34) and E (30)** — and E
+  is dropped, so the live three are **D, J, F, within five tokens of each other and all at depth 1.**
+  Size does not separate them; their failure modes do (§1.7).
+- **B′ costs 48 tokens at depth 4**, half again more than any of those three, which is the price of
+  writing claims as nested lists. It buys the S-expression failure mode: an error the reader catches
+  before anything is interpreted.
 - **C is the most uniform and the longest by half again** (61 tokens, depth 6, a closing run of 5).
   That is the price of writing the general case, and it is why it survives as B′'s *meaning* rather
   than as a surface.
-- **B′ costs three tokens over B** (48 against 45) and removes a shape. The cheapest trade in the
-  table.
-- **The two shallowest are D and F, at depth 1**, and F is the one dropped for fit. Shallowness is
-  not what decides this.
-- **A and G are the shortest prefix candidates** (19 and 23) and both are disqualified on holes. Size
-  is the last criterion for a reason.
+- **A and G are the shortest of all** (19 and 23) and both are disqualified on holes. Size is the
+  last criterion for a reason.
+- **F's and J's depth of 1 is not a coincidence**: both put the claims in a header at one level and
+  the body behind a delimiter, so nothing nests. D reaches depth 1 the same way, with `:` as the
+  delimiter — and `:` is the one that cannot bound a body from the right, which is §1.7's whole
+  argument.
 
 ### 1.7 Kept, and dropped
 
-**The three kept are not three points on one axis.** They are two answers to Finding 1 and one
-refusal of it, which is worth seeing before the list:
+**The question that separates the live candidates is not size. It is what a wrong guess about the
+body's extent costs.** All of D, F and J are ~30 tokens at depth 1. They differ in what delimits the
+body on the right:
 
-| | what it does with "λ and `def` differ by a name" |
-|---|---|
-| B′, D | **satisfies it**: one form, with a name slot. The claims become part of the form. |
-| E | **dissolves it**: the λ keeps two slots, `def` keeps two, and a claim is a *sentence about* a name rather than a part of it. Finding 1 then has nothing to merge. |
+| | what ends the body | what a mistake produces |
+|---|---|---|
+| **D** | nothing — `:` opens the body and it runs as far right as it can | a program that **parses and means something else** (`λ(x) : f(x) + 1`) |
+| **F** | indentation (the offside rule) | a nested `match` swallowing later cases: parses, type-checks, wrong (syntax-research §5.2) |
+| **J** | **`}`** | a reader error, at once |
+| **B′** | **`)`** | a reader error, at once |
 
-E is the only candidate where the answer to "where does the result set go in a λ" is **nowhere, and
-that is correct** — which is the most Curry-style answer available, and the one ADR 0049 would
-predict. It is also the one blocked on W9.
+That table is the installment's real result. **The two candidates whose delimiter is a bracket are the
+two whose worst failure cannot become a wrong program**, and this project trades size for exactly that
+(CLAUDE.md: a path nothing runs is a path nothing checks; "not refused" is not "proven").
 
 **Kept, three:**
 
-1. **B′ — sectioned prefix, the result a named binder group.** Zero holes, one shape used twice,
-   erasure is a deletion of labelled sections, and it is the Z schema's own shape. The S-expression
-   source syntax-research §5.4 ranks first for writing, and the failure mode is a parenthesis the
-   reader catches.
-2. **D — the mathematical form, `λ(args) r ∈ R : body` with `WHERE`/`ENSURE` clauses.** Zero holes,
-   shortest, shallowest, and the clearest for claims (syntax-research §5.3). Its hazard is real and
-   is the reason it is not kept alone.
-3. **E — the arrow set former with `the`.** Zero new shapes, and the only candidate where a λ's claim
-   is *not a special case*. Blocked on one question, and worth answering because the answer is cheap
-   and the prize is a construct removed rather than added.
+1. **J — Go-inspired, braced.** Zero holes, one binder shape used for both groups, 33 tokens at
+   depth 1, and the body's extent is explicit. Go's *named result parameters* are Finding 2 already
+   shipped, so the result-as-binder is not an invention. It is D's size with B′'s failure mode, which
+   is the combination nothing else in the table reaches.
+2. **B′ — sectioned prefix, the result a named binder group.** Zero holes, one shape, the Z schema's
+   own form, erasure a deletion of labelled sections, and the S-expression source syntax-research
+   §5.4 ranks first for writing. It costs 15 tokens and three levels of depth over J; it buys one
+   delimiter pair instead of two and a reader that already exists.
+3. **D — the mathematical form.** Shortest, and the clearest to *read* claims in (syntax-research
+   §5.3). Kept for what it is best at rather than as a source, which is what I makes possible.
 
-**And, orthogonally, I — one tree, two renderings**, which is how B′ and D stop competing.
+**And, orthogonally, I — one tree, two renderings.** hamza has not decided whether there are two
+notations (§1.9), so this stays a shape the kept three are compatible with rather than a choice.
+
+**F is kept on the bench rather than dropped.** Corrected, it fits, it is the most pleasant to read of
+the four, and it is 34 tokens at depth 1. What keeps it off the list is its delimiter: indentation,
+whose failure is the one that hides. If a later installment finds a construct where the offside rule
+is clearly better, it comes back.
 
 **Dropped, with the reason:**
 
 | | why |
 |---|---|
 | A | 3 holes, and the fourth slot is *ambiguous* with the body, because ADR 0049 makes sets expressions. Not fixable by adding slots. |
+| B | Superseded by B′: one more shape for three fewer tokens. |
 | C | Dropped as a surface, **kept as the reading of B′**: its uniformity is B′'s meaning, and deriving it is what makes B′'s `where` a shorthand rather than a construct. |
-| F | F4′: a second type grammar is Church-style stratification, against ADR 0049. Its `requires`/`ensures` clauses survive in B′. |
+| E | **hamza's call**, and it costs nothing: the arrow it was testing is decided in (§1.8) and lives in a binder's set, where B′, D, F and J all have a place for it. What is left — a claim as a free-standing sentence — re-splits a declaration from its contract, which is `sig`-and-`def` again. |
 | G | 1 hole (a relational precondition has no place) and F4′: currying an isomorphism, which core-0 §0 already records as a wrong reading. |
 | H | F5: permits a λ claimed differently per call site, where ADR 0028 needs one statement. Still legal and useful as a caller's narrowing. |
 
-### 1.8 What installment 1 fixes for everything after it
+### 1.8 The arrow, and why hamza is right that it is about callbacks
 
-Whatever is chosen, these are now constraints on the rest of the language:
+> *"I think we should have function set formers. And I think this is related to callbacks."*
 
-1. **`def` is a λ with a name, and there is one form.** `sig` disappears; the name and the arity are
-   written once. Every later binding construct (`let`, `local`, `loop`, a variant's parameters, a
-   host declaration) must use the *same* binder shape, or U breaks.
-2. **A binder is `pattern ∈ set [mode]`**, with the set optional and the mode from fit-research
-   decision 2 (`linear`, `inout`, `out`). "No set" is **not** `∈ V`: it is *no claim*, which
-   settypes §10 insists is different and must not be merged.
-3. **The result is a binder group, not an annotation.** So a form that produces several values writes
-   several result binders, and `values`/ADR 0031's product has a place already.
-4. **φ and ψ are comprehensions over those groups**, so a `where` anywhere else in the language —
-   on a `variant`, a `loop`'s invariant, a `local` — is the same shorthand for the same operator.
-5. **Claims are a deletable region.** Any later construct must keep its claims in labelled sections
-   or above a separator, never interleaved with the terms they are about, so ε stays a deletion.
-6. **No type on a term.** No `(fn ((x : int)) …)` reading, in any later construct.
+**Decided in, and the link to callbacks is not an analogy — it is where the arrow's only job is.**
 
-### 1.9 Open, for hamza
+#### What a callback declaration needs
 
-1. **Is there a function-set former** — `(-> P R)` / `P → R`? It decides candidate E, and it is prior
-   to the spelling. The cost is a **third level for W9 to admit** (§1.4: not that functions are not
-   values, since sets are not either, but that a set of operators is neither of W9's two levels); the
-   prize is that a λ's claim stops being a special case and §2.6's `Π` becomes writable.
-2. **Of B′ and D, which is the source**, or both under I (write B′, read D)?
-3. **Does a λ ever carry a claim in practice?** The corpus says almost never (§1.3(c): the Church λs
-   cannot and should not). If the honest answer is "only a named one", then the λ keeps *two* slots
-   and all eight live on `def` — which is a fourth candidate, and the smallest of all. I have not
-   proposed it as its own row because Finding 1 says they are one form; but if λ and `def` are kept
-   apart deliberately, it is the right answer and it should be said so.
+[callbacks.md §2](spec/callbacks.md) has three tiers, and a host declaration must say, at the
+parameter, what shape of λ goes there:
+
+```lisp
+(sort.Slice a (fn (i j) less))      ; tier 1: Go's own closure does the capture
+(win.EnumWindows my-callback ctx)   ; tier 2: a top-level name and an explicit context word
+```
+
+For `sort.Slice`'s second parameter, the only honest statement is *"a λ of two integers yielding a
+boolean"*. There is no other set that says it. **So the arrow's job is a binder's set in a
+declaration**, and that is the whole of it for tiers 1 and 2.
+
+#### The finding: the arrow does not put functions in V
+
+This is the part that makes it cheap, and it falls out of the tiers rather than being assumed:
+
+| tier | what the λ is | is it a value of V? |
+|---|---|---|
+| **1** | written at the call site, in a **structural position** — "the same kind of position a `loop`'s body or a `let`'s continuation sits in, which the backends already read positionally and never treat as a value" (callbacks.md §2) | **no** |
+| **2** | a top-level definition **referenced by name**; the host gets a function pointer or a method value | **no** |
+| **3** | a manufactured closure that escapes — stored in a table, partially applied | yes, and it is **refused** |
+
+> **No tier that is allowed makes a λ a value of V.** Tier 1's λ never becomes a value in our
+> residual; tier 2's is a name. Tier 3 is the one that would need a function value, and it is refused
+> (ADR 0018 would have to be revisited with it).
+
+So an arrow is **a set of operators, not a set of values**, and settypes §1.2's "functions are not in
+V" stands untouched. The arrow does not smuggle in closures, and **it does not reopen tier 3**: a set
+of operators is not a set of values, so a program still cannot store a callback in a table. That is
+worth saying plainly, because "we have function types now" is exactly the sentence someone would read
+as permission.
+
+#### What it costs W9: a clause, not a relaxation
+
+§1.4 called this "a third level for W9 to admit", which was the right worry and the wrong shape.
+W9 reads: *a binder's set is a set of values or a set of sets of values, never higher.* The levels:
+
+```
+L0   V                      values
+L1   sets of values         int, Seq(Byte), {n ∈ Int : n % 2 = 0}      ← "types"
+L2   sets of sets of values subsets(error)                            ← static parameters
+LΠ   sets of operators      Π(x̄ ∈ P). R,  P ∈ L1 (or a set of tuples), R ∈ L1
+```
+
+**LΠ is not above L2. It is beside it** — a different kind of thing, not a higher one. Its two
+arguments are both at L1, so it builds nothing higher than what it is given, and there is no route to
+`Type : Type`. W9 therefore gains a clause (*a binder's set may be a Π-set whose domain and codomain
+are sets of values*) rather than loosening its bound. That is a smaller change than I first
+described, and I should not have called it a third level.
+
+#### And it is not new semantics at all
+
+abstract.md §2.6 **already states a definition's meaning as a Π-membership**:
+
+```
+f ∈ Π( x̄ ∈ {x̄ ∈ S̄ : φ} ). { r ∈ U : ψ }
+```
+
+That sentence is in the specification today, in prose, as what a `def` means. The arrow **promotes it
+from prose to a term**. So the question was never "should the language gain Π-sets" — it has them,
+unwritten. It was "may a program write the one the specification already uses", and the answer being
+yes removes an asymmetry rather than adding a feature.
+
+Two consequences come free, and both are on CLAUDE.md's *deliberately not next* list, so neither is
+to be built now — only noted as no longer needing a separate mechanism:
+
+- **dependent results.** Π means R may mention x̄, so `(n ∈ Nat) -> Seq(Int, n)` is sayable. That is
+  "dependent result ranges", currently deferred.
+- **`ensures` is Π's codomain.** `{r ∈ U : ψ}` is the codomain, so a postcondition is not a second
+  mechanism beside the arrow; it is what the arrow's right-hand side already is (Finding 2, again).
+
+#### Where it may appear, initially
+
+**A binder's set, and nowhere else** — a declaration's parameter (tiers 1 and 2), and a `def`'s own
+membership if the surface ever states it. Restricting it to that position is a W6-shaped condition,
+costs nothing the callbacks need, and keeps the arrow out of arbitrary expression positions until a
+program asks. Spellings, one per kept candidate:
+
+```lisp
+(fn sortSlice ((a (array go.Value)) (less (-> ((i int) (j int)) bool))) -> ()   ; B′
+  (host stmt "sort.Slice(%s, %s)" (import "sort")))
+```
+```
+sortSlice(a ∈ Seq(Value), less ∈ (Int, Int) → Bool) ()                           \ D
+let sortSlice (a: Seq(Value)) (less: (Int, Int) -> Bool) : Unit                  // F
+fn sortSlice(a ∈ Seq(Value), less ∈ (Int, Int) -> Bool) ()                       // J
+```
+
+**Still open, and for a later installment:** whether the arrow's domain is a tuple set (`(Int, Int) →
+Bool`) or curried (`Int → Int → Bool`). §1.5's candidate G is the argument for the tuple form — arity
+is exact in Σ, and currying writes an isomorphism as if it were the thing — so the tuple form is the
+one these examples use.
+
+### 1.9 Open, and decided
+
+**Decided by hamza, 2026-10-11:**
+
+1. **Function set formers: yes**, and the link to callbacks is real — §1.9. The arrow's job is a
+   binder's set in a declaration, no allowed callback tier makes a λ a value of V, and W9 gains a
+   clause rather than a relaxation. It is abstract.md §2.6's Π promoted from prose to a term.
+2. **Candidate E: dropped.** §1.7 records why it costs nothing.
+3. **Design the general form.** hamza, on whether a λ ever carries a claim in practice: *"I don't
+   know. we do the general form, and we never do, that is not an issue."* So **Finding 1 stands and
+   λ and `def` are one form**, carrying all eight slots, whether or not an anonymous λ ever uses
+   slots 3–5. This settles the fourth candidate §1.9 floated (λ keeps two slots, all eight on `def`)
+   against itself: it is not proposed.
+4. **F is "F#-inspired", not F#** — the shape without the type grammar (§1.5, F). My first draft
+   dropped it on an argument that applies to F#'s generics rather than to its shape, and hamza
+   corrected it.
+5. **The Go-inspired braced form is a candidate** (§1.5, J) and is now one of the three kept.
+
+**Still open:**
+
+1. **Two notations or one** (§1.5, I). hamza: *"have not decided on two languages. by the end we
+   will."* So the kept three stay compatible with either answer, and nothing in a later installment
+   may assume one.
+2. **Of J, B′ and D, which is the source.** The delimiter table in §1.7 is the argument; the
+   remaining question is whether S-expressions' already-built reader and LLM-write ranking outweigh
+   J's 15 fewer tokens and two fewer levels of nesting.
+3. **The arrow's domain: a tuple set or curried** (§1.8's last paragraph). Σ's exact arity argues for
+   the tuple form, which is what the examples use. For a later installment.
+
+### 1.10 What installment 1 fixes for everything after it
+
+Now that hamza has decided: Whatever surface is chosen:
+
+1. **λ and `def` are one form**, carrying all eight slots (decision 3). `sig` disappears; a name and
+   an arity are written once. Every later binding construct — `let`, `local`, `loop`, a variant's
+   parameters, a host declaration — uses the *same* binder shape or uniformity breaks.
+2. **A binder is `pattern ∈ set [mode]`**, the set optional, the mode from fit-research decision 2
+   (`linear`, `inout`, `out`). "No set" is **not** `∈ V`: it is *no claim*, which settypes §10
+   insists is different and must not be merged.
+3. **The result is a binder group, not an annotation** — so several results need no new form, and
+   Go's named results are the precedent (§1.5, J).
+4. **φ and ψ are comprehensions over those groups** (Finding 2), so a `where` anywhere else — on a
+   `variant`, a `loop`'s invariant, a `local` — is the same shorthand for the same operator.
+5. **Claims are a deletable region**, between the result group and the body's delimiter. No later
+   construct may interleave a claim with the terms it is about, or ε stops being a deletion.
+6. **No type on a term.** No construct may read as "this term has this type" (§1.3).
+7. **A set of operators is a binder's set and nothing else** (§1.8), and it does not reopen tier 3.
+8. **The body has a delimiter whose failure is syntactic** (§1.7), if J or B′ wins — which is a
+   constraint on every later construct that has a body, not just the λ.
+
+### Next installment
+
+**`let`, `local` and the three binder kinds** — the construct that most tests constraint 1, because
+fit-research §3.3 counts *eight* binder shapes today for three kinds, and §3.6 counts five forms
+whose structure is read from the parity of a flat list. It is where uniformity is either won or lost,
+and it is the first place the kept candidates will differ for a reason other than delimiters.

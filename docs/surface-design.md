@@ -1030,21 +1030,59 @@ pair explicit, so `let`, `local`, `loop`'s variables and `build-map` stop being 
 list's parity (fit-research §3.6 counts five such forms; **95 binders in `let` and 34 in `local`**
 are two of them).
 
-**Finding 3. If the kind is stated, the *constructor* decides buffer from value — and that costs
-nothing.** Replace ADR 0047's "a table initializer makes a buffer" with the sharper rule:
+**Finding 3 — ~~the constructor decides buffer from value~~. WRONG, corrected 2026-10-11 on hamza's
+question.** I claimed `table` builds a buffer and `array` builds a value, at zero cost. hamza:
+*"I thought we have `(array a1 a2 …)` for array literal, and `(table n f)` for array from a rule,
+regardless of if it is an immutable array or a buffer."* That is right, and verified:
 
-| | means | sites today |
-|---|---|---:|
-| `b = table(n, f)` | a **buffer**: linear, threaded stores | **26** |
-| `t = array(e…)` | an **immutable table**, a value | 0 in a scope, 0 in a `let` |
-| `x := e` | a **cell** | **8** |
-| `x := array(e…)` | a cell holding a table — **not expressible today** | — |
-| `x := table(n, f)` | **refused**: a buffer is not a value, so it cannot be a cell's content | — |
+| | contents given by | in a `let` | in a `local` |
+|---|---|---|---|
+| `(array e₀ … eₖ₋₁)` | a **graph** | `(let t (array 1 2 3) (t 0))` ⟶ `1` — a value | a buffer |
+| `(table n f)`, f a function | a **rule** | `(let t (table 3 (fn (i) (* i i))) (t 2))` ⟶ `4` — a value | a buffer |
 
-Measured: **all 26 buffer binders use `table`, none uses `array`**, and **no `let` binder anywhere
-holds an `array` or `table` constructor**. So sharpening the rule from "a table" to "the `table`
-constructor" changes **zero sites**, removes an inference, and gains two forms the language cannot
-currently write.
+**Both constructors work in both positions.** They say *how the contents are given*, and nothing about
+mutability; what decides buffer from value is **the head**, `let` or `local`. So the constructor
+cannot carry the kind, and Finding 3's "zero cost" was measured on a rule that does not hold.
+
+One asymmetry, and it is a real hole in the constructor rather than in the design:
+**`(table n v)` with a literal v — the constant table — works only as a buffer initializer.**
+
+```lisp
+(let t (table 3 0) (t 1))     ⟶  (0 1)        ; the reducer applies the literal
+                              ;; gen: lowering: an application of 0
+```
+
+local.md §1 specifies the literal reading ("a constant is the constant function K v") for a `local`
+initializer, and outside a scope nothing applies it. The program is **refused**, at emission, not
+silently wrong — but the diagnostic names the wrong cause, as §2.2's cell-write diagnostic does.
+
+**What the correction costs: Finding 3 and Finding 1 are now in tension.** Finding 1 merges `let` and
+`local`, so the head stops saying which kind a binder is. Finding 3 was what would have said it
+instead. With Finding 3 gone, `b = table(n, 0)` under a merged form is **ambiguous** — an immutable
+table, or a buffer? Three ways out:
+
+| | | cost | keeps |
+|---|---|---:|---|
+| **(a)** | **write the mode**: `b = table(n, 0) linear` | **26 sites** | Findings 1 and 2 |
+| (b) | keep two heads, `let` and `local` — Finding 1 gives way | 0 sites | Finding 2 only |
+| (c) | a third binder operator for a linear binder | 0 sites | Findings 1 and 2, at a fourth kind |
+
+**I recommend (a)**, and the reason is not the site count:
+
+- **fit-research decision 2 already wants the mode on the binder** (`linear`, `inout`, `out`), and said
+  it was "implied on a buffer binder". Implied *by what*? Under ADR 0047, by the initializer. With
+  Finding 3 withdrawn and Finding 1 taken, by nothing — so it must be written.
+- **Linearity is the thing that is actually checked** (ADR 0018, `occurrences` on the residual).
+  Writing it makes the checked property visible at the place the check happens, which is this
+  project's own preference for a stated fact over an inferred one.
+- (c) is a **misfit**: linearity is a *usage judgement* (settypes §2.5), not a kind of binding. Giving
+  it a binder operator would put a mode in the position abstract.md §2.2 reserves for kinds.
+- (b) gives up the installment's strongest finding — **identical arity in Σ** — to save 26 words,
+  which is choosing the cheaper option against the algebra.
+
+So Finding 3 is withdrawn, and in its place: **the kind is stated by the operator (`=` or `:=`) and
+the mode (`linear`) is written where it holds.** The constructors keep hamza's reading — `array` is a
+graph, `table` is a rule — and say nothing about mutability.
 
 ### 2.4 Nine programs, four notations
 
@@ -1246,7 +1284,8 @@ LET age := 0  name := "" IN  ( … ; ⟨age, name⟩ )                          
 
 ---
 
-**P9 — a cell holding a table.** **Not expressible in T** (§2.2); Finding 3 makes it writable.
+**P9 — a cell holding a table.** **Not expressible in T** (§2.2); the stated kind makes it writable,
+since `:=` says cell whatever the initializer is.
 
 ```lisp
 ;; T — no spelling exists
@@ -1330,8 +1369,10 @@ candidate does.
    Every later binder — a loop's variables, a `case` arm, a variant's parameters, a comprehension —
    uses it, or uniformity breaks again.
 2. **`let` and `local` are one form** (Finding 1). "This scope has state" is read off the binders.
-3. **The kind is stated, never inferred** (Finding 3), and the *constructor* separates a buffer from
-   a table value: `table` builds a buffer, `array` builds a value.
+3. **The kind is stated by the operator, never inferred from the initializer.** `=` is
+   definitional, `:=` is state, and **`linear` is written** where a definitional binder is a buffer
+   (26 sites). The constructors say only how the contents are given — `array` a graph, `table` a
+   rule — and nothing about mutability (Finding 3, withdrawn).
 4. **One operation, one name.** `store` for a buffer, `:=` for a cell, and `set` retires. No later
    construct may distinguish two operations by arity.
 5. **A block is a statement list whose value is its last expression**, if J wins — and then `seq`
@@ -1348,14 +1389,21 @@ candidate does.
    statements with no bracket (**K**), and it wins every measure — 0.97× today's tokens, depth 2,
    closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
    terminates a munching form.
-2. **`x := table(n, f)` — refused, or a cell holding a buffer?** I propose refused: a buffer is not a
-   value (ADR 0018), so it cannot be a cell's content. Worth a word, because it is the one case
-   Finding 3 forbids rather than gains.
-3. **Does the `=`/`:=` split want `linear` written on a buffer binder**, or does `table` imply it?
-   Finding 3 reads `table` as implying it, which is why the 26 sites cost nothing. Writing it would
-   make the mode explicit at 26 sites and make `linear` a thing a reader sees.
-4. **ADR 0047 needs a successor** if Finding 3 is taken: its initializer rule is the thing being
-   replaced, and its translation, cells-as-loop-variables and everything in local.md §3 is unchanged.
+2. **`x := table(n, f)` — a cell holding a table.** With Finding 3 withdrawn this is no longer the
+   awkward case: `table(n, f)` is a table-valued expression (verified in a `let`), so `:=` binds a
+   cell holding that table, and nothing is refused. What *would* be refused is a cell holding a
+   **buffer**, which needs `linear` on a `:=` binder — and that pair should be refused, since a
+   buffer is not a value (ADR 0018).
+3. **Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
+   binder, 26 sites, because nothing else can say it once `let` and `local` merge. The alternatives
+   are keeping the two heads (Finding 1 gives way) or a fourth binder operator (a mode in a kind's
+   position). My recommendation is to write it.
+4. **ADR 0047 needs a successor** either way: its initializer rule is what the stated kind replaces,
+   and its translation, cells-as-loop-variables and everything in local.md §3 are unchanged.
+5. **`(table n v)` with a literal is a buffer initializer only** — in a `let` it reduces to `(0 1)`
+   and is refused at emission as "an application of 0". Either the constructor should accept a
+   literal everywhere (the constant table as a value) or the diagnostic should name the real cause.
+   A small, separate fix.
 
 ### 2.9 Pricing the hybrid
 

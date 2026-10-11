@@ -27,6 +27,7 @@ since the document records how the design was reached.
 | 4 | buffers in program order | [ADR 0052](decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), on [storeorder-research.md](storeorder-research.md) | **a buffer is a state binder holding a table**: `b := table(n, 0)` a buffer, `t == table(n, 0)` an immutable table, `b[i] := v` an element write, `b := f(b, …)` a whole write; `linear` only on a parameter, a borrow passed by reference; R0–R4 in place of the ordering check; the host write-borrow's wrapper stays |
 | 5 | `linear` is an ordering, not a count | [abstract2](../gauntlet/results/abstract2-2026-10-11.md) | under item 4 a scope's buffer never shows the ordering on the page; it remains the meaning of a `linear` parameter |
 | 6 | in J, `=` binds and `==` compares, for now | hamza, 2026-10-11 | C's and Go's convention, in J's examples; D and K keep TLA+'s, `==` binding and `=` comparing (§2.11) |
+| 7 | `let` and `local` are one scope; a definitional name may be rebound, a state name once per region; the head is `let` | [ADR 0054](decisions/0054-let-and-local-are-one-scope.md), on §2.13 | binders state their kind by their operator, and a mixed sequence is one scope; in K and J, a state binder's introduction against a write is still open (§2.13, item 4) |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -1471,7 +1472,8 @@ candidate does.
 1. **One binder shape, three operators** (Finding 2): `pattern [∈ S] = e`, `:= e`, or `∈ S` alone.
    Every later binder — a loop's variables, a `case` arm, a variant's parameters, a comprehension —
    uses it, or uniformity breaks again.
-2. **`let` and `local` are one form** (Finding 1). "This scope has state" is read off the binders.
+2. **`let` and `local` are one form** (Finding 1; decided by ADR 0054, §2.13). "This scope has state"
+   is read off the binders, and the head, where there is one, is `let`.
 3. **The kind is stated by the operator, never inferred from the initializer.** `=` is
    definitional, `:=` is state, and ~~**`linear` is written** where a definitional binder is a
    buffer (26 sites)~~ **a buffer is a state binder holding a fresh table** (ADR 0052, which
@@ -1504,7 +1506,7 @@ candidate does.
 3. ~~**Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
    binder, 26 sites.~~ **Superseded by ADR 0052**: a buffer is a state binder, and `linear` is
    written only on parameters.
-4. **ADR 0047 needs a successor** either way (§2.13 takes up the merge again, after ADR 0052): its initializer rule is what the stated kind replaces,
+4. **ADR 0047 needs a successor** either way (now ADR 0052 for buffers and ADR 0054 for the merge, §2.13): its initializer rule is what the stated kind replaces,
    and its translation, cells-as-loop-variables and everything in local.md §3 are unchanged.
    **ADR 0052 amends it** for buffers; whether `let` and `local` merge, the other half, is still
    this document's question.
@@ -2159,15 +2161,21 @@ below and not taken here.
 - **Not merged: a loop's variables.** loop(s̄; I; ā) is a scope iterated by `again`, with arms and a
   simultaneous rebinding. It is installment 3's operator, not this one.
 
-#### Open, for hamza
+#### Decided, and open
 
-1. **Merge `let` and `local`** into one scope whose binders state their kind. *Recommended*: the head
-   is a function of the binder word (the Lemma and table above), D is a homomorphism, and 7 nesting
-   levels go.
-2. **Repeated names**: a definitional name may be rebound (shadowing); a state name is bound once in
-   its region. W2 corrected. *Recommended*: it follows from (A2) and refuses nothing.
-3. **The head's name**, where there is one: `let` for every scope (*recommended*: D and L already
-   write `LET` and `let`, and "state" is now the binders' to say), or `local`.
+**Decided by hamza, 2026-10-11** (*"I will take 1, 2 and 3"*), as
+[ADR 0054](decisions/0054-let-and-local-are-one-scope.md), not built:
+
+1. **`let` and `local` are merged** into one scope whose binders state their kind: the head is a
+   function of the binder word (the Lemma and table above), D is a homomorphism, and 7 nesting levels
+   go.
+2. **Repeated names, by kind**: a definitional name may be rebound (shadowing); a state name is bound
+   once in its region. abstract.md's W2 is corrected so; it follows from (A2) and refuses nothing.
+3. **The head is written `let`**, where a surface has one: D's `LET`, B′'s and L's `let`. K and J write
+   none.
+
+**Still open:**
+
 4. **Binder against write in a statement list**, decided with installment 3:
    - mark the introduction of a state binder, Algol 68's and Rust's answer;
    - keep binders in a group, D's and L's answer;
@@ -2175,5 +2183,5 @@ below and not taken here.
 
    No recommendation yet: it is the statement list's question, and it is priced there.
 
-When decided, an ADR records it, amending ADR 0047's head (as ADR 0052 amended its initializer rule)
-and abstract.md's `let` and `local` rows, W2 and W5.
+ADR 0054 amends ADR 0047's head, as ADR 0052 amended its initializer rule, and abstract.md's `let`
+and `local` rows, W2 and W5.

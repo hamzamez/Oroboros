@@ -7,6 +7,9 @@ do your best"). Generalizes ADR 0018's scoped buffer and supersedes the binder s
 **Amended by [ADR 0052](0052-a-buffer-is-a-state-binder-holding-a-table.md)** (not built): a buffer
 is a state binder holding a table, the binder's operator decides definitional against state, and the
 initializer rule stays as a legality condition, R0 (an element write needs a fresh table).
+**Amended by [ADR 0054](0054-let-and-local-are-one-scope.md)** (not built): `let` and `local` are one
+scope, whose head is `let`; a state binder's name is bound once in its region, a definitional one may
+be rebound.
 
 ## Context
 

@@ -576,6 +576,7 @@ rejected alternatives.
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
 | A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — not built | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
+| `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 
 ## How this project is run
 

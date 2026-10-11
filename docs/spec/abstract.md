@@ -178,10 +178,10 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | **lam**(b̄; r; φ; ψ; e) | (Bind*. (Bind. (Formula, Formula, Expr))) → Expr | the λ; its binders are ranging, with an optional set and mode, and it carries what it claims: the result binder r with its set, a precondition φ and a postcondition ψ (ADR 0051). Static: erased by staging (closures-direction.md) |
 | **app**(e; ā) | (Expr, Arg*) → Expr | application, of a definition, a host name, a λ, or an owned name |
 | **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, ADR 0050) |
-| **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e |
+| **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e. ADR 0054 (not built): `let` and `local` are one scope, scope(b̄; e), whose binders are definitional or state, each by its operator; a scope is the free monoid of binder words acting on expressions |
 | **case**(e; ā) | (Expr, Arm*) → Expr | choice: the first arm whose pattern matches e's value and whose guard holds |
 | **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: state binders s̄, invariant I, arms with Tail bodies (ADR 0015) |
-| **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047. ADR 0052 (not built): both are state binders, a buffer the one whose value is a fresh table |
+| **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047. ADR 0052 (not built): both are state binders, a buffer the one whose value is a fresh table. ADR 0054 (not built): merged into `let`'s scope |
 | **assign**(x; e) | (𝒩, Expr) → Expr | a cell's write in program order; value the unit (local.md §3) |
 | **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value |
 | **mem**(e; S) | (Expr, Expr) → Expr | membership as a test, where S is decidable at run time (W6) |
@@ -302,10 +302,10 @@ environment of resolution (ADR 0011).
 | | condition | today |
 |---|---|---|
 | **W1** | **scope**: every free name of a declaration is bound in it, declared in its module, imported, owned (Σ₀) or a target's | resolution |
-| **W2** | **linearity of patterns**: the names of one pattern are distinct, and so are the names of one binder group (a let, a local, a loop's state). *Not so for `let` today*: a later binder of the same name shadows, `(let x 1 x (+ x n) x)` ⟶ `(+ 1 n)`; `local` refuses one. surface-design §2.13 proposes the rule by kind | match.md §2, local.md |
+| **W2** | **linearity of patterns**: the names of one pattern are distinct, and so are the names of one loop's state. In a scope, by kind (ADR 0054): a definitional binder may rebind a name, a nested scope by the action's law, so it shadows (today's `let`: `(let x 1 x (+ x n) x)` ⟶ `(+ 1 n)`); a state binder's name is bound once in its region (today's `local` refuses a repeat) | match.md §2, local.md |
 | **W3** | **the tail rule**: `again` occurs only as a Tail of the nearest enclosing loop's arm, with \|ā\| = \|s̄\|, and no λ lies between them | iteration.md; four walkers |
 | **W4** | **a loop is total**: its last arm's pattern is irrefutable and its guard is absent (`else`, iteration.md §2) | the reader |
-| **W5** | **a cell is written in its scope**: assign(x; e) has x a state binder of an enclosing local; a λ between them is an elimination's, a let's or an arm's, or is marked for the reducer's decision on a normal form (local.md §3, `#elim`) | the cell translation |
+| **W5** | **a cell is written in its scope**: assign(x; e) has x a state binder of an enclosing local (ADR 0054: of an enclosing scope); a λ between them is an elimination's, a let's or an arm's, or is marked for the reducer's decision on a normal form (local.md §3, `#elim`) | the cell translation |
 | **W6** | **the logic stays in the logic**: a Formula-only operator (∀, ∃, ≐ off ℤ, a spec's call) occurs only in a claim position: a binder's set, φ, U, ψ, the, assert, an invariant, a lemma; mem(e; S) and compr in a computation need S's membership decidable at run time | new |
 | **W7** | **modes where they mean something**: `inout` and `out` only on a host def's parameters; out(S) and a cell only as arguments at such a parameter; `linear` only on a ranging binder of a def or λ; a claim as a binder's set only on a host def's parameter, or as a named claim's value | local.md §5–6, ADR 0020, ADR 0053 |
 | **W8** | **no recursion**: the dependency graph of defs is acyclic (ADR 0014); a spec may refer to itself and to other specs, and owes a well-foundedness obligation (§7) | the front end |

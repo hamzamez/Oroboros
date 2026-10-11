@@ -2,7 +2,8 @@
 
 // THE SIZE OF INSTALLMENT 2'S PROGRAMS, PER NOTATION (docs/surface-design.md §2.5, §2.9).
 //
-//	go run gauntlet/surface/tokens.go
+//	go run gauntlet/surface/tokens.go              installment 2: §2.4's P1–P8, and §2.9's K and L
+//	go run gauntlet/surface/tokens.go -section 3   installment 3: §3.5's C1–C8 in T, B′, D, K and J
 //
 // Reads surface-design.md itself, so a table and the programs it counts cannot
 // drift apart. Counted: §2.4's P1–P8 in T, B′, D and J (each fenced block whose
@@ -25,6 +26,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -34,7 +36,7 @@ import (
 
 type measure struct{ tokens, lexemes, depth, run, lines int }
 
-var marker = regexp.MustCompile(`\s+(;\s*(T|B′)|\\\\\s*(D|P\d)|//\s*(J|P\d))\s*$`)
+var marker = regexp.MustCompile(`\s+(;\s*(T|B′)|\\\\\s*(D|K|P\d)|//\s*(J|P\d))\s*$`)
 
 func count(text string, prefix bool, m *measure) {
 	for _, line := range strings.Split(text, "\n") {
@@ -165,6 +167,8 @@ func lexemes(toks []string) []string {
 }
 
 func main() {
+	section := flag.String("section", "2", "the installment whose programs to count: 2 or 3")
+	flag.Parse()
 	b, err := os.ReadFile("docs/surface-design.md")
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -179,31 +183,31 @@ func main() {
 	}
 	res := map[string]*measure{}
 	order := []string{"T", "B′", "D", "J", "K", "L"}
+	from, to := "### 2.4 Nine programs", "**P9"
+	if *section == "3" {
+		order = []string{"T", "B′", "D", "K", "J"}
+		from, to = "### 3.5 Eight programs", "### 3.6 Measured"
+	}
 	for _, n := range order {
 		res[n] = &measure{}
 	}
-	firstMarker := regexp.MustCompile(`(;\s*(T|B′)|\\\\\s*D|//\s*J)\s*$`)
-	for _, m := range block.FindAllStringSubmatch(sec("### 2.4 Nine programs", "**P9"), -1) {
+	// A block belongs to the notation its first line's marker names.
+	firstMarker := regexp.MustCompile(`(;\s*(T|B′)|\\\\\s*(D|K)|//\s*(J))\s*$`)
+	for _, m := range block.FindAllStringSubmatch(sec(from, to), -1) {
 		first := strings.SplitN(m[1], "\n", 2)[0]
 		f := firstMarker.FindStringSubmatch(first)
 		if f == nil {
 			continue
 		}
-		var n string
-		switch {
-		case f[2] != "":
-			n = f[2]
-		case strings.Contains(f[1], "D"):
-			n = "D"
-		default:
-			n = "J"
-		}
+		n := f[2] + f[3] + f[4]
 		count(m[1], n == "T" || n == "B′", res[n])
 	}
-	k := block.FindStringSubmatch(sec("#### K — statements", "#### L — a binder"))
-	count(k[1], false, res["K"])
-	l := block.FindStringSubmatch(sec("#### L — a binder", "#### Measured"))
-	count(l[1], false, res["L"])
+	if *section != "3" {
+		k := block.FindStringSubmatch(sec("#### K — statements", "#### L — a binder"))
+		count(k[1], false, res["K"])
+		l := block.FindStringSubmatch(sec("#### L — a binder", "#### Measured"))
+		count(l[1], false, res["L"])
+	}
 	t, x := float64(res["T"].tokens), float64(res["T"].lexemes)
 	fmt.Println("| notation | tokens | × T | lexemes | × T | depth | closing run | lines |")
 	fmt.Println("|---|---:|---:|---:|---:|---:|---:|---:|")

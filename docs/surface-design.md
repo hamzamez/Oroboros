@@ -962,6 +962,11 @@ reach for it is refused.
 **H2's twelve is not an artifact.** Nesting is nesting in any notation, and 12 of 149 is what the
 programs actually do.
 
+**And a third hazard this section missed** (found in installment 3, §3.4's Finding 4): a keyword form
+that a statement *follows*, `IF c THEN a ELSE b ; rest`, where the munch takes `rest` into the else.
+H1 counted operand positions only. In sequence positions the corpus has 31 such forms, and one
+precedence rule for `;` inside arms decides what they cost.
+
 ### Next installment
 
 **`let`, `local` and the three binder kinds** — the construct that most tests constraint 1, because
@@ -1152,7 +1157,11 @@ graph, `table` is a rule — and say nothing about mutability.
 
 ### 2.4 Nine programs, four notations
 
-**T** today, **B′** sectioned prefix, **D** mathematical, **J** Go-inspired. B′ marks indexing,
+**T** today, **B′** sectioned prefix, **D** mathematical, **J** Go-inspired. B′ writes an arm as a
+pair, `(guard → body)`, as ADR 0050's decision 5 requires (corrected in the pass of 2026-10-11; P5
+and P6 had read their clauses off parity, as T does). D's and K's examples follow §3.4's Finding 4,
+rule (a): `;` binds tighter than `[]`, so an arm's body may be a sequence, and a chain or `IF` that
+something follows is parenthesized. B′ marks indexing,
 `(at t i)`, as ADR 0050's decision 6 requires and abstract.md §9.4's T′ writes it (corrected in the
 pass of 2026-10-11; it had written `(src i)`, today's application). T is today's notation and keeps
 `(src i)`. J is shown in its
@@ -1245,8 +1254,8 @@ write it in program order, which is §2.4's correction below.
 ```lisp
 (let ((c := (table n false)))                                                   ; B′
   (loop ((j := (* i i)))
-    (< j n)  (seq ((at c j) := true) (again (+ j i)))
-    else     c))
+    ((< j n) → (seq ((at c j) := true) (again (+ j i))))
+    (else → c)))
 ```
 ```
 LET c := [k ∈ 0..n-1 ↦ FALSE] IN                                                \\ D
@@ -1292,18 +1301,18 @@ measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c
 ```lisp
 (let ((lines := 0) (words := 0) (in-word := false))                             ; B′
   (loop ((i := 0))
-    (>= i (len src))  (tuple lines words)
-    else (let ((b = (at src i)))
-           (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
-                (again (+ i 1))))))
+    ((>= i (len src)) → (tuple lines words))
+    (else → (let ((b = (at src i)))
+              (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
+                   (again (+ i 1)))))))
 ```
 ```
 LET lines := 0  words := 0  in_word := FALSE IN                                 \\ D
   LOOP i := 0 :
       i ≥ Len(src) → ⟨lines, words⟩
    [] OTHER        → LET b == src[i] IN
-                       ( IF b = 10 THEN lines := lines + 1 ELSE () ;
-                         AGAIN(i + 1) )
+                       (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
+                       AGAIN(i + 1)
 ```
 ```go
 { lines := 0;  words := 0;  in_word := false                                    // J
@@ -1404,7 +1413,7 @@ lexer would.
 | notation | tokens | × T | lexemes | × T | depth | closing run | holes | shapes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | T today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | **2** | **8** (fit-research §3.3) |
-| B′ | 275 | **1.42** | 262 | **1.36** | 7 | 6 | 0 | 1 |
+| B′ | 287 | **1.48** | 274 | **1.42** | 8 | 7 | 0 | 1 |
 | D | 222 | 1.14 | 201 | 1.04 | **2** | **2** | 0 | 1 |
 | J | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 0 | 1 |
 
@@ -1427,8 +1436,9 @@ operator, `==` or `:=`, costs two characters where T's parity costs none, which 
 - **D is the shallowest by half**, 2 against J's 4, and this reverses installment 1, where the two
   tied at depth 1. The cause is that `LET … IN` adds no bracket while `{ … }` adds one per block, and
   P5–P8 all nest a loop inside a scope. On the one measure where J and D differed, D now wins.
-- **B′ is 1.42× today's tokens (1.36× in lexemes)** at the same depth and the same closing run — it
-  pays a third again as much for no structural gain over the others. The cause is structural, not incidental: a binder is
+- **B′ is 1.48× today's tokens (1.42× in lexemes)**, one level deeper and with a longer closing run —
+  it pays nearly half again as much for no structural gain over the others. Writing its arms as
+  pairs, as decision 5 requires, added a bracket per arm. The cause is structural, not incidental: a binder is
   `(pattern OP rhs)`, a pattern may itself be a list, and a claim makes the left side a list, so P2
   and P3 carry three opening brackets before the first name.
 - **T's two holes** are slot 3 (a claim on a binder, unwritable) and slot 2 (the kind, inferred).
@@ -1459,8 +1469,8 @@ body slot by construction. **A hybrid is available and worth naming**: `LET … 
 statement-list body, which would take D's shallowness and J's sequence. I have not measured it; it is
 the first thing installment 3 should price.
 
-**B′ falls behind.** It was installment 1's co-leader. Here it is 1.42× the tokens at the same depth
-and the same closing run as the notation it replaces, and the cause is the shape itself rather than
+**B′ falls behind.** It was installment 1's co-leader. Here it is 1.48× the tokens, one level deeper
+than the notation it replaces, and the cause is the shape itself rather than
 the examples. Kept on the list, because the reader exists and its failure is syntactic, but it is no
 longer a front-runner and installment 3 should be where it is either rescued or dropped.
 
@@ -1494,9 +1504,8 @@ candidate does.
    **separable from the braces** — see 1b.
 1b. ~~**The hybrid: `LET … IN` over a statement-list body.**~~ **Priced in §2.9, and the shape was
    wrong**: if binders are statements, a group before them is redundant. The real hybrid is
-   statements with no bracket (**K**), and it wins every measure — today's size in lexemes, depth 1,
-   closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
-   terminates a munching form.
+   statements with no bracket (**K**), and it wins every measure — today's size in lexemes, depth 2,
+   closing run 2 — while keeping a syntactic failure, under §3.4's Finding 4 rule (a).
 2. ~~**`x := table(n, f)`**~~ **— answered in §2.10, and answered again by ADR 0052**: `x := table(n, f)`
    is now the buffer itself. §2.10's answer, as written: my reason was wrong. `table(n, f)` is a
    table-valued expression, so `:=` binds a cell holding it and nothing is refused. A cell holding a
@@ -1544,7 +1553,7 @@ lines := 0 ; words := 0 ; in_word := FALSE ;                                    
 LOOP i := 0 :
     i ≥ Len(src) → ⟨lines, words⟩
  [] OTHER        → b == src[i] ;
-                   IF b = 10 THEN lines := lines + 1 ELSE () ;
+                   (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
                    AGAIN(i + 1)
 
 c := [k ∈ 0..n-1 ↦ FALSE] ;                                                     \\ P5
@@ -1591,10 +1600,10 @@ Both are corrected in the pass of 2026-10-11: every row counts the same eight pr
 | | corner | tokens | × T | lexemes | × T | depth | closing run | lines |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | T | today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | 16 |
-| B′ | prefix: group + parens | 275 | 1.42 | 262 | 1.36 | 7 | 6 | 15 |
+| B′ | prefix: group + parens | 287 | 1.48 | 274 | 1.42 | 8 | 7 | 15 |
 | D | **(a)(i)** group + munch | 222 | 1.14 | 201 | 1.04 | 2 | 2 | 16 |
 | J | **(b)(ii)** statements + braces | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 16 |
-| **K** | **(b)(i) statements + munch** | **212** | **1.09** | **192** | **0.99** | **1** | **1** | 16 |
+| **K** | **(b)(i) statements + munch** | **214** | **1.10** | **194** | **1.01** | **2** | **2** | 16 |
 | L | **(a)(ii)** group + braces | 235 | 1.21 | 212 | 1.10 | 4 | 4 | 16 |
 
 Recounted in the pass of 2026-10-11 (§2.5's note): the first version of this table had K at 0.97×
@@ -1602,7 +1611,7 @@ and "the only one below today", on programs that were not the others'.
 
 **The square separates cleanly, and the two axes drive different measures:**
 
-- **the body delimiter drives depth**: munch → 1 or 2, braces → 4. A block is a bracket, and P5–P8
+- **the body delimiter drives depth**: munch → 2, braces → 4. A block is a bracket, and P5–P8
   all nest a loop inside a scope, so every block costs a level;
 - **the binder placement drives tokens**: statements → fewer, because there is no `LET`/`IN` or
   `let`/`{` keyword pair per group, and a mid-sequence binder needs no nested form.
@@ -1611,9 +1620,9 @@ So **K takes the better option on both axes and L takes the worse on both** — 
 the four new corners while also the deepest, which is the signature of paying for a keyword pair and a
 bracket and getting neither's benefit.
 
-**K is the smallest new notation and the shallowest**: today's size in lexemes (0.99×), 9% above it in
-characters, and depth 1 with a closing run of 1, the least of any notation measured in this
-document. None of the six is smaller than today in characters, because each writes the binder
+**K is the smallest new notation and, with D, the shallowest**: today's size in lexemes (1.01×), 10%
+above it in characters, and depth 2 with a closing run of 2. (Before installment 3's Finding 4 put
+parentheses around P6's `IF`, which a statement follows, it measured depth 1.) None of the six is smaller than today in characters, because each writes the binder
 operator that today's parity leaves out.
 
 #### K's failure stays syntactic — which was the objection to (i)
@@ -1624,11 +1633,17 @@ notation-research §4.9's precedence table (level 1), so **`;` terminates a munc
 In K the ordinary case is bounded by a separator rather than a bracket, and what is left is exactly
 what §1.11 priced:
 
+> **Corrected by §3.4's Finding 4.** K's own loops put sequences inside arms, which "`;` terminates a
+> keyword form" would cut at the first `;`. One precedence must decide, and the cheapest by the corpus
+> is the guarded commands' own: `;` binds tighter than `[]`, an arm's body may be a sequence, and a
+> chain or `IF` that something follows is parenthesized, **31 sites**, not free. The table below is
+> as first written; the row it gets wrong is the first.
+
 | | closed by | cost |
 |---|---|---:|
-| a statement's extent | `;`, looser than everything | free |
+| a statement's extent | `;`, looser than everything | ~~free~~ **31 sites** (Finding 4) |
 | H1 — a keyword form as an operand of an infix operator | §1.11's grammar rule | **0 sites** |
-| H2 — a nested clause chain | §1.11's required delimiter when nested | **12 sites** |
+| H2 — a nested clause chain | §1.11's required delimiter when nested | **12 sites** (22 over the whole corpus, §3.2) |
 
 So K sits in the same failure class as J and B′ — a mistake is a reader error — **without a bracket**.
 
@@ -1642,8 +1657,8 @@ A binder **after** an effect, in one sequence, with no keyword pair and no paren
 arm:
 
 ```
-D:  [] OTHER → LET b == src[i] IN ( IF b = 10 THEN lines := lines + 1 ELSE () ; AGAIN(i + 1) )
-K:  [] OTHER → b == src[i] ; IF b = 10 THEN lines := lines + 1 ELSE () ; AGAIN(i + 1)
+D:  [] OTHER → LET b == src[i] IN (IF b = 10 THEN lines := lines + 1 ELSE ()) ; AGAIN(i + 1)
+K:  [] OTHER → b == src[i] ; (IF b = 10 THEN lines := lines + 1 ELSE ()) ; AGAIN(i + 1)
 ```
 
 Measured: **2 sites** in the corpus bind after an effect in one sequence (`examples/u128/factorials.oro`
@@ -1658,7 +1673,7 @@ extra generality is used, twice, and today it is paid for with a nested form.
    hamza's to make.
 2. **Eight programs.** These numbers describe P1–P8. They are the corpus's own shapes, but they are
    eight.
-3. **K's depth of 1 is partly the examples.** A program with deeply nested data would raise every
+3. **K's depth of 2 is partly the examples.** A program with deeply nested data would raise every
    column together; what the measurement isolates is the *binder and body* contribution, which is
    what the installment is about.
 
@@ -2185,3 +2200,637 @@ below and not taken here.
 
 ADR 0054 amends ADR 0047's head, as ADR 0052 amended its initializer rule, and abstract.md's `let`
 and `local` rows, W2 and W5.
+
+---
+
+## Installment 3 — choice and iteration
+
+hamza: *"go ahead"*, after ADR 0054. Constrained by everything decided so far (the table at the top):
+one binder shape, the kind stated on the binder, claims a deletable region, no type on a term, a
+body's extent bounded by something whose violation is a syntax error, indexing marked, buffers in
+program order, one scope. And it inherits §2.13's open question: how a statement list tells a state
+binder's introduction from a write.
+
+### 3.1 What the constructs must carry
+
+From abstract.md §2.4–2.7, choice and iteration are two primitive operators, one arm shape and a
+tail sort, with five derived operators:
+
+```
+case(e; ā)          choice: the first arm whose pattern matches e and whose guard holds
+loop(s̄; I; ā)       iteration: state binders s̄, invariant I, arms over the state tuple, Tail bodies
+Arm  ::= p ⟨if φ⟩ → body                body : Expr in case, Tail in loop
+Tail ::= e | again(ā) | let(b̄; t) | try(…; t) | expect(…; t) | assert(φ; t)
+
+if(c; a; b)   = case(c; true → a, false → b)
+cond(φ̄ → ē)   = case(tuple(); _ if φ₁ → e₁, …)
+try, expect   = case(e; s(x̄) → b, the other constructors re-built, or abandoned)
+∧ ∨ ¬         = if with a boolean literal branch
+```
+
+| | slot | case | loop |
+|---|---|---|---|
+| 1 | the scrutinee | an expression, or none (guards only) | the state tuple, implicit |
+| 2 | an arm's **pattern** | constructor, literal, tuple, `_`, a set test | over the state tuple |
+| 3 | an arm's **guard** φ | optional | optional |
+| 4 | an arm's **body** | an expression | a **tail**: a value (an exit) or a jump |
+| 5 | the default | `_` (or `else`) | `_` (or `else`), required by ADR 0015 |
+| 6 | the **state binders** and their initializers | — | `x := e`, sequential |
+| 7 | the **invariant** I | — | a formula, a claim |
+| 8 | the **back edge** | — | `again(ā)`, one argument per state binder |
+
+**One arm shape serves both eliminators.** A loop is a case over its state tuple whose arm bodies are
+tails, iterated: `match` is a loop with patterns (match.md), and `cond` is a case with no scrutinee.
+ADR 0050's decision 5 (one guarded choice, pairs as pairs) is what this installment implements.
+
+### 3.2 Measured
+
+`go run gauntlet/surface/control.go`, over `examples/`, `lib/`, `gauntlet/stdlib/acceptance/` and
+`gauntlet/differential/cases/`, read as S-expressions:
+
+| | count |
+|---|---:|
+| `if` | 142 |
+| … one-armed, the else `(tuple)` (a statement) | 4 |
+| `cond`, arms | 17, 71 |
+| `case`, arms | 42, 87 |
+| … a two-armed choice on a sum whose failure arm handles it (§3.4, Finding 2) | **38** |
+| `match` (a loop with patterns), guards | 2, 4 |
+| `try`, `expect` | 4, 5 |
+| `loop`, variables, clauses | 181, 412, 517 |
+| loops by number of variables: 1, 2, 3, 4, 5, 6 | 30, 97, 39, 8, 3, 4 |
+| `again` sites, arguments | 258, 708 |
+| … arguments for a variable that carries a scope's buffer (gone under ADR 0052) | 78, for 37 variables |
+| … the other arguments that are their variable unchanged | **121 of 630** (19%) |
+| clause chains (`cond`, `case`, `match`, `loop`) nested in another chain's arm | 22 of 242 |
+| arm bodies that are a sequence (`seq`, `let`, `local`) | **88 of 970** |
+| a chain or `if` that something follows: a non-last element of a `seq`, a binder's value | **11 + 20** |
+
+Of the 42 `case` forms, 38 are two-armed on `result` (35) or `option` (3), and in all 38 the failure
+arm computes a value of its own. **None
+re-builds the failure, which is what `try` does, and none abandons, which is what `expect` does.**
+31 of them write the failure arm first.
+
+### 3.3 The holes and misfits, verified
+
+**Two holes: an arm cannot carry what Σ's Arm carries.** Verified:
+
+```lisp
+(case r  (result.ok x) (when (> x 0)) 1  (result.ok x) 2  (result.err e) 3)
+;; case: every clause is a pattern and a body, so the clause list has an even length; got 7 terms
+(loop ((i 0)) (invariant (<= i n))  (< i n) (again (+ i 1))  else i)
+;; loop clauses come in pairs — a condition and a result — and the last condition must be `else`
+```
+
+Today's three clause forms each carry part of the arm: `case` a pattern and no guard, `loop` a guard
+and no pattern, `match` both. No form has a place for a loop's invariant I, which abstract.md's loop
+carries and settypes §6.3 needs for the climb above the decided fragment.
+
+**Synonyms.** `cond` and `case` (guards against patterns), and `match` and `loop` (patterns against
+guards), are two spellings each of one operator: fit-research's F1, decided away by ADR 0050.
+
+**Structure by parity.** `cond`, `case`, `loop` and `match` read their clauses off a flat list's
+parity (fit-research §3.6). Decision 5 says an arm is written as a pair in every notation.
+
+**A dead arm the form requires.** `examples/match/runs.oro` ends with `_ v c → again …`, which matches
+every state, and then the `else` ADR 0015 requires, which can never run. A required default and an
+exhaustive pattern meet there. With named state binders (below) the last arm can be the default.
+
+**And one bug found while probing**, flagged as a separate task: `(if c a)`, an `if` with no else, is
+accepted by the reader and overflows the stack in `gen`. abstract.md's if has three operands; the
+reader falls through to an ordinary application.
+
+### 3.4 Findings
+
+**Finding 1. One arm, two eliminators, and named state.** Σ's Arm is `p ⟨if φ⟩ → body` in both case
+and loop. So every candidate writes one arm grammar, used by `case` (with a scrutinee, or with none
+for guards) and by `loop` (whose arms see the state binders by name). Two consequences:
+- **`cond` and `match` need no keyword.** A case with no scrutinee is the guarded choice (Dijkstra's
+  `if … fi`), and a loop's arms are its state machine.
+- **A literal pattern on a named state is an equality guard**: ⟨0, _, _⟩ against ⟨st, v, c⟩ is
+  `st = 0`. `match` needed positional patterns because its state was anonymous. With named state
+  binders, a loop's patterns earn their place only on a constructor (a state that is a sum), and the
+  2 `match` sites become guards (C7).
+
+**Finding 2. The commonest choice in the corpus is a handled bind.** 38 of 42 `case` forms are a
+two-armed choice on a sum whose success arm is the rest of the computation and whose failure arm is
+a value. Written as a case, each one costs a nesting level: `roundtrip` nests two, and every reader of
+a file with three such steps reads a staircase. The algebra names it. Let
+
+```
+bind(p; e; ā; b)  :=  case(e; p → b, ā)          the success arm hoisted, the other arms ā a handler
+```
+
+Then `try` and `expect` are its instances: `try` is bind with ā re-building each other constructor,
+the exception monad's bind (errors.md §5), and `expect` is bind with ā abandoning (errors.md §8). So
+the derived operator is not a fourth form beside them. It is the general one, and the two names stay
+because each names a law. In a notation it is a refutable binder with an `else`:
+`ok(src) = os.ReadFile(path) else err(k) → h`, then the rest of the scope.
+
+The literature reached the same form from the same pressure. Rust's `let … else` (RFC 3137, stable
+since 1.65) binds a refutable pattern or runs a diverging block, and Swift's `guard let … else` does
+the same. Ours need not diverge: the handler's value is the scope's value, which is what `case`
+already means.
+
+*In a loop's arm*, a bind whose success continues to `again` and whose handler exits is the shape
+ADR 0041 admits for `try` and `expect` ("a success arm is a tail; the other arms leave the loop").
+Admitting it for a handler that exits with a value extends ADR 0041 along its own line, and would
+need its own decision (§3.9).
+
+**Finding 3. `again` is an application, so its arguments are positional.** D maps a loop to
+`(loop (fn (x̄) arms) z̄)`, and `again(ā)` applies that λ: the faithful image is a positional
+argument list, its arity checked by W3. Two other readings exist:
+- **named and complete**, Dijkstra's concurrent assignment followed by repetition, `i, s := i + 1,
+  s + xs[i]`: no argument can land on the wrong variable;
+- **named and partial**: a variable not named keeps its value.
+
+Measured: under ADR 0052, 630 arguments, 121 of them a variable unchanged (19%). 151 of 181 loops
+have two or more variables, where two arguments of one sort can be swapped silently in a positional
+list. Partial naming would save the 121 and lose the property that every back edge decides every
+variable: a forgotten update would keep its value rather than fail. Positional keeps Σ's reading and
+the arity check, and the swap is the one failure it does not catch.
+
+**Finding 4. Where a sequence meets a chain, one precedence must decide, and installment 2 used two.**
+In D and K a keyword form extends as far right as it can. §2.9 argued K was safe because "`;` is the
+loosest operator, so `;` terminates a munching keyword form". But K's own loops put sequences inside
+arms (`j < n → c[j] := TRUE ; AGAIN(j + i)`), and under that rule the arm, and the loop, would end at
+the first `;`. D's P5 had the same shape; D's P6 parenthesized its arm. So installment 2's examples
+were written under two rules, and §2.9's "a statement's extent: free" was wrong. The choice:
+
+| | rule | what must be parenthesized | measured |
+|---|---|---|---:|
+| **(a)** | **`;` binds tighter than `[]`**: an arm's body may be a sequence, and a chain extends to the end of what encloses it (Dijkstra's guarded commands, without `od`) | a chain or `if` that something follows, and a nested chain | **31 + 22** |
+| (b) | `;` loosest, as §2.9 said | every arm body that is a sequence, and a nested chain | 88 + 22 |
+| (c) | a closing word per chain (Algol 68's `fi` `od` `esac`, Ada's `end`) | nothing, at one word per chain | 393 words |
+| (d) | braces (J) | nothing: every chain and every multi-statement arm is braced | — |
+
+**(a) is the cheapest by the corpus, and it is the precedence of the guarded commands D and K are
+built on.** Under it a misplaced chain is mostly a sort error, not a silent change: a statement that
+follows an arm's `AGAIN` puts the `again` in a non-tail position, which W3 refuses. A value-ended
+arm swallowing what follows is the case that would parse, and that is the 31 the rule makes write
+parentheses. §1.11 measured H1 at operand positions only and missed this one, the statement-level
+twin of the dangling body. Installment 2's D and K examples are rewritten under (a) (§2.4, §2.9).
+
+**Finding 5. A state binder's introduction should be marked, in a statement list.** §2.13 left it
+open; arms are where it bites, because an arm's body is a sequence that may introduce a binder and
+write cells. Σ has two operations, the binder local(x := e; …) and the write assign(x; e). Spelled
+alike and told apart by whether x is bound, they are a homonym (F2) with Python's failure: a write
+with a misspelled name creates a cell. Marking costs one word per introduction:
+- **84** state binders in scopes (71 buffers, 13 cells) need the mark;
+- a loop's variables need none, since the header's position introduces them;
+- marking the writes instead would cost more, 123 (9 cell writes and 114 stores), and would go
+  against the tradition: Algol 68 marks a declaration by its mode, Pascal and Ada by `var` or a type,
+  Rust by `let mut`, Swift by `var`, JavaScript by `let`.
+
+So K writes `VAR x := 0` and J writes `var x := 0`, and a write stays `x := e`. In D and L the group
+position already marks it. A definitional binder needs no mark: `=` in J and `==` in K only bind, and
+rebinding a cell by one is refused (ADR 0054). That also catches the Go habit `count = count + 1`
+meant as a write.
+
+**Finding 6. A one-armed `if` is cheap in J and costly in D and K.** if(c; a; tuple()) with a : 1 is
+the statement `if c { a }`: 4 sites. In J the braces bound it. In D and K a one-armed IF brings back
+Algol 60's dangling else, `IF a THEN IF b THEN x ELSE y`, which Algol 60 resolved by forbidding an
+`if` directly after `then`. So D and K keep `ELSE ()`.
+
+### 3.5 Eight programs, five notations
+
+**T** today, **B′** sectioned prefix, **D** mathematical, **K** statements with no bracket, **J**
+Go-inspired. L is not carried: §2.9 measured it the worse corner on both axes. Every program is
+written under Finding 4's rule (a) and Finding 5's mark. T uses the language's own operators where the
+source file uses a host's (`*` for `go.*`), so the comparison is of notations, not of targets.
+
+---
+
+**C1 — a guarded choice**: the sign of n. Today's `cond`.
+
+```lisp
+(cond (< n 0) -1  (= n 0) 0  else 1)                                            ; T
+```
+```lisp
+(case ((< n 0) → -1) ((= n 0) → 0) (else → 1))                                  ; B′
+```
+```
+CASE n < 0 → -1 [] n = 0 → 0 [] OTHER → 1                                       \\ D
+```
+```
+CASE n < 0 → -1 [] n = 0 → 0 [] OTHER → 1                                       \\ K
+```
+```go
+case { n < 0 -> -1; n == 0 -> 0; else -> 1 }                                    // J
+```
+
+---
+
+**C2 — a choice on a variant** (`examples/io/roundtrip.oro`'s `kind-name`).
+
+```lisp
+(case k                                                                         ; T
+  os.not-found   "not-found"
+  os.exists      "exists"
+  os.permission  "permission"
+  (os.other e)   "other")
+```
+```lisp
+(case k                                                                         ; B′
+  (os.not-found → "not-found")
+  (os.exists → "exists")
+  (os.permission → "permission")
+  ((os.other e) → "other"))
+```
+```
+CASE k OF os.not_found  → "not-found"                                           \\ D
+       [] os.exists     → "exists"
+       [] os.permission → "permission"
+       [] os.other(e)   → "other"
+```
+```
+CASE k OF os.not_found  → "not-found"                                           \\ K
+       [] os.exists     → "exists"
+       [] os.permission → "permission"
+       [] os.other(e)   → "other"
+```
+```go
+case k {                                                                        // J
+    os.not_found  -> "not-found"
+    os.exists     -> "exists"
+    os.permission -> "permission"
+    os.other(e)   -> "other"
+}
+```
+
+---
+
+**C3 — two handled binds** (`roundtrip`'s `main`, abridged): the corpus's commonest choice, Finding 2.
+T nests one level per step; the others hoist the success arm.
+
+```lisp
+(case (os.WriteFile path data)                                                  ; T
+  (result.err k)  (seq (io.print-line (kind-name k)) 1)
+  (result.ok _)
+    (case (os.ReadFile path)
+      (result.err k)   (seq (io.print-line (kind-name k)) 1)
+      (result.ok src)  (seq (io.print (os.text-of src)) 0)))
+```
+```lisp
+(let (((result.ok _) = (os.WriteFile path data)                                 ; B′
+       (else ((result.err k) → (seq (io.print-line (kind-name k)) 1))))
+      ((result.ok src) = (os.ReadFile path)
+       (else ((result.err k) → (seq (io.print-line (kind-name k)) 1)))))
+  (seq (io.print (os.text-of src)) 0))
+```
+```
+LET ok(_)   == os.WriteFile(path, data) ELSE (err(k) → print_line(kind_name(k)) ; 1)    \\ D
+    ok(src) == os.ReadFile(path)        ELSE (err(k) → print_line(kind_name(k)) ; 1)
+IN  print(os.text_of(src)) ; 0
+```
+```
+ok(_) == os.WriteFile(path, data) ELSE (err(k) → print_line(kind_name(k)) ; 1) ;      \\ K
+ok(src) == os.ReadFile(path) ELSE (err(k) → print_line(kind_name(k)) ; 1) ;
+print(os.text_of(src)) ; 0
+```
+```go
+{ ok(_) = os.WriteFile(path, data) else err(k) -> { print_line(kind_name(k)); 1 }   // J
+  ok(src) = os.ReadFile(path) else err(k) -> { print_line(kind_name(k)); 1 }
+  print(os.text_of(src)); 0 }
+```
+
+---
+
+**C4 — a loop whose tail binds with `try`** (`gauntlet/differential/cases/try-loop.oro`'s `walk`,
+ADR 0041).
+
+```lisp
+(loop ((i 0) (acc 0))                                                           ; T
+  (> i 5)  (fine acc)
+  else     (try (fine x) (step i n)
+             (again (+ i 1) (+ acc x))))
+```
+```lisp
+(loop ((i := 0) (acc := 0))                                                     ; B′
+  ((> i 5) → (fine acc))
+  (else → (try ((fine x) = (step i n)) (again (+ i 1) (+ acc x)))))
+```
+```
+LOOP i := 0, acc := 0 :                                                         \\ D
+    i > 5  → fine(acc)
+ [] OTHER  → TRY fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)
+```
+```
+LOOP i := 0, acc := 0 :                                                         \\ K
+    i > 5  → fine(acc)
+ [] OTHER  → TRY fine(x) == step(i, n) ; AGAIN(i + 1, acc + x)
+```
+```go
+loop i := 0, acc := 0 {                                                         // J
+    i > 5 -> fine(acc)
+    else  -> { try fine(x) = step(i, n); again(i + 1, acc + x) }
+}
+```
+
+---
+
+**C5 — a search with two exits**: the first index whose element is at least k, or -1.
+
+```lisp
+(loop ((i 0))                                                                   ; T
+  (>= i (len xs))  -1
+  (>= (xs i) k)    i
+  else             (again (+ i 1)))
+```
+```lisp
+(loop ((i := 0))                                                                ; B′
+  ((>= i (len xs)) → -1)
+  ((>= (at xs i) k) → i)
+  (else → (again (+ i 1))))
+```
+```
+LOOP i := 0 :                                                                   \\ D
+    i ≥ Len(xs) → -1
+ [] xs[i] ≥ k   → i
+ [] OTHER       → AGAIN(i + 1)
+```
+```
+LOOP i := 0 :                                                                   \\ K
+    i ≥ Len(xs) → -1
+ [] xs[i] ≥ k   → i
+ [] OTHER       → AGAIN(i + 1)
+```
+```go
+loop i := 0 {                                                                   // J
+    i >= len(xs) -> -1
+    xs[i] >= k   -> i
+    else         -> again(i + 1)
+}
+```
+
+---
+
+**C6 — cells written in an arm, a one-armed choice and a nested chain** (`examples/io/count.oro`'s
+inner loop, abridged). The nested `cond` is an H2 site, and the `if` is followed by more (Finding 4).
+
+```lisp
+(local lines 0  words 0  in-word false                                          ; T
+  (loop ((i 0))
+    (>= i (len src))  (tuple lines words)
+    else
+      (let b (src i)
+        (seq (if (= b 10) (set lines (+ lines 1)) (tuple))
+             (cond (space? b)  (set in-word false)
+                   in-word     (tuple)
+                   else        (seq (set in-word true) (set words (+ words 1))))
+             (again (+ i 1))))))
+```
+```lisp
+(let ((lines := 0) (words := 0) (in-word := false))                             ; B′
+  (loop ((i := 0))
+    ((>= i (len src)) → (tuple lines words))
+    (else → (let ((b = (at src i)))
+              (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
+                   (case ((space? b) → (in-word := false))
+                         (in-word → (tuple))
+                         (else → (seq (in-word := true) (words := (+ words 1)))))
+                   (again (+ i 1)))))))
+```
+```
+LET lines := 0  words := 0  in_word := FALSE IN                                 \\ D
+  LOOP i := 0 :
+      i ≥ Len(src) → ⟨lines, words⟩
+   [] OTHER        → LET b == src[i] IN
+                       (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
+                       (CASE space(b) → in_word := FALSE
+                          [] in_word  → ()
+                          [] OTHER    → in_word := TRUE ; words := words + 1) ;
+                       AGAIN(i + 1)
+```
+```
+VAR lines := 0 ; VAR words := 0 ; VAR in_word := FALSE ;                        \\ K
+LOOP i := 0 :
+    i ≥ Len(src) → ⟨lines, words⟩
+ [] OTHER        → b == src[i] ;
+                   (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
+                   (CASE space(b) → in_word := FALSE
+                      [] in_word  → ()
+                      [] OTHER    → in_word := TRUE ; words := words + 1) ;
+                   AGAIN(i + 1)
+```
+```go
+{ var lines := 0;  var words := 0;  var in_word := false                        // J
+  loop i := 0 {
+      i >= len(src) -> (lines, words)
+      else -> { b = src[i]
+                if b == 10 { lines := lines + 1 }
+                case {
+                    space(b) -> in_word := false
+                    in_word  -> ()
+                    else     -> { in_word := true; words := words + 1 }
+                }
+                again(i + 1) } } }
+```
+
+---
+
+**C7 — a state machine** (`examples/match/runs.oro`, the 1-runs of n's binary representation). T's
+`match` has anonymous state and positional patterns; the others name the state and write guards
+(Finding 1), so the dead `else` goes.
+
+```lisp
+(match (0 n 0)                                                                  ; T
+  _ 0 c                          c
+  0 v c (when (= (% v 2) 1))     (again 1 (/ v 2) (+ c 1))
+  _ v c (when (= (% v 2) 1))     (again 1 (/ v 2) c)
+  _ v c                          (again 0 (/ v 2) c)
+  else                           0)
+```
+```lisp
+(loop ((st := 0) (v := n) (c := 0))                                             ; B′
+  ((= v 0) → c)
+  ((and (= st 0) (= (% v 2) 1)) → (again 1 (/ v 2) (+ c 1)))
+  ((= (% v 2) 1) → (again 1 (/ v 2) c))
+  (else → (again 0 (/ v 2) c)))
+```
+```
+LOOP st := 0, v := n, c := 0 :                                                  \\ D
+    v = 0               → c
+ [] st = 0 ∧ v % 2 = 1  → AGAIN(1, v ÷ 2, c + 1)
+ [] v % 2 = 1           → AGAIN(1, v ÷ 2, c)
+ [] OTHER               → AGAIN(0, v ÷ 2, c)
+```
+```
+LOOP st := 0, v := n, c := 0 :                                                  \\ K
+    v = 0               → c
+ [] st = 0 ∧ v % 2 = 1  → AGAIN(1, v ÷ 2, c + 1)
+ [] v % 2 = 1           → AGAIN(1, v ÷ 2, c)
+ [] OTHER               → AGAIN(0, v ÷ 2, c)
+```
+```go
+loop st := 0, v := n, c := 0 {                                                  // J
+    v == 0                 -> c
+    st == 0 && v % 2 == 1  -> again(1, v / 2, c + 1)
+    v % 2 == 1             -> again(1, v / 2, c)
+    else                   -> again(0, v / 2, c)
+}
+```
+
+---
+
+**C8 — nested loops and a borrowed buffer** (`examples/table/sieve.oro`'s `cross` and `sieve`). In
+program order `cross` borrows the buffer and writes it in place (ADR 0052), so neither loop carries it.
+
+```lisp
+(def cross (c i n)                                                              ; T
+  (loop ((c c) (j (* i i)))
+    (< j n)  (again (set c j true) (+ j i))
+    else     c))
+
+(def sieve (n)
+  (local c (table n false)
+    (loop ((c c) (i 2))
+      (>= (* i i) n)  c
+      (c i)           (again c (+ i 1))
+      else            (again (cross c i n) (+ i 1)))))
+```
+```lisp
+(fn cross ((c (array bool) linear) i n) ()                                      ; B′
+  (loop ((j := (* i i)))
+    ((< j n) → (seq ((at c j) := true) (again (+ j i))))
+    (else → (tuple))))
+
+(fn sieve (n)
+  (let ((c := (table n false)))
+    (loop ((i := 2))
+      ((>= (* i i) n) → c)
+      ((at c i) → (again (+ i 1)))
+      (else → (seq (cross c i n) (again (+ i 1)))))))
+```
+```
+cross(c ∈ Seq(Bool) LINEAR, i, n) ==                                            \\ D
+  LOOP j := i * i :
+      j < n  → c[j] := TRUE ; AGAIN(j + i)
+   [] OTHER  → ()
+
+sieve(n) ==
+  LET c := [k ∈ 0..n-1 ↦ FALSE] IN
+    LOOP i := 2 :
+        i * i ≥ n → c
+     [] c[i]      → AGAIN(i + 1)
+     [] OTHER     → cross(c, i, n) ; AGAIN(i + 1)
+```
+```
+cross(c ∈ Seq(Bool) LINEAR, i, n) ==                                            \\ K
+  LOOP j := i * i :
+      j < n  → c[j] := TRUE ; AGAIN(j + i)
+   [] OTHER  → ()
+
+sieve(n) ==
+  VAR c := [k ∈ 0..n-1 ↦ FALSE] ;
+  LOOP i := 2 :
+      i * i ≥ n → c
+   [] c[i]      → AGAIN(i + 1)
+   [] OTHER     → cross(c, i, n) ; AGAIN(i + 1)
+```
+```go
+fn cross(c ∈ Seq(Bool) linear, i, n) () {                                       // J
+    loop j := i * i {
+        j < n -> { c[j] := true; again(j + i) }
+        else  -> ()
+    }
+}
+
+fn sieve(n) {
+    var c := table(n, false)
+    loop i := 2 {
+        i * i >= n -> c
+        c[i]       -> again(i + 1)
+        else       -> { cross(c, i, n); again(i + 1) }
+    }
+}
+```
+
+### 3.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 3`, over C1–C8, by the rule in its header:
+
+| notation | tokens | × T | lexemes | × T | depth | closing run | lines | holes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| T today | 487 | 1.00 | 483 | 1.00 | 8 | 6 | 46 | **2** (a case arm's guard, a loop's invariant) |
+| B′ | 650 | 1.33 | 628 | 1.30 | **10** | 7 | 42 | 0 |
+| D | 487 | 1.00 | 462 | 0.96 | **3** | 2 | 39 | 0 |
+| K | 490 | 1.01 | 465 | 0.96 | **3** | 2 | 39 | 0 |
+| J | 503 | 1.03 | 444 | **0.92** | 5 | 4 | 50 | 0 |
+
+- **On choice and iteration the new notations cost nothing.** D, K and J are today's size in
+  characters (1.00–1.03×) and smaller in lexemes (0.92–0.96×), where installment 2 measured them 1–4%
+  larger. Two findings pay for the binder operators: the handled bind (C3) removes a level and an arm
+  per step, and named state (C7) removes `match`'s positional patterns and its dead `else`.
+- **Depth falls from 8 to 3** in D and K, and to 5 in J, whose braces cost a level per chain.
+- **D and K are almost one notation here.** They differ only where a scope introduces state (C3, C6,
+  C8), so this installment does not separate them; installment 2 did, on the binder axis.
+- **J writes the fewest lexemes and the most lines**: its `->`, `==` and `&&` are one lexeme each, and
+  each closing brace takes a line.
+- **B′ is the largest and the deepest for the third installment running**: 1.30× today in lexemes and
+  depth 10, two levels *deeper* than the notation it would replace. Writing an arm as a pair, which
+  decision 5 requires, costs it a bracket per arm.
+
+### 3.7 Kept, and dropped
+
+**The installment's result is structural and holds in every candidate**: one arm grammar for both
+eliminators, `cond` and `match` retired as keywords, the handled bind as the general form of `try`
+and `expect`, one precedence for `;` inside arms, and a marked introduction for state. That is where
+the two holes, the two synonyms and the parity reading go.
+
+**Kept: D, K and J.** They are within 3% of each other in characters, and they differ in what this
+installment does not test: D and K only in how a scope introduces state, and J in its delimiters,
+with the depth (5 against 3) and the lines (50 against 39) that braces cost.
+
+**B′ should be dropped as a source candidate.** §2.6 said this installment would rescue or drop it.
+It is 1.30–1.48× today's size and deeper than today in both installments that measured it, and
+writing the semantics faithfully (arms as pairs, indexing marked) is what made it so. What it offered,
+a reader that exists and a failure that is syntactic, D, K and J now have by their own rules
+(Finding 4, the braces). **S-expressions are not dropped**: they remain abstract.md's T′, the
+rendering for tools and for interchange, and today's notation until the translator replaces it.
+That is candidate I's question, one notation or two, and it stays open.
+
+### 3.8 What installment 3 fixes for everything after it
+
+1. **One arm grammar**, `p ⟨if φ⟩ → body`, for `case` and `loop`. A `case` with no scrutinee is the
+   guarded choice, and a loop's arms are its state machine, so `cond` and `match` are not keywords.
+   `if` stays, derived, because it names 𝔹's eliminator (ADR 0017).
+2. **Named state.** A loop's arms see its variables by name, and a pattern on the state earns its
+   place only on a constructor.
+3. **The handled bind**, a refutable binder with an `else`, `p = e else ā`, is bind(p; e; ā; b) =
+   case(e; p → b, ā). `try` and `expect` are its instances and keep their names.
+4. **`again` is positional**, the application D makes it, its arity checked by W3.
+5. **One precedence where a sequence meets a chain** (Finding 4, rule (a)): in D and K, `;` binds
+   tighter than `[]`; an arm's body may be a sequence; a chain extends to the end of what encloses
+   it; a chain or `IF` that something follows, and a chain nested in an arm, is parenthesized.
+6. **A state binder's introduction is marked** in a statement list: `VAR x := e` in K, `var x := e`
+   in J; a write stays `x := e`, and a loop's header introduces its variables by position.
+7. **A one-armed `if`** is the statement if(c; a; ()), written only where braces bound it (J).
+8. **A loop's invariant has a slot** in every notation: `LOOP i := 0 INVARIANT I : …` in D and K,
+   `loop i := 0 invariant I { … }` in J, as abstract.md §9.4's M′ writes it.
+
+### 3.9 Open, for hamza
+
+1. **One arm grammar, and `cond` and `match` retired as keywords** (§3.8, 1–2). *Recommended*: it is
+   ADR 0050's decision 5 made concrete, and it closes both holes of §3.3.
+2. **The handled bind** as a derived operator, with `try` and `expect` its instances. *Recommended*:
+   38 of 42 `case` forms are one, and each costs a nesting level today.
+   - **2b. In a loop's arm**, a handled bind whose success continues to `again` and whose handler
+     exits with a value. *Recommended*: it is ADR 0041's reasoning (the other arms leave the loop)
+     applied to a handler. It changes the tail sort, so it needs its own ADR.
+3. **`again` positional** (*recommended*: Σ's application and W3's arity check), or named: complete,
+   as Dijkstra's concurrent assignment, or partial. 121 of 630 arguments are a variable unchanged.
+4. **Rule (a) for `;` inside arms** in D and K (*recommended*: 31 + 22 parenthesized sites, the
+   guarded commands' own precedence), against (b) `;` loosest (88 + 22) or (c) a closing word per
+   chain (393 words). J and B′ are unaffected.
+5. **Mark a state binder's introduction** in K and J, `VAR`/`var` (*recommended*: 84 marks against
+   123 for marking writes, and Algol 68's, Pascal's, Ada's and Rust's answer). This closes §2.13's
+   open item 4. D and L mark it by position.
+6. **A one-armed `if` in J only** (*recommended*: in D and K it brings back the dangling else).
+7. **A loop's invariant slot** (*recommended*: abstract.md's loop has it, and no notation today can
+   write one).
+8. **Drop B′ as a source candidate**, keeping S-expressions as T′ for tools and interchange
+   (*recommended*: §3.7).
+
+Not here: whether the source is D, K or J, and whether there are two notations. Installments 4–8
+(data and sets, claims, declarations, static parameters and the arrow, lexical) come first.

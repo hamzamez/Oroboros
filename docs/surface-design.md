@@ -1645,3 +1645,122 @@ three refusals above. **No merged reader has been built or run**, so `cmd/check`
 it. What would confirm it is the smallest possible experiment: teach `readLet` to accept `linear` and
 route those binders through `localBinder`, then check that emission is byte-identical on the 26 sites.
 That is a few hours and it is the right first build step if the merge is taken.
+
+### 2.11 Scattered binders: does a statement list break anything?
+
+hamza: *"in the j syntax, it reads like an imperative language, the question is: because we are not
+binding names in a head, a programmer can sprinkle them around the scope, will that break anything?
+could that be a problem?"*
+
+#### The structural answer: a group does not exist below the reader
+
+A grouped `let` and nested `let`s **reduce to the same term**. Verified at `8d737af`:
+
+```lisp
+(let x (f 1) y (g 2) (h x y))            ⟶  (h (f 1) (g 2))
+(let x (f 1) (let y (g 2) (h x y)))      ⟶  (h (f 1) (g 2))
+```
+
+`readLet` and `readLocal` both **right-fold** into a chain of single-binder forms
+(`core/scope.go`: `for i := len(params) - 1; i >= 0; i--`). So "grouped" and "scattered" are one
+term, and the group is a surface convenience with **no image in the core**. Nothing in the reducer,
+the checker, the refinement layer, the IR or a backend can tell the difference, because none of them
+ever saw a group.
+
+**And rebinding a name in one group is already legal:**
+
+```lisp
+(let x 1  x (+ x 1)  x)          ⟶  2
+(let x 1  x (+ x 1)  x (* x 10)  x)   ⟶  20
+```
+
+So shadowing-by-rebind is not something the flat form introduces either. It is what a sequential
+`let` has always meant.
+
+#### The three rules that could have been at risk — all three already hold positionally
+
+**1. A binder may not hide a cell.** Refused today, by name:
+
+```lisp
+(local total 0 (seq (set total 1) (let total 9 total)))
+;; f: a binder named total hides the cell total in its scope; rename one (spec/local.md §3)
+```
+
+A flat list makes this *easier to write by accident*, since there is no `local`/`let` boundary to
+remind you — but it is caught, and the message names the repair.
+
+**2. The tail rule — and the flat form makes it easier, not harder.** `again` must be the last
+statement, and a non-last `again` is refused today:
+
+```lisp
+(seq (again (+ i 1)) (io.print-int i))
+;; `again` may be a clause body, or sit under a `let`, but not under an `if`
+;;  or inside an expression — write another clause instead
+```
+
+In a statement list **the tail is syntactically the last element**. Compare CLAUDE.md's standing
+warning: *"every walker of a clause chain walks four forms — `again`, `if`, `let`, and a host call's
+continuation — and one that enumerates back edges and misses a form is unsound, not imprecise."* A
+sequence has one form to walk. And a binder between an effect and an `again` is legal and free —
+verified, it reduces to the identical term as without it:
+
+```lisp
+(seq (io.print-int i) (let j (+ i 1) (again j)))
+⟶  (let (io.print-int i) (fn (#_) (again (+ i 1))))     the same as without the binder
+```
+
+**3. Linearity — also easier.** `emit/linearity.go`: *"it walks in EVALUATION ORDER: a `let`'s value
+before its body, an `if`'s condition before its branches, arguments before the operation that
+consumes them."* **A statement list *is* evaluation order**, so the reading order and the checking
+order coincide. A reader who follows the page follows the check.
+
+**And hygiene covers rebinding.** ADR 0036 renames binders apart, so a rebound name in a flat list is
+handled by the mechanism that already handles nested shadowing:
+
+```lisp
+(let x (shout 1)  x (shout x)  (h x x))
+⟶  (let (shout 1) (fn (x) (let (shout x) (fn (x1) (h x1 x1)))))
+```
+
+The second binder came back `x1`, so the refinement layer's name-keyed facts stay sound — which is
+the bug CLAUDE.md records as *"the facts about a parameter `n` were read as facts about a loop
+variable `n`"*.
+
+#### So what is the problem? Two things, and neither is correctness
+
+**(a) The real hazard is `=` against `:=`, and it is a spelling decision.** In a flat list both read
+as assignment to anyone arriving from Python or Go:
+
+```
+x = 1 ;  x = x + 1          two immutable binders — the second SHADOWS the first
+x := 1 ; x := x + 1         one cell, written twice — MUTATION
+```
+
+They differ by **one character** and mean binding against mutation. A head group is less exposed,
+because the group reads as a declaration list; a flat list puts them adjacent and makes them look
+alike.
+
+> **This is a reason to prefer `==` over `=` for the definitional binder.** `==` against `:=` is two
+> characters apart and neither reads as C's assignment. **K already uses `==`** (it is D's lexicon),
+> which is why K is less exposed here than J, which uses `=`. If a braced surface is chosen, it
+> should take `==` too.
+
+**(b) The legibility trade is real, and it is hamza's call.** With a group you see every name a scope
+introduces at a glance. Scattered, you do not — you scan forward to the block's end to know where a
+name dies. Against that: you bind where the value is computed, next to its use, and the **2 measured
+sites** that bind after an effect (§2.9) stop needing a nested form.
+
+#### A mitigation that costs nothing
+
+Because the core has no group, **this is entirely a formatting question**, and it can be answered
+without touching the grammar:
+
+- a **formatter** may print a scattered sequence with its leading binders aligned, so a scope that
+  *is* written as a declaration list still reads as one;
+- a **lint** could require that binders with no preceding effect come first — a convention, reversible,
+  and not a rule of the language.
+
+Both are available precisely because grouping has no semantics. That is the installment's answer to
+the question: **scattering cannot break the compiler, because the compiler was never told about
+groups. What it can do is make two operators that differ by one character sit next to each other,
+and the fix for that is the spelling, not the shape.**

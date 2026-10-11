@@ -917,3 +917,440 @@ programs actually do.
 fit-research §3.3 counts *eight* binder shapes today for three kinds, and §3.6 counts five forms
 whose structure is read from the parity of a flat list. It is where uniformity is either won or lost,
 and it is the first place the kept candidates will differ for a reason other than delimiters.
+
+---
+
+## Installment 2 — `let` and `local`
+
+Constrained by installment 1's §1.10: one binder shape, the kind on the binder, claims a deletable
+region, no type on a term, and a body delimiter whose failure is syntactic.
+
+### 2.1 What the construct must carry
+
+| | slot | `let` today | `local` today |
+|---|---|---|---|
+| 1 | the binder's **pattern** — a name, `_`, or a tuple pattern | yes | name only |
+| 2 | the binder's **kind** — definitional, definitional-linear (a buffer), state (a cell) | definitional, implicit | **inferred from the initializer** (ADR 0047) |
+| 3 | the binder's optional **claim** (a set) | **no place** | **no place** |
+| 4 | the binder's optional **mode** (`linear` on a buffer) | — | implied |
+| 5 | the **value** / initializer | yes | yes |
+| 6 | **sequencing** — each value sees the ones before it | yes | yes |
+| 7 | the **body** | yes | yes |
+| 8 | a **discarded** binder | `seq`, a separate form | `seq` |
+| 9 | the scope's **result**, possibly a product taken apart by a tuple pattern (ADR 0031) | — | yes |
+
+### 2.2 The holes, verified
+
+**A binder cannot carry a claim.** Verified at `47eb569`:
+
+```lisp
+(def f (n) (let (x int) n x))
+;; line 2: let binds a name or `(tuple a b …)`; a pattern that may not match
+;;         belongs in `case` (spec/binding.md §5)
+```
+
+This is **the same hole installment 1 found on the λ**, in a second construct: a claim has no place on
+a binder, so it must go on the value, as `(let x (the int n) …)`. Slot 3 is a hole in both forms.
+
+**The kind is inferred, not stated.** ADR 0047: a table initializer makes a buffer, anything else a
+cell. Two consequences, both verified:
+
+```lisp
+(local b (array 1 2 3) (b 0))
+⟶ (fn () (build 3 (fn (b) …)))          ; a graph in a scope is a BUFFER
+(let   t (array 1 2 3) (t 0))
+⟶ (fn () 1)                              ; the same graph in a let is a VALUE
+```
+
+So **one initializer means two different things depending on the head**, which is a homonym the head
+resolves rather than the binder (fit-research's F2). And a cell holding a table is unwritable: the
+initializer makes it a buffer, and a two-argument `set` on it is refused — late, by linearity, with a
+message that names the wrong cause:
+
+```lisp
+(local x (array 1 2 3) (seq (set x (array 4 5 6)) (x 0)))
+;; gen: the buffer x1 is read after it has already been handed on.
+;;   `(set b i v)` CONSUMES b and returns it …
+```
+
+The real error is "that is a cell write, not a buffer store". The diagnostic cannot say so, because
+`set` is one word for both.
+
+**`set` is a homonym, measured — and about to be a three-way one.** Over the 85 files of `examples/`
+and `lib/`:
+
+| | count |
+|---|---:|
+| `(set c v)` — a **cell write**, two arguments | **9** |
+| `(set b i v)` — a **buffer store**, three arguments | **58** |
+
+One word, two operations, told apart by arity — the discrimination-by-arity that ADR 0024 had to
+refuse the datum comment to protect (fit-research §3.6).
+
+**And fit-research decision 4 wants `set` for a third thing**: the set former, `(set 1 2)` for
+`{1, 2}`. abstract.md §10 has already noticed and proposed the split — *"in T′, assign is `set!` and
+the buffer's store is `store`, because `set` is the set former: one spelling per operator, Scheme's
+convention for a write."* So the fix is already specified; installment 2 only has to pick the write's
+spelling, and §2.4's P6 differs from abstract.md there on purpose (`:=` rather than `set!`, for the
+reason given at P6).
+
+### 2.3 Three findings
+
+**Finding 1. `let` and `local` have the same arity in Σ.** abstract.md §2.4, verbatim:
+
+```
+let(b̄; e)     : (Bind*. Expr) → Expr      definitional binders, sequential
+local(b̄; e)   : (Bind*. Expr) → Expr      buffer binders (definitional, linear) and cell binders (state)
+```
+
+**Identical.** They differ only in *which binder kinds they admit* — which is information about the
+binders, not about the form. So by installment 1's Finding 1 pattern they are one operator, and the
+binders say which kind each is.
+
+Measured support, and it is weak rather than strong: **3 sites** write one sequential group as two
+nested forms (`let` whose body is a `local`, in `freq.oro`, `ages.oro` and `smooth-java.oro`), and no
+site nests the other way or nests a form in itself. So merging flattens 3 of 95 forms. The argument
+is the identical arity; the measurement only fails to contradict it.
+
+**Finding 2. One binder shape, three operators — and installment 1's parameter is the degenerate
+case.**
+
+```
+pattern  [∈ S]  = e        definitional   a let; a buffer when e is a buffer constructor
+pattern  [∈ S]  := e       state          a cell
+pattern   ∈ S              ranging        a parameter (installment 1), where the claim IS the right side
+```
+
+The left of the operator is **exactly installment 1's binder** — a pattern with an optional set. The
+operator and right side are what installment 2 adds. So the three binder kinds of abstract.md §2.2
+are one shape with three operators, the operator names the kind, and nothing is inferred.
+
+And the parity problem disappears with it: an operator between the pattern and the value makes the
+pair explicit, so `let`, `local`, `loop`'s variables and `build-map` stop being read off a flat
+list's parity (fit-research §3.6 counts five such forms; **95 binders in `let` and 34 in `local`**
+are two of them).
+
+**Finding 3. If the kind is stated, the *constructor* decides buffer from value — and that costs
+nothing.** Replace ADR 0047's "a table initializer makes a buffer" with the sharper rule:
+
+| | means | sites today |
+|---|---|---:|
+| `b = table(n, f)` | a **buffer**: linear, threaded stores | **26** |
+| `t = array(e…)` | an **immutable table**, a value | 0 in a scope, 0 in a `let` |
+| `x := e` | a **cell** | **8** |
+| `x := array(e…)` | a cell holding a table — **not expressible today** | — |
+| `x := table(n, f)` | **refused**: a buffer is not a value, so it cannot be a cell's content | — |
+
+Measured: **all 26 buffer binders use `table`, none uses `array`**, and **no `let` binder anywhere
+holds an `array` or `table` constructor**. So sharpening the rule from "a table" to "the `table`
+constructor" changes **zero sites**, removes an inference, and gains two forms the language cannot
+currently write.
+
+### 2.4 Nine programs, four notations
+
+**T** today, **B′** sectioned prefix, **D** mathematical, **J** Go-inspired. J is shown in its
+strongest form, where **a binder group and its body are one statement list** and the block's value is
+its last expression — so slots 7 and 8 collapse into the sequence and `seq` is not a construct.
+
+---
+
+**P1 — a sequential chain of two names.**
+
+```lisp
+(let av (os.Args)  n (len av)  (- n 1))                                        ; T
+```
+```lisp
+(let ((av = (os.Args))  (n = (len av)))  (- n 1))                              ; B′
+```
+```
+LET av == os.Args()  n == Len(av)  IN  n - 1                                   \\ D
+```
+```go
+{ av = os.Args();  n = len(av);  n - 1 }                                       // J
+```
+
+---
+
+**P2 — a tuple pattern from a host call** (the product's eliminator, binding.md §5).
+
+```lisp
+(let (tuple src err) (os.ReadFile p) (if (= err 0) src ""))                     ; T
+```
+```lisp
+(let (((tuple src err) = (os.ReadFile p)))  (if (= err 0) src ""))              ; B′
+```
+```
+LET ⟨src, err⟩ == os.ReadFile(p)  IN  IF err = 0 THEN src ELSE ""               \\ D
+```
+```go
+{ (src, err) = os.ReadFile(p);  if err = 0 { src } else { "" } }                // J
+```
+
+---
+
+**P3 — a claim on a binder.** The hole: **T cannot write this at all.**
+
+```lisp
+(let b (the (int 0 255) (src i)) …)        ; T — the claim goes on the VALUE, not the binder
+```
+```lisp
+(let (((b (int 0 255)) = (src i)))  …)     ; B′ — the binder's left side is installment 1's
+```
+```
+LET b ∈ 0..255 == src[i]  IN  …                                                 \\ D
+```
+```go
+{ b ∈ 0..255 = src[i];  … }                                                     // J
+```
+
+---
+
+**P4 — a discarded binder.**
+
+```lisp
+(seq (io.print-line "hi") 0)                                                    ; T — a separate form
+```
+```lisp
+(let ((_ = (io.print-line "hi")))  0)                                           ; B′
+```
+```
+LET _ == io.print_line("hi")  IN  0                                             \\ D
+```
+```go
+{ io.print_line("hi");  0 }                                                     // J — no construct at all
+```
+
+J's row is the finding: in a statement list a discarded binder is **an expression statement**, so
+`seq` is not a form. ADR 0010 still does the work — the effect may not be dropped — but the notation
+needs no name for it.
+
+---
+
+**P5 — a buffer, stores threaded through a loop** (the sieve's inner loop).
+
+```lisp
+(local c (table n false)                                                        ; T
+  (loop ((c c) (j (* i i)))
+    (< j n)  (again (set c j true) (+ j i))
+    else     c))
+```
+```lisp
+(let ((c = (table n false)))                                                    ; B′
+  (loop ((c := c) (j := (* i i)))
+    (< j n)  (again (store c j true) (+ j i))
+    else     c))
+```
+```
+LET c == table(n, FALSE) IN                                                     \\ D
+  LOOP c := c, j := i * i :
+      j < n  → AGAIN(store(c, j, TRUE), j + i)
+   [] OTHER  → c
+```
+```go
+{ c = table(n, false)                                                           // J
+  loop c := c, j := i * i {
+      j < n -> again(store(c, j, true), j + i)
+      else  -> c
+  } }
+```
+
+The store is spelled **`store`**, not `set`: §2.2's homonym is resolved by giving the two operations
+two names. `store` is abstract.md §1.3's own name for it ("a buffer's threaded store `store` (today's
+three-argument `set`)"), so this is the specification's spelling, not an invention.
+
+---
+
+**P6 — cells and writes** (`examples/io/count.oro`, its inner loop, abridged).
+
+```lisp
+(local lines 0  words 0  in-word false                                          ; T
+  (loop ((i 0))
+    (>= i (len src))  (tuple lines words)
+    else (let b (src i)
+           (seq (if (= b 10) (set lines (+ lines 1)) (tuple))
+                (again (+ i 1))))))
+```
+```lisp
+(let ((lines := 0) (words := 0) (in-word := false))                             ; B′
+  (loop ((i := 0))
+    (>= i (len src))  (tuple lines words)
+    else (let ((b = (src i)))
+           (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
+                (again (+ i 1))))))
+```
+```
+LET lines := 0  words := 0  in_word := FALSE IN                                 \\ D
+  LOOP i := 0 :
+      i ≥ Len(src) → ⟨lines, words⟩
+   [] OTHER        → LET b == src[i] IN
+                       ( IF b = 10 THEN lines := lines + 1 ELSE () ;
+                         AGAIN(i + 1) )
+```
+```go
+{ lines := 0;  words := 0;  in_word := false                                    // J
+  loop i := 0 {
+      i >= len(src) -> (lines, words)
+      else -> { b = src[i]
+                if b = 10 { lines := lines + 1 }
+                again(i + 1) } } }
+```
+
+A write is `x := e` — **the same operator that bound the cell**, which is PlusCal's and Ada's
+reading: `:=` means "this name takes this value", at the binder and at the write alike. So `set`'s
+two-argument form disappears too, and §2.2's 9 cell writes and 58 buffer stores become `:=` and
+`store`.
+
+**This diverges from abstract.md §10 deliberately.** That spec proposes `set!` for the write,
+Scheme's convention, which solves the homonym equally well. The case for `:=` is Finding 2: if the
+binder is `x := e`, then spelling the write `x := e` makes **one operator serve the binder and every
+later write**, so a reader learns one thing instead of two and there is no question of which name is
+a cell. `set!` would keep them two operations with two spellings. Both close §2.2's collision; only
+`:=` also collapses a pair.
+
+---
+
+**P7 — a mixed group**: an immutable binding, a buffer and a cell, in one sequence. **T needs two
+nested forms** (the 3 sites of Finding 1).
+
+```lisp
+(let n (len xs)                                                                 ; T
+  (local out (table n 0)  count 0
+    …))
+```
+```lisp
+(let ((n = (len xs))  (out = (table n 0))  (count := 0))  …)                    ; B′
+```
+```
+LET n == Len(xs)  out == table(n, 0)  count := 0  IN  …                         \\ D
+```
+```go
+{ n = len(xs);  out = table(n, 0);  count := 0;  … }                            // J
+```
+
+---
+
+**P8 — the scope's product result** (ADR 0031): two cells' final values leave together.
+
+```lisp
+(local age 0  name ""  (seq … (tuple age name)))                                ; T
+```
+```lisp
+(let ((age := 0) (name := ""))  (seq … (tuple age name)))                       ; B′
+```
+```
+LET age := 0  name := "" IN  ( … ; ⟨age, name⟩ )                                \\ D
+```
+```go
+{ age := 0;  name := "";  …;  (age, name) }                                     // J
+```
+
+---
+
+**P9 — a cell holding a table.** **Not expressible in T** (§2.2); Finding 3 makes it writable.
+
+```lisp
+;; T — no spelling exists
+```
+```lisp
+(let ((cur := (array 1 2 3)))  (seq (cur := (array 4 5 6)) (cur 0)))            ; B′
+```
+```
+LET cur := ⟨1, 2, 3⟩ IN  ( cur := ⟨4, 5, 6⟩ ; cur[0] )                          \\ D
+```
+```go
+{ cur := array(1, 2, 3);  cur := array(4, 5, 6);  cur[0] }                       // J
+```
+
+### 2.5 Measured
+
+Tokens, depth and longest closing run over **P1–P8** (P9 is excluded, since it has no T column).
+Counting as §1.6, with each block's trailing column marker stripped.
+
+| notation | tokens | × T | depth | closing run | holes | shapes |
+|---|---:|---:|---:|---:|---:|---:|
+| T today | 229 | 1.00 | 7 | 6 | **2** | **8** (fit-research §3.3) |
+| B′ | 336 | **1.47** | 7 | 6 | 0 | 1 |
+| D | 232 | 1.01 | **2** | **2** | 0 | 1 |
+| J | 232 | 1.01 | 4 | 4 | 0 | 1 |
+
+**My estimates were wrong again, and this time the correction changes the conclusion.** I had written
+that D and J were ~15% shorter than today; they are **the same size** (1.01×). So:
+
+- **The case for J and D is not size. It is depth, and it is the structural simplifications.** Both
+  write the same number of tokens as today while dropping from depth 7 to 4 and 2, and while removing
+  `seq`, the `let`-around-`local` nesting, the eight binder shapes and the two holes. The notation
+  costs nothing and the *structure* is what improves — which is a better result than a size win would
+  have been, because it cannot be argued away as formatting.
+- **D is the shallowest by half**, 2 against J's 4, and this reverses installment 1, where the two
+  tied at depth 1. The cause is that `LET … IN` adds no bracket while `{ … }` adds one per block, and
+  P5–P8 all nest a loop inside a scope. On the one measure where J and D differed, D now wins.
+- **B′ is 1.47× today's tokens** at the same depth and the same closing run — it pays half again as
+  much for no structural gain over the others. The cause is structural, not incidental: a binder is
+  `(pattern OP rhs)`, a pattern may itself be a list, and a claim makes the left side a list, so P2
+  and P3 carry three opening brackets before the first name.
+- **T's two holes** are slot 3 (a claim on a binder, unwritable) and slot 2 (the kind, inferred).
+  Its eight shapes are fit-research §3.3's count, which every candidate here reduces to one.
+
+### 2.6 Kept, and dropped
+
+**The installment's result is structural and it is the same in all three candidates.** Findings 1–3
+hold whatever the spelling: one binder shape with three operators, `let` and `local` merged, the kind
+stated rather than inferred, and `set` split into `store` and `:=`. That is where the two holes and
+the eight shapes go, and it costs no tokens (§2.5).
+
+**J gains the most from its own shape, and it is a decision rather than a spelling.** Its statement
+list makes the binder group and the body one sequence, which:
+- removes `seq` as a construct (P4);
+- removes the `let`-around-`local` nesting (P7, 3 sites);
+- makes a cell's write the same operator as its binder (P6);
+- keeps `}` as the delimiter, so the failure stays syntactic (§1.7).
+
+Four slots simplified by one decision, and none of it is available to a form that keeps binders and
+body as separate slots. **But it is not free**: the braces cost two levels of depth against D (4
+against 2), because a block is a bracket and these programs nest a loop inside a scope.
+
+**D is the shallowest and holds its ground.** §1.11's two rules apply unchanged — `IN` delimits the
+binder group, so `LET` munching rightward is harmless — and it reaches depth 2 where today's notation
+is at 7. What it does *not* get is J's collapse of body-and-binders, because `LET … IN e` has one
+body slot by construction. **A hybrid is available and worth naming**: `LET … IN` over a
+statement-list body, which would take D's shallowness and J's sequence. I have not measured it; it is
+the first thing installment 3 should price.
+
+**B′ falls behind.** It was installment 1's co-leader. Here it is 1.47× the tokens at the same depth
+and the same closing run as the notation it replaces, and the cause is the shape itself rather than
+the examples. Kept on the list, because the reader exists and its failure is syntactic, but it is no
+longer a front-runner and installment 3 should be where it is either rescued or dropped.
+
+**Dropped:** nothing new. P9 rules out any candidate that keeps ADR 0047's inference, and no live
+candidate does.
+
+### 2.7 What installment 2 fixes for later
+
+1. **One binder shape, three operators** (Finding 2): `pattern [∈ S] = e`, `:= e`, or `∈ S` alone.
+   Every later binder — a loop's variables, a `case` arm, a variant's parameters, a comprehension —
+   uses it, or uniformity breaks again.
+2. **`let` and `local` are one form** (Finding 1). "This scope has state" is read off the binders.
+3. **The kind is stated, never inferred** (Finding 3), and the *constructor* separates a buffer from
+   a table value: `table` builds a buffer, `array` builds a value.
+4. **One operation, one name.** `store` for a buffer, `:=` for a cell, and `set` retires. No later
+   construct may distinguish two operations by arity.
+5. **A block is a statement list whose value is its last expression**, if J wins — and then `seq`
+   never returns, and any later construct with a body uses the same block.
+
+### 2.8 Open, for hamza
+
+1. **Does the statement-list block win?** It is the installment's finding, and it is a larger change
+   than a spelling: it makes a body a *sequence* rather than a slot, which removes `seq` and one
+   nesting level everywhere. Everything after this installment inherits the answer. Note it is
+   **separable from the braces** — see 1b.
+1b. **The hybrid: `LET … IN` over a statement-list body.** D is now the shallowest by half (depth 2
+   against J's 4, §2.5) and J has the sequence. Nothing stops a candidate having both, and it would
+   dominate each on its own measure. Unpriced; it is the first thing installment 3 should measure.
+2. **`x := table(n, f)` — refused, or a cell holding a buffer?** I propose refused: a buffer is not a
+   value (ADR 0018), so it cannot be a cell's content. Worth a word, because it is the one case
+   Finding 3 forbids rather than gains.
+3. **Does the `=`/`:=` split want `linear` written on a buffer binder**, or does `table` imply it?
+   Finding 3 reads `table` as implying it, which is why the 26 sites cost nothing. Writing it would
+   make the mode explicit at 26 sites and make `linear` a thing a reader sees.
+4. **ADR 0047 needs a successor** if Finding 3 is taken: its initializer rule is the thing being
+   replaced, and its translation, cells-as-loop-variables and everything in local.md §3 is unchanged.

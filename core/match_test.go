@@ -111,7 +111,7 @@ func TestNamePatternRenamesRatherThanBinds(t *testing.T) {
 }
 
 // The rename is safe without capture analysis, and this is the reason: by the
-// time readMatch runs, every inner `fn` has been through `Fn`, which closed its
+// time D renames a match arm, every inner `fn` has been through `Fn`, which closed its
 // body — so an occurrence bound by a nested binder is a KBound, not a KName.
 // A shadowing lambda must therefore be left completely alone.
 func TestRenameDoesNotEnterAShadowingBinder(t *testing.T) {

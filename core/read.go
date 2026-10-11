@@ -154,13 +154,38 @@ type reader struct {
 	pos  int
 	line int
 	raw  bool // ReadRaw: lists are read as written, with no sugar
+
+	// What the reader builds: for each datum, its tree of abstract Oroboros (μ,
+	// mu.go), from which D (desugar.go) makes the core term. elems are the
+	// elements of the list a tree was read from, and stray marks an expression
+	// holding an `again` that stands where no jump can be taken.
+	abs   map[*Term]Tail
+	elems map[Tail][]*Term
+	stray map[Expr]bool
+	d     *desugarer
+}
+
+func newReader(src string, raw bool) *reader {
+	return &reader{src: src, line: 1, raw: raw, abs: map[*Term]Tail{}, elems: map[Tail][]*Term{},
+		stray: map[Expr]bool{}, d: newDesugarer()}
+}
+
+// core is D of a top-level datum's tree: the term today's reader made of it.
+func (r *reader) core(datum *Term) *Term { return r.d.term(r.demote(r.abs[datum])) }
+
+// register records a datum's tree.
+func (r *reader) register(datum *Term, a Tail) *Term {
+	if !r.raw {
+		r.abs[datum] = a
+	}
+	return datum
 }
 
 func Read(src string) ([]Form, error) {
 	if err := validSource(src); err != nil {
 		return nil, err
 	}
-	r := &reader{src: src, line: 1}
+	r := newReader(src, false)
 	var forms []Form
 	for {
 		r.skipSpace()
@@ -171,8 +196,7 @@ func Read(src string) ([]Form, error) {
 		if err != nil {
 			return nil, err
 		}
-		t = eraseTupleLets(t)
-		f, err := toForm(t)
+		f, err := toForm(r.core(t))
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +250,7 @@ func ReadRaw(src string) ([]*Term, error) {
 	if err := validSource(src); err != nil {
 		return nil, err
 	}
-	r := &reader{src: src, line: 1, raw: true}
+	r := newReader(src, true)
 	var out []*Term
 	for {
 		r.skipSpace()
@@ -244,7 +268,7 @@ func ReadRaw(src string) ([]*Term, error) {
 // ReadAll reads raw terms without interpreting def/prim/target. Target files
 // are s-expressions but not programs, so they are parsed by their consumer.
 func ReadAll(src string) ([]*Term, error) {
-	r := &reader{src: src, line: 1}
+	r := newReader(src, false)
 	var out []*Term
 	for {
 		r.skipSpace()
@@ -255,13 +279,13 @@ func ReadAll(src string) ([]*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, eraseTupleLets(t))
+		out = append(out, r.core(t))
 	}
 }
 
 // ReadTerm reads exactly one term, for tests and the REPL.
 func ReadTerm(src string) (*Term, error) {
-	r := &reader{src: src, line: 1}
+	r := newReader(src, false)
 	r.skipSpace()
 	t, err := r.term()
 	if err != nil {
@@ -271,7 +295,7 @@ func ReadTerm(src string) (*Term, error) {
 	if !r.done() {
 		return nil, fmt.Errorf("line %d: trailing input after term", r.line)
 	}
-	return eraseTupleLets(t), nil
+	return r.core(t), nil
 }
 
 func (r *reader) done() bool { return r.pos >= len(r.src) }
@@ -360,7 +384,8 @@ func (r *reader) str() (*Term, error) {
 		}
 		c := r.next()
 		if c == '"' {
-			return Str(b.String()), nil
+			t := Str(b.String())
+			return r.register(t, &Lit{T: t}), nil
 		}
 		if c == '\t' || c == '\n' || c == '\r' {
 			return nil, fmt.Errorf("line %d: a string literal may not contain a raw "+
@@ -473,7 +498,7 @@ func (r *reader) list() (*Term, error) {
 			r.skipSpace()
 			if !r.done() && r.peek() == ')' {
 				r.next()
-				kids = append(kids, &Term{Kind: KApp}) // the empty parameter list
+				kids = append(kids, r.register(&Term{Kind: KApp}, &EmptyList{})) // the empty parameter list
 				continue
 			}
 			r.pos = save
@@ -490,177 +515,21 @@ func (r *reader) list() (*Term, error) {
 	if r.raw {
 		return &Term{Kind: KApp, Kids: kids}, nil
 	}
-	// A source-level `let` is SUGAR for an application, and desugars here
-	// (spec/binding.md).
-	//
-	//   (let x e b)  ⟶  ((fn (x) b) e)
-	//
-	// This is the difference between the two designs we could have had. If `let`
-	// stayed a primitive in source, writing one would *prevent* substitution —
-	// a knob. It would also be a footgun: a `let` written for readability around
-	// a value that later reduces to a λ would silently kill fusion, because the
-	// bound name could no longer be substituted into.
-	//
-	// Instead the programmer's `let` states intent and is erased, and the
-	// compiler re-introduces sharing wherever β declines to substitute
-	// (gauntlet/results/callbyneed-2026-08-14.md). A `let` in a *residual* can
-	// therefore only have come from the reducer, which makes the two roles
-	// unambiguous despite sharing a name — and since the source spelling became
-	// the flat one, they do not even look alike.
-	if kids[0].Kind == KName && kids[0].Name == "let" {
-		return readLet(kids, line)
+	// THE LIST'S TREE, built now that its elements are read, so the tree is
+	// built bottom-up in the order the reader reads and an error is reported
+	// where it always was (μ, mu.go). Every form the notation has — `let`,
+	// `seq`, the connectives, `cond`, `tuple`, `loop`, `local`, `build-map`,
+	// `match`, `fn`, `if`, `case`, `try`, `expect`, `the` — is a node of the
+	// tree, and D (desugar.go) makes the core term each always read as.
+	a, err := r.mu(kids, line)
+	if err != nil {
+		return nil, err
 	}
-
-	// `seq` is the same trick with the binder thrown away, and it is the whole
-	// of our sequencing construct — no statement form, no unit type.
-	//
-	//   (seq a b c)  ⟶  ((fn (_) ((fn (_) c) b)) a)
-	//
-	// It works only because β denies weakening to impure terms (effects.md §5):
-	// `_` occurs zero times, so a pure `a` is correctly deleted and an impure
-	// `a` is correctly kept. The hazard g5 did not list is the one that makes
-	// sequencing expressible at all.
-	if kids[0].Kind == KName && kids[0].Name == "seq" {
-		if len(kids) < 3 {
-			return nil, fmt.Errorf("line %d: seq takes two or more terms", line)
-		}
-		// THE BINDER IS UNWRITABLE, `#_`, as `tuple`'s `#k` is: spelled `_`, it
-		// captured a `_` pattern in a `case` or `try` inside the sequence, which
-		// Load expands after this λ is closed (unit-2026-10-06).
-		t := kids[len(kids)-1]
-		for i := len(kids) - 2; i >= 1; i-- {
-			t = &Term{Kind: KApp, Kids: []*Term{Fn([]string{"#_"}, t), kids[i]}}
-		}
-		return t, nil
+	datum := &Term{Kind: KApp, Kids: kids}
+	if _, seen := r.elems[a]; !seen {
+		r.elems[a] = kids
 	}
-
-	// ---- Booleans and control flow, all four definitional (booleans.md 4.2).
-	//
-	// McCarthy 1960: a conditional CANNOT be a function, because a function in
-	// a strict language receives every argument evaluated and a conditional
-	// must not evaluate the branch it does not take. `and` and `or` inherit
-	// that, which is why R7RS derives them and why the SML Definition makes
-	// them syntax. None of the four survives this function.
-	//
-	//   (and a b …)  ⟶  (if a (and b …) false)
-	//   (or  a b …)  ⟶  (if a true (or b …))
-	//   (not a)      ⟶  (if a false true)
-	//
-	// `or` needs no `let` — Scheme's does only because its `or` returns the
-	// VALUE of the first true operand, over arbitrary values. Over the
-	// two-element bool, `(if a true b)` evaluates `a` once and is exact.
-	if kids[0].Kind == KName {
-		switch kids[0].Name {
-		case "and", "or":
-			short := kids[0].Name == "or"
-			if len(kids) == 1 {
-				return Bool(!short), nil // (and) is true, (or) is false — the units
-			}
-			t := kids[len(kids)-1]
-			for i := len(kids) - 2; i >= 1; i-- {
-				if short {
-					t = &Term{Kind: KApp, Kids: []*Term{Name("if"), kids[i], Bool(true), t}}
-				} else {
-					t = conj(kids[i], t)
-				}
-			}
-			return t, nil
-		case "not":
-			if len(kids) != 2 {
-				return nil, fmt.Errorf("line %d: not takes one term", line)
-			}
-			return &Term{Kind: KApp,
-				Kids: []*Term{Name("if"), kids[1], Bool(false), Bool(true)}}, nil
-		case "cond":
-			return clauseChain(kids[1:], "cond", line, nil)
-		case "values":
-			return nil, fmt.Errorf("line %d: `values` is spelled `tuple` (spec/data.md §3)", line)
-		case "tuple":
-			// (tuple a b …)  ⟶  (fn (k) (k a b …))
-			//
-			// A TUPLE IS A FUNCTION ON Fin n (spec/data.md §1), and this is its
-			// Church presentation: the currying eliminator is β itself. It is the
-			// term `values` read as, so every backend's multiple return and the
-			// product pass see exactly the shape they always have.
-			//
-			// The NEGATIVE PRODUCT, and it is sugar because beta already is its
-			// algebra: a caller that consumes it in the same place reduces the
-			// whole thing away, which is why it measured 1.01x with zero
-			// allocations (product-2026-08-19). What survives reduction is a
-			// function whose value is a selector-taking lambda, and THAT is
-			// what a target with a native multiple-return emits.
-			//
-			// Scheme's `values` and Common Lisp's are deliberately not data
-			// structures, for the same reason: an implementation should return
-			// several results in registers rather than box them to unbox them.
-			// THE UNIT, n = 0 (data.md §3.6): the terminal object 1, whose one
-			// value answers any observation with nothing. n = 1 stays refused:
-			// (tuple T) ≅ T.
-			if len(kids) == 2 {
-				return nil, fmt.Errorf("line %d: tuple takes no terms, the unit, or two or "+
-					"more; a tuple of one is just the value", line)
-			}
-			// The binder's name starts with `#`, which is not isIdentStart, so
-			// no source term can contain a free occurrence of it and `Fn`
-			// cannot capture one. `seq` uses `_`, which a user COULD write.
-			app := append([]*Term{Name("#k")}, kids[1:]...)
-			return Fn([]string{"#k"}, &Term{Kind: KApp, Kids: app}), nil
-		}
-	}
-
-	// (loop ((x z)…) c e … else e) — docs/spec/iteration.md.
-	//
-	//   (loop ((acc 0.0) (i 0))
-	//     (int.lt i n)  (again (f.add acc (aindex a i)) (int.add i 1))
-	//     else          acc)
-	//
-	// desugars to
-	//
-	//   (loop (fn (acc i) (if (int.lt i n) (again …) acc)) 0.0 0)
-	//
-	// The binders are an ordinary `fn`, so the locally nameless representation,
-	// capture-avoidance and the emitter's openFresh all work unchanged — the
-	// same move `let` makes. The clause chain is ordinary `if`s, so reduction
-	// needs no new rule either. What is left needing new machinery is exactly
-	// one head, `loop`, and one marker, `again`.
-	if kids[0].Kind == KName && kids[0].Name == "loop" {
-		return readLoop(kids, line)
-	}
-	// (local x e … body) — a scope of local state (scope.go, spec/local.md).
-	if kids[0].Kind == KName && kids[0].Name == LocalName {
-		return readLocal(kids, line)
-	}
-	// (build-map m cap body) — a scoped map buffer is a binder (scope.go).
-	// `build`'s binder form is `local`'s now: the core form is unchanged.
-	if isScopeHead(kids[0]) && len(kids) >= 4 {
-		if kids[0].Name == "build" {
-			return nil, fmt.Errorf("line %d: a scope of local state is `local`, whose binder takes its "+
-				"initial value: (local b (table n 0) body) for a buffer of n zeros (spec/local.md); "+
-				"the core form (build n (fn (b) body)) is unchanged", line)
-		}
-		return readScope(kids, line)
-	}
-	if kids[0].Kind == KName && kids[0].Name == "match" {
-		return readMatch(kids, line)
-	}
-
-	// (fn (p...) body) is the only special form inside a term.
-	if kids[0].Kind == KName && (kids[0].Name == "fn" || kids[0].Name == "λ") {
-		if len(kids) != 3 {
-			return nil, fmt.Errorf("line %d: fn takes a parameter list and one body", line)
-		}
-		params, err := paramList(kids[1], line)
-		if err != nil {
-			return nil, err
-		}
-		return Fn(params, kids[2]), nil
-	}
-	// A NEGATED CONDITION IS A SWAP, and the reader performs it here rather
-	// than leaving it for a backend (booleans.md §4.3).
-	if kids[0].Kind == KName && kids[0].Name == "if" && len(kids) == 4 {
-		return mkIf(kids[1], kids[2], kids[3]), nil
-	}
-	return &Term{Kind: KApp, Kids: kids}, nil
+	return r.register(datum, a), nil
 }
 
 // mkIf builds `(if c a b)`, normalising a negated condition:
@@ -782,28 +651,31 @@ func (r *reader) atom() (*Term, error) {
 	// specification (data-model.md §1.1).
 	if looksInteger(text) {
 		if v, err := strconv.ParseInt(text, 10, 64); err == nil {
-			return Int(v), nil
+			return r.lit(Int(v)), nil
 		}
 		if t := bigLiteral(text); t != nil {
-			return t, nil
+			return r.lit(t), nil
 		}
 		return nil, fmt.Errorf("line %d: %s is not an integer", line, text)
 	}
 	if v, err := strconv.ParseFloat(text, 64); err == nil && looksNumeric(text) {
-		return Float(v), nil
+		return r.lit(Float(v)), nil
 	}
 	// The two boolean literals. They are read here rather than declared by a
 	// target because the reader's own desugaring of `and` has to PRODUCE one,
 	// and the reader does not know which target it is reading for — it could
 	// not emit `go.false` or `x64.false` even if it wanted to (booleans.md 4.1).
 	if text == "true" || text == "false" {
-		return Bool(text == "true"), nil
+		return r.lit(Bool(text == "true")), nil
 	}
 	if err := validName(text); err != nil {
 		return nil, fmt.Errorf("line %d: %w", line, err)
 	}
-	return Name(text), nil
+	t := Name(text)
+	return r.register(t, &Var{Name: text}), nil
 }
+
+func (r *reader) lit(t *Term) *Term { return r.register(t, &Lit{T: t}) }
 
 // validName accepts a name, which is one or more identifier segments separated
 // by `.`. A qualified reference like `words.split-words` is ONE name whose text
@@ -1227,31 +1099,6 @@ func nameList(ts []*Term) ([]string, error) {
 	return out, nil
 }
 
-// readLoop desugars the surface loop form. See iteration.md §2.
-//
-// The clause-body restriction is checked HERE, before desugaring, because
-// afterwards a clause body and an `if` branch are the same thing. That is what
-// keeps the clause list the loop's complete control flow: `again` may be a
-// clause body or sit under a `let`, but never under an `if`.
-func readLoop(kids []*Term, line int) (*Term, error) {
-	if len(kids) < 4 {
-		return nil, fmt.Errorf("line %d: loop takes a binding list and at least one "+
-			"clause ending in `else`", line)
-	}
-	names, inits, err := loopBindings(kids[1], line)
-	if err != nil {
-		return nil, err
-	}
-	clauses := kids[2:]
-	body, err := clauseChain(clauses, "loop", line, func(b *Term) error {
-		return checkClauseBody(b, len(names), line)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return loopOrLet(names, body, inits), nil
-}
-
 // hasAgain reports whether a clause chain ever jumps back.
 //
 // A `loop` that never repeats is not a loop. It is a `let` of its variables
@@ -1288,193 +1135,11 @@ func loopOrLet(names []string, body *Term, inits []*Term) *Term {
 	return &Term{Kind: KApp, Kids: append([]*Term{Name("loop"), fn}, inits...)}
 }
 
-// readMatch desugars `match` into `loop`, which is the whole implementation.
-//
-//	(match (e1 … en)
-//	  p11 … p1n            body1
-//	  p21 … p2n (when c)   body2
-//	  else                 bodyk)
-//
-// becomes
-//
-//	(loop ((#m0 e1) … (#mn-1 en))
-//	  guard1  body1
-//	  guard2  body2
-//	  else    bodyk)
-//
-// docs/type-algebra.md §5: `loop` already gives guarded clauses over n
-// variables and `match` gives pattern clauses over n scrutinees — a boolean
-// guard IS a pattern on a bool, so they were the same construct. Building it
-// this way costs ZERO reduction rules and ZERO term kinds; it joins `let`,
-// `seq`, `and`, `or`, `not`, `cond` and `loop` as sugar that erases.
-//
-// `again` works in a clause body because it is the LOOP's `again`, and that is
-// what makes a state machine writable: match on (state, input), transition with
-// `again` — the shape a parser, an event loop and a protocol handler all have.
-//
-// A pattern is one of:
-//
-//	_            wildcard — matches, binds nothing
-//	name         binds the scrutinee under that name
-//	true/false   tests the scrutinee, which is already a bool
-//	an integer   tests it with `=`
-//
-// Float and string patterns are deliberately absent: the language has no
-// portable equality (`==` is target-native on all four), and a float pattern
-// would inherit IEEE's NaN, which is not the equivalence relation a pattern
-// needs.
-//
-// **`when` is not decoration.** Without it `match` is strictly WEAKER than
-// `loop`, and building it is what showed that: ADR 0015 forbids `again` under
-// an `if`, so a condition that guards a transition cannot live in the body — it
-// has to be a clause. `(when c)` is how a clause says a condition that patterns
-// cannot express, and `c` sees the names the patterns bound.
-func readMatch(kids []*Term, line int) (*Term, error) {
-	if len(kids) < 3 {
-		return nil, fmt.Errorf("line %d: match takes a scrutinee list and at least one "+
-			"clause ending in `else`", line)
-	}
-	scrut := kids[1]
-	if scrut.Kind != KApp || len(scrut.Kids) == 0 {
-		return nil, fmt.Errorf("line %d: match takes a LIST of scrutinees — (match (a b) …) — "+
-			"so that clauses need no tuple built and taken apart; got %s", line, scrut)
-	}
-	n := len(scrut.Kids)
-
-	// A scrutinee that is a bare NAME becomes the loop variable under that same
-	// name, and this is not cosmetic. `(match (s i) …)` initialises the loop from
-	// `s` and `i`; if the loop variables were fresh, a clause body reading `i`
-	// would see the OUTER `i` — the value the loop started from — while `again`
-	// advanced a hidden one. Every iteration after the first would read a stale
-	// value, and the program would look right. Reusing the name shadows the outer
-	// binding, which is what the state-machine reading of `match` means: `s` and
-	// `i` are the state.
-	//
-	// Anything else — a literal, a call — gets a fresh `#m` name. `#` is not
-	// isIdentStart, so no source term can contain a free occurrence of one and
-	// `Fn` cannot capture it.
-	vars := make([]string, n)
-	seen := map[string]bool{}
-	for i, e := range scrut.Kids {
-		if e.Kind == KName && !seen[e.Name] && e.Name != "_" && e.Name != "else" {
-			vars[i] = e.Name
-			seen[e.Name] = true
-			continue
-		}
-		vars[i] = fmt.Sprintf("#m%d", i)
-	}
-
-	rest := kids[2:]
-	var pairs []*Term
-	for i := 0; i < len(rest); {
-		if rest[i].Kind == KName && rest[i].Name == "else" {
-			if i+2 != len(rest) {
-				return nil, fmt.Errorf("line %d: `else` must be the last clause of match; "+
-					"the ones after it could never be reached", line)
-			}
-			pairs = append(pairs, Name("else"), rest[i+1])
-			break
-		}
-		if i+n >= len(rest) {
-			return nil, fmt.Errorf("line %d: match has %d scrutinees, so every clause is %d "+
-				"pattern(s), an optional (when …), and a body; the last clause is short",
-				line, n, n)
-		}
-		guard, binds, err := matchClause(rest[i:i+n], vars, line)
-		if err != nil {
-			return nil, err
-		}
-		k := i + n
-		// An optional `(when c)` between the patterns and the body.
-		if k < len(rest) && rest[k].Kind == KApp && len(rest[k].Kids) == 2 &&
-			rest[k].Kids[0].Kind == KName && rest[k].Kids[0].Name == "when" {
-			c := renameFree(rest[k].Kids[1], binds)
-			if guard.Kind == KBool && guard.IsTrue() {
-				// Patterns that test nothing: the `when` IS the guard, rather
-				// than `(if true c false)`, which is the same thing spelled worse.
-				guard = c
-			} else {
-				guard = &Term{Kind: KApp, Kids: []*Term{Name("if"), guard, c, Bool(false)}}
-			}
-			k++
-		}
-		if k >= len(rest) {
-			return nil, fmt.Errorf("line %d: a match clause needs a body after its patterns", line)
-		}
-		pairs = append(pairs, guard, renameFree(rest[k], binds))
-		i = k + 1
-	}
-
-	body, err := clauseChain(pairs, "match", line, func(b *Term) error {
-		return checkClauseBody(b, n, line)
-	})
-	if err != nil {
-		return nil, err
-	}
-	return loopOrLet(vars, body, scrut.Kids), nil
-}
-
-// matchClause turns one clause's patterns into a guard and a renaming.
-//
-// A name pattern is a RENAME rather than a `let`: the pattern variable is just
-// another name for the loop variable, and renaming needs no binder. It is also
-// what lets a `(when …)` see the bound names, which a `let` wrapping only the
-// body could not.
-func matchClause(pats []*Term, vars []string, line int) (*Term, map[string]string, error) {
-	var tests []*Term
-	binds := map[string]string{}
-	for i, p := range pats {
-		v := Name(vars[i])
-		switch {
-		case p.Kind == KName && p.Name == "_":
-			// matches, binds nothing
-
-		case p.Kind == KName && p.Name == "else":
-			return nil, nil, fmt.Errorf("line %d: `else` is a clause of its own and takes no "+
-				"patterns; it cannot appear in position %d", line, i+1)
-
-		case p.Kind == KName:
-			if _, dup := binds[p.Name]; dup {
-				return nil, nil, fmt.Errorf("line %d: %s is bound twice in one match clause; "+
-					"a repeated name would be an equality test, which patterns do not do",
-					line, p.Name)
-			}
-			binds[p.Name] = vars[i]
-
-		case p.Kind == KBool:
-			// The scrutinee is already a bool, so the test IS the scrutinee.
-			if p.IsTrue() {
-				tests = append(tests, v)
-			} else {
-				tests = append(tests, &Term{Kind: KApp,
-					Kids: []*Term{Name("if"), v, Bool(false), Bool(true)}})
-			}
-
-		case p.Kind == KInt:
-			tests = append(tests, &Term{Kind: KApp, Kids: []*Term{Name("="), v, p}})
-
-		default:
-			return nil, nil, fmt.Errorf("line %d: %s is not a pattern. A pattern is `_`, a name "+
-				"that binds, `true`/`false`, or an integer; float and string patterns are absent "+
-				"because the language has no portable equality", line, p)
-		}
-	}
-	if len(tests) == 0 {
-		return Bool(true), binds, nil
-	}
-	guard := tests[len(tests)-1]
-	for i := len(tests) - 2; i >= 0; i-- {
-		// Conjunction, spelled the way `and` desugars: (if a b false).
-		guard = &Term{Kind: KApp, Kids: []*Term{Name("if"), tests[i], guard, Bool(false)}}
-	}
-	return guard, binds, nil
-}
-
 // renameFree replaces free names according to `binds`.
 //
-// Safe without capture analysis, and the reason is worth stating: by the time
-// readMatch runs, every inner `fn` has already been through `Fn`, which closes
-// its body — so an occurrence bound by a nested binder is a KBound, not a
+// Safe without capture analysis, and the reason is worth stating: D is
+// bottom-up, so by the time it renames a match arm's body every inner `fn` has
+// already been through `Fn`, which closes its body — so an occurrence bound by a nested binder is a KBound, not a
 // KName. Only genuinely free names remain to rename.
 func renameFree(t *Term, binds map[string]string) *Term {
 	if t == nil || len(binds) == 0 {
@@ -1496,48 +1161,6 @@ func renameFree(t *Term, binds map[string]string) *Term {
 		out.Kids[i] = renameFree(k, binds)
 	}
 	return out
-}
-
-// clauseChain folds `c₁ e₁ … else e` into a right-nested chain of `if`.
-//
-// Shared by `loop` and by `cond`, which is the same syntax with `again`
-// removed — first match wins, `else` mandatory, so every way out is written
-// down (ADR 0015, and McCarthy 1960 for the rule that the first true clause is
-// the one taken).
-//
-// `check` is the only difference between the two callers: a loop restricts what
-// a clause body may be, a `cond` does not.
-func clauseChain(clauses []*Term, what string, line int, check func(*Term) error) (*Term, error) {
-	if len(clauses) < 2 {
-		return nil, fmt.Errorf("line %d: %s needs at least an `else` clause", line, what)
-	}
-	if len(clauses)%2 != 0 {
-		return nil, fmt.Errorf("line %d: %s clauses come in pairs — a condition and a "+
-			"result — and the last condition must be `else`", line, what)
-	}
-	last := clauses[len(clauses)-2]
-	if last.Kind != KName || last.Name != "else" {
-		return nil, fmt.Errorf("line %d: the last clause of %s must be `else`, so that every "+
-			"path out is written down; got %s", line, what, last)
-	}
-	for i := 0; i < len(clauses); i += 2 {
-		if i < len(clauses)-2 && clauses[i].Kind == KName && clauses[i].Name == "else" {
-			return nil, fmt.Errorf("line %d: `else` must be the last clause; the ones after "+
-				"it could never be reached", line)
-		}
-		if check != nil {
-			if err := check(clauses[i+1]); err != nil {
-				return nil, err
-			}
-		}
-	}
-	// Right to left. The `else` body is the chain's tail, so no condition is
-	// emitted for it.
-	body := clauses[len(clauses)-1]
-	for i := len(clauses) - 4; i >= 0; i -= 2 {
-		body = mkIf(clauses[i], clauses[i+1], body)
-	}
-	return body, nil
 }
 
 // loopBindings reads ((x z) (y w)) into names and initial values.
@@ -1574,90 +1197,8 @@ func loopBindings(t *Term, line int) ([]string, []*Term, error) {
 	return names, inits, nil
 }
 
-// checkClauseBody enforces iteration.md §2: `again` may be the whole of a clause
-// body, or sit under a `let`, but never under an `if` or as an argument.
-//
-//	let binds; if branches. Binding may wrap an `again`, branching may not.
-func checkClauseBody(t *Term, arity, line int) error {
-	if isAgain(t) {
-		if got := len(t.Kids) - 1; got != arity {
-			return fmt.Errorf("line %d: again takes %d argument(s), one per loop variable, "+
-				"given %d", line, arity, got)
-		}
-		return nil
-	}
-	// A one-name binding has already been desugared to ((fn (x) k) e).
-	if t.Kind == KApp && len(t.Kids) == 2 && t.Kids[0].Kind == KFn && len(t.Kids[0].Params) == 1 {
-		if err := checkClauseBody(t.Kids[0].Body(), arity, line); err != nil {
-			return err
-		}
-		return noAgain(t.Kids[1], line)
-	}
-	// AND A TUPLE PATTERN IS A BINDING TOO: it names a product's components and
-	// runs its body once, in tail position — let binds, if branches. It is known
-	// by the reader's mark, never by its shape (let.go, tupleLetMark).
-	if isTupleLet(t) && t.Kids[2].Kind == KFn {
-		if err := checkClauseBody(t.Kids[2].Body(), arity, line); err != nil {
-			return err
-		}
-		return noAgain(t.Kids[1], line)
-	}
-	// AND SO IS `try`'S OR `expect`'S SUCCESS ARM (spec/errors.md §5, §8): it
-	// binds the payload and runs once, now, a binding's tail as a host call's
-	// continuation is (ADR 0027). Its other arms leave the loop, `try` with the
-	// failure as the loop's value and `expect` into 0, so neither goes round
-	// and the clause list is still every back edge. Only the body may jump.
-	if isMonadForm(t) {
-		last := len(t.Kids) - 1
-		if err := checkClauseBody(t.Kids[last], arity, line); err != nil {
-			return err
-		}
-		for _, k := range t.Kids[1:last] {
-			if err := noAgain(k, line); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	return noAgain(t, line)
-}
-
 func isAgain(t *Term) bool {
 	return t.Kind == KApp && t.Kids[0].Kind == KName && t.Kids[0].Name == "again"
-}
-
-// noAgain rejects `again` anywhere inside a term that is not a tail position.
-func noAgain(t *Term, line int) error {
-	if isAgain(t) {
-		return fmt.Errorf("line %d: `again` may be a clause body, or sit under a `let`, but "+
-			"not under an `if` or inside an expression — write another clause instead, so "+
-			"the clause list stays the loop's whole control flow", line)
-	}
-	// A NESTED LOOP'S BODY IS ITS OWN: an `again` there jumps to that loop, the
-	// nearest one around it (ADR 0015), and is checked where that loop was read.
-	// Only its initial values are in this position. Walking its body refused a
-	// literal loop used as a value in a clause that then went on, `(let (tuple q r)
-	// (loop …) (again …))`, for the inner loop's own `again`.
-	if t.Kind == KApp && len(t.Kids) >= 2 && t.Kids[0].Kind == KName && t.Kids[0].Name == "loop" &&
-		t.Kids[1].Kind == KFn {
-		for _, z := range t.Kids[2:] {
-			if err := noAgain(z, line); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	switch t.Kind {
-	case KFn:
-		return noAgain(t.Body(), line)
-	case KApp:
-		for _, k := range t.Kids {
-			if err := noAgain(k, line); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 // readSum reads `(sum name (variant type) … )`.
@@ -2647,11 +2188,4 @@ func at(line int) string {
 		return ""
 	}
 	return fmt.Sprintf("line %d: ", line)
-}
-
-// isMonadForm recognises `(try (s x) e body)` and `(expect (s x) e why body)`
-// as written, before Load expands them; Load checks their arity and pattern.
-func isMonadForm(t *Term) bool {
-	return t.Kind == KApp && len(t.Kids) >= 4 && t.Kids[0].Kind == KName &&
-		(t.Kids[0].Name == "try" || t.Kids[0].Name == "expect")
 }

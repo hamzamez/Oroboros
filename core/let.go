@@ -15,75 +15,9 @@ import "fmt"
 // It is n-ary because nesting bindings is ASSOCIATIVE, and `(let b)` is legal
 // because the body is nesting's IDENTITY — the same law that forces `(and)` to
 // be `true` rather than choosing it (binding.md §4).
-
-// readLet reads the flat form. `kids` is the whole list, `kids[0]` being `let`.
-func readLet(kids []*Term, line int) (*Term, error) {
-	rest := kids[1:]
-	// Pairs, then one body: an ODD number of elements. An even one is either
-	// the old spelling or a body someone forgot.
-	if len(rest)%2 == 0 {
-		if len(rest) == 2 {
-			return nil, fmt.Errorf("line %d: let binds a name to a value: "+
-				"`(let x VALUE BODY)`; the old `(let VALUE (fn (x) …))` spelling is "+
-				"refused (spec/binding.md)", line)
-		}
-		return nil, fmt.Errorf("line %d: let takes NAME VALUE pairs and ONE body "+
-			"(spec/binding.md)", line)
-	}
-	t := rest[len(rest)-1]
-	for i := len(rest) - 3; i >= 0; i -= 2 {
-		b, err := bindOne(rest[i], rest[i+1], t, line)
-		if err != nil {
-			return nil, err
-		}
-		t = b
-	}
-	return t, nil
-}
-
-// bindOne binds one left-hand side over `body`.
-func bindOne(lhs, value, body *Term, line int) (*Term, error) {
-	if lhs.Kind == KName {
-		// paramListOf, so a binder obeys exactly the rules a λ's does: a simple
-		// name, no module qualifier. One rule, checked in one place.
-		ps, err := paramListOf("let", &Term{Kind: KApp, Kids: []*Term{lhs}}, line)
-		if err != nil {
-			return nil, err
-		}
-		return &Term{Kind: KApp, Kids: []*Term{Fn(discards(ps), body), value}}, nil
-	}
-	names, ok := patternNames(lhs)
-	if !ok {
-		return nil, fmt.Errorf("line %d: let binds a name or `(tuple a b …)`; a pattern that "+
-			"may not match belongs in `case` (spec/binding.md §5)", line)
-	}
-	list := &Term{Kind: KApp}
-	for _, n := range names {
-		if n.Kind != KName {
-			return nil, fmt.Errorf("line %d: a tuple pattern binds names; write a second "+
-				"`let` for a nested one (spec/binding.md §5)", line)
-		}
-		list.Kids = append(list.Kids, n)
-	}
-	ps, err := paramListOf("a tuple pattern", list, line)
-	if err != nil {
-		return nil, err
-	}
-	// THE PRODUCT'S ELIMINATOR, in binding order. `(t (fn (a b) body))` is
-	// currying — the universal property — and it is the term the multi-result
-	// continuation at a call site always was, so every backend's several-results
-	// path sees the shape it already handles.
-	//
-	// It is built MARKED, `(#tuple-let t (fn (a b) body))`, and the mark lives
-	// only while the reader runs: a loop clause may end in an `again` under a
-	// tuple pattern — it BINDS and does not branch, iteration.md §2 — and the
-	// clause check (ADR 0027) must tell the pattern from a higher-order call that looks the
-	// same, `(f (fn (a b) …))`, whose lambda may run twice or never. Relaxing the
-	// check by shape miscompiled both silently (u128-2026-09-23). A name survives
-	// every rebuild of the enclosing terms; eraseTupleLets removes it before any
-	// form leaves the reader, so nothing below the reader knows (binding.md).
-	return &Term{Kind: KApp, Kids: []*Term{Name(tupleLetMark), value, Fn(discards(ps), body)}}, nil
-}
+//
+// μ reads the form into a Let (mu.go, muLet and letPat), and D folds it back
+// into those redexes (desugar.go, let).
 
 // discards respells a binder written `_` as an unwritable one, `#_`, the name
 // `seq` binds (binding.md §6): `_` binds nothing, so no `_` written later, a
@@ -108,52 +42,9 @@ func discards(ps []string) []string {
 	return out
 }
 
-// tupleLetMark is the reader-internal operator of a tuple pattern's eliminator.
-// A program cannot write it: `#` names are the reader's.
-const tupleLetMark = "#tuple-let"
-
-func isTupleLet(t *Term) bool {
-	return t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName && t.Kids[0].Name == tupleLetMark
-}
-
-// eraseTupleLets turns every `(#tuple-let t k)` into `(t k)`. It changes no
-// binder, so a lambda's closed body is mapped as it stands.
-func eraseTupleLets(t *Term) *Term {
-	if t == nil {
-		return nil
-	}
-	switch t.Kind {
-	case KApp:
-		if isTupleLet(t) {
-			return &Term{Kind: KApp, Kids: []*Term{eraseTupleLets(t.Kids[1]), eraseTupleLets(t.Kids[2])}}
-		}
-		kids := make([]*Term, len(t.Kids))
-		changed := false
-		for i, k := range t.Kids {
-			kids[i] = eraseTupleLets(k)
-			changed = changed || kids[i] != k
-		}
-		if !changed {
-			return t
-		}
-		c := *t
-		c.Kids = kids
-		return &c
-	case KFn:
-		b := eraseTupleLets(t.Kids[0])
-		if b == t.Kids[0] {
-			return t
-		}
-		c := *t
-		c.Kids = []*Term{b}
-		return &c
-	}
-	return t
-}
-
-// patternNames recognises a tuple pattern, which has ALREADY been desugared by
-// the time it gets here: the kids of a list are read before the head is
-// dispatched on, so `(tuple a b)` arrives as `(fn (#k) (#k a b))`.
+// patternNames recognises a tuple pattern on its image: μ checks a let's
+// left-hand side on the term today's reader made of it, so `(tuple a b)`
+// arrives as `(fn (#k) (#k a b))`.
 //
 // `#k` is unwritable — `#` is not isIdentStart — so no source term can be
 // mistaken for a pattern, and a λ the programmer wrote has a different binder

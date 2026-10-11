@@ -1,6 +1,8 @@
 # Abstract Oroboros
 
-Status: **decided, not built.** Written 2026-10-10 on hamza's request ("specify. always mathematical
+Status: **decided; step 1a built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md):
+the computation's terms, `core/abs.go`, `core/mu.go`, `core/desugar.go`; declarations are step 1b).
+Written 2026-10-10 on hamza's request ("specify. always mathematical
 and algebraic"); [ADR 0050](../decisions/0050-the-abstract-syntax-fits-the-semantics.md) decides it
 with [fit-research.md](../fit-research.md) §7 decisions 1–6, as recommended. The surface notation is
 not decided (syntax-research.md), and §9.4's spellings are illustrations. The semantics is the language's as it stands,
@@ -287,6 +289,17 @@ builds trees of these sorts cannot produce a violation. **Today they are enforce
 "one that misses a form is unsound, not imprecise" (CLAUDE.md). This is the main structural gain of
 the abstract syntax (fit-research §3.10).
 
+**Built (step 1a): the walkers are deleted.** In a reader that builds trees bottom-up, as today's
+reads, an `again` is built before the form around it is known. So a constructor that needs an Expr
+where it receives a Tail *demotes* it to the free name `again` applied, and marks the tree stray; a
+loop refuses a stray clause body. Within a loop the sort decides, and outside every loop a demoted
+`again` is the unbound name it is.
+
+**One shape where W3 as written is stricter than today**: a λ of one parameter applied to one
+argument, written by hand, with a tail body, `((fn (x) (again x)) e)`. Today's walker accepted it,
+because it could not tell it from the redex a `let` reads as, and "no λ lies between them" refuses
+it. Step 1a keeps it accepted, as the tail `TRedex`, and refusing it is open (abstract1-2026-10-11, finding 3).
+
 ## 4. Fragments
 
 | fragment | operators |
@@ -340,11 +353,17 @@ which by ADR 0049 §1 changes no answer.
 
 ## 6. Desugaring
 
-D : A_C → Λ⁺ maps into **today's core**: the atom (seven term kinds, state.md §1) extended with the
+D : A → Λ⁺ maps into **today's core**: the atom (seven term kinds, state.md §1) extended with the
 forms `Load` still expands. These are `case`, `try` and `expect` (sums.md §3, errors.md §5, §8); the
 cell form `#cell` and the state-passing translation S⟦·⟧ (local.md §3); `build` and `build-map`
 (tables.md §2.4, maps.md); and the variadic, `spread` and `out` rewrites (variadic.md, local.md §6).
 Choosing Λ⁺ and not the bare atom makes D the reader's output, so every later stage stays as it is.
+
+**D carries claims; ε is applied after the logic has read them** (corrected 2026-10-11, abstract1). A
+claim operator maps to today's mark: `the(S; e)` to `(the S e)`, which the checker reads
+(`emit.KeepSortAscriptions`) and emission erases, and a definition's claims to its `sig` (step 1b).
+This is ADR 0037's pattern, obligations in the residual. Theorem E is unchanged: every mark is erased
+before a file is printed, so the printed program is D(ε(P))'s.
 
 D is the homomorphism with these clauses (⌜S⌝ is S in today's type spelling, §10):
 
@@ -617,8 +636,7 @@ into A by a function μ : T → A, total on the corpus, which the first build st
 | `(sig f … (host k τ …))` in a target | def(f; …; host(k; τ; …)) | |
 | `(variant (n T…) (c S…)… (success c) (relevant))` | variant(n; T̄; c(S̄)…; c; relevant) | |
 | `(fn (x…) e)`, `(λ (x…) e)` | lam(x̄; μe) | |
-| `(f a…)`, with f a table or map | index(μf; μa) | decision 6; else app |
-| `(f a…)`, otherwise | app(μf; μā) | |
+| `(f a…)` | app(μf; μā) | whether f is a table is a fact about its value, known after reduction, so μ cannot produce index from this notation; index is built by a rendering that marks data application (corrected 2026-10-11) |
 | `(let x e … b)`, `(let (tuple a b) e … b)` | let(x = μe, tuple(a, b) = …; μb) | |
 | `(seq a b)` | seq(μa; μb) | derived |
 | `(if c a b)`, `(and …)`, `(or …)`, `(not a)`, `(cond …)` | if, ∧, ∨, ¬, cond | derived |
@@ -735,6 +753,12 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
    W-condition gets a planted fault that the parser or the check refuses. The walkers that enforce W3
    are then redundant, and they are deleted only after a planted fault shows that the sort catches what
    they caught.
+   - **1a, built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md)): the
+     computation's terms. Every `.oro` file and 1,032 test snippets read identically, messages
+     included; emission byte-identical; the W3 walkers deleted, nine planted faults caught.
+   - **1b, next**: declarations as trees (decision 3's one `def`, `variant`, `use`, `export`,
+     `provides`), target files' host declarations as definitions with a host body, `assign` (which
+     needs the scope above it), and a `case` pattern resolved into Pat.
 2. **𝒰 and 𝓔 on A**, checked against CheckLinear, relevance and pureTerm on the corpus. A
    disagreement is a bug in one of them, and errors.md §7.4's named gaps become decidable.
 3. **ε and 𝒪 on A**, as ADR 0049's checker is built (settypes §8): obligations generated from trees

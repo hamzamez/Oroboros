@@ -75,6 +75,11 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 
 **None survives the reader**, except `case` and the two forms that expand into it.
 
+**The reader builds a tree of abstract Oroboros for each form** ([abstract.md](abstract.md),
+ADR 0050): `core/abs.go`'s sorts, μ in `core/mu.go`, and D in `core/desugar.go`, which makes the term
+each form reads as below. ADR 0015's tail rule is the sort of a clause body, not a walk over a term
+(abstract1-2026-10-11).
+
 | written | reads as | spec |
 |---|---|---|
 | `(def f (x…) body)` | `(def f (fn (x…) body))` — the equational shorthand; a parameter list is a list of NAMES, and one body | [def.md §4](def.md), [program-surface.md](../program-surface.md) |

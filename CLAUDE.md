@@ -89,8 +89,11 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   sorts), and its meanings as homomorphisms. These are erasure ε, a retraction, so ⟦P⟧ := ⟦D(ε(P))⟧
   and claims are inert by construction; desugaring D into today's core; obligations 𝒪, a VC generator;
   and usage 𝒰 on an interval semiring. A notation is a rendering with two round-trip laws, comments
-  decorating positions. Today's notation maps in by μ. **Built: nothing yet. Next: the first build
-  step, D ∘ ε ∘ μ = today's reader, checked byte-identical (§13).**
+  decorating positions. Today's notation maps in by μ. **Built: step 1a, the computation's terms
+  ([abstract1-2026-10-11](gauntlet/results/abstract1-2026-10-11.md)): the reader builds trees
+  (`core/abs.go`, μ in `core/mu.go`), D makes today's core term (`core/desugar.go`), every source and
+  1,032 test snippets read identically, emission byte-identical; the tail rule is a sort and its
+  walkers are deleted. Next: step 1b, declarations.**
 
 ## Where it stands
 
@@ -617,8 +620,10 @@ spec to read before touching it.
   `expect` success arm, whose other arms leave the loop
   ([ADR 0041](docs/decisions/0041-a-success-arm-is-a-tail.md)). **Every
   walker of a clause chain walks four forms** — `again`, `if`, `let`, and a host call's continuation —
-  and one that enumerates back edges and misses a form is unsound, not imprecise. `match` is reader sugar over `loop`
-  ([match.md](docs/spec/match.md)).
+  and one that enumerates back edges and misses a form is unsound, not imprecise. **In the reader the
+  rule is a sort** (abstract.md W3, `core/mu.go`): `again` is a Tail, a constructor that needs an
+  expression demotes one to the free name and marks the tree stray, and a loop refuses a stray clause
+  body. `match` is a loop whose arms have patterns ([match.md](docs/spec/match.md)).
 - **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
   Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).
 - **Closures.** A closure may not survive staging ([closures-direction.md](docs/closures-direction.md)).
@@ -1074,7 +1079,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 
 | | |
 |---|---|
-| `core/` | Reader, terms, β/δ reducer, module loading, variants, hygiene |
+| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |

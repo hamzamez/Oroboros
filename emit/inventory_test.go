@@ -41,10 +41,11 @@ import (
 // The limit, stated: a word recognised by a NEW mechanism — neither a comparison
 // of that shape nor an entry in these tables — is invisible to both.
 
-// inventorySources are the files a word can be accepted in: the reader, the
-// module loader and reducer, and the target loaders.
+// inventorySources are the files a word can be accepted in: the reader and
+// its reading into abstract Oroboros (μ, mu.go), the module loader and reducer,
+// and the target loaders.
 var inventorySources = []string{
-	"../core/read.go", "../core/reduce.go", "../core/sum.go", "../core/hygiene.go", "../core/term.go",
+	"../core/read.go", "../core/mu.go", "../core/reduce.go", "../core/sum.go", "../core/hygiene.go", "../core/term.go",
 	"target.go", "companion.go", "alias.go", "constend.go", "fact.go",
 }
 

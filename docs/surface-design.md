@@ -988,11 +988,13 @@ One word, two operations, told apart by arity — the discrimination-by-arity th
 refuse the datum comment to protect (fit-research §3.6).
 
 **And fit-research decision 4 wants `set` for a third thing**: the set former, `(set 1 2)` for
-`{1, 2}`. abstract.md §10 has already noticed and proposed the split — *"in T′, assign is `set!` and
-the buffer's store is `store`, because `set` is the set former: one spelling per operator, Scheme's
-convention for a write."* So the fix is already specified; installment 2 only has to pick the write's
-spelling, and §2.4's P6 differs from abstract.md there on purpose (`:=` rather than `set!`, for the
-reason given at P6).
+`{1, 2}`. abstract.md §10 has already noticed and proposed a split — *"in T′, assign is `set!` and
+the buffer's store is `store`, because `set` is the set former"* — three operators, three names.
+
+**§2.4's P5 and P6 take a shorter route: both writes are `:=`, with two left-hand sides.** `x := e`
+writes a cell and `c[j] := e` stores into a buffer, so the two meanings of `set` become **one
+operator**, `set` is free for the set former, and no `store` name is needed. That is
+notation-research §4.5's decision, which this installment should have started from.
 
 ### 2.3 Three findings
 
@@ -1164,7 +1166,8 @@ needs no name for it.
 
 ---
 
-**P5 — a buffer, stores threaded through a loop** (the sieve's inner loop).
+**P5 — a buffer and its stores** (the sieve's inner loop). T threads the buffer by hand; the others
+write it in program order, which is §2.4's correction below.
 
 ```lisp
 (local c (table n false)                                                        ; T
@@ -1173,28 +1176,39 @@ needs no name for it.
     else     c))
 ```
 ```lisp
-(let ((c = (table n false)))                                                    ; B′
-  (loop ((c := c) (j := (* i i)))
-    (< j n)  (again (store c j true) (+ j i))
+(let ((c := (table n false)))                                                   ; B′
+  (loop ((j := (* i i)))
+    (< j n)  (seq (c j := true) (again (+ j i)))
     else     c))
 ```
 ```
-LET c == table(n, FALSE) IN                                                     \\ D
-  LOOP c := c, j := i * i :
-      j < n  → AGAIN(store(c, j, TRUE), j + i)
+LET c := [i ∈ 0..n-1 ↦ FALSE] IN                                                \\ D
+  LOOP j := i * i :
+      j < n  → c[j] := TRUE ; AGAIN(j + i)
    [] OTHER  → c
 ```
 ```go
-{ c = table(n, false)                                                           // J
-  loop c := c, j := i * i {
-      j < n -> again(store(c, j, true), j + i)
+{ c := [i ∈ 0..n-1 |-> false]                                                   // J
+  loop j := i * i {
+      j < n -> { c[j] := true; again(j + i) }
       else  -> c
   } }
 ```
 
-The store is spelled **`store`**, not `set`: §2.2's homonym is resolved by giving the two operations
-two names. `store` is abstract.md §1.3's own name for it ("a buffer's threaded store `store` (today's
-three-argument `set`)"), so this is the specification's spelling, not an invention.
+**The store is `c[j] := true`, in program order — corrected 2026-10-11 on hamza's question.** I had
+written `store(c, j, true)`, threading the buffer by hand as today's notation does. hamza: *"I thought
+indexing in j and D are going to be `c[j]`?"* — and **notation-research §4.5 had already decided it**,
+which I wrote against:
+
+> `x := e` writes a cell, and **`t[i] := e` writes a table's element** … **buffers are written in
+> program order too.** Today a buffer is threaded by hand, `(again (set s j true) …)`. That form
+> exists because the refinement layer's facts induct on a buffer's store chain. **The translation can
+> produce that chain itself**, as it produces cells' loop variables, so the programmer writes
+> `s[j] := TRUE` and the analyses still see the chain.
+
+So the store is not a *call* at all. It is `:=` with an **indexed** left-hand side, and §2.9's own
+measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c, j := i * i` becomes
+`LOOP j := i * i`, and `AGAIN(store(c, j, TRUE), j + i)` becomes `c[j] := TRUE ; AGAIN(j + i)`.
 
 ---
 
@@ -1238,12 +1252,18 @@ reading: `:=` means "this name takes this value", at the binder and at the write
 two-argument form disappears too, and §2.2's 9 cell writes and 58 buffer stores become `:=` and
 `store`.
 
-**This diverges from abstract.md §10 deliberately.** That spec proposes `set!` for the write,
-Scheme's convention, which solves the homonym equally well. The case for `:=` is Finding 2: if the
-binder is `x := e`, then spelling the write `x := e` makes **one operator serve the binder and every
-later write**, so a reader learns one thing instead of two and there is no question of which name is
-a cell. `set!` would keep them two operations with two spellings. Both close §2.2's collision; only
-`:=` also collapses a pair.
+**This diverges from abstract.md §10 deliberately, and P5's correction makes the case stronger.**
+That spec proposes `set!` for the write and `store` for the buffer, Scheme's convention — two
+operations, two names. With `:=` there is **one operator and two left-hand sides**:
+
+| | | |
+|---|---|---|
+| `x := e` | a **name** | a cell's write |
+| `c[j] := e` | an **indexed** name | a buffer's store |
+
+So `set` does not split into two names; it **becomes `:=` in both cases**, and §2.2's 9 cell writes
+and 58 buffer stores are one operator. That is Finding 2's uniformity carried into the write, and it
+is what Go, C and Python already read. `store` is not needed as a surface name at all.
 
 ---
 
@@ -1373,8 +1393,10 @@ candidate does.
    definitional, `:=` is state, and **`linear` is written** where a definitional binder is a buffer
    (26 sites). The constructors say only how the contents are given — `array` a graph, `table` a
    rule — and nothing about mutability (Finding 3, withdrawn).
-4. **One operation, one name.** `store` for a buffer, `:=` for a cell, and `set` retires. No later
-   construct may distinguish two operations by arity.
+4. **One operator, two left-hand sides.** `x := e` writes a cell, `c[j] := e` stores into a buffer,
+   and `set` retires — freeing it for the set former (fit-research decision 4). No later construct
+   may distinguish two operations by arity. A buffer's threading is **produced by the translation**,
+   not written, so the proofs still induct on the store chain (notation-research §4.5).
 5. **A block is a statement list whose value is its last expression**, if J wins — and then `seq`
    never returns, and any later construct with a body uses the same block.
 
@@ -1437,7 +1459,12 @@ LOOP i := 0 :
                    IF b = 10 THEN lines := lines + 1 ELSE () ;
                    AGAIN(i + 1)
 
-n == Len(xs) ; out == table(n, 0) ; count := 0 ; g(out, count)                   \\ P7
+c := [i ∈ 0..n-1 ↦ FALSE] ;                                                     \\ P5
+LOOP j := i * i :
+    j < n  → c[j] := TRUE ; AGAIN(j + i)
+ [] OTHER  → c
+
+n == Len(xs) ; out := [i ∈ 0..n-1 ↦ 0] ; count := 0 ; g(out, count)             \\ P7
 age := 0 ; name := "" ; h(age) ; ⟨age, name⟩                                     \\ P8
 ```
 
@@ -1764,3 +1791,91 @@ Both are available precisely because grouping has no semantics. That is the inst
 the question: **scattering cannot break the compiler, because the compiler was never told about
 groups. What it can do is make two operators that differ by one character sit next to each other,
 and the fix for that is the spelling, not the shape.**
+
+### 2.12 What the program-order store changes, and one claim it does not support
+
+§2.4's P5 correction is not only a spelling. notation-research §4.5 names two consequences, and a
+third claim that needs one more rule than it states.
+
+#### Measured: the loop loses a variable
+
+On the sieve's inner loop, tokens barely move — the gain is structural:
+
+| | threaded by hand | `c[j] := TRUE` | |
+|---|---:|---:|---|
+| D | 48 | 46 | depth 2 → **1** |
+| K | 47 | 45 | depth 2 → **1** |
+| J | 48 | 51 | depth 4 → 4 (the arm needs its own braces) |
+
+What the counts miss: **`c` stops being a loop variable.**
+
+```
+LOOP c := c, j := i * i :  …  AGAIN(store(c, j, TRUE), j + i)     threaded
+LOOP j := i * i         :  …  c[j] := TRUE ; AGAIN(j + i)         program order
+```
+
+One fewer loop variable, one fewer argument at every back edge. That is the same kind of win as
+`seq` disappearing (§2.6): a slot removed, not characters saved.
+
+#### Consequence 1: a host write-borrow becomes a plain write
+
+notation-research §4.5: *"`hex.Encode(buf, src)` writes `buf` and returns its count. The template no
+longer returns the buffer it borrowed: today's `func(dst, src []byte) ([]byte, int) { return dst,
+hex.Encode(dst, src) }(%s, %s)` becomes `hex.Encode(%s, %s)`. That is ADR 0048's stage B, for
+buffers."*
+
+So the surface change pays for itself in the **emitted code**: the wrapper that exists only to hand
+the buffer back goes away. That is a measurable claim and it is not measured yet — it is the first
+thing to check if this is taken, because it touches every write-borrowing declaration
+(`encoding/hex` 8, `strconv` 10, `io` 8, `unicode/utf8` 4, `encoding/binary` 4, `strings` 4,
+`fmt` 3, `os` 2).
+
+#### Consequence 2: "linearity becomes structural" — true, with one rule it does not state
+
+notation-research §4.5 claims *"a buffer is reached only through its scope's name, so no alias can be
+written."* **The alias is still writable as stated**, because a definitional binder can copy the
+name:
+
+```
+d == c ;  d[j] := TRUE ;  c[k]            d rebinds, c still names the old version
+```
+
+So the claim needs an extra condition, and it is a syntactic one:
+
+> **A buffer may be named only by its binder** — a scope's, or a `(buffer V)` parameter's. It may not
+> be bound to a second name.
+
+With that, no term holds an old version, and linearity through a body **is** structural: the aliasing
+the check exists to catch becomes unwritable. That is fit-research's F5 fix — a checked invariant
+becomes grammar — applied to ADR 0018.
+
+#### And it is not structural at an exported boundary
+
+**Two of our own definitions take a `(buffer V)` parameter**, and both are exports, which is ADR 0020's
+measured point:
+
+| | |
+|---|---|
+| `examples/kara/workspace.oro` | `mac-into`, a caller-supplied Karatsuba workspace |
+| `examples/native/smooth-go.oro` | `smooth-into`, a caller-supplied destination |
+
+There the buffer arrives as a **parameter**, not through a scope's name. ADR 0020 already splits the
+two obligations and that split survives unchanged:
+
+- **uniqueness in** — no other reference exists — is the *caller's* promise, and at an export the
+  caller is outside the program, so it stays **assumed**;
+- **linearity through the body** becomes structural, by the rule above.
+
+So the honest form of notation-research's claim is: **linearity through a body becomes structural
+given "a buffer may be named only by its binder"; the caller's uniqueness promise at an export stays
+an assumption, as ADR 0020 has it.** The check `emit/linearity.go` performs would shrink to the
+syntactic condition plus that assumption — which is a real simplification of the 1,000-odd lines that
+walk evaluation order, and a claim that should be verified by building it rather than by argument.
+
+#### What this does to §2.10's answer
+
+Nothing, and that is worth saying. §2.10's result was that the *freeze* is at `build`'s boundary and
+that the merge costs only the word `linear`. The program-order store changes **how a store is
+written**, not where the scope ends or what freezing is. The freeze is still the retraction of a
+permission at `build`'s boundary; the chain the proofs induct on is still a chain, produced by the
+translation instead of typed by the programmer.

@@ -302,7 +302,7 @@ environment of resolution (ADR 0011).
 | | condition | today |
 |---|---|---|
 | **W1** | **scope**: every free name of a declaration is bound in it, declared in its module, imported, owned (Σ₀) or a target's | resolution |
-| **W2** | **linearity of patterns**: the names of one pattern are distinct, and so are the names of one binder group (a let, a local, a loop's state) | match.md §2, local.md |
+| **W2** | **linearity of patterns**: the names of one pattern are distinct, and so are the names of one binder group (a let, a local, a loop's state). *Not so for `let` today*: a later binder of the same name shadows, `(let x 1 x (+ x n) x)` ⟶ `(+ 1 n)`; `local` refuses one. surface-design §2.13 proposes the rule by kind | match.md §2, local.md |
 | **W3** | **the tail rule**: `again` occurs only as a Tail of the nearest enclosing loop's arm, with \|ā\| = \|s̄\|, and no λ lies between them | iteration.md; four walkers |
 | **W4** | **a loop is total**: its last arm's pattern is irrefutable and its guard is absent (`else`, iteration.md §2) | the reader |
 | **W5** | **a cell is written in its scope**: assign(x; e) has x a state binder of an enclosing local; a λ between them is an elimination's, a let's or an arm's, or is marked for the reducer's decision on a normal form (local.md §3, `#elim`) | the cell translation |

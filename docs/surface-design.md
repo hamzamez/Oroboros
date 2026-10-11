@@ -26,6 +26,7 @@ since the document records how the design was reached.
 | 3 | the arrow; E dropped; F as F#-inspired; J a candidate | hamza, §1.9; the arrow by [ADR 0053](decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md), on [arrow-research.md](arrow-research.md) | **the arrow is a claim used as a set**, a λ's header without a body, only on a host definition's parameter or as a named claim; not an operation of the type algebra; the domain a binder list, so no `->` token is needed |
 | 4 | buffers in program order | [ADR 0052](decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), on [storeorder-research.md](storeorder-research.md) | **a buffer is a state binder holding a table**: `b := table(n, 0)` a buffer, `t == table(n, 0)` an immutable table, `b[i] := v` an element write, `b := f(b, …)` a whole write; `linear` only on a parameter, a borrow passed by reference; R0–R4 in place of the ordering check; the host write-borrow's wrapper stays |
 | 5 | `linear` is an ordering, not a count | [abstract2](../gauntlet/results/abstract2-2026-10-11.md) | under item 4 a scope's buffer never shows the ordering on the page; it remains the meaning of a `linear` parameter |
+| 6 | in J, `=` binds and `==` compares, for now | hamza, 2026-10-11 | C's and Go's convention, in J's examples; D and K keep TLA+'s, `==` binding and `=` comparing (§2.11) |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -538,19 +539,34 @@ fn divmod(a ∈ Int, b ∈ Int) (q ∈ Int, m ∈ 0..b-1)
   (a ÷ b, a % b)
 }
 
-// a host body
-fn Encode(dst ∈ Seq(Byte) linear, src ∈ Seq(Byte)) (n ∈ Nat) pure
-  = host expr "hex.Encode(%s, %s)" import "encoding/hex"
+// a host body: the body slot holds a host template, in the same braces
+fn Encode(dst ∈ Seq(Byte) linear, src ∈ Seq(Byte)) (n ∈ Nat) pure {
+  host expr "hex.Encode(%s, %s)" import "encoding/hex"
+}
 
-// a callback parameter (§1.8)
-fn sortSlice(a ∈ Seq(Value), less ∈ (Int, Int) -> Bool) ()
-  = host stmt "sort.Slice(%s, %s)" import "sort"
+// a callback parameter: its set is a claim, a header with no body (§1.8, ADR 0053)
+fn sortSlice(a ∈ Seq(Value), less ∈ fn(i ∈ Int, j ∈ Int) (r ∈ Bool)) () {
+  host stmt "sort.Slice(%s, %s)" import "sort"
+}
+
+// a named claim: Go's named function type, a header bound to a name (ADR 0053)
+SplitFunc = fn(data ∈ Seq(Byte), atEOF ∈ Bool) (advance ∈ Int, token ∈ Seq(Byte), err ∈ Error)
+
+// a call with a callback, tier 1: the λ is written at the call site
+sortSlice(ages, fn(i, j) { ages[i] < ages[j] })
 ```
+
+**One body form** (rewritten in the pass of 2026-10-11, at hamza's request). J first wrote a host body
+after `=` and every other body in braces: two delimiters for one slot. In abstract.md a definition's
+body slot holds an expression *or* a host template (def(f; λ; host(…)), §2.6), a sum of two sorts in
+one position, so one delimiter serves both: `{ host … }` is a body whose one statement is the
+template, and `host` may stand nowhere else. The header reads the same whatever the body is, and
+erasure still deletes the region between the result group and `{`.
 
 - **H: 0. U: 1 shape**, used for both binder groups. **S: 33 tokens, depth 1** (§1.6) — the second
   shortest, within one token of D.
 - **F: fits.** Nothing here is a second grammar: `Seq(Byte)` is an application, `0..b-1` a range
-  expression, `(Int, Int) -> Bool` an arrow set (§1.8).
+  expression, and a callback's set is a header without a body (§1.8, ADR 0053).
 - **E: good** — everything between the result group and the `{` is a claim, so erasure deletes a
   contiguous region and the braces mark where it stops.
 
@@ -1051,7 +1067,8 @@ binders say which kind each is.
 Measured support, and it is weak rather than strong: **3 sites** write one sequential group as two
 nested forms (`let` whose body is a `local`, in `freq.oro`, `ages.oro` and `smooth-java.oro`), and no
 site nests the other way or nests a form in itself. So merging flattens 3 of 95 forms. The argument
-is the identical arity; the measurement only fails to contradict it.
+is the identical arity; the measurement only fails to contradict it. (Corrected in §2.13: over the
+whole corpus, 4 more chains nest the other way, `local` around `let`, so the merge flattens 7.)
 
 **Finding 2. One binder shape, three operators — and installment 1's parameter is the degenerate
 case.**
@@ -1134,7 +1151,10 @@ graph, `table` is a rule — and say nothing about mutability.
 
 ### 2.4 Nine programs, four notations
 
-**T** today, **B′** sectioned prefix, **D** mathematical, **J** Go-inspired. J is shown in its
+**T** today, **B′** sectioned prefix, **D** mathematical, **J** Go-inspired. B′ marks indexing,
+`(at t i)`, as ADR 0050's decision 6 requires and abstract.md §9.4's T′ writes it (corrected in the
+pass of 2026-10-11; it had written `(src i)`, today's application). T is today's notation and keeps
+`(src i)`. J is shown in its
 strongest form, where **a binder group and its body are one statement list** and the block's value is
 its last expression — so slots 7 and 8 collapse into the sequence and `seq` is not a construct.
 
@@ -1169,7 +1189,7 @@ LET av == os.Args()  n == Len(av)  IN  n - 1                                   \
 LET ⟨src, err⟩ == os.ReadFile(p)  IN  IF err = 0 THEN src ELSE ""               \\ D
 ```
 ```go
-{ (src, err) = os.ReadFile(p);  if err = 0 { src } else { "" } }                // J
+{ (src, err) = os.ReadFile(p);  if err == 0 { src } else { "" } }               // J
 ```
 
 ---
@@ -1180,7 +1200,7 @@ LET ⟨src, err⟩ == os.ReadFile(p)  IN  IF err = 0 THEN src ELSE ""           
 (let b (the (int 0 255) (src i)) …)        ; T — the claim goes on the VALUE, not the binder
 ```
 ```lisp
-(let (((b (int 0 255)) = (src i)))  …)     ; B′ — the binder's left side is installment 1's
+(let (((b (int 0 255)) = (at src i)))  …)  ; B′ — the binder's left side is installment 1's
 ```
 ```
 LET b ∈ 0..255 == src[i]  IN  …                                                 \\ D
@@ -1224,7 +1244,7 @@ write it in program order, which is §2.4's correction below.
 ```lisp
 (let ((c := (table n false)))                                                   ; B′
   (loop ((j := (* i i)))
-    (< j n)  (seq (c j := true) (again (+ j i)))
+    (< j n)  (seq ((at c j) := true) (again (+ j i)))
     else     c))
 ```
 ```
@@ -1272,7 +1292,7 @@ measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c
 (let ((lines := 0) (words := 0) (in-word := false))                             ; B′
   (loop ((i := 0))
     (>= i (len src))  (tuple lines words)
-    else (let ((b = (src i)))
+    else (let ((b = (at src i)))
            (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
                 (again (+ i 1))))))
 ```
@@ -1289,7 +1309,7 @@ LET lines := 0  words := 0  in_word := FALSE IN                                 
   loop i := 0 {
       i >= len(src) -> (lines, words)
       else -> { b = src[i]
-                if b = 10 { lines := lines + 1 }
+                if b == 10 { lines := lines + 1 }
                 again(i + 1) } } }
 ```
 
@@ -1363,7 +1383,7 @@ holding a table, replaced whole by a fresh one.
 ;; T — no spelling exists
 ```
 ```lisp
-(let ((cur := (array 1 2 3)))  (seq (cur := (array 4 5 6)) (cur 0)))            ; B′
+(let ((cur := (array 1 2 3)))  (seq (cur := (array 4 5 6)) (at cur 0)))         ; B′
 ```
 ```
 LET cur := ⟨1, 2, 3⟩ IN  ( cur := ⟨4, 5, 6⟩ ; cur[0] )                          \\ D
@@ -1374,36 +1394,40 @@ LET cur := ⟨1, 2, 3⟩ IN  ( cur := ⟨4, 5, 6⟩ ; cur[0] )                  
 
 ### 2.5 Measured
 
-Tokens, depth and longest closing run over **P1–P8** (P9 is excluded, since it has no T column).
-Counting as §1.6, with each block's trailing column marker stripped.
+Tokens, depth and longest closing run over **P1–P8** (P9 is excluded, since it has no T column),
+counted by **`go run gauntlet/surface/tokens.go`**, which reads this document's blocks, so the table
+and the programs cannot drift apart. Its header states the rule. **Tokens** follow §1.6: every
+non-word character is one, so `:=` is two. **Lexemes** take a run of operator characters as one, as a
+lexer would.
 
-| notation | tokens | × T | depth | closing run | holes | shapes |
-|---|---:|---:|---:|---:|---:|---:|
-| T today | 229 | 1.00 | 7 | 6 | **2** | **8** (fit-research §3.3) |
-| B′ | 336 | **1.47** | 7 | 6 | 0 | 1 |
-| D | 232 | 1.01 | **2** | **2** | 0 | 1 |
-| J | 232 | 1.01 | 4 | 4 | 0 | 1 |
+| notation | tokens | × T | lexemes | × T | depth | closing run | holes | shapes |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| T today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | **2** | **8** (fit-research §3.3) |
+| B′ | 275 | **1.42** | 262 | **1.36** | 7 | 6 | 0 | 1 |
+| D | 222 | 1.14 | 201 | 1.04 | **2** | **2** | 0 | 1 |
+| J | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 0 | 1 |
 
-> **Not reproducible as it stands** (pass of 2026-10-11). The script that counted this table and
-> §2.9's was not kept, and the two disagree on the same programs: T is 229 here and 239 there, B′
-> 336 and 312. A recount with a tokenizer rebuilt from §1.6's rule reproduces the depth and closing
-> run columns exactly, and gives T 223, B′ 331, D 242, J 223: the same ordering for B′, and D
-> heavier than J by 9%. Before a decision rests on the token column, it should be recounted by one
-> kept script.
+> **Recounted in the pass of 2026-10-11.** The first table here (T 229, B′ 336, D and J 232) and
+> §2.9's (T 239, B′ 312, D and J 243) came from a script that was not kept, disagreed with each other
+> on the same programs, and counted different programs for K and L. This one is reproducible. Since
+> then B′ marks indexing, `(at t i)`, and J compares with `==` (§2.4), which the counts include.
 
-**My estimates were wrong again, and this time the correction changes the conclusion.** I had written
-that D and J were ~15% shorter than today; they are **the same size** (1.01×). So:
+**My estimates were wrong again, and the recount moved the conclusion once more.** I had written that
+D and J were ~15% shorter than today, then measured them the same size. Counted by one kept rule,
+they are **the same size in lexemes (1.03–1.04×) and 14% larger in characters**: an explicit binder
+operator, `==` or `:=`, costs two characters where T's parity costs none, which is fit-research
+§3.6's misfit priced. So:
 
 - **The case for J and D is not size. It is depth, and it is the structural simplifications.** Both
-  write the same number of tokens as today while dropping from depth 7 to 4 and 2, and while removing
+  write about as many lexemes as today while dropping from depth 7 to 4 and 2, and while removing
   `seq`, the `let`-around-`local` nesting, the eight binder shapes and the two holes. The notation
-  costs nothing and the *structure* is what improves — which is a better result than a size win would
+  costs little and the *structure* is what improves — which is a better result than a size win would
   have been, because it cannot be argued away as formatting.
 - **D is the shallowest by half**, 2 against J's 4, and this reverses installment 1, where the two
   tied at depth 1. The cause is that `LET … IN` adds no bracket while `{ … }` adds one per block, and
   P5–P8 all nest a loop inside a scope. On the one measure where J and D differed, D now wins.
-- **B′ is 1.47× today's tokens** at the same depth and the same closing run — it pays half again as
-  much for no structural gain over the others. The cause is structural, not incidental: a binder is
+- **B′ is 1.42× today's tokens (1.36× in lexemes)** at the same depth and the same closing run — it
+  pays a third again as much for no structural gain over the others. The cause is structural, not incidental: a binder is
   `(pattern OP rhs)`, a pattern may itself be a list, and a claim makes the left side a list, so P2
   and P3 carry three opening brackets before the first name.
 - **T's two holes** are slot 3 (a claim on a binder, unwritable) and slot 2 (the kind, inferred).
@@ -1434,7 +1458,7 @@ body slot by construction. **A hybrid is available and worth naming**: `LET … 
 statement-list body, which would take D's shallowness and J's sequence. I have not measured it; it is
 the first thing installment 3 should price.
 
-**B′ falls behind.** It was installment 1's co-leader. Here it is 1.47× the tokens at the same depth
+**B′ falls behind.** It was installment 1's co-leader. Here it is 1.42× the tokens at the same depth
 and the same closing run as the notation it replaces, and the cause is the shape itself rather than
 the examples. Kept on the list, because the reader exists and its failure is syntactic, but it is no
 longer a front-runner and installment 3 should be where it is either rescued or dropped.
@@ -1468,7 +1492,7 @@ candidate does.
    **separable from the braces** — see 1b.
 1b. ~~**The hybrid: `LET … IN` over a statement-list body.**~~ **Priced in §2.9, and the shape was
    wrong**: if binders are statements, a group before them is redundant. The real hybrid is
-   statements with no bracket (**K**), and it wins every measure — 0.97× today's tokens, depth 2,
+   statements with no bracket (**K**), and it wins every measure — today's size in lexemes, depth 1,
    closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
    terminates a munching form.
 2. ~~**`x := table(n, f)`**~~ **— answered in §2.10, and answered again by ADR 0052**: `x := table(n, f)`
@@ -1480,7 +1504,7 @@ candidate does.
 3. ~~**Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
    binder, 26 sites.~~ **Superseded by ADR 0052**: a buffer is a state binder, and `linear` is
    written only on parameters.
-4. **ADR 0047 needs a successor** either way: its initializer rule is what the stated kind replaces,
+4. **ADR 0047 needs a successor** either way (§2.13 takes up the merge again, after ADR 0052): its initializer rule is what the stated kind replaces,
    and its translation, cells-as-loop-variables and everything in local.md §3 are unchanged.
    **ADR 0052 amends it** for buffers; whether `let` and `local` merge, the other half, is still
    this document's question.
@@ -1511,7 +1535,7 @@ with a braced body, is **L**, and pricing it completes the square.
 ```
 av == os.Args() ; n == Len(av) ; n - 1                                          \\ P1
 ⟨src, err⟩ == os.ReadFile(p) ; IF err = 0 THEN src ELSE ""                      \\ P2
-b ∈ 0..255 == src[i] ; f(b)                                                     \\ P3
+b ∈ 0..255 == src[i] ; …                                                        \\ P3
 io.print_line("hi") ; 0                                                         \\ P4
 
 lines := 0 ; words := 0 ; in_word := FALSE ;                                    \\ P6
@@ -1526,8 +1550,8 @@ LOOP j := i * i :
     j < n  → c[j] := TRUE ; AGAIN(j + i)
  [] OTHER  → c
 
-n == Len(xs) ; out := [k ∈ 0..n-1 ↦ 0] ; count := 0 ; g(out, count)             \\ P7
-age := 0 ; name := "" ; h(age) ; ⟨age, name⟩                                     \\ P8
+n == Len(xs) ; out := table(n, 0) ; count := 0 ; …                             \\ P7
+age := 0 ; name := "" ; … ; ⟨age, name⟩                                         \\ P8
 ```
 
 K is **D's lexicon with `;` promoted**, not a new notation: same `==`, `:=`, `∈`, `LOOP`, `⟨⟩`, same
@@ -1538,38 +1562,57 @@ disappear.
 
 ```
 let av = os.Args(), n = len(av) { n - 1 }                                       // P1
+let (src, err) = os.ReadFile(p) { if err == 0 { src } else { "" } }             // P2
+let b ∈ 0..255 = src[i] { … }                                                   // P3
+let _ = io.print_line("hi") { 0 }                                               // P4
+let c := [k ∈ 0..n-1 |-> false] {                                               // P5
+  loop j := i * i {
+      j < n -> { c[j] := true; again(j + i) }
+      else  -> c } }
 let lines := 0, words := 0, in_word := false {                                  // P6
   loop i := 0 {
       i >= len(src) -> (lines, words)
       else -> let b = src[i] {
-                if b = 10 { lines := lines + 1 }
+                if b == 10 { lines := lines + 1 }
                 again(i + 1) } } }
+let n = len(xs), out := table(n, 0), count := 0 { … }                           // P7
+let age := 0, name := "" { …; (age, name) }                                     // P8
 ```
 
-#### Measured, P1–P8, counting as §1.6
+K's P3, P7 and P8 were written with calls (`f(b)`, `g(out, count)`, `h(age)`) where §2.4 writes `…`,
+and L was written for P1 and P6 only, so the first version of the table below counted different
+programs per row.
+Both are corrected in the pass of 2026-10-11: every row counts the same eight programs.
 
-| | corner | tokens | × T | depth | closing run | lines |
-|---|---|---:|---:|---:|---:|---:|
-| T | today | 239 | 1.00 | 7 | 6 | 18 |
-| B′ | prefix: group + parens | 312 | 1.31 | 7 | 6 | 16 |
-| D | **(a)(i)** group + munch | 243 | 1.02 | **2** | 2 | 16 |
-| J | **(b)(ii)** statements + braces | 243 | 1.02 | 4 | 4 | 17 |
-| **K** | **(b)(i) statements + munch** | **233** | **0.97** | **2** | **1** | 16 |
-| L | **(a)(ii)** group + braces | 248 | 1.04 | 4 | 4 | 17 |
+#### Measured, P1–P8, by `gauntlet/surface/tokens.go`
+
+| | corner | tokens | × T | lexemes | × T | depth | closing run | lines |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| T | today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | 16 |
+| B′ | prefix: group + parens | 275 | 1.42 | 262 | 1.36 | 7 | 6 | 15 |
+| D | **(a)(i)** group + munch | 222 | 1.14 | 201 | 1.04 | 2 | 2 | 16 |
+| J | **(b)(ii)** statements + braces | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 16 |
+| **K** | **(b)(i) statements + munch** | **212** | **1.09** | **192** | **0.99** | **1** | **1** | 16 |
+| L | **(a)(ii)** group + braces | 235 | 1.21 | 212 | 1.10 | 4 | 4 | 16 |
+
+Recounted in the pass of 2026-10-11 (§2.5's note): the first version of this table had K at 0.97×
+and "the only one below today", on programs that were not the others'.
 
 **The square separates cleanly, and the two axes drive different measures:**
 
-- **the body delimiter drives depth**: munch → 2, braces → 4. A block is a bracket, and P5–P8 all
-  nest a loop inside a scope, so every block costs a level;
+- **the body delimiter drives depth**: munch → 1 or 2, braces → 4. A block is a bracket, and P5–P8
+  all nest a loop inside a scope, so every block costs a level;
 - **the binder placement drives tokens**: statements → fewer, because there is no `LET`/`IN` or
   `let`/`{` keyword pair per group, and a mid-sequence binder needs no nested form.
 
-So **K takes the better option on both axes and L takes the worse on both** — L is the only corner
-*above* today's token count while also being the deepest, which is the signature of paying for a
-keyword pair and a bracket and getting neither's benefit.
+So **K takes the better option on both axes and L takes the worse on both** — L is the largest of
+the four new corners while also the deepest, which is the signature of paying for a keyword pair and a
+bracket and getting neither's benefit.
 
-**K is the only one of the six below today's tokens** (0.97×), and it has the shortest closing run of
-any notation measured in this document (1).
+**K is the smallest new notation and the shallowest**: today's size in lexemes (0.99×), 9% above it in
+characters, and depth 1 with a closing run of 1, the least of any notation measured in this
+document. None of the six is smaller than today in characters, because each writes the binder
+operator that today's parity leaves out.
 
 #### K's failure stays syntactic — which was the objection to (i)
 
@@ -1613,13 +1656,14 @@ extra generality is used, twice, and today it is paid for with a nested form.
    hamza's to make.
 2. **Eight programs.** These numbers describe P1–P8. They are the corpus's own shapes, but they are
    eight.
-3. **K's depth of 2 is partly the examples.** A program with deeply nested data would raise every
+3. **K's depth of 1 is partly the examples.** A program with deeply nested data would raise every
    column together; what the measurement isolates is the *binder and body* contribution, which is
    what the installment is about.
 
 #### What it changes
 
-**K becomes the front-runner for installment 2**, and it amends installment 1's constraint 8. That
+**K becomes the front-runner for installment 2** (on depth and structure; on size it ties today),
+and it amends installment 1's constraint 8. That
 constraint read "the body has a delimiter whose failure is syntactic". K satisfies it with a
 **separator and two grammar rules** instead of a bracket, so the constraint should read: *a body's
 extent is bounded by something whose violation is a syntax error* — which a `;` at the loosest
@@ -1841,9 +1885,15 @@ alike.
 > should take `==` too.
 >
 > **ADR 0052 raises the stakes.** `t == table(n, 0)` against `b := table(n, 0)` is now the
-> difference between an immutable table and a buffer. And J's `=` is also its equality test,
-> `if err = 0`, so in J one character is both a binder and a comparison: a homonym (fit-research's
-> F2). D and K separate them, `==` binding and `=` comparing, as TLA+ does.
+> difference between an immutable table and a buffer. J's `=` was also its equality test,
+> `if err = 0`, a homonym (fit-research's F2). **hamza, 2026-10-11: in J, `=` binds and `==`
+> compares, for now**, C's and Go's convention, and J's examples are written so. D and K keep TLA+'s,
+> `==` binding and `=` comparing. The two lexicons are opposite on these two tokens, which matters
+> only if both survive (§1.9's "two notations or one").
+>
+> One hazard remains in J's choice, and it is Go's own: in Go `x := 1` *declares* and `x = 2`
+> *assigns*, while in J `x = 1` binds an immutable name and `x := 1` a state variable. A Go reader
+> reads J's two binders with roles nearly swapped. §2.13 meets the same pair from the other side.
 
 **(b) The legibility trade is real, and it is hamza's call.** With a group you see every name a scope
 introduces at a glance. Scattered, you do not — you scan forward to the block's end to know where a
@@ -1872,7 +1922,9 @@ third claim that needs one more rule than it states.
 
 #### Measured: the loop loses a variable
 
-On the sieve's inner loop, tokens barely move — the gain is structural:
+On the sieve's inner loop, tokens barely move — the gain is structural. (These counts came from the
+script that was not kept, and the threaded versions are not in this document, so they cannot be
+recounted; the structural claim below does not rest on them.)
 
 | | threaded by hand | `c[j] := TRUE` | |
 |---|---:|---:|---|
@@ -1963,3 +2015,165 @@ that the merge costs only the word `linear` (ADR 0052 has since removed even tha
 written**, not where the scope ends or what freezing is. The freeze is still the retraction of a
 permission at `build`'s boundary; the chain the proofs induct on is still a chain, produced by the
 translation instead of typed by the programmer.
+
+### 2.13 Merging `let` and `local`, after ADR 0052
+
+hamza: *"should we discuss merging let and local? if so, go ahead, be mathematical and algebraic."*
+
+**It should be discussed now, because the one argument against it is gone.** §2.3 left Finding 1
+(merge: `let` and `local` have one arity in Σ) in tension with the kind. Once the initializer could
+not say buffer or value, a merged form had nothing to read the kind from, and option (a) wrote
+`linear` at 26 binders. ADR 0052 made a buffer a state binder, so **the binder's operator says the
+kind**: `t == table(n, 0)` is a value, `b := table(n, 0)` a buffer, `x := 0` a cell. What remains is
+whether the head carries anything the binders do not.
+
+#### The algebra: a scope is a monoid action
+
+Let Bind = Def ∪ State, the definitional and the state binders, and Bind* the free monoid of binder
+words under concatenation, ε the empty word. A scope is a map
+
+```
+scope : Bind* × Expr → Expr
+```
+
+and sequential scoping is the law of a **monoid action**:
+
+```
+(A1)  scope(ε; e)          = e
+(A2)  scope(β̄; scope(γ̄; e)) = scope(β̄γ̄; e)          the names of γ̄ apart from β̄'s (ADR 0036)
+```
+
+- **`let` satisfies it on Def\***: a grouped `let` and nested `let`s reduce to one term (§2.11,
+  verified).
+- **`local` satisfies it on State\***: the state-passing translation threads the cells in scope
+  (local.md §3), and nested `build` regions are the flat one's.
+- **D is a homomorphism of the action.** It is a right fold, binder by binder (`core/desugar.go`, and
+  `localBinder` for one state binder), so D(scope(β̄γ̄; e)) = D(scope(β̄; scope(γ̄; e))).
+
+**Today's two heads are the restrictions of one action to two submonoids, Def\* and State\*.** A word
+that mixes kinds, such as P7's `n == len(xs), out := table(n, 0), count := 0`, lies in the free monoid
+on Def ∪ State, which is the **free product** Def\* ∗ State\*. Its normal form is the alternating
+reduced word (the normal form theorem for free products; Magnus, Karrass and Solitar, *Combinatorial Group
+Theory*, 1966, ch. 4, for monoids as for groups). So today's notation writes a word with r maximal runs of one kind as **r nested heads**,
+and a merged scope writes it as one. The merge is the action of the whole free monoid, and the two
+heads become what they were all along: the cases r = 1.
+
+#### Does the head carry anything? Four candidates, each checked
+
+A head adds information only if it is not a function of its binder word.
+
+| | what a head might carry | after ADR 0052 |
+|---|---|---|
+| (a) | **the kind** of each binder | the binder's operator, `==` or `:=`. Before ADR 0052 it was the head, for buffers |
+| (b) | **the region**, where state lives and where it freezes | the binder's lexical scope (Lemma below) |
+| (c) | **encapsulation**: a scope whose state is local is observationally pure (`runST`; O'Hearn and Tennent 1995) | per scope, unchanged: every state binder of a scope is local to it |
+| (d) | **the residual** | none: D is a homomorphism, so a merged scope desugars to today's terms |
+
+**Lemma (regions are invariant under the merge).** Let region(x), for a state binder x, be the
+positions from x's binder to the end of the innermost scope containing it. Then (A2) preserves every
+region.
+
+*Proof.* (A2) joins a scope with the scope that is its **body**. The inner scope's end is the outer's
+end, so no region gains or loses a position. A scope that is a binder's **value**, as in
+`x = { b := table(n, 0); …; b }`, is not a body, is not joined, and keeps its own earlier end. ∎
+
+So the freeze stays where ADR 0031 and R4 put it: at the end of the scope that binds the buffer, per
+binder. §2.10 already found that "the head `local` was never what delimited the scope. The binder
+was." The Lemma is that sentence proved.
+
+**The head is a function of the binder word, so keeping two heads is a redundancy**: two operators
+for one action, differing in a restriction the binders already show. That is the synonym
+fit-research counts (F1), and Finding 1 now stands unopposed.
+
+#### Measured
+
+`go run gauntlet/surface/scopes.go`, over `examples/`, `lib/`, `gauntlet/stdlib/acceptance/` and
+`gauntlet/differential/cases/`:
+
+| | count |
+|---|---:|
+| `let` forms, binders | 127, 190 |
+| `local` forms, binders | 66: 71 buffers, 13 cells |
+| outermost scopes | 186 |
+| … with one run | 179 |
+| … with two runs (an alternating chain) | **7**: 3 `let > local`, 4 `local > let` |
+| chains of one head | 0 (both forms are already n-ary) |
+| groups binding a name twice | 0 |
+
+**A correction to §2.3's Finding 1**: it counted 3 alternating chains and said "no site nests the
+other way". Over `examples/` and `lib/` that was true; the 4 `local > let` chains are in
+`acceptance/errors-os.oro` and three differential cases (`alloc-copies`, `buffer-swap`,
+`local-tables`). The merge removes 7 nesting levels, and these 7 are its byte-identical test.
+
+#### What the merge must settle: two rules today's notation leaves asymmetric
+
+**(i) A name bound twice in one group.** Today the two heads disagree, verified:
+
+```lisp
+(let x 1  x (+ x n)  x)        ⟶  (+ 1 n)                       ; let: the second shadows
+(local x 0  y 1  x 5  x)       ;; local binds x twice; a parameter list may not repeat a name …
+```
+
+and abstract.md's W2 says the names of every binder group are distinct, which is false for `let`.
+The algebra decides it per kind:
+- **a definitional binder may repeat a name.** By (A2), `x = 1, x = x + 1` is `scope(x = 1;
+  scope(x = x + 1; …))`: shadowing, sound by hygiene (ADR 0036);
+- **a state binder's name is bound once in its region.** Bound again by `==`, it would hide the cell,
+  refused today (local.md §3). Bound again by `:=`, it would be a second place under the same name,
+  and in a group that cannot be told from a write.
+
+The corpus binds no name twice in a group, so the rule refuses nothing. W2 is corrected to say so.
+
+**(ii) A binder against a write, in a statement list.** Σ has two operations: the binder
+local(x := e; …), which extends the environment, and assign(x; e), which writes. In a form with a
+group (D, L, B′) **position** separates them: a binder stands in the group, a write in the body. In a
+statement list (K, J) both are `x := e`, told apart by whether x is already bound. That is resolution
+by context, a homonym (F2), and it has a known failure. A write with a misspelled name, `cuont := 0`
+meant to reset `count`, silently creates a new cell. It is Python's assignment-declares rule, the one
+`nonlocal` and `global` patch. **This belongs to the statement list, not to the merge**: a merged
+scope with a group has no such problem. But the merge is what puts state binders and definitional
+ones in one sequence, so it is where the question arrives.
+
+The literature's answer is uniform: **mark the introduction.**
+- **Algol 68** has exactly this merge. A serial clause mixes *identity declarations*,
+  `int n = 5`, and *variable declarations*, `int x := 0`, and writes an assignation `x := 1`. A
+  declaration is marked by its leading mode, so it is never confused with an assignation. J's
+  operators, `=` for a value and `:=` for a variable, are Algol 68's.
+- **PlusCal** declares `variables x = 0;` and assigns `x := 1`.
+- **Rust** writes `let x = …` and `let mut x = …`, then `x = …`. Swift writes `let` and `var`, and
+  JavaScript `const` and `let`: a keyword marks every introduction.
+
+So a statement-list surface needs one mark on a state binder's introduction, or binders in groups.
+Installment 3 settles the statement list (a loop's arms are its first test), so the choice is listed
+below and not taken here.
+
+#### What it costs
+
+- **The reader**: `muLet` and `muLocal` become one. D is unchanged, binder by binder.
+- **The conditions**: W5's "a state binder of an enclosing `local`" becomes "of an enclosing scope";
+  W2 as in (i).
+- **The name of the head**, where a surface has one (D's `LET`, B′'s and L's `let`). `local` was
+  hamza's word for "state lives here" (ADR 0047), and the binders now say that. K and J need no head.
+- **Unchanged**: the freeze, the cell translation, R0–R4, relevance, the proofs, the IR. None of them
+  ever saw a head (§2.10).
+- **Not merged: a loop's variables.** loop(s̄; I; ā) is a scope iterated by `again`, with arms and a
+  simultaneous rebinding. It is installment 3's operator, not this one.
+
+#### Open, for hamza
+
+1. **Merge `let` and `local`** into one scope whose binders state their kind. *Recommended*: the head
+   is a function of the binder word (the Lemma and table above), D is a homomorphism, and 7 nesting
+   levels go.
+2. **Repeated names**: a definitional name may be rebound (shadowing); a state name is bound once in
+   its region. W2 corrected. *Recommended*: it follows from (A2) and refuses nothing.
+3. **The head's name**, where there is one: `let` for every scope (*recommended*: D and L already
+   write `LET` and `let`, and "state" is now the binders' to say), or `local`.
+4. **Binder against write in a statement list**, decided with installment 3:
+   - mark the introduction of a state binder, Algol 68's and Rust's answer;
+   - keep binders in a group, D's and L's answer;
+   - resolve by context, Python's, with its misspelling failure.
+
+   No recommendation yet: it is the statement list's question, and it is priced there.
+
+When decided, an ADR records it, amending ADR 0047's head (as ADR 0052 amended its initializer rule)
+and abstract.md's `let` and `local` rows, W2 and W5.

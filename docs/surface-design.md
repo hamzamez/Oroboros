@@ -1,6 +1,7 @@
 # The language surface, designed one construct at a time
 
-Status: **an open conversation, appended to as it goes. Nothing is decided.** Started 2026-10-11 on
+Status: **an open conversation, appended to as it goes. The surface is not decided**; what is decided
+around it is listed below. Started 2026-10-11 on
 hamza's request: *"let's try to come up with the best language surface we can … we start with the atom
 lambda … let's find out the syntax with the least holes in it, simplest, most uniform … we are going to
 propose the most right now, pick a few, drop the rest and continue the exercise with the rest of the
@@ -9,9 +10,22 @@ language, but what comes after has to fit with what we pick now."*
 The semantics is fixed and is not under discussion here. It is
 [abstract.md](spec/abstract.md)'s signature Σ, [settypes-research.md](settypes-research.md)'s logic
 with [ADR 0049](decisions/0049-types-are-sets-and-the-logic-never-prints.md), and [fit-research.md](fit-research.md)'s fourteen
-places where that semantics chooses a form. The candidate notations are
+places where that semantics chooses a form (its decisions 1–6 taken by ADR 0050; the seventh, the
+surface, is this document). The candidate notations are
 [notation-research.md](notation-research.md)'s and [syntax-research.md](syntax-research.md)'s. **Only
 the spelling is open.**
+
+**Decided since this document began, and binding on every installment.** A correction pass on
+2026-10-11 marked each place below that one of these overturns. The reasoning is kept as written,
+since the document records how the design was reached.
+
+| | decided | by | what it fixes for the surface |
+|---|---|---|---|
+| 1 | fit-research decisions 2–6 | [ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md) | a mode on a binder (`linear`, `inout`, `out`), never a set; one definition carrying its claims; sets formed explicitly; pairs as pairs and one guarded choice; **indexing marked**, `t[i]` against `f(x)` |
+| 2 | a definition is a named λ, and the λ carries its claims | [ADR 0051](decisions/0051-a-definition-is-a-named-lambda.md) | Finding 1 (§1.4) and §1.9's decision 3; a set per binder plus φ and ψ, meaning the sets P and R of Finding 2; **the result is one binder whose pattern may be a tuple**, so a result group is sugar for that pattern; a λ's body is never a tail, and `let` binds a jump |
+| 3 | function set formers; E dropped; F as F#-inspired; J a candidate | hamza, §1.9 | the arrow is a binder's set in a declaration (§1.8). **No ADR yet, and abstract.md does not have the arrow** |
+| 4 | buffers in program order | [ADR 0052](decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), on [storeorder-research.md](storeorder-research.md) | **a buffer is a state binder holding a table**: `b := table(n, 0)` a buffer, `t == table(n, 0)` an immutable table, `b[i] := v` an element write, `b := f(b, …)` a whole write; `linear` only on a parameter, a borrow passed by reference; R0–R4 in place of the ordering check; the host write-borrow's wrapper stays |
+| 5 | `linear` is an ordering, not a count | [abstract2](../gauntlet/results/abstract2-2026-10-11.md) | under item 4 a scope's buffer never shows the ordering on the page; it remains the meaning of a `linear` parameter |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -87,6 +101,10 @@ and states **one membership**, the shape of a Z schema (Spivey 1992):
 ```
 f ∈ Π( x̄ ∈ {x̄ ∈ S̄ : φ} ). { r ∈ U : ψ }
 ```
+
+> **Since ADR 0051** abstract.md's λ carries the claim, **lam**(b̄; r; φ; ψ; e), and a definition is
+> def(f; e) with e a λ: the two forms this section compares are one. The paragraph above and the
+> table below describe the spec as it stood when the installment was written.
 
 Writing out every piece either form may carry:
 
@@ -279,7 +297,9 @@ same operator, so Finding 1 holds.
 ```
 
 Two binder groups, **one shape for both**: a list of `(name set)`. The result group is a list because
-a host call may return several values (`values`, ADR 0031).
+a definition or a host call may return several values, a tuple (`values` was retired for `tuple`;
+ADR 0031 is a scope's product). ADR 0051 D3 since made the tree's result **one binder whose pattern
+may be a tuple**, so a group of result binders is sugar for `tuple(q, r) ∈ U × V`.
 
 - **H: 0. U: 1 shape, used twice.** **F:** fits. **E:** good.
 - This is the Z schema's own shape: declarations, then the predicate.
@@ -754,15 +774,15 @@ one these examples use.
 
 **Decided by hamza, 2026-10-11:**
 
-1. **Function set formers: yes**, and the link to callbacks is real — §1.9. The arrow's job is a
+1. **Function set formers: yes**, and the link to callbacks is real — §1.8. The arrow's job is a
    binder's set in a declaration, no allowed callback tier makes a λ a value of V, and W9 gains a
    clause rather than a relaxation. It is abstract.md §2.6's Π promoted from prose to a term.
 2. **Candidate E: dropped.** §1.7 records why it costs nothing.
 3. **Design the general form.** hamza, on whether a λ ever carries a claim in practice: *"I don't
    know. we do the general form, and we never do, that is not an issue."* So **Finding 1 stands and
    λ and `def` are one form**, carrying all eight slots, whether or not an anonymous λ ever uses
-   slots 3–5. This settles the fourth candidate §1.9 floated (λ keeps two slots, all eight on `def`)
-   against itself: it is not proposed.
+   slots 3–5. This settles the alternative floated before the decision (the λ keeps two slots, and
+   all eight are on `def`) against itself: it is not proposed. Recorded as ADR 0051's D1.
 4. **F is "F#-inspired", not F#** — the shape without the type grammar (§1.5, F). My first draft
    dropped it on an argument that applies to F#'s generics rather than to its shape, and hamza
    corrected it.
@@ -786,11 +806,13 @@ Now that hamza has decided: Whatever surface is chosen:
 1. **λ and `def` are one form**, carrying all eight slots (decision 3). `sig` disappears; a name and
    an arity are written once. Every later binding construct — `let`, `local`, `loop`, a variant's
    parameters, a host declaration — uses the *same* binder shape or uniformity breaks.
-2. **A binder is `pattern ∈ set [mode]`**, the set optional, the mode from fit-research decision 2
-   (`linear`, `inout`, `out`). "No set" is **not** `∈ V`: it is *no claim*, which settypes §10
-   insists is different and must not be merged.
-3. **The result is a binder group, not an annotation** — so several results need no new form, and
-   Go's named results are the precedent (§1.5, J).
+2. **A binder is `pattern ∈ set [mode]`**, the set optional, the mode from ADR 0050 (`linear`,
+   `inout`, `out`), and `linear` only on a parameter (ADR 0052). "No set" is **not** `∈ V`: it is
+   *no claim*, which settypes §10 insists is different and must not be merged.
+3. **The result is a binder, not an annotation** — one binder whose pattern may be a tuple
+   (ADR 0051 D3), so several results need no new form. A notation may write it as a group,
+   `(q ∈ Int, m ∈ 0..b-1)`, as sugar for the tuple pattern; Go's named results are the precedent
+   (§1.5, J).
 4. **φ and ψ are comprehensions over those groups** (Finding 2), so a `where` anywhere else — on a
    `variant`, a `loop`'s invariant, a `local` — is the same shorthand for the same operator.
 5. **Claims are a deletable region**, between the result group and the body's delimiter. No later
@@ -798,7 +820,12 @@ Now that hamza has decided: Whatever surface is chosen:
 6. **No type on a term.** No construct may read as "this term has this type" (§1.3).
 7. **A set of operators is a binder's set and nothing else** (§1.8), and it does not reopen tier 3.
 8. **The body has a delimiter whose failure is syntactic** (§1.7), if J or B′ wins — which is a
-   constraint on every later construct that has a body, not just the λ.
+   constraint on every later construct that has a body, not just the λ. §2.9 amends it: *a body's
+   extent is bounded by something whose violation is a syntax error*.
+9. **A λ's body is never a tail** (ADR 0051 D5). A jump is bound by `let`, never by a λ applied by
+   hand, so no notation may make the two look alike.
+10. **Indexing is marked** (ADR 0050, decision 6): `t[i]`, or T′'s `(at t i)`, never `t(i)`, since a
+    table is a value and an operator is not.
 
 ### 1.11 Closing the mathematical notation's hazard
 
@@ -939,6 +966,10 @@ region, no type on a term, and a body delimiter whose failure is syntactic.
 | 8 | a **discarded** binder | `seq`, a separate form | `seq` |
 | 9 | the scope's **result**, possibly a product taken apart by a tuple pattern (ADR 0031) | — | yes |
 
+> **ADR 0052 changes slots 2 and 4.** A buffer is a state binder holding a table, so the kinds are
+> two, definitional and state. `linear` belongs to a parameter only, so slot 4 is empty for a
+> scope's binder.
+
 ### 2.2 The holes, verified
 
 **A binder cannot carry a claim.** Verified at `47eb569`:
@@ -993,8 +1024,9 @@ the buffer's store is `store`, because `set` is the set former"* — three opera
 
 **§2.4's P5 and P6 take a shorter route: both writes are `:=`, with two left-hand sides.** `x := e`
 writes a cell and `c[j] := e` stores into a buffer, so the two meanings of `set` become **one
-operator**, `set` is free for the set former, and no `store` name is needed. That is
-notation-research §4.5's decision, which this installment should have started from.
+operator**, `set` is free for the set former, and no `store` name is needed. notation-research §4.5
+proposed it, and this installment should have started from it. It was not decided until
+storeorder-research.md and ADR 0052.
 
 ### 2.3 Three findings
 
@@ -1018,8 +1050,8 @@ is the identical arity; the measurement only fails to contradict it.
 case.**
 
 ```
-pattern  [∈ S]  = e        definitional   a let; a buffer when e is a buffer constructor
-pattern  [∈ S]  := e       state          a cell
+pattern  [∈ S]  = e        definitional   a let; an immutable table when e is a table
+pattern  [∈ S]  := e       state          a cell, a loop variable, or a buffer when e is a fresh table (ADR 0052)
 pattern   ∈ S              ranging        a parameter (installment 1), where the claim IS the right side
 ```
 
@@ -1085,6 +1117,13 @@ table, or a buffer? Three ways out:
 So Finding 3 is withdrawn, and in its place: **the kind is stated by the operator (`=` or `:=`) and
 the mode (`linear`) is written where it holds.** The constructors keep hamza's reading — `array` is a
 graph, `table` is a rule — and say nothing about mutability.
+
+> **Superseded by ADR 0052** (hamza, 2026-10-11). The table above lacked a fourth option: with
+> stores in program order, **a buffer is a state binder**, so the operator already says the binder
+> may be written. `b := table(n, 0)` is the buffer and `t == table(n, 0)` the immutable table, at 0
+> sites and with no fourth kind. The initializer's form survives as a legality condition, R0: an
+> element write needs a fresh table, so `x := xs ; x[0] := 1` is refused and the copy is written,
+> `x := table(len(xs), xs)`.
 
 ### 2.4 Nine programs, four notations
 
@@ -1182,13 +1221,13 @@ write it in program order, which is §2.4's correction below.
     else     c))
 ```
 ```
-LET c := [i ∈ 0..n-1 ↦ FALSE] IN                                                \\ D
+LET c := [k ∈ 0..n-1 ↦ FALSE] IN                                                \\ D
   LOOP j := i * i :
       j < n  → c[j] := TRUE ; AGAIN(j + i)
    [] OTHER  → c
 ```
 ```go
-{ c := [i ∈ 0..n-1 |-> false]                                                   // J
+{ c := [k ∈ 0..n-1 |-> false]                                                   // J
   loop j := i * i {
       j < n -> { c[j] := true; again(j + i) }
       else  -> c
@@ -1197,8 +1236,8 @@ LET c := [i ∈ 0..n-1 ↦ FALSE] IN                                            
 
 **The store is `c[j] := true`, in program order — corrected 2026-10-11 on hamza's question.** I had
 written `store(c, j, true)`, threading the buffer by hand as today's notation does. hamza: *"I thought
-indexing in j and D are going to be `c[j]`?"* — and **notation-research §4.5 had already decided it**,
-which I wrote against:
+indexing in j and D are going to be `c[j]`?"* — and **notation-research §4.5 had already proposed it**,
+which I wrote against. It was decided only later, by ADR 0052, after storeorder-research.md:
 
 > `x := e` writes a cell, and **`t[i] := e` writes a table's element** … **buffers are written in
 > program order too.** Today a buffer is threaded by hand, `(again (set s j true) …)`. That form
@@ -1206,7 +1245,7 @@ which I wrote against:
 > produce that chain itself**, as it produces cells' loop variables, so the programmer writes
 > `s[j] := TRUE` and the analyses still see the chain.
 
-So the store is not a *call* at all. It is `:=` with an **indexed** left-hand side, and §2.9's own
+So the store is not a *call* at all. It is `:=` with an **indexed** left-hand side, and §2.12's
 measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c, j := i * i` becomes
 `LOOP j := i * i`, and `AGAIN(store(c, j, TRUE), j + i)` becomes `c[j] := TRUE ; AGAIN(j + i)`.
 
@@ -1249,8 +1288,8 @@ LET lines := 0  words := 0  in_word := FALSE IN                                 
 
 A write is `x := e` — **the same operator that bound the cell**, which is PlusCal's and Ada's
 reading: `:=` means "this name takes this value", at the binder and at the write alike. So `set`'s
-two-argument form disappears too, and §2.2's 9 cell writes and 58 buffer stores become `:=` and
-`store`.
+two-argument form disappears too, and §2.2's 9 cell writes and 58 buffer stores all become `:=`, as
+the next paragraph says.
 
 **This diverges from abstract.md §10 deliberately, and P5's correction makes the case stronger.**
 That spec proposes `set!` for the write and `store` for the buffer, Scheme's convention — two
@@ -1276,14 +1315,19 @@ nested forms** (the 3 sites of Finding 1).
     …))
 ```
 ```lisp
-(let ((n = (len xs))  (out = (table n 0))  (count := 0))  …)                    ; B′
+(let ((n = (len xs))  (out := (table n 0))  (count := 0))  …)                   ; B′
 ```
 ```
-LET n == Len(xs)  out == table(n, 0)  count := 0  IN  …                         \\ D
+LET n == Len(xs)  out := table(n, 0)  count := 0  IN  …                         \\ D
 ```
 ```go
-{ n = len(xs);  out = table(n, 0);  count := 0;  … }                            // J
+{ n = len(xs);  out := table(n, 0);  count := 0;  … }                           // J
 ```
+
+Corrected in the pass of 2026-10-11: B′, D and J wrote the buffer `out` with the definitional
+operator, which makes it an immutable table, while P5 and K's P7 wrote a buffer with `:=`. Under
+ADR 0052 it is `out := …`. That adds one token to B′'s and J's counts in §2.5 and §2.9 (`=` becomes
+`:=`), and none to D's (`==` becomes `:=`); the tables there are left as measured.
 
 ---
 
@@ -1305,7 +1349,8 @@ LET age := 0  name := "" IN  ( … ; ⟨age, name⟩ )                          
 ---
 
 **P9 — a cell holding a table.** **Not expressible in T** (§2.2); the stated kind makes it writable,
-since `:=` says cell whatever the initializer is.
+since `:=` says cell whatever the initializer is. Under ADR 0052 this *is* a buffer: a state binder
+holding a table, replaced whole by a fresh one.
 
 ```lisp
 ;; T — no spelling exists
@@ -1332,6 +1377,13 @@ Counting as §1.6, with each block's trailing column marker stripped.
 | D | 232 | 1.01 | **2** | **2** | 0 | 1 |
 | J | 232 | 1.01 | 4 | 4 | 0 | 1 |
 
+> **Not reproducible as it stands** (pass of 2026-10-11). The script that counted this table and
+> §2.9's was not kept, and the two disagree on the same programs: T is 229 here and 239 there, B′
+> 336 and 312. A recount with a tokenizer rebuilt from §1.6's rule reproduces the depth and closing
+> run columns exactly, and gives T 223, B′ 331, D 242, J 223: the same ordering for B′, and D
+> heavier than J by 9%. Before a decision rests on the token column, it should be recounted by one
+> kept script.
+
 **My estimates were wrong again, and this time the correction changes the conclusion.** I had written
 that D and J were ~15% shorter than today; they are **the same size** (1.01×). So:
 
@@ -1354,7 +1406,7 @@ that D and J were ~15% shorter than today; they are **the same size** (1.01×). 
 
 **The installment's result is structural and it is the same in all three candidates.** Findings 1–3
 hold whatever the spelling: one binder shape with three operators, `let` and `local` merged, the kind
-stated rather than inferred, and `set` split into `store` and `:=`. That is where the two holes and
+stated rather than inferred, and `set` replaced by one operator, `:=`, with two left-hand sides. That is where the two holes and
 the eight shapes go, and it costs no tokens (§2.5).
 
 **J gains the most from its own shape, and it is a decision rather than a spelling.** Its statement
@@ -1390,13 +1442,14 @@ candidate does.
    uses it, or uniformity breaks again.
 2. **`let` and `local` are one form** (Finding 1). "This scope has state" is read off the binders.
 3. **The kind is stated by the operator, never inferred from the initializer.** `=` is
-   definitional, `:=` is state, and **`linear` is written** where a definitional binder is a buffer
-   (26 sites). The constructors say only how the contents are given — `array` a graph, `table` a
-   rule — and nothing about mutability (Finding 3, withdrawn).
+   definitional, `:=` is state, and ~~**`linear` is written** where a definitional binder is a
+   buffer (26 sites)~~ **a buffer is a state binder holding a fresh table** (ADR 0052, which
+   supersedes the 26 markers). The constructors say only how the contents are given — `array` a
+   graph, `table` a rule — and nothing about mutability (Finding 3, withdrawn).
 4. **One operator, two left-hand sides.** `x := e` writes a cell, `c[j] := e` stores into a buffer,
    and `set` retires — freeing it for the set former (fit-research decision 4). No later construct
    may distinguish two operations by arity. A buffer's threading is **produced by the translation**,
-   not written, so the proofs still induct on the store chain (notation-research §4.5).
+   not written, so the proofs still induct on the store chain (ADR 0052).
 5. **A block is a statement list whose value is its last expression**, if J wins — and then `seq`
    never returns, and any later construct with a body uses the same block.
 
@@ -1411,17 +1464,19 @@ candidate does.
    statements with no bracket (**K**), and it wins every measure — 0.97× today's tokens, depth 2,
    closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
    terminates a munching form.
-2. ~~**`x := table(n, f)`**~~ **— answered in §2.10, and my reason was wrong.** `table(n, f)` is a
+2. ~~**`x := table(n, f)`**~~ **— answered in §2.10, and answered again by ADR 0052**: `x := table(n, f)`
+   is now the buffer itself. §2.10's answer, as written: my reason was wrong. `table(n, f)` is a
    table-valued expression, so `:=` binds a cell holding it and nothing is refused. A cell holding a
    **buffer** is refused too, but *not* because "a buffer is not a value" — a buffer is a value
    (§2.10). It is refused by **linearity**, already checked at every binder, because the
    state-passing translation duplicates the reference. Verified.
-3. **Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
-   binder, 26 sites, because nothing else can say it once `let` and `local` merge. The alternatives
-   are keeping the two heads (Finding 1 gives way) or a fourth binder operator (a mode in a kind's
-   position). My recommendation is to write it.
+3. ~~**Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
+   binder, 26 sites.~~ **Superseded by ADR 0052**: a buffer is a state binder, and `linear` is
+   written only on parameters.
 4. **ADR 0047 needs a successor** either way: its initializer rule is what the stated kind replaces,
    and its translation, cells-as-loop-variables and everything in local.md §3 are unchanged.
+   **ADR 0052 amends it** for buffers; whether `let` and `local` merge, the other half, is still
+   this document's question.
 5. **`(table n v)` with a literal is a buffer initializer only** — in a `let` it reduces to `(0 1)`
    and is refused at emission as "an application of 0". Either the constructor should accept a
    literal everywhere (the constant table as a value) or the diagnostic should name the real cause.
@@ -1459,12 +1514,12 @@ LOOP i := 0 :
                    IF b = 10 THEN lines := lines + 1 ELSE () ;
                    AGAIN(i + 1)
 
-c := [i ∈ 0..n-1 ↦ FALSE] ;                                                     \\ P5
+c := [k ∈ 0..n-1 ↦ FALSE] ;                                                     \\ P5
 LOOP j := i * i :
     j < n  → c[j] := TRUE ; AGAIN(j + i)
  [] OTHER  → c
 
-n == Len(xs) ; out := [i ∈ 0..n-1 ↦ 0] ; count := 0 ; g(out, count)             \\ P7
+n == Len(xs) ; out := [k ∈ 0..n-1 ↦ 0] ; count := 0 ; g(out, count)             \\ P7
 age := 0 ; name := "" ; h(age) ; ⟨age, name⟩                                     \\ P8
 ```
 
@@ -1627,7 +1682,8 @@ call and then reading it was accepted and observed the second write through a de
 generalisation the merge wants was forced by host write-borrows and is in the compiler today.
 
 **Where the freeze is: at `build`'s boundary — and `build` is the core form both surfaces produce.**
-`core/scope.go`'s `readLocal` desugars
+`core/scope.go`'s `readLocal` desugared (since step 1a, μ reads a `local` into a tree in
+`core/mu.go` and D makes the core form through `localBinder`)
 
 ```
 b (table n f)        ⟶  (build n (fn (b) (let b FILL …)))
@@ -1643,7 +1699,7 @@ untouched.
 
 | | effect of merging | why |
 |---|---|---|
-| **the reader** | **one function instead of two** (`readLet` + `readLocal`), and it needs a marker to know which binders are `build`s — see below | the only place that changes |
+| **the reader** | **one function instead of two** (`readLet` + `readLocal`, since step 1a `muLet` + `muLocal`), and it needs a marker to know which binders are `build`s — see below | the only place that changes |
 | **the compiler below the reader** | **none** | grepped: only `core/read.go`, `core/scope.go` and one test mention `local` or `LocalName`. Nothing in `emit/` or `ir/` knows the word. Buffers are `build`; cells are `#cell`, translated to loop variables before reduction |
 | **the checker** | **none** | it runs on the residual, where there is no `local` — only `build` and applications. `(buffer V)` never enters a signature, which is ADR 0018's affordability argument |
 | **the proofs** | **none** | the store-chain induction keys off the *term shape* — `(set b i v)` hands back `b` — not off a scope head. The refinement layer's facts are about `build` and `set` |
@@ -1665,13 +1721,17 @@ t = table(n, 0)             an immutable table
 linearity walk, the cell translation, the proofs, the IR — is already indifferent to which head was
 written.
 
+> **ADR 0052 makes the bill zero.** A buffer is the state binder holding a table, so `:=` is the
+> marker, and the reader decides `build` from the operator and R0's fresh initializer.
+
 #### What is not verified
 
 These are claims about where the code keys off what, read from the source and spot-checked by the
 three refusals above. **No merged reader has been built or run**, so `cmd/check` has not been through
 it. What would confirm it is the smallest possible experiment: teach `readLet` to accept `linear` and
 route those binders through `localBinder`, then check that emission is byte-identical on the 26 sites.
-That is a few hours and it is the right first build step if the merge is taken.
+That is a few hours and it is the right first build step if the merge is taken. (Under ADR 0052 the
+experiment routes `:=` binders with a fresh table instead; `readLet` is now `muLet`.)
 
 ### 2.11 Scattered binders: does a statement list break anything?
 
@@ -1688,8 +1748,8 @@ A grouped `let` and nested `let`s **reduce to the same term**. Verified at `8d73
 (let x (f 1) (let y (g 2) (h x y)))      ⟶  (h (f 1) (g 2))
 ```
 
-`readLet` and `readLocal` both **right-fold** into a chain of single-binder forms
-(`core/scope.go`: `for i := len(params) - 1; i >= 0; i--`). So "grouped" and "scattered" are one
+`readLet` and `readLocal` both **right-fold** into a chain of single-binder forms (then
+`core/scope.go`; since step 1a, D in `core/desugar.go`, `for i := len(binds) - 1; i >= 0; i--`). So "grouped" and "scattered" are one
 term, and the group is a surface convenience with **no image in the core**. Nothing in the reducer,
 the checker, the refinement layer, the IR or a backend can tell the difference, because none of them
 ever saw a group.
@@ -1736,7 +1796,8 @@ verified, it reduces to the identical term as without it:
 ⟶  (let (io.print-int i) (fn (#_) (again (+ i 1))))     the same as without the binder
 ```
 
-**3. Linearity — also easier.** `emit/linearity.go`: *"it walks in EVALUATION ORDER: a `let`'s value
+**3. Linearity — also easier** (and under ADR 0052 replaced by R0–R4, which are syntactic, so the
+point is stronger). `emit/linearity.go`: *"it walks in EVALUATION ORDER: a `let`'s value
 before its body, an `if`'s condition before its branches, arguments before the operation that
 consumes them."* **A statement list *is* evaluation order**, so the reading order and the checking
 order coincide. A reader who follows the page follows the check.
@@ -1771,6 +1832,11 @@ alike.
 > characters apart and neither reads as C's assignment. **K already uses `==`** (it is D's lexicon),
 > which is why K is less exposed here than J, which uses `=`. If a braced surface is chosen, it
 > should take `==` too.
+>
+> **ADR 0052 raises the stakes.** `t == table(n, 0)` against `b := table(n, 0)` is now the
+> difference between an immutable table and a buffer. And J's `=` is also its equality test,
+> `if err = 0`, so in J one character is both a binder and a comparison: a homonym (fit-research's
+> F2). D and K separate them, `==` binding and `=` comparing, as TLA+ does.
 
 **(b) The legibility trade is real, and it is hamza's call.** With a group you see every name a scope
 introduces at a glance. Scattered, you do not — you scan forward to the block's end to know where a
@@ -1824,11 +1890,17 @@ longer returns the buffer it borrowed: today's `func(dst, src []byte) ([]byte, i
 hex.Encode(dst, src) }(%s, %s)` becomes `hex.Encode(%s, %s)`. That is ADR 0048's stage B, for
 buffers."*
 
-So the surface change pays for itself in the **emitted code**: the wrapper that exists only to hand
-the buffer back goes away. That is a measurable claim and it is not measured yet — it is the first
-thing to check if this is taken, because it touches every write-borrowing declaration
-(`encoding/hex` 8, `strconv` 10, `io` 8, `unicode/utf8` 4, `encoding/binary` 4, `strings` 4,
-`fmt` 3, `os` 2).
+~~So the surface change pays for itself in the **emitted code**: the wrapper that exists only to hand
+the buffer back goes away.~~ **Corrected by storeorder-research §2.7 and ADR 0052, decision 4: it
+does not follow.** The translation rebinds the buffer to the version the borrow returns, so the
+residual still needs one handed back, and the template stays. Removing it needs the IR to know that
+a write-borrow returns the same storage, a separate step with its own measurement.
+
+The counts here were wrong too: they were lines matching `(buffer`, two per declaration. Go has **30
+declarations** that take a buffer and hand one back: 12 write-borrows whose template wraps the call
+(`encoding/hex` 2, `encoding/binary` 2, `io` 4, `strings` 2, `os` 1, `unicode/utf8` 1), and 18
+growth calls (`strconv` 10, `fmt` 3, `encoding/hex` 2, `encoding/binary` 2, `unicode/utf8` 1),
+which become `b := f(b, …)`.
 
 #### Consequence 2: "linearity becomes structural" — true, with one rule it does not state
 
@@ -1844,6 +1916,10 @@ So the claim needs an extra condition, and it is a syntactic one:
 
 > **A buffer may be named only by its binder** — a scope's, or a `(buffer V)` parameter's. It may not
 > be bound to a second name.
+
+This is ADR 0052's R1. It needs a companion this section missed, R0: the table a buffer receives
+must be fresh, or `x := xs ; x[0] := 1` would write into the immutable `xs`. R1 forbids a second name
+going out; R0 forbids one coming in.
 
 With that, no term holds an old version, and linearity through a body **is** structural: the aliasing
 the check exists to catch becomes unwritable. That is fit-research's F5 fix — a checked invariant
@@ -1869,13 +1945,14 @@ two obligations and that split survives unchanged:
 So the honest form of notation-research's claim is: **linearity through a body becomes structural
 given "a buffer may be named only by its binder"; the caller's uniqueness promise at an export stays
 an assumption, as ADR 0020 has it.** The check `emit/linearity.go` performs would shrink to the
-syntactic condition plus that assumption — which is a real simplification of the 1,000-odd lines that
-walk evaluation order, and a claim that should be verified by building it rather than by argument.
+syntactic condition plus that assumption — which is a real simplification of the 493 lines of
+`emit/linearity.go` that walk evaluation order (the 1,180 of `emit/linear.go`, once counted here, are
+the linear arithmetic, not linearity), and a claim that should be verified by building it rather than by argument.
 
 #### What this does to §2.10's answer
 
 Nothing, and that is worth saying. §2.10's result was that the *freeze* is at `build`'s boundary and
-that the merge costs only the word `linear`. The program-order store changes **how a store is
+that the merge costs only the word `linear` (ADR 0052 has since removed even that). The program-order store changes **how a store is
 written**, not where the scope ends or what freezing is. The freeze is still the retraction of a
 permission at `build`'s boundary; the chain the proofs induct on is still a chain, produced by the
 translation instead of typed by the programmer.

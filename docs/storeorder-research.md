@@ -2,8 +2,10 @@
 
 Research, 2026-10-11, on hamza's request. surface-design.md §2.4 wrote a store as `c[j] := TRUE`, in
 program order, and counted it as notation-research §4.5's decision. That decision was never taken,
-so hamza asked: *"research it first. the math the algebra and the literature."* Nothing here is
-decided.
+so hamza asked: *"research it first. the math the algebra and the literature."* **Decided**:
+all four of §6's recommendations (hamza, 2026-10-11), as
+[ADR 0052](decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), which adds R0, the
+freshness of a buffer's value, the inbound half of uniqueness this research left implicit. Not built.
 
 ## 0. The answer, in brief
 
@@ -66,7 +68,7 @@ A buffer today (ADR 0018, 0020, 0031, 0047; local.md §2) is **linear and thread
 The proposal writes the same program in program order:
 
 ```
-c := [i ∈ 0..n-1 ↦ FALSE] ;
+c := [k ∈ 0..n-1 ↦ FALSE] ;
 LOOP j := i * i :
     j < n  → c[j] := TRUE ; AGAIN(j + i)
  [] OTHER  → c

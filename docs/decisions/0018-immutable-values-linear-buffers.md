@@ -2,7 +2,10 @@
 
 Date: 2026-08-21
 Status: Accepted — **built 2026-08-25**,
-[tables-write-2026-08-25](../../gauntlet/results/tables-write-2026-08-25.md)
+[tables-write-2026-08-25](../../gauntlet/results/tables-write-2026-08-25.md). **Its check is amended by
+[ADR 0052](0052-a-buffer-is-a-state-binder-holding-a-table.md)** (not built): written in program
+order, a buffer's linearity follows from five syntactic rules, R0–R4, in place of the ordering walk.
+The guarantee, immutable values and one scoped buffer updated in place, is unchanged.
 
 > **Two corrections the build produced.**
 >

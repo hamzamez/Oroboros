@@ -129,11 +129,21 @@ Bind ::= p = e            definitional:  p denotes e's value           (let, a b
        | p        [μ]      ranging, no claim: p ∈ V with no obligation   (settypes §10: "no claim" ≠ V)
 ```
 
+> **Amended by [ADR 0052](../decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), not built.**
+> A buffer is a **state** binder whose value is a table, `b := table(n; f)`, written in program order:
+> `assign(b[i]; e)` writes an element, `assign(b; e)` the whole value. A definitional binder holding a
+> table is an immutable table. `linear` is written only on a ranging binder, a parameter, where it is
+> a borrow passed by reference. Linearity through a body follows from R0–R4: a buffer's value is fresh,
+> it is named only by its binder, a call borrows it and is never handed it twice, no closure over it
+> survives its scope, and the scope's value freezes it. Σ₀'s `store` leaves the source signature and
+> stays in Λ⁺ as D's image. This section, §2.4 and §9.4's `local` and store rows are rewritten when the
+> surface is built.
+
 **Modes** μ (fit-research §3.2, decision 2, ADR 0050):
 
 | mode | kind | meaning | where |
 |---|---|---|---|
-| `linear` | usage | used exactly once on every path (ADR 0018, 0020) | a parameter; implied on a buffer binder |
+| `linear` | usage | used exactly once on every path (ADR 0018, 0020) | a parameter; implied on a buffer binder (ADR 0052: a parameter only) |
 | `inout` | passing | call by value-result: a reference to a fresh copy in, the copy's value out (ADR 0048; Algol W, Ada's `in out`) | a host declaration's parameter |
 | `out` | passing | value-result with no value in: a fresh zero in, a value out (ADR 0048 §6) | a host declaration's parameter |
 
@@ -170,7 +180,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e |
 | **case**(e; ā) | (Expr, Arm*) → Expr | choice: the first arm whose pattern matches e's value and whose guard holds |
 | **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: state binders s̄, invariant I, arms with Tail bodies (ADR 0015) |
-| **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047 |
+| **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047. ADR 0052 (not built): both are state binders, a buffer the one whose value is a fresh table |
 | **assign**(x; e) | (𝒩, Expr) → Expr | a cell's write in program order; value the unit (local.md §3) |
 | **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value |
 | **mem**(e; S) | (Expr, Expr) → Expr | membership as a test, where S is decidable at run time (W6) |
@@ -832,8 +842,9 @@ position, structure by parity, uniform application) and why each was rejected ar
 - **Nested patterns**: compiled to decision trees by the standard algorithms (Wadler 1987; Maranget,
   "Compiling pattern matching to good decision trees", ML Workshop 2008). They need no new operator,
   only a recursive Pat.
-- **Buffers in program order** (notation-research §4.5): it would make a buffer binder a state binder
-  and `t[i] := e` an assign at an index. That is a change of meaning, with its own ADR.
+- **Buffers in program order**: decided by
+  [ADR 0052](../decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), and built with the
+  surface (§2.2's note).
 - **Callbacks, tiers 1 and 2** (callbacks.md): a λ argument to a host name, which W5 and 𝒰's
   [0,∞] scaling already describe.
 - **Temporal formulas for concurrency** (settypes §10): a further sort of Formula.

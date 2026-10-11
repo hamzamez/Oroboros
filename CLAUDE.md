@@ -86,14 +86,18 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   syntax, not prefix against infix. β's textual substitution measured 6 of 1,590 occurrences. Every
   notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
   the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds.
-- **[storeorder-research.md](docs/storeorder-research.md), not yet decided.** Program-order stores,
+- **[storeorder-research.md](docs/storeorder-research.md), decided by
+  [ADR 0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), not built.** Program-order stores,
   `b[i] := v`, against today's threaded buffers, researched before the surface takes either. The two are
   one semantics: the state-passing translation maps a place onto a linear functional array, and its
   image is the single-threaded programs (Schmidt 1985; Array SSA). Program order removes 55 loop
   variables and 51 back-edge arguments that only carry a buffer, replaces the linearity ordering check
   by Reynolds' syntactic control of interference (four rules), and makes a buffer a state binder
   holding a table, which removes installment 2's `linear` markers. It refuses 4 sites (version
-  renames, all in one differential case), and predicts unchanged emission. Four decisions for hamza.
+  renames, all in one differential case), and predicts unchanged emission. hamza took all four
+  recommendations: program order, the buffer as a state binder, borrowed parameters by reference, and
+  the write-borrow wrapper kept. ADR 0052 adds R0, a buffer's value is fresh, the inbound half of
+  uniqueness. Built with the surface, behind the byte-identical gate.
 - **[spec/abstract.md](docs/spec/abstract.md), decided (ADR 0050), not built.** Abstract Oroboros: the language as the initial algebra of a many-sorted binding signature
   (thirteen primitive expression operators, six derived ones each with its equation, three binder
   kinds; usage and passing modes on binders, `linear`, `inout`, `out`, in place of `(buffer V)` and
@@ -560,6 +564,7 @@ rejected alternatives.
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
+| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — not built | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
 
 ## How this project is run
 

@@ -4,6 +4,9 @@ Date: 2026-10-08
 Status: Accepted (hamza: "go with local, go ahead and build it. always mathematical and algebraic.
 do your best"). Generalizes ADR 0018's scoped buffer and supersedes the binder spelling of `build`
 (tables.md §2.4); the core form `(build n (fn (b) …))` and ADR 0031's product are unchanged.
+**Amended by [ADR 0052](0052-a-buffer-is-a-state-binder-holding-a-table.md)** (not built): a buffer
+is a state binder holding a table, the binder's operator decides definitional against state, and the
+initializer rule stays as a legality condition, R0 (an element write needs a fresh table).
 
 ## Context
 

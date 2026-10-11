@@ -86,6 +86,14 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   syntax, not prefix against infix. β's textual substitution measured 6 of 1,590 occurrences. Every
   notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
   the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds.
+- **[storeorder-research.md](docs/storeorder-research.md), not yet decided.** Program-order stores,
+  `b[i] := v`, against today's threaded buffers, researched before the surface takes either. The two are
+  one semantics: the state-passing translation maps a place onto a linear functional array, and its
+  image is the single-threaded programs (Schmidt 1985; Array SSA). Program order removes 55 loop
+  variables and 51 back-edge arguments that only carry a buffer, replaces the linearity ordering check
+  by Reynolds' syntactic control of interference (four rules), and makes a buffer a state binder
+  holding a table, which removes installment 2's `linear` markers. It refuses 4 sites (version
+  renames, all in one differential case), and predicts unchanged emission. Four decisions for hamza.
 - **[spec/abstract.md](docs/spec/abstract.md), decided (ADR 0050), not built.** Abstract Oroboros: the language as the initial algebra of a many-sorted binding signature
   (thirteen primitive expression operators, six derived ones each with its equation, three binder
   kinds; usage and passing modes on binders, `linear`, `inout`, `out`, in place of `(buffer V)` and

@@ -218,3 +218,118 @@ func (d *desugarer) variant(v *VariantDecl) *Term {
 	}
 	return t
 }
+
+// ---- Host declarations (step 1c, ADR 0051 D4) ----
+
+// TermTree is the tree a target file's term reads as: a name, a literal, an
+// application of them, or a product `(tuple …)`, which the reader has made a
+// Church tuple. A target file's set expressions, claims and host clauses are
+// only these, so D(TermTree(t)) is t. Any other λ is refused: no declaration's
+// claim holds one, and reading one back would need its body opened.
+func TermTree(t *Term) (Expr, error) {
+	switch t.Kind {
+	case KName:
+		return &Var{Name: t.Name}, nil
+	case KInt, KFloat, KStr, KBool:
+		return &Lit{T: t}, nil
+	case KApp:
+		if len(t.Kids) == 0 {
+			return &EmptyList{}, nil
+		}
+		fn, err := TermTree(t.Kids[0])
+		if err != nil {
+			return nil, err
+		}
+		a := &Apply{Fn: fn}
+		for _, k := range t.Kids[1:] {
+			e, err := TermTree(k)
+			if err != nil {
+				return nil, err
+			}
+			a.Args = append(a.Args, e)
+		}
+		return a, nil
+	case KFn:
+		// THE PRODUCT FORMER, which the reader has already made a Church tuple:
+		// `(tuple A B)` reads as `(fn (#k) (#k A B))`, and D's clause for Σ₀'s
+		// `tuple` builds exactly that term back.
+		if b := t.Closed(); len(t.Params) == 1 && t.Params[0] == TupleBinder && b.Kind == KApp &&
+			len(b.Kids) > 0 && b.Kids[0].Kind == KBound && b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
+			a := &Apply{Fn: &Var{Name: "tuple"}}
+			for _, k := range b.Kids[1:] {
+				e, err := TermTree(k)
+				if err != nil {
+					return nil, err
+				}
+				a.Args = append(a.Args, e)
+			}
+			return a, nil
+		}
+	}
+	return nil, fmt.Errorf("%s is not a set expression, a claim or a host clause", t)
+}
+
+// HostSig is D of a host definition: today's target-file `sig`, a usage mode
+// written back as the type former it was spelled with — a linear table as
+// `(buffer V)`, an inout parameter as `(cell T)`, and a variadic list of them as
+// `(array (cell T))` (ADR 0050, decision 2).
+func HostSig(def *DefDecl) *Term {
+	d := newDesugarer()
+	l := def.Value.(*Lam)
+	c, h := l.Claim, def.Host
+	variadic := false
+	for _, m := range h.Markers {
+		variadic = variadic || m == "variadic"
+	}
+	params := &Term{Kind: KApp}
+	for i, p := range c.Params {
+		set := p.Set
+		switch {
+		case p.Mode == Linear:
+			set = formed("buffer", set.(*Apply).Args[0])
+		case p.Mode == InOut && variadic && i == len(c.Params)-1:
+			set = formed("array", formed("cell", set.(*Apply).Args[0]))
+		case p.Mode == InOut:
+			set = formed("cell", set)
+		}
+		if p.Name == "" {
+			params.Kids = append(params.Kids, d.term(set))
+		} else {
+			params.Kids = append(params.Kids, App(Name(p.Name), d.term(set)))
+		}
+	}
+	res := c.Result
+	switch {
+	case len(c.ResultModes) == 1 && c.ResultModes[0] == Linear:
+		res = formed("buffer", res.(*Apply).Args[0])
+	case len(c.ResultModes) > 1:
+		t := res.(*Apply)
+		comps := append([]Expr(nil), t.Args...)
+		for i, m := range c.ResultModes {
+			if m == Linear {
+				comps[i] = formed("buffer", comps[i].(*Apply).Args[0])
+			}
+		}
+		res = &Apply{Fn: t.Fn, Args: comps}
+	}
+	result := d.term(res)
+	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(def.Name), params, result}}
+	for _, m := range h.Markers {
+		t.Kids = append(t.Kids, Name(m))
+	}
+	if c.Pre != nil {
+		t.Kids = append(t.Kids, App(Name("where"), d.term(c.Pre)))
+	}
+	if c.Post != nil {
+		t.Kids = append(t.Kids, App(Name("ensures"), d.term(c.Post)))
+	}
+	host := App(Name("host"), Name(h.Kind), Str(h.Template))
+	for _, k := range h.Clauses {
+		host.Kids = append(host.Kids, d.term(k))
+	}
+	t.Kids = append(t.Kids, host)
+	return t
+}
+
+// formed is a type former applied to one set, `(buffer V)`.
+func formed(name string, x Expr) Expr { return &Apply{Fn: &Var{Name: name}, Args: []Expr{x}} }

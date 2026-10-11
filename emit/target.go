@@ -2284,7 +2284,7 @@ func (tg *Target) declare(f *core.Term, modPath, file string) error {
 		tg.Deferred = append(tg.Deferred, deferred{form: f, mod: modPath, file: file})
 		return nil
 	}
-	p, err := parseSig(f, file)
+	p, err := declaredPrim(f, file)
 	if err != nil {
 		return err
 	}

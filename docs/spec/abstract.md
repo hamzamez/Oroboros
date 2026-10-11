@@ -1,10 +1,11 @@
 # Abstract Oroboros
 
-Status: **decided; steps 1a and 1b built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md):
+Status: **decided; steps 1a, 1b and 1c built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md):
 the computation's terms, `core/abs.go`, `core/mu.go`, `core/desugar.go`;
 [abstract1b-2026-10-11](../../gauntlet/results/abstract1b-2026-10-11.md): program declarations, `core/decl.go`,
-with [ADR 0051](../decisions/0051-a-definition-is-a-named-lambda.md)'s definition as a named λ).
-Target files' declarations are step 1c.
+with [ADR 0051](../decisions/0051-a-definition-is-a-named-lambda.md)'s definition as a named λ;
+[abstract1c-2026-10-11](../../gauntlet/results/abstract1c-2026-10-11.md): target files' declarations as
+definitions with a host body, usage as modes, `emit/hostdef.go`).
 Written 2026-10-10 on hamza's request ("specify. always mathematical
 and algebraic"); [ADR 0050](../decisions/0050-the-abstract-syntax-fits-the-semantics.md) decides it
 with [fit-research.md](../fit-research.md) §7 decisions 1–6, as recommended. The surface notation is
@@ -767,7 +768,11 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
      program declarations as trees, a `sig` the claim of its definition's λ (ADR 0051), the
      hand-written redex refused. The corpus and every test snippet read identically; seven planted
      faults caught.
-   - **1c, next**: target files' `sig`s as definitions with a host body (ADR 0051, D4).
+   - **1c, built** ([abstract1c-2026-10-11](../../gauntlet/results/abstract1c-2026-10-11.md)): every
+     target declaration (876) passes through its tree, a definition with a host body whose claim
+     carries modes (`linear`, `inout`) in place of `(buffer V)` and `(cell T)`; every primitive
+     identical; emission byte-identical; eight planted faults caught.
+   - **Next, step 2**: 𝒰 and 𝓔 on A.
    - **Deferred to the step that consumes them**: `assign`, which needs the scope above it and has no
      consumer before step 2; a `case` pattern resolved into Pat, which needs Load's declaration
      environment and belongs with the step that moves Load onto trees.

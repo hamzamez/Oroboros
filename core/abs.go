@@ -72,14 +72,32 @@ type Claim struct {
 	Pre    Expr
 	Post   Expr
 	At     int
+	// ResultModes are the result binder's usage, one per component of a tuple
+	// result or one for a single result, and empty when none is written: a
+	// write-borrow hands its buffer back as a linear component (ADR 0050,
+	// decision 2; ADR 0051, D3: the result binder's pattern may be a tuple).
+	ResultModes []Mode
 }
 
-// ClaimParam is one parameter's set, and the claim's name for the parameter.
-// The name is "" for a parameter given only its set, positionally.
+// ClaimParam is one parameter's set, its mode, and the claim's name for it. The
+// name is "" for a parameter given only its set, positionally.
 type ClaimParam struct {
 	Name string
 	Set  Expr
+	Mode Mode
 }
+
+// Mode is how a binder is used or passed, which is not what its values are
+// (ADR 0050, decision 2; settypes §2.5). A buffer is a table bound linearly; a
+// cell the host writes is passed by value-result, inout (ADR 0048). On a
+// variadic declaration's list, inout is each trailing argument's.
+type Mode string
+
+const (
+	NoMode Mode = ""
+	Linear Mode = "linear"
+	InOut  Mode = "inout"
+)
 
 // Apply is application: of a definition, a host name, a λ, or an owned name.
 // `tuple` is one of Σ₀'s names (abstract.md §1.3), the product former, and D
@@ -302,6 +320,20 @@ type DefDecl struct {
 	Name  string
 	Value Expr
 	At    int
+	// Host is a host declaration's body (abstract.md §2.6, ADR 0051, D4): the
+	// definition's Value is then a λ with no body, whose claim is an axiom
+	// checked against the host (ADR 0022), realized by this template.
+	Host *HostBody
+}
+
+// HostBody is the host's realization of a declaration: the template's kind and
+// text, the host clauses (import, lib, checked, jump), and the markers the
+// declaration states of the operation (pure, index, variadic).
+type HostBody struct {
+	Kind     string
+	Template string
+	Clauses  []Expr
+	Markers  []string
 }
 
 // ClaimDecl is a claim written for a name with no λ to carry it: a `sig` whose

@@ -4,7 +4,8 @@ Date: 2026-10-11
 Status: Accepted (hamza, 2026-10-11: "agreed to all recommendations, go ahead with 1b"). Amends
 [spec/abstract.md](../spec/abstract.md) §2.4, §2.6 and W3, under
 [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md). Built for programs in step 1b
-([abstract1b-2026-10-11](../../gauntlet/results/abstract1b-2026-10-11.md)).
+([abstract1b-2026-10-11](../../gauntlet/results/abstract1b-2026-10-11.md)) and for target files in step 1c
+([abstract1c-2026-10-11](../../gauntlet/results/abstract1c-2026-10-11.md)).
 
 ## Context
 

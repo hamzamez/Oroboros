@@ -6,6 +6,12 @@ closures cost us access to them?
 **Short answer: much less than it looks, and the current refusal is broader than the design needs.**
 Three tiers, and only the third is a genuine closure.
 
+> **How a declaration states a callback's shape** is decided by
+> [ADR 0053](../decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md)
+> ([arrow-research.md](../arrow-research.md)): the parameter's set is a claim, a λ's header without a
+> body, meaning a function space Π(P). R with markers for call count, escape and no captured buffer.
+> A function the host returns is a host type whose eliminator is application, not a callback.
+
 ---
 
 ## 1. The refusal is broader than "no closures"

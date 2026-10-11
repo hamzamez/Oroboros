@@ -98,6 +98,16 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   recommendations: program order, the buffer as a state binder, borrowed parameters by reference, and
   the write-borrow wrapper kept. ADR 0052 adds R0, a buffer's value is fresh, the inbound half of
   uniqueness. Built with the surface, behind the byte-identical gate.
+- **[arrow-research.md](docs/arrow-research.md), decided by
+  [ADR 0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md), not built.** Whether
+  the language needs function set formers. A function-space claim f ∈ Π(P).R is needed at one place,
+  a host's callback parameter, where the body is opaque (150 of Go's 5,536 functions and methods,
+  `gauntlet/stdlib/callbacks.go`); a λ's claim and a definition's meaning already state theirs, and a
+  definition's static parameter is discharged by inlining. The form is a claim used as a set, a λ's
+  header without a body, not an operation of the type algebra: arrows under ∪ ∩ ∖ are semantic
+  subtyping with arrows (Frisch, Castagna and Benzaken 2008) for operations no host uses, and a heading
+  carries what a set cannot (call count, escape, no captured buffer). A function a host returns (50)
+  is a host type with application. Built with callbacks tier 1.
 - **[spec/abstract.md](docs/spec/abstract.md), decided (ADR 0050), not built.** Abstract Oroboros: the language as the initial algebra of a many-sorted binding signature
   (thirteen primitive expression operators, six derived ones each with its equation, three binder
   kinds; usage and passing modes on binders, `linear`, `inout`, `out`, in place of `(buffer V)` and
@@ -565,6 +575,7 @@ rejected alternatives.
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
 | A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — not built | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
+| The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 
 ## How this project is run
 
@@ -1120,4 +1131,4 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`, and `ages`, cells the host writes), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
-| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `acceptance/`, nineteen programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, and `fmt-scan`, Go storing through cells (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, nineteen programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, and `fmt-scan`, Go storing through cells (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

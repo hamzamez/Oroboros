@@ -127,6 +127,7 @@ Bind ::= p = e            definitional:  p denotes e's value           (let, a b
        | x := e           state:         x starts at e, changes on a path   (a loop variable, a cell)
        | p ∈ S  [μ]        ranging:       p ranges over S             (a parameter, ∀, ∃, comprehension)
        | p        [μ]      ranging, no claim: p ∈ V with no obligation   (settypes §10: "no claim" ≠ V)
+       | f ∈ λ(b̄; r; φ; ψ)  ranging over operators: f ∈ Π(P). R, a claim used as a set (ADR 0053)
 ```
 
 > **Amended by [ADR 0052](../decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), not built.**
@@ -225,6 +226,7 @@ name of Σ₀, and the two agree on ℤ.
 Decl ::= def(f; e)                           a name bound to a value; a function's is a named λ (ADR 0051)
        | def(f; λ(b̄; r; φ; ψ); host(kind; template; clauses))   a host's: the λ's claims, a host body
             kind ∈ {expr, stmt};  markers ⊆ {pure, index, variadic}
+       | def(n; λ(b̄; r; φ; ψ))                 a named claim, static: a host's named function type (ADR 0053)
        | variant(n; b̄; c₁(S̄₁) … cₖ(S̄ₖ); success c?; relevant?)
        | spec(f; b̄; r ∈ U; e)                 a specification function: logic only, may recur
        | lemma(n; φ; steps)                   a proven sentence; steps a sequence of formulas
@@ -248,6 +250,13 @@ Module ::= module(path; decl*) | use(path; alias?) | export(f̄) | provides(targ
   ```
   which is a Z schema (Spivey 1992) in its declarations and predicate. **A host declaration is the same
   operator with a host body**, an axiom checked against the host (ADR 0022).
+- **A function-space claim is a claim used as a set** (ADR 0053, not built). A host's callback
+  parameter ranges over operators: `less ∈ λ(i ∈ int, j ∈ int; r ∈ bool)`, meaning
+  less ∈ Π(P). R, P the parameters' comprehension and R the result's, intersected with what the
+  claim's markers require (call count, escape, no captured buffer, decided with callbacks tier 1).
+  An argument with claim (P_f, R_f) fits iff P ⊆ P_f and ∀x̄ ∈ P. R_f(x̄) ⊆ R(x̄): inclusions
+  between sets of values. Π is not an operation of the type algebra: no ∪, ∩ or ∖ applies to a
+  claim, and no claim is a value, so tier 3 stays refused (arrow-research.md).
 - **Polymorphism needs no operator.** A static parameter is a ranging binder over a set of sets,
   `E ∈ subsets(error)`, and instantiation is app (ADR 0049 §5).
 - **variant.** Its binders are its type parameters, ranging over sets of values. Its constructors are
@@ -298,9 +307,9 @@ environment of resolution (ADR 0011).
 | **W4** | **a loop is total**: its last arm's pattern is irrefutable and its guard is absent (`else`, iteration.md §2) | the reader |
 | **W5** | **a cell is written in its scope**: assign(x; e) has x a state binder of an enclosing local; a λ between them is an elimination's, a let's or an arm's, or is marked for the reducer's decision on a normal form (local.md §3, `#elim`) | the cell translation |
 | **W6** | **the logic stays in the logic**: a Formula-only operator (∀, ∃, ≐ off ℤ, a spec's call) occurs only in a claim position: a binder's set, φ, U, ψ, the, assert, an invariant, a lemma; mem(e; S) and compr in a computation need S's membership decidable at run time | new |
-| **W7** | **modes where they mean something**: `inout` and `out` only on a host def's parameters; out(S) and a cell only as arguments at such a parameter; `linear` only on a ranging binder of a def or λ | local.md §5–6, ADR 0020 |
+| **W7** | **modes where they mean something**: `inout` and `out` only on a host def's parameters; out(S) and a cell only as arguments at such a parameter; `linear` only on a ranging binder of a def or λ; a claim as a binder's set only on a host def's parameter, or as a named claim's value | local.md §5–6, ADR 0020, ADR 0053 |
 | **W8** | **no recursion**: the dependency graph of defs is acyclic (ADR 0014); a spec may refer to itself and to other specs, and owes a well-foundedness obligation (§7) | the front end |
-| **W9** | **stratification**: a binder's set is a set of values or a set of sets of values, never higher; no set contains a set of its own level | new (ADR 0049 §5: no Type : Type) |
+| **W9** | **stratification**: a binder's set is a set of values or a set of sets of values, never higher; no set contains a set of its own level. Beside them, not above: a claim whose binders range over sets of values, meaning a set of operators (ADR 0053) | new (ADR 0049 §5: no Type : Type) |
 | **W10** | **variants**: constructors distinct; `success` names one of them; `success` and `relevant` are not constructor names | sums.md §2 |
 | **W11** | **owned names are not declared** | state.md §2 |
 

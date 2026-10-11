@@ -23,7 +23,7 @@ since the document records how the design was reached.
 |---|---|---|---|
 | 1 | fit-research decisions 2–6 | [ADR 0050](decisions/0050-the-abstract-syntax-fits-the-semantics.md) | a mode on a binder (`linear`, `inout`, `out`), never a set; one definition carrying its claims; sets formed explicitly; pairs as pairs and one guarded choice; **indexing marked**, `t[i]` against `f(x)` |
 | 2 | a definition is a named λ, and the λ carries its claims | [ADR 0051](decisions/0051-a-definition-is-a-named-lambda.md) | Finding 1 (§1.4) and §1.9's decision 3; a set per binder plus φ and ψ, meaning the sets P and R of Finding 2; **the result is one binder whose pattern may be a tuple**, so a result group is sugar for that pattern; a λ's body is never a tail, and `let` binds a jump |
-| 3 | function set formers; E dropped; F as F#-inspired; J a candidate | hamza, §1.9 | the arrow is a binder's set in a declaration (§1.8). **No ADR yet, and abstract.md does not have the arrow** |
+| 3 | the arrow; E dropped; F as F#-inspired; J a candidate | hamza, §1.9; the arrow by [ADR 0053](decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md), on [arrow-research.md](arrow-research.md) | **the arrow is a claim used as a set**, a λ's header without a body, only on a host definition's parameter or as a named claim; not an operation of the type algebra; the domain a binder list, so no `->` token is needed |
 | 4 | buffers in program order | [ADR 0052](decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), on [storeorder-research.md](storeorder-research.md) | **a buffer is a state binder holding a table**: `b := table(n, 0)` a buffer, `t == table(n, 0)` an immutable table, `b[i] := v` an element write, `b := f(b, …)` a whole write; `linear` only on a parameter, a borrow passed by reference; R0–R4 in place of the ordering check; the host write-borrow's wrapper stays |
 | 5 | `linear` is an ordering, not a count | [abstract2](../gauntlet/results/abstract2-2026-10-11.md) | under item 4 a scope's buffer never shows the ordering on the page; it remains the meaning of a `linear` parameter |
 
@@ -750,6 +750,10 @@ to be built now — only noted as no longer needing a separate mechanism:
 
 #### Where it may appear, initially
 
+> **ADR 0053 makes this restriction the algebra rather than a precaution** (arrow-research.md §5):
+> the arrow is a claim used as a set, a λ's header without a body, so the spellings below lose their
+> `->`: `less(i ∈ Int, j ∈ Int) ∈ Bool` in D, `less ∈ fn(i ∈ Int, j ∈ Int) (r ∈ Bool)` in J.
+
 **A binder's set, and nowhere else** — a declaration's parameter (tiers 1 and 2), and a `def`'s own
 membership if the surface ever states it. Restricting it to that position is a W6-shaped condition,
 costs nothing the callbacks need, and keeps the arrow out of arbitrary expression positions until a
@@ -777,6 +781,9 @@ one these examples use.
 1. **Function set formers: yes**, and the link to callbacks is real — §1.8. The arrow's job is a
    binder's set in a declaration, no allowed callback tier makes a λ a value of V, and W9 gains a
    clause rather than a relaxation. It is abstract.md §2.6's Π promoted from prose to a term.
+   **Narrowed by ADR 0053** (arrow-research.md): the meaning, a function-space claim, is kept; the
+   form is a claim used as a set, not an operation of the type algebra, because no host uses ∪, ∩ or
+   ∖ on arrows and a heading carries what a set cannot (call count, escape, no captured buffer).
 2. **Candidate E: dropped.** §1.7 records why it costs nothing.
 3. **Design the general form.** hamza, on whether a λ ever carries a claim in practice: *"I don't
    know. we do the general form, and we never do, that is not an issue."* So **Finding 1 stands and
@@ -796,8 +803,8 @@ one these examples use.
 2. **Of J, B′ and D, which is the source.** The delimiter table in §1.7 is the argument; the
    remaining question is whether S-expressions' already-built reader and LLM-write ranking outweigh
    J's 15 fewer tokens and two fewer levels of nesting.
-3. **The arrow's domain: a tuple set or curried** (§1.8's last paragraph). Σ's exact arity argues for
-   the tuple form, which is what the examples use. For a later installment.
+3. ~~**The arrow's domain: a tuple set or curried**~~ **Settled by ADR 0053**: the arrow is a claim,
+   whose domain is a binder list, so arity is exact and the form is the tuple's.
 
 ### 1.10 What installment 1 fixes for everything after it
 

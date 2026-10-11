@@ -1343,9 +1343,11 @@ candidate does.
    than a spelling: it makes a body a *sequence* rather than a slot, which removes `seq` and one
    nesting level everywhere. Everything after this installment inherits the answer. Note it is
    **separable from the braces** — see 1b.
-1b. **The hybrid: `LET … IN` over a statement-list body.** D is now the shallowest by half (depth 2
-   against J's 4, §2.5) and J has the sequence. Nothing stops a candidate having both, and it would
-   dominate each on its own measure. Unpriced; it is the first thing installment 3 should measure.
+1b. ~~**The hybrid: `LET … IN` over a statement-list body.**~~ **Priced in §2.9, and the shape was
+   wrong**: if binders are statements, a group before them is redundant. The real hybrid is
+   statements with no bracket (**K**), and it wins every measure — 0.97× today's tokens, depth 2,
+   closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
+   terminates a munching form.
 2. **`x := table(n, f)` — refused, or a cell holding a buffer?** I propose refused: a buffer is not a
    value (ADR 0018), so it cannot be a cell's content. Worth a word, because it is the one case
    Finding 3 forbids rather than gains.
@@ -1354,3 +1356,138 @@ candidate does.
    make the mode explicit at 26 sites and make `linear` a thing a reader sees.
 4. **ADR 0047 needs a successor** if Finding 3 is taken: its initializer rule is the thing being
    replaced, and its translation, cells-as-loop-variables and everything in local.md §3 is unchanged.
+
+### 2.9 Pricing the hybrid
+
+**The hybrid as §2.6 described it was incoherent, and noticing that is the first result.** I wrote
+"`LET … IN` over a statement-list body" — but if binders *are* statements, a binder group before the
+statements is redundant. There is nothing to put between `LET` and `IN`.
+
+What was actually conflated is **two independent axes**:
+
+| axis | option | option |
+|---|---|---|
+| **where binders live** | **(a)** in a group before the body | **(b)** interleaved as statements |
+| **what ends the body** | **(i)** nothing — a keyword opens it and it munches right | **(ii)** a bracket pair |
+
+D is **(a)(i)**. J is **(b)(ii)**. So the 2×2 has two unpriced corners, and the hybrid worth pricing
+is **(b)(i)** — statements, no bracket. Call it **K**. The fourth corner, **(a)(ii)**, a binder group
+with a braced body, is **L**, and pricing it completes the square.
+
+#### K — statements separated by `;`, no bracket, no `LET`, no `IN`
+
+```
+av == os.Args() ; n == Len(av) ; n - 1                                          \\ P1
+⟨src, err⟩ == os.ReadFile(p) ; IF err = 0 THEN src ELSE ""                      \\ P2
+b ∈ 0..255 == src[i] ; f(b)                                                     \\ P3
+io.print_line("hi") ; 0                                                         \\ P4
+
+lines := 0 ; words := 0 ; in_word := FALSE ;                                    \\ P6
+LOOP i := 0 :
+    i ≥ Len(src) → ⟨lines, words⟩
+ [] OTHER        → b == src[i] ;
+                   IF b = 10 THEN lines := lines + 1 ELSE () ;
+                   AGAIN(i + 1)
+
+n == Len(xs) ; out == table(n, 0) ; count := 0 ; g(out, count)                   \\ P7
+age := 0 ; name := "" ; h(age) ; ⟨age, name⟩                                     \\ P8
+```
+
+K is **D's lexicon with `;` promoted**, not a new notation: same `==`, `:=`, `∈`, `LOOP`, `⟨⟩`, same
+ASCII spellings. The only change is that a binder may appear mid-sequence, so `LET` and `IN`
+disappear.
+
+#### L — a binder group, then a braced body
+
+```
+let av = os.Args(), n = len(av) { n - 1 }                                       // P1
+let lines := 0, words := 0, in_word := false {                                  // P6
+  loop i := 0 {
+      i >= len(src) -> (lines, words)
+      else -> let b = src[i] {
+                if b = 10 { lines := lines + 1 }
+                again(i + 1) } } }
+```
+
+#### Measured, P1–P8, counting as §1.6
+
+| | corner | tokens | × T | depth | closing run | lines |
+|---|---|---:|---:|---:|---:|---:|
+| T | today | 239 | 1.00 | 7 | 6 | 18 |
+| B′ | prefix: group + parens | 312 | 1.31 | 7 | 6 | 16 |
+| D | **(a)(i)** group + munch | 243 | 1.02 | **2** | 2 | 16 |
+| J | **(b)(ii)** statements + braces | 243 | 1.02 | 4 | 4 | 17 |
+| **K** | **(b)(i) statements + munch** | **233** | **0.97** | **2** | **1** | 16 |
+| L | **(a)(ii)** group + braces | 248 | 1.04 | 4 | 4 | 17 |
+
+**The square separates cleanly, and the two axes drive different measures:**
+
+- **the body delimiter drives depth**: munch → 2, braces → 4. A block is a bracket, and P5–P8 all
+  nest a loop inside a scope, so every block costs a level;
+- **the binder placement drives tokens**: statements → fewer, because there is no `LET`/`IN` or
+  `let`/`{` keyword pair per group, and a mid-sequence binder needs no nested form.
+
+So **K takes the better option on both axes and L takes the worse on both** — L is the only corner
+*above* today's token count while also being the deepest, which is the signature of paying for a
+keyword pair and a bracket and getting neither's benefit.
+
+**K is the only one of the six below today's tokens** (0.97×), and it has the shortest closing run of
+any notation measured in this document (1).
+
+#### K's failure stays syntactic — which was the objection to (i)
+
+§1.7's argument against a munching body is that a mistake can produce a program that parses and
+means something else. **K escapes it, and not by luck:** `;` is the **loosest** operator in
+notation-research §4.9's precedence table (level 1), so **`;` terminates a munching keyword form.**
+In K the ordinary case is bounded by a separator rather than a bracket, and what is left is exactly
+what §1.11 priced:
+
+| | closed by | cost |
+|---|---|---:|
+| a statement's extent | `;`, looser than everything | free |
+| H1 — a keyword form as an operand of an infix operator | §1.11's grammar rule | **0 sites** |
+| H2 — a nested clause chain | §1.11's required delimiter when nested | **12 sites** |
+
+So K sits in the same failure class as J and B′ — a mistake is a reader error — **without a bracket**.
+
+**K's one identified new cost**: `;` is looser than `,`, so a sequence in an *argument* position needs
+parentheses, `f((a ; b))`. Measured over 4,649 name-headed forms: **0 sites**, and a crude grep for
+`(f (seq …`, `(f (let …` and `(f (local …` agrees. Free today.
+
+#### What K buys that D cannot
+
+A binder **after** an effect, in one sequence, with no keyword pair and no parentheses. Compare P6's
+arm:
+
+```
+D:  [] OTHER → LET b == src[i] IN ( IF b = 10 THEN lines := lines + 1 ELSE () ; AGAIN(i + 1) )
+K:  [] OTHER → b == src[i] ; IF b = 10 THEN lines := lines + 1 ELSE () ; AGAIN(i + 1)
+```
+
+Measured: **2 sites** in the corpus bind after an effect in one sequence (`examples/u128/factorials.oro`
+and `lib/win/fmt.oro`, found as a `let` past the first element of a `seq`, 2 of 44 `seq` forms). So the
+extra generality is used, twice, and today it is paid for with a nested form.
+
+#### Three honest caveats
+
+1. **K has no `let` keyword at all.** A reader meets `x == e ;` and must know that `==` binds. D's
+   `LET` and J's `let` are a word that says "a binding happens here"; K has only the operator. That
+   is the price of the uniformity, and it is a legibility judgement rather than a measurement — it is
+   hamza's to make.
+2. **Eight programs.** These numbers describe P1–P8. They are the corpus's own shapes, but they are
+   eight.
+3. **K's depth of 2 is partly the examples.** A program with deeply nested data would raise every
+   column together; what the measurement isolates is the *binder and body* contribution, which is
+   what the installment is about.
+
+#### What it changes
+
+**K becomes the front-runner for installment 2**, and it amends installment 1's constraint 8. That
+constraint read "the body has a delimiter whose failure is syntactic". K satisfies it with a
+**separator and two grammar rules** instead of a bracket, so the constraint should read: *a body's
+extent is bounded by something whose violation is a syntax error* — which a `;` at the loosest
+precedence provides, and which an offside rule does not.
+
+**And it does not settle the λ.** Installment 1's J and D differ in how a λ's *claims* are delimited,
+which is a separate question from how a body ends. A surface may take K's sequence for bodies and
+either J's braces or D's `:` for the λ's header. That pairing is what the decisions should settle.

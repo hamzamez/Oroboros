@@ -57,7 +57,12 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   of automation is the decidability map (§5): Presburger and semilinear sets, regular strings with
   lengths, float intervals, semantic subtyping, the array property fragment, BAPA, congruence
   closure, Nelson–Oppen; above the cliff a programmer climbs by assertions, invariants and lemmas,
-  each decided. Own complete procedures, no SMT. **Built: nothing yet. Next: §8's measurement.**
+  each decided. Own complete procedures, no SMT. **Built: the Omega test (`presburger/`) and §8's
+  measurement ([presburger-2026-10-11](gauntlet/results/presburger-2026-10-11.md)): today's entailment
+  is sound on all 27,693 distinct corpus questions, and a complete procedure flips no refused program
+  (200 more proofs, 168 ex falso, all in programs that compile) at 3.5–9.5× compile time; refusals lack
+  facts, not proof strength. Next, reordered: types as static values and the Boolean algebra of sorts,
+  demanded by `errors.AsType`.**
 - **[notation-research.md](docs/notation-research.md), surface not yet decided** (its abstract syntax is, ADR 0050). The language as the
   executable subset of a mathematical notation, TLA+'s with PlusCal's state and Dijkstra's guarded
   commands (Abrial's B0 the precedent for compiling mathematics): `f(x ∈ S) ∈ T == e`, `0..255`,
@@ -102,7 +107,8 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   Step 2 ([abstract2-2026-10-11](gauntlet/results/abstract2-2026-10-11.md), `core/usage.go`):
   relevant usage on trees agrees with the reducer on 630 corpus parameters, and found a hole in the
   relevance check at `again`, fixed; effects are the core's judgement pulled back along D; `linear` is
-  an ordering, not a count. Next: step 3, claims and obligations on the trees.**
+  an ordering, not a count. Step 3a, the Presburger measurement (above): ε and 𝒪 on trees wait for
+  claims that carry sets.**
 
 ## Where it stands
 
@@ -1094,6 +1100,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 |---|---|
 | `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
+| `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |
 | `lib/` | Modules a program imports with `(use …)`: `io` and `os`, which are portable names over each host (`provides` cells), plus `num` and `win` |

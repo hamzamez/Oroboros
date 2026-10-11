@@ -579,6 +579,17 @@ Only `assert`, `invariant` and `lemma` are new words. Each says what it is.
 
 ## 8. What to do first
 
+**The measurement is done** ([presburger-2026-10-11](../gauntlet/results/presburger-2026-10-11.md),
+`presburger/`, the Omega test). On the 27,693 distinct questions the corpus asks, today's entailment is
+sound on every one. A complete procedure proves 200 more (168 of them ex falso on a dead path), all in
+programs that already compile; it flips none of the 256 refused runs, and it multiplies compile time
+by 3.5–9.5. 11,062 questions are not entailed at all: refusals lack facts and statable sets, not proof
+strength. **So the order below changes**: types as static values and the Boolean algebra of sorts
+first, demanded by `errors.AsType`/`errors.As`; the Presburger core then joins as the checker of those
+claims, with big integers and a fact-set consistency check; today's entailment stays, held sound by
+`TestEntailmentIsSoundAgainstPresburger`. The text below is the plan as written before the
+measurement.
+
 **A measurement before a rewrite.** Every obligation the corpus makes today can be run through a
 Presburger procedure beside the current single-fact entailment. The counts would show:
 - what the stronger procedure proves that the current one refuses;

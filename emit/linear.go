@@ -499,7 +499,7 @@ func scaleTo(fact, g *linear) (int64, bool) {
 	return m, m > 0
 }
 
-func (f *facts) entails(goal *linear) bool {
+func (f *facts) entailsFM(goal *linear) bool {
 	// EX FALSO, FIRST: a fact with no variable, c ≤ 0 with c > 0, is false, so
 	// the path these facts describe is taken by no execution and every goal
 	// holds on it, a goal with no variable left included. assumeEQ's

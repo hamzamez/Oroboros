@@ -807,7 +807,10 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
      usage on trees, agreeing with the reducer on 630 corpus parameters; it found and fixed a soundness
      hole in the relevance check at `again`; 𝓔 is the core's judgement pulled back along D; `linear`
      corrected to an ordering, its tree version deferred (§8.1).
-   - **Next, step 3**: ε and 𝒪 on A, with ADR 0049's checker.
+   - **3a, built** ([presburger-2026-10-11](../../gauntlet/results/presburger-2026-10-11.md)): the Omega
+     test, a complete procedure over ℤ, measured beside today's entailment on the corpus. It changes no
+     outcome, so ε and 𝒪 on trees wait for claims that carry sets: **next**, types as static values
+     and the Boolean algebra of sorts, demanded by `errors.AsType` (settypes §8, reordered).
    - **Deferred to the step that consumes them**: `assign`, which needs the scope above it and has no
      consumer before step 2; a `case` pattern resolved into Pat, which needs Load's declaration
      environment and belongs with the step that moves Load onto trees.

@@ -1,7 +1,10 @@
 # 0049 — Types are sets, and the logic that reasons about the computation never prints
 
 Date: 2026-10-10
-Status: Accepted (hamza: "I love it, and I agree to all the recommendations"). Decides
+Status: Accepted (hamza: "I love it, and I agree to all the recommendations"). Decision 6's
+measurement is done ([presburger-2026-10-11](../../gauntlet/results/presburger-2026-10-11.md)): a
+complete procedure changes no outcome on the corpus, so §8's order is revised, types as static values
+before the Presburger core. Decides
 [settypes-research.md](../settypes-research.md), which stays a primary document until everything in
 it is built. Supersedes [typevars-research.md](../typevars-research.md)'s framing (its surface
 survives as a special case, §6.2 of the research), and raises the ceiling

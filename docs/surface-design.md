@@ -1389,11 +1389,11 @@ candidate does.
    statements with no bracket (**K**), and it wins every measure — 0.97× today's tokens, depth 2,
    closing run 1 — while keeping a syntactic failure, because `;` is the loosest operator and so
    terminates a munching form.
-2. **`x := table(n, f)` — a cell holding a table.** With Finding 3 withdrawn this is no longer the
-   awkward case: `table(n, f)` is a table-valued expression (verified in a `let`), so `:=` binds a
-   cell holding that table, and nothing is refused. What *would* be refused is a cell holding a
-   **buffer**, which needs `linear` on a `:=` binder — and that pair should be refused, since a
-   buffer is not a value (ADR 0018).
+2. ~~**`x := table(n, f)`**~~ **— answered in §2.10, and my reason was wrong.** `table(n, f)` is a
+   table-valued expression, so `:=` binds a cell holding it and nothing is refused. A cell holding a
+   **buffer** is refused too, but *not* because "a buffer is not a value" — a buffer is a value
+   (§2.10). It is refused by **linearity**, already checked at every binder, because the
+   state-passing translation duplicates the reference. Verified.
 3. **Decided by the correction above, and worth confirming**: `linear` is **written** on a buffer
    binder, 26 sites, because nothing else can say it once `let` and `local` merge. The alternatives
    are keeping the two heads (Finding 1 gives way) or a fourth binder operator (a mode in a kind's
@@ -1539,3 +1539,109 @@ precedence provides, and which an offside rule does not.
 **And it does not settle the λ.** Installment 1's J and D differ in how a λ's *claims* are delimited,
 which is a separate question from how a body ends. A surface may take K's sequence for bodies and
 either J's braces or D's `:` for the λ's header. That pairing is what the decisions should settle.
+
+### 2.10 Does the merge keep the freeze? And what a buffer is
+
+hamza: *"let and local are scopes, in the case of local it is in the language so we can do
+destructive operations. anything that leaves that scope will freeze and becomes immutable. if we
+merge them together, will that still hold? what is the effect on the compiler? the checker? the
+proofs? and you say buffer is not a value? what do you mean by that exactly? set right now consumes
+a buffer and returns it back, a host function can borrow it and return it, and when it leaves local
+scope it freezes as a table which is a value."*
+
+#### First: "a buffer is not a value" was wrong, and fit-research already said so
+
+hamza's list is correct in every item. A buffer is passed to `set` and returned by it, bound by a
+`let`, declared as a `(buffer V)` parameter (ADR 0020), borrowed and handed back by a host call
+(`B ⊸ B ⊗ R`), and frozen into a table on the way out. **It is a value.** I had cited the right
+statement in installment 1 and then contradicted it — fit-research §3.2:
+
+> `(buffer V)` and `(array V)` **have the same values**. A frozen buffer *is* a table, and what
+> differs is **how the binder may be used**. Writing it as a set says that some values are buffers,
+> which is false.
+
+So the correct sentence is: **a buffer and a table have the same values; `linear` is how a binder may
+be used, not what it holds.** "Buffer" is a *usage mode over the table sort*, not a sort of its own.
+
+That is also **why the freeze costs nothing**. It is not a conversion — there is nothing to convert,
+since the values are the same. The freeze is the **retraction of a permission**: after `build`'s
+boundary no binder may store, so what was a linear binder is now an ordinary table. `emit/linearity.go`
+says it exactly: *"That is what makes the freeze at `build`'s boundary copy nothing: linearity
+guarantees nothing else holds the buffer."*
+
+And it means **my reason for refusing a cell holding a buffer was wrong too.** It is not a sort error.
+What actually happens is that the state-passing translation threads a cell's value into every tuple on
+every path, duplicating the reference, and **the existing linearity check catches it**. Verified at
+`0232c78` — all three are refused, with one message:
+
+```lisp
+(local b (table 3 0) (local x b (seq (set b 0 1) (x 0))))        ; a cell from a buffer
+(local b (table 3 0) (let c b (seq (set c 0 1) (c 0))))          ; a buffer through a let
+(local b (table 3 0) (let c (set b 0 1) (seq (set c 1 2) (b 0)))); used after its store
+;; gen: the buffer b is read after it has already been handed on.
+```
+
+So the rule is **linearity, checked at every binder** — not a special case about what a cell may hold.
+
+#### Does the freeze still hold under a merge? Yes, and the compiler is already built for it
+
+The decisive fact is in `emit/linearity.go`'s own header, and it is not a change the merge would need
+— it is already there:
+
+> **A BUFFER IS LINEAR WHEREVER IT IS BOUND**, and the walk is seeded by **TYPE** (host-buffers.md
+> §5). It used to be seeded by exactly two binders — `build`'s and a declared `(buffer V)`
+> parameter's… **Every binder is now asked whether the value it binds is a buffer** — a `let`'s, a
+> loop variable's, a host call's continuation parameter — and checked if so.
+
+So the check **already treats a `let`'s binder as a possible buffer binder.** And the narrower
+seeding was a *bug*, with the same shape as the one the merge would have risked: a write-borrowing
+host call returns a buffer, and *"the buffer it returns was never checked, so handing it to a second
+call and then reading it was accepted and observed the second write through a dead name."* The
+generalisation the merge wants was forced by host write-borrows and is in the compiler today.
+
+**Where the freeze is: at `build`'s boundary — and `build` is the core form both surfaces produce.**
+`core/scope.go`'s `readLocal` desugars
+
+```
+b (table n f)        ⟶  (build n (fn (b) (let b FILL …)))
+b (array e₀ … eₖ₋₁)  ⟶  (build k (fn (b) …))
+c e                  ⟶  (#cell e (fn (c) …))        translated away by the loader
+```
+
+**The head `local` was never what delimited the scope. The binder was.** A merged form produces the
+same `build` from the same binder, so the boundary, the freeze and ADR 0031's product result are
+untouched.
+
+#### The effect, part by part
+
+| | effect of merging | why |
+|---|---|---|
+| **the reader** | **one function instead of two** (`readLet` + `readLocal`), and it needs a marker to know which binders are `build`s — see below | the only place that changes |
+| **the compiler below the reader** | **none** | grepped: only `core/read.go`, `core/scope.go` and one test mention `local` or `LocalName`. Nothing in `emit/` or `ir/` knows the word. Buffers are `build`; cells are `#cell`, translated to loop variables before reduction |
+| **the checker** | **none** | it runs on the residual, where there is no `local` — only `build` and applications. `(buffer V)` never enters a signature, which is ADR 0018's affordability argument |
+| **the proofs** | **none** | the store-chain induction keys off the *term shape* — `(set b i v)` hands back `b` — not off a scope head. The refinement layer's facts are about `build` and `set` |
+| **the IR, the backends, emission** | **none** | they never saw `local`; a cell already costs exactly a loop variable |
+
+#### The one thing the merge actually costs
+
+**The reader must still decide which binders become `build`s, and the initializer no longer tells
+it.** Today `readLocal` decides from the initializer's form. With §2.3's correction — `array` is a
+graph, `table` is a rule, neither says anything about mutability — a merged form has nothing to read
+the kind from. So the marker must be written:
+
+```
+b = table(n, 0) linear      a buffer: this binder may store, and freezes at the boundary
+t = table(n, 0)             an immutable table
+```
+
+**That is the whole bill: the word `linear` at 26 binders.** Everything else — the freeze, the
+linearity walk, the cell translation, the proofs, the IR — is already indifferent to which head was
+written.
+
+#### What is not verified
+
+These are claims about where the code keys off what, read from the source and spot-checked by the
+three refusals above. **No merged reader has been built or run**, so `cmd/check` has not been through
+it. What would confirm it is the smallest possible experiment: teach `readLet` to accept `linear` and
+route those binders through `localBinder`, then check that emission is byte-identical on the 26 sites.
+That is a few hours and it is the right first build step if the merge is taken.

@@ -607,6 +607,11 @@ body on the right:
 | **J** | **`}`** | a reader error, at once |
 | **B′** | **`)`** | a reader error, at once |
 
+> **§1.11 revisits this row for D, at hamza's question, and promotes it.** Two grammar rules close
+> both halves of D's hazard, and the measured cost is 12 parenthesizations in the whole corpus — so D
+> reaches J's and B′'s failure class after all. The table above is D *as written*; read §1.11 before
+> treating this as D's verdict.
+
 That table is the installment's real result. **The two candidates whose delimiter is a bracket are the
 two whose worst failure cannot become a wrong program**, and this project trades size for exactly that
 (CLAUDE.md: a path nothing runs is a path nothing checks; "not refused" is not "proven").
@@ -622,7 +627,8 @@ two whose worst failure cannot become a wrong program**, and this project trades
    §5.4 ranks first for writing. It costs 15 tokens and three levels of depth over J; it buys one
    delimiter pair instead of two and a reader that already exists.
 3. **D — the mathematical form.** Shortest, and the clearest to *read* claims in (syntax-research
-   §5.3). Kept for what it is best at rather than as a source, which is what I makes possible.
+   §5.3). First kept for reading alone; **§1.11 promotes it to a live source candidate**, because its
+   hazard turns out to cost two grammar rules and twelve parentheses.
 
 **And, orthogonally, I — one tree, two renderings.** hamza has not decided whether there are two
 notations (§1.9), so this stays a shape the kept three are compatible with rather than a choice.
@@ -793,6 +799,117 @@ Now that hamza has decided: Whatever surface is chosen:
 7. **A set of operators is a binder's set and nothing else** (§1.8), and it does not reopen tier 3.
 8. **The body has a delimiter whose failure is syntactic** (§1.7), if J or B′ wins — which is a
    constraint on every later construct that has a body, not just the λ.
+
+### 1.11 Closing the mathematical notation's hazard
+
+hamza, before moving on: *"what would it take to close the hazard in the mathematical notation?"*
+
+**It takes two different fixes, because it is two hazards.** Separating them is most of the answer,
+and measuring each changes the verdict of §1.7.
+
+#### The two halves
+
+| | hazard | the shape |
+|---|---|---|
+| **H1** | **the dangling body** — a keyword form extends as far right as it can, so an operator after it is swallowed | `IF c THEN a ELSE b + 1`, meaning `(IF c THEN a ELSE b) + 1`; `λ(x) : x + 1` as an operand |
+| **H2** | **clause attachment** — which `[]` (or `\|`) belongs to which chain, when one chain is inside another's arm | a nested `CASE` taking the outer `CASE`'s later arms |
+
+H1 is a precedence problem. H2 is not: no precedence rule can say which chain a clause joins, because
+both readings are well-formed. **This is F#'s classic pitfall** (syntax-research §5.2), and F#'s own
+community answer is to parenthesize a nested `match` — so the fix is already standard practice in the
+language D and F are inspired by.
+
+#### What the literature does
+
+| fix | who | closes | cost |
+|---|---|---|---|
+| **a closing word per form** | Algol 68 `fi` `od` `esac`, Ada `end if`, shell `fi`/`done` | H1 and H2 | one token per form, and a vocabulary of them |
+| **a mandatory block** | Rust — `if` is an expression but its arms must be `{ }` | H1 and H2 | this is candidate **J** |
+| **layout** | Haskell, F#, Python | H1; **not H2** | the failure hides, which is F's problem |
+| **checked layout** | Python's `TabError`; Scala 3's `end` markers, optional but *verified* | H1, and H2 where the marker is written | a layout algorithm, and an error class people meet often |
+| **refuse the ambiguous case** | the grammar admits a keyword form only where nothing can continue it | H1 and H2 | parentheses where it bites — **measured below** |
+| **a canonical formatter, checked** | `zig fmt --check`, `elm-format` in CI | neither, strictly — it catches rather than prevents | a formatter, which a rendering needs anyway |
+
+> **Structurally there is one fix: a right delimiter.** Give D one and it becomes J, or Algol 68. So
+> "close the hazard structurally" and "stop being D" are the same sentence, and the interesting
+> question is what the cheapest *non*-structural fix costs.
+
+#### Measured, on the 85 files of `examples/` and `lib/`
+
+The corpus is prefix today, so each measurement asks what its **infix rendering** would need. In an
+infix rendering a comma or a closing bracket stops the munch, so an argument of a call is already
+safe; what is not safe is an operand of an operator, and only when something follows it.
+
+| | count |
+|---|---:|
+| keyword forms (`if`, `loop`, `let`, `local`, `case`, `cond`, `fn`, `try`, `expect`, `seq`, `match`, `build*`) | **1,424** |
+| of those, an operand of an infix operator | 2 |
+| of those two, the **rightmost** operand — where munch takes exactly the right thing | 2 |
+| **a non-rightmost operand, where munch misparses — H1's dangerous position** | **0** |
+| | |
+| clause-chain forms (`case`, `cond`, `loop`, `match`) | **149** |
+| **nested inside another one's arm — H2's dangerous position** | **12** (8%) |
+| nesting depth 1 / 2 / 3 | 137 / 9 / 3 |
+
+The two H1 near-misses, both harmless, both `if` rightmost:
+
+```lisp
+(go.+ (go.* mx 10) (if (= sp 0) ok 0))                  ; examples/json/tokenize.oro
+(= (nodes …) (if (= (src i) 125) 5 4))                  ; examples/json/tree.oro
+```
+
+Rendered, `mx × 10 + IF sp = 0 THEN ok ELSE 0` — the `if` is last, so munching to the end is the
+reading you wanted.
+
+**Three numbers, three measurements, and the first two were of the wrong thing.** I first counted
+*any* body that is a keyword or operator form (236 of 408, 58%), then *any* keyword form in an operand
+position (2 of 1,424). Neither is the dangerous position. CLAUDE.md's lesson — *a survey's first
+number describes the measurer* — landed twice in one sitting.
+
+#### So what it takes
+
+**H1: a grammar rule, and it is free today.** Admit a keyword form as an operand only where nothing
+can continue it, and require parentheses otherwise. **0 sites in the corpus**, so the rule is pure
+insurance: it costs nothing to obey and converts the failure from a wrong program into a syntax
+error.
+
+**H2: a delimiter on a nested chain, and it costs 12 parenthesizations.** Require a clause chain that
+sits in another's arm to be delimited — `( … )` in D, or Scala 3's checked `end`. Because the rule
+fires only when nested, it touches **12 of 149 chains (8%)** and leaves the other 137 as they are.
+No precedence rule can do this job, so this is the irreducible part.
+
+Together: **two grammar rules, 12 sites, and D's failures become syntactic.** That is a smaller bill
+than I assumed when §1.7 put D on the reading-only shelf.
+
+#### What this changes
+
+**D is promoted to a live source candidate**, and §1.7's delimiter table gains a row:
+
+| | what ends the body | what a mistake produces |
+|---|---|---|
+| D, as written | nothing | a program that parses and means something else |
+| **D + the two rules** | **a required paren, where and only where it is needed** | **a reader error, at once** |
+| F, as written | indentation | a nested `match` swallowing later cases |
+| **F + H2's rule** | indentation, plus a required paren when nested | H1 remains: layout still cannot bound a body from the right |
+| J | `}` | a reader error, at once |
+| B′ | `)` | a reader error, at once |
+
+**And it does not fully rescue F.** H2's rule applies to F unchanged, but H1 does not: the offside
+rule's whole mechanism is that a body ends where the indentation says, and there is no operand
+position to put a rule on. F would need `end` markers to reach the same class, which is Scala 3's
+answer and is a third notation's worth of vocabulary.
+
+#### The caveat that keeps H1's zero honest
+
+**The corpus is prefix, so H1's dangerous shape cannot be written in it.** The zero therefore measures
+the *rendering* direction — D as a printer is safe, which is direct support for candidate I — and is
+only indirect evidence about D as a source. What it does say is that the shape is **unnatural**: none
+of 1,424 keyword forms is placed where a reader would have to know the munch rule, so a writer is
+unlikely to reach for it either. And the grammar rule makes the question moot, since a writer who does
+reach for it is refused.
+
+**H2's twelve is not an artifact.** Nesting is nesting in any notation, and 12 of 149 is what the
+programs actually do.
 
 ### Next installment
 

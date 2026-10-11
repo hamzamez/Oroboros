@@ -185,22 +185,41 @@ func Read(src string) ([]Form, error) {
 	if err := validSource(src); err != nil {
 		return nil, err
 	}
+	r, decls, _, err := readModule(src)
+	if err != nil {
+		return nil, err
+	}
+	return r.d.forms(carryClaims(decls))
+}
+
+// readModule reads each form into a declaration tree (decl.go, ADR 0051),
+// having first read it as today's reader did, toForm on its image, so a refusal
+// is reported where it always was. It returns the trees and those forms; Read
+// makes each claim its definition's and has D give the forms back in the order
+// written, which must be the same forms (Theorem D3, abstract.md §6.1).
+func readModule(src string) (*reader, []Decl, []Form, error) {
 	r := newReader(src, false)
-	var forms []Form
-	for {
+	var decls []Decl
+	var read []Form
+	for i := 0; ; i++ {
 		r.skipSpace()
 		if r.done() {
-			return forms, nil
+			return r, decls, read, nil
 		}
 		t, err := r.term()
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 		f, err := toForm(r.core(t))
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
-		forms = append(forms, f)
+		d, err := r.muDecl(t, f, i)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		decls = append(decls, d)
+		read = append(read, f)
 	}
 }
 

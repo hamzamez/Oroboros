@@ -78,7 +78,8 @@ declarations and definitions for that module, which is `D_T` ([target-system.md]
 **The reader builds a tree of abstract Oroboros for each form** ([abstract.md](abstract.md),
 ADR 0050): `core/abs.go`'s sorts, μ in `core/mu.go`, and D in `core/desugar.go`, which makes the term
 each form reads as below. ADR 0015's tail rule is the sort of a clause body, not a walk over a term
-(abstract1-2026-10-11).
+(abstract1-2026-10-11). Declarations are trees too (`core/decl.go`, ADR 0051): a definition is a named
+λ, a `sig` is its λ's claim, and D gives the forms back in the order written (abstract1b-2026-10-11).
 
 | written | reads as | spec |
 |---|---|---|

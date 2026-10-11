@@ -93,7 +93,11 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   ([abstract1-2026-10-11](gauntlet/results/abstract1-2026-10-11.md)): the reader builds trees
   (`core/abs.go`, μ in `core/mu.go`), D makes today's core term (`core/desugar.go`), every source and
   1,032 test snippets read identically, emission byte-identical; the tail rule is a sort and its
-  walkers are deleted. Next: step 1b, declarations.**
+  walkers are deleted. Step 1b, program declarations
+  ([abstract1b-2026-10-11](gauntlet/results/abstract1b-2026-10-11.md), `core/decl.go`): a definition
+  is a named λ and a `sig` its λ's claim
+  ([ADR 0051](docs/decisions/0051-a-definition-is-a-named-lambda.md)). Next: step 1c, target files'
+  `sig`s as definitions with a host body.**
 
 ## Where it stands
 
@@ -536,6 +540,7 @@ rejected alternatives.
 | A host writes a cell through a reference to a fresh copy, `#ref`/`#deref` around the call; `(cell T)` in declarations; `(out τ)` is a cell for one call, its value the cells' then the result's | [0048](docs/decisions/0048-a-host-writes-a-cell-through-a-reference.md) |
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
+| A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
 
 ## How this project is run
 
@@ -623,7 +628,8 @@ spec to read before touching it.
   and one that enumerates back edges and misses a form is unsound, not imprecise. **In the reader the
   rule is a sort** (abstract.md W3, `core/mu.go`): `again` is a Tail, a constructor that needs an
   expression demotes one to the free name and marks the tree stray, and a loop refuses a stray clause
-  body. `match` is a loop whose arms have patterns ([match.md](docs/spec/match.md)).
+  body. A λ's body is never a tail, so a λ applied by hand to a jump is refused; `let` binds one
+  (ADR 0051). `match` is a loop whose arms have patterns ([match.md](docs/spec/match.md)).
 - **No recursion** (ADR 0014). A balanced, data-independent recursion is a loop over levels, as
   Karatsuba showed ([karatsuba-2026-08-30](gauntlet/results/karatsuba-2026-08-30.md)).
 - **Closures.** A closure may not survive staging ([closures-direction.md](docs/closures-direction.md)).
@@ -1079,7 +1085,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 
 | | |
 |---|---|
-| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
+| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |

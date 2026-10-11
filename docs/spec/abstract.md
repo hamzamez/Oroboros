@@ -1,7 +1,10 @@
 # Abstract Oroboros
 
-Status: **decided; step 1a built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md):
-the computation's terms, `core/abs.go`, `core/mu.go`, `core/desugar.go`; declarations are step 1b).
+Status: **decided; steps 1a and 1b built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md):
+the computation's terms, `core/abs.go`, `core/mu.go`, `core/desugar.go`;
+[abstract1b-2026-10-11](../../gauntlet/results/abstract1b-2026-10-11.md): program declarations, `core/decl.go`,
+with [ADR 0051](../decisions/0051-a-definition-is-a-named-lambda.md)'s definition as a named λ).
+Target files' declarations are step 1c.
 Written 2026-10-10 on hamza's request ("specify. always mathematical
 and algebraic"); [ADR 0050](../decisions/0050-the-abstract-syntax-fits-the-semantics.md) decides it
 with [fit-research.md](../fit-research.md) §7 decisions 1–6, as recommended. The surface notation is
@@ -160,7 +163,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | operator | arity | meaning |
 |---|---|---|
 | `x`, `k` | variable, literal | |
-| **lam**(b̄; e) | (Bind*. Expr) → Expr | the λ; its binders are ranging, with an optional set and mode. Static: erased by staging (closures-direction.md) |
+| **lam**(b̄; r; φ; ψ; e) | (Bind*. (Bind. (Formula, Formula, Expr))) → Expr | the λ; its binders are ranging, with an optional set and mode, and it carries what it claims: the result binder r with its set, a precondition φ and a postcondition ψ (ADR 0051). Static: erased by staging (closures-direction.md) |
 | **app**(e; ā) | (Expr, Arg*) → Expr | application, of a definition, a host name, a λ, or an owned name |
 | **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, ADR 0050) |
 | **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e |
@@ -208,9 +211,9 @@ name of Σ₀, and the two agree on ℤ.
 ### 2.6 Declarations and modules
 
 ```
-Decl ::= def(f; b̄?; φ; r ∈ U; ψ; body)       one definition carrying its claims (fit-research §3.4, decision 3)
-            body ::= e | host(kind; template; clauses)       kind ∈ {expr, stmt}
-            markers ⊆ {pure, index, variadic}
+Decl ::= def(f; e)                           a name bound to a value; a function's is a named λ (ADR 0051)
+       | def(f; λ(b̄; r; φ; ψ); host(kind; template; clauses))   a host's: the λ's claims, a host body
+            kind ∈ {expr, stmt};  markers ⊆ {pure, index, variadic}
        | variant(n; b̄; c₁(S̄₁) … cₖ(S̄ₖ); success c?; relevant?)
        | spec(f; b̄; r ∈ U; e)                 a specification function: logic only, may recur
        | lemma(n; φ; steps)                   a proven sentence; steps a sequence of formulas
@@ -218,11 +221,17 @@ Decl ::= def(f; b̄?; φ; r ∈ U; ψ; body)       one definition carrying its c
 Module ::= module(path; decl*) | use(path; alias?) | export(f̄) | provides(target; path; decl*)
 ```
 
-- **def.** b̄? is a list of ranging binders, or absent for a constant (def.md §4: a constant is a
-  value). The binders' names and r are bound in φ, ψ and body. φ is the precondition, a comprehension
-  over the parameter tuple: today's `where` and `requires`. U and ψ are the result's set and the
-  postcondition, a comprehension over the result: today's result type and `ensures`. So a def states
-  one membership,
+- **def.** A definition binds a name to a value, the binder kind `let` has, so a module is a group of
+  definitional binders. **A function's definition is a named λ, and the λ carries its claims**
+  (ADR 0051, D1): its binders' sets, the result binder r with its set U, φ and ψ. A constant is a name
+  bound to any other value (def.md §4). The binders' names and r are bound in φ, ψ and body. φ is the
+  precondition, a comprehension over the parameter tuple: today's `where` and `requires`. U and ψ are
+  the result's set and the postcondition, a comprehension over the result: today's result type and
+  `ensures`. **The tree keeps a set per binder; the meaning is two sets** (D2), P = {x̄ ∈ S̄ : φ} and
+  R = {r ∈ U : ψ}, since ρ chooses each value's representation from its own set and ADR 0028 checks a
+  parameter's set on its argument. **The result binder's pattern may be a tuple** (D3),
+  `tuple(q, r) ∈ int × int`, which names several results. So a λ with its claims states one
+  membership,
   ```
   f ∈ Π(x̄ ∈ {x̄ ∈ S̄ : φ}). {r ∈ U : ψ}
   ```
@@ -295,10 +304,9 @@ where it receives a Tail *demotes* it to the free name `again` applied, and mark
 loop refuses a stray clause body. Within a loop the sort decides, and outside every loop a demoted
 `again` is the unbound name it is.
 
-**One shape where W3 as written is stricter than today**: a λ of one parameter applied to one
-argument, written by hand, with a tail body, `((fn (x) (again x)) e)`. Today's walker accepted it,
-because it could not tell it from the redex a `let` reads as, and "no λ lies between them" refuses
-it. Step 1a keeps it accepted, as the tail `TRedex`, and refusing it is open (abstract1-2026-10-11, finding 3).
+**A λ applied by hand is no binding** (ADR 0051, D5, refused since step 1b): `((fn (x) (again x)) e)`
+puts a λ between a loop and its jump. Today's walker accepted it, because it could not tell it from the
+redex a `let` reads as; in the tree `let` is its own operator, and `let` is how a jump is bound.
 
 ## 4. Fragments
 
@@ -315,8 +323,7 @@ A_C ⊆ A and A₀ ⊆ A_C are subalgebras. Passing modes and mem tests are in A
 ε : A → A_C is the homomorphism with these clauses, and the identity on every other operator:
 
 ```
-ε(def(f; b̄; φ; r ∈ U; ψ; body))   = def(f; names(b̄); ⊤; r; ⊤; ε(body))     passing modes kept
-ε(lam(b̄; e))                      = lam(names(b̄); ε(e))
+ε(lam(b̄; r ∈ U; φ; ψ; e))         = lam(names(b̄); ε(e))      a λ's claims go; passing modes kept
 ε(loop(s̄; I; ā))                  = loop(s̄; ⊤; ε(ā))
 ε(the(S; e))                      = ε(e)
 ε(assert(φ; e))                   = ε(e)           and ε(assert(φ; t)) = ε(t)
@@ -436,11 +443,11 @@ states for e's value: today's interval and refinement facts, and Presburger once
 is built.
 
 ```
-𝒪(def(f; x̄ ∈ S̄; φ; r ∈ U; ψ; e))
+𝒪(lam(x̄ ∈ S̄; r ∈ U; φ; ψ; e))
     = 𝒪_{Γ₀}(e)  ∪  { Γ₀ ⊢ e ∈ U ∧ ψ[e/r] }            Γ₀ = x̄ ∈ S̄, φ
-      (a host def: none; its claims are axioms, checked against the host, ADR 0022)
+      (a host def's λ: none; its claims are axioms, checked against the host, ADR 0022)
 
-𝒪_Γ(app(f; ā)),  f a def as above
+𝒪_Γ(app(f; ā)),  f a def whose value is that λ (ADR 0051)
     = ⋃ᵢ 𝒪_Γ(aᵢ)  ∪  { Γ ⊢ ā ∈ S̄ ∧ φ[ā/x̄] }            the call's obligation (ADR 0028)
       and the call's value gains r ∈ U ∧ ψ[ā/x̄]          the exact swap (postconditions.md)
 
@@ -631,8 +638,8 @@ into A by a function μ : T → A, total on the corpus, which the first build st
 
 | today's form | μ | |
 |---|---|---|
-| `(def f (x…) e)`, `(def c e)` | def(f; x̄; ⊤; r; ⊤; μe), def(c; ; ⊤; r; ⊤; μe) | |
-| `(sig f ((x S)…) U (where φ) (ensures ψ))` beside its def | merged into the def: x̄ ∈ S̄, φ, U, ψ | decision 3 |
+| `(def f (x…) e)`, `(def c e)` | def(f; λ(x̄). μe), def(c; μe) | ADR 0051 |
+| `(sig f ((x S)…) U (where φ) (ensures ψ))` beside its def | the claim of the def's λ: x̄ ∈ S̄, result ∈ U, φ, ψ; kept apart when the name has no λ definition of its arity, or two claims or two definitions | decision 3, ADR 0051 |
 | `(sig f … (host k τ …))` in a target | def(f; …; host(k; τ; …)) | |
 | `(variant (n T…) (c S…)… (success c) (relevant))` | variant(n; T̄; c(S̄)…; c; relevant) | |
 | `(fn (x…) e)`, `(λ (x…) e)` | lam(x̄; μe) | |
@@ -756,9 +763,14 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
    - **1a, built** ([abstract1-2026-10-11](../../gauntlet/results/abstract1-2026-10-11.md)): the
      computation's terms. Every `.oro` file and 1,032 test snippets read identically, messages
      included; emission byte-identical; the W3 walkers deleted, nine planted faults caught.
-   - **1b, next**: declarations as trees (decision 3's one `def`, `variant`, `use`, `export`,
-     `provides`), target files' host declarations as definitions with a host body, `assign` (which
-     needs the scope above it), and a `case` pattern resolved into Pat.
+   - **1b, built** ([abstract1b-2026-10-11](../../gauntlet/results/abstract1b-2026-10-11.md)):
+     program declarations as trees, a `sig` the claim of its definition's λ (ADR 0051), the
+     hand-written redex refused. The corpus and every test snippet read identically; seven planted
+     faults caught.
+   - **1c, next**: target files' `sig`s as definitions with a host body (ADR 0051, D4).
+   - **Deferred to the step that consumes them**: `assign`, which needs the scope above it and has no
+     consumer before step 2; a `case` pattern resolved into Pat, which needs Load's declaration
+     environment and belongs with the step that moves Load onto trees.
 2. **𝒰 and 𝓔 on A**, checked against CheckLinear, relevance and pureTerm on the corpus. A
    disagreement is a bug in one of them, and errors.md §7.4's named gaps become decidable.
 3. **ε and 𝒪 on A**, as ADR 0049's checker is built (settypes §8): obligations generated from trees

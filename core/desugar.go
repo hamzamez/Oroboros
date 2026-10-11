@@ -130,8 +130,6 @@ func (d *desugarer) build(a Tail) *Term {
 		return d.monad(a.Form, a.Items, d.term(a.Body))
 	case *Again:
 		return &Term{Kind: KApp, Kids: append([]*Term{Name("again")}, d.terms(a.Args)...)}
-	case *TRedex:
-		return &Term{Kind: KApp, Kids: []*Term{Fn([]string{a.Param}, d.term(a.Body)), d.term(a.Arg)}}
 	}
 	panic("desugar: a provisional tree reached D")
 }

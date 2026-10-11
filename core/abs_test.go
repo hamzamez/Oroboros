@@ -124,16 +124,13 @@ func typeName(a Tail) string {
 		return "*core.TSeq"
 	case *TMonad:
 		return "*core.TMonad"
-	case *TRedex:
-		return "*core.TRedex"
 	}
 	return "?"
 }
 
 // THE TAIL RULE IS A SORT (W3, ADR 0015, abstract.md §2.5). A clause body is a
 // Tail: a back edge with one argument per loop variable, or a binding — a let, a
-// tuple pattern, a seq, a success arm, a λ of one parameter applied to one
-// argument — whose body is one. Anything else is an Expr, and an `again`
+// tuple pattern, a seq, a success arm — whose body is one. Anything else is an Expr, and an `again`
 // demoted into an Expr is refused by the loop. Every tail form, and every way to
 // put an `again` where it is not one, is here.
 func TestTheTailRuleIsASort(t *testing.T) {
@@ -149,7 +146,6 @@ func TestTheTailRuleIsASort(t *testing.T) {
 		`(seq (f i) (g) (let x 1 (again x j)))`,
 		`(try (ok v) (r i) (again v j))`,
 		`(expect (ok v) (r i) "why" (seq (f v) (again v j)))`,
-		`((fn (x) (again x j)) (f i))`,
 		`(let x (loop ((k 0)) (>= k 2) k else (again (+ k 1))) (again x j))`,
 		`(match (i) 0 (again 1) else 7)`,
 		`(if c 1 2)`,
@@ -175,6 +171,9 @@ func TestTheTailRuleIsASort(t *testing.T) {
 		{`(fn (x) (again x j))`, "may be a clause body"},
 		{`((fn (x y) (again x y)) 1 2)`, "may be a clause body"},
 		{`((fn (x y) (again x y)) 1)`, "may be a clause body"},
+		// A λ of one parameter applied by hand is not a binding (ADR 0051, D5):
+		// `let` is how a jump is bound.
+		{`((fn (x) (again x j)) (f i))`, "may be a clause body"},
 		{`(local c 0 (again c j))`, "may be a clause body"},
 		{`(the int (again i j))`, "may be a clause body"},
 		{`(loop ((k (again i j))) (>= k 2) k else (again (+ k 1)))`, "may be a clause body"},

@@ -14,12 +14,11 @@ package core
 // may stand nowhere else. An Expr slot cannot hold an *Again, so ADR 0015's tail
 // rule is the type of a field rather than a walk over a term (W3, §3).
 //
-// Step 1 of abstract.md §13 builds the computation's sort only. Declarations
-// (def, sig, variant, use, …) are still read as terms by toForm, and claims are
-// carried as today's applications (`the`, a sig's `where`). Where a field holds
-// something only resolution can classify — a `case` pattern names a
-// constructor, and naming is resolution (W1) — it holds the tree as written,
-// and Load decides it, as it does today.
+// Step 1a built the computation's sort and step 1b the declarations' (Decl,
+// below; ADR 0051): a definition is a name bound to a value, and a λ carries its
+// claims. Where a field holds something only resolution can classify — a `case`
+// pattern names a constructor, and naming is resolution (W1) — it holds the tree
+// as written, and Load decides it, as it does today.
 
 // Tail is a term that may end a loop's clause: an expression, a back edge, or a
 // binding whose body is a tail.
@@ -43,11 +42,43 @@ type Var struct{ Name string }
 // the word, which the reader writes as Horner's form over 10¹⁵ (bigLiteral).
 type Lit struct{ T *Term }
 
-// Lam is the λ. Its binders are ranging binders whose sets are absent: today's
-// notation writes no claim on a λ (abstract.md §2.2: no set is no claim, not V).
+// Lam is the λ. Its binders are ranging binders (abstract.md §2.2), and its
+// Claim, when one is written, gives their sets, the result's set and the pre-
+// and postcondition (ADR 0051: a definition is a named λ, so the λ carries what
+// a definition claims). With no claim a binder has no set, which is no claim,
+// not V (settypes §10).
 type Lam struct {
 	Params []string
 	Body   Expr
+	Claim  *Claim
+}
+
+// Claim is what a λ claims (ADR 0051, D2): each parameter's set, the result's
+// set, a precondition φ over the parameters and a postcondition ψ over them and
+// the result. Their meaning is two sets, P = {x̄ ∈ S₁ × … × Sₙ : φ} for the
+// arguments and R = {result ∈ U : ψ} for the value; the tree keeps a set per
+// binder because a value's representation is chosen from its own set (ρ) and a
+// parameter's set is checked on its argument (ADR 0028).
+//
+// The result binder is `result`, today's spelling (ResultName); several results
+// are a tuple set, whose components a notation may name with a tuple pattern
+// (ADR 0051, D3). Today's notation writes a claim apart from its λ, as a `sig`
+// that binds its own names, so Params keeps the claim's spelling of each binder,
+// α-equivalent to the λ's, and At where the claim was written: both are what D
+// needs to give today's forms back, and neither is meaning.
+type Claim struct {
+	Params []ClaimParam
+	Result Expr
+	Pre    Expr
+	Post   Expr
+	At     int
+}
+
+// ClaimParam is one parameter's set, and the claim's name for the parameter.
+// The name is "" for a parameter given only its set, positionally.
+type ClaimParam struct {
+	Name string
+	Set  Expr
 }
 
 // Apply is application: of a definition, a host name, a λ, or an owned name.
@@ -201,24 +232,6 @@ type TMonad struct {
 	Body  Tail
 }
 
-// TRedex is a λ of one parameter applied to one argument, written by hand,
-// whose body is a tail. Today's notation treats it as the binding it reduces to,
-// since a `let` reads as exactly this redex; abstract.md's W3 would refuse it
-// ("no λ lies between them"), and step 1 keeps today's acceptance.
-type TRedex struct {
-	Param string
-	Arg   Expr
-	Body  Tail
-}
-
-// tlam is provisional: a λ of one parameter whose body is a tail, which is a
-// TRedex if it is applied to one argument and an ordinary λ otherwise. It never
-// leaves μ.
-type tlam struct {
-	Param string
-	Body  Tail
-}
-
 // ---- Patterns ----
 
 // PVar binds a name; PWild binds nothing; PTuple binds a product's components;
@@ -251,8 +264,6 @@ func (*Again) tailSort()     {}
 func (*TLet) tailSort()      {}
 func (*TSeq) tailSort()      {}
 func (*TMonad) tailSort()    {}
-func (*TRedex) tailSort()    {}
-func (*tlam) tailSort()      {}
 
 func (*Var) exprSort()       {}
 func (*Lit) exprSort()       {}
@@ -278,3 +289,79 @@ func (*PVar) patSort()   {}
 func (*PWild) patSort()  {}
 func (*PTuple) patSort() {}
 func (*PLit) patSort()   {}
+
+// ---- Declarations (abstract.md §2.6, ADR 0051) ----
+
+// Decl is a top-level form of a module. At is where it was written, which D
+// needs to give today's forms back in their order.
+type Decl interface{ declSort() }
+
+// DefDecl binds a name to a value. A definition is a named λ (ADR 0051, D1): its
+// claims are its λ's, and a constant is a name bound to any other value.
+type DefDecl struct {
+	Name  string
+	Value Expr
+	At    int
+}
+
+// ClaimDecl is a claim written for a name with no λ to carry it: a `sig` whose
+// name has no definition in the file, more than one, or one that is not a λ of
+// its arity. Today's notation allows it and Load decides it; no program in the
+// corpus writes one (abstract1b-2026-10-11).
+type ClaimDecl struct {
+	Name  string
+	Claim *Claim
+}
+
+// VariantDecl declares a closed sum: its name, its type parameters, ranging over
+// sets of values, and its constructors and role markers in the order written.
+type VariantDecl struct {
+	Name   string
+	Params []string
+	Items  []VariantItem
+	At     int
+}
+
+// VariantItem is a constructor, with its payload's set or none, or a role
+// marker: `success` naming a constructor, or `relevant` (errors.md §2).
+type VariantItem struct {
+	Ctor     string
+	Payload  Expr
+	Success  string
+	Relevant bool
+}
+
+// ModuleDecl, UseDecl and ExportDecl are resolution (ADR 0011); ForeignDecl is a form another
+// reader owns or Load refuses — a target fragment `provides`, or `prim` and
+// `target`, which a program may not write — kept as written.
+type ModuleDecl struct {
+	Path string
+	At   int
+}
+type UseDecl struct {
+	Path, As string
+	At       int
+}
+type ExportDecl struct {
+	Names []string
+	At    int
+}
+type ForeignDecl struct {
+	E  Expr
+	At int
+}
+
+// TermDecl is a top-level term that is no declaration.
+type TermDecl struct {
+	E  Expr
+	At int
+}
+
+func (*DefDecl) declSort()     {}
+func (*ClaimDecl) declSort()   {}
+func (*VariantDecl) declSort() {}
+func (*ModuleDecl) declSort()  {}
+func (*UseDecl) declSort()     {}
+func (*ExportDecl) declSort()  {}
+func (*ForeignDecl) declSort() {}
+func (*TermDecl) declSort()    {}

@@ -65,10 +65,6 @@ func (r *reader) demote(t Tail) Expr {
 		e = &Seq{Xs: append(append([]Expr(nil), t.Xs...), r.demote(t.Last))}
 	case *TMonad:
 		e = &Monad{Form: t.Form, Items: t.Items, Body: r.demote(t.Body)}
-	case *TRedex:
-		e = &Apply{Fn: &Lam{Params: []string{t.Param}, Body: r.demote(t.Body)}, Args: []Expr{t.Arg}}
-	case *tlam:
-		e = &Lam{Params: []string{t.Param}, Body: r.demote(t.Body)}
 	}
 	r.stray[e] = true
 	return e
@@ -157,17 +153,12 @@ func (r *reader) mu(kids []*Term, line int) (Tail, error) {
 	return r.muApp(kids), nil
 }
 
-// muApp reads an application. A λ of one parameter whose body is a tail,
-// applied to one argument, is the binding it reduces to (TRedex). The core loop
-// form's body is its own loop's, so only its initial values can be stray
-// (iteration.md: an `again` there jumps to that loop).
+// muApp reads an application. The core loop form's body is its own loop's, so
+// only its initial values can be stray (iteration.md: an `again` there jumps to
+// that loop).
 func (r *reader) muApp(kids []*Term) Tail {
-	fn := r.tree(kids[0])
 	args := r.exprs(kids[1:])
-	if l, ok := fn.(*tlam); ok && len(args) == 1 {
-		return &TRedex{Param: l.Param, Arg: args[0], Body: l.Body}
-	}
-	n := &Apply{Fn: r.demote(fn), Args: args}
+	n := &Apply{Fn: r.expr(kids[0]), Args: args}
 	if v, ok := n.Fn.(*Var); ok && v.Name == "loop" && len(args) >= 1 && r.d.term(args[0]).Kind == KFn {
 		return r.mark(n, args[1:]...)
 	}
@@ -183,11 +174,10 @@ func (r *reader) muLam(kids []*Term, line int) (Tail, error) {
 	if err != nil {
 		return nil, err
 	}
-	body := r.tree(kids[2])
-	if _, ok := body.(Expr); !ok && len(params) == 1 {
-		return &tlam{Param: params[0], Body: body}, nil
-	}
-	b := r.demote(body)
+	// A λ's body is never a tail of a loop around it: the λ may run twice, or
+	// never (W3, "no λ lies between them"; ADR 0051, D5). A λ of one parameter
+	// applied to one argument is no exception: `let` is how a jump is bound.
+	b := r.expr(kids[2])
 	return r.mark(&Lam{Params: params, Body: b}, b), nil
 }
 
@@ -377,8 +367,8 @@ func (r *reader) muLoop(kids []*Term, line int) (Tail, error) {
 }
 
 // tailOK is the tail rule at a loop: a clause body is a back edge with one
-// argument per loop variable, a binding whose body is one, or an expression
-// with no `again` in it. Let binds; if branches. Binding may wrap an `again`,
+// argument per loop variable, a binding whose body is one — a let, a tuple
+// pattern, a seq, a success arm — or an expression with no `again` in it. Let binds; if branches. Binding may wrap an `again`,
 // branching may not (iteration.md §2).
 func (r *reader) tailOK(t Tail, arity, line int) error {
 	switch t := t.(type) {
@@ -408,13 +398,6 @@ func (r *reader) tailOK(t Tail, arity, line int) error {
 			return err
 		}
 		return r.noStray(line, t.Items...)
-	case *TRedex:
-		if err := r.tailOK(t.Body, arity, line); err != nil {
-			return err
-		}
-		return r.noStray(line, t.Arg)
-	case *tlam:
-		return strayAgain(line)
 	case Expr:
 		return r.noStray(line, t)
 	}

@@ -343,9 +343,12 @@ takes f and g in ONE context Γ (that is its universal property), so a variable 
 - **`(abandon w)`**, whose type is 0, the initial object. A path that reaches it never returns, and
   the reducer already says so: a crash absorbs every strict context (§8), the commuting conversion at
   arity 0. In linear logic, 0 on the left proves any sequent, whatever its context.
-- **`(again a…)`**, a back edge. A path around a loop continues into the next iteration, and every
-  terminating execution leaves by an exit, so a loop uses x when each of its exits does (or each
-  iteration before its `again`). A divergent path uses nothing, vacuously, as a crash does.
+- **`(again a…)`**, a back edge, **for a variable bound outside the loop it goes round**. Such a path
+  continues into the next iteration, and every terminating execution leaves by an exit, so a loop uses x
+  when each of its exits does. A divergent path uses nothing, vacuously, as a crash does. A variable
+  bound **inside** the iteration ends at the jump, so there `again` is strict in its arguments: a value
+  dropped before the jump is dropped. Until abstract2-2026-10-11 every `again` was vacuous, and
+  `(loop … else (seq (write i) (again …)))` dropped a relevant value in silence.
 
 So `(if verbose (print-err r) 0)` is refused, because on the quiet path the error goes unread: the
 program writes `(if verbose (print-err r) (ignore r))`. And `(let w (os.WriteFile a d) (try (ok u)

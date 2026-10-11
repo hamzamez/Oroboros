@@ -99,7 +99,10 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   ([ADR 0051](docs/decisions/0051-a-definition-is-a-named-lambda.md)). Step 1c, target files
   ([abstract1c-2026-10-11](gauntlet/results/abstract1c-2026-10-11.md), `emit/hostdef.go`): every
   declaration is a definition with a host body, usage a mode (`linear`, `inout`) and not a set.
-  Next: step 2, usage and effects on the trees.**
+  Step 2 ([abstract2-2026-10-11](gauntlet/results/abstract2-2026-10-11.md), `core/usage.go`):
+  relevant usage on trees agrees with the reducer on 630 corpus parameters, and found a hole in the
+  relevance check at `again`, fixed; effects are the core's judgement pulled back along D; `linear` is
+  an ordering, not a count. Next: step 3, claims and obligations on the trees.**
 
 ## Where it stands
 
@@ -600,7 +603,9 @@ spec to read before touching it.
   refuses a program loaded without them.
 - **Relevance** ([errors.md §7](docs/spec/errors.md), ADR 0043): a value of a `(relevant)` variant,
   `lib/result`'s, must be used on every path of its binder's scope, the eliminators being additive;
-  checked at β on the λ as written, through definitions by usage inference. `(ignore e)` is the
+  checked at β on the λ as written, through definitions by usage inference. `again` uses vacuously only
+  a variable bound outside the loop it goes round: one bound inside the iteration ends at the jump
+  (abstract2-2026-10-11, a soundness hole the tree usage found). `(ignore e)` is the
   discard, !_A : A → 1, erased by the reducer, and η for products includes the unit.
 - **A residual's binders are named apart** (`core/hygiene.go`, state.md): no binder's hint equals a
   name its body refers to past it, **nor any enclosing binder's**. The second is what a context keyed

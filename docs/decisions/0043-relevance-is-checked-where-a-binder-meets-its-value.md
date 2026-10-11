@@ -3,7 +3,10 @@
 Date: 2026-10-07
 Status: Accepted (hamza: "go ahead with step 6, always mathematical and algebraic"). Realizes
 ADR 0040's `(relevant)` marker, and replaces errors.md §7's first plan, "checked on the residual by
-occurrence counting at every binder of a host call", which step 4 made unworkable.
+occurrence counting at every binder of a host call", which step 4 made unworkable. **Corrected
+2026-10-11** ([abstract2-2026-10-11](../../gauntlet/results/abstract2-2026-10-11.md)): `again` uses a
+variable vacuously only when the variable is bound outside the loop the jump goes round; every `again`
+was vacuous, and a relevant value bound inside an iteration could be dropped before the jump.
 
 ## Context
 

@@ -3169,11 +3169,17 @@ func (e *Env) relevant(t *Term, inLoop bool) bool {
 // on every path of t (spec/errors.md §7.1). The eliminators are additive: [f, g]
 // takes f and g in one context, so `(if c a b)` uses it when c does or both a
 // and b do. `(abandon w)` uses it vacuously: 0 is initial, and a crash absorbs
-// its context (§8). So does `(again …)`: a path around a loop continues into
-// the next iteration, every terminating execution leaves by an exit, and a
-// divergent one, like a crash, never returns. Everything else is strict in all
-// it contains, a λ's body included: an eliminator runs its λ once, and a λ
-// never applied is not checked (§7.4).
+// its context (§8). Everything else is strict in all it contains, a λ's body
+// included: an eliminator runs its λ once, and a λ never applied is not checked
+// (§7.4).
+//
+// `(again …)` USES A VARIABLE VACUOUSLY ONLY IF THE VARIABLE OUTLIVES THE JUMP:
+// bound outside the loop the jump goes round, its path continues into the next
+// iteration, and the loop uses it when each of its exits does. A variable bound
+// INSIDE the iteration ends at the jump, so there `again` is an ordinary term,
+// strict in its arguments (abstract.md §8.1). Until abstract2-2026-10-11 every
+// `again` was vacuous, and `(loop … else (seq (write i) (again …)))` dropped a
+// relevant value in silence that `(seq (write n) 1)` would have been refused for.
 //
 // HANDING IT ON is a use exactly when the receiver uses it: the variable passed
 // bare to a λ, or to a definition, is used when that parameter is used on every
@@ -3183,23 +3189,39 @@ func (e *Env) relevant(t *Term, inLoop bool) bool {
 // λ runs a definition's β before the λ meets its argument, with the variable
 // still abstract, so `(drop r)` has already become 0 when r is bound.
 func (e *Env) usedOnEveryPath(t *Term, depth, index int) bool {
+	return e.usedOn(t, depth, index, false)
+}
+
+// usedOn is usedOnEveryPath with outer set once the walk has entered a loop's
+// body: the variable is then bound outside the loop its `again`s go round.
+func (e *Env) usedOn(t *Term, depth, index int, outer bool) bool {
 	switch t.Kind {
 	case KBound:
 		return t.Depth == depth && t.Index == index
 	case KFn:
-		return e.usedOnEveryPath(t.Kids[0], depth+1, index)
+		return e.usedOn(t.Kids[0], depth+1, index, outer)
 	case KApp:
 	default:
 		return false
 	}
 	if isIfApp(t, e) {
-		return e.usedOnEveryPath(t.Kids[1], depth, index) ||
-			e.usedOnEveryPath(t.Kids[2], depth, index) && e.usedOnEveryPath(t.Kids[3], depth, index)
+		return e.usedOn(t.Kids[1], depth, index, outer) ||
+			e.usedOn(t.Kids[2], depth, index, outer) && e.usedOn(t.Kids[3], depth, index, outer)
 	}
-	if isAbandon(t, e) || t.Kids[0].Kind == KName && t.Kids[0].Name == "again" {
+	if isAbandon(t, e) || outer && t.Kids[0].Kind == KName && t.Kids[0].Name == "again" {
 		return true
 	}
 	op, args := t.Kids[0], t.Kids[1:]
+	if op.Kind == KName && op.Name == "loop" && len(args) >= 1 && args[0].Kind == KFn {
+		// A loop's initial values are evaluated here; its body is the loop's,
+		// where the variable is bound outside the loop.
+		for _, z := range args[1:] {
+			if e.usedOn(z, depth, index, outer) {
+				return true
+			}
+		}
+		return e.usedOn(args[0], depth, index, true)
+	}
 	var fn *Term // the receiver, when its parameters are known
 	switch {
 	case op.Kind == KFn:
@@ -3209,7 +3231,7 @@ func (e *Env) usedOnEveryPath(t *Term, depth, index int) bool {
 	}
 	if fn == nil || len(fn.Params) != len(args) {
 		for _, k := range t.Kids {
-			if e.usedOnEveryPath(k, depth, index) {
+			if e.usedOn(k, depth, index, outer) {
 				return true
 			}
 		}
@@ -3222,12 +3244,12 @@ func (e *Env) usedOnEveryPath(t *Term, depth, index int) bool {
 			}
 			continue
 		}
-		if e.usedOnEveryPath(a, depth, index) {
+		if e.usedOn(a, depth, index, outer) {
 			return true
 		}
 	}
 	// a λ written in place sees the variable itself; a definition is closed
-	return op.Kind == KFn && e.usedOnEveryPath(op, depth, index)
+	return op.Kind == KFn && e.usedOn(op, depth, index, outer)
 }
 
 // consumes reports whether fn uses its parameter j on every path of its body
@@ -3434,4 +3456,15 @@ func ascribeResult(body *Term, ty string) *Term {
 		return FnClosed(body.Params, ascribeResult(body.Closed(), ty))
 	}
 	return App(Name(AscribeName), Str(ty), body)
+}
+
+// ParamUsed reports whether the definition `name` uses its parameter j on every
+// path of its body as written: the usage inference the relevance check reads
+// (consumes). abstract.md §8.1's tree usage is held to the same answer.
+func (e *Env) ParamUsed(name string, j int) bool {
+	fn, ok := e.Defs[name]
+	if !ok || fn.Kind != KFn || j >= len(fn.Params) {
+		return false
+	}
+	return e.consumes(Name(name), fn, j)
 }

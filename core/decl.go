@@ -333,3 +333,16 @@ func HostSig(def *DefDecl) *Term {
 
 // formed is a type former applied to one set, `(buffer V)`.
 func formed(name string, x Expr) Expr { return &Apply{Fn: &Var{Name: name}, Args: []Expr{x}} }
+
+// ReadTrees reads a source into its declaration trees, each claim its
+// definition's (ADR 0051): abstract Oroboros's reading of a module.
+func ReadTrees(src string) ([]Decl, error) {
+	if err := validSource(src); err != nil {
+		return nil, err
+	}
+	_, decls, _, err := readModule(src)
+	if err != nil {
+		return nil, err
+	}
+	return carryClaims(decls), nil
+}

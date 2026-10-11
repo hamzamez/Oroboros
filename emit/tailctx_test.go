@@ -66,7 +66,10 @@ func TestMonotonicityChecksAnEdgeInAHostContinuation(t *testing.T) {
 // checked.
 func TestAgainIsCheckedUnderEveryBinding(t *testing.T) {
 	for _, body := range []string{
-		`(let (tuple v err) (sc.ParseInt "5" 10 64) (again "x"))`,
+		// err is a relevant error, discarded on purpose: the loop's iteration is
+		// its scope, and dropping it at the jump was accepted until
+		// abstract2-2026-10-11 closed that hole in the relevance check.
+		`(let (tuple v err) (sc.ParseInt "5" 10 64) (seq (ignore err) (again "x")))`,
 		// y is used twice, so call-by-need keeps the `let` rather than substituting.
 		`(let y (* i 3) (again (if (> y y) "x" "z")))`,
 	} {

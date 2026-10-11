@@ -515,43 +515,74 @@ in the usage algebra: abandon's type, which errors.md §7.1 says "uses every var
 
 ```
 𝒰ₓ(x) = [1,1]      𝒰ₓ(y) = 𝒰ₓ(k) = [0,0]
-𝒰ₓ(app(f; ā))        = Σᵢ 𝒰_{pᵢ}(body_f) · 𝒰ₓ(aᵢ)       f a def: usage inference (errors.md §7.2)
-                     = Σᵢ [1,1] · 𝒰ₓ(aᵢ)                  f a host name, or computed: passing it escapes, a use
-𝒰ₓ(let(y = e; b))    = 𝒰ₓ(e) + 𝒰ₓ(b)
-𝒰ₓ(case(e; ā))       = 𝒰ₓ(e) + ⊔ⱼ (𝒰ₓ(φⱼ) + 𝒰ₓ(bodyⱼ))   additive eliminators (errors.md §7.1)
+𝒰ₓ(app(f; ā))        = Σᵢ ( 𝒰_{pᵢ}(body_f)  if aᵢ is x itself, handed on bare     f a def or a λ in place:
+                            𝒰ₓ(aᵢ)         otherwise: an argument is evaluated )  usage inference (errors.md §7.2)
+                     = 𝒰ₓ(f) + Σᵢ 𝒰ₓ(aᵢ)    a host name, or computed: passing it escapes, a use
+𝒰ₓ(let(y = e; b))    = 𝒰_y(b) if e is x itself, else 𝒰ₓ(e) + 𝒰ₓ(b)    a bare x handed to y; to `_`, dropped
+𝒰ₓ(case(e; ā))       = 𝒰ₓ(e) + ⊔ⱼ (𝒰ₓ(φⱼ) + 𝒰ₓ(bodyⱼ))   additive eliminators; a pattern binding x shadows it
+𝒰ₓ(try(p; e; b))     = 𝒰ₓ(e) + (𝒰ₓ(b) ⊔ [0,0])          the failure arm returns the failure, using nothing
+𝒰ₓ(expect(p; e; w; b)) = 𝒰ₓ(e) + (𝒰ₓ(b) ⊔ ∅)            the failure arm crashes
 𝒰ₓ(app(abandon; w))  = 𝒰ₓ(w) + ∅
 𝒰ₓ(again(ā))         = Σᵢ 𝒰ₓ(aᵢ)       if x is bound inside the loop's iteration
                      = ∅                otherwise: the path continues into the next iteration
-𝒰ₓ(loop(…))          = 𝒰ₓ(z̄) + ⊔ over exits         x bound outside: a loop uses x when each exit does
-𝒰ₓ(lam(ȳ; e))        = [0,∞] · 𝒰ₓ(e)    a λ that may run any number of times
-                     = 𝒰ₓ(e)            an elimination's continuation, run once now (local.md §3)
+𝒰ₓ(loop(…))          = 𝒰ₓ(z̄) + the clauses, each guard before its body, the bodies joined
+𝒰ₓ(lam(ȳ; e))        = 𝒰ₓ(e)            a use inside a λ counts, applied or not (errors.md §7.4)
 ```
 
-**The requirements, one per usage mode:**
+**Corrected and built in step 2** ([abstract2-2026-10-11](../../gauntlet/results/abstract2-2026-10-11.md),
+`core/usage.go`). Three clauses of the first draft were wrong, and the build found each one:
+- **a hand-off scales only a bare variable.** The draft multiplied every argument's usage by the
+  receiver's. But a compound argument is evaluated, so `(drop (check r))` uses r whatever drop does;
+  only x itself, handed on, is used as its parameter is. That is what the reducer computes;
+- **a λ's body counts once, applied or not.** The draft scaled it by [0,∞], which would refuse every
+  use inside a λ passed to a host. Today's check counts it, and errors.md §7.4 names the gap it leaves
+  ("a λ never applied: a use inside it counts"). The tree states the rule as built, and the gap stays
+  named;
+- **`try`'s and `expect`'s failure arms** were not written. They are now.
+
+**The back-edge clause found a soundness hole in the reducer's check.** `Env.usedOnEveryPath` made
+every `again` vacuous, so a relevant value bound inside an iteration and dropped before the jump,
+`(loop … else (seq (write i) (again …)))`, was accepted, where `(seq (write n) 1)` is refused. It is
+fixed (`again` is vacuous only for a variable bound outside the loop the jump goes round), and one test
+had been relying on the hole without knowing it.
+
+**Agreement.** On every definition of the 96 corpus programs that load on Go, 630 parameters, the
+tree's usage and the reducer's usage inference give the same answer (140 of them are not used on every
+path), and nine planted faults each break agreement or a unit test (TestRelevantUsageAgreesOnTheCorpus,
+TestTreeUsageOnTheShapesRelevanceTurnsOn).
+
+**The requirements:**
 
 | mode | requirement on x's scope |
 |---|---|
-| `linear` | 𝒰ₓ ∈ {∅, [1,1]}: exactly once on every path that ends normally |
-| relevant (by its set) | 𝒰ₓ = ∅ or min 𝒰ₓ ≥ 1: at least once |
+| relevant (by its set) | 𝒰ₓ = ∅ or min 𝒰ₓ ≥ 1: used on every path that ends normally |
+| `linear` | **an ordering, not a count** (below) |
 | none | anything |
 
-**Today's two checks are implementations of these requirements.** CheckLinear checks linear, by type
-on the residual (ADR 0018, 0020), and relevance is checked at β on the λ as written (ADR 0043). This
-section states what both should compute. The planted faults that each check already carries are the
-tests for agreement. errors.md §7.4's unchecked cases (a pure relevant value, a payload, a loop
-variable) are where the implementation computes less than this specification and refuses nothing.
+**`linear` is not "exactly once"** (corrected 2026-10-11). The draft required 𝒰ₓ ∈ {∅, [1,1]}, but
+ADR 0018's buffer is used by an ordering: reads, `(b i)` and `(len b)`, are free while the buffer is
+live; a move, a store into it or handing it on bare, happens at most once on a path; and nothing reads
+it after the move, except `len`, which cannot observe a store. Per path that is the regular language
+(r | ℓ)* (m ℓ*)? over reads r, lengths ℓ and a move m, and an unused buffer is allowed. It is Wadler's `let!`, read-
+only access before the linear use ("Linear types can change the world", 1990), and Clean's observers;
+an interval of counts cannot express it, since it forgets order. So usage is two judgements, a count
+semiring for relevance and an ordering automaton for buffers, which is what `CheckLinear` already is.
+
+**A tree's linear check reaches only buffers bound by the tree**, a `local` buffer (68 scopes in the
+corpus) and a `linear` parameter (2 program signatures): `CheckLinear` is seeded by type, and a loop
+variable or a host call's result is a buffer only by its type. Its tests mostly build residual terms
+of exactly those shapes. So the tree version is not built: it would have almost nothing to be held
+against. It is built when the surface reports linearity at source positions.
 
 ### 8.2 Effects
 
-𝓔 : A → 𝔹, with impure as true, is the join (∨) over a tree's subterms:
-- a host name gives its declared bit, impure by default;
-- abandon, assign, a passing-mode argument and `#ref`/`#deref` give impure;
-- every other owned name gives pure;
-- **a λ's body counts**, since a λ argument may be applied (outcells-2026-10-09).
-
-It is ADR 0010's side condition on β, which denies contraction, weakening and exchange to an impure
-term. It belongs to the reducer, not to this syntax, but it is defined on the syntax and stated here
-so that its clauses are one per operator.
+**𝓔 is the core's effect judgement pulled back along D: 𝓔(t) = impure(D(t))**, `Env.pureTerm`
+(corrected 2026-10-11). The draft listed clauses one per operator, but the effect bit depends on the
+target's purity bits and the definitions, which live in the core where β reads them (ADR 0010).
+Re-deriving on trees every shape D builds — a `loop`'s name, a match guard's `=`, a filled table's
+`set` — would be a second rule that can disagree with the first, and this project has paid for that
+before. One rule, composed with D, is a homomorphism too. Its content is ADR 0010's: an impure term is
+let-bound, never substituted, a λ argument's body counts as run, and a λ value is not a call.
 
 ## 9. Renderings
 
@@ -772,7 +803,11 @@ That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i 
      target declaration (876) passes through its tree, a definition with a host body whose claim
      carries modes (`linear`, `inout`) in place of `(buffer V)` and `(cell T)`; every primitive
      identical; emission byte-identical; eight planted faults caught.
-   - **Next, step 2**: 𝒰 and 𝓔 on A.
+   - **2, built** ([abstract2-2026-10-11](../../gauntlet/results/abstract2-2026-10-11.md)): relevant
+     usage on trees, agreeing with the reducer on 630 corpus parameters; it found and fixed a soundness
+     hole in the relevance check at `again`; 𝓔 is the core's judgement pulled back along D; `linear`
+     corrected to an ordering, its tree version deferred (§8.1).
+   - **Next, step 3**: ε and 𝒪 on A, with ADR 0049's checker.
    - **Deferred to the step that consumes them**: `assign`, which needs the scope above it and has no
      consumer before step 2; a `case` pattern resolved into Pat, which needs Load's declaration
      environment and belongs with the step that moves Load onto trees.

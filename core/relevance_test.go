@@ -131,3 +131,35 @@ func TestARelevanceRefusalNamesTheValueAndTheBinder(t *testing.T) {
 		}
 	}
 }
+
+// `again` IS VACUOUS ONLY FOR A VARIABLE THAT OUTLIVES THE JUMP (spec/errors.md
+// §7.1, abstract.md §8.1). A value bound inside an iteration ends at the jump,
+// so dropping it there is dropping it; one bound outside the loop goes round, and
+// the loop uses it when each of its exits does (abstract2-2026-10-11: every
+// `again` was vacuous, and the first two were accepted).
+func TestAgainUsesOnlyWhatOutlivesTheJump(t *testing.T) {
+	loop := func(clause string) string {
+		return `(loop ((i n)) (go.> i 3) 0 else ` + clause + `)`
+	}
+	for _, c := range []struct {
+		body string
+		ok   bool
+	}{
+		{loop(`(let r (write i) (again (go.- i 1)))`), false},
+		{loop(`(seq (write i) (again (go.- i 1)))`), false},
+		{loop(`(let r (write i) (again (go.- (check r) 1)))`), true},
+		{loop(`(let r (write i) (seq (ignore r) (again (go.- i 1))))`), true},
+		{loop(`(let r (write i) (seq (check r) (again (go.- i 1))))`), true},
+		// bound outside the loop: the jump goes round, and the exits decide
+		{`(let r (write n) (loop ((i n)) (go.> i 3) (check r) else (again (go.- i 1))))`, true},
+		{`(let r (write n) (loop ((i n)) (go.> i 3) 0 else (again (go.- i 1))))`, false},
+	} {
+		_, err := relevanceReduce(t, c.body)
+		if c.ok && err != nil {
+			t.Errorf("%s: should be accepted: %v", c.body, err)
+		}
+		if !c.ok && (err == nil || !strings.Contains(err.Error(), "relevant")) {
+			t.Errorf("%s: should be refused as a dropped relevant value, got %v", c.body, err)
+		}
+	}
+}

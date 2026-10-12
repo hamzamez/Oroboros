@@ -7,7 +7,8 @@ surface, behind the byte-identical gate. Amends [ADR 0018](0018-immutable-values
 check (the guarantee stands), [ADR 0047](0047-local-state-is-a-scope-and-a-cell-is-a-loop-variable.md)'s
 initializer rule and [spec/abstract.md](../spec/abstract.md) §2.2 and §2.4, under
 [ADR 0050](0050-the-abstract-syntax-fits-the-semantics.md). Supersedes surface-design.md §2.3's
-option (a), `linear` written at 26 binders.
+option (a), `linear` written at 26 binders. **Extended to maps by
+[ADR 0058](0058-a-map-buffer-is-a-state-binder-holding-a-map.md)** (not built).
 
 ## Context
 

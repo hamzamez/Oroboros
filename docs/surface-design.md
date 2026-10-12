@@ -32,6 +32,7 @@ since the document records how the design was reached.
 | 9 | the source is D or J; one arm grammar (`cond`, `match` retired); `again` positional; `;` tighter than `[]` in D; `var` marks state in J; one-armed `if` in J; J's formers `array { … }`, `set { … }`; `array(n, f)` for a rule; `Seq(S)` for the set | [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md), §3.9–3.10 | B′ and K dropped; the handled bind and a loop's invariant slot still open (§3.11) |
 | 10 | a loop's invariant slot | hamza, 2026-10-12 (ADR 0056's amendment) | `LOOP i == 0 INVARIANT I :` in D, `loop i = 0 invariant I { … }` in J; optional, absent meaning ⊤; ε erases it, 𝒪 makes three obligations of it (§3.11) |
 | 11 | the handled bind, a derived operator with `try` and `expect` its instances; in a loop its success arm is a tail and its handler leaves | [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md), §3.11–3.14 | J `try p = e [else ā], … { body } [else ā]`, D `TRY p == e [ELSE ā], … IN body [ELSE ā]`; no statement form of `try`; a small two-way choice stays `case`; `expect` stays a statement |
+| 12 | a map buffer is a state binder holding a map; tuples `(a, b)`, `()` in J and `⟨a, b⟩`, `⟨⟩` in D; concatenation `++` in J and `∘` in D; sets in D TLA+'s, in J `set { … }`, ranges `lo..hi` | [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md), hamza 2026-10-12 (§4.7, items 4–7) | open (§4.8): the tag's mark, the forms of arrays and maps, J's set operators, tag qualification |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -3776,3 +3777,174 @@ LET ⟨q, r⟩ == divmod(a, b) IN "q=" ∘ string_of(q) ∘ " r=" ∘ string_of(
    `lo..hi` for `(int lo hi)`. *Recommended*.
 6. **Tuples** (Finding 6): J `(a, b)`, `()`; D `⟨a, b⟩`, `⟨⟩`. *Recommended*.
 7. **Concatenation** (Finding 7): D `∘`, J `++`. *Recommended*.
+
+### 4.8 hamza's answers, and the arguments for what is still open
+
+hamza, on §4.7: *"I don't like #, I prefer 'fine(x) unless you have a better solution. we already
+reserved it for symbols, the next step of TLA+ is written Next' not at the beginning. … we decided at
+the beginning that case have no meaning in the language, if we use it for sets, it is going to
+convention only. not enforced. … maybe we should keep the comprehension for array in J, and remove
+the rule array(n, f), instead we use array { k \in 0..n-1 : e} … and maybe even the literal of map
+{ k : v, ...} one shape to remember. maybe the convention will be Array(V) and Map(K, V)? … finding 5.
+what about the membership operator in J … python, tla+ or something else … why J and D don't have
+os.?"*
+
+**Decided**: item 4 as [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md)
+(a map buffer is a state binder holding a map); item 6, tuples (J `(a, b)` and `()`, D `⟨a, b⟩` and
+`⟨⟩`); item 7, concatenation (D `∘`, J `++`); item 5's forms (D TLA+'s, J `set { … }`, ranges `lo..hi`),
+its operators still open.
+
+#### 1. The tag: `'fine(x)`, and I withdraw my objection
+
+My objection (d) was wrong. TLA+'s prime is **postfix**, `x'` and `Next'`, and data.md §2.2 already
+keeps it there: *"`x'` is not legal today and stays illegal, so a later decision to allow
+mathematical primes is not blocked."* A prefix quote is a different token, and data.md §2.1 has already
+given it its meaning:
+
+> `symbol ::= ' identifier` … a **symbol** is a name used as data rather than as a reference: `'x`
+> means *the name x*, while `x` means *the value bound to x*. That is the use–mention distinction.
+
+**For `'`:**
+- **It unifies tags with symbols, and that is the algebra.** A record is a product indexed by a finite
+  set of labels, Π over ℓ ∈ L; a variant is a sum indexed by a finite set of tags, Σ over ℓ ∈ L
+  (sums.md §1 already calls the sum "the exact dual of a table's Π"). In both, the index is a name used
+  as data: a symbol. So `'x` projects a record's field and `'fine(x)` builds or matches a variant's
+  case, one mark for the index of a Π and of a Σ. data.md §2.4 left room for exactly this: *"a later
+  design may give a surviving symbol a representation, such as a string or an integer tag"*, and
+  ADR 0042's tag is that integer.
+- **It is quotation**: data, not a reference. A constructor's term is a value that does not compute,
+  which is what quoting says.
+- **It is already reserved**, so it costs no new character, and data.md's rule that `'` must be
+  followed directly by an identifier keeps `'(…)`, `'3` and `'"s"` errors.
+- **It closes the three misfits as `#` would**: D's `'fine(x) == e` is not a definition's shape, J's
+  `'fine(x) = e` does not read as a function definition, and `'none` cannot be a binder.
+
+**Against `'`:**
+- **It is small.** The nullary pitfall's protection rests on seeing it, `'none` against `none`, where
+  `#` is heavier on the page. A highlighter answers this, and Lisp, OCaml (`'a`) and Rust (`'a`) live
+  with it.
+- **J is Go-inspired, and Go writes `'a'` for a rune.** A reader from Go, C or Java may expect a
+  closing quote, and an editor without the language's grammar colours the rest of the line as a
+  character literal. The language has no character literals (strings only), so nothing is ambiguous to
+  the grammar, only to a reader's habit.
+
+**Another solution?** None better. A suffix (`fine!(x)`) reads as a macro (Rust), and a double sigil
+(`::fine`) is C++'s scope operator. **Recommended: `'`**, for the unification above.
+
+#### 2. Case has no meaning: agreed, with one consequence
+
+Agreed. Identifiers stay case-sensitive, because a host's are (`os.ReadFile` is Go's spelling and must
+be written so), but **case carries no category**. Sets are Capitalized by convention, a formatter may
+suggest it, and nothing enforces it. D's reserved words are a fixed list, written in capitals as
+TLA+'s are: that is the list, not a meaning of case.
+
+The consequence supports item 1: **a tag cannot be marked by case**, since nothing would enforce the
+mark. It has to be a character the grammar checks, which `'` is. §4.4's Finding 2 becomes: names of any
+case (sets Capitalized by convention), `'tags`, host names as the host spells them, and D's reserved
+words.
+
+#### 3. One shape for arrays, maps and sets: agreed, with one push-back on `:`
+
+**Agreed: the rule moves inside the former, and `array(n, f)` goes** (amending ADR 0056's item 8). It
+has two gains beyond the shape:
+- **the hazard ADR 0056 accepted disappears**: with no `array(…)` form, `array(3, 0)` against
+  `array{3, 0}` cannot happen, because `array(` is a syntax error;
+- **the binder is visible**: `array { k ∈ 0..n-1 … }` names the index the rule ranges over.
+
+Its cost: a zero-filled buffer, the commonest rule (67 of 77), writes its binder,
+`array { _ ∈ 0..n-1 … 0 }` against `array(n, 0)`, about six tokens more at each of 67 sites.
+
+**Push-back: `:` must not mean "maps to" where it already means "such that".** In a set it is
+**separation**, Zermelo's: `{x ∈ S : φ}` is the elements of S for which φ holds, a filter, and
+mathematics reads that shape that way everywhere, TLA+ included. In `array { k ∈ 0..n-1 : e }` the same
+characters would mean **a function**, k maps to e. The keyword tells the two apart, as you say, but
+both readings are well-typed for the same body:
+
+```go
+set   { x ∈ S : x > 0 }        // the positive elements of S: a subset
+map   { x ∈ S : x > 0 }        // each x of S mapped to whether it is positive: S → Bool
+array { k ∈ 0..n-1 : k > 0 }   // n booleans
+```
+
+One word changes a filter into a function, and a reader trained on set-builder notation reads the
+second and third as filters. That is the homonym (F2) the fit criteria count.
+
+**Proposed instead: one shape, two separators, each with its mathematical meaning.** `:` is "such
+that", only in sets; `↦` (ASCII `|->`) is "maps to", in arrays and maps, rule or graph:
+
+```go
+set   { x ∈ S : x > 0 }                  // separation
+array { k ∈ 0..n-1 ↦ k * k }             // a rule
+array { 2, 3, 5, 7 }                     // a graph
+map   { 1 ↦ 10, 2 ↦ 20, 5 ↦ 50 }         // a graph
+```
+
+You keep one shape, `former { … }`, and the binder inside it, and what `:` and `↦` mean does not depend
+on the keyword. It is TLA+'s own pair (`{x ∈ S : P}` against `[x ∈ S ↦ e]`), so D and J share it. The
+cost against JSON's `{k: v}`, the most familiar map literal there is: `↦`, or `|->`, instead of `:`.
+
+**`Array(V)` and `Map(K, V)`: agreed, and now safe.** ADR 0056 chose `Seq(V)` so that a set and a value
+were never spelled alike. With `array(n, f)` gone, `Array(V)` against `array { … }` cannot be confused
+silently: a mis-cased `array(V)` is a syntax error. The empty map buffer keeps its capacity in
+parentheses, `map(8)` (ADR 0058), and a mis-cased `map(Int, String)` is refused by type, since a set is
+not a capacity. **Recommended: the set names are `Array(V)` and `Map(K, V)` in D and J both**, one name
+in Σ₀ (renaming abstract.md's `Seq`), so both notations print the same set.
+
+#### 4. The operators: Python's, all the way, in J
+
+D need not change: it writes TLA+'s glyphs, `∈ ∪ ∩ \ ⊆ ×` (ASCII `\in \cup \cap \ \subseteq \X`). The
+question is J's.
+
+| | membership | ∪ | ∩ | ∖ | ⊆ | × |
+|---|---|---|---|---|---|---|
+| **Python, all the way** | `in` | `\|` | `&` | `-` | `<=` | (none in Python) |
+| TLA+'s ASCII | `\in` | `\cup` | `\cap` | `\` | `\subseteq` | `\X` |
+| Unicode | `∈` | `∪` | `∩` | `∖` | `⊆` | `×` |
+
+**For Python's, all the way:**
+- **They are the Boolean algebra's own operators**: `|` and `&` are join and meet, `-` the relative
+  complement, `<=` the lattice's order. A set is its characteristic function, and `&` and `|` are its
+  pointwise ∧ and ∨, which is also what they mean on bits in C.
+- **They are free in J**: the language has no bitwise operators (CLAUDE.md: deliberately not promoted),
+  so `|`, `&` and `^` mean nothing else.
+- **They are ASCII, and the most widely read set notation in programming.** TLA+'s ASCII (`\cup`,
+  `\subseteq`) is made for typesetting, not for reading in a source file.
+
+**Against:** `-` and `<=` also act on integers. That is overloading by sort, as `+` and `*` already are
+between `int` and `f64`, resolved by the checker that knows the sort; sets live in claims, so the
+logic's checker resolves theirs.
+
+**The product.** Python has no set product. `S * T` is the categorical product, and |S × T| = |S| · |T|,
+so `*` is the right overload by the same argument. Products are rare in sets once each binder has its
+own set (ADR 0051), so the choice matters little.
+
+**And `∈`, which you like?** A canonical spelling is one spelling (notation-research §10: a formatter
+prints one). The source writes `in`, and an editor or the reading rendering may display it `∈`, as a
+ligature: the source stays ASCII and the page looks as you like.
+
+**Recommended: J writes Python's**, `in`, `|`, `&`, `-`, `^`, `<=`, `<`, and `*` for the product. D
+writes TLA+'s.
+
+#### 5. Why `'not_found` and not `'os.not_found`
+
+§4.4's Finding 1 proposed that **a variant's tags come into scope with the variant**, as Rust's prelude
+brings `Ok` and `None` and Haskell's imports bring constructors. `k` is an `os.kind`, the module `os` is
+in use, and `'not_found` names its tag, the only `not_found` in scope. Where two variants in scope
+share a tag, the program writes the qualified tag, `'os.not_found`, and an unqualified one is refused as
+ambiguous. Measured: no file in the corpus uses `lib/result` and also declares its own `ok` or `err`, so
+nothing would need qualifying today.
+
+The other answer is to qualify always, as today's T does (`os.not-found`, and `result.ok` at every use).
+That tells the reader where each tag comes from, at a module name per tag, and the scrutinee's variant
+already says it. **Recommended: unqualified, refused when ambiguous.**
+
+#### Open, for hamza
+
+1. **The tag is `'name`**: tags and symbols one mark, the index of a Π and of a Σ. *Recommended.*
+2. **Case carries no category**: sets Capitalized by convention, a tag marked by `'`, D's reserved words
+   a list. *Agreed above.*
+3. **One shape**: `array { k ∈ 0..n-1 ↦ e }` replacing `array(n, f)` (amending ADR 0056), `:` only for
+   "such that" in sets, `↦`/`|->` for "maps to" in arrays and maps, `map { k ↦ v, … }`, the empty map
+   buffer `map(cap)`; the set names `Array(V)` and `Map(K, V)` in D and J. *Recommended.*
+4. **J's set operators are Python's**, `in` rendered `∈` where wanted; D's TLA+'s. *Recommended.*
+5. **Tags unqualified**, qualified only where two variants in scope share one. *Recommended.*

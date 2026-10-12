@@ -580,6 +580,7 @@ rejected alternatives.
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
 | The surface is D or J (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
 | The handled bind is a derived operator, case(e; p → b, ā), with try and expect its instances; J writes `try p = e [else ā], … { body } [else ā]`, D `TRY … IN`; in a loop its success arm is a tail and its handler leaves — extends 0041, not built | [0057](docs/decisions/0057-the-handled-bind-and-its-tail.md) |
+| A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, not built | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
 
 ## How this project is run
 

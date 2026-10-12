@@ -3242,3 +3242,96 @@ what makes it readable: the `again` is visibly the last statement of the block a
    `else arms` it is the handled bind (§3.9's item 2), whose value exits the block.
 3. **`expect` stays a statement.**
 4. **2b**: a try block may be a loop arm's tail, its handlers leaving the loop, by an ADR extending 0041.
+
+### 3.13 The same tree, written three ways (§3.12 revised)
+
+hamza: *"this is entirely different. I am even more confused now … my confused about the difference
+between the s-expression having again inside try, and in J as a statement. try to explain it again.
+the algebra, the pros, and the cons."*
+
+#### It is one tree
+
+`try` has three slots: a pattern, a value, and a body that runs only if the value matches the
+pattern. The tree of C4's arm is
+
+```
+try( fine(x);  step(i, n);  again(i + 1, acc + x) )
+     pattern   value        body
+```
+
+and every notation writes those three slots:
+
+```lisp
+(try (fine x) (step i n) (again (+ i 1) (+ acc x)))           ; T: the body is the third argument
+```
+```
+TRY fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)            \* D: the body follows IN
+```
+```go
+{ try fine(x) = step(i, n); again(i + 1, acc + x) }           // J as drafted: the body is the rest of the block
+```
+
+**In J's draft the `again` is inside the `try` too.** The `;` after the `try` does not end it. It
+means "the rest of this block is my body", which is how every binder in a statement list works:
+
+```lisp
+(let x (f 1) (g x))                                           ; T
+```
+```go
+{ x = f(1); g(x) }                                            // J: g(x) is inside x's scope, written after it
+```
+
+Installment 2 chose statement lists for this (§2.9, §2.11): a sequence of binders reads top to bottom
+instead of nesting one level per binder, and a statement list folds right into exactly the nested
+tree (`core/desugar.go`).
+
+#### Why it confuses with `try` and not with `=`
+
+For `x = f(1); g(x)` the two readings of `;` coincide: "do this, then that" and "that is in this
+one's scope" give the same program, because `x = f(1)` always succeeds. For `try` they differ.
+Its body runs **only if the pattern matches**; otherwise the body is skipped, and the failure is the
+value of the whole form, here the arm, so it leaves the loop (ADR 0041). So after a `try`, `;` means
+"and if it matched, continue with …", and nothing on the page says so. In T and D the body is
+visibly an argument of `try`; in J's draft it is a convention.
+
+#### Three ways to write it in J, one tree
+
+| | J | where the body is | pros | cons |
+|---|---|---|---|---|
+| **A** | `{ try fine(x) = step(i, n); again(…) }` (the draft) | the rest of the block | flat: a chain of binds reads top to bottom | the body and the destination are a convention; `;` reads as "then" |
+| **B** | `try fine(x) = step(i, n) { again(…) }` | in the braces after the binder | **T's three slots, in J's own shape**, `keyword head { body }`, as `fn`, `loop` and `case` have; the destination is the `try` form itself; with a handler it reads like `if … else` | one level of braces per step that cannot be grouped |
+| C | `try { fine(x) = step(i, n); again(…) }` (§3.12) | the rest of the block, inside `try { }` | flat, and the block shows where a failure goes | moves the word `try` off the binder onto a region, and needs a new rule (a fallible binder only inside a try block); the tree is the same but the page is not |
+
+**B is the recommendation**, replacing §3.12's C. It is the S-expression's tree written in J's shape:
+
+```go
+try fine(x) = step(i, n) { again(i + 1, acc + x) }                       // C4's arm
+
+try ok(src) = os.ReadFile(path) {                                         // a handled bind
+    print(os.text_of(src)); 0
+} else err(k) -> { print_line(kind_name(k)); 1 }
+```
+
+- **Without `else`**, a failure is re-built and is the form's value: `try`'s law.
+- **With `else arms`**, a failure goes to the arms: the handled bind, §3.9's item 2. It is the same
+  shape as `if c { a } else { b }`: `if` eliminates 𝔹 = 1 + 1, and `try … else` eliminates a sum
+  T + E, with the success arm first.
+- **Several binders that share one handler are one group**, as a loop's variables are:
+  `try ok(_) = os.WriteFile(path, data), ok(src) = os.ReadFile(path) { … } else err(k) -> { … }`.
+  That is D's `TRY ok(_) == …, ok(src) == … IN …`, so D and J have the same structure.
+- **Steps with different handlers nest**, one level each, as T's `case`s do today. Measured, 4 of 38
+  handled binds hold another choice in their success arm (§3.2), so the staircase is rare.
+- **2b reads directly**: in a loop's arm, `try ok(x) = f(i) { again(…) } else err(e) -> h` has the
+  `again` visibly inside the success braces and the handler visibly outside, which is ADR 0041's shape
+  with a handler.
+- **`expect` keeps its statement form**, `expect ok(n) = strconv.Atoi(s) else "not a number"`: it
+  abandons, so it has no body to show and no value to deliver.
+
+#### Proposed (replacing §3.12's)
+
+1. **J: `try p = e, … { body } [else arms]`**, the binders a group, the body braced, the handler
+   after: B.
+2. **D: `TRY p == e, … IN body [ELSE arms]`**, unchanged in shape.
+3. **The handled bind is `try … else`** (§3.9's item 2); `expect` stays a statement.
+4. **2b**: `try … { … again(…) } else arms` as a loop arm's tail, its handlers leaving the loop, by an
+   ADR extending 0041.

@@ -33,6 +33,7 @@ since the document records how the design was reached.
 | 10 | a loop's invariant slot | hamza, 2026-10-12 (ADR 0056's amendment) | `LOOP i == 0 INVARIANT I :` in D, `loop i = 0 invariant I { … }` in J; optional, absent meaning ⊤; ε erases it, 𝒪 makes three obligations of it (§3.11) |
 | 11 | the handled bind, a derived operator with `try` and `expect` its instances; in a loop its success arm is a tail and its handler leaves | [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md), §3.11–3.14 | J `try p = e [else ā], … { body } [else ā]`, D `TRY p == e [ELSE ā], … IN body [ELSE ā]`; no statement form of `try`; a small two-way choice stays `case`; `expect` stays a statement |
 | 12 | a map buffer is a state binder holding a map; tuples `(a, b)`, `()` in J and `⟨a, b⟩`, `⟨⟩` in D; concatenation `++` in J and `∘` in D; sets in D TLA+'s, in J `set { … }`, ranges `lo..hi` | [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md), hamza 2026-10-12 (§4.7, items 4–7) | open (§4.8): the tag's mark, the forms of arrays and maps, J's set operators, tag qualification |
+| 13 | a tag is a quoted symbol, `'name`; case carries no category; one former shape `former { … }`, `array(n, f)` gone; the sets `Array(V)` and `Map(K, V)` | [ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md), §4.8 | open (§4.9): `:` as the former's separator, J's membership and set operators, tag qualification |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -3948,3 +3949,160 @@ already says it. **Recommended: unqualified, refused when ambiguous.**
    buffer `map(cap)`; the set names `Array(V)` and `Map(K, V)` in D and J. *Recommended.*
 4. **J's set operators are Python's**, `in` rendered `∈` where wanted; D's TLA+'s. *Recommended.*
 5. **Tags unqualified**, qualified only where two variants in scope share one. *Recommended.*
+
+### 4.9 The colon, pushed with everything; `in` against the modes; qualified tags
+
+hamza, on §4.8: *"1. the tag is 'name, agreed. 2. agreed. 3. yes, but not sold on the use of :, we know
+the context. show the problem with examples. push with everything you have. 4. if we go python all the
+way, wouldn't in be confused with inout, and out? 5. elaborate, I think they should be qualified. push
+back."* Items 1, 2 and the agreed part of 3 are
+[ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md).
+
+#### The colon: every attack, and what survives
+
+Under hamza's proposal `:` separates a binder from its body in every former, and a key from its value
+in a graph:
+
+```go
+set   { x ∈ S : x > 0 }
+array { k ∈ 0..n-1 : k * k }
+map   { x ∈ S : f(x) }
+map   { 1 : 10, 2 : 20 }
+```
+
+**A1. One word turns a filter into a function.**
+
+```go
+set { x ∈ S : x > 0 }      // the positive elements of S
+map { x ∈ S : x > 0 }      // S → Bool: each element mapped to whether it is positive
+```
+
+Both are well-typed for the same body, and they are different values.
+
+**A2. Mathematics reads `{k ∈ 0..n-1 : e}` as separation, a filter**, Zermelo's set-builder, and TLA+
+does too. `array { k ∈ 0..n-1 : k * k }` would be read first as "the k whose k·k holds".
+
+**A3. Two colons in one line**: `array { k ∈ 0..n-1 : set { x ∈ S : x > k } }`.
+
+**A4. Quantifiers will want `:` too** (installment 5): `forall x ∈ S : φ`, TLA+'s `∀x ∈ S : φ`.
+
+**A5. A rule and a single point differ by `∈ D`**: `map { k ∈ keys : 0 }` is a map over `keys`,
+`map { k : 0 }` a one-entry map whose key is the value of a k bound outside.
+
+**A6. D cannot follow.** D is TLA+'s, `[x ∈ S ↦ e]` against `{x ∈ S : P}`, so the same tree would print
+`↦` in D and `:` in J.
+
+**A7. The image of a set**, mathematics' `{f(x) : x ∈ S}`, writes `:` with the binder on the right.
+
+**A8. A `case` arm is "maps to" too**: `case k { 1 -> "a" }` against `map { 1 : "a" }`, two separators for
+one meaning.
+
+**And here is the defence, which turned out stronger than the attacks.** A subset of S *is* its
+characteristic function: 𝒫(S) ≅ Bool^S, A ↦ χ_A. Under that isomorphism `set { x ∈ S : φ }` is "the
+subset whose characteristic function is x ↦ φ", so **`binder : body` is the λ-abstraction λx ∈ S. body
+in every former**, and the keyword says what to make of the function:
+
+| | the former | maps the function to |
+|---|---|---|
+| `set { x ∈ S : φ }` | χ⁻¹ | the subset where it is true (φ must be Bool) |
+| `array { k ∈ 0..n-1 : e }` | tabulation on [0, n) | a table |
+| `map { x ∈ D : e }` | tabulation on D | a map |
+| `forall x ∈ S : φ`, `exists x ∈ S : φ` | ∀, ∃ | a truth value |
+
+The last row is Church's ("A formulation of the simple theory of types", 1940): a quantifier is a
+function applied to a propositional function, ∀(λx. φ). A graph's pair, `1 : 10`, is one point of the
+same function, 1 maps to 10, which is also Python's and JSON's `{k: v}`.
+
+So, attack by attack:
+- **A1 is not a homonym.** `set` and `map` apply different operations to the *same* function x ↦ (x > 0),
+  as `forall` and `exists` do to one predicate. A homonym is one symbol with two meanings; here `:` has
+  one meaning and the two keywords have two. And a body that is not Bool is refused in a `set`.
+- **A2 is a habit, not a meaning**: separation *is* the characteristic-function reading of the same λ,
+  and the keyword `array` says a table follows.
+- **A3 and A4 dissolve**: every colon is the same λ.
+- **A5 is not about `:`**: `↦` has it too (`map { k ↦ 0 }` against `map { k ∈ keys ↦ 0 }`).
+- **A6 stands, and matters only if both notations survive**: D keeps TLA+'s brackets, whose shape
+  (`[…]` against `{…}`) already says what J's keyword says.
+- **A7 stands as a rule**: in J the binder is always first, so the image of a set needs its own former
+  (installment 5), never `set { f(x) : x ∈ S }`.
+- **A8 is a real distinction kept**: an arm is control, applied now, and a map is data, stored. The
+  separator marks which, as the heads `case` and `map` do.
+
+**Verdict: the push fails, and my proposal was the misfit.** With `↦` for arrays and maps and `:` for
+sets, J would spell one λ two ways, a synonym (F1). **Recommended now: hamza's `:`**, in every former
+and in a graph's pairs:
+
+```go
+set   { x ∈ S : x > 0 }
+array { k ∈ 0..n-1 : k * k }
+array { _ ∈ 0..n-1 : 0 }                 // the zero-filled buffer
+map   { 1 : 10, 2 : 20, 5 : 50 }
+map   { x ∈ D : f(x) }
+```
+
+What it costs: A6's divergence from D, and A7's rule that a binder comes first.
+
+#### `in` against `inout` and `out`: yes, and it decides the question
+
+**The collision is worse than a shared prefix.** The modes are named after Ada's (ADR 0048: "Algol W,
+Ada's `in out`"), and in Ada **`in` is itself a mode**, the default, read-only:
+`procedure P (X : in Integer; Y : in out Integer; Z : out Integer)`. With Python's `in` for membership,
+a host declaration reads as three modes:
+
+```go
+fn Sscan(str in String, a in Value inout, b in Value inout)      // Python's in
+fn Sscan(str ∈ String, a ∈ Value inout, b ∈ Value inout)         // ∈
+```
+
+In the first line `in` and `inout` sit next to each other with unrelated meanings. Measured, the corpus
+has 48 mode sites today (11 `(cell …)`, 37 `(out …)`, which become `inout` and `out`), against a
+membership in every claimed binder.
+
+Renaming the modes instead would not help: `inout` is Swift's word for exactly ADR 0048's
+copy-in, copy-out, and `ref` would describe a reference that ADR 0048 is not.
+
+**So not Python all the way.** Membership is not one operator among the others. It is the binder's own
+relation, `x ∈ S` in every parameter and every claim, and it keeps its glyph. **Recommended for J:
+`∈` for membership** (ASCII input `\in`, which a formatter prints as `∈`) **and Python's operators for the
+Boolean algebra's operations**, `|` (∪), `&` (∩), `-` (∖), `^` (symmetric difference), `<=` (⊆), `<`
+(⊂), and `*` (×). D writes TLA+'s.
+
+#### Qualified tags: the push-back, and a middle way
+
+**hamza's case for qualifying is strong, and it is uniformity.** Every imported name is qualified, a
+function (`os.ReadFile`) or a set (`os.File`), so a tag is too (`'os.not_found`). The reader sees where
+each tag comes from, nothing arrives by an import rule, and today's T already writes `result.ok`.
+
+**The push-back is the cost, and where it falls.**
+- **Measured: `result.ok` and `result.err` are written 99 times** (53 and 46). Every `case` on a result
+  names the module once per arm, and a `try` with a handler names it twice: `try 'result.ok(src) =
+  os.ReadFile(path) else 'result.err(k) -> …`.
+- **The scrutinee already names the variant.** In
+  `case k { 'os.not_found -> …; 'os.exists -> …; 'os.permission -> …; 'os.other(e) -> … }` the four
+  `os.` repeat what k's type says. OCaml removed exactly this repetition by type-directed
+  disambiguation of constructors (OCaml 4.01, 2013), and Swift by `.notFound`. Resolution here precedes
+  types (ADR 0011), so that route is closed.
+- **The prelude**: `option`'s `'some` and `'none` are the language's own (the reducer declares them).
+  Qualifying them, `'lang.some`, would be noise, which is why Rust's prelude brings `Some`, `None`,
+  `Ok` and `Err`.
+
+**The middle way: qualified by default, unqualified by a written choice.**
+1. **An imported tag is qualified**, as hamza says: `'os.not_found`, `'result.ok`. That is the default,
+   uniform with functions and sets.
+2. **A module's own tags are unqualified inside it**, as its own functions are.
+3. **The language's tags are unqualified**: `'some`, `'none`, the prelude.
+4. **A `use` may expose named tags**, Elm's `import Result exposing (Ok, Err)`:
+   `use result exposing 'ok, 'err`. Inside that module they are written unqualified, and the reader
+   finds where they come from one line at the top of the file. Two exposed tags of one name are refused.
+
+Provenance stays written, once per module rather than once per use, and nothing arrives without a line
+saying so.
+
+#### Open, for hamza
+
+1. **`:` in every former and in a graph's pairs**: the λ's separator, its meaning one under
+   𝒫(S) ≅ Bool^S; the binder always first. *Recommended*, withdrawing `↦`.
+2. **J's membership is `∈`** (ASCII input `\in`); **J's set operations are Python's**, `| & - ^ <= < *`; D
+   writes TLA+'s. *Recommended*, because Python's `in` would sit beside the modes `inout` and `out`.
+3. **Tags qualified by default**, with a module's own and the language's unqualified, and
+   `use M exposing 'a, …` to choose otherwise. *Recommended*, as the middle way.

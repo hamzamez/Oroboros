@@ -149,6 +149,11 @@ the dynamic one* — applied to the smallest possible value. A later design may 
 symbol a representation, such as a string or an integer tag. None is given here, because no program
 has needed one.
 
+> **A tag is a symbol** ([ADR 0059](../decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md),
+> not built): the surface writes a variant's constructor `'name`, `'fine(x)`, `'none`. A variant is Σ over
+> a finite set of names and a record is Π over one, so a tag and a label are one kind of thing. A tag
+> survives staging as ADR 0042's integer tag, the representation §2.4 left open; a label still does not.
+
 ### 2.5 Order
 
 Symbols are totally ordered by comparing their spellings as sequences of Unicode scalar values,

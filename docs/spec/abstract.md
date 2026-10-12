@@ -86,7 +86,7 @@ Everything else is a **name applied to arguments**: integer arithmetic and compa
 a variant's constructors (generated definitions, sums.md §3), `array`, `table`, `len`, `alloc`, a
 buffer's threaded store `store` (today's three-argument `set`), `map`, `insert`, `keys`, `concat`, `string-of`, `abandon`, `ignore`. On the logic's
 side, the set operations are names too: `int`, `f64`, `bool`, `string`, ranges, ∪ ∩ ∖, the set former
-`set(…)`, ×, `Seq`, `Map`, `option`, `subsets`. These are constants of a first-order signature Σ₀ that
+`set(…)`, ×, `Array` (ADR 0059; `Seq` until then), `Map`, `option`, `subsets`. These are constants of a first-order signature Σ₀ that
 the language owns and injects into every target (state.md §1), plus the names a program or a target
 declares.
 
@@ -433,7 +433,7 @@ Host definitions go to today's target-file form, with modes read back into today
 
 ```
 D(def(f; b̄; …; host(kind; τ; cl)))  = (sig f (D(b₁) …) ⌜U⌝ markers (host kind τ cl…))
-D(x ∈ S inout) = (x (cell ⌜S⌝))      D(x ∈ Seq(S) linear) = (x (buffer ⌜S⌝))      D(x ∈ S) = (x ⌜S⌝)
+D(x ∈ S inout) = (x (cell ⌜S⌝))      D(x ∈ Array(S) linear) = (x (buffer ⌜S⌝))      D(x ∈ S) = (x ⌜S⌝)
 ```
 
 ### 6.1 Properties
@@ -710,8 +710,8 @@ into A by a function μ : T → A, total on the corpus, which the first build st
 | `(build n (fn (b) …))`, `(build-map m cap …)` | local(b =₁ table(n; 0); …), local(m =₁ map(cap); …) | core forms, kept in Λ⁺ |
 | `(the S e)` | the(⌜S⌝⁻¹; μe) | |
 | `(out τ)`, `(spread xs)` | out(S), spread(μxs) | |
-| `(int LO HI)`, `(array V)`, `(map K V)`, `(tuple A…)` | the names of Σ₀: the range LO..HI, Seq(V), Map(K, V), A × … | |
-| `(buffer V)` at a parameter | x ∈ Seq(V) linear | decision 2 |
+| `(int LO HI)`, `(array V)`, `(map K V)`, `(tuple A…)` | the names of Σ₀: the range LO..HI, Array(V), Map(K, V), A × … | |
+| `(buffer V)` at a parameter | x ∈ Array(V) linear | decision 2 |
 | `(cell T)` at a parameter, `(array (cell T))` variadic | x ∈ T inout, each trailing argument | decision 2 |
 | `pure`, `variadic`, `index` | markers of the def | |
 | `(module …)`, `(use p as a)`, `(export …)`, `(provides …)` | module, use, export, provides | |
@@ -747,7 +747,7 @@ The sum of a table, with its claims, from fit-research §5:
 
 ```
 def( total;
-     xs ∈ Seq(0..1000);
+     xs ∈ Array(0..1000);
      ⊤;
      r ∈ Nat;
      ⊤;
@@ -756,7 +756,7 @@ def( total;
            _ if i ≥ len(xs) → s,
            _               → again(i + 1, s + index(xs; i)) ) )
 
-spec( sum; a ∈ Seq(Int), i ∈ Nat, j ∈ Nat; r ∈ Int;
+spec( sum; a ∈ Array(Int), i ∈ Nat, j ∈ Nat; r ∈ Int;
       if(i ≥ j; 0; index(a; i) + sum(a, i + 1, j)) )
 ```
 
@@ -776,7 +776,7 @@ spec( sum; a ∈ Seq(Int), i ∈ Nat, j ∈ Nat; r ∈ Int;
 That is what today's reader makes of `(def total (xs) (loop ((i 0) (s 0)) (>= i (len xs)) s else
 (again (+ i 1) (+ s (xs i)))))`, as Theorem D3 requires.
 
-**Obligations** (§7), Γ₀ = xs ∈ Seq(0..1000):
+**Obligations** (§7), Γ₀ = xs ∈ Array(0..1000):
 
 | sequent | decided by |
 |---|---|

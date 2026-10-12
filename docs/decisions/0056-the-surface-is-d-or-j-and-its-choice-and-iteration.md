@@ -7,7 +7,9 @@ agree, one-armed if in J … sure drop B′ … in fact moving forward it is D o
 agreed). §3.9's items 2 (the handled bind) and 7 (a loop's invariant slot) are not decided here. Not
 built: the surface is built when it is chosen. **Amended 2026-10-12**: item 7 decided (hamza: "I agree
 to the invariant slot"): a loop's invariant has an optional slot in D and J, `LOOP i == 0 INVARIANT I :`
-and `loop i = 0 invariant I { … }`, absent meaning ⊤.
+and `loop i = 0 invariant I { … }`, absent meaning ⊤. **Items 8 and 9 superseded by
+[ADR 0059](0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md)**: the rule moves inside the
+former, `array(n, f)` goes, and the set is `Array(V)`.
 
 ## Context
 

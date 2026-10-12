@@ -34,7 +34,7 @@ since the document records how the design was reached.
 | 11 | the handled bind, a derived operator with `try` and `expect` its instances; in a loop its success arm is a tail and its handler leaves | [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md), §3.11–3.14 | J `try p = e [else ā], … { body } [else ā]`, D `TRY p == e [ELSE ā], … IN body [ELSE ā]`; no statement form of `try`; a small two-way choice stays `case`; `expect` stays a statement |
 | 12 | a map buffer is a state binder holding a map; tuples `(a, b)`, `()` in J and `⟨a, b⟩`, `⟨⟩` in D; concatenation `++` in J and `∘` in D; sets in D TLA+'s, in J `set { … }`, ranges `lo..hi` | [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md), hamza 2026-10-12 (§4.7, items 4–7) | open (§4.8): the tag's mark, the forms of arrays and maps, J's set operators, tag qualification |
 | 13 | a tag is a quoted symbol, `'name`; case carries no category; one former shape `former { … }`, `array(n, f)` gone; the sets `Array(V)` and `Map(K, V)` | [ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md), §4.8 | open (§4.9): `:` as the former's separator, J's membership and set operators, tag qualification |
-| 14 | J's membership `∈` (input `\in`) and Python's set operators `| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
+| 14 | J's membership `∈` (input `\in`) and Python's set operators `\| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -4104,7 +4104,7 @@ saying so.
 
 1. **`:` in every former and in a graph's pairs**: the λ's separator, its meaning one under
    𝒫(S) ≅ Bool^S; the binder always first. *Recommended*, withdrawing `↦`.
-2. **J's membership is `∈`** (ASCII input `\in`); **J's set operations are Python's**, `| & - ^ <= < *`; D
+2. **J's membership is `∈`** (ASCII input `\in`); **J's set operations are Python's**, `\| & - ^ <= < *`; D
    writes TLA+'s. *Recommended*, because Python's `in` would sit beside the modes `inout` and `out`.
 3. **Tags qualified by default**, with a module's own and the language's unqualified, and
    `use M exposing 'a, …` to choose otherwise. *Recommended*, as the middle way.

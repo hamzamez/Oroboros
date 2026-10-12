@@ -4104,7 +4104,7 @@ saying so.
 
 1. **`:` in every former and in a graph's pairs**: the λ's separator, its meaning one under
    𝒫(S) ≅ Bool^S; the binder always first. *Recommended*, withdrawing `↦`.
-2. **J's membership is `∈`** (ASCII input `\in`); **J's set operations are Python's**, `\| & - ^ <= < *`; D
+2. **J's membership is `∈`** (ASCII input `\in`); **J's set operations are Python's**, `| & - ^ <= < *`; D
    writes TLA+'s. *Recommended*, because Python's `in` would sit beside the modes `inout` and `out`.
 3. **Tags qualified by default**, with a module's own and the language's unqualified, and
    `use M exposing 'a, …` to choose otherwise. *Recommended*, as the middle way.

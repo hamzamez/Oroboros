@@ -3335,3 +3335,108 @@ try ok(src) = os.ReadFile(path) {                                         // a h
 3. **The handled bind is `try … else`** (§3.9's item 2); `expect` stays a statement.
 4. **2b**: `try … { … again(…) } else arms` as a loop arm's tail, its handlers leaving the loop, by an
    ADR extending 0041.
+
+### 3.14 A against B: the worst of both, and the best
+
+hamza: *"B is good, but let's compare B and A, where could we see the best of both, the worst of
+both."*
+
+#### What each gets right
+
+| | A, the statement: `ok(src) = os.ReadFile(p) else err(k) -> h; rest` | B, the braced body: `try ok(src) = os.ReadFile(p) { rest } else err(k) -> h` |
+|---|---|---|
+| **the region** (what runs on a match) | the rest of the block, by convention | the braces: written |
+| **the destination** (where a failure goes) | the enclosing block's value, by convention | the `try` form's value: written |
+| **the handler** | next to its call | after the body, as far from its call as the body is long |
+| **a chain of steps** | flat, one line each | one level of braces per step |
+
+A is good at **adjacency and flatness**; B is good at **showing the region and the destination**.
+
+#### Measured: the 38 handled binds are two populations
+
+`go run gauntlet/surface/control.go`, the 38 two-armed `case` forms on `result` or `option` whose
+failure arm handles it (§3.2):
+
+| | count | example |
+|---|---:|---|
+| **a step**: the success arm 18 nodes or more and larger than the failure arm | **11**, 10 in tail position | `main` reads its file or prints why not, then the whole program (`count` 115 nodes against 6, `wc` 60 against 6, `roundtrip` 60 and 38 against 11) |
+| **a small choice**: both arms a value or two | **27** | `(case (m k) (some v) v none 0)`, `(case r (result.ok _) true (result.err _) false)` |
+
+And there are the 3 `try` sites in a loop's arm (ADR 0041), whose success body is the `again`.
+
+#### The worst of both
+
+1. **B for a step**: the handler of `count`'s `main` lands after 115 nodes of program, and `roundtrip`
+   indents a level per step. That is the "pyramid of doom" Swift added `guard` to escape: `if let x
+   = e { long } else { short }` puts the short handler far from the call it handles.
+2. **A with an unmarked keyword**: `{ try p = e; again(…) }` hides the region and the destination, as
+   §3.13 found.
+3. **Both under one keyword**: `try p = e; rest` and `try p = e { rest }` would make the reader look
+   past the binder to learn whether the body is the braces or the rest of the block.
+4. **A small choice written as either**: `ok(v) = m(k) else none -> 0; v` dresses a choice of two
+   values as a sequence. The 27 are choices, and `case m(k) { some(v) -> v; none -> 0 }` says so.
+
+#### The best of both: B's region, A's adjacency, in one form
+
+D already has it. A `TRY` group puts each binder's handler next to its call and the body after `IN`,
+so the handlers are adjacent, a chain is flat, and the region is written:
+
+```
+TRY ok(_)   == os.WriteFile(path, data) ELSE (err(k) → print_line(kind_name(k)) ; 1),
+    ok(src) == os.ReadFile(path)        ELSE (err(k) → print_line(kind_name(k)) ; 1)
+IN  print(os.text_of(src)) ; 0
+```
+
+J takes the same structure, in the shape its definitions already have (installment 1's J: a header
+of clauses, then `{` body `}`):
+
+```go
+try ok(_)   = os.WriteFile(path, data) else err(k) -> { print_line(kind_name(k)); 1 },
+    ok(src) = os.ReadFile(path)        else err(k) -> { print_line(kind_name(k)); 1 }
+{
+    print(os.text_of(src)); 0
+}
+```
+
+- **the header is a group of binders**, sequential as `let`'s (ADR 0054), **each with an optional
+  handler next to it**: A's adjacency, and a chain of steps is one region, not a staircase;
+- **the body is braced**: B's written region, and a failure's destination is the `try` form;
+- **an optional handler after the body** serves the binders without their own: the shape of
+  `try … catch`, safe here because a failure comes only from a binder in the header (Benton and
+  Kennedy's objection does not apply);
+- **no handler at all**: a failure passes through re-built, `try`'s law. C4's arm stays
+  `try fine(x) = step(i, n) { again(i + 1, acc + x) }`, the `again` visibly inside.
+
+`count`'s `main`, the largest step, then reads
+
+```go
+try ok(src) = os.ReadFile(av[1]) else err(k) -> { print_line("count: cannot read that file"); 0 }
+{
+    … the program …
+}
+```
+
+with its handler on the first line and its body indented once, against B's handler 115 nodes below
+and A's convention.
+
+**What it costs against A**: one level of indentation for the body, once per group rather than per
+step. Measured, that is the 11 steps, all in a program's `main`.
+
+**The three layouts, by population:**
+
+| | form | for |
+|---|---|---|
+| a small choice | `case e { p -> a; q -> b }` | the 27 |
+| a step, or several | `try p = e [else arms], … { body } [else arms]` | the 11, and the 3 in loops' arms |
+| giving up | `expect p = e else w` | `expect`'s 5 |
+
+One eliminator, case(e; p → b, ā), in each. `try` and `case` differ in emphasis (the success
+continues, against two values chosen between) and in the header, as `if` and `case` do.
+
+#### Proposed
+
+1. **J: `try p₁ = e₁ [else ā₁], … { body } [else ā]`**: binders grouped, each handler optional and next
+   to its call, the body braced, a shared handler optional after it. No statement form of `try`.
+2. **D: `TRY p₁ == e₁ [ELSE ā₁], … IN body [ELSE ā]`**, the same structure.
+3. **A small two-way choice stays `case`.** `expect` stays a statement.
+4. **2b**: a `try` as a loop arm's tail, its handlers leaving the loop, by an ADR extending 0041.

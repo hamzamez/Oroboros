@@ -18,7 +18,11 @@
 //     own variable unchanged (the identity), with the variables that are the
 //     identity at every `again` (never changed by the loop) and, of those, the
 //     ones whose initializer names a scope's buffer (ADR 0052 removes them);
-//   - `try` and `expect` chains: one in another's success body.
+//   - `try` and `expect` chains: one in another's success body;
+//   - a two-armed case on result or option whose failure arm handles it: a
+//     STEP when the success arm is 18 nodes or more and larger than the
+//     failure arm (the rest of a program after opening a file), else a small
+//     choice; and whether a step stands in tail position (§3.14).
 package main
 
 import (
@@ -99,6 +103,15 @@ func show(n *node) string {
 	return "(" + strings.Join(parts, " ") + ")"
 }
 
+// size counts a node and everything under it.
+func size(n *node) int {
+	s := 1
+	for _, k := range n.kids {
+		s += size(k)
+	}
+	return s
+}
+
 func head(n *node) string {
 	if n != nil && n.list && len(n.kids) > 0 && !n.kids[0].list {
 		return n.kids[0].atom
@@ -155,6 +168,7 @@ func main() {
 			b, _ := os.ReadFile(p)
 			// buffers: names a `local` binds to a table or an array, file-wide
 			buffers := map[string]bool{}
+			tail := map[*node]bool{}
 			var walk func(n *node, inArm bool)
 			walk = func(n *node, inArm bool) {
 				if !n.list {
@@ -266,6 +280,18 @@ func main() {
 								c["case:   … the failure arm abandons (expect)"]++
 							default:
 								c["case:   … the failure arm handles it (a handled bind)"]++
+								// What layout fits it: the sizes of its two arms, in
+								// nodes, and whether it stands in tail position.
+								s, f := size(k[ok+1]), size(k[fail+1])
+								switch {
+								case s >= 18 && s > f:
+									c["case:     … a step: the success arm 18 nodes or more and larger"]++
+									if tail[n] {
+										c["case:       … in tail position"]++
+									}
+								default:
+									c["case:     … a small choice: the success arm under 18 nodes, or not larger"]++
+								}
 							}
 						}
 					}
@@ -375,7 +401,35 @@ func main() {
 					walk(x, armSet[x] || (inArm && !chain[h] && h != "fn"))
 				}
 			}
-			for _, f := range parse(string(b)) {
+			forms := parse(string(b))
+			// TAIL POSITION: the last element of a sequence, a binding's body, a
+			// λ's or a definition's body, a loop's clause body, and inherited by
+			// a choice's arms. A handled bind can be written with the rest of a
+			// block as its success arm only where it is in tail position.
+			var markTail func(n *node, t bool)
+			markTail = func(n *node, t bool) {
+				if !n.list {
+					return
+				}
+				tail[n] = t
+				h, k := head(n), n.kids
+				for i, x := range k {
+					xt := false
+					switch {
+					case (h == "seq" || h == "let" || h == "local" || h == "fn" || h == "def") && i == len(k)-1:
+						xt = true
+					case h == "if" && i >= 2, (h == "case" || h == "cond") && i >= 2 && i%2 == 1:
+						xt = t
+					case h == "loop" && i >= 2 && i%2 == 1:
+						xt = true
+					}
+					markTail(x, xt)
+				}
+			}
+			for _, f := range forms {
+				markTail(f, true)
+			}
+			for _, f := range forms {
 				walk(f, false)
 			}
 			return nil

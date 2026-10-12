@@ -28,6 +28,7 @@ since the document records how the design was reached.
 | 5 | `linear` is an ordering, not a count | [abstract2](../gauntlet/results/abstract2-2026-10-11.md) | under item 4 a scope's buffer never shows the ordering on the page; it remains the meaning of a `linear` parameter |
 | 6 | in J, `=` binds and `==` compares, for now | hamza, 2026-10-11 | C's and Go's convention, in J's examples; D and K keep TLA+'s, `==` binding and `=` comparing (§2.11) |
 | 7 | `let` and `local` are one scope; a definitional name may be rebound, a state name once per region; the head is `let` | [ADR 0054](decisions/0054-let-and-local-are-one-scope.md), on §2.13 | binders state their kind by their operator, and a mixed sequence is one scope; in K and J, a state binder's introduction against a write is still open (§2.13, item 4) |
+| 8 | a loop's variables are bound by application, not assigned | [ADR 0055](decisions/0055-a-loop-variable-is-bound-by-application.md), hamza 2026-10-12 | `LOOP i == 0` in D and K, `loop i = 0` in J, `(loop ((i = 0)) …)` in B′: one iteration is a `let` (the unfolding law), so `:=` is only a place taking a value; `again` is an application, positional |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -1253,19 +1254,19 @@ write it in program order, which is §2.4's correction below.
 ```
 ```lisp
 (let ((c := (table n false)))                                                   ; B′
-  (loop ((j := (* i i)))
+  (loop ((j = (* i i)))
     ((< j n) → (seq ((at c j) := true) (again (+ j i))))
     (else → c)))
 ```
 ```
 LET c := [k ∈ 0..n-1 ↦ FALSE] IN                                                \\ D
-  LOOP j := i * i :
+  LOOP j == i * i :
       j < n  → c[j] := TRUE ; AGAIN(j + i)
    [] OTHER  → c
 ```
 ```go
 { c := [k ∈ 0..n-1 |-> false]                                                   // J
-  loop j := i * i {
+  loop j = i * i {
       j < n -> { c[j] := true; again(j + i) }
       else  -> c
   } }
@@ -1283,8 +1284,8 @@ which I wrote against. It was decided only later, by ADR 0052, after storeorder-
 > `s[j] := TRUE` and the analyses still see the chain.
 
 So the store is not a *call* at all. It is `:=` with an **indexed** left-hand side, and §2.12's
-measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c, j := i * i` becomes
-`LOOP j := i * i`, and `AGAIN(store(c, j, TRUE), j + i)` becomes `c[j] := TRUE ; AGAIN(j + i)`.
+measurement is where the gain shows: the loop **loses a variable**. `LOOP c == c, j == i * i` becomes
+`LOOP j == i * i`, and `AGAIN(store(c, j, TRUE), j + i)` becomes `c[j] := TRUE ; AGAIN(j + i)`.
 
 ---
 
@@ -1300,7 +1301,7 @@ measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c
 ```
 ```lisp
 (let ((lines := 0) (words := 0) (in-word := false))                             ; B′
-  (loop ((i := 0))
+  (loop ((i = 0))
     ((>= i (len src)) → (tuple lines words))
     (else → (let ((b = (at src i)))
               (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
@@ -1308,7 +1309,7 @@ measurement is where the gain shows: the loop **loses a variable**. `LOOP c := c
 ```
 ```
 LET lines := 0  words := 0  in_word := FALSE IN                                 \\ D
-  LOOP i := 0 :
+  LOOP i == 0 :
       i ≥ Len(src) → ⟨lines, words⟩
    [] OTHER        → LET b == src[i] IN
                        (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
@@ -1316,7 +1317,7 @@ LET lines := 0  words := 0  in_word := FALSE IN                                 
 ```
 ```go
 { lines := 0;  words := 0;  in_word := false                                    // J
-  loop i := 0 {
+  loop i = 0 {
       i >= len(src) -> (lines, words)
       else -> { b = src[i]
                 if b == 10 { lines := lines + 1 }
@@ -1413,9 +1414,9 @@ lexer would.
 | notation | tokens | × T | lexemes | × T | depth | closing run | holes | shapes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | T today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | **2** | **8** (fit-research §3.3) |
-| B′ | 287 | **1.48** | 274 | **1.42** | 8 | 7 | 0 | 1 |
+| B′ | 285 | **1.47** | 274 | **1.42** | 8 | 7 | 0 | 1 |
 | D | 222 | 1.14 | 201 | 1.04 | **2** | **2** | 0 | 1 |
-| J | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 0 | 1 |
+| J | 220 | 1.13 | 199 | 1.03 | 4 | 4 | 0 | 1 |
 
 > **Recounted in the pass of 2026-10-11.** The first table here (T 229, B′ 336, D and J 232) and
 > §2.9's (T 239, B′ 312, D and J 243) came from a script that was not kept, disagreed with each other
@@ -1436,7 +1437,7 @@ operator, `==` or `:=`, costs two characters where T's parity costs none, which 
 - **D is the shallowest by half**, 2 against J's 4, and this reverses installment 1, where the two
   tied at depth 1. The cause is that `LET … IN` adds no bracket while `{ … }` adds one per block, and
   P5–P8 all nest a loop inside a scope. On the one measure where J and D differed, D now wins.
-- **B′ is 1.48× today's tokens (1.42× in lexemes)**, one level deeper and with a longer closing run —
+- **B′ is 1.47× today's tokens (1.42× in lexemes)**, one level deeper and with a longer closing run —
   it pays nearly half again as much for no structural gain over the others. Writing its arms as
   pairs, as decision 5 requires, added a bracket per arm. The cause is structural, not incidental: a binder is
   `(pattern OP rhs)`, a pattern may itself be a list, and a claim makes the left side a list, so P2
@@ -1469,7 +1470,7 @@ body slot by construction. **A hybrid is available and worth naming**: `LET … 
 statement-list body, which would take D's shallowness and J's sequence. I have not measured it; it is
 the first thing installment 3 should price.
 
-**B′ falls behind.** It was installment 1's co-leader. Here it is 1.48× the tokens, one level deeper
+**B′ falls behind.** It was installment 1's co-leader. Here it is 1.47× the tokens, one level deeper
 than the notation it replaces, and the cause is the shape itself rather than
 the examples. Kept on the list, because the reader exists and its failure is syntactic, but it is no
 longer a front-runner and installment 3 should be where it is either rescued or dropped.
@@ -1550,14 +1551,14 @@ b ∈ 0..255 == src[i] ; …                                                    
 io.print_line("hi") ; 0                                                         \\ P4
 
 lines := 0 ; words := 0 ; in_word := FALSE ;                                    \\ P6
-LOOP i := 0 :
+LOOP i == 0 :
     i ≥ Len(src) → ⟨lines, words⟩
  [] OTHER        → b == src[i] ;
                    (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
                    AGAIN(i + 1)
 
 c := [k ∈ 0..n-1 ↦ FALSE] ;                                                     \\ P5
-LOOP j := i * i :
+LOOP j == i * i :
     j < n  → c[j] := TRUE ; AGAIN(j + i)
  [] OTHER  → c
 
@@ -1577,11 +1578,11 @@ let (src, err) = os.ReadFile(p) { if err == 0 { src } else { "" } }             
 let b ∈ 0..255 = src[i] { … }                                                   // P3
 let _ = io.print_line("hi") { 0 }                                               // P4
 let c := [k ∈ 0..n-1 |-> false] {                                               // P5
-  loop j := i * i {
+  loop j = i * i {
       j < n -> { c[j] := true; again(j + i) }
       else  -> c } }
 let lines := 0, words := 0, in_word := false {                                  // P6
-  loop i := 0 {
+  loop i = 0 {
       i >= len(src) -> (lines, words)
       else -> let b = src[i] {
                 if b == 10 { lines := lines + 1 }
@@ -1600,11 +1601,11 @@ Both are corrected in the pass of 2026-10-11: every row counts the same eight pr
 | | corner | tokens | × T | lexemes | × T | depth | closing run | lines |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | T | today | 194 | 1.00 | 193 | 1.00 | 7 | 6 | 16 |
-| B′ | prefix: group + parens | 287 | 1.48 | 274 | 1.42 | 8 | 7 | 15 |
+| B′ | prefix: group + parens | 285 | 1.47 | 274 | 1.42 | 8 | 7 | 15 |
 | D | **(a)(i)** group + munch | 222 | 1.14 | 201 | 1.04 | 2 | 2 | 16 |
-| J | **(b)(ii)** statements + braces | 222 | 1.14 | 199 | 1.03 | 4 | 4 | 16 |
+| J | **(b)(ii)** statements + braces | 220 | 1.13 | 199 | 1.03 | 4 | 4 | 16 |
 | **K** | **(b)(i) statements + munch** | **214** | **1.10** | **194** | **1.01** | **2** | **2** | 16 |
-| L | **(a)(ii)** group + braces | 235 | 1.21 | 212 | 1.10 | 4 | 4 | 16 |
+| L | **(a)(ii)** group + braces | 233 | 1.20 | 212 | 1.10 | 4 | 4 | 16 |
 
 Recounted in the pass of 2026-10-11 (§2.5's note): the first version of this table had K at 0.97×
 and "the only one below today", on programs that were not the others'.
@@ -1952,8 +1953,8 @@ recounted; the structural claim below does not rest on them.)
 What the counts miss: **`c` stops being a loop variable.**
 
 ```
-LOOP c := c, j := i * i :  …  AGAIN(store(c, j, TRUE), j + i)     threaded
-LOOP j := i * i         :  …  c[j] := TRUE ; AGAIN(j + i)         program order
+LOOP c == c, j == i * i :  …  AGAIN(store(c, j, TRUE), j + i)     threaded
+LOOP j == i * i         :  …  c[j] := TRUE ; AGAIN(j + i)         program order
 ```
 
 One fewer loop variable, one fewer argument at every back edge. That is the same kind of win as
@@ -2218,7 +2219,7 @@ tail sort, with five derived operators:
 
 ```
 case(e; ā)          choice: the first arm whose pattern matches e and whose guard holds
-loop(s̄; I; ā)       iteration: state binders s̄, invariant I, arms over the state tuple, Tail bodies
+loop(s̄; I; ā)       iteration: binders s̄ bound by application (ADR 0055), invariant I, arms, Tail bodies
 Arm  ::= p ⟨if φ⟩ → body                body : Expr in case, Tail in loop
 Tail ::= e | again(ā) | let(b̄; t) | try(…; t) | expect(…; t) | assert(φ; t)
 
@@ -2235,7 +2236,7 @@ try, expect   = case(e; s(x̄) → b, the other constructors re-built, or abando
 | 3 | an arm's **guard** φ | optional | optional |
 | 4 | an arm's **body** | an expression | a **tail**: a value (an exit) or a jump |
 | 5 | the default | `_` (or `else`) | `_` (or `else`), required by ADR 0015 |
-| 6 | the **state binders** and their initializers | — | `x := e`, sequential |
+| 6 | the **loop variables** and their initializers | — | `x = e`, sequential, rebound only by `again`, by application (ADR 0055) |
 | 7 | the **invariant** I | — | a formula, a claim |
 | 8 | the **back edge** | — | `again(ā)`, one argument per state binder |
 
@@ -2294,7 +2295,7 @@ parity (fit-research §3.6). Decision 5 says an arm is written as a pair in ever
 
 **A dead arm the form requires.** `examples/match/runs.oro` ends with `_ v c → again …`, which matches
 every state, and then the `else` ADR 0015 requires, which can never run. A required default and an
-exhaustive pattern meet there. With named state binders (below) the last arm can be the default.
+exhaustive pattern meet there. With named loop variables (below) the last arm can be the default.
 
 **And one bug found while probing**, flagged as a separate task: `(if c a)`, an `if` with no else, is
 accepted by the reader and overflows the stack in `gen`. abstract.md's if has three operands; the
@@ -2304,7 +2305,7 @@ reader falls through to an ordinary application.
 
 **Finding 1. One arm, two eliminators, and named state.** Σ's Arm is `p ⟨if φ⟩ → body` in both case
 and loop. So every candidate writes one arm grammar, used by `case` (with a scrutinee, or with none
-for guards) and by `loop` (whose arms see the state binders by name). Two consequences:
+for guards) and by `loop` (whose arms see the loop variables by name). Two consequences:
 - **`cond` and `match` need no keyword.** A case with no scrutinee is the guarded choice (Dijkstra's
   `if … fi`), and a loop's arms are its state machine.
 - **A literal pattern on a named state is an equality guard**: ⟨0, _, _⟩ against ⟨st, v, c⟩ is
@@ -2350,6 +2351,12 @@ list. Partial naming would save the 121 and lose the property that every back ed
 variable: a forgotten update would keep its value rather than fail. Positional keeps Σ's reading and
 the arity check, and the swap is the one failure it does not catch.
 
+> **ADR 0055 settles which pair this is** (hamza, 2026-10-12). The two readings go in pairs: loop
+> variables as parameters with `again` an application (positional), or loop variables as state with
+> `again` a concurrent assignment (named). A loop's variables cannot be written, so they are
+> parameters, bound by application and written `=` and `==`, and `again` is positional by the same
+> derivation.
+
 **Finding 4. Where a sequence meets a chain, one precedence must decide, and installment 2 used two.**
 In D and K a keyword form extends as far right as it can. §2.9 argued K was safe because "`;` is the
 loosest operator, so `;` terminates a munching keyword form". But K's own loops put sequences inside
@@ -2377,7 +2384,7 @@ write cells. Σ has two operations, the binder local(x := e; …) and the write 
 alike and told apart by whether x is bound, they are a homonym (F2) with Python's failure: a write
 with a misspelled name creates a cell. Marking costs one word per introduction:
 - **84** state binders in scopes (71 buffers, 13 cells) need the mark;
-- a loop's variables need none, since the header's position introduces them;
+- a loop's variables need none: they are not state, but bound by application (ADR 0055);
 - marking the writes instead would cost more, 123 (9 cell writes and 114 stores), and would go
   against the tradition: Algol 68 marks a declaration by its mode, Pascal and Ada by `var` or a type,
   Rust by `let mut`, Swift by `var`, JavaScript by `let`.
@@ -2506,22 +2513,22 @@ ADR 0041).
              (again (+ i 1) (+ acc x))))
 ```
 ```lisp
-(loop ((i := 0) (acc := 0))                                                     ; B′
+(loop ((i = 0) (acc = 0))                                                     ; B′
   ((> i 5) → (fine acc))
   (else → (try ((fine x) = (step i n)) (again (+ i 1) (+ acc x)))))
 ```
 ```
-LOOP i := 0, acc := 0 :                                                         \\ D
+LOOP i == 0, acc == 0 :                                                         \\ D
     i > 5  → fine(acc)
  [] OTHER  → TRY fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)
 ```
 ```
-LOOP i := 0, acc := 0 :                                                         \\ K
+LOOP i == 0, acc == 0 :                                                         \\ K
     i > 5  → fine(acc)
  [] OTHER  → TRY fine(x) == step(i, n) ; AGAIN(i + 1, acc + x)
 ```
 ```go
-loop i := 0, acc := 0 {                                                         // J
+loop i = 0, acc = 0 {                                                         // J
     i > 5 -> fine(acc)
     else  -> { try fine(x) = step(i, n); again(i + 1, acc + x) }
 }
@@ -2538,25 +2545,25 @@ loop i := 0, acc := 0 {                                                         
   else             (again (+ i 1)))
 ```
 ```lisp
-(loop ((i := 0))                                                                ; B′
+(loop ((i = 0))                                                                ; B′
   ((>= i (len xs)) → -1)
   ((>= (at xs i) k) → i)
   (else → (again (+ i 1))))
 ```
 ```
-LOOP i := 0 :                                                                   \\ D
+LOOP i == 0 :                                                                   \\ D
     i ≥ Len(xs) → -1
  [] xs[i] ≥ k   → i
  [] OTHER       → AGAIN(i + 1)
 ```
 ```
-LOOP i := 0 :                                                                   \\ K
+LOOP i == 0 :                                                                   \\ K
     i ≥ Len(xs) → -1
  [] xs[i] ≥ k   → i
  [] OTHER       → AGAIN(i + 1)
 ```
 ```go
-loop i := 0 {                                                                   // J
+loop i = 0 {                                                                   // J
     i >= len(xs) -> -1
     xs[i] >= k   -> i
     else         -> again(i + 1)
@@ -2582,7 +2589,7 @@ inner loop, abridged). The nested `cond` is an H2 site, and the `if` is followed
 ```
 ```lisp
 (let ((lines := 0) (words := 0) (in-word := false))                             ; B′
-  (loop ((i := 0))
+  (loop ((i = 0))
     ((>= i (len src)) → (tuple lines words))
     (else → (let ((b = (at src i)))
               (seq (if (= b 10) (lines := (+ lines 1)) (tuple))
@@ -2593,7 +2600,7 @@ inner loop, abridged). The nested `cond` is an H2 site, and the `if` is followed
 ```
 ```
 LET lines := 0  words := 0  in_word := FALSE IN                                 \\ D
-  LOOP i := 0 :
+  LOOP i == 0 :
       i ≥ Len(src) → ⟨lines, words⟩
    [] OTHER        → LET b == src[i] IN
                        (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
@@ -2604,7 +2611,7 @@ LET lines := 0  words := 0  in_word := FALSE IN                                 
 ```
 ```
 VAR lines := 0 ; VAR words := 0 ; VAR in_word := FALSE ;                        \\ K
-LOOP i := 0 :
+LOOP i == 0 :
     i ≥ Len(src) → ⟨lines, words⟩
  [] OTHER        → b == src[i] ;
                    (IF b = 10 THEN lines := lines + 1 ELSE ()) ;
@@ -2615,7 +2622,7 @@ LOOP i := 0 :
 ```
 ```go
 { var lines := 0;  var words := 0;  var in_word := false                        // J
-  loop i := 0 {
+  loop i = 0 {
       i >= len(src) -> (lines, words)
       else -> { b = src[i]
                 if b == 10 { lines := lines + 1 }
@@ -2642,28 +2649,28 @@ LOOP i := 0 :
   else                           0)
 ```
 ```lisp
-(loop ((st := 0) (v := n) (c := 0))                                             ; B′
+(loop ((st = 0) (v = n) (c = 0))                                             ; B′
   ((= v 0) → c)
   ((and (= st 0) (= (% v 2) 1)) → (again 1 (/ v 2) (+ c 1)))
   ((= (% v 2) 1) → (again 1 (/ v 2) c))
   (else → (again 0 (/ v 2) c)))
 ```
 ```
-LOOP st := 0, v := n, c := 0 :                                                  \\ D
+LOOP st == 0, v == n, c == 0 :                                                  \\ D
     v = 0               → c
  [] st = 0 ∧ v % 2 = 1  → AGAIN(1, v ÷ 2, c + 1)
  [] v % 2 = 1           → AGAIN(1, v ÷ 2, c)
  [] OTHER               → AGAIN(0, v ÷ 2, c)
 ```
 ```
-LOOP st := 0, v := n, c := 0 :                                                  \\ K
+LOOP st == 0, v == n, c == 0 :                                                  \\ K
     v = 0               → c
  [] st = 0 ∧ v % 2 = 1  → AGAIN(1, v ÷ 2, c + 1)
  [] v % 2 = 1           → AGAIN(1, v ÷ 2, c)
  [] OTHER               → AGAIN(0, v ÷ 2, c)
 ```
 ```go
-loop st := 0, v := n, c := 0 {                                                  // J
+loop st = 0, v = n, c = 0 {                                                  // J
     v == 0                 -> c
     st == 0 && v % 2 == 1  -> again(1, v / 2, c + 1)
     v % 2 == 1             -> again(1, v / 2, c)
@@ -2691,46 +2698,46 @@ program order `cross` borrows the buffer and writes it in place (ADR 0052), so n
 ```
 ```lisp
 (fn cross ((c (array bool) linear) i n) ()                                      ; B′
-  (loop ((j := (* i i)))
+  (loop ((j = (* i i)))
     ((< j n) → (seq ((at c j) := true) (again (+ j i))))
     (else → (tuple))))
 
 (fn sieve (n)
   (let ((c := (table n false)))
-    (loop ((i := 2))
+    (loop ((i = 2))
       ((>= (* i i) n) → c)
       ((at c i) → (again (+ i 1)))
       (else → (seq (cross c i n) (again (+ i 1)))))))
 ```
 ```
 cross(c ∈ Seq(Bool) LINEAR, i, n) ==                                            \\ D
-  LOOP j := i * i :
+  LOOP j == i * i :
       j < n  → c[j] := TRUE ; AGAIN(j + i)
    [] OTHER  → ()
 
 sieve(n) ==
   LET c := [k ∈ 0..n-1 ↦ FALSE] IN
-    LOOP i := 2 :
+    LOOP i == 2 :
         i * i ≥ n → c
      [] c[i]      → AGAIN(i + 1)
      [] OTHER     → cross(c, i, n) ; AGAIN(i + 1)
 ```
 ```
 cross(c ∈ Seq(Bool) LINEAR, i, n) ==                                            \\ K
-  LOOP j := i * i :
+  LOOP j == i * i :
       j < n  → c[j] := TRUE ; AGAIN(j + i)
    [] OTHER  → ()
 
 sieve(n) ==
   VAR c := [k ∈ 0..n-1 ↦ FALSE] ;
-  LOOP i := 2 :
+  LOOP i == 2 :
       i * i ≥ n → c
    [] c[i]      → AGAIN(i + 1)
    [] OTHER     → cross(c, i, n) ; AGAIN(i + 1)
 ```
 ```go
 fn cross(c ∈ Seq(Bool) linear, i, n) () {                                       // J
-    loop j := i * i {
+    loop j = i * i {
         j < n -> { c[j] := true; again(j + i) }
         else  -> ()
     }
@@ -2738,7 +2745,7 @@ fn cross(c ∈ Seq(Bool) linear, i, n) () {                                     
 
 fn sieve(n) {
     var c := table(n, false)
-    loop i := 2 {
+    loop i = 2 {
         i * i >= n -> c
         c[i]       -> again(i + 1)
         else       -> { cross(c, i, n); again(i + 1) }
@@ -2753,13 +2760,13 @@ fn sieve(n) {
 | notation | tokens | × T | lexemes | × T | depth | closing run | lines | holes |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | T today | 487 | 1.00 | 483 | 1.00 | 8 | 6 | 46 | **2** (a case arm's guard, a loop's invariant) |
-| B′ | 650 | 1.33 | 628 | 1.30 | **10** | 7 | 42 | 0 |
+| B′ | 641 | 1.32 | 628 | 1.30 | **10** | 7 | 42 | 0 |
 | D | 487 | 1.00 | 462 | 0.96 | **3** | 2 | 39 | 0 |
 | K | 490 | 1.01 | 465 | 0.96 | **3** | 2 | 39 | 0 |
-| J | 503 | 1.03 | 444 | **0.92** | 5 | 4 | 50 | 0 |
+| J | 494 | 1.01 | 444 | **0.92** | 5 | 4 | 50 | 0 |
 
 - **On choice and iteration the new notations cost nothing.** D, K and J are today's size in
-  characters (1.00–1.03×) and smaller in lexemes (0.92–0.96×), where installment 2 measured them 1–4%
+  characters (1.00–1.01×) and smaller in lexemes (0.92–0.96×), where installment 2 measured them 1–4%
   larger. Two findings pay for the binder operators: the handled bind (C3) removes a level and an arm
   per step, and named state (C7) removes `match`'s positional patterns and its dead `else`.
 - **Depth falls from 8 to 3** in D and K, and to 5 in J, whose braces cost a level per chain.
@@ -2778,12 +2785,12 @@ eliminators, `cond` and `match` retired as keywords, the handled bind as the gen
 and `expect`, one precedence for `;` inside arms, and a marked introduction for state. That is where
 the two holes, the two synonyms and the parity reading go.
 
-**Kept: D, K and J.** They are within 3% of each other in characters, and they differ in what this
+**Kept: D, K and J.** They are within 2% of each other in characters, and they differ in what this
 installment does not test: D and K only in how a scope introduces state, and J in its delimiters,
 with the depth (5 against 3) and the lines (50 against 39) that braces cost.
 
 **B′ should be dropped as a source candidate.** §2.6 said this installment would rescue or drop it.
-It is 1.30–1.48× today's size and deeper than today in both installments that measured it, and
+It is 1.30–1.47× today's size and deeper than today in both installments that measured it, and
 writing the semantics faithfully (arms as pairs, indexing marked) is what made it so. What it offered,
 a reader that exists and a failure that is syntactic, D, K and J now have by their own rules
 (Finding 4, the braces). **S-expressions are not dropped**: they remain abstract.md's T′, the
@@ -2804,10 +2811,11 @@ That is candidate I's question, one notation or two, and it stays open.
    tighter than `[]`; an arm's body may be a sequence; a chain extends to the end of what encloses
    it; a chain or `IF` that something follows, and a chain nested in an arm, is parenthesized.
 6. **A state binder's introduction is marked** in a statement list: `VAR x := e` in K, `var x := e`
-   in J; a write stays `x := e`, and a loop's header introduces its variables by position.
+   in J; a write stays `x := e`. A loop's variables are not state: they are bound by application
+   (ADR 0055), written `LOOP i == 0` in D and K and `loop i = 0` in J, and cannot be written.
 7. **A one-armed `if`** is the statement if(c; a; ()), written only where braces bound it (J).
-8. **A loop's invariant has a slot** in every notation: `LOOP i := 0 INVARIANT I : …` in D and K,
-   `loop i := 0 invariant I { … }` in J, as abstract.md §9.4's M′ writes it.
+8. **A loop's invariant has a slot** in every notation: `LOOP i == 0 INVARIANT I : …` in D and K,
+   `loop i = 0 invariant I { … }` in J, as abstract.md §9.4's M′ writes it.
 
 ### 3.9 Open, for hamza
 

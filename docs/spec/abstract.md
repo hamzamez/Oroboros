@@ -123,8 +123,8 @@ two inclusions carry two of the language's laws:
 Every binder is one of three kinds (fit-research §2, §3.3):
 
 ```
-Bind ::= p = e            definitional:  p denotes e's value           (let, a buffer of local)
-       | x := e           state:         x starts at e, changes on a path   (a loop variable, a cell)
+Bind ::= p = e            definitional:  p denotes e's value           (let; a loop's variables, ADR 0055)
+       | x := e           state:         x starts at e, written by assign in its region   (a cell; a buffer, ADR 0052)
        | p ∈ S  [μ]        ranging:       p ranges over S             (a parameter, ∀, ∃, comprehension)
        | p        [μ]      ranging, no claim: p ∈ V with no obligation   (settypes §10: "no claim" ≠ V)
        | f ∈ λ(b̄; r; φ; ψ)  ranging over operators: f ∈ Π(P). R, a claim used as a set (ADR 0053)
@@ -180,7 +180,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, ADR 0050) |
 | **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e. ADR 0054 (not built): `let` and `local` are one scope, scope(b̄; e), whose binders are definitional or state, each by its operator; a scope is the free monoid of binder words acting on expressions |
 | **case**(e; ā) | (Expr, Arm*) → Expr | choice: the first arm whose pattern matches e's value and whose guard holds |
-| **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: state binders s̄, invariant I, arms with Tail bodies (ADR 0015) |
+| **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: definitional binders s̄, bound at entry by their initializers and at each again by its arguments, by application (ADR 0055); invariant I; arms with Tail bodies (ADR 0015) |
 | **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047. ADR 0052 (not built): both are state binders, a buffer the one whose value is a fresh table. ADR 0054 (not built): merged into `let`'s scope |
 | **assign**(x; e) | (𝒩, Expr) → Expr | a cell's write in program order; value the unit (local.md §3) |
 | **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value |
@@ -412,10 +412,10 @@ D(case(e; ā))                = let s = D(e) in T(s; ā)        otherwise, a dec
     ⌈_⌉ₛ = ⌈x⌉ₛ = true,  ⌈k⌉ₛ = (= s k),  ⌈true⌉ₛ = s,  ⌈false⌉ₛ = (not s),
     ⌈x ∈ S⌉ₛ = the tag test of S's sort (settypes §6.4; not built)
 
-D(loop(x̄ := z̄; _; ā))        = (loop (fn (x̄) C(ā)) z̄)       ā with only _ patterns
+D(loop(x̄ = z̄; _; ā))         = (loop (fn (x̄) C(ā)) z̄)       ā with only _ patterns
     C(_ if φ → t, ā′)        = (if φ D(t) C(ā′))       C(_ → t) = D(t)
     D(again(ā))              = (again D(a₁) … D(aₙ))
-D(loop(x̄ := z̄; _; ā))        = match.md's expansion            arms with patterns on the state
+D(loop(x̄ = z̄; _; ā))         = match.md's expansion            arms with patterns on the state
 
 D(local(b =₁ table(n; f), b̄; e))  = (build D(n) (fn (b) fill(b, f) D(local(b̄; e))))   local.md §1
 D(local(x := e₀, b̄; e))      = (#cell D(e₀) (fn (x) D(local(b̄; e))))   then S⟦·⟧ in Load
@@ -482,7 +482,7 @@ is built.
       so x ∈ 𝓕(e) ∩ σ in the arm   (Theorem P)
       exhaustiveness is decided by closedness for constructors, by Theorem P for sorts
 
-𝒪_Γ(loop(x̄ := z̄; I; ā))
+𝒪_Γ(loop(x̄ = z̄; I; ā))
     = { Γ ⊢ I[z̄/x̄] }                                                    entry
     ∪ ⋃ⱼ, each again(ā′) in armⱼ's tail:  { Γ, I, ¬m₁…¬mⱼ₋₁, mⱼ, path ⊢ I[ā′/x̄] }   preserved
     ∪ the exits' obligations under Γ, I, their tests                     and I holds at each exit
@@ -661,7 +661,7 @@ print_R is the second or third column, and parse_R its inverse.
 | let(x = e, tuple(a, b) = e′; e″) | `(let ((x e) ((tuple a b) e′)) e″)` | `LET x == e, ⟨a, b⟩ == e′ IN e″` |
 | case(e; c(x) → a, _ → b) | `(case e ((c x) → a) (_ → b))` | `CASE e OF c(x) → a [] OTHER → b` |
 | case arm with guard | `((c x) if φ → a)` | `c(x) ∧ φ → a` |
-| loop(i := 0, s := 0; I; _ if φ → t, _ → t′) | `(loop ((i := 0) (s := 0)) (invariant I) (φ → t) (else → t′))` | `LOOP i := 0, s := 0 INVARIANT I : φ → t [] OTHER → t′` |
+| loop(i = 0, s = 0; I; _ if φ → t, _ → t′) | `(loop ((i 0) (s 0)) (invariant I) (φ → t) (else → t′))` | `LOOP i == 0, s == 0 INVARIANT I : φ → t [] OTHER → t′` |
 | again(a, b) | `(again a b)` | `AGAIN(a, b)` |
 | local(b =₁ table(n; f), x := 0; e) | `(local ((b (table n f)) (x := 0)) e)` | `LOCAL b == [i ∈ 0..n-1 ↦ f(i)], x := 0 IN e` |
 | assign(x; e) | `(set! x e)` | `x := e` |
@@ -700,8 +700,8 @@ into A by a function μ : T → A, total on the corpus, which the first build st
 | `(if c a b)`, `(and …)`, `(or …)`, `(not a)`, `(cond …)` | if, ∧, ∨, ¬, cond | derived |
 | `(case e (c x…) b …)` | case(μe; c(x̄) → μb, …) | |
 | `(try (s x) e b)`, `(expect (s x) e w b)` | try, expect | derived |
-| `(match (e…) p… (when c) b … else b)` | loop(x̄ := ē; ⊤; tuple(p̄) if c → b, …, _ → b) | match.md §4 |
-| `(loop ((x z)…) c e … else e)`, `(again a…)` | loop(x̄ := z̄; ⊤; _ if c → e, …, _ → e), again(ā) | |
+| `(match (e…) p… (when c) b … else b)` | loop(x̄ = ē; ⊤; tuple(p̄) if c → b, …, _ → b) | match.md §4 |
+| `(loop ((x z)…) c e … else e)`, `(again a…)` | loop(x̄ = z̄; ⊤; _ if c → e, …, _ → e), again(ā) | |
 | `(local b (table n f) … x e … body)` | local(b =₁ table(n; f), …, x := e, …; μbody) | ADR 0047's rule: by the initializer's form |
 | `(set c v)`, c a cell | assign(c; μv) | the homonym split |
 | `(set b i v)`, b a buffer | app(store; b, i, v) | Σ₀'s threaded store |
@@ -729,8 +729,8 @@ same ⟦·⟧. Each follows from D's clauses and a reduction rule of the atom, o
 | exhaustive last arm | case(e; ā, p → b) = case(e; ā, _ → b) when the arms ā, p cover e's set | 𝒪's exhaustiveness |
 | if's laws | if(true; a; b) = a, if(¬c; a; b) = if(c; b; a) | booleans.md |
 | the monad laws | try(s(x); s(v); b) = b[v/x]; try(s(x); e; s(x)) = e; associativity | errors.md §5 |
-| loop unfolding | loop(x̄ := z̄; I; ā) = the arms of ā at z̄, with again(ā′) replaced by loop(x̄ := ā′; I; ā) | iteration.md §2's semantics: a least fixed point |
-| a cell is a loop variable | local(x := z; loop(ȳ := w̄; ā[assign x])) = loop(ȳ, x := w̄, z; ā′) projected | local.md §4, `TestACellReducesToTheLoopVariableItMeans` |
+| loop unfolding | loop(x̄ = z̄; I; ā) = let(x̄ = z̄; ā[again(w̄) ↦ loop(x̄ = w̄; I; ā)]): one iteration is a let, so a loop's binders are let's (ADR 0055) | iteration.md §2's semantics: a least fixed point |
+| a cell is a loop variable | local(x := z; loop(ȳ = w̄; ā[assign x])) = loop(ȳ, x = w̄, z; ā′) projected: state is implemented by parameters | local.md §4, `TestACellReducesToTheLoopVariableItMeans` |
 | erasure | ε(the(S; e)) = ε(e), ε(assert(φ; e)) = ε(e) | §5 |
 | η for products | let(tuple(x̄) = e; b) = b[πᵢ e / xᵢ] when e's tails are tuples | state.md §1 |
 | ignore | app(ignore; e) = the unit, e's effects kept | errors.md §7.3 |
@@ -749,7 +749,7 @@ def( total;
      ⊤;
      r ∈ Nat;
      ⊤;
-     loop( i := 0, s := 0;
+     loop( i = 0, s = 0;
            s ≐ sum(xs, 0, i);                                   I, with sum a spec
            _ if i ≥ len(xs) → s,
            _               → again(i + 1, s + index(xs; i)) ) )
@@ -763,7 +763,7 @@ spec( sum; a ∈ Seq(Int), i ∈ Nat, j ∈ Nat; r ∈ Int;
 - `sum` occurs only in the invariant, a claim position (W6);
 - the last arm is `_` with no guard (W4).
 
-**Erased**: ε gives def(total; xs; ⊤; r; ⊤; loop(i := 0, s := 0; ⊤; …)), and the spec is removed.
+**Erased**: ε gives def(total; xs; ⊤; r; ⊤; loop(i = 0, s = 0; ⊤; …)), and the spec is removed.
 
 **Desugared** (§6):
 

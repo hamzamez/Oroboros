@@ -290,6 +290,9 @@ LOOP i := 0, s := 0 :
  [] OTHER       → AGAIN(i + 1, s + xs[i])
 ```
 
+> **ADR 0055** (2026-10-12): a loop's variables are bound by application, not assigned, so they are
+> written `LOOP i == 0, s == 0`, as `LET`'s binders are; `:=` is kept for a place taking a value.
+
 `LOOP` is Dijkstra's `do` with an exit value. Its body is a guarded chain, each clause either a value
 (an exit) or ending in `AGAIN` (a back edge). ADR 0015's rule stays: `AGAIN` closes a clause, or sits
 under a binding, never inside an expression. `match`'s other use, a state machine where `again`

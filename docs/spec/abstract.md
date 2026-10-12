@@ -207,6 +207,7 @@ Tail    ::= e
           | let(b̄; t)                                   a binding around a tail; a host call's continuation
                                                        is a let with a tuple pattern (ADR 0027)
           | try(p; e; t)  |  expect(p; e; w; t)          a success arm is a tail (ADR 0041)
+          | bind(p; e; ā; t)                              its handler's arms leave the loop (ADR 0057)
           | assert(φ; t)
 
 Formula ::= e                                          a pure boolean expression
@@ -289,6 +290,7 @@ Each is kept because it names an algebraic operation with a law (fit-research §
 | a ∧ b, a ∨ b, ¬a | if(a; b; false), if(a; true; b), if(a; false; true) | the connectives as 𝔹's eliminator (booleans.md) |
 | try(s(x̄); e; b) | case(e; s(x̄) → b, c₁(ȳ₁) → c₁(ȳ₁), …, cₙ(ȳₙ) → cₙ(ȳₙ)) | the exception monad's bind (errors.md §5) |
 | expect(s(x̄); e; w; b) | case(e; s(x̄) → b, cᵢ(ȳᵢ) → app(abandon; w) …) | bind, with crash : R → 0 (errors.md §8) |
+| bind(p; e; ā; b) | case(e; p → b, ā) | the handled bind: the success arm b continues, the arms ā handle the rest; try and expect are its instances (ADR 0057) |
 
 In try and expect, the cᵢ are the other constructors of s's variant. So these two are defined
 **relative to a declaration environment**, which is why today they expand in `Load` and not in the

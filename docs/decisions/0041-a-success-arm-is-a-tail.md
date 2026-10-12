@@ -4,7 +4,8 @@ Date: 2026-10-06
 Status: Accepted (hamza: "if the algebra leads to your recommendation, do it"). **Extends
 [ADR 0015](0015-loop-and-again.md)**, as [ADR 0027](0027-a-host-calls-continuation-is-a-tail.md) did:
 "`again` may sit under a binding" now covers the binding a marked sum's success arm makes. Nothing
-0015 decided is reversed.
+0015 decided is reversed. **Extended by [ADR 0057](0057-the-handled-bind-and-its-tail.md)** (not
+built): a handled bind's success arm is a tail too, its handler's arms leaving the loop.
 
 ## Context
 

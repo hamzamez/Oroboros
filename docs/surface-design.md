@@ -31,6 +31,7 @@ since the document records how the design was reached.
 | 8 | a loop's variables are bound by application, not assigned | [ADR 0055](decisions/0055-a-loop-variable-is-bound-by-application.md), hamza 2026-10-12 | `LOOP i == 0` in D and K, `loop i = 0` in J, `(loop ((i = 0)) …)` in B′: one iteration is a `let` (the unfolding law), so `:=` is only a place taking a value; `again` is an application, positional |
 | 9 | the source is D or J; one arm grammar (`cond`, `match` retired); `again` positional; `;` tighter than `[]` in D; `var` marks state in J; one-armed `if` in J; J's formers `array { … }`, `set { … }`; `array(n, f)` for a rule; `Seq(S)` for the set | [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md), §3.9–3.10 | B′ and K dropped; the handled bind and a loop's invariant slot still open (§3.11) |
 | 10 | a loop's invariant slot | hamza, 2026-10-12 (ADR 0056's amendment) | `LOOP i == 0 INVARIANT I :` in D, `loop i = 0 invariant I { … }` in J; optional, absent meaning ⊤; ε erases it, 𝒪 makes three obligations of it (§3.11) |
+| 11 | the handled bind, a derived operator with `try` and `expect` its instances; in a loop its success arm is a tail and its handler leaves | [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md), §3.11–3.14 | J `try p = e [else ā], … { body } [else ā]`, D `TRY p == e [ELSE ā], … IN body [ELSE ā]`; no statement form of `try`; a small two-way choice stays `case`; `expect` stays a statement |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -2470,7 +2471,8 @@ case k {                                                                        
 ---
 
 **C3 — two handled binds** (`roundtrip`'s `main`, abridged): the corpus's commonest choice, Finding 2.
-T nests one level per step; the others hoist the success arm.
+T nests one level per step; the others hoist the success arm. D and J are in the form ADR 0057
+decided (§3.14): a group of binders, each handler next to its call, then the body.
 
 ```lisp
 (case (os.WriteFile path data)                                                  ; T
@@ -2488,7 +2490,7 @@ T nests one level per step; the others hoist the success arm.
   (seq (io.print (os.text-of src)) 0))
 ```
 ```
-LET ok(_)   == os.WriteFile(path, data) ELSE (err(k) → print_line(kind_name(k)) ; 1)    \\ D
+TRY ok(_)   == os.WriteFile(path, data) ELSE (err(k) → print_line(kind_name(k)) ; 1),   \\ D
     ok(src) == os.ReadFile(path)        ELSE (err(k) → print_line(kind_name(k)) ; 1)
 IN  print(os.text_of(src)) ; 0
 ```
@@ -2498,9 +2500,11 @@ ok(src) == os.ReadFile(path) ELSE (err(k) → print_line(kind_name(k)) ; 1) ;
 print(os.text_of(src)) ; 0
 ```
 ```go
-{ ok(_) = os.WriteFile(path, data) else err(k) -> { print_line(kind_name(k)); 1 }   // J
-  ok(src) = os.ReadFile(path) else err(k) -> { print_line(kind_name(k)); 1 }
-  print(os.text_of(src)); 0 }
+try ok(_)   = os.WriteFile(path, data) else err(k) -> { print_line(kind_name(k)); 1 },   // J
+    ok(src) = os.ReadFile(path)        else err(k) -> { print_line(kind_name(k)); 1 }
+{
+    print(os.text_of(src)); 0
+}
 ```
 
 ---
@@ -2532,7 +2536,7 @@ LOOP i == 0, acc == 0 :                                                         
 ```go
 loop i = 0, acc = 0 {                                                         // J
     i > 5 -> fine(acc)
-    else  -> { try fine(x) = step(i, n); again(i + 1, acc + x) }
+    else  -> try fine(x) = step(i, n) { again(i + 1, acc + x) }
 }
 ```
 
@@ -2763,12 +2767,12 @@ fn sieve(n) {
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | T today | 487 | 1.00 | 483 | 1.00 | 8 | 6 | 46 | **2** (a case arm's guard, a loop's invariant) |
 | B′ | 641 | 1.32 | 628 | 1.30 | **10** | 7 | 42 | 0 |
-| D | 487 | 1.00 | 462 | 0.96 | **3** | 2 | 39 | 0 |
+| D | 488 | 1.00 | 463 | 0.96 | **3** | 2 | 39 | 0 |
 | K | 490 | 1.01 | 465 | 0.96 | **3** | 2 | 39 | 0 |
-| J | 494 | 1.01 | 444 | **0.92** | 5 | 4 | 50 | 0 |
+| J | 495 | 1.02 | 445 | **0.92** | 5 | 4 | 52 | 0 |
 
 - **On choice and iteration the new notations cost nothing.** D, K and J are today's size in
-  characters (1.00–1.01×) and smaller in lexemes (0.92–0.96×), where installment 2 measured them 1–4%
+  characters (1.00–1.02×) and smaller in lexemes (0.92–0.96×), where installment 2 measured them 1–4%
   larger. Two findings pay for the binder operators: the handled bind (C3) removes a level and an arm
   per step, and named state (C7) removes `match`'s positional patterns and its dead `else`.
 - **Depth falls from 8 to 3** in D and K, and to 5 in J, whose braces cost a level per chain.
@@ -2789,7 +2793,7 @@ the two holes, the two synonyms and the parity reading go.
 
 **Kept: D, K and J.** They are within 2% of each other in characters, and they differ in what this
 installment does not test: D and K only in how a scope introduces state, and J in its delimiters,
-with the depth (5 against 3) and the lines (50 against 39) that braces cost.
+with the depth (5 against 3) and the lines (52 against 39) that braces cost.
 
 **B′ should be dropped as a source candidate.** §2.6 said this installment would rescue or drop it.
 It is 1.30–1.47× today's size and deeper than today in both installments that measured it, and
@@ -2824,7 +2828,8 @@ That is candidate I's question, one notation or two, and it stays open.
 > **Decided by hamza, 2026-10-12**, as [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md):
 > items 1, 3, 4, 5, 6 and 8, and **the source notation is D or J** (*"in fact moving forward it is D or
 > J"*), so K is dropped with B′. Item 4 applies to D, and item 5 to J (`var`), D marking a state
-> binder by its place in a `LET` group. **Open: items 2 and 7**, explained in §3.11.
+> binder by its place in a `LET` group. Items 2, 2b and 7 were explained in §3.11–3.14 and then
+> decided: 7 as ADR 0056's amendment, 2 and 2b as [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md).
 
 1. **One arm grammar, and `cond` and `match` retired as keywords** (§3.8, 1–2). *Recommended*: it is
    ADR 0050's decision 5 made concrete, and it closes both holes of §3.3.
@@ -3433,7 +3438,10 @@ step. Measured, that is the 11 steps, all in a program's `main`.
 One eliminator, case(e; p → b, ā), in each. `try` and `case` differ in emphasis (the success
 continues, against two values chosen between) and in the header, as `if` and `case` do.
 
-#### Proposed
+#### Proposed, and decided
+
+**All four decided by hamza, 2026-10-12** (*"I agree to all 4"*), as
+[ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md).
 
 1. **J: `try p₁ = e₁ [else ā₁], … { body } [else ā]`**: binders grouped, each handler optional and next
    to its call, the body braced, a shared handler optional after it. No statement form of `try`.

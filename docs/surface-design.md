@@ -2842,3 +2842,112 @@ That is candidate I's question, one notation or two, and it stays open.
 
 Not here: whether the source is D, K or J, and whether there are two notations. Installments 4–8
 (data and sets, claims, declarations, static parameters and the arrow, lexical) come first.
+
+### 3.10 One former for arrays, and how many shapes J has
+
+hamza, after installment 3: *"in the sake of having a uniform syntax, where the programmer does not
+have to learn many shapes … maybe we should have the literal array as `array { e1, e2, e3 … }` and
+`array(n, f)`, that way we lose a keyword. … array comprehension `[k ∈ 0..n-1 ↦ false]`, keep it
+around for now we might need it."*
+
+#### What the two constructors are
+
+A table is a function on [0, n) (tables.md §1), and a finite function has two presentations, the two
+by which mathematics gives any finite object:
+- **by its graph**, an enumeration: `(array e₀ … eₖ₋₁)`, the image of a tuple under Vᵏ ≅ [0, k) → V;
+- **by a rule**: `(table n f)`, the tabulation of f : [0, n) → V, which makes a function into data.
+
+A set has the same pair, extension `{a, b}` and separation `{x ∈ S : φ}` (Zermelo). The comprehension
+`[k ∈ 0..n-1 ↦ e]` is the rule with its λ written in place: it is `table(n; λk. e)`, which is how
+abstract.md §9.4's M′ prints table(n; f).
+
+#### Measured
+
+`go run gauntlet/surface/data.go`, over the same corpus:
+
+| | count |
+|---|---:|
+| tables by their graph, `(array e…)` | 47 (one element: 5; two: 3) |
+| tables by a rule, `(table n f)` | 77 |
+| … f the zero, a zero-filled buffer | **67** |
+| … f a λ | 8 |
+| … f another literal, f a name (a thaw) | 1, 1 |
+| **`(array T)` as a type**, spelled as a one-element graph is | **38** |
+
+The last row is a homonym in today's notation: `(array f64)` is a set and `(array 93)` is a value,
+told apart only by whether the argument names a set.
+
+#### For the proposal
+
+1. **J cannot use bare braces for a collection.** In J, `{ … }` is a block whose value is its last
+   expression, so `{x}` would be both a block and a singleton set. ADR 0050's decision 4 needs a set
+   former, so in J it must have a head, `set { 1, 2 }`. Arrays then follow the same rule, and so do
+   maps (installment 4): **every finite collection given by its elements has one shape,
+   `former { e, … }`**. Each is the graph of a finite function: an array's keys are implicit, 0..k−1;
+   a map's are written, `k ↦ v`; a set is the graph of its characteristic function. A bare `{ … }` is
+   always a block.
+2. **It separates the value from the set.** `Seq(S)` names the set of sequences over S, as
+   installment 1's examples already write it, and `array { … }` builds one value. The 38-site
+   homonym goes, and that is ADR 0049's two languages showing in the surface: the set is in the logic,
+   the value in the computation.
+3. **One name instead of two**: `table` goes, and `array` names the sort's constructors, as Go's
+   composite literal `[]int{1, 2, 3}` and `make` do. Size does not move: `array{1, 2}` and
+   `array(1, 2)` are the same tokens, and so are `array(n, 0)` and `table(n, 0)`.
+4. **It costs J no shape.** `former { contents }` is the shape `case x { arms }` and `loop … { arms }`
+   already have, with an empty header. Braces delimit, and the head says what is inside: arms after a
+   chain keyword, elements after a former, statements after nothing. That is S-expressions' rule,
+   `(head args)` with the head deciding, carried into a notation with infix.
+
+#### Against it, and the one hazard
+
+**`array(n, v)` and `array{a, b}` differ by one bracket, and both are well-typed.** `array(3, 0)` is
+three zeros, `array{3, 0}` is the pair. In the corpus the rule with a literal is 68 sites and the
+two-element graph is 3, so the confusable form is the commonest constructor of all. Rust has the same
+pair, `[0; 3]` against `[0, 3]`, and lives with it. It is not the failure class §1.7 disqualifies (a
+body's extent misread), but it is a one-character difference between two well-formed programs. Three
+answers:
+- **accept it**, as Rust does (*recommended for now*): the brackets are visually distinct, and the
+  length usually decides an index proof;
+- **write every rule in braces with its binder**, `array { k ∈ 0..n-1 ↦ 0 }`, the comprehension
+  moved inside the former, which makes the two presentations look as different as `set {a, b}` and
+  `set {x ∈ S : φ}`. It costs about 8 tokens at each of 67 zero-filled buffers;
+- **keep a second name** for the rule. That is today's `table`, which the proposal is for losing.
+
+**The comprehension and `array(n, f)` are two spellings of one operator** (fit-research's F1):
+`[k ∈ 0..n-1 ↦ e]` is `array(n, fn(k) { e })`. Keeping both is right only while something else
+decides between them, and something does: notation-research's unification of tables and maps as one
+finite function. `[k ∈ D ↦ e]` covers a map's domain, and `array(n, f)` cannot. That is installment 4's
+question, so the comprehension stays, as hamza says, and is decided there.
+
+**D and K do not need any of this.** Their lexicon is TLA+'s, whose braces are free: `⟨1, 2, 3⟩` is
+the graph, `[k ∈ 0..n-1 ↦ e]` the rule, `{1, 2}` the set. The proposal is J's, forced by J's use of
+braces for blocks.
+
+#### J's shapes, counted
+
+What a reader of J must learn, after the proposal:
+
+| | shape | carries |
+|---|---|---|
+| 1 | a name or a literal | |
+| 2 | `a op b`, `op a` | arithmetic, comparison, `∈`, `..`, `&&` |
+| 3 | `f(a, …)` | application, including `again(…)`, `array(n, f)` and a host call |
+| 4 | `t[i]` | indexing (ADR 0050, decision 6) |
+| 5 | `(a, b)`, `(e)` | a tuple, grouping |
+| 6 | `head … { contents }` | `fn`, `case`, `loop`, `if … else`, a former; a bare `{ … }` is a block |
+| 7 | `p [if φ] -> e` | an arm, inside a chain |
+| 8 | `p = e`, `var x := e`, `lhs := e`, and `p = e else arms`, `try p = e`, `expect p = e else w` | a statement: a binder, a write, a bind |
+| 9 | `[k ∈ D ↦ e]` | the rule with its binder (for now) |
+| 10 | a header's claims, `(x ∈ S, …) (r ∈ R) where φ ensure ψ` | a definition's claim |
+
+Ten shapes, of which 2–5 are what every infix language has and 6–8 carry the semantics' own
+operators. The proposal moves array literals from shape 3 (`array(1, 2, 3)`) to shape 6 and removes
+one name. Whether shape 9 survives is installment 4's.
+
+#### Proposed
+
+1. **In J, a finite collection given by its elements is `former { e, … }`**: `array { … }` now,
+   `set { … }` for ADR 0050's set former, `map { k ↦ v, … }` in installment 4.
+2. **The rule is `array(n, f)`**, and `table` goes, accepting the one-bracket hazard as Rust does.
+3. **The set is `Seq(S)`**, never `array(S)`, so a value and its set are never spelled alike.
+4. **`[k ∈ D ↦ e]` stays**, to be decided with tables-and-maps-as-one-function in installment 4.

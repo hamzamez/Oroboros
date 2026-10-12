@@ -1,0 +1,175 @@
+//go:build ignore
+
+// HOW THE CORPUS WRITES ITS TABLES (docs/surface-design.md §3.10).
+//
+//	go run gauntlet/surface/data.go
+//
+// Over examples/, lib/, gauntlet/stdlib/acceptance/ and
+// gauntlet/differential/cases/, read as S-expressions: every table written as
+// its graph, `(array e…)`, by length, and every table written by a rule,
+// `(table n f)`, by what f is: a literal (the constant function K v), a λ, or
+// a name. A two-element graph and a rule with a literal are the pair one
+// bracket would tell apart under `array { a, b }` against `array(n, v)`.
+package main
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+type node struct {
+	atom string
+	kids []*node
+	list bool
+}
+
+func parse(src string) []*node {
+	var toks []string
+	for i := 0; i < len(src); {
+		c := src[i]
+		switch {
+		case c == ';':
+			for i < len(src) && src[i] != '\n' {
+				i++
+			}
+		case c == '(' || c == ')':
+			toks = append(toks, string(c))
+			i++
+		case c == '"':
+			j := i + 1
+			for j < len(src) && src[j] != '"' {
+				if src[j] == '\\' {
+					j++
+				}
+				j++
+			}
+			toks = append(toks, src[i:j+1])
+			i = j + 1
+		case c == ' ' || c == '\t' || c == '\n' || c == '\r':
+			i++
+		default:
+			j := i
+			for j < len(src) && !strings.ContainsRune(" \t\n\r();\"", rune(src[j])) {
+				j++
+			}
+			toks = append(toks, src[i:j])
+			i = j
+		}
+	}
+	stack := [][]*node{{}}
+	for _, t := range toks {
+		switch t {
+		case "(":
+			stack = append(stack, nil)
+		case ")":
+			if len(stack) < 2 {
+				continue
+			}
+			top := stack[len(stack)-1]
+			stack = stack[:len(stack)-1]
+			stack[len(stack)-1] = append(stack[len(stack)-1], &node{kids: top, list: true})
+		default:
+			stack[len(stack)-1] = append(stack[len(stack)-1], &node{atom: t})
+		}
+	}
+	return stack[0]
+}
+
+func head(n *node) string {
+	if n != nil && n.list && len(n.kids) > 0 && !n.kids[0].list {
+		return n.kids[0].atom
+	}
+	return ""
+}
+
+// isType reports an element that names a set of values rather than one:
+// a sort, a host type, or a range, table, buffer, map, tuple or option former.
+func isType(n *node) bool {
+	if !n.list {
+		switch n.atom {
+		case "int", "bool", "f64", "string", "bytestring", "byte":
+			return true
+		}
+		return strings.HasPrefix(n.atom, "go.") || strings.HasPrefix(n.atom, "java.") ||
+			strings.HasPrefix(n.atom, "js.") || strings.HasPrefix(n.atom, "win.")
+	}
+	switch head(n) {
+	case "int", "array", "buffer", "map", "tuple", "option", "cell":
+		return true
+	}
+	return false
+}
+
+func main() {
+	c := map[string]int{}
+	lengths := map[int]int{}
+	for _, dir := range []string{"examples", "lib", "gauntlet/stdlib/acceptance", "gauntlet/differential/cases"} {
+		filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
+			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".oro") {
+				return nil
+			}
+			b, _ := os.ReadFile(p)
+			var walk func(n *node, parent string)
+			walk = func(n *node, parent string) {
+				if !n.list {
+					return
+				}
+				h := head(n)
+				// `(array V)` as a type sits in a sig or a declaration; a graph
+				// is an array with at least one element that is not a type.
+				if h == "array" && parent != "sig" && parent != "type" && len(n.kids) >= 2 {
+					if len(n.kids) == 2 && isType(n.kids[1]) {
+						c["(array T), a type: the same spelling as a one-element graph"]++
+					} else {
+						c["graphs (array e…)"]++
+						lengths[len(n.kids)-1]++
+					}
+				}
+				if h == "table" && len(n.kids) == 3 {
+					c["rules (table n f)"]++
+					f := n.kids[2]
+					switch {
+					case !f.list && (f.atom == "0" || f.atom == "false" || f.atom == "0.0"):
+						c["  … f the zero, a zero-filled buffer"]++
+					case !f.list && (strings.Trim(f.atom, "-0123456789.") == "" || f.atom == "true" || strings.HasPrefix(f.atom, `"`)):
+						c["  … f another literal, a constant table"]++
+					case head(f) == "fn":
+						c["  … f a λ"]++
+					case !f.list:
+						c["  … f a name (a definition, or a frozen table: thaw)"]++
+					default:
+						c["  … f another expression"]++
+					}
+				}
+				for _, k := range n.kids {
+					walk(k, h)
+				}
+			}
+			for _, f := range parse(string(b)) {
+				walk(f, "")
+			}
+			return nil
+		})
+	}
+	var ks []string
+	for k := range c {
+		ks = append(ks, k)
+	}
+	sort.Strings(ks)
+	for _, k := range ks {
+		fmt.Printf("%6d  %s\n", c[k], k)
+	}
+	var ls []int
+	for l := range lengths {
+		ls = append(ls, l)
+	}
+	sort.Ints(ls)
+	fmt.Print("graphs by length:")
+	for _, l := range ls {
+		fmt.Printf(" %d:%d", l, lengths[l])
+	}
+	fmt.Println()
+}

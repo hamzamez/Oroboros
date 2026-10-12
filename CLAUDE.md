@@ -578,6 +578,7 @@ rejected alternatives.
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
+| The surface is D or J (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
 
 ## How this project is run
 

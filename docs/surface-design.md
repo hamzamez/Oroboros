@@ -1,7 +1,7 @@
 # The language surface, designed one construct at a time
 
-Status: **an open conversation, appended to as it goes. The surface is not decided**; what is decided
-around it is listed below. Started 2026-10-11 on
+Status: **an open conversation, appended to as it goes. The surface is not decided; its candidates are
+D and J** (ADR 0056); what is decided around it is listed below. Started 2026-10-11 on
 hamza's request: *"let's try to come up with the best language surface we can … we start with the atom
 lambda … let's find out the syntax with the least holes in it, simplest, most uniform … we are going to
 propose the most right now, pick a few, drop the rest and continue the exercise with the rest of the
@@ -29,6 +29,7 @@ since the document records how the design was reached.
 | 6 | in J, `=` binds and `==` compares, for now | hamza, 2026-10-11 | C's and Go's convention, in J's examples; D and K keep TLA+'s, `==` binding and `=` comparing (§2.11) |
 | 7 | `let` and `local` are one scope; a definitional name may be rebound, a state name once per region; the head is `let` | [ADR 0054](decisions/0054-let-and-local-are-one-scope.md), on §2.13 | binders state their kind by their operator, and a mixed sequence is one scope; in K and J, a state binder's introduction against a write is still open (§2.13, item 4) |
 | 8 | a loop's variables are bound by application, not assigned | [ADR 0055](decisions/0055-a-loop-variable-is-bound-by-application.md), hamza 2026-10-12 | `LOOP i == 0` in D and K, `loop i = 0` in J, `(loop ((i = 0)) …)` in B′: one iteration is a `let` (the unfolding law), so `:=` is only a place taking a value; `again` is an application, positional |
+| 9 | the source is D or J; one arm grammar (`cond`, `match` retired); `again` positional; `;` tighter than `[]` in D; `var` marks state in J; one-armed `if` in J; J's formers `array { … }`, `set { … }`; `array(n, f)` for a rule; `Seq(S)` for the set | [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md), §3.9–3.10 | B′ and K dropped; the handled bind and a loop's invariant slot still open (§3.11) |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -2503,7 +2504,7 @@ print(os.text_of(src)) ; 0
 
 ---
 
-**C4 — a loop whose tail binds with `try`** (`gauntlet/differential/cases/try-loop.oro`'s `walk`,
+**C4 — a loop whose tail binds with `try`** (`gauntlet/differential/cases/sum-slots.oro`'s `walk`,
 ADR 0041).
 
 ```lisp
@@ -2819,6 +2820,11 @@ That is candidate I's question, one notation or two, and it stays open.
 
 ### 3.9 Open, for hamza
 
+> **Decided by hamza, 2026-10-12**, as [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md):
+> items 1, 3, 4, 5, 6 and 8, and **the source notation is D or J** (*"in fact moving forward it is D or
+> J"*), so K is dropped with B′. Item 4 applies to D, and item 5 to J (`var`), D marking a state
+> binder by its place in a `LET` group. **Open: items 2 and 7**, explained in §3.11.
+
 1. **One arm grammar, and `cond` and `match` retired as keywords** (§3.8, 1–2). *Recommended*: it is
    ADR 0050's decision 5 made concrete, and it closes both holes of §3.3.
 2. **The handled bind** as a derived operator, with `try` and `expect` its instances. *Recommended*:
@@ -2840,7 +2846,7 @@ That is candidate I's question, one notation or two, and it stays open.
 8. **Drop B′ as a source candidate**, keeping S-expressions as T′ for tools and interchange
    (*recommended*: §3.7).
 
-Not here: whether the source is D, K or J, and whether there are two notations. Installments 4–8
+Not here: whether the source is D or J, and whether there are two notations. Installments 4–8
 (data and sets, claims, declarations, static parameters and the arrow, lexical) come first.
 
 ### 3.10 One former for arrays, and how many shapes J has
@@ -2944,10 +2950,179 @@ Ten shapes, of which 2–5 are what every infix language has and 6–8 carry the
 operators. The proposal moves array literals from shape 3 (`array(1, 2, 3)`) to shape 6 and removes
 one name. Whether shape 9 survives is installment 4's.
 
-#### Proposed
+#### Proposed, and decided
+
+**All four decided by hamza, 2026-10-12** (ADR 0056).
 
 1. **In J, a finite collection given by its elements is `former { e, … }`**: `array { … }` now,
    `set { … }` for ADR 0050's set former, `map { k ↦ v, … }` in installment 4.
 2. **The rule is `array(n, f)`**, and `table` goes, accepting the one-bracket hazard as Rust does.
 3. **The set is `Seq(S)`**, never `array(S)`, so a value and its set are never spelled alike.
 4. **`[k ∈ D ↦ e]` stays**, to be decided with tables-and-maps-as-one-function in installment 4.
+
+### 3.11 Two explanations, at hamza's request: the bind and the invariant
+
+hamza, on §3.9: *"2. mostly agree, I need more explaining … what does it mean? what does it compile
+to? … 7. explain it some more."*
+
+#### `try`, and the handled bind it is an instance of
+
+**The program.** `gauntlet/differential/cases/sum-slots.oro`, reduced to the part C4 shows:
+
+```lisp
+(variant (outcome T E) (fine T) (failed E) (success fine))
+
+(def step (i n)
+  (if (< i n) (fine i) (failed (array i (+ 1000 i)))))
+
+(def walk (n)
+  (loop ((i 0) (acc 0))
+    (> i 5)   (fine acc)
+    else      (try (fine x) (step i n)
+                (again (+ i 1) (+ acc x)))))
+```
+
+`outcome` is a sum, T + E, with `fine` marked as its success (ADR 0040). `step` succeeds while i < n
+and fails otherwise. `walk` adds up `step`'s successes for i = 0 … 5 and returns `fine(sum)`; the
+first failure stops the loop, and `walk`'s value is that failure.
+
+**What `try` means.** abstract.md §2.7 defines it by one equation:
+
+```
+try(s(x̄); e; b)  =  case(e; s(x̄) → b,  c₁(ȳ₁) → c₁(ȳ₁), …)        the cᵢ the variant's other constructors
+```
+
+Look at e. If it is the success, bind its payload and go on with b. If it is anything else, that value,
+unchanged, is the value of the whole form. That is the exception monad's bind (Moggi 1991), and in
+other languages it is Rust's `?`, `let x = step(i, n)?;`, and Haskell's `x <- step i n` in a `do`
+block over `Either`. In `walk`, written out as a `case`:
+
+```go
+loop i = 0, acc = 0 {
+    i > 5 -> fine(acc)
+    else  -> case step(i, n) {
+                 fine(x)   -> again(i + 1, acc + x)
+                 failed(e) -> failed(e)            // the loop's value: it leaves the loop
+             }
+}
+```
+
+The `case` here has an `again` in one arm, which the tail rule otherwise forbids. ADR 0041 admits it
+for exactly this shape: the success arm continues the loop, and every other arm leaves it with a
+value. The other arm's value becomes the loop's, so the loop yields a sum.
+
+**What it compiles to**, verified. The reducer inlines `step`, and `case` of a known `if` of
+constructors resolves by case-of-case, so the `case` disappears:
+
+```lisp
+(loop (fn (i acc)
+        (if (> i 5) (fine acc)
+            (if (< i n) (again (+ i 1) (+ acc i))
+                (failed (array i (+ 1000 i))))))
+      0 0)
+```
+
+and Go receives one loop that returns the sum as its tag and slots (ADR 0042):
+
+```go
+func GenWalk(v0 int) (int, int, []int) {
+	var v14 int = 0
+	var v15 int = 0
+	var v11 int
+	var v12 int
+	var v13 []int
+	for ; ; v14 = (v14 + 1) {
+		v17 := (v14 > 5)
+		if v17 {
+			v11, v12, v13 = 0, v15, nil        // fine(acc): tag 0, the int slot
+			break
+		}
+		v22 := (v14 < v0)
+		if v22 {
+			v27 := (v15 + v14)
+			v15 = v27
+			continue                         // again(i + 1, acc + i)
+		}
+		v33 := (1000 + v14)
+		v34 := []int{v14, v33}
+		v11, v12, v13 = 1, 0, v34            // failed(…): tag 1, the table slot
+		break
+	}
+	return v11, v12, v13
+}
+```
+
+No sum is built inside the loop and nothing is allocated for the success. `try` cost nothing; it is
+the third clause.
+
+**The handled bind** is the same equation with the other arms written by hand instead of re-built:
+
+```
+bind(p; e; ā; b)  =  case(e; p → b, ā)
+```
+
+`try` is bind with ā re-building each failure, and `expect` is bind with ā abandoning. The corpus's
+commonest choice (38 of 42 `case` forms) is a bind whose ā is the program's own handler, as in
+`roundtrip`:
+
+```go
+ok(src) = os.ReadFile(path) else err(k) -> { print_line(kind_name(k)); 1 }
+print(os.text_of(src)); 0
+```
+
+which means exactly
+
+```go
+case os.ReadFile(path) {
+    ok(src) -> { print(os.text_of(src)); 0 }
+    err(k)  -> { print_line(kind_name(k)); 1 }
+}
+```
+
+and compiles to what that `case` compiles to today. The surface form only hoists the success arm, so
+the rest of the scope is not nested one level per step.
+
+**2b, in a loop's arm.** `try` there is decided (ADR 0041). The question is the same shape with a
+handler: `ok(x) = f(i) else err(e) -> h; again(…)`, where the success continues to `again` and the
+handler leaves the loop with h's value. It is ADR 0041's reasoning unchanged (one arm continues, the
+others leave), but it widens the tail sort, which is semantics, so it would get its own ADR.
+
+#### A loop's invariant
+
+**What it is.** A loop invariant I is a formula over the loop's variables (and the names around the
+loop) that holds every time the loop is entered or goes round (Floyd 1967; Hoare's rule for `while`,
+1969). It is a claim, in the logic: ε erases it, so it emits nothing and costs nothing at run time.
+
+**Why a program needs to write one.** The analyses infer invariants today (intervals, Houdini's content
+facts), and they infer what the decided fragment can: bounds, lengths, linear relations. They cannot
+infer a fact that needs induction over a specification. abstract.md §12's example:
+
+```
+LOOP i == 0, s == 0 INVARIANT s = sum(xs, 0, i) :                                       \* D
+    i ≥ Len(xs) → s
+ [] OTHER       → AGAIN(i + 1, s + xs[i])
+```
+```go
+loop i = 0, s = 0 invariant s == sum(xs, 0, i) {                                        // J
+    i >= len(xs) -> s
+    else         -> again(i + 1, s + xs[i])
+}
+```
+
+with `sum` a specification function (settypes §6.3), so that `total(xs) ∈ {r : r = sum(xs, 0,
+len(xs))}` can be proven. No analysis finds `s = sum(xs, 0, i)` by itself: it is above the cliff
+settypes §5 draws, where the programmer climbs by assertions, invariants and lemmas.
+
+**What the compiler does with it.** 𝒪 (abstract.md §7) turns it into three obligations, each decided
+or the program refused:
+1. **it holds on entry**: I with the initializers, here 0 = sum(xs, 0, 0);
+2. **every `again` preserves it**: I, plus the arm's guard and the guards before it that failed,
+   implies I at the `again`'s arguments: s = sum(xs, 0, i) ∧ i < len(xs) ⟹ s + xs[i] = sum(xs, 0, i + 1);
+3. **every exit may use it**: I and the arm's guard are facts where the value leaves, here
+   s = sum(xs, 0, len(xs)), which is the postcondition.
+
+**Why the slot is recommended now, though no program has one.** No program has one because no notation
+can write one (§3.3). abstract.md's loop has I, ADR 0049 names invariants as one of the three ways to
+climb, and the next step on settypes' plan (types as static values, claims carrying sets) is where
+claims start to need them. The slot is optional, one clause after the variables, and absent it means
+⊤, which is today.

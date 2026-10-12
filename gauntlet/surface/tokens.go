@@ -5,6 +5,7 @@
 //	go run gauntlet/surface/tokens.go              installment 2: §2.4's P1–P8, and §2.9's K and L
 //	go run gauntlet/surface/tokens.go -section 3   installment 3: §3.5's C1–C8 in T, B′, D, K and J
 //	go run gauntlet/surface/tokens.go -section 4   installment 4: §4.5's six programs in T, D and J
+//	go run gauntlet/surface/tokens.go -section 5   installment 5: §5.5's five programs in D and J
 //
 // Reads surface-design.md itself, so a table and the programs it counts cannot
 // drift apart. Counted: §2.4's P1–P8 in T, B′, D and J (each fenced block whose
@@ -13,7 +14,8 @@
 //
 // THE RULE, fixed here because the first tables' script was not kept:
 //   - column markers (`; T`, `; B′`, `\\ D`, `// J`, `\\ Pn`, `// Pn`) and `;;`
-//     lines are stripped, and in the prefix notations (T, B′) a `;` comment;
+//     lines are stripped, and a comment: `;` in the prefix notations (T, B′),
+//     `\*` in D and `//` in J;
 //   - a string literal is one token;
 //   - a word is one token: letters, digits and `_`, joined by `.` before a
 //     letter (`os.Args`), and in the prefix notations by `-` before a letter
@@ -47,6 +49,8 @@ func count(text string, prefix bool, m *measure) {
 		}
 		if prefix {
 			line = stripComment(line)
+		} else {
+			line = stripInfixComment(line)
 		}
 		if strings.TrimSpace(line) == "" {
 			continue
@@ -64,6 +68,8 @@ func count(text string, prefix bool, m *measure) {
 		}
 		if prefix {
 			line = stripComment(line)
+		} else {
+			line = stripInfixComment(line)
 		}
 		inStr := false
 		for _, r := range line {
@@ -103,6 +109,20 @@ func stripComment(line string) string {
 			inStr = !inStr
 		}
 		if r == ';' && !inStr {
+			return line[:i]
+		}
+	}
+	return line
+}
+
+// stripInfixComment drops a comment in D (`\*`) or J (`//`), outside a string.
+func stripInfixComment(line string) string {
+	inStr := false
+	for i := 0; i+1 < len(line); i++ {
+		if line[i] == '"' {
+			inStr = !inStr
+		}
+		if !inStr && ((line[i] == '/' && line[i+1] == '/') || (line[i] == '\\' && line[i+1] == '*')) {
 			return line[:i]
 		}
 	}
@@ -168,7 +188,7 @@ func lexemes(toks []string) []string {
 }
 
 func main() {
-	section := flag.String("section", "2", "the installment whose programs to count: 2, 3 or 4")
+	section := flag.String("section", "2", "the installment whose programs to count: 2, 3, 4 or 5")
 	flag.Parse()
 	b, err := os.ReadFile("docs/surface-design.md")
 	if err != nil {
@@ -192,6 +212,11 @@ func main() {
 	case "4":
 		order = []string{"T", "D", "J"}
 		from, to = "### 4.5 Six programs", "### 4.6 Measured"
+	case "5":
+		// Most of installment 5's claims have no spelling in today's notation,
+		// so D and J are compared with each other.
+		order = []string{"D", "J"}
+		from, to = "### 5.5 Five programs", "### 5.6 Measured"
 	}
 	for _, n := range order {
 		res[n] = &measure{}
@@ -205,6 +230,9 @@ func main() {
 			continue
 		}
 		n := f[2] + f[3] + f[4]
+		if res[n] == nil {
+			continue // a notation this section does not count
+		}
 		count(m[1], n == "T" || n == "B′", res[n])
 	}
 	if *section == "2" {
@@ -213,8 +241,9 @@ func main() {
 		l := block.FindStringSubmatch(sec("#### L — a binder", "#### Measured"))
 		count(l[1], false, res["L"])
 	}
-	t, x := float64(res["T"].tokens), float64(res["T"].lexemes)
-	fmt.Println("| notation | tokens | × T | lexemes | × T | depth | closing run | lines |")
+	baseName := order[0]
+	t, x := float64(res[baseName].tokens), float64(res[baseName].lexemes)
+	fmt.Printf("| notation | tokens | × %s | lexemes | × %s | depth | closing run | lines |\n", baseName, baseName)
 	fmt.Println("|---|---:|---:|---:|---:|---:|---:|---:|")
 	for _, n := range order {
 		m := res[n]

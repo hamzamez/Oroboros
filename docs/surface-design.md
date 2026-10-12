@@ -4179,3 +4179,336 @@ is.
 - a binder-first form beginning `x ∈ …` is a filter, and the image of a membership is parenthesized.
 
 This withdraws §4.9's "binder always first" and keeps hamza's `:`.
+
+---
+
+## Installment 5 — claims
+
+hamza: *"go ahead. always mathematical and algebraic"*, after installment 4. The candidates are D and J
+(ADR 0056). This installment writes the second language of ADR 0049, the logic, which never prints: a
+definition's claim, a claim on a value, an assertion, an invariant, a specification function, a lemma,
+and the formulas they are written in.
+
+### 5.1 What the logic must carry
+
+From abstract.md §2.5–2.7 and §7, and settypes §6:
+
+| | the form | what it means | its obligation in 𝒪 |
+|---|---|---|---|
+| **a definition's claim** | lam(x̄ ∈ S̄; r ∈ U; φ; ψ; e) | f ∈ Π(x̄ ∈ {x̄ ∈ S̄ : φ}). {r ∈ U : ψ} | the body under x̄ ∈ S̄ ∧ φ establishes r ∈ U ∧ ψ; each call establishes ā ∈ S̄ ∧ φ[ā/x̄] and gains ψ |
+| **a claim on a value** | the(S; e) | e's value lies in S; the value is e's | e ∈ S |
+| **an assertion** | assert(φ; e) | φ holds here, then e | φ, then φ is a fact |
+| **an invariant** | loop(…; I; …) | I holds at entry and at every back edge | entry, preservation, and I at each exit (§3.11) |
+| **a specification function** | spec(f; b̄; r ∈ U; e) | a function of the logic, which may recurse and never runs | its recursion is well founded (size-change) |
+| **a lemma** | lemma(n; φ; steps) | a proven sentence | each step from the ones before; then φ is a fact everywhere after |
+
+And the formulas: `Formula ::= e | e ∈ S | e ≐ e′ | ¬φ | φ ∧ ψ | φ ∨ ψ | φ ⇒ ψ | ∀ b̄. φ | ∃ b̄. φ |
+app(f; ā)`, f a specification function. W6 keeps the boundary: a formula's own forms (a quantifier,
+≐ at any sort, membership in a set that is not decidable, a call of a specification function) stand
+only where a claim stands.
+
+**ε erases every one of them** (abstract.md §5): ⟦P⟧ = ⟦D(ε(P))⟧, so no claim changes what a program
+computes. A claim either is proven or refuses the program.
+
+### 5.2 Measured
+
+`go run gauntlet/surface/claims.go`, over the programs and, separately, the target files:
+
+| | programs | targets |
+|---|---:|---:|
+| `sig` | 143 | 870 |
+| parameters: a name and its set / and the set `any` | 170 / 13 | 649 / 22 |
+| parameters: a set without a name / the set `any` without a name | — | 496 / 170 |
+| results: a set / a tuple | 138 / 5 | 800 / 70 |
+| `where` | 35 | 54 |
+| … bounds on parameters, one set each | 17 | 39 |
+| … bounds where one is a length (`len a > 2`) | 7 | 3 |
+| … a relation between parameters (`len p = len q`) | **11** | **9** |
+| … another formula (a disjunction) | 0 | 3 |
+| `ensures` (each uses the result's name) | **0** | 18 |
+| `the` in code | 0 | 9 |
+| assertions, invariants, specification functions, lemmas, quantifiers | **0** | **0** |
+
+Every formula the corpus writes is a comparison or a conjunction of comparisons over parameters, `len`
+and linear arithmetic: Presburger arithmetic with lengths, the first region of settypes §5's
+decidability map. **Nothing above that region is written, because no notation can write it.** The
+Presburger measurement found the same from the other side: refusals lack facts, not proof strength.
+Invariants, specification functions and lemmas are how a program states the facts it lacks.
+
+### 5.3 The holes and misfits
+
+**Four holes in today's notation**: no assertion, no invariant (§3.3), no specification function, no
+lemma. And no quantifier, so a claim about every element of a table, sortedness or a search's failure,
+cannot be written.
+
+**A parameter's bound is written apart from the parameter.** `(sig get ((a (array int)) (i int)) int
+(where (and (<= 0 i) (< i (len a)))))` names `i` twice and its set twice: `int` at the binder and the
+bound in the `where`. Of 89 `where` clauses, 66 only bound parameters (installment 1's Finding 2,
+measured).
+
+**`result` is a name nobody bound.** The 18 `ensures` read `result`, a keyword, while ADR 0051 made the
+result a binder whose pattern may be a tuple.
+
+**Two equalities, one of them unwritten.** The computation's `=` (D) or `==` (J) is integer equality;
+the logic's ≐ is identity at any sort (abstract.md §2.5). A claim that two strings or two tables are
+equal has no spelling.
+
+### 5.4 Findings
+
+**Finding 1. The header is the membership statement.** abstract.md §2.6 reads a definition as
+f ∈ Π(x̄ ∈ {x̄ ∈ S̄ : φ}). {r ∈ U : ψ}, and the header writes exactly that, in the shape installment 1
+decided:
+
+```go
+fn div(a ∈ Int, b ∈ Int) (r ∈ Int) where b != 0 ensure abs(r) <= abs(a) { a / b }     // J
+```
+```
+div(a ∈ Int, b ∈ Int) (r ∈ Int) WHERE b ≠ 0 ENSURE |r| ≤ |a| == a ÷ b                \* D
+```
+
+- **The result is a binder** (ADR 0051), named where ψ needs it: `(r ∈ Int)`. Unnamed, the group holds
+  only its set, `(Int)`. In the result position a lone term is a set, since a result binder with no set
+  and no ψ would claim nothing; a name needs `∈`. `result` as a keyword goes.
+- **A tuple result is a group**, `(q ∈ Int, m ∈ 0..b-1)`, the sugar ADR 0051 named for the pattern
+  tuple(q, m) ∈ Int × 0..b−1.
+- **D and J have one header**, different only in their keywords and in what separates the body: `{ }`
+  against `==`.
+
+**Finding 2. A bound is the parameter's set, and a binder's set may mention the binders before it.**
+Sequential binders form a telescope (de Bruijn 1991; Martin-Löf's dependent sums): P is
+{x̄ : x₁ ∈ S₁ ∧ x₂ ∈ S₂(x₁) ∧ …}, so a later set may name an earlier parameter:
+
+```go
+fn get(a ∈ Array(Int), i ∈ 0..len(a)-1) (Int) { a[i] }                                // J
+fn dot(p ∈ Array(F64), q ∈ Array(F64)) (F64) where len(q) == len(p) { … }
+```
+
+`get`'s `where` is gone into `i`'s set. `dot` keeps a `where`, for the one kind of claim a bound
+cannot state, a relation between two parameters: 20 of the 89. A relation could also be a dependent set
+on the later parameter, `q ∈ { t ∈ Array(F64) : len(t) == len(p) }`, but that writes a comprehension
+for an equation, and the `where` reads better. **Recommended: a bound in the binder's set, a relation
+in `where`.**
+
+**Finding 3. One equality in a formula, and it is the logic's.** In a formula `==` (J) or `=` (D) is
+≐, the identity of values at any sort. The computation's equality is its restriction to the sorts whose
+equality it decides (integers, booleans, tags), and the two agree there: on such a sort the
+computation's `==` is the characteristic function of ≐. So no second glyph is needed. A comparison in
+the computation at a sort it cannot decide (two tables) is refused, by the same rule W6 applies to a
+membership test.
+
+**Finding 4. A formula is an expression and four more things**, legal only where a claim stands:
+
+| | J | D |
+|---|---|---|
+| quantifiers | `forall x ∈ S : φ`, `exists x ∈ S : φ` | `∀ x ∈ S : φ`, `∃ x ∈ S : φ` |
+| implication, equivalence | `==>`, `<==>` (Dafny's) | `⇒`, `≡` |
+| the connectives | `&&`, `\|\|`, `!` (the computation's) | `∧`, `∨`, `¬` |
+| membership in any set | `e ∈ S` | `e ∈ S` |
+| a specification function | `sum(a, 0, i)` | `sum(a, 0, i)` |
+
+The quantifier's colon is installment 4's: Church's ∀ applied to λx. φ, the colon set-builder's.
+Several binders, `forall i ∈ 0..n-1, j ∈ 0..n-1 : …`, quantify over their product. The claim positions
+are `where`, `ensure`, `invariant`, `assert`, a lemma, a specification function's body, and the
+condition of a set the program does not compute.
+
+**Finding 5. Three definitions, one header.** A computation, a specification and a proof differ in what
+their body is, not in their claim:
+
+| | J | D | its body | precedent |
+|---|---|---|---|---|
+| a computation | `fn f(…) (…) where … ensure … { e }` | `f(…) (…) WHERE … ENSURE … == e` | runs; its claim is proven | Dafny's `method` |
+| a specification | `spec f(…) (…) { e }` | `SPEC f(…) (…) == e` | defines a value of the logic; may recurse; never runs | Dafny's `function`, TLA+'s `RECURSIVE` |
+| a lemma | `lemma L(…) where φ ensure ψ { steps }` | `LEMMA L(…) WHERE φ ENSURE ψ PROOF steps` | a proof: assertions, cases, lemma uses | Dafny's `lemma`, TLAPS's `THEOREM … PROOF` |
+
+**A lemma is used like a call, by the same rule.** `assert L(a, i)` obliges L's φ at the arguments and
+gains its ψ: ADR 0028's obligation at a call and postconditions.md's exact swap, for a definition whose
+value is a proof. **A lemma that uses itself on smaller arguments is a proof by induction**, its
+well-foundedness the same size-change check a specification function's recursion takes (Dafny's
+inductive lemmas; Curry–Howard, a recursive proof is an induction). That is how a program climbs where
+settypes §5's cliff is induction.
+
+**Finding 6. `assert` proves, and `expect` checks.** The two halves are already two words:
+- `assert φ` is static: proven from the path's facts, then a fact. It never runs, ε erases it, and when
+  it cannot be proven the program is refused. Dafny's `assert`, a TLAPS proof step.
+- `expect p = e else w` is dynamic: it runs, and on failure abandons (ADR 0040).
+
+A reader from C, Go or Python expects `assert` to run. The confusion fails safe: an `assert` written
+as a run-time check of input is refused, not silently skipped, and the refusal can name `expect`.
+
+**Finding 7. `the` leaves the surface.** It has no use in a program (0), and a claim on an intermediate
+value is a binder's set, `b ∈ 0..255 = src[i]` (installment 2's P3). The 9 uses in target files are
+claims on a host's result, which a header's result set states. abstract.md keeps the operator, for μ.
+
+**Finding 8. No claim is not ∈ V.** A binder without a set claims nothing, and its value is known only
+by what the analyses derive; `any` is a set, every value, written (settypes §10). The target files have
+both (`any` 192 times), and they stay two things.
+
+### 5.5 Five programs, two notations
+
+**D** and **J**, in the forms of installments 1–4 and this installment's proposals; **T**, today's,
+where it can write the program at all.
+
+---
+
+**G1 — a host declaration with a precondition and a postcondition**
+(`targets/go/encoding/hex.oro`'s `EncodedLen`).
+
+```lisp
+(sig EncodedLen ((n int)) int pure                                              ; T
+  (where (and (<= -4611686018427387904 n) (<= n 4611686018427387903)))
+  (ensures (= result (* 2 n)))
+  (host expr "hex.EncodedLen(%s)" (import "encoding/hex")))
+```
+```
+EncodedLen(n ∈ -4611686018427387904..4611686018427387903) (r ∈ Int)             \\ D
+  ENSURE r = 2 * n  PURE
+  == HOST expr "hex.EncodedLen(%s)" IMPORT "encoding/hex"
+```
+```go
+fn EncodedLen(n ∈ -4611686018427387904..4611686018427387903) (r ∈ Int)          // J
+    ensure r == 2 * n  pure
+{
+    host expr "hex.EncodedLen(%s)" import "encoding/hex"
+}
+```
+
+---
+
+**G2 — bounds in the binders' sets, a relation in `where`.**
+
+```lisp
+(sig get ((a (array int)) (i int)) int                                          ; T
+  (where (and (<= 0 i) (< i (len a)))))
+(def get (a i) (a i))
+
+(sig dot ((p (array f64)) (q (array f64))) f64 (where (= (len p) (len q))))
+```
+```
+get(a ∈ Array(Int), i ∈ 0..Len(a)-1) (Int) == a[i]                              \\ D
+
+dot(p ∈ Array(F64), q ∈ Array(F64)) (F64) WHERE Len(q) = Len(p) == …
+```
+```go
+fn get(a ∈ Array(Int), i ∈ 0..len(a)-1) (Int) { a[i] }                          // J
+
+fn dot(p ∈ Array(F64), q ∈ Array(F64)) (F64) where len(q) == len(p) { … }
+```
+
+---
+
+**G3 — a specification function, an invariant and a postcondition** (abstract.md §12's `total`). T has
+no spelling.
+
+```
+SPEC sum(a ∈ Array(Int), i ∈ Nat, j ∈ Nat) (Int) ==                              \\ D
+  IF i ≥ j THEN 0 ELSE a[i] + sum(a, i + 1, j)
+
+total(xs ∈ Array(0..1000)) (r ∈ Nat) ENSURE r = sum(xs, 0, Len(xs)) ==
+  LOOP i == 0, s == 0 INVARIANT s = sum(xs, 0, i) ∧ s ≥ 0 :
+      i ≥ Len(xs) → s
+   [] OTHER       → AGAIN(i + 1, s + xs[i])
+```
+```go
+spec sum(a ∈ Array(Int), i ∈ Nat, j ∈ Nat) (Int) {                              // J
+    if i >= j { 0 } else { a[i] + sum(a, i + 1, j) }
+}
+
+fn total(xs ∈ Array(0..1000)) (r ∈ Nat) ensure r == sum(xs, 0, len(xs)) {
+    loop i = 0, s = 0 invariant s == sum(xs, 0, i) && s >= 0 {
+        i >= len(xs) -> s
+        else         -> again(i + 1, s + xs[i])
+    }
+}
+```
+
+---
+
+**G4 — a lemma proven by induction, and used.** `sum` unfolds from the front, so preserving `total`'s
+invariant needs its other end: sum(a, k, j) = sum(a, k, j − 1) + a[j − 1]. That needs induction, which
+no procedure decides, so a lemma states it and proves it by using itself on a shorter range.
+
+```
+LEMMA sum_last(a ∈ Array(Int), k ∈ Nat, j ∈ 1..Len(a)) WHERE k < j               \\ D
+      ENSURE sum(a, k, j) = sum(a, k, j - 1) + a[j - 1]
+PROOF IF k + 1 < j THEN ASSERT sum_last(a, k + 1, j) ELSE ⟨⟩
+
+\* in total's loop, the arm that goes round:
+   [] OTHER → ASSERT sum_last(xs, 0, i + 1) ; AGAIN(i + 1, s + xs[i])
+```
+```go
+lemma sum_last(a ∈ Array(Int), k ∈ Nat, j ∈ 1..len(a)) where k < j              // J
+    ensure sum(a, k, j) == sum(a, k, j - 1) + a[j - 1]
+{
+    if k + 1 < j { assert sum_last(a, k + 1, j) }       // the induction hypothesis
+}
+
+// in total's loop, the arm that goes round:
+        else -> { assert sum_last(xs, 0, i + 1); again(i + 1, s + xs[i]) }
+```
+
+The proof's steps: sum(a, k, j) unfolds to a[k] + sum(a, k + 1, j). When k + 1 < j, the hypothesis
+rewrites sum(a, k + 1, j) as sum(a, k + 1, j − 1) + a[j − 1], and sum(a, k, j − 1) folds back to
+a[k] + sum(a, k + 1, j − 1). When k + 1 = j both sides are a[k]. Each step is congruence with sum's
+defining equation, inside the decided fragment.
+
+---
+
+**G5 — a quantifier in a postcondition**: a search's failure means the key is nowhere. T has no
+spelling.
+
+```
+find(xs ∈ Array(Int), k ∈ Int) (r ∈ -1..Len(xs)-1)                              \\ D
+  ENSURE (r = -1 ⇒ ∀ i ∈ 0..Len(xs)-1 : xs[i] ≠ k) ∧ (r ≥ 0 ⇒ xs[r] = k) ==
+  LOOP i == 0 :
+      i ≥ Len(xs) → -1
+   [] xs[i] = k   → i
+   [] OTHER       → AGAIN(i + 1)
+```
+```go
+fn find(xs ∈ Array(Int), k ∈ Int) (r ∈ -1..len(xs)-1)                           // J
+    ensure (r == -1 ==> forall i ∈ 0..len(xs)-1 : xs[i] != k) && (r >= 0 ==> xs[r] == k)
+{
+    loop i = 0 {
+        i >= len(xs) -> -1
+        xs[i] == k   -> i
+        else         -> again(i + 1)
+    }
+}
+```
+
+The postcondition is in the array property fragment (Bradley, Manna and Sipma 2006): a universal over
+an index range of a table, decided. The loop's invariant, `forall j ∈ 0..i-1 : xs[j] != k`, is the one
+Houdini-style inference would have to find; the program may state it in the slot.
+
+### 5.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 5`, D and J over G1–G5 (T can write only G1 and G2):
+
+| notation | tokens | × D | lexemes | × D | depth | closing run | lines |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| D | 430 | 1.00 | 414 | 1.00 | **2** | 2 | **21** |
+| J | 456 | 1.06 | 422 | 1.02 | 4 | 4 | 31 |
+
+- **Claims cost the two notations about the same**: J 2% more lexemes than D, the difference in its
+  keywords (`ensure`, `forall`) against D's glyphs, and in braces.
+- **J takes half again as many lines**, its bodies braced and its headers' clauses on lines of their own.
+- **The comparison with today's notation is not a ratio**: of the five programs T writes two (G1, G2).
+  The other three need an assertion, an invariant, a specification function, a lemma or a quantifier,
+  none of which T has.
+
+### 5.7 Open, for hamza
+
+1. **The header is the membership statement** (Finding 1): parameters with their sets, the result a
+   binder `(r ∈ U)` or its set alone `(U)`, `where φ`, `ensure ψ`; `result` as a keyword goes; one header
+   in D and J. *Recommended.*
+2. **A bound is the binder's set, and a later binder's set may name an earlier one** (Finding 2); a
+   relation between parameters stays in `where`. *Recommended.*
+3. **One equality in a formula, the logic's** (Finding 3), the computation's its restriction; an
+   equality test at a sort the computation cannot decide is refused. *Recommended.*
+4. **A formula's own forms** (Finding 4): J `forall`/`exists x ∈ S : φ`, `==>`, `<==>`; D TLA+'s; legal
+   only in claim positions. *Recommended.*
+5. **`fn`, `spec` and `lemma` share the header** (Finding 5); a lemma is used by `assert L(…)`, and a
+   recursive lemma is an induction. *Recommended.*
+6. **`assert` proves, `expect` checks** (Finding 6). *Recommended.*
+7. **`the` leaves the surface** (Finding 7); abstract.md keeps it for μ. *Recommended.*
+8. **No claim stays distinct from `any`** (Finding 8). *Recommended.*

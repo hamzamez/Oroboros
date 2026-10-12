@@ -4,6 +4,7 @@
 //
 //	go run gauntlet/surface/tokens.go              installment 2: §2.4's P1–P8, and §2.9's K and L
 //	go run gauntlet/surface/tokens.go -section 3   installment 3: §3.5's C1–C8 in T, B′, D, K and J
+//	go run gauntlet/surface/tokens.go -section 4   installment 4: §4.5's six programs in T, D and J
 //
 // Reads surface-design.md itself, so a table and the programs it counts cannot
 // drift apart. Counted: §2.4's P1–P8 in T, B′, D and J (each fenced block whose
@@ -167,7 +168,7 @@ func lexemes(toks []string) []string {
 }
 
 func main() {
-	section := flag.String("section", "2", "the installment whose programs to count: 2 or 3")
+	section := flag.String("section", "2", "the installment whose programs to count: 2, 3 or 4")
 	flag.Parse()
 	b, err := os.ReadFile("docs/surface-design.md")
 	if err != nil {
@@ -184,9 +185,13 @@ func main() {
 	res := map[string]*measure{}
 	order := []string{"T", "B′", "D", "J", "K", "L"}
 	from, to := "### 2.4 Nine programs", "**P9"
-	if *section == "3" {
+	switch *section {
+	case "3":
 		order = []string{"T", "B′", "D", "K", "J"}
 		from, to = "### 3.5 Eight programs", "### 3.6 Measured"
+	case "4":
+		order = []string{"T", "D", "J"}
+		from, to = "### 4.5 Six programs", "### 4.6 Measured"
 	}
 	for _, n := range order {
 		res[n] = &measure{}
@@ -202,7 +207,7 @@ func main() {
 		n := f[2] + f[3] + f[4]
 		count(m[1], n == "T" || n == "B′", res[n])
 	}
-	if *section != "3" {
+	if *section == "2" {
 		k := block.FindStringSubmatch(sec("#### K — statements", "#### L — a binder"))
 		count(k[1], false, res["K"])
 		l := block.FindStringSubmatch(sec("#### L — a binder", "#### Measured"))

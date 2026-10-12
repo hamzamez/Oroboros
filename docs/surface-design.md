@@ -3448,3 +3448,331 @@ continues, against two values chosen between) and in the header, as `if` and `ca
 2. **D: `TRY p₁ == e₁ [ELSE ā₁], … IN body [ELSE ā]`**, the same structure.
 3. **A small two-way choice stays `case`.** `expect` stays a statement.
 4. **2b**: a `try` as a loop arm's tail, its handlers leaving the loop, by an ADR extending 0041.
+
+---
+
+## Installment 4 — data and sets
+
+hamza, opening it: *"`try fine(x) = step(i, n) { again(i + 1, acc + x) }` — fine(x) which is a tag
+in here, could be confused with an application. is there a better way? discuss, argue, and propose.
+if this is part of installment 4, do them together."* It is: a tag is how a variant's data is built and
+taken apart. The candidates are D and J (ADR 0056), with T today's for comparison.
+
+### 4.1 What the constructs must carry
+
+The values of V (settypes §1.2) and the sets the logic forms from them:
+
+| | the values | built by | taken apart by |
+|---|---|---|---|
+| **tuples** | products, and the unit `()`, the terminal object 1 | `tuple(ā)` | a tuple pattern (η for products) |
+| **tables** | functions on [0, n) | their graph, or a rule (§3.10) | indexing `t[i]`, `len` |
+| **maps** | finite functions K ⇀ V with a declared capacity | their graph; a buffer and its stores | indexing `m[k]`, which gives an `option`; `len`; `keys` |
+| **variants** | Σ over a finite set of tags: a tag and its payload (ADR 0042) | a **constructor**, the injection c : S → T | a **constructor pattern** |
+| **strings** | the free monoid over Unicode scalars | literals; `concat`, `string-of` | (none in the core) |
+| **sets** (the logic, never printed) | subsets of V, a Boolean algebra (ADR 0049) | enumeration, comprehension, ranges, ∪ ∩ ∖ ×, `Seq`, `Map`, `option`, `subsets` | membership `∈`, a claim, or a test where decidable (W6) |
+
+### 4.2 Measured
+
+`go run gauntlet/surface/data.go`, over `examples/`, `lib/`, `gauntlet/stdlib/acceptance/` and
+`gauntlet/differential/cases/`:
+
+| | count |
+|---|---:|
+| **constructors declared** (17 in the corpus, targets and lib, with `option`'s) | 17 |
+| constructors as **expressions**: applied, `c(x)` / nullary | **52 / 12** |
+| constructors as **patterns**: with a payload, `c(x)` / nullary, a bare name | **88 / 8** |
+| … of the patterns, in a `case` arm / a `try` or `expect` binder | 87 / 9 |
+| names that are a constructor in one module and a definition in another (`at`, `rows`) | 2 |
+| tables by graph / by rule (67 zero-filled) | 47 / 77 |
+| `(array T)` as a type / maps by graph / map buffers / map stores / `keys` | 38 / 1 / 4 / 4 / 1 |
+| tuples built / the unit `(tuple)` | 25 / 12 |
+| integer ranges `(int lo hi)`, today's sets of integers | 111 |
+| `concat` / `string-of` | 26 / 7 |
+
+### 4.3 The holes and misfits
+
+**A tag reads as a call, in both directions.** Σ's names are of two kinds:
+- the **constructors** C, the free generators of a variant: they compute nothing, no equation holds
+  between them, and their terms are values;
+- the **defined names** D, which reduce by δ.
+
+Term rewriting calls this a constructor discipline (O'Donnell 1977; Huet and Lévy 1979). A pattern is
+a term over C and variables, matching inverts the injection, and an expression is a term over C ∪ D.
+`fine(acc)` and `step(i, n)` are both applications, which is faithful, but nothing on the page says
+which kind of name is applied. That is fit-research's **missing distinction** (F4). It shows three
+ways:
+
+1. **In D it is a homonym** (F2). `TRY fine(x) == step(i, n) IN …` and the definition
+   `cross(c, i, n) == LOOP …` are one shape, `name(args) == expression`. Whether it binds a payload or
+   defines a function depends on whether the name was declared a constructor.
+2. **In J, `fine(x) = e` reads as a function definition**, the way mathematics writes one, though it
+   is a pattern binding a payload.
+3. **A nullary constructor in a pattern cannot be told from a binder.** In `case r { none -> 0 }`,
+   `none` is a test only because a declaration says so: misspell it and it binds anything, a catch-all.
+   That is Standard ML's known pitfall, which OCaml and Haskell close by requiring constructors to be
+   capitalized. 8 patterns are nullary, among them every `none`.
+
+And names cross kinds: `at` and `rows` are constructors in one module and functions in another.
+
+**Three homonyms between a set and a value**, the shape §3.10 found for arrays: `(array T)` (38 sites,
+decided `Seq(T)`), `(map K V)` against `(map (k v) …)`, and `(int lo hi)` (111 sites), a set of
+integers written as if a call, which installment 1's examples already write as a range, `0..255`.
+
+**Map buffers are outside ADR 0052.** It made a buffer a state binder holding a *table*. A map buffer is
+the same discipline (maps.md §3.3: "aliasing does not care what the index set is") and is still
+threaded by hand: `(again (insert m i (* i 10)) (+ i 1))`.
+
+**The comprehension is a synonym in J** (§3.10): `[k ∈ 0..n-1 ↦ e]` is `array(n, fn(k) { e })`.
+
+### 4.4 Findings
+
+**Finding 1. A tag is marked `#`, in patterns and in expressions.** The marked symbols are exactly
+C, the ones a pattern is built from:
+
+```go
+try #fine(x) = step(i, n) { again(i + 1, acc + x) }            // J: a pattern, visibly
+case r { #some(v) -> v; #none -> 0 }                           // #none cannot be a binder
+fn step(i, n) { if i < n { #fine(i) } else { #failed(array{i, 1000 + i}) } }   // building data
+```
+```
+TRY #fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)            \* D: no longer a definition's shape
+```
+
+- **A pattern is then defined by its characters**: tags, tuples, literals, names and `_`. A name in
+  a pattern always binds, and a tag never does.
+- **The three misfits close**: D's homonym (`#fine(x) == e` is not `f(x) == e`), J's look of a
+  function definition, and the nullary pitfall.
+- **`#` reads as "tag"**, as a hashtag does, and nothing in D or J uses it: D spells ≠ as `/=`
+  (notation-research §4.9), and the core's internal `#cell` and `#any` never reach a surface.
+- **Qualification.** A variant's tags come into scope with it, as Rust's prelude brings `Ok` and
+  Haskell's imports bring constructors, so `#ok` needs no module. Where two variants in scope share a
+  tag, it is written `#result.ok`. Today's `result.ok` is qualified at every use.
+
+Why not the other marks:
+
+| | mark | precedent | why not |
+|---|---|---|---|
+| (a) | **capitalized**, `Fine(x)`, `None` | OCaml (enforced), Haskell, Rust, Swift, Scala | capitals are taken three times: by **sets** (`Int`, `Seq(Byte)`, installment 1), by **host exports** (`os.ReadFile`, kept as Go spells them, ADR 0025), and in D by **keywords** (`CASE`). `Seq(S)` and `Fine(x)` would be one shape again |
+| (b) | a leading dot, `.fine(x)` | Swift, Zig | the dot is qualification, so `result.ok` and `.ok` differ by what precedes them; Swift resolves `.ok` by the expected type, which our resolution (ADR 0011, before types) does not know |
+| (c) | a colon, `:fine` | Elixir, Ruby, Clojure atoms | D uses `:` in `LOOP … :` and `{x ∈ S : φ}`, so `{x ∈ S :φ}` would lex a tag |
+| (d) | a quote, `'fine` | Lisp: quoted data | TLA+'s prime is the next state, which D may need for concurrency (settypes §10) |
+| (e) | reorder, `try step(i, n) is fine(x)` | C#'s `is`, Kotlin | fixes the binder's look, not a tag in an expression or a nullary pattern |
+
+**Finding 2. The marks make one lexical scheme.** With Finding 1, a reader of D or J sees a name's
+kind by its spelling:
+
+| spelling | kind | examples |
+|---|---|---|
+| lowercase | a value, a definition, a binder | `acc`, `step`, `kind_name` |
+| `#name` | a tag: a constructor, free | `#fine`, `#none`, `#not_found` |
+| Capitalized | a set, in the logic | `Int`, `Seq(Byte)`, `Map(Int, String)` |
+| `alias.Name` | a host name, as the host spells it | `os.ReadFile`, `strconv.Atoi` |
+| ALLCAPS (D only) | a keyword | `CASE`, `TRY`, `LOOP` |
+
+**Finding 3. Tables and maps are one finite function in the logic, and two in the computation.** In
+the logic both are finite functions: Seq(V) is Map(0..n−1, V). In the computation a table has a rule
+form and a map does not (maps.md §3.2): a table's index set is a number, a map's is the data. So:
+- **D keeps TLA+'s three forms**, `⟨e₀, …⟩` (a table's graph), `[k ∈ 0..n-1 ↦ e]` (its rule) and
+  `[k₁ ↦ v₁, …]` (a map's graph, TLA+'s record syntax, a record being a function on its field
+  names). D has no `array(n, f)`.
+- **J keeps `array { … }`, `array(n, f)` and `map { k ↦ v, … }`**, and **drops the comprehension**,
+  its synonym (§3.10's open item 4). The map's arrow is `↦` (ASCII `|->`), not the arms' `->`: a
+  map literal and a `case` on literals are both a function by its graph, but one is data and the
+  other control.
+- **The sets are `Seq(V)` and `Map(K, V)`** in both, never `array(V)` or `map(K, V)`.
+
+**Finding 4. A map buffer is a state binder holding a map, written in program order.** ADR 0052's
+derivation applies unchanged, since aliasing does not care what the index set is: `var m := map(8)`
+in J, `m := map(8)` in a D group, a store `m[k] := v`, a read `m[k]`, and R0–R4 as for tables (a fresh
+map, named only by its binder, borrowed by a call, no escaping closure, frozen at its scope's end).
+That extends ADR 0052 from tables to maps, so it is a decision with an amendment.
+
+**Finding 5. Sets: D writes TLA+'s, and J writes Python's operators.** D: `{1, 2}`, `{x ∈ S : φ}`,
+`lo..hi`, `S ∪ T`, `S ∩ T`, `S \ T`, `S × T`. J: `set {1, 2}` (ADR 0056), `set { x ∈ S : φ }` (the
+comprehension inside the former, as an array's elements are), `lo..hi`, `S | T`, `S & T`, `S - T`
+(Python's set operators), `S × T`. Ranges replace `(int lo hi)` at 111 sites in both.
+
+**Finding 6. Tuples: J `(a, b)` and `()`, D `⟨a, b⟩` and `⟨⟩`.** There is no tuple of one (products.md),
+so `(e)` is grouping and a tuple always has a comma.
+
+**Finding 7. Concatenation is not `+`.** `+` is commutative on ℤ, and concatenation is not: it is the
+free monoid's operation. Julia writes strings' concatenation `*` for that reason, TLA+ writes a
+sequence's `\o` (∘), Haskell and Elm `++`. D takes `∘` (ASCII `\o`), J takes `++`; `string_of`
+stays a function.
+
+### 4.5 Six programs, three notations
+
+**T** today, **D** and **J**, every one in the decided forms of installments 1–3 and this
+installment's proposals.
+
+---
+
+**E1 — tags in a choice** (`examples/io/roundtrip.oro`'s `kind-name`).
+
+```lisp
+(case k                                                                         ; T
+  os.not-found   "not-found"
+  os.exists      "exists"
+  os.permission  "permission"
+  (os.other e)   "other")
+```
+```
+CASE k OF #not_found  → "not-found"                                             \\ D
+       [] #exists     → "exists"
+       [] #permission → "permission"
+       [] #other(e)   → "other"
+```
+```go
+case k {                                                                        // J
+    #not_found  -> "not-found"
+    #exists     -> "exists"
+    #permission -> "permission"
+    #other(e)   -> "other"
+}
+```
+
+---
+
+**E2 — tags built and bound** (`gauntlet/differential/cases/sum-slots.oro`'s `step` and `walk`).
+
+```lisp
+(def step (i n)                                                                 ; T
+  (if (< i n) (fine i) (failed (array i (+ 1000 i)))))
+
+(def walk (n)
+  (loop ((i 0) (acc 0))
+    (> i 5)  (fine acc)
+    else     (try (fine x) (step i n)
+               (again (+ i 1) (+ acc x)))))
+```
+```
+step(i, n) == IF i < n THEN #fine(i) ELSE #failed(⟨i, 1000 + i⟩)               \\ D
+
+walk(n) ==
+  LOOP i == 0, acc == 0 :
+      i > 5  → #fine(acc)
+   [] OTHER  → TRY #fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)
+```
+```go
+fn step(i, n) { if i < n { #fine(i) } else { #failed(array{i, 1000 + i}) } }   // J
+
+fn walk(n) {
+    loop i = 0, acc = 0 {
+        i > 5 -> #fine(acc)
+        else  -> try #fine(x) = step(i, n) { again(i + 1, acc + x) }
+    }
+}
+```
+
+---
+
+**E3 — tables: a graph, a rule, indexing.**
+
+```lisp
+(let primes (array 2 3 5 7)                                                     ; T
+     sq     (table n (fn (k) (* k k)))
+  (+ (primes 0) (sq (- n 1))))
+```
+```
+LET primes == ⟨2, 3, 5, 7⟩  sq == [k ∈ 0..n-1 ↦ k * k]  IN  primes[0] + sq[n - 1]   \\ D
+```
+```go
+{ primes = array{2, 3, 5, 7};  sq = array(n, fn(k) { k * k });  primes[0] + sq[n - 1] }   // J
+```
+
+---
+
+**E4 — a map buffer in program order, read as an option**
+(`gauntlet/differential/cases/map-dynamic.oro`; Finding 4).
+
+```lisp
+(let m (build-map m 8                                                           ; T
+         (loop ((m m) (i 0))
+           (>= i n)  m
+           else      (again (insert m i (* i 10)) (+ i 1))))
+  (case (m 2) (some v) v none 0))
+```
+```
+LET m := map(8) IN                                                              \\ D
+  (LOOP i == 0 :
+       i ≥ n → ⟨⟩
+    [] OTHER → m[i] := i * 10 ; AGAIN(i + 1)) ;
+  CASE m[2] OF #some(v) → v [] #none → 0
+```
+```go
+{ var m := map(8)                                                               // J
+  loop i = 0 {
+      i >= n -> ()
+      else   -> { m[i] := i * 10; again(i + 1) }
+  }
+  case m[2] { #some(v) -> v; #none -> 0 } }
+```
+
+---
+
+**E5 — sets in a claim**: a parameter's set is a union of ranges, the result's a range.
+
+```lisp
+(sig digit-value ((c (int 0 255))) (int 0 35)                                   ; T
+  (where (or (and (>= c 48) (<= c 57)) (and (>= c 97) (<= c 122)))))
+(def digit-value (c) (if (<= c 57) (- c 48) (- c 87)))
+```
+```
+digit_value(c ∈ 48..57 ∪ 97..122) ∈ 0..35 ==                                    \\ D
+  IF c ≤ 57 THEN c - 48 ELSE c - 87
+```
+```go
+fn digit_value(c ∈ 48..57 | 97..122) (r ∈ 0..35) {                              // J
+    if c <= 57 { c - 48 } else { c - 87 }
+}
+```
+
+---
+
+**E6 — a tuple taken apart, and strings.**
+
+```lisp
+(let (tuple q r) (divmod a b)                                                   ; T
+  (concat (concat "q=" (string-of q)) (concat " r=" (string-of r))))
+```
+```
+LET ⟨q, r⟩ == divmod(a, b) IN "q=" ∘ string_of(q) ∘ " r=" ∘ string_of(r)       \\ D
+```
+```go
+{ (q, r) = divmod(a, b);  "q=" ++ string_of(q) ++ " r=" ++ string_of(r) }      // J
+```
+
+### 4.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 4`, over E1–E6:
+
+| notation | tokens | × T | lexemes | × T | depth | closing run | lines |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| T today | 319 | 1.00 | 313 | 1.00 | 6 | 5 | 25 |
+| D | 279 | **0.87** | 263 | **0.84** | **2** | 2 | 18 |
+| J | 298 | 0.93 | 281 | 0.90 | 4 | 4 | 24 |
+
+- **Data is where the new notations are smallest**: D 0.84× today in lexemes, J 0.90×. Infix
+  arithmetic, ranges in place of `(int lo hi)` and the claims in the header (E5's `where` against a
+  union of ranges) account for most of it. Each `#` costs a token, and the counts include them.
+- **Depth falls from 6 to 2 in D and 4 in J**; J's braces cost a level per block, as before.
+- **The three homonyms between a set and a value are gone** in both: `Seq(V)`, `Map(K, V)` and
+  `lo..hi` are sets, and `array {…}`, `⟨…⟩`, `map {…}` and `[k ↦ v]` are values.
+
+### 4.7 Open, for hamza
+
+1. **A tag is `#name`**, in patterns and expressions, D and J; a variant's tags come into scope with it,
+   `#result.ok` only where two clash (Finding 1). *Recommended*: it is the constructor discipline
+   made visible, it closes D's homonym, J's definition look and the nullary pitfall, and every other
+   mark collides with something already decided.
+2. **The lexical scheme of Finding 2**: lowercase values, `#` tags, Capitalized sets, host names as
+   the host spells them, ALLCAPS keywords in D. *Recommended*.
+3. **Tables and maps** (Finding 3): D `⟨…⟩`, `[k ∈ 0..n-1 ↦ e]`, `[k ↦ v, …]`; J `array {…}`,
+   `array(n, f)`, `map { k ↦ v, … }`, the comprehension dropped from J's computation; `Seq(V)`,
+   `Map(K, V)` the sets. *Recommended*.
+4. **A map buffer is a state binder holding a map** (Finding 4), extending ADR 0052. *Recommended*;
+   it needs an amendment to ADR 0052.
+5. **Sets** (Finding 5): D TLA+'s, J `set { … }`, `set { x ∈ S : φ }`, `|`, `&`, `-`, `×`, ranges
+   `lo..hi` for `(int lo hi)`. *Recommended*.
+6. **Tuples** (Finding 6): J `(a, b)`, `()`; D `⟨a, b⟩`, `⟨⟩`. *Recommended*.
+7. **Concatenation** (Finding 7): D `∘`, J `++`. *Recommended*.

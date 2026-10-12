@@ -5,7 +5,9 @@ Status: Accepted (hamza, 2026-10-12, on surface-design.md §3.9 and §3.10: "I a
 retire cond and match … agree to again positional … agree ; inside arms in D and K … agree VAR/var …
 agree, one-armed if in J … sure drop B′ … in fact moving forward it is D or J"; and §3.10's four, all
 agreed). §3.9's items 2 (the handled bind) and 7 (a loop's invariant slot) are not decided here. Not
-built: the surface is built when it is chosen.
+built: the surface is built when it is chosen. **Amended 2026-10-12**: item 7 decided (hamza: "I agree
+to the invariant slot"): a loop's invariant has an optional slot in D and J, `LOOP i == 0 INVARIANT I :`
+and `loop i = 0 invariant I { … }`, absent meaning ⊤.
 
 ## Context
 

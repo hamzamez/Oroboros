@@ -30,6 +30,7 @@ since the document records how the design was reached.
 | 7 | `let` and `local` are one scope; a definitional name may be rebound, a state name once per region; the head is `let` | [ADR 0054](decisions/0054-let-and-local-are-one-scope.md), on §2.13 | binders state their kind by their operator, and a mixed sequence is one scope; in K and J, a state binder's introduction against a write is still open (§2.13, item 4) |
 | 8 | a loop's variables are bound by application, not assigned | [ADR 0055](decisions/0055-a-loop-variable-is-bound-by-application.md), hamza 2026-10-12 | `LOOP i == 0` in D and K, `loop i = 0` in J, `(loop ((i = 0)) …)` in B′: one iteration is a `let` (the unfolding law), so `:=` is only a place taking a value; `again` is an application, positional |
 | 9 | the source is D or J; one arm grammar (`cond`, `match` retired); `again` positional; `;` tighter than `[]` in D; `var` marks state in J; one-armed `if` in J; J's formers `array { … }`, `set { … }`; `array(n, f)` for a rule; `Seq(S)` for the set | [ADR 0056](decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md), §3.9–3.10 | B′ and K dropped; the handled bind and a loop's invariant slot still open (§3.11) |
+| 10 | a loop's invariant slot | hamza, 2026-10-12 (ADR 0056's amendment) | `LOOP i == 0 INVARIANT I :` in D, `loop i = 0 invariant I { … }` in J; optional, absent meaning ⊤; ε erases it, 𝒪 makes three obligations of it (§3.11) |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -3126,3 +3127,118 @@ can write one (§3.3). abstract.md's loop has I, ADR 0049 names invariants as on
 climb, and the next step on settypes' plan (types as static values, claims carrying sets) is where
 claims start to need them. The slot is optional, one clause after the variables, and absent it means
 ⊤, which is today.
+
+### 3.12 `try { … }` rather than `{ try … }`
+
+hamza, after §3.11: *"looks to me like it should be try {} rather than {try ... }, because this got
+me confused. discuss, argue and propose."*
+
+#### Why `{ try p = e; rest }` confuses
+
+The statement looks as if `try` applied to one line. By its equation it governs more than that:
+
+```
+try(s(x̄); e; b)  =  case(e; s(x̄) → b, the other constructors re-built)
+```
+
+and in a statement list b is **the rest of the block**. Two things are therefore invisible:
+- **the region**: every statement after the `try`, to the closing brace, is its success arm;
+- **the destination**: a failure becomes the value of the **innermost enclosing block**. In C4 that
+  block is a loop's arm, so the failure leaves the loop (ADR 0041). In
+  `x = { try p = e; f(p) }; more` it becomes x's value, not the function's.
+
+The handled bind, `p = e else h; rest`, has the same two hidden things: h's value also becomes the
+enclosing block's. **D does not have the problem**: `TRY p == e IN body` writes its region after `IN`,
+as `LET` does, and the destination is the `TRY` form itself.
+
+The literature names both halves. Benton and Kennedy ("Exceptional syntax", *JFP* 11(4), 2001) showed
+that `try … catch` scopes its handler over the continuation as well as the call, and proposed a
+binder whose handler covers only the call: our handled bind is their `let x ⇐ e in b unless h`. Rust's
+`?` has an implicit destination, the function. The `try` blocks proposed for it (RFC 243, RFC 2388)
+make the destination a written block, which is hamza's proposal.
+
+#### The proposal
+
+**A try block is the delimiter of early exits.** In J:
+
+```go
+try {
+    p₁ = e₁                         a binder whose pattern may fail: binds, or exits the try block
+    p₂ = e₂ else q -> h             with its own handler: binds, or exits with h's value
+    …
+    v                               the block's value when every binder matched
+} else q -> h                       optional: the handler for binders without their own
+```
+
+1. **Inside a try block, a binder with a refutable pattern is a bind.** If the pattern matches, it
+   binds and the block goes on. If not, the block's value is the failure, re-built (`try`'s law), or
+   the binder's own handler's value, or the block's `else` arms' value.
+2. **Outside a try block, a refutable binder is refused**, as today's `let` refuses one ("a pattern
+   that may not match belongs in `case`", binding.md §5).
+3. **A try block covers the binders of its own statement list**, not those of a block nested in it,
+   which takes its own `try`. Every early exit then goes exactly one brace out.
+4. **`expect p = e else w` stays a statement.** It abandons, so no value goes anywhere and there is no
+   destination to show.
+5. **In D the same rule reads `TRY … IN`**: `LET` binds irrefutable patterns, and a refutable one,
+   with or without `ELSE`, goes in a `TRY` group. So D's C3 is `TRY ok(_) == … ELSE (…), ok(src) == …
+   ELSE (…) IN …`.
+
+The abstract syntax does not change. A try block renders a sequence of try and bind nodes, each
+binder's success arm the rest of the list, and the block-level `else` is the same arms written once.
+
+#### The examples, before and after
+
+C4, in a loop's arm (the same tokens, the braces moved out):
+
+```go
+else -> { try fine(x) = step(i, n); again(i + 1, acc + x) }        // before
+else -> try { fine(x) = step(i, n); again(i + 1, acc + x) }        // after
+```
+
+C3, two binds with their own handlers (`roundtrip`'s two messages differ):
+
+```go
+try {
+    ok(_) = os.WriteFile(path, data) else err(k) -> { print_line(kind_name(k)); 1 }
+    ok(src) = os.ReadFile(path) else err(k) -> { print_line(kind_name(k)); 1 }
+    print(os.text_of(src)); 0
+}
+```
+
+and with one handler for both, the shape every reader of `try … catch` knows:
+
+```go
+try {
+    ok(_) = os.WriteFile(path, data)
+    ok(src) = os.ReadFile(path)
+    print(os.text_of(src)); 0
+} else err(k) -> { print_line(kind_name(k)); 1 }
+```
+
+#### Against it, and the answers
+
+- **One more level of braces** around the binds. Measured: 38 handled binds, 4 `try`, and 4 of the 38
+  hold another choice in their success arm (§3.2), so most try blocks would hold one binder. It costs
+  `try {` and `}` per region, and it is the price of a visible region.
+- **Benton and Kennedy's objection to a block handler**: it also catches failures in the continuation.
+  Here a failure comes only from a refutable binder written in the block's own list (rule 3), never
+  from a call deep inside, so everything the block-level `else` covers is visible on the page.
+- **Is the block-level `else` a synonym of `case` on the block's value?** No: it handles the binders'
+  failures, while the block's normal value passes through untouched. A `case` would have to
+  distinguish the two, which needs the normal value wrapped.
+
+#### And 2b
+
+In a loop's arm, `try { ok(x) = f(i) else err(e) -> h; again(…) }` exits the try block, which is the
+arm, so h's value leaves the loop. That is §3.9's 2b, ADR 0041's reasoning extended from re-built
+failures to handlers. It widens the tail sort, so it is decided with an ADR, and the try block is
+what makes it readable: the `again` is visibly the last statement of the block a failure exits.
+
+#### Proposed
+
+1. **J: `try { … }`**, a try block delimiting early exits, with an optional `else` arms after it, in
+   place of the `try` statement.
+2. **A refutable binder only inside a try block** (J) or a `TRY` group (D); with its own
+   `else arms` it is the handled bind (§3.9's item 2), whose value exits the block.
+3. **`expect` stays a statement.**
+4. **2b**: a try block may be a loop arm's tail, its handlers leaving the loop, by an ADR extending 0041.

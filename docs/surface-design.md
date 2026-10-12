@@ -34,6 +34,7 @@ since the document records how the design was reached.
 | 11 | the handled bind, a derived operator with `try` and `expect` its instances; in a loop its success arm is a tail and its handler leaves | [ADR 0057](decisions/0057-the-handled-bind-and-its-tail.md), §3.11–3.14 | J `try p = e [else ā], … { body } [else ā]`, D `TRY p == e [ELSE ā], … IN body [ELSE ā]`; no statement form of `try`; a small two-way choice stays `case`; `expect` stays a statement |
 | 12 | a map buffer is a state binder holding a map; tuples `(a, b)`, `()` in J and `⟨a, b⟩`, `⟨⟩` in D; concatenation `++` in J and `∘` in D; sets in D TLA+'s, in J `set { … }`, ranges `lo..hi` | [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md), hamza 2026-10-12 (§4.7, items 4–7) | open (§4.8): the tag's mark, the forms of arrays and maps, J's set operators, tag qualification |
 | 13 | a tag is a quoted symbol, `'name`; case carries no category; one former shape `former { … }`, `array(n, f)` gone; the sets `Array(V)` and `Map(K, V)` | [ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md), §4.8 | open (§4.9): `:` as the former's separator, J's membership and set operators, tag qualification |
+| 14 | J's membership `∈` (input `\in`) and Python's set operators `| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -3605,7 +3606,8 @@ stays a function.
 ### 4.5 Six programs, three notations
 
 **T** today, **D** and **J**, every one in the decided forms of installments 1–3 and this
-installment's proposals.
+installment's proposals. The tags are written as ADR 0059 and ADR 0060 decided, `'fine` and
+`os.'not_found`, in place of §4.4's first proposal, `#`.
 
 ---
 
@@ -3619,17 +3621,17 @@ installment's proposals.
   (os.other e)   "other")
 ```
 ```
-CASE k OF #not_found  → "not-found"                                             \\ D
-       [] #exists     → "exists"
-       [] #permission → "permission"
-       [] #other(e)   → "other"
+CASE k OF os.'not_found  → "not-found"                                             \\ D
+       [] os.'exists     → "exists"
+       [] os.'permission → "permission"
+       [] os.'other(e)   → "other"
 ```
 ```go
 case k {                                                                        // J
-    #not_found  -> "not-found"
-    #exists     -> "exists"
-    #permission -> "permission"
-    #other(e)   -> "other"
+    os.'not_found  -> "not-found"
+    os.'exists     -> "exists"
+    os.'permission -> "permission"
+    os.'other(e)   -> "other"
 }
 ```
 
@@ -3648,20 +3650,20 @@ case k {                                                                        
                (again (+ i 1) (+ acc x)))))
 ```
 ```
-step(i, n) == IF i < n THEN #fine(i) ELSE #failed(⟨i, 1000 + i⟩)               \\ D
+step(i, n) == IF i < n THEN 'fine(i) ELSE 'failed(⟨i, 1000 + i⟩)               \\ D
 
 walk(n) ==
   LOOP i == 0, acc == 0 :
-      i > 5  → #fine(acc)
-   [] OTHER  → TRY #fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)
+      i > 5  → 'fine(acc)
+   [] OTHER  → TRY 'fine(x) == step(i, n) IN AGAIN(i + 1, acc + x)
 ```
 ```go
-fn step(i, n) { if i < n { #fine(i) } else { #failed(array{i, 1000 + i}) } }   // J
+fn step(i, n) { if i < n { 'fine(i) } else { 'failed(array{i, 1000 + i}) } }   // J
 
 fn walk(n) {
     loop i = 0, acc = 0 {
-        i > 5 -> #fine(acc)
-        else  -> try #fine(x) = step(i, n) { again(i + 1, acc + x) }
+        i > 5 -> 'fine(acc)
+        else  -> try 'fine(x) = step(i, n) { again(i + 1, acc + x) }
     }
 }
 ```
@@ -3699,7 +3701,7 @@ LET m := map(8) IN                                                              
   (LOOP i == 0 :
        i ≥ n → ⟨⟩
     [] OTHER → m[i] := i * 10 ; AGAIN(i + 1)) ;
-  CASE m[2] OF #some(v) → v [] #none → 0
+  CASE m[2] OF 'some(v) → v [] 'none → 0
 ```
 ```go
 { var m := map(8)                                                               // J
@@ -3707,7 +3709,7 @@ LET m := map(8) IN                                                              
       i >= n -> ()
       else   -> { m[i] := i * 10; again(i + 1) }
   }
-  case m[2] { #some(v) -> v; #none -> 0 } }
+  case m[2] { 'some(v) -> v; 'none -> 0 } }
 ```
 
 ---
@@ -3751,12 +3753,12 @@ LET ⟨q, r⟩ == divmod(a, b) IN "q=" ∘ string_of(q) ∘ " r=" ∘ string_of(
 | notation | tokens | × T | lexemes | × T | depth | closing run | lines |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | T today | 319 | 1.00 | 313 | 1.00 | 6 | 5 | 25 |
-| D | 279 | **0.87** | 263 | **0.84** | **2** | 2 | 18 |
-| J | 298 | 0.93 | 281 | 0.90 | 4 | 4 | 24 |
+| D | 287 | **0.90** | 271 | **0.87** | **2** | 2 | 18 |
+| J | 306 | 0.96 | 289 | 0.92 | 4 | 4 | 24 |
 
-- **Data is where the new notations are smallest**: D 0.84× today in lexemes, J 0.90×. Infix
+- **Data is where the new notations are smallest**: D 0.87× today in lexemes, J 0.92×. Infix
   arithmetic, ranges in place of `(int lo hi)` and the claims in the header (E5's `where` against a
-  union of ranges) account for most of it. Each `#` costs a token, and the counts include them.
+  union of ranges) account for most of it. Each `'` costs a token and a qualified tag, `os.'not_found`, four (T's `os.not-found` is one); the counts include them.
 - **Depth falls from 6 to 2 in D and 4 in J**; J's braces cost a level per block, as before.
 - **The three homonyms between a set and a value are gone** in both: `Seq(V)`, `Map(K, V)` and
   `lo..hi` are sets, and `array {…}`, `⟨…⟩`, `map {…}` and `[k ↦ v]` are values.
@@ -4106,3 +4108,73 @@ saying so.
    writes TLA+'s. *Recommended*, because Python's `in` would sit beside the modes `inout` and `out`.
 3. **Tags qualified by default**, with a module's own and the language's unqualified, and
    `use M exposing 'a, …` to choose otherwise. *Recommended*, as the middle way.
+
+### 4.10 TLA+'s two set-builders, and what they say about the colon
+
+hamza, on §4.9: *"so in tla+ `{x \in S : P}` is filter, `{ e : x \in S}` is map. `{ 2 * x: x \in { 1, 2,
+3, 4 } }` \* { 2, 4, 6, 8 }, `{ x + y: x \in 1..2, y \in 1..2 }` \* { 2, 3, 4 }. argue some more. 2.
+sure. 3. but I thought os.'not_found … no to exposing."* Items 2 and 3 are
+[ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md).
+
+#### Two operations, two orders
+
+TLA+ has both set-builders, and they are two different operations of set theory:
+
+| | TLA+ | the operation | the axiom |
+|---|---|---|---|
+| **separation**, a filter | `{x ∈ S : P}` | the elements of S for which P holds; a subset of S | Zermelo's schema of separation (1908) |
+| **replacement**, an image | `{e : x ∈ S}` | the values of e as x ranges over S | Fraenkel's schema of replacement (1922) |
+
+Both take a λ over S: separation λx. P, whose body is a truth value, and replacement λx. e, whose
+body is anything. **TLA+ tells them apart by where the binder stands**: first for a filter, after the
+colon for an image. And the colon reads one way in both, set-builder's "such that", because
+{e : x ∈ S} is {y : ∃x ∈ S. y = e}: the term collected on the left, the condition that binds on the
+right. A filter is the case where the term is the binder itself.
+
+#### What that does to §4.9's verdict
+
+§4.9 read `binder : body` as one λ in every former, the binder always first. TLA+ shows the cost of
+that reading:
+- **the image needs a second former** (A7), where TLA+ and mathematics write it in `set` itself;
+- **an array's rule reads as a filter** (A2): `array { k ∈ 0..n-1 : k * k }` has a filter's shape;
+- **D and J diverge** (A6).
+
+TLA+'s order removes all three, at no cost to the λ: in each form the body is still a λ's, and the
+position says which operation the former applies. **An array is an ordered image**: ⟨e(0), …, e(n−1)⟩
+is the replacement of 0..n−1 under λk. e, kept in order. So it takes the image's order, which is also
+the comprehension order of Python (`[k * k for k in range(n)]`), Haskell (`[k * k | k <- [0 .. n-1]]`) and
+mathematics' sequences:
+
+```go
+set   { x ∈ S : x > 0 }                      // separation: the positive elements of S
+set   { 2 * x : x ∈ set { 1, 2, 3, 4 } }     // replacement: { 2, 4, 6, 8 }
+set   { x + y : x ∈ 1..2, y ∈ 1..2 }         // replacement over a product: { 2, 3, 4 }
+array { k * k : k ∈ 0..n-1 }                 // an ordered image: a table
+array { 0 : _ ∈ 0..n-1 }                     // the zero-filled buffer
+map   { 1 : 10, 2 : 20, 5 : 50 }             // a graph
+```
+
+- **A map has no rule form** (maps.md §3.2: a map's index set is its data, and a rule over it would still
+  store it), so `map` takes only a graph. Its pairs, `k : v`, are JSON's and Python's, and TLA+'s own
+  pair is `k :> v`. Since only `map` takes a pair, a pair cannot be read as a comprehension.
+- **An array's binder ranges over 0..n−1**, one binder; an image over a product is a set's.
+- **D writes TLA+'s forms**, `{x ∈ S : P}` and `{e : x ∈ S}` for sets, `[k ∈ 0..n-1 ↦ e]` for a table's
+  rule. J's sets are then D's, word for word inside the braces.
+
+#### The one ambiguity TLA+ has, and its rule
+
+When the collected term is itself a membership test, the two orders read alike: `{x ∈ T : x ∈ S}`. TLA+
+reads the binder-first form, a filter, here T ∩ S. The image of the test, a set of truth values, needs
+parentheses, `{(x ∈ T) : x ∈ S}`. J takes the same rule. A set of truth values is the rarest set there
+is.
+
+#### Proposed, replacing §4.9's item 1
+
+**TLA+'s two orders, in J**:
+- `set { x ∈ S : P }` filters;
+- `set { e : x ∈ S, … }` and `array { e : k ∈ 0..n-1 }` take an image (a table, an ordered one);
+- `map { k : v, … }` is a graph;
+- the colon is set-builder's "such that" in sets and arrays, and a pair's separator in a map;
+- a binder-first form beginning `x ∈ …` is a filter, and the image of a membership is parenthesized.
+
+This withdraws §4.9's "binder always first" and keeps hamza's `:`.

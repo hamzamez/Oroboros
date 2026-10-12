@@ -35,6 +35,7 @@ since the document records how the design was reached.
 | 12 | a map buffer is a state binder holding a map; tuples `(a, b)`, `()` in J and `⟨a, b⟩`, `⟨⟩` in D; concatenation `++` in J and `∘` in D; sets in D TLA+'s, in J `set { … }`, ranges `lo..hi` | [ADR 0058](decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md), hamza 2026-10-12 (§4.7, items 4–7) | open (§4.8): the tag's mark, the forms of arrays and maps, J's set operators, tag qualification |
 | 13 | a tag is a quoted symbol, `'name`; case carries no category; one former shape `former { … }`, `array(n, f)` gone; the sets `Array(V)` and `Map(K, V)` | [ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md), §4.8 | open (§4.9): `:` as the former's separator, J's membership and set operators, tag qualification |
 | 14 | J's membership `∈` (input `\in`) and Python's set operators `\| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
+| 15 | inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place; `map { k : v }` a graph only; the colon set-builder's | [ADR 0061](decisions/0061-separation-and-replacement-by-the-binders-place.md), §4.10 | D writes TLA+'s; the image of a membership test is parenthesized |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -3681,7 +3682,7 @@ fn walk(n) {
 LET primes == ⟨2, 3, 5, 7⟩  sq == [k ∈ 0..n-1 ↦ k * k]  IN  primes[0] + sq[n - 1]   \\ D
 ```
 ```go
-{ primes = array{2, 3, 5, 7};  sq = array(n, fn(k) { k * k });  primes[0] + sq[n - 1] }   // J
+{ primes = array{2, 3, 5, 7};  sq = array{k * k : k ∈ 0..n-1};  primes[0] + sq[n - 1] }   // J
 ```
 
 ---
@@ -3754,7 +3755,7 @@ LET ⟨q, r⟩ == divmod(a, b) IN "q=" ∘ string_of(q) ∘ " r=" ∘ string_of(
 |---|---:|---:|---:|---:|---:|---:|---:|
 | T today | 319 | 1.00 | 313 | 1.00 | 6 | 5 | 25 |
 | D | 287 | **0.90** | 271 | **0.87** | **2** | 2 | 18 |
-| J | 306 | 0.96 | 289 | 0.92 | 4 | 4 | 24 |
+| J | 307 | 0.96 | 289 | 0.92 | 4 | 4 | 24 |
 
 - **Data is where the new notations are smallest**: D 0.87× today in lexemes, J 0.92×. Infix
   arithmetic, ranges in place of `(int lo hi)` and the claims in the header (E5's `where` against a

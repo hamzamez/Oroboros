@@ -583,6 +583,7 @@ rejected alternatives.
 | A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, not built | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
 | A tag is a quoted symbol, `'name`, in patterns and expressions; case carries no category; a collection has one former shape and `array(n, f)` goes; the sets are `Array(V)` and `Map(K, V)` — supersedes 0056's items 8–9, not built | [0059](docs/decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md) |
 | J's membership `∈` and Python's set operators, D's TLA+'s; an imported tag qualified as `alias.'tag`, own and language tags unqualified, no `exposing` — not built | [0060](docs/decisions/0060-j-set-operators-and-qualified-tags.md) |
+| Inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place (TLA+'s); a map takes a graph only — not built | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |
 
 ## How this project is run
 

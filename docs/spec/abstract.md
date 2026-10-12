@@ -183,7 +183,8 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | **loop**(s̄; I; ā) | (Bind*. (Formula, Arm*)) → Expr | iteration: definitional binders s̄, bound at entry by their initializers and at each again by its arguments, by application (ADR 0055); invariant I; arms with Tail bodies (ADR 0015) |
 | **local**(b̄; e) | (Bind*. Expr) → Expr | local state: buffer binders (definitional, linear) and cell binders (state); ADR 0047. ADR 0052 (not built): both are state binders, a buffer the one whose value is a fresh table. ADR 0054 (not built): merged into `let`'s scope |
 | **assign**(x; e) | (𝒩, Expr) → Expr | a cell's write in program order; value the unit (local.md §3) |
-| **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value |
+| **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value: separation |
+| **image**(p̄ ∈ S̄; e) | (Expr*, Pat*. Expr) → Expr | the set {e : p̄ ∈ S̄}, a static value: replacement (ADR 0061) |
 | **mem**(e; S) | (Expr, Expr) → Expr | membership as a test, where S is decidable at run time (W6) |
 | **the**(S; e) | (Expr, Expr) → Expr | a claim: e's value lies in S; the value is e's |
 | **assert**(φ; e) | (Formula, Expr) → Expr | a claim: φ holds here, then e (settypes §6.3) |

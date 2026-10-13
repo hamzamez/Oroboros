@@ -38,23 +38,38 @@ derive**, so no refused program is lifted by a claim.
 ## 3. The clamps
 
 A program written around a wall does not show up as a refusal. CLAUDE.md: *a clamp in a program is a
-missing proof.* Every clamp the corpus documents, each removed in a scratch copy and recompiled on Go:
+missing proof.* Every clamp definition in the corpus (`grep` for `(if (< x 0) 0 (if (>= x …) 0 …))`, and
+the tokenizer's inline one), each removed in a scratch copy, by use site where a definition has several,
+and compiled on Go. `tally` is left out: it is refused in the sweep for want of its generated host layer.
 
-| clamp | what it guards | with it removed | the missing fact | its theory |
-|---|---|---|---|---|
-| `json/tokenize.oro`, the popped stack index `(if (< sp 1) 0 (- sp 1))` | `stk[sp − 1]` | **compiles**: 116 of 116 and 29 of 29 operations bounded | none: the outer guard `sp ≥ 1` is used now | — |
-| `big/limbs.oro`, `at` | `t[i]` with i under another table's bound | **compiles** once the export states `(k (int 0 63))`, writable today | none inside; the export's parameter range | — |
-| `io/freq.oro`, `cl`, a word's byte offset | `src[beg + k]`, k < end − beg | refused: `(+ (sp (* 2 u)) k1) < (len src)` not proven | ∀w. sp[2w] ≤ sp[2w+1] ≤ len(src) | the array property fragment (Bradley, Manna and Sipma 2006): one universal, a strided pair, a frame term |
-| `io/freq.oro`, `slen`, a span's length | d = end − beg in [0, cap) | refused: an allocation sized by d may be negative | the same: beg ≤ end | the same |
-| `kara/core.oro`, `c4` (three uses) | `out[i + j]`, i, j < desc[2] | refused: `i + j < len out` not proven, `desc[2]` opaque | desc[2] = 2, desc built by three stores | read over write (McCarthy 1962), the quantifier-free theory of arrays |
-| `kara/core.oro`, `pack` | `acc·100 + p[i]` | refused (it is the program's third unproven operation) | every product limb is under 100 | an invariant of the multiply loops over `out`'s contents |
+**Stale: the analysis proves the index without the clamp.**
+
+| clamp | uses |
+|---|---|
+| `json/tokenize.oro`, the popped stack index | 1 |
+| `big/limbs.oro`, `at` (with `(k (int 0 63))` on the export, writable today) | all |
+| `differential/cases/big-limbs.oro`, `at` | all |
+| `differential/cases/json-tree.oro`, `cn`, `cd`, `cw` | all |
+| `differential/cases/merge-sort.oro`, `cli` | all |
+| `io/freq.oro`, `cli` in `iota`, `putnum`, `putword` and the line layout | 5 |
+
+**Live: a fact is missing, and each is in a decided theory.**
+
+| clamp | failing obligation | the missing fact | its theory |
+|---|---|---|---|
+| freq `cl`, a word's byte offset | `sp[2u] + k < len src` | ∀w. sp[2w] ≤ sp[2w+1] ≤ len(src): a relation between one stored pair's components | the array property fragment (Bradley, Manna and Sipma 2006) over the curried table Π_{Fin n} ℤ², with reads as atoms |
+| freq `slen`, a span's length | an allocation sized by end − beg | the same, in the IR's interval domain, which an allocation's size is decided in | the same, in a second analysis |
+| freq `cli` in `pat`, under `new?` | `0 ≤ k − 1` | k ≥ 1 from k ≥ 0 and the guard ¬(k = 0) | Presburger with a disequality: over ℤ, k ≥ 0 ∧ k ≠ 0 ⊢ k ≥ 1; Fourier–Motzkin reads no ≠ |
+| freq `cli` in the merge | `j < len a` | i + j − k = mid, an equality invariant of the merge loop, and len a = n through `msort`'s buffer swap | linear equalities (Karr 1976) and the length equation across a swap |
+| freq `cli` in `dists` | `0 ≤ 2(d − 1) + 1` | d ≥ 1 once k ≥ 1: the first word always opens a group | a disjunctive invariant, k = 0 ∨ d ≥ 1, convex after peeling the first iteration |
+| kara `c4` (three uses) | `i + j < len out` | desc[2] = 2, desc built by three stores at literal indices | read over write (McCarthy 1962) |
+| kara `pack` | `acc·100 + p[i]` in the word | every product limb is under 100 | a bound on contents that grows with the passes: geometric accumulation, deliberately not next |
 
 **Every missing fact is about the program's own construction, and every one is in a decided theory.**
-freq's is an F-D₁ content fact (array-facts.md), but relational between a stored pair's two
-components and a frame term, which one abstract cell per component (smashing) cannot hold: the spans
-loop stores (i, word-end(src, i)) with i ≤ word-end ≤ len(src), so Houdini over candidates of that shape
-would find it, as it finds today's content facts. kara's is the content of a literal store chain. Two
-clamps are stale: the analysis has grown past them.
+Four of the seven are one step from what the refinement layer already does (a disequality, an equality
+template, a length equation, peeling); freq's record fact is F-D₁ (array-facts.md) with φ over a record's
+components jointly, which smashing per component cannot hold. kara stays refused whatever is derived:
+its `pack` needs geometric accumulation.
 
 ## 4. What it decides
 
@@ -62,12 +77,11 @@ clamps are stale: the analysis has grown past them.
    derivable: settypes' rule *prefer deriving a fact over declaring it* (CLAUDE.md) applies, and content
    facts are derived, never declared (array-facts.md). An `assert` or invariant written by hand would
    state what the analysis should find.
-2. **What is demanded is derivation**, the analysis growing for refusals programs name:
-   - relational content facts, Houdini over pairs of a strided table's components and frame terms
-     (freq's two clamps);
-   - read over write on a store chain of known indices (kara's `c4`);
-   - and two stale clamps to delete (`tokenize`, `limbs`), which changes emission and, for
-     `tokenize`, a gauntlet program.
+2. **What is demanded is derivation**, the analysis growing for refusals programs name, in the order of
+   cost: the stale clamps deleted (emission changes, and `tokenize` is a gauntlet program); a negated
+   equality read as the disjunction a < b ∨ a > b with an infeasible side dropped; equality templates
+   and the length equation across a swap; the first iteration peeled; record facts with reads as atoms,
+   in the refinement layer and then the IR's. Read over write waits: kara would still be refused.
 3. **Claims proper are demanded only by specifications**, and a specification is never needed to
    compile. Whether programs should state and prove their correctness (a sort's output sorted and a
    permutation of its input, a search's failure meaning absence: surface-design's G3–G5) is a choice,

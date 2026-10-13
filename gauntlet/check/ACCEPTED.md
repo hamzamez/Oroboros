@@ -1224,3 +1224,15 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/io/freq.oro go`
 - emitted text changed — `examples/io/freq.oro java`
 - emitted text changed — `examples/io/freq.oro js`
+
+## 2026-10-13 — on 5f020fd, with uncommitted changes
+
+**Reason:** freq's pat reads without a clamp: k >= 0 and the guard not (k = 0) give k >= 1, now that a disequality beside an order is strict (refinements.md 3c). Same output on six inputs
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling skip.
+
+3 change(s):
+
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`

@@ -161,9 +161,11 @@
 ; stores `k < nw` into it, and the sort only COPIES slots between its two
 ; buffers, which adds nothing to the pair's joint cell (smashfd-2026-09-16). So
 ; `(* 2 (ord k))` is bounded with no clamp on the value. It used to carry one,
-; worth 319 unbounded operations to none; the index clamp stays, because WHICH
-; slot is in range is a relation, not a bound.
-(def pat (t n i) (t (cli n i)))
+; worth 319 unbounded operations to none. The index carried one too, for the
+; read of the word before the k-th in `new?`, under ¬(k = 0): k ≥ 0 and k ≠ 0
+; give k ≥ 1 over the integers, which the facts could not read until a
+; disequality beside an order became strict (claimsdemand-2026-10-13).
+(def pat (t n i) (t i))
 
 ; --- the sort ---------------------------------------------------------------
 ;

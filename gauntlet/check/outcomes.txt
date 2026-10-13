@@ -258,15 +258,15 @@
 == examples/io/count.oro windows refused
    gen: examples/io/count.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/freq.oro go emitted d24f62ca207af024e39dbc51388e051da28b004378efbfd72fab6f40d5f229c3
+== examples/io/freq.oro go emitted 41ff677232986a4d309f89d28cca9e2c54e3c5a291e2d6f19e4ee80ee1d67b9b
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro js emitted 18b2f84a5d9d987977cbe97205744bea9a4129105246370fb0b41b1ca01b2332
+== examples/io/freq.oro js emitted 3ac361d6745f2b7aaa293d74a2f9efd1dc68fd8ccb1d852fce45a1f6ea8342a0
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro java emitted 14e1dbaf2409c042d64284562a8bf7ebc850ae367f95659ff58ae628376e79f1
+== examples/io/freq.oro java emitted be402ef49031229ff597ee6ebf41c05d72d2c3095fafa02ab026c15d5ce24209
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask

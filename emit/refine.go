@@ -264,6 +264,7 @@ func assume(f *facts, where *core.Term) {
 	}
 	if k, ok := neKey(where); ok {
 		f.assumeOpaque(k)
+		strictFromDisequality(f, where)
 		return
 	}
 	if goals, ok := f.oblig(where); ok {
@@ -291,6 +292,32 @@ func assume(f *facts, where *core.Term) {
 	// `where`.
 	f.assumeOpaque(opaqueKey(where))
 }
+
+// strictFromDisequality is a disequality beside an order (claimsdemand-2026-10-13).
+// Over ℤ, a ≠ b is the disjunction a < b ∨ a > b, and the fragment keeps no
+// disjunction as a fact (§3b); but when the facts refute one side the other is
+// a conjunct: a ≤ b ∧ a ≠ b ⟺ a < b ⟺ a − b + 1 ≤ 0, and symmetrically. So
+// `k ≥ 0` and the guard ¬(k = 0) give `k ≥ 1`, which Fourier–Motzkin over ℚ,
+// reading no ≠, could not. It needs the order known when the disequality is
+// assumed: an order assumed after it strengthens nothing, which loses a proof
+// and never makes a false one.
+func strictFromDisequality(f *facts, ne *core.Term) {
+	lo, hi, ok := disequality(ne) // a − b + 1 ≤ 0 is a < b; b − a + 1 ≤ 0 is a > b
+	if !ok {
+		return
+	}
+	weak := func(strict *linear) *linear { return strict.clone().addScaled(constant(1), -1) }
+	switch {
+	case plantDisequalityFault || f.entails(weak(lo)):
+		f.assumeLE(lo, "assumed "+lo.String()+" <= 0 (a disequality beside an order)")
+	case f.entails(weak(hi)):
+		f.assumeLE(hi, "assumed "+hi.String()+" <= 0 (a disequality beside an order)")
+	}
+}
+
+// plantDisequalityFault is a planted fault for TestADisequalityBesideAnOrderIsStrict:
+// it takes a < b from a ≠ b alone, which the test must catch.
+var plantDisequalityFault = false
 
 // squareBound reads `(< (* x x) e)` or `(<= (* x x) e)` and returns the linear
 // goal for `x < e` (respectively `x <= e`), using `x <= x*x`. The comparison

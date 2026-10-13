@@ -140,6 +140,26 @@ It is **sound**, and **incomplete** in one named way: a disjunctive fact is neve
 term as the goal's disjunction, but Γ = {c ≤ 5 ∨ c ≥ 9} does not prove c ≠ 7. The rule applies only to
 a goal containing a disjunction, so every other obligation is decided as before.
 
+### 3c. A disequality beside an order is strict (2026-10-13)
+
+A disequality is a disjunction too, a ≠ b ⟺ a < b ∨ a > b, and as a **fact** it stays an opaque atom
+(§3b). But over ℤ, when the facts already refute one side, the other is a conjunct:
+
+```
+a ≤ b ∧ a ≠ b  ⟺  a < b  ⟺  a − b + 1 ≤ 0        and symmetrically for a ≥ b
+```
+
+So assuming a ≠ b (a guard's `(not (= a b))`, a `where (!= a b)`) also assumes the strict order when
+the facts entail the weak one (`strictFromDisequality`). `k ≥ 0` and ¬(k = 0) give `k ≥ 1`, which
+freq's `new?` needs to read the word before the k-th, and which Fourier–Motzkin over ℚ, reading no ≠,
+could not derive ([claimsdemand-2026-10-13](../../gauntlet/results/claimsdemand-2026-10-13.md)). It
+reads only the facts present when the disequality is assumed: an order assumed later strengthens
+nothing, which can lose a proof and never makes a false one.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| the strict order is taken only beside the weak one | a < b from a ≠ b alone | `TestADisequalityBesideAnOrderIsStrict` (k ≠ 0 ⊬ k < 0, counterexample k = 1) |
+
 ## 4. The fragment
 
 **Linear integer arithmetic over difference constraints**, which is what every bounds obligation

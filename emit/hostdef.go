@@ -96,7 +96,23 @@ func hostDef(f *core.Term, p Prim, path string) (*core.DefDecl, error) {
 		return nil, fmt.Errorf("%s: sig %s: %w", path, p.Name, err)
 	}
 	c.Result, c.ResultModes = resultModes(e)
-	return &core.DefDecl{Name: f.Kids[1].Name, Value: lam, Host: &h}, nil
+	// STATIC PARAMETERS ARE AN OUTER λ (spec/typevalues.md §4): AsType is
+	// λ(E ∈ subsets(error). λ(err ∈ error; …; host)), curried, its binders' sets
+	// sets of sets. The host's λ is the one without a body (core.HostLam).
+	var value core.Expr = lam
+	if len(p.Static) > 0 {
+		outer := &core.Lam{Claim: &core.Claim{}, Body: lam}
+		for _, sp := range p.Static {
+			var set core.Expr
+			if sp.SubsetOf != "" {
+				set = applied("subsets", &core.Var{Name: sp.SubsetOf})
+			}
+			outer.Params = append(outer.Params, sp.Name)
+			outer.Claim.Params = append(outer.Claim.Params, core.ClaimParam{Name: sp.Name, Set: set})
+		}
+		value = outer
+	}
+	return &core.DefDecl{Name: p.Name, Value: value, Host: &h}, nil
 }
 
 // paramMode separates a parameter's usage from its set.

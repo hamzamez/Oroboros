@@ -1,0 +1,41 @@
+; errors, DECLARED BY HAND. Every claim below was read off src/errors/errors.go and
+; src/errors/wrap.go in the Go 1.27 toolchain.
+;
+; THE ALGEBRA. An error is the root of a TREE: err itself, then the errors its
+; `Unwrap() error` or `Unwrap() []error` gives, depth first (Go 1.20). Over it:
+;   Unwrap : error → 1 + error        one step down a chain: Unwrap's result, or
+;                                      none when the type has no `Unwrap() error`
+;                                      (a leaf, or a fork, whose Unwrap gives a list)
+;   Is     : error × error → bool     ∃x in pre-order(err). x == target ∨ x.Is(target)
+;   AsType : Π(E ∈ 𝒫(⟦error⟧)). error → 1 + E
+;                                      the first x in pre-order(err) with x ∈ E (the type
+;                                      assertion err.(E)), or whose As method claims it
+;   New    : B* → error               a FRESH error: two calls with one text give two
+;                                      values Is tells apart (errors.go: "Each call to New
+;                                      returns a distinct error value even if the text is
+;                                      identical"), so it is not pure — ADR 0010's pure
+;                                      call may be duplicated.
+;
+; AsType IS A FUNCTION FROM SETS (spec/typevalues.md, ADR 0063): its type parameter
+; occurs only in the result, so a call names it, `((errors.AsType strconv.NumError)
+; e)`, and the application reduces at compile time to the instance, printed
+; `errors.AsType[*strconv.NumError](e)`. Go's bound `[E error]` is membership in
+; (subsets error), decided by the target's `implements`. Go returns (E, bool), its
+; comma-ok, and E's zero value when the bool is false; `(comma-ok)` makes that the
+; option, so the zero never reaches the program. The flag, not E's nil, is the
+; truth: err.(E) holds of a typed nil inside a non-nil interface, and AsType then
+; returns (nil, true).
+;
+; WHAT IS NOT DECLARED, named rather than hidden:
+;   - As(err, target any) bool: AsType is the same search with no cell; As's target
+;     is a pointer the host writes, a cell, and waits for a program that holds one.
+;   - Join(errs ...error) error: a variadic over error whose result is nil when every
+;     argument is; no program calls it yet.
+;   - ErrUnsupported: a package variable no program compares against yet.
+(target go
+  (module go/errors
+    (sig New ((text bytestring)) error (host expr "errors.New(%s)" (import "errors")))
+    (sig Is ((err error) (target error)) bool (host expr "errors.Is(%s, %s)" (import "errors")))
+    (sig Unwrap ((err error)) (option error) (host expr "errors.Unwrap(%s)" (import "errors")))
+    (sig (AsType (E (subsets error))) ((err error)) (option E)
+      (host expr "errors.AsType[%t1](%s)" (import "errors") (comma-ok)))))

@@ -3,8 +3,13 @@
 Research, 2026-10-09, on hamza's *"write the research. the math, the algebra and the literature.
 take into consideration tla+ in your research. and let's try to keep the syntax pleasant and uniform
 so programmers don't get confused."* It follows outcells-2026-10-09, whose next step, `errors.As`,
-needs a declaration whose result names an argument's type. Nothing here is built. The measurement is
-`gauntlet/stdlib/generics.go`.
+needs a declaration whose result names an argument's type. The measurement is
+`gauntlet/stdlib/generics.go`. **Built in part** by [ADR 0063](decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md)
+([spec/typevalues.md](spec/typevalues.md)): static parameters in a declaration's head, explicit
+instantiation by application, the bound as membership, `errors.AsType`. It departs from this document in
+two places: a type is a value, so types and values share one namespace and a type argument is not read
+by position (§6), and a bound is written `(E (subsets error))`, E's set being a set of sets (decision 1).
+Inference and a program's parametric `sig` are not built.
 
 ## 0. The answer, in brief
 

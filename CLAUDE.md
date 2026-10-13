@@ -61,8 +61,12 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   measurement ([presburger-2026-10-11](gauntlet/results/presburger-2026-10-11.md)): today's entailment
   is sound on all 27,693 distinct corpus questions, and a complete procedure flips no refused program
   (200 more proofs, 168 ex falso, all in programs that compile) at 3.5–9.5× compile time; refusals lack
-  facts, not proof strength. Next, reordered: types as static values and the Boolean algebra of sorts,
-  demanded by `errors.AsType`.**
+  facts, not proof strength. Types as static values, step 1, is built
+  ([ADR 0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md),
+  [spec/typevalues.md](docs/spec/typevalues.md), [typevalues-2026-10-13](gauntlet/results/typevalues-2026-10-13.md)):
+  a set is a static value in one namespace, a declaration over sets is instantiated by application, and
+  `errors.AsType` runs. Next in this line: the Boolean algebra of sorts, when a program states a set it
+  cannot write.**
 - **[notation-research.md](docs/notation-research.md), surface not yet decided** (its abstract syntax is, ADR 0050). The language as the
   executable subset of a mathematical notation, TLA+'s with PlusCal's state and Dijkstra's guarded
   commands (Abrial's B0 the precedent for compiling mathematics): `f(x ∈ S) ∈ T == e`, `0..255`,
@@ -187,6 +191,8 @@ target, source, name and output. Until that run all 26 were term-backend copies 
   `os`, `strings`, `io` and `fmt`. Every name declared is checked against the host: interface
   methods against the manifest, and a variadic as its restrictions f|Aⁿ. Each header names the rest
   and what stops it. Every file in `targets/go` states its algebra and names its parameters.
+  **`errors`** joined them program first (typevalues-2026-10-13): `New`, `Is`, `Unwrap` and
+  `AsType`, the first declaration over sets.
   **`bufio`** joined them program first ([bufio-2026-10-01](gauntlet/results/bufio-2026-10-01.md)):
   the 9 names `examples/lines/lines.oro` calls, a line tool over standard input whose output is
   checked against the line split written from its definition.
@@ -585,6 +591,7 @@ rejected alternatives.
 | J's membership `∈` and Python's set operators, D's TLA+'s; an imported tag qualified as `alias.'tag`, own and language tags unqualified, no `exposing` — not built | [0060](docs/decisions/0060-j-set-operators-and-qualified-tags.md) |
 | Inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place (TLA+'s); a map takes a graph only — not built | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |
 | A header is the membership statement, its result a binder (`result` gone); bounds in binder sets (a telescope), relations in `where`; one equality in formulas; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface — not built | [0062](docs/decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md) |
+| A type is a static value: one namespace per module (a struct literal is its companion's `new`); a declaration's head binds static parameters, `(sig (AsType (E (subsets error))) …)`; instantiation is application reduced by δ to `f#[T̄]`, identified by its name, the bound membership by subsumption; no set survives staging; `(comma-ok)` | [0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md) |
 
 ## How this project is run
 
@@ -1140,5 +1147,6 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`, and `ages`, cells the host writes), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
+| `gauntlet/types/` | Types as static values' measurements: `namespace.go`, the names a module declares both as a type and as a value (spec/typevalues.md §2) |
 | `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–5's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors) and `claims.go` (how it writes claims) |
-| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, nineteen programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, and `fmt-scan`, Go storing through cells (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |
+| `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

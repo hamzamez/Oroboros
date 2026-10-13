@@ -95,7 +95,7 @@ func TestHostDeclarationsAreDefinitions(t *testing.T) {
 			if !reflect.DeepEqual(g, w) || !reflect.DeepEqual(gt, wt) {
 				t.Errorf("%s: %s\n the tree gives %+v %v\n today's reader %+v %v", path, want.Name, g, gt, w, wt)
 			}
-			for _, p := range def.Value.(*core.Lam).Claim.Params {
+			for _, p := range core.HostLam(def).Claim.Params {
 				modes[p.Mode]++
 				if a, ok := p.Set.(*core.Apply); ok && p.Mode != core.NoMode {
 					if v, ok := a.Fn.(*core.Var); ok && (v.Name == "buffer" || v.Name == "cell") {
@@ -103,10 +103,10 @@ func TestHostDeclarationsAreDefinitions(t *testing.T) {
 					}
 				}
 			}
-			for _, m := range def.Value.(*core.Lam).Claim.ResultModes {
+			for _, m := range core.HostLam(def).Claim.ResultModes {
 				modes[m]++
 			}
-			if r := core.HostSig(def).Kids[3].String(); strings.Contains(r, "buffer") && def.Value.(*core.Lam).Claim.ResultModes == nil {
+			if r := core.HostSig(def).Kids[3].String(); strings.Contains(r, "buffer") && core.HostLam(def).Claim.ResultModes == nil {
 				deep++ // a buffer inside a result's set deeper than a component keeps its former
 			}
 			n++
@@ -160,7 +160,7 @@ func TestHostDeclarationShapes(t *testing.T) {
 	ts, _ := core.ReadAll(`(sig Get ((c (cell int))) (tuple) (host stmt "get(%s)"))`)
 	p, _ := parseSig(ts[0], "shape")
 	def, _ := hostDef(ts[0], p, "shape")
-	if c := def.Value.(*core.Lam).Claim.Params[0]; c.Mode != core.InOut {
+	if c := core.HostLam(def).Claim.Params[0]; c.Mode != core.InOut {
 		t.Errorf("a cell is the inout mode on its set, got %+v", c)
 	}
 }

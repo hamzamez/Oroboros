@@ -98,7 +98,7 @@ func (tg *Target) resolveTypeNames() error {
 		}
 	}
 	for n, p := range tg.Prims {
-		r := resolve(moduleOf(n))
+		r := bindStatic(p.Static, resolve(moduleOf(n)))
 		for i, a := range p.Args {
 			p.Args[i] = mapTypeNames(a, r)
 		}
@@ -108,10 +108,37 @@ func (tg *Target) resolveTypeNames() error {
 		if p.Result != "" {
 			p.Result = mapTypeNames(p.Result, r)
 		}
+		// A bound names a type of the declaring module's scope, like a parameter.
+		if len(p.Static) > 0 {
+			st := append([]StaticParam(nil), p.Static...)
+			for i := range st {
+				if st[i].SubsetOf != "" {
+					st[i].SubsetOf = resolve(moduleOf(n))(st[i].SubsetOf)
+				}
+			}
+			p.Static = st
+		}
 		tg.Prims[n] = p
 	}
 	for n, ty := range tg.Aliases {
 		tg.Aliases[n] = mapTypeNames(ty, resolve(moduleOf(n)))
 	}
 	return nil
+}
+
+// bindStatic is resolution under a declaration's static parameters: each binds
+// its name in the declaration, so it is resolved before any module's type, as
+// a λ's body sees its parameters first (spec/typevalues.md §4).
+func bindStatic(static []StaticParam, r func(string) string) func(string) string {
+	if len(static) == 0 {
+		return r
+	}
+	return func(n string) string {
+		for _, sp := range static {
+			if sp.Name == n {
+				return n
+			}
+		}
+		return r(n)
+	}
 }

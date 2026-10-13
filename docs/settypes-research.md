@@ -587,8 +587,12 @@ by 3.5–9.5. 11,062 questions are not entailed at all: refusals lack facts and 
 strength. **So the order below changes**: types as static values and the Boolean algebra of sorts
 first, demanded by `errors.AsType`/`errors.As`; the Presburger core then joins as the checker of those
 claims, with big integers and a fact-set consistency check; today's entailment stays, held sound by
-`TestEntailmentIsSoundAgainstPresburger`. The text below is the plan as written before the
-measurement.
+`TestEntailmentIsSoundAgainstPresburger`. **Types as static values, step 1, is built**
+([ADR 0063](decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md),
+[spec/typevalues.md](spec/typevalues.md), typevalues-2026-10-13): a set is a static value, one namespace,
+static parameters instantiated by application, `errors.AsType`. Step 2, the Boolean algebra of sorts,
+waits for a program that states a set it cannot write today. The text below is the plan as written
+before the measurement.
 
 **A measurement before a rewrite.** Every obligation the corpus makes today can be run through a
 Presburger procedure beside the current single-fact entailment. The counts would show:

@@ -92,6 +92,7 @@ type shape struct {
 	succ    string   // a variant: the success constructor, as the definition spells it
 	fail    string   // a variant: the other constructor
 	err     string   // a variant: E's type
+	flag    bool     // (option E) given as (v, ok): (comma-ok)
 }
 
 // retractions replaces every declaration with a Retract result (retract.go's
@@ -129,6 +130,10 @@ func (tg *Target) retract(q string) error {
 	if err != nil {
 		return err
 	}
+	if p.CommaOk {
+		// (comma-ok): the host gives the option as (v, ok) (spec/typevalues.md §7).
+		sh.flag = true
+	}
 	if home != mod {
 		for _, f := range tg.Defs[home] {
 			if f.Kind == "use" && !hasUse(tg.Defs[mod], f) {
@@ -142,10 +147,10 @@ func (tg *Target) retract(q string) error {
 	// The types derived from the result as written resolve in its module, as
 	// every declaration's do (names.go); the declaration's own were resolved
 	// before this pass.
-	in := func(n string) string {
+	in := bindStatic(p.Static, func(n string) string {
 		r, _ := resolveIn(mod, n, tg.hasType)
 		return r
-	}
+	})
 	sh.resolve(func(ty string) string { return mapTypeNames(ty, in) })
 	host := sh.host()
 	if len(host) == 0 {
@@ -189,7 +194,17 @@ func (tg *Target) retract(q string) error {
 	for i, a := range params {
 		args[i] = core.Name(a)
 	}
-	call := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{core.Name(raw.Name)}, args...)}
+	// UNDER STATIC PARAMETERS the definition is a static λ that binds them and
+	// passes them to the raw call, which they instantiate (spec/typevalues.md §6):
+	// (def AsType (E) (fn (#a1) (((#raw … E) #a1) …))).
+	var head *core.Term = core.Name(raw.Name)
+	if len(p.Static) > 0 {
+		head = core.App(head)
+		for _, sp := range p.Static {
+			head.Kids = append(head.Kids, core.Name(sp.Name))
+		}
+	}
+	call := &core.Term{Kind: core.KApp, Kids: append([]*core.Term{head}, args...)}
 	hs := make([]string, len(host))
 	for i := range hs {
 		hs[i] = fmt.Sprintf("#h%d", i+1)
@@ -205,8 +220,20 @@ func (tg *Target) retract(q string) error {
 	if tg.Defs == nil {
 		tg.Defs = map[string][]core.Form{}
 	}
-	tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "def", Name: local, Term: core.Fn(params, def)})
+	value := core.Fn(params, def)
+	if len(p.Static) > 0 {
+		value = core.Fn(staticNamesOf(p.Static), value)
+	}
+	tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "def", Name: local, Term: value})
 	return nil
+}
+
+func staticNamesOf(ps []StaticParam) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = p.Name
+	}
+	return out
 }
 
 // RawName and nicheName are the loader's own primitives. A `#` keeps a program
@@ -281,6 +308,8 @@ func (s *shape) host() []string {
 		return nil
 	case s.ty != "":
 		return []string{s.ty}
+	case s.option != "" && s.flag:
+		return []string{s.option, "bool"}
 	case s.option != "":
 		return []string{s.option}
 	case s.elems != nil:
@@ -295,6 +324,8 @@ func (s *shape) host() []string {
 
 func (s *shape) niches() []string {
 	switch {
+	case s.option != "" && s.flag:
+		return nil
 	case s.option != "":
 		return []string{s.option}
 	case s.elems != nil:
@@ -325,6 +356,9 @@ func (s *shape) build(hs []string, next *int) *core.Term {
 		return core.Fn([]string{"#k"}, &core.Term{Kind: core.KApp, Kids: []*core.Term{core.Name("#k")}})
 	case s.ty != "":
 		return take()
+	case s.option != "" && s.flag:
+		e, ok := take(), take()
+		return core.App(core.Name("if"), ok, core.App(core.Name("some"), e), core.Name("none"))
 	case s.option != "":
 		e := take()
 		return core.App(core.Name("if"), niche(s.option, e), core.Name("none"), core.App(core.Name("some"), e))

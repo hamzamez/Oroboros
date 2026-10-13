@@ -10,6 +10,7 @@ package ir
 
 import (
 	"fmt"
+	"sort"
 
 	"oroboros/core"
 )
@@ -280,6 +281,28 @@ func (p *Program) Ops() []string {
 			out = append(out, termNames[i])
 		}
 	}
+	return out
+}
+
+// Calls is the set of primitives p's statements call, sorted: what a reader of
+// the text must find in the target's declarations, an instance re-derived from
+// its name (spec/typevalues.md §5).
+func (p *Program) Calls() []string {
+	seen := map[string]bool{}
+	for _, f := range p.Funcs {
+		f.Walk(func(r *Region) {
+			for _, s := range r.Stmts {
+				if s.Op == OCall {
+					seen[s.Name] = true
+				}
+			}
+		})
+	}
+	out := make([]string, 0, len(seen))
+	for n := range seen {
+		out = append(out, n)
+	}
+	sort.Strings(out)
 	return out
 }
 

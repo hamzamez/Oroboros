@@ -1857,6 +1857,7 @@ func emit(dir string, syms []sym, raw []string) error {
 				continue
 			}
 			var args, holes []string
+			declName := s.name
 			mod := "go/" + p
 			tmplRecv := ""
 			if s.recv != "" {
@@ -1907,6 +1908,11 @@ func emit(dir string, syms []sym, raw []string) error {
 					amp = "&"
 				}
 				call = "(" + amp + base + "." + s.name + "{" + strings.Join(kv, ", ") + "})"
+				// THE LITERAL IS THE TYPE'S INTRODUCTION RULE, so it is declared in
+				// the type's theory, its companion module, as `new`: a type is a
+				// value of the static level, and a module's types and values share
+				// its names (spec/typevalues.md §2, ADR 0063).
+				mod, declName = "go/"+p+"/"+spell(s.name), "new"
 			}
 			kind, res := "expr", ""
 			switch len(s.results) {
@@ -1930,7 +1936,7 @@ func emit(dir string, syms []sym, raw []string) error {
 				res = "(tuple " + strings.Join(rs, " ") + ")"
 			}
 			fmt.Fprintf(modBuf(mod), "    (sig %s %s %s (host %s \"%s\" (import %q)))\n",
-				s.name, strings.Replace(argList, "(none)", "()", 1), res, kind, call, p)
+				declName, strings.Replace(argList, "(none)", "()", 1), res, kind, call, p)
 			n++
 		}
 		// THE EDGES FOR THE TYPES THIS FILE DECLARES. Put with the CONCRETE type,

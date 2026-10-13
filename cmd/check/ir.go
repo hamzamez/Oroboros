@@ -180,6 +180,11 @@ func printText(targets map[string]*emit.Target, source, target string, p *ir.Pro
 	if err != nil {
 		return "", err
 	}
+	// An instance is named by its declaration and its sets, so the text's name
+	// is all the printer needs to rebuild it (spec/typevalues.md §5, ADR 0038).
+	if err := tg.Instances(p.Calls()); err != nil {
+		return "", err
+	}
 	if err := ir.Verify(tg, p); err != nil {
 		return "", err
 	}

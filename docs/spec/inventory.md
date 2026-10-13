@@ -186,6 +186,8 @@ From `emit/target.go`, `emit/fact.go` and `emit/constend.go`. The whole grammar 
 | `lib` | specified | [target-files.md](target-files.md) |
 | `checked` | specified | [target-files.md](target-files.md) |
 | `jump` | specified | [windows-target.md](windows-target.md) |
+| `comma-ok` | specified — the host gives a declared `(option E)` as Go's pair (v, ok): H = [E, bool], r(e, b) = `some e` if b, else `none` | [typevalues.md](typevalues.md) §7 |
+| `subsets` | specified — a static parameter's set in a declaration's head, `(E (subsets T))`, ranging over 𝒫(⟦T⟧); abstract.md's Σ₀ constant | [typevalues.md](typevalues.md) §4 |
 
 ### Kinds
 

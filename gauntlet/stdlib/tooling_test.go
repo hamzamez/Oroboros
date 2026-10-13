@@ -38,6 +38,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -647,6 +648,11 @@ func acceptance() map[string]accept {
 			"42 ana 7 3 true", "42 ana 0 2 false", "3 -4 2 true", "9 keep 1 false"}},
 		"struct-literal": {host: "go", target: "go", layer: "tg", want: []string{"8", "4"},
 			files: map[string]string{"tg/go/image-gen.oro": "image.oro"}},
+		// A DECLARATION OVER SETS, applied to one: errors.AsType at
+		// *strconv.NumError, its instance made at compile time, Go's comma-ok
+		// read as the option, and a static λ passing a set on
+		// (spec/typevalues.md, ADR 0063).
+		"errors-astype": {host: "go", target: "go", layer: "tg", want: errorsAsTypeReference()},
 		// The JVM: 30 is what `new java.util.Random(42).nextInt(100)` prints —
 		// the host's answer, not ours.
 		"jvm-object": {host: "jvm", target: "java", layer: "tg", want: []string{"a, b, c", "30"},
@@ -884,6 +890,45 @@ func hexReference() []string {
 	p(d.Close() == nil)
 	p(dw.String())
 	return strings.Split(strings.TrimRight(b.String(), "\n"), "\n")
+}
+
+// errorsAsTypeReference is errors-astype.oro's expected output, computed by the
+// real errors and strconv packages in the order the program prints.
+func errorsAsTypeReference() []string {
+	var b strings.Builder
+	p := func(v any) { fmt.Fprintln(&b, v) }
+	look := func(e error) {
+		if n, ok := errors.AsType[*strconv.NumError](e); ok {
+			p(n.Func)
+			p(n.Num)
+			switch {
+			case errors.Is(n.Err, strconv.ErrSyntax):
+				p("syntax")
+			case errors.Is(n.Err, strconv.ErrRange):
+				p("range")
+			default:
+				p("another cause")
+			}
+		} else {
+			p("not a NumError")
+		}
+		if c := errors.Unwrap(e); c != nil {
+			p(c)
+		} else {
+			p("a leaf")
+		}
+		_, ok := errors.AsType[*strconv.NumError](e)
+		p(ok)
+	}
+	for _, s := range []string{"12x", "99999999999999999999", "42"} {
+		if v, e := strconv.ParseInt(s, 10, 64); e == nil {
+			p(v)
+		} else {
+			look(e)
+		}
+	}
+	look(errors.New("not a number at all"))
+	return strings.Split(strings.TrimSpace(b.String()), "\n")
 }
 
 // strconvReference is strconv.oro's expected output, computed by the real
@@ -1166,7 +1211,18 @@ var handDeclared = []handEntry{
 	{"go", "targets/go", "unicode/utf8.oro", []string{"go/unicode/utf8"}, utf8Mistakes, false, nil, nil, nil},
 	{"go", "targets/go", "encoding/hex.oro",
 		[]string{"go/encoding/hex", "go/encoding/hex/InvalidByteError"}, hexMistakes, false, nil, nil, nil},
-	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, nil, nil, nil},
+	{"go", "targets/go", "strconv.oro", []string{"go/strconv", "go/strconv/NumError"}, strconvMistakes, false, map[string]string{
+		"go/strconv.ErrSyntax":     "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/strconv.ErrRange":      "a package VARIABLE; the survey generates functions, methods and constants",
+		"go/strconv/NumError.Err":  "a field read, the struct's projection; the survey generates its literal, not its projections",
+		"go/strconv/NumError.Func": "a field read, the struct's projection; the survey generates its literal, not its projections",
+		"go/strconv/NumError.Num":  "a field read, the struct's projection; the survey generates its literal, not its projections",
+	}, nil, nil},
+	// A DECLARATION OVER SETS (spec/typevalues.md, ADR 0063): AsType is generic,
+	// and the survey declares no static parameters.
+	{"go", "targets/go", "errors.oro", []string{"go/errors"}, nil, true, map[string]string{
+		"go/errors.AsType": "generic, AsType[E error]: the survey declares no static parameters (spec/typevalues.md §4)",
+	}, nil, nil},
 	{"go", "targets/go", "encoding/binary.oro", []string{"go/encoding/binary"}, binaryMistakes, false, nil, nil, nil},
 	{"go", "targets/go", "math/bits.oro", []string{"go/math/bits"}, bitsMistakes, false, nil, nil, nil},
 	{"go", "targets/go", "os.oro", []string{"go/os", "go/os/File"}, osMistakes, true, map[string]string{
@@ -1573,13 +1629,12 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 // declared by hand is allowed, and a hand name the host lacks is allowed only
 // when it is exempt, with its reason.
 func (h handEntry) judge(module string, errs []error) []error {
-	if !h.partial {
-		return errs
-	}
 	var out []error
 	for _, e := range errs {
 		msg := e.Error()
-		if strings.Contains(msg, "is exported by the host and not declared by hand") {
+		// A complete file declares every host name; a partial one need not. An
+		// exemption, a name the generator cannot produce, is either's.
+		if h.partial && strings.Contains(msg, "is exported by the host and not declared by hand") {
 			continue
 		}
 		if i := strings.Index(msg, " is declared by hand and the host has no such name"); i > 0 {

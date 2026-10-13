@@ -1,0 +1,60 @@
+; ACCEPTANCE: errors.AsType, a declaration over SETS, applied to one
+; (spec/typevalues.md, ADR 0063).
+;
+; AsType ∈ Π(E ∈ 𝒫(⟦error⟧)). error → 1 + E. Its type parameter occurs only in
+; its result, so a call names it: `(errors.AsType sc.NumError)` applies the
+; declaration to the set go/strconv.NumError, a static value, and reduction
+; makes the instance, which Go prints as errors.AsType[*strconv.NumError](e).
+; The bound is membership, NumError ⊆ error, read off strconv.oro's
+; `implements`. Go's (E, bool) is the option, by `(comma-ok)`, so no nil
+; *NumError reaches the program.
+;
+; WHAT IT CHECKS, each against the real errors package (errorsAsTypeReference in
+; tooling_test.go):
+;   instance     ParseInt's error is a *NumError: its fields, read through the
+;                companion, and its cause, by errors.Is against strconv's two
+;                package variables
+;   none         errors.New's error is not one, and AsType says none
+;   unwrap       one step down the tree: a NumError's cause, and none at a leaf
+;   a static λ   `is-a` takes a set and passes it on: β substitutes the set,
+;                then the instance is made, with no rule but application
+
+(use go/strconv as sc)
+(use go/strconv/NumError as ne)
+(use go/errors as errors)
+(use go/fmt as fmt)
+(use result)
+
+(export main)
+
+; Which of strconv's two causes a NumError carries.
+(def cause (n)
+  (if (errors.Is (ne.Err n) (sc.ErrSyntax)) "syntax"
+      (if (errors.Is (ne.Err n) (sc.ErrRange)) "range" "another cause")))
+
+(def report (e)
+  (case ((errors.AsType sc.NumError) e)
+    (some n) (seq (fmt.Println (ne.Func n)) (fmt.Println (ne.Num n)) (fmt.Println (cause n)))
+    none     (fmt.Println "not a NumError")))
+
+(def unwrap (e)
+  (case (errors.Unwrap e)
+    (some c) (fmt.Println c)
+    none     (fmt.Println "a leaf")))
+
+; A STATIC λ: a definition whose parameter is a set.
+(def is-a (E)
+  (fn (e) (case ((errors.AsType E) e) (some x) true none false)))
+
+(def parse (s)
+  ((sc.ParseInt s 10 64) (fn (v o)
+    (case o
+      (result.ok u)  (fmt.Println v)
+      (result.err e) (seq (report e) (unwrap e) (fmt.Println ((is-a sc.NumError) e)))))))
+
+(def main ()
+  (seq (parse "12x")
+       (parse "99999999999999999999")
+       (parse "42")
+       (let e (errors.New "not a number at all")
+         (seq (report e) (unwrap e) (fmt.Println ((is-a sc.NumError) e))))))

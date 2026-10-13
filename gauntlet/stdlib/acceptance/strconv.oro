@@ -119,8 +119,8 @@
 (def error ()
   ((sc.ParseInt "99999999999999999999" 10 64) (fn (v o)
     (case o
-      (result.err e) (seq (fmt.Println (ne.Error (sc.NumError e "ParseInt" "99999999999999999999")))
-                          (fmt.Println (ne.Unwrap (sc.NumError e "F" "N")))
+      (result.err e) (seq (fmt.Println (ne.Error (ne.new e "ParseInt" "99999999999999999999")))
+                          (fmt.Println (ne.Unwrap (ne.new e "F" "N")))
                           0)
       (result.ok u)  (seq (fmt.Println "<nil>") 0)))))
 

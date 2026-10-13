@@ -128,6 +128,29 @@ type Prim struct {
 	CellParams []int
 	CellList   int
 	Arity      int
+
+	// Static are the declaration's STATIC PARAMETERS (spec/typevalues.md §4,
+	// ADR 0063): `(sig (AsType (E (subsets error))) …)` is a function from sets,
+	// AsType ∈ Π(E ∈ 𝒫(⟦error⟧)). …, and its types and template mention each
+	// parameter by name. Such a declaration is never called as it stands: a
+	// static application `(AsType T)` reduces to its instance (Instantiate).
+	Static []StaticParam
+	// TypeArgs is an instance's static arguments, qualified type names, in
+	// order; empty on every other primitive. TypeImports are the packages they
+	// name, which the printer imports beside Import.
+	TypeArgs    []string
+	TypeImports []string
+	// CommaOk is `(host … (comma-ok))`: the host gives a declared (option E) as
+	// Go's pair (v, ok), so H = [E, bool] and r(e, b) = some e if b, else none
+	// (spec/typevalues.md §7).
+	CommaOk bool
+}
+
+// StaticParam is one static parameter: its name, and the type T when it ranges
+// over (subsets T), 𝒫(⟦T⟧); "" when it ranges over every set.
+type StaticParam struct {
+	Name     string
+	SubsetOf string
 }
 
 type Target struct {
@@ -448,6 +471,11 @@ func siblingLib(path string) []string {
 func (tg *Target) finish(wrap func(error) error) error {
 	if err := tg.resolveDeferred(); err != nil {
 		return err
+	}
+	// ONE NAMESPACE (spec/typevalues.md §2): a type is a value of the static
+	// level, so a module's type and value names are one set of names.
+	if err := tg.oneNamespace(); err != nil {
+		return wrap(err)
 	}
 	// A BARE TYPE NAME RESOLVES IN ITS MODULE, on the glued target (names.go).
 	if err := tg.resolveTypeNames(); err != nil {
@@ -2344,7 +2372,7 @@ var respelled = map[string]string{
 // what makes "no host clause" mean "no claim about any host".
 var (
 	sigWords  = map[string]bool{"pure": true, "variadic": true, "index": true, "where": true, "ensures": true, "length": true, "length-of": true}
-	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true}
+	hostWords = map[string]bool{"import": true, "lib": true, "checked": true, "jump": true, "comma-ok": true}
 )
 
 // constSig elaborates a constant to the declaration it means (theories.md §8.3):
@@ -2414,6 +2442,16 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 		return Prim{}, fmt.Errorf("%s: (sig NAME ((x τ)…) τ clause… (host KIND \"template\" …)), got %s", path, f)
 	}
 	name := f.Kids[1]
+	// A HEAD THAT BINDS: `(sig (f B…) …)`, each B a static parameter, `E` or
+	// `(E (subsets T))` (spec/typevalues.md §4), as a variant's head binds its
+	// type parameters.
+	static, err := staticParams(name, path)
+	if err != nil {
+		return Prim{}, err
+	}
+	if static != nil {
+		name = name.Kids[0]
+	}
 	var host *core.Term
 	var rest []*core.Term
 	for _, c := range f.Kids[4:] {
@@ -2447,7 +2485,49 @@ func parseSig(f *core.Term, path string) (Prim, error) {
 				"(jump …), got %s", path, name, c)
 		}
 	}
-	return primOf(name, f.Kids[2], f.Kids[3], host.Kids[1], append(rest, host.Kids[2:]...), path)
+	p, err := primOf(name, f.Kids[2], f.Kids[3], host.Kids[1], append(rest, host.Kids[2:]...), path)
+	if err != nil {
+		return Prim{}, err
+	}
+	p.Static = static
+	if p.CommaOk && (p.Retract == nil || formWord(p.Retract) != "option") {
+		return Prim{}, fmt.Errorf("%s: sig %s: (comma-ok) says the host gives an (option E) as (v, ok), "+
+			"so the declared result is (option E) (spec/typevalues.md §7)", path, p.Name)
+	}
+	return p, nil
+}
+
+// staticParams reads a declaration's head: nil for a bare name, and for
+// `(f B…)` each B, `E` or `(E (subsets T))`.
+func staticParams(head *core.Term, path string) ([]StaticParam, error) {
+	if head.Kind != core.KApp {
+		return nil, nil
+	}
+	if len(head.Kids) < 2 || head.Kids[0].Kind != core.KName {
+		return nil, fmt.Errorf("%s: a sig's head is a name or (NAME P…), its static parameters; got %s", path, head)
+	}
+	var out []StaticParam
+	seen := map[string]bool{}
+	for _, b := range head.Kids[1:] {
+		var sp StaticParam
+		switch {
+		case b.Kind == core.KName:
+			sp.Name = b.Name
+		case b.Kind == core.KApp && len(b.Kids) == 2 && b.Kids[0].Kind == core.KName &&
+			formWord(b.Kids[1]) == "subsets" && len(b.Kids[1].Kids) == 2 && b.Kids[1].Kids[1].Kind == core.KName:
+			sp.Name, sp.SubsetOf = b.Kids[0].Name, b.Kids[1].Kids[1].Name
+		default:
+			return nil, fmt.Errorf("%s: sig %s: a static parameter is a name, ranging over every set, or "+
+				"(NAME (subsets T)), ranging over the subsets of T; got %s (spec/typevalues.md §4)",
+				path, head.Kids[0], b)
+		}
+		if seen[sp.Name] {
+			return nil, fmt.Errorf("%s: sig %s binds %s twice", path, head.Kids[0], sp.Name)
+		}
+		seen[sp.Name] = true
+		out = append(out, sp)
+	}
+	return out, nil
 }
 
 // formWord is the head of `(word …)`, or a bare word itself, or "".
@@ -2633,6 +2713,9 @@ func primOf(nameT, argsT, resultT, kindT *core.Term, rest []*core.Term, path str
 		case rest.Kind == core.KApp && rest.Kids[0].Kind == core.KName &&
 			rest.Kids[0].Name == "lib" && len(rest.Kids) == 2 && rest.Kids[1].Kind == core.KStr:
 			p.Lib = rest.Kids[1].Str
+		case rest.Kind == core.KApp && len(rest.Kids) == 1 && rest.Kids[0].Kind == core.KName &&
+			rest.Kids[0].Name == "comma-ok":
+			p.CommaOk = true
 		default:
 			return Prim{}, fmt.Errorf("%s: %s has an unexpected trailing form %s", path, p.Name, rest)
 		}
@@ -2812,6 +2895,19 @@ func (tg *Target) Env(p *core.Program) (*core.Env, error) {
 	// `(ignore e)` is e's, which the judgement reads through.
 	e.Prim[core.IgnoreName] = true
 	e.Pure[core.IgnoreName] = true
+	// TYPES ARE STATIC VALUES (spec/typevalues.md, ADR 0063): the target's
+	// types are sets a term may name, and a declaration with static parameters
+	// is instantiated by applying it to them.
+	e.Sets, e.Static = map[string]bool{}, map[string]int{}
+	for n := range tg.Types {
+		e.Sets[n] = true
+	}
+	for _, n := range tg.Names {
+		if k := len(tg.Prims[n].Static); k > 0 {
+			e.Static[n] = k
+		}
+	}
+	e.Instantiate = tg.Instantiate
 	tg.hostRequires(e)
 	installContracts(e, p, tg.Word)
 	// A TARGET WITH NO MAP GETS OURS, rewritten into buffers and loops before

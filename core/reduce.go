@@ -126,6 +126,16 @@ type Env struct {
 
 	// unresolvedPaths carries Program.Unresolved through to diagnostics.
 	unresolvedPaths map[string]bool
+
+	// TYPES ARE STATIC VALUES (spec/typevalues.md, ADR 0063). Sets are the names
+	// that denote a set: scope accepts one, β substitutes it, and a residual
+	// that still holds one is refused (Law S: a set has no run-time value).
+	// Static gives each declaration with static parameters their number, and
+	// Instantiate makes its instance at sets, f#[T̄], the δ-rule of a static
+	// application: (f T̄) ⟶ f#[T̄].
+	Sets        map[string]bool
+	Static      map[string]int
+	Instantiate func(f string, args []string) (string, error)
 }
 
 // WhereContract is a definition's `where`, over its signature's parameter names.
@@ -1711,6 +1721,9 @@ func Normalize(t *Term, e *Env, fuel int) (*Term, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := e.staged(nf); err != nil {
+		return nil, err
+	}
 	// Every consumer opens the residual by its hints, so the hints must be a
 	// faithful naming of the indices — see hygiene.go.
 	return hygienic(stripElim(nf)), nil
@@ -1825,6 +1838,19 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 			return nil, err
 		}
 		args := t.Args()
+		// A STATIC APPLICATION, (f T̄) with f a declaration over sets: δ to its
+		// instance once every static argument has reduced to a set. One still a
+		// variable waits for the β that gives it (Law 1 of spec/typevalues.md §5).
+		if op.Kind == KName && e.Static[op.Name] > 0 && len(args) >= e.Static[op.Name] {
+			if inst, rest, ok, err := e.instantiate(op.Name, args, fuel); err != nil {
+				return nil, err
+			} else if ok {
+				if len(rest) == 0 {
+					return inst, nil
+				}
+				return normalize(&Term{Kind: KApp, Kids: append([]*Term{inst}, rest...)}, e, fuel)
+			}
+		}
 		// A WHERE-MARK IN OPERATOR POSITION is hoisted: the mark has no value of
 		// its own, so `((#reqw d c M) a…)` is `(#reqw d c (M a…))`, and β, the
 		// commuting conversions and every other rule then see M.
@@ -2674,7 +2700,7 @@ func (e *Env) scope(t *Term, bound map[string]bool, where string) error {
 		// `#any`, the unconstrained value, is the language's own (Theorem R,
 		// data.md §5.5.5), on every target, and no source can write it; so is
 		// `#elim`, the cell translation's claim the reducer decides.
-		if bound[t.Name] || e.Prim[t.Name] || t.Name == AnyName || t.Name == ElimName {
+		if bound[t.Name] || e.Prim[t.Name] || e.Sets[t.Name] || t.Name == AnyName || t.Name == ElimName {
 			return nil
 		}
 		if _, ok := e.Defs[t.Name]; ok {
@@ -3467,4 +3493,78 @@ func (e *Env) ParamUsed(name string, j int) bool {
 		return false
 	}
 	return e.consumes(Name(name), fn, j)
+}
+
+// instantiate is the δ-rule of a static application (spec/typevalues.md §5):
+// f's first Static[f] arguments, normalized, must each be a set; then the
+// result is f#[T̄] and the arguments after them. ok is false while one is not a
+// set yet, a variable a later β fills.
+func (e *Env) instantiate(f string, args []*Term, fuel *int) (*Term, []*Term, bool, error) {
+	n := e.Static[f]
+	sets := make([]string, n)
+	for i := 0; i < n; i++ {
+		a, err := normalize(args[i], e, fuel)
+		if err != nil {
+			return nil, nil, false, err
+		}
+		if a.Kind != KName || !e.Sets[a.Name] {
+			if a.Kind == KName && !e.Prim[a.Name] && e.Defs[a.Name] == nil || a.Kind == KBound {
+				return nil, nil, false, nil // a variable: not decided yet
+			}
+			return nil, nil, false, fmt.Errorf("%s's static argument %d is %s, which is not a set; a "+
+				"declaration over sets is applied to types (spec/typevalues.md §5)", declared(f), i+1, a)
+		}
+		sets[i] = a.Name
+	}
+	if e.Instantiate == nil {
+		return nil, nil, false, fmt.Errorf("%s is applied to sets, and this environment instantiates none", declared(f))
+	}
+	inst, err := e.Instantiate(f, sets)
+	if err != nil {
+		return nil, nil, false, err
+	}
+	e.Prim[inst], e.Pure[inst] = true, e.Pure[f]
+	if r, ok := e.Requires[f]; ok {
+		e.Requires[inst], e.ReqParams[inst] = r, e.ReqParams[f]
+	}
+	return Name(inst), args[n:], true, nil
+}
+
+// declared is how a diagnostic names a primitive: a fallible declaration's raw
+// call, #raw:MODULE:NAME (emit/retract.go), by the name the declaration wrote.
+func declared(n string) string {
+	if strings.HasPrefix(n, "#raw:") {
+		return strings.ReplaceAll(strings.TrimPrefix(n, "#raw:"), ":", ".")
+	}
+	return n
+}
+
+// staged is Law S of spec/typevalues.md §1: a residual holds no set, and no
+// declaration over sets that was not applied to them.
+func (e *Env) staged(t *Term) error {
+	if len(e.Sets) == 0 && len(e.Static) == 0 {
+		return nil
+	}
+	var walk func(t *Term) error
+	walk = func(t *Term) error {
+		if t.Kind == KName {
+			switch {
+			case e.Static[t.Name] > 0:
+				return fmt.Errorf("%s takes %d static argument%s, a set for each, and is not applied to "+
+					"them, so which function it is is not determined; a static argument is never defaulted "+
+					"(spec/typevalues.md §3)", declared(t.Name), e.Static[t.Name], plural(e.Static[t.Name], "", "s"))
+			case e.Sets[t.Name] && !e.Prim[t.Name]:
+				return fmt.Errorf("%s is a set, a static value, and has no value at run time; a set is an "+
+					"argument of a declaration's static parameter (spec/typevalues.md §1)", t.Name)
+			}
+			return nil
+		}
+		for _, k := range t.Kids {
+			if err := walk(k); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walk(t)
 }

@@ -275,7 +275,7 @@ func TermTree(t *Term) (Expr, error) {
 // `(array (cell T))` (ADR 0050, decision 2).
 func HostSig(def *DefDecl) *Term {
 	d := newDesugarer()
-	l := def.Value.(*Lam)
+	l := HostLam(def)
 	c, h := l.Claim, def.Host
 	variadic := false
 	for _, m := range h.Markers {
@@ -313,7 +313,19 @@ func HostSig(def *DefDecl) *Term {
 		res = &Apply{Fn: t.Fn, Args: comps}
 	}
 	result := d.term(res)
-	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), Name(def.Name), params, result}}
+	// A head that binds its static parameters, the outer λ's (spec/typevalues.md §4).
+	head := Name(def.Name)
+	if outer := def.Value.(*Lam); outer != l {
+		head = App(Name(def.Name))
+		for _, p := range outer.Claim.Params {
+			if p.Set == nil {
+				head.Kids = append(head.Kids, Name(p.Name))
+			} else {
+				head.Kids = append(head.Kids, App(Name(p.Name), d.term(p.Set)))
+			}
+		}
+	}
+	t := &Term{Kind: KApp, Kids: []*Term{Name("sig"), head, params, result}}
 	for _, m := range h.Markers {
 		t.Kids = append(t.Kids, Name(m))
 	}
@@ -329,6 +341,17 @@ func HostSig(def *DefDecl) *Term {
 	}
 	t.Kids = append(t.Kids, host)
 	return t
+}
+
+// HostLam is a host definition's λ, the one whose body is the host's: the
+// definition's value, or, under static parameters, the body of the static λ
+// that binds them (spec/typevalues.md §4).
+func HostLam(def *DefDecl) *Lam {
+	l := def.Value.(*Lam)
+	if inner, ok := l.Body.(*Lam); ok {
+		return inner
+	}
+	return l
 }
 
 // formed is a type former applied to one set, `(buffer V)`.

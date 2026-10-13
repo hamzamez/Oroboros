@@ -46,13 +46,16 @@
 ; is not that the type was unreachable but that the LITERAL reaches it directly,
 ; which is what 199 other types have no alternative for.
 
-(use go/image as img)
+(use go/image/Point as Pt)
 (use go/image/Rectangle as Rect)
 (use io)
 
 (export main)
 
+; THE LITERAL IS `new` IN THE TYPE'S COMPANION, beside its methods: a type is a
+; value of the static level, so `go/image.Point` names the set and its literal
+; needs another name (spec/typevalues.md §2, ADR 0063).
 (def main ()
-  (let r (img.Rectangle (img.Point 10 5) (img.Point 2 1))
+  (let r (Rect.new (Pt.new 10 5) (Pt.new 2 1))
     (seq (io.print-int (Rect.Dx r))
          (io.print-int (Rect.Dy r)))))

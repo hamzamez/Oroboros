@@ -46,6 +46,17 @@ func Func(tg *emit.Target, f *ir.Func) (string, error) {
 	return out, nil
 }
 
+// importsOf registers what a primitive's template names: its package, and an
+// instance's type arguments' packages (spec/typevalues.md §5).
+func (p *printer) importsOf(q emit.Prim) {
+	if q.Import != "" {
+		p.imps[q.Import] = true
+	}
+	for _, imp := range q.TypeImports {
+		p.imps[imp] = true
+	}
+}
+
 type printer struct {
 	tg   *emit.Target
 	f    *ir.Func
@@ -493,9 +504,7 @@ func (p *printer) call(s *ir.Stmt) {
 		p.fail("%s is not a primitive of target %s", s.Name, p.tg.Name)
 		return
 	}
-	if q.Import != "" {
-		p.imps[q.Import] = true
-	}
+	p.importsOf(q)
 	expr := emit.Fill(q.Form, p.refs(s.Args)...)
 	// GO'S OWN VARIADIC CALL for a list written at the call (variadicWords):
 	// the elements in the spread's place, `f(x, a, b)` for `f(x, []T{a, b}...)`.
@@ -773,9 +782,7 @@ func (p *printer) Len(v ir.V, t string) string { return "len(" + t + ")" }
 
 func (p *printer) Call(s *ir.Stmt, args []string) string {
 	q := p.tg.Prims[s.Name]
-	if q.Import != "" {
-		p.imps[q.Import] = true
-	}
+	p.importsOf(q)
 	e := "(" + emit.Fill(q.Form, args...) + ")"
 	if scalarRange(q.Result) {
 		e = p.tg.HostType("int") + e

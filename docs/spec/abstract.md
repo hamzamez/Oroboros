@@ -175,7 +175,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | operator | arity | meaning |
 |---|---|---|
 | `x`, `k` | variable, literal | |
-| **lam**(b̄; r; φ; ψ; e) | (Bind*. (Bind. (Formula, Formula, Expr))) → Expr | the λ; its binders are ranging, with an optional set and mode, and it carries what it claims: the result binder r with its set, a precondition φ and a postcondition ψ (ADR 0051). Static: erased by staging (closures-direction.md) |
+| **lam**(b̄; r; φ; ψ; e) | (Bind*. (Bind. (Formula, Formula, Expr))) → Expr | the λ; its binders are ranging, with an optional set and mode, and it carries what it claims: the result binder r with its set, a precondition φ and a postcondition ψ (ADR 0051). The binders are a telescope: bᵢ's names are bound in the sets of bᵢ₊₁ … (ADR 0062). Static: erased by staging (closures-direction.md) |
 | **app**(e; ā) | (Expr, Arg*) → Expr | application, of a definition, a host name, a λ, or an owned name |
 | **index**(e; e′) | (Expr, Expr) → Expr | a table's or map's application to a point (fit-research §3.8, decision 6, ADR 0050) |
 | **let**(b̄; e) | (Bind*. Expr) → Expr | definitional binders, sequential: bᵢ's names are bound in bᵢ₊₁ … and in e. ADR 0054 (not built): `let` and `local` are one scope, scope(b̄; e), whose binders are definitional or state, each by its operator; a scope is the free monoid of binder words acting on expressions |
@@ -186,7 +186,7 @@ The thirteen primitive operators, with arities written as in §1.1, and a name f
 | **compr**(p ∈ S; φ) | (Expr, Pat. Formula) → Expr | the set {p ∈ S : φ}, a static value: separation |
 | **image**(p̄ ∈ S̄; e) | (Expr*, Pat*. Expr) → Expr | the set {e : p̄ ∈ S̄}, a static value: replacement (ADR 0061) |
 | **mem**(e; S) | (Expr, Expr) → Expr | membership as a test, where S is decidable at run time (W6) |
-| **the**(S; e) | (Expr, Expr) → Expr | a claim: e's value lies in S; the value is e's |
+| **the**(S; e) | (Expr, Expr) → Expr | a claim: e's value lies in S; the value is e's. Not in the surface (ADR 0062): μ's image of today's `(the S e)`; a notation states it as a binder's set |
 | **assert**(φ; e) | (Formula, Expr) → Expr | a claim: φ holds here, then e (settypes §6.3) |
 
 ```
@@ -220,7 +220,9 @@ Formula ::= e                                          a pure boolean expression
 ```
 
 `≐` is the logic's identity of values. The computation's `=` is integer equality (match.md §6), a
-name of Σ₀, and the two agree on ℤ.
+name of Σ₀, and the two agree on ℤ. **A notation writes both with one glyph** (ADR 0062): in a claim
+position it is ≐; in the computation it is ≐ restricted to the sorts whose equality the computation
+decides, its characteristic function there, and at any other sort it is refused (W6).
 
 ### 2.6 Declarations and modules
 
@@ -230,8 +232,9 @@ Decl ::= def(f; e)                           a name bound to a value; a function
             kind ∈ {expr, stmt};  markers ⊆ {pure, index, variadic}
        | def(n; λ(b̄; r; φ; ψ))                 a named claim, static: a host's named function type (ADR 0053)
        | variant(n; b̄; c₁(S̄₁) … cₖ(S̄ₖ); success c?; relevant?)
-       | spec(f; b̄; r ∈ U; e)                 a specification function: logic only, may recur
-       | lemma(n; φ; steps)                   a proven sentence; steps a sequence of formulas
+       | spec(f; b̄; r ∈ U; φ; ψ; e)           a specification function: logic only, may recur
+       | lemma(n; b̄; φ; ψ; steps)             a proven sentence ∀b̄. φ ⇒ ψ; steps a sequence of formulas
+                                             and lemma uses (ADR 0062)
 
 Module ::= module(path; decl*) | use(path; alias?) | export(f̄) | provides(target; path; decl*)
 ```
@@ -266,7 +269,11 @@ Module ::= module(path; decl*) | use(path; alias?) | export(f̄) | provides(targ
 - **spec.** The logic may define by recursion over finite data what the computation may not
   (settypes §6.3). A spec's name may be called only in a Formula (W6).
 - **lemma.** Its proof is a sequence of formulas, each decided from the ones before (settypes §6.3:
-  Coq's power by structure, not by proof terms).
+  Coq's power by structure, not by proof terms). **A def, a spec and a lemma share the header**
+  (ADR 0062): binders with their sets, a telescope; the result binder (a lemma has none); φ; ψ. A
+  lemma is used as `assert(app(n; ā); e)`, by the rule of a call: ā ∈ S̄ ∧ φ[ā/b̄] is an obligation and
+  ψ[ā/b̄] a fact. A lemma whose steps use itself is an induction and owes well-foundedness, as a spec's
+  recursion does (W8).
 
 **Target declarations** (`type`, `repr`, `implements`, `fact`, `underlying`, `const`, `structural`,
 `backend`, `link`, `max-len`) are a second signature Σ_T, the model's data (ADR 0021,
@@ -311,7 +318,7 @@ environment of resolution (ADR 0011).
 | **W5** | **a cell is written in its scope**: assign(x; e) has x a state binder of an enclosing local (ADR 0054: of an enclosing scope); a λ between them is an elimination's, a let's or an arm's, or is marked for the reducer's decision on a normal form (local.md §3, `#elim`) | the cell translation |
 | **W6** | **the logic stays in the logic**: a Formula-only operator (∀, ∃, ≐ off ℤ, a spec's call) occurs only in a claim position: a binder's set, φ, U, ψ, the, assert, an invariant, a lemma; mem(e; S) and compr in a computation need S's membership decidable at run time | new |
 | **W7** | **modes where they mean something**: `inout` and `out` only on a host def's parameters; out(S) and a cell only as arguments at such a parameter; `linear` only on a ranging binder of a def or λ; a claim as a binder's set only on a host def's parameter, or as a named claim's value | local.md §5–6, ADR 0020, ADR 0053 |
-| **W8** | **no recursion**: the dependency graph of defs is acyclic (ADR 0014); a spec may refer to itself and to other specs, and owes a well-foundedness obligation (§7) | the front end |
+| **W8** | **no recursion**: the dependency graph of defs is acyclic (ADR 0014); a spec may refer to itself and to other specs, and a lemma's steps to itself and to other lemmas, and each owes a well-foundedness obligation (§7) | the front end |
 | **W9** | **stratification**: a binder's set is a set of values or a set of sets of values, never higher; no set contains a set of its own level. Beside them, not above: a claim whose binders range over sets of values, meaning a set of operators (ADR 0053) | new (ADR 0049 §5: no Type : Type) |
 | **W10** | **variants**: constructors distinct; `success` names one of them; `success` and `relevant` are not constructor names | sums.md §2 |
 | **W11** | **owned names are not declared** | state.md §2 |
@@ -495,7 +502,11 @@ is built.
 𝒪_Γ(the(S; e))        = 𝒪_Γ(e) ∪ { Γ ⊢ e ∈ S }
 𝒪_Γ(assert(φ; e))     = { Γ ⊢ φ } ∪ 𝒪_{Γ, φ}(e)
 𝒪(spec(f; …; e))      = { the recursion is well founded }                size-change on its calls
-𝒪(lemma(n; φ; ψ₁ … ψₘ)) = { ψ₁ … ψᵢ₋₁ ⊢ ψᵢ }ᵢ ∪ { ψ₁ … ψₘ ⊢ φ }; then φ is a hypothesis of every later Γ
+𝒪(lemma(n; b̄; φ; ψ; ψ₁ … ψₘ))
+    = { Γₗ, ψ₁ … ψᵢ₋₁ ⊢ ψᵢ }ᵢ ∪ { Γₗ, ψ₁ … ψₘ ⊢ ψ }                Γₗ = b̄ ∈ S̄, φ
+      ∪ { the uses of n in its steps are well founded }                 size-change: an induction
+𝒪_Γ(assert(app(n; ā); e)),  n a lemma
+    = { Γ ⊢ ā ∈ S̄ ∧ φ[ā/b̄] } ∪ 𝒪_{Γ, ψ[ā/b̄]}(e)                      a use, by the rule of a call (ADR 0062)
 ```
 
 On every other operator, 𝒪 is the union over the arguments, with Γ extended by each binder's 𝓕.
@@ -757,7 +768,7 @@ def( total;
            _ if i ≥ len(xs) → s,
            _               → again(i + 1, s + index(xs; i)) ) )
 
-spec( sum; a ∈ Array(Int), i ∈ Nat, j ∈ Nat; r ∈ Int;
+spec( sum; a ∈ Array(Int), i ∈ Nat, j ∈ Nat; r ∈ Int; ⊤; ⊤;
       if(i ≥ j; 0; index(a; i) + sum(a, i + 1, j)) )
 ```
 

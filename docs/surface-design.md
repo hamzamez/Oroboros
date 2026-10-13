@@ -36,6 +36,7 @@ since the document records how the design was reached.
 | 13 | a tag is a quoted symbol, `'name`; case carries no category; one former shape `former { … }`, `array(n, f)` gone; the sets `Array(V)` and `Map(K, V)` | [ADR 0059](decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md), §4.8 | open (§4.9): `:` as the former's separator, J's membership and set operators, tag qualification |
 | 14 | J's membership `∈` (input `\in`) and Python's set operators `\| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
 | 15 | inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place; `map { k : v }` a graph only; the colon set-builder's | [ADR 0061](decisions/0061-separation-and-replacement-by-the-binders-place.md), §4.10 | D writes TLA+'s; the image of a membership test is parenthesized |
+| 16 | a header is the membership statement, the result a binder `(r ∈ U)` or its set `(U)`, `result` gone; bounds in binder sets, a telescope, relations in `where`; one equality in formulas, the logic's; quantifiers, `==>`, `<==>` (D TLA+'s) in claim positions only; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface; no claim ≠ `any` | [ADR 0062](decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md), §5.7 | installment 5's G1–G5 are the decided spellings, modulo D or J |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -4497,6 +4498,9 @@ Houdini-style inference would have to find; the program may state it in the slot
   none of which T has.
 
 ### 5.7 Open, for hamza
+
+**Decided** (hamza, 2026-10-13: *"I agree to all 8 recommendations"*), as
+[ADR 0062](decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md).
 
 1. **The header is the membership statement** (Finding 1): parameters with their sets, the result a
    binder `(r ∈ U)` or its set alone `(U)`, `where φ`, `ensure ψ`; `result` as a keyword goes; one header

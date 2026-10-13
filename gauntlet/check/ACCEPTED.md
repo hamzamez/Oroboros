@@ -1248,3 +1248,15 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/io/freq.oro go`
 - emitted text changed — `examples/io/freq.oro java`
 - emitted text changed — `examples/io/freq.oro js`
+
+## 2026-10-13 — on 1c23ea3, with uncommitted changes
+
+**Reason:** freq's dists stores and reads without clamps: the first iteration peeled gives d >= 1 from the second on, a failed or is the conjunction of its failed disjuncts, and a failed and resolved by a later guard gives d < nd (refinements.md 5d). Same output on six inputs; freq compiles 4% slower in a serial pair (5.87 against 5.65 s), unchanged sources flat
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling skip.
+
+3 change(s):
+
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`

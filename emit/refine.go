@@ -215,6 +215,18 @@ func erasedAnd(t *core.Term) (*core.Term, *core.Term, bool) {
 	return a[0], a[1], true
 }
 
+// erasedOr reads `(if a true b)`, the reader's `(or a b)`.
+func erasedOr(t *core.Term) (*core.Term, *core.Term, bool) {
+	if t == nil || t.Kind != core.KApp || t.Op().Kind != core.KName || !isOp(t.Op().Name, "if") {
+		return nil, nil, false
+	}
+	a := t.Args()
+	if len(a) != 3 || a[1].Kind != core.KBool || !a[1].IsTrue() {
+		return nil, nil, false
+	}
+	return a[0], a[2], true
+}
+
 func assume(f *facts, where *core.Term) {
 	// A CONJUNCTION IS ASSUMED CONJUNCT BY CONJUNCT, and it has to be matched in
 	// its ERASED form.
@@ -1286,8 +1298,80 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	r.bodyFacts[bodyKey(r.tgt, lam, inits, f)] = g
 	r.loopDepth++
 	defer func() { r.loopDepth-- }()
-	return r.clauses(lam.Body(), g)
+	notes := len(r.notes)
+	err := r.clauses(lam.Body(), g)
+	if err == nil || r.probe || r.probeDepth > 0 {
+		return err
+	}
+	// THE FIRST ITERATION PEELED (refinements.md §5d), tried only where the
+	// walk above refuses, so a program that compiles today pays nothing for it.
+	refused := append([]string(nil), r.notes[notes:]...)
+	r.notes = r.notes[:notes]
+	if r.peeled(lam, inits, f, g) == nil {
+		return nil
+	}
+	r.notes = append(r.notes[:notes], refused...)
+	return err
 }
+
+// peeled checks a loop's body as two cases that cover every iteration
+// (refinements.md §5d): the FIRST, where each variable is its initial value, and
+// every LATER one, whose states are reached from the first iteration's back
+// edges. The later invariants are Houdini's, entered from those edges instead
+// of from the initial values, so a relation that holds only once the loop has
+// gone round once is convex there: freq's `dists` opens a group on its first
+// word, so d ≥ 1 from the second iteration on, where k = 0 ∨ d ≥ 1 is all
+// that holds of every iteration. Loop peeling; the iteration space partitioned
+// as trace partitioning partitions it (Mauborgne and Rival, ESOP 2005).
+func (r *refiner) peeled(lam *core.Term, inits []*core.Term, f, g *facts) error {
+	params := lam.Params
+	if len(inits) < len(params) {
+		return fmt.Errorf("a loop with fewer initial values than variables")
+	}
+	first := g.clone()
+	initSub := map[string]*core.Term{}
+	for i, n := range params {
+		initSub[n] = inits[i]
+		if e, ok := f.lin(inits[i]); ok {
+			first.assumeEQ(n, e)
+		}
+	}
+	var entries []loopEntry
+	var templ [][]*core.Term
+	short := false
+	q := *r
+	q.loopDepth = 0
+	q.onAgain = func(args []*core.Term, at *facts) {
+		if len(args) < len(params) {
+			short = true
+			return
+		}
+		sub := map[string]*core.Term{}
+		row := make([]*core.Term, len(params))
+		for i, n := range params {
+			sub[n] = args[i]
+			row[i] = core.Rename2(args[i], initSub)
+		}
+		entries = append(entries, loopEntry{sub, at})
+		templ = append(templ, row)
+	}
+	if err := q.clauses(lam.Body(), first); err != nil && !plantPeelFault {
+		return err
+	}
+	r.notes, r.splitFresh = q.notes, q.splitFresh
+	if short {
+		return fmt.Errorf("a back edge with fewer arguments than variables")
+	}
+	later := g.clone()
+	if len(entries) > 0 {
+		r.houdini(lam, templ, entries, later)
+	}
+	return r.clauses(lam.Body(), later)
+}
+
+// plantPeelFault is a planted fault for TestPeelingChecksTheFirstIteration: it
+// skips the first iteration's check, so only the later ones are proven.
+var plantPeelFault = false
 
 // provedBySplit tries to PROVE a goal that is outside the fragment because a
 // CONDITIONAL or a `let` sits somewhere inside it — at the top, as a clamped
@@ -1378,6 +1462,39 @@ func (r *refiner) provedBySplit(goal *core.Term, f *facts, budget *int) bool {
 // β puts a scanner used once straight into the guard that tests it, so
 // `(< u (loop …))` is a comparison the fragment could never read before.
 func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
+	// A DISJUNCTION THAT FAILED IS A CONJUNCTION (refinements.md §5d). `or` is
+	// erased to `(if a true b)` (ADR 0017), and ¬(a ∨ b) = ¬a ∧ ¬b, each conjunct
+	// a guard of its own; a disjunction that HOLDS stays out of the fragment
+	// (§3b), as does a conjunction that fails.
+	if a, b, ok := erasedOr(c); ok && !holds {
+		r.guard(f, a, false)
+		r.guard(f, b, false)
+		return
+	}
+	// A CONJUNCTION THAT FAILED is the clause ¬a ∨ ¬b: kept, for unit resolution
+	// below, and a GUARD THAT HOLDS resolves every such clause it is a literal
+	// of. freq's `dists` exits on (and new? (>= d nd)) and then takes new?, so
+	// d < nd there.
+	if c != nil && !holds {
+		if a, b, ok := erasedAnd(c); ok {
+			f.failedAnd = append(f.failedAnd, [2]*core.Term{a, b})
+		}
+	}
+	if c != nil && holds && len(f.failedAnd) > 0 {
+		k := c.String()
+		var resolved []*core.Term
+		for _, cl := range f.failedAnd {
+			switch k {
+			case cl[0].String():
+				resolved = append(resolved, cl[1])
+			case cl[1].String():
+				resolved = append(resolved, cl[0])
+			}
+		}
+		for _, other := range resolved {
+			r.guard(f, other, false)
+		}
+	}
 	// A GUARD x = c WITH c OUTSIDE x's EXACT VALUE SET holds on no execution,
 	// so the path it opens is infeasible: assume 1 ≤ 0, from which the
 	// fragment entails anything, as it should on a path no run takes.
@@ -1587,16 +1704,29 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 			return
 		}
 	}
-	var kept []*core.Term
-	defer func() {
-		if r.memo != nil {
-			r.memo.houdini[key] = kept
-		}
-	}()
 	entry := map[string]*core.Term{}
 	for i, n := range params {
 		entry[n] = inits[i]
 	}
+	kept := r.houdini(lam, [][]*core.Term{inits}, []loopEntry{{entry, f}}, g)
+	if r.memo != nil {
+		r.memo.houdini[key] = kept
+	}
+}
+
+// loopEntry is a state a loop is entered in: each variable's value, a term over
+// names bound outside the loop, and the facts that hold there.
+type loopEntry struct {
+	sub map[string]*core.Term
+	at  *facts
+}
+
+// houdini is the fixpoint of loopInvariants over any set of entry states: a
+// candidate survives only if it holds in every entry and every back edge keeps
+// it. templ are the values the `z ≤ v` templates draw on, one vector per entry.
+// It assumes the survivors into g and returns them.
+func (r *refiner) houdini(lam *core.Term, templ [][]*core.Term, entries []loopEntry, g *facts) (kept []*core.Term) {
+	params := lam.Params
 	var cands []*core.Term
 	seen := map[string]bool{}
 	add := func(a, b *core.Term) {
@@ -1610,9 +1740,11 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 		if goals, ok := g.oblig(c); ok && allEntailed(g, goals) {
 			return
 		}
-		budget := splitBudget
-		if !r.provedBySplit(core.Rename2(c, entry), f, &budget) {
-			return
+		for _, e := range entries {
+			budget := splitBudget
+			if !r.provedBySplit(core.Rename2(c, e.sub), e.at, &budget) {
+				return
+			}
 		}
 		cands = append(cands, c)
 	}
@@ -1628,8 +1760,10 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 			add(v, sd)
 			add(sd, v)
 		}
-		if !mentionsAny(inits[i], params) {
-			add(inits[i], v)
+		for _, inits := range templ {
+			if i < len(inits) && !mentionsAny(inits[i], params) {
+				add(inits[i], v)
+			}
 		}
 		for _, u := range params {
 			if u != n {
@@ -1639,9 +1773,11 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 	}
 	// TRANSLATION INVARIANTS (translation.go): c·x̄ = c·z̄ for c orthogonal to every
 	// back edge's step, as two inequalities Houdini checks like any candidate.
-	for _, eq := range translationCandidates(lam, inits) {
-		add(eq[0], eq[1])
-		add(eq[1], eq[0])
+	for _, inits := range templ {
+		for _, eq := range translationCandidates(lam, inits) {
+			add(eq[0], eq[1])
+			add(eq[1], eq[0])
+		}
 	}
 	for round := 0; round <= len(cands) && len(cands) > 0; round++ {
 		h := g.clone()
@@ -1689,6 +1825,7 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 		}
 		cands = keep
 	}
+	return nil
 }
 
 // summarizeLoop gives a name bound to a LOOP'S RESULT what every exit satisfies.
@@ -1787,15 +1924,34 @@ func (r *refiner) guardSides(body *core.Term) []*core.Term {
 			return
 		}
 		if p, known := r.tgt.Prims[t.Op().Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
-			c := t.Args()[0]
-			if c.Kind == core.KApp && len(c.Args()) == 2 {
-				for _, sd := range c.Args() {
-					if k := sd.String(); !seen[k] {
-						seen[k] = true
-						out = append(out, sd)
+			// A guard's comparisons, through the connectives it is built from:
+			// `(and new? (>= d nd))` offers d and nd as an erased `if` (ADR 0017).
+			// Sides only make candidates, each of which Houdini still checks.
+			var sides func(c *core.Term, depth int)
+			sides = func(c *core.Term, depth int) {
+				if depth > 4 {
+					return
+				}
+				if a, b, ok := erasedAnd(c); ok {
+					sides(a, depth+1)
+					sides(b, depth+1)
+					return
+				}
+				if a, b, ok := erasedOr(c); ok {
+					sides(a, depth+1)
+					sides(b, depth+1)
+					return
+				}
+				if c.Kind == core.KApp && len(c.Args()) == 2 {
+					for _, sd := range c.Args() {
+						if k := sd.String(); !seen[k] {
+							seen[k] = true
+							out = append(out, sd)
+						}
 					}
 				}
 			}
+			sides(t.Args()[0], 0)
 			walk(t.Args()[2])
 		}
 	}

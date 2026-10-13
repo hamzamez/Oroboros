@@ -120,6 +120,12 @@ type facts struct {
 	// and a `case` arm whose tag is not among them is dead (sumrep-2026-10-06).
 	finite map[string][]int64
 
+	// failedAnd are the conjunctions a guard has refuted, ¬(a ∧ b), each the
+	// binary clause ¬a ∨ ¬b, which the fragment cannot keep (refinements.md §3b).
+	// When a later guard establishes one conjunct, unit resolution gives the
+	// other's negation (refinements.md §5d).
+	failedAnd [][2]*core.Term
+
 	// sub caches le rewritten by eq, which entails needs on every call: sub[i] is
 	// substitute(le[i]) under the equations as they stood at version subEq. An
 	// equation invalidates it (eqVer moves); a new inequality only extends it.
@@ -178,8 +184,9 @@ func (f *facts) clone() *facts {
 	c := &facts{le: append([]*linear(nil), f.le...), eq: make(map[string]*linear, len(f.eq)),
 		log: append([]string(nil), f.log...), opaque: append([]string(nil), f.opaque...), pure: f.pure,
 		content: make(map[string][]*core.Term, len(f.content)), zero: make(map[string]bool, len(f.zero)),
-		finite: make(map[string][]int64, len(f.finite)),
-		sub:    f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
+		finite:    make(map[string][]int64, len(f.finite)),
+		failedAnd: f.failedAnd[:len(f.failedAnd):len(f.failedAnd)],
+		sub:       f.sub[:len(f.sub):len(f.sub)], eqVer: f.eqVer, subEq: f.subEq}
 	for k, v := range f.finite {
 		c.finite[k] = v
 	}

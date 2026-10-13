@@ -154,7 +154,6 @@
 ; proven. The compiler making the program say so is CLAUDE.md's best argument
 ; for ADR 0014, arriving in a sort.
 (def cl (t i) (if (< i 0) 0 (if (>= i (len t)) 0 i)))
-(def cli (n i) (if (< i 0) 0 (if (>= i n) 0 i)))
 
 ; A PERMUTATION ENTRY. `ord` holds indices, and the compiler now knows it: a
 ; table's contents are one abstract cell per buffer (array smashing), `iota`
@@ -281,9 +280,14 @@
       ; exists needs no room.
       (and (new? src sp ord nw k) (>= d nd))  dt
       (new? src sp ord nw k)
-        (again (set dt (cli nd d) (tuple (pat ord nw k) 1)) (+ k 1) (+ d 1))
+        (again (set dt d (tuple (pat ord nw k) 1)) (+ k 1) (+ d 1))
+      ; NOT CLAMPED, either store. The group opened is d < nd: the clause above
+      ; exits on (and new? (>= d nd)) and this one has new?, which resolves it.
+      ; The group counted is d − 1 ≥ 0: the first word always opens a group, so
+      ; d ≥ 1 from the second iteration on, proven by checking the first apart
+      ; from the rest (refinements.md §5d, claimsdemand-2026-10-13).
       else
-        (let s (cli nd (- d 1))
+        (let s (- d 1)
           ; THE ONE READ OF A BUFFER FROM INSIDE THE `build` THAT FILLS IT. It
           ; was clamped, because frozen-2026-08-28 refused an element range here.
           ; What bounds it is a count: this loop runs at most nw times and adds 1

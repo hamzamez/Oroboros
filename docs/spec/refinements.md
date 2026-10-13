@@ -315,6 +315,37 @@ got wrong costs a candidate and never a false fact.
 |---|---|---|
 | a translation candidate is assumed only if Houdini keeps it | the null space replaced by (1, 1, 1), which no merge preserves | `TestTranslationInvariants` (and the same test fails when the candidates bypass Houdini) |
 
+### 5d. The first iteration peeled, and the guards it reads (2026-10-13)
+
+freq's `dists` opens a group on its first word and counts into the last group on every repeat, so it
+reads group d − 1 under d ≥ 1. That holds from the second iteration on; of every iteration only
+k = 0 ∨ d ≥ 1 holds, a disjunction no convex template states. Four rules derive it
+([claimsdemand-2026-10-13](../../gauntlet/results/claimsdemand-2026-10-13.md)):
+
+1. **The first iteration peeled** (`peeled`). The iterations are the first, where each variable is its
+   initial value, and the later ones, whose states are reached from the first iteration's back edges.
+   The body is checked under each: the first with variable = initial value, the later ones under the
+   invariants Houdini finds when entered from those back edges (each candidate checked at every one of
+   them, then preserved as always). The two cover every iteration, so obligations proven in both hold.
+   Loop peeling; the iteration space partitioned as trace partitioning partitions it (Mauborgne and
+   Rival, *Trace partitioning in abstract interpretation based static analyzers*, ESOP 2005). It is tried
+   only where the ordinary walk refuses, so a program that compiles without it pays nothing.
+2. **A failed disjunction is a conjunction.** `or` is erased to `(if a true b)` (ADR 0017), and
+   ¬(a ∨ b) = ¬a ∧ ¬b, each a guard of its own. A disjunction that holds, and a conjunction that fails,
+   stay out of the fragment (§3b).
+3. **A failed conjunction is a clause, resolved by a later guard.** ¬(a ∧ b) is ¬a ∨ ¬b; kept beside the
+   facts, it gives ¬b where a later guard on the path establishes a (unit resolution, Davis and Putnam
+   1960). `dists` exits on `(and new? (>= d nd))` and then takes `new?`, so d < nd there. The literals
+   are matched by printed term, which on one path names one value (ADR 0036).
+4. **A guard's sides through its connectives** are template terms: `(and new? (>= d nd))` offers d and
+   nd to Houdini, which checks every candidate they make.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| the first iteration is checked | its check skipped: a loop reading t[−1] on its first iteration and t[0] after is accepted | `TestPeelingChecksTheFirstIteration` |
+| ¬(a ∨ b) gives ¬a and ¬b | the rule removed: the `or` form of the peeled loop is refused | the same test |
+| unit resolution needs the literal | resolving on any guard: `(if c (t j) 0)` after ¬(b ∧ j ≥ len t) is accepted | `TestAFailedConjunctionIsResolvedByALaterGuard` |
+
 ## 6. The diagnostic
 
 An obligation that cannot be discharged is an **error**, naming the obligation and what was known:

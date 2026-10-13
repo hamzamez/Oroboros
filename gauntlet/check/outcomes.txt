@@ -38,16 +38,16 @@
 == examples/big/fib.oro windows refused
    gen: fib: a needs arbitrary precision — int 0 +inf is above the word of target windows, [-9223372036854775808, 9223372036854775807] — and the target declares none.
      Go has math/big, the JVM has BigInteger and V8 has BigInt, so those three parasitize the host's own. A target without one needs a bignum WRITTEN, in Oroboros, the way win/map is (ADR 0019, docs/unbounded-rung.md).
-== examples/big/limbs.oro go emitted 9b15397101bec399da36c0f1d46df16090be0284d730b6756651c05c171a3e32
+== examples/big/limbs.oro go emitted 8159406788a85d98f07c02fff1f82d54695fbf44bcf1efbe0273fe9777b1da5e
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
-== examples/big/limbs.oro js emitted 91b836ce35f774998db4a1c3014a06509bca195b87778b880a0cce087c510fa1
+== examples/big/limbs.oro js emitted 143c2b8d32849b4bbb61f172ced08786d00aa0863f5b3e2b7cbc450d6ba15f16
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 2 division(s) became a shift or a mask
-== examples/big/limbs.oro java emitted 4b53b4c1af11499c88d60b5f1edf9c144ecf3319402d0a840c48aabc0e40a1f1
+== examples/big/limbs.oro java emitted 8f49c01afb4846f2f53e8704366c1afa8637fe0214533279f16f77b1de35793a
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
-== examples/big/limbs.oro windows emitted 627f637b11ff530ee33abb81e8d060592d080b57f1d8972690d8f121d423cbdf
+== examples/big/limbs.oro windows emitted c74fb5c3e60b41ec536661a07a58ec5eb2b734d8432c4040cce25f66fa1f31cf
    note: gen-limb: 5 of 5 integer operations bounded; 3 of 3 loop(s) proven terminating
    note: gen-limb: 4 division(s) became a shift or a mask
 == examples/big/pair.oro go emitted f5a25e5ef44a810ae47053b72a628bd44e5b7f097465f4477af527aee4f299e4
@@ -258,15 +258,15 @@
 == examples/io/count.oro windows refused
    gen: examples/io/count.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/freq.oro go emitted 465c8a71c32963410fe73492cba483b217dd34ade08ae2204c678406c3ae132b
+== examples/io/freq.oro go emitted d24f62ca207af024e39dbc51388e051da28b004378efbfd72fab6f40d5f229c3
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro js emitted 986623937f037f1b360b577d40b0a3ccc5affdddfc1fd6029539bf6694df7fe4
+== examples/io/freq.oro js emitted 18b2f84a5d9d987977cbe97205744bea9a4129105246370fb0b41b1ca01b2332
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro java emitted 194e2a2aee466fc29bd3e0b267105bf1a37a1e48808ab9b23b90c34caad3b49a
+== examples/io/freq.oro java emitted 14e1dbaf2409c042d64284562a8bf7ebc850ae367f95659ff58ae628376e79f1
    note: gen-main: 71 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
    note: gen-main: 6 division(s) became a shift or a mask

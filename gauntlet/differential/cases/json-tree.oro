@@ -51,8 +51,9 @@
 ;
 ;   nsl / ssl / ssl2   the index came from a guarded loop variable, so the
 ;                      bound is PROVEN and the address is bare
-;   nslc               the index was read out of a table and is opaque, so it
-;                      is CLAMPED into range
+;   nslc               the index was read out of a table and was CLAMPED into
+;                      range; the content facts prove it now, and every site
+;                      uses nsl (claimsdemand-2026-10-13)
 ;
 ; The first version clamped everywhere, which was 1.35x slower and left the
 ; analysis with MORE undischarged obligations rather than fewer — 110 against
@@ -62,14 +63,12 @@
 ; so `k < nmax` could not discharge `4k < 4*nmax` until `entails` learned to
 ; scale a fact (json-tree-bench-2026-08-26).
 ;
-; The clamps that remain are real. A node index read out of the table is not
-; bounded by anything the compiler can see, and no guard would help, because
-; the value is data.
+; NO CLAMPS. A node index read out of the table was clamped here, on the
+; belief that nothing could bound it because the value is data. The content
+; facts bound it (compfacts-2026-09-17: examples/json/tree.oro deleted its
+; clamps), and claimsdemand-2026-10-13 found this copy's stale.
 
-(def cn (k) (if (< k 0) 0 (if (>= k nmax) 0 k)))
-(def cd (d) (if (< d 0) 0 (if (>= d dmax) 0 d)))
 (def nsl (k o) (+ (* 4 k) o))
-(def nslc (k o) (+ (* 4 (cn k)) o))
 (def ssl (d o) (+ (* 2 d) o))
 
 ; --- scanners ---------------------------------------------------------------
@@ -102,8 +101,8 @@
   (if (< sp 1) nodes
     (let lc (stk (ssl (- sp 1) 1))
       (if (= lc 0)
-        (set nodes (nslc (stk (ssl (- sp 1) 0)) 2) k)
-        (set nodes (nslc lc 3) k)))))
+        (set nodes (nsl (stk (ssl (- sp 1) 0)) 2) k)
+        (set nodes (nsl lc 3) k)))))
 
 (def mark (stk sp k)
   (if (< sp 1) stk (set stk (ssl (- sp 1) 1) k)))
@@ -152,7 +151,7 @@
         (again nodes stk (+ i 1) nn
                (if (< sp 1) 0 (- sp 1))
                (if (< sp 1) 0
-                   (if (= (nodes (nslc (stk (ssl (- sp 1) 0)) 0))
+                   (if (= (nodes (nsl (stk (ssl (- sp 1) 0)) 0))
                           (if (= (src i) 125) 5 4))
                        ok 0)))
 
@@ -197,7 +196,6 @@
 
 ; The worklist is indexed by SLOT, not by depth, and it can hold one entry per
 ; node — a tree shaped like a list pushes a sibling at every step.
-(def cw (k) (if (< k 0) 0 (if (>= k nmax) 0 k)))
 (def ssl2 (k o) (+ (* 2 k) o))
 
 (def walk (nodes)
@@ -212,15 +210,15 @@
       else
         (let n  (wl (ssl2 (- sp 1) 0))
              d  (wl (ssl2 (- sp 1) 1))
-             sb (nodes (nslc n 3))
-             kd (nodes (nslc n 2))
+             sb (nodes (nsl n 3))
+             kd (nodes (nsl n 2))
              s1 (- sp 1)
              w1 (if (= sb 0) wl (set (set wl (ssl2 s1 0) sb) (ssl2 s1 1) d))
              s2 (if (= sb 0) s1 (+ s1 1))
              w2 (if (= kd 0) w1 (set (set w1 (ssl2 s2 0) kd) (ssl2 s2 1) (+ d 1)))
              s3 (if (= kd 0) s2 (+ s2 1))
           (again w2 s3 (+ seen 1)
-                                 (+ acc (* (nodes (nslc n 0)) d))
+                                 (+ acc (* (nodes (nsl n 0)) d))
                                  (+ steps 1))))))
 
 ; --- documents --------------------------------------------------------------

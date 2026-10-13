@@ -41,6 +41,9 @@ A program written around a wall does not show up as a refusal. CLAUDE.md: *a cla
 missing proof.* Every clamp definition in the corpus (`grep` for `(if (< x 0) 0 (if (>= x …) 0 …))`, and
 the tokenizer's inline one), each removed in a scratch copy, by use site where a definition has several,
 and compiled on Go. `tally` is left out: it is refused in the sweep for want of its generated host layer.
+A differential case is judged by the differential runner, which builds its `main` with its inputs: the
+first pass compiled only the export, which is what the emission sweep compiles, and called
+`merge-sort`'s clamp stale (CLAUDE.md's lesson, *the emission sweep compiles EXPORTS*).
 
 **Stale: the analysis proves the index without the clamp.**
 
@@ -50,7 +53,6 @@ and compiled on Go. `tally` is left out: it is refused in the sweep for want of 
 | `big/limbs.oro`, `at` (with `(k (int 0 63))` on the export, writable today) | all |
 | `differential/cases/big-limbs.oro`, `at` | all |
 | `differential/cases/json-tree.oro`, `cn`, `cd`, `cw` | all |
-| `differential/cases/merge-sort.oro`, `cli` | all |
 | `io/freq.oro`, `cli` in `iota`, `putnum`, `putword` and the line layout | 5 |
 
 **Live: a fact is missing, and each is in a decided theory.**
@@ -60,7 +62,7 @@ and compiled on Go. `tally` is left out: it is refused in the sweep for want of 
 | freq `cl`, a word's byte offset | `sp[2u] + k < len src` | ∀w. sp[2w] ≤ sp[2w+1] ≤ len(src): a relation between one stored pair's components | the array property fragment (Bradley, Manna and Sipma 2006) over the curried table Π_{Fin n} ℤ², with reads as atoms |
 | freq `slen`, a span's length | an allocation sized by end − beg | the same, in the IR's interval domain, which an allocation's size is decided in | the same, in a second analysis |
 | freq `cli` in `pat`, under `new?` | `0 ≤ k − 1` | k ≥ 1 from k ≥ 0 and the guard ¬(k = 0) | Presburger with a disequality: over ℤ, k ≥ 0 ∧ k ≠ 0 ⊢ k ≥ 1; Fourier–Motzkin reads no ≠ |
-| freq `cli` in the merge | `j < len a` | i + j − k = mid, an equality invariant of the merge loop, and len a = n through `msort`'s buffer swap | linear equalities (Karr 1976) and the length equation across a swap |
+| freq `cli` in the merge, and `differential/cases/merge-sort.oro`'s `cli` | `j < len a` | i + j − k = mid, an equality invariant of the merge loop, and len a = n through `msort`'s buffer swap | linear equalities (Karr 1976) and the length equation across a swap |
 | freq `cli` in `dists` | `0 ≤ 2(d − 1) + 1` | d ≥ 1 once k ≥ 1: the first word always opens a group | a disjunctive invariant, k = 0 ∨ d ≥ 1, convex after peeling the first iteration |
 | kara `c4` (three uses) | `i + j < len out` | desc[2] = 2, desc built by three stores at literal indices | read over write (McCarthy 1962) |
 | kara `pack` | `acc·100 + p[i]` in the word | every product limb is under 100 | a bound on contents that grows with the passes: geometric accumulation, deliberately not next |

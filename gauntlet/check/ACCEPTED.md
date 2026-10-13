@@ -1208,3 +1208,19 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/lines/ages.oro java`
 - new source — `examples/lines/ages.oro js`
 - new source — `examples/lines/ages.oro windows`
+
+## 2026-10-13 — on 32d5134, with uncommitted changes
+
+**Reason:** stale clamps deleted (claimsdemand-2026-10-13): freq's cli in iota, putnum, putword and the line layout, and limbs' at with (k (int 0 63)) on its export; the analysis proves every index they guarded. Same output on six inputs (freq) and the big-limbs case on four targets; run time indistinguishable
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling skip.
+
+7 change(s):
+
+- emitted text changed — `examples/big/limbs.oro go`
+- emitted text changed — `examples/big/limbs.oro java`
+- emitted text changed — `examples/big/limbs.oro js`
+- emitted text changed — `examples/big/limbs.oro windows`
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`

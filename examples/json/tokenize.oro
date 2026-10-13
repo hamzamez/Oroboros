@@ -113,7 +113,12 @@
 
       ; a closer: it must match the top of the stack. A closer with nothing open
       ; is unbalanced, and the index is CLAMPED rather than guarded so that the
-      ; indexing obligation holds on both sides of the test.
+      ; indexing obligation holds on both sides of the test. THE CLAMP IS STALE:
+      ; the outer guard `sp >= 1` proves the index now, and without the clamp Go
+      ; keeps 5 bounds checks here instead of 10. It stays because the generated
+      ; tokenizer measured 6% slower without it, interleaved (9.9 against
+      ; 9.3 µs), and an emission change is kept only when it is no slower
+      ; (claimsdemand-2026-10-13).
       (closer? (src i))
         (again stk (go.+ i 1) (go.+ nt 1)
                (if (go.< sp 1) 0 (go.- sp 1)) mx

@@ -74,19 +74,7 @@ Ltop16:
         mov rbx, r13
         jmp Lbuilt15
 Lelse18:
-        cmp r14, 0
-        jge Lelse19
-        mov rbx, 0
-        jmp Ldone20
-Lelse19:
-        mov rbx, qword ptr [rsi]
-        cmp r14, rbx
-        jl Lelse21
-        mov rbx, 0
-        jmp Ldone20
-Lelse21:
         mov rbx, qword ptr [rsi+r14*8+8]
-Ldone20:
         imul rbx, r12
         add rbx, r15
         mov r15, rbx
@@ -103,19 +91,6 @@ Lbuilt15:
         mov rsi, rbx
         jmp Ltop11
 Lexit12:
-        mov rax, qword ptr [rsp+48]
-        cmp rax, 0
-        jge Lelse28
-        mov rax, 0
-        jmp Lret1
-Lelse28:
-        mov rsi, qword ptr [rbx]
-        mov rax, qword ptr [rsp+48]
-        cmp rax, rsi
-        jl Lelse29
-        mov rax, 0
-        jmp Lret1
-Lelse29:
         mov r11, qword ptr [rsp+48]
         mov rsi, qword ptr [rbx+r11*8+8]
         mov rax, rsi

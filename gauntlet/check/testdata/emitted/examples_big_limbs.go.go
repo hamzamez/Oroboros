@@ -3,78 +3,56 @@
 package gauntlet
 
 func GenLimb(v0 int) int {
-	v3 := make([]uint32, 64)
-	var v2 []uint32
-	v7 := v3
-	var v8 int = 0
-	var v9 int = 1
-	for ; ; v8 = (v8 + 1) {
-		v11 := (v8 >= 64)
-		if v11 {
+	v11 := make([]uint32, 64)
+	var v10 []uint32
+	v15 := v11
+	var v16 int = 0
+	var v17 int = 1
+	for ; ; v16 = (v16 + 1) {
+		v19 := (v16 >= 64)
+		if v19 {
 			break
 		}
-		v15 := (v9 & 16777215)
-		v7[v8] = uint32(v15)
-		v20 := (v9 >> 24)
-		v9 = v20
+		v23 := (v17 & 16777215)
+		v15[v16] = uint32(v23)
+		v28 := (v17 >> 24)
+		v17 = v28
 		continue
 	}
-	v2 = v7
-	v23 := v2
-	var v24 int = 2
-	sp23 := make([]uint32, 64)
-	for ; ; v24 = (v24 + 1) {
-		v26 := (v24 > 200)
-		if v26 {
+	v10 = v15
+	v31 := v10
+	var v32 int = 2
+	sp31 := make([]uint32, 64)
+	for ; ; v32 = (v32 + 1) {
+		v34 := (v32 > 200)
+		if v34 {
 			break
 		}
-		clear(sp23)
-		v31 := sp23
-		var v30 []uint32
-		v35 := v31
-		var v36 int = 0
-		var v37 int = 0
-		for ; ; v36 = (v36 + 1) {
-			v39 := (v36 >= 64)
-			if v39 {
+		clear(sp31)
+		v39 := sp31
+		var v38 []uint32
+		v43 := v39
+		var v44 int = 0
+		var v45 int = 0
+		for ; ; v44 = (v44 + 1) {
+			v47 := (v44 >= 64)
+			if v47 {
 				break
 			}
-			v43 := (v36 < 0)
-			var v44 int
-			if v43 {
-				v44 = 0
-			} else {
-				v48 := len(v23)
-				v49 := (v36 >= v48)
-				if v49 {
-					v44 = 0
-				} else {
-					v55 := int(v23[v36])
-					v44 = v55
-				}
-			}
-			v56 := (v44 * v24)
-			v57 := (v56 + v37)
-			v59 := (v57 & 16777215)
-			v35[v36] = uint32(v59)
-			v64 := (v57 >> 24)
-			v37 = v64
+			v50 := int(v31[v44])
+			v51 := (v50 * v32)
+			v52 := (v51 + v45)
+			v54 := (v52 & 16777215)
+			v43[v44] = uint32(v54)
+			v59 := (v52 >> 24)
+			v45 = v59
 			continue
 		}
-		v30 = v35
-		v23, sp23 = v30, v23
+		v38 = v43
+		v31, sp31 = v38, v31
 		continue
 	}
-	v68 := (v0 < 0)
-	if v68 {
-		return 0
-	}
-	v72 := len(v23)
-	v73 := (v0 >= v72)
-	if v73 {
-		return 0
-	}
-	v79 := int(v23[v0])
-	return v79
+	v62 := int(v31[v0])
+	return v62
 }
 

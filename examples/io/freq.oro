@@ -223,7 +223,7 @@
 (def iota (a n)
   (loop ((a a) (k 0))
     (>= k n)  a
-    else      (again (set a (cli n k) k) (+ k 1))))
+    else      (again (set a k k) (+ k 1))))
 
 ; --- distinct words and their counts ----------------------------------------
 ;
@@ -348,15 +348,15 @@
 ;
 ; Every helper returns the BUFFER and nothing else, and the caller advances the
 ; offset itself -- ADR 0018's linearity making the interface, exactly as it did
-; in jsonfmt. `m` is the output length, carried only so the stores can be
-; clamped into it.
+; in jsonfmt. The stores are not clamped into the output: the offsets are proven
+; inside it (claimsdemand-2026-10-13 found the four clamps here stale).
 
-(def putnum (out o v m)
+(def putnum (out o v)
   (loop ((out out) (o o) (p (pow10 (ndigits v))) (x v))
     (< p 1)  out
-    else     (again (set out (cli m o) (+ 48 (% (/ x p) 10))) (cli m (+ o 1)) (/ p 10) x)))
+    else     (again (set out o (+ 48 (% (/ x p) 10))) (+ o 1) (/ p 10) x)))
 
-(def putword (out o src sp w m)
+(def putword (out o src sp w)
   (loop ((out out) (o o) (k 0))
     (>= k (slen sp w))  out
     ; THE REPORT SHOWS THE WORD AS WRITTEN, and folding here would be a bug the
@@ -371,14 +371,14 @@
     ;
     ; So the case fold belongs where it is needed -- in the COMPARISON -- and the
     ; report copies the source bytes. Which is what a reader wants anyway.
-    else (again (set out (cli m o) (src (cl src (+ (sbeg sp w) k)))) (cli m (+ o 1)) (+ k 1))))
+    else (again (set out o (src (cl src (+ (sbeg sp w) k)))) (+ o 1) (+ k 1))))
 
-(def putline (out o src sp dt d m)
+(def putline (out o src sp dt d)
   (let c (dcount dt d)
        w (dword sp dt d)
-    (set (putword (set (putnum out o c m) (cli m (+ o (ndigits c))) 32)
-                    (+ o (+ (ndigits c) 1)) src sp w m)
-           (cli m (+ o (- (linelen sp dt d) 1)))
+    (set (putword (set (putnum out o c) (+ o (ndigits c)) 32)
+                    (+ o (+ (ndigits c) 1)) src sp w)
+           (+ o (- (linelen sp dt d) 1))
            10)))
 
 (def report (src sp dt ord2 nd)
@@ -389,7 +389,7 @@
         (>= r topn)     out
         (< (len sp) 1)    out
         else (let d (pat ord2 nd r)
-               (again (putline out o src sp dt d m)
+               (again (putline out o src sp dt d)
                       (+ o (linelen sp dt d)) (+ r 1)))))))
 
 ; --- the tool ---------------------------------------------------------------

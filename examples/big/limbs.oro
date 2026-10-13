@@ -59,13 +59,12 @@
 ; reduction folds a literal where it would have to keep a computation.
 ;   2^24 = 16777216
 
-; A CLAMP, exactly as tree.oro, winmap.oro and kara/core.oro use one. Every
-; index here is derived from a loop bound over a DIFFERENT table than the one
-; being read -- `a` and `b` are separate buffers under one bound -- which is the
-; latent bug the refinement layer found in `dot` and `centroid`. Two tables have
-; the same length by construction and nothing can see that, so the program says
-; what happens if they do not.
-(def at (t i) (if (< i 0) 0 (if (>= i (len t)) 0 (t i))))
+; NO CLAMP. Every index here is derived from a loop bound over a DIFFERENT
+; table than the one being read -- `a` and `b` are separate buffers under one
+; bound -- and the two have the same length by construction. That relation was
+; invisible when this file was written, so each read went through a clamp,
+; `at`; the length facts prove every read now (claimsdemand-2026-10-13), and the
+; one read whose index nothing bounds, the export's, states its range instead.
 
 ; ---------------------------------------------------------------- of a word
 ;
@@ -90,7 +89,7 @@
   (local o (table n 0)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
-      else      (let t (+ (+ (at a i) (at b i)) c)
+      else      (let t (+ (+ (a i) (b i)) c)
                   (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
 
 ; ------------------------------------------------------- multiply by a word
@@ -104,7 +103,7 @@
   (local o (table n 0)
     (loop ((o o) (i 0) (c 0))
       (>= i n)  o
-      else      (let t (+ (* (at a i) k) c)
+      else      (let t (+ (* (a i) k) c)
                   (again (set o i (% t 16777216)) (+ i 1) (/ t 16777216))))))
 
 ; ---------------------------------------------------------------- factorial
@@ -127,5 +126,6 @@
 ; `limb k` is limb k of 200!, checked against `math/big` and against `BigInt`
 ; and `BigInteger` -- ORACLES rather than another implementation of ours -- by
 ; `gauntlet/differential/cases/big-limbs.oro`. 200! is about 1,245 bits, so 52
-; limbs are significant and 64 is a comfortable buffer.
-(def limb (k) (at (bn-fact 64 200) k))
+; limbs are significant and 64 is a comfortable buffer, so k names one of 64.
+(sig limb ((k (int 0 63))) int)
+(def limb (k) (let t (bn-fact 64 200) (t k)))

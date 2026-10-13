@@ -1637,6 +1637,12 @@ func (r *refiner) loopInvariants(lam *core.Term, inits []*core.Term, f, g *facts
 			}
 		}
 	}
+	// TRANSLATION INVARIANTS (translation.go): c·x̄ = c·z̄ for c orthogonal to every
+	// back edge's step, as two inequalities Houdini checks like any candidate.
+	for _, eq := range translationCandidates(lam, inits) {
+		add(eq[0], eq[1])
+		add(eq[1], eq[0])
+	}
 	for round := 0; round <= len(cands) && len(cands) > 0; round++ {
 		h := g.clone()
 		for _, c := range cands {

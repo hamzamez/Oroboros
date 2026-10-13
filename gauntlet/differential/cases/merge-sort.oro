@@ -35,31 +35,32 @@
 
 (def cap 16)
 
-; A clamp, because an index computed from two loop variables is bounded by
-; nothing the analysis can see.
-(def cli (n i) (if (< i 0) 0 (if (>= i n) 0 i)))
+; NO CLAMP. An index computed from two loop variables was clamped here, on the
+; belief that nothing could bound it. The merge keeps i + j − k = mid, a
+; translation invariant, which bounds j by hi once i reaches mid
+; (claimsdemand-2026-10-13).
 
 (def key (s i) (% (+ (* 37 (+ i s)) 11) 101))
 
 (def mmin (x y) (if (< x y) x y))
 
-(def pat (t i) (cli cap (t (cli cap i))))
+(def pat (t i) (t i))
 
 (def iota (a)
   (loop ((a a) (k 0))
     (>= k cap)  a
-    else          (again (set a (cli cap k) k) (+ k 1))))
+    else          (again (set a k k) (+ k 1))))
 
 ; One merge of a[lo,mid) and a[mid,hi) into b. The left run wins ties, which is
 ; what makes it stable -- not observable here, deliberately, see above.
 (def merge1 (s a b lo mid hi)
   (loop ((b b) (i lo) (j mid) (k lo))
     (>= k hi)   b
-    (>= i mid)  (again (set b (cli cap k) (pat a j)) i (+ j 1) (+ k 1))
-    (>= j hi)   (again (set b (cli cap k) (pat a i)) (+ i 1) j (+ k 1))
+    (>= i mid)  (again (set b k (pat a j)) i (+ j 1) (+ k 1))
+    (>= j hi)   (again (set b k (pat a i)) (+ i 1) j (+ k 1))
     (< (key s (pat a j)) (key s (pat a i)))
-                (again (set b (cli cap k) (pat a j)) i (+ j 1) (+ k 1))
-    else        (again (set b (cli cap k) (pat a i)) (+ i 1) j (+ k 1))))
+                (again (set b k (pat a j)) i (+ j 1) (+ k 1))
+    else        (again (set b k (pat a i)) (+ i 1) j (+ k 1))))
 
 ; One pass at width w over the whole table.
 (def mpass (s a b w)

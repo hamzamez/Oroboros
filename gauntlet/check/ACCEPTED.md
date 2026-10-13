@@ -1236,3 +1236,15 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/io/freq.oro go`
 - emitted text changed — `examples/io/freq.oro java`
 - emitted text changed — `examples/io/freq.oro js`
+
+## 2026-10-13 — on 0f09b09, with uncommitted changes
+
+**Reason:** freq's merge reads without clamps: i + j - k = mid, a translation invariant (refinements.md 5c), bounds j by hi once i reaches mid. Same output on six inputs; merge-sort's case without its clamp agrees on four targets
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling skip.
+
+3 change(s):
+
+- emitted text changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`

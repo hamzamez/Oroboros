@@ -294,6 +294,27 @@ loop variable was spelled like its buffer.
 enclosing binder's name entered a scope whose facts were about another variable
 ([state.md](state.md), the residual's naming invariant).
 
+### 5c. Translation invariants (2026-10-13)
+
+A merge advances i or j and always k, and its reads need i + j − k = mid, an equality no template of
+the form `x ≤ y` states. The candidates now include Karr's affine relations (Karr, *Affine
+relationships among variables of a program*, Acta Informatica 6, 1976) in the case where every back
+edge is a translation:
+
+**Theorem (translations).** If every back edge e maps the variables of V by x̄ ↦ x̄ + δₑ, δₑ literals,
+then for every c with c·δₑ = 0 on every edge, c·x̄ = c·z̄ at every iteration, z̄ the initial values.
+*Proof.* Induction: c·(x̄ + δₑ) = c·x̄. ∎
+
+The vectors c are a basis of the null space of the matrix whose rows are the δₑ, computed exactly over
+ℚ and scaled to coprime integers (`translation.go`). A variable whose argument on some edge is not
+itself plus a literal is outside V. The equalities are **candidates**, two inequalities each, and
+Houdini checks them at entry and at every back edge like any other, so a vector the syntactic reading
+got wrong costs a candidate and never a false fact.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| a translation candidate is assumed only if Houdini keeps it | the null space replaced by (1, 1, 1), which no merge preserves | `TestTranslationInvariants` (and the same test fails when the candidates bypass Houdini) |
+
 ## 6. The diagnostic
 
 An obligation that cannot be discharged is an **error**, naming the obligation and what was known:

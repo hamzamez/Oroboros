@@ -1275,3 +1275,16 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - compiler output changed — `examples/io/freq.oro java`
 - emitted text changed — `examples/io/freq.oro js`
 - compiler output changed — `examples/io/freq.oro js`
+
+## 2026-10-14 — on 52e6e12, with uncommitted changes
+
+**Reason:** examples/os/du.oro, a directory walk program first for os.ReadDir, io/fs and path/filepath: 19 of 19 operations proven, its output checked against its definition by the acceptance harness and against Go's filepath.WalkDir on two trees; the other targets refuse it for want of go/os
+
+560 runs: 301 emitted, 259 refused; 2058 of 2103 integer operations bounded, 352 of 371 loops proven. compiler pass, differential pass, tooling skip.
+
+4 change(s):
+
+- new source — `examples/os/du.oro go`
+- new source — `examples/os/du.oro java`
+- new source — `examples/os/du.oro js`
+- new source — `examples/os/du.oro windows`

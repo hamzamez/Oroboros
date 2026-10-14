@@ -272,7 +272,15 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 		}
 		walk(r)
 	}
-	f.Walk(func(r *Region) {
+	// IN PROGRAM ORDER: each statement's sub-regions are typed right after the
+	// statement, before the statements that follow it. Unification is order-free
+	// except at a clash, which keeps the side met first; typed outermost region
+	// first, a loop's results nested in a scope were first met at a later use,
+	// a variadic list of boxes, and took its strings, so the loop's own ints
+	// clashed in the verifier (examples/os/du.oro). In program order a value is
+	// typed where it is defined, before any use can clash with it.
+	var visit func(r *Region)
+	visit = func(r *Region) {
 		for _, pi := range r.Pis {
 			eq(pi.V, pi.Of)
 		}
@@ -408,8 +416,16 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 				eq(s.Res[0], s.Args[0])
 				is(s.Args[1], "int")
 			}
+			for _, sub := range s.Sub {
+				visit(sub)
+			}
 		}
-	})
+		if r.T == TBranch {
+			visit(r.Then)
+			visit(r.Else)
+		}
+	}
+	visit(f.Body)
 	// THE FUNCTION'S OWN RESULTS carry no equation: a yield flows into the
 	// declared result, σ ≤ ω, as an argument flows into a parameter. So the
 	// signature is a demand on each yield, met last with the parameters'

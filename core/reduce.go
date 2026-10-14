@@ -3559,7 +3559,14 @@ func (e *Env) staged(t *Term) error {
 			}
 			return nil
 		}
-		for _, k := range t.Kids {
+		kids := t.Kids
+		// A CLAIM'S SET is not a value: `(the S e)` ascribes e to S, and erasure
+		// drops S (abstract.md §5, ε(the(S; e)) = ε(e)), so Law S does not
+		// reach it. Only e is a value.
+		if t.Kind == KApp && len(kids) == 3 && kids[0].Kind == KName && kids[0].Name == "the" {
+			kids = kids[2:]
+		}
+		for _, k := range kids {
 			if err := walk(k); err != nil {
 				return err
 			}

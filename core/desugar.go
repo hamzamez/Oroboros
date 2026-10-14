@@ -117,7 +117,16 @@ func (d *desugarer) build(a Tail) *Term {
 		}
 		return t
 	case *The:
-		return &Term{Kind: KApp, Kids: []*Term{Name(AscribeName), d.term(a.Set), d.term(a.E)}}
+		// THE CORE'S ASCRIPTION CARRIES ITS SET AS THE CANONICAL TYPE SPELLING,
+		// the form AscribeWide writes and every consumer reads (the checker,
+		// lowering, the rung above the word). Written as a term, a program's
+		// `(the (int 0 9) e)` lowered `int` as a value and was refused
+		// (examples/os/du.oro, the first program to write one).
+		set := d.term(a.Set)
+		if ty := TypeTerm(set); ty != "" {
+			set = Str(ty)
+		}
+		return &Term{Kind: KApp, Kids: []*Term{Name(AscribeName), set, d.term(a.E)}}
 	case *Case:
 		kids := []*Term{Name("case"), d.term(a.Scrut)}
 		for _, arm := range a.Arms {

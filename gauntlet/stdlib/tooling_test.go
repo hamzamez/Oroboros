@@ -491,6 +491,33 @@ type accept struct {
 	inputs map[string]string
 }
 
+// duTree is du's input: files at several depths, one empty, and an empty
+// directory's worth of nesting (a/b/c holds only z).
+var duTree = map[string]string{
+	"tree/x.txt":     "hello",
+	"tree/a/y.bin":   "0123456789",
+	"tree/a/b/c/z":   "abc",
+	"tree/d/empty":   "",
+	"tree/d/e/f.txt": "seventeen bytes!\n",
+}
+
+// duReference is what `du tree` must print, from du's definition rather than
+// anything this repository compiles: the bytes are the sum of the files'
+// lengths, the files are counted, and the directories are the root and every
+// distinct directory on a file's path below it.
+func duReference(tree map[string]string) []string {
+	bytes, files := 0, 0
+	dirs := map[string]bool{"tree": true}
+	for name, body := range tree {
+		bytes += len(body)
+		files++
+		for d := filepath.Dir(name); d != "tree" && d != "."; d = filepath.Dir(d) {
+			dirs[d] = true
+		}
+	}
+	return []string{fmt.Sprintf("%d bytes in %d files and %d directories", bytes, files, len(dirs))}
+}
+
 // tallyReference is what `tally PATTERN FILE` must print, computed by
 // HAND-WRITTEN Go rather than by anything this repository compiles: capture group
 // 1 (or the whole match) of every matching line, counted, most frequent first,
@@ -636,6 +663,11 @@ func acceptance() map[string]accept {
 		// call: strings.NewReplacer, io.MultiReader, io.MultiWriter, each at a
 		// non-empty and the empty length. The lines are what the same calls
 		// print from hand-written Go (variadic-2026-10-08).
+		// A DIRECTORY WALK, program first for os.ReadDir, io/fs and path/filepath
+		// (examples/os/du.oro): a tree of known files, and the totals its
+		// definition gives (duReference).
+		"du": {host: "go", target: "go", layer: "tg", srcs: []string{"examples/os/du.oro"},
+			args: []string{"{proj}/tree"}, inputs: duTree, want: duReference(duTree)},
 		"variadic": {host: "go", target: "go", layer: "tg", want: []string{
 			"a&lt;b &amp; c&gt;d", "111", "21", "unchanged", "x&lt;y", "7 true",
 			"concat true", "0 true", "twice", "twice", "6 true",
@@ -738,6 +770,10 @@ func TestAcceptanceProgramsRun(t *testing.T) {
 				}
 			}
 			for n, body := range a.inputs {
+				// An input may sit in a directory of its own (du's tree).
+				if err := os.MkdirAll(filepath.Dir(filepath.Join(proj, n)), 0o755); err != nil {
+					t.Fatal(err)
+				}
 				if err := os.WriteFile(filepath.Join(proj, n), []byte(body), 0o644); err != nil {
 					t.Fatal(err)
 				}
@@ -1247,6 +1283,12 @@ var handDeclared = []handEntry{
 			"go/io.Discard":          "a package VARIABLE; the survey generates functions, methods and constants",
 		}, []string{"go/io/Reader", "go/io/Writer", "go/io/Closer", "go/io/ReadCloser", "go/io/WriteCloser",
 			"go/io/ReadWriter", "go/io/ByteReader", "go/io/ByteWriter", "go/io/StringWriter"}, nil},
+	// PROGRAM FIRST (examples/os/du.oro): a directory walk's io/fs and path/filepath.
+	// DirEntry and FileInfo are interfaces, checked against the manifest; FileMode's
+	// methods against the survey; Join is a spread, checked as one.
+	{"go", "targets/go", "io/fs.oro", []string{"go/io/fs/FileMode"}, fsMistakes, true, nil,
+		[]string{"go/io/fs/DirEntry", "go/io/fs/FileInfo"}, nil},
+	{"go", "targets/go", "path/filepath.oro", []string{"go/path/filepath"}, nil, true, nil, nil, nil},
 	// PROGRAM FIRST (bufio-2026-10-01): what examples/lines/lines.oro calls,
 	// and Writer.Write, which the io.Writer edge demands.
 	{"go", "targets/go", "bufio.oro", []string{"go/bufio", "go/bufio/Scanner", "go/bufio/Writer"},
@@ -1257,6 +1299,27 @@ var handDeclared = []handEntry{
 // decoded, ADR 0030, and the checker cannot see that, so this one is the
 // mechanical neighbour: a byte table), Scan with a result it does not have,
 // and the mechanical ones.
+// fsMistakes: the import rule's two sides. A method template may import nothing
+// only when it names no package; one that names fs must import io/fs, and an
+// import of another package is wrong either way.
+var fsMistakes = map[string]func(m map[string]emit.Prim){
+	"a template naming fs with no import": func(m map[string]emit.Prim) {
+		p := m["IsRegular"]
+		p.Form = "fs.FileMode(%s).IsRegular()"
+		m["IsRegular"] = p
+	},
+	"an import of the wrong package": func(m map[string]emit.Prim) {
+		p := m["IsRegular"]
+		p.Import = "os"
+		m["IsRegular"] = p
+	},
+	"IsRegular returning an integer": func(m map[string]emit.Prim) {
+		p := m["IsRegular"]
+		p.Result = "int"
+		m["IsRegular"] = p
+	},
+}
+
 var bufioMistakes = map[string]func(m map[string]emit.Prim){
 	"NewScanner over a File, not an io.Reader": func(m map[string]emit.Prim) {
 		p := m["NewScanner"]
@@ -1583,7 +1646,12 @@ func TestHandDeclarationsAgreeWithTheHost(t *testing.T) {
 				}
 				short := map[string]emit.Prim{}
 				for k, v := range hand {
-					v.Results = v.Results[:len(v.Results)-1]
+					// One result fewer: the last of several, or the only one.
+					if len(v.Results) > 0 {
+						v.Results = v.Results[:len(v.Results)-1]
+					} else {
+						v.Result = ""
+					}
 					short[k] = v
 				}
 				if len(agreeInterface(hostTg.Word, module, short, realization(handTg))) == 0 {
@@ -1873,11 +1941,14 @@ func manifestInterfaces() map[string]emit.Prim {
 				}
 				p := emit.Prim{Name: meth, Form: "%s." + meth + "("}
 				p.Args = []string{base + "." + typ}
+				// A type of the interface's own package is written unqualified
+				// there, `FileInfo` inside io/fs, and read as the realization
+				// spells it (goToHandIn), as the other readers do.
 				for _, a := range splitGoList(m[4]) {
-					p.Args = append(p.Args, goToHand(a))
+					p.Args = append(p.Args, goToHandIn(base, a))
 				}
 				for _, r := range splitGoList(strings.Trim(m[5], "()")) {
-					p.Results = append(p.Results, goToHand(r))
+					p.Results = append(p.Results, goToHandIn(base, r))
 				}
 				manifestIf["go/"+pkg+"/"+typ+"."+meth] = p
 			}
@@ -2060,7 +2131,13 @@ func agreeOne(word core.Word, name string, h, g emit.Prim, hres, gres func(strin
 	if callee == "" || !strings.Contains(h.Form, callee) {
 		return fmt.Errorf("%s: the template %q does not call the host's %s", name, h.Form, callee)
 	}
-	if h.Import != g.Import {
+	// AN IMPORT IS NEEDED ONLY BY A TEMPLATE THAT NAMES THE PACKAGE: a method
+	// called on its receiver, `%s.IsRegular()`, names none, and Go refuses an
+	// import nothing uses, which a program calling only such methods would
+	// have (examples/os/du.oro and io/fs's FileMode). So a hand file may import
+	// nothing where the survey imports a package its template does not name.
+	unnamed := h.Import == "" && g.Import != "" && !strings.Contains(h.Form, pathBase(g.Import)+".")
+	if h.Import != g.Import && !unnamed {
 		return fmt.Errorf("%s imports %q by hand and %q on the host", name, h.Import, g.Import)
 	}
 	return nil
@@ -2118,4 +2195,12 @@ func rangeWithin(word core.Word, hand, host string) bool {
 		}
 	}
 	return gl.Cmp(hl) <= 0 && hh.Cmp(gh) <= 0
+}
+
+// pathBase is an import path's last element, the package's name in a template.
+func pathBase(p string) string {
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		return p[i+1:]
+	}
+	return p
 }

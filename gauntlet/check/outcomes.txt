@@ -764,6 +764,17 @@
 == examples/native/wordcount-js.oro windows refused
    gen: examples/native/wordcount-js.oro: in bump: js.put is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use js) matched no file on the search path and this target provides no module js either, so every name from it is unbound. Check the path.
+== examples/os/du.oro go emitted 80877d4d1aae758f8df4b718dd063985deca223fc4eb671f7fc02d35ab91ecc3
+   note: gen-main: 19 of 19 integer operations bounded; 1 of 2 loop(s) proven terminating
+== examples/os/du.oro js refused
+   gen: examples/os/du.oro: in contribution: go/io/fs/DirEntry.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/io/fs/DirEntry) matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/du.oro java refused
+   gen: examples/os/du.oro: in contribution: go/io/fs/DirEntry.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/io/fs/DirEntry) matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
+== examples/os/du.oro windows refused
+   gen: examples/os/du.oro: in contribution: go/io/fs/DirEntry.Info is not bound — it is not a parameter, not a definition, and not a primitive on this target
+     (use go/io/fs/DirEntry) matched no file on the search path and this target provides no module go/io/fs/DirEntry either, so every name from it is unbound. Check the path.
 == examples/smooth.oro go refused
    gen: examples/smooth.oro: in num/vec.dot: num/f64.mul is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use num/f64) matched no file on the search path and this target provides no module num/f64 either, so every name from it is unbound. Check the path.

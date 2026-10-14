@@ -134,6 +134,12 @@ func TestNoSetSurvivesStaging(t *testing.T) {
 	if _, _, err := normalizeOn(t, goNative(t), `(use go/fmt as fmt) (export f) (def f () (fmt.Println "error"))`); err != nil {
 		t.Errorf("a program holding no set is refused: %v", err)
 	}
+	// A CLAIM'S SET IS NOT A VALUE: `(the (int 0 9) e)` names the set int in a
+	// position erasure drops (abstract.md §5), so Law S does not refuse it
+	// (examples/os/du.oro found the refusal).
+	if _, _, err := normalizeOn(t, goNative(t), `(use go/fmt as fmt) (export f) (sig f ((n (int 0 5))) int) (def f (n) (the (int 0 9) (+ n 1)))`); err != nil {
+		t.Errorf("a set in a claim position was refused as a value: %v", err)
+	}
 }
 
 // A STATIC λ (§6): a definition whose parameter is a set, applied to one; β

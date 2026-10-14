@@ -1,0 +1,102 @@
+; du DIR — how many bytes the regular files under DIR hold, how many of them
+; there are, and how many directories, symbolic links not followed.
+;
+; THE ALGEBRA. A directory tree is a finite rooted tree: ReadDir lists a node's
+; children, and a symbolic link is a leaf, since its entry is not followed and
+; Info describes the link itself. du is a fold of that tree into the monoid
+; (ℕ_C, ⊕)³ of bytes, files and directories, x ⊕ y = min(x + y, C) with
+; C = 2⁶² − 1: commutative and associative, so the totals do not depend on the
+; order the walk visits the nodes in, and saturating, so a sum past C says C
+; instead of wrapping (ADR 0019: bounded by default, and the program says what
+; happens at the bound).
+;
+; THE WALK HAS NO RECURSION (ADR 0014). A stack of directories waiting, held in
+; a buffer of `cap` paths, is the tree's depth-first frontier. A directory found
+; when the stack is full is counted and not entered, and reported: the program
+; states its limit as the tokenizer states its depth.
+;
+; WHAT IT CANNOT KNOW. A directory it cannot read is counted as unreadable, its
+; partial listing still walked (ReadDir is a partial success, ADR 0044). An entry
+; gone between the listing and its Info is skipped. A regular file's size is a
+; length, so non-negative, but the declaration cannot say so: Size's claim is
+; Go's int64 for every kind of file, and the relation "IsRegular ⇒ Size ≥ 0"
+; spans two calls. So the program reads it through `length`, which says what a
+; negative size counts as, and which never fires on a regular file.
+
+(use go/os as os)
+(use go/io/fs/DirEntry as de)
+(use go/io/fs/FileInfo as fi)
+(use go/io/fs/FileMode as fm)
+(use go/path/filepath as filepath)
+(use go/fmt as fmt)
+(use result)
+
+(export main)
+
+(def cap 4096)
+
+; x ⊕ y = min(x + y, C) on ℕ_C = [0, C], C = 2⁶² − 1. C is chosen so that the
+; sum of two members, at most 2C = 2⁶³ − 2, is in the word: x + y is computed
+; exactly and compared with the constant C, a bound an interval sees. Saturating
+; at the word's top instead, 2⁶³ − 1, would make the sum's bound hold only under
+; y ≤ M − x, a relation intervals cannot keep, and the sum would read [0, 2M].
+(sig sat ((x (int 0 4611686018427387903)) (y (int 0 4611686018427387903))) (int 0 4611686018427387903))
+(def sat (x y) (let s (+ x y) (if (<= s 4611686018427387903) s 4611686018427387903)))
+
+; A size as a member of ℕ_C: what a negative size counts as (never, for a
+; regular file), and a size past C saturates as the sum does.
+(def length (s) (if (< s 0) 0 (if (< 4611686018427387903 s) 4611686018427387903 s)))
+
+; One entry's contribution: (bytes, files), (0, 0) for anything but a regular file.
+(def contribution (ent)
+  (case (de.Info ent)
+    (result.err e)    (seq (ignore e) (tuple 0 0))
+    (result.ok info)  (if (fm.IsRegular (fi.Mode info))
+                        (tuple (length (fi.Size info)) 1)
+                        (tuple 0 0))))
+
+; How many directories a failed listing adds to the unreadable: 1, or 0 when the
+; listing succeeded. The error is used either way: it is relevant (ADR 0043).
+(def failed (r)
+  (case r
+    (result.ok u)  0
+    (result.err e) (seq (ignore e) 1)))
+
+; The walk, (bytes files dirs unreadable unentered), as ONE loop over a cursor:
+; `ents` is the listing of `dir`, `k` the next entry in it, and when the listing
+; is spent the next directory is popped off the stack and read. One loop rather
+; than a loop per directory, because the totals a directory's loop would hand
+; back are a tuple the outer `again` cannot take apart (tables.md §2.5).
+; The stack holds the HOST'S strings, bytestring (ADR 0030), since Join returns
+; one; it is filled with the root, a bytestring, and only slots below sp are read.
+(def walk (root)
+  (local stk (table cap (fn (k) root))
+    (let (tuple es0 r0) (os.ReadDir root)
+      (loop ((stk stk) (sp 0) (ents es0) (k 0) (dir root)
+             (bytes 0) (files 0) (dirs 1) (bad (failed r0)) (lost 0))
+        ; an entry of the listing left: a directory pushed (or, the stack full,
+        ; counted and not entered), anything else counted
+        (and (< k (len ents)) (and (de.IsDir (ents k)) (< sp cap)))
+          (again (set stk sp (filepath.Join dir (de.Name (ents k))))
+                 (+ sp 1) ents (+ k 1) dir bytes files (sat dirs 1) bad lost)
+        (and (< k (len ents)) (de.IsDir (ents k)))
+          (again stk sp ents (+ k 1) dir bytes files (sat dirs 1) bad (sat lost 1))
+        (< k (len ents))
+          (let (tuple b f) (contribution (ents k))
+            (again stk sp ents (+ k 1) dir (sat bytes b) (sat files f) dirs bad lost))
+        ; the listing spent: done when nothing waits, else the next directory
+        (< sp 1)
+          (tuple bytes files dirs bad lost)
+        else
+          (let next (stk (- sp 1))
+               (tuple es r) (os.ReadDir next)
+            (again stk (- sp 1) es 0 next bytes files dirs (sat bad (failed r)) lost))))))
+
+(def main ()
+  (let av (os.Args)
+    (if (< (len av) 2)
+      (fmt.Println "usage: du DIR")
+      (let (tuple bytes files dirs bad lost) (walk (av 1))
+        (seq (fmt.Println bytes "bytes in" files "files and" dirs "directories")
+             (if (< 0 bad) (fmt.Println bad "directories could not be read") (tuple))
+             (if (< 0 lost) (fmt.Println lost "directories were not entered: more than" cap "waiting") (tuple)))))))

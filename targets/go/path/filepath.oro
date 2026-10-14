@@ -1,0 +1,19 @@
+; path/filepath, DECLARED BY HAND, in part: what a directory walk needs
+; (examples/os/du.oro). Read off src/path/filepath/path.go in the Go 1.27 toolchain.
+;
+; THE ALGEBRA. A path is a word over names separated by the OS's separator, and
+; Join is the free monoid's product on such words followed by Clean, the
+; normalization that drops empty elements, `.` and `x/..`. So Join is
+; associative up to Clean, and Join() and Join("", …, "") are "". A path is the
+; host's string, bytestring (ADR 0030): file names need not be UTF-8.
+;
+; Join is variadic over one type, so it is ONE declaration over a list, spread
+; into Go's call (ADR 0046): (filepath.Join dir name) passes the list of two.
+;
+; WHAT IS NOT DECLARED: the rest of the package (Split, Base, Dir, Ext, Rel,
+; Abs, Glob, Match, Walk and WalkDir, which take callbacks), until a program
+; needs it.
+(target go
+  (module go/path/filepath
+    (sig Join ((elem (array bytestring))) bytestring pure variadic
+      (host expr "filepath.Join(%s...)" (import "path/filepath")))))

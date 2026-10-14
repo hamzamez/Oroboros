@@ -37,8 +37,8 @@
 ; WHAT IS NOT DECLARED, of the 130 names Go's `os` has that the survey can
 ; declare. Nothing below is a wall; each is work, left until a program needs it:
 ;   - the rest of *File: ReadAt, WriteAt, Seek, Stat, Sync, Truncate, Chmod,
-;     Chown, Chdir, ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
-;   - Stat, Lstat, ReadDir and FileInfo, which return interfaces;
+;     Chown, Chdir, File.ReadDir, Readdir, Readdirnames, the deadlines, SyscallConn;
+;   - Stat and Lstat, which return fs.FileInfo (declared in io/fs.oro since du);
 ;   - Chmod, Chown, Lchown, Chtimes (time.Time), Link, Symlink, Readlink,
 ;     Truncate, SameFile, CopyFS, DirFS;
 ;   - OpenFile and its flag constants; CreateTemp;
@@ -71,6 +71,12 @@
       (host expr "os.Open(%s)" (import "os")))
     (sig Create ((name bytestring)) (result.result File error)
       (host expr "os.Create(%s)" (import "os")))
+    ; A DIRECTORY'S ENTRIES, sorted by name. A PARTIAL SUCCESS (ADR 0044): "If an
+    ; error occurs reading the directory, ReadDir returns the entries it was able
+    ; to read before the error, along with the error" (src/os/dir.go), so the
+    ; entries come with a relevant 1 + E. os.DirEntry is fs.DirEntry.
+    (sig ReadDir ((name bytestring)) (tuple (array go/io/fs.DirEntry) (result.result (tuple) error))
+      (host expr "os.ReadDir(%s)" (import "os")))
     (sig Remove ((name bytestring)) (result.result (tuple) error)
       (host expr "os.Remove(%s)" (import "os")))
     (sig RemoveAll ((path bytestring)) (result.result (tuple) error)

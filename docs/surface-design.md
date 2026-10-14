@@ -4516,3 +4516,683 @@ Houdini-style inference would have to find; the program may state it in the slot
 6. **`assert` proves, `expect` checks** (Finding 6). *Recommended.*
 7. **`the` leaves the surface** (Finding 7); abstract.md keeps it for μ. *Recommended.*
 8. **No claim stays distinct from `any`** (Finding 8). *Recommended.*
+
+
+## Installment 6 — declarations and modules
+
+hamza: *"go ahead with installment 6. always mathematical and algebraic"*, after the assessment of
+2026-10-14 set its rule: each remaining installment is tested on a real program, not on programs
+written to be counted. This one's is `examples/os/du.oro`, a directory walk, written first in today's
+notation and checked against its definition and against Go's `filepath.WalkDir`
+([du-2026-10-14](../gauntlet/results/du-2026-10-14.md)). It needed three host packages declared, so
+it is a declarations program as much as a program, which is this installment's subject: modules,
+imports and exports, variants, host declarations and the model's own forms.
+
+### 6.1 What declarations must carry
+
+From abstract.md §2.6, theories.md and target-system.md:
+
+| | the form | what it is | the algebra |
+|---|---|---|---|
+| **a definition** | def(f; e) | a name bound to a value; a function's is a named λ carrying its claims | a definitional extension, conservative (settypes §4.2) |
+| **a host declaration** | def(f; λ(…); host(…)) | an operation symbol the model interprets by host text | an axiom checked against the host (ADR 0022) |
+| **a host type** | `(type N (host "…"))` | a set the model supplies a carrier for | a sort's carrier in the model |
+| **a manifest type** | `(type N S)` | a name for a set, unfolded by δ | a definitional extension at L1 (typevalues.md §1) |
+| **a host constant** | `(const N v (host "…"))` | the host's name, and the value the analysis reads | theories.md §2's conditional cell |
+| **a variant** | variant(n; b̄; c₁(S̄₁) … cₖ(S̄ₖ); success c?; relevant?) | a finite sum of tagged sets, with role markers | a coproduct; the constructors its injections, `case` its copairing |
+| **an inclusion** | `(implements T I…)` | T ⊆ I₁ ∩ … ∩ Iₙ | an axiom of the order-sorted signature (Goguen and Meseguer 1992) |
+| **a module** | module(path; decl*) | a theory presentation: names with their classifiers, definitions and axioms | a theory of an institution (Goguen and Burstall 1992) |
+| **an import** | use(path; alias) | the imported theory's names under a prefix | an injective signature morphism σₐ : Σₚ → Σₘ, f ↦ a.f |
+| **an export** | export(f̄) | what other modules may name | the reduct m\|S along the inclusion S ⊆ Σₘ (Bergstra, Heering and Klint's module algebra, 1990) |
+| **a fragment** | provides(T; path; decl*) | part of target T's model of a module | glue ⊔ within a layer, override ▷ between layers (target-system.md §2) |
+
+**Two theorems the surface must not break.**
+- **Imports are a coproduct.** Qualified imports make each σₐ injective with disjoint images, so a
+  module's signature is Σₘ = Σ_own + Σₐ₁ + … + Σₐₙ, and a coproduct is commutative and associative up
+  to isomorphism: **the order of `use`s means nothing** (modules.md §3's reason for qualified imports).
+- **A module's meaning is the reduct of its theory.** Nothing outside a module observes its unexported
+  names, and resolution erases paths and aliases before reduction (ADR 0011, theories.md §3.5).
+  **A path, an alias, a file and a layer are names, not content**: a spelling may move them as long as
+  the qualified names it resolves to are the same.
+
+### 6.2 Measured
+
+`go run gauntlet/surface/decls.go`, over the programs and, separately, the target files:
+
+| | programs | targets |
+|---|---:|---:|
+| files | 160 | 35 |
+| definitions / with a `sig` beside them | 603 / 112 | — |
+| host declarations (`sig` with a host body): `expr` / `stmt` | 33: 24 / 9 | 890: 804 / 86 |
+| `export` forms / names exported | 109 / 149 | — |
+| `use` / with no alias / an alias equal to the last segment / another alias | 244 / 146 / **38** / 60 | 21 / 21 / 0 / 0 |
+| … `use` of a companion module (`go/bufio/Scanner`) | **40** | — |
+| `(module …)` outermost / its path the file's / another path | 8 / 5 / 3 | 52 / **15** / **37** |
+| `(module …)` nested (a companion or a child) | 0 | 23 |
+| `(target NAME …)` wrappers / `(provides T M …)` fragments | 0 / 8 | 35 / 0 |
+| `variant` / constructors / with a payload / without / with type parameters | 8 / 19 / 13 / 6 / 4 | — |
+| `type`: a host type / a manifest type | — | 80 / 8 |
+| `implements` / `const` / `include` | — | 13 / 11 / 3 |
+| model data: `repr` / `structural` / `backend` / `link` / `fact` | — | 35 / 6 / 1 / 1 / 1 |
+
+Read one at a time:
+- **The five program modules whose path is the file's are every library file** (`lib/result`, `lib/os`,
+  `lib/num/u128`, `lib/num/vec`, `lib/win/fmt`). The loader requires the header and refuses any other
+  path (`core/reduce.go`, "a library file declares exactly the module its path names"). The other three
+  are an entry file's (`examples/modules.oro`, two) and `examples/tally/tally.oro`.
+- **The 15 target modules whose path is the file's are Go's packages** (`targets/go/io/fs.oro` holds
+  `go/io/fs`). The other 37 are grouped by theme: `targets/java/lang.oro` holds ten modules
+  (`java/String`, `java/Math`, …), `targets/js/methods.oro` four, and `targets/go/builtin.oro`,
+  `u64.oro` and `bigint.oro` add to the root module `go`. In a target, a file is the glue of its forms
+  (target-files.md §1), so where a module is written carries nothing.
+- **All 13 `implements` sit at the end of their file, outside the type's module**, by absolute path;
+  2 of them include a language set in a host set (`string` in `go.bytestring`, `any` in `go.Value`).
+- **No module exports some of a variant's constructors and not others.** `lib/os` exports all four of
+  `os-error`'s; the other variants are private to entry files.
+- **An export list filters terms and constructors, not types.** `lib/result` exports `ok`, `err` and
+  `err-map`, and the type `result.result` is named 95 times from other modules.
+
+### 6.3 The holes and misfits
+
+**Restatements the loader checks** (fit-research §1.2's fifth misfit, a checked invariant):
+- a library file's `(module X)` names the path it was found at, 5 of 5, and a different X is refused.
+  theories.md §3.1 says a library file "declares no header"; modules.md §0 and the loader require one.
+- a target file's `(target go …)` names its directory, 35 of 35, and a different name is refused ("a
+  directory is one target");
+- an export names a definition written elsewhere in the file, 149 names, and a name with no definition
+  is refused.
+
+**Synonyms:**
+- `(use go/os as os)` and `(use go/os)` are one import, 38 times; du alone has three (`os`, `filepath`,
+  `fmt`), written before ADR 0025's default was read;
+- a set named in a program is `def`, `(def Byte (int 0 255))` (ADR 0063); in a target it is `type`.
+
+**A homonym.** `type` names two different things: a sort the model gives a carrier
+(`(type DirEntry (host "fs.DirEntry"))`, 80), and a definition of a set unfolded by δ
+(`(type int32 (int -2147483648 2147483647))`, 8).
+
+**Five words for one record.** theories.md §1.1 reads every declaration as x : A [= t] [↦ ρ], a name,
+its classifier, an optional definiens and an optional realization. Today's notation spells that record
+with `def`, `sig`, `sig … (host …)`, `type` (twice) and `const`, and the variant as a sixth form.
+
+**A companion is imported by its own path.** theories.md §3.4 names a companion's member
+`go/io.Writer.Write`, a type's operations under the type's name. A program cannot write that:
+`fs.DirEntry.Name` is "not bound", and du imports `go/io/fs/DirEntry`, `…/FileInfo` and `…/FileMode` as
+three modules. 40 of the corpus's 244 imports are companions.
+
+**An inclusion apart from its type, spelled as a verb.** `(implements go/strconv.NumError error)` is
+the axiom NumError ⊆ error.
+
+**One hole du found.** A program cannot name its own set: `(def Count (int 0 4611686018427387903))` is
+accepted at the definition and refused at the first `+`, "x is Count, but int is required here". A
+program's own sets come with types-as-values step 2 (typevalues.md §1), so du writes its bound three
+times and its constant six.
+
+### 6.4 Findings
+
+**Finding 1. A file is a theory named by its path; a fragment names what it realizes.** The two kinds
+of file are different objects, and the spelling should say which:
+- **A library or entry file is one theory, and its path is its name** (ADR 0025's "the file is the
+  path", completed). It has no `module` header: the five headers are restatements the loader checks,
+  and theories.md §3.1 was right. A child module, a companion, or an entry file's extra modules are
+  nested blocks: `module NumError { … }` in J, TLA+'s nested `---- MODULE NumError ---- … ====` in D.
+- **A target file is a set of fragments of one model**, and its location carries nothing: 37 of its 52
+  outermost modules are not its path, and must not be forced to be (Java's `java/lang` would split into
+  ten files). So a fragment names its module, `module go/io/fs { … }`, with the absolute path.
+- **The target is the directory.** The 35 wrappers go. A fragment outside the target's directory, in a
+  library, names its target too: `provides go os/host { … }`. A file in `targets/T/` is a sequence of
+  `provides T M { … }` with T read off the directory, written `module M { … }`, which is what
+  `lib/os/go.oro` already says of `provides`: "exactly `(target T (module M decl…))`".
+
+**Finding 2. An import always carries its alias, and a companion is reached through its type.**
+- **The tree is use(path; alias), the alias filled by the reader** with the path's last segment when
+  the source omits it, and the printer omits an alias equal to that default. So `use go/os as os` and
+  `use go/os` read to one tree and print as the second: the 38 are not refused, they are normalized by
+  the rendering's round-trip law (abstract.md §9.1), as redundant parentheses are.
+- **`alias.T.m` names member m of T's companion**, theories.md §3.4's spelling. ADR 0063 put a set and
+  its companion under one name in one namespace, so `fs.DirEntry` is the set and `fs.DirEntry.Name` its
+  operation; `use go/io/fs` is enough. A companion's own import stays legal, for a short alias
+  (`use go/io/fs/DirEntry as de`), and becomes optional: 40 imports.
+
+**Finding 3. `export` is a marker on the definition.** The reduct needs a subset S ⊆ Σₘ. A list
+presents S by its elements; a marker presents it by its characteristic function, pointwise:
+- each exported name is written once, at its definition, and the refusal of an export with no
+  definition disappears, since a marker cannot name nothing;
+- 149 of the 603 definitions are exported, a quarter, so marking the exported minority writes 149
+  markers where marking the private majority (TLA+'s `LOCAL`) would write 454;
+- **it applies to the one namespace** (ADR 0063): exporting a set exports the set and its tags. Today
+  every type is visible whatever the list says; under the marker, a set nobody exports is private.
+  Nothing measured is lost: no module exports part of a variant, and types are extensional
+  (ADR 0049), so a set's tags are how its values are written, not a representation to hide;
+- J `export fn main()`, `export set result(T, E) = …`; D `EXPORT main() == …`.
+
+Against it: a list shows the interface at a glance, as ML's signatures and Modula-2's definition
+modules do. But the reduct is computable, so a tool prints the interface, and a list is a second copy
+that drifts; the 109 lists are where the loader's refusal comes from.
+
+**Finding 4. A declaration is one form: a header, and one body that is an expression or a host.** The
+record x : A [= t] [↦ ρ] has theories.md §2's four cells, and they are the body's shape:
+
+| body | cell | J | D |
+|---|---|---|---|
+| an expression | defined | `fn f(…) (U) { e }`, `let c = e`, `set S = e` | `f(…) (U) == e`, `c == e`, `S == e` |
+| a host | host | `fn f(…) (U) pure { host expr "…" }`, `set S = host "…"` | `… == HOST expr "…"`, `S == HOST "…"` |
+| a host, with the value as a claim | conditional | `let MaxRune ∈ {1114111} = host "utf8.MaxRune"` | `MaxRune ∈ {1114111} == HOST "utf8.MaxRune"` |
+| none | a claim, covered elsewhere | `fn f(…) (U)` | `f(…) (U)` |
+
+- **`type` dissolves.** A host type's carrier is a host body, `set DirEntry = host "fs.DirEntry"`, and a
+  manifest type is a set definition, `set int32 = -2147483648..2147483647`: the homonym is gone, and
+  the program's `def` and the target's `type` for a named set are one form.
+- **A host constant's value is a claim**: MaxRune ∈ {1114111}, a singleton. That is exactly what
+  theories.md §8.3 says it is for, "the emitter writes the host's name and the analysis reads the
+  value": ρ prints the body, and the logic reads the claim. R2 already keeps such a declaration from
+  being unfolded, so the value was never a definiens. The survey already reads one so, "a primitive of
+  no arguments whose result is the EXACT range [v, v]" (`gauntlet/stdlib/survey.go`), and a hand
+  declaration is compared with the survey's like any other.
+- **J marks a set's definition `set`**, as it marks a function's `fn`, and each keyword both names and
+  forms: `fn f(x) { … }` names a λ and `fn(x) { … }` forms one; `set S = …` names a set and
+  `set { x ∈ S : P }` forms one (ADR 0061). Criterion E favours it: a set is erased by staging (Law S),
+  and the keyword shows the reader what does not survive. A top-level value is `let c = e`, the
+  definitional binder of ADR 0054 at the module's level. **D marks nothing**, as TLA+ does not: a set
+  is a value, `S == e`.
+
+**Finding 5. A variant is a set definition: a union of tagged sets.** ADR 0059 made a tag a value,
+`'name`. Then 'c(S) is the set {'c} × S, a tag alone is the singleton {'c}, and
+
+```go
+export set os_error = 'not_found | 'exists | 'permission | 'other(error)          // J
+```
+```
+EXPORT os_error == 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)            \* D
+```
+
+- **Distinct tags make the union disjoint, so it is the coproduct**, settypes' partition theorem; ADR
+  0042's tag-and-slots representation is ρ of that set, chosen as for any set. `case` is the copairing.
+- **Nothing is generated.** Today a variant's constructors are generated definitions (sums.md §3); a
+  tag is already a value, so `'other(e)` is a tag applied, and the set says which applications belong.
+- **Type parameters are a static function on sets**: `set result(T, E) = 'ok(T) | 'err(E)` is
+  result ∈ Π(T, E). Set, and `result.result(FileInfo, error)` is an application, ADR 0063's
+  instantiation.
+- **The role markers are clauses after the set**, as `pure` follows a header: J `success 'ok relevant`,
+  D `SUCCESS 'ok RELEVANT`.
+- **Closed, finite, non-recursive**, as today: a set defined through itself is refused by theories.md
+  §1.3's well-founded order. **A tag belongs to one set definition per module**, as a constructor does
+  today; two sets sharing a tag would mean set inclusion (B ⊆ A), a door no program asks to open.
+
+**Finding 6. An inclusion is an axiom, and only a model states one.** `implements T I₁ … Iₙ` is
+T ⊆ I₁ ∩ … ∩ Iₙ:
+
+```go
+axiom NumError <= error                                                          // J
+axiom File <= Reader & Writer & Closer
+```
+```
+AXIOM NumError ⊆ error                                                           \* D
+```
+
+- J's `<=` and `&` are ADR 0060's, Python's subset and intersection; D writes TLA+'s.
+- **Only a target file or a fragment may state one.** ADR 0049 extends a program by definitions and
+  proven lemmas only; a model's axioms are what the tooling checks against the host (ADR 0022), as it
+  checks every host declaration. The keyword says it is checked, not proven.
+- Rejected: the inclusion as the set definition's claim, `NumError ∈ subsets(error) == HOST "…"`. It is
+  local, but it covers 11 of the 13 (the other two include a language set defined elsewhere), and a
+  header's claim is an obligation proven on the body, which a host body cannot discharge.
+
+**Finding 7. The model's data keeps its words.** `repr` (35), `structural` (6), `backend`, `link`,
+`fact`, `underlying`, `max-len`, `big-repr`, `int-repr` are clauses of ρ and the model's parameters
+(abstract.md §2.6, Σ_T), written only by a target's author. They are spelled one to one, each with its
+sets in the notation: `repr 0..255 host "byte"` in J, `REPR 0..255 HOST "byte"` in D.
+
+**Finding 8. A companion is a set's theory, written as a nested module.** `module NumError { … }` holds
+NumError's operations, its constructor `new` included (ADR 0063: a struct literal is the companion's
+`new`). Each operation restates `self ∈ NumError`. A section variable (Coq's `Variable`, Lean's
+`variable`) would bind it once, but `new` has no `self`, so it is not proposed.
+
+### 6.5 Five programs, three notations
+
+**T** today's, **D** and **J** in the decided forms of installments 1–5 and this installment's
+proposals. Names are translated mechanically (`not-found` → `not_found`, `not-found?` → `is_not_found`);
+their case is installment 8's.
+
+---
+
+**H1 — du**, the installment's program (`examples/os/du.oro`, its comments left out).
+
+```lisp
+(use go/os as os)                                                               ; T
+(use go/io/fs/DirEntry as de)
+(use go/io/fs/FileInfo as fi)
+(use go/io/fs/FileMode as fm)
+(use go/path/filepath as filepath)
+(use go/fmt as fmt)
+(use result)
+(export main)
+
+(def cap 4096)
+
+(sig sat ((x (int 0 4611686018427387903)) (y (int 0 4611686018427387903))) (int 0 4611686018427387903))
+(def sat (x y) (let s (+ x y) (if (<= s 4611686018427387903) s 4611686018427387903)))
+
+(def length (s) (if (< s 0) 0 (if (< 4611686018427387903 s) 4611686018427387903 s)))
+
+(def contribution (ent)
+  (case (de.Info ent)
+    (result.err e)    (seq (ignore e) (tuple 0 0))
+    (result.ok info)  (if (fm.IsRegular (fi.Mode info))
+                        (tuple (length (fi.Size info)) 1)
+                        (tuple 0 0))))
+
+(def failed (r)
+  (case r
+    (result.ok u)  0
+    (result.err e) (seq (ignore e) 1)))
+
+(def walk (root)
+  (local stk (table cap (fn (k) root))
+    (let (tuple es0 r0) (os.ReadDir root)
+      (loop ((stk stk) (sp 0) (ents es0) (k 0) (dir root)
+             (bytes 0) (files 0) (dirs 1) (bad (failed r0)) (lost 0))
+        (and (< k (len ents)) (and (de.IsDir (ents k)) (< sp cap)))
+          (again (set stk sp (filepath.Join dir (de.Name (ents k))))
+                 (+ sp 1) ents (+ k 1) dir bytes files (sat dirs 1) bad lost)
+        (and (< k (len ents)) (de.IsDir (ents k)))
+          (again stk sp ents (+ k 1) dir bytes files (sat dirs 1) bad (sat lost 1))
+        (< k (len ents))
+          (let (tuple b f) (contribution (ents k))
+            (again stk sp ents (+ k 1) dir (sat bytes b) (sat files f) dirs bad lost))
+        (< sp 1)
+          (tuple bytes files dirs bad lost)
+        else
+          (let next (stk (- sp 1))
+               (tuple es r) (os.ReadDir next)
+            (again stk (- sp 1) es 0 next bytes files dirs (sat bad (failed r)) lost))))))
+
+(def main ()
+  (let av (os.Args)
+    (if (< (len av) 2)
+      (fmt.Println "usage: du DIR")
+      (let (tuple bytes files dirs bad lost) (walk (av 1))
+        (seq (fmt.Println bytes "bytes in" files "files and" dirs "directories")
+             (if (< 0 bad) (fmt.Println bad "directories could not be read") (tuple))
+             (if (< 0 lost) (fmt.Println lost "directories were not entered: more than" cap "waiting") (tuple)))))))
+```
+```
+USE go/os, go/io/fs/DirEntry AS de, go/io/fs/FileInfo AS fi,                    \\ D
+    go/io/fs/FileMode AS fm, go/path/filepath, go/fmt, result
+
+cap == 4096
+
+sat(x ∈ 0..4611686018427387903, y ∈ 0..4611686018427387903) (0..4611686018427387903) ==
+  LET s == x + y IN IF s ≤ 4611686018427387903 THEN s ELSE 4611686018427387903
+
+length(s) == CASE s < 0 → 0 [] 4611686018427387903 < s → 4611686018427387903 [] OTHER → s
+
+contribution(ent) ==
+  CASE de.Info(ent) OF
+      result.'err(e)   → ignore(e) ; ⟨0, 0⟩
+   [] result.'ok(info) → IF fm.IsRegular(fi.Mode(info)) THEN ⟨length(fi.Size(info)), 1⟩ ELSE ⟨0, 0⟩
+
+failed(r) == CASE r OF result.'ok(u) → 0 [] result.'err(e) → ignore(e) ; 1
+
+walk(root) ==
+  LET stk := [j ∈ 0..cap-1 ↦ root]  ⟨es0, r0⟩ == os.ReadDir(root) IN
+    LOOP sp == 0, ents == es0, k == 0, dir == root,
+         bytes == 0, files == 0, dirs == 1, bad == failed(r0), lost == 0 :
+        k < Len(ents) ∧ de.IsDir(ents[k]) ∧ sp < cap →
+          stk[sp] := filepath.Join(dir, de.Name(ents[k])) ;
+          AGAIN(sp + 1, ents, k + 1, dir, bytes, files, sat(dirs, 1), bad, lost)
+     [] k < Len(ents) ∧ de.IsDir(ents[k]) →
+          AGAIN(sp, ents, k + 1, dir, bytes, files, sat(dirs, 1), bad, sat(lost, 1))
+     [] k < Len(ents) →
+          LET ⟨b, f⟩ == contribution(ents[k]) IN
+            AGAIN(sp, ents, k + 1, dir, sat(bytes, b), sat(files, f), dirs, bad, lost)
+     [] sp < 1 → ⟨bytes, files, dirs, bad, lost⟩
+     [] OTHER →
+          LET next == stk[sp - 1]  ⟨es, r⟩ == os.ReadDir(next) IN
+            AGAIN(sp - 1, es, 0, next, bytes, files, dirs, sat(bad, failed(r)), lost)
+
+EXPORT main() ==
+  LET av == os.Args() IN
+    IF Len(av) < 2 THEN fmt.Println("usage: du DIR")
+    ELSE LET ⟨bytes, files, dirs, bad, lost⟩ == walk(av[1]) IN
+      fmt.Println(bytes, "bytes in", files, "files and", dirs, "directories") ;
+      (IF 0 < bad THEN fmt.Println(bad, "directories could not be read") ELSE ⟨⟩) ;
+      (IF 0 < lost THEN fmt.Println(lost, "directories were not entered: more than", cap, "waiting")
+       ELSE ⟨⟩)
+```
+```go
+use go/os                                                                       // J
+use go/io/fs/DirEntry as de
+use go/io/fs/FileInfo as fi
+use go/io/fs/FileMode as fm
+use go/path/filepath
+use go/fmt
+use result
+
+let cap = 4096
+
+fn sat(x ∈ 0..4611686018427387903, y ∈ 0..4611686018427387903) (0..4611686018427387903) {
+    s = x + y
+    if s <= 4611686018427387903 { s } else { 4611686018427387903 }
+}
+
+fn length(s) {
+    case { s < 0 -> 0; 4611686018427387903 < s -> 4611686018427387903; else -> s }
+}
+
+fn contribution(ent) {
+    case de.Info(ent) {
+        result.'err(e)   -> { ignore(e); (0, 0) }
+        result.'ok(info) -> if fm.IsRegular(fi.Mode(info)) { (length(fi.Size(info)), 1) } else { (0, 0) }
+    }
+}
+
+fn failed(r) {
+    case r { result.'ok(u) -> 0; result.'err(e) -> { ignore(e); 1 } }
+}
+
+fn walk(root) {
+    var stk := array { root : _ ∈ 0..cap-1 }
+    (es0, r0) = os.ReadDir(root)
+    loop sp = 0, ents = es0, k = 0, dir = root,
+         bytes = 0, files = 0, dirs = 1, bad = failed(r0), lost = 0 {
+        k < len(ents) && de.IsDir(ents[k]) && sp < cap ->
+            { stk[sp] := filepath.Join(dir, de.Name(ents[k]))
+              again(sp + 1, ents, k + 1, dir, bytes, files, sat(dirs, 1), bad, lost) }
+        k < len(ents) && de.IsDir(ents[k]) ->
+            again(sp, ents, k + 1, dir, bytes, files, sat(dirs, 1), bad, sat(lost, 1))
+        k < len(ents) ->
+            { (b, f) = contribution(ents[k])
+              again(sp, ents, k + 1, dir, sat(bytes, b), sat(files, f), dirs, bad, lost) }
+        sp < 1 -> (bytes, files, dirs, bad, lost)
+        else ->
+            { next = stk[sp - 1]
+              (es, r) = os.ReadDir(next)
+              again(sp - 1, es, 0, next, bytes, files, dirs, sat(bad, failed(r)), lost) }
+    }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 2 {
+        fmt.Println("usage: du DIR")
+    } else {
+        (bytes, files, dirs, bad, lost) = walk(av[1])
+        fmt.Println(bytes, "bytes in", files, "files and", dirs, "directories")
+        if 0 < bad { fmt.Println(bad, "directories could not be read") }
+        if 0 < lost { fmt.Println(lost, "directories were not entered: more than", cap, "waiting") }
+    }
+}
+```
+
+What the renderings show:
+- **The stack leaves the loop** (ADR 0052): in T it is a loop variable threaded through five back edges
+  with `stk` written in each; in D and J it is a state binder written once, `stk[sp] := …`, and each
+  `again` has nine arguments, not ten.
+- **The imports lose their restatements** (Finding 2): three of T's seven aliases are the default.
+- **The set du cannot name** (§6.3) is written three times in each; under step 2 it is
+  `set Count = 0..C` in J and `Count == 0..C` in D, and `sat`'s header is `(x ∈ Count, y ∈ Count)
+  (Count)`.
+
+---
+
+**H2 — a library module with a parameterized variant** (`lib/result.oro`, its comments left out).
+
+```lisp
+(module result)                                                                 ; T
+
+(export ok err err-map)
+
+(variant (result T E) (ok T) (err E) (success ok) (relevant))
+
+(def err-map (f r)
+  (case r
+    (ok v)  (ok v)
+    (err e) (err (f e))))
+```
+```
+EXPORT result(T, E) == 'ok(T) ∪ 'err(E)  SUCCESS 'ok  RELEVANT                  \\ D
+
+EXPORT err_map(f, r) == CASE r OF 'ok(v) → 'ok(v) [] 'err(e) → 'err(f(e))
+```
+```go
+export set result(T, E) = 'ok(T) | 'err(E)  success 'ok  relevant              // J
+
+export fn err_map(f, r) {
+    case r {
+        'ok(v)  -> 'ok(v)
+        'err(e) -> 'err(f(e))
+    }
+}
+```
+
+The header goes (Finding 1), the export list becomes two markers (Finding 3), and the variant is a
+set definition whose tags are the module's own, so they are unqualified here and `result.'ok` outside
+(ADR 0060).
+
+---
+
+**H3 — a sum of nullary and payload tags, and its classification** (`lib/os.oro`'s `os-error` and
+`classify`; T's export of the four constructors is in a list of nine names, not shown).
+
+```lisp
+(variant os-error not-found exists permission (other error))                    ; T
+
+(def classify (e)
+  (cond (host.not-found? e)   not-found
+        (host.exists? e)      exists
+        (host.permission? e)  permission
+        else                  (other e)))
+```
+```
+EXPORT os_error == 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)           \\ D
+
+classify(e) ==
+  CASE host.is_not_found(e)  → 'not_found
+    [] host.is_exists(e)     → 'exists
+    [] host.is_permission(e) → 'permission
+    [] OTHER                 → 'other(e)
+```
+```go
+export set os_error = 'not_found | 'exists | 'permission | 'other(error)        // J
+
+fn classify(e) {
+    case {
+        host.is_not_found(e)  -> 'not_found
+        host.is_exists(e)     -> 'exists
+        host.is_permission(e) -> 'permission
+        else                  -> 'other(e)
+    }
+}
+```
+
+---
+
+**H4 — host declarations, host types and companions** (`targets/go/io/fs.oro`, du's).
+
+```lisp
+(target go                                                                      ; T
+  (module go/io/fs
+    (type DirEntry (host "fs.DirEntry"))
+    (type FileInfo (host "fs.FileInfo"))
+    (type FileMode (host "fs.FileMode"))
+
+    (module DirEntry
+      (use result)
+      (sig Name  ((self DirEntry)) bytestring pure (host expr "%s.Name()"))
+      (sig IsDir ((self DirEntry)) bool pure (host expr "%s.IsDir()"))
+      (sig Info  ((self DirEntry)) (result.result FileInfo error) (host expr "%s.Info()")))
+
+    (module FileInfo
+      (sig Name  ((self FileInfo)) bytestring pure (host expr "%s.Name()"))
+      (sig Size  ((self FileInfo)) int64 pure (host expr "%s.Size()"))
+      (sig Mode  ((self FileInfo)) FileMode pure (host expr "%s.Mode()"))
+      (sig IsDir ((self FileInfo)) bool pure (host expr "%s.IsDir()")))
+
+    (module FileMode
+      (sig IsDir     ((self FileMode)) bool pure (host expr "%s.IsDir()"))
+      (sig IsRegular ((self FileMode)) bool pure (host expr "%s.IsRegular()")))))
+```
+```
+---- MODULE go/io/fs ----                                                       \\ D
+DirEntry == HOST "fs.DirEntry"
+FileInfo == HOST "fs.FileInfo"
+FileMode == HOST "fs.FileMode"
+
+---- MODULE DirEntry ----
+USE result
+Name(self ∈ DirEntry) (bytestring) PURE == HOST expr "%s.Name()"
+IsDir(self ∈ DirEntry) (Bool) PURE == HOST expr "%s.IsDir()"
+Info(self ∈ DirEntry) (result.result(FileInfo, error)) == HOST expr "%s.Info()"
+====
+
+---- MODULE FileInfo ----
+Name(self ∈ FileInfo) (bytestring) PURE == HOST expr "%s.Name()"
+Size(self ∈ FileInfo) (int64) PURE == HOST expr "%s.Size()"
+Mode(self ∈ FileInfo) (FileMode) PURE == HOST expr "%s.Mode()"
+IsDir(self ∈ FileInfo) (Bool) PURE == HOST expr "%s.IsDir()"
+====
+
+---- MODULE FileMode ----
+IsDir(self ∈ FileMode) (Bool) PURE == HOST expr "%s.IsDir()"
+IsRegular(self ∈ FileMode) (Bool) PURE == HOST expr "%s.IsRegular()"
+====
+====
+```
+```go
+module go/io/fs {                                                               // J
+    set DirEntry = host "fs.DirEntry"
+    set FileInfo = host "fs.FileInfo"
+    set FileMode = host "fs.FileMode"
+
+    module DirEntry {
+        use result
+        fn Name(self ∈ DirEntry) (bytestring) pure { host expr "%s.Name()" }
+        fn IsDir(self ∈ DirEntry) (Bool) pure { host expr "%s.IsDir()" }
+        fn Info(self ∈ DirEntry) (result.result(FileInfo, error)) { host expr "%s.Info()" }
+    }
+
+    module FileInfo {
+        fn Name(self ∈ FileInfo) (bytestring) pure { host expr "%s.Name()" }
+        fn Size(self ∈ FileInfo) (int64) pure { host expr "%s.Size()" }
+        fn Mode(self ∈ FileInfo) (FileMode) pure { host expr "%s.Mode()" }
+        fn IsDir(self ∈ FileInfo) (Bool) pure { host expr "%s.IsDir()" }
+    }
+
+    module FileMode {
+        fn IsDir(self ∈ FileMode) (Bool) pure { host expr "%s.IsDir()" }
+        fn IsRegular(self ∈ FileMode) (Bool) pure { host expr "%s.IsRegular()" }
+    }
+}
+```
+
+The wrapper goes (Finding 1); `type` becomes a set with a host body (Finding 4); each declaration is
+installment 5's G1 header with a host body.
+
+---
+
+**H5 — the model's own forms: a host type with its companion and its inclusion, and a host constant**
+(`targets/go/strconv.oro`'s `NumError`, cut to two operations, and `targets/go/unicode/utf8.oro`'s
+`MaxRune`).
+
+```lisp
+(target go                                                                      ; T
+  (module go/strconv
+    (type NumError (host "*strconv.NumError"))
+    (module NumError
+      (sig new ((err error) (func string) (num bytestring)) NumError
+            (host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" (import "strconv")))
+      (sig Err ((self NumError)) error pure (host expr "%s.Err" (import "strconv")))))
+  (implements go/strconv.NumError error))
+
+(target go
+  (module go/unicode/utf8
+    (const MaxRune 1114111 (host "utf8.MaxRune" (import "unicode/utf8")))))
+```
+```
+---- MODULE go/strconv ----                                                     \\ D
+NumError == HOST "*strconv.NumError"
+AXIOM NumError ⊆ error
+
+---- MODULE NumError ----
+new(err ∈ error, func ∈ String, num ∈ bytestring) (NumError)
+  == HOST expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" IMPORT "strconv"
+Err(self ∈ NumError) (error) PURE == HOST expr "%s.Err" IMPORT "strconv"
+====
+====
+
+---- MODULE go/unicode/utf8 ----
+MaxRune ∈ {1114111} == HOST "utf8.MaxRune" IMPORT "unicode/utf8"
+====
+```
+```go
+module go/strconv {                                                             // J
+    set NumError = host "*strconv.NumError"
+    axiom NumError <= error
+
+    module NumError {
+        fn new(err ∈ error, func ∈ String, num ∈ bytestring) (NumError) {
+            host expr "(&strconv.NumError{Err: %s, Func: %s, Num: %s})" import "strconv"
+        }
+        fn Err(self ∈ NumError) (error) pure { host expr "%s.Err" import "strconv" }
+    }
+}
+
+module go/unicode/utf8 {
+    let MaxRune ∈ {1114111} = host "utf8.MaxRune" import "unicode/utf8"
+}
+```
+
+The inclusion moves next to its type and says what it is (Finding 6); the constant's value becomes its
+claim (Finding 4).
+
+### 6.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 6`, over H1–H5 in T, D and J:
+
+| notation | tokens | × T | lexemes | × T | depth | closing run | lines |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| T | 1053 | 1.00 | 1052 | 1.00 | 9 | 7 | 91 |
+| D | 1091 | 1.04 | 979 | 0.93 | **3** | **3** | **76** |
+| J | 1032 | 0.98 | 1003 | 0.95 | 6 | 4 | 105 |
+
+Split: H1 alone is `-section 6 -until '**H2 '`, and H2–H5 the difference:
+
+| | T lexemes | D | × T | J | × T |
+|---|---:|---:|---:|---:|---:|
+| H1, du | 633 | 615 | 0.97 | 618 | 0.98 |
+| H2–H5, the declarations | 419 | 364 | **0.87** | 385 | **0.92** |
+
+- **The program costs all three about the same**, within 3%: what D and J add in commas and keywords
+  they take back in parentheses. On it the state binder takes `stk` out of five back edges and the
+  loop's head (ADR 0052), and three imports lose their aliases.
+- **The declarations are where the notations differ**: D 13% and J 8% fewer lexemes than T, from the
+  wrappers, the header, the export list and `sig`'s doubled parentheses. D's raw token count is the
+  highest only because TLA+'s module rules, `----` and `====`, are a token per character; as a lexer
+  reads them, D is the smallest.
+- **What Findings 1–3 remove is not size**: a wrapper, a header or an export list is a few tokens. It
+  is a restatement the loader has to check.
+- **The depth is T's**: 9 in T against 3 in D and 6 in J, from `walk`'s loop inside a `local` inside a
+  `let`, and the closing run follows it (7, 3, 4). J takes 15% more lines than T, its blocks closing on
+  lines of their own; D takes 16% fewer.
+
+### 6.7 Open, for hamza
+
+1. **A file is a theory named by its path; a fragment names what it realizes** (Finding 1): no `module`
+   header in a library or entry file; nested `module X { … }` in J, TLA+'s `---- MODULE X ---- … ====`
+   in D; the target is the directory, its files fragments `module PATH { … }`; `provides T M { … }`
+   elsewhere. *Recommended.*
+2. **An import's alias is filled by the reader and omitted by the printer**, so a restated alias is
+   normalized, not refused; **`alias.T.m` reaches a companion's member** through its type, as
+   theories.md §3.4 already writes it (Finding 2). *Recommended.*
+3. **`export` is a marker on the definition**, applying to the one namespace: an exported set exports
+   its tags, and an unexported set is private (Finding 3). *Recommended.*
+4. **One declaration form, a header and one body, an expression or a host** (Finding 4): `type`
+   dissolves into set definitions; a host constant's value is a singleton claim; J writes `fn`, `let` and
+   `set`, D writes none. *Recommended.*
+5. **A variant is a set definition, a union of tagged sets**, its parameters a static function, its
+   markers clauses after the set, one defining set per tag per module (Finding 5). *Recommended.*
+6. **An inclusion is an axiom**, `axiom T <= I` in J and `AXIOM T ⊆ I` in D, legal only in a model
+   (Finding 6). *Recommended.*
+7. **The model's data keeps its words**, spelled in the notation's sets (Finding 7). *Recommended.*
+8. **A companion is a nested module**, with no section variable for `self` (Finding 8). *Recommended.*

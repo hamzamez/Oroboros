@@ -142,7 +142,10 @@ As of 2026-10-14. The current assessment is [assessment-2026-10-14.md](docs/asse
 read it before planning. It scores the 10-03 plan below and weighs the next: the surface first
 (installments 6–8, each with a real program as its gauntlet, D or J decided by an experiment, the
 reader and translator behind the byte-identical gate, ADRs 0052–0062 one at a time, then the Go
-library in the new notation), against the Go library first. hamza's choice is pending.
+library in the new notation), against the Go library first. **hamza chose the surface first.**
+Installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
+its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)); its
+eight recommendations wait for hamza.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -1172,5 +1175,5 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/balance.py` | The balance of effort, counted as every assessment counts it, at any revision: `python gauntlet/balance.py 137e9c6 HEAD` |
 | `gauntlet/types/` | Types as static values' measurements: `namespace.go`, the names a module declares both as a type and as a value (spec/typevalues.md §2) |
-| `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–5's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors) and `claims.go` (how it writes claims) |
+| `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–6's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors), `claims.go` (how it writes claims) and `decls.go` (how it declares: modules, imports, exports, variants, host declarations) |
 | `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

@@ -10,7 +10,9 @@
 // `use` with and without an alias, and whether an alias is the path's last
 // segment; `export` lists; `variant` declarations, their constructors, payloads
 // and parameters; `sig` beside `def`; target declarations (`type`, `repr`,
-// `implements`, …); host bodies and their clauses; module nesting.
+// `implements`, …); host bodies and their clauses; module nesting; and whether
+// an outermost module's path restates the file's own path (the path of a
+// target file below targets/, of a library file below lib/).
 package main
 
 import (
@@ -110,6 +112,7 @@ func main() {
 		{"targets", []string{"targets"}},
 	} {
 		c := map[string]int{}
+		cur := "" // the file's path, as a module path would spell it
 		var walk func(n *node, depth int, sigs, defs map[string]bool)
 		walk = func(n *node, depth int, sigs, defs map[string]bool) {
 			h := head(n)
@@ -124,6 +127,16 @@ func main() {
 				}
 			case "module", "provides":
 				c[fmt.Sprintf("  %s at nesting depth %d", h, depth)]++
+				if h == "module" && depth == 0 {
+					switch p := name(n); {
+					case p == cur:
+						c["  module at depth 0: its path is the file's path"]++
+					case strings.HasPrefix(p, cur+"/"):
+						c["  module at depth 0: a child of the file's path"]++
+					default:
+						c["  module at depth 0: another path than the file's"]++
+					}
+				}
 				from := 2
 				if h == "provides" {
 					from = 3
@@ -134,6 +147,14 @@ func main() {
 				}
 				pair(c, inner, innerDefs)
 			case "use":
+				// A companion (theories.md §3.3) is a type's child module: its
+				// path's last segment is the type's name, capitalized.
+				if len(n.kids) >= 2 && !n.kids[1].list {
+					path := n.kids[1].atom
+					if last := path[strings.LastIndex(path, "/")+1:]; last != "" && last[0] >= 'A' && last[0] <= 'Z' {
+						c["  use: of a companion module"]++
+					}
+				}
 				switch {
 				case len(n.kids) == 2:
 					c["  use: no alias (the last segment)"]++
@@ -204,6 +225,10 @@ func main() {
 				}
 				b, _ := os.ReadFile(p)
 				c["files"]++
+				cur = strings.TrimSuffix(filepath.ToSlash(p), ".oro")
+				for _, root := range []string{"targets/", "lib/"} {
+					cur = strings.TrimPrefix(cur, root)
+				}
 				sigs, defs := map[string]bool{}, map[string]bool{}
 				for _, f := range parse(string(b)) {
 					walk(f, 0, sigs, defs)

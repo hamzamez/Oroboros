@@ -6,6 +6,8 @@
 //	go run gauntlet/surface/tokens.go -section 3   installment 3: §3.5's C1–C8 in T, B′, D, K and J
 //	go run gauntlet/surface/tokens.go -section 4   installment 4: §4.5's six programs in T, D and J
 //	go run gauntlet/surface/tokens.go -section 5   installment 5: §5.5's five programs in D and J
+//	go run gauntlet/surface/tokens.go -section 6   installment 6: §6.5's five programs in T, D and J
+//	go run gauntlet/surface/tokens.go -section 6 -until '**H2 '   … and its first program alone
 //
 // Reads surface-design.md itself, so a table and the programs it counts cannot
 // drift apart. Counted: §2.4's P1–P8 in T, B′, D and J (each fenced block whose
@@ -188,7 +190,8 @@ func lexemes(toks []string) []string {
 }
 
 func main() {
-	section := flag.String("section", "2", "the installment whose programs to count: 2, 3, 4 or 5")
+	section := flag.String("section", "2", "the installment whose programs to count: 2, 3, 4, 5 or 6")
+	until := flag.String("until", "", "end the section at this text instead (a prefix of its programs)")
 	flag.Parse()
 	b, err := os.ReadFile("docs/surface-design.md")
 	if err != nil {
@@ -217,6 +220,12 @@ func main() {
 		// so D and J are compared with each other.
 		order = []string{"D", "J"}
 		from, to = "### 5.5 Five programs", "### 5.6 Measured"
+	case "6":
+		order = []string{"T", "D", "J"}
+		from, to = "### 6.5 Five programs", "### 6.6 Measured"
+	}
+	if *until != "" {
+		to = *until
 	}
 	for _, n := range order {
 		res[n] = &measure{}

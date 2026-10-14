@@ -77,7 +77,9 @@ declaration (modules.md §5, target-system.md §4).
 
 A **library file's** module path is the path it was found at: `lib/text/regex.oro` is module
 `text/regex`. It declares no header, because modules.md already requires a library file to declare
-exactly the module its path names, and a header would be redundancy the loader checks.
+exactly the module its path names, and a header would be redundancy the loader checks. **Not built**:
+the loader requires the header and refuses any other path (`core/reduce.go`); the surface's
+installment 6 removes it (surface-design.md §6.4, Finding 1).
 
 The **entry file** is the anonymous root module, and may contain `(module NAME …)` blocks.
 

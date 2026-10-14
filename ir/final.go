@@ -464,7 +464,39 @@ func finalizeFunc(tg *emit.Target, f *Func) error {
 	// `the` is erased: its result is renamed to its operand, and the statement
 	// is dropped. Uses are rewritten through the renaming.
 	eraseThe(f)
+	// A VALUE NOTHING TYPES, like a parameter, has no final type on a target
+	// that types its values. Said here, in words, before W9 says it in a rule
+	// number: a refusal names what the program lacks, and a verifier failure
+	// is the compiler's (localtab-2026-10-14).
+	if Typed(tg) {
+		return untypedValue(f)
+	}
 	return nil
+}
+
+// untypedValue refuses the first value of f whose type is still open, naming
+// the operation that defines it.
+func untypedValue(f *Func) error {
+	var err error
+	open := func(x V, what string) {
+		if err == nil && x >= 0 && int(x) < len(f.Types) && strings.Contains(f.Types[x], "any") {
+			err = fmt.Errorf("cannot determine a type for %s, of type %s: nothing stored into it, "+
+				"read from it or declared of it fixes the open part, and the target types every value",
+				what, f.Types[x])
+		}
+	}
+	f.Walk(func(r *Region) {
+		for _, x := range r.Params {
+			open(x, "a region's parameter")
+		}
+		for i := range r.Stmts {
+			s := &r.Stmts[i]
+			for _, x := range s.Res {
+				open(x, fmt.Sprintf("the value of (%s …)", s.Op))
+			}
+		}
+	})
+	return err
 }
 
 func exitsOf(r *Region, k Term) [][]V {

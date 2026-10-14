@@ -1326,7 +1326,7 @@ func (r *refiner) iterate(args []*core.Term, f *facts) error {
 	// are inside the loop. Establish its length the same way valueLength does —
 	// from the initial value, verified against every back edge — and record the
 	// equation so `i < len(c)` has something to resolve against.
-	lens, _ := r.threadLengths(lam, inits, map[string]*linear{}, 0, f)
+	lens, _ := r.threadLengths(lam, inits, newLenEnv(), 0, f)
 	for i, n := range lam.Params {
 		if lens[i] != nil {
 			r.assumeLengthEq(g, n, lens[i])
@@ -2219,9 +2219,112 @@ func negate(t *core.Term) *core.Term {
 // target declares, because the goal will be written in whichever one the
 // program used and `lengthVar` keys on that name.
 func (r *refiner) assumeLength(f *facts, name string, value *core.Term) {
-	if n, ok := r.valueLength(value, map[string]*linear{}, 0); ok {
+	if n, ok := r.valueLength(value, newLenEnv(), 0); ok {
 		r.assumeLengthEq(f, name, n)
 	}
+}
+
+// lenEnv is what valueLength knows of the names bound INSIDE the value it walks:
+// each one's length, nil when unknown, and for a `let` binder whose value is
+// linear, that value closed over the names outside. A name is inside iff it is
+// a key of lens.
+//
+// THE INVARIANT (refinements.md §5b, "A length names no binder of its value"):
+// a length valueLength returns is a linear form over quantities that exist where
+// the value is USED, so it names no binder of the value. `(table (+ n 1) 7)`
+// reads as `(let (+ n 1) (fn (#n) (build #n …)))`,
+// and the count `#n` is n + 1 outside. Returned as `#n`, it named a variable no
+// fact constrains, and when two fills were in scope, one variable for both: the
+// first table's length was equated with the second's, and an index proven
+// against the longer one read past the shorter (localtab-2026-10-14).
+type lenEnv struct {
+	lens map[string]*linear
+	vals map[string]*core.Term
+}
+
+func newLenEnv() lenEnv {
+	return lenEnv{lens: map[string]*linear{}, vals: map[string]*core.Term{}}
+}
+
+// with is env with x bound inside, of length e (nil if unknown) and value val
+// (nil unless a closed linear term). A binder of the same spelling below
+// shadows the one above, value and all.
+func (env lenEnv) with(x string, e *linear, val *core.Term) lenEnv {
+	out := lenEnv{lens: make(map[string]*linear, len(env.lens)+1), vals: make(map[string]*core.Term, len(env.vals)+1)}
+	for k, v := range env.lens {
+		out.lens[k] = v
+	}
+	for k, v := range env.vals {
+		if k != x {
+			out.vals[k] = v
+		}
+	}
+	out.lens[x] = e
+	if val != nil {
+		out.vals[x] = val
+	}
+	return out
+}
+
+// close is t with every name bound inside replaced by its value: β on the
+// binders between the value's root and t, which is sound because each value
+// replaced is linear, so pure, and was evaluated where it is bound. It fails
+// when t names an inside binder with no linear value, or binds a name itself:
+// t then denotes no quantity where the length is used.
+func (env lenEnv) close(t *core.Term) (*core.Term, bool) {
+	switch t.Kind {
+	case core.KName:
+		if _, inside := env.lens[t.Name]; !inside || plantLenEscapeFault {
+			return t, true
+		}
+		v, ok := env.vals[t.Name]
+		return v, ok
+	case core.KApp:
+		var kids []*core.Term
+		for i, k := range t.Kids {
+			c, ok := env.close(k)
+			if !ok {
+				return nil, false
+			}
+			if c != k && kids == nil {
+				kids = append([]*core.Term(nil), t.Kids...)
+			}
+			if kids != nil {
+				kids[i] = c
+			}
+		}
+		if kids == nil {
+			return t, true
+		}
+		return &core.Term{Kind: core.KApp, Kids: kids}, true
+	case core.KFn, core.KBound:
+		return nil, false
+	}
+	return t, true
+}
+
+// plantLenEscapeFault is a planted fault for TestALengthNamesNoBinderOfItsValue:
+// a count read as written, so a binder of the value escapes into its length.
+var plantLenEscapeFault = false
+
+// bindLen is env past `(let v (fn (x) …))`: x has v's length, and v itself when
+// v is linear over what is in scope outside.
+func (r *refiner) bindLen(env lenEnv, x string, v *core.Term, depth int) lenEnv {
+	e, ok := r.valueLength(v, env, depth)
+	if !ok {
+		e = nil
+	}
+	// Linear as written first: closing replaces names by linear terms, which
+	// keeps a term linear, and most values are not.
+	var val *core.Term
+	if _, isLin := r.lin(v); isLin {
+		if c, closed := env.close(v); closed {
+			if _, isLin := r.lin(c); isLin {
+				val = c
+			}
+		}
+	}
+	return env.with(x, e, val)
 }
 
 // assumeLengthEq records `len(name) = e` under every spelling of length the
@@ -2296,7 +2399,7 @@ func lengthContract(p Prim) (count bool, at int, ok bool) {
 // The abstraction is the same one the interval analysis keeps under `envKey`;
 // this is the decision procedure's copy of it, and it stops at `again`, which
 // carries no value.
-func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (*linear, bool) {
+func (r *refiner) valueLength(t *core.Term, env lenEnv, depth int) (*linear, bool) {
 	if t == nil || depth > 16 {
 		return nil, false
 	}
@@ -2309,7 +2412,7 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 		// len(z), whatever that is. Until bufio-2026-10-01 such a name had no
 		// length here, and a loop variable threading a buffer got the buffer's
 		// only by being spelled like it.
-		if e, inside := env[t.Name]; inside {
+		if e, inside := env.lens[t.Name]; inside {
 			return e, e != nil
 		}
 		if r.bound[t.Name] {
@@ -2345,23 +2448,22 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 	count, at, declared := lengthContract(p)
 	switch {
 	// len(result) = n: argument n is a COUNT. `make([]bool, n)` is n long.
+	//
+	// The count is read where the value is used, so a binder of the value in it
+	// is replaced by its value, or the length is unknown (lenEnv).
 	case declared && count && at < len(args):
-		return r.lin(args[at])
+		c, closed := env.close(args[at])
+		if !closed {
+			return nil, false
+		}
+		return r.lin(c)
 	// len(result) = len(c): the result is AS LONG AS argument c. `c[i] = true`
 	// returns something as long as c, which is what makes an in-place store
 	// usable as a loop variable.
 	case declared && !count && at < len(args):
 		return r.valueLength(args[at], env, depth+1)
 	case p.Kind == "let" && len(args) == 2 && args[1].Kind == core.KFn && len(args[1].Params) == 1:
-		inner := map[string]*linear{}
-		for k, v := range env {
-			inner[k] = v
-		}
-		if e, ok := r.valueLength(args[0], env, depth+1); ok {
-			inner[args[1].Params[0]] = e
-		} else {
-			inner[args[1].Params[0]] = nil // bound here, length unknown
-		}
+		inner := r.bindLen(env, args[1].Params[0], args[0], depth+1)
 		return r.valueLength(args[1].Body(), inner, depth+1)
 	case p.Kind == "cond" && len(args) == 3:
 		// Both arms, and they must agree. An arm that is `again` yields
@@ -2434,26 +2536,25 @@ func (r *refiner) valueLength(t *core.Term, env map[string]*linear, depth int) (
 //
 // lens[i] is variable i's length or nil; inner is env with every variable bound,
 // to its length or to nil.
-func (r *refiner) threadLengths(lam *core.Term, inits []*core.Term, env map[string]*linear, depth int, at *facts) ([]*linear, map[string]*linear) {
-	inner := map[string]*linear{}
-	for k, v := range env {
-		inner[k] = v
-	}
+func (r *refiner) threadLengths(lam *core.Term, inits []*core.Term, env lenEnv, depth int, at *facts) ([]*linear, lenEnv) {
 	lens := make([]*linear, len(lam.Params))
-	for i, n := range lam.Params {
-		inner[n] = nil
+	for i := range lam.Params {
 		if i < len(inits) {
 			if e, ok := r.valueLength(inits[i], env, depth+1); ok {
-				lens[i], inner[n] = e, e
+				lens[i] = e
 			}
 		}
 	}
 	for {
+		inner := env
+		for i, n := range lam.Params {
+			inner = inner.with(n, lens[i], nil)
+		}
 		bad := r.againDisagrees(lam.Body(), lens, inner, depth+1, at)
 		if bad < 0 {
 			return lens, inner
 		}
-		lens[bad], inner[lam.Params[bad]] = nil, nil
+		lens[bad] = nil
 	}
 }
 
@@ -2462,7 +2563,7 @@ func (r *refiner) threadLengths(lam *core.Term, inits []*core.Term, env map[stri
 // and returns the position; -1 when every back edge agrees at every such
 // position. A nested loop owns its own `again` and is skipped — the same rule
 // `nonDecreasing` needs, and for the same reason.
-func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env map[string]*linear, depth int, at *facts) int {
+func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env lenEnv, depth int, at *facts) int {
 	same := func(got, want *linear) bool {
 		if got.String() == want.String() {
 			return true
@@ -2485,23 +2586,14 @@ func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env map[string]*l
 	// (again w2 …)))`, and w2 has the length of what it is bound to. A binder
 	// with no known length is bound to nil, so it cannot be read as the free
 	// name it may share a spelling with.
-	var walk func(*core.Term, map[string]*linear)
-	walk = func(t *core.Term, env map[string]*linear) {
+	var walk func(*core.Term, lenEnv)
+	walk = func(t *core.Term, env lenEnv) {
 		if t == nil || !ok {
 			return
 		}
 		if v, lam, isLet := asLet(r.tgt, t); isLet {
 			walk(v, env)
-			inner := map[string]*linear{}
-			for k, e := range env {
-				inner[k] = e
-			}
-			if e, have := r.valueLength(v, env, depth+1); have {
-				inner[lam.Params[0]] = e
-			} else {
-				inner[lam.Params[0]] = nil
-			}
-			walk(lam.Body(), inner)
+			walk(lam.Body(), r.bindLen(env, lam.Params[0], v, depth+1))
 			return
 		}
 		if t.Kind == core.KApp && t.Op().Kind == core.KName {
@@ -2525,12 +2617,9 @@ func (r *refiner) againDisagrees(t *core.Term, lens []*linear, env map[string]*l
 		}
 		switch t.Kind {
 		case core.KFn:
-			inner := map[string]*linear{}
-			for k, e := range env {
-				inner[k] = e
-			}
+			inner := env
 			for _, y := range t.Params {
-				inner[y] = nil
+				inner = inner.with(y, nil, nil)
 			}
 			walk(t.Body(), inner)
 		case core.KApp:

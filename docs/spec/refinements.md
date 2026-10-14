@@ -294,6 +294,41 @@ loop variable was spelled like its buffer.
 enclosing binder's name entered a scope whose facts were about another variable
 ([state.md](state.md), the residual's naming invariant).
 
+#### A length names no binder of its value (2026-10-14)
+
+The length abstraction λ (`valueLength`) maps a value V to a linear form, and `(let x V …)` assumes
+len x = λ(V) **in x's scope**, outside V. So λ(V) may name only what is in scope there. A count names
+what it likes. A table filled with anything but the zero reads as a binding of its size, since the
+size is used twice, as the length and as the fill loop's bound:
+
+```
+(table (+ n 1) 7)  ⟶  (let (+ n 1) (fn (#n) (build #n (fn (s) (loop … (set s1 #i 7) … s)))))
+```
+
+and `build`'s contract len = n gives #n, a binder of V. The rule:
+
+```
+λ(let e (fn (y) b))  =  λ(b)[y := ē]     ē: e with the binders of V above it replaced, when linear
+λ(V)                 undefined           when a count names a binder of V with no such value
+                                         (a loop's variable, a build's buffer, a λ's parameter)
+```
+
+*Proof.* β: y's value is e, a linear term is pure, and e is evaluated where y is bound, so a count
+c[y] denotes the integer c[ē]. ē names no binder of V, so it denotes the same integer where x is
+used, because the residual's names are apart along the scope chain (ADR 0036). ∎
+
+The count was read as written until localtab-2026-10-14, which had two consequences:
+- **a refusal**: nothing outside V constrains #n, so `(src n)` of a table of n + 1 sevens was refused,
+  while the zero fill, whose reading has no binder (`(build (+ n 1) …)`), was proven;
+- **a wrong proof**: the reader spells every fill's binder `#n`, and siblings keep a spelling (ADR
+  0036 names apart only along the scope chain), so two filled tables' lengths were one variable. With
+  src of n + 1 and dst of n + 5, `(if (< k (len dst)) (src k) 0)` was accepted, and on Go at n = 1,
+  k = 5 it panicked: index out of range [5] with length 2.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| a count is closed over V's binders | read as written (`plantLenEscapeFault`): the sibling `#n`s are one length, and src[k] under k < len dst is accepted | `TestALengthNamesNoBinderOfItsValue` |
+
 ### 5c. Translation invariants (2026-10-13)
 
 A merge advances i or j and always k, and its reads need i + j − k = mid, an equality no template of

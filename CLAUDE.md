@@ -1007,7 +1007,10 @@ Each of these has bitten more than once. The instances are in the results they n
     parameter.*
   - **A context keyed by name is captured by the name alone.** The term was faithful; the facts
     about a parameter `n` were read as facts about a loop variable `n` (bufio-2026-10-01). When a
-    proof holds, ask what would make it false: here, renaming one variable.
+    proof holds, ask what would make it false: here, renaming one variable. Again in
+    localtab-2026-10-14: a table's length named a binder of its own value, `#n`, read outside that
+    value's scope, where two sibling tables' `#n` were one variable and an index proven against the
+    longer table read past the shorter.
 - **The emitter must be a function of its input.** Iterating a Go map without a total order made
   output vary between runs. Test it by running twice. Its input is the IR's text, and `cmd/check`
   reprints every file from it: that found process-wide sinks a reset missed and an x86 file that

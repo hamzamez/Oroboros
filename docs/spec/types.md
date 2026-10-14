@@ -142,7 +142,9 @@ the stores first where they can be:
   an open element after one walk, the chain is walked again, with the solutions in scope;
 - **the IR's unifier applies a call's parameter demands last**, after every defining constraint
   (constants, results, stores, a build's buffer). They fill only what is unknown, and a known type meets
-  its demand at W5, by subsumption.
+  its demand at W5, by subsumption. **The function's declared result is a demand too**, on each yield,
+  met with the parameters' (spec/ir.md §2.2, localtab-2026-10-14). A zero-filled element that nothing
+  fixes is the integer, by defaulting (the same section).
 
 Not built: a table whose first constraint is a read and second a store, on one name, is still solved by
 the read. No program has that shape.

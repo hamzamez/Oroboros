@@ -242,6 +242,27 @@ primitive's result, an ascription). Every other integer is `int`, the target's w
 analyses write the final range (§7). A value no equation reaches is `any`, which IR_A allows and IR_P
 does not (W9).
 
+**A demand is an upper bound, met last.** A primitive's declared parameter and the function's declared
+result are demands: an argument flows into a parameter and a yield into the result, σ ≤ ω, as at a
+join. They are applied after every defining constraint (constants, primitives' results, stores, a
+build's buffer), and fix only what is still unknown; a known type meets its demand at W5, by
+subsumption. Until localtab-2026-10-14 the result was no demand at all, so a table whose only
+constraint was a read the function returns kept the element `any`:
+`(let src (local s (table (+ n 1) 0) s) (src n))` failed W9 on Go and Java at every declared result.
+
+**A zero-filled element that nothing fixes is the integer.** `(table n 0)` is `build`'s zero-filled
+buffer with no fill loop (local.md §1), and it names the zero of every sort. When no store writes the
+buffer and no demand reaches a read of it, no element is observed at any sort, so every choice gives
+the same observations, and the one chosen is the sort the literal names. This is defaulting an
+unconstrained type variable (the Haskell Report, §4.3.4), and the rule `settleZeros` already applies to
+a slot's zero, `#any` (ADR 0042).
+
+**A value still `any` on a target that types its values is refused in words**, at the end of the step
+to IR_P (`untypedValue`, `ir/final.go`), naming the operation that defines it, before W9 says it by
+number. A verifier failure reports a fault in the compiler, and a refusal reports what the program
+lacks. As a parameter nothing types already was, the refusal comes before W9. The one shape known to reach it is a map built and never
+written or read, `map any any`.
+
 ### 2.3 Regions own their parameters
 
 - `loop`'s region has one parameter per loop variable, and the `loop`'s operands are their initial

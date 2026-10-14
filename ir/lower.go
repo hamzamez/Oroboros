@@ -56,10 +56,19 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		l.assumeWhere(sig, f)
 	}
 	l.tail(body, f.Body, false)
+	// The signature's results, which typing reads as demands on what the body
+	// yields, and which type a zero that is a result (settleZeros).
+	var declared []string
+	if sig != nil {
+		declared = sig.Results
+		if len(declared) == 0 && sig.Result != "" {
+			declared = []string{sig.Result}
+		}
+	}
 	f.Types = make([]string, l.nv)
-	typeFunc(tg, f, l.decl)
+	typeFunc(tg, f, l.decl, declared)
 	for promote(tg, f, opt) {
-		typeFunc(tg, f, l.decl)
+		typeFunc(tg, f, l.decl, declared)
 	}
 	// A DECLARED RESULT is the signature's, not what the body's yields were
 	// typed as: it is a fixed member of its value's class (Theorem D′), and the
@@ -113,14 +122,8 @@ func Lower(tg *emit.Target, name string, sig *core.Sig, t *core.Term, opt Option
 		}
 	}
 	// A ZERO THAT IS A RESULT takes the declared result's type: a function's
-	// yields carry no equation (typing.go), so the signature is what types it.
-	var declared []string
-	if sig != nil {
-		declared = sig.Results
-		if len(declared) == 0 && sig.Result != "" {
-			declared = []string{sig.Result}
-		}
-	}
+	// yields carry no equation (typing.go), only a demand, so the signature is
+	// what types it.
 	settleZeros(f, declared)
 	f.marks, f.undecided = l.marks, l.undecided
 	Canonicalize(f)

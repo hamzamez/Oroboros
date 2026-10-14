@@ -213,8 +213,8 @@ func (u *unifier) render(i int, buffer bool) string {
 }
 
 // typeFunc assigns every value of f its type. decl holds the declared types
-// lowering found; the rest are solved for.
-func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
+// lowering found, and results the signature's; the rest are solved for.
+func typeFunc(tg *emit.Target, f *Func, decl map[V]string, results []string) {
 	u := newUnifier(tg)
 	nv := f.NV()
 	node := make([]int, nv)
@@ -248,6 +248,8 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 		u.unify(node[t], u.mk("table", e))
 		return e
 	}
+	// A BUILD'S ELEMENT, for the default below.
+	var zeroFilled []int
 	mapOf := func(m V) (int, int) {
 		k, v := u.fresh(), u.fresh()
 		u.unify(node[m], u.mk("map", k, v))
@@ -370,7 +372,7 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 				yields(body, TBreak, s.Res)
 			case OBuild:
 				is(s.Args[0], "int")
-				elem(s.Sub[0].Params[0])
+				zeroFilled = append(zeroFilled, elem(s.Sub[0].Params[0]))
 				yields(s.Sub[0], TYield, s.Res)
 			case OBuildMap:
 				is(s.Args[0], "int")
@@ -408,9 +410,39 @@ func typeFunc(tg *emit.Target, f *Func, decl map[V]string) {
 			}
 		}
 	})
-	yields(f.Body, TYield, nil) // the function's own results carry no equation
+	// THE FUNCTION'S OWN RESULTS carry no equation: a yield flows into the
+	// declared result, σ ≤ ω, as an argument flows into a parameter. So the
+	// signature is a demand on each yield, met last with the parameters'
+	// (types.md §3.1, "the demand on an element that is read"). Without it a
+	// table's element fixed only by a read the function returns was never
+	// fixed, and a Go program failed W9 with `array any` (localtab-2026-10-14).
+	if !plantResultDemandFault {
+		for _, y := range exitsOf(f.Body, TYield) {
+			for j, v := range y {
+				if j < len(results) {
+					demands = append(demands, struct {
+						v  V
+						ty string
+					}{v, results[j]})
+				}
+			}
+		}
+	}
 	for _, d := range demands {
 		is(d.v, d.ty)
+	}
+	// A ZERO-FILLED ELEMENT NOTHING FIXES is an integer. No store writes the
+	// buffer and no read of it is demanded at a sort, so no element is
+	// observed at one; every sort's zero gives the same observations, and the
+	// one `(table n 0)` writes is the integer's. This is the defaulting rule
+	// for an unconstrained type variable (the Haskell Report §4.3.4), and the
+	// rule settleZeros applies to the zero of a slot (lower.go).
+	if !plantZeroFillFault {
+		for _, e := range zeroFilled {
+			if u.n[u.find(e)].con == "" {
+				u.unify(e, u.mk("int"))
+			}
+		}
 	}
 	// Retry the clashes once more: a variable below one may be known now.
 	for round := 0; round < 2 && len(u.pending) > 0; round++ {
@@ -618,3 +650,7 @@ func buffers(tg *emit.Target, f *Func) []bool {
 	}
 	return b
 }
+
+// Planted faults for TestATableNothingStoresIsTyped: the declared result read
+// as no demand, and a zero-filled element left open.
+var plantResultDemandFault, plantZeroFillFault = false, false

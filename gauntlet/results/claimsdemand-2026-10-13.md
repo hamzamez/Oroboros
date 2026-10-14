@@ -101,7 +101,7 @@ compared with the original binary's on seven inputs, the same each time.
 | B | a disequality beside an order is strict, over ℤ (§3c) | freq's `pat` clamp | 0f09b09 |
 | C | translation invariants, Karr 1976 with translations (§5c) | freq's merge clamps, merge-sort's | 1c23ea3 |
 | D | the first iteration peeled; a failed `or` is a conjunction; a failed `and` resolved by a later guard (§5d) | freq's `dists` clamps; `cli` gone | be8bd22 |
-| E | reads as atoms; record facts over a table of records, the array property fragment at a plain index (§5e) | freq's `cl` at all three uses | the commit after be8bd22 |
+| E | reads as atoms; record facts over a table of records, the array property fragment at a plain index (§5e) | freq's `cl` at all three uses | 93688a6 |
 
 **freq has one clamp left**, `slen`, which sizes the report's allocation. The IR's interval domain
 decides that size and holds no record fact.

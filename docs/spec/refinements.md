@@ -346,6 +346,65 @@ k = 0 ∨ d ≥ 1 holds, a disjunction no convex template states. Four rules der
 | ¬(a ∨ b) gives ¬a and ¬b | the rule removed: the `or` form of the peeled loop is refused | the same test |
 | unit resolution needs the literal | resolving on any guard: `(if c (t j) 0)` after ¬(b ∧ j ≥ len t) is accepted | `TestAFailedConjunctionIsResolvedByALaterGuard` |
 
+### 5e. Reads are atoms, and a record's components are related (2026-10-14)
+
+freq reads a word's bytes at `beg + k` with k below the span's length, and a span is a pair (beg, end)
+stored in a table the product pass flattens to stride 2. What bounds the offset is a relation between
+the two components of one stored pair, beg ≤ end ≤ len src. One abstract cell per component (array
+smashing, array-facts.md §5) holds each component's bound and no relation between them. Two rules
+derive it ([claimsdemand-2026-10-13](../../gauntlet/results/claimsdemand-2026-10-13.md)).
+
+**A table's read is an atom of the linear fragment** (`readVar`), named by the table and the linear
+form of the index, so `(+ (* 2 u) 1)` and `(+ 1 (* 2 u))` are one atom and a guard on a read,
+`k < sp[2u+1] − sp[2u]`, is a linear fact. Sound because a residual is first-order, so `(x i)` with x no
+primitive is a read; a name denotes one value wherever the facts reach (ADR 0036); and a buffer's next
+version is another name. The name a split gives a read (`provedBySplit`) is assumed equal to the atom,
+and the join over a value's branches instantiates the content facts of the reads it meets, so a branch
+those facts rule out (a span's negative length) is dead there. A linear goal still holding a read is
+split, which is where its table's content facts are instantiated.
+
+**A record fact** relates the components of one record of a table read at stride k:
+
+```
+(#rec k φ)  ≡  ∀j. 0 ≤ j < n → φ(t[k·j], …, t[k·j + k − 1], x̄)        len t = k·n
+```
+
+one universal at a plain index over the curried table Π_{j<n} Vᵏ (array-facts.md §5.3, currying), φ
+linear over the components jointly and frame terms: inside Bradley, Manna and Sipma's array property
+fragment (VMCAI 2006). F-D₁ as array-facts.md §3.1 defines it is the case where φ reads one component.
+
+- **Established** (Theorem S over records, `recStore`): a run of k stores at k·j + 0 … k·j + k − 1, one
+  record j, writes it whole, so φ holds of it iff φ holds of the k values stored, and every other
+  record is the one below the run (McCarthy's axioms on the curried table). A store of one component c
+  outside such a run keeps φ only if φ does not read component c. The zero fill satisfies φ iff φ(0̄).
+  Houdini's candidates are an order between two components of each stride the loop stores at.
+- **Used** (Theorem D over records, `recInstance`): at a proven read t[i] with i ≡ c (mod k), the read is
+  component c of the record at i − c, and φ holds with the other components the reads t[i − c + j], each
+  proven in range first, each with its own component facts.
+
+| rule | planted fault | caught by |
+|---|---|---|
+| the record's values are checked at the store | not checked: pairs stored as (w + 1, w) give end − beg ≥ 0, and src[−1] is accepted | `TestRecordFacts` |
+| a store of one component kills a φ that reads it | φ kept: component 0 set to 9 after (w, w + 1), and src[−8] is accepted | `TestRecordFacts` |
+| a read is keyed by its index | keyed by the table alone: a guard on t[0] bounds the read of t[1] | `TestRecordFacts` |
+| a sibling read is proven in range | not proven: t[2] of a table of 3 gets an instance naming t[3] | `TestARecordInstanceNeedsItsSiblingInRange` |
+
+**Where each rule runs, by cost.** As first written these rules made freq's compile 2.7 times slower
+and tree's 1.9 (a serial pair against the commit before), because each applied everywhere. Each now
+runs where it can matter, which loses no proof the corpus asks for:
+- the join instantiates reads only in a `let` whose name a guard below compares (a clamp's shape), and
+  reads a side through its binder's equation only for a side that mentions a binder, which contributed
+  no template before; both only on the walk that decides obligations, not in the probes Houdini runs
+  once per round. A tail that is itself a read stays opaque to the join, as before;
+- record candidates are offered only for a stride the loop body writes whole records at, the one store
+  that can establish them, and only as ≤;
+- §3c's strict order is not taken for a disequality on a read, directly or through a `let`'s name:
+  every byte test of a parser is one, and §3c was measured, and kept, before reads were atoms.
+
+freq loses `cl`, the clamp on a word's byte offset, at all three uses. `slen`, the span's length, keeps
+its clamp: it sizes the report's allocation, which the IR's interval domain decides, and that domain
+holds no record fact yet.
+
 ## 6. The diagnostic
 
 An obligation that cannot be discharged is an **error**, naming the obligation and what was known:

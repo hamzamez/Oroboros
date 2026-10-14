@@ -88,3 +88,35 @@ its `pack` needs geometric accumulation.
    compile. Whether programs should state and prove their correctness (a sort's output sorted and a
    permutation of its input, a search's failure meaning absence: surface-design's G3–G5) is a choice,
    not a measurement, and the program-first rule cannot make it.
+
+## 5. What was built (hamza, 2026-10-13: *"Derive the facts"*)
+
+Each step is a section of refinements.md with its planted faults, each caught; each ran `cmd/check`
+(tooling skipped) with the differential runner passing on all four targets, and freq's report was
+compared with the original binary's on seven inputs, the same each time.
+
+| step | the rule | what it removed | commit |
+|---|---|---|---|
+| A | none: the analysis had grown past them | freq's `cli` at four sites, limbs' `at` (its export states its range), json-tree's three, big-limbs' | 5f020fd |
+| B | a disequality beside an order is strict, over ℤ (§3c) | freq's `pat` clamp | 0f09b09 |
+| C | translation invariants, Karr 1976 with translations (§5c) | freq's merge clamps, merge-sort's | 1c23ea3 |
+| D | the first iteration peeled; a failed `or` is a conjunction; a failed `and` resolved by a later guard (§5d) | freq's `dists` clamps; `cli` gone | be8bd22 |
+| E | reads as atoms; record facts over a table of records, the array property fragment at a plain index (§5e) | freq's `cl` at all three uses | the commit after be8bd22 |
+
+**freq has one clamp left**, `slen`, which sizes the report's allocation. The IR's interval domain
+decides that size and holds no record fact.
+
+**Not kept.** The tokenizer's clamp is stale and stays: the generated tokenizer measured 6% slower
+without it, interleaved, though Go keeps half the bounds checks.
+
+**What step E cost, and what it first cost.** As first written, reads as atoms and record facts made
+freq compile 2.7 times slower and tree 1.9 (serial pairs against be8bd22), because each rule applied
+everywhere. Restricted to where it can matter (§5e, "Where each rule runs"): tree compiles in 0.76
+against 0.82 s, freq in about 7.0 against 6.7 s (medians of interleaved runs, a noisy machine).
+
+**Found, not fixed** (a task chip): a `local` table filled with a nonzero value has no known length; a
+zero-filled one never written gives the IR `array any` and fails its verifier (W9). Both predate this
+work. And a read whose table is a loop's value, `((bn-fact 64 200) k)`, is refused by lowering.
+
+**Left for the IR**: the record fact in the interval domain, which would remove `slen`; read over write
+for kara's `c4`, which would not make kara compile (its `pack` needs geometric accumulation).

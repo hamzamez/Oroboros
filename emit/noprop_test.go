@@ -26,7 +26,10 @@ func TestAnIndexOutsideTheFragmentIsRefused(t *testing.T) {
     ` + read + `))`
 	}
 	err := refineGo(t, prog(`(t (b 3))`))
-	if err == nil || !strings.Contains(err.Error(), "is an indexing") || !strings.Contains(err.Error(), "not proven") {
+	// The read is a linear atom since refinements.md §5e, so the refusal says
+	// the goal does not follow rather than that it is outside the fragment.
+	if err == nil || !strings.Contains(err.Error(), "is an indexing") ||
+		!(strings.Contains(err.Error(), "not proven") || strings.Contains(err.Error(), "does not follow")) {
 		t.Errorf("an index into six that may be 9 must be refused: %v", err)
 	}
 	guarded := prog(`(let v (b 3) (if (and (<= 0 v) (< v (len t))) (t v) 0))`)

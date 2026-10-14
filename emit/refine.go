@@ -113,6 +113,15 @@ func pureAtoms(tgt *Target) atoms {
 		return nil
 	}
 	return func(op string) bool {
+		// A TABLE'S NAME (readQuery): any name in operator position that is not a
+		// primitive. A residual is first-order, so `(x i)` with x no primitive is
+		// a read of the table x (or a map's) — never a function call.
+		if name, isRead := strings.CutPrefix(op, readQuery); isRead {
+			if _, prim := tgt.Prims[name]; prim || name == "" || name[0] == '#' || structuralName[name] {
+				return false
+			}
+			return true
+		}
 		p, ok := tgt.Prims[op]
 		if !ok || !p.Pure || p.Kind != "expr" || isLenOp(op) ||
 			arithOp(op, 1) != "" || arithOp(op, 2) != "" {
@@ -317,6 +326,15 @@ func strictFromDisequality(f *facts, ne *core.Term) {
 	lo, hi, ok := disequality(ne) // a − b + 1 ≤ 0 is a < b; b − a + 1 ≤ 0 is a > b
 	if !ok {
 		return
+	}
+	// NOT ON A READ, directly or through the name a `let` gave it: a parser's
+	// every byte test is a disequality on a read, an atom since §5e, and two
+	// entailments each cost the sweep more than any proof they gave; this rule
+	// was measured, and kept, before reads were atoms.
+	for v := range f.substitute(lo).coef {
+		if strings.HasPrefix(v, "read(") {
+			return
+		}
 	}
 	weak := func(strict *linear) *linear { return strict.clone().addScaled(constant(1), -1) }
 	switch {
@@ -867,6 +885,15 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			if e, ok := path.lin(v); ok {
 				path = path.clone()
 				path.assumeEQ(lam.Params[0], e)
+				// THE READS IN IT carry their tables' content facts, so a branch
+				// those facts rule out (a span's negative length) is dead here.
+				// Only where a guard below compares the name, a clamp's shape,
+				// and only on the walk that decides obligations: a probe for
+				// invariants runs every join once per Houdini round, and these
+				// facts made freq's compile 2.7 times slower there.
+				if !r.probe && r.guardMentions(lam.Body(), lam.Params[0], 0) {
+					r.instantiateReads(path, v, 0)
+				}
 			}
 			walk(lam.Body(), path, depth) // a binding does not branch
 			return
@@ -876,7 +903,13 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 				c := t.Args()[0]
 				if c.Kind == core.KApp && len(c.Args()) == 2 {
 					for _, s := range c.Args() {
+						// Read through the equations of the names bound on the way,
+						// so a side `d` with d = end − beg is a template over the
+						// reads and not over a binder the value hides.
 						if l, isLin := path.lin(s); isLin {
+							if !r.probe && mentionsAnyKey(l, binders) {
+								l = path.substitute(l)
+							}
 							sides = append(sides, l)
 						}
 					}
@@ -891,7 +924,7 @@ func (r *refiner) joinConditional(inner *facts, x string, value *core.Term, f *f
 			}
 		}
 		e, isLin := path.lin(t)
-		if !isLin {
+		if !isLin || r.mentionsRead(t) {
 			ok = false
 			return
 		}
@@ -1024,7 +1057,10 @@ func (r *refiner) tailsLinear(value *core.Term, f *facts) bool {
 				return
 			}
 		}
-		if _, isLin := f.lin(t); !isLin || mentionsAny(t, loopVars) {
+		// A TAIL THAT READS A TABLE stays opaque to the join, as it was before
+		// reads became atoms (refinements.md §5e): joins over reads are the
+		// sweep's cost, and none is needed; a let-bound value may read one.
+		if _, isLin := f.lin(t); !isLin || mentionsAny(t, loopVars) || r.mentionsRead(t) {
 			ok = false
 			return
 		}
@@ -1127,6 +1163,12 @@ func (r *refiner) discharge(name string, p Prim, args []*core.Term, f *facts) (b
 			"is the same term, or by evaluating a comparison of literals; otherwise the call is not "+
 			"known to be defined, and the program is refused (docs/spec/refinements.md §3a).",
 			name, want, f.known())
+	}
+	if !allEntailed(f, goals) && r.firstAlien(want, f) != nil {
+		budget := splitBudget
+		if r.provedBySplit(want, f, &budget) {
+			return true, nil
+		}
 	}
 	for _, g := range goals {
 		if !f.entails(g) {
@@ -1559,6 +1601,11 @@ func (r *refiner) guard(f *facts, c *core.Term, holds bool) {
 // facts at: a loop's result summary, or a conditional's (or `let`'s) branch join.
 func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts) {
 	if isContentRead(e, at) {
+		// THE NAME IS THE READ (refinements.md §5e): a read is an atom, and a fact
+		// about it elsewhere in the facts is a fact about x.
+		if l, ok := into.lin(e); ok {
+			into.assumeEQ(x, l)
+		}
 		for _, phi := range r.readFacts(e, at) {
 			assume(into, instance(phi, core.Name(x)))
 		}
@@ -1597,6 +1644,54 @@ func (r *refiner) summarizeNamed(into *facts, x string, e *core.Term, at *facts)
 		return
 	}
 	r.joinConditional(into, x, e, at)
+}
+
+// guardMentions reports whether a conditional's guard in t, outside any λ,
+// mentions the name x.
+func (r *refiner) guardMentions(t *core.Term, x string, depth int) bool {
+	if t == nil || t.Kind != core.KApp || depth > 8 {
+		return false
+	}
+	if op := t.Op(); op.Kind == core.KName {
+		if p, known := r.tgt.Prims[op.Name]; known && p.Kind == "cond" && len(t.Args()) == 3 {
+			if mentionsName(t.Args()[0], x) {
+				return true
+			}
+		}
+	}
+	for _, k := range t.Kids {
+		if r.guardMentions(k, x, depth+1) {
+			return true
+		}
+	}
+	return false
+}
+
+// mentionsAnyKey reports whether a linear form has a variable in names.
+func mentionsAnyKey(l *linear, names map[string]bool) bool {
+	for v := range l.coef {
+		if names[v] {
+			return true
+		}
+	}
+	return false
+}
+
+// mentionsRead reports whether t reads a table outside any λ: an atom since
+// refinements.md §5e, which the joins keep opaque.
+func (r *refiner) mentionsRead(t *core.Term) bool {
+	if t == nil || t.Kind != core.KApp {
+		return false
+	}
+	if op := t.Op(); op.Kind == core.KName && len(t.Args()) == 1 && r.pure != nil && r.pure(readQuery+op.Name) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if r.mentionsRead(k) {
+			return true
+		}
+	}
+	return false
 }
 
 // splitBudget bounds provedBySplit's leaves. The corpus's goals carry at most
@@ -2492,6 +2587,14 @@ func (r *refiner) indexObligation(tab, idx *core.Term, f *facts) error {
 				"  and an application not known to be defined is refused (docs/spec/tables.md §6,\n"+
 				"  refinements.md §3a). A guard that tests the index against (len %s) is a proof.",
 				tab, idx, want, f.known(), tab)
+		}
+		// A READ IN THE GOAL is a linear atom (refinements.md §5e), and its
+		// table's content facts reach the goal only by naming it: the split.
+		if !allEntailed(f, goals) && r.firstAlien(want, f) != nil {
+			budget := splitBudget
+			if r.provedBySplit(want, f, &budget) {
+				continue
+			}
 		}
 		for _, g := range goals {
 			if f.entails(g) || r.probe {

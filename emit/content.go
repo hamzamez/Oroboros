@@ -64,12 +64,280 @@ func (r *refiner) readFacts(read *core.Term, f *facts) []*core.Term {
 	res := r.residueOf(idx, f)
 	var out []*core.Term
 	for _, fact := range phis {
+		if k, phi, isRec := splitRec(fact); isRec {
+			if inst, sibs := r.recInstance(tab, idx, res, k, phi, f); inst != nil {
+				out = append(out, inst)
+				// EACH SIBLING'S OWN FACTS: component j's, at the read of component
+				// j, proven in range by recInstance. They mention no #e.
+				for j, sib := range sibs {
+					if sib == nil {
+						continue
+					}
+					for _, other := range phis {
+						if _, _, isRec := splitRec(other); isRec {
+							continue
+						}
+						if kk, cc, phi := splitFact(other); kk == 1 || (kk == k && cc == int64(j)) {
+							out = append(out, instance(phi, sib))
+						}
+					}
+				}
+			}
+			continue
+		}
 		k, c, phi := splitFact(fact)
 		if decided, in := res.decides(k, c); decided && in {
 			out = append(out, phi)
 		}
 	}
 	return out
+}
+
+// RECORD FACTS (refinements.md §5e). A table read at stride k is a table of
+// records, Π_{s < k·n} V ≅ Π_{j < n} Vᵏ (component.go), and a record fact is
+//
+//	∀j. 0 ≤ j < n → φ(t[k·j], t[k·j + 1], …, t[k·j + k − 1], x̄)
+//
+// one universal over the records, φ linear over a record's components jointly
+// and frame terms: Bradley, Manna and Sipma's array property fragment over the
+// curried table, at a plain index. It is written `(#rec k φ)`, the components
+// `#e0 … #e(k−1)`. Smashing one cell per component holds no relation between
+// components; freq's spans need one, beg ≤ end.
+
+// recFact writes φ over the k components of one record.
+func recFact(k int64, phi *core.Term) *core.Term {
+	return core.App(core.Name("#rec"), core.Int(k), phi)
+}
+
+// splitRec reads `(#rec k φ)`.
+func splitRec(t *core.Term) (int64, *core.Term, bool) {
+	if t != nil && t.Kind == core.KApp && t.Op().Kind == core.KName && t.Op().Name == "#rec" {
+		if a := t.Args(); len(a) == 2 && a[0].Kind == core.KInt {
+			return a[0].Int, a[1], true
+		}
+	}
+	return 0, nil, false
+}
+
+// compVar names component j of a record in a record fact.
+func compVar(j int64) string { return fmt.Sprintf("#e%d", j) }
+
+// recInstance is Theorem D for a record fact at the read t[i]: with i ≡ c (mod k)
+// decided, the read is component c of the record at i − c, and φ holds with
+// component c the read itself (`#e`, which the caller instantiates) and every
+// other component j the read t[i − c + j], an atom (refinements.md §5e). Each of
+// those reads must be proven in range too: an undefined read has no value.
+func (r *refiner) recInstance(tab, idx *core.Term, res residue, k int64, phi *core.Term, f *facts) (*core.Term, []*core.Term) {
+	if k < 2 || (res.m != 0 && res.m%k != 0) {
+		return nil, nil
+	}
+	c := mod64(res.r, k)
+	sub := map[string]*core.Term{compVar(c): core.Name(elemVar)}
+	sibs := make([]*core.Term, k)
+	for j := int64(0); j < k; j++ {
+		if j == c {
+			continue
+		}
+		at := core.App(core.Name("+"), idx, core.Int(j-c))
+		lo := core.App(core.Name("<="), &core.Term{Kind: core.KInt}, at)
+		hi := core.App(core.Name("<"), at, core.App(core.Name("len"), tab))
+		for _, want := range []*core.Term{lo, hi} {
+			if goals, ok := f.oblig(want); ok && allEntailed(f, goals) {
+				continue
+			}
+			budget := splitBudget
+			if !plantSiblingFault && !r.provedBySplit(want, f, &budget) {
+				return nil, nil
+			}
+		}
+		sibs[j] = core.App(tab, at)
+		sub[compVar(j)] = sibs[j]
+	}
+	return core.Rename2(phi, sub), sibs
+}
+
+// instantiateReads assumes, into f, the content facts of every proven read of
+// a table with content facts in t, outside any λ, with the read itself for the
+// element: a read is an atom (refinements.md §5e), so the instance is a fact
+// about the very term the other facts name.
+func (r *refiner) instantiateReads(f *facts, t *core.Term, depth int) {
+	if t == nil || t.Kind != core.KApp || depth > 8 {
+		return
+	}
+	if isContentRead(t, f) {
+		for _, phi := range r.readFacts(t, f) {
+			assume(f, instance(phi, t))
+		}
+	}
+	for _, k := range t.Kids {
+		r.instantiateReads(f, k, depth+1)
+	}
+}
+
+// recStore is Theorem S for record facts: which `(#rec k φ)` among cands (all
+// of the base's when cands is nil) hold of the store chain t. A run of k stores
+// at k·j + 0 … k·j + k − 1, the same record j, writes that record whole, so φ
+// holds of it iff φ holds of the k values stored, and every other record is the
+// one below the run (McCarthy over the curried table). A store at one component
+// c outside such a run leaves φ standing only if φ does not mention component c.
+func (r *refiner) recStore(t *core.Term, f *facts, cands []*core.Term, depth int) []*core.Term {
+	type store struct{ idx, val *core.Term }
+	var run []store
+	below := t
+	for n := 0; n < 16; n++ {
+		if below.Kind != core.KApp || below.Op().Kind != core.KName {
+			break
+		}
+		p, known := r.tgt.Prims[below.Op().Name]
+		if !known || p.Kind != "table-set" || len(below.Args()) != 3 {
+			break
+		}
+		run = append(run, store{below.Args()[1], below.Args()[2]})
+		below = below.Args()[0]
+	}
+	if len(run) == 0 {
+		return nil
+	}
+	if cands == nil {
+		for _, fact := range r.holds(below, f, nil, depth+1) {
+			if _, _, isRec := splitRec(fact); isRec {
+				cands = append(cands, fact)
+			}
+		}
+	}
+	var out []*core.Term
+	for _, fact := range cands {
+		k, phi, isRec := splitRec(fact)
+		if !isRec || k < 2 {
+			continue
+		}
+		// THE TOP k STORES AS ONE RECORD: residues 0 … k − 1, each index minus its
+		// residue one linear form.
+		if len(run) >= int(k) {
+			var record *linear
+			vals := make([]*core.Term, k)
+			whole := true
+			for _, st := range run[:k] {
+				res := r.residueOf(st.idx, f)
+				l, ok := f.lin(st.idx)
+				if !ok || (res.m != 0 && res.m%k != 0) {
+					whole = false
+					break
+				}
+				c := mod64(res.r, k)
+				if vals[c] != nil {
+					whole = false
+					break
+				}
+				vals[c] = st.val
+				b := l.clone().addScaled(constant(c), -1)
+				if record == nil {
+					record = b
+				} else if d := record.clone().addScaled(b, -1); len(d.coef) != 0 || d.konst != 0 {
+					whole = false
+					break
+				}
+			}
+			if whole {
+				sub := map[string]*core.Term{}
+				for j, v := range vals {
+					sub[compVar(int64(j))] = v
+				}
+				budget := splitBudget
+				if (plantRecStoreFault || r.provedBySplit(core.Rename2(phi, sub), f, &budget)) &&
+					len(r.holds(dropStores(t, int(k)), f, []*core.Term{fact}, depth+1)) > 0 {
+					out = append(out, fact)
+				}
+				continue
+			}
+		}
+		// ONE COMPONENT STORED: φ stands if it does not read that component.
+		res := r.residueOf(run[0].idx, f)
+		if res.m != 0 && res.m%k != 0 {
+			continue
+		}
+		if (plantRecComponentFault || !mentionsName(phi, compVar(mod64(res.r, k)))) &&
+			len(r.holds(t.Args()[0], f, []*core.Term{fact}, depth+1)) > 0 {
+			out = append(out, fact)
+		}
+	}
+	return out
+}
+
+// Planted faults for TestRecordFacts (recfact_test.go), each a rule of
+// refinements.md §5e disabled: the sibling reads' range, the record's values
+// at a whole-record store, and a one-component store's effect on φ.
+var plantSiblingFault, plantRecStoreFault, plantRecComponentFault = false, false, false
+
+// storesWholeRecords reports whether body, outside any nested loop's own body,
+// holds a run of k stores that writes one record of stride k whole.
+func (r *refiner) storesWholeRecords(body *core.Term, k int64, f *facts) bool {
+	found := false
+	var walk func(t *core.Term, depth int)
+	walk = func(t *core.Term, depth int) {
+		if found || t == nil || depth > 64 {
+			return
+		}
+		if t.Kind == core.KFn {
+			walk(t.Body(), depth+1)
+			return
+		}
+		if t.Kind != core.KApp {
+			return
+		}
+		if r.isRecordRun(t, k, f) {
+			found = true
+			return
+		}
+		for _, c := range t.Kids {
+			walk(c, depth+1)
+		}
+	}
+	walk(body, 0)
+	return found
+}
+
+// isRecordRun reports whether t's top k stores write one record whole: residues
+// 0 … k − 1, each index minus its residue one linear form.
+func (r *refiner) isRecordRun(t *core.Term, k int64, f *facts) bool {
+	var record *linear
+	seen := make([]bool, k)
+	for n := int64(0); n < k; n++ {
+		if t.Kind != core.KApp || t.Op().Kind != core.KName {
+			return false
+		}
+		p, known := r.tgt.Prims[t.Op().Name]
+		if !known || p.Kind != "table-set" || len(t.Args()) != 3 {
+			return false
+		}
+		idx := t.Args()[1]
+		res := r.residueOf(idx, f)
+		l, ok := f.lin(idx)
+		if !ok || (res.m != 0 && res.m%k != 0) {
+			return false
+		}
+		c := mod64(res.r, k)
+		if seen[c] {
+			return false
+		}
+		seen[c] = true
+		b := l.clone().addScaled(constant(c), -1)
+		if record == nil {
+			record = b
+		} else if d := record.clone().addScaled(b, -1); len(d.coef) != 0 || d.konst != 0 {
+			return false
+		}
+		t = t.Args()[0]
+	}
+	return true
+}
+
+// dropStores is the store chain t with its top n stores removed.
+func dropStores(t *core.Term, n int) *core.Term {
+	for ; n > 0; n-- {
+		t = t.Args()[0]
+	}
+	return t
 }
 
 // isContentRead reports whether t is a read of a table with content facts, which
@@ -116,11 +384,22 @@ func (r *refiner) holds(t *core.Term, f *facts, cands []*core.Term, depth int) [
 		// McCARTHY'S AXIOMS: slot i now holds v, and every other slot is b's.
 		// A store at an index whose residue proves it outside a fact's component
 		// leaves that component untouched (component.go), so the fact survives
-		// without being checked against the stored value.
-		base := r.holds(args[0], f, cands, depth+1)
-		res := r.residueOf(args[1], f)
+		// without being checked against the stored value. A RECORD fact is
+		// decided by recStore, over the run of stores that writes a record whole.
+		recC, plainC := splitRecCands(cands)
 		var out []*core.Term
+		if cands == nil || len(recC) > 0 {
+			out = append(out, r.recStore(t, f, recC, depth)...)
+		}
+		if cands != nil && len(plainC) == 0 {
+			return out
+		}
+		base := r.holds(args[0], f, plainC, depth+1)
+		res := r.residueOf(args[1], f)
 		for _, fact := range base {
+			if _, _, isRec := splitRec(fact); isRec {
+				continue
+			}
 			k, c, phi := splitFact(fact)
 			if decided, in := res.decides(k, c); decided && !in {
 				out = append(out, fact)
@@ -166,6 +445,18 @@ func (r *refiner) zeroFill(name string, f *facts, cands []*core.Term) []*core.Te
 	assume(g, one)
 	var out []*core.Term
 	for _, fact := range cands {
+		if k, phi, isRec := splitRec(fact); isRec {
+			// Every component of every record is 0.
+			sub := map[string]*core.Term{}
+			for j := int64(0); j < k; j++ {
+				sub[compVar(j)] = &core.Term{Kind: core.KInt}
+			}
+			budget := splitBudget
+			if r.provedBySplit(core.Rename2(phi, sub), g, &budget) {
+				out = append(out, fact)
+			}
+			continue
+		}
 		_, _, phi := splitFact(fact)
 		budget := splitBudget
 		if r.provedBySplit(instance(phi, &core.Term{Kind: core.KInt}), g, &budget) {
@@ -350,6 +641,20 @@ func (r *refiner) contentInvariants(lam *core.Term, inits []*core.Term, f, g *fa
 				addT(atFact(k, c, phi))
 			}
 		}
+		// RECORD CANDIDATES (refinements.md §5e): an order between two components
+		// of one record, offered only where the body writes a record whole, the
+		// one store recStore can establish a record fact at; a loop that stores
+		// one component at a time (tree's nodes) would only spend Houdini rounds
+		// killing them.
+		if r.storesWholeRecords(lam.Body(), k, f) {
+			for a := int64(0); a < k; a++ {
+				for b := int64(0); b < k; b++ {
+					if a != b {
+						addT(recFact(k, core.App(core.Name("<="), core.Name(compVar(a)), core.Name(compVar(b)))))
+					}
+				}
+			}
+		}
 	}
 	for _, phi := range allContent(f) {
 		if !mentionsAny(phi, params) {
@@ -488,6 +793,23 @@ func allContent(f *facts) []*core.Term {
 		}
 	}
 	return out
+}
+
+// splitRecCands separates record facts from the rest; nil stays nil for both,
+// which is holds' DISCOVER.
+func splitRecCands(cands []*core.Term) (rec, plain []*core.Term) {
+	if cands == nil {
+		return nil, nil
+	}
+	rec, plain = []*core.Term{}, []*core.Term{}
+	for _, c := range cands {
+		if _, _, isRec := splitRec(c); isRec {
+			rec = append(rec, c)
+		} else {
+			plain = append(plain, c)
+		}
+	}
+	return rec, plain
 }
 
 // intersectPhis keeps the φ of a that also occur in b, compared by printed form.

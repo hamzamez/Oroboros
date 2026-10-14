@@ -111,11 +111,12 @@
 
 (def sbeg (sp w) ((sp w) 0))
 (def send (sp w) ((sp w) 1))
-; A SPAN'S LENGTH IS CLAMPED, and the reason is the honest one. Both endpoints
-; are values read out of a table, so their difference is unrelated to anything
-; the analysis can see -- frozen-2026-08-28's `d`, in a program with no parser in
-; it. What is true is that a span lies inside the file, so its length is under
-; the stated input cap, and the program says so.
+; A SPAN'S LENGTH IS CLAMPED, and the reason has narrowed. The refinement layer
+; knows d ≥ 0 now, from the record fact beg ≤ end (refinements.md §5e); the
+; IR's interval domain, which decides the size of the report's allocation, a sum
+; of these lengths, holds one cell per component and no relation between them, so
+; to it d may be negative. The clamp says what a span's length is when it is not
+; one, which never happens; it stays until the IR holds the record fact too.
 (def slen (sp w)
   (let d (- (send sp w) (sbeg sp w))
     (if (< d 0) 0 (if (>= d cap-in) 0 d))))
@@ -138,7 +139,7 @@
 ; It is a byte comparison and not a scalar one, and for the free monoid that is
 ; the same answer: UTF-8 preserves scalar order, so comparing bytes orders the
 ; scalar sequences. Case folding is what makes it ASCII-only, not the ordering.
-(def wbyte (src sp w k) (fold (src (cl src (+ (sbeg sp w) k)))))
+(def wbyte (src sp w k) (fold (src (+ (sbeg sp w) k))))
 
 (def wcmp (src sp u v)
   (loop ((k 0))
@@ -148,12 +149,13 @@
     (< (wbyte src sp u k) (wbyte src sp v k))  (- 0 1)
     else                                       1))
 
-; A clamp, exactly as tree.oro uses one. An offset built out of two values read
-; from a table is bounded by nothing the analysis can see, so the program says
-; what happens when it is out of range rather than being told it cannot be
-; proven. The compiler making the program say so is CLAUDE.md's best argument
-; for ADR 0014, arriving in a sort.
-(def cl (t i) (if (< i 0) 0 (if (>= i (len t)) 0 i)))
+; NO CLAMP ON A WORD'S BYTE OFFSET. `beg + k`, with k under the span's length,
+; was clamped into `src` on the belief that an offset built out of two values
+; read from a table is bounded by nothing the analysis can see. What bounds it is
+; a relation between the two components of one stored span, beg ≤ end ≤ len src:
+; a record fact, ∀w. sp[2w] ≤ sp[2w+1], derived from the store of each span as a
+; whole and read at sp[2w] with sp[2w+1] beside it (refinements.md §5e,
+; claimsdemand-2026-10-13). So beg + k < beg + (end − beg) = end ≤ len src.
 
 ; A PERMUTATION ENTRY. `ord` holds indices, and the compiler now knows it: a
 ; table's contents are one abstract cell per buffer (array smashing), `iota`
@@ -260,7 +262,7 @@
 ; A word index is still clamped INTO the span table it indexes. That clamp is not
 ; about arithmetic: the refinement layer needs w < len sp, a relation between
 ; what `dists` stored and what `spans` built (hex-2026-09-14 §4).
-(def dword  (sp dt d) (cl sp ((dt d) 0)))
+(def dword  (sp dt d) ((dt d) 0))
 (def dcount (dt d) ((dt d) 1))
 
 (def dists (src sp ord nw nd)
@@ -380,7 +382,7 @@
     ;
     ; So the case fold belongs where it is needed -- in the COMPARISON -- and the
     ; report copies the source bytes. Which is what a reader wants anyway.
-    else (again (set out o (src (cl src (+ (sbeg sp w) k)))) (+ o 1) (+ k 1))))
+    else (again (set out o (src (+ (sbeg sp w) k))) (+ o 1) (+ k 1))))
 
 (def putline (out o src sp dt d)
   (let c (dcount dt d)

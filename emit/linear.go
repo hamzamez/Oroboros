@@ -989,9 +989,39 @@ func asLinearIn(pure atoms, t *core.Term) (*linear, bool) {
 		if pure != nil && pure(op.Name) {
 			return variable(appVar(t)), true
 		}
+		// A TABLE'S READ IS AN ATOM too (refinements.md §5e): the value of an
+		// immutable table at a point, named by the table and the index's linear
+		// form, so two spellings of one index (`(+ (* 2 u) 1)` and `(+ 1 (* 2 u))`)
+		// are one atom and a guard on a read is a linear fact. A name denotes one
+		// value wherever the facts reach (ADR 0036), and a buffer's next version
+		// is another name, so the atom is a function of the name and the index.
+		if pure != nil && len(args) == 1 && pure(readQuery+op.Name) {
+			if idx, ok := asLinearIn(pure, args[0]); ok {
+				return variable(readVar(op.Name, idx)), true
+			}
+		}
 	}
 	return nil, false
 }
+
+// readQuery asks an atom signature whether a name is a table's (pureAtoms).
+const readQuery = "#read:"
+
+// readVar names the read of table t at the index whose linear form is idx.
+func readVar(t string, idx *linear) string {
+	if plantReadKeyFault {
+		return "read(" + t + ")"
+	}
+	return "read(" + t + ", " + idx.String() + ")"
+}
+
+// plantReadKeyFault is a planted fault for TestRecordFacts: a read keyed by its
+// table alone, so every read of one table would be one atom.
+var plantReadKeyFault = false
+
+// structuralName are the language's own names in operator position, which a
+// residual applies and which are never tables.
+var structuralName = map[string]bool{"again": true, "loop": true, "let": true, "if": true, "the": true}
 
 // isLenOp recognises every spelling of "how long is this".
 //

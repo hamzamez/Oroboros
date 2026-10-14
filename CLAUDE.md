@@ -854,9 +854,20 @@ Every data form is a function whose domain differs ([data.md](docs/spec/data.md)
   is admitted; F-C, F-D and F-E are reserved. **Content facts (F-D₁) are derived, never declared**:
   - Houdini invariants;
   - induction on a buffer's store chain;
-  - components of a strided table.
+  - components of a strided table;
+  - **record facts**, a relation between the components of every record of a table read at stride k,
+    `(#rec k φ)`, established where a loop stores a record whole and read with the record's other
+    components beside it (refinements.md §5e).
 
-  See [array-facts.md](docs/array-facts.md).
+  See [array-facts.md](docs/array-facts.md). **A table's read is a linear atom**, keyed by the table and
+  the index's linear form, so a guard on a read is a linear fact (§5e). Loop invariants include
+  **translation invariants**, Karr's affine relations when every back edge is a translation (§5c);
+  a loop the ordinary walk refuses is checked again with its **first iteration peeled** (§5d); a
+  disequality beside an order is strict (§3c); a failed `or` is a conjunction and a failed `and` a
+  clause a later guard resolves (§5d). Demanded by the corpus's clamps
+  ([claimsdemand-2026-10-13](gauntlet/results/claimsdemand-2026-10-13.md)): no program needs a
+  hand-written claim, every fact a clamp lacked was derivable, and freq has one clamp left, `slen`,
+  whose fact the IR's interval domain does not hold.
 - **A name bound to a value is bounded by the value's tails**, through `if`, `let`, a host call's
   continuation and a loop's exits (refinements.md §5a): a status that is 0 or 1 at every exit is in
   [0, 1]. **A loop variable that threads a buffer has the buffer's length** (§5b): `set` preserves

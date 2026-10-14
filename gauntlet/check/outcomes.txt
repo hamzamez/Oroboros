@@ -258,18 +258,18 @@
 == examples/io/count.oro windows refused
    gen: examples/io/count.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
-== examples/io/freq.oro go emitted f36f815eee2b5c920ff0f06e3e5d5a0314bcf69f224c81474be1f92c97612698
-   note: gen-main: 71 product access(es) flattened
+== examples/io/freq.oro go emitted 3257593f45aa323aba03a54835eb5c0d80bf08427c3b59b38b3bfc2a495fed39
+   note: gen-main: 67 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
-   note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro js emitted 50d468520717c41994f543b84d764b28d99892cb75ea9db77ec98f4d00a6803e
-   note: gen-main: 71 product access(es) flattened
+   note: gen-main: 2 division(s) became a shift or a mask
+== examples/io/freq.oro js emitted cbbd5d06ad7b435d1ab9e3b16bd2e2c106111c597f2c199df3fc251d900adb2b
+   note: gen-main: 67 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
-   note: gen-main: 6 division(s) became a shift or a mask
-== examples/io/freq.oro java emitted 71da0fe4a0a95c85ab9098b481dfc734baee6c21144220278858ebd17885249d
-   note: gen-main: 71 product access(es) flattened
+   note: gen-main: 2 division(s) became a shift or a mask
+== examples/io/freq.oro java emitted 81069cfac07c80dbc9dad450b188614e77b058432a03109d8c7b8d342dcf3b59
+   note: gen-main: 67 product access(es) flattened
    note: gen-main: 218 of 218 integer operations bounded; 25 of 29 loop(s) proven terminating
-   note: gen-main: 6 division(s) became a shift or a mask
+   note: gen-main: 2 division(s) became a shift or a mask
 == examples/io/freq.oro windows refused
    gen: examples/io/freq.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.

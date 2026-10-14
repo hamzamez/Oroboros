@@ -1260,3 +1260,18 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - emitted text changed — `examples/io/freq.oro go`
 - emitted text changed — `examples/io/freq.oro java`
 - emitted text changed — `examples/io/freq.oro js`
+
+## 2026-10-14 — on be8bd22, with uncommitted changes
+
+**Reason:** freq's cl gone at all three uses (wbyte, putword, dword): reads are atoms and a record fact beg <= end over the spans' pairs bounds beg + k by end <= len src (refinements.md 5e). The four shifts no longer counted were len(sp) >> 1 inside the deleted clamps. Same output on seven inputs; tree compiles 0.76 against 0.82 s and freq about 7.0 against 6.7 s in interleaved serial runs
+
+556 runs: 300 emitted, 256 refused; 2039 of 2084 integer operations bounded, 351 of 369 loops proven. compiler pass, differential pass, tooling skip.
+
+6 change(s):
+
+- emitted text changed — `examples/io/freq.oro go`
+- compiler output changed — `examples/io/freq.oro go`
+- emitted text changed — `examples/io/freq.oro java`
+- compiler output changed — `examples/io/freq.oro java`
+- emitted text changed — `examples/io/freq.oro js`
+- compiler output changed — `examples/io/freq.oro js`

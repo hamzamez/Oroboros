@@ -138,8 +138,11 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
 
 ## Where it stands
 
-As of 2026-10-03. The current assessment is [assessment-2026-10-03.md](docs/assessment-2026-10-03.md);
-read it before planning.
+As of 2026-10-14. The current assessment is [assessment-2026-10-14.md](docs/assessment-2026-10-14.md);
+read it before planning. It scores the 10-03 plan below and weighs the next: the surface first
+(installments 6–8, each with a real program as its gauntlet, D or J decided by an experiment, the
+reader and translator behind the byte-identical gate, ADRs 0052–0062 one at a time, then the Go
+library in the new notation), against the Go library first. hamza's choice is pending.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -324,7 +327,7 @@ Soundness bugs found while writing the IR's rules:
 **The standing goal** (hamza) is **the Go standard library, package by package**. When a package hits
 a wall that needs language work, stop and research it, then design it.
 
-**Next, from the current assessment** (10-03):
+**The 10-03 plan** (scored in assessment-2026-10-14 §1):
 1. **A round of questions** — hamza's, answered as the type, integer and table questions were: what the
    thing is (set, operation, law), where the literature settled it, what a measurement decides, and the
    decision, with an ADR where it settles one. **Answered:** the IR's text as a format others read and
@@ -491,20 +494,23 @@ windows/V8/JVM unsigned rungs; dependent result ranges, a sum in a sign, `ByteOr
 `with` and named views.
 
 **The balance risk, named in every assessment.** The compiler grows much faster than the code written
-in the language. Counted as assessment-2026-10-03 §3.1 defines it (code lines of `.oro` in `examples/`
-and `lib/`; raw lines of `.go` in `core/`, `emit/`, `ir/`, tests included):
-- This round: +2,498 lines of compiler against +75 written in the language, **33 : 1**, the best of
-  the five rounds recorded (504 : 1 and 66 : 1 before it); 16 : 1 in its last phase. The net in the
-  language is −45: the portable layer's programs and the threaded sieves were deleted.
-- The compiler is 56,061 lines: `core` + `emit` 36,962, `ir` 19,099. `emit : core` is 2.68, and
-  (`emit` + `ir`) : `core` is 4.58. The refinement layer is 4,964 lines, the IR's analysis 3,336.
-- The largest program, `freq`, has been 164 lines for three assessments.
+in the language. Counted by **`python gauntlet/balance.py [REV…]`**, which reproduces every
+assessment's table from git (assessment-2026-10-03 §3.1's definitions: code lines of `.oro` in
+`examples/` and `lib/`; raw lines of `.go` in `core/`, `emit/`, `ir/`, tests included):
+- The 10-14 round: +10,557 lines of compiler against +166 written in the language, **64 : 1**, against
+  33 : 1 the round before. Two of its five phases (questions; the surface design) changed no line of
+  either; it wrote +17,005 lines of documents, surface-design.md 42,427 words of them.
+- The compiler is 66,618 lines: `core` 15,112, `emit` 31,676, `ir` 19,830. `emit : core` is 2.10 and
+  (`emit` + `ir`) : `core` 3.41, falling because the abstract syntax grew `core`. The refinement layer,
+  extended, is 5,808 lines, the IR's analysis 3,342.
+- The largest program, `freq`, has been the largest for four assessments, and shrank to 163 lines
+  as its clamps were derived away.
 
 The part that decides what is legal is the hardest to check. Write programs, and let them demand the
 analysis.
 
 Previous assessments:
-[09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
+[10-03](docs/assessment-2026-10-03.md), [09-28](docs/assessment-2026-09-28.md), [09-24](docs/assessment-2026-09-24.md), [09-23](docs/assessment-2026-09-23.md), [09-17](docs/assessment-2026-09-17.md), [09-13](docs/assessment-2026-09-13.md), [09-11](docs/assessment-2026-09-11.md),
 [09-09](docs/assessment-2026-09-09.md), [09-06](docs/assessment-2026-09-06.md),
 [08-20](docs/assessment-2026-08-20.md), [08-19](docs/assessment-2026-08-19.md),
 [08-13](docs/assessment-2026-08-13.md).
@@ -1161,6 +1167,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `cmd/` | `check` (every check), `build` (a program), `gen` (emit one file), `oro` (reduce), `intervals`, `portable` (which targets accept a program) |
 | `examples/` | Small programs plus: `int/` (meant to be refused), `big/` (arbitrary precision, including `render.oro`), `io/` (`wc`, `count`, the first program with cells, `jsonfmt`, `roundtrip`, and `freq`, the largest program), `lines/` (the line tool over `bufio`, and `ages`, cells the host writes), `json/` (tokeniser and tree), `kara/`, `tally/` (one application on Go and the JVM), `native/` (the gauntlet's native sources, and `filter-go`, the one push-stream program). `dot`, `modules` and `smooth` at the top level are portable-layer programs kept for the book |
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
+| `gauntlet/balance.py` | The balance of effort, counted as every assessment counts it, at any revision: `python gauntlet/balance.py 137e9c6 HEAD` |
 | `gauntlet/types/` | Types as static values' measurements: `namespace.go`, the names a module declares both as a type and as a value (spec/typevalues.md §2) |
 | `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–5's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors) and `claims.go` (how it writes claims) |
 | `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

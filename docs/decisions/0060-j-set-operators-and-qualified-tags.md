@@ -3,7 +3,8 @@
 Date: 2026-10-12
 Status: Accepted (hamza, 2026-10-12, on surface-design.md §4.9: "2. sure. 3. but I thought os.'not_found
 the tag ' is part of the symbol why does it move to the module name. no to exposing"). Not built: the
-surface is built when it is chosen.
+surface is built when it is chosen. **Item 2 superseded by [ADR 0065](0065-j-writes-sets-in-tla-symbols.md)**
+(J writes TLA+'s set symbols); items 1, 3 and 4 stand.
 
 ## Context
 

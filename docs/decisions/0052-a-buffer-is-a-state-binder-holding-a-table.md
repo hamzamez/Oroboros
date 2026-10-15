@@ -14,8 +14,9 @@ option (a), `linear` written at 26 binders. **Extended to maps by
 spec/local.md §2.1): J writes every buffer in program order, and S of it is today's residual on the
 corpus. Building it measured two errors here: the 4 renames in alloc-copies are no refusals (each renames
 a dead version, which is the place), and R0 as written refuses 3 programs it should not, the merge
-sorts' two buffers swapping places each pass. Three gaps follow, G5–G7 in spec/j.md; G5 and G6 decided
-by hamza (2026-10-15), G7 open: a concurrent assignment `a, b := b, a` for the swap (R0's moves, a permutation of
+sorts' two buffers swapping places each pass. Three gaps follow, G5–G7 in spec/j.md, all decided by
+hamza (2026-10-15). G7 amends R0 below: a whole write's value is a fresh table or a move in a
+concurrent assignment; the growth clause goes, since a borrow's value is its result's rest: a concurrent assignment `a, b := b, a` for the swap (R0's moves, a permutation of
 places), the record store `dt[s][1] := v`, and one borrow rule, under which growth is the statement
 `strconv.AppendInt(b, k, 10)` rather than this ADR's `b := f(b, …)`.
 

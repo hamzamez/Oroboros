@@ -169,10 +169,9 @@ sources through J, and `cmd/check` is byte-identical (560 runs) with the differe
 the translator unthreads today's corpus (U), and S, the state translation with one new clause, the
 borrow, gives today's residual on every program through J but two (a version today's jsonfmt names, a
 name in kara/core's refusal), with every module read through J; R0–R4 decided on each place's scope,
-each with a planted fault. Building it found three gaps, **G5–G7 for hamza** (spec/j.md): a concurrent
-assignment for the merge sorts' swapping buffers, which ADR 0052's R0 refuses; the record store
-`dt[s][1] := v`; one rule for every borrow, growth a statement. Next: hamza's G5–G7, then ADR 0058 (map
-buffers), then the rest of 0053–0066; then step 5, the corpus switched to J and the target loader with it.
+each with a planted fault. Building it found three gaps, G5–G7 (spec/j.md), **decided by hamza**: a
+concurrent assignment for the merge sorts' swapping buffers, which ADR 0052's R0 refused; the record
+store `dt[s][1] := v`; one rule for every borrow, growth a statement. Next: ADR 0058 (map buffers), then the rest of 0053–0066; then step 5, the corpus switched to J and the target loader with it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -619,7 +618,7 @@ rejected alternatives.
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
-| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — built behind the J gate; G5–G7 proposed | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
+| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — built behind the J gate; G5–G7 decided | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |

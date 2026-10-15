@@ -59,7 +59,7 @@ value is the body's, and a buffer in it is frozen (ADR 0031).
 
 Status: built 2026-10-15 behind `ORO_VIA_J` (storeorder-2026-10-15): J writes every buffer this way, and
 S of the corpus in J is today's residual but for two programs, each explained there. Today's notation
-keeps threading until the corpus moves to J. G5–G7 (spec/j.md) are proposed, not decided.
+keeps threading until the corpus moves to J. G5–G7 (spec/j.md) are decided (hamza, 2026-10-15).
 
 **A buffer is a state binder whose value is a table**, Ref(Seq(A)) with point update: ADR 0047's "a
 cell is a buffer of one" read in reverse.

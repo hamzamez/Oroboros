@@ -39,6 +39,7 @@ since the document records how the design was reached.
 | 16 | a header is the membership statement, the result a binder `(r ∈ U)` or its set `(U)`, `result` gone; bounds in binder sets, a telescope, relations in `where`; one equality in formulas, the logic's; quantifiers, `==>`, `<==>` (D TLA+'s) in claim positions only; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface; no claim ≠ `any` | [ADR 0062](decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md), §5.7 | installment 5's G1–G5 are the decided spellings, modulo D or J |
 | 17 | a file is a theory named by its path, a fragment names its module, the target the directory; an import's alias filled by the reader, `alias.T.m` through a companion; visibility public, `private`/`LOCAL` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host), `type` gone, a host constant's value a claim; top-level `x = e`, `let` gone, `set S = e` an optional claim (required on a host body); a variant a union of tagged sets, a value in a set position its singleton; an inclusion an axiom of a model; a companion a nested module | [ADR 0064](decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md), §6.7–6.9 | installment 6's forms |
 | 18 | J writes sets in TLA+'s symbols, `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, TLA+'s names as their ASCII, the file storing the symbol; short input is the editor's; a set former keeps its keyword, a headless brace is a block; no symmetric difference | [ADR 0065](decisions/0065-j-writes-sets-in-tla-symbols.md), §6.8–6.9 | J and D write the logic identically; ADR 0060's item 2 superseded |
+| 19 | a definition over sets is a λ returning a λ, `E ⊆ S` a set binder; static arguments inferred by matching; `~[]E` collapses; the arrow a λ's header, its domain a telescope; a site λ takes its claim from the parameter; no receiver form; `x'` on exit; one binding for a call's results; host templates with named splices `${x}`, denoting concatenation in Code_T | [ADR 0066](decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md), §7.7–7.10 | installment 7's forms |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -6298,7 +6299,8 @@ leaves that open; one that returns a string closes it.
     position *with its imports*, the result binder as its destination. `import "…"` is the requirement
     written by hand. *Recommended.*
 11. **An explicit `++` on code values is legitimate at the static level, and not admitted until a
-    declaration needs it.** Every one of the 913 templates is a single literal, the only form the
+    declaration needs it.** *(Items 1–11 decided, hamza 2026-10-15: "I agree with all 11", as
+    [ADR 0066](decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md).)* Every one of the 913 templates is a single literal, the only form the
     grammar has; a computed template, built from parts or by cases, makes a declaration a program the
     checker must evaluate before comparing it with the host (ADR 0022). Scala's interpolators are the
     precedent for the shape: `s"…"` and its quasiquotes `q"…"` are functions over a literal's parts, and

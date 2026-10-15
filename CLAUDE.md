@@ -147,8 +147,9 @@ Installment 6, declarations and modules, is written ([surface-design.md](docs/su
 its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
 decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
 J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md)).
-Installment 7, static parameters, the arrow and application, is written (§7), its program `top` by
-hand in D and J (callbacks tier 1 not built); its eight recommendations wait for hamza.
+Installment 7, static parameters, the arrow and application, is decided
+([ADR 0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md)), its program
+`top` written by hand in D and J (callbacks tier 1 not built). Next: installment 8, the lexical level.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -609,6 +610,7 @@ rejected alternatives.
 | A type is a static value: one namespace per module (a struct literal is its companion's `new`); a declaration's head binds static parameters, `(sig (AsType (E (subsets error))) …)`; instantiation is application reduced by δ to `f#[T̄]`, identified by its name, the bound membership by subsumption; no set survives staging; `(comma-ok)` | [0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md) |
 | A file is a theory named by its path, a target file a set of fragments, the target its directory; an import carries its alias; visibility public, `private` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host); `let` off the top level, `set S = e` an optional claim; a variant a union of tagged sets; an inclusion an axiom of a model; a companion a nested module — not built | [0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) |
 | J writes sets in TLA+'s symbols `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, TLA+'s names their ASCII, the file storing the symbol; short input is the editor's, never a string escape; a set former keeps its keyword, a headless brace is a block — supersedes 0060's item 2, not built | [0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md) |
+| A definition over sets is a λ returning a λ, `E ⊆ S` binding a set; static arguments inferred by matching sorts; Go's `~[]E` collapses; the arrow a λ's header, its domain a telescope; no receiver form; `x'` on exit in `ensure`; a host template is quoted code with named splices `${x}`, a value of Code_T = text × requirements — not built | [0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md) |
 
 ## How this project is run
 

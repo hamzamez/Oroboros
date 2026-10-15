@@ -6305,3 +6305,502 @@ leaves that open; one that returns a string closes it.
     checker must evaluate before comparing it with the host (ADR 0022). Scala's interpolators are the
     precedent for the shape: `s"…"` and its quasiquotes `q"…"` are functions over a literal's parts, and
     may return something other than a string.
+
+
+## Installment 8 — the lexical level
+
+hamza: *"then installment 8, always mathematical and algebraic"*. The last installment before the D-or-J
+experiment: how names, literals, comments, operators and lines are written. Its gauntlet is the
+corpus itself, since every lexical rule applies to every program: the translator's spelling must be
+defined on every name the corpus binds, and three real files are rendered in full, comments included.
+
+### 8.1 What the lexical level carries
+
+From abstract.md §1.2 and §9, and comments.md §1:
+
+| | carrier | what it is | the law |
+|---|---|---|---|
+| **names** | 𝒩, atoms; `p.x` qualified | a name's spelling belongs to a rendering | σ_R : 𝒩 → Identifiers_R is **injective** per program (abstract.md §9.3); a collision is refused, naming the pair |
+| **literals** | 𝒦: ℤ, IEEE doubles, Σ*, 𝔹 | values written in place | a literal denotes exactly one value; staging folds nothing it should not (ADR 0009) |
+| **templates** | 𝒯: host text with named splices `${x}` | Code_T's literals (ADR 0066) | — |
+| **gaps** | whitespace and comments | the kernel of the lexer | parse factors through Text/≡, s ≡ s′ iff tokens(s) = tokens(s′) (comments.md §1); a translator transports every gap to its abstract position (abstract.md §9.2) |
+| **tokens** | the lexer's output, Text → Token* | the first factor of parse | **maximal munch must be unambiguous**: no token class may make another's spelling depend on what follows it beyond one character |
+
+The lexer is a monoid homomorphism up to gaps: tokens(s ++ s′) = tokens(s) ++ tokens(s′) whenever the
+cut falls in a gap. Every rule below is chosen so that a cut in a gap is always a cut between tokens.
+
+### 8.2 Measured
+
+`go run gauntlet/surface/lexical.go` and `templates.go`:
+
+| | programs | targets |
+|---|---:|---:|
+| bound names, distinct (definitions, parameters, binders, aliases) | 339 | — |
+| … containing `-` / ending in `?` / with a capital / non-ASCII | **68** / **14** / 16 / 0 | — |
+| … colliding once `-` becomes `_` and `?` is dropped | **0** | — |
+| … equal to a word J reserves / reads in a clause | `host` (an alias) / `out` (a parameter) | — |
+| declaration names with an operator character (`+`, `>=`, `big+`, `u64>=`, `f>`) / kebab names | — | **61** / 44 of 640 |
+| qualified calls of a host operator (`go.+`, `go.>=`), all in the native benchmark programs | **320** | 12 |
+| integer literals / of magnitude ≥ 2³¹ / of 10 digits or more | 2,550 / 91 / 101 | 523 / 101 / 109 |
+| … of the form 2ᵏ − 1 / 2ᵏ / −2ᵏ (k ≥ 8) | **70 / 55** / 1 | **83** / 1 / **24** |
+| `(pow 2 k)`, today's only exponent, in range endpoints | 11 | — |
+| float literals / with an exponent | 24 / 0 | — |
+| comments: a line of their own / trailing code | **4,165 / 13** | 2,066 / 3 |
+| host templates containing `\"` | — | 10 of 913 |
+
+Read one at a time:
+- **The 61 operator-named declarations** are the hosts' operators (`+`, `&^`, `===`, `>>>`) and the
+  compiler's representation operations (`big+`, `u64>=`, `f>`), the names `emit/opnames` and
+  `ir/words.go` look up. The 320 calls are the native programs, which call Go's `+` by name on purpose.
+- **The 2ᵏ forms are ranges and words**: `(int -9223372036854775808 9223372036854775807)` is the
+  int64 word, `4611686018427387903` du's saturation bound, 255 and 65535 a byte and a uint16.
+- **Comments are lines**: 99.7% stand on a line of their own.
+
+### 8.3 The holes and misfits
+
+- **`-` is in 68 names and is subtraction in D and J**; `?` ends 14 predicates (`host.not-found?`).
+- **61 declared names cannot be identifiers in an infix notation** at all, and 320 calls use them.
+- **A literal does not say what it is**: `9223372036854775807` is 2⁶³ − 1, and the reader must count
+  digits to know it. `(pow 2 k)` exists, but only as a range endpoint.
+- **The case of a set's name is inconsistent across the installments**: `Array(V)`, `Map(K, V)` (ADR 0059)
+  and `Int` are capitalized; `option(E)`, `result.result`, `os_error` are not.
+- **J's logic is mixed since ADR 0065**: its sets are TLA+'s, `∈ ∪ ⊆`, its quantifiers and implication
+  ADR 0062's, `forall` and `==>`.
+- **One character, two roles**: `'` begins a tag (`'some`) and primes a name (`x'`, ADR 0066).
+- **J's line breaks have no stated rule**: installments 3–7 break lines after `->`, after `,` and before
+  `where`, and rely on each being read as a continuation.
+
+### 8.4 Findings
+
+**Finding 1. The spelling: ASCII words, `-` as `_`, a final `?`, and backquotes for any other name.**
+- **An identifier** is a letter or `_`, then letters, digits and `_`, and may end in one `?` (Scheme,
+  Ruby, Lean): `not_found?`. Identifiers stay UAX #31 with NFC required and bidirectional controls
+  refused, as today's reader specifies (Trojan Source, CVE-2021-42574); the corpus has none outside
+  ASCII. The mathematical symbols are not letters (Unicode Sm), so they never lex as names; D reserves
+  `λ`, which is a letter.
+- **σ maps `-` to `_`**, and is injective on the corpus: 68 names, 0 collisions. A program where it is
+  not, `best-name` beside `best_name`, is refused by the translator naming the pair (abstract.md §9.3).
+- **A name outside the alphabet is written in backquotes**: `` go.`>=`(i, len(a)) ``,
+  `` fn `big+`(a ∈ Big, b ∈ Big) (Big) ``. It is the host's own name, not renamed, which is the reason
+  today's reader admits `%&|^~` in names ("a target module that has to rename `%` to `rem` is teaching
+  the reader's limitations rather than the host's"). Kotlin, Scala and F#'s double backticks are the
+  precedent. It costs a pair of quotes on 61 declarations and 320 calls, all in target files and native
+  benchmarks, none in a portable program.
+
+**Finding 2. Few reserved words; the rest are read only where a clause can stand.**
+- **J reserves the words that open a form**: `fn spec lemma set array map var let loop again case if
+  else try expect assert use module provides private export axiom true false`.
+- **Clause words are contextual**: `where ensure invariant pure inout out linear as import host expr
+  stmt comma_ok success relevant` and the model's data words are keywords only in their clause
+  position, as Python's soft keywords and C#'s contextual keywords. So `host`, `lib/os`'s alias, and
+  `out`, freq's parameter, stay names: the corpus's two collisions vanish, and 0 binders collide.
+- **After `.`, any word is a member**: Java's `List.set`, a JavaScript object's `default`. A keyword
+  cannot follow `.` as itself.
+- **D reserves its capitalized words**, TLA+'s convention; a user name is never one of them.
+
+**Finding 3. Case carries no meaning; the convention is a set's name capitalized.** Today's reader
+already never lets case assign meaning, and it cannot: host names are the host's (Go capitalizes what it
+exports, `os.Args`, a function). The convention, for readers: **a set's name starts with a capital**,
+UpperCamelCase (`Int`, `Bool`, `F64`, `String`, `Array`, `Map`, `Option`, `result.Result`, `OsError`),
+TLA+'s `Nat` and `Seq` and ADR 0059's `Array`; **values and functions are snake_case**; **host names
+are spelled as the host spells them** (`error`, `DirEntry`, `ReadFile`). It is what criterion E asks
+for, the static level visible at a glance, at no cost in the grammar. The translator applies it to the
+corpus's set names: `option` → `Option`, `result` → `Result`, `os-error` → `OsError`.
+
+**Finding 4. Literals say what they are.**
+- **`^` raises an integer constant to a power, at compile time**: `2^62 - 1`, `-2^63..2^63-1`,
+  `10^18`. It is today's `(pow 2 k)` generalized from range endpoints to any constant expression, and
+  TLA+'s `^`. Both operands must be static integers, the exponent non-negative; it folds under ADR
+  0009's rules, and is refused otherwise, since no host has an integer power to emit. The 2ᵏ forms
+  (125 in programs, 108 in targets) become their meaning.
+- **A float has digits on both sides of its point**, `0.5`, `1.5e-3`, `1e9`, so `0..n` is always a
+  range: `..` is never part of a number.
+- **`-` is the prefix operator**, so `-1` is negation folded; `^` binds tighter than it, so `-2^7` is
+  −(2⁷), as in mathematics, TLA+ and Python.
+- **No hexadecimal, binary or octal**: the language has no bitwise operators (integers.md), and the masks
+  the corpus writes are 2ᵏ − 1, written so. A host literal (`0o666`) lives in a template.
+- **Strings stay as string-literals.md specifies**: six escapes, NFC. No raw string: 10 of 913 templates
+  hold `\"`.
+- **No digit separators** until a long literal that is not a power asks for one; `lexical.go` counts them.
+
+**Finding 5. Comments are line comments, J `//` and D `\*`, and the translator carries them.**
+- **One shape**: 4,165 of 4,178 comments in programs stand on a line of their own. comments.md §6 refused
+  block comments for wanting a nesting rule and a second lexer mode that nothing asked for; that reason
+  stands. Its second reason, a datum comment choosing a form's grammar by parity, disappears: D and J
+  tell forms apart by keywords, and abstract.md §9.1 makes "a gap never changes the abstract tree" a
+  property of abs_R.
+- **The translator transports every gap** to its abstract position (abstract.md §9.2), so `;` becomes
+  `//` or `\*` and no comment is lost.
+- **A comment that quotes code is carried, not translated**: it is a gap, so the translator cannot read
+  it. `lib/os.oro`'s header quotes `(case (os.ReadFile path) …)`, and stays so in J (§8.5). That is
+  ADR 0024's point and its cost: a comment carries no meaning, so a tool cannot keep its code current;
+  code that must stay current belongs in a term, a test or a lemma.
+
+**Finding 6. A line break in J ends a statement unless it cannot.** A newline separates statements
+except (a) inside `( )` or `[ ]`, (b) after a token that cannot end an expression (a binary operator,
+`,`, `=`, `:=`, `->`, `:`), or (c) before a token that cannot begin a statement (`where`, `ensure`,
+`invariant`, `else`, `{`, `)`, `]`, a binary operator). Braces do not suppress it, since a block holds
+statements. It is Scala 3's rule; Go's is simpler and would force `} else {` and put no header clause on
+its own line, which K2 does. **D needs none**: a newline is a space, and a definition ends where the next
+`name ==` or module rule begins, as in TLA+.
+
+**Finding 7. J's logic is written in TLA+'s symbols too.** ADR 0065's reason extends from the sets to the
+rest of the logic: `∀ ∃ ⇒ ⇔`, with TLA+'s ASCII `\A \E => <=>`, replace ADR 0062's `forall`, `exists`,
+`==>`, `<==>` in J. J and D then write every formula identically. `&& || !` stay: they are the
+computation's connectives, which a formula includes (Formula ⊇ Expr), and J writing `∧` beside them
+would be a synonym; D's `∧ ∨ ¬` are its own computation's.
+
+**Finding 8. One precedence table** (J; D takes TLA+'s):
+
+| level | operators | associativity |
+|---|---|---|
+| 1 | application `f(…)`, indexing `t[i]`, prime `x'`, member `a.b` | left |
+| 2 | `^` (static integers) | right |
+| 3 | prefix `-`, `!` | — |
+| 4 | `*` `/` `%` | left |
+| 5 | `+` `-` `++` | left |
+| 6 | `..` | none |
+| 7 | `×` | none |
+| 8 | `∪` `∩` `∖`, one level, mixed only in parentheses, as TLA+ requires | — |
+| 9 | `==` `!=` `<` `<=` `>` `>=` `∈` `∉` `⊆` `⊂` | none: no chains |
+| 10 | `&&` | left |
+| 11 | `\|\|` | left |
+| 12 | `⇒` (formulas) | right |
+| 13 | `⇔` (formulas) | none |
+| 14 | `∀ x ∈ S :` and `∃ x ∈ S :`, whose body extends as far right as it can | — |
+
+`=`, `:=`, `->` and `;` are not operators: they belong to statements and arms. So `x ∈ 0..n-1` is
+x ∈ (0..(n−1)), `48..57 ∪ 97..122` a union of two ranges, `a < b < c` a refusal.
+
+**Finding 9. The prime and the tag share `'`, told apart by adjacency.** A `'` directly after a name,
+with no space, is a prime, and may not be followed by an identifier character: `x'`, `x'[i]`,
+`elems(x')`. Any other `'` begins a tag and must be followed by an identifier: `'some(v)`, `f('none)`.
+One character of lookbehind and one of lookahead decide it, so maximal munch stays unambiguous.
+
+### 8.5 Three files, three notations
+
+The files as the translator would print them, comments carried.
+
+---
+
+**L1 — `lib/os.oro`**, a library: kebab names, predicates ending in `?`, a sum, an export list, and a
+header comment that quotes code.
+
+```lisp
+; os: the portable operating system, one definition over each host's cell       ; T
+; (spec/errors.md §6, ADR 0040, oskinds-2026-10-06).
+;
+;   (use os)
+;   (case (os.ReadFile path)
+;     (result.ok bytes)             …
+;     (result.err os.not-found)     …
+;     (result.err (os.other e))     …)
+;
+; THE ALGEBRA. A host's file call is partial, Path ⇀ B*, and its failure is the
+; host's error. A portable call is the host's call composed with err-map h:
+;
+;   os.ReadFile = (id + h) ∘ host.ReadFile          h : E_host → K
+;
+; where K is the kinds a program can act on, with the host's error kept as the
+; residue. err-map is result's functoriality in E (lib/result), so the laws come
+; with it: err-map id = id and err-map (g ∘ f) = err-map g ∘ err-map f.
+;
+; h IS A SURJECTION WRITTEN ONCE, here, as a case analysis over three host
+; predicates. What differs by host is only the raw call and the predicates,
+; and those are each host's cell, `os/host` (lib/os/go.oro, js.oro, java.oro):
+; Go's os.IsNotExist, Node's error codes, Java's exception classes. The three
+; kinds are the portable sentinels Go's io/fs declares, each with a counterpart
+; on the other hosts (errors.md §6). That the same failure lands in the same kind
+; on every host is a claim, checked by examples/io/roundtrip.oro on three hosts.
+;
+; Left out, as errors.md §6 says: is-directory, which Go has no portable sentinel
+; for, and ErrInvalid and ErrClosed, which are bugs, handled as obligations and
+; linearity.
+(module os)
+
+(use os/host as host)
+(use result)
+
+(export ReadFile WriteFile text-of Args Getenv
+        not-found exists permission other)
+
+; K + E_host: three kinds, and the host's error as the residue.
+(variant os-error not-found exists permission (other error))
+
+; h, the classification. The predicates are each host's; the order is the
+; kinds' and fixes nothing, because the three host sentinels are disjoint.
+(def classify (e)
+  (cond (host.not-found? e)   not-found
+        (host.exists? e)      exists
+        (host.permission? e)  permission
+        else                  (other e)))
+
+; GET on the store F : Path ⇀ B*.
+(def ReadFile (path)
+  (result.err-map classify (host.ReadFile path)))
+
+; PUT on the store: after it succeeds, ReadFile path gives data (the lens law
+; roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
+(def WriteFile (path data)
+  (result.err-map classify (host.WriteFile path data)))
+
+; Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
+; decode, on every host (ADR 0030).
+(def text-of (b) (host.text-of b))
+
+; The environment, so a program can be told what to open.
+(def Args () (host.Args))
+(def Getenv (k) (host.Getenv k))
+```
+```
+\* os: the portable operating system, one definition over each host's cell      \\ D
+\* (spec/errors.md §6, ADR 0040, oskinds-2026-10-06).
+\*
+\*   (use os)
+\*   (case (os.ReadFile path)
+\*     (result.ok bytes)             …
+\*     (result.err os.not-found)     …
+\*     (result.err (os.other e))     …)
+\*
+\* THE ALGEBRA. A host's file call is partial, Path ⇀ B*, and its failure is the
+\* host's error. A portable call is the host's call composed with err-map h:
+\*
+\*   os.ReadFile = (id + h) ∘ host.ReadFile          h : E_host → K
+\*
+\* where K is the kinds a program can act on, with the host's error kept as the
+\* residue. err-map is result's functoriality in E (lib/result), so the laws come
+\* with it: err-map id = id and err-map (g ∘ f) = err-map g ∘ err-map f.
+\*
+\* h IS A SURJECTION WRITTEN ONCE, here, as a case analysis over three host
+\* predicates. What differs by host is only the raw call and the predicates,
+\* and those are each host's cell, `os/host` (lib/os/go.oro, js.oro, java.oro):
+\* Go's os.IsNotExist, Node's error codes, Java's exception classes. The three
+\* kinds are the portable sentinels Go's io/fs declares, each with a counterpart
+\* on the other hosts (errors.md §6). That the same failure lands in the same kind
+\* on every host is a claim, checked by examples/io/roundtrip.oro on three hosts.
+\*
+\* Left out, as errors.md §6 says: is-directory, which Go has no portable sentinel
+\* for, and ErrInvalid and ErrClosed, which are bugs, handled as obligations and
+\* linearity.
+
+USE os/host, result
+
+\* K + E_host: three kinds, and the host's error as the residue.
+SET OsError == 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
+
+\* h, the classification. The predicates are each host's; the order is the
+\* kinds' and fixes nothing, because the three host sentinels are disjoint.
+LOCAL classify(e) ==
+  CASE host.not_found?(e)  → 'not_found
+    [] host.exists?(e)     → 'exists
+    [] host.permission?(e) → 'permission
+    [] OTHER               → 'other(e)
+
+\* GET on the store F : Path ⇀ B*.
+ReadFile(path) == result.err_map(classify, host.ReadFile(path))
+
+\* PUT on the store: after it succeeds, ReadFile path gives data (the lens law
+\* roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
+WriteFile(path, data) == result.err_map(classify, host.WriteFile(path, data))
+
+\* Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
+\* decode, on every host (ADR 0030).
+text_of(b) == host.text_of(b)
+
+\* The environment, so a program can be told what to open.
+Args() == host.Args()
+Getenv(k) == host.Getenv(k)
+```
+```go
+// os: the portable operating system, one definition over each host's cell      // J
+// (spec/errors.md §6, ADR 0040, oskinds-2026-10-06).
+//
+//   (use os)
+//   (case (os.ReadFile path)
+//     (result.ok bytes)             …
+//     (result.err os.not-found)     …
+//     (result.err (os.other e))     …)
+//
+// THE ALGEBRA. A host's file call is partial, Path ⇀ B*, and its failure is the
+// host's error. A portable call is the host's call composed with err-map h:
+//
+//   os.ReadFile = (id + h) ∘ host.ReadFile          h : E_host → K
+//
+// where K is the kinds a program can act on, with the host's error kept as the
+// residue. err-map is result's functoriality in E (lib/result), so the laws come
+// with it: err-map id = id and err-map (g ∘ f) = err-map g ∘ err-map f.
+//
+// h IS A SURJECTION WRITTEN ONCE, here, as a case analysis over three host
+// predicates. What differs by host is only the raw call and the predicates,
+// and those are each host's cell, `os/host` (lib/os/go.oro, js.oro, java.oro):
+// Go's os.IsNotExist, Node's error codes, Java's exception classes. The three
+// kinds are the portable sentinels Go's io/fs declares, each with a counterpart
+// on the other hosts (errors.md §6). That the same failure lands in the same kind
+// on every host is a claim, checked by examples/io/roundtrip.oro on three hosts.
+//
+// Left out, as errors.md §6 says: is-directory, which Go has no portable sentinel
+// for, and ErrInvalid and ErrClosed, which are bugs, handled as obligations and
+// linearity.
+
+use os/host
+use result
+
+// K + E_host: three kinds, and the host's error as the residue.
+set OsError = 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
+
+// h, the classification. The predicates are each host's; the order is the
+// kinds' and fixes nothing, because the three host sentinels are disjoint.
+private fn classify(e) {
+    case {
+        host.not_found?(e)  -> 'not_found
+        host.exists?(e)     -> 'exists
+        host.permission?(e) -> 'permission
+        else                -> 'other(e)
+    }
+}
+
+// GET on the store F : Path ⇀ B*.
+fn ReadFile(path) { result.err_map(classify, host.ReadFile(path)) }
+
+// PUT on the store: after it succeeds, ReadFile path gives data (the lens law
+// roundtrip.oro checks). It succeeds with nothing, 1 + E (data.md §3.6).
+fn WriteFile(path, data) { result.err_map(classify, host.WriteFile(path, data)) }
+
+// Bytes to text, once, at the boundary: d, the Unicode Standard's maximal-subpart
+// decode, on every host (ADR 0030).
+fn text_of(b) { host.text_of(b) }
+
+// The environment, so a program can be told what to open.
+fn Args() { host.Args() }
+fn Getenv(k) { host.Getenv(k) }
+```
+
+What moved: the header and the export list (ADR 0064); `classify` private, everything else public, the
+four tags with their exported set; `os-error` → `OsError`; `not-found?` → `not_found?`; every comment,
+in place. What did not: the comment quoting T's `case`, as Finding 5 says.
+
+---
+
+**L2 — `examples/native/search-go.oro`**, a native program: host operators called by name.
+
+```lisp
+(use go)                                                                        ; T
+
+(export find-first)
+
+(sig find-first ((a (array f64)) (k f64)) int)
+
+(def find-first (a k)
+  (loop ((i 0))
+    (go.>= i (len a))   -1
+    (go.f> (a i) k)     i
+    else                       (again (go.+ i 1))))
+```
+```
+USE go                                                                          \\ D
+
+EXPORT find_first(a ∈ Array(F64), k ∈ F64) (Int) ==
+  LOOP i == 0 :
+      go.`>=`(i, Len(a)) → -1
+   [] go.`f>`(a[i], k)   → i
+   [] OTHER              → AGAIN(go.`+`(i, 1))
+```
+```go
+use go                                                                          // J
+
+export fn find_first(a ∈ Array(F64), k ∈ F64) (Int) {
+    loop i = 0 {
+        go.`>=`(i, len(a)) -> -1
+        go.`f>`(a[i], k)   -> i
+        else               -> again(go.`+`(i, 1))
+    }
+}
+```
+
+The header comment of the file is left out here as in T. `go.f>` is one host name, a letter and an
+operator, which no infix alphabet would admit and backquotes carry unchanged.
+
+---
+
+**L3 — `targets/go/go.oro`'s representations**: the model's data, and the literals Finding 4 is for.
+
+```lisp
+(repr (int 0 255) (host "byte"))                                                ; T
+(repr (int -128 127) (host "int8"))
+(repr (int 0 65535) (host "uint16"))
+(repr (int -32768 32767) (host "int16"))
+(repr (int 0 4294967295) (host "uint32"))
+(repr (int -2147483648 2147483647) (host "int32"))
+(repr (int -9223372036854775808 9223372036854775807) word)
+(repr (int 0 18446744073709551615) word)
+```
+```
+REPR 0..2^8-1 HOST "byte"                                                       \\ D
+REPR -2^7..2^7-1 HOST "int8"
+REPR 0..2^16-1 HOST "uint16"
+REPR -2^15..2^15-1 HOST "int16"
+REPR 0..2^32-1 HOST "uint32"
+REPR -2^31..2^31-1 HOST "int32"
+REPR -2^63..2^63-1 WORD
+REPR 0..2^64-1 WORD
+```
+```go
+repr 0..2^8-1 host "byte"                                                       // J
+repr -2^7..2^7-1 host "int8"
+repr 0..2^16-1 host "uint16"
+repr -2^15..2^15-1 host "int16"
+repr 0..2^32-1 host "uint32"
+repr -2^31..2^31-1 host "int32"
+repr -2^63..2^63-1 word
+repr 0..2^64-1 word
+```
+
+Each line now says which word it is: `-2^63..2^63-1` is the signed 64-bit word by its definition, where
+`9223372036854775807` had to be recognized.
+
+### 8.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 8`, over L1–L3, comments stripped by the counter's rule:
+
+| notation | tokens | × T | lexemes | × T | depth | closing run | lines |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| T | 306 | 1.00 | 304 | 1.00 | 4 | 4 | 34 |
+| D | 308 | 1.01 | 290 | 0.95 | **2** | **2** | **26** |
+| J | 313 | 1.02 | 296 | 0.97 | 4 | 4 | 32 |
+
+By file (`-until '**L2 '`, `-until '**L3 '`, and the differences), in lexemes:
+
+| | T | D | J |
+|---|---:|---:|---:|
+| L1, `lib/os` | 135 | 124 | 132 |
+| L2, `search-go` | 75 | 76 | 74 |
+| L3, the representations | 94 | 90 | 90 |
+
+- **The lexical decisions do not move size**: within 5% of T in either notation. What they move is not
+  counted by tokens: `-2^63..2^63-1` is five lexemes where `9223372036854775807` was one, and L3 is
+  still smaller, because each `(repr (int …) (host …))` loses four brackets.
+- **L2's backquotes cost what T's bare operators did not**: two characters per host operator, which the
+  token rule counts as two tokens; D and J stay level with T there only because the loop loses its
+  brackets.
+- **Comments are not counted**, and are carried: L1 is 64 lines in T, of which 38 are comments, all in
+  place in D and J.
+
+### 8.7 Open, for hamza
+
+1. **The spelling**: identifiers UAX #31 (ASCII in practice), a final `?`; `-` → `_`, injective, a
+   collision refused; **backquotes for a name outside the alphabet**, the host's own (Finding 1).
+   *Recommended.*
+2. **J reserves only the words that open a form; clause words are contextual; after `.` any word is a
+   member**; D reserves its capitalized words (Finding 2). *Recommended.*
+3. **Case carries no meaning; by convention a set's name is UpperCamelCase**, values and functions
+   snake_case, host names the host's; the translator renames the corpus's sets (Finding 3).
+   *Recommended.*
+4. **`^` on static integers** (today's `pow` generalized), floats with digits on both sides of the point,
+   prefix `-`, no hexadecimal or raw strings, string literals as specified (Finding 4). *Recommended.*
+5. **Line comments only, J `//`, D `\*`, carried by the translator**; a comment quoting code is carried
+   untranslated (Finding 5). *Recommended.*
+6. **J's line breaks by Scala 3's rule; D's are spaces** (Finding 6). *Recommended.*
+7. **J writes `∀ ∃ ⇒ ⇔`, TLA+'s ASCII as input, superseding ADR 0062's J spellings; `&& || !` stay**
+   (Finding 7). *Recommended.*
+8. **The precedence table** (Finding 8). *Recommended.*
+9. **The prime and the tag told apart by adjacency** (Finding 9). *Recommended.*

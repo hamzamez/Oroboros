@@ -9,6 +9,7 @@
 //	go run gauntlet/surface/tokens.go -section 6   installment 6: §6.5's five programs in T, D and J
 //	go run gauntlet/surface/tokens.go -section 6 -until '**H2 '   … and its first program alone
 //	go run gauntlet/surface/tokens.go -section 7   installment 7: §7.5's three programs in D and J
+//	go run gauntlet/surface/tokens.go -section 8   installment 8: §8.5's three files in T, D and J
 //
 // Reads surface-design.md itself, so a table and the programs it counts cannot
 // drift apart. Counted: §2.4's P1–P8 in T, B′, D and J (each fenced block whose
@@ -191,7 +192,7 @@ func lexemes(toks []string) []string {
 }
 
 func main() {
-	section := flag.String("section", "2", "the installment whose programs to count: 2 to 7")
+	section := flag.String("section", "2", "the installment whose programs to count: 2 to 8")
 	until := flag.String("until", "", "end the section at this text instead (a prefix of its programs)")
 	flag.Parse()
 	b, err := os.ReadFile("docs/surface-design.md")
@@ -228,6 +229,9 @@ func main() {
 		// Today's notation writes only K3, so D and J are compared.
 		order = []string{"D", "J"}
 		from, to = "### 7.5 Three programs", "### 7.6 Measured"
+	case "8":
+		order = []string{"T", "D", "J"}
+		from, to = "### 8.5 Three files", "### 8.6 Measured"
 	}
 	if *until != "" {
 		to = *until

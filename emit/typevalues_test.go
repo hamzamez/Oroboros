@@ -142,6 +142,35 @@ func TestNoSetSurvivesStaging(t *testing.T) {
 	}
 }
 
+// A PROGRAM CANNOT YET NAME ITS OWN SET (§1): a type in a sig that names one of
+// the program's definitions is refused at the sig, before step 2 gives the
+// definition a set to denote. Accepted, it was an opaque type: refused at the
+// first `+`, or printed as an unknown host type in a table (du-2026-10-14).
+func TestAProgramsOwnSetIsRefusedAtItsSig(t *testing.T) {
+	const want = "cannot yet name its own set"
+	for _, src := range []string{
+		`(export f) (def Byte (int 0 255)) (sig f ((x Byte)) (int 0 256)) (def f (x) (+ x 1))`,
+		`(export f) (def Byte (int 0 255)) (sig f ((x (int 0 9))) Byte) (def f (x) (+ x 1))`,
+		`(export f) (def Byte (int 0 255)) (sig f ((x (array Byte))) int) (def f (x) (len x))`,
+		`(export f) (def most 4611686018427387903) (def Count (int 0 most)) (sig f ((x Count)) int) (def f (x) x)`,
+		`(module sets) (export Byte) (def Byte (int 0 255))
+		 (module main) (use sets as s) (export f) (sig f ((x s.Byte)) int) (def f (x) x)`,
+	} {
+		forms, err := core.Read(src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, err := goNative(t).LoadProgram(forms); err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s\n  was not refused at loading for %q: %v", src, want, err)
+		}
+	}
+	// A DEFINITION NAMED IN A VALUE POSITION is no claim: the same constant used
+	// as a bound's value passes.
+	if _, _, err := normalizeOn(t, goNative(t), `(export f) (def most 255) (sig f ((x (int 0 9))) int) (def f (x) (if (< x most) x most))`); err != nil {
+		t.Errorf("a constant used as a value was refused: %v", err)
+	}
+}
+
 // A STATIC λ (§6): a definition whose parameter is a set, applied to one; β
 // gives the set and then the instance is made, with no rule but application.
 func TestAStaticLambdaPassesASetOn(t *testing.T) {

@@ -49,6 +49,13 @@ representation. This step makes the names the target declares as types (`tg.Type
 type formers (`array`, `option`, `tuple`) used as functions on sets come with step 2, the Boolean
 algebra of sorts (§10).
 
+**Until then a program cannot name its own set, and is told so where it tries.** A type in a program's
+`sig` that names one of the program's definitions, in its own module or through an import, is refused
+at that `sig`: `(def Byte (int 0 255)) (sig f ((x Byte)) …)`. The checker has no set for a definition to
+denote before step 2. Accepted, `Byte` was an opaque type that every use refused, "x is Byte, but int is
+required here", and a table of it printed an unknown host type, `[]/*Byte?*/` (du-2026-10-14). A set a
+program states is written where it is used, `(int 0 255)`.
+
 **Law S (staging).** A set has no run-time representation, so ⟦P⟧ does not depend on how a set
 argument is written or bound, and erasing every set from a residual changes nothing it computes.
 Consequently **a residual that holds a set is refused**: it would have no meaning to print.

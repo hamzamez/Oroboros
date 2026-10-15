@@ -804,6 +804,23 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 		entries[i].term = x
 	}
 
+	// A PROGRAM CANNOT YET NAME ITS OWN SET (spec/typevalues.md §1). A type in a
+	// sig that names one of the program's definitions has no set to denote
+	// before step 2, and the checker read it as an opaque type: refused at its
+	// first use, or printed as an unknown host type (du-2026-10-14). Refused
+	// here, at the sig, by its own name.
+	for _, m := range mods {
+		for n, sig := range m.Sigs {
+			for _, ty := range sigTypes(sig) {
+				if def, ok := m.definitionNamed(ty, byPath); ok {
+					return nil, nil, fmt.Errorf("%s: its signature names %s, a definition, as a set; "+
+						"a program cannot yet name its own set (spec/typevalues.md §1, step 2 of §10), "+
+						"so write the set where it is used, as (int 0 255)", qualify(m.Path, n), def)
+				}
+			}
+		}
+	}
+
 	// A SUM IN A SIGNATURE is the product of its tag and its payload, which is
 	// the whole representation story: `(sig f ((n int)) result)` becomes two
 	// results, and two results are already Go's multiple return, Java's record,
@@ -1293,6 +1310,44 @@ func (m *Module) sumType(sp string, byPath map[string]*Module) (sumRef, bool) {
 		return sumRef{key: sp, sum: s}, true
 	}
 	return sumRef{}, false
+}
+
+// definitionNamed reports whether a name written in one of m's signatures as a
+// type resolves to a definition of the program, m's own or, through a `use`, an
+// imported module's, and that definition's qualified name. A name ρ_m cannot
+// resolve is not this rule's to judge.
+func (m *Module) definitionNamed(sp string, byPath map[string]*Module) (string, bool) {
+	owner, local, err := m.scope(sp, byPath)
+	if err != nil || owner == nil {
+		return "", false
+	}
+	if _, ok := owner.Defs[local]; ok {
+		return qualify(owner.Path, local), true
+	}
+	return "", false
+}
+
+// sigTypes lists the names a signature writes in its types, parameters and
+// results: every word of a canonical type spelling (`array int 0 255`,
+// `result(FileInfo, error)`) that is neither a number nor an open element.
+func sigTypes(sig *Sig) []string {
+	tys := []string{sig.Result}
+	tys = append(tys, sig.Results...)
+	for _, pm := range sig.Params {
+		tys = append(tys, pm.Type)
+	}
+	var names []string
+	for _, ty := range tys {
+		for _, w := range strings.FieldsFunc(ty, func(r rune) bool {
+			return r == ' ' || r == '(' || r == ')' || r == ','
+		}) {
+			if w[0] == '?' || w[0] == '-' || (w[0] >= '0' && w[0] <= '9') {
+				continue
+			}
+			names = append(names, w)
+		}
+	}
+	return names
 }
 
 // scope is the half of ρ_m every namespace shares: a spelling names a member of

@@ -4626,7 +4626,8 @@ the axiom NumError ⊆ error.
 **One hole du found.** A program cannot name its own set: `(def Count (int 0 4611686018427387903))` is
 accepted at the definition and refused at the first `+`, "x is Count, but int is required here". A
 program's own sets come with types-as-values step 2 (typevalues.md §1), so du writes its bound three
-times and its constant six.
+times and its constant six. (Since setdef-2026-10-15 the `sig` that names such a definition is refused
+where it names it.)
 
 ### 6.4 Findings
 

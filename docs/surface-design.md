@@ -37,6 +37,7 @@ since the document records how the design was reached.
 | 14 | J's membership `∈` (input `\in`) and Python's set operators `\| & - ^ <= < *`, D's TLA+'s; an imported tag qualified `alias.'tag`, a module's own and the language's unqualified, no `exposing` | [ADR 0060](decisions/0060-j-set-operators-and-qualified-tags.md), §4.9 | open (§4.10): the colon's two orders |
 | 15 | inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place; `map { k : v }` a graph only; the colon set-builder's | [ADR 0061](decisions/0061-separation-and-replacement-by-the-binders-place.md), §4.10 | D writes TLA+'s; the image of a membership test is parenthesized |
 | 16 | a header is the membership statement, the result a binder `(r ∈ U)` or its set `(U)`, `result` gone; bounds in binder sets, a telescope, relations in `where`; one equality in formulas, the logic's; quantifiers, `==>`, `<==>` (D TLA+'s) in claim positions only; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface; no claim ≠ `any` | [ADR 0062](decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md), §5.7 | installment 5's G1–G5 are the decided spellings, modulo D or J |
+| 17 | a file is a theory named by its path, a fragment names its module, the target the directory; an import's alias filled by the reader, `alias.T.m` through a companion; visibility public, `private`/`LOCAL` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host), `type` gone, a host constant's value a claim; top-level `x = e`, `let` gone, `set S = e` an optional claim (required on a host body); a variant a union of tagged sets, a value in a set position its singleton; an inclusion an axiom of a model; a companion a nested module | [ADR 0064](decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md), §6.7–6.9 | installment 6's forms; J's set symbols are TLA+'s and a former keeps its keyword (§6.9), the ASCII spelling open |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -5414,3 +5415,66 @@ capitals, which narrows what the D-or-J experiment has to decide.
 12. **TLA+'s braces in a set position**, `method ∈ {"GET", "POST"}`, `set Evens = {n ∈ 0..100 : …}`,
     with `set { … }` kept for a set in a value position. *Recommended*, against keeping `set { … }`
     everywhere so that braces mean one thing.
+
+### 6.9 Decided, and the ASCII spelling of the set symbols
+
+hamza, 2026-10-15: *"9. I agree. 10. `let` leaves the top level because it doesn't do anything; `set S =
+e` stays, not required. 11. yes to TLA symbols. should we do `\u` for cup, and `\n` for cap, `\c` for
+subset? `\c=` for subseteq? push back. 12. no. `set {}` former always has a keyword. block is
+headless."*
+
+Items 1, 2, 5–10 are [ADR 0064](decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md).
+Under item 10, D writes `SET S == e` with J's rule: optional, except on a host body, where it is what
+makes the body a carrier. The renderings of §6.5 are as first written, before these answers: J now
+writes `∪` and `⊆`, a top-level value without `let`, `export` only on `main`, and `private` on
+`classify`.
+
+**Item 12, decided: braces are told apart by their head.** `set { … }`, `array { … }` and `map { … }` are
+formers; `{ … }` with no head is a block, everywhere. That is a rule read off one token, with no
+position or type to consult, and it keeps ADR 0061 as it is. A binder's enumeration is
+`method ∈ set {"GET", "POST"}`. D, which has no blocks, keeps TLA+'s bare braces.
+
+**Item 11, decided: TLA+'s symbols**, `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, in J as in D. What is left is their ASCII
+spelling.
+
+#### `\u`, `\n`, `\c`, `\c=`: the push-back
+
+**The mnemonic is a good one**: ∪ is drawn as a u, ∩ as an n, ⊂ as a c, and ⊆ as a c over a bar. But an
+ASCII spelling is three different things, and the short forms fail at two of them:
+
+| | what it is | who meets it |
+|---|---|---|
+| (a) the stored spelling | the symbol, `∪` | decided |
+| (b) the ASCII the reader accepts in a file | part of the language | anyone opening a file nobody normalized: a terminal, a diff, a mail, a model's output |
+| (c) the keystrokes an editor turns into the symbol | tooling, never stored | the person typing |
+
+- **`\n` and `\u` are two of the language's own six string escapes** (string-literals.md: `\t \n \r \\
+  \"` and `\u{H…}`). For (b) the lexer can tell them apart, because one is inside a string and one
+  outside, but a reader cannot: `A \n B` reads as a newline, and `"\u"` in a string and `\u` outside it
+  would draw two different errors for one keystroke. For (c) it is worse: an editor that expands `\n`
+  into ∩ turns `"line\n"` into `"line∩"`, unless it parses the file to know it is inside a string.
+- **Two schemes at once.** `∈` is `\in` and `∉` `\notin`, mnemonics of the name; `\u`, `\n` and `\c` are
+  mnemonics of the shape. A reader would learn both, and `\c=` adds a third device, an operator character
+  as a modifier, which also meets the language's own `=`: `S \c= T` and `S \c == T` are one character
+  apart.
+- **Brevity buys little in (b).** The file stores the symbol, so an ASCII spelling is met only where
+  someone typed without the input method. There the reader has nothing else to go on, and `\subseteq`
+  says what it is to anyone who has read LaTeX or TLA+, which share the names. `\c=` says it only to
+  someone who knows the scheme.
+
+**Proposed:**
+- **(b), the language: TLA+'s names**, `\in \notin \cup \cap \ \subseteq \subset \X`, the ones D already
+  takes. The reader accepts them and the printer writes the symbol, one tree, item 2's rule.
+- **(c), the editor: any short trigger, as long as none is a string escape.** A trigger is tooling and
+  can be as short as wanted, a unique prefix of the name (`\cu`, `\ca`, `\sube`) or a shape mnemonic;
+  what it may not be is `\n`, `\u`, `\t` or `\r`. Which triggers is decided with the editor support, not
+  in the language.
+
+The one cost is that a file written in ASCII by hand is longer: `A \subseteq B` against `A \c= B`. Since
+the symbol is what is stored and printed, that file exists only until the printer has seen it once.
+
+#### Open, for hamza
+
+13. **The ASCII the reader accepts is TLA+'s names**; short triggers belong to the editor, any but a
+    string escape. *Recommended.* Then ADR 0065 records J's set notation: TLA+'s symbols superseding ADR
+    0060's operators (its `∈` and tag qualification kept), this ASCII, and the formers' keywords (item 12).

@@ -144,10 +144,10 @@ read it before planning. It scores the 10-03 plan below and weighs the next: the
 reader and translator behind the byte-identical gate, ADRs 0052–0062 one at a time, then the Go
 library in the new notation), against the Go library first. **hamza chose the surface first.**
 Installment 6, declarations and modules, is written ([surface-design.md](docs/surface-design.md) §6),
-its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)). hamza
-decided six of its eight findings (2026-10-15); four questions are open in §6.8: visibility public by
-default with `export` only for entry points, `let` off the top level and `set` as a claim, TLA+'s set
-symbols in J, and TLA+'s braces in a set position.
+its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
+decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
+J's set symbols are TLA+'s and a former keeps its keyword; the ASCII spelling of the symbols is open
+(§6.9), and ADR 0065 records the set notation when it closes. Next: installment 7.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -606,6 +606,7 @@ rejected alternatives.
 | Inside a former, separation `set { x ∈ S : P }` and replacement `set { e : x ∈ S }`, `array { e : k ∈ 0..n-1 }` by the binder's place (TLA+'s); a map takes a graph only — not built | [0061](docs/decisions/0061-separation-and-replacement-by-the-binders-place.md) |
 | A header is the membership statement, its result a binder (`result` gone); bounds in binder sets (a telescope), relations in `where`; one equality in formulas; `fn`, `spec`, `lemma` share the header, a lemma used by `assert L(…)`, a recursive one an induction; `assert` proves, `expect` checks; `the` leaves the surface — not built | [0062](docs/decisions/0062-a-header-is-a-membership-statement-and-the-logic-has-three-definitions.md) |
 | A type is a static value: one namespace per module (a struct literal is its companion's `new`); a declaration's head binds static parameters, `(sig (AsType (E (subsets error))) …)`; instantiation is application reduced by δ to `f#[T̄]`, identified by its name, the bound membership by subsumption; no set survives staging; `(comma-ok)` | [0063](docs/decisions/0063-a-type-is-a-static-value-and-instantiation-is-application.md) |
+| A file is a theory named by its path, a target file a set of fragments, the target its directory; an import carries its alias; visibility public, `private` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host); `let` off the top level, `set S = e` an optional claim; a variant a union of tagged sets; an inclusion an axiom of a model; a companion a nested module — not built | [0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) |
 
 ## How this project is run
 

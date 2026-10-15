@@ -5479,3 +5479,485 @@ the symbol is what is stored and printed, that file exists only until the printe
 13. **The ASCII the reader accepts is TLA+'s names**; short triggers belong to the editor, any but a
     string escape. *Recommended.* **Decided** (hamza, 2026-10-15: "agree"), with items 11 and 12, as
     [ADR 0065](decisions/0065-j-writes-sets-in-tla-symbols.md).
+
+
+## Installment 7 — static parameters, the arrow, and application
+
+hamza: *"go ahead with 2, always mathematical and algebraic"*: write installment 7's program in D and J
+by hand, since today's notation cannot write it (callbacks tier 1 is not built). The program is `top`,
+the N largest files under a directory: du's walk, its entries and sizes collected into tables, and an
+index table ordered by Go's `slices.SortStableFunc(idx, cmp)`. That one call holds the installment's
+subjects: a declaration over a set (Go's `[S ~[]E, E any]`), an argument for it that the call does not
+write, a callback with a claim (ADR 0053), a buffer the host writes, and a λ that reads a table it
+closes over.
+
+### 7.1 What must carry
+
+From abstract.md §2.4–2.6, ADR 0053 and ADR 0063:
+
+| | the form | what it is | the algebra |
+|---|---|---|---|
+| **a static parameter** | a ranging binder over a set of sets, `E ∈ subsets(B)` | polymorphism, bounded | ∀ over sets, prenex, rank 1 (ADR 0063); a bound is membership in 𝒫(⟦B⟧) |
+| **a static application** | app(f; T̄), reduced by δ to f#[T̄] | instantiation | β at the static level; the instance identified by its name |
+| **an inferred static argument** | (not built, ADR 0063 item 7) | an argument the call does not write | first-order matching of a parameter's set against an argument's sort |
+| **the arrow** | λ(b̄; r; φ; ψ) without a body, with markers | a callback parameter's claim | Π(P). R ∩ markers; an argument fits iff P ⊆ P_f ∧ ∀x̄ ∈ P. R_f(x̄) ⊆ R(x̄) |
+| **a λ at the call site** | lam(b̄; e) under the parameter's claim | tier 1: the host closes over it | bidirectional checking: the claim flows into the λ |
+| **application** | app(f; ā), with index(t; i) its own operator (ADR 0050) | a function applied | — |
+
+**Two lemmas from arrow-research, and one consequence of the two levels.**
+- *Lemma 1*: a λ's claim and a definition's meaning already state their membership, so the arrow is
+  needed only where the body is opaque, a host's callback parameter.
+- *Lemma 2*: a definition's static parameter is discharged by inlining. The static level is erased by
+  staging, so a program's static λ needs no claim to be sound; a claim on it is documentation the
+  checker verifies.
+- **A static argument is static.** It is known at compile time, a sort or a named set. A fact known
+  only at run time, such as "every element of `idx` is below n", cannot be a static argument, since
+  0..n−1 is not a static value. It flows through the telescope instead (§7.4, Finding 4).
+
+### 7.2 Measured
+
+`go run gauntlet/surface/apply.go` over the programs; `go run gauntlet/stdlib/generics.go` and
+`callbacks.go` over Go's API:
+
+| the corpus | |
+|---|---:|
+| calls through an import / of a companion's operation, `(de.Name ent)` | 1,313 / 70 |
+| … whose first argument is itself a call through an import (a chain) | 217 |
+| λs: a continuation of a call's results, `((f a) (fn (q r) …))` | **75** |
+| λs: an argument of the program's own higher-order definition (`msort`, `reduce-over`) | 41 |
+| λs: a definition's value / a table's rule / an argument of a host call | 11 / 9 / 1 |
+| static parameters in a declaration's head (target files) / static applications in programs | 1 / 2 |
+
+| Go's standard library | |
+|---|---:|
+| functions and methods taking a callback | 150 of 5,536 (2.7%); 120 through a literal func type |
+| generic functions and methods / without a callback or an iterator | 88 / 51 |
+| a type variable's position: a value parameter / the result / a callback's type | 57 / 31 / 30 |
+| a type variable only in the result | 3 |
+| bounds: none / an approximation `~` / `comparable` / `cmp.Ordered` | 58 / 53 / 19 / 7 |
+| … of the 53 approximations: `~[]E` / `~map[K]V` / `~[]byte \| ~string` | **38 / 12** / 3 |
+
+Read one at a time:
+- **The 75 continuations are bindings**: `((b.Div64 h l d) (fn (q r) q))` names a call's two results,
+  which today's notation also writes `(let (tuple q r) (b.Div64 h l d) q)`.
+- **The 41 are static**: `msort`'s comparator in freq, `reduce-over`'s element function in the generic
+  benchmarks. Each is erased by inlining (Lemma 2), so none needs the arrow.
+- **No program passes a λ to a host**: tier 1 is not built, so every program that would sort or walk
+  with a callback was written another way (du's stack, freq's own merge sort).
+
+### 7.3 The holes and misfits
+
+**Holes:**
+- **A host's callback parameter has no claim**: the arrow is decided (ADR 0053) and unwritten, so
+  `slices.SortStableFunc`, `filepath.WalkDir` and the 150 cannot be declared.
+- **A static argument the call does not write cannot be omitted**: `((errors.AsType sc.NumError) e)` is
+  right, since E occurs only in the result, but `slices.SortStableFunc(idx, cmp)` would have to write
+  `int` where `idx` already says it.
+- **A program's own declaration over sets has no claim**: `(def is-a (E) (fn (e) …))` binds E as an
+  ordinary parameter, and its bound `(subsets error)` can be stated only on a host declaration.
+
+**A missing distinction.** In a program a static parameter and a value parameter are written alike,
+`(def is-a (E) …)`. Nothing on the page says E is erased; Law S finds a misuse only at staging.
+
+**A synonym.** `((f a) (fn (q r) body))` and `(let (tuple q r) (f a) body)`, 75 times the first.
+
+**A homonym, decided**: `(cmp a b)` and `(sizes b)` are one shape in today's notation, application and
+indexing (ADR 0050 marks indexing, `sizes[b]`).
+
+### 7.4 Findings
+
+**Finding 1. Static parameters are a first parameter group, each with its set.**
+
+```go
+fn AsType(E ⊆ error)(err ∈ error) (option(E))                                    // J
+```
+```
+AsType(E ⊆ error)(err ∈ error) (option(E))                                        \* D
+```
+
+- **`E ⊆ error` is the bounded binder**, E ∈ 𝒫(⟦error⟧), the mathematician's ∀A ⊆ X, ADR 0063's
+  `(E (subsets error))`. An unbounded one is written alone, `(E)`, ranging over every set (ADR 0062:
+  a binder with no set claims nothing).
+- **Two groups are currying**: the static group is applied first, at compile time, the value group at run
+  time, which is ADR 0063's prenex rank-1 and its instantiation by application. A call writes
+  `errors.AsType(strconv.NumError)(err)`, the instance `AsType#[NumError]` applied to err.
+- **A program's definition takes the same header**: `fn is_a(E ⊆ error)(e) { … }`. That closes the
+  missing distinction: a static parameter is visibly a static one, in its own group, and a value can
+  never be passed to it by position.
+
+**Finding 2. A static argument is inferred where its parameter occurs in a value parameter's set, and
+written otherwise.**
+- `slices.SortStableFunc(idx, cmp)`: E occurs in `x ∈ Array(E)`, so matching `Array(E)` against idx's
+  sort `Array(Int)` gives E = Int, first-order matching with a unique solution; Go's own function
+  argument type inference is the same unification. Where the variable occurs only in the result,
+  `AsType`, and 3 of Go's 88, nothing determines it and the call writes it.
+- **What is inferred is a sort, never a run-time set** (§7.1): idx's elements lie in 0..n−1, and that
+  fact reaches the callback through Finding 4, not through E.
+- The written form stays legal and reads to the same tree, `slices.SortStableFunc(Int)(idx, cmp)`; the
+  printer omits an inferable argument (ADR 0064's rule for a default alias). Agda's and Coq's implicit
+  arguments, and Pierce and Turner's local type inference (2000), are the precedent.
+
+**Finding 3. Go's approximation bounds collapse.** `SortStableFunc[S ~[]E, E any]` has two type
+parameters because Go has named slice types: S is any type whose underlying type is []E. The language
+has one table set per element set, Array(E), so S is determined by E, S == Array(E), a definitional
+extension, and the declaration has one static parameter. **50 of Go's 53 approximations** (`~[]E` 38,
+`~map[K]V` 12) collapse this way; the 3 `~[]byte | ~string` are a union of two host string sorts, a
+declaration over ADR 0030's `go.bytestring`, when a program asks.
+
+**Finding 4. The arrow is a λ's header without its body, and its domain is a telescope.**
+
+```go
+fn SortStableFunc(E)(x ∈ Array(E) inout,                                         // J
+                     cmp ∈ fn(a ∈ elems(x), b ∈ elems(x)) (Int) pure) ()
+```
+
+- **The claim is the header**: in J `fn(a ∈ S, b ∈ S) (Int)`, in D `λ(a ∈ S, b ∈ S) (Int)`, exactly an
+  anonymous λ with its claims and no body (ADR 0053, item 2). No arrow token is needed.
+- **Its domain may name an earlier parameter** (ADR 0062, Finding 2's telescope): `a ∈ elems(x)`, where
+  elems(t) = {t[i] : i ∈ 0..len(t)−1}, the table's set of values. That is what Go's documentation
+  says: the host calls cmp on elements of x. And it is what makes `top` provable. The comparator reads
+  `sizes[b]`, an index obligation b ∈ 0..len(sizes)−1. With E = Int alone it is unprovable, since b
+  could be any integer, and only a clamp would pass it, a missing proof. With the dependent domain,
+  b ∈ elems(idx), and `idx = array { k : k ∈ 0..n-1 }` gives elems(idx) = 0..n−1 ⊆ 0..most−1, a
+  content fact in the array property fragment, decided.
+- **The domain stays true while the host permutes x**, because a permutation preserves elems: the
+  declaration's `ensure elems(x') == elems(x)` (Finding 7) is the invariant the claim relies on.
+- **Markers.** `pure`: the host calls cmp an unspecified number of times in an unspecified order, so an
+  effect in it would be observable and differ between hosts. Called during the call and not retained is
+  tier 1, the default; a retained callback is tier 3, refused. A captured buffer is refused
+  (callbacks.md §4).
+- **A host's law on its callback is a `where`**: Go requires a strict weak ordering. Stated through a
+  specification function, `where preorder(elems(x), cmp)`, it is higher-order in the declaration, and
+  first-order at every call: β puts the λ's body in place of cmp (Lemma 2 again).
+
+**Finding 5. A λ at the call site takes its claim from the parameter, and closes only over frozen
+values.**
+
+```go
+slices.SortStableFunc(idx, fn(a, b) { sizes[b] - sizes[a] })                     // J
+```
+
+- **Checking mode** (Pierce and Turner's bidirectional checking): a and b get the parameter's sets,
+  elems(idx), so the λ writes none. Its obligations: `sizes[b]` and `sizes[a]` in range (Finding 4);
+  the difference in the word, since sizes ∈ −1..C; and the `where`, which after β reads
+  ∀ a, b, c ∈ elems(idx): (s_b − s_a ≤ 0 ∨ s_a − s_b ≤ 0) ∧ (s_b − s_a ≤ 0 ∧ s_c − s_b ≤ 0 ⇒ s_c − s_a ≤ 0),
+  each s_k an uninterpreted read. That is linear arithmetic over uninterpreted terms, decided by
+  Nelson–Oppen.
+- **Every comparator by a key passes**: for any k : E → ℤ, (a, b) ↦ k(b) − k(a) is a total preorder, the
+  pullback of ℤ's order along k. That is the lemma a program would state once if its key were not
+  linear.
+- **It reads `sizes`, a table, not a buffer.** `walk` returns its buffers frozen (ADR 0031, the end of a
+  state binder's region, ADR 0052), and only then is the λ formed. Freezing ends uniqueness, after which
+  a value may be shared: Wadler's linear types (1990), Clean's uniqueness. `idx`, the buffer the host is
+  permuting, is not read by the λ, and would be refused if it were.
+
+**Finding 6. Application stays application; no receiver form.** `ent.Name()` would read naturally to a
+Go programmer, and the corpus has 217 chains it would turn left to right, `fi.Mode(de.Info(ent))`. Against
+it:
+- **It needs the type to find the name.** Resolution happens before reduction and checking (ADR 0011),
+  and `Name` in `ent.Name()` is found only from ent's set, known after checking. That is type-directed
+  name resolution, which OCaml admitted for records only in 4.01 (Garrigue) and Go, Java and Rust build
+  their checkers around.
+- **`.` would mean two things**: qualification, static, `fs.DirEntry` or `os.Args`, and a receiver,
+  dynamic. A reader of `x.f(y)` would need x's sort to know which.
+- **Go itself treats a method as a function of its receiver**: `(*NumError).Error(e)`.
+
+`de.Name(ent)` stays, with the companion reached through its type (ADR 0064). A pipe, `ent |> de.Name`
+(F#, Elixir), would read left to right with no types, reverse application as a derived operator. It is
+not proposed until a program's nesting asks for it.
+
+**Finding 7. An inout binder's value on exit is primed, as in TLA+.** `SortStableFunc` changes x, and
+its `ensure` relates two values: on entry, x, and on exit, x'. An inout parameter is a state binder
+(ADR 0052), so the function is a relation between a pre-state and a post-state, Lamport's action, and
+TLA+ writes the after-state primed:
+
+```go
+ensure elems(x') == elems(x) && ∀ i ∈ 0..len(x)-2 : cmp(x'[i], x'[i + 1]) <= 0   // J
+```
+
+The alternative is Dafny's `old(x)`, x meaning the value on exit: it marks the less common value, but
+inverts what an unmarked name means between the parameter list and the `ensure`. The prime keeps x one
+value everywhere and marks only the new one, and D already reads TLA+'s actions this way.
+Permutation as a multiset and stability are stronger claims (BAPA's region, and the permutation itself
+as a value); `top` needs only elems and sortedness, and they are not written here.
+
+**Finding 8. One binding form for a call's results.** The 75 continuations are `(q, r) = b.Div64(h, l, d)`
+in J and `⟨q, r⟩ == b.Div64(h, l, d)` in D; neither notation has the continuation form, so the
+synonym goes with today's notation.
+
+### 7.5 Three programs, two notations
+
+**D** and **J** in the decided forms of installments 1–6 and this installment's proposals; **T** only
+where it can write the program at all (K3).
+
+---
+
+**K1 — top**, the installment's program: `top N DIR` prints the N largest regular files under DIR,
+largest first, ties in walk order, and how many entries it could not examine.
+
+```
+USE go/os, go/io/fs/DirEntry AS de, go/io/fs/FileInfo AS fi,                    \\ D
+    go/io/fs/FileMode AS fm, go/path/filepath, go/slices, go/strconv, go/fmt, result
+
+cap == 4096
+most == 65536
+C == 4611686018427387903
+
+sat(x ∈ 0..C, y ∈ 0..C) (0..C) == LET s == x + y IN IF s ≤ C THEN s ELSE C
+
+length(s) == CASE s < 0 → 0 [] C < s → C [] OTHER → s
+
+LOCAL size_of(ent) ==
+  CASE de.Info(ent) OF
+      result.'err(e)   → ignore(e) ; -1
+   [] result.'ok(info) → IF fm.IsRegular(fi.Mode(info)) THEN length(fi.Size(info)) ELSE -1
+
+LOCAL failed(r) == CASE r OF result.'ok(u) → 0 [] result.'err(e) → ignore(e) ; 1
+
+LOCAL walk(root) ==
+  LET stk := [j ∈ 0..cap-1 ↦ root]  paths := [j ∈ 0..most-1 ↦ root]
+      sizes := [j ∈ 0..most-1 ↦ -1]  ⟨es0, r0⟩ == os.ReadDir(root) IN
+    LOOP sp == 0, ents == es0, k == 0, dir == root, n == 0, missed == 0, bad == failed(r0) :
+        k < Len(ents) ∧ de.IsDir(ents[k]) ∧ sp < cap →
+          stk[sp] := filepath.Join(dir, de.Name(ents[k])) ;
+          AGAIN(sp + 1, ents, k + 1, dir, n, missed, bad)
+     [] k < Len(ents) ∧ de.IsDir(ents[k]) →
+          AGAIN(sp, ents, k + 1, dir, n, sat(missed, 1), bad)
+     [] k < Len(ents) ∧ n < most →
+          paths[n] := filepath.Join(dir, de.Name(ents[k])) ;
+          sizes[n] := size_of(ents[k]) ;
+          AGAIN(sp, ents, k + 1, dir, n + 1, missed, bad)
+     [] k < Len(ents) → AGAIN(sp, ents, k + 1, dir, n, sat(missed, 1), bad)
+     [] sp < 1 → ⟨paths, sizes, n, missed, bad⟩
+     [] OTHER →
+          LET next == stk[sp - 1]  ⟨es, r⟩ == os.ReadDir(next) IN
+            AGAIN(sp - 1, es, 0, next, n, missed, sat(bad, failed(r)))
+
+LOCAL show(want, root) ==
+  LET ⟨paths, sizes, n, missed, bad⟩ == walk(root)  idx := [k ∈ 0..n-1 ↦ k] IN
+    slices.SortStableFunc(idx, λ(a, b) : sizes[b] - sizes[a]) ;
+    (LOOP i == 0 :
+         i ≥ want ∨ i ≥ n ∨ sizes[idx[i]] < 0 → ⟨⟩
+      [] OTHER → fmt.Println(sizes[idx[i]], paths[idx[i]]) ; AGAIN(i + 1)) ;
+    (IF 0 < missed THEN fmt.Println(missed, "entries were not examined") ELSE ⟨⟩) ;
+    (IF 0 < bad THEN fmt.Println(bad, "directories could not be read") ELSE ⟨⟩)
+
+EXPORT main() ==
+  LET av == os.Args() IN
+    IF Len(av) < 3 THEN fmt.Println("usage: top N DIR")
+    ELSE LET ⟨want, r⟩ == strconv.Atoi(av[1]) IN
+      CASE r OF result.'err(e) → ignore(e) ; fmt.Println("N is not a number:", av[1])
+             [] result.'ok(u)  → show(want, av[2])
+```
+```go
+use go/os                                                                       // J
+use go/io/fs/DirEntry as de
+use go/io/fs/FileInfo as fi
+use go/io/fs/FileMode as fm
+use go/path/filepath
+use go/slices
+use go/strconv
+use go/fmt
+use result
+
+cap = 4096
+most = 65536
+C = 4611686018427387903
+
+fn sat(x ∈ 0..C, y ∈ 0..C) (0..C) {
+    s = x + y
+    if s <= C { s } else { C }
+}
+
+fn length(s) { case { s < 0 -> 0; C < s -> C; else -> s } }
+
+private fn size_of(ent) {
+    case de.Info(ent) {
+        result.'err(e)   -> { ignore(e); -1 }
+        result.'ok(info) -> if fm.IsRegular(fi.Mode(info)) { length(fi.Size(info)) } else { -1 }
+    }
+}
+
+private fn failed(r) {
+    case r { result.'ok(u) -> 0; result.'err(e) -> { ignore(e); 1 } }
+}
+
+private fn walk(root) {
+    var stk := array { root : _ ∈ 0..cap-1 }
+    var paths := array { root : _ ∈ 0..most-1 }
+    var sizes := array { -1 : _ ∈ 0..most-1 }
+    (es0, r0) = os.ReadDir(root)
+    loop sp = 0, ents = es0, k = 0, dir = root, n = 0, missed = 0, bad = failed(r0) {
+        k < len(ents) && de.IsDir(ents[k]) && sp < cap ->
+            { stk[sp] := filepath.Join(dir, de.Name(ents[k]))
+              again(sp + 1, ents, k + 1, dir, n, missed, bad) }
+        k < len(ents) && de.IsDir(ents[k]) ->
+            again(sp, ents, k + 1, dir, n, sat(missed, 1), bad)
+        k < len(ents) && n < most ->
+            { paths[n] := filepath.Join(dir, de.Name(ents[k]))
+              sizes[n] := size_of(ents[k])
+              again(sp, ents, k + 1, dir, n + 1, missed, bad) }
+        k < len(ents) -> again(sp, ents, k + 1, dir, n, sat(missed, 1), bad)
+        sp < 1 -> (paths, sizes, n, missed, bad)
+        else ->
+            { next = stk[sp - 1]
+              (es, r) = os.ReadDir(next)
+              again(sp - 1, es, 0, next, n, missed, sat(bad, failed(r))) }
+    }
+}
+
+private fn show(want, root) {
+    (paths, sizes, n, missed, bad) = walk(root)
+    var idx := array { k : k ∈ 0..n-1 }
+    slices.SortStableFunc(idx, fn(a, b) { sizes[b] - sizes[a] })
+    loop i = 0 {
+        i >= want || i >= n || sizes[idx[i]] < 0 -> ()
+        else -> { fmt.Println(sizes[idx[i]], paths[idx[i]]); again(i + 1) }
+    }
+    if 0 < missed { fmt.Println(missed, "entries were not examined") }
+    if 0 < bad { fmt.Println(bad, "directories could not be read") }
+}
+
+export fn main() {
+    av = os.Args()
+    if len(av) < 3 {
+        fmt.Println("usage: top N DIR")
+    } else {
+        (want, r) = strconv.Atoi(av[1])
+        case r {
+            result.'err(e) -> { ignore(e); fmt.Println("N is not a number:", av[1]) }
+            result.'ok(u)  -> show(want, av[2])
+        }
+    }
+}
+```
+
+What each obligation rests on, read off the program:
+- **`sizes[b] - sizes[a]` in the λ**: b ∈ elems(idx) by the callback's domain (Finding 4), elems(idx) =
+  0..n−1 from idx's rule, n ≤ most = len(sizes) from `walk`'s guard `n < most`; the difference lies in
+  −(C+1)..C+1, inside the word.
+- **`sizes[idx[i]]` after the sort**: i < n = len(idx) by the guard, and idx[i] ∈ elems(idx') =
+  elems(idx) = 0..n−1 by the declaration's `ensure` (Finding 7).
+- **The `where`**: the preorder law for a comparator by a key, Nelson–Oppen (Finding 5).
+- **Every entry lands in `paths` and `sizes` together**, a non-file with size −1, so a store happens
+  on one arm with no choice after it, which the tail rule needs (`again` sits under no `if`). The sort
+  puts the −1s last, and the printing loop stops at the first.
+- **Ties in walk order**: `SortStableFunc` is stable, so the output is a function of the walk, which is
+  the specification.
+
+---
+
+**K2 — the declarations top needs** (`targets/go/slices`, new): a static parameter, a callback's
+claim with a dependent domain, a law in `where`, primed values in `ensure`.
+
+```
+---- MODULE go/slices ----                                                      \\ D
+SPEC elems(E)(t ∈ Array(E)) (SUBSET E) == {t[i] : i ∈ 0..Len(t)-1}
+
+SPEC preorder(E)(S ⊆ E, cmp ∈ λ(a ∈ S, b ∈ S) (Int)) (Bool) ==
+  ∀ a, b, c ∈ S : (cmp(a, b) ≤ 0 ∨ cmp(b, a) ≤ 0)
+                ∧ (cmp(a, b) ≤ 0 ∧ cmp(b, c) ≤ 0 ⇒ cmp(a, c) ≤ 0)
+
+SortStableFunc(E)(x ∈ Array(E) INOUT, cmp ∈ λ(a ∈ elems(x), b ∈ elems(x)) (Int) PURE) ()
+  WHERE preorder(elems(x), cmp)
+  ENSURE elems(x') = elems(x) ∧ ∀ i ∈ 0..Len(x)-2 : cmp(x'[i], x'[i + 1]) ≤ 0
+  == HOST stmt "slices.SortStableFunc(%s, %s)" IMPORT "slices"
+====
+```
+```go
+module go/slices {                                                              // J
+    spec elems(E)(t ∈ Array(E)) (subsets(E)) { set { t[i] : i ∈ 0..len(t)-1 } }
+
+    spec preorder(E)(S ⊆ E, cmp ∈ fn(a ∈ S, b ∈ S) (Int)) (Bool) {
+        ∀ a, b, c ∈ S : (cmp(a, b) <= 0 || cmp(b, a) <= 0)
+                        && (cmp(a, b) <= 0 && cmp(b, c) <= 0 ==> cmp(a, c) <= 0)
+    }
+
+    fn SortStableFunc(E)(x ∈ Array(E) inout,
+                         cmp ∈ fn(a ∈ elems(x), b ∈ elems(x)) (Int) pure) ()
+        where preorder(elems(x), cmp)
+        ensure elems(x') == elems(x) && ∀ i ∈ 0..len(x)-2 : cmp(x'[i], x'[i + 1]) <= 0
+    {
+        host stmt "slices.SortStableFunc(%s, %s)" import "slices"
+    }
+}
+```
+
+`preorder` is a total preorder on S, which for a three-way comparison is what Go calls a strict weak
+ordering of `cmp(a, b) < 0`. D's `SUBSET E` is TLA+'s powerset, J's `subsets(E)` ADR 0063's name for
+it.
+
+---
+
+**K3 — a declaration over a set, and a program's own** (`targets/go/errors.oro`'s `AsType`, and
+`errors-astype.oro`'s `is-a`, both built).
+
+```lisp
+(sig (AsType (E (subsets error))) ((err error)) (option E)                     ; T
+  (host expr "errors.AsType[%t1](%s)" (import "errors") (comma-ok)))
+
+(def is-a (E)
+  (fn (e) (case ((errors.AsType E) e) (some x) true none false)))
+
+(fmt.Println ((is-a sc.NumError) e))
+```
+```
+AsType(E ⊆ error)(err ∈ error) (option(E))                                      \\ D
+  == HOST expr "errors.AsType[%t1](%s)" IMPORT "errors" COMMA_OK
+
+is_a(E ⊆ error)(e) == CASE errors.AsType(E)(e) OF 'some(x) → TRUE [] 'none → FALSE
+
+fmt.Println(is_a(strconv.NumError)(e))
+```
+```go
+fn AsType(E ⊆ error)(err ∈ error) (option(E)) {                                 // J
+    host expr "errors.AsType[%t1](%s)" import "errors" comma_ok
+}
+
+fn is_a(E ⊆ error)(e) { case errors.AsType(E)(e) { 'some(x) -> true; 'none -> false } }
+
+fmt.Println(is_a(strconv.NumError)(e))
+```
+
+T's `is-a` binds E as an ordinary parameter, and its bound is checked only where `AsType` is
+instantiated through it (Lemma 2); D and J state it in the static group.
+
+### 7.6 Measured
+
+`go run gauntlet/surface/tokens.go -section 7`, D and J over K1–K3 (T writes only K3):
+
+| notation | tokens | × D | lexemes | × D | depth | closing run | lines |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| D | 1142 | 1.00 | 1087 | 1.00 | **4** | **3** | **58** |
+| J | 1160 | 1.02 | 1103 | 1.01 | 6 | 6 | 91 |
+
+K1 alone (`-until '**K2 '`): D 796 lexemes, J 802.
+
+- **The two notations cost the same**, within 2%: since ADR 0065 they write the logic identically, and
+  K2 is almost all logic.
+- **J takes half again as many lines**, its blocks and its declaration's clauses on lines of their own;
+  its depth 6 is `main`'s handler, `av[1]` in a call in a braced arm in a `case` in an `else` in the
+  body, where D's layout needs no brackets for the `ELSE` and the `CASE`.
+- **The new forms are cheap**: the static group is `(E)` or `(E ⊆ error)`, the arrow a header the
+  reader already knows, the call `slices.SortStableFunc(idx, fn(a, b) { sizes[b] - sizes[a] })` with
+  nothing inferred written. What they buy is not size but proofs: the comparator's two reads and the
+  printing loop's reads are discharged from the declaration's claims, where today's notation could not
+  write the program.
+
+### 7.7 Open, for hamza
+
+1. **Static parameters are a first group, `(E ⊆ B)` or `(E)`, in host and program declarations alike**,
+   applied first: `errors.AsType(strconv.NumError)(err)` (Finding 1). *Recommended.*
+2. **A static argument is inferred where its parameter occurs in a value parameter's set, by matching
+   sorts, and written otherwise**; the written form reads to the same tree (Finding 2). *Recommended.*
+3. **Go's `~[]E` and `~map[K]V` bounds collapse into `Array(E)` and `Map(K, V)`** (Finding 3).
+   *Recommended.*
+4. **The arrow is a λ's header without its body, `fn(a ∈ S, b ∈ S) (Int)` / `λ(a ∈ S, b ∈ S) (Int)`;
+   its domain may name an earlier parameter; markers after it, `pure`; tier 1 the default** (Finding 4).
+   *Recommended.*
+5. **A λ at the call site takes its claim from the parameter, and closes only over frozen values**
+   (Finding 5). *Recommended.*
+6. **No receiver form; `.` stays qualification; a pipe waits for a program** (Finding 6). *Recommended.*
+7. **An inout binder's value on exit is primed in `ensure`, `x'`**, TLA+'s, against Dafny's `old(x)`
+   (Finding 7). *Recommended.*
+8. **One binding form for a call's results; the continuation λ goes** (Finding 8). *Recommended.*

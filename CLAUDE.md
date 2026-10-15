@@ -147,7 +147,8 @@ Installment 6, declarations and modules, is written ([surface-design.md](docs/su
 its gauntlet program `examples/os/du.oro` ([du-2026-10-14](gauntlet/results/du-2026-10-14.md)), and
 decided ([ADR 0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md)).
 J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md)).
-Next: installment 7.
+Installment 7, static parameters, the arrow and application, is written (§7), its program `top` by
+hand in D and J (callbacks tier 1 not built); its eight recommendations wait for hamza.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -1179,5 +1180,5 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 | `gauntlet/` | Hand-written references (the bar), `results/`, `check/` (the baseline), `differential/` (cases on all four targets, each held to proving its arithmetic unless it declares `; checked:` with a reason), `conformance/` |
 | `gauntlet/balance.py` | The balance of effort, counted as every assessment counts it, at any revision: `python gauntlet/balance.py 137e9c6 HEAD` |
 | `gauntlet/types/` | Types as static values' measurements: `namespace.go`, the names a module declares both as a type and as a value (spec/typevalues.md §2) |
-| `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–6's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors), `claims.go` (how it writes claims), `decls.go` (how it declares: modules, imports, exports, variants, host declarations) and `visibility.go` (how much of a Go package is public) |
+| `gauntlet/surface/` | The surface's measurements, kept so a table can be recounted: `tokens.go` (installments 2–7's programs, read from surface-design.md), `scopes.go` (how the corpus nests `let` and `local`), `control.go` (how it chooses and iterates), `data.go` (how it writes data and constructors), `claims.go` (how it writes claims), `decls.go` (how it declares: modules, imports, exports, variants, host declarations), `visibility.go` (how much of a Go package is public) and `apply.go` (where λs stand, companion calls, chains, static applications) |
 | `gauntlet/stdlib/` | The four host surveys; `coverage.go`, the Go packages with a file against Go's API manifest, with a cause for every missing name; `callbacks.go`, Go's function-typed API (arrow-research.md); `acceptance/`, twenty programs, including one per supported package, `errors-os`, the error model on the hand `os`, `variadic`, `fmt-scan`, Go storing through cells, and `errors-astype`, a declaration over sets applied to one (listed under Host APIs); `tooling_test.go`, which checks every hand declaration against the host |

@@ -68,7 +68,7 @@ for each; **decided by hamza, 2026-10-15** ("agree with all"):
 |---|---|---|---|
 | **G1** | out(S), a fresh cell at an `out` parameter (ADR 0048 §6) | 37 `(out τ)` sites in the corpus | **decided:** `out Int` as an argument, the mode word before the set: `fmt.Sscan(s, out Int, out String)`. Ada writes `out` on the parameter and nothing at the call; the call needs the set, since the cell is made there. |
 | **G2** | spread(e), a table passed as a variadic list (ADR 0046) | `(spread xs)` | **decided:** `xs...` as the last argument, Go's own spelling of exactly this call: `fmt.Println(xs...)`. `...` is one token, so `..` and `...` never meet (§1.6). |
-| **G4** | a number unique to each use of a template, x86's labels, today's `%u` (30 sites) | `targets/windows/x64.oro` | **proposed:** `${#}`, a splice no binder can be named, since `#` starts no identifier: `jno Lok${#}`. Found by the translator, step 2d. |
+| **G4** | a number unique to each use of a template, x86's labels, today's `%u` (30 sites) | `targets/windows/x64.oro` | **decided** (hamza, 2026-10-15): `${#}`, a splice no binder can be named, since `#` starts no identifier: `jno Lok${#}`. Found by the translator, step 2d. |
 | **G3** | a lemma's proof steps beyond `assert` and `if` (ADR 0062 item 5) | installment 5's G4 only | **decided:** a lemma's body is a block whose statements are `assert` statements, `if`/`case` over formulas, and lemma uses `assert L(ā)`; nothing else is a proof step until a lemma needs one. |
 
 ---
@@ -128,6 +128,10 @@ A name of abstract.md's carrier 𝒩 is spelled by σ_J, which is injective per 
 
 - **`-` becomes `_`**, and a final `?` stays: `text-of` is `text_of`, `not-found?` is `not_found?`.
 - **A name outside the identifier alphabet is quoted**: `` `+` ``, `` `big%-small` ``.
+- **A name already holding `_` is quoted**, so that an unquoted `_` is always 𝒩's `-` and σ_J is
+  invertible, not only injective: the reader's σ_J⁻¹ turns `_` back into `-` (step 3, jread-2026-10-15).
+  No program name holds one; four host names do (`` `ERROR_FILE_NOT_FOUND` `` and its kin). The
+  wildcard `_` is itself.
 - **A program whose spelling collides** (`best-name` and `best_name`) is refused by the translator,
   naming the pair.
 
@@ -556,6 +560,14 @@ rewrites, mechanically:
 Each row that changes semantics, not spelling, waits for its ADR to be built: until then the translator
 prints today's construct in J's spelling (a threaded store as the call `store(b, i, v)`), and the ADR's
 step rewrites the J corpus behind the byte-identical gate.
+
+**The reader reads those transitional spellings back** (jread-2026-10-15): `b linear = array { … }` is
+today's buffer binder, `store(b, i, v)` today's three-argument `set`, `var x := e` and `x := e` a
+cell and its write, `m linear = map(cap)` a map buffer. Each is a call or binder J's grammar already
+has, so no production exists only for the transition, and each goes when its ADR's step rewrites the
+corpus. A program's definition in a target fragment (`provides … { fn f(x) { … } }`) is read by the
+program reader, a host declaration by the target reader: the body's first token decides, `host` or a
+λ returning one for the second.
 
 ---
 

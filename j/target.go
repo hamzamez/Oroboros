@@ -440,8 +440,22 @@ func (p *printer) rawResult(t *core.Term) *Doc {
 	return p.rawSet(t)
 }
 
+// isBound reports whether t is a range's endpoint: a literal, a constant, a
+// power, or a literal too big for a word, which the reader writes in Horner
+// form, sums and products of literals.
 func isBound(t *core.Term) bool {
-	return t.Kind == core.KInt || (t.Kind == core.KName && !isLangSet(t.Name)) || head(t) == "pow"
+	switch head(t) {
+	case "pow":
+		return true
+	case "+", "-", "*":
+		for _, k := range t.Kids[1:] {
+			if !isBound(k) {
+				return false
+			}
+		}
+		return len(t.Kids) > 1
+	}
+	return t.Kind == core.KInt || (t.Kind == core.KName && !isLangSet(t.Name))
 }
 
 func isLangSet(n string) bool { _, ok := langSets[n]; return ok }

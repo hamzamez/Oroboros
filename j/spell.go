@@ -38,12 +38,29 @@ func isIdent(s string) bool {
 
 // word spells one segment of a name: kebab-case becomes snake_case, and what is
 // still no identifier, or is a reserved word, is quoted.
+//
+// A name that already holds `_` is quoted too: an unquoted `_` is always the
+// abstract name's `-`, so σ_J is invertible (Unspell) as well as injective.
+// No program name holds one; four host names in target files do
+// (ERROR_FILE_NOT_FOUND and its kin).
 func word(s string, member bool) string {
+	if s == "_" {
+		return s
+	}
 	t := strings.ReplaceAll(s, "-", "_")
-	if isIdent(t) && (member || !reserved[t]) && !strings.Contains(s, "_-") && !strings.HasPrefix(s, "-") {
+	if isIdent(t) && (member || !reserved[t]) && !strings.Contains(s, "_") && !strings.HasPrefix(s, "-") {
 		return t
 	}
 	return "`" + s + "`"
+}
+
+// Unspell is σ_J⁻¹ on one identifier as J writes it: `_` is `-`.
+// The wildcard `_` is itself.
+func Unspell(s string) string {
+	if s == "_" {
+		return s
+	}
+	return strings.ReplaceAll(s, "_", "-")
 }
 
 // Spell is σ_J on a name as today's notation writes it: a bare name, or a

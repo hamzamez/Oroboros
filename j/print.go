@@ -261,13 +261,13 @@ func (p *printer) apply(e *core.Apply, outer int) *Doc {
 	case *core.Var:
 		n := fn.Name
 		if op, ok := infix[n]; ok && len(e.Args) == 2 {
-			l := p.prec(e.Args[0], op.prec)
-			r := p.prec(e.Args[1], op.prec+1)
+			l := p.operand(e.Args[0], op.prec)
+			r := p.operand(e.Args[1], op.prec+1)
 			return paren(Group(Cat(l, Text(" "+op.op), Line(), r)), op.prec, outer)
 		}
 		switch {
 		case n == "-" && len(e.Args) == 1:
-			return paren(Cat(Text("-"), p.prec(e.Args[0], pPrefix)), pPrefix, outer)
+			return paren(Cat(Text("-"), p.operand(e.Args[0], pPrefix)), pPrefix, outer)
 		case n == "tuple":
 			if len(e.Args) == 0 {
 				return Text("()")
@@ -284,8 +284,9 @@ func (p *printer) apply(e *core.Apply, outer int) *Doc {
 			// A table as a variadic call's list (spec/j.md G2).
 			return Cat(p.prec(e.Args[0], pPost), Text("..."))
 		case n == "set" && len(e.Args) == 2:
-			// A cell's write (local.md §3), a statement whose value is the unit.
-			return Cat(p.name(e.Args[0].(*core.Var).Name), Text(" := "), p.expr(e.Args[1]))
+			// A cell's write (local.md §3) is a statement whose value is the
+			// unit; where a value stands it is a block holding it.
+			return Cat(Text("{ "), p.cellWrite(e), Text(" }"))
 		case n == "set" && len(e.Args) == 3:
 			// The threaded store, today's (ADR 0052 is not built): a call.
 			return Cat(Text("store"), p.args(e.Args))
@@ -373,7 +374,12 @@ func (p *printer) caseExpr(e *core.Case) *Doc {
 		a := &e.Arms[i]
 		arms = append(arms, p.item(a.Body, func() *Doc { return arm(p.pattern(a.Pat), p.expr(a.Body)) }))
 	}
-	return p.braced(Cat(Text("case "), p.expr(e.Scrut), Text(" ")), arms, e)
+	scrut := p.expr(e.Scrut)
+	if needsBlock(e.Scrut) {
+		// A block scrutinee is parenthesized: `case {` begins the guarded choice.
+		scrut = Cat(Text("("), scrut, Text(")"))
+	}
+	return p.braced(Cat(Text("case "), scrut, Text(" ")), arms, e)
 }
 
 // pattern prints a case pattern as written: a constructor, possibly applied to
@@ -587,7 +593,12 @@ func (p *printer) stmts(t core.Tail) []*Doc {
 		}
 		break
 	}
-	out = append(out, p.item(t, func() *Doc { return p.tail(t) }))
+	out = append(out, p.item(t, func() *Doc {
+		if e, ok := t.(core.Expr); ok && isCellWrite(e) {
+			return p.stmt(e)
+		}
+		return p.tail(t)
+	}))
 	return out
 }
 
@@ -648,7 +659,27 @@ func (p *printer) localBind(b core.LocalBind) *Doc {
 }
 
 // stmt prints a term in a statement position: a cell's write is a statement.
-func (p *printer) stmt(e core.Expr) *Doc { return p.expr(e) }
+func (p *printer) stmt(e core.Expr) *Doc {
+	if isCellWrite(e) {
+		return p.cellWrite(e.(*core.Apply))
+	}
+	return p.expr(e)
+}
+
+func (p *printer) cellWrite(e *core.Apply) *Doc {
+	return Cat(p.name(e.Args[0].(*core.Var).Name), Text(" := "), p.expr(e.Args[1]))
+}
+
+// isCellWrite reports today's two-argument `set`, a cell's write.
+func isCellWrite(e core.Expr) bool {
+	a, ok := e.(*core.Apply)
+	if !ok || len(a.Args) != 2 {
+		return false
+	}
+	v, ok := a.Fn.(*core.Var)
+	_, named := a.Args[0].(*core.Var)
+	return ok && v.Name == "set" && named
+}
 
 func (p *printer) monad(form string, items []core.Expr) *Doc {
 	pat := p.pattern(items[0])
@@ -757,4 +788,17 @@ func (p *printer) nameState(e *core.Loop) *core.Loop {
 func (p *printer) isRead(e *core.Apply) bool {
 	v, ok := e.Fn.(*core.Var)
 	return ok && len(e.Args) == 1 && p.data[v.Name]
+}
+
+// operand prints an operator's operand. A literal printed as a power, `2^62-1`,
+// is parenthesized there: bare, `x + 2^62-1` would read as (x + 2^62) − 1, and
+// `2^16 - 1` as a literal (parse.go, combine), where today's notation wrote a
+// subtraction.
+func (p *printer) operand(e core.Expr, prec int) *Doc {
+	if l, ok := e.(*core.Lit); ok {
+		if text := p.lit(l); strings.Contains(text, "^") {
+			return Text("(" + text + ")")
+		}
+	}
+	return p.prec(e, prec)
 }

@@ -123,6 +123,20 @@ func carryClaims(decls []Decl) []Decl {
 // Each is the declaration term D makes of its tree, read by toForm, today's
 // reader of declaration terms.
 func (d *desugarer) forms(decls []Decl) ([]Form, error) {
+	terms, _ := d.placed(decls)
+	out := make([]Form, len(terms))
+	for i, t := range terms {
+		f, err := toForm(t)
+		if err != nil {
+			return nil, err
+		}
+		out[i] = f
+	}
+	return out, nil
+}
+
+// placed is D of each declaration, a term, in the order written.
+func (d *desugarer) placed(decls []Decl) ([]*Term, error) {
 	type placed struct {
 		at int
 		t  *Term
@@ -162,14 +176,10 @@ func (d *desugarer) forms(decls []Decl) ([]Form, error) {
 	if len(ts) == 0 {
 		return nil, nil
 	}
-	sort.Slice(ts, func(i, j int) bool { return ts[i].at < ts[j].at })
-	out := make([]Form, len(ts))
+	sort.SliceStable(ts, func(i, j int) bool { return ts[i].at < ts[j].at })
+	out := make([]*Term, len(ts))
 	for i, p := range ts {
-		f, err := toForm(p.t)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = f
+		out[i] = p.t
 	}
 	return out, nil
 }

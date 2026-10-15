@@ -21,6 +21,7 @@ import (
 	"oroboros/ir/java"
 	"oroboros/ir/js"
 	"oroboros/ir/x86"
+	"oroboros/j"
 )
 
 func main() {
@@ -96,6 +97,11 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		return err
 	}
 	forms, err := core.Read(string(text))
+	if os.Getenv("ORO_VIA_J") != "" {
+		// J's reading of the program (spec/j.md; jread-2026-10-15): the gate
+		// that compiling from J changes nothing.
+		forms, err = j.ViaJ(string(text), src)
+	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

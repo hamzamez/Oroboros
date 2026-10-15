@@ -282,11 +282,20 @@ func (p *printer) header(params []string, c *core.Claim) *Doc {
 			out = Cat(out, Text(" ("), p.set(c.Result), Text(")"))
 		}
 	}
+	// A claim written apart, today's `sig`, names its parameters itself; its
+	// formulas are read with the definition's names, the header's (ADR 0051).
+	names := map[string]string{}
+	for i, cp := range c.Params {
+		if i < len(params) && cp.Name != "" && cp.Name != params[i] {
+			names[cp.Name] = params[i]
+		}
+	}
 	if c.Pre != nil {
-		out = Cat(out, Nest(4, Cat(Line(), Text("where "), p.expr(c.Pre))))
+		out = Cat(out, Nest(4, Cat(Line(), Text("where "), p.expr(renameExpr(c.Pre, names)))))
 	}
 	if c.Post != nil {
-		post := renameExpr(c.Post, map[string]string{core.ResultName: result})
+		names[core.ResultName] = result
+		post := renameExpr(c.Post, names)
 		out = Cat(out, Nest(4, Cat(Line(), Text("ensure "), p.expr(post))))
 	}
 	return Group(out)

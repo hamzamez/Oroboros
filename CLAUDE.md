@@ -157,8 +157,13 @@ later decision governs) and three gaps filled (an out-cell argument, a spread, a
 confirmed by hamza. **Today's corpus prints in J** ([jprint-2026-10-15](gauntlet/results/jprint-2026-10-15.md),
 package `j`, `cmd/toj`): all 152 programs, the 8 fragment files and the 35 target files, every comment
 carried in order, deterministic, no σ_J collision, no positional hole left in a host declaration; 12
-one-argument applications stay undecided between indexing and a call (the D-image the same). Next: step 3,
-J's reader, checked by D-images and the byte-identical gate.
+one-argument applications stay undecided between indexing and a call (the D-image the same). **J's reader
+is built** ([jread-2026-10-15](gauntlet/results/jread-2026-10-15.md), `j/lex.go`, `j/parse.go`,
+`j/readtarget.go`): all 152 programs read back to today's D-image and all 43 target files and fragments
+to today's forms, each check failing under a planted fault; with `ORO_VIA_J=1` the drivers read entry
+sources through J, and `cmd/check` is byte-identical (560 runs) with the differential suite passing.
+Next: step 4, ADRs 0052–0066 built one at a time behind the gate, program-order stores first; then step 5,
+the corpus switched to J and the target loader with it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -1184,7 +1189,7 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 |---|---|
 | `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `j/` | J, the surface (spec/j.md, ADR 0068): the document algebra (Wadler's prettier printer), σ_J, print_J over abstract.md's trees, the translator from today's notation for programs (`file`, `data`: indexing decided from evidence) and for target files and fragments (`target`); `cmd/toj` prints one file |
+| `j/` | J, the surface (spec/j.md, ADR 0068): the document algebra (Wadler's prettier printer), σ_J, print_J over abstract.md's trees, the translator from today's notation for programs (`file`, `data`: indexing decided from evidence) and for target files and fragments (`target`); the reader, `lex`, `parse` (programs into abstract.md's trees) and `readtarget` (target files into today's raw forms); `via`, the `ORO_VIA_J` gate in `cmd/gen` and `cmd/build`; `cmd/toj` prints one file |
 | `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |

@@ -1,6 +1,9 @@
 package core
 
-import "strings"
+import (
+	"strconv"
+	"strings"
+)
 
 // THE CONCRETE TREE — docs/spec/abstract.md §9.1, spec/j.md §1.2.
 //
@@ -151,4 +154,38 @@ func ReadRawConcrete(src string) (*RawConcrete, error) {
 		}
 		c.Terms = append(c.Terms, t)
 	}
+}
+
+// ---- What another rendering's reader needs (spec/j.md; abstract.md §9) ----
+
+// DeclTerms is D of a module's declarations: the declaration terms today's
+// reader makes, in the order D gives them (decl.go, forms). A rendering's reader
+// is checked by comparing its DeclTerms with today's (abstract.md §9.1, R2: the
+// trees two renderings read mean one thing when D gives one term).
+func DeclTerms(decls []Decl) []*Term {
+	d := newDesugarer()
+	ts, _ := d.placed(carryClaims(decls))
+	return ts
+}
+
+// FormsOf is D of a module's declarations as the forms the compiler reads: what
+// Read returns for today's notation, here for another rendering's trees.
+func FormsOf(decls []Decl) ([]Form, error) { return newDesugarer().forms(carryClaims(decls)) }
+
+// ReadDeclTerms reads a source of today's notation into DeclTerms.
+func ReadDeclTerms(src string) ([]*Term, error) {
+	ds, err := ReadTrees(src)
+	if err != nil {
+		return nil, err
+	}
+	return DeclTerms(ds), nil
+}
+
+// IntLiteral is the term today's reader makes of a decimal integer: an int64,
+// or past it Horner's form over 10¹⁵ (bigLiteral).
+func IntLiteral(text string) *Term {
+	if v, err := strconv.ParseInt(text, 10, 64); err == nil {
+		return Int(v)
+	}
+	return bigLiteral(text)
 }

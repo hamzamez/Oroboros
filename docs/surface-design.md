@@ -6095,3 +6095,134 @@ is_a(E ⊆ error) == λ(e) : CASE errors.AsType(E)(e) OF 'some(x) → TRUE [] 'n
    the outer λs (ADR 0063, unchanged). *Recommended.*
 
 Items 2–8 stand as written, item 2 with the inference rule above.
+
+### 7.9 A host template is a quotation, and its holes are names
+
+hamza, 2026-10-15:
+
+```go
+fn AsType(E \subseteq error) {
+    fn(err \in error) (option(E)) {
+        host expr "errors.AsType[" ++ E ++ "](" ++ "%s)" import "errors" comma_ok }
+}
+```
+
+and, *"a crazier one to keep the same shape"*:
+
+```go
+fn AsType(E \subseteq error) {
+    fn(err \in error) (option(E)) {
+        host expr, import "errors", comma_ok {
+            "errors.AsType[" ++ E ++ "](" ++ "%s)"
+        }
+    }
+}
+```
+
+*"wouldn't that simplify things? I forget what comma_ok is."*
+
+#### What a template is
+
+A host body realizes an operation symbol: given the host's code for each argument, it produces host code
+for the call. So a template is **a function from code to code**, and a string with holes is an encoding
+of that function, printf's encoding, its parameters the holes. The literature's name for a piece of code
+with holes filled by other code is a **quasi-quotation**: Lisp's backquote with its comma, MetaML's
+brackets with their escape (Taha and Sheard 1997), Template Haskell's splices. The text is quoted and
+each hole is an antiquotation.
+
+Today the holes are written in five ways, all by position (`go run gauntlet/surface/templates.go`, 913
+templates):
+
+| hole | meaning | uses |
+|---|---|---:|
+| `%s` | the next value argument, in order | 1,177; 387 templates fill two or more |
+| `%1` … `%4` | the i-th value argument (x86) | 137 |
+| `%r`, `%br`, `%er` | the destination register the emitter allocated, and its 8- and 32-bit views (x86) | 103, 17, 19 |
+| `%b3` | an operand's 8-bit view (x86) | 1 |
+| `%t1` | the first static argument's host spelling | 1 |
+| `%%` | a literal `%` | 7 |
+
+A position is a binder written without its name: a de Bruijn index inside a string. **Your proposal's
+gain is to name it**: `E`, not `%t1`. That is right, and it should go all the way, to every hole.
+
+#### Why not `++`
+
+- **A set is not a string.** `"…[" ++ E ++ "]…"` needs E's host spelling, ρ_T(E) = `*strconv.NumError`,
+  not E. Making `E` mean its spelling inside a template is a coercion that holds in one position only: a
+  homonym, E a set in `option(E)` on the same line and a string in the template.
+- **`++` is the computation's operator, and the template is not computed by the program.** The template
+  is host text fixed at compile time; `++` concatenates strings at run time. One operator at two stages
+  is what MetaML's brackets exist to prevent: a reader must know which stage a `++` is in, and here it
+  would depend on being inside `host`.
+- **The value holes stay positional.** `"%s)"` remains, so a template would have two hole mechanisms,
+  names by `++` and positions by `%`. Splicing `err` by `++` as well would make `"…(" ++ err ++ ")"` read
+  as a run-time concatenation of err's value, which it is not: it is err's *code*.
+- **The host call no longer reads as host code.** `"](" ++ "%s)"` splits Go's brackets across two
+  literals; the reader reassembles `errors.AsType[…](…)` in the head.
+
+#### Why not the block
+
+The second form gives the host body the shape of a definition: its clauses first, like a header's, and
+the text in braces, like a body. The uniformity is real. But a J block holds code of the language, and
+this holds host text: the braces would hold a string. If the string were a static computation, `++`
+would be legal in it, and the points above apply. And the 913 templates, each one line today
+(`{ host expr "%s.Name()" }`), would each gain a nested block and two lines, with commas between clauses
+that J writes nowhere else.
+
+#### Proposed: named splices in the quoted text
+
+```go
+fn AsType(E ⊆ error) {                                                           // J
+    fn(err ∈ error) (option(E)) { host expr "errors.AsType[${E}](${err})" import "errors" comma_ok }
+}
+fn WriteFile(path ∈ bytestring, data ∈ Array(0..255)) (result.result((), error)) {
+    host expr "os.WriteFile(${path}, ${data}, 0o666)" import "os"
+}
+fn add(a ∈ Int, b ∈ Int) (r ∈ Int) pure { host expr "mov ${r}, ${a}\nadd ${r}, ${b}" }   // x86
+```
+
+- **`${x}` splices the binder x in scope**: a value parameter by its argument's host code; a ⊆-binder by
+  its host spelling, ρ_T(x); the result binder (ADR 0062 made the result a binder) by the destination
+  the emitter allocated, which is what x86's `%r` was. `$${` is a literal `${`. Everything else is host
+  text, verbatim, so the template reads as the host code it is.
+- **One mechanism replaces five**: `%s`, `%1…%n`, `%r`, `%tᵢ` and `%%`. x86's register views keep a
+  suffix on a splice, `${r:b}`, `${r:e}`, `${c:b}`.
+- **Why `${…}`**: 42 templates contain `{`, Go's function and struct literals and Java's lambdas, so a
+  bare brace would collide. 7 contain `$`, all in Java identifiers (`oro$c`), and none contains `${`; so
+  only `${` opens a splice, a lone `$` is text, and a literal `${`, which no template has, is `$${`. It
+  is the antiquote of JavaScript's template literals, Kotlin, the shell. It
+  is not one of the language's six string escapes, so a J string literal holds it unchanged, and it means
+  something only to a host clause, as a format string means something only to printf.
+- **Order no longer decides anything.** In 387 templates two or more holes are filled by position, so
+  reordering a parameter silently swaps arguments; by name it cannot. A template may now use a parameter
+  out of order or twice. A printer splices an IR operand, a value, so a repeated splice repeats a name and
+  not a computation; a printer that inlines an expression into a template binds it to a host variable
+  first when the template uses it twice.
+- **The translator does it mechanically**: the i-th `%s` becomes the i-th parameter's name; `%tᵢ` the
+  i-th ⊆-binder's. The emitted code is unchanged, which the byte-identical gate checks.
+
+#### What `comma_ok` is
+
+Go returns "a value, and whether there was one" as a pair: `v, ok := m[k]`, `v, ok := x.(T)`, and
+`errors.AsType[E](err)` returns `(E, bool)`. Go's documentation calls it the *comma ok* idiom. When ok is
+false, v is E's zero value, which means nothing.
+
+The language's type for "a value, or none" is option(E) = 1 + E. The declaration says `option(E)`, and
+`comma_ok` says how Go encodes it: as E × Bool, read by the retraction
+
+> r : E × Bool → 1 + E,  r(v, true) = 'some(v),  r(v, false) = 'none
+
+with its section s('some(v)) = (v, true), s('none) = (zero, false), and r ∘ s = id. The zero never
+reaches the program, which is the point: Go lets a program read v without looking at ok; the option does
+not. It is the same construction as an error's niche (errors.md §4, ADR 0040): a host's encoding of a
+sum, read once at the boundary. It stays a host clause because a host clause is text for, or a fact
+about, one host (target-files.md §1), and this is a fact about Go's encoding; it keeps Go's name for the
+idiom because the person writing the declaration has read Go's documentation.
+
+#### Proposed
+
+9. **A host template is quoted host text whose holes are named splices, `${x}`**: a value parameter by
+   its argument's code, a ⊆-binder by its host spelling, the result binder by its destination; `$${` a
+   literal `${`. They replace `%s`, `%1…%n`, `%r`, `%tᵢ` and `%%`; the host body stays one line,
+   `host KIND "template" CLAUSES`. *Recommended*, against `++`, which mixes stages and leaves `%s`, and
+   against the block, which puts host text in a block of code.

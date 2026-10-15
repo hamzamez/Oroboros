@@ -6226,3 +6226,80 @@ idiom because the person writing the declaration has read Go's documentation.
    literal `${`. They replace `%s`, `%1…%n`, `%r`, `%tᵢ` and `%%`; the host body stays one line,
    `host KIND "template" CLAUSES`. *Recommended*, against `++`, which mixes stages and leaves `%s`, and
    against the block, which puts host text in a block of code.
+
+### 7.10 Host code is a monoid, and a template denotes its concatenation
+
+hamza, 2026-10-15: *"you said E is not a string, it is a set. well all sets reduce to their
+representation in a host, which is a string. compilation in the end outputs a string for all targets, at
+least for now. that's why I thought all string operations should work there. host is basically a
+statement or a function that returns a string. and the output of the compilation is the concatenation
+of all those returns."*
+
+#### Where that is right, and corrects §7.9
+
+- **A host body is a function that returns host code**, a static function of its binders. §7.9 said
+  as much ("a function from code to code") and then argued as if the template could not be computed.
+- **Composition is concatenation, and the compiler does exactly that today**: `emit/target.go`'s `fill`
+  is `fmt.Sprintf(form, args…)`. A template is filled by substituting strings.
+- **§7.9's stage objection was wrong.** It said `++` is the computation's run-time operator. But the
+  language is two-level (closures-direction.md): the static level is unrestricted and runs at compile
+  time, and `++` on static operands is folded there, as every operation on static operands is (ADR
+  0009). A template built by `++` from literals and spellings is a static value, legitimately.
+
+So `"errors.AsType[${E}](${err})"` *means* `"errors.AsType[" ++ E ++ "](" ++ err ++ ")"`: the
+interpolation is a spelling of the concatenation, as a JavaScript template literal is. The question is
+only what E and err are when they are concatenated.
+
+#### Where it is not: the pieces are not strings
+
+**1. A splice brings requirements, not only text.** Splicing E = NumError writes `*strconv.NumError`,
+and the file must then import `strconv`; ADR 0063 item 4 says the instance's imports gain Tᵢ's
+packages. A string has nowhere to carry that. Today the second component exists, as a process-wide set
+(`ir/golang/golang.go`: `emit.Imports[imp] = true`), written as a side effect while the text is
+substituted. So what a host body returns is a pair:
+
+> Code_T = Σ* × 𝒫(Requirement),  (t₁, r₁) · (t₂, r₂) = (t₁ t₂, r₁ ∪ r₂),  unit (ε, ∅)
+
+a product of two monoids, the free monoid on characters and the semilattice of imports, link libraries
+and helpers emitted once. A file is rendered from the pair once, at the end: the requirements become
+the import block, the text the body. **"The output is the concatenation of the returns" is true of the
+first component**, and the second is a union. Code generation is a fold in the writer monad over the
+requirements (Wadler 1992), and the global set is that monad's state written as an effect. irtext found
+two bugs in process-wide sinks a reset missed; the algebra says the requirements should be returned with
+the text, not written beside it. That is an implementation note, not built here.
+
+**2. A set's spelling depends on where it is written.** ρ_T(E) is a carrier, a host type. Its spelling
+is a string, but not one string:
+- Java writes ℤ's word `long` in a variable and `Long` in a type argument, so `targets/java/bigint.oro`
+  spells `BiFunction<java.math.BigInteger,Long,…>`;
+- Go writes `*strconv.NumError` as a type and `strconv.NumError{…}` in a composite literal;
+- JavaScript writes no type at all: the spelling is ε, the monoid's unit.
+
+So "E reduces to a string" is spell_T(ρ_T(E), position). The template knows the position, since it is
+host text, and the target knows the spelling. Coercing E to one string would choose a position for it.
+
+**3. Concatenating code is sound only for atoms.** `%s.Name()` filled with `a + b` gives `a + b.Name()`,
+a different program. Sprintf is sound today for a reason worth stating: every argument a printer splices
+is an IR operand, a name or a literal, an atom (ADR 0032's SSA). That invariant is what makes text
+concatenation a homomorphism from code to text; tree splicing (Template Haskell, MetaML's code values)
+needs none. Generalizing `++` to arbitrary strings would make the invariant every template author's
+problem.
+
+**4. A target need not emit text.** "At least for now": android-research weighs class files and DEX,
+whose output is bytes with a constant pool and relocations, not Σ*. A host body that returns Code_T
+leaves that open; one that returns a string closes it.
+
+#### Proposed
+
+10. **A host body is a static value of the target's code monoid Code_T**, text with its requirements,
+    composed by concatenation and union and rendered into the file once. **A template literal denotes a
+    concatenation in Code_T**, hamza's `++`: its literal pieces are text with no requirements, and `${x}`
+    injects a binder, a value parameter as its operand (an atom), a ⊆-binder as its spelling in that
+    position *with its imports*, the result binder as its destination. `import "…"` is the requirement
+    written by hand. *Recommended.*
+11. **An explicit `++` on code values is legitimate at the static level, and not admitted until a
+    declaration needs it.** Every one of the 913 templates is a single literal, the only form the
+    grammar has; a computed template, built from parts or by cases, makes a declaration a program the
+    checker must evaluate before comparing it with the host (ADR 0022). Scala's interpolators are the
+    precedent for the shape: `s"…"` and its quasiquotes `q"…"` are functions over a literal's parts, and
+    may return something other than a string.

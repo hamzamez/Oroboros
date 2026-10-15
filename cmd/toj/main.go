@@ -6,6 +6,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"oroboros/j"
 )
@@ -16,6 +18,9 @@ func main() {
 		os.Exit(2)
 	}
 	r, err := j.TranslateFile(os.Args[1], ".")
+	if strings.HasPrefix(filepath.ToSlash(os.Args[1]), "targets/") || err != nil && strings.Contains(err.Error(), "step 2d") {
+		r, err = j.TranslateTargetFile(os.Args[1], ".")
+	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "toj: %s: %v\n", os.Args[1], err)
 		os.Exit(1)

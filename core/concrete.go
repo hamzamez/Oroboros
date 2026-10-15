@@ -121,3 +121,34 @@ func (r *reader) gap(start, line int) {
 	}
 	r.gaps = append(r.gaps, Gap{Start: start, End: r.pos, Line: line, Text: text, OwnLine: own})
 }
+
+// RawConcrete is a source read raw, as target files are (ReadRaw: lists as
+// written, no sugar), with the span of every datum and the gaps.
+type RawConcrete struct {
+	Src   string
+	Terms []*Term
+	Spans map[*Term]Span
+	Gaps  []Gap
+}
+
+// ReadRawConcrete reads a source as ReadRaw does, keeping its decoration.
+func ReadRawConcrete(src string) (*RawConcrete, error) {
+	if err := validSource(src); err != nil {
+		return nil, err
+	}
+	r := newReader(src, true)
+	r.concrete, r.spans = true, map[*Term]Span{}
+	c := &RawConcrete{Src: src, Spans: r.spans}
+	for {
+		r.skipSpace()
+		if r.done() {
+			c.Gaps = r.gaps
+			return c, nil
+		}
+		t, err := r.term()
+		if err != nil {
+			return nil, err
+		}
+		c.Terms = append(c.Terms, t)
+	}
+}

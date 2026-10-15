@@ -45,7 +45,7 @@ written, and nothing about what it means. Where a form is new to the abstract sy
 ### 0.2 Conflicts between the decisions, and their resolution
 
 The installments were written over five days, each binding on the next, and consolidating them found six
-places where a later decision changed an earlier one without saying so. **The later decision governs**,
+places where a later decision changed an earlier one without saying so, and the translator a seventh. **The later decision governs**,
 as ADR 0064's opening rule of the surface ("what comes after has to fit with what we pick now") makes
 the earlier ones binding only until revised. **Confirmed by hamza, 2026-10-15** ("agree with all").
 
@@ -57,6 +57,7 @@ the earlier ones binding only until revised. **Confirmed by hamza, 2026-10-15** 
 | **C4** | ADR 0056 item 9: the set of tables is `Seq(S)` | ADR 0059 item 4: `Array(V)` | **ADR 0059**. |
 | **C5** | ADR 0059 item 3 and installment 4: a map's pair `k ↦ v` | ADR 0061 items 4–5: `map { k : v }`, the colon a pair's separator in a map | **ADR 0061**. |
 | **C6** | ADR 0060 item 2 (Python's set operators); ADR 0062 item 4 (`forall`, `exists`, `==>`, `<==>`) | ADR 0065, ADR 0067 item 7 | already superseded, each by name. |
+| **C7** | ADR 0064 item 6: a host constant `MaxRune ∈ {1114111} = host …`, written with bare braces | ADR 0065 item 4: a set former always has its keyword, and braces with none are a block | **ADR 0065**: `MaxRune ∈ set { 1114111 } = host "utf8.MaxRune" …` (found by the translator, step 2d). |
 
 ### 0.3 Gaps: forms no decision fixed
 
@@ -67,6 +68,7 @@ for each; **decided by hamza, 2026-10-15** ("agree with all"):
 |---|---|---|---|
 | **G1** | out(S), a fresh cell at an `out` parameter (ADR 0048 §6) | 37 `(out τ)` sites in the corpus | **decided:** `out Int` as an argument, the mode word before the set: `fmt.Sscan(s, out Int, out String)`. Ada writes `out` on the parameter and nothing at the call; the call needs the set, since the cell is made there. |
 | **G2** | spread(e), a table passed as a variadic list (ADR 0046) | `(spread xs)` | **decided:** `xs...` as the last argument, Go's own spelling of exactly this call: `fmt.Println(xs...)`. `...` is one token, so `..` and `...` never meet (§1.6). |
+| **G4** | a number unique to each use of a template, x86's labels, today's `%u` (30 sites) | `targets/windows/x64.oro` | **proposed:** `${#}`, a splice no binder can be named, since `#` starts no identifier: `jno Lok${#}`. Found by the translator, step 2d. |
 | **G3** | a lemma's proof steps beyond `assert` and `if` (ADR 0062 item 5) | installment 5's G4 only | **decided:** a lemma's body is a block whose statements are `assert` statements, `if`/`case` over formulas, and lemma uses `assert L(ā)`; nothing else is a proof step until a lemma needs one. |
 
 ---
@@ -116,7 +118,7 @@ assert use module provides private export axiom true false`.
 **Contextual**, keywords only in the clause positions the grammar gives them, identifiers everywhere
 else: `where ensure invariant pure index variadic inout out linear as host expr stmt import lib checked
 jump comma_ok success relevant` and the model's data words (`repr word niche narrow structural backend
-link fact underlying max-len big-repr int-repr`, §2.12).
+link fact underlying max_len big_repr int_repr`, §2.12).
 
 **After `.`, any word is a member**, reserved ones included: `` java.List.set ``.
 
@@ -217,7 +219,7 @@ name        ::= ident | quoted
   (ADR 0064 item 7). A **variant** is a set definition whose right side is a union of tagged sets, its
   markers after it: `set Result(T, E) = 'ok(T) ∪ 'err(E) success 'ok relevant` (item 8).
 - **A value**: `cap = 4096`, `C = 2^62 - 1`; a host constant's value is its claim,
-  `MaxRune ∈ {1114111} = host "utf8.MaxRune" import "unicode/utf8"` (item 6).
+  `MaxRune ∈ set { 1114111 } = host "utf8.MaxRune" import "unicode/utf8"` (item 6; §0.2, C7).
 - **`axiom`** states an inclusion, `axiom NumError ⊆ error`, `axiom File ⊆ Reader ∩ Writer`; only in a
   target file or a fragment (ADR 0064 item 9).
 
@@ -257,12 +259,13 @@ arrow       ::= "fn" params result? clause*
 
 ```
 body        ::= block | "{" host_body "}"
-host_body   ::= "host" ( "expr" | "stmt" ) string host_clause*
+host_body   ::= "host" ( "expr" | "stmt" )? string host_clause*
 host_clause ::= "import" string+ | "lib" string | "checked" ident | "jump" string string? | "comma_ok"
 ```
 
 A host body is a definition's body, in a target file or a fragment; it may sit only under ⊆-λs (ADR
-0066 item 10). Its template is §2.11's.
+0066 item 10). Its template is §2.11's. An operation's body names its kind, `expr` or `stmt`; a set's
+carrier and a constant's spelling have none: `set NumError = host "*strconv.NumError"`.
 
 ### 2.6 Blocks and statements
 
@@ -394,6 +397,7 @@ A template is a string whose holes are **named splices** (ADR 0066 items 9–10)
 
 - `${x}` splices the binder x in scope: a value parameter by its argument's host code, a ⊆-binder by its
   host spelling in that position together with its imports, the result binder by its destination;
+- `${#}` is a number unique to each use of the template, for a label (G4);
 - a register view is a suffix, `${r:b}`, `${r:e}`;
 - only `${` opens a splice; a lone `$` is text, and a literal `${` is `$${`.
 
@@ -404,9 +408,13 @@ united, rendered into the file once.
 
 In a target file or a fragment only, the model's declarations keep their words, with the notation's sets
 (ADR 0064 item 10): `repr 0..2^8-1 host "byte"`, `repr -2^63..2^63-1 word`, `repr error niche host expr
-"${e} == nil"`, `backend go`, `link "kernel32"`, `structural NAME KIND`, `fact …`, `underlying T 0..255`,
-`max-len N`, `big-repr host`, `int-repr …`. Their grammar is target-files.md §1's, each form's operands
-written as J expressions; this document does not restate it.
+"%s == nil"`, `backend go`, `link "kernel32"`, `structural NAME KIND`, `fact …`, `underlying T 0..255`,
+`max_len N`, `big_repr host`, `int_repr …`. Their grammar is target-files.md §1's, each form's operands
+written as J expressions; this document does not restate it. **A template in the model's data keeps
+target-files.md's positional holes**, `%s`: the model's forms bind no names to splice, so §2.11's named
+splices are a host declaration's. A name another module of the model declares is written with its path
+quoted, σ_J's fallback for what is no identifier: `` axiom File ⊆ `go/io`.Reader ``; a name in the
+fragment's own module is written bare.
 
 ---
 
@@ -533,9 +541,10 @@ rewrites, mechanically:
 | `(export f …)` in a library | public by default; `private` on each definition not listed |
 | `(export main)` in an entry file | `export fn main()` |
 | `(sig f …)` beside `(def f …)` | one `fn f(…) … { … }` |
-| `(sig f … (host k "t" …))` | `fn f(…) … { host k "t′" … }`, t′ with `%s` and `%tᵢ` named |
+| `(sig f … (host k "t" …))` | `fn f(…) … { host k "t′" … }`, t′ with `%s`, `%n`, `%r` and `%tᵢ` named, `%u` as `${#}`; a parameter given only its set named `a`, `b`, … |
+| `(implements P.T I…)` beside `(module P …)` | `axiom T ⊆ I ∩ …` inside `module P { … }` |
 | `(type N (host "s"))`, `(type N S)` | `set N = host "s"`, `set N = S` |
-| `(const N v (host "s" …))` | `N ∈ {v} = host "s" …` |
+| `(const N v (host "s" …))` | `N ∈ set { v } = host "s" …` |
 | `(variant (n T…) (c S…)… (success c) (relevant))` | `set N(T…) = 'c(S…) ∪ … success 'c relevant` |
 | `(implements T I…)` | `axiom T ⊆ I ∩ …` |
 | `(sig (f (E (subsets B))) …)`, `(def f (E) (fn …))` | `fn f(E ⊆ B) { fn(…) … }` |

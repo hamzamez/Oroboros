@@ -63,7 +63,10 @@ type printer struct {
 	locals      map[string]bool // the current definition's variables
 	fns         map[string]bool // the current definition's names known to hold a function
 	argKinds    map[string][]evid
-	returnsData map[string]bool // the file's definitions whose value is a table or a map // what each parameter of the file's definitions receives (data.go)
+	returnsData map[string]bool          // the file's definitions whose value is a table or a map
+	rawSpans    map[*core.Term]core.Span // a target file's datums' spans (target.go)
+	resultName  string                   // what a raw `ensures` calls `result`
+	root        string                   // the repository, for a target fragment's imports // what each parameter of the file's definitions receives (data.go)
 	fresh       int
 
 	// Uncertain counts the one-argument applications of a local name the
@@ -233,7 +236,7 @@ func (p *printer) params(ps []string) *Doc {
 func (p *printer) lit(l *core.Lit) string {
 	if sp, ok := p.spans[core.Tail(l)]; ok {
 		text := p.src[sp.Start:sp.End]
-		if l.T.Kind == core.KInt || strings.Trim(text, "-0123456789") == "" {
+		if strings.Trim(text, "-0123456789") == "" {
 			return Integer(text)
 		}
 		return text

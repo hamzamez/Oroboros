@@ -5961,3 +5961,137 @@ K1 alone (`-until '**K2 '`): D 796 lexemes, J 802.
 7. **An inout binder's value on exit is primed in `ensure`, `x'`**, TLA+'s, against Dafny's `old(x)`
    (Finding 7). *Recommended.*
 8. **One binding form for a call's results; the continuation λ goes** (Finding 8). *Recommended.*
+
+### 7.8 A definition over sets is a λ that returns a λ
+
+hamza, 2026-10-15, on item 1: *"I agree about the semantics. But the spelling, I think it should reflect
+the semantics"*:
+
+```go
+fn is_a(E \subseteq error) {
+    fn(e) {
+        case errors.AsType(E)(e) { … }
+    }
+}
+
+fn AsType(E \subseteq error) {
+    fn(err \in error) (option(E)) { … }
+}
+```
+
+*"this way the definition mirrors the semantics. the issue might be in host template translation.
+correct me if I am wrong."*
+
+**It is right, and it corrects Finding 1.** ADR 0063 already says what the tree is: *"polymorphism is a
+static λ, and β instantiates through it with no new rule"*. AsType is λE. λerr. e, and the nested
+spelling writes that tree as it is. Finding 1's parameter groups, `AsType(E ⊆ error)(err ∈ error)`, write
+the same tree in the equational style, f(E)(x) = e, and the nested form is better on three of this
+document's criteria:
+- **U, uniformity.** It adds no shape: a λ returning a λ is already in the language, and today's
+  notation writes a program's static λ exactly so, `(def is-a (E) (fn (e) …))`. The groups were a second
+  header shape.
+- **E, erasure.** The staging boundary is a block boundary. The outer block runs at compile time and is
+  erased; the inner λ is what remains and runs. The two levels of closures-direction.md are on the page
+  as two blocks, where the groups showed them as `)(`.
+- **The header stays a membership statement** (ADR 0062). The outer header states is_a ∈ Π(E ⊆ error)
+  and claims no result, because its result is a λ whose own header is its claim (Lemma 1).
+
+**What Finding 1 wanted from the groups, the binder gives.** Its "missing distinction" was that a static
+parameter looked like a value parameter. In the nested form what marks E as static is its binder's
+relation: **`x ∈ S` ranges over values, `E ⊆ S` over sets.** E ⊆ S is E ∈ 𝒫(S), ADR 0063's
+`(E (subsets S))`, so the relation states the level. Go's unbounded `[E any]` is `E ⊆ any`, read as an
+inclusion.
+
+#### The host template is not a problem
+
+A host declaration's body now sits in the inner λ, and its template names the outer binder:
+
+```go
+fn AsType(E ⊆ error) {                                                           // J
+    fn(err ∈ error) (option(E)) { host expr "errors.AsType[%t1](%s)" import "errors" comma_ok }
+}
+```
+
+- **The holes are read by scope.** `%s` is the host λ's own value parameters, in order; `%t1` is the first
+  ⊆-binder in scope, here the outer λ's E.
+- **Instantiation is β on the outer λ**, which is ADR 0063's δ-rule already: `AsType(NumError)` reduces
+  to the inner λ with E := NumError in its claims and with `%t1` := ρ(NumError) = `*strconv.NumError` in
+  its template. The result is the instance AsType#[NumError], a first-order host declaration,
+  `λ(err ∈ error) (option(NumError))` with body `errors.AsType[*strconv.NumError](%s)`. That is what
+  `emit/instance.go` builds today from the head-group spelling; the tree it starts from is the same.
+- **One well-formedness condition makes it safe: a host body may sit only under ⊆-λs.** Then β leaves a
+  first-order host declaration that closes over no run-time value. A host body inside a λ whose binder is
+  a value would be a host closure, tier 3, refused. It extends abstract.md §2.6's def(f; λ(…); host(…)):
+  the host body may sit under a chain of static λs.
+
+#### Inference, under the nested form
+
+Finding 2 holds with one precise rule: **when a λ whose binders are all ⊆-binders is applied to
+arguments that are not sets, and its body is a λ literal whose parameter sets mention those binders, the
+sets are inferred by matching**, and the call applies the outer λ to them first.
+`slices.SortStableFunc(idx, cmp)`: the outer binder E ⊆ any; idx is a value; the inner λ's
+`x ∈ Array(E)` matched against `Array(Int)` gives E = Int; the call is
+`slices.SortStableFunc(Int)(idx, cmp)`. Where the body is not a λ literal, or E occurs only in the
+result, the call writes the set.
+
+#### The declarations, rewritten
+
+```go
+module go/errors {                                                              // J
+    fn AsType(E ⊆ error) {
+        fn(err ∈ error) (option(E)) { host expr "errors.AsType[%t1](%s)" import "errors" comma_ok }
+    }
+}
+
+fn is_a(E ⊆ error) {
+    fn(e) { case errors.AsType(E)(e) { 'some(x) -> true; 'none -> false } }
+}
+
+module go/slices {
+    spec elems(E ⊆ any) {
+        fn(t ∈ Array(E)) (subsets(E)) { set { t[i] : i ∈ 0..len(t)-1 } }
+    }
+
+    spec preorder(S ⊆ any) {
+        fn(cmp ∈ fn(a ∈ S, b ∈ S) (Int)) (Bool) {
+            ∀ a, b, c ∈ S : (cmp(a, b) <= 0 || cmp(b, a) <= 0)
+                            && (cmp(a, b) <= 0 && cmp(b, c) <= 0 ==> cmp(a, c) <= 0)
+        }
+    }
+
+    fn SortStableFunc(E ⊆ any) {
+        fn(x ∈ Array(E) inout, cmp ∈ fn(a ∈ elems(x), b ∈ elems(x)) (Int) pure) ()
+            where preorder(elems(x))(cmp)
+            ensure elems(x') == elems(x) && ∀ i ∈ 0..len(x)-2 : cmp(x'[i], x'[i + 1]) <= 0
+        {
+            host stmt "slices.SortStableFunc(%s, %s)" import "slices"
+        }
+    }
+}
+```
+```
+---- MODULE go/errors ----                                                      \* D
+AsType(E ⊆ error) ==
+  λ(err ∈ error) (option(E)) : HOST expr "errors.AsType[%t1](%s)" IMPORT "errors" COMMA_OK
+====
+
+is_a(E ⊆ error) == λ(e) : CASE errors.AsType(E)(e) OF 'some(x) → TRUE [] 'none → FALSE
+```
+
+- **`preorder` lost its E**: a law about a comparison on a set S needs only S, so its static binder is S,
+  and the call writes `preorder(elems(x))(cmp)`. In the logic a set binder may be given a set computed
+  from a run-time value, elems(x), because the logic never prints; in the computation a ⊆-binder takes a
+  static set only (Law S).
+- **`elems(x)` infers E** from `t ∈ Array(E)`, by the rule above.
+- **A spec's inner λ is a spec's**: the outermost keyword says what the whole definition is, a
+  computation, a specification or a lemma.
+
+#### Proposed, replacing item 1
+
+1. **A definition over sets is a λ that returns a λ, written nested**: the outer λ binds sets, `E ⊆ B`,
+   and is applied at compile time; the inner is the function that runs. **No parameter groups.** The
+   binder's relation marks the level: `∈` a value, `⊆` a set, `E ⊆ any` Go's `[E any]`. A host body may
+   sit only under ⊆-λs, and its template's `%tᵢ` names the i-th ⊆-binder in scope; instantiation is β on
+   the outer λs (ADR 0063, unchanged). *Recommended.*
+
+Items 2–8 stand as written, item 2 with the inference rule above.

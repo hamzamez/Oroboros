@@ -47,7 +47,7 @@ written, and nothing about what it means. Where a form is new to the abstract sy
 The installments were written over five days, each binding on the next, and consolidating them found six
 places where a later decision changed an earlier one without saying so. **The later decision governs**,
 as ADR 0064's opening rule of the surface ("what comes after has to fit with what we pick now") makes
-the earlier ones binding only until revised. Each is listed so hamza can overturn the resolution.
+the earlier ones binding only until revised. **Confirmed by hamza, 2026-10-15** ("agree with all").
 
 | | earlier | later | resolution in J |
 |---|---|---|---|
@@ -60,14 +60,14 @@ the earlier ones binding only until revised. Each is listed so hamza can overtur
 
 ### 0.3 Gaps: forms no decision fixed
 
-Writing the grammar found three operators of Σ with no decided J spelling. This document proposes one
-for each, marked **(proposed)**, for hamza:
+Writing the grammar found three operators of Σ with no decided J spelling. This document proposed one
+for each; **decided by hamza, 2026-10-15** ("agree with all"):
 
 | | operator | where it occurs | proposed |
 |---|---|---|---|
-| **G1** | out(S), a fresh cell at an `out` parameter (ADR 0048 §6) | 37 `(out τ)` sites in the corpus | `out Int` as an argument, the mode word before the set: `fmt.Sscan(s, out Int, out String)`. Ada writes `out` on the parameter and nothing at the call; the call needs the set, since the cell is made there. |
-| **G2** | spread(e), a table passed as a variadic list (ADR 0046) | `(spread xs)` | `xs...` as the last argument, Go's own spelling of exactly this call: `fmt.Println(xs...)`. `...` is one token, so `..` and `...` never meet (§1.6). |
-| **G3** | a lemma's proof steps beyond `assert` and `if` (ADR 0062 item 5) | installment 5's G4 only | a lemma's body is a block whose statements are `assert` statements, `if`/`case` over formulas, and lemma uses `assert L(ā)`; nothing else is a proof step until a lemma needs one. |
+| **G1** | out(S), a fresh cell at an `out` parameter (ADR 0048 §6) | 37 `(out τ)` sites in the corpus | **decided:** `out Int` as an argument, the mode word before the set: `fmt.Sscan(s, out Int, out String)`. Ada writes `out` on the parameter and nothing at the call; the call needs the set, since the cell is made there. |
+| **G2** | spread(e), a table passed as a variadic list (ADR 0046) | `(spread xs)` | **decided:** `xs...` as the last argument, Go's own spelling of exactly this call: `fmt.Println(xs...)`. `...` is one token, so `..` and `...` never meet (§1.6). |
+| **G3** | a lemma's proof steps beyond `assert` and `if` (ADR 0062 item 5) | installment 5's G4 only | **decided:** a lemma's body is a block whose statements are `assert` statements, `if`/`case` over formulas, and lemma uses `assert L(ā)`; nothing else is a proof step until a lemma needs one. |
 
 ---
 
@@ -305,7 +305,7 @@ qualified   ::= ident ( "." member )+
 member      ::= ident | quoted | reserved_word
 tag_expr    ::= ( ident "." )? tag ( "(" expr,* ")" )?
 prime       ::= ident "'"                              (in an `ensure` only)
-arg         ::= expr | expr "..." | "out" set_expr     (G2, G1: proposed)
+arg         ::= expr | expr "..." | "out" set_expr     (G2, G1)
 literal     ::= integer | float | string | "true" | "false"
 lambda      ::= "fn" params result? clause* block
 if_expr     ::= "if" expr block ( "else" ( block | if_expr ) )?
@@ -472,7 +472,7 @@ abs_J, operator by operator (abstract.md §2):
 | `use p as a`, `module p { … }`, `provides T p { … }` | use(p; a), module(p; …), provides(T; p; …) |
 | `private`, `export` | the reduct's complement, an entry point (ADR 0064 items 4–5) |
 | `axiom T ⊆ I` | the model's inclusion axiom (Σ_T) |
-| `f(xs...)`, `f(out S)` | app(f; spread(xs)), app(f; out(S)) (G1, G2 proposed) |
+| `f(xs...)`, `f(out S)` | app(f; spread(xs)), app(f; out(S)) (G1, G2) |
 
 The operators abstract.md derives (if, cond, seq, the connectives, try, expect, bind) are written as
 their derived forms; the equation is applied by abs_J.

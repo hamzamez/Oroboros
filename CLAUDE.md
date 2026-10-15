@@ -153,8 +153,8 @@ Installment 7, static parameters, the arrow and application, is decided
 decided ([ADR 0067](docs/decisions/0067-the-lexical-level.md)), and **J is the surface**
 ([ADR 0068](docs/decisions/0068-j-is-the-surface.md)), the experiment not run. **Its grammar is
 [spec/j.md](docs/spec/j.md)**, consolidating ADRs 0050–0067: six conflicts between them resolved (the
-later decision governs) and three gaps proposed (an out-cell argument, a spread, a lemma's steps), for
-hamza to confirm. Next: the printer and translator, today's corpus printed in J.
+later decision governs) and three gaps filled (an out-cell argument, a spread, a lemma's steps), all
+confirmed by hamza. Next: the printer and translator, today's corpus printed in J.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.

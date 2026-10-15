@@ -1,7 +1,7 @@
 # The language surface, designed one construct at a time
 
-Status: **an open conversation, appended to as it goes. The surface is not decided; its candidates are
-D and J** (ADR 0056); what is decided around it is listed below. Started 2026-10-11 on
+Status: **decided: the surface is J** (ADR 0068, 2026-10-15), its forms ADRs 0050–0067, eight
+installments below; the D columns are the record of how it was reached. What is decided is listed below. Started 2026-10-11 on
 hamza's request: *"let's try to come up with the best language surface we can … we start with the atom
 lambda … let's find out the syntax with the least holes in it, simplest, most uniform … we are going to
 propose the most right now, pick a few, drop the rest and continue the exercise with the rest of the
@@ -40,6 +40,8 @@ since the document records how the design was reached.
 | 17 | a file is a theory named by its path, a fragment names its module, the target the directory; an import's alias filled by the reader, `alias.T.m` through a companion; visibility public, `private`/`LOCAL` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host), `type` gone, a host constant's value a claim; top-level `x = e`, `let` gone, `set S = e` an optional claim (required on a host body); a variant a union of tagged sets, a value in a set position its singleton; an inclusion an axiom of a model; a companion a nested module | [ADR 0064](decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md), §6.7–6.9 | installment 6's forms |
 | 18 | J writes sets in TLA+'s symbols, `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, TLA+'s names as their ASCII, the file storing the symbol; short input is the editor's; a set former keeps its keyword, a headless brace is a block; no symmetric difference | [ADR 0065](decisions/0065-j-writes-sets-in-tla-symbols.md), §6.8–6.9 | J and D write the logic identically; ADR 0060's item 2 superseded |
 | 19 | a definition over sets is a λ returning a λ, `E ⊆ S` a set binder; static arguments inferred by matching; `~[]E` collapses; the arrow a λ's header, its domain a telescope; a site λ takes its claim from the parameter; no receiver form; `x'` on exit; one binding for a call's results; host templates with named splices `${x}`, denoting concatenation in Code_T | [ADR 0066](decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md), §7.7–7.10 | installment 7's forms |
+| 20 | the lexical level: ASCII words with a final `?`, `-` as `_`, backquoted host names; few reserved words; sets UpperCamelCase by convention; `^` on constants; line comments carried; Scala 3's line rule; J's logic in TLA+'s symbols; one precedence table; prime and tag by adjacency | [ADR 0067](decisions/0067-the-lexical-level.md), §8.7 | installment 8's forms |
+| 21 | **J is the surface**, one rendering; the D-or-J experiment not run | [ADR 0068](decisions/0068-j-is-the-surface.md), hamza 2026-10-15 | D's columns are history |
 
 **The method, per installment.** State what the construct must carry, derived from Σ. Propose many
 spellings, including ones no language uses. Measure them against the same criteria. Keep two or three,
@@ -6804,3 +6806,6 @@ By file (`-until '**L2 '`, `-until '**L3 '`, and the differences), in lexemes:
    (Finding 7). *Recommended.*
 8. **The precedence table** (Finding 8). *Recommended.*
 9. **The prime and the tag told apart by adjacency** (Finding 9). *Recommended.*
+
+**Decided** (hamza, 2026-10-15: "I agree with all 9. no need for an experiment. J is our syntax"), as
+[ADR 0067](decisions/0067-the-lexical-level.md) and [ADR 0068](decisions/0068-j-is-the-surface.md).

@@ -150,8 +150,8 @@ J writes sets in TLA+'s symbols ([ADR 0065](docs/decisions/0065-j-writes-sets-in
 Installment 7, static parameters, the arrow and application, is decided
 ([ADR 0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md)), its program
 `top` written by hand in D and J (callbacks tier 1 not built). Installment 8, the lexical level, is
-written (§8): spelling, words, case, literals, comments, lines, the logic's symbols in J, precedence;
-its nine recommendations wait for hamza. Then the D-or-J experiment.
+decided ([ADR 0067](docs/decisions/0067-the-lexical-level.md)), and **J is the surface**
+([ADR 0068](docs/decisions/0068-j-is-the-surface.md)), the experiment not run.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -602,7 +602,7 @@ rejected alternatives.
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
-| The surface is D or J (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
+| The surface is ~~D or J~~ J (0068) (B′ and K dropped); one arm grammar for `case` and `loop`, `cond` and `match` retired; `again` positional; `;` tighter than `[]` in D; `var x := e` in J; J's formers `array { … }`, `set { … }`, `array(n, f)`; `Seq(S)` the set — not built | [0056](docs/decisions/0056-the-surface-is-d-or-j-and-its-choice-and-iteration.md) |
 | The handled bind is a derived operator, case(e; p → b, ā), with try and expect its instances; J writes `try p = e [else ā], … { body } [else ā]`, D `TRY … IN`; in a loop its success arm is a tail and its handler leaves — extends 0041, not built | [0057](docs/decisions/0057-the-handled-bind-and-its-tail.md) |
 | A map buffer is a state binder holding a map, written in program order (`m[k] := v`), R0–R4 as for a table — extends 0052, not built | [0058](docs/decisions/0058-a-map-buffer-is-a-state-binder-holding-a-map.md) |
 | A tag is a quoted symbol, `'name`, in patterns and expressions; case carries no category; a collection has one former shape and `array(n, f)` goes; the sets are `Array(V)` and `Map(K, V)` — supersedes 0056's items 8–9, not built | [0059](docs/decisions/0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md) |
@@ -613,6 +613,8 @@ rejected alternatives.
 | A file is a theory named by its path, a target file a set of fragments, the target its directory; an import carries its alias; visibility public, `private` hiding, `export` an entry point only; a declaration is a header and one body (an expression or a host); `let` off the top level, `set S = e` an optional claim; a variant a union of tagged sets; an inclusion an axiom of a model; a companion a nested module — not built | [0064](docs/decisions/0064-a-file-is-a-theory-and-a-declaration-is-a-header-and-one-body.md) |
 | J writes sets in TLA+'s symbols `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, TLA+'s names their ASCII, the file storing the symbol; short input is the editor's, never a string escape; a set former keeps its keyword, a headless brace is a block — supersedes 0060's item 2, not built | [0065](docs/decisions/0065-j-writes-sets-in-tla-symbols.md) |
 | A definition over sets is a λ returning a λ, `E ⊆ S` binding a set; static arguments inferred by matching sorts; Go's `~[]E` collapses; the arrow a λ's header, its domain a telescope; no receiver form; `x'` on exit in `ensure`; a host template is quoted code with named splices `${x}`, a value of Code_T = text × requirements — not built | [0066](docs/decisions/0066-a-definition-over-sets-is-a-lambda-returning-a-lambda.md) |
+| The lexical level: ASCII words with a final `?`, `-` as `_`, backquoted host names; few reserved words, clause words contextual; case meaningless, sets UpperCamelCase by convention; `^` on constants; line comments; Scala 3's line rule; J's logic in TLA+'s symbols; one precedence table — not built | [0067](docs/decisions/0067-the-lexical-level.md) |
+| **J is the surface**, one rendering; the D-or-J experiment not run; supersedes 0056's item 1 — not built | [0068](docs/decisions/0068-j-is-the-surface.md) |
 
 ## How this project is run
 

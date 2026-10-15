@@ -11,6 +11,8 @@ and `loop i = 0 invariant I { … }`, absent meaning ⊤. **Items 8 and 9 supers
 [ADR 0059](0059-a-tag-is-a-quoted-symbol-and-collections-have-one-former.md)**: the rule moves inside the
 former, `array(n, f)` goes, and the set is `Array(V)`.
 
+> **Item 1 superseded by [ADR 0068](0068-j-is-the-surface.md)**: J is the surface.
+
 ## Context
 
 surface-design.md designs the surface one construct at a time over abstract.md's signature, which is

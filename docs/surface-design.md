@@ -4661,6 +4661,10 @@ presents S by its elements; a marker presents it by its characteristic function,
   definition disappears, since a marker cannot name nothing;
 - 149 of the 603 definitions are exported, a quarter, so marking the exported minority writes 149
   markers where marking the private majority (TLA+'s `LOCAL`) would write 454;
+  > **Corrected in §6.8**: the 603 are mostly entry files', which export only `main` or `run`. The
+  > library modules export 21 of their 23 definitions, and `export` in an entry file is another
+  > thing, an entry point.
+
 - **it applies to the one namespace** (ADR 0063): exporting a set exports the set and its tags. Today
   every type is visible whatever the list says; under the marker, a set nobody exports is private.
   Nothing measured is lost: no module exports part of a variant, and types are extensional
@@ -5197,3 +5201,216 @@ Split: H1 alone is `-section 6 -until '**H2 '`, and H2–H5 the difference:
    (Finding 6). *Recommended.*
 7. **The model's data keeps its words**, spelled in the notation's sets (Finding 7). *Recommended.*
 8. **A companion is a nested module**, with no section variable for `self` (Finding 8). *Recommended.*
+
+### 6.8 hamza's answers, and the arguments for what is still open
+
+hamza, 2026-10-15: items 1, 2, 6 and 7 agreed; 5 agreed, with a question about what a tag is; 8 mostly
+agreed, with `self` to explain again. Item 3: *"most of what people write in a package is public, so
+maybe the default is public, and we can mark one as private instead."* Item 4: whether `fn`, `let` and
+`set` are needed at all, and whether `set s = set { … }` is redundant. And: *"it seems using
+mathematical notation for sets like TLA+ is better in J as well. `axiom T <= I` does not look right."*
+
+#### 3. Public by default, yes; and `export` was two things
+
+**The premise is right, and Finding 3's figure measured the wrong population.** The 603 definitions are
+mostly entry files' (examples, differential cases), which export only `main` or `run`. The libraries,
+counted file by file:
+
+| | definitions | exported |
+|---|---:|---:|
+| `lib/result`, `lib/os`, `lib/num/u128`, `lib/num/vec`, `lib/win/fmt` | 23 | **21** (hidden: `classify`, `digits18`) |
+| Go's standard library: functions / methods / types (constants left out; 67,045 of them, mostly generated `syscall` tables) | 15,771 / 13,895 / 5,972 | 35% / 59% / 57% |
+| … by package, the user-facing ones: `strings`, `bufio`, `io`, `bytes`, `strconv`, `encoding/hex` | 508 | 385 (76%) |
+| … by package, 103 of 191 export more than they hide; `os` (34%) and `path/filepath` (45%) hide more | | |
+
+So in the code people import, most names are public, and marking the private ones writes the fewest
+markers. **But the count also shows that `export` means two different things today**, which
+modules.md §0's table already records:
+
+| | in a library | in the entry file |
+|---|---|---|
+| `export` means | visibility to other modules | **an entry point**: the build compiles it into a host function |
+| what it costs | nothing: every call is resolved and inlined (ADR 0011) | code, and a claim the host now owes (ADR 0028: "on an export called from outside, assumed"; ADR 0020: uniqueness assumed) |
+
+**An entry point cannot be the default.** Exporting du's helpers makes the build compile each as a host
+function, and two are refused: `failed`, whose parameter is a sum, and any helper that takes a function
+(`(def apply (f x) (f x))`, refused as an indexing). A function parameter, a static parameter, a sum
+parameter: helpers have them, and an entry point cannot. So with "everything public" meaning
+"everything an entry point", du itself would not build.
+
+**They are two morphisms.** Visibility is the reduct m|S, a matter of names between theories of the
+language. An entry point is a morphism to the host: the dual of a host declaration. A host declaration
+brings a host operation into the language, its claim an axiom checked against the host (ADR 0022); an
+entry point sends a definition out to the host, its claim an obligation the host takes on. One word for
+both is a homonym, and it is why the default could not be chosen: each role wants the opposite one.
+
+**Proposed:**
+- **Visibility is public by default, and `private` marks a hidden name**: J `private fn classify(e)`,
+  D `LOCAL classify(e) == …`, TLA+'s own word for exactly this. A private set hides its tags with it. A
+  library writes markers on its 2 hidden definitions of 23, where `export` wrote 21.
+- **`export` marks an entry point, and only that**: `export fn main()`. In the entry file it is what the
+  build compiles; in a file reached by `use` it is ignored, as modules.md §0 already says ("a dependency
+  cannot supply a program's `main`"). An entry point is the one declaration whose claim the host must
+  meet, so it should be visible on the page, which an explicit marker is.
+
+**Against public by default**, and why it loses here. The errors are asymmetric: a forgotten `export`
+is caught at the first use in another module (the loader's "defines X but does not export it"), and a
+forgotten `private` is silent, so a helper becomes a name someone depends on (Hyrum's law); Rust and
+Java default to private for that reason. Here, visibility carries no code and no binary interface,
+because every call is inlined, so a leaked name costs only the interface's tidiness, and the reduct is
+computable: a tool lists a module's public names for review. Against a 9% marker rate, that cost is
+the smaller one.
+
+#### 4. `fn`, `set` and `let`: what each keyword is, and whether a program can do without them
+
+**The algebra.** A module is a group of definitional binders (abstract.md §2.6), def(f; e). The keywords
+are not new operators. Each is either the same tree or a claim:
+- **`fn f(x) (U) { e }` is the same tree as `f = fn(x) (U) { e }`**: a definition whose value is a
+  λ with its claims (ADR 0051). One tree, two spellings, so by item 2's rule both are read and the
+  printer writes the named one, as it omits a default alias.
+- **`set S = e` is `S = e` with a claim**: the value is a set, S ∈ subsets(any), ADR 0063's former for
+  "the sets of values". With parameters, `set result(T, E) = e` is `fn result(T, E) (subsets(any)) { e }`,
+  a function whose result is a set. A claim is a different tree from no claim, and every claim is
+  optional (ADR 0062, Finding 8), so this is not a synonym.
+- **`let c = e`**, which §6.4 proposed for a top-level value, is neither: it restates the binder.
+  Inside a block J already writes `s = x + y`, and a module is a block of definitions without a final
+  value, so a top-level value is written the same way, `cap = 4096`. **`let` leaves the top level.**
+  It stays what ADR 0054 made it, the head of a scope with a body, `let x = e { body }`.
+
+**Can a programmer write without them?** Yes: `cap = 4096`, `f = fn(x) { … }`, `Byte = 0..255` are all
+legal, and the last claims nothing; Law S still refuses `Byte` wherever a value is needed, so leaving
+out the claim cannot produce a wrong program. **One place needs it:** a host body. `NumError = host
+"*strconv.NumError"` and `MaxRune = host "utf8.MaxRune"` have the same shape, and only `set` says the
+first declares a carrier and not a constant. The translator writes `set` on every set definition (every
+T `type` and `variant`), so the corpus always shows it, which is the readability you want. If you want
+it guaranteed rather than conventional, the rule "a definition whose value is a set carries `set`" is
+decidable after resolution; its cost is a checked restatement, the kind Finding 1 removed.
+
+**`set s = set { … }`** says two different things, a claim and a former, and so is not redundant in
+meaning. It is redundant to read, and it is rare: none of the corpus's 96 set definitions has a
+comprehension body (80 host carriers, 8 ranges, 8 sums). The question below on J's set notation removes
+it: if a set position takes TLA+'s braces, the line is `set Evens = {n ∈ 0..100 : n % 2 == 0}`.
+
+#### 5. A tag is an element, and its set is its singleton
+
+**`'found` is not the empty set tagged; it is the unit tagged.** Write 'c(S) for the set of values tagged
+c with a payload in S, {'c} × S. Then:
+- a tag with a payload set S tags S: |'other(error)| = |error|;
+- a tag with no payload is the tag applied to the unit, 1 = {()}: {'found} × {()} ≅ {'found}, one value,
+  so |'found| = 1;
+- the empty set tagged is {'c} × ∅ = ∅, no values at all. A constructor whose payload is empty adds
+  nothing to a sum, A + 0 ≅ A.
+
+So os_error = {'not_found} ∪ {'exists} ∪ {'permission} ∪ 'other(error) has 3 + |error| values: it is
+1 + 1 + 1 + error, the coproduct, because distinct tags make the union disjoint.
+
+**And no: a tag is an element, not a set.** `'found` is a value: a function returns it, `case` matches
+it, a table stores it. What makes it read as a set in `'not_found ∪ 'exists` is the position: where a
+set is expected, a value denotes its singleton. That is the unit of the powerset monad, η(v) = {v}. And
+`'other(error)`, a tag applied to a set, is the tag's image, 𝒫('other)(error) = {'other(e) : e ∈ error},
+the powerset functor on the injection. The two readings never disagree, by naturality: 𝒫(c)(η(v)) =
+η(c(v)), so `'other(e)` with e a value means the same set whether one reads it as a value made a
+singleton or a tag applied to a singleton. TypeScript's literal types are the same rule, `"GET" |
+"POST"`, and notation-research §4.2's "a literal is its singleton". In a value position a tag applied
+to a set is refused, by Law S.
+
+#### 8. What `self` is
+
+**`self` is an ordinary parameter name, the conventional one for the value a companion's operation acts
+on.** In `(sig Err ((self NumError)) error pure (host expr "%s.Err"))` the declaration says
+Err ∈ Π(self ∈ NumError). error, and its template fills `%s` with self's argument. It is Go's receiver,
+`func (e *NumError) Error() string`, written as the first parameter, as Go's own method expressions show
+it: `(*NumError).Error(e)`. The language gives the name no meaning: `(e NumError)` declares the same
+operation, and the call is the same application, `sc.NumError.Err(x)`.
+
+It is written 61 times in the target files, once per companion operation, and §6.4 Finding 8 asked
+whether to write it once per companion instead: a section variable, Coq's `Variable self : NumError`
+inside a `Section`, which every definition of the section abstracts over. Not proposed, because two of
+the 63 operations, the constructors `new`, take no `self`: they make one. A section variable would give
+them a parameter they do not have, or need a second block for them. The repetition is one binder per
+operation, and it keeps every operation's header complete on its own line, which is ADR 0062's point.
+
+**What `self` is not**: a method. The language has no `x.Err()` form, and a companion's operation is
+applied like any function. Whether a receiver form is worth a rule is installment 7's (application),
+not this one's.
+
+#### J's set notation: mathematics, as in D
+
+**You are right, and the reason is stronger than how `<=` looks.** ADR 0060 gave J Python's set
+operators, `| & - ^ <= < *`, with `∈` for membership, on the argument that a set is its characteristic
+function, so `&`, `|` and `<=` are the Boolean operations and order lifted pointwise. That argument holds
+for the lattice operations. Three things it missed:
+- **J's sets are not Python's.** Python's operators serve sets that are data at run time. Ours are static
+  (Law S: no set survives staging), so a set operator appears only in the logic: binder sets, claims, set
+  definitions, axioms. That is where syntax-research ranked mathematics first for reading.
+- **`-`, `*`, `<=` and `<` are homonyms by sort.** On integers they are subtraction, multiplication and
+  ℤ's order; on sets difference, product and inclusion. A reader of `a <= b` must know the sort of `a`,
+  and of the four only the order is the same operation lifted (`-` is not integer subtraction lifted;
+  `*` is related only through |A × B| = |A|·|B|). `|`/`||` and `&`/`&&` are one keystroke apart, across
+  sorts.
+- **J is already mixed.** It writes `∈`, and beside it Python's `<=`: one symbol of mathematics among
+  ASCII operators of programming.
+
+**Proposed: J writes sets as D does, TLA+'s symbols, each with TLA+'s ASCII spelling as input**:
+
+| | J and D | ASCII input | replaces in J |
+|---|---|---|---|
+| membership | `∈` `∉` | `\in` `\notin` | (kept) |
+| union, intersection, difference | `∪` `∩` `∖` | `\cup` `\cap` `\` | `\|` `&` `-` |
+| inclusion, strict | `⊆` `⊂` | `\subseteq` `\subset` | `<=` `<` |
+| product | `×` | `\X` | `*` |
+
+The file stores the symbols, and the reader also takes the ASCII spelling, which the printer writes as
+the symbol: one tree, the canonical spelling printed, item 2's rule again. Precedence as D's, which is
+TLA+'s. Lean 4 is the precedent for a programming language with a C-like surface that writes its sets
+and logic this way, with the same ASCII input method. The cost is an editor that turns `\cup` into `∪`,
+which every editor Lean users use already provides.
+
+**And in a set position, TLA+'s braces.** A binder's set, the right side of `∈`, a set definition's
+right side and the operands of the set operators are set positions, which the grammar knows without
+types. There `{1, 2, 3}` is an enumeration and `{x ∈ S : P}` a separation, so:
+
+```go
+fn handle(method ∈ {"GET", "POST"}, code ∈ 100..599) (…) { … }                   // J
+set Evens = {n ∈ 0..100 : n % 2 == 0}
+set os_error = 'not_found ∪ 'exists ∪ 'permission ∪ 'other(error)
+axiom NumError ⊆ error
+```
+
+Elsewhere braces stay blocks, and `set { … }` stays the former for a set in a value position, a static
+argument (`errors.AsType(set { … })`), which no program writes yet. The cost is the one homonym this
+introduces: braces read as a set in a set position and as a block in a computation position. It is
+decided by position, so a reader of the line can tell, and a block that computes a set in a set position
+(rare at the static level) is written in parentheses. `method ∈ set {"GET", "POST"}` is the alternative
+that keeps braces meaning one thing, at a keyword per enumeration in every header that states one.
+
+The consequence: **J and D now write the logic identically**: sets, claims, set definitions and axioms
+in TLA+'s notation. They differ only in the computation, braces against layout and keywords against
+capitals, which narrows what the D-or-J experiment has to decide.
+
+#### Decided, and open for hamza
+
+**Decided** (2026-10-15), to be written as one ADR when the rest closes:
+1. A file is a theory named by its path; a fragment names what it realizes (Finding 1).
+2. The reader fills an import's alias and the printer omits a default one; `alias.T.m` reaches a
+   companion's member (Finding 2).
+5. A variant is a set definition, a union of tagged sets (Finding 5); a tag is an element, and a value
+   in a set position denotes its singleton (§6.8, item 5).
+6. An inclusion is an axiom, legal only in a model (Finding 6); its spelling waits on item 11 below.
+7. The model's data keeps its words (Finding 7).
+8. A companion is a nested module, `self` an ordinary parameter name, no section variable (Finding 8,
+   §6.8).
+
+**Open:**
+
+9. **Visibility public by default, `private` (J) or `LOCAL` (D) marking a hidden name; `export` marks an
+   entry point only**, compiled in the entry file and ignored in a library (§6.8, item 3). *Recommended.*
+10. **`let` leaves the top level** (`cap = 4096`); `fn f(…)` is the named λ, the same tree as
+    `f = fn(…)`; `set S = e` is the claim that S is a set, optional except on a host body, written by the
+    translator on every set definition (§6.8, item 4). *Recommended.* Whether `set` should be required
+    on every set definition, at the cost of a checked restatement, is yours.
+11. **J writes sets in TLA+'s symbols, `∈ ∉ ∪ ∩ ∖ ⊆ ⊂ ×`, with TLA+'s ASCII as input**, superseding
+    ADR 0060's operators (its `∈` and tag qualification stay). *Recommended.*
+12. **TLA+'s braces in a set position**, `method ∈ {"GET", "POST"}`, `set Evens = {n ∈ 0..100 : …}`,
+    with `set { … }` kept for a set in a value position. *Recommended*, against keeping `set { … }`
+    everywhere so that braces mean one thing.

@@ -7,6 +7,10 @@ surface notation, stays with [syntax-research.md](../syntax-research.md). Specif
 [spec/abstract.md](../spec/abstract.md). **Not built.** Amends the surface of ADR 0020 and ADR 0048 and
 the spelling of ADR 0049 §5, not their meaning.
 
+
+> **Item 4 amended** by ADR 0064 item 8: in a set position a value denotes its singleton
+> ([spec/j.md](../spec/j.md) §0.2, C1).
+
 ## Context
 
 notation-research and syntax-research asked which notation reads and writes best. hamza then asked

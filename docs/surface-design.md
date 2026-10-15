@@ -1,7 +1,8 @@
 # The language surface, designed one construct at a time
 
 Status: **decided: the surface is J** (ADR 0068, 2026-10-15), its forms ADRs 0050–0067, eight
-installments below; the D columns are the record of how it was reached. What is decided is listed below. Started 2026-10-11 on
+installments below; the D columns are the record of how it was reached. **J's grammar is
+[spec/j.md](spec/j.md).** What is decided is listed below. Started 2026-10-11 on
 hamza's request: *"let's try to come up with the best language surface we can … we start with the atom
 lambda … let's find out the syntax with the least holes in it, simplest, most uniform … we are going to
 propose the most right now, pick a few, drop the rest and continue the exercise with the rest of the

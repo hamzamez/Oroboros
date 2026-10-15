@@ -5,6 +5,10 @@ Status: Accepted (hamza, 2026-10-15, on surface-design.md §8.7: "I agree with a
 0062's J spellings of the logic (`forall`, `exists`, `==>`, `<==>`); amends abstract.md §1.2 (𝒯's holes
 are named splices, ADR 0066). Not built: the surface is built when it is chosen.
 
+
+> **`let` leaves item 2's reserved list**: J writes no scope head (ADR 0054 item 3;
+> [spec/j.md](../spec/j.md) §0.2, C2).
+
 ## Context
 
 surface-design installment 8 designed how names, literals, comments, operators and lines are written,

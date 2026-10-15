@@ -26,80 +26,67 @@ public final class examples_io_count.java {
 			}
 			int v27 = 0;
 			int v28 = 0;
-			int v29 = 0;
-			boolean v30 = false;
+			boolean v29 = false;
+			int v30 = 0;
 			int v26 = 0;
-			for (;; v27 = (v27 + 1)) {
+			for (;; v30 = (v30 + 1)) {
 				final int v31 = v11.length;
-				final boolean v32 = (v27 >= v31);
+				final boolean v32 = (v30 >= v31);
 				if (v32) {
+					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v27 + "\n");
 					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v28 + "\n");
-					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v29 + "\n");
 					final int v37 = v11.length;
 					((java.util.function.Consumer<String>) ($oroS) -> { final byte[] $oroB = $oroS.getBytes(StandardCharsets.UTF_8); System.out.write($oroB, 0, $oroB.length); System.out.flush(); }).accept(v37 + "\n");
 					v26 = v37;
 					break;
 				}
-				final int v41 = v11[v27];
+				final int v41 = v11[v30];
 				final boolean v43 = (v41 == 10);
 				if (v43) {
-					final boolean v46 = (v28 < 16777216);
+					final boolean v46 = (v27 < 16777216);
+					int v47 = 0;
 					if (v46) {
-						final int v49 = (v28 + 1);
-						final boolean v54 = (v41 == 32);
-						final boolean v55 = (v54 || ((v41 >= 9) && (v41 <= 13)));
-						if (v55) {
-							v28 = v49;
-							v30 = false;
-							continue;
-						}
-						if (v30) {
-							v28 = v49;
-							continue;
-						}
-						final boolean v73 = (v29 < 16777216);
-						if (v73) {
-							final long v78 = (v29 + 1);
-							v28 = v49;
-							v29 = (int) (v78);
-							v30 = true;
-							continue;
-						}
-						v28 = v49;
+						final int v50 = (v27 + 1);
+						v47 = v50;
+					} else {
+						v47 = v27;
+					}
+					final boolean v56 = (v41 == 32);
+					final boolean v57 = (v56 || ((v41 >= 9) && (v41 <= 13)));
+					if (v57) {
+						v27 = v47;
+						v29 = false;
 						continue;
 					}
-					final boolean v88 = (v41 == 32);
-					final boolean v89 = (v88 || ((v41 >= 9) && (v41 <= 13)));
-					if (v89) {
-						v30 = false;
+					if (v29) {
+						v27 = v47;
 						continue;
 					}
-					if (v30) {
+					final boolean v75 = (v28 < 16777216);
+					if (v75) {
+						final long v78 = (v28 + 1);
+						v27 = v47;
+						v28 = (int) (v78);
+						v29 = true;
 						continue;
 					}
-					final boolean v107 = (v29 < 16777216);
-					if (v107) {
-						final long v112 = (v29 + 1);
-						v29 = (int) (v112);
-						v30 = true;
-						continue;
-					}
+					v27 = v47;
 					continue;
 				}
-				final boolean v122 = (v41 == 32);
-				final boolean v123 = (v122 || ((v41 >= 9) && (v41 <= 13)));
-				if (v123) {
-					v30 = false;
+				final boolean v90 = (v41 == 32);
+				final boolean v91 = (v90 || ((v41 >= 9) && (v41 <= 13)));
+				if (v91) {
+					v29 = false;
 					continue;
 				}
-				if (v30) {
+				if (v29) {
 					continue;
 				}
-				final boolean v141 = (v29 < 16777216);
-				if (v141) {
-					final int v146 = (v29 + 1);
-					v29 = v146;
-					v30 = true;
+				final boolean v109 = (v28 < 16777216);
+				if (v109) {
+					final int v112 = (v28 + 1);
+					v28 = v112;
+					v29 = true;
 					continue;
 				}
 				continue;

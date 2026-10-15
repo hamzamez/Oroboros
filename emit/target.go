@@ -517,6 +517,7 @@ func (tg *Target) finish(wrap func(error) error) error {
 	}
 	tg.variadicForms()
 	tg.cellForms()
+	tg.borrowForms()
 	return nil
 }
 
@@ -705,6 +706,74 @@ func (tg *Target) cellForms() {
 		}
 		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "cells", Name: local,
 			Term: core.CellDeclTerm(core.CellDecl{Params: p.CellParams, List: p.CellList, Arity: p.Arity})})
+	}
+}
+
+// borrowForms hands the loader one `borrows` form per declaration that borrows
+// a buffer (spec/local.md §2.1): its `(buffer V)` parameters, when its result
+// hands them back first, B₁ × … × Bₘ × R, the write-borrow's shape and growth's
+// (B × 1 ≅ B). A declaration taking a buffer and handing none back consumes it,
+// which is no borrow and has no form.
+func (tg *Target) borrowForms() {
+	var names []string
+	for n, p := range tg.Prims {
+		for _, a := range p.Args {
+			if strings.HasPrefix(a, "buffer ") {
+				names = append(names, n)
+				break
+			}
+		}
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		p := tg.Prims[n]
+		var params []int
+		for i, a := range p.Args {
+			if strings.HasPrefix(a, "buffer ") {
+				params = append(params, i)
+			}
+		}
+		var results []string
+		switch {
+		case p.Retract != nil:
+			cs, ok := tupleComponents(p.Retract)
+			if !ok {
+				cs = []*core.Term{p.Retract}
+			}
+			for _, c := range cs {
+				results = append(results, core.TypeName(c))
+			}
+		case len(p.Results) > 0:
+			results = p.Results
+		case p.Result != "":
+			results = []string{p.Result}
+		}
+		if len(results) < len(params) {
+			continue
+		}
+		handsBack := true
+		for j := range params {
+			if !strings.HasPrefix(results[j], "buffer ") {
+				handsBack = false
+			}
+		}
+		if !handsBack {
+			continue
+		}
+		declared := n
+		if d, ok := DeclaredName(n); ok {
+			declared = d
+		}
+		i := strings.LastIndex(declared, ".")
+		if i < 0 {
+			continue
+		}
+		mod, local := declared[:i], declared[i+1:]
+		if tg.Defs == nil {
+			tg.Defs = map[string][]core.Form{}
+		}
+		tg.Defs[mod] = append(tg.Defs[mod], core.Form{Kind: "borrows", Name: local,
+			Term: core.BorrowDeclTerm(core.BorrowDecl{Params: params, Results: len(results) - len(params)})})
 	}
 }
 

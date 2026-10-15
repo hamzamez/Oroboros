@@ -13,15 +13,15 @@ func GenMain() int {
 	v1 := (bufio.NewScanner(v0))
 	var v9 int = 0
 	var v10 int = 0
-	var v11 int = 0
-	var v12 string = ""
-	var v13 int = -1
+	var v11 string = ""
+	var v12 int = -1
+	var v13 int = 0
 	var v14 int = 0
 	var v8 int
-	for ; ; v9 = (v9 + 1) {
+	for ; ; v14 = (v14 + 1) {
 		v15 := (v1.Scan())
 		if v15 {
-			v17 := (v9 >= 16777216)
+			v17 := (v14 >= 16777216)
 			if v17 {
 				fmt.Println("ages: more than 16777216 lines")
 				v8 = 1
@@ -41,61 +41,73 @@ func GenMain() int {
 				if v35 {
 					v38 := (v32 <= 150)
 					if v38 {
-						v41 := (v10 < 16777216)
+						v41 := (v9 < 16777216)
 						if v41 {
-							v44 := (v10 + 1)
-							v45 := (v11 + v32)
-							v46 := (v32 > v13)
+							v44 := (v9 + 1)
+							v45 := (v10 + v32)
+							v46 := (v32 > v12)
 							if v46 {
-								v10, v11, v12, v13 = v44, v45, v31, v32
+								v9, v10, v11, v12 = v44, v45, v31, v32
 								continue
 							}
-							v10, v11 = v44, v45
+							v9, v10 = v44, v45
 							continue
 						}
-						v57 := (v14 < 16777216)
+						v57 := (v13 < 16777216)
+						var v58 int
 						if v57 {
-							v62 := (v14 + 1)
-							v14 = v62
-							continue
+							v61 := (v13 + 1)
+							v58 = v61
+						} else {
+							v58 = v13
 						}
+						v13 = v58
 						continue
 					}
-					v68 := (v14 < 16777216)
-					if v68 {
-						v73 := (v14 + 1)
-						v14 = v73
-						continue
+					v67 := (v13 < 16777216)
+					var v68 int
+					if v67 {
+						v71 := (v13 + 1)
+						v68 = v71
+					} else {
+						v68 = v13
 					}
+					v13 = v68
 					continue
 				}
-				v79 := (v14 < 16777216)
-				if v79 {
-					v84 := (v14 + 1)
-					v14 = v84
-					continue
+				v77 := (v13 < 16777216)
+				var v78 int
+				if v77 {
+					v81 := (v13 + 1)
+					v78 = v81
+				} else {
+					v78 = v13
 				}
+				v13 = v78
 				continue
 			}
-			v89 := (v14 < 16777216)
-			if v89 {
-				v94 := (v14 + 1)
-				v14 = v94
-				continue
+			v86 := (v13 < 16777216)
+			var v87 int
+			if v86 {
+				v90 := (v13 + 1)
+				v87 = v90
+			} else {
+				v87 = v13
 			}
+			v13 = v87
 			continue
 		}
-		v98 := (v1.Err())
-		v99 := (v98 == nil)
-		if v99 {
-			v101 := (v10 == 0)
-			if v101 {
+		v94 := (v1.Err())
+		v95 := (v94 == nil)
+		if v95 {
+			v97 := (v9 == 0)
+			if v97 {
 				fmt.Println("no people")
 			} else {
-				v110 := (v11 / v10)
-				fmt.Printf("%d people, mean age %d, oldest %s (%d)\n", v10, v110, v12, v13)
+				v106 := (v10 / v9)
+				fmt.Printf("%d people, mean age %d, oldest %s (%d)\n", v9, v106, v11, v12)
 			}
-			fmt.Printf("%d lines skipped\n", v14)
+			fmt.Printf("%d lines skipped\n", v13)
 			v8 = 0
 			break
 		}

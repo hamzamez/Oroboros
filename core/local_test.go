@@ -75,15 +75,15 @@ func TestACellReducesToTheLoopVariableItMeans(t *testing.T) {
 		{`(local total 0
 		   (loop ((i 0)) (>= i n) total
 		     else (seq (set total (+ total i)) (again (+ i 1)))))`,
-			`(loop ((i 0) (total 0)) (>= i n) total else (again (+ i 1) (+ total i)))`},
+			// the loop carries the cell first (spec/local.md §2.1)
+			`(loop ((total 0) (i 0)) (>= i n) total else (again (+ total i) (+ i 1)))`},
 		{`(local a 0 b 1
 		   (loop ((i 0)) (>= i n) (+ a b)
 		     else (seq (set a (+ a i)) (if (= i 2) (set b (+ b 1)) (tuple)) (again (+ i 1)))))`,
-			// the write under `if` is a statement, so each branch goes round
-			// with its own state after the write before it: a program the
-			// surface cannot spell, since `again` may not sit under `if` in
-			// source, so it is pinned as the residual
-			""},
+			// the write under `if` is a statement writing one cell, so its
+			// value is a φ on the cell (spec/local.md §2.1): the loop variable's
+			// argument is the conditional, as one writes it by hand
+			`(loop ((a 0) (b 1) (i 0)) (>= i n) (+ a b) else (again (+ a i) (if (= i 2) (+ b 1) b) (+ i 1)))`},
 	} {
 		p, err := loadSrc(t, `(def f (fn (n) `+c.cell+`)) (def g (fn (n) `+loopvarOr(c.loopvar)+`))`)
 		if err != nil {
@@ -95,8 +95,8 @@ func TestACellReducesToTheLoopVariableItMeans(t *testing.T) {
 			t.Fatal(err)
 		}
 		if c.loopvar == "" {
-			want := "(fn (n) (loop (fn (i a b) (if (>= i n) (+ a b) (let (+ a i) (fn (a1) " +
-				"(if (= i 2) (again (+ i 1) a1 (+ b 1)) (again (+ i 1) a1 b)))))) 0 0 1))"
+			want := "(fn (n) (loop (fn (a b i) (if (>= i n) (+ a b) (let (+ a i) (fn (a1) " +
+				"(if (= i 2) (again a1 (+ b 1) (+ i 1)) (again a1 b (+ i 1))))))) 0 1 0))"
 			if f.String() != want {
 				t.Errorf("got  %s\nwant %s", f, want)
 			}

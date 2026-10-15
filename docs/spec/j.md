@@ -69,6 +69,9 @@ for each; **decided by hamza, 2026-10-15** ("agree with all"):
 | **G1** | out(S), a fresh cell at an `out` parameter (ADR 0048 §6) | 37 `(out τ)` sites in the corpus | **decided:** `out Int` as an argument, the mode word before the set: `fmt.Sscan(s, out Int, out String)`. Ada writes `out` on the parameter and nothing at the call; the call needs the set, since the cell is made there. |
 | **G2** | spread(e), a table passed as a variadic list (ADR 0046) | `(spread xs)` | **decided:** `xs...` as the last argument, Go's own spelling of exactly this call: `fmt.Println(xs...)`. `...` is one token, so `..` and `...` never meet (§1.6). |
 | **G4** | a number unique to each use of a template, x86's labels, today's `%u` (30 sites) | `targets/windows/x64.oro` | **decided** (hamza, 2026-10-15): `${#}`, a splice no binder can be named, since `#` starts no identifier: `jno Lok${#}`. Found by the translator, step 2d. |
+| **G5** | a buffer moved between places, today's `(again (mpass s a b w) a (* 2 w))`: two buffers swap each pass | 3 loops (merge-sort, freq, tally; gauntlet/surface/stores.go) | **proposed:** the concurrent assignment `a, b := b, a`, Dijkstra's (1975), every right side in the state before. ADR 0052's R0 admits only a fresh table, so as written it refuses the three; a permutation of places keeps each table at one place, which is what R0 protects. Found building ADR 0052. |
+| **G6** | a store into a record of a table of tuples, today's `(set (dt s) 1 v)` | 2 sites (freq, tally) | **proposed:** `dt[s][1] := v`, the place extended to an index chain: the curried store is the point update at (s, 1) of the uncurried function [0,n) × Fin k → V. Found building ADR 0052. |
+| **G7** | a growth call, `strconv.AppendInt(b, k, 10)`, written `b := f(b, …)` by ADR 0052's R0 | 7 growth calls, against 11 write-borrows | **proposed:** one rule for every borrow: a call at a `linear` parameter rebinds the buffer, and its value is the rest of the declared result, so growth is the statement `strconv.AppendInt(b, k, 10)`, as `n = f.Read(buf)` is. Under ADR 0052's spelling, B ⊸ B would return the buffer and B ⊸ B ⊗ R would not, two readings of one shape. Found building ADR 0052. |
 | **G3** | a lemma's proof steps beyond `assert` and `if` (ADR 0062 item 5) | installment 5's G4 only | **decided:** a lemma's body is a block whose statements are `assert` statements, `if`/`case` over formulas, and lemma uses `assert L(ā)`; nothing else is a proof step until a lemma needs one. |
 
 ---
@@ -277,12 +280,12 @@ carrier and a constant's spelling have none: `set NumError = host "*strconv.NumE
 block       ::= "{" ( statement NL )* expr? "}"
 statement   ::= binder "=" expr                       a definitional binder
               | "var" ident ":=" expr                 a state binder: a cell, a buffer or a map buffer
-              | place ":=" expr                       a write
+              | place ("," place)* ":=" expr ("," expr)*   a write; several, concurrent (G5)
               | "fn" name params result? clause* body a local named λ
               | "expect" pattern "=" expr "else" expr
               | "assert" formula
               | expr
-place       ::= ident | ident "[" expr "]"
+place       ::= ident ( "[" expr "]" )*                a whole value, an element, a record's component (G6)
 ```
 
 - **A block is scope(b̄; e)** (ADR 0054): its binders are definitional (`=`) or state (`var … :=`), in one
@@ -292,7 +295,14 @@ place       ::= ident | ident "[" expr "]"
   binder's name is bound once in its region (ADR 0054 item 2).
 - **`var b := e` makes a buffer when e is a fresh table, a map buffer when e is `map(cap)`, and a cell
   otherwise** (ADR 0052, 0058); R0–R4 hold of a buffer and a map buffer. `b[i] := v` and `m[k] := v` write
-  an element, `x := e` the whole value.
+  an element, `dt[s][1] := v` a component of a table of tuples' record, `x := e` the whole value
+  (spec/local.md §2.1).
+- **`a, b := b, a` is a concurrent assignment**: every right side is evaluated in the state before,
+  then every place written (Dijkstra 1975). It is how a buffer moves between places: the moves form a
+  permutation, so no table has two places (R0).
+- **A call borrows a buffer passed at a `linear` parameter** and the buffer holds the callee's last
+  value of it after the call; the call's value is the rest of the result. `strconv.AppendInt(b, k, 10)`
+  is a statement, and `n = f.Read(buf)` binds the count (G7).
 - **A binder may carry a claim**: `b ∈ 0..255 = src[i]` (ADR 0062 item 7).
 - **`expect p = e else w`** abandons with w when e does not match p (ADR 0057 item 4); **`assert φ`**
   proves φ from the path's facts and adds it, and is erased (ADR 0062 item 6).

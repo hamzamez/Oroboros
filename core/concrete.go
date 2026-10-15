@@ -189,3 +189,7 @@ func IntLiteral(text string) *Term {
 	}
 	return bigLiteral(text)
 }
+
+// Desugar is D of one tree: the core term it means, for a rendering's messages
+// and checks.
+func Desugar(a Tail) *Term { return newDesugarer().term(a) }

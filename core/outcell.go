@@ -94,11 +94,21 @@ func (c *cellTr) cellCall(t *Term) (CellDecl, bool) {
 // which a program cannot write, is one.
 func (c *cellTr) asWritten(t *Term, d CellDecl) bool {
 	for i, a := range t.Kids[1:] {
-		if d.at(i) && !(a.Kind == KName && strings.HasPrefix(a.Name, "#")) {
+		if d.at(i) && !compilerMade(a) {
 			return true
 		}
 	}
 	return false
+}
+
+// compilerMade reports a name or a form the translation made, which starts with
+// `#`: a reference bound to a name, or `(#ref c)` and `(#fresh "τ")` left where
+// they stand.
+func compilerMade(a *Term) bool {
+	if a.Kind == KName {
+		return strings.HasPrefix(a.Name, "#")
+	}
+	return a.Kind == KApp && len(a.Kids) > 0 && a.Kids[0].Kind == KName && strings.HasPrefix(a.Kids[0].Name, "#")
 }
 
 func isOut(t *Term) bool {

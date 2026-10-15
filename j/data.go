@@ -82,6 +82,9 @@ func (p *printer) analyze(ds []core.Decl) {
 // functions among its parameters and binders.
 func (p *printer) evidence(name string, l *core.Lam) (data, fns map[string]bool) {
 	data, fns = map[string]bool{}, map[string]bool{}
+	for _, n := range l.Borrows {
+		data[n] = true // a borrowed parameter is a place, a buffer (ADR 0052)
+	}
 	for i, n := range l.Params {
 		switch {
 		case p.argKinds[name][i] == isData || claimsData(l.Claim, i):
@@ -109,7 +112,7 @@ func (p *printer) evidence(name string, l *core.Lam) (data, fns map[string]bool)
 			}
 		case *core.Local:
 			for _, b := range e.Binds {
-				if b.Buffer {
+				if b.Buffer || b.Place {
 					data[b.Name] = true
 				}
 			}

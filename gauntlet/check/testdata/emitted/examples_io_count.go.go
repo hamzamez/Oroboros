@@ -25,75 +25,63 @@ func GenMain() int {
 		}
 		var v27 int = 0
 		var v28 int = 0
-		var v29 int = 0
-		var v30 bool = false
+		var v29 bool = false
+		var v30 int = 0
 		var v26 int
-		for ; ; v27 = (v27 + 1) {
+		for ; ; v30 = (v30 + 1) {
 			v31 := len(v11)
-			v32 := (v27 >= v31)
+			v32 := (v30 >= v31)
 			if v32 {
+				fmt.Println(v27)
 				fmt.Println(v28)
-				fmt.Println(v29)
 				v37 := len(v11)
 				fmt.Println(v37)
 				v26 = v37
 				break
 			}
-			v41 := int(v11[v27])
+			v41 := int(v11[v30])
 			v43 := (v41 == 10)
 			if v43 {
-				v46 := (v28 < 16777216)
+				v46 := (v27 < 16777216)
+				var v47 int
 				if v46 {
-					v49 := (v28 + 1)
-					v54 := (v41 == 32)
-					v55 := (v54 || ((v41 >= 9) && (v41 <= 13)))
-					if v55 {
-						v28, v30 = v49, false
-						continue
-					}
-					if v30 {
-						v28 = v49
-						continue
-					}
-					v73 := (v29 < 16777216)
-					if v73 {
-						v78 := (v29 + 1)
-						v28, v29, v30 = v49, v78, true
-						continue
-					}
-					v28 = v49
+					v50 := (v27 + 1)
+					v47 = v50
+				} else {
+					v47 = v27
+				}
+				v56 := (v41 == 32)
+				v57 := (v56 || ((v41 >= 9) && (v41 <= 13)))
+				if v57 {
+					v27, v29 = v47, false
 					continue
 				}
-				v88 := (v41 == 32)
-				v89 := (v88 || ((v41 >= 9) && (v41 <= 13)))
-				if v89 {
-					v30 = false
+				if v29 {
+					v27 = v47
 					continue
 				}
-				if v30 {
+				v75 := (v28 < 16777216)
+				if v75 {
+					v78 := (v28 + 1)
+					v27, v28, v29 = v47, v78, true
 					continue
 				}
-				v107 := (v29 < 16777216)
-				if v107 {
-					v112 := (v29 + 1)
-					v29, v30 = v112, true
-					continue
-				}
+				v27 = v47
 				continue
 			}
-			v122 := (v41 == 32)
-			v123 := (v122 || ((v41 >= 9) && (v41 <= 13)))
-			if v123 {
-				v30 = false
+			v90 := (v41 == 32)
+			v91 := (v90 || ((v41 >= 9) && (v41 <= 13)))
+			if v91 {
+				v29 = false
 				continue
 			}
-			if v30 {
+			if v29 {
 				continue
 			}
-			v141 := (v29 < 16777216)
-			if v141 {
-				v146 := (v29 + 1)
-				v29, v30 = v146, true
+			v109 := (v28 < 16777216)
+			if v109 {
+				v112 := (v28 + 1)
+				v28, v29 = v112, true
 				continue
 			}
 			continue

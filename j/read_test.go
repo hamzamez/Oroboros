@@ -100,23 +100,30 @@ func sections(ts []*core.Term) []string {
 
 // EVERY PROGRAM READS BACK TO ITS MEANING (abstract.md §9.1, R2; spec/j.md §7):
 // for each program, J's reading of its translation desugars to the declaration
-// terms today's reading does, up to α and the order of a module's forms. Since
-// the compiler reads those terms and nothing else, every program compiled from J
-// is compiled from what it was.
+// terms of what was printed, today's trees in program order (U, ADR 0052), up to
+// α and the order of a module's forms. A program with no buffer is printed as it
+// was read, so for it these are today's terms themselves.
 func TestEveryProgramReadsBackToItsMeaning(t *testing.T) {
 	agree, total := 0, 0
 	var failures []string
 	for _, path := range corpus(t) {
 		b, _ := os.ReadFile(path)
 		src := string(b)
-		want, err := core.ReadDeclTerms(src)
-		if err != nil {
+		if _, err := core.ReadDeclTerms(src); err != nil {
 			continue
 		}
 		r, err := Translate(src, filepath.Dir(path), "..")
 		if err != nil {
 			continue // a fragment, step 2d's
 		}
+		// WHAT WAS PRINTED is today's trees in program order, U of them (ADR
+		// 0052): the reader must give that back, R2. That U keeps the meaning,
+		// S ∘ U = id, is the ORO_VIA_J gate's (storeorder-2026-10-15).
+		ds, err := Unthreaded(src, filepath.Dir(path), "..")
+		if err != nil {
+			t.Fatalf("%s: %v", path, err)
+		}
+		want := core.DeclTerms(ds)
 		total++
 		decls, err := ReadProgram(r.J, ModuleOf(src), filepath.Dir(path), "..")
 		if err != nil {

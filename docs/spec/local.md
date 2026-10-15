@@ -51,9 +51,86 @@ The binders are sequential, as `let`'s are: an initializer sees the binders befo
 
 ## 2. Buffers
 
-A buffer binder is the buffer `build` always made, linear (ADR 0018) and threaded: `(set b i v)` hands
-the buffer back, a loop carries it, and a host write-borrow returns it. The scope's value is the body's,
-and a buffer in it is frozen (ADR 0031). Nothing about buffers changes.
+In today's notation a buffer binder is the buffer `build` always made, linear (ADR 0018) and threaded:
+`(set b i v)` hands the buffer back, a loop carries it, and a host write-borrow returns it. The scope's
+value is the body's, and a buffer in it is frozen (ADR 0031).
+
+### 2.1 In program order (ADR 0052)
+
+Status: built 2026-10-15 behind `ORO_VIA_J` (storeorder-2026-10-15): J writes every buffer this way, and
+S of the corpus in J is today's residual but for two programs, each explained there. Today's notation
+keeps threading until the corpus moves to J. G5–G7 (spec/j.md) are proposed, not decided.
+
+**A buffer is a state binder whose value is a table**, Ref(Seq(A)) with point update: ADR 0047's "a
+cell is a buffer of one" read in reverse.
+
+```
+var c := array { false : _ ∈ 0..n-1 }       // a buffer: a state binder, a fresh table
+loop j = i * i {
+    j < n -> { c[j] := true; again(j + i) }  // an element write; the loop does not carry c
+    else  -> c                               // the scope's value: frozen
+}
+```
+
+**What it means: S, extended** (§3's translation, storeorder-research §2.3). Each new form is a derived
+operator whose equation is its D image, so S needs one new clause, the borrow:
+
+| form | equation (D) | |
+|---|---|---|
+| `b[i] := e` | `b := set(b, i, e)` | McCarthy's store on the current version |
+| `b[i][j] := e` | `b := set(b[i], j, e)` | a table of tuples is [0,n) → (Fin k → V); the curried store `(set (b i) j e)` is the point update of its uncurried form at (i, j) (products.md) |
+| `x₁, …, xₖ := e₁, …, eₖ` | `let t₁ = e₁ … tₖ = eₖ in x₁ := t₁; …; xₖ := tₖ` | Dijkstra's concurrent assignment (1975): every right side in the state before |
+| `var b := t`, t a fresh table | `build` as §1, its body a state scope on b | the region is `build`'s, the binder state |
+| `fn f(…, p linear, …) { e }` | λ(…, p, …). a state scope on p, whose value is (p, e) | a borrowed parameter is a place in the body |
+
+**The borrow** (ADR 0052 item 3). A call passing a buffer in scope at a `linear` parameter, of a
+definition or of a host declaration with a `(buffer V)` parameter, hands it to the callee for the call's
+duration. The callee's value is **the borrowed buffers first, then its result's components, a unit
+result dropped**: B₁ × … × Bₘ × R, with B × 1 ≅ B, the monoidal unit law. Then
+
+```
+S⟦f(…, b, …)⟧ = let (b', r̄) = f(…, b, …) in (r̄, σ[b ↦ b'])
+```
+
+and the call's value is r̄, the unit when the result is. The target hands the loader one
+`(borrows RESULTS i…)` form per declaration that borrows, its `(buffer V)` parameters' indices and its
+result's other components, as it hands it `cells` forms. The host declarations already state the
+convention (`(tuple (buffer V) R…)` for a write-borrow, `(buffer V)` for growth), and the corpus's 23
+definitions that thread a buffer all return it alone. A definition's body is a unit when every tail is
+`()`, a write, or a borrow whose result is the unit; its value is then its borrowed buffers alone.
+Passed by reference, as ADR 0052 decides: after inlining, the callee's place is the caller's.
+
+**Loops carry what they write.** A loop carries the state binders it writes (a write, an element
+write, a borrow, a host writing a cell, or a nested scope or loop that does), **first, in binding
+order**; a state binder it only reads is free in it. Both are isomorphisms: a variable that every back
+edge passes unchanged is invariant, and a loop's state is a product, whose order is its symmetry. The
+order is chosen by measurement (gauntlet/surface/stores.go): 49 of the corpus's 53 loops that thread a
+buffer by hand put it first, in binding order, so S of their program-order form is their header. This
+also holds of cells: §3's translation carried a cell the loop only read, appended.
+
+**The rules** (ADR 0052, R0–R4), checked by S on each place's scope:
+
+| | rule | an occurrence of a buffer b is legal only |
+|---|---|---|
+| R0 | a buffer's value is fresh | as a binder's fresh table, or moved by a concurrent assignment that also writes b (the moves a permutation of places, so the map from tables to places stays injective) |
+| R1 | a buffer is named only by its binder | as an index's head `b[i]`, a write's place, or a call's argument |
+| R2 | a call borrows a buffer for its duration | once per call |
+| R3 | no closure over a buffer | outside a λ, as §3 has it for cells |
+| R4 | the scope's value freezes the buffer | at the scope's tail, alone or in a tuple; a borrowed place never, since it is the caller's |
+
+`again(b)`, `d = b` and `(b, n)` inside the scope are R1's refusals; the jump carries b itself.
+
+**What S produces** is today's threaded residual: the store chain, the loop variable and the φ at a
+join that today's programs write by hand. The prediction of storeorder-research §2.6, checked by the
+gate, held once S learned what storeorder-2026-10-15 §2 records:
+- **a statement `if` that writes one state binder is a φ on it**, x := if c then π_x(S⟦a⟧) else
+  π_x(S⟦b⟧), so the rest of the block is not copied into both branches;
+- **an argument that writes no state is evaluated where it stands**, when no argument after it writes;
+- **a place is threaded under its version name** (`#v` and its own), and β puts a version used once,
+  first, where it is used: let x = e in E[x] = E[e] for E evaluating its hole first and
+  unconditionally with nothing impure before it, an operator no hole, a loop's initializer one only for
+  a value holding no loop (core/reduce.go, firstUse);
+- **a selection moves into a loop's exits and a region's body**, as a projection did.
 
 ## 3. Cells: local variables in program order
 

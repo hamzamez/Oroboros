@@ -209,6 +209,10 @@ func (p *printer) prec(e core.Expr, outer int) *Doc {
 		return Group(Cat(Text("{ "+v+" ∈ "), p.set(e.Set), Text(" = "), p.expr(e.E), Text("; "+v+" }")))
 	case *core.Let, *core.Seq, *core.Local, *core.BuildMap, *core.Monad:
 		return p.block(e)
+	case *core.Write:
+		// A write is a statement whose value is the unit; where a value stands
+		// it is a block holding it.
+		return Cat(Text("{ "), p.write(e), Text(" }"))
 	}
 	panic(fmt.Sprintf("j: no printing for %T", e))
 }
@@ -594,7 +598,7 @@ func (p *printer) stmts(t core.Tail) []*Doc {
 		break
 	}
 	out = append(out, p.item(t, func() *Doc {
-		if e, ok := t.(core.Expr); ok && isCellWrite(e) {
+		if e, ok := t.(core.Expr); ok && (isCellWrite(e) || isWrite(e)) {
 			return p.stmt(e)
 		}
 		return p.tail(t)
@@ -651,6 +655,11 @@ func (p *printer) bind(b core.LetBind) *Doc {
 // order; a cell is a state binder.
 func (p *printer) localBind(b core.LocalBind) *Doc {
 	p.locals[b.Name] = true
+	if b.Place {
+		// A buffer in program order: a state binder holding a table (ADR 0052).
+		p.data[b.Name] = true
+		return Cat(Text("var "+Spell(b.Name)+" := "), p.expr(b.Init))
+	}
 	if b.Buffer {
 		p.data[b.Name] = true
 		return Cat(Text(Spell(b.Name)+" linear = "), p.expr(b.Init))
@@ -663,7 +672,27 @@ func (p *printer) stmt(e core.Expr) *Doc {
 	if isCellWrite(e) {
 		return p.cellWrite(e.(*core.Apply))
 	}
+	if w, ok := e.(*core.Write); ok {
+		return p.write(w)
+	}
 	return p.expr(e)
+}
+
+func isWrite(e core.Expr) bool { _, ok := e.(*core.Write); return ok }
+
+// write prints places, `:=`, and their values: `b[i] := v`, a record's
+// component `b[i][j] := v`, or a concurrent assignment `a, b := b, a`
+// (spec/j.md §2.6, spec/local.md §2.1).
+func (p *printer) write(w *core.Write) *Doc {
+	places := make([]*Doc, len(w.Places))
+	for i, pl := range w.Places {
+		d := p.name(pl.Name)
+		for _, at := range pl.At {
+			d = Cat(d, Text("["), p.expr(at), Text("]"))
+		}
+		places[i] = d
+	}
+	return Cat(Join(Text(", "), places), Text(" := "), Join(Text(", "), p.each(w.Values, pLowest)))
 }
 
 func (p *printer) cellWrite(e *core.Apply) *Doc {

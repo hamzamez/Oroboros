@@ -315,6 +315,10 @@ func (p *parser) lamHeader() (*core.Lam, error) {
 		if p.is("linear") || p.is("inout") {
 			mode = p.next().text
 		}
+		if mode == "linear" {
+			// A BORROWED PARAMETER is a place in the body (ADR 0052 item 3).
+			lam.Borrows = append(lam.Borrows, n)
+		}
 		cp.Set = p.toSet(cp.Set, mode)
 		claim.Params = append(claim.Params, cp)
 		if !p.accept(",") {
@@ -595,7 +599,11 @@ func (p *parser) foldStmts(stmts []stmt) (core.Tail, error) {
 			if !isExpr {
 				return nil, fmt.Errorf("local state around a jump")
 			}
-			acc = &core.Local{Binds: []core.LocalBind{{Name: s.name, Init: s.value.(core.Expr), Buffer: s.kind == "buffer"}}, Body: body}
+			init := s.value.(core.Expr)
+			// A STATE BINDER HOLDING A FRESH TABLE IS A BUFFER, in program order
+			// (ADR 0052, spec/local.md §2.1); any other state binder is a cell.
+			acc = &core.Local{Binds: []core.LocalBind{{Name: s.name, Init: init, Buffer: s.kind == "buffer",
+				Place: s.kind == "var" && freshTable(init)}}, Body: body}
 		case "map":
 			if !isExpr {
 				return nil, fmt.Errorf("a map buffer around a jump")
@@ -665,12 +673,9 @@ func (p *parser) statement() (stmt, error) {
 			pat = &core.PWild{}
 		}
 		return stmt{kind: "bind", pat: pat, value: e}, err
-	case (t.kind == tIdent || t.kind == tQuoted) && p.peekN(1).text == ":=":
-		name := p.name()
-		p.next()
-		e, err := p.expr()
-		set := &core.Apply{Fn: &core.Var{Name: "set"}, Args: []core.Expr{&core.Var{Name: name}, e}}
-		return stmt{kind: "expr", value: set}, err
+	case (t.kind == tIdent || t.kind == tQuoted) && p.isWrite():
+		w, err := p.write()
+		return stmt{kind: "expr", value: w}, err
 	case p.is("(") && p.tupleBinding():
 		p.next()
 		var names []string
@@ -689,6 +694,94 @@ func (p *parser) statement() (stmt, error) {
 	}
 	e, err := p.tail()
 	return stmt{kind: "expr", value: e}, err
+}
+
+// freshTable reports a table former, `array { … }`: what a buffer's binder and
+// whole write may hold (R0).
+func freshTable(e core.Expr) bool {
+	if a, ok := e.(*core.Apply); ok {
+		if v, ok := a.Fn.(*core.Var); ok {
+			return v.Name == "table" || v.Name == "array"
+		}
+	}
+	return false
+}
+
+// isWrite reports whether a statement is a write: places, `x`, `b[i]`,
+// `b[i][j]`, separated by commas, then `:=` (spec/j.md §2.6).
+func (p *parser) isWrite() bool {
+	k := p.i
+	for {
+		if t := p.toks[k]; t.kind != tIdent && t.kind != tQuoted {
+			return false
+		}
+		k++
+		for p.toks[k].kind == tSym && p.toks[k].text == "[" {
+			depth := 0
+			for ; k < len(p.toks); k++ {
+				switch p.toks[k].text {
+				case "[":
+					depth++
+				case "]":
+					depth--
+				}
+				if depth == 0 {
+					break
+				}
+			}
+			k++
+		}
+		switch t := p.toks[k]; {
+		case t.kind == tSym && t.text == ":=":
+			return true
+		case t.kind == tSym && t.text == ",":
+			k++
+		default:
+			return false
+		}
+	}
+}
+
+// write reads places, `:=`, and as many values: one write, or a concurrent
+// assignment, every value in the state before (spec/local.md §2.1).
+func (p *parser) write() (*core.Write, error) {
+	w := &core.Write{}
+	for {
+		pl := core.Place{Name: p.name()}
+		for p.accept("[") {
+			p.open(true)
+			i, err := p.expr()
+			p.close()
+			if err != nil {
+				return nil, err
+			}
+			if err := p.expect("]"); err != nil {
+				return nil, err
+			}
+			pl.At = append(pl.At, i)
+		}
+		w.Places = append(w.Places, pl)
+		if !p.accept(",") {
+			break
+		}
+	}
+	if err := p.expect(":="); err != nil {
+		return nil, err
+	}
+	for {
+		e, err := p.expr()
+		if err != nil {
+			return nil, err
+		}
+		w.Values = append(w.Values, e)
+		if !p.accept(",") {
+			break
+		}
+	}
+	if len(w.Values) != len(w.Places) {
+		return nil, p.errorf("%d places and %d values in one assignment", len(w.Places), len(w.Values))
+	}
+	return w, nil
 }
 
 // tupleBinding reports whether `(` begins a tuple pattern bound by `=`.

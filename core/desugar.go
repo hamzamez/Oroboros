@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 // D, DESUGARING — docs/spec/abstract.md §6.
 //
 // D maps a tree of Σ into today's core Λ⁺: the atom's seven term kinds, plus the
@@ -49,7 +51,16 @@ func (d *desugarer) build(a Tail) *Term {
 	case *EmptyList:
 		return &Term{Kind: KApp}
 	case *Lam:
-		return Fn(a.Params, d.term(a.Body))
+		body := d.term(a.Body)
+		if len(a.Borrows) > 0 {
+			// A BORROWED PARAMETER IS A PLACE in the body (local.md §2.1).
+			kids := []*Term{Name(BorrowName)}
+			for _, p := range a.Borrows {
+				kids = append(kids, Name(p))
+			}
+			body = App(kids[0], append(kids[1:], Fn(a.Borrows, body))...)
+		}
+		return Fn(a.Params, body)
 	case *Apply:
 		// THE PRODUCT FORMER, Σ₀'s `tuple`: a tuple is a function on Fin n, and
 		// its Church presentation makes the eliminator β itself (data.md §1).
@@ -107,9 +118,15 @@ func (d *desugarer) build(a Tail) *Term {
 	case *Local:
 		t := d.term(a.Body)
 		for i := len(a.Binds) - 1; i >= 0; i-- {
+			if a.Binds[i].Place {
+				t = localPlace(a.Binds[i].Name, d.term(a.Binds[i].Init), t)
+				continue
+			}
 			t = localBinder(a.Binds[i].Name, d.term(a.Binds[i].Init), t)
 		}
 		return t
+	case *Write:
+		return d.write(a)
 	case *BuildMap:
 		t := d.term(a.Body)
 		for i := len(a.Names) - 1; i >= 0; i-- {
@@ -163,6 +180,40 @@ func (d *desugarer) let(binds []LetBind, body *Term) *Term {
 	}
 	return t
 }
+
+// write is assignment by its equations (spec/local.md §2.1): a place with no
+// index takes the value, `x := e` ↦ (set x e), the cell's write; an element is
+// the place's store on its current version, `b[i] := e` ↦ (set b (set b i e)),
+// McCarthy's; a record's component is the curried store, `b[i][j] := e` ↦
+// (set b (set (b i) j e)). Several places are written concurrently: every value
+// is bound first, in the state before, then each place written,
+// `x̄ := ē` ↦ let t̄ = ē in x₁ := t₁; …; xₖ := tₖ (Dijkstra 1975).
+func (d *desugarer) write(w *Write) *Term {
+	one := func(p Place, v *Term) *Term {
+		if len(p.At) == 0 {
+			return App(Name("set"), Name(p.Name), v)
+		}
+		var at *Term = Name(p.Name)
+		for _, i := range p.At[:len(p.At)-1] {
+			at = App(at, d.term(i))
+		}
+		return App(Name("set"), Name(p.Name), App(Name("set"), at, d.term(p.At[len(p.At)-1]), v))
+	}
+	if len(w.Places) == 1 {
+		return one(w.Places[0], d.term(w.Values[0]))
+	}
+	names := make([]string, len(w.Places))
+	for i := range w.Places {
+		names[i] = "#w" + itoaInt(i+1)
+	}
+	t := one(w.Places[len(w.Places)-1], Name(names[len(names)-1]))
+	for i := len(w.Places) - 2; i >= 0; i-- {
+		t = App(Fn([]string{"#_"}, t), one(w.Places[i], Name(names[i])))
+	}
+	return App(Fn(names, t), d.terms(w.Values)...)
+}
+
+func itoaInt(n int) string { return fmt.Sprint(n) }
 
 // seq is a binding whose name is discarded: (seq a b) = ((fn (#_) b) a).
 func (d *desugarer) seq(pre []Expr, last *Term) *Term {

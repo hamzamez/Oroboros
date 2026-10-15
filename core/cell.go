@@ -32,28 +32,32 @@ import (
 // then every call of a declaration with cell parameters the scopes did not
 // reach: one outside any scope, or inside a λ a scope passes as a value
 // (spec/local.md §5, §6). decls holds those declarations by qualified name.
-func translateCells(t *Term, decls map[string]CellDecl) (*Term, error) {
-	t, err := translateScopes(t, decls)
+func translateCells(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
+	t, err := translateScopes(t, decls, borrows)
 	if err != nil {
 		return nil, err
 	}
 	if len(decls) == 0 {
 		return t, nil
 	}
-	c := &cellTr{locals: map[string]bool{}, decls: decls}
+	c := newCellTr(decls, borrows)
 	return c.calls(t)
 }
 
-func translateScopes(t *Term, decls map[string]CellDecl) (*Term, error) {
+func newCellTr(decls map[string]CellDecl, borrows map[string]BorrowDecl) *cellTr {
+	return &cellTr{locals: map[string]bool{}, places: map[string]bool{}, decls: decls, borrows: borrows}
+}
+
+func translateScopes(t *Term, decls map[string]CellDecl, borrows map[string]BorrowDecl) (*Term, error) {
 	if t == nil || len(t.Kids) == 0 {
 		return t, nil
 	}
-	if isCellScope(t) {
-		c := &cellTr{locals: map[string]bool{}, decls: decls}
+	if isCellScope(t) || isBorrowScope(t) {
+		c := newCellTr(decls, borrows)
 		return c.st(t, false) // with no cell in scope, a scope's tuple is its value alone
 	}
 	if t.Kind == KFn {
-		body, err := translateScopes(t.Body(), decls)
+		body, err := translateScopes(t.Body(), decls, borrows)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +65,7 @@ func translateScopes(t *Term, decls map[string]CellDecl) (*Term, error) {
 	}
 	kids := make([]*Term, len(t.Kids))
 	for i, k := range t.Kids {
-		x, err := translateScopes(k, decls)
+		x, err := translateScopes(k, decls, borrows)
 		if err != nil {
 			return nil, err
 		}
@@ -114,7 +118,7 @@ func (c *cellTr) calls(t *Term) (*Term, error) {
 
 func isCellScope(t *Term) bool {
 	return t.Kind == KApp && len(t.Kids) == 3 && t.Kids[0].Kind == KName &&
-		t.Kids[0].Name == CellName && t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
+		(t.Kids[0].Name == CellName || t.Kids[0].Name == PlaceName) && t.Kids[2].Kind == KFn && len(t.Kids[2].Params) == 1
 }
 
 // noShadow refuses a binder inside a cell's scope that hides the cell.
@@ -145,11 +149,40 @@ type cellTr struct {
 	n      int             // fresh names
 	locals map[string]bool // names bound inside the scope to a non-function value
 	decls  map[string]CellDecl
+	// places are the state binders whose value is a buffer, in program order
+	// (spec/local.md §2.1), and borrows the callees that borrow one.
+	places  map[string]bool
+	borrows map[string]BorrowDecl
 }
 
 func (c *cellTr) fresh() string {
 	c.n++
 	return fmt.Sprintf("#s%d", c.n)
+}
+
+// in is the name a state binder is threaded under: a place's is marked a
+// version (VersionPrefix), so that β puts the version a binder of it receives
+// where it is used once, first (reduce.go, firstUse); a cell's is its own.
+func (c *cellTr) in(u string) string {
+	if c.places[u] {
+		return VersionPrefix + u
+	}
+	return u
+}
+
+// userOf is the program's name of a state binder threaded as x.
+func (c *cellTr) userOf(x string) string {
+	if u, ok := strings.CutPrefix(x, VersionPrefix); ok && c.places[u] {
+		return u
+	}
+	return x
+}
+
+// freshVersion names a buffer's version the translation binds, marked so that
+// β puts it where it is used once, first (reduce.go, firstUse).
+func (c *cellTr) freshVersion() string {
+	c.n++
+	return fmt.Sprintf("%s%d", VersionPrefix, c.n)
 }
 
 // state is the cells' current values, as names.
@@ -183,6 +216,7 @@ func (c *cellTr) bind(T *Term, name string, k *Term) *Term {
 
 func (c *cellTr) isCell(n string) bool {
 	for _, x := range c.xs {
+		x = c.userOf(x)
 		if x == n {
 			return true
 		}
@@ -217,7 +251,7 @@ func (c *cellTr) hasCellCall(t *Term) bool {
 
 func (c *cellTr) mentionsCells(t *Term) bool {
 	for _, x := range c.xs {
-		if mentionsName(t, x) {
+		if mentionsName(t, c.userOf(x)) {
 			return true
 		}
 	}
@@ -243,7 +277,7 @@ func containsCellScope(t *Term) bool {
 	if t == nil {
 		return false
 	}
-	if isCellScope(t) {
+	if isCellScope(t) || isBorrowScope(t) {
 		return true
 	}
 	for _, k := range t.Kids {
@@ -293,6 +327,9 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	}
 	switch t.Kind {
 	case KName:
+		if c.places[t.Name] {
+			return c.tup(Name(c.in(t.Name))), nil // the place's state, under its threaded name
+		}
 		return c.tup(t), nil
 	case KFn:
 		// A TUPLE IS A VALUE, (tuple a b) reading as (fn (#k) (#k a b)): its
@@ -322,12 +359,21 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if err := noShadow(body, y); err != nil {
 			return nil, err
 		}
+		if headIs(t, PlaceName) {
+			if err := c.checkPlace(body, y, false); err != nil {
+				return nil, err
+			}
+		}
 		te, err := c.stLoop(args[0], inLoop, carried)
 		if err != nil {
 			return nil, err
 		}
+		if headIs(t, PlaceName) {
+			c.places[y] = true
+		}
+		iy := c.in(y)
 		outer := append([]string(nil), c.xs...)
-		c.xs = append(c.xs, y)
+		c.xs = append(c.xs, iy)
 		tb, err := c.stLoop(body, false, nil) // an `again` cannot leave a scope
 		c.xs = outer
 		if err != nil {
@@ -335,9 +381,48 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		}
 		// (v, x₁ … xₖ, y) ↦ (v, x₁ … xₖ)
 		r := c.fresh()
-		project := App(tb, Fn(append(append([]string{r}, outer...), y), c.tup(Name(r))))
+		project := App(tb, Fn(append(append([]string{r}, outer...), iy), c.tup(Name(r))))
 		s := c.fresh()
-		return c.bind(te, s, App(Fn([]string{y}, project), Name(s))), nil
+		return c.bind(te, s, App(Fn([]string{iy}, project), Name(s))), nil
+	}
+
+	// A BORROW SCOPE: (#borrow p… (fn (p…) body)), a λ's body whose parameters
+	// are places. Its value is their last versions, then the body's, a unit
+	// body dropped (spec/local.md §2.1).
+	if isBorrowScope(t) {
+		lam := args[len(args)-1]
+		ps := lam.Params
+		body := lam.Body()
+		ips := make([]string, len(ps))
+		for i, p := range ps {
+			if err := noShadow(body, p); err != nil {
+				return nil, err
+			}
+			if err := c.checkPlace(body, p, true); err != nil {
+				return nil, err
+			}
+			c.places[p] = true
+			ips[i] = c.in(p)
+		}
+		unit := unitBody(body, c.borrows)
+		outer := append([]string(nil), c.xs...)
+		c.xs = append(c.xs, ips...)
+		tb, err := c.stLoop(body, false, nil)
+		c.xs = outer
+		if err != nil {
+			return nil, err
+		}
+		// (v, x₁ … xₖ, p…) ↦ ((p…, v), x₁ … xₖ)
+		r := c.fresh()
+		val := make([]*Term, 0, len(ps)+1)
+		for _, p := range ips {
+			val = append(val, Name(p))
+		}
+		if !unit {
+			val = append(val, Name(r))
+		}
+		project := App(tb, Fn(append(append([]string{r}, outer...), ips...), c.tup(tupleTerm(val))))
+		return App(Fn(ips, project), args[:len(args)-1]...), nil
 	}
 
 	// A TUPLE APPLIED TO A λ runs it once, now: ((fn (#k) (#k a b)) (fn (p q)
@@ -349,20 +434,40 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	}
 
 	// (set x e): the cell's value becomes e's, and the write's value is ().
-	if headIs(t, "set") && len(args) >= 1 && args[0].Kind == KName && c.isCell(args[0].Name) {
+	if headIs(t, "set") && len(args) >= 1 && args[0].Kind == KName && c.isCell(args[0].Name) &&
+		!(len(args) == 3 && c.places[args[0].Name]) {
 		x := args[0].Name
 		if len(args) != 2 {
 			return nil, fmt.Errorf("%s is a cell, written (set %s v); (set b i v) stores into a "+
 				"buffer, which a table initializer makes (spec/local.md §1)", x, x)
+		}
+		// AN ELEMENT WRITE puts the store in its place's slot of the state, a
+		// tuple's component, evaluated where the tuple is taken apart: the
+		// binder that receives it is the place's own (VersionPrefix), and β puts
+		// it where it is used once, first (reduce.go, firstUse), with no binding
+		// of its own to reduce.
+		if v := args[1]; c.places[x] && headIs(v, "set") && len(v.Kids) == 4 {
+			return c.thread(v.Kids[1:], inLoop, carried, true, func(vs []*Term) *Term {
+				after := c.state()
+				for i, n := range c.xs {
+					if n == c.in(x) {
+						after[i] = App(Name("set"), vs...)
+					}
+				}
+				return tupOf(Unit(), after)
+			})
 		}
 		te, err := c.stLoop(args[1], inLoop, carried)
 		if err != nil {
 			return nil, err
 		}
 		s := c.fresh()
+		if c.places[x] {
+			s = c.freshVersion() // a buffer's new version (reduce.go, firstUse)
+		}
 		after := c.state()
 		for i, n := range c.xs {
-			if n == x {
+			if n == c.in(x) {
 				after[i] = Name(s)
 			}
 		}
@@ -372,24 +477,66 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	// The jump back carries the loop's cells.
 	if inLoop && isAgain(t) {
 		return c.thread(args, inLoop, carried, false, func(vs []*Term) *Term {
+			state := make([]*Term, 0, len(carried)+len(vs))
 			for _, x := range carried {
-				vs = append(vs, Name(x))
+				state = append(state, Name(x))
 			}
-			return App(op, vs...)
+			return App(op, append(state, vs...)...)
 		})
 	}
 
 	// (if c a b): the condition, then each branch from the state after it.
 	if headIs(t, "if") && len(args) == 3 {
-		tc, err := c.stLoop(args[0], inLoop, carried)
-		if err != nil {
-			return nil, err
-		}
 		ta, err := c.stLoop(args[1], inLoop, carried)
 		if err != nil {
 			return nil, err
 		}
 		tb, err := c.stLoop(args[2], inLoop, carried)
+		if err != nil {
+			return nil, err
+		}
+		// A STATEMENT IF THAT WRITES ONE STATE BINDER is a φ on its value:
+		// x := if c then π_x(S⟦a⟧) else π_x(S⟦b⟧). Each branch runs once, in its
+		// own component, so no effect is duplicated, and the rest of the block
+		// stays after the join instead of being copied into both branches, as
+		// the reducer's case-of-case would copy a continuation eliminating a
+		// tuple. SSA's φ (Appel 1998); today's programs write it as a value,
+		// `(again (if c (nl out) out) …)` (storeorder-2026-10-15).
+		if x, ok := c.phi(args[1], args[2], inLoop); ok {
+			proj := func(tt *Term) *Term {
+				r := c.fresh()
+				return App(tt, Fn(append([]string{r}, c.xs...), Name(x)))
+			}
+			s := c.fresh()
+			if c.places[c.userOf(x)] {
+				s = c.freshVersion()
+			}
+			after := c.state()
+			for i, n := range c.xs {
+				if n == x {
+					after[i] = Name(s)
+				}
+			}
+			join := func(cond *Term) *Term {
+				return App(Fn([]string{s}, tupOf(Unit(), after)), App(Name("if"), cond, proj(ta), proj(tb)))
+			}
+			if !c.mentions(args[0], inLoop) {
+				return join(args[0]), nil
+			}
+			tc, err := c.stLoop(args[0], inLoop, carried)
+			if err != nil {
+				return nil, err
+			}
+			k := c.fresh()
+			return c.bind(tc, k, join(Name(k))), nil
+		}
+		// A CONDITION THAT TOUCHES NO STATE is evaluated where it stands: it is
+		// first in the if, so nothing is reordered, and binding it would leave a
+		// let β keeps when it reads a table and a branch has effects.
+		if !c.mentions(args[0], inLoop) {
+			return App(Name("if"), args[0], ta, tb), nil
+		}
+		tc, err := c.stLoop(args[0], inLoop, carried)
 		if err != nil {
 			return nil, err
 		}
@@ -401,9 +548,14 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 	// variables; the others keep their values across it.
 	if headIs(t, "loop") && len(args) >= 1 && args[0].Kind == KFn {
 		lam := args[0]
+		// A LOOP CARRIES WHAT IT WRITES, FIRST, in binding order (spec/local.md
+		// §2.1): what it only reads is free in it, since a variable every back
+		// edge passes unchanged is invariant, and a product's order is its
+		// symmetry. The order is the corpus's, measured: 49 of the 53 loops that
+		// thread a buffer by hand put it first.
 		var touched []string
 		for _, x := range c.xs {
-			if mentionsName(lam, x) {
+			if c.writes(lam, c.userOf(x)) {
 				touched = append(touched, x)
 			}
 		}
@@ -411,12 +563,13 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
-		params := append(append([]string(nil), lam.Params...), touched...)
+		params := append(append([]string(nil), touched...), lam.Params...)
 		return c.thread(args[1:], inLoop, carried, true, func(vs []*Term) *Term {
+			inits := make([]*Term, 0, len(touched)+len(vs))
 			for _, x := range touched {
-				vs = append(vs, Name(x))
+				inits = append(inits, Name(x))
 			}
-			return App(Name("loop"), append([]*Term{Fn(params, chain)}, vs...)...)
+			return App(Name("loop"), append([]*Term{Fn(params, chain)}, append(inits, vs...)...)...)
 		})
 	}
 
@@ -444,9 +597,31 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 		if err != nil {
 			return nil, err
 		}
+		// ONE BINDER takes its value under its own name, the program's, not a
+		// fresh one β would have to substitute back: where β keeps the binding
+		// (a value used twice), the facts the analyses derive are about the
+		// program's name (freq's `s = d - 1`, storeorder-2026-10-15).
+		if len(op.Params) == 1 && args[0].Kind != KFn {
+			ta, err := c.stLoop(args[0], inLoop, carried)
+			if err != nil {
+				return nil, err
+			}
+			return c.bind(ta, op.Params[0], body), nil
+		}
 		return c.thread(args, inLoop, carried, true, func(vs []*Term) *Term {
 			return App(Fn(op.Params, body), vs...)
 		})
+	}
+
+	// A BORROW (spec/local.md §2.1): a call that lends places, eliminated or as
+	// a statement or a value.
+	if len(args) == 1 && args[0].Kind == KFn {
+		if d, ok := c.borrowCall(op); ok {
+			return c.translateBorrow(op, d, args[0], inLoop, carried)
+		}
+	}
+	if d, ok := c.borrowCall(t); ok {
+		return c.translateBorrow(t, d, nil, inLoop, carried)
 	}
 
 	// A HOST WRITING A CELL (spec/local.md §5): a call of a declaration with
@@ -529,9 +704,25 @@ func (c *cellTr) stLoop(t *Term, inLoop bool, carried []string) (*Term, error) {
 func (c *cellTr) thread(ts []*Term, inLoop bool, carried []string, pair bool, k func([]*Term) *Term) (*Term, error) {
 	vs := make([]*Term, len(ts))
 	var steps []func(*Term) *Term
+	// AN ARGUMENT THAT WRITES NO STATE leaves the state as it was, so its value
+	// is itself with each place named by its threaded name, evaluated where it
+	// stands. That keeps the order of evaluation when no argument after it
+	// writes, so every argument past the last that writes stays in place
+	// unbound: a binding β cannot undo (a table read into a body with effects)
+	// would otherwise remain, and a φ argument of a jump become two jumps.
+	last := -1
+	for i, a := range ts {
+		if a.Kind != KFn && !c.readsOnly(a, inLoop) {
+			last = i
+		}
+	}
 	for i, a := range ts {
 		if a.Kind == KFn {
 			vs[i] = a
+			continue
+		}
+		if i > last {
+			vs[i] = c.renamePlaces(a)
 			continue
 		}
 		ta, err := c.stLoop(a, inLoop, carried)
@@ -550,6 +741,67 @@ func (c *cellTr) thread(ts []*Term, inLoop bool, carried []string, pair bool, k 
 		out = steps[i](out)
 	}
 	return out, nil
+}
+
+// readsOnly reports a term that writes no state: no write, borrow or host
+// writing a cell of a binder in scope, no scope of its own, and, in a loop that
+// carries state, no jump.
+func (c *cellTr) readsOnly(t *Term, inLoop bool) bool {
+	if containsCellScope(t) || c.hasCellCall(t) || (inLoop && hasOwnAgain(t)) {
+		return false
+	}
+	// A REFERENCE HAS IDENTITY: the host is handed (#ref c) and the cell read
+	// back through the same reference, so it is bound, never left in place to be
+	// made twice (spec/local.md §5).
+	if containsHead(t, RefName) || containsHead(t, FreshName) {
+		return false
+	}
+	for _, x := range c.xs {
+		if c.writes(t, c.userOf(x)) {
+			return false
+		}
+	}
+	return true
+}
+
+// containsHead reports an application of the name h in t.
+func containsHead(t *Term, h string) bool {
+	if t == nil {
+		return false
+	}
+	if headIs(t, h) {
+		return true
+	}
+	for _, k := range t.Kids {
+		if containsHead(k, h) {
+			return true
+		}
+	}
+	return false
+}
+
+// renamePlaces is t with each place in scope named by its threaded name.
+func (c *cellTr) renamePlaces(t *Term) *Term {
+	if t == nil {
+		return nil
+	}
+	switch t.Kind {
+	case KName:
+		if c.places[t.Name] {
+			return Name(c.in(t.Name))
+		}
+		return t
+	case KFn:
+		return Fn(t.Params, c.renamePlaces(t.Body()))
+	}
+	if len(t.Kids) == 0 {
+		return t
+	}
+	kids := make([]*Term, len(t.Kids))
+	for i, k := range t.Kids {
+		kids[i] = c.renamePlaces(k)
+	}
+	return &Term{Kind: t.Kind, Kids: kids}
 }
 
 // eliminates reports whether (op lam) runs lam once, now: a case arm, or an

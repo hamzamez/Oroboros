@@ -26,6 +26,23 @@ const LocalName = "local"
 // identifier, so no program writes one.
 const CellName = "#cell"
 
+// PlaceName heads a buffer's scope in program order until the loader
+// translates it away (ADR 0052, spec/local.md §2.1): `(#place b (fn (b) body))`
+// inside build's region, a state binder b holding the region's table. It is a
+// cell whose value is a table, written element by element.
+const PlaceName = "#place"
+
+// BorrowName heads a λ's body whose parameters are places, `(#borrow p…
+// (fn (p…) body))`: the buffers a caller lends, written in program order, the
+// λ's value the buffers' last versions first, then the body's (local.md §2.1).
+const BorrowName = "#borrow"
+
+// localPlace is a program-order buffer's binder: build's region for the
+// initializer, as localBinder makes it, with the region's binder a place.
+func localPlace(x string, e, body *Term) *Term {
+	return localBinder(x, e, App(Name(PlaceName), Name(x), Fn([]string{x}, body)))
+}
+
 // zeroSort reports a literal that is the zero of one sort, and the sort:
 // `false` of bool, positive `0.0` of f64.
 func zeroSort(f *Term) (string, bool) {

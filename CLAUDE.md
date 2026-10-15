@@ -91,7 +91,8 @@ everything in them is built** (hamza, 2026-10-10: "we do not want to lose what w
   notation so far writes usage as membership (`(buffer V)`, `(cell T)`), where it should be a mode on
   the binder (QTT, Ada's `in out`). Today's notation has eight binder shapes for three kinds.
 - **[storeorder-research.md](docs/storeorder-research.md), decided by
-  [ADR 0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), not built.** Program-order stores,
+  [ADR 0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md), built behind the J gate
+  ([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md)).** Program-order stores,
   `b[i] := v`, against today's threaded buffers, researched before the surface takes either. The two are
   one semantics: the state-passing translation maps a place onto a linear functional array, and its
   image is the single-threaded programs (Schmidt 1985; Array SSA). Program order removes 55 loop
@@ -162,8 +163,16 @@ is built** ([jread-2026-10-15](gauntlet/results/jread-2026-10-15.md), `j/lex.go`
 `j/readtarget.go`): all 152 programs read back to today's D-image and all 43 target files and fragments
 to today's forms, each check failing under a planted fault; with `ORO_VIA_J=1` the drivers read entry
 sources through J, and `cmd/check` is byte-identical (560 runs) with the differential suite passing.
-Next: step 4, ADRs 0052–0066 built one at a time behind the gate, program-order stores first; then step 5,
-the corpus switched to J and the target loader with it.
+**Step 4 has begun: ADR 0052 is built behind the gate**
+([storeorder-2026-10-15](gauntlet/results/storeorder-2026-10-15.md), spec/local.md §2.1, `core/place.go`,
+`j/unthread.go`): J writes every buffer in program order, `var b := array {…}`, `b[i] := v`, `fn f(b linear)`;
+the translator unthreads today's corpus (U), and S, the state translation with one new clause, the
+borrow, gives today's residual on every program through J but two (a version today's jsonfmt names, a
+name in kara/core's refusal), with every module read through J; R0–R4 decided on each place's scope,
+each with a planted fault. Building it found three gaps, **G5–G7 for hamza** (spec/j.md): a concurrent
+assignment for the merge sorts' swapping buffers, which ADR 0052's R0 refuses; the record store
+`dt[s][1] := v`; one rule for every borrow, growth a statement. Next: hamza's G5–G7, then ADR 0058 (map
+buffers), then the rest of 0053–0066; then step 5, the corpus switched to J and the target loader with it.
 
 **The compiler.**
 - A β/δ reducer with call-by-need and an effect discipline.
@@ -610,7 +619,7 @@ rejected alternatives.
 | Types are sets and the logic that reasons about the computation never prints; ρ from proven sets the one bridge; the decided fragment the ceiling of automation; own complete procedures; extension by definitions and proven lemmas only; types are static values | [0049](docs/decisions/0049-types-are-sets-and-the-logic-never-prints.md) |
 | The abstract syntax is the initial algebra of the semantics: usage a mode on a binder; one definition carrying its claims; sets formed explicitly; pairs, one guarded choice; indexing marked; meanings are homomorphisms, claims inert by construction; the surface open | [0050](docs/decisions/0050-the-abstract-syntax-fits-the-semantics.md) |
 | A definition is a named λ, which carries its claims: a set per binder with φ and ψ, meaning the sets P and R; the result one binder whose pattern may be a tuple; program declarations before target files; a λ applied by hand is no binding for a jump | [0051](docs/decisions/0051-a-definition-is-a-named-lambda.md) |
-| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — not built | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
+| A buffer is a state binder holding a table, written in program order (`b[i] := v`, `b := f(b, …)`); R0–R4 (a fresh value, then syntactic control of interference) replace the ordering check; a borrowed buffer parameter is by reference; the write-borrow wrapper stays — built behind the J gate; G5–G7 proposed | [0052](docs/decisions/0052-a-buffer-is-a-state-binder-holding-a-table.md) |
 | The arrow is a claim used as a set, on a host's callback parameter or as a named claim: Π(P).R with markers, not a set former of the type algebra; a returned host function is a host type with application — not built | [0053](docs/decisions/0053-the-arrow-is-a-claim-on-a-host-parameter.md) |
 | `let` and `local` are one scope whose binders state their kind (a monoid action of binder words); a definitional name may be rebound, a state name once per region; the head is `let` — not built | [0054](docs/decisions/0054-let-and-local-are-one-scope.md) |
 | A loop's variables are bound by application, not assigned: one iteration is a `let`, so its binders are definitional (`=`, `==`) and `again` is an application — not built | [0055](docs/decisions/0055-a-loop-variable-is-bound-by-application.md) |
@@ -1187,9 +1196,9 @@ go run ./cmd/gen -ir dot.ir -name native examples/native/dot-go.oro go dot.go   
 
 | | |
 |---|---|
-| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene |
+| `core/` | Reader; abstract Oroboros's trees (`abs`), μ from today's notation (`mu`, and `decl` for declarations) and D into the core term (`desugar`); terms, β/δ reducer, module loading, variants, hygiene; the state translation S for cells and, in program order, buffers (`cell`, `place`: the borrow, R0–R4) |
 | `ir/` | The IR (ADR 0032, spec/ir.md): Σ, lowering, typing, the verifier, the canonical printer and reader, IR_A → IR_P (`final`, `interval`, `restrict`); the decision (`decide`, `trip`, `sct`, `require`), the representation choices (`words`, `big`, `bigreuse`, `limbs`, `shift`), and the drivers' pipeline (`pipeline`, `ir.Entry`); `ir/plan` is what every printer shares; `ir/golang`, `ir/js`, `ir/java` and `ir/x86` are the four backends |
-| `j/` | J, the surface (spec/j.md, ADR 0068): the document algebra (Wadler's prettier printer), σ_J, print_J over abstract.md's trees, the translator from today's notation for programs (`file`, `data`: indexing decided from evidence) and for target files and fragments (`target`); the reader, `lex`, `parse` (programs into abstract.md's trees) and `readtarget` (target files into today's raw forms); `via`, the `ORO_VIA_J` gate in `cmd/gen` and `cmd/build`; `cmd/toj` prints one file |
+| `j/` | J, the surface (spec/j.md, ADR 0068): the document algebra (Wadler's prettier printer), σ_J, print_J over abstract.md's trees, the translator from today's notation for programs (`file`, `data`: indexing decided from evidence) and for target files and fragments (`target`); the reader, `lex`, `parse` (programs into abstract.md's trees) and `readtarget` (target files into today's raw forms); `unthread`, U, today's threaded buffers in program order (ADR 0052); `via`, the `ORO_VIA_J` gate in `cmd/gen`, `cmd/build` and `cmd/oro`, every module read through J; `cmd/toj` prints one file |
 | `presburger/` | The Omega test (Pugh 1991): satisfiability of linear constraints over ℤ, complete, overflow and budget reported as unknown; ADR 0049's first own decision procedure, a soundness witness for the refinement layer's entailment today (presburger-2026-10-11) |
 | `emit/` | What the printers share (`host`: mangles, file wrappers, assembly templates and literals), type checker, refinement layer (`refine`, `linear`, `fact`, `content`, `component`, `monotone`), contracts (`requires`), target loader (`target`, `companion`, `alias`, `constend`; a declaration's tree, `hostdef`), linearity, the rung above the word's plan and the limb library as a theory (`bigrep`, `biglimb`, `limbfunc`, `bignum.oro`), products, operation names (`opnames`) |
 | `targets/` | Target declarations: **data, not Go**. `go/`, `js/`, `java/` and `windows/` are host-native directories; `blas` and the three `tutorial*` targets parameterise the normal form (the tutorials go with the book). The portable layer was deleted in portable-2026-09-29 |

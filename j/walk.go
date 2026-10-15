@@ -85,6 +85,11 @@ func visit(t core.Tail, f func(core.Expr)) {
 		case *core.Monad:
 			exprs(e.Items)
 			expr(e.Body)
+		case *core.Write:
+			exprs(e.Values)
+			for _, pl := range e.Places {
+				exprs(pl.At)
+			}
 		}
 	}
 	tail = func(t core.Tail) {
@@ -167,6 +172,16 @@ func rename(t core.Tail, m map[string]string) core.Tail {
 		return &core.Seq{Xs: res(t.Xs)}
 	case *core.Again:
 		return &core.Again{Args: res(t.Args)}
+	case *core.Write:
+		places := make([]core.Place, len(t.Places))
+		for i, pl := range t.Places {
+			name := pl.Name
+			if n, ok := m[name]; ok {
+				name = n
+			}
+			places[i] = core.Place{Name: name, At: res(pl.At)}
+		}
+		return &core.Write{Places: places, Values: res(t.Values)}
 	case *core.Let:
 		binds, inner := renameBinds(t.Binds, m)
 		return &core.Let{Binds: binds, Body: renameExpr(t.Body, inner)}

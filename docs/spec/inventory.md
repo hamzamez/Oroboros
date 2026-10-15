@@ -181,6 +181,7 @@ From `emit/target.go`, `emit/fact.go` and `emit/constend.go`. The whole grammar 
 | `pure` | specified | [effects.md](effects.md) |
 | `variadic` | specified — the host function takes a list as its last parameter, f : X × T* → B: the parameter a table, the template spreading it (`%s...`); a call's trailing arguments are the list | [variadic.md](variadic.md) |
 | `cells` | specified — the loader's form for a declaration's cell parameters, `(cells ARITY LIST i…)`, handed from the target as `variadic` is | [local.md](local.md) §5 |
+| `borrows` | specified — the loader's form for a declaration that borrows a buffer, `(borrows RESULTS i…)`: its `(buffer V)` parameters, handed back first, and its result's other components, handed from the target as `cells` is | [local.md](local.md) §2.1 |
 | `index` | specified | [target-files.md](target-files.md) |
 | `import` | specified | [target-files.md](target-files.md) |
 | `lib` | specified | [target-files.md](target-files.md) |

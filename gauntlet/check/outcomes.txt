@@ -249,12 +249,12 @@
 == examples/int/sum-range.oro windows refused
    gen: examples/int/sum-range.oro: in sum-range: go.>= is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go) matched no file on the search path and this target provides no module go either, so every name from it is unbound. Check the path.
-== examples/io/count.oro go emitted a1cca3067a63ce30ec1cda14fff644906148b8f138ffa56aacdc1d81c82a55c4
-   note: gen-main: 16 of 16 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro js emitted 5619c20bc3e34113eb9837f9956a72ea56c60e56e3ecdb5fa36b4e6bd7ce7fb1
-   note: gen-main: 16 of 16 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/io/count.oro java emitted cdf697357ede0fb225f61c250057fac521d6163e6575846616328ae2e2099538
-   note: gen-main: 16 of 16 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/io/count.oro go emitted 9aae883a2be392d57a35d025aea6b1376324fb661eb88844a72d4d72fccf82be
+   note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/io/count.oro js emitted c1c36148c2acd9ae323c7d4dd557d4186c0cf0f489380185b6a3347cfc9c07cd
+   note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/io/count.oro java emitted 2c2cc7972a69f1779c93939c58f7ae8dd75ff1e083a1021d9bd2eb90c15a528c
+   note: gen-main: 11 of 11 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/io/count.oro windows refused
    gen: examples/io/count.oro: in main: io.print-line is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use io) matched no file on the search path and this target provides no module io either, so every name from it is unbound. Check the path.
@@ -356,8 +356,8 @@
 == examples/kara/workspace.oro windows emitted c00ae60b2f657f131ac8361f968fcbdf69d13d472b941e42b747f449b5cf66d3
    note: gen-mac-fresh: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
    note: gen-mac-into: 2 of 2 integer operations bounded; 1 of 1 loop(s) proven terminating
-== examples/lines/ages.oro go emitted caf6744daab009f50b55bcc07c97658ad7f2482e898a7554a8699208669ce2f2
-   note: gen-main: 16 of 16 integer operations bounded; 1 of 1 loop(s) proven terminating
+== examples/lines/ages.oro go emitted ea3f68f44633e73cb9360428946dd875734cdd435d1b1525ba19cd73669f9077
+   note: gen-main: 12 of 12 integer operations bounded; 1 of 1 loop(s) proven terminating
 == examples/lines/ages.oro js refused
    gen: examples/lines/ages.oro: in main: go/os.Exit is not bound — it is not a parameter, not a definition, and not a primitive on this target
      (use go/os) matched no file on the search path and this target provides no module go/os either, so every name from it is unbound. Check the path.

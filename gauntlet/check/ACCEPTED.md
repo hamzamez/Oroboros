@@ -1288,3 +1288,20 @@ The compile-time baseline RE-RECORDED (-retime), the minimum of two sweeps — c
 - new source — `examples/os/du.oro java`
 - new source — `examples/os/du.oro js`
 - new source — `examples/os/du.oro windows`
+
+## 2026-10-15 — on 22623d8, with uncommitted changes
+
+**Reason:** State in program order (ADR 0052, spec/local.md §2.1), applied to cells as to buffers: a loop carries the state it writes, first, in binding order (49 of the 53 hand-threaded loops' order, gauntlet/surface/stores.go), and a statement if writing one state binder is a φ on its value. examples/io/count.oro and examples/lines/ages.oro, the two cell programs, are the same programs with their cells first and one join where duplicated branches were: 19 fewer operations, the same 45 unproven, compile time 0.98x; differential and cmd/build's ages run pass (storeorder-2026-10-15)
+
+560 runs: 301 emitted, 259 refused; 2039 of 2084 integer operations bounded, 352 of 371 loops proven. compiler pass, differential pass, tooling skip.
+
+8 change(s):
+
+- emitted text changed — `examples/io/count.oro go`
+- compiler output changed — `examples/io/count.oro go`
+- emitted text changed — `examples/io/count.oro java`
+- compiler output changed — `examples/io/count.oro java`
+- emitted text changed — `examples/io/count.oro js`
+- compiler output changed — `examples/io/count.oro js`
+- emitted text changed — `examples/lines/ages.oro go`
+- compiler output changed — `examples/lines/ages.oro go`

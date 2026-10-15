@@ -173,6 +173,13 @@ func (u *UsageEnv) Of(x string, t Tail, outer bool) Usage {
 			return ended
 		}
 		return u.sum(x, t.Args, outer)
+	case *Write:
+		// Every value, then each place's indices: the order D evaluates them.
+		s := u.sum(x, t.Values, outer)
+		for _, p := range t.Places {
+			s = s.Plus(u.sum(x, p.At, outer))
+		}
+		return s
 	}
 	return unused
 }

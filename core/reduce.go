@@ -80,6 +80,9 @@ type Env struct {
 	// Word is the target's word (ADR 0026): constant folding stays inside it,
 	// because that is where the target's run time computes the same integer.
 	Word Word
+	// initHole says the value firstUse places may go in a loop's initializer:
+	// it holds no loop (reduce.go, headUse).
+	initHole bool
 
 	// fresh numbers the binders the n-ary let conversion introduces. Per Env,
 	// so a compile is deterministic.
@@ -493,6 +496,11 @@ func qualify(path, name string) string {
 // entry file or from disk.
 type Resolver func(path string) (src string, found bool, err error)
 
+// ReadLibrary reads the source of an imported module, by its path. A driver
+// may replace it to read every module of a program through another rendering:
+// the ORO_VIA_J gate reads each through J (jread-2026-10-15, storeorder-2026-10-15).
+var ReadLibrary = func(src, path string) ([]Form, error) { return Read(src) }
+
 // Load reads one source with no file resolution — every module it uses must be
 // declared in the same text, or provided by the target.
 func Load(forms []Form) (*Program, []*Term, error) { return LoadWith(forms, nil) }
@@ -580,7 +588,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 				unresolved = append(unresolved, want)
 				continue // provided by the target, not by a library
 			}
-			sub, err := Read(src)
+			sub, err := ReadLibrary(src, want)
 			if err != nil {
 				return fmt.Errorf("%s: %w", want, err)
 			}
@@ -649,6 +657,7 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// call resolves to (spec/variadic.md §3): the target's `variadic` forms.
 	variadic := map[string]int{}
 	cells := map[string]CellDecl{}
+	borrows := map[string]BorrowDecl{}
 	for len(dt) > 0 {
 		byPath := map[string]*Module{}
 		for _, m := range mods {
@@ -712,6 +721,12 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 						return nil, nil, fmt.Errorf("%s: %w", qualify(path, f.Name), err)
 					}
 					cells[qualify(path, f.Name)] = d
+				case "borrows":
+					d, err := readBorrowDecl(f.Term)
+					if err != nil {
+						return nil, nil, fmt.Errorf("%s: %w", qualify(path, f.Name), err)
+					}
+					borrows[qualify(path, f.Name)] = d
 				default:
 					return nil, nil, fmt.Errorf("a target's (provides … %s …) may hold (use …) and "+
 						"(def …); got a %s", path, f.Kind)
@@ -927,15 +942,32 @@ func loadWith(forms []Form, resolve Resolver, dt TargetDefs) (*Program, []*Term,
 	// (core/cell.go, spec/local.md §3, §5); before the variadic rewrite, which
 	// then gathers a call's references into its list like any arguments.
 	p.Cells = cells
+	// BORROWS (spec/local.md §2.1): the target's declarations, and every
+	// definition whose body is a borrow scope. Whether a body is a unit depends
+	// on its callees', so the definitions' are a least fixpoint: a body starts
+	// with a result and loses it once every tail is known to be a unit.
+	for changed := true; changed; {
+		changed = false
+		for _, q := range p.Order {
+			d, ok := BorrowsOf(p.Defs[q], borrows)
+			if !ok {
+				continue
+			}
+			if old, seen := borrows[q]; !seen || old.Results != d.Results {
+				borrows[q] = d
+				changed = true
+			}
+		}
+	}
 	for _, q := range p.Order {
-		t, err := translateCells(p.Defs[q], cells)
+		t, err := translateCells(p.Defs[q], cells, borrows)
 		if err != nil {
 			return nil, nil, fmt.Errorf("%s: %w", q, err)
 		}
 		p.Defs[q] = t
 	}
 	for i, t := range terms {
-		out, err := translateCells(t, cells)
+		out, err := translateCells(t, cells, borrows)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -2040,10 +2072,25 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		// below, which was missed.
 		if isLetApp(op, e) && allPure(args, e) {
 			lam := op.Kids[2]
-			inner := lam.OpenWith([]*Term{Name("#c")})
+			// THE BINDER KEEPS ITS NAME unless that would capture a free name of
+			// what moves under it: hygiene asks no more, and the analyses key a
+			// binding's facts on its name, so a program's `c` renamed `#c` lost
+			// them and freq's digit count was summarised six times over
+			// (storeorder-2026-10-15). A version keeps its mark (VersionPrefix).
+			c := lam.Params[0]
+			for _, a := range args {
+				if occurrences(a, c) > 0 {
+					c = "#c"
+					if strings.HasPrefix(lam.Params[0], VersionPrefix) {
+						c = VersionPrefix + "c"
+					}
+					break
+				}
+			}
+			inner := lam.OpenWith([]*Term{Name(c)})
 			app := append([]*Term{inner}, args...)
 			out := &Term{Kind: KApp, Kids: []*Term{op.Kids[0], op.Kids[1],
-				Fn([]string{"#c"}, &Term{Kind: KApp, Kids: app})}}
+				Fn([]string{c}, &Term{Kind: KApp, Kids: app})}}
 			return normalize(out, e, fuel)
 		}
 
@@ -2092,21 +2139,35 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 		if isResidualLet(op, args, e) {
 			return e.reduceLet(op, args, fuel)
 		}
-		// A PROJECTION OF A LOOP: ((loop F z…) (fn (x₁ … xₙ) xⱼ)) ⟶ the loop
-		// with πⱼ at each exit. A loop's value is its taken exit's, so
-		// πⱼ ∘ loop = loop with πⱼ at its exits. Only a projection moves: its
-		// body is a variable, so it holds no `again` the loop would capture
-		// and no code the loop would repeat; any other eliminator stays where
-		// it is, ADR 0031's join point. A cell's translation projects its state
-		// off a loop this way, and the loop then yields its value alone
-		// (spec/local.md §4).
+		// A SELECTION OF A LOOP: ((loop F z…) (fn (x₁ … xₙ) σ)), σ a variable xⱼ
+		// or a tuple of the λ's own variables, ⟶ the loop with σ at each exit.
+		// A loop's value is its taken exit's, so σ ∘ loop = loop with σ at its
+		// exits. Only a selection moves: its body is variables, so it holds no
+		// `again` the loop would capture and no code the loop would repeat; any
+		// other eliminator stays where it is, ADR 0031's join point. A state
+		// scope's translation selects its own state off a loop this way: the
+		// outermost keeps the value (πⱼ), an inner one drops its binders and
+		// keeps the outer state (spec/local.md §2.1, §4).
 		if len(args) == 1 && isLoopTerm(op, e) {
-			if j, n, ok := projection(args[0]); ok {
-				if body, ok := e.projectTails(op.Kids[1].Closed(), j, n); ok {
+			if sel, n, ok := selection(args[0]); ok {
+				if body, ok := e.selectTails(op.Kids[1].Closed(), sel, n); ok {
 					lam := op.Kids[1]
 					loop := &Term{Kind: KApp, Kids: append([]*Term{op.Kids[0],
 						{Kind: KFn, Params: lam.Params, Kids: []*Term{body}}}, op.Kids[2:]...)}
 					return normalize(loop, e, fuel)
+				}
+			}
+		}
+		// A SELECTION OF A REGION, ((build n F) σ) ⟶ build with σ at its body's
+		// tails: a region's value is its body's, with its buffer frozen, which
+		// a selection does not touch. A buffer's scope inside an outer state
+		// scope yields the outer state with its value, and this takes it off.
+		if len(args) == 1 && op.Kind == KApp && len(op.Kids) == 3 && op.Kids[0].Kind == KName &&
+			(op.Kids[0].Name == "build" || op.Kids[0].Name == "build-map") && e.Prim[op.Kids[0].Name] &&
+			op.Kids[2].Kind == KFn {
+			if sel, n, ok := selection(args[0]); ok {
+				if moved, ok := e.selectTails(op, sel, n); ok {
+					return normalize(moved, e, fuel)
 				}
 			}
 		}
@@ -2204,6 +2265,25 @@ func normalizeStep(t *Term, e *Env, fuel *int) (*Term, error) {
 						val  *Term
 					}{nm, na})
 					subs[i] = Name(nm)
+					continue
+				}
+				// A VERSION USED ONCE, FIRST: let x = e in E[x] is E[e] when E
+				// evaluates its hole first and unconditionally, with nothing
+				// impure before it, Moggi's let-β for a linear use in evaluation
+				// position. It neither contracts, weakens nor exchanges, so it
+				// holds of an impure e too (ADR 0010), and a table read moves
+				// across no store. It is applied to the versions the state
+				// translation binds as it threads a buffer, a store's or a
+				// borrow's (spec/local.md §2.1), named VersionPrefix: a program's
+				// own binding of an impure value keeps its name, which is what the
+				// analyses key a postcondition and an exit's bound on
+				// (storeorder-2026-10-15 §3).
+				if strings.HasPrefix(p, VersionPrefix) && boundOccurrences(op.Closed(), 0, i) == 1 &&
+					e.firstUse(op.Closed(), 0, i, args[i]) {
+					if err := relevant(i, args[i]); err != nil {
+						return nil, err
+					}
+					subs[i] = args[i]
 					continue
 				}
 				if !e.pureTerm(args[i], map[string]bool{}) {
@@ -2499,6 +2579,118 @@ func duplicable(t *Term) bool {
 		return true
 	}
 	return false
+}
+
+// VersionPrefix begins the name of a version the state translation binds
+// (core/cell.go): a store's new table, or a borrow's handed-back buffer.
+const VersionPrefix = "#v"
+
+// firstUse reports whether the bound variable (depth, index) of t is the first
+// thing t evaluates, unconditionally: reached through an application's
+// operator and arguments in order, a let's value, a loop's initializers or an
+// if's condition, with only pure terms evaluated before it, and not under a λ, a
+// loop's body or a branch.
+func (e *Env) firstUse(t *Term, depth, index int, value *Term) bool {
+	e.initHole = !containsLoop(value)
+	found, _ := e.headUse(t, depth, index)
+	return found
+}
+
+// containsLoop reports a loop in t.
+func containsLoop(t *Term) bool {
+	if t == nil {
+		return false
+	}
+	if t.Kind == KApp && len(t.Kids) > 0 && t.Kids[0].Kind == KName && t.Kids[0].Name == "loop" {
+		return true
+	}
+	for _, k := range t.Kids {
+		if containsLoop(k) {
+			return true
+		}
+	}
+	return false
+}
+
+// headUse walks t in evaluation order: found when it reaches the variable,
+// stop when it reaches an effect, a branch or a body first.
+func (e *Env) headUse(t *Term, depth, index int) (found, stop bool) {
+	switch t.Kind {
+	case KBound:
+		if t.Depth == depth && t.Index == index {
+			return true, true
+		}
+		return false, false
+	case KName, KInt, KFloat, KStr, KBool:
+		return false, false
+	case KFn:
+		// A value: its body runs where it is applied, later or never.
+		return false, boundOccurrences(t, depth, index) > 0
+	}
+	if len(t.Kids) == 0 {
+		return false, false
+	}
+	op := t.Kids[0]
+	args := t.Kids[1:]
+	seq := func(ts ...*Term) (bool, bool) {
+		for _, k := range ts {
+			if f, s := e.headUse(k, depth, index); f || s {
+				return f, true
+			}
+			if !e.pureTerm(k, map[string]bool{}) {
+				return false, true
+			}
+		}
+		return false, false
+	}
+	if op.Kind == KName {
+		switch {
+		case op.Name == "if" && len(args) == 3:
+			if f, _ := seq(args[0]); f {
+				return true, true
+			}
+			return false, true
+		case op.Name == "loop" && len(args) >= 1:
+			// A LOOP'S INITIALIZER is a hole for a value that holds no loop: a
+			// store chain there is what the content facts induct on (array-
+			// facts.md), and a loop there would be analysed again for every
+			// candidate invariant Houdini checks against the initializer
+			// (freq compiled 1.5× slower; storeorder-2026-10-15 §3).
+			if !e.initHole {
+				return false, true
+			}
+			if f, s := seq(args[1:]...); f || s {
+				return f, true
+			}
+			return false, true
+		case op.Name == "let" && len(args) == 2 && args[1].Kind == KFn:
+			if f, s := seq(args[0]); f || s {
+				return f, true
+			}
+			return e.headUse(args[1].Kids[0], depth+1, index)
+		}
+		return seq(args...)
+	}
+	if op.Kind == KFn && len(op.Params) == len(args) {
+		// A β-redex: its arguments, then its body.
+		if f, s := seq(args...); f || s {
+			return f, true
+		}
+		return e.headUse(op.Kids[0], depth+1, index)
+	}
+	if len(args) == 1 && args[0].Kind == KFn && op.Kind == KApp {
+		// An elimination: the eliminated term, then the continuation.
+		if f, s := seq(op); f || s {
+			return f, true
+		}
+		return e.headUse(args[0].Kids[0], depth+1, index)
+	}
+	// AN OPERATOR IS NO HOLE: a table read and a call keep a variable there,
+	// and lowering takes no other application as an operator.
+	if op.Kind == KBound && op.Depth == depth && op.Index == index {
+		return false, true
+	}
+	return seq(t.Kids...)
 }
 
 // boundOccurrences counts uses of ONE bound variable, saturating at 2. No
@@ -2916,6 +3108,11 @@ func (e *Env) reduceLet(op *Term, args []*Term, fuel *int) (*Term, error) {
 	if duplicable(v) && !IsRequire(v) && !IsRequireWhere(v) {
 		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
 	}
+	// A VERSION USED ONCE, FIRST: β's own rule (normalize).
+	if b := args[1].Closed(); strings.HasPrefix(args[1].Params[0], VersionPrefix) &&
+		boundOccurrences(b, 0, 0) == 1 && e.firstUse(b, 0, 0, v) && !IsRequire(v) && !IsRequireWhere(v) {
+		return normalize(args[1].OpenWith([]*Term{v}), e, fuel)
+	}
 	k, err := normalize(args[1], e, fuel)
 	if err != nil {
 		return nil, err
@@ -3092,6 +3289,33 @@ func projection(f *Term) (j, n int, ok bool) {
 	return 0, 0, false
 }
 
+// selection reports a λ over an n-tuple whose body selects components: one
+// variable, πⱼ, or a tuple of its own variables, (fn (#k) (#k xᵢ …)). It returns
+// the components' indices in order, a projection's alone.
+func selection(f *Term) (sel []int, n int, ok bool) {
+	if j, n, ok := projection(f); ok {
+		return []int{j}, n, true
+	}
+	if f.Kind != KFn || len(f.Params) < 2 {
+		return nil, 0, false
+	}
+	b := f.Closed()
+	if b.Kind != KFn || len(b.Params) != 1 || !IsTupleBinder(b.Params[0]) {
+		return nil, 0, false
+	}
+	t := b.Closed()
+	if t.Kind != KApp || len(t.Kids) < 3 || t.Kids[0].Kind != KBound || t.Kids[0].Depth != 0 || t.Kids[0].Index != 0 {
+		return nil, 0, false
+	}
+	for _, k := range t.Kids[1:] {
+		if k.Kind != KBound || k.Depth != 1 {
+			return nil, 0, false
+		}
+		sel = append(sel, k.Index)
+	}
+	return sel, len(f.Params), true
+}
+
 func isLoopTerm(t *Term, e *Env) bool {
 	return t.Kind == KApp && len(t.Kids) >= 2 && t.Kids[0].Kind == KName &&
 		t.Kids[0].Name == "loop" && e.Prim["loop"] && t.Kids[1].Kind == KFn
@@ -3103,6 +3327,12 @@ func isLoopTerm(t *Term, e *Env) bool {
 // component is a term of the tuple's own scope. Any other tail answers no, and
 // the projection stays outside.
 func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
+	return e.selectTails(t, []int{j}, n)
+}
+
+// selectTails is projectTails for a selection: each n-tuple tail becomes its
+// selected component, or the tuple of its selected components.
+func (e *Env) selectTails(t *Term, sel []int, n int) (*Term, bool) {
 	with := func(i int, k *Term) *Term {
 		kids := append([]*Term(nil), t.Kids...)
 		kids[i] = k
@@ -3110,7 +3340,7 @@ func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
 	}
 	under := func(i int) (*Term, bool) { // t.Kids[i] is a λ whose body holds tails
 		lam := t.Kids[i]
-		b, ok := e.projectTails(lam.Closed(), j, n)
+		b, ok := e.selectTails(lam.Closed(), sel, n)
 		if !ok {
 			return nil, false
 		}
@@ -3122,7 +3352,15 @@ func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
 			b.Kids[0].Depth == 0 && b.Kids[0].Index == 0 {
 			// the component lives under the tuple's binder #k, which it does
 			// not mention: opening drops that binder
-			return t.OpenWith([]*Term{Name("#k")}).Kids[j+1], true
+			comps := t.OpenWith([]*Term{Name("#k")}).Kids[1:]
+			if len(sel) == 1 {
+				return comps[sel[0]], true
+			}
+			picked := make([]*Term, len(sel))
+			for i, j := range sel {
+				picked[i] = comps[j]
+			}
+			return Fn([]string{"#k"}, App(Name("#k"), picked...)), true
 		}
 		return nil, false
 	}
@@ -3143,7 +3381,7 @@ func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
 	case op.Name == "abandon" && e.Prim["abandon"] && len(t.Kids) == 2:
 		return t, true // π(abandon w) = abandon w: a crash absorbs a strict context
 	case op.Name == RequireWhereName && len(t.Kids) == 4:
-		k, ok := e.projectTails(t.Kids[3], j, n)
+		k, ok := e.selectTails(t.Kids[3], sel, n)
 		if !ok {
 			return nil, false
 		}
@@ -3151,8 +3389,8 @@ func (e *Env) projectTails(t *Term, j, n int) (*Term, bool) {
 	case !e.Prim[op.Name]:
 		return nil, false
 	case op.Name == "if" && len(t.Kids) == 4:
-		a, oka := e.projectTails(t.Kids[2], j, n)
-		b, okb := e.projectTails(t.Kids[3], j, n)
+		a, oka := e.selectTails(t.Kids[2], sel, n)
+		b, okb := e.selectTails(t.Kids[3], sel, n)
 		if !oka || !okb {
 			return nil, false
 		}

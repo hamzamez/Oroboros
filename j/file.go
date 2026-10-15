@@ -70,11 +70,69 @@ func Translate(src, dir, root string) (*Result, error) {
 		return res, fmt.Errorf("σ_J spells %s and %s alike (spec/j.md J8)", res.Collisions[0][0], res.Collisions[0][1])
 	}
 	library := modules == 1 && isModuleFirst(c.Decls)
+	// PROGRAM ORDER (ADR 0052): today's threaded buffers become places, and each
+	// rewritten node takes its original's span, so its comments go with it.
+	origin, err := unthread(c.Decls, borrowsOf(c.Decls, dir, root))
+	if err != nil {
+		return nil, err
+	}
+	for n, o := range origin {
+		if sp, ok := p.spans[o]; ok {
+			if _, own := p.spans[n]; !own {
+				p.spans[n] = sp
+			}
+		}
+	}
 	p.analyze(c.Decls)
 	doc := p.file(c.Decls, library)
 	res.J = Render(doc, Width) + "\n"
 	res.Uncertain, res.UncertainNames = p.Uncertain, p.UncertainNames
 	return res, nil
+}
+
+// borrowsOf is what the callees a file can call borrow, by the names its calls
+// write: a host's declaration as alias.member, an imported module's
+// definition likewise (spec/local.md §2.1).
+func borrowsOf(ds []core.Decl, dir, root string) map[string]core.BorrowDecl {
+	host := hostBorrows(root)
+	out := map[string]core.BorrowDecl{}
+	for _, d := range ds {
+		u, ok := d.(*core.UseDecl)
+		if !ok {
+			continue
+		}
+		alias := u.As
+		if alias == "" {
+			alias = u.Path[strings.LastIndex(u.Path, "/")+1:]
+		}
+		for k, v := range host {
+			if rest, ok := strings.CutPrefix(k, u.Path+"."); ok && !strings.Contains(rest, ".") {
+				out[alias+"."+rest] = v
+			}
+		}
+		for _, file := range []string{filepath.Join(root, "lib", u.Path+".oro"), filepath.Join(dir, filepath.Base(u.Path)+".oro")} {
+			if _, err := os.Stat(file); err == nil {
+				for k, v := range moduleBorrows(file, nil) {
+					out[alias+"."+k] = v
+				}
+				break
+			}
+		}
+	}
+	return out
+}
+
+// Unthreaded is a source's declaration trees in program order, U of today's
+// (unthread.go): what print_J prints, and what J's reader must give back.
+func Unthreaded(src, dir, root string) ([]core.Decl, error) {
+	ds, err := core.ReadTrees(src)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := unthread(ds, borrowsOf(ds, dir, root)); err != nil {
+		return nil, err
+	}
+	return ds, nil
 }
 
 func isModuleFirst(ds []core.Decl) bool {
@@ -240,17 +298,27 @@ func (p *printer) def(d *core.DefDecl) *Doc {
 		return Cat(Text(Spell(d.Name)+" = "), p.expr(d.Value))
 	}
 	p.data, p.fns = p.evidence(d.Name, lam)
-	head := Cat(Text("fn "+Spell(d.Name)), p.header(lam.Params, lam.Claim))
+	head := Cat(Text("fn "+Spell(d.Name)), p.header(lam.Params, lam.Claim, lam.Borrows))
 	return Cat(head, Text(" "), p.body(lam.Body))
 }
 
 // header prints parameters with their sets and modes, the result, `where` and
 // `ensure` (spec/j.md §2.4; ADR 0062).
-func (p *printer) header(params []string, c *core.Claim) *Doc {
+func (p *printer) header(params []string, c *core.Claim, borrows []string) *Doc {
+	borrowed := map[string]bool{}
+	for _, b := range borrows {
+		borrowed[b] = true
+	}
 	var ps []*Doc
 	for i, n := range params {
 		p.locals[n] = true
 		if c == nil || i >= len(c.Params) {
+			if borrowed[n] {
+				// A BORROWED PARAMETER, a place in the body (ADR 0052 item 3).
+				p.data[n] = true
+				ps = append(ps, Text(Spell(n)+" linear"))
+				continue
+			}
 			ps = append(ps, Text(Spell(n)))
 			continue
 		}
@@ -327,7 +395,7 @@ func (p *printer) claimOnly(d *core.ClaimDecl) *Doc {
 			names[i] = fmt.Sprintf("x%d", i+1)
 		}
 	}
-	return Cat(Text("fn "+Spell(d.Name)), p.header(names, d.Claim))
+	return Cat(Text("fn "+Spell(d.Name)), p.header(names, d.Claim, nil))
 }
 
 // variant prints a variant as a set definition, a union of tagged sets with its

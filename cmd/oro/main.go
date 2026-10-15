@@ -16,6 +16,7 @@ import (
 
 	"oroboros/core"
 	"oroboros/emit"
+	"oroboros/j"
 )
 
 func main() {
@@ -46,6 +47,11 @@ func run(targetDir, src, target string, fuel int, steps bool, path string) error
 		return err
 	}
 	forms, err := core.Read(string(text))
+	if os.Getenv("ORO_VIA_J") != "" {
+		// J's reading of the program, as cmd/gen's gate (jread-2026-10-15).
+		forms, err = j.ViaJ(string(text), src)
+		j.ViaJLibraries(libDirs(src, path))
+	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)
 	}

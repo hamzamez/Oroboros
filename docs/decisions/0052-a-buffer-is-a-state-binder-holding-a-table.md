@@ -10,6 +10,15 @@ initializer rule and [spec/abstract.md](../spec/abstract.md) §2.2 and §2.4, un
 option (a), `linear` written at 26 binders. **Extended to maps by
 [ADR 0058](0058-a-map-buffer-is-a-state-binder-holding-a-map.md)** (not built).
 
+**Built 2026-10-15** behind the `ORO_VIA_J` gate ([storeorder-2026-10-15](../../gauntlet/results/storeorder-2026-10-15.md),
+spec/local.md §2.1): J writes every buffer in program order, and S of it is today's residual on the
+corpus. Building it measured two errors here: the 4 renames in alloc-copies are no refusals (each renames
+a dead version, which is the place), and R0 as written refuses 3 programs it should not, the merge
+sorts' two buffers swapping places each pass. Three gaps follow, G5–G7 in spec/j.md, proposed and
+awaiting hamza: a concurrent assignment `a, b := b, a` for the swap (R0's moves, a permutation of
+places), the record store `dt[s][1] := v`, and one borrow rule, under which growth is the statement
+`strconv.AppendInt(b, k, 10)` rather than this ADR's `b := f(b, …)`.
+
 ## Context
 
 Today a buffer is a value threaded linearly. A store `(set b i v)` returns the buffer, and loop

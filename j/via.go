@@ -30,6 +30,21 @@ func ViaJ(text, src string) ([]core.Form, error) {
 	return core.FormsOf(decls)
 }
 
+// ViaJLibraries makes the loader read every imported module through J too,
+// found on the driver's search path as the driver's resolver finds it, so that
+// the gate covers a program's libraries and not its entry file alone.
+func ViaJLibraries(dirs []string) {
+	core.ReadLibrary = func(src, path string) ([]core.Form, error) {
+		for _, d := range dirs {
+			file := filepath.Join(d, filepath.FromSlash(path)+".oro")
+			if _, err := os.Stat(file); err == nil {
+				return ViaJ(src, file)
+			}
+		}
+		return core.Read(src)
+	}
+}
+
 // ModuleOf is a library file's module path, its one `(module P)` standing first,
 // which J does not write (ADR 0064 item 1); "" for an entry file.
 func ModuleOf(src string) string {

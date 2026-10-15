@@ -101,6 +101,7 @@ func run(targetDir, src, target, out, name, path string, checked bool, bigRepr s
 		// J's reading of the program (spec/j.md; jread-2026-10-15): the gate
 		// that compiling from J changes nothing.
 		forms, err = j.ViaJ(string(text), src)
+		j.ViaJLibraries(libDirs(src, path))
 	}
 	if err != nil {
 		return fmt.Errorf("%s: %w", src, err)

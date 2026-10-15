@@ -51,6 +51,11 @@ type Lam struct {
 	Params []string
 	Body   Expr
 	Claim  *Claim
+	// Borrows are the parameters that are places in the body (ADR 0052 item 3,
+	// spec/local.md §2.1): a buffer the caller lends for the call, written in
+	// program order. The λ's value is then these buffers first, then the body's.
+	// Only a rendering in program order builds one; today's notation threads.
+	Borrows []string
 }
 
 // Claim is what a λ claims (ADR 0051, D2): each parameter's set, the result's
@@ -167,12 +172,32 @@ type Local struct {
 	Body  Expr
 }
 
-// LocalBind is one binder of a local. A buffer is a definitional binder with the
-// linear mode (abstract.md §2.2), a cell a state binder.
+// LocalBind is one binder of a local. In today's notation a buffer is a
+// definitional binder with the linear mode (abstract.md §2.2), threaded, and a
+// cell a state binder. In program order (ADR 0052, spec/local.md §2.1) a buffer
+// is a state binder whose value is a table, a Place, written by Write.
 type LocalBind struct {
 	Name   string
 	Init   Expr
 	Buffer bool
+	Place  bool
+}
+
+// Write is assignment to state, in program order (abstract.md §2.4's assign;
+// ADR 0047, ADR 0052): each place takes the value in the same position, every
+// value evaluated in the state before any is written, Dijkstra's concurrent
+// assignment when there are several. One place with no index is a cell's write
+// or a buffer's whole value.
+type Write struct {
+	Places []Place
+	Values []Expr
+}
+
+// Place is what a write assigns: a state binder, an element of a buffer
+// `b[i]`, or a component of a record of a table of tuples `b[i][j]`.
+type Place struct {
+	Name string
+	At   []Expr
 }
 
 // BuildMap is a scoped map buffer, `(build-map m cap … body)`: local state whose
@@ -278,6 +303,7 @@ func (*Not) tailSort()       {}
 func (*Cond) tailSort()      {}
 func (*Seq) tailSort()       {}
 func (*Monad) tailSort()     {}
+func (*Write) tailSort()     {}
 func (*Again) tailSort()     {}
 func (*TLet) tailSort()      {}
 func (*TSeq) tailSort()      {}
@@ -302,6 +328,7 @@ func (*Not) exprSort()       {}
 func (*Cond) exprSort()      {}
 func (*Seq) exprSort()       {}
 func (*Monad) exprSort()     {}
+func (*Write) exprSort()     {}
 
 func (*PVar) patSort()   {}
 func (*PWild) patSort()  {}

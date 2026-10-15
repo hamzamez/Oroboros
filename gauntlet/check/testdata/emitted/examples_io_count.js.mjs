@@ -15,64 +15,49 @@ export function genMain() {
 		}
 		let v27 = 0;
 		let v28 = 0;
-		let v29 = 0;
-		let v30 = false;
+		let v29 = false;
+		let v30 = 0;
 		let v26;
-		for (;; v27 = (v27 + 1)) {
-			if ((v27 >= v11.length)) {
+		for (;; v30 = (v30 + 1)) {
+			if ((v30 >= v11.length)) {
+				console.log(v27);
 				console.log(v28);
-				console.log(v29);
 				const v37 = v11.length;
 				console.log(v37);
 				v26 = v37;
 				break;
 			}
-			const v41 = v11[v27];
+			const v41 = v11[v30];
 			if ((v41 === 10)) {
-				if ((v28 < 16777216)) {
-					const v49 = (v28 + 1);
-					if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
-						v28 = v49;
-						v30 = false;
-						continue;
-					}
-					if (v30) {
-						v28 = v49;
-						continue;
-					}
-					if ((v29 < 16777216)) {
-						v28 = v49;
-						v29 = (v29 + 1);
-						v30 = true;
-						continue;
-					}
-					v28 = v49;
-					continue;
-				}
+				const v47 = ((v27 < 16777216) ? (v27 + 1) : v27);
 				if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
-					v30 = false;
+					v27 = v47;
+					v29 = false;
 					continue;
 				}
-				if (v30) {
+				if (v29) {
+					v27 = v47;
 					continue;
 				}
-				if ((v29 < 16777216)) {
-					v29 = (v29 + 1);
-					v30 = true;
+				if ((v28 < 16777216)) {
+					v27 = v47;
+					v28 = (v28 + 1);
+					v29 = true;
 					continue;
 				}
+				v27 = v47;
 				continue;
 			}
 			if (((v41 === 32) || ((v41 >= 9) && (v41 <= 13)))) {
-				v30 = false;
+				v29 = false;
 				continue;
 			}
-			if (v30) {
+			if (v29) {
 				continue;
 			}
-			if ((v29 < 16777216)) {
-				v29 = (v29 + 1);
-				v30 = true;
+			if ((v28 < 16777216)) {
+				v28 = (v28 + 1);
+				v29 = true;
 				continue;
 			}
 			continue;

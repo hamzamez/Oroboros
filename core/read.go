@@ -163,6 +163,15 @@ type reader struct {
 	elems map[Tail][]*Term
 	stray map[Expr]bool
 	d     *desugarer
+
+	// THE CONCRETE TREE (abstract.md §9.1), kept only when asked for
+	// (ReadConcrete, concrete.go): each datum's source span, each top-level
+	// datum in order, and each comment, a gap, with its position. An ordinary
+	// read records none of it.
+	concrete bool
+	spans    map[*Term]Span
+	top      []*Term
+	gaps     []Gap
 }
 
 func newReader(src string, raw bool) *reader {
@@ -198,7 +207,10 @@ func Read(src string) ([]Form, error) {
 // makes each claim its definition's and has D give the forms back in the order
 // written, which must be the same forms (Theorem D3, abstract.md §6.1).
 func readModule(src string) (*reader, []Decl, []Form, error) {
-	r := newReader(src, false)
+	return readModuleWith(newReader(src, false))
+}
+
+func readModuleWith(r *reader) (*reader, []Decl, []Form, error) {
 	var decls []Decl
 	var read []Form
 	for i := 0; ; i++ {
@@ -217,6 +229,9 @@ func readModule(src string) (*reader, []Decl, []Form, error) {
 		d, err := r.muDecl(t, f, i)
 		if err != nil {
 			return nil, nil, nil, err
+		}
+		if r.concrete {
+			r.top = append(r.top, t)
 		}
 		decls = append(decls, d)
 		read = append(read, f)
@@ -341,8 +356,12 @@ func (r *reader) skipSpace() {
 		c := r.peek()
 		switch {
 		case c == ';':
+			start, line := r.pos, r.line
 			for !r.done() && r.peek() != '\n' {
 				r.next()
+			}
+			if r.concrete {
+				r.gap(start, line)
 			}
 		case unicode.IsSpace(c):
 			r.next()
@@ -357,6 +376,19 @@ func (r *reader) term() (*Term, error) {
 	if r.done() {
 		return nil, fmt.Errorf("line %d: unexpected end of input", r.line)
 	}
+	if !r.concrete {
+		return r.datum()
+	}
+	start := r.pos
+	t, err := r.datum()
+	if err == nil {
+		r.spans[t] = Span{start, r.pos}
+	}
+	return t, err
+}
+
+// datum reads one datum, the reader positioned at its first character.
+func (r *reader) datum() (*Term, error) {
 	if r.peek() == '"' {
 		return r.str()
 	}
